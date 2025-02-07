@@ -278,6 +278,50 @@ static void image_transform_set(TransInfo *t)
   }
 }
 
+static float2 calculate_translation_offset(TransInfo *t, TransDataSeq *tdseq)
+{
+  Strip *strip = tdseq->strip;
+  StripTransform *transform = strip->data->transform;
+
+  /* During modal operation, transform->*ofs is adjusted. Reset this value to original state, so
+   * that new offset can be calculated. */
+  transform->xofs = tdseq->orig_translation[0];
+  transform->yofs = tdseq->orig_translation[1];
+
+  const float2 viewport_pixel_aspect = {t->scene->r.xasp / t->scene->r.yasp, 1.0f};
+  float2 mirror;
+  SEQ_image_transform_mirror_factor_get(strip, mirror);
+
+  std::array<float2, 4> quad_new = SEQ_image_transform_final_quad_get(t->scene, strip);
+  return (quad_new[0] - tdseq->quad_orig[0]) * mirror / viewport_pixel_aspect;
+}
+
+static float2 calculate_new_origin_position(TransInfo *t, TransDataSeq *tdseq, TransData2D *td2d)
+{
+  Strip *strip = tdseq->strip;
+
+  float3 image_size(float(t->scene->r.xsch), float(t->scene->r.ysch), 0.0f);
+  if (ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_IMAGE)) {
+    image_size.x = strip->data->stripdata->orig_width;
+    image_size.y = strip->data->stripdata->orig_height;
+  }
+
+  const float3 viewport_pixel_aspect = {t->scene->r.xasp / t->scene->r.yasp, 1.0f, 1.0f};
+  float2 mirror;
+  SEQ_image_transform_mirror_factor_get(strip, mirror);
+
+  const float3 origin = {tdseq->orig_origin_position[0], tdseq->orig_origin_position[1], 0.0f};
+  const float3 translation = transform_translation_get(t, tdseq, td2d, strip);
+  const float3 origin_pixelspace_unscaled = {(origin.x / viewport_pixel_aspect.x) * mirror.x,
+                                             (origin.y / viewport_pixel_aspect.y) * mirror.y,
+                                             0.0f};
+  const float3 origin_translated = origin_pixelspace_unscaled - translation;
+  const float3 origin_raw_space = math::transform_point(tdseq->orig_matrix, origin_translated);
+  const float3 origin_abs = origin_raw_space + (image_size / 2);
+  const float2 origin_rel = {origin_abs.x / image_size.x, origin_abs.y / image_size.y};
+  return origin_rel;
+}
+
 static void image_origin_set(TransInfo *t)
 {
   TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
@@ -288,42 +332,14 @@ static void image_origin_set(TransInfo *t)
   for (i = 0, td = tc->data, td2d = tc->data_2d; i < tc->data_len; i += 3, td += 3, td2d += 3) {
     TransDataSeq *tdseq = static_cast<TransDataSeq *>(td->extra);
     Strip *strip = tdseq->strip;
-
-    float3 image_size(float(t->scene->r.xsch), float(t->scene->r.ysch), 0.0f);
-    if (ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_IMAGE)) {
-      image_size.x = strip->data->stripdata->orig_width;
-      image_size.y = strip->data->stripdata->orig_height;
-    }
-
-    const float3 viewport_pixel_aspect = {t->scene->r.xasp / t->scene->r.yasp, 1.0f, 1.0f};
-    float2 mirror;
-    SEQ_image_transform_mirror_factor_get(strip, mirror);
-
-    const float3 origin = {tdseq->orig_origin_position[0], tdseq->orig_origin_position[1], 0.0f};
-    const float3 translation = transform_translation_get(t, tdseq, td2d, strip);
-    const float3 origin_pixelspace_unscaled = {(origin.x / viewport_pixel_aspect.x) * mirror.x,
-                                               (origin.y / viewport_pixel_aspect.y) * mirror.y,
-                                               0.0f};
-    const float3 origin_translated = origin_pixelspace_unscaled - translation;
-    const float3 origin_raw_space = math::transform_point(tdseq->orig_matrix, origin_translated);
-    const float3 origin_abs = origin_raw_space + (image_size / 2);
-    const float2 origin_rel = {origin_abs.x / image_size.x, origin_abs.y / image_size.y};
-
     StripTransform *transform = strip->data->transform;
+
+    const float2 origin_rel = calculate_new_origin_position(t, tdseq, td2d);
     transform->origin[0] = origin_rel.x;
     transform->origin[1] = origin_rel.y;
 
-    std::array<float2, 4> quad_new;
-
-    /* Pretend that strip has never moved. */
-    // XXX very much not nice!!! Ideally I guess, I would need a way to calculate quad
-    // from matrix or backup StripTransform.
-    transform->xofs = tdseq->orig_translation[0];
-    transform->yofs = tdseq->orig_translation[1];
-    quad_new = SEQ_image_transform_final_quad_get(t->scene, strip);
-
-    // Wellp that doesn't work lol.
-    float2 delta_translation = quad_new[0] - tdseq->quad_orig[0];
+    /* Calculate offset, so image does not change it's position in preview. */
+    float2 delta_translation = calculate_translation_offset(t, tdseq);
     transform->xofs = tdseq->orig_translation[0] - delta_translation.x;
     transform->yofs = tdseq->orig_translation[1] - delta_translation.y;
 
@@ -355,7 +371,13 @@ static void special_aftertrans_update__sequencer_image(bContext * /*C*/, TransIn
     StripTransform *transform = strip->data->transform;
     if (t->state == TRANS_CANCEL) {
       if (t->mode == TFM_ROTATION) {
+        transform->xofs = tdseq->orig_translation[0];
+        transform->yofs = tdseq->orig_translation[1];
         transform->rotation = tdseq->orig_rotation;
+        transform->scale_x = tdseq->orig_scale[0];
+        transform->scale_y = tdseq->orig_scale[1];
+        transform->origin[0] = tdseq->orig_origin_position[0];
+        transform->origin[1] = tdseq->orig_origin_position[1];
       }
       continue;
     }
