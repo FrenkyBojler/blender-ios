@@ -24,7 +24,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Geometry>("Profile Curve")
       .only_realized_data()
       .supported_type(GeometryComponent::Type::Curve);
-  b.add_input<decl::Float>("Scale").min(0.0f).default_value(1.0f).supports_field().description(
+  b.add_input<decl::Float>("Scale").default_value(1.0f).supports_field().description(
       "Scale of the profile at each point");
   b.add_input<decl::Bool>("Fill Caps")
       .description(
