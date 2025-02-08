@@ -687,7 +687,13 @@ Bounds<float3> SEQ_image_transform_bounding_box_from_collection(Scene *scene,
   for (Strip *strip : strips) {
     Array<float3> quad = SEQ_image_transform_quad_get(scene, strip, apply_rotation);
     Bounds<float3> strip_box = *blender::bounds::min_max(quad.as_span());
-    box = blender::bounds::merge(box, strip_box);
+
+    if (box.is_empty()) {
+      box = strip_box;
+    }
+    else {
+      box = blender::bounds::merge(box, strip_box);
+    }
   }
 
   return box;
