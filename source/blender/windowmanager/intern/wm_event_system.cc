@@ -1721,6 +1721,20 @@ static int wm_operator_invoke(bContext *C,
       WM_operator_free(op);
     }
   }
+  else {
+    bool error_msg_free = false;
+    const char *error_msg = CTX_wm_operator_poll_msg_get(C, &error_msg_free);
+    if (error_msg) {
+      wmWindowManager *wm = CTX_wm_manager(C);
+      wmOperator *op = wm_operator_create(wm, ot, properties, reports);
+      BKE_report(op->reports, RPT_WARNING, error_msg);
+      wm_operator_reports(C, op, retval, (reports != nullptr));
+      WM_operator_free(op);
+      if (error_msg_free) {
+        MEM_freeN((void *)error_msg);
+      }
+    }
+  }
 
   return retval;
 }

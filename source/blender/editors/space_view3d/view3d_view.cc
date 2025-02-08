@@ -102,6 +102,7 @@ static bool view3d_camera_to_view_poll(bContext *C)
     }
   }
 
+  CTX_wm_operator_poll_msg_set(C, "No Camera available to align to view");
   return false;
 }
 
