@@ -748,7 +748,7 @@ struct Resources : public select::SelectMap {
       return theme_settings.color_wire;
     }
     else if (state.v3d->shading.wire_color_type == V3D_SHADING_OBJECT_COLOR &&
-             (ob_ref.object->base_flag & BASE_SELECTED) == 0 && ob_ref.object->dt == OB_WIRE)
+             (ob_ref.object->base_flag & BASE_SELECTED) == 0)
     {
       return float4(ob_ref.object->color);
     }

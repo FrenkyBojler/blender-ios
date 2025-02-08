@@ -5150,6 +5150,7 @@ static void rna_def_space_view3d(BlenderRNA *brna)
       {OB_CUBE, "CUBE", 0, "Cube", ""},
       {OB_EMPTY_SPHERE, "SPHERE", 0, "Sphere", ""},
       {OB_EMPTY_CONE, "CONE", 0, "Cone", ""},
+      {OB_EMPTY_CUSTOM_SHAPE, "CUSTOM_SHAPE", 0, "Custom Shape", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
