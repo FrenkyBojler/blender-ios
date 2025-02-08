@@ -14,9 +14,11 @@ set(INC_SYS
 set(SRC
   intern/abstract_kd_bucket_hierarchy.cc
   intern/add_curves_on_mesh.cc
+  intern/bounding_sphere.cc
   intern/curve_constraints.cc
   intern/extend_curves.cc
   intern/extract_elements.cc
+  intern/fast_multipole_method.cc
   intern/fillet_curves.cc
   intern/interpolate_curves.cc
   intern/join_geometries.cc
@@ -56,9 +58,11 @@ set(SRC
 
   GEO_abstract_kd_bucket_hierarchy.hh
   GEO_add_curves_on_mesh.hh
+  GEO_bounding_sphere.hh
   GEO_curve_constraints.hh
   GEO_extend_curves.hh
   GEO_extract_elements.hh
+  GEO_fast_multipole_method.hh
   GEO_fillet_curves.hh
   GEO_interpolate_curves.hh
   GEO_join_geometries.hh

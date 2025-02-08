@@ -68,9 +68,7 @@ inline void for_each_to_bottom(const OffsetIndices<int> buckets_offsets,
             func(buckets_offsets[joint_buckets], joints_range[joint_i], depth_i);
           }
         },
-        threading::accumulated_task_sizes([&](const IndexRange joints_range) {
-          return joint_size_at_depth(total_depth, depth_i) * joints_range.size();
-        }));
+        threading::detail::TaskSizeHints_Static(joint_size_at_depth(total_depth, depth_i)));
   }
 }
 
@@ -97,9 +95,7 @@ inline void for_each_to_top(const OffsetIndices<int> buckets_offsets,
             func(buckets_offsets[joint_buckets], joints_range[joint_i], sub_joints, depth_i);
           }
         },
-        threading::accumulated_task_sizes([&](const IndexRange joints_range) {
-          return joint_size_at_depth(total_depth, depth_i) * joints_range.size();
-        }));
+        threading::detail::TaskSizeHints_Static(joint_size_at_depth(total_depth, depth_i)));
   }
 }
 
@@ -115,7 +111,8 @@ inline void for_each_leaf(const OffsetIndices<int> buckets_offsets,
         for (const int joint_i : range) {
           leaf_func(buckets_offsets[joint_i], int(joints_range[joint_i]), total_depth - 1);
         }
-      });
+      },
+      threading::detail::TaskSizeHints_Static(min_bucket_size));
 }
 
 void from_positions(Span<float3> positions,
