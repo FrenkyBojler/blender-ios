@@ -25,6 +25,7 @@ class MultiFunction;
 }
 class GField;
 }  // namespace blender::fn
+
 namespace blender::bke {
 
 enum class AttrDomain : int8_t {
