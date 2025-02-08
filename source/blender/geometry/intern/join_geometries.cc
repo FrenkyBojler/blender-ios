@@ -47,14 +47,14 @@ void join_attributes(const Span<bke::AttributeAccessor> attribute_accessors,
           for (const int i : range) {
             const bke::GAttributeReader src_attribute = attribute_accessors[i].lookup(
                 attribute_id, src_domain, data_type);
+            GMutableSpan dst_range = dst_attribute.span.slice(src_offsets[i]);
             if (!src_attribute) {
-              GMutableSpan dst_range = dst_attribute.span.slice(src_offsets[i]);
               const CPPType &type = dst_range.type();
               type.fill_assign_n(type.default_value(), dst_range.data(), dst_range.size());
               continue;
             }
 
-            array_utils::copy(src_attribute.varray, dst_attribute.span.slice(src_offsets[i]));
+            array_utils::copy(src_attribute.varray, dst_range);
           }
         },
         threading::accumulated_task_sizes(
