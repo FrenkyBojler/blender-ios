@@ -255,7 +255,7 @@ static bool gizmo2d_calc_bounds(const bContext *C, float *r_center, float *r_min
     int selected_strips = strips.size();
     if (selected_strips > 0) {
       has_select = true;
-      Bounds<float3> box = SEQ_image_transform_bounding_box_from_collection(
+      const Bounds<float3> box = SEQ_image_transform_bounding_box_from_collection(
           scene, strips, selected_strips != 1);
       copy_v2_v2(r_min, box.min);
       copy_v2_v2(r_max, box.max);
@@ -272,7 +272,7 @@ static bool gizmo2d_calc_bounds(const bContext *C, float *r_center, float *r_min
       const int pivot_point = scene->toolsettings->sequencer_tool_settings->pivot_point;
       if (pivot_point == V3D_AROUND_CURSOR) {
         SpaceSeq *sseq = static_cast<SpaceSeq *>(area->spacedata.first);
-        float3 cursor_pixel = SEQ_image_preview_unit_to_px(scene, sseq->cursor);
+        const float3 cursor_pixel = SEQ_image_preview_unit_to_px(scene, sseq->cursor);
         copy_v2_v2(r_center, cursor_pixel);
       }
       else {
@@ -335,7 +335,7 @@ static float gizmo2d_calc_rotation(const bContext *C)
     /* Only return the strip rotation if only one is selected. */
     for (Strip *strip : strips) {
       StripTransform *transform = strip->data->transform;
-      blender::float3 mirror = SEQ_image_transform_mirror_factor_get(strip);
+      const blender::float3 mirror = SEQ_image_transform_mirror_factor_get(strip);
       return transform->rotation * mirror[0] * mirror[1];
     }
   }
@@ -357,7 +357,8 @@ static bool seq_get_strip_pivot_median(const Scene *scene, float r_pivot[2])
 
   if (has_select) {
     for (Strip *strip : strips) {
-      blender::float3 origin = SEQ_image_transform_origin_offset_pixelspace_get(scene, strip);
+      const blender::float3 origin = SEQ_image_transform_origin_offset_pixelspace_get(scene,
+                                                                                      strip);
       add_v2_v2(r_pivot, origin);
     }
     mul_v2_fl(r_pivot, 1.0f / strips.size());
@@ -382,7 +383,7 @@ static bool gizmo2d_calc_transform_pivot(const bContext *C, float r_pivot[2])
     const int pivot_point = scene->toolsettings->sequencer_tool_settings->pivot_point;
 
     if (pivot_point == V3D_AROUND_CURSOR) {
-      float3 cursor_pixel = SEQ_image_preview_unit_to_px(scene, sseq->cursor);
+      const float3 cursor_pixel = SEQ_image_preview_unit_to_px(scene, sseq->cursor);
       copy_v2_v2(r_pivot, cursor_pixel);
 
       Editing *ed = SEQ_editing_get(scene);

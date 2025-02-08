@@ -179,7 +179,8 @@ static bool seq_snap_source_points_build_preview(const Scene *scene,
     }
 
     /* Add origins last */
-    blender::float3 image_origin = SEQ_image_transform_origin_offset_pixelspace_get(scene, strip);
+    const blender::float3 image_origin = SEQ_image_transform_origin_offset_pixelspace_get(scene,
+                                                                                          strip);
     snap_data->source_snap_points[i] = image_origin;
     i++;
 
@@ -455,8 +456,8 @@ static bool seq_snap_target_points_build_preview(const Scene *scene,
         i++;
       }
 
-      blender::float3 image_origin = SEQ_image_transform_origin_offset_pixelspace_get(scene,
-                                                                                      strip);
+      const blender::float3 image_origin = SEQ_image_transform_origin_offset_pixelspace_get(scene,
+                                                                                            strip);
       snap_data->target_snap_points[i][0] = image_origin[0];
       snap_data->target_snap_points[i][1] = image_origin[1];
 

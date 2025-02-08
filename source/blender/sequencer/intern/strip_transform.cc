@@ -596,12 +596,13 @@ float3 SEQ_image_transform_origin_offset_pixelspace_get(const Scene *scene, cons
   const float3 image_size = strip_raw_image_size_get(scene, strip);
   const StripTransform *transform = strip->data->transform;
 
-  float3 origin((image_size[0] * transform->origin[0]) - (image_size[0] * 0.5f) + transform->xofs,
-                (image_size[1] * transform->origin[1]) - (image_size[1] * 0.5f) + transform->yofs,
-                0.0f);
+  const float3 origin(
+      (image_size[0] * transform->origin[0]) - (image_size[0] * 0.5f) + transform->xofs,
+      (image_size[1] * transform->origin[1]) - (image_size[1] * 0.5f) + transform->yofs,
+      0.0f);
 
   const float3 viewport_pixel_aspect(scene->r.xasp / scene->r.yasp, 1.0f, 1.0f);
-  float3 mirror = SEQ_image_transform_mirror_factor_get(strip);
+  const float3 mirror = SEQ_image_transform_mirror_factor_get(strip);
 
   return origin * mirror * viewport_pixel_aspect;
 }
@@ -650,7 +651,7 @@ static Array<float3> strip_image_transform_quad_get_ex(const Scene *scene,
   quad_transformed.reinitialize(4);
 
   for (int i = 0; i < 4; i++) {
-    float3 point = math::transform_point(matrix, quad[i]);
+    const float3 point = math::transform_point(matrix, quad[i]);
     quad_transformed[i] = point * mirror * viewport_pixel_aspect;
   }
   return quad_transformed;
@@ -685,8 +686,8 @@ Bounds<float3> SEQ_image_transform_bounding_box_from_collection(Scene *scene,
   Bounds<float3> box(float3(0.0f), float3(0.0f));
 
   for (Strip *strip : strips) {
-    Array<float3> quad = SEQ_image_transform_quad_get(scene, strip, apply_rotation);
-    Bounds<float3> strip_box = *blender::bounds::min_max(quad.as_span());
+    const Array<float3> quad = SEQ_image_transform_quad_get(scene, strip, apply_rotation);
+    const Bounds<float3> strip_box = *blender::bounds::min_max(quad.as_span());
 
     if (box.is_empty()) {
       box = strip_box;

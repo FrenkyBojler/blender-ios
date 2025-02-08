@@ -881,7 +881,7 @@ static void sequencer_preview_region_draw(const bContext *C, ARegion *region)
     GPU_depth_mask(false);
     GPU_depth_test(GPU_DEPTH_NONE);
 
-    float3 cursor_pixel = SEQ_image_preview_unit_to_px(scene, sseq->cursor);
+    const float3 cursor_pixel = SEQ_image_preview_unit_to_px(scene, sseq->cursor);
     DRW_draw_cursor_2d_ex(region, cursor_pixel);
   }
 

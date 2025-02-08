@@ -954,7 +954,7 @@ void calculateCenterCursor2D(TransInfo *t, float r_center[2])
   }
   if (t->spacetype == SPACE_SEQ) {
     SpaceSeq *sseq = (SpaceSeq *)t->area->spacedata.first;
-    float3 cursor_pixel = SEQ_image_preview_unit_to_px(t->scene, sseq->cursor);
+    const float3 cursor_pixel = SEQ_image_preview_unit_to_px(t->scene, sseq->cursor);
     copy_v2_v2(cursor_local_buf, cursor_pixel);
     cursor = cursor_local_buf;
   }

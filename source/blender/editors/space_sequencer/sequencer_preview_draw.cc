@@ -1045,8 +1045,8 @@ static void strip_draw_image_origin_and_outline(const bContext *C,
     return;
   }
 
-  blender::float3 origin = SEQ_image_transform_origin_offset_pixelspace_get(CTX_data_scene(C),
-                                                                            strip);
+  const blender::float3 origin = SEQ_image_transform_origin_offset_pixelspace_get(
+      CTX_data_scene(C), strip);
 
   /* Origin. */
   GPUVertFormat *format = immVertexFormat();
