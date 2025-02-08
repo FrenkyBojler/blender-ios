@@ -303,37 +303,6 @@ static void get_manifolds(MutableSpan<Manifold> manifolds,
   }
 }
 
-/* Get all the Manifold data structures for each Mesh subset of \a joined_mesh that is indicated
- * by a range of offsets in \a mesh_offsets.
- * This version adds vertex properties to let us recover vertex and corner attributes.
- */
-static void get_manifolds_with_props(MutableSpan<Manifold> manifolds,
-                                     const Mesh *joined_mesh,
-                                     const MeshOffsets &mesh_offsets)
-{
-  constexpr int dbg_level = 0;
-  if (dbg_level > 0) {
-    std::cout << "GET_MANIFOLDS (WITH PROPS)\n";
-    dump_mesh(joined_mesh, "joined_mesh");
-    std::cout << "\nMesh Offset (starts):\n";
-    dump_span(mesh_offsets.vert_start.as_span(), "vert");
-    dump_span(mesh_offsets.face_start.as_span(), "face");
-    dump_span(mesh_offsets.edge_start.as_span(), "edge");
-    dump_span(mesh_offsets.corner_start.as_span(), "corner");
-  }
-  const int meshes_num = manifolds.size();
-  if (dbg_level > 0) {
-    for (const int mesh_index : IndexRange(meshes_num)) {
-      get_manifold(manifolds[mesh_index], joined_mesh, mesh_index, mesh_offsets);
-    }
-  }
-  else {
-    threading::parallel_for_each(IndexRange(meshes_num), [&](int mesh_index) {
-      get_manifold(manifolds[mesh_index], joined_mesh, mesh_index, mesh_offsets);
-    });
-  }
-}
-
 constexpr int inline_outface_size = 8;
 
 struct OutFace {
