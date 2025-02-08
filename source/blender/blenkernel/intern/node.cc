@@ -6,12 +6,10 @@
  * \ingroup bke
  */
 
-#include "BLI_assert.h"
 #include "CLG_log.h"
 
 #include "MEM_guardedalloc.h"
 
-#include <climits>
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
@@ -411,7 +409,7 @@ static void node_foreach_cache(ID *id,
     for (bNode *node : nodetree->all_nodes()) {
       if (node->type_legacy == CMP_NODE_MOVIEDISTORTION) {
         key.identifier = size_t(BLI_ghashutil_strhash_p(node->name));
-        function_callback(id, &key, static_cast<void **>(&node->storage), 0, user_data);
+        function_callback(id, &key, (&node->storage), 0, user_data);
       }
     }
   }
@@ -865,7 +863,7 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
         BLO_write_struct(writer, NodeGeometryAttributeCapture, node->storage);
         nodes::socket_items::blend_write<nodes::CaptureAttributeItemsAccessor>(writer, *node);
       }
-      else if (node->typeinfo != &NodeTypeUndefined) {
+      else if (!node->is_undefined()) {
         BLO_write_struct_by_name(writer, node->typeinfo->storagename.c_str(), node->storage);
       }
     }
@@ -1317,13 +1315,13 @@ void node_update_asset_metadata(bNodeTree &node_tree)
   auto outputs = idprop::create_group("outputs");
   node_tree.ensure_interface_cache();
   for (const bNodeTreeInterfaceSocket *socket : node_tree.interface_inputs()) {
-    auto prop = idprop::create(socket->name ? socket->name : "", socket->socket_type).release();
+    auto *prop = idprop::create(socket->name ? socket->name : "", socket->socket_type).release();
     if (!IDP_AddToGroup(inputs.get(), prop)) {
       IDP_FreeProperty(prop);
     }
   }
   for (const bNodeTreeInterfaceSocket *socket : node_tree.interface_outputs()) {
-    auto prop = idprop::create(socket->name ? socket->name : "", socket->socket_type).release();
+    auto *prop = idprop::create(socket->name ? socket->name : "", socket->socket_type).release();
     if (!IDP_AddToGroup(outputs.get(), prop)) {
       IDP_FreeProperty(prop);
     }
@@ -1461,7 +1459,7 @@ static void node_init(const bContext *C, bNodeTree *ntree, bNode *node)
    *     Data have their own translation option!
    *     This solution may be a bit rougher than nodeLabel()'s returned string, but it's simpler
    *     than adding "do_translate" flags to this func (and labelfunc() as well). */
-  STRNCPY_UTF8(node->name, DATA_(ntype->ui_name.c_str()));
+  DATA_(ntype->ui_name).copy_utf8_truncated(node->name);
   node_unique_name(ntree, node);
 
   /* Generally sockets should be added after the initialization, because the set of sockets might
@@ -1620,45 +1618,22 @@ void node_tree_set_type(const bContext *C, bNodeTree *ntree)
   }
 }
 
-template<typename T> struct StructPointerIDNameHash {
-  uint64_t operator()(const T *value) const
+template<typename T> struct NodeStructIDNameGetter {
+  StringRef operator()(const T *value) const
   {
-    return get_default_hash(value->idname);
-  }
-  uint64_t operator()(const StringRef name) const
-  {
-    return get_default_hash(name);
-  }
-};
-
-template<typename T> struct StructPointerNameEqual {
-  bool operator()(const T *a, const T *b) const
-  {
-    return a->idname == b->idname;
-  }
-  bool operator()(const StringRef idname, const T *a) const
-  {
-    return a->idname == idname;
+    return StringRef(value->idname);
   }
 };
 
 static auto &get_node_tree_type_map()
 {
-  static VectorSet<bNodeTreeType *,
-                   DefaultProbingStrategy,
-                   StructPointerIDNameHash<bNodeTreeType>,
-                   StructPointerNameEqual<bNodeTreeType>>
-      map;
+  static CustomIDVectorSet<bNodeTreeType *, NodeStructIDNameGetter<bNodeTreeType>> map;
   return map;
 }
 
 static auto &get_node_type_map()
 {
-  static VectorSet<bNodeType *,
-                   DefaultProbingStrategy,
-                   StructPointerIDNameHash<bNodeType>,
-                   StructPointerNameEqual<bNodeType>>
-      map;
+  static CustomIDVectorSet<bNodeType *, NodeStructIDNameGetter<bNodeType>> map;
   return map;
 }
 
@@ -1670,11 +1645,7 @@ static auto &get_node_type_alias_map()
 
 static auto &get_socket_type_map()
 {
-  static VectorSet<bNodeSocketType *,
-                   DefaultProbingStrategy,
-                   StructPointerIDNameHash<bNodeSocketType>,
-                   StructPointerNameEqual<bNodeSocketType>>
-      map;
+  static CustomIDVectorSet<bNodeSocketType *, NodeStructIDNameGetter<bNodeSocketType>> map;
   return map;
 }
 
@@ -4711,7 +4682,7 @@ void node_tree_iterator_init(NodeTreeIterStore *ntreeiter, Main *bmain)
 bool node_tree_iterator_step(NodeTreeIterStore *ntreeiter, bNodeTree **r_nodetree, ID **r_id)
 {
   if (ntreeiter->ngroup) {
-    bNodeTree &node_tree = *reinterpret_cast<bNodeTree *>(ntreeiter->ngroup);
+    bNodeTree &node_tree = *ntreeiter->ngroup;
     *r_nodetree = &node_tree;
     *r_id = &node_tree.id;
     ntreeiter->ngroup = reinterpret_cast<bNodeTree *>(node_tree.id.next);

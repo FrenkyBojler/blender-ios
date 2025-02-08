@@ -23,6 +23,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_global.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_sound.h"
@@ -1082,9 +1083,7 @@ static int sequencer_disconnect_exec(bContext *C, wmOperator * /*op*/)
     WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
     return OPERATOR_FINISHED;
   }
-  else {
-    return OPERATOR_CANCELLED;
-  }
+  return OPERATOR_CANCELLED;
 }
 
 void SEQUENCER_OT_disconnect(wmOperatorType *ot)

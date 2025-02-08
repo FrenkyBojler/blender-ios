@@ -492,6 +492,7 @@ typedef struct bNode {
   bool is_group() const;
   bool is_group_input() const;
   bool is_group_output() const;
+  bool is_undefined() const;
 
   /**
    * Check if the node has the given idname.
@@ -2691,13 +2692,12 @@ enum {
   CMP_NODE_BLUR_ASPECT_X = 2,
 };
 
-/* wrapping */
-enum {
-  CMP_NODE_WRAP_NONE = 0,
-  CMP_NODE_WRAP_X = 1,
-  CMP_NODE_WRAP_Y = 2,
-  CMP_NODE_WRAP_XY = 3,
-};
+typedef enum CMPNodeTranslateRepeatAxis {
+  CMP_NODE_TRANSLATE_REPEAT_AXIS_NONE = 0,
+  CMP_NODE_TRANSLATE_REPEAT_AXIS_X = 1,
+  CMP_NODE_TRANSLATE_REPEAT_AXIS_Y = 2,
+  CMP_NODE_TRANSLATE_REPEAT_AXIS_XY = 3,
+} CMPNodeTranslateRepeatAxis;
 
 #define CMP_NODE_MASK_MBLUR_SAMPLES_MAX 64
 

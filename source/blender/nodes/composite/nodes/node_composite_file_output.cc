@@ -9,7 +9,6 @@
 #include <cstring>
 
 #include "BLI_assert.h"
-#include "BLI_fileops.h"
 #include "BLI_index_range.hh"
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
@@ -33,7 +32,6 @@
 #include "BKE_scene.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -41,8 +39,6 @@
 #include "WM_api.hh"
 
 #include "IMB_imbuf.hh"
-#include "IMB_imbuf_types.hh"
-#include "IMB_openexr.hh"
 
 #include "GPU_state.hh"
 #include "GPU_texture.hh"
@@ -513,7 +509,9 @@ class FileOutputOperation : public NodeOperation {
       InputDescriptor &descriptor = this->get_input_descriptor(input->identifier);
       /* Inputs for multi-layer files need to be the same size, while they can be different for
        * individual file outputs. */
-      descriptor.realization_options.realize_on_operation_domain = this->is_multi_layer();
+      descriptor.realization_mode = this->is_multi_layer() ?
+                                        InputRealizationMode::OperationDomain :
+                                        InputRealizationMode::Transforms;
     }
   }
 
@@ -661,14 +659,7 @@ class FileOutputOperation : public NodeOperation {
       }
       else {
         /* Copy the result into a new buffer. */
-        const int64_t buffer_size = int64_t(size.x) * size.y * result.channels_count();
-        buffer = static_cast<float *>(
-            MEM_malloc_arrayN(buffer_size, sizeof(float), "File Output Buffer Copy."));
-        threading::parallel_for(IndexRange(buffer_size), 1024, [&](const IndexRange sub_range) {
-          for (const int64_t i : sub_range) {
-            buffer[i] = result.float_texture()[i];
-          }
-        });
+        buffer = static_cast<float *>(MEM_dupallocN(result.cpu_data().data()));
       }
     }
 
@@ -752,15 +743,7 @@ class FileOutputOperation : public NodeOperation {
     }
     else {
       /* Copy the result into a new buffer. */
-      const int2 size = result.domain().size;
-      const int64_t buffer_size = int64_t(size.x) * size.y * result.channels_count();
-      buffer = static_cast<float *>(
-          MEM_malloc_arrayN(buffer_size, sizeof(float), "File Output Buffer Copy."));
-      threading::parallel_for(IndexRange(buffer_size), 1024, [&](const IndexRange sub_range) {
-        for (const int64_t i : sub_range) {
-          buffer[i] = result.float_texture()[i];
-        }
-      });
+      buffer = static_cast<float *>(MEM_dupallocN(result.cpu_data().data()));
     }
 
     const int2 size = result.domain().size;
