@@ -24,20 +24,19 @@
 #include "DNA_ID.h"
 #include "DNA_anim_types.h"
 #include "DNA_collection_types.h"
-#include "DNA_gpencil_legacy_types.h"
 #include "DNA_key_types.h"
 #include "DNA_node_types.h"
 #include "DNA_workspace_types.h"
 
 #include "BLI_utildefines.h"
 
-#include "BLI_alloca.h"
-#include "BLI_array.hh"
-#include "BLI_blenlib.h"
 #include "BLI_ghash.h"
 #include "BLI_linklist.h"
 #include "BLI_memarena.h"
+#include "BLI_path_utils.hh"
+#include "BLI_string.h"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 
 #include "BLT_translation.hh"
@@ -56,6 +55,7 @@
 #include "BKE_lib_override.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_main_namemap.hh"
 #include "BKE_node.hh"
@@ -179,8 +179,8 @@ static void lib_id_library_local_paths(Main *bmain, Library *lib_to, Library *li
 {
   BLI_assert(lib_to || lib_from);
   const char *bpath_user_data[2] = {
-      lib_to ? lib_to->runtime.filepath_abs : BKE_main_blendfile_path(bmain),
-      lib_from ? lib_from->runtime.filepath_abs : BKE_main_blendfile_path(bmain)};
+      lib_to ? lib_to->runtime->filepath_abs : BKE_main_blendfile_path(bmain),
+      lib_from ? lib_from->runtime->filepath_abs : BKE_main_blendfile_path(bmain)};
 
   BPathForeachPathData path_data{};
   path_data.bmain = bmain;
@@ -289,7 +289,7 @@ void id_lib_extern(ID *id)
       id->tag &= ~ID_TAG_INDIRECT;
       id->flag &= ~ID_FLAG_INDIRECT_WEAK_LINK;
       id->tag |= ID_TAG_EXTERN;
-      id->lib->runtime.parent = nullptr;
+      id->lib->runtime->parent = nullptr;
     }
   }
 }
@@ -314,7 +314,7 @@ void id_us_ensure_real(ID *id)
         CLOG_ERROR(&LOG,
                    "ID user count error: %s (from '%s')",
                    id->name,
-                   id->lib ? id->lib->runtime.filepath_abs : "[Main]");
+                   id->lib ? id->lib->runtime->filepath_abs : "[Main]");
       }
       id->us = limit + 1;
       id->tag |= ID_TAG_EXTRAUSER_SET;
@@ -369,7 +369,7 @@ void id_us_min(ID *id)
         CLOG_ERROR(&LOG,
                    "ID user decrement error: %s (from '%s'): %d <= %d",
                    id->name,
-                   id->lib ? id->lib->runtime.filepath_abs : "[Main]",
+                   id->lib ? id->lib->runtime->filepath_abs : "[Main]",
                    id->us,
                    limit);
       }
@@ -1397,7 +1397,7 @@ void *BKE_libblock_alloc_in_lib(Main *bmain,
 
       /* This assert avoids having to keep name_map consistency when changing the library of an ID,
        * if this check is not true anymore it will have to be done here too. */
-      BLI_assert(bmain->curlib == nullptr || bmain->curlib->runtime.name_map == nullptr);
+      BLI_assert(bmain->curlib == nullptr || bmain->curlib->runtime->name_map == nullptr);
 
       /* TODO: to be removed from here! */
       if ((flag & LIB_ID_CREATE_NO_DEG_TAG) == 0) {
@@ -1740,8 +1740,7 @@ ID *BKE_libblock_find_name_and_library_filepath(Main *bmain,
     if (id->lib == nullptr && lib_filepath_abs == nullptr) {
       return id;
     }
-    else if (id->lib && lib_filepath_abs && STREQ(id->lib->runtime.filepath_abs, lib_filepath_abs))
-    {
+    if (id->lib && lib_filepath_abs && STREQ(id->lib->runtime->filepath_abs, lib_filepath_abs)) {
       return id;
     }
   }

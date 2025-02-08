@@ -1216,8 +1216,8 @@ class NodeTreeMainUpdater {
               NodeLinkError{fmt::format("{}: {} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE
                                         " {}",
                                         TIP_("Conversion is not supported"),
-                                        TIP_(link->fromsock->typeinfo->label.c_str()),
-                                        TIP_(link->tosock->typeinfo->label.c_str()))});
+                                        TIP_(link->fromsock->typeinfo->label),
+                                        TIP_(link->tosock->typeinfo->label))});
           continue;
         }
       }
@@ -1547,7 +1547,9 @@ class NodeTreeMainUpdater {
         }
         /* The Normal node has a special case, because the value stored in the first output
          * socket is used as input in the node. */
-        if (node.is_type("ShaderNodeNormal") && socket.index() == 1) {
+        if ((node.is_type("ShaderNodeNormal") || node.is_type("CompositorNodeNormal")) &&
+            socket.index() == 1)
+        {
           BLI_assert(STREQ(socket.name, "Dot"));
           const bNodeSocket &normal_output = node.output_socket(0);
           BLI_assert(STREQ(normal_output.name, "Normal"));

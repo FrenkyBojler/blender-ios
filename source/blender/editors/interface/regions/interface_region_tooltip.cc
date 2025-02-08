@@ -41,6 +41,7 @@
 #include "BKE_context.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_paint.hh"
 #include "BKE_screen.hh"
@@ -801,27 +802,26 @@ static std::string ui_tooltip_color_string(const blender::float4 &color,
     rgba_float_to_uchar(hex, color);
     if (show_alpha) {
       return fmt::format("{}: #{:02X}{:02X}{:02X}{:02X}",
-                         TIP_(title.c_str()),
+                         TIP_(title),
                          int(hex[0]),
                          int(hex[1]),
                          int(hex[2]),
                          int(hex[3]));
     }
     return fmt::format(
-        "{}: #{:02X}{:02X}{:02X}", TIP_(title.c_str()), int(hex[0]), int(hex[1]), int(hex[2]));
+        "{}: #{:02X}{:02X}{:02X}", TIP_(title), int(hex[0]), int(hex[1]), int(hex[2]));
   }
 
   if (show_alpha) {
     return fmt::format("{}:  {:.3f}  {:.3f}  {:.3f}  {:.3f}",
-                       TIP_(title.c_str()),
+                       TIP_(title),
                        color[0],
                        color[1],
                        color[2],
                        color[3]);
   }
 
-  return fmt::format(
-      "{}:  {:.3f}  {:.3f}  {:.3f}", TIP_(title.c_str()), color[0], color[1], color[2]);
+  return fmt::format("{}:  {:.3f}  {:.3f}  {:.3f}", TIP_(title), color[0], color[1], color[2]);
 };
 
 static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
@@ -1665,8 +1665,8 @@ static void ui_tooltip_from_image(Image &ima, uiTooltipData &data)
 
   if (ibuf) {
     uiTooltipImage image_data;
-    image_data.width = int(ibuf->x);
-    image_data.height = int(ibuf->y);
+    image_data.width = ibuf->x;
+    image_data.height = ibuf->y;
     image_data.ibuf = ibuf;
     image_data.border = true;
     image_data.background = uiTooltipImageBackground::Checkerboard_Themed;
@@ -1718,13 +1718,13 @@ static void ui_tooltip_from_clip(MovieClip &clip, uiTooltipData &data)
 
     if (ibuf) {
       /* Resize. */
-      float scale = float(200.0f * UI_SCALE_FAC) / float(std::max(ibuf->x, ibuf->y));
+      float scale = (200.0f * UI_SCALE_FAC) / float(std::max(ibuf->x, ibuf->y));
       IMB_scale(ibuf, scale * ibuf->x, scale * ibuf->y, IMBScaleFilter::Box, false);
       IMB_rect_from_float(ibuf);
 
       uiTooltipImage image_data;
-      image_data.width = int(ibuf->x);
-      image_data.height = int(ibuf->y);
+      image_data.width = ibuf->x;
+      image_data.height = ibuf->y;
       image_data.ibuf = ibuf;
       image_data.border = true;
       image_data.background = uiTooltipImageBackground::Checkerboard_Themed;

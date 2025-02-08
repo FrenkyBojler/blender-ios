@@ -43,6 +43,7 @@
 #include "BKE_global.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_node.hh"
@@ -1647,8 +1648,8 @@ static void create_inspection_string_for_field_info(const bNodeSocket &socket,
     fmt::format_to(fmt::appender(buf), "\n");
 
     for (const int i : input_tooltips.index_range()) {
-      const blender::StringRefNull tooltip = input_tooltips[i];
-      fmt::format_to(fmt::appender(buf), fmt::runtime(TIP_("\u2022 {}")), TIP_(tooltip.c_str()));
+      const blender::StringRef tooltip = input_tooltips[i];
+      fmt::format_to(fmt::appender(buf), fmt::runtime(TIP_("\u2022 {}")), TIP_(tooltip));
       if (i < input_tooltips.size() - 1) {
         fmt::format_to(fmt::appender(buf), ".\n");
       }
@@ -1838,6 +1839,9 @@ static void create_inspection_string_for_default_socket_value(const bNodeSocket 
 static std::optional<std::string> create_description_inspection_string(const bNodeSocket &socket)
 {
   if (socket.runtime->declaration == nullptr) {
+    if (socket.description[0]) {
+      return socket.description;
+    }
     return std::nullopt;
   }
   const blender::nodes::SocketDeclaration &socket_decl = *socket.runtime->declaration;
@@ -1846,7 +1850,7 @@ static std::optional<std::string> create_description_inspection_string(const bNo
     return std::nullopt;
   }
 
-  return TIP_(description.c_str());
+  return TIP_(description);
 }
 
 static std::optional<std::string> create_log_inspection_string(geo_log::GeoTreeLog *geo_tree_log,
@@ -2513,7 +2517,7 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
         &block,
         UI_BTYPE_LABEL,
         0,
-        IFACE_(panel_decl.name.c_str()),
+        IFACE_(panel_decl.name),
         int(draw_bounds.xmin + NODE_MARGIN_X + 0.4f),
         int(*panel_runtime.header_center_y - NODE_DYS),
         short(draw_bounds.xmax - draw_bounds.xmin - (30.0f * UI_SCALE_FAC)),
@@ -3265,6 +3269,36 @@ static void node_draw_extra_info_panel(const bContext &C,
   }
 }
 
+static short get_viewer_shortcut_icon(const bNode &node)
+{
+  BLI_assert(node.is_type("CompositorNodeViewer"));
+  switch (node.custom1) {
+    case NODE_VIEWER_SHORTCUT_NONE:
+      /* No change by default. */
+      return node.typeinfo->ui_icon;
+    case NODE_VIEWER_SHORCTUT_SLOT_1:
+      return ICON_EVENT_ONEKEY;
+    case NODE_VIEWER_SHORCTUT_SLOT_2:
+      return ICON_EVENT_TWOKEY;
+    case NODE_VIEWER_SHORCTUT_SLOT_3:
+      return ICON_EVENT_THREEKEY;
+    case NODE_VIEWER_SHORCTUT_SLOT_4:
+      return ICON_EVENT_FOURKEY;
+    case NODE_VIEWER_SHORCTUT_SLOT_5:
+      return ICON_EVENT_FIVEKEY;
+    case NODE_VIEWER_SHORCTUT_SLOT_6:
+      return ICON_EVENT_SIXKEY;
+    case NODE_VIEWER_SHORCTUT_SLOT_7:
+      return ICON_EVENT_SEVENKEY;
+    case NODE_VIEWER_SHORCTUT_SLOT_8:
+      return ICON_EVENT_EIGHTKEY;
+    case NODE_VIEWER_SHORCTUT_SLOT_9:
+      return ICON_EVENT_NINEKEY;
+  }
+
+  return node.typeinfo->ui_icon;
+}
+
 static void node_draw_basis(const bContext &C,
                             TreeDrawContext &tree_draw_ctx,
                             const View2D &v2d,
@@ -3456,6 +3490,25 @@ static void node_draw_basis(const bContext &C,
     const char *operator_idname = is_active ? "NODE_OT_deactivate_viewer" : "NODE_OT_select";
     UI_but_func_set(
         but, node_toggle_button_cb, POINTER_FROM_INT(node.identifier), (void *)operator_idname);
+    UI_block_emboss_set(&block, UI_EMBOSS);
+  }
+  /* Viewer node shortcuts. */
+  if (node.is_type("CompositorNodeViewer")) {
+    short shortcut_icon = get_viewer_shortcut_icon(node);
+    iconofs -= iconbutw;
+    UI_block_emboss_set(&block, UI_EMBOSS_NONE);
+    uiDefIconBut(&block,
+                 UI_BTYPE_BUT,
+                 0,
+                 shortcut_icon,
+                 iconofs,
+                 rct.ymax - NODE_DY,
+                 iconbutw,
+                 UI_UNIT_Y,
+                 nullptr,
+                 0,
+                 0,
+                 "");
     UI_block_emboss_set(&block, UI_EMBOSS);
   }
 
@@ -4779,10 +4832,6 @@ static bool compositor_is_in_use(const bContext &context)
 
   if (!scene->nodetree) {
     return false;
-  }
-
-  if (scene->r.compositor_device == SCE_COMPOSITOR_DEVICE_GPU) {
-    return true;
   }
 
   wmWindowManager *wm = CTX_wm_manager(&context);

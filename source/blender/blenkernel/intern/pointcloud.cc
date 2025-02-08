@@ -17,10 +17,8 @@
 
 #include "BLI_bounds.hh"
 #include "BLI_index_range.hh"
-#include "BLI_math_vector.hh"
 #include "BLI_rand.h"
 #include "BLI_span.hh"
-#include "BLI_task.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
@@ -307,9 +305,10 @@ blender::bke::MutableAttributeAccessor PointCloud::attributes_for_write()
       this, blender::bke::pointcloud_attribute_accessor_functions());
 }
 
-bool BKE_pointcloud_attribute_required(const PointCloud * /*pointcloud*/, const char *name)
+bool BKE_pointcloud_attribute_required(const PointCloud * /*pointcloud*/,
+                                       const blender::StringRef name)
 {
-  return STREQ(name, POINTCLOUD_ATTR_POSITION);
+  return name == POINTCLOUD_ATTR_POSITION;
 }
 
 /* Dependency Graph */
