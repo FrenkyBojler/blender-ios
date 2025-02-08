@@ -11597,13 +11597,11 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, uiPopupBlockHandle 
           break;
 
         case LEFTMOUSE:
-          if (is_click_style) {
-            if (block->pie_data.flags & UI_PIE_INVALID_DIR) {
-              menu->menuretval = UI_RETURN_CANCEL;
-            }
-            else {
-              retval = ui_handle_menu_button(C, event, menu);
-            }
+          if (block->pie_data.flags & UI_PIE_INVALID_DIR) {
+            menu->menuretval = UI_RETURN_CANCEL;
+          }
+          else {
+            retval = ui_handle_menu_button(C, event, menu);
           }
           break;
         case WINDEACTIVATE:
