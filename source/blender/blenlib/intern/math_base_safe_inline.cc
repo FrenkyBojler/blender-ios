@@ -8,10 +8,6 @@
 #include "BLI_math_base_safe.h"
 #include "BLI_utildefines.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 MINLINE float safe_divide(float a, float b)
 {
   return (b != 0.0f) ? a / b : 0.0f;
@@ -64,9 +60,5 @@ MINLINE float safe_powf(float base, float exponent)
   }
   return powf(base, exponent);
 }
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* __MATH_BASE_SAFE_INLINE_C__ */

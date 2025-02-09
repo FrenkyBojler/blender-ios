@@ -11,10 +11,6 @@
 #include "BLI_build_config.h"
 #include "BLI_math_inline.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* Search the value from LSB to MSB for a set bit. Returns index of this bit. */
 
 MINLINE int bitscan_forward_i(int a);
@@ -61,8 +57,4 @@ MINLINE float xor_fl(float x, int y);
 
 #if BLI_MATH_DO_INLINE
 #  include "intern/math_bits_inline.cc"  // IWYU pragma: export
-#endif
-
-#ifdef __cplusplus
-}
 #endif

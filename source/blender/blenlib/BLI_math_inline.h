@@ -8,10 +8,6 @@
  * \ingroup bli
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* add platform/compiler checks here if it is not supported */
 /* all platforms support forcing inline so this is always enabled */
 #define BLI_MATH_DO_INLINE 1
@@ -32,8 +28,4 @@ extern "C" {
 /* Check for GCC push/pop pragma support. */
 #ifdef __GNUC__
 #  define BLI_MATH_GCC_WARN_PRAGMA 1
-#endif
-
-#ifdef __cplusplus
-}
 #endif

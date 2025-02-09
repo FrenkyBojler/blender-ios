@@ -89,8 +89,6 @@ static const DrawEngineDataSize IMAGE_data_size = DRW_VIEWPORT_DATA_SIZE(IMAGE_D
 
 }  // namespace blender::image_engine
 
-extern "C" {
-
 using namespace blender::image_engine;
 
 DrawEngineType draw_engine_image_type = {
@@ -110,4 +108,3 @@ DrawEngineType draw_engine_image_type = {
     /*render_to_image*/ nullptr,
     /*store_metadata*/ nullptr,
 };
-}

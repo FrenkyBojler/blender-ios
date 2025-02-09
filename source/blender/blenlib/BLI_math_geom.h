@@ -16,10 +16,6 @@
 #  pragma GCC diagnostic ignored "-Wredundant-decls"
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* -------------------------------------------------------------------- */
 /** \name Polygons
  * \{ */
@@ -1382,10 +1378,6 @@ float geodesic_distance_propagate_across_triangle(
     const float v0[3], const float v1[3], const float v2[3], float dist1, float dist2);
 
 /** \} */
-
-#ifdef __cplusplus
-}
-#endif
 
 /* -------------------------------------------------------------------- */
 /** \name Inline Definitions

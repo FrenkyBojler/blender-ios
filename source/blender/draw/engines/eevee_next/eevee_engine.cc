@@ -189,8 +189,6 @@ static void eevee_render_update_passes(RenderEngine *engine, Scene *scene, ViewL
 
 static const DrawEngineDataSize eevee_data_size = DRW_VIEWPORT_DATA_SIZE(EEVEE_Data);
 
-extern "C" {
-
 DrawEngineType draw_engine_eevee_next_type = {
     /*next*/ nullptr,
     /*prev*/ nullptr,
@@ -232,4 +230,3 @@ RenderEngineType DRW_engine_viewport_eevee_next_type = {
         /*call*/ nullptr,
     },
 };
-}

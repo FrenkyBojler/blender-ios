@@ -340,8 +340,6 @@ static void compositor_engine_update(void *data)
   }
 }
 
-extern "C" {
-
 static const DrawEngineDataSize compositor_data_size = DRW_VIEWPORT_DATA_SIZE(COMPOSITOR_Data);
 
 DrawEngineType draw_engine_compositor_type = {
@@ -361,4 +359,3 @@ DrawEngineType draw_engine_compositor_type = {
     /*render_to_image*/ nullptr,
     /*store_metadata*/ nullptr,
 };
-}

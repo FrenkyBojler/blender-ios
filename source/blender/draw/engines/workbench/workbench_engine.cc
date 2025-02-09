@@ -796,8 +796,6 @@ static void workbench_render_update_passes(RenderEngine *engine,
   }
 }
 
-extern "C" {
-
 static const DrawEngineDataSize workbench_data_size = DRW_VIEWPORT_DATA_SIZE(WORKBENCH_Data);
 
 DrawEngineType draw_engine_workbench = {
@@ -841,6 +839,5 @@ RenderEngineType DRW_engine_viewport_workbench_type = {
         /*call*/ nullptr,
     },
 };
-}
 
 /** \} */

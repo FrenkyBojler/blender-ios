@@ -9,10 +9,6 @@
  * \brief A general argument parsing module.
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct bArgs;
 
 #include <stdarg.h> /* For `va_list`. */
@@ -70,7 +66,3 @@ void BLI_args_print_other_doc(struct bArgs *ba);
 bool BLI_args_has_other_doc(const struct bArgs *ba);
 
 void BLI_args_print(const struct bArgs *ba);
-
-#ifdef __cplusplus
-}
-#endif

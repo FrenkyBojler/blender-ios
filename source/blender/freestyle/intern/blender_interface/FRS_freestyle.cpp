@@ -49,8 +49,6 @@ using namespace Freestyle;
 
 #include "FRS_freestyle.h"
 
-extern "C" {
-
 FreestyleGlobals g_freestyle;
 
 // Freestyle configuration
@@ -759,5 +757,3 @@ Material *FRS_create_stroke_material(Main *bmain, FreestyleLineStyle *linestyle)
   ma->id.us = 0;
   return ma;
 }
-
-}  // extern "C"

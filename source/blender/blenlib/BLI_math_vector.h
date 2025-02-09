@@ -12,10 +12,6 @@
 #include "BLI_math_inline.h"
 #include "BLI_utildefines.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* -------------------------------------------------------------------- */
 /** \name Init
  * \{ */
@@ -643,7 +639,3 @@ void mul_vn_db(double *array_tar, int size, double f);
 #endif
 
 /** \} */
-
-#ifdef __cplusplus
-}
-#endif

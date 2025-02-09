@@ -8,10 +8,6 @@
 
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "DNA_modifier_enums.h"
 
 struct Depsgraph;
@@ -90,7 +86,3 @@ bool BKE_object_data_transfer_ex(struct Depsgraph *depsgraph,
                                  const char *vgroup_name,
                                  bool invert_vgroup,
                                  struct ReportList *reports);
-
-#ifdef __cplusplus
-}
-#endif

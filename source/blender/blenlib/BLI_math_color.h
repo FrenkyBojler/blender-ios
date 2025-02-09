@@ -10,10 +10,6 @@
 
 #include "BLI_math_inline.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* -------------------------------------------------------------------- */
 /** \name Defines
  * \{ */
@@ -180,10 +176,6 @@ MINLINE void rgba_uchar_args_test_set(
 MINLINE void cpack_cpy_3ub(unsigned char r_col[3], unsigned int pack);
 
 /** \} */
-
-#ifdef __cplusplus
-}
-#endif
 
 #if BLI_MATH_DO_INLINE
 #  include "intern/math_color_inline.cc"

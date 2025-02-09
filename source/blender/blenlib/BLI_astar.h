@@ -13,10 +13,6 @@
 
 #include "BLI_bitmap.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* -------------------------------------------------------------------- */
 
 struct BLI_AStarGNLink {
@@ -148,7 +144,3 @@ bool BLI_astar_graph_solve(BLI_AStarGraph *as_graph,
                            astar_f_cost f_cost_cb,
                            BLI_AStarSolution *r_solution,
                            int max_steps);
-
-#ifdef __cplusplus
-}
-#endif

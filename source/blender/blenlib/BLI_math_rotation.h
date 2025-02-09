@@ -13,10 +13,6 @@
 #include "BLI_utildefines.h"
 #include "DNA_vec_types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* -------------------------------------------------------------------- */
 /** \name Quaternions
  * Stored in (w, x, y, z) order.
@@ -442,7 +438,3 @@ bool mat3_from_axis_conversion(
 bool mat3_from_axis_conversion_single(int src_axis, int dst_axis, float r_mat[3][3]);
 
 /** \} */
-
-#ifdef __cplusplus
-}
-#endif
