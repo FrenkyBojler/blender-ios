@@ -526,7 +526,9 @@ TransSeqSnapData *transform_snap_sequencer_data_alloc(const TransInfo *t)
   if (ELEM(t->data_type, &TransConvertType_Sequencer, &TransConvertType_SequencerRetiming)) {
     snap_data_build_timeline(t, snap_data);
   }
-  snap_data_build_preview(t, snap_data);
+  else {
+    snap_data_build_preview(t, snap_data);
+  }
 
   if (snap_data->source_snap_points.is_empty() || snap_data->target_snap_points.is_empty()) {
     MEM_delete(snap_data);
