@@ -20,7 +20,7 @@
   { \
     /* Type is not very meaningful as a default, normally changed. */ \
     .type = OB_EMPTY, \
-    .color = {1, 1, 1, 1}, \
+    .color = {0, 0, 0, 1}, \
  \
     .constinv = _DNA_DEFAULT_UNIT_M4, \
     .parentinv = _DNA_DEFAULT_UNIT_M4, \
