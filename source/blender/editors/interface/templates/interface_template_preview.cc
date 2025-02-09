@@ -17,6 +17,7 @@
 
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
+#include "DNA_texture_types.h"
 #include "DNA_world_types.h"
 
 #include "ED_render.hh"

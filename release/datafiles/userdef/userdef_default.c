@@ -5,14 +5,11 @@
 /* Preferences Data File 'U_default'. */
 
 /* For constants. */
-#include "BLI_math_base.h"
+#include "DNA_anim_enums.h"
+#include "DNA_curve_enums.h"
+#include "DNA_space_enums.h"
 
-#include "DNA_anim_types.h"
-#include "DNA_curve_types.h"
-#include "DNA_space_types.h"
-#include "DNA_userdef_types.h"
-
-#include "BLI_math_rotation.h"
+#include "BLI_math_constants.h"
 
 #include "BKE_blender_version.h"
 
@@ -174,7 +171,7 @@ const UserDef U_default = {
     .animation_flag = USER_ANIM_HIGH_QUALITY_DRAWING,
     .text_render = 0,
     .navigation_mode = VIEW_NAVIGATION_WALK,
-    .view_rotate_sensitivity_turntable = DEG2RAD(0.4),
+    .view_rotate_sensitivity_turntable = 0.4 * M_PI / 180.0f,
     .view_rotate_sensitivity_trackball = 1.0f,
 
     /** Initialized by #BKE_colorband_init. */

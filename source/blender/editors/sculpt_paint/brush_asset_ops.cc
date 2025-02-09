@@ -9,6 +9,7 @@
 #include "DNA_brush_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_space_types.h"
+#include "DNA_userdef_types.h"
 
 #include "BKE_asset.hh"
 #include "BKE_asset_edit.hh"

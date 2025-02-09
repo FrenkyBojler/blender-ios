@@ -56,6 +56,7 @@
 #include "DNA_packedFile_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_userdef_types.h"
 #include "DNA_world_types.h"
 
 #include "BLI_math_vector.h"

@@ -8,6 +8,7 @@
 #include "DNA_brush_types.h"
 #include "DNA_image_types.h"
 #include "DNA_object_types.h"
+#include "DNA_userdef_types.h"
 
 #include "ED_paint.hh"
 

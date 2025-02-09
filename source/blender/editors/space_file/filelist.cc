@@ -60,6 +60,7 @@
 
 #include "DNA_asset_types.h"
 #include "DNA_space_types.h"
+#include "DNA_userdef_types.h"
 
 #include "ED_fileselect.hh"
 

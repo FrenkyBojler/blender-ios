@@ -31,6 +31,7 @@
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_material_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_userdef_types.h"
 
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"

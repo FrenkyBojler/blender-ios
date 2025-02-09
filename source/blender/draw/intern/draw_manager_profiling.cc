@@ -10,6 +10,8 @@
 
 #include "BLI_string.h"
 
+#include "DNA_userdef_types.h"
+
 #include "BKE_global.hh"
 
 #include "BLF_api.hh"

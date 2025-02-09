@@ -6,6 +6,8 @@
  * \ingroup edasset
  */
 
+#include <type_traits>
+
 #include "BLI_listbase.h"
 
 #include "BLO_read_write.hh"
@@ -42,8 +44,9 @@ namespace blender::ed::asset::shelf {
 
 RegionAssetShelf *regiondata_duplicate(const RegionAssetShelf *shelf_regiondata)
 {
-  static_assert(std::is_trivial_v<RegionAssetShelf>,
-                "RegionAssetShelf needs to be trivial to allow freeing with MEM_freeN()");
+  static_assert(
+      std::is_trivially_copyable_v<RegionAssetShelf>,
+      "RegionAssetShelf needs to be trivially copyable to allow freeing with MEM_freeN()");
   RegionAssetShelf *new_shelf_regiondata = MEM_cnew<RegionAssetShelf>(__func__);
   *new_shelf_regiondata = *shelf_regiondata;
 

@@ -31,6 +31,7 @@
 #include "DNA_object_force_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_texture_types.h"
 
 #include "BLI_kdopbvh.hh"
 #include "BLI_kdtree.h"
