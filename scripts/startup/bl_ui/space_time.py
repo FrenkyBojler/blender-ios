@@ -64,10 +64,21 @@ class TIME_HT_editor_buttons:
         sub.scale_x = 0.8
         if not scene.use_preview_range:
             sub.prop(scene, "frame_start", text="Start")
+            sub.scale_x = 1
+            sub.operator("anim.start_frame_set", text="", icon='FILE_ALIAS')
+            sub.scale_x = .8
             sub.prop(scene, "frame_end", text="End")
+            sub.scale_x = 1
+            sub.operator("anim.end_frame_set", text="", icon='FILE_ALIAS')
         else:
+            sub.scale_x = .8
             sub.prop(scene, "frame_preview_start", text="Start")
+            sub.scale_y = 1
+            sub.operator("anim.start_frame_set", text="", icon='FILE_ALIAS')
+            sub.scale_x = .8
             sub.prop(scene, "frame_preview_end", text="End")
+            sub.scale_x = 1
+            sub.operator("anim.end_frame_set", text="", icon='FILE_ALIAS')
 
 
 class TIME_MT_editor_menus(Menu):
@@ -267,9 +278,9 @@ class TIME_PT_playback(TimelinePanelButtons, Panel):
 
         layout.separator()
 
-        row = layout.row(align=True)
-        row.operator("anim.start_frame_set")
-        row.operator("anim.end_frame_set")
+        # row = layout.row(align=True)
+        # row.operator("anim.start_frame_set")
+        # row.operator("anim.end_frame_set")
 
 
 class TIME_PT_keyframing_settings(TimelinePanelButtons, Panel):
