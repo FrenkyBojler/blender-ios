@@ -58,7 +58,7 @@ static const int NAN_INT = 0x7FC00000;
 #endif
 
 #if BLI_MATH_DO_INLINE
-#  include "intern/math_base_inline.c"  // IWYU pragma: export
+#  include "intern/math_base_inline.cc"  // IWYU pragma: export
 #endif
 
 #ifdef BLI_MATH_GCC_WARN_PRAGMA

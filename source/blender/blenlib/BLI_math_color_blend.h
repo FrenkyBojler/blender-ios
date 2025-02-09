@@ -131,5 +131,5 @@ MINLINE void blend_color_interpolate_float(float dst[4],
 #endif
 
 #if BLI_MATH_DO_INLINE
-#  include "intern/math_color_blend_inline.c"  // IWYU pragma: export
+#  include "intern/math_color_blend_inline.cc"  // IWYU pragma: export
 #endif

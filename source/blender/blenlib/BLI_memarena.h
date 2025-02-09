@@ -8,13 +8,11 @@
 
 #pragma once
 
-#include <stddef.h>
+#include <cstddef>
 
 #include "BLI_compiler_attrs.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "MEM_guardedalloc.h"
 
 /**
  * A reasonable standard buffer size, big enough to not cause much internal fragmentation,
@@ -23,7 +21,6 @@ extern "C" {
 #define BLI_MEMARENA_STD_BUFSIZE MEM_SIZE_OPTIMAL(1 << 14)
 
 struct MemArena;
-typedef struct MemArena MemArena;
 
 struct MemArena *BLI_memarena_new(size_t bufsize,
                                   const char *name) ATTR_WARN_UNUSED_RESULT ATTR_RETURNS_NONNULL
@@ -36,6 +33,19 @@ void *BLI_memarena_alloc(struct MemArena *ma, size_t size) ATTR_WARN_UNUSED_RESU
     ATTR_NONNULL(1) ATTR_MALLOC ATTR_ALLOC_SIZE(2);
 void *BLI_memarena_calloc(struct MemArena *ma, size_t size) ATTR_WARN_UNUSED_RESULT
     ATTR_NONNULL(1) ATTR_MALLOC ATTR_ALLOC_SIZE(2);
+
+template<typename T>
+ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1) ATTR_MALLOC T *BLI_memarena_alloc(struct MemArena *ma,
+                                                                          size_t num = 1)
+{
+  return static_cast<T *>(BLI_memarena_alloc(ma, sizeof(T) * num));
+}
+template<typename T>
+ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1) ATTR_MALLOC T *BLI_memarena_calloc(struct MemArena *ma,
+                                                                           size_t num = 1)
+{
+  return static_cast<T *>(BLI_memarena_calloc(ma, sizeof(T) * num));
+}
 
 /**
  * Transfer ownership of allocated blocks from `ma_src` into `ma_dst`,
@@ -54,7 +64,3 @@ void BLI_memarena_merge(MemArena *ma_dst, MemArena *ma_src) ATTR_NONNULL(1, 2);
  * otherwise be freed and recreated.
  */
 void BLI_memarena_clear(MemArena *ma) ATTR_NONNULL(1);
-
-#ifdef __cplusplus
-}
-#endif

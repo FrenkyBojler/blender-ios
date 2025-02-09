@@ -8,11 +8,12 @@
  * \ingroup bli
  */
 
+#include <stddef.h>
+
 #include "BLI_compiler_attrs.h"
-#include "BLI_utildefines.h"
+#include "BLI_compiler_compat.h"
+
 #include "DNA_listBase.h"
-// struct ListBase;
-// struct LinkData;
 
 #ifdef __cplusplus
 extern "C" {
@@ -268,7 +269,7 @@ void BLI_movelisttolist_reverse(struct ListBase *dst, struct ListBase *src) ATTR
  * Split `original_listbase` after given `vlink`, putting the remaining of the list into given
  * `split_listbase`.
  *
- * \note If `vlink` is nullptr, it is considered as 'the item before the first item', so the whole
+ * \note If `vlink` is NULL, it is considered as 'the item before the first item', so the whole
  * list is moved from `original_listbase` to `split_listbase`.
  */
 void BLI_listbase_split_after(struct ListBase *original_listbase,
@@ -297,11 +298,11 @@ BLI_INLINE bool BLI_listbase_is_single(const struct ListBase *lb)
 }
 BLI_INLINE bool BLI_listbase_is_empty(const struct ListBase *lb)
 {
-  return (lb->first == (void *)0);
+  return (lb->first == (void *)NULL);
 }
 BLI_INLINE void BLI_listbase_clear(struct ListBase *lb)
 {
-  lb->first = lb->last = (void *)0;
+  lb->first = lb->last = (void *)NULL;
 }
 
 /**
@@ -418,7 +419,7 @@ template<typename T, typename Fn> T *BLI_listbase_find(const ListBase &listbase,
       return link;
     }
   }
-  return nullptr;
+  return NULL;
 }
 
 #endif

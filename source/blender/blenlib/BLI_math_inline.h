@@ -18,11 +18,11 @@ extern "C" {
 
 #if BLI_MATH_DO_INLINE
 #  ifdef _MSC_VER
-#    define MINLINE static __forceinline
+#    define MINLINE inline __forceinline
 #    define MALWAYS_INLINE MINLINE
 #  else
-#    define MINLINE static inline
-#    define MALWAYS_INLINE static inline __attribute__((always_inline)) __attribute__((unused))
+#    define MINLINE inline
+#    define MALWAYS_INLINE inline __attribute__((always_inline)) __attribute__((unused))
 #  endif
 #else
 #  define MINLINE

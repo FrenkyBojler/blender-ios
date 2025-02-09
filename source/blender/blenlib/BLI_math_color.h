@@ -186,5 +186,5 @@ MINLINE void cpack_cpy_3ub(unsigned char r_col[3], unsigned int pack);
 #endif
 
 #if BLI_MATH_DO_INLINE
-#  include "intern/math_color_inline.c"
+#  include "intern/math_color_inline.cc"
 #endif

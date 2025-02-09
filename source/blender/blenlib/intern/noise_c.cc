@@ -6,9 +6,8 @@
  * \ingroup bli
  */
 
-#include <math.h>
-
 #include <algorithm>
+#include <cmath>
 
 #include "BLI_compiler_compat.h"
 #include "BLI_sys_types.h"
