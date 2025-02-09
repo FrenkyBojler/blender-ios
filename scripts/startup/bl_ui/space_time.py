@@ -61,24 +61,20 @@ class TIME_HT_editor_buttons:
         row = layout.row(align=True)
         row.prop(scene, "use_preview_range", text="", toggle=True)
         sub = row.row(align=True)
-        sub.scale_x = 0.8
+
         if not scene.use_preview_range:
-            sub.prop(scene, "frame_start", text="Start")
-            sub.scale_x = 1
-            sub.operator("anim.start_frame_set", text="", icon='FILE_ALIAS')
-            sub.scale_x = .8
-            sub.prop(scene, "frame_end", text="End")
-            sub.scale_x = 1
-            sub.operator("anim.end_frame_set", text="", icon='FILE_ALIAS')
+            frame_set_btns(sub, scene, "frame_start", "Start", "anim.start_frame_set")
+            frame_set_btns(sub, scene, "frame_end", "End", "anim.end_frame_set")
         else:
-            sub.scale_x = .8
-            sub.prop(scene, "frame_preview_start", text="Start")
-            sub.scale_y = 1
-            sub.operator("anim.start_frame_set", text="", icon='FILE_ALIAS')
-            sub.scale_x = .8
-            sub.prop(scene, "frame_preview_end", text="End")
-            sub.scale_x = 1
-            sub.operator("anim.end_frame_set", text="", icon='FILE_ALIAS')
+            frame_set_btns(sub, scene, "frame_preview_start", "Start", "anim.start_frame_set")
+            frame_set_btns(sub, scene, "frame_preview_end", "End", "anim.end_frame_set")
+
+
+def frame_set_btns(layout, scene, prop, text, operator):
+    layout.scale_x = 0.2
+    layout.prop(scene, prop, text=text)
+    layout.scale_x = 1
+    layout.operator(operator, text="", icon='FILE_ALIAS')
 
 
 class TIME_MT_editor_menus(Menu):
@@ -275,12 +271,6 @@ class TIME_PT_playback(TimelinePanelButtons, Panel):
 
         col = layout.column(heading="Show")
         col.prop(scene, "show_subframe", text="Subframes")
-
-        layout.separator()
-
-        # row = layout.row(align=True)
-        # row.operator("anim.start_frame_set")
-        # row.operator("anim.end_frame_set")
 
 
 class TIME_PT_keyframing_settings(TimelinePanelButtons, Panel):
