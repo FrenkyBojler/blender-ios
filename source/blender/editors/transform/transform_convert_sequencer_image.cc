@@ -6,12 +6,12 @@
  * \ingroup edtransform
  */
 
-#include "BLI_index_range.hh"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
 
+#include "BLI_array.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h"
@@ -48,12 +48,8 @@ struct TransDataSeq {
   float orig_rotation;
 };
 
-static TransData *SeqToTransData(const Scene *scene,
-                                 Strip *strip,
-                                 TransData *td,
-                                 TransData2D *td2d,
-                                 TransDataSeq *tdseq,
-                                 int vert_index)
+static TransData *SeqToTransData(
+    const Scene *scene, Strip *strip, TransData *td, TransData2D *td2d, int vert_index)
 {
   const StripTransform *transform = strip->data->transform;
   float origin[2];
@@ -87,21 +83,22 @@ static TransData *SeqToTransData(const Scene *scene,
   axis_angle_to_mat3_single(td->axismtx, 'Z', transform->rotation);
   normalize_m3(td->axismtx);
 
-  // if (vert_index == 0) {
-  tdseq->strip = strip;
-  copy_v2_v2(tdseq->orig_origin_relative, transform->origin);
-  copy_v2_v2(tdseq->orig_origin_position, origin);
-  tdseq->quad_orig = SEQ_image_transform_final_quad_get(scene, strip);
-  tdseq->orig_matrix = math::invert(SEQ_image_transform_matrix_get(scene, strip));
+  if (vert_index == 0) {
+    TransDataSeq *tdseq = MEM_new<TransDataSeq>("TransSeq TransDataSeq");
+    tdseq->strip = strip;
+    copy_v2_v2(tdseq->orig_origin_relative, transform->origin);
+    copy_v2_v2(tdseq->orig_origin_position, origin);
+    tdseq->quad_orig = SEQ_image_transform_final_quad_get(scene, strip);
+    tdseq->orig_matrix = math::invert(SEQ_image_transform_matrix_get(scene, strip));
 
-  tdseq->orig_translation[0] = transform->xofs;
-  tdseq->orig_translation[1] = transform->yofs;
-  tdseq->orig_scale[0] = transform->scale_x;
-  tdseq->orig_scale[1] = transform->scale_y;
-  tdseq->orig_rotation = transform->rotation;
-  //}
+    tdseq->orig_translation[0] = transform->xofs;
+    tdseq->orig_translation[1] = transform->yofs;
+    tdseq->orig_scale[0] = transform->scale_x;
+    tdseq->orig_scale[1] = transform->scale_y;
+    tdseq->orig_rotation = transform->rotation;
+    td->extra = static_cast<void *>(tdseq);
+  }
 
-  td->extra = (void *)tdseq;
   td->ext = nullptr;
   td->flag |= TD_SELECTED;
   td->dist = 0.0;
@@ -114,7 +111,10 @@ static void freeSeqData(TransInfo * /*t*/,
                         TransCustomData * /*custom_data*/)
 {
   TransData *td = tc->data;
-  MEM_freeN(td->extra);
+  for (int i = 0; i < tc->data_len; i += 3) {
+    TransDataSeq *tdseq = static_cast<TransDataSeq *>((td + i)->extra);
+    MEM_delete(tdseq);
+  }
 }
 
 static void createTransSeqImageData(bContext * /*C*/, TransInfo *t)
@@ -150,16 +150,14 @@ static void createTransSeqImageData(bContext * /*C*/, TransInfo *t)
       MEM_callocN(tc->data_len * sizeof(TransData), "TransSeq TransData"));
   TransData2D *td2d = tc->data_2d = static_cast<TransData2D *>(
       MEM_callocN(tc->data_len * sizeof(TransData2D), "TransSeq TransData2D"));
-  TransDataSeq *tdseq = static_cast<TransDataSeq *>(
-      MEM_callocN(tc->data_len * sizeof(TransDataSeq), "TransSeq TransDataSeq"));
 
   for (Strip *strip : strips) {
     /* One `Sequence` needs 3 `TransData` entries - center point placed in image origin, then 2
      * points offset by 1 in X and Y direction respectively, so rotation and scale can be
      * calculated from these points. */
-    SeqToTransData(t->scene, strip, td++, td2d++, tdseq++, 0);
-    SeqToTransData(t->scene, strip, td++, td2d++, tdseq++, 1);
-    SeqToTransData(t->scene, strip, td++, td2d++, tdseq++, 2);
+    SeqToTransData(t->scene, strip, td++, td2d++, 0);
+    SeqToTransData(t->scene, strip, td++, td2d++, 1);
+    SeqToTransData(t->scene, strip, td++, td2d++, 2);
   }
 }
 
