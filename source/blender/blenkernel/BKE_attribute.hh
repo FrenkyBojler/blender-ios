@@ -489,8 +489,7 @@ struct AttributeAccessorFunctions {
  * Note, this does not own the attributes. When the owner is freed, it is invalid to access its
  * attributes.
  *
- * Default constructed instances does not have any reference data or a way to get access it, so can
- * not be used for any kind of access.
+ * Default initialized assessor produce undefined behavior.
  */
 class AttributeAccessor {
  protected:
