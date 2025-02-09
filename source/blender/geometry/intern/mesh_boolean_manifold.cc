@@ -18,7 +18,12 @@
 #include "BLI_offset_indices.hh"
 #include "BLI_span.hh"
 #include "BLI_task.hh"
-#include "BLI_timeit.hh"
+
+// #define DEBUG_TIME
+#ifdef DEBUG_TIME
+#  include "BLI_timeit.hh"
+#endif
+
 #include "BLI_vector.hh"
 
 #include "BKE_attribute.hh"
@@ -269,7 +274,9 @@ static void get_manifold(Manifold &manifold,
     dump_meshgl(meshgl, "converted result for mesh " + std::to_string(mesh_index));
   }
   {
+#ifdef DEBUG_TIME
     timeit::ScopedTimer mtimer("manifold constructor from meshgl");
+#endif
     manifold = Manifold(meshgl);
   }
 }
@@ -366,7 +373,9 @@ void OutToInMaps::ensure_face_map()
     return;
   }
   /* The MeshAssembly's new_faces should map one to one with output faces. */
+#ifdef DEBUG_TIME
   timeit::ScopedTimer timer("filling face map");
+#endif
   this->face_map.reinitialize(output_mesh_->faces_num);
   BLI_assert(mesh_assembly_->new_faces.size() == this->face_map.size());
   constexpr int grain_size = 50000;
@@ -388,7 +397,9 @@ void OutToInMaps::ensure_vertex_map()
    * through the vertices of the corresponding input face for matches.
    */
   this->ensure_face_map();
+#ifdef DEBUG_TIME
   timeit::ScopedTimer timer("filling vertex map");
+#endif
   this->vertex_map = Array<int>(output_mesh_->verts_num, -1);
   /* To parallelize this, need to deal with the fact that this will
    * have different threads wanting to write vertex_map, and also want
@@ -433,7 +444,9 @@ void OutToInMaps::ensure_corner_map()
    */
   this->ensure_face_map();
   this->ensure_vertex_map();
+#ifdef DEBUG_TIME
   timeit::ScopedTimer timer("filling corner map");
+#endif
   this->corner_map = Array<int>(output_mesh_->corners_num, -1);
   OffsetIndices<int> in_faces = joined_mesh_->faces();
   OffsetIndices<int> out_faces = output_mesh_->faces();
@@ -505,7 +518,9 @@ void OutToInMaps::ensure_edge_map()
    * this is the "canonical" edge representative so that only
    * one thread tries to write this. Or could use atomic operations.
    */
+#ifdef DEBUG_TIME
   timeit::ScopedTimer timer("filling edge map");
+#endif
   this->edge_map = Array<int>(output_mesh_->edges_num, -1);
   Span<int> out_corner_edges = output_mesh_->corner_edges();
   Span<int> out_corner_verts = output_mesh_->corner_verts();
@@ -648,7 +663,9 @@ constexpr int face_group_inline = 4;
 static Array<Vector<int, face_group_inline>> get_face_groups(const MeshGL &mgl,
                                                              int input_faces_num)
 {
+#ifdef DEBUG_TIME
   timeit::ScopedTimer timer("get_face_groups");
+#endif
   constexpr int dbg_level = 0;
   Array<Vector<int, face_group_inline>> fg(input_faces_num);
   const int tris_num = mgl.NumTri();
@@ -1008,7 +1025,9 @@ static void merge_out_faces(Vector<OutFace> &faces)
  */
 static MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl, const MeshOffsets &mesh_offsets)
 {
+#ifdef DEBUG_TIME
   timeit::ScopedTimer timer("calculating assemble_mesh_from_meshgl");
+#endif
   constexpr int dbg_level = 0;
   if (dbg_level > 0) {
     std::cout << "assemble_mesh_from_meshgl\n";
@@ -1030,7 +1049,9 @@ static MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl, const MeshOffse
     }
   }
   {
+#ifdef DEBUG_TIME
     timeit::ScopedTimer timer("face merging");
+#endif
     for (const int gid : face_groups.index_range()) {
       Span<int> group = face_groups[gid].as_span();
       Vector<OutFace> group_faces(group.size());
@@ -1099,7 +1120,9 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
                                           Span<int> out_to_in_corner_map,
                                           Span<int> out_to_in_face_map)
 {
+#ifdef DEBUG_TIME
   timeit::ScopedTimer timer("interpolate corner attributes");
+#endif
   /* Make parallel arrays of things needed access and write all corner attributes to interpolate.
    */
   Vector<bke::AttributeIter> attribute_iters;
@@ -1245,7 +1268,9 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   if (dbg_level > 0) {
     std::cout << "MESHGL_TO_MESH\n";
   }
+#ifdef DEBUG_TIME
   timeit::ScopedTimer timer("meshgl to mesh from joined_mesh");
+#endif
   BLI_assert(mgl.mergeFromVert.size() == 0);
 
   MeshAssembly ma = assemble_mesh_from_meshgl(mgl, mesh_offsets);
@@ -1258,7 +1283,9 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   /* TODO: maybe parallelize corner counting and offset calculation. */
   Array<int> face_corner_start_index;
   {
+#ifdef DEBUG_TIME
     timeit::ScopedTimer timer_c("calculate corner_start_index");
+#endif
     face_corner_start_index.reinitialize(tot_faces + 1);
     for (const int i : ma.new_faces.index_range()) {
       face_corner_start_index[i] = tot_corners;
@@ -1279,7 +1306,9 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   /* Set the vertex positions. */
   MutableSpan<float3> positions = mesh->vert_positions_for_write();
   {
+#ifdef DEBUG_TIME
     timeit::ScopedTimer timer_c("set positions");
+#endif
     int grain_size = 100000;
     threading::parallel_for(IndexRange(tot_positions), grain_size, [&](const IndexRange range) {
       for (const int i : range) {
@@ -1294,7 +1323,9 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   MutableSpan<int> face_start = mesh->face_offsets_for_write();
   MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
   {
+#ifdef DEBUG_TIME
     timeit::ScopedTimer timer_c("calculate faces");
+#endif
     int grain_size = 50000;
     threading::parallel_for(IndexRange(tot_faces), grain_size, [&](const IndexRange range) {
       for (const int face_index : range) {
@@ -1310,7 +1341,9 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   }
 
   {
+#ifdef DEBUG_TIME
     timeit::ScopedTimer timer_e("calculating edges");
+#endif
     bke::mesh_calc_edges(*mesh, false, false);
     /* That function killed the edge attributes that were copied from joined_mesh.
      * Add them back. */
@@ -1320,7 +1353,9 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
   OutToInMaps out_to_in(&ma, joined_mesh, mesh);
 
   {
+#ifdef DEBUG_TIME
     timeit::ScopedTimer timer_a("copying and interpolating attributes");
+#endif
 
     /* Copy attributes from joined_mesh to elements they are mapped to
      * in the new mesh. For most attributes, if there is no input element
@@ -1377,7 +1412,9 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
 
 static bke::GeometrySet join_meshes(Span<const Mesh *> meshes)
 {
+#ifdef DEBUG_TIME
   timeit::ScopedTimer jtimer("join meshes");
+#endif
   const int meshes_num = meshes.size();
   Array<bke::GeometrySet> geometries(meshes_num);
   for (const int i : geometries.index_range()) {
@@ -1398,7 +1435,9 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
     std::cout << "\nMESH_BOOLEAN_MANIFOLD with " << meshes.size() << " args\n";
   }
   try {
+#ifdef DEBUG_TIME
     timeit::ScopedTimer timer("MANIFOLD BOOLEAN");
+#endif
     const int num_meshes = meshes.size();
     std::vector<Manifold> manifolds(num_meshes);
     Array<bool> manifold_ok(num_meshes);
@@ -1429,7 +1468,9 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
                                                          manifold::OpType::Subtract);
     MeshGL meshgl_result;
     {
+#ifdef DEBUG_TIME
       timeit::ScopedTimer timer_bool("DOING BOOLEAN, GETTING MANIFOLD RESULT");
+#endif
       Manifold man_result = Manifold::BatchBoolean(manifolds, mop);
       meshgl_result = man_result.GetMeshGL();
       if (dbg_level > 0) {
@@ -1439,7 +1480,9 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
     }
     Mesh *mesh_result;
     {
+#ifdef DEBUG_TIME
       timeit::ScopedTimer timer_out("MESHGL RESULT TO MESH");
+#endif
       mesh_result = meshgl_to_mesh(meshgl_result, joined_mesh, mesh_offsets);
     }
     /* TODO: if (unlikely) target_transform is not identity, trasform the mesh. */
