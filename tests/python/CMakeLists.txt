@@ -887,6 +887,7 @@ set(geo_node_tests
   points
   texture
   utilities
+  utilities/field_in_space
   vector
 )
 
