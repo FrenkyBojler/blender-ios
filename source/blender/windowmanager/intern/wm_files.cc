@@ -3636,7 +3636,6 @@ static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
   const bool is_save_as = (op->type->invoke == wm_save_as_mainfile_invoke);
   const bool use_save_as_copy = is_save_as && RNA_boolean_get(op->ptr, "copy");
   const bool is_incremental = RNA_boolean_get(op->ptr, "incremental");
-  const char *save_msg_pre = "Saved";
 
   /* We could expose all options to the users however in most cases remapping
    * existing relative paths is a good default.
@@ -3707,17 +3706,23 @@ static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if (is_incremental) {
-    save_msg_pre = "Saved incremental as";
-  }
-  if (is_save_as) {
-    save_msg_pre = "Saved as";
-  }
-  if (use_save_as_copy) {
-    save_msg_pre = "Saved copy as";
-  }
+  const char *filename = BLI_path_basename(filepath);
 
-  BKE_reportf(op->reports, RPT_INFO, "%s \"%s\"", save_msg_pre, BLI_path_basename(filepath));
+  if (is_incremental) {
+    BKE_reportf(op->reports, RPT_INFO, "Saved incremental as \"%s\"", filename);
+  }
+  else if (is_save_as) {
+    /* use_save_as_copy depends upon is_save_as. */
+    if (use_save_as_copy) {
+      BKE_reportf(op->reports, RPT_INFO, "Saved copy as \"%s\"", filename);
+    }
+    else {
+      BKE_reportf(op->reports, RPT_INFO, "Saved as \"%s\"", filename);
+    }
+  }
+  else {
+    BKE_reportf(op->reports, RPT_INFO, "Saved \"%s\"", filename);
+  }
 
   if (!use_save_as_copy) {
     /* If saved file is the active one, there are technically no more compatibility issues, the
