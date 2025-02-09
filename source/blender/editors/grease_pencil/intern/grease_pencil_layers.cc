@@ -871,6 +871,84 @@ static void GREASE_PENCIL_OT_layer_merge(wmOperatorType *ot)
   ot->prop = RNA_def_enum(ot->srna, "mode", merge_modes, int(MergeMode::Down), "Mode", "");
 }
 
+enum class RelativeLayer : int8_t {
+  Below = -1,
+  Above = 1,
+};
+
+static int grease_pencil_relative_layer_mask_add_exec(bContext *C, wmOperator *op)
+{
+  using namespace blender::bke::greasepencil;
+  GreasePencil &grease_pencil = *blender::ed::greasepencil::from_context(*C);
+  const int relative_layer_index = int(RelativeLayer(RNA_enum_get(op->ptr, "mode")));
+
+  if (!grease_pencil.has_active_layer()) {
+    return OPERATOR_CANCELLED;
+  }
+  Layer &active_layer = *grease_pencil.get_active_layer();
+
+  const int active_layer_index = grease_pencil.layers().first_index(&active_layer);
+
+  if ((relative_layer_index == -1 && active_layer_index == 0) ||
+      (relative_layer_index == 1 && active_layer_index == grease_pencil.layers().size() - 1))
+  {
+    return OPERATOR_CANCELLED;
+  }
+  const StringRefNull relative_layer_name =
+      grease_pencil.layers()[active_layer_index + relative_layer_index]->name();
+
+  if (BLI_findstring_ptr(&active_layer.masks,
+                         relative_layer_name.c_str(),
+                         offsetof(GreasePencilLayerMask, layer_name)) != nullptr)
+  {
+    BKE_report(op->reports, RPT_ERROR, "Layer already added");
+    return OPERATOR_CANCELLED;
+  }
+
+  LayerMask *new_mask = MEM_new<LayerMask>(__func__, relative_layer_name.c_str());
+  BLI_addtail(&active_layer.masks, reinterpret_cast<GreasePencilLayerMask *>(new_mask));
+  // Make the newly added mask active.
+  active_layer.active_mask_index = BLI_listbase_count(&active_layer.masks) - 1;
+
+  // Enable masking for active layer
+  active_layer.base.flag &= ~GP_LAYER_TREE_NODE_HIDE_MASKS;
+
+  DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, &grease_pencil);
+
+  return OPERATOR_FINISHED;
+}
+static void GREASE_PENCIL_OT_relative_layer_mask_add(wmOperatorType *ot)
+{
+  static const EnumPropertyItem relative_modes[] = {
+      {int(RelativeLayer::Below),
+       "BELOW",
+       0,
+       "Below",
+       "Assign below layer as the masking layer of active layer"},
+      {int(RelativeLayer::Above),
+       "ABOVE",
+       0,
+       "Above",
+       "Assign above layer as the masking layer of active layer"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  /* identifiers */
+  ot->name = "Add Relative Mask Layer";
+  ot->idname = "GREASE_PENCIL_OT_relative_layer_mask_add";
+  ot->description = "Add above or below layer as masking";
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* callbacks */
+  ot->exec = grease_pencil_relative_layer_mask_add_exec;
+  ot->poll = active_grease_pencil_layer_poll;
+
+  /* properties */
+  // RNA_def_string(ot->srna, "name", nullptr, 0, "Layer", "Name of the layer");
+  ot->prop = RNA_def_enum(ot->srna, "mode", relative_modes, int(RelativeLayer::Above), "Mode", "");
+}
+
 static int grease_pencil_layer_mask_add_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::bke::greasepencil;
@@ -1228,4 +1306,5 @@ void ED_operatortypes_grease_pencil_layers()
   WM_operatortype_append(GREASE_PENCIL_OT_layer_mask_reorder);
   WM_operatortype_append(GREASE_PENCIL_OT_layer_group_color_tag);
   WM_operatortype_append(GREASE_PENCIL_OT_layer_duplicate_object);
+  WM_operatortype_append(GREASE_PENCIL_OT_relative_layer_mask_add);
 }
