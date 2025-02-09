@@ -2101,7 +2101,7 @@ static uiBlock *block_create_opengl_usage_warning(bContext *C, ARegion *region, 
   const int dialog_width = std::max(int(400.0f * UI_SCALE_FAC),
                                     text_width + int(style->columnspace * 2.5));
 
-  const short icon_size = 64 * UI_SCALE_FAC;
+  const short icon_size = 48 * UI_SCALE_FAC;
   uiLayout *layout = uiItemsAlertBox(
       block, style, dialog_width + icon_size, ALERT_ICON_ERROR, icon_size);
 

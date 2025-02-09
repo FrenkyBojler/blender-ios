@@ -1519,7 +1519,7 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_
   wmOperator *op = data->op;
   const uiStyle *style = UI_style_get_dpi();
   const bool small = data->size == WM_POPUP_SIZE_SMALL;
-  const short icon_size = (small ? 32 : 64) * UI_SCALE_FAC;
+  const short icon_size = (small ? 32 : 48) * UI_SCALE_FAC;
 
   uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
   UI_block_flag_disable(block, UI_BLOCK_LOOP);
