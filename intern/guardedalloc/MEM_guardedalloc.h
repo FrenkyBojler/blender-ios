@@ -339,7 +339,8 @@ template<typename T> inline void MEM_delete(const T *ptr)
  */
 template<typename T> inline T *MEM_cnew(const char *allocation_name)
 {
-  static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_new must be used.");
+  static_assert(std::is_trivially_copyable_v<T>,
+                "For non-trivially copyable types, MEM_new must be used.");
   return static_cast<T *>(MEM_calloc_arrayN_aligned(1, sizeof(T), alignof(T), allocation_name));
 }
 
@@ -348,7 +349,8 @@ template<typename T> inline T *MEM_cnew(const char *allocation_name)
  */
 template<typename T> inline T *MEM_cnew_array(const size_t length, const char *allocation_name)
 {
-  static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_new must be used.");
+  static_assert(std::is_trivially_copyable_v<T>,
+                "For non-trivially copyable types, MEM_new must be used.");
   return static_cast<T *>(
       MEM_calloc_arrayN_aligned(length, sizeof(T), alignof(T), allocation_name));
 }
@@ -365,7 +367,8 @@ template<typename T> inline T *MEM_cnew_array(const size_t length, const char *a
  */
 template<typename T> inline T *MEM_cnew(const char *allocation_name, const T &other)
 {
-  static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_new must be used.");
+  static_assert(std::is_trivially_copyable_v<T>,
+                "For non-trivially copyable types, MEM_new must be used.");
   T *new_object = static_cast<T *>(MEM_mallocN_aligned(sizeof(T), alignof(T), allocation_name));
   if (new_object) {
     memcpy(new_object, &other, sizeof(T));
