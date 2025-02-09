@@ -19,84 +19,103 @@ static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values(const i
 {
   switch (power_value) {
     case 0:
-      return [](const int /*power_value*/, MutableSpan<float> values) { values.fill(1.0f); };
+      return [](int /*power_value*/, MutableSpan<float> values) { values.fill(1.0f); };
     case 1:
-      return [](const int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [&](const float value) {
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
           return math::safe_rcp(value);
         });
       };
     case 2:
-      return [](const int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [&](const float value) {
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
           return math::safe_rcp(value * value);
         });
       };
     case 3:
-      return [](const int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [&](const float value) {
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
           return math::safe_rcp(value * value * value);
         });
       };
     case 4:
-      return [](const int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [&](const float value) {
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
           const float squared = math::square(value);
           return math::safe_rcp(squared * squared);
         });
       };
     case 5:
-      return [](const int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [&](const float value) {
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
           const float squared = math::square(value);
           return math::safe_rcp(squared * squared * value);
         });
       };
     case 6:
-      return [](const int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [&](const float value) {
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
           const float squared = math::square(value);
           return math::safe_rcp(squared * squared * squared);
         });
       };
     case 7:
-      return [](const int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [&](const float value) {
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
           const float squared = math::square(value);
           const float fourth_degree = math::square(squared);
           return math::safe_rcp(fourth_degree * squared * value);
         });
       };
     case 8:
-      return [](const int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [&](const float value) {
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
           const float squared = math::square(value);
           const float fourth_degree = math::square(squared);
           return math::safe_rcp(fourth_degree * fourth_degree);
         });
       };
     case 9:
-      return [](const int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [&](const float value) {
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
           const float squared = math::square(value);
           const float fourth_degree = math::square(squared);
           return math::safe_rcp(fourth_degree * fourth_degree * value);
         });
       };
+    case 10:
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
+          const float squared = math::square(value);
+          const float fourth_degree = math::square(squared);
+          return math::safe_rcp(fourth_degree * fourth_degree * squared);
+        });
+      };
+    case 11:
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
+          const float squared = math::square(value);
+          const float fourth_degree = math::square(squared);
+          return math::safe_rcp(fourth_degree * fourth_degree * squared * value);
+        });
+      };
+    case 12:
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
+          const float squared = math::square(value);
+          const float fourth_degree = math::square(squared);
+          return math::safe_rcp(fourth_degree * fourth_degree * fourth_degree);
+        });
+      };
     default:
       return [](const int power_value, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [&](const float value) {
-          return math::pow<float>(math::safe_rcp(value), power_value);
+        const float power_factor = float(power_value);
+        std::transform(values.begin(), values.end(), values.begin(), [power_factor](const float value) {
+          return std::expf(std::logf(value) * power_factor);
         });
       };
   }
 }
-
-struct Item {
-  int depth_i;
-  int joint_i;
-  int prefix_to_visit;
-};
 
 template<typename LeafFuncT, typename JointPredicateT, typename JointFuncT>
 static void for_each_to_bottom_skip(const OffsetIndices<int> buckets_offsets,
@@ -190,7 +209,7 @@ void akdbh_sample_value(OffsetIndices<int> buckets_offsets,
         Vector<float, 0> buffer;
         buffer.reserve(range.size());
 
-        akdbh::to_static_type(src_joints_value.type(), [&](auto dummy) {
+        to_static_type(src_joints_value.type(), [&](auto dummy) {
           using T = decltype(dummy);
 
           const Span<T> typed_src_joints_value = src_joints_value.typed<T>();
@@ -234,5 +253,99 @@ void akdbh_sample_value(OffsetIndices<int> buckets_offsets,
         });
       });
 }
+
+/*
+void akdbh_sample_value(OffsetIndices<int> buckets_offsets,
+                        const int total_depth,
+                        const Span<float3> src_joints_centre,
+                        const Span<float3> src_bucket_position,
+                        const Span<float> src_joints_min_distance_reduced,
+                        const GSpan src_joints_value,
+                        const GSpan src_bucket_value,
+                        const int power_value,
+                        const float offset_value,
+                        GMutableSpan dst_buckets_data)
+{
+  BLI_assert(src_joints_centre.size() == src_joints_min_distance_reduced.size());
+  BLI_assert(src_joints_centre.size() == src_joints_value.size());
+  BLI_assert(src_bucket_value.size() == dst_buckets_data.size());
+  BLI_assert(src_bucket_value.size() == src_bucket_position.size());
+  BLI_assert(dst_buckets_data.type() == src_joints_value.type());
+  BLI_assert(dst_buckets_data.type() == src_bucket_value.type());
+
+  const FunctionRef<void(int, MutableSpan<float>)> distance_invertion = powered_rcp_for_values(
+      power_value);
+
+  threading::parallel_for(
+      src_bucket_position.index_range(), 1024 * 8, [&](const IndexRange range) {
+        Vector<std::pair<int, Vector<int, 0>>, 0> joint_to_buckets;
+        Vector<std::pair<IndexRange, Vector<int>>, 0> bucket_to_joints;
+
+        for_each_to_bottom_skip(
+            buckets_offsets,
+            total_depth,
+            range,
+            [&](const int joint_index, const int value_i) -> bool {
+              return math::distance(src_joints_centre[joint_index],
+                                    src_bucket_position[value_i]) <=
+                     src_joints_min_distance_reduced[joint_index];
+            },
+            [&](const int joint_index,
+                const Span<int> value_indices) {
+              joint_to_buckets.append_as(joint_index, value_indices);
+            },
+            [&](const IndexRange bucket_range, const Span<int> value_indices) {
+              bucket_to_joints.append_as(bucket_range, value_indices);
+            });
+
+        Vector<float, 0> buffer;
+        buffer.reserve(range.size());
+
+        to_static_type(src_joints_value.type(), [&](auto dummy) {
+          using T = decltype(dummy);
+
+          const Span<T> typed_src_joints_value = src_joints_value.typed<T>();
+          const Span<T> typed_src_bucket_value = src_bucket_value.typed<T>();
+          MutableSpan<T> typed_dst_buckets_data = dst_buckets_data.typed<T>();
+
+          for (const auto &[joint_index, value_indices] : joint_to_buckets) {
+            buffer.resize(value_indices.size());
+            for (const int value_i : value_indices.index_range()) {
+              const int value_index = value_indices[value_i];
+              buffer[value_i] = math::distance(src_joints_centre[joint_index], src_bucket_position[value_index]) + offset_value;
+            }
+
+            distance_invertion(power_value, buffer.as_mutable_span());
+
+            for (const int value_i : value_indices.index_range()) {
+              const int value_index = value_indices[value_i];
+              typed_dst_buckets_data[value_index] += typed_src_joints_value[joint_index] * buffer[value_i];
+            }
+          }
+
+          for (const auto &[bucket_range, value_indices] : bucket_to_joints) {
+            buffer.resize(bucket_range.size());
+            for (const int value_i : value_indices) {
+              const float3 position = src_bucket_position[value_i];
+
+              for (const int index : bucket_range.index_range()) {
+                buffer[index] = math::distance(src_bucket_position[bucket_range[index]], position) + offset_value;
+              }
+
+              distance_invertion(power_value, buffer.as_mutable_span());
+
+              for (const int i : bucket_range.index_range()) {
+                const int index = bucket_range[i];
+                const float relation_factor = buffer[i];
+                const float safe_relation_factor = index == value_i ? 0.0f : relation_factor;
+                typed_dst_buckets_data[value_i] += typed_src_bucket_value[index] * safe_relation_factor;
+                typed_dst_buckets_data[value_i] += typed_src_bucket_value[index] * buffer[i];
+              }
+            }
+          }
+        });
+      });
+}
+*/
 
 }  // namespace blender::geometry::fmm
