@@ -47,7 +47,7 @@ def physics_add(layout, md, name, type, typeicon, toggles):
 def physics_add_special(layout, data, name, addop, removeop, typeicon):
     row = layout.row(align=True)
     if data:
-        row.operator(removeop, text=name, text_ctxt=i18n_contexts.default, icon='X')
+        row.operator(removeop, text=name, text_ctxt=i18n_contexts.default, icon='X', depress=True)
     else:
         row.operator(addop, text=name, text_ctxt=i18n_contexts.default, icon=typeicon)
 
@@ -73,7 +73,7 @@ class PHYSICS_PT_add(PhysicButtonsPanel, Panel):
         if not obj.field or obj.field.type == 'NONE':
             col.operator("object.forcefield_toggle", text="Force Field", icon='FORCE_FORCE')
         else:
-            col.operator("object.forcefield_toggle", text="Force Field", icon='X')
+            col.operator("object.forcefield_toggle", text="Force Field", icon='X', depress=True)
 
         if obj.type == 'MESH':
             row = physics_add(col, context.collision, "Collision", 'COLLISION', 'MOD_PHYSICS', False)
