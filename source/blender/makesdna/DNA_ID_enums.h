@@ -9,10 +9,6 @@
 
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 enum eIconSizes {
   ICON_SIZE_ICON = 0,
   ICON_SIZE_PREVIEW = 1,
@@ -173,7 +169,3 @@ typedef enum ID_Type {
 #define ID_NLA MAKE_ID2('N', 'L')
 /* fluidsim Ipo */
 #define ID_FLUIDSIM MAKE_ID2('F', 'S')
-
-#ifdef __cplusplus
-}
-#endif

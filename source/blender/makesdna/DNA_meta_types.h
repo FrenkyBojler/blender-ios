@@ -17,79 +17,6 @@ struct BoundBox;
 struct Ipo;
 struct Material;
 
-typedef struct MetaElem {
-  struct MetaElem *next, *prev;
-
-  /** Bound Box of MetaElem. */
-  struct BoundBox *bb;
-
-  short type, flag;
-  char _pad[4];
-  /** Position of center of MetaElem. */
-  float x, y, z;
-  /** Rotation of MetaElem (MUST be kept normalized). */
-  float quat[4];
-  /** Dimension parameters, used for some types like cubes. */
-  float expx;
-  float expy;
-  float expz;
-  /** Radius of the meta element. */
-  float rad;
-  /** Temp field, used only while processing. */
-  float rad2;
-  /** Stiffness, how much of the element to fill. */
-  float s;
-  /** Old, only used for backwards compatibility. use dimensions now. */
-  float len;
-
-  /** Matrix and inverted matrix. */
-  float *mat, *imat;
-} MetaElem;
-
-typedef struct MetaBall {
-  ID id;
-  struct AnimData *adt;
-
-  ListBase elems;
-  /** Not saved in files, note we use pointer for editmode check. */
-  ListBase *editelems;
-  /** Old animation system, deprecated for 2.5. */
-  struct Ipo *ipo DNA_DEPRECATED;
-
-  /* material of the mother ball will define the material used of all others */
-  struct Material **mat;
-
-  /** Flag is enum for updates, flag2 is bit-flags for settings. */
-  char flag, flag2;
-  short totcol;
-  /** Used to store #MB_TEXTURE_FLAG_AUTO. */
-  char texspace_flag;
-  char _pad[2];
-
-  /**
-   * ID data is older than edit-mode data (TODO: move to edit-mode struct).
-   * Set #Main.is_memfile_undo_flush_needed when enabling.
-   */
-  char needs_flush_to_id;
-
-  float texspace_location[3];
-  float texspace_size[3];
-
-  /** Display and render res. */
-  float wiresize, rendersize;
-
-  /* bias elements to have an offset volume.
-   * mother ball changes will effect other objects thresholds,
-   * but these may also have their own thresh as an offset */
-  float thresh;
-
-  char _pad0[4];
-
-  /** The active meta-element (used in edit-mode). */
-  MetaElem *lastelem;
-
-} MetaBall;
-
 /* **************** METABALL ********************* */
 
 /** #MetaBall::texspace_flag */
@@ -130,3 +57,76 @@ enum {
   MB_HIDE = 1 << 3,
   MB_SCALE_RAD = 1 << 4,
 };
+
+typedef struct MetaElem {
+  struct MetaElem *next = nullptr, *prev = nullptr;
+
+  /** Bound Box of MetaElem. */
+  struct BoundBox *bb = nullptr;
+
+  short type = 0, flag = 0;
+  char _pad[4] = {};
+  /** Position of center of MetaElem. */
+  float x = 0, y = 0, z = 0;
+  /** Rotation of MetaElem (MUST be kept normalized). */
+  float quat[4] = {};
+  /** Dimension parameters, used for some types like cubes. */
+  float expx = 0;
+  float expy = 0;
+  float expz = 0;
+  /** Radius of the meta element. */
+  float rad = 0;
+  /** Temp field, used only while processing. */
+  float rad2 = 0;
+  /** Stiffness, how much of the element to fill. */
+  float s = 0;
+  /** Old, only used for backwards compatibility. use dimensions now. */
+  float len = 0;
+
+  /** Matrix and inverted matrix. */
+  float *mat = nullptr, *imat = nullptr;
+} MetaElem;
+
+typedef struct MetaBall {
+  ID id;
+  struct AnimData *adt = nullptr;
+
+  ListBase elems = {nullptr, nullptr};
+  /** Not saved in files, note we use pointer for editmode check. */
+  ListBase *editelems = nullptr;
+  /** Old animation system, deprecated for 2.5. */
+  struct Ipo *ipo DNA_DEPRECATED = nullptr;
+
+  /* material of the mother ball will define the material used of all others */
+  struct Material **mat = nullptr;
+
+  /** Flag is enum for updates, flag2 is bit-flags for settings. */
+  char flag = 0, flag2 = 0;
+  short totcol = 0;
+  /** Used to store #MB_TEXTURE_FLAG_AUTO. */
+  char texspace_flag = MB_TEXSPACE_FLAG_AUTO;
+  char _pad[2] = {};
+
+  /**
+   * ID data is older than edit-mode data (TODO: move to edit-mode struct).
+   * Set #Main.is_memfile_undo_flush_needed when enabling.
+   */
+  char needs_flush_to_id = 0;
+
+  float texspace_location[3] = {};
+  float texspace_size[3] = {1, 1, 1};
+
+  /** Display and render res. */
+  float wiresize = 0.4f, rendersize = 0.2f;
+
+  /* bias elements to have an offset volume.
+   * mother ball changes will effect other objects thresholds,
+   * but these may also have their own thresh as an offset */
+  float thresh = 0.6f;
+
+  char _pad0[4] = {};
+
+  /** The active meta-element (used in edit-mode). */
+  MetaElem *lastelem = nullptr;
+
+} MetaBall;

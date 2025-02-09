@@ -22,5 +22,5 @@ typedef struct SessionUID {
    * Never access directly, as it might cause a headache when more bits are needed: if the field
    * is used directly it will not be easy to find all places where partial access is used.
    */
-  uint64_t uid_;
+  uint64_t uid_ = 0;
 } SessionUID;

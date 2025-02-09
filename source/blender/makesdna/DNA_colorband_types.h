@@ -16,14 +16,14 @@
 
 /** #ColorBand::color_mode. */
 enum {
-  COLBAND_BLEND_RGB,
+  COLBAND_BLEND_RGB = 0,
   COLBAND_BLEND_HSV = 1,
   COLBAND_BLEND_HSL = 2,
 };
 
 /** #ColorBand::ipotype (interpolation). */
 enum {
-  COLBAND_INTERP_LINEAR,
+  COLBAND_INTERP_LINEAR = 0,
   COLBAND_INTERP_EASE = 1,
   COLBAND_INTERP_B_SPLINE = 2,
   COLBAND_INTERP_CARDINAL = 3,
@@ -32,7 +32,7 @@ enum {
 
 /** #ColorBand::ipotype_hue (hue interpolation). */
 enum {
-  COLBAND_HUE_NEAR,
+  COLBAND_HUE_NEAR = 0,
   COLBAND_HUE_FAR = 1,
   COLBAND_HUE_CW = 2,
   COLBAND_HUE_CCW = 3,
@@ -55,8 +55,8 @@ typedef unsigned short dna_ushort_fix;
 #endif
 
 typedef struct CBData {
-  float r, g, b, a, pos;
-  int cur;
+  float r = 0, g = 0, b = 0, a = 0, pos = 0;
+  int cur = 0;
 } CBData;
 
 /**
@@ -64,10 +64,10 @@ typedef struct CBData {
  * \note that this has to remain a single struct, for UserDef.
  */
 typedef struct ColorBand {
-  short tot, cur;
-  char ipotype, ipotype_hue;
-  char color_mode;
-  char _pad[1];
+  short tot = 0, cur = 0;
+  char ipotype = 0, ipotype_hue = 0;
+  char color_mode = 0;
+  char _pad[1] = {};
 
   CBData data[32];
 } ColorBand;

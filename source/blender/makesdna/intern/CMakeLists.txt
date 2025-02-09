@@ -118,7 +118,7 @@ add_custom_command(
 # -----------------------------------------------------------------------------
 # Build bf_dna library
 set(SRC
-  dna_defaults.c
+  dna_defaults.cc
   dna_genfile.cc
   dna_utils.cc
   ${CMAKE_CURRENT_BINARY_DIR}/dna.cc

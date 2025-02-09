@@ -68,9 +68,9 @@
 
 /* Forward-declared here since there is no simple header file to be pulled for this functionality.
  * Avoids pulling `string.h` from this header to get access to #memcpy. */
-extern "C" void _DNA_internal_memcpy(void *dst, const void *src, size_t size);
-extern "C" void _DNA_internal_memzero(void *dst, size_t size);
-extern "C" void _DNA_internal_swap(void *a, void *b, size_t size);
+void _DNA_internal_memcpy(void *dst, const void *src, size_t size);
+void _DNA_internal_memzero(void *dst, size_t size);
+void _DNA_internal_swap(void *a, void *b, size_t size);
 
 namespace blender::dna::internal {
 

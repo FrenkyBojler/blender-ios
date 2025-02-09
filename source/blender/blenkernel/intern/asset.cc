@@ -31,8 +31,7 @@ using namespace blender;
 
 AssetMetaData *BKE_asset_metadata_create()
 {
-  const AssetMetaData *default_metadata = DNA_struct_default_get(AssetMetaData);
-  return MEM_new<AssetMetaData>(__func__, *default_metadata);
+  return MEM_new<AssetMetaData>(__func__);
 }
 
 void BKE_asset_metadata_free(AssetMetaData **asset_data)
@@ -148,7 +147,7 @@ void BKE_asset_metadata_tag_remove(AssetMetaData *asset_data, AssetTag *tag)
 
 void BKE_asset_library_reference_init_default(AssetLibraryReference *library_ref)
 {
-  memcpy(library_ref, DNA_struct_default_get(AssetLibraryReference), sizeof(*library_ref));
+  *library_ref = AssetLibraryReference();
 }
 
 void BKE_asset_metadata_catalog_id_clear(AssetMetaData *asset_data)

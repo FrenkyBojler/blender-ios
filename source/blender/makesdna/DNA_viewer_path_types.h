@@ -20,58 +20,58 @@ typedef enum ViewerPathElemType {
 } ViewerPathElemType;
 
 typedef struct ViewerPathElem {
-  struct ViewerPathElem *next, *prev;
-  int type;
-  char _pad[4];
-  char *ui_name;
+  struct ViewerPathElem *next = nullptr, *prev = nullptr;
+  int type = 0;
+  char _pad[4] = {};
+  char *ui_name = nullptr;
 } ViewerPathElem;
 
 typedef struct IDViewerPathElem {
   ViewerPathElem base;
-  struct ID *id;
+  struct ID *id = nullptr;
 } IDViewerPathElem;
 
 typedef struct ModifierViewerPathElem {
   ViewerPathElem base;
-  char *modifier_name;
+  char *modifier_name = nullptr;
 } ModifierViewerPathElem;
 
 typedef struct GroupNodeViewerPathElem {
   ViewerPathElem base;
 
-  int32_t node_id;
-  char _pad1[4];
+  int32_t node_id = 0;
+  char _pad1[4] = {};
 } GroupNodeViewerPathElem;
 
 typedef struct SimulationZoneViewerPathElem {
   ViewerPathElem base;
 
-  int32_t sim_output_node_id;
-  char _pad1[4];
+  int32_t sim_output_node_id = 0;
+  char _pad1[4] = {};
 } SimulationZoneViewerPathElem;
 
 typedef struct RepeatZoneViewerPathElem {
   ViewerPathElem base;
 
-  int repeat_output_node_id;
-  int iteration;
+  int repeat_output_node_id = 0;
+  int iteration = 0;
 } RepeatZoneViewerPathElem;
 
 typedef struct ForeachGeometryElementZoneViewerPathElem {
   ViewerPathElem base;
 
-  int zone_output_node_id;
-  int index;
+  int zone_output_node_id = 0;
+  int index = 0;
 } ForeachGeometryElementZoneViewerPathElem;
 
 typedef struct ViewerNodeViewerPathElem {
   ViewerPathElem base;
 
-  int32_t node_id;
-  char _pad1[4];
+  int32_t node_id = 0;
+  char _pad1[4] = {};
 } ViewerNodeViewerPathElem;
 
 typedef struct ViewerPath {
   /** List of #ViewerPathElem. */
-  ListBase path;
+  ListBase path = {nullptr, nullptr};
 } ViewerPath;

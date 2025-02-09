@@ -46,8 +46,6 @@
 #include "BKE_main.hh"
 #include "BKE_preferences.h"
 
-#include "BLO_userdef_default.h"
-
 #include "BLF_api.hh"
 
 #include "ED_fileselect.hh"

@@ -41,7 +41,6 @@ set(SRC
   BLO_read_write.hh
   BLO_readfile.hh
   BLO_undofile.hh
-  BLO_userdef_default.h
   BLO_writefile.hh
   intern/readfile.hh
   intern/versioning_common.hh

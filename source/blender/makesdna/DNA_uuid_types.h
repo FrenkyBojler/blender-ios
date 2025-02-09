@@ -16,12 +16,12 @@
  * Cannot be named simply `UUID`, because Windows already defines that type.
  */
 typedef struct bUUID {
-  uint32_t time_low;
-  uint16_t time_mid;
-  uint16_t time_hi_and_version;
-  uint8_t clock_seq_hi_and_reserved;
-  uint8_t clock_seq_low;
-  uint8_t node[6];
+  uint32_t time_low = 0;
+  uint16_t time_mid = 0;
+  uint16_t time_hi_and_version = 0;
+  uint8_t clock_seq_hi_and_reserved = 0;
+  uint8_t clock_seq_low = 0;
+  uint8_t node[6] = {};
 } bUUID;
 
 /**

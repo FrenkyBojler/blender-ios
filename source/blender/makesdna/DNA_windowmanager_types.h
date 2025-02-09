@@ -94,31 +94,31 @@ enum ReportListFlags {
 #
 #
 typedef struct Report {
-  struct Report *next, *prev;
+  struct Report *next = nullptr, *prev = nullptr;
   /** eReportType. */
-  short type;
-  short flag;
+  short type = 0;
+  short flag = 0;
   /** `strlen(message)`, saves some time calculating the word wrap. */
-  int len;
-  const char *typestr;
-  const char *message;
+  int len = 0;
+  const char *typestr = nullptr;
+  const char *message = nullptr;
 } Report;
 
 /**
  * \note Saved in the #wmWindowManager, don't remove.
  */
 typedef struct ReportList {
-  ListBase list;
+  ListBase list = {nullptr, nullptr};
   /** #eReportType. */
-  int printlevel;
+  int printlevel = 0;
   /** #eReportType. */
-  int storelevel;
-  int flag;
-  char _pad[4];
-  struct wmTimer *reporttimer;
+  int storelevel = 0;
+  int flag = 0;
+  char _pad[4] = {};
+  struct wmTimer *reporttimer = nullptr;
 
   /** Mutex for thread-safety, runtime only. */
-  std_mutex_type *lock;
+  std_mutex_type *lock = nullptr;
 } ReportList;
 
 /* Timer custom-data to control reports display. */
@@ -126,14 +126,14 @@ typedef struct ReportList {
 #
 #
 typedef struct ReportTimerInfo {
-  float widthfac;
-  float flash_progress;
+  float widthfac = 0;
+  float flash_progress = 0;
 } ReportTimerInfo;
 
 // #ifdef WITH_XR_OPENXR
 typedef struct wmXrData {
   /** Runtime information for managing Blender specific behaviors. */
-  struct wmXrRuntimeData *runtime;
+  struct wmXrRuntimeData *runtime = nullptr;
   /** Permanent session settings (draw mode, feature toggles, etc). Stored in files and accessible
    * even before the session runs. */
   XrSessionSettings session_settings;
@@ -147,29 +147,29 @@ typedef struct wmWindowManager {
   ID id;
 
   /** Separate active from drawable. */
-  struct wmWindow *windrawable;
+  struct wmWindow *windrawable = nullptr;
   /**
    * \note `CTX_wm_window(C)` is usually preferred.
    * Avoid relying on this where possible as this may become NULL during when handling
    * events that close or replace windows (opening a file for e.g.).
    * While this happens rarely in practice, it can cause difficult to reproduce bugs.
    */
-  struct wmWindow *winactive;
-  ListBase windows;
+  struct wmWindow *winactive = nullptr;
+  ListBase windows = {nullptr, nullptr};
 
   /** Set on file read. */
-  uint8_t init_flag;
-  char _pad0[1];
+  uint8_t init_flag = 0;
+  char _pad0[1] = {};
   /** Indicator whether data was saved. */
-  short file_saved;
+  short file_saved = 0;
   /** Operator stack depth to avoid nested undo pushes. */
-  short op_undo_depth;
+  short op_undo_depth = 0;
 
   /** Set after selection to notify outliner to sync. Stores type of selection */
-  short outliner_sync_select_dirty;
+  short outliner_sync_select_dirty = 0;
 
   /** Operator registry. */
-  ListBase operators;
+  ListBase operators = {nullptr, nullptr};
 
   /**
    * Refresh/redraw #wmNotifier structs.
@@ -177,61 +177,61 @@ typedef struct wmWindowManager {
    * With the exception of clearing notifiers for data which has been removed,
    * see: #NOTE_CATEGORY_TAG_CLEARED.
    */
-  ListBase notifier_queue;
+  ListBase notifier_queue = {nullptr, nullptr};
   /**
    * For duplicate detection.
    * \note keep in sync with `notifier_queue` adding/removing elements must also update this set.
    */
-  struct GSet *notifier_queue_set;
+  struct GSet *notifier_queue_set = nullptr;
 
   /** The current notifier in the `notifier_queue` being handled (clear instead of freeing). */
-  const struct wmNotifier *notifier_current;
+  const struct wmNotifier *notifier_current = nullptr;
 
   /** Available/pending extensions updates. */
-  int extensions_updates;
+  int extensions_updates = 0;
   /** Number of blocked & installed extensions. */
-  int extensions_blocked;
+  int extensions_blocked = 0;
 
   /** Threaded jobs manager. */
-  ListBase jobs;
+  ListBase jobs = {nullptr, nullptr};
 
   /** Extra overlay cursors to draw, like circles. */
-  ListBase paintcursors;
+  ListBase paintcursors = {nullptr, nullptr};
 
   /** Active dragged items. */
-  ListBase drags;
+  ListBase drags = {nullptr, nullptr};
 
   /**
    * Known key configurations.
    * This includes all the #wmKeyConfig members (`defaultconf`, `addonconf`, etc).
    */
-  ListBase keyconfigs;
+  ListBase keyconfigs = {nullptr, nullptr};
 
   /** Default configuration. */
-  struct wmKeyConfig *defaultconf;
+  struct wmKeyConfig *defaultconf = nullptr;
   /** Addon configuration. */
-  struct wmKeyConfig *addonconf;
+  struct wmKeyConfig *addonconf = nullptr;
   /** User configuration. */
-  struct wmKeyConfig *userconf;
+  struct wmKeyConfig *userconf = nullptr;
 
   /** Active timers. */
-  ListBase timers;
+  ListBase timers = {nullptr, nullptr};
   /** Timer for auto save. */
-  struct wmTimer *autosavetimer;
+  struct wmTimer *autosavetimer = nullptr;
   /** Auto-save timer was up, but it wasn't possible to auto-save in the current mode. */
-  char autosave_scheduled;
-  char _pad2[7];
+  char autosave_scheduled = 0;
+  char _pad2[7] = {};
 
   /** All undo history (runtime only). */
-  struct UndoStack *undo_stack;
+  struct UndoStack *undo_stack = nullptr;
 
-  struct wmMsgBus *message_bus;
+  struct wmMsgBus *message_bus = nullptr;
 
   // #ifdef WITH_XR_OPENXR
   wmXrData xr;
   // #endif
 
-  WindowManagerRuntimeHandle *runtime;
+  WindowManagerRuntimeHandle *runtime = nullptr;
 } wmWindowManager;
 
 #define WM_KEYCONFIG_ARRAY_P(wm) &(wm)->defaultconf, &(wm)->addonconf, &(wm)->userconf
@@ -273,38 +273,38 @@ enum {
  * The saveable part, the rest of the data is local in GHOST.
  */
 typedef struct wmWindow {
-  struct wmWindow *next, *prev;
+  struct wmWindow *next = nullptr, *prev = nullptr;
 
   /** Don't want to include ghost.h stuff. */
-  void *ghostwin;
+  void *ghostwin = nullptr;
   /** Don't want to include gpu stuff. */
-  void *gpuctx;
+  void *gpuctx = nullptr;
 
   /** Parent window. */
-  struct wmWindow *parent;
+  struct wmWindow *parent = nullptr;
 
   /** Active scene displayed in this window. */
-  struct Scene *scene;
+  struct Scene *scene = nullptr;
   /** Temporary when switching. */
-  struct Scene *new_scene;
+  struct Scene *new_scene = nullptr;
   /** Active view layer displayed in this window. */
-  char view_layer_name[64];
+  char view_layer_name[64] = "";
   /** The workspace may temporarily override the window's scene with scene pinning. This is the
    * "overridden" or "default" scene to restore when entering a workspace with no scene pinned. */
-  struct Scene *unpinned_scene;
+  struct Scene *unpinned_scene = nullptr;
 
-  struct WorkSpaceInstanceHook *workspace_hook;
+  struct WorkSpaceInstanceHook *workspace_hook = nullptr;
 
   /** Global areas aren't part of the screen, but part of the window directly.
    * \note Code assumes global areas with fixed height, fixed width not supported yet */
   ScrAreaMap global_areas;
 
-  struct bScreen *screen DNA_DEPRECATED;
+  struct bScreen *screen DNA_DEPRECATED = nullptr;
 
   /** Window-ID also in screens, is for retrieving this window after read. */
-  int winid;
+  int winid = 0;
   /** Window coords (in pixels). */
-  short posx, posy;
+  short posx = 0, posy = 0;
   /**
    * Window size (in pixels).
    *
@@ -315,52 +315,52 @@ typedef struct wmWindow {
    * These default to the main screen size but can be overridden by the `--window-geometry`
    * command line argument.
    */
-  short sizex, sizey;
+  short sizex = 0, sizey = 0;
   /** Normal, maximized, full-screen, #GHOST_TWindowState. */
-  char windowstate;
+  char windowstate = 0;
   /** Set to 1 if an active window, for quick rejects. */
-  char active;
+  char active = 0;
   /** Current mouse cursor type. */
-  short cursor;
+  short cursor = 0;
   /** Previous cursor when setting modal one. */
-  short lastcursor;
+  short lastcursor = 0;
   /** The current modal cursor. */
-  short modalcursor;
+  short modalcursor = 0;
   /** Cursor grab mode #GHOST_TGrabCursorMode (run-time only) */
-  short grabcursor;
+  short grabcursor = 0;
   /** Internal: tag this for extra mouse-move event,
    * makes cursors/buttons active on UI switching. */
 
   /** Internal, lock pie creation from this event until released. */
-  short pie_event_type_lock;
+  short pie_event_type_lock = 0;
   /**
    * Exception to the above rule for nested pies, store last pie event for operators
    * that spawn a new pie right after destruction of last pie.
    */
-  short pie_event_type_last;
+  short pie_event_type_last = 0;
 
-  char addmousemove;
-  char tag_cursor_refresh;
+  char addmousemove = 0;
+  char tag_cursor_refresh = 0;
 
   /* Track the state of the event queue,
    * these store the state that needs to be kept between handling events in the queue. */
   /** Enable when #KM_PRESS events are not handled (keyboard/mouse-buttons only). */
-  char event_queue_check_click;
+  char event_queue_check_click = 0;
   /** Enable when #KM_PRESS events are not handled (keyboard/mouse-buttons only). */
-  char event_queue_check_drag;
+  char event_queue_check_drag = 0;
   /**
    * Enable when the drag was handled,
    * to avoid mouse-motion continually triggering drag events which are not handled
    * but add overhead to gizmo handling (for example), see #87511.
    */
-  char event_queue_check_drag_handled;
+  char event_queue_check_drag_handled = 0;
 
   /** The last event type (that passed #WM_event_consecutive_gesture_test check). */
-  char event_queue_consecutive_gesture_type;
+  char event_queue_consecutive_gesture_type = 0;
   /** The cursor location when `event_queue_consecutive_gesture_type` was set. */
-  int event_queue_consecutive_gesture_xy[2];
+  int event_queue_consecutive_gesture_xy[2] = {};
   /** See #WM_event_consecutive_data_get and related API. Freed when consecutive events end. */
-  struct wmEvent_ConsecutiveData *event_queue_consecutive_gesture_data;
+  struct wmEvent_ConsecutiveData *event_queue_consecutive_gesture_data = nullptr;
 
   /**
    * Storage for event system.
@@ -378,47 +378,47 @@ typedef struct wmWindow {
    *   This has the down side that the modifier value will be incorrect if users hold both
    *   left/right modifiers then release one. See note in #wm_event_add_ghostevent for details.
    */
-  struct wmEvent *eventstate;
+  struct wmEvent *eventstate = nullptr;
   /**
    * Keep the last handled event in `event_queue` here (owned and must be freed).
    *
    * \warning This must only to be used for event queue logic.
    * User interactions should use `eventstate` instead (if the event isn't passed to the function).
    */
-  struct wmEvent *event_last_handled;
+  struct wmEvent *event_last_handled = nullptr;
 
   /**
    * Input Method Editor data - complex character input (especially for Asian character input)
    * Currently WIN32 and APPLE, runtime-only data.
    */
-  const struct wmIMEData *ime_data;
-  char ime_data_is_composing;
-  char _pad1[7];
+  const struct wmIMEData *ime_data = nullptr;
+  char ime_data_is_composing = 0;
+  char _pad1[7] = {};
 
   /** All events #wmEvent (ghost level events were handled). */
-  ListBase event_queue;
+  ListBase event_queue = {nullptr, nullptr};
   /** Window+screen handlers, handled last. */
-  ListBase handlers;
+  ListBase handlers = {nullptr, nullptr};
   /** Priority handlers, handled first. */
-  ListBase modalhandlers;
+  ListBase modalhandlers = {nullptr, nullptr};
 
   /** Gesture stuff. */
-  ListBase gesture;
+  ListBase gesture = {nullptr, nullptr};
 
   /** Properties for stereoscopic displays. */
-  struct Stereo3dFormat *stereo3d_format;
+  struct Stereo3dFormat *stereo3d_format = nullptr;
 
   /** Custom drawing callbacks. */
-  ListBase drawcalls;
+  ListBase drawcalls = {nullptr, nullptr};
 
   /** Private runtime info to show text in the status bar. */
-  void *cursor_keymap_status;
+  void *cursor_keymap_status = nullptr;
 
   /**
    * The time when the key is pressed in milliseconds (see #GHOST_GetEventTime).
    * Used to detect double-click events.
    */
-  uint64_t eventstate_prev_press_time_ms;
+  uint64_t eventstate_prev_press_time_ms = 0;
 
 } wmWindow;
 
@@ -432,73 +432,73 @@ typedef struct wmWindow {
 #
 #
 typedef struct wmOperatorTypeMacro {
-  struct wmOperatorTypeMacro *next, *prev;
+  struct wmOperatorTypeMacro *next = nullptr, *prev = nullptr;
 
   /* operator id */
-  char idname[64]; /* OP_MAX_TYPENAME */
+  char idname[64] = ""; /* OP_MAX_TYPENAME */
   /* rna pointer to access properties, like keymap */
   /** Operator properties, assigned to ptr->data and can be written to a file. */
-  struct IDProperty *properties;
-  struct PointerRNA *ptr;
+  struct IDProperty *properties = nullptr;
+  struct PointerRNA *ptr = nullptr;
 } wmOperatorTypeMacro;
 
 /**
  * Partial copy of the event, for matching by event handler.
  */
 typedef struct wmKeyMapItem {
-  struct wmKeyMapItem *next, *prev;
+  struct wmKeyMapItem *next = nullptr, *prev = nullptr;
 
   /* operator */
   /** Used to retrieve operator type pointer. */
-  char idname[64];
+  char idname[64] = "";
   /** Operator properties, assigned to ptr->data and can be written to a file. */
-  IDProperty *properties;
+  IDProperty *properties = nullptr;
 
   /* modal */
   /** Runtime temporary storage for loading. */
-  char propvalue_str[64];
+  char propvalue_str[64] = "";
   /** If used, the item is from modal map. */
-  short propvalue;
+  short propvalue = 0;
 
   /* event */
   /** Event code itself (#EVT_LEFTCTRLKEY, #LEFTMOUSE etc). */
-  short type;
+  short type = 0;
   /** Button state (#KM_ANY, #KM_PRESS, #KM_DBL_CLICK, #KM_CLICK_DRAG, #KM_NOTHING etc). */
-  int8_t val;
+  int8_t val = 0;
   /**
    * The 2D direction of the event to use when `val == KM_CLICK_DRAG`.
    * Set to #KM_DIRECTION_N, #KM_DIRECTION_S & related values, #KM_NOTHING for any direction.
    */
-  int8_t direction;
+  int8_t direction = 0;
   /** `oskey` also known as apple, windows-key or super. */
-  short shift, ctrl, alt, oskey;
+  short shift = 0, ctrl = 0, alt = 0, oskey = 0;
   /** Raw-key modifier. */
-  short keymodifier;
+  short keymodifier = 0;
 
   /* flag: inactive, expanded */
-  short flag;
+  short flag = 0;
 
   /* runtime */
   /** Keymap editor. */
-  short maptype;
+  short maptype = 0;
   /** Unique identifier. Positive for kmi that override builtins, negative otherwise. */
-  short id;
-  char _pad[2];
+  short id = 0;
+  char _pad[2] = {};
   /**
    * RNA pointer to access properties.
    *
    * \note The `ptr.owner_id` value must be NULL, as a signal not to use the context
    * when running property callbacks such as ENUM item functions.
    */
-  struct PointerRNA *ptr;
+  struct PointerRNA *ptr = nullptr;
 } wmKeyMapItem;
 
 /** Used instead of wmKeyMapItem for diff keymaps. */
 typedef struct wmKeyMapDiffItem {
-  struct wmKeyMapDiffItem *next, *prev;
+  struct wmKeyMapDiffItem *next = nullptr, *prev = nullptr;
 
-  wmKeyMapItem *remove_item;
-  wmKeyMapItem *add_item;
+  wmKeyMapItem *remove_item = nullptr;
+  wmKeyMapItem *add_item = nullptr;
 } wmKeyMapDiffItem;
 
 /** #wmKeyMapItem.flag */
@@ -537,24 +537,24 @@ enum {
  * Stored in WM, the actively used key-maps.
  */
 typedef struct wmKeyMap {
-  struct wmKeyMap *next, *prev;
+  struct wmKeyMap *next = nullptr, *prev = nullptr;
 
-  ListBase items;
-  ListBase diff_items;
+  ListBase items = {nullptr, nullptr};
+  ListBase diff_items = {nullptr, nullptr};
 
   /** Global editor keymaps, or for more per space/region. */
-  char idname[64];
+  char idname[64] = "";
   /** Same IDs as in DNA_space_types.h. */
-  short spaceid;
+  short spaceid = 0;
   /** See above. */
-  short regionid;
+  short regionid = 0;
   /** Optional, see: #wmOwnerID. */
-  char owner_id[128];
+  char owner_id[128] = "";
 
   /** General flags. */
-  short flag;
+  short flag = 0;
   /** Last kmi id. */
-  short kmi_id;
+  short kmi_id = 0;
 
   /* runtime */
   /** Verify if enabled in the current context, use #WM_keymap_poll instead of direct calls. */
@@ -562,7 +562,7 @@ typedef struct wmKeyMap {
   bool (*poll_modal_item)(const struct wmOperator *op, int value);
 
   /** For modal, #EnumPropertyItem for now. */
-  const void *modal_items;
+  const void *modal_items = nullptr;
 } wmKeyMap;
 
 /** #wmKeyMap.flag */
@@ -590,24 +590,24 @@ enum {
  * #wmKeyConfigPrefType_Runtime has the RNA type.
  */
 typedef struct wmKeyConfigPref {
-  struct wmKeyConfigPref *next, *prev;
+  struct wmKeyConfigPref *next = nullptr, *prev = nullptr;
   /** Unique name. */
-  char idname[64];
-  IDProperty *prop;
+  char idname[64] = "";
+  IDProperty *prop = nullptr;
 } wmKeyConfigPref;
 
 typedef struct wmKeyConfig {
-  struct wmKeyConfig *next, *prev;
+  struct wmKeyConfig *next = nullptr, *prev = nullptr;
 
   /** Unique name. */
-  char idname[64];
+  char idname[64] = "";
   /** ID-name of configuration this is derives from, "" if none. */
-  char basename[64];
+  char basename[64] = "";
 
-  ListBase keymaps;
-  int actkeymap;
-  short flag;
-  char _pad0[2];
+  ListBase keymaps = {nullptr, nullptr};
+  int actkeymap = 0;
+  short flag = 0;
+  char _pad0[2] = {};
 } wmKeyConfig;
 
 /** #wmKeyConfig.flag */
@@ -621,35 +621,35 @@ enum {
  * operator + operator-type should be able to redo entirely, but for different context's.
  */
 typedef struct wmOperator {
-  struct wmOperator *next, *prev;
+  struct wmOperator *next = nullptr, *prev = nullptr;
 
   /* saved */
   /** Used to retrieve type pointer. */
-  char idname[64]; /* OP_MAX_TYPENAME */
+  char idname[64] = ""; /* OP_MAX_TYPENAME */
   /** Saved, user-settable properties. */
-  IDProperty *properties;
+  IDProperty *properties = nullptr;
 
   /* runtime */
   /** Operator type definition from idname. */
-  struct wmOperatorType *type;
+  struct wmOperatorType *type = nullptr;
   /** Custom storage, only while operator runs. */
-  void *customdata;
+  void *customdata = nullptr;
   /** Python stores the class instance here. */
-  void *py_instance;
+  void *py_instance = nullptr;
 
   /** Rna pointer to access properties. */
-  struct PointerRNA *ptr;
+  struct PointerRNA *ptr = nullptr;
   /** Errors and warnings storage. */
-  struct ReportList *reports;
+  struct ReportList *reports = nullptr;
 
   /** List of operators, can be a tree. */
-  ListBase macro;
+  ListBase macro = {nullptr, nullptr};
   /** Current running macro, not saved. */
-  struct wmOperator *opm;
+  struct wmOperator *opm = nullptr;
   /** Runtime for drawing. */
-  struct uiLayout *layout;
-  short flag;
-  char _pad[6];
+  struct uiLayout *layout = nullptr;
+  short flag = 0;
+  char _pad[6] = {};
 } wmOperator;
 
 /**

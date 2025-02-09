@@ -16,24 +16,24 @@
  */
 typedef struct FileGlobal {
   /** Needs to be here, for human file-format recognition (keep first!). */
-  char subvstr[4];
+  char subvstr[4] = "";
 
-  short subversion;
-  short minversion, minsubversion;
-  char _pad[6];
-  struct bScreen *curscreen;
-  struct Scene *curscene;
-  struct ViewLayer *cur_view_layer;
-  void *_pad1;
+  short subversion = 0;
+  short minversion = 0, minsubversion = 0;
+  char _pad[6] = {};
+  struct bScreen *curscreen = nullptr;
+  struct Scene *curscene = nullptr;
+  struct ViewLayer *cur_view_layer = nullptr;
+  void *_pad1 = nullptr;
 
-  int fileflags;
-  int globalf;
+  int fileflags = 0;
+  int globalf = 0;
   /** Commit timestamp from `buildinfo`. */
-  uint64_t build_commit_timestamp;
+  uint64_t build_commit_timestamp = 0;
   /** Hash from `buildinfo`. */
-  char build_hash[16];
+  char build_hash[16] = "";
   /** File path where this was saved, for recover (1024 = FILE_MAX). */
-  char filepath[1024];
+  char filepath[1024] = "";
 } FileGlobal;
 
 /* minversion: in file, the oldest past blender version you can use compliant */

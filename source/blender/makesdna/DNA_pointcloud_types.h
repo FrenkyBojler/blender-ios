@@ -36,23 +36,23 @@ typedef struct PointCloudRuntimeHandle PointCloudRuntimeHandle;
 
 typedef struct PointCloud {
   ID id;
-  struct AnimData *adt; /* animation data (must be immediately after id) */
+  struct AnimData *adt = nullptr; /* animation data (must be immediately after id) */
 
-  int flag;
+  int flag = 0;
 
   /* Geometry */
-  int totpoint;
+  int totpoint = 0;
 
   /* Custom Data */
   struct CustomData pdata;
   /** Set to -1 when none is active. */
-  int attributes_active_index;
-  int _pad4;
+  int attributes_active_index = 0;
+  int _pad4 = 0;
 
   /* Material */
-  struct Material **mat;
-  short totcol;
-  short _pad3[3];
+  struct Material **mat = nullptr;
+  short totcol = 0;
+  short _pad3[3] = {};
 
 #ifdef __cplusplus
   blender::Span<blender::float3> positions() const;
@@ -72,10 +72,10 @@ typedef struct PointCloud {
   void count_memory(blender::MemoryCounter &memory) const;
 #endif
 
-  PointCloudRuntimeHandle *runtime;
+  PointCloudRuntimeHandle *runtime = nullptr;
 
   /* Draw Cache */
-  void *batch_cache;
+  void *batch_cache = nullptr;
 } PointCloud;
 
 /** #PointCloud.flag */

@@ -19,87 +19,87 @@ struct AnimData;
 struct Ipo;
 
 typedef struct KeyBlock {
-  struct KeyBlock *next, *prev;
+  struct KeyBlock *next = nullptr, *prev = nullptr;
 
   /**
    * point in time   (Key->type == KEY_NORMAL) only,
    * for historic reasons this is relative to (Key->ctime / 100),
    * so this value increments by 0.1f per frame.
    */
-  float pos;
+  float pos = 0;
   /** influence (typically [0 - 1] but can be more), `(Key->type == KEY_RELATIVE)` only. */
-  float curval;
+  float curval = 0;
 
   /** Interpolation type `(Key->type == KEY_NORMAL)` only. */
-  short type;
-  char _pad1[2];
+  short type = 0;
+  char _pad1[2] = {};
 
   /** relative == 0 means first key is reference, otherwise the index of Key->blocks */
-  short relative;
-  short flag;
+  short relative = 0;
+  short flag = 0;
 
   /** total number if items in the keyblock (compare with mesh/curve verts to check we match) */
-  int totelem;
+  int totelem = 0;
   /** for meshes only, match the unique number with the customdata layer */
-  int uid;
+  int uid = 0;
 
   /** array of shape key values, size is `(Key->elemsize * KeyBlock->totelem)` */
-  void *data;
+  void *data = nullptr;
   /** MAX_NAME (unique name, user assigned) */
-  char name[64];
+  char name[64] = "";
   /** MAX_VGROUP_NAME (optional vertex group), array gets allocated into 'weights' when set */
-  char vgroup[64];
+  char vgroup[64] = "";
 
   /** ranges, for RNA and UI only to clamp 'curval' */
-  float slidermin;
-  float slidermax;
+  float slidermin = 0;
+  float slidermax = 0;
 
 } KeyBlock;
 
 typedef struct Key {
   ID id;
   /** Animation data (must be immediately after id for utilities to use it). */
-  struct AnimData *adt;
+  struct AnimData *adt = nullptr;
 
   /**
    * commonly called 'Basis', `(Key->type == KEY_RELATIVE)` only.
    * Looks like this is  _always_ 'key->block.first',
    * perhaps later on it could be defined as some other KeyBlock - campbell
    */
-  KeyBlock *refkey;
+  KeyBlock *refkey = nullptr;
 
   /**
    * This is not a regular string, although it is \0 terminated
    * this is an array of (element_array_size, element_type) pairs
    * (each one char) used for calculating shape key-blocks. */
-  char elemstr[32];
+  char elemstr[32] = "";
   /** Size of each element in #KeyBlock.data, use for allocation and stride. */
-  int elemsize;
-  char _pad[4];
+  int elemsize = 0;
+  char _pad[4] = {};
 
   /** list of KeyBlock's */
-  ListBase block;
+  ListBase block = {nullptr, nullptr};
   /** old animation system, deprecated for 2.5 */
-  struct Ipo *ipo DNA_DEPRECATED;
+  struct Ipo *ipo DNA_DEPRECATED = nullptr;
 
-  ID *from;
+  ID *from = nullptr;
 
   /** (totkey == BLI_listbase_count(&key->block)) */
-  int totkey;
-  short flag;
+  int totkey = 0;
+  short flag = 0;
   /** absolute or relative shape key */
-  char type;
-  char _pad2;
+  char type = 0;
+  char _pad2 = 0;
 
   /** Only used when (Key->type == KEY_NORMAL), this value is used as a time slider,
    * rather than using the scene's time, this value can be animated to give greater control */
-  float ctime;
+  float ctime = 0;
 
   /**
    * Can never be 0, this is used for detecting old data.
    * current free UID for key-blocks.
    */
-  int uidgen;
+  int uidgen = 0;
 } Key;
 
 /* **************** KEY ********************* */

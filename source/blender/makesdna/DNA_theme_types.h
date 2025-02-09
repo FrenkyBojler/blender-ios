@@ -544,3 +544,10 @@ typedef struct bTheme {
   (CHECK_TYPE_INLINE(btheme, bTheme *), &((btheme)->space_properties))
 #define UI_THEMESPACE_END(btheme) \
   (CHECK_TYPE_INLINE(btheme, bTheme *), (&((btheme)->space_spreadsheet) + 1))
+
+/** Default theme, see: `release/datafiles/userdef/userdef_default_theme.c`. */
+#ifdef __cplusplus
+extern "C" const bTheme U_theme_default;
+#else
+extern const bTheme U_theme_default;
+#endif

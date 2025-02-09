@@ -14,10 +14,6 @@
 
 #include "dna_type_offsets.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 extern const void *DNA_default_table[SDNA_TYPE_MAX];
 
 uint8_t *_DNA_struct_default_alloc_impl(const uint8_t *data_src,
@@ -35,7 +31,3 @@ uint8_t *_DNA_struct_default_alloc_impl(const uint8_t *data_src,
       (const uint8_t *)DNA_default_table[SDNA_TYPE_FROM_STRUCT(struct_name)], \
       sizeof(struct_name), \
       __func__))
-
-#ifdef __cplusplus
-}
-#endif

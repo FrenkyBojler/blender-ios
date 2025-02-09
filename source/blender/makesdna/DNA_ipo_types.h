@@ -28,55 +28,55 @@
 /* IPO Curve Driver */
 typedef struct IpoDriver {
   /** Target/driver ob. */
-  struct Object *ob;
+  struct Object *ob = nullptr;
   /** Sub-channel to use. */
-  short blocktype, adrcode;
+  short blocktype = 0, adrcode = 0;
 
   /** Driver settings. */
-  short type, flag;
+  short type = 0, flag = 0;
   /** Bone, or python expression here. */
-  char name[128];
+  char name[128] = "";
 } IpoDriver;
 
 /* --- IPO Curve --- */
 
 /* IPO Curve */
 typedef struct IpoCurve {
-  struct IpoCurve *next, *prev;
+  struct IpoCurve *next = nullptr, *prev = nullptr;
 
   /** Array of #BPoints `(sizeof(BPoint) * totvert)` - i.e. baked/imported data. */
-  struct BPoint *bp;
+  struct BPoint *bp = nullptr;
   /** Array of #BezTriples `(sizeof(BezTriple) * totvert)` - i.e. user-editable keyframes. */
-  struct BezTriple *bezt;
+  struct BezTriple *bezt = nullptr;
 
   /** Bounding boxes. */
   rctf maxrct, totrct;
 
   /** Block-type of the curve (#ID_Type). */
-  short blocktype;
+  short blocktype = 0;
   /** Type of ipo-curve. */
-  short adrcode;
+  short adrcode = 0;
   /** Format of data. */
-  short vartype;
+  short vartype = 0;
   /** Total number of BezTriples (i.e. keyframes) on curve. */
-  short totvert;
+  short totvert = 0;
   /** Interpolation and extrapolation modes. */
-  short ipo, extrap;
+  short ipo = 0, extrap = 0;
   /** Flag= settings. */
-  short flag;
-  char _pad0[2];
+  short flag = 0;
+  char _pad0[2] = {};
   /** Minimum/maximum y-extents for curve. */
-  float ymin, ymax;
+  float ymin = 0, ymax = 0;
   /** Unused since the first available revision. */
-  unsigned int bitmask;
+  unsigned int bitmask = 0;
 
   /** Minimum/maximum values for sliders (in action editor). */
-  float slide_min, slide_max;
+  float slide_min = 0, slide_max = 0;
   /** Value of ipo-curve for current frame. */
-  float curval;
+  float curval = 0;
 
   /** Pointer to ipo-driver for this curve. */
-  IpoDriver *driver;
+  IpoDriver *driver = nullptr;
 } IpoCurve;
 
 /* --- ID-Datablock --- */
@@ -86,17 +86,17 @@ typedef struct Ipo {
   ID id;
 
   /** A list of IpoCurve structs in a linked list. */
-  ListBase curve;
+  ListBase curve = {nullptr, nullptr};
   /** Rect defining extents of keyframes? */
   rctf cur;
 
   /** #ID_Type. */
-  short blocktype;
+  short blocktype = 0;
   /** Either 0 or 1 (show vertical yellow lines for editing). */
-  short showkey;
+  short showkey = 0;
   /** Mute-IPO: either 0 or 1 (whether ipo block is muted). */
-  short muteipo;
-  char _pad[2];
+  short muteipo = 0;
+  char _pad[2] = {};
 } Ipo;
 
 /* ----------- adrcodes (for matching ipo-curves to data) ------------- */

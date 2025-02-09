@@ -20,65 +20,65 @@ typedef struct bSound {
    * The path to the sound file.
    */
   /** 1024 = FILE_MAX. */
-  char filepath[1024];
+  char filepath[1024] = "";
 
   /**
    * The packed file.
    */
-  struct PackedFile *packedfile;
+  struct PackedFile *packedfile = nullptr;
 
   /**
    * The handle for audaspace.
    */
-  void *handle;
+  void *handle = nullptr;
 
   /**
    * Deprecated; used for loading pre 2.5 files.
    */
-  struct PackedFile *newpackedfile;
-  struct Ipo *ipo;
+  struct PackedFile *newpackedfile = nullptr;
+  struct Ipo *ipo = nullptr;
 
-  float volume;
-  float attenuation;
-  float pitch;
-  float min_gain;
-  float max_gain;
-  float distance;
-  short flags;
+  float volume = 0;
+  float attenuation = 0;
+  float pitch = 0;
+  float min_gain = 0;
+  float max_gain = 0;
+  float distance = 0;
+  short flags = 0;
   /** Runtime only, always reset in readfile. */
-  short tags;
-  char _pad[4];
-  double offset_time;
+  short tags = 0;
+  char _pad[4] = {};
+  double offset_time = 0;
 
   /* Unused currently. */
-  // int type;
-  // struct bSound *child_sound;
+  // int type = 0;
+  // struct bSound *child_sound = nullptr;
 
   /**
    * The audaspace handle for cache.
    */
-  void *cache;
+  void *cache = nullptr;
 
   /**
    * Waveform display data.
    */
-  void *waveform;
+  void *waveform = nullptr;
 
   /**
    * The audaspace handle that should actually be played back.
-   * Should be cache if cache != NULL; otherwise its handle
+   * Should be cache if cache != nullptr; otherwise its handle
    */
-  void *playback_handle;
+  void *playback_handle = nullptr;
 
   /** Spin-lock for asynchronous loading of sounds. */
-  void *spinlock;
+  void *spinlock = nullptr;
   /* XXX unused currently (SOUND_TYPE_LIMITER) */
-  // float start, end;
+  // float start = 0, end = 0;
 
   /* Description of Audio channels, as of #eSoundChannels. */
-  int audio_channels;
+  int audio_channels = 0;
 
-  int samplerate;
+  int samplerate = 0;
 
 } bSound;
 

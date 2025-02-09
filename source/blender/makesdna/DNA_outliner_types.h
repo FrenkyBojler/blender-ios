@@ -13,24 +13,24 @@
 struct ID;
 
 typedef struct TreeStoreElem {
-  short type, nr, flag, used;
+  short type = 0, nr = 0, flag = 0, used = 0;
 
   /* XXX We actually also store non-ID data in this pointer for identifying
    * the #TreeStoreElem for a #TreeElement when rebuilding the tree. Ugly! */
-  struct ID *id;
+  struct ID *id = nullptr;
 } TreeStoreElem;
 
 /** Used only to store data in blend files. */
 typedef struct TreeStore {
   /** Was previously used for memory pre-allocation. */
-  int totelem DNA_DEPRECATED;
+  int totelem DNA_DEPRECATED = 0;
   /** Number of elements in data array. */
-  int usedelem;
+  int usedelem = 0;
   /**
    * Elements to be packed from mempool in `writefile.cc`
    * or extracted to mempool in `readfile.cc`.
    */
-  TreeStoreElem *data;
+  TreeStoreElem *data = nullptr;
 } TreeStore;
 
 /** #TreeStoreElem.flag */

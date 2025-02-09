@@ -23,8 +23,6 @@
 #include "BKE_addon.h"
 #include "BKE_appdir.hh"
 
-#include "BLO_userdef_default.h"
-
 #include "BLF_api.hh"
 
 #include "ED_screen.hh"

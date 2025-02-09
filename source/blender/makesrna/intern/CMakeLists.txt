@@ -228,7 +228,6 @@ set(SRC
   ${APISRC}
   ../../../../intern/clog/clog.c
   # Needed for defaults.
-  ../../../../release/datafiles/userdef/userdef_default.c
   ../../../../release/datafiles/userdef/userdef_default_theme.c
 )
 

@@ -1697,6 +1697,10 @@ bool BKE_paint_ensure(ToolSettings *ts, Paint **r_paint)
     *data = *DNA_struct_default_get(Sculpt);
 
     paint = &data->paint;
+
+    /* Not in the defaults because it's different for other uses of Paint struct. */
+    paint->symmetry_flags = PAINT_SYMMETRY_FEATHER;
+    copy_v3_fl(paint->tile_offset, 1.0f);
   }
   else if ((GpPaint **)r_paint == &ts->gp_paint) {
     GpPaint *data = MEM_cnew<GpPaint>(__func__);

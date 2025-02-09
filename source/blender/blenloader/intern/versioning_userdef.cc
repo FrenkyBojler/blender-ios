@@ -37,7 +37,6 @@
 #include "BKE_preferences.h"
 
 #include "BLO_readfile.hh"
-#include "BLO_userdef_default.h"
 
 #include "BLT_translation.hh"
 

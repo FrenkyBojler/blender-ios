@@ -87,47 +87,47 @@ enum {
 };
 
 typedef struct FreestyleLineSet {
-  struct FreestyleLineSet *next, *prev;
+  struct FreestyleLineSet *next = nullptr, *prev = nullptr;
 
   /** Line set name, MAX_NAME. */
-  char name[64];
-  int flags;
+  char name[64] = "";
+  int flags = 0;
 
   /** Selection criteria. */
-  int selection;
+  int selection = 0;
   /** Quantitative invisibility. */
-  short qi;
-  char _pad1[2];
-  int qi_start, qi_end;
+  short qi = 0;
+  char _pad1[2] = {};
+  int qi_start = 0, qi_end = 0;
   /** Feature edge types. */
-  int edge_types, exclude_edge_types;
-  char _pad2[4];
+  int edge_types = 0, exclude_edge_types = 0;
+  char _pad2[4] = {};
   /** Group of target objects. */
-  struct Collection *group;
+  struct Collection *group = nullptr;
 
-  struct FreestyleLineStyle *linestyle;
+  struct FreestyleLineStyle *linestyle = nullptr;
 } FreestyleLineSet;
 
 typedef struct FreestyleModuleConfig {
-  struct FreestyleModuleConfig *next, *prev;
+  struct FreestyleModuleConfig *next = nullptr, *prev = nullptr;
 
-  struct Text *script;
-  short is_displayed;
-  char _pad[6];
+  struct Text *script = nullptr;
+  short is_displayed = 0;
+  char _pad[6] = {};
 } FreestyleModuleConfig;
 
 typedef struct FreestyleConfig {
-  ListBase modules;
+  ListBase modules = {nullptr, nullptr};
 
   /** Scripting, editor. */
-  int mode;
-  int raycasting_algorithm DNA_DEPRECATED;
+  int mode = 0;
+  int raycasting_algorithm DNA_DEPRECATED = 0;
   /** Suggestive contours, ridges/valleys, material boundaries. */
-  int flags;
-  float sphere_radius;
-  float dkr_epsilon;
+  int flags = 0;
+  float sphere_radius = 0;
+  float dkr_epsilon = 0;
   /** In radians. */
-  float crease_angle;
+  float crease_angle = 0;
 
-  ListBase linesets;
+  ListBase linesets = {nullptr, nullptr};
 } FreestyleConfig;

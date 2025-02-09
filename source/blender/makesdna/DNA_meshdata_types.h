@@ -22,9 +22,9 @@
  */
 typedef struct MSelect {
   /** Index in the vertex, edge or polygon array. */
-  int index;
+  int index = 0;
   /** #ME_VSEL, #ME_ESEL, #ME_FSEL. */
-  int type;
+  int type = 0;
 } MSelect;
 
 /** #MSelect.type */
@@ -99,20 +99,20 @@ enum {
 
 /** Custom Data Properties */
 typedef struct MFloatProperty {
-  float f;
+  float f = 0;
 } MFloatProperty;
 typedef struct MIntProperty {
-  int i;
+  int i = 0;
 } MIntProperty;
 /** Byte string, no encoding implied. May not be null terminated. */
 typedef struct MStringProperty {
-  char s[255], s_len;
+  char s[255] = {}, s_len = 0;
 } MStringProperty;
 typedef struct MBoolProperty {
-  uint8_t b;
+  uint8_t b = 0;
 } MBoolProperty;
 typedef struct MInt8Property {
-  int8_t i;
+  int8_t i = 0;
 } MInt8Property;
 
 /** \} */
@@ -126,9 +126,9 @@ typedef struct MInt8Property {
  */
 typedef struct MDeformWeight {
   /** The index for the vertex group, must *always* be unique when in an array. */
-  unsigned int def_nr;
+  unsigned int def_nr = 0;
   /** Weight between 0.0 and 1.0. */
-  float weight;
+  float weight = 0;
 } MDeformWeight;
 
 /**
@@ -141,15 +141,15 @@ typedef struct MDeformVert {
    * - Groups in the array are unordered.
    * - Indices outside the usable range of groups are ignored.
    */
-  struct MDeformWeight *dw;
+  struct MDeformWeight *dw = nullptr;
   /**
    * The length of the #dw array.
    * \note This is not necessarily the same length as the total number of vertex groups.
    * However, generally it isn't larger.
    */
-  int totweight;
+  int totweight = 0;
   /** Flag is only in use as a run-time tag at the moment. */
-  int flag;
+  int flag = 0;
 } MDeformVert;
 
 typedef struct MVertSkin {
@@ -157,10 +157,10 @@ typedef struct MVertSkin {
    * Radii of the skin, define how big the generated frames are.
    * Currently only the first two elements are used.
    */
-  float radius[3];
+  float radius[3] = {};
 
   /** #eMVertSkinFlag */
-  int flag;
+  int flag = 0;
 } MVertSkin;
 
 typedef enum eMVertSkinFlag {
@@ -188,19 +188,19 @@ typedef enum eMVertSkinFlag {
  * this may eventually be added back, keep this value set to 255.
  */
 typedef struct MLoopCol {
-  unsigned char r, g, b, a;
+  unsigned char r = 0, g = 0, b = 0, a = 0;
 } MLoopCol;
 
 typedef struct MPropCol {
-  float color[4];
+  float color[4] = {};
 } MPropCol;
 
 /** Multi-Resolution loop data. */
 typedef struct MDisps {
   /* Strange bug in SDNA: if disps pointer comes first, it fails to see totdisp */
-  int totdisp;
-  int level;
-  float (*disps)[3];
+  int totdisp = 0;
+  int level = 0;
+  float (*disps)[3] = {};
 
   /**
    * Used for hiding parts of a multires mesh.
@@ -208,7 +208,7 @@ typedef struct MDisps {
    *
    * \note This is a bitmap, keep in sync with type used in BLI_bitmap.h
    */
-  unsigned int *hidden;
+  unsigned int *hidden = nullptr;
 } MDisps;
 
 /** Multi-Resolution grid loop data. */
@@ -217,12 +217,12 @@ typedef struct GridPaintMask {
    * The data array contains `grid_size * grid_size` elements.
    * Where `grid_size = (1 << (level - 1)) + 1`.
    */
-  float *data;
+  float *data = nullptr;
 
   /** The maximum multires level associated with this grid. */
-  unsigned int level;
+  unsigned int level = 0;
 
-  char _pad[4];
+  char _pad[4] = {};
 } GridPaintMask;
 
 /** \} */
@@ -241,13 +241,13 @@ typedef struct GridPaintMask {
 #
 #
 typedef struct OrigSpaceFace {
-  float uv[4][2];
+  float uv[4][2] = {};
 } OrigSpaceFace;
 
 #
 #
 typedef struct OrigSpaceLoop {
-  float uv[2];
+  float uv[2] = {};
 } OrigSpaceLoop;
 
 /** \} */
@@ -257,7 +257,7 @@ typedef struct OrigSpaceLoop {
  * \{ */
 
 typedef struct FreestyleEdge {
-  char flag;
+  char flag = 0;
 } FreestyleEdge;
 
 /** #FreestyleEdge.flag */
@@ -266,7 +266,7 @@ enum {
 };
 
 typedef struct FreestyleFace {
-  char flag;
+  char flag = 0;
 } FreestyleFace;
 
 /** #FreestyleFace.flag */
@@ -289,14 +289,14 @@ enum {
  */
 typedef struct MEdge {
   /** Un-ordered vertex indices (cannot match). */
-  unsigned int v1, v2;
+  unsigned int v1 = 0, v2 = 0;
   /** Deprecated edge crease, now located in `edge_crease`, except for file read and write. */
-  char crease_legacy;
+  char crease_legacy = 0;
   /**
    * Deprecated bevel weight storage, now located in #CD_BWEIGHT, except for file read and write.
    */
-  char bweight_legacy;
-  short flag_legacy;
+  char bweight_legacy = 0;
+  short flag_legacy = 0;
 } MEdge;
 
 /** #MEdge.flag */
@@ -321,12 +321,12 @@ enum {
  */
 typedef struct MPoly {
   /** Offset into loop array and number of loops in the face. */
-  int loopstart;
+  int loopstart = 0;
   /** Keep signed since we need to subtract when getting the previous loop. */
-  int totloop;
+  int totloop = 0;
   /** Deprecated material index. Now stored in the "material_index" attribute, but kept for IO. */
-  short mat_nr_legacy;
-  char flag_legacy, _pad;
+  short mat_nr_legacy = 0;
+  char flag_legacy = 0, _pad = 0;
 } MPoly;
 
 /** #MPoly.flag */
@@ -344,8 +344,8 @@ enum {
  * Deprecated, but kept to read old files. UV coordinates are now stored as #CD_PROP_FLOAT2 layers.
  */
 typedef struct MLoopUV {
-  float uv[2];
-  int flag;
+  float uv[2] = {};
+  int flag = 0;
 } MLoopUV;
 
 /** #MLoopUV.flag */
@@ -359,17 +359,17 @@ enum {
  * Deprecated mesh vertex data structure. Now stored with generic attributes.
  */
 typedef struct MVert {
-  float co_legacy[3];
+  float co_legacy[3] = {};
   /**
    * Deprecated flag for storing hide status and selection, which are now stored in separate
    * generic attributes. Kept for file read and write.
    */
-  char flag_legacy;
+  char flag_legacy = 0;
   /**
    * Deprecated bevel weight storage, now located in #CD_BWEIGHT, except for file read and write.
    */
-  char bweight_legacy;
-  char _pad[2];
+  char bweight_legacy = 0;
+  char _pad[2] = {};
 } MVert;
 
 /** #MVert.flag */
@@ -387,9 +387,9 @@ enum {
  */
 typedef struct MLoop {
   /** Vertex index. */
-  unsigned int v;
+  unsigned int v = 0;
   /** Edge index into an #MEdge array. */
-  unsigned int e;
+  unsigned int e = 0;
 } MLoop;
 
 #endif
@@ -400,10 +400,10 @@ typedef struct MLoop {
  * eventually.
  */
 typedef struct MFace {
-  unsigned int v1, v2, v3, v4;
-  short mat_nr;
+  unsigned int v1 = 0, v2 = 0, v3 = 0, v4 = 0;
+  short mat_nr = 0;
   /** We keep edcode, for conversion to edges draw flags in old files. */
-  char edcode, flag;
+  char edcode = 0, flag = 0;
 } MFace;
 
 /** #MFace.edcode */
@@ -417,7 +417,7 @@ enum {
 
 /** Tessellation uv face data. */
 typedef struct MTFace {
-  float uv[4][2];
+  float uv[4][2] = {};
 } MTFace;
 
 /**
@@ -426,14 +426,14 @@ typedef struct MTFace {
  * \note The red and blue are swapped for historical reasons.
  */
 typedef struct MCol {
-  unsigned char a, r, g, b;
+  unsigned char a = 0, r = 0, g = 0, b = 0;
 } MCol;
 
 #ifdef DNA_DEPRECATED_ALLOW
 
 /** Old game engine recast navigation data, while unused 2.7x files may contain this. */
 typedef struct MRecast {
-  int i;
+  int i = 0;
 } MRecast;
 
 #endif

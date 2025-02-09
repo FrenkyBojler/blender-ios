@@ -17,31 +17,31 @@
 /** Descriptor and storage for a custom data layer. */
 typedef struct CustomDataLayer {
   /** Type of data in layer. */
-  int type;
+  int type = 0;
   /** In editmode, offset of layer in block. */
-  int offset;
+  int offset = 0;
   /** General purpose flag. */
-  int flag;
+  int flag = 0;
   /** Number of the active layer of this type. */
-  int active;
+  int active = 0;
   /** Number of the layer to render. */
-  int active_rnd;
+  int active_rnd = 0;
   /** Number of the layer to render. */
-  int active_clone;
+  int active_clone = 0;
   /** Number of the layer to render. */
-  int active_mask;
+  int active_mask = 0;
   /** Shape key-block unique id reference. */
-  int uid;
+  int uid = 0;
   /** Layer name, MAX_CUSTOMDATA_LAYER_NAME. */
-  char name[68];
-  char _pad1[4];
+  char name[68] = "";
+  char _pad1[4] = {};
   /** Layer data. */
-  void *data;
+  void *data = nullptr;
   /**
    * Run-time data that allows sharing `data` with other entities (mostly custom data layers on
    * other geometries).
    */
-  const ImplicitSharingInfoHandle *sharing_info;
+  const ImplicitSharingInfoHandle *sharing_info = nullptr;
 } CustomDataLayer;
 
 #define MAX_CUSTOMDATA_LAYER_NAME 68
@@ -49,7 +49,7 @@ typedef struct CustomDataLayer {
 
 typedef struct CustomDataExternal {
   /** FILE_MAX. */
-  char filepath[1024];
+  char filepath[1024] = "";
 } CustomDataExternal;
 
 /**
@@ -67,20 +67,20 @@ typedef struct CustomDataExternal {
  */
 typedef struct CustomData {
   /** Layers ordered by type. */
-  CustomDataLayer *layers;
+  CustomDataLayer *layers = nullptr;
   /**
    * Runtime only map from types to indices of first layer of that type,
    * Correct size of #CD_NUMTYPES is ensured by CustomData_update_typemap.
    */
-  int typemap[53];
+  int typemap[53] = {};
   /** Number of layers, size of layers array. */
-  int totlayer, maxlayer;
+  int totlayer = 0, maxlayer = 0;
   /** In editmode, total size of all data layers. */
-  int totsize;
+  int totsize = 0;
   /** (BMesh Only): Memory pool for allocation of blocks. */
-  struct BLI_mempool *pool;
+  struct BLI_mempool *pool = nullptr;
   /** External file storing custom-data layers. */
-  CustomDataExternal *external;
+  CustomDataExternal *external = nullptr;
 } CustomData;
 
 /** #CustomDataLayer.type */
@@ -115,7 +115,7 @@ typedef enum eCustomDataType {
   CD_PROP_INT32 = 11,
   CD_PROP_STRING = 12,
   CD_ORIGSPACE = 13, /* for modifier stack face location mapping */
-  CD_ORCO = 14,      /* undeformed vertex coordinates, normalized to 0..1 range */
+  CD_ORCO = 14,      /* undeformed vertex coordinates = 0, normalized to 0..1 range */
 #ifdef DNA_DEPRECATED_ALLOW
   CD_MTEXPOLY = 15,
   CD_MLOOPUV = 16,
@@ -234,11 +234,11 @@ using eCustomDataMask = uint64_t;
 #define CD_MASK_COLOR_ALL (CD_MASK_PROP_COLOR | CD_MASK_PROP_BYTE_COLOR)
 
 typedef struct CustomData_MeshMasks {
-  uint64_t vmask;
-  uint64_t emask;
-  uint64_t fmask;
-  uint64_t pmask;
-  uint64_t lmask;
+  uint64_t vmask = 0;
+  uint64_t emask = 0;
+  uint64_t fmask = 0;
+  uint64_t pmask = 0;
+  uint64_t lmask = 0;
 } CustomData_MeshMasks;
 
 /** #CustomData.flag */

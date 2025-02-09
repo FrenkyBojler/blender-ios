@@ -16,28 +16,28 @@ typedef struct XrSessionSettings {
   /** Shading settings, struct shared with 3D-View so settings are the same. */
   struct View3DShading shading;
 
-  float base_scale;
-  char _pad[3];
-  char base_pose_type; /* #eXRSessionBasePoseType */
+  float base_scale = 0;
+  char _pad[3] = {};
+  char base_pose_type = 0; /* #eXRSessionBasePoseType */
   /** Object to take the location and rotation as base position from. */
-  Object *base_pose_object;
-  float base_pose_location[3];
-  float base_pose_angle;
+  Object *base_pose_object = nullptr;
+  float base_pose_location[3] = {};
+  float base_pose_angle = 0;
 
   /** View3D draw flags (V3D_OFSDRAW_NONE, V3D_OFSDRAW_SHOW_ANNOTATION, ...). */
-  char draw_flags;
+  char draw_flags = 0;
   /** Draw style for controller visualization. */
-  char controller_draw_style;
-  char _pad2[2];
+  char controller_draw_style = 0;
+  char _pad2[2] = {};
 
   /** Clipping distance. */
-  float clip_start, clip_end;
+  float clip_start = 0, clip_end = 0;
 
-  int flag;
+  int flag = 0;
 
   /** Object type settings to apply to VR view (unlike shading, not shared with window 3D-View). */
-  int object_type_exclude_viewport;
-  int object_type_exclude_select;
+  int object_type_exclude_viewport = 0;
+  int object_type_exclude_select = 0;
 } XrSessionSettings;
 
 typedef enum eXrSessionFlag {
@@ -121,86 +121,86 @@ typedef enum eXrPoseFlag {
 /* -------------------------------------------------------------------- */
 
 typedef struct XrComponentPath {
-  struct XrComponentPath *next, *prev;
-  char path[192]; /* XR_MAX_COMPONENT_PATH_LENGTH */
+  struct XrComponentPath *next = nullptr, *prev = nullptr;
+  char path[192] = ""; /* XR_MAX_COMPONENT_PATH_LENGTH */
 } XrComponentPath;
 
 typedef struct XrActionMapBinding {
-  struct XrActionMapBinding *next, *prev;
+  struct XrActionMapBinding *next = nullptr, *prev = nullptr;
 
   /** Unique name. */
-  char name[64]; /* MAX_NAME */
+  char name[64] = ""; /* MAX_NAME */
 
   /** OpenXR interaction profile path. */
-  char profile[256];
+  char profile[256] = "";
   /** OpenXR component paths. */
-  ListBase component_paths; /* XrComponentPath */
+  ListBase component_paths = {nullptr, nullptr}; /* XrComponentPath */
 
   /** Input threshold/region. */
-  float float_threshold;
-  short axis_flag; /* eXrAxisFlag */
-  char _pad[2];
+  float float_threshold = 0;
+  short axis_flag = 0; /* eXrAxisFlag */
+  char _pad[2] = {};
 
   /** Pose action properties. */
-  float pose_location[3];
-  float pose_rotation[3];
+  float pose_location[3] = {};
+  float pose_rotation[3] = {};
 } XrActionMapBinding;
 
 /* -------------------------------------------------------------------- */
 
 typedef struct XrUserPath {
-  struct XrUserPath *next, *prev;
-  char path[64]; /* XR_MAX_USER_PATH_LENGTH */
+  struct XrUserPath *next = nullptr, *prev = nullptr;
+  char path[64] = ""; /* XR_MAX_USER_PATH_LENGTH */
 } XrUserPath;
 
 typedef struct XrActionMapItem {
-  struct XrActionMapItem *next, *prev;
+  struct XrActionMapItem *next = nullptr, *prev = nullptr;
 
   /** Unique name. */
-  char name[64]; /* MAX_NAME */
+  char name[64] = ""; /* MAX_NAME */
   /** Type. */
-  char type; /** eXrActionType */
-  char _pad[7];
+  char type = 0; /** eXrActionType */
+  char _pad[7] = {};
 
   /** OpenXR user paths. */
-  ListBase user_paths; /* XrUserPath */
+  ListBase user_paths = {nullptr, nullptr}; /* XrUserPath */
 
   /** Operator to be called on XR events. */
-  char op[64]; /* OP_MAX_TYPENAME */
+  char op[64] = ""; /* OP_MAX_TYPENAME */
   /** Operator properties, assigned to ptr->data and can be written to a file. */
-  IDProperty *op_properties;
+  IDProperty *op_properties = nullptr;
   /** RNA pointer to access properties. */
-  struct PointerRNA *op_properties_ptr;
+  struct PointerRNA *op_properties_ptr = nullptr;
 
-  short op_flag;     /* eXrOpFlag */
-  short action_flag; /* eXrActionFlag */
-  short haptic_flag; /* eXrHapticFlag */
+  short op_flag = 0;     /* eXrOpFlag */
+  short action_flag = 0; /* eXrActionFlag */
+  short haptic_flag = 0; /* eXrHapticFlag */
 
   /** Pose action properties. */
-  short pose_flag; /* eXrPoseFlag */
+  short pose_flag = 0; /* eXrPoseFlag */
 
   /** Haptic properties. */
-  char haptic_name[64]; /* MAX_NAME */
-  float haptic_duration;
-  float haptic_frequency;
-  float haptic_amplitude;
+  char haptic_name[64] = ""; /* MAX_NAME */
+  float haptic_duration = 0;
+  float haptic_frequency = 0;
+  float haptic_amplitude = 0;
 
-  short selbinding;
-  char _pad3[2];
-  ListBase bindings; /* XrActionMapBinding */
+  short selbinding = 0;
+  char _pad3[2] = {};
+  ListBase bindings = {nullptr, nullptr}; /* XrActionMapBinding */
 } XrActionMapItem;
 
 /* -------------------------------------------------------------------- */
 
 typedef struct XrActionMap {
-  struct XrActionMap *next, *prev;
+  struct XrActionMap *next = nullptr, *prev = nullptr;
 
   /** Unique name. */
-  char name[64]; /* MAX_NAME */
+  char name[64] = ""; /* MAX_NAME */
 
-  ListBase items; /* XrActionMapItem */
-  short selitem;
-  char _pad[6];
+  ListBase items = {nullptr, nullptr}; /* XrActionMapItem */
+  short selitem = 0;
+  char _pad[6] = {};
 } XrActionMap;
 
 /* -------------------------------------------------------------------- */

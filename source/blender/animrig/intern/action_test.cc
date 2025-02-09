@@ -12,7 +12,6 @@
 #include "BKE_main.hh"
 #include "BKE_object.hh"
 
-#include "DNA_action_defaults.h"
 #include "DNA_anim_types.h"
 #include "DNA_object_types.h"
 

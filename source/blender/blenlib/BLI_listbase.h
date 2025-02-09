@@ -15,10 +15,6 @@
 
 #include "DNA_listBase.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
  * Returns the position of \a vlink within \a listbase, numbering from 0, or -1 if not found.
  */
@@ -401,11 +397,6 @@ struct LinkData *BLI_genericNodeN(void *data);
        ((var != NULL) ? ((void)(var##_iter_prev = (type)(((Link *)(var))->prev)), 1) : 0); \
        var = var##_iter_prev)
 
-#ifdef __cplusplus
-}
-#endif
-
-#ifdef __cplusplus
 BLI_INLINE bool operator==(const ListBase &a, const ListBase &b)
 {
   return BLI_listbase_equal(&a, &b);
@@ -421,5 +412,3 @@ template<typename T, typename Fn> T *BLI_listbase_find(const ListBase &listbase,
   }
   return NULL;
 }
-
-#endif

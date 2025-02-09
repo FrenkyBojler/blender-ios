@@ -47,9 +47,9 @@ enum {
   BOIDRULE_ON_LAND = 1 << 3,
 };
 typedef struct BoidRule {
-  struct BoidRule *next, *prev;
-  int type, flag;
-  char name[32];
+  struct BoidRule *next = nullptr, *prev = nullptr;
+  int type = 0, flag = 0;
+  char name[32] = "";
 } BoidRule;
 enum {
   BRULE_GOAL_AVOID_PREDICT = 1 << 0,
@@ -58,12 +58,12 @@ enum {
 };
 typedef struct BoidRuleGoalAvoid {
   BoidRule rule;
-  struct Object *ob;
-  int options;
-  float fear_factor;
+  struct Object *ob = nullptr;
+  int options = 0;
+  float fear_factor = 0;
 
   /* signals */
-  int signal_id, channels;
+  int signal_id = 0, channels = 0;
 } BoidRuleGoalAvoid;
 enum {
   BRULE_ACOLL_WITH_BOIDS = 1 << 0,
@@ -71,25 +71,25 @@ enum {
 };
 typedef struct BoidRuleAvoidCollision {
   BoidRule rule;
-  int options;
-  float look_ahead;
+  int options = 0;
+  float look_ahead = 0;
 } BoidRuleAvoidCollision;
 #define BRULE_LEADER_IN_LINE (1 << 0)
 typedef struct BoidRuleFollowLeader {
   BoidRule rule;
-  struct Object *ob;
-  float loc[3], oloc[3];
-  float cfra, distance;
-  int options, queue_size;
+  struct Object *ob = nullptr;
+  float loc[3] = {}, oloc[3] = {};
+  float cfra = 0, distance = 0;
+  int options = 0, queue_size = 0;
 } BoidRuleFollowLeader;
 typedef struct BoidRuleAverageSpeed {
   BoidRule rule;
-  float wander, level, speed;
-  char _pad0[4];
+  float wander = 0, level = 0, speed = 0;
+  char _pad0[4] = {};
 } BoidRuleAverageSpeed;
 typedef struct BoidRuleFight {
   BoidRule rule;
-  float distance, flee_distance;
+  float distance = 0, flee_distance = 0;
 } BoidRuleFight;
 
 typedef enum eBoidMode {
@@ -101,8 +101,8 @@ typedef enum eBoidMode {
 } eBoidMode;
 
 typedef struct BoidData {
-  float health, acc[3];
-  short state_id, mode;
+  float health = 0, acc[3] = {};
+  short state_id = 0, mode = 0;
 } BoidData;
 
 /* Planned for near future. */
@@ -123,16 +123,16 @@ typedef struct BoidData {
 //  eBoidConditionType_StateTime = 7,
 //  eBoidConditionType_Touching = 8,
 //  NUM_BOID_CONDITION_TYPES
-//} BoidConditionType;
+//} BoidConditionType = 0;
 // typedef struct BoidCondition {
-//  struct BoidCondition *next, *prev;
-//  int state_id;
-//  short type, mode;
-//  float threshold, probability;
+//  struct BoidCondition *next = nullptr, *prev = nullptr;
+//  int state_id = 0;
+//  short type = 0, mode = 0;
+//  float threshold = 0, probability = 0;
 //
 //  /* signals */
-//  int signal_id, channels;
-//} BoidCondition;
+//  int signal_id = 0, channels = 0;
+//} BoidCondition = 0;
 
 typedef enum eBoidRulesetType {
   eBoidRulesetType_Fuzzy = 0,
@@ -141,65 +141,65 @@ typedef enum eBoidRulesetType {
 } eBoidRulesetType;
 #define BOIDSTATE_CURRENT 1
 typedef struct BoidState {
-  struct BoidState *next, *prev;
-  ListBase rules;
-  ListBase conditions;
-  ListBase actions;
-  char name[32];
-  int id, flag;
+  struct BoidState *next = nullptr, *prev = nullptr;
+  ListBase rules = {nullptr, nullptr};
+  ListBase conditions = {nullptr, nullptr};
+  ListBase actions = {nullptr, nullptr};
+  char name[32] = "";
+  int id = 0, flag = 0;
 
   /* rules */
-  int ruleset_type;
-  float rule_fuzziness;
+  int ruleset_type = 0;
+  float rule_fuzziness = 0;
 
   /* signal */
-  int signal_id, channels;
-  float volume, falloff;
+  int signal_id = 0, channels = 0;
+  float volume = 0, falloff = 0;
 } BoidState;
 
 /* Planned for near future. */
 // typedef struct BoidSignal {
-//  struct BoidSignal *next, *prev;
-//  float loc[3];
-//  float volume, falloff;
-//  int id;
-//} BoidSignal;
+//  struct BoidSignal *next = nullptr, *prev = nullptr;
+//  float loc[3] = {};
+//  float volume = 0, falloff = 0;
+//  int id = 0;
+//} BoidSignal = 0;
 // typedef struct BoidSignalDefine {
-//  struct BoidSignalDefine *next, *prev;
-//  int id, _pad[4];
-//  char name[32];
-//} BoidSignalDefine;
+//  struct BoidSignalDefine *next = nullptr, *prev = nullptr;
+//  int id = 0, _pad[4] = {};
+//  char name[32] = "";
+//} BoidSignalDefine = 0;
 
 // typedef struct BoidSimulationData {
-//  ListBase signal_defines;/* list of defined signals */
-//  ListBase signals[20];   /* gathers signals from all channels */
-//  struct KDTree_3d *signaltrees[20];
-//  char channel_names[20][32];
-//  int last_signal_id;     /* used for incrementing signal ids */
-//  int flag;               /* switches for drawing stuff */
-//} BoidSimulationData;
+//  ListBase signal_defines = {nullptr, nullptr};/* list of defined signals */
+//  ListBase signals[20] = {};   /* gathers signals from all channels */
+//  struct KDTree_3d *signaltrees[20] = {};
+//  char channel_names[20][32] = {};
+//  int last_signal_id = 0;     /* used for incrementing signal ids */
+//  int flag = 0;               /* switches for drawing stuff */
+//} BoidSimulationData = 0;
 
 typedef struct BoidSettings {
-  int options, last_state_id;
+  int options = 0, last_state_id = 0;
 
-  float landing_smoothness, height;
-  float banking, pitch;
+  float landing_smoothness = 0, height = 0;
+  float banking = 0, pitch = 0;
 
-  float health, aggression;
-  float strength, accuracy, range;
+  float health = 0, aggression = 0;
+  float strength = 0, accuracy = 0, range = 0;
 
   /* flying related */
-  float air_min_speed, air_max_speed;
-  float air_max_acc, air_max_ave;
-  float air_personal_space;
+  float air_min_speed = 0, air_max_speed = 0;
+  float air_max_acc = 0, air_max_ave = 0;
+  float air_personal_space = 0;
 
   /* walk/run related */
-  float land_jump_speed, land_max_speed;
-  float land_max_acc, land_max_ave;
-  float land_personal_space;
-  float land_stick_force;
+  float land_jump_speed = 0, land_max_speed = 0;
+  float land_max_acc = 0, land_max_ave = 0;
+  float land_personal_space = 0;
+  float land_stick_force = 0;
 
-  struct ListBase states;
+  struct ListBase states = {nullptr, nullptr};
 } BoidSettings;
 
 /** #BoidSettings::options */

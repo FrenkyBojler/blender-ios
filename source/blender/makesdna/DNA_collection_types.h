@@ -18,148 +18,6 @@ struct Collection;
 struct Object;
 struct GHash;
 
-/* Light linking relation of a collection or an object. */
-typedef struct CollectionLightLinking {
-  /* Light and shadow linking configuration, an enumerator of eCollectionLightLinkingState.
-   * The meaning depends on whether the collection is specified as a light or shadow linking on the
-   * Object's LightLinking.
-   *
-   * For the light linking collection:
-   *
-   *   - INCLUDE: the receiver is included into the light linking and is only receiving lights from
-   *     emitters which include it in their light linking collections. The receiver is not affected
-   *     by regular scene lights.
-   *
-   *   - EXCLUDE: the receiver does not receive light from this emitter, but is lit by regular
-   *     lights in the scene or by emitters which are linked to it via INCLUDE on their
-   *     light_state.
-   *
-   * For the shadow linking collection:
-   *
-   *   - INCLUDE: the collection or object casts shadows from the emitter. It does not cast shadow
-   *     from light sources which do not have INCLUDE on their light linking configuration for it.
-   *
-   *   - EXCLUDE: the collection or object does not cast shadow when lit by this emitter, but does
-   *     for other light sources in the scene. */
-  uint8_t link_state;
-
-  uint8_t _pad[3];
-} CollectionLightLinking;
-
-typedef struct CollectionObject {
-  struct CollectionObject *next, *prev;
-  struct Object *ob;
-
-  CollectionLightLinking light_linking;
-  int _pad;
-} CollectionObject;
-
-typedef struct CollectionChild {
-  struct CollectionChild *next, *prev;
-  struct Collection *collection;
-
-  CollectionLightLinking light_linking;
-  int _pad;
-} CollectionChild;
-
-/* Collection IO property storage and access. */
-typedef struct CollectionExport {
-  struct CollectionExport *next, *prev;
-
-  /** Identifier that matches the #FileHandlerType.idname. */
-  char fh_idname[64];
-  char name[64];
-
-  IDProperty *export_properties;
-  uint32_t flag;
-
-  uint32_t _pad0;
-} CollectionExport;
-
-typedef enum IOHandlerPanelFlag {
-  IO_HANDLER_PANEL_OPEN = 1 << 0,
-} IOHandlerPanelFlag;
-
-/* Light linking state of object or collection: defines how they react to the emitters in the
- * scene. See the comment for the link_state in the CollectionLightLinking for the details. */
-typedef enum eCollectionLightLinkingState {
-  COLLECTION_LIGHT_LINKING_STATE_INCLUDE = 0,
-  COLLECTION_LIGHT_LINKING_STATE_EXCLUDE = 1,
-} eCollectionLightLinkingState;
-
-enum eCollectionLineArt_Usage {
-  COLLECTION_LRT_INCLUDE = 0,
-  COLLECTION_LRT_OCCLUSION_ONLY = (1 << 0),
-  COLLECTION_LRT_EXCLUDE = (1 << 1),
-  COLLECTION_LRT_INTERSECTION_ONLY = (1 << 2),
-  COLLECTION_LRT_NO_INTERSECTION = (1 << 3),
-  COLLECTION_LRT_FORCE_INTERSECTION = (1 << 4),
-};
-
-enum eCollectionLineArt_Flags {
-  COLLECTION_LRT_USE_INTERSECTION_MASK = (1 << 0),
-  COLLECTION_LRT_USE_INTERSECTION_PRIORITY = (1 << 1),
-};
-
-typedef struct Collection_Runtime {
-  /**
-   * Cache of objects in this collection and all its children.
-   * This is created on demand when e.g. some physics simulation needs it,
-   * we don't want to have it for every collections due to memory usage reasons.
-   */
-  ListBase object_cache;
-
-  /** Need this for line art sub-collection selections. */
-  ListBase object_cache_instanced;
-
-  /** List of collections that are a parent of this data-block. */
-  ListBase parents;
-
-  /** An optional map for faster lookups on #Collection.gobject */
-  struct GHash *gobject_hash;
-
-  uint8_t tag;
-
-  char _pad0[7];
-} Collection_Runtime;
-
-typedef struct Collection {
-  ID id;
-
-  /** The ID owning this collection, in case it is an embedded one. */
-  ID *owner_id;
-
-  /** CollectionObject. */
-  ListBase gobject;
-  /** CollectionChild. */
-  ListBase children;
-
-  char _pad0[4];
-
-  int active_exporter_index;
-  ListBase exporters;
-
-  struct PreviewImage *preview;
-
-  unsigned int layer DNA_DEPRECATED;
-  float instance_offset[3];
-
-  uint8_t flag;
-  int8_t color_tag;
-
-  char _pad1[2];
-
-  uint8_t lineart_usage; /* #eCollectionLineArt_Usage */
-  uint8_t lineart_flags; /* #eCollectionLineArt_Flags */
-  uint8_t lineart_intersection_mask;
-  uint8_t lineart_intersection_priority;
-
-  struct ViewLayer *view_layer DNA_DEPRECATED;
-
-  /* Keep last. */
-  Collection_Runtime runtime;
-} Collection;
-
 /** #Collection.flag */
 enum {
   /** Disable in viewports. */
@@ -211,3 +69,144 @@ typedef enum CollectionColorTag {
 
   COLLECTION_COLOR_TOT,
 } CollectionColorTag;
+/* Light linking relation of a collection or an object. */
+typedef struct CollectionLightLinking {
+  /* Light and shadow linking configuration, an enumerator of eCollectionLightLinkingState.
+   * The meaning depends on whether the collection is specified as a light or shadow linking on the
+   * Object's LightLinking.
+   *
+   * For the light linking collection:
+   *
+   *   - INCLUDE: the receiver is included into the light linking and is only receiving lights from
+   *     emitters which include it in their light linking collections. The receiver is not affected
+   *     by regular scene lights.
+   *
+   *   - EXCLUDE: the receiver does not receive light from this emitter, but is lit by regular
+   *     lights in the scene or by emitters which are linked to it via INCLUDE on their
+   *     light_state.
+   *
+   * For the shadow linking collection:
+   *
+   *   - INCLUDE: the collection or object casts shadows from the emitter. It does not cast shadow
+   *     from light sources which do not have INCLUDE on their light linking configuration for it.
+   *
+   *   - EXCLUDE: the collection or object does not cast shadow when lit by this emitter, but does
+   *     for other light sources in the scene. */
+  uint8_t link_state = 0;
+
+  uint8_t _pad[3] = {};
+} CollectionLightLinking;
+
+typedef struct CollectionObject {
+  struct CollectionObject *next = nullptr, *prev = nullptr;
+  struct Object *ob = nullptr;
+
+  CollectionLightLinking light_linking;
+  int _pad = 0;
+} CollectionObject;
+
+typedef struct CollectionChild {
+  struct CollectionChild *next = nullptr, *prev = nullptr;
+  struct Collection *collection = nullptr;
+
+  CollectionLightLinking light_linking;
+  int _pad = 0;
+} CollectionChild;
+
+/* Collection IO property storage and access. */
+typedef struct CollectionExport {
+  struct CollectionExport *next = nullptr, *prev = nullptr;
+
+  /** Identifier that matches the #FileHandlerType.idname. */
+  char fh_idname[64] = "";
+  char name[64] = "";
+
+  IDProperty *export_properties = nullptr;
+  uint32_t flag = 0;
+
+  uint32_t _pad0 = 0;
+} CollectionExport;
+
+typedef enum IOHandlerPanelFlag {
+  IO_HANDLER_PANEL_OPEN = 1 << 0,
+} IOHandlerPanelFlag;
+
+/* Light linking state of object or collection: defines how they react to the emitters in the
+ * scene. See the comment for the link_state in the CollectionLightLinking for the details. */
+typedef enum eCollectionLightLinkingState {
+  COLLECTION_LIGHT_LINKING_STATE_INCLUDE = 0,
+  COLLECTION_LIGHT_LINKING_STATE_EXCLUDE = 1,
+} eCollectionLightLinkingState;
+
+enum eCollectionLineArt_Usage {
+  COLLECTION_LRT_INCLUDE = 0,
+  COLLECTION_LRT_OCCLUSION_ONLY = (1 << 0),
+  COLLECTION_LRT_EXCLUDE = (1 << 1),
+  COLLECTION_LRT_INTERSECTION_ONLY = (1 << 2),
+  COLLECTION_LRT_NO_INTERSECTION = (1 << 3),
+  COLLECTION_LRT_FORCE_INTERSECTION = (1 << 4),
+};
+
+enum eCollectionLineArt_Flags {
+  COLLECTION_LRT_USE_INTERSECTION_MASK = (1 << 0),
+  COLLECTION_LRT_USE_INTERSECTION_PRIORITY = (1 << 1),
+};
+
+typedef struct Collection_Runtime {
+  /**
+   * Cache of objects in this collection and all its children.
+   * This is created on demand when e.g. some physics simulation needs it,
+   * we don't want to have it for every collections due to memory usage reasons.
+   */
+  ListBase object_cache = {nullptr, nullptr};
+
+  /** Need this for line art sub-collection selections. */
+  ListBase object_cache_instanced = {nullptr, nullptr};
+
+  /** List of collections that are a parent of this data-block. */
+  ListBase parents = {nullptr, nullptr};
+
+  /** An optional map for faster lookups on #Collection.gobject */
+  struct GHash *gobject_hash = nullptr;
+
+  uint8_t tag = 0;
+
+  char _pad0[7] = {};
+} Collection_Runtime;
+
+typedef struct Collection {
+  ID id;
+
+  /** The ID owning this collection, in case it is an embedded one. */
+  ID *owner_id = nullptr;
+
+  /** CollectionObject. */
+  ListBase gobject = {nullptr, nullptr};
+  /** CollectionChild. */
+  ListBase children = {nullptr, nullptr};
+
+  char _pad0[4] = {};
+
+  int active_exporter_index = 0;
+  ListBase exporters = {nullptr, nullptr};
+
+  struct PreviewImage *preview = nullptr;
+
+  unsigned int layer DNA_DEPRECATED = 0;
+  float instance_offset[3] = {};
+
+  uint8_t flag = 0;
+  int8_t color_tag = COLLECTION_COLOR_NONE;
+
+  char _pad1[2] = {};
+
+  uint8_t lineart_usage = 0; /* #eCollectionLineArt_Usage */
+  uint8_t lineart_flags = 0; /* #eCollectionLineArt_Flags */
+  uint8_t lineart_intersection_mask = 0;
+  uint8_t lineart_intersection_priority = 0;
+
+  struct ViewLayer *view_layer DNA_DEPRECATED = nullptr;
+
+  /* Keep last. */
+  Collection_Runtime runtime;
+} Collection;

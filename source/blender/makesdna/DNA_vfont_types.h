@@ -20,14 +20,14 @@ typedef struct VFont {
   ID id;
 
   /** 1024 = FILE_MAX. */
-  char filepath[1024];
+  char filepath[1024] = "";
 
-  struct VFontData *data;
-  struct PackedFile *packedfile;
+  struct VFontData *data = nullptr;
+  struct PackedFile *packedfile = nullptr;
 
   /* runtime only, holds memory for freetype to read from
    * TODO: replace this with #blf_font_new() style loading. */
-  struct PackedFile *temp_pf;
+  struct PackedFile *temp_pf = nullptr;
 } VFont;
 
 #define FO_BUILTIN_NAME "<builtin>"

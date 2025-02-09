@@ -12,42 +12,42 @@
 
 /** vector of two shorts. */
 typedef struct vec2s {
-  short x, y;
+  short x = 0, y = 0;
 } vec2s;
 
 /** vector of two floats. */
 typedef struct vec2f {
-  float x, y;
+  float x = 0, y = 0;
 } vec2f;
 
 typedef struct vec2i {
-  int x, y;
+  int x = 0, y = 0;
 } vec2i;
 
 /* not used at the moment */
 /*
 typedef struct vec2d {
-  double x, y;
+  double x = 0, y = 0;
 } vec2d;
 */
 typedef struct vec3i {
-  int x, y, z;
+  int x = 0, y = 0, z = 0;
 } vec3i;
 
 typedef struct vec3f {
-  float x, y, z;
+  float x = 0, y = 0, z = 0;
 } vec3f;
 /*
 typedef struct vec3d {
-  double x, y, z;
+  double x = 0, y = 0, z = 0;
 } vec3d;
 
 typedef struct vec4i {
-  int x, y, z, w;
+  int x = 0, y = 0, z = 0, w = 0;
 } vec4i;
 */
 typedef struct vec4f {
-  float x, y, z, w;
+  float x = 0, y = 0, z = 0, w = 0;
 } vec4f;
 
 /**
@@ -56,18 +56,18 @@ typedef struct vec4f {
  * can't enforce that this struct yet.
  */
 typedef struct mat4x4f {
-  float value[4][4];
+  float value[4][4] = {};
 } mat4x4f;
 /*
 typedef struct vec4d {
-  double x, y, z, w;
+  double x = 0, y = 0, z = 0, w = 0;
 } vec4d;
 */
 
 /** integer rectangle. */
 typedef struct rcti {
-  int xmin, xmax;
-  int ymin, ymax;
+  int xmin = 0, xmax = 0;
+  int ymin = 0, ymax = 0;
 
 #ifdef __cplusplus
   inline bool operator==(const rcti &other) const
@@ -83,15 +83,15 @@ typedef struct rcti {
 
 /** float rectangle. */
 typedef struct rctf {
-  float xmin, xmax;
-  float ymin, ymax;
+  float xmin = 0, xmax = 0;
+  float ymin = 0, ymax = 0;
 } rctf;
 
 /** dual quaternion. */
 typedef struct DualQuat {
-  float quat[4];
-  float trans[4];
+  float quat[4] = {};
+  float trans[4] = {};
 
-  float scale[4][4];
-  float scale_weight;
+  float scale[4][4] = {};
+  float scale_weight = 0;
 } DualQuat;

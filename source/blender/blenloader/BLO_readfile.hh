@@ -503,7 +503,7 @@ void BLO_expand_main(void *fdhandle, Main *mainvar, BLOExpandDoitCallback callba
 
 /**
  * Update defaults in startup.blend, without having to save and embed it.
- * \note defaults for preferences are stored in `userdef_default.c` and can be updated there.
+ * \note defaults for preferences are stored in `DNA_userdef_types.h` and can be updated there.
  */
 /**
  * Update defaults in startup.blend, without having to save and embed the file.

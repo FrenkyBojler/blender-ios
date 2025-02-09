@@ -113,7 +113,7 @@ typedef struct CurvesGeometry {
    *
    * \note This is *not* stored as an attribute because its size is one larger than #curve_num.
    */
-  int *curve_offsets;
+  int *curve_offsets = nullptr;
 
   /**
    * All attributes stored on control points (#AttrDomain::Point).
@@ -129,26 +129,26 @@ typedef struct CurvesGeometry {
   /**
    * The total number of control points in all curves.
    */
-  int point_num;
+  int point_num = 0;
   /**
    * The number of curves.
    */
-  int curve_num;
+  int curve_num = 0;
 
   /**
    * List of vertex group (#bDeformGroup) names and flags only.
    */
-  ListBase vertex_group_names;
+  ListBase vertex_group_names = {nullptr, nullptr};
   /** The active index in the #vertex_group_names list. */
-  int vertex_group_active_index;
+  int vertex_group_active_index = 0;
 
   /** Set to -1 when none is active. */
-  int attributes_active_index;
+  int attributes_active_index = 0;
 
   /**
    * Runtime data for curves, stored as a pointer to allow defining this as a C++ class.
    */
-  CurvesGeometryRuntimeHandle *runtime;
+  CurvesGeometryRuntimeHandle *runtime = nullptr;
 
 #ifdef __cplusplus
   blender::bke::CurvesGeometry &wrap();
@@ -164,29 +164,29 @@ typedef struct CurvesGeometry {
 typedef struct Curves {
   ID id;
   /** Animation data (must be immediately after #id). */
-  struct AnimData *adt;
+  struct AnimData *adt = nullptr;
 
   /** Geometry data. */
   CurvesGeometry geometry;
 
-  int flag;
-  int attributes_active_index_legacy;
+  int flag = 0;
+  int attributes_active_index_legacy = 0;
 
   /* Materials. */
-  struct Material **mat;
-  short totcol;
+  struct Material **mat = nullptr;
+  short totcol = 0;
 
   /**
    * User-defined symmetry flag (#eCurvesSymmetryType) that causes editing operations to maintain
    * symmetrical geometry.
    */
-  char symmetry;
+  char symmetry = 0;
   /**
    * #AttrDomain. The active domain for edit/sculpt mode selection. Only one selection mode can
    * be active at a time.
    */
-  char selection_domain;
-  char _pad[4];
+  char selection_domain = 0;
+  char _pad[4] = {};
 
   /**
    * Used as base mesh when curves represent e.g. hair or fur. This surface is used in edit modes.
@@ -195,21 +195,21 @@ typedef struct Curves {
    *
    * This is expected to be a mesh object.
    */
-  struct Object *surface;
+  struct Object *surface = nullptr;
 
   /**
    * The name of the attribute on the surface #Mesh used to give meaning to the UV attachment
    * coordinates stored for each curve. Expected to be a 2D vector attribute on the face corner
    * domain.
    */
-  char *surface_uv_map;
+  char *surface_uv_map = nullptr;
 
   /* Distance to keep the curves away from the surface. */
-  float surface_collision_distance;
-  char _pad2[4];
+  float surface_collision_distance = 0.005f;
+  char _pad2[4] = {};
 
   /* Draw cache to store data used for viewport drawing. */
-  void *batch_cache;
+  void *batch_cache = nullptr;
 } Curves;
 
 /** #Curves.flag */

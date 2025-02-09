@@ -30,8 +30,8 @@ class AssetLibrary;
  * Maybe add a custom icon and color to these in future?
  */
 typedef struct AssetTag {
-  struct AssetTag *next, *prev;
-  char name[64]; /* MAX_NAME */
+  struct AssetTag *next = nullptr, *prev = nullptr;
+  char name[64] = ""; /* MAX_NAME */
 } AssetTag;
 
 /**
@@ -44,10 +44,10 @@ typedef struct AssetTag {
  */
 typedef struct AssetMetaData {
   /** Runtime type, to reference event callbacks. Only valid for local assets. */
-  struct AssetTypeInfo *local_type_info;
+  struct AssetTypeInfo *local_type_info = nullptr;
 
   /** Custom asset meta-data. Cannot store pointers to IDs (#STRUCT_NO_DATABLOCK_IDPROPERTIES)! */
-  struct IDProperty *properties;
+  struct IDProperty *properties = nullptr;
 
   /**
    * Asset Catalog identifier. Should not contain spaces.
@@ -60,30 +60,30 @@ typedef struct AssetMetaData {
    * reconstruction of asset catalogs in the unfortunate case that the mapping from catalog UUID to
    * catalog path is lost. The catalog's simple name is copied to #catalog_simple_name whenever
    * #catalog_id is updated. */
-  char catalog_simple_name[64]; /* MAX_NAME */
+  char catalog_simple_name[64] = ""; /* MAX_NAME */
 
   /** Optional name of the author for display in the UI. Dynamic length. */
-  char *author;
+  char *author = nullptr;
 
   /** Optional description of this asset for display in the UI. Dynamic length. */
-  char *description;
+  char *description = nullptr;
 
   /** Optional copyright of this asset for display in the UI. Dynamic length. */
-  char *copyright;
+  char *copyright = nullptr;
 
   /** Optional license of this asset for display in the UI. Dynamic length. */
-  char *license;
+  char *license = nullptr;
 
   /** User defined tags for this asset. The asset manager uses these for filtering, but how they
    * function exactly (e.g. how they are registered to provide a list of searchable available tags)
    * is up to the asset-engine. */
-  ListBase tags; /* AssetTag */
-  short active_tag;
+  ListBase tags = {nullptr, nullptr}; /* AssetTag */
+  short active_tag = 0;
   /** Store the number of tags to avoid continuous counting. Could be turned into runtime data, we
    * can always reliably reconstruct it from the list. */
-  short tot_tags;
+  short tot_tags = 0;
 
-  char _pad[4];
+  char _pad[4] = {};
 
 #ifdef __cplusplus
   AssetMetaData() = default;
@@ -132,14 +132,14 @@ typedef enum eAssetLibrary_Flag {
  * custom library. Otherwise it is not used.
  */
 typedef struct AssetLibraryReference {
-  short type; /* eAssetLibraryType */
-  char _pad1[2];
+  short type = ASSET_LIBRARY_LOCAL; /* eAssetLibraryType */
+  char _pad1[2] = {};
   /**
    * If showing a custom asset library (#ASSET_LIBRARY_CUSTOM), this is the index of the
    * #bUserAssetLibrary within #UserDef.asset_libraries.
    * Should be ignored otherwise (but better set to -1 then, for sanity and debugging).
    */
-  int custom_library_index;
+  int custom_library_index = -1;
 } AssetLibraryReference;
 
 /**
@@ -159,14 +159,14 @@ typedef struct AssetLibraryReference {
  *       explicit freeing.
  */
 typedef struct AssetWeakReference {
-  char _pad[6];
+  char _pad[6] = {};
 
-  short asset_library_type; /* #eAssetLibraryType */
+  short asset_library_type = 0; /* #eAssetLibraryType */
   /** If #asset_library_type is not enough to identify the asset library, this string can provide
    * further location info (allocated string). Null otherwise. */
-  const char *asset_library_identifier;
+  const char *asset_library_identifier = nullptr;
 
-  const char *relative_asset_identifier;
+  const char *relative_asset_identifier = nullptr;
 
 #ifdef __cplusplus
   AssetWeakReference();
@@ -204,10 +204,10 @@ typedef struct AssetWeakReference {
 #
 #
 typedef struct AssetHandle {
-  const struct FileDirEntry *file_data;
+  const struct FileDirEntry *file_data = nullptr;
 } AssetHandle;
 
 struct AssetCatalogPathLink {
-  struct AssetCatalogPathLink *next, *prev;
-  char *path;
+  struct AssetCatalogPathLink *next = nullptr, *prev = nullptr;
+  char *path = nullptr;
 };

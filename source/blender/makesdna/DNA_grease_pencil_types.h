@@ -85,12 +85,12 @@ typedef struct GreasePencilDrawingBase {
    * One of `GreasePencilDrawingType`.
    * Indicates if this is an actual drawing or a drawing referenced from another object.
    */
-  int8_t type;
-  char _pad[3];
+  int8_t type = 0;
+  char _pad[3] = {};
   /**
    * Flag. Used to set e.g. the selection status. See `GreasePencilDrawingBaseFlag`.
    */
-  uint32_t flag;
+  uint32_t flag = 0;
 } GreasePencilDrawingBase;
 
 /**
@@ -106,7 +106,7 @@ typedef struct GreasePencilDrawing {
   /**
    * Runtime data on the drawing.
    */
-  GreasePencilDrawingRuntimeHandle *runtime;
+  GreasePencilDrawingRuntimeHandle *runtime = nullptr;
 #ifdef __cplusplus
   blender::bke::greasepencil::Drawing &wrap();
   const blender::bke::greasepencil::Drawing &wrap() const;
@@ -120,7 +120,7 @@ typedef struct GreasePencilDrawingReference {
    * If the data-block has multiple drawings, this drawing references all of them sequentially.
    * See the note in `GreasePencilLayer->frames()` for a detailed explanation of this.
    */
-  struct GreasePencil *id_reference;
+  struct GreasePencil *id_reference = nullptr;
 #ifdef __cplusplus
   blender::bke::greasepencil::DrawingReference &wrap();
   const blender::bke::greasepencil::DrawingReference &wrap() const;
@@ -145,16 +145,16 @@ typedef struct GreasePencilFrame {
   /**
    * Index into the GreasePencil->drawings array.
    */
-  int drawing_index;
+  int drawing_index = 0;
   /**
    * Flag. Used to set e.g. the selection.
    */
-  uint32_t flag;
+  uint32_t flag = 0;
   /**
    * Keyframe type. See `eBezTriple_KeyframeType`.
    */
-  int8_t type;
-  char _pad[3];
+  int8_t type = 0;
+  char _pad[3] = {};
 #ifdef __cplusplus
   static GreasePencilFrame end();
   bool is_end() const;
@@ -173,13 +173,13 @@ typedef enum GreasePencilLayerFramesMapStorageFlag {
  */
 typedef struct GreasePencilLayerFramesMapStorage {
   /* Array of `frames` keys (sorted in ascending order). */
-  int *keys;
+  int *keys = nullptr;
   /* Array of `frames` values (order matches the keys array). */
-  GreasePencilFrame *values;
+  GreasePencilFrame *values = nullptr;
   /* Size of the map (number of key-value pairs). */
-  int num;
+  int num = 0;
   /* Flag for the status of the storage. */
-  int flag;
+  int flag = 0;
 } GreasePencilLayerFramesMapStorage;
 
 /**
@@ -194,16 +194,16 @@ typedef enum GreasePencilLayerMaskFlag {
  * A grease pencil layer mask stores the name of a layer that is the mask.
  */
 typedef struct GreasePencilLayerMask {
-  struct GreasePencilLayerMask *next, *prev;
+  struct GreasePencilLayerMask *next = nullptr, *prev = nullptr;
   /**
    * The name of the layer that is the mask.
    */
-  char *layer_name;
+  char *layer_name = nullptr;
   /**
    * Layer mask flag. See `GreasePencilLayerMaskFlag`.
    */
-  uint16_t flag;
-  char _pad[6];
+  uint16_t flag = 0;
+  char _pad[6] = {};
 } GreasePencilLayerMask;
 
 /**
@@ -247,28 +247,28 @@ typedef enum GreasePencilLayerTreeNodeFlag {
 struct GreasePencilLayerTreeGroup;
 typedef struct GreasePencilLayerTreeNode {
   /* ListBase pointers. */
-  struct GreasePencilLayerTreeNode *next, *prev;
+  struct GreasePencilLayerTreeNode *next = nullptr, *prev = nullptr;
   /* Parent pointer. Can be null. */
-  struct GreasePencilLayerTreeGroup *parent;
+  struct GreasePencilLayerTreeGroup *parent = nullptr;
   /**
    * Name of the layer/group. Dynamic length.
    */
-  char *name;
+  char *name = nullptr;
   /**
    * One of `GreasePencilLayerTreeNodeType`.
    * Indicates the type of struct this element is.
    */
-  int8_t type;
-  char _pad[7];
+  int8_t type = 0;
+  char _pad[7] = {};
   /**
    * Channel color for dopesheet.
    */
-  float color[3];
+  float color[3] = {};
   /**
    * Flag. Used to set e.g. the selection, visibility, ... status.
    * See `GreasePencilLayerTreeNodeFlag`.
    */
-  uint32_t flag;
+  uint32_t flag = 0;
 #ifdef __cplusplus
   blender::bke::greasepencil::TreeNode &wrap();
   const blender::bke::greasepencil::TreeNode &wrap() const;
@@ -285,40 +285,40 @@ typedef struct GreasePencilLayer {
   /**
    * Layer blend mode. See `GreasePencilLayerBlendMode`.
    */
-  int8_t blend_mode;
-  char _pad[3];
+  int8_t blend_mode = 0;
+  char _pad[3] = {};
   /**
    * Opacity of the layer.
    */
-  float opacity;
+  float opacity = 0;
   /**
    * List of `GreasePencilLayerMask`.
    */
-  ListBase masks;
-  int active_mask_index;
-  char _pad2[4];
+  ListBase masks = {nullptr, nullptr};
+  int active_mask_index = 0;
+  char _pad2[4] = {};
   /**
    * Layer parent object. Can be an armature in which case the `parsubstr` is the bone name.
    */
-  struct Object *parent;
-  char *parsubstr;
+  struct Object *parent = nullptr;
+  char *parsubstr = nullptr;
   /**
    * Stores the inverse of the parent during parenting to keep the layer in its position.
    * Also referred to as the "keep transform" parenting elsewhere.
    */
-  float parentinv[4][4];
+  float parentinv[4][4] = {};
   /**
    * Layer transform UI settings. These should *not* be used to do any computation.
    * Use the functions is the `bke::greasepencil::Layer` class instead.
    */
-  float translation[3], rotation[3], scale[3];
-  char _pad3[4];
+  float translation[3] = {}, rotation[3] = {}, scale[3] = {};
+  char _pad3[4] = {};
   /** Name of the view layer used to filter render output. */
-  char *viewlayername;
+  char *viewlayername = nullptr;
   /**
    * Runtime struct pointer.
    */
-  GreasePencilLayerRuntimeHandle *runtime;
+  GreasePencilLayerRuntimeHandle *runtime = nullptr;
 #ifdef __cplusplus
   blender::bke::greasepencil::Layer &wrap();
   const blender::bke::greasepencil::Layer &wrap() const;
@@ -342,16 +342,16 @@ typedef struct GreasePencilLayerTreeGroup {
   /**
    * List of `GreasePencilLayerTreeNode`.
    */
-  ListBase children;
+  ListBase children = {nullptr, nullptr};
   /**
    * Icon color tag.
    */
-  int8_t color_tag;
-  char _pad[7];
+  int8_t color_tag = 0;
+  char _pad[7] = {};
   /**
    * Runtime struct pointer.
    */
-  GreasePencilLayerGroupRuntimeHandle *runtime;
+  GreasePencilLayerGroupRuntimeHandle *runtime = nullptr;
 #ifdef __cplusplus
   blender::bke::greasepencil::LayerGroup &wrap();
   const blender::bke::greasepencil::LayerGroup &wrap() const;
@@ -410,31 +410,31 @@ typedef struct GreasePencilOnionSkinningSettings {
   /**
    * Opacity for the ghost frames.
    */
-  float opacity;
+  float opacity = 0.5f;
   /* #GreasePencilOnionSkinningMode. */
-  int8_t mode;
+  int8_t mode = GP_ONION_SKINNING_MODE_RELATIVE;
   /* #GreasePencilOnionSkinningFlag. */
-  uint8_t flag;
+  uint8_t flag = (GP_ONION_SKINNING_USE_FADE | GP_ONION_SKINNING_USE_CUSTOM_COLORS);
   /* #GreasePencilOnionSkinningFilter. */
-  uint8_t filter;
-  char _pad[1];
+  uint8_t filter = GREASE_PENCIL_ONION_SKINNING_FILTER_ALL;
+  char _pad[1] = {};
   /**
    * Number of ghost frames shown before.
    */
-  int16_t num_frames_before;
+  int16_t num_frames_before = 1;
   /**
    * Number of ghost frames shown after.
    */
-  int16_t num_frames_after;
+  int16_t num_frames_after = 1;
   /**
    * Color of the ghost frames before.
    */
-  float color_before[3];
+  float color_before[3] = {0.145098f, 0.419608f, 0.137255f};
   /**
    * Color of the ghost frames after.
    */
-  float color_after[3];
-  char _pad2[4];
+  float color_after[3] = {0.125490f, 0.082353f, 0.529412f};
+  char _pad2[4] = {};
 } GreasePencilOnionSkinningSettings;
 
 /**
@@ -443,19 +443,19 @@ typedef struct GreasePencilOnionSkinningSettings {
 typedef struct GreasePencil {
   ID id;
   /** Animation data. */
-  struct AnimData *adt;
+  struct AnimData *adt = nullptr;
 
   /**
    * An array of pointers to drawings. The drawing can own its data or reference it from another
    * data-block. Note that the order of this array is arbitrary. The mapping of drawings to frames
    * is done by the layers. See the `Layer` class in `BKE_grease_pencil.hh`.
    */
-  GreasePencilDrawingBase **drawing_array;
-  int drawing_array_num;
-  char _pad[4];
+  GreasePencilDrawingBase **drawing_array = nullptr;
+  int drawing_array_num = 0;
+  char _pad[4] = {};
 
   /* Root group of the layer tree. */
-  GreasePencilLayerTreeGroup *root_group_ptr;
+  GreasePencilLayerTreeGroup *root_group_ptr = nullptr;
 
   /**
    * All attributes stored on the grease pencil layers (#AttrDomain::Layer).
@@ -466,29 +466,29 @@ typedef struct GreasePencil {
    *
    * Set to -1 when none is active.
    */
-  int attributes_active_index;
-  char _pad2[4];
+  int attributes_active_index = 0;
+  char _pad2[4] = {};
 
   /**
    * Pointer to the active node. Can be NULL.
    * This pointer does not own the data.
    */
-  GreasePencilLayerTreeNode *active_node;
+  GreasePencilLayerTreeNode *active_node = nullptr;
 
   /**
    * An array of materials.
    */
-  struct Material **material_array;
-  short material_array_num;
-  char _pad3[2];
+  struct Material **material_array = nullptr;
+  short material_array_num = 0;
+  char _pad3[2] = {};
   /**
    * Global flag on the data-block.
    */
-  uint32_t flag;
+  uint32_t flag = GREASE_PENCIL_ANIM_CHANNEL_EXPANDED;
 
-  ListBase vertex_group_names;
-  int vertex_group_active_index;
-  char _pad4[4];
+  ListBase vertex_group_names = {nullptr, nullptr};
+  int vertex_group_active_index = 0;
+  char _pad4[4] = {};
 
   /**
    * Onion skinning settings.
@@ -497,7 +497,7 @@ typedef struct GreasePencil {
   /**
    * Runtime struct pointer.
    */
-  GreasePencilRuntimeHandle *runtime;
+  GreasePencilRuntimeHandle *runtime = nullptr;
 #ifdef __cplusplus
   /* Root group. */
   const blender::bke::greasepencil::LayerGroup &root_group() const;

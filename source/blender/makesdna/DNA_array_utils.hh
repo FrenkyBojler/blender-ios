@@ -24,7 +24,7 @@ template<typename T>
 inline void remove_index(
     T **items, int *items_num, int *active_index, const int index, void (*destruct_item)(T *))
 {
-  static_assert(std::is_trivial_v<T>);
+  static_assert(std::is_trivially_copyable_v<T>);
   BLI_assert(index >= 0);
   BLI_assert(index < *items_num);
 
@@ -57,7 +57,7 @@ inline void remove_index(
 template<typename T>
 inline void clear(T **items, int *items_num, int *active_index, void (*destruct_item)(T *))
 {
-  static_assert(std::is_trivial_v<T>);
+  static_assert(std::is_trivially_copyable_v<T>);
   for (const int i : IndexRange(*items_num)) {
     destruct_item(&(*items)[i]);
   }
@@ -74,7 +74,7 @@ inline void clear(T **items, int *items_num, int *active_index, void (*destruct_
 template<typename T>
 inline void move_index(T *items, const int items_num, const int from_index, const int to_index)
 {
-  static_assert(std::is_trivial_v<T>);
+  static_assert(std::is_trivially_copyable_v<T>);
   BLI_assert(from_index >= 0);
   BLI_assert(from_index < items_num);
   BLI_assert(to_index >= 0);

@@ -22,50 +22,50 @@ typedef struct View2D {
   rcti mask;
 
   /** Min/max sizes of 'cur' rect (only when keepzoom not set). */
-  float min[2], max[2];
+  float min[2] = {}, max[2] = {};
   /** Allowable zoom factor range (only when (keepzoom & V2D_LIMITZOOM)) is set. */
-  float minzoom, maxzoom;
+  float minzoom = 0, maxzoom = 0;
 
   /** Scroll - scroll-bars to display (bit-flag). */
-  short scroll;
+  short scroll = 0;
   /** Scroll_ui - temp settings used for UI drawing of scrollers. */
-  short scroll_ui;
+  short scroll_ui = 0;
 
   /** Keeptot - 'cur' rect cannot move outside the 'tot' rect? */
-  short keeptot;
+  short keeptot = 0;
   /** Keepzoom - axes that zooming cannot occur on, and also clamp within zoom-limits. */
-  short keepzoom;
+  short keepzoom = 0;
   /** Keepofs - axes that translation is not allowed to occur on. */
-  short keepofs;
+  short keepofs = 0;
 
   /** Settings. */
-  short flag;
+  short flag = 0;
   /** Alignment of content in totrect. */
-  short align;
+  short align = 0;
 
   /** Storage of current winx/winy values, set in UI_view2d_size_update. */
-  short winx, winy;
+  short winx = 0, winy = 0;
   /**
    * Storage of previous winx/winy values encountered by #UI_view2d_curRect_validate(),
    * for keep-aspect.
    */
-  short oldwinx, oldwiny;
+  short oldwinx = 0, oldwiny = 0;
 
   /** Pivot point for transforms (rotate and scale). */
-  short around;
+  short around = 0;
 
   /* Usually set externally (as in, not in view2d files). */
   /** Alpha of vertical and horizontal scroll-bars (range is [0, 255]). */
-  char alpha_vert, alpha_hor;
+  char alpha_vert = 0, alpha_hor = 0;
 
-  char _pad[2];
+  char _pad[2] = {};
   /** When set (not 0), determines how many pixels to scroll when scrolling an entire page.
    * Otherwise the height of #View2D.mask is used. */
-  float page_size_y;
+  float page_size_y = 0;
 
   /* animated smooth view */
-  struct SmoothView2DStore *sms;
-  struct wmTimer *smooth_timer;
+  struct SmoothView2DStore *sms = nullptr;
+  struct wmTimer *smooth_timer = nullptr;
 } View2D;
 
 /* ---------------------------------- */

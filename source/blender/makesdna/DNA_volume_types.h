@@ -21,74 +21,6 @@ using VolumeRuntimeHandle = blender::bke::VolumeRuntime;
 typedef struct VolumeRuntimeHandle VolumeRuntimeHandle;
 #endif
 
-typedef struct VolumeDisplay {
-  float density;
-  int wireframe_type;
-  int wireframe_detail;
-  int interpolation_method;
-  int axis_slice_method;
-  int slice_axis;
-  float slice_depth;
-  int _pad[1];
-} VolumeDisplay;
-
-typedef struct VolumeRender {
-  int precision;
-  int space;
-  float step_size;
-  float clipping;
-} VolumeRender;
-
-typedef struct Volume {
-  ID id;
-  struct AnimData *adt; /* animation data (must be immediately after id) */
-
-  /* File */
-  char filepath[1024]; /* FILE_MAX */
-  struct PackedFile *packedfile;
-
-  /* Sequence */
-  char is_sequence;
-  char sequence_mode;
-  char _pad1[2];
-  int frame_start;
-  int frame_duration;
-  int frame_offset;
-
-  /* Flag */
-  int flag;
-
-  /* Grids */
-  int active_grid;
-
-  /* Material */
-  struct Material **mat;
-  short totcol;
-  short _pad2[3];
-
-  /* Render & Display Settings */
-  VolumeRender render;
-  VolumeDisplay display;
-
-  /* Velocity field name. */
-  char velocity_grid[64];
-
-  char _pad3[3];
-
-  /* Unit of time the velocity vectors are expressed in.
-   * This uses the same enumeration values as #CacheFile.velocity_unit. */
-  char velocity_unit;
-
-  /* Factor for velocity vector for artistic control. */
-  float velocity_scale;
-
-  /* Draw Cache */
-  void *batch_cache;
-
-  /* Runtime Data */
-  VolumeRuntimeHandle *runtime;
-} Volume;
-
 /** #Volume.flag */
 enum {
   VO_DS_EXPAND = (1 << 0),
@@ -152,3 +84,71 @@ typedef enum SliceAxis {
 
 /* Only one material supported currently. */
 #define VOLUME_MATERIAL_NR 1
+
+typedef struct VolumeDisplay {
+  float density = 1.0f;
+  int wireframe_type = VOLUME_WIREFRAME_BOXES;
+  int wireframe_detail = VOLUME_WIREFRAME_COARSE;
+  int interpolation_method = 0;
+  int axis_slice_method = 0;
+  int slice_axis = 0;
+  float slice_depth = 0.5f;
+  int _pad[1] = {};
+} VolumeDisplay;
+
+typedef struct VolumeRender {
+  int precision = VOLUME_PRECISION_HALF;
+  int space = VOLUME_SPACE_OBJECT;
+  float step_size = 0.0f;
+  float clipping = 0.001f;
+} VolumeRender;
+
+typedef struct Volume {
+  ID id;
+  struct AnimData *adt = nullptr; /* animation data (must be immediately after id) */
+
+  /* File */
+  char filepath[1024] = ""; /* FILE_MAX */
+  struct PackedFile *packedfile = nullptr;
+
+  /* Sequence */
+  char is_sequence = 0;
+  char sequence_mode = 0;
+  char _pad1[2] = {};
+  int frame_start = 1;
+  int frame_duration = 0;
+  int frame_offset = 0;
+
+  /* Flag */
+  int flag = 0;
+
+  /* Grids */
+  int active_grid = 0;
+
+  /* Material */
+  struct Material **mat = nullptr;
+  short totcol = 0;
+  short _pad2[3] = {};
+
+  /* Render & Display Settings */
+  VolumeRender render;
+  VolumeDisplay display;
+
+  /* Velocity field name. */
+  char velocity_grid[64] = "";
+
+  char _pad3[3] = {};
+
+  /* Unit of time the velocity vectors are expressed in.
+   * This uses the same enumeration values as #CacheFile.velocity_unit. */
+  char velocity_unit = 0;
+
+  /* Factor for velocity vector for artistic control. */
+  float velocity_scale = 1.0f;
+
+  /* Draw Cache */
+  void *batch_cache = nullptr;
+
+  /* Runtime Data */
+  VolumeRuntimeHandle *runtime = nullptr;
+} Volume;

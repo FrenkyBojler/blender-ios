@@ -66,7 +66,6 @@
 
 #include "BLO_read_write.hh"
 #include "BLO_readfile.hh"
-#include "BLO_userdef_default.h"
 #include "BLO_writefile.hh"
 
 #include "RE_pipeline.h"
@@ -1460,6 +1459,9 @@ UserDef *BKE_blendfile_userdef_from_defaults()
 {
   UserDef *userdef = static_cast<UserDef *>(MEM_callocN(sizeof(UserDef), __func__));
   *userdef = blender::dna::shallow_copy(U_default);
+
+  userdef->versionfile = BLENDER_FILE_VERSION;
+  userdef->subversionfile = BLENDER_FILE_SUBVERSION;
 
   /* Add-ons. */
   {

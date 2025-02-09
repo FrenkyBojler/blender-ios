@@ -73,131 +73,131 @@ ENUM_OPERATORS(eViewLayerCryptomatteFlags, VIEW_LAYER_CRYPTOMATTE_ACCURATE)
   (VIEW_LAYER_CRYPTOMATTE_OBJECT | VIEW_LAYER_CRYPTOMATTE_MATERIAL | VIEW_LAYER_CRYPTOMATTE_ASSET)
 
 typedef struct Base {
-  struct Base *next, *prev;
+  struct Base *next = nullptr, *prev = nullptr;
 
-  struct Object *object;
+  struct Object *object = nullptr;
 
   /* Pointer to an original base. Is initialized for evaluated view layer.
    * NOTE: Only allowed to be accessed from within active dependency graph. */
-  struct Base *base_orig;
+  struct Base *base_orig = nullptr;
 
-  unsigned int lay DNA_DEPRECATED;
+  unsigned int lay DNA_DEPRECATED = 0;
   /* Final flags, including both accumulated collection flags and object's
    * restriction flags. */
-  short flag;
+  short flag = 0;
   /* Flags which are based on the collections flags evaluation, does not
    * include flags from object's restrictions. */
-  short flag_from_collection;
-  short flag_legacy;
-  unsigned short local_view_bits;
-  unsigned short local_collections_bits;
-  char _pad1[2];
+  short flag_from_collection = 0;
+  short flag_legacy = 0;
+  unsigned short local_view_bits = 0;
+  unsigned short local_collections_bits = 0;
+  char _pad1[2] = {};
 } Base;
 
 typedef struct ViewLayerEngineData {
-  struct ViewLayerEngineData *next, *prev;
-  struct DrawEngineType *engine_type;
-  void *storage;
-  void (*free)(void *storage);
+  struct ViewLayerEngineData *next = nullptr, *prev = nullptr;
+  struct DrawEngineType *engine_type = nullptr;
+  void *storage = nullptr;
+  void (*free)(void *storage) = nullptr;
 } ViewLayerEngineData;
 
 typedef struct LayerCollection {
-  struct LayerCollection *next, *prev;
-  struct Collection *collection;
-  void *_pad1;
-  short flag;
-  short runtime_flag;
-  char _pad[4];
+  struct LayerCollection *next = nullptr, *prev = nullptr;
+  struct Collection *collection = nullptr;
+  void *_pad1 = nullptr;
+  short flag = 0;
+  short runtime_flag = 0;
+  char _pad[4] = {};
 
   /** Synced with collection->children. */
-  ListBase layer_collections;
+  ListBase layer_collections = {nullptr, nullptr};
 
-  unsigned short local_collections_bits;
-  short _pad2[3];
+  unsigned short local_collections_bits = 0;
+  short _pad2[3] = {};
 } LayerCollection;
 
 /* Type containing EEVEE settings per view-layer */
 typedef struct ViewLayerEEVEE {
-  int render_passes;
-  int _pad[1];
+  int render_passes = 0;
+  int _pad[1] = {};
 } ViewLayerEEVEE;
 
 /** AOV Render-pass definition. */
 typedef struct ViewLayerAOV {
-  struct ViewLayerAOV *next, *prev;
+  struct ViewLayerAOV *next = nullptr, *prev = nullptr;
 
   /* Name of the AOV */
-  char name[64];
-  int flag;
+  char name[64] = "";
+  int flag = 0;
   /* Type of AOV (color/value)
    * matches `eViewLayerAOVType` */
-  int type;
+  int type = 0;
 } ViewLayerAOV;
 
 /** Light-group Render-pass definition. */
 typedef struct ViewLayerLightgroup {
-  struct ViewLayerLightgroup *next, *prev;
+  struct ViewLayerLightgroup *next = nullptr, *prev = nullptr;
 
   /* Name of the Light-group. */
-  char name[64];
+  char name[64] = "";
 } ViewLayerLightgroup;
 
 /* Light-group membership information. */
 typedef struct LightgroupMembership {
   /* Name of the Light-group. */
-  char name[64];
+  char name[64] = "";
 } LightgroupMembership;
 
 typedef struct ViewLayer {
-  struct ViewLayer *next, *prev;
+  struct ViewLayer *next = nullptr, *prev = nullptr;
   /** MAX_NAME. */
-  char name[64];
-  short flag;
-  char _pad[6];
+  char name[64] = "";
+  short flag = 0;
+  char _pad[6] = {};
   /** ObjectBase. */
-  ListBase object_bases;
+  ListBase object_bases = {nullptr, nullptr};
   /** Default allocated now. */
-  struct SceneStats *stats;
-  struct Base *basact;
+  struct SceneStats *stats = nullptr;
+  struct Base *basact = nullptr;
 
   /** A view layer has one top level layer collection, because a scene has only one top level
    * collection. The layer_collections list always contains a single element. ListBase is
    * convenient when applying functions to all layer collections recursively. */
-  ListBase layer_collections;
-  LayerCollection *active_collection;
+  ListBase layer_collections = {nullptr, nullptr};
+  LayerCollection *active_collection = nullptr;
 
   /* Old SceneRenderLayer data. */
-  int layflag;
+  int layflag = 0;
   /** Pass_xor has to be after passflag. */
-  int passflag;
-  float pass_alpha_threshold;
-  short cryptomatte_flag;
-  short cryptomatte_levels;
-  char _pad1[4];
+  int passflag = 0;
+  float pass_alpha_threshold = 0;
+  short cryptomatte_flag = 0;
+  short cryptomatte_levels = 0;
+  char _pad1[4] = {};
 
-  int samples;
+  int samples = 0;
 
-  struct Material *mat_override;
-  struct World *world_override;
+  struct Material *mat_override = nullptr;
+  struct World *world_override = nullptr;
   /** Equivalent to datablocks ID properties. */
-  struct IDProperty *id_properties;
+  struct IDProperty *id_properties = nullptr;
 
   struct FreestyleConfig freestyle_config;
   struct ViewLayerEEVEE eevee;
 
   /* List containing the `ViewLayerAOV`s */
-  ListBase aovs;
-  ViewLayerAOV *active_aov;
+  ListBase aovs = {nullptr, nullptr};
+  ViewLayerAOV *active_aov = nullptr;
 
   /* List containing the 'ViewLayerLightgroup`s */
-  ListBase lightgroups;
-  ViewLayerLightgroup *active_lightgroup;
+  ListBase lightgroups = {nullptr, nullptr};
+  ViewLayerLightgroup *active_lightgroup = nullptr;
 
   /* Runtime data */
   /** ViewLayerEngineData. */
-  ListBase drawdata;
-  struct Base **object_bases_array;
-  struct GHash *object_bases_hash;
+  ListBase drawdata = {nullptr, nullptr};
+  struct Base **object_bases_array = nullptr;
+  struct GHash *object_bases_hash = nullptr;
 } ViewLayer;
 
 /* Base->flag */

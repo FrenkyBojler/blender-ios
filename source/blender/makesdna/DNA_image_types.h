@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <limits.h>
+
 #include "DNA_ID.h"
 #include "DNA_color_types.h" /* for color management */
 #include "DNA_defs.h"
@@ -18,204 +20,6 @@ struct MovieCache;
 struct PackedFile;
 struct RenderResult;
 struct Scene;
-
-/**
- * ImageUser is in Texture, in Nodes, Background Image, Image Window, ...
- * should be used in conjunction with an ID * to Image.
- */
-typedef struct ImageUser {
-  /** To retrieve render result. */
-  struct Scene *scene;
-
-  /** Movies, sequences: current to display. */
-  int framenr;
-  /** Total amount of frames to use. */
-  int frames;
-  /** Offset within movie, start frame in global time. */
-  int offset, sfra;
-  /** Cyclic flag. */
-  char cycl;
-
-  /** Multiview current eye - for internal use of drawing routines. */
-  char multiview_eye;
-  short pass;
-
-  int tile;
-
-  /** Listbase indices, for menu browsing or retrieve buffer. */
-  short multi_index, view, layer;
-  short flag;
-} ImageUser;
-
-typedef struct ImageAnim {
-  struct ImageAnim *next, *prev;
-  struct MovieReader *anim;
-} ImageAnim;
-
-typedef struct ImageView {
-  struct ImageView *next, *prev;
-  /** MAX_NAME. */
-  char name[64];
-  /** 1024 = FILE_MAX. */
-  char filepath[1024];
-} ImageView;
-
-typedef struct ImagePackedFile {
-  struct ImagePackedFile *next, *prev;
-  struct PackedFile *packedfile;
-
-  /* Which view and tile this ImagePackedFile represents. Normal images will use 0 and 1001
-   * respectively when creating their ImagePackedFile. Must be provided for each packed image. */
-  int view;
-  int tile_number;
-  /** 1024 = FILE_MAX. */
-  char filepath[1024];
-} ImagePackedFile;
-
-typedef struct RenderSlot {
-  struct RenderSlot *next, *prev;
-  /** 64 = MAX_NAME. */
-  char name[64];
-  struct RenderResult *render;
-} RenderSlot;
-
-typedef struct ImageTile_Runtime {
-  int tilearray_layer;
-  int _pad;
-  int tilearray_offset[2];
-  int tilearray_size[2];
-} ImageTile_Runtime;
-
-typedef struct ImageTile {
-  struct ImageTile *next, *prev;
-
-  struct ImageTile_Runtime runtime;
-
-  int tile_number;
-
-  /* for generated images */
-  int gen_x, gen_y;
-  char gen_type, gen_flag;
-  short gen_depth;
-  float gen_color[4];
-
-  char label[64];
-} ImageTile;
-
-/** #ImageUser::flag */
-enum {
-  IMA_ANIM_ALWAYS = 1 << 0,
-  // IMA_UNUSED_1 = 1 << 1,
-  // IMA_UNUSED_2 = 1 << 2,
-  IMA_NEED_FRAME_RECALC = 1 << 3,
-  IMA_SHOW_STEREO = 1 << 4,
-  // IMA_UNUSED_5 = 1 << 5,
-};
-
-/* Used to get the correct gpu texture from an Image datablock. */
-typedef enum eGPUTextureTarget {
-  TEXTARGET_2D = 0,
-  TEXTARGET_2D_ARRAY,
-  TEXTARGET_TILE_MAPPING,
-  TEXTARGET_COUNT,
-} eGPUTextureTarget;
-
-/* Defined in BKE_image.hh. */
-struct PartialUpdateRegister;
-struct PartialUpdateUser;
-
-typedef struct Image_Runtime {
-  /* Mutex used to guarantee thread-safe access to the cached ImBuf of the corresponding image ID.
-   */
-  void *cache_mutex;
-
-  /** \brief Register containing partial updates. */
-  struct PartialUpdateRegister *partial_update_register;
-  /** \brief Partial update user for GPUTextures stored inside the Image. */
-  struct PartialUpdateUser *partial_update_user;
-
-  /* Compositor viewer might be translated, and that translation will be stored in this runtime
-   * vector by the compositor so that the editor draw code can draw the image translated. */
-  float backdrop_offset[2];
-} Image_Runtime;
-
-typedef struct Image {
-  ID id;
-  struct AnimData *adt;
-  /**
-   * Engines draw data, must be immediately after AnimData. See IdDdtTemplate and
-   * DRW_drawdatalist_from_id to understand this requirement.
-   */
-  DrawDataList drawdata;
-
-  /** File path, 1024 = FILE_MAX. */
-  char filepath[1024];
-
-  /** Not written in file. */
-  struct MovieCache *cache;
-  /** Not written in file 3 = TEXTARGET_COUNT, 2 = stereo eyes. */
-  struct GPUTexture *gputexture[3][2];
-
-  /* sources from: */
-  ListBase anims;
-  struct RenderResult *rr;
-
-  ListBase renderslots;
-  short render_slot, last_render_slot;
-
-  int flag;
-  short source, type;
-  int lastframe;
-
-  /* GPU texture flag. */
-  int gpuframenr;
-  short gpuflag;
-  short gpu_pass;
-  short gpu_layer;
-  short gpu_view;
-
-  /* Number of iterations to perform when extracting mask for uv seam fixing. */
-  short seam_margin;
-
-  char _pad2[2];
-
-  /** Deprecated. */
-  struct PackedFile *packedfile DNA_DEPRECATED;
-  struct ListBase packedfiles;
-  struct PreviewImage *preview;
-
-  int lastused;
-
-  /* for generated images */
-  int gen_x DNA_DEPRECATED, gen_y DNA_DEPRECATED;
-  char gen_type DNA_DEPRECATED, gen_flag DNA_DEPRECATED;
-  short gen_depth DNA_DEPRECATED;
-  float gen_color[4] DNA_DEPRECATED;
-
-  /* display aspect - for UV editing images resized for faster openGL display */
-  float aspx, aspy;
-
-  /* color management */
-  ColorManagedColorspaceSettings colorspace_settings;
-  char alpha_mode;
-
-  char _pad;
-
-  /* Multiview */
-  /** For viewer node stereoscopy. */
-  char eye;
-  char views_format;
-
-  /* ImageTile list for UDIMs. */
-  int active_tile_index;
-  ListBase tiles;
-
-  /** ImageView. */
-  ListBase views;
-  struct Stereo3dFormat *stereo3d_format;
-
-  Image_Runtime runtime;
-} Image;
 
 /* **************** IMAGE ********************* */
 
@@ -299,3 +103,201 @@ enum {
 #define IMAGE_GPU_PASS_NONE SHRT_MAX
 #define IMAGE_GPU_LAYER_NONE SHRT_MAX
 #define IMAGE_GPU_VIEW_NONE SHRT_MAX
+
+/**
+ * ImageUser is in Texture, in Nodes, Background Image, Image Window, ...
+ * should be used in conjunction with an ID * to Image.
+ */
+typedef struct ImageUser {
+  /** To retrieve render result. */
+  struct Scene *scene = nullptr;
+
+  /** Movies, sequences: current to display. */
+  int framenr = 0;
+  /** Total amount of frames to use. */
+  int frames = 0;
+  /** Offset within movie, start frame in global time. */
+  int offset = 0, sfra = 0;
+  /** Cyclic flag. */
+  char cycl = 0;
+
+  /** Multiview current eye - for internal use of drawing routines. */
+  char multiview_eye = 0;
+  short pass = 0;
+
+  int tile = 0;
+
+  /** Listbase indices, for menu browsing or retrieve buffer. */
+  short multi_index = 0, view = 0, layer = 0;
+  short flag = 0;
+} ImageUser;
+
+typedef struct ImageAnim {
+  struct ImageAnim *next = nullptr, *prev = nullptr;
+  struct MovieReader *anim = nullptr;
+} ImageAnim;
+
+typedef struct ImageView {
+  struct ImageView *next = nullptr, *prev = nullptr;
+  /** MAX_NAME. */
+  char name[64] = "";
+  /** 1024 = FILE_MAX. */
+  char filepath[1024] = "";
+} ImageView;
+
+typedef struct ImagePackedFile {
+  struct ImagePackedFile *next = nullptr, *prev = nullptr;
+  struct PackedFile *packedfile = nullptr;
+
+  /* Which view and tile this ImagePackedFile represents. Normal images will use 0 and 1001
+   * respectively when creating their ImagePackedFile. Must be provided for each packed image. */
+  int view = 0;
+  int tile_number = 0;
+  /** 1024 = FILE_MAX. */
+  char filepath[1024] = "";
+} ImagePackedFile;
+
+typedef struct RenderSlot {
+  struct RenderSlot *next = nullptr, *prev = nullptr;
+  /** 64 = MAX_NAME. */
+  char name[64] = "";
+  struct RenderResult *render = nullptr;
+} RenderSlot;
+
+typedef struct ImageTile_Runtime {
+  int tilearray_layer = 0;
+  int _pad = 0;
+  int tilearray_offset[2] = {};
+  int tilearray_size[2] = {};
+} ImageTile_Runtime;
+
+typedef struct ImageTile {
+  struct ImageTile *next = nullptr, *prev = nullptr;
+
+  struct ImageTile_Runtime runtime;
+
+  int tile_number = 0;
+
+  /* for generated images */
+  int gen_x = 0, gen_y = 0;
+  char gen_type = 0, gen_flag = 0;
+  short gen_depth = 0;
+  float gen_color[4] = {};
+
+  char label[64] = "";
+} ImageTile;
+
+/** #ImageUser::flag */
+enum {
+  IMA_ANIM_ALWAYS = 1 << 0,
+  // IMA_UNUSED_1 = 1 << 1,
+  // IMA_UNUSED_2 = 1 << 2,
+  IMA_NEED_FRAME_RECALC = 1 << 3,
+  IMA_SHOW_STEREO = 1 << 4,
+  // IMA_UNUSED_5 = 1 << 5,
+};
+
+/* Used to get the correct gpu texture from an Image datablock. */
+typedef enum eGPUTextureTarget {
+  TEXTARGET_2D = 0,
+  TEXTARGET_2D_ARRAY,
+  TEXTARGET_TILE_MAPPING,
+  TEXTARGET_COUNT,
+} eGPUTextureTarget;
+
+/* Defined in BKE_image.hh. */
+struct PartialUpdateRegister;
+struct PartialUpdateUser;
+
+typedef struct Image_Runtime {
+  /* Mutex used to guarantee thread-safe access to the cached ImBuf of the corresponding image ID.
+   */
+  void *cache_mutex = nullptr;
+
+  /** \brief Register containing partial updates. */
+  struct PartialUpdateRegister *partial_update_register = nullptr;
+  /** \brief Partial update user for GPUTextures stored inside the Image. */
+  struct PartialUpdateUser *partial_update_user = nullptr;
+
+  /* Compositor viewer might be translated, and that translation will be stored in this runtime
+   * vector by the compositor so that the editor draw code can draw the image translated. */
+  float backdrop_offset[2] = {};
+} Image_Runtime;
+
+typedef struct Image {
+  ID id;
+  struct AnimData *adt = nullptr;
+  /**
+   * Engines draw data, must be immediately after AnimData. See IdDdtTemplate and
+   * DRW_drawdatalist_from_id to understand this requirement.
+   */
+  DrawDataList drawdata;
+
+  /** File path, 1024 = FILE_MAX. */
+  char filepath[1024] = "";
+
+  /** Not written in file. */
+  struct MovieCache *cache = nullptr;
+  /** Not written in file 3 = TEXTARGET_COUNT, 2 = stereo eyes. */
+  struct GPUTexture *gputexture[3][2] = {};
+
+  /* sources from: */
+  ListBase anims = {nullptr, nullptr};
+  struct RenderResult *rr = nullptr;
+
+  ListBase renderslots = {nullptr, nullptr};
+  short render_slot = 0, last_render_slot = 0;
+
+  int flag = 0;
+  short source = 0, type = 0;
+  int lastframe = 0;
+
+  /* GPU texture flag. */
+  int gpuframenr = IMAGE_GPU_FRAME_NONE;
+  short gpuflag = 0;
+  short gpu_pass = IMAGE_GPU_PASS_NONE;
+  short gpu_layer = IMAGE_GPU_LAYER_NONE;
+  short gpu_view = IMAGE_GPU_VIEW_NONE;
+
+  /* Number of iterations to perform when extracting mask for uv seam fixing. */
+  short seam_margin = 8;
+
+  char _pad2[2] = {};
+
+  /** Deprecated. */
+  struct PackedFile *packedfile DNA_DEPRECATED = nullptr;
+  struct ListBase packedfiles = {nullptr, nullptr};
+  struct PreviewImage *preview = nullptr;
+
+  int lastused = 0;
+
+  /* for generated images */
+  int gen_x DNA_DEPRECATED = 1024, gen_y DNA_DEPRECATED = 1024;
+  char gen_type DNA_DEPRECATED = IMA_GENTYPE_GRID, gen_flag DNA_DEPRECATED = 0;
+  short gen_depth DNA_DEPRECATED = 0;
+  float gen_color[4] DNA_DEPRECATED = {};
+
+  /* display aspect - for UV editing images resized for faster openGL display */
+  float aspx = 1.0, aspy = 1.0;
+
+  /* color management */
+  ColorManagedColorspaceSettings colorspace_settings;
+  char alpha_mode = 0;
+
+  char _pad = 0;
+
+  /* Multiview */
+  /** For viewer node stereoscopy. */
+  char eye = 0;
+  char views_format = 0;
+
+  /* ImageTile list for UDIMs. */
+  int active_tile_index = 0;
+  ListBase tiles = {nullptr, nullptr};
+
+  /** ImageView. */
+  ListBase views = {nullptr, nullptr};
+  struct Stereo3dFormat *stereo3d_format = nullptr;
+
+  Image_Runtime runtime;
+} Image;
