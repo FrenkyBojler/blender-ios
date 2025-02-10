@@ -3543,7 +3543,8 @@ class WM_MT_region_toggle_pie(Menu):
             if attr is None:
                 continue
             # In some cases channels exists but can't be toggled.
-            assert hasattr(space_data, attr)
+            if not hasattr(space_data, attr):
+                continue
             # Technically possible these double-up, in practice this should never happen.
             if region_type in region_by_type:
                 print("{:s}: Unexpected double-up of region types {!r}".format(cls.__name__, region_type))
