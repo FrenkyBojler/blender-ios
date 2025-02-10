@@ -887,7 +887,7 @@ static int grease_pencil_relative_layer_mask_add_exec(bContext *C, wmOperator *o
   }
   Layer &active_layer = *grease_pencil.get_active_layer();
 
-  const int active_layer_index = grease_pencil.layers().first_index(&active_layer);
+  const int active_layer_index = grease_pencil.get_layer_index(active_layer);
 
   if ((relative_layer_index == -1 && active_layer_index == 0) ||
       (relative_layer_index == 1 && active_layer_index == grease_pencil.layers().size() - 1))
@@ -907,10 +907,10 @@ static int grease_pencil_relative_layer_mask_add_exec(bContext *C, wmOperator *o
 
   LayerMask *new_mask = MEM_new<LayerMask>(__func__, relative_layer_name.c_str());
   BLI_addtail(&active_layer.masks, reinterpret_cast<GreasePencilLayerMask *>(new_mask));
-  // Make the newly added mask active.
+  /* Make the newly added mask active. */
   active_layer.active_mask_index = BLI_listbase_count(&active_layer.masks) - 1;
 
-  // Enable masking for active layer
+  /* Enable masking for active layer */
   active_layer.base.flag &= ~GP_LAYER_TREE_NODE_HIDE_MASKS;
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
