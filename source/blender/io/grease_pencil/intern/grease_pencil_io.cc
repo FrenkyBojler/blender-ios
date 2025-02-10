@@ -197,9 +197,7 @@ static std::optional<Bounds<float2>> compute_screen_space_drawing_bounds(
     const ARegion &region,
     const RegionView3D &rv3d,
     const Object &object,
-    const Object &object_eval,
     const int layer_index,
-    const int frame_number,
     const bke::greasepencil::Drawing &drawing)
 {
   using bke::greasepencil::Drawing;
@@ -274,7 +272,7 @@ static std::optional<Bounds<float2>> compute_objects_bounds(
       }
 
       std::optional<Bounds<float2>> layer_bounds = compute_screen_space_drawing_bounds(
-          region, rv3d, *info.object, *object_eval, layer_index, frame_number, *drawing);
+          region, rv3d, *info.object, layer_index, *drawing);
 
       full_bounds = bounds::merge(full_bounds, layer_bounds);
     }
