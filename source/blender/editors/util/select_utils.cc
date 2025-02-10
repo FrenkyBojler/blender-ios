@@ -161,14 +161,26 @@ void ED_select_pick_params_from_operator(PointerRNA *ptr, SelectPick_Params *par
 
 std::string ED_select_pick_get_name(wmOperatorType * /*ot*/, PointerRNA *ptr)
 {
+  PropertyRNA *prop = RNA_struct_find_property(ptr, "enumerate");
+  const bool enumerate = (prop && RNA_property_boolean_get(ptr, prop));
+
   SelectPick_Params params = {eSelectOp(0)};
   ED_select_pick_params_from_operator(ptr, &params);
   switch (params.sel_op) {
     case SEL_OP_ADD:
+      if (enumerate) {
+        return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select (Enumerate Extend)");
+      }
       return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select (Extend)");
     case SEL_OP_SUB:
+      if (enumerate) {
+        return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select (Enumerate Deselect)");
+      }
       return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select (Deselect)");
     case SEL_OP_XOR:
+      if (enumerate) {
+        return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select (Enumerate Toggle)");
+      }
       return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select (Toggle)");
     case SEL_OP_AND:
       BLI_assert_unreachable();
@@ -176,6 +188,11 @@ std::string ED_select_pick_get_name(wmOperatorType * /*ot*/, PointerRNA *ptr)
     case SEL_OP_SET:
       break;
   }
+
+  if (enumerate) {
+    return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select (Enumerate)");
+  }
+
   return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select");
 }
 
