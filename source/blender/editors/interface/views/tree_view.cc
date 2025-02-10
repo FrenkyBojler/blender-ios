@@ -14,6 +14,7 @@
 #include "BLT_translation.hh"
 
 #include "GPU_immediate.hh"
+#include "GPU_state.hh"
 
 #include "interface_intern.hh"
 
@@ -297,7 +298,7 @@ void AbstractTreeView::update_children_from_old(const AbstractView &old_view)
 
   custom_height_ = old_tree_view.custom_height_;
   scroll_value_ = old_tree_view.scroll_value_;
-  this->update_children_from_old_recursive(*this, old_tree_view);
+  update_children_from_old_recursive(*this, old_tree_view);
 }
 
 void AbstractTreeView::update_children_from_old_recursive(const TreeViewOrItem &new_items,
@@ -984,7 +985,7 @@ void BasicTreeViewItem::build_row(uiLayout &row)
 void BasicTreeViewItem::add_label(uiLayout &layout, StringRefNull label_override)
 {
   const StringRefNull label = label_override.is_empty() ? StringRefNull(label_) : label_override;
-  uiItemL(&layout, IFACE_(label.c_str()), icon);
+  uiItemL(&layout, IFACE_(label), icon);
 }
 
 void BasicTreeViewItem::on_activate(bContext &C)

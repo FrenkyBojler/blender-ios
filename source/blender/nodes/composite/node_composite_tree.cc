@@ -6,11 +6,6 @@
  * \ingroup nodes
  */
 
-#include <cstdio>
-
-#include "BLI_string.h"
-
-#include "DNA_color_types.h"
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 
@@ -31,8 +26,6 @@
 
 #include "NOD_composite.hh"
 #include "node_composite_util.hh"
-
-#include "COM_compositor.hh"
 
 static void composite_get_from_context(const bContext *C,
                                        blender::bke::bNodeTreeType * /*treetype*/,
@@ -227,7 +220,7 @@ void ntreeCompositClearTags(bNodeTree *ntree)
 
   for (bNode *node : ntree->all_nodes()) {
     node->runtime->need_exec = 0;
-    if (node->type_legacy == NODE_GROUP) {
+    if (node->is_group()) {
       ntreeCompositClearTags((bNodeTree *)node->id);
     }
   }

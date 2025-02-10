@@ -2,8 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "NOD_rna_define.hh"
-
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
@@ -16,6 +14,7 @@
 
 #include "BLO_read_write.hh"
 
+#include "BKE_library.hh"
 #include "BKE_screen.hh"
 
 #include "node_geometry_util.hh"
@@ -77,7 +76,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
   uiItemR(layout, ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 
   if (uiLayout *panel = uiLayoutPanel(
-          C, layout, "capture_attribute_items", false, TIP_("Capture Items")))
+          C, layout, "capture_attribute_items", false, IFACE_("Capture Items")))
   {
     socket_items::ui::draw_items_list_with_operators<CaptureAttributeItemsAccessor>(
         C, panel, tree, node);

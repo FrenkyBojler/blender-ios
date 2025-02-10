@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "common_view_clipping_lib.glsl"
-#include "common_view_lib.glsl"
+#include "draw_model_lib.glsl"
+#include "draw_view_lib.glsl"
 #include "gpu_shader_attribute_load_lib.glsl"
 #include "gpu_shader_index_load_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
@@ -62,11 +63,11 @@ vec2 radius_offset(vec3 curve_point,
                    bool first_tangent)
 {
   const vec3 curve_point2 = calc_bezier_point(u2, points);
-  const vec4 ndc_curve_point2 = point_object_to_ndc(curve_point2);
+  const vec4 ndc_curve_point2 = drw_point_object_to_homogenous(curve_point2);
   const float radius = radius_to_ndc(mix(radii.x, radii.y, u) * sizeViewport.x,
-                                     point_object_to_view(curve_point));
+                                     drw_point_object_to_view(curve_point));
   const float radius2 = radius_to_ndc(mix(radii.x, radii.y, u2) * sizeViewport.x,
-                                      point_object_to_view(curve_point2));
+                                      drw_point_object_to_view(curve_point2));
 
   return circle_tangent((ndc_curve_point.xy / ndc_curve_point.w) * sizeViewport,
                         radius,
@@ -77,7 +78,7 @@ vec2 radius_offset(vec3 curve_point,
 
 vec2 tangent_offset(vec3 curve_point, vec4 ndc_curve_point, vec3 tangent)
 {
-  const vec4 ndc_tangent = point_object_to_ndc(curve_point + tangent);
+  const vec4 ndc_tangent = drw_point_object_to_homogenous(curve_point + tangent);
   const vec2 tangent_2d = normalize(ndc_tangent.xy * ndc_curve_point.w -
                                     ndc_curve_point.xy * ndc_tangent.w);
   return vec2(-tangent_2d.y, tangent_2d.x) * sizeEdge * 2 * (gl_VertexID % 2 ? -1.0 : 1.0);
@@ -98,7 +99,7 @@ vec3 calc_bezier_point(float u, inout vec3 control_points[4])
 float radius_to_ndc(float radius, vec3 view_point)
 {
   const vec3 view_radius = vec3(radius, 0.0, view_point.z);
-  const vec4 ndc_radius = point_view_to_ndc(view_radius);
+  const vec4 ndc_radius = drw_point_view_to_homogenous(view_radius);
   return ndc_radius.x / ndc_radius.w;
 }
 
@@ -134,8 +135,8 @@ void main()
   }
 #endif
 
-  const vec3 world_pos = point_object_to_world(curve_point);
-  vec4 ndc_pos = point_world_to_ndc(world_pos);
+  const vec3 world_pos = drw_point_object_to_world(curve_point);
+  vec4 ndc_pos = drw_point_world_to_homogenous(world_pos);
 
 #ifdef SEGMENT
   const vec2 offset = displayRadius ?
@@ -152,7 +153,7 @@ void main()
   const float x = quad_right ? 1.0 : -1.0;
   const float y = bottom_edge ? -1.0 : 1.0;
   const float radius = radius_to_ndc(mix(vert_in.radius.x, vert_in.radius.y, u) * sizeViewport.x,
-                                     point_world_to_view(world_pos));
+                                     drw_point_world_to_view(world_pos));
   const vec2 offset = vec2(x, y) * radius;
 
   uv_coord = vec2(x, y);

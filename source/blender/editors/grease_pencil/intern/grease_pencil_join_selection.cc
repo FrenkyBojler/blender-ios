@@ -8,7 +8,6 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_context.hh"
-#include "BKE_curves_utils.hh"
 #include "BKE_grease_pencil.hh"
 
 #include "DNA_scene_types.h"
@@ -312,9 +311,10 @@ void copy_curve_attributes(Span<PointsRange> ranges_selected, bke::CurvesGeometr
    */
 
   auto src_range = [&]() -> const PointsRange & {
-    auto it = std::find_if(ranges_selected.begin(),
-                           ranges_selected.end(),
-                           [](const PointsRange &range) { return range.belongs_to_active_layer; });
+    const auto *it = std::find_if(
+        ranges_selected.begin(), ranges_selected.end(), [](const PointsRange &range) {
+          return range.belongs_to_active_layer;
+        });
 
     return it != ranges_selected.end() ? *it : ranges_selected.first();
   }();

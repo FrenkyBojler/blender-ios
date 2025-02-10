@@ -29,7 +29,6 @@
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
-#include "DNA_brush_types.h"
 #include "DNA_cachefile_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_curves_types.h"
@@ -76,11 +75,13 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_key.hh"
 #include "BKE_layer.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_mask.h"
 #include "BKE_material.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
 
 #include "ED_anim_api.hh"
 #include "ED_markers.hh"
@@ -1012,9 +1013,9 @@ static bool skip_fcurve_selected_data(bAnimContext *ac,
     Strip *strip = nullptr;
     char strip_name[sizeof(strip->name)];
 
-    /* Only consider if F-Curve involves `sequence_editor.sequences`. */
+    /* Only consider if F-Curve involves `sequence_editor.strips`. */
     if (fcu->rna_path &&
-        BLI_str_quoted_substr(fcu->rna_path, "sequences_all[", strip_name, sizeof(strip_name)))
+        BLI_str_quoted_substr(fcu->rna_path, "strips_all[", strip_name, sizeof(strip_name)))
     {
       /* Get strip name, and check if this strip is selected. */
       Editing *ed = SEQ_editing_get(scene);
@@ -2261,7 +2262,7 @@ static size_t animdata_filter_grease_pencil(bAnimContext *ac,
 {
   size_t items = 0;
   Scene *scene = ac->scene;
-  ViewLayer *view_layer = (ViewLayer *)ac->view_layer;
+  ViewLayer *view_layer = ac->view_layer;
   bDopeSheet *ads = ac->ads;
 
   BKE_view_layer_synced_ensure(scene, view_layer);
@@ -2517,7 +2518,7 @@ static size_t animdata_filter_ds_nodetree(bAnimContext *ac,
   items += animdata_filter_ds_nodetree_group(ac, anim_data, owner_id, ntree, filter_mode);
 
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (node->type_legacy == NODE_GROUP) {
+    if (node->is_group()) {
       if (node->id) {
         if ((ac->ads->filterflag & ADS_FILTER_ONLYSEL) && (node->flag & NODE_SELECT) == 0) {
           continue;
@@ -3635,7 +3636,7 @@ static size_t animdata_filter_dopesheet(bAnimContext *ac,
 {
   bDopeSheet *ads = ac->ads;
   Scene *scene = (Scene *)ads->source;
-  ViewLayer *view_layer = (ViewLayer *)ac->view_layer;
+  ViewLayer *view_layer = ac->view_layer;
   size_t items = 0;
 
   /* check that we do indeed have a scene */

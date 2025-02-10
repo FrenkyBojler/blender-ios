@@ -9,9 +9,7 @@
 #include "BKE_context.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_node_tree_interface.hh"
-#include "BKE_node_tree_update.hh"
 
-#include "BLI_color.hh"
 #include "BLI_string.h"
 
 #include "BLT_translation.hh"
@@ -51,11 +49,11 @@ class NodeTreeInterfaceDragController : public AbstractViewItemDragController {
  public:
   explicit NodeTreeInterfaceDragController(NodeTreeInterfaceView &view,
                                            bNodeTreeInterfaceItem &item);
-  virtual ~NodeTreeInterfaceDragController() = default;
+  ~NodeTreeInterfaceDragController() override = default;
 
-  eWM_DragDataType get_drag_type() const;
+  eWM_DragDataType get_drag_type() const override;
 
-  void *create_drag_data() const;
+  void *create_drag_data() const override;
 };
 
 class NodeSocketDropTarget : public TreeViewItemDropTarget {

@@ -7,13 +7,13 @@
  */
 
 #include <cctype>
-#include <cmath>
 #include <cstdlib>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_path_utils.hh"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -27,7 +27,7 @@
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 
-#include "IMB_imbuf.hh"
+#include "IMB_imbuf_enums.h"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -189,7 +189,7 @@ static int sequencer_generic_invoke_xy_guess_channel(bContext *C, int type)
   Strip *tgt = nullptr;
   Scene *scene = CTX_data_scene(C);
   Editing *ed = SEQ_editing_ensure(scene);
-  int timeline_frame = int(scene->r.cfra);
+  int timeline_frame = scene->r.cfra;
   int proximity = INT_MAX;
 
   if (!ed || !ed->seqbasep) {
@@ -244,7 +244,7 @@ static void sequencer_generic_invoke_xy__internal(
 {
   Scene *scene = CTX_data_scene(C);
 
-  int timeline_frame = int(scene->r.cfra);
+  int timeline_frame = scene->r.cfra;
   if ((flag & SEQPROP_NOPATHS) && event) {
     sequencer_file_drop_channel_frame_set(C, op, event);
   }
@@ -362,7 +362,7 @@ static bool load_data_init_from_operator(SeqLoadData *load_data, bContext *C, wm
   {
     if (op->customdata) {
       SequencerAddData *sad = static_cast<SequencerAddData *>(op->customdata);
-      ImageFormatData *imf = static_cast<ImageFormatData *>(&sad->im_format);
+      ImageFormatData *imf = &sad->im_format;
 
       load_data->use_multiview = true;
       load_data->views_format = imf->views_format;
@@ -1083,7 +1083,7 @@ static void sequencer_add_draw(bContext * /*C*/, wmOperator *op)
                    false);
 
   /* Image template. */
-  PointerRNA imf_ptr = RNA_pointer_create(nullptr, &RNA_ImageFormatSettings, imf);
+  PointerRNA imf_ptr = RNA_pointer_create_discrete(nullptr, &RNA_ImageFormatSettings, imf);
 
   /* Multiview template. */
   if (RNA_boolean_get(op->ptr, "show_multiview")) {
@@ -1467,10 +1467,10 @@ static int sequencer_add_effect_strip_exec(bContext *C, wmOperator *op)
   SeqLoadData load_data;
   load_data_init_from_operator(&load_data, C, op);
   load_data.effect.type = RNA_enum_get(op->ptr, "type");
+  const int num_inputs = SEQ_effect_get_num_inputs(load_data.effect.type);
 
   Strip *seq1, *seq2;
-  if (!strip_effect_find_selected(scene, nullptr, load_data.effect.type, &seq1, &seq2, &error_msg))
-  {
+  if (!strip_effect_get_new_inputs(scene, false, num_inputs, &seq1, &seq2, &error_msg)) {
     BKE_report(op->reports, RPT_ERROR, error_msg);
     return OPERATOR_CANCELLED;
   }
@@ -1537,37 +1537,44 @@ static std::string sequencer_add_effect_strip_get_description(bContext * /*C*/,
 
   switch (type) {
     case STRIP_TYPE_CROSS:
-      return TIP_("Add a crossfade transition to the sequencer");
+      return TIP_("Add a crossfade transition strip for two selected strips with video content");
     case STRIP_TYPE_ADD:
-      return TIP_("Add an add effect strip to the sequencer");
+      return TIP_("Add an add blend mode effect strip for two selected strips with video content");
     case STRIP_TYPE_SUB:
-      return TIP_("Add a subtract effect strip to the sequencer");
+      return TIP_(
+          "Add a subtract blend mode effect strip for two selected strips with video content");
     case STRIP_TYPE_ALPHAOVER:
-      return TIP_("Add an alpha over effect strip to the sequencer");
+      return TIP_(
+          "Add an alpha over blend mode effect strip for two selected strips with video content");
     case STRIP_TYPE_ALPHAUNDER:
-      return TIP_("Add an alpha under effect strip to the sequencer");
+      return TIP_(
+          "Add an alpha under blend mode effect strip for two selected strips with video content");
     case STRIP_TYPE_GAMCROSS:
-      return TIP_("Add a gamma cross transition to the sequencer");
+      return TIP_("Add a gamma cross transition strip for two selected strips with video content");
     case STRIP_TYPE_MUL:
-      return TIP_("Add a multiply effect strip to the sequencer");
+      return TIP_(
+          "Add a multiply blend mode effect strip for two selected strips with video content");
     case STRIP_TYPE_OVERDROP:
-      return TIP_("Add an alpha over drop effect strip to the sequencer");
+      return TIP_(
+          "Add an alpha over drop blend mode effect strip for two selected strips with video "
+          "content");
     case STRIP_TYPE_WIPE:
-      return TIP_("Add a wipe transition to the sequencer");
+      return TIP_("Add a wipe transition strip for two selected strips with video content");
     case STRIP_TYPE_GLOW:
-      return TIP_("Add a glow effect strip to the sequencer");
+      return TIP_("Add a glow effect strip for a single selected strip with video content");
     case STRIP_TYPE_TRANSFORM:
-      return TIP_("Add a transform effect strip to the sequencer");
+      return TIP_("Add a transform effect strip for a single selected strip with video content");
     case STRIP_TYPE_COLOR:
       return TIP_("Add a color strip to the sequencer");
     case STRIP_TYPE_SPEED:
-      return TIP_("Add a speed effect strip to the sequencer");
+      return TIP_("Add a video speed effect strip for a single selected strip with video content");
     case STRIP_TYPE_MULTICAM:
       return TIP_("Add a multicam selector effect strip to the sequencer");
     case STRIP_TYPE_ADJUSTMENT:
       return TIP_("Add an adjustment layer effect strip to the sequencer");
     case STRIP_TYPE_GAUSSIAN_BLUR:
-      return TIP_("Add a gaussian blur effect strip to the sequencer");
+      return TIP_(
+          "Add a gaussian blur effect strip for a single selected strip with video content");
     case STRIP_TYPE_TEXT:
       return TIP_("Add a text strip to the sequencer");
     case STRIP_TYPE_COLORMIX:

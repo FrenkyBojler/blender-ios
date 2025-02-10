@@ -6,6 +6,7 @@
  * \ingroup edscr
  */
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 
@@ -13,9 +14,9 @@
 
 #include "DNA_userdef_types.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_linklist_stack.h"
+#include "BLI_linklist.h"
 #include "BLI_rand.hh"
+#include "BLI_string.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
@@ -606,7 +607,7 @@ void ED_region_do_draw(bContext *C, ARegion *region)
     {
       SpaceLink *sl = static_cast<SpaceLink *>(area->spacedata.first);
 
-      PointerRNA ptr = RNA_pointer_create(&screen->id, &RNA_Space, sl);
+      PointerRNA ptr = RNA_pointer_create_discrete(&screen->id, &RNA_Space, sl);
 
       /* All properties for this space type. */
       wmMsgSubscribeValue msg_sub_value_region_tag_redraw{};
@@ -976,7 +977,7 @@ void ED_workspace_status_text(bContext *C, const char *str)
 
 /* ************************************************************ */
 
-static void area_azone_init(wmWindow *win, const bScreen *screen, ScrArea *area)
+static void area_azone_init(const wmWindow *win, const bScreen *screen, ScrArea *area)
 {
   /* reinitialize entirely, regions and full-screen add azones too */
   BLI_freelistN(&area->actionzones);
@@ -2046,8 +2047,9 @@ void ED_area_and_region_types_init(ScrArea *area)
   }
 }
 
-void ED_area_init(wmWindowManager *wm, wmWindow *win, ScrArea *area)
+void ED_area_init(bContext *C, const wmWindow *win, ScrArea *area)
 {
+  wmWindowManager *wm = CTX_wm_manager(C);
   WorkSpace *workspace = WM_window_get_active_workspace(win);
   const bScreen *screen = BKE_workspace_active_screen_get(win->workspace_hook);
   const Scene *scene = WM_window_get_active_scene(win);
@@ -2064,6 +2066,8 @@ void ED_area_init(wmWindowManager *wm, wmWindow *win, ScrArea *area)
 
   /* area sizes */
   area_calc_totrct(area, &window_rect);
+
+  area_regions_poll(C, screen, area);
 
   /* region rect sizes */
   rcti rect = area->totrct;
@@ -2249,7 +2253,7 @@ void ED_region_visibility_change_update_ex(
   }
 
   if (do_init) {
-    ED_area_init(CTX_wm_manager(C), CTX_wm_window(C), area);
+    ED_area_init(C, CTX_wm_window(C), area);
     ED_area_tag_redraw(area);
   }
 }
@@ -2577,8 +2581,8 @@ void ED_area_swapspace(bContext *C, ScrArea *sa1, ScrArea *sa2)
   ED_area_data_copy(tmp, sa1, false);
   ED_area_data_copy(sa1, sa2, true);
   ED_area_data_copy(sa2, tmp, true);
-  ED_area_init(CTX_wm_manager(C), win, sa1);
-  ED_area_init(CTX_wm_manager(C), win, sa2);
+  ED_area_init(C, win, sa1);
+  ED_area_init(C, win, sa2);
 
   BKE_screen_area_free(tmp);
   MEM_delete(tmp);
@@ -2694,7 +2698,7 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
       region_align_info_to_area(area, region_align_info);
     }
 
-    ED_area_init(CTX_wm_manager(C), win, area);
+    ED_area_init(C, win, area);
 
     /* tell WM to refresh, cursor types etc */
     WM_event_add_mousemove(win);
@@ -2714,6 +2718,14 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
   if (BLI_listbase_is_single(&CTX_wm_screen(C)->areabase)) {
     /* If there is only one area update the window title. */
     WM_window_title(CTX_wm_manager(C), CTX_wm_window(C));
+  }
+
+  /* See #WM_capabilities_flag code-comments for details on the background check. */
+  if (!G.background) {
+    /* If window decoration styles are supported, send a notification to re-apply them. */
+    if (WM_capabilities_flag() & WM_CAPABILITY_WINDOW_DECORATION_STYLES) {
+      WM_event_add_notifier(C, NC_WINDOW, nullptr);
+    }
   }
 
   /* also redraw when re-used */
@@ -2772,7 +2784,7 @@ int ED_area_header_switchbutton(const bContext *C, uiBlock *block, int yco)
   bScreen *screen = CTX_wm_screen(C);
   int xco = 0.4 * U.widget_unit;
 
-  PointerRNA areaptr = RNA_pointer_create(&(screen->id), &RNA_Area, area);
+  PointerRNA areaptr = RNA_pointer_create_discrete(&(screen->id), &RNA_Area, area);
 
   uiDefButR(block,
             UI_BTYPE_MENU,
@@ -3570,17 +3582,13 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
 
       /* for view2d */
       xco = uiLayoutGetWidth(layout);
-      if (xco > maxco) {
-        maxco = xco;
-      }
+      maxco = std::max(xco, maxco);
     }
 
     UI_block_layout_resolve(block, &xco, &yco);
 
     /* for view2d */
-    if (xco > maxco) {
-      maxco = xco;
-    }
+    maxco = std::max(xco, maxco);
 
     int new_sizex = (maxco + UI_HEADER_OFFSET) / UI_SCALE_FAC;
 

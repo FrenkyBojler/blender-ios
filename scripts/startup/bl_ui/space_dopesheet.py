@@ -582,6 +582,7 @@ class DOPESHEET_MT_key(Menu):
 
     def draw(self, _context):
         layout = self.layout
+        ob = _context.active_object
 
         layout.menu("DOPESHEET_MT_key_transform", text="Transform")
 
@@ -600,6 +601,8 @@ class DOPESHEET_MT_key(Menu):
         layout.operator("action.paste", text="Paste Flipped").flipped = True
         layout.operator("action.duplicate_move")
         layout.operator("action.delete")
+        if ob and ob.type == 'GREASEPENCIL':
+            layout.operator("grease_pencil.delete_breakdown")
 
         layout.separator()
         layout.operator_menu_enum("action.keyframe_type", "type", text="Keyframe Type")
@@ -696,8 +699,8 @@ class DOPESHEET_PT_action_slot(Panel):
 
         # Draw the ID type of the slot.
         try:
-            enum_items = slot.bl_rna.properties['id_root'].enum_items
-            idtype_label = enum_items[slot.id_root].name
+            enum_items = slot.bl_rna.properties['target_id_type'].enum_items
+            idtype_label = enum_items[slot.target_id_type].name
         except (KeyError, IndexError, AttributeError) as ex:
             idtype_label = str(ex)
 
@@ -706,7 +709,7 @@ class DOPESHEET_PT_action_slot(Panel):
         split.label(text="Type")
         split.alignment = 'LEFT'
 
-        split.label(text=idtype_label, icon_value=slot.id_root_icon)
+        split.label(text=idtype_label, icon_value=slot.target_id_type_icon)
 
 
 #######################################
@@ -785,6 +788,7 @@ class DOPESHEET_MT_context_menu(Menu):
 
         if st.mode == 'GPENCIL':
             layout.separator()
+            layout.operator("grease_pencil.delete_breakdown")
 
         layout.operator_context = 'EXEC_REGION_WIN'
         layout.operator("action.delete")

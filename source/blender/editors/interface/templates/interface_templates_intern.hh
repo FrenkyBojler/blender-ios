@@ -12,7 +12,9 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "RNA_access.hh"
 #include "RNA_types.hh"
+
 #include "UI_interface.hh"
 
 struct bContext;
@@ -25,7 +27,7 @@ struct bContext;
 #define TEMPLATE_SEARCH_TEXTBUT_HEIGHT UI_UNIT_Y
 
 struct RNAUpdateCb {
-  PointerRNA ptr;
+  PointerRNA ptr = {};
   PropertyRNA *prop;
 };
 

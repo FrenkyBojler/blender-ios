@@ -167,7 +167,7 @@ class MenuSwitchFn : public mf::MultiFunction {
     this->set_signature(&signature_);
   }
 
-  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
     const int value_inputs_start = 1;
     const int inputs_num = enum_def_.items_num;
@@ -361,7 +361,8 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 
   uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 
-  if (uiLayout *panel = uiLayoutPanel(C, layout, "menu_switch_items", false, TIP_("Menu Items"))) {
+  if (uiLayout *panel = uiLayoutPanel(C, layout, "menu_switch_items", false, IFACE_("Menu Items")))
+  {
     socket_items::ui::draw_items_list_with_operators<MenuSwitchItemsAccessor>(
         C, panel, tree, node);
     socket_items::ui::draw_active_item_props<MenuSwitchItemsAccessor>(

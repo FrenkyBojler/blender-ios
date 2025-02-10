@@ -77,7 +77,7 @@ static void node_link_item_init(NodeLinkItem &item)
  */
 static bool node_link_item_compare(bNode *node, NodeLinkItem *item)
 {
-  if (ELEM(node->type_legacy, NODE_GROUP, NODE_CUSTOM_GROUP)) {
+  if (node->is_group()) {
     return (node->id == (ID *)item->ngroup);
   }
   return true;
@@ -85,7 +85,7 @@ static bool node_link_item_compare(bNode *node, NodeLinkItem *item)
 
 static void node_link_item_apply(bNodeTree *ntree, bNode *node, NodeLinkItem *item)
 {
-  if (ELEM(node->type_legacy, NODE_GROUP, NODE_CUSTOM_GROUP)) {
+  if (node->is_group()) {
     node->id = (ID *)item->ngroup;
     BKE_ntree_update_tag_node_property(ntree, node);
   }
@@ -682,7 +682,7 @@ void uiTemplateNodeLink(
   arg->sock = input;
   node_link_item_init(arg->item);
 
-  PointerRNA node_ptr = RNA_pointer_create(&ntree->id, &RNA_Node, node);
+  PointerRNA node_ptr = RNA_pointer_create_discrete(&ntree->id, &RNA_Node, node);
   node_socket_color_get(*C, *ntree, node_ptr, *input, socket_col);
 
   UI_block_layout_set_current(block, layout);
@@ -755,7 +755,7 @@ static void ui_node_draw_panel(uiLayout &layout,
                                 UI_BTYPE_BUT,
                                 0,
                                 panel_state.is_collapsed() ? ICON_RIGHTARROW : ICON_DOWNARROW_HLT,
-                                IFACE_(panel_decl.name.c_str()),
+                                IFACE_(panel_decl.name),
                                 0,
                                 0,
                                 UI_UNIT_X * 4,
@@ -798,7 +798,7 @@ static void ui_node_draw_recursive(uiLayout &layout,
       ui_node_draw_recursive(layout, C, ntree, node, *sub_panel_decl, depth + 1);
     }
     else if (const auto *layout_decl = dynamic_cast<const nodes::LayoutDeclaration *>(item_decl)) {
-      PointerRNA nodeptr = RNA_pointer_create(&ntree.id, &RNA_Node, &node);
+      PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
       layout_decl->draw(&layout, &C, &nodeptr);
     }
   }
@@ -807,7 +807,7 @@ static void ui_node_draw_recursive(uiLayout &layout,
 static void ui_node_draw_node(
     uiLayout &layout, bContext &C, bNodeTree &ntree, bNode &node, int depth)
 {
-  PointerRNA nodeptr = RNA_pointer_create(&ntree.id, &RNA_Node, &node);
+  PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
 
   if (node.declaration() && node.declaration()->use_custom_socket_order) {
     const nodes::NodeDeclaration &node_decl = *node.declaration();
@@ -864,8 +864,8 @@ static void ui_node_draw_input(uiLayout &layout,
   }
 
   /* socket RNA pointer */
-  PointerRNA inputptr = RNA_pointer_create(&ntree.id, &RNA_NodeSocket, &input);
-  PointerRNA nodeptr = RNA_pointer_create(&ntree.id, &RNA_Node, &node);
+  PointerRNA inputptr = RNA_pointer_create_discrete(&ntree.id, &RNA_NodeSocket, &input);
+  PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
 
   row = uiLayoutRow(&layout, true);
 

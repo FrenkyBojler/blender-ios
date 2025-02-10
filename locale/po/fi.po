@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'52cb367a9b67')\n"
+"Project-Id-Version: Blender 4.4.0 Alpha (b'5c1749f7b7d3')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-13 11:47+0000\n"
+"POT-Creation-Date: 2025-02-03 14:39+0000\n"
 "PO-Revision-Date: 2024-10-16 00:56+0000\n"
 "Last-Translator: Leevi Oksanen <laavi.oksanen@gmail.com>\n"
 "Language-Team: Finnish <https://translate.blender.org/projects/blender-ui/ui/fi/>\n"
@@ -279,6 +279,10 @@ msgid "Active"
 msgstr "Aktiivinen"
 
 
+msgid "Show Expanded"
+msgstr "Näytä laajennettu"
+
+
 msgctxt "ID"
 msgid "Action"
 msgstr "Toiminto"
@@ -472,10 +476,6 @@ msgstr "Työtila"
 msgctxt "ID"
 msgid "World"
 msgstr "Maailma"
-
-
-msgid "Show Expanded"
-msgstr "Näytä laajennettu"
 
 
 msgid "Add-on"
@@ -7340,6 +7340,10 @@ msgid "Mask"
 msgstr "Maski"
 
 
+msgid "Metaball"
+msgstr "Metapallo"
+
+
 msgid "Show/Hide"
 msgstr "Näytä/Piilota"
 
@@ -7366,10 +7370,6 @@ msgstr "Valitse kaikki piirteen mukaan"
 
 msgid "Select Loops"
 msgstr "Valitse silmukat"
-
-
-msgid "Metaball"
-msgstr "Metapallo"
 
 
 msgid "Light"
@@ -10329,10 +10329,6 @@ msgid "Canvas"
 msgstr "Kangas"
 
 
-msgid "All Sequences"
-msgstr "Kaikki sekvenssit"
-
-
 msgid "Show Missing Media"
 msgstr "Näytä puuttuva media"
 
@@ -10343,22 +10339,6 @@ msgstr "Lukitse kanava"
 
 msgid "Mute channel"
 msgstr "Mykistä kanava"
-
-
-msgid "Move along X axis"
-msgstr "Liiku X-akselin mukaisesti"
-
-
-msgid "Move along Y axis"
-msgstr "Liiku Y-akselin mukaisesti"
-
-
-msgid "Scale along X axis"
-msgstr "Skaalaa X-akselin mukaisesti"
-
-
-msgid "Scale along Y axis"
-msgstr "Skaalaa Y-akselin mukaisesti"
 
 
 msgid "Show Cache"
@@ -11266,25 +11246,29 @@ msgid "Text Value"
 msgstr "Tekstiarvo"
 
 
-msgid "Movie Sequence"
-msgstr "Videosekvenssi"
-
-
-msgid "Scene Sequence"
-msgstr "Kohtausskvenssi"
-
-
 msgid "Use Annotations"
 msgstr "Käytä huomioita"
-
-
-msgid "Sound Sequence"
-msgstr "Äänisekvenssi"
 
 
 msgctxt "Sound"
 msgid "Pan"
 msgstr "Panoroi"
+
+
+msgid "Move along X axis"
+msgstr "Liiku X-akselin mukaisesti"
+
+
+msgid "Move along Y axis"
+msgstr "Liiku Y-akselin mukaisesti"
+
+
+msgid "Scale along X axis"
+msgstr "Skaalaa X-akselin mukaisesti"
+
+
+msgid "Scale along Y axis"
+msgstr "Skaalaa Y-akselin mukaisesti"
 
 
 msgid "Studio Light"
@@ -11853,10 +11837,6 @@ msgstr "Kohtauksen Valot"
 
 msgid "Scene World"
 msgstr "Kohtauksen Maailma"
-
-
-msgid "X-Ray Alpha"
-msgstr "Röntgensäde Alfa"
 
 
 msgid "Active AOV"
@@ -13032,10 +13012,6 @@ msgid "Render Time"
 msgstr "Renderöintiaika"
 
 
-msgid "*Unsaved Changes"
-msgstr "*Tallentamattomia Muutoksia"
-
-
 msgid "Edge to Edge"
 msgstr "Reunasta Reunaan"
 
@@ -14023,6 +13999,10 @@ msgid "Create"
 msgstr "Luo"
 
 
+msgid "Cancel"
+msgstr "Peruuta"
+
+
 msgid "No pose to copy"
 msgstr "Ei kopioitavaa asentoa"
 
@@ -14217,10 +14197,6 @@ msgstr "Alfa:"
 
 msgid "OK"
 msgstr "OK"
-
-
-msgid "Cancel"
-msgstr "Peruuta"
 
 
 msgid "Internal error!"
@@ -14848,14 +14824,6 @@ msgstr "näyttö"
 
 msgid "Missing surface mesh"
 msgstr "Pinnan muoto puuttuu"
-
-
-msgid "ON"
-msgstr "Päällä"
-
-
-msgid "OFF"
-msgstr "Pois päältä"
 
 
 msgid "Trace"
@@ -16273,16 +16241,16 @@ msgid "Variance"
 msgstr "Varianssi"
 
 
+msgid "Bake Items"
+msgstr "Paista esineet"
+
+
 msgid "Bake to Disk"
 msgstr "Paista levylle"
 
 
 msgid "Bake Packed"
 msgstr "Paista pakatut"
-
-
-msgid "Bake Items"
-msgstr "Paista esineet"
 
 
 msgid "Mesh 1"
@@ -17214,6 +17182,14 @@ msgstr "Bksp"
 
 msgid "dbl-"
 msgstr "dbl-"
+
+
+msgid "ON"
+msgstr "Päällä"
+
+
+msgid "OFF"
+msgstr "Pois päältä"
 
 
 msgid "unsupported format"

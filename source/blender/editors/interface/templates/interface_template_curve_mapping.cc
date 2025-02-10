@@ -8,7 +8,9 @@
 
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
+#include "BKE_library.hh"
 
+#include "BLI_rect.h"
 #include "BLI_string_ref.hh"
 
 #include "BLT_translation.hh"

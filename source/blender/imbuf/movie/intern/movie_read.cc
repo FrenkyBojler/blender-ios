@@ -7,6 +7,7 @@
  * \ingroup imbuf
  */
 
+#include <algorithm>
 #include <cctype>
 #include <climits>
 #include <cmath>
@@ -14,7 +15,6 @@
 #include <cstdlib>
 #include <sys/types.h>
 
-#include "BLI_math_base.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_threads.h"
@@ -287,9 +287,9 @@ static AVFormatContext *init_format_context_vpx_workarounds(const char *filepath
     return nullptr;
   }
 
-  /* By default ffmpeg uses built-in VP8/VP9 decoders, however those do not detect
-   * alpha channel (see ffmpeg trac issue #8344 https://trac.ffmpeg.org/ticket/8344).
-   * The trick for VP8/VP9 is to explicitly force use of libvpx decoder.
+  /* By default FFMPEG uses built-in VP8/VP9 decoders, however those do not detect
+   * alpha channel (see FFMPEG issue #8344 https://trac.ffmpeg.org/ticket/8344).
+   * The trick for VP8/VP9 is to explicitly force use of LIBVPX decoder.
    * Only do this where alpha_mode=1 metadata is set. Note that in order to work,
    * the previously initialized format context must be closed and a fresh one
    * with explicitly requested codec must be created. */
@@ -298,7 +298,7 @@ static AVFormatContext *init_format_context_vpx_workarounds(const char *filepath
   if (ELEM(video_stream->codecpar->codec_id, AV_CODEC_ID_VP8, AV_CODEC_ID_VP9)) {
     AVDictionaryEntry *tag = nullptr;
     tag = av_dict_get(video_stream->metadata, "alpha_mode", tag, AV_DICT_IGNORE_SUFFIX);
-    if (tag && strcmp(tag->value, "1") == 0) {
+    if (tag && STREQ(tag->value, "1")) {
       r_codec = avcodec_find_decoder_by_name(
           video_stream->codecpar->codec_id == AV_CODEC_ID_VP8 ? "libvpx" : "libvpx-vp9");
       if (r_codec != nullptr) {
@@ -365,7 +365,7 @@ static int startffmpeg(MovieReader *anim)
   }
 
   /* Check if we need the "never seek, only decode one frame" ffmpeg bug workaround. */
-  const bool is_ogg_container = strcmp(pFormatCtx->iformat->name, "ogg") == 0;
+  const bool is_ogg_container = STREQ(pFormatCtx->iformat->name, "ogg");
   const bool is_non_ogg_video = video_stream->codecpar->codec_id != AV_CODEC_ID_THEORA;
   const bool is_video_thumbnail = (video_stream->disposition & AV_DISPOSITION_ATTACHED_PIC) != 0;
   anim->never_seek_decode_one_frame = is_ogg_container && is_non_ogg_video && is_video_thumbnail;
@@ -373,7 +373,7 @@ static int startffmpeg(MovieReader *anim)
   anim->frame_rate = av_guess_frame_rate(pFormatCtx, video_stream, nullptr);
   if (anim->never_seek_decode_one_frame) {
     /* Files that need this workaround have nonsensical frame rates too, resulting
-     * in "millions of frames" if done through regular math. Treat framerate as 24/1 instead. */
+     * in "millions of frames" if done through regular math. Treat frame-rate as 24/1 instead. */
     anim->frame_rate = {24, 1};
   }
   int frs_num = anim->frame_rate.num;
@@ -871,9 +871,7 @@ static int64_t ffmpeg_get_seek_pts(MovieReader *anim, int64_t pts_to_search)
    */
   int64_t seek_pts = pts_to_search - (ffmpeg_steps_per_frame_get(anim) * 3);
 
-  if (seek_pts < 0) {
-    seek_pts = 0;
-  }
+  seek_pts = std::max<int64_t>(seek_pts, 0);
   return seek_pts;
 }
 

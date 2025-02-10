@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'52cb367a9b67')\n"
+"Project-Id-Version: Blender 4.4.0 Alpha (b'5c1749f7b7d3')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-13 11:47+0000\n"
+"POT-Creation-Date: 2025-02-03 14:39+0000\n"
 "PO-Revision-Date: 2012-09-07 22:32+0100\n"
 "Last-Translator: Nikola Radovanovic <cobisimo@gmail.com>\n"
 "Language-Team: Nikola Radovanovic\n"
@@ -8634,20 +8634,24 @@ msgid "Material slot name"
 msgstr "Назив слота материјала"
 
 
-msgid "Bone Roll"
-msgstr "Ролна костију"
+msgid "Metaball"
+msgstr "Мета лопта"
 
 
 msgid "Show/Hide"
 msgstr "Прикажи/сакриј"
 
 
-msgid "Snap"
-msgstr "Лепљење"
-
-
 msgid "Names"
 msgstr "Имена"
+
+
+msgid "Bone Roll"
+msgstr "Ролна костију"
+
+
+msgid "Snap"
+msgstr "Лепљење"
 
 
 msgid "Mirror"
@@ -8672,10 +8676,6 @@ msgstr "Поравнај поглед"
 
 msgid "Select Linked"
 msgstr "Изабери повезано"
-
-
-msgid "Metaball"
-msgstr "Мета лопта"
 
 
 msgid "Light"
@@ -14050,6 +14050,10 @@ msgid "Convert all faces to triangles"
 msgstr "Претврои све странице у троуглове"
 
 
+msgid "Keep Original"
+msgstr "Сачувај оригинал"
+
+
 msgid "URL"
 msgstr "Адреса"
 
@@ -17602,10 +17606,6 @@ msgid "All Keymaps"
 msgstr "Сви мапирани тастери"
 
 
-msgid "Keep Original"
-msgstr "Сачувај оригинал"
-
-
 msgid "Restore all keymaps to default"
 msgstr "Врати све мапе тастера на почетно"
 
@@ -19852,10 +19852,6 @@ msgid "Use only deformation modifiers (temporary disable all constructive modifi
 msgstr "Користи само деформационе модификаторе (привремено искључује све конструктивне модификаторе осим више-резолуција)"
 
 
-msgid "UV Sculpting"
-msgstr "UV вајање"
-
-
 msgid "Properties of vertex and weight paint mode"
 msgstr "Подешавање темена и мода бојења тежине"
 
@@ -21643,62 +21639,6 @@ msgid "YCbCr (ITU 709)"
 msgstr "YCbCr (ITU 709)"
 
 
-msgid "Inverse Gamma"
-msgstr "Обрнута гама"
-
-
-msgid "Sequence Crop"
-msgstr "Исецање секвенце"
-
-
-msgid "Sequences"
-msgstr "Секвенце"
-
-
-msgid "All Sequences"
-msgstr "Све секвенце"
-
-
-msgid "Sequence Element"
-msgstr "Елемент секвенце"
-
-
-msgid "Orig Height"
-msgstr "Ориг. висина"
-
-
-msgid "Original image height"
-msgstr "Оригинална висина слике"
-
-
-msgid "Orig Width"
-msgstr "Ориг. ширина"
-
-
-msgid "Original image width"
-msgstr "Оригинална ширина слике"
-
-
-msgid "Mask Strip"
-msgstr "Маскирај траку"
-
-
-msgid "Multiply Colors"
-msgstr "Умножене боје"
-
-
-msgid "Sequence Transform"
-msgstr "Трансформација секвенце"
-
-
-msgid "Translate X"
-msgstr "X померање"
-
-
-msgid "Translate Y"
-msgstr "Y померање"
-
-
 msgid "Show Cache"
 msgstr "Прикажи кеш"
 
@@ -22351,6 +22291,10 @@ msgid "Use Linear Modifiers"
 msgstr "Користи линеарни модификатор"
 
 
+msgid "Multiply Colors"
+msgstr "Умножене боје"
+
+
 msgid "Only display every nth frame"
 msgstr "Прикажи само сваки n-ти кадар"
 
@@ -22375,10 +22319,6 @@ msgid "Reverse Frames"
 msgstr "Обрнути кадрови"
 
 
-msgid "Add Sequence"
-msgstr "Додај секвенцу"
-
-
 msgid "Input 1"
 msgstr "Улаз 1"
 
@@ -22399,22 +22339,6 @@ msgid "Animation start offset (trim start)"
 msgstr "Симулација почиње у овом кадру"
 
 
-msgid "Alpha Over Sequence"
-msgstr "Провидност преко секвенце"
-
-
-msgid "Alpha Under Sequence"
-msgstr "Провидност испод секвенце"
-
-
-msgid "Gamma Cross Sequence"
-msgstr "Секвенца укрштања гаме"
-
-
-msgid "Glow Sequence"
-msgstr "Секвенца исијавања"
-
-
 msgid "Blur Distance"
 msgstr "Вредност замућења"
 
@@ -22427,14 +22351,6 @@ msgid "Accuracy of the blur effect"
 msgstr "Прецизност ефекта замућења"
 
 
-msgid "Multiply Sequence"
-msgstr "Умножена секвенца"
-
-
-msgid "SpeedControl Sequence"
-msgstr "Контрола брзине секвенце"
-
-
 msgid "Bilinear interpolation"
 msgstr "Линеарна интерполација"
 
@@ -22443,24 +22359,28 @@ msgid "Bicubic interpolation"
 msgstr "Кубична интерполација"
 
 
+msgid "Translate X"
+msgstr "X померање"
+
+
+msgid "Translate Y"
+msgstr "Y померање"
+
+
 msgid "Translation Unit"
 msgstr "Јединице померања"
 
 
-msgid "Wipe Sequence"
-msgstr "Очисти секвенцу"
+msgid "Image Strip"
+msgstr "Трака слике"
 
 
-msgid "Mask Sequence"
-msgstr "Мета секвенца"
+msgid "Mask Strip"
+msgstr "Маскирај траку"
 
 
-msgid "Meta Sequence"
-msgstr "Мета секвенца"
-
-
-msgid "MovieClip Sequence"
-msgstr "Видео секвенца"
+msgid "Meta Strip"
+msgstr "Мета трака"
 
 
 msgid "Stabilize 2D Clip"
@@ -22471,20 +22391,32 @@ msgid "Undistort Clip"
 msgstr "Клип без изобличавања"
 
 
-msgid "Movie Sequence"
-msgstr "Видео секвенца"
-
-
-msgid "Scene Sequence"
-msgstr "Секвенца сцене"
+msgid "Scene Strip"
+msgstr "Трака сцене"
 
 
 msgid "Playback volume of the sound"
 msgstr "Јачина звука при репродукцији"
 
 
-msgid "Sound Sequence"
-msgstr "Звучна секвенца"
+msgid "Inverse Gamma"
+msgstr "Обрнута гама"
+
+
+msgid "Orig Height"
+msgstr "Ориг. висина"
+
+
+msgid "Original image height"
+msgstr "Оригинална висина слике"
+
+
+msgid "Orig Width"
+msgstr "Ориг. ширина"
+
+
+msgid "Original image width"
+msgstr "Оригинална ширина слике"
 
 
 msgid "Map X and Y coordinates directly"
@@ -22911,24 +22843,12 @@ msgid "Draw Action"
 msgstr "Цртај акцију"
 
 
-msgid "Image Strip"
-msgstr "Трака слике"
-
-
-msgid "Meta Strip"
-msgstr "Мета трака"
-
-
 msgid "Clip Strip"
 msgstr "Трака исечка"
 
 
 msgid "Preview Background"
 msgstr "Позадина прегледа"
-
-
-msgid "Scene Strip"
-msgstr "Трака сцене"
 
 
 msgid "Window Background"
@@ -23265,6 +23185,10 @@ msgstr "Прикажи јединице у поаровима (нпр. 1m 0cm)"
 
 msgid "Solid Light"
 msgstr "Основна светла"
+
+
+msgid "UV Sculpting"
+msgstr "UV вајање"
 
 
 msgid "Group Index"
@@ -25045,6 +24969,10 @@ msgid "Cannot remove built in keying set"
 msgstr "Не могу да уклоним уграђену збирку кључева"
 
 
+msgid "Cancel"
+msgstr "Одустани"
+
+
 msgid "No keyframes to slide between"
 msgstr "Кључни кадрови"
 
@@ -25193,10 +25121,6 @@ msgstr "Светлина"
 
 msgid "OK"
 msgstr "У реду"
-
-
-msgid "Cancel"
-msgstr "Одустани"
 
 
 msgid "Menu \"%s\" not found"
@@ -25964,10 +25888,6 @@ msgstr "Уређивач видео исечака"
 
 msgid "Mask not found"
 msgstr "Маскирај позадину"
-
-
-msgid "2 selected sequence strips are needed"
-msgstr "Потебно је изабрати 2 траке секвенци"
 
 
 msgid "No active sequence!"

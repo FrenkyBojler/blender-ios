@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "draw_view_data.hh"
+
 #include "image_drawing_mode.hh"
 #include "image_instance.hh"
 #include "image_shader.hh"
@@ -44,7 +46,7 @@ void ScreenSpaceDrawingMode::add_depth_shgroups(::Image *image, ImageUser *image
   float4x4 image_mat = float4x4::identity();
   ResourceHandle handle = instance_.manager->resource_handle(image_mat);
 
-  ImageUser tile_user = {0};
+  ImageUser tile_user = {nullptr};
   if (image_user) {
     tile_user = *image_user;
   }
@@ -254,7 +256,7 @@ void ScreenSpaceDrawingMode::do_full_update_gpu_texture(TextureInfo &info,
   const int texture_width = GPU_texture_width(info.texture);
   const int texture_height = GPU_texture_height(info.texture);
   IMB_initImBuf(&texture_buffer, texture_width, texture_height, 0, IB_rectfloat);
-  ImageUser tile_user = {0};
+  ImageUser tile_user = {nullptr};
   if (image_user) {
     tile_user = *image_user;
   }
