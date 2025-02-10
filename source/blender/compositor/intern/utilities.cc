@@ -100,6 +100,7 @@ int number_of_inputs_linked_to_output_conditioned(DOutputSocket output,
 
 bool is_pixel_node(DNode node)
 {
+  BLI_assert(bool(node->typeinfo->gpu_fn) == bool(node->typeinfo->build_multi_function));
   return node->typeinfo->gpu_fn && node->typeinfo->build_multi_function;
 }
 
