@@ -4,6 +4,7 @@
 
 #include "gpu_shader_compositor_summed_area_table_lib.glsl"
 #include "gpu_shader_compositor_texture_utilities.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
 
 void main()
 {
