@@ -216,6 +216,10 @@ def report_personal_weekly_get(
         )
 
         for event in issue_events:
+            # The label can be empty (for resolved issues) skip it in this case.
+            if event["label"] is None:
+                continue
+
             label_name = event["label"]["name"]
             if label_name == "Status/Confirmed":
                 issues_confirmed.append(issue)
