@@ -81,17 +81,6 @@ static VectorSet<Strip *> query_snap_sources_preview(const Scene *scene)
   return snap_sources;
 }
 
-static int point_count_sources_timeline(const Span<Strip *> snap_sources)
-{
-  return snap_sources.size() * 2;
-}
-
-static int point_count_sources_preview(const Span<Strip *> snap_sources)
-{
-  /* Source points are four corners and the center of an image quad. */
-  return snap_sources.size() * 5;
-}
-
 static int cmp_fn(const void *a, const void *b)
 {
   return round_fl_to_int((*(float2 *)a)[0] - (*(float2 *)b)[0]);
@@ -101,7 +90,9 @@ static void points_build_sources_timeline_strips(const Scene *scene,
                                                  TransSeqSnapData *snap_data,
                                                  const Span<Strip *> snap_sources)
 {
-  const size_t point_count_source = point_count_sources_timeline(snap_sources);
+  /* 2 points for left and right handle. */
+  const size_t point_count_source = snap_sources.size() * 2;
+
   if (point_count_source == 0) {
     return;
   }
@@ -159,7 +150,8 @@ static void points_build_sources_preview(const Scene *scene,
                                          const Span<Strip *> snap_sources)
 {
 
-  const size_t point_count_source = point_count_sources_preview(snap_sources);
+  /* 5 points for image quad and center. */
+  const size_t point_count_source = snap_sources.size() * 5;
 
   if (point_count_source == 0) {
     return;
@@ -279,58 +271,6 @@ static Map<SeqRetimingKey *, Strip *> visible_retiming_keys_get(const Scene *sce
   return visible_keys;
 }
 
-static int points_count_targets_timeline(const Scene *scene,
-                                         const short snap_mode,
-                                         const Span<Strip *> snap_strip_targets,
-                                         const Map<SeqRetimingKey *, Strip *> &retiming_targets)
-{
-  int count = 0;
-
-  if (snap_mode & SEQ_SNAP_TO_STRIPS) {
-    count += 2; /* Strip start and end are always used. */
-  }
-
-  if (snap_mode & SEQ_SNAP_TO_STRIP_HOLD) {
-    count += 2;
-  }
-
-  count *= snap_strip_targets.size();
-
-  if (snap_mode & SEQ_SNAP_TO_CURRENT_FRAME) {
-    count++;
-  }
-
-  if (snap_mode & SEQ_SNAP_TO_MARKERS) {
-    count += BLI_listbase_count(&scene->markers);
-  }
-
-  if (snap_mode & SEQ_SNAP_TO_RETIMING) {
-    count += retiming_targets.size();
-  }
-  return count;
-}
-
-static int points_count_targets_preview(const short snap_mode, const Span<Strip *> snap_targets)
-{
-  int count = 0;
-
-  if (snap_mode & SEQ_SNAP_TO_PREVIEW_BORDERS) {
-    /* Opposite corners of the view have enough information to snap to all four corners. */
-    count += 2;
-  }
-
-  if (snap_mode & SEQ_SNAP_TO_PREVIEW_CENTER) {
-    count++;
-  }
-
-  if (snap_mode & SEQ_SNAP_TO_STRIPS_PREVIEW) {
-    /* Snap to other strips' corners and center. */
-    count += snap_targets.size() * 5;
-  }
-
-  return count;
-}
-
 static void points_build_targets_timeline(const Scene *scene,
                                           const short snap_mode,
                                           TransSeqSnapData *snap_data,
@@ -338,8 +278,11 @@ static void points_build_targets_timeline(const Scene *scene,
 {
   Map retiming_key_targets = visible_retiming_keys_get(scene, strip_targets);
 
-  const size_t point_count_target = points_count_targets_timeline(
-      scene, snap_mode, strip_targets, retiming_key_targets);
+  /* 1 point for playhead, 4 for strip handles and content bounds */
+  const size_t point_count_target = 1 + strip_targets.size() * 4 +
+                                    BLI_listbase_count(&scene->markers) +
+                                    retiming_key_targets.size();
+
   if (point_count_target == 0) {
     return;
   }
@@ -401,12 +344,8 @@ static void points_build_targets_preview(const Scene *scene,
                                          TransSeqSnapData *snap_data,
                                          const Span<Strip *> snap_targets)
 {
-
-  const size_t point_count_target = points_count_targets_preview(snap_mode, snap_targets);
-
-  if (point_count_target == 0) {
-    return;
-  }
+  /* 3 for preview borders and center, 5 for strip quad and origin. */
+  const size_t point_count_target = 3 + snap_targets.size() * 5;
 
   snap_data->target_snap_points.reserve(point_count_target);
 
