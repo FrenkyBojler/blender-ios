@@ -13,6 +13,7 @@
 #include "BLI_map.hh"
 #include "BLI_math_base.h"
 
+#include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "MEM_guardedalloc.h"
 
@@ -352,7 +353,7 @@ static int points_count_targets_preview_general(const short snap_mode)
 
   if (snap_mode & SEQ_SNAP_TO_PREVIEW_BORDERS) {
     /* Opposite corners of the view have enough information to snap to all four corners. */
-    count += 2;
+    count += 4;
   }
 
   if (snap_mode & SEQ_SNAP_TO_PREVIEW_CENTER) {
@@ -461,7 +462,11 @@ static int points_build_targets_preview_general(const View2D *v2d,
     snap_data->target_snap_points[i][1] = v2d->tot.ymin;
     snap_data->target_snap_points[i + 1][0] = v2d->tot.xmax;
     snap_data->target_snap_points[i + 1][1] = v2d->tot.ymax;
-    i += 2;
+    snap_data->target_snap_points[i + 2][0] = v2d->tot.xmin;
+    snap_data->target_snap_points[i + 2][1] = v2d->tot.ymax;
+    snap_data->target_snap_points[i + 3][0] = v2d->tot.xmax;
+    snap_data->target_snap_points[i + 3][1] = v2d->tot.ymin;
+    i += 4;
   }
 
   if (snap_mode & SEQ_SNAP_TO_PREVIEW_CENTER) {
@@ -524,6 +529,33 @@ static void points_build_targets_preview_origin(const Scene *scene,
 
   snap_data->target_snap_points.reinitialize(point_count_general + point_count_origins);
   int i = points_build_targets_preview_general(v2d, snap_mode, snap_data);
+
+  for (Strip *strip : snap_sources) {
+    const Array<float2> strip_image_quad = SEQ_image_transform_final_quad_get(scene, strip);
+    /*  Quad:
+     *  3--0
+     *  |  |
+     *  2--1
+     */
+    /* Corners, same math as ...preview_image. */
+    for (int j = 0; j < 4; j++) {
+      snap_data->target_snap_points[i] = strip_image_quad[j];
+      i++;
+    }
+
+    const float2 tm = blender::math::interpolate(strip_image_quad[0], strip_image_quad[3], 0.5f);
+    const float2 bm = blender::math::interpolate(strip_image_quad[1], strip_image_quad[2], 0.5f);
+    const float2 mm = blender::math::interpolate(bm, tm, 0.5f);
+    snap_data->target_snap_points[i] = tm;
+    snap_data->target_snap_points[i + 1] = mm;
+    snap_data->target_snap_points[i + 2] = bm;
+    /* Left and right. */
+    snap_data->target_snap_points[i + 3] = blender::math::interpolate(
+        strip_image_quad[2], strip_image_quad[3], 0.5f);
+    snap_data->target_snap_points[i + 4] = blender::math::interpolate(
+        strip_image_quad[0], strip_image_quad[1], 0.5f);
+    i += 5;
+  }
 
   for (Strip *strip : snap_targets) {
     const Array<float2> strip_image_quad = SEQ_image_transform_final_quad_get(scene, strip);
@@ -614,21 +646,6 @@ static void snap_data_build_preview(const TransInfo *t, TransSeqSnapData *snap_d
   }
 }
 
-static void snap_data_build_preview_origin(const TransInfo *t, TransSeqSnapData *snap_data)
-{
-  Scene *scene = t->scene;
-  short snap_mode = t->tsnap.mode;
-  View2D *v2d = &t->region->v2d;
-
-  VectorSet<Strip *> snap_sources = query_snap_sources_preview(scene);
-  VectorSet<Strip *> snap_targets = query_snap_targets_preview(scene, snap_mode);
-
-  /* Build arrays of snap points. */
-  points_build_sources_preview_origin(scene, snap_data, snap_sources);
-  points_build_targets_preview_origin(
-      scene, v2d, snap_mode, snap_data, snap_sources, snap_targets);
-}
-
 TransSeqSnapData *transform_snap_sequencer_data_alloc(const TransInfo *t)
 {
   TransSeqSnapData *snap_data = MEM_new<TransSeqSnapData>(__func__);
@@ -686,15 +703,47 @@ static bool snap_calc_timeline(TransInfo *t, const TransSeqSnapData *snap_data)
   return true;
 }
 
-static bool snap_calc_preview(TransInfo *t, const TransSeqSnapData *snap_data)
+static bool snap_calc_preview_origin(TransInfo *t, const TransSeqSnapData *snap_data)
+{
+  /* Store best snap candidates in x and y directions separately. */
+  float best_dist(std::numeric_limits<float>::max());
+  float2 best_target_point(0.0f);
+  float2 best_source_point(0.0f);
+
+  for (const float2 snap_source_point : snap_data->source_snap_points) {
+    for (const float2 snap_target_point : snap_data->target_snap_points) {
+      /* First update snaps in x direction, then y direction. */
+      const float2 transformed_point(snap_source_point.x + t->values[0],
+                                     snap_source_point.y + t->values[1]);
+      const float dist = blender::math::distance(snap_target_point, transformed_point);
+      if (dist > best_dist) {
+        continue;
+      }
+
+      best_dist = dist;
+      best_target_point = snap_target_point;
+      best_source_point = snap_source_point;
+    }
+  }
+
+  if (best_dist <= seq_snap_threshold_get_view_distance(t)) {
+    copy_v2_v2(t->tsnap.snap_target, best_target_point);
+    copy_v2_v2(t->tsnap.snap_source, best_source_point);
+    t->tsnap.direction |= DIR_GLOBAL_X | DIR_GLOBAL_Y;
+    return true;
+  }
+  return false;
+}
+
+static bool snap_calc_preview_image(TransInfo *t, const TransSeqSnapData *snap_data)
 {
   /* Store best snap candidates in x and y directions separately. */
   float2 best_dist(std::numeric_limits<float>::max());
   float2 best_target_point(0.0f);
   float2 best_source_point(0.0f);
 
-  for (const float *snap_source_point : snap_data->source_snap_points) {
-    for (const float *snap_target_point : snap_data->target_snap_points) {
+  for (const float2 snap_source_point : snap_data->source_snap_points) {
+    for (const float2 snap_target_point : snap_data->target_snap_points) {
       /* First update snaps in x direction, then y direction. */
       for (int i = 0; i < 2; i++) {
         int dist = abs(snap_target_point[i] - (snap_source_point[i] + t->values[i]));
@@ -737,7 +786,10 @@ bool transform_snap_sequencer_calc(TransInfo *t)
   if (ELEM(t->data_type, &TransConvertType_Sequencer, &TransConvertType_SequencerRetiming)) {
     return snap_calc_timeline(t, snap_data);
   }
-  return snap_calc_preview(t, snap_data);
+  if (t->flag & T_ORIGIN) {
+    return snap_calc_preview_origin(t, snap_data);
+  }
+  return snap_calc_preview_image(t, snap_data);
 }
 
 void transform_snap_sequencer_apply_seqslide(TransInfo *t, float *vec)

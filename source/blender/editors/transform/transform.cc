@@ -1315,6 +1315,8 @@ int transformEvent(TransInfo *t, wmOperator *op, const wmEvent *event)
         else {
           t->flag |= T_ORIGIN;
         }
+        freeSnapping(t);
+        initSnapping(t, nullptr);
         t->redraw |= TREDRAW_HARD;
         break;
       default:
