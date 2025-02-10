@@ -44,20 +44,26 @@ static void node_declare(NodeDeclarationBuilder &b)
     }
   }
 
-  b.add_input<decl::Bool>("Self Intersection");
-  b.add_input<decl::Bool>("Hole Tolerant");
+  auto make_mesh_arr = [](bNode &node) {
+    node.custom2 = int16_t(geometry::boolean::Solver::MeshArr);
+  };
+  auto &self_intersect = b.add_input<decl::Bool>("Self Intersection")
+                            .make_available(make_mesh_arr);
+  auto &hole_tolerant = b.add_input<decl::Bool>("Hole Tolerant")
+                            .make_available(make_mesh_arr);
   b.add_output<decl::Geometry>("Mesh").propagate_all();
   auto &output_edges = b.add_output<decl::Bool>("Intersecting Edges")
                            .field_on_all()
-                           .make_available([](bNode &node) {
-                             node.custom2 = int16_t(geometry::boolean::Solver::MeshArr);
-                           });
+                           .make_available(make_mesh_arr);
 
   if (node != nullptr) {
     const auto operation = geometry::boolean::Operation(node->custom1);
     const auto solver = geometry::boolean::Solver(node->custom2);
 
-    output_edges.available(solver == geometry::boolean::Solver::MeshArr);
+    output_edges.available(solver == geometry::boolean::Solver::MeshArr
+                           || solver == geometry::boolean::Solver::Manifold);
+    self_intersect.available(solver == geometry::boolean::Solver::MeshArr);
+    hole_tolerant.available(solver == geometry::boolean::Solver::MeshArr);
 
     switch (operation) {
       case geometry::boolean::Operation::Intersect:
@@ -103,8 +109,12 @@ static void node_geo_exec(GeoNodeExecParams params)
 #ifdef WITH_GMP
   geometry::boolean::Operation operation = geometry::boolean::Operation(params.node().custom1);
   geometry::boolean::Solver solver = geometry::boolean::Solver(params.node().custom2);
-  const bool use_self = params.get_input<bool>("Self Intersection");
-  const bool hole_tolerant = params.get_input<bool>("Hole Tolerant");
+  bool use_self = false;
+  bool hole_tolerant = false;
+  if (solver == geometry::boolean::Solver::MeshArr) {
+    use_self = params.get_input<bool>("Self Intersection");
+    hole_tolerant = params.get_input<bool>("Hole Tolerant");
+  }
 
   Vector<const Mesh *> meshes;
   Vector<float4x4> transforms;
