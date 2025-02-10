@@ -138,22 +138,34 @@ static bool leaf_needs_material_split(const Span<int> faces, const Span<int> mat
 
 static void build_nodes_recursive_mesh(const Span<int> material_indices,
                                        const int leaf_limit,
+                                       const int gpu_limit,
                                        const int node_index,
+                                       std::optional<int> gpu_inner_index,
                                        const std::optional<Bounds<float3>> &bounds_precalc,
                                        const Span<float3> face_centers,
                                        const int depth,
                                        MutableSpan<int> faces,
                                        Vector<MeshNode> &nodes)
 {
-  /* Decide whether this is a leaf or not */
-  const bool below_leaf_limit = faces.size() <= leaf_limit || depth >= STACK_FIXED_DEPTH - 1;
-  if (below_leaf_limit) {
-    if (!leaf_needs_material_split(faces, material_indices)) {
+  bool needs_material_split = false;
+
+  if (!gpu_inner_index.has_value() && faces.size() <= gpu_limit) {
+    needs_material_split = leaf_needs_material_split(faces, material_indices);
+
+    if (!needs_material_split) {
       MeshNode &node = nodes[node_index];
-      node.flag_ |= Node::Leaf;
-      node.face_indices_ = faces;
-      return;
+      node.flag_ |= Node::GPU;
+      gpu_inner_index = node_index;
     }
+  }
+
+  if (gpu_inner_index.has_value() && faces.size() <= leaf_limit) {
+    MeshNode &node = nodes[node_index];
+    node.flag_ |= Node::Leaf;
+    node.gpu_inner_index_ = gpu_inner_index;
+    nodes[gpu_inner_index.value()].leaf_child_nodes_.append(node_index);
+    node.face_indices_ = faces;
+    return;
   }
 
   /* Add two child nodes */
@@ -161,7 +173,10 @@ static void build_nodes_recursive_mesh(const Span<int> material_indices,
   nodes.resize(nodes.size() + 2);
 
   int split;
-  if (!below_leaf_limit) {
+  if (needs_material_split) {
+    split = partition_material_indices(material_indices, faces);
+  }
+  else {
     Bounds<float3> bounds;
     if (bounds_precalc) {
       bounds = *bounds_precalc;
@@ -185,15 +200,13 @@ static void build_nodes_recursive_mesh(const Span<int> material_indices,
     split = partition_along_axis(
         face_centers, faces, axis, math::midpoint(bounds.min[axis], bounds.max[axis]));
   }
-  else {
-    /* Partition primitives by material */
-    split = partition_material_indices(material_indices, faces);
-  }
 
   /* Build children */
   build_nodes_recursive_mesh(material_indices,
                              leaf_limit,
+                             gpu_limit,
                              nodes[node_index].children_offset_,
+                             gpu_inner_index,
                              std::nullopt,
                              face_centers,
                              depth + 1,
@@ -201,7 +214,9 @@ static void build_nodes_recursive_mesh(const Span<int> material_indices,
                              nodes);
   build_nodes_recursive_mesh(material_indices,
                              leaf_limit,
+                             gpu_limit,
                              nodes[node_index].children_offset_ + 1,
+                             gpu_inner_index,
                              std::nullopt,
                              face_centers,
                              depth + 1,
@@ -232,8 +247,13 @@ Tree Tree::from_mesh(const Mesh &mesh)
     return pbvh;
   }
 
-  constexpr int leaf_limit = 10000;
+  constexpr int leaf_limit = 1000;
   static_assert(leaf_limit < std::numeric_limits<MeshNode::LocalVertMapIndexT>::max());
+
+  constexpr int gpu_limit = 10000;
+  static_assert(gpu_limit < std::numeric_limits<MeshNode::LocalVertMapIndexT>::max());
+
+  static_assert(leaf_limit <= gpu_limit);
 
   Array<float3> face_centers(faces.size());
   const Bounds<float3> bounds = threading::parallel_reduce(
@@ -265,8 +285,16 @@ Tree Tree::from_mesh(const Mesh &mesh)
 #ifdef DEBUG_BUILD_TIME
     SCOPED_TIMER_AVERAGED("build_nodes_recursive_mesh");
 #endif
-    build_nodes_recursive_mesh(
-        material_index, leaf_limit, 0, bounds, face_centers, 0, pbvh.prim_indices_, nodes);
+    build_nodes_recursive_mesh(material_index,
+                               leaf_limit,
+                               gpu_limit,
+                               0,
+                               std::nullopt,
+                               bounds,
+                               face_centers,
+                               0,
+                               pbvh.prim_indices_,
+                               nodes);
   }
 
   build_mesh_leaf_nodes(mesh.verts_num, faces, corner_verts, nodes);

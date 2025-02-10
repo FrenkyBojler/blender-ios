@@ -75,6 +75,8 @@ class Node {
     TexLeaf = 1 << 16,
     /** Used internally by `pbvh_bmesh.cc`. */
     TopologyUpdated = 1 << 17,
+
+    GPU = 1 << 18,
   };
 
   /** Axis aligned min and max of all vertex positions in the node. */
@@ -85,6 +87,9 @@ class Node {
   /* For internal nodes, the offset of the children in the blender::bke::pbvh::Tree
    * 'nodes' array. */
   int children_offset_ = 0;
+
+  std::optional<int> gpu_inner_index_;
+  Vector<int> leaf_child_nodes_;
 
   /* Indicates whether this node is a leaf or not; also used for
    * marking various updates that need to be applied. */
@@ -105,6 +110,11 @@ class Node {
 
   /** \todo Move storage of image painting data to #Tree or elsewhere. */
   pixels::NodeData *pixels_ = nullptr;
+
+  bool isGPUNode() const
+  {
+    return flag_ & Node::GPU;
+  }
 };
 
 ENUM_OPERATORS(Node::Flags, Node::Flags::TopologyUpdated);
