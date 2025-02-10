@@ -193,7 +193,7 @@ static IndexMask get_visible_strokes(const Object &object,
       strokes.curves_range(), GrainSize(512), memory, is_visible_curve);
 }
 
-static std::optional<Bounds<float2>> compute_drawing_bounds(
+static std::optional<Bounds<float2>> compute_screen_space_drawing_bounds(
     const ARegion &region,
     const RegionView3D &rv3d,
     const Object &object,
@@ -273,7 +273,7 @@ static std::optional<Bounds<float2>> compute_objects_bounds(
         continue;
       }
 
-      std::optional<Bounds<float2>> layer_bounds = compute_drawing_bounds(
+      std::optional<Bounds<float2>> layer_bounds = compute_screen_space_drawing_bounds(
           region, rv3d, *info.object, *object_eval, layer_index, frame_number, *drawing);
 
       full_bounds = bounds::merge(full_bounds, layer_bounds);
