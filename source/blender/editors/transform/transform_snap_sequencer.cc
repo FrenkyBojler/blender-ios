@@ -13,6 +13,7 @@
 #include "BLI_map.hh"
 #include "BLI_math_base.h"
 
+#include "BLI_vector.hh"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_scene_types.h"
@@ -41,8 +42,8 @@
 using namespace blender;
 
 struct TransSeqSnapData {
-  Array<float2> source_snap_points;
-  Array<float2> target_snap_points;
+  Vector<float2> source_snap_points;
+  Vector<float2> target_snap_points;
 
   MEM_CXX_CLASS_ALLOC_FUNCS("TransSeqSnapData")
 };
@@ -105,8 +106,7 @@ static void points_build_sources_timeline_strips(const Scene *scene,
     return;
   }
 
-  snap_data->source_snap_points.reinitialize(point_count_source);
-  int i = 0;
+  snap_data->source_snap_points.reserve(point_count_source);
   for (Strip *strip : snap_sources) {
     int left = 0, right = 0;
     if (strip->flag & SEQ_LEFTSEL && !(strip->flag & SEQ_RIGHTSEL)) {
@@ -121,10 +121,8 @@ static void points_build_sources_timeline_strips(const Scene *scene,
     }
 
     /* Set only the x-positions when snapping in the timeline. */
-    snap_data->source_snap_points[i][0] = left;
-    snap_data->source_snap_points[i + 1][0] = right;
-    i += 2;
-    BLI_assert(i <= snap_data->source_snap_points.size());
+    snap_data->source_snap_points.append(float2(left));
+    snap_data->source_snap_points.append(float2(right));
   }
 
   qsort(snap_data->source_snap_points.data(),
@@ -144,12 +142,10 @@ static void points_build_sources_timeline_retiming(
     return;
   }
 
-  snap_data->source_snap_points.reinitialize(point_count_source);
-  int i = 0;
+  snap_data->source_snap_points.reserve(point_count_source);
   for (auto item : retiming_selection.items()) {
     const int key_frame = SEQ_retiming_key_timeline_frame_get(scene, item.value, item.key);
-    snap_data->source_snap_points[i][0] = key_frame;
-    i++;
+    snap_data->source_snap_points.append(float2(key_frame));
   }
 
   qsort(snap_data->source_snap_points.data(),
@@ -169,25 +165,19 @@ static void points_build_sources_preview(const Scene *scene,
     return;
   }
 
-  snap_data->source_snap_points.reinitialize(point_count_source);
-  int i = 0;
+  snap_data->source_snap_points.reserve(point_count_source);
+
   for (Strip *strip : snap_sources) {
     const Array<float2> seq_image_quad = SEQ_image_transform_final_quad_get(scene, strip);
 
     for (int j = 0; j < 4; j++) {
-      snap_data->source_snap_points[i][0] = seq_image_quad[j][0];
-      snap_data->source_snap_points[i][1] = seq_image_quad[j][1];
-      i++;
+      snap_data->source_snap_points.append(seq_image_quad[j]);
     }
 
     /* Add origins last */
     float image_origin[2];
     SEQ_image_transform_origin_offset_pixelspace_get(scene, strip, image_origin);
-    snap_data->source_snap_points[i][0] = image_origin[0];
-    snap_data->source_snap_points[i][1] = image_origin[1];
-    i++;
-
-    BLI_assert(i <= snap_data->source_snap_points.size());
+    snap_data->source_snap_points.append(image_origin);
   }
 }
 
@@ -354,25 +344,21 @@ static void points_build_targets_timeline(const Scene *scene,
     return;
   }
 
-  snap_data->target_snap_points.reinitialize(point_count_target);
-  int i = 0;
+  snap_data->target_snap_points.reserve(point_count_target);
 
   if (snap_mode & SEQ_SNAP_TO_CURRENT_FRAME) {
-    snap_data->target_snap_points[i][0] = scene->r.cfra;
-    i++;
+    snap_data->target_snap_points.append(float2(scene->r.cfra));
   }
 
   if (snap_mode & SEQ_SNAP_TO_MARKERS) {
     LISTBASE_FOREACH (TimeMarker *, marker, &scene->markers) {
-      snap_data->target_snap_points[i][0] = marker->frame;
-      i++;
+      snap_data->target_snap_points.append(float2(marker->frame));
     }
   }
 
   for (Strip *strip : strip_targets) {
-    snap_data->target_snap_points[i][0] = SEQ_time_left_handle_frame_get(scene, strip);
-    snap_data->target_snap_points[i + 1][0] = SEQ_time_right_handle_frame_get(scene, strip);
-    i += 2;
+    snap_data->target_snap_points.append(float2(SEQ_time_left_handle_frame_get(scene, strip)));
+    snap_data->target_snap_points.append(float2(SEQ_time_right_handle_frame_get(scene, strip)));
 
     if (snap_mode & SEQ_SNAP_TO_STRIP_HOLD) {
       int content_start = SEQ_time_start_frame_get(strip);
@@ -391,21 +377,18 @@ static void points_build_targets_timeline(const Scene *scene,
             SEQ_time_left_handle_frame_get(scene, strip),
             SEQ_time_right_handle_frame_get(scene, strip));
 
-      snap_data->target_snap_points[i][0] = content_start;
-      snap_data->target_snap_points[i + 1][0] = content_end;
-      i += 2;
+      snap_data->target_snap_points.append(float2(content_start));
+      snap_data->target_snap_points.append(float2(content_end));
     }
   }
 
   if (snap_mode & SEQ_SNAP_TO_RETIMING) {
     for (auto item : retiming_key_targets.items()) {
       const int key_frame = SEQ_retiming_key_timeline_frame_get(scene, item.value, item.key);
-      snap_data->target_snap_points[i][0] = key_frame;
-      i++;
+      snap_data->target_snap_points.append(float2(key_frame));
     }
   }
 
-  BLI_assert(i <= snap_data->target_snap_points.size());
   qsort(snap_data->target_snap_points.data(),
         snap_data->target_snap_points.size(),
         sizeof(float2),
@@ -425,24 +408,15 @@ static void points_build_targets_preview(const Scene *scene,
     return;
   }
 
-  snap_data->target_snap_points.reinitialize(point_count_target);
-  int i = 0;
+  snap_data->target_snap_points.reserve(point_count_target);
 
   if (snap_mode & SEQ_SNAP_TO_PREVIEW_BORDERS) {
-    snap_data->target_snap_points[i][0] = v2d->tot.xmin;
-    snap_data->target_snap_points[i][1] = v2d->tot.ymin;
-
-    snap_data->target_snap_points[i + 1][0] = v2d->tot.xmax;
-    snap_data->target_snap_points[i + 1][1] = v2d->tot.ymax;
-
-    i += 2;
+    snap_data->target_snap_points.append(float2(v2d->tot.xmin, v2d->tot.ymin));
+    snap_data->target_snap_points.append(float2(v2d->tot.xmax, v2d->tot.ymax));
   }
 
   if (snap_mode & SEQ_SNAP_TO_PREVIEW_CENTER) {
-    snap_data->target_snap_points[i][0] = 0;
-    snap_data->target_snap_points[i][1] = 0;
-
-    i++;
+    snap_data->target_snap_points.append(float2(0.0f));
   }
 
   if (snap_mode & SEQ_SNAP_TO_STRIPS_PREVIEW) {
@@ -450,20 +424,14 @@ static void points_build_targets_preview(const Scene *scene,
       const Array<float2> strip_image_quad = SEQ_image_transform_final_quad_get(scene, strip);
 
       for (int j = 0; j < 4; j++) {
-        snap_data->target_snap_points[i][0] = strip_image_quad[j][0];
-        snap_data->target_snap_points[i][1] = strip_image_quad[j][1];
-        i++;
+        snap_data->target_snap_points.append(float2(strip_image_quad[j]));
       }
 
       float image_origin[2];
       SEQ_image_transform_origin_offset_pixelspace_get(scene, strip, image_origin);
-      snap_data->target_snap_points[i][0] = image_origin[0];
-      snap_data->target_snap_points[i][1] = image_origin[1];
-
-      i++;
+      snap_data->target_snap_points.append(float2(image_origin));
     }
   }
-  BLI_assert(i <= snap_data->target_snap_points.size());
 }
 
 /** \} */
@@ -658,7 +626,7 @@ static int transform_snap_sequencer_to_closest_strip_ex(TransInfo *t,
   VectorSet<Strip *> snap_targets = query_snap_targets_timeline(scene, empty_col, false);
 
   BLI_assert(frame_1 <= frame_2);
-  snap_data->source_snap_points.reinitialize(2);
+  snap_data->source_snap_points.reserve(2);
   snap_data->source_snap_points[0][0] = frame_1;
   snap_data->source_snap_points[1][0] = frame_2;
 
