@@ -84,12 +84,19 @@ struct ComponentObjects {
   }
 };
 
+struct CollectionWithTransform {
+  /* A collection that should be instanced. */
+  Collection *collection = nullptr;
+  /* A transform that needs to be applied to instances of that collection. */
+  float4x4 transform = float4x4::identity();
+};
+
 /** Utility class to build objects for a #GeometrySet recursively. */
 class GeometryToObjectsBuilder {
  private:
   Main &bmain_;
   Map<const ID *, Object *> new_object_by_generated_geometry_;
-  Map<bke::InstanceReference, Collection *> collection_by_instance_;
+  Map<bke::InstanceReference, CollectionWithTransform> collection_by_instance_;
   Vector<Collection *> new_instance_collections_;
 
  public:
@@ -243,9 +250,9 @@ class GeometryToObjectsBuilder {
 
     /* Each instance will be a collection instance, so we need to get the collection for each
      * #InstanceReference that is instanced. */
-    Vector<Collection *> collection_by_handle;
+    Vector<CollectionWithTransform> data_by_handle;
     for (const bke::InstanceReference &reference : instances.references()) {
-      collection_by_handle.append(
+      data_by_handle.append(
           this->get_or_create_collection_for_instance_reference(src_ob_eval, reference));
     }
 
@@ -255,35 +262,35 @@ class GeometryToObjectsBuilder {
     Vector<Object *> objects;
     for (const int instance_i : IndexRange(instances.instances_num())) {
       const int handle = handles[instance_i];
-      if (handle < 0 || handle >= collection_by_handle.size()) {
+      if (handle < 0 || handle >= data_by_handle.size()) {
         continue;
       }
-      Collection *collection_to_instance = collection_by_handle[handle];
-      if (!collection_to_instance) {
+      const CollectionWithTransform &instance = data_by_handle[handle];
+      if (!instance.collection) {
         continue;
       }
       /* Create an empty object that then instances the collection. */
       Object *instance_object = BKE_object_add_only_object(
-          &bmain_, OB_EMPTY, BKE_id_name(collection_to_instance->id));
+          &bmain_, OB_EMPTY, BKE_id_name(instance.collection->id));
       instance_object->transflag = OB_DUPLICOLLECTION;
-      instance_object->instance_collection = collection_to_instance;
-      id_us_plus(&collection_to_instance->id);
+      instance_object->instance_collection = instance.collection;
+      id_us_plus(&instance.collection->id);
 
       const float4x4 &transform = transforms[instance_i];
-      set_local_object_transform(*instance_object, transform);
+      set_local_object_transform(*instance_object, transform * instance.transform);
 
       objects.append(instance_object);
     }
     return objects;
   }
 
-  Collection *get_or_create_collection_for_instance_reference(
+  CollectionWithTransform get_or_create_collection_for_instance_reference(
       const Object &src_ob_eval, const bke::InstanceReference &reference)
   {
-    if (Collection *collection = collection_by_instance_.lookup_default(reference, nullptr)) {
-      return collection;
+    if (const CollectionWithTransform *instance = collection_by_instance_.lookup_ptr(reference)) {
+      return *instance;
     }
-    Collection *collection_for_reference = nullptr;
+    CollectionWithTransform instance;
     switch (reference.type()) {
       case bke::InstanceReference::Type::None: {
         break;
@@ -292,11 +299,18 @@ class GeometryToObjectsBuilder {
         /* Create a collection for the object because we can't instance objects directly. */
         Object &object_eval = reference.object();
         Object *object_orig = DEG_get_original_object(&object_eval);
-        collection_for_reference = BKE_collection_add(
-            &bmain_, nullptr, BKE_id_name(object_orig->id));
-        new_instance_collections_.append(collection_for_reference);
-        BKE_collection_object_add(&bmain_, collection_for_reference, object_orig);
-        copy_v3_v3(collection_for_reference->instance_offset, object_orig->loc);
+
+        instance.collection = BKE_collection_add(&bmain_, nullptr, BKE_id_name(object_orig->id));
+        new_instance_collections_.append(instance.collection);
+        BKE_collection_object_add(&bmain_, instance.collection, object_orig);
+
+        /* Handle the object transform because it may not be the identity matrix. The location is
+         * handled by setting the collection instance offset to it. The rotation and scale are
+         * handle by offsetting the instance using the collection by the inverse amount. */
+        float4x4 object_transform;
+        BKE_object_to_mat4(object_orig, object_transform.ptr());
+        instance.transform = float4x4(math::invert(float3x3(object_transform)));
+        copy_v3_v3(instance.collection->instance_offset, object_transform.location());
         break;
       }
       case bke::InstanceReference::Type::Collection: {
@@ -305,18 +319,18 @@ class GeometryToObjectsBuilder {
         Collection &collection_eval = reference.collection();
         Collection *collection_orig = reinterpret_cast<Collection *>(
             DEG_get_original_id(&collection_eval.id));
-        collection_for_reference = collection_orig;
+        instance.collection = collection_orig;
         break;
       }
       case bke::InstanceReference::Type::GeometrySet: {
-        collection_for_reference = this->build_collection_for_geometry(src_ob_eval,
-                                                                       reference.geometry_set());
-        new_instance_collections_.append(collection_for_reference);
+        instance.collection = this->build_collection_for_geometry(src_ob_eval,
+                                                                  reference.geometry_set());
+        new_instance_collections_.append(instance.collection);
         break;
       }
     }
-    collection_by_instance_.add(reference, collection_for_reference);
-    return collection_for_reference;
+    collection_by_instance_.add(reference, instance);
+    return instance;
   }
 
   void copy_materials_to_new_geometry_object(const Object &src_ob_eval,
