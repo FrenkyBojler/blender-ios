@@ -487,7 +487,7 @@ struct PaintOperationExecutor {
        * of the Exponential we set slope to match addition for small random values at an arbitrary
        * Base Value.
        */
-      const float base_value = 0.5f;
+      constexpr float base_value = 0.5f;
       hsv[2] *= exp(random_value * settings_->random_value / base_value);
     }
     else {
