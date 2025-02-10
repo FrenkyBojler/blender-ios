@@ -71,6 +71,7 @@ def test_get_images(output_dir, filepath, testname, reference_dir, reference_ove
 
     return old_img, ref_img, new_img, diff_color_img, diff_alpha_img
 
+
 class TestResult:
 
     def __init__(self, report, filepath, name):
@@ -80,7 +81,8 @@ class TestResult:
         self.tmp_out_img_base = os.path.join(report.output_dir, "tmp_" + name)
         self.tmp_out_img = self.tmp_out_img_base + '0001.png'
         self.old_img, self.ref_img, self.new_img, self.diff_color_img, self.diff_alpha_img = test_get_images(
-            report.output_dir, filepath, name, report.reference_dir, report.reference_override_dir)        
+            report.output_dir, filepath, name, report.reference_dir, report.reference_override_dir)
+
 
 class Report:
     __slots__ = (
@@ -476,7 +478,7 @@ class Report:
         #
         # Each render test is supposed to override this method.
         return []
-    
+
     def _get_filepath_tests(self, filepath):
         list_filepath = filepath.replace('.blend', '.txt')
         if os.path.exists(list_filepath):
@@ -501,11 +503,11 @@ class Report:
             # Construct output filepaths and command to run
             for filepath in remaining_filepaths:
                 running_tests.append(filepath)
-                
+
                 testname = test_get_name(filepath)
                 print_message(testname, 'SUCCESS', 'RUN')
 
-                base_output_filepath = os.path.join(self.output_dir, "tmp_" + testname)                
+                base_output_filepath = os.path.join(self.output_dir, "tmp_" + testname)
                 output_filepath = base_output_filepath + '0001.png'
                 if os.path.exists(output_filepath):
                     os.remove(output_filepath)
@@ -515,7 +517,7 @@ class Report:
                 # Only chain multiple commands for batch
                 if not batch:
                     break
-                
+
                 # Avoid passing a string larger than what the command line can hold.
                 # (Windows's limit is 8191 characters)
                 if len(" ".join(command)) > 8000:
@@ -566,7 +568,7 @@ class Report:
 
                     if os.path.exists(test.tmp_out_img):
                         os.remove(test.tmp_out_img)
-                    
+
                     test_results.append(test)
 
         return test_results

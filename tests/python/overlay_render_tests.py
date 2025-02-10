@@ -28,9 +28,11 @@ except ImportError:
     # this script is run during preparation steps.
     pass
 
+
 def run_test():
     import bpy
     bpy.data.texts[0].as_module()
+
 
 # When run from inside Blender, render and exit.
 try:
@@ -60,7 +62,7 @@ def get_arguments(filepath, output_filepath, gpu_backend):
 
     if gpu_backend:
         arguments.extend(["--gpu-backend", gpu_backend])
-    
+
     # Windows separators get messed up when passing them inside the python expression
     output_filepath = output_filepath.replace("\\", "/")
 
