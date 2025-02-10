@@ -74,7 +74,7 @@ def frame_set_btns(layout, scene, prop, text, operator):
     layout.scale_x = 0.2
     layout.prop(scene, prop, text=text)
     layout.scale_x = 1
-    layout.operator(operator, text="", icon='FILE_ALIAS')
+    layout.operator(operator, text="", icon='EYEDROPPER')
 
 
 class TIME_MT_editor_menus(Menu):
