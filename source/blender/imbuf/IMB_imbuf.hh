@@ -622,12 +622,6 @@ enum eIMBTransformMode {
  * When transforming between float images the number of channels of the source buffer may be
  * between 1 and 4. When source buffer has one channel the data will be read as a gray scale value.
  */
-/*void IMB_transform(const ImBuf *src,
-                   ImBuf *dst,
-                   eIMBTransformMode mode,
-                   eIMBInterpolationFilterMode filter,
-                   blender::float3x3 transform_matrix,
-                   const rctf *src_crop);*/
 void IMB_transform(const ImBuf *src,
                    ImBuf *dst,
                    eIMBTransformMode mode,

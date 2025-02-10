@@ -464,17 +464,6 @@ static void edge_aa(const TransformContext &ctx)
 using namespace blender::imbuf::transform;
 using namespace blender;
 
-/*
-void IMB_transform(const ImBuf *src,
-                   ImBuf *dst,
-                   const eIMBTransformMode mode,
-                   const eIMBInterpolationFilterMode filter,
-                   float4x4 transform_matrix,
-                   const rctf *src_crop)
-{
-  IMB_transform(src, dst, mode, filter, transform_matrix, src_crop);
-}*/
-
 void IMB_transform(const ImBuf *src,
                    ImBuf *dst,
                    const eIMBTransformMode mode,
