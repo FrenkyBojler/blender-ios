@@ -488,7 +488,7 @@ struct PaintOperationExecutor {
        * Base Value.
        */
       constexpr float base_value = 0.5f;
-      hsv[2] *= exp(random_value * settings_->random_value / base_value);
+      hsv[2] *= math::exp(random_value * settings_->random_value / base_value);
     }
     else {
       hsv[2] += random_value * settings_->random_value;
