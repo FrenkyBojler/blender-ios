@@ -3763,7 +3763,7 @@ static void do_version_node_curve_to_mesh_scale_input(bNodeTree *tree)
       /* Make versioning idempotent. */
       continue;
     }
-    bke::node_add_static_socket(
+    version_node_add_socket_if_not_exist(
         tree, curve_to_mesh, SOCK_IN, SOCK_FLOAT, PROP_NONE, "Scale", "Scale");
 
     bNode &named_attribute = version_node_add_empty(*tree, "GeometryNodeInputNamedAttribute");
