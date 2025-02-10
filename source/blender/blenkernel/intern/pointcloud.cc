@@ -56,9 +56,8 @@ const char *POINTCLOUD_ATTR_RADIUS = "radius";
 static void pointcloud_init_data(ID *id)
 {
   PointCloud *pointcloud = (PointCloud *)id;
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(pointcloud, id));
 
-  MEMCPY_STRUCT_AFTER(pointcloud, DNA_struct_default_get(PointCloud), id);
+  MEMCPY_STRUCT_AFTER_CHECKED(pointcloud, DNA_struct_default_get(PointCloud), id);
 
   pointcloud->runtime = new blender::bke::PointCloudRuntime();
 

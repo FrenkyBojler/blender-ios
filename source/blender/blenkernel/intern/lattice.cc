@@ -47,9 +47,7 @@ static void lattice_init_data(ID *id)
 {
   Lattice *lattice = (Lattice *)id;
 
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(lattice, id));
-
-  MEMCPY_STRUCT_AFTER(lattice, DNA_struct_default_get(Lattice), id);
+  MEMCPY_STRUCT_AFTER_CHECKED(lattice, DNA_struct_default_get(Lattice), id);
 
   lattice->def = static_cast<BPoint *>(MEM_callocN(sizeof(BPoint), "lattvert")); /* temporary */
   BKE_lattice_resize(lattice, 2, 2, 2, nullptr); /* creates a uniform lattice */
