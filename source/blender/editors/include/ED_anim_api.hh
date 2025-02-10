@@ -244,6 +244,8 @@ enum eAnim_Update_Flags {
   ANIM_UPDATE_ORDER = (1 << 1),
   /** Recalculate handles. */
   ANIM_UPDATE_HANDLES = (1 << 2),
+  /** Rebuild the relationships in the dependency graph. */
+  ANIM_UPDATE_RELATIONSHIPS = (1 << 3),
 };
 ENUM_OPERATORS(eAnim_Update_Flags, ANIM_UPDATE_HANDLES);
 
@@ -658,6 +660,11 @@ struct bAnimChannelType {
    * - assume that setting has been checked to be valid for current context.
    */
   void *(*setting_ptr)(bAnimListElem *ale, eAnimChannel_Settings setting, short *r_type);
+
+  /**
+   * Called after a setting was changed via ANIM_channel_setting_set().
+   */
+  void (*setting_post_update)(bAnimListElem *ale, eAnimChannel_Settings setting);
 };
 
 /** \} */

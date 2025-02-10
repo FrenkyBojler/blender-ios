@@ -35,6 +35,7 @@
 #include "BKE_workspace.hh"
 
 #include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
@@ -350,6 +351,11 @@ void ANIM_sync_animchannels_to_data(const bContext *C)
 void ANIM_animdata_update(bAnimContext *ac, ListBase *anim_data)
 {
   LISTBASE_FOREACH (bAnimListElem *, ale, anim_data) {
+    if (ale->update & ANIM_UPDATE_RELATIONSHIPS) {
+      ale->update &= ~ANIM_UPDATE_RELATIONSHIPS;
+      DEG_graph_tag_relations_update(ac->depsgraph);
+    }
+
     if (ale->type == ANIMTYPE_GPLAYER) {
       bGPDlayer *gpl = static_cast<bGPDlayer *>(ale->data);
 
