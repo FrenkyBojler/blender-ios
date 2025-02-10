@@ -1534,6 +1534,9 @@ static void node_set_typeinfo(const bContext *C,
   }
   else {
     node->typeinfo = &NodeTypeUndefined;
+    delete node->runtime->declaration;
+    node->runtime->declaration = nullptr;
+    BKE_ntree_update_tag_node_property(ntree, node);
   }
 }
 
