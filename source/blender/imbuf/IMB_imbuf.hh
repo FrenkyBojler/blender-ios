@@ -42,6 +42,7 @@
 
 #include "../gpu/GPU_texture.hh"
 
+#include "BLI_math_matrix_types.hh"
 #include "BLI_utildefines.h"
 
 #include "IMB_imbuf_types.hh"
@@ -621,11 +622,17 @@ enum eIMBTransformMode {
  * When transforming between float images the number of channels of the source buffer may be
  * between 1 and 4. When source buffer has one channel the data will be read as a gray scale value.
  */
+/*void IMB_transform(const ImBuf *src,
+                   ImBuf *dst,
+                   eIMBTransformMode mode,
+                   eIMBInterpolationFilterMode filter,
+                   blender::float3x3 transform_matrix,
+                   const rctf *src_crop);*/
 void IMB_transform(const ImBuf *src,
                    ImBuf *dst,
                    eIMBTransformMode mode,
                    eIMBInterpolationFilterMode filter,
-                   const float transform_matrix[4][4],
+                   blender::float3x3 transform_matrix,
                    const rctf *src_crop);
 
 GPUTexture *IMB_create_gpu_texture(const char *name,

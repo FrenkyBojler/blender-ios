@@ -78,7 +78,7 @@ bool SEQ_transform_is_locked(ListBase *channels, const Strip *strip);
 
 /* Image transformation. */
 
-float3 SEQ_image_transform_mirror_factor_get(const Strip *strip);
+float2 SEQ_image_transform_mirror_factor_get(const Strip *strip);
 /**
  * Get strip transform origin offset from image center
  * NOTE: This function does not apply axis mirror.
@@ -86,7 +86,7 @@ float3 SEQ_image_transform_mirror_factor_get(const Strip *strip);
  * \param scene: Scene in which strips are located
  * \param seq: Sequence to calculate image transform origin
  */
-float3 SEQ_image_transform_origin_offset_pixelspace_get(const Scene *scene, const Strip *strip);
+float2 SEQ_image_transform_origin_offset_pixelspace_get(const Scene *scene, const Strip *strip);
 /**
  * Get 4 corner points of strip image, optionally without rotation component applied.
  * Corner vectors are in viewport space.
@@ -96,7 +96,7 @@ float3 SEQ_image_transform_origin_offset_pixelspace_get(const Scene *scene, cons
  * \param apply_rotation: Apply sequence rotation transform to the quad
  * \return array of 4 2D vectors
  */
-Array<float3> SEQ_image_transform_quad_get(const Scene *scene,
+Array<float2> SEQ_image_transform_quad_get(const Scene *scene,
                                            const Strip *strip,
                                            bool apply_rotation);
 /**
@@ -106,10 +106,10 @@ Array<float3> SEQ_image_transform_quad_get(const Scene *scene,
  * \param seq: Sequence to calculate transformed image quad
  * \return array of 4 2D vectors
  */
-Array<float3> SEQ_image_transform_final_quad_get(const Scene *scene, const Strip *strip);
+Array<float2> SEQ_image_transform_final_quad_get(const Scene *scene, const Strip *strip);
 
-float3 SEQ_image_preview_unit_to_px(const Scene *scene, const float3 co_src);
-float3 SEQ_image_preview_unit_from_px(const Scene *scene, const float3 co_src);
+float2 SEQ_image_preview_unit_to_px(const Scene *scene, const float2 co_src);
+float2 SEQ_image_preview_unit_from_px(const Scene *scene, const float2 co_src);
 
 /**
  * Get viewport axis aligned bounding box from a collection of sequences.
@@ -121,7 +121,7 @@ float3 SEQ_image_preview_unit_from_px(const Scene *scene, const float3 co_src);
  * \param r_min: Minimum x and y values
  * \param r_max: Maximum x and y values
  */
-Bounds<float3> SEQ_image_transform_bounding_box_from_collection(Scene *scene,
+Bounds<float2> SEQ_image_transform_bounding_box_from_collection(Scene *scene,
                                                                 Span<Strip *> strips,
                                                                 bool apply_rotation);
 
@@ -132,4 +132,4 @@ Bounds<float3> SEQ_image_transform_bounding_box_from_collection(Scene *scene,
  * \param scene: Scene in which strips are located
  * \param seq: Strip that is used to construct the matrix
  */
-float4x4 SEQ_image_transform_matrix_get(const Scene *scene, const Strip *strip);
+float3x3 SEQ_image_transform_matrix_get(const Scene *scene, const Strip *strip);

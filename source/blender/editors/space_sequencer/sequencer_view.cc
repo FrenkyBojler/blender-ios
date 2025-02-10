@@ -294,7 +294,7 @@ static void seq_view_collection_rect_preview(Scene *scene,
                                              blender::Span<Strip *> strips,
                                              rctf *rect)
 {
-  const Bounds<float3> box = SEQ_image_transform_bounding_box_from_collection(scene, strips, true);
+  const Bounds<float2> box = SEQ_image_transform_bounding_box_from_collection(scene, strips, true);
 
   rect->xmin = box.min[0];
   rect->xmax = box.max[0];
