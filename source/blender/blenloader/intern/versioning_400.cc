@@ -3825,6 +3825,26 @@ static void do_version_node_curve_to_mesh_scale_input(bNodeTree *tree)
   }
 }
 
+static bool strip_effect_overdrop_to_alphaover(Strip *strip, void * /*user_data*/)
+{
+  if (strip->type == STRIP_TYPE_OVERDROP_REMOVED) {
+    strip->type = STRIP_TYPE_ALPHAOVER;
+  }
+  if (strip->blend_mode == STRIP_TYPE_OVERDROP_REMOVED) {
+    strip->blend_mode = STRIP_TYPE_ALPHAOVER;
+  }
+  return true;
+}
+
+static void version_sequencer_update_overdrop(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    if (scene->ed != nullptr) {
+      SEQ_for_each_callback(&scene->ed->seqbase, strip_effect_overdrop_to_alphaover, nullptr);
+    }
+  }
+}
+
 void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 1)) {
@@ -5906,6 +5926,10 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 2)) {
+    version_sequencer_update_overdrop(bmain);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 3)) {
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_GEOMETRY) {
         do_version_node_curve_to_mesh_scale_input(ntree);
