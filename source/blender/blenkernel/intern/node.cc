@@ -1535,6 +1535,7 @@ static void node_set_typeinfo(const bContext *C,
   else {
     node->typeinfo = &NodeTypeUndefined;
   }
+  BKE_ntree_update_tag_node_type(ntree, node);
 }
 
 /* WARNING: default_value must either be null or match the typeinfo at this point.
@@ -1711,6 +1712,29 @@ StringRefNull node_type_find_alias(const StringRefNull alias)
   return *idname;
 }
 
+static void defer_free_node_type(bNodeType *ntype)
+{
+  static ResourceScope scope;
+  scope.add_destruct_call([ntype]() {
+    delete ntype->static_declaration;
+    /* May be null if the type is statically allocated. */
+    if (ntype->free_self) {
+      ntype->free_self(ntype);
+    }
+  });
+}
+
+static void defer_free_socket_type(bNodeSocketType *stype)
+{
+  static ResourceScope scope;
+  scope.add_destruct_call([stype]() {
+    /* May be null if the type is statically allocated. */
+    if (stype->free_self) {
+      stype->free_self(stype);
+    }
+  });
+}
+
 static void node_free_type(void *nodetype_v)
 {
   bNodeType *nodetype = static_cast<bNodeType *>(nodetype_v);
@@ -1719,13 +1743,7 @@ static void node_free_type(void *nodetype_v)
    * or we'd want to update *all* active Mains, which we cannot do anyway currently. */
   update_typeinfo(G_MAIN, nullptr, nullptr, nodetype, nullptr, true);
 
-  delete nodetype->static_declaration;
-  nodetype->static_declaration = nullptr;
-
-  /* Can be null when the type is not dynamically allocated. */
-  if (nodetype->free_self) {
-    nodetype->free_self(nodetype);
-  }
+  defer_free_node_type(nodetype);
 }
 
 void node_register_type(bNodeType *nt)
@@ -1813,7 +1831,7 @@ static void node_free_socket_type(void *socktype_v)
    * or we'd want to update *all* active Mains, which we cannot do anyway currently. */
   update_typeinfo(G_MAIN, nullptr, nullptr, nullptr, socktype, true);
 
-  socktype->free_self(socktype);
+  defer_free_socket_type(socktype);
 }
 
 void node_register_socket_type(bNodeSocketType *st)
