@@ -14,7 +14,6 @@
 
 GPU_SHADER_CREATE_INFO(draw_globals)
 TYPEDEF_SOURCE("draw_common_shader_shared.hh")
-DEFINE("GLOBAL_BLOCK")
 UNIFORM_BUF_FREQ(OVERLAY_GLOBALS_SLOT, GlobalsUboStorage, globalsBlock, PASS)
 GPU_SHADER_CREATE_END()
 

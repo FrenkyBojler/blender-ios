@@ -48,7 +48,7 @@ static int wm_stl_export_execute(bContext *C, wmOperator *op)
     BKE_report(op->reports, RPT_ERROR, "No filename given");
     return OPERATOR_CANCELLED;
   }
-  STLExportParams export_params{};
+  STLExportParams export_params;
   RNA_string_get(op->ptr, "filepath", export_params.filepath);
   export_params.forward_axis = eIOAxis(RNA_enum_get(op->ptr, "forward_axis"));
   export_params.up_axis = eIOAxis(RNA_enum_get(op->ptr, "up_axis"));
@@ -65,7 +65,12 @@ static int wm_stl_export_execute(bContext *C, wmOperator *op)
 
   STL_export(C, &export_params);
 
-  return BKE_reports_contain(op->reports, RPT_ERROR) ? OPERATOR_CANCELLED : OPERATOR_FINISHED;
+  if (BKE_reports_contain(op->reports, RPT_ERROR)) {
+    return OPERATOR_CANCELLED;
+  }
+
+  BKE_report(op->reports, RPT_INFO, "File exported successfully");
+  return OPERATOR_FINISHED;
 }
 
 static void wm_stl_export_draw(bContext *C, wmOperator *op)
@@ -192,7 +197,7 @@ void WM_OT_stl_export(wmOperatorType *ot)
 
 static int wm_stl_import_exec(bContext *C, wmOperator *op)
 {
-  STLImportParams params{};
+  STLImportParams params;
   params.forward_axis = eIOAxis(RNA_enum_get(op->ptr, "forward_axis"));
   params.up_axis = eIOAxis(RNA_enum_get(op->ptr, "up_axis"));
   params.use_facet_normal = RNA_boolean_get(op->ptr, "use_facet_normal");

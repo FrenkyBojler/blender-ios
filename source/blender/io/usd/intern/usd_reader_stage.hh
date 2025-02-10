@@ -38,7 +38,7 @@ class USDStageReader {
  protected:
   pxr::UsdStageRefPtr stage_;
   USDImportParams params_;
-  const ImportSettings &settings_;
+  ImportSettings settings_;
 
   blender::Vector<USDPrimReader *> readers_;
 
@@ -48,7 +48,7 @@ class USDStageReader {
 
   /* USD material prim paths encountered during stage
    * traversal, for importing unused materials. */
-  blender::Vector<std::string> material_paths_;
+  blender::Vector<pxr::SdfPath> material_paths_;
 
   /* Readers for scene-graph instance prototypes. */
   ProtoReaderMap proto_readers_;
@@ -59,7 +59,7 @@ class USDStageReader {
  public:
   USDStageReader(pxr::UsdStageRefPtr stage,
                  const USDImportParams &params,
-                 const ImportSettings &settings);
+                 const std::function<CacheFile *()> &get_cache_file_fn = {});
 
   ~USDStageReader();
 

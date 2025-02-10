@@ -8,6 +8,53 @@ import os
 import sys
 from pathlib import Path
 
+# Unsupported or broken scenarios for the Storm render engine
+BLOCKLIST_HYDRA = [
+    # Corrupted output around borders
+    "image.*_half.*.blend",
+    "image.*_float.*.blend",
+    # Differences between devices/drivers causing this to fail
+    "image.blend",
+]
+
+BLOCKLIST_USD = [
+    # Corrupted output around borders
+    "image.*_half.*.blend",
+    "image.*_float.*.blend",
+    # Nondeterministic exporting of lights in the scene
+    "light_tree_node_subtended_angle.blend",
+]
+
+# Metal support in Storm is no as good as OpenGL, though this needs to be
+# retested with newer OpenUSD versions as there are improvements.
+BLOCKLIST_METAL = [
+    # Thinfilm
+    "metallic.*physical.blend",
+    "metallic.*f82.blend",
+    "principled.*thinfilm.*.blend",
+    # Transparency
+    "ray_portal.blend",
+    "transparent.blend",
+    "transparent_shadow.blend",
+    "shadow_all_max_bounces.blend",
+    "underwater_caustics.blend",
+    "shadow_link_transparency.blend",
+    "principled_bsdf_transmission.blend",
+    # Volume
+    "light_link_surface_in_volume.blend",
+    "openvdb.*.blend",
+    "principled_bsdf_interior",
+    # Other
+    "bump.*.blend",
+    "bevel.*.blend",
+    "principled_bsdf_coat.blend",
+    "principled_bsdf_emission.blend",
+    "white_noise.*.blend",
+    "musgrave_multifractal.*.blend",
+    "autosmooth_custom_normals.blend",
+    "diffuse_normal_map.blend",
+]
+
 
 def setup():
     import bpy
@@ -70,16 +117,27 @@ def main():
 
     from modules import render_report
 
+    blocklist = BLOCKLIST_METAL if sys.platform == "darwin" else []
+
     if args.export_method == 'HYDRA':
-        report = render_report.Report("Storm Hydra", args.outdir, args.oiiotool)
+        report = render_report.Report("Storm Hydra", args.outdir, args.oiiotool, blocklist=blocklist + BLOCKLIST_HYDRA)
         report.set_reference_dir("storm_hydra_renders")
         report.set_compare_engine('cycles', 'CPU')
     else:
-        report = render_report.Report("Storm USD", args.outdir, args.oiiotool)
+        report = render_report.Report("Storm USD", args.outdir, args.oiiotool, blocklist=blocklist + BLOCKLIST_USD)
         report.set_reference_dir("storm_usd_renders")
         report.set_compare_engine('storm_hydra')
 
     report.set_pixelated(True)
+
+    # Try to account for image filtering differences from OS/drivers
+    test_dir_name = Path(args.testdir).name
+    if (test_dir_name in {'image_mapping', 'mesh'}):
+        report.set_fail_threshold(0.028)
+        report.set_fail_percent(1.3)
+    if (test_dir_name in {'image_colorspace'}):
+        report.set_fail_threshold(0.032)
+        report.set_fail_percent(1.5)
 
     test_dir_name = Path(args.testdir).name
 

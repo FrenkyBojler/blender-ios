@@ -3,27 +3,18 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
-  .
+  PUBLIC .
   intern
 
-  ../blenkernel
-  ../blenloader
-  ../blentranslation
-  ../bmesh
   ../editors/include
   ../editors/space_view3d
-  ../functions
-  ../gpu
   ../gpu/intern
-  ../imbuf
   ../makesrna
-  ../nodes
-  ../render
   ../render/intern
-  ../compositor/realtime_compositor
-  ../compositor/realtime_compositor/algorithms
-  ../compositor/realtime_compositor/cached_resources
-  ../windowmanager
+  ../compositor
+  ../compositor/algorithms
+  ../compositor/cached_resources
+  ../compositor/derived_resources
 
   ../../../intern/opensubdiv
 )
@@ -305,14 +296,22 @@ set(SRC
 
 set(LIB
   PRIVATE bf::blenfont
-  bf_blenkernel
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::functions
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
-  bf_realtime_compositor
-  bf_windowmanager
+  bf_compositor
+  PRIVATE bf::nodes
+  PRIVATE bf::render
+  PRIVATE bf::windowmanager
   PRIVATE bf::intern::atomic
   PRIVATE bf::extern::fmtlib
 )
@@ -556,18 +555,18 @@ set(GLSL_SRC
   intern/shaders/common_math_lib.glsl
   intern/shaders/common_pointcloud_lib.glsl
   intern/shaders/common_shape_lib.glsl
-  intern/shaders/common_subdiv_custom_data_interp_comp.glsl
-  intern/shaders/common_subdiv_ibo_lines_comp.glsl
-  intern/shaders/common_subdiv_ibo_tris_comp.glsl
-  intern/shaders/common_subdiv_lib.glsl
-  intern/shaders/common_subdiv_normals_accumulate_comp.glsl
-  intern/shaders/common_subdiv_normals_finalize_comp.glsl
-  intern/shaders/common_subdiv_patch_evaluation_comp.glsl
-  intern/shaders/common_subdiv_vbo_edge_fac_comp.glsl
-  intern/shaders/common_subdiv_vbo_edituv_strech_angle_comp.glsl
-  intern/shaders/common_subdiv_vbo_edituv_strech_area_comp.glsl
-  intern/shaders/common_subdiv_vbo_lnor_comp.glsl
-  intern/shaders/common_subdiv_vbo_sculpt_data_comp.glsl
+  intern/shaders/subdiv_custom_data_interp_comp.glsl
+  intern/shaders/subdiv_ibo_lines_comp.glsl
+  intern/shaders/subdiv_ibo_tris_comp.glsl
+  intern/shaders/subdiv_lib.glsl
+  intern/shaders/subdiv_normals_accumulate_comp.glsl
+  intern/shaders/subdiv_normals_finalize_comp.glsl
+  intern/shaders/subdiv_patch_evaluation_comp.glsl
+  intern/shaders/subdiv_vbo_edge_fac_comp.glsl
+  intern/shaders/subdiv_vbo_edituv_strech_angle_comp.glsl
+  intern/shaders/subdiv_vbo_edituv_strech_area_comp.glsl
+  intern/shaders/subdiv_vbo_lnor_comp.glsl
+  intern/shaders/subdiv_vbo_sculpt_data_comp.glsl
   intern/shaders/common_view_clipping_lib.glsl
   intern/shaders/draw_command_generate_comp.glsl
   intern/shaders/draw_debug_draw_display_frag.glsl
@@ -846,6 +845,7 @@ if(WITH_TBB)
 endif()
 
 blender_add_lib(bf_draw "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+add_library(bf::draw ALIAS bf_draw)
 
 
 if(WITH_GTESTS)
@@ -862,6 +862,7 @@ if(WITH_GTESTS)
       ../gpu/tests
     )
     set(TEST_LIB
+      gpu_tests
     )
     blender_add_test_suite_lib(draw "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}")
   endif()

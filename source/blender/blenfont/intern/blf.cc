@@ -21,8 +21,6 @@
 #include FT_FREETYPE_H
 #include FT_GLYPH_H
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_fileops.h"
 #include "BLI_math_rotation.h"
 #include "BLI_path_utils.hh"
@@ -33,7 +31,7 @@
 #include "IMB_colormanagement.hh"
 
 #include "GPU_matrix.hh"
-#include "GPU_shader.hh"
+#include "GPU_state.hh"
 
 #include "blf_internal.hh"
 #include "blf_internal_types.hh"
@@ -1061,8 +1059,8 @@ bool BLF_get_vfont_metrics(int fontid, float *ascend_ratio, float *em_ratio, flo
     *ascend_ratio = float(font->face->ascender) / (font->face->ascender - font->face->descender);
   }
   else {
-    *ascend_ratio = 0.8f;
-    *em_ratio = 1.0f;
+    *ascend_ratio = BLF_VFONT_METRICS_ASCEND_RATIO_DEFAULT;
+    *em_ratio = BLF_VFONT_METRICS_EM_RATIO_DEFAULT;
   }
 
   /* Adjust font size */
@@ -1075,7 +1073,7 @@ bool BLF_get_vfont_metrics(int fontid, float *ascend_ratio, float *em_ratio, flo
     }
   }
   else {
-    *scale = 1.0f / 1000.0f;
+    *scale = BLF_VFONT_METRICS_SCALE_DEFAULT;
   }
 
   return true;

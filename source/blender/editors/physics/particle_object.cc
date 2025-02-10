@@ -29,6 +29,7 @@
 #include "BKE_global.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_modifier.hh"
@@ -701,7 +702,7 @@ static bool remap_hair_emitter(Depsgraph *depsgraph,
   ParticleData *pa, *tpa;
   PTCacheEditPoint *edit_point;
   PTCacheEditKey *ekey;
-  BVHTreeFromMesh bvhtree = {nullptr};
+  blender::bke::BVHTreeFromMesh bvhtree = {nullptr};
   const MFace *mface = nullptr, *mf;
   const blender::int2 *edges = nullptr, *edge;
   Mesh *mesh, *target_mesh;

@@ -21,7 +21,6 @@
 #include "usd_reader_xform.hh"
 #include "usd_utils.hh"
 
-#include <pxr/pxr.h>
 #include <pxr/usd/usd/primRange.h>
 #include <pxr/usd/usdGeom/camera.h>
 #include <pxr/usd/usdGeom/capsule.h>
@@ -29,11 +28,13 @@
 #include <pxr/usd/usdGeom/cube.h>
 #include <pxr/usd/usdGeom/cylinder.h>
 #include <pxr/usd/usdGeom/mesh.h>
+#include <pxr/usd/usdGeom/metrics.h>
 #include <pxr/usd/usdGeom/nurbsCurves.h>
 #include <pxr/usd/usdGeom/pointInstancer.h>
 #include <pxr/usd/usdGeom/points.h>
 #include <pxr/usd/usdGeom/scope.h>
 #include <pxr/usd/usdGeom/sphere.h>
+#include <pxr/usd/usdGeom/tokens.h>
 #include <pxr/usd/usdGeom/xform.h>
 #include <pxr/usd/usdLux/boundableLightBase.h>
 #include <pxr/usd/usdLux/nonboundableLightBase.h>
@@ -41,6 +42,8 @@
 
 #include "BLI_map.hh"
 #include "BLI_math_base.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
 #include "BLI_sort.hh"
 #include "BLI_string.h"
 
@@ -54,7 +57,7 @@
 #include "DNA_collection_types.h"
 #include "DNA_material_types.h"
 
-#include <fmt/format.h>
+#include <fmt/core.h>
 
 static CLG_LogRef LOG = {"io.usd"};
 
@@ -105,16 +108,104 @@ static void set_instance_collection(
     instance_reader->set_instance_collection(collection);
   }
   else {
-    CLOG_WARN(
-        &LOG, "Couldn't find prototype collection for %s", instance_reader->prim_path().c_str());
+    CLOG_WARN(&LOG,
+              "Couldn't find prototype collection for %s",
+              instance_reader->prim_path().GetAsString().c_str());
+  }
+}
+
+/* Update the given import settings with the global rotation matrix to orient
+ * imported objects with Z-up, if necessary */
+static void convert_to_z_up(pxr::UsdStageRefPtr stage, ImportSettings &settings)
+{
+  if (!stage || pxr::UsdGeomGetStageUpAxis(stage) == pxr::UsdGeomTokens->z) {
+    return;
+  }
+
+  settings.do_convert_mat = true;
+
+  /* Rotate 90 degrees about the X-axis. */
+  float rmat[3][3];
+  float axis[3] = {1.0f, 0.0f, 0.0f};
+  axis_angle_normalized_to_mat3(rmat, axis, M_PI_2);
+
+  unit_m4(settings.conversion_mat);
+  copy_m4_m3(settings.conversion_mat, rmat);
+}
+
+/**
+ * Find the lowest level of Blender generated roots
+ * so that round tripping an export can be more invisible
+ */
+static void find_prefix_to_skip(pxr::UsdStageRefPtr stage, ImportSettings &settings)
+{
+  if (!stage) {
+    return;
+  }
+
+  pxr::TfToken generated_key("Blender:generated");
+  pxr::SdfPath path("/");
+  auto prim = stage->GetPseudoRoot();
+  while (true) {
+
+    uint32_t child_count = 0;
+    for (auto child : prim.GetChildren()) {
+      if (child_count == 0) {
+        prim = child.GetPrim();
+      }
+      ++child_count;
+    }
+
+    if (child_count != 1) {
+      /* Our blender write out only supports a single root chain,
+       * so whenever we encounter more than one child, we should
+       * early exit */
+      break;
+    }
+
+    /* We only care about prims that have the key and the value doesn't matter */
+    if (!prim.HasCustomDataKey(generated_key)) {
+      break;
+    }
+    path = path.AppendChild(prim.GetName());
+  }
+
+  /* Treat the root as empty */
+  if (path == pxr::SdfPath("/")) {
+    path = pxr::SdfPath();
+  }
+
+  settings.skip_prefix = path;
+}
+
+/**
+ * Set compatibility flags if the Stage was written by Blender.
+ */
+static void determine_blender_compat(pxr::UsdStageRefPtr stage, ImportSettings &settings)
+{
+  const std::string doc = stage->GetRootLayer()->GetDocumentation();
+
+  /* Was the incoming Stage written by Blender? If so, set some broad compatibility flags. */
+  if (doc.find("Blender v", 0) == 0) {
+    /* Set flag if the Blender Stage was from before version 4.4. */
+    settings.blender_stage_version_prior_44 = doc < "Blender v4.4";
   }
 }
 
 USDStageReader::USDStageReader(pxr::UsdStageRefPtr stage,
                                const USDImportParams &params,
-                               const ImportSettings &settings)
-    : stage_(stage), params_(params), settings_(settings)
+                               const std::function<CacheFile *()> &get_cache_file_fn)
+    : stage_(stage), params_(params)
 {
+  determine_blender_compat(stage_, settings_);
+  convert_to_z_up(stage_, settings_);
+  find_prefix_to_skip(stage_, settings_);
+  settings_.get_cache_file = get_cache_file_fn;
+  settings_.stage_meters_per_unit = pxr::UsdGeomGetStageMetersPerUnit(stage);
+  settings_.scene_scale = params.scale;
+  if (params.apply_unit_conversion_scale) {
+    settings_.scene_scale *= settings_.stage_meters_per_unit;
+  }
 }
 
 USDStageReader::~USDStageReader()
@@ -149,7 +240,7 @@ USDPrimReader *USDStageReader::create_reader_if_allowed(const pxr::UsdPrim &prim
     return new USDCameraReader(prim, params_, settings_);
   }
   if (params_.import_curves && prim.IsA<pxr::UsdGeomBasisCurves>()) {
-    return new USDCurvesReader(prim, params_, settings_);
+    return new USDBasisCurvesReader(prim, params_, settings_);
   }
   if (params_.import_curves && prim.IsA<pxr::UsdGeomNurbsCurves>()) {
     return new USDNurbsReader(prim, params_, settings_);
@@ -194,7 +285,7 @@ USDPrimReader *USDStageReader::create_reader(const pxr::UsdPrim &prim)
     return new USDCameraReader(prim, params_, settings_);
   }
   if (prim.IsA<pxr::UsdGeomBasisCurves>()) {
-    return new USDCurvesReader(prim, params_, settings_);
+    return new USDBasisCurvesReader(prim, params_, settings_);
   }
   if (prim.IsA<pxr::UsdGeomNurbsCurves>()) {
     return new USDNurbsReader(prim, params_, settings_);
@@ -401,7 +492,7 @@ USDPrimReader *USDStageReader::collect_readers(const pxr::UsdPrim &prim,
   if (prim.IsA<pxr::UsdShadeMaterial>()) {
     /* Record material path for later processing, if needed,
      * e.g., when importing all materials. */
-    material_paths_.append(prim.GetPath().GetAsString());
+    material_paths_.append(prim.GetPath());
 
     /* We don't create readers for materials, so return early. */
     return nullptr;
@@ -474,7 +565,7 @@ void USDStageReader::process_armature_modifiers() const
   /* Iterate over the skeleton readers to create the
    * armature object map, which maps a USD skeleton prim
    * path to the corresponding armature object. */
-  blender::Map<std::string, Object *> usd_path_to_armature;
+  blender::Map<pxr::SdfPath, Object *> usd_path_to_armature;
   for (const USDPrimReader *reader : readers_) {
     if (dynamic_cast<const USDSkeletonReader *>(reader) && reader->object()) {
       usd_path_to_armature.add(reader->prim_path(), reader->object());
@@ -499,14 +590,14 @@ void USDStageReader::process_armature_modifiers() const
     ArmatureModifierData *amd = reinterpret_cast<ArmatureModifierData *>(md);
 
     /* Assign the armature based on the bound USD skeleton path of the skinned mesh. */
-    std::string skel_path = mesh_reader->get_skeleton_path();
+    pxr::SdfPath skel_path = mesh_reader->get_skeleton_path();
     Object *object = usd_path_to_armature.lookup_default(skel_path, nullptr);
     if (object == nullptr) {
       BKE_reportf(reports(),
                   RPT_WARNING,
                   "%s: Couldn't find armature object corresponding to USD skeleton %s",
                   __func__,
-                  skel_path.c_str());
+                  skel_path.GetAsString().c_str());
     }
     amd->object = object;
   }
@@ -518,13 +609,12 @@ void USDStageReader::import_all_materials(Main *bmain)
 
   /* Build the material name map if it's not built yet. */
   if (settings_.mat_name_to_mat.is_empty()) {
-    build_material_map(bmain, &settings_.mat_name_to_mat);
+    build_material_map(bmain, settings_.mat_name_to_mat);
   }
 
   USDMaterialReader mtl_reader(params_, bmain);
-
-  for (const std::string &mtl_path : material_paths_) {
-    pxr::UsdPrim prim = stage_->GetPrimAtPath(pxr::SdfPath(mtl_path));
+  for (const pxr::SdfPath &mtl_path : material_paths_) {
+    pxr::UsdPrim prim = stage_->GetPrimAtPath(mtl_path);
 
     pxr::UsdShadeMaterial usd_mtl(prim);
     if (!usd_mtl) {
@@ -532,13 +622,13 @@ void USDStageReader::import_all_materials(Main *bmain)
     }
 
     if (blender::io::usd::find_existing_material(
-            prim.GetPath(), params_, settings_.mat_name_to_mat, settings_.usd_path_to_mat_name))
+            prim.GetPath(), params_, settings_.mat_name_to_mat, settings_.usd_path_to_mat))
     {
       /* The material already exists. */
       continue;
     }
 
-    /* Can the material be handled by an iport hook? */
+    /* Can the material be handled by an import hook? */
     const bool have_import_hook = settings_.mat_import_hook_sources.contains(mtl_path);
 
     /* Add the Blender material. If we have an import hook which can handle this material
@@ -547,20 +637,19 @@ void USDStageReader::import_all_materials(Main *bmain)
     BLI_assert_msg(new_mtl, "Failed to create material");
 
     const std::string mtl_name = make_safe_name(new_mtl->id.name + 2, true);
-    settings_.mat_name_to_mat.lookup_or_add_default(mtl_name) = new_mtl;
+    settings_.mat_name_to_mat.add_new(mtl_name, new_mtl);
 
     if (params_.mtl_name_collision_mode == USD_MTL_NAME_COLLISION_MAKE_UNIQUE) {
-      /* Record the unique name of the Blender material we created for the USD material
-       * with the given path, so we don't import the material again when assigning
-       * materials to objects elsewhere in the code. */
-      settings_.usd_path_to_mat_name.lookup_or_add_default(
-          prim.GetPath().GetAsString()) = mtl_name;
+      /* Record the Blender material we created for the USD material with the given path.
+       * This is to prevent importing the material again when assigning materials to objects
+       * elsewhere in the code. */
+      settings_.usd_path_to_mat.add_new(mtl_path, new_mtl);
     }
 
     if (have_import_hook) {
       /* Defer invoking the hook to convert the material till we can do so from
        * the main thread. */
-      settings_.usd_path_to_mat_for_hook.lookup_or_add_default(mtl_path) = new_mtl;
+      settings_.usd_path_to_mat_for_hook.add_new(mtl_path, new_mtl);
     }
   }
 }
@@ -569,12 +658,7 @@ void USDStageReader::fake_users_for_unused_materials()
 {
   /* Iterate over the imported materials and set a fake user for any unused
    * materials. */
-  for (const auto path_mat_pair : settings_.usd_path_to_mat_name.items()) {
-    Material *mat = settings_.mat_name_to_mat.lookup_default(path_mat_pair.value, nullptr);
-    if (mat == nullptr) {
-      continue;
-    }
-
+  for (Material *mat : settings_.usd_path_to_mat.values()) {
     if (mat->id.us == 0) {
       id_fake_user_set(&mat->id);
     }
@@ -588,7 +672,7 @@ void USDStageReader::find_material_import_hook_sources()
     if (prim.IsA<pxr::UsdShadeMaterial>()) {
       pxr::UsdShadeMaterial usd_mat(prim);
       if (have_material_import_hook(stage_, usd_mat, params_, reports())) {
-        settings_.mat_import_hook_sources.add(prim.GetPath().GetAsString());
+        settings_.mat_import_hook_sources.add(prim.GetPath());
       }
     }
   }
@@ -602,7 +686,7 @@ void USDStageReader::call_material_import_hooks(Main *bmain) const
   }
 
   for (const auto item : settings_.usd_path_to_mat_for_hook.items()) {
-    pxr::UsdPrim prim = stage_->GetPrimAtPath(pxr::SdfPath(item.key));
+    pxr::UsdPrim prim = stage_->GetPrimAtPath(item.key);
 
     pxr::UsdShadeMaterial usd_mtl(prim);
     if (!usd_mtl) {

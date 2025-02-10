@@ -13,17 +13,14 @@
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
 
-#include <cstddef>
 #include <cstring>
-
-#include "BLI_ghash.h"
-#include "BLI_sys_types.h"
 
 #include "DNA_windowmanager_types.h"
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_ghash.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -40,6 +37,7 @@
 #include "BKE_workspace.hh"
 
 #include "WM_api.hh"
+#include "WM_keymap.hh"
 #include "WM_message.hh"
 #include "WM_types.hh"
 #include "wm.hh"
@@ -441,7 +439,7 @@ void WM_keyconfig_init(bContext *C)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
 
-  /* Create standard key configs. */
+  /* Create standard key configuration. */
   if (wm->defaultconf == nullptr) {
     /* Keep lowercase to match the preset filename. */
     wm->defaultconf = WM_keyconfig_new(wm, WM_KEYCONFIG_STR_DEFAULT, false);

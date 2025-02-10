@@ -9,11 +9,9 @@
 
 #pragma once
 
-#include "RE_engine.h"
-
-#include "BKE_curves.hh"
-
 #include "BLI_index_mask.hh"
+
+#include "transform.hh"
 
 struct BMEditMesh;
 struct BMesh;
@@ -24,10 +22,13 @@ struct TransData;
 struct TransDataCurveHandleFlags;
 struct TransInfo;
 struct bContext;
-struct Sequence;
+struct Strip;
 
 namespace blender::bke::crazyspace {
 struct GeometryDeformation;
+}
+namespace blender::bke {
+class CurvesGeometry;
 }
 
 struct TransConvertTypeInfo {
@@ -187,12 +188,13 @@ void animrecord_check_state(TransInfo *t, ID *id);
  * Used for both curves and grease pencil objects.
  */
 void curve_populate_trans_data_structs(
+    const TransInfo &t,
     TransDataContainer &tc,
     blender::bke::CurvesGeometry &curves,
     const blender::float4x4 &transform,
     const blender::bke::crazyspace::GeometryDeformation &deformation,
     std::optional<blender::MutableSpan<float>> value_attribute,
-    const blender::Span<blender::IndexMask> points_to_transform_indices,
+    const blender::Span<blender::IndexMask> points_to_transform_per_attr,
     const blender::IndexMask &affected_curves,
     bool use_connected_only,
     const blender::IndexMask &bezier_curves,
@@ -378,7 +380,7 @@ extern TransConvertTypeInfo TransConvertType_Sculpt;
 
 extern TransConvertTypeInfo TransConvertType_Sequencer;
 
-bool seq_transform_check_overlap(blender::Span<Sequence *> transformed_strips);
+bool seq_transform_check_overlap(blender::Span<Strip *> transformed_strips);
 
 /* `transform_convert_sequencer_image.cc` */
 

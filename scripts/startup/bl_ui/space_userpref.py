@@ -450,8 +450,6 @@ class USERPREF_PT_edit_objects_duplicate_data(EditingPanel, CenterAlignMixIn, Pa
             row_label = row.row()
             row_label.label(text=type_name, icon=type_icon)
 
-            row_label.active = getattr(edit, prop)
-
 
 class USERPREF_PT_edit_cursor(EditingPanel, CenterAlignMixIn, Panel):
     bl_label = "3D Cursor"
@@ -728,7 +726,7 @@ class USERPREF_PT_system_os_settings(SystemPanel, CenterAlignMixIn, Panel):
                 return False
         else:
             # Linux.
-            if bpy.utils.resource_path('SYSTEM'):
+            if not bpy.app.portable:
                 layout.label(text="System Installation")
                 layout.label(text="File association is handled by the package manager")
                 return False
@@ -935,7 +933,7 @@ class USERPREF_PT_viewport_subdivision(ViewportPanel, CenterAlignMixIn, Panel):
     def poll(cls, context):
         import gpu
         backend = gpu.platform.backend_type_get()
-        return backend == "OPENGL"
+        return backend == 'OPENGL'
 
     def draw_centered(self, context, layout):
         prefs = context.preferences
@@ -2089,9 +2087,20 @@ class USERPREF_PT_ndof_settings(Panel):
 
             layout.separator()
 
-        col = layout.column()
         if show_3dview_settings:
-            col.prop(props, "ndof_show_guide")
+            col = layout.column(heading="Show Guides")
+            col.prop(props, "ndof_show_guide_orbit_axis", text="Orbit Axis")
+            col.prop(props, "ndof_show_guide_orbit_center", text="Orbit Center")
+
+            col = layout.column(heading="Orbit Center")
+            col.prop(props, "ndof_orbit_center_auto")
+            colsub = col.column()
+            colsub.prop(props, "ndof_orbit_center_selected")
+            colsub.enabled = props.ndof_orbit_center_auto
+            del colsub
+            col.separator()
+
+        col = layout.column(heading="Zoom")
         col.prop(props, "ndof_zoom_invert")
         col.prop(props, "ndof_lock_camera_pan_zoom")
         row = col.row(heading="Pan")
@@ -2473,8 +2482,14 @@ class USERPREF_PT_addons(AddOnPanel, Panel):
                 box.separator()
                 sub_col = box.column(align=True)
                 sub_col.label(text=addon_name + ":")
-                sub_col.label(text="    " + addon_file)
-                sub_col.label(text="    " + addon_path)
+
+                sub_row = sub_col.row()
+                sub_row.label(text="    " + addon_file)
+                sub_row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath = os.path.dirname(addon_file)
+
+                sub_row = sub_col.row()
+                sub_row.label(text="    " + addon_path)
+                sub_row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath = os.path.dirname(addon_path)
 
         if addon_utils.error_encoding:
             self.draw_error(
@@ -2733,15 +2748,17 @@ class USERPREF_PT_studiolight_light_editor(StudioLightPanel, Panel):
 
     @staticmethod
     def opengl_light_buttons(layout, light):
-
         col = layout.column()
-        col.active = light.use
+        box = col.box()
+        box.active = light.use
 
-        col.prop(light, "use", text="Use Light")
-        col.prop(light, "diffuse_color", text="Diffuse")
-        col.prop(light, "specular_color", text="Specular")
-        col.prop(light, "smooth")
-        col.prop(light, "direction")
+        box.prop(light, "use", text="Use Light")
+        box.prop(light, "diffuse_color", text="Diffuse")
+        box.prop(light, "specular_color", text="Specular")
+        box.prop(light, "smooth")
+        box.prop(light, "direction")
+
+        col.separator()
 
     def draw(self, context):
         layout = self.layout
@@ -2756,25 +2773,12 @@ class USERPREF_PT_studiolight_light_editor(StudioLightPanel, Panel):
         layout.separator()
 
         layout.use_property_split = True
-        column = layout.split()
-        column.active = system.use_studio_light_edit
 
-        light = system.solid_lights[0]
-        colsplit = column.split(factor=0.85)
-        self.opengl_light_buttons(colsplit, light)
+        flow = layout.grid_flow(row_major=True, columns=2, even_rows=True, even_columns=True)
+        flow.active = system.use_studio_light_edit
 
-        light = system.solid_lights[1]
-        colsplit = column.split(factor=0.85)
-        self.opengl_light_buttons(colsplit, light)
-
-        light = system.solid_lights[2]
-        colsplit = column.split(factor=0.85)
-        self.opengl_light_buttons(colsplit, light)
-
-        light = system.solid_lights[3]
-        self.opengl_light_buttons(column, light)
-
-        layout.separator()
+        for light in system.solid_lights:
+            self.opengl_light_buttons(flow, light)
 
         layout.prop(system, "light_ambient")
 

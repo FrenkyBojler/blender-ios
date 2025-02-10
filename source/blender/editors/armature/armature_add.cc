@@ -15,11 +15,11 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_map.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_string.h"
 #include "BLI_string_utils.hh"
 
 #include "BLT_translation.hh"
@@ -305,7 +305,7 @@ static void pre_edit_bone_duplicate(ListBase *editbones)
  */
 static bPoseChannel *pchan_duplicate_map(
     const bPose *pose,
-    blender::Map<blender::StringRefNull, blender::StringRefNull> &name_map,
+    const blender::Map<blender::StringRefNull, blender::StringRefNull> &name_map,
     bPoseChannel *pchan_src)
 {
   bPoseChannel *pchan_dst = nullptr;
@@ -650,6 +650,14 @@ static void update_duplicate_loc_rot_constraint_settings(Object *ob,
 
     min_vec[0] = max_vec[0] * -1;
     max_vec[0] = min_x_copy * -1;
+
+    /* Also flip the enabled axis check-boxes accordingly. */
+    const bool use_max_x = (limit->flag & LIMIT_XMAX);
+    const bool use_min_x = (limit->flag & LIMIT_XMIN);
+    limit->flag |= use_max_x ? LIMIT_XMIN : 0;
+    limit->flag &= (use_max_x && !use_min_x) ? ~LIMIT_XMAX : limit->flag;
+    limit->flag |= use_min_x ? LIMIT_XMAX : 0;
+    limit->flag &= (use_min_x && !use_max_x) ? ~LIMIT_XMIN : limit->flag;
   }
 
   /* convert back to the settings space */
@@ -1043,7 +1051,7 @@ static void copy_pchan(EditBone *src_bone, EditBone *dst_bone, Object *src_ob, O
 
     chanold = BKE_pose_channel_ensure(src_ob->pose, src_bone->name);
     if (chanold) {
-      /* WARNING: this creates a new posechannel, but there will not be an attached bone
+      /* WARNING: this creates a new pose-channel, but there will not be an attached bone
        * yet as the new bones created here are still 'EditBones' not 'Bones'.
        */
       channew = BKE_pose_channel_ensure(dst_ob->pose, dst_bone->name);
@@ -1180,7 +1188,7 @@ static int armature_duplicate_selected_exec(bContext *C, wmOperator *op)
           /* If this bone has a parent that IS not selected,
            * Set the duplicate->parent to the cur_bone->parent
            */
-          ebone->parent = (EditBone *)ebone_iter->parent;
+          ebone->parent = ebone_iter->parent;
           ebone->flag &= ~BONE_CONNECTED;
         }
 
@@ -1398,7 +1406,7 @@ static int armature_symmetrize_exec(bContext *C, wmOperator *op)
     {
       if (ebone_iter->temp.ebone) {
         /* copy all flags except for ... */
-        const int flag_copy = int(~0) & ~(BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL);
+        const int flag_copy = (~0) & ~(BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL);
 
         EditBone *ebone = ebone_iter->temp.ebone;
 

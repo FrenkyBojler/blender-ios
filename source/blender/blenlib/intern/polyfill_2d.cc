@@ -44,7 +44,7 @@
 
 #include "BLI_polyfill_2d.h" /* own include */
 
-#include "BLI_strict_flags.h" /* Keep last. */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 /* avoid fan-fill topology */
 #define USE_CLIP_EVEN
@@ -143,7 +143,7 @@ struct PolyFill {
   uint32_t tris_num;
 
 #ifdef USE_KDTREE
-  struct KDTree2D kdtree;
+  KDTree2D kdtree;
 #endif
 };
 
