@@ -32,6 +32,10 @@
 
 #include "NOD_node_declaration.hh"
 
+namespace blender {
+class ResourceScope;
+}
+
 namespace blender::bke::node_tree_reference_lifetimes {
 
 enum class ReferenceSetType {

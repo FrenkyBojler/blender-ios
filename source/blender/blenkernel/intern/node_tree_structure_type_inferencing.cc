@@ -68,10 +68,9 @@ static void initialize_usages_from_socket_declarations(const bNodeTree &tree,
   }
 }
 
-static void update_interface_structure_types(
-    const bNodeTree &tree,
-    const Span<SocketUsageInfo> socket_usages,
-    nodes::StructureTypeInferencingInterface &derived_interface)
+static void update_interface_structure_types(const bNodeTree &tree,
+                                             const Span<SocketUsageInfo> socket_usages,
+                                             nodes::StructureTypeInterface &derived_interface)
 {
   /* Merge usages from all group input nodes. */
   Array<SocketUsageInfo> group_input_usages(tree.interface_inputs().size());
@@ -134,7 +133,7 @@ static void propagate_right_to_left(
     const bNodeTree &tree,
     const Span<const nodes::anonymous_attribute_lifetime::RelationsInNode *> relations_by_node,
     MutableSpan<SocketUsageInfo> socket_usages,
-    nodes::StructureTypeInferencingInterface &derived_interface)
+    nodes::StructureTypeInterface &derived_interface)
 {
   for (const bNode *node : tree.toposort_right_to_left()) {
     if (node->is_group_output()) {
@@ -188,7 +187,7 @@ static void propagate_left_to_right(
     const bNodeTree &tree,
     const Span<const nodes::anonymous_attribute_lifetime::RelationsInNode *> relations_by_node,
     MutableSpan<SocketUsageInfo> socket_usages,
-    nodes::StructureTypeInferencingInterface &derived_interface)
+    nodes::StructureTypeInterface &derived_interface)
 {
   for (const bNode *node : tree.toposort_left_to_right()) {
     for (const bNodeSocket *input_socket : node->input_sockets()) {
@@ -211,7 +210,6 @@ static void propagate_left_to_right(
           continue;
         }
       }
-      socket_structure_type.is_single_value = true;
     }
 
     switch (node->type_legacy) {
@@ -234,7 +232,7 @@ static void propagate_left_to_right(
           if (!output_socket.is_available()) {
             continue;
           }
-          socket_usages[output_socket.index_in_tree()].is_single_value = true;  // Why???
+          socket_usages[output_socket.index_in_tree()].is_field = true;
         }
 
         for (const nodes::aal::ReferenceRelation &relation : relations->reference_relations) {
@@ -251,34 +249,18 @@ static void propagate_left_to_right(
           if (!input_socket.is_available()) {
             continue;
           }
-          StructureType &output_structure_type = socket_usages[output_socket.index_in_tree()];
-          const StructureType input_structure_type = socket_usages[input_socket.index_in_tree()];
-          if (input_structure_type == StructureType::Dynamic && ELEM(output_structure_type,
-                                                                     StructureType::Single,
-                                                                     StructureType::Field,
-                                                                     StructureType::Grid))
-          {
-            output_structure_type = StructureType::Dynamic;
-          }
-          else if (input_structure_type == StructureType::Grid &&
-                   ELEM(output_structure_type, StructureType::Single, StructureType::Field))
-          {
-            output_structure_type = StructureType::Grid;
-          }
-          else if (input_structure_type == StructureType::Field &&
-                   output_structure_type == StructureType::Single)
-          {
-            output_structure_type = StructureType::Field;
-          }
+          const int input = input_socket.index_in_tree();
+          const int output = output_socket.index_in_tree();
+          socket_usages[output].is_field = socket_usages[input].is_field;
         }
+
         for (const bNodeSocket *output_socket : node->output_sockets()) {
           if (!output_socket->is_available()) {
             continue;
           }
           if (output_socket->runtime->declaration) {
-            if (output_socket->runtime->declaration->structure_type != StructureType::Dynamic) {
-              socket_structure_types[output_socket->index_in_tree()] =
-                  output_socket->runtime->declaration->structure_type;
+            if (output_socket->runtime->declaration->structure_type == StructureType::Single) {
+              socket_usages[output_socket->index_in_tree()].is_single_value = true;
             }
           }
         }
@@ -290,17 +272,18 @@ static void propagate_left_to_right(
   update_interface_structure_types(tree, socket_usages, derived_interface);
 }
 
-bool update_structure_type_inferencing(const bNodeTree &tree)
+static std::unique_ptr<nodes::StructureTypeInterface> calc_structure_type_interface(
+    const bNodeTree &tree)
 {
   tree.ensure_topology_cache();
   tree.ensure_interface_cache();
   if (tree.has_available_link_cycle()) {
-    return true;
+    return {};
   }
 
-  nodes::StructureTypeInferencingInterface derived_interface;
-  derived_interface.inputs.reinitialize(tree.interface_inputs().size());
-  derived_interface.outputs.reinitialize(tree.interface_outputs().size());
+  std::unique_ptr<nodes::StructureTypeInterface> derived_interface;
+  derived_interface->inputs.reinitialize(tree.interface_inputs().size());
+  derived_interface->outputs.reinitialize(tree.interface_outputs().size());
 
   Array<SocketUsageInfo> socket_usages(tree.all_sockets().size());
 
@@ -309,14 +292,25 @@ bool update_structure_type_inferencing(const bNodeTree &tree)
       node_tree_reference_lifetimes::prepare_relations_by_node(tree, scope);
 
   initialize_usages_from_socket_declarations(tree, socket_usages);
-  propagate_right_to_left(tree, relations_by_node, socket_usages, derived_interface);
-  propagate_left_to_right(tree, relations_by_node, socket_usages, derived_interface);
+  propagate_right_to_left(tree, relations_by_node, socket_usages, *derived_interface);
+  propagate_left_to_right(tree, relations_by_node, socket_usages, *derived_interface);
 
   /* TODO: Handle zones. */
-  /* TODO */
-  bool interface_changed = true;
 
-  return interface_changed;
+  return derived_interface;
+}
+
+bool update_structure_type_interface(bNodeTree &tree)
+{
+  std::unique_ptr<nodes::StructureTypeInterface> new_interface = calc_structure_type_interface(
+      tree);
+  if (tree.runtime->structure_type_interface &&
+      *tree.runtime->structure_type_interface == *new_interface)
+  {
+    return false;
+  }
+  tree.runtime->structure_type_interface = std::move(new_interface);
+  return true;
 }
 
 }  // namespace blender::bke::node_structure_type_inferencing

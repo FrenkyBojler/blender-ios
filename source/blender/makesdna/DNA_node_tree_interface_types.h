@@ -76,6 +76,7 @@ typedef enum NodeSocketInterfaceStructureType {
   NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_GRID = 4,
 } NodeSocketInterfaceStructureType;
 
+// TODO: Move out of DNA.
 #ifdef __cplusplus
 namespace blender::nodes {
 enum class StructureType {
