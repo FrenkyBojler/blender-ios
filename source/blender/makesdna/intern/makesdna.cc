@@ -572,20 +572,32 @@ static int preprocess_include(char *maindata, const int maindata_len)
 
   memcpy(temp, maindata, maindata_len);
 
-  /* remove all c++ comments */
+  /* remove all strings literals and c++ comments */
   /* replace all enters/tabs/etc with spaces */
   char *cp = temp;
   int a = maindata_len;
-  int comment = 0;
+  bool comment = false;
+  bool string_literal = false;
   while (a--) {
-    if (cp[0] == '/' && cp[1] == '/') {
-      comment = 1;
+    if (!comment && cp[0] == '"') {
+      /* Start or end string literal. */
+      string_literal = !string_literal;
+    }
+    else if (string_literal && cp[0] == '\\' && cp[1] == '"') {
+      /* Skip escaped quote in string literal. */
+      a--;
+      cp++;
+    }
+    else if (!string_literal && cp[0] == '/' && cp[1] == '/') {
+      /* Start C++ comment */
+      comment = true;
     }
     else if (*cp == '\n') {
-      comment = 0;
+      comment = false;
+      string_literal = false;
     }
-    if (comment || *cp < 32 || *cp > 128) {
-      *cp = 32;
+    if (string_literal || comment || *cp < ' ' || *cp > 128) {
+      *cp = ' ';
     }
     cp++;
   }
@@ -598,18 +610,18 @@ static int preprocess_include(char *maindata, const int maindata_len)
   cp = temp;
   char *md = maindata;
   int newlen = 0;
-  comment = 0;
+  comment = false;
   a = maindata_len;
   bool skip_until_closing_brace = false;
   while (a--) {
 
     if (cp[0] == '/' && cp[1] == '*') {
-      comment = 1;
-      cp[0] = cp[1] = 32;
+      comment = true;
+      cp[0] = cp[1] = ' ';
     }
     if (cp[0] == '*' && cp[1] == '/') {
-      comment = 0;
-      cp[0] = cp[1] = 32;
+      comment = false;
+      cp[0] = cp[1] = ' ';
     }
 
     /* do not copy when: */
@@ -765,6 +777,36 @@ static int convert_include(const char *filepath)
           while (*md1 != '}') {
             if (md1 > mainend) {
               break;
+            }
+
+            /* Skip default value initializers. */
+            if (*md1 == '=') {
+              int braces_depth = 0;
+              int brackets_depth = 0;
+              while (true) {
+                if (md1 > mainend) {
+                  break;
+                }
+
+                if (*md1 == '{') {
+                  braces_depth++;
+                }
+                else if (*md1 == '}') {
+                  braces_depth--;
+                }
+                else if (*md1 == '(') {
+                  brackets_depth++;
+                }
+                else if (*md1 == ')') {
+                  brackets_depth--;
+                }
+                else if (braces_depth == 0 && brackets_depth == 0 && ELEM(*md1, ';', ',')) {
+                  break;
+                }
+
+                *md1 = 0;
+                md1++;
+              }
             }
 
             if (ELEM(*md1, ',', ' ')) {
