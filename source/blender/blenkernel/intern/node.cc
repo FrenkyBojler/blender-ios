@@ -1743,6 +1743,9 @@ static void node_free_type(void *nodetype_v)
    * or we'd want to update *all* active Mains, which we cannot do anyway currently. */
   update_typeinfo(G_MAIN, nullptr, nullptr, nodetype, nullptr, true);
 
+  /* Defer freeing the node type, because it may still be referenced by nodes in depsgraph
+   * copies. We can't just remove these node types, because the depsgraph may exist complete
+   * separate from original data. */
   defer_free_node_type(nodetype);
 }
 
@@ -1831,6 +1834,9 @@ static void node_free_socket_type(void *socktype_v)
    * or we'd want to update *all* active Mains, which we cannot do anyway currently. */
   update_typeinfo(G_MAIN, nullptr, nullptr, nullptr, socktype, true);
 
+  /* Defer freeing the socket type, because it may still be referenced by nodes in depsgraph
+   * copies. We can't just remove these socket types, because the depsgraph may exist complete
+   * separate from original data. */
   defer_free_socket_type(socktype);
 }
 
