@@ -215,11 +215,9 @@ static std::optional<Bounds<float2>> compute_drawing_bounds(
 
   const Layer &layer = *grease_pencil.layers()[layer_index];
   const float4x4 layer_to_world = layer.to_world_space(object);
-  const bke::crazyspace::GeometryDeformation deformation =
-      bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-          &object_eval, object, layer_index, frame_number);
   const VArray<float> radii = drawing.radii();
   const bke::CurvesGeometry &strokes = drawing.strokes();
+  const Span<float3> positions = strokes.positions();
 
   IndexMaskMemory curve_mask_memory;
   const IndexMask curve_mask = get_visible_strokes(object, drawing, curve_mask_memory);
@@ -232,8 +230,7 @@ static std::optional<Bounds<float2>> compute_drawing_bounds(
     }
 
     for (const int point_i : points) {
-      const float3 pos_world = math::transform_point(layer_to_world,
-                                                     deformation.positions[point_i]);
+      const float3 pos_world = math::transform_point(layer_to_world, positions[point_i]);
       float2 screen_co;
       eV3DProjStatus result = ED_view3d_project_float_global(
           &region, pos_world, screen_co, V3D_PROJ_TEST_NOP);
