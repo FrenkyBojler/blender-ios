@@ -250,7 +250,7 @@ class _defs_annotate:
         return dict(
             idname="builtin.annotate",
             label="Annotate",
-            icon="ops.gpencil.draw",
+            icon="ops.annotate.draw",
             cursor='PAINT_BRUSH',
             keymap="Generic Tool: Annotate",
             draw_settings=draw_settings,
@@ -262,7 +262,7 @@ class _defs_annotate:
         return dict(
             idname="builtin.annotate_line",
             label="Annotate Line",
-            icon="ops.gpencil.draw.line",
+            icon="ops.annotate.draw.line",
             cursor='PAINT_BRUSH',
             keymap="Generic Tool: Annotate Line",
             draw_settings=draw_settings,
@@ -274,7 +274,7 @@ class _defs_annotate:
         return dict(
             idname="builtin.annotate_polygon",
             label="Annotate Polygon",
-            icon="ops.gpencil.draw.poly",
+            icon="ops.annotate.draw.poly",
             cursor='PAINT_BRUSH',
             keymap="Generic Tool: Annotate Polygon",
             draw_settings=draw_settings,
@@ -290,7 +290,7 @@ class _defs_annotate:
         return dict(
             idname="builtin.annotate_eraser",
             label="Annotate Eraser",
-            icon="ops.gpencil.draw.eraser",
+            icon="ops.annotate.draw.eraser",
             cursor='ERASER',
             keymap="Generic Tool: Annotate Eraser",
             draw_settings=draw_settings,
@@ -386,7 +386,7 @@ class _defs_transform:
         return dict(
             idname="builtin.bend",
             label="Bend",
-            icon="ops.gpencil.edit_bend",
+            icon="ops.annotate.edit_bend",
             widget=None,
             keymap="3D View Tool: Bend",
         )
@@ -2181,7 +2181,7 @@ class _defs_grease_pencil_paint:
         return dict(
             idname="builtin.trim",
             label="Trim",
-            icon="ops.gpencil.stroke_trim",
+            icon="ops.annotate.stroke_trim",
             cursor='KNIFE',
             keymap=(),
             draw_settings=draw_settings,
@@ -2219,7 +2219,7 @@ class _defs_grease_pencil_paint:
         return dict(
             idname="builtin.line",
             label="Line",
-            icon="ops.gpencil.primitive_line",
+            icon="ops.annotate.primitive_line",
             cursor='CROSSHAIR',
             widget=None,
             keymap=(),
@@ -2238,7 +2238,7 @@ class _defs_grease_pencil_paint:
         return dict(
             idname="builtin.polyline",
             label="Polyline",
-            icon="ops.gpencil.primitive_polyline",
+            icon="ops.annotate.primitive_polyline",
             cursor='CROSSHAIR',
             widget=None,
             keymap=(),
@@ -2257,7 +2257,7 @@ class _defs_grease_pencil_paint:
         return dict(
             idname="builtin.arc",
             label="Arc",
-            icon="ops.gpencil.primitive_arc",
+            icon="ops.annotate.primitive_arc",
             cursor='CROSSHAIR',
             widget=None,
             keymap=(),
@@ -2276,7 +2276,7 @@ class _defs_grease_pencil_paint:
         return dict(
             idname="builtin.curve",
             label="Curve",
-            icon="ops.gpencil.primitive_curve",
+            icon="ops.annotate.primitive_curve",
             cursor='CROSSHAIR',
             widget=None,
             keymap=(),
@@ -2295,7 +2295,7 @@ class _defs_grease_pencil_paint:
         return dict(
             idname="builtin.box",
             label="Box",
-            icon="ops.gpencil.primitive_box",
+            icon="ops.annotate.primitive_box",
             cursor='CROSSHAIR',
             widget=None,
             keymap=(),
@@ -2314,7 +2314,7 @@ class _defs_grease_pencil_paint:
         return dict(
             idname="builtin.circle",
             label="Circle",
-            icon="ops.gpencil.primitive_circle",
+            icon="ops.annotate.primitive_circle",
             cursor='CROSSHAIR',
             widget=None,
             keymap=(),
@@ -2385,7 +2385,7 @@ class _defs_grease_pencil_edit:
         return dict(
             idname="builtin.shear",
             label="Shear",
-            icon="ops.gpencil.edit_shear",
+            icon="ops.annotate.edit_shear",
             widget="VIEW3D_GGT_xform_shear",
             keymap="3D View Tool: Shear",
             draw_settings=draw_settings,
@@ -2702,7 +2702,7 @@ class _defs_grease_pencil_sculpt:
         return dict(
             idname="builtin_brush.clone",
             label="Clone",
-            icon="ops.gpencil.sculpt_clone",
+            icon="ops.annotate.sculpt_clone",
             options={'USE_BRUSHES'},
             brush_type='CLONE',
         )
@@ -2719,7 +2719,7 @@ class _defs_grease_pencil_weight:
         return dict(
             idname="builtin_brush.blur",
             label="Blur",
-            icon="ops.gpencil.sculpt_blur",
+            icon="ops.annotate.sculpt_blur",
             options={'USE_BRUSHES'},
             brush_type='BLUR',
         )
@@ -2729,7 +2729,7 @@ class _defs_grease_pencil_weight:
         return dict(
             idname="builtin_brush.average",
             label="Average",
-            icon="ops.gpencil.sculpt_average",
+            icon="ops.annotate.sculpt_average",
             options={'USE_BRUSHES'},
             brush_type='AVERAGE',
         )
@@ -2739,7 +2739,7 @@ class _defs_grease_pencil_weight:
         return dict(
             idname="builtin_brush.smear",
             label="Smear",
-            icon="ops.gpencil.sculpt_smear",
+            icon="ops.annotate.sculpt_smear",
             options={'USE_BRUSHES'},
             brush_type='SMEAR',
         )

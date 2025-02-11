@@ -74,28 +74,28 @@ set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
   ops.generic.select_circle
   ops.generic.select_lasso
   ops.generic.select_paint
-  ops.gpencil.draw
-  ops.gpencil.draw.eraser
-  ops.gpencil.draw.line
-  ops.gpencil.draw.poly
-  ops.gpencil.edit_bend
-  ops.gpencil.edit_mirror
-  ops.gpencil.edit_shear
-  ops.gpencil.edit_to_sphere
-  ops.gpencil.extrude_move
-  ops.gpencil.primitive_arc
-  ops.gpencil.primitive_box
-  ops.gpencil.primitive_circle
-  ops.gpencil.primitive_curve
-  ops.gpencil.primitive_line
-  ops.gpencil.primitive_polyline
-  ops.gpencil.radius
-  ops.gpencil.sculpt_average
-  ops.gpencil.sculpt_blur
-  ops.gpencil.sculpt_clone
-  ops.gpencil.sculpt_smear
-  ops.gpencil.stroke_trim
-  ops.gpencil.transform_fill
+  ops.annotate.draw
+  ops.annotate.draw.eraser
+  ops.annotate.draw.line
+  ops.annotate.draw.poly
+  ops.annotate.edit_bend
+  ops.annotate.edit_mirror
+  ops.annotate.edit_shear
+  ops.annotate.edit_to_sphere
+  ops.annotate.extrude_move
+  ops.annotate.primitive_arc
+  ops.annotate.primitive_box
+  ops.annotate.primitive_circle
+  ops.annotate.primitive_curve
+  ops.annotate.primitive_line
+  ops.annotate.primitive_polyline
+  ops.annotate.radius
+  ops.annotate.sculpt_average
+  ops.annotate.sculpt_blur
+  ops.annotate.sculpt_clone
+  ops.annotate.sculpt_smear
+  ops.annotate.stroke_trim
+  ops.annotate.transform_fill
   ops.mesh.bevel
   ops.mesh.bisect
   ops.mesh.dupli_extrude_cursor

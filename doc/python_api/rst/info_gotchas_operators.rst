@@ -45,8 +45,8 @@ you should be able to find the poll function with no knowledge of C.
    feel free to add calls to :class:`bpy.types.Operator.poll_message_set` (``CTX_wm_operator_poll_msg_set`` in C)
    where it's not obvious why poll fails, e.g:
 
-      >>> bpy.ops.gpencil.draw()
-      RuntimeError: Operator bpy.ops.gpencil.draw.poll() Failed to find Grease Pencil data to draw into
+      >>> bpy.ops.annotate.draw()
+      RuntimeError: Operator bpy.ops.annotate.draw.poll() Failed to find Grease Pencil data to draw into
 
 
 The operator still doesn't work!
