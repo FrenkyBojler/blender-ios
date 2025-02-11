@@ -117,23 +117,22 @@ class GeometryToObjectsBuilder {
     ComponentObjects objects;
     if (const Mesh *mesh = geometry.get_mesh()) {
       if (mesh->verts_num > 0) {
-        objects.mesh_ob = this->get_or_create_object_for_mesh(src_ob_eval, *mesh, name);
+        objects.mesh_ob = this->ensure_object_for_mesh(src_ob_eval, *mesh, name);
       }
     }
     if (const Curves *curves = geometry.get_curves()) {
       if (curves->geometry.curve_num > 0) {
-        objects.curves_ob = this->get_or_create_object_for_curves(src_ob_eval, *curves, name);
+        objects.curves_ob = this->ensure_object_for_curves(src_ob_eval, *curves, name);
       }
     }
     if (const PointCloud *pointcloud = geometry.get_pointcloud()) {
       if (pointcloud->totpoint > 0) {
-        objects.pointcloud_ob = this->get_or_create_object_for_pointcloud(
-            src_ob_eval, *pointcloud, name);
+        objects.pointcloud_ob = this->ensure_object_for_pointcloud(src_ob_eval, *pointcloud, name);
       }
     }
     if (const GreasePencil *greasepencil = geometry.get_grease_pencil()) {
       if (greasepencil->layers().size() > 0) {
-        objects.greasepencil_ob = this->get_or_create_object_for_grease_pencil(
+        objects.greasepencil_ob = this->ensure_object_for_grease_pencil(
             src_ob_eval, *greasepencil, name);
       }
     }
@@ -159,9 +158,9 @@ class GeometryToObjectsBuilder {
     return collection;
   }
 
-  Object *get_or_create_object_for_mesh(const Object &src_ob_eval,
-                                        const Mesh &src_mesh,
-                                        const StringRefNull name)
+  Object *ensure_object_for_mesh(const Object &src_ob_eval,
+                                 const Mesh &src_mesh,
+                                 const StringRefNull name)
   {
     return new_object_by_generated_geometry_.lookup_or_add_cb(&src_mesh.id, [&]() {
       Mesh *new_mesh = reinterpret_cast<Mesh *>(BKE_id_new(&bmain_, ID_ME, name.c_str()));
@@ -178,9 +177,9 @@ class GeometryToObjectsBuilder {
     });
   }
 
-  Object *get_or_create_object_for_curves(const Object &src_ob_eval,
-                                          const Curves &src_curves,
-                                          const StringRefNull name)
+  Object *ensure_object_for_curves(const Object &src_ob_eval,
+                                   const Curves &src_curves,
+                                   const StringRefNull name)
   {
     return new_object_by_generated_geometry_.lookup_or_add_cb(&src_curves.id, [&]() {
       Curves *new_curves = reinterpret_cast<Curves *>(BKE_id_new(&bmain_, ID_CV, name.c_str()));
@@ -195,9 +194,9 @@ class GeometryToObjectsBuilder {
     });
   }
 
-  Object *get_or_create_object_for_pointcloud(const Object &src_ob_eval,
-                                              const PointCloud &src_pointcloud,
-                                              const StringRefNull name)
+  Object *ensure_object_for_pointcloud(const Object &src_ob_eval,
+                                       const PointCloud &src_pointcloud,
+                                       const StringRefNull name)
   {
     return new_object_by_generated_geometry_.lookup_or_add_cb(&src_pointcloud.id, [&]() {
       PointCloud *new_pointcloud = reinterpret_cast<PointCloud *>(
@@ -214,9 +213,9 @@ class GeometryToObjectsBuilder {
     });
   }
 
-  Object *get_or_create_object_for_grease_pencil(const Object &src_ob_eval,
-                                                 const GreasePencil &src_grease_pencil,
-                                                 const StringRefNull name)
+  Object *ensure_object_for_grease_pencil(const Object &src_ob_eval,
+                                          const GreasePencil &src_grease_pencil,
+                                          const StringRefNull name)
   {
     return new_object_by_generated_geometry_.lookup_or_add_cb(&src_grease_pencil.id, [&]() {
       GreasePencil *new_grease_pencil = reinterpret_cast<GreasePencil *>(
