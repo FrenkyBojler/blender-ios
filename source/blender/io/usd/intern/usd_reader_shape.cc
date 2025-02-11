@@ -310,11 +310,9 @@ bool USDShapeReader::is_time_varying()
 
   if (prim_.IsA<pxr::UsdGeomPlane>()) {
     pxr::UsdGeomPlane geom(prim_);
-    return (geom.GetDoubleSidedAttr().ValueMightBeTimeVarying() ||
-            geom.GetWidthAttr().ValueMightBeTimeVarying() ||
+    return (geom.GetWidthAttr().ValueMightBeTimeVarying() ||
             geom.GetLengthAttr().ValueMightBeTimeVarying() ||
-            geom.GetAxisAttr().ValueMightBeTimeVarying() ||
-            geom.GetExtentAttr().ValueMightBeTimeVarying());
+            geom.GetAxisAttr().ValueMightBeTimeVarying());
   }
 
   BKE_reportf(reports(),
