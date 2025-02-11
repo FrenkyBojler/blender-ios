@@ -488,12 +488,14 @@ struct PaintOperationExecutor {
       drawing_->fill_colors_for_write()[active_curve] = fill_color_;
       curve_attributes_to_skip.add("fill_color");
     }
+    /* TODO: Check if this call failed! */
     bke::SpanAttributeWriter<float> delta_times = attributes.lookup_or_add_for_write_span<float>(
         "delta_time", bke::AttrDomain::Point);
     delta_times.span[last_active_point] = 0.0f;
     point_attributes_to_skip.add("delta_time");
     delta_times.finish();
 
+    /* TODO: Check if this call failed! */
     bke::SpanAttributeWriter<int> materials = attributes.lookup_or_add_for_write_span<int>(
         "material_index", bke::AttrDomain::Curve);
     bke::SpanAttributeWriter<bool> cyclic = attributes.lookup_or_add_for_write_span<bool>(
@@ -513,6 +515,7 @@ struct PaintOperationExecutor {
     u_scale.finish();
 
     if (settings_->uv_random > 0.0f || attributes.contains("rotation")) {
+      /* TODO: Check if this call failed! */
       bke::SpanAttributeWriter<float> rotations = attributes.lookup_or_add_for_write_span<float>(
           "rotation", bke::AttrDomain::Point);
       rotations.span[last_active_point] = start_rotation;
@@ -522,6 +525,7 @@ struct PaintOperationExecutor {
 
     /* Only set the attribute if the type is not the default or if it already exists. */
     if (settings_->caps_type != GP_STROKE_CAP_TYPE_ROUND || attributes.contains("start_cap")) {
+      /* TODO: Check if this call failed! */
       bke::SpanAttributeWriter<int8_t> start_caps =
           attributes.lookup_or_add_for_write_span<int8_t>("start_cap", bke::AttrDomain::Curve);
       start_caps.span[active_curve] = settings_->caps_type;
@@ -530,6 +534,7 @@ struct PaintOperationExecutor {
     }
 
     if (settings_->caps_type != GP_STROKE_CAP_TYPE_ROUND || attributes.contains("end_cap")) {
+      /* TODO: Check if this call failed! */
       bke::SpanAttributeWriter<int8_t> end_caps = attributes.lookup_or_add_for_write_span<int8_t>(
           "end_cap", bke::AttrDomain::Curve);
       end_caps.span[active_curve] = settings_->caps_type;
@@ -538,6 +543,7 @@ struct PaintOperationExecutor {
     }
 
     if (use_fill && (start_opacity < 1.0f || attributes.contains("fill_opacity"))) {
+      /* TODO: Check if this call failed! */
       bke::SpanAttributeWriter<float> fill_opacities =
           attributes.lookup_or_add_for_write_span<float>(
               "fill_opacity",
@@ -548,6 +554,7 @@ struct PaintOperationExecutor {
       fill_opacities.finish();
     }
 
+    /* TODO: Check if this call failed! */
     bke::SpanAttributeWriter<float> init_times = attributes.lookup_or_add_for_write_span<float>(
         "init_time", bke::AttrDomain::Curve);
     /* Truncating time in ms to uint32 then we don't lose precision in lower bits. */
@@ -873,6 +880,7 @@ struct PaintOperationExecutor {
 
     /* Randomize rotations. */
     if (use_settings_random_ && (settings_->uv_random > 0.0f || attributes.contains("rotation"))) {
+      /* TODO: Check if this call failed! */
       bke::SpanAttributeWriter<float> rotations = attributes.lookup_or_add_for_write_span<float>(
           "rotation", bke::AttrDomain::Point);
       const MutableSpan<float> new_rotations = rotations.span.slice(new_points);
@@ -902,6 +910,7 @@ struct PaintOperationExecutor {
       point_attributes_to_skip.add("vertex_color");
     }
 
+    /* TODO: Check if this call failed! */
     bke::SpanAttributeWriter<float> delta_times = attributes.lookup_or_add_for_write_span<float>(
         "delta_time", bke::AttrDomain::Point);
     const double new_delta_time = BLI_time_now_seconds() - self.start_time_;
@@ -1684,6 +1693,7 @@ void PaintOperation::on_stroke_done(const bContext &C)
   /* Write the screen space positions of the new stroke as a temporary attribute, so all the
    * changes in topology with the operations below get propagated correctly. */
   bke::MutableAttributeAccessor attributes = drawing.strokes_for_write().attributes_for_write();
+  /* TODO: Check if this call failed! */
   bke::SpanAttributeWriter<float2> screen_space_positions =
       attributes.lookup_or_add_for_write_only_span<float2>(".draw_tool_screen_space_positions",
                                                            bke::AttrDomain::Point);

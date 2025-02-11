@@ -338,6 +338,7 @@ void merge_layers(const GreasePencil &src_grease_pencil,
     if (!src_attribute) {
       return;
     }
+    /* TODO: Check if this call failed! */
     bke::GSpanAttributeWriter dst_attribute = dst_attributes.lookup_or_add_for_write_only_span(
         iter.name, bke::AttrDomain::Layer, iter.data_type);
 

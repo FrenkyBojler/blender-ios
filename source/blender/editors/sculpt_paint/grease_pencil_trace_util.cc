@@ -199,6 +199,7 @@ bke::CurvesGeometry trace_to_curves(const Trace &trace,
   MutableSpan<float3> handle_positions_left = curves.handle_positions_left_for_write();
   MutableSpan<float3> handle_positions_right = curves.handle_positions_right_for_write();
   MutableSpan<float3> positions = curves.positions_for_write();
+  /* TODO: Check if this call failed! */
   bke::SpanAttributeWriter<bool> holes = attributes.lookup_or_add_for_write_span<bool>(
       hole_attribute_id, bke::AttrDomain::Curve);
 

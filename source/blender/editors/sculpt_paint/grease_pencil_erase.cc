@@ -810,6 +810,7 @@ struct EraseOperationExecutor {
     /* Set opacity. */
     bke::MutableAttributeAccessor dst_attributes = dst.attributes_for_write();
 
+    /* TODO: Check if this call failed! */
     bke::SpanAttributeWriter<float> dst_opacity =
         dst_attributes.lookup_or_add_for_write_span<float>(opacity_attr, bke::AttrDomain::Point);
     threading::parallel_for(dst.points_range(), 4096, [&](const IndexRange dst_points_range) {
@@ -820,6 +821,7 @@ struct EraseOperationExecutor {
     });
     dst_opacity.finish();
 
+    /* TODO: Check if this call failed! */
     SpanAttributeWriter<bool> dst_inserted = dst_attributes.lookup_or_add_for_write_span<bool>(
         "_eraser_inserted", bke::AttrDomain::Point);
     const OffsetIndices<int> &dst_points_by_curve = dst.points_by_curve();

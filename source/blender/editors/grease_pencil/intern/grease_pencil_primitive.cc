@@ -526,6 +526,7 @@ static void grease_pencil_primitive_init_curves(PrimitiveToolOperation &ptd)
   Set<std::string> curve_attributes_to_skip;
 
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+  /* TODO: Check if this call failed! */
   bke::SpanAttributeWriter<int> materials = attributes.lookup_or_add_for_write_span<int>(
       "material_index", bke::AttrDomain::Curve);
   bke::SpanAttributeWriter<bool> cyclic = attributes.lookup_or_add_for_write_span<bool>(
@@ -535,6 +536,7 @@ static void grease_pencil_primitive_init_curves(PrimitiveToolOperation &ptd)
 
   /* Only set the attribute if the type is not the default or if it already exists. */
   if (ptd.settings->caps_type != GP_STROKE_CAP_TYPE_ROUND || attributes.contains("start_cap")) {
+    /* TODO: Check if this call failed! */
     bke::SpanAttributeWriter<int8_t> start_caps = attributes.lookup_or_add_for_write_span<int8_t>(
         "start_cap", bke::AttrDomain::Curve);
     start_caps.span[target_curve_index] = ptd.settings->caps_type;
@@ -543,6 +545,7 @@ static void grease_pencil_primitive_init_curves(PrimitiveToolOperation &ptd)
   }
 
   if (ptd.settings->caps_type != GP_STROKE_CAP_TYPE_ROUND || attributes.contains("end_cap")) {
+    /* TODO: Check if this call failed! */
     bke::SpanAttributeWriter<int8_t> end_caps = attributes.lookup_or_add_for_write_span<int8_t>(
         "end_cap", bke::AttrDomain::Curve);
     end_caps.span[target_curve_index] = ptd.settings->caps_type;
@@ -556,6 +559,7 @@ static void grease_pencil_primitive_init_curves(PrimitiveToolOperation &ptd)
   softness.span[target_curve_index] = ptd.softness;
 
   if (ptd.use_fill && (ptd.fill_opacity < 1.0f || attributes.contains("fill_opacity"))) {
+    /* TODO: Check if this call failed! */
     bke::SpanAttributeWriter<float> fill_opacities =
         attributes.lookup_or_add_for_write_span<float>(
             "fill_opacity",

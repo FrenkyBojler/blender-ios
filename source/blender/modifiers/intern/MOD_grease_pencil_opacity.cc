@@ -79,6 +79,7 @@ static void modify_stroke_color(const GreasePencilOpacityModifierData &omd,
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
 
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+  /* TODO: Check if this call failed! */
   bke::SpanAttributeWriter<float> opacities = attributes.lookup_or_add_for_write_span<float>(
       "opacity", bke::AttrDomain::Point);
   const VArray<float> vgroup_weights = modifier::greasepencil::get_influence_vertex_weights(

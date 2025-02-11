@@ -347,6 +347,7 @@ void clear_selection_attribute(Span<PointsRange> ranges_selected,
   for (const PointsRange &range : ranges_selected) {
     bke::CurvesGeometry &curves = *range.owning_curves;
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+    /* TODO: Check if this call failed! */
     bke::SpanAttributeWriter<bool> selection = attributes.lookup_or_add_for_write_span<bool>(
         ".selection", selection_domain);
 

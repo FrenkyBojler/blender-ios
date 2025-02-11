@@ -1421,6 +1421,7 @@ Array<PointTransferData> compute_topology_change(
 
   /* Display intersections with flat caps. */
   if (!keep_caps) {
+    /* TODO: Check if this call failed! */
     bke::SpanAttributeWriter<int8_t> dst_start_caps =
         dst_attributes.lookup_or_add_for_write_span<int8_t>("start_cap", bke::AttrDomain::Curve);
     bke::SpanAttributeWriter<int8_t> dst_end_caps =

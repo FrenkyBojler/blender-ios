@@ -154,6 +154,7 @@ static void generate_curves(GreasePencilMultiModifierData &mmd,
   const Span<float3> normals = drawing.curve_plane_normals();
 
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+  /* TODO: Check if this call failed! */
   bke::SpanAttributeWriter<float> opacities = attributes.lookup_or_add_for_write_span<float>(
       "opacity", bke::AttrDomain::Point);
   bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_span<float>(

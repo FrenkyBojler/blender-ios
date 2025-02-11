@@ -1415,6 +1415,7 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
     if (fill_curves.attributes().contains("fill_opacity") &&
         !dst_curves.attributes().contains("fill_opacity"))
     {
+      /* TODO: Check if this call failed! */
       bke::SpanAttributeWriter<float> fill_opacities =
           dst_curves.attributes_for_write().lookup_or_add_for_write_span<float>(
               "fill_opacity",

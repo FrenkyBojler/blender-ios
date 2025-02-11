@@ -535,6 +535,7 @@ static void create_envelope_strokes(const EnvelopeInfo &info,
 
   bke::CurvesGeometry dst_curves(dst_point_num, dst_curve_num);
   bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
+  /* TODO: Check if this call failed! */
   bke::SpanAttributeWriter<int> dst_material_indices =
       dst_attributes.lookup_or_add_for_write_span<int>("material_index", bke::AttrDomain::Curve);
   bke::SpanAttributeWriter<bool> dst_cyclic = dst_attributes.lookup_or_add_for_write_span<bool>(
@@ -592,6 +593,7 @@ static void create_envelope_strokes(const EnvelopeInfo &info,
 
   /* Apply thickness and strength factors. */
   {
+    /* TODO: Check if this call failed! */
     bke::SpanAttributeWriter<float> radius_writer =
         dst_attributes.lookup_or_add_for_write_span<float>(
             "radius",

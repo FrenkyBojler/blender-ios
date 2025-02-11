@@ -846,6 +846,7 @@ static int grease_pencil_stroke_material_set_exec(bContext *C, wmOperator *op)
     }
 
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    /* TODO: Check if this call failed! */
     bke::SpanAttributeWriter<int> materials =
         curves.attributes_for_write().lookup_or_add_for_write_span<int>("material_index",
                                                                         bke::AttrDomain::Curve);
@@ -1381,6 +1382,7 @@ static int grease_pencil_caps_set_exec(bContext *C, wmOperator *op)
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
     if (ELEM(mode, CapsMode::ROUND, CapsMode::FLAT)) {
+      /* TODO: Check if this call failed! */
       bke::SpanAttributeWriter<int8_t> start_caps =
           attributes.lookup_or_add_for_write_span<int8_t>("start_cap", bke::AttrDomain::Curve);
       bke::SpanAttributeWriter<int8_t> end_caps = attributes.lookup_or_add_for_write_span<int8_t>(
@@ -1397,6 +1399,7 @@ static int grease_pencil_caps_set_exec(bContext *C, wmOperator *op)
     else {
       switch (mode) {
         case CapsMode::START: {
+          /* TODO: Check if this call failed! */
           bke::SpanAttributeWriter<int8_t> caps = attributes.lookup_or_add_for_write_span<int8_t>(
               "start_cap", bke::AttrDomain::Curve);
           toggle_caps(caps.span, strokes);
@@ -1404,6 +1407,7 @@ static int grease_pencil_caps_set_exec(bContext *C, wmOperator *op)
           break;
         }
         case CapsMode::END: {
+          /* TODO: Check if this call failed! */
           bke::SpanAttributeWriter<int8_t> caps = attributes.lookup_or_add_for_write_span<int8_t>(
               "end_cap", bke::AttrDomain::Curve);
           toggle_caps(caps.span, strokes);
@@ -4290,6 +4294,7 @@ static void remap_material_indices(bke::greasepencil::Drawing &drawing,
   bke::CurvesGeometry &curves = drawing.strokes_for_write();
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   /* Validate material indices and add missing materials. */
+  /* TODO: Check if this call failed! */
   bke::SpanAttributeWriter<int> material_writer = attributes.lookup_or_add_for_write_span<int>(
       "material_index", bke::AttrDomain::Curve);
   threading::parallel_for(curves.curves_range(), 1024, [&](const IndexRange range) {

@@ -127,6 +127,7 @@ void RandomizeOperation::on_stroke_extended(const bContext &C, const InputSample
           changed = true;
         }
         if (sculpt_mode_flag & GP_SCULPT_FLAGMODE_APPLY_UV) {
+          /* TODO: Check if this call failed! */
           bke::SpanAttributeWriter<float> rotations =
               attributes.lookup_or_add_for_write_span<float>("rotation", bke::AttrDomain::Point);
           point_mask.foreach_index(GrainSize(4096), [&](const int64_t point_i) {

@@ -227,6 +227,7 @@ static int bake_grease_pencil_animation_exec(bContext *C, wmOperator *op)
         const VArray<int> source_material_indices = *source_attributes.lookup_or_default<int>(
             "material_index", bke::AttrDomain::Curve, 0);
         bke::CurvesGeometry &target_strokes = target_drawing.strokes_for_write();
+        /* TODO: Check if this call failed! */
         bke::SpanAttributeWriter<int> target_material_indices =
             target_strokes.attributes_for_write().lookup_or_add_for_write_span<int>(
                 "material_index", bke::AttrDomain::Curve);

@@ -177,6 +177,7 @@ static void shape_attributes_to_curves(bke::CurvesGeometry &curves,
   curves.update_curve_types();
 
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+  /* TODO: Check if this call failed! */
   bke::SpanAttributeWriter<int> materials = attributes.lookup_or_add_for_write_span<int>(
       "material_index", bke::AttrDomain::Curve);
   bke::SpanAttributeWriter fill_colors = attributes.lookup_or_add_for_write_span<ColorGeometry4f>(
@@ -190,6 +191,7 @@ static void shape_attributes_to_curves(bke::CurvesGeometry &curves,
   MutableSpan<float3> handle_positions_right = curves.handle_positions_right_for_write();
   MutableSpan<int8_t> handle_types_left = curves.handle_types_left_for_write();
   MutableSpan<int8_t> handle_types_right = curves.handle_types_right_for_write();
+  /* TODO: Check if this call failed! */
   bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_span<float>(
       "radius", bke::AttrDomain::Point);
   bke::SpanAttributeWriter<ColorGeometry4f> vertex_colors =

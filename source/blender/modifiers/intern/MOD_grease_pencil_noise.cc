@@ -211,6 +211,7 @@ static void deform_drawing(const GreasePencilNoiseModifierData &mmd,
   }
 
   if (mmd.factor_uvs > 0.0f) {
+    /* TODO: Check if this call failed! */
     bke::SpanAttributeWriter<float> rotations = attributes.lookup_or_add_for_write_span<float>(
         "rotation", bke::AttrDomain::Point);
 

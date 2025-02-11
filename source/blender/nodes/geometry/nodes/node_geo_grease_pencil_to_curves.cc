@@ -115,6 +115,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   {
     /* Manually propagate "opacity" data, because it's not a layer attribute on grease pencil
      * yet. */
+    /* TODO: Check if this call failed! */
     SpanAttributeWriter<float> opacity_attribute =
         instances_attributes.lookup_or_add_for_write_only_span<float>("opacity",
                                                                       AttrDomain::Instance);

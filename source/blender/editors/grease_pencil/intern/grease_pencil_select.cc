@@ -266,6 +266,7 @@ bool selection_update(const ViewContext *vc,
 
         /* Modes that un-set all elements not in the mask. */
         if (ELEM(sel_op, SEL_OP_SET, SEL_OP_AND)) {
+          /* TODO: Check if this call failed! */
           bke::SpanAttributeWriter<bool> selection =
               curves.attributes_for_write().lookup_or_add_for_write_span<bool>(attribute_name,
                                                                                selection_domain);
@@ -642,6 +643,7 @@ static void select_similar_by_value(Scene *scene,
     bke::MutableAttributeAccessor attributes =
         info.drawing.strokes_for_write().attributes_for_write();
     const int domain_size = attributes.domain_size(domain);
+    /* TODO: Check if this call failed! */
     bke::SpanAttributeWriter<bool> selection_writer =
         attributes.lookup_or_add_for_write_span<bool>(
             ".selection",

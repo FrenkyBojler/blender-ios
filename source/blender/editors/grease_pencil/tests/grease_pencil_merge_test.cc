@@ -239,6 +239,7 @@ TEST(grease_pencil_merge, merge_layer_attributes)
   grease_pencil.add_layer("Layer3");
 
   Array<float> test_float_values({4.2f, 1.0f, -12.0f});
+  /* TODO: Check if this call failed! */
   SpanAttributeWriter<float> test_attribute =
       grease_pencil.attributes_for_write().lookup_or_add_for_write_only_span<float>(
           "test", AttrDomain::Layer);
