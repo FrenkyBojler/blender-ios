@@ -41,6 +41,10 @@ class GREASE_PENCIL_OT_relative_layer_mask_add(Operator):
             self.report({'ERROR'}, "No node found")
             return {'CANCELLED'}
 
+        if(masking_layer.name in active_layer.mask_layers):
+            self.report({'ERROR'}, "Layer already added")
+            return {'CANCELLED'}
+
         bpy.ops.grease_pencil.layer_mask_add(name=masking_layer.name)
         active_layer.use_masks = True
         return {'FINISHED'}
