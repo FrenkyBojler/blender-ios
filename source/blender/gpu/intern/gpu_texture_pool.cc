@@ -78,7 +78,7 @@ void TexturePool::give_texture_ownership(GPUTexture *tex)
   acquired.append(tex);
 }
 
-void TexturePool::reset()
+void TexturePool::reset(bool force_free)
 {
   BLI_assert_msg(acquired.is_empty(),
                  "Missing texture release. Either TextureFromPool.release() or "
@@ -90,7 +90,7 @@ void TexturePool::reset()
   /* Reverse iteration to make sure we only reorder with known good handles. */
   for (int i = pool.size() - 1; i >= 0; i--) {
     TextureHandle &tex = pool[i];
-    if (tex.unused_cycles >= max_unused_cycles) {
+    if (tex.unused_cycles >= max_unused_cycles || force_free) {
       GPU_texture_free(tex.texture);
       pool.remove_and_reorder(i);
     }

@@ -51,8 +51,9 @@ class TexturePool {
   /* Transfer back ownership to the pool. The texture will become part of the pool. */
   void give_texture_ownership(GPUTexture *tex);
 
-  /* Ensure no texture is still acquired and release unused textures. */
-  void reset();
+  /* Ensure no texture is still acquired and release unused textures.
+   * If `force_free` is true, free all the texture memory inside the pool. */
+  void reset(bool force_free = false);
 };
 
 }  // namespace blender::gpu
