@@ -167,8 +167,7 @@ class GeometryToObjectsBuilder {
       Object *new_ob = BKE_object_add_only_object(&bmain_, OB_MESH, name.c_str());
       new_ob->data = new_mesh;
 
-      Mesh *mesh_to_move_from = BKE_mesh_copy_for_eval(src_mesh);
-      BKE_mesh_nomain_to_mesh(mesh_to_move_from, new_mesh, new_ob);
+      BKE_mesh_nomain_to_mesh(BKE_mesh_copy_for_eval(src_mesh), new_mesh, new_ob);
       new_mesh->attributes_for_write().remove_anonymous();
       this->copy_materials_to_new_geometry_object(src_ob_eval, src_mesh.id, *new_ob, new_mesh->id);
       bke::mesh_remove_invalid_attribute_strings(*new_mesh);
@@ -204,8 +203,8 @@ class GeometryToObjectsBuilder {
       Object *new_ob = BKE_object_add_only_object(&bmain_, OB_POINTCLOUD, name.c_str());
       new_ob->data = new_pointcloud;
 
-      PointCloud *pointcloud_to_move_from = BKE_pointcloud_copy_for_eval(&src_pointcloud);
-      BKE_pointcloud_nomain_to_pointcloud(pointcloud_to_move_from, new_pointcloud);
+      BKE_pointcloud_nomain_to_pointcloud(BKE_pointcloud_copy_for_eval(&src_pointcloud),
+                                          new_pointcloud);
       new_pointcloud->attributes_for_write().remove_anonymous();
       this->copy_materials_to_new_geometry_object(
           src_ob_eval, src_pointcloud.id, *new_ob, new_pointcloud->id);
