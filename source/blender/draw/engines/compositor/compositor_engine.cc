@@ -241,6 +241,10 @@ class Engine {
   void draw()
   {
     update_compositing_region_size();
+    /* We temporally disable caching of node tree compilation by always resting the evaluator for
+     * now. See pull request #134394 for more information. TODO: This should be cleaned up in the
+     * future. */
+    evaluator_.reset();
     evaluator_.evaluate();
   }
 
@@ -274,10 +278,6 @@ using namespace blender::draw::compositor_engine;
 
 struct COMPOSITOR_Data {
   DrawEngineType *engine_type;
-  DRWViewportEmptyList *fbl;
-  DRWViewportEmptyList *txl;
-  DRWViewportEmptyList *psl;
-  DRWViewportEmptyList *stl;
   Engine *instance_data;
   char info[GPU_INFO_SIZE];
 };
@@ -342,13 +342,10 @@ static void compositor_engine_update(void *data)
 
 extern "C" {
 
-static const DrawEngineDataSize compositor_data_size = DRW_VIEWPORT_DATA_SIZE(COMPOSITOR_Data);
-
 DrawEngineType draw_engine_compositor_type = {
     /*next*/ nullptr,
     /*prev*/ nullptr,
     /*idname*/ N_("Compositor"),
-    /*vedata_size*/ &compositor_data_size,
     /*engine_init*/ &compositor_engine_init,
     /*engine_free*/ nullptr,
     /*instance_free*/ &compositor_engine_free,
