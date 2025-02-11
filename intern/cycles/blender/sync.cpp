@@ -851,28 +851,9 @@ SceneParams BlenderSync::get_scene_params(BL::Scene &b_scene,
     params.shadingsystem = SHADINGSYSTEM_OSL;
   }
 
-#if defined(__APPLE__)
-  bool is_macos_152 = false;
-  bool is_macos_154 = false;
-  if (__builtin_available(macOS 15.2, *)) {
-    is_macos_152 = true;
-  }
-  if (__builtin_available(macOS 15.4, *)) {
-    is_macos_154 = true;
-  }
-#endif
-
   if (background || (use_developer_ui && get_enum(cscene, "debug_bvh_type"))) {
     params.bvh_type = BVH_TYPE_STATIC;
   }
-#if defined(__APPLE__)
-  else if (is_macos_152 && !is_macos_154) {
-    /* macOS 15.2 and 15.3 has a bug in the dynamic BVH which leads to missing geometry during
-     * render. The issue is fixed in the macOS 15.4, until then force static BVH even for the
-     * viewport (#132782). */
-    params.bvh_type = BVH_TYPE_STATIC;
-  }
-#endif
   else {
     params.bvh_type = BVH_TYPE_DYNAMIC;
   }
