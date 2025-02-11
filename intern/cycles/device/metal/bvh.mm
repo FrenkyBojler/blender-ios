@@ -959,10 +959,6 @@ bool BVHMetal::build_BLAS(Progress &progress,
 {
   assert(objects.size() == 1 && geometry.size() == 1);
 
-  if (!support_refit_blas()) {
-    refit = false;
-  }
-
   /* Build bottom level acceleration structures (BLAS) */
   Geometry *const geom = geometry[0];
   switch (geom->geometry_type) {
@@ -1065,7 +1061,7 @@ bool BVHMetal::build_TLAS(Progress &progress,
     BVH_status("Building TLAS      | %7d instances", (int)num_instances);
     /*------------------------------------------------*/
 
-    const bool use_fast_trace_bvh = (params.bvh_type == BVH_TYPE_STATIC);
+    const bool use_fast_trace_bvh = (params.bvh_type == BVH_TYPE_STATIC) || !support_refit_blas();
 
     NSMutableArray *all_blas = [NSMutableArray array];
     unordered_map<const BVHMetal *, int> instance_mapping;
@@ -1342,6 +1338,10 @@ bool BVHMetal::build(Progress &progress,
     if (!refit) {
       set_accel_struct(nil);
     }
+  }
+
+  if (!support_refit_blas()) {
+    refit = false;
   }
 
   @autoreleasepool {
