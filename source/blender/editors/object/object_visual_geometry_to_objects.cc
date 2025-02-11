@@ -401,7 +401,7 @@ static int visual_geometry_to_objects_exec(bContext *C, wmOperator * /*op*/)
       bmain, scene, *src_ob_orig);
 
   float4x4 src_ob_local_transform;
-  BKE_object_to_mat4(src_ob_orig, src_ob_local_transform.ptr());
+  BKE_object_to_mat4(src_ob_eval, src_ob_local_transform.ptr());
 
   for (Object *object : top_level_objects) {
     /* Link the new objects into some collections. */
