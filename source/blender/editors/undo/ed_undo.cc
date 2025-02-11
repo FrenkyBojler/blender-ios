@@ -46,6 +46,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
+#include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
 
@@ -419,7 +420,32 @@ bool ED_undo_is_memfile_compatible(const bContext *C)
   return true;
 }
 
-bool ED_undo_is_legacy_compatible_for_property(bContext *C, ID *id)
+/**
+ * Determine whether or not a change from the editor or from a general-purpose undo system
+ * should avoid making an undo step.
+ *
+ * Currently this includes all brush properties and tool settings.
+ */
+static bool ed_undo_skip_property_in_paint_mode(const ID *id, const PropertyRNA *prop)
+{
+  if (id == nullptr) {
+    return true;
+  }
+  /* Don't create undo steps for brush and tool settings. */
+  switch (GS(id->name)) {
+    case ID_BR:
+      return true;
+    case ID_SCE:
+      if (prop == nullptr) {
+        return true;
+      }
+      return BLI_findindex(RNA_struct_type_properties(&RNA_ToolSettings), prop) > 0;
+    default:
+      return false;
+  }
+}
+
+bool ED_undo_is_legacy_compatible_for_property(bContext *C, ID *id, const PropertyRNA *prop)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -428,10 +454,21 @@ bool ED_undo_is_legacy_compatible_for_property(bContext *C, ID *id)
     Object *obact = BKE_view_layer_active_object_get(view_layer);
     if (obact != nullptr) {
       if (obact->mode & OB_MODE_ALL_PAINT) {
-        /* Don't store property changes when painting
-         * (only do undo pushes on brush strokes which each paint operator handles on its own). */
-        CLOG_INFO(&LOG, 1, "skipping undo for paint-mode");
-        return false;
+        /* Weight Paint does not use the same undo system that Sculpt and Vertex Paint
+         * use and are not subject to the same constraints that may require memfile undo
+         * steps from occurring. */
+        if (obact->mode & OB_MODE_WEIGHT_PAINT) {
+          if (ed_undo_skip_property_in_paint_mode(id, prop)) {
+            return false;
+          }
+        }
+        else {
+          /* Don't store property changes when painting
+           * (only do undo pushes on brush strokes which each paint operator handles on its own).
+           */
+          CLOG_INFO(&LOG, 1, "skipping undo for paint-mode");
+          return false;
+        }
       }
       if (obact->mode & OB_MODE_EDIT) {
         if ((id == nullptr) || (obact->data == nullptr) ||
