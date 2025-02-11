@@ -1669,7 +1669,6 @@ static void defer_free_node_type(bNodeType *ntype)
 {
   static ResourceScope scope;
   scope.add_destruct_call([ntype]() {
-    delete ntype->static_declaration;
     /* May be null if the type is statically allocated. */
     if (ntype->free_self) {
       ntype->free_self(ntype);
@@ -1752,6 +1751,11 @@ static void node_free_type(void *nodetype_v)
   /* Probably not. It is pretty much expected we want to update G_MAIN here I think -
    * or we'd want to update *all* active Mains, which we cannot do anyway currently. */
   update_typeinfo(G_MAIN, nullptr, nullptr, nodetype, nullptr, true);
+
+  /* Setting this to null is necessary for the case of static node types. When running tests,
+   * they may be registered and unregistered multiple times. */
+  delete nodetype->static_declaration;
+  nodetype->static_declaration = nullptr;
 
   /* Defer freeing the node type, because it may still be referenced by nodes in depsgraph
    * copies. We can't just remove these node types, because the depsgraph may exist completely
