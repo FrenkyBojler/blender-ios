@@ -260,7 +260,7 @@ class GeometryToObjectsBuilder {
     Vector<Object *> objects;
     for (const int instance_i : IndexRange(instances.instances_num())) {
       const int handle = handles[instance_i];
-      if (handle < 0 || handle >= data_by_handle.size()) {
+      if (!data_by_handle.index_range().contains(handle)) {
         continue;
       }
       const CollectionWithTransform &instance = data_by_handle[handle];
