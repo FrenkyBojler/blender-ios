@@ -90,6 +90,7 @@ class Node {
 
   std::optional<int> gpu_inner_index_;
   Vector<int> leaf_child_nodes_;
+  int leaf_offset_ = 0;
 
   /* Indicates whether this node is a leaf or not; also used for
    * marking various updates that need to be applied. */
@@ -608,7 +609,16 @@ IndexMask all_leaf_nodes(const Tree &pbvh, IndexMaskMemory &memory);
 /** Create a selection of nodes that match the filter function. */
 IndexMask search_nodes(const Tree &pbvh,
                        IndexMaskMemory &memory,
+                       FunctionRef<bool(const Node &)> filter_fn,
+                       Node::Flags node_flag);
+
+IndexMask search_nodes(const Tree &pbvh,
+                       IndexMaskMemory &memory,
                        FunctionRef<bool(const Node &)> filter_fn);
+
+IndexMask search_GPU_nodes(const Tree &pbvh,
+                           IndexMaskMemory &memory,
+                           FunctionRef<bool(const Node &)> filter_fn);
 
 void node_update_mask_mesh(Span<float> mask, MeshNode &node);
 void node_update_mask_grids(const CCGKey &key, Span<float> masks, GridsNode &node);

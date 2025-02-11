@@ -2610,10 +2610,11 @@ static Vector<Node *> search_gather(Tree &pbvh,
 
 IndexMask search_nodes(const Tree &pbvh,
                        IndexMaskMemory &memory,
-                       FunctionRef<bool(const Node &)> filter_fn)
+                       FunctionRef<bool(const Node &)> filter_fn,
+                       Node::Flags node_flag)
 {
   Vector<Node *> nodes = search_gather(
-      const_cast<Tree &>(pbvh), [&](Node &node) { return filter_fn(node); }, Node::Leaf);
+      const_cast<Tree &>(pbvh), [&](Node &node) { return filter_fn(node); }, node_flag);
   Array<int> indices(nodes.size());
   std::visit(
       [&](const auto &pbvh_nodes) {
@@ -2625,6 +2626,20 @@ IndexMask search_nodes(const Tree &pbvh,
       pbvh.nodes_);
   std::sort(indices.begin(), indices.end());
   return IndexMask::from_indices(indices.as_span(), memory);
+}
+
+IndexMask search_nodes(const Tree &pbvh,
+                       IndexMaskMemory &memory,
+                       FunctionRef<bool(const Node &)> filter_fn)
+{
+  search_nodes(pbvh, memory, filter_fn, Node::Leaf);
+}
+
+IndexMask search_GPU_nodes(const Tree &pbvh,
+                           IndexMaskMemory &memory,
+                           FunctionRef<bool(const Node &)> filter_fn)
+{
+  search_nodes(pbvh, memory, filter_fn, Node::GPU);
 }
 
 }  // namespace blender::bke::pbvh
