@@ -11606,6 +11606,7 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, uiPopupBlockHandle 
             }
           }
           break;
+
         case WINDEACTIVATE:{
           /* Prevent waiting for the pie key release if it was released outside of focus. */
           wmWindow *win = CTX_wm_window(C);
@@ -11655,7 +11656,6 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, uiPopupBlockHandle 
           }
           break;
         }
-
 #define CASE_NUM_TO_DIR(n, d) \
   case (EVT_ZEROKEY + n): \
   case (EVT_PAD0 + n): { \
