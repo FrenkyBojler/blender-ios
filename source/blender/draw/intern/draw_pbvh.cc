@@ -1490,22 +1490,27 @@ static BitVector<> calc_use_flat_layout(const Object &object, const OrigMeshData
   return {};
 }
 
-static gpu::IndexBuf *create_tri_index_mesh(const OffsetIndices<int> faces,
+static gpu::IndexBuf *create_tri_index_mesh(const Span<bke::pbvh::MeshNode> nodes,
+                                            const OffsetIndices<int> faces,
                                             const Span<int3> corner_tris,
                                             const Span<bool> hide_poly,
-                                            const bke::pbvh::MeshNode &node)
+                                            const bke::pbvh::MeshNode &gpu_node)
 {
-  const Span<int> face_indices = node.faces();
   int tris_num = 0;
-  if (hide_poly.is_empty()) {
-    tris_num = poly_to_tri_count(face_indices.size(), node.corners_num());
-  }
-  else {
-    for (const int face : face_indices) {
-      if (hide_poly[face]) {
-        continue;
+
+  for (const int i : gpu_node.leaf_child_nodes_.index_range()) {
+    const bke::pbvh::MeshNode node = nodes[i];
+    const Span<int> face_indices = node.faces();
+    if (hide_poly.is_empty()) {
+      tris_num = poly_to_tri_count(face_indices.size(), node.corners_num());
+    }
+    else {
+      for (const int face : face_indices) {
+        if (hide_poly[face]) {
+          continue;
+        }
+        tris_num += bke::mesh::face_triangles_num(faces[face].size());
       }
-      tris_num += bke::mesh::face_triangles_num(faces[face].size());
     }
   }
 
@@ -1515,21 +1520,28 @@ static gpu::IndexBuf *create_tri_index_mesh(const OffsetIndices<int> faces,
 
   int tri_index = 0;
   int node_corner_offset = 0;
-  for (const int face_index : face_indices) {
-    const IndexRange face = faces[face_index];
-    if (!hide_poly.is_empty() && hide_poly[face_index]) {
-      node_corner_offset += face.size();
-      continue;
-    }
-    for (const int3 &tri : corner_tris.slice(bke::mesh::face_triangles_range(faces, face_index))) {
-      for (int i : IndexRange(3)) {
-        const int corner = tri[i];
-        const int index_in_face = corner - face.first();
-        data[tri_index][i] = node_corner_offset + index_in_face;
+
+  for (const int i : gpu_node.leaf_child_nodes_.index_range()) {
+    const bke::pbvh::MeshNode node = nodes[i];
+    const Span<int> face_indices = node.faces();
+
+    for (const int face_index : face_indices) {
+      const IndexRange face = faces[face_index];
+      if (!hide_poly.is_empty() && hide_poly[face_index]) {
+        node_corner_offset += face.size();
+        continue;
       }
-      tri_index++;
+      for (const int3 &tri : corner_tris.slice(bke::mesh::face_triangles_range(faces, face_index)))
+      {
+        for (int i : IndexRange(3)) {
+          const int corner = tri[i];
+          const int index_in_face = corner - face.first();
+          data[tri_index][i] = node_corner_offset + index_in_face;
+        }
+        tri_index++;
+      }
+      node_corner_offset += face.size();
     }
-    node_corner_offset += face.size();
   }
 
   gpu::IndexBuf *ibo = GPU_indexbuf_calloc();
@@ -1802,7 +1814,9 @@ Span<gpu::IndexBuf *> DrawCacheImpl::ensure_tri_indices(const Object &object,
        * distribution between threads. */
       IndexMaskMemory memory;
       const IndexMask nodes_to_calculate = IndexMask::from_predicate(
-          node_mask, GrainSize(8196), memory, [&](const int i) { return !ibos[i]; });
+          node_mask, GrainSize(8196), memory, [&](const int i) {
+            return !ibos[i] && nodes[i].isGPUNode();
+          });
 
       const Mesh &mesh = *static_cast<const Mesh *>(object.data);
       const OffsetIndices<int> faces = mesh.faces();
@@ -1810,7 +1824,7 @@ Span<gpu::IndexBuf *> DrawCacheImpl::ensure_tri_indices(const Object &object,
       const bke::AttributeAccessor attributes = orig_mesh_data.attributes;
       const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
       nodes_to_calculate.foreach_index(GrainSize(1), [&](const int i) {
-        ibos[i] = create_tri_index_mesh(faces, corner_tris, hide_poly, nodes[i]);
+        ibos[i] = create_tri_index_mesh(nodes, faces, corner_tris, hide_poly, nodes[i]);
       });
       return ibos;
     }
