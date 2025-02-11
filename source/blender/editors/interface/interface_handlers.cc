@@ -11597,7 +11597,7 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, uiPopupBlockHandle 
           break;
 
         case LEFTMOUSE:
-          if (is_click_style){
+          if (is_click_style) {
             if (block->pie_data.flags & UI_PIE_INVALID_DIR) {
               menu->menuretval = UI_RETURN_CANCEL;
             }
