@@ -970,6 +970,7 @@ hiprtScene HIPRTDevice::build_tlas(BVHHIPRT *bvh,
     instance_transform_matrix.host_pointer = nullptr;
   }
 
+  scene_input_ptr.instanceMasks = (void *)prim_visibility.device_pointer;
   scene_input_ptr.instances = (void *)hiprt_blas_ptr.device_pointer;
   scene_input_ptr.instanceTransformHeaders = (void *)transform_headers.device_pointer;
   scene_input_ptr.instanceFrames = (void *)instance_transform_matrix.device_pointer;
