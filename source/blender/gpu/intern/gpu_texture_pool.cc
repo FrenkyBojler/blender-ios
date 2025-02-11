@@ -52,10 +52,10 @@ GPUTexture *TexturePool::acquire_texture(int width,
 
   /* Create a new texture in last resort. */
   /* TODO(@fclem): Rename each allocation using texture views. */
-  char name[16] = "DRW_tex_pool";
+  char name[16] = "TexFromPool";
   if (G.debug & G_DEBUG_GPU) {
     int texture_id = pool.size();
-    SNPRINTF(name, "DRW_tex_pool_%d", texture_id);
+    SNPRINTF(name, "TexFromPool_%d", texture_id);
   }
   GPUTexture *tex = GPU_texture_create_2d(name, width, height, 1, format, usage, nullptr);
   acquired.append(tex);
@@ -84,8 +84,8 @@ void TexturePool::reset()
                  "Missing texture release. Either TextureFromPool.release() or "
                  "TexturePool.release_texture()");
 
-  /** Defer deallocation enough cycles to avoid interleaved calls to different
-   * DRW_draw/DRW_render functions causing constant allocation/deallocation (See #113024). */
+  /* Defer deallocation enough cycles to avoid interleaved calls to different viewport render
+   * functions (selection / display) causing constant allocation / deallocation (See #113024). */
   const int max_unused_cycles = 8;
   /* Reverse iteration to make sure we only reorder with known good handles. */
   for (int i = pool.size() - 1; i >= 0; i--) {
