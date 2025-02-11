@@ -1294,15 +1294,7 @@ int BPy_BMLayerItem_SetItem(BPy_BMElem *py_ele, BPy_BMLayerItem *py_layer, PyObj
       break;
     }
     case CD_PROP_BOOL: {
-      const int tmp_val = PyC_Long_AsBool(py_value);
-      if (UNLIKELY(tmp_val == -1 && PyErr_Occurred())) {
-        PyErr_Format(
-            PyExc_TypeError, "expected a bool, not a %.200s", Py_TYPE(py_value)->tp_name);
-        ret = -1;
-      }
-      else {
-        *(bool *)value = tmp_val;
-      }
+      *(bool *)value = PyC_Long_AsBool(py_value);
       break;
     }
     case CD_PROP_FLOAT3: {
