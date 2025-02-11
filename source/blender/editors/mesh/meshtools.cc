@@ -1188,106 +1188,6 @@ bool ED_mesh_pick_face(bContext *C, Object *ob, const int mval[2], uint dist_px,
   return true;
 }
 
-static void ed_mesh_pick_face_vert__mpoly_find(
-    /* context */
-    ARegion *region,
-    const float mval[2],
-    /* mesh data (evaluated) */
-    const blender::IndexRange face,
-    const Span<float3> vert_positions,
-    const int *corner_verts,
-    /* return values */
-    float *r_len_best,
-    int *r_v_idx_best)
-{
-  for (int j = face.size(); j--;) {
-    float sco[2];
-    const int v_idx = corner_verts[face[j]];
-    if (ED_view3d_project_float_object(region, vert_positions[v_idx], sco, V3D_PROJ_TEST_NOP) ==
-        V3D_PROJ_RET_OK)
-    {
-      const float len_test = len_manhattan_v2v2(mval, sco);
-      if (len_test < *r_len_best) {
-        *r_len_best = len_test;
-        *r_v_idx_best = v_idx;
-      }
-    }
-  }
-}
-bool ED_mesh_pick_face_vert(
-    bContext *C, Object *ob, const int mval[2], uint dist_px, uint *r_index)
-{
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  uint face_index;
-  Mesh *mesh = static_cast<Mesh *>(ob->data);
-
-  BLI_assert(mesh && GS(mesh->id.name) == ID_ME);
-
-  if (ED_mesh_pick_face(C, ob, mval, dist_px, &face_index)) {
-    const Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
-    const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
-    if (!mesh_eval) {
-      return false;
-    }
-    ARegion *region = CTX_wm_region(C);
-
-    int v_idx_best = ORIGINDEX_NONE;
-
-    /* find the vert closest to 'mval' */
-    const float mval_f[2] = {float(mval[0]), float(mval[1])};
-    float len_best = FLT_MAX;
-
-    const Span<float3> vert_positions = mesh_eval->vert_positions();
-    const blender::OffsetIndices faces = mesh_eval->faces();
-    const Span<int> corner_verts = mesh_eval->corner_verts();
-
-    const int *index_mp_to_orig = (const int *)CustomData_get_layer(&mesh_eval->face_data,
-                                                                    CD_ORIGINDEX);
-
-    /* tag all verts using this face */
-    if (index_mp_to_orig) {
-      for (const int i : faces.index_range()) {
-        if (index_mp_to_orig[i] == face_index) {
-          ed_mesh_pick_face_vert__mpoly_find(region,
-                                             mval_f,
-                                             faces[i],
-                                             vert_positions,
-                                             corner_verts.data(),
-                                             &len_best,
-                                             &v_idx_best);
-        }
-      }
-    }
-    else {
-      if (face_index < faces.size()) {
-        ed_mesh_pick_face_vert__mpoly_find(region,
-                                           mval_f,
-                                           faces[face_index],
-                                           vert_positions,
-                                           corner_verts.data(),
-                                           &len_best,
-                                           &v_idx_best);
-      }
-    }
-
-    /* map 'dm -> mesh' r_index if possible */
-    if (v_idx_best != ORIGINDEX_NONE) {
-      const int *index_mv_to_orig = (const int *)CustomData_get_layer(&mesh_eval->vert_data,
-                                                                      CD_ORIGINDEX);
-      if (index_mv_to_orig) {
-        v_idx_best = index_mv_to_orig[v_idx_best];
-      }
-    }
-
-    if ((v_idx_best != ORIGINDEX_NONE) && (v_idx_best < mesh->verts_num)) {
-      *r_index = v_idx_best;
-      return true;
-    }
-  }
-
-  return false;
-}
-
 bool ED_mesh_pick_edge(bContext *C, Object *ob, const int mval[2], uint dist_px, uint *r_index)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
@@ -1382,6 +1282,9 @@ bool ED_mesh_pick_vert(
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   ED_view3d_select_id_validate(&vc);
+
+  Base *base = BKE_view_layer_base_find(vc.view_layer, vc.obact);
+  DRW_select_buffer_context_create(vc.depsgraph, {base}, SCE_SELECT_VERTEX);
 
   if (use_zbuf) {
     if (dist_px > 0) {

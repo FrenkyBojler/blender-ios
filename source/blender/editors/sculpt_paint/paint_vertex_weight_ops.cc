@@ -165,7 +165,7 @@ void PAINT_OT_weight_from_bones(wmOperatorType *ot)
  *
  * \note we can't sample front-buffer, weight colors are interpolated too unpredictable.
  */
-static int weight_sample_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static int weight_sample_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *event)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Mesh *mesh;
@@ -176,31 +176,15 @@ static int weight_sample_invoke(bContext *C, wmOperator *op, const wmEvent *even
   const MDeformVert *dvert = mesh->deform_verts().data();
 
   if (mesh && dvert && vc.v3d && vc.rv3d && (mesh->vertex_group_active_index != 0)) {
-    const bool use_vert_sel = (mesh->editflag & ME_EDIT_PAINT_VERT_SEL) != 0;
     int v_idx_best = -1;
     uint index;
 
     view3d_operator_needs_gpu(C);
     ED_view3d_init_mats_rv3d(vc.obact, vc.rv3d);
 
-    if (use_vert_sel) {
-      if (ED_mesh_pick_vert(
-              C, vc.obact, event->mval, ED_MESH_PICK_DEFAULT_VERT_DIST, true, &index))
-      {
-        v_idx_best = index;
-      }
-    }
-    else {
-      if (ED_mesh_pick_face_vert(C, vc.obact, event->mval, ED_MESH_PICK_DEFAULT_FACE_DIST, &index))
-      {
-        v_idx_best = index;
-      }
-      else if (ED_mesh_pick_face(C, vc.obact, event->mval, ED_MESH_PICK_DEFAULT_FACE_DIST, &index))
-      {
-        /* This relies on knowing the internal workings of #ED_mesh_pick_face_vert() */
-        BKE_report(
-            op->reports, RPT_WARNING, "The modifier used does not support deformed locations");
-      }
+    if (ED_mesh_pick_vert(C, vc.obact, event->mval, ED_MESH_PICK_DEFAULT_VERT_DIST, true, &index))
+    {
+      v_idx_best = index;
     }
 
     if (v_idx_best != -1) { /* should always be valid */
