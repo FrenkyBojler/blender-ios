@@ -288,7 +288,7 @@ void AttributeStorage::blend_read(BlendDataReader &reader)
       }
     }
 
-    MEM_freeN(dna_attr.name);
+    MEM_freeN(const_cast<char *>(dna_attr.name));
     MEM_freeN(dna_attr.data);
     MEM_freeN(&dna_attr);
 
