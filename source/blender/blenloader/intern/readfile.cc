@@ -2717,15 +2717,11 @@ static bool read_libblock_undo_restore_library(
                 libmain->curlib ? libmain->curlib->id.name : "<none>",
                 libmain->curlib ? libmain->curlib->runtime->filepath_abs : "<none>");
 
-      {
-        /* The embedded IDs are later read again. So they shouldn't be kept in libmain here. */
-        ListBase *lbarray[INDEX_ID_MAX];
-        int a = set_listbasepointers(libmain, lbarray);
-        while (a--) {
-          LISTBASE_FOREACH_MUTABLE (ID *, id, lbarray[a]) {
-            if (ID_IS_LINKED_EMBEDDED(id)) {
-              BLI_remlink(lbarray[a], id);
-            }
+      /* The embedded IDs are later read again. So they shouldn't be kept in libmain here. */
+      for (ListBase *lb_array : BKE_main_lists_get(*libmain)) {
+        LISTBASE_FOREACH_MUTABLE (ID *, id, lb_array) {
+          if (ID_IS_LINKED_EMBEDDED(id)) {
+            BLI_remlink(lb_array, id);
           }
         }
       }
@@ -3811,14 +3807,13 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
         /* Temporarily remove placeholders from Main, because they can't be versioned yet. */
         /* Embedded IDs are stored in the current .blend file, so they do need versioning here
          * already and are not removed. */
-        ListBase *lbarray[INDEX_ID_MAX];
-        int a = set_listbasepointers(main, lbarray);
         blender::Vector<ID *> placeholders;
-        while (a--) {
-          LISTBASE_FOREACH_MUTABLE (ID *, id, lbarray[a]) {
+        MainListsArray lbarray = BKE_main_lists_get(*main);
+        for (ListBase *lb_array : lbarray) {
+          LISTBASE_FOREACH_MUTABLE (ID *, id, lb_array) {
             if (id->runtime.readfile_data->tags.is_link_placeholder) {
               placeholders.append(id);
-              BLI_remlink(lbarray[a], id);
+              BLI_remlink(lb_array, id);
             }
           }
         }
