@@ -605,13 +605,14 @@ static uiBlock *ui_report_alert_create(bContext *C, ARegion *region, void *user_
   /* Title. */
   uiItemL_ex(layout, data->title, ICON_NONE, true, false);
   uiItemS_ex(layout, 0.2f, LayoutSeparatorType::Line);
-  uiItemS(layout);
+
+  uiItemS_ex(layout, 0.5f);
 
   /* Message lines. */
   for (auto &st : data->messages) {
     uiItemL(layout, st, ICON_NONE);
   }
-  uiItemS_ex(layout, 2.0f);
+  uiItemS_ex(layout, 1.0f);
 
   /* Clear so the OK button is left alone. */
   UI_block_func_set(block, nullptr, nullptr, nullptr);
