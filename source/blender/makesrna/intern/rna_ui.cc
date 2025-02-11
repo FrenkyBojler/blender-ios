@@ -2074,10 +2074,11 @@ static void rna_def_uilist(BlenderRNA *brna)
                         "",
                         "Identifier of property in active_data, for the active element");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  RNA_def_int(func, "index", 0, 0, INT_MAX, "", "Index of the item in the collection", 0, INT_MAX);
+  parm = RNA_def_int(
+      func, "index", 0, 0, INT_MAX, "", "Index of the item in the collection", 0, INT_MAX);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED | PARM_PYFUNC_OPTIONAL);
-  prop = RNA_def_property(func, "flt_flag", PROP_INT, PROP_UNSIGNED);
-  RNA_def_property_ui_text(prop, "", "The filter-flag result for this item");
+  parm = RNA_def_property(func, "flt_flag", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_ui_text(parm, "", "The filter-flag result for this item");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED | PARM_PYFUNC_OPTIONAL);
 
   /* draw_filter */
