@@ -32,6 +32,7 @@
 #include "GPU_context.hh"
 #include "GPU_state.hh"
 #include "GPU_texture.hh"
+#include "GPU_texture_pool.hh"
 
 #include "draw_view_data.hh"
 
@@ -40,12 +41,24 @@
 namespace blender::draw::compositor_engine {
 
 class TexturePool : public compositor::TexturePool {
+ private:
+  Vector<GPUTexture *> acquired_textures_;
+
  public:
   GPUTexture *allocate_texture(int2 size, eGPUTextureFormat format) override
   {
-    DrawEngineType *owner = (DrawEngineType *)this;
-    return DRW_texture_pool_query(
-        DST.vmempool->texture_pool, size.x, size.y, format, GPU_TEXTURE_USAGE_GENERAL, owner);
+    GPUTexture *tex = gpu::TexturePool::get().acquire_texture(
+        size.x, size.y, format, GPU_TEXTURE_USAGE_GENERAL);
+    acquired_textures_.append(tex);
+    return tex;
+  }
+
+  void release_and_reset()
+  {
+    for (GPUTexture *tex : acquired_textures_) {
+      gpu::TexturePool::get().release_texture(tex);
+    }
+    acquired_textures_.clear();
   }
 };
 
@@ -246,6 +259,7 @@ class Engine {
      * future. */
     evaluator_.reset();
     evaluator_.evaluate();
+    texture_pool_.release_and_reset();
   }
 
   /* If the size of the compositing region changed from the last time the compositor was evaluated,
