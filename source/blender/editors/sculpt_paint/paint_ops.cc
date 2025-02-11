@@ -573,10 +573,10 @@ static void stencil_set_target(StencilControlData *scd)
   if (scd->mask) {
     copy_v2_v2(scd->init_sdim, br->mask_stencil_dimension);
     copy_v2_v2(scd->init_spos, br->mask_stencil_pos);
-    scd->init_rot = br->mask_mtex.rot;
+    scd->init_rot = br->mtex.mask.rot;
 
     scd->dim_target = br->mask_stencil_dimension;
-    scd->rot_target = &br->mask_mtex.rot;
+    scd->rot_target = &br->mtex.mask.rot;
     scd->pos_target = br->mask_stencil_pos;
 
     sub_v2_v2v2(mdiff, scd->init_mouse, br->mask_stencil_pos);
@@ -584,10 +584,10 @@ static void stencil_set_target(StencilControlData *scd)
   else {
     copy_v2_v2(scd->init_sdim, br->stencil_dimension);
     copy_v2_v2(scd->init_spos, br->stencil_pos);
-    scd->init_rot = br->mtex.rot;
+    scd->init_rot = br->mtex.color.rot;
 
     scd->dim_target = br->stencil_dimension;
-    scd->rot_target = &br->mtex.rot;
+    scd->rot_target = &br->mtex.color.rot;
     scd->pos_target = br->stencil_pos;
 
     sub_v2_v2v2(mdiff, scd->init_mouse, br->stencil_pos);
@@ -608,12 +608,12 @@ static int stencil_control_invoke(bContext *C, wmOperator *op, const wmEvent *ev
   int mask = RNA_enum_get(op->ptr, "texmode");
 
   if (mask) {
-    if (br->mask_mtex.brush_map_mode != MTEX_MAP_MODE_STENCIL) {
+    if (br->mtex.mask.brush_map_mode != MTEX_MAP_MODE_STENCIL) {
       return OPERATOR_CANCELLED;
     }
   }
   else {
-    if (br->mtex.brush_map_mode != MTEX_MAP_MODE_STENCIL) {
+    if (br->mtex.color.brush_map_mode != MTEX_MAP_MODE_STENCIL) {
       return OPERATOR_CANCELLED;
     }
   }
@@ -775,8 +775,8 @@ static bool stencil_control_poll(bContext *C)
 
   paint = BKE_paint_get_active_from_context(C);
   br = BKE_paint_brush(paint);
-  return (br && (br->mtex.brush_map_mode == MTEX_MAP_MODE_STENCIL ||
-                 br->mask_mtex.brush_map_mode == MTEX_MAP_MODE_STENCIL));
+  return (br && (br->mtex.color.brush_map_mode == MTEX_MAP_MODE_STENCIL ||
+                 br->mtex.mask.brush_map_mode == MTEX_MAP_MODE_STENCIL));
 }
 
 static void BRUSH_OT_stencil_control(wmOperatorType *ot)
@@ -824,7 +824,7 @@ static int stencil_fit_image_aspect_exec(bContext *C, wmOperator *op)
   Tex *tex = nullptr;
   MTex *mtex = nullptr;
   if (br) {
-    mtex = do_mask ? &br->mask_mtex : &br->mtex;
+    mtex = do_mask ? &br->mtex.mask : &br->mtex.color;
     tex = mtex->tex;
   }
 
@@ -909,7 +909,7 @@ static int stencil_reset_transform_exec(bContext *C, wmOperator *op)
     br->mask_stencil_dimension[0] = 256;
     br->mask_stencil_dimension[1] = 256;
 
-    br->mask_mtex.rot = 0;
+    br->mtex.mask.rot = 0;
   }
   else {
     br->stencil_pos[0] = 256;
@@ -918,7 +918,7 @@ static int stencil_reset_transform_exec(bContext *C, wmOperator *op)
     br->stencil_dimension[0] = 256;
     br->stencil_dimension[1] = 256;
 
-    br->mtex.rot = 0;
+    br->mtex.color.rot = 0;
   }
 
   BKE_brush_tag_unsaved_changes(br);

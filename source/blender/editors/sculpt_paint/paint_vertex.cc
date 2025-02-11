@@ -942,7 +942,7 @@ static std::unique_ptr<VPaintData> vpaint_init_vpaint(bContext *C,
   vpd->paintcol = vpaint_get_current_col(
       scene, vp, (RNA_enum_get(op->ptr, "mode") == BRUSH_STROKE_INVERT));
 
-  vpd->is_texbrush = !(brush.vertex_brush_type == VPAINT_BRUSH_TYPE_BLUR) && brush.mtex.tex;
+  vpd->is_texbrush = !(brush.vertex_brush_type == VPAINT_BRUSH_TYPE_BLUR) && brush.mtex.color.tex;
 
   if (brush.vertex_brush_type == VPAINT_BRUSH_TYPE_SMEAR) {
     const GVArray attribute = *mesh.attributes().lookup(mesh.active_color_attribute, domain);

@@ -174,11 +174,11 @@ static void brush_painter_2d_require_imbuf(
   cache->use_float = use_float;
   cache->use_color_correction = use_float && use_color_correction;
   cache->invert = invert;
-  cache->is_texbrush = (brush->mtex.tex &&
+  cache->is_texbrush = (brush->mtex.color.tex &&
                         brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_DRAW) ?
                            true :
                            false;
-  cache->is_maskbrush = (brush->mask_mtex.tex) ? true : false;
+  cache->is_maskbrush = (brush->mtex.mask.tex) ? true : false;
 }
 
 static void brush_painter_cache_2d_free(BrushPainterCache *cache)
@@ -420,7 +420,7 @@ static ImBuf *brush_painter_imbuf_new(
 
       if (is_texbrush) {
         brush_imbuf_tex_co(&tex_mapping, x, y, texco);
-        const MTex *mtex = &brush->mtex;
+        const MTex *mtex = &brush->mtex.color;
         BKE_brush_sample_tex_3d(scene, brush, mtex, texco, rgba, thread, pool);
         /* TODO(sergey): Support texture paint color space. */
         if (!use_float) {
@@ -466,7 +466,7 @@ static void brush_painter_imbuf_update(BrushPainter *painter,
   Scene *scene = painter->scene;
   const Paint *paint = painter->paint;
   Brush *brush = painter->brush;
-  const MTex *mtex = &brush->mtex;
+  const MTex *mtex = &brush->mtex.color;
   BrushPainterCache *cache = &tile->cache;
 
   const char *display_device = scene->display_settings.display_device;
@@ -716,17 +716,17 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s,
                                                                    BRUSH_GRADIENT_SPACING_REPEAT,
                                                                    BRUSH_GRADIENT_SPACING_CLAMP) ||
                                                               (cache->last_pressure != pressure)));
-  float tex_rotation = -brush->mtex.rot;
-  float mask_rotation = -brush->mask_mtex.rot;
+  float tex_rotation = -brush->mtex.color.rot;
+  float mask_rotation = -brush->mtex.mask.rot;
 
   painter->pool = BKE_image_pool_new();
 
   /* determine how can update based on textures used */
   if (cache->is_texbrush) {
-    if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_VIEW) {
+    if (brush->mtex.color.brush_map_mode == MTEX_MAP_MODE_VIEW) {
       tex_rotation += ups->brush_rotation;
     }
-    else if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_RANDOM) {
+    else if (brush->mtex.color.brush_map_mode == MTEX_MAP_MODE_RANDOM) {
       do_random = true;
     }
     else if (!((brush->flag & BRUSH_ANCHORED) || update_color)) {
@@ -734,17 +734,17 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s,
     }
 
     brush_painter_2d_tex_mapping(
-        s, tile, diameter, pos, mouse, brush->mtex.brush_map_mode, &painter->tex_mapping);
+        s, tile, diameter, pos, mouse, brush->mtex.color.brush_map_mode, &painter->tex_mapping);
   }
 
   if (cache->is_maskbrush) {
     bool renew_maxmask = false;
     bool do_partial_update_mask = false;
     /* invalidate case for all mapping modes */
-    if (brush->mask_mtex.brush_map_mode == MTEX_MAP_MODE_VIEW) {
+    if (brush->mtex.mask.brush_map_mode == MTEX_MAP_MODE_VIEW) {
       mask_rotation += ups->brush_rotation_sec;
     }
-    else if (brush->mask_mtex.brush_map_mode == MTEX_MAP_MODE_RANDOM) {
+    else if (brush->mtex.mask.brush_map_mode == MTEX_MAP_MODE_RANDOM) {
       renew_maxmask = true;
     }
     else if (!(brush->flag & BRUSH_ANCHORED)) {
@@ -763,7 +763,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s,
       MEM_SAFE_FREE(cache->tex_mask);
 
       brush_painter_2d_tex_mapping(
-          s, tile, diameter, pos, mouse, brush->mask_mtex.brush_map_mode, &painter->mask_mapping);
+          s, tile, diameter, pos, mouse, brush->mtex.mask.brush_map_mode, &painter->mask_mapping);
 
       if (do_partial_update_mask) {
         brush_painter_mask_imbuf_partial_update(painter, tile, pos, diameter);

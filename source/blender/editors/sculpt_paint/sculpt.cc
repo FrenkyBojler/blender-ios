@@ -2454,7 +2454,7 @@ void SCULPT_calc_vertex_displacement(const SculptSession &ss,
 
   /* Apply texture size */
   for (int i = 0; i < 3; ++i) {
-    translation[i] *= blender::math::safe_divide(1.0f, pow2f(brush.mtex.size[i]));
+    translation[i] *= blender::math::safe_divide(1.0f, pow2f(brush.mtex.color.size[i]));
   }
 
   /* Transform vector to object space */

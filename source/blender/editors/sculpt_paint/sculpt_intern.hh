@@ -985,7 +985,7 @@ inline bool brush_uses_vector_displacement(const Brush &brush)
 {
   return brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_DRAW &&
          brush.flag2 & BRUSH_USE_COLOR_AS_DISPLACEMENT &&
-         brush.mtex.brush_map_mode == MTEX_MAP_MODE_AREA;
+         brush.mtex.color.brush_map_mode == MTEX_MAP_MODE_AREA;
 }
 
 }  // namespace blender::ed::sculpt_paint

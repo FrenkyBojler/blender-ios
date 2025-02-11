@@ -107,8 +107,8 @@
     /* A kernel radius of 1 has almost no effect (#63233). */ \
     .blur_kernel_radius = 2, \
  \
-    .mtex = _DNA_DEFAULT_MTex, \
-    .mask_mtex = _DNA_DEFAULT_MTex, \
+    .mtex.color = _DNA_DEFAULT_MTex, \
+    .mtex.mask = _DNA_DEFAULT_MTex, \
     .falloff_shape = 0,\
     .tip_scale_x = 1.0f,\
     .tip_roundness = 1.0f,\

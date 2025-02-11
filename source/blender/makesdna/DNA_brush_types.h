@@ -164,6 +164,12 @@ typedef struct BrushCurvesSculptSettings {
   struct CurveMapping *curve_parameter_falloff;
 } BrushCurvesSculptSettings;
 
+/* Struct to hold masks for brushes. */
+typedef struct MTexAccessor {
+  MTex color;
+  MTex mask;
+} MTexAccessor;
+
 /** Max number of propagation steps for automasking settings. */
 #define AUTOMASKING_BOUNDARY_EDGES_MAX_PROPAGATION_STEPS 20
 /**
@@ -178,8 +184,7 @@ typedef struct Brush {
   struct BrushClone clone;
   /** Falloff curve. */
   struct CurveMapping *curve;
-  struct MTex mtex;
-  struct MTex mask_mtex;
+  struct MTexAccessor mtex;
 
   struct Brush *toggle_brush;
 

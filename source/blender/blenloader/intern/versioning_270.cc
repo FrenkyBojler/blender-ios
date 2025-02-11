@@ -683,15 +683,15 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
 
     LISTBASE_FOREACH (Brush *, br, &bmain->brushes) {
       if (br->flag & BRUSH_RAKE) {
-        br->mtex.brush_angle_mode |= MTEX_ANGLE_RAKE;
-        br->mask_mtex.brush_angle_mode |= MTEX_ANGLE_RAKE;
+        br->mtex.color.brush_angle_mode |= MTEX_ANGLE_RAKE;
+        br->mtex.mask.brush_angle_mode |= MTEX_ANGLE_RAKE;
       }
       else if (br->flag & BRUSH_RANDOM_ROTATION) {
-        br->mtex.brush_angle_mode |= MTEX_ANGLE_RANDOM;
-        br->mask_mtex.brush_angle_mode |= MTEX_ANGLE_RANDOM;
+        br->mtex.color.brush_angle_mode |= MTEX_ANGLE_RANDOM;
+        br->mtex.mask.brush_angle_mode |= MTEX_ANGLE_RANDOM;
       }
-      br->mtex.random_angle = 2.0 * M_PI;
-      br->mask_mtex.random_angle = 2.0 * M_PI;
+      br->mtex.color.random_angle = 2.0 * M_PI;
+      br->mtex.mask.random_angle = 2.0 * M_PI;
     }
   }
 

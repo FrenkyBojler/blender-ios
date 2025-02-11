@@ -462,8 +462,10 @@ static bool rna_BrushCapabilitiesSculpt_has_rake_factor_get(PointerRNA *ptr)
 static bool rna_BrushCapabilities_has_overlay_get(PointerRNA *ptr)
 {
   Brush *br = (Brush *)ptr->data;
-  return ELEM(
-      br->mtex.brush_map_mode, MTEX_MAP_MODE_VIEW, MTEX_MAP_MODE_TILED, MTEX_MAP_MODE_STENCIL);
+  return ELEM(br->mtex.color.brush_map_mode,
+              MTEX_MAP_MODE_VIEW,
+              MTEX_MAP_MODE_TILED,
+              MTEX_MAP_MODE_STENCIL);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_persistence_get(PointerRNA *ptr)
@@ -667,10 +669,10 @@ static bool rna_BrushCapabilitiesImagePaint_has_accumulate_get(PointerRNA *ptr)
           (br->flag & BRUSH_ANCHORED) || (br->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_SOFTEN) ||
           (br->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_SMEAR) ||
           (br->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_FILL) ||
-          (br->mtex.tex && !ELEM(br->mtex.brush_map_mode,
-                                 MTEX_MAP_MODE_TILED,
-                                 MTEX_MAP_MODE_STENCIL,
-                                 MTEX_MAP_MODE_3D))) ?
+          (br->mtex.color.tex && !ELEM(br->mtex.color.brush_map_mode,
+                                       MTEX_MAP_MODE_TILED,
+                                       MTEX_MAP_MODE_STENCIL,
+                                       MTEX_MAP_MODE_3D))) ?
              false :
              true;
 }
@@ -751,7 +753,7 @@ static void rna_Brush_main_tex_update(bContext *C, PointerRNA *ptr)
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Brush *br = (Brush *)ptr->data;
-  BKE_paint_invalidate_overlay_tex(scene, view_layer, br->mtex.tex);
+  BKE_paint_invalidate_overlay_tex(scene, view_layer, br->mtex.color.tex);
   rna_Brush_update(bmain, scene, ptr);
 }
 
@@ -761,7 +763,7 @@ static void rna_Brush_secondary_tex_update(bContext *C, PointerRNA *ptr)
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Brush *br = (Brush *)ptr->data;
-  BKE_paint_invalidate_overlay_tex(scene, view_layer, br->mask_mtex.tex);
+  BKE_paint_invalidate_overlay_tex(scene, view_layer, br->mtex.mask.tex);
   rna_Brush_update(bmain, scene, ptr);
 }
 
@@ -3844,24 +3846,24 @@ static void rna_def_brush(BlenderRNA *brna)
   /* texture */
   prop = RNA_def_property(srna, "texture_slot", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "BrushTextureSlot");
-  RNA_def_property_pointer_sdna(prop, nullptr, "mtex");
+  RNA_def_property_pointer_sdna(prop, nullptr, "mtex.color");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Texture Slot", "");
 
   prop = RNA_def_property(srna, "texture", PROP_POINTER, PROP_NONE);
-  RNA_def_property_pointer_sdna(prop, nullptr, "mtex.tex");
+  RNA_def_property_pointer_sdna(prop, nullptr, "mtex.color.tex");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_CONTEXT_UPDATE);
   RNA_def_property_ui_text(prop, "Texture", "");
   RNA_def_property_update(prop, NC_TEXTURE, "rna_Brush_main_tex_update");
 
   prop = RNA_def_property(srna, "mask_texture_slot", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "BrushTextureSlot");
-  RNA_def_property_pointer_sdna(prop, nullptr, "mask_mtex");
+  RNA_def_property_pointer_sdna(prop, nullptr, "mtex.mask");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Mask Texture Slot", "");
 
   prop = RNA_def_property(srna, "mask_texture", PROP_POINTER, PROP_NONE);
-  RNA_def_property_pointer_sdna(prop, nullptr, "mask_mtex.tex");
+  RNA_def_property_pointer_sdna(prop, nullptr, "mtex.mask.tex");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_CONTEXT_UPDATE);
   RNA_def_property_ui_text(prop, "Mask Texture", "");
   RNA_def_property_update(prop, NC_TEXTURE, "rna_Brush_secondary_tex_update");

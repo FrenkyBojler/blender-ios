@@ -260,7 +260,7 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
   bool init;
   TexSnapshot *target;
 
-  MTex *mtex = (primary) ? &br->mtex : &br->mask_mtex;
+  MTex *mtex = (primary) ? &br->mtex.color : &br->mtex.mask;
   ePaintOverlayControlFlags overlay_flags = BKE_paint_get_overlay_flags();
   uchar *buffer = nullptr;
 
@@ -551,7 +551,7 @@ static bool paint_draw_tex_overlay(UnifiedPaintSettings *ups,
   rctf quad;
   /* Check for overlay mode. */
 
-  MTex *mtex = (primary) ? &brush->mtex : &brush->mask_mtex;
+  MTex *mtex = (primary) ? &brush->mtex.color : &brush->mtex.mask;
   bool valid = ((primary) ? (brush->overlay_flags & BRUSH_OVERLAY_PRIMARY) != 0 :
                             (brush->overlay_flags & BRUSH_OVERLAY_SECONDARY) != 0);
   int overlay_alpha = (primary) ? brush->texture_overlay_alpha : brush->mask_overlay_alpha;

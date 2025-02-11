@@ -206,9 +206,10 @@ static void brush_foreach_id(ID *id, LibraryForeachIDData *data)
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, brush->gpencil_settings->material, IDWALK_CB_USER);
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, brush->gpencil_settings->material_alt, IDWALK_CB_USER);
   }
-  BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data, BKE_texture_mtex_foreach_id(data, &brush->mtex));
   BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data,
-                                          BKE_texture_mtex_foreach_id(data, &brush->mask_mtex));
+                                          BKE_texture_mtex_foreach_id(data, &brush->mtex.color));
+  BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data,
+                                          BKE_texture_mtex_foreach_id(data, &brush->mtex.mask));
 }
 
 static void brush_foreach_path(ID *id, BPathForeachPathData *bpath_data)
@@ -527,7 +528,6 @@ static void brush_defaults(Brush *brush)
   FROM_DEFAULT(stencil_pos);
   FROM_DEFAULT(stencil_dimension);
   FROM_DEFAULT(mtex);
-  FROM_DEFAULT(mask_mtex);
   FROM_DEFAULT(falloff_shape);
   FROM_DEFAULT(tip_scale_x);
   FROM_DEFAULT(tip_roundness);
@@ -760,18 +760,12 @@ void BKE_brush_curve_preset(Brush *b, eCurveMappingPreset preset)
 
 const MTex *BKE_brush_mask_texture_get(const Brush *brush, const eObjectMode object_mode)
 {
-  if (object_mode == OB_MODE_SCULPT) {
-    return &brush->mtex;
-  }
-  return &brush->mask_mtex;
+  return &brush->mtex.mask;
 }
 
 const MTex *BKE_brush_color_texture_get(const Brush *brush, const eObjectMode object_mode)
 {
-  if (object_mode == OB_MODE_SCULPT) {
-    return &brush->mask_mtex;
-  }
-  return &brush->mtex;
+  return &brush->mtex.color;
 }
 
 float BKE_brush_sample_tex_3d(const Scene *scene,
@@ -901,7 +895,7 @@ float BKE_brush_sample_masktex(
     const Scene *scene, Brush *br, const float point[2], const int thread, ImagePool *pool)
 {
   UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
-  MTex *mtex = &br->mask_mtex;
+  MTex *mtex = &br->mtex.mask;
   float rgba[4], intensity;
 
   if (!mtex->tex) {
@@ -1455,7 +1449,7 @@ static bool brush_gen_texture(const Brush *br,
                               const bool use_secondary,
                               float *rect)
 {
-  const MTex *mtex = (use_secondary) ? &br->mask_mtex : &br->mtex;
+  const MTex *mtex = (use_secondary) ? &br->mtex.mask : &br->mtex.color;
   if (mtex->tex == nullptr) {
     return false;
   }
