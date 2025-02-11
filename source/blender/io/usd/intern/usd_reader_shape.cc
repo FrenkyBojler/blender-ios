@@ -20,8 +20,8 @@
 #include <pxr/usd/usdGeom/cone.h>
 #include <pxr/usd/usdGeom/cube.h>
 #include <pxr/usd/usdGeom/cylinder.h>
-#include <pxr/usd/usdGeom/sphere.h>
 #include <pxr/usd/usdGeom/plane.h>
+#include <pxr/usd/usdGeom/sphere.h>
 #include <pxr/usdImaging/usdImaging/capsuleAdapter.h>
 #include <pxr/usdImaging/usdImaging/coneAdapter.h>
 #include <pxr/usdImaging/usdImaging/cubeAdapter.h>
