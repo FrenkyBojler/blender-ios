@@ -455,7 +455,7 @@ bool ED_undo_is_legacy_compatible_for_property(bContext *C, ID *id, const Proper
     if (obact != nullptr) {
       if (obact->mode & OB_MODE_ALL_PAINT) {
         /* Weight Paint does not use the same undo system that Sculpt and Vertex Paint
-         * use and are not subject to the same constraints that may require memfile undo
+         * use and is not subject to the same constraints that may prevent memfile undo
          * steps from occurring. */
         if (obact->mode & OB_MODE_WEIGHT_PAINT) {
           if (ed_undo_skip_property_in_paint_mode(id, prop)) {
