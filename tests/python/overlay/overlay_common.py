@@ -2,6 +2,7 @@ import bpy
 import os
 from os import path
 from pathlib import Path
+import argparse
 
 
 class Permutation:
@@ -48,6 +49,22 @@ class Permutations:
             permutation.reset()
 
 
+def set_permutation_from_args(permutations):
+    import sys
+    if "--" not in sys.argv:
+        return False
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--test", type=int, default=0, required=True)
+    args = parser.parse_args(sys.argv[sys.argv.index("--") + 1:])
+    if args.test == 0:
+        return False
+    else:
+        key = list(permutations.dict.keys())[args.test]
+        print(f"Set test permutation {args.test}: {key}")
+        permutations.dict[key].apply()
+        return True
+
+
 def render_permutations(permutations):
     base_output_path = bpy.context.scene.render.filepath
     base_testname = Path(bpy.data.filepath).stem
@@ -68,6 +85,9 @@ def render_permutations(permutations):
 
 
 def run_test(permutations):
+    if set_permutation_from_args(permutations):
+        return
+
     def run():
         render_permutations(permutations)
         bpy.ops.wm.quit_blender()
