@@ -18,6 +18,8 @@
 
 #include "DNA_userdef_types.h"
 
+#include "BLF_api.hh"
+
 #include "BLI_hash.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
@@ -547,57 +549,139 @@ uiLayout *UI_popup_menu_layout(uiPopupMenu *pup)
 /** \name Standard Popup Menus
  * \{ */
 
+struct ui_report_alert_data {
+  eAlertIcon icon;
+  std::string title;
+  blender::Vector<std::string> messages;
+};
+
+static void ui_report_alert_okay_cb(bContext *C, void *arg1, void *arg2)
+{
+  ui_report_alert_data *data = static_cast<ui_report_alert_data *>(arg1);
+  MEM_delete(data);
+  uiBlock *block = static_cast<uiBlock *>(arg2);
+  UI_popup_menu_retval_set(block, UI_RETURN_CANCEL, true);
+  wmWindow *win = CTX_wm_window(C);
+  UI_popup_block_close(C, win, block);
+}
+
+static void ui_report_alert_cancel_cb(bContext *C, void *arg1)
+{
+  ui_report_alert_data *data = static_cast<ui_report_alert_data *>(arg1);
+  MEM_delete(data);
+}
+
+static uiBlock *ui_report_alert_create(bContext *C, ARegion *region, void *user_data)
+{
+  ui_report_alert_data *data = static_cast<ui_report_alert_data *>(user_data);
+
+  const uiStyle *style = UI_style_get_dpi();
+  const short icon_size = 48 * UI_SCALE_FAC;
+
+  uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
+  UI_block_flag_disable(block, UI_BLOCK_LOOP);
+  UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
+  UI_popup_dummy_panel_set(region, block);
+
+  UI_block_flag_enable(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_NUMSELECT);
+
+  UI_fontstyle_set(&style->widget);
+  /* Width based on the text lengths. */
+  int text_width = std::max(
+      120 * UI_SCALE_FAC,
+      BLF_width(style->widget.uifont_id, data->title.c_str(), BLF_DRAW_STR_DUMMY_MAX));
+
+  for (auto &st : data->messages) {
+    text_width = std::max(
+        text_width, int(BLF_width(style->widget.uifont_id, st.c_str(), BLF_DRAW_STR_DUMMY_MAX)));
+  }
+
+  int dialog_width = std::max(text_width + int(style->columnspace * 2.5),
+                              int(150.0f * UI_SCALE_FAC));
+
+  uiLayout *layout;
+  layout = uiItemsAlertBox(block, style, dialog_width + icon_size, data->icon, icon_size);
+
+  /* Title. */
+  uiItemL_ex(layout, data->title, ICON_NONE, true, false);
+  uiItemS_ex(layout, 0.2f, LayoutSeparatorType::Line);
+  uiItemS(layout);
+
+  /* Message lines. */
+  for (auto &st : data->messages) {
+    uiItemL(layout, st, ICON_NONE);
+  }
+  uiItemS_ex(layout, 2.0f);
+
+  /* Clear so the OK button is left alone. */
+  UI_block_func_set(block, nullptr, nullptr, nullptr);
+
+  uiLayout *col = uiLayoutColumn(layout, false);
+  uiBlock *col_block = uiLayoutGetBlock(col);
+  uiBut *okay_but;
+
+  col = uiLayoutSplit(col, 0.0f, true);
+  uiLayoutSetScaleY(col, 1.2f);
+
+  okay_but = uiDefBut(col_block, UI_BTYPE_BUT, 0, "OK", 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, "");
+  UI_but_func_set(okay_but, ui_report_alert_okay_cb, user_data, block);
+  UI_but_flag_enable(okay_but, UI_BUT_ACTIVE_DEFAULT);
+  UI_block_bounds_set_centered(block, int(14.0f * UI_SCALE_FAC));
+
+  return block;
+}
+
 void UI_popup_menu_reports(bContext *C, ReportList *reports)
 {
-  uiPopupMenu *pup = nullptr;
-  uiLayout *layout;
-
   if (!CTX_wm_window(C)) {
     return;
   }
 
   BKE_reports_lock(reports);
 
+  bool show_alert = false;
   LISTBASE_FOREACH (Report *, report, &reports->list) {
-    int icon;
-    const char *msg, *msg_next;
-
-    if (report->type < reports->printlevel) {
-      continue;
+    if (report->type >= reports->printlevel) {
+      show_alert = true;
+      break;
     }
+  }
 
-    if (pup == nullptr) {
-      char title[UI_MAX_DRAW_STR];
-      SNPRINTF(title, "%s: %s", RPT_("Report"), report->typestr);
-      /* popup_menu stuff does just what we need (but pass meaningful block name) */
-      pup = UI_popup_menu_begin_ex(C, title, __func__, ICON_NONE);
-      layout = UI_popup_menu_layout(pup);
-    }
-    else {
-      uiItemS(layout);
-    }
+  if (show_alert) {
 
-    /* split each newline into a label */
-    msg = report->message;
-    icon = UI_icon_from_report_type(report->type);
-    do {
-      char buf[UI_MAX_DRAW_STR];
-      msg_next = strchr(msg, '\n');
-      if (msg_next) {
-        msg_next++;
-        BLI_strncpy(buf, msg, std::min(sizeof(buf), size_t(msg_next - msg)));
-        msg = buf;
+    ui_report_alert_data *data = MEM_new<ui_report_alert_data>(__func__);
+    data->icon = ALERT_ICON_ERROR;
+
+    LISTBASE_FOREACH (Report *, report, &reports->list) {
+      const char *msg, *msg_next;
+
+      if (report->type < reports->printlevel) {
+        continue;
       }
-      uiItemL(layout, msg, icon);
-      icon = ICON_NONE;
-    } while ((msg = msg_next) && *msg);
+
+      if (data->title.empty()) {
+        data->title = report->typestr;
+      }
+
+      /* split each newline into a label */
+      msg = report->message;
+      do {
+        char buf[UI_MAX_DRAW_STR];
+        msg_next = strchr(msg, '\n');
+        if (msg_next) {
+          msg_next++;
+          BLI_strncpy(buf, msg, std::min(sizeof(buf), size_t(msg_next - msg)));
+          msg = buf;
+        }
+        data->messages.append(msg);
+      } while ((msg = msg_next) && *msg);
+    }
+
+    UI_popup_block_ex(
+        C, ui_report_alert_create, nullptr, ui_report_alert_cancel_cb, data, nullptr);
   }
 
   BKE_reports_unlock(reports);
-
-  if (pup) {
-    UI_popup_menu_end(C, pup);
-  }
 }
 
 static void ui_popup_menu_create_from_menutype(bContext *C,
