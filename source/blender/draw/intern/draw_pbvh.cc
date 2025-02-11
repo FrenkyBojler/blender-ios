@@ -571,16 +571,25 @@ void DrawCacheImpl::free_nodes_with_changed_topology(const bke::pbvh::Tree &pbvh
 
 BLI_NOINLINE static void ensure_vbos_allocated_mesh(const Object &object,
                                                     const GPUVertFormat &format,
-                                                    const IndexMask &node_mask,
+                                                    const IndexMask &gpu_node_mask,
                                                     const MutableSpan<gpu::VertBuf *> vbos)
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Span<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
-  node_mask.foreach_index(GrainSize(64), [&](const int i) {
+
+  gpu_node_mask.foreach_index(GrainSize(64), [&](const int i) {
     if (!vbos[i]) {
       vbos[i] = GPU_vertbuf_create_with_format(format);
     }
-    GPU_vertbuf_data_alloc(*vbos[i], nodes[i].corners_num());
+
+    Vector<int> leaf_nodes = nodes[i].leaf_child_nodes_;
+    int corners_num = 0;
+
+    for (const int j : leaf_nodes.index_range()) {
+      corners_num += nodes[leaf_nodes[j]].corners_num();
+    }
+
+    GPU_vertbuf_data_alloc(*vbos[i], corners_num);
   });
 }
 
@@ -1706,6 +1715,7 @@ Span<gpu::VertBuf *> DrawCacheImpl::ensure_attribute_data(const Object &object,
   IndexMaskMemory memory;
   const IndexMask empty_mask = IndexMask::from_predicate(
       node_mask, GrainSize(8196), memory, [&](const int i) { return !vbos[i]; });
+
   const IndexMask dirty_mask = IndexMask::from_bits(
       node_mask.slice_content(data.dirty_nodes.index_range()), data.dirty_nodes, memory);
   const IndexMask mask = IndexMask::from_union(empty_mask, dirty_mask, memory);
@@ -1715,16 +1725,16 @@ Span<gpu::VertBuf *> DrawCacheImpl::ensure_attribute_data(const Object &object,
       if (const CustomRequest *request_type = std::get_if<CustomRequest>(&attr)) {
         switch (*request_type) {
           case CustomRequest::Position:
-            update_positions_mesh(object, mask, vbos);
+            update_positions_mesh(object, dirty_mask, vbos);
             break;
           case CustomRequest::Normal:
-            update_normals_mesh(object, mask, vbos);
+            update_normals_mesh(object, dirty_mask, vbos);
             break;
           case CustomRequest::Mask:
-            update_masks_mesh(object, orig_mesh_data, mask, vbos);
+            update_masks_mesh(object, orig_mesh_data, dirty_mask, vbos);
             break;
           case CustomRequest::FaceSet:
-            update_face_sets_mesh(object, orig_mesh_data, mask, vbos);
+            update_face_sets_mesh(object, orig_mesh_data, dirty_mask, vbos);
             break;
         }
       }
