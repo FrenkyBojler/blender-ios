@@ -269,7 +269,10 @@ bool selection_update(const ViewContext *vc,
           bke::SpanAttributeWriter<bool> selection =
               curves.attributes_for_write().lookup_or_add_for_write_span<bool>(attribute_name,
                                                                                selection_domain);
-          ed::curves::fill_selection_false(selection.span);
+          IndexMaskMemory memory;
+          const IndexMask not_in_mask = IndexMask::from_difference(
+              selection.span.index_range(), changed_element_mask, memory);
+          ed::curves::fill_selection_false(selection.span, not_in_mask);
           selection.finish();
         }
 
