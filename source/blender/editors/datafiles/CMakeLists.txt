@@ -491,6 +491,7 @@ if(WITH_BLENDER)
       layer_used
       library_data_broken
       library_data_direct
+      library_data_embedded
       library_data_override
       light
       lightprobe_plane
