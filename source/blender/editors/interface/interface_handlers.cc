@@ -11656,6 +11656,7 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, uiPopupBlockHandle 
           }
           break;
         }
+
 #define CASE_NUM_TO_DIR(n, d) \
   case (EVT_ZEROKEY + n): \
   case (EVT_PAD0 + n): { \
@@ -11686,7 +11687,6 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, uiPopupBlockHandle 
             break;
           }
 #undef CASE_NUM_TO_DIR
-
         default:
           retval = ui_handle_menu_button(C, event, menu);
           break;
