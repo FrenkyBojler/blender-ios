@@ -11,6 +11,7 @@ import subprocess
 import sys
 from pathlib import Path
 import sys
+
 try:
     # Render report is not always available and leads to errors in the console logs that can be ignored.
     from modules import render_report
@@ -27,26 +28,6 @@ except ImportError:
     # render_report can only be loaded when running the render tests. It errors when
     # this script is run during preparation steps.
     pass
-
-
-def run_test():
-    import bpy
-    bpy.data.texts[0].as_module()
-
-
-# When run from inside Blender, render and exit.
-try:
-    import bpy
-    inside_blender = True
-except ImportError:
-    inside_blender = False
-
-if inside_blender:
-    try:
-        run_test()
-    except Exception as e:
-        print(e)
-        sys.exit(1)
 
 
 def get_arguments(filepath, output_filepath, gpu_backend):
@@ -66,12 +47,16 @@ def get_arguments(filepath, output_filepath, gpu_backend):
     # Windows separators get messed up when passing them inside the python expression
     output_filepath = output_filepath.replace("\\", "/")
 
+    script_name = Path(filepath).stem + ".py"
+    current_dir = os.path.dirname(os.path.realpath(__file__))
+    script_filepath = os.path.join(current_dir, "overlay", script_name)
+
     arguments.extend([
         filepath,
         "--python-expr",
         f'import bpy; bpy.context.scene.render.filepath = "{output_filepath}"',
         "-P",
-        os.path.realpath(__file__)])
+        script_filepath])
 
     return arguments
 
@@ -111,5 +96,5 @@ def main():
     sys.exit(not ok)
 
 
-if not inside_blender and __name__ == "__main__":
+if __name__ == "__main__":
     main()
