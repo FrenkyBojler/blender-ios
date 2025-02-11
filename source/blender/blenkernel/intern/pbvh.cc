@@ -2573,16 +2573,26 @@ void BKE_pbvh_sync_visibility_from_verts(Object &object)
 
 namespace blender::bke::pbvh {
 
-IndexMask all_leaf_nodes(const Tree &pbvh, IndexMaskMemory &memory)
+static IndexMask all_nodes(const Tree &pbvh, IndexMaskMemory &memory, Node::Flags flag)
 {
   return std::visit(
       [&](const auto &nodes) {
         return IndexMask::from_predicate(
             nodes.index_range(), GrainSize(1024), memory, [&](const int i) {
-              return (nodes[i].flag_ & Node::Leaf) != 0;
+              return (nodes[i].flag_ & flag) != 0;
             });
       },
       pbvh.nodes_);
+}
+
+IndexMask all_leaf_nodes(const Tree &pbvh, IndexMaskMemory &memory)
+{
+  return all_nodes(pbvh, memory, Node::Leaf);
+}
+
+IndexMask all_GPU_nodes(const Tree &pbvh, IndexMaskMemory &memory)
+{
+  return all_nodes(pbvh, memory, Node::GPU);
 }
 
 static Vector<Node *> search_gather(Tree &pbvh,
@@ -2632,14 +2642,14 @@ IndexMask search_nodes(const Tree &pbvh,
                        IndexMaskMemory &memory,
                        FunctionRef<bool(const Node &)> filter_fn)
 {
-  search_nodes(pbvh, memory, filter_fn, Node::Leaf);
+  return search_nodes(pbvh, memory, filter_fn, Node::Leaf);
 }
 
 IndexMask search_GPU_nodes(const Tree &pbvh,
                            IndexMaskMemory &memory,
                            FunctionRef<bool(const Node &)> filter_fn)
 {
-  search_nodes(pbvh, memory, filter_fn, Node::GPU);
+  return search_nodes(pbvh, memory, filter_fn, Node::GPU);
 }
 
 }  // namespace blender::bke::pbvh

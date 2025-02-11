@@ -606,6 +606,8 @@ namespace blender::bke::pbvh {
 /** Return pointers to all the leaf nodes in the BVH tree. */
 IndexMask all_leaf_nodes(const Tree &pbvh, IndexMaskMemory &memory);
 
+IndexMask all_GPU_nodes(const Tree &pbvh, IndexMaskMemory &memory);
+
 /** Create a selection of nodes that match the filter function. */
 IndexMask search_nodes(const Tree &pbvh,
                        IndexMaskMemory &memory,
