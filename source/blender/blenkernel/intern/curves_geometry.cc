@@ -1408,7 +1408,7 @@ CurvesGeometry curves_copy_point_selection(const CurvesGeometry &curves,
         [&](Span<IndexRange> ranges_to_copy, IndexRange points, int curve) {
           const IndexRange src_range = src_knots_by_curve[curve];
           const int order = orders[curve];
-          const int leading_spans = order - 2;
+          const int leading_spans = order / 2;
           const int point_to_knot = -points.start() + src_range.start();
           const int point_to_span = point_to_knot + leading_spans;
 
