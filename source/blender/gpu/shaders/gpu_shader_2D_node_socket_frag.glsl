@@ -97,7 +97,7 @@ void main()
     }
     case SOCK_DISPLAY_SHAPE_LINE: {
       float square_radius = square_radius - corner_rounding;
-      distance_squared = square_sdf(co, square_radius * 0.75, square_radius * 1.4);
+      distance_squared = square_sdf(co, vec2(square_radius * 0.75, square_radius * 1.4));
       alpha_threshold = corner_rounding;
       break;
     }
