@@ -360,6 +360,20 @@ class GeometryToObjectsBuilder {
   }
 };
 
+static Vector<Collection *> find_collections_containing_object(Main &bmain,
+                                                               Scene &scene,
+                                                               Object &object)
+{
+  VectorSet<Collection *> collections;
+  FOREACH_COLLECTION_BEGIN (&bmain, &scene, Collection *, collection) {
+    if (BKE_collection_has_object(collection, &object)) {
+      collections.add(collection);
+    }
+  }
+  FOREACH_COLLECTION_END;
+  return collections.extract_vector();
+}
+
 static int visual_geometry_to_objects_exec(bContext *C, wmOperator * /*op*/)
 {
   Main &bmain = *CTX_data_main(C);
@@ -383,13 +397,8 @@ static int visual_geometry_to_objects_exec(bContext *C, wmOperator * /*op*/)
 
   /* Find the collections that the active object is in, because we want to add the new objects
    * in the same place. */
-  Set<Collection *> collections_to_add_to;
-  FOREACH_COLLECTION_BEGIN (&bmain, &scene, Collection *, collection) {
-    if (BKE_collection_has_object(collection, src_ob_orig)) {
-      collections_to_add_to.add(collection);
-    }
-  }
-  FOREACH_COLLECTION_END;
+  const Vector<Collection *> collections_to_add_to = find_collections_containing_object(
+      bmain, scene, *src_ob_orig);
 
   float4x4 src_ob_local_transform;
   BKE_object_to_mat4(src_ob_orig, src_ob_local_transform.ptr());
