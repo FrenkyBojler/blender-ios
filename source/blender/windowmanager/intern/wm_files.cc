@@ -75,6 +75,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
 #include "BKE_lib_remap.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_main_namemap.hh"
 #include "BKE_node.hh"
@@ -2096,7 +2097,7 @@ static bool wm_file_write_check_with_report_on_failure(Main *bmain,
   }
 
   LISTBASE_FOREACH (Library *, li, &bmain->libraries) {
-    if (BLI_path_cmp(li->runtime.filepath_abs, filepath) == 0) {
+    if (BLI_path_cmp(li->runtime->filepath_abs, filepath) == 0) {
       BKE_reportf(reports, RPT_ERROR, "Cannot overwrite used library '%.240s'", filepath);
       return false;
     }
@@ -2135,12 +2136,29 @@ static bool wm_file_write(bContext *C,
   BKE_callback_exec_string(bmain, BKE_CB_EVT_SAVE_PRE, filepath);
 
   /* Check if file write permission is OK. */
-  if (BLI_exists(filepath) && !BLI_file_is_writable(filepath)) {
-    BKE_reportf(
-        reports, RPT_ERROR, "Cannot save blend file, path \"%s\" is not writable", filepath);
+  if (const int st_mode = BLI_exists(filepath)) {
+    bool ok = true;
 
-    BKE_callback_exec_string(bmain, BKE_CB_EVT_SAVE_POST_FAIL, filepath);
-    return false;
+    if (!BLI_file_is_writable(filepath)) {
+      BKE_reportf(
+          reports, RPT_ERROR, "Cannot save blend file, path \"%s\" is not writable", filepath);
+      ok = false;
+    }
+    else if (S_ISDIR(st_mode)) {
+      /* While the UI mostly prevents this, it's possible to save to an existing
+       * directory from Python because the path is used unmodified.
+       * Besides it being unlikely the user wants to replace a directory,
+       * the file versioning logic (to create `*.blend1` files)
+       * would rename the directory with a `1` suffix, see #134101. */
+      BKE_reportf(
+          reports, RPT_ERROR, "Cannot save blend file, path \"%s\" is a directory", filepath);
+      ok = false;
+    }
+
+    if (!ok) {
+      BKE_callback_exec_string(bmain, BKE_CB_EVT_SAVE_POST_FAIL, filepath);
+      return false;
+    }
   }
 
   blender::ed::asset::pre_save_assets(bmain);

@@ -31,6 +31,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_object.hh"
 #include "BKE_preview_image.hh"
@@ -1315,7 +1316,7 @@ static void collection_gobject_assert_internal_consistency(Collection *collectio
  * modified.
  *
  * \note LibOverride collections are currently not editable in that sense.
- * \note If a view layer is given, then the colleection must also belong to it and not be excluded
+ * \note If a view layer is given, then the collection must also belong to it and not be excluded
  * from it to be considered as editable.
  */
 static bool collection_is_editable_in_viewlayer(const ViewLayer *view_layer,
