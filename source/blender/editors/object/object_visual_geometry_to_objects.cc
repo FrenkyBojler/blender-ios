@@ -84,6 +84,35 @@ struct ComponentObjects {
   }
 };
 
+static void copy_materials_to_new_geometry_object(const Object &src_ob_eval,
+                                                  const ID &src_data_eval,
+                                                  Object &dst_ob_orig,
+                                                  ID &dst_data_orig)
+{
+  const int materials_num = BKE_id_material_used_eval(src_data_eval);
+  if (materials_num == 0) {
+    return;
+  }
+  *BKE_id_material_len_p(&dst_data_orig) = materials_num;
+  dst_ob_orig.totcol = materials_num;
+
+  dst_ob_orig.matbits = MEM_cnew_array<char>(materials_num, __func__);
+  dst_ob_orig.mat = MEM_cnew_array<Material *>(materials_num, __func__);
+  Material ***dst_materials = BKE_id_material_array_p(&dst_data_orig);
+  *dst_materials = MEM_cnew_array<Material *>(materials_num, __func__);
+
+  for (int i = 0; i < materials_num; i++) {
+    const Material *material_eval = BKE_object_material_get_eval(
+        src_ob_eval, src_data_eval, i + 1);
+    Material *material_orig = reinterpret_cast<Material *>(
+        DEG_get_original_id(const_cast<ID *>(&material_eval->id)));
+    if (material_orig) {
+      (*dst_materials)[i] = material_orig;
+      id_us_plus(&material_orig->id);
+    }
+  }
+}
+
 struct CollectionWithTransform {
   /* A collection that should be instanced. */
   Collection *collection = nullptr;
@@ -169,7 +198,7 @@ class GeometryToObjectsBuilder {
 
       BKE_mesh_nomain_to_mesh(BKE_mesh_copy_for_eval(src_mesh), new_mesh, new_ob);
       new_mesh->attributes_for_write().remove_anonymous();
-      this->copy_materials_to_new_geometry_object(src_ob_eval, src_mesh.id, *new_ob, new_mesh->id);
+      copy_materials_to_new_geometry_object(src_ob_eval, src_mesh.id, *new_ob, new_mesh->id);
       bke::mesh_remove_invalid_attribute_strings(*new_mesh);
       multires_customdata_delete(new_mesh);
       return new_ob;
@@ -187,8 +216,7 @@ class GeometryToObjectsBuilder {
 
       new_curves->geometry.wrap() = src_curves.geometry.wrap();
       new_curves->geometry.wrap().attributes_for_write().remove_anonymous();
-      this->copy_materials_to_new_geometry_object(
-          src_ob_eval, src_curves.id, *new_ob, new_curves->id);
+      copy_materials_to_new_geometry_object(src_ob_eval, src_curves.id, *new_ob, new_curves->id);
       return new_ob;
     });
   }
@@ -206,7 +234,7 @@ class GeometryToObjectsBuilder {
       BKE_pointcloud_nomain_to_pointcloud(BKE_pointcloud_copy_for_eval(&src_pointcloud),
                                           new_pointcloud);
       new_pointcloud->attributes_for_write().remove_anonymous();
-      this->copy_materials_to_new_geometry_object(
+      copy_materials_to_new_geometry_object(
           src_ob_eval, src_pointcloud.id, *new_ob, new_pointcloud->id);
       return new_ob;
     });
@@ -234,7 +262,7 @@ class GeometryToObjectsBuilder {
             reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
         drawing.strokes_for_write().attributes_for_write().remove_anonymous();
       }
-      this->copy_materials_to_new_geometry_object(
+      copy_materials_to_new_geometry_object(
           src_ob_eval, src_grease_pencil.id, *new_ob, new_grease_pencil->id);
       return new_ob;
     });
@@ -329,35 +357,6 @@ class GeometryToObjectsBuilder {
     }
     collection_by_instance_.add(reference, instance);
     return instance;
-  }
-
-  void copy_materials_to_new_geometry_object(const Object &src_ob_eval,
-                                             const ID &src_data_eval,
-                                             Object &dst_ob_orig,
-                                             ID &dst_data_orig) const
-  {
-    const int materials_num = BKE_id_material_used_eval(src_data_eval);
-    if (materials_num == 0) {
-      return;
-    }
-    *BKE_id_material_len_p(&dst_data_orig) = materials_num;
-    dst_ob_orig.totcol = materials_num;
-
-    dst_ob_orig.matbits = MEM_cnew_array<char>(materials_num, __func__);
-    dst_ob_orig.mat = MEM_cnew_array<Material *>(materials_num, __func__);
-    Material ***dst_materials = BKE_id_material_array_p(&dst_data_orig);
-    *dst_materials = MEM_cnew_array<Material *>(materials_num, __func__);
-
-    for (int i = 0; i < materials_num; i++) {
-      const Material *material_eval = BKE_object_material_get_eval(
-          src_ob_eval, src_data_eval, i + 1);
-      Material *material_orig = reinterpret_cast<Material *>(
-          DEG_get_original_id(const_cast<ID *>(&material_eval->id)));
-      if (material_orig) {
-        (*dst_materials)[i] = material_orig;
-        id_us_plus(&material_orig->id);
-      }
-    }
   }
 };
 
