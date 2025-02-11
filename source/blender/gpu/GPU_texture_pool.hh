@@ -1,0 +1,58 @@
+/* SPDX-FileCopyrightText: 2005 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+/** \file
+ * \ingroup gpu
+ *
+ * A `gpu::TextureFromPool` is a wrapper around backend specific texture objects whose usage is
+ * transient and can be shared between parts of an engine or across several parts of blender.
+ */
+
+#pragma once
+
+#include "BLI_vector.hh"
+
+#include "GPU_texture.hh"
+
+namespace blender::gpu {
+
+class TexturePool {
+ private:
+  struct TextureHandle {
+    GPUTexture *texture;
+    /* Counts the number of `reset()` call since the last use.
+     * The texture memory is deallocated after a certain number of cycles. */
+    int unused_cycles;
+  };
+
+  /* Pool of texture ready to be reused. */
+  blender::Vector<TextureHandle> pool;
+  /* List of textures that are currently being used. Tracked to check memory leak. */
+  blender::Vector<GPUTexture *> acquired;
+
+ public:
+  ~TexturePool();
+
+  /* Return the texture pool from the active GPUContext.
+   * Only valid if a context is active. */
+  static TexturePool &get();
+
+  /* Acquire a texture from the pool with the given characteristics. */
+  GPUTexture *acquire_texture(int width,
+                              int height,
+                              eGPUTextureFormat format,
+                              eGPUTextureUsage usage);
+  /* Release the texture so that its memory can be reused at some other point. */
+  void release_texture(GPUTexture *tmp_tex);
+
+  /* Transfer ownership of a texture from the pool to the caller. */
+  void take_texture_ownership(GPUTexture *tex);
+  /* Transfer back ownership to the pool. The texture will become part of the pool. */
+  void give_texture_ownership(GPUTexture *tex);
+
+  /* Ensure no texture is still acquired and release unused textures. */
+  void reset();
+};
+
+}  // namespace blender::gpu
