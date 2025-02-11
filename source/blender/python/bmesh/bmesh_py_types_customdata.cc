@@ -1294,7 +1294,14 @@ int BPy_BMLayerItem_SetItem(BPy_BMElem *py_ele, BPy_BMLayerItem *py_layer, PyObj
       break;
     }
     case CD_PROP_BOOL: {
-      *(bool *)value = PyC_Long_AsBool(py_value);
+      const int tmp_val = PyC_Long_AsBool(py_value);
+      if (UNLIKELY(tmp_val == -1)) {
+        /* The error has been set. */
+        ret = -1;
+      }
+      else {
+        *(bool *)value = tmp_val;
+      }
       break;
     }
     case CD_PROP_FLOAT3: {
