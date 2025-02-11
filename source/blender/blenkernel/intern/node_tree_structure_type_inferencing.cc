@@ -6,18 +6,9 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_reference_lifetimes.hh"
 
-#include "NOD_geometry.hh"
 #include "NOD_node_declaration.hh"
-#include "NOD_socket.hh"
 
-#include "BLI_assert.h"
 #include "BLI_resource_scope.hh"
-#include "BLI_set.hh"
-#include "BLI_stack.hh"
-
-/**
-Rules:
-- */
 
 namespace blender::bke::node_structure_type_inferencing {
 
