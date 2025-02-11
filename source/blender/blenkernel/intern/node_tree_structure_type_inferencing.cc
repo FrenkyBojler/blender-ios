@@ -281,7 +281,8 @@ static std::unique_ptr<nodes::StructureTypeInterface> calc_structure_type_interf
     return {};
   }
 
-  std::unique_ptr<nodes::StructureTypeInterface> derived_interface;
+  std::unique_ptr<nodes::StructureTypeInterface> derived_interface =
+      std::make_unique<nodes::StructureTypeInterface>();
   derived_interface->inputs.reinitialize(tree.interface_inputs().size());
   derived_interface->outputs.reinitialize(tree.interface_outputs().size());
 

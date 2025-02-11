@@ -79,7 +79,7 @@ typedef enum NodeSocketInterfaceStructureType {
 // TODO: Move out of DNA.
 #ifdef __cplusplus
 namespace blender::nodes {
-enum class StructureType {
+enum class StructureType : int8_t {
   Single = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_SINGLE,
   Dynamic = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC,
   Field = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_FIELD,

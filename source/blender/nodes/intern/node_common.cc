@@ -785,9 +785,11 @@ static void group_input_declare(NodeDeclarationBuilder &b)
   }
   node_tree->ensure_interface_cache();
   const Span<const bNodeTreeInterfaceSocket *> inputs = node_tree->interface_inputs();
-  const Span<StructureType> structure_types = node_tree->runtime->structure_type_interface->inputs;
+  // const Span<StructureType> structure_types =
+  // node_tree->runtime->structure_type_interface->inputs;
   for (const int i : inputs.index_range()) {
-    build_interface_socket_declaration(*node_tree, *inputs[i], structure_types[i], SOCK_OUT, b);
+    build_interface_socket_declaration(
+        *node_tree, *inputs[i], StructureType::Dynamic, SOCK_OUT, b);
   }
   b.add_output<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
 }
@@ -800,10 +802,11 @@ static void group_output_declare(NodeDeclarationBuilder &b)
   }
   node_tree->ensure_interface_cache();
   const Span<const bNodeTreeInterfaceSocket *> outputs = node_tree->interface_outputs();
-  const Span<StructureType> structure_types =
-      node_tree->runtime->structure_type_interface->outputs;
+  // const Span<StructureType> structure_types =
+  //     node_tree->runtime->structure_type_interface->outputs;
   for (const int i : outputs.index_range()) {
-    build_interface_socket_declaration(*node_tree, *outputs[i], structure_types[i], SOCK_IN, b);
+    build_interface_socket_declaration(
+        *node_tree, *outputs[i], StructureType::Dynamic, SOCK_IN, b);
   }
 
   b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);

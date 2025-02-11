@@ -27,7 +27,7 @@ namespace blender::nodes {
 
 class NodeDeclarationBuilder;
 
-enum class InputSocketFieldType {
+enum class InputSocketFieldType : int8_t {
   /** The input is required to be a single value. */
   None,
   /** The input can be a field. */
@@ -36,7 +36,7 @@ enum class InputSocketFieldType {
   Implicit,
 };
 
-enum class OutputSocketFieldType {
+enum class OutputSocketFieldType : int8_t {
   /** The output is always a single value. */
   None,
   /** The output is always a field, independent of the inputs. */
@@ -51,7 +51,7 @@ enum class OutputSocketFieldType {
 /**
  * An enum that maps to the #compositor::InputRealizationMode.
  */
-enum class CompositorInputRealizationMode : uint8_t {
+enum class CompositorInputRealizationMode : int8_t {
   None,
   Transforms,
   OperationDomain,
