@@ -100,7 +100,7 @@ void TexturePool::reset(bool force_free)
 TexturePool &TexturePool::get()
 {
   BLI_assert(GPU_context_active_get() != nullptr);
-  return blender::gpu::unwrap(GPU_context_active_get())->texture_pool;
+  return *blender::gpu::unwrap(GPU_context_active_get())->texture_pool;
 }
 
 }  // namespace blender::gpu

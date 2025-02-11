@@ -69,7 +69,7 @@ class Context {
   Batch *polyline_batch = nullptr;
 
   /** Texture pool used to recycle temporary texture (or render target) memory. */
-  TexturePool texture_pool;
+  TexturePool *texture_pool = nullptr;
 
  protected:
   /** Thread on which this context is active. */
