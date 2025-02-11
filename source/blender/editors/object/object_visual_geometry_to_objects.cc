@@ -416,7 +416,7 @@ static int visual_geometry_to_objects_exec(bContext *C, wmOperator * /*op*/)
     copy_m4_m4(object->parentinv, src_ob_orig->parentinv);
   }
   for (Collection *new_collection : new_instance_collections) {
-    /* Add the new collections to the master collection. This makes them more visible to the user,
+    /* Add the new collections to the scene collection. This makes them more visible to the user,
      * compared to having collection instances which use collections that are not in the scene. */
     BKE_collection_child_add(&bmain, scene.master_collection, new_collection);
   }
