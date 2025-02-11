@@ -106,7 +106,7 @@ void main()
       float radius_out = length(max(uv, 0));
       float radius_in = max(abs(uv).x, abs(uv).y) * -1.0;
       float radius = mix(radius_in, radius_out, radius_out > 0);
-      distance_squared = max(-1.0, (radius - circle_radius * 0.15));
+      distance_squared = max(-1.0, (radius - circle_radius * 0.25));
       break;
     }
   }
