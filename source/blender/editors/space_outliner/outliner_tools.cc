@@ -1629,17 +1629,51 @@ static void id_select_linked_fn(bContext *C,
   object::select_linked_by_id(C, id);
 }
 
-static void id_embed_linked(bContext * /*C*/,
-                            ReportList * /*reports*/,
+static void id_embed_linked(bContext *C,
+                            ReportList *reports,
                             Scene * /*scene*/,
                             TreeElement * /*te*/,
                             TreeStoreElem * /*tsep*/,
                             TreeStoreElem *tselem)
 {
-  ID *id = tselem->id;
-  if (ID_IS_LINKED(id)) {
+  ID *root_id = tselem->id;
+  if (!ID_IS_LINKED(root_id)) {
+    BKE_reportf(reports, RPT_ERROR, "Only linked IDs can be linked-embedded");
+    return;
+  }
+  if (ID_IS_LINKED_EMBEDDED(root_id)) {
+    /* Nothing to do. */
+    return;
+  }
+  Main *bmain = CTX_data_main(C);
+  blender::Set<ID *> ids_to_embed;
+  ids_to_embed.add(root_id);
+  BKE_library_foreach_ID_link(
+      bmain,
+      root_id,
+
+      [&](LibraryIDLinkCallbackData *cb_data) -> int {
+        ID *referenced_id = *cb_data->id_pointer;
+        if (!referenced_id) {
+          return IDWALK_RET_NOP;
+        }
+        if (!ID_IS_LINKED(referenced_id)) {
+          CLOG_ERROR(&LOG, "Linked data-block references non-linked data-block");
+          return IDWALK_RET_NOP;
+        }
+        if (ID_IS_LINKED_EMBEDDED(referenced_id)) {
+          CLOG_ERROR(
+              &LOG, "Non-embedded data-block references embedded data-block which is not allowed");
+          return IDWALK_RET_NOP;
+        }
+        ids_to_embed.add(referenced_id);
+        return IDWALK_RET_NOP;
+      },
+      nullptr,
+      IDWALK_READONLY | IDWALK_RECURSE);
+
+  for (ID *id : ids_to_embed) {
     id->flag |= ID_FLAG_LINKED_AND_EMBEDDED;
-    printf("Embed: %s\n", id->name);
   }
 }
 
