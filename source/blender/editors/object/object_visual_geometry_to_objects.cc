@@ -304,7 +304,7 @@ class GeometryToObjectsBuilder {
 
         /* Handle the object transform because it may not be the identity matrix. The location is
          * handled by setting the collection instance offset to it. The rotation and scale are
-         * handle by offsetting the instance using the collection by the inverse amount. */
+         * handled by offsetting the instance using the collection by the inverse amount. */
         float4x4 object_transform;
         BKE_object_to_mat4(object_orig, object_transform.ptr());
         instance.transform = float4x4(math::invert(float3x3(object_transform)));
