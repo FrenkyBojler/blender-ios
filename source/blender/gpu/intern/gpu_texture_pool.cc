@@ -84,13 +84,10 @@ void TexturePool::reset(bool force_free)
                  "Missing texture release. Either TextureFromPool.release() or "
                  "TexturePool.release_texture()");
 
-  /* Defer deallocation enough cycles to avoid interleaved calls to different viewport render
-   * functions (selection / display) causing constant allocation / deallocation (See #113024). */
-  const int max_unused_cycles = 8;
   /* Reverse iteration to make sure we only reorder with known good handles. */
   for (int i = pool.size() - 1; i >= 0; i--) {
     TextureHandle &tex = pool[i];
-    if (tex.unused_cycles >= max_unused_cycles || force_free) {
+    if (tex.unused_cycles >= max_unused_cycles_ || force_free) {
       GPU_texture_free(tex.texture);
       pool.remove_and_reorder(i);
     }

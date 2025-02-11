@@ -19,6 +19,10 @@ namespace blender::gpu {
 
 class TexturePool {
  private:
+  /* Defer deallocation enough cycles to avoid interleaved calls to different viewport render
+   * functions (selection / display) causing constant allocation / deallocation (See #113024). */
+  static constexpr int max_unused_cycles_ = 8;
+
   struct TextureHandle {
     GPUTexture *texture;
     /* Counts the number of `reset()` call since the last use.
@@ -52,7 +56,8 @@ class TexturePool {
   void give_texture_ownership(GPUTexture *tex);
 
   /* Ensure no texture is still acquired and release unused textures.
-   * If `force_free` is true, free all the texture memory inside the pool. */
+   * If `force_free` is true, free all the texture memory inside the pool.
+   * Otherwise, only unused textures will be freed. */
   void reset(bool force_free = false);
 };
 
