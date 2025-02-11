@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <variant>
+
 #include "BLI_span.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector_set.hh"
@@ -15,22 +17,51 @@ struct BlendWriter;
 
 namespace blender::bke {
 
-class Attribute : public ::Attribute {
+class Attribute {
+  friend AttributeStorage;
+  /** Attribute name. Cannot be changed without adding and removing attribute. */
+  std::string name_;
+  AttrDomain domain_;
+  AttrType data_type_;
+
+  struct ArrayData {
+    void *data;
+    int elements_num;
+    const ImplicitSharingInfo *sharing_info;
+    ~ArrayData();
+  };
+  struct SingleData {
+    void *value;
+    const ImplicitSharingInfo *sharing_info;
+  };
+
+ private:
+  std::variant<ArrayData, SingleData> data_;
+
  public:
+  Attribute() = default;
+  Attribute(const Attribute &other);
+  Attribute(Attribute &&other);
+  Attribute &operator=(const Attribute &other);
+  Attribute &operator=(Attribute &&other);
+  ~Attribute();
+
+  StringRefNull name() const;
   void ensure_mutable();
 };
 
-/**
- * \todo Move to .cc file when attribute_legacy_convert.cc no longer needs to remove attributes.
- */
 struct AttributeStorageRuntime {
   struct AttributeNameGetter {
-    StringRef operator()(const Attribute &value) const
+    StringRef operator()(const std::unique_ptr<Attribute> &value) const
     {
-      return StringRef(value.name);
+      return value->name();
     }
   };
-  CustomIDVectorSet<std::reference_wrapper<Attribute>, AttributeNameGetter> name_map;
+  CustomIDVectorSet<std::unique_ptr<Attribute>, AttributeNameGetter> attributes;
+  auto items() const
+  {
+    return attributes.as_span();
+  }
 };
 
 class AttributeStorage : public ::AttributeStorage {
@@ -42,46 +73,47 @@ class AttributeStorage : public ::AttributeStorage {
   AttributeStorage &operator=(AttributeStorage &&other);
   ~AttributeStorage();
 
-  Span<const Attribute *> items() const;
-  MutableSpan<Attribute *> items();
+  Span<std::unique_ptr<const Attribute>> items() const;
+  Span<Attribute *> items();
   const Attribute *lookup(StringRef name) const;
   Attribute *lookup_for_write(StringRef name);
   bool remove(StringRef name);
   Attribute &add(StringRef name,
                  bke::AttrDomain domain,
                  bke::AttrType data_type,
-                 const AttributeDataArray &data);
+                 const Attribute::ArrayData &data);
 
   void blend_read(BlendDataReader &reader);
-  void blend_write(BlendWriter &writer) const;
+  struct BlendWriteData {
+    Vector<::Attribute *, 16> attribute_ptrs;
+    Vector<::Attribute, 16> attibutes;
+    Vector<::AttributeDataArray, 16> array_data;
+  };
+  void blend_write_prepare(BlendWriteData &write_data);
+  void blend_write(BlendWriter &writer, const BlendWriteData &write_data) const;
 
  private:
-  void ensure_attribute_array_capacity(int attributes_num);
   Attribute &add_without_data(StringRef name,
                               bke::AttrDomain domain,
                               bke::AttrType data_type,
                               bke::AttrStorageType storage_type);
 };
 
-inline Span<const Attribute *> AttributeStorage::items() const
+inline Span<std::unique_ptr<const Attribute>> AttributeStorage::items() const
 {
-  return Span(reinterpret_cast<Attribute **>(this->attributes_array), this->attributes_num);
+  return this->runtime->attributes.as_span();
 }
-inline MutableSpan<Attribute *> AttributeStorage::items()
+inline Span<Attribute *> AttributeStorage::items()
 {
-  return MutableSpan(reinterpret_cast<Attribute **>(this->attributes_array), this->attributes_num);
+  return this->runtime->attributes.as_span();
 }
+
+inline StringRefNull Attribute::name() const
+{
+  return name_;
+};
 
 }  // namespace blender::bke
-
-inline blender::bke::Attribute &Attribute::wrap()
-{
-  return *reinterpret_cast<blender::bke::Attribute *>(this);
-}
-inline const blender::bke::Attribute &Attribute::wrap() const
-{
-  return *reinterpret_cast<const blender::bke::Attribute *>(this);
-}
 
 inline blender::bke::AttributeStorage &AttributeStorage::wrap()
 {

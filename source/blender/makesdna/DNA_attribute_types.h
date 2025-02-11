@@ -33,7 +33,7 @@ typedef struct AttributeDataArray {
 } AttributeDataArray;
 
 typedef struct Attribute {
-  char *name;
+  const char *name;
   int16_t data_type;   /* bke::AttrType. */
   int8_t domain;       /* bke::AttrDomain. */
   int8_t storage_type; /* bke::AttrStorageType */
@@ -49,9 +49,11 @@ typedef struct Attribute {
 } Attribute;
 
 typedef struct AttributeStorage {
+  /* Array only used at runtime, otherwise #AttributeStorageRuntime::name_map is used. */
   Attribute **attributes_array;
   int attributes_num;
-  int attributes_capacity;
+
+  char _pad[4];
 
   AttributeStorageRuntimeHandle *runtime;
 

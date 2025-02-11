@@ -47,29 +47,30 @@ class ArrayDataImplicitSharing : public ImplicitSharingInfo {
   }
 };
 
-static ImplicitSharingInfo *create_sharing_info_for_array(const AttributeDataArray &data,
+static ImplicitSharingInfo *create_sharing_info_for_array(void *data,
+                                                          const int64_t elements_num,
                                                           const CPPType &type)
 {
-  return MEM_new<ArrayDataImplicitSharing>(__func__, data.data, data.elements_num, type);
+  return MEM_new<ArrayDataImplicitSharing>(__func__, data, elements_num, type);
 }
 
 void Attribute::ensure_mutable()
 {
-  switch (AttrStorageType(this->storage_type)) {
+  switch (storage_type_) {
     case AttrStorageType::Array: {
-      AttributeDataArray &data = *static_cast<AttributeDataArray *>(this->data);
+      ArrayData &data = std::get<ArrayData>(data_);
       if (data.sharing_info->is_mutable()) {
         data.sharing_info->tag_ensured_mutable();
         return;
       }
 
-      const CPPType &cpp_type = attribute_type_to_cpp_type(AttrType(this->data_type));
+      const CPPType &cpp_type = attribute_type_to_cpp_type(data_type_);
       void *new_data = MEM_mallocN_aligned(data.elements_num, cpp_type.alignment(), __func__);
       cpp_type.copy_construct_n(data.data, new_data, data.elements_num);
       data.data = new_data;
 
       data.sharing_info->remove_user_and_delete_if_last();
-      data.sharing_info = create_sharing_info_for_array(data, cpp_type);
+      data.sharing_info = create_sharing_info_for_array(data.data, data.elements_num, cpp_type);
       break;
     }
     case AttrStorageType::Single:
@@ -82,51 +83,15 @@ AttributeStorage::AttributeStorage()
 {
   this->attributes_array = nullptr;
   this->attributes_num = 0;
-  this->attributes_capacity = 0;
   this->runtime = MEM_new<AttributeStorageRuntime>(__func__);
 }
 
 AttributeStorage::AttributeStorage(const AttributeStorage &other)
 {
-  this->attributes_array = static_cast<::Attribute **>(
-      MEM_malloc_arrayN(other.attributes_num, sizeof(::Attribute *), __func__));
-  this->attributes_num = other.attributes_num;
-  this->attributes_capacity = other.attributes_capacity;
   this->runtime = MEM_new<AttributeStorageRuntime>(__func__);
-  this->runtime->name_map.reserve(other.runtime->name_map.size());
-
-  const Span<const Attribute *> src_attributes = other.items();
-  MutableSpan<Attribute *> dst_attributes = this->items();
-
-  for (const int i : src_attributes.index_range()) {
-    const Attribute &src_attribute = *src_attributes[i];
-    const StringRef src_name = src_attribute.name;
-    dst_attributes[i] = static_cast<Attribute *>(MEM_mallocN(sizeof(Attribute), __func__));
-    Attribute &dst_attribute = *dst_attributes[i];
-    dst_attribute.name = BLI_strdupn(src_name.data(), src_name.size());
-    dst_attribute.domain = src_attribute.domain;
-    dst_attribute.data_type = src_attribute.data_type;
-    dst_attribute.storage_type = src_attribute.storage_type;
-
-    this->runtime->name_map.add_new(dst_attribute);
-    switch (AttrStorageType(dst_attribute.storage_type)) {
-      case AttrStorageType::Array: {
-        const AttributeDataArray &src_data = *static_cast<AttributeDataArray *>(
-            src_attribute.data);
-        AttributeDataArray *new_data = static_cast<AttributeDataArray *>(
-            MEM_mallocN(sizeof(AttributeDataArray), __func__));
-        new_data->elements_num = src_data.elements_num;
-        new_data->data = src_data.data;
-        new_data->sharing_info = src_data.sharing_info;
-        new_data->sharing_info->add_user();
-        dst_attribute.data = new_data;
-        break;
-      }
-      case AttrStorageType::Single: {
-        BLI_assert_unreachable();
-        break;
-      }
-    }
+  this->runtime->attributes.reserve(other.runtime->attributes.size());
+  for (const std::unique_ptr<const Attribute> &src_attr : other.items()) {
+    this->runtime->attributes.add_new(std::make_unique<Attribute>(*src_attr));
   }
 }
 
@@ -145,12 +110,6 @@ AttributeStorage::AttributeStorage(AttributeStorage &&other)
   this->attributes_array = other.attributes_array;
   other.attributes_array = nullptr;
 
-  this->attributes_num = other.attributes_num;
-  other.attributes_num = 0;
-
-  this->attributes_capacity = other.attributes_capacity;
-  other.attributes_capacity = 0;
-
   this->runtime = other.runtime;
   other.runtime = nullptr;
 }
@@ -167,49 +126,32 @@ AttributeStorage &AttributeStorage::operator=(AttributeStorage &&other)
 
 AttributeStorage::~AttributeStorage()
 {
-  for (::Attribute *attribute : Span(this->attributes_array, this->attributes_num)) {
-    switch (AttrStorageType(attribute->storage_type)) {
-      case AttrStorageType::Array: {
-        AttributeDataArray &attribute_data = *static_cast<AttributeDataArray *>(attribute->data);
-        if (attribute_data.sharing_info) {
-          attribute_data.sharing_info->remove_user_and_delete_if_last();
-        }
-        MEM_freeN(static_cast<AttributeDataArray *>(attribute->data));
-        break;
-      }
-      case AttrStorageType::Single: {
-        BLI_assert_unreachable();
-        break;
-      }
-    }
-    MEM_freeN(attribute->name);
-    MEM_freeN(attribute);
-  }
-  if (this->attributes_array) {
-    MEM_freeN(this->attributes_array);
-  }
+  /* These pointers are only used in files. */
+  BLI_assert(this->attributes_array == nullptr);
+  BLI_assert(this->attributes_num == 0);
+
   MEM_delete(this->runtime);
 }
 
 const Attribute *AttributeStorage::lookup(const StringRef name) const
 {
-  const std::reference_wrapper<Attribute> *attribute = this->runtime->name_map.lookup_key_ptr_as(
-      name);
+  const std::unique_ptr<blender::bke::Attribute> *attribute =
+      this->runtime->attributes.lookup_key_ptr_as(name);
   if (!attribute) {
     return nullptr;
   }
-  return &attribute->get();
+  return attribute->get();
 }
 
 Attribute *AttributeStorage::lookup_for_write(const StringRef name)
 {
-  const std::reference_wrapper<Attribute> *attribute = this->runtime->name_map.lookup_key_ptr_as(
-      name);
+  const std::unique_ptr<blender::bke::Attribute> *attribute =
+      this->runtime->attributes.lookup_key_ptr_as(name);
   if (!attribute) {
     return nullptr;
   }
-  attribute->get().ensure_mutable();
-  return &attribute->get();
+  (*attribute)->ensure_mutable();
+  return attribute->get();
 }
 
 bool AttributeStorage::remove(const StringRef name)
@@ -218,7 +160,7 @@ bool AttributeStorage::remove(const StringRef name)
   if (!attribute) {
     return false;
   }
-  this->runtime->name_map.remove_as(name);
+  this->runtime->attributes.remove_as(name);
   ::Attribute **result = std::remove(
       this->attributes_array, this->attributes_array + this->attributes_num, attribute);
   BLI_assert(std::distance(this->attributes_array, result) == this->attributes_num - 1);
@@ -229,26 +171,12 @@ bool AttributeStorage::remove(const StringRef name)
 Attribute &AttributeStorage::add(const StringRef name,
                                  const AttrDomain domain,
                                  const AttrType data_type,
-                                 const AttributeDataArray &data)
+                                 const Attribute::ArrayData &data)
 {
   Attribute &attribute = this->add_without_data(name, domain, data_type, AttrStorageType::Array);
-
   data.sharing_info->add_user();
-  AttributeDataArray *attribute_data = static_cast<AttributeDataArray *>(
-      MEM_mallocN(sizeof(AttributeDataArray), __func__));
-  memcpy(attribute_data, &data, sizeof(AttributeDataArray));
-  attribute.data = attribute_data;
+  attribute.data_ = data;
   return attribute;
-}
-
-void AttributeStorage::ensure_attribute_array_capacity(const int attributes_num)
-{
-  if (attributes_num > this->attributes_capacity) {
-    this->attributes_capacity *= 2;
-    this->attributes_array = static_cast<::Attribute **>(
-        MEM_reallocN(this->attributes_array, sizeof(::Attribute) * attributes_num));
-    this->attributes_capacity = attributes_num;
-  }
 }
 
 Attribute &AttributeStorage::add_without_data(const StringRef name,
@@ -256,20 +184,14 @@ Attribute &AttributeStorage::add_without_data(const StringRef name,
                                               const AttrType data_type,
                                               const AttrStorageType storage_type)
 {
-  BLI_assert(!this->lookup(name));
-  this->ensure_attribute_array_capacity(this->attributes_num + 1);
-
-  this->attributes_array[this->attributes_num] = static_cast<Attribute *>(
-      MEM_mallocN(sizeof(Attribute), __func__));
-  Attribute &attribute = this->attributes_array[this->attributes_num]->wrap();
-  this->attributes_num++;
-
-  attribute.name = BLI_strdupn(name.data(), name.size());
-  attribute.domain = int8_t(domain);
-  attribute.data_type = int16_t(data_type);
-  attribute.storage_type = int8_t(storage_type);
-  this->runtime->name_map.add_new(attribute);
-
+  BLI_assert(!this->lookup_as(name));
+  std::unique_ptr<Attribute> ptr = std::make_unique<Attribute>();
+  Attribute &attribute = *ptr;
+  attribute.name_ = name;
+  attribute.domain_ = domain;
+  attribute.data_type_ = data_type;
+  attribute.storage_type_ = storage_type;
+  this->runtime->attributes.add_new(std::move(ptr));
   return attribute;
 }
 
@@ -339,21 +261,25 @@ static void read_attribute_data_array(BlendDataReader &reader,
 void AttributeStorage::blend_read(BlendDataReader &reader)
 {
   this->runtime = MEM_new<AttributeStorageRuntime>(__func__);
+  this->runtime->attributes.reserve(this->attributes_num);
 
   BLO_read_pointer_array(&reader, this->attributes_num, (void **)(&this->attributes_array));
   for (const int i : IndexRange(this->attributes_num)) {
-    BLO_read_struct(&reader, Attribute, &this->attributes_array[i]);
-    BLO_read_string(&reader, &this->attributes_array[i]->name);
+    BLO_read_struct(&reader, ::Attribute, &this->attributes_array[i]);
+    ::Attribute &dna_attr = *this->attributes_array[i];
+    BLO_read_string(&reader, &dna_attr.name);
 
-    this->runtime->name_map.add_new(this->attributes_array[i]->wrap());
+    std::unique_ptr<Attribute> attribute = std::make_unique<Attribute>();
+    attribute->name_ = dna_attr.name;
+    attribute->domain_ = AttrDomain(dna_attr.domain);
+    attribute->data_type_ = AttrType(dna_attr.data_type);
 
-    switch (AttrStorageType(this->attributes_array[i]->storage_type)) {
+    switch (AttrStorageType(dna_attr.storage_type)) {
       case AttrStorageType::Array: {
-        BLO_read_struct(&reader, AttributeDataArray, &this->attributes_array[i]->data);
-        read_attribute_data_array(
-            reader,
-            AttrType(this->attributes_array[i]->data_type),
-            *static_cast<AttributeDataArray *>(this->attributes_array[i]->data));
+        BLO_read_struct(&reader, AttributeDataArray, &dna_attr.data);
+        auto &data = *static_cast<AttributeDataArray *>(dna_attr.data);
+        read_attribute_data_array(reader, AttrType(dna_attr.data_type), data);
+        attribute->data_ = Attribute::ArrayData{data.data, data.elements_num, data.sharing_info};
         break;
       }
       case AttrStorageType::Single: {
@@ -361,7 +287,17 @@ void AttributeStorage::blend_read(BlendDataReader &reader)
         break;
       }
     }
+
+    MEM_freeN(dna_attr.name);
+    MEM_freeN(dna_attr.data);
+    MEM_freeN(&dna_attr);
+
+    this->runtime->attributes.add_new(std::move(attribute));
   }
+
+  /* These fields are not used at runtime. */
+  MEM_SAFE_FREE(this->attributes_array);
+  this->attributes_num = 0;
 }
 
 static void write_attribute_data_array(BlendWriter &writer,
@@ -441,11 +377,38 @@ static void write_attribute_data_array(BlendWriter &writer,
       });
 }
 
-void AttributeStorage::blend_write(BlendWriter &writer) const
+void AttributeStorage::blend_write_prepare(AttributeStorage::BlendWriteData &write_data)
+{
+  const Span<std::unique_ptr<Attribute>> attributes = this->runtime->attributes.as_span();
+
+  write_data.attribute_ptrs.resize(attributes.size());
+  write_data.attibutes.resize(attributes.size());
+  write_data.array_data.resize(attributes.size());
+
+  for (const int i : attributes.index_range()) {
+    write_data.attribute_ptrs[i] = &write_data.attibutes[i];
+    write_data.attibutes[i].name = attributes[i]->name().c_str();
+    write_data.attibutes[i].domain = int8_t(attributes[i]->domain_);
+    write_data.attibutes[i].data_type = int8_t(attributes[i]->data_type_);
+    if (const auto *data = std::get_if<Attribute::ArrayData>(&attributes[i]->data_)) {
+      write_data.attibutes[i].storage_type = int8_t(AttrStorageType::Array);
+      write_data.attibutes[i].data = &write_data.array_data[i];
+      write_data.array_data[i].data = data->data;
+      write_data.array_data[i].elements_num = data->elements_num;
+      write_data.array_data[i].sharing_info = data->sharing_info;
+    }
+  }
+
+  this->attributes_array = write_data.attribute_ptrs.data();
+  this->attributes_num = attributes.size();
+}
+
+void AttributeStorage::blend_write(BlendWriter &writer,
+                                   const AttributeStorage::BlendWriteData &write_data) const
 {
   BLO_write_pointer_array(&writer, this->attributes_num, this->attributes_array);
-  for (const Attribute *attribute : this->items()) {
-    BLO_write_struct(&writer, Attribute, &attribute->data);
+  for (const ::Attribute *attribute : Span(this->attributes_array, this->attributes_num)) {
+    BLO_write_struct(&writer, ::Attribute, attribute);
     BLO_write_string(&writer, attribute->name);
     switch (AttrStorageType(attribute->storage_type)) {
       case AttrStorageType::Array: {
