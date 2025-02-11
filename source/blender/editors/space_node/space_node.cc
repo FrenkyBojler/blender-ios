@@ -1312,7 +1312,7 @@ static void node_space_subtype_set(ScrArea *area, int value)
   SpaceNode *snode = static_cast<SpaceNode *>(area->spacedata.first);
   int value_prev = node_space_subtype_get(area);
 
-  /* Save the subtype */
+  /* Save the subtype. */
   blender::bke::bNodeTreeType *typeinfo = rna_node_tree_type_from_enum(value_prev);
   if (typeinfo) {
     STRNCPY(snode->tree_idname_prev, typeinfo->idname.c_str());
