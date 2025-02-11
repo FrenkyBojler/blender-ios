@@ -2135,12 +2135,24 @@ static bool wm_file_write(bContext *C,
   BKE_callback_exec_string(bmain, BKE_CB_EVT_SAVE_PRE, filepath);
 
   /* Check if file write permission is OK. */
-  if (BLI_exists(filepath) && !BLI_file_is_writable(filepath)) {
-    BKE_reportf(
-        reports, RPT_ERROR, "Cannot save blend file, path \"%s\" is not writable", filepath);
+  if (const int st_mode = BLI_exists(filepath)) {
+    bool ok = true;
 
-    BKE_callback_exec_string(bmain, BKE_CB_EVT_SAVE_POST_FAIL, filepath);
-    return false;
+    if (!BLI_file_is_writable(filepath)) {
+      BKE_reportf(
+          reports, RPT_ERROR, "Cannot save blend file, path \"%s\" is not writable", filepath);
+      ok = false;
+    }
+    else if (S_ISDIR(st_mode)) {
+      BKE_reportf(
+          reports, RPT_ERROR, "Cannot save blend file, path \"%s\" is a directory", filepath);
+      ok = false;
+    }
+
+    if (!ok) {
+      BKE_callback_exec_string(bmain, BKE_CB_EVT_SAVE_POST_FAIL, filepath);
+      return false;
+    }
   }
 
   blender::ed::asset::pre_save_assets(bmain);
