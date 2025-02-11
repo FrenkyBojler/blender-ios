@@ -241,6 +241,10 @@ class Engine {
   void draw()
   {
     update_compositing_region_size();
+    /* We temporally disable caching of node tree compilation by always resting the evaluator for
+     * now. See the commit that introduced the line for more information. TODO: This should be
+     * cleaned up in the future. */
+    evaluator_.reset();
     evaluator_.evaluate();
   }
 
