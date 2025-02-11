@@ -18,6 +18,7 @@ set(HIPRT_COMPILER_PARALLEL_JOBS        6 CACHE STRING "" FORCE)
 set(SYCL_OFFLINE_COMPILER_PARALLEL_JOBS 6 CACHE STRING "" FORCE)
 
 set(WITH_LINUX_OFFICIAL_RELEASE_TESTS   ON CACHE BOOL "" FORCE)
+set(WITH_UI_TESTS                       ON CACHE BOOL "" FORCE)
 
 # Validate that some python scripts in out `build_files` and `docs` directories
 # can be used with the builder's system python.
