@@ -446,7 +446,9 @@ static bool ed_undo_create_property_step_in_paint_mode(const ID &id, const Point
   }
 }
 
-bool ED_undo_is_legacy_compatible_for_property(const bContext *C, const ID &id, const PointerRNA &ptr)
+bool ED_undo_is_legacy_compatible_for_property(const bContext *C,
+                                               const ID &id,
+                                               const PointerRNA &ptr)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -468,9 +470,7 @@ bool ED_undo_is_legacy_compatible_for_property(const bContext *C, const ID &id, 
         return false;
       }
       if (obact->mode & OB_MODE_EDIT) {
-        if ((obact->data == nullptr) ||
-            (GS(id.name) != GS(((ID *)obact->data)->name)))
-        {
+        if ((obact->data == nullptr) || (GS(id.name) != GS(((ID *)obact->data)->name))) {
           /* No undo push on id type mismatch in edit-mode. */
           CLOG_INFO(&LOG, 1, "skipping undo for edit-mode");
           return false;
