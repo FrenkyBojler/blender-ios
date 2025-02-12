@@ -233,7 +233,6 @@ static bke::GeometrySet get_original_geometry_eval_copy(Object &object,
         Mesh *mesh_copy = BKE_mesh_wrapper_from_editmesh(em, nullptr, mesh);
         BKE_mesh_wrapper_ensure_mdata(mesh_copy);
         Mesh *final_copy = BKE_mesh_copy_for_eval(*mesh_copy);
-        orig_mesh_states.append_as(*final_copy);
         BKE_id_free(nullptr, mesh_copy);
         return bke::GeometrySet::from_mesh(final_copy);
       }
