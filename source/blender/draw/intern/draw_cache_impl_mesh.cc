@@ -1001,8 +1001,6 @@ gpu::Batch *DRW_mesh_batch_cache_get_verts_with_select_id(Mesh &mesh)
 
 static void edituv_request_active_uv(MeshBatchCache &cache, Object &object, Mesh &mesh)
 {
-  /* Active UV should only be requested when it is available. */
-  BLI_assert(!cache.attr_needed.uv_maps.is_empty());
   mesh_cd_calc_active_uv_layer(object, mesh, cache.attr_needed);
   mesh_cd_calc_active_mask_uv_layer(object, mesh, cache.attr_needed);
 }

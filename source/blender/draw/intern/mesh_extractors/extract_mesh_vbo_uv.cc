@@ -29,7 +29,7 @@ static bool mesh_extract_uv_format_init(GPUVertFormat *format,
 
   for (int i = 0; i < MAX_MTFACE; i++) {
     const char *layer_name = CustomData_get_layer_name(cd_ldata, CD_PROP_FLOAT2, i);
-    if (uv_maps.contains_as(layer_name)) {
+    if (layer_name && uv_maps.contains_as(layer_name)) {
       char attr_name[32], attr_safe_name[GPU_MAX_SAFE_ATTR_NAME];
 
       /* not all UV layers are guaranteed to exist, since the list of available UV
