@@ -26,10 +26,9 @@
 #include "DNA_scene_types.h"
 #include "DNA_space_types.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_ghash.h"
 #include "BLI_linklist.h"
 #include "BLI_math_vector.h"
+#include "BLI_string.h"
 #include "BLI_string_ref.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
@@ -356,7 +355,7 @@ void BKE_blendfile_link_append_context_init_done(BlendfileLinkAppendContext *lap
 {
   BLI_assert(lapp_context->process_stage == BlendfileLinkAppendContext::ProcessStage::Init);
 
-  PointerRNA ctx_ptr = RNA_pointer_create(nullptr, &RNA_BlendImportContext, lapp_context);
+  PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_BlendImportContext, lapp_context);
   PointerRNA *pointers[1] = {&ctx_ptr};
   BKE_callback_exec(lapp_context->params->bmain, pointers, 1, BKE_CB_EVT_BLENDIMPORT_PRE);
 }
@@ -369,7 +368,7 @@ void BKE_blendfile_link_append_context_finalize(BlendfileLinkAppendContext *lapp
                   BlendfileLinkAppendContext::ProcessStage::Instantiating));
   lapp_context->process_stage = BlendfileLinkAppendContext::ProcessStage::Done;
 
-  PointerRNA ctx_ptr = RNA_pointer_create(nullptr, &RNA_BlendImportContext, lapp_context);
+  PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_BlendImportContext, lapp_context);
   PointerRNA *pointers[1] = {&ctx_ptr};
   BKE_callback_exec(lapp_context->params->bmain, pointers, 1, BKE_CB_EVT_BLENDIMPORT_POST);
 }
@@ -809,7 +808,7 @@ static void loose_data_instantiate_obdata_process(LooseDataInstantiateContext *i
     Object *ob = BKE_object_add_only_object(bmain, type, id->name + 2);
     ob->data = id;
     id_us_plus(id);
-    BKE_object_materials_test(bmain, ob, static_cast<ID *>(ob->data));
+    BKE_object_materials_sync_length(bmain, ob, static_cast<ID *>(ob->data));
 
     loose_data_instantiate_object_base_instance_init(bmain,
                                                      active_collection,
@@ -1720,11 +1719,11 @@ static void blendfile_library_relocate_remap(Main *bmain,
               new_id->us);
 
     /* In some cases, new_id might become direct link, remove parent of library in this case. */
-    if (new_id->lib->runtime.parent && (new_id->tag & ID_TAG_INDIRECT) == 0) {
+    if (new_id->lib->runtime->parent && (new_id->tag & ID_TAG_INDIRECT) == 0) {
       if (do_reload) {
         BLI_assert_unreachable(); /* Should not happen in 'pure' reload case... */
       }
-      new_id->lib->runtime.parent = nullptr;
+      new_id->lib->runtime->parent = nullptr;
     }
   }
 
@@ -1776,9 +1775,6 @@ void BKE_blendfile_library_relocate(BlendfileLinkAppendContext *lapp_context,
                                     Library *library,
                                     const bool do_reload)
 {
-  ListBase *lbarray[INDEX_ID_MAX];
-  int lba_idx;
-
   Main *bmain = lapp_context->params->bmain;
 
   /* All override rules need to be up to date, since there will be no do_version here, otherwise
@@ -1787,7 +1783,8 @@ void BKE_blendfile_library_relocate(BlendfileLinkAppendContext *lapp_context,
   BKE_lib_override_library_main_operations_create(bmain, true, nullptr);
 
   /* Remove all IDs to be reloaded from Main. */
-  lba_idx = set_listbasepointers(bmain, lbarray);
+  MainListsArray lbarray = BKE_main_lists_get(*bmain);
+  int lba_idx = lbarray.size();
   while (lba_idx--) {
     ID *id = static_cast<ID *>(lbarray[lba_idx]->first);
     const short idcode = id ? GS(id->name) : 0;
@@ -1949,7 +1946,8 @@ void BKE_blendfile_library_relocate(BlendfileLinkAppendContext *lapp_context,
 
   /* Some datablocks can get reloaded/replaced 'silently' because they are not linkable
    * (shape keys e.g.), so we need another loop here to clear old ones if possible. */
-  lba_idx = set_listbasepointers(bmain, lbarray);
+  lbarray = BKE_main_lists_get(*bmain);
+  lba_idx = lbarray.size();
   while (lba_idx--) {
     ID *id, *id_next;
     for (id = static_cast<ID *>(lbarray[lba_idx]->first); id; id = id_next) {
@@ -1963,7 +1961,8 @@ void BKE_blendfile_library_relocate(BlendfileLinkAppendContext *lapp_context,
 
   /* Get rid of no more used libraries... */
   BKE_main_id_tag_idcode(bmain, ID_LI, ID_TAG_DOIT, true);
-  lba_idx = set_listbasepointers(bmain, lbarray);
+  lbarray = BKE_main_lists_get(*bmain);
+  lba_idx = lbarray.size();
   while (lba_idx--) {
     ID *id;
     for (id = static_cast<ID *>(lbarray[lba_idx]->first); id; id = static_cast<ID *>(id->next)) {

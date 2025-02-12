@@ -12,29 +12,27 @@
 #include "DRW_engine.hh"
 #include "DRW_render.hh"
 
-#include "DNA_modifier_types.h"
+#include "BLI_string.h"
+
+#include "BLT_translation.hh"
+
 #include "DNA_screen_types.h"
 #include "DNA_view3d_types.h"
-
-#include "BKE_object.hh"
-#include "BKE_particle.h"
-#include "BKE_screen.hh"
 
 #include "ED_image.hh"
 #include "ED_screen.hh"
 
-#include "GPU_batch.hh"
 #include "GPU_debug.hh"
 #include "GPU_matrix.hh"
-#include "GPU_shader.hh"
 #include "GPU_state.hh"
-#include "GPU_viewport.hh"
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 
 #include "draw_command.hh"
 #include "draw_view.hh"
+#include "draw_view_data.hh"
+
 #include "external_engine.h" /* own include */
 
 /* Shaders */
@@ -43,10 +41,6 @@
 
 struct EXTERNAL_Data {
   void *engine_type;
-  DRWViewportEmptyList *fbl;
-  DRWViewportEmptyList *txl;
-  DRWViewportEmptyList *psl;
-  DRWViewportEmptyList *stl;
   void *instance_data;
 
   char info[GPU_INFO_SIZE];
@@ -238,13 +232,10 @@ static void external_draw_scene(void *vedata)
   }
 }
 
-static const DrawEngineDataSize external_data_size = DRW_VIEWPORT_DATA_SIZE(EXTERNAL_Data);
-
 DrawEngineType draw_engine_external_type = {
     /*next*/ nullptr,
     /*prev*/ nullptr,
     /*idname*/ N_("External"),
-    /*vedata_size*/ &external_data_size,
     /*engine_init*/ nullptr,
     /*engine_free*/ nullptr,
     /*instance_free*/ nullptr,

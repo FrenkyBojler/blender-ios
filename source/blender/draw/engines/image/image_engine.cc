@@ -10,39 +10,26 @@
 
 #include "DRW_render.hh"
 
-#include <memory>
-#include <optional>
+#include "BLT_translation.hh"
 
+#include "BKE_context.hh"
 #include "BKE_image.hh"
 #include "BKE_main.hh"
 #include "BKE_object.hh"
 
-#include "DNA_camera_types.h"
-#include "DNA_screen_types.h"
-
-#include "IMB_imbuf.hh"
-#include "IMB_imbuf_types.hh"
-
 #include "ED_image.hh"
 
-#include "GPU_batch.hh"
+#include "draw_view_data.hh"
 
 #include "image_drawing_mode.hh"
 #include "image_engine.h"
 #include "image_instance.hh"
-#include "image_private.hh"
 #include "image_shader.hh"
-#include "image_space_image.hh"
-#include "image_space_node.hh"
 
 namespace blender::image_engine {
 
 struct IMAGE_Data {
   void *engine_type;
-  DRWViewportEmptyList *fbl;
-  DRWViewportEmptyList *txl;
-  DRWViewportEmptyList *psl;
-  DRWViewportEmptyList *stl;
   Instance *instance;
   char info[GPU_INFO_SIZE];
 };
@@ -94,8 +81,6 @@ static void IMAGE_instance_free(void *instance)
 
 /** \} */
 
-static const DrawEngineDataSize IMAGE_data_size = DRW_VIEWPORT_DATA_SIZE(IMAGE_Data);
-
 }  // namespace blender::image_engine
 
 extern "C" {
@@ -106,7 +91,6 @@ DrawEngineType draw_engine_image_type = {
     /*next*/ nullptr,
     /*prev*/ nullptr,
     /*idname*/ N_("UV/Image"),
-    /*vedata_size*/ &IMAGE_data_size,
     /*engine_init*/ &IMAGE_engine_init,
     /*engine_free*/ &IMAGE_engine_free,
     /*instance_free*/ &IMAGE_instance_free,

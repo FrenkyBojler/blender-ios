@@ -9,6 +9,7 @@
 #include "WM_api.hh"
 
 #include "BKE_context.hh"
+#include "BKE_library.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_node_tree_update.hh"
 #include "BKE_node_tree_zones.hh"
@@ -52,7 +53,7 @@ inline PointerRNA get_active_node_to_operate_on(bContext *C, const int node_type
   if (active_node->type_legacy != node_type) {
     return PointerRNA_NULL;
   }
-  return RNA_pointer_create(&snode->edittree->id, &RNA_Node, active_node);
+  return RNA_pointer_create_discrete(&snode->edittree->id, &RNA_Node, active_node);
 }
 
 inline void update_after_node_change(bContext *C, const PointerRNA node_ptr)

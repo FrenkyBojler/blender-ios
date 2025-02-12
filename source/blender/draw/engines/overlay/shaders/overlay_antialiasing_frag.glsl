@@ -16,8 +16,6 @@
 #define LINE_SMOOTH_START (0.5 - DISC_RADIUS)
 #define LINE_SMOOTH_END (0.5 + DISC_RADIUS)
 
-#include "common_math_lib.glsl"
-
 /**
  * Returns coverage of a line onto a sample that is distance_to_line (in pixels) far from the line.
  * line_kernel_size is the inner size of the line with 100% coverage.
@@ -99,6 +97,11 @@ void main()
 
   float dist_raw = texelFetch(lineTex, center_texel, 0).b;
   float dist = decode_line_dist(dist_raw);
+
+  if (!doSmoothLines && dist <= 1.0f) {
+    /* No expansion or AA should be applied. */
+    return;
+  }
 
   /* TODO: Optimization: use textureGather. */
   vec4 neightbor_col0 = texelFetchOffset(colorTex, center_texel, 0, ivec2(1, 0));

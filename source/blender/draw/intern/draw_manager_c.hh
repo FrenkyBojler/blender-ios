@@ -20,17 +20,18 @@
 #include "GPU_context.hh"
 #include "GPU_framebuffer.hh"
 #include "GPU_shader.hh"
-#include "GPU_uniform_buffer.hh"
 #include "GPU_viewport.hh"
 
 #include "draw_instance_data.hh"
-#include "draw_shader_shared.hh"
 
 struct DRWDebugModule;
 struct DRWTexturePool;
 struct DRWUniformChunk;
+struct DRWViewData;
+struct DRWTextStore;
 struct DupliObject;
 struct Object;
+struct Mesh;
 namespace blender::draw {
 struct CurvesUniformBufPool;
 struct DRW_Attributes;
@@ -39,16 +40,7 @@ class CurveRefinePass;
 class View;
 }  // namespace blender::draw
 struct GPUMaterial;
-
-/** Use draw manager to call GPU_select, see: #DRW_draw_select_loop */
-#define USE_GPU_SELECT
-
-/** Use draw-call batching using instanced rendering. */
-#define USE_BATCHING 1
-
-// #define DRW_DEBUG_CULLING
-#define DRW_DEBUG_USE_UNIFORM_NAME 0
-#define DRW_UNIFORM_BUFFER_NAME 64
+struct GSet;
 
 /* -------------------------------------------------------------------- */
 /** \name Profiling
@@ -57,7 +49,6 @@ struct GPUMaterial;
 #define USE_PROFILE
 
 #ifdef USE_PROFILE
-#  include "BLI_time.h"
 
 #  define PROFILE_TIMER_FALLOFF 0.04
 
@@ -165,16 +156,11 @@ struct DRWManager {
   /* Dupli data for the current dupli for each enabled engine. */
   void **dupli_datas;
 
-  /* Rendering state */
-  GPUShader *shader;
-  blender::gpu::Batch *batch;
-
   /* Per viewport */
   GPUViewport *viewport;
   GPUFrameBuffer *default_framebuffer;
   float size[2];
   float inv_size[2];
-  float pixsize;
 
   struct {
     uint is_select : 1;
@@ -196,10 +182,6 @@ struct DRWManager {
   bool in_progress;
 
   uint primary_view_num;
-
-#ifdef USE_GPU_SELECT
-  uint select_id;
-#endif
 
   TaskGraph *task_graph;
   /* Contains list of objects that needs to be extracted from other objects. */
