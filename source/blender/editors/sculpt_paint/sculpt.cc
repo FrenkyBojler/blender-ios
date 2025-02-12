@@ -810,7 +810,7 @@ static bool brush_uses_topology_rake(const SculptSession &ss, const Brush &brush
 static int sculpt_brush_needs_normal(const SculptSession &ss, const Sculpt &sd, const Brush &brush)
 {
   using namespace blender::ed::sculpt_paint;
-  const MTex *mask_tex = BKE_brush_mask_texture_get(&brush, OB_MODE_SCULPT);
+  const MTex *mask_tex = &brush.mtex.mask;
   return ((SCULPT_BRUSH_TYPE_HAS_NORMAL_WEIGHT(brush.sculpt_brush_type) &&
            (ss.cache->normal_weight > 0.0f)) ||
           auto_mask::needs_normal(ss, sd, &brush) ||
@@ -2384,7 +2384,7 @@ void sculpt_apply_texture(const SculptSession &ss,
 {
   const blender::ed::sculpt_paint::StrokeCache &cache = *ss.cache;
   const Scene *scene = cache.vc->scene;
-  const MTex *mtex = BKE_brush_mask_texture_get(&brush, OB_MODE_SCULPT);
+  const MTex *mtex = &brush.mtex.mask;
 
   if (!mtex->tex) {
     *r_value = 1.0f;
@@ -2737,7 +2737,7 @@ static void update_brush_local_mat(const Sculpt &sd, Object &ob)
 
   if (cache->mirror_symmetry_pass == 0 && cache->radial_symmetry_pass == 0) {
     const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
-    const MTex *mask_tex = BKE_brush_mask_texture_get(brush, OB_MODE_SCULPT);
+    const MTex *mask_tex = &brush->mtex.mask;
     calc_brush_local_mat(
         mask_tex->rot, ob, cache->brush_local_mat.ptr(), cache->brush_local_mat_inv.ptr());
   }
@@ -3711,7 +3711,7 @@ static void sculpt_fix_noise_tear(const Sculpt &sd, Object &ob)
 {
   SculptSession &ss = *ob.sculpt;
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
-  const MTex *mtex = BKE_brush_mask_texture_get(&brush, OB_MODE_SCULPT);
+  const MTex *mtex = &brush.mtex.mask;
 
   if (ss.multires.active && mtex->tex && mtex->tex->type == TEX_NOISE) {
     multires_stitch_grids(&ob);
@@ -5072,8 +5072,7 @@ bool SCULPT_stroke_get_location_ex(bContext *C,
 static void brush_init_tex(const Sculpt &sd, SculptSession &ss)
 {
   const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
-  const MTex *mask_tex = BKE_brush_mask_texture_get(brush, OB_MODE_SCULPT);
-
+  const MTex *mask_tex = &brush->mtex.mask;
   /* Init mtex nodes. */
   if (mask_tex->tex && mask_tex->tex->nodetree) {
     /* Has internal flag to detect it only does it once. */
@@ -5507,7 +5506,7 @@ static void stroke_update_step(bContext *C,
 static void brush_exit_tex(Sculpt &sd)
 {
   Brush *brush = BKE_paint_brush(&sd.paint);
-  const MTex *mask_tex = BKE_brush_mask_texture_get(brush, OB_MODE_SCULPT);
+  const MTex *mask_tex = &brush->mtex.mask;
 
   if (mask_tex->tex && mask_tex->tex->nodetree) {
     ntreeTexEndExecTree(mask_tex->tex->nodetree->runtime->execdata);
@@ -7145,7 +7144,7 @@ void calc_brush_texture_factors(const SculptSession &ss,
   BLI_assert(verts.size() == factors.size());
 
   const int thread_id = BLI_task_parallel_thread_id(nullptr);
-  const MTex *mtex = BKE_brush_mask_texture_get(&brush, OB_MODE_SCULPT);
+  const MTex *mtex = &brush.mtex.mask;
   if (!mtex->tex) {
     return;
   }
@@ -7172,7 +7171,7 @@ void calc_brush_texture_factors(const SculptSession &ss,
   BLI_assert(positions.size() == factors.size());
 
   const int thread_id = BLI_task_parallel_thread_id(nullptr);
-  const MTex *mtex = BKE_brush_mask_texture_get(&brush, OB_MODE_SCULPT);
+  const MTex *mtex = &brush.mtex.mask;
   if (!mtex->tex) {
     return;
   }

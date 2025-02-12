@@ -120,22 +120,6 @@ float BKE_brush_sample_masktex(
     const Scene *scene, Brush *br, const float point[2], int thread, ImagePool *pool);
 
 /**
- * Get the mask texture for this given object mode.
- *
- * This is preferred above using mtex/mask_mtex attributes directly as due to legacy these
- * attributes got switched in sculpt mode.
- */
-const MTex *BKE_brush_mask_texture_get(const Brush *brush, const eObjectMode object_mode);
-
-/**
- * Get the color texture for this given object mode.
- *
- * This is preferred above using mtex/mask_mtex attributes directly as due to legacy these
- * attributes got switched in sculpt mode.
- */
-const MTex *BKE_brush_color_texture_get(const Brush *brush, const eObjectMode object_mode);
-
-/**
  * Radial control.
  */
 ImBuf *BKE_brush_gen_radial_control_imbuf(Brush *br, bool secondary, bool display_gradient);

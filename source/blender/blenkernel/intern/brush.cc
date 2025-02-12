@@ -759,16 +759,6 @@ void BKE_brush_curve_preset(Brush *b, eCurveMappingPreset preset)
   BKE_brush_tag_unsaved_changes(b);
 }
 
-const MTex *BKE_brush_mask_texture_get(const Brush *brush, const eObjectMode object_mode)
-{
-  return &brush->mtex.mask;
-}
-
-const MTex *BKE_brush_color_texture_get(const Brush *brush, const eObjectMode object_mode)
-{
-  return &brush->mtex.color;
-}
-
 float BKE_brush_sample_tex_3d(const Scene *scene,
                               const Brush *br,
                               const MTex *mtex,

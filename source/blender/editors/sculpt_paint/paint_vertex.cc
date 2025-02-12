@@ -718,7 +718,7 @@ static void paint_and_tex_color_alpha_intern(const VPaint &vp,
                                              float r_rgba[4])
 {
   const Brush *brush = BKE_paint_brush_for_read(&vp.paint);
-  const MTex *mtex = BKE_brush_mask_texture_get(brush, OB_MODE_SCULPT);
+  const MTex *mtex = &brush->mtex.mask;
   BLI_assert(mtex->tex != nullptr);
   if (mtex->brush_map_mode == MTEX_MAP_MODE_3D) {
     BKE_brush_sample_tex_3d(vc->scene, brush, mtex, co, r_rgba, 0, nullptr);

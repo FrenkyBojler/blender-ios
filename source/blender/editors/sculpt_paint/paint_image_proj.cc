@@ -5426,7 +5426,7 @@ static void do_projectpaint_thread(TaskPool *__restrict /*pool*/, void *ph_v)
 
             /* Color texture (alpha used as mask). */
             if (ps->is_texbrush) {
-              const MTex *mtex = BKE_brush_color_texture_get(brush, OB_MODE_TEXTURE_PAINT);
+              const MTex *mtex = &brush->mtex.color;
               float samplecos[3];
               float texrgba[4];
 
