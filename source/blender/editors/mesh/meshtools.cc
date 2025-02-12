@@ -1283,10 +1283,13 @@ bool ED_mesh_pick_vert(
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   ED_view3d_select_id_validate(&vc);
 
-  Base *base = BKE_view_layer_base_find(vc.view_layer, vc.obact);
-  DRW_select_buffer_context_create(vc.depsgraph, {base}, SCE_SELECT_VERTEX);
-
   if (use_zbuf) {
+    /* When used from weightpaint weight sampling which needs to get closest vertex even though in
+     * face select mode, we need to change the select_buffer context to vertex selection for this.
+     */
+    Base *base = BKE_view_layer_base_find(vc.view_layer, vc.obact);
+    DRW_select_buffer_context_create(vc.depsgraph, {base}, SCE_SELECT_VERTEX);
+
     if (dist_px > 0) {
       /* Sample rectangle to increase chances of selecting, so that when clicking
        * on an face in the back-buffer, we can still select a vert. */
