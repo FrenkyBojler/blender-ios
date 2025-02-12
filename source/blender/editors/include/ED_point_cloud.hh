@@ -8,7 +8,9 @@
 
 #pragma once
 
+#include "BLI_index_mask_fwd.hh"
 #include "BLI_string_ref.hh"
+
 #include "DNA_customdata_types.h"
 
 struct bContext;
@@ -18,10 +20,6 @@ namespace blender::bke {
 enum class AttrDomain : int8_t;
 struct GSpanAttributeWriter;
 }  // namespace blender::bke
-namespace blender::index_mask {
-class IndexMask;
-class IndexMaskMemory;
-}  // namespace blender::index_mask
 namespace blender {
 class GMutableSpan;
 }  // namespace blender
