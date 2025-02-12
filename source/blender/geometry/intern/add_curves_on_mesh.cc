@@ -240,6 +240,12 @@ static void calc_radius_without_interpolation(CurvesGeometry &curves,
                                               const float radius)
 {
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+  if (!attributes.contains("radius")) {
+    attributes.add<float>(
+        "radius",
+        bke::AttrDomain::Point,
+        bke::AttributeInitVArray(VArray<float>::ForSingle(0.01f, curves.curves_num())));
+  }
   bke::SpanAttributeWriter radius_attr = attributes.lookup_or_add_for_write_span<float>(
       "radius", bke::AttrDomain::Point);
   radius_attr.span.slice(new_points_range).fill(radius);
