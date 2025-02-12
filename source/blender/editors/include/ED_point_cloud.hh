@@ -42,8 +42,8 @@ void keymap_point_cloud(wmKeyConfig *keyconf);
  * helpful utilities on top of that.
  * \{ */
 
-void fill_selection_true(GMutableSpan selection, const IndexMask &mask);
 void fill_selection_false(GMutableSpan selection, const IndexMask &mask);
+void fill_selection_true(GMutableSpan selection, const IndexMask &mask);
 
 /**
  * Return true if any element is selected, on either domain with either type.
@@ -51,7 +51,7 @@ void fill_selection_false(GMutableSpan selection, const IndexMask &mask);
 bool has_anything_selected(const PointCloud &point_cloud);
 
 /**
- * (De)select all the curves.
+ * (De)select all the points.
  *
  * \param action: One of #SEL_TOGGLE, #SEL_SELECT, #SEL_DESELECT, or #SEL_INVERT.
  * See `ED_select_utils.hh`.
