@@ -538,6 +538,7 @@ class Report:
             # Detect missing filepaths and consider those errors
             for filepath in running_tests:
                 remaining_filepaths.pop(0)
+                file_crashed = False
 
                 for test in self._get_filepath_tests(filepath):
                     if crash:
@@ -546,6 +547,7 @@ class Report:
                             test.error = "CRASH"
                             print_message("Crash running Blender")
                             print_message(test.name, 'FAILURE', 'FAILED')
+                            file_crashed = True
                             break
 
                     if not os.path.exists(test.tmp_out_img) or os.path.getsize(test.tmp_out_img) == 0:
@@ -564,6 +566,9 @@ class Report:
                         os.remove(test.tmp_out_img)
 
                     test_results.append(test)
+
+                if file_crashed:
+                    break
 
         return test_results
 
