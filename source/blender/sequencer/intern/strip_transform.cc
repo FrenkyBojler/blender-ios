@@ -9,7 +9,6 @@
  */
 
 #include "BLI_bounds.hh"
-#include "BLI_bounds_types.hh"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
@@ -30,7 +29,6 @@
 
 #include "sequencer.hh"
 #include "strip_time.hh"
-#include <limits>
 
 using namespace blender;
 
@@ -677,22 +675,21 @@ float2 SEQ_image_preview_unit_from_px(const Scene *scene, const float2 co_src)
   return {co_src.x / scene->r.xsch, co_src.y / scene->r.ysch};
 }
 
+static Bounds<float2> negative_bounds()
+{
+  return {float2(std::numeric_limits<float>::max()), float2(std::numeric_limits<float>::lowest())};
+}
+
 Bounds<float2> SEQ_image_transform_bounding_box_from_collection(Scene *scene,
                                                                 blender::Span<Strip *> strips,
                                                                 bool apply_rotation)
 {
-  Bounds<float2> box(float2(0.0f), float2(0.0f));
+  Bounds<float2> box = negative_bounds();
 
   for (Strip *strip : strips) {
     const Array<float2> quad = SEQ_image_transform_quad_get(scene, strip, apply_rotation);
     const Bounds<float2> strip_box = *blender::bounds::min_max(quad.as_span());
-
-    if (box.is_empty()) {
-      box = strip_box;
-    }
-    else {
-      box = blender::bounds::merge(box, strip_box);
-    }
+    box = blender::bounds::merge(box, strip_box);
   }
 
   return box;

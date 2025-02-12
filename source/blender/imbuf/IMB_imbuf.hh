@@ -626,7 +626,7 @@ void IMB_transform(const ImBuf *src,
                    ImBuf *dst,
                    eIMBTransformMode mode,
                    eIMBInterpolationFilterMode filter,
-                   blender::float3x3 transform_matrix,
+                   const blender::float3x3 &transform_matrix,
                    const rctf *src_crop);
 
 GPUTexture *IMB_create_gpu_texture(const char *name,

@@ -255,8 +255,8 @@ static bool gizmo2d_calc_bounds(const bContext *C, float *r_center, float *r_min
     int selected_strips = strips.size();
     if (selected_strips > 0) {
       has_select = true;
-      const Bounds<float2> box = SEQ_image_transform_bounding_box_from_collection(
-          scene, strips, selected_strips != 1);
+      const blender::Bounds<blender::float2> box =
+          SEQ_image_transform_bounding_box_from_collection(scene, strips, selected_strips != 1);
       copy_v2_v2(r_min, box.min);
       copy_v2_v2(r_max, box.max);
     }
@@ -272,7 +272,7 @@ static bool gizmo2d_calc_bounds(const bContext *C, float *r_center, float *r_min
       const int pivot_point = scene->toolsettings->sequencer_tool_settings->pivot_point;
       if (pivot_point == V3D_AROUND_CURSOR) {
         SpaceSeq *sseq = static_cast<SpaceSeq *>(area->spacedata.first);
-        const float2 cursor_pixel = SEQ_image_preview_unit_to_px(scene, sseq->cursor);
+        const blender::float2 cursor_pixel = SEQ_image_preview_unit_to_px(scene, sseq->cursor);
         copy_v2_v2(r_center, cursor_pixel);
       }
       else {
@@ -383,7 +383,7 @@ static bool gizmo2d_calc_transform_pivot(const bContext *C, float r_pivot[2])
     const int pivot_point = scene->toolsettings->sequencer_tool_settings->pivot_point;
 
     if (pivot_point == V3D_AROUND_CURSOR) {
-      const float2 cursor_pixel = SEQ_image_preview_unit_to_px(scene, sseq->cursor);
+      const blender::float2 cursor_pixel = SEQ_image_preview_unit_to_px(scene, sseq->cursor);
       copy_v2_v2(r_pivot, cursor_pixel);
 
       Editing *ed = SEQ_editing_get(scene);

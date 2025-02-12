@@ -468,7 +468,7 @@ void IMB_transform(const ImBuf *src,
                    ImBuf *dst,
                    const eIMBTransformMode mode,
                    const eIMBInterpolationFilterMode filter,
-                   float3x3 transform_matrix,
+                   const float3x3 &transform_matrix,
                    const rctf *src_crop)
 {
   BLI_assert_msg(mode != IMB_TRANSFORM_MODE_CROP_SRC || src_crop != nullptr,
