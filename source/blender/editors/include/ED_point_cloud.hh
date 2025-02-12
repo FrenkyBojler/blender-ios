@@ -8,9 +8,12 @@
 
 #pragma once
 
+struct wmKeyConfig;
+
 namespace blender::ed::point_cloud {
 
 void operatortypes_point_cloud();
+void keymap_point_cloud(wmKeyConfig *keyconf);
 
 /* -------------------------------------------------------------------- */
 /** \name Selection
@@ -49,6 +52,14 @@ bke::GSpanAttributeWriter ensure_selection_attribute(PointCloud &point_cloud,
                                                      bke::AttrDomain selection_domain,
                                                      eCustomDataType create_type,
                                                      StringRef attribute_name = ".selection");
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Poll Functions
+ * \{ */
+
+bool editable_point_cloud_in_edit_mode_poll(bContext *C);
 
 /** \} */
 

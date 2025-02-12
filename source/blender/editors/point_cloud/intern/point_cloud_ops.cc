@@ -69,6 +69,11 @@ bool editable_point_cloud_poll(bContext *C)
   return point_cloud_poll_impl(C, false, false);
 }
 
+bool editable_point_cloud_in_edit_mode_poll(bContext *C)
+{
+  return point_cloud_poll_impl(C, true, true);
+}
+
 VectorSet<PointCloud *> get_unique_editable_point_cloud(const bContext &C)
 {
   VectorSet<PointCloud *> unique_points;
@@ -137,6 +142,13 @@ static void POINT_CLOUD_OT_select_all(wmOperatorType *ot)
 void operatortypes_point_cloud()
 {
   WM_operatortype_append(POINT_CLOUD_OT_select_all);
+}
+
+void keymap_point_cloud(wmKeyConfig *keyconf)
+{
+  /* Only set in editmode point cloud, by space_view3d listener. */
+  wmKeyMap *keymap = WM_keymap_ensure(keyconf, "Point Cloud", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  keymap->poll = editable_point_cloud_in_edit_mode_poll;
 }
 
 }  // namespace blender::ed::point_cloud

@@ -191,6 +191,7 @@ void ED_spacetypes_keymap(wmKeyConfig *keyconf)
   ED_keymap_uvedit(keyconf);
   ED_keymap_curve(keyconf);
   curves::keymap_curves(keyconf);
+  point_cloud::keymap_point_cloud(keyconf);
   ED_keymap_armature(keyconf);
   ED_keymap_physics(keyconf);
   ED_keymap_metaball(keyconf);
