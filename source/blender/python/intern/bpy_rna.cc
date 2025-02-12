@@ -9641,6 +9641,14 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
 
 static void bpy_class_free(void *pyob_ptr)
 {
+#ifdef WITH_PYTHON_MODULE
+  /* This can happen when Python has exited before all Blender's RNA types have been freed.
+   * In this Python memory management can't run. Mentioned in: #125376. */
+  if (!Py_IsInitialized()) {
+    return;
+  }
+#endif
+
   PyObject *self = (PyObject *)pyob_ptr;
   PyGILState_STATE gilstate;
 
