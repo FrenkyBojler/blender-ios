@@ -41,6 +41,7 @@
 #include "ED_object.hh"
 #include "ED_paint.hh"
 #include "ED_physics.hh"
+#include "ED_point_cloud.hh"
 #include "ED_render.hh"
 #include "ED_scene.hh"
 #include "ED_screen.hh"
@@ -103,6 +104,7 @@ void ED_spacetypes_init()
   ED_operatortypes_physics();
   ED_operatortypes_curve();
   curves::operatortypes_curves();
+  point_cloud::operatortypes_point_cloud();
   ED_operatortypes_armature();
   ED_operatortypes_marker();
   ED_operatortypes_metaball();

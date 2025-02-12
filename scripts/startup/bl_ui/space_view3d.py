@@ -2321,6 +2321,10 @@ class VIEW3D_MT_select_edit_point_cloud(Menu):
         layout = self.layout
         layout.template_node_operator_asset_menu_items(catalog_path=self.bl_label)
 
+        layout.operator("point_cloud.select_all", text="All").action = 'SELECT'
+        layout.operator("point_cloud.select_all", text="None").action = 'DESELECT'
+        layout.operator("point_cloud.select_all", text="Invert").action = 'INVERT'
+
 
 class VIEW3D_MT_edit_curves_select_more_less(Menu):
     bl_label = "Select More/Less"
