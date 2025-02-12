@@ -3471,10 +3471,7 @@ static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
   status.item(IFACE_("Confirm"), ICON_EVENT_RETURN);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
 
-  if (is_num_but) {
-    status.item("You can enter fractions and other math operations", ICON_INFO);
-  }
-  else {
+  if (!is_num_but) {
     status.item(IFACE_("Select All"), ctrl_icon, ICON_EVENT_A);
     status.item(IFACE_("Copy"), ctrl_icon, ICON_EVENT_C);
     status.item(IFACE_("Paste"), ctrl_icon, ICON_EVENT_V);
