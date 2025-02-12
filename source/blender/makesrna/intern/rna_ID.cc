@@ -715,7 +715,7 @@ static ID *rna_ID_copy(ID *id, Main *bmain)
   }
 
   WM_main_add_notifier(NC_ID | NA_ADDED, nullptr);
-  BKE_main_ensure_invariants(*bmain);
+  BKE_main_ensure_invariants(*bmain, *newid);
 
   return newid;
 }
