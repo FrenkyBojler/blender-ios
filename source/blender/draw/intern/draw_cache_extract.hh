@@ -36,6 +36,12 @@ struct MeshAttributeRequests {
   VectorSet<std::string> generic_requests;
   VectorSet<std::string> uv_maps;
   VectorSet<std::string> tangents;
+
+  // TODO: Use instead of names above to avoid reading from Mesh during "request" phase.
+  bool active_color = false;
+  bool default_color = false;
+  bool active_uv_map = false;
+
   bool orco = false;
   bool tan_orco = false;
   bool sculpt_overlays = false;
