@@ -472,7 +472,7 @@ void extract_data_corner_bmesh(const Set<BMFace *, 0> &faces,
   }
 }
 
-const CustomDataLayer *lookup_layer_by_name(const CustomData &data, const StringRef name)
+static const CustomDataLayer *lookup_layer_by_name(const CustomData &data, const StringRef name)
 {
   const int index = CustomData_get_named_layer_index_notype(&data, name);
   if (index == -1) {
@@ -751,7 +751,7 @@ BLI_NOINLINE static void update_generic_attribute_mesh(const Object &object,
     bke::attribute_math::convert_to_static_type(data_type, [&](auto dummy) {
       using T = decltype(dummy);
       if constexpr (!std::is_void_v<typename AttributeConverter<T>::VBOType>) {
-        const Span<T> src = attribute.typed<T>();
+        const VArraySpan src = attribute.varray.typed<T>();
         switch (attribute.domain) {
           case bke::AttrDomain::Point:
             extract_data_vert_mesh<T>(faces, corner_verts, src, nodes[i].faces(), *vbos[i]);

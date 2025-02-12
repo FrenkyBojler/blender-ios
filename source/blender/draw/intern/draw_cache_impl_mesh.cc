@@ -48,6 +48,10 @@
 
 #include "mesh_extractors/extract_mesh.hh"
 
+#ifndef NDEBUG
+#  include "BLI_map.hh"
+#endif
+
 namespace blender::draw {
 
 /* ---------------------------------------------------------------------- */

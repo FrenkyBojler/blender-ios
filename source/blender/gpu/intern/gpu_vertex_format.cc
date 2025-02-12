@@ -254,21 +254,17 @@ void GPU_vertformat_safe_attr_name(const blender::StringRef attr_name,
 
   if (len > 8) {
     /* Start with the first 4 chars of the name. */
-    for (int i = 0; i < 4; i++) {
-      data[i] = attr_name[i];
-    }
+    memcpy(data, attr_name.data(), 4);
     /* We use a hash to identify each data layer based on its name.
      * NOTE: This is still prone to hash collision but the risks are very low. */
     /* Start hashing after the first 2 chars. */
     *(uint *)&data[4] = BLI_hash_mm2(
-        reinterpret_cast<const uchar *>(attr_name.data() + 4), attr_name.size() - 4, 0);
+        reinterpret_cast<const uchar *>(attr_name.data() + 4), len - 4, 0);
   }
   else {
     /* Copy the whole name. Collision is barely possible
      * (hash would have to be equal to the last 4 bytes). */
-    for (int i = 0; i < 8 && attr_name[i] != '\0'; i++) {
-      data[i] = attr_name[i];
-    }
+    memcpy(data, attr_name.data(), std::min<int>(8, len));
   }
   /* Convert to safe bytes characters. */
   safe_bytes(r_safe_name, data);
