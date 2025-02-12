@@ -14,7 +14,7 @@ namespace blender {
 namespace bke {
 class Attribute;
 class AttributeStorage;
-struct AttributeStorageRuntime;
+class AttributeStorageRuntime;
 enum class AttrDomain : int8_t;
 enum class AttrType : int16_t;
 enum class AttrStorageType : int8_t;

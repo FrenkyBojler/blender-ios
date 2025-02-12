@@ -6,7 +6,7 @@
 
 #include <variant>
 
-#include "BLI_span.hh"
+#include "BLI_function_ref.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector_set.hh"
 
@@ -50,7 +50,8 @@ class Attribute {
   void ensure_mutable();
 };
 
-struct AttributeStorageRuntime {
+class AttributeStorageRuntime {
+  friend AttributeStorage;
   struct AttributeNameGetter {
     StringRef operator()(const std::unique_ptr<Attribute> &value) const
     {
@@ -58,10 +59,6 @@ struct AttributeStorageRuntime {
     }
   };
   CustomIDVectorSet<std::unique_ptr<Attribute>, AttributeNameGetter> attributes;
-  auto items() const
-  {
-    return attributes.as_span();
-  }
 };
 
 class AttributeStorage : public ::AttributeStorage {
@@ -73,10 +70,10 @@ class AttributeStorage : public ::AttributeStorage {
   AttributeStorage &operator=(AttributeStorage &&other);
   ~AttributeStorage();
 
-  Span<std::unique_ptr<const Attribute>> items() const;
-  Span<Attribute *> items();
+  void foreach (FunctionRef<void(Attribute &)> fn);
+  void foreach (FunctionRef<void(const Attribute &)> fn) const;
+  Attribute *lookup(StringRef name);
   const Attribute *lookup(StringRef name) const;
-  Attribute *lookup_for_write(StringRef name);
   bool remove(StringRef name);
   Attribute &add(StringRef name,
                  bke::AttrDomain domain,
@@ -90,23 +87,11 @@ class AttributeStorage : public ::AttributeStorage {
     Vector<::AttributeDataArray, 16> array_data;
   };
   void blend_write_prepare(BlendWriteData &write_data);
-  void blend_write(BlendWriter &writer, const BlendWriteData &write_data) const;
+  void blend_write(BlendWriter &writer, const BlendWriteData &write_data);
 
  private:
-  Attribute &add_without_data(StringRef name,
-                              bke::AttrDomain domain,
-                              bke::AttrType data_type,
-                              bke::AttrStorageType storage_type);
+  Attribute &add_without_data(StringRef name, bke::AttrDomain domain, bke::AttrType data_type);
 };
-
-inline Span<std::unique_ptr<const Attribute>> AttributeStorage::items() const
-{
-  return this->runtime->attributes.as_span();
-}
-inline Span<Attribute *> AttributeStorage::items()
-{
-  return this->runtime->attributes.as_span();
-}
 
 inline StringRefNull Attribute::name() const
 {

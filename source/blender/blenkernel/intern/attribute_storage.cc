@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_implicit_sharing.hh"
-#include "BLI_string.h"
 #include "BLI_vector_set.hh"
 
 #include "BLO_read_write.hh"
@@ -47,6 +46,19 @@ class ArrayDataImplicitSharing : public ImplicitSharingInfo {
   }
 };
 
+void AttributeStorage::foreach (FunctionRef<void(Attribute &)> fn)
+{
+  for (const std::unique_ptr<Attribute> &attribute : this->runtime->attributes) {
+    fn(*attribute);
+  }
+}
+void AttributeStorage::foreach (FunctionRef<void(const Attribute &)> fn) const
+{
+  for (const std::unique_ptr<Attribute> &attribute : this->runtime->attributes) {
+    fn(*attribute);
+  }
+}
+
 static ImplicitSharingInfo *create_sharing_info_for_array(void *data,
                                                           const int64_t elements_num,
                                                           const CPPType &type)
@@ -56,26 +68,22 @@ static ImplicitSharingInfo *create_sharing_info_for_array(void *data,
 
 void Attribute::ensure_mutable()
 {
-  switch (storage_type_) {
-    case AttrStorageType::Array: {
-      ArrayData &data = std::get<ArrayData>(data_);
-      if (data.sharing_info->is_mutable()) {
-        data.sharing_info->tag_ensured_mutable();
-        return;
-      }
-
-      const CPPType &cpp_type = attribute_type_to_cpp_type(data_type_);
-      void *new_data = MEM_mallocN_aligned(data.elements_num, cpp_type.alignment(), __func__);
-      cpp_type.copy_construct_n(data.data, new_data, data.elements_num);
-      data.data = new_data;
-
-      data.sharing_info->remove_user_and_delete_if_last();
-      data.sharing_info = create_sharing_info_for_array(data.data, data.elements_num, cpp_type);
-      break;
+  if (auto *data = std::get_if<Attribute::ArrayData>(&data_)) {
+    if (data->sharing_info->is_mutable()) {
+      data->sharing_info->tag_ensured_mutable();
+      return;
     }
-    case AttrStorageType::Single:
-      BLI_assert_unreachable();
-      break;
+
+    const CPPType &cpp_type = attribute_type_to_cpp_type(data_type_);
+    void *new_data = MEM_mallocN_aligned(data->elements_num, cpp_type.alignment(), __func__);
+    cpp_type.copy_construct_n(data->data, new_data, data->elements_num);
+    data->data = new_data;
+
+    data->sharing_info->remove_user_and_delete_if_last();
+    data->sharing_info = create_sharing_info_for_array(data->data, data->elements_num, cpp_type);
+  }
+  else if (std::get_if<Attribute::SingleData>(&data_)) {
+    BLI_assert_unreachable();
   }
 }
 
@@ -90,9 +98,9 @@ AttributeStorage::AttributeStorage(const AttributeStorage &other)
 {
   this->runtime = MEM_new<AttributeStorageRuntime>(__func__);
   this->runtime->attributes.reserve(other.runtime->attributes.size());
-  for (const std::unique_ptr<const Attribute> &src_attr : other.items()) {
-    this->runtime->attributes.add_new(std::make_unique<Attribute>(*src_attr));
-  }
+  other.foreach ([&](const Attribute &attribute) {
+    this->runtime->attributes.add_new(std::make_unique<Attribute>(attribute));
+  });
 }
 
 AttributeStorage &AttributeStorage::operator=(const AttributeStorage &other)
@@ -143,14 +151,13 @@ const Attribute *AttributeStorage::lookup(const StringRef name) const
   return attribute->get();
 }
 
-Attribute *AttributeStorage::lookup_for_write(const StringRef name)
+Attribute *AttributeStorage::lookup(const StringRef name)
 {
   const std::unique_ptr<blender::bke::Attribute> *attribute =
       this->runtime->attributes.lookup_key_ptr_as(name);
   if (!attribute) {
     return nullptr;
   }
-  (*attribute)->ensure_mutable();
   return attribute->get();
 }
 
@@ -173,7 +180,7 @@ Attribute &AttributeStorage::add(const StringRef name,
                                  const AttrType data_type,
                                  const Attribute::ArrayData &data)
 {
-  Attribute &attribute = this->add_without_data(name, domain, data_type, AttrStorageType::Array);
+  Attribute &attribute = this->add_without_data(name, domain, data_type);
   data.sharing_info->add_user();
   attribute.data_ = data;
   return attribute;
@@ -181,8 +188,7 @@ Attribute &AttributeStorage::add(const StringRef name,
 
 Attribute &AttributeStorage::add_without_data(const StringRef name,
                                               const AttrDomain domain,
-                                              const AttrType data_type,
-                                              const AttrStorageType storage_type)
+                                              const AttrType data_type)
 {
   BLI_assert(!this->lookup_as(name));
   std::unique_ptr<Attribute> ptr = std::make_unique<Attribute>();
@@ -190,7 +196,6 @@ Attribute &AttributeStorage::add_without_data(const StringRef name,
   attribute.name_ = name;
   attribute.domain_ = domain;
   attribute.data_type_ = data_type;
-  attribute.storage_type_ = storage_type;
   this->runtime->attributes.add_new(std::move(ptr));
   return attribute;
 }
@@ -254,7 +259,10 @@ static void read_attribute_data_array(BlendDataReader &reader,
                                   (MStringProperty **)(array_data.data));
             break;
         }
-        return create_sharing_info_for_array(array_data, attribute_type_to_cpp_type(data_type));
+        return MEM_new<ArrayDataImplicitSharing>("ArrayDataImplicitSharing",
+                                                 array_data.data,
+                                                 array_data.elements_num,
+                                                 attribute_type_to_cpp_type(data_type));
       });
 }
 
@@ -404,7 +412,7 @@ void AttributeStorage::blend_write_prepare(AttributeStorage::BlendWriteData &wri
 }
 
 void AttributeStorage::blend_write(BlendWriter &writer,
-                                   const AttributeStorage::BlendWriteData &write_data) const
+                                   const AttributeStorage::BlendWriteData & /*write_data*/)
 {
   BLO_write_pointer_array(&writer, this->attributes_num, this->attributes_array);
   for (const ::Attribute *attribute : Span(this->attributes_array, this->attributes_num)) {
@@ -424,6 +432,8 @@ void AttributeStorage::blend_write(BlendWriter &writer,
       }
     }
   }
+  this->attributes_array = nullptr;
+  this->attributes_num = 0;
 }
 
 }  // namespace blender::bke
