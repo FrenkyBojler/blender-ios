@@ -42,17 +42,17 @@ bool remove_selection(bke::CurvesGeometry &curves, const bke::AttrDomain selecti
   return attributes.domain_size(selection_domain) != domain_size_orig;
 }
 
-using NonselectedCallback = FunctionRef<void(IndexRange nonselected_points, IndexRange slices)>;
+using UnselectedCallback = FunctionRef<void(IndexRange unselected_points, IndexRange slices)>;
 
-static void call_nonselected(const Span<int> offset_data,
-                             const int begin,
-                             const int end,
-                             NonselectedCallback nonselected_fn)
+static void call_unselected(const Span<int> offset_data,
+                            const int begin,
+                            const int end,
+                            UnselectedCallback unselected_fn)
 {
   if (begin < end) {
     const IndexRange slices = IndexRange::from_begin_end(begin, end);
     const IndexRange data = IndexRange::from_begin_end(offset_data[begin], offset_data[end]);
-    nonselected_fn(data, slices);
+    unselected_fn(data, slices);
   }
 };
 
@@ -62,7 +62,7 @@ static void foreach_content_slice_by_offsets_(
     const OffsetIndices<int> offset_indices,
     FunctionRef<void(Span<IndexRange> selected_points, IndexRange slice_points, int slice)>
         selected_fn,
-    Fn nonselected_fn)
+    Fn unselected_fn)
 {
   Vector<IndexRange> ranges;
   Span<int> offset_data = offset_indices.data();
@@ -74,18 +74,18 @@ static void foreach_content_slice_by_offsets_(
 
   mask.foreach_index([&](const int64_t index) {
     if (offset_data[slice + 1] <= index) {
-      int first_nonselected_slice = slice;
+      int first_unselected_slice = slice;
       if (range_last >= range_first) {
         ranges.append(IndexRange::from_begin_end_inclusive(range_first, range_last));
         selected_fn(ranges, offset_indices[slice], slice);
         ranges.clear();
-        first_nonselected_slice++;
+        first_unselected_slice++;
       }
       do {
         ++slice;
       } while (offset_data[slice + 1] <= index);
       if constexpr (std::is_invocable_r_v<void, Fn, IndexRange, IndexRange>) {
-        call_nonselected(offset_data, first_nonselected_slice, slice, nonselected_fn);
+        call_unselected(offset_data, first_unselected_slice, slice, unselected_fn);
       }
       range_first = index;
     }
@@ -101,7 +101,7 @@ static void foreach_content_slice_by_offsets_(
     selected_fn(ranges, offset_indices[slice], slice);
   }
   if constexpr (std::is_invocable_r_v<void, Fn, IndexRange, IndexRange>) {
-    call_nonselected(offset_data, slice + 1, offset_indices.size(), nonselected_fn);
+    call_unselected(offset_data, slice + 1, offset_indices.size(), unselected_fn);
   }
 }
 
@@ -119,10 +119,10 @@ static void foreach_content_slice_by_offsets(
     const OffsetIndices<int> offset_indices,
     FunctionRef<void(Span<IndexRange> selected_points, IndexRange slice_points, int slice)>
         selected_fn,
-    NonselectedCallback nonselected_fn)
+    UnselectedCallback unselected_fn)
 {
-  foreach_content_slice_by_offsets_<NonselectedCallback>(
-      mask, offset_indices, selected_fn, nonselected_fn);
+  foreach_content_slice_by_offsets_<UnselectedCallback>(
+      mask, offset_indices, selected_fn, unselected_fn);
 }
 
 static void curve_offsets_from_selection(const Span<IndexRange> selected_points,
@@ -391,7 +391,7 @@ bke::CurvesGeometry split_points(const bke::CurvesGeometry &curves,
 
   Vector<IndexRange> deselect;
 
-  Array<IndexRange> nonselected_curve_points;
+  Array<IndexRange> unselected_curve_points;
   Vector<IndexRange> curve_points_to_preserve;
 
   foreach_content_slice_by_offsets(
@@ -410,11 +410,10 @@ bke::CurvesGeometry split_points(const bke::CurvesGeometry &curves,
                                      curve_map);
         const int split_points_num = new_offsets.last() - points_start;
         /* Invert ranges to get non selected points. */
-        invert_ranges(points, selected_curve_points, nonselected_curve_points);
+        invert_ranges(points, selected_curve_points, unselected_curve_points);
         /* Extended every range to left and right by one point. Any resulting intersection is
          * merged. */
-        extend_and_merge(
-            points, cyclic[curve], nonselected_curve_points, curve_points_to_preserve);
+        extend_and_merge(points, cyclic[curve], unselected_curve_points, curve_points_to_preserve);
         const int size_before = curve_map.size();
         curve_offsets_from_selection(curve_points_to_preserve,
                                      points,
