@@ -12,22 +12,14 @@ import sys
 from pathlib import Path
 import sys
 
-try:
-    # Render report is not always available and leads to errors in the console logs that can be ignored.
-    from modules import render_report
 
-    class OverlayReport(render_report.Report):
-        def __init__(self, title, output_dir, oiiotool, variation=None, blocklist=[]):
-            super().__init__(title, output_dir, oiiotool, variation=variation, blocklist=blocklist)
-            self.gpu_backend = variation
+class OverlayReport(render_report.Report):
+    def __init__(self, title, output_dir, oiiotool, variation=None, blocklist=[]):
+        super().__init__(title, output_dir, oiiotool, variation=variation, blocklist=blocklist)
+        self.gpu_backend = variation
 
-        def _get_render_arguments(self, arguments_cb, filepath, base_output_filepath):
-            return arguments_cb(filepath, base_output_filepath, gpu_backend=self.gpu_backend)
-
-except ImportError:
-    # render_report can only be loaded when running the render tests. It errors when
-    # this script is run during preparation steps.
-    pass
+    def _get_render_arguments(self, arguments_cb, filepath, base_output_filepath):
+        return arguments_cb(filepath, base_output_filepath, gpu_backend=self.gpu_backend)
 
 
 def get_arguments(filepath, output_filepath, gpu_backend):
