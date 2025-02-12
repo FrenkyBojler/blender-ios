@@ -12,20 +12,21 @@ namespace blender::gpu {
 
 class ProfileReport {
  private:
-  std::fstream report;
+  std::fstream _report;
+  std::mutex _mutex;
 
   ProfileReport()
   {
-    report.open("profile.json", std::ios::out);
-    report << R"([{"name":"thread_name","ph":"M","pid":1,"tid":1,"args":{"name":"GPU"}})"
-              ",\n";
-    report << R"({"name":"thread_name","ph":"M","pid":1,"tid":2,"args":{"name":"CPU"}})";
+    _report.open("profile.json", std::ios::out);
+    _report << R"([{"name":"thread_name","ph":"M","pid":1,"tid":1,"args":{"name":"GPU"}})"
+               ",\n";
+    _report << R"({"name":"thread_name","ph":"M","pid":1,"tid":2,"args":{"name":"CPU"}})";
   }
 
   ~ProfileReport()
   {
-    report << "\n]\n";
-    report.close();
+    _report << "\n]\n";
+    _report.close();
   }
 
  public:
@@ -41,14 +42,16 @@ class ProfileReport {
                  uint64_t cpu_start,
                  uint64_t cpu_end)
   {
-    report << fmt::format(
+    std::scoped_lock lock(_mutex);
+
+    _report << fmt::format(
         ",\n"
         R"({{"name":"{}","ph":"X","ts":{},"dur":{},"pid":1,"tid":1}})",
         name.c_str(),
         gpu_start / uint64_t(1000),
         (gpu_end - gpu_start) / uint64_t(1000));
 
-    report << fmt::format(
+    _report << fmt::format(
         ",\n"
         R"({{"name":"{}","ph":"X","ts":{},"dur":{},"pid":1,"tid":2}})",
         name.c_str(),
