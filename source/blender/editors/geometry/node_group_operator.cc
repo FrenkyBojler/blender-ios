@@ -1429,7 +1429,7 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
     PointerRNA props_ptr;
     uiItemFullO_ptr(layout,
                     ot,
-                    IFACE_(asset->get_name().c_str()),
+                    IFACE_(asset->get_name()),
                     ICON_NONE,
                     nullptr,
                     WM_OP_INVOKE_REGION_WIN,
@@ -1509,7 +1509,7 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
     PointerRNA props_ptr;
     uiItemFullO_ptr(layout,
                     ot,
-                    IFACE_(asset->get_name().c_str()),
+                    IFACE_(asset->get_name()),
                     ICON_NONE,
                     nullptr,
                     WM_OP_INVOKE_REGION_WIN,

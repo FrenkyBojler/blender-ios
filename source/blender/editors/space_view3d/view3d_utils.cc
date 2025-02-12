@@ -36,6 +36,7 @@
 
 #include "BKE_camera.h"
 #include "BKE_context.hh"
+#include "BKE_library.hh"
 #include "BKE_object.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
@@ -515,6 +516,7 @@ void ED_view3d_persp_switch_from_camera(const Depsgraph *depsgraph,
     rv3d->dist = ED_view3d_offset_distance(
         ob_camera_eval->object_to_world().ptr(), rv3d->ofs, VIEW3D_DIST_FALLBACK);
     ED_view3d_from_object(ob_camera_eval, rv3d->ofs, rv3d->viewquat, &rv3d->dist, nullptr);
+    WM_main_add_notifier(NC_SPACE | ND_SPACE_VIEW3D, v3d);
   }
 
   if (!ED_view3d_camera_lock_check(v3d, rv3d)) {

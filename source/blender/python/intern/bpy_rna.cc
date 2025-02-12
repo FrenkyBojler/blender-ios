@@ -26,6 +26,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
+#include "BLI_vector.hh"
 
 #include "BPY_extern.hh"
 #include "BPY_extern_clog.hh"
@@ -4160,6 +4161,35 @@ static PyObject *pyrna_struct_bl_rna_get_subclass(PyObject *cls, PyObject *args)
   return Py_NewRef(ret_default);
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    pyrna_struct_get_ancestors_doc,
+    ".. method:: rna_ancestors()\n"
+    "\n"
+    "   Return the chain of data containing this struct, if known.\n"
+    "   The first item is the root (typically an ID), the last one is the immediate parent.\n"
+    "   May be empty.\n"
+    "\n"
+    "   :return: a list of this object's ancestors.\n"
+    "   :rtype: list[:class:`bpy.types.bpy_struct`]\n");
+static PyObject *pyrna_struct_get_ancestors(BPy_StructRNA *self)
+{
+  PYRNA_STRUCT_CHECK_OBJ(self);
+
+  PyObject *ret;
+  const int ancestors_num(self->ptr->ancestors.size());
+
+  ret = PyList_New(ancestors_num);
+
+  for (int i = 0; i < ancestors_num; i++) {
+    PointerRNA ancestor_ptr = RNA_pointer_create_from_ancestor(self->ptr.value(), i);
+    PyObject *ancestor = pyrna_struct_CreatePyObject(&ancestor_ptr);
+    PyList_SET_ITEM(ret, i, ancestor);
+  }
+
+  return ret;
+}
+
 static void pyrna_dir_members_py__add_keys(PyObject *list, PyObject *dict)
 {
   PyObject *list_tmp;
@@ -6135,6 +6165,10 @@ static PyMethodDef pyrna_struct_methods[] = {
      (PyCFunction)pyrna_struct_bl_rna_get_subclass,
      METH_VARARGS | METH_CLASS,
      pyrna_struct_bl_rna_get_subclass_doc},
+    {"rna_ancestors",
+     (PyCFunction)pyrna_struct_get_ancestors,
+     METH_NOARGS,
+     pyrna_struct_get_ancestors_doc},
     {"__dir__", (PyCFunction)pyrna_struct_dir, METH_NOARGS, nullptr},
     {"id_properties_ensure",
      (PyCFunction)pyrna_struct_id_properties_ensure,
@@ -7981,7 +8015,9 @@ static void pyrna_subtype_set_rna(PyObject *newclass, StructRNA *srna)
   /* Done with RNA instance. */
 }
 
-/* Return a borrowed reference. */
+/**
+ * \return borrowed reference.
+ */
 static PyObject *pyrna_srna_PyBase(StructRNA *srna)  //, PyObject *bpy_types_dict)
 {
   /* Assume RNA_struct_py_type_get(srna) was already checked. */
@@ -8009,6 +8045,11 @@ static PyObject *pyrna_srna_PyBase(StructRNA *srna)  //, PyObject *bpy_types_dic
  * return a borrowed reference. */
 static PyObject *bpy_types_dict = nullptr;
 
+/**
+ * Return the #PyTypeObject or null,
+ *
+ * \return borrowed reference.
+ */
 static PyObject *pyrna_srna_ExternalType(StructRNA *srna)
 {
   const char *idname = RNA_struct_identifier(srna);
@@ -8066,6 +8107,11 @@ static PyObject *pyrna_srna_ExternalType(StructRNA *srna)
   return newclass;
 }
 
+/**
+ * Return the #PyTypeObject or null with an exception set.
+ *
+ * \return new reference.
+ */
 static PyObject *pyrna_srna_Subtype(StructRNA *srna)
 {
   PyObject *newclass = nullptr;
@@ -8075,10 +8121,12 @@ static PyObject *pyrna_srna_Subtype(StructRNA *srna)
     newclass = nullptr; /* Nothing to do. */
   }                     /* The class may have already been declared & allocated. */
   else if ((newclass = static_cast<PyObject *>(RNA_struct_py_type_get(srna)))) {
+    /* Add a reference for the return value. */
     Py_INCREF(newclass);
-  } /* Check if bpy_types.py module has the class defined in it. */
+  } /* Check if `bpy_types.py` module has the class defined in it. */
   else if ((newclass = pyrna_srna_ExternalType(srna))) {
     pyrna_subtype_set_rna(newclass, srna);
+    /* Add a reference for the return value. */
     Py_INCREF(newclass);
   } /* create a new class instance with the C api
      * mainly for the purposing of matching the C/RNA type hierarchy */
@@ -8092,7 +8140,7 @@ static PyObject *pyrna_srna_Subtype(StructRNA *srna)
      *   )
      */
 
-    /* Assume RNA_struct_py_type_get(srna) was already checked. */
+    /* Assume `RNA_struct_py_type_get(srna)` was already checked. */
     PyObject *py_base = pyrna_srna_PyBase(srna);
     PyObject *metaclass;
     const char *idname = RNA_struct_identifier(srna);
@@ -8156,9 +8204,6 @@ static PyObject *pyrna_srna_Subtype(StructRNA *srna)
     if (newclass) {
       /* srna owns one, and the other is owned by the caller. */
       pyrna_subtype_set_rna(newclass, srna);
-
-      /* XXX, adding this back segfaults Blender on load. */
-      // Py_DECREF(newclass); /* let srna own */
     }
     else {
       /* This should not happen. */
@@ -8183,7 +8228,9 @@ static StructRNA *srna_from_ptr(PointerRNA *ptr)
   return ptr->type;
 }
 
-/* Always returns a new ref, be sure to decref when done. */
+/**
+ * \return new reference.
+ */
 static PyObject *pyrna_struct_Subtype(PointerRNA *ptr)
 {
   return pyrna_srna_Subtype(srna_from_ptr(ptr));
@@ -8194,6 +8241,8 @@ static PyObject *pyrna_struct_Subtype(PointerRNA *ptr)
 /**
  * A lower level version of #pyrna_struct_CreatePyObject,
  * use this when type (`tp`) needs to be set to a non-standard value.
+ *
+ * \return new reference.
  */
 static PyObject *pyrna_struct_CreatePyObject_from_type(const PointerRNA *ptr,
                                                        PyTypeObject *tp,
@@ -9050,7 +9099,7 @@ int pyrna_deferred_register_class(StructRNA *srna, PyTypeObject *py_class)
 
 /*-------------------- Type Registration ------------------------*/
 
-static int rna_function_arg_count(FunctionRNA *func, int *min_count)
+static int rna_function_register_arg_count(FunctionRNA *func, int *min_count)
 {
   const ListBase *lb = RNA_function_defined_parameters(func);
   PropertyRNA *parm;
@@ -9062,7 +9111,7 @@ static int rna_function_arg_count(FunctionRNA *func, int *min_count)
   LISTBASE_FOREACH (Link *, link, lb) {
     parm = (PropertyRNA *)link;
     if (!(RNA_parameter_flag(parm) & PARM_OUTPUT)) {
-      if (!done_min_count && (RNA_parameter_flag(parm) & PARM_PYFUNC_OPTIONAL)) {
+      if (!done_min_count && (RNA_parameter_flag(parm) & PARM_PYFUNC_REGISTER_OPTIONAL)) {
         /* From now on, the following parameters are optional in a Python function. */
         if (min_count) {
           *min_count = count;
@@ -9174,14 +9223,14 @@ static int bpy_class_validate_recursive(PointerRNA *dummy_ptr,
       }
     }
 
-    func_arg_count = rna_function_arg_count(func, &func_arg_min_count);
+    func_arg_count = rna_function_register_arg_count(func, &func_arg_min_count);
 
     if (func_arg_count >= 0) { /* -1 if we don't care. */
       arg_count = ((PyCodeObject *)PyFunction_GET_CODE(item))->co_argcount;
 
       /* NOTE: the number of args we check for and the number of args we give to
-       * '@staticmethods' are different (quirk of Python),
-       * this is why rna_function_arg_count() doesn't return the value -1. */
+       * `@staticmethods` are different (quirk of Python),
+       * this is why #rna_function_register_arg_count() doesn't return the value -1. */
       if (is_staticmethod) {
         func_arg_count++;
         func_arg_min_count++;
@@ -9296,7 +9345,7 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
   PropertyRNA *parm;
   ParameterIterator iter;
   PointerRNA funcptr;
-  int err = 0, i, ret_len = 0, arg_count;
+  int err = 0, i, ret_len = 0;
   const int flag = RNA_function_flag(func);
   const bool is_staticmethod = (flag & FUNC_NO_SELF) && !(flag & FUNC_USE_SELF_TYPE);
   const bool is_classmethod = (flag & FUNC_NO_SELF) && (flag & FUNC_USE_SELF_TYPE);
@@ -9433,6 +9482,10 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
                                  (is_staticmethod ? PyMethod_Check(item) : PyFunction_Check(item));
     if (item_type_valid) {
       funcptr = RNA_pointer_create_discrete(nullptr, &RNA_Function, func);
+      int arg_count;
+
+      /* NOTE: registration will have already checked the argument count matches
+       * #rna_function_register_arg_count so there is no need to inspect the RNA function. */
 
       if (is_staticmethod) {
         arg_count =
@@ -9442,10 +9495,6 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
       else {
         arg_count = ((PyCodeObject *)PyFunction_GET_CODE(item))->co_argcount;
       }
-#if 0
-      /* First arg is included in 'item'. */
-      args = PyTuple_New(rna_function_arg_count(func));
-#endif
       args = PyTuple_New(arg_count); /* First arg is included in 'item'. */
 
       if (is_staticmethod) {
@@ -9649,7 +9698,20 @@ static void bpy_class_free(void *pyob_ptr)
     }
   }
 #endif
-  Py_DECREF(self);
+
+#ifdef WITH_PYTHON_MODULE
+  /* NOTE(@ideasman42) When finalizing the modules that store the types may have been cleared.
+   * This can cause negative a negative reference count base-classes used by the RNA types
+   * which asserts in debug builds of Python.
+   *
+   * If this is a reference counting issue on Blender's side that should be fixed
+   * however the problem is quite specific and more a technical issue.
+   * So skip clearing the reference when finalizing, see: #125376. */
+  if (!Py_IsFinalizing())
+#endif
+  {
+    Py_DECREF(self);
+  }
 
   PyGILState_Release(gilstate);
 }
