@@ -527,7 +527,8 @@ static void brush_defaults(Brush *brush)
   FROM_DEFAULT_PTR(sub_col);
   FROM_DEFAULT(stencil_pos);
   FROM_DEFAULT(stencil_dimension);
-  FROM_DEFAULT(mtex);
+  FROM_DEFAULT(mtex.color);
+  FROM_DEFAULT(mtex.mask);
   FROM_DEFAULT(falloff_shape);
   FROM_DEFAULT(tip_scale_x);
   FROM_DEFAULT(tip_roundness);
