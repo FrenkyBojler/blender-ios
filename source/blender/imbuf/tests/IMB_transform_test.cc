@@ -138,7 +138,7 @@ TEST(imbuf_transform, nearest_very_large_scale)
    * pixels cover almost all of it, except the rightmost pixel. */
   ImBuf *res = IMB_allocImBuf(3841, 1, 32, IB_rect);
   float3x3 matrix = math::from_loc_rot_scale<float3x3>(
-      float2(254, 0), math::Quaternion::identity(), float2(3.0f / 3840.0f, 1));
+      float2(254, 0), 0.0f, float2(3.0f / 3840.0f, 1));
   IMB_transform(src, res, IMB_TRANSFORM_MODE_REGULAR, IMB_FILTER_NEAREST, matrix, nullptr);
 
   /* Check result: leftmost red, middle green, two rightmost pixels blue and black.
