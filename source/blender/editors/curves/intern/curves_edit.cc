@@ -343,10 +343,10 @@ static IndexRange extend_range(const IndexRange range, const IndexRange universe
  * Extends each range by one point at both ends of it. Merges adjacent ranges if intersections
  * occur.
  */
-static void extend_and_merge(const IndexRange universe,
-                             const bool cyclic,
-                             const Span<IndexRange> ranges,
-                             Vector<IndexRange> &extended_ranges)
+static void extend_range_by_1_within_bounds(const IndexRange universe,
+                                            const bool cyclic,
+                                            const Span<IndexRange> ranges,
+                                            Vector<IndexRange> &extended_ranges)
 {
   extended_ranges.clear();
   if (ranges.is_empty()) {
@@ -413,7 +413,8 @@ bke::CurvesGeometry split_points(const bke::CurvesGeometry &curves,
         invert_ranges(points, selected_curve_points, unselected_curve_points);
         /* Extended every range to left and right by one point. Any resulting intersection is
          * merged. */
-        extend_and_merge(points, cyclic[curve], unselected_curve_points, curve_points_to_preserve);
+        extend_range_by_1_within_bounds(
+            points, cyclic[curve], unselected_curve_points, curve_points_to_preserve);
         const int size_before = curve_map.size();
         curve_offsets_from_selection(curve_points_to_preserve,
                                      points,
