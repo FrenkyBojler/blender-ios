@@ -7,8 +7,78 @@ import os
 from pathlib import Path
 import argparse
 
+"""Common functionality for Overlay render tests.
+
+The intended usage is setting up a Permutations instance containing all the variants/permutations for a given blend file,
+then passing it to the `run_test(permutations)` function.
+
+The `run_test` function also checks for a `--test` argument in `sys.argv`.
+When set, it will reproduce the state of a given test number.
+So:
+`blender "(...)/tests/data/overlay/<test>.blend" -P "(...)/tests/python/overlay/<test>.py" -- --test <test-number>`
+will open the blend file and set its state to the <test-number> permutation, instead of running the tests.
+
+Common permutations can also be declared inside this file.
+See `ob_modes_permutations` for an example on how to setup permutations.
+"""
+
+
+class Permutations:
+    """Container class for the permutations of a given test file.
+
+    Can be combined with other Permutations.
+    """
+
+    def __init__(self, reset_key=None, variants_dict={}):
+        """Setup the initial set of permutations.
+
+        :reset_key: str - The variants_dict key that resets the test to its default state.
+        :variants_dict: {str: lambda} - Each lambda should set the test to the "key" state.
+        """
+        reset = []
+        if reset_key:
+            reset = [variants_dict[reset_key]]
+        self.dict = {k: Permutation([v], reset) for k, v in variants_dict.items()}
+
+    def add(self, key_filter_cb=None, permutations_array=[]):
+        """Combine two sets of permutations.
+
+        Replaces the current permutations with every possible combination of current and incoming permutations,
+        unless key_filter_cb is set and returns False for a given key, in which case they're kept as-is.
+
+        :key_filter_cb: lambda (key: str): :bool:
+            - A callback for deciding which keys the permutations should be applied to.
+        :permutations: [Permutations]
+            - An array of Permutations instances. Each Permutations instance is applied sequentially,
+              so a.add(None, [b]); a.add(None, [c]) is equivalent to a.add(None, [b, c])
+        """
+        for permutations in permutations_array:
+            dict_copy = self.dict.copy()
+            self.dict = {}
+            for key, permutation in dict_copy.items():
+                if key_filter_cb and not key_filter_cb(key):
+                    self.dict[key] = permutation
+                    continue
+                for key_in, permutation_in in permutations.dict.items():
+                    self.dict[f"{key}_{key_in}"] = permutation.combine(permutation_in)
+
+    def loop(self):
+        """Loop through each permutation, applying its state before yielding its key."""
+        for key, permutation in self.dict.items():
+            permutation.apply()
+            yield key
+            permutation.reset()
+
 
 class Permutation:
+    """A single test permutation.
+
+    A permutation containing all the callbacks needed for setting up its state (_apply),
+    and for resetting the test back to its default state (_reset).
+
+    This class is meant to be used internally by the Permutations class.
+    """
+
     def __init__(self, apply, reset):
         self._apply = apply
         self._reset = reset
@@ -25,32 +95,8 @@ class Permutation:
             cb()
 
 
-class Permutations:
-    def __init__(self, reset_key=None, variants_dict={}):
-        reset = []
-        if reset_key:
-            reset = [variants_dict[reset_key]]
-        self.dict = {k: Permutation([v], reset) for k, v in variants_dict.items()}
-
-    def add(self, key_filter_cb=None, permutations_array=[]):
-        for permutations in permutations_array:
-            dict_copy = self.dict.copy()
-            self.dict = {}
-            for key, permutation in dict_copy.items():
-                if key_filter_cb and not key_filter_cb(key):
-                    self.dict[key] = permutation
-                    continue
-                for key_in, permutation_in in permutations.dict.items():
-                    self.dict[f"{key}_{key_in}"] = permutation.combine(permutation_in)
-
-    def loop(self):
-        for key, permutation in self.dict.items():
-            permutation.apply()
-            yield key
-            permutation.reset()
-
-
 def set_permutation_from_args(permutations):
+    """If the command line requested a specific permutation, set the blend state to it."""
     import sys
     if "--" not in sys.argv:
         return False
@@ -67,6 +113,7 @@ def set_permutation_from_args(permutations):
 
 
 def render_permutations(permutations):
+    """Render each permutation and generate a list, following the conventions expected by render_report.py."""
     base_output_path = bpy.context.scene.render.filepath
     base_testname = Path(bpy.data.filepath).stem
     output_paths = []
@@ -86,6 +133,7 @@ def render_permutations(permutations):
 
 
 def run_test(permutations):
+    """Check if the command line requested a specific permutation, otherwise run all tests and quit Blender."""
     if set_permutation_from_args(permutations):
         return
 
@@ -97,6 +145,7 @@ def run_test(permutations):
 
 
 def ob_modes_permutations(ob, space):
+    """Returns permutations for every possible object mode and overlay settings."""
     shading = space.shading
     overlay = space.overlay
 
