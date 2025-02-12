@@ -41,9 +41,6 @@
 
 static Main *pyrna_bmain_FromPyObject(PyObject *obj)
 {
-  if (!obj) {
-    return nullptr;
-  }
   if (!BPy_StructRNA_Check(obj)) {
     PyErr_Format(PyExc_TypeError,
                  "Expected a StructRNA of type BlendData, not %.200s",
