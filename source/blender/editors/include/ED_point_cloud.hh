@@ -11,10 +11,6 @@
 #include "BLI_string_ref.hh"
 #include "DNA_customdata_types.h"
 
-class GMutableSpan;
-class IndexMask;
-class IndexMaskMemory;
-
 struct bContext;
 struct PointCloud;
 struct wmKeyConfig;
@@ -22,6 +18,13 @@ namespace blender::bke {
 enum class AttrDomain : int8_t;
 struct GSpanAttributeWriter;
 }  // namespace blender::bke
+namespace blender::index_mask {
+class IndexMask;
+class IndexMaskMemory;
+} // namespace blender::index_mask
+namespace blender {
+class GMutableSpan;
+} // namespace blender
 
 namespace blender::ed::point_cloud {
 
