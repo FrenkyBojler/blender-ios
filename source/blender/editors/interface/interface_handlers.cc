@@ -977,9 +977,9 @@ static void ui_apply_but_undo(uiBut *but)
       /* pass */
     }
     else {
-      ID *id = but->rnapoin.owner_id;
+      const ID &id = *but->rnapoin.owner_id;
       if (!ED_undo_is_legacy_compatible_for_property(
-              static_cast<bContext *>(but->block->evil_C), id, but->rnaprop))
+              static_cast<bContext *>(but->block->evil_C), id, but->rnapoin))
       {
         skip_undo = true;
       }

@@ -16,7 +16,7 @@ struct CLG_LogRef;
 struct ID;
 struct MemFile;
 struct Object;
-struct PropertyRNA;
+struct PointerRNA;
 struct Scene;
 struct UndoStack;
 struct ViewLayer;
@@ -73,7 +73,7 @@ bool ED_undo_is_memfile_compatible(const bContext *C);
  * For example, changing a brush property isn't stored by sculpt-mode undo steps.
  * This workaround is needed until the limitation is removed, see: #61948.
  */
-bool ED_undo_is_legacy_compatible_for_property(bContext *C, ID *id, const PropertyRNA *prop);
+bool ED_undo_is_legacy_compatible_for_property(const bContext *C, const ID &id, const PointerRNA &ptr);
 
 /**
  * This function addresses the problem of restoring undo steps when multiple windows are used.
