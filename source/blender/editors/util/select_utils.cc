@@ -169,19 +169,19 @@ std::string ED_select_pick_get_name(wmOperatorType * /*ot*/, PointerRNA *ptr)
   switch (params.sel_op) {
     case SEL_OP_ADD:
       if (enumerate) {
-        return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select (Enumerate Extend)");
+        return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select Extend (List)");
       }
-      return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select (Extend)");
+      return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select Extend");
     case SEL_OP_SUB:
       if (enumerate) {
-        return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select (Enumerate Deselect)");
+        return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Deselect (List)");
       }
-      return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select (Deselect)");
+      return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Deselect");
     case SEL_OP_XOR:
       if (enumerate) {
-        return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select (Enumerate Toggle)");
+        return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select Toggle (List)");
       }
-      return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select (Toggle)");
+      return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select Toggle");
     case SEL_OP_AND:
       BLI_assert_unreachable();
       ATTR_FALLTHROUGH;
@@ -190,7 +190,7 @@ std::string ED_select_pick_get_name(wmOperatorType * /*ot*/, PointerRNA *ptr)
   }
 
   if (enumerate) {
-    return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select (Enumerate)");
+    return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select (List)");
   }
 
   return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select");
