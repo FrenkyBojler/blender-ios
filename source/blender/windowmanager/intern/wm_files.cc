@@ -4087,7 +4087,7 @@ static uiBlock *block_create_autorun_warning(bContext *C, ARegion *region, void 
   uiItemL_ex(col, G.autoexec_fail, ICON_NONE, false, true);
   uiItemL(col, message, ICON_NONE);
 
-  uiItemS_ex(layout, 1.0f);
+  uiItemS(layout);
 
   PointerRNA pref_ptr = RNA_pointer_create_discrete(nullptr, &RNA_PreferencesFilePaths, &U);
   uiItemR(layout, &pref_ptr, "use_scripts_auto_execute", UI_ITEM_NONE, checkbox_text, ICON_NONE);
