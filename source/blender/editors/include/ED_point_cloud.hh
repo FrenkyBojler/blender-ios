@@ -21,10 +21,10 @@ struct GSpanAttributeWriter;
 namespace blender::index_mask {
 class IndexMask;
 class IndexMaskMemory;
-} // namespace blender::index_mask
+}  // namespace blender::index_mask
 namespace blender {
 class GMutableSpan;
-} // namespace blender
+}  // namespace blender
 
 namespace blender::ed::point_cloud {
 

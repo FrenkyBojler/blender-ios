@@ -174,8 +174,7 @@ static void select_all(PointCloud &point_cloud, const IndexMask &mask, int actio
     }
   }
 
-  const eCustomDataType create_type = CD_PROP_BOOL;
-  bke::GSpanAttributeWriter selection = ensure_selection_attribute(point_cloud, create_type);
+  bke::GSpanAttributeWriter selection = ensure_selection_attribute(point_cloud, CD_PROP_BOOL);
   if (action == SEL_SELECT) {
     fill_selection_true(selection.span, mask);
   }
