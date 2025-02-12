@@ -247,7 +247,8 @@ static int create_pose_asset_local(bContext *C,
 
   AssetMetaData &meta_data = *pose_action.id.asset_data;
   asset_system::AssetLibrary *library = AS_asset_library_load(bmain, lib_ref);
-  /* I (christoph) don't know if a local library can fail to load. Just being defensive here */
+  /* NOTE(@ChrisLend): I don't know if a local library can fail to load.
+   * Just being defensive here. */
   BLI_assert(library);
   if (catalog_path[0] && library) {
     const asset_system::AssetCatalog &catalog = asset::library_ensure_catalogs_in_path(
@@ -398,8 +399,8 @@ static void visit_library_prop_catalogs_catalog_for_search_fn(
 
 void POSELIB_OT_create_pose_asset(wmOperatorType *ot)
 {
-  ot->name = "Create Pose Asset";
-  ot->description = "Create a new asset from the selection in the scene";
+  ot->name = "Create Pose Asset...";
+  ot->description = "Create a new asset from the selected bones in the scene";
   ot->idname = "POSELIB_OT_create_pose_asset";
 
   ot->exec = pose_asset_create_exec;
@@ -627,15 +628,6 @@ static void update_pose_action_from_scene(Main *bmain,
   }
 }
 
-static void refresh_asset_library(bContext *C)
-{
-  const blender::asset_system::AssetRepresentation *asset = CTX_wm_asset(C);
-  AssetWeakReference asset_reference = asset->make_weak_reference();
-  bUserAssetLibrary *library = BKE_preferences_asset_library_find_by_name(
-      &U, asset_reference.asset_library_identifier);
-  asset::refresh_asset_library(C, *library);
-}
-
 static int pose_asset_modify_exec(bContext *C, wmOperator *op)
 {
   bAction *action = get_action_of_selected_asset(C);
@@ -657,8 +649,7 @@ static int pose_asset_modify_exec(bContext *C, wmOperator *op)
     bke::asset_edit_id_save(*bmain, action->id, *op->reports);
   }
 
-  refresh_asset_library(C);
-
+  asset::refresh_asset_library_from_asset(C, *CTX_wm_asset(C));
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
@@ -755,11 +746,6 @@ static int pose_asset_delete_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  const blender::asset_system::AssetRepresentation *asset = CTX_wm_asset(C);
-  AssetWeakReference asset_reference = asset->make_weak_reference();
-  bUserAssetLibrary *library = BKE_preferences_asset_library_find_by_name(
-      &U, asset_reference.asset_library_identifier);
-
   if (ID_IS_LINKED(action)) {
     bke::asset_edit_id_delete(*CTX_data_main(C), action->id, *op->reports);
   }
@@ -767,7 +753,8 @@ static int pose_asset_delete_exec(bContext *C, wmOperator *op)
     asset::clear_id(&action->id);
   }
 
-  asset::refresh_asset_library(C, *library);
+  const blender::asset_system::AssetRepresentation *asset = CTX_wm_asset(C);
+  asset::refresh_asset_library_from_asset(C, *asset);
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_REMOVED, nullptr);
 
   return OPERATOR_FINISHED;
