@@ -612,16 +612,6 @@ static void drw_duplidata_free()
   }
 }
 
-void **DRW_duplidata_get(void *vedata)
-{
-  if (DST.dupli_source == nullptr) {
-    return nullptr;
-  }
-  ViewportEngineData *ved = (ViewportEngineData *)vedata;
-  DRWRegisteredDrawEngine *engine_type = ved->engine_type;
-  return &DST.dupli_datas[engine_type->index];
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
