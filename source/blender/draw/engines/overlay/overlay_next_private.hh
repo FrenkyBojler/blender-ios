@@ -775,7 +775,7 @@ struct Resources : public select::SelectMap {
     }
   }
 
-  const float4 &object_wire_color(const ObjectRef &ob_ref, const State &state) const
+  float4 object_wire_color(const ObjectRef &ob_ref, const State &state) const
   {
     ThemeColorID theme_id = object_wire_theme_id(ob_ref, state);
     return object_wire_color(ob_ref, theme_id, state);
