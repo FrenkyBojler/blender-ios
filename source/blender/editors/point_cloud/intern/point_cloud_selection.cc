@@ -90,28 +90,20 @@ bool has_anything_selected(const PointCloud &point_cloud)
 
 void remove_selection_attributes(bke::MutableAttributeAccessor &attributes)
 {
-  static const std::array<StringRef, 1> selection_attribute_names{".selection"};
-  for (const StringRef selection_name : selection_attribute_names) {
-    attributes.remove(selection_name);
-  }
+  attributes.remove(".selection");
 }
 
 bke::GSpanAttributeWriter ensure_selection_attribute(PointCloud &point_cloud,
-                                                     bke::AttrDomain selection_domain,
-                                                     eCustomDataType create_type,
-                                                     StringRef attribute_name)
+                                                     eCustomDataType create_type)
 {
+  const bke::AttrDomain selection_domain = bke::AttrDomain::Point;
+  const StringRef attribute_name = ".selection";
+
   bke::MutableAttributeAccessor attributes = point_cloud.attributes_for_write();
   if (attributes.contains(attribute_name)) {
-    bke::GSpanAttributeWriter selection_attr = attributes.lookup_for_write_span(attribute_name);
-    /* Check domain type. */
-    if (selection_attr.domain == selection_domain) {
-      return selection_attr;
-    }
-    selection_attr.finish();
-    attributes.remove(attribute_name);
+    return attributes.lookup_for_write_span(attribute_name);
   }
-  const int domain_size = attributes.domain_size(selection_domain);
+  const int domain_size = attributes.domain_size(bke::AttrDomain::Point);
   switch (create_type) {
     case CD_PROP_BOOL:
       attributes.add(attribute_name,
@@ -129,40 +121,6 @@ bke::GSpanAttributeWriter ensure_selection_attribute(PointCloud &point_cloud,
       BLI_assert_unreachable();
   }
   return attributes.lookup_for_write_span(attribute_name);
-}
-
-static Vector<bke::GSpanAttributeWriter> init_selection_writers(PointCloud &point_cloud,
-                                                                bke::AttrDomain selection_domain)
-{
-  const eCustomDataType create_type = CD_PROP_BOOL;
-  Span<StringRef> selection_attribute_names{".selection"};
-  ;
-  Vector<bke::GSpanAttributeWriter> writers;
-  for (const int i : selection_attribute_names.index_range()) {
-    writers.append(ensure_selection_attribute(
-        point_cloud, selection_domain, create_type, selection_attribute_names[i]));
-  };
-  return writers;
-}
-
-static void finish_attribute_writers(MutableSpan<bke::GSpanAttributeWriter> attribute_writers)
-{
-  for (auto &attribute_writer : attribute_writers) {
-    attribute_writer.finish();
-  }
-}
-
-void foreach_selection_attribute_writer(
-    PointCloud &point_cloud,
-    bke::AttrDomain selection_domain,
-    blender::FunctionRef<void(bke::GSpanAttributeWriter &selection)> fn)
-{
-  Vector<bke::GSpanAttributeWriter> selection_writers = init_selection_writers(point_cloud,
-                                                                               selection_domain);
-  for (bke::GSpanAttributeWriter &selection_writer : selection_writers) {
-    fn(selection_writer);
-  }
-  finish_attribute_writers(selection_writers);
 }
 
 void fill_selection_true(GMutableSpan selection)
@@ -213,7 +171,6 @@ static void invert_selection(GMutableSpan selection, const IndexMask &mask)
 
 void select_all(PointCloud &point_cloud, const IndexMask &mask, int action)
 {
-  UNUSED_VARS(point_cloud, mask, action);
   if (action == SEL_SELECT) {
     std::optional<IndexRange> range = mask.to_range();
     if (range.has_value() && (*range == IndexRange(point_cloud.attributes().domain_size(
@@ -225,18 +182,19 @@ void select_all(PointCloud &point_cloud, const IndexMask &mask, int action)
       return;
     }
   }
-  foreach_selection_attribute_writer(
-      point_cloud, blender::bke::AttrDomain::Point, [&](bke::GSpanAttributeWriter &selection) {
-        if (action == SEL_SELECT) {
-          fill_selection_true(selection.span, mask);
-        }
-        else if (action == SEL_DESELECT) {
-          fill_selection_false(selection.span, mask);
-        }
-        else if (action == SEL_INVERT) {
-          invert_selection(selection.span, mask);
-        }
-      });
+
+  const eCustomDataType create_type = CD_PROP_BOOL;
+  bke::GSpanAttributeWriter selection = ensure_selection_attribute(point_cloud, create_type);
+  if (action == SEL_SELECT) {
+    fill_selection_true(selection.span, mask);
+  }
+  else if (action == SEL_DESELECT) {
+    fill_selection_false(selection.span, mask);
+  }
+  else if (action == SEL_INVERT) {
+    invert_selection(selection.span, mask);
+  }
+  selection.finish();
 }
 
 void select_all(PointCloud &point_cloud, int action)

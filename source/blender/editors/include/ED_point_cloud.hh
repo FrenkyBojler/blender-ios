@@ -8,10 +8,15 @@
 
 #pragma once
 
+#include "BLI_string_ref.hh"
+#include "DNA_customdata_types.h"
+
+class GMutableSpan;
+class IndexMask;
+class IndexMaskMemory;
+
 struct bContext;
-struct GMutableSpan;
-struct IndexMask;
-struct IndexMaskMemory;
+struct PointCloud;
 struct wmKeyConfig;
 namespace blender::bke {
 enum class AttrDomain : int8_t;
@@ -57,9 +62,7 @@ void select_all(PointCloud &point_cloud, int action);
  * If the selection_id attribute doesn't exist, create it with the requested type (bool or float).
  */
 bke::GSpanAttributeWriter ensure_selection_attribute(PointCloud &point_cloud,
-                                                     bke::AttrDomain selection_domain,
-                                                     eCustomDataType create_type,
-                                                     StringRef attribute_name = ".selection");
+                                                     eCustomDataType create_type);
 
 /** \} */
 

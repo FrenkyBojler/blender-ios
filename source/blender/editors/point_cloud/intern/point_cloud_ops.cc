@@ -74,7 +74,7 @@ bool editable_point_cloud_in_edit_mode_poll(bContext *C)
   return point_cloud_poll_impl(C, true, true);
 }
 
-VectorSet<PointCloud *> get_unique_editable_point_cloud(const bContext &C)
+VectorSet<PointCloud *> get_unique_editable_point_clouds(const bContext &C)
 {
   VectorSet<PointCloud *> unique_points;
 
@@ -107,7 +107,7 @@ static int select_all_exec(bContext *C, wmOperator *op)
 {
   int action = RNA_enum_get(op->ptr, "action");
 
-  VectorSet<PointCloud *> unique_point_cloud = get_unique_editable_point_cloud(*C);
+  VectorSet<PointCloud *> unique_point_cloud = get_unique_editable_point_clouds(*C);
 
   if (action == SEL_TOGGLE) {
     action = has_anything_selected(unique_point_cloud) ? SEL_DESELECT : SEL_SELECT;
