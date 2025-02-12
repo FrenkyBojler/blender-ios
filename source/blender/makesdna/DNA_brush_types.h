@@ -166,8 +166,8 @@ typedef struct BrushCurvesSculptSettings {
 
 /* Struct to hold masks for brushes. */
 typedef struct MTexAccessor {
-  MTex color;
-  MTex mask;
+  struct MTex color;
+  struct MTex mask;
 } MTexAccessor;
 
 /** Max number of propagation steps for automasking settings. */

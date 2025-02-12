@@ -516,6 +516,7 @@ const void *DNA_default_table[SDNA_TYPE_MAX] = {
     /* DNA_texture_defaults.h */
     SDNA_DEFAULT_DECL(Tex),
     SDNA_DEFAULT_DECL_EX(MTex, Brush.mtex.mask),
+    SDNA_DEFAULT_DECL_EX(MTex, Brush.mtex.color),
 
     /* DNA_userdef_types.h */
     SDNA_DEFAULT_DECL(UserDef),
