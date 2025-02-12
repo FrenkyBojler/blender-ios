@@ -178,7 +178,8 @@ class DrawCacheImpl : public DrawCache {
   Span<gpu::VertBuf *> ensure_attribute_data(const Object &object,
                                              const OrigMeshData &orig_mesh_data,
                                              const AttributeRequest &attr,
-                                             const IndexMask &node_mask);
+                                             const IndexMask &gpu_node_mask,
+                                             const IndexMask &leaf_node_mask);
 
   Span<gpu::IndexBuf *> ensure_tri_indices(const Object &object,
                                            const OrigMeshData &orig_mesh_data,
@@ -370,19 +371,28 @@ template<typename T>
 void extract_data_vert_mesh(const OffsetIndices<int> faces,
                             const Span<int> corner_verts,
                             const Span<T> attribute,
-                            const Span<int> face_indices,
-                            const int offset,
+                            const Span<bke::pbvh::MeshNode> nodes,
+                            const bke::pbvh::MeshNode &gpu_node,
+                            const IndexMask &dirty_mask,
                             gpu::VertBuf &vbo)
 {
   using Converter = AttributeConverter<T>;
   using VBOType = typename Converter::VBOType;
   VBOType *data = vbo.data<VBOType>().data();
-  data += offset;
 
-  for (const int face : face_indices) {
-    for (const int vert : corner_verts.slice(faces[face])) {
-      *data = Converter::convert(attribute[vert]);
-      data++;
+  for (const int i : gpu_node.leaf_child_nodes_.index_range()) {
+    const Span<int> face_indices = nodes[i].faces();
+
+    if (dirty_mask.contains(i)) {
+      for (const int face : face_indices) {
+        for (const int vert : corner_verts.slice(faces[face])) {
+          *data = Converter::convert(attribute[vert]);
+          data++;
+        }
+      }
+    }
+    else {
+      data += nodes[i].corners_num();
     }
   }
 }
@@ -390,40 +400,56 @@ void extract_data_vert_mesh(const OffsetIndices<int> faces,
 template<typename T>
 void extract_data_face_mesh(const OffsetIndices<int> faces,
                             const Span<T> attribute,
-                            const Span<int> face_indices,
-                            const int offset,
+                            const Span<bke::pbvh::MeshNode> nodes,
+                            const bke::pbvh::MeshNode &gpu_node,
+                            const IndexMask &dirty_mask,
                             gpu::VertBuf &vbo)
 {
   using Converter = AttributeConverter<T>;
   using VBOType = typename Converter::VBOType;
-
   VBOType *data = vbo.data<VBOType>().data();
-  data += offset;
 
-  for (const int face : face_indices) {
-    const int face_size = faces[face].size();
-    std::fill_n(data, face_size, Converter::convert(attribute[face]));
-    data += face_size;
+  for (const int i : gpu_node.leaf_child_nodes_.index_range()) {
+    const Span<int> face_indices = nodes[i].faces();
+
+    if (dirty_mask.contains(i)) {
+      for (const int face : face_indices) {
+        const int face_size = faces[face].size();
+        std::fill_n(data, face_size, Converter::convert(attribute[face]));
+        data += face_size;
+      }
+    }
+    else {
+      data += nodes[i].corners_num();
+    }
   }
 }
 
 template<typename T>
 void extract_data_corner_mesh(const OffsetIndices<int> faces,
                               const Span<T> attribute,
-                              const Span<int> face_indices,
-                              const int offset,
+                              const Span<bke::pbvh::MeshNode> nodes,
+                              const bke::pbvh::MeshNode &gpu_node,
+                              const IndexMask &dirty_mask,
                               gpu::VertBuf &vbo)
 {
   using Converter = AttributeConverter<T>;
   using VBOType = typename Converter::VBOType;
-
   VBOType *data = vbo.data<VBOType>().data();
-  data += offset;
 
-  for (const int face : face_indices) {
-    for (const int corner : faces[face]) {
-      *data = Converter::convert(attribute[corner]);
-      data++;
+  for (const int i : gpu_node.leaf_child_nodes_.index_range()) {
+    const Span<int> face_indices = nodes[i].faces();
+
+    if (dirty_mask.contains(i)) {
+      for (const int face : face_indices) {
+        for (const int corner : faces[face]) {
+          *data = Converter::convert(attribute[corner]);
+          data++;
+        }
+      }
+    }
+    else {
+      data += nodes[i].corners_num();
     }
   }
 }
@@ -642,7 +668,7 @@ BLI_NOINLINE static void ensure_vbos_allocated_bmesh(const Object &object,
 
 static void update_positions_mesh(const Object &object,
                                   const IndexMask &gpu_node_mask,
-                                  const IndexMask &leaf_node_mask,
+                                  const IndexMask &dirty_mask,
                                   MutableSpan<gpu::VertBuf *> vbos)
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
@@ -654,15 +680,15 @@ static void update_positions_mesh(const Object &object,
 
   ensure_vbos_allocated_mesh(object, position_format(), gpu_node_mask, vbos);
 
-  leaf_node_mask.foreach_index(GrainSize(1), [&](const int i) {
-    const int gpu_inner_index = nodes[i].gpu_inner_index_.value();
+  gpu_node_mask.foreach_index(GrainSize(1), [&](const int i) {
     extract_data_vert_mesh<float3>(
-        faces, corner_verts, vert_positions, nodes[i].faces(), nodes[i].leaf_offset_ , *vbos[gpu_inner_index]);
+        faces, corner_verts, vert_positions, nodes, nodes[i], dirty_mask, *vbos[i]);
   });
 }
 
 static void update_normals_mesh(const Object &object,
-                                const IndexMask &node_mask,
+                                const IndexMask &gpu_mask,
+                                const IndexMask &dirty_mask,
                                 MutableSpan<gpu::VertBuf *> vbos)
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
@@ -674,21 +700,30 @@ static void update_normals_mesh(const Object &object,
   const Span<float3> face_normals = bke::pbvh::face_normals_eval_from_eval(object);
   const bke::AttributeAccessor attributes = mesh.attributes();
   const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", bke::AttrDomain::Face);
-  ensure_vbos_allocated_mesh(object, normal_format(), node_mask, vbos);
-  node_mask.foreach_index(GrainSize(1), [&](const int i) {
-    short4 *data = vbos[i]->data<short4>().data();
 
-    for (const int face : nodes[i].faces()) {
-      if (!sharp_faces.is_empty() && sharp_faces[face]) {
-        const int face_size = faces[face].size();
-        std::fill_n(data, face_size, normal_float_to_short(face_normals[face]));
-        data += face_size;
+  ensure_vbos_allocated_mesh(object, normal_format(), gpu_mask, vbos);
+
+  gpu_mask.foreach_index(GrainSize(1), [&](const int j) {
+    short4 *data = vbos[j]->data<short4>().data();
+
+    for (const int i : nodes[j].leaf_child_nodes_.index_range()) {
+      if (dirty_mask.contains(i)) {
+        for (const int face : nodes[i].faces()) {
+          if (!sharp_faces.is_empty() && sharp_faces[face]) {
+            const int face_size = faces[face].size();
+            std::fill_n(data, face_size, normal_float_to_short(face_normals[face]));
+            data += face_size;
+          }
+          else {
+            for (const int vert : corner_verts.slice(faces[face])) {
+              *data = normal_float_to_short(vert_normals[vert]);
+              data++;
+            }
+          }
+        }
       }
       else {
-        for (const int vert : corner_verts.slice(faces[face])) {
-          *data = normal_float_to_short(vert_normals[vert]);
-          data++;
-        }
+        data += nodes[i].corners_num();
       }
     }
   });
@@ -696,7 +731,8 @@ static void update_normals_mesh(const Object &object,
 
 BLI_NOINLINE static void update_masks_mesh(const Object &object,
                                            const OrigMeshData &orig_mesh_data,
-                                           const IndexMask &node_mask,
+                                           const IndexMask &gpu_mask,
+                                           const IndexMask &dirty_mask,
                                            MutableSpan<gpu::VertBuf *> vbos)
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
@@ -706,27 +742,36 @@ BLI_NOINLINE static void update_masks_mesh(const Object &object,
   const Span<int> corner_verts = mesh.corner_verts();
   const VArraySpan mask = *orig_mesh_data.attributes.lookup<float>(".sculpt_mask",
                                                                    bke::AttrDomain::Point);
-  ensure_vbos_allocated_mesh(object, mask_format(), node_mask, vbos);
+  ensure_vbos_allocated_mesh(object, mask_format(), gpu_mask, vbos);
+
   if (!mask.is_empty()) {
-    node_mask.foreach_index(GrainSize(1), [&](const int i) {
-      float *data = vbos[i]->data<float>().data();
-      for (const int face : nodes[i].faces()) {
-        for (const int vert : corner_verts.slice(faces[face])) {
-          *data = mask[vert];
-          data++;
+    gpu_mask.foreach_index(GrainSize(1), [&](const int j) {
+      float *data = vbos[j]->data<float>().data();
+
+      for (const int i : nodes[j].leaf_child_nodes_.index_range()) {
+        if (dirty_mask.contains(i)) {
+          for (const int face : nodes[i].faces()) {
+            for (const int vert : corner_verts.slice(faces[face])) {
+              *data = mask[vert];
+              data++;
+            }
+          }
+        }
+        else {
+          data += nodes[i].corners_num();
         }
       }
     });
   }
   else {
-    node_mask.foreach_index(GrainSize(64),
-                            [&](const int i) { vbos[i]->data<float>().fill(0.0f); });
+    gpu_mask.foreach_index(GrainSize(64), [&](const int i) { vbos[i]->data<float>().fill(0.0f); });
   }
 }
 
 BLI_NOINLINE static void update_face_sets_mesh(const Object &object,
                                                const OrigMeshData &orig_mesh_data,
-                                               const IndexMask &node_mask,
+                                               const IndexMask &gpu_mask,
+                                               const IndexMask &dirty_mask,
                                                MutableSpan<gpu::VertBuf *> vbos)
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
@@ -737,31 +782,40 @@ BLI_NOINLINE static void update_face_sets_mesh(const Object &object,
   const int color_seed = orig_mesh_data.face_set_seed;
   const VArraySpan face_sets = *orig_mesh_data.attributes.lookup<int>(".sculpt_face_set",
                                                                       bke::AttrDomain::Face);
-  ensure_vbos_allocated_mesh(object, face_set_format(), node_mask, vbos);
-  if (!face_sets.is_empty()) {
-    node_mask.foreach_index(GrainSize(1), [&](const int i) {
-      uchar4 *data = vbos[i]->data<uchar4>().data();
-      for (const int face : nodes[i].faces()) {
-        const int id = face_sets[face];
+  ensure_vbos_allocated_mesh(object, face_set_format(), gpu_mask, vbos);
 
-        uchar4 fset_color(UCHAR_MAX);
-        if (id != color_default) {
-          BKE_paint_face_set_overlay_color_get(id, color_seed, fset_color);
+  if (!face_sets.is_empty()) {
+    gpu_mask.foreach_index(GrainSize(1), [&](const int j) {
+      uchar4 *data = vbos[j]->data<uchar4>().data();
+
+      for (const int i : nodes[j].leaf_child_nodes_.index_range()) {
+        if (dirty_mask.contains(i)) {
+          for (const int face : nodes[i].faces()) {
+            const int id = face_sets[face];
+
+            uchar4 fset_color(UCHAR_MAX);
+            if (id != color_default) {
+              BKE_paint_face_set_overlay_color_get(id, color_seed, fset_color);
+            }
+            else {
+              /* Skip for the default color face set to render it white. */
+              fset_color[0] = fset_color[1] = fset_color[2] = UCHAR_MAX;
+            }
+
+            const int face_size = faces[face].size();
+            std::fill_n(data, face_size, fset_color);
+            data += face_size;
+          }
         }
         else {
-          /* Skip for the default color face set to render it white. */
-          fset_color[0] = fset_color[1] = fset_color[2] = UCHAR_MAX;
+          data += nodes[i].corners_num();
         }
-
-        const int face_size = faces[face].size();
-        std::fill_n(data, face_size, fset_color);
-        data += face_size;
       }
     });
   }
   else {
-    node_mask.foreach_index(GrainSize(64),
-                            [&](const int i) { vbos[i]->data<uchar4>().fill(uchar4(255)); });
+    gpu_mask.foreach_index(GrainSize(64),
+                           [&](const int i) { vbos[i]->data<uchar4>().fill(uchar4(255)); });
   }
 }
 
@@ -1521,7 +1575,7 @@ static gpu::IndexBuf *create_tri_index_mesh(const Span<bke::pbvh::MeshNode> node
   int tris_num = 0;
 
   for (const int i : gpu_node.leaf_child_nodes_.index_range()) {
-    const bke::pbvh::MeshNode node = nodes[i];
+    const bke::pbvh::MeshNode &node = nodes[i];
     const Span<int> face_indices = node.faces();
     if (hide_poly.is_empty()) {
       tris_num = poly_to_tri_count(face_indices.size(), node.corners_num());
@@ -1544,7 +1598,7 @@ static gpu::IndexBuf *create_tri_index_mesh(const Span<bke::pbvh::MeshNode> node
   int node_corner_offset = 0;
 
   for (const int i : gpu_node.leaf_child_nodes_.index_range()) {
-    const bke::pbvh::MeshNode node = nodes[i];
+    const bke::pbvh::MeshNode &node = nodes[i];
     const Span<int> face_indices = node.faces();
 
     for (const int face_index : face_indices) {
@@ -1739,16 +1793,16 @@ Span<gpu::VertBuf *> DrawCacheImpl::ensure_attribute_data(const Object &object,
       if (const CustomRequest *request_type = std::get_if<CustomRequest>(&attr)) {
         switch (*request_type) {
           case CustomRequest::Position:
-            update_positions_mesh(object, dirty_mask, vbos);
+            update_positions_mesh(object, gpu_node_mask, dirty_mask, vbos);
             break;
           case CustomRequest::Normal:
-            update_normals_mesh(object, dirty_mask, vbos);
+            update_normals_mesh(object, gpu_node_mask, dirty_mask, vbos);
             break;
           case CustomRequest::Mask:
-            update_masks_mesh(object, orig_mesh_data, dirty_mask, vbos);
+            update_masks_mesh(object, orig_mesh_data, gpu_node_mask, dirty_mask, vbos);
             break;
           case CustomRequest::FaceSet:
-            update_face_sets_mesh(object, orig_mesh_data, dirty_mask, vbos);
+            update_face_sets_mesh(object, orig_mesh_data, gpu_node_mask, dirty_mask, vbos);
             break;
         }
       }
