@@ -11,6 +11,8 @@
 
 HDCYCLES_NAMESPACE_OPEN_SCOPE
 
+class HdCyclesLightParams;
+
 class HdCyclesLight final : public PXR_NS::HdLight {
  public:
   HdCyclesLight(const PXR_NS::SdfPath &sprimId, const PXR_NS::TfToken &lightType);
@@ -25,9 +27,10 @@ class HdCyclesLight final : public PXR_NS::HdLight {
   void Finalize(PXR_NS::HdRenderParam *renderParam) override;
 
  private:
-  void Initialize(PXR_NS::HdRenderParam *renderParam);
+  void Initialize(PXR_NS::HdRenderParam *renderParam, const HdCyclesLightParams &params);
 
-  void PopulateShaderGraph(PXR_NS::HdSceneDelegate *sceneDelegate);
+  void PopulateShaderGraph(PXR_NS::HdSceneDelegate *sceneDelegate,
+                           const HdCyclesLightParams &params);
 
   CCL_NS::Light *_light = nullptr;
   PXR_NS::TfToken _lightType;

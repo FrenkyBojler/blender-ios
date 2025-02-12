@@ -132,6 +132,10 @@ pxr::SdfPath HydraSceneDelegate::GetMaterialId(pxr::SdfPath const &rprim_id)
 pxr::VtValue HydraSceneDelegate::GetMaterialResource(pxr::SdfPath const &id)
 {
   CLOG_INFO(LOG_HYDRA_SCENE, 3, "%s", id.GetText());
+  LightData *l_data = light_data(id);
+  if (l_data) {
+    return l_data->get_material_resource();
+  }
   MaterialData *mat_data = material_data(id);
   if (mat_data) {
     return mat_data->get_material_resource();

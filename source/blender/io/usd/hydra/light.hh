@@ -22,6 +22,7 @@ class LightData : public ObjectData {
  protected:
   std::map<pxr::TfToken, pxr::VtValue> data_;
   pxr::TfToken prim_type_;
+  pxr::TfToken light_type_;
 
  public:
   LightData(HydraSceneDelegate *scene_delegate, const Object *object, pxr::SdfPath const &prim_id);
@@ -32,6 +33,8 @@ class LightData : public ObjectData {
   void update() override;
 
   pxr::VtValue get_data(pxr::TfToken const &key) const override;
+
+  pxr::VtValue get_material_resource() const;
 
  protected:
   pxr::TfToken prim_type(const Light *light);

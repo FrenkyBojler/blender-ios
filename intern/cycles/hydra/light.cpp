@@ -12,12 +12,67 @@
 #include "scene/shader_nodes.h"
 #include "util/hash.h"
 
+#include <pxr/imaging/hd/material.h>
 #include <pxr/imaging/hd/sceneDelegate.h>
 #include <pxr/usd/sdf/assetPath.h>
 
 HDCYCLES_NAMESPACE_OPEN_SCOPE
 
 extern Transform convert_transform(const GfMatrix4d &matrix);
+
+namespace HdCyclesLightTokens {
+static const pxr::TfToken treatAsPoint("treatAsPoint", pxr::TfToken::Immortal);
+static const pxr::TfToken falloff("falloff", pxr::TfToken::Immortal);
+}  // namespace HdCyclesLightTokens
+
+/* Utility to retrieve light parameters either from HdMaterialNetworkMap
+ * or GetLightParamValue. */
+class HdCyclesLightParams {
+ public:
+  HdCyclesLightParams(HdSceneDelegate *sceneDelegate, const SdfPath &id)
+      : sceneDelegate(sceneDelegate), id(id)
+  {
+    network_map_value = sceneDelegate->GetMaterialResource(id);
+    if (!network_map_value.IsHolding<pxr::HdMaterialNetworkMap>()) {
+      return;
+    }
+
+    const auto &network_map = network_map_value.UncheckedGet<HdMaterialNetworkMap>();
+    const auto network_it = network_map.map.find(HdMaterialTerminalTokens->light);
+    if (network_it == network_map.map.end() || network_map.terminals.empty()) {
+      return;
+    }
+
+    const auto &network = network_it->second;
+    for (const auto &network_node : network.nodes) {
+      if (network_node.path == network_map.terminals[0]) {
+        node = &network_node;
+        break;
+      }
+    }
+  }
+
+  VtValue get(const pxr::TfToken &token) const
+  {
+    if (node) {
+      const auto param = node->parameters.find(token);
+      VtValue value = (param == node->parameters.end()) ? VtValue() : param->second;
+
+      /* Houdini seems to only return this as GetLightParamValue. */
+      if (!(value.IsEmpty() && token == HdCyclesLightTokens::treatAsPoint)) {
+        return value;
+      }
+    }
+
+    return sceneDelegate->GetLightParamValue(id, token);
+  }
+
+ protected:
+  HdSceneDelegate *sceneDelegate;
+  const SdfPath id;
+  VtValue network_map_value;
+  const HdMaterialNode *node = nullptr;
+};
 
 // clang-format off
 TF_DEFINE_PRIVATE_TOKENS(_tokens,
@@ -45,12 +100,12 @@ void HdCyclesLight::Sync(HdSceneDelegate *sceneDelegate,
     return;
   }
 
-  Initialize(renderParam);
+  const SdfPath &id = GetId();
+  HdCyclesLightParams params(sceneDelegate, id);
+
+  Initialize(renderParam, params);
 
   const SceneLock lock(renderParam);
-
-  VtValue value;
-  const SdfPath &id = GetId();
 
   if (*dirtyBits & DirtyBits::DirtyTransform) {
     const float metersPerUnit =
@@ -60,28 +115,27 @@ void HdCyclesLight::Sync(HdSceneDelegate *sceneDelegate,
 #if PXR_VERSION >= 2011
                           convert_transform(sceneDelegate->GetTransform(id));
 #else
-                          convert_transform(
-                              sceneDelegate->GetLightParamValue(id, HdTokens->transform)
-                                  .Get<GfMatrix4d>());
+                          convert_transform(params.get(HdTokens->transform).Get<GfMatrix4d>());
 #endif
     _light->set_tfm(tfm);
   }
 
   if (*dirtyBits & DirtyBits::DirtyParams) {
+    VtValue value;
     float3 strength = make_float3(1.0f, 1.0f, 1.0f);
 
-    value = sceneDelegate->GetLightParamValue(id, HdLightTokens->color);
+    value = params.get(HdLightTokens->color);
     if (!value.IsEmpty()) {
       const auto color = value.Get<GfVec3f>();
       strength = make_float3(color[0], color[1], color[2]);
     }
 
-    value = sceneDelegate->GetLightParamValue(id, HdLightTokens->exposure);
+    value = params.get(HdLightTokens->exposure);
     if (!value.IsEmpty()) {
       strength *= exp2(value.Get<float>());
     }
 
-    value = sceneDelegate->GetLightParamValue(id, HdLightTokens->intensity);
+    value = params.get(HdLightTokens->intensity);
     if (!value.IsEmpty()) {
       strength *= value.Get<float>();
     }
@@ -95,27 +149,27 @@ void HdCyclesLight::Sync(HdSceneDelegate *sceneDelegate,
       strength *= M_PI;
     }
 
-    value = sceneDelegate->GetLightParamValue(id, HdLightTokens->normalize);
+    value = params.get(HdLightTokens->normalize);
     _light->set_normalize(value.IsHolding<bool>() && value.UncheckedGet<bool>());
 
-    value = sceneDelegate->GetLightParamValue(id, _tokens->visibleInPrimaryRay);
+    value = params.get(_tokens->visibleInPrimaryRay);
     if (!value.IsEmpty()) {
       _light->set_use_camera(value.Get<bool>());
     }
 
-    value = sceneDelegate->GetLightParamValue(id, HdLightTokens->shadowEnable);
+    value = params.get(HdLightTokens->shadowEnable);
     if (!value.IsEmpty()) {
       _light->set_cast_shadow(value.Get<bool>());
     }
 
     if (_lightType == HdPrimTypeTokens->distantLight) {
-      value = sceneDelegate->GetLightParamValue(id, HdLightTokens->angle);
+      value = params.get(HdLightTokens->angle);
       if (!value.IsEmpty()) {
         _light->set_angle(GfDegreesToRadians(value.Get<float>()));
       }
     }
     else if (_lightType == HdPrimTypeTokens->diskLight) {
-      value = sceneDelegate->GetLightParamValue(id, HdLightTokens->radius);
+      value = params.get(HdLightTokens->radius);
       if (!value.IsEmpty()) {
         const float size = value.Get<float>() * 2.0f;
         _light->set_sizeu(size);
@@ -123,23 +177,23 @@ void HdCyclesLight::Sync(HdSceneDelegate *sceneDelegate,
       }
     }
     else if (_lightType == HdPrimTypeTokens->rectLight) {
-      value = sceneDelegate->GetLightParamValue(id, HdLightTokens->width);
+      value = params.get(HdLightTokens->width);
       if (!value.IsEmpty()) {
         _light->set_sizeu(value.Get<float>());
       }
 
-      value = sceneDelegate->GetLightParamValue(id, HdLightTokens->height);
+      value = params.get(HdLightTokens->height);
       if (!value.IsEmpty()) {
         _light->set_sizev(value.Get<float>());
       }
     }
     else if (_lightType == HdPrimTypeTokens->sphereLight) {
-      value = sceneDelegate->GetLightParamValue(id, TfToken("treatAsPoint"));
+      value = params.get(HdCyclesLightTokens::treatAsPoint);
       if (!value.IsEmpty() && value.Get<bool>()) {
         _light->set_size(0.0f);
       }
       else {
-        value = sceneDelegate->GetLightParamValue(id, HdLightTokens->radius);
+        value = params.get(HdLightTokens->radius);
         if (!value.IsEmpty()) {
           _light->set_size(value.Get<float>());
         }
@@ -147,13 +201,13 @@ void HdCyclesLight::Sync(HdSceneDelegate *sceneDelegate,
 
       bool shaping = false;
 
-      value = sceneDelegate->GetLightParamValue(id, HdLightTokens->shapingConeAngle);
+      value = params.get(HdLightTokens->shapingConeAngle);
       if (!value.IsEmpty()) {
         _light->set_spot_angle(GfDegreesToRadians(value.Get<float>()) * 2.0f);
         shaping = true;
       }
 
-      value = sceneDelegate->GetLightParamValue(id, HdLightTokens->shapingConeSoftness);
+      value = params.get(HdLightTokens->shapingConeSoftness);
       if (!value.IsEmpty()) {
         _light->set_spot_smooth(value.Get<float>());
         shaping = true;
@@ -172,13 +226,13 @@ void HdCyclesLight::Sync(HdSceneDelegate *sceneDelegate,
     _light->set_strength(strength);
     _light->set_is_enabled(visible);
 
-    PopulateShaderGraph(sceneDelegate);
+    PopulateShaderGraph(sceneDelegate, params);
   }
   // Need to update shader graph when transform changes in case transform was baked into it
   else if (_light->tfm_is_modified() && (_lightType == HdPrimTypeTokens->domeLight ||
                                          _light->get_shader()->has_surface_spatial_varying))
   {
-    PopulateShaderGraph(sceneDelegate);
+    PopulateShaderGraph(sceneDelegate, params);
   }
 
   if (_light->is_modified()) {
@@ -188,7 +242,8 @@ void HdCyclesLight::Sync(HdSceneDelegate *sceneDelegate,
   *dirtyBits = DirtyBits::Clean;
 }
 
-void HdCyclesLight::PopulateShaderGraph(HdSceneDelegate *sceneDelegate)
+void HdCyclesLight::PopulateShaderGraph(HdSceneDelegate *sceneDelegate,
+                                        const HdCyclesLightParams &params)
 {
   unique_ptr<ShaderGraph> graph = make_unique<ShaderGraph>();
   ShaderNode *outputNode = nullptr;
@@ -204,8 +259,7 @@ void HdCyclesLight::PopulateShaderGraph(HdSceneDelegate *sceneDelegate)
   }
   else if (sceneDelegate != nullptr) {
     VtValue value;
-    const SdfPath &id = GetId();
-    value = sceneDelegate->GetLightParamValue(id, TfToken("falloff"));
+    value = params.get(HdCyclesLightTokens::falloff);
     if (!value.IsEmpty()) {
       const std::string strVal = value.Get<string>();
       if (strVal == "Constant" || strVal == "Linear" || strVal == "Quadratic") {
@@ -228,16 +282,15 @@ void HdCyclesLight::PopulateShaderGraph(HdSceneDelegate *sceneDelegate)
   }
 
   VtValue value;
-  const SdfPath &id = GetId();
   bool hasSpatialVarying = false;
   bool hasColorTemperature = false;
 
   if (sceneDelegate != nullptr) {
-    value = sceneDelegate->GetLightParamValue(id, HdLightTokens->enableColorTemperature);
+    value = params.get(HdLightTokens->enableColorTemperature);
     const bool enableColorTemperature = value.IsHolding<bool>() && value.UncheckedGet<bool>();
 
     if (enableColorTemperature) {
-      value = sceneDelegate->GetLightParamValue(id, HdLightTokens->colorTemperature);
+      value = params.get(HdLightTokens->colorTemperature);
       if (value.IsHolding<float>()) {
         BlackbodyNode *blackbodyNode = graph->create_node<BlackbodyNode>();
         blackbodyNode->set_temperature(value.UncheckedGet<float>());
@@ -258,7 +311,7 @@ void HdCyclesLight::PopulateShaderGraph(HdSceneDelegate *sceneDelegate)
       }
     }
 
-    value = sceneDelegate->GetLightParamValue(id, HdLightTokens->shapingIesFile);
+    value = params.get(HdLightTokens->shapingIesFile);
     if (value.IsHolding<SdfAssetPath>()) {
       std::string filename = value.UncheckedGet<SdfAssetPath>().GetResolvedPath();
       if (filename.empty()) {
@@ -278,7 +331,7 @@ void HdCyclesLight::PopulateShaderGraph(HdSceneDelegate *sceneDelegate)
       hasSpatialVarying = true;
     }
 
-    value = sceneDelegate->GetLightParamValue(id, HdLightTokens->textureFile);
+    value = params.get(HdLightTokens->textureFile);
     if (value.IsHolding<SdfAssetPath>()) {
       std::string filename = value.UncheckedGet<SdfAssetPath>().GetResolvedPath();
       if (filename.empty()) {
@@ -357,7 +410,7 @@ void HdCyclesLight::Finalize(HdRenderParam *renderParam)
   _light = nullptr;
 }
 
-void HdCyclesLight::Initialize(HdRenderParam *renderParam)
+void HdCyclesLight::Initialize(HdRenderParam *renderParam, const HdCyclesLightParams &params)
 {
   if (_light) {
     return;
@@ -398,7 +451,7 @@ void HdCyclesLight::Initialize(HdRenderParam *renderParam)
   _light->set_shader(shader);
 
   // Create default shader graph
-  PopulateShaderGraph(nullptr);
+  PopulateShaderGraph(nullptr, params);
 }
 
 HDCYCLES_NAMESPACE_CLOSE_SCOPE

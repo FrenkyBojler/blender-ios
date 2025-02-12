@@ -5,6 +5,7 @@
 #include "light.hh"
 
 #include <pxr/imaging/hd/light.h>
+#include <pxr/imaging/hd/material.h>
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/usd/usdLux/tokens.h>
 
@@ -36,17 +37,21 @@ void LightData::init()
         case LA_AREA_SQUARE:
           data_[pxr::HdLightTokens->width] = light->area_size;
           data_[pxr::HdLightTokens->height] = light->area_size;
+          light_type_ = pxr::UsdLuxTokens->RectLight;
           break;
         case LA_AREA_RECT:
           data_[pxr::HdLightTokens->width] = light->area_size;
           data_[pxr::HdLightTokens->height] = light->area_sizey;
+          light_type_ = pxr::UsdLuxTokens->RectLight;
           break;
         case LA_AREA_DISK:
           data_[pxr::HdLightTokens->radius] = light->area_size / 2.0f;
+          light_type_ = pxr::UsdLuxTokens->DiskLight;
           break;
         case LA_AREA_ELLIPSE:
           /* An ellipse light deteriorates into a disk light. */
           data_[pxr::HdLightTokens->radius] = (light->area_size + light->area_sizey) / 4.0f;
+          light_type_ = pxr::UsdLuxTokens->DiskLight;
           break;
       }
       break;
@@ -62,10 +67,12 @@ void LightData::init()
         data_[pxr::UsdLuxTokens->inputsShapingConeAngle] = RAD2DEGF(light->spotsize * 0.5f);
         data_[pxr::UsdLuxTokens->inputsShapingConeSoftness] = light->spotblend;
       }
+      light_type_ = pxr::UsdLuxTokens->SphereLight;
       break;
     }
     case LA_SUN: {
       data_[pxr::HdLightTokens->angle] = RAD2DEGF(light->sun_angle * 0.5f);
+      light_type_ = pxr::UsdLuxTokens->DistantLight;
       break;
     }
     default: {
@@ -131,6 +138,23 @@ void LightData::update()
     scene_delegate_->GetRenderIndex().GetChangeTracker().MarkSprimDirty(prim_id, bits);
     ID_LOGN(1, "");
   }
+}
+
+pxr::VtValue LightData::get_material_resource() const
+{
+  pxr::SdfPath light_path("light");
+  pxr::HdMaterialNetworkMap network_map;
+  pxr::HdMaterialNetwork network;
+  pxr::HdMaterialNode node;
+
+  node.parameters = data_;
+  node.path = light_path;
+  node.identifier = light_type_;
+  network.nodes.push_back(node);
+  network_map.map.emplace(pxr::HdMaterialTerminalTokens->light, network);
+  network_map.terminals.push_back(light_path);
+
+  return pxr::VtValue(network_map);
 }
 
 pxr::VtValue LightData::get_data(pxr::TfToken const &key) const
