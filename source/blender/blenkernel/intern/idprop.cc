@@ -81,7 +81,7 @@ IDProperty *IDP_CopyIDPArray(const IDProperty *array, const int flag)
   /* don't use MEM_dupallocN because this may be part of an array */
   BLI_assert(array->type == IDP_IDPARRAY);
 
-  IDProperty *narray = static_cast<IDProperty *>(MEM_mallocN(sizeof(IDProperty), __func__));
+  IDProperty *narray = MEM_cnew_uninitialized<IDProperty>(__func__);
   *narray = *array;
 
   narray->data.pointer = MEM_dupallocN(array->data.pointer);
@@ -94,7 +94,7 @@ IDProperty *IDP_CopyIDPArray(const IDProperty *array, const int flag)
      * in this loop. */
     IDProperty *tmp = IDP_CopyProperty_ex(GETPROP(narray, i), flag);
     memcpy(GETPROP(narray, i), tmp, sizeof(IDProperty));
-    MEM_freeN(tmp);
+    MEM_cfree(tmp);
   }
 
   return narray;
