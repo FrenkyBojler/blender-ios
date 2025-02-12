@@ -124,16 +124,6 @@ bke::GSpanAttributeWriter ensure_selection_attribute(PointCloud &point_cloud,
   return attributes.lookup_for_write_span(attribute_name);
 }
 
-void fill_selection_true(GMutableSpan selection)
-{
-  if (selection.type().is<bool>()) {
-    selection.typed<bool>().fill(true);
-  }
-  else if (selection.type().is<float>()) {
-    selection.typed<float>().fill(1.0f);
-  }
-}
-
 void fill_selection_false(GMutableSpan selection, const IndexMask &mask)
 {
   if (selection.type().is<bool>()) {

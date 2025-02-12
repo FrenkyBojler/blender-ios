@@ -44,7 +44,6 @@ void keymap_point_cloud(wmKeyConfig *keyconf);
  * helpful utilities on top of that.
  * \{ */
 
-void fill_selection_true(GMutableSpan span);
 void fill_selection_true(GMutableSpan selection, const IndexMask &mask);
 void fill_selection_false(GMutableSpan selection, const IndexMask &mask);
 
