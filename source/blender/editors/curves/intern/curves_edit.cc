@@ -315,9 +315,9 @@ void duplicate_curves(bke::CurvesGeometry &curves, const IndexMask &mask)
   }
 }
 
-static Array<IndexRange> invert_ranges(const IndexRange universe,
-                                       const Span<IndexRange> ranges,
-                                       Array<IndexRange> &inverted)
+static void invert_ranges(const IndexRange universe,
+                          const Span<IndexRange> ranges,
+                          Array<IndexRange> &inverted)
 {
   const bool contains_first = ranges.first().first() == universe.first();
   const bool contains_last = ranges.last().last() == universe.last();
@@ -332,7 +332,6 @@ static Array<IndexRange> invert_ranges(const IndexRange universe,
   if (!contains_last) {
     inverted.last() = IndexRange::from_begin_end(start, universe.one_after_last());
   }
-  return inverted;
 }
 
 static IndexRange extend_range(const IndexRange range, const IndexRange universe)
