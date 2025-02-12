@@ -11,6 +11,7 @@
 
 #include "BKE_attribute.hh"
 
+#include "ED_point_cloud.hh"
 #include "ED_select_utils.hh"
 
 #include "DNA_pointcloud_types.h"
@@ -88,7 +89,7 @@ bool has_anything_selected(const PointCloud &point_cloud)
   return !selection || contains(selection, selection.index_range(), true);
 }
 
-void remove_selection_attributes(bke::MutableAttributeAccessor &attributes)
+static void remove_selection_attributes(bke::MutableAttributeAccessor &attributes)
 {
   attributes.remove(".selection");
 }
@@ -169,7 +170,7 @@ static void invert_selection(GMutableSpan selection, const IndexMask &mask)
   }
 }
 
-void select_all(PointCloud &point_cloud, const IndexMask &mask, int action)
+static void select_all(PointCloud &point_cloud, const IndexMask &mask, int action)
 {
   if (action == SEL_SELECT) {
     std::optional<IndexRange> range = mask.to_range();
