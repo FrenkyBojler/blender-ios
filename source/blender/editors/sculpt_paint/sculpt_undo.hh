@@ -8,7 +8,9 @@
 
 #pragma once
 
-#include "ED_sculpt.hh"
+#include <cstdint>
+
+#include "BLI_index_mask_fwd.hh"
 
 struct BMLogEntry;
 struct Depsgraph;
@@ -22,6 +24,19 @@ class Node;
 
 namespace blender::ed::sculpt_paint::undo {
 
+enum class Type : int8_t {
+  None,
+  Position,
+  HideVert,
+  HideFace,
+  Mask,
+  DyntopoBegin,
+  DyntopoEnd,
+  Geometry,
+  FaceSet,
+  Color,
+};
+
 struct StepData;
 
 /**
@@ -34,6 +49,17 @@ void push_node(const Depsgraph &depsgraph,
                const Object &object,
                const bke::pbvh::Node *node,
                undo::Type type);
+void push_nodes(const Depsgraph &depsgraph,
+                Object &object,
+                const IndexMask &node_mask,
+                undo::Type type);
+
+/**
+ * Pushes an undo step using the operator name. This is necessary for
+ * redo panels to work; operators that do not support that may use
+ * #push_begin_ex instead if so desired.
+ */
+void push_begin(const Scene &scene, Object &ob, const wmOperator *op);
 
 /**
  * Pushes an undo step when entering Sculpt mode.
@@ -47,6 +73,7 @@ void push_enter_sculpt_mode(const Scene &scene, Object &ob, const wmOperator *op
  * must match operator name for redo panels to work.
  */
 void push_begin_ex(const Scene &scene, Object &ob, const char *name);
+void push_end(Object &ob);
 void push_end_ex(Object &ob, bool use_nested_undo);
 
 void restore_from_bmesh_enter_geometry(const StepData &step_data, Mesh &mesh);

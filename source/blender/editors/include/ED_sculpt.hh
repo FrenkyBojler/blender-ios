@@ -8,14 +8,11 @@
 
 #pragma once
 
-#include <cstdint>
-
-#include "BLI_index_mask_fwd.hh"
-
 struct Depsgraph;
 struct Main;
 struct Mesh;
 struct Object;
+struct RegionView3D;
 struct ReportList;
 struct Scene;
 struct UndoType;
@@ -76,33 +73,6 @@ void geometry_end(Object &ob);
 void push_multires_mesh_begin(bContext *C, const char *str);
 void push_multires_mesh_end(bContext *C, const char *str);
 
-enum class Type : int8_t {
-  None,
-  Position,
-  HideVert,
-  HideFace,
-  Mask,
-  DyntopoBegin,
-  DyntopoEnd,
-  Geometry,
-  FaceSet,
-  Color,
-};
-
-void push_nodes(const Depsgraph &depsgraph,
-                Object &object,
-                const IndexMask &node_mask,
-                undo::Type type);
-
-/**
- * Pushes an undo step using the operator name. This is necessary for
- * redo panels to work; operators that do not support that may use
- * #push_begin_ex instead if so desired.
- */
-void push_begin(const Scene &scene, Object &ob, const wmOperator *op);
-
-void push_end(Object &ob);
-
 }  // namespace undo
 
 namespace face_set {
@@ -121,5 +91,20 @@ int active_update_and_get(bContext *C, Object &ob, const float mval_fl[2]);
  * \return #true if successful.
  */
 bool object_active_color_fill(Object &ob, const float fill_color[4], bool only_selected);
+
+/**
+ * Fully replace the sculpt mesh with a mesh outside of #Main. This implements various checks to
+ * avoid pushing full geometry-type undo steps when possible, allowing for better performance.
+ *
+ * \warning To avoid false negatives when detecting mesh changes, it is critical that the caller
+ * adds an owner to the attribute data arrays before modifying the original object's mesh. This
+ * requires changes to require a reallocation.
+ */
+void store_mesh_from_eval(const wmOperator &op,
+                          const Scene &scene,
+                          const Depsgraph &depsgraph,
+                          const RegionView3D *rv3d,
+                          Object &object,
+                          Mesh *new_mesh);
 
 }  // namespace blender::ed::sculpt_paint

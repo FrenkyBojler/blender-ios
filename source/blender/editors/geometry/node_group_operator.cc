@@ -263,158 +263,6 @@ class MeshState {
   }
 };
 
-/* Replace an entire attribute using implicit sharing to avoid copies when possible. */
-static void replace_attribute(const bke::AttributeAccessor src_attributes,
-                              const StringRef name,
-                              const bke::AttrDomain domain,
-                              const eCustomDataType data_type,
-                              bke::MutableAttributeAccessor dst_attributes)
-{
-  dst_attributes.remove(name);
-  bke::GAttributeReader src = src_attributes.lookup(name, domain, data_type);
-  if (!src) {
-    return;
-  }
-  if (src.sharing_info && src.varray.is_span()) {
-    const bke::AttributeInitShared init(src.varray.get_internal_span().data(), *src.sharing_info);
-    dst_attributes.add(name, domain, data_type, init);
-  }
-  else {
-    const bke::AttributeInitVArray init(*src);
-    dst_attributes.add(name, domain, data_type, init);
-  }
-}
-
-static void store_sculpt_entire_mesh(const wmOperator &op,
-                                     const Scene &scene,
-                                     Object &object,
-                                     Mesh *new_mesh)
-{
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
-  sculpt_paint::undo::geometry_begin(scene, object, &op);
-  BKE_mesh_nomain_to_mesh(new_mesh, &mesh, &object);
-  sculpt_paint::undo::geometry_end(object);
-  BKE_sculptsession_free_pbvh(object);
-}
-
-static void store_result_mesh_sculpt_mode(const wmOperator &op,
-                                          const Scene &scene,
-                                          const Depsgraph &depsgraph,
-                                          const RegionView3D *rv3d,
-                                          const MeshState &orig_mesh_state,
-                                          Object &object,
-                                          Mesh *new_mesh)
-{
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
-  const bool changed_topology = orig_mesh_state.topology_changed(*new_mesh);
-  const bool use_pbvh_draw = BKE_sculptsession_use_pbvh_draw(&object, rv3d);
-
-  if (changed_topology) {
-    store_sculpt_entire_mesh(op, scene, object, new_mesh);
-  }
-  else {
-    /* Detect attributes present in the new mesh which no longer match the original. */
-    VectorSet<StringRef> changed_attributes;
-    new_mesh->attributes().foreach_attribute([&](const bke::AttributeIter &iter) {
-      if (ELEM(iter.name, ".edge_verts", ".corner_vert", ".corner_edge")) {
-        return;
-      }
-      const bke::GAttributeReader attribute = iter.get();
-      if (!orig_mesh_state.attribute_changed(iter.name, attribute.sharing_info)) {
-        return;
-      }
-      changed_attributes.add(iter.name);
-    });
-    /* Detect attributes that were removed in the new mesh. */
-    mesh.attributes().foreach_attribute([&](const bke::AttributeIter &iter) {
-      if (!new_mesh->attributes().contains(iter.name)) {
-        changed_attributes.add(iter.name);
-      }
-    });
-
-    /* Try to use the few specialized sculpt undo types that result in better performance, mainly
-     * because redo avoids clearing the BVH, but also because some other updates can be skipped. */
-    bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
-    IndexMaskMemory memory;
-    const IndexMask leaf_nodes = bke::pbvh::all_leaf_nodes(pbvh, memory);
-    if (changed_attributes.as_span() == Span<StringRef>{"position"}) {
-      sculpt_paint::undo::push_begin(scene, object, &op);
-      sculpt_paint::undo::push_nodes(
-          depsgraph, object, leaf_nodes, sculpt_paint::undo::Type::Position);
-      sculpt_paint::undo::push_end(object);
-      CustomData_free_layer_named(&mesh.vert_data, "position", mesh.verts_num);
-      mesh.attributes_for_write().remove("position");
-      const bke::AttributeReader position = new_mesh->attributes().lookup<float3>("position");
-      if (position.sharing_info) {
-        /* Use lower level API to add the position attribute to avoid copying the array and to
-         * allow using #tag_positions_changed_no_normals instead of #tag_positions_changed (which
-         * would be called by the attribute API). */
-        CustomData_add_layer_named_with_data(
-            &mesh.vert_data,
-            CD_PROP_FLOAT3,
-            const_cast<float3 *>(position.varray.get_internal_span().data()),
-            mesh.verts_num,
-            "position",
-            position.sharing_info);
-      }
-      else {
-        mesh.vert_positions_for_write().copy_from(VArraySpan(*position));
-      }
-
-      pbvh.tag_positions_changed(leaf_nodes);
-      pbvh.update_bounds(depsgraph, object);
-      if (use_pbvh_draw) {
-        mesh.tag_positions_changed_no_normals();
-        mesh.runtime->corner_normals_cache.tag_dirty();
-      }
-      else {
-        mesh.tag_positions_changed();
-      }
-      mesh.bounds_set_eager(bke::pbvh::bounds_get(pbvh));
-      BKE_mesh_copy_parameters(&mesh, new_mesh);
-      BKE_id_free(nullptr, new_mesh);
-    }
-    else if (changed_attributes.as_span() == Span<StringRef>{".sculpt_mask"}) {
-      sculpt_paint::undo::push_begin(scene, object, &op);
-      sculpt_paint::undo::push_nodes(
-          depsgraph, object, leaf_nodes, sculpt_paint::undo::Type::Mask);
-      sculpt_paint::undo::push_end(object);
-      replace_attribute(new_mesh->attributes(),
-                        ".sculpt_mask",
-                        bke::AttrDomain::Point,
-                        CD_PROP_FLOAT,
-                        mesh.attributes_for_write());
-      pbvh.tag_masks_changed(leaf_nodes);
-      BKE_mesh_copy_parameters(&mesh, new_mesh);
-      BKE_id_free(nullptr, new_mesh);
-    }
-    else if (changed_attributes.as_span() == Span<StringRef>{".sculpt_face_set"}) {
-      sculpt_paint::undo::push_begin(scene, object, &op);
-      sculpt_paint::undo::push_nodes(
-          depsgraph, object, leaf_nodes, sculpt_paint::undo::Type::FaceSet);
-      sculpt_paint::undo::push_end(object);
-      replace_attribute(new_mesh->attributes(),
-                        ".sculpt_face_set",
-                        bke::AttrDomain::Face,
-                        CD_PROP_INT32,
-                        mesh.attributes_for_write());
-      pbvh.tag_face_sets_changed(leaf_nodes);
-      BKE_mesh_copy_parameters(&mesh, new_mesh);
-      BKE_id_free(nullptr, new_mesh);
-    }
-    else {
-      /* Non-geometry-type sculpt undo steps can only handle a single change at a time. When
-       * multiple attributes or attributes that don't have their own undo type are changed, we're
-       * forced to fall back to the slower geometry undo type. */
-      store_sculpt_entire_mesh(op, scene, object, new_mesh);
-    }
-  }
-  DEG_id_tag_update(&mesh.id, ID_RECALC_SHADING);
-  if (!use_pbvh_draw) {
-    DEG_id_tag_update(&mesh.id, ID_RECALC_GEOMETRY);
-  }
-}
-
 static void store_result_geometry(const wmOperator &op,
                                   const Depsgraph &depsgraph,
                                   Main &bmain,
@@ -462,6 +310,7 @@ static void store_result_geometry(const wmOperator &op,
     case OB_MESH: {
       Mesh &mesh = *static_cast<Mesh *>(object.data);
 
+      // TODO: This has to be done before the geometry nodes evaluation!
       const MeshState mesh_state(mesh);
       const bool has_shape_keys = mesh.key != nullptr;
 
@@ -476,7 +325,7 @@ static void store_result_geometry(const wmOperator &op,
       }
 
       if (object.mode == OB_MODE_SCULPT) {
-        store_result_mesh_sculpt_mode(op, scene, depsgraph, rv3d, mesh_state, object, new_mesh);
+        sculpt_paint::store_mesh_from_eval(op, scene, depsgraph, rv3d, object, new_mesh);
       }
       else if (object.mode == OB_MODE_EDIT) {
         EDBM_mesh_make_from_mesh(&object, new_mesh, scene.toolsettings->selectmode, true);
