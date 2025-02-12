@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Blender Authors
+#
+# SPDX-License-Identifier: Apache-2.0
+
 import bpy
 import os
 from os import path
