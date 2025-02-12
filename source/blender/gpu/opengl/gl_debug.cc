@@ -409,7 +409,7 @@ void GLContext::debug_group_begin(const char *name, int index)
   glGetInteger64v(GL_TIMESTAMP, &query.cpu_start);
   /* Use GL_TIMESTAMP instead of GL_ELAPSED_TIME to support nested debug groups */
   glGenQueries(2, query.handles);
-  glQueryCounter(query.start, GL_TIMESTAMP);
+  glQueryCounter(query.handle_start, GL_TIMESTAMP);
 
   if (frame_timings.is_empty()) {
     frame_timings.append({});
@@ -434,7 +434,7 @@ void GLContext::debug_group_end()
     TimeQuery &query = queries[i];
     if (!query.finished) {
       query.finished = true;
-      glQueryCounter(query.end, GL_TIMESTAMP);
+      glQueryCounter(query.handle_end, GL_TIMESTAMP);
       glGetInteger64v(GL_TIMESTAMP, &query.cpu_end);
       break;
     }
@@ -464,7 +464,7 @@ void GLContext::process_frame_timings()
       }
       else {
         last_query = i;
-        glGetQueryObjectiv(queries.last().end, GL_QUERY_RESULT_AVAILABLE, &frame_is_ready);
+        glGetQueryObjectiv(queries.last().handle_end, GL_QUERY_RESULT_AVAILABLE, &frame_is_ready);
       }
       break;
     }
@@ -485,8 +485,8 @@ void GLContext::process_frame_timings()
     for (TimeQuery &query : queries) {
       GLuint64 gpu_start = 0;
       GLuint64 gpu_end = 0;
-      glGetQueryObjectui64v(query.start, GL_QUERY_RESULT, &gpu_start);
-      glGetQueryObjectui64v(query.end, GL_QUERY_RESULT, &gpu_end);
+      glGetQueryObjectui64v(query.handle_start, GL_QUERY_RESULT, &gpu_start);
+      glGetQueryObjectui64v(query.handle_end, GL_QUERY_RESULT, &gpu_end);
       glDeleteQueries(2, query.handles);
 
       ProfileReport::get().add_group(

@@ -95,7 +95,7 @@ class GLContext : public Context {
     union {
       GLuint handles[2];
       struct {
-        GLuint start, end;
+        GLuint handle_start, handle_end;
       };
     };
     bool finished;

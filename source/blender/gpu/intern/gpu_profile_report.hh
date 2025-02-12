@@ -1,3 +1,7 @@
+/* SPDX-FileCopyrightText: 2025 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
 #include "BLI_string_ref.hh"
 #include <fmt/format.h>
 #include <fstream>
@@ -41,15 +45,15 @@ class ProfileReport {
         ",\n"
         R"({{"name":"{}","ph":"X","ts":{},"dur":{},"pid":1,"tid":1}})",
         name.c_str(),
-        gpu_start / 1000ui64,
-        (gpu_end - gpu_start) / 1000ui64);
+        gpu_start / uint64_t(1000),
+        (gpu_end - gpu_start) / uint64_t(1000));
 
     report << fmt::format(
         ",\n"
         R"({{"name":"{}","ph":"X","ts":{},"dur":{},"pid":1,"tid":2}})",
         name.c_str(),
-        cpu_start / 1000ui64,
-        (cpu_end - cpu_start) / 1000ui64);
+        cpu_start / uint64_t(1000),
+        (cpu_end - cpu_start) / uint64_t(1000));
   }
 };
 
