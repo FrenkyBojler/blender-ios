@@ -91,14 +91,14 @@ static Vector<SculptBatch> sculpt_batches_get_ex(const Object *ob,
   pbvh::DrawCache &draw_data = pbvh::ensure_draw_data(pbvh->draw_data);
 
   IndexMaskMemory memory;
-  const IndexMask visible_nodes = bke::pbvh::search_nodes(
+  const IndexMask visible_nodes = bke::pbvh::search_GPU_nodes(
       *pbvh, memory, [&](const bke::pbvh::Node &node) {
         return !BKE_pbvh_node_fully_hidden_get(node) &&
                bke::pbvh::node_frustum_contain_aabb(node, draw_frustum_planes);
       });
 
   const IndexMask nodes_to_update = update_only_visible ? visible_nodes :
-                                                          bke::pbvh::all_leaf_nodes(*pbvh, memory);
+                                                          bke::pbvh::all_GPU_nodes(*pbvh, memory);
 
   Span<gpu::Batch *> batches;
   if (use_wire) {

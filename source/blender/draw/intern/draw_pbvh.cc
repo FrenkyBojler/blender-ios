@@ -371,11 +371,14 @@ void extract_data_vert_mesh(const OffsetIndices<int> faces,
                             const Span<int> corner_verts,
                             const Span<T> attribute,
                             const Span<int> face_indices,
+                            const int offset,
                             gpu::VertBuf &vbo)
 {
   using Converter = AttributeConverter<T>;
   using VBOType = typename Converter::VBOType;
   VBOType *data = vbo.data<VBOType>().data();
+  data += offset;
+
   for (const int face : face_indices) {
     for (const int vert : corner_verts.slice(faces[face])) {
       *data = Converter::convert(attribute[vert]);
@@ -388,12 +391,15 @@ template<typename T>
 void extract_data_face_mesh(const OffsetIndices<int> faces,
                             const Span<T> attribute,
                             const Span<int> face_indices,
+                            const int offset,
                             gpu::VertBuf &vbo)
 {
   using Converter = AttributeConverter<T>;
   using VBOType = typename Converter::VBOType;
 
   VBOType *data = vbo.data<VBOType>().data();
+  data += offset;
+
   for (const int face : face_indices) {
     const int face_size = faces[face].size();
     std::fill_n(data, face_size, Converter::convert(attribute[face]));
@@ -405,12 +411,15 @@ template<typename T>
 void extract_data_corner_mesh(const OffsetIndices<int> faces,
                               const Span<T> attribute,
                               const Span<int> face_indices,
+                              const int offset,
                               gpu::VertBuf &vbo)
 {
   using Converter = AttributeConverter<T>;
   using VBOType = typename Converter::VBOType;
 
   VBOType *data = vbo.data<VBOType>().data();
+  data += offset;
+
   for (const int face : face_indices) {
     for (const int corner : faces[face]) {
       *data = Converter::convert(attribute[corner]);
@@ -582,7 +591,7 @@ BLI_NOINLINE static void ensure_vbos_allocated_mesh(const Object &object,
       vbos[i] = GPU_vertbuf_create_with_format(format);
     }
 
-    Vector<int> leaf_nodes = nodes[i].leaf_child_nodes_;
+    const Vector<int> leaf_nodes = nodes[i].leaf_child_nodes_;
     int corners_num = 0;
 
     for (const int j : leaf_nodes.index_range()) {
@@ -632,7 +641,8 @@ BLI_NOINLINE static void ensure_vbos_allocated_bmesh(const Object &object,
 }
 
 static void update_positions_mesh(const Object &object,
-                                  const IndexMask &node_mask,
+                                  const IndexMask &gpu_node_mask,
+                                  const IndexMask &leaf_node_mask,
                                   MutableSpan<gpu::VertBuf *> vbos)
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
@@ -641,10 +651,13 @@ static void update_positions_mesh(const Object &object,
   const OffsetIndices<int> faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
   const Span<float3> vert_positions = bke::pbvh::vert_positions_eval_from_eval(object);
-  ensure_vbos_allocated_mesh(object, position_format(), node_mask, vbos);
-  node_mask.foreach_index(GrainSize(1), [&](const int i) {
+
+  ensure_vbos_allocated_mesh(object, position_format(), gpu_node_mask, vbos);
+
+  leaf_node_mask.foreach_index(GrainSize(1), [&](const int i) {
+    const int gpu_inner_index = nodes[i].gpu_inner_index_.value();
     extract_data_vert_mesh<float3>(
-        faces, corner_verts, vert_positions, nodes[i].faces(), *vbos[i]);
+        faces, corner_verts, vert_positions, nodes[i].faces(), nodes[i].leaf_offset_ , *vbos[gpu_inner_index]);
   });
 }
 
@@ -1696,7 +1709,8 @@ BLI_NOINLINE static void flush_vbo_data(const Span<gpu::VertBuf *> vbos,
 Span<gpu::VertBuf *> DrawCacheImpl::ensure_attribute_data(const Object &object,
                                                           const OrigMeshData &orig_mesh_data,
                                                           const AttributeRequest &attr,
-                                                          const IndexMask &node_mask)
+                                                          const IndexMask &gpu_node_mask,
+                                                          const IndexMask &leaf_node_mask)
 {
   if (!pbvh_attr_supported(attr)) {
     return {};
@@ -1714,10 +1728,10 @@ Span<gpu::VertBuf *> DrawCacheImpl::ensure_attribute_data(const Object &object,
    * recompute visible nodes. */
   IndexMaskMemory memory;
   const IndexMask empty_mask = IndexMask::from_predicate(
-      node_mask, GrainSize(8196), memory, [&](const int i) { return !vbos[i]; });
+      gpu_node_mask, GrainSize(8196), memory, [&](const int i) { return !vbos[i]; });
 
   const IndexMask dirty_mask = IndexMask::from_bits(
-      node_mask.slice_content(data.dirty_nodes.index_range()), data.dirty_nodes, memory);
+      leaf_node_mask.slice_content(data.dirty_nodes.index_range()), data.dirty_nodes, memory);
   const IndexMask mask = IndexMask::from_union(empty_mask, dirty_mask, memory);
 
   switch (pbvh.type()) {
