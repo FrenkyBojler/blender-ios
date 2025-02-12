@@ -38,8 +38,8 @@
     .clip_end = 1000.0f, \
     .drawsize = 1.0f, \
     .ortho_scale = 6.0, \
-    .flag = CAM_SHOWPASSEPARTOUT, \
-    .passepartalpha = 0.5f, \
+    .flag = (CAM_SHOWPASSEPARTOUT | CAM_SHOWNAME), \
+    .passepartalpha = 0.9f, \
  \
     .panorama_type = CAM_PANORAMA_FISHEYE_EQUISOLID,\
     .fisheye_fov = M_PI,\
