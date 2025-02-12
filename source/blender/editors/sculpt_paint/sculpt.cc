@@ -5181,8 +5181,7 @@ static void tag_mesh_positions_changed(Object &object, const bool use_pbvh_draw)
    * falloff, we refreeze the cache before we do any operation that would tag this runtime
    * cache as dirty.
    *
-   * See #130636.
-   */
+   * See #130636. */
   if (!mesh.runtime->corner_tris_cache.frozen) {
     mesh.runtime->corner_tris_cache.freeze();
   }
