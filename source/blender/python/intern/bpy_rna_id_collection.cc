@@ -41,13 +41,24 @@
 
 static Main *pyrna_bmain_FromPyObject(PyObject *obj)
 {
-  if (obj && BPy_StructRNA_Check(obj)) {
-    BPy_StructRNA *pyrna = reinterpret_cast<BPy_StructRNA *>(obj);
-    if (pyrna->ptr && pyrna->ptr->type == &RNA_BlendData && pyrna->ptr->data) {
-      return static_cast<Main *>(pyrna->ptr->data);
-    }
+  if (!obj) {
+    return nullptr;
   }
-  return nullptr;
+  if (!BPy_StructRNA_Check(obj)) {
+    PyErr_Format(PyExc_TypeError,
+                 "Expected a StructRNA of type BlendData, not %.200s",
+                 Py_TYPE(obj)->tp_name);
+    return nullptr;
+  }
+  BPy_StructRNA *pyrna = reinterpret_cast<BPy_StructRNA *>(obj);
+  PYRNA_STRUCT_CHECK_OBJ(pyrna);
+  if (!(pyrna->ptr && pyrna->ptr->type == &RNA_BlendData && pyrna->ptr->data)) {
+    PyErr_Format(PyExc_TypeError,
+                 "Expected a StructRNA of type BlendData, not %.200s",
+                 Py_TYPE(pyrna)->tp_name);
+    return nullptr;
+  }
+  return static_cast<Main *>(pyrna->ptr->data);
 }
 
 struct IDUserMapData {
