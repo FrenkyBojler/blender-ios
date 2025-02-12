@@ -47,7 +47,7 @@ static bke::CurvesGeometry create_curves(const Vector<float3> positions,
   return create_curves(Span<Vector<float3>>(&positions, 1), order, is_cyclic);
 }
 
-static void validate_positions(const Vector<Vector<float3>> &expected_positions,
+static void validate_positions(const Span<Vector<float3>> expected_positions,
                                const OffsetIndices<int> points_by_curve,
                                const Span<float3> positions)
 {
@@ -155,7 +155,7 @@ TEST(curves_editors, SplitPointsTwoSingle)
 
   bke::CurvesGeometry curves = create_curves(positions, 4, {});
   IndexMaskMemory memory;
-  const IndexMask mask = IndexMask::from_indices(Array<int>{1, 2}.as_span(), memory);
+  const IndexMask mask = IndexMask::from_indices<int>({1, 2}, memory);
 
   bke::CurvesGeometry new_curves = split_points(curves, mask);
 

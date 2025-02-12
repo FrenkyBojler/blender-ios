@@ -9,7 +9,6 @@
 #include "BLI_array_utils.hh"
 #include "BLI_assert.h"
 #include "BLI_index_mask.hh"
-#include "BLI_index_mask_expression.hh"
 #include "BLI_lasso_2d.hh"
 #include "BLI_math_geom.h"
 #include "BLI_rect.h"

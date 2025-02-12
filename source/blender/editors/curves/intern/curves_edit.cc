@@ -7,7 +7,6 @@
  */
 
 #include "BLI_array_utils.hh"
-#include "BLI_index_mask_expression.hh"
 
 #include "BKE_anonymous_attribute_id.hh"
 #include "BKE_attribute.hh"
@@ -340,8 +339,10 @@ static IndexRange extend_range(const IndexRange range, const IndexRange universe
                                               math::min(range.one_after_last(), universe.last()));
 }
 
-/* Extends each range by one point at both ends of it. Merges adjacent ranges if intersections
- * occur. */
+/**
+ * Extends each range by one point at both ends of it. Merges adjacent ranges if intersections
+ * occur.
+ */
 static void extend_and_merge(const IndexRange universe,
                              const bool cyclic,
                              const Span<IndexRange> ranges,
