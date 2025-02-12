@@ -43,15 +43,15 @@ bool remove_selection(bke::CurvesGeometry &curves, const bke::AttrDomain selecti
 
 using UnselectedCallback = FunctionRef<void(IndexRange unselected_points, IndexRange slices)>;
 
-static void call_unselected(const Span<int> offset_data,
-                            const int begin,
-                            const int end,
-                            UnselectedCallback unselected_fn)
+static void if_has_data_call_callback(const Span<int> offset_data,
+                                      const int begin,
+                                      const int end,
+                                      UnselectedCallback callback)
 {
   if (begin < end) {
     const IndexRange slices = IndexRange::from_begin_end(begin, end);
     const IndexRange data = IndexRange::from_begin_end(offset_data[begin], offset_data[end]);
-    unselected_fn(data, slices);
+    callback(data, slices);
   }
 };
 
@@ -84,7 +84,7 @@ static void foreach_content_slice_by_offsets_(
         ++slice;
       } while (offset_data[slice + 1] <= index);
       if constexpr (std::is_invocable_r_v<void, Fn, IndexRange, IndexRange>) {
-        call_unselected(offset_data, first_unselected_slice, slice, unselected_fn);
+        if_has_data_call_callback(offset_data, first_unselected_slice, slice, unselected_fn);
       }
       range_first = index;
     }
@@ -100,10 +100,20 @@ static void foreach_content_slice_by_offsets_(
     selected_fn(ranges, offset_indices[slice], slice);
   }
   if constexpr (std::is_invocable_r_v<void, Fn, IndexRange, IndexRange>) {
-    call_unselected(offset_data, slice + 1, offset_indices.size(), unselected_fn);
+    if_has_data_call_callback(offset_data, slice + 1, offset_indices.size(), unselected_fn);
   }
 }
 
+/**
+ * Calls callback function for each mask's content slice by `OffsetIndices`.
+ * Used to handle selected points for each curve separately.
+ *
+ * \param selected_points: Selected points in the current offset range.
+ * \param slice_points: Current offset's `IndexRange`.
+ * \param slice: Current offsets's index. Curve index if #CurvesGeometry::points_by_curve() is used
+ * as `offset_indices`.
+ * \param selected_fn: callback function called for each slice with at least one point selected.
+ */
 static void foreach_content_slice_by_offsets(
     const IndexMask &mask,
     const OffsetIndices<int> offset_indices,
@@ -113,6 +123,17 @@ static void foreach_content_slice_by_offsets(
   foreach_content_slice_by_offsets_<void()>(mask, offset_indices, selected_fn, nullptr);
 }
 
+/**
+ * Calls callback function for each mask's content slice by `OffsetIndices`.
+ * Used to handle selected points for each curve separately.
+ *
+ * \param selected_points: Selected points in the current offset range.
+ * \param slice_points: Current offset's `IndexRange`.
+ * \param slice: Current offsets's index. Curve index if #CurvesGeometry::points_by_curve() is used
+ * as `offset_indices`.
+ * \param selected_fn: callback function called for each slice with at least one point selected.
+ * \param unselected_fn: callback function called for groups of slices with no selected points.
+ */
 static void foreach_content_slice_by_offsets(
     const IndexMask &mask,
     const OffsetIndices<int> offset_indices,
