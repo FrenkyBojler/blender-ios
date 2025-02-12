@@ -6,7 +6,6 @@
  * \ingroup edcurves
  */
 
-#include "BKE_mesh.h"
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
@@ -20,7 +19,6 @@
 #include "WM_api.hh"
 
 #include "BKE_asset.hh"
-#include "BKE_attribute.hh"
 #include "BKE_compute_contexts.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
@@ -33,12 +31,10 @@
 #include "BKE_main.hh"
 #include "BKE_material.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_topology_state.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
-#include "BKE_paint_bvh.hh"
 #include "BKE_pointcloud.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -172,13 +168,44 @@ static void find_socket_log_contexts(const Main &bmain,
 }
 
 /**
+ * This class adds a user to shared mesh data, requiring modifications of the mesh to reallocate
+ * the data and its sharing info. This allows tracking which data is modified without having to
+ * explicitly compare it.
+ */
+class MeshState {
+  VectorSet<const ImplicitSharingInfo *> sharing_infos_;
+
+ public:
+  MeshState(const Mesh &mesh)
+  {
+    sharing_infos_.add(mesh.runtime->face_offsets_sharing_info);
+    mesh.attributes().foreach_attribute([&](const bke::AttributeIter &iter) {
+      const bke::GAttributeReader attribute = iter.get();
+      if (attribute.sharing_info) {
+        if (sharing_infos_.add(attribute.sharing_info)) {
+          attribute.sharing_info->add_user();
+        }
+      }
+    });
+  }
+
+  ~MeshState()
+  {
+    for (const ImplicitSharingInfo *sharing_info : sharing_infos_) {
+      sharing_info->remove_user_and_delete_if_last();
+    }
+  }
+};
+
+/**
  * Geometry nodes currently requires working on "evaluated" data-blocks (rather than "original"
  * data-blocks that are part of a #Main data-base). This could change in the future, but for now,
  * we need to create evaluated copies of geometry before passing it to geometry nodes. Implicit
  * sharing lets us avoid copying attribute data though.
  */
 static bke::GeometrySet get_original_geometry_eval_copy(Object &object,
-                                                        nodes::GeoNodesOperatorData &operator_data)
+                                                        nodes::GeoNodesOperatorData &operator_data,
+                                                        Vector<MeshState> &orig_mesh_states)
 {
   switch (object.type) {
     case OB_CURVES: {
@@ -199,69 +226,18 @@ static bke::GeometrySet get_original_geometry_eval_copy(Object &object,
         Mesh *mesh_copy = BKE_mesh_wrapper_from_editmesh(em, nullptr, mesh);
         BKE_mesh_wrapper_ensure_mdata(mesh_copy);
         Mesh *final_copy = BKE_mesh_copy_for_eval(*mesh_copy);
+        orig_mesh_states.append_as(*final_copy);
         BKE_id_free(nullptr, mesh_copy);
         return bke::GeometrySet::from_mesh(final_copy);
       }
-      return bke::GeometrySet::from_mesh(BKE_mesh_copy_for_eval(*mesh));
+      Mesh *mesh_copy = BKE_mesh_copy_for_eval(*mesh);
+      orig_mesh_states.append_as(*mesh_copy);
+      return bke::GeometrySet::from_mesh(mesh_copy);
     }
     default:
       return {};
   }
 }
-
-class MeshState {
-  bke::MeshTopologyState topology_;
-  Map<std::string, const ImplicitSharingInfo *> attribute_sharing_info_;
-
- public:
-  MeshState(const Mesh &mesh) : topology_(mesh)
-  {
-    const bke::AttributeAccessor attributes = mesh.attributes();
-    attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
-      if (ELEM(iter.name, ".edge_verts", ".corner_vert", ".corner_edge")) {
-        return;
-      }
-      const bke::GAttributeReader attribute = iter.get();
-      if (!attribute.sharing_info) {
-        /* Results in false positives when an attribute has no sharing info. That is okay. */
-        return;
-      }
-      /* Adding a user will require modifications to create a new attribute data array to avoid
-       * modifications to shared data. That makes the implicit sharing info not match anymore which
-       * means the attribute isn't the same as the original. */
-      attribute.sharing_info->add_user();
-      attribute_sharing_info_.add_new(iter.name, attribute.sharing_info);
-    });
-  }
-
-  bool topology_changed(const Mesh &mesh) const
-  {
-    return !topology_.same_topology_as(mesh);
-  }
-
-  bool attribute_changed(const StringRef name, const ImplicitSharingInfo *sharing_info) const
-  {
-    if (!sharing_info) {
-      return true;
-    }
-    const ImplicitSharingInfo *saved_sharing_info = attribute_sharing_info_.lookup_default(
-        name, nullptr);
-    if (!saved_sharing_info) {
-      return true;
-    }
-    if (saved_sharing_info != sharing_info) {
-      return true;
-    }
-    return false;
-  }
-
-  ~MeshState()
-  {
-    for (const ImplicitSharingInfo *sharing_info : attribute_sharing_info_.values()) {
-      sharing_info->remove_user_and_delete_if_last();
-    }
-  }
-};
 
 static void store_result_geometry(const wmOperator &op,
                                   const Depsgraph &depsgraph,
@@ -310,8 +286,6 @@ static void store_result_geometry(const wmOperator &op,
     case OB_MESH: {
       Mesh &mesh = *static_cast<Mesh *>(object.data);
 
-      // TODO: This has to be done before the geometry nodes evaluation!
-      const MeshState mesh_state(mesh);
       const bool has_shape_keys = mesh.key != nullptr;
 
       Mesh *new_mesh = geometry.get_component_for_write<bke::MeshComponent>().release();
@@ -602,6 +576,7 @@ static int run_node_group_exec(bContext *C, wmOperator *op)
 
   /* May be null if operator called from outside 3D view context. */
   const RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  Vector<MeshState> orig_mesh_states;
 
   for (Object *object : objects) {
     nodes::GeoNodesOperatorData operator_eval_data{};
@@ -628,7 +603,8 @@ static int run_node_group_exec(bContext *C, wmOperator *op)
       call_data.socket_log_contexts = &socket_log_contexts;
     }
 
-    bke::GeometrySet geometry_orig = get_original_geometry_eval_copy(*object, operator_eval_data);
+    bke::GeometrySet geometry_orig = get_original_geometry_eval_copy(
+        *object, operator_eval_data, orig_mesh_states);
 
     bke::GeometrySet new_geometry = nodes::execute_geometry_nodes_on_geometry(
         *node_tree, properties, compute_context, call_data, std::move(geometry_orig));

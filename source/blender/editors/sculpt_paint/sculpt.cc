@@ -5383,6 +5383,9 @@ static bool attribute_matches(const bke::AttributeAccessor a,
 {
   const bke::GAttributeReader a_attr = a.lookup(name);
   const bke::GAttributeReader b_attr = b.lookup(name);
+  if (!a_attr.sharing_info || !b_attr.sharing_info) {
+    return false;
+  }
   return a_attr.sharing_info == b_attr.sharing_info;
 }
 
