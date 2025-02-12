@@ -518,18 +518,13 @@ class Report:
                 if not batch:
                     break
 
-                # Avoid passing a string larger than what the command line can hold.
-                # (Windows's limit is 8191 characters)
-                if len(" ".join(command)) > 8000:
-                    break
-
             command.extend(self._get_arguments_suffix())
 
             # Run process
             crash = False
             output = None
             try:
-                completed_process = subprocess.run(command)
+                completed_process = subprocess.run(command, stdout=subprocess.PIPE)
                 if completed_process.returncode != 0:
                     crash = True
                 output = completed_process.stdout
