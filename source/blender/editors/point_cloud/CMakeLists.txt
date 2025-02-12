@@ -14,6 +14,7 @@ set(INC_SYS
 )
 
 set(SRC
+  intern/point_cloud_masks.cc
   intern/point_cloud_ops.cc
   intern/point_cloud_selection.cc
   )
@@ -21,6 +22,7 @@ set(SRC
 set(LIB
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc

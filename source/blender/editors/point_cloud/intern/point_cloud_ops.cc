@@ -11,6 +11,8 @@
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
 
+#include "BLT_translation.hh"
+
 #include "ED_point_cloud.hh"
 #include "ED_screen.hh"
 #include "ED_select_utils.hh"
@@ -140,9 +142,83 @@ static void POINT_CLOUD_OT_select_all(wmOperatorType *ot)
   WM_operator_properties_select_all(ot);
 }
 
+static int select_random_exec(bContext *C, wmOperator *op)
+{
+  VectorSet<PointCloud *> unique_point_cloud = get_unique_editable_point_clouds(*C);
+
+  const int seed = RNA_int_get(op->ptr, "seed");
+  const float probability = RNA_float_get(op->ptr, "probability");
+
+  for (PointCloud *point_cloud_id : unique_point_cloud) {
+    const int domain_size = point_cloud_id->attributes().domain_size(
+        blender::bke::AttrDomain::Point);
+
+    IndexMaskMemory memory;
+    const IndexMask inv_random_elements = random_mask(*point_cloud_id, seed, probability, memory)
+                                              .complement(IndexRange(domain_size), memory);
+
+    const bool was_anything_selected = has_anything_selected(*point_cloud_id);
+    bke::GSpanAttributeWriter selection = ensure_selection_attribute(*point_cloud_id,
+                                                                     CD_PROP_BOOL);
+    if (!was_anything_selected) {
+      point_cloud::fill_selection_true(selection.span);
+    }
+
+    point_cloud::fill_selection_false(selection.span, inv_random_elements);
+    selection.finish();
+
+    /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
+     * attribute for now. */
+    DEG_id_tag_update(&point_cloud_id->id, ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, point_cloud_id);
+  }
+  return OPERATOR_FINISHED;
+}
+
+static void select_random_ui(bContext * /*C*/, wmOperator *op)
+{
+  uiLayout *layout = op->layout;
+
+  uiItemR(layout, op->ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, op->ptr, "probability", UI_ITEM_R_SLIDER, IFACE_("Probability"), ICON_NONE);
+}
+
+static void POINT_CLOUD_OT_select_random(wmOperatorType *ot)
+{
+  ot->name = "Select Random";
+  ot->idname = __func__;
+  ot->description = "Randomizes existing selection or create new random selection";
+
+  ot->exec = select_random_exec;
+  ot->poll = editable_point_cloud_poll;
+  ot->ui = select_random_ui;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_int(ot->srna,
+              "seed",
+              0,
+              INT32_MIN,
+              INT32_MAX,
+              "Seed",
+              "Source of randomness",
+              INT32_MIN,
+              INT32_MAX);
+  RNA_def_float(ot->srna,
+                "probability",
+                0.5f,
+                0.0f,
+                1.0f,
+                "Probability",
+                "Chance of every point being included in the selection",
+                0.0f,
+                1.0f);
+}
+
 void operatortypes_point_cloud()
 {
   WM_operatortype_append(POINT_CLOUD_OT_select_all);
+  WM_operatortype_append(POINT_CLOUD_OT_select_random);
 }
 
 void keymap_point_cloud(wmKeyConfig *keyconf)

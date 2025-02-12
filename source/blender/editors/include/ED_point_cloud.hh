@@ -40,6 +40,7 @@ void keymap_point_cloud(wmKeyConfig *keyconf);
  * helpful utilities on top of that.
  * \{ */
 
+void fill_selection_true(GMutableSpan span);
 void fill_selection_false(GMutableSpan selection, const IndexMask &mask);
 void fill_selection_true(GMutableSpan selection, const IndexMask &mask);
 
@@ -65,6 +66,30 @@ bke::GSpanAttributeWriter ensure_selection_attribute(PointCloud &point_cloud,
 /** \} */
 
 /* -------------------------------------------------------------------- */
+
+/** \name Mask Functions
+ * \{ */
+
+/**
+ * Return a mask of random points or curves.
+ *
+ * \param mask: (optional) The elements that should be used in the resulting mask. This mask should
+ * be in the same domain as the \a selection_domain. \param random_seed: The seed for the \a
+ * RandomNumberGenerator. \param probability: Determines how likely a point will be chosen.
+ * If set to 0.0, nothing will be in the mask, if set to 1.0 everything will be in the mask.
+ */
+IndexMask random_mask(const PointCloud &curves,
+                      uint32_t random_seed,
+                      float probability,
+                      IndexMaskMemory &memory);
+IndexMask random_mask(const PointCloud &curves,
+                      const IndexMask &mask,
+                      uint32_t random_seed,
+                      float probability,
+                      IndexMaskMemory &memory);
+
+/** \} */
+
 /** \name Poll Functions
  * \{ */
 
