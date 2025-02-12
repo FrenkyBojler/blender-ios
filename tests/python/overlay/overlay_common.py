@@ -4,13 +4,11 @@
 
 import bpy
 import os
-from os import path
 from pathlib import Path
 import argparse
 
 
 class Permutation:
-
     def __init__(self, apply, reset):
         self._apply = apply
         self._reset = reset
@@ -28,7 +26,6 @@ class Permutation:
 
 
 class Permutations:
-
     def __init__(self, reset_key=None, variants_dict={}):
         reset = []
         if reset_key:
@@ -83,7 +80,7 @@ def render_permutations(permutations):
         bpy.context.scene.render.filepath = filepath
         bpy.ops.render.opengl(write_still=True, view_context=True)
 
-    output_list_txt = bpy.data.filepath.replace(".blend", ".txt")
+    output_list_txt = bpy.data.filepath.replace(".blend", "_permutations.txt")
     with open(output_list_txt, 'w') as file:
         file.write("\n".join(output_paths))
 

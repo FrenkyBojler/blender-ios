@@ -73,7 +73,6 @@ def test_get_images(output_dir, filepath, testname, reference_dir, reference_ove
 
 
 class TestResult:
-
     def __init__(self, report, filepath, name):
         self.filepath = filepath
         self.name = name
@@ -480,7 +479,7 @@ class Report:
         return []
 
     def _get_filepath_tests(self, filepath):
-        list_filepath = filepath.replace('.blend', '.txt')
+        list_filepath = filepath.replace('.blend', '_permutations.txt')
         if os.path.exists(list_filepath):
             with open(list_filepath, 'r') as file:
                 return [TestResult(self, filepath, testname.rstrip('\n')) for testname in file]
