@@ -210,7 +210,7 @@ int insert_bezt_fcurve(FCurve *fcu, const BezTriple *bezt, eInsertKeyFlags flag)
    */
   else if ((flag & INSERTKEY_REPLACE) == 0 && (fcu->fpt == nullptr)) {
     /* Create new keyframes array. */
-    fcu->bezt = static_cast<BezTriple *>(MEM_callocN(sizeof(BezTriple), "beztriple"));
+    fcu->bezt = MEM_cnew<BezTriple>("beztriple");
     *(fcu->bezt) = *bezt;
     fcu->totvert = 1;
   }
@@ -636,8 +636,7 @@ void bake_fcurve_segments(FCurve *fcu)
         sfra = int(floor(start->vec[1][0]));
 
         if (range) {
-          value_cache = static_cast<TempFrameValCache *>(
-              MEM_callocN(sizeof(TempFrameValCache) * range, "IcuFrameValCache"));
+          value_cache = MEM_cnew_array<TempFrameValCache>(size_t(range), "IcuFrameValCache");
 
           /* Sample values. */
           for (n = 1, fp = value_cache; n < range && fp; n++, fp++) {
