@@ -29,7 +29,7 @@
 
 namespace blender::ed::point_cloud {
 
-bool object_has_editable_point_cloud(const Main &bmain, const Object &object)
+static bool object_has_editable_point_cloud(const Main &bmain, const Object &object)
 {
   if (object.type != OB_POINTCLOUD) {
     return false;
@@ -64,7 +64,7 @@ static bool point_cloud_poll_impl(bContext *C,
   return true;
 }
 
-bool editable_point_cloud_poll(bContext *C)
+static bool editable_point_cloud_poll(bContext *C)
 {
   return point_cloud_poll_impl(C, false, false);
 }
@@ -74,7 +74,7 @@ bool editable_point_cloud_in_edit_mode_poll(bContext *C)
   return point_cloud_poll_impl(C, true, true);
 }
 
-VectorSet<PointCloud *> get_unique_editable_point_clouds(const bContext &C)
+static VectorSet<PointCloud *> get_unique_editable_point_clouds(const bContext &C)
 {
   VectorSet<PointCloud *> unique_points;
 
@@ -133,6 +133,7 @@ static void POINT_CLOUD_OT_select_all(wmOperatorType *ot)
   ot->description = "(De)select all point cloud";
 
   ot->exec = select_all_exec;
+  ot->poll = editable_point_cloud_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
