@@ -13,16 +13,14 @@
  * - free can be called from any thread
  */
 
-#include "GHOST_C-api.h"
-
 #include "BKE_global.hh"
 
 #include "BLI_assert.h"
-#include "BLI_utildefines.h"
 #include "BLI_vector_set.hh"
 
+#include "GHOST_Types.h"
+
 #include "GPU_context.hh"
-#include "GPU_framebuffer.hh"
 
 #include "GPU_batch.hh"
 #include "gpu_backend.hh"
@@ -44,7 +42,6 @@
 #include "dummy_backend.hh"
 
 #include <mutex>
-#include <vector>
 
 using namespace blender::gpu;
 
@@ -68,6 +65,7 @@ Context::Context()
   thread_ = pthread_self();
   is_active_ = false;
   matrix_state = GPU_matrix_state_create();
+  texture_pool = new TexturePool();
 
   context_id = Context::context_counter;
   Context::context_counter++;
@@ -83,6 +81,7 @@ Context::~Context()
 
   GPU_matrix_state_discard(matrix_state);
   GPU_BATCH_DISCARD_SAFE(polyline_batch);
+  delete texture_pool;
   delete state_manager;
   delete imm;
 }

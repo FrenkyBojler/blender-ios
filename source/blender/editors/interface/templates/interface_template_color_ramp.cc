@@ -8,6 +8,7 @@
 
 #include "BKE_colorband.hh"
 #include "BKE_context.hh"
+#include "BKE_library.hh"
 
 #include "BLI_rect.h"
 #include "BLI_string_ref.hh"
@@ -224,7 +225,7 @@ static void colorband_buttons_layout(uiLayout *layout,
   const float xs = butr->xmin;
   const float ys = butr->ymin;
 
-  PointerRNA ptr = RNA_pointer_create(cb.ptr.owner_id, &RNA_ColorRamp, coba);
+  PointerRNA ptr = RNA_pointer_create_discrete(cb.ptr.owner_id, &RNA_ColorRamp, coba);
 
   uiLayout *split = uiLayoutSplit(layout, 0.4f, false);
 
@@ -315,7 +316,7 @@ static void colorband_buttons_layout(uiLayout *layout,
   if (coba->tot) {
     CBData *cbd = coba->data + coba->cur;
 
-    ptr = RNA_pointer_create(cb.ptr.owner_id, &RNA_ColorRampElement, cbd);
+    ptr = RNA_pointer_create_discrete(cb.ptr.owner_id, &RNA_ColorRampElement, cbd);
 
     if (!expand) {
       split = uiLayoutSplit(layout, 0.3f, false);

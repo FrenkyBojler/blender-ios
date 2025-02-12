@@ -6,55 +6,27 @@
  * \ingroup RNA
  */
 
-#include <climits>
 #include <cstdlib>
 
-#include "DNA_anim_types.h"
-#include "DNA_movieclip_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
-#include "DNA_vfont_types.h"
 
-#include "BLI_iterator.h"
-#include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
 #include "BLI_string_utf8_symbols.h"
-#include "BLI_string_utils.hh"
 
 #include "BLT_translation.hh"
 
-#include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
-#include "BKE_sound.h"
 
-#include "IMB_metadata.hh"
-
-#include "MEM_guardedalloc.h"
-
-#include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
 #include "UI_resources.hh"
 #include "rna_internal.hh"
 
-#include "SEQ_add.hh"
-#include "SEQ_channels.hh"
 #include "SEQ_effects.hh"
-#include "SEQ_iterator.hh"
-#include "SEQ_modifier.hh"
-#include "SEQ_prefetch.hh"
-#include "SEQ_proxy.hh"
-#include "SEQ_relations.hh"
-#include "SEQ_retiming.hh"
-#include "SEQ_select.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_sound.hh"
-#include "SEQ_thumbnail_cache.hh"
-#include "SEQ_time.hh"
-#include "SEQ_transform.hh"
-#include "SEQ_utils.hh"
 
 #include "WM_types.hh"
 
@@ -117,8 +89,15 @@ const EnumPropertyItem rna_enum_strip_color_items[] = {
 
 #  include <fmt/format.h>
 
+#  include "DNA_vfont_types.h"
+
+#  include "BLI_iterator.h"
+#  include "BLI_string_utils.hh"
+
+#  include "BKE_anim_data.hh"
 #  include "BKE_global.hh"
 #  include "BKE_idprop.hh"
+#  include "BKE_lib_id.hh"
 #  include "BKE_movieclip.h"
 #  include "BKE_report.hh"
 
@@ -131,7 +110,23 @@ const EnumPropertyItem rna_enum_strip_color_items[] = {
 
 #  include "MOV_read.hh"
 
+#  include "SEQ_add.hh"
+#  include "SEQ_channels.hh"
 #  include "SEQ_edit.hh"
+#  include "SEQ_effects.hh"
+#  include "SEQ_iterator.hh"
+#  include "SEQ_modifier.hh"
+#  include "SEQ_prefetch.hh"
+#  include "SEQ_proxy.hh"
+#  include "SEQ_relations.hh"
+#  include "SEQ_retiming.hh"
+#  include "SEQ_select.hh"
+#  include "SEQ_sequencer.hh"
+#  include "SEQ_sound.hh"
+#  include "SEQ_thumbnail_cache.hh"
+#  include "SEQ_time.hh"
+#  include "SEQ_transform.hh"
+#  include "SEQ_utils.hh"
 
 struct StripSearchData {
   Strip *strip;
@@ -279,7 +274,7 @@ static void rna_SequenceEditor_strips_all_next(CollectionPropertyIterator *iter)
 static PointerRNA rna_SequenceEditor_strips_all_get(CollectionPropertyIterator *iter)
 {
   Strip *strip = static_cast<Strip *>(((BLI_Iterator *)iter->internal.custom)->current);
-  return rna_pointer_inherit_refine(&iter->parent, &RNA_Strip, strip);
+  return RNA_pointer_create_with_parent(iter->parent, &RNA_Strip, strip);
 }
 
 static void rna_SequenceEditor_strips_all_end(CollectionPropertyIterator *iter)
@@ -300,7 +295,7 @@ static bool rna_SequenceEditor_strips_all_lookup_string(PointerRNA *ptr,
 
   Strip *strip = SEQ_lookup_strip_by_name(scene, key);
   if (strip) {
-    *r_ptr = RNA_pointer_create(ptr->owner_id, &RNA_Strip, strip);
+    rna_pointer_create_with_ancestors(*ptr, &RNA_Strip, strip, *r_ptr);
     return true;
   }
   return false;
@@ -331,6 +326,7 @@ static void rna_Strip_elements_begin(CollectionPropertyIterator *iter, PointerRN
 {
   Strip *strip = (Strip *)ptr->data;
   rna_iterator_array_begin(iter,
+                           ptr,
                            (void *)strip->data->stripdata,
                            sizeof(StripElem),
                            rna_Strip_elements_length(ptr),
@@ -347,6 +343,7 @@ static void rna_Strip_retiming_keys_begin(CollectionPropertyIterator *iter, Poin
 {
   Strip *strip = (Strip *)ptr->data;
   rna_iterator_array_begin(iter,
+                           ptr,
                            (void *)strip->retiming_keys,
                            sizeof(SeqRetimingKey),
                            SEQ_retiming_keys_count(strip),
@@ -804,8 +801,6 @@ static StructRNA *rna_Strip_refine(PointerRNA *ptr)
       return &RNA_GammaCrossStrip;
     case STRIP_TYPE_MUL:
       return &RNA_MultiplyStrip;
-    case STRIP_TYPE_OVERDROP:
-      return &RNA_OverDropStrip;
     case STRIP_TYPE_MULTICAM:
       return &RNA_MulticamStrip;
     case STRIP_TYPE_ADJUSTMENT:
@@ -885,7 +880,7 @@ static PointerRNA rna_MovieStrip_metadata_get(ID *scene_id, Strip *strip)
     return PointerRNA_NULL;
   }
 
-  PointerRNA ptr = RNA_pointer_create(scene_id, &RNA_IDPropertyWrapPtr, metadata);
+  PointerRNA ptr = RNA_pointer_create_discrete(scene_id, &RNA_IDPropertyWrapPtr, metadata);
   return ptr;
 }
 
@@ -894,7 +889,7 @@ static PointerRNA rna_SequenceEditor_meta_stack_get(CollectionPropertyIterator *
   ListBaseIterator *internal = &iter->internal.listbase;
   MetaStack *ms = (MetaStack *)internal->link;
 
-  return rna_pointer_inherit_refine(&iter->parent, &RNA_Strip, ms->parseq);
+  return RNA_pointer_create_with_parent(iter->parent, &RNA_Strip, ms->parseq);
 }
 
 /* TODO: expose strip path setting as a higher level sequencer BKE function. */
@@ -2021,7 +2016,6 @@ static const EnumPropertyItem blend_mode_items[] = {
     {STRIP_TYPE_ALPHAOVER, "ALPHA_OVER", 0, "Alpha Over", ""},
     {STRIP_TYPE_ALPHAUNDER, "ALPHA_UNDER", 0, "Alpha Under", ""},
     {STRIP_TYPE_GAMCROSS, "GAMMA_CROSS", 0, "Gamma Cross", ""},
-    {STRIP_TYPE_OVERDROP, "OVER_DROP", 0, "Over Drop", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -2070,7 +2064,7 @@ static void rna_def_sequence_modifiers(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_function_ui_description(func, "Remove all modifiers from the sequence");
 }
 
-static void rna_def_sequence(BlenderRNA *brna)
+static void rna_def_strip(BlenderRNA *brna)
 {
   StructRNA *srna;
   PropertyRNA *prop;
@@ -2090,7 +2084,6 @@ static void rna_def_sequence(BlenderRNA *brna)
       {STRIP_TYPE_ALPHAUNDER, "ALPHA_UNDER", 0, "Alpha Under", ""},
       {STRIP_TYPE_GAMCROSS, "GAMMA_CROSS", 0, "Gamma Cross", ""},
       {STRIP_TYPE_MUL, "MULTIPLY", 0, "Multiply", ""},
-      {STRIP_TYPE_OVERDROP, "OVER_DROP", 0, "Over Drop", ""},
       {STRIP_TYPE_WIPE, "WIPE", 0, "Wipe", ""},
       {STRIP_TYPE_GLOW, "GLOW", 0, "Glow", ""},
       {STRIP_TYPE_TRANSFORM, "TRANSFORM", 0, "Transform", ""},
@@ -3624,7 +3617,6 @@ static EffectInfo def_effects[] = {
      rna_def_multicam,
      0},
     {"MultiplyStrip", "Multiply Strip", "Multiply Strip", nullptr, 2},
-    {"OverDropStrip", "Over Drop Strip", "Over Drop Strip", nullptr, 2},
     {"SpeedControlStrip",
      "SpeedControl Strip",
      "Sequence strip to control the speed of other strips",
@@ -4009,7 +4001,7 @@ void RNA_def_sequencer(BlenderRNA *brna)
   rna_def_strip_crop(brna);
   rna_def_strip_transform(brna);
 
-  rna_def_sequence(brna);
+  rna_def_strip(brna);
   rna_def_editor(brna);
   rna_def_channel(brna);
 

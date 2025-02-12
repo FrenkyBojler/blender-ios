@@ -8,6 +8,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_curveprofile.h"
+#include "BKE_library.hh"
 
 #include "BLI_rect.h"
 #include "BLI_string_ref.hh"
@@ -431,7 +432,8 @@ static void CurveProfile_buttons_layout(uiLayout *layout, PointerRNA *ptr, const
 
     row = uiLayoutRow(layout, true);
 
-    PointerRNA point_ptr = RNA_pointer_create(ptr->owner_id, &RNA_CurveProfilePoint, point);
+    PointerRNA point_ptr = RNA_pointer_create_discrete(
+        ptr->owner_id, &RNA_CurveProfilePoint, point);
     PropertyRNA *prop_handle_type = RNA_struct_find_property(&point_ptr, "handle_type_1");
     uiItemFullR(row,
                 &point_ptr,
