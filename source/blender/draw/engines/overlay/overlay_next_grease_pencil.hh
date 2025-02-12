@@ -151,8 +151,7 @@ class GreasePencil : Overlay {
       pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA | depth_write_state,
                      state.clipping_plane_count);
       if (show_grid_) {
-        const float3 col = state.overlay.gpencil_grid_color;
-        const float4 col_grid(col.xyz(), state.overlay.gpencil_grid_opacity);
+        const float4 col_grid(float3(state.overlay.gpencil_grid_color), state.overlay.gpencil_grid_opacity);
         pass.shader_set(res.shaders.grid_grease_pencil.get());
         pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
         pass.push_constant("color", col_grid);
@@ -232,8 +231,7 @@ class GreasePencil : Overlay {
       const float3 grid_scale = float3(float2(state.v3d->overlay.gpencil_grid_scale),0.0f);
       const float4x4 transform_mat = math::from_loc_scale<float4x4>(grid_offset, grid_scale);
 
-      float4x4 grid_mat = grid_matrix_get(*ob_ref.object, state.scene);
-      grid_mat = grid_mat * transform_mat;
+      const float4x4 grid_mat = grid_matrix_get(*ob_ref.object, state.scene) * transform_mat;
 
       grid_ps_.push_constant("xAxis", grid_mat.x_axis());
       grid_ps_.push_constant("yAxis", grid_mat.y_axis());
