@@ -519,8 +519,7 @@ void VKShader::init(const shader::ShaderCreateInfo &info, bool is_batch_compilat
 
 VKShader::~VKShader()
 {
-  VKDevice &device = VKBackend::get().device;
-  VKDiscardPool &discard_pool = device.discard_pool_for_current_thread();
+  VKDiscardPool &discard_pool = VKDiscardPool::discard_pool_get();
 
   if (vk_pipeline_layout != VK_NULL_HANDLE) {
     discard_pool.discard_pipeline_layout(vk_pipeline_layout);
@@ -581,6 +580,11 @@ bool VKShader::finalize(const shader::ShaderCreateInfo *info)
     compilation_finished = true;
   }
   if (compilation_failed) {
+    return false;
+  }
+  /* Add-ons that still use old API will crash as the shader create info isn't available.
+   * See #130555 */
+  if (info == nullptr) {
     return false;
   }
 
@@ -834,7 +838,6 @@ std::string VKShader::vertex_interface_declare(const shader::ShaderCreateInfo &i
 {
   std::stringstream ss;
   std::string post_main;
-  const VKWorkarounds &workarounds = VKBackend::get().device.workarounds_get();
 
   ss << "\n/* Inputs. */\n";
   for (const ShaderCreateInfo::VertIn &attr : info.vertex_inputs_) {
@@ -846,20 +849,31 @@ std::string VKShader::vertex_interface_declare(const shader::ShaderCreateInfo &i
   for (const StageInterfaceInfo *iface : info.vertex_out_interfaces_) {
     print_interface(ss, "out", *iface, location);
   }
-  if (workarounds.shader_output_layer && bool(info.builtins_ & BuiltinBits::LAYER)) {
-    ss << "layout(location=" << (location++) << ") out int gpu_Layer;\n ";
+
+  const bool has_geometry_stage = do_geometry_shader_injection(&info) ||
+                                  !info.geometry_source_.is_empty();
+  const bool do_layer_output = bool(info.builtins_ & BuiltinBits::LAYER);
+  const bool do_viewport_output = bool(info.builtins_ & BuiltinBits::VIEWPORT_INDEX);
+  if (has_geometry_stage) {
+    if (do_layer_output) {
+      ss << "layout(location=" << (location++) << ") out int gpu_Layer;\n ";
+    }
+    if (do_viewport_output) {
+      ss << "layout(location=" << (location++) << ") out int gpu_ViewportIndex;\n";
+    }
   }
-  if (workarounds.shader_output_viewport_index &&
-      bool(info.builtins_ & BuiltinBits::VIEWPORT_INDEX))
-  {
-    ss << "layout(location=" << (location++) << ") out int gpu_ViewportIndex;\n";
+  else {
+    if (do_layer_output) {
+      ss << "#define gpu_Layer gl_Layer\n";
+    }
+    if (do_viewport_output) {
+      ss << "#define gpu_ViewportIndex gl_ViewportIndex\n";
+    }
   }
   ss << "\n";
 
   /* Retarget depth from -1..1 to 0..1. This will be done by geometry stage, when geometry shaders
    * are used. */
-  const bool has_geometry_stage = do_geometry_shader_injection(&info) ||
-                                  !info.geometry_source_.is_empty();
   const bool retarget_depth = !has_geometry_stage;
   if (retarget_depth) {
     post_main += "gl_Position.z = (gl_Position.z + gl_Position.w) * 0.5;\n";
@@ -933,12 +947,10 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
   for (const StageInterfaceInfo *iface : in_interfaces) {
     print_interface(ss, "in", *iface, location);
   }
-  if (workarounds.shader_output_layer && bool(info.builtins_ & BuiltinBits::LAYER)) {
+  if (bool(info.builtins_ & BuiltinBits::LAYER)) {
     ss << "#define gpu_Layer gl_Layer\n";
   }
-  if (workarounds.shader_output_viewport_index &&
-      bool(info.builtins_ & BuiltinBits::VIEWPORT_INDEX))
-  {
+  if (bool(info.builtins_ & BuiltinBits::VIEWPORT_INDEX)) {
     ss << "#define gpu_ViewportIndex gl_ViewportIndex\n";
   }
 
@@ -959,59 +971,149 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
   }
 
   ss << "\n/* Sub-pass Inputs. */\n";
-  for (const ShaderCreateInfo::SubpassIn &input : info.subpass_inputs_) {
-    std::string image_name = "gpu_subpass_img_";
-    image_name += std::to_string(input.index);
+  const VKShaderInterface &interface = interface_get();
+  const bool use_local_read = !workarounds.dynamic_rendering_local_read;
+  const bool use_dynamic_rendering = !workarounds.dynamic_rendering;
 
-    /* Declare global for input. */
-    ss << to_string(input.type) << " " << input.name << ";\n";
+  if (use_local_read) {
+    uint32_t subpass_input_binding_index = 0;
+    for (const ShaderCreateInfo::SubpassIn &input : info.subpass_inputs_) {
+      std::string input_attachment_name = "gpu_input_attachment_";
+      input_attachment_name += std::to_string(input.index);
 
-    /* IMPORTANT: We assume that the frame-buffer will be layered or not based on the layer
-     * built-in flag. */
-    bool is_layered_fb = bool(info.builtins_ & BuiltinBits::LAYER);
+      /* Declare global for input. */
+      ss << to_string(input.type) << " " << input.name << ";\n";
 
-    /* Start with invalid value to detect failure cases. */
-    ImageType image_type = ImageType::FLOAT_BUFFER;
-    switch (to_component_type(input.type)) {
-      case Type::FLOAT:
-        image_type = is_layered_fb ? ImageType::FLOAT_2D_ARRAY : ImageType::FLOAT_2D;
-        break;
-      case Type::INT:
-        image_type = is_layered_fb ? ImageType::INT_2D_ARRAY : ImageType::INT_2D;
-        break;
-      case Type::UINT:
-        image_type = is_layered_fb ? ImageType::UINT_2D_ARRAY : ImageType::UINT_2D;
-        break;
-      default:
-        break;
+      Type component_type = to_component_type(input.type);
+      char typePrefix;
+      switch (component_type) {
+        case Type::INT:
+          typePrefix = 'i';
+          break;
+        case Type::UINT:
+          typePrefix = 'u';
+          break;
+        default:
+          typePrefix = ' ';
+          break;
+      }
+      ss << "layout(input_attachment_index = " << (input.index)
+         << ", binding = " << (subpass_input_binding_index++) << ") uniform " << typePrefix
+         << "subpassInput " << input_attachment_name << "; \n";
+
+      std::stringstream ss_pre;
+      static const std::string swizzle = "xyzw";
+      /* Populate the global before main using subpassLoad. */
+      ss_pre << "  " << input.name << " = " << input.type << "( subpassLoad("
+             << input_attachment_name << ")." << swizzle.substr(0, to_component_count(input.type))
+             << " ); \n";
+
+      pre_main += ss_pre.str();
     }
-    /* Declare image. */
-    using Resource = ShaderCreateInfo::Resource;
-    /* NOTE(fclem): Using the attachment index as resource index might be problematic as it might
-     * collide with other resources. */
-    Resource res(Resource::BindType::SAMPLER, input.index);
-    res.sampler.type = image_type;
-    res.sampler.sampler = GPUSamplerState::default_sampler();
-    res.sampler.name = image_name;
-    print_resource(ss, interface_get(), res);
+  }
+  else if (use_dynamic_rendering) {
+    for (const ShaderCreateInfo::SubpassIn &input : info.subpass_inputs_) {
+      std::string image_name = "gpu_subpass_img_";
+      image_name += std::to_string(input.index);
 
-    char swizzle[] = "xyzw";
-    swizzle[to_component_count(input.type)] = '\0';
+      /* Declare global for input. */
+      ss << to_string(input.type) << " " << input.name << ";\n";
 
-    std::string texel_co = (is_layered_fb) ? "ivec3(gl_FragCoord.xy, gpu_Layer)" :
-                                             "ivec2(gl_FragCoord.xy)";
+      /* IMPORTANT: We assume that the frame-buffer will be layered or not based on the layer
+       * built-in flag. */
+      bool is_layered_fb = bool(info.builtins_ & BuiltinBits::LAYER);
 
-    std::stringstream ss_pre;
-    /* Populate the global before main using imageLoad. */
-    ss_pre << "  " << input.name << " = texelFetch(" << image_name << ", " << texel_co << ", 0)."
-           << swizzle << ";\n";
+      /* Start with invalid value to detect failure cases. */
+      ImageType image_type = ImageType::FLOAT_BUFFER;
+      switch (to_component_type(input.type)) {
+        case Type::FLOAT:
+          image_type = is_layered_fb ? ImageType::FLOAT_2D_ARRAY : ImageType::FLOAT_2D;
+          break;
+        case Type::INT:
+          image_type = is_layered_fb ? ImageType::INT_2D_ARRAY : ImageType::INT_2D;
+          break;
+        case Type::UINT:
+          image_type = is_layered_fb ? ImageType::UINT_2D_ARRAY : ImageType::UINT_2D;
+          break;
+        default:
+          break;
+      }
+      /* Declare image. */
+      using Resource = ShaderCreateInfo::Resource;
+      /* NOTE(fclem): Using the attachment index as resource index might be problematic as it might
+       * collide with other resources. */
+      Resource res(Resource::BindType::SAMPLER, input.index);
+      res.sampler.type = image_type;
+      res.sampler.sampler = GPUSamplerState::default_sampler();
+      res.sampler.name = image_name;
+      print_resource(ss, interface, res);
 
-    pre_main += ss_pre.str();
+      char swizzle[] = "xyzw";
+      swizzle[to_component_count(input.type)] = '\0';
+
+      std::string texel_co = (is_layered_fb) ? "ivec3(gl_FragCoord.xy, gpu_Layer)" :
+                                               "ivec2(gl_FragCoord.xy)";
+
+      std::stringstream ss_pre;
+      /* Populate the global before main using imageLoad. */
+      ss_pre << "  " << input.name << " = texelFetch(" << image_name << ", " << texel_co << ", 0)."
+             << swizzle << ";\n";
+
+      pre_main += ss_pre.str();
+    }
+  }
+  else {
+    /* Use subpass passes input attachments when dynamic rendering isn't available. */
+    for (const ShaderCreateInfo::SubpassIn &input : info.subpass_inputs_) {
+      using Resource = ShaderCreateInfo::Resource;
+      Resource res(Resource::BindType::SAMPLER, input.index);
+      const VKDescriptorSet::Location location = interface.descriptor_set_location(res);
+
+      std::string image_name = "gpu_subpass_img_" + std::to_string(input.index);
+
+      /* Declare global for input. */
+      ss << to_string(input.type) << " " << input.name << ";\n";
+      /* Declare subpass input. */
+      ss << "layout(input_attachment_index=" << input.index << ", set=0, binding=" << location
+         << ") uniform ";
+      switch (to_component_type(input.type)) {
+        case Type::INT:
+          ss << "isubpassInput";
+          break;
+        case Type::UINT:
+          ss << "usubpassInput";
+          break;
+        case Type::FLOAT:
+        default:
+          ss << "subpassInput";
+          break;
+      }
+      ss << " " << image_name << ";";
+
+      /* Read data from subpass input. */
+      char swizzle[] = "xyzw";
+      swizzle[to_component_count(input.type)] = '\0';
+      std::stringstream ss_pre;
+      ss_pre << "  " << input.name << " = subpassLoad(" << image_name << ")." << swizzle << ";\n";
+      pre_main += ss_pre.str();
+    }
   }
 
   ss << "\n/* Outputs. */\n";
+  int fragment_out_location = 0;
   for (const ShaderCreateInfo::FragOut &output : info.fragment_outputs_) {
-    ss << "layout(location = " << output.index;
+    /* When using dynamic rendering the attachment location doesn't change. When using render
+     * passes and sub-passes the location refers to the color attachment of the sub-pass.
+     *
+     * LIMITATION: dual source blending cannot be used together with sub-passes.
+     */
+    const bool use_dual_blending = output.blend != DualBlend::NONE;
+    BLI_assert_msg(!(use_dual_blending && !info.subpass_inputs_.is_empty()),
+                   "Dual source blending are not supported with subpass inputs when using render "
+                   "passes. It can be supported, but wasn't for code readability.");
+    const int location = (use_dynamic_rendering || use_dual_blending) ? output.index :
+                                                                        fragment_out_location++;
+    ss << "layout(location = " << location;
     switch (output.blend) {
       case DualBlend::SRC_0:
         ss << ", index = 0";
@@ -1127,10 +1229,8 @@ std::string VKShader::workaround_geometry_shader_source_create(
   std::stringstream ss;
   const VKWorkarounds &workarounds = VKBackend::get().device.workarounds_get();
 
-  const bool do_layer_workaround = workarounds.shader_output_layer &&
-                                   bool(info.builtins_ & BuiltinBits::LAYER);
-  const bool do_viewport_workaround = workarounds.shader_output_viewport_index &&
-                                      bool(info.builtins_ & BuiltinBits::VIEWPORT_INDEX);
+  const bool do_layer_output = bool(info.builtins_ & BuiltinBits::LAYER);
+  const bool do_viewport_output = bool(info.builtins_ & BuiltinBits::VIEWPORT_INDEX);
   const bool do_barycentric_workaround = workarounds.fragment_shader_barycentric &&
                                          bool(info.builtins_ & BuiltinBits::BARYCENTRIC_COORD);
 
@@ -1153,10 +1253,10 @@ std::string VKShader::workaround_geometry_shader_source_create(
 
   int location_in = location;
   int location_out = location;
-  if (do_layer_workaround) {
+  if (do_layer_output) {
     ss << "layout(location=" << (location_in++) << ") in int gpu_Layer[];\n";
   }
-  if (do_viewport_workaround) {
+  if (do_viewport_output) {
     ss << "layout(location=" << (location_in++) << ") in int gpu_ViewportIndex[];\n";
   }
   if (do_barycentric_workaround) {
@@ -1168,12 +1268,6 @@ std::string VKShader::workaround_geometry_shader_source_create(
 
   ss << "void main()\n";
   ss << "{\n";
-  if (do_layer_workaround) {
-    ss << "  gl_Layer = gpu_Layer[0];\n";
-  }
-  if (do_viewport_workaround) {
-    ss << "  gl_ViewportIndex = gpu_ViewportIndex[0];\n";
-  }
   for (auto i : IndexRange(3)) {
     for (StageInterfaceInfo *iface : info_modified.vertex_out_interfaces_) {
       for (auto &inout : iface->inouts) {
@@ -1186,6 +1280,12 @@ std::string VKShader::workaround_geometry_shader_source_create(
       ss << " vec3(" << int(i == 0) << ", " << int(i == 1) << ", " << int(i == 2) << ");\n";
     }
     ss << "  gl_Position = gl_in[" << i << "].gl_Position;\n";
+    if (do_layer_output) {
+      ss << "  gl_Layer = gpu_Layer[" << i << "];\n";
+    }
+    if (do_viewport_output) {
+      ss << "  gl_ViewportIndex = gpu_ViewportIndex[" << i << "];\n";
+    }
     ss << "  gpu_EmitVertex();\n";
   }
   ss << "}\n";
@@ -1264,17 +1364,18 @@ VkPipeline VKShader::ensure_and_get_graphics_pipeline(GPUPrimType primitive,
   graphics_info.fragment_shader.vk_fragment_module = fragment_module.vk_shader_module;
   graphics_info.state = state_manager.state;
   graphics_info.mutable_state = state_manager.mutable_state;
-  // TODO: in stead of extend use a build pattern.
   graphics_info.fragment_shader.viewports.clear();
-  graphics_info.fragment_shader.viewports.extend(framebuffer.vk_viewports_get());
+  framebuffer.vk_viewports_append(graphics_info.fragment_shader.viewports);
   graphics_info.fragment_shader.scissors.clear();
-  graphics_info.fragment_shader.scissors.extend(framebuffer.vk_render_areas_get());
+  framebuffer.vk_render_areas_append(graphics_info.fragment_shader.scissors);
 
+  graphics_info.fragment_out.vk_render_pass = framebuffer.vk_render_pass;
   graphics_info.fragment_out.depth_attachment_format = framebuffer.depth_attachment_format_get();
   graphics_info.fragment_out.stencil_attachment_format =
       framebuffer.stencil_attachment_format_get();
   graphics_info.fragment_out.color_attachment_formats.extend(
       framebuffer.color_attachment_formats_get());
+  graphics_info.fragment_out.color_attachment_size = framebuffer.color_attachment_size;
 
   VKDevice &device = VKBackend::get().device;
   /* Store result in local variable to ensure thread safety. */

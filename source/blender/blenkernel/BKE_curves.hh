@@ -10,7 +10,6 @@
  */
 
 #include "BLI_bounds_types.hh"
-#include "BLI_generic_virtual_array.hh"
 #include "BLI_implicit_sharing_ptr.hh"
 #include "BLI_index_mask_fwd.hh"
 #include "BLI_math_matrix_types.hh"
@@ -32,9 +31,13 @@ namespace blender::bke {
 class AttributeAccessor;
 class MutableAttributeAccessor;
 enum class AttrDomain : int8_t;
+struct AttributeAccessorFunctions;
 }  // namespace blender::bke
 namespace blender::bke::bake {
 struct BakeMaterialsList;
+}
+namespace blender {
+class GVArray;
 }
 
 namespace blender::bke {
@@ -114,6 +117,9 @@ class CurvesGeometryRuntime {
 
   /** Normal direction vectors for each evaluated point. */
   mutable SharedCache<Vector<float3>> evaluated_normal_cache;
+
+  /** The maximum of the "material_index" attribute. */
+  mutable SharedCache<std::optional<int>> max_material_index_cache;
 
   /** Stores weak references to material data blocks. */
   std::unique_ptr<bake::BakeMaterialsList> bake_materials;
@@ -213,6 +219,9 @@ class CurvesGeometry : public ::CurvesGeometry {
   Span<float3> positions() const;
   MutableSpan<float3> positions_for_write();
 
+  VArray<float> radius() const;
+  MutableSpan<float> radius_for_write();
+
   /** Whether the curve loops around to connect to itself, on the curve domain. */
   VArray<bool> cyclic() const;
   /** Mutable access to curve cyclic values. Call #tag_topology_changed after changes. */
@@ -298,6 +307,9 @@ class CurvesGeometry : public ::CurvesGeometry {
   std::optional<Bounds<float3>> bounds_min_max() const;
 
   void count_memory(MemoryCounter &memory) const;
+
+  /** Get the largest material index used by the curves or `nullopt` if there are none. */
+  std::optional<int> material_index_max() const;
 
  private:
   /* --------------------------------------------------------------------
@@ -393,6 +405,8 @@ class CurvesGeometry : public ::CurvesGeometry {
    * this in #finish() calls.
    */
   void tag_radii_changed();
+  /** Call after changing the "material_index" attribute. */
+  void tag_material_index_changed();
 
   void translate(const float3 &translation);
   void transform(const float4x4 &matrix);
@@ -1021,6 +1035,8 @@ inline float3 calculate_vector_handle(const float3 &point, const float3 &next_po
 }  // namespace bezier
 
 /** \} */
+
+const AttributeAccessorFunctions &get_attribute_accessor_functions();
 
 }  // namespace curves
 

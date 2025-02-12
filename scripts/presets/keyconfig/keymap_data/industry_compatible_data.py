@@ -407,6 +407,7 @@ def km_user_interface(params):
         ("ui.eyedropper_colorramp_point", {"type": 'I', "value": 'PRESS', "alt": True}, None),
         ("ui.eyedropper_id", {"type": 'I', "value": 'PRESS'}, None),
         ("ui.eyedropper_depth", {"type": 'I', "value": 'PRESS'}, None),
+        ("ui.eyedropper_bone", {"type": 'I', "value": 'PRESS'}, None),
         # Copy data path
         ("ui.copy_data_path_button", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
         ("ui.copy_data_path_button", {"type": 'C', "value": 'PRESS', "ctrl": True, "alt": True},
@@ -607,6 +608,8 @@ def km_uv_editor(params):
         ("uv.hide", {"type": 'H', "value": 'PRESS', "shift": True},
          {"properties": [("unselected", True)]}),
         ("uv.reveal", {"type": 'H', "value": 'PRESS', "alt": True}, None),
+        ("uv.copy", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
+        ("uv.paste", {"type": 'V', "value": 'PRESS', "ctrl": True}, None),
         op_menu_pie("IMAGE_MT_uvs_snap_pie", {"type": 'X', "value": 'PRESS', "shift": True}),
         *_template_items_context_menu("IMAGE_MT_uvs_context_menu", {"type": 'RIGHTMOUSE', "value": 'PRESS'}),
         ("wm.context_toggle", {"type": 'B', "value": 'PRESS'},
@@ -2722,7 +2725,8 @@ def km_image_paint(params):
         ("paint.image_paint", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True},
          {"properties": [("mode", 'INVERT')]}),
         # Colors
-        ("paint.sample_color", {"type": 'I', "value": 'PRESS'}, None),
+        ("paint.sample_color", {"type": 'I', "value": 'PRESS'}, {"properties": [("merged", False)]}),
+        ("paint.sample_color", {"type": 'I', "value": 'PRESS', "shift": True}, {"properties": [("merged", True)]}),
         ("paint.brush_colors_flip", {"type": 'X', "value": 'PRESS'}, None),
         # Clone
         ("paint.grab_clone", {"type": 'MIDDLEMOUSE', "value": 'PRESS'}, None),
@@ -2781,7 +2785,7 @@ def km_vertex_paint(params):
         ("paint.vertex_paint", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True},
          {"properties": [("mode", 'SMOOTH')]}),
         # Colors
-        ("paint.sample_color", {"type": 'I', "value": 'PRESS'}, None),
+        ("paint.sample_color", {"type": 'I', "value": 'PRESS'}, {"properties": [("merged", False)]}),
         ("paint.brush_colors_flip", {"type": 'X', "value": 'PRESS'}, None),
         ("paint.vertex_color_set", {"type": 'BACK_SPACE', "value": 'PRESS'}, None),
         # Brush properties
@@ -3607,7 +3611,7 @@ def km_image_editor_tool_uv_select(params):
 
 def km_sequencer_editor_tool_select_preview(params):
     return (
-        "Sequencer Preview Tool: Tweak",
+        "Sequencer Preview Tool: Select Box",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": _template_items_tool_select(params, "sequencer.select", extend="toggle")}
     )
@@ -3615,7 +3619,7 @@ def km_sequencer_editor_tool_select_preview(params):
 
 def km_sequencer_editor_tool_select_timeline(params):
     return (
-        "Sequencer Timeline Tool: Tweak",
+        "Sequencer Timeline Tool: Select Box",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": _template_items_tool_select(params, "sequencer.select", extend="toggle")}
     )

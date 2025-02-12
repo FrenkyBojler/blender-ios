@@ -8,6 +8,8 @@ __all__ = (
 
     "bake_action_iter",
     "bake_action_objects_iter",
+
+    "BakeOptions",
 )
 
 import bpy
@@ -79,18 +81,15 @@ def _get_channelbag_for_slot(action: Action, slot: ActionSlot):
     # happen in C++.
     for layer in action.layers:
         for strip in layer.strips:
-            channelbag = strip.channels(slot.handle)
+            channelbag = strip.channelbag(slot)
             return channelbag
 
 
 def _ensure_channelbag_exists(action: Action, slot: ActionSlot):
-    channelbag = _get_channelbag_for_slot(action, slot)
-    if channelbag:
-        return channelbag
-
     for layer in action.layers:
         for strip in layer.strips:
-            return strip.channelbags.new(slot)
+            channelbag = strip.channelbag(slot, ensure=True)
+            return channelbag
 
 
 def bake_action(
@@ -386,7 +385,7 @@ def bake_action_iter(
     else:
         # When baking into the current action, a slot needs to be assigned.
         if not atd.action_slot:
-            slot = action.slots.new(for_id=obj)
+            slot = action.slots.new(obj.id_type, obj.name)
             atd.action_slot = slot
 
     # Only leave tweak mode if we actually need to modify the action (#57159)
@@ -397,7 +396,7 @@ def bake_action_iter(
 
         atd.action = action
         if action.is_action_layered:
-            slot = action.slots.new(for_id=obj)
+            slot = action.slots.new(obj.id_type, obj.name)
             atd.action_slot = slot
 
     # Baking the action only makes sense in Replace mode, so force it (#69105)

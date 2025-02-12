@@ -9,6 +9,7 @@
 #include "BKE_image.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
@@ -75,6 +76,7 @@ static Image *load_image_at_path(Main *bmain, const std::string &path, bool rela
   CLOG_INFO(&LOG, 1, "Loaded image from: '%s'", path.c_str());
   if (relative_paths) {
     BLI_path_rel(image->filepath, BKE_main_blendfile_path(bmain));
+    BLI_path_normalize(image->filepath);
   }
   return image;
 }
@@ -157,8 +159,8 @@ const float node_locy_step = 300.0f;
 static bNode *add_node(bNodeTree *ntree, int type, float x, float y)
 {
   bNode *node = bke::node_add_static_node(nullptr, ntree, type);
-  node->locx = x;
-  node->locy = y;
+  node->location[0] = x;
+  node->location[1] = y;
   return node;
 }
 

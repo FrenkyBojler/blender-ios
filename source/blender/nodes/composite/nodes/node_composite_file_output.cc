@@ -9,7 +9,6 @@
 #include <cstring>
 
 #include "BLI_assert.h"
-#include "BLI_fileops.h"
 #include "BLI_index_range.hh"
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
@@ -33,7 +32,6 @@
 #include "BKE_scene.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -41,8 +39,6 @@
 #include "WM_api.hh"
 
 #include "IMB_imbuf.hh"
-#include "IMB_imbuf_types.hh"
-#include "IMB_openexr.hh"
 
 #include "GPU_state.hh"
 #include "GPU_texture.hh"
@@ -146,7 +142,7 @@ bNodeSocket *ntreeCompositOutputFileAddSocket(bNodeTree *ntree,
 {
   NodeImageMultiFile *nimf = (NodeImageMultiFile *)node->storage;
   bNodeSocket *sock = blender::bke::node_add_static_socket(
-      ntree, node, SOCK_IN, SOCK_RGBA, PROP_NONE, nullptr, name);
+      ntree, node, SOCK_IN, SOCK_RGBA, PROP_NONE, "", name);
 
   /* create format data for the input socket */
   NodeImageMultiFileSocket *sockdata = MEM_cnew<NodeImageMultiFileSocket>(__func__);
@@ -291,12 +287,12 @@ static void update_output_file(bNodeTree *ntree, bNode *node)
    * This is not ideal, but prevents crashes from missing storage.
    * FileOutput node needs a redesign to support this properly.
    */
-  LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
+  LISTBASE_FOREACH_MUTABLE (bNodeSocket *, sock, &node->inputs) {
     if (sock->storage == nullptr) {
       blender::bke::node_remove_socket(ntree, node, sock);
     }
   }
-  LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
+  LISTBASE_FOREACH_MUTABLE (bNodeSocket *, sock, &node->outputs) {
     blender::bke::node_remove_socket(ntree, node, sock);
   }
 
@@ -344,7 +340,7 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
     uiLayout *column = uiLayoutColumn(layout, true);
     uiLayoutSetPropSep(column, true);
     uiLayoutSetPropDecorate(column, false);
-    uiItemR(column, ptr, "save_as_render", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+    uiItemR(column, ptr, "save_as_render", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   }
   const bool save_as_render = RNA_boolean_get(ptr, "save_as_render");
   uiTemplateImageSettings(layout, &imfptr, save_as_render);
@@ -461,7 +457,7 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
               &active_input_ptr,
               "use_node_format",
               UI_ITEM_R_SPLIT_EMPTY_NAME,
-              nullptr,
+              std::nullopt,
               ICON_NONE);
 
       const bool use_node_format = RNA_boolean_get(&active_input_ptr, "use_node_format");
@@ -475,7 +471,7 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
                   &active_input_ptr,
                   "save_as_render",
                   UI_ITEM_R_SPLIT_EMPTY_NAME,
-                  nullptr,
+                  std::nullopt,
                   ICON_NONE);
         }
 
@@ -503,7 +499,7 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
   }
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class FileOutputOperation : public NodeOperation {
  public:
@@ -513,7 +509,9 @@ class FileOutputOperation : public NodeOperation {
       InputDescriptor &descriptor = this->get_input_descriptor(input->identifier);
       /* Inputs for multi-layer files need to be the same size, while they can be different for
        * individual file outputs. */
-      descriptor.realization_options.realize_on_operation_domain = this->is_multi_layer();
+      descriptor.realization_mode = this->is_multi_layer() ?
+                                        InputRealizationMode::OperationDomain :
+                                        InputRealizationMode::Transforms;
     }
   }
 
@@ -713,7 +711,7 @@ class FileOutputOperation : public NodeOperation {
         float *buffer = static_cast<float *>(MEM_malloc_arrayN(
             size_t(size.x) * size.y, sizeof(float), "File Output Inflated Buffer."));
 
-        const float value = result.get_float_value();
+        const float value = result.get_single_value<float>();
         parallel_for(
             size, [&](const int2 texel) { buffer[int64_t(texel.y) * size.x + texel.x] = value; });
         return buffer;
@@ -723,8 +721,9 @@ class FileOutputOperation : public NodeOperation {
         float *buffer = static_cast<float *>(MEM_malloc_arrayN(
             size_t(size.x) * size.y, sizeof(float[4]), "File Output Inflated Buffer."));
 
-        const float4 value = result.type() == ResultType::Color ? result.get_color_value() :
-                                                                  result.get_vector_value();
+        const float4 value = result.type() == ResultType::Color ?
+                                 result.get_single_value<float4>() :
+                                 result.get_single_value<float4>();
         parallel_for(size, [&](const int2 texel) {
           copy_v4_v4(buffer + ((int64_t(texel.y) * size.x + texel.x) * 4), value);
         });
@@ -919,7 +918,11 @@ void register_node_type_cmp_output_file()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_OUTPUT_FILE, "File Output", NODE_CLASS_OUTPUT);
+  cmp_node_type_base(&ntype, "CompositorNodeOutputFile", CMP_NODE_OUTPUT_FILE);
+  ntype.ui_name = "File Output";
+  ntype.ui_description = "Write image file to disk";
+  ntype.enum_name_legacy = "OUTPUT_FILE";
+  ntype.nclass = NODE_CLASS_OUTPUT;
   ntype.draw_buttons = file_ns::node_composit_buts_file_output;
   ntype.draw_buttons_ex = file_ns::node_composit_buts_file_output_ex;
   ntype.initfunc_api = file_ns::init_output_file;

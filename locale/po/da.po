@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.3.0 Release Candidate (b'7dfe47164a63')\n"
+"Project-Id-Version: Blender 4.4.0 Beta (b'aad0bd21487d')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-11-18 11:20+0000\n"
+"POT-Creation-Date: 2025-02-10 15:22+0000\n"
 "PO-Revision-Date: 2024-11-09 15:56+0000\n"
 "Last-Translator: leif larsen <linuxdk1978@gmail.com>\n"
 "Language-Team: Danish <https://translate.blender.org/projects/blender-ui/ui/da/>\n"
@@ -53,6 +53,10 @@ msgstr "Liste over AOVs"
 
 msgid "Collection of AOVs"
 msgstr "Samling af AOVs"
+
+
+msgid "F-Curves"
+msgstr "F-curves"
 
 
 msgid "Action F-Curves"
@@ -239,6 +243,10 @@ msgid "Collection of action groups"
 msgstr "Samling af handlingsgrupper"
 
 
+msgid "Strips"
+msgstr "stimmel"
+
+
 msgid "Action Pose Markers"
 msgstr "Handling poserings markøre"
 
@@ -261,6 +269,138 @@ msgstr "Aktiv poséringsmarkør indeks"
 
 msgid "Index of active pose marker"
 msgstr "Indeks for aktive poséringsmarkører"
+
+
+msgid "Active"
+msgstr "Aktiv"
+
+
+msgid "Show Expanded"
+msgstr "Vis udvidet"
+
+
+msgctxt "ID"
+msgid "Brush"
+msgstr "pensel"
+
+
+msgctxt "ID"
+msgid "Cache File"
+msgstr "Cache fil"
+
+
+msgctxt "ID"
+msgid "Collection"
+msgstr "samling"
+
+
+msgctxt "ID"
+msgid "Curve"
+msgstr "kurve"
+
+
+msgctxt "ID"
+msgid "Curves"
+msgstr "kurver"
+
+
+msgctxt "ID"
+msgid "Grease Pencil"
+msgstr "Fedt blyant"
+
+
+msgctxt "ID"
+msgid "Grease Pencil v3"
+msgstr "Fedt blyant v3"
+
+
+msgctxt "ID"
+msgid "Lattice"
+msgstr "Gitter"
+
+
+msgctxt "ID"
+msgid "Library"
+msgstr "bibliotek"
+
+
+msgctxt "ID"
+msgid "Light"
+msgstr "lys"
+
+
+msgctxt "ID"
+msgid "Light Probe"
+msgstr "lys probe"
+
+
+msgctxt "ID"
+msgid "Line Style"
+msgstr "linje stil"
+
+
+msgctxt "ID"
+msgid "Mask"
+msgstr "maske"
+
+
+msgctxt "ID"
+msgid "Mesh"
+msgstr "overflade"
+
+
+msgctxt "ID"
+msgid "Metaball"
+msgstr "metabold"
+
+
+msgctxt "ID"
+msgid "Node Tree"
+msgstr "node træ"
+
+
+msgctxt "ID"
+msgid "Paint Curve"
+msgstr "male kurve"
+
+
+msgctxt "ID"
+msgid "Palette"
+msgstr "palette"
+
+
+msgctxt "ID"
+msgid "Particle"
+msgstr "partikle"
+
+
+msgctxt "ID"
+msgid "Point Cloud"
+msgstr "point sky"
+
+
+msgctxt "ID"
+msgid "Speaker"
+msgstr "højtaler"
+
+
+msgctxt "ID"
+msgid "Window Manager"
+msgstr "windue håndtering"
+
+
+msgctxt "ID"
+msgid "Workspace"
+msgstr "arbejds område"
+
+
+msgctxt "ID"
+msgid "World"
+msgstr "verden"
+
+
+msgid "Keyframe"
+msgstr "Nøglebillede"
 
 
 msgid "Add-on"
@@ -1260,126 +1400,6 @@ msgid "The type of the data-block, if the asset represents one ('NONE' otherwise
 msgstr "Typen af datablok, hvis aktivet repræsenterer en ('INGEN' ellers)"
 
 
-msgctxt "ID"
-msgid "Brush"
-msgstr "pensel"
-
-
-msgctxt "ID"
-msgid "Cache File"
-msgstr "Cache fil"
-
-
-msgctxt "ID"
-msgid "Collection"
-msgstr "samling"
-
-
-msgctxt "ID"
-msgid "Curve"
-msgstr "kurve"
-
-
-msgctxt "ID"
-msgid "Curves"
-msgstr "kurver"
-
-
-msgctxt "ID"
-msgid "Grease Pencil"
-msgstr "Fedt blyant"
-
-
-msgctxt "ID"
-msgid "Grease Pencil v3"
-msgstr "Fedt blyant v3"
-
-
-msgctxt "ID"
-msgid "Lattice"
-msgstr "Gitter"
-
-
-msgctxt "ID"
-msgid "Library"
-msgstr "bibliotek"
-
-
-msgctxt "ID"
-msgid "Light"
-msgstr "lys"
-
-
-msgctxt "ID"
-msgid "Light Probe"
-msgstr "lys probe"
-
-
-msgctxt "ID"
-msgid "Line Style"
-msgstr "linje stil"
-
-
-msgctxt "ID"
-msgid "Mask"
-msgstr "maske"
-
-
-msgctxt "ID"
-msgid "Mesh"
-msgstr "overflade"
-
-
-msgctxt "ID"
-msgid "Metaball"
-msgstr "metabold"
-
-
-msgctxt "ID"
-msgid "Node Tree"
-msgstr "node træ"
-
-
-msgctxt "ID"
-msgid "Paint Curve"
-msgstr "male kurve"
-
-
-msgctxt "ID"
-msgid "Palette"
-msgstr "palette"
-
-
-msgctxt "ID"
-msgid "Particle"
-msgstr "partikle"
-
-
-msgctxt "ID"
-msgid "Point Cloud"
-msgstr "point sky"
-
-
-msgctxt "ID"
-msgid "Speaker"
-msgstr "højtaler"
-
-
-msgctxt "ID"
-msgid "Window Manager"
-msgstr "windue håndtering"
-
-
-msgctxt "ID"
-msgid "Workspace"
-msgstr "arbejds område"
-
-
-msgctxt "ID"
-msgid "World"
-msgstr "verden"
-
-
 msgid "The local data-block this asset represents; only valid if that is a data-block in this file"
 msgstr "Den lokale datablok, som dette aktiv repræsenterer; kun gyldig, hvis det er en datablok i denne fil"
 
@@ -2268,46 +2288,6 @@ msgid "Light Probes"
 msgstr "Lyssonder"
 
 
-msgid "Armature"
-msgstr "Armatur"
-
-
-msgid "Camera"
-msgstr "Kamera"
-
-
-msgid "Image"
-msgstr "Billede"
-
-
-msgid "Key"
-msgstr "Nøgle"
-
-
-msgid "Material"
-msgstr "Materiale"
-
-
-msgid "Mesh"
-msgstr "Maske"
-
-
-msgid "Movie Clip"
-msgstr "Film klip"
-
-
-msgid "Scene"
-msgstr "Scene"
-
-
-msgid "Sound"
-msgstr "Lyd"
-
-
-msgid "Text"
-msgstr "Tekst"
-
-
 msgid "Level"
 msgstr "Niveau"
 
@@ -2360,12 +2340,8 @@ msgid "Mode"
 msgstr "tilstand"
 
 
-msgid "Active"
-msgstr "Aktiv"
-
-
-msgid "Direction"
-msgstr "Retning"
+msgid "Material"
+msgstr "Materiale"
 
 
 msgid "All"
@@ -2448,6 +2424,10 @@ msgid "Crop"
 msgstr "Beskær"
 
 
+msgid "Image"
+msgstr "Billede"
+
+
 msgid "Image displayed and edited in this space"
 msgstr "Billedet vises og redigeres i dette rum"
 
@@ -2476,10 +2456,6 @@ msgid "Show this image as background"
 msgstr "Vis dette billede som baggrund"
 
 
-msgid "Show Expanded"
-msgstr "Vis udvidet"
-
-
 msgid "Show On Foreground"
 msgstr "Vis på forgrunden"
 
@@ -2494,6 +2470,10 @@ msgstr "Baggrunds kilde"
 
 msgid "Data source used for background"
 msgstr "Datakilde brugt til baggrund"
+
+
+msgid "Movie Clip"
+msgstr "Film klip"
 
 
 msgid "Camera Clip"
@@ -2612,6 +2592,10 @@ msgid "Locked Track"
 msgstr "Låst spor"
 
 
+msgid "Armature"
+msgstr "Armatur"
+
+
 msgid "Mix Mode"
 msgstr "Blandingstilstand"
 
@@ -2640,6 +2624,10 @@ msgid "Up Axis"
 msgstr "Op akse"
 
 
+msgid "Camera"
+msgstr "Kamera"
+
+
 msgid "Bone"
 msgstr "Knogle"
 
@@ -2658,6 +2646,10 @@ msgstr "Lokation"
 
 msgid "Depth"
 msgstr "Dybte"
+
+
+msgid "Scene"
+msgstr "Scene"
 
 
 msgid "Invert"
@@ -2709,10 +2701,6 @@ msgid "Visibility"
 msgstr "Synlighed"
 
 
-msgid "Keyframe"
-msgstr "Nøglebillede"
-
-
 msgid "Blend Mode"
 msgstr "Blandings måde"
 
@@ -2721,16 +2709,16 @@ msgid "Ping Pong"
 msgstr "Ping pong"
 
 
-msgid "F-Curves"
-msgstr "F-curves"
-
-
 msgid "B-Bone"
 msgstr "B-Knogle"
 
 
 msgid "Local"
 msgstr "Lokal"
+
+
+msgid "Direction"
+msgstr "Retning"
 
 
 msgid "Blur"
@@ -2761,6 +2749,10 @@ msgid "Max"
 msgstr "Maximum"
 
 
+msgid "Mesh"
+msgstr "Maske"
+
+
 msgid "Angular Velocity"
 msgstr "Vinkelhastighed"
 
@@ -2782,6 +2774,10 @@ msgid "Pitch"
 msgstr "Toneleje"
 
 
+msgid "Sound"
+msgstr "Lyd"
+
+
 msgid "Blend"
 msgstr "Bland"
 
@@ -2798,6 +2794,14 @@ msgid "Bit depth per channel"
 msgstr "Bit dybde pr kanal"
 
 
+msgid "DWAA (lossy)"
+msgstr "DWAA (ej tabsfri)"
+
+
+msgid "DWAB (lossy)"
+msgstr "DWAD (ej tabsfri)"
+
+
 msgid "Pxr24 (lossy)"
 msgstr "Pxr24 (ej tabsfri)"
 
@@ -2808,14 +2812,6 @@ msgstr "B44 (ej tabsfri)"
 
 msgid "B44A (lossy)"
 msgstr "B44A (ej tabsfri)"
-
-
-msgid "DWAA (lossy)"
-msgstr "DWAA (ej tabsfri)"
-
-
-msgid "DWAB (lossy)"
-msgstr "DWAD (ej tabsfri)"
 
 
 msgid "File format to save the rendered images as"
@@ -2836,6 +2832,14 @@ msgstr "Maksimal vinkel"
 
 msgid "Min Angle"
 msgstr "Minimum vinkel"
+
+
+msgid "Text"
+msgstr "Tekst"
+
+
+msgid "Key"
+msgstr "Nøgle"
 
 
 msgid "File"
@@ -3038,10 +3042,6 @@ msgid "Dynamics"
 msgstr "dynamik"
 
 
-msgid "Strips"
-msgstr "stimmel"
-
-
 msgid "Timeline"
 msgstr "Tidslinje"
 
@@ -3068,10 +3068,6 @@ msgstr "2D struktur"
 
 msgid "Legacy Compute Device Type"
 msgstr "Forældere beregningstyrper"
-
-
-msgid "Password"
-msgstr "Kodeord"
 
 
 msgid "Gray Scale"
@@ -3148,14 +3144,6 @@ msgstr "Tiden er gået"
 
 msgid "Sharpen"
 msgstr "Skarpere"
-
-
-msgid "ON"
-msgstr "Til"
-
-
-msgid "OFF"
-msgstr "Fra"
 
 
 msgid "Keyframe not in F-Curve"
@@ -3260,6 +3248,14 @@ msgstr "W3"
 
 msgid "W4"
 msgstr "W4"
+
+
+msgid "ON"
+msgstr "Til"
+
+
+msgid "OFF"
+msgstr "Fra"
 
 
 msgid "unsupported format"

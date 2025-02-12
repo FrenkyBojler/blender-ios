@@ -10,8 +10,6 @@
 #include <cstring>
 #include <optional>
 
-#include "ANIM_action.hh"
-
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
@@ -32,7 +30,6 @@
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
-#include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_world_types.h"
 
@@ -49,7 +46,6 @@
 #include "RNA_access.hh"
 #include "RNA_path.hh"
 
-#include "ANIM_action.hh"
 #include "ANIM_action_iterators.hh"
 #include "ANIM_action_legacy.hh"
 
@@ -381,14 +377,14 @@ AnimData *BKE_animdata_copy_in_lib(Main *bmain,
         BKE_id_copy_in_lib(bmain,
                            owner_library,
                            reinterpret_cast<ID *>(dadt->action),
-                           nullptr,
+                           std::nullopt,
                            nullptr,
                            id_copy_flag));
     dadt->tmpact = reinterpret_cast<bAction *>(
         BKE_id_copy_in_lib(bmain,
                            owner_library,
                            reinterpret_cast<ID *>(dadt->tmpact),
-                           nullptr,
+                           std::nullopt,
                            nullptr,
                            id_copy_flag));
   }
@@ -545,8 +541,8 @@ void BKE_animdata_merge_copy(
   }
   dst->slot_handle = src->slot_handle;
   dst->tmp_slot_handle = src->tmp_slot_handle;
-  STRNCPY(dst->slot_name, src->slot_name);
-  STRNCPY(dst->tmp_slot_name, src->tmp_slot_name);
+  STRNCPY(dst->last_slot_identifier, src->last_slot_identifier);
+  STRNCPY(dst->tmp_last_slot_identifier, src->tmp_last_slot_identifier);
 
   /* duplicate NLA data */
   if (src->nla_tracks.first) {
@@ -1257,7 +1253,8 @@ static void nlastrips_apply_all_curves_cb(ID *id,
   }
 }
 
-/* Helper for BKE_fcurves_main_cb() - Dispatch wrapped operator to all F-Curves */
+/* Helper for BKE_fcurves_main_cb() - Dispatch wrapped operator to all F-Curves. Muted NLA Tracks
+ * are ignored. */
 static void adt_apply_all_fcurves_cb(ID *id,
                                      AnimData *adt,
                                      const FunctionRef<void(ID *, FCurve *)> func)
@@ -1275,6 +1272,9 @@ static void adt_apply_all_fcurves_cb(ID *id,
 
   /* NLA Data - Animation Data for Strips */
   LISTBASE_FOREACH (NlaTrack *, nlt, &adt->nla_tracks) {
+    if (nlt->flag & NLATRACK_MUTED) {
+      continue;
+    }
     nlastrips_apply_all_curves_cb(id, &nlt->strips, func);
   }
 }
@@ -1507,3 +1507,12 @@ void BKE_animdata_liboverride_post_process(ID *id)
 
   BKE_nla_liboverride_post_process(id, adt);
 }
+
+namespace blender::bke::animdata {
+
+void action_slots_user_cache_invalidate(Main &bmain)
+{
+  blender::animrig::Slot::users_invalidate(bmain);
+}
+
+}  // namespace blender::bke::animdata

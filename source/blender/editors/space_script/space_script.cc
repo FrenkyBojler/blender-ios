@@ -6,13 +6,11 @@
  * \ingroup spscript
  */
 
-#include <cstdio>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_utildefines.h"
+#include "BLI_string.h"
 
 #include "BKE_context.hh"
 #include "BKE_lib_query.hh"
@@ -95,7 +93,7 @@ static void script_main_region_init(wmWindowManager *wm, ARegion *region)
 
   /* own keymap */
   keymap = WM_keymap_ensure(wm->defaultconf, "Script", SPACE_SCRIPT, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
 static void script_main_region_draw(const bContext *C, ARegion *region)

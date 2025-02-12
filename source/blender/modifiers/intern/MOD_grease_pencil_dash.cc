@@ -379,7 +379,7 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "dash_offset", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "dash_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   uiLayout *row = uiLayoutRow(layout, false);
   uiLayoutSetPropSep(row, false);
@@ -415,19 +415,19 @@ static void panel_draw(const bContext *C, Panel *panel)
                      "DOWN");
 
   if (dmd->segment_active_index >= 0 && dmd->segment_active_index < dmd->segments_num) {
-    PointerRNA ds_ptr = RNA_pointer_create(ptr->owner_id,
-                                           &RNA_GreasePencilDashModifierSegment,
-                                           &dmd->segments()[dmd->segment_active_index]);
+    PointerRNA ds_ptr = RNA_pointer_create_discrete(ptr->owner_id,
+                                                    &RNA_GreasePencilDashModifierSegment,
+                                                    &dmd->segments()[dmd->segment_active_index]);
 
     sub = uiLayoutColumn(layout, true);
-    uiItemR(sub, &ds_ptr, "dash", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(sub, &ds_ptr, "gap", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(sub, &ds_ptr, "dash", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(sub, &ds_ptr, "gap", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     sub = uiLayoutColumn(layout, false);
-    uiItemR(sub, &ds_ptr, "radius", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(sub, &ds_ptr, "opacity", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(sub, &ds_ptr, "material_index", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(sub, &ds_ptr, "use_cyclic", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(sub, &ds_ptr, "radius", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(sub, &ds_ptr, "opacity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(sub, &ds_ptr, "material_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(sub, &ds_ptr, "use_cyclic", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   if (uiLayout *influence_panel = uiLayoutPanelProp(

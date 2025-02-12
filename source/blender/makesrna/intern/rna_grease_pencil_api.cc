@@ -6,7 +6,7 @@
  * \ingroup RNA
  */
 
-#include "DNA_grease_pencil_types.h"
+#include "DNA_curves_types.h"
 #include "DNA_scene_types.h"
 
 #include "RNA_define.hh"
@@ -108,6 +108,30 @@ static void rna_GreasePencilDrawing_resize_curves(ID *grease_pencil_id,
   }
 }
 
+static void rna_GreasePencilDrawing_reorder_curves(ID *grease_pencil_id,
+                                                   GreasePencilDrawing *drawing_ptr,
+                                                   ReportList *reports,
+                                                   const int *reorder_indices_ptr,
+                                                   const int reorder_indices_num)
+{
+  using namespace blender;
+  bke::greasepencil::Drawing &drawing = drawing_ptr->wrap();
+  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  if (!rna_CurvesGeometry_reorder_curves(
+          curves, reports, reorder_indices_ptr, reorder_indices_num))
+  {
+    return;
+  }
+
+  drawing.tag_topology_changed();
+
+  /* Avoid updates for importers. */
+  if (grease_pencil_id->us > 0) {
+    DEG_id_tag_update(grease_pencil_id, ID_RECALC_GEOMETRY);
+    WM_main_add_notifier(NC_GEOM | ND_DATA, grease_pencil_id);
+  }
+}
+
 static void rna_GreasePencilDrawing_set_types(ID *grease_pencil_id,
                                               GreasePencilDrawing *drawing_ptr,
                                               ReportList *reports,
@@ -140,7 +164,7 @@ static GreasePencilFrame *rna_Frames_frame_new(ID *id,
 {
   using namespace blender::bke::greasepencil;
   GreasePencil &grease_pencil = *reinterpret_cast<GreasePencil *>(id);
-  Layer &layer = static_cast<GreasePencilLayer *>(layer_in)->wrap();
+  Layer &layer = layer_in->wrap();
 
   if (layer.frames().contains(frame_number)) {
     BKE_reportf(reports, RPT_ERROR, "Frame already exists on frame number %d", frame_number);
@@ -161,7 +185,7 @@ static void rna_Frames_frame_remove(ID *id,
 {
   using namespace blender::bke::greasepencil;
   GreasePencil &grease_pencil = *reinterpret_cast<GreasePencil *>(id);
-  Layer &layer = static_cast<GreasePencilLayer *>(layer_in)->wrap();
+  Layer &layer = layer_in->wrap();
 
   if (!layer.frames().contains(frame_number)) {
     BKE_reportf(reports, RPT_ERROR, "Frame doesn't exists on frame number %d", frame_number);
@@ -172,6 +196,9 @@ static void rna_Frames_frame_remove(ID *id,
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
     WM_main_add_notifier(NC_GPENCIL | NA_EDITED, &grease_pencil);
   }
+
+  /* TODO: Use `RNA_POINTER_INVALIDATE` to invalidate python objects pointing to the frame_number?
+   */
 }
 
 static GreasePencilFrame *rna_Frames_frame_copy(ID *id,
@@ -183,7 +210,7 @@ static GreasePencilFrame *rna_Frames_frame_copy(ID *id,
 {
   using namespace blender::bke::greasepencil;
   GreasePencil &grease_pencil = *reinterpret_cast<GreasePencil *>(id);
-  Layer &layer = static_cast<GreasePencilLayer *>(layer_in)->wrap();
+  Layer &layer = layer_in->wrap();
 
   if (!layer.frames().contains(from_frame_number)) {
     BKE_reportf(reports, RPT_ERROR, "Frame doesn't exists on frame number %d", from_frame_number);
@@ -209,7 +236,7 @@ static GreasePencilFrame *rna_Frames_frame_move(ID *id,
 {
   using namespace blender::bke::greasepencil;
   GreasePencil &grease_pencil = *reinterpret_cast<GreasePencil *>(id);
-  Layer &layer = static_cast<GreasePencilLayer *>(layer_in)->wrap();
+  Layer &layer = layer_in->wrap();
 
   if (!layer.frames().contains(from_frame_number)) {
     BKE_reportf(reports, RPT_ERROR, "Frame doesn't exists on frame number %d", from_frame_number);
@@ -223,6 +250,9 @@ static GreasePencilFrame *rna_Frames_frame_move(ID *id,
   grease_pencil.insert_duplicate_frame(layer, from_frame_number, to_frame_number, true);
   grease_pencil.remove_frames(layer, {from_frame_number});
   WM_main_add_notifier(NC_GPENCIL | NA_EDITED, &grease_pencil);
+
+  /* TODO: Use `RNA_POINTER_INVALIDATE` to invalidate python objects pointing to the
+   * from_frame_number? */
 
   return layer.frame_at(to_frame_number);
 }
@@ -360,7 +390,7 @@ static PointerRNA rna_GreasePencil_layer_group_new(GreasePencil *grease_pencil,
 
   WM_main_add_notifier(NC_GPENCIL | NA_EDITED, grease_pencil);
 
-  PointerRNA ptr = RNA_pointer_create(
+  PointerRNA ptr = RNA_pointer_create_discrete(
       &grease_pencil->id, &RNA_GreasePencilLayerGroup, new_layer_group);
   return ptr;
 }
@@ -510,6 +540,21 @@ void RNA_api_grease_pencil_drawing(StructRNA *srna)
                            0,
                            10000);
   RNA_def_parameter_flags(parm, PROP_DYNAMIC, ParameterFlag(0));
+
+  func = RNA_def_function(srna, "reorder_strokes", "rna_GreasePencilDrawing_reorder_curves");
+  RNA_def_function_ui_description(func, "Reorder the strokes by the new indices.");
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_REPORTS);
+  parm = RNA_def_int_array(func,
+                           "new_indices",
+                           1,
+                           nullptr,
+                           0,
+                           INT_MAX,
+                           "New indices",
+                           "The new index for each of the strokes",
+                           0,
+                           10000);
+  RNA_def_parameter_flags(parm, PROP_DYNAMIC, PARM_REQUIRED);
 
   func = RNA_def_function(srna, "set_types", "rna_GreasePencilDrawing_set_types");
   RNA_def_function_ui_description(func,

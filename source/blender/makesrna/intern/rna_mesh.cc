@@ -8,24 +8,13 @@
 
 #include <cstdlib>
 
-#include "MEM_guardedalloc.h"
-
-#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
-#include "DNA_object_types.h"
 
-#include "BLI_math_base.h"
-#include "BLI_math_geom.h"
-#include "BLI_math_rotation.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
-
-#include "BKE_attribute.hh"
+#include "BKE_attribute.h"
 #include "BKE_editmesh.hh"
 #include "BKE_mesh_types.hh"
 
-#include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 #include "RNA_types.hh"
@@ -53,12 +42,16 @@ static const EnumPropertyItem rna_enum_mesh_remesh_mode_items[] = {
 
 #  include <fmt/format.h>
 
+#  include "DNA_material_types.h"
 #  include "DNA_scene_types.h"
+#  include "DNA_world_types.h"
 
+#  include "BLI_math_geom.h"
 #  include "BLI_math_vector.h"
 
 #  include "BKE_attribute.hh"
 #  include "BKE_customdata.hh"
+#  include "BKE_lib_id.hh"
 #  include "BKE_main.hh"
 #  include "BKE_mesh.hh"
 #  include "BKE_mesh_runtime.hh"
@@ -1381,7 +1374,7 @@ static bool rna_MeshEdge_use_seam_get(PointerRNA *ptr)
 {
   const Mesh *mesh = rna_mesh(ptr);
   const bool *seam_edge = static_cast<const bool *>(
-      CustomData_get_layer_named(&mesh->edge_data, CD_PROP_BOOL, ".uv_seam"));
+      CustomData_get_layer_named(&mesh->edge_data, CD_PROP_BOOL, "uv_seam"));
   const int index = rna_MeshEdge_index_get(ptr);
   return seam_edge == nullptr ? false : seam_edge[index];
 }
@@ -1390,14 +1383,14 @@ static void rna_MeshEdge_use_seam_set(PointerRNA *ptr, bool value)
 {
   Mesh *mesh = rna_mesh(ptr);
   bool *seam_edge = static_cast<bool *>(CustomData_get_layer_named_for_write(
-      &mesh->edge_data, CD_PROP_BOOL, ".uv_seam", mesh->edges_num));
+      &mesh->edge_data, CD_PROP_BOOL, "uv_seam", mesh->edges_num));
   if (!seam_edge) {
     if (!value) {
       /* Skip adding layer if it doesn't exist already anyway and we're not hiding an element. */
       return;
     }
     seam_edge = static_cast<bool *>(CustomData_add_layer_named(
-        &mesh->edge_data, CD_PROP_BOOL, CD_SET_DEFAULT, mesh->edges_num, ".uv_seam"));
+        &mesh->edge_data, CD_PROP_BOOL, CD_SET_DEFAULT, mesh->edges_num, "uv_seam"));
   }
   const int index = rna_MeshEdge_index_get(ptr);
   seam_edge[index] = value;
@@ -1889,7 +1882,7 @@ static PointerRNA rna_Mesh_vertex_color_new(Mesh *mesh,
     }
   }
 
-  PointerRNA ptr = RNA_pointer_create(&mesh->id, &RNA_MeshLoopColorLayer, cdl);
+  PointerRNA ptr = RNA_pointer_create_discrete(&mesh->id, &RNA_MeshLoopColorLayer, cdl);
   return ptr;
 }
 
@@ -1913,7 +1906,7 @@ static PointerRNA rna_Mesh_uv_layers_new(Mesh *mesh,
     cdl = &ldata->layers[CustomData_get_layer_index_n(ldata, CD_PROP_FLOAT2, index)];
   }
 
-  PointerRNA ptr = RNA_pointer_create(&mesh->id, &RNA_MeshUVLoopLayer, cdl);
+  PointerRNA ptr = RNA_pointer_create_discrete(&mesh->id, &RNA_MeshUVLoopLayer, cdl);
   return ptr;
 }
 

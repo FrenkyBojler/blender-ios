@@ -224,6 +224,30 @@ class Map {
     other.noexcept_reset();
   }
 
+  /**
+   * Initializes the Map based on some key-value-pairs:
+   *   `Map<int, std::string> map = {{1, "where"}, {3, "when"}, {5, "why"}};`
+   *
+   * If the same key appears multiple times, only the first one is used and the others are ignored.
+   * Note that keys and values are copied. Use the `add_*` functions after the constructor to move
+   * keys and values into the map.
+   */
+  Map(const Span<std::pair<Key, Value>> items, Allocator allocator = {}) : Map(allocator)
+  {
+    for (const std::pair<Key, Value> &item : items) {
+      this->add(item.first, item.second);
+    }
+  }
+
+  /**
+   * This is pretty much the same as the constructor with a #Span above. It helps with type
+   * inferencing when initializer lists are used.
+   */
+  Map(const std::initializer_list<std::pair<Key, Value>> items, Allocator allocator = {})
+      : Map(Span(items), allocator)
+  {
+  }
+
   Map &operator=(const Map &other)
   {
     return copy_assign_container(*this, other);
@@ -500,6 +524,21 @@ class Map {
   }
 
   /**
+   * Returns a copy of the value that corresponds to the given key, or std::nullopt if the key is
+   * not in the map. In some cases, one may not want a copy but an actual reference to the value.
+   * In that case it's better to use #lookup_ptr instead.
+   */
+  std::optional<Value> lookup_try(const Key &key) const
+  {
+    return this->lookup_try_as(key);
+  }
+  template<typename ForwardKey> std::optional<Value> lookup_try_as(const ForwardKey &key) const
+  {
+    const Slot *slot = this->lookup_slot_ptr(key, hash_(key));
+    return (slot != nullptr) ? std::optional<Value>(*slot->value()) : std::nullopt;
+  }
+
+  /**
    * Returns a reference to the value that corresponds to the given key. This invokes undefined
    * behavior when the key is not in the map.
    */
@@ -539,9 +578,7 @@ class Map {
     if (ptr != nullptr) {
       return *ptr;
     }
-    else {
-      return Value(std::forward<ForwardValue>(default_value)...);
-    }
+    return Value(std::forward<ForwardValue>(default_value)...);
   }
 
   /**
@@ -995,9 +1032,22 @@ class Map {
   }
 
   /**
-   * Removes all key-value-pairs from the map.
+   * Remove all elements. Under some circumstances #clear_and_keep_capacity may be more efficient.
    */
   void clear()
+  {
+    std::destroy_at(this);
+    new (this) Map(NoExceptConstructor{});
+  }
+
+  /**
+   * Remove all elements, but don't free the underlying memory.
+   *
+   * This can be more efficient than using #clear if approximately the same or more elements are
+   * added again afterwards. If way fewer elements are added instead, the cost of maintaining a
+   * large hash table can lead to very bad worst-case performance.
+   */
+  void clear_and_keep_capacity()
   {
     for (Slot &slot : slots_) {
       slot.~Slot();
@@ -1006,15 +1056,6 @@ class Map {
 
     removed_slots_ = 0;
     occupied_and_removed_slots_ = 0;
-  }
-
-  /**
-   * Removes all key-value-pairs from the map and frees any allocated memory.
-   */
-  void clear_and_shrink()
-  {
-    std::destroy_at(this);
-    new (this) Map(NoExceptConstructor{});
   }
 
   /**

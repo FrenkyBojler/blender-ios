@@ -15,9 +15,13 @@
 #  define IS_CPP 1
 #endif
 
-#if IS_CPP
+#if IS_CPP || defined(GLSL_CPP_STUBS)
 #  pragma once
 
+#  include "eevee_defines.hh"
+#endif
+
+#if IS_CPP
 #  include "BLI_math_bits.h"
 #  include "BLI_memory_utils.hh"
 
@@ -25,8 +29,6 @@
 
 #  include "draw_manager.hh"
 #  include "draw_pass.hh"
-
-#  include "eevee_defines.hh"
 
 #  include "GPU_shader_shared.hh"
 
@@ -1277,12 +1279,10 @@ static inline int light_local_tilemap_count(LightData light)
   if (is_spot_light(light.type)) {
     return (light_spot_data_get(light).spot_tan > tanf(M_PI / 4.0)) ? 5 : 1;
   }
-  else if (is_area_light(light.type)) {
+  if (is_area_light(light.type)) {
     return 5;
   }
-  else {
-    return 6;
-  }
+  return 6;
 }
 
 /** \} */
@@ -2146,8 +2146,10 @@ BLI_STATIC_ASSERT_ALIGN(UniformData, 16)
 #    define UTIL_TEXEL vec2(gl_FragCoord.xy)
 #  elif defined(GPU_COMPUTE_SHADER)
 #    define UTIL_TEXEL vec2(gl_GlobalInvocationID.xy)
-#  else
+#  elif defined(GPU_VERTEX_SHADER)
 #    define UTIL_TEXEL vec2(gl_VertexID, 0)
+#  elif defined(GPU_LIBRARY_SHADER)
+#    define UTIL_TEXEL vec2(0)
 #  endif
 
 /* Fetch texel. Wrapping if above range. */

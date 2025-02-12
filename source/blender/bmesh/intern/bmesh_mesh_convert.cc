@@ -87,7 +87,6 @@
 #include "BLI_span.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_task.hh"
-#include "BLI_timeit.hh"
 #include "BLI_vector.hh"
 
 #include "BKE_attribute.hh"
@@ -102,7 +101,6 @@
 #include "DEG_depsgraph_query.hh"
 
 #include "bmesh.hh"
-#include "intern/bmesh_private.hh" /* For element checking. */
 
 #include "CLG_log.h"
 
@@ -127,7 +125,7 @@ bool BM_attribute_stored_in_bmesh_builtin(const StringRef name)
               ".hide_vert",
               ".hide_edge",
               ".hide_poly",
-              ".uv_seam",
+              "uv_seam",
               ".select_vert",
               ".select_edge",
               ".select_poly",
@@ -426,7 +424,7 @@ void BM_mesh_bm_from_me(BMesh *bm, const Mesh *mesh, const BMeshFromMeshParams *
   const VArraySpan material_indices = *attributes.lookup<int>("material_index", AttrDomain::Face);
   const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", AttrDomain::Face);
   const VArraySpan sharp_edges = *attributes.lookup<bool>("sharp_edge", AttrDomain::Edge);
-  const VArraySpan uv_seams = *attributes.lookup<bool>(".uv_seam", AttrDomain::Edge);
+  const VArraySpan uv_seams = *attributes.lookup<bool>("uv_seam", AttrDomain::Edge);
 
   const Span<float3> positions = mesh->vert_positions();
   Array<BMVert *> vtable(mesh->verts_num);
@@ -1502,7 +1500,7 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
     sharp_edge = attrs.lookup_or_add_for_write_only_span<bool>("sharp_edge", AttrDomain::Edge);
   }
   if (need_uv_seams) {
-    uv_seams = attrs.lookup_or_add_for_write_only_span<bool>(".uv_seam", AttrDomain::Edge);
+    uv_seams = attrs.lookup_or_add_for_write_only_span<bool>("uv_seam", AttrDomain::Edge);
   }
   if (need_hide_edge) {
     hide_edge = attrs.lookup_or_add_for_write_only_span<bool>(".hide_edge", AttrDomain::Edge);
@@ -1729,7 +1727,7 @@ void BM_mesh_bm_to_me_compact(BMesh &bm,
       sharp_edge = attrs.lookup_or_add_for_write_only_span<bool>("sharp_edge", AttrDomain::Edge);
     }
     if (need_uv_seams) {
-      uv_seams = attrs.lookup_or_add_for_write_only_span<bool>(".uv_seam", AttrDomain::Edge);
+      uv_seams = attrs.lookup_or_add_for_write_only_span<bool>("uv_seam", AttrDomain::Edge);
     }
     if (need_hide_edge) {
       hide_edge = attrs.lookup_or_add_for_write_only_span<bool>(".hide_edge", AttrDomain::Edge);

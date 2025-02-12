@@ -13,17 +13,15 @@
 #include <cstring>
 
 #include "DNA_anim_types.h"
-#include "DNA_node_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_range.h"
+#include "BLI_bounds_types.hh"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
-#include "BKE_action.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_nla.hh"
 
@@ -111,7 +109,7 @@ static void nla_action_draw_keyframes(
    *   that is slightly stumpier than the track background (hardcoded 2-units here)
    */
 
-  Range2f frame_range;
+  Bounds<float> frame_range;
   ED_keylist_all_keys_frame_range(keylist, &frame_range);
   immRectf(pos_id, frame_range.min, ymin + 2, frame_range.max, ymax - 2);
   immUnbindProgram();
