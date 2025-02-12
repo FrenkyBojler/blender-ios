@@ -8,7 +8,15 @@
 
 #pragma once
 
+struct bContext;
+struct GMutableSpan;
+struct IndexMask;
+struct IndexMaskMemory;
 struct wmKeyConfig;
+namespace blender::bke {
+enum class AttrDomain : int8_t;
+struct GSpanAttributeWriter;
+}  // namespace blender::bke
 
 namespace blender::ed::point_cloud {
 
