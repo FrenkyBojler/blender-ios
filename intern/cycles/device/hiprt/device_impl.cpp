@@ -947,6 +947,28 @@ hiprtScene HIPRTDevice::build_tlas(BVHHIPRT *bvh,
     blender_instance_id++;
   }
 
+  size_t table_ptr_size = 0;
+  hipDeviceptr_t table_device_ptr;
+
+  hip_assert(hipModuleGetGlobal(&table_device_ptr, &table_ptr_size, hipModule, "kernel_params"));
+
+  size_t kernel_param_offset[4];
+  int table_index = 0;
+  kernel_param_offset[table_index++] = offsetof(KernelParamsHIPRT, table_closest_intersect);
+  kernel_param_offset[table_index++] = offsetof(KernelParamsHIPRT, table_shadow_intersect);
+  kernel_param_offset[table_index++] = offsetof(KernelParamsHIPRT, table_local_intersect);
+  kernel_param_offset[table_index++] = offsetof(KernelParamsHIPRT, table_volume_intersect);
+
+  for (int index = 0; index < table_index; index++) {
+
+    hip_assert(hipMemcpyHtoD(table_device_ptr + kernel_param_offset[index],
+                             (void *)&functions_table,
+                             sizeof(device_ptr)));
+  }
+
+  if (num_instances == 0)
+    return nullptr;
+
   int frame_count = transform_matrix.size();
   hiprtSceneBuildInput scene_input_ptr = {nullptr};
   scene_input_ptr.instanceCount = num_instances;
@@ -1039,25 +1061,6 @@ hiprtScene HIPRTDevice::build_tlas(BVHHIPRT *bvh,
     prims_time.host_pointer = nullptr;
 
     prim_time_offset.copy_to_device();
-  }
-
-  size_t table_ptr_size = 0;
-  hipDeviceptr_t table_device_ptr;
-
-  hip_assert(hipModuleGetGlobal(&table_device_ptr, &table_ptr_size, hipModule, "kernel_params"));
-
-  size_t kernel_param_offset[4];
-  int table_index = 0;
-  kernel_param_offset[table_index++] = offsetof(KernelParamsHIPRT, table_closest_intersect);
-  kernel_param_offset[table_index++] = offsetof(KernelParamsHIPRT, table_shadow_intersect);
-  kernel_param_offset[table_index++] = offsetof(KernelParamsHIPRT, table_local_intersect);
-  kernel_param_offset[table_index++] = offsetof(KernelParamsHIPRT, table_volume_intersect);
-
-  for (int index = 0; index < table_index; index++) {
-
-    hip_assert(hipMemcpyHtoD(table_device_ptr + kernel_param_offset[index],
-                             (void *)&functions_table,
-                             sizeof(device_ptr)));
   }
 
   return scene;
