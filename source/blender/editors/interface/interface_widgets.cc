@@ -2537,7 +2537,6 @@ static void widget_state(uiWidgetType *wt, const uiWidgetStateInfo *state, eUIEm
   }
 
   if (state->but_flag & UI_BUT_REDALERT) {
-    const uchar red[4] = {255, 0, 0};
     if (wt->draw && emboss != UI_EMBOSS_NONE) {
       UI_GetThemeColor3ubv(TH_REDALERT, wt->wcol.inner);
     }

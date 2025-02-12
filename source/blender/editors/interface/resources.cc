@@ -60,7 +60,6 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
 {
   ThemeSpace *ts = nullptr;
   static uchar error[4] = {240, 0, 240, 255};
-  static uchar alert[4] = {240, 60, 60, 255};
   static uchar back[4] = {0, 0, 0, 255};
   static uchar none[4] = {0, 0, 0, 0};
   static uchar white[4] = {255, 255, 255, 255};
