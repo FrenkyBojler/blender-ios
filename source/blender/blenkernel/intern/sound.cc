@@ -45,6 +45,7 @@
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_packedFile.hh"
 #include "BKE_sound.h"
@@ -414,7 +415,8 @@ void BKE_sound_init(Main *bmain)
     specs.channels = AUD_CHANNELS_STEREO;
   }
 
-  if (!(sound_device = AUD_init(device_name, specs, buffersize, "Blender"))) {
+  sound_device = AUD_init(device_name, specs, buffersize, "Blender");
+  if (!sound_device) {
     sound_device = AUD_init("None", specs, buffersize, "Blender");
   }
 
@@ -895,7 +897,8 @@ static void sound_start_play_scene(Scene *scene)
 
   BKE_sound_reset_scene_specs(scene);
 
-  if ((scene->playback_handle = AUD_Device_play(sound_device, scene->sound_scene, 1))) {
+  scene->playback_handle = AUD_Device_play(sound_device, scene->sound_scene, 1);
+  if (scene->playback_handle) {
     AUD_Handle_setLoopCount(scene->playback_handle, -1);
   }
 }

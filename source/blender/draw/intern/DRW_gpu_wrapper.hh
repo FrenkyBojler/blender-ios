@@ -73,6 +73,7 @@
 #include "GPU_framebuffer.hh"
 #include "GPU_storage_buffer.hh"
 #include "GPU_texture.hh"
+#include "GPU_texture_pool.hh"
 #include "GPU_uniform_buffer.hh"
 
 namespace blender::draw {
@@ -416,7 +417,7 @@ class StorageVectorBuffer : public StorageArrayBuffer<T, len, false> {
 
  public:
   StorageVectorBuffer(const char *name = nullptr) : StorageArrayBuffer<T, len, false>(name){};
-  ~StorageVectorBuffer(){};
+  ~StorageVectorBuffer() = default;
 
   /**
    * Set item count to zero but does not free memory or resize the buffer.
@@ -1032,30 +1033,22 @@ class Texture : NonCopyable {
     if (h == 0) {
       return GPU_texture_create_1d(name_, w, mip_len, format, usage, data);
     }
-    else if (cubemap) {
+    if (cubemap) {
       if (layered) {
         return GPU_texture_create_cube_array(name_, w, d, mip_len, format, usage, data);
       }
-      else {
-        return GPU_texture_create_cube(name_, w, mip_len, format, usage, data);
-      }
+      return GPU_texture_create_cube(name_, w, mip_len, format, usage, data);
     }
-    else if (d == 0) {
+    if (d == 0) {
       if (layered) {
         return GPU_texture_create_1d_array(name_, w, h, mip_len, format, usage, data);
       }
-      else {
-        return GPU_texture_create_2d(name_, w, h, mip_len, format, usage, data);
-      }
+      return GPU_texture_create_2d(name_, w, h, mip_len, format, usage, data);
     }
-    else {
-      if (layered) {
-        return GPU_texture_create_2d_array(name_, w, h, d, mip_len, format, usage, data);
-      }
-      else {
-        return GPU_texture_create_3d(name_, w, h, d, mip_len, format, usage, data);
-      }
+    if (layered) {
+      return GPU_texture_create_2d_array(name_, w, h, d, mip_len, format, usage, data);
     }
+    return GPU_texture_create_3d(name_, w, h, d, mip_len, format, usage, data);
   }
 };
 
@@ -1070,8 +1063,7 @@ class TextureFromPool : public Texture, NonMovable {
   {
     BLI_assert(this->tx_ == nullptr);
 
-    this->tx_ = DRW_texture_pool_texture_acquire(
-        DST.vmempool->texture_pool, UNPACK2(extent), format, usage);
+    this->tx_ = gpu::TexturePool::get().acquire_texture(UNPACK2(extent), format, usage);
 
     if (G.debug & G_DEBUG_GPU) {
       debug_clear();
@@ -1084,7 +1076,7 @@ class TextureFromPool : public Texture, NonMovable {
     if (this->tx_ == nullptr) {
       return;
     }
-    DRW_texture_pool_texture_release(DST.vmempool->texture_pool, this->tx_);
+    gpu::TexturePool::get().release_texture(this->tx_);
     this->tx_ = nullptr;
   }
 
@@ -1095,8 +1087,8 @@ class TextureFromPool : public Texture, NonMovable {
   static void swap(TextureFromPool &a, Texture &b)
   {
     Texture::swap(a, b);
-    DRW_texture_pool_give_texture_ownership(DST.vmempool->texture_pool, a);
-    DRW_texture_pool_take_texture_ownership(DST.vmempool->texture_pool, b);
+    gpu::TexturePool::get().give_texture_ownership(a);
+    gpu::TexturePool::get().take_texture_ownership(b);
   }
   static void swap(Texture &a, TextureFromPool &b)
   {

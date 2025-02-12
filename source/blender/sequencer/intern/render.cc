@@ -33,6 +33,7 @@
 #include "BKE_image.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_mask.h"
 #include "BKE_movieclip.h"
@@ -176,7 +177,7 @@ void seq_imbuf_to_sequencer_space(const Scene *scene, ImBuf *ibuf, bool make_flo
   seq_imbuf_assign_spaces(scene, ibuf);
 }
 
-void SEQ_render_imbuf_from_sequencer_space(Scene *scene, ImBuf *ibuf)
+void SEQ_render_imbuf_from_sequencer_space(const Scene *scene, ImBuf *ibuf)
 {
   const char *from_colorspace = scene->sequencer_colorspace_settings.name;
   const char *to_colorspace = IMB_colormanagement_role_colorspace_name_get(
@@ -198,7 +199,7 @@ void SEQ_render_imbuf_from_sequencer_space(Scene *scene, ImBuf *ibuf)
   }
 }
 
-void SEQ_render_pixel_from_sequencer_space_v4(Scene *scene, float pixel[4])
+void SEQ_render_pixel_from_sequencer_space_v4(const Scene *scene, float pixel[4])
 {
   const char *from_colorspace = scene->sequencer_colorspace_settings.name;
   const char *to_colorspace = IMB_colormanagement_role_colorspace_name_get(
@@ -1810,16 +1811,7 @@ ImBuf *seq_render_strip(const SeqRenderData *context,
 
 static bool seq_must_swap_input_in_blend_mode(Strip *strip)
 {
-  bool swap_input = false;
-
-  /* bad hack, to fix crazy input ordering of
-   * those two effects */
-
-  if (ELEM(strip->blend_mode, STRIP_TYPE_ALPHAOVER, STRIP_TYPE_ALPHAUNDER, STRIP_TYPE_OVERDROP)) {
-    swap_input = true;
-  }
-
-  return swap_input;
+  return ELEM(strip->blend_mode, STRIP_TYPE_ALPHAOVER, STRIP_TYPE_ALPHAUNDER);
 }
 
 static StripEarlyOut strip_get_early_out_for_blend_mode(Strip *strip)
@@ -1848,6 +1840,7 @@ static ImBuf *seq_render_strip_stack_apply_effect(
 {
   ImBuf *out;
   SeqEffectHandle sh = strip_effect_get_sequence_blend(strip);
+  BLI_assert(sh.execute != nullptr);
   float fac = strip->blend_opacity / 100.0f;
   int swap_input = seq_must_swap_input_in_blend_mode(strip);
 

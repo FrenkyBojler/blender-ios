@@ -358,6 +358,11 @@ add_blender_test(
   --run-all-tests
 )
 
+add_blender_test(
+  object_api
+  --python ${TEST_PYTHON_DIR}/bl_object.py
+)
+
 # ------------------------------------------------------------------------------
 # MODIFIERS TESTS
 add_blender_test(
@@ -476,11 +481,19 @@ add_blender_test(
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_action.py
   --
   --testdir "${TEST_SRC_DIR}/animation"
+  --output-dir "${TEST_OUT_DIR}/bl_animation_action"
 )
 
 add_blender_test(
   bl_animation_keyframing
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_keyframing.py
+  --
+  --testdir "${TEST_SRC_DIR}/animation"
+)
+
+add_blender_test(
+  bl_pose_assets
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pose_assets.py
   --
   --testdir "${TEST_SRC_DIR}/animation"
 )
@@ -605,6 +618,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
     # Cycles
     if(WITH_CYCLES)
       set(_cycles_blocklist "")
+      set(_cycles_known_test_devices CPU CUDA OPTIX HIP HIP-RT METAL METAL-RT ONEAPI ONEAPI-RT)
       if((NOT WITH_CYCLES_OSL) OR (WITH_CYCLES_TEST_OSL AND WITH_CYCLES_OSL))
         # Disable OSL tests if built without OSL or
         # Disable OSL tests during the "normal" test phase to avoid double
@@ -612,6 +626,10 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
         set(_cycles_blocklist OSL)
       endif()
       foreach(_cycles_device ${CYCLES_TEST_DEVICES})
+        if(NOT ${_cycles_device} IN_LIST _cycles_known_test_devices)
+          message(FATAL_ERROR "Unknown Cycles test device ${_cycles_device}."
+              "Supported devices are: ${_cycles_known_test_devices}")
+        endif()
         string(TOLOWER "${_cycles_device}" _cycles_device_lower)
         set(_cycles_render_tests bake;${render_tests};osl)
 
@@ -654,6 +672,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
         endforeach()
       endforeach()
       unset(_cycles_blocklist)
+      unset(_cycles_known_test_devices)
     endif()
 
     if(WITH_GPU_RENDER_TESTS)
@@ -669,10 +688,10 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
       if(WITH_OPENGL_BACKEND)
         foreach(render_test ${gpu_render_tests})
           add_render_test(
-            eevee_next_${render_test}_opengl
+            eevee_next_opengl_${render_test}
             ${CMAKE_CURRENT_LIST_DIR}/eevee_next_render_tests.py
             --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/eevee_next"
+            --outdir "${TEST_OUT_DIR}/eevee_next_opengl"
             --gpu-backend opengl
             ${_gpu_render_tests_arguments}
           )
@@ -682,10 +701,10 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
       if(WITH_METAL_BACKEND)
         foreach(render_test ${gpu_render_tests})
           add_render_test(
-            eevee_next_${render_test}_metal
+            eevee_next_metal_${render_test}
             ${CMAKE_CURRENT_LIST_DIR}/eevee_next_render_tests.py
             --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/eevee_next"
+            --outdir "${TEST_OUT_DIR}/eevee_next_metal"
             --gpu-backend metal
             ${_gpu_render_tests_arguments}
           )
@@ -695,10 +714,10 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
       if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
         foreach(render_test ${gpu_render_tests})
           add_render_test(
-            eevee_next_${render_test}_vulkan
+            eevee_next_vulkan_${render_test}
             ${CMAKE_CURRENT_LIST_DIR}/eevee_next_render_tests.py
             --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/eevee_next"
+            --outdir "${TEST_OUT_DIR}/eevee_next_vulkan"
             --gpu-backend vulkan
             ${_gpu_render_tests_arguments}
           )
@@ -709,10 +728,10 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
       if(WITH_OPENGL_BACKEND)
         foreach(render_test ${gpu_render_tests})
           add_render_test(
-            workbench_${render_test}_opengl
+            workbench_opengl_${render_test}
             ${CMAKE_CURRENT_LIST_DIR}/workbench_render_tests.py
             --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/workbench"
+            --outdir "${TEST_OUT_DIR}/workbench_opengl"
             --gpu-backend opengl
             ${_gpu_render_tests_arguments}
           )
@@ -722,10 +741,10 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
       if(WITH_METAL_BACKEND)
         foreach(render_test ${gpu_render_tests})
           add_render_test(
-            workbench_${render_test}_metal
+            workbench_metal_${render_test}
             ${CMAKE_CURRENT_LIST_DIR}/workbench_render_tests.py
             --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/workbench"
+            --outdir "${TEST_OUT_DIR}/workbench_metal"
             --gpu-backend metal
             ${_gpu_render_tests_arguments}
           )
@@ -735,10 +754,10 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
       if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
         foreach(render_test ${gpu_render_tests})
           add_render_test(
-            workbench_${render_test}_vulkan
+            workbench_vulkan_${render_test}
             ${CMAKE_CURRENT_LIST_DIR}/workbench_render_tests.py
             --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/workbench"
+            --outdir "${TEST_OUT_DIR}/workbench/vulkan"
             --gpu-backend vulkan
             ${_gpu_render_tests_arguments}
           )
@@ -785,6 +804,7 @@ else()
     output
     vector
 
+    pixel_nodes
     multiple_node_setups
   )
 
@@ -815,6 +835,7 @@ if(WITH_GPU_COMPOSITOR_TESTS)
       output
       vector
 
+      pixel_nodes
       multiple_node_setups
     )
 
@@ -822,15 +843,42 @@ if(WITH_GPU_COMPOSITOR_TESTS)
       list(APPEND compositor_tests distort matte)
     endif()
 
-    foreach(comp_test ${compositor_tests})
-      add_render_test(
-        compositor_gpu_${comp_test}
-        ${CMAKE_CURRENT_LIST_DIR}/compositor_render_tests.py
-        --testdir "${TEST_SRC_DIR}/compositor/${comp_test}"
-        --outdir "${TEST_OUT_DIR}/compositor_gpu"
-        --gpu
-      )
-    endforeach()
+    if(WITH_OPENGL_BACKEND)
+      foreach(comp_test ${compositor_tests})
+        add_render_test(
+          compositor_opengl_${comp_test}
+          ${CMAKE_CURRENT_LIST_DIR}/compositor_render_tests.py
+          --testdir "${TEST_SRC_DIR}/compositor/${comp_test}"
+          --outdir "${TEST_OUT_DIR}/compositor_opengl"
+          --gpu
+          --gpu-backend opengl
+        )
+      endforeach()
+    endif()
+    if(WITH_METAL_BACKEND)
+      foreach(comp_test ${compositor_tests})
+        add_render_test(
+          compositor_metal_${comp_test}
+          ${CMAKE_CURRENT_LIST_DIR}/compositor_render_tests.py
+          --testdir "${TEST_SRC_DIR}/compositor/${comp_test}"
+          --outdir "${TEST_OUT_DIR}/compositor_metal"
+          --gpu
+          --gpu-backend metal
+        )
+      endforeach()
+    endif()
+    if(WITH_VULKAN_BACKEND)
+      foreach(comp_test ${compositor_tests})
+        add_render_test(
+          compositor_vulkan_${comp_test}
+          ${CMAKE_CURRENT_LIST_DIR}/compositor_render_tests.py
+          --testdir "${TEST_SRC_DIR}/compositor/${comp_test}"
+          --outdir "${TEST_OUT_DIR}/compositor_vulkan"
+          --gpu
+          --gpu-backend vulkan
+        )
+      endforeach()
+    endif()
   endif()
 endif()
 
@@ -898,31 +946,29 @@ else()
   message(STATUS "Directory named ${TEST_SRC_DIR}/modeling/geometry_nodes/simulation/ not found, disabling tests")
 endif()
 
-
 if(WITH_GPU_RENDER_TESTS)
   if(NOT OPENIMAGEIO_TOOL)
-    message(STATUS "Disabling OpenGL draw tests because OIIO oiiotool does not exist")
-  elseif(NOT EXISTS "${TEST_SRC_DIR}/opengl")
-    message(
-      STATUS "Disabling OpenGL draw tests because tests directory doesn't exist at ${TEST_SRC_DIR}"
-    )
+    message(STATUS "Disabling screenshot tests because OIIO oiiotool does not exist")
   else()
-    # Use all subdirectories of the `opengl` directory.
-    file(GLOB children RELATIVE ${TEST_SRC_DIR}/opengl ${TEST_SRC_DIR}/opengl/*)
-    foreach(child ${children})
-      # Resolve symlinks, useful to test production files with linked libraries.
-      get_filename_component(child_path ${TEST_SRC_DIR}/opengl/${child} REALPATH)
-      if(IS_DIRECTORY ${child_path})
-        file(GLOB_RECURSE blends "${child_path}/*.blend")
-        if(blends)
-          add_render_test(
-            opengl_draw_${child}
-            ${CMAKE_CURRENT_LIST_DIR}/opengl_draw_tests.py
-            --testdir "${child_path}"
-            --outdir "${TEST_OUT_DIR}/opengl_draw"
-          )
-        endif()
-      endif()
+    set(render_tests
+    )
+
+    if(USE_EXPERIMENTAL_TESTS)
+      # The viewport tests are flakey and difficult to keep up to date for use
+      # in a CI environment due to constantly changing UI, but may still be helpful
+      # for local development.
+      #
+      # Additionally, they do not currently succeed in an ASAN build. (2025-01-29)
+      list(APPEND render_tests viewport)
+    endif()
+
+    foreach(render_test ${render_tests})
+      add_render_test(
+        screenshot_${render_test}
+        ${CMAKE_CURRENT_LIST_DIR}/ui_screenshot_tests.py
+        --testdir "${TEST_SRC_DIR}/screenshot/${render_test}"
+        --outdir "${TEST_OUT_DIR}/screenshot"
+      )
     endforeach()
   endif()
 endif()

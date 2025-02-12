@@ -19,7 +19,6 @@
 #include "WM_api.hh"
 
 #include "BKE_asset.hh"
-#include "BKE_attribute_math.hh"
 #include "BKE_compute_contexts.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
@@ -120,7 +119,7 @@ static const bNodeTree *get_node_group(const bContext &C, PointerRNA &ptr, Repor
   return group;
 }
 
-GeoOperatorLog::~GeoOperatorLog() {}
+GeoOperatorLog::~GeoOperatorLog() = default;
 
 /**
  * The socket value log is stored statically so it can be used in the node editor. A fancier
@@ -1215,7 +1214,7 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
     PointerRNA props_ptr;
     uiItemFullO_ptr(layout,
                     ot,
-                    IFACE_(asset->get_name().c_str()),
+                    IFACE_(asset->get_name()),
                     ICON_NONE,
                     nullptr,
                     WM_OP_INVOKE_REGION_WIN,
@@ -1295,7 +1294,7 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
     PointerRNA props_ptr;
     uiItemFullO_ptr(layout,
                     ot,
-                    IFACE_(asset->get_name().c_str()),
+                    IFACE_(asset->get_name()),
                     ICON_NONE,
                     nullptr,
                     WM_OP_INVOKE_REGION_WIN,

@@ -23,6 +23,7 @@
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_nla.hh"
 #include "BKE_report.hh"
@@ -67,6 +68,9 @@ void ED_nla_postop_refresh(bAnimContext *ac)
 
   LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
     if (!ale->adt) {
+      continue;
+    }
+    if (ale->type != ANIMTYPE_ANIMDATA) {
       continue;
     }
     /* performing auto-blending, extend-mode validation, etc. */

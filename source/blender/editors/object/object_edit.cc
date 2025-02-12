@@ -8,7 +8,6 @@
 
 #include <cctype>
 #include <cfloat>
-#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
@@ -48,6 +47,7 @@
 #include "BKE_lattice.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_material.hh"
 #include "BKE_mball.hh"

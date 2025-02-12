@@ -10,7 +10,6 @@
 #include "DNA_collection_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_gpencil_legacy_types.h"
-#include "DNA_gpencil_modifier_types.h"
 #include "DNA_light_types.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_object_force_types.h"
@@ -19,7 +18,9 @@
 #include "DNA_sequence_types.h"
 #include "DNA_text_types.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_fileops.h"
+#include "BLI_path_utils.hh"
+#include "BLI_string.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
@@ -440,7 +441,7 @@ static bool outliner_collection_is_isolated(Scene *scene,
 {
   PointerRNA ptr;
   outliner_layer_or_collection_pointer_create(scene, layer_collection, collection, &ptr);
-  const bool value = RNA_property_boolean_get(&ptr, (PropertyRNA *)layer_or_collection_prop);
+  const bool value = RNA_property_boolean_get(&ptr, layer_or_collection_prop);
   Collection *collection_ensure = collection ? collection : layer_collection->collection;
   const Collection *collection_ensure_cmp = collection_cmp ? collection_cmp :
                                                              layer_collection_cmp->collection;
@@ -2543,7 +2544,7 @@ static BIFIconID tree_element_get_icon_from_id(const ID *id)
       if (id->tag & ID_TAG_MISSING) {
         return ICON_LIBRARY_DATA_BROKEN;
       }
-      else if (((Library *)id)->runtime.parent) {
+      else if (((Library *)id)->runtime->parent) {
         return ICON_LIBRARY_DATA_INDIRECT;
       }
       else {
@@ -2809,7 +2810,6 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
           case STRIP_TYPE_ADD:
           case STRIP_TYPE_SUB:
           case STRIP_TYPE_MUL:
-          case STRIP_TYPE_OVERDROP:
           case STRIP_TYPE_ALPHAOVER:
           case STRIP_TYPE_ALPHAUNDER:
           case STRIP_TYPE_COLORMIX:
@@ -3272,7 +3272,7 @@ static bool element_should_draw_faded(const TreeViewContext &tvc,
                                BKE_view_layer_base_find((ViewLayer *)tvc.view_layer, (Object *)ob);
         const bool is_visible = (base != nullptr) &&
                                 (base->flag & BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT) &&
-                                !BLI_listbase_is_empty(&te->subtree);
+                                !(te->flag & TE_CHILD_NOT_IN_COLLECTION);
 
         return !is_visible;
       }

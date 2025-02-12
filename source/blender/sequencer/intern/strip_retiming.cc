@@ -6,7 +6,6 @@
  * \ingroup bke
  */
 
-#include "BLI_math_base.hh"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_scene_types.h"
@@ -615,9 +614,7 @@ static int strip_retiming_clamp_transition_offset(SeqRetimingKey *start_key, int
   if (offset >= 0) {
     return min_ii(offset, next_dist - 1);
   }
-  else {
-    return max_ii(offset, -(prev_dist - 1));
-  }
+  return max_ii(offset, -(prev_dist - 1));
 }
 
 static void strip_retiming_transition_offset(const Scene *scene,
@@ -784,17 +781,12 @@ float SEQ_retiming_key_speed_get(const Strip *strip, const SeqRetimingKey *key)
   }
 
   const SeqRetimingKey *key_prev = key - 1;
-
   const int frame_index_max = strip->len - 1;
-  const int frame_retimed_prev = round_fl_to_int(key_prev->retiming_factor * frame_index_max);
-  const int frame_index_prev = key_prev->strip_frame_index;
-  const int frame_retimed = round_fl_to_int(key->retiming_factor * frame_index_max);
-  const int frame_index = key->strip_frame_index;
-
-  const int fragment_length_retimed = frame_retimed - frame_retimed_prev;
-  const int fragment_length_original = frame_index - frame_index_prev;
-
-  const float speed = float(fragment_length_retimed) / float(fragment_length_original);
+  const float frame_index_start = round_fl_to_int(key_prev->retiming_factor * frame_index_max);
+  const float frame_index_end = round_fl_to_int(key->retiming_factor * frame_index_max);
+  const float segment_content_frame_count = frame_index_end - frame_index_start;
+  const float segment_length = key->strip_frame_index - key_prev->strip_frame_index;
+  const float speed = segment_content_frame_count / segment_length;
   return speed;
 }
 
@@ -806,19 +798,18 @@ void SEQ_retiming_key_speed_set(
   }
 
   const SeqRetimingKey *key_prev = key - 1;
-  const float speed_fac = 100.0f / speed;
 
   const int frame_index_max = strip->len - 1;
-  const int frame_retimed_prev = round_fl_to_int(key_prev->retiming_factor * frame_index_max);
-  const int frame_retimed = round_fl_to_int(key->retiming_factor * frame_index_max);
+  const float frame_index_prev = round_fl_to_int(key_prev->retiming_factor * frame_index_max);
+  const float frame_index = round_fl_to_int(key->retiming_factor * frame_index_max);
 
-  const int segment_duration = (frame_retimed - frame_retimed_prev) /
-                               SEQ_time_media_playback_rate_factor_get(scene, strip);
-  const int new_duration = segment_duration * speed_fac;
+  const float segment_timeline_duration = (frame_index - frame_index_prev) /
+                                          SEQ_time_media_playback_rate_factor_get(scene, strip);
+  const float new_timeline_duration = segment_timeline_duration / speed;
 
-  const int orig_timeline_frame = SEQ_retiming_key_timeline_frame_get(scene, strip, key);
-  const int new_timeline_frame = SEQ_retiming_key_timeline_frame_get(scene, strip, key_prev) +
-                                 new_duration;
+  const float orig_timeline_frame = SEQ_retiming_key_timeline_frame_get(scene, strip, key);
+  const float new_timeline_frame = std::round(
+      SEQ_retiming_key_timeline_frame_get(scene, strip, key_prev) + new_timeline_duration);
 
   SEQ_retiming_key_timeline_frame_set(scene, strip, key, new_timeline_frame);
 
@@ -952,7 +943,7 @@ class RetimingRange {
     }
   }
 
-  const eIntersectType intersect_type(const RetimingRange &other) const
+  eIntersectType intersect_type(const RetimingRange &other) const
   {
     if (other.start <= start && other.end >= end) {
       return FULL;
@@ -1007,7 +998,7 @@ class RetimingRangeData {
         if (range.intersect_type(rhs_range) == NONE) {
           continue;
         }
-        else if (range.intersect_type(rhs_range) == FULL) {
+        if (range.intersect_type(rhs_range) == FULL) {
           RetimingRange isect = range * rhs_range;
           ranges.remove(i);
           ranges.insert(i, isect);
