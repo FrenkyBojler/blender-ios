@@ -1932,8 +1932,6 @@ static bool ui_selectcontext_begin(bContext *C, uiBut *but, uiSelectContextStore
     }
   }
 
-  selctx_data->elems.clear();
-
   /* caller can clear */
   selctx_data->do_free = true;
 
