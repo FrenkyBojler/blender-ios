@@ -195,6 +195,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   op_params.no_self_intersections = !use_self;
   op_params.watertight = !hole_tolerant;
   op_params.no_nested_components = true; /* TODO: make this configurable. */
+  geometry::boolean::BooleanError error = geometry::boolean::BooleanError::NoError;
   Mesh *result = geometry::boolean::mesh_boolean(
       meshes,
       transforms,
@@ -202,7 +203,17 @@ static void node_geo_exec(GeoNodeExecParams params)
       material_remaps,
       op_params,
       solver,
-      attribute_outputs.intersecting_edges_id ? &intersecting_edges : nullptr);
+      attribute_outputs.intersecting_edges_id ? &intersecting_edges : nullptr,
+      &error);
+  if (error == geometry::boolean::BooleanError::NonManifold) {
+    params.error_message_add(NodeWarningType::Error,
+                             TIP_("An input was not manifold"));
+  }
+  else if (error == geometry::boolean::BooleanError::UnknownError)
+  {
+    params.error_message_add(NodeWarningType::Error,
+                             TIP_("Unknown Boolean error"));
+  }
   if (!result) {
     params.set_default_remaining_outputs();
     return;

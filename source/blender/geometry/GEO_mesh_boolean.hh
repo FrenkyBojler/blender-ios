@@ -32,6 +32,12 @@ enum class Operation {
   Difference = 2,
 };
 
+enum class BooleanError {
+  NoError = 0,
+  NonManifold = 1,
+  UnknownError = 2,
+};
+
 /**
  * BooleanOpParameters bundles together the global parameters for the boolean operation.
  * As well as saying which particular operation (intersect, difference, union) is desired,
@@ -73,6 +79,7 @@ struct BooleanOpParameters {
  * \param solver: which solver to use
  * \param r_intersecting_edges: Vector to store indices of edges on the resulting mesh in. These
  * 'new' edges are the result of the intersections.
+ * \param r_error: Return place for error code to be stored.
  */
 Mesh *mesh_boolean(Span<const Mesh *> meshes,
                    Span<float4x4> transforms,
@@ -80,6 +87,7 @@ Mesh *mesh_boolean(Span<const Mesh *> meshes,
                    Span<Array<short>> material_remaps,
                    BooleanOpParameters op_params,
                    Solver solver,
-                   Vector<int> *r_intersecting_edges);
+                   Vector<int> *r_intersecting_edges,
+                   BooleanError *r_error);
 
 }  // namespace blender::geometry::boolean

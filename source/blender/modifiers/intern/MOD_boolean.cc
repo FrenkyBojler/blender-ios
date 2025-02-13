@@ -479,6 +479,7 @@ static Mesh *exact_boolean_mesh(BooleanModifierData *bmd,
   op_params.no_self_intersections = !use_self;
   op_params.watertight = !hole_tolerant;
   op_params.no_nested_components = false;
+  blender::geometry::boolean::BooleanError error = blender::geometry::boolean::BooleanError::NoError;
   Mesh *result = blender::geometry::boolean::mesh_boolean(
       meshes,
       obmats,
@@ -486,7 +487,8 @@ static Mesh *exact_boolean_mesh(BooleanModifierData *bmd,
       material_remaps,
       op_params,
       blender::geometry::boolean::Solver::MeshArr,
-      nullptr);
+      nullptr,
+      &error);
 
   if (material_mode == eBooleanModifierMaterialMode_Transfer) {
     MEM_SAFE_FREE(result->mat);

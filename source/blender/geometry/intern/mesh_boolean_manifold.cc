@@ -19,7 +19,7 @@
 #include "BLI_span.hh"
 #include "BLI_task.hh"
 
-// #define DEBUG_TIME
+#define DEBUG_TIME
 #ifdef DEBUG_TIME
 #  include "BLI_timeit.hh"
 #endif
@@ -1484,12 +1484,14 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
                             const float4x4 &target_transform,
                             Span<Array<short>>,
                             BooleanOpParameters op_params,
-                            Vector<int> *r_intersecting_edges)
+                            Vector<int> *r_intersecting_edges,
+                            BooleanError *r_error)
 {
   constexpr int dbg_level = 0;
   if (dbg_level > 0) {
     std::cout << "\nMESH_BOOLEAN_MANIFOLD with " << meshes.size() << " args\n";
   }
+  *r_error = BooleanError::NoError;
   try {
 #ifdef DEBUG_TIME
     timeit::ScopedTimer timer("MANIFOLD BOOLEAN");
@@ -1502,7 +1504,9 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
       return math::is_identity(t);
     });
     if (!no_transforms) {
+      // TODO: fix this
       std::cout << "IMPLEMENT ME: mesh_boolean_manifold with transforms\n";
+      *r_error = BooleanError::UnknownError;
       return nullptr;
     }
     MeshOffsets mesh_offsets(meshes);
@@ -1514,7 +1518,7 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
           return m.Status() != Manifold::Error::NoError;
         }))
     {
-      std::cout << "Cannot convert Mesh to Manifold, so manifold solver fails\n";
+      *r_error = BooleanError::NonManifold;
       return nullptr;
     }
     Operation op = op_params.boolean_mode;
@@ -1551,6 +1555,7 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
   catch (...) {
     std::cout << "mesh_boolean_manifold: unknown exception\n";
   }
+  *r_error = BooleanError::UnknownError;
   return nullptr;
 }
 

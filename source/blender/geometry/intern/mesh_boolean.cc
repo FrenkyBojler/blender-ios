@@ -1150,11 +1150,13 @@ Mesh *mesh_boolean(Span<const Mesh *> meshes,
                    Span<Array<short>> material_remaps,
                    BooleanOpParameters op_params,
                    Solver solver,
-                   Vector<int> *r_intersecting_edges)
+                   Vector<int> *r_intersecting_edges,
+                   BooleanError *r_error)
 {
 
   switch (solver) {
     case Solver::Float:
+      *r_error = BooleanError::NoError;
       return mesh_boolean_float(meshes,
                                 transforms,
                                 target_transform,
@@ -1163,6 +1165,7 @@ Mesh *mesh_boolean(Span<const Mesh *> meshes,
                                 r_intersecting_edges);
     case Solver::MeshArr:
 #ifdef WITH_GMP
+      *r_error = BooleanError::NoError;
       return mesh_boolean_mesh_arr(meshes,
                                    transforms,
                                    target_transform,
@@ -1172,6 +1175,7 @@ Mesh *mesh_boolean(Span<const Mesh *> meshes,
                                    operation_to_mesh_arr_mode(op_params.boolean_mode),
                                    r_intersecting_edges);
 #else
+      *r_error = BooleanError::UnknownError;
       return nullptr;
 #endif
     case Solver::Manifold:
@@ -1181,7 +1185,8 @@ Mesh *mesh_boolean(Span<const Mesh *> meshes,
                                    target_transform,
                                    material_remaps,
                                    op_params,
-                                   r_intersecting_edges);
+                                   r_intersecting_edges,
+                                   r_error);
 #else
       return nullptr;
 #endif
