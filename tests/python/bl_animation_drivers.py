@@ -194,7 +194,7 @@ class ContextViewLayerDriverTest(AbstractEmptyDriverTest, unittest.TestCase):
         self.assertPropValue('test_fallback', 321)
 
 
-class SubIdDriverRemovalTest(AbstractEmptyDriverTest, unittest.TestCase):
+class SubDataDriverRemovalTest(AbstractEmptyDriverTest, unittest.TestCase):
 
     def test_remove_object_modifier(self):
         # Removing a modifier with a driver should also delete the driver
@@ -239,8 +239,21 @@ class SubIdDriverRemovalTest(AbstractEmptyDriverTest, unittest.TestCase):
         pose_bone.constraints.remove(constraint)
         self.assertEqual(len(pose_bone.constraints), 0)
         self.assertEqual(len(arm_ob.animation_data.drivers), 0,
-                         "removing the constraint should remove the driver on it")
+                         "Removing the constraint should remove the driver on it")
 
+    def test_remove_shapekey(self):
+        self.obj.shape_key_add(name="base")
+        test_key = self.obj.shape_key_add(name="test")
+        # Due to the weirdness of shapekeys, this is an ID.
+        shape_key_id = self.obj.data.shape_keys
+        self.assertEqual(len(shape_key_id.key_blocks), 2)
+        shape_key_id.driver_add('key_blocks["test"].value')
+        self.assertEqual(len(shape_key_id.animation_data.drivers), 1)
+
+        self.obj.shape_key_remove(test_key)
+        self.assertEqual(len(shape_key_id.key_blocks), 1)
+        self.assertEqual(len(shape_key_id.animation_data.drivers), 0,
+                         "Removing the shape key should remove any driver on it")
 
 
 def main():

@@ -137,6 +137,10 @@
 
 #include "ANIM_action_legacy.hh"
 
+#include "RNA_access.hh"
+#include "RNA_path.hh"
+#include "RNA_prototypes.hh"
+
 #ifdef WITH_PYTHON
 #  include "BPY_extern.hh"
 #endif
@@ -4457,6 +4461,16 @@ bool BKE_object_shapekey_remove(Main *bmain, Object *ob, KeyBlock *kb)
 
   if (key == nullptr) {
     return false;
+  }
+
+  PointerRNA constraint_ptr = RNA_pointer_create_discrete(&key->id, &RNA_ShapeKey, kb);
+  const std::optional<std::string> base_path = RNA_path_from_ID_to_struct(&constraint_ptr);
+  if (base_path.has_value()) {
+    BKE_animdata_driver_path_remove(&key->id, base_path.value().c_str());
+  }
+  else {
+    /* The constraint exists, so the path should always resolve. */
+    BLI_assert_unreachable();
   }
 
   kb_index = BLI_findindex(&key->block, kb);
