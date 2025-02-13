@@ -237,7 +237,7 @@ static const EnumPropertyItem prop_simplify_modes[] = {
 
 static IndexMask simplify_fixed(const bke::CurvesGeometry &curves,
                                 const int step,
-                                IndexMask stroke_selection,
+                                const IndexMask &stroke_selection,
                                 IndexMaskMemory &memory)
 {
   const OffsetIndices points_by_curve = curves.points_by_curve();
