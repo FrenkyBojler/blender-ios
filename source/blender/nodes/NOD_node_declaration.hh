@@ -9,6 +9,7 @@
 #include <type_traits>
 
 #include "BLI_string_ref.hh"
+#include "BLI_struct_equality_utils.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
@@ -21,6 +22,7 @@
 struct bContext;
 struct bNode;
 struct uiLayout;
+enum eCustomDataType : int8_t;
 
 namespace blender::nodes {
 

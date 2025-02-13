@@ -4,6 +4,8 @@
 
 #include "node_geometry_util.hh"
 
+#include "DNA_customdata_types.h"
+
 #include "NOD_rna_define.hh"
 
 #include "UI_interface.hh"

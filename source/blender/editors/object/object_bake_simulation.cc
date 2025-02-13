@@ -20,6 +20,7 @@
 
 #include "DNA_array_utils.hh"
 #include "DNA_modifier_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 
 #include "BKE_bake_geometry_nodes_modifier.hh"

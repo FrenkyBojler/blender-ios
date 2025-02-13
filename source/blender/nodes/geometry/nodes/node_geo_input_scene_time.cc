@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "DNA_scene_types.h"
+
 #include "BKE_scene.hh"
 
 #include "DEG_depsgraph_query.hh"

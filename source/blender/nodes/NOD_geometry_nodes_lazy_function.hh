@@ -22,6 +22,8 @@
 
 #include <variant>
 
+#include "DNA_object_enums.h"
+
 #include "FN_lazy_function_graph.hh"
 #include "FN_lazy_function_graph_executor.hh"
 

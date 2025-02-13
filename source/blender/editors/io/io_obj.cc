@@ -8,6 +8,7 @@
 
 #ifdef WITH_IO_WAVEFRONT_OBJ
 
+#  include "DNA_scene_types.h"
 #  include "DNA_space_types.h"
 
 #  include "BKE_context.hh"

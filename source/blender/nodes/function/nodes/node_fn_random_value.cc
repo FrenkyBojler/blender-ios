@@ -2,7 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-// #include "BLI_hash.h"
+#include "DNA_customdata_types.h"
+
 #include "BLI_noise.hh"
 
 #include "node_function_util.hh"

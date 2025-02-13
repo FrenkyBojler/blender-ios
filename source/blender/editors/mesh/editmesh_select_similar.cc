@@ -28,6 +28,7 @@
 #include "BKE_report.hh"
 
 #include "DNA_meshdata_types.h"
+#include "DNA_scene_types.h"
 
 #include "WM_api.hh"
 #include "WM_types.hh"

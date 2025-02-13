@@ -11,6 +11,7 @@
 #  include "BLI_path_utils.hh"
 #  include "BLI_string.h"
 
+#  include "DNA_scene_types.h"
 #  include "DNA_space_types.h"
 #  include "DNA_view3d_types.h"
 

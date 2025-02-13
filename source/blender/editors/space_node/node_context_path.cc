@@ -11,6 +11,7 @@
 #include "BLI_vector.hh"
 
 #include "DNA_node_types.h"
+#include "DNA_scene_types.h"
 
 #include "BKE_context.hh"
 #include "BKE_material.hh"

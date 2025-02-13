@@ -4,6 +4,8 @@
 
 #include "BLI_task.hh"
 
+#include "DNA_customdata_types.h"
+
 #include "BKE_attribute_math.hh"
 
 #include "UI_interface.hh"

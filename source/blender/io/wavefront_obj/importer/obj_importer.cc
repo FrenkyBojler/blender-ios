@@ -24,6 +24,7 @@
 #include "DEG_depsgraph_build.hh"
 
 #include "DNA_collection_types.h"
+#include "DNA_scene_types.h"
 
 #include "obj_export_mtl.hh"
 #include "obj_import_file_reader.hh"

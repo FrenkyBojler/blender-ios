@@ -20,6 +20,7 @@
 
 #include "DNA_brush_types.h"
 #include "DNA_material_types.h"
+#include "DNA_scene_types.h"
 
 #include "BKE_brush.hh"
 #include "BKE_context.hh"

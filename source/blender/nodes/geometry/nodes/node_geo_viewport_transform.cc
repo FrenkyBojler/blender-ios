@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "DNA_object_types.h"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_viewport_transform_cc {

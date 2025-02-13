@@ -8,6 +8,7 @@
 
 #include "BLI_math_rotation.h"
 
+#include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
 

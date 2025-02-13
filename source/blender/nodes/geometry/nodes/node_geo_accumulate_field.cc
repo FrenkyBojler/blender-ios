@@ -11,6 +11,8 @@
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
 
+#include "DNA_customdata_types.h"
+
 #include "RNA_enum_types.hh"
 
 #include "node_geometry_util.hh"

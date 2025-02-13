@@ -20,6 +20,7 @@
 
 #include "DNA_grease_pencil_types.h"
 #include "DNA_modifier_types.h"
+#include "DNA_object_types.h"
 #include "DNA_space_types.h"
 
 #include "ED_geometry.hh"

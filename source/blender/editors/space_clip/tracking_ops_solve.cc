@@ -10,6 +10,7 @@
 
 #include "DNA_camera_types.h"
 #include "DNA_object_types.h" /* SELECT */
+#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 

@@ -7,6 +7,7 @@
 #include "node_geometry_util.hh"
 #include "node_util.hh"
 
+#include "DNA_customdata_types.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 

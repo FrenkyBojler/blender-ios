@@ -28,6 +28,7 @@
 
 #include "DNA_camera_types.h"
 #include "DNA_material_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_world_types.h"
 
 #include "RNA_access.hh"

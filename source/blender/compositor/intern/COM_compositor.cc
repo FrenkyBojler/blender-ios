@@ -11,6 +11,8 @@
 
 #include "COM_compositor.hh"
 
+#include "DNA_scene_types.h"
+
 #include "RE_compositor.hh"
 
 static constexpr float COM_PREVIEW_SIZE = 140.0f;

@@ -15,6 +15,7 @@
 
 #include "DNA_collection_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "BKE_armature.hh"
 #include "BKE_collection.hh"

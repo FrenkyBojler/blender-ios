@@ -28,6 +28,7 @@
 #include "DNA_grease_pencil_types.h"
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "IMB_imbuf_types.hh"
 

@@ -6,6 +6,7 @@
  * \ingroup collada
  */
 #ifdef WITH_COLLADA
+#  include "DNA_scene_types.h"
 #  include "DNA_space_types.h"
 
 #  include "BLT_translation.hh"

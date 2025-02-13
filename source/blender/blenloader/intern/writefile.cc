@@ -86,6 +86,7 @@
 #include "DNA_genfile.h"
 #include "DNA_key_types.h"
 #include "DNA_print.hh"
+#include "DNA_scene_types.h"
 #include "DNA_sdna_types.h"
 #include "DNA_userdef_types.h"
 

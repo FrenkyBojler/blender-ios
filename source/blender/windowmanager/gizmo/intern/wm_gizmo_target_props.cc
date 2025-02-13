@@ -8,6 +8,8 @@
 
 #include "BLI_listbase.h"
 
+#include "DNA_scene_types.h"
+
 #include "BKE_context.hh"
 
 #include "MEM_guardedalloc.h"

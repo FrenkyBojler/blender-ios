@@ -17,6 +17,7 @@
 #include "DNA_anim_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
+#include "DNA_object_types.h"
 
 #include "BKE_anim_data.hh"
 #include "BKE_image.hh"

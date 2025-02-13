@@ -6,6 +6,8 @@
 
 #include "NOD_rna_define.hh"
 
+#include "DNA_customdata_types.h"
+
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 

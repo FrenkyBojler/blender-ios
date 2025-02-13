@@ -9,6 +9,7 @@
 #include <cstring>
 
 #include "DNA_node_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_space_types.h"
 #include "DNA_texture_types.h"
 

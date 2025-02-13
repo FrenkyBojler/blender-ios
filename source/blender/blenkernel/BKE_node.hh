@@ -55,6 +55,7 @@ struct bNodeTree;
 struct bNodeTreeExec;
 struct uiLayout;
 
+enum eCustomDataType : int8_t;
 namespace blender {
 class CPPType;
 namespace nodes {

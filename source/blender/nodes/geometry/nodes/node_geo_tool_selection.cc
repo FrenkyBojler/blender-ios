@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "DNA_customdata_types.h"
+
 #include "BKE_geometry_fields.hh"
 
 #include "node_geometry_util.hh"

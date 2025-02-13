@@ -15,6 +15,7 @@
 #include "BLT_translation.hh"
 
 #include "DNA_armature_types.h"
+#include "DNA_scene_types.h"
 
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"

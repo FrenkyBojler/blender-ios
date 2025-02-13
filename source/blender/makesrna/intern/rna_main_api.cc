@@ -10,6 +10,7 @@
 #include <cstdlib>
 
 #include "DNA_ID.h"
+#include "DNA_object_enums.h"
 #include "DNA_space_types.h"
 
 #include "RNA_define.hh"

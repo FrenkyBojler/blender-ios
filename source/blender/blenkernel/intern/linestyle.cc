@@ -18,6 +18,7 @@
 #include "DNA_defaults.h"
 #include "DNA_material_types.h" /* for ramp blend */
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 
 #include "BLI_listbase.h"

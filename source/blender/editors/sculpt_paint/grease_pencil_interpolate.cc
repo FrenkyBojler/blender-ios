@@ -25,6 +25,7 @@
 #include "DEG_depsgraph.hh"
 
 #include "DNA_grease_pencil_types.h"
+#include "DNA_scene_types.h"
 
 #include "ED_curves.hh"
 #include "ED_grease_pencil.hh"

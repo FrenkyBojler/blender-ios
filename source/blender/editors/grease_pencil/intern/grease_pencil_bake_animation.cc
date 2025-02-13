@@ -26,6 +26,7 @@
 #include "DEG_depsgraph_query.hh"
 
 #include "DNA_anim_types.h"
+#include "DNA_scene_types.h"
 
 #include "ED_grease_pencil.hh"
 #include "ED_object.hh"

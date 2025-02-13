@@ -30,6 +30,7 @@
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_world_types.h"
 

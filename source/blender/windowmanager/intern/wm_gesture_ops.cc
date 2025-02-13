@@ -17,6 +17,7 @@
 
 #include <algorithm>
 
+#include "DNA_scene_types.h"
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 

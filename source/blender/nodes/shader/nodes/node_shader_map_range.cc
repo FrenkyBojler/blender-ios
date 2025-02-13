@@ -15,6 +15,8 @@
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 
+#include "DNA_customdata_types.h"
+
 #include "FN_multi_function_builder.hh"
 
 #include "NOD_multi_function.hh"

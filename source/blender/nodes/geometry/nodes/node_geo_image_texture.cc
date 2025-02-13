@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "DNA_scene_types.h"
+
 #include "node_geometry_util.hh"
 
 #include "BKE_image.hh"

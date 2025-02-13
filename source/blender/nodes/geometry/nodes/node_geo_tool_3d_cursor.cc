@@ -4,6 +4,8 @@
 
 #include "BLI_math_matrix.hh"
 
+#include "DNA_object_types.h"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_tool_3d_cursor_cc {

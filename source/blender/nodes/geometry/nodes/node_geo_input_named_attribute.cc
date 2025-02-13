@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "DNA_customdata_types.h"
+
 #include "NOD_rna_define.hh"
 
 #include "UI_interface.hh"

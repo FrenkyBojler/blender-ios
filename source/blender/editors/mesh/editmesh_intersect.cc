@@ -7,6 +7,7 @@
  */
 
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "BLI_buffer.h"
 #include "BLI_linklist_stack.h"

@@ -33,6 +33,7 @@
 #include "DNA_object_fluidsim_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_sound_types.h"

@@ -15,6 +15,7 @@ enum class OutputTypes : uint8_t;
 }  // namespace blender::compositor
 
 struct Render;
+struct RenderData;
 
 /**
  * \brief The main method that is used to execute the compositor tree.

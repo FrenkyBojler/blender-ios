@@ -4,6 +4,8 @@
 
 #include <fmt/format.h>
 
+#include "DNA_scene_types.h"
+
 #include "NOD_inverse_eval_params.hh"
 #include "NOD_inverse_eval_path.hh"
 #include "NOD_inverse_eval_run.hh"

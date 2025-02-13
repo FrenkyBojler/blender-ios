@@ -17,6 +17,7 @@
 #include "NOD_inverse_eval_path.hh"
 
 #include "DNA_modifier_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 

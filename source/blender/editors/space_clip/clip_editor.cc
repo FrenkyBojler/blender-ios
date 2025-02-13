@@ -21,6 +21,7 @@
 
 #include "DNA_defaults.h"
 #include "DNA_mask_types.h"
+#include "DNA_scene_types.h"
 
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"

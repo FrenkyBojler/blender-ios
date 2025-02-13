@@ -4,6 +4,8 @@
 
 #include "node_geometry_util.hh"
 
+#include "DNA_customdata_types.h"
+
 #include "BKE_lib_id.hh"
 #include "BKE_volume.hh"
 #include "BKE_volume_grid.hh"
