@@ -220,7 +220,6 @@ class AddTorus(Operator, object_utils.AddObjectHelper):
         return self.execute(context)
 
     def execute(self, context):
-
         if self.mode == 'EXT_INT':
             extra_helper = (self.abso_major_rad - self.abso_minor_rad) * 0.5
             self.major_radius = self.abso_minor_rad + extra_helper
@@ -252,7 +251,13 @@ class AddTorus(Operator, object_utils.AddObjectHelper):
 
         mesh.update()
 
-        object_utils.object_data_add(context, mesh, operator=self)
+        try:
+            object_utils.object_data_add(context, mesh, operator=self)
+        except RuntimeError:
+            name = mesh.name
+            obj_new = bpy.data.objects.new(name, mesh)
+            context.collection.objects.link(obj_new)
+            obj_new.matrix_world = object_utils.add_object_align_init(context, self)
 
         return {'FINISHED'}
 
