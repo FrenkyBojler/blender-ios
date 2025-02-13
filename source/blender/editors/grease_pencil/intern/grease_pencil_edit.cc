@@ -1381,36 +1381,41 @@ static int grease_pencil_caps_set_exec(bContext *C, wmOperator *op)
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
     if (ELEM(mode, CapsMode::ROUND, CapsMode::FLAT)) {
-      /* TODO: Check if this call failed! */
-      bke::SpanAttributeWriter<int8_t> start_caps =
-          attributes.lookup_or_add_for_write_span<int8_t>("start_cap", bke::AttrDomain::Curve);
-      bke::SpanAttributeWriter<int8_t> end_caps = attributes.lookup_or_add_for_write_span<int8_t>(
-          "end_cap", bke::AttrDomain::Curve);
-
       const int8_t flag_set = (mode == CapsMode::ROUND) ? int8_t(GP_STROKE_CAP_TYPE_ROUND) :
                                                           int8_t(GP_STROKE_CAP_TYPE_FLAT);
-
-      index_mask::masked_fill(start_caps.span, flag_set, strokes);
-      index_mask::masked_fill(end_caps.span, flag_set, strokes);
-      start_caps.finish();
-      end_caps.finish();
+      if (bke::SpanAttributeWriter<int8_t> start_caps =
+              attributes.lookup_or_add_for_write_span<int8_t>("start_cap", bke::AttrDomain::Curve))
+      {
+        index_mask::masked_fill(start_caps.span, flag_set, strokes);
+        start_caps.finish();
+      }
+      if (bke::SpanAttributeWriter<int8_t> end_caps =
+              attributes.lookup_or_add_for_write_span<int8_t>("end_cap", bke::AttrDomain::Curve))
+      {
+        index_mask::masked_fill(end_caps.span, flag_set, strokes);
+        end_caps.finish();
+      }
     }
     else {
       switch (mode) {
         case CapsMode::START: {
-          /* TODO: Check if this call failed! */
-          bke::SpanAttributeWriter<int8_t> caps = attributes.lookup_or_add_for_write_span<int8_t>(
-              "start_cap", bke::AttrDomain::Curve);
-          toggle_caps(caps.span, strokes);
-          caps.finish();
+          if (bke::SpanAttributeWriter<int8_t> caps =
+                  attributes.lookup_or_add_for_write_span<int8_t>("start_cap",
+                                                                  bke::AttrDomain::Curve))
+          {
+            toggle_caps(caps.span, strokes);
+            caps.finish();
+          }
           break;
         }
         case CapsMode::END: {
-          /* TODO: Check if this call failed! */
-          bke::SpanAttributeWriter<int8_t> caps = attributes.lookup_or_add_for_write_span<int8_t>(
-              "end_cap", bke::AttrDomain::Curve);
-          toggle_caps(caps.span, strokes);
-          caps.finish();
+          if (bke::SpanAttributeWriter<int8_t> caps =
+                  attributes.lookup_or_add_for_write_span<int8_t>("end_cap",
+                                                                  bke::AttrDomain::Curve))
+          {
+            toggle_caps(caps.span, strokes);
+            caps.finish();
+          }
           break;
         }
         case CapsMode::ROUND:
@@ -4293,7 +4298,6 @@ static void remap_material_indices(bke::greasepencil::Drawing &drawing,
   bke::CurvesGeometry &curves = drawing.strokes_for_write();
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   /* Validate material indices and add missing materials. */
-  /* TODO: Check if this call failed! */
   bke::SpanAttributeWriter<int> material_writer = attributes.lookup_or_add_for_write_span<int>(
       "material_index", bke::AttrDomain::Curve);
   threading::parallel_for(curves.curves_range(), 1024, [&](const IndexRange range) {

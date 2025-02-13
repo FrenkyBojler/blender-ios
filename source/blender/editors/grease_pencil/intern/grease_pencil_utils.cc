@@ -1280,13 +1280,11 @@ IndexMask retrieve_editable_and_selected_elements(Object &object,
   return {};
 }
 
-static void
-
-    Array<PointTransferData>
-    compute_topology_change(const bke::CurvesGeometry &src,
-                            bke::CurvesGeometry &dst,
-                            const Span<Vector<PointTransferData>> src_to_dst_points,
-                            const bool keep_caps)
+Array<PointTransferData> compute_topology_change(
+    const bke::CurvesGeometry &src,
+    bke::CurvesGeometry &dst,
+    const Span<Vector<PointTransferData>> src_to_dst_points,
+    const bool keep_caps)
 {
   const int src_curves_num = src.curves_num();
   const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
