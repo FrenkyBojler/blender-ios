@@ -989,6 +989,15 @@ void ANIM_flush_setting_anim_channels(bAnimContext *ac,
     return;
   }
 
+  /* When the button in the UI changes the setting, it does NOT call ANIM_channel_setting_set(),
+   * but actually manipulates the data directly via a pointer (see `ui_but_value_set()` in
+   * `source/blender/editors/interface/interface.cc`). As a result, setting_post_update() will
+   * not get called, so we need to call it here. */
+  if (acf->setting_post_update) {
+    BLI_assert(ac->bmain);
+    acf->setting_post_update(*ac->bmain, *match, setting);
+  }
+
   /* get the level of the channel that was affected
    *   - we define the level as simply being the offset for the start of the channel
    */
@@ -996,15 +1005,6 @@ void ANIM_flush_setting_anim_channels(bAnimContext *ac,
 
   anim_flush_channel_setting_up(ac, setting, mode, match, matchLevel);
   anim_flush_channel_setting_down(ac, setting, mode, match, matchLevel);
-
-  if (acf->setting_post_update) {
-    /* Due to the way anim_flush_channel_setting_up/down work, there will be a mismatch between the
-     * `ale` they see, and the actual `ale` of the actual setting being changed. That's why this
-     * call is necessary too. Adding this felt safer to me (Sybren) than changing the behaviour of
-     * anim_flush_channel_setting_up/down, the impact of which is much harder to predict. */
-    BLI_assert(ac->bmain);
-    acf->setting_post_update(*ac->bmain, *match, setting);
-  }
 }
 
 void ANIM_frame_channel_y_extents(bContext *C, bAnimContext *ac)
