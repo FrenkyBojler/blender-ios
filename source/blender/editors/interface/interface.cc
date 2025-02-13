@@ -1170,6 +1170,11 @@ static void ui_menu_block_set_keyaccels(uiBlock *block)
         continue;
       }
 
+      if (pass == 0 && ELEM(but->type, UI_BTYPE_ICON_TOGGLE, UI_BTYPE_ICON_TOGGLE_N)) {
+        /* Don't assign to toggles on first pass to keep first letter compatibility with 4.3. */
+        continue;
+      }
+
       if (but->menu_key != '\0') {
         continue;
       }
