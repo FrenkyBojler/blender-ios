@@ -13,6 +13,7 @@
 #include "BLI_math_rotation.h"
 
 #include "hydra_scene_delegate.hh"
+#include <Kernel/math.h>
 
 namespace blender::io::hydra {
 
@@ -77,11 +78,11 @@ void LightData::init()
   float intensity;
   if (light->type == LA_SUN) {
     /* Unclear why, but approximately matches Karma. */
-    intensity = light->energy / 4.0f;
+    intensity = (light->energy / 4.0f) * exp2f(light->exposure);
   }
   else {
     /* Convert from radiant flux to intensity. */
-    intensity = light->energy / M_PI;
+    intensity = (light->energy / M_PI) * exp2f(light->exposure);
   }
 
   data_[pxr::HdLightTokens->intensity] = intensity;

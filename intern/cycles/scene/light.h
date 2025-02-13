@@ -34,6 +34,7 @@ class Light : public Node {
 
   NODE_SOCKET_API(LightType, light_type)
   NODE_SOCKET_API(float3, strength)
+  NODE_SOCKET_API(float, exposure)
 
   NODE_SOCKET_API(float, size)
   NODE_SOCKET_API(float, angle)

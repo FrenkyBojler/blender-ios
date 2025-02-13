@@ -95,6 +95,7 @@ NODE_DEFINE(Light)
   SOCKET_ENUM(light_type, "Type", type_enum, LIGHT_POINT);
 
   SOCKET_COLOR(strength, "Strength", one_float3());
+  SOCKET_FLOAT(exposure, "Exposure", 0.0f)
 
   SOCKET_FLOAT(size, "Size", 0.0f);
   SOCKET_FLOAT(angle, "Angle", 0.0f);

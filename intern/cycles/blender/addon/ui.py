@@ -1532,6 +1532,7 @@ class CYCLES_LIGHT_PT_light(CyclesButtonsPanel, Panel):
 
         col.prop(light, "color")
         col.prop(light, "energy")
+        col.prop(light, "exposure")
         col.separator()
 
         if light.type in {'POINT', 'SPOT'}:
