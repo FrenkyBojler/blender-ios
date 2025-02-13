@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2009-2025 Blender Authors
+# SPDX-FileCopyrightText: 2025 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -45,7 +45,7 @@ class GREASE_PENCIL_OT_relative_layer_mask_add(Operator):
             return {'CANCELLED'}
 
         if masking_layer.name in active_layer.mask_layers:
-            self.report({'ERROR'}, "Layer already added")
+            self.report({'ERROR'}, "Layer is already added as a mask")
             return {'CANCELLED'}
 
         bpy.ops.grease_pencil.layer_mask_add(name=masking_layer.name)
