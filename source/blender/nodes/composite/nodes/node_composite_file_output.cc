@@ -680,6 +680,9 @@ class FileOutputOperation : public NodeOperation {
       case ResultType::Vector:
         file_output.add_pass(pass_name, view_name, "XYZ", float4_to_float3_image(size, buffer));
         break;
+      case ResultType::Float3:
+        file_output.add_pass(pass_name, view_name, "XYZ", buffer);
+        break;
       case ResultType::MotionVector:
         file_output.add_pass(pass_name, view_name, "XYZW", buffer);
         break;
@@ -710,16 +713,33 @@ class FileOutputOperation : public NodeOperation {
         return buffer;
       }
       case ResultType::Vector:
-      case ResultType::MotionVector:
       case ResultType::Color: {
         float *buffer = static_cast<float *>(MEM_malloc_arrayN(
             size_t(size.x) * size.y, sizeof(float[4]), "File Output Inflated Buffer."));
 
-        const float4 value = result.type() == ResultType::Color ?
-                                 result.get_single_value<float4>() :
-                                 result.get_single_value<float4>();
+        const float4 value = result.get_single_value<float4>();
         parallel_for(size, [&](const int2 texel) {
           copy_v4_v4(buffer + ((int64_t(texel.y) * size.x + texel.x) * 4), value);
+        });
+        return buffer;
+      }
+      case ResultType::MotionVector: {
+        float *buffer = static_cast<float *>(MEM_malloc_arrayN(
+            size_t(size.x) * size.y, sizeof(float[4]), "File Output Inflated Buffer."));
+
+        const MotionVector value = result.get_single_value<MotionVector>();
+        parallel_for(size, [&](const int2 texel) {
+          copy_v4_v4(buffer + ((int64_t(texel.y) * size.x + texel.x) * 4), value);
+        });
+        return buffer;
+      }
+      case ResultType::Float3: {
+        float *buffer = static_cast<float *>(MEM_malloc_arrayN(
+            size_t(size.x) * size.y, sizeof(float[3]), "File Output Inflated Buffer."));
+
+        const float3 value = result.get_single_value<float3>();
+        parallel_for(size, [&](const int2 texel) {
+          copy_v3_v3(buffer + ((int64_t(texel.y) * size.x + texel.x) * 3), value);
         });
         return buffer;
       }
@@ -757,6 +777,9 @@ class FileOutputOperation : public NodeOperation {
         break;
       case ResultType::Vector:
         file_output.add_view(view_name, 3, float4_to_float3_image(size, buffer));
+        break;
+      case ResultType::Float3:
+        file_output.add_view(view_name, 3, buffer);
         break;
       case ResultType::Float:
         file_output.add_view(view_name, 1, buffer);
