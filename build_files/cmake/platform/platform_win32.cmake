@@ -63,6 +63,7 @@ set(WINDOWS_ARM64_MIN_VSCMD_VER 17.12.3)
 # This checks for the version on initial run, and caches it, so users do not have to run the VS CMD window every time
 if(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
   set(VC_VSCMD_VER $ENV{VSCMD_VER} CACHE STRING "Version of the VSCMD initially run from")
+  mark_as_advanced(VC_VSCMD_VER)
   set(VSCMD_VER ${VC_VSCMD_VER})
   if(DEFINED VSCMD_VER)
     if(VSCMD_VER VERSION_LESS WINDOWS_ARM64_MIN_VSCMD_VER)
