@@ -10,10 +10,10 @@ from bpy.props import (
 
 
 class GREASE_PENCIL_OT_relative_layer_mask_add(Operator):
-    """Mask active layer with above or below"""
+    """Mask active layer with layer above or below"""
 
     bl_idname = "grease_pencil.relative_layer_mask_add"
-    bl_label = "Mask with Above/Below"
+    bl_label = "Mask with Layer Above/Below"
     bl_options = {'REGISTER', 'UNDO'}
 
     mode: EnumProperty(
@@ -22,7 +22,7 @@ class GREASE_PENCIL_OT_relative_layer_mask_add(Operator):
             ('ABOVE', "Above", ""),
             ('BELOW', "Below", "")
         ),
-        description="Mask active layer with above or below",
+        description="Which relative layer (above or below) to use as a mask",
         default='ABOVE',
     )
 
@@ -35,13 +35,16 @@ class GREASE_PENCIL_OT_relative_layer_mask_add(Operator):
         obj = context.active_object
         active_layer = obj.data.layers.active
 
-        masking_layer = (active_layer.prev_node, active_layer.next_node)[self.mode == 'ABOVE']
+        if self.mode == 'ABOVE':
+            masking_layer = active_layer.next_node
+        elif self.mode == 'BELOW':
+            masking_layer = active_layer.prev_node
 
-        if (masking_layer is None or type(masking_layer) != bpy.types.GreasePencilLayer):
-            self.report({'ERROR'}, "No node found")
+        if masking_layer is None or type(masking_layer) != bpy.types.GreasePencilLayer:
+            self.report({'ERROR'}, "No layer found")
             return {'CANCELLED'}
 
-        if(masking_layer.name in active_layer.mask_layers):
+        if masking_layer.name in active_layer.mask_layers:
             self.report({'ERROR'}, "Layer already added")
             return {'CANCELLED'}
 
