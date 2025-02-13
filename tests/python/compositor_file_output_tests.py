@@ -32,11 +32,11 @@ class FileOutputTest(unittest.TestCase):
     def setUpClass(cls):
         cls.testdir = pathlib.Path(args.testdir)
         cls.outdir = pathlib.Path(args.outdir)
-        cls.execution_device = "GPU" if args.gpu else "CPU"
+        cls.execution_device = "GPU" if args.gpu_backend else "CPU"
         cls.update = os.getenv("BLENDER_TEST_UPDATE") is not None
 
         # Images that look similar enough should pass the test
-        cls.fail_relative_threshold = 1.0
+        cls.fail_threshold = 0.001
 
         comp_outdir = os.path.dirname(cls.outdir)
         if not os.path.exists(comp_outdir):
@@ -92,7 +92,7 @@ class FileOutputTest(unittest.TestCase):
             out_img = oiio.ImageBuf(os.path.join(curr_outdir, img))
 
             # Compare image content
-            comp = oiio.ImageBufAlgo.compare(ref_img, out_img, 0, 0, failrelative=self.fail_relative_threshold)
+            comp = oiio.ImageBufAlgo.compare(ref_img, out_img, self.fail_threshold, 0)
             if comp.nfail != 0:
                 print_message("Image content mismatch for '{:s}'".format(img),
                               'FAILURE', 'FAILED')
@@ -190,7 +190,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--testdir", required=True)
     parser.add_argument("--outdir", required=True)
-    parser.add_argument("--gpu", required=False, action='store_true')
+    parser.add_argument("--gpu-backend", required=False)
     args, remaining = parser.parse_known_args(argv)
 
     unittest.main(argv=remaining)
