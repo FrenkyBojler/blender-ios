@@ -237,6 +237,7 @@ static const EnumPropertyItem prop_simplify_modes[] = {
 
 static IndexMask simplify_fixed(const bke::CurvesGeometry &curves,
                                 const int step,
+                                IndexMask stroke_selection,
                                 IndexMaskMemory &memory)
 {
   const OffsetIndices points_by_curve = curves.points_by_curve();
@@ -244,6 +245,9 @@ static IndexMask simplify_fixed(const bke::CurvesGeometry &curves,
   return IndexMask::from_predicate(
       curves.points_range(), GrainSize(2048), memory, [&](const int64_t i) {
         const int curve_i = point_to_curve_map[i];
+        if (!stroke_selection.contains(curve_i)) {
+          return true;
+        }
         const IndexRange points = points_by_curve[curve_i];
         if (points.size() <= 2) {
           return true;
@@ -279,7 +283,7 @@ static int grease_pencil_stroke_simplify_exec(bContext *C, wmOperator *op)
     switch (mode) {
       case SimplifyMode::FIXED: {
         const int steps = RNA_int_get(op->ptr, "steps");
-        const IndexMask points_to_keep = simplify_fixed(curves, steps, memory);
+        const IndexMask points_to_keep = simplify_fixed(curves, steps, strokes, memory);
         if (points_to_keep.is_empty()) {
           info.drawing.strokes_for_write() = {};
           break;
@@ -324,7 +328,7 @@ static int grease_pencil_stroke_simplify_exec(bContext *C, wmOperator *op)
             curves.points_range(), GrainSize(2048), memory, [&](const int64_t i) {
               const int curve_i = point_to_curve_map[i];
               const IndexRange points = points_by_curve[curve_i];
-              if (points.drop_front(1).drop_back(1).contains(i)) {
+              if (strokes.contains(curve_i) && points.drop_front(1).drop_back(1).contains(i)) {
                 return true;
               }
               return false;
