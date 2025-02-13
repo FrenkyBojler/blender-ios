@@ -18,13 +18,6 @@ endif()
 get_filename_component(_hip_bin_path ${HIP_HIPCC_EXECUTABLE} DIRECTORY)
 get_filename_component(_hip_path ${_hip_bin_path} DIRECTORY)
 
-set(HIPRT_ENV "")
-if(LINUX)
-  # HIP-RT does not explicitly prefix hipcc with the HIP_PATH and calls it
-  # directly on Linux. Work this around by ensuring hipcc is in the PATH.
-  set(HIPRT_ENV "PATH=$ENV{PATH}:${_hip_bin_path}")
-endif()
-
 set(HIPRT_EXTRA_ARGS
   -DCMAKE_BUILD_TYPE=Release
   -DHIP_PATH=${_hip_path}
@@ -46,13 +39,6 @@ ExternalProject_Add(external_hiprt
   URL_HASH ${HIPRT_HASH_TYPE}=${HIPRT_HASH}
   CMAKE_GENERATOR ${PLATFORM_ALT_GENERATOR}
   PREFIX ${BUILD_DIR}/hiprt
-
-  CMAKE_COMMAND ${CMAKE_COMMAND} -E env ${HIPRT_ENV} ${CMAKE_COMMAND}
-
-  PATCH_COMMAND
-  ${PATCH_CMD} -p 1 -d
-    ${BUILD_DIR}/hiprt/src/external_hiprt <
-    ${PATCH_DIR}/hiprt.diff
 
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/hiprt
