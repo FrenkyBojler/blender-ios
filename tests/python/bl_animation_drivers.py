@@ -196,7 +196,7 @@ class ContextViewLayerDriverTest(AbstractEmptyDriverTest, unittest.TestCase):
 
 class SubIdDriverRemovalTest(AbstractEmptyDriverTest, unittest.TestCase):
 
-    def test_remove_modifier(self):
+    def test_remove_object_modifier(self):
         # Removing a modifier with a driver should also delete the driver
         modifier = self.obj.modifiers.new("test", 'ARRAY')
         # No animation data means no drivers.
@@ -207,6 +207,40 @@ class SubIdDriverRemovalTest(AbstractEmptyDriverTest, unittest.TestCase):
         self.assertEqual(len(self.obj.modifiers), 0)
         self.assertEqual(len(self.obj.animation_data.drivers), 0,
                          "Removing the modifier should remove the driver on it")
+
+    def test_remove_object_constraint(self):
+        # Using limit distance constraint because that has a property that can have a driver.
+        constraint = self.obj.constraints.new('LIMIT_DISTANCE')
+        constraint.name = "test"
+        # No animation data means no drivers.
+        self.assertEqual(self.obj.animation_data, None)
+        self.obj.driver_add('constraints["test"].distance')
+        self.assertEqual(len(self.obj.animation_data.drivers), 1)
+        self.obj.constraints.remove(constraint)
+        self.assertEqual(len(self.obj.constraints), 0)
+        self.assertEqual(len(self.obj.animation_data.drivers), 0,
+                         "Removing the constraint should remove the driver on it")
+
+    def test_remove_bone_constraint(self):
+        arm = bpy.data.armatures.new('Armature')
+        arm_ob = bpy.data.objects.new('ArmObject', arm)
+        bpy.context.scene.collection.objects.link(arm_ob)
+        bpy.context.view_layer.objects.active = arm_ob
+        bpy.ops.object.mode_set(mode='EDIT')
+        ebone = arm.edit_bones.new(name="test")
+        ebone.tail = (1, 0, 0)
+        bpy.ops.object.mode_set(mode='POSE')
+        pose_bone = arm_ob.pose.bones["test"]
+        constraint = pose_bone.constraints.new('LIMIT_DISTANCE')
+        constraint.name = "test"
+        self.assertEqual(len(pose_bone.constraints), 1)
+        arm_ob.driver_add('pose.bones["test"].constraints["test"].distance')
+        self.assertEqual(len(arm_ob.animation_data.drivers), 1)
+        pose_bone.constraints.remove(constraint)
+        self.assertEqual(len(pose_bone.constraints), 0)
+        self.assertEqual(len(arm_ob.animation_data.drivers), 0,
+                         "removing the constraint should remove the driver on it")
+
 
 
 def main():
