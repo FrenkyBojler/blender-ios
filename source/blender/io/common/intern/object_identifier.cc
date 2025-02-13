@@ -46,25 +46,6 @@ bool ObjectIdentifier::is_root() const
   return object == nullptr;
 }
 
-bool operator<(const ObjectIdentifier &obj_ident_a, const ObjectIdentifier &obj_ident_b)
-{
-  if (obj_ident_a.object != obj_ident_b.object) {
-    return obj_ident_a.object < obj_ident_b.object;
-  }
-
-  if (obj_ident_a.duplicated_by != obj_ident_b.duplicated_by) {
-    return obj_ident_a.duplicated_by < obj_ident_b.duplicated_by;
-  }
-
-  if (obj_ident_a.duplicated_by == nullptr) {
-    /* Both are real objects, no need to check the persistent ID. */
-    return false;
-  }
-
-  /* Same object, both are duplicated, use the persistent IDs to determine order. */
-  return obj_ident_a.persistent_id < obj_ident_b.persistent_id;
-}
-
 bool operator==(const ObjectIdentifier &obj_ident_a, const ObjectIdentifier &obj_ident_b)
 {
   if (obj_ident_a.object != obj_ident_b.object) {
