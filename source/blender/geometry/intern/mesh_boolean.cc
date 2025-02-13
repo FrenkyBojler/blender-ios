@@ -1180,7 +1180,8 @@ Mesh *mesh_boolean(Span<const Mesh *> meshes,
                                    transforms,
                                    target_transform,
                                    material_remaps,
-                                   op_params);
+                                   op_params,
+                                   r_intersecting_edges);
 #else
       return nullptr;
 #endif

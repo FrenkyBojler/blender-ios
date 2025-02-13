@@ -12,6 +12,7 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
                             Span<float4x4> transforms,
                             const float4x4 &target_transform,
                             Span<Array<short>> material_remaps,
-                            BooleanOpParameters op_params);
+                            BooleanOpParameters op_params,
+                            Vector<int> *r_intersecting_edges);
 
 }

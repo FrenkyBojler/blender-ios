@@ -1257,12 +1257,64 @@ static void add_edge_attributes_from_mesh(Mesh *to_mesh, const Mesh *from_mesh)
   });
 }
 
+/* What mesh_id corresponds to a given face_id, assuming that the face_id
+ * is in one of the ranges of mesh_offsets.face_offsets. */
+static inline int mesh_id_for_face(int face_id, const MeshOffsets &mesh_offsets)
+{
+  for (const int mesh_id : mesh_offsets.face_offsets.index_range()) {
+    if (mesh_offsets.face_offsets[mesh_id].contains(face_id)) {
+      return mesh_id;
+    }
+  }
+  return -1;
+}
+
+/* Find the edges that are the result of interesecting one mesh with another,
+ * and add their indices to \a r_intersecting_edges. */
+static void get_intersecting_edges(Vector<int> *r_intersecting_edges,
+                                   const Mesh *mesh,
+                                   const OutToInMaps &out_to_in,
+                                   const MeshOffsets &mesh_offsets)
+{
+  /* In a manifold mesh, every edge is adjacent to exactly two faces.
+   * Find them, and when we have a pair, check to see if those faces came
+   * from separate input meshes, and add the edge to r_intersecting_Edges if so. */
+#ifdef DEBUG_TIME
+  timeit::ScopedTimer timer("get_intersecting_edges");
+#endif
+  OffsetIndices<int> faces = mesh->faces();
+  Span<int> corner_edges = mesh->corner_edges();
+  Array<int> edge_first_face(mesh->edges_num, -1);
+  for (int face_i : faces.index_range()) {
+    for (const int edge_i : corner_edges.slice(faces[face_i])) {
+      int face2_i = edge_first_face[edge_i];
+      if (face2_i == -1) {
+        edge_first_face[edge_i] = face_i;
+      }
+      else {
+        int in_face_i = out_to_in.face_map[face_i];
+        int in_face2_i = out_to_in.face_map[face2_i];
+        int m1 = mesh_id_for_face(in_face_i, mesh_offsets);
+        int m2 = mesh_id_for_face(in_face2_i, mesh_offsets);
+        BLI_assert(m1 != -1 && m2 != -1);
+        if (m1 != m2) {
+          r_intersecting_edges->append(edge_i);
+        }
+      }
+    }
+  }
+}
+
+
 /* Convert the meshgl that is the result of the boolean back into a
  * Blender Mesh.
+ * If \a r_intersecting_edges is not null, fill it with the edge indices
+ * of edges that saparate two different meshes of the input.
  */
 static Mesh *meshgl_to_mesh(const MeshGL &mgl,
                             const Mesh *joined_mesh,
-                            const MeshOffsets &mesh_offsets)
+                            const MeshOffsets &mesh_offsets,
+                            Vector<int> *r_intersecting_edges)
 {
   constexpr int dbg_level = 0;
   if (dbg_level > 0) {
@@ -1406,6 +1458,9 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
       interpolate_corner_attributes(
           output_attrs, join_attrs, mesh, joined_mesh, out_to_in.corner_map, out_to_in.face_map);
     }
+    if (r_intersecting_edges != nullptr) {
+      get_intersecting_edges(r_intersecting_edges, mesh, out_to_in, mesh_offsets);
+    }
   }
   return mesh;
 }
@@ -1428,7 +1483,8 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
                             Span<float4x4> transforms,
                             const float4x4 &target_transform,
                             Span<Array<short>>,
-                            BooleanOpParameters op_params)
+                            BooleanOpParameters op_params,
+                            Vector<int> *r_intersecting_edges)
 {
   constexpr int dbg_level = 0;
   if (dbg_level > 0) {
@@ -1483,7 +1539,7 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
 #ifdef DEBUG_TIME
       timeit::ScopedTimer timer_out("MESHGL RESULT TO MESH");
 #endif
-      mesh_result = meshgl_to_mesh(meshgl_result, joined_mesh, mesh_offsets);
+      mesh_result = meshgl_to_mesh(meshgl_result, joined_mesh, mesh_offsets, r_intersecting_edges);
     }
     /* TODO: if (unlikely) target_transform is not identity, trasform the mesh. */
     UNUSED_VARS(target_transform);

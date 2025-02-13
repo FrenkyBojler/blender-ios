@@ -183,7 +183,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   AttributeOutputs attribute_outputs;
-  if (solver == geometry::boolean::Solver::MeshArr) {
+  if (solver == geometry::boolean::Solver::MeshArr ||
+      solver == geometry::boolean::Solver::Manifold) {
     attribute_outputs.intersecting_edges_id = params.get_output_anonymous_attribute_id_if_needed(
         "Intersecting Edges");
   }
