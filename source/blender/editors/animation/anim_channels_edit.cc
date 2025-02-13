@@ -989,15 +989,6 @@ void ANIM_flush_setting_anim_channels(bAnimContext *ac,
     return;
   }
 
-  /* When the button in the UI changes the setting, it does NOT call ANIM_channel_setting_set(),
-   * but actually manipulates the data directly via a pointer (see `ui_but_value_set()` in
-   * `source/blender/editors/interface/interface.cc`). As a result, setting_post_update() will
-   * not get called, so we need to call it here. */
-  if (acf->setting_post_update) {
-    BLI_assert(ac->bmain);
-    acf->setting_post_update(*ac->bmain, *match, setting);
-  }
-
   /* get the level of the channel that was affected
    *   - we define the level as simply being the offset for the start of the channel
    */

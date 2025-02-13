@@ -4372,7 +4372,7 @@ static void *acf_nlatrack_setting_ptr(bAnimListElem *ale,
 }
 
 static void acf_nlatrack_setting_post_update(Main &bmain,
-                                             bAnimListElem & /*ale*/,
+                                             const bAnimListElem & /*ale*/,
                                              const eAnimChannel_Settings setting)
 {
   switch (setting) {
@@ -4680,7 +4680,7 @@ static void ANIM_init_channel_typeinfo_data()
   }
 }
 
-const bAnimChannelType *ANIM_channel_get_typeinfo(bAnimListElem *ale)
+const bAnimChannelType *ANIM_channel_get_typeinfo(const bAnimListElem *ale)
 {
   /* Sanity checks. */
   if (ale == nullptr) {
@@ -5320,9 +5320,32 @@ void ANIM_channel_draw(
 /* ------------------ */
 
 /* callback for (normal) widget settings - send notifiers */
-static void achannel_setting_widget_cb(bContext *C, void * /*arg1*/, void * /*arg2*/)
+static void achannel_setting_widget_cb(bContext *C, void *ale_npoin, void *setting_wrap)
 {
   WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+
+  bAnimListElem *ale_setting = (bAnimListElem *)ale_npoin;
+  const bAnimChannelType *acf = ANIM_channel_get_typeinfo(ale_setting);
+  if (!acf) {
+    /* Any channel with settings should have a type, because it is the type that
+     * tells the system which settings are supported. */
+    BLI_assert_unreachable();
+    return;
+  }
+
+  /* When the button in the UI changes the setting, it does NOT call `ANIM_channel_setting_set()`,
+   * but actually manipulates the data directly via a pointer (see `ui_but_value_set()` in
+   * `source/blender/editors/interface/interface.cc`).
+   *
+   * As a result, `setting_post_update()` was not called yet and we need to call it here. */
+  if (acf->setting_post_update) {
+    const eAnimChannel_Settings setting = eAnimChannel_Settings(POINTER_AS_INT(setting_wrap));
+    Main *bmain = CTX_data_main(C);
+
+    BLI_assert(ale_setting);
+    BLI_assert(bmain);
+    acf->setting_post_update(*bmain, *ale_setting, setting);
+  }
 }
 
 /* callback for widget settings that need flushing */
@@ -5332,11 +5355,11 @@ static void achannel_setting_flush_widget_cb(bContext *C, void *ale_npoin, void 
   bAnimContext ac;
   ListBase anim_data = {nullptr, nullptr};
   int filter;
-  int setting = POINTER_AS_INT(setting_wrap);
+  const eAnimChannel_Settings setting = eAnimChannel_Settings(POINTER_AS_INT(setting_wrap));
   short on = 0;
 
-  /* send notifiers before doing anything else... */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+  /* Before flushing, just do the regular notification & callback. */
+  achannel_setting_widget_cb(C, ale_npoin, setting_wrap);
 
   /* verify that we have a channel to operate on. */
   if (!ale_setting) {
@@ -5393,18 +5416,19 @@ static void achannel_setting_flush_widget_cb(bContext *C, void *ale_npoin, void 
   ANIM_flush_setting_anim_channels(
       &ac, &anim_data, ale_setting, eAnimChannel_Settings(setting), eAnimChannels_SetFlag(on));
 
-  ANIM_animdata_update(&ac, &anim_data);
-
   /* free temp data */
   ANIM_animdata_freelist(&anim_data);
 }
 
 /* callback for wrapping NLA Track "solo" toggle logic */
-static void achannel_nlatrack_solo_widget_cb(bContext *C, void *ale_poin, void * /*arg2*/)
+static void achannel_nlatrack_solo_widget_cb(bContext *C, void *ale_poin, void *setting_wrap)
 {
   bAnimListElem *ale = static_cast<bAnimListElem *>(ale_poin);
   AnimData *adt = ale->adt;
   NlaTrack *nlt = static_cast<NlaTrack *>(ale->data);
+
+  /* Before the special handling, just do the regular notification & callback. */
+  achannel_setting_widget_cb(C, ale_poin, setting_wrap);
 
   /* Toggle 'solo' mode. There are several complications here which need explaining:
    * - The method call is needed to perform a few additional validation operations
@@ -5416,9 +5440,7 @@ static void achannel_nlatrack_solo_widget_cb(bContext *C, void *ale_poin, void *
   nlt->flag ^= NLATRACK_SOLO;
   BKE_nlatrack_solo_toggle(adt, nlt);
 
-  /* send notifiers */
   DEG_id_tag_update(ale->id, ID_RECALC_ANIMATION);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
 }
 
 /* callback for widget sliders - insert keyframes */
@@ -5781,7 +5803,8 @@ static void draw_setting_widget(bAnimContext *ac,
 
     /* settings needing special attention */
     case ACHANNEL_SETTING_SOLO: /* NLA Tracks - Solo toggle */
-      UI_but_funcN_set(but, achannel_nlatrack_solo_widget_cb, MEM_dupallocN(ale), nullptr);
+      UI_but_funcN_set(
+          but, achannel_nlatrack_solo_widget_cb, MEM_dupallocN(ale), POINTER_FROM_INT(setting));
       break;
 
     /* no flushing */
