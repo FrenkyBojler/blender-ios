@@ -4,7 +4,9 @@
 
 #include <cstring>
 
+#include "BLI_color.hh"
 #include "BLI_listbase.h"
+#include "BLI_math_base.h"
 #include "BLI_math_vector.hh"
 
 #include "DNA_space_types.h"

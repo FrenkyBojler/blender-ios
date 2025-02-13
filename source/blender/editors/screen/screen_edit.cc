@@ -6,6 +6,7 @@
  * \ingroup edscr
  */
 
+#include <climits>
 #include <cmath>
 #include <cstring>
 

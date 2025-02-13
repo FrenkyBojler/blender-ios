@@ -6,6 +6,9 @@
  * \ingroup nodes
  */
 
+#include <cfloat>
+
+#include "BLI_color.hh"
 #include "BLI_math_euler.hh"
 #include "BLI_string.h"
 

@@ -9,6 +9,7 @@
  */
 
 #include <algorithm>
+#include <climits>
 #include <cstring>
 
 #include "BLO_readfile.hh"

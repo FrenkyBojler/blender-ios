@@ -8,6 +8,8 @@
  * Helper functions for area/region API.
  */
 
+#include <climits>
+
 #include "BKE_screen.hh"
 
 #include "BLI_rect.h"

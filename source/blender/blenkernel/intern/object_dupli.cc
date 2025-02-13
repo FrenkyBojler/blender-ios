@@ -20,6 +20,7 @@
 #include "BLI_string_utf8.h"
 
 #include "BLI_array.hh"
+#include "BLI_color.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
