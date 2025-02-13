@@ -16,7 +16,6 @@
 #  include "BLI_span.hh"
 #  include "BLI_string_ref.hh"
 
-#  include <memory>
 #endif
 
 #ifdef __cplusplus

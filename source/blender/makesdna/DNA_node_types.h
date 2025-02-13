@@ -16,7 +16,6 @@
 
 /** Workaround to forward-declare C++ type in C header. */
 #ifdef __cplusplus
-#  include <string>
 
 #  include "BLI_vector.hh"
 
