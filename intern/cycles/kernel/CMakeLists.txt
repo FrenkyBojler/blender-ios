@@ -1063,8 +1063,6 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
     -mllvm -inlinehint-threshold=350
     -fsycl-device-code-split=per_kernel
     -fsycl-max-parallel-link-jobs=${SYCL_OFFLINE_COMPILER_PARALLEL_JOBS}
-    --offload-compress
-    --offload-compression-level=19
     -shared
     -DWITH_ONEAPI
     -O2
@@ -1079,6 +1077,14 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
     -I"${CMAKE_CURRENT_SOURCE_DIR}/.."
     ${SYCL_CPP_FLAGS}
   )
+
+  # Compression is only supported with AOT kernels
+  if(WITH_CYCLES_ONEAPI_BINARIES)
+    list(APPEND sycl_compiler_flags
+      --offload-compress
+      --offload-compression-level=19
+    )
+  endif()
 
   if(WITH_CYCLES_ONEAPI_HOST_TASK_EXECUTION)
     list(APPEND sycl_compiler_flags -DWITH_ONEAPI_SYCL_HOST_TASK)
