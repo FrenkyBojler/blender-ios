@@ -11,6 +11,7 @@
 #include "subd/split.h"
 
 #include "util/algorithm.h"
+#include "util/math.h"
 
 CCL_NAMESPACE_BEGIN
 
