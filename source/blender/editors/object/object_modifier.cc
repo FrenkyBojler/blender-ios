@@ -388,7 +388,7 @@ static bool object_modifier_remove(
   PointerRNA modifier_ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Modifier, md);
   const std::optional<std::string> base_path = RNA_path_from_ID_to_struct(&modifier_ptr);
   if (base_path.has_value()) {
-    BKE_animdata_fix_paths_remove(&ob->id, base_path.value().c_str());
+    BKE_animdata_driver_path_remove(&ob->id, base_path.value().c_str());
   }
   else {
     /* The modifier exists, so the path should always resolve. */

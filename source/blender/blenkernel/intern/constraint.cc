@@ -5748,7 +5748,7 @@ bool BKE_constraint_remove_ex(ListBase *list, Object *ob, bConstraint *con)
   PointerRNA constraint_ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Constraint, con);
   const std::optional<std::string> base_path = RNA_path_from_ID_to_struct(&constraint_ptr);
   if (base_path.has_value()) {
-    BKE_animdata_fix_paths_remove(&ob->id, base_path.value().c_str());
+    BKE_animdata_driver_path_remove(&ob->id, base_path.value().c_str());
   }
   else {
     /* The constraint exists, so the path should always resolve. */
