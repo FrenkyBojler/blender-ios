@@ -22,22 +22,16 @@
 
 #include "BLI_bounds.hh"
 #include "BLI_endian_switch.h"
-#include "BLI_ghash.h"
 #include "BLI_hash.h"
 #include "BLI_implicit_sharing.hh"
 #include "BLI_index_range.hh"
-#include "BLI_linklist.h"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.hh"
-#include "BLI_memarena.h"
 #include "BLI_memory_counter.hh"
-#include "BLI_ordered_edge.hh"
-#include "BLI_resource_scope.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_string.h"
-#include "BLI_string_utils.hh"
 #include "BLI_task.hh"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
@@ -47,6 +41,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_anim_data.hh"
+#include "BKE_anonymous_attribute_id.hh"
 #include "BKE_attribute.hh"
 #include "BKE_bake_data_block_id.hh"
 #include "BKE_bpath.hh"
@@ -483,9 +478,9 @@ IDTypeInfo IDType_ID_ME = {
     /*lib_override_apply_post*/ nullptr,
 };
 
-bool BKE_mesh_attribute_required(const char *name)
+bool BKE_mesh_attribute_required(const StringRef name)
 {
-  return ELEM(StringRef(name), "position", ".corner_vert", ".corner_edge", ".edge_verts");
+  return ELEM(name, "position", ".corner_vert", ".corner_edge", ".edge_verts");
 }
 
 void BKE_mesh_ensure_skin_customdata(Mesh *mesh)
@@ -1168,7 +1163,7 @@ void BKE_mesh_assign_object(Main *bmain, Object *ob, Mesh *mesh)
     id_us_plus((ID *)mesh);
   }
 
-  BKE_object_materials_test(bmain, ob, (ID *)mesh);
+  BKE_object_materials_sync_length(bmain, ob, (ID *)mesh);
 
   BKE_modifiers_test_object(ob);
 }
@@ -1356,15 +1351,29 @@ void BKE_mesh_transform(Mesh *mesh, const float mat[4][4], bool do_keys)
 std::optional<int> Mesh::material_index_max() const
 {
   this->runtime->max_material_index.ensure([&](std::optional<int> &value) {
+    if (this->runtime->edit_mesh && this->runtime->edit_mesh->bm) {
+      BMesh *bm = this->runtime->edit_mesh->bm;
+      if (bm->totface == 0) {
+        value = std::nullopt;
+        return;
+      }
+      int max_material_index = 0;
+      BMFace *efa;
+      BMIter iter;
+      BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
+        max_material_index = std::max<int>(max_material_index, efa->mat_nr);
+      }
+      value = max_material_index;
+      return;
+    }
     if (this->faces_num == 0) {
       value = std::nullopt;
+      return;
     }
-    else {
-      value = blender::bounds::max<int>(
-          this->attributes()
-              .lookup_or_default<int>("material_index", blender::bke::AttrDomain::Face, 0)
-              .varray);
-    }
+    value = blender::bounds::max<int>(
+        this->attributes()
+            .lookup_or_default<int>("material_index", blender::bke::AttrDomain::Face, 0)
+            .varray);
   });
   return this->runtime->max_material_index.data();
 }

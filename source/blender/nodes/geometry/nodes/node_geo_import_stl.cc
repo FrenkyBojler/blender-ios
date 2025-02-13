@@ -4,14 +4,12 @@
 
 #include "node_geometry_util.hh"
 
-#include "BKE_mesh.hh"
-
-#include "BKE_report.hh"
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 
-#include "IO_stl.hh"
+#include "BKE_report.hh"
 
-#include "node_geometry_util.hh"
+#include "IO_stl.hh"
 
 namespace blender::nodes::node_geo_import_stl {
 

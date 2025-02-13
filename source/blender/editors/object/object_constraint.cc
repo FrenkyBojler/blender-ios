@@ -6,12 +6,14 @@
  * \ingroup edobj
  */
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_dynstr.h"
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
@@ -34,6 +36,7 @@
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_layer.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
@@ -1964,9 +1967,7 @@ static int constraint_move_to_index_exec(bContext *C, wmOperator *op)
   bConstraint *con = edit_constraint_property_get(C, op, ob, 0);
 
   int new_index = RNA_int_get(op->ptr, "index");
-  if (new_index < 0) {
-    new_index = 0;
-  }
+  new_index = std::max(new_index, 0);
 
   if (con) {
     constraint_move_to_index(ob, con, new_index);

@@ -7,6 +7,7 @@
  */
 
 #include "BLI_assert.h"
+#include "BLI_listbase.h"
 #include "BLI_math_angle_types.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_matrix.hh"
@@ -36,7 +37,7 @@ static void cmp_node_scale_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .compositor_realization_options(CompositorInputRealizationOptions::None)
+      .compositor_realization_mode(CompositorInputRealizationMode::None)
       .compositor_domain_priority(0);
   b.add_input<decl::Float>("X")
       .default_value(1.0f)

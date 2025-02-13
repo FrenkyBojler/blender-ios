@@ -9,7 +9,6 @@
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
 
-#include <cstdio>
 #include <cstring>
 
 #include "AS_asset_representation.hh"
@@ -24,6 +23,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
@@ -41,6 +41,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_object.hh"
 #include "BKE_scene.hh"
@@ -518,7 +519,7 @@ static void view3d_ob_drop_on_enter(wmDropBox *drop, wmDrag *drag)
     return;
   }
 
-  state = static_cast<V3DSnapCursorState *>(ED_view3d_cursor_snap_state_create());
+  state = ED_view3d_cursor_snap_state_create();
   drop->draw_data = state;
   state->draw_plane = true;
 

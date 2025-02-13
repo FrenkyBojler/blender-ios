@@ -6,6 +6,7 @@
  * \ingroup edinterface
  */
 
+#include <algorithm>
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
@@ -395,7 +396,7 @@ static bool add_collection_search_item(CollItemSearch &cis,
   }
 
   return UI_search_item_add(items,
-                            cis.name.c_str(),
+                            cis.name,
                             cis.data,
                             cis.iconid,
                             cis.has_sep_char ? int(UI_BUT_HAS_SEP_CHAR) : 0,
@@ -602,13 +603,13 @@ int UI_icon_from_report_type(int type)
 int UI_icon_colorid_from_report_type(int type)
 {
   if (type & RPT_ERROR_ALL) {
-    return TH_INFO_ERROR;
+    return TH_ERROR;
   }
   if (type & RPT_WARNING_ALL) {
-    return TH_INFO_WARNING;
+    return TH_WARNING;
   }
   if (type & RPT_INFO_ALL) {
-    return TH_INFO_INFO;
+    return TH_INFO;
   }
   if (type & RPT_DEBUG_ALL) {
     return TH_INFO_DEBUG;
@@ -619,7 +620,7 @@ int UI_icon_colorid_from_report_type(int type)
   if (type & RPT_OPERATOR) {
     return TH_INFO_OPERATOR;
   }
-  return TH_INFO_WARNING;
+  return TH_WARNING;
 }
 
 int UI_text_colorid_from_report_type(int type)
@@ -688,9 +689,7 @@ int UI_calc_float_precision(int prec, double value)
         dec_flag = dec_flag >> 1;
       }
 
-      if (test_prec > prec) {
-        prec = test_prec;
-      }
+      prec = std::max(test_prec, prec);
     }
   }
 

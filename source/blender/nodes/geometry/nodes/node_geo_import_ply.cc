@@ -4,10 +4,9 @@
 
 #include "node_geometry_util.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 
-#include "BKE_instances.hh"
-#include "BKE_mesh.hh"
 #include "BKE_report.hh"
 
 #include "IO_ply.hh"

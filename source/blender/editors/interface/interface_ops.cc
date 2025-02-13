@@ -18,6 +18,7 @@
 #include "DNA_object_types.h"   /* for OB_DATA_SUPPORT_ID */
 #include "DNA_screen_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
@@ -34,6 +35,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
 #include "BKE_lib_remap.hh"
+#include "BKE_library.hh"
 #include "BKE_material.hh"
 #include "BKE_node.hh"
 #include "BKE_report.hh"
@@ -310,7 +312,8 @@ static void UI_OT_copy_python_command_button(wmOperatorType *ot)
 
 static int operator_button_property_finish(bContext *C, PointerRNA *ptr, PropertyRNA *prop)
 {
-  ID *id = ptr->owner_id;
+  /* Assign before executing logic in the unlikely event the ID is freed. */
+  const bool is_undo = ptr->owner_id && ID_CHECK_UNDO(ptr->owner_id);
 
   /* perform updates required for this property */
   RNA_property_update(C, ptr, prop);
@@ -321,7 +324,7 @@ static int operator_button_property_finish(bContext *C, PointerRNA *ptr, Propert
   /* Since we don't want to undo _all_ edits to settings, eg window
    * edits on the screen or on operator settings.
    * it might be better to move undo's inline - campbell */
-  if (id && ID_CHECK_UNDO(id)) {
+  if (is_undo) {
     /* do nothing, go ahead with undo */
     return OPERATOR_FINISHED;
   }
@@ -386,7 +389,7 @@ static void UI_OT_reset_default_button(wmOperatorType *ot)
   /* flags */
   /* Don't set #OPTYPE_UNDO because #operator_button_property_finish_with_undo
    * is responsible for the undo push. */
-  ot->flag = 0;
+  ot->flag = OPTYPE_REGISTER;
 
   /* properties */
   RNA_def_boolean(
@@ -2329,29 +2332,27 @@ void UI_drop_color_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *drop)
 
   RNA_float_set_array(drop->ptr, "color", drag_info->color);
   RNA_boolean_set(drop->ptr, "gamma", drag_info->gamma_corrected);
+  RNA_boolean_set(drop->ptr, "has_alpha", drag_info->has_alpha);
 }
 
 static int drop_color_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
   uiBut *but = nullptr;
-  float color[4];
-  bool gamma;
 
+  float color[4];
   RNA_float_get_array(op->ptr, "color", color);
-  gamma = RNA_boolean_get(op->ptr, "gamma");
+
+  const bool gamma = RNA_boolean_get(op->ptr, "gamma");
+  const bool has_alpha = RNA_boolean_get(op->ptr, "has_alpha");
 
   /* find button under mouse, check if it has RNA color property and
    * if it does copy the data */
   but = ui_region_find_active_but(region);
 
   if (but && but->type == UI_BTYPE_COLOR && but->rnaprop) {
-    const int color_len = RNA_property_array_length(&but->rnapoin, but->rnaprop);
-    BLI_assert(color_len <= 4);
-
-    /* keep alpha channel as-is */
-    if (color_len == 4) {
-      color[3] = RNA_property_float_get_index(&but->rnapoin, but->rnaprop, 3);
+    if (!has_alpha) {
+      color[3] = 1.0f;
     }
 
     if (RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
@@ -2398,9 +2399,11 @@ static void UI_OT_drop_color(wmOperatorType *ot)
   ot->flag = OPTYPE_INTERNAL;
 
   RNA_def_float_color(
-      ot->srna, "color", 3, nullptr, 0.0, FLT_MAX, "Color", "Source color", 0.0, 1.0);
+      ot->srna, "color", 4, nullptr, 0.0, FLT_MAX, "Color", "Source color", 0.0, 1.0);
   RNA_def_boolean(
       ot->srna, "gamma", false, "Gamma Corrected", "The source color is gamma corrected");
+  RNA_def_boolean(
+      ot->srna, "has_alpha", false, "Has Alpha", "The source color contains an Alpha component");
 }
 
 /** \} */

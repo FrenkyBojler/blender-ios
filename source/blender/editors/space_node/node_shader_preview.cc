@@ -22,6 +22,7 @@
  * the wanted viewlayer/pass for each previewed node.
  */
 
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 
 #include "DNA_camera_types.h"
@@ -485,10 +486,8 @@ static void connect_nodes_to_aovs(const Span<bNodeTreePath *> treepath,
         RNA_float_set_array(&ptr, "default_value", vec);
         continue;
       }
-      else {
-        node_preview = socket_preview->link->fromnode;
-        socket_preview = socket_preview->link->fromsock;
-      }
+      node_preview = socket_preview->link->fromnode;
+      socket_preview = socket_preview->link->fromsock;
     }
     connect_nested_node_to_node(
         treepath, *node_preview, *socket_preview, *aov_node, *aov_socket, nodesocket.first->name);

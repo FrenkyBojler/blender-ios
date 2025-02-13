@@ -48,7 +48,6 @@ struct bNode;
 struct bNodeExecContext;
 struct bNodeTreeExec;
 struct bNodeExecData;
-struct bNodeInstanceHash;
 struct bNodeLink;
 struct bNodeSocket;
 struct bNodeStack;
@@ -78,7 +77,6 @@ class InverseEvalParams;
 namespace compositor {
 class Context;
 class NodeOperation;
-class ShaderNode;
 }  // namespace compositor
 }  // namespace blender
 
@@ -134,8 +132,6 @@ using NodeGatherAddOperationsFunction =
 using NodeGetCompositorOperationFunction =
     blender::compositor::NodeOperation *(*)(blender::compositor::Context &context,
                                             blender::nodes::DNode node);
-using NodeGetCompositorShaderNodeFunction =
-    blender::compositor::ShaderNode *(*)(blender::nodes::DNode node);
 using NodeExtraInfoFunction = void (*)(blender::nodes::NodeExtraInfoParams &params);
 using NodeInverseElemEvalFunction =
     void (*)(blender::nodes::value_elem::InverseElemEvalParams &params);
@@ -185,7 +181,7 @@ struct bNodeSocketType {
   int type = 0, subtype = 0;
 
   /* When set, bNodeSocket->limit does not have any effect anymore. */
-  bool use_link_limits_of_type = 0;
+  bool use_link_limits_of_type = false;
   int input_link_limit = 0;
   int output_link_limit = 0;
 
@@ -333,10 +329,6 @@ struct bNodeType {
   /* Get an instance of this node's compositor operation. Freeing the instance is the
    * responsibility of the caller. */
   NodeGetCompositorOperationFunction get_compositor_operation = nullptr;
-
-  /* Get an instance of this node's compositor shader node. Freeing the instance is the
-   * responsibility of the caller. */
-  NodeGetCompositorShaderNodeFunction get_compositor_shader_node = nullptr;
 
   /* A message to display in the node header for unsupported compositor nodes. The message
    * is assumed to be static and thus require no memory handling. This field is to be removed when
@@ -606,7 +598,7 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree);
  * \{ */
 
 bNodeType *node_type_find(StringRef idname);
-StringRefNull node_type_find_alias(StringRefNull idname);
+StringRefNull node_type_find_alias(StringRefNull alias);
 void node_register_type(bNodeType *ntype);
 void node_unregister_type(bNodeType *ntype);
 void node_register_alias(bNodeType *nt, StringRef alias);
@@ -1068,7 +1060,7 @@ bNode *node_get_active_paint_canvas(bNodeTree *ntree);
  *
  * \param sub_active: The active flag to check. #NODE_ACTIVE_TEXTURE / #NODE_ACTIVE_PAINT_CANVAS.
  */
-bool node_supports_active_flag(const bNode *node, int sub_active);
+bool node_supports_active_flag(const bNode *node, int sub_activity);
 
 void node_set_socket_availability(bNodeTree *ntree, bNodeSocket *sock, bool is_available);
 
@@ -1153,7 +1145,7 @@ void node_preview_merge_tree(bNodeTree *to_ntree, bNodeTree *from_ntree, bool re
 /** \name Node Type Access
  * \{ */
 
-void nodeLabel(const bNodeTree *ntree, const bNode *node, char *label, int maxlen);
+void nodeLabel(const bNodeTree *ntree, const bNode *node, char *label, int label_maxncpy);
 
 /**
  * Get node socket label if it is set.

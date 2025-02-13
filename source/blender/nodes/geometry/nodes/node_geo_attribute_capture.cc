@@ -2,8 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "NOD_rna_define.hh"
-
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
@@ -16,6 +14,7 @@
 
 #include "BLO_read_write.hh"
 
+#include "BKE_library.hh"
 #include "BKE_screen.hh"
 
 #include "node_geometry_util.hh"
