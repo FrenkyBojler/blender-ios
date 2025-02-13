@@ -178,8 +178,7 @@ class DrawCacheImpl : public DrawCache {
   Span<gpu::VertBuf *> ensure_attribute_data(const Object &object,
                                              const OrigMeshData &orig_mesh_data,
                                              const AttributeRequest &attr,
-                                             const IndexMask &gpu_node_mask,
-                                             const IndexMask &leaf_node_mask);
+                                             const IndexMask &gpu_node_mask);
 
   Span<gpu::IndexBuf *> ensure_tri_indices(const Object &object,
                                            const OrigMeshData &orig_mesh_data,
@@ -380,21 +379,21 @@ void extract_data_vert_mesh(const OffsetIndices<int> faces,
   using VBOType = typename Converter::VBOType;
   VBOType *data = vbo.data<VBOType>().data();
 
-  for (const int i : gpu_node.leaf_child_nodes_.index_range()) {
-    const Span<int> face_indices = nodes[i].faces();
+  threading::parallel_for(gpu_node.leaf_nodes().index_range(), GrainSize(1), [&](const int i) {
+    if (!dirty_mask.contains(i)) {
+      return;
+    }
 
-    if (dirty_mask.contains(i)) {
-      for (const int face : face_indices) {
-        for (const int vert : corner_verts.slice(faces[face])) {
-          *data = Converter::convert(attribute[vert]);
-          data++;
-        }
+    const Span<int> face_indices = nodes[i].faces();
+    VBOType *leaf_data = data + nodes[i].offset_in_GPU_buffer();
+
+    for (const int face : face_indices) {
+      for (const int vert : corner_verts.slice(faces[face])) {
+        *leaf_data = Converter::convert(attribute[vert]);
+        leaf_data++;
       }
     }
-    else {
-      data += nodes[i].corners_num();
-    }
-  }
+  });
 }
 
 template<typename T>
@@ -409,18 +408,18 @@ void extract_data_face_mesh(const OffsetIndices<int> faces,
   using VBOType = typename Converter::VBOType;
   VBOType *data = vbo.data<VBOType>().data();
 
-  for (const int i : gpu_node.leaf_child_nodes_.index_range()) {
-    const Span<int> face_indices = nodes[i].faces();
-
-    if (dirty_mask.contains(i)) {
-      for (const int face : face_indices) {
-        const int face_size = faces[face].size();
-        std::fill_n(data, face_size, Converter::convert(attribute[face]));
-        data += face_size;
-      }
+  threading::parallel_for(gpu_node.leaf_nodes().index_range(), GrainSize(1), [&](const int i) {
+    if (!dirty_mask.contains(i)) {
+      return;
     }
-    else {
-      data += nodes[i].corners_num();
+
+    const Span<int> face_indices = nodes[i].faces();
+    VBOType* leaf_data = data + nodes[i].offset_in_GPU_buffer();
+
+    for (const int face : face_indices) {
+      const int face_size = faces[face].size();
+      std::fill_n(leaf_data, face_size, Converter::convert(attribute[face]));
+      leaf_data += face_size;
     }
   }
 }
@@ -437,19 +436,19 @@ void extract_data_corner_mesh(const OffsetIndices<int> faces,
   using VBOType = typename Converter::VBOType;
   VBOType *data = vbo.data<VBOType>().data();
 
-  for (const int i : gpu_node.leaf_child_nodes_.index_range()) {
-    const Span<int> face_indices = nodes[i].faces();
-
-    if (dirty_mask.contains(i)) {
-      for (const int face : face_indices) {
-        for (const int corner : faces[face]) {
-          *data = Converter::convert(attribute[corner]);
-          data++;
-        }
-      }
+  threading::parallel_for(gpu_node.leaf_nodes().index_range(), GrainSize(1), [&](const int i) {
+    if (!dirty_mask.contains(i)) {
+      return;
     }
-    else {
-      data += nodes[i].corners_num();
+
+    const Span<int> face_indices = nodes[i].faces();
+    VBOType* leaf_data = data + nodes[i].offset_in_GPU_buffer();
+
+    for (const int face : face_indices) {
+      for (const int corner : faces[face]) {
+        *leaf_data = Converter::convert(attribute[corner]);
+        leaf_data++;
+      }
     }
   }
 }
@@ -617,7 +616,7 @@ BLI_NOINLINE static void ensure_vbos_allocated_mesh(const Object &object,
       vbos[i] = GPU_vertbuf_create_with_format(format);
     }
 
-    const Vector<int> leaf_nodes = nodes[i].leaf_child_nodes_;
+    const Span<int> leaf_nodes = nodes[i].leaf_nodes();
     int corners_num = 0;
 
     for (const int j : leaf_nodes.index_range()) {
@@ -706,7 +705,7 @@ static void update_normals_mesh(const Object &object,
   gpu_mask.foreach_index(GrainSize(1), [&](const int j) {
     short4 *data = vbos[j]->data<short4>().data();
 
-    for (const int i : nodes[j].leaf_child_nodes_.index_range()) {
+    for (const int i : nodes[j].leaf_nodes().index_range()) {
       if (dirty_mask.contains(i)) {
         for (const int face : nodes[i].faces()) {
           if (!sharp_faces.is_empty() && sharp_faces[face]) {
@@ -748,7 +747,7 @@ BLI_NOINLINE static void update_masks_mesh(const Object &object,
     gpu_mask.foreach_index(GrainSize(1), [&](const int j) {
       float *data = vbos[j]->data<float>().data();
 
-      for (const int i : nodes[j].leaf_child_nodes_.index_range()) {
+      for (const int i : nodes[j].leaf_nodes().index_range()) {
         if (dirty_mask.contains(i)) {
           for (const int face : nodes[i].faces()) {
             for (const int vert : corner_verts.slice(faces[face])) {
@@ -788,7 +787,7 @@ BLI_NOINLINE static void update_face_sets_mesh(const Object &object,
     gpu_mask.foreach_index(GrainSize(1), [&](const int j) {
       uchar4 *data = vbos[j]->data<uchar4>().data();
 
-      for (const int i : nodes[j].leaf_child_nodes_.index_range()) {
+      for (const int i : nodes[j].leaf_nodes().index_range()) {
         if (dirty_mask.contains(i)) {
           for (const int face : nodes[i].faces()) {
             const int id = face_sets[face];
@@ -1574,7 +1573,7 @@ static gpu::IndexBuf *create_tri_index_mesh(const Span<bke::pbvh::MeshNode> node
 {
   int tris_num = 0;
 
-  for (const int i : gpu_node.leaf_child_nodes_.index_range()) {
+  for (const int i : gpu_node.leaf_nodes().index_range()) {
     const bke::pbvh::MeshNode &node = nodes[i];
     const Span<int> face_indices = node.faces();
     if (hide_poly.is_empty()) {
@@ -1597,7 +1596,7 @@ static gpu::IndexBuf *create_tri_index_mesh(const Span<bke::pbvh::MeshNode> node
   int tri_index = 0;
   int node_corner_offset = 0;
 
-  for (const int i : gpu_node.leaf_child_nodes_.index_range()) {
+  for (const int i : gpu_node.leaf_nodes().index_range()) {
     const bke::pbvh::MeshNode &node = nodes[i];
     const Span<int> face_indices = node.faces();
 
@@ -1763,8 +1762,7 @@ BLI_NOINLINE static void flush_vbo_data(const Span<gpu::VertBuf *> vbos,
 Span<gpu::VertBuf *> DrawCacheImpl::ensure_attribute_data(const Object &object,
                                                           const OrigMeshData &orig_mesh_data,
                                                           const AttributeRequest &attr,
-                                                          const IndexMask &gpu_node_mask,
-                                                          const IndexMask &leaf_node_mask)
+                                                          const IndexMask &gpu_node_mask)
 {
   if (!pbvh_attr_supported(attr)) {
     return {};
@@ -1784,25 +1782,28 @@ Span<gpu::VertBuf *> DrawCacheImpl::ensure_attribute_data(const Object &object,
   const IndexMask empty_mask = IndexMask::from_predicate(
       gpu_node_mask, GrainSize(8196), memory, [&](const int i) { return !vbos[i]; });
 
-  const IndexMask dirty_mask = IndexMask::from_bits(
-      leaf_node_mask.slice_content(data.dirty_nodes.index_range()), data.dirty_nodes, memory);
-  const IndexMask mask = IndexMask::from_union(empty_mask, dirty_mask, memory);
+  const IndexMask dirty_leaf_mask = IndexMask::from_bits(
+      data.dirty_nodes.index_range(), data.dirty_nodes, memory);
+
+  const IndexMask dirty_GPU_mask = bke::pbvh::get_GPU_mask_from_leaf_mask(
+      pbvh, dirty_leaf_mask, memory);
+  const IndexMask mask = IndexMask::from_union(empty_mask, dirty_GPU_mask, memory);
 
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
       if (const CustomRequest *request_type = std::get_if<CustomRequest>(&attr)) {
         switch (*request_type) {
           case CustomRequest::Position:
-            update_positions_mesh(object, gpu_node_mask, dirty_mask, vbos);
+            update_positions_mesh(object, dirty_GPU_mask, dirty_leaf_mask, vbos);
             break;
           case CustomRequest::Normal:
-            update_normals_mesh(object, gpu_node_mask, dirty_mask, vbos);
+            update_normals_mesh(object, dirty_GPU_mask, dirty_leaf_mask, vbos);
             break;
           case CustomRequest::Mask:
-            update_masks_mesh(object, orig_mesh_data, gpu_node_mask, dirty_mask, vbos);
+            update_masks_mesh(object, orig_mesh_data, dirty_GPU_mask, dirty_leaf_mask, vbos);
             break;
           case CustomRequest::FaceSet:
-            update_face_sets_mesh(object, orig_mesh_data, gpu_node_mask, dirty_mask, vbos);
+            update_face_sets_mesh(object, orig_mesh_data, dirty_GPU_mask, dirty_leaf_mask, vbos);
             break;
         }
       }
@@ -1867,7 +1868,7 @@ Span<gpu::VertBuf *> DrawCacheImpl::ensure_attribute_data(const Object &object,
 
   /* TODO: It would be good to deallocate the bit vector if all of the bits have been reset to
    * avoid unnecessary processing in subsequent redraws. */
-  dirty_mask.foreach_index_optimized<int>([&](const int i) { data.dirty_nodes[i].reset(); });
+  dirty_leaf_mask.foreach_index_optimized<int>([&](const int i) { data.dirty_nodes[i].reset(); });
 
   flush_vbo_data(vbos, mask);
 

@@ -89,7 +89,7 @@ class Node {
   int children_offset_ = 0;
 
   std::optional<int> gpu_inner_index_;
-  Vector<int> leaf_child_nodes_;
+  Vector<int> leaf_nodes_;
   int leaf_offset_ = 0;
 
   /* Indicates whether this node is a leaf or not; also used for
@@ -115,6 +115,16 @@ class Node {
   bool isGPUNode() const
   {
     return flag_ & Node::GPU;
+  }
+
+  Span<int> leaf_nodes() const
+  {
+    return leaf_nodes_;
+  }
+
+  int leaf_offset_in_GPU_buffer() const
+  {
+    return leaf_offset_;
   }
 };
 
@@ -621,6 +631,10 @@ IndexMask search_nodes(const Tree &pbvh,
 IndexMask search_GPU_nodes(const Tree &pbvh,
                            IndexMaskMemory &memory,
                            FunctionRef<bool(const Node &)> filter_fn);
+
+IndexMask get_GPU_mask_from_leaf_mask(const Tree &pbvh,
+                                      const IndexMask &leaf_nodes,
+                                      IndexMaskMemory &memory);
 
 void node_update_mask_mesh(Span<float> mask, MeshNode &node);
 void node_update_mask_grids(const CCGKey &key, Span<float> masks, GridsNode &node);

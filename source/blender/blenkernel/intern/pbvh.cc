@@ -36,6 +36,7 @@
 #include "bmesh.hh"
 
 #include "pbvh_intern.hh"
+#include <set>
 
 namespace blender::bke::pbvh {
 
@@ -163,7 +164,7 @@ static void build_nodes_recursive_mesh(const Span<int> material_indices,
     MeshNode &node = nodes[node_index];
     node.flag_ |= Node::Leaf;
     node.gpu_inner_index_ = gpu_inner_index;
-    nodes[gpu_inner_index.value()].leaf_child_nodes_.append(node_index);
+    nodes[gpu_inner_index.value()].leaf_nodes_.append(node_index);
     node.face_indices_ = faces;
     return;
   }
@@ -2652,4 +2653,19 @@ IndexMask search_GPU_nodes(const Tree &pbvh,
   return search_nodes(pbvh, memory, filter_fn, Node::GPU);
 }
 
+IndexMask get_GPU_mask_from_leaf_mask(const Tree &pbvh,
+                                      const IndexMask &leaf_nodes,
+                                      IndexMaskMemory &memory)
+{
+  Set<int> gpu_nodes;
+
+  std::visit(
+      [&](const auto &nodes) {
+        leaf_nodes.foreach_index(
+            [&](const int i) { gpu_nodes.add(nodes[i].gpu_inner_index_.value()); });
+      },
+      pbvh.nodes_);
+
+  IndexMask::from_indices<int>(Vector<int>(gpu_nodes.begin(), gpu_nodes.end()), memory);
+}
 }  // namespace blender::bke::pbvh
