@@ -6,6 +6,7 @@
 
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_motion_vector.hh"
 
 #include "IMB_colormanagement.hh"
 
@@ -30,6 +31,11 @@ inline float4 float_to_color(const float &value)
   return float4(float3(value), 1.0f);
 }
 
+inline MotionVector float_to_motion_vector(const float &value)
+{
+  return MotionVector(value);
+}
+
 /* --------------------------------------------------------------------
  * Int to other.
  */
@@ -47,6 +53,11 @@ inline float4 int_to_vector(const int &value)
 inline float4 int_to_color(const int &value)
 {
   return float_to_color(int_to_float(value));
+}
+
+inline MotionVector int_to_motion_vector(const int &value)
+{
+  return float_to_motion_vector(int_to_float(value));
 }
 
 /* --------------------------------------------------------------------
@@ -68,6 +79,11 @@ inline float4 vector_to_color(const float4 &value)
   return float4(value.xyz(), 1.0f);
 }
 
+inline MotionVector vector_to_motion_vector(const float4 &value)
+{
+  return MotionVector(value.xy());
+}
+
 /* --------------------------------------------------------------------
  * Color to other.
  */
@@ -85,6 +101,35 @@ inline int color_to_int(const float4 &value)
 inline float4 color_to_vector(const float4 &value)
 {
   return value;
+}
+
+inline MotionVector color_to_motion_vector(const float4 &value)
+{
+  return MotionVector(value);
+}
+
+/* --------------------------------------------------------------------
+ * Motion Vector to other.
+ */
+
+inline float motion_vector_to_float(const MotionVector &value)
+{
+  return (math::length(value.previous) + math::length(value.next)) / 2.0f;
+}
+
+inline int motion_vector_to_int(const MotionVector &value)
+{
+  return float_to_int(motion_vector_to_float(value));
+}
+
+inline float4 motion_vector_to_vector(const MotionVector &value)
+{
+  return float4(value.previous, 0.0f, 0.0f);
+}
+
+inline float4 motion_vector_to_color(const MotionVector &value)
+{
+  return float4(value);
 }
 
 }  // namespace blender::compositor

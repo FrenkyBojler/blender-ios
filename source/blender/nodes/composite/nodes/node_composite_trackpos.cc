@@ -8,6 +8,7 @@
 
 #include "BLI_index_range.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_motion_vector.hh"
 #include "BLI_string.h"
 
 #include "DNA_defaults.h"
@@ -170,8 +171,9 @@ class TrackPositionOperation : public NodeOperation {
         track, current_marker_position, 1);
     const float2 speed_toward_next = current_marker_position - next_marker_position;
 
-    /* Encode both speeds in a 4D vector. Multiply by the size to get the speed in pixel space. */
-    const float4 speed = float4(speed_toward_previous, speed_toward_next) * float4(size, size);
+    /* Multiply by the size to get the speed in pixel space. */
+    const MotionVector speed = MotionVector(speed_toward_previous * float2(size),
+                                            speed_toward_next * float2(size));
 
     Result &result = get_result("Speed");
     result.allocate_single_value();
@@ -193,7 +195,7 @@ class TrackPositionOperation : public NodeOperation {
     if (should_compute_output("Speed")) {
       Result &result = get_result("Speed");
       result.allocate_single_value();
-      result.set_single_value(float4(0.0f));
+      result.set_single_value(MotionVector(0.0f));
     }
   }
 

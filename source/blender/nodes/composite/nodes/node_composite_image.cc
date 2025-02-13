@@ -471,6 +471,7 @@ class ImageOperation : public NodeOperation {
       extract_alpha(context(), cached_image, result);
     }
     else {
+      result.set_type(cached_image.type());
       result.set_precision(cached_image.precision());
       result.wrap_external(cached_image);
     }
@@ -718,6 +719,9 @@ class RenderLayerOperation : public NodeOperation {
       return;
     }
 
+    result.set_type(pass.type());
+    result.set_precision(pass.precision());
+
     if (this->context().use_gpu()) {
       this->execute_pass_gpu(pass, result);
     }
@@ -728,8 +732,6 @@ class RenderLayerOperation : public NodeOperation {
 
   void execute_pass_gpu(const Result &pass, Result &result)
   {
-    result.set_precision(pass.precision());
-
     GPUShader *shader = this->context().get_shader(this->get_shader_name(pass, result),
                                                    result.precision());
     GPU_shader_bind(shader);
@@ -763,11 +765,10 @@ class RenderLayerOperation : public NodeOperation {
       case ResultType::Float:
         return "compositor_read_input_float";
       case ResultType::Vector:
-        return "compositor_read_input_vector";
       case ResultType::Color:
-        return "compositor_read_input_color";
+      case ResultType::MotionVector:
       case ResultType::Float3:
-        return "compositor_read_input_vector";
+        return "compositor_read_input_float4";
       default:
         /* Other types are internal and needn't be handled by operations. */
         break;

@@ -46,6 +46,7 @@ eGPUTextureFormat Result::gpu_texture_format(ResultType type, ResultPrecision pr
           return GPU_R16F;
         case ResultType::Vector:
         case ResultType::Color:
+        case ResultType::MotionVector:
           return GPU_RGBA16F;
         case ResultType::Float2:
           return GPU_RG16F;
@@ -63,6 +64,7 @@ eGPUTextureFormat Result::gpu_texture_format(ResultType type, ResultPrecision pr
           return GPU_R32F;
         case ResultType::Vector:
         case ResultType::Color:
+        case ResultType::MotionVector:
           return GPU_RGBA32F;
         case ResultType::Float2:
           return GPU_RG32F;
@@ -232,6 +234,8 @@ const CPPType &Result::get_cpp_type() const
       return CPPType::get<float4>();
     case ResultType::Color:
       return CPPType::get<float4>();
+    case ResultType::MotionVector:
+      return CPPType::get<MotionVector>();
     case ResultType::Float2:
       return CPPType::get<float2>();
     case ResultType::Float3:
@@ -283,6 +287,9 @@ void Result::allocate_single_value()
       break;
     case ResultType::Color:
       this->set_single_value(float4(0.0f));
+      break;
+    case ResultType::MotionVector:
+      this->set_single_value(MotionVector(0.0f));
       break;
     case ResultType::Float2:
       this->set_single_value(float2(0.0f));

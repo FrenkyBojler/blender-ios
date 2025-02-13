@@ -208,6 +208,8 @@ static const char *get_set_function_name(ResultType type)
       return "set_rgb";
     case ResultType::Color:
       return "set_rgba";
+    case ResultType::MotionVector:
+      return "set_rgba";
     case ResultType::Float2:
     case ResultType::Float3:
     case ResultType::Int2:
@@ -292,6 +294,8 @@ static const char *get_store_function_name(ResultType type)
       return "node_compositor_store_output_vector";
     case ResultType::Color:
       return "node_compositor_store_output_color";
+    case ResultType::MotionVector:
+      return "node_compositor_store_output_motion_vector";
     case ResultType::Float2:
     case ResultType::Float3:
     case ResultType::Int2:
@@ -393,6 +397,8 @@ static const char *glsl_store_expression_from_result_type(ResultType type)
       return "vec4(vector, 0.0)";
     case ResultType::Color:
       return "color";
+    case ResultType::MotionVector:
+      return "value";
     case ResultType::Float2:
     case ResultType::Float3:
     case ResultType::Int2:
@@ -410,6 +416,7 @@ static ImageType gpu_image_type_from_result_type(const ResultType type)
     case ResultType::Float:
     case ResultType::Vector:
     case ResultType::Color:
+    case ResultType::MotionVector:
       return ImageType::FLOAT_2D;
     case ResultType::Int:
       return ImageType::INT_2D;
@@ -431,16 +438,18 @@ void ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_create_
   const std::string store_int_function_header = "void store_int(const uint id, float value)";
   const std::string store_vector_function_header = "void store_vector(const uint id, vec3 vector)";
   const std::string store_color_function_header = "void store_color(const uint id, vec4 color)";
+  const std::string store_motion_vector_function_header =
+      "void store_motion_vector(const uint id, vec4 value)";
 
-  /* The store functions are used by the node_compositor_store_output_[float|int|vector|color]
-   * functions but are only defined later as part of the compute source, so they need to be forward
-   * declared.
-   * NOTE(Metal): Metal does not require forward declarations. */
+  /* The store functions are used by the node_compositor_store_output_[type] functions but are only
+   * defined later as part of the compute source, so they need to be forward declared. NOTE(Metal):
+   * Metal does not require forward declarations. */
   if (GPU_backend_get_type() != GPU_BACKEND_METAL) {
     shader_create_info.typedef_source_generated += store_float_function_header + ";\n";
     shader_create_info.typedef_source_generated += store_int_function_header + ";\n";
     shader_create_info.typedef_source_generated += store_vector_function_header + ";\n";
     shader_create_info.typedef_source_generated += store_color_function_header + ";\n";
+    shader_create_info.typedef_source_generated += store_motion_vector_function_header + ";\n";
   }
 
   /* Each of the store functions is essentially a single switch case on the given ID, so start by
@@ -450,11 +459,13 @@ void ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_create_
   std::stringstream store_int_function;
   std::stringstream store_vector_function;
   std::stringstream store_color_function;
+  std::stringstream store_motion_vector_function;
   const std::string store_function_start = "\n{\n  switch (id) {\n";
   store_float_function << store_float_function_header << store_function_start;
   store_int_function << store_int_function_header << store_function_start;
   store_vector_function << store_vector_function_header << store_function_start;
   store_color_function << store_color_function_header << store_function_start;
+  store_motion_vector_function << store_motion_vector_function_header << store_function_start;
 
   for (StringRefNull output_identifier : output_sockets_to_output_identifiers_map_.values()) {
     const Result &result = get_result(output_identifier);
@@ -489,6 +500,9 @@ void ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_create_
       case ResultType::Color:
         store_color_function << case_code.str();
         break;
+      case ResultType::MotionVector:
+        store_motion_vector_function << case_code.str();
+        break;
       case ResultType::Float2:
       case ResultType::Float3:
       case ResultType::Int2:
@@ -504,11 +518,13 @@ void ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_create_
   store_int_function << store_function_end;
   store_vector_function << store_function_end;
   store_color_function << store_function_end;
+  store_motion_vector_function << store_function_end;
 
   shader_create_info.compute_source_generated += store_float_function.str() +
                                                  store_int_function.str() +
                                                  store_vector_function.str() +
-                                                 store_color_function.str();
+                                                 store_color_function.str() +
+                                                 store_motion_vector_function.str();
 }
 
 static const char *glsl_type_from_result_type(ResultType type)
@@ -522,6 +538,7 @@ static const char *glsl_type_from_result_type(ResultType type)
     case ResultType::Vector:
       return "vec3";
     case ResultType::Color:
+    case ResultType::MotionVector:
       return "vec4";
     case ResultType::Float2:
     case ResultType::Float3:
@@ -546,6 +563,8 @@ static const char *glsl_swizzle_from_result_type(ResultType type)
       return "xyz";
     case ResultType::Color:
       return "rgba";
+    case ResultType::MotionVector:
+      return "xyzw";
     case ResultType::Float2:
     case ResultType::Float3:
     case ResultType::Int2:

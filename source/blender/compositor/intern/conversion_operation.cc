@@ -67,6 +67,10 @@ SimpleOperation *ConversionOperation::construct_if_needed(Context &context,
                                                           const Result &input_result,
                                                           const InputDescriptor &input_descriptor)
 {
+  if (input_descriptor.skip_type_conversion) {
+    return nullptr;
+  }
+
   const ResultType result_type = input_result.type();
   const ResultType expected_type = input_descriptor.type;
   if (result_type != expected_type) {
@@ -86,6 +90,8 @@ const char *ConversionOperation::get_conversion_shader_name()
           return "compositor_convert_float_to_vector";
         case ResultType::Color:
           return "compositor_convert_float_to_color";
+        case ResultType::MotionVector:
+          return "compositor_convert_float_to_motion_vector";
         case ResultType::Float:
           /* Same type, no conversion needed. */
           break;
@@ -104,6 +110,8 @@ const char *ConversionOperation::get_conversion_shader_name()
           return "compositor_convert_int_to_vector";
         case ResultType::Color:
           return "compositor_convert_int_to_color";
+        case ResultType::MotionVector:
+          return "compositor_convert_int_to_motion_vector";
         case ResultType::Int:
           /* Same type, no conversion needed. */
           break;
@@ -122,6 +130,8 @@ const char *ConversionOperation::get_conversion_shader_name()
           return "compositor_convert_vector_to_int";
         case ResultType::Color:
           return "compositor_convert_vector_to_color";
+        case ResultType::MotionVector:
+          return "compositor_convert_vector_to_motion_vector";
         case ResultType::Vector:
           /* Same type, no conversion needed. */
           break;
@@ -140,7 +150,29 @@ const char *ConversionOperation::get_conversion_shader_name()
           return "compositor_convert_color_to_int";
         case ResultType::Vector:
           return "compositor_convert_color_to_vector";
+        case ResultType::MotionVector:
+          return "compositor_convert_color_to_motion_vector";
         case ResultType::Color:
+          /* Same type, no conversion needed. */
+          break;
+        case ResultType::Float2:
+        case ResultType::Float3:
+        case ResultType::Int2:
+          /* Types are not user facing, so we needn't implement them. */
+          break;
+      }
+      break;
+    case ResultType::MotionVector:
+      switch (this->get_result().type()) {
+        case ResultType::Float:
+          return "compositor_convert_motion_vector_to_float";
+        case ResultType::Int:
+          return "compositor_convert_motion_vector_to_int";
+        case ResultType::Vector:
+          return "compositor_convert_motion_vector_to_vector";
+        case ResultType::Color:
+          return "compositor_convert_motion_vector_to_color";
+        case ResultType::MotionVector:
           /* Same type, no conversion needed. */
           break;
         case ResultType::Float2:
@@ -175,6 +207,9 @@ void ConversionOperation::execute_single(const Result &input, Result &output)
         case ResultType::Color:
           output.set_single_value(float_to_color(input.get_single_value<float>()));
           return;
+        case ResultType::MotionVector:
+          output.set_single_value(float_to_motion_vector(input.get_single_value<float>()));
+          return;
         case ResultType::Float:
           /* Same type, no conversion needed. */
           break;
@@ -195,6 +230,9 @@ void ConversionOperation::execute_single(const Result &input, Result &output)
           return;
         case ResultType::Color:
           output.set_single_value(int_to_color(input.get_single_value<int>()));
+          return;
+        case ResultType::MotionVector:
+          output.set_single_value(int_to_motion_vector(input.get_single_value<int>()));
           return;
         case ResultType::Int:
           /* Same type, no conversion needed. */
@@ -217,6 +255,9 @@ void ConversionOperation::execute_single(const Result &input, Result &output)
         case ResultType::Color:
           output.set_single_value(vector_to_color(input.get_single_value<float4>()));
           return;
+        case ResultType::MotionVector:
+          output.set_single_value(vector_to_motion_vector(input.get_single_value<float4>()));
+          return;
         case ResultType::Vector:
           /* Same type, no conversion needed. */
           break;
@@ -238,7 +279,34 @@ void ConversionOperation::execute_single(const Result &input, Result &output)
         case ResultType::Vector:
           output.set_single_value(color_to_vector(input.get_single_value<float4>()));
           return;
+        case ResultType::MotionVector:
+          output.set_single_value(color_to_motion_vector(input.get_single_value<float4>()));
+          return;
         case ResultType::Color:
+          /* Same type, no conversion needed. */
+          break;
+        case ResultType::Float2:
+        case ResultType::Float3:
+        case ResultType::Int2:
+          /* Types are not user facing, so we needn't implement them. */
+          break;
+      }
+      break;
+    case ResultType::MotionVector:
+      switch (this->get_result().type()) {
+        case ResultType::Float:
+          output.set_single_value(motion_vector_to_float(input.get_single_value<MotionVector>()));
+          return;
+        case ResultType::Int:
+          output.set_single_value(motion_vector_to_int(input.get_single_value<MotionVector>()));
+          return;
+        case ResultType::Vector:
+          output.set_single_value(motion_vector_to_vector(input.get_single_value<MotionVector>()));
+          return;
+        case ResultType::Color:
+          output.set_single_value(motion_vector_to_color(input.get_single_value<MotionVector>()));
+          return;
+        case ResultType::MotionVector:
           /* Same type, no conversion needed. */
           break;
         case ResultType::Float2:
@@ -278,6 +346,11 @@ void ConversionOperation::execute_cpu(const Result &input, Result &output)
             output.store_pixel(texel, float_to_color(input.load_pixel<float>(texel)));
           });
           return;
+        case ResultType::MotionVector:
+          parallel_for(input.domain().size, [&](const int2 texel) {
+            output.store_pixel(texel, float_to_motion_vector(input.load_pixel<float>(texel)));
+          });
+          return;
         case ResultType::Float:
           /* Same type, no conversion needed. */
           break;
@@ -303,6 +376,11 @@ void ConversionOperation::execute_cpu(const Result &input, Result &output)
         case ResultType::Color:
           parallel_for(input.domain().size, [&](const int2 texel) {
             output.store_pixel(texel, int_to_color(input.load_pixel<int>(texel)));
+          });
+          return;
+        case ResultType::MotionVector:
+          parallel_for(input.domain().size, [&](const int2 texel) {
+            output.store_pixel(texel, int_to_motion_vector(input.load_pixel<int>(texel)));
           });
           return;
         case ResultType::Int:
@@ -332,6 +410,11 @@ void ConversionOperation::execute_cpu(const Result &input, Result &output)
             output.store_pixel(texel, vector_to_color(input.load_pixel<float4>(texel)));
           });
           return;
+        case ResultType::MotionVector:
+          parallel_for(input.domain().size, [&](const int2 texel) {
+            output.store_pixel(texel, vector_to_motion_vector(input.load_pixel<float4>(texel)));
+          });
+          return;
         case ResultType::Vector:
           /* Same type, no conversion needed. */
           break;
@@ -359,7 +442,47 @@ void ConversionOperation::execute_cpu(const Result &input, Result &output)
             output.store_pixel(texel, color_to_vector(input.load_pixel<float4>(texel)));
           });
           return;
+        case ResultType::MotionVector:
+          parallel_for(input.domain().size, [&](const int2 texel) {
+            output.store_pixel(texel, color_to_motion_vector(input.load_pixel<float4>(texel)));
+          });
+          return;
         case ResultType::Color:
+          /* Same type, no conversion needed. */
+          break;
+        case ResultType::Float2:
+        case ResultType::Float3:
+        case ResultType::Int2:
+          /* Types are not user facing, so we needn't implement them. */
+          break;
+      }
+      break;
+    case ResultType::MotionVector:
+      switch (this->get_result().type()) {
+        case ResultType::Float:
+          parallel_for(input.domain().size, [&](const int2 texel) {
+            output.store_pixel(texel,
+                               motion_vector_to_float(input.load_pixel<MotionVector>(texel)));
+          });
+          return;
+        case ResultType::Int:
+          parallel_for(input.domain().size, [&](const int2 texel) {
+            output.store_pixel(texel, motion_vector_to_int(input.load_pixel<MotionVector>(texel)));
+          });
+          return;
+        case ResultType::Vector:
+          parallel_for(input.domain().size, [&](const int2 texel) {
+            output.store_pixel(texel,
+                               motion_vector_to_vector(input.load_pixel<MotionVector>(texel)));
+          });
+          return;
+        case ResultType::Color:
+          parallel_for(input.domain().size, [&](const int2 texel) {
+            output.store_pixel(texel,
+                               motion_vector_to_color(input.load_pixel<MotionVector>(texel)));
+          });
+          return;
+        case ResultType::MotionVector:
           /* Same type, no conversion needed. */
           break;
         case ResultType::Float2:

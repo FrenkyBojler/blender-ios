@@ -333,6 +333,7 @@ set(SRC
   BLI_mesh_boolean.hh
   BLI_mesh_intersect.hh
   BLI_mmap.h
+  BLI_motion_vector.hh
   BLI_multi_value_map.hh
   BLI_noise.h
   BLI_noise.hh

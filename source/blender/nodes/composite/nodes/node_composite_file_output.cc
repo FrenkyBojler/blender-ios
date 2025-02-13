@@ -512,6 +512,7 @@ class FileOutputOperation : public NodeOperation {
       descriptor.realization_mode = this->is_multi_layer() ?
                                         InputRealizationMode::OperationDomain :
                                         InputRealizationMode::Transforms;
+      descriptor.skip_type_conversion = true;
     }
   }
 
@@ -676,12 +677,10 @@ class FileOutputOperation : public NodeOperation {
         }
         break;
       case ResultType::Vector:
-        if (result.meta_data.is_4d_vector) {
-          file_output.add_pass(pass_name, view_name, "XYZW", buffer);
-        }
-        else {
-          file_output.add_pass(pass_name, view_name, "XYZ", float4_to_float3_image(size, buffer));
-        }
+        file_output.add_pass(pass_name, view_name, "XYZ", float4_to_float3_image(size, buffer));
+        break;
+      case ResultType::MotionVector:
+        file_output.add_pass(pass_name, view_name, "XYZW", buffer);
         break;
       case ResultType::Float:
         file_output.add_pass(pass_name, view_name, "V", buffer);
@@ -710,6 +709,7 @@ class FileOutputOperation : public NodeOperation {
         return buffer;
       }
       case ResultType::Vector:
+      case ResultType::MotionVector:
       case ResultType::Color: {
         float *buffer = static_cast<float *>(MEM_malloc_arrayN(
             size_t(size.x) * size.y, sizeof(float[4]), "File Output Inflated Buffer."));
@@ -749,6 +749,9 @@ class FileOutputOperation : public NodeOperation {
     const int2 size = result.domain().size;
     switch (result.type()) {
       case ResultType::Color:
+        file_output.add_view(view_name, 4, buffer);
+        break;
+      case ResultType::MotionVector:
         file_output.add_view(view_name, 4, buffer);
         break;
       case ResultType::Vector:

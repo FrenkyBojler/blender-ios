@@ -21,6 +21,11 @@ vec4 float_to_color(float value)
   return vec4(vec3(value), 1.0);
 }
 
+vec4 float_to_motion_vector(float value)
+{
+  return vec4(value);
+}
+
 /* --------------------------------------------------------------------
  * Int to other.
  */
@@ -38,6 +43,11 @@ vec4 int_to_vector(int value)
 vec4 int_to_color(int value)
 {
   return float_to_color(int_to_float(value));
+}
+
+vec4 int_to_motion_vector(int value)
+{
+  return float_to_motion_vector(int_to_float(value));
 }
 
 /* --------------------------------------------------------------------
@@ -59,6 +69,11 @@ vec4 vector_to_color(vec4 value)
   return vec4(value.xyz, 1.0);
 }
 
+vec4 vector_to_motion_vector(vec4 value)
+{
+  return vec4(value.xy, value.xy);
+}
+
 /* --------------------------------------------------------------------
  * Color to other.
  */
@@ -74,6 +89,35 @@ int color_to_int(vec4 value, vec3 luminance_coefficients)
 }
 
 vec4 color_to_vector(vec4 value)
+{
+  return value;
+}
+
+vec4 color_to_motion_vector(vec4 value)
+{
+  return value;
+}
+
+/* --------------------------------------------------------------------
+ * Motion Vector to other.
+ */
+
+float motion_vector_to_float(vec4 value)
+{
+  return (length(value.xy) + length(value.zw)) / 2.0;
+}
+
+int motion_vector_to_int(vec4 value)
+{
+  return float_to_int(motion_vector_to_float(value));
+}
+
+vec4 motion_vector_to_vector(vec4 value)
+{
+  return vec4(value.xy, 0.0f, 0.0f);
+}
+
+vec4 motion_vector_to_color(vec4 value)
 {
   return value;
 }

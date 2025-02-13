@@ -10,6 +10,7 @@
 #include "BLI_math_euler.hh"
 #include "BLI_math_quaternion.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_motion_vector.hh"
 #include "IMB_colormanagement.hh"
 
 namespace blender::bke {
@@ -83,6 +84,10 @@ static math::Quaternion float_to_quaternion(const float &a)
 {
   return math::to_quaternion(math::EulerXYZ(float3(a)));
 }
+static MotionVector float_to_motion_vector(const float &a)
+{
+  return MotionVector(a);
+}
 
 static float3 float2_to_float3(const float2 &a)
 {
@@ -119,6 +124,10 @@ static ColorGeometry4f float2_to_color(const float2 &a)
 static ColorGeometry4b float2_to_byte_color(const float2 &a)
 {
   return float2_to_color(a).encode();
+}
+static MotionVector float2_to_motion_vector(const float2 &a)
+{
+  return MotionVector(a);
 }
 
 static bool float3_to_bool(const float3 &a)
@@ -157,6 +166,10 @@ static ColorGeometry4b float3_to_byte_color(const float3 &a)
 {
   return float3_to_color(a).encode();
 }
+static MotionVector float3_to_motion_vector(const float3 &a)
+{
+  return MotionVector(a.xy());
+}
 
 static bool int_to_bool(const int32_t &a)
 {
@@ -194,6 +207,10 @@ static ColorGeometry4f int_to_color(const int32_t &a)
 static ColorGeometry4b int_to_byte_color(const int32_t &a)
 {
   return int_to_color(a).encode();
+}
+static MotionVector int_to_motion_vector(const int32_t &a)
+{
+  return float_to_motion_vector(int_to_float(a));
 }
 
 static bool short2_to_bool(const short2 &a)
@@ -268,6 +285,10 @@ static ColorGeometry4f int2_to_color(const int2 &a)
 static ColorGeometry4b int2_to_byte_color(const int2 &a)
 {
   return int2_to_color(a).encode();
+}
+static MotionVector int2_to_motion_vector(const int2 &a)
+{
+  return float2_to_motion_vector(int2_to_float2(a));
 }
 
 static bool int8_to_bool(const int8_t &a)
@@ -348,6 +369,10 @@ static ColorGeometry4b bool_to_byte_color(const bool &a)
 {
   return bool_to_color(a).encode();
 }
+static MotionVector bool_to_motion_vector(const bool &a)
+{
+  return MotionVector(bool_to_float(a));
+}
 
 static bool color_to_bool(const ColorGeometry4f &a)
 {
@@ -384,6 +409,10 @@ static float3 color_to_float3(const ColorGeometry4f &a)
 static ColorGeometry4b color_to_byte_color(const ColorGeometry4f &a)
 {
   return a.encode();
+}
+static MotionVector color_to_motion_vector(const ColorGeometry4f &a)
+{
+  return MotionVector(a);
 }
 
 static bool byte_color_to_bool(const ColorGeometry4b &a)
@@ -438,6 +467,35 @@ static float4x4 quaternion_to_float4x4(const math::Quaternion &a)
   return math::from_rotation<float4x4>(a);
 }
 
+static float motion_vector_to_float(const MotionVector &a)
+{
+  return (math::length(a.previous) + math::length(a.next)) / 2.0f;
+}
+static float2 motion_vector_to_float2(const MotionVector &a)
+{
+  return a.previous;
+}
+static float3 motion_vector_to_float3(const MotionVector &a)
+{
+  return float3(a.previous, 0.0f);
+}
+static ColorGeometry4f motion_vector_to_color(const MotionVector &a)
+{
+  return ColorGeometry4f(a);
+}
+static int32_t motion_vector_to_int(const MotionVector &a)
+{
+  return float_to_int(motion_vector_to_float(a));
+}
+static int2 motion_vector_to_int2(const MotionVector &a)
+{
+  return float2_to_int2(motion_vector_to_float2(a));
+}
+static bool motion_vector_to_bool(const MotionVector &a)
+{
+  return motion_vector_to_float(a) > 0.0f;
+}
+
 static DataTypeConversions create_implicit_conversions()
 {
   DataTypeConversions conversions;
@@ -452,6 +510,7 @@ static DataTypeConversions create_implicit_conversions()
   add_implicit_conversion<float, ColorGeometry4f, float_to_color>(conversions);
   add_implicit_conversion<float, ColorGeometry4b, float_to_byte_color>(conversions);
   add_implicit_conversion<float, math::Quaternion, float_to_quaternion>(conversions);
+  add_implicit_conversion<float, MotionVector, float_to_motion_vector>(conversions);
 
   add_implicit_conversion<float2, float3, float2_to_float3>(conversions);
   add_implicit_conversion<float2, float, float2_to_float>(conversions);
@@ -462,6 +521,7 @@ static DataTypeConversions create_implicit_conversions()
   add_implicit_conversion<float2, int8_t, float2_to_int8>(conversions);
   add_implicit_conversion<float2, ColorGeometry4f, float2_to_color>(conversions);
   add_implicit_conversion<float2, ColorGeometry4b, float2_to_byte_color>(conversions);
+  add_implicit_conversion<float2, MotionVector, float2_to_motion_vector>(conversions);
 
   add_implicit_conversion<float3, bool, float3_to_bool>(conversions);
   add_implicit_conversion<float3, int8_t, float3_to_int8>(conversions);
@@ -473,6 +533,7 @@ static DataTypeConversions create_implicit_conversions()
   add_implicit_conversion<float3, ColorGeometry4f, float3_to_color>(conversions);
   add_implicit_conversion<float3, ColorGeometry4b, float3_to_byte_color>(conversions);
   add_implicit_conversion<float3, math::Quaternion, float3_to_quaternion>(conversions);
+  add_implicit_conversion<float3, MotionVector, float3_to_motion_vector>(conversions);
 
   add_implicit_conversion<int32_t, bool, int_to_bool>(conversions);
   add_implicit_conversion<int32_t, int8_t, int_to_int8>(conversions);
@@ -483,6 +544,7 @@ static DataTypeConversions create_implicit_conversions()
   add_implicit_conversion<int32_t, float3, int_to_float3>(conversions);
   add_implicit_conversion<int32_t, ColorGeometry4f, int_to_color>(conversions);
   add_implicit_conversion<int32_t, ColorGeometry4b, int_to_byte_color>(conversions);
+  add_implicit_conversion<int32_t, MotionVector, int_to_motion_vector>(conversions);
 
   add_implicit_conversion<short2, bool, short2_to_bool>(conversions);
   add_implicit_conversion<short2, int8_t, short2_to_int8>(conversions);
@@ -503,6 +565,7 @@ static DataTypeConversions create_implicit_conversions()
   add_implicit_conversion<int2, float3, int2_to_float3>(conversions);
   add_implicit_conversion<int2, ColorGeometry4f, int2_to_color>(conversions);
   add_implicit_conversion<int2, ColorGeometry4b, int2_to_byte_color>(conversions);
+  add_implicit_conversion<int2, MotionVector, int2_to_motion_vector>(conversions);
 
   add_implicit_conversion<int8_t, bool, int8_to_bool>(conversions);
   add_implicit_conversion<int8_t, int32_t, int8_to_int>(conversions);
@@ -523,6 +586,7 @@ static DataTypeConversions create_implicit_conversions()
   add_implicit_conversion<bool, float3, bool_to_float3>(conversions);
   add_implicit_conversion<bool, ColorGeometry4f, bool_to_color>(conversions);
   add_implicit_conversion<bool, ColorGeometry4b, bool_to_byte_color>(conversions);
+  add_implicit_conversion<bool, MotionVector, bool_to_motion_vector>(conversions);
 
   add_implicit_conversion<ColorGeometry4f, bool, color_to_bool>(conversions);
   add_implicit_conversion<ColorGeometry4f, int8_t, color_to_int8>(conversions);
@@ -533,6 +597,7 @@ static DataTypeConversions create_implicit_conversions()
   add_implicit_conversion<ColorGeometry4f, float2, color_to_float2>(conversions);
   add_implicit_conversion<ColorGeometry4f, float3, color_to_float3>(conversions);
   add_implicit_conversion<ColorGeometry4f, ColorGeometry4b, color_to_byte_color>(conversions);
+  add_implicit_conversion<ColorGeometry4f, MotionVector, color_to_motion_vector>(conversions);
 
   add_implicit_conversion<ColorGeometry4b, bool, byte_color_to_bool>(conversions);
   add_implicit_conversion<ColorGeometry4b, int8_t, byte_color_to_int8>(conversions);
@@ -543,6 +608,14 @@ static DataTypeConversions create_implicit_conversions()
   add_implicit_conversion<ColorGeometry4b, float2, byte_color_to_float2>(conversions);
   add_implicit_conversion<ColorGeometry4b, float3, byte_color_to_float3>(conversions);
   add_implicit_conversion<ColorGeometry4b, ColorGeometry4f, byte_color_to_color>(conversions);
+
+  add_implicit_conversion<MotionVector, bool, motion_vector_to_bool>(conversions);
+  add_implicit_conversion<MotionVector, float, motion_vector_to_float>(conversions);
+  add_implicit_conversion<MotionVector, int32_t, motion_vector_to_int>(conversions);
+  add_implicit_conversion<MotionVector, int2, motion_vector_to_int2>(conversions);
+  add_implicit_conversion<MotionVector, float2, motion_vector_to_float2>(conversions);
+  add_implicit_conversion<MotionVector, float3, motion_vector_to_float3>(conversions);
+  add_implicit_conversion<MotionVector, ColorGeometry4f, motion_vector_to_color>(conversions);
 
   add_implicit_conversion<float4x4, math::Quaternion, float4x4_to_quaternion>(conversions);
 
