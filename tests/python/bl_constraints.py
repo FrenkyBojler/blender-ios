@@ -443,16 +443,6 @@ class CopyTransformsTest(AbstractConstraintTests):
 class ActionConstraintTest(AbstractConstraintTests):
     layer_collection = "Action"
 
-    def setUp(self):
-        bpy.context.preferences.view.show_developer_ui = True
-        bpy.context.preferences.experimental.use_animation_baklava = True
-        return super().setUp()
-
-    def tearDown(self) -> None:
-        bpy.context.preferences.view.show_developer_ui = False
-        bpy.context.preferences.experimental.use_animation_baklava = False
-        return super().tearDown()
-
     def constraint(self) -> Constraint:
         owner = bpy.context.scene.objects["Action.owner"]
         constraint = owner.constraints["Action"]
@@ -460,7 +450,7 @@ class ActionConstraintTest(AbstractConstraintTests):
 
     def test_assign_action_slot_virgin(self):
         action = bpy.data.actions.new("Slotted")
-        slot = action.slots.new()
+        slot = action.slots.new('OBJECT', "Slot")
 
         con = self.constraint()
         con.action = action

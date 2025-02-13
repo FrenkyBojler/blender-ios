@@ -16,7 +16,6 @@
 #include "DNA_asset_types.h"
 #include "DNA_brush_types.h"
 #include "DNA_defaults.h"
-#include "DNA_gpencil_legacy_types.h"
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -27,15 +26,12 @@
 #include "DNA_view3d_types.h"
 #include "DNA_workspace_types.h"
 
-#include "BLI_bitmap.h"
 #include "BLI_hash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
-#include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
-#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
@@ -52,21 +48,19 @@
 #include "BKE_deform.hh"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_idtype.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_key.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_mapping.hh"
 #include "BKE_mesh_runtime.hh"
 #include "BKE_modifier.hh"
 #include "BKE_multires.hh"
 #include "BKE_object.hh"
-#include "BKE_object_types.hh"
 #include "BKE_paint.hh"
-#include "BKE_pbvh_api.hh"
+#include "BKE_paint_bvh.hh"
 #include "BKE_scene.hh"
 #include "BKE_subdiv_ccg.hh"
 #include "BKE_subsurf.hh"
@@ -355,9 +349,6 @@ bool BKE_paint_ensure_from_paintmode(Scene *sce, PaintMode mode)
     case PaintMode::SculptCurves:
       paint_ptr = (Paint **)&ts->curves_sculpt;
       break;
-    case PaintMode::SculptGreasePencil:
-      paint_ptr = (Paint **)&ts->gp_sculptpaint;
-      break;
     case PaintMode::Invalid:
       break;
   }
@@ -393,8 +384,6 @@ Paint *BKE_paint_get_active_from_paintmode(Scene *sce, PaintMode mode)
         return &ts->gp_weightpaint->paint;
       case PaintMode::SculptCurves:
         return &ts->curves_sculpt->paint;
-      case PaintMode::SculptGreasePencil:
-        return &ts->gp_sculptpaint->paint;
       case PaintMode::Invalid:
         return nullptr;
       default:
@@ -427,8 +416,6 @@ const EnumPropertyItem *BKE_paint_get_tool_enum_from_paintmode(const PaintMode m
       return rna_enum_brush_gpencil_weight_types_items;
     case PaintMode::SculptCurves:
       return rna_enum_brush_curves_sculpt_brush_type_items;
-    case PaintMode::SculptGreasePencil:
-      return rna_enum_brush_gpencil_sculpt_types_items;
     case PaintMode::Invalid:
       break;
   }
@@ -478,14 +465,14 @@ Paint *BKE_paint_get_active_from_context(const bContext *C)
 {
   Scene *sce = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  SpaceImage *sima;
 
   if (sce && view_layer) {
     ToolSettings *ts = sce->toolsettings;
     BKE_view_layer_synced_ensure(sce, view_layer);
     Object *obact = BKE_view_layer_active_object_get(view_layer);
 
-    if ((sima = CTX_wm_space_image(C)) != nullptr) {
+    SpaceImage *sima = CTX_wm_space_image(C);
+    if (sima != nullptr) {
       if (obact && obact->mode == OB_MODE_EDIT) {
         if (sima->mode == SI_MODE_PAINT) {
           return &ts->imapaint.paint;
@@ -507,13 +494,13 @@ PaintMode BKE_paintmode_get_active_from_context(const bContext *C)
 {
   Scene *sce = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  SpaceImage *sima;
 
   if (sce && view_layer) {
     BKE_view_layer_synced_ensure(sce, view_layer);
     Object *obact = BKE_view_layer_active_object_get(view_layer);
 
-    if ((sima = CTX_wm_space_image(C)) != nullptr) {
+    SpaceImage *sima = CTX_wm_space_image(C);
+    if (sima != nullptr) {
       if (obact && obact->mode == OB_MODE_EDIT) {
         if (sima->mode == SI_MODE_PAINT) {
           return PaintMode::Texture2D;
@@ -528,11 +515,8 @@ PaintMode BKE_paintmode_get_active_from_context(const bContext *C)
         case OB_MODE_SCULPT:
           return PaintMode::Sculpt;
         case OB_MODE_SCULPT_GREASE_PENCIL:
-          if (obact->type == OB_GPENCIL_LEGACY) {
-            return PaintMode::SculptGPencil;
-          }
           if (obact->type == OB_GREASE_PENCIL) {
-            return PaintMode::SculptGreasePencil;
+            return PaintMode::SculptGPencil;
           }
           return PaintMode::Invalid;
         case OB_MODE_PAINT_GREASE_PENCIL:
@@ -589,7 +573,7 @@ PaintMode BKE_paintmode_get_from_tool(const bToolRef *tref)
       case CTX_MODE_PAINT_GREASE_PENCIL:
         return PaintMode::GPencil;
       case CTX_MODE_SCULPT_GREASE_PENCIL:
-        return PaintMode::SculptGreasePencil;
+        return PaintMode::SculptGPencil;
     }
   }
   else if (tref->space_type == SPACE_IMAGE) {
@@ -600,6 +584,16 @@ PaintMode BKE_paintmode_get_from_tool(const bToolRef *tref)
   }
 
   return PaintMode::Invalid;
+}
+
+bool BKE_paint_use_unified_color(const ToolSettings *tool_settings, const Paint *paint)
+{
+  /* Grease pencil draw mode never uses unified paint. */
+  if (paint->runtime.ob_mode == OB_MODE_PAINT_GREASE_PENCIL) {
+    return false;
+  }
+
+  return tool_settings->unified_paint_settings.flag & UNIFIED_PAINT_COLOR;
 }
 
 /**
@@ -676,7 +670,8 @@ bool BKE_paint_brush_set(Main *bmain,
 
   Brush *brush = reinterpret_cast<Brush *>(
       blender::bke::asset_edit_id_from_weak_reference(*bmain, ID_BR, *brush_asset_reference));
-  BLI_assert(brush == nullptr || blender::bke::asset_edit_id_is_editable(brush->id));
+  BLI_assert(brush == nullptr || !ID_IS_LINKED(brush) ||
+             blender::bke::asset_edit_id_is_editable(brush->id));
 
   /* Ensure we have a brush with appropriate mode to assign.
    * Could happen if contents of asset blend were manually changed. */
@@ -1258,8 +1253,6 @@ uint BKE_paint_get_brush_type_offset_from_paintmode(const PaintMode mode)
       return offsetof(Brush, gpencil_weight_brush_type);
     case PaintMode::SculptCurves:
       return offsetof(Brush, curves_sculpt_brush_type);
-    case PaintMode::SculptGreasePencil:
-      return offsetof(Brush, gpencil_sculpt_brush_type);
     case PaintMode::Invalid:
       break; /* We don't use these yet. */
   }
@@ -1317,8 +1310,6 @@ std::optional<int> BKE_paint_get_brush_type_from_paintmode(const Brush *brush,
       return brush->gpencil_weight_brush_type;
     case PaintMode::SculptCurves:
       return brush->curves_sculpt_brush_type;
-    case PaintMode::SculptGreasePencil:
-      return brush->gpencil_sculpt_brush_type;
     case PaintMode::Invalid:
     default:
       return {};
@@ -1390,7 +1381,6 @@ bool BKE_palette_is_empty(const Palette *palette)
   return BLI_listbase_is_empty(&palette->colors);
 }
 
-/* helper function to sort using qsort */
 static int palettecolor_compare_hsv(const void *a1, const void *a2)
 {
   const tPaletteColorHSV *ps1 = static_cast<const tPaletteColorHSV *>(a1);
@@ -1423,7 +1413,11 @@ static int palettecolor_compare_hsv(const void *a1, const void *a2)
   return 0;
 }
 
-/* helper function to sort using qsort */
+void BKE_palette_sort_hsv(tPaletteColorHSV *color_array, const int totcol)
+{
+  qsort(color_array, totcol, sizeof(tPaletteColorHSV), palettecolor_compare_hsv);
+}
+
 static int palettecolor_compare_svh(const void *a1, const void *a2)
 {
   const tPaletteColorHSV *ps1 = static_cast<const tPaletteColorHSV *>(a1);
@@ -1454,6 +1448,11 @@ static int palettecolor_compare_svh(const void *a1, const void *a2)
   }
 
   return 0;
+}
+
+void BKE_palette_sort_svh(tPaletteColorHSV *color_array, const int totcol)
+{
+  qsort(color_array, totcol, sizeof(tPaletteColorHSV), palettecolor_compare_svh);
 }
 
 static int palettecolor_compare_vhs(const void *a1, const void *a2)
@@ -1488,6 +1487,11 @@ static int palettecolor_compare_vhs(const void *a1, const void *a2)
   return 0;
 }
 
+void BKE_palette_sort_vhs(tPaletteColorHSV *color_array, const int totcol)
+{
+  qsort(color_array, totcol, sizeof(tPaletteColorHSV), palettecolor_compare_vhs);
+}
+
 static int palettecolor_compare_luminance(const void *a1, const void *a2)
 {
   const tPaletteColorHSV *ps1 = static_cast<const tPaletteColorHSV *>(a1);
@@ -1504,24 +1508,6 @@ static int palettecolor_compare_luminance(const void *a1, const void *a2)
   }
 
   return 0;
-}
-
-void BKE_palette_sort_hsv(tPaletteColorHSV *color_array, const int totcol)
-{
-  /* Sort by Hue, Saturation and Value. */
-  qsort(color_array, totcol, sizeof(tPaletteColorHSV), palettecolor_compare_hsv);
-}
-
-void BKE_palette_sort_svh(tPaletteColorHSV *color_array, const int totcol)
-{
-  /* Sort by Saturation, Value and Hue. */
-  qsort(color_array, totcol, sizeof(tPaletteColorHSV), palettecolor_compare_svh);
-}
-
-void BKE_palette_sort_vhs(tPaletteColorHSV *color_array, const int totcol)
-{
-  /* Sort by Saturation, Value and Hue. */
-  qsort(color_array, totcol, sizeof(tPaletteColorHSV), palettecolor_compare_vhs);
 }
 
 void BKE_palette_sort_luminance(tPaletteColorHSV *color_array, const int totcol)
@@ -1663,8 +1649,6 @@ eObjectMode BKE_paint_object_mode_from_paintmode(const PaintMode mode)
       return OB_MODE_SCULPT_CURVES;
     case PaintMode::GPencil:
       return OB_MODE_PAINT_GREASE_PENCIL;
-    case PaintMode::SculptGreasePencil:
-      return OB_MODE_SCULPT_GREASE_PENCIL;
     case PaintMode::Invalid:
     default:
       return OB_MODE_OBJECT;
@@ -1985,7 +1969,7 @@ static bool paint_rake_rotation_active(const MTex &mtex)
   return mtex.tex && mtex.brush_angle_mode & MTEX_ANGLE_RAKE;
 }
 
-static const bool paint_rake_rotation_active(const Brush &brush, PaintMode paint_mode)
+static bool paint_rake_rotation_active(const Brush &brush, PaintMode paint_mode)
 {
   return paint_rake_rotation_active(brush.mtex) || paint_rake_rotation_active(brush.mask_mtex) ||
          BKE_brush_has_cube_tip(&brush, paint_mode);
@@ -2104,6 +2088,11 @@ void BKE_sculptsession_free_pbvh(Object &object)
 
   ss->vertex_info.boundary.clear_and_shrink();
   ss->fake_neighbors.fake_neighbor_index = {};
+  ss->topology_island_cache.reset();
+
+  ss->sculpt_persistent_co = {};
+  ss->sculpt_persistent_no = {};
+  ss->sculpt_persistent_disp = {};
 
   ss->clear_active_vert(false);
 }
@@ -2148,7 +2137,7 @@ void BKE_sculptsession_free(Object *ob)
   }
 }
 
-SculptSession::SculptSession() {}
+SculptSession::SculptSession() = default;
 
 SculptSession::~SculptSession()
 {
@@ -2180,10 +2169,6 @@ int SculptSession::active_vert_index() const
   if (std::holds_alternative<int>(active_vert_)) {
     return std::get<int>(active_vert_);
   }
-  if (std::holds_alternative<SubdivCCGCoord>(active_vert_)) {
-    const SubdivCCGCoord coord = std::get<SubdivCCGCoord>(active_vert_);
-    return coord.to_index(BKE_subdiv_ccg_key_top_level(*this->subdiv_ccg));
-  }
   if (std::holds_alternative<BMVert *>(active_vert_)) {
     BMVert *bm_vert = std::get<BMVert *>(active_vert_);
     return BM_elem_index_get(bm_vert);
@@ -2197,10 +2182,6 @@ int SculptSession::last_active_vert_index() const
   if (std::holds_alternative<int>(last_active_vert_)) {
     return std::get<int>(last_active_vert_);
   }
-  if (std::holds_alternative<SubdivCCGCoord>(last_active_vert_)) {
-    const SubdivCCGCoord coord = std::get<SubdivCCGCoord>(last_active_vert_);
-    return coord.to_index(BKE_subdiv_ccg_key_top_level(*this->subdiv_ccg));
-  }
   if (std::holds_alternative<BMVert *>(last_active_vert_)) {
     BMVert *bm_vert = std::get<BMVert *>(last_active_vert_);
     return BM_elem_index_get(bm_vert);
@@ -2213,13 +2194,11 @@ blender::float3 SculptSession::active_vert_position(const Depsgraph &depsgraph,
                                                     const Object &object) const
 {
   if (std::holds_alternative<int>(active_vert_)) {
+    if (this->subdiv_ccg) {
+      return this->subdiv_ccg->positions[std::get<int>(active_vert_)];
+    }
     const Span<float3> positions = blender::bke::pbvh::vert_positions_eval(depsgraph, object);
     return positions[std::get<int>(active_vert_)];
-  }
-  if (std::holds_alternative<SubdivCCGCoord>(active_vert_)) {
-    const CCGKey key = BKE_subdiv_ccg_key_top_level(*this->subdiv_ccg);
-    const SubdivCCGCoord coord = std::get<SubdivCCGCoord>(active_vert_);
-    return this->subdiv_ccg->positions[coord.to_index(key)];
   }
   if (std::holds_alternative<BMVert *>(active_vert_)) {
     BMVert *bm_vert = std::get<BMVert *>(active_vert_);
@@ -2467,7 +2446,7 @@ static void sculpt_update_object(Depsgraph *depsgraph,
      *
      * The relevant changes are stored/encoded in the paint canvas key.
      * These include the active uv map, and resolutions. */
-    if (U.experimental.use_sculpt_texture_paint) {
+    if (USER_EXPERIMENTAL_TEST(&U, use_sculpt_texture_paint)) {
       char *paint_canvas_key = BKE_paint_canvas_key_get(&scene->toolsettings->paint_mode, ob);
       if (ss.last_paint_canvas_key == nullptr ||
           !STREQ(paint_canvas_key, ss.last_paint_canvas_key))

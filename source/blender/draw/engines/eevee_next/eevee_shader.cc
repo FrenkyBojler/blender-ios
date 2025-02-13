@@ -11,6 +11,8 @@
 
 #include "GPU_capabilities.hh"
 
+#include "BKE_material.hh"
+
 #include "gpu_shader_create_info.hh"
 
 #include "eevee_shader.hh"
@@ -78,8 +80,13 @@ ShaderModule::ShaderModule()
 
 ShaderModule::~ShaderModule()
 {
+  if (compilation_handle_) {
+    /* Finish compilation to avoid asserts on exit at GLShaderCompiler destructor. */
+    is_ready(true);
+  }
+
   for (GPUShader *&shader : shaders_) {
-    DRW_SHADER_FREE_SAFE(shader);
+    GPU_SHADER_FREE_SAFE(shader);
   }
 }
 
@@ -709,7 +716,7 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
   attr_load << (!codegen.attr_load.empty() ? codegen.attr_load : "");
   attr_load << "}\n\n";
 
-  std::stringstream vert_gen, frag_gen, comp_gen;
+  std::stringstream vert_gen, frag_gen;
 
   if (do_vertex_attrib_load) {
     vert_gen << global_vars.str() << attr_load.str();
@@ -998,8 +1005,6 @@ GPUMaterial *ShaderModule::world_shader_get(::World *blender_world,
                                this);
 }
 
-/* Variation to compile a material only with a nodetree. Caller needs to maintain the list of
- * materials and call GPU_material_free on it to update the material. */
 GPUMaterial *ShaderModule::material_shader_get(const char *name,
                                                ListBase &materials,
                                                bNodeTree *nodetree,

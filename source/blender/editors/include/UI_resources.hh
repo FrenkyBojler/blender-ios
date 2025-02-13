@@ -8,8 +8,7 @@
 
 #pragma once
 
-#include "BLI_sys_types.h"
-#include "BLI_utildefines.h"
+#include "BLI_assert.h"
 
 struct bTheme;
 
@@ -219,6 +218,8 @@ enum ThemeColorID {
   TH_SEQ_COLOR,
   TH_SEQ_ACTIVE,
   TH_SEQ_SELECTED,
+  TH_SEQ_TEXT_CURSOR,
+  TH_SEQ_SELECTED_TEXT,
 
   TH_EDGE_SHARP,
   TH_EDITMESH_ACTIVE,

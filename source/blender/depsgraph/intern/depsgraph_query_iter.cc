@@ -11,10 +11,7 @@
 /* Silence warnings from copying deprecated fields. */
 #define DNA_DEPRECATED_ALLOW
 
-#include "MEM_guardedalloc.h"
-
 #include "BKE_duplilist.hh"
-#include "BKE_geometry_set.hh"
 #include "BKE_idprop.hh"
 #include "BKE_layer.hh"
 #include "BKE_modifier.hh"
@@ -145,6 +142,14 @@ bool deg_iterator_duplis_step(DEGObjectIterData *data)
       continue;
     }
 
+    DEGObjectIterSettings *settings = data->settings;
+    if (settings->included_objects) {
+      Object *object_orig = DEG_get_original_object(obd);
+      if (!settings->included_objects->contains(object_orig)) {
+        continue;
+      }
+    }
+
     free_owned_memory(data);
 
     data->dupli_object_current = dob;
@@ -239,6 +244,13 @@ bool deg_iterator_objects_step(DEGObjectIterData *data)
 
     Object *object = (Object *)id_node->id_cow;
     Object *object_orig = DEG_get_original_object(object);
+
+    DEGObjectIterSettings *settings = data->settings;
+    if (settings->included_objects) {
+      if (!settings->included_objects->contains(object_orig)) {
+        continue;
+      }
+    }
 
     /* NOTE: The object might be invisible after the latest depsgraph evaluation, in which case
      * going into its evaluated state might not be safe. For example, its evaluated mesh state

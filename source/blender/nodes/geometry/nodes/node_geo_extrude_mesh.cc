@@ -24,6 +24,8 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
+#include "FN_multi_function_builder.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_extrude_mesh_cc {
@@ -89,9 +91,14 @@ static void save_selection_as_attribute(MutableAttributeAccessor attributes,
 static void remove_non_propagated_attributes(MutableAttributeAccessor attributes,
                                              const AttributeFilter &attribute_filter)
 {
-  Set<StringRefNull> ids_to_remove = attributes.all_ids();
-  ids_to_remove.remove_if([&](const StringRef id) { return !attribute_filter.allow_skip(id); });
-  for (const StringRef id : ids_to_remove) {
+  Vector<std::string> names_to_remove;
+  const Set<StringRefNull> all_names = attributes.all_ids();
+  for (const StringRefNull name : all_names) {
+    if (attribute_filter.allow_skip(name)) {
+      names_to_remove.append(name);
+    }
+  }
+  for (const StringRef id : names_to_remove) {
     attributes.remove(id);
   }
 }
@@ -120,7 +127,6 @@ static void remove_unsupported_corner_data(Mesh &mesh)
   CustomData_free_layers(&mesh.corner_data, CD_TANGENT, mesh.corners_num);
   CustomData_free_layers(&mesh.corner_data, CD_MLOOPTANGENT, mesh.corners_num);
   CustomData_free_layers(&mesh.corner_data, CD_GRID_PAINT_MASK, mesh.corners_num);
-  CustomData_free_layers(&mesh.corner_data, CD_CUSTOMLOOPNORMAL, mesh.corners_num);
 }
 
 static void expand_mesh(Mesh &mesh,
@@ -1537,7 +1543,13 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_EXTRUDE_MESH, "Extrude Mesh", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeExtrudeMesh", GEO_NODE_EXTRUDE_MESH);
+  ntype.ui_name = "Extrude Mesh";
+  ntype.ui_description =
+      "Generate new vertices, edges, or faces from selected elements and move them based on an "
+      "offset while keeping them connected by their boundary";
+  ntype.enum_name_legacy = "EXTRUDE_MESH";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;

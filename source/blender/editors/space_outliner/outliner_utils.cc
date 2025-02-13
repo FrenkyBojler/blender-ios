@@ -45,6 +45,7 @@ void outliner_viewcontext_init(const bContext *C, TreeViewContext *tvc)
   /* Scene level. */
   tvc->scene = CTX_data_scene(C);
   tvc->view_layer = CTX_data_view_layer(C);
+  tvc->layer_collection = CTX_data_layer_collection(C);
 
   /* Objects. */
   BKE_view_layer_synced_ensure(tvc->scene, tvc->view_layer);
@@ -500,17 +501,17 @@ bool ED_outliner_give_rna_under_cursor(bContext *C, const int mval[2], PointerRN
   switch (tselem->type) {
     case TSE_BONE: {
       Bone *bone = (Bone *)te->directdata;
-      *r_ptr = RNA_pointer_create(tselem->id, &RNA_Bone, bone);
+      *r_ptr = RNA_pointer_create_discrete(tselem->id, &RNA_Bone, bone);
       break;
     }
     case TSE_POSE_CHANNEL: {
       bPoseChannel *pchan = (bPoseChannel *)te->directdata;
-      *r_ptr = RNA_pointer_create(tselem->id, &RNA_PoseBone, pchan);
+      *r_ptr = RNA_pointer_create_discrete(tselem->id, &RNA_PoseBone, pchan);
       break;
     }
     case TSE_EBONE: {
       EditBone *bone = (EditBone *)te->directdata;
-      *r_ptr = RNA_pointer_create(tselem->id, &RNA_EditBone, bone);
+      *r_ptr = RNA_pointer_create_discrete(tselem->id, &RNA_EditBone, bone);
       break;
     }
 

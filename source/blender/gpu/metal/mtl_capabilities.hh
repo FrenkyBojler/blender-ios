@@ -8,8 +8,7 @@
 
 #pragma once
 
-namespace blender {
-namespace gpu {
+namespace blender::gpu {
 
 /*** Derived from: https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf ***/
 /** Upper Bound/Fixed Limits **/
@@ -50,6 +49,7 @@ struct MTLCapabilities {
   bool supports_argument_buffers_tier2 = false;
   bool supports_texture_gather = false;
   bool supports_texture_atomics = false;
+  bool supports_native_tile_inputs = false;
 
   /* GPU Family */
   bool supports_family_mac1 = false;
@@ -63,5 +63,4 @@ struct MTLCapabilities {
   int num_efficiency_cores = -1;
 };
 
-}  // namespace gpu
-}  // namespace blender
+}  // namespace blender::gpu

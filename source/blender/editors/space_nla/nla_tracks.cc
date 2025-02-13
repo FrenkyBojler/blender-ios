@@ -6,7 +6,6 @@
  * \ingroup spnla
  */
 
-#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -14,8 +13,6 @@
 #include "DNA_anim_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-
-#include "BLI_utildefines.h"
 
 #include "BKE_anim_data.hh"
 #include "BKE_context.hh"
@@ -373,7 +370,7 @@ static int nlatracks_pushdown_exec(bContext *C, wmOperator *op)
 
   /* get anim-channel to use (or more specifically, the animdata block behind it) */
   if (track_index == -1) {
-    PointerRNA adt_ptr = {nullptr};
+    PointerRNA adt_ptr = {};
 
     /* active animdata block */
     if (nla_panel_context(C, &adt_ptr, nullptr, nullptr) == 0 || (adt_ptr.data == nullptr)) {

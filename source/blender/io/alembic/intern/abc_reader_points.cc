@@ -19,8 +19,6 @@
 #include "BKE_object.hh"
 #include "BKE_pointcloud.hh"
 
-#include "BLI_math_vector.h"
-
 using namespace Alembic::AbcGeom;
 
 namespace blender::io::alembic {
@@ -60,8 +58,7 @@ bool AbcPointsReader::accepts_object_type(
 
 void AbcPointsReader::readObjectData(Main *bmain, const Alembic::Abc::ISampleSelector &sample_sel)
 {
-  PointCloud *point_cloud = static_cast<PointCloud *>(
-      BKE_pointcloud_add_default(bmain, m_data_name.c_str()));
+  PointCloud *point_cloud = BKE_pointcloud_add_default(bmain, m_data_name.c_str());
 
   bke::GeometrySet geometry_set = bke::GeometrySet::from_pointcloud(
       point_cloud, bke::GeometryOwnershipType::Editable);

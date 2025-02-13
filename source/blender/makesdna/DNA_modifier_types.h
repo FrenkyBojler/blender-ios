@@ -20,11 +20,17 @@
 
 namespace blender {
 struct NodesModifierRuntime;
+namespace bke {
+struct BVHTreeFromMesh;
 }
+}  // namespace blender
 using NodesModifierRuntimeHandle = blender::NodesModifierRuntime;
+using BVHTreeFromMeshHandle = blender::bke::BVHTreeFromMesh;
 #else
 typedef struct NodesModifierRuntimeHandle NodesModifierRuntimeHandle;
+typedef struct BVHTreeFromMeshHandle BVHTreeFromMeshHandle;
 #endif
+struct LineartModifierRuntime;
 
 /* WARNING ALERT! TYPEDEF VALUES ARE WRITTEN IN FILES! SO DO NOT CHANGE!
  * (ONLY ADD NEW ITEMS AT THE END)
@@ -955,7 +961,7 @@ typedef struct SurfaceModifierData_Runtime {
   struct Mesh *mesh;
 
   /** Bounding volume hierarchy of the mesh faces. */
-  struct BVHTreeFromMesh *bvhtree;
+  BVHTreeFromMeshHandle *bvhtree;
 
   int cfra_prev, verts_num;
 
@@ -2102,6 +2108,12 @@ enum {
   MOD_MESHCACHE_PLAY_EVAL = 1,
 };
 
+enum {
+  MOD_MESHCACHE_FLIP_AXIS_X = 1 << 0,
+  MOD_MESHCACHE_FLIP_AXIS_Y = 1 << 1,
+  MOD_MESHCACHE_FLIP_AXIS_Z = 1 << 2,
+};
+
 typedef struct LaplacianDeformModifierData {
   ModifierData modifier;
   /** #MAX_VGROUP_NAME. */
@@ -3219,6 +3231,9 @@ typedef struct GreasePencilLineartModifierData {
 
   /* Keep a pointer to the render buffer so we can call destroy from #ModifierData. */
   struct LineartData *la_data_ptr;
+
+  /* Points to a `LineartModifierRuntime`, which includes the object dependency list. */
+  struct LineartModifierRuntime *runtime;
 } GreasePencilLineartModifierData;
 
 typedef struct GreasePencilArmatureModifierData {

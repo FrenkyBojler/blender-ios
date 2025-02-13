@@ -10,8 +10,6 @@
 #include <cstring>
 #include <optional>
 
-#include "ANIM_action.hh"
-
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
@@ -32,7 +30,6 @@
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
-#include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_world_types.h"
 
@@ -53,10 +50,6 @@
 #include "ANIM_action_legacy.hh"
 
 #include "CLG_log.h"
-
-#ifdef WITH_ANIM_BAKLAVA
-#  include "ANIM_action.hh"
-#endif  // WITH_ANIM_BAKLAVA
 
 static CLG_LogRef LOG = {"bke.anim_sys"};
 
@@ -214,11 +207,7 @@ bool BKE_animdata_set_action(ReportList *reports, ID *id, bAction *act)
     return false;
   }
 
-#ifdef WITH_ANIM_BAKLAVA
   return animrig::assign_action(act, {*id, *adt});
-#else
-  return animdata_set_action(reports, id, &adt->action, act);
-#endif  // WITH_ANIM_BAKLAVA
 }
 
 bool BKE_animdata_action_editable(const AnimData *adt)
@@ -238,7 +227,6 @@ bool BKE_animdata_action_ensure_idroot(const ID *owner, bAction *action)
     return true;
   }
 
-#ifdef WITH_ANIM_BAKLAVA
   if (!blender::animrig::legacy::action_treat_as_legacy(*action)) {
     /* TODO: for layered Actions, this function doesn't make sense. Once all Actions are
      * auto-versioned to layered Actions, this entire function can be removed. */
@@ -247,7 +235,6 @@ bool BKE_animdata_action_ensure_idroot(const ID *owner, bAction *action)
      * that are specialized. */
     return true;
   }
-#endif
 
   if (action->idroot == 0) {
     /* First time this Action is assigned, lock it to this ID type. */
@@ -278,26 +265,18 @@ void BKE_animdata_free(ID *id, const bool do_id_user)
     BKE_nla_tweakmode_exit({*id, *adt});
 
     if (adt->action) {
-#ifdef WITH_ANIM_BAKLAVA
       const bool unassign_ok = blender::animrig::unassign_action(*id);
       BLI_assert_msg(unassign_ok,
                      "Expecting action un-assignment to always work when not in NLA tweak mode");
       UNUSED_VARS_NDEBUG(unassign_ok);
-#else
-      id_us_min(&adt->action->id);
-#endif
     }
     /* same goes for the temporarily displaced action */
     if (adt->tmpact) {
-#ifdef WITH_ANIM_BAKLAVA
       /* This should never happen, as we _just_ exited tweak mode. */
       BLI_assert_unreachable();
       const bool unassign_ok = blender::animrig::assign_tmpaction(nullptr, {*id, *adt});
       BLI_assert_msg(unassign_ok, "Expecting tmpaction un-assignment to always work");
       UNUSED_VARS_NDEBUG(unassign_ok);
-#else
-      id_us_min(&adt->tmpact->id);
-#endif
     }
   }
 
@@ -398,14 +377,14 @@ AnimData *BKE_animdata_copy_in_lib(Main *bmain,
         BKE_id_copy_in_lib(bmain,
                            owner_library,
                            reinterpret_cast<ID *>(dadt->action),
-                           nullptr,
+                           std::nullopt,
                            nullptr,
                            id_copy_flag));
     dadt->tmpact = reinterpret_cast<bAction *>(
         BKE_id_copy_in_lib(bmain,
                            owner_library,
                            reinterpret_cast<ID *>(dadt->tmpact),
-                           nullptr,
+                           std::nullopt,
                            nullptr,
                            id_copy_flag));
   }
@@ -562,8 +541,8 @@ void BKE_animdata_merge_copy(
   }
   dst->slot_handle = src->slot_handle;
   dst->tmp_slot_handle = src->tmp_slot_handle;
-  STRNCPY(dst->slot_name, src->slot_name);
-  STRNCPY(dst->tmp_slot_name, src->tmp_slot_name);
+  STRNCPY(dst->last_slot_identifier, src->last_slot_identifier);
+  STRNCPY(dst->tmp_last_slot_identifier, src->tmp_last_slot_identifier);
 
   /* duplicate NLA data */
   if (src->nla_tracks.first) {
@@ -735,15 +714,12 @@ void BKE_animdata_transfer_by_basepath(Main *bmain, ID *srcID, ID *dstID, ListBa
      * can be easily found again. */
     if (!dstAdt->action) {
       animrig::Action &new_action = animrig::action_add(*bmain, srcAdt->action->id.name + 2);
-      if (USER_EXPERIMENTAL_TEST(&U, use_animation_baklava)) {
-        new_action.slot_add_for_id(*dstID);
-      }
+      new_action.slot_add_for_id(*dstID);
+
       const bool assign_ok = animrig::assign_action(&new_action, dst_owned_adt);
       BLI_assert_msg(assign_ok, "Expected Action assignment to work");
       UNUSED_VARS_NDEBUG(assign_ok);
-      if (USER_EXPERIMENTAL_TEST(&U, use_animation_baklava)) {
-        BLI_assert(dstAdt->slot_handle != animrig::Slot::unassigned);
-      }
+      BLI_assert(dstAdt->slot_handle != animrig::Slot::unassigned);
     }
 
     /* loop over base paths, trying to fix for each one... */
@@ -1277,7 +1253,8 @@ static void nlastrips_apply_all_curves_cb(ID *id,
   }
 }
 
-/* Helper for BKE_fcurves_main_cb() - Dispatch wrapped operator to all F-Curves */
+/* Helper for BKE_fcurves_main_cb() - Dispatch wrapped operator to all F-Curves. Muted NLA Tracks
+ * are ignored. */
 static void adt_apply_all_fcurves_cb(ID *id,
                                      AnimData *adt,
                                      const FunctionRef<void(ID *, FCurve *)> func)
@@ -1295,6 +1272,9 @@ static void adt_apply_all_fcurves_cb(ID *id,
 
   /* NLA Data - Animation Data for Strips */
   LISTBASE_FOREACH (NlaTrack *, nlt, &adt->nla_tracks) {
+    if (nlt->flag & NLATRACK_MUTED) {
+      continue;
+    }
     nlastrips_apply_all_curves_cb(id, &nlt->strips, func);
   }
 }
@@ -1527,3 +1507,12 @@ void BKE_animdata_liboverride_post_process(ID *id)
 
   BKE_nla_liboverride_post_process(id, adt);
 }
+
+namespace blender::bke::animdata {
+
+void action_slots_user_cache_invalidate(Main &bmain)
+{
+  blender::animrig::Slot::users_invalidate(bmain);
+}
+
+}  // namespace blender::bke::animdata

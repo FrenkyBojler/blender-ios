@@ -8,8 +8,7 @@
 
 #include "BKE_lib_id.hh"
 #include "BKE_node.hh"
-#include "BKE_world.h"
-#include "BLI_math_rotation.h"
+#include "BKE_node_legacy_types.hh"
 #include "DEG_depsgraph_query.hh"
 #include "NOD_shader.h"
 
@@ -43,7 +42,6 @@ DefaultWorldNodeTree::~DefaultWorldNodeTree()
   MEM_SAFE_FREE(ntree_);
 }
 
-/* Configure a default node-tree with the given world. */
 bNodeTree *DefaultWorldNodeTree::nodetree_get(::World *wo)
 {
   /* WARNING: This function is not thread-safe. Which is not a problem for the moment. */

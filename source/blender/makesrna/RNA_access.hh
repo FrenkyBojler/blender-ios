@@ -18,6 +18,7 @@
 
 #include "BLI_compiler_attrs.h"
 #include "BLI_function_ref.hh"
+#include "BLI_string_ref.hh"
 
 struct ID;
 struct IDOverrideLibrary;
@@ -46,7 +47,15 @@ extern BlenderRNA BLENDER_RNA;
 
 PointerRNA RNA_main_pointer_create(Main *main);
 PointerRNA RNA_id_pointer_create(ID *id);
-PointerRNA RNA_pointer_create(ID *id, StructRNA *type, void *data);
+/**
+ * Create a 'discrete', isolated PointerRNA of some data. It won't have any ancestor information
+ * available.
+ *
+ * \param id: The owner ID, may be null, in which case the PointerRNA won't have any ownership
+ * information at all.
+ */
+PointerRNA RNA_pointer_create_discrete(ID *id, StructRNA *type, void *data);
+
 bool RNA_pointer_is_null(const PointerRNA *ptr);
 
 bool RNA_path_resolved_create(PointerRNA *ptr,
@@ -631,7 +640,7 @@ void RNA_collection_clear(PointerRNA *ptr, const char *name);
 
 #define RNA_STRUCT_BEGIN(sptr, prop) \
   { \
-    CollectionPropertyIterator rna_macro_iter; \
+    CollectionPropertyIterator rna_macro_iter{}; \
     for (RNA_property_collection_begin( \
              sptr, RNA_struct_iterator_property((sptr)->type), &rna_macro_iter); \
          rna_macro_iter.valid; \
@@ -761,7 +770,7 @@ void RNA_parameter_dynamic_length_set_data(ParameterList *parms,
 int RNA_function_call(
     bContext *C, ReportList *reports, PointerRNA *ptr, FunctionRNA *func, ParameterList *parms);
 
-const char *RNA_translate_ui_text(
+std::optional<blender::StringRefNull> RNA_translate_ui_text(
     const char *text, const char *text_ctxt, StructRNA *type, PropertyRNA *prop, int translate);
 
 /* ID */
@@ -771,9 +780,7 @@ StructRNA *ID_code_to_RNA_type(short idcode);
 
 #define RNA_POINTER_INVALIDATE(ptr) \
   { \
-    /* this is checked for validity */ \
-    (ptr)->type = NULL; /* should not be needed but prevent bad pointer access, just in case */ \
-    (ptr)->owner_id = NULL; \
+    *(ptr) = PointerRNA_NULL; \
   } \
   (void)0
 

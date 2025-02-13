@@ -12,7 +12,6 @@
 
 #include "BLI_compiler_attrs.h"
 #include "BLI_math_vector_types.hh"
-#include "BLI_rect.h"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
@@ -230,7 +229,7 @@ struct uiBut {
   /* When defined, and the button edits a string RNA property, the new name is _not_ set at all,
    * instead this function is called with the new name. */
   std::function<void(std::string &new_name)> rename_full_func = nullptr;
-  std::string rename_full_new = "";
+  std::string rename_full_new;
 
   /** Run an action when holding the button down. */
   uiButHandleHoldFunc hold_func = nullptr;
@@ -269,6 +268,8 @@ struct uiBut {
   uiMenuCreateFunc menu_create_func = nullptr;
 
   uiMenuStepFunc menu_step_func = nullptr;
+  /** See #UI_but_menu_disable_hover_open(). */
+  bool menu_no_hover_open = false;
 
   /* RNA data */
   PointerRNA rnapoin = {};
@@ -293,6 +294,7 @@ struct uiBut {
   eWM_DragDataType dragtype = WM_DRAG_ID;
   short dragflag = 0;
   void *dragpoin = nullptr;
+  BIFIconID drag_preview_icon_id;
   const ImBuf *imb = nullptr;
   float imb_scale = 0;
 
@@ -605,9 +607,7 @@ struct uiBlock {
   int (*block_event_func)(const bContext *C, uiBlock *, const wmEvent *);
 
   /** Custom extra draw function for custom blocks. */
-  void (*drawextra)(const bContext *C, void *idv, void *arg1, void *arg2, rcti *rect);
-  void *drawextra_arg1;
-  void *drawextra_arg2;
+  std::function<void(const bContext *, rcti *)> drawextra;
 
   int flag;
   short alignnr;
@@ -867,7 +867,7 @@ struct uiKeyNavLock {
   /** Set when we're using keyboard-input. */
   bool is_keynav;
   /** Only used to check if we've moved the cursor. */
-  int event_xy[2];
+  blender::int2 event_xy;
 };
 
 using uiBlockHandleCreateFunc = uiBlock *(*)(bContext *C, uiPopupBlockHandle *handle, void *arg1);
@@ -878,7 +878,7 @@ struct uiPopupBlockCreate {
   void *arg;
   uiFreeArgFunc arg_free;
 
-  int event_xy[2];
+  blender::int2 event_xy;
 
   /** Set when popup is initialized from a button. */
   ARegion *butregion;
@@ -1050,7 +1050,7 @@ uiPopupBlockHandle *ui_popover_panel_create(bContext *C,
  */
 void ui_pie_menu_level_create(uiBlock *block,
                               wmOperatorType *ot,
-                              const char *propname,
+                              const blender::StringRefNull propname,
                               IDProperty *properties,
                               const EnumPropertyItem *items,
                               int totitem,
@@ -1326,8 +1326,7 @@ void ui_draw_preview_item_stateless(const uiFontStyle *fstyle,
                                     blender::StringRef name,
                                     int iconid,
                                     const uchar text_col[4],
-                                    eFontStyle_Align text_align,
-                                    bool draw_as_icon = false);
+                                    eFontStyle_Align text_align);
 
 #define UI_TEXT_MARGIN_X 0.4f
 #define UI_POPUP_MARGIN (UI_SCALE_FAC * 12)
@@ -1351,6 +1350,8 @@ void uiStyleInit();
 /* interface_icons.cc */
 
 void ui_icon_ensure_deferred(const bContext *C, int icon_id, bool big);
+/** Is \a icon_id a preview icon that is being loaded/rendered? */
+bool ui_icon_is_preview_deferred_loading(int icon_id, bool big);
 int ui_id_icon_get(const bContext *C, ID *id, bool big);
 
 /* interface_icons_event.cc */
@@ -1611,7 +1612,10 @@ void ui_interface_tag_script_reload_queries();
 /* interface_view.cc */
 
 void ui_block_free_views(uiBlock *block);
-void ui_block_views_bounds_calc(const uiBlock *block);
+void ui_block_views_end(ARegion *region, const uiBlock *block);
+void ui_block_view_persistent_state_restore(const ARegion &region,
+                                            const uiBlock &block,
+                                            blender::ui::AbstractView &view);
 void ui_block_views_listen(const uiBlock *block, const wmRegionListenerParams *listener_params);
 void ui_block_views_draw_overlays(const ARegion *region, const uiBlock *block);
 blender::ui::AbstractView *ui_block_view_find_matching_in_old_block(

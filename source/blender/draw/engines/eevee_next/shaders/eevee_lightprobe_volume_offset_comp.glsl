@@ -10,6 +10,10 @@
  * Dispatched as 1 thread per irradiance probe sample.
  */
 
+#include "infos/eevee_lightprobe_volume_info.hh"
+
+COMPUTE_SHADER_CREATE_INFO(eevee_lightprobe_volume_offset)
+
 #include "eevee_lightprobe_lib.glsl"
 #include "eevee_surfel_list_lib.glsl"
 
@@ -172,7 +176,7 @@ void main()
 
   int closest_surfel_id = find_closest_surfel(grid_coord, P);
   if (closest_surfel_id == -1) {
-    imageStore(virtual_offset_img, grid_coord, vec4(0.0));
+    imageStoreFast(virtual_offset_img, grid_coord, vec4(0.0));
     return;
   }
 
@@ -190,5 +194,5 @@ void main()
 
   vec3 virtual_offset = offset_direction * offset_length;
 
-  imageStore(virtual_offset_img, grid_coord, vec4(virtual_offset, 0.0));
+  imageStoreFast(virtual_offset_img, grid_coord, vec4(virtual_offset, 0.0));
 }
