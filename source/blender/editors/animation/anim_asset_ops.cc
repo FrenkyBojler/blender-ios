@@ -247,7 +247,8 @@ static int create_pose_asset_local(bContext *C,
 
   AssetMetaData &meta_data = *pose_action.id.asset_data;
   asset_system::AssetLibrary *library = AS_asset_library_load(bmain, lib_ref);
-  /* I (christoph) don't know if a local library can fail to load. Just being defensive here */
+  /* NOTE(@ChrisLend): I don't know if a local library can fail to load.
+   * Just being defensive here. */
   BLI_assert(library);
   if (catalog_path[0] && library) {
     const asset_system::AssetCatalog &catalog = asset::library_ensure_catalogs_in_path(
@@ -398,8 +399,8 @@ static void visit_library_prop_catalogs_catalog_for_search_fn(
 
 void POSELIB_OT_create_pose_asset(wmOperatorType *ot)
 {
-  ot->name = "Create Pose Asset";
-  ot->description = "Create a new asset from the selection in the scene";
+  ot->name = "Create Pose Asset...";
+  ot->description = "Create a new asset from the selected bones in the scene";
   ot->idname = "POSELIB_OT_create_pose_asset";
 
   ot->exec = pose_asset_create_exec;

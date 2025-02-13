@@ -248,6 +248,12 @@ static void compo_initjob(void *cjv)
     DEG_debug_name_set(compositor_runtime.preview_depsgraph, "COMPOSITOR");
   }
 
+  /* Update the viewer layer of the compositor since it changed since the depsgraph was created. */
+  if (DEG_get_input_view_layer(compositor_runtime.preview_depsgraph) != view_layer) {
+    DEG_graph_replace_owners(compositor_runtime.preview_depsgraph, bmain, scene, view_layer);
+    DEG_graph_tag_relations_update(compositor_runtime.preview_depsgraph);
+  }
+
   cj->compositor_depsgraph = compositor_runtime.preview_depsgraph;
   DEG_graph_build_for_compositor_preview(cj->compositor_depsgraph, cj->ntree);
 
@@ -740,7 +746,6 @@ void snode_set_context(const bContext &C)
 void ED_node_set_active(
     Main *bmain, SpaceNode *snode, bNodeTree *ntree, bNode *node, bool *r_active_texture_changed)
 {
-  const bool was_active_texture = (node->flag & NODE_ACTIVE_TEXTURE) != 0;
   if (r_active_texture_changed) {
     *r_active_texture_changed = false;
   }
@@ -788,7 +793,7 @@ void ED_node_set_active(
 
     BKE_main_ensure_invariants(*bmain, ntree->id);
 
-    if ((node->flag & NODE_ACTIVE_TEXTURE) && !was_active_texture) {
+    if (node->flag & NODE_ACTIVE_TEXTURE) {
       /* If active texture changed, free GLSL materials. */
       LISTBASE_FOREACH (Material *, ma, &bmain->materials) {
         if (ma->nodetree && ma->use_nodes &&
@@ -1011,10 +1016,12 @@ wmKeyMap *node_resize_modal_keymap(wmKeyConfig *keyconf)
   return keymap;
 }
 
-/* Compute the nearest 1D coordinate corresponding to the nearest grid in node. */
+/* Compute the nearest 1D coordinate corresponding to the nearest grid in node editors. */
 static float nearest_node_grid_coord(float co)
 {
-  float grid_size = grid_size_get();
+  /* Size and location of nodes are independent of UI scale, so grid size should be independent of
+   * UI scale as well. */
+  float grid_size = grid_size_get() / UI_SCALE_FAC;
   float rest = fmod(co, grid_size);
   float offset = rest - grid_size / 2 >= 0 ? grid_size : 0;
 

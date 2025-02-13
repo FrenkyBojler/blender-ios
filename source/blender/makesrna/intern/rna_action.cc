@@ -29,6 +29,8 @@
 
 using namespace blender;
 
+/* Disabled for now, see comment in `rna_def_action_layer()` for more info. */
+#if 0
 const EnumPropertyItem rna_enum_layer_mix_mode_items[] = {
     {int(animrig::Layer::MixMode::Replace),
      "REPLACE",
@@ -57,6 +59,7 @@ const EnumPropertyItem rna_enum_layer_mix_mode_items[] = {
      "Channels in this layer are multiplied with underlying layers on a per-channel basis"},
     {0, nullptr, 0, nullptr, nullptr},
 };
+#endif
 
 const EnumPropertyItem rna_enum_strip_type_items[] = {
     {int(animrig::Strip::Type::Keyframe),
@@ -127,11 +130,14 @@ static animrig::Strip &rna_data_strip(const PointerRNA *ptr)
   return reinterpret_cast<ActionStrip *>(ptr->data)->wrap();
 }
 
+/* Disabled for now, see comment in `rna_def_action_layer()` for more info. */
+#  if 0
 static void rna_Action_tag_animupdate(Main * /*main*/, Scene * /*scene*/, PointerRNA *ptr)
 {
   animrig::Action &action = rna_action(ptr);
   DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
 }
+#  endif
 
 static animrig::Channelbag &rna_data_channelbag(const PointerRNA *ptr)
 {
@@ -1363,8 +1369,10 @@ static void rna_Action_deselect_keys(bAction *act)
   WM_main_add_notifier(NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-/* Used to check if an action (value pointer)
- * is suitable to be assigned to the ID-block that is ptr. */
+/**
+ * Used to check if an action (value pointer)
+ * is suitable to be assigned to the ID-block that is ptr.
+ */
 bool rna_Action_id_poll(PointerRNA *ptr, PointerRNA value)
 {
   ID *srcId = ptr->owner_id;
@@ -1393,8 +1401,10 @@ bool rna_Action_id_poll(PointerRNA *ptr, PointerRNA value)
   return true;
 }
 
-/* Used to check if an action (value pointer)
- * can be assigned to Action Editor given current mode. */
+/**
+ * Used to check if an action (value pointer)
+ * can be assigned to Action Editor given current mode.
+ */
 bool rna_Action_actedit_assign_poll(PointerRNA *ptr, PointerRNA value)
 {
   SpaceAction *saction = (SpaceAction *)ptr->data;
@@ -1426,8 +1436,10 @@ bool rna_Action_actedit_assign_poll(PointerRNA *ptr, PointerRNA value)
   return false;
 }
 
-/** Iterate the FCurves of the given bAnimContext and validate the RNA path. Sets the flag
- * FCURVE_DISABLED if the path can't be resolved. */
+/**
+ * Iterate the FCurves of the given bAnimContext and validate the RNA path. Sets the flag
+ * #FCURVE_DISABLED if the path can't be resolved.
+ */
 static void reevaluate_fcurve_errors(bAnimContext *ac)
 {
   /* Need to take off the flag before filtering, else the filter code would skip the FCurves, which
@@ -1582,7 +1594,8 @@ static void rna_ActionSlot_target_id_type_set(PointerRNA *ptr, int value)
   action.slot_idtype_define(slot, ID_Type(value));
 }
 
-/* For API backwards compatability with pre-layered-actions (Blender 4.3 and
+/**
+ * For API backwards compatibility with pre-layered-actions (Blender 4.3 and
  * earlier), we treat `Action.id_root` as a proxy for the `target_id_type`
  * property (`idtype` in DNA) of the Action's first Slot.
  *
@@ -1599,12 +1612,14 @@ static int rna_Action_id_root_get(PointerRNA *ptr)
   return action.slot(0)->idtype;
 }
 
-/* For API backwards compatability with pre-layered-actions (Blender 4.3 and
+/**
+ * For API backwards compatibility with pre-layered-actions (Blender 4.3 and
  * earlier), we treat `Action.id_root` as a proxy for the `target_id_type`
  * property (`idtype` in DNA) of the Action's first Slot.
  *
  * If the Action has no slots, then a legacy slot is created and its
- * `target_id_type` is set. */
+ * `target_id_type` is set.
+ */
 static void rna_Action_id_root_set(PointerRNA *ptr, int value)
 {
   animrig::Action &action = reinterpret_cast<bAction *>(ptr->owner_id)->wrap();
@@ -2200,6 +2215,12 @@ static void rna_def_action_layer(BlenderRNA *brna)
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
   RNA_def_struct_name_property(srna, prop);
 
+  /* Disabled in RNA until layered animation is actually implemented.
+   *
+   * The animation evaluation already takes these into account, but there is no guarantee that the
+   * mixing that is currently implemented is going to be mathematically identical to the eventual
+   * implementation. */
+#  if 0
   prop = RNA_def_property(srna, "influence", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_ui_text(
@@ -2215,6 +2236,7 @@ static void rna_def_action_layer(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_enum_items(prop, rna_enum_layer_mix_mode_items);
   RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN, "rna_Action_tag_animupdate");
+#  endif
 
   /* Collection properties. */
   prop = RNA_def_property(srna, "strips", PROP_COLLECTION, PROP_NONE);
