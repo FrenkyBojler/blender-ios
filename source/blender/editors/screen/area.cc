@@ -2714,7 +2714,6 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
   /* Set area space subtype if applicable. */
   if (st && st->space_subtype_item_extend != nullptr) {
     BLI_assert(st->space_subtype_prev_get != nullptr);
-
     st->space_subtype_set(area, area->butspacetype_subtype);
     if (change_spacetype) {
       st->space_subtype_set(area, st->space_subtype_prev_get(area));
