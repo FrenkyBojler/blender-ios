@@ -25,6 +25,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_rect.h"
+#include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_vector.hh"
@@ -841,14 +842,36 @@ static bool ui_but_equals_old(const uiBut *but, const uiBut *oldbut)
   return true;
 }
 
-uiBut *ui_but_find_old(uiBlock *block_old, const uiBut *but_new)
+static uiBut *ui_but_find_old(uiBlock *block_old,
+                              const uiBut *but_new,
+                              const blender::Set<const uiBut *> &ignore_old_buttons)
 {
   for (const std::unique_ptr<uiBut> &but : block_old->buttons) {
-    if (ui_but_equals_old(but_new, but.get())) {
+    if (!ignore_old_buttons.contains(but.get()) && ui_but_equals_old(but_new, but.get())) {
       return but.get();
     }
   }
   return nullptr;
+}
+
+uiBut *ui_but_find_old(uiBlock *block_old, const uiBut *but_new)
+{
+  return ui_but_find_old(block_old, but_new, {});
+}
+
+static std::optional<int64_t> ui_but_find_old_idx(
+    uiBlock *block_old,
+    const uiBut *but_new,
+    const blender::Set<const uiBut *> &ignore_old_buttons = {})
+{
+  int64_t i = 0;
+  for (const std::unique_ptr<uiBut> &but : block_old->buttons) {
+    if (!ignore_old_buttons.contains(but.get()) && ui_but_equals_old(but_new, but.get())) {
+      return i;
+    }
+    i++;
+  }
+  return std::nullopt;
 }
 
 uiBut *ui_but_find_new(uiBlock *block_new, const uiBut *but_old)
@@ -1003,178 +1026,89 @@ static void ui_but_update_old_active_from_new(uiBut *oldbut, uiBut *but)
   /* NOTE: if layout hasn't been applied yet, it uses old button pointers... */
 }
 
-static bool but_itr_in_range(const std::unique_ptr<uiBut> *but, const uiBlock *block)
-{
-  return block->buttons.begin() <= but && but < block->buttons.end();
-}
-
 /**
- * `ForwardIndexListSequenceIterator` is a logical list sequence used to simulate list behavior
- * while using containers that stores elements contiguously, like a Vector or Arrays.
+ * Optimization:
+ * \a but_old_idx is used to avoid having to lookup the matching button from the old
+ * block on every iteration. On most redraws, button order doesn't change, so the index of the new
+ * button is the index of the matching old button. Only if they don't match using the expected
+ * index, a lookup has to be performed. Even if individual buttons are inserted or removed, likely
+ * at some point the following buttons (if any) will match again, so successive indices will
+ * produce successive matches again. Think of \a but_old_idx as a cursor that indicates the
+ * likely/expected position of the matching button in the old block. This optimization brings
+ * the whole button updating to O(n) amortized time instead of O(n^2).
  *
- * This allows to forward iterate in these containers as if they are like a forward list, enabling
- * to remove iterable indices with O(1), this without removing elements from the original container
- * that can be expensive since other elements may be reallocated. Note that this has a
- * initialization cost of O(n).
+ * \param matched_old_buttons: Collects all previously found matches in the old block. These should
+ * be ignored when looking up further matches.
+ * \param but_uptr: The owning pointer for the button to update. The pointed to button may be
+ * replaced, in which case the function will return true.
+ * \param but_old_idx: Index into the old-button vector indicating the likely/expected position of
+ * the matching button in the old block, for the optimization explained above. Value is optional
+ * because sometimes the expected position of the following matching button can not be determined,
+ * in which case a full lookup will have to be performed.
  *
- *
- * While iterating only the active index in the list sequence can be removed, as follows:
- *
- *                             Active index = 4
- *                                    ↓
- *                         __    __    __    __
- *                        |  ↓  |  ↓  |  ↓  |  ↓
- * Begin = 0             [1][2][3][4][5][6][7][8]
- *                           |__↑  |__↑  |__↑
- *
- *                 Index  0  1  2  3  4  5  6  7
- *
- *
- *                                Active index = 5
- *                                       ↓
- *                         __    __       ___
- *                        |  ↓  |  ↓     |  ↓
- * Begin = 0             [1][2][3][5][ ][6][7][8]
- *                           |__↑  |_____↑  |__↑
- *                 Index  0  1  2  3  4  5  6  7
- *
- *
- * The container can be considered empty when all iterable indices are logically removed.
+ * \return true when the button pointed to by \a but_uptr is replaced (only done for active
+ * buttons).
  */
-struct ForwardIndexListSequenceIterator {
- private:
-  /** Logical begin of the list. */
-  int begin_;
-  /** Logical end of the list. */
-  int end_;
-
-  /** Current iterator index. */
-  int current_idx_;
-  /** Prev iterator index, knowing this one whe can remove current index in the list. */
-  int prev_idx_;
-  /** Logical index sequence. */
-  blender::Array<int> list_sequence_;
-
- public:
-  ForwardIndexListSequenceIterator(int size)
-      : begin_{0}, end_{size}, current_idx_{0}, prev_idx_{-1}
-  {
-    list_sequence_ = blender::Array<int>(size);
-    int i = 1;
-    for (int &n : list_sequence_) {
-      n = i++;
-    }
-  }
-
-  void set_iterator_to_begin()
-  {
-    current_idx_ = begin_;
-    prev_idx_ = -1;
-  }
-
-  bool in_range()
-  {
-    return begin_ <= current_idx_ && current_idx_ < end_;
-  }
-
-  bool is_empty()
-  {
-    return begin_ == end_;
-  }
-
-  void advance()
-  {
-    prev_idx_ = current_idx_;
-    current_idx_ = list_sequence_[current_idx_];
-  }
-
-  int current_index()
-  {
-    return current_idx_;
-  }
-
-  void remove_current_index()
-  {
-    if (current_idx_ == begin_) {
-      begin_ = list_sequence_[current_idx_];
-      current_idx_ = list_sequence_[current_idx_];
-      prev_idx_ = -1;
-    }
-    else if (list_sequence_[current_idx_] == end_) {
-      end_ = current_idx_;
-      current_idx_ = begin_;
-      prev_idx_ = -1;
-    }
-    else {
-      current_idx_ = list_sequence_[current_idx_];
-      list_sequence_[prev_idx_] = current_idx_;
-    }
-  }
-};
-
-static std::unique_ptr<uiBut> *ui_but_find_old(uiBlock *block_old,
-                                               const std::unique_ptr<uiBut> &but_new,
-                                               ForwardIndexListSequenceIterator &sequence_iterator)
-{
-  sequence_iterator.set_iterator_to_begin();
-  while (sequence_iterator.in_range()) {
-    std::unique_ptr<uiBut> *but = &block_old->buttons[sequence_iterator.current_index()];
-    if (ui_but_equals_old(but_new.get(), but->get())) {
-      return but;
-    }
-    sequence_iterator.advance();
-  }
-  return nullptr;
-}
-
-/**
- * \return true when \a but is restored from old block (only done for active buttons).
- */
-static bool ui_but_update_from_old_block(const bContext * /*C*/,
-                                         uiBlock *block,
-                                         std::unique_ptr<uiBut> &but,
-                                         ForwardIndexListSequenceIterator &sequence_iterator)
+static bool ui_but_update_from_old_block(uiBlock *block,
+                                         blender::Set<const uiBut *> &matched_old_buttons,
+                                         std::unique_ptr<uiBut> *but_uptr,
+                                         std::optional<int64_t> *but_old_idx)
 {
   uiBlock *oldblock = block->oldblock;
+  uiBut *but = but_uptr->get();
 
 #if 0
   /* Simple method - search every time. Keep this for easy testing of the "fast path." */
-  ui_but_find_old(oldblock, but);
-
+  uiBut *oldbut = ui_but_find_old(oldblock, but, matched_old_buttons);
+  UNUSED_VARS(but_old_p);
 #else
-  BLI_assert(oldbut == nullptr || but_itr_in_range(oldbut, oldblock));
+  BLI_assert(!but_old_idx->has_value() || oldblock->buttons.index_range().contains(**but_old_idx));
 
-  /* As long as old and new buttons are aligned, avoid loop-in-loop (calling #ui_but_find_old).
-   */
-  if (!LIKELY(sequence_iterator.in_range() &&
-              ui_but_equals_old(but.get(),
-                                oldblock->buttons[sequence_iterator.current_index()].get())))
+  /* As long as old and new buttons are aligned, avoid loop-in-loop (calling #ui_but_find_old). */
+  std::unique_ptr<uiBut> *oldbut_uptr;
+  if (LIKELY(but_old_idx->has_value() &&
+             /* Ignore previously matched buttons. */
+             !matched_old_buttons.contains(oldblock->buttons[**but_old_idx].get()) &&
+             ui_but_equals_old(but, oldblock->buttons[**but_old_idx].get())))
   {
-    /* Fallback to block search. */
-    ui_but_find_old(oldblock, but, sequence_iterator);
+    oldbut_uptr = &oldblock->buttons[**but_old_idx];
   }
+  else {
+    /* Fallback to block search. */
+    *but_old_idx = ui_but_find_old_idx(oldblock, but, matched_old_buttons);
+    oldbut_uptr = but_old_idx->has_value() ? &oldblock->buttons[**but_old_idx] : nullptr;
+  }
+  /* Increase for next iteration. */
+  *but_old_idx = (but_old_idx->has_value() &&
+                  (but_old_idx->value() + 1 < oldblock->buttons.size())) ?
+                     std::optional{but_old_idx->value() + 1} :
+                     std::nullopt;
 #endif
 
   bool found_active = false;
 
-  if (!sequence_iterator.in_range()) {
+  if (!oldbut_uptr) {
     return false;
   }
+  uiBut *oldbut = oldbut_uptr->get();
 
-  std::unique_ptr<uiBut> &oldbut = oldblock->buttons[sequence_iterator.current_index()];
+  BLI_assert(!matched_old_buttons.contains(oldbut));
+  matched_old_buttons.add(oldbut);
 
   if (oldbut->active || oldbut->semi_modal_state) {
+    /* Move button over from oldblock to new block. */
+    oldbut_uptr->swap(*but_uptr);
+    BLI_assert(but_uptr->get() == oldbut);
+
     /* Add the old button to the button groups in the new block. */
-    ui_button_group_replace_but_ptr(block, but.get(), oldbut.get());
+    ui_button_group_replace_but_ptr(block, but, oldbut);
     oldbut->block = block;
 
-    ui_but_update_old_active_from_new(oldbut.get(), but.get());
+    ui_but_update_old_active_from_new(oldbut, but);
 
     if (!BLI_listbase_is_empty(&block->butstore)) {
-      UI_butstore_register_update(block, oldbut.get(), but.get());
+      UI_butstore_register_update(block, oldbut, but);
     }
-    /* Swap old and new buttons, new button will be removed as `oldbut`. */
-    std::swap(but, oldbut);
 
     found_active = true;
   }
@@ -1189,7 +1123,7 @@ static bool ui_but_update_from_old_block(const bContext * /*C*/,
 
     but->flag = (but->flag & ~flag_copy) | (oldbut->flag & flag_copy);
   }
-  sequence_iterator.remove_current_index();
+
   return found_active;
 }
 
@@ -2003,14 +1937,17 @@ void UI_block_update_from_old(const bContext *C, uiBlock *block)
   if (!block->oldblock) {
     return;
   }
-  uiBlock *oldblock = block->oldblock;
+
   if (BLI_listbase_is_empty(&block->oldblock->butstore) == false) {
     UI_butstore_update(block);
   }
 
-  ForwardIndexListSequenceIterator sequence_iterator(oldblock->buttons.size());
+  std::optional<int64_t> but_old_idx = block->oldblock->buttons.is_empty() ? std::nullopt :
+                                                                             std::optional{0};
+  blender::Set<const uiBut *> matched_old_buttons;
+  matched_old_buttons.reserve(block->oldblock->buttons.size());
   for (std::unique_ptr<uiBut> &but : block->buttons) {
-    if (ui_but_update_from_old_block(C, block, but, sequence_iterator)) {
+    if (ui_but_update_from_old_block(block, matched_old_buttons, &but, &but_old_idx)) {
       ui_but_update(but.get());
 
       /* redraw dynamic tooltip if we have one open */
@@ -2019,6 +1956,10 @@ void UI_block_update_from_old(const bContext *C, uiBlock *block)
       }
     }
   }
+  for (const std::unique_ptr<uiBut> &but : block->oldblock->buttons) {
+    ui_but_free(C, but.get());
+  }
+  block->oldblock->buttons.clear_and_shrink();
 
   block->auto_open = block->oldblock->auto_open;
   block->auto_open_last = block->oldblock->auto_open_last;
