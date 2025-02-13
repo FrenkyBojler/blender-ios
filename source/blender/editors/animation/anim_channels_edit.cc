@@ -983,16 +983,18 @@ void ANIM_flush_setting_anim_channels(bAnimContext *ac,
     return;
   }
 
-  const bAnimChannelType *acf = ANIM_channel_get_typeinfo(ale_setting);
-  if (acf == nullptr) {
-    printf("ERROR: no channel info for the changed channel\n");
-    return;
-  }
+  {
+    const bAnimChannelType *acf = ANIM_channel_get_typeinfo(ale_setting);
+    if (acf == nullptr) {
+      printf("ERROR: no channel info for the changed channel\n");
+      return;
+    }
 
-  /* get the level of the channel that was affected
-   *   - we define the level as simply being the offset for the start of the channel
-   */
-  matchLevel = (acf->get_offset) ? acf->get_offset(ac, ale_setting) : 0;
+    /* get the level of the channel that was affected
+     *   - we define the level as simply being the offset for the start of the channel
+     */
+    matchLevel = (acf->get_offset) ? acf->get_offset(ac, ale_setting) : 0;
+  }
 
   anim_flush_channel_setting_up(ac, setting, mode, match, matchLevel);
   anim_flush_channel_setting_down(ac, setting, mode, match, matchLevel);

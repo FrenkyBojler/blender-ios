@@ -5324,7 +5324,7 @@ static void achannel_setting_widget_cb(bContext *C, void *ale_npoin, void *setti
 {
   WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
 
-  bAnimListElem *ale_setting = (bAnimListElem *)ale_npoin;
+  const bAnimListElem *ale_setting = static_cast<bAnimListElem *>(ale_npoin);
   const bAnimChannelType *acf = ANIM_channel_get_typeinfo(ale_setting);
   if (!acf) {
     /* Any channel with settings should have a type, because it is the type that
