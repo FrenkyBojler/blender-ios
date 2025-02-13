@@ -35,7 +35,6 @@
 #include "BKE_workspace.hh"
 
 #include "DEG_depsgraph.hh"
-#include "DEG_depsgraph_build.hh"
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
