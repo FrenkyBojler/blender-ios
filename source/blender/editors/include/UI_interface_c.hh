@@ -191,6 +191,7 @@ enum {
   UI_BLOCK_QUICK_SETUP = 1 << 26,
   /** Don't accelerator keys for the items in the block. */
   UI_BLOCK_NO_ACCELERATOR_KEYS = 1 << 27,
+  UI_BLOCK_REDALERT = 1 << 28,
 };
 
 /** #uiPopupBlockHandle.menuretval */

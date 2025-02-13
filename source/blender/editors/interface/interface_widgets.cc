@@ -2791,12 +2791,7 @@ static void widget_menu_back(uiWidgetColors *wcol,
 
   widget_init(&wtb);
 
-  /* menu is 2nd level or deeper */
-  if (block_flag & UI_BLOCK_POPUP) {
-    // rect->ymin -= 4.0;
-    // rect->ymax += 4.0;
-  }
-  else if (direction & (UI_DIR_DOWN | UI_DIR_UP)) {
+  if (direction & (UI_DIR_DOWN | UI_DIR_UP)) {
     if (direction & UI_DIR_DOWN) {
       roundboxalign = (UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT);
     }
@@ -5202,13 +5197,28 @@ void ui_draw_menu_back(uiStyle * /*style*/, uiBlock *block, const rcti *rect)
   wt->state(wt, &STATE_INFO_NULL, UI_EMBOSS_UNDEFINED);
   if (block) {
     const float zoom = 1.0f / block->aspect;
-    wt->draw_block(&wt->wcol, rect, block->flag, block->direction, zoom);
+    char dir = (block->flag & UI_BLOCK_REDALERT) ? UI_DIR_DOWN : block->direction;
+    wt->draw_block(&wt->wcol, rect, block->flag, dir, zoom);
   }
   else {
     wt->draw_block(&wt->wcol, rect, 0, 0, 1.0f);
   }
 
   ui_draw_clip_tri(block, rect, wt);
+
+  if (block && block->flag & UI_BLOCK_REDALERT) {
+    const uint pos = GPU_vertformat_attr_add(
+        immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+    immUniformThemeColor(TH_ERROR);
+    GPU_line_width(3.0f);
+    GPU_blend(GPU_BLEND_ALPHA);
+    immBegin(GPU_PRIM_LINES, 2);
+    immVertex2f(pos, rect->xmin, rect->ymax);
+    immVertex2f(pos, rect->xmax, rect->ymax);
+    immEnd();
+    immUnbindProgram();
+  }
 }
 
 /**

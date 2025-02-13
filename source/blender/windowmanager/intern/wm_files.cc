@@ -4054,8 +4054,9 @@ static uiBlock *block_create_autorun_warning(bContext *C, ARegion *region, void 
   wmWindowManager *wm = CTX_wm_manager(C);
 
   uiBlock *block = UI_block_begin(C, region, "autorun_warning_popup", UI_EMBOSS);
-  UI_block_flag_enable(
-      block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_LOOP | UI_BLOCK_NO_WIN_CLIP | UI_BLOCK_NUMSELECT);
+  UI_block_flag_enable(block,
+                       UI_BLOCK_KEEP_OPEN | UI_BLOCK_LOOP | UI_BLOCK_NO_WIN_CLIP |
+                           UI_BLOCK_NUMSELECT | UI_BLOCK_REDALERT);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
   UI_block_emboss_set(block, UI_EMBOSS);
 

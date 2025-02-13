@@ -2078,6 +2078,7 @@ static uiBlock *block_create_opengl_usage_warning(bContext *C, ARegion *region, 
   uiBlock *block = UI_block_begin(C, region, "autorun_warning_popup", UI_EMBOSS);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
   UI_block_emboss_set(block, UI_EMBOSS);
+  UI_block_flag_enable(block, UI_BLOCK_REDALERT);
 
   const char *title = RPT_("Python script uses OpenGL for drawing");
   const char *message1 = RPT_("This may lead to unexpected behavior");
@@ -2178,6 +2179,7 @@ static uiBlock *block_create_gpu_backend_fallback(bContext *C, ARegion *region, 
   uiBlock *block = UI_block_begin(C, region, "autorun_warning_popup", UI_EMBOSS);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
   UI_block_emboss_set(block, UI_EMBOSS);
+  UI_block_flag_enable(block, UI_BLOCK_REDALERT);
 
   uiLayout *layout = uiItemsAlertBox(block, 44, ALERT_ICON_ERROR);
 
