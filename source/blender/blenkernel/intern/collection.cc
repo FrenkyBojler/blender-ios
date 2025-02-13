@@ -1338,7 +1338,12 @@ static bool collection_is_editable_in_viewlayer(const ViewLayer *view_layer,
   if (!layer_collection) {
     return false;
   }
-  if (layer_collection->flag & LAYER_COLLECTION_EXCLUDE) {
+
+  if (collection->flag & COLLECTION_HIDE_VIEWPORT) {
+    return false;
+  }
+
+  if (layer_collection->flag & (LAYER_COLLECTION_EXCLUDE | LAYER_COLLECTION_HIDE)) {
     return false;
   }
   return true;
