@@ -1002,7 +1002,8 @@ void ANIM_flush_setting_anim_channels(bAnimContext *ac,
      * `ale` they see, and the actual `ale` of the actual setting being changed. That's why this
      * call is necessary too. Adding this felt safer to me (Sybren) than changing the behaviour of
      * anim_flush_channel_setting_up/down, the impact of which is much harder to predict. */
-    acf->setting_post_update(match, setting);
+    BLI_assert(ac->bmain);
+    acf->setting_post_update(*ac->bmain, *match, setting);
   }
 }
 

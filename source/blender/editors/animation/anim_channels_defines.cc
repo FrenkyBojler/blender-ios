@@ -65,6 +65,7 @@
 #include "GPU_state.hh"
 
 #include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 
 #include "UI_interface.hh"
 #include "UI_interface_icons.hh"
@@ -4370,13 +4371,15 @@ static void *acf_nlatrack_setting_ptr(bAnimListElem *ale,
   return GET_ACF_FLAG_PTR(nlt->flag, r_type);
 }
 
-static void acf_nlatrack_setting_post_update(bAnimListElem *ale, eAnimChannel_Settings setting)
+static void acf_nlatrack_setting_post_update(Main &bmain,
+                                             bAnimListElem & /*ale*/,
+                                             const eAnimChannel_Settings setting)
 {
   switch (setting) {
     case ACHANNEL_SETTING_MUTE:
     case ACHANNEL_SETTING_SOLO:
       /* Changing these settings can change whether data-blocks are animated at all. */
-      ale->update |= ANIM_UPDATE_RELATIONSHIPS;
+      DEG_relations_tag_update(&bmain);
       break;
 
     case ACHANNEL_SETTING_SELECT:
@@ -4872,7 +4875,9 @@ void ANIM_channel_setting_set(bAnimContext *ac,
       }
 
       if (acf->setting_post_update) {
-        acf->setting_post_update(ale, setting);
+        BLI_assert(ale);
+        BLI_assert(ac->bmain);
+        acf->setting_post_update(*ac->bmain, *ale, setting);
       }
     }
   }
