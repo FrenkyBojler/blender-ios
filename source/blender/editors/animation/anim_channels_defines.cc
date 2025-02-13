@@ -5789,6 +5789,7 @@ static void draw_setting_widget(bAnimContext *ac,
   }
 
   /* set call to send relevant notifiers and/or perform type-specific updates */
+  uiButHandleNFunc button_callback;
   switch (setting) {
     /* Settings needing flushing up/down hierarchy. */
     case ACHANNEL_SETTING_VISIBLE: /* Graph Editor - 'visibility' toggles */
@@ -5797,23 +5798,22 @@ static void draw_setting_widget(bAnimContext *ac,
     case ACHANNEL_SETTING_PINNED:  /* NLA Actions - 'map/nomap' */
     case ACHANNEL_SETTING_MOD_OFF:
     case ACHANNEL_SETTING_ALWAYS_VISIBLE:
-      UI_but_funcN_set(
-          but, achannel_setting_flush_widget_cb, MEM_dupallocN(ale), POINTER_FROM_INT(setting));
+      button_callback = achannel_setting_flush_widget_cb;
       break;
 
     /* settings needing special attention */
     case ACHANNEL_SETTING_SOLO: /* NLA Tracks - Solo toggle */
-      UI_but_funcN_set(
-          but, achannel_nlatrack_solo_widget_cb, MEM_dupallocN(ale), POINTER_FROM_INT(setting));
+      button_callback = achannel_nlatrack_solo_widget_cb;
       break;
 
     /* no flushing */
     case ACHANNEL_SETTING_EXPAND: /* expanding - cannot flush,
                                    * otherwise all would open/close at once */
     default:
-      UI_but_func_set(but, achannel_setting_widget_cb, nullptr, nullptr);
+      button_callback = achannel_setting_widget_cb;
       break;
   }
+  UI_but_funcN_set(but, button_callback, MEM_dupallocN(ale), POINTER_FROM_INT(setting));
 
   if ((ale->fcurve_owner_id != nullptr && !BKE_id_is_editable(ac->bmain, ale->fcurve_owner_id)) ||
       (ale->fcurve_owner_id == nullptr && ale->id != nullptr &&
