@@ -5107,7 +5107,7 @@ AutoComplete *UI_autocomplete_begin(const char *startname, size_t maxncpy)
   return autocpl;
 }
 
-void UI_autocomplete_update_name(AutoComplete *autocpl, const char *name)
+void UI_autocomplete_update_name(AutoComplete *autocpl, const StringRef name)
 {
   char *truncate = autocpl->truncate;
   const char *startname = autocpl->startname;
@@ -5124,7 +5124,7 @@ void UI_autocomplete_update_name(AutoComplete *autocpl, const char *name)
     autocpl->matches++;
     /* first match */
     if (truncate[0] == 0) {
-      BLI_strncpy(truncate, name, autocpl->maxncpy);
+      name.copy_utf8_truncated(truncate, autocpl->maxncpy);
     }
     else {
       /* remove from truncate what is not in bone->name */
@@ -6789,7 +6789,7 @@ std::string UI_but_context_menu_title_from_button(uiBut &but)
       return "";
     }
     const blender::ui::AbstractView &tree_view = view_item_but.view_item->get_view();
-    return IFACE_(tree_view.get_context_menu_title().c_str());
+    return IFACE_(tree_view.get_context_menu_title());
   }
   return UI_but_string_get_label(but);
 }

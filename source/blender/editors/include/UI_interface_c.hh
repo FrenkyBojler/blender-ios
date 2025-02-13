@@ -17,7 +17,11 @@
 #include "BLI_string_utf8_symbols.h"
 #include "BLI_sys_types.h" /* size_t */
 #include "BLI_utildefines.h"
+
+#include "DNA_userdef_types.h"
+
 #include "UI_interface_icons.hh"
+
 #include "WM_types.hh"
 
 #include "MEM_guardedalloc.h"
@@ -1730,7 +1734,7 @@ void UI_but_func_identity_compare_set(uiBut *but, uiButIdentityCompareFunc cmp_f
  * \return false if there is nothing to add.
  */
 bool UI_search_item_add(uiSearchItems *items,
-                        const char *name,
+                        blender::StringRef name,
                         void *poin,
                         int iconid,
                         int but_flag,
@@ -1953,7 +1957,7 @@ struct AutoComplete;
 #define AUTOCOMPLETE_PARTIAL_MATCH 2
 
 AutoComplete *UI_autocomplete_begin(const char *startname, size_t maxncpy);
-void UI_autocomplete_update_name(AutoComplete *autocpl, const char *name);
+void UI_autocomplete_update_name(AutoComplete *autocpl, blender::StringRef name);
 int UI_autocomplete_end(AutoComplete *autocpl, char *autoname);
 
 /* Button drag-data (interface_drag.cc).
