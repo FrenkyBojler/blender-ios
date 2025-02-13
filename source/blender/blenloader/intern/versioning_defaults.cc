@@ -444,6 +444,10 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
   ts->unified_paint_settings.flag = default_ups.flag;
   copy_v3_v3(ts->unified_paint_settings.rgb, default_ups.rgb);
   copy_v3_v3(ts->unified_paint_settings.secondary_rgb, default_ups.secondary_rgb);
+
+  if (ts->imapaint.clone_brush.alpha == 0.0f) {
+    ts->imapaint.clone_brush.alpha = 0.5f;
+  }
 }
 
 void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)

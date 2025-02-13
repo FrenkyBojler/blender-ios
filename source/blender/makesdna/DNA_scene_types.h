@@ -1014,6 +1014,15 @@ typedef struct Paint {
 /* -------------------------------------------------------------------- */
 /** \name Image Paint
  * \{ */
+typedef struct CloneBrushData {
+  /** Image for clone tool. */
+  struct Image *image;
+  /** Offset of clone image from canvas. */
+  float offset[2];
+  /** Transparency for drawing of clone image. */
+  float alpha;
+  char _pad[4];
+} CloneBrushData;
 
 /** Texture/Image Editor. */
 typedef struct ImagePaintSettings {
@@ -1041,6 +1050,7 @@ typedef struct ImagePaintSettings {
   /** Display texture interpolation method. */
   int interp;
   char _pad[4];
+  struct CloneBrushData clone_brush;
 } ImagePaintSettings;
 
 /** \} */
