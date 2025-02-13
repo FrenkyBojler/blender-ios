@@ -2062,27 +2062,65 @@ static int armature_select_hierarchy_exec(bContext *C, wmOperator *op)
     }
   }
   else { /* BONE_SELECT_CHILD */
-    /* Deselect the active EditBone prior (if needed) since doing it afterwards would affect the
+    Vector<PointerRNA> selected_bones_orig;
+    CTX_data_selected_bones(C, &selected_bones_orig);
+
+    if (selected_bones_orig.is_empty()) {
+      return OPERATOR_CANCELLED;
+    }
+
+    /* Deselect selected EditBones prior (if needed) since doing it afterwards would affect the
      * child BONE_ROOTSEL. If nothing changes (no children), we will re-select afterwards (see
      * below). */
     if (!add_to_sel) {
-      ED_armature_ebone_select_set(ebone_active, false);
+      for (const PointerRNA &ptr : selected_bones_orig) {
+        EditBone *ebone = reinterpret_cast<EditBone *>(ptr.data);
+        ED_armature_ebone_select_set(ebone, false);
+      }
     }
-    LISTBASE_FOREACH (EditBone *, ebone_iter, arm->edbo) {
-      /* possible we have multiple children, some invisible */
-      if (EBONE_SELECTABLE(arm, ebone_iter)) {
-        if (ebone_iter->parent == ebone_active) {
-          if (!use_only_connected || (ebone_iter->flag & BONE_CONNECTED)) {
-            arm->act_edbone = ebone_iter;
-            ED_armature_ebone_select_set(ebone_iter, true);
 
-            changed = true;
-          }
+    /* This is so we know which bones we have already visited. */
+    LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
+      ebone->flag &= ~BONE_DONE;
+    }
+
+    /* Now go over selected bones... */
+    for (const PointerRNA &ptr : selected_bones_orig) {
+      EditBone *ebone_sel = reinterpret_cast<EditBone *>(ptr.data);
+      if (ebone_sel->flag & BONE_DONE) {
+        continue;
+      }
+      /* ... and select children if appropriate. */
+      LISTBASE_FOREACH (EditBone *, ebone_iter, arm->edbo) {
+        if (ebone_iter == ebone_sel) {
+          continue;
+        }
+        if (ebone_iter->flag & BONE_DONE) {
+          continue;
+        }
+        if (!EBONE_SELECTABLE(arm, ebone_iter)) {
+          ebone_iter->flag |= BONE_DONE;
+          continue;
+        }
+        if (ebone_iter->parent != ebone_sel) {
+          continue;
+        }
+
+        /* Found a bone with selected parent, so select it. */
+        if (!use_only_connected || (ebone_iter->flag & BONE_CONNECTED)) {
+          arm->act_edbone = ebone_iter;
+          ED_armature_ebone_select_set(ebone_iter, true);
+          ebone_iter->flag |= BONE_DONE;
+          changed = true;
         }
       }
     }
+    /* Reselect original EditBones (if needed, see above). */
     if (changed == false) {
-      ED_armature_ebone_select_set(ebone_active, true);
+      for (const PointerRNA &ptr : selected_bones_orig) {
+        EditBone *ebone = reinterpret_cast<EditBone *>(ptr.data);
+        ED_armature_ebone_select_set(ebone, true);
+      }
     }
   }
 

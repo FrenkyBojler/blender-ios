@@ -751,21 +751,55 @@ static int pose_select_hierarchy_exec(bContext *C, wmOperator *op)
     }
   }
   else { /* direction == BONE_SELECT_CHILD */
-    LISTBASE_FOREACH (bPoseChannel *, pchan_iter, &ob->pose->chanbase) {
-      /* possible we have multiple children, some invisible */
-      if (PBONE_SELECTABLE(arm, pchan_iter->bone)) {
-        if (pchan_iter->parent == pchan_act) {
-          if (!use_only_connected || (pchan_iter->bone->flag & BONE_CONNECTED)) {
-            arm->act_bone = pchan_iter->bone;
-            pchan_iter->bone->flag |= BONE_SELECTED;
+    Vector<PointerRNA> selected_bones_orig;
+    CTX_data_selected_pose_bones(C, &selected_bones_orig);
 
-            changed = true;
-          }
+    if (selected_bones_orig.is_empty()) {
+      return OPERATOR_CANCELLED;
+    }
+
+    /* This is so we know which bones we have already visited. */
+    LISTBASE_FOREACH (bPoseChannel *, pchan_iter, &ob->pose->chanbase) {
+      pchan_iter->flag &= ~BONE_DONE;
+    }
+
+    /* Now go over selected bones... */
+    for (const PointerRNA &ptr : selected_bones_orig) {
+      bPoseChannel *pchan_sel = reinterpret_cast<bPoseChannel *>(ptr.data);
+      if (pchan_sel->flag & BONE_DONE) {
+        continue;
+      }
+      /* ... and select children if appropriate. */
+      LISTBASE_FOREACH (bPoseChannel *, pchan_iter, &ob->pose->chanbase) {
+        if (pchan_iter == pchan_sel) {
+          continue;
+        }
+        if (pchan_iter->flag & BONE_DONE) {
+          continue;
+        }
+        if (!PBONE_SELECTABLE(arm, pchan_iter->bone)) {
+          pchan_iter->flag |= BONE_DONE;
+          continue;
+        }
+        if (pchan_iter->parent != pchan_sel) {
+          continue;
+        }
+
+        /* Found a bone with selected parent, so select it. */
+        if (!use_only_connected || (pchan_iter->bone->flag & BONE_CONNECTED)) {
+          arm->act_bone = pchan_iter->bone;
+          pchan_iter->bone->flag |= BONE_SELECTED;
+          pchan_iter->flag |= BONE_DONE;
+          changed = true;
         }
       }
     }
+    /* Clear original selection if not extending. */
     if (changed && !add_to_sel) {
-      pchan_act->bone->flag &= ~BONE_SELECTED;
+      for (const PointerRNA &ptr : selected_bones_orig) {
+        bPoseChannel *pchan_sel = reinterpret_cast<bPoseChannel *>(ptr.data);
+        pchan_sel->bone->flag &= ~BONE_SELECTED;
+      }
     }
   }
 
