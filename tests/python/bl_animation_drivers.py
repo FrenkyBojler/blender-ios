@@ -194,6 +194,21 @@ class ContextViewLayerDriverTest(AbstractEmptyDriverTest, unittest.TestCase):
         self.assertPropValue('test_fallback', 321)
 
 
+class SubIdDriverRemovalTest(AbstractEmptyDriverTest, unittest.TestCase):
+
+    def test_remove_modifier(self):
+        # Removing a modifier with a driver should also delete the driver
+        modifier = self.obj.modifiers.new("test", 'ARRAY')
+        # No animation data means no drivers.
+        self.assertEqual(self.obj.animation_data, None)
+        self.obj.driver_add('modifiers["test"].count')
+        self.assertEqual(len(self.obj.animation_data.drivers), 1)
+        self.obj.modifiers.remove(modifier)
+        self.assertEqual(len(self.obj.modifiers), 0)
+        self.assertEqual(len(self.obj.animation_data.drivers), 0,
+                         "Removing the modifier should remove the driver on it")
+
+
 def main():
     global args
     import argparse
