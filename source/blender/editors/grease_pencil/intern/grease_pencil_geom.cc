@@ -314,9 +314,9 @@ blender::bke::CurvesGeometry curves_merge_by_distance(const bke::CurvesGeometry 
     bke::attribute_math::convert_to_static_type(src_attribute.varray.type(), [&](auto dummy) {
       using T = decltype(dummy);
       if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
-        /* TODO: Check if this call failed! */
         bke::SpanAttributeWriter<T> dst_attribute =
             dst_attributes.lookup_or_add_for_write_only_span<T>(iter.name, bke::AttrDomain::Point);
+        BLI_assert(dst_attribute);
         VArraySpan<T> src = src_attribute.varray.typed<T>();
 
         threading::parallel_for(dst_curves.points_range(), 1024, [&](IndexRange range) {

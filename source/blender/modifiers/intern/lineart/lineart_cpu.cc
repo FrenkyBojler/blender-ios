@@ -5403,7 +5403,6 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
   MutableAttributeAccessor attributes = new_curves.attributes_for_write();
   MutableSpan<float3> point_positions = new_curves.positions_for_write();
 
-  /* TODO: Check if this call failed! */
   SpanAttributeWriter<float> point_radii = attributes.lookup_or_add_for_write_only_span<float>(
       "radius", AttrDomain::Point);
 
@@ -5441,7 +5440,9 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
       int point_i = i + up_to_point;
       point_positions[point_i] = blender::math::transform_point(inverse_mat, float3(eci->gpos));
       point_radii.span[point_i] = thickness / 2.0f;
-      point_opacities.span[point_i] = opacity;
+      if (point_opacities) {
+        point_opacities.span[point_i] = opacity;
+      }
 
       if (src_deform_group >= 0) {
         int vindex;
@@ -5466,7 +5467,9 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
   stroke_cyclic.finish();
 
   point_radii.finish();
-  point_opacities.finish();
+  if (point_opacities) {
+    point_opacities.finish();
+  }
   stroke_materials.finish();
 
   Curves *original_curves = blender::bke::curves_new_nomain(drawing.strokes());

@@ -131,7 +131,6 @@ static void modify_stroke_random(const Object &ob,
 
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-  /* TODO: Check if this call failed! */
   bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_span<float>(
       "radius", bke::AttrDomain::Point);
   const MutableSpan<float3> positions = curves.positions_for_write();
@@ -202,7 +201,6 @@ static void modify_stroke_by_index(const GreasePencilOffsetModifierData &omd,
 {
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-  /* TODO: Check if this call failed! */
   bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_span<float>(
       "radius", bke::AttrDomain::Point);
   const MutableSpan<float3> positions = curves.positions_for_write();
@@ -236,7 +234,6 @@ static void modify_stroke_by_material(const Object &ob,
 
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-  /* TODO: Check if this call failed! */
   bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_span<float>(
       "radius", bke::AttrDomain::Point);
   const MutableSpan<float3> positions = curves.positions_for_write();
@@ -270,7 +267,6 @@ static void modify_stroke_by_layer(const GreasePencilOffsetModifierData &omd,
 {
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-  /* TODO: Check if this call failed! */
   bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_span<float>(
       "radius", bke::AttrDomain::Point);
   const MutableSpan<float3> positions = curves.positions_for_write();

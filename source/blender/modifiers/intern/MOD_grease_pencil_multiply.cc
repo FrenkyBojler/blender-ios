@@ -154,7 +154,6 @@ static void generate_curves(GreasePencilMultiModifierData &mmd,
   const Span<float3> normals = drawing.curve_plane_normals();
 
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-  /* TODO: Check if this call failed! */
   bke::SpanAttributeWriter<float> opacities = attributes.lookup_or_add_for_write_span<float>(
       "opacity", bke::AttrDomain::Point);
   bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_span<float>(
@@ -182,7 +181,6 @@ static void generate_curves(GreasePencilMultiModifierData &mmd,
     using bke::attribute_math::mix2;
     const IndexRange stroke = IndexRange(src_point_count * i, src_point_count);
     MutableSpan<float3> instance_positions = positions.slice(stroke);
-    MutableSpan<float> instance_opacity = opacities.span.slice(stroke);
     MutableSpan<float> instance_radii = radii.span.slice(stroke);
     const float offset_fac = (mmd.duplications == 1) ?
                                  0.5f :
@@ -190,20 +188,31 @@ static void generate_curves(GreasePencilMultiModifierData &mmd,
     const float fading_fac = fabsf(offset_fac - fading_center);
     const float thickness_factor = use_fading ? mix2(fading_fac, 1.0f, 1.0f - fading_thickness) :
                                                 1.0f;
-    const float opacity_factor = use_fading ? mix2(fading_fac, 1.0f, 1.0f - fading_opacity) : 1.0f;
     threading::parallel_for(instance_positions.index_range(), 512, [&](const IndexRange range) {
       for (const int point : range) {
         const float fac = mix2(float(i) / float(mmd.duplications - 1), 1 + offset, offset);
         const int old_point = point % src_point_count;
         instance_positions[point] = mix2(fac, stroke_pos_l[old_point], stroke_pos_r[old_point]);
         instance_radii[point] *= thickness_factor;
-        instance_opacity[point] *= opacity_factor;
       }
     });
+
+    if (opacities) {
+      MutableSpan<float> instance_opacity = opacities.span.slice(stroke);
+      const float opacity_factor = use_fading ? mix2(fading_fac, 1.0f, 1.0f - fading_opacity) :
+                                                1.0f;
+      threading::parallel_for(instance_positions.index_range(), 512, [&](const IndexRange range) {
+        for (const int point : range) {
+          instance_opacity[point] *= opacity_factor;
+        }
+      });
+    }
   }
 
   radii.finish();
-  opacities.finish();
+  if (opacities) {
+    opacities.finish();
+  }
 
   drawing.tag_topology_changed();
 }

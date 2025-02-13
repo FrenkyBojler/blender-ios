@@ -87,7 +87,6 @@ static void write_stroke_transforms(bke::greasepencil::Drawing &drawing,
   const VArray<bool> cyclic = curves.cyclic();
 
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-  /* TODO: Check if this call failed! */
   bke::SpanAttributeWriter<float> u_translations = attributes.lookup_or_add_for_write_span<float>(
       "u_translation", bke::AttrDomain::Curve);
   bke::SpanAttributeWriter<float> rotations = attributes.lookup_or_add_for_write_span<float>(
@@ -96,6 +95,9 @@ static void write_stroke_transforms(bke::greasepencil::Drawing &drawing,
       "u_scale",
       bke::AttrDomain::Curve,
       bke::AttributeInitVArray(VArray<float>::ForSingle(1.0f, curves.curves_num())));
+  if (!u_translations || !rotations || !u_scales) {
+    return;
+  }
 
   curves.ensure_evaluated_lengths();
 

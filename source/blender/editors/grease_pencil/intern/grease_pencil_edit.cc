@@ -846,7 +846,6 @@ static int grease_pencil_stroke_material_set_exec(bContext *C, wmOperator *op)
     }
 
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
-    /* TODO: Check if this call failed! */
     bke::SpanAttributeWriter<int> materials =
         curves.attributes_for_write().lookup_or_add_for_write_span<int>("material_index",
                                                                         bke::AttrDomain::Curve);

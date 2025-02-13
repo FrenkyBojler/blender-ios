@@ -234,7 +234,6 @@ static bke::CurvesGeometry create_dashes(const PatternInfo &pattern_info,
 
   bke::CurvesGeometry dst_curves(dst_point_num, dst_curve_num);
   bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
-  /* TODO: Check if this call failed! */
   bke::SpanAttributeWriter<bool> dst_cyclic = dst_attributes.lookup_or_add_for_write_span<bool>(
       "cyclic", bke::AttrDomain::Curve);
   bke::SpanAttributeWriter<int> dst_material = dst_attributes.lookup_or_add_for_write_span<int>(
@@ -277,7 +276,11 @@ static bke::CurvesGeometry create_dashes(const PatternInfo &pattern_info,
       dst_material.span[dst_curve_i] = material >= 0 ? material : src_material[src_curve];
       for (const int i : dst_point_range) {
         dst_radius.span[i] = src_radius[src_point_indices[i]] * radius;
-        dst_opacity.span[i] = src_opacity[src_point_indices[i]] * opacity;
+      }
+      if (dst_opacity) {
+        for (const int i : dst_point_range) {
+          dst_opacity.span[i] = src_opacity[src_point_indices[i]] * opacity;
+        }
       }
 
       ++dst_curve_i;
@@ -319,7 +322,9 @@ static bke::CurvesGeometry create_dashes(const PatternInfo &pattern_info,
   dst_cyclic.finish();
   dst_material.finish();
   dst_radius.finish();
-  dst_opacity.finish();
+  if (dst_opacity) {
+    dst_opacity.finish();
+  }
   dst_curves.update_curve_types();
 
   return dst_curves;

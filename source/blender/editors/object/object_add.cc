@@ -3199,7 +3199,6 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
     MutableSpan<float3> positions_fill = curves_fill.positions_for_write();
     MutableSpan<int> offsets_fill = curves_fill.offsets_for_write();
     MutableSpan<bool> cyclic_fill = curves_fill.cyclic_for_write();
-    /* TODO: Check if this call failed! */
     bke::SpanAttributeWriter<int> stroke_materials_fill =
         curves_fill.attributes_for_write().lookup_or_add_for_write_span<int>(
             "material_index", bke::AttrDomain::Curve);

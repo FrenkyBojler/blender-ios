@@ -636,7 +636,6 @@ void Drawing::set_texture_matrices(Span<float4x2> matrices, const IndexMask &sel
 {
   CurvesGeometry &curves = this->strokes_for_write();
   MutableAttributeAccessor attributes = curves.attributes_for_write();
-  /* TODO: check if these calls fail! */
   SpanAttributeWriter<float> uv_rotations = attributes.lookup_or_add_for_write_span<float>(
       "uv_rotation", AttrDomain::Curve);
   SpanAttributeWriter<float2> uv_translations = attributes.lookup_or_add_for_write_span<float2>(
@@ -645,6 +644,11 @@ void Drawing::set_texture_matrices(Span<float4x2> matrices, const IndexMask &sel
       "uv_scale",
       AttrDomain::Curve,
       AttributeInitVArray(VArray<float2>::ForSingle(float2(1.0f, 1.0f), curves.curves_num())));
+
+  if (!uv_rotations || !uv_translations || !uv_scales) {
+    /* FIXME: It might be better to ensure the attributes exist and are on the right domain. */
+    return;
+  }
 
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   const Span<float3> positions = curves.positions();

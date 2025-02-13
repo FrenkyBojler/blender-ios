@@ -1131,7 +1131,6 @@ static void apply_eval_grease_pencil_data(const GreasePencil &src_grease_pencil,
       if (!attributes.contains("material_index")) {
         continue;
       }
-      /* TODO: Check if this call failed! */
       SpanAttributeWriter<int> material_indices = attributes.lookup_or_add_for_write_span<int>(
           "material_index", AttrDomain::Curve);
       for (int &material_index : material_indices.span) {

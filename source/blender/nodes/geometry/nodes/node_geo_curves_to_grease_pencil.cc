@@ -112,7 +112,6 @@ static GreasePencil *curve_instances_to_grease_pencil_layers(
     }
 
     /* Remap material indices. */
-    /* TODO: Check if this call failed! */
     bke::SpanAttributeWriter<int> material_indices =
         strokes.attributes_for_write().lookup_or_add_for_write_span<int>("material_index",
                                                                          bke::AttrDomain::Curve);

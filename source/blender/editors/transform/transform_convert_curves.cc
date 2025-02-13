@@ -301,7 +301,6 @@ static void createTransCurvesVerts(bContext *C, TransInfo *t)
     bke::SpanAttributeWriter<float> attribute_writer;
     if (t->mode == TFM_CURVE_SHRINKFATTEN) {
       bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-      /* TODO: Check if this call failed! */
       attribute_writer = attributes.lookup_or_add_for_write_span<float>(
           "radius",
           bke::AttrDomain::Point,
@@ -310,7 +309,6 @@ static void createTransCurvesVerts(bContext *C, TransInfo *t)
     }
     else if (t->mode == TFM_TILT) {
       bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-      /* TODO: Check if this call failed! */
       attribute_writer = attributes.lookup_or_add_for_write_span<float>("tilt",
                                                                         bke::AttrDomain::Point);
       value_attribute = attribute_writer.span;

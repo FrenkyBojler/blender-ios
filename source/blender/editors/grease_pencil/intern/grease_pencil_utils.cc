@@ -1280,11 +1280,13 @@ IndexMask retrieve_editable_and_selected_elements(Object &object,
   return {};
 }
 
-Array<PointTransferData> compute_topology_change(
-    const bke::CurvesGeometry &src,
-    bke::CurvesGeometry &dst,
-    const Span<Vector<PointTransferData>> src_to_dst_points,
-    const bool keep_caps)
+static void
+
+    Array<PointTransferData>
+    compute_topology_change(const bke::CurvesGeometry &src,
+                            bke::CurvesGeometry &dst,
+                            const Span<Vector<PointTransferData>> src_to_dst_points,
+                            const bool keep_caps)
 {
   const int src_curves_num = src.curves_num();
   const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
@@ -1421,7 +1423,6 @@ Array<PointTransferData> compute_topology_change(
 
   /* Display intersections with flat caps. */
   if (!keep_caps) {
-    /* TODO: Check if this call failed! */
     bke::SpanAttributeWriter<int8_t> dst_start_caps =
         dst_attributes.lookup_or_add_for_write_span<int8_t>("start_cap", bke::AttrDomain::Curve);
     bke::SpanAttributeWriter<int8_t> dst_end_caps =
@@ -1434,19 +1435,23 @@ Array<PointTransferData> compute_topology_change(
             dst_transfer_data[dst_curve_points.first()];
         const PointTransferData &end_point_transfer = dst_transfer_data[dst_curve_points.last()];
 
-        if (start_point_transfer.is_cut) {
+        if (dst_start_caps && start_point_transfer.is_cut) {
           dst_start_caps.span[dst_curve] = GP_STROKE_CAP_TYPE_FLAT;
         }
         /* The is_cut flag does not work for end points, but any end point that isn't the source
          * point must also be a cut. */
-        if (!end_point_transfer.is_src_end_point()) {
+        if (dst_end_caps && !end_point_transfer.is_src_end_point()) {
           dst_end_caps.span[dst_curve] = GP_STROKE_CAP_TYPE_FLAT;
         }
       }
     });
 
-    dst_start_caps.finish();
-    dst_end_caps.finish();
+    if (dst_start_caps) {
+      dst_start_caps.finish();
+    }
+    if (dst_end_caps) {
+      dst_end_caps.finish();
+    }
   }
 
   /* Copy/Interpolate point attributes. */

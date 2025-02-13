@@ -212,7 +212,6 @@ static bke::CurvesGeometry grease_pencil_trace_image(TraceJob &trace_job, const 
   const int material_bg = ensure_background_material(
       trace_job.bmain, trace_job.ob_grease_pencil, "Holdout");
   const VArraySpan<bool> holes = *attributes.lookup<bool>(hole_attribute_id);
-  /* TODO: Check if this call failed! */
   bke::SpanAttributeWriter<int> material_indices = attributes.lookup_or_add_for_write_span<int>(
       "material_index", bke::AttrDomain::Curve);
   threading::parallel_for(trace_curves.curves_range(), 4096, [&](const IndexRange range) {
@@ -226,7 +225,6 @@ static bke::CurvesGeometry grease_pencil_trace_image(TraceJob &trace_job, const 
   attributes.remove(hole_attribute_id);
 
   /* Uniform radius for all trace curves. */
-  /* TODO: Check if this call failed! */
   bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_only_span<float>(
       "radius", bke::AttrDomain::Point);
   radii.span.fill(trace_job.radius);

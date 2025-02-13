@@ -266,15 +266,15 @@ bool selection_update(const ViewContext *vc,
 
         /* Modes that un-set all elements not in the mask. */
         if (ELEM(sel_op, SEL_OP_SET, SEL_OP_AND)) {
-          /* TODO: Check if this call failed! */
-          bke::SpanAttributeWriter<bool> selection =
-              curves.attributes_for_write().lookup_or_add_for_write_span<bool>(attribute_name,
-                                                                               selection_domain);
-          IndexMaskMemory memory;
-          const IndexMask not_in_mask = changed_element_mask.complement(
-              selection.span.index_range(), memory);
-          ed::curves::fill_selection_false(selection.span, not_in_mask);
-          selection.finish();
+          if (bke::SpanAttributeWriter<bool> selection =
+                  curves.attributes_for_write().lookup_or_add_for_write_span<bool>(
+                      attribute_name, selection_domain))
+          {
+            const IndexMask not_in_mask = changed_element_mask.complement(
+                selection.span.index_range(), memory);
+            ed::curves::fill_selection_false(selection.span, not_in_mask);
+            selection.finish();
+          }
         }
 
         if (use_segment_selection) {
@@ -646,12 +646,14 @@ static void select_similar_by_value(Scene *scene,
     bke::MutableAttributeAccessor attributes =
         info.drawing.strokes_for_write().attributes_for_write();
     const int domain_size = attributes.domain_size(domain);
-    /* TODO: Check if this call failed! */
     bke::SpanAttributeWriter<bool> selection_writer =
         attributes.lookup_or_add_for_write_span<bool>(
             ".selection",
             domain,
             bke::AttributeInitVArray(VArray<bool>::ForSingle(true, domain_size)));
+    if (!selection_writer) {
+      return;
+    }
     const VArraySpan<T> values = *attributes.lookup_or_default<T>(
         attribute_id, domain, default_value);
 
