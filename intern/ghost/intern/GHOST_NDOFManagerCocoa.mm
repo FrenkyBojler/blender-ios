@@ -6,7 +6,7 @@
 
 #include "GHOST_NDOFManagerCocoa.hh"
 #include "GHOST_SystemCocoa.hh"
-#import  <Cocoa/Cocoa.h>
+#import <Cocoa/Cocoa.h>
 
 #include <dlfcn.h>
 #include <stdint.h>
@@ -129,7 +129,6 @@ static bool load_driver_functions()
       LOAD_FUNC(UnregisterConnexionClient);
       LOAD_FUNC(ConnexionClientControl);
     }
-
   }
 #if DEBUG_NDOF_DRIVER
   else {
@@ -238,7 +237,7 @@ GHOST_NDOFManagerCocoa::GHOST_NDOFManagerCocoa(GHOST_System &sys) : GHOST_NDOFMa
 #endif
       return;
     }
-      
+
     const NSDictionary *dictInfos =
         [NSBundle bundleWithPath:@"/Library/Frameworks/3DconnexionClient.framework"]
             .infoDictionary;
@@ -252,7 +251,8 @@ GHOST_NDOFManagerCocoa::GHOST_NDOFManagerCocoa(GHOST_System &sys) : GHOST_NDOFMa
      * application. When using an older driver, the old solution with all buttons forwarded
      * (masked) is preferred. */
     const uint32_t client_mask = has_new_driver ? kConnexionMaskAxis : kConnexionMaskAll;
-    const uint32_t button_mask = has_new_driver ? kConnexionMaskNoButtons : kConnexionMaskAllButtons;
+    const uint32_t button_mask = has_new_driver ? kConnexionMaskNoButtons :
+                                                  kConnexionMaskAllButtons;
 
     /* Pascal string *and* a four-letter constant. How old-school. */
     clientID = RegisterConnexionClient(
