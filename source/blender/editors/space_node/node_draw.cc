@@ -2097,6 +2097,9 @@ static std::string node_socket_get_tooltip(const SpaceNode *snode,
   if (std::optional<std::string> info = create_declaration_inspection_string(socket)) {
     inspection_strings.append(std::move(*info));
   }
+  if (socket.runtime->declaration) {
+    // switch (socket.runtime->declaration)
+  }
 
   std::stringstream output;
   for (const std::string &info : inspection_strings) {

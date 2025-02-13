@@ -90,6 +90,7 @@ struct FieldInferencingInterface {
 struct StructureTypeInterface {
   Array<StructureType> inputs;
   Array<StructureType> outputs;
+  Array<StructureType> all_sockets;
 
   BLI_STRUCT_EQUALITY_OPERATORS_2(StructureTypeInterface, inputs, outputs)
 };
