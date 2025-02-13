@@ -1093,12 +1093,14 @@ static bool ui_but_update_from_old_block(uiBlock *block,
   uiBut *oldbut = oldbut_uptr->get();
 
   BLI_assert(!matched_old_buttons.contains(oldbut));
-  matched_old_buttons.add(oldbut);
 
   if (oldbut->active || oldbut->semi_modal_state) {
     /* Move button over from oldblock to new block. */
     oldbut_uptr->swap(*but_uptr);
     BLI_assert(but_uptr->get() == oldbut);
+    /* `but` was moved to oldblock, taking oldbut place. */
+    BLI_assert(!matched_old_buttons.contains(but));
+    matched_old_buttons.add(but);
 
     /* Add the old button to the button groups in the new block. */
     ui_button_group_replace_but_ptr(block, but, oldbut);
@@ -1113,6 +1115,7 @@ static bool ui_but_update_from_old_block(uiBlock *block,
     found_active = true;
   }
   else {
+    matched_old_buttons.add(oldbut);
     int flag_copy = UI_BUT_DRAG_MULTI;
 
     /* Stupid special case: The active button may be inside (as in, overlapped on top) a row
