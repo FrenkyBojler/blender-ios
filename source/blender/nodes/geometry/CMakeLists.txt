@@ -221,6 +221,9 @@ set(SRC
   nodes/node_geo_volume_cube.cc
   nodes/node_geo_volume_to_mesh.cc
   nodes/node_geo_warning.cc
+  nodes/node_geo_field_average.cc
+  nodes/node_geo_field_min_and_max.cc
+  nodes/node_geo_field_variance.cc
 
   include/NOD_geo_bake.hh
   include/NOD_geo_capture_attribute.hh
