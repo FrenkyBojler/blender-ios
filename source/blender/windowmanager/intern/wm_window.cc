@@ -29,6 +29,7 @@
 
 #include "GHOST_C-api.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
@@ -48,6 +49,7 @@
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
+#include "BKE_wm_runtime.hh"
 #include "BKE_workspace.hh"
 
 #include "RNA_access.hh"
@@ -622,7 +624,7 @@ void WM_window_decoration_style_flags_set(const wmWindow *win,
                                           eWM_WindowDecorationStyleFlag style_flags)
 {
   BLI_assert(WM_capabilities_flag() & WM_CAPABILITY_WINDOW_DECORATION_STYLES);
-  unsigned int ghost_style_flags = GHOST_kDecorationNone;
+  uint ghost_style_flags = GHOST_kDecorationNone;
 
   if (style_flags & WM_WINDOW_DECORATION_STYLE_COLORED_TITLEBAR) {
     ghost_style_flags |= GHOST_kDecorationColoredTitleBar;
