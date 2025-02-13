@@ -1,8 +1,9 @@
-
 # Configuration of clang-format
 # =============================
 #
 # Tested to work with versions: 8 to 11.
+
+
 
 # This causes parameters on continuations to align to the opening brace.
 #
