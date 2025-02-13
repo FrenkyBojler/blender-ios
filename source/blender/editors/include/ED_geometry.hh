@@ -13,10 +13,9 @@
 #include "BLI_generic_pointer.hh"
 #include "BLI_string_ref.hh"
 
-#include "DNA_customdata_types.h"
-
 #include "BKE_screen.hh"
 
+enum eCustomDataType : int8_t;
 struct Mesh;
 struct ReportList;
 struct PointerRNA;

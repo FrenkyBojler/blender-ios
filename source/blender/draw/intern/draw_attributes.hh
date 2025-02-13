@@ -12,12 +12,12 @@
 
 #include <mutex>
 
-#include "DNA_customdata_types.h"
-
 #include "BLI_sys_types.h"
 
 #include "GPU_shader.hh"
 
+struct CustomData;
+enum eCustomDataType : int8_t;
 namespace blender::bke {
 enum class AttrDomain : int8_t;
 }

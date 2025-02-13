@@ -12,10 +12,9 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
 
-#include "DNA_customdata_types.h" /* #eCustomDataType. */
-
 #include "GPU_vertex_format.hh"
 
+enum eCustomDataType : int8_t;
 namespace blender::gpu {
 class VertBuf;
 }

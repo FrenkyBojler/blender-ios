@@ -10,13 +10,13 @@
 
 #include <string>
 
-#include "DNA_customdata_types.h" /* for eCustomDataType */
 #include "DNA_image_types.h"
 #include "DNA_listBase.h"
 
 #include "GPU_shader.hh"  /* for GPUShaderCreateInfo */
 #include "GPU_texture.hh" /* for GPUSamplerState */
 
+enum eCustomDataType : int8_t;
 struct GHash;
 struct GPUMaterial;
 struct GPUNodeLink;

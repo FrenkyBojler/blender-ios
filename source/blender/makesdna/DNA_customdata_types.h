@@ -83,22 +83,24 @@ typedef struct CustomData {
   CustomDataExternal *external;
 } CustomData;
 
+#ifdef __cplusplus
+
 /** #CustomDataLayer.type */
-typedef enum eCustomDataType {
+enum eCustomDataType : int8_t {
   /**
    * Used by GPU attributes in the cases when we don't know which layer
    * we are addressing in advance.
    */
   CD_AUTO_FROM_NAME = -1,
 
-#ifdef DNA_DEPRECATED_ALLOW
+#  ifdef DNA_DEPRECATED_ALLOW
   CD_MVERT = 0,
   CD_MSTICKY = 1,
-#endif
+#  endif
   CD_MDEFORMVERT = 2, /* Array of #MDeformVert. */
-#ifdef DNA_DEPRECATED_ALLOW
+#  ifdef DNA_DEPRECATED_ALLOW
   CD_MEDGE = 3,
-#endif
+#  endif
   CD_MFACE = 4,
   CD_MTFACE = 5,
   CD_MCOL = 6,
@@ -108,18 +110,18 @@ typedef enum eCustomDataType {
    * Using a separate type from generic 3D vectors is a simple way of keeping values normalized.
    */
   CD_NORMAL = 8,
-#ifdef DNA_DEPRECATED_ALLOW
+#  ifdef DNA_DEPRECATED_ALLOW
   CD_FACEMAP = 9,
-#endif
+#  endif
   CD_PROP_FLOAT = 10,
   CD_PROP_INT32 = 11,
   CD_PROP_STRING = 12,
   CD_ORIGSPACE = 13, /* for modifier stack face location mapping */
   CD_ORCO = 14,      /* undeformed vertex coordinates, normalized to 0..1 range */
-#ifdef DNA_DEPRECATED_ALLOW
+#  ifdef DNA_DEPRECATED_ALLOW
   CD_MTEXPOLY = 15,
   CD_MLOOPUV = 16,
-#endif
+#  endif
   CD_PROP_BYTE_COLOR = 17,
   CD_TANGENT = 18,
   CD_MDISPS = 19,
@@ -129,33 +131,33 @@ typedef enum eCustomDataType {
   CD_CLOTH_ORCO = 23,
 /* CD_RECAST = 24, */ /* UNUSED */
 
-#ifdef DNA_DEPRECATED_ALLOW
+#  ifdef DNA_DEPRECATED_ALLOW
   CD_MPOLY = 25,
   CD_MLOOP = 26,
-#endif
+#  endif
   CD_SHAPE_KEYINDEX = 27,
   CD_SHAPEKEY = 28,
-#ifdef DNA_DEPRECATED_ALLOW
+#  ifdef DNA_DEPRECATED_ALLOW
   CD_BWEIGHT = 29,
   CD_CREASE = 30,
-#endif
+#  endif
   CD_ORIGSPACE_MLOOP = 31,
   /* CD_PREVIEW_MLOOPCOL = 32, */ /* UNUSED */
   CD_BM_ELEM_PYPTR = 33,
 
-#ifdef DNA_DEPRECATED_ALLOW
+#  ifdef DNA_DEPRECATED_ALLOW
   CD_PAINT_MASK = 34,
-#endif
+#  endif
   CD_GRID_PAINT_MASK = 35,
   CD_MVERT_SKIN = 36,
   CD_FREESTYLE_EDGE = 37,
   CD_FREESTYLE_FACE = 38,
   CD_MLOOPTANGENT = 39,
   CD_TESSLOOPNORMAL = 40,
-#ifdef DNA_DEPRECATED_ALLOW
+#  ifdef DNA_DEPRECATED_ALLOW
   CD_CUSTOMLOOPNORMAL = 41,
   CD_SCULPT_FACE_SETS = 42,
-#endif
+#  endif
 
   /* CD_LOCATION = 43, */ /* UNUSED */
   /* CD_RADIUS = 44, */   /* UNUSED */
@@ -173,9 +175,8 @@ typedef enum eCustomDataType {
   CD_PROP_QUATERNION = 52,
 
   CD_NUMTYPES = 53,
-} eCustomDataType;
+};
 
-#ifdef __cplusplus
 using eCustomDataMask = uint64_t;
 #endif
 

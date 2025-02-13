@@ -19,6 +19,9 @@
 
 struct Mesh;
 struct PointCloud;
+namespace blender {
+class ImplicitSharingInfo;
+}
 namespace blender::fn {
 namespace multi_function {
 class MultiFunction;

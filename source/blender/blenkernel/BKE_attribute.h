@@ -15,8 +15,8 @@
 #include "BLI_string_ref.hh"
 #include "BLI_sys_types.h"
 
-#include "DNA_customdata_types.h"
-
+enum eCustomDataType : int8_t;
+using eCustomDataMask = uint64_t;
 namespace blender::bke {
 enum class AttrDomain : int8_t;
 class AttributeAccessor;

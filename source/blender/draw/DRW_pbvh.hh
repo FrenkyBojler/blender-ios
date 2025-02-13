@@ -17,8 +17,7 @@
 
 #include "BKE_paint_bvh.hh"
 
-#include "DNA_customdata_types.h"
-
+enum eCustomDataType : int8_t;
 namespace blender::gpu {
 class Batch;
 class IndexBuf;
