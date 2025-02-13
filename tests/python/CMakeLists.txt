@@ -358,6 +358,11 @@ add_blender_test(
   --run-all-tests
 )
 
+add_blender_test(
+  object_api
+  --python ${TEST_PYTHON_DIR}/bl_object.py
+)
+
 # ------------------------------------------------------------------------------
 # MODIFIERS TESTS
 add_blender_test(
@@ -559,6 +564,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
     message(WARNING "Disabling render tests because WITH_OPENCOLORIO is disabled")
   else()
     set(render_tests
+      attributes
       camera
       bsdf
       hair
@@ -613,6 +619,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
     # Cycles
     if(WITH_CYCLES)
       set(_cycles_blocklist "")
+      set(_cycles_known_test_devices CPU CUDA OPTIX HIP HIP-RT METAL METAL-RT ONEAPI ONEAPI-RT)
       if((NOT WITH_CYCLES_OSL) OR (WITH_CYCLES_TEST_OSL AND WITH_CYCLES_OSL))
         # Disable OSL tests if built without OSL or
         # Disable OSL tests during the "normal" test phase to avoid double
@@ -620,6 +627,10 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
         set(_cycles_blocklist OSL)
       endif()
       foreach(_cycles_device ${CYCLES_TEST_DEVICES})
+        if(NOT ${_cycles_device} IN_LIST _cycles_known_test_devices)
+          message(FATAL_ERROR "Unknown Cycles test device ${_cycles_device}."
+              "Supported devices are: ${_cycles_known_test_devices}")
+        endif()
         string(TOLOWER "${_cycles_device}" _cycles_device_lower)
         set(_cycles_render_tests bake;${render_tests};osl)
 
@@ -662,6 +673,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
         endforeach()
       endforeach()
       unset(_cycles_blocklist)
+      unset(_cycles_known_test_devices)
     endif()
 
     if(WITH_GPU_RENDER_TESTS)
@@ -793,6 +805,7 @@ else()
     output
     vector
 
+    pixel_nodes
     multiple_node_setups
   )
 
@@ -823,6 +836,7 @@ if(WITH_GPU_COMPOSITOR_TESTS)
       output
       vector
 
+      pixel_nodes
       multiple_node_setups
     )
 

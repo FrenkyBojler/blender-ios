@@ -21,6 +21,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_fileops.h"
+#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_set.hh"
 #include "BLI_string.h"
@@ -2543,7 +2544,7 @@ enum {
 };
 
 struct ImageNewData {
-  PropertyPointerRNA pprop;
+  PropertyPointerRNA pprop = {};
 };
 
 static ImageNewData *image_new_init(bContext *C, wmOperator *op)
@@ -2552,7 +2553,7 @@ static ImageNewData *image_new_init(bContext *C, wmOperator *op)
     return static_cast<ImageNewData *>(op->customdata);
   }
 
-  ImageNewData *data = static_cast<ImageNewData *>(MEM_callocN(sizeof(ImageNewData), __func__));
+  ImageNewData *data = MEM_new<ImageNewData>(__func__);
   UI_context_active_but_prop_get_templateID(C, &data->pprop.ptr, &data->pprop.prop);
   op->customdata = data;
   return data;
@@ -2560,7 +2561,9 @@ static ImageNewData *image_new_init(bContext *C, wmOperator *op)
 
 static void image_new_free(wmOperator *op)
 {
-  MEM_SAFE_FREE(op->customdata);
+  if (op->customdata) {
+    MEM_delete(static_cast<ImageNewData *>(op->customdata));
+  }
 }
 
 static int image_new_exec(bContext *C, wmOperator *op)
@@ -2656,7 +2659,7 @@ static int image_new_invoke(bContext *C, wmOperator *op, const wmEvent * /*event
 {
   /* Get property in advance, it doesn't work after WM_operator_props_dialog_popup. */
   ImageNewData *data;
-  op->customdata = data = static_cast<ImageNewData *>(MEM_callocN(sizeof(ImageNewData), __func__));
+  op->customdata = data = MEM_new<ImageNewData>(__func__);
   UI_context_active_but_prop_get_templateID(C, &data->pprop.ptr, &data->pprop.prop);
 
   /* Better for user feedback. */
