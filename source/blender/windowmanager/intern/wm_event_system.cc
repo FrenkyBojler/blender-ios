@@ -45,6 +45,7 @@
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
+#include "BKE_scene_runtime.hh"
 #include "BKE_screen.hh"
 #include "BKE_undo_system.hh"
 #include "BKE_workspace.hh"
@@ -510,9 +511,10 @@ void wm_event_do_depsgraph(bContext *C, bool is_after_open_file)
     ViewLayer *view_layer = WM_window_get_active_view_layer(win);
     Main *bmain = CTX_data_main(C);
     /* Copied to set's in #scene_update_tagged_recursive(). */
-    scene->customdata_mask = win_combine_v3d_datamask;
+    scene->runtime->customdata_mask = win_combine_v3d_datamask;
     /* XXX, hack so operators can enforce data-masks #26482, GPU render. */
-    CustomData_MeshMasks_update(&scene->customdata_mask, &scene->customdata_mask_modal);
+    CustomData_MeshMasks_update(&scene->runtime->customdata_mask,
+                                &scene->runtime->customdata_mask_modal);
     /* TODO(sergey): For now all dependency graphs which are evaluated from
      * workspace are considered active. This will work all fine with "locked"
      * view layer and time across windows. This is to be granted separately,

@@ -42,6 +42,7 @@
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
+#include "BKE_scene_runtime.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -803,18 +804,18 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
     oglrender->rv3d = static_cast<RegionView3D *>(oglrender->region->regiondata);
 
     /* MUST be cleared on exit */
-    memset(&oglrender->scene->customdata_mask_modal,
+    memset(&oglrender->scene->runtime->customdata_mask_modal,
            0,
-           sizeof(oglrender->scene->customdata_mask_modal));
+           sizeof(oglrender->scene->runtime->customdata_mask_modal));
     ED_view3d_datamask(oglrender->scene,
                        oglrender->view_layer,
                        oglrender->v3d,
-                       &oglrender->scene->customdata_mask_modal);
+                       &oglrender->scene->runtime->customdata_mask_modal);
 
     /* apply immediately in case we're rendering from a script,
      * running notifiers again will overwrite */
-    CustomData_MeshMasks_update(&oglrender->scene->customdata_mask,
-                                &oglrender->scene->customdata_mask_modal);
+    CustomData_MeshMasks_update(&oglrender->scene->runtime->customdata_mask,
+                                &oglrender->scene->runtime->customdata_mask_modal);
   }
 
   /* create render */
@@ -906,9 +907,9 @@ static void screen_opengl_render_end(OGLRender *oglrender)
 
   MEM_SAFE_FREE(oglrender->seq_data.ibufs_arr);
 
-  memset(&oglrender->scene->customdata_mask_modal,
+  memset(&oglrender->scene->runtime->customdata_mask_modal,
          0,
-         sizeof(oglrender->scene->customdata_mask_modal));
+         sizeof(oglrender->scene->runtime->customdata_mask_modal));
 
   if (oglrender->wm_job) { /* exec will not have a job */
     Depsgraph *depsgraph = oglrender->depsgraph;

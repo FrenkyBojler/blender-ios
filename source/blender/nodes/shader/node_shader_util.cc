@@ -8,6 +8,7 @@
 
 #include <optional>
 
+#include "DNA_customdata_types.h"
 #include "DNA_node_types.h"
 #include "DNA_space_types.h"
 

@@ -91,6 +91,7 @@
 #include "BKE_pointcloud.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
+#include "BKE_scene_runtime.hh"
 #include "BKE_speaker.h"
 #include "BKE_vfont.hh"
 #include "BKE_volume.hh"
@@ -2855,10 +2856,10 @@ static Base *duplibase_for_convert(
    *  - do a single update.
    *  - convert data in a second loop. */
   DEG_graph_tag_relations_update(depsgraph);
-  CustomData_MeshMasks customdata_mask_prev = scene->customdata_mask;
-  CustomData_MeshMasks_update(&scene->customdata_mask, &CD_MASK_MESH);
+  CustomData_MeshMasks customdata_mask_prev = scene->runtime->customdata_mask;
+  CustomData_MeshMasks_update(&scene->runtime->customdata_mask, &CD_MASK_MESH);
   BKE_scene_graph_update_tagged(depsgraph, bmain);
-  scene->customdata_mask = customdata_mask_prev;
+  scene->runtime->customdata_mask = customdata_mask_prev;
 
   if (is_meta_ball) {
     obn->type = OB_MBALL;
@@ -3981,10 +3982,10 @@ static int object_convert_exec(bContext *C, wmOperator *op)
       DEG_id_tag_update(&base->object->id, ID_RECALC_GEOMETRY);
     }
 
-    CustomData_MeshMasks customdata_mask_prev = scene->customdata_mask;
-    CustomData_MeshMasks_update(&scene->customdata_mask, &CD_MASK_MESH);
+    CustomData_MeshMasks customdata_mask_prev = scene->runtime->customdata_mask;
+    CustomData_MeshMasks_update(&scene->runtime->customdata_mask, &CD_MASK_MESH);
     BKE_scene_graph_update_tagged(depsgraph, bmain);
-    scene->customdata_mask = customdata_mask_prev;
+    scene->runtime->customdata_mask = customdata_mask_prev;
   }
 
   bool mball_converted = false;

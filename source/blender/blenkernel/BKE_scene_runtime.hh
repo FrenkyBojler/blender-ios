@@ -8,6 +8,7 @@
 #include "BLI_timeit.hh"
 #include "BLI_utility_mixins.hh"
 
+#include "DNA_customdata_types.h"
 #include "DNA_node_types.h"
 
 struct Depsgraph;
@@ -33,6 +34,14 @@ class CompositorRuntime {
 class SceneRuntime : NonCopyable, NonMovable {
  public:
   CompositorRuntime compositor;
+
+  /**
+   * XXX: runtime flag for drawing, actually belongs in the window,
+   * only used by #BKE_object_handle_update()
+   */
+  CustomData_MeshMasks customdata_mask = {};
+  /** XXX: same as `customdata_mask` but for temp operator use (viewport renders). */
+  CustomData_MeshMasks customdata_mask_modal = {};
 };
 
 }  // namespace blender::bke

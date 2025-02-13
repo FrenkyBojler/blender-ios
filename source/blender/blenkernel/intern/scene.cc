@@ -378,6 +378,8 @@ static void scene_copy_data(Main *bmain,
   BKE_scene_copy_data_eevee(scene_dst, scene_src);
 
   scene_dst->runtime = MEM_new<SceneRuntime>(__func__);
+  scene_dst->runtime->customdata_mask = scene_src->runtime->customdata_mask;
+  scene_dst->runtime->customdata_mask_modal = scene_src->runtime->customdata_mask_modal;
 }
 
 static void scene_free_markers(Scene *scene, bool do_id_user)
@@ -1199,9 +1201,6 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
 
   sce->depsgraph_hash = nullptr;
   sce->fps_info = nullptr;
-
-  memset(&sce->customdata_mask, 0, sizeof(sce->customdata_mask));
-  memset(&sce->customdata_mask_modal, 0, sizeof(sce->customdata_mask_modal));
 
   BKE_sound_reset_scene_runtime(sce);
 

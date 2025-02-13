@@ -34,6 +34,7 @@
 #include "BKE_pointcache.h"
 #include "BKE_pointcloud.hh"
 #include "BKE_scene.hh"
+#include "BKE_scene_runtime.hh"
 #include "BKE_volume.hh"
 
 #include "MEM_guardedalloc.h"
@@ -133,7 +134,7 @@ void BKE_object_handle_data_update(Depsgraph *depsgraph, Scene *scene, Object *o
   /* includes all keys and modifiers */
   switch (ob->type) {
     case OB_MESH: {
-      CustomData_MeshMasks cddata_masks = scene->customdata_mask;
+      CustomData_MeshMasks cddata_masks = scene->runtime->customdata_mask;
       CustomData_MeshMasks_update(&cddata_masks, &CD_MASK_BAREMESH);
       /* Custom attributes should not be removed automatically. They might be used by the render
        * engine or scripts. They can still be removed explicitly using geometry nodes.

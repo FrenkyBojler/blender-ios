@@ -20,7 +20,6 @@
 #define USE_SETSCENE_CHECK
 
 #include "DNA_ID.h"
-#include "DNA_customdata_types.h" /* Scene's runtime custom-data masks. */
 #include "DNA_layer_types.h"
 #include "DNA_listBase.h"
 #include "DNA_scene_enums.h"
@@ -1825,13 +1824,6 @@ typedef struct Scene {
   struct PhysicsSettings physics_settings;
 
   void *_pad8;
-  /**
-   * XXX: runtime flag for drawing, actually belongs in the window,
-   * only used by #BKE_object_handle_update()
-   */
-  struct CustomData_MeshMasks customdata_mask;
-  /** XXX: same as `customdata_mask` but for temp operator use (viewport renders). */
-  struct CustomData_MeshMasks customdata_mask_modal;
 
   /* Color Management. */
   ColorManagedViewSettings view_settings;

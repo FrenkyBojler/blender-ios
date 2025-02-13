@@ -16,6 +16,7 @@
 
 #include "BLT_translation.hh"
 
+#include "DNA_customdata_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
