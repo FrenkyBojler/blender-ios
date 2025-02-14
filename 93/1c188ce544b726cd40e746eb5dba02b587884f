@@ -3,3 +3,4 @@ Referenced by issue #122824, Fix #122587: File Output node can only save one siz
 Referenced by issue #122253, Unreadable OpenEXR output file
 Referenced by issue #121264, Crash after rendering to File Output node (OpenEXR with preview)
 Referenced by issue #120715, Can no longer render out specific render passes: File Output saves over even disabled Layers
+Referenced by issue #120175, Compositor: file output node created before 4.0.1 saves a different image at 4.1
