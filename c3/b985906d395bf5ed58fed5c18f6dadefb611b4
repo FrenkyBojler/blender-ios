@@ -1,2 +1,3 @@
 Referenced by issue #122455, Display Wireframe crashes on edge wire mesh
 Referenced by issue #122309, Linux Build(from source) - GPU not detected
+Referenced by issue #122267, Cycles deforming curves disappear when using persistent data
