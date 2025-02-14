@@ -1,1 +1,2 @@
 Referenced by commit 636b3b1b64f, Cleanup: Sculpt: Simplify cube brush falloff math
+Referenced by issue #103156, Regression: Clay Strips Brush plus an alpha texture produces artefacts.
