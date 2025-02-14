@@ -1,1 +1,2 @@
 Referenced by commit bbb52a462ef, Fix T87688: Crash entering valid text into number field
+Referenced by issue #87637, Escaping editing a button does not reset change from dragging
