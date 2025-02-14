@@ -50,3 +50,4 @@ Referenced by issue #43605, Spot Lamp "Show Cone" + Curve displays a view-port w
 Referenced by issue #43594, Some modifier keys fail on X11
 Referenced by issue #43577, Blender exits using RightMouseButton on a SfM PLY
 Referenced by issue #43584, Massive render performance drop with "T-key" panel open in UV/Image Editor at render time
+Referenced by issue #43568, 3D View navigation bug - zoom stops working
