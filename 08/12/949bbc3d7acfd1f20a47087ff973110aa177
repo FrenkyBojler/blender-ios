@@ -2,3 +2,4 @@ Referenced by commit 0e94d8bbe09, Fix T72302: Only hide objects if their collect
 Referenced by commit 280d6b03a7a, Fix T70670: Hidden collections are still rendered by Cycles in the Viewport
 Referenced by issue #85897, Slow viewport framerate (e.g. tumbling the camera, not scrubbing) due to commit 0812949bbc3d7acfd1f20a47087ff973110aa177
 Referenced by issue #72302, Shift+h turns off visibility of objects in hidden collections.
+Referenced by issue #71000, Scene statistics dont take hidden state into account (2.80 did)
