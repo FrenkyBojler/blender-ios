@@ -1,1 +1,2 @@
 Referenced by issue #117923, Crash while attempting to use the file save dialog window
+Referenced by issue #116771, Can not launch 4.0 on Linux. Error: GLX_ARB_create_context not available
