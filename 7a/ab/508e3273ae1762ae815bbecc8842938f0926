@@ -1,2 +1,3 @@
 Referenced by issue #99949, Regression: Crash when last input from File Output node is deleted
 Referenced by issue #99028, Crash on Removing File Output Node when Color Management
+Referenced by issue #68926, Color Management Improvements
