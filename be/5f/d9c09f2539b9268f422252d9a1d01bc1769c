@@ -1,1 +1,2 @@
 Referenced by issue #64787, Eevee 'leaks' light across opaque surface while cycle renders properly
+Referenced by issue #64362, Viewport shading fails when a newly added primitive (from custom script) is modified in the redo panel
