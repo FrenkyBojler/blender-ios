@@ -1,2 +1,3 @@
 Referenced by issue #107637, Regression: Hair sculpt crash on an empty hair object with "Density" brush
 Referenced by issue #104129, Repeatable crashing bug with 'Point Count' option in Add tool while curve sculpting.
+Referenced by issue #104118, Geometry Nodes: Sculpting with Puff and Add tool crashes
