@@ -56,3 +56,4 @@ Referenced by issue #68952, Blender crashes when trying to add loopcut with ctrl
 Referenced by issue #68956, Transparency visual artifacts on overlapping objects
 Referenced by issue #68864, [CYCLES] Shadow catcher is not transparent in the viewport
 Referenced by issue #68855, Texture on active object is not visible in solid view with sculpt mode activated
+Referenced by issue #68843, Invalid (pink) shader when using wireframe node [ Eevee ]
