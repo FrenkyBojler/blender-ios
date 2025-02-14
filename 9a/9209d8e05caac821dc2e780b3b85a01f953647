@@ -1,1 +1,2 @@
 Referenced by commit 9ad7ad43236, Revert "Cleanup: consistenly use rnaindex -1 to mean the no or entire array"
+Referenced by issue #108621, Regression: Driven values are no longer marked in purple
