@@ -1,1 +1,2 @@
 Referenced by commit 7cdb9814c5a, Fix #110253: Regression: Extruding bone from root fails
+Referenced by issue #110253, Regression: Impossible to extrude a main bone in rigging mode
