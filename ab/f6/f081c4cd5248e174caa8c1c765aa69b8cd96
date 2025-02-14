@@ -80,3 +80,4 @@ Referenced by issue #48792, Armature / Mesh game physics issue
 Referenced by issue #48797, Dynamic Paint Sub-Steps not working when Canvas is moving
 Referenced by issue #48784, Blender crash on shift + RMB
 Referenced by issue #48755, Crash while UV unwrapping
+Referenced by issue #48748, BI Material Diffuse color isn't showing in Texture Shading mode
