@@ -50,3 +50,4 @@ Referenced by issue #69129, Blender can't find GPU
 Referenced by issue #69067, Locking a transformation in the properties panel doesn't stop it from changing
 Referenced by issue #69060, File Output Node does not work with Time Remapping
 Referenced by issue #69048, Lock Camera to View is not working correctly when camera is child of an object
+Referenced by issue #69008, Cannot load in Image Textures
