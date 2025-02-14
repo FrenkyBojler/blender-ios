@@ -1,3 +1,4 @@
 Referenced by commit fc848e9440b, Fix T97010 GPencil: Artifacts on Grease Pencil
 Referenced by commit 42853bacc97, GPencil: Fix regression with dots uvs
 Referenced by issue #99682, Blender crashes in Blender 2D Animation without any reason
+Referenced by issue #98882, Regression: Gradient colors in a Grease Pencil material change depending on the visibility of other objects
