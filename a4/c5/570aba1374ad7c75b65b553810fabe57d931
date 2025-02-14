@@ -3,3 +3,4 @@ Referenced by issue #41583, Viewport render keeps resetting when adaptive domain
 Referenced by issue #41566, Tex Paint: automatic add slot displace crashes
 Referenced by issue #41569, Tex paint: project paint bleeds out of the boundaries of the image
 Referenced by issue #41559, select_grouped(type='COLOR') is broken.
+Referenced by issue #41272, KX_Light.color returns wrong values
