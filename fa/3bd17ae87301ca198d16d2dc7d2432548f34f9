@@ -1,1 +1,2 @@
 Referenced by commit bf0ac755e24, Fix: EEVEE: Volumes don't render
+Referenced by commit 478eb3a0e6e, GPUCodegen: Keep copy of attribute name in the GPUCodegenCreateInfo
