@@ -5,3 +5,4 @@ Referenced by issue #107272, Sample color operator options no longer shown
 Referenced by issue #104726, Blender crashes on opening BLENDER-v248REND file
 Referenced by issue #98740, Quick Liquid Causes access violation
 Referenced by issue #98453, crash Render Cycles GPU computing with NVIDIA GeForce RTX 2060
+Referenced by issue #98427, Adding quick effects smoke with python raises segmentation fault
