@@ -38,3 +38,4 @@ Referenced by issue #43779, Cycles texture interpolation issues
 Referenced by issue #43780, CUDA error: Illegal address in cuCtxSyncronize()
 Referenced by issue #43769, Full scene copy loses link to the environment map image file
 Referenced by issue #43744, Bevel Profile Bug
+Referenced by issue #43735, Very important bug in Texture Paint mode while painting object when faces are pointing ~90degrees away from the view/camera
