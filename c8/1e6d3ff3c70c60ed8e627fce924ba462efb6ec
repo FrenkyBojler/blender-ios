@@ -1,1 +1,2 @@
 Referenced by issue #108814, Regression: Right Click doesn't cancel 3D View Rotate view3d.rotate or Move view3d.move
+Referenced by issue #107028, Viewport camera movement gets reset by RMB (zoom) when using industry compatible keybinds preset
