@@ -1,1 +1,2 @@
 Referenced by commit a23102528c7, Fix failing test after own recent commit regarding Main freeing function.
+Referenced by commit 1f2823291a7, Cleanup: Add warning to ListBase's `BLI_remlink` regarding not cleared prev/next pointers.
