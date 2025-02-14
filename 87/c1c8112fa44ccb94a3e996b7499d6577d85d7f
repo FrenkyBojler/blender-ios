@@ -1,1 +1,2 @@
 Referenced by commit 2b5733ff012, Fix T91192: Context.copy() crashes on file load
+Referenced by issue #100423, Addon's custom context menu entries get overridden by other addons
