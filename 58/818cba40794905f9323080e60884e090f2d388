@@ -1,1 +1,2 @@
 Referenced by commit 26b4ef6823b, Geometry Nodes: remove some unnecessary updates
+Referenced by issue #87359, Geometry Nodes: Group active output python property is not set when creating a new group
