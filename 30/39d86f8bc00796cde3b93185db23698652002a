@@ -1,1 +1,2 @@
 Referenced by issue #72076, Blender 2.8x edit mode circle selection inconsistency with animation
+Referenced by issue #65834, Circle Select in edit mode seems to be locked to the local view axes of the first selection click/stroke (can't properly select while rotating the camera with a 3D mouse)
