@@ -1,2 +1,3 @@
 Referenced by commit ca12d70af0f, Cleanup: variable naming for texture/material SocketPropertyType
 Referenced by issue #88701, Geometry Nodes: show "Show Texture in texture tab" button in modifier stack
+Referenced by issue #88556, Texture input socket support in the modifier stack.
