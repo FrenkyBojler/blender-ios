@@ -1,0 +1,1 @@
+Referenced by issue #43033, VideoTexture module repeated loading of images causes memory leak
