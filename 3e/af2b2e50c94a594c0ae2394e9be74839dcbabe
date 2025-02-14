@@ -1,0 +1,1 @@
+Referenced by issue #117314, Blender 4.0 has an invisible wall stopping the camera front moving further away from the selected object's pivot, when using a space mouse.
