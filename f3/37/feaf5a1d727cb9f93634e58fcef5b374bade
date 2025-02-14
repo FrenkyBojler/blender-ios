@@ -90,3 +90,4 @@ Referenced by issue #47320, Cycles baking: Some operations do not "take" until e
 Referenced by issue #47314, Misaligned DataBlock Previews for groups with custom center coordinates
 Referenced by issue #47318, Seed option does not work for interpolated children on particle hair systems without "Random" checked
 Referenced by issue #47294, Particle hair textures do not work properly when "Emit From" option is set to "Verts"
+Referenced by issue #47273, Cycles GPU performance regression on Nvidia's Maxwell cards
