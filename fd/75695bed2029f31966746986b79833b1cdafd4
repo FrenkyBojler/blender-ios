@@ -1,0 +1,1 @@
+Referenced by issue #114352, GPv3: src_frame might point to invalid memory in insert_duplicate_frame()
