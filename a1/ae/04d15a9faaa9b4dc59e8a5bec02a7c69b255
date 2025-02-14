@@ -9,3 +9,4 @@ Referenced by issue #61043, Blender crashes on VSE zoom / scroll timeline someti
 Referenced by issue #61023, Workbench shading bugs out when using partially transparent materials,studio lighting and view clipping at the same time.
 Referenced by issue #61028, Solid View not displayed and crash in wireframe view
 Referenced by issue #61009,  'Open Recent' remembers 'Load UI' setting from last file opening
+Referenced by issue #61014, Assert adding a driver that uses a single property of a scene ID
