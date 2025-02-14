@@ -1,2 +1,3 @@
 Referenced by issue #51012, Force Field Curve Shape not working
 Referenced by issue #50990, Random black pixels in Cycles when rendering material with Multiscatter GGX
+Referenced by issue #50956, Wrong view rendering mode, on orthographic view , black rendering of some glossy surface.
