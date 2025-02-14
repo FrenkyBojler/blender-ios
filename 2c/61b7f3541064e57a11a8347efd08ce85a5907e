@@ -1,0 +1,1 @@
+Referenced by issue #75071, Rendering is prevented if all view layers in current scene are disabled, even if other scenes are used in compositor
