@@ -1,1 +1,2 @@
 Referenced by commit 76b74a93a86, Fix Cycles CUDA transparent shadow error after recent fix in c22b52c.
+Referenced by issue #52452, OSL trace in 2.79 sometimes miss surfaces (but not in 2.78)
