@@ -1,3 +1,4 @@
 Referenced by issue #40800, If Viewport shading is 'Rendered', B3D crashes after browsing to file for texture node and connecting to any shader node.
 Referenced by issue #40601, Cycles baking crashes
 Referenced by issue #40580, Generated (ORCO) texture mapping is wrong
+Referenced by issue #40581, Wrong texture mapping in render preview
