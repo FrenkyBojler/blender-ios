@@ -1,1 +1,2 @@
 Referenced by issue #47216, GLSL Shading in viewport: Lights [with shadowmaps] on turned off layers are not ignored by the shader generator, resulting in a shader that fails compilation
+Referenced by issue #43896, Knife Project Resolution is View Dependent
