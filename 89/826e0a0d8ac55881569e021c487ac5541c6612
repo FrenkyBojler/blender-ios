@@ -1,1 +1,2 @@
 Referenced by commit 9e11e958172, Cleanup: remove unused CacheReader_incref APIs
+Referenced by issue #128091, Cleanup: remove unused CacheReader_incref APIs
