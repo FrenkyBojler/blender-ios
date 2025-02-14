@@ -95,3 +95,4 @@ Referenced by issue #39925, Set Origin to Geometry on a new text object moves th
 Referenced by issue #39926, Axes for hair particle objects are inconsistent
 Referenced by issue #39927, Menu items sometimes list Hotkeys as CMD, but sometimes as CTRL
 Referenced by issue #39911, Graph editor, active keyframe panel, handle update coordinates.
+Referenced by issue #39915, Cycles - Change view in viewport fail
