@@ -1,1 +1,2 @@
 Referenced by commit b60a72eaab3, Fix invalid return values from file_execute
+Referenced by issue #82002, Default button in File Browser does not always listen to the Return / Enter key (regression)
