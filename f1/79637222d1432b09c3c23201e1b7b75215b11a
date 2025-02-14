@@ -1,1 +1,2 @@
 Referenced by issue #95042, 2022.1.19 Rendering 30000x24000 crash after denoise  finish
+Referenced by issue #95025, Cycles crash at the end of the render
