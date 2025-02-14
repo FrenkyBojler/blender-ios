@@ -1,2 +1,3 @@
 Referenced by issue #109074, use_smooth boolean always true after import
 Referenced by issue #107913, Hard Crash Opening Blender File With Library Overrides
+Referenced by issue #105277, Alt key is always stuck when changing to Blender on Windows11
