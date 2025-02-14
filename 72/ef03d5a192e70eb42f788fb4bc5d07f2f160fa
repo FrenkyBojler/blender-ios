@@ -1,1 +1,2 @@
 Referenced by issue #123795, I18n: Translate messages in extensions, operator descriptions, Node Wrangler
+Referenced by issue #123135, bpy.ops.preferences.addon_show(module="") It doesn't work as you think anymore?
