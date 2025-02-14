@@ -1,1 +1,2 @@
 Referenced by issue #114925, Python, broken attribute 'selected_ids' for context in outliner area
+Referenced by issue #114384, Blender 4.0: context.temp_override not working with outliner area
