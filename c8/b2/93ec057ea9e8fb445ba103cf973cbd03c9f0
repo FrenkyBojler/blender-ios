@@ -1,0 +1,1 @@
+Referenced by issue #70111, brush.weight_paint_capabilities uses a cached value for the gradient and sample weight tool
