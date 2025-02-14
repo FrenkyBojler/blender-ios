@@ -1,3 +1,4 @@
 Referenced by issue #40547, Can't read single channel EXRs
 Referenced by issue #40495, Cycles Baking only bakes active object
 Referenced by issue #40438, Name of texture is not synchronize
+Referenced by issue #40445, Disabled modifiers prevent cage edit mode
