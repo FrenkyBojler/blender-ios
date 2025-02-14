@@ -1,1 +1,2 @@
 Referenced by commit e6f3d8b3e11, Revert "Fix T68971: Copy As New Driver from Material node creates a bad reference."
+Referenced by issue #68971, problem saving/loading driver on shader node
