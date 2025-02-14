@@ -1,2 +1,3 @@
 Referenced by issue #73499, Crash on hiding parent and all children of an object if one child is in an excluded collection
 Referenced by issue #72510, USB card reader causes ~1min loading time when you open file browser
+Referenced by issue #60752, Linked duplicated mesh does not update in edit mode after making its data single user
