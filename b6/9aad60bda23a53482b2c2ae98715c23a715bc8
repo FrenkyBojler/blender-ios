@@ -1,1 +1,2 @@
 Referenced by commit 1a71f9d2b81, Curves: use radius of middle point to determine curve shape
+Referenced by issue #99786, Wrong Radius visuals when joining two hair curves
