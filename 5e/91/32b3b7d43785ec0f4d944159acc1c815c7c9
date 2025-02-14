@@ -13,3 +13,4 @@ Referenced by issue #52349, Subsurface scattering renders black on particle effe
 Referenced by issue #52329, Difference Boolean Modifier does not work in most simple cases with Array Modifier
 Referenced by issue #52315, Crash on duplicating Scene
 Referenced by issue #52316, Principled BSDF not available in Node Menu: Shift+A then Shader. Not in menu
+Referenced by issue #52296, Impossible to make a screenshot
