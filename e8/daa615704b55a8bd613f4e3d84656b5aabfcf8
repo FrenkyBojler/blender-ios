@@ -1,1 +1,2 @@
 Referenced by issue #64611, Bone Size property is not copied when a bone is copied.
+Referenced by issue #64612, Pose Bone data is lost when undoing an Edit Bone deletion.
