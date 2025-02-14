@@ -1,0 +1,1 @@
+Referenced by issue #43421, bmesh.ops.bisect_edges returns insufficient data.
