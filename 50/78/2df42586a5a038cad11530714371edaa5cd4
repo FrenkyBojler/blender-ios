@@ -2,3 +2,4 @@ Referenced by commit 610c0ecc3b9, Fix T88204 EEVEE: Animated world light doesnt 
 Referenced by issue #97625, Regression: Rendering hair instances size in animation bug with animated emitter object scale
 Referenced by issue #89040, Cycles renders only two frames of animation
 Referenced by issue #88210, Image sequence texture don´t update with persistent data
+Referenced by issue #88216, persistent data causes collection instance animation to not work properly
