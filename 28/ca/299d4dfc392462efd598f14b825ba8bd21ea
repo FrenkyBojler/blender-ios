@@ -1,1 +1,2 @@
 Referenced by commit 12348318d15, Fix T38328: GLSL display shows texture mapping completely messed up in some cases
+Referenced by issue #38316, Half of a Face is Missing on Newly Created Cubes or Cylinders.
