@@ -3,3 +3,4 @@ Referenced by issue #38505, Moving mouse while scrolling a sub menu makes it to 
 Referenced by issue #38500, Audio of a scene strip can't be muted
 Referenced by issue #38467, Animation playback is not synchronized when Screen Layout changes
 Referenced by issue #38469, Strip delimiter handlers don't move strip correctly with keyboard input
+Referenced by issue #38473, "Composite" node copied from another scene don't work
