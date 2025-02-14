@@ -6,3 +6,4 @@ Referenced by issue #105903, fix #99584: Outliner selection not working correctl
 Referenced by issue #99584, Outliner selection not working correctly after undoing object deletion
 Referenced by issue #82251, Outliner Material Drag&Drop GUI issue
 Referenced by issue #81675, renaming a collection in outliner triggers renaming mode for all meshes inside
+Referenced by issue #81555, Outliner object state filter does not update on selection change
