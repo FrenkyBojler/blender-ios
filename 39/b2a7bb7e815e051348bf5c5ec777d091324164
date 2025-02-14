@@ -2,3 +2,4 @@ Referenced by commit bec72a43aef, Fix T92874: Custom normals reset when vertex i
 Referenced by commit 647a8bff06b, Fix T90256: faces are flat shaded in edit mode with auto smooth
 Referenced by commit 26c2c617b46, Fix T90421: edit-mode auto-smooth crash when angle set to 180degrees
 Referenced by commit 11cfa6c718b, Fix T90332: Auto-smooth crashes in edit-mode
+Referenced by commit 66dfef10a79, Fix error setting sharp edges in recent normal calculation changes
