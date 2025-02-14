@@ -1,1 +1,2 @@
 Referenced by commit 33ca4daf8f6, Fix #123882: Ocean Modifier not updating normals in "Displace" mode
+Referenced by commit 6023a6a4237, Fix #115526: missing normals on first chunk of array modifier
