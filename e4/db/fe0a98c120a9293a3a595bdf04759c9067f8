@@ -1,2 +1,3 @@
 Referenced by issue #79120, Changing dimension on multiple objects no-longer works
 Referenced by issue #60758, Major Discrepancies in UV Maps and Meshes between Solid/LookDev view and Rendered View
+Referenced by issue #60023, Clicking on texture paint - instant crash - Linux
