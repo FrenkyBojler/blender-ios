@@ -1,1 +1,2 @@
 Referenced by issue #39123, Border select without "extend" does nor clear selection of bezier nodes in 3D view
+Referenced by issue #39125, In Edit Mode backspace over "Transform" buttons doesn't clear location
