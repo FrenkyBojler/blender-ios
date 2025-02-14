@@ -1,1 +1,2 @@
 Referenced by issue #64836, Regression: Selecting keyframes grabs them when "Release Confirms" is disabled
+Referenced by issue #64565, Drag in empty space to box select does not work in animation editors
