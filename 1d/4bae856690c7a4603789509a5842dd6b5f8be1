@@ -1,1 +1,2 @@
 Referenced by issue #86823, Regression: Eevee SSR refraction depth works only for 1st refractive material and inherited by others
+Referenced by issue #78199, Reload scripts breaks ui if toolsystem icons are missing (e.g. in sculpt mode in rB65006bfaf4ef)
