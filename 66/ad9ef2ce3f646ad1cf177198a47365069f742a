@@ -1,0 +1,1 @@
+Referenced by issue #78454, Cycles random walk subsurface scattering produces anisotropic artifacts if subsurface radius is small compared to geometry's distance from origin
