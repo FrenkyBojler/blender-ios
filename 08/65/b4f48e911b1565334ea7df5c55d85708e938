@@ -1,2 +1,3 @@
 Referenced by issue #40322, Glitch in baking a mixed SSS shader
 Referenced by issue #40323, Segfault on baking after rendering
+Referenced by issue #40306, Cycles baking starts to drop cpu cores after a while
