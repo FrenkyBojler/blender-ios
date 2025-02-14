@@ -5,3 +5,4 @@ Referenced by issue #55955, Crash on component selection
 Referenced by issue #55946, Crash using knife tool on mesh with large number of vertices
 Referenced by issue #55948, Curves visiblity
 Referenced by issue #55950, DopeSheet Missing hotkey (SHFT + O)
+Referenced by issue #55488, Crash in render-mode while texture painting
