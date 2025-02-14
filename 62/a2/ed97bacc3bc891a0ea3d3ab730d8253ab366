@@ -2,3 +2,4 @@ Referenced by commit b91edd61d07, Fix T50287: Blender crashes when open a blend 
 Referenced by issue #50264, Append Grease pencil
 Referenced by issue #50227, Alembic uv export/load issue
 Referenced by issue #50235, export UV layout opacity
+Referenced by issue #50209, Is glossy ray broken in light path node
