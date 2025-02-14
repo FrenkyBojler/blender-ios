@@ -1,2 +1,3 @@
 Referenced by commit 3f6912ece2c, Realtime Compositor: Implement Mask node
 Referenced by issue #107464, Realtime Compositor: Implement Mask node
+Referenced by issue #107465, Realtime compositor: Texture node output textures with artifacts
