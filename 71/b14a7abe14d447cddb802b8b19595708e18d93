@@ -1,1 +1,2 @@
 Referenced by issue #124802, Eevee 2.0 has very broken shadows.
+Referenced by issue #115141, Copy-pasting an object with disabled collection dependency between blender instances brings in the formerly disabled collection as enabled
