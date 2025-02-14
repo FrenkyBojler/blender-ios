@@ -2,3 +2,4 @@ Referenced by issue #58981, Blender 2.8 Beta Crash SMOKE
 Referenced by issue #58942, CTRL Click to Isolate can not un-isolate (it's not a toggle)
 Referenced by issue #58947, Build modifier doesn't work on Curves
 Referenced by issue #58936, Crash after switching between collections in scene.
+Referenced by issue #58751, Blender 2.8 crash on startup
