@@ -1,0 +1,1 @@
+Referenced by issue #37958, Occlusion Preprocessing, prevents render cancellation, deadlocks blender on quit
