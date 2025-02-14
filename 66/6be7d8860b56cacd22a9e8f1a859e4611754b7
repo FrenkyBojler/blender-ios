@@ -1,0 +1,1 @@
+Referenced by issue #69166, built-in start-up file has unnecessary screen data and always crash at undo if remove these screens.
