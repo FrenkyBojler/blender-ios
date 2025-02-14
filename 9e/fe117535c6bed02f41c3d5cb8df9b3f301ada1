@@ -1,3 +1,4 @@
 Referenced by issue #65941, Crash when undoing
 Referenced by issue #65002, crash: clicking in edit mode after wireframe object is disabled in viewport
 Referenced by issue #64913, LookDev with environment texture starts washed out, until viewport moves
+Referenced by issue #64899, Creating a triangle in Mask with specific coordinates results in crash
