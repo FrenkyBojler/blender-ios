@@ -1,0 +1,1 @@
+Referenced by issue #79464, Crash in frame_change_pre handler when deleting and creating a new object in Python
