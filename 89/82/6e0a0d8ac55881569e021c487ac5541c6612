@@ -1,3 +1,4 @@
 Referenced by commit 9e11e958172, Cleanup: remove unused CacheReader_incref APIs
 Referenced by issue #128091, Cleanup: remove unused CacheReader_incref APIs
 Referenced by issue #62720, Importing Alembic Mesh Causes Blender To Crash As Well As Alembic Sequences/Playback of Alembic sequences does not work
+Referenced by issue #61710, Render crashes every 400 to 700 frames
