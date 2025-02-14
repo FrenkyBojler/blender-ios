@@ -1,0 +1,1 @@
+Referenced by commit 8fa8cea8e01, Fix PyGPU: return NULL instead of PyNone on error
