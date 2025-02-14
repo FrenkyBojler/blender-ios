@@ -53,3 +53,4 @@ Referenced by issue #45850, Segfault from using Auto-Smoothed Normals with Subsu
 Referenced by issue #45817, BGE Crash with group instanced curve objects
 Referenced by issue #45818, Crash When Using Cycles
 Referenced by issue #45824, Pie menus doesnt display EnumProperties icons (It did on 2.72)
+Referenced by issue #45806, Crash with the node editor
