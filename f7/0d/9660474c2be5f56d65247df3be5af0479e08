@@ -1,3 +1,4 @@
 Referenced by issue #38529, Blur size can't be set to 0
 Referenced by issue #38505, Moving mouse while scrolling a sub menu makes it to lose focus
 Referenced by issue #38500, Audio of a scene strip can't be muted
+Referenced by issue #38467, Animation playback is not synchronized when Screen Layout changes
