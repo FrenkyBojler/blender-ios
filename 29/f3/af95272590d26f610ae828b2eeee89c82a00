@@ -3,3 +3,4 @@ Referenced by commit 76f513f6dcc, Fix T78601: User count errors when reading hom
 Referenced by issue #81950, Grease Pencil Ignores 'Stroke Placement: Stroke'
 Referenced by issue #78574, GPencil: Z pass combine not work
 Referenced by issue #74842, Grease Pencil Vertex Paint - Hotkey conflict with hotkey F for Blur and set radius
+Referenced by issue #73606, Parts displayed edges with points on origin disappear in wire frame view
