@@ -1,3 +1,4 @@
 Referenced by commit 2a6f177e8e9, Fix #106043: Moving frame node jittering while cursor is still
 Referenced by issue #106594, Node frame grid alignment issue
 Referenced by issue #106096, Fix #106043: Moving frame node jittering while cursor is still
+Referenced by issue #106050, Fix #106043: Don't use offset for free nodes
