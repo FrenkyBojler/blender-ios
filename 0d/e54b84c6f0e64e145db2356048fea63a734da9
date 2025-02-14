@@ -1,1 +1,2 @@
 Referenced by commit 2db23d38ca4, Fix #107826: Missing defaults for principlied volume string sockets
+Referenced by issue #112477, Reading an attribute from `Capture Attribute` after simulation nodes does not work. Bug?
