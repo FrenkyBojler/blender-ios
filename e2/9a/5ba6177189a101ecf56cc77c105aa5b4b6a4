@@ -1,2 +1,3 @@
 Referenced by commit 4ec61ff9f62, Curve/line width change broke outline drawing
 Referenced by issue #47677, Text Object Outline fails to daplay
+Referenced by issue #47503, You can box-select only keyframes' handles in dopesheet, even though they are not visible/editable there.
