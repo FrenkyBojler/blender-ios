@@ -5,3 +5,4 @@ Referenced by commit 15683d81bee, Fix: Mesh validate missing mesh polygon remova
 Referenced by commit 4170545dc52, Fix #106828: Extrude individual mode crash on mesh with no faces
 Referenced by commit 1a6cfa1ae16, Fix: Incorrect mesh data used in mesh remap code
 Referenced by commit 11ba8c6ab4d, Fix #106622: Various errors filling cone/cylinder primitive faces
+Referenced by issue #108226, glTF 2.0 Import crashes
