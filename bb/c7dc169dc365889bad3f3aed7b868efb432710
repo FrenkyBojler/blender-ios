@@ -1,0 +1,1 @@
+Referenced by commit d8163a08fb6, Fix for non-bool return values of a few common RNA functions with declared boolean return.
