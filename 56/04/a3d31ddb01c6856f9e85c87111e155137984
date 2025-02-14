@@ -1,2 +1,3 @@
 Referenced by issue #42563, Join tool crashes blender in certain case
 Referenced by issue #42553, rB8f8321bfdb43	breaks "make install" (Linux)
+Referenced by issue #42531, Setting 'Undo' steps to '1' causes weirdness.
