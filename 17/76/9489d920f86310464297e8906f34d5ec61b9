@@ -1,2 +1,3 @@
 Referenced by issue #97733, Regression: VSE crash when opening/changing scene
 Referenced by issue #90964, VSE: Mouse cursor over invisible (i.e. marker-less) marker region inhibits delete hotkey meant for selected strip deletion
+Referenced by issue #57976, VSE, marker area is invisibly blocking the strips
