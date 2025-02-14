@@ -4,3 +4,4 @@ Referenced by issue #48430, In Image Render time geometry renders with serious a
 Referenced by issue #48375, Spin tool
 Referenced by issue #48364, Shape key problem
 Referenced by issue #48365, Bridge tool fails in a few cases
+Referenced by issue #48356, Bridge tool creates self-intersecting loop bridges
