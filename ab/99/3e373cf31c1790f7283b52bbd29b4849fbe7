@@ -1,1 +1,2 @@
 Referenced by commit a40073ffccc, Fix use after free error from ab993e37
+Referenced by issue #48898, shaders are remove from metaballs on cycles render
