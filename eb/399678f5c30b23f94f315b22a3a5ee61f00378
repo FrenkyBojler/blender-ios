@@ -4,3 +4,4 @@ Referenced by issue #116156, Crash when rotating a bone (pose mode) on a model w
 Referenced by issue #115527, Crash when duplicating object
 Referenced by issue #115479, Fix #115366: missing task isolation when computing loose subdiv edges
 Referenced by issue #115366, Crash of quick moving of 3d model
+Referenced by issue #115334, Regression: Crash when snap vertex
