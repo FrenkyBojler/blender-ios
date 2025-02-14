@@ -5,3 +5,4 @@ Referenced by issue #62059, ColorRamp doesn't update when a color stop is driven
 Referenced by issue #61989, latest build edges are thick again in edit mode , edge saelect
 Referenced by issue #61990, Parenting to bone offsets object
 Referenced by issue #61993, extrude along normal
+Referenced by issue #61994, Box selecting instanced objects causes Blender to crash.
