@@ -1,2 +1,3 @@
 Referenced by commit 3e4f49fe710, Revert "Fix T78296: Performance - Use Binary Search for MDeformWeight"
 Referenced by commit 3121015dceb, Fix Crash due to recent changes
+Referenced by issue #78296, Use binary search for MDeformVert
