@@ -3,3 +3,4 @@ Referenced by issue #40067, Math modulo node returns black for negative numbers.
 Referenced by issue #40051, DupliFaces: Inconsistent handling of group member types
 Referenced by issue #40054, Cycles Bake requires to save externally first/won't let me save file externally
 Referenced by issue #40056, Can't save file after saving externally
+Referenced by issue #40046, Blender quits on undo/redo after changing object color
