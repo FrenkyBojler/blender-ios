@@ -1,3 +1,4 @@
 Referenced by issue #56330, Opening a file or clciking on the toolbar crashes blender instantly
 Referenced by issue #56340, crash when clicking on Transform, Grab, Rotate, or Scale icon button on the left tool bar
 Referenced by issue #56343, 2.8/2.79 Bug: Glare Effect in Compositing Not Working with Transparency in Cycles/Eevee
+Referenced by issue #56011, Crash dragging Cursor tool and hitting S (scale)
