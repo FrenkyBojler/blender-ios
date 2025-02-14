@@ -1,1 +1,2 @@
 Referenced by issue #101882, Geometry Nodes 3.4 crashes on viewing corners of wire mesh
+Referenced by issue #101858, Edge of Vertex + Instance on Points = Error   : EXCEPTION_INT_DIVIDE_BY_ZERO
