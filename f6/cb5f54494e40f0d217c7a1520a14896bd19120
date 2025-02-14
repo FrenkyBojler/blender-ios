@@ -30,3 +30,4 @@ Referenced by issue #70213,  EXCEPTION_ACCESS_VIOLATION/found bundled python cra
 Referenced by issue #69894, blender 2.8 crashing with segmentation fault
 Referenced by issue #69790, Blender 2.80 always crash when choosing material
 Referenced by issue #69735, Blender 2.8 won't start with ATI Radeon HD 4850
+Referenced by issue #69709, Face Orientation not visible when material's viewport display uses alpha
