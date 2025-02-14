@@ -1,3 +1,4 @@
 Referenced by issue #82471, Crash on STL import. Python library not found
 Referenced by issue #82275, Blender 2.90.1  crashes when opening .obj
 Referenced by issue #81688, Use of deprectated PyEval_ReleaseLock() causes crash when Blender built against Python 3.9.0
+Referenced by issue #77348, Blender LTS: Maintenance Task 2.83
