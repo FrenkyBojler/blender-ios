@@ -1,3 +1,4 @@
 Referenced by commit 6744f4d108a, Cleanup of previous rBac723db57fd8ba5 commit.
 Referenced by commit fb0fc1d6133, Fix T73170: New Scene -> "Full Copy" Crashes Blender.
 Referenced by issue #73170, New Scene -> "Full Copy" Crashes Blender
+Referenced by issue #71798, Full Copy Scene produce Orphan Data objects
