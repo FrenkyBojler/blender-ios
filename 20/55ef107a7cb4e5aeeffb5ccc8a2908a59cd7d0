@@ -1,0 +1,1 @@
+Referenced by issue #92258, Crash! Calling a modal operator from a load_post handler causes a segmentation fault
