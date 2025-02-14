@@ -1,0 +1,1 @@
+Referenced by issue #47168, bpy.ops.paint.project_image(image=image_name) degrades high dynamic range to ~8bit
