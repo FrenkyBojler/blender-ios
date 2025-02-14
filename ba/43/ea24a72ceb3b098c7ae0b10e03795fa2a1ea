@@ -1,1 +1,2 @@
 Referenced by issue #43204, Bone shrinkwrap constraint in project mode does not respect pose space; acts in bone's local space
+Referenced by issue #42447, Shrinkwrap constraint / wrong rotation of the constrained object in "project" mode
