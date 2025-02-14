@@ -13,3 +13,4 @@ Referenced by issue #47750, Hair particles lose position data when "Disconnect A
 Referenced by issue #47738, Blender segmentation fault when Right-clicking on any object in 3d view.
 Referenced by issue #47721, viewport preview bounding box dotted line moves near sculpt brush during sculpting with multiresolution modifier
 Referenced by issue #47711, Cloth simulation bug
+Referenced by issue #47718, Too high default strength for hair particle brushes
