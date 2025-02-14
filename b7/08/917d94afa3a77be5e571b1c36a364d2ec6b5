@@ -1,2 +1,3 @@
 Referenced by commit 50d0a748338, Fix T66538: Menus in popups opening on mouse over
 Referenced by issue #66538, Menus in popup panels opening on mouse over
+Referenced by issue #66316, "Open on Mouse Over" does not work in all menus
