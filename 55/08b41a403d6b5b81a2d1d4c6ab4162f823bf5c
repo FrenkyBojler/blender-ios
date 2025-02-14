@@ -1,2 +1,3 @@
 Referenced by commit 6b522c5e306, Fix #125307: Precision issues with MetalRT
 Referenced by issue #126003, Fix #125307: Precision issues with MetalRT
+Referenced by issue #125307, Regression: Precision artifacts on refractive materials with Cycles MetalRT
