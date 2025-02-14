@@ -1,0 +1,1 @@
+Referenced by issue #97555, object member persistent handlers are not persisted across file loads/reloads.
