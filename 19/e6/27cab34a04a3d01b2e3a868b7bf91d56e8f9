@@ -43,3 +43,4 @@ Referenced by issue #39872, COLLADA Export Doesn't Support Bezier Interpolation
 Referenced by issue #39837, Collada Export writes Material Alpha Chanel data, but does not reads it
 Referenced by issue #39809, Number of Tris not correct
 Referenced by issue #39796, Wyłączenie się blendera
+Referenced by issue #39800, Material residue internal to cycles
