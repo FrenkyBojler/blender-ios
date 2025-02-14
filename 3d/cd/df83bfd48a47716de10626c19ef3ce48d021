@@ -1,0 +1,1 @@
+Referenced by issue #73675, rB0a95a0852eb1 tags all objects in a scene for depsgraph update when leaving edit mode, causing significant lag.
