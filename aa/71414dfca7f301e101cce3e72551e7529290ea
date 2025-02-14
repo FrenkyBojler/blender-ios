@@ -1,1 +1,2 @@
 Referenced by commit 4d0f846b936, Event System: use more thoroughly tested logic for click-drag events
+Referenced by commit 47396ea81ed, Fix T96123: Crash when click-dragging across the visibility icons
