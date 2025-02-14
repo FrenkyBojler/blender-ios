@@ -1,2 +1,3 @@
 Referenced by issue #130990, Naming of objects is not correct
 Referenced by issue #122310, Can't rename ID to a name if there's another ID of the same name
+Referenced by issue #120099, Fix #120058: Crash on undo rename in edit mode
