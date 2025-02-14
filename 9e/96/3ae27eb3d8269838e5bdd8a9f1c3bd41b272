@@ -63,3 +63,4 @@ Referenced by issue #42506, Infinite Zoom
 Referenced by issue #42509, Cycles GPU hair render - Cuda error: invalid value. with a "work around" descritption
 Referenced by issue #42490, 2D Curves and Switch Direction
 Referenced by issue #42486, Crash on opening file
+Referenced by issue #42469, Cycles Texture Paint mode selection crashes
