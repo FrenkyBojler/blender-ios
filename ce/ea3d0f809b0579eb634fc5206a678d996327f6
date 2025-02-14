@@ -1,0 +1,1 @@
+Referenced by issue #95135, Wrong exception thrown when calling bpy.ops.graph.euler_filter() operator without keyframes
