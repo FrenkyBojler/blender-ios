@@ -9,3 +9,4 @@ Referenced by issue #99524, Python: Grease Pencil frame not updating when frame 
 Referenced by issue #99348, Blender crashes when editing liquid domain
 Referenced by issue #99339, Blender crashes on startup.
 Referenced by issue #99299, Performance degradation in the shader & geometry node editor for larger scenes between 3.1 & 3.2
+Referenced by issue #99247, EXCEPTION_ACCESS_VIOLATION
