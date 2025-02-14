@@ -1,0 +1,1 @@
+Referenced by issue #51583, Denoising produces a lot of artifacts when a low neighbor weighting value is used
