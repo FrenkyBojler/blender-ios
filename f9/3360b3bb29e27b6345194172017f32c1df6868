@@ -1,2 +1,3 @@
 Referenced by commit 908552e5f38, Fix #122300: F3 crash (missing null check in recent image operator poll)
 Referenced by issue #122300, F3 operator search crashes
+Referenced by issue #122301, Fix #122300: F3 crash (missing null check in recent image operator poll)
