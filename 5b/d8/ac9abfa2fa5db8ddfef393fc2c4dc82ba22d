@@ -33,3 +33,4 @@ Referenced by issue #55307, 2.79 crashing after a few minutes, or when opening u
 Referenced by issue #55271, GPU problem with camera position.
 Referenced by issue #55209, Theme setting for properties, image, movie clip editor
 Referenced by issue #55026, Slow Parent option doesn't work with new Depsgraph
+Referenced by issue #54969, VSE crashes or hangs unpredictably 4-6 frames into certain second sound strips during rendering.
