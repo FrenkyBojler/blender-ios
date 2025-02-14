@@ -9,3 +9,4 @@ Referenced by issue #50171, Blender 2.78a crashes using in Node Editor [Input] -
 Referenced by issue #50117, Hard crash when adding texture input node to compositor.
 Referenced by issue #50025, Compositor crash
 Referenced by issue #49958, Adding a Texture Node in compositor crashes blender
+Referenced by issue #49946, Blender crash when you add a node texture in compositing nodes.
