@@ -4,3 +4,4 @@ Referenced by commit 3e232aaac13, Fix #118501: crash opening some projects if Lo
 Referenced by commit 9958cbf614b, Fix: UI: fix off by one error in new image vectorscope code
 Referenced by issue #120854, Fix #120789: Slowness when using image vectorscope opacity slider
 Referenced by issue #120789, Slowness when using the Image Editor's Vectorscope opacity slider
+Referenced by issue #118501, Blender crashes when opening certain projects if 'Load UI' isn't turned on
