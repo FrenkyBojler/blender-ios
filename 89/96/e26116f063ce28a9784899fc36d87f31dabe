@@ -8,3 +8,4 @@ Referenced by issue #61253, Text editor highlighting syntax is odd with new matr
 Referenced by issue #61257, crashing while doing bridge edge loops , extrusion
 Referenced by issue #61238, vieport display colour in eevee render mode
 Referenced by issue #61225, Edit mesh:  indistinguishable between face and edge select modes.
+Referenced by issue #61226, Hair comb bug when combing a lot of hair
