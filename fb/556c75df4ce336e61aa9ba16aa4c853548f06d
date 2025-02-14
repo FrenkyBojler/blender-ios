@@ -4,3 +4,4 @@ Referenced by issue #115590, Regression: UV window menus disappearing
 Referenced by issue #114333, UI: Snap Menu - Match the symbols we use in the viewport
 Referenced by issue #113505, Regresion: Scale strips in nla with snap active seems broken
 Referenced by issue #113130, Snap settings in timeline window do not propagate to new version
+Referenced by issue #107054, WIP: Visualize snapping type by showing different symbols
