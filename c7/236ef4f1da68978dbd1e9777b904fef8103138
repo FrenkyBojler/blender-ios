@@ -1,0 +1,1 @@
+Referenced by issue #81688, Use of deprectated PyEval_ReleaseLock() causes crash when Blender built against Python 3.9.0
