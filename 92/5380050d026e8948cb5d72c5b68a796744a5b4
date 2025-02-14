@@ -5,3 +5,4 @@ Referenced by issue #58570, Modifier textures don't update in the 3D viewport
 Referenced by issue #58577, Imported key configurations are missing the preference menu
 Referenced by issue #58561, Surface Pen First Events in Grease Pencil
 Referenced by issue #58566, Blender 2.8 with 2.7X input method shortcut inconsistencies
+Referenced by issue #58528, Materials don't get assigned to objects other than the active object in multi edit mode
