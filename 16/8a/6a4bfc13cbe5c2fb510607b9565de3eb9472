@@ -4,3 +4,4 @@ Referenced by issue #59172, Blender 2.8 - Blender 2.7x keymaps throw out errors
 Referenced by issue #59158, Lack of option Select for Move in 3d view
 Referenced by issue #59152, Dyntopo Constant Detail freezes Blender on scaled object
 Referenced by issue #59155, Cannot select a light before objects. Selection priority issue.
+Referenced by issue #59126, Segmentation fault when running gpu.types.GPUOffScreen.draw_view3d using a context override
