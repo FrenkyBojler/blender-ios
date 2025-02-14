@@ -1,2 +1,3 @@
 Referenced by issue #99209, [Sculpt] Masking crashes Blender when used after applying Remesh modifier in Sculpt mode
 Referenced by issue #84021, updating text object body from frame_change_post handler breaks transform animations in rendered output
+Referenced by issue #83880, Blender crashes when using F3 (Edit->Menu Search) while no active object in scene?
