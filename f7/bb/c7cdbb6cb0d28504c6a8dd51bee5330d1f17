@@ -4,3 +4,4 @@ Referenced by commit 9f634a195d1, Fix crash drawing non-mesh objects with vertex
 Referenced by issue #80478, Vertex color doesn't show in edit mode
 Referenced by issue #78431, Atomics DRW_MeshCDMask
 Referenced by issue #78283, Vertex Colors don't display in modes other than Vertex Paint
+Referenced by issue #78225, Viewport vertex color mode: now it uses only sculpt vertex colors, even if datablock do not exist
