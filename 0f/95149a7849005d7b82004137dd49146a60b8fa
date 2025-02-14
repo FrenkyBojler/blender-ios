@@ -1,1 +1,2 @@
 Referenced by commit a9bb96e6593, Fix transparency issues in 3d viewport
+Referenced by commit f1186cb1139, Fix T39524: Backface culling is always on in Textured view in BI.
