@@ -1,3 +1,4 @@
 Referenced by commit 4212ea7b7de, Fix T85260: Viewport render does not draw background
 Referenced by issue #88288, Eevee clamping color values when viewport rendering and using viewport HDRI
 Referenced by issue #85260, Disable show overlays, then view menu> viewport render image, results in black background
+Referenced by issue #85084, Color space transforms aren't applied to viewport renders with custom OCIO config
