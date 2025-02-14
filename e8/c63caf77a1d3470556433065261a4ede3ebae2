@@ -4,3 +4,4 @@ Referenced by issue #40604, Linked objects flicker randomly
 Referenced by issue #40605, Multires performance issues
 Referenced by issue #40561, Cycles: Refraction Node return Black (Sharp mode)
 Referenced by issue #40498, 3D-View Error: Backface-Culling shown with 'Textured Solid' when disabled
+Referenced by issue #40450, Regression: speed of creating objects (MSVC2013)
