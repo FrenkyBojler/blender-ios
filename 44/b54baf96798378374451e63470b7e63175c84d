@@ -1,0 +1,1 @@
+Referenced by issue #63329, Fail to build 2.7 windows64  for bmesh_mesh.c(1172): warning C4189
