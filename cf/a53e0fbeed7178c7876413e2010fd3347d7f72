@@ -30,3 +30,4 @@ Referenced by issue #95212, The mirror modifier crashes Blender
 Referenced by issue #94986, Inset Faces operator depth not affecting existing vertices
 Referenced by issue #94974, Incorrect normals in edit mode (especially after undo)
 Referenced by issue #94967, Sculpt mode crashes with missing normals
+Referenced by issue #94972, Sculpt: Crash when using Filter type inflate
