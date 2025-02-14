@@ -71,3 +71,4 @@ Referenced by issue #50265, Low DPI when installing for the first time Blender i
 Referenced by issue #50266, Blender crashes after multiple right clicks
 Referenced by issue #50269, OpenCL kernels compilation error with AMDGPU-PRO
 Referenced by issue #50242, Random crash to desktop in Edit Mode when try to select multiple face.
+Referenced by issue #50249, Blender crashes when bringing in a texture node in compositor
