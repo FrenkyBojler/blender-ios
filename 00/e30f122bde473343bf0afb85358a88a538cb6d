@@ -1,1 +1,2 @@
 Referenced by issue #89581, Crash in preparation steps of rendering on some frames of a Sprites file - seems related to OpenVDB and/or TBB
+Referenced by issue #88438, Libraries Changes for Blender 3.0
