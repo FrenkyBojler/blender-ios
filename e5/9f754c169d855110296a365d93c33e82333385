@@ -1,1 +1,2 @@
 Referenced by commit d62f443f2d0, GPUTexture: Fixed typo where wrong enum was used
+Referenced by issue #96683, Mipmaps are inaccurate for UDIM textures
