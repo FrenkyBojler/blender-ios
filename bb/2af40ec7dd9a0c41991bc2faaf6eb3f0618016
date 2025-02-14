@@ -1,2 +1,3 @@
 Referenced by commit 400f2e4be67, Fix T85959 EEVEE: DOF with "Jitter Camera" broken
 Referenced by issue #85959, Eevee DOF with "Jitter Camera" broken
+Referenced by issue #85726, Orthographic view is blurry - rB36814ddc94b5 regression
