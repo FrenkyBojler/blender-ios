@@ -1,1 +1,2 @@
 Referenced by commit e3068f38c8c, Fix memory leak and possible other issues with custom previews
+Referenced by commit 4b0396695c6, UI/Assets: Support generating object preview images
