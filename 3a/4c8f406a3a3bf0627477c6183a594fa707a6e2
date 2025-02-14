@@ -1,1 +1,2 @@
 Referenced by commit f5656204352, Fix T92985: CUDA errors with Cycles film convert kernels
+Referenced by issue #92985, OptiX denoise error on Blender 3.1 and nvidia 495.44: Misaligned address in cuMemFree_v2
