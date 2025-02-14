@@ -1,3 +1,4 @@
 Referenced by commit 874319a3443, Fix T103031: ViewLayer: Crash in indirect_only_get due to missing null check
 Referenced by issue #103031, Regression: My blend file crashes when rendering in Blender 3.4 upwards, because of an unchecked NULL in the code. (stack trace provided)
 Referenced by issue #101272, Missing view layer updates handling collections in python
+Referenced by issue #101128, Regression: Torus Adding Error (can't be selected because it is not in View Layer)
