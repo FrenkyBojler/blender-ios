@@ -1,2 +1,3 @@
 Referenced by commit 7acd7e1246c, UI: Rewrite asset shelf preview loading
 Referenced by commit 5055adc1c0b, Fix: Preview images didn't load progressively as intended
+Referenced by issue #131871, UI: Rewrite asset shelf preview loading
