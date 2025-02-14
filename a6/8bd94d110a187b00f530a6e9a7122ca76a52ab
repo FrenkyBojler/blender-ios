@@ -1,2 +1,3 @@
 Referenced by issue #76273, Overlay glitches 2.83 beta on intel HD cards.
 Referenced by issue #76070, Anti-Aliasing possibly making viewport buggy
+Referenced by issue #75663, X-Ray view becomes distorted while editing vertex weights
