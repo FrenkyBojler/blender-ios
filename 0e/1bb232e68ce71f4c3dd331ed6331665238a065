@@ -1,2 +1,3 @@
 Referenced by commit 872dc1038c4, UI: exclude "Undo History" from menu search
 Referenced by commit 7e3b1e2c8f9, Fix flipped order of items in the "Undo History" menu
+Referenced by issue #97431, Assign Shortcut Missing when Right Clicking Undo History.
