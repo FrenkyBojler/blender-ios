@@ -1,1 +1,2 @@
 Referenced by commit f68fb810642, Fix T98145: IC keymap can't select & move multiple nodes
+Referenced by commit d7053ba030f, Fix T98191: Alt-LMB for node detach fails with RMB select
