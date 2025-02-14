@@ -1,0 +1,1 @@
+Referenced by issue #133233, Update PyDoc: Add bpy.types.PropertyGroup to arg type of bpy.utils.register_class() and bpy.utils.unregister_class()
