@@ -1,1 +1,2 @@
 Referenced by commit 5045968f24b, Revert "Gizmo: optimize intersection tests, fix selection bias"
+Referenced by commit 25fc5876d3b, Revert "Fix Crash: Switching to wireframe mode."
