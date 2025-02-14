@@ -1,2 +1,3 @@
 Referenced by commit 8652e69d8bd, Fix T90447: 3D view transform locks do not use driver colors
 Referenced by commit c0fb8375f66, Fix T89515: Clicking on Favorites in File Browser will rename them
+Referenced by issue #83355, Driven or keyed states no longer visible on shapekey sliders
