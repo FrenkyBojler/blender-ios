@@ -1,2 +1,3 @@
 Referenced by commit 4fd005fefb0, Fix T76131: Crash combing Hair using Python
 Referenced by issue #76131, Reproducable Crash in Blender 2.83 Beta: Combing Hair using Python
+Referenced by issue #61024, Degraded texture shading on dense meshes
