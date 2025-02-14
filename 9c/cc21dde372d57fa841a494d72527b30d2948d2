@@ -1,0 +1,1 @@
+Referenced by issue #98429, VSE autokeying transforms in preview only creates keyframes for rotation/scale if rotating/scaling around cursor (should keyframe position as well)
