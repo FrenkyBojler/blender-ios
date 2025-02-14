@@ -3,3 +3,4 @@ Referenced by issue #40856, tooltip text color no longer using user preference
 Referenced by issue #40816, SSS brightness differs with Sample All Direct Lights
 Referenced by issue #40797, Crash on render on specific file with volumentrics and 'use hair' clicked on render layer
 Referenced by issue #40805, Knife Cut Snap Behavior Regressed
+Referenced by issue #40790, 2D Filters and anti-aliasing broke quad buffer stereo
