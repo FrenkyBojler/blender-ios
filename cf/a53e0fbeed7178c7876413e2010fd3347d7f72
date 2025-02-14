@@ -17,3 +17,4 @@ Referenced by issue #97520, Regression: Previous strokes appears when drawing af
 Referenced by issue #97018, Meshes vertex normals changed via Python API are not used by dupli vert instances
 Referenced by issue #96999, Mesh.calc_normals() after Mesh.transform() does not recalculate normals
 Referenced by issue #96894, Regression: Exported sculpt details are missing till you press clear custom split normals (e.g. after FBX export/import roundtrip)
+Referenced by issue #96305, Applying Wireframe modifier does not apply correctly
