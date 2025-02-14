@@ -1,1 +1,2 @@
 Referenced by issue #89900, Geometry Nodes: Copied reroutes revert to default type, prompting "Node group cycles" error
+Referenced by issue #89881, Geometry Nodes: Switch Node gives ERROR (bke.modifier): ........Node group has cycles
