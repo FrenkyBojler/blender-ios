@@ -3,3 +3,4 @@ Referenced by issue #47085, World background window-projected image green channe
 Referenced by issue #45376, viewport doesn't refreshes animated colors in node groups
 Referenced by issue #44720, Rigidbody simulation - flip object just at the simulation's beginning
 Referenced by issue #44656, Blender crashes when duplicating strips in the VSE
+Referenced by issue #44420, segfault on startup
