@@ -1,0 +1,1 @@
+Referenced by commit 9e0a253ea16, Cleanup: make Group Unlink outliner action use `BKE_libblock_delete() too.
