@@ -1,1 +1,2 @@
 Referenced by commit e80527ec4de, DRW manager: Always assume that the GL_DITHER and GL_SCISSOR_TEST should be disabled if not used.
+Referenced by issue #62999, Blender 2.8, Selection tool crashes blender in editmode. Only in Vertex and/or Edge Select.
