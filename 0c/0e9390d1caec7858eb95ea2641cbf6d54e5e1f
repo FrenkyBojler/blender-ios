@@ -1,1 +1,2 @@
 Referenced by issue #109713, Regression: It is not possible to edit all objects with linked data at the same time
+Referenced by issue #86767, blender crashes when editing in edit mode an object with same object data
