@@ -1,3 +1,4 @@
 Referenced by commit f5edc691509, Fix frame overlay not refreshing the sequencer preview
 Referenced by commit 7ee365d8c71, Fix missing view3d updates after recent NC_SPACE notifier filters
 Referenced by commit 8c6337e587b, Fix missing UI updates, caused by own earlier commit
+Referenced by issue #86670, Regression: viewport, camera image movement late update
