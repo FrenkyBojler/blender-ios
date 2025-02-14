@@ -1,1 +1,2 @@
 Referenced by issue #39560, Segfault in src/blender/imbuf/intern/colormanagement.c, line 650 (config = OCIO_configCreateFromFile(configfile)) in colormanagement_init on Debian jessie
+Referenced by issue #39545, "Track selected markers", does not stop at end of video
