@@ -1,0 +1,1 @@
+Referenced by issue #65035, when rendering in texture mode with workbench, material alpha values default to 0.5 regardless of actual alpha value
