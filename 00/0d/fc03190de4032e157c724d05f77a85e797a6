@@ -95,3 +95,4 @@ Referenced by issue #44500, Option to disable looping playback in timeline.
 Referenced by issue #44484, Tris to quad crash blender with non manifold edge in model.
 Referenced by issue #44485, Wrong Border, CTRL+LMB or RMB+Drag vertex selection in mesh edit mode
 Referenced by issue #44477, Color tool tip covering right click menu for the grease pencil in the outliner
+Referenced by issue #44482, Blender crashes when switching to GPU rendering with Cycles. Error: EXCEPTION_STACK_OVERFLOW
