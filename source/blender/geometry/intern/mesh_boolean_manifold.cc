@@ -1305,6 +1305,49 @@ static void get_intersecting_edges(Vector<int> *r_intersecting_edges,
   }
 }
 
+/* Return true if \a mesh is a plane. If it is, fill in *r_normal to be
+ * the plane's normal, and *r_origin_offset to be the vector that goes
+ * from the origin to the plane in the normal direction. */
+static bool is_plane(const Mesh *mesh, float3 *r_normal, float *r_origin_offset)
+{
+  if (mesh->faces_num != 1 && mesh->verts_num != 4) {
+    return false;
+  }
+  float3 vpos[4];
+  Span<int> f_corners = mesh->corner_verts().slice(mesh->faces()[0]);
+  for (int i = 0; i < 4; i++) {
+    vpos[i] = mesh->vert_positions()[f_corners[i]];
+  }
+  float3 norm1 = math::normal_tri(vpos[0], vpos[1], vpos[2]);
+  float3 norm2 = math::normal_tri(vpos[0], vpos[2], vpos[3]);
+  if (math::almost_equal_relative(norm1, norm2, 1e-5f)) {
+    *r_normal = norm1;
+    *r_origin_offset = math::dot(norm1, vpos[0]);
+    return true;
+  }
+  return false;
+}
+
+/* Handle special case of one manifold mesh, which has been converted to
+ * \a manifold 0, and one plane, which has normalized normal \a normal
+ * and distance from origin \a origin_offset. */
+static MeshGL mesh_trim_manifold(Manifold &manifold0, float3 normal, float origin_offset, const MeshOffsets &mesh_offsets)
+{
+  Manifold man_result = manifold0.TrimByPlane(manifold::vec3(normal[0], normal[1],  normal[2]), double(origin_offset));
+  MeshGL meshgl = man_result.GetMeshGL();
+  /* This meshgl_result has a non-standard (but non-zero) original ID for the
+   * plane faces, and faceIDs that make no sense for them. Fix this. */
+  BLI_assert(meshgl.runOriginalID.size() == 2 &&
+             meshgl.runOriginalID[1] > 0);
+  meshgl.runOriginalID[1] = 1;
+  BLI_assert(meshgl.runIndex.size() == 3);
+  int plane_face_start = meshgl.runIndex[1] / 3;
+  int plane_face_end = meshgl.runIndex[2] / 3;
+  for (int i = plane_face_start; i < plane_face_end; i++) {
+    meshgl.faceID[i] = mesh_offsets.face_offsets[1][0];
+  }
+  return meshgl;
+}
 
 /* Convert the meshgl that is the result of the boolean back into a
  * Blender Mesh.
@@ -1514,29 +1557,43 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
     const Mesh *joined_mesh = joined_meshes_set.get_mesh();
     BLI_assert(joined_mesh != nullptr);
     get_manifolds(manifolds, joined_mesh, mesh_offsets);
+    MeshGL meshgl_result;
+    Operation op = op_params.boolean_mode;
     if (std::any_of(manifolds.begin(), manifolds.end(), [](const Manifold &m) {
           return m.Status() != Manifold::Error::NoError;
         }))
     {
-      *r_error = BooleanError::NonManifold;
-      return nullptr;
+      /* Check special case of subtracting a plane, which Manifold can handle. */
+      float3 normal;
+      float origin_offset;
+      if (num_meshes == 2 &&
+          op == Operation::Difference &&
+          manifolds[0].Status() == Manifold::Error::NoError &&
+          is_plane(meshes[1], &normal, &origin_offset)) {
+#ifdef DEBUG_TIME
+        timeit::ScopedTimer timer_trim("DOING BOOLEAN SLICE, GETTING MESH_GL RESULT");
+#endif
+        meshgl_result = mesh_trim_manifold(manifolds[0], normal, origin_offset, mesh_offsets);
+      }
+      else {
+        *r_error = BooleanError::NonManifold;
+        return nullptr;
+      }
     }
-    Operation op = op_params.boolean_mode;
-    manifold::OpType mop = op == Operation::Intersect ?
+    else {
+      manifold::OpType mop = op == Operation::Intersect ?
                                manifold::OpType::Intersect :
                                (op == Operation::Union ? manifold::OpType::Add :
                                                          manifold::OpType::Subtract);
-    MeshGL meshgl_result;
-    {
 #ifdef DEBUG_TIME
-      timeit::ScopedTimer timer_bool("DOING BOOLEAN, GETTING MANIFOLD RESULT");
+      timeit::ScopedTimer timer_bool("DOING BOOLEAN, GETTING MESH_GL RESULT");
 #endif
       Manifold man_result = Manifold::BatchBoolean(manifolds, mop);
       meshgl_result = man_result.GetMeshGL();
-      if (dbg_level > 0) {
-        std::cout << "boolean result has " << meshgl_result.NumTri() << " tris\n";
-        dump_meshgl(meshgl_result, "boolean result meshgl");
-      }
+    }
+    if (dbg_level > 0) {
+      std::cout << "boolean result has " << meshgl_result.NumTri() << " tris\n";
+      dump_meshgl(meshgl_result, "boolean result meshgl");
     }
     Mesh *mesh_result;
     {
