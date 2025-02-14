@@ -1,3 +1,4 @@
 Referenced by issue #57143, Can't bake to external textures (Python)
 Referenced by issue #53939, Bug in User Ortho mode: mesh flipped or corrupted
 Referenced by issue #52349, Subsurface scattering renders black on particle effects
+Referenced by issue #51388, Mask moves when zoom is changed in the movie clip editor
