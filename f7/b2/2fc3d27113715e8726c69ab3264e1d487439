@@ -3,3 +3,4 @@ Referenced by issue #88503, Geometry nodes: Crash when using attribute proximity
 Referenced by issue #88484, Compositor: adding viewer node with volume object causes crash in DebugInfo::graphviz
 Referenced by issue #88475, use after free Fluid sim seg fault
 Referenced by issue #88186, [2.92] Crash when loading mp3 file in VSE
+Referenced by issue #88113, Use after free: Baking Rigid Body physics causes instant crash
