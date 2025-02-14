@@ -1,3 +1,4 @@
 Referenced by commit 5045968f24b, Revert "Gizmo: optimize intersection tests, fix selection bias"
 Referenced by commit 49fc4449e73, Fix T96357: Issue clicking on stem of arrow gizmos to scale on axis
 Referenced by commit cb986446e29, Fix Crash: Switching to wireframe mode.
+Referenced by issue #98037, GPU: GPU accellerated depth testing for gizmos
