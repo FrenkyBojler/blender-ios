@@ -1,3 +1,4 @@
 Referenced by issue #126802, Wrong number of node group users when duplicating a shader
 Referenced by issue #94418, No image.previews for some D.images
 Referenced by issue #93995, Cycles: motion blur only applies on Left view
+Referenced by issue #93751, Extrude crash
