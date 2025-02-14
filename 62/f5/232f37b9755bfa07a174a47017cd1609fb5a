@@ -1,0 +1,1 @@
+Referenced by issue #81573, Users refcount not incremented when creating a proxy but decremented when deleting it
