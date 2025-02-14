@@ -2,3 +2,4 @@ Referenced by commit 02f7a6b2bde, Fix T74744: Studio Lights editor not updating 
 Referenced by commit ed44bb902d6, Fix T74872: Clipping Region not updating
 Referenced by commit a6dd22d4311, Fix T74957: Matcap flip not updating
 Referenced by issue #91218, Viewport takes a huge performance hit when enabling shadows
+Referenced by issue #78161, Workbench refactor causes significant performance regression with workbench shadows
