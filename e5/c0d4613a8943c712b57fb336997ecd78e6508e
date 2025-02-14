@@ -1,1 +1,2 @@
 Referenced by commit 5aab7f66a0b, Fix T83876: blender crashes when baking particles + smoke sim
+Referenced by issue #83876, Blender crashes when baking particles for a flow fire + smoke sim
