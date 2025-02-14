@@ -36,3 +36,4 @@ Referenced by issue #49808, blender is crashing when rendering with hair partica
 Referenced by issue #49789, Compositor mix node interpolation bug
 Referenced by issue #49792, 3d view locking and rotating to random direction when using fly mode, depending on OS's DPI scaling.
 Referenced by issue #49794, Compositor image sequence node multiple bug with exr
+Referenced by issue #49798, No shadows cast/shown in viewport Material View for Blender Cycles
