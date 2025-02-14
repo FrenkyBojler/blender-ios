@@ -1,3 +1,4 @@
 Referenced by commit 0b1049b41d5, BMesh: Optimize copying attributes from many elements at once
 Referenced by commit 4ebb66864a9, Fix #104826: Mesh to BMesh with shape keys can corrupt layers
 Referenced by issue #115824, BMesh: Optimize copying attributes from many elements at once
+Referenced by issue #104762, Triangulate node cancels geometry transforms of a Set Position node
