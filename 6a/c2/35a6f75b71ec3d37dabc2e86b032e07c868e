@@ -1,2 +1,3 @@
 Referenced by issue #79767, Cycles animation render crash in scenes that use VDB cache and Vector pass (fixed in 2.9, request to backport to LTS)
 Referenced by issue #78038, OpenVDB from Houdini crashing blender when motion blur is enabled!
+Referenced by issue #77854, Cycles render crashes with open VDB sequence and motion blur on.
