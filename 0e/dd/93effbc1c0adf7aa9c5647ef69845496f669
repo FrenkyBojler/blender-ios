@@ -1,2 +1,3 @@
 Referenced by issue #59284, Object instancing won't render in Cycles
 Referenced by issue #58956, DupliVerts do not render in Cycles
+Referenced by issue #58202, Instanced children objects to parents are invisible in Cycles render
