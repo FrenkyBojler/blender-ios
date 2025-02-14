@@ -1,0 +1,1 @@
+Referenced by issue #63061, Adding Rigid Body to object causes dependency cycle (POINT_CACHE_RESET() <-> TRANSFORM_SIMULATION_INIT())
