@@ -1,1 +1,2 @@
 Referenced by commit dfa3dcbab95, Fix T88625: Multiobject UV hiding/unhiding does not work with UV_SYNC_SELECTION
+Referenced by issue #76114, Unhideible UVs in Multi Object Edit
