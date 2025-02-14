@@ -1,1 +1,2 @@
 Referenced by issue #124173, Grease Pencil: SVG export creates invalid xml
+Referenced by issue #124160, Crash when replacing vdb on disk with a vdb with less grids
