@@ -25,3 +25,4 @@ Referenced by issue #42927, Triangulate fails following edge sub-divide
 Referenced by issue #42887, Nvidia GTX 9XX not recognized in Blender (2.73)
 Referenced by issue #42890, User Preferences ( BUG )
 Referenced by issue #42891, Blender Internal Material Node
+Referenced by issue #42878, OSL hard  crash
