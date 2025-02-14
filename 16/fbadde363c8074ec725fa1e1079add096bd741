@@ -1,1 +1,2 @@
 Referenced by commit 726bd3887fe, Fix #112335: particle instance modifier outputs wrong attributes
+Referenced by commit ef9d9c6856d, Fix unnecessary corner edge computation in multires bake
