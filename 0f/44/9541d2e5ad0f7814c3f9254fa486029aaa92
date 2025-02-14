@@ -6,3 +6,4 @@ Referenced by issue #56207, Blender 2.8 - Principled hair shader is not working 
 Referenced by issue #56193, Blender 2.8 crash on startup, but starts with -d --debug-gpu
 Referenced by issue #56198, Crash from flipping lighting MatCap in properties editor
 Referenced by issue #56185, Changing color of material of grease pencil crashes blender 2.8
+Referenced by issue #56187, click+drag on grease pencil in edit/sculpt/weight paint mode with cursor
