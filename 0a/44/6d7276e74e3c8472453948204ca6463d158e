@@ -1,3 +1,4 @@
 Referenced by issue #50520, Blender internal, shadow problem
 Referenced by issue #50460, Cycles cull option ui problem
 Referenced by issue #50439, Dopesheet clip editor view selections are not in sync with other clip editor view selections
+Referenced by issue #50427, Properties are only editable *after* pressing "detect feature" in motion tracking
