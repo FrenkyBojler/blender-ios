@@ -1,3 +1,4 @@
 Referenced by commit 102fcba8558, Revert "Fix T72064, T72158: weight paint shows X/Y/Z symmetry options that don't work"
 Referenced by issue #72158, Buggy Weight Paint Mirroring in 2.81
 Referenced by issue #72064, In weight paint mode xyz-mirror widget conflicts with x-mirror option
+Referenced by issue #65872, X-mirror activated in Edit Mode missleadingly affects symmetry in Weight Paint Mode
