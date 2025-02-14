@@ -5,3 +5,4 @@ Referenced by issue #94169, Regression: Grease Pencil does not show up in render
 Referenced by issue #94041, Loading a new file gives crash while rendering in viewport
 Referenced by issue #92442, enabling motion blur in EEVEE stops cryptomatte object from working.
 Referenced by issue #92405, Emission Strength Animation of 2.93.5 inherited wrongly in 3.0
+Referenced by issue #92073, Cycles: Viewport flashes when moving in the camera view with Render Region/Passepartout
