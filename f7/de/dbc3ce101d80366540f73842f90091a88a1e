@@ -1,1 +1,2 @@
 Referenced by issue #42294, Bullet Physic Rigid Body Updates In Viewport Playback, Object Using Constraints (Loc,Rot) Breaks One Frame In To Animation When Rendering, But Viewport Playback Updates Correctly
+Referenced by issue #40017, Wrong Motion Blur with Rigid Body Simulation / Point Cache
