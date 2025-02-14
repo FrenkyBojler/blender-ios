@@ -4,3 +4,4 @@ Referenced by commit 084d911010f, Fix T81461: Weight paint crash with "Vertex Gr
 Referenced by issue #111039, Texture paint Backface culling option does not work if symmetry is enabled
 Referenced by issue #108107, Update sculpt mode symmetry options as properties of meshes
 Referenced by issue #84838, Enable "X" will also activate Symmetry mirror for weight painting in 2.91
+Referenced by issue #84518, XYZ symmetry options: unclear release notes
