@@ -1,1 +1,2 @@
 Referenced by issue #74979, Cycles: Bump node doesn't distort normals
+Referenced by issue #74517, "Regression" : Using normal or bump maps in cycles produces flat washed-out shading (caused by terminator softening)
