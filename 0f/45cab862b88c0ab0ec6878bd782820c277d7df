@@ -18,3 +18,4 @@ Referenced by issue #83698, Blender crash at launching
 Referenced by issue #83653, Problem with Cycles GPU viewport shading (GTX 1070) both CUDA and optix
 Referenced by issue #83628, Blender crashes when duplicating a Spotlight in Eevee Render Preview
 Referenced by issue #83613, BLENDER OBJECT GLITCH
+Referenced by issue #83487, Viewport rendered shading keeps refreshing
