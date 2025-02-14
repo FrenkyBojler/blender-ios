@@ -1,1 +1,2 @@
 Referenced by issue #37669, Copying object to buffer messes up its textures' image paths
+Referenced by issue #37471, Cache Relative wrong path issue on Copy-Paste objects
