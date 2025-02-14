@@ -67,3 +67,4 @@ Referenced by issue #41430, Vector pass errors with animated array, curve and su
 Referenced by issue #41413, Loop cut: Adding more than one cut defaults to Edge Select; even if in Vertex Select.
 Referenced by issue #41406, Smear bug
 Referenced by issue #41378, Particle update bug
+Referenced by issue #41366, Radeon 3d view crush
