@@ -2,3 +2,4 @@ Referenced by commit e6f6db500ef, Fix: ED_view3d_depth_override cannot disable o
 Referenced by issue #132905, High idle CPU usage with PulseAudio in Linux is back
 Referenced by issue #132007, Sculpt Mode: Mask overlay flashes when using 'Center View to Mouse' with a pen
 Referenced by issue #131861, Fix: ED_view3d_depth_override cannot disable overlays
+Referenced by issue #131237, Fix #120778: depth navigation ignores camera & light objects
