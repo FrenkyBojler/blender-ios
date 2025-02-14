@@ -1,2 +1,3 @@
 Referenced by issue #64710, Rigid body stops simulating when an object is selected
 Referenced by issue #61821, Wrong insertion of keyframe on camera object while on camera view on Eeevee
+Referenced by issue #60136, Rigid body simulation does not bake when using Python API to create and remove mesh data in frame_change_pre_handler
