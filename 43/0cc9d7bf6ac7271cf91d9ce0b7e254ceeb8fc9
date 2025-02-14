@@ -1,2 +1,3 @@
 Referenced by commit 622cad70734, Cleanup: minor tweak to recent fix for T10438
 Referenced by issue #104381, Curve: Assert on end modal operator: Circle Select
+Referenced by issue #99073, Circle Select on a Curve in Edit Mode = _BLI_assert_abort for Pydebug of Blender 3.2
