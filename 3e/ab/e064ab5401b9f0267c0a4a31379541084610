@@ -1,0 +1,1 @@
+Referenced by issue #38900, Blender Crashes when using 3D view set to RENDER and getmessage ("trace", "geom:name", nameStr); called in OSL
