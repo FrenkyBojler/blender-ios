@@ -19,3 +19,4 @@ Referenced by issue #94615, Blender 3.0 consistently crashes when RSS nears 5GiB
 Referenced by issue #94576, Long bake computing time material to vertex color for selected objects
 Referenced by issue #94532, Blender 3.0 very slow with rx 5700XT
 Referenced by issue #94451, Large (135Mb) file without apparent data
+Referenced by issue #94347, Crash when adding new scene in video editor and pressing home
