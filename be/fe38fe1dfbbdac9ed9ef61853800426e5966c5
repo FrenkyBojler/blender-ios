@@ -3,3 +3,4 @@ Referenced by issue #122461, undo/redo | camera zoom view
 Referenced by issue #107400, Huge Lag when Zooming in/out in Camera view
 Referenced by issue #107210, Fix #106292: adjust last action dismissed after rotating view
 Referenced by issue #106292, Regression: Adjust last action dismissed after rotating view
+Referenced by issue #103112, Regression: lag from camera view when using mouse scroll
