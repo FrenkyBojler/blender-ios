@@ -1,2 +1,3 @@
 Referenced by issue #63345, changing scene and applying modifiers
 Referenced by issue #63292, -texture paint- workspace makes blender crash.
+Referenced by issue #63269, Feels like blender is calculating hidden meshes
