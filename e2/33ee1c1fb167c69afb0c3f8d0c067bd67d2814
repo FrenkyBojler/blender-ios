@@ -1,1 +1,2 @@
 Referenced by issue #80066, Dyntopo menu disappears after using "box hide" brush in sculpt mode (fixed in 2.90 and 2.91 - request to backport to LTS)
+Referenced by issue #78186, dyntopo tab disappears when specific brush selected
