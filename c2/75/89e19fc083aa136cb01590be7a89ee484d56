@@ -39,3 +39,4 @@ Referenced by issue #46018, Inset and scale problems with faces
 Referenced by issue #46026, Brush Select ( " C "  ) bug - additionaly selects random vertices on any given mesh
 Referenced by issue #46009, Render view not updated when Images Draw Method is GLSL
 Referenced by issue #46005, Incorrect output with "Display: Keep UI"
+Referenced by issue #45987, Win10 64-bit - Cycles - Various CUDA errors in cuCtxSynchronize()
