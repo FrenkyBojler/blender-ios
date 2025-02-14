@@ -32,3 +32,4 @@ Referenced by issue #47996, Bug Hair (particles) Density/Length texture in Cycle
 Referenced by issue #47971, Blender 2.77 Crash When Rigid Body Cache 'Bake' Clicked
 Referenced by issue #47921, Blender crashes when trying to select an object
 Referenced by issue #47909, Significant animation overhead remains after stopping animation playback
+Referenced by issue #47908, Loop End action does not complete (behaves as Loop Stop)
