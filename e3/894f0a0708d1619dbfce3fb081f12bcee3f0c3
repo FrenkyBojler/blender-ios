@@ -1,1 +1,2 @@
 Referenced by commit 42210342caf, Cleanup: Remove outdated references to UV_SCULPT
+Referenced by issue #133551, Crash: Invalid RNA code for `Scene.tool_settings.uv_sculpt`
