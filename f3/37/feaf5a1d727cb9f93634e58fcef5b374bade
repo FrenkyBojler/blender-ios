@@ -17,3 +17,4 @@ Referenced by issue #48748, BI Material Diffuse color isn't showing in Texture S
 Referenced by issue #48716, Knife cut creates polygons with inverted normals
 Referenced by issue #48683, Knife create a hole in the face cutted.
 Referenced by issue #48542, OSL crash on 32bit
+Referenced by issue #48546, Blender OOM at startup
