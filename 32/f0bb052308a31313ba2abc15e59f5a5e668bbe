@@ -1,2 +1,3 @@
 Referenced by issue #71214, Eevee preview nodes performance drop
 Referenced by issue #71201, eevee/blender freezing  for a few seconds when renaming a few materials via python
+Referenced by issue #70766, eevee performance drop with node tree in 2.81
