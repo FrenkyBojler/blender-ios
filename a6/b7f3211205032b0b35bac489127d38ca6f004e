@@ -1,2 +1,3 @@
 Referenced by issue #97380, Weird motionblur on curves in Eevee
 Referenced by issue #93784, [EEVEE] Blender 3.0 - Bug : Text objects AND CURVE objects have no motion blur.
+Referenced by issue #93297, Eevee motion blur or Geometry node is bugging material
