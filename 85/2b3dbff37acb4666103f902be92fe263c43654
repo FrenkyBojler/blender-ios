@@ -1,2 +1,3 @@
 Referenced by commit 316b5475b91, Cleanup: Fix missing-declaration error in previous commit
 Referenced by commit 4c37b3ea022, Cleanup: Resolved missing declaration warnings after recent cleanup
+Referenced by issue #126531, Cleanup: Fix missing-declaration error in previous commit
