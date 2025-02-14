@@ -6,3 +6,4 @@ Referenced by issue #59893, Text info in 3dview shows wrong collection
 Referenced by issue #59894, Mesh is exaggerating armature movements
 Referenced by issue #59886, Sticky drawing of transform widget
 Referenced by issue #59876, Crashed in texture painting in old file
+Referenced by issue #59878, 2.80 - Crash on Middle Mouse Button while in Edit Mode after Adding Materials and Mirror Modifier
