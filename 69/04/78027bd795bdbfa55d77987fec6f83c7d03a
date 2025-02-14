@@ -6,3 +6,4 @@ Referenced by issue #61196, clipping border allows selection of clipped vertices
 Referenced by issue #60965, Texture Painting is slow / lags with large brush size
 Referenced by issue #60963, Hair dynamics: hair dynamics not rendered in animation mode when using a force field
 Referenced by issue #60953, Normal Map Tangent Space stopped working with Object Texture Coordinate
+Referenced by issue #60954, Texture Paint behaving weird on Ctrl + Z sometimes
