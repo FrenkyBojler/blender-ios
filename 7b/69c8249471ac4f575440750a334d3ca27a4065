@@ -1,2 +1,3 @@
 Referenced by commit 30c1475dfd1, Sculpt: Update node mask status eagerly
 Referenced by commit 900184ac4bc, Sculpt: Use separate bit vector for BVH node normals dirty tags
+Referenced by issue #127671, Sculpt: using scrape multiplane brush causes part of the mesh to disappear
