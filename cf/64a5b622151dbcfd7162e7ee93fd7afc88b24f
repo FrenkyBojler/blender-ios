@@ -1,0 +1,1 @@
+Referenced by issue #80866, Object deletion fails in frame_change_pre handler when called from Render Image
