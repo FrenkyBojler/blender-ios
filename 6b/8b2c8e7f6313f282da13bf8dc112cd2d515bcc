@@ -1,0 +1,1 @@
+Referenced by issue #101211, VSE Image Strip transform jitters under extreme scaling, unlike the smooth transform strip and compositor transform node.
