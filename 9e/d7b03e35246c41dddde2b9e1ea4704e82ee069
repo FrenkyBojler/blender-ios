@@ -1,2 +1,3 @@
 Referenced by issue #132651, Regression: Multires with color attribute in material view leads to a crash
 Referenced by issue #132641, Undoing Vertex Group deletion in Edit Mode results in ruin
+Referenced by issue #132643, EEVEE & Shader Nodes: Deleting Color Ramp's penultimate stop doesn't update the Color Ramp
