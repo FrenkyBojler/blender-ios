@@ -45,3 +45,4 @@ Referenced by issue #49652, Blender crashes when using ocean modifier and dynami
 Referenced by issue #49653, Quicktime render error
 Referenced by issue #49656, Crash when starting playback while using JACK audio with A/V sync
 Referenced by issue #49706, Material Render mode viewport not updating with changes in image texture node
+Referenced by issue #49638, Changing multiple object dimensions doesn't work
