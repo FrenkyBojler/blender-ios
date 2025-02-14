@@ -44,3 +44,4 @@ Referenced by issue #45019, Particle Motion Blur very slow rendering
 Referenced by issue #45001, Unexpected results when exporting from Blender as an ,obj .  When importing back into a blender file.
 Referenced by issue #45005, RGB Curves in Cycles Shaders Fac not working properly
 Referenced by issue #44958, Changing library path
+Referenced by issue #44948, Changing animation frame before exiting Local View results in outdated scene after leaving Local View.
