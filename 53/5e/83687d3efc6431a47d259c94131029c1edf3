@@ -1,3 +1,4 @@
 Referenced by issue #52428, blender crash after pressing "F"
 Referenced by issue #52432, Blender crashes while using Ghost  (new depsgraph)
 Referenced by issue #52414, Blender 2.79 crash on object duplication via menu
+Referenced by issue #52373, Weight Paint Mode: 'Limit Selection to Visible' doesn't respect Wireframe Shading
