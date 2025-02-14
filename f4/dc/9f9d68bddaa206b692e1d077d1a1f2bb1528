@@ -9,3 +9,4 @@ Referenced by issue #67834, Clicking menus causes Mac to freeze entirely
 Referenced by issue #67689, not recognising gfx card
 Referenced by issue #67150, Extrude Acting Like Move - 2.79
 Referenced by issue #67160, Cycles renders non-isolated objects, Eevee doesn't
+Referenced by issue #67099, Setting Shader Color to #B3FF4A causes Value + Alpha Sliders to not match their numerical values, causes weird color wheel sliding behavior
