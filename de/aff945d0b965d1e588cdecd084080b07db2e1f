@@ -5,3 +5,4 @@ Referenced by commit ad05e1100fd, Fix T77409: Crash showing vertex/face duplicat
 Referenced by commit 945d0269e32, Fix crash calculating vertex parent in edit-mode
 Referenced by commit f8c8a5c092c, Fix T77607: Edit-mode shading regression 2.90
 Referenced by commit 0945a79ed1e, Fix crash using shrink-wrap modifier in edit-mode
+Referenced by commit 2d1b560a4e2, Fix T77632: Deform modifier auto-binding not working
