@@ -1,2 +1,3 @@
 Referenced by issue #104688, Assets: Preference for default import method for an asset library
 Referenced by issue #104686, Improve import method selection for assets
+Referenced by issue #103546, Objects linked from Asset Library ignore relative path preference
