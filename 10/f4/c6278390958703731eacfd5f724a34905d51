@@ -5,3 +5,4 @@ Referenced by issue #39013, nurbs path curve selected, "n" menu, "curve" display
 Referenced by issue #39014, Modifiers/Deform/Curve and Constraints/Simulate/Follow Path
 The orientation of these two are not consistent.
 Referenced by issue #38995, Crash after select a object in scene
+Referenced by issue #38912, Strange behavior of between rigid body and soft body.
