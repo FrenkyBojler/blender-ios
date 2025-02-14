@@ -1,1 +1,2 @@
 Referenced by issue #94254, Crash when the Home button is pressed in the VSE
+Referenced by issue #90633, VSE: "Frame all" inside metastrips uses global frame range instead of metastrip frame range
