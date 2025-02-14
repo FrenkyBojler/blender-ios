@@ -1,2 +1,3 @@
 Referenced by issue #66103, unlink error
 Referenced by issue #66089, "i" hotkey to insert keyframe doesn't work in color picker
+Referenced by issue #65996, metaballs converted to meshes appear to render at an incorrect isosurface
