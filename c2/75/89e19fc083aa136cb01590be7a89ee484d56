@@ -74,3 +74,4 @@ Referenced by issue #45570, Memory leakage in Sequencer
 Referenced by issue #45554, Impossible to remove Actions from Action Editor
 Referenced by issue #45556, Camera Walk Mode - Looking around with mouse not working
 Referenced by issue #45562, Loading old .blend file that has grid subdivisions set to 0 crashes Blender
+Referenced by issue #45547, Crash when go to File-User Preferences-System or choose Cycles renderer
