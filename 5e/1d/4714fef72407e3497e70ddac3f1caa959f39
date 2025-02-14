@@ -1,1 +1,2 @@
 Referenced by issue #78701, Switching Curve Shapekeys in Edit Mode go haywire if relative to one another
+Referenced by issue #50745, Shape key editing on bezier objects broken with Rendered Viewport Shading
