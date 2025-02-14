@@ -48,3 +48,4 @@ Referenced by issue #59108, Blender crashes when clicking on
 Referenced by issue #58984, Traceback error during FBX export
 Referenced by issue #58936, Crash after switching between collections in scene.
 Referenced by issue #58796, Blender causes BSOD
+Referenced by issue #58524, Cycles Compute Device only shows "none".
