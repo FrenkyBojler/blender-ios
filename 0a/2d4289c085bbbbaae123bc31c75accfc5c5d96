@@ -1,1 +1,2 @@
 Referenced by issue #113300, grease pencil sculpt tool doesn't work properly when layers are attached to bones
+Referenced by issue #110367, Regression: Grease Pencil Sculpt Grab with Subdivision Modifier moves points outside of brush influence.
