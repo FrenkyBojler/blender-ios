@@ -1,2 +1,3 @@
 Referenced by issue #74018, CRLF vs LF mismatches errors when patching OpenCollada in "make deps"
 Referenced by issue #73942, Eevee mipmaps not respecting border mode
+Referenced by issue #73944, Generated texture coordinates incorrect on file load in presence of modifiers
