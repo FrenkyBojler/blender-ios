@@ -1,2 +1,3 @@
 Referenced by commit 872ff507a26, Fix Spring characters being in the rest pose on file open
 Referenced by issue #61477, Freestyle not updating in animation
+Referenced by issue #61231, Undo -ing during weight painting reverts (temporarily set) pose to keyframed pose
