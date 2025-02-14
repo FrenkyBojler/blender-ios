@@ -1,1 +1,2 @@
 Referenced by commit b6713dcbe52, rBa81ea408367abe2f33b351ff6dcc6b09170fd088 "object" -> "target"
+Referenced by issue #50899, Blender : Mesh to Curve : Hard crash when target mesh has a object shrinkwrapped to it
