@@ -1,3 +1,4 @@
 Referenced by commit 2cb9290012f, Fix #110021: Deform modifier binding can go wrong in certain stacks
 Referenced by issue #110095, Fix #110021: Deform modifier binding can go wrong in certain stacks
 Referenced by issue #110021, Mesh Deform Modifier Vertex Count Error
+Referenced by issue #109691, Regression: Edge Crease behaves differently between Complex and Simple Solidify
