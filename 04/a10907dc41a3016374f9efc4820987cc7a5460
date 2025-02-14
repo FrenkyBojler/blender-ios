@@ -1,0 +1,1 @@
+Referenced by commit f6abc96b6b3, Cleanup: Remove OpenCL __MULTI_CLOSURE__ sanity check, not needed anymore after 04a10907dc41.
