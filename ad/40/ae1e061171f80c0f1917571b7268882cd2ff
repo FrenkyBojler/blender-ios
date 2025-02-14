@@ -1,0 +1,1 @@
+Referenced by issue #49327, 2.78 RC1:  Cycles OSL Mode: RGB Curves node only outputs gray scale images - even though input image is color. (Non OSL mode is OK)
