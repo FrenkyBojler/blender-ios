@@ -16,3 +16,4 @@ Referenced by issue #108558, Emission performance bug (cycles render)
 Referenced by issue #108455, Crash without warning when opening material properties panel.
 Referenced by issue #108400, Tabbing into edit mode on a bezier curve crashes blender (Segmentation fault)
 Referenced by issue #108260, Application templates crashes if the startup.blend of the application template contains scene named "Asset"
+Referenced by issue #108226, glTF 2.0 Import crashes
