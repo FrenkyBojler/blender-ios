@@ -13,3 +13,4 @@ Referenced by issue #99247, EXCEPTION_ACCESS_VIOLATION
 Referenced by issue #99146, Viewport is change perspective when switching between scenes
 Referenced by issue #99037, bpy.ops.transform.rotate doesn't work in blender in background mode. (same as T88610)
 Referenced by issue #99031, Blender crashes immediately when trying to open it
+Referenced by issue #98939, API: bpy.props getter function returns KeyError instead of default value
