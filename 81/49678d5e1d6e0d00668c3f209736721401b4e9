@@ -5,3 +5,4 @@ Referenced by commit acee93bd6d6, Fix #115207: dynamically typed Viewer node
 Referenced by commit 02bc43d08e1, Fix: versioning code results in duplicate node links
 Referenced by issue #117648, Fix #117647: Accumulate Field ID input is not connecting via gather link searcher
 Referenced by issue #116025, Geometry Nodes: Single value links not propagated correctly
+Referenced by issue #115136, Fix: Dynamically typed Input Named Attribute node
