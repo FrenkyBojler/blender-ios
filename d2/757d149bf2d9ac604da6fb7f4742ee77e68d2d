@@ -1,2 +1,3 @@
 Referenced by commit e590526af6e, Fix T76767: Cycles performance regression with CLI renders
 Referenced by commit dbbea2fc222, Fix: build error with msvc
+Referenced by issue #76767, Slow Cycles CLI render with proper tile sizes
