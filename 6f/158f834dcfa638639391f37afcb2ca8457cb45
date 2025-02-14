@@ -1,3 +1,4 @@
 Referenced by commit e9d4a20a59a, Cleanup: tablet press could fall through to release on GHOST/Win32
 Referenced by issue #89863, Pressure Sensitivity Not Working in Blender 2.93 LTS
 Referenced by issue #89341, No pressure for tablet in mouse mode.
+Referenced by issue #88852, Meta: Improve Wintab tablet handling (smooth lines)
