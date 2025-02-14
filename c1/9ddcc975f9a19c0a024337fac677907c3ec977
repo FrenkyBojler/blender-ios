@@ -1,2 +1,3 @@
 Referenced by issue #56720, Lattice: crash on setting points_u/v/w from python
 Referenced by issue #56331, Segfault on Undo of Sculpted object in hidden Layer
+Referenced by issue #56312, UI elements ignore keyboard layout changes (ex. Swapped CTRL / CAPS)
