@@ -1,3 +1,4 @@
 Referenced by issue #39804, Cycles smoke adaptive domain visibility
 Referenced by issue #39789, Cannot Play Render Animation
 Referenced by issue #39792, Tangents/bitangents missing from exported FBX model
+Referenced by issue #39781, Autosmooth feature: erroneously showing hidden vertices' normals too when in "vertex per face" display
