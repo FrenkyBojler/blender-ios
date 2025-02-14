@@ -1,3 +1,4 @@
 Referenced by issue #88719, Attribute Remove Node Input Field Does Nothing
 Referenced by issue #88588, Geometry node crash when muting a node
 Referenced by issue #88578, Geometry Nodes : Empty string input to Attribute Remove causes Error
+Referenced by issue #87620, Geometry Nodes Evaluator Improvements
