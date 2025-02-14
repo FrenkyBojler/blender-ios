@@ -5,3 +5,4 @@ Referenced by issue #58109, New objects duplicated in isolate mode not visible.
 Referenced by issue #58111, Selection tools ignore Collections visibility.
 Referenced by issue #58099, Blender 2.8 Alpha crash
 Referenced by issue #58101, Image empties are only rendering their border when using OpenGL multisample > 2.
+Referenced by issue #58092, Blender 2.8 Crash in workbench with matcap.
