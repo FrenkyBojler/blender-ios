@@ -1,0 +1,1 @@
+Referenced by issue #46870, The python objects in the `bge.logic.globalDict` are not destructed at the end of the game
