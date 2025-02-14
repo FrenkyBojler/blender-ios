@@ -1,2 +1,3 @@
 Referenced by issue #63067, Overriding context in rigidbody operations [override not passed along in startup/bl_operators that themselves call bpy.ops]
 Referenced by issue #63041, Eevee - crash when placing cursor during baking of indirect lighting
+Referenced by issue #63019, can't lasso select multiple vertices when see trough it enabled and my active tool is the move tool
