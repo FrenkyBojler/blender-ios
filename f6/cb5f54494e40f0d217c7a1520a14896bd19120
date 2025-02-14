@@ -85,3 +85,4 @@ Referenced by issue #68089, Crash when Selecting Shader tab
 Referenced by issue #68048, Lack of function in using depsgraph_update_post
 Referenced by issue #68042, Bone Selection Problem (on NVIDIA Quadro)
 Referenced by issue #68018, Being able to set the same location of proxies to source is not allowed in the filesystem
+Referenced by issue #67966, UV editor doesn't select exact face
