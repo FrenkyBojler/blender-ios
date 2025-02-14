@@ -1,1 +1,2 @@
 Referenced by issue #111444, Blender crash when using auto-complete on TextCurve in the python console
+Referenced by issue #110508, Crash accessing text style properties in object mode
