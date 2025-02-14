@@ -1,1 +1,2 @@
 Referenced by issue #38002, Blender crashes (seg fault) selecting a view mode for "Preview" in Sequence Editor
+Referenced by issue #23616, MEMORY LEAK SEGFAULT: Rendering a sequence always segfaults Blender
