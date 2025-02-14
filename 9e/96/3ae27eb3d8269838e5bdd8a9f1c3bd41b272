@@ -12,3 +12,4 @@ Referenced by issue #43078, Proxy file doesn't respect the strip Color Space or 
 Referenced by issue #43046, Bool modifier must get re-applied when opening a file
 Referenced by issue #43048, Crashes when trying to start game engine
 Referenced by issue #43032, Text editor arbitrarily adds/deletes characters and entire lines when a script is executed
+Referenced by issue #43033, VideoTexture module repeated loading of images causes memory leak
