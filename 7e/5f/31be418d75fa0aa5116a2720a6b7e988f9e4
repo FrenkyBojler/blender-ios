@@ -1,3 +1,4 @@
 Referenced by issue #58839, Adjust Last Operation UI might get in conflict with setting properties outside this UI as well
 Referenced by issue #58745, Blender 2.8 beta crash on startup on Linux
 Referenced by issue #58609, Subdivision Surface modifier, "Optimal Display" not working
+Referenced by issue #57455, Laggy, freezing UI with Linux and Intel UHD 620
