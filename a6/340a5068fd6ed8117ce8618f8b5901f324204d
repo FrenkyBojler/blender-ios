@@ -14,3 +14,4 @@ Referenced by issue #55810, Crashes Clicking Material Tab in Properties Editor w
 Referenced by issue #55811, Blender crash when nothing is selected and Ctrl+Tab is pressed
 Referenced by issue #55813, Blender crashes when selecting the lamp settings tab
 Referenced by issue #55815, Crash when clicking on Material tab
+Referenced by issue #55805, f12 render crash eevee
