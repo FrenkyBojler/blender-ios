@@ -19,3 +19,4 @@ Referenced by issue #50433, Errors in NLA editor Add and Subtract
 Referenced by issue #50434, Program freezing in pose mode when try to set ghosting
 Referenced by issue #50421, Blender crashes while Duplicating
 Referenced by issue #50368, Bmesh 'from_mesh' operation removes information regarding bevel weight.
+Referenced by issue #50148, Wrong rounding when moving frames
