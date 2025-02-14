@@ -1,1 +1,2 @@
 Referenced by issue #41562, Adding a mesh without faces and entering edit mode keeps the ghost selection in faces mode
+Referenced by issue #41534, Bevel practically unusable interactively if set to percent amount type
