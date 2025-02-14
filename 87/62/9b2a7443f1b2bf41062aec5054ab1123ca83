@@ -1,1 +1,2 @@
 Referenced by commit 13c9df10a8f, Fix T68710: crash on applying modifier after removing all shape keys
+Referenced by issue #68710, 2.80 Segfault on applying modifier after shape keys are removed
