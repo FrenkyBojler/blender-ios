@@ -1,1 +1,2 @@
 Referenced by issue #83925, Crash when rendering with OptiX denoiser enabled
+Referenced by issue #82591, Performance regression when rendering at very high resolution
