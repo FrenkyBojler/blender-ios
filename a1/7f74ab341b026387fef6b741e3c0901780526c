@@ -1,0 +1,1 @@
+Referenced by issue #95743, VP9 encoding takes about 5x as much time as transcoding with ffmpeg
