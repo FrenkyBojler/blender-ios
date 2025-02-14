@@ -1,1 +1,2 @@
 Referenced by commit 14a55bc059e, Cycles: Fix shadowing variable which also causes use of uninitialized variable
+Referenced by issue #50122, SEGFAULT: OCIO configuration typo leads to segfault
