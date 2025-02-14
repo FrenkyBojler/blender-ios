@@ -1,3 +1,4 @@
 Referenced by issue #40335, Cycles crash when OSL scripting is enabled
 Referenced by issue #40272, Error setting option flags2 to value fastpskip
 Referenced by issue #40275, Frame Step slider not working.
+Referenced by issue #40246, Speaker Object is missing from Tabs > 'Create' tab in the Toolbar
