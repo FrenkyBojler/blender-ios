@@ -3,3 +3,4 @@ Referenced by issue #87471, Volume objects not rendered on Cycles with GPU and A
 Referenced by issue #86610, Blender Crashing when rendering with Opencl GPU on Ubuntu.
 Referenced by issue #86248, Crash using GPU Compute in Cycles on AMD in 2.92 and 2.93 but not 2.91
 Referenced by issue #86182, Blender crashes with cycles and GPU rendering with AMD cards
+Referenced by issue #85698, Blender crashes when rendering with OpenCL
