@@ -1,1 +1,2 @@
 Referenced by commit 9d83061ed4f, UI: Don't re-query invalid preview images from disk
+Referenced by issue #133679, UI: Don't re-query invalid preview images from disk
