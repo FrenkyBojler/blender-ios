@@ -64,3 +64,4 @@ Referenced by issue #47906, Speed pass wrong naming
 Referenced by issue #47908, Loop End action does not complete (behaves as Loop Stop)
 Referenced by issue #47890, Masking vertices in weight paint doesn't work with subsurf
 Referenced by issue #47879, Drivers not working on cycles sky texture node
+Referenced by issue #47880, Move to layer still crash
