@@ -3,3 +3,4 @@ Referenced by commit 8fbbd699467, Fix T92629: Crash on mesh separate after rB43b
 Referenced by issue #96330, "Make single user -> object & data" is extremely(!) slow in Blender 3.1, compared to previous versions
 Referenced by issue #92670, Separate Object results in a crash
 Referenced by issue #92629, Crash on mesh separate
+Referenced by issue #91413, Remove deprecated `BKE_libblock_relink_to_newid` usages
