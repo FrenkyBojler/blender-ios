@@ -2,3 +2,4 @@ Referenced by issue #59918, Remove Double Vertices
 Referenced by issue #59919, Controllers Broken
 Referenced by issue #59923, Material tab > Surface - buttons broken in recent build (2018-12-27)
 Referenced by issue #59925, Crash when adding any generative modifier on a curve with more than one material.
+Referenced by issue #59906, Crashing while trying to use Blender Beta 2.80's texturing.
