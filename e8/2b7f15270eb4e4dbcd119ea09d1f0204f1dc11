@@ -1,2 +1,3 @@
 Referenced by issue #79787, The sensitivity of 3D view navigation depends on Line Width preference
 Referenced by issue #71791, Can't rotate the view
+Referenced by issue #70196, Viewport rotation frozen at startup due to config and startup/blend state
