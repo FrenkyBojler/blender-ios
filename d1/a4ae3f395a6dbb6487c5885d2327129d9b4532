@@ -3,3 +3,4 @@ Referenced by commit 406309cd8c9, Refactor/enhance ntreeMakeLocal().
 Referenced by commit ad5918d2781, Refactor/enhance BKE_image_make_local().
 Referenced by commit f35320bddfe, Refactor/enhance BKE_material_make_local() and BKE_image_make_local().
 Referenced by commit 8932b5945ee, Refactor/enhance BKE_lamp_make_local() and BKE_camera_make_local().
+Referenced by commit 0f0eeffecea, Refactor/enhance BKE_brush_make_local() and BKE_speaker_make_local().
