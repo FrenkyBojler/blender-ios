@@ -6,3 +6,4 @@ Referenced by issue #41932, SLI (x2) shows a large slow down in rendering
 Referenced by issue #41920, png color and alpha with unexpected behaviour in cycles
 Referenced by issue #41897, Keystroke doesn't detect Multi Window Focus.
 Referenced by issue #41904, 2.72 testbuild: Cycles crush when I set emission as volume material for world.
+Referenced by issue #41877, Texture Paint - Quick Edit - Apply/Apply Camera Image - Version 2.71 and Test Build 2.72
