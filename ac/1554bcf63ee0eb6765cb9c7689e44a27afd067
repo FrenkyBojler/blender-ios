@@ -1,0 +1,1 @@
+Referenced by issue #98982, Group input sockets of type Object/Collection/Image have an implicit uncontrollable default value in GN
