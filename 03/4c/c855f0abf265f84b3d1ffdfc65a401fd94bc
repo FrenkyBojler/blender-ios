@@ -4,3 +4,4 @@ Referenced by issue #46226, bake normals from multiresolution crash
 Referenced by issue #46229, File browser window closes after hitting esc after render
 Referenced by issue #46212, Blender Internal: Rendered Viewport Preview works incorrectly with light groups
 Referenced by issue #46217, Baked normal artifacts
+Referenced by issue #46202, Fullscreen crashes Blender on Mac OS X
