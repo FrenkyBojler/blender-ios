@@ -46,3 +46,4 @@ Referenced by issue #47746, Improper or Sub-optimal Lighting Results with Clamp 
 Referenced by issue #47751, Blender 2.77+2.77~rc1~1456489967
 Referenced by issue #47753, [BI] 2.77 World texture has no reaction to parented camera rotation
 Referenced by issue #47737, Blender crash when add Smoth modifier on Lattice.
+Referenced by issue #47738, Blender segmentation fault when Right-clicking on any object in 3d view.
