@@ -1,2 +1,3 @@
 Referenced by issue #100227, Smooth Shaded Mesh parallel to light blocking mesh allows light "through"
 Referenced by issue #90423, Cycles - Render Pass contains black pixels with no values
+Referenced by issue #89523, 3.0 Split kernel error: failed to load kernel_path_init with OpenCL on Linux
