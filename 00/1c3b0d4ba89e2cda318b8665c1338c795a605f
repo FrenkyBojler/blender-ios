@@ -1,3 +1,4 @@
 Referenced by issue #133902, Compositor: GPU vs CPU difference issue
 Referenced by issue #133775, Geometry Nodes: curve attribute is not showing any color in viewport
 Referenced by issue #133754, Geometry Nodes: viewer displays blue color for instances in 4.4
+Referenced by issue #133719, Vulkan GPU compositing produces inconsistent results
