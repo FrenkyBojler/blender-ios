@@ -3,3 +3,4 @@ Referenced by issue #44120, hard Crach during Soliving a motion Track
 Referenced by issue #44091, Blender Crash is new action(Action Editor) is created
 Referenced by issue #44100, Hair particle dispears
 Referenced by issue #44081, Incorrect mesh deformation behavior when using deform bones from multiple armatures
+Referenced by issue #44088, Hair random rotation limited to 180 degrees
