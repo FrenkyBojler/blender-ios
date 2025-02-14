@@ -1,3 +1,4 @@
 Referenced by commit e41437b16e6, Fix T81268: Crash when undo from Sculpt Mode to Edit Mode
 Referenced by issue #92372, Sculpt mode: hide masked do not work when modifier enabled, but hidden part works with modifier.
 Referenced by issue #82586, Smooth Shading is not updating while sculpting in material preview mode (flat shading works fine)
+Referenced by issue #68900, Mask Display and editing does not work with modifiers
