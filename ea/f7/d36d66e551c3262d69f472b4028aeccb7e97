@@ -2,3 +2,4 @@ Referenced by issue #76837, Blender closing when clicking TAB after I hide objec
 Referenced by issue #76842, Multires & Undo & Frame Change causes weird behaviour with shapekeys
 Referenced by issue #76845, Keyframes don't show up in timeline/dope sheet/graph editor
 Referenced by issue #76821, "Use Flow" tooltip still saying "Inflow" when Outflow is chosen
+Referenced by issue #76823, Scaled Spotlight Does Not Work In Cycles
