@@ -1,2 +1,3 @@
 Referenced by issue #70048, Assert when cancelling Append window
 Referenced by issue #69853, fully broken scenes., by drag an object only the pivot point moves
+Referenced by issue #54314, Contents of "Viewer Node" image block do not get updated
