@@ -1,3 +1,4 @@
 Referenced by commit 834e87af7bb, Alembic: remove non-functional "Renderable Objects" only option
 Referenced by commit 150e0553daf, Fix T86853: Critical bug in write code of CacheFile ID.
 Referenced by commit 71363dd79c4, Cleanup: Alembic, replace `ABC_INLINE` with `BLI_INLINE`
+Referenced by issue #86853, Corrupted Blend file with overridden MeshSequenceCache
