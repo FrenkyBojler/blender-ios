@@ -2,3 +2,4 @@ Referenced by commit 1ba15f1f7f9, Speedup for usual non-manifold exact boolean c
 Referenced by issue #87078, Geometry nodes boolean intersect sometimes not working
 Referenced by issue #86860, Intersect(Boolean) bug
 Referenced by issue #85701, Incorrect exact Union Boolean Modifier
+Referenced by issue #84493, New Boolean Solver: Doesn't cut an object (Suzanne) correctly when the mesh is open.
