@@ -1,2 +1,3 @@
 Referenced by commit f12b0373f32, BGL: Workaround broken bgl usage caused by GPU refactor
 Referenced by issue #81289, Python gpu bgl image drawing alpha problem
+Referenced by issue #80169, Node wrangler highlighting artifacts
