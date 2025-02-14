@@ -1,2 +1,3 @@
 Referenced by issue #88296, Cycles Render Devices / No compatible GPUs found for path tracing
 Referenced by issue #87055, Applying a mirror modifier with bisect enabled on object with a multires modifier prevents saving file and crashes blender afterwards
+Referenced by issue #77348, Blender LTS: Maintenance Task 2.83
