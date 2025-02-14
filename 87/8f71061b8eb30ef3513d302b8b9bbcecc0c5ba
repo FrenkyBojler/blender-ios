@@ -7,3 +7,4 @@ Referenced by issue #115881, Rendering: Blender "silently" switches to the wrong
 Referenced by issue #115261, Shader Nodes: 'frame_current' ViewLayer Attribute Doesn't Update in Rendered Mode
 Referenced by issue #114882, Blender 4.0 Crash
 Referenced by issue #114832, Blender 4.0.0 Stable Release invalid digital signature
+Referenced by issue #113062, [Linux/X11/Wayland] Blender crash report
