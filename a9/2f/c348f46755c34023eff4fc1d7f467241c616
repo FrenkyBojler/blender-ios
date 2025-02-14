@@ -1,3 +1,4 @@
 Referenced by issue #48898, shaders are remove from metaballs on cycles render
 Referenced by issue #48812, (Sculpt/Paint) Visible Brush Cursor Size on HiDPI half of the actual brush size
 Referenced by issue #48814, Displace modifier ignores 'Simple' subdivision if scale is unapplied
+Referenced by issue #48815, Translate node's 'Relative' checkbox has the same tooltip as blur node's 'Relative' checkbox
