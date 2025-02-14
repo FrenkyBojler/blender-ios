@@ -1,1 +1,2 @@
 Referenced by issue #99168, Motion Blur Shutter value allows to add keyframe, and yet does not allow to change the value on subsequents keyframes [3.1.2]
+Referenced by issue #97028, Audio scrubbing plays current frame when changing any color management setting.
