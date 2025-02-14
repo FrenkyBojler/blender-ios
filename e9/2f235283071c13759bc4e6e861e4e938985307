@@ -7,3 +7,4 @@ Referenced by issue #53544, undo on bones in pose mode selects all channels in g
 Referenced by issue #53446, bpy.ops.image.open() fails in external python script on Windows
 Referenced by issue #53042, 3D View, shelves background transparency not working
 Referenced by issue #52982, Join operator with override crashes Blender 2.79
+Referenced by issue #52669, Wrong shadow direction with 1-sided material
