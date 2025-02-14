@@ -22,3 +22,4 @@ Referenced by issue #97330, Adding subdivision surface modifier to default cube 
 Referenced by issue #97313, Crash on Editing a Vertex Position (and/or when enabling Z axis constraint)
 Referenced by issue #97220, Crash on object offset in the array modifier
 Referenced by issue #97150, Export GP to PDF or SVG crashes blender
+Referenced by issue #36350,  Freestyle renders extra lines
