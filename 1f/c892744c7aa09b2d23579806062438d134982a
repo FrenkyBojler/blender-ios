@@ -1,0 +1,1 @@
+Referenced by issue #116424, AOV Output node breaks the whole shader when an image texture node set to UDIMS or Movie is plugged somewhere in the shader.
