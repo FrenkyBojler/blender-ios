@@ -1,3 +1,4 @@
 Referenced by commit 54f248fa87a, Transform: Use orientation of active object with Auto Constraint
 Referenced by commit 515e8e4f7c2, Fix T77166: Transforming bone with constraint does not follow mouse position
 Referenced by issue #81429, move tool's axis constraints not drawn completely when using local orientation
+Referenced by issue #77183, Axis moves with object when othro-locking movement and using local transform.
