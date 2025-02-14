@@ -1,2 +1,3 @@
 Referenced by commit c204e3348c8, Fix T77217: Object mode toggle doesn't work
 Referenced by commit 1afa97d5479, Fix T76859: Cannot switch from editmode to texturepaint mode
+Referenced by issue #76859, Cannot switch from editmode to texturepaint mode
