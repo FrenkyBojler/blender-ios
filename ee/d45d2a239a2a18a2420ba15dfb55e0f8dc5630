@@ -1,1 +1,2 @@
 Referenced by commit 95852bf42be, Fix #107882: subdivided mesh not available on curve
+Referenced by commit 4d3bfb3f419, Subdivision Surface: fix a serious performance hit when mixing CPU & GPU.
