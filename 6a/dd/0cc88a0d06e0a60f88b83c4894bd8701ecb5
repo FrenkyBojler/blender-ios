@@ -1,2 +1,3 @@
 Referenced by commit 473d9507fa7, Fix T78536: Crash calling object.modifier_apply on an empty
 Referenced by issue #81275, [Bug] Add library overrides and edit mode issue
+Referenced by issue #78536, Crash in poll() function of object.modifier_apply
