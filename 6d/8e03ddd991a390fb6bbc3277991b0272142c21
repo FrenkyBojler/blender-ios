@@ -3,3 +3,4 @@ Referenced by issue #81855, Crashes while trying to render viewport with cycles
 Referenced by issue #81102, Blender crashing a lot randomly in the rendered viewport
 Referenced by issue #80736, Cycles CPU Preview Artifact
 Referenced by issue #80265, Cycles ray visibility broken in render/viewport
+Referenced by issue #80227, Segmentation fault when adding material slot in cycles rendered view
