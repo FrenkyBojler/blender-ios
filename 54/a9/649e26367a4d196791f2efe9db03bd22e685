@@ -1,2 +1,3 @@
 Referenced by issue #70659, Warning, Regression, slow vertex selection
 Referenced by issue #70611, Numerous problems with Eevee and new Bump Map
+Referenced by issue #70615, Cycles ignores normal inputs when fed by nodes without inputs from other nodes
