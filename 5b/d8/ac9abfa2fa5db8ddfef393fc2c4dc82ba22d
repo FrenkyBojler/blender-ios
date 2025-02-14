@@ -38,3 +38,4 @@ Referenced by issue #54916, Fluid Simulator, **spilling Massive amounts of fluid
 Referenced by issue #54918, Inset thickness/depth history regression
 Referenced by issue #54577, Cycles smoke render differs on CPU from GPU
 Referenced by issue #54490, VSE breaks when I insert or remove headphones
+Referenced by issue #54477, .blend file can't be exported
