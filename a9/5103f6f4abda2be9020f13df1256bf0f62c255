@@ -1,1 +1,2 @@
 Referenced by commit c67d4117d4b, Fix broken build due to missing include.
+Referenced by issue #99737, Drag and drop does not work with the wayland backend
