@@ -19,3 +19,4 @@ Referenced by issue #49802, Transform constraint uses GLOBAL instead of LOCAL
 Referenced by issue #49758, 3D Viewport Lag with NVIDIA 373.06 Driver (and Earlier)
 Referenced by issue #49620, Grey scene when rendering with OpenCL
 Referenced by issue #49607, Missing passes in .exr when imported
+Referenced by issue #49576, Cycles hangs with normal map node
