@@ -1,1 +1,2 @@
 Referenced by commit dc937c5aee4, Fix Auto-offset for nodes: Revert "Cleanup: Return early"
+Referenced by issue #100958, Node editor: After cutting the node to Alt, the nodes are still moving apart
