@@ -56,3 +56,4 @@ Referenced by issue #41556, Joystick Button Sensor dosn't listen on overlayed Sc
 Referenced by issue #41546, Rendering to PNG sequences only does zero padding up to 9999 (four digits)
 Referenced by issue #41535, Other Objects is flickering when emitter are disabled on particle system
 Referenced by issue #41513, Collada import: segfault
+Referenced by issue #41506, Shapekey Keyframe Action selection breaks multiple things
