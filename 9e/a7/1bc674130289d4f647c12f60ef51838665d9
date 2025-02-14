@@ -2,3 +2,4 @@ Referenced by issue #50135, Particle - Hair Objects - Hair objects are generated
 Referenced by issue #50104, Cycles - Material compilation randomly fails
 Referenced by issue #49630, regression MIS Split kernel OpenCL
 Referenced by issue #49623, Immediately crash trying to render attached file in Cycles
+Referenced by issue #49592, Crash on "Load Factory Setting"
