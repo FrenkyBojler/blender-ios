@@ -1,1 +1,2 @@
 Referenced by commit 80b2fc59d11, Fix T99873: Use evaluated vertex groups in armature modifier
+Referenced by commit fc14d02bc59, Fix T93892: Changing bone name leaves non-functional vertex group
