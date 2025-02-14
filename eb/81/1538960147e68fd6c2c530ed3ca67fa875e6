@@ -1,2 +1,3 @@
 Referenced by commit 8647c7d5010, Fix T38335: incorrect triangle index in raycast with more than 2 quads
 Referenced by issue #44643, Cycles rendering, packed images render differently from unpacked
+Referenced by issue #43987, 2.74 Release Candidate OpenGL AO
