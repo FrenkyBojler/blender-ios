@@ -1,1 +1,2 @@
 Referenced by issue #98016, DrawManager: Don't lock UI during background rendering
+Referenced by issue #97988, Regression: EEVEE: Render Animation preview shows black screen instead of rendered images
