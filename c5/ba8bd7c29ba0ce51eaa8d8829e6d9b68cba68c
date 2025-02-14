@@ -1,2 +1,3 @@
 Referenced by commit 30b48f32fb1, Fix #132692: Grease Pencil Python attribute lookup broken
 Referenced by issue #132692, Grease Pencil 3 API - Stroke Points' select attribute not set correctly
+Referenced by issue #132268, Failed assertion from `rename_mesh_uv_seam_attribute())`
