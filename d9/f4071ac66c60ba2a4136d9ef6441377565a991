@@ -1,0 +1,1 @@
+Referenced by issue #64969, information from texture paint is lost if the color space of the image is changed in the image texture node
