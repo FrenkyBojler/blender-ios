@@ -3,3 +3,4 @@ Referenced by issue #42167, Blender crashes when calling LibNew/LibFree multiple
 Referenced by issue #42061, Bevel modifier bevels edges that weren't specified in vertex group.
 Referenced by issue #42026, Unit scale affects camera focal length
 Referenced by issue #42020, BGE crashes when LibLoading multiple files asynchronously
+Referenced by issue #42021, Cycles OSL renders a black image
