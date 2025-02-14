@@ -4,3 +4,4 @@ Referenced by issue #100906, Regression: Lag in sculpt mode when navigating arou
 Referenced by issue #99196, Regression: Rendering in the viewport is constantly restarted by some sculpting brushes and the position of mouse cursor
 Referenced by issue #98886, Regression: Smooth shading issues with multiresolution
 Referenced by issue #98842, Regression: Switching shading color type crashes blender (using the sculpting template)
+Referenced by issue #98040, PBVH Draw Support for EEVEE
