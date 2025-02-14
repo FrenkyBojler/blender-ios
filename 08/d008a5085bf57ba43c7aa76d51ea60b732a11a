@@ -1,1 +1,2 @@
 Referenced by issue #95009, GPU: Add CreateInfo Structs for builtin shaders
+Referenced by issue #94975, Python API for GPUShaderCreateInfo
