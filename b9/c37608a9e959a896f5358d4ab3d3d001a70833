@@ -1,1 +1,2 @@
 Referenced by commit ef268c78933, Build: Fix build of library dependencies on Linux aarch64
+Referenced by commit a1b21a35038, CMake: harvest nanovdb from its new location
