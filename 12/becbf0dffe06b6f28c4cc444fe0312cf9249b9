@@ -4,3 +4,4 @@ Referenced by issue #120737, Fix #120721: Collada: Import with loose edges not i
 Referenced by issue #105205, Regression: Selecting coplanar faces causes a long freeze
 Referenced by issue #105046, Regression: Inverting face selection now very slow
 Referenced by issue #103610, Some meshes causing crash on file opening since Blender 3.4
+Referenced by issue #103520, Regression: Using Bright/Contrast option on selected faces (paintmask) in Vertex Paint mode broken
