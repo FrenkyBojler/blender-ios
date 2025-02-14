@@ -1,1 +1,2 @@
 Referenced by issue #117597, Texturepaint broken Soften/Smear Brush in 3Dview for strength > 1 (Image Editor is fine)
+Referenced by issue #46441, Texture painting: the brush soften at 0.0000001 or a 1 strength has the same result
