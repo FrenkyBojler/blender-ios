@@ -14,3 +14,4 @@ Referenced by issue #58496, glTF Exporter Crashes
 Referenced by issue #58500, Loop cut bug/suggestion
 Referenced by issue #58485, Cryptomatte not precise enough
 Referenced by issue #58492, smoke flow jitters around flow source when using adaptive domain
+Referenced by issue #58464, Wrong vertices are selected in edit mode
