@@ -1,0 +1,1 @@
+Referenced by commit 1d286a1b93d, Fix #129302: GIL not released if poll_message_set was passed a string
