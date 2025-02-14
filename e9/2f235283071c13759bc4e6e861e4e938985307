@@ -53,3 +53,4 @@ Referenced by issue #51705, Filter and Texture Nodes in Compositor crash Blender
 Referenced by issue #51683, Renaming numbered bones in Outliner does not re-order them alphabetically
 Referenced by issue #51666, Result from using curve taper/bevel objects not scaled properly when used in scene with 0.01 metric scene scale
 Referenced by issue #51621, Boolean modifier is completely broken
+Referenced by issue #51628, Blender freezes after window was minimized
