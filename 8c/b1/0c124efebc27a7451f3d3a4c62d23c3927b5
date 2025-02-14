@@ -2,3 +2,4 @@ Referenced by issue #75850, Liquid simulation, cache type "Replay", doesn't reco
 Referenced by issue #75851, Liquid simulation, cache type "Modular", forgets effectors after "Stop" and "Resume"
 Referenced by issue #75843, Blender 2.83 beta April 16,2020
 Referenced by issue #75826, outline for selected bug
+Referenced by issue #75827, Boolean operation generates additional edges
