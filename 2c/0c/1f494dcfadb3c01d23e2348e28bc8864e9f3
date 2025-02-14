@@ -1,3 +1,4 @@
 Referenced by issue #62885, Slow tiles in hybrid CPU+GPU mode
 Referenced by issue #62453, Keyframe values get reset while setting keyframes
 Referenced by issue #60300, GPU Fault while rendering scenes with subsurface scattering using OpenCL
+Referenced by issue #59845, Blender crash on startup
