@@ -1,3 +1,4 @@
 Referenced by issue #101045, Deleting a baked action results in an error
 Referenced by issue #100914, Cycles shows transmission in displaced shader as black
 Referenced by issue #100899, Regression: Drag and Drop seems to be broken for image files from desktop
+Referenced by issue #100749, Blender LTS: Maintenance Task 3.3
