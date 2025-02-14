@@ -1,3 +1,4 @@
 Referenced by commit 46f3f53b16c, Fix #115977: Regression: Sculpt: Clay Thumb brush extra offset
 Referenced by issue #116738, Fix #115977: Regression: Sculpt: Clay Thumb brush extra offset
 Referenced by issue #115977, Regression: Sculpt: Clay Thumb brush extra offset
+Referenced by issue #111628, Regression: Crashes when sculpting a subdivided plane
