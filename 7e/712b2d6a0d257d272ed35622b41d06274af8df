@@ -1,3 +1,4 @@
 Referenced by commit 8dd163160e4, Fix T94766: texture coordinates from other object do not refresh
 Referenced by commit d09b1d27598, Fix T94464: video texture is not refreshing
 Referenced by commit 28df0107d4a, Fix T94362: GPUMaterialTexture references freed ImageUser
+Referenced by commit dd01ce2cd07, Fix T94322: add missing updates after recent refactor
