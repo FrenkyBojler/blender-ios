@@ -1,3 +1,4 @@
 Referenced by issue #122664, Viewport shading - Camera view is much slower then viewport - Cycles (GPU).
 Referenced by issue #122461, undo/redo | camera zoom view
 Referenced by issue #107400, Huge Lag when Zooming in/out in Camera view
+Referenced by issue #107210, Fix #106292: adjust last action dismissed after rotating view
