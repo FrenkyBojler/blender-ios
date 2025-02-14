@@ -1,2 +1,3 @@
 Referenced by issue #72309, Crash on 'CTRL' or 'Command'+LMB in edit mode
 Referenced by issue #72289, 2.82 Freestyle lines won't render with modifiers set to 'Curve' mapping
+Referenced by issue #71878, Crash when deleting last face using adaptive subdivision in render shading mode
