@@ -1,1 +1,2 @@
 Referenced by commit ffbe9add7c7, RNA: EnumPropertyItem values don't exceed the underlying range
+Referenced by issue #113074, Blender 4.0 missing it's snapping tool in the UV Editor
