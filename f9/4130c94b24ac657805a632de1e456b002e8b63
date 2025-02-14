@@ -1,1 +1,2 @@
 Referenced by commit 01ed08690a3, Fix: BMesh to Mesh conversion does not create all necessary layers
+Referenced by issue #100854, Regression: Crash when leaving a file after editing a mesh with shape keys
