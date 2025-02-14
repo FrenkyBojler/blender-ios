@@ -3,3 +3,4 @@ Referenced by issue #59558, deleting an object causes a crash
 Referenced by issue #59560, Blender 2.8 Beta Crash
 Referenced by issue #59563, Blender 2.8 Beta Crash
 Referenced by issue #59538, Crash when deleting cube in default scene
+Referenced by issue #59541, Blender 2.8 4fceaf3848b 64bit crash when deleting object from the first startup file
