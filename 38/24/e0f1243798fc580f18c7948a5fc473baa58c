@@ -3,3 +3,4 @@ Referenced by issue #44074, Parenting camera to object makes the object move whe
 Referenced by issue #44076, SSAO in solid mode in viewport disables Antialiasing for wireframe mode too.
 Referenced by issue #44029, glsl textured solid and matcap error.
 Referenced by issue #44034, Copy to Selected crashes
+Referenced by issue #43997, copy paste keyframes on curves fail on unselect handles
