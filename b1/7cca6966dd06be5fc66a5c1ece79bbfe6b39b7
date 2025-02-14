@@ -1,2 +1,3 @@
 Referenced by commit d73130cc287, Fix T82770: Artifacts when painting on generated transparent image
 Referenced by issue #82770, A bug of Paint transparent layers
+Referenced by issue #81026, Image Editor: Alpha (like Bloom) not showing properly again
