@@ -1,0 +1,1 @@
+Referenced by issue #38575, If you press space while rendering and then cancel out of the search dialog by ESC, it stops the rendering also
