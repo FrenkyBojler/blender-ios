@@ -12,3 +12,4 @@ Referenced by issue #116069, Data Transfer's modifier Face Corner Custom Normals
 Referenced by issue #115993, Different normals in 4.1 when using sharp faces with Auto Smooth disabled in 4.0
 Referenced by issue #114822, Data transfer modifier doesn't transfer per face corner normal data.
 Referenced by issue #114490, "Auto Smooth" GN modifiers do not appear on the node group list
+Referenced by issue #114244, Regression: Smooth operators destroy manual sharp seams.
