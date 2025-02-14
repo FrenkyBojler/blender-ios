@@ -4,3 +4,4 @@ Referenced by commit acfafeed88e, Fix #103761: creating a color attribute doesn'
 Referenced by commit fb8778a28c9, Fix T103394: default/active color status lost after remeshing
 Referenced by commit 9e94135f179, Fix: Crash after mesh color attribute name commit
 Referenced by commit 841020dba25, Fix active/default color names not being editable
+Referenced by issue #121452, Regression: Color attribute status lost when joining objects
