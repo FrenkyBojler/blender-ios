@@ -1,1 +1,2 @@
 Referenced by commit f96f3c33af6, Cycles: Add some more math optimizations
+Referenced by issue #128342, Cycles: Cleanup, simplify and expand math/vectorization build flags
