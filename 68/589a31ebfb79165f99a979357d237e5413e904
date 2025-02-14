@@ -1,2 +1,3 @@
 Referenced by commit bb8dba8609e, Fix missing view layer update when iterating a collection from Python.
 Referenced by issue #113378, Regression: Deleting Objects in a View Layer leaves None in the View Layer's .objects for the script duration
+Referenced by issue #101559, Rain Test Animation demo crashes Blender 3.3
