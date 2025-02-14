@@ -1,1 +1,2 @@
 Referenced by commit 5b2cebf49bc, Fix T69752: Texture paint sampling colors always 'merged down'
+Referenced by issue #67981, Extend Horizontal (RGB Curves Node) does not work outside the Clipping boundaries
