@@ -93,3 +93,4 @@ Referenced by issue #53751, Particle System: Interpolated Children hairs will of
 Referenced by issue #53754, add a way for python to overwrite an operators tootip/bl_description at runtime
 Referenced by issue #53732, "Segmentation fault (Core dumped)" on startup.
 Referenced by issue #53744, Bfont doesn't support russian characters in text object, while UI does show Russian characters
+Referenced by issue #53713, Python API: user_remap for images seems broken
