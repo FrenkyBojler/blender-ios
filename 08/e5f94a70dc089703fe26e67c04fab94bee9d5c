@@ -1,2 +1,3 @@
 Referenced by commit 8ee209cb772, Fix #114614: Reload scripts leaks memory
 Referenced by issue #114614, Unmanaged memory on `Reload Script`
+Referenced by issue #113767, Blender 4.0 beta - Toolbar and Side Panel keymaps cease to work after reloading scripts from Blender menu
