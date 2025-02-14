@@ -1,1 +1,2 @@
 Referenced by commit 4d1128872ec, UI: keep timeline collapsed to header size when resizing window
+Referenced by issue #37463, Maximizing window causes info panel to open partially
