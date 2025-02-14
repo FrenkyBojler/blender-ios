@@ -1,1 +1,2 @@
 Referenced by commit b8cc1818089, Fix T99202: AccentGrave key doesn't work with Wayland
+Referenced by issue #66607, AccentGrave / Tilde not accessible on certain keyboards in Windows [makes Walk/Fly difficult to access]
