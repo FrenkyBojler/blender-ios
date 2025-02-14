@@ -1,1 +1,2 @@
 Referenced by commit 75aa5ecbda6, Fix (unreported): Placement Tool not orienting the Object to normal
+Referenced by issue #111226, Fix #109454: Snapping from Tools doesn't work if Depth option is not 'Surface'
