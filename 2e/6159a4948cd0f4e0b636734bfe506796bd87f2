@@ -1,1 +1,2 @@
 Referenced by commit 3ee6d74f933, Fix T73125: Crash when opening a file containing a Line Style.
+Referenced by issue #73125, Crash when opening a file containing a Line Style
