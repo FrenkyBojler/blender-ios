@@ -1,1 +1,2 @@
 Referenced by commit eac1ade9566, Fix #132077: Prevent stack-use-after-return inside USD_create_handle
+Referenced by issue #132095, Fix #132077: Prevent stack-use-after-return inside USD_create_handle
