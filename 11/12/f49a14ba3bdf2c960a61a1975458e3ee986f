@@ -8,3 +8,4 @@ Referenced by issue #55879, Render preset. crash
 Referenced by issue #55880, UV/Image Editor
 Referenced by issue #55881, Eevee/viewport not loading multiview EXR texture
 Referenced by issue #55882, Crash: Sidebar (N) > Opening, Moving & Closing User Preferences Window
+Referenced by issue #55871, Creating Armature > Single Bone makes 1st Mesh Object in Scene Invisible when Selected.
