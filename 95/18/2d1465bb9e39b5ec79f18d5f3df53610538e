@@ -39,3 +39,4 @@ Referenced by issue #42146, Windows + Blender 2.72: Icon on Quick Launch Bar hav
 Referenced by issue #42147, Can't select foreground object with right-mouse.
 Referenced by issue #42136, Cannot smooth shade fluid domain
 Referenced by issue #42144, sqlite3.dll missing from 2.72
+Referenced by issue #42127, Wacom incompatibility with blender 2.72?
