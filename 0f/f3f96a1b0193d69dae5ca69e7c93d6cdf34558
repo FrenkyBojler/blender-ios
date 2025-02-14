@@ -1,1 +1,2 @@
 Referenced by commit b1fcc8e6ba2, Fix T87659: crash when creating reroute loop in geometry nodes
+Referenced by issue #87659, Crash when creating reroute loop in geometry nodes
