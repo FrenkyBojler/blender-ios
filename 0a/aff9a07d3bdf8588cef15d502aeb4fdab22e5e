@@ -1,2 +1,3 @@
 Referenced by commit 2907227db2c, Fix T103880: Crash with Line Art Grease-Pencil modifier
 Referenced by commit 578dff78636, Fix assertion when notifiers weren't removed from the notifier queue set
+Referenced by issue #103880, Regression: Grease Pencil : multiple Line Art modifiers cause crashes
