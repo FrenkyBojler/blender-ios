@@ -41,3 +41,4 @@ Referenced by issue #41713, Lattice - Influence vertexgroup in curve modifier ge
 Referenced by issue #41684, Auto Smooth produce shadow (shading) problems
 Referenced by issue #41686, Material Slot Bug
 Referenced by issue #41677, Skin modifier dont work with 0 face objects
+Referenced by issue #41679,   object color is splitted in two colors in the 3d view when a Cyclinder cap is  filled with the  bridge loop tool function .
