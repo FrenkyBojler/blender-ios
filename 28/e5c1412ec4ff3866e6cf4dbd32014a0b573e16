@@ -1,0 +1,1 @@
+Referenced by issue #131751, Crash when closing area from header menu using ASAN or Page Heap (`heap-use-after-free`)
