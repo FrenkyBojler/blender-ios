@@ -1,0 +1,1 @@
+Referenced by issue #123019, Opening a blend file with `--background` uses huge amount of memory
