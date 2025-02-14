@@ -1,1 +1,2 @@
 Referenced by commit 85ea74ad77e, Cleanup: Remove unnecessary curves RNA verification disabling
+Referenced by commit 3484c6d4f11, Cleanup: Remove unused update custom data pointers in attribute API
