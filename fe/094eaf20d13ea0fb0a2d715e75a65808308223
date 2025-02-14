@@ -1,0 +1,1 @@
+Referenced by commit 1f63b0807b9, Fix `bpy.types.Operator.bl_rna.foobar` not working since rBfe094eaf20.
