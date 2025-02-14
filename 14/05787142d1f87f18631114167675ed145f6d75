@@ -1,2 +1,3 @@
 Referenced by commit 81ee46da1a6, Fix: Unutilized curve mapping in vector shader node
 Referenced by commit 716d8436f06, Fix: Unutilized curve mapping in vector shader node
+Referenced by issue #95221, Eevee: Float Curve node causes issues with compiled shader
