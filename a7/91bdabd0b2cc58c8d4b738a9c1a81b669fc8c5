@@ -6,3 +6,4 @@ Referenced by issue #92418, Particle system does not deal well with the weights 
 Referenced by issue #92349, VP9 source video results in borked render
 Referenced by issue #92266, Any kind of baking makes Blender crash
 Referenced by issue #88968, Failed to create CUDA context unknown error
+Referenced by issue #87505, Point instance with boolean geometry node very unresponsive
