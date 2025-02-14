@@ -1,1 +1,2 @@
 Referenced by commit bab6ede2868, Fix (unreported) (2d) paint cursor always drawing in half alpha
+Referenced by commit f547c396e19, Fix T70260: Stencil Paint Overlay Broken
