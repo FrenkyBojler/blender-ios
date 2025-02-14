@@ -1,3 +1,4 @@
 Referenced by issue #40381, sculpt mask+multires bug
 Referenced by issue #40383, Keying node doesn't work
 Referenced by issue #40379, Cycles : CUDA Rendering : Environment with MIS uses double memory usage
+Referenced by issue #40363, Cycles: CUDA renderings are approximately 30% slower in 2.71-testbuild1
