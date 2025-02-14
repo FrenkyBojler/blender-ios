@@ -2,3 +2,4 @@ Referenced by issue #52747, IK-Stretching no longer stretches on Y-Axis
 Referenced by issue #51617, Logic Bricks: Actions based on Properties refuse to play with a Dynamic physics parent
 Referenced by issue #51606, Immediate crash when switching to rendered viewport shading, Cycles, Mac
 Referenced by issue #51607, Add to Pose-Library doesn't work while tweaking strips in NLA Editor
+Referenced by issue #51579, Crash immediately while trying to Cycle-Render imported *.obj Objects from SILO
