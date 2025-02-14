@@ -1,1 +1,2 @@
 Referenced by issue #87419, Incorrect link order after inserting node before multi-input-socket.
+Referenced by issue #87171, Splicing a Join Geometry node will adopt the multi-input connection position from the following socket
