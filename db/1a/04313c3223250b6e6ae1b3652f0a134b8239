@@ -1,0 +1,1 @@
+Referenced by issue #57103, Mesh Subdivide with smoothness for specific edges sends some vertices to NaN
