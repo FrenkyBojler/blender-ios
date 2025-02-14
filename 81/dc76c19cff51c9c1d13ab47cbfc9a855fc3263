@@ -1,3 +1,4 @@
 Referenced by commit 3227b37141f, Fix Dopesheet transform regressions due to rB81dc76c19cff
 Referenced by issue #68676, Proportional scale view updates on Y, Z
 Referenced by issue #68137, Dopesheet Editor: Moving keyframes by a number value doesn't work
+Referenced by issue #63570, Proportional editing resets scaling along Y and Z axis  on mouse wheel
