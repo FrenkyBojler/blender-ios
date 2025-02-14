@@ -12,3 +12,4 @@ Referenced by issue #100482, Regression: Face Set visibility is reset after savi
 Referenced by issue #100480, Regression: Hiding face sets in sculpt mode doesn't work with modifiers
 Referenced by issue #95966, Struct of Arrays Refactor for Mesh Edges
 Referenced by issue #95967, Struct of Arrays Refactor for Mesh Polygons
+Referenced by issue #95965, Mesh Struct of Arrays Refactor
