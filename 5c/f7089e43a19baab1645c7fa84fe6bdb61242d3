@@ -1,3 +1,4 @@
 Referenced by commit d81165f3ecc, Fix #111960, #112200, #112214: EEVEE: Incorrect BuiltinBits::LAYER use
 Referenced by issue #112245, Fix #111960, #112200, #112214: Incorrect BuiltinBits::LAYER use
 Referenced by issue #112214, EEVEE crashed at `evee_legacy_volumes_clear Linking`
+Referenced by issue #112043, Latest Blender 4.0 not opening
