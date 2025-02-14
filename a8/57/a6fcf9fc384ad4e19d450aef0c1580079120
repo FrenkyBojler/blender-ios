@@ -1,2 +1,3 @@
 Referenced by commit 19da32abf33, Fix T38128: snapping to node border uses node centers.
 Referenced by issue #37987, Blender goes into an infinite loop when opening a file
+Referenced by issue #37970, Scaling Nodes uses some invisible arbitrary pivot
