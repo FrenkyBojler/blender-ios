@@ -1,2 +1,3 @@
 Referenced by issue #108034, Multires - Crash with Simple subdivision
 Referenced by issue #108005, USDZ - Normal and Roughness maps imported as 'sRGB' instead 'Non Color'
+Referenced by issue #108003, USDZ IO - Occlusion Texture gets stripped
