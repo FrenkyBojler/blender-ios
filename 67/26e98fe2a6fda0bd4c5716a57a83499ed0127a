@@ -1,2 +1,3 @@
 Referenced by issue #69372, blender 2.8 crashes when zooming out in "Animation -> Graph Editor" window.
 Referenced by issue #69346, Undo doesn't work with paint mask selection (texture paint vs. vertex/weightpaint)
+Referenced by issue #69339, Surface Deform Modifier is Not Binding or Updating
