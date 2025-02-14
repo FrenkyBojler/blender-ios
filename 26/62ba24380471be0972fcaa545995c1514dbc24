@@ -1,0 +1,1 @@
+Referenced by issue #59804, The bmesh.ops.symmetrize python interface does not support the "positive" variants of symmetry direction
