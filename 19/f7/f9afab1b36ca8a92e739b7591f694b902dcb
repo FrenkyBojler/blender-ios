@@ -7,3 +7,4 @@ Referenced by issue #39194, CUDA error when trying to do viewport rendering
 Referenced by issue #39182, layers problem with 2.70 release candidate
 Referenced by issue #39152, Blender crash when duplicate mesh with hooks and laplacian deform.
 Referenced by issue #39134, Sometimes "Freestyle" will be generate incorrect line.
+Referenced by issue #39135, Extruding makes reversed normals. Align/flip normals does not fix issue.
