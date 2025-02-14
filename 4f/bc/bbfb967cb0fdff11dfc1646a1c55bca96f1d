@@ -1,1 +1,2 @@
 Referenced by commit 33166107857, Revert "Fix T71126: add old hotkeys to set start/end frame in the timeline to"
+Referenced by issue #71483, "scale" using S doesn't work in the animation editors
