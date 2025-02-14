@@ -1,0 +1,1 @@
+Referenced by issue #45984, Setting custom normals properly requires multiple calls to normals_split_custom_set()
