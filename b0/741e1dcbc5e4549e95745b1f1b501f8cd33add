@@ -2,3 +2,4 @@ Referenced by commit 3c2e4f4cfd5, Fix T91411: Outliner crash using contextmenu o
 Referenced by issue #118458, Fix #105968: Crash when delete linked object in scenes Outliner
 Referenced by issue #105968, Crash when delete linked object in scenes outliner
 Referenced by issue #77770, Outliner Context Menu Cleanup
+Referenced by issue #77408, Continued Outliner Improvements Design
