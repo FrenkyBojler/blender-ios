@@ -1,3 +1,4 @@
 Referenced by commit d9c2fb9ae27, Cleanup: Remove mesh validation of cached normals
 Referenced by commit d0eeb3d1555, Cleanup: Remove mesh normals function, deprecate in RNA
 Referenced by commit 5b8c07dc50e, Cleanup: Remove outdated code for mesh normals
+Referenced by commit 9c279723da7, Fix Data Transfer Projected Face/Edge Interpolated mode is wrong
