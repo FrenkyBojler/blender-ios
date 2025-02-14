@@ -1,0 +1,1 @@
+Referenced by issue #43939, [bmesh.BMEdge.calc_face_angle]A return value of calc_face_angle is not right.
