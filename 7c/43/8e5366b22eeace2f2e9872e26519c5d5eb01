@@ -11,3 +11,4 @@ Referenced by issue #59981, Brush radius doesn't show when opening a file that's
 Referenced by issue #59982, EEVEE - Distance Bump/Normal's Spec dancing - animated camera
 Referenced by issue #59969, Blender 2.8 triggers GPU lockup when entering Edit Mode
 Referenced by issue #59960, Blender shuts down
+Referenced by issue #59946, Multiple quit dialogs possible
