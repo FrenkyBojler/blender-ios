@@ -5,3 +5,4 @@ Referenced by issue #93625, Box selection or any selection method doesn´t work 
 Referenced by issue #92053, Industry Compatible keymap: dragging doesn't engage box select, even though the drag option is set to box select
 Referenced by issue #91698, VSE: Tool option Drag options exposed in Annotation & Sample Tool
 Referenced by issue #90634, Calling bpy_gizmo_target_set_value from python crashes blender if called from setup method
+Referenced by issue #83690, Default Keymap Update: Support Fallback tools with RMB Selection
