@@ -1,2 +1,3 @@
 Referenced by commit c95a89f92b7, Fix #127828: Clay brush deforms mesh incorrectly
 Referenced by commit 868fed96c92, Cleanup: Sculpt: Remove unused sculpt clay brush code
+Referenced by issue #127938, Fix #127828: Clay brush deforms mesh incorrectly
