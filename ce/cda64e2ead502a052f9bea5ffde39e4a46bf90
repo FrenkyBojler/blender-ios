@@ -1,2 +1,3 @@
 Referenced by issue #78175, Hair drawing crash with NVIDIA GPU under macOS 10.15
 Referenced by issue #77496, Invisible loose edges on objects used in bone visualization
+Referenced by issue #70445, Very slow Eevee performance on Mac with AMD Radeon
