@@ -3,3 +3,4 @@ Referenced by commit 7db42b8f2a8, Fix T82460: Color Management Curves do not upd
 Referenced by issue #106987, Regression: Turning off "Update Automatically" in Image Editor breaks painting in that editor
 Referenced by issue #95338, Render Image for composited scene shows inconsistent results
 Referenced by issue #83361, UV Editor does not draw pinned selected UVs as pinned
+Referenced by issue #83187, Linked meshes: Unselected UVs stay orange instead of gray, cannot deselect all UVs
