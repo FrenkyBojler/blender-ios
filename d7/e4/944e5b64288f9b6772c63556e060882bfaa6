@@ -11,3 +11,4 @@ Referenced by issue #42966, Py_Initialize: Unable to get the locale encoding
 Referenced by issue #42951, Kinfe tool with Maya preset is not working right
 Referenced by issue #42936, Bug
 Referenced by issue #42887, Nvidia GTX 9XX not recognized in Blender (2.73)
+Referenced by issue #42878, OSL hard  crash
