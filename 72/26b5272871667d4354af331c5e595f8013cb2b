@@ -1,1 +1,2 @@
 Referenced by issue #121459, STL / Alembic / PLY export empty meshes in editmode (also assert)
+Referenced by issue #121341, Regression: Crash undo-redo sculpt with topology auto mask
