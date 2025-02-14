@@ -1,1 +1,2 @@
 Referenced by commit 745d2e18dca, Fix #107228: AttributeGroup.new crash when layer cannot be created
+Referenced by commit 12ef20990b3, Fix #103410: name collisions between vertex groups and attributes
