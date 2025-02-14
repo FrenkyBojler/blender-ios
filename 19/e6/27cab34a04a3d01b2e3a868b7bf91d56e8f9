@@ -77,3 +77,4 @@ Referenced by issue #39524, Backface culling is always on in Textured view in BI
 Referenced by issue #39528, Particle Emission Cyclic Glitch when Parented
 Referenced by issue #39533, switching orthographic view in to perspective
 Referenced by issue #39516, Having an object with a dense triangle mesh will cause it to not render in the viewport if the viewport mode is wireframe.
+Referenced by issue #39504, mac mouse problem
