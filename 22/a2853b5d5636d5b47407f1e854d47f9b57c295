@@ -68,3 +68,4 @@ Referenced by issue #47880, Move to layer still crash
 Referenced by issue #47870, Viewport rendering isn't updating with changing of values of a material node group. but working if you change inside node group!
 Referenced by issue #47852, Remesh modifier causes too many intersections
 Referenced by issue #47860, Selecting object crashes Blender 2.77 on Ubuntu 14.04
+Referenced by issue #47794, Point density sometime seems streched when rendered on GPU
