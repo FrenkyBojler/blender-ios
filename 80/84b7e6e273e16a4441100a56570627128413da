@@ -1,1 +1,2 @@
 Referenced by commit 618f31312c1, Fix vertex selection error from recent refactor
+Referenced by issue #81167, Texture Painting with Paint mask enabled, (de)selecting faces causes a mess with texture slots.
