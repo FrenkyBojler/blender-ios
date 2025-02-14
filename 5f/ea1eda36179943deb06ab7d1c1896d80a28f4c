@@ -1,1 +1,2 @@
 Referenced by commit ababc2e01bc, Fix #120778: depth navigation ignores camera & light objects
+Referenced by commit 1b788f3a84b, Fix #120778: Depth navigation no longer works for non-geometry objects
