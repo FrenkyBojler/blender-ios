@@ -1,1 +1,2 @@
 Referenced by issue #38289, Game Engine addObject() crashes when adding a second object
+Referenced by issue #37920, Repeatedly calling LibLoad and LibFree on the same library / blend will cause a crash.
