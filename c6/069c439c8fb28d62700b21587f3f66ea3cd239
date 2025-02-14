@@ -1,0 +1,1 @@
+Referenced by issue #94581, Geometry Nodes: Delete Geometry deletes wrong instances if their indices form a range starting from 0
