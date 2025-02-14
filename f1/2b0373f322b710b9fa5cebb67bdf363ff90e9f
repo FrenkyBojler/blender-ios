@@ -1,2 +1,3 @@
 Referenced by commit f23bf4cb109, Revert "BGL: Workaround broken bgl usage caused by GPU refactor"
 Referenced by issue #81784, 2D Gizmo glitch when using glEnable/glDisable (Blender 2.91)
+Referenced by issue #81289, Python gpu bgl image drawing alpha problem
