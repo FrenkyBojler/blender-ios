@@ -1,1 +1,2 @@
 Referenced by issue #40262, Bake crash if you set GPU
+Referenced by issue #40269, Transform Constraint Doesn't Obey World/World Setting (Inherits from Parent instead!)
