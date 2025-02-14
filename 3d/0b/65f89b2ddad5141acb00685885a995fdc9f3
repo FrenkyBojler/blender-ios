@@ -1,1 +1,2 @@
 Referenced by issue #83296, 2.91 regression: Changing a node's color wheel, color ramp stops, or curves no longer pushes UNDO to the stack.
+Referenced by issue #83216, Potential candidates for corrective releases
