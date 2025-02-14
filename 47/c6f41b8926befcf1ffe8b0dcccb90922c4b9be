@@ -2,3 +2,4 @@ Referenced by commit 40edb84dcf4, Revert "Fix T77564: VSE (and compositor backgr
 Referenced by commit d5b5b228e4d, UI: Fix protential stray GPU state preventing correct drawing
 Referenced by issue #79940, VSE Editor crash when opening a different scene as a strip
 Referenced by issue #79934, Protruding curves on RGB Curves node
+Referenced by issue #77564, Video Sequence Editor lost stereoscopic preview
