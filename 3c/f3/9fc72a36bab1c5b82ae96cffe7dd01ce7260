@@ -1,3 +1,4 @@
 Referenced by issue #39743, Crash when deleting faces in with new autosmooth
 Referenced by issue #39747, Unable to update mesh vertex properties via Python when mesh is influenced by armature
 Referenced by issue #39749, Holdout shader and Transparent shader don't use the background's alpha channel when used with Light Path node.
+Referenced by issue #39740, New Autosmooth instant crash entering Edit Mode
