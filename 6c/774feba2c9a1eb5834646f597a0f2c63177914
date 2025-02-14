@@ -1,1 +1,2 @@
 Referenced by commit e816b481e02, Fix #121004: bmesh.ops.dissolve_limit wrong in certain cases
+Referenced by commit 14efe700044, Fix #106128: OBJ exporter crash when a mesh only has loose vertices
