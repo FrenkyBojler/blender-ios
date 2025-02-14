@@ -1,3 +1,4 @@
 Referenced by issue #43139, Calling bpy.ops.screen.screen_full_area() multiple times in python console causes Blender to crash
 Referenced by issue #43119, mathutils.intersect_point_line returns vector of different dimension than inputs
 Referenced by issue #43099, Modifier "Armature" change the material in a mesh when active or desactive "Show in edit mode" if is in "mode edit"
+Referenced by issue #43101, OpenGL render active viewport does not respect Multisampling when executed from Sequencer
