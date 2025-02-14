@@ -4,3 +4,4 @@ Referenced by commit 9e8db89b431, Fix logical error selecting similar vertex cre
 Referenced by commit 83ef3bc9232, Mesh: Forward compatibility with generic crease in 4.0
 Referenced by issue #116019, Regression: Solidify Crease Inner not working with edge crease attribute
 Referenced by issue #115180, Fix #115105: Edge Crease Doesn't Transfer
+Referenced by issue #115105, Regression: Edge Crease Doesn't Transfer
