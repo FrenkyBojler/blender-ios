@@ -14,3 +14,4 @@ Referenced by issue #96836, UV verts dont draw if certain modifiers are present 
 Referenced by issue #82495, Assert entering edit mode with a generate modifier followed by a cast modifier.
 Referenced by issue #80996, Weight Proximity modifier: crash going to editmode on a target in certain situations
 Referenced by issue #80098, Mesh deform doesn't update in edit mode.
+Referenced by issue #79604, Switching to edit mode on boolean object runs out of memory
