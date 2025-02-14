@@ -10,3 +10,4 @@ Referenced by issue #38939, Bevel in edit mode.
 Referenced by issue #38913, Game engine crash with Arraymod + cap-object
 Referenced by issue #38884, UI lists missing item edit text field in v2.70 test build
 Referenced by issue #38854, crash adding new image in uv editor
+Referenced by issue #38859, Laplacian Deform Crash When Parent With Automatic Weight
