@@ -2,3 +2,4 @@ Referenced by issue #52696, Sculpt: Brush spacing pressure artifacts
 Referenced by issue #44028, Vertex Colors Bakinng error
 Referenced by issue #43558, Brush fails in some perspectives and in certain distances from the object.
 Referenced by issue #43454, Brush changes the tone color to choose a texture.
+Referenced by issue #43055, Fly/walk view nav cause parent object to move with child camera
