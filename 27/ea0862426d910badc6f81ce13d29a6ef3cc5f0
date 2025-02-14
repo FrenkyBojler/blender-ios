@@ -1,1 +1,2 @@
 Referenced by issue #81112, Reloading Scripts causes SyntaxError (error only in 2.90.1, fix ready)
+Referenced by issue #80694, bpy.ops.script.reload() seg fault
