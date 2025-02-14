@@ -1,3 +1,4 @@
 Referenced by commit f7dd40afbf5, Fix #114583: Missing forward axis option in obj export
 Referenced by commit 69e290d2fef, Cleanup: code comments
 Referenced by issue #114615, Fix #114583: Missing forward axis option in obj export
+Referenced by issue #114583, Regression: OBJ Exporter: Lack of choice of forward orientation
