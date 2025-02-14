@@ -2,3 +2,4 @@ Referenced by commit f41dc909258, Mesh: Rewrite split edges algorithm
 Referenced by issue #110661, Mesh: Rewrite split edges algorithm
 Referenced by issue #107932, Instant crash by clicking the Data Tab for Volumes --MacOS--
 Referenced by issue #107433, Bug: Endpoint curve node version compatibilty
+Referenced by issue #102711, Regression: Geometry Node: Split edges lost materials
