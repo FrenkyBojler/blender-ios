@@ -1,1 +1,2 @@
 Referenced by commit 75804f2dd02, Fix #120575: GPU subdivision ignores split normals from sharp edges
+Referenced by issue #120674, Fix #120575: GPU subdivision ignores split normals from sharp edges
