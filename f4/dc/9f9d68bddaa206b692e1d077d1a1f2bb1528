@@ -45,3 +45,4 @@ Referenced by issue #59743, Collada Export Missing Keyframes
 Referenced by issue #59640, Random Crash w/ Transform Gizmo
 Referenced by issue #59120, Compatibility between 2.79 and 2.8
 Referenced by issue #59108, Blender crashes when clicking on
+Referenced by issue #58984, Traceback error during FBX export
