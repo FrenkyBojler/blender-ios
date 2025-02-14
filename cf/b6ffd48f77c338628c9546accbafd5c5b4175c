@@ -1,1 +1,2 @@
 Referenced by issue #70872, Cannot rotate scene in 3D viewport, 2.81
+Referenced by issue #70386, Crash on isect_ray_seg_v3 due to the v0 and v1 being the same vert
