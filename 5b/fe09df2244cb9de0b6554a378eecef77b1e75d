@@ -1,2 +1,3 @@
 Referenced by commit 01d7211380f, Fix T92505: previewing specific node outputs did not work anymore
 Referenced by issue #92667, Opening a certain file and splitting the main editor results in a crash
+Referenced by issue #92655, 3.0b crash after splitting area
