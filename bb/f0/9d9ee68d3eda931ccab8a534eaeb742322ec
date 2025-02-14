@@ -15,3 +15,4 @@ Referenced by issue #44068, "Layered" option during autokey playback
 Referenced by issue #44069, Calling LibLoad and LibFree multiple times on a file that plays an Action crashes Blender
 Referenced by issue #44071, very important bug you should fix it quickly
 Referenced by issue #44062, Snapping along one of the axis
+Referenced by issue #44049, Edge Bevel with more than one segment breaks UVs
