@@ -1,1 +1,2 @@
 Referenced by issue #81865, Vertex Color layer corrupted after edge operations in EDIT mode
+Referenced by issue #81860, UV edge loop issue if UV map is not called 'UVMap'
