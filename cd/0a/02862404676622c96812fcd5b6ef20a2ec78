@@ -1,0 +1,1 @@
+Referenced by issue #54496, Python scripts calling bpy.ops.paint.image_paint operates undo steps for "individual calls" rather than "all calls" during modal operation
