@@ -1,2 +1,3 @@
 Referenced by issue #103242, Regression: Image Texture node: color space and alpha changes are ignored in undo/redo
 Referenced by issue #99356, Regression: Repeating resizing image and undoing causes view in image editor strange state, and editing it causes crash.
+Referenced by issue #97015, Undo incorrectly frees all the ImBufs of tiled images
