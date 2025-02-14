@@ -1,1 +1,2 @@
 Referenced by commit a63e32fabf8, Fix #121187: Sculpt dynamic topology crash with empty mesh
+Referenced by issue #121187, Regression: Dyntopo with manual detail crash if resolution is too low
