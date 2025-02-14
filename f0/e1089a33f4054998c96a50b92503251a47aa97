@@ -1,1 +1,2 @@
 Referenced by issue #101779, Incorrect call to set_app_id on Wayland
+Referenced by issue #101781, Geometry Node: Undo crash: Copy, paste, undo and repeat a lot of time
