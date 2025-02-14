@@ -18,3 +18,4 @@ Referenced by issue #46986, Hair Impossible to Comb on Tail of Mesh
 Referenced by issue #46979, Cycles Normal Map anti-alias problem/bug
 Referenced by issue #46923, motion paths setting - armature calculate heads/tails switched
 Referenced by issue #46929, error exporting Key configuration
+Referenced by issue #46861, Separate part of mesh / shares animation data with original / Is not independent copy. Editing data on new object changes data on orginal object
