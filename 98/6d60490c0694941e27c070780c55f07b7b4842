@@ -1,1 +1,2 @@
 Referenced by commit 685ceaa2f72, Fix reference counting error for world drag & drop
+Referenced by issue #90747, As a user I want to drop an environment to the 3d viewport to change the world of the scene.
