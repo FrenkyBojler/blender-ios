@@ -1,0 +1,1 @@
+Referenced by issue #92507, CTX_data_selected_objects yields PointerRNAs with invalid owner_id
