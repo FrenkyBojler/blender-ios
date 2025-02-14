@@ -1,0 +1,1 @@
+Referenced by issue #51883, 'Make Duplicates Real' often makes a huge mess of transforms when Parent or Keep Hierarchy are set to True
