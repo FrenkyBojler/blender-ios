@@ -1,1 +1,2 @@
 Referenced by issue #93566, Mantaflow: problems with the German special Character (in German: "Umlaute" "ÖÄÜ") in Foldername
+Referenced by issue #72789, Mantaflow cache doesn't work with non-latin cache directory
