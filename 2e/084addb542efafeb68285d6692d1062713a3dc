@@ -1,2 +1,3 @@
 Referenced by issue #114122, VSE: Movie strip with NTSC-framerate are missing the last frame in the timeline
 Referenced by issue #114036, Edge Slide is not respecting the keymap defaults for the clamp flag
+Referenced by issue #110878, VSE: Frame Rate Base Rounding Leads To Vid / Audio Strips Out Of Sync by 1 Frame
