@@ -1,2 +1,3 @@
 Referenced by issue #71047, Blender 2.81 - Hair collisions explode hair particles
 Referenced by issue #69265, Hair Dynamics: not working with non-uniform scaling
+Referenced by issue #65038, Hair Dynamics: Hair quality steps more than 1 results in increased collision reaction [like a multiplier]
