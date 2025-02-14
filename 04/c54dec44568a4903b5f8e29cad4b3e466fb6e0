@@ -1,2 +1,3 @@
 Referenced by issue #66274, Object Texture Coordinate mode not updating in Lookdev / Eevee
 Referenced by issue #64913, LookDev with environment texture starts washed out, until viewport moves
+Referenced by issue #57489, Texture coordinate object reference not interactively updating in Eevee
