@@ -1,2 +1,3 @@
 Referenced by issue #52069, Denoise producing artifact with high contrast pixel
 Referenced by issue #52073, AMD GPU R9 270x doesn't appear
+Referenced by issue #52076, Boolean. Change BMesh to Carve = crush
