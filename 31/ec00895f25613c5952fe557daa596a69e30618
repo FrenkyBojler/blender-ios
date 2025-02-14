@@ -1,0 +1,1 @@
+Referenced by issue #119935, Regression: 4.1 & 4.2 Alpha - bpy.ops.mesh.attribute_set() does not support 2D Integer Vector and Quaternion data types
