@@ -4,3 +4,4 @@ Referenced by issue #89598, Hair density maps increases hair children amount on 
 Referenced by issue #44090, 274rc2 Particlesystem Hair - with Density Texture
 Referenced by issue #43471, Can't dynamically set particle birth time any more
 Referenced by issue #40815, Particle Birth Error
+Referenced by issue #35247, Particle texture behaves incorrectly after changing the number of particles
