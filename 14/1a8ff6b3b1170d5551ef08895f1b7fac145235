@@ -1,2 +1,3 @@
 Referenced by commit 024a9d17d29, Revert "Enabled workaround to solve threading issues in draw manager"
 Referenced by issue #79533, Crash when opening file
+Referenced by issue #79038, Blender freezes on vertex paint on linked mesh data.
