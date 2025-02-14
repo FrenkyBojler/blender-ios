@@ -1,0 +1,1 @@
+Referenced by issue #62280, Driver expressions that use functions injected by an addon no longer work.
