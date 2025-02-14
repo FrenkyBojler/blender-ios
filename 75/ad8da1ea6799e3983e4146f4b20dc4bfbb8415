@@ -1,3 +1,4 @@
 Referenced by commit efbcfd87030, Mesh: Remove deprecated argumen to split_faces API function
 Referenced by commit efc2e5134f5, Fix #104841: Split function for Cycles for sharp edges ignores attribute
 Referenced by issue #108415, Regression : cycles motion blur glitch on alembic hair
+Referenced by issue #107930, Baking of normals show different results between versions
