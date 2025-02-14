@@ -1,1 +1,2 @@
 Referenced by commit 0c0e9390d1c, Revert "Fix entering edit-mode when object mode and edit-data don't match"
+Referenced by issue #86561, Crash when entering edit mode with multiple objects sharing the same mesh
