@@ -35,3 +35,4 @@ Referenced by issue #45085, transform / rotate
 Referenced by issue #45061, Transformation manipulator/ rotate
 Referenced by issue #45068, Scaled Capsule Collision Bounds do not match mesh
 Referenced by issue #45045, Decimate does not work with ngons
+Referenced by issue #45055, Move to layer doesn't accept number key input
