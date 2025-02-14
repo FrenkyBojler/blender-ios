@@ -1,2 +1,3 @@
 Referenced by issue #62104, VertexGroup.add() doesn't push depsgraph update for the mesh.
 Referenced by issue #62090, Eevee shader compilation error: C1503: undefined variable "att1_is_srgb"
+Referenced by issue #62065, Edge quality of uv export
