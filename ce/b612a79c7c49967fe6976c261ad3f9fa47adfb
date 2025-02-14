@@ -2,3 +2,4 @@ Referenced by issue #90226, Selection in Edit Mode crashes
 Referenced by issue #89979, Blender crash: Curve to Mesh Geometry Node
 Referenced by issue #89955, Blender crashing in Edit mode.
 Referenced by issue #89962, Crash on  newly created mesh when removing only faces
+Referenced by issue #89905, Retrieving evaluated mesh when realizing geometry nodes instances can fail
