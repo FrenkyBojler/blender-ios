@@ -7,3 +7,4 @@ Referenced by issue #59122, Recovering from Auto Save changed some settings
 Referenced by issue #59091, Bendy bone duplicate got wrong handles
 Referenced by issue #59092, Setting Dynamic Paint brush as particle crashes when selecting a particle system
 Referenced by issue #59079, Cycles Stereoscopic Render dies
+Referenced by issue #59080, No autoname left/right
