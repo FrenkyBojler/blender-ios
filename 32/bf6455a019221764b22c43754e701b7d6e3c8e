@@ -1,0 +1,1 @@
+Referenced by issue #98522, Regression: Geometry Nodes - Setting curve_type, nurbs_order and knots_mode through Named Attributes is broken in latest 3.2/3.3 builds
