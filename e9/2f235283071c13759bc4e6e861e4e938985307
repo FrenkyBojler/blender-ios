@@ -93,3 +93,4 @@ Referenced by issue #51074, Boolean modifier inverts Difference and Union (somet
 Referenced by issue #51056, exception access violation after browsing for an image texture and connecting it to a node
 Referenced by issue #51011, bpy.ops.action.new() does nothing when invoked from script
 Referenced by issue #51012, Force Field Curve Shape not working
+Referenced by issue #51017, Spline IK stretching bone (without Y stretching selected)
