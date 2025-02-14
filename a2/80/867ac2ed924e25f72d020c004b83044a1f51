@@ -1,0 +1,1 @@
+Referenced by issue #62312, All transforms made before or after Inset or Bevel are undone when exiting Edit mode
