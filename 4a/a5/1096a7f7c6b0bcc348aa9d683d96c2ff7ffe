@@ -1,3 +1,4 @@
 Referenced by issue #46457, math_utils.geometry.intersect_line_line_2d gives incorrect results for colinear segments
 Referenced by issue #44983, Crash
 Referenced by issue #44241, Floating-point Tangent Normal Baking Not Working
+Referenced by issue #44059, "User Preferences>Input>Node Editor>Translate" reset to keyboard only.
