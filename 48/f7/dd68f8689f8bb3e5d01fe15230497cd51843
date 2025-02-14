@@ -23,3 +23,4 @@ Referenced by issue #46798, Pose mode: Alt+I removes keyframes from all bones, n
 Referenced by issue #46753, Scripted driver expressions not working in material nodes
 Referenced by issue #46743, Limit Rotation constraint w/ For Transform and Axis Angle rotation mode crash
 Referenced by issue #46747, sculpt appaerence "show brush" blender 2.76a
+Referenced by issue #46706, Blender Render Texture and Material Views Show Large Wireframes when viewing OpenSubDiv Objects
