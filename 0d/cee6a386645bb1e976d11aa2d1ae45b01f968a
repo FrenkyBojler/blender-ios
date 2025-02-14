@@ -2,3 +2,4 @@ Referenced by commit 0f0bc1a940b, Fix #107426: error when texture bake cannot ac
 Referenced by commit 4dd409a185e, Fix T99976: Animated visibility not rendering properly in viewport
 Referenced by issue #122451, Crash on animated viewport visibility + animated mesh positions
 Referenced by issue #107426, Regression: error baking objects with animated render visibility
+Referenced by issue #99976, Regression: curve with animated visibility not rendering properly in viewport
