@@ -1,2 +1,3 @@
 Referenced by commit 0fdb9cd6507, GPU: Fix issue with GPU render boundaries being opened while a GPUBackend does not exist.
 Referenced by issue #112632, File->Data Preview->Batch Generate Preview    failed
+Referenced by issue #96261, Metal Viewport
