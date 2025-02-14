@@ -3,3 +3,4 @@ Referenced by commit 25a0124bc89, Fix T100119: Light object's parametric vector 
 Referenced by issue #117801, Fix #117771: Incorrect Cycles light triangle sampling code
 Referenced by issue #117771, Cycles plane Emission gradient "clipping"
 Referenced by issue #101669, Regression: Normal baking strange artifacts in texture bake
+Referenced by issue #100119, Regression: Light object's parametric vector distorted in blender 3.4
