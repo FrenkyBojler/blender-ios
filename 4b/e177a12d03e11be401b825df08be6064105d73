@@ -1,1 +1,2 @@
 Referenced by commit 3d980b459de, Fix #133084: Overlay: Negative Z-Axis overlay not displayed
+Referenced by commit 4a0ba6b457f, Revert "Fix #133084: Overlay-Next: Viewport Z-Axis"
