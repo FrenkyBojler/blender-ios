@@ -26,3 +26,4 @@ Referenced by issue #52490, NDOF device does not lock into orthogonal view (top,
 Referenced by issue #52489, Oculus Legacy VR Flashing and 2d burnin
 Referenced by issue #52462, Blender 2.79 RC2 Soft body collisions not working when
 Referenced by issue #52436, Importing keyconfig mess up blender configuration SHIFT + A opens ADD menu and at the same time popups new external 3D window
+Referenced by issue #52417, Cannot seem to export Vertex Color with Alembic for Maya nor Houdini
