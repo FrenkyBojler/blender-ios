@@ -1,2 +1,3 @@
 Referenced by issue #103063, Realtime Compositor: Crash if first enable compositor and after this create node tree
 Referenced by issue #103064, Realtime Compositor: Crash on undo after dissolve node
+Referenced by issue #102482, GN: Crash with Shift+A when editing files containing node group assets
