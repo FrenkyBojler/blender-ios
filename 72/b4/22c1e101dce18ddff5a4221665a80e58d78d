@@ -1,2 +1,3 @@
 Referenced by commit c0a8dd943f3, Fix T84018: bulk selection (box, circle, lasso) - unwarranted selection
 Referenced by issue #84018, UV editor: bulk selection (box, circle, lasso) - unwarranted selection of islands in vertex mode if "UV Sync Selection" is on
+Referenced by issue #46568, Deselect Linked Seam fails ( Deselects all instead )
