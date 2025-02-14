@@ -1,1 +1,2 @@
 Referenced by commit 3044980f095, Fix #130760: Grease Pencil: Group channel crash
+Referenced by issue #131299, Moving GP keyframes doesn't update in the viewport
