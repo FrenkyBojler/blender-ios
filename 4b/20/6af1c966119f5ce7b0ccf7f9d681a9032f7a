@@ -1,2 +1,3 @@
 Referenced by issue #54054, Bmesh boolean modifier fails with co-planar geometry (carve doesn't)
 Referenced by issue #47862, Sequence Editor Cuts
+Referenced by issue #44781, UV Pack islands gives unpredictable results
