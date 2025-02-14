@@ -2,3 +2,4 @@ Referenced by issue #108119, Exporting DAE of FBX with Textures don't work at al
 Referenced by issue #107632, EXCEPTION_ACCESS_VIOLATION (0x00007FF)
 Referenced by issue #107284, EXCEPTION_ACCESS_VIOLATION (0x00007FF)
 Referenced by issue #105325, Python: Crash when bpy.ops.wm.previews_ensure() called after queuing asset_generate_preview() job
+Referenced by issue #105283, Regression: Match interface of custom group nodes and custom group trees.
