@@ -1,1 +1,2 @@
 Referenced by issue #122451, Crash on animated viewport visibility + animated mesh positions
+Referenced by issue #99976, Regression: curve with animated visibility not rendering properly in viewport
