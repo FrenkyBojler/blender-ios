@@ -14,3 +14,4 @@ Referenced by issue #46206, Unable to UNDO, moving to layers require manual clic
 Referenced by issue #46192, Incorrect transparency display in 3D window
 Referenced by issue #46179, Volumetric light in cycles render doesn't work with amd graphic cards
 Referenced by issue #46183, Object with OpenSubdiv has 0Verts 0Edges 0Poly
+Referenced by issue #46185, Bone will not roll in Blender 2.76 RC
