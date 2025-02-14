@@ -17,3 +17,4 @@ Referenced by issue #42309, Angular map in cycles - camera location
 Referenced by issue #42285, Crash of Blender in Gameengine/Physicsengine concerning ApplyForce
 Referenced by issue #42270, Renderbug Cycles preview
 Referenced by issue #42250, Add Tree issue. Errors when changing some settings.
+Referenced by issue #42251, Blender crash upon closing with VOBs enabled (today's BuildBot version)
