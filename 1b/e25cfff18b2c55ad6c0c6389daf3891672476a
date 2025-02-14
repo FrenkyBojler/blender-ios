@@ -6,3 +6,4 @@ Referenced by issue #107204, Metal Viewport flickering on interaction
 Referenced by issue #106981, Fluid domain rendered as a solid block if the fluid emitter is smaller than resolution divisions
 Referenced by issue #106923, Huge lag in Image Editor/Render result window when zoom in/out on images
 Referenced by issue #106846, Pressing Enter on new folder creates another folder
+Referenced by issue #106824, Python script not executing in correct location in blender cli
