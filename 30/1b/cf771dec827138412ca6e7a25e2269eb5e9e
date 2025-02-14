@@ -1,3 +1,4 @@
 Referenced by commit f79930989d4, Revert "Fix T62210: endless loop in kd tree lookup"
 Referenced by issue #62247, Remove Double Vertices crashes Blender
 Referenced by issue #62231, Add Sphere, adjust Rings, Crash
+Referenced by issue #62210, Python Kd-tree hangs  blender on code below (2.8 win10)
