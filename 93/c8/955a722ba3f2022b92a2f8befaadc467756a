@@ -3,3 +3,4 @@ Referenced by commit f3c32a36bcf, Fix #103562: preserve custom normals in BM_mes
 Referenced by issue #124970, Modeling: remove unused Knife cut operator
 Referenced by issue #121871, Fix #103562: preserve custom normals in BM_mesh_triangulate
 Referenced by issue #121831, Custom split normal data on negative or non-uniform scaled geometries gets broken upon applying scale
+Referenced by issue #97698, Custom Normals: some operations that alter topology (bisect, loopcut, subdivide, knife, triangulate modifier) destroy them while other operations (e.g. Connect Vertex Path, triangulate operator) preserve them
