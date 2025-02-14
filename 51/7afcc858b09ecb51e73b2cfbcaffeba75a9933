@@ -1,1 +1,2 @@
 Referenced by issue #95908, render slots are not tied to the render
+Referenced by issue #95759, Crash iterating over collection that (1) contains an object and (2) contains a child collection that also contains an object and setting "is_holdout"
