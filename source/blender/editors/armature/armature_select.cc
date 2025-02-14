@@ -2026,114 +2026,99 @@ void ARMATURE_OT_select_similar(wmOperatorType *ot)
 /** \name Select Hierarchy Operator
  * \{ */
 
-/* No need to convert to multi-objects. Just like we keep the non-active bones
- * selected we then keep the non-active objects untouched (selected/unselected). */
 static int armature_select_hierarchy_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = CTX_data_edit_object(C);
-  EditBone *ebone_active;
   int direction = RNA_enum_get(op->ptr, "direction");
   const bool add_to_sel = RNA_boolean_get(op->ptr, "extend");
   const bool use_only_connected = RNA_boolean_get(op->ptr, "use_only_connected");
-  bool changed = false;
-  bArmature *arm = (bArmature *)ob->data;
 
-  ebone_active = arm->act_edbone;
-  if (ebone_active == nullptr) {
-    return OPERATOR_CANCELLED;
-  }
+  blender::Set<bArmature *> updated_armatures;
+  blender::Set<EditBone *> bones_to_reselect;
 
-  if (direction == BONE_SELECT_PARENT) {
-    if (ebone_active->parent) {
-      EditBone *ebone_parent;
+  CTX_DATA_BEGIN_WITH_ID (C, EditBone *, ebone_sel, selected_bones, bArmature *, arm) {
+    /* Deselect selected bones prior. If nothing changes for a particular bone, or if the
+     * "Extend" option is used, we will re-select afterwards (see below). */
+    ED_armature_ebone_select_set(ebone_sel, false);
+    if (add_to_sel) {
+      bones_to_reselect.add(ebone_sel);
+    }
 
-      ebone_parent = ebone_active->parent;
+    if (direction == BONE_SELECT_PARENT) {
+      EditBone *ebone_parent = ebone_sel->parent;
 
-      if (EBONE_SELECTABLE(arm, ebone_parent)) {
-        arm->act_edbone = ebone_parent;
-
-        if (!add_to_sel) {
-          ED_armature_ebone_select_set(ebone_active, false);
-        }
-        ED_armature_ebone_select_set(ebone_parent, true);
-
-        changed = true;
+      bool ok = true;
+      if (ebone_parent == nullptr) {
+        ok = false;
       }
-    }
-  }
-  else { /* BONE_SELECT_CHILD */
-    Vector<PointerRNA> selected_bones_orig;
-    CTX_data_selected_bones(C, &selected_bones_orig);
-
-    if (selected_bones_orig.is_empty()) {
-      return OPERATOR_CANCELLED;
-    }
-
-    /* Deselect selected EditBones prior (if needed) since doing it afterwards would affect the
-     * child BONE_ROOTSEL. If nothing changes (no children), we will re-select afterwards (see
-     * below). */
-    if (!add_to_sel) {
-      for (const PointerRNA &ptr : selected_bones_orig) {
-        EditBone *ebone = reinterpret_cast<EditBone *>(ptr.data);
-        ED_armature_ebone_select_set(ebone, false);
+      if (use_only_connected && ((ebone_sel->flag & BONE_CONNECTED) == 0)) {
+        ok = false;
       }
-    }
+      if (ebone_parent && !EBONE_SELECTABLE(arm, ebone_parent)) {
+        ok = false;
+      }
 
-    /* This is so we know which bones we have already visited. */
-    LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-      ebone->flag &= ~BONE_DONE;
-    }
-
-    /* Now go over selected bones... */
-    for (const PointerRNA &ptr : selected_bones_orig) {
-      EditBone *ebone_sel = reinterpret_cast<EditBone *>(ptr.data);
-      if (ebone_sel->flag & BONE_DONE) {
+      if (!ok) {
+        bones_to_reselect.add(ebone_sel);
         continue;
       }
-      /* ... and select children if appropriate. */
+
+      /* Found appropriate parent, so select it. */
+      arm->act_edbone = ebone_parent;
+      ED_armature_ebone_select_set(ebone_parent, true);
+      updated_armatures.add(arm);
+    }
+    else { /* BONE_SELECT_CHILD */
+      bool changed = false;
       LISTBASE_FOREACH (EditBone *, ebone_iter, arm->edbo) {
         if (ebone_iter == ebone_sel) {
           continue;
         }
-        if (ebone_iter->flag & BONE_DONE) {
+        if (!EBONE_SELECTABLE(arm, ebone_iter)) {
           continue;
         }
-        if (!EBONE_SELECTABLE(arm, ebone_iter)) {
-          ebone_iter->flag |= BONE_DONE;
+        if (use_only_connected && ((ebone_iter->flag & BONE_CONNECTED) == 0)) {
           continue;
         }
         if (ebone_iter->parent != ebone_sel) {
           continue;
         }
 
-        /* Found a bone with selected parent, so select it. */
-        if (!use_only_connected || (ebone_iter->flag & BONE_CONNECTED)) {
-          arm->act_edbone = ebone_iter;
-          ED_armature_ebone_select_set(ebone_iter, true);
-          ebone_iter->flag |= BONE_DONE;
-          changed = true;
-        }
+        /* Found appropriate bone with selected parent, so select it. */
+        arm->act_edbone = ebone_iter;
+        ED_armature_ebone_select_set(ebone_iter, true);
+        changed = true;
       }
-    }
-    /* Reselect original EditBones (if needed, see above). */
-    if (changed == false) {
-      for (const PointerRNA &ptr : selected_bones_orig) {
-        EditBone *ebone = reinterpret_cast<EditBone *>(ptr.data);
-        ED_armature_ebone_select_set(ebone, true);
+      if (changed) {
+        updated_armatures.add(arm);
+      }
+      else {
+        bones_to_reselect.add(ebone_sel);
       }
     }
   }
+  CTX_DATA_END;
 
-  if (changed == false) {
-    return OPERATOR_CANCELLED;
+  for (EditBone *ebone : bones_to_reselect) {
+    ED_armature_ebone_select_set(ebone, true);
+  }
+
+  if (updated_armatures.is_empty()) {
+    /* Dont use OPERATOR_CANCELLED, we might still want to tweak settings in the Adjust Last
+     * Operation panel (e.g. "Extend"). */
+    return OPERATOR_FINISHED;
+  }
+
+  for (bArmature *arm : updated_armatures) {
+    ED_armature_edit_sync_selection(arm->edbo);
   }
 
   ED_outliner_select_sync_from_edit_bone_tag(C);
 
-  ED_armature_edit_sync_selection(arm->edbo);
+  WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, nullptr);
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
-  DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
+  /* Tagging only one object to refresh drawing. */
+  Object *obedit = CTX_data_edit_object(C);
+  DEG_id_tag_update(&obedit->id, ID_RECALC_SELECT);
 
   return OPERATOR_FINISHED;
 }
@@ -2165,7 +2150,7 @@ void ARMATURE_OT_select_hierarchy(wmOperatorType *ot)
                   "use_only_connected",
                   false,
                   "Only connected",
-                  "Only select if the child is connected (only for Child Direction)");
+                  "Only select if the child is connected");
 }
 
 /** \} */

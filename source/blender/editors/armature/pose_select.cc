@@ -716,100 +716,95 @@ void POSE_OT_select_constraint_target(wmOperatorType *ot)
 }
 
 /* -------------------------------------- */
-
-/* No need to convert to multi-objects. Just like we keep the non-active bones
- * selected we then keep the non-active objects untouched (selected/unselected). */
 static int pose_select_hierarchy_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
-  bArmature *arm = static_cast<bArmature *>(ob->data);
-  bPoseChannel *pchan_act;
   int direction = RNA_enum_get(op->ptr, "direction");
   const bool add_to_sel = RNA_boolean_get(op->ptr, "extend");
   const bool use_only_connected = RNA_boolean_get(op->ptr, "use_only_connected");
-  bool changed = false;
 
-  pchan_act = BKE_pose_channel_active_if_bonecoll_visible(ob);
-  if (pchan_act == nullptr) {
-    return OPERATOR_CANCELLED;
-  }
+  blender::Set<Object *> updated_objects;
+  blender::Set<bPoseChannel *> bones_to_reselect;
 
-  if (direction == BONE_SELECT_PARENT) {
-    if (pchan_act->parent) {
-      Bone *bone_parent;
-      bone_parent = pchan_act->parent->bone;
+  CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan_sel, selected_pose_bones, Object *, ob) {
+    bArmature *arm = static_cast<bArmature *>(ob->data);
 
-      if (PBONE_SELECTABLE(arm, bone_parent)) {
-        if (!add_to_sel) {
-          pchan_act->bone->flag &= ~BONE_SELECTED;
-        }
-        bone_parent->flag |= BONE_SELECTED;
-        arm->act_bone = bone_parent;
+    /* Deselect selected bones prior. If nothing changes for a particular bone, or if the "Extend"
+     * option is used, we will re-select afterwards (see below). */
+    pose_do_bone_select(pchan_sel, SEL_DESELECT);
+    if (add_to_sel) {
+      bones_to_reselect.add(pchan_sel);
+    }
 
-        changed = true;
+    if (direction == BONE_SELECT_PARENT) {
+      bPoseChannel *pchan_parent = pchan_sel->parent;
+
+      bool ok = true;
+      if (pchan_parent == nullptr) {
+        ok = false;
       }
-    }
-  }
-  else { /* direction == BONE_SELECT_CHILD */
-    Vector<PointerRNA> selected_bones_orig;
-    CTX_data_selected_pose_bones(C, &selected_bones_orig);
+      if (use_only_connected && ((pchan_sel->bone->flag & BONE_CONNECTED) == 0)) {
+        ok = false;
+      }
+      Bone *bone_parent = pchan_parent ? pchan_parent->bone : nullptr;
+      if (bone_parent == nullptr || !PBONE_SELECTABLE(arm, bone_parent)) {
+        ok = false;
+      }
 
-    if (selected_bones_orig.is_empty()) {
-      return OPERATOR_CANCELLED;
-    }
-
-    /* This is so we know which bones we have already visited. */
-    LISTBASE_FOREACH (bPoseChannel *, pchan_iter, &ob->pose->chanbase) {
-      pchan_iter->flag &= ~BONE_DONE;
-    }
-
-    /* Now go over selected bones... */
-    for (const PointerRNA &ptr : selected_bones_orig) {
-      bPoseChannel *pchan_sel = reinterpret_cast<bPoseChannel *>(ptr.data);
-      if (pchan_sel->flag & BONE_DONE) {
+      if (!ok) {
+        bones_to_reselect.add(pchan_sel);
         continue;
       }
-      /* ... and select children if appropriate. */
+
+      /* Found appropriate parent, so select it. */
+      arm->act_bone = bone_parent;
+      pose_do_bone_select(pchan_parent, SEL_SELECT);
+      updated_objects.add(ob);
+    }
+    else { /* direction == BONE_SELECT_CHILD */
+      bool changed = false;
       LISTBASE_FOREACH (bPoseChannel *, pchan_iter, &ob->pose->chanbase) {
         if (pchan_iter == pchan_sel) {
           continue;
         }
-        if (pchan_iter->flag & BONE_DONE) {
-          continue;
-        }
         if (!PBONE_SELECTABLE(arm, pchan_iter->bone)) {
-          pchan_iter->flag |= BONE_DONE;
           continue;
         }
         if (pchan_iter->parent != pchan_sel) {
           continue;
         }
-
-        /* Found a bone with selected parent, so select it. */
-        if (!use_only_connected || (pchan_iter->bone->flag & BONE_CONNECTED)) {
-          arm->act_bone = pchan_iter->bone;
-          pchan_iter->bone->flag |= BONE_SELECTED;
-          pchan_iter->flag |= BONE_DONE;
-          changed = true;
+        if (use_only_connected && ((pchan_iter->bone->flag & BONE_CONNECTED) == 0)) {
+          continue;
         }
+        /* Found a bone with selected parent, so select it. */
+        arm->act_bone = pchan_iter->bone;
+        pose_do_bone_select(pchan_iter, SEL_SELECT);
+        changed = true;
       }
-    }
-    /* Clear original selection if not extending. */
-    if (changed && !add_to_sel) {
-      for (const PointerRNA &ptr : selected_bones_orig) {
-        bPoseChannel *pchan_sel = reinterpret_cast<bPoseChannel *>(ptr.data);
-        pchan_sel->bone->flag &= ~BONE_SELECTED;
+      if (changed) {
+        updated_objects.add(ob);
+      }
+      else {
+        bones_to_reselect.add(pchan_sel);
       }
     }
   }
+  CTX_DATA_END;
 
-  if (changed == false) {
-    return OPERATOR_CANCELLED;
+  for (bPoseChannel *pchan : bones_to_reselect) {
+    pose_do_bone_select(pchan, SEL_SELECT);
+  }
+
+  if (updated_objects.is_empty()) {
+    /* Dont use OPERATOR_CANCELLED, we might still want to tweak settings in the Adjust Last
+     * Operation panel (e.g. "Extend"). */
+    return OPERATOR_FINISHED;
   }
 
   ED_outliner_select_sync_from_pose_bone_tag(C);
 
-  ED_pose_bone_select_tag_update(ob);
+  for (Object *ob : updated_objects) {
+    ED_pose_bone_select_tag_update(ob);
+  }
 
   return OPERATOR_FINISHED;
 }
@@ -842,7 +837,7 @@ void POSE_OT_select_hierarchy(wmOperatorType *ot)
                   "use_only_connected",
                   false,
                   "Only connected",
-                  "Only select if the child is connected (only for Child Direction)");
+                  "Only select if the child is connected");
 }
 
 /* -------------------------------------- */
