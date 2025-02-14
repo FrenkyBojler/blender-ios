@@ -1,1 +1,2 @@
 Referenced by issue #104278, Crash in geometrynode doversion code when opening Sprite production file
+Referenced by issue #103559, Crash on baking path particles when mesh don't have any faces
