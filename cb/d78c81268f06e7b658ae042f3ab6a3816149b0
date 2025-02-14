@@ -1,1 +1,2 @@
 Referenced by commit 65ebb668ec8, glPushAttrib/Pop change implementation to use a stack
+Referenced by commit 40cb5a067bf, Immediate Mode: missing ALPHA_TEST in gpuRestoreState
