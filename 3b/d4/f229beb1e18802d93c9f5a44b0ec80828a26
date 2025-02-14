@@ -1,2 +1,3 @@
 Referenced by issue #70873, Pivot Center doesn't compute mirror elements
 Referenced by issue #69785, Crash - select + drag on empty space
+Referenced by issue #66683, Edge slide with X-mirror and Topology mirror crashes
