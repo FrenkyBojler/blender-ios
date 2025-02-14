@@ -1,1 +1,2 @@
 Referenced by issue #77593, OptiX viewport denoising does not work when preferences are set to CUDA (works with final render however)
+Referenced by issue #75289, Viewport denoising does not work for Pixel Size other than 1x
