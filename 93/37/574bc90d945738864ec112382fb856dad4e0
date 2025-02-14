@@ -19,3 +19,4 @@ Referenced by issue #42016, link render layer with visible bug
 Referenced by issue #41962, command-line without specified filename doesn't renders
 Referenced by issue #41924, Cycles ID pass (Objekt and Material) Bug.
 Referenced by issue #41909, Doubleclick event bug
+Referenced by issue #41910, GPU render not working with Nvidia GTX 970
