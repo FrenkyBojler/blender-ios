@@ -4,3 +4,4 @@ Referenced by issue #107845, Vertex paint mode breaks permanently under certain 
 Referenced by issue #98884, Regression: Crash when switched to vertex paint mode
 Referenced by issue #97597, Regression: Crash in weight painting
 Referenced by issue #97489, Unify Interpolation In Vertex Paint And Sculpt Mode
+Referenced by issue #97183, Regression: Vertex paint mode (old style) work only with 1st attribute layer, no matter what selected is
