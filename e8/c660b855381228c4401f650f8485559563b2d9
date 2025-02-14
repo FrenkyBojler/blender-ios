@@ -1,1 +1,2 @@
 Referenced by issue #115430, cycles+openimagedenoise: Blender crashes when enabling composition in realtime view
+Referenced by issue #115156, Enabling the real time compositor when a denoise node is present in the compositor tree hangs blender.
