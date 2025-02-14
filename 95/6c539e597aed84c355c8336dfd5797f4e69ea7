@@ -1,1 +1,2 @@
 Referenced by commit 978f2cb900b, Fix T89487: Crash adding Rigid Body to object with shared mesh data
+Referenced by issue #89487, Crash adding Rigid Body to object with shared mesh data
