@@ -1,1 +1,2 @@
 Referenced by commit 77187718e4f, Fix T78469: Output Metadata: Strip Name no longer accessible
+Referenced by commit 6154aa1529b, Cleanup: remove redundant decorator for eevee 'overscan_size'
