@@ -1,1 +1,2 @@
 Referenced by commit 933c2cffd64, Geometry Nodes: enable multi-threading in evaluator again
+Referenced by issue #88598, Task isolation in task pool causes deadlock.
