@@ -3,3 +3,4 @@ Referenced by commit d0eeb3d1555, Cleanup: Remove mesh normals function, depreca
 Referenced by commit d83a418c456, Fix T98727: Dynamic Paint does not update normals
 Referenced by commit fe43c170831, Fix: Assert failure with certain screw modifier settings
 Referenced by issue #123893, Fix #123882: Ocean Modifier not updating normals in "Displace" mode
+Referenced by issue #98727, Regression: Dynamic Paint displacement do not update normals in 3.2
