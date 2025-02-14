@@ -15,3 +15,4 @@ Referenced by issue #120187, Sculpting with multiresolution modifier in 4.1 cras
 Referenced by issue #120080, Crash during sculpting (regression in 4.1, 4.0 is fine)
 Referenced by issue #119993, Memory access fault by GPU when using HIP Cycles
 Referenced by issue #119997, Regression: Baked Normal Map From Multiresolution Produces Strange Result on edges with crease
+Referenced by issue #119907, Active curve vertex/spline not visualizing properly
