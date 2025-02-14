@@ -1,2 +1,3 @@
 Referenced by issue #116727, Regression: Geometry Nodes: Crash for node tree deletion in editor
 Referenced by issue #116368, Geometry Nodes: Change of geometry with Bake node is delayed in viewport
+Referenced by issue #116369, Geometry Nodes: Baked animation no longer works after Scene Time node is removed
