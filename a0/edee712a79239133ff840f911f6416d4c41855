@@ -1,2 +1,3 @@
 Referenced by commit c9d35ee07c9, Fix: Eevee: Float Curve node causes issues with compiled shader
 Referenced by commit 1405787142d, Fix: Eevee: Float Curve node causes issues with compiled shader
+Referenced by issue #95221, Eevee: Float Curve node causes issues with compiled shader
