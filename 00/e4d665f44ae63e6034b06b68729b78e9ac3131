@@ -1,0 +1,1 @@
+Referenced by issue #91838, Crash when toggling edit mode on object with geometry node modifier, but only if the instanced objects material has a normal map assigned.
