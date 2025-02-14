@@ -1,2 +1,3 @@
 Referenced by commit a9ac87be369, Fix T73842: UI: add cloth collision settings to Hair Dynamics panel
 Referenced by commit 96339c4cef1, Fix T73304: Crash using force fields and hair dynamics
+Referenced by issue #73745, Particle Hair - brused hair segments can penetrate object despite Deflect Emitter option keeping the hair keys outside (causing trouble with dynamics)
