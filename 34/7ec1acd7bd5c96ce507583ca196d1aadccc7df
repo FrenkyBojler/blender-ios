@@ -7,3 +7,4 @@ Referenced by issue #129017, Fix #128999: Smooth Surface brush doesn't update vi
 Referenced by issue #128221, Cleanup: Sculpt: Simplify threaded node iteration
 Referenced by issue #127474, Fix #127279: Various brushes do not work on multires
 Referenced by issue #127435, Fix #127396: Invert Mask doesn't apply to entire mesh
+Referenced by issue #127396, Sculpt Mode: Invert Mask only done on part of the mesh
