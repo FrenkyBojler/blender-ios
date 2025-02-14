@@ -1,1 +1,2 @@
 Referenced by issue #47467, Boolean modifier is missing the "Use BMesh" option.
+Referenced by issue #47447, Segmentation Fault with Smoke on GPU in this scene
