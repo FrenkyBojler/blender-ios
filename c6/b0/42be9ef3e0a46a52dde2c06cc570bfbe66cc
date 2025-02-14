@@ -23,3 +23,4 @@ Referenced by issue #45387, bgl.glScissor() clipping problems
 Referenced by issue #45376, viewport doesn't refreshes animated colors in node groups
 Referenced by issue #45358, Diffuse color picker not working for a second object.  Have to turn off node editor in cycles to work
 Referenced by issue #45361, Camera does not rotate in walk mode (Shift - F)
+Referenced by issue #45365, Hitting 'Escape' while editing a shortcut enters that key on Windows, while on linux it cancels edition
