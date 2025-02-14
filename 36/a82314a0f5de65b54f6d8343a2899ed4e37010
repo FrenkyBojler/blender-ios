@@ -1,2 +1,3 @@
 Referenced by commit 564673b8ea2, Fix T71137: curve minimum twist producing wrong geometry
 Referenced by commit 9ad051140c1, Revert "Fix T71137: curve minimum twist producing wrong geometry"
+Referenced by issue #71137, off-by-one bug in spline interpolation produces wrong geometry
