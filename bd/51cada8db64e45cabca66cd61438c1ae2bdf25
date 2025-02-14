@@ -1,0 +1,1 @@
+Referenced by commit 3e86cfa1ffd, depsgraph: re-Fix 32 bit shift bug in get_visible_components_mask.
