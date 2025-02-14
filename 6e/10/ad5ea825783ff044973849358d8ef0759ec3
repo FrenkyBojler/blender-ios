@@ -1,0 +1,1 @@
+Referenced by issue #46913, hooking linked duplicate objects with multiple viewport material colors in cycles to an empty causes blender to crash
