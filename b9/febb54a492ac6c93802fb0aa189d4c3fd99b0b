@@ -22,3 +22,4 @@ Referenced by issue #91445, Convert curve object data to mesh does not work when
 Referenced by issue #91353, Regression: Performance regression after support modifiers on curve objects commit
 Referenced by issue #90808, BoundBox/Dimensions of curve not showing correct values
 Referenced by issue #90566, Mesh to Curve node  setup crashes Cycles then Blender (EXCEPTION_ACCESS_VIOLATION)
+Referenced by issue #88594, Crash when assigning via python a collection to a GeometryNodes modifier.
