@@ -15,3 +15,4 @@ Referenced by issue #104154, Regression: Shape Keys no longer work on Objects wi
 Referenced by issue #103937, Regression: applying NonGeometrical modifiers (UVProject, DataTransfer, ...) looses shape key data
 Referenced by issue #103878, Regression: Crash when try recover last session
 Referenced by issue #103870, Blend file crashes Blender.
+Referenced by issue #93602, Struct of Arrays Refactor for Mesh Vertices
