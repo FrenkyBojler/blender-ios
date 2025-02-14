@@ -1,1 +1,2 @@
 Referenced by commit 38c4888f099, Fix crash in the node editor in cases where nodetree was empty
+Referenced by issue #94153, Node editor group background color can not be specified in 3.0
