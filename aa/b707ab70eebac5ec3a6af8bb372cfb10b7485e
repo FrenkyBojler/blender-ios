@@ -1,1 +1,2 @@
 Referenced by commit fae661a1ab3, Revert "Un-ignore modules in .gitmodules configuration"
+Referenced by issue #104573, Re-design of submodules used in blender.git
