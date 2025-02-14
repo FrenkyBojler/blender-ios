@@ -1,3 +1,4 @@
 Referenced by commit ae9ac99d2b9, Fix #108117: Crash in uv editor with hidden geometry
 Referenced by commit 58c54b58592, Fix #106396: UV stitch crash with hidden faces
 Referenced by issue #108130, Fix #108117: Crash in uv editor with hidden geometry
+Referenced by issue #106493, Fix #106396: UV stitch crash with hidden faces
