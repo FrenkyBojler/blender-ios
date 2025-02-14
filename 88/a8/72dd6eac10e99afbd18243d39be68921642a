@@ -1,2 +1,3 @@
 Referenced by issue #68290, Baked particles dont render in final frame
 Referenced by issue #68265, Incorrect 3D Cursor Movement with Axis Constraint
+Referenced by issue #68227, Pinning the particles system data-block causes error
