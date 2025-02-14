@@ -1,2 +1,3 @@
 Referenced by commit 61fa710aa34, Fix T77536: Extrude to cursor keybinding missing
 Referenced by issue #77536, Extrude to cursor keybinding missing in 2.83
+Referenced by issue #73939, fresh 2.83 compilation, immediate crash
