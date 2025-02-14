@@ -1,2 +1,3 @@
 Referenced by issue #99678, Regression: Blender crash when trying to apply a none-existing modifier through python script.
 Referenced by issue #97894, Crash adding Curve-To-Mesh on hair curves
+Referenced by issue #97859, bpy.data,library didn't return right material when running in background
