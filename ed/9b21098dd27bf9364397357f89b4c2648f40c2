@@ -1,3 +1,4 @@
 Referenced by commit 533a5a6a8c6, Fix T99785: Make Principled Hair IOR input behave like other IOR sliders
 Referenced by issue #108728, Rewrite some compositing nodes to using declarations
 Referenced by issue #99785, Principled hair BSDF IOR slider inconsistency
+Referenced by issue #96207, Principled BSDF - Specular Tint default value at 0.5
