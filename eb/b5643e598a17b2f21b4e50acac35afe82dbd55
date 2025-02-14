@@ -3,3 +3,4 @@ Referenced by commit 94e6ab6d718, Fix #108923: Serious issues in 'undo_preserve'
 Referenced by commit 7ef8389dad6, Fix #108746: Defaults / Save startup file don't save the window size.
 Referenced by commit 32bbfbb06ed, Fix #108643: Blender window does not open to full dimensions of the desktop.
 Referenced by issue #125636, Active camera context issue
+Referenced by issue #121457, Crash on Undo after appending multiple collections that share data through the Asset Browser
