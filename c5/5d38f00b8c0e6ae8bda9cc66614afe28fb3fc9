@@ -4,3 +4,4 @@ Referenced by issue #104015, Geometry Nodes: Viewer overlay disappears when enab
 Referenced by issue #103985, Crash When Adding Hair Subdivision upon Viewer node
 Referenced by issue #103988, Geometry nodes preview, clipping Region in the viewport its not working
 Referenced by issue #102882, Geometry nodes: Crash for cycle links in node group when try to find viewer node
+Referenced by issue #102700, Regression: Viewer node crash on empty by non-null mesh after join geometry with attribute output on viewer
