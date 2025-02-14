@@ -1,3 +1,4 @@
 Referenced by issue #38017, RGB Histogram in "display line" mode doesn't include Green channel.
 Referenced by issue #38018, Histogram don't takes Dither into account
 Referenced by issue #38002, Blender crashes (seg fault) selecting a view mode for "Preview" in Sequence Editor
+Referenced by issue #38004, The size of Waveform, Vectorscope and Histogram is not correct in Sequencer
