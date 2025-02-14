@@ -2,3 +2,4 @@ Referenced by commit dced56f02a4, Fix T44185, Fix T44090: hair texture density w
 Referenced by commit 259a4361973, Fix T40815: Particle birth times not initialized correctly.
 Referenced by issue #89598, Hair density maps increases hair children amount on reopening scene file (or rendering which will get slow)
 Referenced by issue #44090, 274rc2 Particlesystem Hair - with Density Texture
+Referenced by issue #43471, Can't dynamically set particle birth time any more
