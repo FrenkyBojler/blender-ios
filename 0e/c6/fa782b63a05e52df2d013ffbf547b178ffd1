@@ -1,1 +1,2 @@
 Referenced by issue #71212, Drivers referencing scene.frame_current doesn't update when animation is playing
+Referenced by issue #65062, Compositor doesn't update anymore
