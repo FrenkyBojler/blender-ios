@@ -1,2 +1,3 @@
 Referenced by issue #118013, Cryptomatte Node in Compositor crashes Blender when changing node links before rendering
 Referenced by issue #116255, Blender crashes every time I add a Cryptomatte node in Compositor
+Referenced by issue #116205, composition on opening -> no response
