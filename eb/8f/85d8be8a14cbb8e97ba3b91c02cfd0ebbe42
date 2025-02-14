@@ -1,1 +1,2 @@
 Referenced by issue #41219, Cycles Fresnel nodes - broken gradients on objects with negative scale (final render only, not viewport)
+Referenced by issue #41115, Motion Blur renders Objects Black - But not in Viewport Preview
