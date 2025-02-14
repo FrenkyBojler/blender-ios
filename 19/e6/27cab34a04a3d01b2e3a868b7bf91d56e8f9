@@ -4,3 +4,4 @@ Referenced by issue #44028, Vertex Colors Bakinng error
 Referenced by issue #43558, Brush fails in some perspectives and in certain distances from the object.
 Referenced by issue #42764, Cycles GPU rendering - Significant slowdown since 2.71
 Referenced by issue #42505, Orto bug
+Referenced by issue #41560, Multiple loop subdivide
