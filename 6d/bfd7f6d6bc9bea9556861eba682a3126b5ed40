@@ -1,2 +1,3 @@
 Referenced by commit cd41570b553, Revert "Fix T57371: Generative modifiers in editmode display vertex group weights ..."
 Referenced by commit 00d2237d2a3, Fix T57371: Generative modifiers in editmode display vertex group weights
+Referenced by issue #57371, Generative modifiers in editmode display vertex group weights incorrectly (or assert)
