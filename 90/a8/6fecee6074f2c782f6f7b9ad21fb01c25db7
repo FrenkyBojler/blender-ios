@@ -1,1 +1,2 @@
 Referenced by commit cefa7338037, Followup for 90a86fe: libmv/ceres cmake/scons files are automatically generated
+Referenced by issue #38684, build failed on mac OS X 10.9.1 (deployment target 10.9)
