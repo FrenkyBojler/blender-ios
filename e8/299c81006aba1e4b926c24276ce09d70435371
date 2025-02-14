@@ -91,3 +91,4 @@ Referenced by issue #50062, Mask - Clicking in ActivePoint Parent makes Blender 
 Referenced by issue #50068, error while opening a file using dependency graph
 Referenced by issue #50046, Segmentation fault due to out-of-range VertexGroup.weight() call
 Referenced by issue #50043, Modifying multiple parameters not right on Dimensions
+Referenced by issue #50012, Opencl rendering not working on latest release
