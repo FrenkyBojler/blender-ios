@@ -9,3 +9,4 @@ Referenced by issue #105975, Add helper function to node_utils to create links t
 Referenced by issue #105619, Geometry Nodes: link to output inside node group is invalid when created from Python
 Referenced by issue #105314, Regression: ShaderNodeCustomGroup based nodes lost their UI
 Referenced by issue #104296, Regression: crash loading test file library_test_scene.blend
+Referenced by issue #104278, Crash in geometrynode doversion code when opening Sprite production file
