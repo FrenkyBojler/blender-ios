@@ -4,3 +4,4 @@ Referenced by issue #70206, 2.81 - On Texture Paint the UV Map doesnt show up on
 Referenced by issue #69051, Vertex / Weight Paint. Blender does not show if vertex is selected.
 Referenced by issue #68954, Auto Smooth option conflicts with uvs
 Referenced by issue #68658, Text offset makes scale to fit not to work
+Referenced by issue #66463, Speedup Mesh Batch Cache
