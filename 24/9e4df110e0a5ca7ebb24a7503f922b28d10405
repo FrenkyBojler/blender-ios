@@ -12,3 +12,4 @@ Referenced by commit 790cbeda2ce, Outliner: Port grease pencil effect elements t
 Referenced by commit 82141097789, Outliner: Port deform group elements to new tree-element code design
 Referenced by commit ee7ba1955c1, Outliner: Port particle system elements to new tree-element code design
 Referenced by commit bfae400ea55, Outliner: Port edit bone elements to new tree-element code design
+Referenced by commit af92de664b9, Outliner: Port bone elements to new tree-element code design
