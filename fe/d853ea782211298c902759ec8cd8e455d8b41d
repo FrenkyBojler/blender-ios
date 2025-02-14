@@ -1,2 +1,3 @@
 Referenced by commit 5e9ad8065a1, Code comments regarding last commit (forgotten to add before)
 Referenced by issue #52439, Crash after adjusting lenght of hair particles
+Referenced by issue #51296, Particle: UV Texture coordinate issue on hairs emitted from verts
