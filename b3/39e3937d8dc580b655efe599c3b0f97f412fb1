@@ -2,3 +2,4 @@ Referenced by commit 36f0ecb978b, Fix #117900: Sculpt mode doesn't clear face co
 Referenced by commit 5af8b839cfc, Fix #113988:  Deformed PBVH modifies original normals
 Referenced by issue #122947, Shading bugs of sculpting by curve stroke on an reused mesh
 Referenced by issue #114118, Fix #113988:  Deformed PBVH modifies original normals
+Referenced by issue #113988, Issue with weight painting a mesh (with a displacement modifier that results in non-manifold geometry) in Blender 4.0
