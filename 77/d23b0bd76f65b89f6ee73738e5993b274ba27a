@@ -12,3 +12,4 @@ Referenced by issue #74194, Crash when play after delete a grease pencil layer i
 Referenced by issue #74111, Animation Playback Delayed With Time Remapping And AV-Sync
 Referenced by issue #74118, blender 2.82 Blender 2.82 (sub 7) - Ubuntu 14.04 LTS  -   immediate crash on startup
 Referenced by issue #73894, Eevee render freezes the windows while it's rendering
+Referenced by issue #73442, Material Preview and Render Preview Wireframe culling not working when "In Front" is toggled
