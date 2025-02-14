@@ -1,2 +1,3 @@
 Referenced by commit 2b5733ff012, Fix T91192: Context.copy() crashes on file load
 Referenced by issue #100423, Addon's custom context menu entries get overridden by other addons
+Referenced by issue #91507, Blender crashes if user right clicks on confirm button ('Save Startup File' dialog)
