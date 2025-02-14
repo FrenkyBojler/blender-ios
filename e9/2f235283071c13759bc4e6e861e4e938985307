@@ -3,3 +3,4 @@ Referenced by issue #54887, OSL: Cycles Script Node with trace call crashes Blen
 Referenced by issue #53713, Python API: user_remap for images seems broken
 Referenced by issue #53694, Moving NLA strips causes Extrapolation to reset to Hold Forward
 Referenced by issue #53558, Image importing freezes blender
+Referenced by issue #53544, undo on bones in pose mode selects all channels in graph editor
