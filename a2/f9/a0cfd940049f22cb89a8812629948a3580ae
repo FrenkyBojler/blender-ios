@@ -1,0 +1,1 @@
+Referenced by issue #43536, BGE: pre_draw() callback returns the wrong logic.getCurrentScene() for background scenes
