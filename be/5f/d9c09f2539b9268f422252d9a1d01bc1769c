@@ -1,3 +1,4 @@
 Referenced by issue #64787, Eevee 'leaks' light across opaque surface while cycle renders properly
 Referenced by issue #64362, Viewport shading fails when a newly added primitive (from custom script) is modified in the redo panel
 Referenced by issue #64307, ERROR: Attempt to unbind (Surface Deform) from inactive dependency graph, when using *Redo Last*
+Referenced by issue #64300, Unparenting after transforming in an operator fails to update the depsgraph when using Redo Last
