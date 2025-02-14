@@ -1,1 +1,2 @@
 Referenced by commit 2d3379e2431, VSE: Fix wrong flag value
+Referenced by issue #86622, View Transform -> Filmic adds 333% to VSE render time and miscolors the result.
