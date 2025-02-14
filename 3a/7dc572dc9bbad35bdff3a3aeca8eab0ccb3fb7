@@ -2,3 +2,4 @@ Referenced by issue #105711, Regression: Clone Tool in Image Editor not showing 
 Referenced by issue #101864, Regression: Crash when lasso masking in sculpt mode
 Referenced by issue #101754, Geometry Nodes 3.4 is crashing on joining empty geometry
 Referenced by issue #101314, Sudden slow down in sculpt/edit mode after using UV project
+Referenced by issue #101045, Deleting a baked action results in an error
