@@ -1,1 +1,2 @@
 Referenced by commit 49f77b0d83d, Proper fix for T54337
+Referenced by issue #54337, Render crash with simple object only in debug build
