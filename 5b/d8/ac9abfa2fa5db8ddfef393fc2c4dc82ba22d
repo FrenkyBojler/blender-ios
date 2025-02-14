@@ -65,3 +65,4 @@ Referenced by issue #54025, Constant Crashing
 Referenced by issue #53994, Failed loading render kernel
 Referenced by issue #54002, Depsgraph does not update
 Referenced by issue #54004, GPU Denoising turning tiles pure black, resulting in a pure black final frame.
+Referenced by issue #53991, Drivers don't read Cycles Material nodes
