@@ -1,3 +1,4 @@
 Referenced by issue #64158, Mixed EEVEE SSS shader becomes brighter and brighter.
 Referenced by issue #63933, object selection failing, when opengl depth picking is enabled
 Referenced by issue #63894, Clicking on recent files from the splash screen opens the file browser instead
+Referenced by issue #63784, Diffuse becomes black when connecting a transmissive Principled BSDF to a Mix Shader node in EEVEE
