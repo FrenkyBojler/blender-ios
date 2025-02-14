@@ -1,2 +1,3 @@
 Referenced by commit c2e36c09b99, Fix variable value assigned twice in succession
 Referenced by commit 93afc50ac3e, Fix large incremental snap values in uv editor
+Referenced by issue #101991, "Absolute Grid Snap" not working
