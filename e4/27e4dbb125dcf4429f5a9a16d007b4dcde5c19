@@ -1,0 +1,1 @@
+Referenced by issue #93871, img.has_data Always returns True since version 3.0
