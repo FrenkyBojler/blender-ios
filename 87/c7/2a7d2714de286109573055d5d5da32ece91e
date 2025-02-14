@@ -1,1 +1,2 @@
 Referenced by commit 648df0fcdb8, Revert "BKE: Changing ID freeing order."
+Referenced by issue #54121, Crash on loading saved file (invalid view layer)
