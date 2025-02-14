@@ -6,3 +6,4 @@ Referenced by issue #96323, Regression: Invert colour is not reflected in the im
 Referenced by issue #96324, Regression: Resizing an image is not correctly reflected in the image editor until the UI is updated
 Referenced by issue #96300, Texture Baking
 Referenced by issue #96163, Regression: Image editor fails to update after undoing stroke
+Referenced by issue #96116, Image editor does not update when you add additional UDIM tiles
