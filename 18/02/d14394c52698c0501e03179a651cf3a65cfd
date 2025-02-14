@@ -2,3 +2,4 @@ Referenced by issue #53683, 2.79a release
 Referenced by issue #53528, Empty thumbnails in filebrowser
 Referenced by issue #53490, keyframed Boolean causes CUDA error
 Referenced by issue #53472, Cycles doesn't render smoke properly with adjusted clipping distances
+Referenced by issue #53463, Rotation numerical imput shows instable behaviour
