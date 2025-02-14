@@ -1,1 +1,2 @@
 Referenced by commit 7c89efd7878, Fix #120809: Skip saving use_selected_objects
+Referenced by issue #120809, Once holding Alt to add modifiers, it will keep performing batch adding even without holding Alt
