@@ -1,1 +1,2 @@
 Referenced by commit 20a8bc12048, Fix #105455: GPU subdivision with textures corrupts display after undo
+Referenced by issue #105844, Fix #105455: GPU subdivision with textures corrupts display after undo
