@@ -1,2 +1,3 @@
 Referenced by issue #66083, Hair Info -> Tangent Normal still not working properly in Eevee
 Referenced by issue #65042, Hair Info Tangent Normal -> Principled BDSF Normal not working correctly
+Referenced by issue #64149, Regression in dynamic paint, blender 2.8: cannot make an object act as canvas and a brush simultaneously.
