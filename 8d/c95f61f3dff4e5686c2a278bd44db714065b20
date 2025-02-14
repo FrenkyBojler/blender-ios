@@ -5,3 +5,4 @@ Referenced by issue #85641, Freeze when using Object.ray_cast in a driver script
 Referenced by issue #84371, Audio glitching in Chrome when Blender is open
 Referenced by issue #84268, Crash when selecting in weight mode (Paint Mask)
 Referenced by issue #83523, Blender-2.92.0-ba740ad2abc6-macOS  crashing
+Referenced by issue #82788, Screen flickers / goes black/ red when starting up Blender in fullscreen via startup file.
