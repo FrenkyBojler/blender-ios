@@ -28,3 +28,4 @@ Referenced by issue #56137, Will not play animation after weight painting
 Referenced by issue #56074, Remove Doubles produces holes in mesh
 Referenced by issue #56062, Deleting Node with driver attach causes crash
 Referenced by issue #55902, Blender crashes when i want to open attatched File
+Referenced by issue #55412, Crop+full sample crashes blender (blender internal render)
