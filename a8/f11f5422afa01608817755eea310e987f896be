@@ -1,0 +1,1 @@
+Referenced by commit 293dc4e084e, Revert "Fix T52871: `BLI_polyfill_beautify_quad_rotate_calc_ex` was mistakenly considering the state as degenerated"
