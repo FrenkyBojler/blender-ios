@@ -1,0 +1,1 @@
+Referenced by issue #61704, Eevee - material gets darkened when shader is being mixed with itself using 'mix shader'
