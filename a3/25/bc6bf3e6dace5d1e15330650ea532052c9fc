@@ -1,2 +1,3 @@
 Referenced by issue #59223, Textured spotlights not working in OpenCL GPU compute rendering
 Referenced by issue #58953, IES Light texture not working for Opencl GPU render
+Referenced by issue #57645, Object Info node random output always returns zero for lights with GPU render (Cycles)
