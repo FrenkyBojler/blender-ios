@@ -1,3 +1,4 @@
 Referenced by commit 6672b5373f1, Fix T103971: uv packing wasn't ignoring uv islands on hidden faces
 Referenced by commit 143e74c0b8e, Fix (unreported) uv unwrap selected was splitting selection
 Referenced by commit 0ce18561bc8, Fix (unreported) uv unwrap selected was splitting selection
+Referenced by issue #103971, Regression: Live unwrapping wraps hidden faces
