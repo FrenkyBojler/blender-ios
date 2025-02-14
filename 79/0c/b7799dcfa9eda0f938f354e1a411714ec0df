@@ -1,2 +1,3 @@
 Referenced by issue #61857, Eevee dephth of field not working if the camera is in orthographic mode.
 Referenced by issue #61729, After adding and deleting driver Value node stucks (Material)
+Referenced by issue #61724, uv export absent
