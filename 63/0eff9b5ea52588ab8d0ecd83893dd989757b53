@@ -1,0 +1,1 @@
+Referenced by issue #127672, 4.2 backport: Fix fake_retiming_key_init returning uninitialized stack memory
