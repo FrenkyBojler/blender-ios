@@ -4,3 +4,4 @@ Referenced by commit 09b9e1e95ee, Fix T102225: Crash opening menus
 Referenced by commit 518d7dbebbd, UI/Nodes: Update node add menu as assets get loaded
 Referenced by commit 78a7d5cfccd, UI: Support C defined menu types to listen to notifiers
 Referenced by issue #107427, Fix #107422: Mesh context menus do not open with the last used option
+Referenced by issue #107422, Regression: Mesh edit context menus do not open with the last used option under the cursor
