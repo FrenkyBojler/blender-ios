@@ -2,3 +2,4 @@ Referenced by commit 46e13cf8a52, Fix #104817: Camera lens gizmo out of sync whe
 Referenced by commit 08c4f134d29, Fix T92783: Light size controller doesn't update position
 Referenced by commit 5c6cc931b22, Gizmo: add flag to hide the gizmo group during interaction
 Referenced by issue #104817, Regression: Drawing bug of the Camera Lens gizmo when using the 3D Viewport Axis
+Referenced by issue #94857, Regression: 'Gizmo Operator' from python templates is spining in accumulative way, when dragged.
