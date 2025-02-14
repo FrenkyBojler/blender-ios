@@ -1,0 +1,1 @@
+Referenced by issue #84512, Crash - Compositor. Depth pass in the "size" input socket of "Blur" node. Only Cycles.
