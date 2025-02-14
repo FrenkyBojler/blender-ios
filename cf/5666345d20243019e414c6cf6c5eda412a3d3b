@@ -1,2 +1,3 @@
 Referenced by commit 678b827605c, Fix: USD export: revert renaming active UV maps
 Referenced by issue #112234, Fix: USD export: revert renaming active UV maps
+Referenced by issue #111073, Regression: Crash when F3 is pressed
