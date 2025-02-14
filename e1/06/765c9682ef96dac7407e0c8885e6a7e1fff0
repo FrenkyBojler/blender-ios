@@ -1,0 +1,1 @@
+Referenced by issue #66544, Crashes a lot in Blender 2.8  EEVEE using linux and amd gpu-pro driver 19.20  with error:GPUTexture: texture alloc failed. Likely not enough Video Memory.
