@@ -3,3 +3,4 @@ Referenced by issue #56076, Crash when increasing shadow map resolution with EEV
 Referenced by issue #56077, 3D cursor moving Crash
 Referenced by issue #56081, make static override on a linked collection will crash blender
 Referenced by issue #56068, Basic Vorkflov not vorking
+Referenced by issue #56069, crash 2.8 selection to cursor
