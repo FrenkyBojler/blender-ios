@@ -1,1 +1,2 @@
 Referenced by commit fb47c131df5, Fix crash when open default template
+Referenced by issue #74102,  2.83.4 Immediate crash upon using splash screen to open Recent/ New files.
