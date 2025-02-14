@@ -1,1 +1,2 @@
 Referenced by issue #131977, Memory leak after remeshing in sculpt mode
+Referenced by issue #131553, Crash when activating `Q` quick menu after putting Overlay operators in it.
