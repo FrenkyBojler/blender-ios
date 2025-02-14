@@ -1,1 +1,2 @@
 Referenced by commit 8022fc32206, Fix Blender building after recent 'cleanup'.
+Referenced by issue #74781, Missing include in avi_rgb.c for the BLI_assert()
