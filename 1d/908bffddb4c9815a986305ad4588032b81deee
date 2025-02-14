@@ -6,3 +6,4 @@ Referenced by issue #60827, Edit mode can generate an unwanted x-ray veiw with x
 Referenced by issue #60822, Extend Vertices (Alt-D) doesn't support "Redo"
 Referenced by issue #60806, CUDA error: Launch failed in cuCtxSynchronize(), line 1679
 Referenced by issue #60777, grid fill bug on repeat last operation
+Referenced by issue #59958, Blender 2.80 - Removing second Particle System cache causes crash
