@@ -1,2 +1,3 @@
 Referenced by issue #62112, Blender miscounts object faces
 Referenced by issue #62073, Cycles render issue.
+Referenced by issue #61258, Blender 2.8 freezes when save buffer is enabled and the rendering is cancelled
