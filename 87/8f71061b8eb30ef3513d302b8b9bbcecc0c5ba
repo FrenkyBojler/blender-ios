@@ -3,3 +3,4 @@ Referenced by issue #122008, Miniature view of the scene appears at specific vie
 Referenced by issue #121294, Geometry Node: Appended node group not visible in Add Modifier menu
 Referenced by issue #120990, EXCEPTION_ACCESS_VIOLATION
 Referenced by issue #117882, Geonode does not propagate Freestyle Edge Data properly
+Referenced by issue #115881, Rendering: Blender "silently" switches to the wrong color management if config is missing
