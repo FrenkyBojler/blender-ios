@@ -1,1 +1,2 @@
 Referenced by commit 1e29849da02, Fix for cursor not being reset on file load
+Referenced by issue #47204, Region selection tools (box, circle, lasso) select extra vertices
