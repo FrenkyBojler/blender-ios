@@ -18,3 +18,4 @@ Referenced by issue #112014, Regression: Crash when creating compositor node gro
 Referenced by issue #111936, Regression: Nodes: Memory leaks
 Referenced by issue #111905, Error deleting an object with shape keys
 Referenced by issue #111890, Blender 4 Alpha Won't Open
+Referenced by issue #111817, "Move to Nodes" operator broken after node group interface refactor
