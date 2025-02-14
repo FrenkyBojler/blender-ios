@@ -20,3 +20,4 @@ Referenced by issue #42989, Viewing normal map in viewport causes weird colours 
 Referenced by issue #42970, o blender nao inicia nenhuma das versões muito menos instala
 Referenced by issue #42963, One pixel errors when baking displacement map
 Referenced by issue #42965, Stacked UV faces don't display the normals properly when one set of stacked faces has been rotated 180 degrees.
+Referenced by issue #42953, Crash: Ubuntu 14.04 x64 Selection of any object
