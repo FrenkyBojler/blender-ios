@@ -4,3 +4,4 @@ Referenced by issue #76890, Performace regression in Blender 2.83 and Blender 2.
 Referenced by issue #60695, Optimized per-datablock global undo
 Referenced by issue #42580, Artifacts during baking.
 Multicolored dots and dashes.
+Referenced by issue #38888, Rotate around selection using incorrect center point
