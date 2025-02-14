@@ -1,2 +1,3 @@
 Referenced by issue #73043, Principled BSDF denoising albedo not working well for sheen and metal
 Referenced by issue #69870, Adaptive Domain causing 'twitches' in gas position when noise applied
+Referenced by issue #57669, 'constant' f-curve not working happily with sampled motion blur Blender 2.79b
