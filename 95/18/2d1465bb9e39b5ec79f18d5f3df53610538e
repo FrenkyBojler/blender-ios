@@ -21,3 +21,4 @@ Referenced by issue #42251, Blender crash upon closing with VOBs enabled (today'
 Referenced by issue #42239, Rigid body: Collision shape issues
 Referenced by issue #42212, Probable bug in (regular) Path tracing method
 Referenced by issue #42213, User preferences crashes Blender
+Referenced by issue #42214, Musgrave Texture gives different results when rendered and when baked using Cycles Render
