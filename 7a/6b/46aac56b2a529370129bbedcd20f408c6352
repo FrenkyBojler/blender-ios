@@ -1,2 +1,3 @@
 Referenced by commit 2b9eea17cca, Particles: change default name to "ParticleSystem"
 Referenced by issue #86366, Vertex group for new particle system with same settings resets.
+Referenced by issue #62163, duplicate particle settings crashes blender
