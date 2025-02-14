@@ -1,1 +1,2 @@
 Referenced by commit ccbfbeba743, Fix crash in rB37493fb9f - there is no guaranty CTX_wm_foo() will return a valid pointer!
+Referenced by issue #48192, Cursor remains a 'double headed arrow' when opening the 'Add Node' menu.
