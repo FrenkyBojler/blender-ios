@@ -1,0 +1,1 @@
+Referenced by commit 7886db9ba97, Mesh eval: Do not condition clearing of auto texspace to dirty bbox.
