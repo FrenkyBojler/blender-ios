@@ -3,3 +3,4 @@ Referenced by issue #64653, Viewport dead on Macpro
 Referenced by issue #64642, UI glitch after pressing Preferences - "Reset to Defaults" entry
 Referenced by issue #64617, I'm trying to add a background image
 Referenced by issue #64477, Crash with selection and topology mirror
+Referenced by issue #63802, IES lights not working if Open Shading Language is enabled.
