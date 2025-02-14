@@ -1,1 +1,2 @@
 Referenced by issue #43139, Calling bpy.ops.screen.screen_full_area() multiple times in python console causes Blender to crash
+Referenced by issue #43119, mathutils.intersect_point_line returns vector of different dimension than inputs
