@@ -4,3 +4,4 @@ Referenced by issue #57929, Cache line in timeline is not updated when changing 
 Referenced by issue #57930, Wrong hair shading in particle edit mode
 Referenced by issue #57931, Particle weight edit mode is not supported
 Referenced by issue #57933, Assert failure adding grease pencil stroke
+Referenced by issue #57934, Regression in classroom benchmark scene
