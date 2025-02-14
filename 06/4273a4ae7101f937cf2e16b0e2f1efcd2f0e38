@@ -2,3 +2,4 @@ Referenced by commit 2b9965122e1, Sound: Revert all the recent changes to sound
 Referenced by issue #64390, Timeline frame crash
 Referenced by issue #64185, Client Crashes when the frame position value is changed.
 Referenced by issue #64190, Blender Crash using Timeline Editor
+Referenced by issue #64152, Blender Auto-Close
