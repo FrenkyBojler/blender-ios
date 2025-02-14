@@ -1,1 +1,2 @@
 Referenced by issue #112553, Cycles: Switch to default Tabulated Sobol when loading older files
+Referenced by issue #103284, Files saved with the Sobol Burley sampling pattern will continue to use the Sobol Burley sampling pattern in later versions of Blender
