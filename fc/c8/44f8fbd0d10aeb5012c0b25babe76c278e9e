@@ -1,2 +1,3 @@
 Referenced by commit 25d30e6c99a, Fix T92857: Deadlock in geometry nodes curve multi-threading
 Referenced by commit 0de3d4e8c75, Fix T90847: snap to face of Add Primitive tool not working in edit mode
+Referenced by issue #89194, Opening even remotely complex scenes with many objects takes much longer than before
