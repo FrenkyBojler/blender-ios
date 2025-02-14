@@ -1,2 +1,3 @@
 Referenced by commit 7e8525663c7, Font objects: Support proper auto-space
 Referenced by issue #53683, 2.79a release
+Referenced by issue #53559, Cycles does not respect the automatically calculated texture space for objects of type TEXT
