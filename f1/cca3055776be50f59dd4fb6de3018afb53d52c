@@ -24,3 +24,4 @@ Referenced by issue #94314, OpenEXR can't be used to save results during the ren
 Referenced by issue #94304, Remesh + symmetry model bug? : Blender 3.0.0
 Referenced by issue #94264, Blender Crashing While Appending Animation Action
 Referenced by issue #94213, Old blend file corrupts to crash blender, I guess
+Referenced by issue #94217, When baking to two images, CUDA crashes on the second image.
