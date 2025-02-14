@@ -2,3 +2,4 @@ Referenced by issue #77249, Operators that create library data without being fla
 Referenced by issue #76558, Decreasing Viewport Anti-Aliasing levels makes cube whiter
 Referenced by issue #76381, Blender 2.8 external renderer shader node bug
 Referenced by issue #76318, Preferences: Lower left button broken
+Referenced by issue #75995, Cycles Artifacts with Overlapping / Intersecting Volumes
