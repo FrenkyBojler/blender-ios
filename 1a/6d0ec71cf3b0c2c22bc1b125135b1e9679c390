@@ -3,3 +3,4 @@ Referenced by issue #106106, .blend file crashing
 Referenced by issue #103965, losing geometry after joining parts
 Referenced by issue #99191, Regression: Blender crashes when texture painting (caused by boolean modifers)
 Referenced by issue #99015, Segmentation fault while texture painting
+Referenced by issue #93272, mesh boolean node breaks material assignments.
