@@ -1,1 +1,2 @@
 Referenced by issue #86939, Cycles rendered view refresh on GPU
+Referenced by issue #86601, Cycles: Each time you move an object with displacement shader, it's move up and up again
