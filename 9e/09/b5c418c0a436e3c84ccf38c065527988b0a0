@@ -8,3 +8,4 @@ Referenced by issue #58814, BMesh boolean is just too much unreliable
 Referenced by issue #55466, Boolean Modifier set to difference not substracting the whole volume
 Referenced by issue #54024, BMesh boolean fails when edge is co-planar to face (under some circumstances)
 Referenced by issue #47129, new Bmesh boolean is deleting some of edges data, (Creases and Bweigh)
+Referenced by issue #47108, Bmesh boolean fails with overlapping faces
