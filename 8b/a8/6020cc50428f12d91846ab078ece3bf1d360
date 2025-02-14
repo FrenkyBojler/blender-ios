@@ -2,3 +2,4 @@ Referenced by issue #60647, regression - corruption of files
 Referenced by issue #60607, The tool system's "Spin" and "Spin (Duplicate)" operators are the same
 Referenced by issue #60578, Crash selecting vertex after hiding portion of mesh
 Referenced by issue #60579, 3D viewport perfomrance lag with shrinkwrap modifier, lengthy explanation and video
+Referenced by issue #60576, Cycles slow render start with GTX 2070
