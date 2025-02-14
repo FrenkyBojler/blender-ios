@@ -1,1 +1,2 @@
 Referenced by commit ce48a2a85c3, Fix #111934: crash sculpting on mesh
+Referenced by issue #111934, Regression: Geometry Nodes: Crash on sculpting mesh with geometry nodes
