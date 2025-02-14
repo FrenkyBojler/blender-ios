@@ -80,3 +80,4 @@ Referenced by issue #41301, Composite / OpenEXRMultiLayer output problem when no
 Referenced by issue #41302, Blender Crashes after changing user settings and then panning/zooming
 Referenced by issue #41307, FBX exporter writes malformed 'Current' section
 Referenced by issue #41287, Color Picker applies color management incorrectly in 2.71
+Referenced by issue #41295, Rigid bodyfield weights not working.??
