@@ -1,1 +1,2 @@
 Referenced by commit fd2668a368d, Overlay: Fix overlay image shaders
+Referenced by issue #101445, Regression: halo Particles are not working.
