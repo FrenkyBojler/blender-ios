@@ -1,1 +1,2 @@
 Referenced by commit fb875786987, Fix T96255: Node socket fails to drag
+Referenced by issue #84181, Regression? Disabled layout portion passes mouse through
