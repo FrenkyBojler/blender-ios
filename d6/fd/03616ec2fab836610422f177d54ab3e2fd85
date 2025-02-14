@@ -1,2 +1,3 @@
 Referenced by issue #82870, Continuous grab is broken 2.92.0 Alpha macOS
 Referenced by issue #81704, Spline IK "Bone Original" Y-scale Causes Scaling
+Referenced by issue #39144, Moving cursor quickly jumps it out of the window when translating objects
