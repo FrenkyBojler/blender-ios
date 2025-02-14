@@ -11,3 +11,4 @@ Referenced by issue #55826, Crash when add any type object in new scene link
 Referenced by issue #55828, option lineset freestyle only show in first view layer
 Referenced by issue #55809, Eevee crash on render (F12)
 Referenced by issue #55810, Crashes Clicking Material Tab in Properties Editor with Eevee Selected
+Referenced by issue #55811, Blender crash when nothing is selected and Ctrl+Tab is pressed
