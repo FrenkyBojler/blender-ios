@@ -1,0 +1,1 @@
+Referenced by issue #51540, Crash with Carve solver and boolean modifier on MSVC2015 builds (MSVC2013 builds are OK)
