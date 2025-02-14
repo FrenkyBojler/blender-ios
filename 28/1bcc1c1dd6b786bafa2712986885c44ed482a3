@@ -1,3 +1,4 @@
 Referenced by commit d86d7c935ef, Fix T97827: material preview not displaying textures
 Referenced by issue #98825, Regression: Eevee shader compilation error
 Referenced by issue #97827, Regression: Material Preview Not Displaying Textures
+Referenced by issue #93179, Eevee Attribute Rendering Has Some Left Out Nodes Comparing with Cycles
