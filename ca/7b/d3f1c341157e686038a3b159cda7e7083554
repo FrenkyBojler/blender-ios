@@ -1,1 +1,2 @@
 Referenced by issue #72894, Mantaflow: several crashes due to null pointers.
+Referenced by issue #72789, Mantaflow cache doesn't work with non-latin cache directory
