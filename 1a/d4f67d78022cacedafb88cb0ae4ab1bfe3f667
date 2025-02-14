@@ -2,3 +2,4 @@ Referenced by issue #113942, Regression: Blender 4.0 Beta - Bump Node Issue
 Referenced by issue #112642, When double clicking to selecting text the first characters aren't selected
 Referenced by issue #111278, Regression: Shift+Arrow on selected text teleports the start of the text selection to double click position
 Referenced by issue #108403, Regression: Copying text selected with double-click in the Python Console instead copies the text after the selection
+Referenced by issue #107618, oneAPI device fails at load or kernels compilation on Archlinux
