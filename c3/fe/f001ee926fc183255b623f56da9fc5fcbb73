@@ -1,1 +1,2 @@
 Referenced by commit b98a937db64, Fix T99364: Unable to select bones when custom shape display is disabled
+Referenced by issue #46009, Render view not updated when Images Draw Method is GLSL
