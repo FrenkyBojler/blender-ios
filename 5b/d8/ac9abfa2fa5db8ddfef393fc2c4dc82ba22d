@@ -54,3 +54,4 @@ Referenced by issue #54157, Cycles GPU compute device doesn't work
 Referenced by issue #54132, RGB Curves Node missing the curve
 Referenced by issue #54133, Crash when baking normals with Cycles from object with dupli children
 Referenced by issue #54112, Curve resolution_u param is ignored when it's set before curve.splines.new()
+Referenced by issue #54096, Subdivision Surface + Boolean Modifiers + Transform = crash
