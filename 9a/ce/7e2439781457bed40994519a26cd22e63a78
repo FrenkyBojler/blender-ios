@@ -1,3 +1,4 @@
 Referenced by commit 266caa18209, Fix T76755: texture paint on udims crash
 Referenced by issue #76757, texture paint crash
 Referenced by issue #75086, Texture Painting Image Import Crashes.
+Referenced by issue #74925, Texture Paint Stencil Mask crash
