@@ -1,2 +1,3 @@
 Referenced by issue #72240, Blender Crashes Upon Startup in Windows 7 x64 with GPUShader Compile Error
 Referenced by issue #64046, "Convert to Geometry" option is not present in latest Blender 2.8 for Mac OSX
+Referenced by issue #63698, Selecting Materials after creating a new file throws EXCEPTION_ACCESS_VIOLATION
