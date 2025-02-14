@@ -17,3 +17,4 @@ Referenced by issue #45544, Adding Armatures takes an increasing amount of logic
 Referenced by issue #45532, Non-scalability of Dictionaries stored as ID Properties
 Referenced by issue #45467, Filenames/Itemnames cutted in browser
 Referenced by issue #45459, Edge Length with Separate Units Displayed As 1m 100cm
+Referenced by issue #45443, Render passes are not browsing via framebuffer menu
