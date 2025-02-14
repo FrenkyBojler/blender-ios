@@ -1,2 +1,3 @@
 Referenced by issue #40325, UILists do not save their height anymore
 Referenced by issue #39256, UI jitter when scrolling
+Referenced by issue #39229, Limit Scale bone constraint doesn't properly account for negative values.
