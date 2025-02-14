@@ -1,0 +1,1 @@
+Referenced by issue #49231, Static linking of Blender 2.77a with boost 1.60.0 fails due to boost_locale and boost_system
