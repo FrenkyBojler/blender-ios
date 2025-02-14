@@ -1,1 +1,2 @@
 Referenced by commit 4b043994e87, GPU Matrix API: clean up after 2D-3D unification
+Referenced by issue #51242, 2.8 crashes adding texture in sculpt mode
