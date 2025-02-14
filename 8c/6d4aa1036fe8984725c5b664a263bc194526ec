@@ -1,3 +1,4 @@
 Referenced by commit 9332f277020, Fix #104124: Grease Pencil fills cover the lines below when drawing
 Referenced by issue #105797, Fix #104124: Grease Pencil fills cover the lines below when drawing
 Referenced by issue #104124, Regression: Grease Pencil fill lines cover the lines below when making them
+Referenced by issue #102126, Regression: Grease Pencil: Broken 2D Layering
