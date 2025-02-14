@@ -1,1 +1,2 @@
 Referenced by commit 0cb2c20ada2, Sequencer: Fix UI when scene strip has a NULL scene
+Referenced by commit 289825ee377, Fix T64720: Sequencer UI doesn't draw properly with some strip types
