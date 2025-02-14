@@ -1,2 +1,3 @@
 Referenced by commit e11b33fec33, Remove math for 2D affine transform
 Referenced by commit 57136264220, VSE: Improve motion-picture workflow
+Referenced by issue #82165, Video Editing: Crop is Stretch & Offset
