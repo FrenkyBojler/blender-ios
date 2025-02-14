@@ -243,11 +243,16 @@ static IndexMask simplify_fixed(const bke::CurvesGeometry &curves,
   const OffsetIndices points_by_curve = curves.points_by_curve();
   const Array<int> point_to_curve_map = curves.point_to_curve_map();
 
+  /* Only work on strokes that have more than 2 points. */
   const IndexMask valid_strokes = IndexMask::from_predicate(
       stroke_selection, GrainSize(2048), memory, [&](const int64_t i) {
         return points_by_curve[i].size() > 2;
       });
+
+  /* Construct a points mask from valid strokes. */
   const IndexMask selected_points = IndexMask::from_ranges(points_by_curve, valid_strokes, memory);
+
+  /* Find out which points to keep among all selected points. */
   const IndexMask selected_to_keep = IndexMask::from_predicate(
       selected_points, GrainSize(2048), memory, [&](const int64_t i) {
         const int curve_i = point_to_curve_map[i];
@@ -255,6 +260,8 @@ static IndexMask simplify_fixed(const bke::CurvesGeometry &curves,
         const int local_i = i - points.start();
         return (local_i % int(math::pow(2.0f, float(step))) == 0) || points.last() == i;
       });
+
+  /* All the points that are not selected are also kept. */
   return IndexMask::from_union(
       {selected_to_keep, selected_points.complement(curves.points_range(), memory)}, memory);
 }
@@ -326,12 +333,18 @@ static int grease_pencil_stroke_simplify_exec(bContext *C, wmOperator *op)
         const OffsetIndices<int> points_by_curve = curves.points_by_curve();
         const Array<int> point_to_curve_map = curves.point_to_curve_map();
         const float merge_distance = RNA_float_get(op->ptr, "distance");
+
+        /* Only work on strokes that have more than 2 points. */
         const IndexMask valid_strokes = IndexMask::from_predicate(
             strokes, GrainSize(2048), memory, [&](const int64_t i) {
               return points_by_curve[i].size() > 2;
             });
+
+        /* Construct a points mask from valid strokes. */
         const IndexMask selected_points = IndexMask::from_ranges(
             points_by_curve, valid_strokes, memory);
+
+        /* Only merge points in between the first and last points of a stroke. */
         const IndexMask filtered_points = IndexMask::from_predicate(
             selected_points, GrainSize(2048), memory, [&](const int64_t i) {
               const int curve_i = point_to_curve_map[i];
