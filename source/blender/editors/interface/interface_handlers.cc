@@ -1127,8 +1127,11 @@ static void ui_apply_but_funcs_after(bContext *C)
     if (after.undostr[0]) {
       /* Remove "Adjust Last Operation" HUD. Using it would revert this undo push which isn't
        * obvious, see #78171. */
-      WM_operator_stack_clear(CTX_wm_manager(C));
-      ED_undo_push(C, after.undostr);
+      const ARegion *region = CTX_wm_region(C);
+      if (region->regiontype != RGN_TYPE_HUD) {
+        WM_operator_stack_clear(CTX_wm_manager(C));
+        ED_undo_push(C, after.undostr);
+      }
     }
   }
 }
