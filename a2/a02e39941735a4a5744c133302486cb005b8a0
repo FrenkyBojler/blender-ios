@@ -1,0 +1,1 @@
+Referenced by issue #90830, compositor crop node is generating 1 pixel too many on both x and y.
