@@ -1,1 +1,2 @@
 Referenced by commit 4580c18c56f, Correct error in 7c4826d9717911d31e9b60908e6d3279f997342d
+Referenced by issue #98552, Bezier curve knot/handle selection (only select the knot when picking)
