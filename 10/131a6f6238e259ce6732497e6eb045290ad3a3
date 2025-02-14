@@ -1,1 +1,2 @@
 Referenced by commit 7ca651d1827, Mesh: Remove unnecessary edge draw flag
+Referenced by commit 145839aa42f, Fix T102365: Wireframe skips edges after recent cleanup
