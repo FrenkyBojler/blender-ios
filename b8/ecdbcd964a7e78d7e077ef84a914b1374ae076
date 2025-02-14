@@ -2,3 +2,4 @@ Referenced by commit bffa1681577, Fix T90854: Cycles, normal map fails with appl
 Referenced by commit 962153dbedb, Cycles: missing case for ignoring subdivision vertex normals
 Referenced by commit c0dd6f1164e, Fix T90776: Cycles normal map node produces artifacts
 Referenced by issue #90854, Normal maps broken in master... again
+Referenced by issue #90815, Missing normal map output with CPU rendering, OSL, and shade smooth (Recent regression)
