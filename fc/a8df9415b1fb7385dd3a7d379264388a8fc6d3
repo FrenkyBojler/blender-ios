@@ -2,3 +2,4 @@ Referenced by issue #114498, Cycles F82 tint handling
 Referenced by issue #113763, Spline attribute not rendered in Cycles (regression from 3.6)
 Referenced by issue #112761, Regression: Box select no longer works with tweak tool in VSE
 Referenced by issue #112214, EEVEE crashed at `evee_legacy_volumes_clear Linking`
+Referenced by issue #112119, The Chinese input method does not work properly when searching
