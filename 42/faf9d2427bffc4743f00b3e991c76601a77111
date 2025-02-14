@@ -1,1 +1,2 @@
 Referenced by commit a1b95f69fa9, Revert "Fix #116082: support changing interface socket bl_socket_idname"
+Referenced by issue #118529, Blender crashes during startup with sverchok add-on
