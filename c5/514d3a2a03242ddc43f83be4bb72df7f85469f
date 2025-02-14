@@ -1,2 +1,3 @@
 Referenced by commit 9734a78bc81, macOS: Fix build error due to std::optional<T>::value
 Referenced by issue #88685, Crash 3.0: blender crashes on file open (2.92 file with geometry nodes)
+Referenced by issue #84433, Multi Input Socket for Nodes
