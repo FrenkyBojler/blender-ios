@@ -8,3 +8,4 @@ Referenced by issue #109665, Fix #109460: vertex weight slider not working corre
 Referenced by issue #109583, Regression: Crash on COW delete of shared custom data
 Referenced by issue #109460, Vertex weight slider not functional in a smooth way (weightpaint mode, editmode is fine)
 Referenced by issue #108198, Regression: Particle hair crash when using Hair Dynamisc
+Referenced by issue #95845, Use Copy on Write in more places.
