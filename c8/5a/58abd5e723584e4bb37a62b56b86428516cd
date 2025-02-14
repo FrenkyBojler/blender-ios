@@ -3,3 +3,4 @@ Referenced by issue #45237, Dither dosn't work in Blender Internal Renderer 2.75
 Referenced by issue #45224, Exporting screencast to H.264/MPEG-4 crashes
 Referenced by issue #45226, Memory leak and freeze when opening the properties panel
 Referenced by issue #45215, New Material Creation causes Error: EXCEPTION_ACCESS_VIOLATION
+Referenced by issue #45221, Cutting meta strip including keyframed speed effect produces right part with incorrect length of internal strips
