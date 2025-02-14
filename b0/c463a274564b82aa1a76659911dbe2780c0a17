@@ -1,1 +1,2 @@
 Referenced by issue #57938, Dynamic paint baking issues
+Referenced by issue #57927, heap-use-after-free when resizing image empty
