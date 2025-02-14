@@ -1,2 +1,3 @@
 Referenced by issue #58037, Localizzazione in italiano
 Referenced by issue #57066, Crash due to i18n translation at startup on OSX Mojave  (versionning code, Data names translation enabled)
+Referenced by issue #56374, Crash when reopen Blender after setting the international font
