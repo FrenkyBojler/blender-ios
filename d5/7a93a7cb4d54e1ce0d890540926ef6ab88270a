@@ -1,0 +1,1 @@
+Referenced by issue #44383, ops.view3d.select_or_deselect_all only select a face if the mouse cursor is in the middle of the face.
