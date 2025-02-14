@@ -35,3 +35,4 @@ Referenced by issue #46670, Volume Emission doesn't render when background is tr
 Referenced by issue #46654, Blender Game Engine Physics : Convex Hull and Triangle Mesh Collision Bounds error.
 Referenced by issue #46657, VSE: Strip length jumps to a negative number
 Referenced by issue #46651, select linked (L) crashes Blender when used on isolated edges, marked as seams
+Referenced by issue #46632, Play animation not working when cursor over F-curves n panel
