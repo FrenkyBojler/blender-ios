@@ -9,3 +9,4 @@ Referenced by commit 59343ee1627, Fix T95839: Data race when lazily creating mes
 Referenced by commit 284cef473fe, Fix T95919: Apply Pose as Rest Pose Operator crashes
 Referenced by commit c0674aa1450, Fix T95334: Crash with no vertex normals in multires bake
 Referenced by commit 2f591adc1a9, Fix T95334: Crash with no vertex normals in multires bake
+Referenced by commit b7a27efd781, Cleanup: Remove unused subdiv functions
