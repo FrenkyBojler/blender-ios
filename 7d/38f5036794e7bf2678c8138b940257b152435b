@@ -1,1 +1,2 @@
 Referenced by commit ecc395e473d, Fix T76902: face sets checkbox broken
+Referenced by issue #75908, Making changes to your vertex painted sculpt in Sculpt Mode creates rendering artefacts in the colours relative to your camera position
