@@ -1,1 +1,2 @@
 Referenced by issue #72916, Fluid/Smoke modifier has an "Apply" button, which is misleading/dangerous (only meaningful for mesh-baked liquid domains)
+Referenced by issue #72897, Move Channels operator moves Grease Pencil Layers, causing keymap conflict
