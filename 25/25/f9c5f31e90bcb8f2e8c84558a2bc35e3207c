@@ -1,2 +1,3 @@
 Referenced by issue #39474, Particle Ageing (via Math Node) does not map correctly to ColorRamp Fac
 Referenced by issue #39268, CUDA error for big scenes
+Referenced by issue #39254, Cycles GPU fails
