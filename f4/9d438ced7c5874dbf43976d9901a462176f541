@@ -1,1 +1,2 @@
 Referenced by commit 6c11733dfbc, Fix T91190: Remove gaps operator not working
+Referenced by issue #91190, VSE: Out-of-bounds metastrip contents block operation of "Remove Gaps" function on main timeline
