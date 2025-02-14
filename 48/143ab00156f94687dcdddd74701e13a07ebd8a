@@ -1,2 +1,3 @@
 Referenced by issue #102865, oneapi using CPU when GPU selected
 Referenced by issue #102336, Regression: Enabling Dynamic Topology Causes Crash on Plane Mesh
+Referenced by issue #102337, Regression: Dragging move gizmo causes crash in sculpt mode
