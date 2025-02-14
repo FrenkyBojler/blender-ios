@@ -10,3 +10,4 @@ Referenced by issue #62616, belender becomes unresponsive when subdiv is inserte
 Referenced by issue #62572, unwrapping bug
 Referenced by issue #62583, poly build alt +click does not desolve vertex
 Referenced by issue #62557, object display as wire , invisible when overlay is turned off
+Referenced by issue #62550, error traceback call during unwrapping
