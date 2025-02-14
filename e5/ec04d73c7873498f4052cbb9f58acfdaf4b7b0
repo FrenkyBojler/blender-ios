@@ -9,3 +9,4 @@ Referenced by issue #110942, Can't open .blend file with 3.6.1
 Referenced by issue #110095, Fix #110021: Deform modifier binding can go wrong in certain stacks
 Referenced by issue #110021, Mesh Deform Modifier Vertex Count Error
 Referenced by issue #109033, Missing max length checks accessing some properties with foreach_get/set
+Referenced by issue #90515, Bevel/Crease lost after joining geometries in the Geo-Node
