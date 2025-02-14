@@ -1,1 +1,2 @@
 Referenced by commit 3ea4d3dc073, Fix (unreported) Image Editor UI drawing too dark
+Referenced by issue #75856, Backface culling viewport setting doesn't update right away
