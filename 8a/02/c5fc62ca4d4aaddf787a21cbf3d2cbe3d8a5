@@ -1,2 +1,3 @@
 Referenced by issue #49252, Microdisplacement; Very recent builds crash when image textures are used (when the mode is set to 'true')
 Referenced by issue #49193, GP and Uv image editor - Sculpt offset
+Referenced by issue #49194, GP and Uv image editor - E shortcut conflict
