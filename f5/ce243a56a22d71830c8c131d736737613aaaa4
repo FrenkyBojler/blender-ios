@@ -1,2 +1,3 @@
 Referenced by commit f17ea1f2a7b, Geometry Nodes: Remove realize instances legacy behavior
 Referenced by commit d960c786933, Fix T94545: support realizing instanced collections
+Referenced by issue #95903, Geometry node don't expose materials to the solidify modifier
