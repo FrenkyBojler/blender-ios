@@ -2,3 +2,4 @@ Referenced by commit 9ca1abe0421, Fix T101100: missing smooth shading with linke
 Referenced by issue #104915, Regression: Multires wireframes are displayed incomplete
 Referenced by issue #103700, Regression: Optimal Display still can't be turned off in Edit Mode (New problem)
 Referenced by issue #103706, Generative modifiers (Bevel, Triangulate, ...) wireframe not drawn correctly in Edit Mode
+Referenced by issue #103396, Regression: Crash when extruding a creased vertex in GPU subdivision
