@@ -62,3 +62,4 @@ Referenced by issue #48975, Custom Properties within PropertyGroups cannot be an
 Referenced by issue #48953, In dual monitor, Mesh disappears when Opensubdiv's on
 Referenced by issue #48944, Copy Rotation bone constraint on non-positively scaled armature
 Referenced by issue #48946, Blender+Tahiti+DRI3+Unity+Linux GUI corruption/not rendering
+Referenced by issue #48948, Cycles: Normalmap does not bake with Alpha
