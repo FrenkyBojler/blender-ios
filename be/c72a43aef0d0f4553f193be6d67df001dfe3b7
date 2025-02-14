@@ -1,1 +1,2 @@
 Referenced by issue #92874, Custom normals are destroyed whenever a vertex is deleted
+Referenced by issue #92875, Sharp Edges when merging doubles not behaving as expected
