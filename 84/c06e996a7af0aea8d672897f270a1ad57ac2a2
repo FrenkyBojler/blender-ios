@@ -4,3 +4,4 @@ Referenced by issue #60584, Texture Painting feature currently bugged, Add Textu
 Referenced by issue #60559, Color for Viewport Display cannot be changed the value from keyframed value
 Referenced by issue #60567, brightening of the Viewport and subtle dimming of the UI
 Referenced by issue #60550, Materials turn black or white in Eevee LookDev/Render view if there is a 2nd 3D viewport.
+Referenced by issue #60554, Object Viewport Display Color Reverts To Default After Using Color Picker
