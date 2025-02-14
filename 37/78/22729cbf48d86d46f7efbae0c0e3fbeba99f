@@ -1,2 +1,3 @@
 Referenced by issue #45267, Disabling 'Use Material Caching' causes Blender to crash when calling LibLoad
 Referenced by issue #40924, LibNew & LibFree material bug
+Referenced by issue #40555, Alternating LibLoad and LibFree crashes BGE
