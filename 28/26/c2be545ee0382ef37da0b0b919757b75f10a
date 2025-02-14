@@ -4,3 +4,4 @@ Referenced by issue #66946, NLA strip unexpectedly auto-switching from Hold to H
 Referenced by issue #60552, Boolean modifier breaks colour/uv attribute in shader
 Referenced by issue #60498, AutoIK doesn't start correctly (requires double running)
 Referenced by issue #59802, Preferences window opening behind main window when in fullscreen mode
+Referenced by issue #56996, Lagging when rotating the view
