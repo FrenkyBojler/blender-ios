@@ -5,3 +5,4 @@ Referenced by issue #114282, Extrude to Cursor tool: it don't allow to correct p
 Referenced by issue #104026, Regression: Click-Drag to select channels in Graph Editor no longer working
 Referenced by issue #97277, Regression: Tweak drag transforming is broken for masks (RMB select)
 Referenced by issue #97152, Regression: Selection tools do nothing in particle hair edit?
+Referenced by issue #96835, Regression: GPencil: In edit mode "Tweak Tool: Left Mouse Select & Move" does not work correctly
