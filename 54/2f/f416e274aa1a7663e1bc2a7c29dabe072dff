@@ -3,3 +3,4 @@ Referenced by issue #76682, Applying negative scale inverts multires displacemen
 Referenced by issue #76668, The Denoise Node Turns the Rendered Image into Pure Black at the Resolution of 1920 *1920
 Referenced by issue #76670, Moving objects with gizmo crashes blender
 Referenced by issue #74243, Workbench x-ray, wireframe and anti-aliasing artifacts on NVIDIA / Linux
+Referenced by issue #70612, Video Sequencer Crash on enabling Prefetch frames with Scene strips
