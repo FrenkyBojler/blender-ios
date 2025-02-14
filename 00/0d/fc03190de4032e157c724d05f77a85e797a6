@@ -98,3 +98,4 @@ Referenced by issue #44477, Color tool tip covering right click menu for the gre
 Referenced by issue #44482, Blender crashes when switching to GPU rendering with Cycles. Error: EXCEPTION_STACK_OVERFLOW
 Referenced by issue #44464, Viewport mipmaps no longer toggle off
 Referenced by issue #44455, program Crashes when i remove the bursh
+Maximum number of references exceeded
