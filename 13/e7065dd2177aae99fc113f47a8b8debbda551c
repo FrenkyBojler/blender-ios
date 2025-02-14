@@ -1,1 +1,2 @@
 Referenced by issue #94890, Some mesh operations (e.g. smooth, randomize) are not using mirror modifier mirror object transform correctly for clipping
+Referenced by issue #94564, Mirror clipping is not properly placed in sculpt mode
