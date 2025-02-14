@@ -1,2 +1,3 @@
 Referenced by commit c5e10394b45, Fix missing new eyedropper keymap entry in keyconfig_utils.py
 Referenced by issue #50008, Camera W menu DOF distance picker greyed out
+Referenced by issue #37520, Remove Hard-Coded Keymap Items
