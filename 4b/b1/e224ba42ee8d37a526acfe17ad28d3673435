@@ -31,3 +31,4 @@ Referenced by issue #49839, Importing Images as Planes only shows part of the im
 Referenced by issue #49828, calling bpy.ops.wm.open_mainfile from class which is invoked from pop-up button results in crash.
 Referenced by issue #49829, [2.77a - 2.78] Removal of custom icon previews during add-on unregister crashes Blender
 Referenced by issue #49834, 3D drawing does not update after parenting objects
+Referenced by issue #49818, Crash when rendering with motion blur
