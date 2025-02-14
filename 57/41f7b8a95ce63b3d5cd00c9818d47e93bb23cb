@@ -2,3 +2,4 @@ Referenced by commit 548b45d13be, Revert #116228: Check Interactivity in button 
 Referenced by issue #116437, Revert #116228: Check Interactivity in button comparisons
 Referenced by issue #116426, Regression: Renaming in UILists (Shape Key, AOVs, ...) is broken
 Referenced by issue #116394, GP layers can't be renamed
+Referenced by issue #116384, Regression: Geometry Nodes: Can't rename repeat zone in/outputs
