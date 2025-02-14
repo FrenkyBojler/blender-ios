@@ -1,2 +1,3 @@
 Referenced by commit 63675b8d70a, GPencil: Fix regression (part3) with edit mode introduced in rB0ee9282b5c51
 Referenced by commit 4c6e07230f7, Pencil: Fix regression (part2) with stroke buffer introduced in rB0ee9282b5c51
+Referenced by commit b4007173267, GPencil: Fix regression with stroke buffer introduced in rB0ee9282b5c51
