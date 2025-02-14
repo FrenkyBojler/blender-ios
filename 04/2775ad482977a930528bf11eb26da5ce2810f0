@@ -1,1 +1,2 @@
 Referenced by issue #104068, Regression: Trim Tools: "Use Cursor for Depth" uses wrong depth when using extrude mode "Fixed" (which is default now)
+Referenced by issue #104006, Regression: Sculpt Trim difference does not work with new fixed extrude setting
