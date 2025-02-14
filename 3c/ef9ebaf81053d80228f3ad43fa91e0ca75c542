@@ -1,2 +1,3 @@
 Referenced by commit 38a4d96a906, Fix T97507: Crash when deleting adjustment layer
 Referenced by issue #97507, Crash when adding multiple Adjustment layers and then deleting one of them
+Referenced by issue #97356, Regression: Crash on changing view type with adjustment layer strips
