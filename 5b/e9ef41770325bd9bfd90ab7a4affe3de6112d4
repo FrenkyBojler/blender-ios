@@ -1,2 +1,3 @@
 Referenced by issue #104140, Blender crashes after opening the Shading window
 Referenced by issue #88046, crash on startup 2.92
+Referenced by issue #85933, Object masking via Boolean Difference leads to damaged object.
