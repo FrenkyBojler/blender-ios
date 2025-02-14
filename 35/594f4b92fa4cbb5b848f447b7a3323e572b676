@@ -1,2 +1,3 @@
 Referenced by commit 11aa237858d, Eevee: Fix GLSL compilation error.
 Referenced by issue #98003, Regression: Crash in EEVEE when switched to material preview or viewport/final render
+Referenced by issue #97985, Eevee: Shader mixing not working correctly when reusing shader nodes
