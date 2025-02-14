@@ -1,0 +1,1 @@
+Referenced by issue #62484, Going from object mode to edit mode via "Undo" operation, the previousley vetex selection changes from vertices to edges.
