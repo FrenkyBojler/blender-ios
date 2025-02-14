@@ -1,1 +1,2 @@
 Referenced by commit e41437b16e6, Fix T81268: Crash when undo from Sculpt Mode to Edit Mode
+Referenced by issue #92372, Sculpt mode: hide masked do not work when modifier enabled, but hidden part works with modifier.
