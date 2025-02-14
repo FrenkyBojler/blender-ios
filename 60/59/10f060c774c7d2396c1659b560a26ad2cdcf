@@ -1,0 +1,1 @@
+Referenced by issue #37577, Joining two objects with different UVs destroys UVs of one object in some specific, reproducable, cases
