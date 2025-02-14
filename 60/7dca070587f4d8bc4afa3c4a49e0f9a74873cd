@@ -1,0 +1,1 @@
+Referenced by issue #44069, Calling LibLoad and LibFree multiple times on a file that plays an Action crashes Blender
