@@ -5,3 +5,4 @@ Referenced by issue #59401, Multires; Objects altered by sculpts will see slow c
 Referenced by issue #59402, X mirror does not work.
 Referenced by issue #59404, OBJ import and rendering crash
 Referenced by issue #59351, "GPUTexture: texture alloc failed. Likely not enough Video Memory." when rendering an animation with eevee, even on low quality
+Referenced by issue #56185, Changing color of material of grease pencil crashes blender 2.8
