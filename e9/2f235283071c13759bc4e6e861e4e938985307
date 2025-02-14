@@ -96,3 +96,4 @@ Referenced by issue #51012, Force Field Curve Shape not working
 Referenced by issue #51017, Spline IK stretching bone (without Y stretching selected)
 Referenced by issue #51018, Appending a rigged character crash Blender since 2.78a
 Referenced by issue #51002, Scene strip with Alpha over not working as expected
+Referenced by issue #50986, Changing settings in Add Object Settings Pane reverts latest text edits
