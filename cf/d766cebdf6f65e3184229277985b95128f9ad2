@@ -1,1 +1,2 @@
 Referenced by issue #86308, Crash to desktop on Boolean union exact operation
+Referenced by issue #85950, Crash blender on "boolean modificator" after "WeightedNormal modificator" with checked AutoSmooth object data propierties
