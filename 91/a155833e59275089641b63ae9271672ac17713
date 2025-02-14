@@ -10,3 +10,4 @@ Referenced by issue #60423, No smooth shading when sculpting with multiresolutio
 Referenced by issue #60393, 2.8 Vertex paint problems
 Referenced by issue #60377, Duplicating Lights with vertices breaks edit mode operations on mesh
 Referenced by issue #60383, merge.merge keymap with type "at last" crashes blender when opening mesh(global) keymap tab in user prefs
+Referenced by issue #60385, dense meshes not drawn behind other objects in wireframe mode with x-ray on
