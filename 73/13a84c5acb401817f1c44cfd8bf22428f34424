@@ -1,3 +1,4 @@
 Referenced by issue #95610, Writing to an attribute that is also a vertexgroup results in black when used in a shader
 Referenced by issue #95611, Regression: Capture Attribute in Face Corner mode produces garbage data
 Referenced by issue #95612, Realize Instances crashes Blender (3.1, 3.2 is fine)
+Referenced by issue #95614, Converting to mesh or applying GN modifier destroys UVMap face corner attribute if GN references external object with UVMap of the same name
