@@ -1,1 +1,2 @@
 Referenced by commit bd9ce206db4, Fix: DRW: Missing `vnor` attribute on edit mesh cage
+Referenced by commit 58d04bfa7cc, Fix: DRW: Missing `vnor` attribute on edit mesh and edges
