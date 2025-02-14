@@ -1,1 +1,2 @@
 Referenced by commit a631dc55756, Fix T100731: Keymap Editor context menu crash
+Referenced by commit 49032a8ca5c, Fix error checking the search callback
