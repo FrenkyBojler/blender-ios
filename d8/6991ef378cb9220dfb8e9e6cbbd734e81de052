@@ -1,0 +1,1 @@
+Referenced by issue #60580, depsgraph object instance 'matrix_world' always returns identity matrix
