@@ -1,0 +1,1 @@
+Referenced by issue #91870, Code Quality: Let GHash/GSet comparison callbacks return true on equality, not false
