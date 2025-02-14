@@ -1,1 +1,2 @@
 Referenced by issue #132099, Crash when using a grease pencil object converted to a mesh in a mesh geometry node setup
+Referenced by issue #95903, Geometry node don't expose materials to the solidify modifier
