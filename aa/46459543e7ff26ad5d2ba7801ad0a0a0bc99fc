@@ -1,0 +1,1 @@
+Referenced by issue #92213, Blender 3.0 - rendering with shadow catcher is giving error message "Illegal address in CUDA queue copy_from_device (integrator_shade_surface_raytrace integrator_sorted_paths_array prefix_sum)"
