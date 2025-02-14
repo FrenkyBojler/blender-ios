@@ -1,1 +1,2 @@
 Referenced by commit 7f089afc8bc, Bake-API: relaxing in the check for scale uniformity
+Referenced by issue #40156, Cycles Baking and applyRotation issues
