@@ -1,0 +1,1 @@
+Referenced by issue #71879, Select expand/contract from face mode to edge mode doesnt flush to faces if there are zero edges selected after contraction
