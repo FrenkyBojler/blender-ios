@@ -1,1 +1,2 @@
 Referenced by issue #117863, Window size is broken in Linux Gnome Wayland
+Referenced by issue #113961, Regression: Blender 4.0.0 Beta on Fedora Linux with Wayland limits / compresses  the main Blender window in height
