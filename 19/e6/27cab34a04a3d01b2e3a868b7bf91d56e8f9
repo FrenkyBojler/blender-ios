@@ -98,3 +98,4 @@ Referenced by issue #39431, Possible Cycles render artifact
 Referenced by issue #39436, Volume emission with displace modifier causes a great amount of fireflies
 Referenced by issue #39417, Problem with render hair with cycles - core dump
 Referenced by issue #39419, Crash when solving camera motion
+Maximum number of references exceeded
