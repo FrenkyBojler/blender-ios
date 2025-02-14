@@ -7,3 +7,4 @@ Referenced by issue #81575, Vectorscope in Image Editor is not working correctly
 Referenced by issue #81126, Assert going to Texture Paint workspace without a UVMap
 Referenced by issue #80931, UV Editor proportional editing circle draws wrong
 Referenced by issue #80787, 2.91 Image Editor Quick Smoke (Fire) Pure Emission is displayed as (1.0, 1.0, 1.0) even when the actual values are 5 orders of magnitude lower.
+Referenced by issue #80705, Texture Paint, New Single image, Segmentation fault: 11
