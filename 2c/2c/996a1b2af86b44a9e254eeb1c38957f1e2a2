@@ -6,3 +6,4 @@ Referenced by issue #57767, Pivot point broken after scaling a flat object to 0 
 Referenced by issue #57768, Texture baking error
 Referenced by issue #57750, Grease Pencil Undo resets tool
 Referenced by issue #57752, EEVEE and backlighting
+Referenced by issue #57758, Crash when appending Grease Pencil object and switching to 2D Animation workspace
