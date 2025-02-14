@@ -3,3 +3,4 @@ Referenced by issue #63748, Long startups after network drives are disconnected
 Referenced by issue #63645, plane - simple deform - bend issue
 Referenced by issue #63630, OpenVDB- Smoke disappeares
 Referenced by issue #63616, applying armature modifier with another modifier under it doesnt apply right
+Referenced by issue #63605, Assert error squeezing a template_curve_mapping in a panel to almost zero horizontally
