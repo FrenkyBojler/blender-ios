@@ -1,1 +1,2 @@
 Referenced by commit fad031a3a94, Fix (unreported) crash when setting current frame from the UI.
+Referenced by issue #124955, VSE strip drag-handle cursor is not scaled when using HiDPI displays
