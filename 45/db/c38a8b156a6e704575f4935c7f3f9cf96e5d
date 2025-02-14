@@ -2,3 +2,4 @@ Referenced by commit e6739ed91d5, Fix T82407: Negative number input gives syntax
 Referenced by commit 9de5adc6a1a, Fix: Remove debug print added mistakenly
 Referenced by commit a5e9f024f21, Fix T77289: Crash when typing negative numbers
 Referenced by issue #82407, Negative number input gives syntax error for velocities and accelerations
+Referenced by issue #74552, Moving negative imperial units works incorrectly
