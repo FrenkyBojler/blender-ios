@@ -2,3 +2,4 @@ Referenced by commit e6064b412a6, Fix object mode/edit mode panels not visible i
 Referenced by commit 1b2ac71f456, Fix workspace ui panel after workspace API change
 Referenced by commit aa0c9867b27, unittests: Update (fix) unittests after workspace API change
 Referenced by commit 108c4bd5026, Fix crash reading 2.8 files with workspace.view_layer set
+Referenced by issue #53432, Crash when switching to a workspace after creating a scene.
