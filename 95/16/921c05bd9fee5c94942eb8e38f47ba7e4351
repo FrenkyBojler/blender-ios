@@ -13,3 +13,4 @@ Referenced by issue #72490, Collections: Exclude From View toggle causes segment
 Referenced by issue #72444, Crash when ctrl-selecting vertices
 Referenced by issue #72114, Curves are not drawing anymore (objectmode)
 Referenced by issue #72124, Lookdev Spheres render black on latest master with Overlay refactor commit
+Referenced by issue #72071, Blender crashes upon moving extruded vertices/edges with edge snapping enabled
