@@ -1,3 +1,4 @@
 Referenced by issue #53683, 2.79a release
 Referenced by issue #53109, Denoising passes; Variance pass output broken in recent builds
 Referenced by issue #53025, "Jump to Keyframes" don't work
+Referenced by issue #53020, Alembic exported from Blender crash other software if containing parenting
