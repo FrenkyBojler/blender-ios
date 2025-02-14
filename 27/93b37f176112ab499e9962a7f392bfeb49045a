@@ -1,2 +1,3 @@
 Referenced by issue #115225, Crash when switching GN math node operator
 Referenced by issue #115108, Regression 4.1: obj.dimensions is always (0,0,0) for armatures
+Referenced by issue #115110, instant crash when setting math node's mode
