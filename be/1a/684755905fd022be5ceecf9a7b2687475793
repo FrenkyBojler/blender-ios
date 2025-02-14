@@ -1,1 +1,2 @@
 Referenced by issue #60014, PreferencesEdit.material_link not respected
+Referenced by issue #45695, material_slots[i].link reverts to 'DATA' after material_slots[i].material = m0
