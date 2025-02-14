@@ -1,2 +1,3 @@
 Referenced by issue #66422, Transform: Snap to the intersection geometry with the axis constraint
 Referenced by issue #40933, Snapping to Vertices fails
+Referenced by issue #38438, Snapping vertex to mesh not working when movement is constrained to a single axis
