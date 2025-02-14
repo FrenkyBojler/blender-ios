@@ -1,3 +1,4 @@
 Referenced by commit 839fe335d2d, Fix crash after 475bd6b occuring on each render end, we need another nullcheck here
 Referenced by commit 3ea67e08fe8, Fix crash after 475bd6b occuring on each render end, we need another nullcheck here
 Referenced by issue #76214, Compositor crash in Blender 2.83 latest build
+Referenced by issue #76179, Unable to select render passes when a render has fewer passes than one in another slot
