@@ -2,3 +2,4 @@ Referenced by commit bdd34f4fa25, Fix T103051: Changed behavior when removing a 
 Referenced by commit b53c4fa8daa, Fix T102522: Geometry nodes boolean doesent respect material index
 Referenced by commit 97f4e076c7f, Fix: USD & Alembic importers might not initialize material indices
 Referenced by commit 352d55b1c88, Mesh: Avoid saving redundant generic material index attribute
+Referenced by commit ecf3287533c, Fix T100822: Merging objects does not assign materials correctly
