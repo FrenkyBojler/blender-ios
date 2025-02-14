@@ -1,1 +1,2 @@
 Referenced by commit 8c9805fc628, Revert "Outliner: Remove the 'Remap data-block usages' operation."
+Referenced by issue #108285, Remap Users operator doesn't work on Objects
