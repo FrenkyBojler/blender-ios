@@ -2,3 +2,4 @@ Referenced by issue #52679, hole in bake normal
 Referenced by issue #52680, Alpha difference Viewport/F12
 Referenced by issue #52685, Flip names for bones its not working
 Referenced by issue #52661, Cycles render darker and noisier
+Referenced by issue #52663, SEGV when D.images.remove(D.images[0], do_unlink=True)
