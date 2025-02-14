@@ -5,3 +5,4 @@ Referenced by issue #108460, Fix #108456: Missed declaration function in Shortes
 Referenced by issue #106497, Geometry Nodes: Freeze Node
 Referenced by issue #104223, Regression: Geometry Node: Radius input don't propageted on input curve for Set Curve Radius node
 Referenced by issue #103756, Regression: Geometry Node: Anonymous attribute tooltip display wrong dependencies names
+Referenced by issue #103747, Regression: Crash when using Rotation Output of Curve To Points node (node_geo_curve_to_points.cc)
