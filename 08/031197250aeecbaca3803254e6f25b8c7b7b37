@@ -1,2 +1,3 @@
 Referenced by commit 6321dd3d400, Fix T92405: Emission Strength Animation of 2.93.5 inherited wrongly in 3.0
 Referenced by issue #102208, Odd texture mapping in Cycles viewport after viewing UV pass
+Referenced by issue #94467, Cycles Baking: 3.x is much slower than 2.93
