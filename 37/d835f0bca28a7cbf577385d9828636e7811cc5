@@ -3,3 +3,4 @@ Referenced by issue #109525, Regression: Pressing multiple modifier keys at the 
 Referenced by issue #106509, Multiple Edge Loop Selection doesn't always work
 Referenced by issue #101086, ALT does not work the first time when switching multiple windows. (Addition to T40059)
 Referenced by issue #100681, Geometry Nodes: Capture Attribute node returns 'Zero' for an attribute. (relates to Volume Cube node)
+Referenced by issue #100582, Regression: Windows-10 Switching Desktops locks Ctrl Key
