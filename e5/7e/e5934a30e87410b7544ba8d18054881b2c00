@@ -1,1 +1,2 @@
 Referenced by issue #60885, Boolean modifier problem when multiple modifiers active on object
+Referenced by issue #60735, Cycles renders only first duplivert when mesh has generative modifier
