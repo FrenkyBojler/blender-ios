@@ -1,2 +1,3 @@
 Referenced by commit 3ea324488ac, Fix T80016: Shape key animation is linked when duplicating object
 Referenced by issue #80016, Duplicated object share Shape Key Animation Data like linked
+Referenced by issue #77959, Duplication of IDs and linked data-blocks
