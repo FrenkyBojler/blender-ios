@@ -37,3 +37,4 @@ Referenced by issue #46048, Cutom Properties
 Referenced by issue #46033, MultiLayer exr
 Referenced by issue #46018, Inset and scale problems with faces
 Referenced by issue #46026, Brush Select ( " C "  ) bug - additionaly selects random vertices on any given mesh
+Referenced by issue #46009, Render view not updated when Images Draw Method is GLSL
