@@ -1,2 +1,3 @@
 Referenced by commit f59f5fd83f4, Fix #122901: Geonodes modifier- setting an imput as string crashes blender.
 Referenced by issue #124049, Geometry Nodes: Objects losing user count
+Referenced by issue #122901, Geonodes modifier- setting an imput as string crashes blender
