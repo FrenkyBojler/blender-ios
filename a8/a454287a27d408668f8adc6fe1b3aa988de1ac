@@ -8,3 +8,4 @@ Referenced by issue #105912, Regression: edge crease lost after a texture paint 
 Referenced by issue #102772, Regression: creases lost with two subsurf modifier
 Referenced by issue #101401, Setting edge crease via PyAPI doesn't work
 Referenced by issue #101393, Regression: Vertex Crease operator does not create vertex crease layer
+Referenced by issue #101373, Regression with Crease Attribute
