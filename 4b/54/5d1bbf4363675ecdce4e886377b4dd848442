@@ -5,3 +5,4 @@ Referenced by issue #59653, Blender 2.8 Beta for Linux: Executing blender-softwa
 Referenced by issue #59509, Particle rotation bug
 Referenced by issue #59452, Different curve surface drawing in object- vs. edit-mode
 Referenced by issue #59437, After applying any modifier to object and change to "Edit Mode" Blender crash
+Referenced by issue #58975, 2.80 Python API: "@=" operator succeeds but has no effect
