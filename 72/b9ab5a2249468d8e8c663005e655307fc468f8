@@ -1,0 +1,1 @@
+Referenced by issue #60608, Properties dialogs created by addons via wm.invoke_props_dialog() jump around vertically.
