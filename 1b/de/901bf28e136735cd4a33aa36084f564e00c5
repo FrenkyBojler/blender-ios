@@ -1,2 +1,3 @@
 Referenced by issue #78171, Adjust Last Operation: Other changes outside that panel are reverted back automatically
 Referenced by issue #62473, Blender 2.80 Canceling  of visibility actions during opened panel with object default parameters.
+Referenced by issue #61828, Unable to get object to stay hidden while new mesh tool is active.
