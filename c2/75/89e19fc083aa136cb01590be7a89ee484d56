@@ -70,3 +70,4 @@ Referenced by issue #45617, map UV node produces image artifacts
 Referenced by issue #45586, Render preview in viewport different with regular render
 Referenced by issue #45588, Wrong URL link to Blender 2.75 Python API in both Splash and Help Menu
 Referenced by issue #45583, Adding Glass shaders with different IORs gives different results for Path Tracing and Branched Path Tracing
+Referenced by issue #45570, Memory leakage in Sequencer
