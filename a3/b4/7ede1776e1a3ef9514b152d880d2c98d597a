@@ -1,0 +1,1 @@
+Referenced by issue #32175, bge.texture.ImageRender alpha channel returns 255 for every pixel
