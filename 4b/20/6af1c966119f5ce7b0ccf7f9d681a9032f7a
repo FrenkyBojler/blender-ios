@@ -16,3 +16,4 @@ Referenced by issue #37987, Blender goes into an infinite loop when opening a fi
 Referenced by issue #37984, Blender crashes when packed image is used in a cycles node shader.
 Referenced by issue #37956, Lightdistance
 Referenced by issue #37940, Curve Render bug in Blender Internal Render.
+Referenced by issue #37934, Solidify Modifier Problem
