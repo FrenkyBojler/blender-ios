@@ -1,1 +1,2 @@
 Referenced by commit b68ba3dae84, Fix #128839: "Apply Visual Geometry to Mesh" doesn't apply shape-keys
+Referenced by issue #128839, Regression: Converting to mesh doesn't apply shape keys anymore
