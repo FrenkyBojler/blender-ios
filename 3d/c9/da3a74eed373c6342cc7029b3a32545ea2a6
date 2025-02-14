@@ -1,2 +1,3 @@
 Referenced by issue #65908, Loop cut and slide with tweak action on right mouse gets cancelled in same mouse click (using left mouse select)
 Referenced by issue #65221, armature selection bug
+Referenced by issue #64562, CTRL + G creates new (unlisted) collection
