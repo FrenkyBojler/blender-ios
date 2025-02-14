@@ -1,1 +1,2 @@
 Referenced by commit 34e29440f7a, Fix #107151: Multires data from external file is not loaded
+Referenced by commit 5a97b282e99, Fix (unreported) crash when importing data with custom normals.
