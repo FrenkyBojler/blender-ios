@@ -1,1 +1,2 @@
 Referenced by commit b57916463c4, Fix #121121: NLA push down places local tracks before library overrides
+Referenced by commit 913b6b9ec1b, Fix T96624: NLA crash when reordering tracks if no object is selected.
