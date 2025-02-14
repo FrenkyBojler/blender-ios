@@ -1,1 +1,2 @@
 Referenced by commit 801451c4595, Fix: Missing clearing of mesh triangulation data
+Referenced by issue #106926, Geometry Nodes Extrude producing weird normals when Mesh has Custom Normals
