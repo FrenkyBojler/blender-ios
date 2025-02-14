@@ -1,1 +1,2 @@
 Referenced by commit 3b21b0deb19, Fix invalid length passed to BLF_str_selection_boxes
+Referenced by issue #122123, Fix #122110: Remove text selection flickering completely
