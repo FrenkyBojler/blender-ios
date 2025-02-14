@@ -1,2 +1,3 @@
 Referenced by issue #98646, crash in preview mode with volume shader
 Referenced by issue #97595, Regression: GeoNode attribute output passing does not work in the latest nightly
+Referenced by issue #97449, GPU subdivision: Crash on adding subdivision surface modifier
