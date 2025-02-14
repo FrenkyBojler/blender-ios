@@ -34,3 +34,4 @@ Referenced by issue #116218, IMPOSIBLE RENDERIZAR CYCLES
 Referenced by issue #116158, Crash when using EEVEE in viewport or render on linux (Intel GPU)
 Referenced by issue #115957, Cycles GPU rendering with AMD card: very dark world/bounce lighting
 Referenced by issue #115921, Hello, my blender is crashing randomly (Mostly when i switch to Viewport Shading)
+Referenced by issue #115806, Blank grey window on startup
