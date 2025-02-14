@@ -1,0 +1,1 @@
+Referenced by issue #69877, Bone widgets created via python into a hidden collection are not completely initialized.
