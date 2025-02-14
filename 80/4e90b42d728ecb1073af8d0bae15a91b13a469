@@ -1,1 +1,2 @@
 Referenced by commit 6c48a36962d, DRW: match edge opacity to 2.82
+Referenced by issue #82094, VSE: Differences in byte vs float color processing with some blend modes
