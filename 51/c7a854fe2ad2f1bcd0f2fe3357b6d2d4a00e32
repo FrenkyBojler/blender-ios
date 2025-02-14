@@ -1,1 +1,2 @@
 Referenced by issue #81549, Full exit crash when pressing 'object constraint properties' when in pose mode
+Referenced by issue #81164, Switching to pose mode occurs crashes (2.90.1, fixed in master)
