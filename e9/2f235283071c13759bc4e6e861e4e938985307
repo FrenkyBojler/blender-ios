@@ -67,3 +67,4 @@ Referenced by issue #51486, Freezing
 Referenced by issue #51470, Alembic imports only two frames of animations when vertex color is checked while abc exporting
 Referenced by issue #51452, EnumProperty fill dynamically using callback
 Referenced by issue #51438, Texture ignores object coord in viewport
+Referenced by issue #51404, Wrong behaviour of property name used in a sensor
