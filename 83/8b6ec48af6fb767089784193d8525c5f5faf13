@@ -1,2 +1,3 @@
 Referenced by issue #91118, "Cursor to Select" does not work properly when the mesh has armature modifier in edit mode
 Referenced by issue #91104, Blender 2.93.3 Render Animation from VSE freezes the whole OS (CPU ERROR)
+Referenced by issue #91092, Render crash
