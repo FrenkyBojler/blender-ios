@@ -1,1 +1,2 @@
 Referenced by commit 6f761c7110a, Fix T87392: Copy modifier to selected does not do anything
+Referenced by commit 02a7289fe3c, Fix T87264: Button to remove physics modifier doesn't work
