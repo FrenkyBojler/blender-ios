@@ -1,0 +1,1 @@
+Referenced by issue #93498, When render with Cycles' Fast GI Approximation, Method "Add" is affected by bounces in Method "Replace".
