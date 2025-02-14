@@ -1,3 +1,4 @@
 Referenced by commit 38bfa8902b2, Fix T87771: Immediate Crash on "Edit Source" in Compositor
 Referenced by commit aeff59073b2, Fix T86219: Compositor backdrop not using Color Management View
 Referenced by issue #87771, Immediate Crash on "Edit Source" in Compositor
+Referenced by issue #83547, UV Editor regression: stitching preview is gone
