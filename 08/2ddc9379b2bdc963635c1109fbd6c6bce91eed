@@ -1,2 +1,3 @@
 Referenced by commit fe737780959, Cleanup: unused function from 082ddc9379b2bdc963635c1109fbd6c6bce91eed
 Referenced by issue #93738, Regression: Extrude tool settings reverted after tool switching
+Referenced by issue #93331, Drag Action is constantly resetting itself to "move"
