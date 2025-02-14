@@ -2,3 +2,4 @@ Referenced by issue #62351, Material Ouptut selection broken
 Referenced by issue #61997, Material changes are not updated in collection instances placed in other scenes
 Referenced by issue #61963, Node Editor: value stuck after setting a keyframe and clearing clearframes again
 Referenced by issue #61111, Mapping node values get stuck after setting a keyframe
+Referenced by issue #60900, Node values visually reset when changed
