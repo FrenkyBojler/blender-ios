@@ -1,1 +1,2 @@
 Referenced by issue #64601, Error division by zero on commit "016fc7f - GPUVertexFormat: Reduce size of structs"
+Referenced by issue #64551, Crash on leaving local view on the shading tab.
