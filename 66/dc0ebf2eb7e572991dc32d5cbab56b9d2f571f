@@ -1,2 +1,3 @@
 Referenced by commit eb23b299db7, Fix: Add versioning for change in object info scale behavior
 Referenced by issue #117425, Fix: Add versioning for change in object info scale behavior
+Referenced by issue #101044, Geometry-node object-info rotation&scale outputs values are False if scale is negative
