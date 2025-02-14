@@ -1,2 +1,3 @@
 Referenced by commit eadbacdbb06, Fix T91670: Strip text position is incorrect
 Referenced by issue #91725, VSE: Switching Waveforms On doesn't work anymore
+Referenced by issue #91670, VSE: Color strips are missing content color and overlay texts are not on top
