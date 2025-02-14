@@ -3,3 +3,4 @@ Referenced by issue #72867, Small Custom Bone Shapes have some Wireframes Artifa
 Referenced by issue #72872, Grease Pencil Layer Opacity not respected in some Viewport Shading Color Types
 Referenced by issue #72861, Viewport Render Keyframes operator doesn't recognize Grease Pencil or Shape Keys
 Referenced by issue #72862, Viewport Render doesn't render Grease Pencil Overlays, Shading
+Referenced by issue #57111, Particle texture keyframes missing from Graph Editor unless PS has keyframes
