@@ -41,6 +41,8 @@ bool remove_selection(bke::CurvesGeometry &curves, const bke::AttrDomain selecti
   return attributes.domain_size(selection_domain) != domain_size_orig;
 }
 
+using SelectedCallback = FunctionRef<void(
+    int curve_i, IndexRange curve_points, Span<IndexRange> selected_point_ranges)>;
 using UnselectedCallback = FunctionRef<void(IndexRange unselected_points, IndexRange slices)>;
 
 static void if_has_data_call_callback(const Span<int> offset_data,
@@ -56,35 +58,33 @@ static void if_has_data_call_callback(const Span<int> offset_data,
 };
 
 template<typename Fn>
-static void foreach_content_slice_by_offsets_(
-    const IndexMask &mask,
-    const OffsetIndices<int> offset_indices,
-    FunctionRef<void(Span<IndexRange> selected_points, IndexRange slice_points, int slice)>
-        selected_fn,
-    Fn unselected_fn)
+static void foreach_selected_point_ranges_per_curve_(const IndexMask &mask,
+                                                     const OffsetIndices<int> points_by_curve,
+                                                     SelectedCallback selected_fn,
+                                                     Fn unselected_fn)
 {
   Vector<IndexRange> ranges;
-  Span<int> offset_data = offset_indices.data();
+  Span<int> offset_data = points_by_curve.data();
 
-  int slice = 0;
+  int curve_i = 0;
 
   int range_first = mask.first();
   int range_last = mask.first() - 1;
 
   mask.foreach_index([&](const int64_t index) {
-    if (offset_data[slice + 1] <= index) {
-      int first_unselected_slice = slice;
+    if (offset_data[curve_i + 1] <= index) {
+      int first_unselected_slice = curve_i;
       if (range_last >= range_first) {
         ranges.append(IndexRange::from_begin_end_inclusive(range_first, range_last));
-        selected_fn(ranges, offset_indices[slice], slice);
+        selected_fn(curve_i, points_by_curve[curve_i], ranges);
         ranges.clear();
         first_unselected_slice++;
       }
       do {
-        ++slice;
-      } while (offset_data[slice + 1] <= index);
+        ++curve_i;
+      } while (offset_data[curve_i + 1] <= index);
       if constexpr (std::is_invocable_r_v<void, Fn, IndexRange, IndexRange>) {
-        if_has_data_call_callback(offset_data, first_unselected_slice, slice, unselected_fn);
+        if_has_data_call_callback(offset_data, first_unselected_slice, curve_i, unselected_fn);
       }
       range_first = index;
     }
@@ -97,10 +97,10 @@ static void foreach_content_slice_by_offsets_(
 
   if (range_last - range_first >= 0) {
     ranges.append(IndexRange::from_begin_end_inclusive(range_first, range_last));
-    selected_fn(ranges, offset_indices[slice], slice);
+    selected_fn(curve_i, points_by_curve[curve_i], ranges);
   }
   if constexpr (std::is_invocable_r_v<void, Fn, IndexRange, IndexRange>) {
-    if_has_data_call_callback(offset_data, slice + 1, offset_indices.size(), unselected_fn);
+    if_has_data_call_callback(offset_data, curve_i + 1, points_by_curve.size(), unselected_fn);
   }
 }
 
@@ -114,13 +114,11 @@ static void foreach_content_slice_by_offsets_(
  * as `offset_indices`.
  * \param selected_fn: callback function called for each slice with at least one point selected.
  */
-static void foreach_content_slice_by_offsets(
-    const IndexMask &mask,
-    const OffsetIndices<int> offset_indices,
-    FunctionRef<void(Span<IndexRange> selected_points, IndexRange slice_points, int slice)>
-        selected_fn)
+static void foreach_selected_point_ranges_per_curve(const IndexMask &mask,
+                                                    const OffsetIndices<int> offset_indices,
+                                                    SelectedCallback selected_fn)
 {
-  foreach_content_slice_by_offsets_<void()>(mask, offset_indices, selected_fn, nullptr);
+  foreach_selected_point_ranges_per_curve_<void()>(mask, offset_indices, selected_fn, nullptr);
 }
 
 /**
@@ -134,14 +132,12 @@ static void foreach_content_slice_by_offsets(
  * \param selected_fn: callback function called for each slice with at least one point selected.
  * \param unselected_fn: callback function called for groups of slices with no selected points.
  */
-static void foreach_content_slice_by_offsets(
-    const IndexMask &mask,
-    const OffsetIndices<int> offset_indices,
-    FunctionRef<void(Span<IndexRange> selected_points, IndexRange slice_points, int slice)>
-        selected_fn,
-    UnselectedCallback unselected_fn)
+static void foreach_selected_point_ranges_per_curve(const IndexMask &mask,
+                                                    const OffsetIndices<int> offset_indices,
+                                                    SelectedCallback selected_fn,
+                                                    UnselectedCallback unselected_fn)
 {
-  foreach_content_slice_by_offsets_<UnselectedCallback>(
+  foreach_selected_point_ranges_per_curve_<UnselectedCallback>(
       mask, offset_indices, selected_fn, unselected_fn);
 }
 
@@ -197,10 +193,10 @@ void duplicate_points(bke::CurvesGeometry &curves, const IndexMask &mask)
   dst_cyclic.reserve(curves.curves_num());
 
   /* Add the duplicated curves and points. */
-  foreach_content_slice_by_offsets(
+  foreach_selected_point_ranges_per_curve(
       mask,
       points_by_curve,
-      [&](Span<IndexRange> ranges_to_duplicate, IndexRange points, int curve) {
+      [&](const int curve, const IndexRange points, Span<IndexRange> ranges_to_duplicate) {
         curve_offsets_from_selection(ranges_to_duplicate,
                                      points,
                                      curve,
@@ -415,10 +411,10 @@ bke::CurvesGeometry split_points(const bke::CurvesGeometry &curves,
   Array<IndexRange> unselected_curve_points;
   Vector<IndexRange> curve_points_to_preserve;
 
-  foreach_content_slice_by_offsets(
+  foreach_selected_point_ranges_per_curve(
       points_to_split,
       points_by_curve,
-      [&](const Span<IndexRange> selected_curve_points, const IndexRange points, const int curve) {
+      [&](const int curve, const IndexRange points, const Span<IndexRange> selected_curve_points) {
         const int points_start = new_offsets.last();
         curve_offsets_from_selection(selected_curve_points,
                                      points,
