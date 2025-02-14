@@ -1,2 +1,3 @@
 Referenced by commit 2220696d25a, BMesh: avoid copying by value for BMLoop triangles
 Referenced by commit ab93a426a0c, Fix assert from recent cleanup
+Referenced by issue #123078, Regression: Opening a file would crash in `OpenColorIO_v2_3`
