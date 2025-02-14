@@ -2,3 +2,4 @@ Referenced by issue #105404, USD IO: Validate data in the operator, before start
 Referenced by issue #105369, wmTimer, wmJob and WM_report issue - can lead to crash
 Referenced by issue #105160, Regression: Crash when user opens directory instead of file on USD import
 Referenced by issue #100749, Blender LTS: Maintenance Task 3.3
+Referenced by issue #88449, Blender LTS: Maintenance Task 2.93
