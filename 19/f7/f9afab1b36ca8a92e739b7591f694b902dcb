@@ -14,3 +14,4 @@ Referenced by issue #39127, Cycles volumetric
 Referenced by issue #39130, Bad mouse cursour while hover on vertical spacebar in Text Editor
 Referenced by issue #39111, 2.70 RC1 Windows 64, Boolean stress test.
 Referenced by issue #39108, Bevel vertex tool deletes edges.
+Referenced by issue #39094, jittery display when using mouse drag with Continuous Drag ON
