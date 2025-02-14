@@ -1,1 +1,2 @@
 Referenced by commit 2396d07f4e4, Fix #115857: UV project modifier crash with invalid name
+Referenced by issue #115857, Crash after adding UV Project modifier after realizing instances
