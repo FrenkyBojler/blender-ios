@@ -1,2 +1,3 @@
 Referenced by commit 7070e4c15e6, Revert "Particle system: Move runtime data to runtime field"
 Referenced by issue #65857, ALT+D duplication removes particles from original object
+Referenced by issue #65842, Hair particles disappear forever from viewport when its name is clicked at the list of particle systems.
