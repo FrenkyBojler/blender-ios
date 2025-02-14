@@ -1,2 +1,3 @@
 Referenced by issue #86589, Crash importing MAtcaps
 Referenced by issue #86564, All symbols keys and keyboard shortcuts doesn't work on Russian language
+Referenced by issue #86473, Screen Space Reflections artifacts (most noticable when using half res trace)
