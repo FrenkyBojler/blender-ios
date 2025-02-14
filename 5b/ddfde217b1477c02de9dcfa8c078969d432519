@@ -1,1 +1,2 @@
 Referenced by commit ab1909fe06b, Deps: Python, install Cython package
+Referenced by issue #85526, Regression: SCREEN_OT_area_dupli from ActionZone Not Working Correctly
