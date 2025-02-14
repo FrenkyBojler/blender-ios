@@ -1,2 +1,3 @@
 Referenced by commit eb326c7b402, Attributes: Implement CustomData interpolation for boolean data type
 Referenced by commit 5a0c5912a41, Tests: Enable new tests for geometry nodes extrude node
+Referenced by issue #94535, Extrude Mesh Node
