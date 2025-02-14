@@ -1,2 +1,3 @@
 Referenced by issue #56794, T56773 isn't fixed +++ GPU render with Blue Screen or empty GPU tiles
 Referenced by issue #56773, Latest Blender/Cycles build will crash in GPU mode (Blue Screen with 4594cc25ac8)
+Referenced by issue #56720, Lattice: crash on setting points_u/v/w from python
