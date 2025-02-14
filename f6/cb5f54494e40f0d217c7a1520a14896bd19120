@@ -44,3 +44,4 @@ Referenced by issue #69226, Unable to view texture when UV editing
 Referenced by issue #69232, Unable to copy any values in the GUI.
 Referenced by issue #69233, Bone selection problem (only root bone can be selected, multiple clicks then cycle throught the hierarchy)
 Referenced by issue #69205, Crash on Context.Material->New
+Referenced by issue #69183, Blender goes into "Not Responding" state
