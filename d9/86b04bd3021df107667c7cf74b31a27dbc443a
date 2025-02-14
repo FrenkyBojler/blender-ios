@@ -1,1 +1,2 @@
 Referenced by issue #63472, Cursed blend file crashes on F12 render unless SSS is turned off.
+Referenced by issue #63346, diffuse_ramp closures of OSL scripts are not rendered (2.80)
