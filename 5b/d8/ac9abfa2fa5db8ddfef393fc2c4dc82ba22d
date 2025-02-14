@@ -35,3 +35,4 @@ Referenced by issue #55209, Theme setting for properties, image, movie clip edit
 Referenced by issue #55026, Slow Parent option doesn't work with new Depsgraph
 Referenced by issue #54969, VSE crashes or hangs unpredictably 4-6 frames into certain second sound strips during rendering.
 Referenced by issue #54916, Fluid Simulator, **spilling Massive amounts of fluid from objects which move**
+Referenced by issue #54918, Inset thickness/depth history regression
