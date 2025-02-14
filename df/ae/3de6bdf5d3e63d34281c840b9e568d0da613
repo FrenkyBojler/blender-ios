@@ -1,1 +1,2 @@
 Referenced by commit bee16ec4d8a, Cycles: Sync BVH8 unaligned node packing code with BVH4
+Referenced by issue #52635, Crash during path tracing, particle system (master)
