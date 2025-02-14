@@ -2,3 +2,4 @@ Referenced by commit 52af51708f0, Fix: Copy resolution when creating CurveEval f
 Referenced by commit b84255f590c, Curves: Port legacy curve viewport drawing to the new data-block
 Referenced by commit 887ccb85371, Fix T96152: Crash realizing curve instances
 Referenced by issue #96487, Crash when dynamically resampling splines using Spline Length (Point Count) + 1
+Referenced by issue #95941, Change curve component to store Curves data
