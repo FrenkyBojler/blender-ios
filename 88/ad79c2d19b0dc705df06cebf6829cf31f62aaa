@@ -1,1 +1,2 @@
 Referenced by issue #113898, Regression: New Principled BSDF does not load keyframes or drivers correctly from prior versions
+Referenced by issue #112490, UI: Node Panels: Issues when the node is in a hidden state and node panels are collapsed
