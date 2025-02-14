@@ -1,1 +1,2 @@
 Referenced by commit 12792ee70cd, Fix T83788: Topology mirror crashes for vertices aren't mirrored
+Referenced by issue #83119, The application crashes (vanishes) when a topology mirror (or at least an X topology mirror) needs to move a hidden vertex.
