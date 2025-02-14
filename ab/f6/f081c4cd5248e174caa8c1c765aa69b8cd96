@@ -69,3 +69,4 @@ Referenced by issue #48924, Pen pressure not working (random behavior)
 Referenced by issue #48912, Simple video load cut video strip in 6725 frames
 Referenced by issue #48913, Viewport gets stuck when two group instances are emitted from one face using dupli-verts
 Referenced by issue #48860, Christensen-Burley SSS glitch with Spatial Splits.
+Referenced by issue #48865, Bone custom shaping allows for semi-orphaning
