@@ -1,1 +1,2 @@
 Referenced by issue #87056, Segfault in GPU_batch_clear() involing Lattice evaluation
+Referenced by issue #78650, Lattice objects evaluation is not properly decoupled when they share the same Lattice obdata.
