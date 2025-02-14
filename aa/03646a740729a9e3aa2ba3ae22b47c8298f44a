@@ -1,2 +1,3 @@
 Referenced by commit 717389887b0, Cleanup: Keep panel functions internal to UI code
 Referenced by issue #127012, 4.2 Regression: UI popover can not be scrolled upwards
+Referenced by issue #119778, Crash when using F2 to rename in the 3D viewport
