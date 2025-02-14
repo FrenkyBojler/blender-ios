@@ -12,3 +12,4 @@ Referenced by issue #103307, Regression: Crash when trying to read particle hair
 Referenced by issue #101773, Regression: Mirror Vertex Weights gives unpredictable results
 Referenced by issue #101188, Regression: Fluid Physics not working
 Referenced by issue #100875, Crash on undo in Heist production files after recent changes in mesh data
+Referenced by issue #100863, Regression: Crash on opening the file containing weights
