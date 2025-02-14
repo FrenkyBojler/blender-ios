@@ -1,2 +1,3 @@
 Referenced by issue #86995, Regression. Sculpting, face set painting with faceset boundary automasking works wrong
 Referenced by issue #81875, Cycles: mesh becomes weirdly transparent after some samples CPU only
+Referenced by issue #81775, Crash on Exiting Texture Paint With Multiresolution (Image Editor involved)
