@@ -1,2 +1,3 @@
 Referenced by commit 7132c7a53c2, Cleanup: Replace MVertTri type with C++ vector
 Referenced by commit 8dd8f932e23, Cleanup: Rename Mesh loop_data to corner_data
+Referenced by issue #116373, Regression 4.1 alpha: foreach_get crash
