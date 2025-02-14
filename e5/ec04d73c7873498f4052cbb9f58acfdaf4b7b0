@@ -5,3 +5,4 @@ Referenced by commit 83ef3bc9232, Mesh: Forward compatibility with generic creas
 Referenced by issue #116019, Regression: Solidify Crease Inner not working with edge crease attribute
 Referenced by issue #115180, Fix #115105: Edge Crease Doesn't Transfer
 Referenced by issue #115105, Regression: Edge Crease Doesn't Transfer
+Referenced by issue #110942, Can't open .blend file with 3.6.1
