@@ -1,1 +1,2 @@
 Referenced by commit e6941651231, VSE: fix versioning code to the new maximum zoom level (128)
+Referenced by commit a64782b1334, VSE: Implement sanity check for files with more channels than supported
