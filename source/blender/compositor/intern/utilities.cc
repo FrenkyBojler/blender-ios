@@ -5,11 +5,8 @@
 #include "BLI_assert.h"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
-#include "BLI_string_ref.hh"
 
 #include "DNA_node_types.h"
-
-#include "BKE_node.hh"
 
 #include "NOD_derived_node_tree.hh"
 #include "NOD_node_declaration.hh"
@@ -61,14 +58,11 @@ ResultType get_node_socket_result_type(const bNodeSocket *socket)
       return ResultType::Float;
     case SOCK_INT:
       return ResultType::Int;
-    case SOCK_VECTOR: {
-      if (socket->idname == bke::node_static_socket_type(SOCK_VECTOR, PROP_VELOCITY)) {
-        return ResultType::MotionVector;
-      }
-      else {
-        return ResultType::Vector;
-      }
-    }
+    case SOCK_VECTOR:
+      /* Vector sockets can also be ResultType::MotionVector or ResultType::Float2, but the
+       * developer is expected to define that manually since there is no way to distinguish them
+       * from the socket. */
+      return ResultType::Vector;
     case SOCK_RGBA:
       return ResultType::Color;
     default:
