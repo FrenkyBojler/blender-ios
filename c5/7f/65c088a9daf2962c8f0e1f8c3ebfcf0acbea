@@ -1,2 +1,3 @@
 Referenced by commit 3ffb52d1144, Fix T77448: Camera Solver constraint can't be converted to f-curve
 Referenced by issue #76440, Follow Track -> Constraint to F-Curve has no effect
+Referenced by issue #67577, Error registering addons disabled by Load Factory Settings (from preferences window)
