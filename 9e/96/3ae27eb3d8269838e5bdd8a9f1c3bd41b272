@@ -30,3 +30,4 @@ Referenced by issue #42822, constraint transform dont use local axis
 Referenced by issue #42795, Crash with huge texture sizes, doesn't crash when same texture is split up and put on different objects
 Referenced by issue #42798, "snap onto itself" problem
 Referenced by issue #42780, Undo inserted keyframes of Linked Objects Closes Blender
+Referenced by issue #42768, Crash on 2013 Macbook Air 13 inch running OS X 10.10.1 and Blender 2.72
