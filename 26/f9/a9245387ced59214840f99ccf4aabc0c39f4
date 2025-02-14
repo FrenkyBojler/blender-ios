@@ -1,3 +1,4 @@
 Referenced by issue #43785, crash with border select (many objects)
 Referenced by issue #43515, initial velocity for fire bug
 Referenced by issue #43516, force field noise wrong behavior (?)
+Referenced by issue #43511, Major slow down with many instanced objects in cycles GPU
