@@ -1,2 +1,3 @@
 Referenced by commit 4ea76b85309, Fix #113273: Status bar not refreshed when canceling the operation
 Referenced by commit 90f22739f74, Fix #112650: UI: Missing Header Status in Node Editor after Turning off Auto-offset
+Referenced by issue #113273, Status bar: Keymap info not cleared after cancelling the operation
