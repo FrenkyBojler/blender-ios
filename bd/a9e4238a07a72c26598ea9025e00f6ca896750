@@ -1,1 +1,2 @@
 Referenced by commit e85d7d5a288, Fix T93971: "Center Cursor & Frame All" fails to redraw
+Referenced by issue #93971, 3D Cursor is not in the right place after Shift + C (Center Cursor and Frame All)
