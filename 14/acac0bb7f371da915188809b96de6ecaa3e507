@@ -1,2 +1,3 @@
 Referenced by commit c0dd9908ff8, Fix T72577: vert/weight paint 'Orbit Around' & 'Frame Selected' fail
 Referenced by issue #72577, View rotates not around of the point of interaction. (Vertex paint mode and weight paint mode)
+Referenced by issue #70013, Slow OpenGL calls for every vertex and weight painting step
