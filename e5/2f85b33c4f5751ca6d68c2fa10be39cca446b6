@@ -1,0 +1,1 @@
+Referenced by issue #134478, WIP: Fix #127767: bpy.app.handlers could run in a read-only state
