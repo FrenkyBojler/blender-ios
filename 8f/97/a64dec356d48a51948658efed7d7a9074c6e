@@ -1,2 +1,3 @@
 Referenced by issue #78361, Blender crashes on many modeling operations (loopcut, extrude, duplication, ...) on mesh with normal map node connected to material
 Referenced by issue #78334, Shift-D in edit mode, with normal map node connected to material causes exception
+Referenced by issue #78054, Crash with Material preview
