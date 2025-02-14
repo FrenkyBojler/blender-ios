@@ -1,2 +1,3 @@
 Referenced by commit a0fa3de267f, Fix T43624: Freestyle uses wrong colour on second Line Set with textured lines in Cycles.
 Referenced by issue #43624, Freestyle uses wrong colour on second Line Set with textured lines in Cycles
+Referenced by issue #41964, 2.72 Freestyle renders two times longer on Linux
