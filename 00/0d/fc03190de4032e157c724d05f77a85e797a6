@@ -82,3 +82,4 @@ Referenced by issue #44594, Viewport Shading 'Depth Of Field' 'Wireframe' / 'Bou
 Referenced by issue #44575, Crash on rendering
 Referenced by issue #44566, Skin Modifier - hard crash.
 Referenced by issue #44568, Abnormal behavior after unwrapping correctly of the uvs
+Referenced by issue #44547, Python driver can't change UV offset.
