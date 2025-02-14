@@ -75,3 +75,4 @@ Referenced by issue #53939, Bug in User Ortho mode: mesh flipped or corrupted
 Referenced by issue #53941, 3D Manipulator Bug
 Referenced by issue #53942, Boolean modifier still processed when bypassed (when using Animated Booleans)
 Referenced by issue #53909, Joining armatures - Problems with same name on the bones
+Referenced by issue #53882, Video Sound Crash 2.78c and 2.79
