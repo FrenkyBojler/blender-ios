@@ -1,0 +1,1 @@
+Referenced by issue #85762, 2.92 crashes when opening 2.83 files containing VSE strips created using Python API
