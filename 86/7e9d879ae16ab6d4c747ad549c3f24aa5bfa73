@@ -1,1 +1,2 @@
 Referenced by commit 41b1b4f95cf, Revert 867e9d879a: Status Bar Impossible Confirms & Cancels
+Referenced by issue #134241, cant cancel move with esc button if using right mouse button anymore
