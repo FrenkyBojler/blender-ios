@@ -5,3 +5,4 @@ Referenced by issue #85772, Image scale is reset after rendering in background m
 Referenced by issue #85737, Color Picker popup in secondary monitor immediately closes while still hovering
 Referenced by issue #85597, Render issue
 Referenced by issue #85507, Blender will not launch
+Referenced by issue #85491, EXCEPTION_ACCESS_VIOLATION
