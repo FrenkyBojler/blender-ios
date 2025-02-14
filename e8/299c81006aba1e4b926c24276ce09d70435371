@@ -75,3 +75,4 @@ Referenced by issue #50249, Blender crashes when bringing in a texture node in c
 Referenced by issue #50254, Blender 2.78a crash when making Single User copy
 Referenced by issue #50215, Blender crashes, when I add Input/Texture node
 Referenced by issue #50216, Using Weight trasfer from an object without faces crash blender
+Referenced by issue #50210, Blender 2.78A crashes opening files created in previous versions
