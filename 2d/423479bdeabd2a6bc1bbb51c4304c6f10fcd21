@@ -1,3 +1,4 @@
 Referenced by commit 9e382dd2a3d, Fix T74542, T74386: schulpt changes not saving (dyntopo or mutires)
 Referenced by issue #74542, Sculpt mode: multires not saving brush strokes
 Referenced by issue #74386, Sculpt Changes with Dyntopo Enabled Don't Save
+Referenced by issue #73371, Appending Collections to a new empty file and trying to save that file causes Blender to crash [cause identified!]
