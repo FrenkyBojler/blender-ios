@@ -1,1 +1,2 @@
 Referenced by issue #79117, Rigid body costraint produces dependency cycle
+Referenced by issue #78952, Rigid Body Constraint on passive object causes dependency cycle
