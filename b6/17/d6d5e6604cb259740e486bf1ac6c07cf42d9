@@ -1,1 +1,2 @@
 Referenced by commit 57a3403bc08, Fix T41075: Segfault when attempting to escape from bone translation.
+Referenced by issue #40991, After cancelling moving bones with X-Mirror, the mirror-bones have new location.
