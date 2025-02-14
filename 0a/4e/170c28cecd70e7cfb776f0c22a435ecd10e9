@@ -1,1 +1,2 @@
 Referenced by commit 781dd5edb5b, Fix audaspace mess in 2.8
+Referenced by issue #56698, Saving OpenEXR from Composite with an EXR as image input produces empty files
