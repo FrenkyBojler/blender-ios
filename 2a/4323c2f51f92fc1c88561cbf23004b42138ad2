@@ -1,1 +1,2 @@
 Referenced by commit 31f6d4db898, Fix: Incorrect assert in OBJ mesh edge creation
+Referenced by issue #109372, Crash when selecting line art
