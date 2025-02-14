@@ -8,3 +8,4 @@ Referenced by issue #116402, Curve Hook modifier broken due to selection changes
 Referenced by issue #115887, Fallback Tools are only tweaking single elements
 Referenced by issue #115188, Right click tweak don't select vert/ege/face when all selected
 Referenced by issue #115181, Right click select sometimes failed to select armature in pose mode
+Referenced by issue #112761, Regression: Box select no longer works with tweak tool in VSE
