@@ -76,3 +76,4 @@ Referenced by issue #40113, Armatured object with shape key causes segfault in B
 Referenced by issue #40087, Boolean modifier on two planes produces odd results
 Referenced by issue #40072, Blender requires libSDL 1.2 but it is not installed by default in Ubuntu 14.04
 Referenced by issue #40076, Group Instance problem (base objects visible on render)
+Referenced by issue #40059, Switching open windows ignores held modifiers on WIN32
