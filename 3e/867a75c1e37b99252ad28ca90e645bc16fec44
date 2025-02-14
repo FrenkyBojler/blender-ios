@@ -1,3 +1,4 @@
 Referenced by issue #128272, Regression: Sculpt: Clay Strip brush's Plane Trim is broken
 Referenced by issue #128027, Brush Assets: Erase tool in GP draw mode remember non-eraser brushes as active when switching
 Referenced by issue #124070, Crash when accessing screen from depsgraph_update_pre
+Referenced by issue #124060, Eevee-next Intel Arc: SSR is broken on Windows
