@@ -1,0 +1,1 @@
+Referenced by issue #131479, Fixes #93103.  Hard limits were been addded to the allowed iteration values of several modifiers to prevent undefined operations.
