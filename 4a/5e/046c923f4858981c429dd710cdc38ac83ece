@@ -2,3 +2,4 @@ Referenced by issue #68649, Improve communication of auto-save behavior by addin
 Referenced by issue #67160, Cycles renders non-isolated objects, Eevee doesn't
 Referenced by issue #67125, UI bug in filebrowser
 Referenced by issue #67117, Font thumbnails crash to desktop
+Referenced by issue #66675, Tooltip urgently needed for Preferences editor button to avoid user data loss with factory-defaults.
