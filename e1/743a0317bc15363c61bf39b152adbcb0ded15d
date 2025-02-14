@@ -16,3 +16,4 @@ Referenced by issue #122008, Miniature view of the scene appears at specific vie
 Referenced by issue #121931, Sculpting -> Box-Trim on "Hi"-Poly/Voxelcount extremely slow / crashing Blender
 Referenced by issue #121709, crash after python bpy.ops.object.mode_set(mode='OBJECT')
 Referenced by issue #121619, code marked as unreachable has been executed. Please report this as a bug.
+Referenced by issue #120960, EXCEPTION_ACCESS_VIOLATION
