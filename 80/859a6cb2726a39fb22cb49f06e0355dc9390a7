@@ -23,3 +23,4 @@ Referenced by issue #98901, Procedural Textures Crashing Blender 3.2 - Eevee
 Referenced by issue #98865, 3.2 eevee bad performance
 Referenced by issue #98647, Blender 3.2.0 Camera Data Node's View Vector Broken in Eevee
 Referenced by issue #98538, Geometry input node breaks after adding Displacement Texture in Shader Editor
+Referenced by issue #98245, Regression: Missing viewport update when shader to RGB is used in nodegroup
