@@ -15,3 +15,4 @@ Referenced by issue #87836, Cycles: GPU Performance
 Referenced by issue #87837, Cycles X - Restoring Features
 Referenced by issue #87839, Cycles X - New Features and Changes
 Referenced by issue #80267, Large scale volumetric object with large step size causes rendering artifacts on CPUs in Cycles.
+Referenced by issue #69800, Cycles Optix feature completeness
