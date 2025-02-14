@@ -8,3 +8,4 @@ Referenced by issue #96300, Texture Baking
 Referenced by issue #96163, Regression: Image editor fails to update after undoing stroke
 Referenced by issue #96116, Image editor does not update when you add additional UDIM tiles
 Referenced by issue #96030, Image Editor doesn't update when image is changed unless user moves the view
+Referenced by issue #95979, Baking doesn't result in an image viewer update until you move the image viewer
