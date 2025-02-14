@@ -1,1 +1,2 @@
 Referenced by issue #65771, Volumetric emission no longer works if density of reflective volume is set to zero
+Referenced by issue #63701, Eevee Volumetric end distance
