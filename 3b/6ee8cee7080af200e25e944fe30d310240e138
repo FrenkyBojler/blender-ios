@@ -7,3 +7,4 @@ Referenced by commit 263fa406cd2, Fix T90087: Assigning object data doesn't copy
 Referenced by commit fc32567cdaa, Versioning: fix vertex group name loss in linked duplicates.
 Referenced by commit ae30f72c806, Fix T89870: Vertex groups lost when opening 3.0 files in 2.93
 Referenced by commit de913516dd2, Fix: missing null check
+Referenced by issue #99857, Rebuilding subdivisions with multiresolution deletes vertex groups
