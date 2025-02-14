@@ -5,3 +5,4 @@ Referenced by issue #105205, Regression: Selecting coplanar faces causes a long 
 Referenced by issue #105046, Regression: Inverting face selection now very slow
 Referenced by issue #103610, Some meshes causing crash on file opening since Blender 3.4
 Referenced by issue #103520, Regression: Using Bright/Contrast option on selected faces (paintmask) in Vertex Paint mode broken
+Referenced by issue #103143, Regression: Cycles doesn't use default color attributes with face corner domains.
