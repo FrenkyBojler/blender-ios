@@ -1,3 +1,4 @@
 Referenced by commit 7c0e2646f9f, Nodes: move more rna code to node files
 Referenced by commit 43667b807e0, Nodes: move more geometry nodes rna code to node files
 Referenced by commit 868ae1092cd, Cleanup: move some node rna definitions to node files
+Referenced by issue #111000, Nodes: move more rna code to node files
