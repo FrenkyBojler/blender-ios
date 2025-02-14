@@ -5,3 +5,4 @@ Referenced by issue #62496, 2.8 crashing on icon click
 Referenced by issue #62457, Blender crashes when any mesh is disabled in renders and tries to render
 Referenced by issue #62460, Undo doesn't work in this file in particular
 Referenced by issue #62461, Mirror select doesn't select appropriate vertices where there are overlapping verts
+Referenced by issue #62437, Cycles zoom laggy with renderborder
