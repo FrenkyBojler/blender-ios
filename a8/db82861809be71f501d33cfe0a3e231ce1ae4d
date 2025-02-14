@@ -1,2 +1,3 @@
 Referenced by commit 70dff0670b4, Fix #112610: Nested pie menu items can't be selected
 Referenced by commit 906a5a89c41, Cleanup: remove fix for #112129 which is no longer needed
+Referenced by issue #112610, PIE menu can't be selected
