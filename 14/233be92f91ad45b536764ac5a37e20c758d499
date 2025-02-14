@@ -1,2 +1,3 @@
 Referenced by issue #123195, EEVEE-Next crash when duplicating many lights
 Referenced by issue #122262, Shadows bug
+Referenced by issue #122108, EEVEE-Next: Area light only cast shadow within 90 degree cone
