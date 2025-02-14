@@ -1,1 +1,2 @@
 Referenced by commit ac68f44b8a0, fix shader editor errors when showing world shader tree
+Referenced by issue #58945, Editmode Tool in topbar not updated after deleting object from the outliner
