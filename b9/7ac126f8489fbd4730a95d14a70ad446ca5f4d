@@ -1,3 +1,4 @@
 Referenced by commit 6e152df547c, Fix #125319: Can't drop images in uv editor
 Referenced by commit 2f003277c59, Fix error in new IO drop handler ignoring uppercase extensions
 Referenced by issue #125322, Fix #125319: Can't drop images uv editor
+Referenced by issue #119488, Complete File Handler support
