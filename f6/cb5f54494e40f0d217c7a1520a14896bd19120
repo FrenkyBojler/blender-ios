@@ -24,3 +24,4 @@ Referenced by issue #70500, Blender VSE with a Scene Strip and Compositor Crash
 Referenced by issue #70461, Plane plus Modifier "skin" CRASH
 Referenced by issue #70279, crash, Helicopter, blender 2.74 demo file
 Referenced by issue #70227, VSE Low Playback Rate: Alpha Over will give a lower fps than Cross
+Referenced by issue #70228, VSE Low Playback Rate: Resolution mismatch will give a lower fps
