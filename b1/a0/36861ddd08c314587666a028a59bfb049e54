@@ -1,2 +1,3 @@
 Referenced by issue #53683, 2.79a release
 Referenced by issue #53572, Alembic - Broken UVs after export and test re-import
+Referenced by issue #50227, Alembic uv export/load issue
