@@ -5,3 +5,4 @@ Referenced by issue #91218, Viewport takes a huge performance hit when enabling 
 Referenced by issue #78161, Workbench refactor causes significant performance regression with workbench shadows
 Referenced by issue #77424, Editmode overlay [wireframe, vertices etc] completely covered by geometry in multiple selection objects in edit mode with 'In Front' option enabled
 Referenced by issue #76216, Object disappared and glichted when switching between normal view and quad views
+Referenced by issue #75943, EEVEE can't show reflections from hdri - blender v2.83.13 beta
