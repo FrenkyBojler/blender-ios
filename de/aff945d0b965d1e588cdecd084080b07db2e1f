@@ -8,3 +8,4 @@ Referenced by commit 0945a79ed1e, Fix crash using shrink-wrap modifier in edit-m
 Referenced by commit 2d1b560a4e2, Fix T77632: Deform modifier auto-binding not working
 Referenced by commit 495a98d6236, BLI_assert: prevent abort from suppressing return-type warning
 Referenced by commit 1b06d5742e8, Fix building after rBdeaff945d0b9... sic.
+Referenced by issue #100578, Regression: Surface Deform Modifier does not display correctly in Edit Mode while a Vertex Group is assigned to the Modifier.
