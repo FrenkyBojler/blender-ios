@@ -89,3 +89,4 @@ Referenced by issue #53816, Denoiser produces artefacts depending on radius
 Referenced by issue #53819, Compressed Splash Screen
 Referenced by issue #53780, Particle edit doesn't work on a Baked, dynamic hair simulation
 Referenced by issue #53771, Full Sample AA breaks stereo renderings in Blender Render
+Referenced by issue #53751, Particle System: Interpolated Children hairs will often penetrate collision object
