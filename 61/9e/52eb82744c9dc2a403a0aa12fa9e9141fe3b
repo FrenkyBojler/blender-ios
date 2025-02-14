@@ -1,0 +1,1 @@
+Referenced by issue #81345, ID user decrement error when removing object which is referred to with a PointerProperty
