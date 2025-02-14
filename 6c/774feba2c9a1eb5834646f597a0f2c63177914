@@ -23,3 +23,4 @@ Referenced by issue #104501, Regression: Blender crashes after using Inset Faces
 Referenced by issue #104044, Regression: UVMap channels order breaks after scene reload
 Referenced by issue #104033, Regression: UV faces not selecting correctly
 Referenced by issue #103837, Regression : crash opening file with uv from GN primitive
+Referenced by issue #97174, Dependent/Linked CustomData layers
