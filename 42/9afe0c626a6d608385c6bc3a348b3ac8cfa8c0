@@ -3,3 +3,4 @@ Referenced by commit 17cf5001016, Cycles: Fixed Cycles standalone build.
 Referenced by commit 45da7ce1779, Cycles: Followup fixes for node ownership refactor.
 Referenced by issue #82129, Cycles "Persistent Images" incorrectly retains lighting & mesh data when rendering multiple times / animations.
 Referenced by issue #80477, Viewport Optix Denoiser is available when Cycles Render Device is set to None/CUDA, leading to a crash
+Referenced by issue #79131, Cycles/Blender API redesign
