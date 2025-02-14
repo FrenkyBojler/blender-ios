@@ -32,3 +32,4 @@ Referenced by issue #49322, Export UV Layout not working
 Referenced by issue #49329, BGE standalone player crash when loading another file more than 32 times
 Referenced by issue #49304, Incorrect Custom Float Property Value Readout
 Referenced by issue #49307, Bone head/tail radius not synchronized across children
+Referenced by issue #49288, Ease drivers don't migrate to new Bendy Bones (datapath change, backwards-compatibility broken)
