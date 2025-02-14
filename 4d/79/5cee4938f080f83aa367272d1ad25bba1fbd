@@ -3,3 +3,4 @@ Referenced by issue #60133, Using texture projection with external image editor 
 Referenced by issue #60080, Viewport not always updating material changes
 Referenced by issue #60071, Crash when change material after import glTF
 Referenced by issue #60072, Eevee: Ambient Occlusion disappears
+Referenced by issue #60073,  Cannot remove input of Light Falloff node
