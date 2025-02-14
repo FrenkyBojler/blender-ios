@@ -2,3 +2,4 @@ Referenced by issue #95246, Undo bone rotation after previous frame/keyframe jum
 Referenced by issue #82769, Crash rendering particle animation with particle caches [disk cache works though]
 Referenced by issue #80166, Animating Shape Key Max/Min Range works in viewport but not when rendering
 Referenced by issue #80035, Crash to desktop with creating a new scene with a motion tracking file loaded
+Referenced by issue #71234, Custom property doesnt update when rendering animation
