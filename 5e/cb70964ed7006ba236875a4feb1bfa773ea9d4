@@ -4,3 +4,4 @@ Referenced by commit 1e6f21c34d1, Fix #126826: Regression in VSE movie rendering
 Referenced by issue #131106, VSE tone map modifier produces inconsistent result
 Referenced by issue #130781, Fix #130742 Scene render from VSE is taking twice as long
 Referenced by issue #130742, VSE: Rendering a scene from the VSE takes double than normal
+Referenced by issue #126911, Fix #126826: Regression in VSE movie rendering performance
