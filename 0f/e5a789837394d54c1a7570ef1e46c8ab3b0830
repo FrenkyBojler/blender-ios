@@ -3,3 +3,4 @@ Referenced by issue #59321, Front View in Wireframe causes instant crash
 Referenced by issue #59193, Crash with SIGSEGV in DEG::DepsgraphRelationBuilder::build_rigidbody(Scene*) () while running python script in 2.80b
 Referenced by issue #59097, Pose Library - Fake users and Appending can´t merge pose library
 Referenced by issue #59078, core dumped when opening the file
+Referenced by issue #59082, De-selecting all, leaves the Move tool gizmo visible
