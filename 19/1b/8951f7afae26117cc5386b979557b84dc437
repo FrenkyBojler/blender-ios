@@ -1,2 +1,3 @@
 Referenced by commit 69f50e6ea98, Fix: objects in outliner cannot be disabled
 Referenced by issue #61382, Resetting / Unsetting Editor Type to default value closes blender with no error / option to recover session
+Referenced by issue #61365, Hair system behaves wiered when module append from 2.79b file to 2.8
