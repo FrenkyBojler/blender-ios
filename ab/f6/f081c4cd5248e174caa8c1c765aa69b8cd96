@@ -41,3 +41,4 @@ Referenced by issue #49173, Shape of vertex-only bevels is distorted: edges shou
 Referenced by issue #49177, FBX export parameters aren't saved with the .blend file
 Referenced by issue #49153, Can't save ("No such file or directory")
 Referenced by issue #49146, Right-clicking makes Blender 2.77 crash!
+Referenced by issue #49132, Blender 2.77a hangs when a lot of vertices are selected in "Separate By Loose Parts"
