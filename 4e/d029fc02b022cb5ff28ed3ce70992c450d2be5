@@ -1,1 +1,2 @@
 Referenced by issue #89955, Blender crashing in Edit mode.
+Referenced by issue #89929, Blender will crash when hiding a volume object rendered mode if it was previously keyframed
