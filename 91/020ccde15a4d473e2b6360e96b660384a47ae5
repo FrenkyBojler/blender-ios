@@ -1,1 +1,2 @@
 Referenced by commit f78d1fd1146, Fix memory leak during uv packing
+Referenced by issue #108034, Multires - Crash with Simple subdivision
