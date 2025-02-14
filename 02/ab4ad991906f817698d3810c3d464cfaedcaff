@@ -1,3 +1,4 @@
 Referenced by issue #98076, Regression: Particle mirror broken for particular mirrored mesh.
 Referenced by issue #95692, Regression: Interpolated Children Particle Hair incorrect in 3.01+
 Referenced by issue #93567, Optix Artefacts with motion blur (Alembic?)
+Referenced by issue #93479, 3.0 Potential candidates for corrective releases
