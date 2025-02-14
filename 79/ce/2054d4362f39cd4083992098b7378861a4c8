@@ -1,2 +1,3 @@
 Referenced by issue #67753, Alpha BLEND and SHADOW together cause crash
 Referenced by issue #67118, bpy.ops.wm.save_as_mainfile does not work as expected on MacOS when run from script
+Referenced by issue #66915, Changing Point Density Radius crashes Blender
