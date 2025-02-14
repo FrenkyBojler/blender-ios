@@ -1,2 +1,3 @@
 Referenced by commit e7e1fd8a205, Fix: Sculpt: Incorrect overlay visibility check
 Referenced by commit d065d54972b, Fix: Missing sculpt overlays for dynamic topology
+Referenced by commit 2af62ba0f67, Refactor: Sculpt: Reduce usage of BVH tree geometry back pointers
