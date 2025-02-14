@@ -1,1 +1,2 @@
 Referenced by commit 807b6c48487, Revert "Fix T66949: Can't select bones from multiple objects in wpaint mode"
+Referenced by issue #66949, Difficult to select bones for weight paint with multiple armature modifiers
