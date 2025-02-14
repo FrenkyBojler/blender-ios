@@ -1,1 +1,2 @@
 Referenced by commit 9dfc81ccf10, Fix regression in 2cc5af9c553cfc00b7d4616445ad954597a92d94
+Referenced by issue #86431, Heap buffer overflow when removing keymap entries on add-on unregister
