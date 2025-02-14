@@ -1,1 +1,2 @@
 Referenced by commit cf9ea111bf4, macOS: remove deprecated touch event API call
+Referenced by issue #70252, BL 2.81 Instant crash OSX 10.11.6
