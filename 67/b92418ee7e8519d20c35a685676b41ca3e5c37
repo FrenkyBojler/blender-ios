@@ -1,2 +1,3 @@
 Referenced by commit 8b44c62ce77, Fix #118307: Outliner crash with additional constraint on overridden bone
 Referenced by issue #118573, Fix #118307: Outliner crash with additional constraint on overridden bone
+Referenced by issue #118307, Outliner Crashes when a bone has an extra constraint added to library override.
