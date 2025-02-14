@@ -1,3 +1,4 @@
 Referenced by issue #46090, Blender game embedded player crash
 Referenced by issue #46091, Video Sequencer rewrite *.png to _.png
 Referenced by issue #46093, Thumbnails/previews of materials/textures not displaying in Blender filebrowser when only one thread is available
+Referenced by issue #46096, freestyle cycles render in stereo 3d only ads outline effect to one eye
