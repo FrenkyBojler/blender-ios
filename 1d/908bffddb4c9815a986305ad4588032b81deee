@@ -2,3 +2,4 @@ Referenced by commit b5a2dc16fc4, Revert "WM: Repeat Last no longer reuses skip-
 Referenced by issue #60968, Duplicate and Join Shape Key Object crashes Blender
 Referenced by issue #60869, Freestyle Edges renders lines from cCurrent frame on all frames of an animation
 Referenced by issue #60842, Selecting edge loops doesn't work properly
+Referenced by issue #60827, Edit mode can generate an unwanted x-ray veiw with x-ray off.
