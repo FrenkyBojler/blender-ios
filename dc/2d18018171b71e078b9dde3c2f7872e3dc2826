@@ -2,3 +2,4 @@ Referenced by issue #105866, UV passed as AOV does not match the actual UV AOV c
 Referenced by issue #99145, Snap not working correctly - missed verts, edge, faces (strange)
 Referenced by issue #97773, Inconsistent behavior of the Subdivide Edge Ring and Subdivide actions on meshes with shape keys
 Referenced by issue #96693, Wireframe Modifier Can't Be Correctly Applied
+Referenced by issue #96175, Blender 3.0.1 crashing very frequently
