@@ -3,3 +3,4 @@ Referenced by issue #72960, Different behavior deleting object in 3D view vs out
 Referenced by issue #71243, Fake spike artefacts after smoothing in sculpt mode
 Referenced by issue #69731, Vector Pass output in Cycles is wrong when camera focal length is animated
 Referenced by issue #63648, Lennard-Jones-Field Self Effect not working properly
+Referenced by issue #63043, Armature mod. fails to work in conjunction with vertex parent type/child of constraint
