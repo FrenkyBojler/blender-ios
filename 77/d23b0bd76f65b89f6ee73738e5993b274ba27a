@@ -3,3 +3,4 @@ Referenced by issue #85061, Blender freezes, but does not crash
 Referenced by issue #83420, Closing Preferences Panel crashes Blender
 Referenced by issue #83272, Evee does not show textures in view port  or render properly
 Referenced by issue #81908, Blender 2.90.1 lags and crashes unpredictably
+Referenced by issue #77188, Bevel modifier with an odd number of bevel segments along material border causes strange material assignment
