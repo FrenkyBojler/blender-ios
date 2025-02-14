@@ -1,2 +1,3 @@
 Referenced by issue #90786, Geometry nodes: editor do not refresh immediately if GN modifier clicked out of icon.
 Referenced by issue #90423, Cycles - Render Pass contains black pixels with no values
+Referenced by issue #89708, Geometry Node "Attribute Transfer" UV Mapping problem
