@@ -10,3 +10,4 @@ Referenced by issue #95633, Deleting keyframes when exporting as FBX.
 Referenced by issue #95456, Blender 3.0 Denoising on Transparency Creates Artifacting (Blend included)
 Referenced by issue #95306, after creating a new folder, pressing Enter creates yet another new folder instead of entering the created one
 Referenced by issue #93642, transform.edge_crease ignores Factor when used as with hotkey
+Referenced by issue #91264, Splitted movie clips show wrong section
