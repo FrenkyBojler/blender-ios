@@ -1,3 +1,4 @@
 Referenced by issue #61727, Quicktime Animation Rendering Crashes, every time since 2.79 up to 2.8
 Referenced by issue #53683, 2.79a release
 Referenced by issue #53052, ID decrement error when deleting a scene, either python or GUI
+Referenced by issue #53058, Crash when rendering to Quicktime RLE codec
