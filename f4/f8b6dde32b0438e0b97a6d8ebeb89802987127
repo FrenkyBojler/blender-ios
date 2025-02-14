@@ -1,2 +1,3 @@
 Referenced by commit e14f8c2dd76, Cycles: Reintroduce device-only memory handling that got lost in Cycles X merge
 Referenced by issue #86011, Crash with GPU Rendering and NV-Link
+Referenced by issue #85985, Memory allocation probelms
