@@ -8,3 +8,4 @@ Referenced by issue #71711, Convert GPencil Sculpt and Weight brushes to real Bl
 Referenced by issue #70765, Input Mouse or Tablet events are too sparse when input device moves very fast in Windows
 Referenced by issue #68327, GPencil: Improve Drawing Tools
 Referenced by issue #68326, GPencil: New Vertex Paint mode
+Referenced by issue #66293, GPencil: Redesign Blend modes and cleanup Drawing Engine
