@@ -20,3 +20,4 @@ Referenced by issue #38812, color picker not saving input when clicked away
 Referenced by issue #38766, Material transparency problems in solid viewport
 Referenced by issue #38768, new "audio" button in 2.70 release does not 'mixdown' audio
 Referenced by issue #38770, Vertex slide does not work on Blender 2.7 test build or newer versions
+Referenced by issue #38771, 2 times slower BVH construction / render time with Hair system
