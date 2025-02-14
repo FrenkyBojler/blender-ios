@@ -2,3 +2,4 @@ Referenced by commit fbd01624e3f, Shader Nodes: Convert bump node to use new soc
 Referenced by issue #83624, Bump map node is doing something strange which is causing unusable viewport performance.
 Referenced by issue #79638, Bump node in Eevee. Huge performance drop.
 Referenced by issue #71201, eevee/blender freezing  for a few seconds when renaming a few materials via python
+Referenced by issue #70614, Texture won't display or won't do correctly on eevee when used as bump and other input
