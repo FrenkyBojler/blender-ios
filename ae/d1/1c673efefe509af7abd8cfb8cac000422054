@@ -1,1 +1,2 @@
 Referenced by issue #86823, Regression: Eevee SSR refraction depth works only for 1st refractive material and inherited by others
+Referenced by issue #77557, Python Operators that add/remove ID data without an undo step crash Blender
