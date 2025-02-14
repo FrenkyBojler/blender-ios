@@ -1,1 +1,2 @@
 Referenced by commit b02ac2d8be3, Fix T93092: incomplete animation rendering of multi-layer exr composition
+Referenced by commit 45bd98d4cff, Fix T92934: crash rendering with wrong image path
