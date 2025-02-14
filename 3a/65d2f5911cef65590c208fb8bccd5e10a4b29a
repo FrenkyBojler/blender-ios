@@ -1,1 +1,2 @@
 Referenced by commit f16dbd0360e, ImBuf: no need to use double precision inside IMB_transform
+Referenced by issue #117160, ImBuf: no need to use double precision inside IMB_transform
