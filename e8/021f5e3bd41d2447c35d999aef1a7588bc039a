@@ -1,2 +1,3 @@
 Referenced by issue #50950, converting all to mesh doesn't work when a boolean and solidify are present in scene.
 Referenced by issue #50956, Wrong view rendering mode, on orthographic view , black rendering of some glossy surface.
+Referenced by issue #50937, baking with OpenCL and CPU have slightly different brightness
