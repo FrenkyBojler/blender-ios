@@ -6,3 +6,4 @@ Referenced by issue #120207, Fix #120200: Sculpting is slow with modifier with d
 Referenced by issue #120200, Sculpting is extremely slow when a Modifier is present with a driver added
 Referenced by issue #119956, Fix #119936: Crash selecting in mask editor
 Referenced by issue #119936, !!Crash!! when left-clicking in masking tab with no selected points in MovieClipEditor/ImageEditor
+Referenced by issue #119918, Fix #119907: Active curve vertex/spline not visualizing properly
