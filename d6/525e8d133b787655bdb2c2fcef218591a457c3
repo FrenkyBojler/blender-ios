@@ -1,1 +1,2 @@
 Referenced by commit 344c001eae6, Fix T81669: Vertex size in UV Editor changes using Face Dot Size in themes
+Referenced by commit 6759b8a224e, Cleanup: silence [-Wmissing-braces] warning.
