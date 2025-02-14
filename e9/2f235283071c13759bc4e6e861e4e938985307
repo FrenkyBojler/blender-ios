@@ -28,3 +28,4 @@ Referenced by issue #52187, normals_split_custom_set() seems to smooth out given
 Referenced by issue #52188, Canceling render takes too much time
 Referenced by issue #52173, snapping
 Referenced by issue #52146, hair not are simulateable and not editable in eevee.
+Referenced by issue #52131, particle hair not doing dynamic, just being static when enabled dynamic.
