@@ -1,2 +1,3 @@
 Referenced by issue #82558, Can't Reduce Torus Minor Radius below .01m
 Referenced by issue #75833, minimum limit on torus radii was too big
+Referenced by issue #73893, Torus with minor radius less than 10mm not allowed
