@@ -4,3 +4,4 @@ Referenced by issue #63967, Eevee Shader Node Group Drops Datablock and Crashes
 Referenced by issue #63942, GPU render Crashes instantly
 Referenced by issue #63943, Modifiers not visibe during sculpt mode.
 Referenced by issue #63922, Dynamic Paint doesnt appear in viewport
+Referenced by issue #63923, Undo in Edit Mode Crashes Blender 2.8
