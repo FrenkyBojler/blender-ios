@@ -19,3 +19,4 @@ Referenced by issue #45918, CustomDataLayer with type CD_MLOOPUV in Mesh::ldata:
 Referenced by issue #45585, Blender "Repeat Last" key re-configuring bug
 Referenced by issue #45554, Impossible to remove Actions from Action Editor
 Referenced by issue #45376, viewport doesn't refreshes animated colors in node groups
+Referenced by issue #45283, Blender crashes when trying to do anything with specific type of transparent image.
