@@ -1,2 +1,3 @@
 Referenced by issue #107272, Sample color operator options no longer shown
 Referenced by issue #105228, Particle Info Node does not return particle information in light nodes
+Referenced by issue #102114, Startup EXCEPTION_ACCESS_VIOLATION crash on Windows 10 with newer NVidia drivers
