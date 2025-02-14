@@ -1,1 +1,2 @@
 Referenced by issue #77743, Numberpad decimal point does not give correct mapping in Keymap Editor for 3dView
+Referenced by issue #76094, keymap search by key-binding doesnt find existing mapped operations if searching for  numpad . or numpad -
