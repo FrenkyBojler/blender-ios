@@ -8,3 +8,4 @@ Referenced by issue #42376, HD space consumption
 Referenced by issue #42351, Freestyle will not render edges selected by Edge Type: Material Boundary, if the materials are different, but look identical.
 Referenced by issue #42340, Blender video editor : The Green line which shows the current frame has accuracy problem
 Referenced by issue #42348, Bugs in ParticleSystem
+Referenced by issue #42331, Saving a model with multiple actions sometimes omits actions.
