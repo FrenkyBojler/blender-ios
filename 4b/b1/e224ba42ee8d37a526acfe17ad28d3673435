@@ -44,3 +44,4 @@ Referenced by issue #49723, Wrong subdiv result with semisharp creases
 Referenced by issue #49652, Blender crashes when using ocean modifier and dynamic paintbrush and ocean not re-baked
 Referenced by issue #49653, Quicktime render error
 Referenced by issue #49656, Crash when starting playback while using JACK audio with A/V sync
+Referenced by issue #49706, Material Render mode viewport not updating with changes in image texture node
