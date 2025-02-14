@@ -1,1 +1,2 @@
 Referenced by commit f3cf29ac969, Fix T77074: Collections: Exclude From ViewLayer toggle crashes
+Referenced by issue #72490, Collections: Exclude From View toggle causes segment violation.
