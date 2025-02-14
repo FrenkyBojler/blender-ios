@@ -12,3 +12,4 @@ Referenced by issue #109822, Regression: Average Brush in Vertex Paint Mode is b
 Referenced by issue #109796, applying Data Transfer crashes when target has Shape Keys
 Referenced by issue #109570, Error when collection visibility property is used in driver expression (fixed in main, backport request)
 Referenced by issue #109519, Orbit Around Selection in Edit Mode is not working after 3.6.0 update
+Referenced by issue #109372, Crash when selecting line art
