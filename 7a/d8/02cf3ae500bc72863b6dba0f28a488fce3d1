@@ -10,3 +10,4 @@ Referenced by issue #68047, Found a bug during shading process
 Referenced by issue #66979, Can not set one image node to non-color without changing it for every node using that image
 Referenced by issue #66985, Texture color space in shader editor resets every time i import textures
 Referenced by issue #65332, Texture Image Node's Color Space Are Linked When Using Duplicates Of The Same Texture.
+Referenced by issue #64750, Allow OpenGL image drawing in UI colour space
