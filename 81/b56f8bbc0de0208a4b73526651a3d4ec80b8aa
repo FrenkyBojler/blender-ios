@@ -1,2 +1,3 @@
 Referenced by commit b57916463c4, Fix #121121: NLA push down places local tracks before library overrides
 Referenced by issue #121395, Fix #121121: NLA push down places local tracks before library overrides
+Referenced by issue #121121, NLA push down order inconsistency
