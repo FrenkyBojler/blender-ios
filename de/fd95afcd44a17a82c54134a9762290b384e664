@@ -1,3 +1,4 @@
 Referenced by issue #124947, Mouse navigation issue
 Referenced by issue #117896, Linux Wayland: Blender doesn't know the D button is pressed when switching between windows
 Referenced by issue #111644, Floating windows switch focus with delay and only if cursor stops moving
+Referenced by issue #93158, Switching windows does not register as click
