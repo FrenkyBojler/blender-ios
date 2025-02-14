@@ -4,3 +4,4 @@ Referenced by commit fde88ad9d2f, Fix T66627: Multiobject Edit UV constraint to 
 Referenced by commit 4df72208741, Fix crash with select linked when nothing is under the cursor
 Referenced by issue #66195, Alt+Wheel mouse doesn't work in "Loop Cut & Slide" operator (and in Slide operators) to change the control edge with (E)Even option
 Referenced by issue #54643, Multi-Object-Mode: EditMesh Tools
+Referenced by issue #54645, Multi-Object-Mode: EditMesh UV Tools
