@@ -3,3 +3,4 @@ Referenced by issue #75287, Cycles render passes have channels from other passes
 Referenced by issue #75069, Lastes Blender versions break parenting in DEMO File - BMW scene
 Referenced by issue #75050, GPencil: Strokes get darker while drawing in SOLID mode
 Referenced by issue #74111, Animation Playback Delayed With Time Remapping And AV-Sync
+Referenced by issue #71479, Blender 2.81/2.82 - OpenCL - Significan slow render times
