@@ -3,3 +3,4 @@ Referenced by issue #88570, Regression: Crash when saving after pressing ctrl+S 
 Referenced by issue #85896, Weight Paint Mode Redo Panel Problems
 Referenced by issue #85253, Reproducible Crash when Projecting UVs after Merging by Distance ("Removing Doubles") from Live Home 3D Export
 Referenced by issue #84839, EEVEE viewport poor playback performance with RTX 3090
+Referenced by issue #84783, crashes when Mac wakes up
