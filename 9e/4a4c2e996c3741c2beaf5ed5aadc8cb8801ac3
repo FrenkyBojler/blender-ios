@@ -1,1 +1,2 @@
 Referenced by commit d11b219d40d, Fix T83869: Crash when creating Sequencer in new scene
+Referenced by issue #77580, Sequencer: restructuring the code layout
