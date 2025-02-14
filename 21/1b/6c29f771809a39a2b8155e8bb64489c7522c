@@ -3,3 +3,4 @@ Referenced by issue #81211, Fast circular strokes by Paint and Sculpt brushes us
 Referenced by issue #80589, Translations in python scripts are missing.
 Referenced by issue #78932, Reroute node inconsistencies
 Referenced by issue #78639, Bug report about rendered view
+Referenced by issue #78556, Inconsistent behavior in Dynamic Paint when moving Canvas towards Brush (keyed vs unkeyed)
