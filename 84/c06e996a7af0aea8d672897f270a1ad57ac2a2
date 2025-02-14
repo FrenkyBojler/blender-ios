@@ -7,3 +7,4 @@ Referenced by issue #60550, Materials turn black or white in Eevee LookDev/Rende
 Referenced by issue #60554, Object Viewport Display Color Reverts To Default After Using Color Picker
 Referenced by issue #60543, Vanishing Object
 Referenced by issue #60525, Transmission Roughness in Principled isn't working in EEVEE
+Referenced by issue #60533, Smooth/Random tool causing crash
