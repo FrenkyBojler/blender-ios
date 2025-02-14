@@ -1,2 +1,3 @@
 Referenced by commit d4997102183, Fix #115978: FCurve extrapolation ignored in NLA.
 Referenced by issue #116382, Fix #115978: FCurve extrapolation ignored in NLA.
+Referenced by issue #115978, FCurve extrapolation ignored in whenever anything is present in the NLA
