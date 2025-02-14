@@ -44,3 +44,4 @@ Referenced by issue #42718, Smoke simulation rendering issues when enable Render
 Referenced by issue #42705, F-Curve modifier - Builtin-Function - Wrong Sine Amplitude for Angle transformation
 Referenced by issue #42712, Baking an object's texture is effected by the 'Exclude' option for the first render layer in the Render Layers menu.
 Referenced by issue #42689, GPU rendering won't render two point lamps at once
+Referenced by issue #42658, Shrinkwrap modifier does not work with multiple scenes and VSE
