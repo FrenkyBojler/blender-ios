@@ -1,2 +1,3 @@
 Referenced by issue #119905, Unable to copy Hook modifiers via API
 Referenced by issue #87232, Crash when evaluating object with unsupported modifier
+Referenced by issue #82945, Crash when dragging modifiers in Outliner
