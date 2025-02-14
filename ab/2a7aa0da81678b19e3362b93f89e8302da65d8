@@ -1,2 +1,3 @@
 Referenced by issue #93479, 3.0 Potential candidates for corrective releases
 Referenced by issue #93438, Custom nodes no longer get inserted in between two linked nodes
+Referenced by issue #93430, Custom node sockets don't get relinked when dropping a node on an existing link
