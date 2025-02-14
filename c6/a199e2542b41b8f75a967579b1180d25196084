@@ -1,1 +1,2 @@
 Referenced by commit c252fe7a32a, Transform: don't inspect all scene objects in poll
+Referenced by issue #66311, crash when you use skin resize(ctrl+a) on two objects with multi edit, when skin modifier applyes only to one of objects
