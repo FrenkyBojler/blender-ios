@@ -1,2 +1,3 @@
 Referenced by issue #85287, Generated Grid image textures deadlock background Cycles renders.
 Referenced by issue #80080, Cycles - Fixed Threads Cap UX inconsistency
+Referenced by issue #77533, Switch Cycles task scheduler to use TBB
