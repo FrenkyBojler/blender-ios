@@ -1,1 +1,2 @@
 Referenced by issue #83079, GPU texture baking with large tile size fails
+Referenced by issue #76877, Orthographic Grid Artifacts when Clipping > 95km
