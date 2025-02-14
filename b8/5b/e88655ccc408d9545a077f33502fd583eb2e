@@ -2,3 +2,4 @@ Referenced by issue #62889, Bump Mapping has been broken since Aug 2018
 Referenced by issue #56396, Cycles - Non-Deformation Motion Blur is inconsistant
 Referenced by issue #56204, Edit Mode - Vertex Slide & Edge Slide do not honor 'C' toggle. problem affects multiple edit mode tools (shear as well)
 Referenced by issue #56084, Material Preview icon in the material slots editor crashes out if you undo too fast
+Referenced by issue #56035, Blender 2.79 - New Despgraph - Animation gets out of sync when dealing with visibility.
