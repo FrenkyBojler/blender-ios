@@ -1,2 +1,3 @@
 Referenced by issue #70269, ChildOf constraint 'Set Inverse' not working when targeting vertex group
 Referenced by issue #66080, Bone vertex Child of Constraint problem
+Referenced by issue #63598, "child of" constraint "set inverse" not working
