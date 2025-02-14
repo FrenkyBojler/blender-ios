@@ -5,3 +5,4 @@ Referenced by issue #71882, Offset Edge Slide doesn't switch selection mode corr
 Referenced by issue #71844, Outliner: show_active doesn't expand armature to show active bone
 Referenced by issue #71769, The plus icon is on the left and no effect when you click
 Referenced by issue #71749, Shrink Wrap Modifier: Default shrink wrap surface constraint option yield inert results on objects with overlapping vertices and same topology
+Referenced by issue #71722, Alembic speed decrease for deforming geometry
