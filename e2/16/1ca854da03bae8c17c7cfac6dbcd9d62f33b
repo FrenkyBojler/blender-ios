@@ -1,0 +1,1 @@
+Referenced by issue #47426, GPU render fails with 'illegal address in cuCtxSynchronize' when using 2nd GPU
