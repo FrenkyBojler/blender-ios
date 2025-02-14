@@ -1,2 +1,3 @@
 Referenced by commit 583f6948266, Fix T90817: Object Picker Doesn't Work on Second window
 Referenced by issue #77226, Eyedropper does not work from another blender instance
+Referenced by issue #58162, Object/color picker only works within the same window
