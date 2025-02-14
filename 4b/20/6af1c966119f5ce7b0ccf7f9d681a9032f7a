@@ -9,3 +9,4 @@ Referenced by issue #38501, blender crashes right after adding image texture to 
 Referenced by issue #38487, Blur + Wrapped Translate = Crash
 Referenced by issue #38258, black spots
 Referenced by issue #38225, (complete) System Freeze, Frequent
+Referenced by issue #38226, critical 3d view transform and manipulator issues.
