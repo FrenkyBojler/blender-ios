@@ -2,3 +2,4 @@ Referenced by issue #66394, Blender crash on edit path with solidify modifier
 Referenced by issue #65974, Workbench transparency rendering broken
 Referenced by issue #65976, Incorrect button/icon state for viewport render mode when switching from EeeVee to Workbench
 Referenced by issue #65981, Selecting/Moving Beveled, Modifier'd Curve Vertex -> Crash
+Referenced by issue #65963, Tests: fix script_load_keymap hierarchy test
