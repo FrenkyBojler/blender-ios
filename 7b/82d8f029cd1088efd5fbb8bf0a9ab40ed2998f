@@ -1,1 +1,2 @@
 Referenced by commit 30a20b4def3, Nodes: Remove deprecated useless width_hidden property
+Referenced by commit 72b4f919146, Fix T103526: crash when subsurface connects to Shader to RGB
