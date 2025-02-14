@@ -5,3 +5,4 @@ Referenced by issue #49363, CUDA error at cuCtxCreate: Illegal address [experime
 Referenced by issue #49370, Cuda cuMemFree error
 Referenced by issue #49353, Noise texture incorrectly displayed in the viewport Cycles
 Referenced by issue #49354, Voronoi texture incorrectly displayed in the viewport Cycles
+Referenced by issue #49355, Musgrave texture incorrectly displayed in the viewport Cycles
