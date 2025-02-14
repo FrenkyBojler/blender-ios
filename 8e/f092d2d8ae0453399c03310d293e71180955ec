@@ -1,1 +1,2 @@
 Referenced by issue #102554, Regression: Crash when Use Nodes is enabled after enabling the viewport compositor
+Referenced by issue #102240, Viewer Node does not initialize from within Compositor node group
