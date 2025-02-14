@@ -1,0 +1,1 @@
+Referenced by issue #85051, Mirror modifier bug - Bisect mode results in “automerge” even if it shouldn’t. Most likely due to units setup put to cm.
