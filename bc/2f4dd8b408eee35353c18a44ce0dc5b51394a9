@@ -1,1 +1,2 @@
 Referenced by commit ddc52f2e1d0, Fix: Curve to Mesh node creates caps when curve is cyclic
+Referenced by issue #91934, Add "Fill Caps" option to the curve to mesh node
