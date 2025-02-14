@@ -50,3 +50,4 @@ Referenced by issue #49639, Crash when disconnecting joystick while game engine 
 Referenced by issue #49649, Goal Strength parameter in “Soft Body Goal” works differently in 2.76+ versions
 Referenced by issue #49629, Graph editor normalize function doesn't work on f-curves with a constant key value
 Referenced by issue #49616, Blender chrashes after Cuda 8.0 update
+Referenced by issue #49622, Grease pencil not rendering out of VSE
