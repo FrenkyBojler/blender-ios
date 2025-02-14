@@ -72,3 +72,4 @@ Referenced by issue #57514, Bug when exporting after Blender has been running a 
 Referenced by issue #57382, FBX exporter: Simplify on animations doesn't work correctly
 Referenced by issue #57376, 2.79 -> 2.8 Maintain Volume constraint unexpected behaviour.
 Referenced by issue #57243, Blender Crash on opening user preferences
+Referenced by issue #57170, BUG: use_map_density
