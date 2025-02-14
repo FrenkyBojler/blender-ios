@@ -1,2 +1,3 @@
 Referenced by commit 5364e62b053, UI: add back Data-block 'show_hidden_files_datablocks' name
 Referenced by issue #60669, Freestyle loading unneeded collections
+Referenced by issue #60608, Properties dialogs created by addons via wm.invoke_props_dialog() jump around vertically.
