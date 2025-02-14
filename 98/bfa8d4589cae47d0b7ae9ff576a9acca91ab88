@@ -1,1 +1,2 @@
 Referenced by commit 981dd123943, Fix #108665: Project 3D cursor on Geometry not working in X-ray
+Referenced by commit f94599c0958, Fix #106478: Missing xray check in snapping
