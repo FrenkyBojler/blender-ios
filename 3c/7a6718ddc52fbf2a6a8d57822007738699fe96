@@ -1,1 +1,2 @@
 Referenced by commit f7ce20e3404, Cleanup: Remove two files committed by mistake.
+Referenced by issue #95480, Blender crashes with relocating libraries in some cases.
