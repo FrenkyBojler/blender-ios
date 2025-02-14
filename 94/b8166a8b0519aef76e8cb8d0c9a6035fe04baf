@@ -2,3 +2,4 @@ Referenced by issue #75405, Crash when increasing text object bevel depth
 Referenced by issue #75287, Cycles render passes have channels from other passes appearing in them.
 Referenced by issue #75069, Lastes Blender versions break parenting in DEMO File - BMW scene
 Referenced by issue #75050, GPencil: Strokes get darker while drawing in SOLID mode
+Referenced by issue #74111, Animation Playback Delayed With Time Remapping And AV-Sync
