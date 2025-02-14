@@ -1,3 +1,4 @@
 Referenced by issue #60432, Blender crashes when dragging objects from appended scene
 Referenced by issue #60419, Delete Hierarchy - To delete a hierarchy takes very long
 Referenced by issue #60390, Image Texture Node - mapping settings ignored in the viewport textured mode
+Referenced by issue #60285, Shrinkwrap modifier ignores negative offsets
