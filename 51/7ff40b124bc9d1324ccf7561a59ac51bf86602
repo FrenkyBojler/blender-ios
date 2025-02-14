@@ -1,2 +1,3 @@
 Referenced by issue #84650,  CPU render + OptiX denoiser leaves empty tiles unprocessed (Blender from Master)
 Referenced by issue #82894, GPU (cuda) at the end 90% disable
+Referenced by issue #82351, Tile stealing glitches with adaptive sampling
