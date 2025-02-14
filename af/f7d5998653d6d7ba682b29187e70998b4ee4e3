@@ -1,0 +1,1 @@
+Referenced by issue #84908, "Fix T84049: Crash when using Cycles Progressive Refine with OptiX+CPU" actually causes hybrid rendering to crash
