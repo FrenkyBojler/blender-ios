@@ -1,3 +1,4 @@
 Referenced by issue #94418, No image.previews for some D.images
 Referenced by issue #93995, Cycles: motion blur only applies on Left view
 Referenced by issue #90540, NoneType object error with entering grease pencil draw mode
+Referenced by issue #89029, Baking to Vertex colors causes Blender shutdown/crash
