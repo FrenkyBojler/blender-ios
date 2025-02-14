@@ -1,4 +1,5 @@
 REM Find a copy of LLVM on the system
+setlocal EnableDelayedExpansion
 set LLVM_DIR=
 
 REM First, we try and find the copy on the PATH (unless already specified, in which case we use that)
@@ -10,7 +11,7 @@ if NOT "%LLVM_EXE%" == "" (
 	REM We have found LLVM on the path
     for %%X in ("%LLVM_EXE%\..\..") do set "LLVM_DIR=%%~fX"
 	if NOT "%verbose%" == "" (
-		echo LLVM detected via path at %LLVM_DIR% via %LLVM_EXE%
+		echo LLVM detected via path at !LLVM_DIR! via !LLVM_EXE!
 	)
 	goto detect_llvm_done
 )
