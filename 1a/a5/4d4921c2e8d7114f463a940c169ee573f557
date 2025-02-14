@@ -2,3 +2,4 @@ Referenced by commit f4d8382c86b, Rigid body physics: Move effector force update
 Referenced by issue #113234, motor constraint isn't working
 Referenced by issue #98272, Regression: Physics force field strength affect varies inversely proportion to physics substeps per frame
 Referenced by issue #91028, Rigid body Bounciness parameter not functioning
+Referenced by issue #47402, A Rigid Body does not keep the initial velocity after the animated checkbox is disabled
