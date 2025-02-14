@@ -1,2 +1,3 @@
 Referenced by issue #99805, Regression: Crash on entering in edit mode while rendering
 Referenced by issue #99323, Regression: Geometry nodes result does not show in mesh edit mode
+Referenced by issue #99296, Crash with Geometry Nodes changing UVs and Edit Mode
