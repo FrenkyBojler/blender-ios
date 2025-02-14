@@ -7,3 +7,4 @@ Referenced by issue #49387, Blender 2.77 & up, GLSL Viewport rendering not worki
 Referenced by issue #49361, Bevel gives irregular result
 Referenced by issue #49062, "Rotate" compositor node units inconsistent
 Referenced by issue #49009, Mask Creation on Empty Footage in the UV Editor
+Referenced by issue #48902, Dopesheet does not respect Left Click select
