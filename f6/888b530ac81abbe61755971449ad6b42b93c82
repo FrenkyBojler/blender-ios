@@ -1,1 +1,2 @@
 Referenced by issue #91379, Add operators to convert generic attributes into task specific data (UVLayers, etc)
+Referenced by issue #85962, Many Nodes (Join geometry, Boolean, Object Info?) and realizing instances remove UVs (output float2, not MLoopUV).
