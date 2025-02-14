@@ -1,3 +1,4 @@
 Referenced by commit 728d1ec5046, BGE: Fix T46381 : last action frame not updated.
 Referenced by issue #40379, Cycles : CUDA Rendering : Environment with MIS uses double memory usage
 Referenced by issue #40217, Incredibly slow render on newer builds with cycles of smoke simulations
+Referenced by issue #40111, replaceMesh() Crashes BGE When Used on a Parented Object
