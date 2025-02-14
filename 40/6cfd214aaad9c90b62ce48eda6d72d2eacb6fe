@@ -6,3 +6,4 @@ Referenced by issue #120113, Crash when reading large JPEG
 Referenced by issue #114989, Fix #114963: Image Editor - Fill Tool doesn't work as expected
 Referenced by issue #114963, 4.0.0 - Image Editor - Paint - Bucket Tool - Fill doesn't work as expected
 Referenced by issue #108246, Fix #108243: Set the encoded buffer after resizing
+Referenced by issue #108243, Crash when save before close with modified image
