@@ -13,3 +13,4 @@ Referenced by issue #39209, Nodes in 2.70-RC2 and source build 211f08d extremely
 Referenced by issue #39196, Dynamic Topology Undo Applied to Wrong Mesh
 Referenced by issue #39197, Blender 2.70 RC2 crash with simple cycles render
 Referenced by issue #39189, Node editor Map Uv requires an scale node to work
+Referenced by issue #39192, Blend renders on 2.69.0 and 2.70 RC1 but not on 2.70 RC2
