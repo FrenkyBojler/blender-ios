@@ -1,1 +1,2 @@
 Referenced by issue #101354, Regression: baking procedural texture in more than 2048 pixels fails
+Referenced by issue #100833, 3.4 Regression: Baking to Udims only bakes first tile
