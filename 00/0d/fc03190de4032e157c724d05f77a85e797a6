@@ -69,3 +69,4 @@ Referenced by issue #44704, Blender Game Engine import error
 Referenced by issue #44673, Crash blender 2.74
 Referenced by issue #44656, Blender crashes when duplicating strips in the VSE
 Referenced by issue #44653, Nvidia driver crashes during copying BVH info to GPU in Branched Path tracing
+Referenced by issue #44632, Blender doesn't start
