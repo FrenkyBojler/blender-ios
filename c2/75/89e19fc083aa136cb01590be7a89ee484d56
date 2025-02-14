@@ -73,3 +73,4 @@ Referenced by issue #45583, Adding Glass shaders with different IORs gives diffe
 Referenced by issue #45570, Memory leakage in Sequencer
 Referenced by issue #45554, Impossible to remove Actions from Action Editor
 Referenced by issue #45556, Camera Walk Mode - Looking around with mouse not working
+Referenced by issue #45562, Loading old .blend file that has grid subdivisions set to 0 crashes Blender
