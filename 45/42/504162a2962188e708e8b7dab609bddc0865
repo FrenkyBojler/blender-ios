@@ -1,2 +1,3 @@
 Referenced by issue #42541, Boolean Problem
 Referenced by issue #42525, Crash after removing lamp, linked to "Lamp Data" shader node in Material Mode.
+Referenced by issue #42530, SubD doesn't do anything on a mesh
