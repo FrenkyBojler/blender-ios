@@ -2,3 +2,4 @@ Referenced by commit 1ceb91d1b39, Fix T81167: Texture Painting with Paint mask e
 Referenced by issue #81167, Texture Painting with Paint mask enabled, (de)selecting faces causes a mess with texture slots.
 Referenced by issue #79066, Entering Edit Mode when Viewport Display set as Wire or Bounds leads to crash
 Referenced by issue #78451, Crash on editing custom float property
+Referenced by issue #77867, Duplicate Object, then Linked Duplicate Object, then Repeat Last Tool causes crash
