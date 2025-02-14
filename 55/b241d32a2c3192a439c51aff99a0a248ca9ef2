@@ -4,3 +4,4 @@ Referenced by issue #55073, Copy-on-write crash when painting after toggling edi
 Referenced by issue #55074, Copy-on-write crash when rendering with Cycles
 Referenced by issue #55076, Proxy bones not moving
 Referenced by issue #55078, Crash when using bone selection overlay
+Referenced by issue #55080, Banding artifacts on workbench
