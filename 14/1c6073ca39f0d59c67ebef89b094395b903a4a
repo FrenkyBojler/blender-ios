@@ -1,2 +1,3 @@
 Referenced by issue #61161, Blender 2.8 crashes when deleting track.
 Referenced by issue #61130, Linked-library/proxy: no (apparent) way to hide a linked armature in 2.8
+Referenced by issue #60888, UI Italian translation applied in Preferences freezes Blender 2.8b on quit or discard changes
