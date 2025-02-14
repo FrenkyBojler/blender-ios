@@ -1,1 +1,2 @@
 Referenced by commit c351de8b2ab, Fix #113486: Crash snapping with clipping borders
+Referenced by issue #126921, Regression: Face-snapping the vertices of mesh ignores the closest faces
