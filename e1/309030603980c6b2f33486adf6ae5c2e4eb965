@@ -1,1 +1,2 @@
 Referenced by commit c2737913dbe, BLI: Avoid invoking tbb for small parallel_reduce calls
+Referenced by commit e9334c5df8b, Geometry Nodes: Avoid parallel_for_each with a single geometry
