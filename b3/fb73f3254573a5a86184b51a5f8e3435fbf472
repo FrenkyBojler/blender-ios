@@ -1,1 +1,2 @@
 Referenced by issue #104857, Crash using GN Editor or Assetbrowser when "datafiles/assets" folder is not there
+Referenced by issue #104782, Crash when accessing hair nodes assets in Geometry Nodes editor
