@@ -6,3 +6,4 @@ Referenced by issue #56108, Crash when editing vertex groups in 2.79b and 2.8
 Referenced by issue #55085, Very slow eGPU support
 Referenced by issue #55033, Undo mask brush in sculpt mode with dyntopo on, crashes Blender
 Referenced by issue #54918, Inset thickness/depth history regression
+Referenced by issue #54417, Matcap Not working
