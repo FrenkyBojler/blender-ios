@@ -28,3 +28,4 @@ Referenced by issue #42201, Rigid Body Collisions - Surface Response parameter v
 Referenced by issue #42202, Bone Constraints: IK & Copy Scale
 Referenced by issue #42205, Changes to the Movie Clip Editor's grid color preferences do not take effect
 Referenced by issue #42206, Weird Crash.
+Referenced by issue #42209, Changing Node Editor header color also changes wire color
