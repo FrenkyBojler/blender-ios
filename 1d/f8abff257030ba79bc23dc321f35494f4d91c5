@@ -1,1 +1,2 @@
 Referenced by commit fd922f59404, Cleanup: Composite nodes: add namespace for every file
+Referenced by commit 3f7014ecc9d, Shader Nodes: Declare nodes in their own namespace
