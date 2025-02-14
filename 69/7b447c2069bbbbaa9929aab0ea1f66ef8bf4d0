@@ -1,2 +1,3 @@
 Referenced by commit cd1caa5853e, GPU: Revert part of D16017 that was accidentally commited
 Referenced by issue #101372, Regression: World shader setup crashes Blender in rendered view
+Referenced by issue #96261, Metal Viewport
