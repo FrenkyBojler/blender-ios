@@ -1,1 +1,2 @@
 Referenced by issue #42883, Storing arrays longer than signed short range in customdata fails
+Referenced by issue #42792, GPU warning (Feedback loop warning!: Attempting to bind texture attached to current framebuffer!)
