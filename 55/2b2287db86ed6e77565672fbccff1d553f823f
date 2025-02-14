@@ -7,3 +7,4 @@ Referenced by issue #61111, Mapping node values get stuck after setting a keyfra
 Referenced by issue #61089, Not really a bug but a difference between 2.8 and 2.79 (and previous)
 Referenced by issue #61092, Triple click needed to add edge ring to an existing selection
 Referenced by issue #61096, fbx import crashes on file from mixamo
+Referenced by issue #56635, Driver/Keyframes on object visibility do not update viewport
