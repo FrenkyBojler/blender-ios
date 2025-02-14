@@ -41,3 +41,4 @@ Referenced by issue #43744, Bevel Profile Bug
 Referenced by issue #43735, Very important bug in Texture Paint mode while painting object when faces are pointing ~90degrees away from the view/camera
 Referenced by issue #43706, Creating a directory in the file browser (by typing it in the file path) crashes Blender
 Referenced by issue #43708, Wrong manipulator behaviour in individual origin.
+Referenced by issue #43712, Crash on Kubuntu, caused by locale setting
