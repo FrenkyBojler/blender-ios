@@ -1,1 +1,2 @@
 Referenced by issue #99196, Regression: Rendering in the viewport is constantly restarted by some sculpting brushes and the position of mouse cursor
+Referenced by issue #98890, Modifying Basis shape key .co via script in Object mode desyncs from mesh vertices causing new from_mix=False shape keys to revert script changes
