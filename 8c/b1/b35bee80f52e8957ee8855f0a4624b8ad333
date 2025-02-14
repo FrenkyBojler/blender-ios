@@ -1,2 +1,3 @@
 Referenced by issue #91387, PointerProperty in UI slows down extremely
 Referenced by issue #42121, Pre-draw callbacks are not called when rendering dome view
+Referenced by issue #40350, Offset doesn't turn purple when driver added
