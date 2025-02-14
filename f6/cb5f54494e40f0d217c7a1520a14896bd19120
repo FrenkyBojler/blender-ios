@@ -35,3 +35,4 @@ Referenced by issue #69677, Blender 2.8 crash on startup | Ubuntu 16.04 | Nvidia
 Referenced by issue #69561, Undo moving of armature in object mode undo half of different action from edit mode
 Referenced by issue #69486, Reloading 'text' file in 'Scripting' marks the file as modified
 Referenced by issue #69473, Curve widget crash when resetting curve with bad clipping values
+Referenced by issue #69439, Default cube has different vertex order than a New Cube (results in unexpected "transfer shape key")
