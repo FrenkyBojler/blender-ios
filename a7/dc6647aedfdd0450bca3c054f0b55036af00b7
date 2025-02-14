@@ -1,0 +1,1 @@
+Referenced by issue #80697, Not a major issue but... is this a bug or a feature? - "children_recursive" function returns bones with type based on mode not the source bone type.
