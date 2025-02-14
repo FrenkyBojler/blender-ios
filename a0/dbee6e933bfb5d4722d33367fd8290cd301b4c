@@ -1,1 +1,2 @@
 Referenced by issue #38229, Shadeless option has no effect when GLSL is enabled
+Referenced by issue #38198, Volumes disappear when viewed from the inside of a mesh
