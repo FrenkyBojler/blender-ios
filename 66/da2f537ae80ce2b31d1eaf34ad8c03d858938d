@@ -1,2 +1,3 @@
 Referenced by commit b18122451f8, Fix T88433: no greaspencil depsgraph evaluation with certain drivers
 Referenced by commit 80d134b6d10, Cleanup: remove unused source file
+Referenced by commit 54ea3562406, Cleanup: remove redundant active object NULL check & poll
