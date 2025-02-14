@@ -1,2 +1,3 @@
 Referenced by commit 6a96a151bef, Fix: Dyntopo attribute data warning doesn't work
 Referenced by issue #105780, no more warning when checking Dyntopo
+Referenced by issue #104535, Fix #100957: Dyntopo shows false positive data loss warnings
