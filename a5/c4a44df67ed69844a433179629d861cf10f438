@@ -1,3 +1,4 @@
 Referenced by commit e65f5c07b04, Fluid: Added missing UI options for effector objects
 Referenced by commit 4ccbbd30806, Fix T74446: Liquid Inflow Does Not Work
 Referenced by issue #88566, Mantaflow inflow with shapekeys is not working anymore (regression)
+Referenced by issue #74446, Liquid Inflow Does Not Work
