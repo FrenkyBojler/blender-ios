@@ -1,1 +1,2 @@
 Referenced by issue #60030, select pattern fails in some type/mode combinations
+Referenced by issue #60031, Joining two Grease Pencil objects sometimes crashes, sometimes fails silently.
