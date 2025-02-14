@@ -5,3 +5,4 @@ Referenced by commit ed28ba4e999, Fix T101393: Vertex Crease operator does not c
 Referenced by commit fa1c214c5b2, Fix crash in Solidify modifier with Inner Crease
 Referenced by issue #109691, Regression: Edge Crease behaves differently between Complex and Simple Solidify
 Referenced by issue #105912, Regression: edge crease lost after a texture paint stroke (modifiers present)
+Referenced by issue #102772, Regression: creases lost with two subsurf modifier
