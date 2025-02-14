@@ -1,1 +1,2 @@
 Referenced by commit 58909abc685, EEVEE: Render: Fix regression caused by previous Motion blur fix
+Referenced by issue #79970, Camera Animation Breaks EEVEE Motion Blur (Two Steps or More)
