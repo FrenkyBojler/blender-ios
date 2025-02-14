@@ -1,0 +1,1 @@
+Referenced by issue #37159, Particle Emitter set to not render still appears in 3D view, when display set to rendered only. Emitter also appears in all GL Renders and some F12 renders.
