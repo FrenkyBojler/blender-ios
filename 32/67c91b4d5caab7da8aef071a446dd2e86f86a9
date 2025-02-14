@@ -6,3 +6,4 @@ Referenced by issue #99270, Regression: Bones using Empties as Custom Shapes can
 Referenced by issue #96378, Selection of Bones is broken/very difficult, on moved objects Displayed As B-Bone
 Referenced by issue #95649, Corrective Smooth modifier may cause some vertices to jump
 Referenced by issue #95130, Annoyingly slow selecting (>2 seconds), but everything else is buttery smooth and responsive
+Referenced by issue #91253, Pose Bone Selection, Slow Since 2.8
