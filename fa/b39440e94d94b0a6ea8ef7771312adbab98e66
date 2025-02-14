@@ -1,2 +1,3 @@
 Referenced by commit f60b95b5320, Shader Nodes: Split each node into own file
 Referenced by commit 3f7014ecc9d, Shader Nodes: Declare nodes in their own namespace
+Referenced by issue #76915, Pose bone: clearing transformations in pose mode does not affect the mirrored bones even when the X-axis mirror is activated.
