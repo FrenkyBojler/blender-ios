@@ -1,2 +1,3 @@
 Referenced by issue #54177, Impossible to Unlink Material Animation Data?
 Referenced by issue #53080, Blender freezes temporarily when editing material color and/or changing number values in sliders
+Referenced by issue #52656, Driver stops updating dynamically if no/incomplete variable is defined
