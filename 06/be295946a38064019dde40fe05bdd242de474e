@@ -3,3 +3,4 @@ Referenced by commit 5a293e5cc2e, Fix #124703: MEM_free/MEM_new mismatch in file
 Referenced by commit d0c6bce8843, Fix: new/free mismatch
 Referenced by commit 056ac7f4070, Fix: new/free mismatch in a few cases
 Referenced by commit edd40007ab6, Fix: new/free mismatch
+Referenced by commit 165b60fd3e9, Fix #124398: new/free mismatch
