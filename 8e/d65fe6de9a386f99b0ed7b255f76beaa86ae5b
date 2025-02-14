@@ -1,2 +1,3 @@
 Referenced by commit bca3839749b, Revert "Cleanup: consistently use rnaindex -1 to mean the no or entire array"
 Referenced by issue #108621, Regression: Driven values are no longer marked in purple
+Referenced by issue #108553, Regression: Alt + value change doesn't work for various inputs
