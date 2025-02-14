@@ -1,3 +1,4 @@
 Referenced by issue #88570, Regression: Crash when saving after pressing ctrl+S twice.
 Referenced by issue #76926, Crash on saving or opening files with the Full Screen file browser window preference
 Referenced by issue #76449, Crash on saving rendered image if you close the child window which shows the rendered image
+Referenced by issue #76418, After render you want to save image, but saving window it is hidden below render windows when Blender.app in fullscreen mode
