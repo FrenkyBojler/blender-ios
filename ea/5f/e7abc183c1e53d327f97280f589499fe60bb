@@ -1,1 +1,2 @@
 Referenced by commit a0706d6cf00, Fix T102680: UV Pick shortest Path wrong for multi-object editing
+Referenced by issue #79239, CRASH: Control clicking on UV Map will cause Blender to Crash
