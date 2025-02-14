@@ -1,3 +1,4 @@
 Referenced by commit 6a39d79967b, Fix #124767: VSE cache not updated for moved strips
 Referenced by issue #124870, Fix #124767: VSE cache not updated for moved strips
 Referenced by issue #121190, In video editor Color does not allow Alpha Under. It works in 4.1 but not 4.2
+Referenced by issue #119493, VSE: Duplicated text strip does not immediately update in preview when edited
