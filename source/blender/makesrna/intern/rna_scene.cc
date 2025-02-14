@@ -3198,6 +3198,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "ToolSettings", nullptr);
   RNA_def_struct_path_func(srna, "rna_ToolSettings_path");
   RNA_def_struct_ui_text(srna, "Tool Settings", "");
+  RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
 
   prop = RNA_def_property(srna, "sculpt", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Sculpt");
@@ -4247,6 +4248,7 @@ static void rna_def_unified_paint_settings(BlenderRNA *brna)
   RNA_def_struct_path_func(srna, "rna_UnifiedPaintSettings_path");
   RNA_def_struct_ui_text(
       srna, "Unified Paint Settings", "Overrides for some of the active brush's settings");
+  RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
 
   /* high-level flags to enable or disable unified paint settings */
   prop = RNA_def_property(srna, "use_unified_size", PROP_BOOLEAN, PROP_NONE);
