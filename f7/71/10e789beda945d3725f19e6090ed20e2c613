@@ -1,2 +1,3 @@
 Referenced by issue #47361, Pointiness bake artifact when using selected to active
 Referenced by issue #47362, Massive loss of speed in new builds with Ambient Occlusion and Branched Path Tracing.
+Referenced by issue #47347, Disabled Render Layers output a Z-value of 0.0, causing unexpected behaviour with compositing.
