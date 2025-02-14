@@ -5,3 +5,4 @@ Referenced by issue #58660, Blender 2.8 - A face cannot be in two face maps
 Referenced by issue #58652, blender 2.8 - hard crash - editing shape keys weirdness with instances
 Referenced by issue #58656, Running reload scripts operator shifts toolbar icons
 Referenced by issue #58657, Blender 2.8 - 2.7x Keymap does not honor Alt A to play timeline
+Referenced by issue #58636, "Repeat Image" button in UV/Image Editor not working
