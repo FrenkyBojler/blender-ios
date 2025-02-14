@@ -1,2 +1,3 @@
 Referenced by issue #70452, Crash when clicking "Solve Camera Motion" in Motion Tracking (2.81 nightly)
 Referenced by issue #69711, Undo-related crash with custom Python operator
+Referenced by issue #69708, Shift + double LMB click to smooth mask deactivates Dyntopo
