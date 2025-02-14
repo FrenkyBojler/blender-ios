@@ -1,1 +1,2 @@
 Referenced by issue #47332, selected faces in paint modes dont display properly
+Referenced by issue #46959, BGE clear sys.meta_path on exit
