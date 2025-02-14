@@ -1,1 +1,2 @@
 Referenced by issue #68808, Multiple CPU cores limited to 60 on blender 2.80?
+Referenced by issue #61535, Cycles not using both NUMA Nodes on Dual Xeon Setup
