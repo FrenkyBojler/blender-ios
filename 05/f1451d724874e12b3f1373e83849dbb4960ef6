@@ -1,3 +1,4 @@
 Referenced by issue #65275, File with Curve crashes when entering edit mode.
 Referenced by issue #64999, FBX export fails with empty material slot
 Referenced by issue #64544, Boolean modifier difference not working properly, when plane's vertex is on the other mesh's edge.
+Referenced by issue #64371, Debug Build - crash when switching to Video Editing workspace
