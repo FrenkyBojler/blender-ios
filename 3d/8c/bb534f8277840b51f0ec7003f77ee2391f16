@@ -5,3 +5,4 @@ Referenced by issue #62053, Composite rendering more images than needed
 Referenced by issue #61212, fluctuating viewport lag
 Referenced by issue #61140, Grease pencil: Shortcut Eraser and Eraser are not the same
 Referenced by issue #61143, Wildly incorrect fills with Grease Pencil
+Referenced by issue #61144, set cursor in grease pencil draw mode ( right click select and emulate 3 mouse button)
