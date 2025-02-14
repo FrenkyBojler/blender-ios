@@ -1,2 +1,3 @@
 Referenced by commit 2e06a6bec3f, Fix T72820: Linked objects jumping around during render
 Referenced by issue #72820, Linked objects jumping around during render
+Referenced by issue #70919, Motion Path on proxy armature invalidates drivers, eventually segfaults.
