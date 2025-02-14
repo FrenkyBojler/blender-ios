@@ -1,3 +1,4 @@
 Referenced by commit a03b1e063d0, Fix #131905: Affect transform not working for Pose Space
 Referenced by commit 4439e395301, Fix: assignment in a condition
 Referenced by issue #132176, Fix #131905: Affect transform not working for Pose Space
+Referenced by issue #131905, Constraints: Affect Transform not working for pose mode
