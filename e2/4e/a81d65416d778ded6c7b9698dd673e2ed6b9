@@ -1,2 +1,3 @@
 Referenced by issue #46739, Cycles freezes computer after < 10 min of rendering
 Referenced by issue #46341, OS X trackpad and magic mouse gestures not working
+Referenced by issue #46315, Blender 2.76 64 bit crashes on Debian Wheezy when trying to access "User Preferences"
