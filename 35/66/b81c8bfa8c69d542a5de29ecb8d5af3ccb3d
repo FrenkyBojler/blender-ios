@@ -1,1 +1,2 @@
 Referenced by issue #68779, "Match Texture Space" Causes blender to crash (also doesnt evaluate right when curve geo changes)
+Referenced by issue #68728, Blender crashes while undoing a loop cut (mirror modifier involved)
