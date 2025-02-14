@@ -1,1 +1,2 @@
 Referenced by commit 4a80c0e2751, Fix T85225: Variable scope in ridged multi-fractal noise
+Referenced by commit 6e6b5e147c6, Noise: fix uninitialized variable warning.
