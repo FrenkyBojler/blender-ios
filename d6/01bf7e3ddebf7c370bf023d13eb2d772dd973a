@@ -2,3 +2,4 @@ Referenced by commit 3ff2733279b, Cleanup: Sculpt: Remove PBVH frustum plane and
 Referenced by commit afa1a6bebfa, Fix: Data race writing to bitmap in PBVH draw
 Referenced by issue #129649, Cleanup: Sculpt: Remove PBVH frustum plane and related calculation
 Referenced by issue #129334, Sculpt: Multires face material index is inconsistent across "sculpt" levels
+Referenced by issue #127602, Sculpt: Crash with multiresolution modifier on imported mesh
