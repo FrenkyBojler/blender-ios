@@ -1,1 +1,2 @@
 Referenced by issue #120857, Viewport Compositing: Scale node does not render correctly, uses a lot of VRAM in 4.1 and crashes in 4.2
+Referenced by issue #120863, EEVEE-Next: Error after a recent change
