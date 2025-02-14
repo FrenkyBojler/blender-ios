@@ -1,1 +1,2 @@
 Referenced by commit 33be9c08856, Fix T98924: Skip saving selection properties for UV edge ring operator
+Referenced by issue #90275, Loop Select clearing keymap options breaks operator behaviour
