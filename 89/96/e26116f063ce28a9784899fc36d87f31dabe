@@ -3,3 +3,4 @@ Referenced by issue #61367, creating custom (combined ) texture brush is not vis
 Referenced by issue #61368, Alpha overlay of texture brush is not rotating when rotating texture brush ( ctrl-f)
 Referenced by issue #61303, background shader material ( object ) acts as emission shader  ( cycles renderer )
 Referenced by issue #61276, Make Single User unlinks original object
+Referenced by issue #61261, can't select remaining  vertices after hiding a portion
