@@ -1,1 +1,2 @@
 Referenced by commit 20b19f2b121, Fix: calculating duplicates in kdtree does not work with selection
+Referenced by issue #112746, Regression: Node tree result changed in other version
