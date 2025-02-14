@@ -5,3 +5,4 @@ Referenced by issue #38643, Frame labels are invisible with default theme
 Referenced by issue #38627, Scaling on normals with complex mesh causes lag
 Referenced by issue #38524, Setting sky texture direction with the python console has no effect
 Referenced by issue #38471, linked objects lose parents on saving or on loading
+Referenced by issue #38391, Animating the speed setting in Rigid Body World causes strange behavior with constraints
