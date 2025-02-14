@@ -3,3 +3,4 @@ Referenced by issue #61729, After adding and deleting driver Value node stucks (
 Referenced by issue #61724, uv export absent
 Referenced by issue #61704, Eevee - material gets darkened when shader is being mixed with itself using 'mix shader'
 Referenced by issue #61705, Texture Paint, texture map transformation not responding
+Referenced by issue #61695, Billboard particles not displaying in Eevee viewport, render
