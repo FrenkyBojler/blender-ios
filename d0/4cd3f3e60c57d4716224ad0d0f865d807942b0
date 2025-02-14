@@ -1,2 +1,3 @@
 Referenced by commit d973cc7992e, Assets/BPY: Remove unnecessary asset handle related RNA members
 Referenced by commit 591a1ae323a, Assets: Remove (almost) all usages of asset handle in Python scripts
+Referenced by commit f6a6b27ac14, Assets: Expose asset representation in context RNA/BPY
