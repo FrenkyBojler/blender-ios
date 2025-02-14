@@ -1,2 +1,3 @@
 Referenced by commit 2753cc6e395, Fix: python error in Particle Properties without a psys
 Referenced by issue #104819, Fix: python error in Particle Properties without a psys
+Referenced by issue #96675, Operator to convert old hair system to new curves object.
