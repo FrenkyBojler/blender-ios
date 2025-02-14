@@ -1,2 +1,3 @@
 Referenced by issue #77114, No way to edit baked cloth simulation with particle edit mode.
 Referenced by issue #73168, In Particle Edit mode, Emitter particles are not visible in the viewport
+Referenced by issue #63788, Blender crashes when the particle system is turned off in particle editing mode
