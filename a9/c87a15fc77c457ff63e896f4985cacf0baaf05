@@ -1,2 +1,3 @@
 Referenced by commit 032feaf65ff, Fix #133812: Strip color picker uses invalid icon enum
 Referenced by issue #133814, Fix #133812: Strip color picker uses invalid icon enum
+Referenced by issue #133812, After selecting a strip color, strip info UI disappears
