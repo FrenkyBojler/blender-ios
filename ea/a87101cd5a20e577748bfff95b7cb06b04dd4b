@@ -4,3 +4,4 @@ Referenced by issue #131984, Fix: properly export metaballs to USD
 Referenced by issue #105799, Fix #103021: Metaballs have jagged normals
 Referenced by issue #105593, Metaballs render mistake in 3.4.1
 Referenced by issue #103021, Regression: Metaballs have jagged normals in 3.4
+Referenced by issue #100639, Metaball particles are handled inconsistently in Geometry Nodes
