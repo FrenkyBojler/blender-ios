@@ -1,2 +1,3 @@
 Referenced by issue #38833, Preview chunks in compositor are not shown if offset in scale node is not zero
 Referenced by issue #38808, Opening an image with 'relative path' selected, gets absolute path.
+Referenced by issue #38794, Glitches in compositor caused by translate node
