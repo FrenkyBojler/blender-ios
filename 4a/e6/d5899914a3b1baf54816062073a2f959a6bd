@@ -1,2 +1,3 @@
 Referenced by issue #43682, Crash from objects created via FBX from earlier blend files
 Referenced by issue #43651, New pointiness attribute doesnt work with displacement
+Referenced by issue #43648, VSE crash
