@@ -16,3 +16,4 @@ Referenced by issue #59100, Blender 2.8 - Blender2.7x keymap has pie menus for ,
 Referenced by issue #59072, Blender 2.8 Beta: Text extrusion cannot be animated
 Referenced by issue #58977, Full screen mouse pointer offset
 Referenced by issue #58669, Freestyle + EEVEE render not working
+Referenced by issue #58629, 2.80 refuses to complete startup to reach splash screen - always hangs grey with AMD graphics driver crash notice
