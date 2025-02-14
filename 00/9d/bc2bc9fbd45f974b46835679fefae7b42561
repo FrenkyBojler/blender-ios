@@ -9,3 +9,4 @@ Referenced by issue #63468, Volumetrics broken in current compiled version
 Referenced by issue #63448, dragging in Image changes the resolution to square
 Referenced by issue #63427, Annotations don't work with 2.79 settings
 Referenced by issue #63377, "Principled Volume" node not working anymore in EEVEE.
+Referenced by issue #61413, Grease Pencil crashes in 32-Bit version
