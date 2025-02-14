@@ -1,0 +1,1 @@
+Referenced by issue #87941, while starting blender, if mouse is over Splash screen's recent files area, it opens the file beneath it, even without clicking.
