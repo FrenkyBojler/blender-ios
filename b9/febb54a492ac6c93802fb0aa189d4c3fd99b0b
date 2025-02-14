@@ -16,3 +16,4 @@ Referenced by issue #93644, Beveled curves disappear in hair particle system
 Referenced by issue #93573, Regression: Selection outline of curves in edit mode
 Referenced by issue #93159, Particle don't emit curves/text in 3.0 beta
 Referenced by issue #92682, Eevee Motion Blur crash
+Referenced by issue #92120, Bone custom curve shape makes it invisible
