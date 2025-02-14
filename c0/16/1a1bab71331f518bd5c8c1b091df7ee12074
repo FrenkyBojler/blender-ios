@@ -1,1 +1,2 @@
 Referenced by issue #89844, Nesting Collection instances cause first objects to disappear (restricted by MAX_DUPLI_RECUR)
+Referenced by issue #48913, Viewport gets stuck when two group instances are emitted from one face using dupli-verts
