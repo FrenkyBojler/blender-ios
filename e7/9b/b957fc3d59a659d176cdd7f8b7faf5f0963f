@@ -14,3 +14,4 @@ Referenced by issue #59056, Clicking the icon on the windows taskbar suddenly cl
 Referenced by issue #59057, Crashing when viewing a 2d plane from side ortho views that would project the plane as a line
 Referenced by issue #59046, LookDev HDRI changes are applied only to one quad in 3D Viewport Quad view
 Referenced by issue #59053, Area light width and height is not updated while using area light size widget
+Referenced by issue #58751, Blender 2.8 crash on startup
