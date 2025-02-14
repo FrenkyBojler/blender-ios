@@ -1,2 +1,3 @@
 Referenced by issue #61712, crash when reloading texture
 Referenced by issue #61693, Inconsistent behavior keyframing animated rigidbodies
+Referenced by issue #61689, Blender 2.80 crashes when adding keyframe to Fac in compositing node editor
