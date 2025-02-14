@@ -2,3 +2,4 @@ Referenced by issue #90690, Grease Pencil layer transformations ignored by selec
 Referenced by issue #89306, Grease Pencil: Point selection doesn't work correctly with modifiers
 Referenced by issue #88844, AMD GPU - EEVEE - Compositor is broken again in 2.93 (Regression) - Alpha Channel crazy behaviour is back.
 Referenced by issue #88449, Blender LTS: Maintenance Task 2.93
+Referenced by issue #88014, Freestyle Lines Stopping Short of Vertices & Partially Failing
