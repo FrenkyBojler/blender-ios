@@ -1,1 +1,2 @@
 Referenced by commit 431a5b623e2, Fix T47688: Regression in gl_load
+Referenced by issue #47688, glBindTexture is not working in 2.77RC1 as expected
