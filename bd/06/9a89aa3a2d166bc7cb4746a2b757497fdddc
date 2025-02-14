@@ -1,1 +1,2 @@
 Referenced by issue #69410, Shadow catcher receive shadows even if there is no light in the scene
+Referenced by issue #52229, Shadow Catcher artifacts when under transparency
