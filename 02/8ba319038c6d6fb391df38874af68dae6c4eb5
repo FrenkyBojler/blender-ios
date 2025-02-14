@@ -1,0 +1,1 @@
+Referenced by issue #48698, Rays from SSS act as diffuse for normal objects but have an undefined type for lamp objects
