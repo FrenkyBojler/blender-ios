@@ -1,1 +1,2 @@
 Referenced by commit 3d253126170, Nodes: fix incorrectly parameter name and type
+Referenced by issue #83712, Regression. Math node. Tangent function fails with Eevee and work only with Cycles.
