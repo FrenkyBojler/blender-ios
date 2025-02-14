@@ -1,0 +1,1 @@
+Referenced by issue #62952, Lamp as camera: shadow buffer clipping extents sometimes inappropriately used as the viewport clipping extents.
