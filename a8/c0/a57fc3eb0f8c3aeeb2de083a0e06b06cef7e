@@ -1,0 +1,1 @@
+Referenced by issue #60599, I believe there is a problem with having dynamesh and multires on the object at the same time. #Blender consistent crash
