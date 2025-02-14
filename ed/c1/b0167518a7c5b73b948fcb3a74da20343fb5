@@ -2,3 +2,4 @@ Referenced by issue #63695, copy data path is incorrect (in node values but poss
 Referenced by issue #63674, Errors thrown in console when running Operator Cheat Sheet
 Referenced by issue #63663, Object mode proportional editing affects objects which are disabled for selection
 Referenced by issue #63653, [Industry Compatible Keymap] Selectionmode operator dosen't work on a custom keymap
+Referenced by issue #61474, Laggy interaction with gizmos, does not happen when running other 3D apps at the same time
