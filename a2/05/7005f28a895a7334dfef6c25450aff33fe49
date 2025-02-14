@@ -1,0 +1,1 @@
+Referenced by issue #39164, In MCE, the deformation center of mask which is parented to a marker is not being updated with the position of the marker.
