@@ -1,2 +1,3 @@
 Referenced by commit 3031146097b, Fix #119957: Crash when using 'angle constraint' Relative in Knife tool
 Referenced by commit a292dc3117c, Cleanup: update code comments to match refactor
+Referenced by issue #119957, with the knife tool active it closes by pressing double A
