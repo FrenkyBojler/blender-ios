@@ -1,0 +1,1 @@
+Referenced by issue #62134, duplicating a material won't update node group's node tree user count anymore
