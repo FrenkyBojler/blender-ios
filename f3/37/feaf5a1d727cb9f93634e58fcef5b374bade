@@ -40,3 +40,4 @@ Referenced by issue #47830, Selecting multiple Shape Keys values doesn't highlig
 Referenced by issue #47835, Solid Black smoke domain
 Referenced by issue #47802, bake does not accept DIFFUSE_COLOR as parameter in 2.77 rc2
 Referenced by issue #47782, Crash on MacBook Pro 2015 Retina when start to render on 2nd non retina display
+Referenced by issue #47756, RGB Curves node kills HDR values?
