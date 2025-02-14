@@ -6,3 +6,4 @@ Referenced by commit 8932b5945ee, Refactor/enhance BKE_lamp_make_local() and BKE
 Referenced by commit 0f0eeffecea, Refactor/enhance BKE_brush_make_local() and BKE_speaker_make_local().
 Referenced by commit c8c00636bf4, Refactor/enhance BKE_particlesettings_make_local().
 Referenced by commit 429394078bd, Refactor/enhance BKE_lattice_make_local(), and add BKE_lattice_copy_ex() that takes a Main as parameter.
+Referenced by commit 338121e2a0d, Refactor/enhance BKE_mball_make_local(), and add BKE_mball_copy_ex() that takes a Main as parameter.
