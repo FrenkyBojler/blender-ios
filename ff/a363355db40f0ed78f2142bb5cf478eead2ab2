@@ -1,2 +1,3 @@
 Referenced by issue #122872, Blender doesn't start
 Referenced by issue #122749, Extensions: Error loading manifest from: "permissions" must be a dict, not a list
+Referenced by issue #122751, Blender crashes when leaving the edit mode
