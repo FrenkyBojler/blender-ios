@@ -19,3 +19,4 @@ Referenced by issue #38793, Manual Rotate and Scale widgets not functioning
 Referenced by issue #38773, Blender Internal: Inverting alpha looks odd in material node setting.
 Referenced by issue #38762, The render view title text characters are not of uniform sizes (win64-vc2013)
 Referenced by issue #38753, James Kinne
+Referenced by issue #38734, Simplify tool should be ignored on F12 Rendering
