@@ -19,3 +19,4 @@ Referenced by issue #92682, Eevee Motion Blur crash
 Referenced by issue #92120, Bone custom curve shape makes it invisible
 Referenced by issue #92079, Text selection regression (difficult to see) since 2.93
 Referenced by issue #91445, Convert curve object data to mesh does not work when curve does not evaluate to mesh
+Referenced by issue #91353, Regression: Performance regression after support modifiers on curve objects commit
