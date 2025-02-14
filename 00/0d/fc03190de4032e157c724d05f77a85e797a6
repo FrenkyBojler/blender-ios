@@ -5,3 +5,4 @@ Referenced by issue #49887, Middle Mouse button for Rotate 3D view does not work
 Referenced by issue #48916, Proxy Custom File is broken
 Referenced by issue #48275, where has bmesh.ops.shortest_path(bm, vert_start, vert_end, type) gone ?
 Referenced by issue #47485, Blender crash
+Referenced by issue #47085, World background window-projected image green channel missing on CPU rendering
