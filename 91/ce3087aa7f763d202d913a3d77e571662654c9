@@ -1,1 +1,2 @@
 Referenced by issue #65052, "convert to mesh from curve" fail if the curve has a bevel.
+Referenced by issue #64842, Render Workbench, Eevee or Cycles all crash with simple file
