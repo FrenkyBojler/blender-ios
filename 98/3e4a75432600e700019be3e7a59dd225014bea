@@ -1,2 +1,3 @@
 Referenced by commit 0afee246ea6, Fix #124593: Reorder EEVEE material shadow versioning
 Referenced by issue #124593, Incorrect versioning for volumetric materials with shadows disabled in EEVEE
+Referenced by issue #124255, Eevee: Shadow mode versioning node setup causes Cycles discrepancy
