@@ -1,2 +1,3 @@
 Referenced by commit 50b0503a110, Revert "Fix T92464: Operators fail after opening blend files via an operator"
 Referenced by issue #92818, passing load_ui=True to read_homefile() or open_mainfile() crashes Blender
+Referenced by issue #92464, RuntimeError on bpy.ops.object.mode_set if executed from terminal but works in blender's text editor
