@@ -1,2 +1,3 @@
 Referenced by commit b080de79db3, Alembic: constraint for transform animation is using world matrix again
 Referenced by issue #80319, Camera's matrix exported to alembic has swapped axis
+Referenced by issue #73269, Alembic does not import children of cameras correctly
