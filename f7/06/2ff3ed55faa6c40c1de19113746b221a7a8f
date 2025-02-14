@@ -1,1 +1,2 @@
 Referenced by issue #41703, Blender crashes trying to load character file
+Referenced by issue #41693, Emission volumes get brightened with extra volume samples on GPU + BPT
