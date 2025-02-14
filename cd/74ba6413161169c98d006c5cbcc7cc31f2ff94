@@ -2,3 +2,4 @@ Referenced by commit b6df32f7400, Fix #111273: multiple vertex weight sliders sh
 Referenced by issue #119831, Vertex weights menu cannot be operated by mouse dragging
 Referenced by issue #111421, Fix #111273: multiple vertex weight sliders show the same value
 Referenced by issue #111335, Vertex weight table in edit mode completely useless in 3.6.2
+Referenced by issue #111336, Incorrect vertex weights shown in context menu
