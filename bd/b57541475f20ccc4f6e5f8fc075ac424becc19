@@ -16,3 +16,4 @@ Referenced by issue #101245, Regression: Node Editor: Crash On Typing or Scrolli
 Referenced by issue #101249, Regression: Nodegroups don't show up in node search anymore
 Referenced by issue #95446, Display asset node groups in the add menu
 Referenced by issue #95447, Display asset node groups in link-drag search
+Referenced by issue #92825, Refactor node editor add menu and search
