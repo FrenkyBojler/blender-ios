@@ -1,3 +1,4 @@
 Referenced by issue #72897, Move Channels operator moves Grease Pencil Layers, causing keymap conflict
 Referenced by issue #72867, Small Custom Bone Shapes have some Wireframes Artifact.
 Referenced by issue #72872, Grease Pencil Layer Opacity not respected in some Viewport Shading Color Types
+Referenced by issue #72861, Viewport Render Keyframes operator doesn't recognize Grease Pencil or Shape Keys
