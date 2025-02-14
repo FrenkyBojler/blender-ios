@@ -1,2 +1,3 @@
 Referenced by commit 14500953ed5, Overlay: Wireframe: avoid using custom depth bias with xray enabled
 Referenced by issue #114466, Overlay: Wireframe: avoid using custom depth bias with xray enabled
+Referenced by issue #75958, Blender Crashes when an Object is selected after unchecking OpenGL Depth Picking
