@@ -2,3 +2,4 @@ Referenced by commit 40ea1cdb97c, Fix #113323: Paint Secondary color not working
 Referenced by commit ca717f0489a, Fix T74425: Cannot texture paint an images sequence anymore
 Referenced by commit d2ff21e75de, Fix memory leak with 2D image painting
 Referenced by issue #113334, Fix #113323: Paint Secondary color not working in the Image Editor
+Referenced by issue #101794, alt brush doesn't work in image editor -> paint
