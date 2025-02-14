@@ -1,3 +1,4 @@
 Referenced by commit abbdfc8bf71, Revert "Revert "Windows: support high resolution tablet pen events for Wintab""
 Referenced by issue #75723, Tapping with a Wacom Intuos pen tip to left-click is faltering
 Referenced by issue #75583, Cannot navigate in Sculpt mode with Wacom Intuos Pro
+Referenced by issue #75566, Wacom tablet's side switches don't work
