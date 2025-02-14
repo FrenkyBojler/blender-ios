@@ -1,2 +1,3 @@
 Referenced by commit ed590e9181a, macOS/GTests: simplify blender_test library linking
 Referenced by commit 67856d8c4af, macOS/GTests: add_dependencies to fix build error
+Referenced by issue #107033, macOS/GTests: simplify test library linking
