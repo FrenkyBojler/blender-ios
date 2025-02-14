@@ -9,3 +9,4 @@ Referenced by issue #55780, Crash when trying to use the eyedropper in the dynto
 Referenced by issue #55781, Messed up viewport rendering.
 Referenced by issue #55768, crash when pin workspace panel
 Referenced by issue #55770, Crash 2.8 Whith "Selection to cursor" plus "Follow Path"
+Referenced by issue #55771, Rapid Transform of Angle of the Spotlight beam widget with Lamp Preview Window Open Crashes Blender
