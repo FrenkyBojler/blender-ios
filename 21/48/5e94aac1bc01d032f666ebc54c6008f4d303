@@ -3,3 +3,4 @@ Referenced by issue #77827, Mantaflow - liquid refuses to rise above level of in
 Referenced by issue #76276, Compiler Error C1061 due to too many nested if/else in MANTA_main.cpp
 Referenced by issue #76097, Simulations don't take animated gravity into account
 Referenced by issue #73837, Mantaflow: Effect of forces increases over time.
+Referenced by issue #73474, Mantaflow: Liquid simulation appears to be unaffected by scale or "Real World Size" parameters.
