@@ -1,1 +1,2 @@
 Referenced by commit 5d699584422, Correct over allocation in 0e172e9732a1cab2aba324ce10ce304df7b69338
+Referenced by issue #95649, Corrective Smooth modifier may cause some vertices to jump
