@@ -1,0 +1,1 @@
+Referenced by issue #115141, Copy-pasting an object with disabled collection dependency between blender instances brings in the formerly disabled collection as enabled
