@@ -20,3 +20,4 @@ Referenced by issue #96344, GPU subdivision: Crash on select in Edit Mode with X
 Referenced by issue #96328, Cannot load video/movie files into Blender
 Referenced by issue #96300, Texture Baking
 Referenced by issue #96283, GPU subdivision: Last subsurf modifier is always used for GPU subdivision, even when disabled.
+Referenced by issue #95843, Undo after remeshing or dyntopo creates a flat shading on normals
