@@ -1,2 +1,3 @@
 Referenced by issue #82597, Crash running with --debug-wm and pressing F3
 Referenced by issue #77629, GPencil: Convert Mesh to Grease Pencil stroke
+Referenced by issue #77630, GPencil: Bake Mesh animation to Grease Pencil
