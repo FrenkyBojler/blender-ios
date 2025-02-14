@@ -1,2 +1,3 @@
 Referenced by issue #41467, Modifier view buttons changing positions
 Referenced by issue #41471, Cycles Bake: Setting small tile size results in wrong bake with 'stripes' rather than the expected noise pattern
+Referenced by issue #41474, Second renderlayer doesnt render if first one has 'Use Surfaces' disabled.
