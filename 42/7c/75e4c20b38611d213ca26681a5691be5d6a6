@@ -1,3 +1,4 @@
 Referenced by issue #66335, artefacts for edit mesh drawing of in front objects
 Referenced by issue #64558, Unable to Select GPU for GPU rendering OpenCL Ubuntu 18.04 AMD RX 480
 Referenced by issue #64500, Preferences are saved as soon as a change is made, not only when saved manually
+Referenced by issue #64502, Collection instances shade bad if mirrored
