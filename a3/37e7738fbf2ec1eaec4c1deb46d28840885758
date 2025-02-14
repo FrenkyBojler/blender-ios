@@ -1,1 +1,2 @@
 Referenced by issue #99104, Shader Light output of mesh object leads to crash with Eevee
+Referenced by issue #98843, Sporadic boolean issues
