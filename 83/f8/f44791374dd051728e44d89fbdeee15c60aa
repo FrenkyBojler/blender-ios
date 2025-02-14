@@ -1,1 +1,2 @@
 Referenced by issue #62206, Color controllers stuck in multiply node and «infect» other nodes. Viral behaviour!
+Referenced by issue #60598, Shape key keyframes won't change in value. They keep snapping back to the original keyframe's value
