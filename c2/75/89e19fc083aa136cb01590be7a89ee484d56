@@ -68,3 +68,4 @@ Referenced by issue #45644, bpy.utils.smpte_from_frame drops frames
 Referenced by issue #45628, Bump or displacement turns to black
 Referenced by issue #45617, map UV node produces image artifacts
 Referenced by issue #45586, Render preview in viewport different with regular render
+Referenced by issue #45588, Wrong URL link to Blender 2.75 Python API in both Splash and Help Menu
