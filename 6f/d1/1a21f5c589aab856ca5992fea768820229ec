@@ -7,3 +7,4 @@ Referenced by issue #62460, Undo doesn't work in this file in particular
 Referenced by issue #62461, Mirror select doesn't select appropriate vertices where there are overlapping verts
 Referenced by issue #62437, Cycles zoom laggy with renderborder
 Referenced by issue #62367, Blender 2.8 - Black Viewport
+Referenced by issue #62255, Blender defaults to "OpenAL Soft" in sound settings, regardless of saved preferences
