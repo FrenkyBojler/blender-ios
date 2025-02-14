@@ -54,3 +54,4 @@ Referenced by issue #40365, Bevel. again bug
 Referenced by issue #40366, Rendering on Cycles with OpenCL Compilation Errors on 2.70.5 w/ defaults
 Referenced by issue #40336, Wind do not affect cloth to new added cloth object
 Referenced by issue #40309, Select bigger does not invert the selection with equally sized regions
+Referenced by issue #40310, Transform composite node causing artifacts on edge of render
