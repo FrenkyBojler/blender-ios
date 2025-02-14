@@ -1,1 +1,2 @@
 Referenced by issue #45511, GLSL error
+Referenced by issue #45496, Blender 2.75a crashes after loading a .blend file dozen or more times (crash in preview code, still running while loading new file?)
