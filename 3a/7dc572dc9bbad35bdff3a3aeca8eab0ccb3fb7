@@ -1,2 +1,3 @@
 Referenced by issue #105711, Regression: Clone Tool in Image Editor not showing the Clone Source Overlay
 Referenced by issue #101864, Regression: Crash when lasso masking in sculpt mode
+Referenced by issue #101754, Geometry Nodes 3.4 is crashing on joining empty geometry
