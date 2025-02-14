@@ -1,3 +1,4 @@
 Referenced by commit c75d2d09e39, Fix: Cloth could ignore "Shear" vertexgroup
 Referenced by commit 0885484aa60, Fix T59587: Hair dynamics works different when opened in 2.8
 Referenced by commit 4b8b3692188, Fix T58448: Cloth presets fails to load due to missing attribute structural_stiffness.
+Referenced by issue #118028, Fix: Cloth could ignore "Shear" vertexgroup
