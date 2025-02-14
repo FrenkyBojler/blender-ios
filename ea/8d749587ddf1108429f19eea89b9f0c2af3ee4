@@ -1,0 +1,1 @@
+Referenced by issue #94615, Blender 3.0 consistently crashes when RSS nears 5GiB on Linux (easy to trigger with video playback)
