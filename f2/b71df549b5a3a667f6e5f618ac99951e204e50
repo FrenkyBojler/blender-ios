@@ -1,1 +1,2 @@
 Referenced by issue #85402, Triangulate non-planar faces with "beauty" method produces faces that point in different directions
+Referenced by issue #79482, Triangulate faces with 'Beauty method' produces extra small triangles in certain cases
