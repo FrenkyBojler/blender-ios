@@ -7,3 +7,4 @@ Referenced by issue #68351, Blender Eevee Crash, radeonsi/si_descriptors.c
 Referenced by issue #67897, OpenCL and AMD Crash with Motion Blur
 Referenced by issue #67834, Clicking menus causes Mac to freeze entirely
 Referenced by issue #67689, not recognising gfx card
+Referenced by issue #67150, Extrude Acting Like Move - 2.79
