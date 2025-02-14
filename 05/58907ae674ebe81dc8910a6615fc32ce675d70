@@ -1,1 +1,2 @@
 Referenced by commit 8c0698460be, Revert "Fix T92136: Leak accessing evaluated depsgraph data from Python"
+Referenced by issue #92136, Accessing evaluated depsgraph data from Python leaks memory
