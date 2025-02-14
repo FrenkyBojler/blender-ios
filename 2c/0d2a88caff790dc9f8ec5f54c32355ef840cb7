@@ -1,2 +1,3 @@
 Referenced by commit 5370ab32485, Fix: Attribute lookup cleanup in `properties_constraint.py`
 Referenced by commit c7ae26c22b8, Fix: python exceptions on startup
+Referenced by issue #131202, Fix: Attribute lookup cleanup in `properties_constraint.py`
