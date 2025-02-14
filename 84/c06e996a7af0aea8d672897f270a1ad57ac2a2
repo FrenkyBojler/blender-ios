@@ -6,3 +6,4 @@ Referenced by issue #60567, brightening of the Viewport and subtle dimming of th
 Referenced by issue #60550, Materials turn black or white in Eevee LookDev/Render view if there is a 2nd 3D viewport.
 Referenced by issue #60554, Object Viewport Display Color Reverts To Default After Using Color Picker
 Referenced by issue #60543, Vanishing Object
+Referenced by issue #60525, Transmission Roughness in Principled isn't working in EEVEE
