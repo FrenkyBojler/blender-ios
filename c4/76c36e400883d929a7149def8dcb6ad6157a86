@@ -17,3 +17,4 @@ Referenced by issue #74957, Matcap flip function does not work in 2.83
 Referenced by issue #74872, Clipping Region delay
 Referenced by issue #74790, Artifacts in solid view
 Referenced by issue #74791, Crash trying to open Spring Splash scene
+Referenced by issue #74744, Studio Lights editor not updating in realtime when tweaking the settings
