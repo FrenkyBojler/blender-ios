@@ -1,1 +1,2 @@
 Referenced by issue #73328, Adding very weak emissions to the scene weakens the highlights in cycles render
+Referenced by issue #69921, VSE: Waveforms unnecessary redrawn on offset change
