@@ -4,3 +4,4 @@ Referenced by commit 185e1d53950, Fix T76254: 'Normal' Transformation Orientatio
 Referenced by commit ea77584d36b, Fix orientation change in Redo
 Referenced by commit 41b45d9159f, Fix T76260: Inverted rotation in non-3d views
 Referenced by commit 080732ae5cc, Fix crash with Orbit Around Selection
+Referenced by issue #78424, Individual Origins + Normal = Broken Again (works in 2.90, broken in 2.83 LTS)
