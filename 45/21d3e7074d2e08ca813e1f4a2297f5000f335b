@@ -1,1 +1,2 @@
 Referenced by commit dc7f3123266, Outliner: Gray out collections only when they are invisible
+Referenced by commit 2bd62b076fa, Outliner/visibility: revert changes for now until we find better solutions.
