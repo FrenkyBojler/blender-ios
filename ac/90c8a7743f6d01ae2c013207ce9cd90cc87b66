@@ -2,3 +2,4 @@ Referenced by commit b2a0f692750, Fix T87555: Incorrect view transform default i
 Referenced by commit a4877f9e540, Fix text in startup file python console
 Referenced by issue #96247, Different roughness values for default and new material
 Referenced by issue #87555, Default View Transform for "General" Start Up Becomes "Standard" Instead of "Filmic"
+Referenced by issue #86499, Create Workspace for Geometry Nodes
