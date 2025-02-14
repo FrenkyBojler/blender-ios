@@ -15,3 +15,4 @@ Referenced by issue #94686, Non selected verteces that are on the opposite side/
 Referenced by issue #94668, Don't open
 Referenced by issue #94624, Object As Font not working
 Referenced by issue #94630, crash when assign a preview to a specific asset in the asset browser
+Referenced by issue #94615, Blender 3.0 consistently crashes when RSS nears 5GiB on Linux (easy to trigger with video playback)
