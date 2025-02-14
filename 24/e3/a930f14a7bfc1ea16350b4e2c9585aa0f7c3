@@ -1,0 +1,1 @@
+Referenced by issue #51444, Python scripts executed from commandline don't have __main__ module's dict as their globals on Windows
