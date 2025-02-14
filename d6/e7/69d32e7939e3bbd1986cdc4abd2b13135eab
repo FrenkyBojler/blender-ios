@@ -1,1 +1,2 @@
 Referenced by issue #58444, In Blender 2.8, some materials involving bump nodes look substantially different now
+Referenced by issue #56262, Bump Node produces black artifacts at grazing angles
