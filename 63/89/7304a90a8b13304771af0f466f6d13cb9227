@@ -1,0 +1,1 @@
+Referenced by issue #44930, Loading an image with bpy.data.images.load(path) Freezes the add-on panel in the 3D tool shelf
