@@ -1,1 +1,2 @@
 Referenced by issue #81761, Eevee enabled AO pass affects render result (even though AO is disabled in scene settings)
+Referenced by issue #81398, Blender 2.90.1 crashes on switching to viewport rendered view
