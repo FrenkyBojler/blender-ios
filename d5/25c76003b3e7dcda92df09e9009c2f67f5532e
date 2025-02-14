@@ -3,3 +3,4 @@ Referenced by issue #65221, armature selection bug
 Referenced by issue #65200, Crash by hiting "tab" after sculpting with dyntopo.
 Referenced by issue #65205, "To sphere" operation unexpected behavior with proportional editing on
 Referenced by issue #65195, error in mesh view in sculpt mode
+Referenced by issue #65149, Undo in script does not work in Blender 2.8
