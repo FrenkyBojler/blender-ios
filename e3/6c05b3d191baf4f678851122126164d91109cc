@@ -1,1 +1,2 @@
 Referenced by commit 5501a5de32d, Fix T84705: Snapping strip handle offset animation
+Referenced by issue #77764, VSE: snap strip to current frame does not move associated effect strips keyframes along
