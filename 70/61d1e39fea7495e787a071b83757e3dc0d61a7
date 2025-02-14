@@ -1,1 +1,2 @@
 Referenced by commit e8a8bb67fce, Cleanup: Correct order of guard and lock in moviecache_valfree
+Referenced by issue #98677, Crash after 512 frames with movie imported as planes
