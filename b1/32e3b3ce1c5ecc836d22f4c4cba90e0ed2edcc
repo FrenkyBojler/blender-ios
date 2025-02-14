@@ -1,1 +1,2 @@
 Referenced by issue #114209, Dark bar in result when rendering large image with multiple samples (can crash, too)
+Referenced by issue #103556, Regression: Cycles viewport pixels change if the UI is updated in a certain way.
