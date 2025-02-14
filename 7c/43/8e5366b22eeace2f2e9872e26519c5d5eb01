@@ -15,3 +15,4 @@ Referenced by issue #59946, Multiple quit dialogs possible
 Referenced by issue #59947, Animated texture node (in Compositor) remains static in render
 Referenced by issue #59953, Particles not beeing rendered
 Referenced by issue #59943, Color banding present in Workbench render but not in viewport.
+Referenced by issue #59944, Python template operator_mesh_uv.py fails with an error
