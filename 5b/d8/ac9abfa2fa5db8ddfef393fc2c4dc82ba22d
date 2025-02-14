@@ -51,3 +51,4 @@ Referenced by issue #54216, Baking uses different coord. system for object norma
 Referenced by issue #54204, Wrong selection on Clean Tracks (Motion Tracking)
 Referenced by issue #54175, First and second particle overlap when they shouldn't
 Referenced by issue #54157, Cycles GPU compute device doesn't work
+Referenced by issue #54132, RGB Curves Node missing the curve
