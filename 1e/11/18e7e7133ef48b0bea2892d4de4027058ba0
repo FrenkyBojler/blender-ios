@@ -5,3 +5,4 @@ Referenced by issue #47807, Alt+F9 shortcut doesn't hide the header
 Referenced by issue #47785, Rendering Crash, Node Connector Crash, Changing Editors Crash
 Referenced by issue #47794, Point density sometime seems streched when rendered on GPU
 Referenced by issue #47796, 2.77 RC2 - Material preview won't update
+Referenced by issue #47777, Smoke sampling difference on GPU.
