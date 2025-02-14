@@ -1,2 +1,3 @@
 Referenced by issue #47591, Smoke keeps both .bphys and .vdb cache files
 Referenced by issue #47582, Curve Handles line thickness regression
+Referenced by issue #47583, Edge thickness regression
