@@ -10,3 +10,4 @@ Referenced by issue #54024, BMesh boolean fails when edge is co-planar to face (
 Referenced by issue #47129, new Bmesh boolean is deleting some of edges data, (Creases and Bweigh)
 Referenced by issue #47108, Bmesh boolean fails with overlapping faces
 Referenced by issue #47087, Bmesh booleans fails when A mesh have coincident edge with B
+Referenced by issue #46988, BMesh boolean fails with zero area faces
