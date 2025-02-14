@@ -1,1 +1,2 @@
 Referenced by issue #70180, Batch Rename dialog gets added backslash (escapes valid characters)
+Referenced by issue #70177, Blender crashes when to to_track_quat() called without arguments
