@@ -2,3 +2,4 @@ Referenced by issue #68284, UV Individual Origins behaves like Median Point
 Referenced by issue #65437, Undo Function Malfunctioning with Dyntopo On
 Referenced by issue #65413, Crash when applying material to a face
 Referenced by issue #65383, UI graphics glitches on macOS with Intel HD 4000
+Referenced by issue #65310, Blender 2.8 Cycles Image Texture node missing Color/Non-Color data option
