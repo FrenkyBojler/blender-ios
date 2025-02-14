@@ -1,1 +1,2 @@
 Referenced by commit b294600ddcf, Fix T61051: crash with multi-object mixed mode snapping
+Referenced by issue #61051, 2.8 crash - "selection to active" with bone selected in pose mode
