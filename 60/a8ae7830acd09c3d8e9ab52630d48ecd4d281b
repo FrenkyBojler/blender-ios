@@ -1,2 +1,3 @@
 Referenced by commit 5c6c71e6e88, Build: prevent OpenSSL using /etc/ssl on macOS & Linux
 Referenced by issue #114569, Build: prevent OpenSSL using /etc/ssl on macOS & Linux
+Referenced by issue #114086, Build: use /etc/ssl for OPENSSLDIR on Linux & macos
