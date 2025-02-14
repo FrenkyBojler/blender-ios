@@ -1,2 +1,3 @@
 Referenced by issue #97338, Incorrect handling of reference counting for COM
 Referenced by issue #88131, Blender Delete file | problem
+Referenced by issue #64104, Make Delete in the File Browser use the system Trash
