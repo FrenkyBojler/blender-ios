@@ -1,0 +1,1 @@
+Referenced by issue #98975, Regression: Dirty Vertex Color, Invert, Levels, HSV, Brightness-Contrast ignores destination Color Attribute selection (also crash)
