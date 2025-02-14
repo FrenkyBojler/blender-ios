@@ -1,1 +1,2 @@
 Referenced by commit 8d590e4b862, Fix T83801: UVEditor translation ignores "Pixel Coordinates" and aspect
+Referenced by issue #83352, In "UV Editor", the movement of UV objects in pixels of an open texture map stopped working when using the [g]+[x/y] keyboard shortcuts (Blender 2.91)
