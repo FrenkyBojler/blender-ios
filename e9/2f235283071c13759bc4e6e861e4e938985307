@@ -43,3 +43,4 @@ Referenced by issue #51889, Broken UI after creating new file in 2.79 test and d
 Referenced by issue #51854, Blender 2.78 crashes when Open Shading Language is turned on
 Referenced by issue #51841, Z and Y axis become same axis (Gimbal Lock?)
 Referenced by issue #51819, Inset, extrue, bevel operation is slow on highpoly meshes
+Referenced by issue #51784, Wrong window scaling
