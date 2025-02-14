@@ -1,1 +1,2 @@
 Referenced by commit c275f4219f1, Fix #110204: Anim Player draws non-uniformly scaled when resizing window
+Referenced by commit 5ec6bcd4748, Fix PlayAnim X/Y flipping
