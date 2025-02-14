@@ -1,2 +1,3 @@
 Referenced by commit 22397ad819a, Fix #128012: disabling "Load UI" makes nodes unselectable
 Referenced by commit de7fced7eb8, Fix #126990: Changing editors doesn't set the default tool
+Referenced by issue #128012, Uncheck "Load UI" causes failure in direct manipulation of nodes with certain files
