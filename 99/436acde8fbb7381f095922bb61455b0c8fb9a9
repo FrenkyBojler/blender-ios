@@ -4,3 +4,4 @@ Referenced by issue #86171, Cycles freeze on render and texture baking (with pac
 Referenced by issue #82483, Blender freezes when repeating baking textures
 Referenced by issue #79819, Crash with OSL shader when checking results from getmessage trace "geom:name"
 Referenced by issue #78152, Embree shades hair differently from CUDA and OptiX
+Referenced by issue #78149, Animation render seemingly not freeing up memory (2.90.0 Regression)
