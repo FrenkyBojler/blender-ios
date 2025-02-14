@@ -1,1 +1,2 @@
 Referenced by commit cc636db8f2f, Fix T91823: Regression not showing idblocks when recursion is set to `Blend file`
+Referenced by commit 214baf54226, Assets: Enable recursive reading for the asset view template as well
