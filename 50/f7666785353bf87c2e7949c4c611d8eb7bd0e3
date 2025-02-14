@@ -1,1 +1,2 @@
 Referenced by commit 9a9e2e19a9d, Fix #130007: Invalid current file asset catalogs after saving file
+Referenced by issue #123452, blender freezes if asset library has multiple definitions of catalog with differing paths
