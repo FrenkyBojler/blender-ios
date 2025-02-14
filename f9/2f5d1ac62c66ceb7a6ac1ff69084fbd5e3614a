@@ -1,2 +1,3 @@
 Referenced by commit 757ec00f830, Revert "Keymap: use D-Key for view-pie menu"
 Referenced by commit ca3891e83ba, Fix T88828: View/Navigation(Walk/Fly) disappeared from keymap
+Referenced by issue #88828, Blender 3.0 alpha : View/Navigation(Walk/Fly) dissapeared from Keymap
