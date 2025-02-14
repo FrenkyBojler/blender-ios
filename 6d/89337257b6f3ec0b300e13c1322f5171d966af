@@ -6,3 +6,4 @@ Referenced by issue #59850, blender 2.8 exports fbx to unity 2018.3. The renderi
 Referenced by issue #59859, Blender - Texture Paint crashes
 Referenced by issue #59840, Completely locking up on Windows 10 and cannot be forced closed
 Referenced by issue #59848, Bone won't deform mesh
+Referenced by issue #59834, Solidify modifier does not work on bezier objects created under 2.79b - but works fine with newly created objects
