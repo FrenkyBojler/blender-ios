@@ -1,3 +1,4 @@
 Referenced by issue #126391, Blender Viewport Speed Regression
 Referenced by issue #119643, Blender crashes when adding geo node group asset
 Referenced by issue #119455, Regression: dropping ANY asset into this file crashes Blender 4.1 release candidate
+Referenced by issue #119447, Auto Smooth versioning modifiers appearing on Append
