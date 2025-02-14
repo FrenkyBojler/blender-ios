@@ -43,3 +43,4 @@ Referenced by issue #40509, save shortcuts
 Referenced by issue #40497, Spline IK does not evaluate as expected
 Referenced by issue #40498, 3D-View Error: Backface-Culling shown with 'Textured Solid' when disabled
 Referenced by issue #40494, Align View doesn't work properly in sculpting mode when object's center is not at world origin.
+Referenced by issue #40474, Sculpt Mode: Smooth Shading checkbox
