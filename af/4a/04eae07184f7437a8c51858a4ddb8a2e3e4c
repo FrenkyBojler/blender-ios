@@ -1,0 +1,1 @@
+Referenced by issue #48487, Physics cache names allow (back)slashes, which breaks its handling.
