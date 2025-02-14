@@ -3,3 +3,4 @@ Referenced by issue #60790, Unwanted alt click and drag with emulate MMB and tab
 Referenced by issue #60776, Keymaps added from python doesn't behave correctly.
 Referenced by issue #60659, First click issue,Operator Menus (Pie, Menu) need 2nd or 3rd click to confirm on OSX
 Referenced by issue #60631, Pressing ALT bloks modal operators release confirm when emulate 3d button mouse and release confirm are enabled
+Referenced by issue #60636, Tapping Alt while Emulate 3 Button Mouse is enabled bugs left click input
