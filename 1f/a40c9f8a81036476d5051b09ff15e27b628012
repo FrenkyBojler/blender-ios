@@ -1,3 +1,4 @@
 Referenced by commit 608d9b5aa1f, UI: Add shortcuts for constraint panels
 Referenced by commit 053e0c0af37, UI: Add shortcuts for shader effect panels
 Referenced by commit 4176adaf963, Fix T78455: Failed assert when opening a viewport panel
+Referenced by commit 5d2005cbb54, UI: Add shortcuts for grease pencil modifier panels
