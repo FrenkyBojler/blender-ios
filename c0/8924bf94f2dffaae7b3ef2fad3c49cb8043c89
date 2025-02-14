@@ -1,0 +1,1 @@
+Referenced by commit 6483c3c280c, Fix own regression in rBc08924bf94f2dff - foreach ID looper was broken due to missing initialization.
