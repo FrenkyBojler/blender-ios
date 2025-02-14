@@ -1,2 +1,3 @@
 Referenced by issue #66083, Hair Info -> Tangent Normal still not working properly in Eevee
 Referenced by issue #65429, Blender eve Crash when baking indirect lighting with clearcoat material
+Referenced by issue #65059, Shift Ctrl Alt LMB / Ctrl Alt LMB in an empty scene closes / crashes Blender
