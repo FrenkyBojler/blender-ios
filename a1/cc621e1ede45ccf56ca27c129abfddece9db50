@@ -1,1 +1,2 @@
 Referenced by commit cdae07dccfb, Fix #113842: Curves Info node length output always zero
+Referenced by issue #113842, Regression: Curves Info -> Length is always 0
