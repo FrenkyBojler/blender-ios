@@ -1,1 +1,2 @@
 Referenced by commit 0349a6e6e05, Fix disappearing snap indication in Measure tool
+Referenced by issue #107830, Regression: Missing snap gizmo in multiple viewport instances
