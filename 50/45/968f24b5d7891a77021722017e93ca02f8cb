@@ -1,3 +1,4 @@
 Referenced by issue #100321, Regression: Extrude Tool XYZ Handles overlap on orthographic view and small world scale
 Referenced by issue #98932, Regression: Unable to move camera/area light with gizmo (intel GPU)
 Referenced by issue #98058, Gizmos do not work with cameras in 3D viewport
+Referenced by issue #98046, Object doens´t mode, scale, rotate on 3.3.0
