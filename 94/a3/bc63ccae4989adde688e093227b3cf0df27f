@@ -1,1 +1,2 @@
 Referenced by issue #51664, Curve front/back sides filling do not change when flipping the curve direction.
+Referenced by issue #51665, curve normals are sometime wrong
