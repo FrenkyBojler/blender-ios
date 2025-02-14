@@ -1,1 +1,2 @@
 Referenced by commit 7456d716f40, Fix #120811: Loop cut crash with symmetry enabled
+Referenced by commit 930b11b0fe4, Fix: Edge Slide sometimes slides edge in wrong direction
