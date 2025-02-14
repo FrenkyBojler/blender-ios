@@ -1,1 +1,2 @@
 Referenced by issue #94560, Simple a GPencil object cause crashes Blender when use huge render resolution
+Referenced by issue #94169, Regression: Grease Pencil does not show up in render past 2049x2049 render resolution
