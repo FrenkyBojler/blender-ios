@@ -1,3 +1,4 @@
 Referenced by commit 239eb95ef87, Fix T81865, T81860: CustomData Correction can fail on non standard names
 Referenced by issue #81865, Vertex Color layer corrupted after edge operations in EDIT mode
 Referenced by issue #81866, UVS Get Screwed Up After Removing Geometry and Moving with "Correct Face Attributes" Enabled.
+Referenced by issue #81860, UV edge loop issue if UV map is not called 'UVMap'
