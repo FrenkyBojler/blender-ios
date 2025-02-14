@@ -1,1 +1,2 @@
 Referenced by commit 964e319a39a, Fix: Alembic import segfault when importing mesh with null UVs
+Referenced by issue #65901, Alembic crash
