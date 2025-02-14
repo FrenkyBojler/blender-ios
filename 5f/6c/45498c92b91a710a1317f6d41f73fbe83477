@@ -2,3 +2,4 @@ Referenced by commit 390a0d56247, Fix T82387: Crash loading file saved with rece
 Referenced by commit 52a475287d7, Fix T70898: Area.type access fails for topbar & statusbar
 Referenced by commit 1adfabc8c62, WM: revert part of Top-Bar inclusion
 Referenced by commit 965e6ed54f0, Fix T54864: Assert when changing interface display scale
+Referenced by issue #54864, Assert when changing interface display scale
