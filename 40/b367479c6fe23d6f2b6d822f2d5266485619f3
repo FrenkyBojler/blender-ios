@@ -1,0 +1,1 @@
+Referenced by commit 7baf93c711a, Revert "Code cleanup to use array.data() rather than &array[0]."
