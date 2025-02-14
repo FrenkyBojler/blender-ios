@@ -83,3 +83,4 @@ Referenced by issue #48755, Crash while UV unwrapping
 Referenced by issue #48748, BI Material Diffuse color isn't showing in Texture Shading mode
 Referenced by issue #48750, Blender crashes when I unplug my genius tablet
 Referenced by issue #48753, The Text in the VSE must be restart for the international fonts
+Referenced by issue #48701, Blender 2.77a abf6f08 Cycles OpenCL horizontal noise
