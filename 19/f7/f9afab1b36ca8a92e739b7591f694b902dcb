@@ -3,3 +3,4 @@ Referenced by issue #39859, UI response degraded
 Referenced by issue #39254, Cycles GPU fails
 Referenced by issue #39213, Rendering and Simultaneous Editing Does Not Work
 Referenced by issue #39192, Blend renders on 2.69.0 and 2.70 RC1 but not on 2.70 RC2
+Referenced by issue #39194, CUDA error when trying to do viewport rendering
