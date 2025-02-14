@@ -1,2 +1,3 @@
 Referenced by commit cf5304855fe, Fix #117632: IME input crash after refactor to use std::string
 Referenced by commit 8dd30838e91, Fix #117423: Broken UI button float display after cleanup
+Referenced by issue #117968, Fix #117632: IME input crash after refactor to use std::string
