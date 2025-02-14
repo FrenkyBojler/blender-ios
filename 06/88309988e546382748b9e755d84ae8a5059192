@@ -2,3 +2,4 @@ Referenced by commit 3d0b65f89b2, Fix T83296: Unknown actions no longer perform 
 Referenced by commit 256e77c987d, Fix T82833: GreasePencil crash when changing to Vertex Color mode
 Referenced by issue #83296, 2.91 regression: Changing a node's color wheel, color ramp stops, or curves no longer pushes UNDO to the stack.
 Referenced by issue #82854, Bevel modifier custom profile handle type crash
+Referenced by issue #82833, GreasePencil: Crash when changing to Vertex Color mode in Draw mode
