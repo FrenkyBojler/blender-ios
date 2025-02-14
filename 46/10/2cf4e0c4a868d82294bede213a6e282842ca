@@ -1,1 +1,2 @@
 Referenced by commit 725b59d9b44, Fix T70903: Opening splash screen from named app_template crashes
+Referenced by issue #70812, Application Template Splash Screen image is not loading as expected
