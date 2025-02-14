@@ -28,3 +28,4 @@ Referenced by issue #43311, Displacement Method: true Crashing
 Referenced by issue #43290, Cycles Slow down
 Referenced by issue #43245, Complex Node Groups cause instability in Cycles Bump Node
 Referenced by issue #43249, Blender crashes on startup...
+Referenced by issue #43236, Switch from texture view to material view in viewport doesn't work properly
