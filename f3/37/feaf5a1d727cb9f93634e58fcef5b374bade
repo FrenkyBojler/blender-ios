@@ -70,3 +70,4 @@ Referenced by issue #47485, Blender crash
 Referenced by issue #47491, Proxy armature custom bone shapes are overwritten by library armature settings
 Referenced by issue #47484, Crash on exporting collada file from menu
 Referenced by issue #47463, GeForce GTX 960 CUDA error: out of memory in cuArrayCreate(&handle,&desc)
+Referenced by issue #47471, Registry entries missing
