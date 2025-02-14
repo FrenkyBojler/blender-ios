@@ -1,1 +1,2 @@
 Referenced by issue #80396, Potential candidates for corrective releases
+Referenced by issue #77584, Segfault with bmesh API on a mesh with a shape key
