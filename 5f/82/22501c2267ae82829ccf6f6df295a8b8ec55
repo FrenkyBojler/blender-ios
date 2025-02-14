@@ -1,1 +1,2 @@
 Referenced by issue #57328, Save As Copy gives benign warning/error message with RNA_boolean_get
+Referenced by issue #57303, "Loading Render Kernels" now taking extremely long time on GPU.
