@@ -1,3 +1,4 @@
 Referenced by issue #48645, Regression: crash in cycles after recent commit
 Referenced by issue #48648, Very recent buildbot build quits on various scenes when Cycles render starts
 Referenced by issue #48653, Animation: 'Paste X-flipped Pose' Does Not Copy Handle Placement
+Referenced by issue #48625, Blender cannot interpret Right Click for Wacom Tablet
