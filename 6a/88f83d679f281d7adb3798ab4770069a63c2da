@@ -1,1 +1,2 @@
 Referenced by issue #91734, Crash snapping mesh if a beveled curve is present
+Referenced by issue #91697, EEVEE regression: Generated texture coordinates completly missing
