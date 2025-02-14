@@ -11,3 +11,4 @@ Referenced by issue #60203, Flip bone extend bug
 Referenced by issue #60182, Can't enter inches dimensions in the Dimensions settings.
 Referenced by issue #60173, Subdivision Modifier problem with n-gons
 Referenced by issue #60180, Can't select plane objects after changing Display As setting to Wire.
+Referenced by issue #60163, Multires modifier not always updating external data files when .blend is saved causing changes to be lost
