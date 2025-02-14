@@ -1,1 +1,2 @@
 Referenced by issue #92979, keys on shader attributes get disconnected each time a Blender scene is closed.
+Referenced by issue #91917, Animated Values in Node Trees and Geometry Nodes Modifier are not distinguishable
