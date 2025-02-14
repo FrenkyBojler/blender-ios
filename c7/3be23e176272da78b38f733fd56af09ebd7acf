@@ -1,1 +1,2 @@
 Referenced by issue #93751, Extrude crash
+Referenced by issue #89204, GPUOffscreen.draw_view3d() is 25 to 50 times slower
