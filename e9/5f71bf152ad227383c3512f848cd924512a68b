@@ -1,1 +1,2 @@
 Referenced by issue #107011, Regression: Boolean Modifier Overlap Threshold property issue in UI when value is 0
+Referenced by issue #90272, Voxel Remesh Modifier - No Minimum Cap on Voxel Size?  Crash on 0 value.
