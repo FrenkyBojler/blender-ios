@@ -1,1 +1,2 @@
 Referenced by commit 738f4fbc5e3, Revert "Fix T92636: Vector math node link disconnects when loading old file"
+Referenced by issue #92636, Procedural texture "Camo" not rendering correctly in 3.0.0 Beta
