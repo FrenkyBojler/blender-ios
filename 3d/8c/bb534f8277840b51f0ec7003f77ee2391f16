@@ -8,3 +8,4 @@ Referenced by issue #61143, Wildly incorrect fills with Grease Pencil
 Referenced by issue #61144, set cursor in grease pencil draw mode ( right click select and emulate 3 mouse button)
 Referenced by issue #61075, Texture Node editor --->creating image , then use created image as input node in texture node editor
 Referenced by issue #60959, texture paint bump , final result only  updated when (viewport)overlays are turned of
+Referenced by issue #60962, random crashes when modelling
