@@ -1,3 +1,4 @@
 Referenced by commit 4cea295fcba, Fix #126392: Crash loading a file with "Load UI" disabled
 Referenced by issue #126392, Regression: Double clicking a file crashes Blender if load UI is off
 Referenced by issue #125865, Blender crashes when using bpy.ops.render.render("INVOKE_DEFAULT")
+Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
