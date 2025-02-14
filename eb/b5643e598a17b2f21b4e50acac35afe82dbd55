@@ -8,3 +8,4 @@ Referenced by issue #118693, Regression: Crash on linking collection, then undoi
 Referenced by issue #116734, Measure Tool Undo crash
 Referenced by issue #108923, Regression: crash and assert hit in curve sculpt mode after undo
 Referenced by issue #108746, Defaults / Save startup file don't save the window size in Blender 4.0 alpha
+Referenced by issue #108643, Blender window does not open to full dimensions of the desktop
