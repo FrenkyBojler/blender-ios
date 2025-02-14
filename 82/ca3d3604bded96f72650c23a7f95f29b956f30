@@ -1,2 +1,3 @@
 Referenced by issue #111396, Revert "Fix #107185: Edit mode or existing attribute break rest position"
 Referenced by issue #110925, mirror modifier and subdivision surface.on_cage enabled crashes blender
+Referenced by issue #110136, Crash when switching to the Face select mode in 3.6
