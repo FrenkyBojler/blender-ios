@@ -1,1 +1,2 @@
 Referenced by issue #70657, Anti-Aliasing problem
+Referenced by issue #69682, "Render Audio..." does not always render keyframe transitions that have been placed in Volume, Pitch or Pan.
