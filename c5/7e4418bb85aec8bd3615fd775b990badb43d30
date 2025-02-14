@@ -1,2 +1,3 @@
 Referenced by commit 9506dcf6758, Fix T95029: Arrow gizmo always uses normal direction
 Referenced by commit 21881758916, Transform: Invert shear direction aligned to view
+Referenced by commit 185e1d53950, Fix T76254: 'Normal' Transformation Orientation using Global
