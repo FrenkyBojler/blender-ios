@@ -4,3 +4,4 @@ Referenced by issue #68004, Bones don't immediately update with active motion pa
 Referenced by issue #67973, Crash on Fix Deforms operator
 Referenced by issue #67902, Crash when undo a loop cut
 Referenced by issue #67454, Blender crash
+Referenced by issue #67207, Blender Release Candidate Version 2.80 (2.90 2019-07-11) Crashes often.
