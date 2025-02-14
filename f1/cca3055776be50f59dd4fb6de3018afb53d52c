@@ -6,3 +6,4 @@ Referenced by issue #96032, Wrongly applying constraint make crashing Blender
 Referenced by issue #95832, Linked libraries+Cloth objects+LineArt -> Blender crashes
 Referenced by issue #95409, Crash when hitting Texture Paint > Side bar > Tools > Options > External > Apply Camera Image & selecting an image.
 Referenced by issue #95165, Regression: Custom Normals tools dont update immediately (when started with Auto Smooth OFF)
+Referenced by issue #95155, Can't run Blender
