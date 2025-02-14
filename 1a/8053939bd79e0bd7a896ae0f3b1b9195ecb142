@@ -1,2 +1,3 @@
 Referenced by commit e2bc41598d8, Fix drivers showing "Python restricted for security" when they weren't
 Referenced by issue #126088, Fix: Wrong message in driver for disabled execution
+Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
