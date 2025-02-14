@@ -1,1 +1,2 @@
 Referenced by commit f470a02afae, Fix T80982: Crash using custom orientations beside the first
+Referenced by issue #80704, bpy.ops.transform.rotate() ignores orient_type
