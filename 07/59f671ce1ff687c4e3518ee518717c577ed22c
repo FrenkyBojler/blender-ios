@@ -6,3 +6,4 @@ Referenced by issue #101879, [bug] Screw modifier seemingly generates inaccurate
 Referenced by issue #101782, Cycles: Compositor File Output BW Color Option Issue (again)
 Referenced by issue #101583, Regression: apply data transfer crash
 Referenced by issue #101498, Bug with selecting objects
+Referenced by issue #101480, Blender GPU Render crashes with NVidia in Ubuntu
