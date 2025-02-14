@@ -4,3 +4,4 @@ Referenced by issue #43139, Calling bpy.ops.screen.screen_full_area() multiple t
 Referenced by issue #43131, vertices, edges or faces cannot be selected on dense mesh from distance point
 Referenced by issue #43096, Blender 2.72b 64bit - application Crash with cycles when using OSL
 Referenced by issue #43076, Knife tool problem with Maya Preset - Blender 2.73
+Referenced by issue #43063, CUDA error: Launch failed in cuMemcpy2D(&param)
