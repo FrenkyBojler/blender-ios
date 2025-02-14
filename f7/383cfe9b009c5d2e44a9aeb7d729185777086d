@@ -1,2 +1,3 @@
 Referenced by commit da6867ca3bf, Cleanup: Use dynamic declaration for sample curve node
 Referenced by issue #122370, Fix #122356: Drag search crash connecting texture socket to switch node
+Referenced by issue #122356, Geometry Nodes: Crash in link-drag search involving missing `Texture` subtype in `Switch` Node
