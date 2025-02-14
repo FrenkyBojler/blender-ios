@@ -1,1 +1,2 @@
 Referenced by issue #52625, CPU render will look different to GPU render and fails randomly
+Referenced by issue #52626, Scene too complex to fit in available memory. (allocating buffer Denoising XtWY failed.)
