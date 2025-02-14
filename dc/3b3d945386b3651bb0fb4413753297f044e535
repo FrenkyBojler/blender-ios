@@ -4,3 +4,4 @@ Referenced by issue #56022, "terminate called after throwing an instance of 'std
 Referenced by issue #56023, EEVEE : shadow bias bug when switch from 3d view to camera view&render result
 Referenced by issue #56010, Material Nodes break in Eevee
 Referenced by issue #56012, Stencil Brush misalligned
+Referenced by issue #56014, Maximised editor crashes 2.8 after reverting to original screen layout
