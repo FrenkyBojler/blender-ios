@@ -1,2 +1,3 @@
 Referenced by issue #53827, No wire visible on mesh in texture paint, with face selection masking turned on.
 Referenced by issue #43874, Face Selection Mask No Longer Displays Wireframe Overlay in Texture Paint Mode
+Referenced by issue #42788, animation rendering crashes when 2 3d Views set to "material" shading mode are shown
