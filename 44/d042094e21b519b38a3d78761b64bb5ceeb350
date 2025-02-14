@@ -1,1 +1,2 @@
 Referenced by commit 24be998b986, Fix T70345: wrong transforms of objects after recent NVIDIA workaround
+Referenced by issue #70359, Can't transform object, only the pivot/origin
