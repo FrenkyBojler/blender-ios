@@ -20,3 +20,4 @@ Referenced by issue #39064, Discoloration of UV Texture at seams
 Referenced by issue #39052, Fonts fall apart over AirPlay
 Referenced by issue #39057, VSE wipe (with transparent 2nd input ) broken in RC1 !
 Referenced by issue #39027, Click and dag "synchronized editing" on "Transform>Dimensions" parameter on 3D view properties shelf has strange behavior
+Referenced by issue #39030, Backwards compatibility with 2.70 and 2.69 and lights
