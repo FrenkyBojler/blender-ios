@@ -1,0 +1,1 @@
+Referenced by issue #91861, shadowcatcher objects appear black in the environment pass, makes it impossible to comp in the environment without rendering a second time with only the environment visible.
