@@ -1,1 +1,2 @@
 Referenced by issue #62388, object visibilty using obj.hide_viewport not recognized by context.visible_objects and obj.visible_get()
+Referenced by issue #62025, Outliner and viewport missing update after deleting object
