@@ -2,3 +2,4 @@ Referenced by commit 51bb3247b43, Fix #116144: Tag update relations for Active C
 Referenced by issue #116152, Fix #116144: Tag update relations for Active Camera node
 Referenced by issue #116144, Geometry Nodes: Active Camera does not work first time
 Referenced by issue #106065, Add Active Camera geometry node
+Referenced by issue #105761, Add Active Camera geometry node
