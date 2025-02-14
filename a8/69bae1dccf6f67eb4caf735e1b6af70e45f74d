@@ -1,0 +1,1 @@
+Referenced by issue #120575, Regression: GPU Subdivision does not detect sharp edges (and does not fallback to CPU anymore)
