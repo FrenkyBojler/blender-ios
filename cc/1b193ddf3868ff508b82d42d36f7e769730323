@@ -1,2 +1,3 @@
 Referenced by issue #62839, object scale changes normal map output in eevee
 Referenced by issue #62783, Problems in 2.8 in viewport matcaps as well as render of certain files - Since last two week builds
+Referenced by issue #62621, object scale changes tangent node output in Eevee
