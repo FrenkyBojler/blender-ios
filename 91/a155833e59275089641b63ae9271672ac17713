@@ -5,3 +5,4 @@ Referenced by issue #60674, Blender Streaming with 3rd-Party Application
 Referenced by issue #60617, [Texture baking] Baking Diffuse from Metal Object makes texture black
 Referenced by issue #60577, 2.8 Color sampling alters color value
 Referenced by issue #60441, 2.8 Color code
+Referenced by issue #60444, Blender compositor seperate and combine rgba yields different image.
