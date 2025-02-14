@@ -1,2 +1,3 @@
 Referenced by issue #53683, 2.79a release
 Referenced by issue #52951, Absolute grid snapping: Half unit offset issue with edges, if their total length in units is an odd number
+Referenced by issue #52831, collada exporter transform geometry randomly if camera is exported
