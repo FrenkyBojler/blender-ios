@@ -1,2 +1,3 @@
 Referenced by commit 58b7543ede1, Fix #132322: Artifacts in Cycles volume rendering with Light tree on some devices
 Referenced by issue #132344, Fix #132322: Artifacts in Cycles volume rendering with Light tree on some devices
+Referenced by issue #132322, Cycles NVIDIA: Artifacts using HDRi together with volume in the world shader
