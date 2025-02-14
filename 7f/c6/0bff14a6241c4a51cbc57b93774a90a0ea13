@@ -4,3 +4,4 @@ Referenced by commit 879032d2ab9, Cleanup: Correct order of proxy resolutions
 Referenced by commit d07dab0d612, Fix T76225: Cycles View layer filters are grayed out while still working
 Referenced by issue #78469, UI: Output Metadata: Strip Name no long accessible
 Referenced by issue #76225, View layer filters are grayed out while still working.
+Referenced by issue #65965, Checkboxes alignment tweaks
