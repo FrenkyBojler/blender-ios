@@ -1,2 +1,3 @@
 Referenced by issue #63695, copy data path is incorrect (in node values but possibly elsewhere too)
 Referenced by issue #63674, Errors thrown in console when running Operator Cheat Sheet
+Referenced by issue #63663, Object mode proportional editing affects objects which are disabled for selection
