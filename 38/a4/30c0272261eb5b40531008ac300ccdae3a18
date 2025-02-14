@@ -2,3 +2,4 @@ Referenced by issue #40253, cyclesbakind-uvs
 Referenced by issue #40212, instanded group objects don't render(blender internal)
 Referenced by issue #40109, enslaved Metaball in particle system
 Referenced by issue #40077, crash trying to bake to active TS n-maps
+Referenced by issue #40029, Apply hook location returns it to 0,0,0
