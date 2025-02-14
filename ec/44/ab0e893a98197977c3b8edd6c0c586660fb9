@@ -1,1 +1,2 @@
 Referenced by issue #80750, Blender 2.83.5 fails to render past the first frame of video textures.
+Referenced by issue #79111, Cycles: Image Sequence not rendering
