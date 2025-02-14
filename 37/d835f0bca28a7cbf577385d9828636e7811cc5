@@ -1,2 +1,3 @@
 Referenced by commit 8c8c1029806, Fix T40059: Switching windows ignores held modifier keys
 Referenced by issue #109525, Regression: Pressing multiple modifier keys at the same time locks mouse click
+Referenced by issue #106509, Multiple Edge Loop Selection doesn't always work
