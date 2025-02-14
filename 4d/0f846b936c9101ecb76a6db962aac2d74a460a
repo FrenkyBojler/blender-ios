@@ -1,3 +1,4 @@
 Referenced by commit 4bec9d0d716, Fix #114282: Extrude to Cursor tool no longer tweaks on drag
 Referenced by commit 4c3e91e5f56, Fix T96520 Node editor: Tweak fails with unselected nodes
 Referenced by commit d66b047ca39, WM: use pass-through for cursor placement operator
+Referenced by issue #114282, Extrude to Cursor tool: it don't allow to correct position of new vertex after LMB pressed
