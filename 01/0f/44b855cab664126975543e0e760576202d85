@@ -1,2 +1,3 @@
 Referenced by issue #84209, blender-2.92.0-010f44b855ca-windows64 - crashes when trying to save image or go into help menu or window menu in top nav bar
 Referenced by issue #83939, Blender randomly stops responding under Linux.
+Referenced by issue #83623, Dyntopo detail size drawing with Shift + D seems broken
