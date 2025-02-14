@@ -1,2 +1,3 @@
 Referenced by issue #112632, File->Data Preview->Batch Generate Preview    failed
 Referenced by issue #101045, Deleting a baked action results in an error
+Referenced by issue #100985, Crash on sculpt mask brush when Multiresolution modifier is copied from another object (fixed in 3.4, request to backport)
