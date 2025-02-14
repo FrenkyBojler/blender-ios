@@ -8,3 +8,4 @@ Referenced by issue #115572, Regression: Removing shape keys via python iteratio
 Referenced by issue #115580, Fix #115572: shape_key_remove operator leaves shared normals
 Referenced by issue #115526, Black mesh after using array modifier (On smoothed meshes only)
 Referenced by issue #111698, Sculpt Mode: Display glitch on first stroke
+Referenced by issue #111638, Crash when sculpting mesh with edge creases
