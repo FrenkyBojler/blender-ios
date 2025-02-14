@@ -1,1 +1,2 @@
 Referenced by issue #61851, packing 32bit tiff env texture results in 8bit-like behavior
+Referenced by issue #61765, Thread-unsafe logging used
