@@ -1,2 +1,3 @@
 Referenced by issue #66394, Blender crash on edit path with solidify modifier
 Referenced by issue #65974, Workbench transparency rendering broken
+Referenced by issue #65976, Incorrect button/icon state for viewport render mode when switching from EeeVee to Workbench
