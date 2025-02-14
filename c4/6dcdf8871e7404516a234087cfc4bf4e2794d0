@@ -1,2 +1,3 @@
 Referenced by commit 1239cab11ff, Fix T75203: Crash when changing active keying set
 Referenced by issue #75325, Crash after removing a "target" from any search button [e.g.UVMap node] and clicking again on the same button
+Referenced by issue #75203, Crash when changing active keying set.
