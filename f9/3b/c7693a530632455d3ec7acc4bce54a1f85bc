@@ -56,3 +56,4 @@ Referenced by issue #40336, Wind do not affect cloth to new added cloth object
 Referenced by issue #40309, Select bigger does not invert the selection with equally sized regions
 Referenced by issue #40310, Transform composite node causing artifacts on edge of render
 Referenced by issue #40293, OSL console message missing
+Referenced by issue #40273, Swivel buckets get stuck after colliding against hard stops.
