@@ -1,3 +1,4 @@
 Referenced by issue #70962, Render image / render animation crash with OptiX enabled (works with CUDA)
 Referenced by issue #70790, crash in sculpt mode switching from two meshes after reload saved file
 Referenced by issue #67718, Point density texture crashes
+Referenced by issue #65511, Opening Blender's File Chooser from a Dialog Causes Blender to Crash
