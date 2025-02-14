@@ -1,1 +1,2 @@
 Referenced by commit 5b24af5ea50, CMake: Windows: suppress Clang-cl warnings
+Referenced by issue #121085, CMake: Windows: suppress Clang-cl warnings
