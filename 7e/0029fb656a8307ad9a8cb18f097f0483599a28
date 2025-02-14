@@ -1,1 +1,2 @@
 Referenced by commit 65efd7f033a, Fix: Dynamic topology mesh invisible after recent commit
+Referenced by issue #127166, Undoing dyntopo stroke causes affected vertices to disappear
