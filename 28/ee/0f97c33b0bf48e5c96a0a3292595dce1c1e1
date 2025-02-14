@@ -1,2 +1,3 @@
 Referenced by issue #70051, Transtiton from Opaque to Transparent(Object's Alpha Color & X-Ray Mode) Bug.
 Referenced by issue #69967, Background Images issue when having opposite ones or Aligned to View.
+Referenced by issue #69960, Motion Tracking: Track path tries to draw point counts <=0 (asserts)
