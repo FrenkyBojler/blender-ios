@@ -2,3 +2,4 @@ Referenced by commit b1149933053, Fix T99963: Fallback actions are used in RCS o
 Referenced by issue #99963, Fallback actions are used in RCS on left click
 Referenced by issue #96515, Regression: Can not translate after selecting with Select Circle
 Referenced by issue #94103, Opening context menu deselects everything with Industry Compatible keymap
+Referenced by issue #93625, Box selection or any selection method doesn´t work when I drag the mouse with move tool active (when using right click select)
