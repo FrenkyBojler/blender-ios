@@ -1,2 +1,3 @@
 Referenced by issue #89526, `bpy.ops.screen.screen_full_area()` resets certain fields of the context
 Referenced by issue #88481, view2d operator poll fails after calling bpy.ops.screen.screen_full_area()
+Referenced by issue #88449, Blender LTS: Maintenance Task 2.93
