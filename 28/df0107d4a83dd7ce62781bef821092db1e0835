@@ -1,3 +1,4 @@
 Referenced by commit d09b1d27598, Fix T94464: video texture is not refreshing
 Referenced by issue #95624, Video texture not refreshing when changing ImageUser `Start Frame` / `Offset`
 Referenced by issue #94464, Blender Video texture not refreshing
+Referenced by issue #94362, heap-use-after-free after assigning a material
