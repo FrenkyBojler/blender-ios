@@ -1,1 +1,2 @@
 Referenced by issue #128502, TBBmalloc: skip allocation functions replacement in ucrtbase.dll: unknown prologue for function _msize
+Referenced by issue #125241, Library changes for Blender 4.3
