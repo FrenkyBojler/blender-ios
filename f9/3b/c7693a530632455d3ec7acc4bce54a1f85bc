@@ -16,3 +16,4 @@ Referenced by issue #41060, Wrong texture 'Object' mapping in 3DView Rendered mo
 Referenced by issue #41046, BGE Compound bug
 Referenced by issue #40996, Manually generated particle system point cache is constantly overwritten
 Referenced by issue #40979, group instances render wrong with 1 of the instances having small scale
+Referenced by issue #40920, Linear Interpolation settings in user preferences does not work
