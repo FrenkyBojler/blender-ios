@@ -1,2 +1,3 @@
 Referenced by commit e7ba91a6f34, Fix #113130: Versioning error in snap type in animation editors
 Referenced by issue #116155, Fix #115590: Snap menu disappears due to lack of forward compatibility
+Referenced by issue #115590, Regression: UV window menus disappearing
