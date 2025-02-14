@@ -2,3 +2,4 @@ Referenced by issue #107473, Regression: Nodes: Selection of node affected on so
 Referenced by issue #96181, Audio not working
 Referenced by issue #92695, Too easily crash Blender: Duplicate a Math Multiply and insert can be Big x Big easily causes not-responding crash
 Referenced by issue #92244, Segmentation fault if drag PNG image to Video Sequensor Time Line
+Referenced by issue #90972, Crash calling Mesh.clear_geometry in edit-mode
