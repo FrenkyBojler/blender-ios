@@ -1,3 +1,4 @@
 Referenced by issue #49051, Exp. Microdisplacement; trying to use adaptive dicing on a torus crashes Blender when starting a render
 Referenced by issue #49057, 2.77.3 Textured viewport smooth shading regression
 Referenced by issue #49060, crashes during render with no apparent reason..
+Referenced by issue #49041, Link -> Make Local -> All doesnt do anything
