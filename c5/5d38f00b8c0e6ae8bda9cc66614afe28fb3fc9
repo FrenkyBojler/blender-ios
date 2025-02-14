@@ -6,3 +6,4 @@ Referenced by issue #103988, Geometry nodes preview, clipping Region in the view
 Referenced by issue #102882, Geometry nodes: Crash for cycle links in node group when try to find viewer node
 Referenced by issue #102700, Regression: Viewer node crash on empty by non-null mesh after join geometry with attribute output on viewer
 Referenced by issue #102153, Regression: Geometry Nodes: Crash when muting node group that contains active viewer node
+Referenced by issue #90914, Spreadsheet editor doesn't update when changing active object
