@@ -22,3 +22,4 @@ Referenced by issue #107579, Light clamping from Normal or Bump maps near shadow
 Referenced by issue #107514, Weighted Normal modifier's keep sharp option causes broken normals
 Referenced by issue #107477, Getting a version mismatch error in blender 3.5 on Rigify Cloudrig due to higher vesion issue.
 Referenced by issue #107473, Regression: Nodes: Selection of node affected on sorting -> correctness validation of links
+Referenced by issue #106509, Multiple Edge Loop Selection doesn't always work
