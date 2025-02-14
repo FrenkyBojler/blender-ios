@@ -1,1 +1,2 @@
 Referenced by commit 653b273d2e2, Fix: Boundary brush bend deformation uses wrong normals
+Referenced by commit 7b05c2b7ed5, Fix: Boundary brush crash when not on boundary
