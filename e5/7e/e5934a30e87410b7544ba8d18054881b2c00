@@ -6,3 +6,4 @@ Referenced by issue #60597, Material Shader Crashes Cycles
 Referenced by issue #60585, 2.8 Builds are limited to 16 threads of processing
 Referenced by issue #60473, Crash while using complex procedural shaders
 Referenced by issue #60261, Crash when pasting a material in 2.79 file
+Referenced by issue #55026, Slow Parent option doesn't work with new Depsgraph
