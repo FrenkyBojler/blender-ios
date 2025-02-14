@@ -6,3 +6,4 @@ Referenced by issue #52790, Flip Names keep Number Extension
 Referenced by issue #52718, Using a rigid body world from another scene leads to multiple ways to crash blender after playback.
 Referenced by issue #52652, Cycles 3/6 textures reversed on cube with generated co-ordinates and box mapping
 Referenced by issue #52653, Render output of linked scenes conflicts with other scenes with the same name
+Referenced by issue #52551, undo causes crash after enabling a new rigid body when scene uses a referenced rigid body world
