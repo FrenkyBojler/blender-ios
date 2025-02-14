@@ -1,1 +1,2 @@
 Referenced by issue #104278, Crash in geometrynode doversion code when opening Sprite production file
+Referenced by issue #104061, Custom render engine is unable to create gpu context
