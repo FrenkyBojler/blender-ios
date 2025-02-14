@@ -2,3 +2,4 @@ Referenced by issue #43335, Node Editor: name doesn't update
 Referenced by issue #43337, Group objects disappear after appending
 Referenced by issue #43324, Shrinkwrap projection issue in editmode
 Referenced by issue #43311, Displacement Method: true Crashing
+Referenced by issue #42212, Probable bug in (regular) Path tracing method
