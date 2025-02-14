@@ -1,1 +1,2 @@
 Referenced by issue #81330, Alembic Import does not apply `MeshSequenceCache` to all animated Meshes
+Referenced by issue #78924, Blender cannot read UV coordinates from arbitrary Alembic properties
