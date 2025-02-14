@@ -11,3 +11,4 @@ Referenced by issue #47322, Cloth simulation + motion blur = rendering slower 10
 Referenced by issue #47281, Blender crashes randomly on freshly installed windows 10 (OpenGL)
 Referenced by issue #47268, Product does not launch
 Referenced by issue #47217, Crash when adding tracking new tracker
+Referenced by issue #47154, Sequencer strip modified with 'Mask'. Add/Subtract modes.
