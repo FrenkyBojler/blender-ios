@@ -4,3 +4,4 @@ Referenced by issue #61020, No MMB zoom/pan in half of shader editor
 Referenced by issue #61021, Dynamic Paint on Weights and Particle System doesn't work when using Density. Only Lengh.
 Referenced by issue #60999, Duplifaced objects are not drawn in edit mode
 Referenced by issue #61006, Bug: Extrude faces along normals + "Individual origins" pivot point
+Referenced by issue #60991, Normal Map on Tangent Space makes some objects emissive
