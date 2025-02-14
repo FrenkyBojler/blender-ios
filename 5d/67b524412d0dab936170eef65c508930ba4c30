@@ -1,2 +1,3 @@
 Referenced by issue #100921, Regression: vertex groups get lost when using 'Join Geometry' node
 Referenced by issue #100908, Regression: Vertex Groups not preserved when Join Geometry node is used
+Referenced by issue #100562, Regression: Realize instance node crashes Blender
