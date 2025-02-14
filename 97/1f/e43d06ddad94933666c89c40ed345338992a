@@ -1,0 +1,1 @@
+Referenced by issue #63651, `ImagePreviewCollection.load` and `ImagePreviewCollection.new` don't behave as described in the Python API docs
