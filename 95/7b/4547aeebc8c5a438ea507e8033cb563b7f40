@@ -5,3 +5,4 @@ Referenced by issue #61021, Dynamic Paint on Weights and Particle System doesn't
 Referenced by issue #60999, Duplifaced objects are not drawn in edit mode
 Referenced by issue #61006, Bug: Extrude faces along normals + "Individual origins" pivot point
 Referenced by issue #60991, Normal Map on Tangent Space makes some objects emissive
+Referenced by issue #60984, Can't perform viewport navigation with left mouse button and active manipulator
