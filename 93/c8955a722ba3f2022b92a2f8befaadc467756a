@@ -2,3 +2,4 @@ Referenced by commit 61b8397174c, Modeling: remove unused Knife cut operator
 Referenced by commit f3c32a36bcf, Fix #103562: preserve custom normals in BM_mesh_triangulate
 Referenced by issue #124970, Modeling: remove unused Knife cut operator
 Referenced by issue #121871, Fix #103562: preserve custom normals in BM_mesh_triangulate
+Referenced by issue #121831, Custom split normal data on negative or non-uniform scaled geometries gets broken upon applying scale
