@@ -1,1 +1,2 @@
 Referenced by issue #96696, Windows IME: Duplicated character when entering some symbols while in Chinese full width character mode.
+Referenced by issue #94868, [Windows] With Microsoft IME PinYin, when it input "0" with fullwidth at text edit, it gets "0０".
