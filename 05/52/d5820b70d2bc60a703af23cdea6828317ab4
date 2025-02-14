@@ -1,0 +1,1 @@
+Referenced by issue #49384, Assigning UV for aniso tangent hangs Blender when rendering starts. Probably in rare cases only.
