@@ -1,0 +1,1 @@
+Referenced by issue #74537, Adaptive sampling + AO color node crashes (when shader rays exceed 32K).
