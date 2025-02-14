@@ -1,2 +1,3 @@
 Referenced by commit 0d8a8ce03b9, Fix some issues with versionning of older files.
 Referenced by issue #77853, Error reloading linked library
+Referenced by issue #73630, Remove ID refcounting handling from readfile.c
