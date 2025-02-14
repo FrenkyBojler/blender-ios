@@ -1,2 +1,3 @@
 Referenced by issue #100986, Materials are not locked to faces during edits
 Referenced by issue #100950, Mesh Combination Error
+Referenced by issue #100822, Regression: Merging objects does not assign materials correctly
