@@ -1,1 +1,2 @@
 Referenced by commit be1745425ca, Nodes: Remove "level" building pass on update
+Referenced by commit 984edb2c4e6, Nodes: Replace implementation of select next/prev type operator
