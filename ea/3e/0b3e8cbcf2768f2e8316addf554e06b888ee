@@ -1,1 +1,2 @@
 Referenced by issue #75623, tablet is offset
+Referenced by issue #70765, Input Mouse or Tablet events are too sparse when input device moves very fast in Windows
