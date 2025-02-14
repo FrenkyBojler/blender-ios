@@ -1,0 +1,1 @@
+Referenced by issue #90170, Fix `RNA_property_pointer_get` creating data in non-thread-safe way.
