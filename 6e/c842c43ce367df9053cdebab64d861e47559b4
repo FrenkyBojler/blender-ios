@@ -1,2 +1,3 @@
 Referenced by commit a0c5467b7da, Fix #111592: Merge modifier may crash in some cases
 Referenced by issue #112909, Regression: Geometry Nodes: Merge by Distance node crashes
+Referenced by issue #111592, Regression: Merge modifier crashes Blender in this scene
