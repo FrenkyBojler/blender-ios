@@ -14,3 +14,4 @@ Referenced by issue #101188, Regression: Fluid Physics not working
 Referenced by issue #100875, Crash on undo in Heist production files after recent changes in mesh data
 Referenced by issue #100863, Regression: Crash on opening the file containing weights
 Referenced by issue #100856, Regression: Creating a new shape keys creates from the current mix and not clean
+Referenced by issue #95842, Prepare custom data API for attribute sharing.
