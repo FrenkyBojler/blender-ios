@@ -1,0 +1,1 @@
+Referenced by issue #84593, Cannot create new material on linked mesh, even though material_slot input is set to object instead of data.
