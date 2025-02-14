@@ -1,0 +1,1 @@
+Referenced by issue #79162, 'layout.prop_search' causes the application to write memory after the end of the heap bufer
