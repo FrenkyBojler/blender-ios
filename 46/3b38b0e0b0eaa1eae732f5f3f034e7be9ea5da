@@ -1,2 +1,3 @@
 Referenced by issue #126899, White screen and crash on opening
 Referenced by issue #93077, Can't launch Blender 2.93.5
+Referenced by issue #92291, Blender crashes accessing the OpenCL settings with ROCm AMD drivers
