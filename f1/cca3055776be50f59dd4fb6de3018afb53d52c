@@ -44,3 +44,4 @@ Referenced by issue #93388, Asset browser: dropping object on grid in orthogonal
 Referenced by issue #93130, View/Frame Selected (Vertex Paint mode) not working
 Referenced by issue #88968, Failed to create CUDA context unknown error
 Referenced by issue #72279, Material Library VX causes permanent freeze with EEVEE rendering
+Referenced by issue #59374, The UI overlays are flickering
