@@ -1,3 +1,4 @@
 Referenced by issue #119565, Eevee-Next Shadow Artifact
 Referenced by issue #116335, Eevee Next - Soft Shadows edge incorrect behavior.
 Referenced by issue #114130, EEVEE Next: Volume render cuts off front or backside of the object
+Referenced by issue #114131, EEVEE Next: VDB volume does not render in orthographic view
