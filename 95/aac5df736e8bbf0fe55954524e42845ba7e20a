@@ -1,0 +1,1 @@
+Referenced by issue #101651, Cycles prints core dump when rendering with OPTIX and missing package `libnvidia-gl`
