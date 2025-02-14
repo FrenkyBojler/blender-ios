@@ -2,3 +2,4 @@ Referenced by commit f3121a3b96d, Fix #128143: Relax face sets doesn't modify me
 Referenced by commit 1241e3a5e46, Fix #127556: Sculpt smooth brush missing updates
 Referenced by issue #128149, Fix #128143: Relax face sets doesn't modify mesh
 Referenced by issue #128143, Sculpt: Face Set Paint brush does not relax the borders with Shift key anymore.
+Referenced by issue #127556, Sculpt Mode: Smooth brush doesn't update geometry visualization
