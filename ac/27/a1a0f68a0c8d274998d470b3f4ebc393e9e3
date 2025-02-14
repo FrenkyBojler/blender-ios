@@ -1,2 +1,3 @@
 Referenced by issue #38853, Add Driver operator property All.
 Referenced by issue #38619, Custom Keying Set, XYZ to RGB, odd logic
+Referenced by issue #38582, Cycles - Image is always premultiplied, even when alpha output is not being used
