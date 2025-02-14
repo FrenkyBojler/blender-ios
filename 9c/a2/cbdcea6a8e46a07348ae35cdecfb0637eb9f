@@ -1,1 +1,2 @@
 Referenced by commit bc66810064f, Outliner: Fix crash for tooltips on ID operations
+Referenced by issue #71673, Making action single user from Blender File -menu crashes blender
