@@ -1,1 +1,2 @@
 Referenced by issue #47349, Incorrect GLSL shading for Cycles Fresnel- and Layer Weight nodes
+Referenced by issue #40478, Strange Cycles material shading in viewport in ortho view using fresnel nodes
