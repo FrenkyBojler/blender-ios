@@ -10,3 +10,4 @@ Referenced by issue #61046, Cloth from Blender 2.79 project file doesn't bake pr
 Referenced by issue #61054, Smokesim deletes all cache without new baking
 Referenced by issue #61039, Crash switching to wire shading with smoke simulation
 Referenced by issue #60660, TEXTURE PAINT tab BUG- Undo a simple PAINT operation using CTRL-Z and it removes entire TEXTURE IMAGE-Workarounds and Thorough Steps to Repeatability BELOW.
+Referenced by issue #60469, Blender 2.80 - Unexpected behaviour of undo in Texture Paint
