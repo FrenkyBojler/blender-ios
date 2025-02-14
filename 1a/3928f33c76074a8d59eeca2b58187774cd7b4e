@@ -1,2 +1,3 @@
 Referenced by commit e90d8422d0e, Revert "Windows: support high resolution tablet pen events for Wintab"
 Referenced by issue #75583, Cannot navigate in Sculpt mode with Wacom Intuos Pro
+Referenced by issue #75589, Image Sequences have no data on file load
