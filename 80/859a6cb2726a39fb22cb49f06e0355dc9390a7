@@ -35,3 +35,4 @@ Referenced by issue #97916, Regression: Blending materials ( color attributes ) 
 Referenced by issue #97881, Regression: Specular highlights are missing in Glossy BSDF(Eevee).
 Referenced by issue #97796, Regression: alpha clipped materials render fuzzy (exactly like alpha hashed materials)
 Referenced by issue #97779, Regression: World volume noise stopped working
+Referenced by issue #97617, Regression: Missing light on macOS in recent versions
