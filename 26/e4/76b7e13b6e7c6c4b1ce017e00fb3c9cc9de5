@@ -1,1 +1,2 @@
 Referenced by issue #41853, "Restrict animation updates" dropping too many animation frames during gameplay
+Referenced by issue #41788, bmesh.utils.loop_separate() and bmesh.utils.face_vert_separate() always return None
