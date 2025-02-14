@@ -1,1 +1,2 @@
 Referenced by issue #95644, Regression: Cycles preview doesn't refresh viewport with animated colors in custom property (on GPU, CPU is fine)
+Referenced by issue #93630, Regression: Attribute Node Object Attribute not updating in Cycles GPU Compute
