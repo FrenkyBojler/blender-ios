@@ -1,1 +1,2 @@
 Referenced by issue #128272, Regression: Sculpt: Clay Strip brush's Plane Trim is broken
+Referenced by issue #124070, Crash when accessing screen from depsgraph_update_pre
