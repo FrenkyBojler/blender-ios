@@ -1,0 +1,1 @@
+Referenced by issue #48377, SIGSEV in ccl::ImageManager::device_free_image
