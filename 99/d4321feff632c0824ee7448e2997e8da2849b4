@@ -2,3 +2,4 @@ Referenced by issue #63255, crash while staying in circle select mode and clicki
 Referenced by issue #63125, Can't   select individual bones when in weight paint mode for grease pencil
 Referenced by issue #63127, curve to mesh conversion , bevelled portion not attached
 Referenced by issue #63063, Solidify modifier crashing
+Referenced by issue #62999, Blender 2.8, Selection tool crashes blender in editmode. Only in Vertex and/or Edge Select.
