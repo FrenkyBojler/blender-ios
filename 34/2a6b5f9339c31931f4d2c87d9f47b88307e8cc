@@ -1,1 +1,2 @@
 Referenced by issue #79076, Particles are not interacting with the cube in right way
+Referenced by issue #77685, Object position calculated in the Rigidbody simulation is ignored by the modifiers
