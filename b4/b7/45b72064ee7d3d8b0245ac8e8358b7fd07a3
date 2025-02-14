@@ -1,3 +1,4 @@
 Referenced by commit c1361d26512, Depsgraph: tag depsgraph for copy-on-write flush when RNA changes
 Referenced by commit 67598d39b41, Revert "Depsgraph: refresh RNA that doesn't need a full rebuild"
 Referenced by commit 1ecfe42d379, Remove DEG_TAG_COPY_ON_WRITE tag on rna update for scene.render
+Referenced by issue #55163, Visiblity not updated for instanced collections
