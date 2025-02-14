@@ -1,1 +1,2 @@
 Referenced by commit 90ad930a018, Fix #106778: Incomplete copy of curves radius to Cycles
+Referenced by issue #106778, Regression: Curve hair shows incomplete in cycles render preview
