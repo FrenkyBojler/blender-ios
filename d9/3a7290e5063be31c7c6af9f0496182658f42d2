@@ -2,3 +2,4 @@ Referenced by issue #65758, Eevee screenspace reflections disabling AO
 Referenced by issue #65761, Eevee render inconsistency between 3D View, Viewport render, and F12 Render
 Referenced by issue #65738, Blender 2.8 - No way of previewing the final render in the viewport
 Referenced by issue #65714, Blender Crashes when using Mac trackpad Pinching(zoom) in Node Editor
+Referenced by issue #64913, LookDev with environment texture starts washed out, until viewport moves
