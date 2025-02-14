@@ -2,3 +2,4 @@ Referenced by commit 20a8bc12048, Fix #105455: GPU subdivision with textures cor
 Referenced by issue #105844, Fix #105455: GPU subdivision with textures corrupts display after undo
 Referenced by issue #105455, GPU subdivision with textures corrupt display after undo
 Referenced by issue #104499, Inconsistencies in GPU subdivision info message
+Referenced by issue #100620, Random crashes with NVidia + GPU Subdivision (sometimes when activating X-Ray or Wireframe overlay)
