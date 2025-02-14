@@ -91,3 +91,4 @@ Referenced by issue #39448, Background Image as a Video is missing options from 
 Referenced by issue #39453, Bug in "Explode" effect
 Referenced by issue #39454, Cuda error on Branched Path Tracing mode.
 Referenced by issue #39437, Symmetry with Dyntopo and Dyntopo simplify
+Referenced by issue #39445, Async LibLoad Crash
