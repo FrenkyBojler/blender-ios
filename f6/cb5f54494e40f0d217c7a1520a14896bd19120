@@ -61,3 +61,4 @@ Referenced by issue #68835, Auto Perspective does not work with Align View to Ac
 Referenced by issue #68837, "GPU failed to find function math_max" - related to eevee and material's blend_method setting
 Referenced by issue #68806, Inconsistent presentations of texts
 Referenced by issue #68810, (Undocumented operator)
+Referenced by issue #68815, Words exist on the UI but not on the PO file, unable to be made translated
