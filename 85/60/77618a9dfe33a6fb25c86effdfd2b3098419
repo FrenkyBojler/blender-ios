@@ -1,3 +1,4 @@
 Referenced by issue #50828, Grace Pencil crashes when try to use OpenGL render active viewport via Video Sequence Editor
 Referenced by issue #50830, surfacedeform_bind(modifier="Surface Deform") - context incorrect
 Referenced by issue #50838, Surface Deform Modifier produces inconsistent results when used on multiple objects
+Referenced by issue #50565, Transform: Planar constraints don't work properly with non-Blender key configurations
