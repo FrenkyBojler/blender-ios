@@ -1,2 +1,3 @@
 Referenced by commit 689fce50bd3, Fix #120789: Slowness when using image vectorscope opacity slider
 Referenced by commit b846ccd76b9, Fix #118501: crash opening some projects if Load UI is off
+Referenced by commit 3e232aaac13, Fix #118501: crash opening some projects if Load UI is off
