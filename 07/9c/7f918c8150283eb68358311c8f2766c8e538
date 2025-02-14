@@ -5,3 +5,4 @@ Referenced by issue #65383, UI graphics glitches on macOS with Intel HD 4000
 Referenced by issue #65357,  after applying a boolean mod, faces are initialized with a facemap index of 0 instead of -1
 Referenced by issue #65288, Blender crashes when adding a Reflection Plane and set to Render shading mode at Eevee
 Referenced by issue #65206, eevee crashing when trying to bake indirect light (principled volume crash baking lighting instantly)
+Referenced by issue #64742, Eevee doesn't show reflection correctlyh with SSR, refraction and Reflection Plane
