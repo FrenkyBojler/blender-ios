@@ -1,2 +1,3 @@
 Referenced by issue #68359, Crash when smoke type switch from Flow to Domain with Cycles viewport rendering
 Referenced by issue #67711, Crash when selecting Smoke Domain Material on Cycles
+Referenced by issue #58569, Crash when a volume shader is plugged into the volume output of a smoke domain when no smoke is present.
