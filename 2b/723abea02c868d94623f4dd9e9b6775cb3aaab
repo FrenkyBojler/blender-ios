@@ -1,1 +1,2 @@
 Referenced by commit d18be66a54f, Fix T86871: Mesh.mesh_from_object creates empty mesh from curve
+Referenced by issue #87944, Python API Function `bpy.data.meshes.mesh_from_object()` No Longer Works
