@@ -1,1 +1,2 @@
 Referenced by issue #47144, Entry point not found GetFinalPathNameByHandlew in Kernel32
+Referenced by issue #47129, new Bmesh boolean is deleting some of edges data, (Creases and Bweigh)
