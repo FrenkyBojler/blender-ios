@@ -1,1 +1,2 @@
 Referenced by commit d0d0d9d7c65, Fix broken compilation after recent GPencil commit.
+Referenced by issue #88853, SVG imports poorly
