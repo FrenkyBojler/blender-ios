@@ -2,3 +2,4 @@ Referenced by commit d1a3108fa21, Fix #115291: Object dimension setting ignores 
 Referenced by commit 14eb08c3a53, Fix #114870: Object dimensions does not used evaluated geometry
 Referenced by issue #121570, Fix #121548: Local View operator zooming to non-evaluated mesh
 Referenced by issue #121548, Viewport: Local View operator zooming to wrong location
+Referenced by issue #121552, Fix #121548: Use evaluated object for local view
