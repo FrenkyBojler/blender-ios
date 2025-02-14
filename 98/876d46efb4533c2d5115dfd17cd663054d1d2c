@@ -1,0 +1,1 @@
+Referenced by issue #88899, __file__ not set during `.as_module()`
