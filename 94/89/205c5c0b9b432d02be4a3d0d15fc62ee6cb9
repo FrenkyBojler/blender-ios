@@ -1,2 +1,3 @@
 Referenced by commit dce16d57dc9, Revert "Fix T43865: Cycles: Watertight rendering produces artifacts on a huge plane"
 Referenced by issue #46110, Cycles: rays miss triangles
+Referenced by issue #43865, Cycles: Watertight rendering produces artifacts on a huge plane
