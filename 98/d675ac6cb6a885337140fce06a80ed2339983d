@@ -2,3 +2,4 @@ Referenced by issue #121214, Crash if the linked material has a texture coordina
 Referenced by issue #120970, Disabling GN modifier in viewport does not disable viewer nodes anymore
 Referenced by issue #119834, Curve with geometry nodes not visible in Edit Mode even though "Display modifier in Edit Mode" is off
 Referenced by issue #113097, Fix #113095: Deduplicate attributes in search
+Referenced by issue #109029, Geometry Nodes: make evaluation and logging system aware of zones
