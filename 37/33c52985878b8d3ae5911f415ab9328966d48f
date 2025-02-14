@@ -1,2 +1,3 @@
 Referenced by issue #56722, Crash - Entering mesh Edit Mode
 Referenced by issue #56713, weird shadwing with the Shader to RGB node with AO
+Referenced by issue #56717, Repeatedly adding a cylinder to a scene causes a crash
