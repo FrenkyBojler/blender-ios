@@ -1,1 +1,2 @@
 Referenced by issue #65955, Grease Pencil: drawing shapes on surface causes intense viewport flickering
+Referenced by issue #65805, "Too many draw engines enabled at the same time"
