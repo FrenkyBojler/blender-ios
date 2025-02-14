@@ -1,2 +1,3 @@
 Referenced by issue #55879, Render preset. crash
 Referenced by issue #55866, Blender 2.8 : ctrl+tab crashes blender if scene is empty
+Referenced by issue #55818, Dynamically modified influence vertex group not working in modifier stack
