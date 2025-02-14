@@ -23,3 +23,4 @@ Referenced by issue #50699, Gpu Cycles error with MacOs and Gtx580 - Render view
 Referenced by issue #50677, Shrinkwrap constraint don't get updated when target mesh gets modified
 Referenced by issue #50679, VSE locked strips moves with gaps tools
 Referenced by issue #50628, Blender 2.78b Cycles compute device selection UI issue
+Referenced by issue #50565, Transform: Planar constraints don't work properly with non-Blender key configurations
