@@ -1,2 +1,3 @@
 Referenced by issue #94615, Blender 3.0 consistently crashes when RSS nears 5GiB on Linux (easy to trigger with video playback)
 Referenced by issue #94585, Asset Browser - Mark Asset as collection crashes Blender.
+Referenced by issue #75844, Blend modes are broken
