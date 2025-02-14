@@ -1,1 +1,2 @@
 Referenced by issue #88298, Geometry Nodes - Attribute Sample Texture Node does not update ( possibly after the input change )
+Referenced by issue #88198, Geometry Nodes is re-evaluated even when nothing changed in the main tree
