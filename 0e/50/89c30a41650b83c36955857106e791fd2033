@@ -6,3 +6,4 @@ Referenced by issue #49370, Cuda cuMemFree error
 Referenced by issue #49353, Noise texture incorrectly displayed in the viewport Cycles
 Referenced by issue #49354, Voronoi texture incorrectly displayed in the viewport Cycles
 Referenced by issue #49355, Musgrave texture incorrectly displayed in the viewport Cycles
+Referenced by issue #49336, The Outline Editor problem for the linked object
