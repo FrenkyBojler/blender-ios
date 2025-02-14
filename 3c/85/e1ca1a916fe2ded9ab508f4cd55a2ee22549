@@ -1,0 +1,1 @@
+Referenced by issue #49613, Single channel byte image takes same amount of memory in Cycles as multi channel image (GPU and CPU)
