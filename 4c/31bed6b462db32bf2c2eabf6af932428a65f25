@@ -26,3 +26,4 @@ Referenced by issue #58281, Wrong result with alpha for Principled BSDF base col
 Referenced by issue #58267, Node input output grabbing
 Referenced by issue #58126, Blender 2.8 crash when switch to sculpting
 Referenced by issue #57981, Blender crash entering sculpt mode
+Referenced by issue #56185, Changing color of material of grease pencil crashes blender 2.8
