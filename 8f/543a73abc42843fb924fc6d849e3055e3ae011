@@ -6,3 +6,4 @@ Referenced by issue #106396, UV editing Stitch crashes Blender with UV sync sele
 Referenced by issue #100076, OBJ import: new importer doesn't use //relative/image/paths
 Referenced by issue #100075, OBJ import: images loaded multiple times instead of being reused
 Referenced by issue #100017, OBJ: new importer does not import vertices that aren't part of any face
+Referenced by issue #99659, UV Island calculation doesn't ignore hidden faces
