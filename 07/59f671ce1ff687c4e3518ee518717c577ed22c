@@ -5,3 +5,4 @@ Referenced by issue #102682, Viewport - Numpad Hotkeys - Spinning an orthographi
 Referenced by issue #101879, [bug] Screw modifier seemingly generates inaccurate geometry with "Calulate order" enabled - only when being unapplied.
 Referenced by issue #101782, Cycles: Compositor File Output BW Color Option Issue (again)
 Referenced by issue #101583, Regression: apply data transfer crash
+Referenced by issue #101498, Bug with selecting objects
