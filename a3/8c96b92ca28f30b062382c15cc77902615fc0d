@@ -4,3 +4,4 @@ Referenced by issue #130946, Fix #130783: Image editor tools do not set active b
 Referenced by issue #128349, Right clicking a sculpt brush in tool settings crashes Blender
 Referenced by issue #128053, Gpencil: GPv3 crash on using CTRL key to switch to eraser
 Referenced by issue #126032, Design: Brush Assets Tool System Integration
+Referenced by issue #125449, Grease Pencil: Bring back paint mode tools using brush assets
