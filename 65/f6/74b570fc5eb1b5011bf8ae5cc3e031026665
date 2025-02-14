@@ -1,1 +1,2 @@
 Referenced by issue #75715, Persistent Images causes crash while rendering animation
+Referenced by issue #75535, Compositor: backdrop dragging interrupts with node mouse over (regression)
