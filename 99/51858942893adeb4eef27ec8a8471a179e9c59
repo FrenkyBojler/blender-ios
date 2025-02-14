@@ -1,2 +1,3 @@
 Referenced by commit 2036b9771e5, Fluid: Fix typos from OpenVDB update
 Referenced by issue #78170, Mantaflow Crash | Whitewater Particles Baking
+Referenced by issue #77432, Mantaflow Liquid not work when "Data File Format" is changed to "OpenVDB"
