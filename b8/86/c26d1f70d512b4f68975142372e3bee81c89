@@ -1,1 +1,2 @@
 Referenced by commit 62f6d5351fc, Revert "Cycles: mix hair minimum width code with SSE intersection code"
+Referenced by issue #38304, cycles hair (curve segments) problem
