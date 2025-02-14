@@ -20,3 +20,4 @@ Referenced by issue #97373, Geometry Nodes does not show instances of collection
 Referenced by issue #97376, Crash when selecting Vertex in Wireframe Shading mode.
 Referenced by issue #97330, Adding subdivision surface modifier to default cube causes silent crash.
 Referenced by issue #97313, Crash on Editing a Vertex Position (and/or when enabling Z axis constraint)
+Referenced by issue #97220, Crash on object offset in the array modifier
