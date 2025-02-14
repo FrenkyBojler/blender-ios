@@ -2,3 +2,4 @@ Referenced by commit fdf77341cdc, CMake: Remove duplicate WITH_GMP options.
 Referenced by commit f1fee433be9, GMP/CMake: Remove duplicate GMP search logic.
 Referenced by issue #103942, ASAN error/crash invalid memory access
 Referenced by issue #68144, Boolean Difference works like Boolean Union - modifier bug
+Referenced by issue #67744, Boolean Redesign
