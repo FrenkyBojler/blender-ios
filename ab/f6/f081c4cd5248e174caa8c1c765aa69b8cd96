@@ -97,3 +97,4 @@ Referenced by issue #48660, Render animation renders only one frame using render
 Referenced by issue #48663, The Soft Light blend type layer make the color darker in the 3D view
 Referenced by issue #48646, GPU rendering (CUDA) sometimes doesn't load images from image sequence textures.
 Referenced by issue #48637, Viewport Ambient Occlusion Inverted
+Referenced by issue #48616, Transform operations, on consecutive edge loops, alter selection when auto merged
