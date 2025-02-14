@@ -1,1 +1,2 @@
 Referenced by commit 8cadeac18b8, Cleanup: fix node registration
+Referenced by issue #115395, Regression: Custom category for custom node is not available for the rest. Bug?
