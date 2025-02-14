@@ -1,3 +1,4 @@
 Referenced by issue #49118, Blender 3D view - Solid (Blender Render) material diffuse and/specular not updating until tabbing into edit mode.
 Referenced by issue #49124, Some scenes render transparent with big tiles and OpenCL rendering
 Referenced by issue #49078, When rendering fire in cycles, odd duplicates appear when the camera is located inside the domain
+Referenced by issue #49057, 2.77.3 Textured viewport smooth shading regression
