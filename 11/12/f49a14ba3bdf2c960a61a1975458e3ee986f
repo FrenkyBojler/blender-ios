@@ -7,3 +7,4 @@ Referenced by issue #55888, Blender 2.8 eevee crashes when I try to increase sha
 Referenced by issue #55879, Render preset. crash
 Referenced by issue #55880, UV/Image Editor
 Referenced by issue #55881, Eevee/viewport not loading multiview EXR texture
+Referenced by issue #55882, Crash: Sidebar (N) > Opening, Moving & Closing User Preferences Window
