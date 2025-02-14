@@ -1,1 +1,2 @@
 Referenced by commit 157081069d3, Fix (studio reported) crash on Undo in some cases.
+Referenced by issue #85752, Collection Instance Crash when instancing collections with disabled subcollections
