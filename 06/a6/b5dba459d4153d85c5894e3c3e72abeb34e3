@@ -1,1 +1,2 @@
 Referenced by commit 69529177be1, Revert "Fix T60126: Gradient affects hidden vertices when weight painting"
+Referenced by issue #60126, Weight Painting affects hidden part of mesh
