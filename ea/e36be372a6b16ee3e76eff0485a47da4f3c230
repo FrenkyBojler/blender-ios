@@ -4,3 +4,4 @@ Referenced by commit 177bc807480, Fix: add attribute with empty string name cras
 Referenced by commit b9799dfb8a7, Geometry Nodes: better support for byte color attributes
 Referenced by issue #114797, Fix #114760: new attribute does not get active for some domains
 Referenced by issue #107194, AttributeGroup API: "active" is meaningless (always refers to all attributes, not the specific AttributeGroup) -- e.g. mesh.color_attributes.active
+Referenced by issue #104803, Regression: mesh.vertex_colors.active doesn't work since 3.2
