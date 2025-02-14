@@ -1,1 +1,2 @@
 Referenced by issue #94446, Inconsistent color space baking to float and byte images
+Referenced by issue #52334, 32 bit Float normal map are baked in sRGB instead of Linear
