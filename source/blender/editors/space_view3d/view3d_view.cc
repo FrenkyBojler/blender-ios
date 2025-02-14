@@ -988,7 +988,7 @@ static bool view3d_localview_exit(const Depsgraph *depsgraph,
   /* Cannot use MEM_SAFE_FREE, as #SceneStats type is only forward-declared in `DNA_layer_types.h`
    */
   if (v3d->runtime.local_stats) {
-    MEM_freeN(v3d->runtime.local_stats);
+    MEM_freeN(static_cast<void *>(v3d->runtime.local_stats));
     v3d->runtime.local_stats = nullptr;
   }
 

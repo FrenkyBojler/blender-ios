@@ -1292,7 +1292,7 @@ static void gizmo_cage2d_exit(bContext *C, wmGizmo *gz, const bool cancel)
 
   /* Cannot use MEM_SAFE_FREE, as #Dial type is only forward-declared in `BLI_dial_2d.h` */
   if (data->dial) {
-    MEM_freeN(data->dial);
+    MEM_freeN(static_cast<void *>(data->dial));
     data->dial = nullptr;
   }
 

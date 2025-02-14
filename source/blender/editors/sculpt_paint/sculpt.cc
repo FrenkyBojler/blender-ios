@@ -3906,7 +3906,7 @@ StrokeCache::~StrokeCache()
 {
   /* Cannot use MEM_SAFE_FREE, as #Dial type is only forward-declared in `BLI_dial_2d.h` */
   if (this->dial) {
-    MEM_freeN(this->dial);
+    MEM_freeN(static_cast<void *>(this->dial));
     this->dial = nullptr;
   }
 }

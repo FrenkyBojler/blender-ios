@@ -387,7 +387,7 @@ void ViewOpsData::end_navigation(bContext *C)
 
   /* Cannot use MEM_SAFE_FREE, as #Dial type is only forward-declared in `BLI_dial_2d.h` */
   if (this->init.dial) {
-    MEM_freeN(this->init.dial);
+    MEM_freeN(static_cast<void *>(this->init.dial));
     this->init.dial = nullptr;
   }
 

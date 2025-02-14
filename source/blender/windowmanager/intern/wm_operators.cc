@@ -3210,7 +3210,7 @@ static void radial_control_cancel(bContext *C, wmOperator *op)
 
   /* Cannot use MEM_SAFE_FREE, as #Dial type is only forward-declared in `BLI_dial_2d.h` */
   if (rc->dial) {
-    MEM_freeN(rc->dial);
+    MEM_freeN(static_cast<void *>(rc->dial));
     rc->dial = nullptr;
   }
 
@@ -3407,7 +3407,7 @@ static int radial_control_modal(bContext *C, wmOperator *op, const wmEvent *even
         handled = true;
         /* Cannot use MEM_SAFE_FREE, as #Dial type is only forward-declared in `BLI_dial_2d.h` */
         if (rc->dial) {
-          MEM_freeN(rc->dial);
+          MEM_freeN(static_cast<void *>(rc->dial));
           rc->dial = nullptr;
         }
       }

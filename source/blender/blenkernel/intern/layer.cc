@@ -269,7 +269,7 @@ void BKE_view_layer_free_ex(ViewLayer *view_layer, const bool do_id_user)
   /* Cannot use MEM_SAFE_FREE, as #SceneStats type is only forward-declared in `DNA_layer_types.h`
    */
   if (view_layer->stats) {
-    MEM_freeN(view_layer->stats);
+    MEM_freeN(static_cast<void *>(view_layer->stats));
     view_layer->stats = nullptr;
   }
 

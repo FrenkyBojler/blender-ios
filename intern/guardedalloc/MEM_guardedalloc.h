@@ -198,25 +198,13 @@ extern void (*MEM_reset_peak_memory)(void);
 extern size_t (*MEM_get_peak_memory)(void) ATTR_WARN_UNUSED_RESULT;
 
 #ifdef __cplusplus
+//      static_assert(std::is_pointer_v<decltype(v)>,
+//                    "MEM_SAFE_FREE must always be used on a pointer.");
 #  define MEM_SAFE_FREE(v) \
     do { \
-      static_assert(std::is_pointer_v<std::decay_t<decltype(v)>>); \
-      /* The 'constexpr if' here ensures that the call to MEM_cfree is never generated for \
-       * `void *` pointers. */ \
-      if constexpr (std::is_same_v<std::decay_t<decltype(v)>, void *> || \
-                    std::is_same_v<std::decay_t<decltype(v)>, const void *>) \
-      { \
-        void **_v = (void **)&(v); \
-        if (*_v) { \
-          MEM_freeN(*_v); \
-          *_v = NULL; \
-        } \
-      } \
-      else { \
-        if (v) { \
-          MEM_cfree(v); \
-          (v) = nullptr; \
-        } \
+      if (v) { \
+        MEM_freeN<std::remove_pointer_t<std::decay_t<decltype(v)>>>(v); \
+        (v) = nullptr; \
       } \
     } while (0)
 #else
@@ -431,15 +419,17 @@ template<typename T> inline T *MEM_cnew(const char *allocation_name, const T &ot
   return new_object;
 }
 
-/**
- * Safer alternative to #MEM_freeN for C++ code.
- *
- * Should be used for all data allocated with #MEM_cnew functions.
- */
-template<typename T> inline void MEM_cfree(T *ptr)
+template<typename T> inline void MEM_freeN(T *ptr)
 {
-  static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_delete must be used.");
-  MEM_freeN(const_cast<void *>(static_cast<const void *>(ptr)));
+  if constexpr (std::is_void_v<T>) {
+    mem_guarded::internal::mem_freeN_ex(const_cast<void *>(ptr),
+                                        mem_guarded::internal::AllocationType::ALLOC_FREE);
+  }
+  else {
+    static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_delete must be used.");
+    mem_guarded::internal::mem_freeN_ex(const_cast<void *>(static_cast<const void *>(ptr)),
+                                        mem_guarded::internal::AllocationType::ALLOC_FREE);
+  }
 }
 
 /** Allocation functions (for C++ only). */

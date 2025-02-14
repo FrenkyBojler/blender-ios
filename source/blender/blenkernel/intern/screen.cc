@@ -81,7 +81,7 @@ static void screen_free_data(ID *id)
   /* Cannot use MEM_SAFE_FREE, as #wmTooltipState type is only defined in `WM_types.hh`, which is
    * currently not included here. */
   if (screen->tool_tip) {
-    MEM_freeN(screen->tool_tip);
+    MEM_freeN(static_cast<void *>(screen->tool_tip));
     screen->tool_tip = nullptr;
   }
 }

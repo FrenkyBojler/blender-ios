@@ -94,7 +94,7 @@ IDProperty *IDP_CopyIDPArray(const IDProperty *array, const int flag)
      * in this loop. */
     IDProperty *tmp = IDP_CopyProperty_ex(GETPROP(narray, i), flag);
     memcpy(GETPROP(narray, i), tmp, sizeof(IDProperty));
-    MEM_cfree(tmp);
+    MEM_freeN(tmp);
   }
 
   return narray;
