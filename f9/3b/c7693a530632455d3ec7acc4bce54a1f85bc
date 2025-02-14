@@ -79,3 +79,4 @@ Referenced by issue #40076, Group Instance problem (base objects visible on rend
 Referenced by issue #40059, Switching open windows ignores held modifiers on WIN32
 Referenced by issue #40052, Grid Particles Crash
 Referenced by issue #40034, Cycles bug - too many alpha textures not working
+Referenced by issue #40043, Blender network render GPU
