@@ -7,3 +7,4 @@ Referenced by issue #109720, bpy.app.driver_namespace: no way to properly initia
 Referenced by issue #109569, EXCEPTION_ACCESS_VIOLATION  - v3.5.1
 Referenced by issue #109528, Bake actions operator converting F-curves to linear
 Referenced by issue #109372, Crash when selecting line art
+Referenced by issue #109349, Can't save files in VSE mode
