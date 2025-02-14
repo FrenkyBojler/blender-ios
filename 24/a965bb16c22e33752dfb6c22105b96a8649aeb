@@ -1,1 +1,2 @@
 Referenced by commit 5e8775a8da9, Fix T92030: crash when hovering over socket
+Referenced by issue #91767, Instance on points crash when link instance geo to src
