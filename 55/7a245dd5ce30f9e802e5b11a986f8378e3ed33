@@ -1,2 +1,3 @@
 Referenced by issue #112315, Unknown Exception in KERNELBASE.dll
 Referenced by issue #109477, Blender 3.6 crash with RT enable
+Referenced by issue #108115, Failed to create HIPRT context despite HIPRT not being enabled or even possible on the specific card
