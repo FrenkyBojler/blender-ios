@@ -1,0 +1,1 @@
+Referenced by issue #46623, OSX bpy.app.binary_path_python points to /usr/bin/python
