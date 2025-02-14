@@ -1,1 +1,2 @@
 Referenced by commit 9f89166b52b, Fix T85148: OptiX viewport denoising regression
+Referenced by issue #78881, OIDN in render properties results in blurry images compared to Denoise node
