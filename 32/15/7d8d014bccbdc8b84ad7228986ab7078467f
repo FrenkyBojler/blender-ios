@@ -1,2 +1,3 @@
 Referenced by issue #45600, recent files are still selectable although deleted
 Referenced by issue #45610, Bridge tool; Loop pairs option cannot handle grid of faces facing each other
+Referenced by issue #45539, Blender crashes when trying to display an OpenEXR Multilayer (created with the File Output Node)
