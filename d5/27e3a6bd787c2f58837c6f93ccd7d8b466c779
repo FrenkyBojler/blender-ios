@@ -4,3 +4,4 @@ Referenced by issue #126050, Fix #125157: Sculpt multires crashes on box mask an
 Referenced by issue #126020, Fix #125375: Sculpt undo with duplicate object causes crash
 Referenced by issue #125396, Fix #125375: Sculpt undo with duplicate object causes crash
 Referenced by issue #125268, Fix #125157: Sculpt multires crashes on box mask and duplicated stroke
+Referenced by issue #124437, Separated object doesn't inherit the material (if material is linked to the object instead of its mesh)
