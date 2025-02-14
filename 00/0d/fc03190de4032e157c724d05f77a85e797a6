@@ -4,3 +4,4 @@ Referenced by issue #52822, Incorrect dimensions of imported svg files from Core
 Referenced by issue #49887, Middle Mouse button for Rotate 3D view does not work (Mouse: Logitech MX Anywhere 2)
 Referenced by issue #48916, Proxy Custom File is broken
 Referenced by issue #48275, where has bmesh.ops.shortest_path(bm, vert_start, vert_end, type) gone ?
+Referenced by issue #47485, Blender crash
