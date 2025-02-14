@@ -16,3 +16,4 @@ Referenced by issue #105020, Fix #103761: creating a color attribute doesn't mak
 Referenced by issue #103761, Regression: Creating the first vertex color on a mesh does not always make it active/default
 Referenced by issue #103551, Regression: Stored Attributes appear black in the viewport
 Referenced by issue #103394, Sculpt: Color attribute lose selected status after remesh
+Referenced by issue #98366, Active Attributes
