@@ -1,3 +1,4 @@
 Referenced by commit 766340856db, UI Code Quality: Use derived struct for hot-key buttons
 Referenced by commit e6f0b60c2e9, UI Code Quality: Use derived struct for number buttons
 Referenced by commit 570044e9f41, UI Code Quality: Use derived struct for curve profile buttons
+Referenced by commit dcff28e1e7a, UI Code Quality: Use derived struct for HSV Cube buttons
