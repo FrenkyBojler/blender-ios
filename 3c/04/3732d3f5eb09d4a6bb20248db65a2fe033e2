@@ -6,3 +6,4 @@ Referenced by issue #51738, Live render crash
 Referenced by issue #51453, GPU Render problem
 Referenced by issue #51153, VSE Interlaced Video FPS not being honored
 Referenced by issue #50911, Broken user interface in render result window when image size matches screen resolution
+Referenced by issue #50864, Image Sequence Textures for Particles failing
