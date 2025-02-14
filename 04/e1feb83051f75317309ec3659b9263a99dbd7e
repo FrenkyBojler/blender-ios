@@ -1,2 +1,3 @@
 Referenced by commit 8777a44ccbb, VSE: Fix crash when building proxy
 Referenced by commit a19aa090d2e, VSE: Fix building image proxies
+Referenced by issue #85469, VSE 2.0: Proxy system
