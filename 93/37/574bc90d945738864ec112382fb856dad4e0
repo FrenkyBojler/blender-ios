@@ -94,3 +94,4 @@ Referenced by issue #41209, Run Armature actuator not working with DupliGroup ob
 Referenced by issue #41211, 3D Connexion space pilot pro Fly blender 2.7 dont work
 Referenced by issue #41171, Hang on switch to edit mode
 Referenced by issue #41176, Edges not displayed in ortho side views
+Referenced by issue #41156, UILayout.prop_enum() does not observe "text" parameter override
