@@ -12,3 +12,4 @@ Referenced by issue #42331, Saving a model with multiple actions sometimes omits
 Referenced by issue #42318, 2.72(a) crash on unwrap of subdivided mesh
 Referenced by issue #42325, Crash on .vob video import
 Referenced by issue #42314, 3 Button Mouse Emulation & Tablet Crash
+Referenced by issue #42315, no motion blur with autosmooth - cycles
