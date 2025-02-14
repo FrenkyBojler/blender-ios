@@ -1,1 +1,2 @@
 Referenced by issue #76214, Compositor crash in Blender 2.83 latest build
+Referenced by issue #76205, Progressive refine not generating denoising data if stopped prematurely.
