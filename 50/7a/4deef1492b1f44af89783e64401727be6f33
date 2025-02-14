@@ -10,3 +10,4 @@ Referenced by issue #96116, Image editor does not update when you add additional
 Referenced by issue #96030, Image Editor doesn't update when image is changed unless user moves the view
 Referenced by issue #95979, Baking doesn't result in an image viewer update until you move the image viewer
 Referenced by issue #95908, render slots are not tied to the render
+Referenced by issue #95809, Image editor no longer reflecting changes of the node tree
