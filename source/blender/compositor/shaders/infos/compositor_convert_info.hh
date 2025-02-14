@@ -109,10 +109,10 @@ DEFINE_VALUE("CONVERT_EXPRESSION(value)", "vec4(float3_to_color(value.xyz))")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
-GPU_SHADER_CREATE_INFO(compositor_convert_vector_to_motion_vector)
+GPU_SHADER_CREATE_INFO(compositor_convert_float3_to_motion_vector)
 ADDITIONAL_INFO(compositor_convert_float_shared)
 IMAGE(0, GPU_RGBA16F, WRITE, FLOAT_2D, output_img)
-DEFINE_VALUE("CONVERT_EXPRESSION(value)", "vec4(vector_to_motion_vector(value))")
+DEFINE_VALUE("CONVERT_EXPRESSION(value)", "vec4(float3_to_motion_vector(value.xyz))")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
@@ -170,10 +170,10 @@ DEFINE_VALUE("CONVERT_EXPRESSION(value)", "ivec4(motion_vector_to_int(value), iv
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
-GPU_SHADER_CREATE_INFO(compositor_convert_motion_vector_to_vector)
+GPU_SHADER_CREATE_INFO(compositor_convert_motion_vector_to_float3)
 ADDITIONAL_INFO(compositor_convert_float_shared)
 IMAGE(0, GPU_RGBA16F, WRITE, FLOAT_2D, output_img)
-DEFINE_VALUE("CONVERT_EXPRESSION(value)", "vec4(motion_vector_to_vector(value))")
+DEFINE_VALUE("CONVERT_EXPRESSION(value)", "vec4(motion_vector_to_float3(value))")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
