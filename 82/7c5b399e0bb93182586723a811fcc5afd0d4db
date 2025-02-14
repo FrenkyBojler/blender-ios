@@ -1,1 +1,2 @@
 Referenced by issue #93367, Geometry Nodes in recent builds scramble meshes in various cases
+Referenced by issue #93285, Geometry nodes: Wrong instance order when instancing a collection with more than 30 objects
