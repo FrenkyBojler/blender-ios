@@ -21,3 +21,4 @@ Referenced by issue #38762, The render view title text characters are not of uni
 Referenced by issue #38753, James Kinne
 Referenced by issue #38734, Simplify tool should be ignored on F12 Rendering
 Referenced by issue #38726, Blender Internal: Rendered viewport won't be updated and will crash if active render layer is changed/deleted.
+Referenced by issue #38733, Knife fails to work when used between single mesh geometry.
