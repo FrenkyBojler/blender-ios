@@ -1,3 +1,4 @@
 Referenced by commit b64ae920e4b, Fix T79158: Eevee cubemaps shows black
 Referenced by commit 65aba4fc7a5, Fix T79158: Eevee cubemaps shows black
 Referenced by issue #77348, Blender LTS: Maintenance Task 2.83
+Referenced by issue #75943, EEVEE can't show reflections from hdri - blender v2.83.13 beta
