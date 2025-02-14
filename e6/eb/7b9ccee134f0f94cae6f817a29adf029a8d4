@@ -1,1 +1,2 @@
 Referenced by issue #62483, Cursor "jumps" after basic actions, due to xorg's TransformationMatrix option
+Referenced by issue #62488, Can delete collection from indirect linked library
