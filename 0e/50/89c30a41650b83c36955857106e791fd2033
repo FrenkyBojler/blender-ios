@@ -2,3 +2,4 @@ Referenced by issue #49404, Compositer, Image Node, noodles are disconnected whe
 Referenced by issue #49388, Mesh Deform bind locks Mesh Deform target object
 Referenced by issue #49391, Texture Paint color space chaos
 Referenced by issue #49363, CUDA error at cuCtxCreate: Illegal address [experimental feature set]
+Referenced by issue #49370, Cuda cuMemFree error
