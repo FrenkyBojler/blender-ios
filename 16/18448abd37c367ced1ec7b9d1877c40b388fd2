@@ -1,1 +1,2 @@
 Referenced by commit c4cb68e53bc, Fix #132660: Sculpt multires mask overlay skipped without face sets
+Referenced by commit 7f756901273, Fix #130102: Boundary brushes ignore masking with Multires
