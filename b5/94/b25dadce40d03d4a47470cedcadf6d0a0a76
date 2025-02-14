@@ -1,3 +1,4 @@
 Referenced by issue #47768, Middle mouse becomes disabled in 3d View when using Blendermada
 Referenced by issue #47722, FBX export interpolation is not accurate
 Referenced by issue #47693, Segfault on selecting objects
+Referenced by issue #47681, bump node doesn't work with SSS shader
