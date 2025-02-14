@@ -1,2 +1,3 @@
 Referenced by commit c4f3475612b, Cleanup: update comment from 77f73a92843965906189dd56dcc4d18eae2371cc
 Referenced by issue #85065, Sculpt Mode - Using Mask while Multiress active = Crash
+Referenced by issue #84188, Avoid clipping data-block name in data-block menu because of library name
