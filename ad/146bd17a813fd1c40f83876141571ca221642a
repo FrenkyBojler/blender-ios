@@ -1,3 +1,4 @@
 Referenced by commit 599e52119f0, Fix #107101: Update depsgraph on muting VSE channel
 Referenced by issue #107116, Fix #107101: Update depsgraph on muting VSE channel
 Referenced by issue #107101, Sound plays in sequencer despite channel being muted
+Referenced by issue #103852, Video editor channel compositing blend effect does not refresh when underlying channel is muted/unmuted
