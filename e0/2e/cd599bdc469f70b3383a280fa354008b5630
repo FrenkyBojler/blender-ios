@@ -1,1 +1,2 @@
 Referenced by commit 75f82d28e38, Fix T72235: crash entering particle editmode with non-valid PTCacheEdit psys pointer
+Referenced by issue #70259, Hair particle selection broken in Point selection mode in specific blend file.
