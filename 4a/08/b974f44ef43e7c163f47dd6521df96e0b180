@@ -5,3 +5,4 @@ Referenced by issue #101728, Redo Panel changes the state of the last active Ver
 Referenced by issue #89549, Missing undo push for Paint Mask and Vertex Selection in weight paint
 Referenced by issue #71895, Undo doesn't consider changes in nodetree when object is in edit and texture paint mode
 Referenced by issue #69760, Undo/Adjust Last Operation: vertex and weightpaint operators/strokes undo more then they should (change back any setting changed prior to execution)
+Referenced by issue #61948, Undo steps created for non-paint operations (brush size)
