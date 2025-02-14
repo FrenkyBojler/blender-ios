@@ -23,3 +23,4 @@ Referenced by issue #50148, Wrong rounding when moving frames
 Referenced by issue #50067, Any image with the extension .PNG, after loaded and unwrapped in Cycles is shown as 'missing texture'
 Referenced by issue #49962, Switch to Camera Perspective Misaligned
 Referenced by issue #49942, Unable to render texture.
+Referenced by issue #49935, Mesh deform modifier binding took forever
