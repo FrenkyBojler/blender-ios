@@ -10,3 +10,4 @@ Referenced by issue #40364, Texture images are not properly displayed in the mat
 Referenced by issue #40365, Bevel. again bug
 Referenced by issue #40366, Rendering on Cycles with OpenCL Compilation Errors on 2.70.5 w/ defaults
 Referenced by issue #40315, Boolean modifier with Freestyle edges
+Referenced by issue #39901, Blender crashes if the resolution % is changed while rendering an animation
