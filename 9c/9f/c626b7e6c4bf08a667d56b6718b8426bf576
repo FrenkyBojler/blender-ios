@@ -1,0 +1,1 @@
+Referenced by issue #40424, Clamping (direct) light in cycles has very different results in branched path tracing and normal path tracing
