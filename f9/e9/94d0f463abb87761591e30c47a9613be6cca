@@ -3,3 +3,4 @@ Referenced by commit c828a505c2e, Revert "Fix T83092: Direction of rotation with
 Referenced by commit 216ebe0b739, Fix T83092: Direction of rotation with View orientation changed in 2.91
 Referenced by commit acc662ea5a7, Revert "Fix T83092: Direction of rotation with View orientation changed in 2.91"
 Referenced by issue #85227, Align to Transform Orientation Not Working
+Referenced by issue #83216, Potential candidates for corrective releases
