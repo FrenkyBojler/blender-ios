@@ -1,2 +1,3 @@
 Referenced by issue #59346, Shader to RGB node breaks with a glossy/principled shader (EEVEE)
 Referenced by issue #59348, Crashes easily when fiddling with advanced particle systems
+Referenced by issue #58902, "Texture Paint" Workspace causes Traceback Error Popup
