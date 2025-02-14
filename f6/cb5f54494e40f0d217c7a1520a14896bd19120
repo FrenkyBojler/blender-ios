@@ -54,3 +54,4 @@ Referenced by issue #69008, Cannot load in Image Textures
 Referenced by issue #68958, wireframe shadows
 Referenced by issue #68952, Blender crashes when trying to add loopcut with ctrl-r
 Referenced by issue #68956, Transparency visual artifacts on overlapping objects
+Referenced by issue #68864, [CYCLES] Shadow catcher is not transparent in the viewport
