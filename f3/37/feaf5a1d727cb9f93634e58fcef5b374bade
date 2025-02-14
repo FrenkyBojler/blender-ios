@@ -54,3 +54,4 @@ Referenced by issue #47699, VSE - FLAC stips play continuously instead of seekin
 Referenced by issue #47702, Freestyle not fully drawing edge marked lines in Blender Render
 Referenced by issue #47677, Text Object Outline fails to daplay
 Referenced by issue #47667, Uneven width of colors in ColorRamp with constant selected
+Referenced by issue #47627, Audio will not keep sync with video at 20 FPS.
