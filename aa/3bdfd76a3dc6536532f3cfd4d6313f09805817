@@ -6,3 +6,4 @@ Referenced by issue #115987, Creator: update image formats shown in the CLI help
 Referenced by issue #109063, Fix #109045: Allow images with more than 4 channels to load
 Referenced by issue #107538, can't see png preview
 Referenced by issue #107212, Regression: Image thumbnails in file browser sometimes do not show up
+Referenced by issue #85097, uint16 mipmap tif files are not showing in EEVEE but work in cycles
