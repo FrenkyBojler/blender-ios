@@ -1,0 +1,1 @@
+Referenced by issue #93574, Triangulating a mesh with overlapping tri and quad faces can cause an assertion failure
