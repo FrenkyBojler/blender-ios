@@ -1,0 +1,1 @@
+Referenced by issue #41457, "Implement resolution divider in the Blender Internal" plus Freestyle calls freestyle render over and over and over for each subdivided resolution
