@@ -1,1 +1,2 @@
 Referenced by commit 5215c42e3c6, Revert "Keymap: remove 3D cursor keymap"
+Referenced by issue #57843, Annotations (D) do not work with 3d cursor tool (keymap issue)
