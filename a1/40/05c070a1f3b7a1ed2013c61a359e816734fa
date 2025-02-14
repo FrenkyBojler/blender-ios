@@ -1,1 +1,2 @@
 Referenced by commit 2d2f23de101, Fix T55348: Renaming a marker can't cancel
+Referenced by issue #55348, Esc while naming marker doesn't work
