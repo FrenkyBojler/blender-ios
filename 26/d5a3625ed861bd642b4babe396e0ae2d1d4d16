@@ -34,3 +34,4 @@ Referenced by issue #58219, Blender crashes if you attempt to change render laye
 Referenced by issue #58221, Blender crashes on "spin tool" use
 Referenced by issue #58202, Instanced children objects to parents are invisible in Cycles render
 Referenced by issue #58206, EEVEE lights have a dragable energy value between 0-10 while higher values are useful.
+Referenced by issue #58207, Render time going crazy!
