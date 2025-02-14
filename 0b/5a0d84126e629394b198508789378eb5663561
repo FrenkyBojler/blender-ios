@@ -1,1 +1,2 @@
 Referenced by commit 2e41df6847b, Fix T48695: Slowdown w/ edit-mesh & shrinkwrap
+Referenced by commit 3ed5da04791, Fix T48547: Shrinkwrap fails w/ auxiliary target
