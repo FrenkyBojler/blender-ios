@@ -1,0 +1,1 @@
+Referenced by issue #81918, Using CPU as render device, set optix as denoising method and render in the viewport leads crash.
