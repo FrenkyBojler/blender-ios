@@ -1,0 +1,1 @@
+Referenced by issue #97015, Undo incorrectly frees all the ImBufs of tiled images
