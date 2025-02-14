@@ -1,3 +1,4 @@
 Referenced by issue #121514, GN primitives all seem to have bounds of 2/2/2 regardless of their settings unless they are realized
 Referenced by issue #121161, Regression: Frame Selected Includes Hidden Bones
 Referenced by issue #121017, Regression: Crash when scrubbing on the timeline
+Referenced by issue #119642, "Orbit Around Selection" pivot around the object's origin point instead of the center of mass in Object Mode
