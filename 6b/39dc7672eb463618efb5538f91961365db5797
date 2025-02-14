@@ -14,3 +14,4 @@ Referenced by issue #62550, error traceback call during unwrapping
 Referenced by issue #62500, VSE doesn't work with left click select
 Referenced by issue #62487, inverted normal on a single face when extruding a loop
 Referenced by issue #62480, Closing files takes about 5 times longer
+Referenced by issue #61531, can't select the same material in multi edit mode
