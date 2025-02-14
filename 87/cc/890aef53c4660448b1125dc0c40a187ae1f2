@@ -1,3 +1,4 @@
 Referenced by issue #38314, Negative rotation (With minus) after degree to reverse
 Referenced by issue #38252, Transforms = invalid
 Referenced by issue #37600, Tool modal input does not take scene units into account
+Referenced by issue #28293, Cannot enter decimal point when scaling
