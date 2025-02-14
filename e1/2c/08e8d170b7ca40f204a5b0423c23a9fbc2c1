@@ -1,3 +1,4 @@
 Referenced by commit a2043249664, DRW: Fix state not being locked
 Referenced by issue #68557, rna_gizmo_target_set_prop reports incorrect propname
 Referenced by issue #63698, Selecting Materials after creating a new file throws EXCEPTION_ACCESS_VIOLATION
+Referenced by issue #53211, RFC: Clang-format for Blender
