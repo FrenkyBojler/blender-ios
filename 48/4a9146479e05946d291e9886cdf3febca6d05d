@@ -1,1 +1,2 @@
 Referenced by commit 05b56d55e85, Fix T97386: Node socket labels swallow click/drag events
+Referenced by issue #97386, Regression: Click Dragging on Socket Labels does not register
