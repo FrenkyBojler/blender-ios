@@ -3,3 +3,4 @@ Referenced by issue #62295, Too many crashes while in edit mode :(
 Referenced by issue #62299, "Remove Double Vertices" Leads to crash
 Referenced by issue #62280, Driver expressions that use functions injected by an addon no longer work.
 Referenced by issue #62283, UV Sphere Crash - 2.8b
+Referenced by issue #62288, Bug when scaling an object in the Sculpt workspace
