@@ -1,2 +1,3 @@
 Referenced by issue #106064, Frame Selected does not respect GN output if it has different type from input
 Referenced by issue #95725, Changing render slot doesn't update displayed image
+Referenced by issue #95728, Previous render slots get overwritten with the latest render
