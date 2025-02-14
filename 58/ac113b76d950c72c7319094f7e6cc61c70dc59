@@ -1,2 +1,3 @@
 Referenced by commit b759857825b, Revert "Fix T74782: WorkBench TAA Artifacts During Painting/Drawing"
 Referenced by issue #75050, GPencil: Strokes get darker while drawing in SOLID mode
+Referenced by issue #74782, Drawing in 3D viewport changes object colors
