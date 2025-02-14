@@ -1,0 +1,1 @@
+Referenced by commit b3bf46b78da, Revert "CMake: include BROTLI_LIBRARIES in FREETYPE_LIBRARIES on UNIX"
