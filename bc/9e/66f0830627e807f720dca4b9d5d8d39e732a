@@ -1,2 +1,3 @@
 Referenced by issue #40428, "make local' of linked object followed by Undo makes object disappear instead of restoring link.
 Referenced by issue #40411, UI incorrectly permits changing material in materal_slots on linked mesh, but changes are not saved
+Referenced by issue #40393, changing the material in a slot does not save for one object.
