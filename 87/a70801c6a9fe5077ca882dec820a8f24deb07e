@@ -1,1 +1,2 @@
 Referenced by commit ae58db91a2f, Fix T87799: Crash when switching to Info Editor
+Referenced by issue #87776, Framerate detection uses decimals in base when shouldn't
