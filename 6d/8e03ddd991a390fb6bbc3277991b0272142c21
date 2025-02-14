@@ -1,2 +1,3 @@
 Referenced by issue #82728, EXCEPTION_ACCESS_VIOLATION on modification of materials in specific .Blend file
 Referenced by issue #81855, Crashes while trying to render viewport with cycles
+Referenced by issue #81102, Blender crashing a lot randomly in the rendered viewport
