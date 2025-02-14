@@ -36,3 +36,4 @@ Referenced by issue #41788, bmesh.utils.loop_separate() and bmesh.utils.face_ver
 Referenced by issue #41792, Rotating and Scaling Don't Work
 Referenced by issue #41753, sculpting performance in viewport
 Referenced by issue #41735, material type changings end s with wrong preview .
+Referenced by issue #41707, Select Linked behavior inconsistent. Sometimes doesn't work. Sometimes overflows.
