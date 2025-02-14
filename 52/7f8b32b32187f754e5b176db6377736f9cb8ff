@@ -1,2 +1,3 @@
 Referenced by commit 30f626fe4cd, Revert "Cycles API: encapsulate Node socket members"
 Referenced by issue #82131, Blender 2.92.0 - Viewport Rendering is stuck with active Adaptive Sampling
+Referenced by issue #79174, Cycles Procedural API and faster scene update
