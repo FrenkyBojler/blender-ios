@@ -29,3 +29,4 @@ Referenced by issue #50700, Possible NaNs with refractive BSDF
 Referenced by issue #50683, Cylinder Projection doesn't work from Python (does not use 3D view)
 Referenced by issue #50633, Keyboard & Mouse stop working correctly on Ubuntu 16.04
 Referenced by issue #50623, Blender doesn't quit after python script/render in background mode (stuck trying to close OpenAL device)
+Referenced by issue #50610, Cycles black render with adaptive subdivision and normal map tangent
