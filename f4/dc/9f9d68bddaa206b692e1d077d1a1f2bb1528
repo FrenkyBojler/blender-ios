@@ -96,3 +96,4 @@ Referenced by issue #56595, Hair Dynamics stop working after saving new file
 Referenced by issue #56573, Crash when selecting a vertex in a scene with image textures in texture / material mode
 Referenced by issue #56574, COLLADA Exporter Transform animation by Euler angle is not reflected
 Referenced by issue #56531, Blender not responding
+Referenced by issue #56505, VSE: Transform effect Strip creating black pixel border around object
