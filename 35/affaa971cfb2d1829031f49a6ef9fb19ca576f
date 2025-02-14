@@ -1,2 +1,3 @@
 Referenced by commit 5a1b1c0ed2e, Cleanup: Getters for asset-handle data
 Referenced by commit 207df439e1a, Cleanup: Use const for internal file data of asset-handle
+Referenced by commit 36fb03e2b9d, Asset: Clearly describe RNA property description as temporary
