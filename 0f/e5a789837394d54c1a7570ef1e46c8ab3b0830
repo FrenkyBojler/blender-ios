@@ -4,3 +4,4 @@ Referenced by issue #59193, Crash with SIGSEGV in DEG::DepsgraphRelationBuilder:
 Referenced by issue #59097, Pose Library - Fake users and Appending can´t merge pose library
 Referenced by issue #59078, core dumped when opening the file
 Referenced by issue #59082, De-selecting all, leaves the Move tool gizmo visible
+Referenced by issue #59083, Normal transform orientation ignores absolute grid snap
