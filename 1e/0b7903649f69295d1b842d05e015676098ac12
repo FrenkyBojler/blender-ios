@@ -1,1 +1,2 @@
 Referenced by issue #101516, Keyframing Corner pinning in compositing is inconsistent
+Referenced by issue #70273, Keyframes not applied when using Auto Keying with certain Gizmos (camera, forcefield, lamp, ...)
