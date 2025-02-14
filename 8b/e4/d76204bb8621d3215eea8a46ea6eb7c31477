@@ -3,3 +3,4 @@ Referenced by issue #45170, Opening new scene puts wireframe over all objects
 Referenced by issue #45155, Cycles - Viewport Rendering sometimes crashes when click-drag changing a value
 Referenced by issue #45145, Camera scale bug - Cannot select when camera scale != 1 & looking through camera
 Referenced by issue #45117, Dark dupliface objects in viewport
+Referenced by issue #44320, Unwanted merges of UV vertices, also makes importing FBX in mudbox fail.
