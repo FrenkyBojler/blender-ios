@@ -1,1 +1,2 @@
 Referenced by commit 37d7b2d3b62, Revert "COLLADA - support for shadeless material (SHADER_CONSTANT)"
+Referenced by issue #49077, Collada exporter does not respect 'shadeless' flag
