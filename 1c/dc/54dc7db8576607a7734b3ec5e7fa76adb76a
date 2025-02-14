@@ -1,2 +1,3 @@
 Referenced by commit 78817ae95c8, Prevent problems when appending scene with referenced proxy
 Referenced by commit 5c651554e2f, Proxy appending: re-establish link to proxies when they are made local
+Referenced by issue #49495, Broken armature proxy when appending scene
