@@ -1,1 +1,2 @@
 Referenced by commit 370712fc1b7, Fix #121354: GPv3: object mode selection outline too big
+Referenced by issue #120973, GPv3: Create a constant for the legacy conversion between "pixel" thickness and world space radii
