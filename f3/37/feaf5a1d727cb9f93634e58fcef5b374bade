@@ -50,3 +50,4 @@ Referenced by issue #47738, Blender segmentation fault when Right-clicking on an
 Referenced by issue #47741, OpenGL render always renders against transparent background
 Referenced by issue #47742, Blender cannot remember last used name and path while saving rendered image
 Referenced by issue #47722, FBX export interpolation is not accurate
+Referenced by issue #47699, VSE - FLAC stips play continuously instead of seeking from cursor
