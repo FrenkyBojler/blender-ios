@@ -1,2 +1,3 @@
 Referenced by issue #115042, 2 Glass materials with same volume absorption combine error.
 Referenced by issue #103823, Regression: wrong rendering when the same object has faces with different volume materials
+Referenced by issue #100205, Volumetrics bug
