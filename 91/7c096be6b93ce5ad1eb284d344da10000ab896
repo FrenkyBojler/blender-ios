@@ -2,3 +2,4 @@ Referenced by commit b0da080c2cb, Drag & drop: Use session UUID of IDs instead o
 Referenced by commit 7b778166db4, Cleanup: Use new helpers for passing IDs from drag & drop to operators
 Referenced by commit cd412b4454f, Drag & drop: Invert priority of name and session UUID in ID lookups
 Referenced by commit 8f79fa9c678, Fix further issues when mixing link & append for asset drag & drop
+Referenced by issue #97320, Bad offsets when dragging same object from asset browser multiple times, mixing Link and Append options
