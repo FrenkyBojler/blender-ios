@@ -1,1 +1,2 @@
 Referenced by commit ad625d8dc41, Fix #122423: Clear handlers for non-temporary regions on exit
+Referenced by issue #122922, Fix #122423: Clear Handlers for Non-Temporary Regions on Exit
