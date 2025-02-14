@@ -1,2 +1,3 @@
 Referenced by commit 738f4fbc5e3, Revert "Fix T92636: Vector math node link disconnects when loading old file"
 Referenced by commit 6b4ca781085, Fix T92636: Vector math node link disconnects when loading old file
+Referenced by issue #91826, Inconsistent name separator used for duplicate node sockets names.
