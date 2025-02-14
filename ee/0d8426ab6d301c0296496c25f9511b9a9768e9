@@ -5,3 +5,4 @@ Referenced by issue #64333, Sculpt: mirror and other modifiers not visible in wo
 Referenced by issue #64284, Mirroed Collection Intances have flipped normals/face orientation.
 Referenced by issue #64245, Joining objects deletes UV map
 Referenced by issue #64188, Crash on CTRL-S no changes saved.
+Referenced by issue #64154, Immediate crash when changing the current frame on the timeline
