@@ -1,2 +1,3 @@
 Referenced by issue #70208, Viewport, EEVEE, Look Dev breaks mesh.
 Referenced by issue #70045, EEVEE viewport error when using volume and lights (with animation)
+Referenced by issue #69993, instanceing does not work on the vertex made of subdivision
