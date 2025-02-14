@@ -1,2 +1,3 @@
 Referenced by commit bc32240105f, Fix T60810: crash editing mesh with subdivision modifier
 Referenced by issue #60810, Blender 2.80 - Subdivision surface adjust edit cage when is turned on,blender quits
+Referenced by issue #60545, An object crashes versions of blender past 11f2c65128dc
