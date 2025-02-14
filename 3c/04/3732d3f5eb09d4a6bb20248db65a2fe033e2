@@ -22,3 +22,4 @@ Referenced by issue #50697, crashes on load (2.78b) (EXCEPTION_ACCESS_VIOLATION)
 Referenced by issue #50699, Gpu Cycles error with MacOs and Gtx580 - Render viewport and No glossy materials (render in black)
 Referenced by issue #50677, Shrinkwrap constraint don't get updated when target mesh gets modified
 Referenced by issue #50679, VSE locked strips moves with gaps tools
+Referenced by issue #50628, Blender 2.78b Cycles compute device selection UI issue
