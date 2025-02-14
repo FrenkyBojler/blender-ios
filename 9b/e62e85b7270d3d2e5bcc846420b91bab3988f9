@@ -23,3 +23,4 @@ Referenced by issue #118994, Execution region background broken under T H E M E 
 Referenced by issue #118574, blender crashes when pathname > OS' limits
 Referenced by issue #117583, Wayland: Mouse cursor becomes resize on the title bar of the render view window.
 Referenced by issue #117358, Blender crashes on startup - VMWare Workstation 17.5
+Referenced by issue #117052, When inserting a new keyframe on a bone (and two armatures share the same action), Blender seems to not play keyframed bone constraint influences on non active armatures (or the active one sometimes) in the scene
