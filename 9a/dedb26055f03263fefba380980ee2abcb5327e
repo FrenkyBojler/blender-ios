@@ -1,1 +1,2 @@
 Referenced by commit 1c294fb1fd4, Revert "Fix T77409: Crash showing vertex/face duplicators in edit-mode"
+Referenced by issue #77409, Instance face duplicated geometry doesn't render in edit mode
