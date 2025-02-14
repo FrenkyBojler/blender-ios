@@ -32,3 +32,4 @@ Referenced by issue #86517, blender background rendering - unable to open a disp
 Referenced by issue #86372, Text Editor - Convert to Spaces not working
 Referenced by issue #86363, Crash on MacOS 11.2.2
 Referenced by issue #86351, File Browser Not Retaining Folder Order Changes
+Referenced by issue #86248, Crash using GPU Compute in Cycles on AMD in 2.92 and 2.93 but not 2.91
