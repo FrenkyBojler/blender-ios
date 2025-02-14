@@ -58,3 +58,4 @@ Referenced by issue #40310, Transform composite node causing artifacts on edge o
 Referenced by issue #40293, OSL console message missing
 Referenced by issue #40273, Swivel buckets get stuck after colliding against hard stops.
 Referenced by issue #40252, Angle constrain is ignored in favor of edge snapping
+Referenced by issue #40224, Moving objects to another layer crashes Blender
