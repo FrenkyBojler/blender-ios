@@ -1,0 +1,1 @@
+Referenced by issue #89253, `.draw()` method allows arbitrary scene changes after calling `.template_list()` with custom list type.
