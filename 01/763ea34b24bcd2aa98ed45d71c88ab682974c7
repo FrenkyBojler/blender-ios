@@ -1,0 +1,1 @@
+Referenced by issue #134419, ASAN `stack-buffer-overflow` crash when showing curve map
