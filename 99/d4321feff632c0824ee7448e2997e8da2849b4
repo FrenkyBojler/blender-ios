@@ -1,2 +1,3 @@
 Referenced by issue #63255, crash while staying in circle select mode and clicking in another editor
 Referenced by issue #63125, Can't   select individual bones when in weight paint mode for grease pencil
+Referenced by issue #63127, curve to mesh conversion , bevelled portion not attached
