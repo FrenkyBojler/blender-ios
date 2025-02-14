@@ -1,1 +1,2 @@
 Referenced by issue #52253, Problem with mesh drawing in viewport when ma->game.flag & GEMAT_INVISIBLE
+Referenced by issue #52250, Glitch in UI in the addon panel regression
