@@ -2,3 +2,4 @@ Referenced by issue #41704, 2.71.6 no longer reading user ui panel arrangement f
 Referenced by issue #41629, Won't open blend files with non-Latin charasters in the name
 Referenced by issue #41595, Cycles Ortho preview problem
 Referenced by issue #41596, GPUShader compile error message and textures not appearing in Texture mode when set to GLSL
+Referenced by issue #41566, Tex Paint: automatic add slot displace crashes
