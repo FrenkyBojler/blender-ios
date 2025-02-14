@@ -1,1 +1,2 @@
 Referenced by commit ea474dda620, Fix: Node edge pan and remove on cancel doesn't work
+Referenced by issue #100521, Node doesn't belong to frame when added through link drag search
