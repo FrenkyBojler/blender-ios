@@ -2,3 +2,4 @@ Referenced by commit 239eb95ef87, Fix T81865, T81860: CustomData Correction can 
 Referenced by issue #81865, Vertex Color layer corrupted after edge operations in EDIT mode
 Referenced by issue #81866, UVS Get Screwed Up After Removing Geometry and Moving with "Correct Face Attributes" Enabled.
 Referenced by issue #81860, UV edge loop issue if UV map is not called 'UVMap'
+Referenced by issue #81060, Vertex Slide and Loop Cut and Slide tools breaks the UVs and Vertex Colors after topology changes [new or deleted] (if CustomSplitNormals are present)
