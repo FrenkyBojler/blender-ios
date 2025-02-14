@@ -1,0 +1,1 @@
+Referenced by commit 6a15f301ef4, Revert "Fix: Missing super().__del__() in Cycles and Hydra render engine"
