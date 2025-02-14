@@ -1,2 +1,3 @@
 Referenced by commit 9bed68de134, Fix T98860: VectorProperty type renamed to COORDS (breaking scripts)
 Referenced by issue #107629, Regression: Docstrings in the Python Console no longer list enum items
+Referenced by issue #98860, *VectorProperty types argument value COORDINATES was renamed to COORDS, breaking existing scripts
