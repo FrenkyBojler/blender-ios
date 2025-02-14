@@ -1,1 +1,2 @@
 Referenced by issue #78056, Increased Sampling Noise when Rendering the World Background in Cycles.
+Referenced by issue #73834, Rendering a scene without light: result is not completely black
