@@ -1,3 +1,4 @@
 Referenced by commit f4cc9840381, Fix #116844: Transform -> Move shows mouse button shortcut
 Referenced by commit 75480598860, Keymap: restore mirror transform shortcut in weight paint mode
 Referenced by issue #116844, Transform > Move menu entry shows wrong shortcut
+Referenced by issue #115025, Unable to trigger  G,R,S in Particle editing point selection mode for blender 4.0
