@@ -1,1 +1,2 @@
 Referenced by commit 63897304a90, Fix T44028: Vertex Colors Baking error
+Referenced by issue #39233, Face assigned textures bake too bright
