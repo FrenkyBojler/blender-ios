@@ -1,2 +1,3 @@
 Referenced by issue #44404, freestyle crashes blender
 Referenced by issue #44380, Auto Smooth angle entry greyed out.
+Referenced by issue #43800, KX_Camera.getScreenVect() returns incorrect results if called after camera has been moved on the same frame.
