@@ -9,3 +9,4 @@ Referenced by issue #95165, Regression: Custom Normals tools dont update immedia
 Referenced by issue #95155, Can't run Blender
 Referenced by issue #95095, Blender crashes when using image sequences for displacement after playing 250 frames
 Referenced by issue #95021, Blender 3.0 Crash during edit mode with a mesh
+Referenced by issue #94946, Random Crash while Texture Baking
