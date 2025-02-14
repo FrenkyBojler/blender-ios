@@ -1,2 +1,3 @@
 Referenced by issue #88500, Maximize button in the header is broken
 Referenced by issue #88384, Window size/location are not properly saved in default start-up file
+Referenced by issue #86804, Window positions are altered by Save Startup File
