@@ -3,3 +3,4 @@ Referenced by issue #97963, Blender 3.2 / Linux - Crashing To Desktop at opening
 Referenced by issue #97737, GPU Subdivision: Crash after opening particular files
 Referenced by issue #97606, Crash on linux with amd gpu with two subdivision modifiers
 Referenced by issue #97315, Regression: Cycles visual glitches and hangs in alpha using HIP GPU
+Referenced by issue #96435, Regression: very long input delay when dragging some gizmos handles in macOS
