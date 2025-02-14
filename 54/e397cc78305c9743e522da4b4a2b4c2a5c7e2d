@@ -1,2 +1,3 @@
 Referenced by issue #120231, Crash on `bpy.ops.uv.pack_islands` for certain geometry with `shape_method='CONVEX'`
 Referenced by issue #109986, Regression: Using Grease Pencil Sculpt Grab Tool on a Stroke affected by Subdivide Modifier will Crash Blender
+Referenced by issue #109218, Frame change handler no longer entered when playback stops
