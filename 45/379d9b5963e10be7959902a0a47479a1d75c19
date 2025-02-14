@@ -1,1 +1,2 @@
 Referenced by issue #121266, Regression: Snap toggle during transform doesn't stick afterwards
+Referenced by issue #121103, Object bounds by modifiers are ignored by snapping
