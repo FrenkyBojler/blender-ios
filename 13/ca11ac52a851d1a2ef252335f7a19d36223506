@@ -1,1 +1,2 @@
 Referenced by commit 67353ae630c, Fix build error on builds without audaspace
+Referenced by issue #77580, Sequencer: restructuring the code layout
