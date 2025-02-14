@@ -1,1 +1,2 @@
 Referenced by issue #114509, temp_override with bpy.ops.screen.area_close() affects the bpy.context permanently
+Referenced by issue #110787, Fix #110632: temp context doesn't always restore original area or region at exit.
