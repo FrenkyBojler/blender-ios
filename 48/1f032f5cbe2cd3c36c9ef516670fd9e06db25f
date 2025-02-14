@@ -1,1 +1,2 @@
 Referenced by commit 03c95635824, Fix T93431: Crash when empty is marked as asset
+Referenced by issue #93431, Asset Browser: Crash on add Empty or collection instance
