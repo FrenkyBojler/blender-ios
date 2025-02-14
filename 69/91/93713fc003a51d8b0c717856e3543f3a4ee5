@@ -1,2 +1,3 @@
 Referenced by issue #71199, Child-parent relationships arent kept after you make instances real
 Referenced by issue #66282, Make Instances Real: Keep Hierarchy option has no effect when duplicates are collection instances
+Referenced by issue #58592, Keyboard shortcut cut links (Ctrl + click) don't work in the Shader Editor
