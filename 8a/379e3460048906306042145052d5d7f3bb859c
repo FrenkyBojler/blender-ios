@@ -1,2 +1,3 @@
 Referenced by commit e37b9b5d0d2, Revert "3D Text: avoid checking null character's text on path"
 Referenced by commit 964a3f10975, Revert "3D Text: avoid checking null character's text on path"
+Referenced by issue #58284, Cursor position wrong when edit text on curve
