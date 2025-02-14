@@ -8,3 +8,4 @@ Referenced by issue #105577, Python API allows setting negative material indices
 Referenced by issue #105518, Regression: Crash in edit mode with boolean and subdivision modifier
 Referenced by issue #103051, Regression: Deleting a material slot in 3.4 assigns faces to the material below instead of the material above
 Referenced by issue #102522, GN: Boolean doesent respect material index
+Referenced by issue #102502, Regression: DAE Imports materials wrong
