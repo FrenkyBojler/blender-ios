@@ -10,3 +10,4 @@ Referenced by issue #61043, Blender crashes on VSE zoom / scroll timeline someti
 Referenced by issue #59764, Crash when opening a file in 2.79 saved with 2.8
 Referenced by issue #59042, Subdivision mangling texture UVs and Vertex Colors in 2.80
 Referenced by issue #58896, OBJ file import fails for objects with vertex groups defined when polygroups option is selected
+Referenced by issue #58681, Blender 2.8 beta "no hair connected"
