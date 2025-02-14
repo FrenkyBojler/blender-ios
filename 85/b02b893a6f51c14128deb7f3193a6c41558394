@@ -8,3 +8,4 @@ Referenced by issue #112231, Regression: Workbench does not display sculpt textu
 Referenced by issue #112164, Regression: Circle select tool low performance
 Referenced by issue #111555, Regression: VSE scene strips not working in 4.0 alpha?
 Referenced by issue #111466, EEVEE: viewport drawing and assert hit with GPv3 object
+Referenced by issue #110998, Sphere is does not showing color in solid mode from material
