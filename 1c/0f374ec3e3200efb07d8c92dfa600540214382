@@ -7,3 +7,4 @@ Referenced by issue #128194, Object looses transformation after unlining from sc
 Referenced by issue #125780, Object World Matrix in duplicated scene is not accessible
 Referenced by issue #125565, Unexpected behavior when clearing parent then switching to 'Clear and Keep Transformation' using operator panel
 Referenced by issue #125335, object loses initial transform on redo, when operator manipulates world matrix
+Referenced by issue #124278, matrix_world.to_translation() loses data somehow and returns (0.0, 0.0, 0.0) during operator re-do, only in certain cases (blender 4.2)
