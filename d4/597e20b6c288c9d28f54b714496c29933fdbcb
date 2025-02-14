@@ -1,2 +1,3 @@
 Referenced by issue #127464, 4.3: HIP-RT performance regression
 Referenced by issue #127240, Deforming motion blurred point clouds do not render in Cycles HIP-RT when BVH timesteps != 0 if Blender is launched with debug memory
+Referenced by issue #125086, Cycles render test: Failing HIP-RT tests
