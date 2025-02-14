@@ -1,1 +1,2 @@
 Referenced by commit 65870821da6, Fix: OBJ import unused parameter warning
+Referenced by issue #99502, OBJ/MTL import: behavior changed for missing texture files
