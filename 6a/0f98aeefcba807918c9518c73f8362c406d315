@@ -1,2 +1,3 @@
 Referenced by commit 2e1486da608, PyAPI: call 'sys.excepthook' for text editor exceptions
 Referenced by commit 75748f9d7a6, Fix error displaying exceptions in some cases
+Referenced by issue #115702, PyAPI: call 'sys.excepthook' for text editor exceptions
