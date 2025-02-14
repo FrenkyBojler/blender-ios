@@ -1,1 +1,2 @@
 Referenced by commit f78ed7b900e, Anim: rename Armature `show_group_colors` to `show_bone_colors`
+Referenced by issue #111259, Fix #108539: Bone Group color changes to RGB colorset
