@@ -3,3 +3,4 @@ Referenced by issue #56278, Blender 2.8 selection inconsistent between mouse and
 Referenced by issue #56238, Key A shortcut don't work
 Referenced by issue #56203, Blender 2.8 - Appending objects from 2.79 don´t appear in collections, only on viewport.
 Referenced by issue #56207, Blender 2.8 - Principled hair shader is not working on shade more or render mode (eevee)
+Referenced by issue #56193, Blender 2.8 crash on startup, but starts with -d --debug-gpu
