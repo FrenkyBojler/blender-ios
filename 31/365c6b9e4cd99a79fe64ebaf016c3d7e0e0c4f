@@ -1,1 +1,2 @@
 Referenced by commit 25c8d72e204, Fix T100747: Cannot add "String" attribute to mesh
+Referenced by issue #101660, Blender crash for mesh with string attribute.
