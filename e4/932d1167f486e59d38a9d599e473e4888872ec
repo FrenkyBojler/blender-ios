@@ -1,3 +1,4 @@
 Referenced by issue #82769, Crash rendering particle animation with particle caches [disk cache works though]
 Referenced by issue #81334, viewport drawing with gpu module
 Referenced by issue #80297, 2.91 texture alpha is not transparent
+Referenced by issue #80053, Vertices in Edit mode are gone?
