@@ -1,2 +1,3 @@
 Referenced by commit 9a6551543b9, Fix crash with Proportional Edit Connected in UV editing
 Referenced by issue #72325, UV Editor Individual Origins not working for Edges, Vertices and Faces
+Referenced by issue #63203, Individual Origins Broken in UV Editor
