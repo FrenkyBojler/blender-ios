@@ -58,3 +58,4 @@ Referenced by issue #68864, [CYCLES] Shadow catcher is not transparent in the vi
 Referenced by issue #68855, Texture on active object is not visible in solid view with sculpt mode activated
 Referenced by issue #68843, Invalid (pink) shader when using wireframe node [ Eevee ]
 Referenced by issue #68835, Auto Perspective does not work with Align View to Active
+Referenced by issue #68837, "GPU failed to find function math_max" - related to eevee and material's blend_method setting
