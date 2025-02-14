@@ -1,2 +1,3 @@
 Referenced by commit 6a7b54db203, Revert "Libs: Win64: hiprt 83e18cc9c3"
 Referenced by issue #126559, Anim: change how action strip data is stored
+Referenced by issue #121050, Cycles: Linux Support for HIP-RT
