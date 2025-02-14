@@ -1,0 +1,1 @@
+Referenced by commit 834523e2391, Cleanup/Fix RNA array length accessors returning non-zero values in invalid cases.
