@@ -15,3 +15,4 @@ Referenced by issue #60938, Blender refuses to unwrap a model ( after crashing )
 Referenced by issue #60926, outer 1 pixel corner of the image editor affects unwrapped faces
 Referenced by issue #60907, grease pencil and odd layer interactions
 Referenced by issue #60892, Corrective Shape Key on Mesh Deform
+Referenced by issue #60870, Overlay mismatch
