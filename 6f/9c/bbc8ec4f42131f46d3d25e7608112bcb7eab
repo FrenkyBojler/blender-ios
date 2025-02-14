@@ -1,1 +1,2 @@
 Referenced by issue #68629, Crash entering Edit Mode related to NULL CD_FACEMAP (fixed in 3.6, only relevant for 3.3. LTS)
+Referenced by issue #68610, B-Bone display size/scaling op issues
