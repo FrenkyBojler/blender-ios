@@ -2,3 +2,4 @@ Referenced by issue #102336, Regression: Enabling Dynamic Topology Causes Crash 
 Referenced by issue #102318, Regression: Smoothing a Mesh in Edit Mode Causes Segmentation Fault
 Referenced by issue #102311, Regression: Crash when opening a file from a directory that is part of the asset library
 Referenced by issue #102292, Regression: Crash when connecting certain sockets in Geometry Nodes 3.4
+Referenced by issue #99641, Assert hit when splitting video sequencer area horizontally
