@@ -1,1 +1,2 @@
 Referenced by commit 83124856d05, Cmake/macOS: strictly disallow searching in frameworks
+Referenced by issue #81817, heap use after free at clicking on splash screen's open button
