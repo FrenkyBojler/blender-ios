@@ -60,3 +60,4 @@ Referenced by issue #49007, Image Empties Crashing Blender
 Referenced by issue #48971, Append creates linked image textures if object has shape keys
 Referenced by issue #48975, Custom Properties within PropertyGroups cannot be animated when attached to a PoseBone
 Referenced by issue #48953, In dual monitor, Mesh disappears when Opensubdiv's on
+Referenced by issue #48944, Copy Rotation bone constraint on non-positively scaled armature
