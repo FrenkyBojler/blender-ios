@@ -3,3 +3,4 @@ Referenced by issue #40379, Cycles : CUDA Rendering : Environment with MIS uses 
 Referenced by issue #40217, Incredibly slow render on newer builds with cycles of smoke simulations
 Referenced by issue #40111, replaceMesh() Crashes BGE When Used on a Parented Object
 Referenced by issue #40054, Cycles Bake requires to save externally first/won't let me save file externally
+Referenced by issue #39928, Blender crash/freeze when game engine is started with animation played directly on camera object with parents.
