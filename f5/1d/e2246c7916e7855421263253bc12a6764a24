@@ -1,2 +1,3 @@
 Referenced by commit 8bae4427edb, Fix #111238: Arrow keys in some menus work in the opposite direction
 Referenced by issue #111341, Fix #111238: Arrow keys in some menus work in the opposite direction
+Referenced by issue #65641, Arrow keys work in the opposite direction to the expected when browsing collections
