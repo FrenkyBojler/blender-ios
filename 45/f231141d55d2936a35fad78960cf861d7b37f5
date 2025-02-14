@@ -3,3 +3,4 @@ Referenced by commit dec38419cd5, Fix: Menu search crash after recent PointerRNA
 Referenced by commit 190ea95ae66, Fix: Radial control operator crash after PointerRNA change
 Referenced by issue #134290, 4.5 Crash to desktop when applying shadowcatcher to multiple objects
 Referenced by issue #134155, Crash when searching in properties editor
+Referenced by issue #134144, Fix: Menu search crash after recent PointerRNA change
