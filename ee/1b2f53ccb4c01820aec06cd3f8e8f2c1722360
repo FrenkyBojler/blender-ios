@@ -1,0 +1,1 @@
+Referenced by commit 246a0ec46a9, Fix #126394: ffmpeg on win64 is built without SIMD optimizations
