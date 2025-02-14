@@ -1,3 +1,4 @@
 Referenced by commit e6838ecc260, Fix T53512: Vertices with index 0 were not being selected
 Referenced by commit 70c2d8a1a2b, Fix T53469: Make sure that edges are drawn in the backbuff whenever you are looking for the nearest edge
 Referenced by issue #53512, Mesh selection issue: vertex 0 is never selected when using circle, RMB or border selection
+Referenced by issue #53469, Loop Cut and Slide broken - purple lines do not show up (daily build)
