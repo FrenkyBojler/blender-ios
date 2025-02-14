@@ -1,2 +1,3 @@
 Referenced by issue #40427, Compound mesh not updated with Outliner children
 Referenced by issue #40402, addObject() 'time' parameter inconsistent
+Referenced by issue #40343, Levels of Detail causes crash with Armature Modifier
