@@ -61,3 +61,4 @@ Referenced by issue #40252, Angle constrain is ignored in favor of edge snapping
 Referenced by issue #40224, Moving objects to another layer crashes Blender
 Referenced by issue #40204, Tex boxes and paragraph x offset together
 Referenced by issue #40211, Animation clip is disconnected
+Referenced by issue #40189, Lock Render Layers doesn't work with F12 render shortcut
