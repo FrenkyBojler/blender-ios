@@ -2,3 +2,4 @@ Referenced by commit f5eae902777, Fix T79493: EEVEE LightProbe Display
 Referenced by issue #82280, Quick Smoke Doesn't Work In Already Established Scene
 Referenced by issue #81105, Eevee SSR quality regression in 2.91 alpha
 Referenced by issue #80141, Crash when adding a Volume Object or Quick Smoke
+Referenced by issue #79605, Material Preview Icons Lost Transparency For Their Background
