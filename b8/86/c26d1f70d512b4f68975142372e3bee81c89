@@ -1,2 +1,3 @@
 Referenced by commit 62f6d5351fc, Revert "Cycles: mix hair minimum width code with SSE intersection code"
 Referenced by issue #38304, cycles hair (curve segments) problem
+Referenced by issue #38168, Crash on exiting game engine from dynamic addition of variance spotlight.
