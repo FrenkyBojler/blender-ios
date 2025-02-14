@@ -1,0 +1,1 @@
+Referenced by issue #100956, Regression: BLI_assert failed: C:\blender-git\blender\source\blender\render\intern\engine.cc:1279, RE_engine_gpu_context_destroy(), at 'BLI_thread_is_main()'
