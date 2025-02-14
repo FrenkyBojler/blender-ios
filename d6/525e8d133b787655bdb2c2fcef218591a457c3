@@ -1,3 +1,4 @@
 Referenced by commit 344c001eae6, Fix T81669: Vertex size in UV Editor changes using Face Dot Size in themes
 Referenced by commit 6759b8a224e, Cleanup: silence [-Wmissing-braces] warning.
 Referenced by issue #110490, GPU: Fix signed/unsigned mismatches in shader code
+Referenced by issue #96575, Vertex Color in UV Editor
