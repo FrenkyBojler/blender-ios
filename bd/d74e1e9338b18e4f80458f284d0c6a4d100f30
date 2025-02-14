@@ -1,2 +1,3 @@
 Referenced by issue #98350, Regression: Crashes when painting on an image sequence with clone tool
 Referenced by issue #95871, Non float images have float buffers if displayed in the Image Editor once
+Referenced by issue #95731, Image viewer in blender is not scaling to 100% properly
