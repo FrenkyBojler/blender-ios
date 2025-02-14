@@ -9,3 +9,4 @@ Referenced by issue #74905, Transform gizmos having low opacity behind meshes.
 Referenced by issue #74424, Crash rendering animation
 Referenced by issue #74407, Using MeshDeform Modifier and Amature Modifier at the same time,will cause deformed object not following bones.
 Referenced by issue #74194, Crash when play after delete a grease pencil layer in dopesheet
+Referenced by issue #74111, Animation Playback Delayed With Time Remapping And AV-Sync
