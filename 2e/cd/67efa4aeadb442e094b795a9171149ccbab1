@@ -1,2 +1,3 @@
 Referenced by issue #47467, Boolean modifier is missing the "Use BMesh" option.
 Referenced by issue #47447, Segmentation Fault with Smoke on GPU in this scene
+Referenced by issue #47422, "Too many fonts!!!" gets printed on the console after repeatedly calling bpy.ops.wm.read_factory_settings()
