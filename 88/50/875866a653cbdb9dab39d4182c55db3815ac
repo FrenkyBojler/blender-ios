@@ -1,1 +1,2 @@
 Referenced by issue #58146, OpenColorIO Crash with 2nd Scene
+Referenced by issue #58148, Cycles GPU rendering not working properly GTX Titan (?misses light path bounces)
