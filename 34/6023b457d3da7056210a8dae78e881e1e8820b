@@ -1,2 +1,3 @@
 Referenced by commit 84b4b90e08c, Fix #112208: Vertex parenting index wrong with multiple splines
 Referenced by issue #112222, Fix #112208: Vertex parenting index wrong with multiple splines
+Referenced by issue #112208, Vertex parenting broken on Curve object with multiple splines
