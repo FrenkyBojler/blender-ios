@@ -1,1 +1,2 @@
 Referenced by commit d8cdc80263e, Fix T87808: Connected proportional editing includes hidden geometry
+Referenced by issue #89968, Regression: Strange crease when using proportional editing with the "connected only" option turned on (edge selected)
