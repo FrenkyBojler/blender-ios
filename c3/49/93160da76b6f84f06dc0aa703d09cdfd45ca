@@ -1,0 +1,1 @@
+Referenced by issue #46220, bpy.ops.mesh.primitive_torus_add does not inherit layer specification
