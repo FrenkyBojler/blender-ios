@@ -1,2 +1,3 @@
 Referenced by commit 54d3506253f, Fix error in rBa6eae7339190.
 Referenced by commit bf5ddb9728e, Fix T47198: Broken UV/VCol in BI and Cycles with some degenerated faces - BI part.
+Referenced by issue #47213, World Sampling in Cycles broken when rendering with GPU
