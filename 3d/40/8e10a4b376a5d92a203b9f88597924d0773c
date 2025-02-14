@@ -1,0 +1,1 @@
+Referenced by issue #38386, Alterations to TextLine.body are not added to the text undo buffer
