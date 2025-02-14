@@ -1,2 +1,3 @@
 Referenced by commit 63d759d6d40, Fix: UI: Failing assert when switching workspaces
 Referenced by commit 7d4190a8f3a, Fix startup crash when running in background mode after 172e9c5b83
+Referenced by issue #131387, Fix #130583: Crash opening a file when asset shelf is set for non-paint modes
