@@ -3,3 +3,4 @@ Referenced by commit 276a862ebc5, Fix failing alembic test after IDProperty UI d
 Referenced by issue #115046, Crash when updating Custom Property via PyAPI
 Referenced by issue #110935, Fix #110464: rna_idprop_ui_create() fails to create new string property
 Referenced by issue #92532, Python: calling id_properties_ui(key).update() without arguments, crashes blender
+Referenced by issue #91084, Object pose IDProperty UI data is not versioned
