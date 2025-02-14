@@ -1,3 +1,4 @@
 Referenced by issue #82957, Discrepancy in statistics reported by the 3d print addon, between 2.83.9 and 2.90.1
 Referenced by issue #82866, Analysis Overlay flagging faces as "intersecting" when they're not intersecting
 Referenced by issue #80444, Triangle-Triangle intersection regression in 2.90
+Referenced by issue #80396, Potential candidates for corrective releases
