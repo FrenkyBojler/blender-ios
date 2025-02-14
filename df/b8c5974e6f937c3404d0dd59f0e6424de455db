@@ -1,1 +1,2 @@
 Referenced by commit 51e5417bd37, Fix #105678: Crash assigning Image.pixels to an undersized sequence
+Referenced by issue #105678, Setting Image.pixels reads data past the end of the sequence if the sequence is too short
