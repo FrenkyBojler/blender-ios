@@ -1,0 +1,1 @@
+Referenced by issue #44264, if (X) { somecode1 } else if ( X ) { somecode2 } construct in paint_image.c
