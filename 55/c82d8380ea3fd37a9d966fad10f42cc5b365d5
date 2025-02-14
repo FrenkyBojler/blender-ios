@@ -1,2 +1,3 @@
 Referenced by commit 693aa573db4, Fix T96585: Intersect(Knife) tool is selecting wrong edges
 Referenced by issue #96585, Regression?: Intersect(Knife) tool is selecting wrong edges after application
+Referenced by issue #84493, New Boolean Solver: Doesn't cut an object (Suzanne) correctly when the mesh is open.
