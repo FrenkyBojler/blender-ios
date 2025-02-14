@@ -3,3 +3,4 @@ Referenced by commit 79a34758f52, Fix T103253: Infinite drag of number buttons i
 Referenced by issue #103337, Regression: Infinite drag in the 3D viewport sometimes gets stuck on the edge of the screen.
 Referenced by issue #103253, Regression: Infinite drag of number buttons is broken
 Referenced by issue #103088, Select and slide in transform values Jumps all over
+Referenced by issue #89399, Mouse wrapping causes erratic movement
