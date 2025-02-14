@@ -78,3 +78,4 @@ Referenced by issue #68240, Blender 2.8 crashes
 Referenced by issue #68237, Cycles. "/" button of the numeric keypad do not hide objects from view.
 Referenced by issue #68164, Clicking on Shader tab causes crash
 Referenced by issue #68166, shadow lights
+Referenced by issue #68154, Fluid simulation viscosity presets do not update immediately after clicking presets.
