@@ -1,0 +1,1 @@
+Referenced by issue #133415, context.property does not return correct bpy.types.ID
