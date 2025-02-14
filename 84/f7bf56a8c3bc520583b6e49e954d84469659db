@@ -1,0 +1,1 @@
+Referenced by issue #90855, VSE: Preview uses proxy (not project) dims for pixel-based X/Y position translations in "Effect strip" section of Transform strip (but always renders correctly)
