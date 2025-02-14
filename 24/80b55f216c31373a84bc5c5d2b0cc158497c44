@@ -2,3 +2,4 @@ Referenced by commit 12becbf0dff, Mesh: Move selection flags to generic attribut
 Referenced by commit ee23f0f3fb5, Sculpt: Separate hide status from face sets, use generic attribute
 Referenced by commit 043f59cb3b5, Fix weight paint smoothing with vertex selection.
 Referenced by commit a6056b870b1, Fix T100494: Broken sculpt hide status undo/redo
+Referenced by commit 74d716ce23a, Fix error/crash in hidden edge drawing after recent changes
