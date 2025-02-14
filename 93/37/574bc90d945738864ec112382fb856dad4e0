@@ -30,3 +30,4 @@ Referenced by issue #41848,  startup file have problem with indirect lightning .
 Referenced by issue #41854, Activated Mutlittexture shading show not the material color corect..
 Referenced by issue #41827, Blender Error
 Referenced by issue #41829, Normal Map in Material Node going wrong
+Referenced by issue #41809, Rigid body Constraint: Generic are crazy for rotation along Y axis (Bullet issue?)
