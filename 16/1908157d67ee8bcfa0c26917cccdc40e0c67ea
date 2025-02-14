@@ -1,1 +1,2 @@
 Referenced by commit 4cc94679ddb, MSVC: suppress additional warnings out of external headers
+Referenced by commit 30f3ffce058, Fix building with ninja on windows
