@@ -9,3 +9,4 @@ Referenced by issue #80931, UV Editor proportional editing circle draws wrong
 Referenced by issue #80787, 2.91 Image Editor Quick Smoke (Fire) Pure Emission is displayed as (1.0, 1.0, 1.0) even when the actual values are 5 orders of magnitude lower.
 Referenced by issue #80705, Texture Paint, New Single image, Segmentation fault: 11
 Referenced by issue #67530, DesignTask: Add Drawing Of Image/UV Editor to the Draw Manager
+Referenced by issue #52680, Alpha difference Viewport/F12
