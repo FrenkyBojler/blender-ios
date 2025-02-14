@@ -5,3 +5,4 @@ Referenced by issue #38128, Snaping to any node border
 Referenced by issue #38129, Mesh with Emission material becomes black if strength is higher than 82000
 Referenced by issue #38112, Rigid Body can't be created for objects with linked mesh
 Referenced by issue #38116, Hang on trying to write crash report
+Referenced by issue #37038, User prefs > Input - Category names cut off
