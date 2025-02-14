@@ -1,0 +1,1 @@
+Referenced by issue #80100, "To Sphere" function's tooltip is refering to vertices, even though the function can be used in object mode.
