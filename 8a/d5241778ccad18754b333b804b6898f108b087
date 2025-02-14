@@ -1,0 +1,1 @@
+Referenced by issue #95250, Texture border generation. Adjacent faces  uses stale UV map when in edit mode.
