@@ -1,0 +1,1 @@
+Referenced by issue #95246, Undo bone rotation after previous frame/keyframe jump operators undoes frame jump as well (frame in UI is still the same though)
