@@ -29,3 +29,4 @@ Referenced by issue #39006, Rendering an image on 2.70RC1 only shows a black ima
 Referenced by issue #38998, Copy Previous Settings Not Working, with accented Username
 Referenced by issue #39000, Align Objects Axis button is not redraw
 Referenced by issue #38987, Dope sheet is inoperable by numpad [.] .
+Referenced by issue #38991, Translate with explicit axis and amount malfunctions as soon as I add a unit
