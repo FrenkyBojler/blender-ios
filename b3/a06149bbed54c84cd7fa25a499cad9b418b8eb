@@ -1,2 +1,3 @@
 Referenced by commit d53d7a42df7, Fix #132449: Crash converting empty curves to mesh
 Referenced by issue #132453, Fix #132449: Crash converting empty curves to mesh
+Referenced by issue #132449, Crash when converting curves to mesh via addon
