@@ -1,1 +1,2 @@
 Referenced by commit a6fb6706a88, Revert "FCurve Transform: scaling no longer changes hansle types"
+Referenced by issue #39457, F-Curve Handles cannot be scaled along x-axis in Graph editor
