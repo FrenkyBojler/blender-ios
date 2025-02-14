@@ -1,1 +1,2 @@
 Referenced by commit 22dfb506229, Fix T44128: Ray visibility only enables diffuse if glossy is also enabled
+Referenced by issue #42621, Unchecking glossy ray option in ray visibility section of World settings also eliminates transmission rays
