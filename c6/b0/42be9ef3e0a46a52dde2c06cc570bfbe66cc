@@ -8,3 +8,4 @@ Referenced by issue #46470, Blender craches when "character" physic type is sele
 Referenced by issue #45996, Crash (seg fault) when baking combined in Cycles
 Referenced by issue #45945, Action "Bouncing" when mixing automatic and manual action updates
 Referenced by issue #45907, VSE speed incorrect
+Referenced by issue #45910, [Rendered] Viewport Shading not running
