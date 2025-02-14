@@ -1,2 +1,3 @@
 Referenced by commit 1c1efe3ac60, Fix memory leak evaluating PyDrivers
 Referenced by issue #77086, Passing Dependency Graph to Drivers
+Referenced by issue #75553, python unreliable result  for bpy.context.view_layer.name when used in drivers
