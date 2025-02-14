@@ -12,3 +12,4 @@ Referenced by issue #61009,  'Open Recent' remembers 'Load UI' setting from last
 Referenced by issue #61014, Assert adding a driver that uses a single property of a scene ID
 Referenced by issue #61016, Camera's should have selectable focus objects while in the workbench render engine
 Referenced by issue #60713, EEVEE crashes during shader compilation
+Referenced by issue #60660, TEXTURE PAINT tab BUG- Undo a simple PAINT operation using CTRL-Z and it removes entire TEXTURE IMAGE-Workarounds and Thorough Steps to Repeatability BELOW.
