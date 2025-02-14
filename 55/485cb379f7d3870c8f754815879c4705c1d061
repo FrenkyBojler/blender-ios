@@ -18,3 +18,4 @@ Referenced by issue #104140, Blender crashes after opening the Shading window
 Referenced by issue #104039, Grease Pencil: Multiframe Fill exits the program.
 Referenced by issue #104000, python site-packages are not recognized after install (bug on linux / workes fine on Windows)
 Referenced by issue #103972, Regression: Crash when setting cloth simulation rest shape key with subdivision modifier
+Referenced by issue #103951, EXCEPTION_ACCESS_VIOLATION Error
