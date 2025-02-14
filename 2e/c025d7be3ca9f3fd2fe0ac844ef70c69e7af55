@@ -1,1 +1,2 @@
 Referenced by commit 29a7b1b64dd, VSE: Remove the use of eval in Fades operators
+Referenced by commit c9048e8e413, Sequencer: disable fades add/remove until eval() use is removed
