@@ -1,0 +1,1 @@
+Referenced by issue #45439, Adding subsurf on selected object in this file crashes Blender with Asan (heap buffer overflow).
