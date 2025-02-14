@@ -1,0 +1,1 @@
+Referenced by issue #78350, "OptiX backed does no support 'Ambient Occlusion' and 'Bevel" shader nodes yet" error occurs even when using OptiX denoiser only
