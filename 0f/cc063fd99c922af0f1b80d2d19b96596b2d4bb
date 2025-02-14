@@ -1,1 +1,2 @@
 Referenced by commit aee04d49603, Fix T89246: No Mnemonic Underlines in Dialogs
+Referenced by issue #88801, Mnemonics underline in menus is off center and needs some extra padding with custom fonts
