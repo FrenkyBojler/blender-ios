@@ -1,1 +1,2 @@
 Referenced by commit 994e3c6ac56, Clarify depsgraph API usage in the libraries code
+Referenced by issue #89835, Crash after Instancing to Scene after making linked Collection local
