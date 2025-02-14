@@ -28,3 +28,4 @@ Referenced by issue #42891, Blender Internal Material Node
 Referenced by issue #42878, OSL hard  crash
 Referenced by issue #42822, constraint transform dont use local axis
 Referenced by issue #42795, Crash with huge texture sizes, doesn't crash when same texture is split up and put on different objects
+Referenced by issue #42798, "snap onto itself" problem
