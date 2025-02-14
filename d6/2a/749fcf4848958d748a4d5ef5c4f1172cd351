@@ -3,3 +3,4 @@ Referenced by issue #65748, Unsubdivide support for non-grid topology
 Referenced by issue #65647, EEVEE: Contact shadows "Softness" settings darkens all objects
 Referenced by issue #65493, Duplicate-and-Rotate breaks Duplicate-and-Move redo panel
 Referenced by issue #65490, Toggling "Linked" checkbox in redo panel makes all future Duplicate operations into Duplicate Linked
+Referenced by issue #65352, bpy.data.meshes.new_from_object() doesn't increment user count for materials referenced by the mesh
