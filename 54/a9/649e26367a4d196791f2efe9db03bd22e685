@@ -4,3 +4,4 @@ Referenced by issue #70615, Cycles ignores normal inputs when fed by nodes witho
 Referenced by issue #70602, Cycles failed to compiling kernal for baking with AMD GPU
 Referenced by issue #70582, Crash in Grease Pencil Draw mode when pressing Shift Alt Left Mouse
 Referenced by issue #70547, Visual glitches in edit mode after applying Subdivision Surface to torus mesh
+Referenced by issue #60043, macOS viewport lagging
