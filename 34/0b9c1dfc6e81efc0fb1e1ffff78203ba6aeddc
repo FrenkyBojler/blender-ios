@@ -1,3 +1,4 @@
 Referenced by issue #72968, simply moving the render window is terribly slow
 Referenced by issue #70664, Viewport - infinite rendering loop
 Referenced by issue #70657, Anti-Aliasing problem
+Referenced by issue #70661, Cycles in viewport stuck on initializing indefinitely
