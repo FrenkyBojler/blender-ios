@@ -2,3 +2,4 @@ Referenced by commit 4d7c9901800, Fix T98061: uv resize with individual origins 
 Referenced by issue #101130, Regression: Scaling of NLA Strip Via S Hotkey Not Working
 Referenced by issue #100246, Ambient Occlusion crashes CUDA
 Referenced by issue #100034, Glitches with new AMD drivers (Adrenalin 22.7.1 or 22.8.2) when overlay has transparent images
+Referenced by issue #99721, Logical Bugs in Parsing process in Blender-Thumbnailer
