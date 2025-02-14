@@ -1,1 +1,2 @@
 Referenced by issue #81155, `Keyframe.select_control_point` cannot be `False`
+Referenced by issue #80942, Blender 2.9 crashes in Material Preview mode
