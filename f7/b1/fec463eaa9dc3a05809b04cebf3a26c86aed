@@ -1,1 +1,2 @@
 Referenced by issue #56256, When loading any add-ons or when using any edit mode hotkeys blender reports a crash.
+Referenced by issue #56251, Outliner crash on selecting nested
