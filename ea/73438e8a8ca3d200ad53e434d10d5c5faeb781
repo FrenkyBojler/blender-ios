@@ -1,0 +1,1 @@
+Referenced by issue #107847, BKE_id_copy: Handle properly case when copying IDs into non-local destination (aka copied ID will belong to a library)
