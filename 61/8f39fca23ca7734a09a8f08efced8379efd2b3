@@ -5,3 +5,4 @@ Referenced by commit 90864d3fb80, Curve: operate on handles when the knot is sel
 Referenced by issue #118188, Left-click selection with Tweak tool instead of moving 3d-cursor
 Referenced by issue #117016, Cannot select curve handles in Blender 4 as in previous versions
 Referenced by issue #116402, Curve Hook modifier broken due to selection changes
+Referenced by issue #115887, Fallback Tools are only tweaking single elements
