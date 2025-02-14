@@ -1,3 +1,4 @@
 Referenced by issue #95834, SpaceView3D.draw_handler_add with PRE_VIEW draw type does not result in visible draws
 Referenced by issue #88566, Mantaflow inflow with shapekeys is not working anymore (regression)
 Referenced by issue #74633, Can't keyframe material attribute when image sequence involved
+Referenced by issue #49473, Mac Dock Bug. Even when App is in dock as shortcut, app opens new instance in Dock.
