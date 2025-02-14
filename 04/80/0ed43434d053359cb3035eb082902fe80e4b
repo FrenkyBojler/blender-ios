@@ -1,2 +1,3 @@
 Referenced by issue #53835, Disabled Renderlayers still get saved (blank) through File Output Node when connected to Composite Node
 Referenced by issue #53683, 2.79a release
+Referenced by issue #52113, compositor doesnt mix unrendered render layers well
