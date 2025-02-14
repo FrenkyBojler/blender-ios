@@ -1,2 +1,3 @@
 Referenced by commit 87cff57207c, Fix T44123: Cycles SSS renders black in recent builds
 Referenced by issue #44123, Cycles SSS completely broken in recent builds, renders as black
+Referenced by issue #44007, Cycles Volumetrics: block artifacts with overlapping volumes
