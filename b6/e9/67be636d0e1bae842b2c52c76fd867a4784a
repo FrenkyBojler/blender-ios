@@ -1,0 +1,1 @@
+Referenced by issue #39053, 2.70 RC1 Actuator editObject.replaseMesh replaced only mesh, and not replaced material.
