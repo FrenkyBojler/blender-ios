@@ -3,3 +3,4 @@ Referenced by issue #95903, Geometry node don't expose materials to the solidify
 Referenced by issue #95720, Spreadsheet does not display volume grid information for import vdb file
 Referenced by issue #94209, Viewport artifacts, slowdown, and crashing on Arch Linux w/ Intel graphics after driver update
 Referenced by issue #93949, save_as_mainfile will crash if context has no screen
+Referenced by issue #93479, 3.0 Potential candidates for corrective releases
