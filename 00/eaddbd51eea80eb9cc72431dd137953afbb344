@@ -2,3 +2,4 @@ Referenced by issue #116727, Regression: Geometry Nodes: Crash for node tree del
 Referenced by issue #116368, Geometry Nodes: Change of geometry with Bake node is delayed in viewport
 Referenced by issue #116369, Geometry Nodes: Baked animation no longer works after Scene Time node is removed
 Referenced by issue #116348, Geometry Nodes: Crash when adding data socket to Bake node after baking
+Referenced by issue #116308, Regression: The color ramp node behaves strangely in geometry nodes
