@@ -1,2 +1,3 @@
 Referenced by issue #48091, Driven bone spins to fast
 Referenced by issue #48057, Copy Pasting does not respect layers.
+Referenced by issue #48027, not freed memory blocks on regular exiting
