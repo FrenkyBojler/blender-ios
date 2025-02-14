@@ -12,3 +12,4 @@ Referenced by issue #100166, Diffuse Light pass not working as expected in 3.2 E
 Referenced by issue #100125, shader to RGB node doesn't work correctly in blender3.2
 Referenced by issue #99606, Regression: Texture Coordinate node still losing precision when camera moves away from origin of scene.
 Referenced by issue #99138, Regression: Principled volume in world shader density with texture does not work anymore since 3.2 (Eevee)
+Referenced by issue #99120, Regression: Crash due to high memory usage when compiling Eevee shaders on AMD GPUs
