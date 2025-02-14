@@ -1,2 +1,3 @@
 Referenced by issue #80258, Crash on choosing Lattice in panel property
 Referenced by issue #80088, Mantaflow FLIP particles not working correctly
+Referenced by issue #79859, MacOS EEVEE 2.90 crash on second render
