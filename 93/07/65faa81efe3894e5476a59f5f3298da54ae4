@@ -1,3 +1,4 @@
 Referenced by commit 7d44184c85c, Fix T65094: Sequencer crashes blender when scene strip has NULL scene
 Referenced by issue #39247, 2.70 CUDA Error: Not found in cuModuleGetTextRef(&texref,cuModule, name)
 Referenced by issue #39227, Multi-Number Button Editing doesn't work on Y value of the objects Dimensions on the Transform Properties Panel
+Referenced by issue #39208, Adding scene to another scene's VSE causes audio and video to be unsynchronized
