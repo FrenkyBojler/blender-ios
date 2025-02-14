@@ -1,1 +1,2 @@
 Referenced by commit 5ff4e5fcb9c, Sculpt: Avoid rebuilding draw vertex buffers for visibility changes
+Referenced by commit f52b813c360, Fix #127462: Sculpt drawing crash with hidden mesh faces
