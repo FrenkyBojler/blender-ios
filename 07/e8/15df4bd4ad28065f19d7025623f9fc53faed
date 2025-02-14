@@ -1,0 +1,1 @@
+Referenced by issue #44076, SSAO in solid mode in viewport disables Antialiasing for wireframe mode too.
