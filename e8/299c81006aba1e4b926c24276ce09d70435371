@@ -19,3 +19,4 @@ Referenced by issue #50846, Blender crashes when adding inverse kinematics
 Referenced by issue #50850, Blender crash with cycles rendered viewport shading when changing settings of material with external jpg texture
 Referenced by issue #50851, Specific scene multiple case crashes, but mostly on render
 Referenced by issue #50805, "Light path"-"is Singular Ray" node Affects material visibility trough a glass material different way in two Blender versions
+Referenced by issue #50757, Alembic material import bug
