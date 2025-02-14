@@ -1,0 +1,1 @@
+Referenced by issue #98712, Lots of animation-related operators do not check if the data is editable or not
