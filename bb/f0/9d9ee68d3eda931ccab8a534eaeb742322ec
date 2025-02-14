@@ -54,3 +54,4 @@ Referenced by issue #43568, 3D View navigation bug - zoom stops working
 Referenced by issue #43569, Korean(Asian) IME input a bug in Blender 2.73
 Referenced by issue #43556, Brush radius getting stuck when 8 pixels or smaller (retina display, Yosemite)
 Referenced by issue #43558, Brush fails in some perspectives and in certain distances from the object.
+Referenced by issue #43562, Cycles gets stuck rendering final tile at 100% CPU
