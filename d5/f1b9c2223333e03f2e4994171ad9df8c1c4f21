@@ -1,3 +1,4 @@
 Referenced by commit 8c1b805f872, Freestyle: Partial fix for a crash with Save Buffers option enabled.
 Referenced by commit de687b6fa02, Fix T44465: Crash using VSE OGL render + Grease Pencil
 Referenced by issue #97735, Stereo Convergence Plane Distance value is arbitrarily limited when mouse is used to increment it beyond a point.
+Referenced by issue #97716, In stereo interlaced mode the brush cursor is shown in mono
