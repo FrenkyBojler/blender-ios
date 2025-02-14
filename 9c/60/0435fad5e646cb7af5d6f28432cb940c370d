@@ -1,3 +1,4 @@
 Referenced by issue #48848, Cycles - Camera Culling - Camera Culling removes objects which are still in frame
 Referenced by issue #48691, Cycles - OpenCL - HDR Image mapping does not match CUDA rendering
 Referenced by issue #48695, Significant slowdown when editing a mesh with shrinkwraps & slightly high poly
+Referenced by issue #48649, Metastrip bug
