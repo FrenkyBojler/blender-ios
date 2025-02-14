@@ -52,3 +52,4 @@ Referenced by issue #47742, Blender cannot remember last used name and path whil
 Referenced by issue #47722, FBX export interpolation is not accurate
 Referenced by issue #47699, VSE - FLAC stips play continuously instead of seeking from cursor
 Referenced by issue #47702, Freestyle not fully drawing edge marked lines in Blender Render
+Referenced by issue #47677, Text Object Outline fails to daplay
