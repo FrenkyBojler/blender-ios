@@ -1,2 +1,3 @@
 Referenced by issue #96239, backward compatibility issue: old files break all addons that use render layer socket identifiers due to naming convention change.
 Referenced by issue #53813, "Denoising Image" pass node connections don't get saved
+Referenced by issue #53683, 2.79a release
