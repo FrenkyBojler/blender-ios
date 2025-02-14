@@ -1,3 +1,4 @@
 Referenced by commit 4681987d92c, Fix T96156: Snap to 3D cursor can't be undone
 Referenced by commit 6e26c615af3, Fix T92663: Snap Selected to Active not working properly
 Referenced by commit 16f468fb140, Fix T92514: Edit-mode bone snap to cursor uses the center of the bone
+Referenced by issue #96156, Selection to 3D cursor operation cannot be redone
