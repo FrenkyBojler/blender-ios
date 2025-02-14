@@ -2,3 +2,4 @@ Referenced by commit 9a6dc39d4b8, Sculpt: Fix T101694: Change operator for unhid
 Referenced by issue #101722, Regression: Missing default face set for primitive meshes
 Referenced by issue #101699, Regression: Crash in sculpt mode using shift+h
 Referenced by issue #101694, Regression: Sculpting Faceset menu: SHOW_ALL not found error
+Referenced by issue #101480, Blender GPU Render crashes with NVidia in Ubuntu
