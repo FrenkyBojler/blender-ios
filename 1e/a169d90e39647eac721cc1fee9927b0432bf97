@@ -2,3 +2,4 @@ Referenced by commit 0bda626ba3f, Fix #120721: Collada: Import with loose edges 
 Referenced by commit e0fbeb6e7ba, Fix T103225: Line Art modifier skips loose edges
 Referenced by issue #120737, Fix #120721: Collada: Import with loose edges not immediately show them
 Referenced by issue #120721, Collada: Import with loose edges not immediately show them
+Referenced by issue #95966, Struct of Arrays Refactor for Mesh Edges
