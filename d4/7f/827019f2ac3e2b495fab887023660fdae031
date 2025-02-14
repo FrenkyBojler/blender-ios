@@ -1,3 +1,4 @@
 Referenced by issue #65349, Resetting transforms of armatures with meshes produces unexpected results
 Referenced by issue #62810, Workbench Anti-Aliasing behavior inverted
 Referenced by issue #62749, Crash on selecting edges with multi-edit mode
+Referenced by issue #62731, Blender crashes after opening material tab.
