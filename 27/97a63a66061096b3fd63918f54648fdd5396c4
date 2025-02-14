@@ -1,1 +1,2 @@
 Referenced by issue #78004, Instant crash when Shift+D duplicating a Collection Instance
+Referenced by issue #77754, Crash after any alembic import undo in an empty scene
