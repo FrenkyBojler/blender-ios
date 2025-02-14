@@ -1,3 +1,4 @@
 Referenced by issue #41354, UV-sculpting brush cursor disappears after second time of activating it.
 Referenced by issue #41335, Blender hair clamp error with texture map to density
 Referenced by issue #41318, OSL broken on Linux kubuntu 14.04
+Referenced by issue #41092, Very high memory usage for Cycles baking compared to ordinary renders
