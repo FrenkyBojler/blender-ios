@@ -1,1 +1,2 @@
 Referenced by commit c6f975e3e58, Better support for (mirrored) bbone scaling in pose mode
+Referenced by issue #63841, X-axis mirror do not scale corresponding bone with single bbone scale
