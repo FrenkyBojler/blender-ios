@@ -85,3 +85,4 @@ Referenced by issue #41279, BI is rendering blocky
 Referenced by issue #41268, Mesh geometry can not be edited - cant move vertices
 Referenced by issue #41241, VSE: cropping strips puts a transparent line through the image
 Referenced by issue #41232, Light does not show through the transparent part of an object
+Referenced by issue #41213, Emit texture working funny
