@@ -1,0 +1,1 @@
+Referenced by issue #96923, IMB_scaleImBuf super slow against large png files.
