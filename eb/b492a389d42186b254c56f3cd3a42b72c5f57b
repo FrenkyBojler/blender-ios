@@ -1,1 +1,2 @@
 Referenced by issue #115648, New Windows install, multiple Blender versions crash:  EXCEPTION_ACCESS_VIOLATION  (Python 3.12.0 conflict?)
+Referenced by issue #98131, Newly installed Blender won't open in windows 10 due to python error
