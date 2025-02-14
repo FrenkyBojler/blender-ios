@@ -3,3 +3,4 @@ Referenced by commit 7abc1bc7d43, Fix #117760: Regression: Ctrl+Z causes Losing 
 Referenced by issue #119698, Fix #119697: Incorrect update after disabling light linking
 Referenced by issue #117834, Fix #117760: Regression: Ctrl+Z causes Losing Audio Sound
 Referenced by issue #117760, Regression: Ctrl+Z causes Losing Audio Sound
+Referenced by issue #117632, Regression: Crash when Using IME in the Fields Existing more than 24 Bytes Text
