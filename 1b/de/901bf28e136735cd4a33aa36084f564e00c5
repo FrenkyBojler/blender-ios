@@ -2,3 +2,4 @@ Referenced by issue #78171, Adjust Last Operation: Other changes outside that pa
 Referenced by issue #62473, Blender 2.80 Canceling  of visibility actions during opened panel with object default parameters.
 Referenced by issue #61828, Unable to get object to stay hidden while new mesh tool is active.
 Referenced by issue #134505, Bevel - CTRL + B: Options box closes when defining a profil.
+Referenced by pull request #134552, Fix #134505: Bevel redo panel closes when defining profile
