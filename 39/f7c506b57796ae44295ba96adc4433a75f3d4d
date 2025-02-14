@@ -1,2 +1,3 @@
 Referenced by commit a4bfa399e98, Fix #132631: Sculpt multires drawing performance regression
 Referenced by commit c3d7cd04240, Fix #132651: Multires sculpt drawing crash with color attribute overlay
+Referenced by issue #132651, Regression: Multires with color attribute in material view leads to a crash
