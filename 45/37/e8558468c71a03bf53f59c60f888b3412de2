@@ -1,1 +1,2 @@
 Referenced by commit 76de3ac4ce4, Cleanup: Remove data duplication from various lookup tables in Cycles
+Referenced by issue #53079, Blender Crash to Desktop Rendering with HDRI (EXR) Maybe others not tested
