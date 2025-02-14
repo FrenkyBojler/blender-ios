@@ -1,2 +1,3 @@
 Referenced by issue #60821, highlighting issues in Dope Sheet
 Referenced by issue #60806, CUDA error: Launch failed in cuCtxSynchronize(), line 1679
+Referenced by issue #60783, (Certain) shapekeys stopped working in 2.8
