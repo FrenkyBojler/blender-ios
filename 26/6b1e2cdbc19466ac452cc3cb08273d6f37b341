@@ -2,3 +2,4 @@ Referenced by issue #60300, GPU Fault while rendering scenes with subsurface sca
 Referenced by issue #59997, Unbaked Dynamic Paint Not Displayed in Rendered Output but Shows in Viewport
 Referenced by issue #59993, Blender segfault after switching to the material tab with a model imported from a GLTF file
 Referenced by issue #59979, Alpha textures Always Behind Grease Pencils
+Referenced by issue #51214, Dynamic Paint Works Only in Viewport Render
