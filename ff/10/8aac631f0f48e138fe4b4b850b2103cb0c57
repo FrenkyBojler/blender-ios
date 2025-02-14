@@ -1,3 +1,4 @@
 Referenced by issue #59446, Grease pencil mirror modifier with empty not mirroring over empty object
 Referenced by issue #59313, Rig disapears
 Referenced by issue #59223, Textured spotlights not working in OpenCL GPU compute rendering
+Referenced by issue #53544, undo on bones in pose mode selects all channels in graph editor
