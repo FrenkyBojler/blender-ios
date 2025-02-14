@@ -54,3 +54,4 @@ Referenced by issue #50422, Blender stops working when I minimize it
 Referenced by issue #50406, Blender shutdown when use scale with shrinkwrapped objects
 Referenced by issue #50408, Port EXCEPTION_ACCESS_VIOLATION fix to 2.76b
 Referenced by issue #50409, texture to compositig cause crash
+Referenced by issue #50399, Imported FBX Animation (coming from Unreal Engine) makes Blender switch to 25 FPS
