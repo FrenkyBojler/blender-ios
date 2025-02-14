@@ -1,2 +1,3 @@
 Referenced by commit 5b87862ddca, Curves: Further split of curves draw code from particles
 Referenced by commit 180163c4e44, Cleanup: Further hair to curves renaming
+Referenced by issue #96455, Render engine support for curves data-block
