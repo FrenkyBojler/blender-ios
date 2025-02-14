@@ -3,3 +3,4 @@ Referenced by issue #65703, Shift K in sequence editor
 Referenced by issue #65669, Bones in Envelope Display break apart after selecting bone at id 0.
 Referenced by issue #65670, Bone Envelope Head Radius property missing from Properties->Transform panel (Also, it's redundant)
 Referenced by issue #65672, Armature X-Mirror inconsistencies (Pose Mode)
+Referenced by issue #65651, Crash when changing audio strip source file
