@@ -2,3 +2,4 @@ Referenced by issue #46801, Smart UV Project scales in one dimension to pack the
 Referenced by issue #40363, Cycles: CUDA renderings are approximately 30% slower in 2.71-testbuild1
 Referenced by issue #39977, Hotkey Inconsistancy for cycles nodes
 Referenced by issue #39113, Invalid displacement of emitted objects in viewport
+Referenced by issue #39116, Blender crashes when clicking in the field 'Mesh Analysis' in the N-Panel
