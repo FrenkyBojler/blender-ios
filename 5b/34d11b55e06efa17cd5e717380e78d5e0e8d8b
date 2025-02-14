@@ -1,1 +1,2 @@
 Referenced by commit 97cc130f472, Fix T85395: Texture paint external edit wrong projection on reapply
+Referenced by issue #85395, External edited texture applied with incorrect projection (wrong lens settings?)
