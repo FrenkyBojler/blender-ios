@@ -1,1 +1,2 @@
 Referenced by commit cd047de0267, Correction to previous fix of multiple releases of same ImBuf
+Referenced by issue #46705, Issues when disabling combined render layer
