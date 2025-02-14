@@ -1,3 +1,4 @@
 Referenced by commit e3b49bb8500, Fix T81200: Crash on certain armature select operators when OpenGL Depth
 Referenced by commit fc8a7a44b20, Fix T77560: Bone selection crashes
 Referenced by issue #81200, Select linked on armatures crashes when OpenGL Depth Picking is disabled
+Referenced by issue #77442, Bone selection fails Crashes in release, assert in debug build
