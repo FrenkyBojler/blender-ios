@@ -1,1 +1,2 @@
 Referenced by commit 938fa934c87, gameengine physics: removing compound option for character controllers
+Referenced by commit a7b0330c138, BGE: python API cleanup - using PyDoc_STRVAR instead of static char*
