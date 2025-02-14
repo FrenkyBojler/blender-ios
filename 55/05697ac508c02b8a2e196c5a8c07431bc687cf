@@ -1,1 +1,2 @@
 Referenced by commit 5c0d18f682b, Cleanup: remove unused sculpt texture cache generation
+Referenced by commit 48e0e0e2ac7, Fix T83439: Sculpt: Radial symmetry combined with mirroring results in texture offsets
