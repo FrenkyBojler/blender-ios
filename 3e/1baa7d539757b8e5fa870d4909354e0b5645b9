@@ -1,1 +1,2 @@
 Referenced by commit 7e02c901031, Fix WM_toolsystem_refresh_screen_all failing to refresh tools
+Referenced by issue #92357, Assert fails when entering another scene while in edit mode
