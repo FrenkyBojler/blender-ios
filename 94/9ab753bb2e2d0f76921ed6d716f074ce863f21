@@ -1,1 +1,2 @@
 Referenced by commit 44c6b6615b7, OpenCL: Bring back CYCLES_OPENCL_TEST override
+Referenced by issue #73734, Can't force the detection of OpenCL devices
