@@ -32,3 +32,4 @@ Referenced by issue #58217, Import bpy makes mesh duplicate when changing locati
 Referenced by issue #58218, Use scene lights in LookDev produces different results to when it's off when there are no lights.
 Referenced by issue #58219, Blender crashes if you attempt to change render layers or render slots
 Referenced by issue #58221, Blender crashes on "spin tool" use
+Referenced by issue #58202, Instanced children objects to parents are invisible in Cycles render
