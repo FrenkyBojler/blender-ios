@@ -1,1 +1,2 @@
 Referenced by commit 86a471efe71, Fix: field socket not showing as field socket
+Referenced by issue #106198, Realize instances node affects UVs (texture coordinate)
