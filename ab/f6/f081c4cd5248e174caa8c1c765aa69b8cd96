@@ -42,3 +42,4 @@ Referenced by issue #49177, FBX export parameters aren't saved with the .blend f
 Referenced by issue #49153, Can't save ("No such file or directory")
 Referenced by issue #49146, Right-clicking makes Blender 2.77 crash!
 Referenced by issue #49132, Blender 2.77a hangs when a lot of vertices are selected in "Separate By Loose Parts"
+Referenced by issue #49118, Blender 3D view - Solid (Blender Render) material diffuse and/specular not updating until tabbing into edit mode.
