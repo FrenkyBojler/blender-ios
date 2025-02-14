@@ -1,3 +1,4 @@
 Referenced by commit 0cf688401b7, Fix #125607: Double imports due to duplicate IO paths
 Referenced by issue #125607, Alembic importer imports everything twice
 Referenced by issue #125608, Fix #125607: Double imports due to duplicate IO paths
+Referenced by issue #119488, Complete File Handler support
