@@ -16,3 +16,4 @@ Referenced by issue #52316, Principled BSDF not available in Node Menu: Shift+A 
 Referenced by issue #52296, Impossible to make a screenshot
 Referenced by issue #52301, startup error
 Referenced by issue #52279, Scene->Exposure =Crash
+Referenced by issue #52280, The Image node in Compositing can't read Z buffer of openEXR in 2.79
