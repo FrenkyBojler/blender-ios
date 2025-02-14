@@ -1,3 +1,4 @@
 Referenced by issue #98765, Regression: Unable to select mask points in clip editor
 Referenced by issue #97545, EEVEE Viewport Shading crash (3.2.0 Alpha)
 Referenced by issue #97277, Regression: Tweak drag transforming is broken for masks (RMB select)
+Referenced by issue #97233, Gpu cycles rendering broken with hair particles
