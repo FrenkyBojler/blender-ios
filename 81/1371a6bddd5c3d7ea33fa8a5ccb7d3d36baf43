@@ -1,1 +1,2 @@
 Referenced by issue #96977, TODO: set the default margin generation back to extend for the baking of normals in tangent space.
+Referenced by issue #96942, Bake Normal problem when adjoining faces have different UV orientation
