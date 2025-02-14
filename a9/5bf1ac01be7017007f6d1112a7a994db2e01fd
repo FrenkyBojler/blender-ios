@@ -1,2 +1,3 @@
 Referenced by issue #108119, Exporting DAE of FBX with Textures don't work at all on mac.
 Referenced by issue #107632, EXCEPTION_ACCESS_VIOLATION (0x00007FF)
+Referenced by issue #107284, EXCEPTION_ACCESS_VIOLATION (0x00007FF)
