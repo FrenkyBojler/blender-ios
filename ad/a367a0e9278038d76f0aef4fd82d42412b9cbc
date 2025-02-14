@@ -6,3 +6,4 @@ Referenced by issue #132967, Geometry Nodes 4.3.1 Named Atribute read fails betw
 Referenced by issue #130929, Fix #130606: Crash when switching workspace
 Referenced by issue #130649, Fix #130606: Crash when switching workspace
 Referenced by issue #129948, Fix #129871: converting linked text to mesh results in empty mesh
+Referenced by issue #129871, Convert a text object sharing data with another one into mesh give empty mesh
