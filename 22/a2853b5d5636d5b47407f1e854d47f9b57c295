@@ -65,3 +65,4 @@ Referenced by issue #47908, Loop End action does not complete (behaves as Loop S
 Referenced by issue #47890, Masking vertices in weight paint doesn't work with subsurf
 Referenced by issue #47879, Drivers not working on cycles sky texture node
 Referenced by issue #47880, Move to layer still crash
+Referenced by issue #47870, Viewport rendering isn't updating with changing of values of a material node group. but working if you change inside node group!
