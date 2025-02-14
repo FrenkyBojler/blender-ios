@@ -73,3 +73,4 @@ Referenced by issue #44632, Blender doesn't start
 Referenced by issue #44634, Slide edge (ops.transform.edge_slide()) not responding to ALT + WHEEL to change reference edge in "even mode"
 Referenced by issue #44635, Cannot open multiple panels at once by LMB-drag over them as stated in the manual.
 Referenced by issue #44621, Convert Hair Particules (Whole Group) doesn't respect duplicated Group Hierarchy
+Referenced by issue #44622, Offsetting image sequence with driver on displace modifier texture does not work.
