@@ -1,1 +1,2 @@
 Referenced by commit 12becbf0dff, Mesh: Move selection flags to generic attributes
+Referenced by commit ee23f0f3fb5, Sculpt: Separate hide status from face sets, use generic attribute
