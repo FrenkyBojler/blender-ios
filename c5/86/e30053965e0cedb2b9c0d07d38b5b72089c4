@@ -11,3 +11,4 @@ Referenced by issue #46223, Open EXR multiview image sequences crash Blender 2.7
 Referenced by issue #46217, Baked normal artifacts
 Referenced by issue #46201, Popup menus on post_load handlers crash blender.
 Referenced by issue #46206, Unable to UNDO, moving to layers require manual clicking on the OK button, which isn't what it used to be
+Referenced by issue #46192, Incorrect transparency display in 3D window
