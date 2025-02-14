@@ -3,3 +3,4 @@ Referenced by issue #101601, Regression: Cryptomatte doesn't show all objects av
 Referenced by issue #84646, Compositor: In Blender 292 "Set Alpha" node is undefined
 Referenced by issue #84386, Compositing / Image Editor Alpha Broken
 Referenced by issue #83353, Compositing: viewer node doesn't correctly preview 'set alpha' output
+Referenced by issue #82154, Compositor Fix SetAlphaOperation
