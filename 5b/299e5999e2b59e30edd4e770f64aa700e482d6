@@ -1,3 +1,4 @@
 Referenced by issue #97542, Regression: Hair Particles Freeze Entire MacOS!
 Referenced by issue #95606, Crash on clicking in viewport with active GN workspace
 Referenced by issue #95284, Viewport "World" Cavity Type Doesn't Render Anything
+Referenced by issue #95237, AMD GPU: Crash on startup
