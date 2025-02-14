@@ -1,1 +1,2 @@
 Referenced by commit fde8e6ce650, Fix #109406: Ignore unsupported socket in shader
+Referenced by issue #109406, Regression: Crash in GPU_material_from_nodetree
