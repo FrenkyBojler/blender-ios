@@ -1,3 +1,4 @@
 Referenced by issue #134122, Grease Pencil on 4.3 shifts the stroke positioning when activated parent relations
 Referenced by issue #134027, Lightgroup problem on render
 Referenced by issue #132952, Cycles crashes with AMD GPU and textures
+Referenced by issue #132641, Undoing Vertex Group deletion in Edit Mode results in ruin
