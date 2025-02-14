@@ -1,2 +1,3 @@
 Referenced by issue #81074, access violation when aligning origin to view
 Referenced by issue #80978, Blender 2.91 build crash
+Referenced by issue #80940, Deps: update to OpenImageDenoise 1.2.3
