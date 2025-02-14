@@ -58,3 +58,4 @@ Referenced by issue #58077, Cycles Render Crash Glitch
 Referenced by issue #57973, Importing scikit-learn opens new scene from multiprocessing.semaphore_tracker import main;main(43)
 Referenced by issue #57888, Grease Pencil Ruler Bug
 Referenced by issue #57793, Maintain Volume constraint appears to have no effect in 2.79
+Referenced by issue #57785, Bugged UI Text
