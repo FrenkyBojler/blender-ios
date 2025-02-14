@@ -1,2 +1,3 @@
 Referenced by commit dfc597202f7, Fix T90154, T90213: curve issues since recent cleanup commit
 Referenced by commit 0abce919400, Fix test failure caused by earlier cleanup commit
+Referenced by issue #90213, Curve dimensions are broken, modifiers aren't applied
