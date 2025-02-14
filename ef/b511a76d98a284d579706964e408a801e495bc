@@ -1,1 +1,2 @@
 Referenced by commit 4c2718e318a, Fix #126821: compress saving option gets removed when recovering from autosave
+Referenced by commit e18aa659731, Fix: quit.blend is not saved as recovery file
