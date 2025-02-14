@@ -1,0 +1,1 @@
+Referenced by issue #85567, Crash when accessing a 'GizmoGroup' attribute on '__del__'
