@@ -295,6 +295,14 @@ template<typename T> class Span {
   }
 
   /**
+   * Does a constant time check to see if the other span is a subrange from this array.
+   * Return true if it is, otherwise false.
+   */
+  constexpr bool contains_subrange(Span other) const
+  {
+    return (this->begin() <= other.begin) && (other.size_ <= this->size_);
+  }
+  /**
    * Does a linear search to count how often the value is in the array.
    * Returns the number of occurrences.
    */

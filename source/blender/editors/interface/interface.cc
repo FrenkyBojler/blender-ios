@@ -72,6 +72,7 @@
 
 #include "interface_intern.hh"
 
+using blender::Span;
 using blender::StringRef;
 using blender::StringRefNull;
 using blender::Vector;
@@ -844,9 +845,12 @@ static bool ui_but_equals_old(const uiBut *but, const uiBut *oldbut)
 
 static uiBut *ui_but_find_old(uiBlock *block_old,
                               const uiBut *but_new,
-                              const blender::Set<const uiBut *> &ignore_old_buttons)
+                              const blender::Set<const uiBut *> &ignore_old_buttons,
+                              const Span<std::unique_ptr<uiBut>> mask_range)
 {
-  for (const std::unique_ptr<uiBut> &but : block_old->buttons) {
+  BLI_assert(block_old->buttons.as_span().contains_subrange(mask_range));
+  UNUSED_VARS(block_old);
+  for (const std::unique_ptr<uiBut> &but : mask_range) {
     if (!ignore_old_buttons.contains(but.get()) && ui_but_equals_old(but_new, but.get())) {
       return but.get();
     }
@@ -856,20 +860,21 @@ static uiBut *ui_but_find_old(uiBlock *block_old,
 
 uiBut *ui_but_find_old(uiBlock *block_old, const uiBut *but_new)
 {
-  return ui_but_find_old(block_old, but_new, {});
+  return ui_but_find_old(block_old, but_new, {}, block_old->buttons);
 }
 
 static std::optional<int64_t> ui_but_find_old_idx(
     uiBlock *block_old,
     const uiBut *but_new,
+    const Span<std::unique_ptr<uiBut>> mask_range,
     const blender::Set<const uiBut *> &ignore_old_buttons = {})
 {
-  int64_t i = 0;
-  for (const std::unique_ptr<uiBut> &but : block_old->buttons) {
+  BLI_assert(block_old->buttons.as_span().contains_subrange(mask_range));
+
+  for (const std::unique_ptr<uiBut> &but : mask_range) {
     if (!ignore_old_buttons.contains(but.get()) && ui_but_equals_old(but_new, but.get())) {
-      return i;
+      return &but - block_old->buttons.begin();
     }
-    i++;
   }
   return std::nullopt;
 }
@@ -1039,6 +1044,9 @@ static void ui_but_update_old_active_from_new(uiBut *oldbut, uiBut *but)
  *
  * \param matched_old_buttons: Collects all previously found matches in the old block. These should
  * be ignored when looking up further matches.
+ * \param old_buttons_mask_range: Range of elements in the old block to test for an active botton,
+ * this range don't contains elements after the last active button. Also works as a cursor,
+ * elements at the begining are discarted when they are in \a matched_old_buttons.
  * \param but_uptr: The owning pointer for the button to update. The pointed to button may be
  * replaced, in which case the function will return true.
  * \param but_old_idx: Index into the old-button vector indicating the likely/expected position of
@@ -1051,6 +1059,7 @@ static void ui_but_update_old_active_from_new(uiBut *oldbut, uiBut *but)
  */
 static bool ui_but_update_from_old_block(uiBlock *block,
                                          blender::Set<const uiBut *> &matched_old_buttons,
+                                         Span<std::unique_ptr<uiBut>> &old_buttons_mask_range,
                                          std::unique_ptr<uiBut> *but_uptr,
                                          std::optional<int64_t> *but_old_idx)
 {
@@ -1059,7 +1068,7 @@ static bool ui_but_update_from_old_block(uiBlock *block,
 
 #if 0
   /* Simple method - search every time. Keep this for easy testing of the "fast path." */
-  uiBut *oldbut = ui_but_find_old(oldblock, but, matched_old_buttons);
+  uiBut *oldbut = ui_but_find_old(oldblock, but, matched_old_buttons,old_buttons_mask_range);
   UNUSED_VARS(but_old_p);
 #else
   BLI_assert(!but_old_idx->has_value() || oldblock->buttons.index_range().contains(**but_old_idx));
@@ -1075,7 +1084,7 @@ static bool ui_but_update_from_old_block(uiBlock *block,
   }
   else {
     /* Fallback to block search. */
-    *but_old_idx = ui_but_find_old_idx(oldblock, but, matched_old_buttons);
+    *but_old_idx = ui_but_find_old_idx(oldblock, but, old_buttons_mask_range, matched_old_buttons);
     oldbut_uptr = but_old_idx->has_value() ? &oldblock->buttons[**but_old_idx] : nullptr;
   }
   /* Increase for next iteration. */
@@ -1126,7 +1135,13 @@ static bool ui_but_update_from_old_block(uiBlock *block,
 
     but->flag = (but->flag & ~flag_copy) | (oldbut->flag & flag_copy);
   }
-
+  int front_matched_count = 0;
+  for (const std::unique_ptr<uiBut> &but : old_buttons_mask_range) {
+    if (!matched_old_buttons.contains(but.get())) {
+      break;
+    }
+  }
+  old_buttons_mask_range = old_buttons_mask_range.drop_front(front_matched_count);
   return found_active;
 }
 
@@ -1948,15 +1963,33 @@ void UI_block_update_from_old(const bContext *C, uiBlock *block)
   std::optional<int64_t> but_old_idx = block->oldblock->buttons.is_empty() ? std::nullopt :
                                                                              std::optional{0};
   blender::Set<const uiBut *> matched_old_buttons;
-  matched_old_buttons.reserve(block->oldblock->buttons.size());
+
+  uint64_t last_inactive_count = 0;
+  for (int i = block->oldblock->buttons.size() - 1; i >= 0; i--) {
+    std::unique_ptr<uiBut> &oldbut = block->oldblock->buttons[i];
+    if (oldbut->active || oldbut->semi_modal_state ||
+        (oldbut->flag & (UI_BUT_DRAG_MULTI | UI_HOVER)))
+    {
+      break;
+    }
+    last_inactive_count++;
+  }
+  Span<std::unique_ptr<uiBut>> mask_range = block->oldblock->buttons.as_span().drop_back(
+      last_inactive_count);
+
+  matched_old_buttons.reserve(mask_range.size());
+
   for (std::unique_ptr<uiBut> &but : block->buttons) {
-    if (ui_but_update_from_old_block(block, matched_old_buttons, &but, &but_old_idx)) {
+    if (ui_but_update_from_old_block(block, matched_old_buttons, mask_range, &but, &but_old_idx)) {
       ui_but_update(but.get());
 
       /* redraw dynamic tooltip if we have one open */
       if (but->tip_func) {
         UI_but_tooltip_refresh((bContext *)C, but.get());
       }
+    }
+    if (mask_range.is_empty()) {
+      break;
     }
   }
   for (const std::unique_ptr<uiBut> &but : block->oldblock->buttons) {
