@@ -1,2 +1,3 @@
 Referenced by issue #59608, Curves invisible in object mode
 Referenced by issue #58298, Nurbs circle and curve dont draw in objectmode
+Referenced by issue #58107, Modified curves/surfaces/fonts do not show their evaluated mesh, only the displist.
