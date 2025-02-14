@@ -1,2 +1,3 @@
 Referenced by commit 216a215ba58, Fix T93573: Remove outline from instances in edit mode
 Referenced by commit 44239fa1063, Fix: Crash with no active object after recent commit
+Referenced by issue #92079, Text selection regression (difficult to see) since 2.93
