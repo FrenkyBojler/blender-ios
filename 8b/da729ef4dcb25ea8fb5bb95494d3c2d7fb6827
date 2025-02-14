@@ -3,3 +3,4 @@ Referenced by issue #116090, gpu_shader_2D_widget_base Error
 Referenced by issue #114107, Grease pencil masks causes selection difficulties
 Referenced by issue #113421, The attribute value does not show in instances from the spreadsheet
 Referenced by issue #111308, crash on render/viewport render
+Referenced by issue #111201, crash when import fbx
