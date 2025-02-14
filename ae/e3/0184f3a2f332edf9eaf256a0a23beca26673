@@ -1,2 +1,3 @@
 Referenced by issue #39297, bpy.selection is not working as expected
 Referenced by issue #39275, emission shader value output increased in 2.70
+Referenced by issue #39225, Ortho Perspective mode  bug
