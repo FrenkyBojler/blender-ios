@@ -1,0 +1,1 @@
+Referenced by issue #43910, bpy.ops.file.unpack_all() for packed entities without filename
