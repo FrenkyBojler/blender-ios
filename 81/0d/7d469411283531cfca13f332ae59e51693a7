@@ -1,2 +1,3 @@
 Referenced by issue #50948, UI - Menu icons are no longer aligned
 Referenced by issue #50899, Blender : Mesh to Curve : Hard crash when target mesh has a object shrinkwrapped to it
+Referenced by issue #50565, Transform: Planar constraints don't work properly with non-Blender key configurations
