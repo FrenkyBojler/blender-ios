@@ -1,1 +1,2 @@
 Referenced by commit 549c724f78b, Revert "Cleanup: Remove check for SSE4.1 in denoise node"
+Referenced by issue #133438, Cleanup: Remove now unused SSE check functions
