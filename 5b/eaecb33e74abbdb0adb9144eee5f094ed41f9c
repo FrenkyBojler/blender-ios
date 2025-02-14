@@ -1,1 +1,2 @@
 Referenced by issue #101484, Blocky artifacts in various render passes when rendering overlapping VDB volumes in Cycles
+Referenced by issue #101414, Regression: Smart UV Project is broken on 3.4
