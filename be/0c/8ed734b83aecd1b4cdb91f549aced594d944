@@ -1,1 +1,2 @@
 Referenced by issue #59351, "GPUTexture: texture alloc failed. Likely not enough Video Memory." when rendering an animation with eevee, even on low quality
+Referenced by issue #59338, Blender crashes immediately after loading attached file in ~80% of my attempts
