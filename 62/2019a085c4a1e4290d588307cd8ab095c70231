@@ -1,0 +1,1 @@
+Referenced by commit 8d5255d6a1c, Fix BLI_rename returning success on failure for WIN32
