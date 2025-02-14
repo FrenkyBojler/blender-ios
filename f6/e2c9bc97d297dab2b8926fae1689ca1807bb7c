@@ -1,1 +1,2 @@
 Referenced by issue #121919, Python API: gpu.texture.from_image() fails with image sequences
+Referenced by issue #96312, Regression: Image Editor Flip option isn't working
