@@ -1,2 +1,3 @@
 Referenced by commit 05564c8ca61, Fix wrong length value in the header of the Move operator
 Referenced by issue #90965, Transformation display doesn't change when move object along axis
+Referenced by issue #90911, Edit Mode - Move along axis while mouse dragging does not correctly display distance units
