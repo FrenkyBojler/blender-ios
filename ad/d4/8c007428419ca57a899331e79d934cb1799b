@@ -1,1 +1,2 @@
 Referenced by commit 744eb1172e3, Fix T80195: crash when invoking tooltips on MacOS
+Referenced by issue #80195, Crash at invoking tooltips
