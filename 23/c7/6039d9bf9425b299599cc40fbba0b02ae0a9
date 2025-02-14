@@ -1,2 +1,3 @@
 Referenced by issue #46226, bake normals from multiresolution crash
 Referenced by issue #45496, Blender 2.75a crashes after loading a .blend file dozen or more times (crash in preview code, still running while loading new file?)
+Referenced by issue #45498, selecting bug in Outliner
