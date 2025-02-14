@@ -1,2 +1,3 @@
 Referenced by commit b0d9b6f6df2, Fix T100788 Regression: EEVEE wrong normal map on backfaces
 Referenced by issue #100788, Regression: Backface of mesh appears as completely back when using a normal map texture with ambient occlusion enabled in Eevee
+Referenced by issue #100377, 3.2 normalmap node broken in eevee
