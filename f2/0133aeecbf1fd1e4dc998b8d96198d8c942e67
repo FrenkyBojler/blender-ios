@@ -1,1 +1,2 @@
 Referenced by issue #77303, Blender failed due to link error on MSVC
+Referenced by issue #75716, Frame_jump operator doesn't update mesh deform with physics.
