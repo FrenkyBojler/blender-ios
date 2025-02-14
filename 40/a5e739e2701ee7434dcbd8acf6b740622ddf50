@@ -2,3 +2,4 @@ Referenced by issue #132707, save render emit pass image just like file UI inter
 Referenced by issue #131664, Volume disappears when rendered on blender 4.3 or 4.2, renders completely fine on 4.1
 Referenced by issue #124233, appending adds all collections (ignoring the selection)
 Referenced by issue #122310, Can't rename ID to a name if there's another ID of the same name
+Referenced by issue #121841, Image Separate/Combine XYZ to File Output with EXR leads to incorrect result
