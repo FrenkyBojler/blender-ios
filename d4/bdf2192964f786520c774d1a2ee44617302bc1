@@ -1,1 +1,2 @@
 Referenced by commit 4ee8dfa8b30, Fix use after free error when exiting a temp screen
+Referenced by issue #96701, Gizmo does not show unless screen is updated(?) for right click select.
