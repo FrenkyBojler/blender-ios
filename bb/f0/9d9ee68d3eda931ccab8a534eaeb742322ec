@@ -44,3 +44,4 @@ Referenced by issue #43708, Wrong manipulator behaviour in individual origin.
 Referenced by issue #43712, Crash on Kubuntu, caused by locale setting
 Referenced by issue #43715, Error on stretched Pole Target IK
 Referenced by issue #43624, Freestyle uses wrong colour on second Line Set with textured lines in Cycles
+Referenced by issue #43617, "Make Local" button ignores dependencies between linked objects
