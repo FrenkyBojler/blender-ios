@@ -1,2 +1,3 @@
 Referenced by commit 03d55307885, Fix #128675: Layer brush creates bumps in mesh
 Referenced by issue #128723, Fix #128675: Layer brush creates bumps in mesh
+Referenced by issue #128675, Sculpt: Regression: Layer brush with large height gets bumpy
