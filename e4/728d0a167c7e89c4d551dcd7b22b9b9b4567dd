@@ -2,3 +2,4 @@ Referenced by issue #82047, Boolean issues when duplicating and rotating mesh or
 Referenced by issue #81861, 2.9x: Crash when editing curves with Cycles (Embree related?)
 Referenced by issue #80736, Cycles CPU Preview Artifact
 Referenced by issue #80306, Blender Crash when toggling object visibility Holdout.
+Referenced by issue #79799, Unable to remove directory warning in the console with quick liquid
