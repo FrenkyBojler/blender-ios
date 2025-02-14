@@ -9,3 +9,4 @@ Referenced by issue #103143, Regression: Cycles doesn't use default color attrib
 Referenced by issue #102852, Dyntopo warning will always activate when there is an element of the mesh selected in edit mode
 Referenced by issue #102318, Regression: Smoothing a Mesh in Edit Mode Causes Segmentation Fault
 Referenced by issue #95966, Struct of Arrays Refactor for Mesh Edges
+Referenced by issue #95967, Struct of Arrays Refactor for Mesh Polygons
