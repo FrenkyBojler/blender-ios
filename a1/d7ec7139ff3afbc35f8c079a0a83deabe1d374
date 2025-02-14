@@ -2,3 +2,4 @@ Referenced by commit 9c2164ba7c5, Fix #114430: UI: Blender no longer displays a 
 Referenced by commit b075c84ba32, Fix (unreported) invalid memory access in new 'newer blendfile version' code.
 Referenced by commit 7768c1cc967, Fix crash loading corrupt blend file
 Referenced by issue #109399, Blender LTS: Maintenance Task 3.6
+Referenced by issue #100749, Blender LTS: Maintenance Task 3.3
