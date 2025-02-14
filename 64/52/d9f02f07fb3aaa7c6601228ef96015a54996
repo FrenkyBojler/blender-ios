@@ -1,0 +1,1 @@
+Referenced by issue #39395, Switching to "Textured solid" and "GLSL" view will cause the FPS drop to 0 (was fine in 2.69)
