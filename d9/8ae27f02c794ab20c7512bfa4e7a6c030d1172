@@ -1,3 +1,4 @@
 Referenced by commit dbb1f56e553, Fix T77290: Crash displaying vertex colors in edit mode
 Referenced by commit b50b91c25db, Cleanup: Fix wrong assert introduced by rBd98ae27f02c7
 Referenced by issue #77893, Crash doing certain modeling operations [customdata_typemap_is_valid]
+Referenced by issue #68857, Crash on Remesh modifier with 'Display in Edit Mode'
