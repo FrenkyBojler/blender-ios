@@ -13,3 +13,4 @@ Referenced by issue #119586, Converting color attribute to other type in vertex 
 Referenced by issue #119573, Drag & Drop Object Info Node does not have working Relative function
 Referenced by issue #119464, Moving sockets in custom nodes not working
 Referenced by issue #119272, Geometry Nodes: node links assignment order using bpy
+Referenced by issue #119277, Zipping an addon with a .blend file causes the string to curves node to loose the fonts folder
