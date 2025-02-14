@@ -1,3 +1,4 @@
 Referenced by commit 92f8a6ac21a, Fix T88762: UI using tab to enter next button could clamp the hard min/
 Referenced by issue #88762, Entering Clip End above 10000 resets back to 10000
 Referenced by issue #80659, Ctrl-mousewheel over the mode-button (object interaction mode) does nothing
+Referenced by issue #78763, Graph Editor Noise Modifier Restiriction Frame Range "In" Value
