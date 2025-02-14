@@ -1,1 +1,2 @@
 Referenced by commit ba4228bcf77, Revert "EEVEE: Ensure Reflection: Use new implementation"
+Referenced by issue #88368, Regression: broken normal shading, sharp edges appear on smooth surfaces.
