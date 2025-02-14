@@ -1,0 +1,1 @@
+Referenced by issue #45706, [mathutils.bvhtree]: Overlay function is inaccurate on elements in which one of its bound volume dimensions is equal to zero
