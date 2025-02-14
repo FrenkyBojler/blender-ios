@@ -1,1 +1,2 @@
 Referenced by commit 7b65086fdf9, Cleanup: Use new macro for deprecated ID types
+Referenced by issue #97790, Regression: Crash when setting Outliner to "Blender File" with old files (IPO IDs)
