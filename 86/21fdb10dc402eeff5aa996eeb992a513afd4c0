@@ -2,3 +2,4 @@ Referenced by commit 3e8bd1f6e47, Fix T100040: Crash when transform applied on m
 Referenced by commit 9b25fafbec3, Cleanup: Left over from review of apply transform
 Referenced by issue #100040, Crash with rescaling reference image and apply scale
 Referenced by issue #98372, Apply Object transform Multi User
+Referenced by issue #98192, Regression: Crash when apply transforms after deleting an object
