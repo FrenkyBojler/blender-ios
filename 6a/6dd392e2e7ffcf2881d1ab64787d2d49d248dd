@@ -1,2 +1,3 @@
 Referenced by commit 449ded0258f, Fix #113545: crash when trying to create panel with unknown type
 Referenced by commit 7a8600f9672, Cleanup: remove accidentally committed asserts
+Referenced by issue #113545, Splitting Areas crashes Blender
