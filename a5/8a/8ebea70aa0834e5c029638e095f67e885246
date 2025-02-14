@@ -1,1 +1,2 @@
 Referenced by issue #48412, Blender 2.77a crashes on Undo in some specific multi-level linked libraries cases
+Referenced by issue #48362, Spin Tool: broken behavior in recent builds, cannot make a proper spin extrusion when the Z-axis is involved
