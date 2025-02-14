@@ -1,1 +1,2 @@
 Referenced by commit 650f1d0a6fc, Blender Internal: Fix for lamp option "Specular" not working when "Only Shadow" is enabled.
+Referenced by issue #40078, GLSL Lamp with OnlyShadow makes weird colors in object.
