@@ -1,2 +1,3 @@
 Referenced by issue #42989, Viewing normal map in viewport causes weird colours in UI
 Referenced by issue #42889, Error in display units.
+Referenced by issue #42875, 2.73 Testbuild 1 is crashes or draws broken UI when using GLSL draw mode with normal mapping
