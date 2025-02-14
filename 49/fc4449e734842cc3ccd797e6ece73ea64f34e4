@@ -1,1 +1,2 @@
 Referenced by commit cc8fe1a1cbc, Fix T97120: Gizmo fails to select in orthographic view
+Referenced by issue #97300, Scale gizmo impossible to click on (line is fine, box at end bad)
