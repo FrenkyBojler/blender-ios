@@ -1,1 +1,2 @@
 Referenced by commit f8ead736a01, Fix FONT objects cannot use Object Font anymore
+Referenced by issue #88443, Lattice still shows edges with "Bounds" display type.
