@@ -1,0 +1,1 @@
+Referenced by issue #78692, The Optix denoiser is influencing Open Image Denoiser results even when it's disabled.
