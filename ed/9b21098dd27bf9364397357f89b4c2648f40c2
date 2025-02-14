@@ -1,1 +1,2 @@
 Referenced by commit 533a5a6a8c6, Fix T99785: Make Principled Hair IOR input behave like other IOR sliders
+Referenced by issue #108728, Rewrite some compositing nodes to using declarations
