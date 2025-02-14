@@ -1,1 +1,2 @@
 Referenced by commit 7f5367eaae8, Windows: Fix RelWithDebInfo missing symbol information
+Referenced by issue #76246, "Paste Objects" doesn't copy source objects' collection heirarchy
