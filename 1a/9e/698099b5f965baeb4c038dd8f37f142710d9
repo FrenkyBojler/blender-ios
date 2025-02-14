@@ -1,1 +1,2 @@
 Referenced by commit 47b95a29570, Fix T70561: bad custom normals in mirrored geometry.
+Referenced by issue #66862, Mirror Modifiers + Curve crash
