@@ -1,1 +1,2 @@
 Referenced by commit 9b298cf3dbe, RNA: Generate property declerations header, solving msg-bus C++ incompatibility
+Referenced by issue #96999, Mesh.calc_normals() after Mesh.transform() does not recalculate normals
