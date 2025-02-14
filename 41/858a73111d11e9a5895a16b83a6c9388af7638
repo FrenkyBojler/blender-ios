@@ -1,1 +1,2 @@
 Referenced by commit 78872b33600, Fix T73499: Crash on hiding parent and all children of an object if one child is in an excluded collection
+Referenced by issue #64020, Outliner: Impossible hiding / unhiding whole hierarchy including children
