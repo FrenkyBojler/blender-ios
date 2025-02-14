@@ -1,2 +1,3 @@
 Referenced by commit 36f5967b999, Fix T93650: Asset drag into catalogs broken, Industry Compatible keymap
 Referenced by commit ba2d1c88981, Fix T79738: Double Click does not opening folders in File Browser
+Referenced by issue #79616, Sort by column in filebrowser is broken
