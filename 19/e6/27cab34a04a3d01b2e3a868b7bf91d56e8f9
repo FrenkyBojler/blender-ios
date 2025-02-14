@@ -27,3 +27,4 @@ Referenced by issue #40371, Video editor: effect strip between two strips does n
 Referenced by issue #40283, Variance-Shadow Display-Error in Viewport with Matcap
 Referenced by issue #40238, F-Curve Modifiers change currently selected curve when edited
 Referenced by issue #40228, World multiple importance sample CUDA error
+Referenced by issue #40166, Dupligroup made out of a linked file object do not render on network.
