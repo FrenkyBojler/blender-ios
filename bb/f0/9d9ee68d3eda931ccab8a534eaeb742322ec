@@ -68,3 +68,4 @@ Referenced by issue #43435, Ctrl+Z Crash and file corruption while editing
 Referenced by issue #43409, blender crashes during particle render
 Referenced by issue #43411, Draw other object UVs in edit mode does not work when edited object has no active face.
 Referenced by issue #43415, Game Engine crashes until it runs and stops ten times
+Referenced by issue #43418, A Shape key driven by another shape keys does not update automatically.
