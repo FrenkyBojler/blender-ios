@@ -7,3 +7,4 @@ Referenced by issue #117016, Cannot select curve handles in Blender 4 as in prev
 Referenced by issue #116402, Curve Hook modifier broken due to selection changes
 Referenced by issue #115887, Fallback Tools are only tweaking single elements
 Referenced by issue #115188, Right click tweak don't select vert/ege/face when all selected
+Referenced by issue #115181, Right click select sometimes failed to select armature in pose mode
