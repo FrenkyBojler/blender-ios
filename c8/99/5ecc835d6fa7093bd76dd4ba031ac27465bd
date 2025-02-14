@@ -1,1 +1,2 @@
 Referenced by issue #42905, Dupliface relies on vertex order of the face, rather then the face normal
+Referenced by issue #42864, Knife Project bad precision
