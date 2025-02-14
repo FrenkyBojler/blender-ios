@@ -1,2 +1,3 @@
 Referenced by issue #91171, Blender crashes if simplify is turned on while baking multires
 Referenced by issue #57664, Crash generating material preview icons with a Normal Map node that uses Tangent Space and specific UV
+Referenced by issue #51561, Normal maps not working in quad meshes in Eevee
