@@ -1,2 +1,3 @@
 Referenced by issue #64566, Blender 2.8 crash
 Referenced by issue #64527, eevee volume not showing on coordinated + mapping gradient
+Referenced by issue #64512, Crash with bones with custom shapes AND being in a shading type that is NOT wireframe.
