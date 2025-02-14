@@ -1,0 +1,1 @@
+Referenced by issue #87107, EEVEE principled bsdf shader no longer handles negative specular values gracefully
