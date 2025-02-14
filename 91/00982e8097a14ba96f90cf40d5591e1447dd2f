@@ -1,3 +1,4 @@
 Referenced by commit 7c1fbe24ca3, Fix T71019: Disappearing file thumbnails & crash on area split
 Referenced by commit 74c9a4769eb, Fix: Some ID-Filters not enabled on Link/Append
 Referenced by commit a6b9e1dfdbf, Fix: Some ID-Filters not enabled on Link/Append
+Referenced by issue #71019, Thumbnails in Filebrowser disappearing, Splitting the Filebrowser Area Window chrashes Blender
