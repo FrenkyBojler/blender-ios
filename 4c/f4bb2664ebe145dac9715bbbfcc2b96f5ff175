@@ -8,3 +8,4 @@ Referenced by issue #94065, Strange behavior in blender menu - layers
 Referenced by issue #93193, GUI elements drawn on top of eachother
 Referenced by issue #92844, 3d view's header no longer transparent (with Tool Settings hidden)
 Referenced by issue #92676, Menus and tool settings overlap
+Referenced by issue #92421, Opening a Blender file in 3.0 and then re-opening it in 2.93 causes bug in header bar
