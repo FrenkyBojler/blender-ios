@@ -1,1 +1,2 @@
 Referenced by commit a55c356a1c1, BLO: shrink old-new-map when it is cleared
+Referenced by issue #100064, Blend File read code: Use generic mappings instead of own specific code for datamap, libmap etc.
