@@ -2,3 +2,4 @@ Referenced by issue #99955, Regression: Crash when trying to 'Cache Result' of r
 Referenced by issue #94506, Crash in Compositing
 Referenced by issue #91629, Blender crashing with "Open Cached Render" function
 Referenced by issue #91058, Bordered Rendering not working properly
+Referenced by issue #90902, Rendering with render region active doesn't work / crashes while saving the result
