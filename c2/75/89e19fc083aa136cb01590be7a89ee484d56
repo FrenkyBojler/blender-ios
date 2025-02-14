@@ -13,3 +13,4 @@ Referenced by issue #46456, quitting while using dynotopo (dynamic topography) i
 Referenced by issue #46444, Blender crashes on .dae import
 Referenced by issue #46449, Blender VSE does not import all audio tracks on mp4.
 Referenced by issue #46428, UI bug for IK-constraint used with iTaSC-Solver
+Referenced by issue #46400, Blender 2.75rc3 crash when extruding plane
