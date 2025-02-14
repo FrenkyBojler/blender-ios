@@ -1,1 +1,2 @@
 Referenced by commit 67002402bd6, Fix T79162: 'prop_search' includes ID prefix in string properties
+Referenced by commit 249ccab111a, Fix T76621: UILayout.prop_search() broken for data-block names
