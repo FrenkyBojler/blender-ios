@@ -11,3 +11,4 @@ Referenced by issue #95095, Blender crashes when using image sequences for displ
 Referenced by issue #95021, Blender 3.0 Crash during edit mode with a mesh
 Referenced by issue #94946, Random Crash while Texture Baking
 Referenced by issue #94756, Blender crashes when clicking render.
+Referenced by issue #94686, Non selected verteces that are on the opposite side/through the mesh are being moved.
