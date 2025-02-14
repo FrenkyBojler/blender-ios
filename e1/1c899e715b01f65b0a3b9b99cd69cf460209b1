@@ -1,1 +1,2 @@
 Referenced by issue #100824, Cycles GPU rendering is broken on Apple M1/macOS Ventura
+Referenced by issue #100102, Loading render kernels time increase from 20s to 6m45s (Apple Metal)
