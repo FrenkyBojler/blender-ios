@@ -16,3 +16,4 @@ Referenced by issue #58372, Cycles GPU+CPU Render crashes
 Referenced by issue #58362, Sample Color Shortcut doesn't work
 Referenced by issue #58315, shader editor doesn't full screen
 Referenced by issue #58299, Removed Auto Perspective in preferences but Blender re-enables subsequently
+Referenced by issue #58301, Subsurface scatter \ separate albedo
