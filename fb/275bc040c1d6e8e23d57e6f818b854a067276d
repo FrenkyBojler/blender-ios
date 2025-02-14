@@ -1,1 +1,2 @@
 Referenced by commit 9af176bfe66, Curves: Add edit mode duplicate operator
+Referenced by issue #119969, Rendering from sculpt mode causes a segfault
