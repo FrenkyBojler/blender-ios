@@ -5,3 +5,4 @@ Referenced by issue #98191, Regression: Node detach with alt + left mouse not wo
 Referenced by issue #98145, Regression: Cannot select and move multiple nodes in Shader Editor (Industry compatible keymap)
 Referenced by issue #98039, Regression: Node Wrangler node preview no longer working (TypeError: Converting py args to operator properties: : keyword "mouse_x" unrecognized)
 Referenced by issue #96520, Regression: Node editor: Tweak is broken and requires click, then click again to drag
+Referenced by issue #81824, Issue with moving nodes when the tweak tool is active and the node item properties panel is expanded
