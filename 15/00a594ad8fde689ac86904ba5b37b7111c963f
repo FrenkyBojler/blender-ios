@@ -1,0 +1,1 @@
+Referenced by issue #120405, Viewport Compositor: Image Repeat Tiling in viewport got broken (but in rendering works in both EEVEE and CYCLES, CPU and GPU)
