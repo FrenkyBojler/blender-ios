@@ -23,3 +23,4 @@ Referenced by issue #87731, Image with Alpha not exported properly with emissive
 Referenced by issue #87725, Multires disp bake doesn't smooth UV
 Referenced by issue #87598, Blender always crashes opening this file
 Referenced by issue #87361, Texture Paint: Wrong active Texture Slot
+Referenced by issue #87353, Blender full crash during smoke+noise baking "EXCEPTION_ACCESS_VIOLATION"
