@@ -1,1 +1,2 @@
 Referenced by commit ab39386aec4, Cleanup: remove dead node tree rna code
+Referenced by commit d5eb51e9111, Cleanup: make versioning_260.cc independent of NOD_static_types.h
