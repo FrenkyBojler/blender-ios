@@ -96,3 +96,4 @@ Referenced by issue #41171, Hang on switch to edit mode
 Referenced by issue #41176, Edges not displayed in ortho side views
 Referenced by issue #41156, UILayout.prop_enum() does not observe "text" parameter override
 Referenced by issue #41096, Broken IK
+Referenced by issue #41097, broken IK
