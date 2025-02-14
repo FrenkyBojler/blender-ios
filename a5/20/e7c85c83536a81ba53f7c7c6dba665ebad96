@@ -1,1 +1,2 @@
 Referenced by commit 684898cfbf0, Fix Proportional Edit Projected 2D method skiped center calculation
+Referenced by issue #58882, Proportional Edit Influence Circle is Always draw in Origin in Projected 2D Mode
