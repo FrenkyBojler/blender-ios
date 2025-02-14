@@ -9,3 +9,4 @@ Referenced by commit 55117f20eec, Outliner: Port pose group elements to new tree
 Referenced by commit d5c7608b39c, Outliner: Port view layer elements to new tree-element code design
 Referenced by commit 1f722a6d019, Outliner: Port grease pencil effect elements to new tree-element code design
 Referenced by commit 790cbeda2ce, Outliner: Port grease pencil effect elements to new tree-element code design
+Referenced by commit 82141097789, Outliner: Port deform group elements to new tree-element code design
