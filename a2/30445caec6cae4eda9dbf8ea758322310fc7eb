@@ -1,1 +1,2 @@
 Referenced by commit e5c65709a26, Fix T98379: Wrong evaluation when deactivating/activating collections
+Referenced by issue #98379, Regression: Multiple modifiers failing when deactivating/activating collections
