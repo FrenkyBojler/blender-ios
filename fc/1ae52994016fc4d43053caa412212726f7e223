@@ -1,0 +1,1 @@
+Referenced by issue #98444, Regression: image.save_render() command changes color profile and file type when saving.
