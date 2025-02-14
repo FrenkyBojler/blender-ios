@@ -1,3 +1,4 @@
 Referenced by issue #59696, Crashes in "mesh_create_loops_tris()"
 Referenced by issue #59687, Crash: Render Animation
 Referenced by issue #59665, Crash while changing material BlendMode in EEVEE-Rendered mode
+Referenced by issue #59408, Render error: system crash
