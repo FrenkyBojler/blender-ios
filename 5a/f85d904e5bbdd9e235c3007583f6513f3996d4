@@ -1,2 +1,3 @@
 Referenced by issue #62382, add-mesh-torus enforces minimum dimensions >= 0.01
 Referenced by issue #62357, Grease Pencil material dropdown not populating
+Referenced by issue #62352, 2.8 Grease pencil. Drawing becomes very laggy, reopening blender restores responsiveness.
