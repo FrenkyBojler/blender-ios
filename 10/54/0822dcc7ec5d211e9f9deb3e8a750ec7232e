@@ -1,0 +1,1 @@
+Referenced by issue #58811, When scaling bazier curve handle it scales from the tip instead of the anchor point
