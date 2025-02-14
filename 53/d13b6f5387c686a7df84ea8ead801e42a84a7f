@@ -1,1 +1,2 @@
 Referenced by commit aad2f1510a8, Fix T86028: Crash when loading file with missing libraries.
+Referenced by issue #86028, Crash trying to load file with a missing library on line fd->library_file_missing_count++;
