@@ -1,2 +1,3 @@
 Referenced by issue #121719, Regression: Sound does not play unless playback starts within span of sound strip
 Referenced by issue #112596, Regression: Slower rendering performance
+Referenced by issue #112289, Armatures in In Front mode disappear on linux when no meshes are visible.
