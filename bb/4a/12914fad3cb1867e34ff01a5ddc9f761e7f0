@@ -1,3 +1,4 @@
 Referenced by issue #53683, 2.79a release
 Referenced by issue #52845, JPEG 2000 Images rendering pink on macOS - Cycles
 Referenced by issue #52823, New Depsgraph - Shrinkwrap crashes blender
+Referenced by issue #52761, BMesh Boolean - Freaks out sometimes
