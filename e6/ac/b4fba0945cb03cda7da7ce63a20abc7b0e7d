@@ -1,2 +1,3 @@
 Referenced by issue #64548, Color Wheels not working correctly using using Troy Sobotka version of the OCIO configuration
 Referenced by issue #62408, opensubdiv crash in rendered viewport
+Referenced by issue #60960, Crash when editing 'Resolution' value of 'Point Density' node
