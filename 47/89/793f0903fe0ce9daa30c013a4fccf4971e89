@@ -23,3 +23,4 @@ Referenced by issue #38770, Vertex slide does not work on Blender 2.7 test build
 Referenced by issue #38771, 2 times slower BVH construction / render time with Hair system
 Referenced by issue #38776, Mr.
 Referenced by issue #38755, Blender 2.70 test build 1 suddenly closes without errors while opening .blend file
+Referenced by issue #38756, Vertex Slide crippled functionality
