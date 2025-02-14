@@ -1,1 +1,2 @@
 Referenced by issue #96894, Regression: Exported sculpt details are missing till you press clear custom split normals (e.g. after FBX export/import roundtrip)
+Referenced by issue #95591, Crash on drawing with measure tool
