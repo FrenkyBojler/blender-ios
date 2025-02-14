@@ -15,3 +15,4 @@ Referenced by issue #42089, The function of "project" in  "shrinkwrap" of modifi
 Referenced by issue #42063, UV layout face orientation adversely effects how the texture appears when rendered.
 Referenced by issue #42048, Keyframes missing when animating particle system blend texture parameters
 Referenced by issue #42024, Material choices in PROPERTIES BAR > MATERIALS > SURFACE > Surface: are not in alphabetical order
+Referenced by issue #42016, link render layer with visible bug
