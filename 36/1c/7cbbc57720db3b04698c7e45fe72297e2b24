@@ -1,1 +1,2 @@
 Referenced by issue #65986, Set Origin to center of mass has to be performed several times
+Referenced by issue #52434, Setting origin to Center of Mass on zero-volume objects produces wrong results now in 2.79
