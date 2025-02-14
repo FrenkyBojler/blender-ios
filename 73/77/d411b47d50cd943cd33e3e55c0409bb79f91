@@ -1,1 +1,2 @@
 Referenced by commit f2a2d5492b9, Cycles: Fix building of OpenCL kernels after volume optimization commit
+Referenced by issue #54279, Viewport artifacts after adding or moving objects
