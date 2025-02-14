@@ -1,2 +1,3 @@
 Referenced by commit 8f2db94627d, Fix T93357: crash when opening search menu
 Referenced by issue #93357, Crash at attempting to open Search menu
+Referenced by issue #93339, Crash with Menu Search and Developer Extras
