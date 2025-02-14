@@ -1,1 +1,2 @@
 Referenced by issue #94131, Blender crashes when linking curve modifier in edit mode with vertex group
+Referenced by issue #93611, Crash on edit mesh with a curve modifier with both a vertex group assigned and the edit mode display option enabled
