@@ -1,1 +1,2 @@
 Referenced by issue #66472, Grid Fill- Span and offset can't be adjusted independently anymore
+Referenced by issue #62706, Orphan Data : I have now to save a file, close and reopen it, only then I can purge previous deleted meshes
