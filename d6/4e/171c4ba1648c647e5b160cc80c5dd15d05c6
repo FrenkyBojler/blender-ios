@@ -1,3 +1,4 @@
 Referenced by issue #79257, optix don't see my GPU
 Referenced by issue #79159, Optix denoising fails after loading render kernels (OPTIX_ERROR_INVALID_PTX)
 Referenced by issue #79133, Optix viewport denoise error with Quadro M2000
+Referenced by issue #77348, Blender LTS: Maintenance Task 2.83
