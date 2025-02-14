@@ -1,2 +1,3 @@
 Referenced by issue #43680, Vertex Slide crashes Blender
 Referenced by issue #42919, BGE: Python-driven armature animation got buggy after 2.70
+Referenced by issue #42218, Python controlled armature animation not working in BGE
