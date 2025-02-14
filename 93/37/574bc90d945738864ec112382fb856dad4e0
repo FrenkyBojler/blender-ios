@@ -90,3 +90,4 @@ Referenced by issue #41222, Blender gives weird ouput when baking (4096*4096) re
 Referenced by issue #41223, F-Curve sliders won't update values during playback when mouse cursor is outside the left panel
 Referenced by issue #41205, Volume Distance is not taken.
 Referenced by issue #41208, Blender material view crashes on Windows 8.1
+Referenced by issue #41209, Run Armature actuator not working with DupliGroup object.
