@@ -1,1 +1,2 @@
 Referenced by issue #61784, Grease pencil viewport bug in brand new scenes
+Referenced by issue #61772, Particle system crash during animation after switching particle settings (near MEM_lockfree_reallocN_id)
