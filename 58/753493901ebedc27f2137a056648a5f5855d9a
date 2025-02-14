@@ -1,1 +1,2 @@
 Referenced by commit 75f06bf92a3, Fix #117459: Sharp shading from only edges ignored in edit mode
+Referenced by issue #120876, Regression: Smooth shading stop working on sharp mesh
