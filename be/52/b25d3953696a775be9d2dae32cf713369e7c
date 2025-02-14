@@ -1,0 +1,1 @@
+Referenced by issue #65357,  after applying a boolean mod, faces are initialized with a facemap index of 0 instead of -1
