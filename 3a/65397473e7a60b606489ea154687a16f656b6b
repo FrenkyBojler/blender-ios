@@ -1,1 +1,2 @@
 Referenced by issue #75471, Crash, outliner: when I try to select curve in modifier, when curve is excluded in another collection
+Referenced by issue #75378, Blender 2.83 Alpha crashes on clicking an appended proxy object part with ghost icon in the outliner
