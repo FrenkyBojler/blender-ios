@@ -79,3 +79,4 @@ Referenced by issue #50210, Blender 2.78A crashes opening files created in previ
 Referenced by issue #50183, This smoke duplicated domain makes Blender crash
 Referenced by issue #50184, Grease Pencil Layer synchronization between Dope Sheet and Properties panel
 Referenced by issue #50161, Crash when loading huge OpenEXR files
+Referenced by issue #50171, Blender 2.78a crashes using in Node Editor [Input] - [Texture]
