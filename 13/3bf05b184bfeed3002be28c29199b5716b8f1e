@@ -1,2 +1,3 @@
 Referenced by issue #76182, Bake All Physics operator bake all except Hair Physics
 Referenced by issue #76173, bump / normal doesnt display on two meshes in Material Preview or Render view (Eevee)
+Referenced by issue #76179, Unable to select render passes when a render has fewer passes than one in another slot
