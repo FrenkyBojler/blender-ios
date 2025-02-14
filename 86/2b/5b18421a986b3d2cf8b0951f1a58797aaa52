@@ -1,3 +1,4 @@
 Referenced by issue #91444, Edge Loop Preview fails with two Mirror Modifiers
 Referenced by issue #81511, Overlays broken on Curve Modifier (crazyspace with "On Cage" option)
 Referenced by issue #26050, Loopcut proposal is shown in wrong place when using curve modifier
+Referenced by issue #25324, loopcuts do not respect armature modifier
