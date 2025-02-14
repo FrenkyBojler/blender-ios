@@ -1,2 +1,3 @@
 Referenced by commit 8bc6f8bf20a, Fix T48812: Brush size invalid with HIDPI
 Referenced by commit dda96e34725, Fix T48807: Each stroke halves brush size
+Referenced by issue #48456, OSX retina - image paint brush paints 2x wider than brush setting, cant paint 1px
