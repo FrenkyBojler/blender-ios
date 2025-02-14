@@ -7,3 +7,4 @@ Referenced by issue #91766, NLA Editor - Segmentation fault on strip resize
 Referenced by issue #91219, Crash canceling scale keyframes in dope sheet grease pencil
 Referenced by issue #90872, Dopesheet mangles keyframes
 Referenced by issue #90795, Moving keys in Grease Pencil Dopesheet crashes Blender
+Referenced by issue #87173, Some Auto-Snap options in animation editors don't work correctly
