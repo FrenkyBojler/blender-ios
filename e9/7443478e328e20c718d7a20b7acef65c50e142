@@ -1,2 +1,3 @@
 Referenced by commit a3c38667f0f, Fix T103881: Unlink operation crash in Blender File view
 Referenced by issue #102797, Regression: Unlinking an Orphan Action Crashes Blender
+Referenced by issue #100749, Blender LTS: Maintenance Task 3.3
