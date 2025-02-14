@@ -75,3 +75,4 @@ Referenced by issue #51346, Object Info node not working in material view
 Referenced by issue #51330, Locked strips are not locked in cutting
 Referenced by issue #51319, Alembic export crashes when using Simple child particles if Display value is set below 100%
 Referenced by issue #51310, bpy.ops.select_pattern() returns {FINISHED} even if object wasn't successfully selected
+Referenced by issue #51295, Blender cant find folders with ~ at the end
