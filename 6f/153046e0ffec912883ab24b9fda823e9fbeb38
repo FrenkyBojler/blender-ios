@@ -1,0 +1,1 @@
+Referenced by commit 9aa20a09798, Fix #54554: missing colorspace calling paint.image_paint() from python
