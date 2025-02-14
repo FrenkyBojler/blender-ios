@@ -1,3 +1,4 @@
 Referenced by commit 777a546c0c7, Outliner Restriction: Naming sanitization and icon
 Referenced by commit 5f84e2d732c, Revert API change (hide_viewport > hide_instance)
 Referenced by issue #66335, artefacts for edit mesh drawing of in front objects
+Referenced by issue #64572, Blender cant find my gpu for cycles cuda
