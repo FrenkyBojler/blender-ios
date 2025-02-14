@@ -1,2 +1,3 @@
 Referenced by commit 6eea4acc62d, Fix #109547: Error creating geometry node group from property editor
 Referenced by issue #109547, Regression: Geometry Nodes: can't create new node group
+Referenced by issue #101778, Node Tools Overview
