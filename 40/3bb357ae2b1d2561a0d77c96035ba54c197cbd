@@ -1,1 +1,2 @@
 Referenced by commit 40343a76c56, Revert "Fix T74110: EEVEE Shadow Pass"
+Referenced by issue #74110, EEVEE: Shadow Pass Visible on Backsided geometry
