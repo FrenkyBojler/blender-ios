@@ -1,1 +1,2 @@
 Referenced by commit a63c0a8fca3, Fix: Crash in 2.8 versioning after recent cleanup
+Referenced by issue #112649, Regression in 4.0, crash loading blend file without a scene collection
