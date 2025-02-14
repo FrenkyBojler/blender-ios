@@ -1,0 +1,1 @@
+Referenced by issue #98310, Alembic export is duplicating a frame every two frames when exporting fluid sims at high starting frame
