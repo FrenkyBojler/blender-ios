@@ -1,2 +1,3 @@
 Referenced by commit ebde6e18526, Fix T88251: "Operator Cheat Sheet" Crash
 Referenced by commit 36863cf1294, Fix T87864: Context is None for draw method
+Referenced by commit 8245805ce3d, Fix creating operator properties without an owner_id
