@@ -1,0 +1,1 @@
+Referenced by issue #106372, (Unneccessarily) restricted execution in scripted expression drivers (using e.g. "self", "bpy.data")
