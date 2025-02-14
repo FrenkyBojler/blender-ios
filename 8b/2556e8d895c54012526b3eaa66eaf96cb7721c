@@ -1,2 +1,3 @@
 Referenced by commit 3acbd93779a, Fix #132991: Array modifier + X-Ray crash selecting an empty meshes
 Referenced by commit 9ad6957574e, Fix #107353: array cap broken on empty mesh
+Referenced by issue #107353, Regression: Array Caps broken on empty mesh in 3.5.
