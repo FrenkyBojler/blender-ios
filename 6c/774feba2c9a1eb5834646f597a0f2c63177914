@@ -13,3 +13,4 @@ Referenced by issue #108053, Collada Export: texcoord set="N" no longer starts a
 Referenced by issue #107500, Python API: Mesh editing: Editing uvs after normals with a previously assigned variable doesn't work
 Referenced by issue #107168, Regression: Crash when executing a certain python script
 Referenced by issue #106469, Regression: Cycles: unstable triangulation of mesh in viewport
+Referenced by issue #106198, Realize instances node affects UVs (texture coordinate)
