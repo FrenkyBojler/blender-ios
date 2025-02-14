@@ -1,1 +1,2 @@
 Referenced by commit 829812f180b, Fix T92467: Path Selection broken when Drag is set to Tweak
+Referenced by commit b3d101ac290, Fix T93100: VSE RMB shift-select fails with "fallback tools"
