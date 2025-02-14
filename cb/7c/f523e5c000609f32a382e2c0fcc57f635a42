@@ -1,0 +1,1 @@
+Referenced by issue #42829, This bug has existed for years in Cycles: it will cause it to crash immediately on render
