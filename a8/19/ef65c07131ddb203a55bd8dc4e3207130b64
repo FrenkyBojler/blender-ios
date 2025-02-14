@@ -1,0 +1,1 @@
+Referenced by issue #64908, In Pose Mode, clearing a bones Scale Transform also clears that bone's Bendy Bone Ease in/out values and also Scale in/out values
