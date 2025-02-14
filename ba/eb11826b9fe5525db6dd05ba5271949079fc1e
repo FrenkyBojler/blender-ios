@@ -1,0 +1,1 @@
+Referenced by commit ff430dea663, Fix rendering motion blur scenes with OptiX failing with CUDA_ERROR_INVALID_CONTEXT
