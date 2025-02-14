@@ -1,1 +1,2 @@
 Referenced by commit 0d57ab611c6, Fix T76851: GPencil brush is reset after change mode
+Referenced by issue #76851, Grease Pencil Behavior changes Brush when going in and out of Drawing mode
