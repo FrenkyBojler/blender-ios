@@ -2,3 +2,4 @@ Referenced by issue #60625, Cannot exclude/include specific collection for frees
 Referenced by issue #60597, Material Shader Crashes Cycles
 Referenced by issue #60127, particles texture mapping coordinates objects
 Referenced by issue #60066,  Object deleted, but can still be referenced in modifier
+Referenced by issue #60015, snap to grid - snaps only to largest increment
