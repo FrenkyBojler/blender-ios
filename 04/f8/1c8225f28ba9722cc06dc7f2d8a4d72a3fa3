@@ -1,1 +1,2 @@
 Referenced by commit d7cfee0b683, Fix use of uninitialized variable in image sequence detection
+Referenced by issue #37481, Image Sequence can't be load
