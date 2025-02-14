@@ -1,3 +1,4 @@
 Referenced by issue #122344, Exporting PLY with Vertex Normals ON + Importing PLY causes Broken Vertex Normals
 Referenced by issue #109438, How to add credit to non-committers authors
 Referenced by issue #104404, IO: New C++ PLY importer/exporter
+Referenced by issue #101294, Implement a PLY importer/exporter in C++
