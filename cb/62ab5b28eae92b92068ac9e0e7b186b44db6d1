@@ -1,2 +1,3 @@
 Referenced by commit 3acbd93779a, Fix #132991: Array modifier + X-Ray crash selecting an empty meshes
 Referenced by commit 62c6eb12bf7, Fix #105165: Weighted normal modifier crash after recent cleanup
+Referenced by commit eb68334b58d, Cleanup: Mesh: Access looptris with Span
