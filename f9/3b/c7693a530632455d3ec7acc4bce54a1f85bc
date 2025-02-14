@@ -51,3 +51,4 @@ Referenced by issue #40408, World Multiple importance sample + Equi-angular samp
 Referenced by issue #40382, 2D stabilization ceases to apply to rendered video after indeterminate number of steps
 Referenced by issue #40364, Texture images are not properly displayed in the material preview in BI when using SSS
 Referenced by issue #40365, Bevel. again bug
+Referenced by issue #40366, Rendering on Cycles with OpenCL Compilation Errors on 2.70.5 w/ defaults
