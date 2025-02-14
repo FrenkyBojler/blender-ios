@@ -7,3 +7,4 @@ Referenced by issue #107194, AttributeGroup API: "active" is meaningless (always
 Referenced by issue #104803, Regression: mesh.vertex_colors.active doesn't work since 3.2
 Referenced by issue #104475, Regression: Data transfer modifier no longer respects vertex group for transfers of vertex color
 Referenced by issue #103400, Regression: Not possible to transfer Color Attributs Layer with "Transfer Mesh Data Layout"
+Referenced by issue #99719, Vertex Color Node no longer showing in Shader Editor
