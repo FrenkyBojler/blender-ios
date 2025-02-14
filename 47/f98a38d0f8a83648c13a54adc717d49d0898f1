@@ -1,3 +1,4 @@
 Referenced by commit d994391e0c6, Fix T77994: VSE crash adding a glow effect strip
 Referenced by issue #97744, Regression: Memory leak caused by speed control strip in video sequencer
 Referenced by issue #77994, VSE crash adding a glow effect strip
+Referenced by issue #73828, VSE: using python to remove a scene strip with effect applied causes... weirdness
