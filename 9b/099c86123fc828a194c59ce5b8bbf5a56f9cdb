@@ -2,3 +2,4 @@ Referenced by commit 1a6b51e1750, Curve modifiers: Disable 'Apply on Spline' opt
 Referenced by commit bb4cef71eea, UI: ShaderFx Drag and Drop, Layout Updates
 Referenced by commit ec963d9d7d1, UI: Grease Pencil Modifier Drag and Drop, Layout Changes
 Referenced by issue #88655, PyAPI: template_modifiers doesn't work in the viewport
+Referenced by issue #78269, Mirror modifier lost UV offset only
