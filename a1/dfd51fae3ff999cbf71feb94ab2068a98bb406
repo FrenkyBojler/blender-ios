@@ -1,1 +1,2 @@
 Referenced by issue #129917, blender 4.3 and 4.4 does not start with vulkan backend on x86_64 with nvidia
+Referenced by issue #129830, EEVEE Next uses `gtao_quality` without UI access
