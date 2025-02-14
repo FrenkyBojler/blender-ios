@@ -1,1 +1,2 @@
 Referenced by commit 26c34a2a3ab, Tweak comment regarding Sculpt mode undo issues in object update code.
+Referenced by issue #83040, Disappearing Mesh when sculpting cloth with multires
