@@ -1,2 +1,3 @@
 Referenced by issue #87138, Memory leak in boolean fast solver collection mode
 Referenced by issue #82275, Blender 2.90.1  crashes when opening .obj
+Referenced by issue #82089, Boolean bug with operand type: collection
