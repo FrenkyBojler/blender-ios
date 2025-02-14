@@ -1,1 +1,2 @@
 Referenced by issue #77202, Flicker Volume Artifacts in EEVEE on RTX Cards by increasing samples
+Referenced by issue #77102, (v2.82+, CYCLES) Rendering with motion blur enabled causing unexpected, broken-looking result on specific frames
