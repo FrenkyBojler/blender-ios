@@ -1,1 +1,2 @@
 Referenced by issue #96290, Regression: Blender crashes when access to gpu.shader.code_from_builtin
+Referenced by issue #95981, Setting Masking->Stencil Mask->Stencil Image crashes Blender. Includes fix
