@@ -1,1 +1,2 @@
 Referenced by issue #55173, gpu render error on smoke and fire 'cuda error: not found in cumodulegettexref'
+Referenced by issue #52660, CUDA error: Not found in cuModuleGetTexRef(&texref, cuModule, bind_name.c_str()). line 710
