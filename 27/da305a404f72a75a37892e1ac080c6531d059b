@@ -1,1 +1,2 @@
 Referenced by commit cbdddc56488, Workaround for assert from 27da305a404f72a75a37892e1ac080c6531d059b
+Referenced by issue #90476, Intermittent failure of cycles texture_space_mesh_modifier test
