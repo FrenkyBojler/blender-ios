@@ -20,3 +20,4 @@ Referenced by issue #58457, Subdivision Surface Modifier in "Simple" mode create
 Referenced by issue #58460, Proportional edit icon disappears
 Referenced by issue #58441, Crash on Open
 Referenced by issue #58446, objects disappear doing any action in local view
+Referenced by issue #58427, Segfault on start, Ubuntu 18.04
