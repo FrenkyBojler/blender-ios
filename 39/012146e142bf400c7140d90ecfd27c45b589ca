@@ -1,1 +1,2 @@
 Referenced by issue #82783, Number keys cannot be mapped in the 3D viewport
+Referenced by issue #82555, Segfault when applying modifier to object copy from python
