@@ -1,3 +1,4 @@
 Referenced by issue #71316, Memory usage indication way off
 Referenced by issue #71303, Mouse input ignored after right-click outside of context menu with a single entry
 Referenced by issue #71174, Dependency graph cycles report only in the console
+Referenced by issue #71141, 2.81 Voronoi node stuck between two states with specific settings in EEVEE
