@@ -3,3 +3,4 @@ Referenced by issue #58668, Selecting/editing multiple values at once in propert
 Referenced by issue #58569, Crash when a volume shader is plugged into the volume output of a smoke domain when no smoke is present.
 Referenced by issue #58570, Modifier textures don't update in the 3D viewport
 Referenced by issue #58577, Imported key configurations are missing the preference menu
+Referenced by issue #58561, Surface Pen First Events in Grease Pencil
