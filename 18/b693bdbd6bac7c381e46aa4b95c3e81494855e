@@ -1,1 +1,2 @@
 Referenced by commit 6f7ac2be53e, VSE: Simplify and speedup sequencer cache drawing
+Referenced by commit 188ccfb0dd6, Fix T74662: Prefetching causes random crashes
