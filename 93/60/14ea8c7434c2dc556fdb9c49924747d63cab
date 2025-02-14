@@ -2,3 +2,4 @@ Referenced by issue #63028, Transform constraints not working with rigid body si
 Referenced by issue #62518, Mesh objects are invisible if you open this file with the "load UI" option unchecked
 Referenced by issue #62520, Texture paint undo sometimes changes texture slot
 Referenced by issue #62514, Grease Pencil modifier properties don't update in realtime when linked to a driver
+Referenced by issue #62504, Access violation trying to access C.evaluated_get().view_layer_eval.depsgraph
