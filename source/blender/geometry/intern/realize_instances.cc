@@ -1886,7 +1886,7 @@ static void execute_realize_curve_task(const RealizeInstancesOptions &options,
     realize_radius(options,
                    VArray<float>::ForSpan(curves_info.radius),
                    task.transform,
-                   0.1f,
+                   0.01f,
                    all_radii.slice(dst_point_range));
   }
 
