@@ -9,3 +9,4 @@ Referenced by issue #60030, select pattern fails in some type/mode combinations
 Referenced by issue #60043, macOS viewport lagging
 Referenced by issue #60028, Inconsistent alpha on toolbar/properties regions
 Referenced by issue #60015, snap to grid - snaps only to largest increment
+Referenced by issue #59845, Blender crash on startup
