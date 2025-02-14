@@ -42,3 +42,4 @@ Referenced by issue #58191, Subdivision Surface modifier performance issues
 Referenced by issue #58196, Annotation tool placed on view with thickness 0 is invisible
 Referenced by issue #58197, "Shading Mode" and "Proportional Editing Object Mode" have the same keyboard shortcut
 Referenced by issue #58199, Spin tool top bar settings don't apply
+Referenced by issue #58201, Viewport Visibility and Render Visibility keyframes don't work
