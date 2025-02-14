@@ -12,3 +12,4 @@ Referenced by issue #40723, undo broken in node editor
 Referenced by issue #40709, Cycles Baking result does not show up
 Referenced by issue #40700, Tab to change edit-mode not working after switching to different screen-layout.
 Referenced by issue #40683, noncube meshes bounces when rotated
+Referenced by issue #40684, Triangle mesh BGE character mode crash
