@@ -1,1 +1,2 @@
 Referenced by commit 7a783269bb2, Fix error setting image pack/unpack poll message
+Referenced by issue #131186, Linked images in GP materials can be unpacked and renamed if the material is linked through a brush asset
