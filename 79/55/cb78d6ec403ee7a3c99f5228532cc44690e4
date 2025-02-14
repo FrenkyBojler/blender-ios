@@ -1,1 +1,2 @@
 Referenced by commit bfe29e0ef75, Revert 7955cb78d it causes GPU_pbvh_buffers_diffuse_changed to always
+Referenced by issue #39517, Sculpting option "show difusse color"  is only displayed when viewport is clicked.
