@@ -1,1 +1,2 @@
 Referenced by issue #79768, Viewport shading in Cycles rendered mode and multiple changes in VDB Clipping causes crash
+Referenced by issue #79769, Viewport shading in Cycles rendered mode with VDB object in scene and change VDB cache frame causes crash. (Blender 2.90.0 Beta)
