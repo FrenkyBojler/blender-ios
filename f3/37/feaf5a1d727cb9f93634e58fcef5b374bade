@@ -97,3 +97,4 @@ Referenced by issue #47265, Search-to-add node by name report the list of node u
 Referenced by issue #47234, Excessive BVH build time for dupligroup instances of hair-covered objects
 Referenced by issue #47225, Blender Crashes in Sculpt Mode with dyntopo while pressing `esc` key
 Referenced by issue #47209, Crashes when adding remesh modifier to the mesh that is far from object origin and has been translated to world origin
+Referenced by issue #47198, Cycles & BI have broken UVs in some degenerated quads cases
