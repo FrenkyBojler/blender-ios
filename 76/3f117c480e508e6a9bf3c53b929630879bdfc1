@@ -1,1 +1,2 @@
 Referenced by issue #75971, Text Object Overlays disappear when Fill Mode is set to None (regression from 2.81a)
+Referenced by issue #73705, Crash on undo (possible due broken custom workspace)
