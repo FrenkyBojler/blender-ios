@@ -1,1 +1,2 @@
 Referenced by issue #131751, Crash when closing area from header menu using ASAN or Page Heap (`heap-use-after-free`)
+Referenced by issue #128406, Space Editor's Windows ain't perfectly round (regression)
