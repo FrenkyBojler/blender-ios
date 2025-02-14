@@ -1,1 +1,2 @@
 Referenced by issue #70428, CYCLES: Surfaces inside volumes are Not Lit or Shadowed by the volume if the volume is not visible to Camera Rays
+Referenced by issue #70379, Disabling combined RGBA pass for view layer does nothing
