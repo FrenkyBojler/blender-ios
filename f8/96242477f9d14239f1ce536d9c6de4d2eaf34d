@@ -1,2 +1,3 @@
 Referenced by commit 8e85a169972, Revert "Vulkan: Disable GPU depth picking on official AMD/NVIDIA drivers"
 Referenced by issue #130001, Viewport glitches with Vulkan
+Referenced by issue #127619, Vulkan: NVIDIA Artefacts in viewport and graph editor gizmo/overlay
