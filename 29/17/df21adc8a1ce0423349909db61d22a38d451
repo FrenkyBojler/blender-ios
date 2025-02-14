@@ -1,3 +1,4 @@
 Referenced by commit 834e87af7bb, Alembic: remove non-functional "Renderable Objects" only option
 Referenced by commit a6775efb4f2, Alembic exporter: Fix Windows build errors
 Referenced by issue #77611, Restructure Alembic exporter based on USD exporter
+Referenced by issue #71395, Alembic - exported file does not keep collection offset
