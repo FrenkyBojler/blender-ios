@@ -6,3 +6,4 @@ Referenced by issue #39014, Modifiers/Deform/Curve and Constraints/Simulate/Foll
 The orientation of these two are not consistent.
 Referenced by issue #38995, Crash after select a object in scene
 Referenced by issue #38912, Strange behavior of between rigid body and soft body.
+Referenced by issue #38894, "Proportional editing mode" doesn't work with "Scale"
