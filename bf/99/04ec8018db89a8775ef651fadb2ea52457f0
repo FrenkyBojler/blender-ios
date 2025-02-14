@@ -4,3 +4,4 @@ Referenced by issue #62621, object scale changes tangent node output in Eevee
 Referenced by issue #62563, Hair Dynamics: cannot generate a valid particle cache
 Referenced by issue #62564, Object with "Viewport display" - "Display as" "Box" and "Wireframe" are not displays in render (EEVEE)
 Referenced by issue #62566, Cubemap doesn't bake from current frame of animation.
+Referenced by issue #62569, Big 16-bit PNG files don't support Non-color data (EEVEE)
