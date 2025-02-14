@@ -1,1 +1,2 @@
 Referenced by commit 35d74773717, Cycles: fix accuracy issues in fast_sin/fast_cos/fast_sincos
+Referenced by issue #131957, Cycles: fix accuracy issues in fast_sin/fast_cos/fast_sincos
