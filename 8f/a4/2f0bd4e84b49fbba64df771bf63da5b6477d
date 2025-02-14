@@ -1,1 +1,2 @@
 Referenced by issue #79631, Crash entering edit mode with Boolean modifier
+Referenced by issue #79604, Switching to edit mode on boolean object runs out of memory
