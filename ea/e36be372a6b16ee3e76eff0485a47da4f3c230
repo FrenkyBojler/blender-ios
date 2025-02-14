@@ -15,3 +15,4 @@ Referenced by issue #97183, Regression: Vertex paint mode (old style) work only 
 Referenced by issue #97132, Sculpt mode. Color filter brush moves all geometry when there is no color attribute
 Referenced by issue #97110, Regression: Using Sculpt mode Paint tool and Dyntopo crashes blender.
 Referenced by issue #96895, GPU Subdivision destroys vertex color in Eevee
+Referenced by issue #96209, Smear tool painting vertex colors  corrupts color info: part 2
