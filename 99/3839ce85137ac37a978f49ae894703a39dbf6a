@@ -1,3 +1,4 @@
 Referenced by commit be3047c500b, Fix T95827: vertex groups do not display correctly with GPU subdivision
 Referenced by issue #96845, Regression: GPU Subdivision with mirror/Array modifier shows artifacts
 Referenced by issue #95177, OpenSubdiv Crash using mirror modifier in edit-mode
+Referenced by issue #95162, GPU subdivision renders flat faces if there are other modifiers in the stack
