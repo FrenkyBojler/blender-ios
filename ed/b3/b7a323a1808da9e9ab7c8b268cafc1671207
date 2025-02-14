@@ -1,2 +1,3 @@
 Referenced by commit d0b0a0a894e, Fix T74927: Slow playback using Auto Normalization
 Referenced by issue #71650, Bezier curve show as Constant
+Referenced by issue #67274, Graph Editor Normalization broken by Keyframe that uses Easing or Dynamic interpolation
