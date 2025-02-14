@@ -1,2 +1,3 @@
 Referenced by commit 8d3cc431d7f, Fix T41471 Cycles Bake: Setting small tile size results in wrong bake with stripes rather than the expected noise pattern
 Referenced by issue #41471, Cycles Bake: Setting small tile size results in wrong bake with 'stripes' rather than the expected noise pattern
+Referenced by issue #41222, Blender gives weird ouput when baking (4096*4096) resolution on GPU
