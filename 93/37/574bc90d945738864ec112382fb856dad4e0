@@ -31,3 +31,4 @@ Referenced by issue #41854, Activated Mutlittexture shading show not the materia
 Referenced by issue #41827, Blender Error
 Referenced by issue #41829, Normal Map in Material Node going wrong
 Referenced by issue #41809, Rigid body Constraint: Generic are crazy for rotation along Y axis (Bullet issue?)
+Referenced by issue #41786, misiing and doubled objects in BMVert.link_* sequences
