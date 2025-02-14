@@ -1,0 +1,1 @@
+Referenced by issue #114336, when opening a .blend in 4.1 that was created in 3.6, Blender hard crashes when changing the cycles viewport render pass from the viewport shading menu
