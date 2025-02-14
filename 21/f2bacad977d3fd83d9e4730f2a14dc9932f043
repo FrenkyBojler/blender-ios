@@ -1,0 +1,1 @@
+Referenced by commit 0791f530290, Fix shape-keys always being freed in BKE_mesh_nomain_to_mesh
