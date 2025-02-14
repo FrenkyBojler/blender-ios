@@ -5,3 +5,4 @@ Referenced by issue #60710,  subdivision modifier ,adjust edit cage to modifier 
 Referenced by issue #60685, Blender crashes when I switch form object mode to particle edit
 Referenced by issue #60546, keyframe hair particle timing
 Referenced by issue #60529, laggy behaviour after subdiv. modifier
+Referenced by issue #60521, Keyframe viewable objects not working correctly
