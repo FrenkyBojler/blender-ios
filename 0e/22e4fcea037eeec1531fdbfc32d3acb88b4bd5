@@ -2,3 +2,4 @@ Referenced by issue #130088, Undo operator without UNDO bl_option crashes Blende
 Referenced by issue #129845, can't open blender
 Referenced by issue #129556, Crash: Access Violation when running a python extension
 Referenced by issue #129479, gltf export loses translation information about Empty objects
+Referenced by issue #129401, Blender 4.2.3 crashes during BMesh garbage collection
