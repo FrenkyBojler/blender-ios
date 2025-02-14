@@ -1,2 +1,3 @@
 Referenced by issue #79915, Crash when changing the Color Surface to White Noise Texture
 Referenced by issue #79533, Crash when opening file
+Referenced by issue #77683, Crash when trying to bake texture
