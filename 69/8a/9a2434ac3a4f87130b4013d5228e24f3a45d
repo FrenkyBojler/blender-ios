@@ -1,3 +1,4 @@
 Referenced by issue #41204, Python KX_lightObject.distance method incorrectly updating energy not distance
 Referenced by issue #41205, Volume Distance is not taken.
 Referenced by issue #41209, Run Armature actuator not working with DupliGroup object.
+Referenced by issue #41180, Crash when using motion blur with Freestyle.
