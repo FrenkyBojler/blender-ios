@@ -1,2 +1,3 @@
 Referenced by commit ab77363619b, Fix silly crash on Collada
 Referenced by commit de079abfbd7, Outliner tooltips: Small refactor, future proof change
+Referenced by commit 13238ee991a, Revert "Fix crash on Collada exporter"
