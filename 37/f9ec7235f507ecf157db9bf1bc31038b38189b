@@ -1,3 +1,4 @@
 Referenced by commit 96c6f543ecc, Fix #131738: Grease Pencil: Use correct textures in `acquire_resources`.
 Referenced by issue #132343, Fix #131738: Grease Pencil: Use correct textures in `acquire_resources`.
 Referenced by issue #132113, Grease Pencil: Lineart modifier strokes not rendering, unless there is other GP object in the scene
+Referenced by issue #131738, Grease pencil layer masks do not work
