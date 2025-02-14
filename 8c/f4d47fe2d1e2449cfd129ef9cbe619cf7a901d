@@ -1,0 +1,1 @@
+Referenced by issue #127131, Deforming motion blurred point clouds do not render in Cycles HIP-RT when BVH timesteps != 0
