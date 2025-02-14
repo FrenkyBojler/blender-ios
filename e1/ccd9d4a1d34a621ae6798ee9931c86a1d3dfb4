@@ -3,3 +3,4 @@ Referenced by issue #112218, Joining objects results in an error
 Referenced by issue #112145, Blender Crashes when deselecting Name-fields
 Referenced by issue #109986, Regression: Using Grease Pencil Sculpt Grab Tool on a Stroke affected by Subdivide Modifier will Crash Blender
 Referenced by issue #109848, Applying Any “Modify” Modifier to a Mesh With Shape Keys Will Crash Blender
+Referenced by issue #109720, bpy.app.driver_namespace: no way to properly initialize for driver in material
