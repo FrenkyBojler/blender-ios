@@ -1,3 +1,4 @@
 Referenced by commit de443e038c4, VSE: Fix linked time option for sequencer select
 Referenced by commit 62e32e7c2e0, Fix VSE: Effect strip flickers when moving left handle
 Referenced by commit 5925b1821a5, Fix T102328: Incorrect strip state after copying
+Referenced by commit 17a773cdcee, Fix T99216: RNA startdisp and enddisp return unreliable values
