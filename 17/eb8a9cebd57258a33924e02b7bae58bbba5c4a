@@ -1,3 +1,4 @@
 Referenced by issue #98270, Regression: Nishita Sky - Black Sun Disc(Cycles)
 Referenced by issue #97963, Blender 3.2 / Linux - Crashing To Desktop at opening any .blend file
 Referenced by issue #97737, GPU Subdivision: Crash after opening particular files
+Referenced by issue #97606, Crash on linux with amd gpu with two subdivision modifiers
