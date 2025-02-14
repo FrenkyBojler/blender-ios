@@ -1,1 +1,2 @@
 Referenced by issue #113724, US intl dead keys not working in wayland (works fine in X11)
+Referenced by issue #76428, GHOST/Wayland Support
