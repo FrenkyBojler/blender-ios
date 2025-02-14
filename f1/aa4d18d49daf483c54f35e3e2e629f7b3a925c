@@ -1,1 +1,2 @@
 Referenced by issue #73530, Crash on Rendering with Mesh Creation/Removal in frame_change_post handler.
+Referenced by issue #73121, Blender hard crashes on accessing particle uv_on_emitter
