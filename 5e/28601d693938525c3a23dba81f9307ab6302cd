@@ -1,1 +1,2 @@
 Referenced by issue #121560, Anim: Only Insert Needed behavior changed (4.0 with `Only Insert Needed` enabled vs. 4.1 with `Only Insert Needed` > `Manual` enabled)
+Referenced by issue #117543, Smarter "Insert Needed" functionality when keying manually
