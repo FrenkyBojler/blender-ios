@@ -1,1 +1,2 @@
 Referenced by commit e254d8867d6, Outliner: Hide library overrdies context menu when no IDs are selected
+Referenced by commit 860c3dce1b7, Outliner: Don't show asset context menu when no IDs are selected
