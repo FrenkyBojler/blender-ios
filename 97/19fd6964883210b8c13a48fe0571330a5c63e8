@@ -1,0 +1,1 @@
+Referenced by issue #104163, Cycles GPU CUDA rendering high number of points seems broken in LTS (main is fine, request for backport)
