@@ -1,1 +1,2 @@
 Referenced by commit 33ca4daf8f6, Fix #123882: Ocean Modifier not updating normals in "Displace" mode
+Referenced by commit d0eeb3d1555, Cleanup: Remove mesh normals function, deprecate in RNA
