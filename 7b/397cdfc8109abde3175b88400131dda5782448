@@ -2,3 +2,4 @@ Referenced by issue #54088, Blender 2.79a crashes immediately on Laptop
 Referenced by issue #53567, denoising artifacts with normal mapping in diffuse
 Referenced by issue #52793, Blender crashes when changing viewport shading to rendered
 Referenced by issue #52704, Ctrl+P Automatic Weights Freezes Blender
+Referenced by issue #52671, Flipped names don't weight properly with Mirror Modifier
