@@ -1,0 +1,1 @@
+Referenced by issue #65834, Circle Select in edit mode seems to be locked to the local view axes of the first selection click/stroke (can't properly select while rotating the camera with a 3D mouse)
