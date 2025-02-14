@@ -16,3 +16,4 @@ Referenced by issue #52580, principled BSDF Reflected Roughness bug.
 Referenced by issue #52567, Limit to selection to visible function (problem)
 Referenced by issue #52571, NLA Tracks cause lower performance with Armature Ghost
 Referenced by issue #52574, "Path tracing tile" starts at 0 instead of 1
+Referenced by issue #52551, undo causes crash after enabling a new rigid body when scene uses a referenced rigid body world
