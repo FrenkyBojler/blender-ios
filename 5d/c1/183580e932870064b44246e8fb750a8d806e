@@ -1,2 +1,3 @@
 Referenced by issue #55519, Blender (silently) fails when importing Sketchup Collada File
 Referenced by issue #54996, The bridge tool fails in a situation with multiple rows of faces facing each other
+Referenced by issue #54544, "Copy Materials to Selected" only works when materials are defined on the mesh
