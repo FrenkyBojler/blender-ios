@@ -1,0 +1,1 @@
+Referenced by issue #74009, Adding bpy.ops.outliner.orphans_purge() to the QuickMenu leaves it inaccessible, because poll() prevents it from being run
