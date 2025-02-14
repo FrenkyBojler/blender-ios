@@ -1,1 +1,2 @@
 Referenced by issue #77985, Creating new texture slot of particle systems by python will corrupt texture's influence on particles.
+Referenced by issue #77867, Duplicate Object, then Linked Duplicate Object, then Repeat Last Tool causes crash
