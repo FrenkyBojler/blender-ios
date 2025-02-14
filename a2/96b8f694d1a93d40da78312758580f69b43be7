@@ -1,1 +1,2 @@
 Referenced by issue #103947, Crash on Mac when starting with `--debug-gpu` flag
+Referenced by issue #102322, Crash on exiting VR session when using DirectX backend
