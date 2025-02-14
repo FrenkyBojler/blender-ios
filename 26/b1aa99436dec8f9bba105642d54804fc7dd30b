@@ -8,3 +8,4 @@ Referenced by issue #58101, Image empties are only rendering their border when u
 Referenced by issue #58092, Blender 2.8 Crash in workbench with matcap.
 Referenced by issue #58093, Collada exporter: Missing texcoord attribute
 Referenced by issue #58075, Crash on switching to vertex paint mode after going to the modeling workspace
+Referenced by issue #58080, Blender crashed when enabling "Cavity" in Matcap mode
