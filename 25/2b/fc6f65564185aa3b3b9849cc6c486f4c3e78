@@ -1,1 +1,2 @@
 Referenced by issue #42838, bpy.ops.object.duplicates_make_real: use_hierarchy parameter doesn't work as expected
+Referenced by issue #42841, bpy.ops.object.duplicates_make_real: animation data not linked
