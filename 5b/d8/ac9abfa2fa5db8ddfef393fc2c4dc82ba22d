@@ -7,3 +7,4 @@ Referenced by issue #63043, Armature mod. fails to work in conjunction with vert
 Referenced by issue #61772, Particle system crash during animation after switching particle settings (near MEM_lockfree_reallocN_id)
 Referenced by issue #61699, Background doesn't render in EEVEE in the rendered mode
 Referenced by issue #61043, Blender crashes on VSE zoom / scroll timeline sometimes
+Referenced by issue #59764, Crash when opening a file in 2.79 saved with 2.8
