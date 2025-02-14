@@ -15,3 +15,4 @@ Referenced by issue #99138, Regression: Principled volume in world shader densit
 Referenced by issue #99120, Regression: Crash due to high memory usage when compiling Eevee shaders on AMD GPUs
 Referenced by issue #99104, Shader Light output of mesh object leads to crash with Eevee
 Referenced by issue #99018, EEVEE: Regression: Specular BSDF apply specular color input twice
+Referenced by issue #99019, EEVEE: Regression: Specular BSDF does not apply occlusion
