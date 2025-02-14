@@ -1,1 +1,2 @@
 Referenced by issue #58816, Color management Display Device other than sRGB segfaults Blender
+Referenced by issue #58495, bpy.ops.curve.draw() fails
