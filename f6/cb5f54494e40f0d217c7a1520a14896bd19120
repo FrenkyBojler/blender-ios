@@ -87,3 +87,4 @@ Referenced by issue #68042, Bone Selection Problem (on NVIDIA Quadro)
 Referenced by issue #68018, Being able to set the same location of proxies to source is not allowed in the filesystem
 Referenced by issue #67966, UV editor doesn't select exact face
 Referenced by issue #67739, Freezed when resize new added metaball
+Referenced by issue #67720, Smoke Cache deleted when hiding the smoke domain
