@@ -1,2 +1,3 @@
 Referenced by issue #49651, Boolean in carve solver can crash blender when doing Difference operation
 Referenced by issue #49644, blender crash when toggle maximize area on from UV\image editor
+Referenced by issue #49626, Scene switch from CLI doesn't work with non-ASCII names.
