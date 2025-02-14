@@ -1,3 +1,4 @@
 Referenced by issue #63997, Weird z-fight during weight paint
 Referenced by issue #63443, tool 'builtin_brush.draw' not found for space 'IMAGE_EDITOR'
 Referenced by issue #63435, Incorrect fresnel and normals for hair strands on EEVEE
+Referenced by issue #63326, Shape key 008 has wrong frame time when created from python script
