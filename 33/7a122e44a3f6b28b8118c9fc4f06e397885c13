@@ -1,2 +1,3 @@
 Referenced by issue #87167, Object dragged from Outliner into Geo Nodes doesn't auto update
 Referenced by issue #86894, Geometry nodes drag and drop creates a duplicate node
+Referenced by issue #86722, Missing updates after geometry nodes drag and drop
