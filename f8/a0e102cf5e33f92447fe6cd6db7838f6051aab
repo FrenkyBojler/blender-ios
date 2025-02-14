@@ -1,3 +1,4 @@
 Referenced by commit 5519a6a5206, Fix T94243: weightpaint gradient panel shown in other places
 Referenced by commit e549d6c1bd2, Fix T93169: Weightpaint falloff popover drawn twice
 Referenced by issue #94243, Spare falloff panel
+Referenced by issue #91636, Weightpaint Gradient tool: expose brush curve preset/falloff to the UI
