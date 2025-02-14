@@ -1,0 +1,1 @@
+Referenced by issue #96238, shrinking to zero doesn't actually scales the radius to zero
