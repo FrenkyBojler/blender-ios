@@ -3,3 +3,4 @@ Referenced by issue #110121, Fix #113552: NLA Markers do not reset when length r
 Referenced by issue #110108, NLA Snap to Markers is broken
 Referenced by issue #101919, Adjusting Animation Track Total Amount No Longer Evenly Adjusts
 Referenced by issue #101130, Regression: Scaling of NLA Strip Via S Hotkey Not Working
+Referenced by issue #100918, Regression: The start frame of NLA tracks can not be negative.
