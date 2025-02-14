@@ -2,3 +2,4 @@ Referenced by issue #73170, New Scene -> "Full Copy" Crashes Blender
 Referenced by issue #73086, Eevee: strange discrepancy in handling of 32 bit floating point textures
 Referenced by issue #73061, Selection tools interfere with the sidebar.
 Referenced by issue #73062, Custom properties misaligned.
+Referenced by issue #71287, Blender Running extremely slow on Intel IRIS and Windows
