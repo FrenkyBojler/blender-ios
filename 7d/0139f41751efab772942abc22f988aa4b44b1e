@@ -1,0 +1,1 @@
+Referenced by issue #81459, Not freed memory blocks after using viewport shading type: "rendered"
