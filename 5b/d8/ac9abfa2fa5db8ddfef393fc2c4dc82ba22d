@@ -15,3 +15,4 @@ Referenced by issue #58524, Cycles Compute Device only shows "none".
 Referenced by issue #58251, Blender ignores linked meshes when rendering in Cycles
 Referenced by issue #58226, terrible UI performance, basically unusable, very laggy, freezes
 Referenced by issue #57788, Rendering Still - Blender automatically appends Frame Number
+Referenced by issue #57658, Wrong vertex-per-face normal lines overlay
