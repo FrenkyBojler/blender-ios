@@ -1,3 +1,4 @@
 Referenced by issue #80066, Dyntopo menu disappears after using "box hide" brush in sculpt mode (fixed in 2.90 and 2.91 - request to backport to LTS)
 Referenced by issue #78186, dyntopo tab disappears when specific brush selected
 Referenced by issue #77606, Sculptmode - non brush tools [e.g. cloth filter] - NoneType has no attribute brush error with hovering over Dyntopo
+Referenced by issue #77348, Blender LTS: Maintenance Task 2.83
