@@ -1,3 +1,4 @@
 Referenced by issue #82783, Number keys cannot be mapped in the 3D viewport
 Referenced by issue #82555, Segfault when applying modifier to object copy from python
 Referenced by issue #82521, Bump OpenImageIO minimum version 1.8 > 2.2.1 for install_deps.sh
+Referenced by issue #82047, Boolean issues when duplicating and rotating mesh or object
