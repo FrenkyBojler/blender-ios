@@ -1,2 +1,3 @@
 Referenced by issue #106315, Regression: Smooth shading artefacts with mirror modifier (in 3.5, 3.6 is fine, for corrective release)
 Referenced by issue #104348, Regression: Geometry Nodes triangulate node incorrectly alters point attributes
+Referenced by issue #104334, Regression: Baking Bevel Shader does not work
