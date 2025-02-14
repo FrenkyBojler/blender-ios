@@ -1,1 +1,2 @@
 Referenced by commit d0348bcb8a5, Fix: Crash when grouping frame node but not its children
+Referenced by issue #102921, Making node groups in node editor crash blender
