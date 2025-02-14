@@ -1,1 +1,2 @@
 Referenced by issue #103555, File output nodes don't use the extra slash on the end unless there is a file sub path leading to incorrect file locations
+Referenced by issue #102132, Render output folder is missing a slash resulting in it saving to the incorrect spot.
