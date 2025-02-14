@@ -1,3 +1,4 @@
 Referenced by commit b1db1702c6e, Cleanup: Deduplicate UI list filtering checks
 Referenced by issue #119379, Fix #108078: Crash when inverting results in pose library sidebar
 Referenced by issue #109399, Blender LTS: Maintenance Task 3.6
+Referenced by issue #109157, Fix #108078: Crash when inverting results in pose library sidebar
