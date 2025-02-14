@@ -21,3 +21,4 @@ Referenced by issue #96305, Applying Wireframe modifier does not apply correctly
 Referenced by issue #96294, Regression: Crash when executing bpy.types.ShapeKey.normals_vertex_get
 Referenced by issue #96041, Memory usage of linked duplicates is extremely high (regression from 3.0)
 Referenced by issue #95971, Strange artifacting with subsurface scattering objects
+Referenced by issue #95917, Boolean modifiers creates odd shading when used in 'Exact' mode
