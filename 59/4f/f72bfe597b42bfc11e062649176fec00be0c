@@ -1,2 +1,3 @@
 Referenced by issue #41032, Scatter volume causes crash
 Referenced by issue #41033, Blender crashs with trying to render a cycles scene
+Referenced by issue #41023, Specific material cause bad render result, different on CPU/GPU
