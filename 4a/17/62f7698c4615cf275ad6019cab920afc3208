@@ -1,2 +1,3 @@
 Referenced by issue #52368, OSL trace not working in 2.79 RC!
 Referenced by issue #52370, AMD FirePro w7000 not recognized in v2.79 rc1 and 2.79 latest build
+Referenced by issue #52373, Weight Paint Mode: 'Limit Selection to Visible' doesn't respect Wireframe Shading
