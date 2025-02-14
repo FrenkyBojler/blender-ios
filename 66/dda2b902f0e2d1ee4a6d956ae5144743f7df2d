@@ -1,3 +1,4 @@
 Referenced by commit 11766574a4c, Fix #104842: Incorrect cyclic curve parameter node factor
 Referenced by issue #105079, Fix #104842: Incorrect cyclic curve parameter node factor
 Referenced by issue #104842, Regression: Geometry Node: Incorrect cyclic curve factor parameter
+Referenced by issue #102003, Geometry nodes: Spline parameter length works wrong for NURBS
