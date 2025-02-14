@@ -2,3 +2,4 @@ Referenced by issue #61208, Particle System > Changing the emitting number also 
 Referenced by issue #61184, linked curves with curve modifiers arent drawn correctly
 Referenced by issue #61146, Wheigt painting tools on imported models odd behavior
 Referenced by issue #61124, lag on physiks simulation
+Referenced by issue #60988, eevee crashing on viewport after linking some objects, but still works on render
