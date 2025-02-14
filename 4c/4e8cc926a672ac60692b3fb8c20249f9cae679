@@ -1,3 +1,4 @@
 Referenced by commit 230744d6fd9, Revert "Fix T102346: Mouse escapes window during walk navigation"
 Referenced by commit 9fd6dae7939, Fix T102346: Mouse escapes window during walk navigation
 Referenced by issue #109968, Regression: Mouse cursor jumps to the left when keep clicking on the colour circle under Windows
+Referenced by issue #102346, Regression: Viewport Walk Navigation : mouse escapes window if it moves too fast
