@@ -1,2 +1,3 @@
 Referenced by issue #98500, Geometry Nodes, Duplicate Elements, Selection chooses the wrong elements
 Referenced by issue #98400, Geometry Nodes: Crash with Duplicate Elements and Set ID
+Referenced by issue #95941, Change curve component to store Curves data
