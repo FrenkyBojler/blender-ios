@@ -1,1 +1,2 @@
 Referenced by commit afe0ebeb74e, Fix: properly export metaballs to USD
+Referenced by commit c6878d5e829, Fix #103021: Metaballs have jagged normals
