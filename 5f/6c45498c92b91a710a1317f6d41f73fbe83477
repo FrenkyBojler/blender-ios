@@ -1,1 +1,2 @@
 Referenced by commit 390a0d56247, Fix T82387: Crash loading file saved with recent master in old versions
+Referenced by commit 52a475287d7, Fix T70898: Area.type access fails for topbar & statusbar
