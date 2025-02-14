@@ -22,3 +22,4 @@ Referenced by issue #70560, Large cones are created with double vertices (even t
 Referenced by issue #70561, black render of mirrored object - cycles
 Referenced by issue #70500, Blender VSE with a Scene Strip and Compositor Crash
 Referenced by issue #70461, Plane plus Modifier "skin" CRASH
+Referenced by issue #70279, crash, Helicopter, blender 2.74 demo file
