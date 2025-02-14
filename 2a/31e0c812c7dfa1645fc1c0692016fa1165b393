@@ -1,0 +1,1 @@
+Referenced by issue #130218, changing colourspace in image datablock via python resets modifies image scale
