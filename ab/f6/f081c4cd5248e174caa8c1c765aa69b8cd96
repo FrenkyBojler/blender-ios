@@ -30,3 +30,4 @@ Referenced by issue #49387, Blender 2.77 & up, GLSL Viewport rendering not worki
 Referenced by issue #49390, Blender extremely laggy
 Referenced by issue #49322, Export UV Layout not working
 Referenced by issue #49329, BGE standalone player crash when loading another file more than 32 times
+Referenced by issue #49304, Incorrect Custom Float Property Value Readout
