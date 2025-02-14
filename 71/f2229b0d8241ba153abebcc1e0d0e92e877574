@@ -1,2 +1,3 @@
 Referenced by commit 8903205dd9d, Fix: incorrect ffmpeg video length estimation logic
 Referenced by issue #126368, Fix: incorrect ffmpeg video length estimation logic
+Referenced by issue #71052, Eyedropper for props does not work in dialog boxes
