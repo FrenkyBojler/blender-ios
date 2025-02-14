@@ -1,1 +1,2 @@
 Referenced by issue #46248, OSD looses teture coords when deleting a particle system
+Referenced by issue #40188, BVH cache files not handled properly
