@@ -1,1 +1,2 @@
 Referenced by commit aa2f6e59770, Fix T92979: Emission Strength Animation read wrong in 3.0
+Referenced by issue #92979, keys on shader attributes get disconnected each time a Blender scene is closed.
