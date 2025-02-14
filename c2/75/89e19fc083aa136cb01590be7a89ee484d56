@@ -23,3 +23,4 @@ Referenced by issue #46296, Rigify: Bone Heat Weighting: failed to find solution
 Referenced by issue #46299, File Browser Crash while listing big folders in preview mode (fonts, images...).
 Referenced by issue #46221, Mixed shader Glass and Transparent displayed as solid in render, prerender as wished.
 Referenced by issue #46223, Open EXR multiview image sequences crash Blender 2.75a and 2.76rc
+Referenced by issue #46217, Baked normal artifacts
