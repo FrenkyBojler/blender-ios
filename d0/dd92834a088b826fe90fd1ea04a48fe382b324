@@ -9,3 +9,4 @@ Referenced by issue #115676, When rendering animation, it gives an error and clo
 Referenced by issue #115670, Selecting HIP causes a complete hanging of Blender 4.0
 Referenced by issue #115481, Blender Crashes with `SIGSEGV (Address boundary error)`
 Referenced by issue #115430, cycles+openimagedenoise: Blender crashes when enabling composition in realtime view
+Referenced by issue #115341, Mixing with a value produces a different result depending on the Blender version
