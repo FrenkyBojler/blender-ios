@@ -2,3 +2,4 @@ Referenced by issue #124624, Viewport flickrs when the Fade Inactive Geometry op
 Referenced by issue #124565, Regression: Environment pass is not rendered (or rendered black) with 4.2 EEVEE
 Referenced by issue #124566, Compositor normal node's output is not computed while in a group node
 Referenced by issue #124567, Combining two Shader to RGB nodes destroys the Normals AOV
+Referenced by issue #124521, Regression: Material preview World Space Lighting toggle
