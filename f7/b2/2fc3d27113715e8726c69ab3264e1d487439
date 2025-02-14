@@ -2,3 +2,4 @@ Referenced by issue #88500, Maximize button in the header is broken
 Referenced by issue #88503, Geometry nodes: Crash when using attribute proximity on mesh primitives when moving/rotating/scaling object
 Referenced by issue #88484, Compositor: adding viewer node with volume object causes crash in DebugInfo::graphviz
 Referenced by issue #88475, use after free Fluid sim seg fault
+Referenced by issue #88186, [2.92] Crash when loading mp3 file in VSE
