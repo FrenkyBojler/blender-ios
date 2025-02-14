@@ -1,1 +1,2 @@
 Referenced by issue #70737, Text Objects' Normals flipped and Topology broken between rB54a9649e2636 and rB40a55be82cf5
+Referenced by issue #70594, mathutils.geometry.tessellate_polygon creates triangles with opposite normal from input ngon
