@@ -515,7 +515,10 @@ static void motion_blur_cpu(const Result &input_image,
 
 class VectorBlurOperation : public NodeOperation {
  public:
-  using NodeOperation::NodeOperation;
+  VectorBlurOperation(Context &context, DNode node) : NodeOperation(context, node)
+  {
+    this->get_input_descriptor("Speed").type = ResultType::MotionVector;
+  }
 
   void execute() override
   {

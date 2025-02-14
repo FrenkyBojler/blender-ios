@@ -176,6 +176,7 @@ class TrackPositionOperation : public NodeOperation {
                                             speed_toward_next * float2(size));
 
     Result &result = get_result("Speed");
+    result.set_type(ResultType::MotionVector);
     result.allocate_single_value();
     result.set_single_value(speed);
   }
@@ -194,6 +195,7 @@ class TrackPositionOperation : public NodeOperation {
     }
     if (should_compute_output("Speed")) {
       Result &result = get_result("Speed");
+      result.set_type(ResultType::MotionVector);
       result.allocate_single_value();
       result.set_single_value(MotionVector(0.0f));
     }
