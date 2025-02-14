@@ -1,3 +1,4 @@
 Referenced by issue #89926, Geometry node rendering issue (fixed in 3.0 - unclear if backport to LTS should be done)
 Referenced by issue #87597, Geometry Nodes PointScale node not working
 Referenced by issue #86749, Geometry Node Community Additions
+Referenced by issue #86633, Use implicit conversion when writing to built-in attributes
