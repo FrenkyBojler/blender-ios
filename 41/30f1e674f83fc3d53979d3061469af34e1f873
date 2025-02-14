@@ -1,1 +1,2 @@
 Referenced by issue #101642, Regression: Geometry Nodes: Crash when deleting Group Output inside a node group.
+Referenced by issue #101599, Node group timings aren't displayed for node groups
