@@ -1,2 +1,3 @@
 Referenced by commit c6db3f98bbc, Fix modal key assignment for "Rotate Normals" in keymap versioning
 Referenced by issue #118103, Warning property alt navigation
+Referenced by issue #116661, Transformation problems with "transform navigation with Alt" preference
