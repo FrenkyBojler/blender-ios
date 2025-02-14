@@ -1,1 +1,2 @@
 Referenced by commit c6ea00de3cd, BLI_math: correct the threshold for wrapping rotation in compatible_eul
+Referenced by issue #104856, BLI_math: improve the threshold for wrapping rotation in compatible_eul
