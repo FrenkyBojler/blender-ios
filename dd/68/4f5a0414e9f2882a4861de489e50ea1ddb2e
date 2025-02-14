@@ -1,3 +1,4 @@
 Referenced by issue #39147, Can't Save files nor access to my drives with 2.70 RCs
 Referenced by issue #38611, Blender 32bit Cycles Windows, Image Texture Node Crash
 Referenced by issue #38400, Crash in image_listener
+Referenced by issue #38403, Laplacian smooth on instanced objects leads to crash
