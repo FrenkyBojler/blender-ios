@@ -11,3 +11,4 @@ Referenced by issue #51313, blender crashes after adding texture node to composi
 Referenced by issue #51287, MatrixUtils LERP incorrect interpolation
 Referenced by issue #51214, Dynamic Paint Works Only in Viewport Render
 Referenced by issue #51153, VSE Interlaced Video FPS not being honored
+Referenced by issue #51147, Fluid simulation - inflow - export animated mesh bug
