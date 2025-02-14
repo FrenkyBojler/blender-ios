@@ -1,0 +1,1 @@
+Referenced by issue #89604, Booleans don't work if there is an empty object in the collection.
