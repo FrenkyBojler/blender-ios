@@ -1,1 +1,2 @@
 Referenced by commit 9216cf9cb58, Fix: dangling internal links after removing sockets
+Referenced by issue #94534, Geometry nodes. Deleting one free input crashes blender (only this file)
