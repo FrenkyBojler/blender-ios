@@ -97,3 +97,4 @@ Referenced by issue #39927, Menu items sometimes list Hotkeys as CMD, but someti
 Referenced by issue #39911, Graph editor, active keyframe panel, handle update coordinates.
 Referenced by issue #39915, Cycles - Change view in viewport fail
 Referenced by issue #39907, Image texture node's bug
+Referenced by issue #39908, All text become unreadable when I deselect "Load UI" before opening a file
