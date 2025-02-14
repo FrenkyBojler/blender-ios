@@ -316,6 +316,7 @@ static void store_result_geometry(const wmOperator &op,
         BKE_mesh_nomain_to_mesh(new_mesh, &mesh, &object);
         DEG_id_tag_update(&mesh.id, ID_RECALC_GEOMETRY);
       }
+
       if (has_shape_keys && !mesh.key) {
         BKE_report(op.reports, RPT_WARNING, "Mesh shape key data removed");
       }
