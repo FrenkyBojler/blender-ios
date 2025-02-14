@@ -1,3 +1,4 @@
 Referenced by commit 83047bed26c, Correction to b1b8091667: Use utility function
 Referenced by issue #116819, Geometry Nodes: muted node erases attribute (Blender 3.6)
 Referenced by issue #111297, Crash on setting preview image for asset when File Browser is set to 'Maximized Area'
+Referenced by issue #106976, Crash when changing asset icon
