@@ -16,3 +16,4 @@ Referenced by issue #106469, Regression: Cycles: unstable triangulation of mesh 
 Referenced by issue #106198, Realize instances node affects UVs (texture coordinate)
 Referenced by issue #106185, Fix #106128: OBJ exporter crash when a mesh only has loose vertices
 Referenced by issue #105916, mode='UV_MAP'
+Referenced by issue #104947, Regression: Attributes: Delete UV map doesn't cause update as delete uv attribute
