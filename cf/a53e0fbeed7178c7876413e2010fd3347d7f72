@@ -31,3 +31,4 @@ Referenced by issue #94986, Inset Faces operator depth not affecting existing ve
 Referenced by issue #94974, Incorrect normals in edit mode (especially after undo)
 Referenced by issue #94967, Sculpt mode crashes with missing normals
 Referenced by issue #94972, Sculpt: Crash when using Filter type inflate
+Referenced by issue #94838, Normals not properly updating when using a Deform modifier after a Data Transfer (Custom Normals) modifier
