@@ -1,2 +1,3 @@
 Referenced by commit a814c7091b9, Fix T99847: Dragging image from Image Editor to Node Editor broken
 Referenced by issue #99847, Regression: Dragging an image from the Image Editor into any Node Editor no longer works in 3.3
+Referenced by issue #98875, Regression: Adding Camera background image immediately pops an "Image not found" error
