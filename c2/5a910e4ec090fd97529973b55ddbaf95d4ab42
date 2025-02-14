@@ -1,2 +1,3 @@
 Referenced by issue #71600, Child object location keyframe values incorrect
 Referenced by issue #71602, Library Override: Overriding material causes BKE_id_is_in_global_main assert on file load
+Referenced by issue #71590, Cancelling the File browser after having cancelled the render view shows the render view
