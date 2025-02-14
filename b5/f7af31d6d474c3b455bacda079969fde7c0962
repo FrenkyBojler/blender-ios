@@ -3,3 +3,4 @@ Referenced by commit 5bad311f4ce, Fix: Multires crash after recent face set refa
 Referenced by issue #123888, Fix #123859: Multiresolution breaks mask when subdividing in Object Mode
 Referenced by issue #123859, Multiresolution Modifier breaks mask when subdividing in Object Mode
 Referenced by issue #103724, Regression: Disappearing mesh with cloth brush fresh multires modifier
+Referenced by issue #102940, Regression: Blender 3.4.0 Release Candidate crash on 'Mask by Color'
