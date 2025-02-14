@@ -3,3 +3,4 @@ Referenced by issue #55996, Playback in "Active Editor Only" doesn't work
 Referenced by issue #56002, Blender 2.8 alpha - Shader to RGB is not present when opening older 2.7x files
 Referenced by issue #55970, Metaball editing crashes Blender
 Referenced by issue #55971, [2.8] Crash when switching refraction on LookDev display with World HDRI and no node-background
+Referenced by issue #55972, crash when extruding armature
