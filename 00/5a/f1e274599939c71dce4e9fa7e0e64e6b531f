@@ -1,1 +1,2 @@
 Referenced by issue #73671, Collection instances controlled by proxy armatures sometimes have the instancing empties transformation applied
+Referenced by issue #72083, Make Proxy: Object.proxy_collection is been set to linked target object even when target is not a collection
