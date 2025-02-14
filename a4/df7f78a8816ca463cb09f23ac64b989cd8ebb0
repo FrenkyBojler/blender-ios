@@ -1,1 +1,2 @@
 Referenced by issue #75398, Repeat (Shift R) scaling vertex (two or more) to the selected vertex (scale x 0) on axis does not work correctly.
+Referenced by issue #71455, Transform: Redo doesn't work properly in Video Sequencer time manipulation
