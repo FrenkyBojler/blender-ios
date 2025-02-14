@@ -1,1 +1,2 @@
 Referenced by issue #79940, VSE Editor crash when opening a different scene as a strip
+Referenced by issue #79816, bpy.context.scene.statistics no longer exists in the Python API
