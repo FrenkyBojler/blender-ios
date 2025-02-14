@@ -1,2 +1,3 @@
 Referenced by commit da7e7a0e80e, Fix: Handle null Action during armature export
 Referenced by issue #132651, Regression: Multires with color attribute in material view leads to a crash
+Referenced by issue #132381, Fix: Handle null Action during armature export
