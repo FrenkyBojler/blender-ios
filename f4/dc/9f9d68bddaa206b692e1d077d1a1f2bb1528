@@ -53,3 +53,4 @@ Referenced by issue #58169, Blender crush down when open a scene! Unusual bug!
 Referenced by issue #58121, Textures orphaned when loading .blend files from prior versions of blender.
 Referenced by issue #58108, Crash when switch from Edit Mode to Vertex Paint
 Referenced by issue #58109, New objects duplicated in isolate mode not visible.
+Referenced by issue #58111, Selection tools ignore Collections visibility.
