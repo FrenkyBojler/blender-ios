@@ -1,1 +1,2 @@
 Referenced by issue #98196, Crash when moving tweaked NLA strip with empty track below
+Referenced by issue #93707, Dragging the NLA strip cause a crash, if the related action is in tweakmode
