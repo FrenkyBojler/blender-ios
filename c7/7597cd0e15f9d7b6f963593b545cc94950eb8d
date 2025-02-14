@@ -9,3 +9,4 @@ Referenced by issue #96818, incorrect rendering
 Referenced by issue #96797, Blender crashes when having a lot of detail
 Referenced by issue #96718, Regression: Photo "blowout" when rendering and denoising in 3.1.0
 Referenced by issue #96693, Wireframe Modifier Can't Be Correctly Applied
+Referenced by issue #96616, Crash on Reload of Linked file
