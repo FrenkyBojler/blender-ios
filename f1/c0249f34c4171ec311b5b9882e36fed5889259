@@ -6,3 +6,4 @@ Referenced by commit ecf3287533c, Fix T100822: Merging objects does not assign m
 Referenced by commit 6ee34319147, Fix: Use of deprecated field in legacy MFace conversion
 Referenced by issue #105577, Python API allows setting negative material indices
 Referenced by issue #105518, Regression: Crash in edit mode with boolean and subdivision modifier
+Referenced by issue #103051, Regression: Deleting a material slot in 3.4 assigns faces to the material below instead of the material above
