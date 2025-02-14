@@ -1,2 +1,3 @@
 Referenced by commit 2a09634d415, Fix particlesystem not duplicating their pointcache in NO_MAIN case.
 Referenced by issue #88307, Crash when rendering Crurve with Softbody combined with Freestyle
+Referenced by issue #88026, Repeated switch to Rendered viewport mode causes crash
