@@ -1,2 +1,3 @@
 Referenced by commit 76608f5ec5e, Fix T60585: threadripper CPU only using 16 threads for e.g. sculpting.
 Referenced by commit 826d7adde79, Fix T59874: Cycles CPU 25% load only during rendering
+Referenced by issue #59874, Cycles CPU 25% load only during rendering
