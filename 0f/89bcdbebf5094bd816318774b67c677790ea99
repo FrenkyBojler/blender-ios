@@ -1,1 +1,2 @@
 Referenced by commit 2c0c4313996, Fix T102221: Entering editmode invalidates the driver associated with that mesh
+Referenced by commit 6bbf63f2519, Fix T96054: Switching vertex group does not update display
