@@ -1,1 +1,2 @@
 Referenced by commit b4a4004fb15, Fix memory leak in cryptomatte
+Referenced by issue #86271, Blender crashing when working in Compositor - for example deleting Cryptomatte nodes
