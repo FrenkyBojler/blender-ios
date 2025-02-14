@@ -1,0 +1,1 @@
+Referenced by issue #77492, bpy.ops.nla.bake() floods terminal with output like "quat_prev <Quaternion (w=1.0, x=0.0, y=0.0, z=0.0)>"
