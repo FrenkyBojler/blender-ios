@@ -9,3 +9,4 @@ Referenced by issue #126458, Cycles volume rendering artifacts on AMD GPU - Linu
 Referenced by issue #126114, viewport shadow crash
 Referenced by issue #126119, Blender EGL_BAD_MATCH linux
 Referenced by issue #126025, Crash when opening a shading preview on Blender 4.2
+Referenced by issue #125848, EEVEE render crashes - AMD Mesa
