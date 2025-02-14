@@ -1,3 +1,4 @@
 Referenced by issue #77466, Blender 2.83 crashing and lagging when rendering the viewport (cycles).
 Referenced by issue #77455, Scale gizmos cause complete freezes in Blender 2.83 on Intel graphics
 Referenced by issue #76393, Crash on assert(batch->program_in_use == 0)
+Referenced by issue #76095, Liquid cache of type "Replay" doesn't get invalidated when moving participating objects
