@@ -1,2 +1,3 @@
 Referenced by issue #130088, Undo operator without UNDO bl_option crashes Blender
 Referenced by issue #129845, can't open blender
+Referenced by issue #129556, Crash: Access Violation when running a python extension
