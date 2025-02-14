@@ -4,3 +4,4 @@ Referenced by issue #44091, Blender Crash is new action(Action Editor) is create
 Referenced by issue #44100, Hair particle dispears
 Referenced by issue #44081, Incorrect mesh deformation behavior when using deform bones from multiple armatures
 Referenced by issue #44088, Hair random rotation limited to 180 degrees
+Referenced by issue #44063, Unchecking Load UI setting crashes Blender when opening a file
