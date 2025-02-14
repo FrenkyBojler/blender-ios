@@ -3,3 +3,4 @@ Referenced by commit 53b82efed66, Fix (unreported) geometry node attribute searc
 Referenced by commit 8df968d69f0, "Show Texture in texture tab" button: full support for Sculpt / Paint
 Referenced by issue #88701, Geometry Nodes: show "Show Texture in texture tab" button in modifier stack
 Referenced by issue #86195, "Show Texture in texture tab" button: full support for Sculpt / Paint
+Referenced by issue #85278, Texture Panel for Attribute Texture Sample
