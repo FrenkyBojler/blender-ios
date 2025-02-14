@@ -1,1 +1,2 @@
 Referenced by issue #43724, addObject() with KX_FontObject and overlay scene
+Referenced by issue #41599, GE crashes when object from other scene is ended after adding it
