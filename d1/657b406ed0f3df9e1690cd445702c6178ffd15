@@ -1,2 +1,3 @@
 Referenced by issue #82930, bpy.types.Bone.AxisRollFromMatrix() returns bad roll value
 Referenced by issue #73840, Broken Shrinkwrap Modifier (and Bendy Bones)
+Referenced by issue #73117, b-bones interpolation error
