@@ -1,0 +1,1 @@
+Referenced by issue #46385, copying parent and vertex children when parent has constructive modifiers destroys children locations
