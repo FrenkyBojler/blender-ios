@@ -1,1 +1,2 @@
 Referenced by issue #78352, Proportional edit mode stucks from edit mode to object mode and force it to be turned on always (fresh regression)
+Referenced by issue #78259, Proportional Edit does not work in particle editing
