@@ -6,3 +6,4 @@ Referenced by issue #106138, Regression: Search in shader node editor exposes no
 Referenced by issue #103768, Geometry Nodes + Shader Editor + Asset Browser bug
 Referenced by issue #103108, Regression: NODE_OT_add_search ignores NodeItems entries
 Referenced by issue #103047, Mix Color is not searchable
+Referenced by issue #102555, Regression: Node editor Add menu - nodes gets created offset when adding from the Search operator
