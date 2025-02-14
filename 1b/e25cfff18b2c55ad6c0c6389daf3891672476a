@@ -3,3 +3,4 @@ Referenced by issue #109519, Orbit Around Selection in Edit Mode is not working 
 Referenced by issue #107539, MantaFlow (liquid fluids) Crash on Bake All
 Referenced by issue #107264, Color attributes from geometry nodes have no effect on volumes
 Referenced by issue #107204, Metal Viewport flickering on interaction
+Referenced by issue #106981, Fluid domain rendered as a solid block if the fluid emitter is smaller than resolution divisions
