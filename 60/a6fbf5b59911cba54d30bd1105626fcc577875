@@ -1,1 +1,2 @@
 Referenced by commit 9435ee8c651, Curves: Port subdivide node to the new data-block
+Referenced by issue #99287, Regression: Resample Curve after Fillet Curve node cause crash randomly
