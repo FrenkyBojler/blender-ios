@@ -1,0 +1,1 @@
+Referenced by issue #101402, Regression: when the scene has multiple volumes, some of them get wrong transformation in Eevee's render
