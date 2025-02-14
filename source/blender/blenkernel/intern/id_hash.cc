@@ -62,13 +62,15 @@ static std::optional<XXH128_hash_t> get_file_hash(const StringRefNull path)
   return hash;
 }
 
-static std::optional<XXH128_hash_t> get_id_shallow_hash(const ID &id)
+static std::optional<XXH128_hash_t> get_id_shallow_hash(const ID &id,
+                                                        Set<std::string> &r_missing_files)
 {
   BLI_assert(ID_IS_LINKED(&id));
   const StringRefNull id_name = id.name;
   const StringRefNull path = id.lib->runtime->filepath_abs;
   const std::optional<XXH128_hash_t> file_hash = get_file_hash(path);
   if (!file_hash) {
+    r_missing_files.add_as(path);
     return std::nullopt;
   }
 
@@ -83,8 +85,9 @@ static std::optional<XXH128_hash_t> get_id_shallow_hash(const ID &id)
 
 static void compute_deep_hash_recursive(const Main &bmain,
                                         const ID &id,
+                                        Set<const ID *> &current_stack,
                                         Map<const ID *, IDHash> &r_hashes,
-                                        Set<const ID *> &current_stack)
+                                        Set<std::string> &r_missing_files)
 {
   if (r_hashes.contains(&id)) {
     return;
@@ -94,7 +97,7 @@ static void compute_deep_hash_recursive(const Main &bmain,
     return;
   }
   current_stack.add(&id);
-  const std::optional<XXH128_hash_t> id_shallow_hash = get_id_shallow_hash(id);
+  const std::optional<XXH128_hash_t> id_shallow_hash = get_id_shallow_hash(id, r_missing_files);
   if (!id_shallow_hash) {
     return;
   }
@@ -125,7 +128,8 @@ static void compute_deep_hash_recursive(const Main &bmain,
           XXH3_128bits_update(hash_state, &random_data, sizeof(int));
           return IDWALK_RET_NOP;
         }
-        compute_deep_hash_recursive(bmain, *referenced_id, r_hashes, current_stack);
+        compute_deep_hash_recursive(
+            bmain, *referenced_id, current_stack, r_hashes, r_missing_files);
         const IDHash *referenced_id_hash = r_hashes.lookup_ptr(referenced_id);
         if (!referenced_id_hash) {
           success = false;
@@ -162,10 +166,15 @@ IDHashResult compute_linked_id_deep_hashes(const Main &bmain, Span<const ID *> i
 
   Map<const ID *, IDHash> hashes;
   Set<const ID *> current_stack;
+  Set<std::string> missing_files;
   for (const ID *id : ids) {
-    compute_deep_hash_recursive(bmain, *id, hashes, current_stack);
+    compute_deep_hash_recursive(bmain, *id, current_stack, hashes, missing_files);
   }
-
+  if (!missing_files.is_empty()) {
+    Vector<std::string> missing_files_vec;
+    missing_files_vec.extend(missing_files.begin(), missing_files.end());
+    return MissingBlendFiles{missing_files_vec};
+  }
   return ValidDeepHashes{hashes};
 }
 
