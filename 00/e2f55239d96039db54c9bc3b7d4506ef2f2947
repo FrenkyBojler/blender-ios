@@ -1,1 +1,2 @@
 Referenced by commit ef174d1e81a, Cleanup: remove logic for un-subdivide to support hidden faces
+Referenced by issue #122786, Multiresolution > Apply Base produces garbled meshes
