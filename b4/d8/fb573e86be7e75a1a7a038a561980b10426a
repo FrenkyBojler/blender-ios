@@ -12,3 +12,4 @@ Referenced by issue #43728, FreeStyle: rendering of 2D objects (created by Shrin
 Referenced by issue #43714, Regression: Join Area in causes crashes in some cases
 Referenced by issue #43716, Regression: Mask Modifier Creates "Web" of Phantom Lines
 Referenced by issue #43520, MinGW - FNM_CASEFOLD is undeclared
+Referenced by issue #43472, Loading BMP files
