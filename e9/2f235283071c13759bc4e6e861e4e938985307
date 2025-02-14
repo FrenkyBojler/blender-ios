@@ -47,3 +47,4 @@ Referenced by issue #51784, Wrong window scaling
 Referenced by issue #51732, Array Modifier: Fit Curve calculation method ignores parent relation
 Referenced by issue #51728, Feature Suggestion: "allow remote" switch for RDP connections
 Referenced by issue #51730, bmesh.ops.triangulate causes crash
+Referenced by issue #51699, Normals appear inverted/flipped when using mirror modifier on some versions Mac OS
