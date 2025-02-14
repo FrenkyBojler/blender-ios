@@ -1,1 +1,2 @@
 Referenced by commit 68d6bf56e51, Sculpt: Refactor position and mask smoothing for BMesh and multires
+Referenced by commit c93767a8b41, Sculpt: Extend refactor to change dyntopo in brushes
