@@ -3,3 +3,4 @@ Referenced by issue #44457, particle system does not spread
 Referenced by issue #44353, Particle distribution overlaps if number is greater than 256
 Referenced by issue #44312, Random particles not so random any more.
 Referenced by issue #44177, particles appear 100s of time at the same place in random
+Referenced by issue #43981, Particles - Hair - Even distribution is not even
