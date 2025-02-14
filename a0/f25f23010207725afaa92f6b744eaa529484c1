@@ -1,3 +1,4 @@
 Referenced by issue #38620, Cycles F/stop number soft limits are too high
 Referenced by issue #38388, Creating a new scene with full copy sets rigidbody collision shapes to box.
 Referenced by issue #38307, Duplicating a text object causes crash
+Referenced by issue #38309, With continuous grabbing of numbuttons, if you grab long enough (usually > 300), value is reset to about ~ -300
