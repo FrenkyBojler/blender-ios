@@ -1,3 +1,4 @@
 Referenced by commit 4f284873d0e, Fix: Crash after recent attributes commit
 Referenced by issue #102926, Crash: Geometry nodes, Set spline resolution to negative will crash Blender
 Referenced by issue #100952, Geometry nodes lets users create negative material indices
+Referenced by issue #100749, Blender LTS: Maintenance Task 3.3
