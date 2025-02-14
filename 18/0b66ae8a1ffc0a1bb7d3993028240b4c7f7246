@@ -2,3 +2,4 @@ Referenced by commit 98eb1115685, Fix T97366: Misdetection of numbers as UDIMs i
 Referenced by issue #96984, Loading UDIM from file is broken if opening into an already loaded tiled image
 Referenced by issue #77989, UDIM Textures: support for different file name schemes
 Referenced by issue #75116, UDIM tiles not recognized when reloading images
+Referenced by issue #74777, UDIM issue when switch from Tiled to Single and back to Tiled
