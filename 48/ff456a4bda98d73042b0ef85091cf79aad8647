@@ -2,3 +2,4 @@ Referenced by issue #98647, Blender 3.2.0 Camera Data Node's View Vector Broken 
 Referenced by issue #98538, Geometry input node breaks after adding Displacement Texture in Shader Editor
 Referenced by issue #97881, Regression: Specular highlights are missing in Glossy BSDF(Eevee).
 Referenced by issue #97369, Blender crashes when Windows file viewer is opened
+Referenced by issue #96875, Grease pencil, envelope modifier. Can`t select points (edit mode), when modifier enabled.
