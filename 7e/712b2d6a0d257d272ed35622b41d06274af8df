@@ -13,3 +13,4 @@ Referenced by issue #96394, Regression: Missing update in custom Nodetree
 Referenced by issue #96361, Regression: Texture Mapping properties of texture nodes are not updated in 3D Viewport
 Referenced by issue #96292, Unable to set active material output node using Python
 Referenced by issue #96278, Viewport/EEVEE: Alpha socket connection/disconnection does not cause an update to the image texture node.
+Referenced by issue #96180, Sky texture with Driver setting for Sun direction is not updated in real time in 3.1
