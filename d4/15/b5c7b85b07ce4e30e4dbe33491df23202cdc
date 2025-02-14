@@ -6,3 +6,4 @@ Referenced by issue #59229, Going to Wireframe while in edit mode crashes Blende
 Referenced by issue #59220, Deleting object causes blender 2.8 to crash
 Referenced by issue #59203, Edit mode : Multi-data objects view not sync
 Referenced by issue #59204, Measure tool crashed Blender
+Referenced by issue #59207, Material suddenly became emissive, but not for all objects using it
