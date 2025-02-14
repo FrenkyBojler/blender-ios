@@ -7,3 +7,4 @@ Referenced by issue #61990, Parenting to bone offsets object
 Referenced by issue #61993, extrude along normal
 Referenced by issue #61994, Box selecting instanced objects causes Blender to crash.
 Referenced by issue #61995, Blender intermitently won't open due to not recognizing Open GL API version
+Referenced by issue #61996, Crash snapping to vertex, snap to self
