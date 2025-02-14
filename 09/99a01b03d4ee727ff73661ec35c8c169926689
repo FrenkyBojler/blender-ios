@@ -1,0 +1,1 @@
+Referenced by issue #95320, PyAPI: Crash when using template_cache_file_* if no cache file is selected
