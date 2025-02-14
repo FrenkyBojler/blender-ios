@@ -1,2 +1,3 @@
 Referenced by issue #64642, UI glitch after pressing Preferences - "Reset to Defaults" entry
 Referenced by issue #64645, Camera Background Images not visibile in Wireframe nor Rendered Display
+Referenced by issue #64433, Mesh selecting in edit mode is broken for viewport with the instanced collection or linked objects
