@@ -1,0 +1,1 @@
+Referenced by commit 04133ee863b, Revert "macOS: Replaced OSSpinLock with os_unfair_lock."
