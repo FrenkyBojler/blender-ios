@@ -1,1 +1,2 @@
 Referenced by issue #40102, Right-Click on vertex and inmediatly "G" key, acts as double-G.
+Referenced by issue #40003, Start game with a "2d filter" actuator(set to custom filter) without a filter established do blender crash
