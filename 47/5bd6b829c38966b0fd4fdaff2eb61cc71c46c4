@@ -1,1 +1,2 @@
 Referenced by commit 839fe335d2d, Fix crash after 475bd6b occuring on each render end, we need another nullcheck here
+Referenced by commit 3ea67e08fe8, Fix crash after 475bd6b occuring on each render end, we need another nullcheck here
