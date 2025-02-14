@@ -1,1 +1,2 @@
 Referenced by commit 40edb84dcf4, Revert "Fix T77564: VSE (and compositor background) lost stereoscopy preview"
+Referenced by commit d5b5b228e4d, UI: Fix protential stray GPU state preventing correct drawing
