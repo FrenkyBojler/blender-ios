@@ -1,0 +1,1 @@
+Referenced by issue #37678, Camera can be scaled to negative values resulting strange viewport drawing.
