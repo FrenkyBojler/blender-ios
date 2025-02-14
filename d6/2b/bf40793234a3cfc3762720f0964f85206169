@@ -1,1 +1,2 @@
 Referenced by commit ece7ebb3a8b, Fix text after '|' being right aligned in the ID selector
+Referenced by issue #84795, ID (e.g. Material) search spammed with (long) file name info, ID name itself then missing
