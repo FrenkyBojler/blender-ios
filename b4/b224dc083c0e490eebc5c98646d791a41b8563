@@ -1,1 +1,2 @@
 Referenced by commit a5c5cf473ed, Fix #119992: Object transform ignored for shrinkwrap and flat shading
+Referenced by issue #119992, Regression: Wrong orientation on shrinkwrap constrained instanced collection
