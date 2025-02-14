@@ -1,2 +1,3 @@
 Referenced by commit 82e7956f12a, Fix T96396: cannot set active node group output with Python
 Referenced by issue #96396, is_active_output stopped working correctly
+Referenced by issue #96292, Unable to set active material output node using Python
