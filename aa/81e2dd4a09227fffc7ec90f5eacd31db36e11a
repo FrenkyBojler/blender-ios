@@ -1,1 +1,2 @@
 Referenced by issue #122770, Blender crashes when I add an array modifier to a curved circle
+Referenced by issue #122523, Crash on a faceless mesh if two viewports are showing it (one with Overlays disabled)
