@@ -1,0 +1,1 @@
+Referenced by issue #129384, Memory (RAM) leak since 4.0.0 in bpy when rendering several frames with Cycles
