@@ -1,1 +1,2 @@
 Referenced by commit 27c954386b2, Weightpaint mode: Removing barbarian batch tagging on engine init
+Referenced by commit 628dad4f010, Fix building on Windows and blenderplayer linking after weightpaint engine
