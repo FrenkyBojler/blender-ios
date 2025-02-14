@@ -8,3 +8,4 @@ Referenced by issue #126484, Blender crashes when the shading panel is opened.
 Referenced by issue #126458, Cycles volume rendering artifacts on AMD GPU - Linux
 Referenced by issue #126114, viewport shadow crash
 Referenced by issue #126119, Blender EGL_BAD_MATCH linux
+Referenced by issue #126025, Crash when opening a shading preview on Blender 4.2
