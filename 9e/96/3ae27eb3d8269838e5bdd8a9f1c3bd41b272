@@ -61,3 +61,4 @@ Referenced by issue #42524, Unwrap crashes blender
 Referenced by issue #42515, Dynamic Paint looses cache on blendfile name change
 Referenced by issue #42506, Infinite Zoom
 Referenced by issue #42509, Cycles GPU hair render - Cuda error: invalid value. with a "work around" descritption
+Referenced by issue #42490, 2D Curves and Switch Direction
