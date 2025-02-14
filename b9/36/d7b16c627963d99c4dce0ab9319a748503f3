@@ -2,3 +2,4 @@ Referenced by issue #63345, changing scene and applying modifiers
 Referenced by issue #63241, Instant crash upon parenting two separate armatures in the edit mode.
 Referenced by issue #63201, Random crashes during background rendering
 Referenced by issue #63167, Clicking into Video Editing Preview Pane - Blender Crashes
+Referenced by issue #62996, Crash >> Clicking the Preview window of the Video Sequencer
