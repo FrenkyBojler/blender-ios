@@ -3,3 +3,4 @@ Referenced by issue #69257, Crash when adding hook to curve with vertex parentin
 Referenced by issue #69262, VIEWPORT RENDER IMAGE dont render quad view images
 Referenced by issue #69248, no edit the mesh in alembic animation
 Referenced by issue #68843, Invalid (pink) shader when using wireframe node [ Eevee ]
+Referenced by issue #68751, Blender crashes in uv unwrap and texture paint
