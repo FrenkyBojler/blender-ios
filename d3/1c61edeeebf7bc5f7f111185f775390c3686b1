@@ -1,2 +1,3 @@
 Referenced by issue #114208, IME does not work for text scripting with Wayland
 Referenced by issue #114210, IME does not work properly on a wlroots based wayland compositor
+Referenced by issue #114183, Blender crashing when inserting keyframe for disable in Render
