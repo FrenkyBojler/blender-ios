@@ -3,3 +3,4 @@ Referenced by issue #76245, 2.80 Crashes on Start-up
 Referenced by issue #75143, 2.82 Crashes at Startup No Debug Output
 Referenced by issue #71657, Subdiv of certain model causes huge memory consumption and crash (regression bug)
 Referenced by issue #69840, curve handle colors viewport display inconsistent with theme settings
+Referenced by issue #68351, Blender Eevee Crash, radeonsi/si_descriptors.c
