@@ -1,0 +1,1 @@
+Referenced by issue #69299, Transforming parent's origin (Pivot Point -> Affects Only -> Origins) with 'Parents (Skip Children)' option caused jitter on child and moves child geo on cancel
