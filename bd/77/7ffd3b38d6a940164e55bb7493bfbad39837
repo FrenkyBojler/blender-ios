@@ -3,3 +3,4 @@ Referenced by issue #40924, LibNew & LibFree material bug
 Referenced by issue #40864, Cycles; use of color ramp node in latest builds will always crash after save and reload.
 Referenced by issue #40846, LibNew/LibLoad/LibFree bugs
 Referenced by issue #40581, Wrong texture mapping in render preview
+Referenced by issue #40525, Blender Crash/Freeze On Animation Plays
