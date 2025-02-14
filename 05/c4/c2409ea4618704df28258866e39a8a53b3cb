@@ -2,3 +2,4 @@ Referenced by issue #44801, Blender crash in UV-editor
 Referenced by issue #44791, Unpaintable transparent triangles with texture paint
 Referenced by issue #44780, Decimate Planar generates concave edges
 Referenced by issue #44728, UV seams visible at distance with texpaint even with 8 px bleed & 0.1 filter size
+Referenced by issue #44714, crashing to desktop when switching to node editor.
