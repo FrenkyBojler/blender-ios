@@ -4,3 +4,4 @@ Referenced by commit b7e39acfcdc, Fix #104789: uv_layers.remove() always raises 
 Referenced by commit f5c081dafc7, Fix T104033: UV edges not selecting when selecting faces
 Referenced by commit 16fc9280689, Fix: uninitialized UVs when painting in sculpt mode
 Referenced by issue #121033, Fix #121004: bmesh.ops.dissolve_limit wrong in certain cases
+Referenced by issue #121004, Regression: stale BMesh UV data
