@@ -1,2 +1,3 @@
 Referenced by issue #78424, Individual Origins + Normal = Broken Again (works in 2.90, broken in 2.83 LTS)
 Referenced by issue #76168, Workbench shadows behind a culled backface are inverted.
+Referenced by issue #76169, Workbench makes Addons icons disappear!
