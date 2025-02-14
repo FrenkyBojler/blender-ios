@@ -3,3 +3,4 @@ Referenced by commit b56957f0af0, Fix transform 'center_override' not being flag
 Referenced by issue #74044, Switching from Edge Slide to Move and Cancelling causes crash
 Referenced by issue #73852, Transform: Redo does't work properly with NLA "Extend" transform mode
 Referenced by issue #73860, Transform: Redo does't work properly with Dopesheet "Extend" transform mode
+Referenced by issue #71455, Transform: Redo doesn't work properly in Video Sequencer time manipulation
