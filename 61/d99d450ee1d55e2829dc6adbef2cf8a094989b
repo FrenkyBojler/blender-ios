@@ -1,1 +1,2 @@
 Referenced by commit 5486c70aae9, Fix #115056: man-page fails to build with non-portable install
+Referenced by commit cf1b3eee995, Fix "make doc_man" not working, after changes in 61d99d45
