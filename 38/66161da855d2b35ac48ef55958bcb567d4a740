@@ -1,1 +1,2 @@
 Referenced by issue #61489, Broken build in denoising.cpp with OpenImage 2.0.5
+Referenced by issue #61482, Warning: "Error: not freed memory blocks: 2"
