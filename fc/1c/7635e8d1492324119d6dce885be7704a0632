@@ -1,0 +1,1 @@
+Referenced by issue #40646, Knife project does not work when the "Clipping Border" cuts out a portion of the mesh that would other wise obscure the surface to be cut.
