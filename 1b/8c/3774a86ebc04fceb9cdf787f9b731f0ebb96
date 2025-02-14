@@ -1,1 +1,2 @@
 Referenced by commit e15c8ee4478, Fix T64003: cannot enter object dimensions above 10000
+Referenced by issue #64003, High values in Dimension in N-panel
