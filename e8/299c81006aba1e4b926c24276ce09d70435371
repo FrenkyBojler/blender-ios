@@ -97,3 +97,4 @@ Referenced by issue #49977, Imperial Inches Unit Scale Increments in Feet instea
 Referenced by issue #49956, Cuda error illegal address when rendering more than 5-10 frames of an animation
 Referenced by issue #49946, Blender crash when you add a node texture in compositing nodes.
 Referenced by issue #49899, blender crashes when add a inverse kineatics constraint to bone
+Referenced by issue #49903, Blender crashes -> Append Group incl. Object using boolean modifier
