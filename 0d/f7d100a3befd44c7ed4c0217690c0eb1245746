@@ -1,0 +1,1 @@
+Referenced by issue #114509, temp_override with bpy.ops.screen.area_close() affects the bpy.context permanently
