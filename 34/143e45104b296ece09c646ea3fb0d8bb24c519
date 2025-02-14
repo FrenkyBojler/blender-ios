@@ -1,1 +1,2 @@
 Referenced by commit fb09d229ddc, Alembic: Fix compiler error on Windows
+Referenced by issue #70070, Path always absolute when importing Alembic
