@@ -9,3 +9,4 @@ Referenced by issue #112335, The color attribute from Particle Instance Modifier
 Referenced by issue #109161, Baking UDIM multires freezes (or crashes)
 Referenced by issue #109060, Regression: Crash when enabling Mask modifier Smooth option
 Referenced by issue #109043, Regression: Mask modifier's smoothing option is broken
+Referenced by issue #107480, Regression: mesh data fails to load in 3.6 (alpha)
