@@ -1,3 +1,4 @@
 Referenced by issue #74612, Filebrowser does not show thumbnails
 Referenced by issue #74584, Exiting out of the File browser before the content loads crashes Blender.
 Referenced by issue #74529, Thumbnails are flickeringin file browser
+Referenced by issue #74531, File Browser not show image preview when set Display As `thumbnail` untill file browser window is resized
