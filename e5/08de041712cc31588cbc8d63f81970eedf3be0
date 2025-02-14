@@ -1,2 +1,3 @@
 Referenced by commit 0e6d893d07f, Fix: Assert, invisible instances with mixed instancing types
 Referenced by commit 864af51d6a8, Fix: Failing instance visibility test after recent commit
+Referenced by issue #100706, Regression: Instanced NURBs or CURVES on mesh vertices are not visible in 3.2+
