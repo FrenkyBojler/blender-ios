@@ -4,3 +4,4 @@ Referenced by issue #59270, Modifiers not working for curves
 Referenced by issue #59241, Cannot shift + select to add more nodes to selection
 Referenced by issue #59229, Going to Wireframe while in edit mode crashes Blender
 Referenced by issue #59220, Deleting object causes blender 2.8 to crash
+Referenced by issue #59203, Edit mode : Multi-data objects view not sync
