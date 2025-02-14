@@ -1,1 +1,2 @@
 Referenced by issue #94828, Appending collection with instancing makes objects in nested collections appear twice
+Referenced by issue #94299, Assets of disabled objects are enabled but invisible when instanced via asset browser
