@@ -1,2 +1,3 @@
 Referenced by issue #63561, Blender crashes and exits while rendering complex model
 Referenced by issue #63252, Bind in Mesh Deform Modifier fails
+Referenced by issue #61035, Draw manager crash opening file with curves
