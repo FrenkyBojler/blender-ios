@@ -1,2 +1,3 @@
 Referenced by commit d9f44f4b939, Cleanup: remove unused variable
 Referenced by issue #127479, Regression: 'Sequence Render Animation' not working for scene strips in render shading
+Referenced by issue #119969, Rendering from sculpt mode causes a segfault
