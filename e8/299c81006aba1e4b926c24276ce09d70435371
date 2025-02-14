@@ -9,3 +9,4 @@ Referenced by issue #51644, Crash upon Startup
 Referenced by issue #51554, OpenCL Textures exceed available single buffer allocation memory limit
 Referenced by issue #51313, blender crashes after adding texture node to compositing tree
 Referenced by issue #51287, MatrixUtils LERP incorrect interpolation
+Referenced by issue #51214, Dynamic Paint Works Only in Viewport Render
