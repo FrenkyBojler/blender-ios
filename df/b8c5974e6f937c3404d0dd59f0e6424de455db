@@ -1,0 +1,1 @@
+Referenced by commit 51e5417bd37, Fix #105678: Crash assigning Image.pixels to an undersized sequence
