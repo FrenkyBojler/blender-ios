@@ -3,10 +3,10 @@ set LLVM_DIR=
 
 REM First, we try and find the copy on the PATH
 for %%X in (clang-cl.exe) do (set "LLVM_EXE=%%~$PATH:X")
-for %%X in ("%LLVM_EXE%\..\..") do set "LLVM_DIR=%%~fX"
 
-if NOT "%LLVM_DIR%" == "" (
+if NOT "%LLVM_EXE%" == "" (
 	REM We have found LLVM on the path
+    for %%X in ("%LLVM_EXE%\..\..") do set "LLVM_DIR=%%~fX"
 	if NOT "%verbose%" == "" (
 		echo LLVM detected via path at %LLVM_DIR% via %LLVM_EXE%
 	)
@@ -18,7 +18,7 @@ REM Check 64-bit path
 for /F "usebackq skip=2 tokens=1-2*" %%A IN (`REG QUERY "HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\LLVM\LLVM" /ve 2^>nul`) DO set LLVM_DIR=%%C
 if NOT "%LLVM_DIR%" == "" (
 	if NOT "%verbose%" == "" (
-		echo LLVM Detected via 64-bit registry
+		echo LLVM Detected via 64-bit registry at %LLVM_DIR%
 	)
 	goto detect_llvm_done
 )
@@ -27,7 +27,7 @@ REM Check 32-bit path
 for /F "usebackq skip=2 tokens=1-2*" %%A IN (`REG QUERY "HKEY_LOCAL_MACHINE\SOFTWARE\LLVM\LLVM" /ve 2^>nul`) DO set LLVM_DIR=%%C
 if NOT "%LLVM_DIR%" == "" (
 	if NOT "%verbose%" == "" (
-		echo LLVM Detected via 32-bit registry
+		echo LLVM Detected via 32-bit registry at %LLVM_DIR%
 	)
 	goto detect_llvm_done
 )
