@@ -1,3 +1,4 @@
 Referenced by issue #76168, Workbench shadows behind a culled backface are inverted.
 Referenced by issue #76157, Intel Open Image Denoise artifact through 99%+ transparent area
 Referenced by issue #74346, VSE: Prefetching doesn't work properly with property animations
+Referenced by issue #74243, Workbench x-ray, wireframe and anti-aliasing artifacts on NVIDIA / Linux
