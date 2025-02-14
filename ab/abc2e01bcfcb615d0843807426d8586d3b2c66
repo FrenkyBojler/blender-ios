@@ -4,3 +4,4 @@ Referenced by issue #132007, Sculpt Mode: Mask overlay flashes when using 'Cente
 Referenced by issue #131861, Fix: ED_view3d_depth_override cannot disable overlays
 Referenced by issue #131237, Fix #120778: depth navigation ignores camera & light objects
 Referenced by issue #130221, 4.3: Candidates for corrective releases
+Referenced by issue #129162, High idle CPU usage with PulseAudio in Linux
