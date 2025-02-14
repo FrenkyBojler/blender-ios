@@ -2,3 +2,4 @@ Referenced by commit d7e501ce3bf, Fix #112448: Leading deform modifiers skip add
 Referenced by commit 9b0188db03c, Fix #112448: Leading deform modifiers skip adding original coordinates
 Referenced by issue #113679, Fix #112448: Leading deform modifiers skip adding original coordinates
 Referenced by issue #112448, Regression: Child hair particles set to "Interpolated" causes jittering when the based vertex changes position
+Referenced by issue #106802, Regression: sculpt with shape keys looses deformation of previous stroke
