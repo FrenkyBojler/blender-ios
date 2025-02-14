@@ -40,3 +40,4 @@ Referenced by issue #50541, UV Image Paint Bugs: Smear Tool Black Alpha and Radi
 Referenced by issue #50543, Entering a 0 infront any number gives an error
 Referenced by issue #50527, Blender crashed right after add texture node in compositor
 Referenced by issue #50529, Invalid curves from exported alembic cache
+Referenced by issue #50531, Blender closes when reduced to icon, Windows 10
