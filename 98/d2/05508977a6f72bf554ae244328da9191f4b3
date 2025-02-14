@@ -2,3 +2,4 @@ Referenced by commit a6016bf5af9, UI: Fix ugly alignment of timeline popover but
 Referenced by issue #55772, Crashes opening a file
 Referenced by issue #55719, 2.8 Alpha Crash at using "Sample the mesh detail at click point" in sculpt mode, Dynatopo, Constant Detail.
 Referenced by issue #55696, Blender OpenGL crash on startup (Linux)
+Referenced by issue #55700, render crashes and freezes computer on both mac and windows
