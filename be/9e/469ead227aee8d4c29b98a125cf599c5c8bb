@@ -1,1 +1,2 @@
 Referenced by commit 005af1e2745, Fix T72083: Object.proxy_collection is been set to linked target object
+Referenced by issue #72083, Make Proxy: Object.proxy_collection is been set to linked target object even when target is not a collection
