@@ -1,1 +1,2 @@
 Referenced by commit e1cd6fae342, Avoid Assert in BKE_mesh_calc_loop_tangent_ex
+Referenced by issue #81398, Blender 2.90.1 crashes on switching to viewport rendered view
