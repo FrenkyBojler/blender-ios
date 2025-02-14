@@ -7,3 +7,4 @@ Referenced by issue #66089, "i" hotkey to insert keyframe doesn't work in color 
 Referenced by issue #66079, All graphics corrupted as colourful gradients
 Referenced by issue #66041, Cycles Cuda error
 Referenced by issue #65918, Crash when add a any modifier to a curve
+Referenced by issue #61474, Laggy interaction with gizmos, does not happen when running other 3D apps at the same time
