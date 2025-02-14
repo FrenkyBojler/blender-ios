@@ -1,1 +1,2 @@
 Referenced by commit 7f26812523a, Fix bone duplication failing to update it's sub-targets
+Referenced by issue #88076, Symmetrizing armature does not symmetrize constraints
