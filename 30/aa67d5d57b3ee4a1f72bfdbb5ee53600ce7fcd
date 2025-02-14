@@ -1,0 +1,1 @@
+Referenced by issue #69558, crash in BKE_scene_update_sound for a soundstrip without linked sound
