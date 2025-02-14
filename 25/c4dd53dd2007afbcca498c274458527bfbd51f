@@ -1,0 +1,1 @@
+Referenced by issue #134437, Compositor: Use gpu::TexturePool instead of DRW pool
