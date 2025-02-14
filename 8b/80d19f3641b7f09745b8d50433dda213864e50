@@ -1,1 +1,2 @@
 Referenced by issue #92385, Rendered Viewport does not update Scene Lights or World Lights.
+Referenced by issue #90749, Cycles : Viewport passes do not change automatically in viewport upon selection in dropdown list
