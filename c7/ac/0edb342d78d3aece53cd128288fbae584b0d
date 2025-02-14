@@ -9,3 +9,4 @@ Referenced by issue #38391, Animating the speed setting in Rigid Body World caus
 Referenced by issue #38394, Unwanted change user perspective (ortho to perspective) in 3d view
 Referenced by issue #38388, Creating a new scene with full copy sets rigidbody collision shapes to box.
 Referenced by issue #38359, Wrong material reported in particles settings when pinning them and selecting another object.
+Referenced by issue #38362, Tab coloring broken
