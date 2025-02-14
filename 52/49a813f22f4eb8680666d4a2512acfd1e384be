@@ -1,1 +1,2 @@
 Referenced by commit 29ef7142ddd, EEVEE: Fix previous commit
+Referenced by issue #78954, hair particles on linked objects cause visual glitch in Eevee when motion blur is on
