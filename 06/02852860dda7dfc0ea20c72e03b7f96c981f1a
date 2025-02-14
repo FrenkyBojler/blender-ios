@@ -1,2 +1,3 @@
 Referenced by commit 18af9da5729, Fix: Versioning problem with cyclic bezier NURBS
 Referenced by commit dbd9472ef58, Fix: Assert in set spline type node after recent commit
+Referenced by issue #101160, Regression: deleting a point in a (cyclic) nurbs curve permanently converts to poly, subdividing as well
