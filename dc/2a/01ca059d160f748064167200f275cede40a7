@@ -1,0 +1,1 @@
+Referenced by issue #47360, .blend of Linux-origin causes "Import Images as Planes" to fail, when double-clicked in Windows, but not when loaded from a plain run of Blender.
