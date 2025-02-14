@@ -1,1 +1,2 @@
 Referenced by issue #47697, Smoke simulation doesn't work in viewport
+Referenced by issue #47164, [Scene.raycast] - True result when it should be False.
