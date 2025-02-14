@@ -74,3 +74,4 @@ Referenced by issue #48821, Fly-through mode when in camera view moves 3D object
 Referenced by issue #48824, Cycles: Crash with glass+volume(?)
 Referenced by issue #48831, Icon Preview generation for textures and images
 Referenced by issue #48818, Objects with alpha maps cast wrong ray shadows in BI
+Referenced by issue #48799, Particles set as objects cast wrong ray shadows in BI
