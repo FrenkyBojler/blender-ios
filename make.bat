@@ -101,10 +101,10 @@ if "%CMAKE%" == "" (
 REM Enforce the default compiler to be clang on ARM64
 if "%BUILD_ARCH%" == "arm64" (
 	if not "%WITH_CLANG%" == "1" (
-		if "%FORCE_MSVC%" == "1" (
+		if "%WITH_MSVC%" == "1" (
 			echo WARNING, MSVC compilation on Windows ARM64 is unsupported, and errors may occur.
 		) else (
-			echo Windows ARM64 builds with clang by default, enabling. If you wish to use MSVC ^(unsupported^), please use the force_msvc switch.
+			echo Windows ARM64 builds with clang by default, enabling. If you wish to use MSVC ^(unsupported^), please use the msvc switch.
 			set WITH_CLANG=1
 		)
 	)

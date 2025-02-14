@@ -15,7 +15,6 @@ if NOT "%LLVM_DIR%" == "" (
 
 REM If that fails, we try and get it from the registry
 REM Check 64-bit path
-set BUILD_CMAKE_ARGS=%BUILD_CMAKE_ARGS% -DWITH_WINDOWS_EXTERNAL_MANIFEST=On
 for /F "usebackq skip=2 tokens=1-2*" %%A IN (`REG QUERY "HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\LLVM\LLVM" /ve 2^>nul`) DO set LLVM_DIR=%%C
 if NOT "%LLVM_DIR%" == "" (
 	if NOT "%verbose%" == "" (

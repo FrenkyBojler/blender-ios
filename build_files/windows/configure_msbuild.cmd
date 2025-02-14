@@ -8,6 +8,7 @@ if "%BUILD_WITH_SCCACHE%"=="1" (
 )
 
 if "%WITH_CLANG%"=="1" (
+	REM We want to use an external manifest with Clang
 	set CLANG_CMAKE_ARGS=-T"ClangCl" -DWITH_WINDOWS_EXTERNAL_MANIFEST=ON 
 
 	REM Create the build directory, so that we can create the Directory.build.props file
