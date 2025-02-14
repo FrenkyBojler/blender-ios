@@ -3,3 +3,4 @@ Referenced by commit e1a9ba94c59, Fix T87637: Dragging button value cancel not w
 Referenced by issue #115831, WIP: UI: dont run update functions if button values did not change
 Referenced by issue #90514, Drag sliding multiple values doesn't work as expected
 Referenced by issue #90063, Regression: Set curve radius does not work
+Referenced by issue #89996, Resetting multi-button value does not work when active button value is the same
