@@ -1,1 +1,2 @@
 Referenced by issue #91611, Eevee Light Limitation failing to render at well under light limit
+Referenced by issue #90887, PulseAudio breaks animation playback in new scene (no imported sound involved) LTS backport, 3.0 is fine
