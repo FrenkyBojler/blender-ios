@@ -19,3 +19,4 @@ Referenced by issue #57658, Wrong vertex-per-face normal lines overlay
 Referenced by issue #57562, Unexpected rotation value when using keyboard shortcuts
 Referenced by issue #56951, Semi-transparent image object hides selected object behind itself
 Referenced by issue #56617, bge.types.KX_BlenderMaterial.emit doesn't work.
+Referenced by issue #56610, Crash when saving a Blender Image in a Python script
