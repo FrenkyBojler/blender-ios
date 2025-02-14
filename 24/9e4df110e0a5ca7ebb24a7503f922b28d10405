@@ -1,3 +1,4 @@
 Referenced by commit ed5110c0ef4, Outliner: Port pose channel elements to new tree-element code design
 Referenced by commit 81eb7edc8b3, Outliner: Port view collection base elements to new tree-element code design
 Referenced by commit 668b31c5d86, Outliner: Port layer collection elements to new tree-element code design
+Referenced by commit 28f4bb20071, Outliner: Port modifier elements to new tree-element code design
