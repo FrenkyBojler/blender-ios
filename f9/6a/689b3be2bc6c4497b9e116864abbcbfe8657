@@ -1,3 +1,4 @@
 Referenced by issue #76109, Dyntopo: Performance hit when moving the viewport
 Referenced by issue #75925, Menu Search: Skin Resize missing from menus.
 Referenced by issue #75875, MixRGB Color Burn and Color Dodge break HDRs even when Fac=0
+Referenced by issue #75855, Blender 2.83 beta OSX Hair Crash
