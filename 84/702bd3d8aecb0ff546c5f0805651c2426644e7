@@ -1,0 +1,1 @@
+Referenced by issue #84242, Freestyle lines lag one frame behind if Camera shift is animated (Cycles only, Eevee is fine)
