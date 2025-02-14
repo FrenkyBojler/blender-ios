@@ -1,2 +1,3 @@
 Referenced by commit 6bb978d07d2, Fix #123382: Subdivision surface crash with no faces
 Referenced by issue #128958, Crash using Minimum Stretch --> Use Subdivision Option
+Referenced by issue #123382, Regression: Crash when opening "Monster" benchmark
