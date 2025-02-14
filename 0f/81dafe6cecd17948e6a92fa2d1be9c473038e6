@@ -1,2 +1,3 @@
 Referenced by issue #88551, Blender crahses when I add an Image/Sequence in the VSE
 Referenced by issue #87925, Loading a video file in the video sequencer in my custom startup file crashes Blender 2.92.0
+Referenced by issue #87010, VSE: Crash When Trying to add Image Sequence / Movie [if based on file opened from pre 2.8]
