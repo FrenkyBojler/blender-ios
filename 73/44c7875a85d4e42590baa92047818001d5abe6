@@ -1,2 +1,3 @@
 Referenced by commit 9184ea415bf, Fix #112500: Crash setting mesh line vertices to 0
 Referenced by issue #112515, Regression: Geoemtry Nodes: Crash on Sample Index Node
+Referenced by issue #112500, Crash when setting mesh line vertices to 0
