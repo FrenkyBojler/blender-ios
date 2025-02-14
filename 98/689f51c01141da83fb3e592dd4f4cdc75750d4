@@ -1,1 +1,2 @@
 Referenced by commit f6242edf73f, Fix: ffmpeg VP9 lossless flag was wrongly applied to all WebM containers
+Referenced by issue #129045, Fix: ffmpeg VP9 lossless flag was wrongly applied to all WebM containers
