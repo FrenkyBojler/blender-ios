@@ -1,3 +1,4 @@
 Referenced by commit 956af161893, Fix Unreported: Missing box mask in sculpt
 Referenced by commit 2261da2897b, Fix Unreported: Missing box mask in sculpt
 Referenced by commit 9daf668991b, Fix T81926: Sculpt: Box Mask operator (from menu and shortcut) does
+Referenced by issue #81926, Sculpt: Box Mask operator (from menu and shortcut) does nothing
