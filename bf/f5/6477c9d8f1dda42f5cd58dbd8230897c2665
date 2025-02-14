@@ -1,0 +1,1 @@
+Referenced by issue #78225, Viewport vertex color mode: now it uses only sculpt vertex colors, even if datablock do not exist
