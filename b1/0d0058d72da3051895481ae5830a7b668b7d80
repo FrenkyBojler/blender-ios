@@ -1,1 +1,2 @@
 Referenced by commit 28cf9cfd15a, NDOF: fix crash on Mac with old drivers
+Referenced by commit 33fbf9b7e0a, Fix broken keymap loading with disabled ndof - revert part of recent rBb10d0058d72da30
