@@ -1,0 +1,1 @@
+Referenced by issue #131780, Fix #131641: Use `getenv` for `GHOST_kUserSpecialDirCaches`
