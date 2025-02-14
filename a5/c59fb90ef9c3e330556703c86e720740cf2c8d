@@ -1,1 +1,2 @@
 Referenced by commit 85df7036f76, Fix T94827: Group Input/Output cannot connect to custom sockets
+Referenced by issue #94827, Regression: Group Input/Output cannot connect to some custom sockets
