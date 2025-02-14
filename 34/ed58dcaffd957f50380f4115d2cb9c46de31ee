@@ -1,2 +1,3 @@
 Referenced by issue #69973, TexBlendNode Python property tooltip incorrect
 Referenced by issue #68971, problem saving/loading driver on shader node
+Referenced by issue #64415, "Copy data path" incorrect with a cycles lamp strength value
