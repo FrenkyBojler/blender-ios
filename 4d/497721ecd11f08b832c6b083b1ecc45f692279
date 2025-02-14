@@ -1,1 +1,2 @@
 Referenced by commit 9f3b0e41bbc, Fix T102887: crash deleting plane track
+Referenced by issue #103080, Regression: Setup tracking scene is disabled
