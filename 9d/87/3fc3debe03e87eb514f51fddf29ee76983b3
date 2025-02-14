@@ -1,3 +1,4 @@
 Referenced by commit 48fb7e96356, T53831: Fixed vertical line alignment & expand Collection and Scene buttons position.
 Referenced by issue #50985, Rendering volume scatter with GPU OpenCL comes to an halt after a few seconds
 Referenced by issue #50988, GPU/CPU difference when rendering with 1spp
+Referenced by issue #50948, UI - Menu icons are no longer aligned
