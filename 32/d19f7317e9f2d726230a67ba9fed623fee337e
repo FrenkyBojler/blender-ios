@@ -1,3 +1,4 @@
 Referenced by issue #101298, Blender 3.3.1 crashes before Splash Screen in M1 Max
 Referenced by issue #100749, Blender LTS: Maintenance Task 3.3
 Referenced by issue #63935, Blender 2.80 EEVEE unable to render some materials on OSX due to the OpenGL implementation
+Referenced by issue #57759, The eevee view model failed to load the texture, causing the model to be purple
