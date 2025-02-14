@@ -19,3 +19,4 @@ Referenced by issue #64799, Ctrl + Z resets model
 Referenced by issue #64740, OBJ Import failure (works on 2.79)
 Referenced by issue #64485, Image Crop in VSE Stretches Image Instead of Cropping
 Referenced by issue #63876, Constraints not applied to duplicated instances (Instancing -> Faces feature)
+Referenced by issue #63853, Unicode paths results in "No such file or directory"
