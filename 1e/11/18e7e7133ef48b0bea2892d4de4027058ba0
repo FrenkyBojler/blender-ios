@@ -11,3 +11,4 @@ Referenced by issue #47763, 2.77 RC2 (Fluid) Particle Baking slower compared to 
 Referenced by issue #47748, bug render 2.77 RC2
 Referenced by issue #47750, Hair particles lose position data when "Disconnect All" is used the first time from program load
 Referenced by issue #47738, Blender segmentation fault when Right-clicking on any object in 3d view.
+Referenced by issue #47721, viewport preview bounding box dotted line moves near sculpt brush during sculpting with multiresolution modifier
