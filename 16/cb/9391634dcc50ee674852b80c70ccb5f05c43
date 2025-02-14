@@ -1,1 +1,2 @@
 Referenced by issue #48911, When two keymaps are configured on the system and the current isn't the first one Blender use both
+Referenced by issue #48847, I can't use the Keyboard Shortcuts "]" (select: "After Current Frames") in Dope Sheet Editor or Graph Editor
