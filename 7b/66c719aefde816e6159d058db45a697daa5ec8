@@ -1,1 +1,2 @@
 Referenced by issue #80363, When importing an obj the cursor icon gets stuck in progress mode
+Referenced by issue #80333, Cursor not reset properly (disappears after rotating navigation gizmo, stuck after importing)
