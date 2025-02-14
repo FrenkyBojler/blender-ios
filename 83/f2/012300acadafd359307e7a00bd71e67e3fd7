@@ -1,3 +1,4 @@
 Referenced by commit ff21f6aeef2, Fix for own mistake in rB83f2012300acadafd359307e7a00bd71e67e3fd7: used
 Referenced by issue #39341, Cycles Rendered view laggy while using particles
 Referenced by issue #39286, Display percentage ignored in Cycles viewport with dupli-object particles
+Referenced by issue #39045, Particle system display error
