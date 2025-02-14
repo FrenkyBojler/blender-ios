@@ -3,3 +3,4 @@ Referenced by issue #59182, Blender 2.8 win64 crashes on start
 Referenced by issue #59168, Blender 2.8 (9a8b6d51c12) - Crash when going in Edit Mode with Multiresolution modifier
 Referenced by issue #59171, Something weird in Eevee render view
 Referenced by issue #59173, Blender 2.8 (9a8b6d51c12) - Empty or incomplete render at the first frame, then crash several frames later (Animation Render)
+Referenced by issue #58850, Blender 2.80 Beta don't show 3d Mouse navigation guide
