@@ -1,0 +1,1 @@
+Referenced by issue #126879, Crash on appending collection twice that contains a nested liboverride collection (request to backport, fixed in main)
