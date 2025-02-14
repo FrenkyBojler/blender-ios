@@ -1,1 +1,2 @@
 Referenced by commit 4c46a098242, Fix constrain plane not being set in tranform code
+Referenced by issue #82777, Current transform orientation not taken into account when using 'Align to transform orientation' AGAIN
