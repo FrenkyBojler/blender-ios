@@ -1,1 +1,2 @@
 Referenced by commit bb3a021427f, Fix T101004: Crash when invisible object becomes visible
+Referenced by issue #101004, Regression: Segfault when CTRL key hit
