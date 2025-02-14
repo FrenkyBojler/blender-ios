@@ -26,3 +26,4 @@ Referenced by issue #54307, Long distance between cursor and description
 Referenced by issue #54294, Problem in Duplicate for Alembic object
 Referenced by issue #54287, Memory not freed after rendering with 2.79a
 Referenced by issue #54262, C and B selection on edit mode selects not only inside of circle (or rectangle) but several outside spots also selected.
+Referenced by issue #54235, Movie clip texture doesnt update in viewport using material or texture mode (cycles)
