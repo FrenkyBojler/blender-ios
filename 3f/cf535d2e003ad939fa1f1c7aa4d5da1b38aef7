@@ -1,1 +1,2 @@
 Referenced by commit 71df742eb4e, Fix #117795: Add a validation pass on embedded liboverrides.
+Referenced by issue #117795, Crash when opening the Compositor in an old file
