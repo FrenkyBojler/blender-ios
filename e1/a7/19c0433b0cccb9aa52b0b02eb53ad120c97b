@@ -1,1 +1,2 @@
 Referenced by issue #89707, Geometry Nodes do not respect  the "Indirect Only" view layer setting
+Referenced by issue #89583, Particles do not react to collision objects anymore
