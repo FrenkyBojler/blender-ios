@@ -50,3 +50,4 @@ Referenced by issue #45884, Blender crashes when copy a of an armature is copied
 Referenced by issue #45869, Union fails with: cannot execute boolean operation
 Referenced by issue #45857, Replacing an image that has been packed into .blend file bug
 Referenced by issue #45850, Segfault from using Auto-Smoothed Normals with Subsurf Modifier
+Referenced by issue #45817, BGE Crash with group instanced curve objects
