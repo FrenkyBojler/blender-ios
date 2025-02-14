@@ -47,3 +47,4 @@ Referenced by issue #42095, Crash - object with particle hair on entering edit m
 Referenced by issue #42098, AVI Raw export produces broken files if the image width is not a multiple of 4
 Referenced by issue #42079, Tooltips are blank!
 Referenced by issue #42082, Smooth Shading not working with Cycles
+Referenced by issue #42075, Drag and dropping materials does not update viewport in rendered mode
