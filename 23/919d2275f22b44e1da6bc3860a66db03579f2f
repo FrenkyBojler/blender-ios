@@ -1,0 +1,1 @@
+Referenced by issue #92386, Toggling "Visible in Render" is extremely slow since 2.90 (when texture is used in modifier)
