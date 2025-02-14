@@ -1,1 +1,2 @@
 Referenced by issue #67552, Vector Curves node clamps maximum input value at 1.0 in Eevee
+Referenced by issue #58363, Vector Curves node incorrect output after changing clip range
