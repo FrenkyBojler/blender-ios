@@ -1,2 +1,3 @@
 Referenced by issue #64572, Blender cant find my gpu for cycles cuda
 Referenced by issue #64530, Blender 2.8 crashes on de-selecting verts in mesh edit mode
+Referenced by issue #64517, Old and standard behavior gone from navigation while Gizmo's active.
