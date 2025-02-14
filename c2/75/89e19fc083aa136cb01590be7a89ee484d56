@@ -21,3 +21,4 @@ Referenced by issue #46335, Blender Internal Renderer artifacts
 Referenced by issue #46325, bone rotation
 Referenced by issue #46296, Rigify: Bone Heat Weighting: failed to find solution for one or more bones
 Referenced by issue #46299, File Browser Crash while listing big folders in preview mode (fonts, images...).
+Referenced by issue #46221, Mixed shader Glass and Transparent displayed as solid in render, prerender as wished.
