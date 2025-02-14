@@ -1,1 +1,2 @@
 Referenced by issue #124953, Blender is ignoring PYTHONPYCACHEPREFIX
+Referenced by issue #104000, python site-packages are not recognized after install (bug on linux / workes fine on Windows)
