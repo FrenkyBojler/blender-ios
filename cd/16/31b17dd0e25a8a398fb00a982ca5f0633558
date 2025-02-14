@@ -1,1 +1,2 @@
 Referenced by commit 72933ebe96a, BLF: Correctly Set Default Font Size
+Referenced by issue #92770, Interface resolution get bigger if set the resolution scale to 0.99 and not change if set to 1.01
