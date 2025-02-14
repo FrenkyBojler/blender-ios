@@ -1,2 +1,3 @@
 Referenced by commit f37a8cda30e, GPv3: Insert keyframe when drawing if no key exists at current frame
 Referenced by issue #113408, GPv3: Insert keyframe when drawing if does not exist at current scene frame
+Referenced by issue #109330, GPv3: Fix: Crash when drawing without a layer
