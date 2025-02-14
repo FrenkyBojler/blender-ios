@@ -2,3 +2,4 @@ Referenced by issue #58101, Image empties are only rendering their border when u
 Referenced by issue #58002, Viewport Render crash
 Referenced by issue #58005, Crash when Brush Collection in the same Collection as Ocean+DynamicPaintCanvas
 Referenced by issue #57995, Blender 2.8 Crashed while working
+Referenced by issue #57956, Blender crashes on startup
