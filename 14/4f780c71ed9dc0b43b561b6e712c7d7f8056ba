@@ -1,1 +1,2 @@
 Referenced by issue #79508, VSE: Adding and then deleting a strip makes Blender crash while Prefetch Frames is on.
+Referenced by issue #79484, SEGFAULT when viewing Movie Clip as a Background Image in a Camera
