@@ -1,2 +1,3 @@
 Referenced by issue #75405, Crash when increasing text object bevel depth
 Referenced by issue #74587, Text Extrude with Negative Bevel Shading Issues
+Referenced by issue #71200, Beveled curves geometry contains duplicate vertices
