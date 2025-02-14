@@ -1,1 +1,2 @@
 Referenced by commit a813e259d63, Fix T63220: Cannot make object single user after Duplicate Scene with Link Object Data.
+Referenced by issue #63101, Blender crashes on adding any object to collection duplicated with added scene
