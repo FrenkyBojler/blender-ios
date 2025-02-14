@@ -1,0 +1,1 @@
+Referenced by commit f665b73c894, RNA: replace BLI_strncpy with strcpy/memcpy when the size is known
