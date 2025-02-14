@@ -12,3 +12,4 @@ Referenced by issue #91592, Cycles: remaining render time is always -14:-08.-48
 Referenced by issue #90734, Fully transparent material creates light bounces
 Referenced by issue #89353, 2.93 - Cycles Volumetrics - GPU and CPU results look inverted (Distance vs Equiangular sampling)
 Referenced by issue #87836, Cycles: GPU Performance
+Referenced by issue #87837, Cycles X - Restoring Features
