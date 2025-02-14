@@ -25,3 +25,4 @@ Referenced by issue #40405, Blender crashes on FBX export instantly.
 Referenced by issue #40385, Cuda Kernel Lib 5.0 Rendering in Blender Testbuild 2.71 is two times slower than Cuda 5.0 Rendering in Blender 2.70 why?
 Referenced by issue #40371, Video editor: effect strip between two strips does not work if it is on same channel...
 Referenced by issue #40283, Variance-Shadow Display-Error in Viewport with Matcap
+Referenced by issue #40238, F-Curve Modifiers change currently selected curve when edited
