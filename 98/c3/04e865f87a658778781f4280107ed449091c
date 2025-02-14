@@ -1,3 +1,4 @@
 Referenced by commit 444a0202d40, Gizmo: add blank gizmo definition
 Referenced by commit 693ecdf7d3a, Fix build error due to missing file from commit 98c304e865f8.
 Referenced by issue #56313, Crash - selecting tools: Transform, Grab, Rotate and Scale.
+Referenced by issue #56140, Viewport crashes
