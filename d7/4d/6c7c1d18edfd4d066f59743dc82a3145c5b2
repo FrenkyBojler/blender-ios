@@ -1,2 +1,3 @@
 Referenced by issue #37890, Compositor does not honor fixed threads in performance render settings
 Referenced by issue #37721, Mesh isn't being displayed in Object mode (wireframe display mode)
+Referenced by issue #37710, Crash when browsing to invalid index with compact template_list
