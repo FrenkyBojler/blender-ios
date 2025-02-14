@@ -1,1 +1,2 @@
 Referenced by commit 4dd5b635e8c, Revert "Freestyle: Built-in SVG exporter."
+Referenced by commit 4c86271bd96, Revert "Fix for rB61a330baca0f: Changed SVG file encoding from UTF-16 to UTF-8."
