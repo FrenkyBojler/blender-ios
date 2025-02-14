@@ -1,1 +1,2 @@
 Referenced by commit e37f5616f57, Cleanup: Make depth naming variables consistent
+Referenced by commit 5cc7687a1a4, Cleanup: Silence gcc used uninitialized warning
