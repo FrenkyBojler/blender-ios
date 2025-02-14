@@ -15,3 +15,4 @@ Referenced by issue #39197, Blender 2.70 RC2 crash with simple cycles render
 Referenced by issue #39189, Node editor Map Uv requires an scale node to work
 Referenced by issue #39192, Blend renders on 2.69.0 and 2.70 RC1 but not on 2.70 RC2
 Referenced by issue #39194, CUDA error when trying to do viewport rendering
+Referenced by issue #39178, Some times deleted keys from custom key map are restored after importing key config
