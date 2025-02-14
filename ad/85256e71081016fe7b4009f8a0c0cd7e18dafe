@@ -1,2 +1,3 @@
 Referenced by commit fb82cfb539f, Animation: Show Channel Group Colors is now off by default
 Referenced by commit 6ed6741ee35, Point users to new location of "Show Group Colors" option
+Referenced by issue #87884, Colored bone group doesn't make Keyframe names colored too in the Timeline or Dopesheet
