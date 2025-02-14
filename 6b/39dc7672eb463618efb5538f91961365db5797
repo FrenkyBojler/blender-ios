@@ -1,2 +1,3 @@
 Referenced by commit 296d05060d2, Fix #123560: Select by active material fails in multi-object-edit mode
 Referenced by issue #125370, Fix #125353: Select by active material fails to select the selected slot
+Referenced by issue #123718, Fix #123560: Select by active material fails in multi-object-edit mode
