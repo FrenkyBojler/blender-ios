@@ -1,1 +1,2 @@
 Referenced by commit 0c58ad8a34c, Cleanup: remove unused common_restrict_check function
+Referenced by commit d865ac8b1bb, Fix T69653: Freestyle modifiers "Distance from ..." python error
