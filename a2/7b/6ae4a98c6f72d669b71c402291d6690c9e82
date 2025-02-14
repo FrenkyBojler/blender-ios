@@ -1,2 +1,3 @@
 Referenced by issue #52322, Major regression in denoising quality in new builds
 Referenced by issue #52152, Blurry reflections from mirror surface when using Principled BSDF in Blender 2.79 test build
+Referenced by issue #52156, Particle simulation doesn't work after adding a texture to the particle system
