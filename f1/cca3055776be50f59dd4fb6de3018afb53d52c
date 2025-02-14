@@ -34,3 +34,4 @@ Referenced by issue #93866, Blender crashes when bevel edge(CTRL + B, not modifi
 Referenced by issue #93847, Sometime cyclesx crashed
 Referenced by issue #93730, Crashing after render
 Referenced by issue #93684, context.engine return CYCLES whereas particle panel enumeration does not have it
+Referenced by issue #93680, Blender 3.0 is crashing when creating hair particle system (Windows, Intel)
