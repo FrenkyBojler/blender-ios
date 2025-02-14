@@ -1,2 +1,3 @@
 Referenced by commit ebb9cf21ec8, Fix: Incorrect curves asset in recent commit
 Referenced by issue #131214, Geometry Nodes: Crash due to Free curve normal
+Referenced by issue #100859, Custom normals design for curves
