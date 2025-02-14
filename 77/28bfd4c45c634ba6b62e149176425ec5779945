@@ -2,3 +2,4 @@ Referenced by commit b080de79db3, Alembic: constraint for transform animation is
 Referenced by commit f881162f81e, Revert "Constraints: remove special meaning of Local Space for parentless Objects."
 Referenced by issue #105373, Mitigate the risk of wrong shape key selection in sculpt and edit mode.
 Referenced by issue #91117, Copy Rotation object constraint not working in local space
+Referenced by issue #86233, 'Transformation' constraint property between two objects does not work if the "Target" object is being evaluated in "Local" space
