@@ -1,1 +1,2 @@
 Referenced by commit 30113e54d26, Fix curves sculpting in deformed space when using Subdivide node
+Referenced by issue #99936, Regression: Unable to add curve hair on the left side of the model.
