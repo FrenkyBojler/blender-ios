@@ -1,1 +1,2 @@
 Referenced by issue #105148, Regression: Memory leak during rendering
+Referenced by issue #104837, Cycles: add NanoVDB support for Metal on Apple Silicon
