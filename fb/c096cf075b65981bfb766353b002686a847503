@@ -1,2 +1,3 @@
 Referenced by issue #70506, Multiple output nodes in a group produce "undefined behaviour"
 Referenced by issue #70503, Changing active object with arrow keys in outliner changes selected object but leaves active object unchanged
+Referenced by issue #70183, Noise Texture Fac output in Height bump node broken if Eevee rendering engine
