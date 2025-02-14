@@ -1,0 +1,1 @@
+Referenced by issue #81877, Crash using get_devices_for_type() to choose cycles device with python
