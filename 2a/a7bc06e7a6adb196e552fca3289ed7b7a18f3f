@@ -1,1 +1,2 @@
 Referenced by commit 79dd9fedb24, Fix T84758: Revert "LibOverride: Also consider regular embedded IDs as virtual overrides."
+Referenced by issue #84758, Blender considers all materials to be overridden
