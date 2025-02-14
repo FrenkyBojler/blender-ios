@@ -1,2 +1,3 @@
 Referenced by commit f3566235ca1, Layers: Fix collection_rename unittest
 Referenced by commit 8620dd7adf2, Cleanup after collection rename commit
+Referenced by issue #53805, Blender EEVEE Needs the Metallic Shader Back
