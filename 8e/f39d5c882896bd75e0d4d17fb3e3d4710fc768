@@ -2,3 +2,4 @@ Referenced by issue #54314, Contents of "Viewer Node" image block do not get upd
 Referenced by issue #54075, Align Objects fails with IndexError: bpy_prop_collection[-1]: out of range.
 Referenced by issue #53561, Rigid Body phycics is not made local when making the linked object local
 Referenced by issue #52962, Default Particle System colourization in Particle Edit Mode (Hair) doesn't follow theme wire/verts settings
+Referenced by issue #52818, Severe rendering delay in scene data preparation when using an array modifier
