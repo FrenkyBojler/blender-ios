@@ -1,1 +1,2 @@
 Referenced by issue #93995, Cycles: motion blur only applies on Left view
+Referenced by issue #88552, Cycles changing Render Passes in viewport does not work
