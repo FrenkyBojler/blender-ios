@@ -26,3 +26,4 @@ Referenced by issue #49471, Vertex Connect
 Referenced by issue #49458, FBX and Alembic export does not support instances anymore
 Referenced by issue #49449, Neither world nor local position is displayed on panel
 Referenced by issue #49429, Using render border with real-time viewport Blender Internal rendering and DrawPixels Images Draw Method results in the wrong area being rendered
+Referenced by issue #49387, Blender 2.77 & up, GLSL Viewport rendering not working correctly, material glitches & artifacts
