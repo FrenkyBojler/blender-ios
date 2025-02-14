@@ -1,0 +1,1 @@
+Referenced by issue #96511, New OBJ exporter no longer groups faces by material, causing issues with some other apps (e.g. Procreate)
