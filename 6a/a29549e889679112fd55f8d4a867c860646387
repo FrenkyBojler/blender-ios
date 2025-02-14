@@ -1,3 +1,4 @@
 Referenced by issue #105852, Fix #105640: LineArt: versioning for LRT_GPENCIL_MATCH_OUTPUT_VGROUP flag.
 Referenced by issue #105640, Vertex Weight Proximity not working for Grease Pencil Thickness Modifier
 Referenced by issue #103887, Regression: Line Art - Vertex Weight Transfer to a target group doesn't work
+Referenced by issue #100749, Blender LTS: Maintenance Task 3.3
