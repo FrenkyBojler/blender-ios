@@ -3,3 +3,4 @@ Referenced by issue #103405, Regression: Some modifiers not working
 Referenced by issue #103336, Blender animation render crashed
 Referenced by issue #103321, Regression: NodeSocket.node is None on Node.copy
 Referenced by issue #103327, Cycles GPU crash when switching to Rendered 3DViewport --MacOS 13.1--
+Referenced by issue #102967, 3.4: Potential candidates for corrective releases
