@@ -4,3 +4,4 @@ Referenced by issue #60667, reflection plane bug in rendered view. EEVEE
 Referenced by issue #60601, Crash when check cavity and shadow from shading menu.
 Referenced by issue #60597, Material Shader Crashes Cycles
 Referenced by issue #60585, 2.8 Builds are limited to 16 threads of processing
+Referenced by issue #60473, Crash while using complex procedural shaders
