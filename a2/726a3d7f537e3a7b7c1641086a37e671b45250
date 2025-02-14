@@ -1,2 +1,3 @@
 Referenced by commit 456c34da1ae, Cleanup: Use higher level APIs for "set attribute" geometry nodes
 Referenced by issue #118815, Fix: use-after-free in Set Position node
+Referenced by issue #118820, Fix: use-after-free in Set Position node
