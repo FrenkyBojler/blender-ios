@@ -1,1 +1,2 @@
 Referenced by commit 236fda7faf5, Fix T101343: useless Snapping menu in transform operators
+Referenced by issue #101343, Regression: useless Snapping menu in the adjustment popup of Edge bevel weight operator
