@@ -1,1 +1,2 @@
 Referenced by commit a0db3c3966c, Fix (unreported) crash when opening a file from splash screen when 'load UI' option is disabled.
+Referenced by commit 607d916f503, Fix T47632: Revert "Fix (unreported) crash when opening a file from splash screen when 'load UI' option is disabled."
