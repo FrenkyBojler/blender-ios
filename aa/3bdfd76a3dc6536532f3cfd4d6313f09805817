@@ -1,3 +1,4 @@
 Referenced by commit 66a6ef01636, Fix #109045: Allow images with more than 4 channels to load
 Referenced by commit 0168c4b893d, Cleanup: remove unused "dds" directory
 Referenced by issue #123620, Rendered PNGs have EXIF chunks after IDAT chunks, causing validation failure
+Referenced by issue #120234, 0,0 PNG offsets are useless + undocumented(?)
