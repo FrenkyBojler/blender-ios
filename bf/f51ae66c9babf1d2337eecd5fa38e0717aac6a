@@ -1,3 +1,4 @@
 Referenced by commit 089c389b5c0, Cleanup: Store UI button drawstr with std::string
 Referenced by commit 821b077149f, Fix #117272: Color property with popover causes Blender freeze
 Referenced by issue #117439, Fix: Debug crash when interacting with color sliders
+Referenced by issue #117272, Clicking color properties in the toolbar locks the UI and doesn't open the color picker
