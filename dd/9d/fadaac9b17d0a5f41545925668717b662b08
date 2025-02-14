@@ -1,2 +1,3 @@
 Referenced by commit 536055e1ee0, remove "Select Linked" from the posemode select menu
 Referenced by commit 5ca7c85e105, Particle editmode: add mouse independent "Select Linked" operator
+Referenced by issue #76071, Pose: Select Linked does not work from menu
