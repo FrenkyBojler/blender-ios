@@ -3,3 +3,4 @@ Referenced by issue #121161, Regression: Frame Selected Includes Hidden Bones
 Referenced by issue #121017, Regression: Crash when scrubbing on the timeline
 Referenced by issue #119642, "Orbit Around Selection" pivot around the object's origin point instead of the center of mass in Object Mode
 Referenced by issue #116122, Frame Selected/All operators incorrectly frame view
+Referenced by issue #115614, 'Local View' and 'View Frame Selected' on Armatures are broken
