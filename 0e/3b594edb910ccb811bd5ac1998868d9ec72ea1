@@ -1,2 +1,3 @@
 Referenced by commit bf7267638a4, Fix #121892: string formatting errors in the clip editor & sequencer
 Referenced by issue #121892, solve camera motion -> error
+Referenced by issue #120453, Proposal: use str.format instead of percentage formatting for core-scripts
