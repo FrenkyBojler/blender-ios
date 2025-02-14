@@ -88,3 +88,4 @@ Referenced by issue #44530, Regression: Texture UV Mapping incorrect on meshes w
 Referenced by issue #44535, Subdivision modifier's Subdivide UV not working correctly with overlapping UV islands vertices.
 Referenced by issue #44538, Crash when choose action
 Referenced by issue #44523, The ambient occlutions work inverted. not in close places but in open places
+Referenced by issue #44525, Long program hang
