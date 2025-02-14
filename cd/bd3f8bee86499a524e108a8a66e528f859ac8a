@@ -1,1 +1,2 @@
 Referenced by issue #131258, Regression: Collapsed sockets adds padding to nodes
+Referenced by issue #124042, Fix: Nodes: Lack of padding at the bottom part of node groups
