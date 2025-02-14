@@ -8,3 +8,4 @@ Referenced by issue #71660, Blender 2.80 (sub 75) crashes on Ubuntu when loading
 Referenced by issue #71602, Library Override: Overriding material causes BKE_id_is_in_global_main assert on file load
 Referenced by issue #71456, Entire system locks up when interacting with  Properties Material Context
 Referenced by issue #71300, VSE: Crash in IMB_colormanagement_transform_threaded when rendering this clip
+Referenced by issue #71267, spinning on Linus crashes
