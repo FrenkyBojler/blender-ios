@@ -1,1 +1,2 @@
 Referenced by issue #74018, CRLF vs LF mismatches errors when patching OpenCollada in "make deps"
+Referenced by issue #73942, Eevee mipmaps not respecting border mode
