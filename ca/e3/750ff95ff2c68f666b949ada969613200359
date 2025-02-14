@@ -1,1 +1,2 @@
 Referenced by commit fcbbfb77898, Fix crash creating new file after modifications
+Referenced by issue #60795, Crash when joining objects with shape keys
