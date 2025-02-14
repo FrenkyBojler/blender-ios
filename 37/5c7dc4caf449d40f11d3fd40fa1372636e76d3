@@ -11,3 +11,4 @@ Referenced by issue #76330, Blender 2.82 crashes when attempting to change of th
 Referenced by issue #76193, Crash when loading image texture
 Referenced by issue #75357, USD Export not working - unable to find suitable USD Plugin
 Referenced by issue #75254, Blender Freezing while moving ~120k vertices, also on undo
+Referenced by issue #75228, Segmentation fault at startup
