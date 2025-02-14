@@ -1,2 +1,3 @@
 Referenced by issue #57103, Mesh Subdivide with smoothness for specific edges sends some vertices to NaN
 Referenced by issue #57104, Mesh Subdivide with smoothness is coordinate dependent
+Referenced by issue #57094, Changing to other view modes while using solid color in viewport causes crash
