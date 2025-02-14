@@ -1,2 +1,3 @@
 Referenced by issue #79095, Crash when entering edit mode on a mesh set to Viewport Display: Wire
 Referenced by issue #79083, Crash: colorpicker crashes blender when the object has a multiresolution modifier
+Referenced by issue #79084, Crash blender on startup
