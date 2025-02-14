@@ -1,1 +1,2 @@
 Referenced by issue #91834, Appending objects with shape keys into new file is broken.
+Referenced by issue #89045, VSE playback periodically refuses to work (Pulseaudio, OpenAL seems fine)
