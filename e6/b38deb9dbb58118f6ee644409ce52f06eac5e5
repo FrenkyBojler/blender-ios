@@ -1,1 +1,2 @@
 Referenced by issue #103258, Deleting a shader while in viewport rendered mode with OptiX OSL results in an illegal address error.
+Referenced by issue #101222, Cycles OSL with OptiX
