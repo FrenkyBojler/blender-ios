@@ -1,1 +1,2 @@
 Referenced by commit 1bd4a3c9f35, Fix #106141: crash when duplicating a node
+Referenced by commit 8d9d16fb53a, Fix #104396: Blender crashes when moving Keyframes in Graph Editor
