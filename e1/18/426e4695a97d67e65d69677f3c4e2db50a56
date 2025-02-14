@@ -1,0 +1,1 @@
+Referenced by issue #82520, use of nullptr in python slots breaks build for py3.8
