@@ -1,2 +1,3 @@
 Referenced by issue #62622, Blender 2.8 - viewport does not show changes in animated vertex positions without clicking a viewport shading button every time
 Referenced by issue #62368, pressing z key to switch between extrusion
+Referenced by issue #62354, apply explosion effect results in hard crash
