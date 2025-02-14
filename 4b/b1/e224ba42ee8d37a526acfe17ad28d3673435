@@ -37,3 +37,4 @@ Referenced by issue #49789, Compositor mix node interpolation bug
 Referenced by issue #49792, 3d view locking and rotating to random direction when using fly mode, depending on OS's DPI scaling.
 Referenced by issue #49794, Compositor image sequence node multiple bug with exr
 Referenced by issue #49798, No shadows cast/shown in viewport Material View for Blender Cycles
+Referenced by issue #49775, Appending armatures with Action constraints from .blend file
