@@ -56,3 +56,4 @@ Referenced by issue #50408, Port EXCEPTION_ACCESS_VIOLATION fix to 2.76b
 Referenced by issue #50409, texture to compositig cause crash
 Referenced by issue #50399, Imported FBX Animation (coming from Unreal Engine) makes Blender switch to 25 FPS
 Referenced by issue #50382, Fluid sim broken when domain/fluid are at large coordinates
+Referenced by issue #50384,  Blender Crashes when switching to Cycles
