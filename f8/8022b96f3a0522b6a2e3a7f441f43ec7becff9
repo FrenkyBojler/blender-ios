@@ -4,3 +4,4 @@ Referenced by issue #69262, VIEWPORT RENDER IMAGE dont render quad view images
 Referenced by issue #69248, no edit the mesh in alembic animation
 Referenced by issue #68843, Invalid (pink) shader when using wireframe node [ Eevee ]
 Referenced by issue #68751, Blender crashes in uv unwrap and texture paint
+Referenced by issue #65138, Intel HD Graphics bone selection problems in edit mode/pose mode
