@@ -7,3 +7,4 @@ Referenced by issue #59220, Deleting object causes blender 2.8 to crash
 Referenced by issue #59203, Edit mode : Multi-data objects view not sync
 Referenced by issue #59204, Measure tool crashed Blender
 Referenced by issue #59207, Material suddenly became emissive, but not for all objects using it
+Referenced by issue #59168, Blender 2.8 (9a8b6d51c12) - Crash when going in Edit Mode with Multiresolution modifier
