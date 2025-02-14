@@ -3,3 +3,4 @@ Referenced by issue #60832, Blender 2.8 crashes after applying explode modifier 
 Referenced by issue #60792, Possible bug in "bpy.data.libraries.write()"
 Referenced by issue #60722, Decimate modifier not working in operator settings
 Referenced by issue #60687, First vertex group not selecting properly
+Referenced by issue #60660, TEXTURE PAINT tab BUG- Undo a simple PAINT operation using CTRL-Z and it removes entire TEXTURE IMAGE-Workarounds and Thorough Steps to Repeatability BELOW.
