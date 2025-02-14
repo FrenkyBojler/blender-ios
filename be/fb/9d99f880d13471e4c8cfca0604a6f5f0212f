@@ -1,1 +1,2 @@
 Referenced by issue #89331, Cycles - Lights flicker while being moved or rotated in viewport
+Referenced by issue #88515, Viewport Cycles does not update the position of lights from linked collections, from at least 2.91 to 2.93
