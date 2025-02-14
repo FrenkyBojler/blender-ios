@@ -1,2 +1,3 @@
 Referenced by commit f1812626341, Fix #130579: Un-isolating collection fails in presence of linked-collection
 Referenced by commit 4e907829d3d, Fix #128099: Outliner isolate collection tweaks linked data
+Referenced by commit c08a71d5a25, Fix #128056: Crash when ctrl click on Outliner collection toggles
