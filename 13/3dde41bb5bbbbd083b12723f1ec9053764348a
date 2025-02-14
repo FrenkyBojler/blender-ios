@@ -1,2 +1,3 @@
 Referenced by commit a60f6515026, Address #105786: How to handle linked data with 'fake user' set.
 Referenced by commit 313c2e91050, Fix a test after recent changes to lib (in)directly linked ID handling.
+Referenced by issue #134023, Linked texts are always orphaned
