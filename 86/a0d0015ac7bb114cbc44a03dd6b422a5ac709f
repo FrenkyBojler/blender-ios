@@ -1,2 +1,3 @@
 Referenced by commit dadbb5c5f71, Fix VSE retiming last key position incorrect
 Referenced by commit ee4c45c6126, Fix crash drawing in the sequencer when Scene::ed is null
+Referenced by issue #123144, Fix #114859: VSE Retiming versioning was broken
