@@ -1,2 +1,3 @@
 Referenced by issue #47321, Driver gets lost when performing a Scripted Expression
 Referenced by issue #47311, render crash
+Referenced by issue #47317, Dynamic Paint image sequence bake crashes if mesh has no UV layer
