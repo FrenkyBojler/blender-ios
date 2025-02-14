@@ -1,1 +1,2 @@
 Referenced by issue #108591, Regression: Add paint slot crash in texture paint mode
+Referenced by issue #108592, Fix #108591: Handle null material adding paint slot
