@@ -1,2 +1,3 @@
 Referenced by commit ab71991a788, Fix T66433: skin resize (Ctrl+A) crashes non-mesh objects
 Referenced by issue #66433, Pressing the 'Ctrl + A' while in edit mode of curve and some vertices are selected crashes the blender
+Referenced by issue #66387, EEVEE doesn't cast shadow on PNG images with transparent background.
