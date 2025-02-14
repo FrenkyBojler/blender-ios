@@ -1,1 +1,2 @@
 Referenced by commit ab18bd6f840, CMake: revert use of cmake_language as it's unavailable in v3.10
+Referenced by commit 206f1266176, Fix regression in remove_cc_flag macro
