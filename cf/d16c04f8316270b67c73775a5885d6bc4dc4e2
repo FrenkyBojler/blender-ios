@@ -1,2 +1,3 @@
 Referenced by issue #99900, Segfault on Linux when running third party Python library function with multithreading enabled
 Referenced by issue #89725, Crash for scipy.interpolate.Rbf
+Referenced by issue #76442, Hide Blender symbols by default on all platforms
