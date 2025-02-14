@@ -1,3 +1,4 @@
 Referenced by issue #39159, When adding primitives in Object mode, parameters are not editable
 Referenced by issue #39057, VSE wipe (with transparent 2nd input ) broken in RC1 !
 Referenced by issue #39005, Crash when baking Fluid sim with particle sys. as obstacle
+Referenced by issue #39013, nurbs path curve selected, "n" menu, "curve" display section, handles checkbox changes nothing.
