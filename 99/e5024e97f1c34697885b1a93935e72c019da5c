@@ -5,3 +5,4 @@ Referenced by commit 518d7dbebbd, UI/Nodes: Update node add menu as assets get l
 Referenced by commit 78a7d5cfccd, UI: Support C defined menu types to listen to notifiers
 Referenced by issue #107427, Fix #107422: Mesh context menus do not open with the last used option
 Referenced by issue #107422, Regression: Mesh edit context menus do not open with the last used option under the cursor
+Referenced by issue #102333, Regression: Context based keyboard shortcuts missing in enum menus
