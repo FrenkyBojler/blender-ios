@@ -1,1 +1,2 @@
 Referenced by issue #74865, Crash shading mixing two noise texture node
+Referenced by issue #74867, multires deformations not propagated correctly
