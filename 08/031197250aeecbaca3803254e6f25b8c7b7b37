@@ -10,3 +10,4 @@ Referenced by issue #91597, Cycles regression: Light visible in volume when ray 
 Referenced by issue #91598, Cycles regression: Decreasing sample count below current viewport samples causes viewport to reset
 Referenced by issue #91592, Cycles: remaining render time is always -14:-08.-48
 Referenced by issue #90734, Fully transparent material creates light bounces
+Referenced by issue #89353, 2.93 - Cycles Volumetrics - GPU and CPU results look inverted (Distance vs Equiangular sampling)
