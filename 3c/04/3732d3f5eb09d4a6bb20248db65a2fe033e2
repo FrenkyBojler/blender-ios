@@ -12,3 +12,4 @@ Referenced by issue #50829, Bake cache files gone
 Referenced by issue #50806, Parent/child transformation is incorrect when the parent's scaling is changed
 Referenced by issue #50768, Calling LibFree() on a 'Mesh' library crashes the game if a 'Scene' library was loaded before it
 Referenced by issue #50760, Blender does not find any CUDA device with latest NVidia driver (378.66), works OK with 376.33 (GTX1080)
+Referenced by issue #50764, Effect-Stripe cross ignore softcut (knife)
