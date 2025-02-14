@@ -9,3 +9,4 @@ Referenced by issue #125565, Unexpected behavior when clearing parent then switc
 Referenced by issue #125335, object loses initial transform on redo, when operator manipulates world matrix
 Referenced by issue #124278, matrix_world.to_translation() loses data somehow and returns (0.0, 0.0, 0.0) during operator re-do, only in certain cases (blender 4.2)
 Referenced by issue #119348, Regression: Python: Objects loaded from blend files have default matrices before depsgraph update
+Referenced by issue #119304, Assertion triggered when exporting an STL file
