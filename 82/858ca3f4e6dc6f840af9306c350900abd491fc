@@ -1,0 +1,1 @@
+Referenced by issue #94629, Out-of-bounds memory access in IMB_flipy() due to large image dimensions
