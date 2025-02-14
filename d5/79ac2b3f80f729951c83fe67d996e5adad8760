@@ -3,3 +3,4 @@ Referenced by commit ba767610cff, Fix #113280: Incorrect display of Cycles borde
 Referenced by commit fff74145f17, Fix #113186: The Render Result attribute "has_data" is always False
 Referenced by issue #119503, Fix #119427: UI: The Metadata is gone for the rendered image
 Referenced by issue #119495, Fix #119427: UI: The Metadata is gone for the rendered image
+Referenced by issue #119427, UI: The Metadata is gone for the rendered image
