@@ -2,3 +2,4 @@ Referenced by commit 710d168e30e, Fix #121666: Modifying UVs of duplicate affect
 Referenced by issue #121786, Fix #121666: Modifying UVs of duplicate affects the original object
 Referenced by issue #121666, Regression: Modifying UVs of duplicate object affects the original object
 Referenced by issue #113665, Color Attributes linked between unliked object data when using sculpt mode
+Referenced by issue #110471, Regression: Normal Edit modifier screws up UVs
