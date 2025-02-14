@@ -1,1 +1,2 @@
 Referenced by issue #98266, Regression: Crash when removing mesh from Mesh Boolean in Geometry Nodes
+Referenced by issue #93272, mesh boolean node breaks material assignments.
