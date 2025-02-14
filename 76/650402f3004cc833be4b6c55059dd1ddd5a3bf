@@ -3,3 +3,4 @@ Referenced by issue #70045, EEVEE viewport error when using volume and lights (w
 Referenced by issue #69993, instanceing does not work on the vertex made of subdivision
 Referenced by issue #69984, Sculpt Mode: Display ➔ Curve Alpha doesn't display curves other than Custom
 Referenced by issue #69931, Materials with keyframes duplicated by 'make single user' are linked
+Referenced by issue #69728, Sculpt Mode Grab Active Vertex and Dynamic Mesh Preview Bug.
