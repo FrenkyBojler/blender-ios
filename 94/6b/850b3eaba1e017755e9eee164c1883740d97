@@ -1,3 +1,4 @@
 Referenced by issue #46052, Ray intersection errors and slowdown
 Referenced by issue #46056, User Preferences-> install from File freezes Blender
 Referenced by issue #46050, Blender Internal: UV Mapping inside node groups does not work
+Referenced by issue #46051, Loading certain Jpeg causes system alert sound (Win32)
