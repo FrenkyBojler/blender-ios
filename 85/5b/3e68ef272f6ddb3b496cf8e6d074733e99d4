@@ -1,2 +1,3 @@
 Referenced by issue #62134, duplicating a material won't update node group's node tree user count anymore
 Referenced by issue #61836, saving while in multires makes blender crash
+Referenced by issue #61739, "Cubemap Size" affects procedural texture's scale in the reflections
