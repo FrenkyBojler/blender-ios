@@ -3,3 +3,4 @@ Referenced by issue #63041, Eevee - crash when placing cursor during baking of i
 Referenced by issue #63019, can't lasso select multiple vertices when see trough it enabled and my active tool is the move tool
 Referenced by issue #63005, EEVEE: Reflection probe breaks transparent background
 Referenced by issue #62989, ctrl-tab pie menu shortcut is broken.
+Referenced by issue #62701, Hair edit mode crashes with AMD Radeon HD 5700
