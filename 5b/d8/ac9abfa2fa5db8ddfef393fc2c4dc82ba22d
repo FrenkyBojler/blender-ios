@@ -56,3 +56,4 @@ Referenced by issue #54133, Crash when baking normals with Cycles from object wi
 Referenced by issue #54112, Curve resolution_u param is ignored when it's set before curve.splines.new()
 Referenced by issue #54096, Subdivision Surface + Boolean Modifiers + Transform = crash
 Referenced by issue #54063, End clip show back wall of the mesh in Edit mode
+Referenced by issue #54072, Blender crashes when changing "Edge Angle" option on Edge Split modifier
