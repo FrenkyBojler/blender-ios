@@ -10,3 +10,4 @@ Referenced by commit 495a98d6236, BLI_assert: prevent abort from suppressing ret
 Referenced by commit 1b06d5742e8, Fix building after rBdeaff945d0b9... sic.
 Referenced by issue #100578, Regression: Surface Deform Modifier does not display correctly in Edit Mode while a Vertex Group is assigned to the Modifier.
 Referenced by issue #100191, Regression: Crash on toggling display mode of wave modifier in edit mode
+Referenced by issue #96836, UV verts dont draw if certain modifiers are present (e.g geometry nodes, GPU subdiv, WeightedNormal w/o Autosmooth)
