@@ -1,2 +1,3 @@
 Referenced by issue #120087, Regression: Clicking on a node selects the node below it after duplication.
 Referenced by issue #117235, Regression: Nodes: Frame node can't adopt a node
+Referenced by issue #115906, Regression: Freeze bug when changing a frame attribute in the geo node editor
