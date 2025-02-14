@@ -1,1 +1,2 @@
 Referenced by commit c2758706732, Ammend to rB00dc0666b3fe: forgot to fix boid->ground of first particle.
+Referenced by issue #49608, ID remap: crash with boid particles, colliders and baked physics cache
