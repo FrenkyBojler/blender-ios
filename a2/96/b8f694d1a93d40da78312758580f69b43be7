@@ -1,3 +1,4 @@
 Referenced by issue #103947, Crash on Mac when starting with `--debug-gpu` flag
 Referenced by issue #102322, Crash on exiting VR session when using DirectX backend
 Referenced by issue #101403, Library changes for Blender 3.4
+Referenced by issue #76428, GHOST/Wayland Support
