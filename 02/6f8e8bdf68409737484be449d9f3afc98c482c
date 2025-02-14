@@ -1,2 +1,3 @@
 Referenced by issue #120857, Viewport Compositing: Scale node does not render correctly, uses a lot of VRAM in 4.1 and crashes in 4.2
 Referenced by issue #120863, EEVEE-Next: Error after a recent change
+Referenced by issue #120273, EEVEE Next: Lamps except the Sun turns the model dark (does not catch any light) with Intel UHD 620
