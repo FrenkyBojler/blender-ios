@@ -1,0 +1,1 @@
+Referenced by issue #124444, When using "bpy.ops.paint.image_paint" to draw textures, modifying the Mask Mapping of the Texture Mask is invalid.
