@@ -11,3 +11,4 @@ Referenced by issue #120231, Crash on `bpy.ops.uv.pack_islands` for certain geom
 Referenced by issue #120217, Loading a .blend file created with 4.0.2 crash/freezes in 4.1
 Referenced by issue #120202, Total crash when trying to render on MacOs (Intel)
 Referenced by issue #120203, Crash on Intel Mac when rendering or opening material properties
+Referenced by issue #120187, Sculpting with multiresolution modifier in 4.1 crashes
