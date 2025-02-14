@@ -94,3 +94,4 @@ Referenced by issue #39437, Symmetry with Dyntopo and Dyntopo simplify
 Referenced by issue #39445, Async LibLoad Crash
 Referenced by issue #39446, Blender Crashes when Camera Tracking
 Referenced by issue #39428, Branched Path disabled on GPU
+Referenced by issue #39431, Possible Cycles render artifact
