@@ -1,2 +1,3 @@
 Referenced by issue #62820, Wrong OBJ Import
 Referenced by issue #61190, Crash by scene change
+Referenced by issue #61195, Blender 2.80 crashes after deleting auto detected marker features in Motion Tracking.
