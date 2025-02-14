@@ -7,3 +7,4 @@ Referenced by issue #89648, Random rogue vertices getting wrong weight/group inf
 Referenced by issue #89389, Optix kernels not loading
 Referenced by issue #89288, Problems around copy and paste betwen blenders if diferent versions/revisions.
 Referenced by issue #89149, Crashes after adding geometric nodes
+Referenced by issue #88937, Mem leak when rendering on GPU
