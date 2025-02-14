@@ -1,1 +1,2 @@
 Referenced by commit 4c3e91e5f56, Fix T96520 Node editor: Tweak fails with unselected nodes
+Referenced by commit d4bdf219296, Fix T96701: RMB select fails to show gizmo on mouse button release
