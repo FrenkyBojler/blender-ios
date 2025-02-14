@@ -1,2 +1,3 @@
 Referenced by issue #41804, UV Multiple Snap Targets
 Referenced by issue #40750, [Nurbs] Bevel Factor Start/End does not work if the path is Cyclic.
+Referenced by issue #40727, Animation broken on node name change.
