@@ -1,1 +1,2 @@
 Referenced by commit 4915706df67, Revert "Units: Make grams base unit for mass"
+Referenced by issue #38013, Incorrect RNA Path when trying to keyframe the nth vertex of Bezier curve shape key data
