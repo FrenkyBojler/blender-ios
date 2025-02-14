@@ -1,2 +1,3 @@
 Referenced by commit b77e7480eff, VSE: Remove retiming tool for 3.6 release
 Referenced by commit 354ef89d204, Fix lite build error
+Referenced by issue #108870, VSE: Remove retiming tool
