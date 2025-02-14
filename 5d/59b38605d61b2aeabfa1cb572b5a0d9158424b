@@ -1,2 +1,3 @@
 Referenced by commit 4fd3d96f46e, Fix Pushdown of an action from the Action Editor lacks immediate updates
 Referenced by issue #107030, `action.frame_range` span always >=1 when there's only 1 key frame in it.
+Referenced by issue #96964, Setting a manual frame range in an action is only recognized after reloading the file
