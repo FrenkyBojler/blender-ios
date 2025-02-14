@@ -1,2 +1,3 @@
 Referenced by commit 9441c640c82, Fix T81934: Painting/Sculpting in ortho fails to let strokes pass through clipped geometry
 Referenced by issue #81934, In Ortho view, Clipping Regions fail to let sculpt strokes pass through hidden geometry
+Referenced by issue #76894, Mesh cage appears outside of Clipping Region in Edit mode in Material and Render preview
