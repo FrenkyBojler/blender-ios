@@ -1,2 +1,3 @@
 Referenced by issue #87324, Arealight spread and parametric coordinates can't play with each other
 Referenced by issue #87295, Persistent Data ignores animation
+Referenced by issue #86742, Volume Emission Material Overflow(?) on Hard Edges (Cycles)
