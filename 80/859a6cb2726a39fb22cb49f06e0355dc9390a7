@@ -33,3 +33,4 @@ Referenced by issue #98026, Regression: Crash when rendering with Eevee and Cryp
 Referenced by issue #97983, Regression: Tangent Normal of Curves info behaves differently in Eevee
 Referenced by issue #97916, Regression: Blending materials ( color attributes ) glitchy
 Referenced by issue #97881, Regression: Specular highlights are missing in Glossy BSDF(Eevee).
+Referenced by issue #97796, Regression: alpha clipped materials render fuzzy (exactly like alpha hashed materials)
