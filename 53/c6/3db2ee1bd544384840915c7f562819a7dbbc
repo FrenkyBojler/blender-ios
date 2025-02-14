@@ -3,3 +3,4 @@ Referenced by issue #55866, Blender 2.8 : ctrl+tab crashes blender if scene is e
 Referenced by issue #55818, Dynamically modified influence vertex group not working in modifier stack
 Referenced by issue #55805, f12 render crash eevee
 Referenced by issue #55808, material & lamp properties crash
+Referenced by issue #55775, Crash when select keyframe of an object in timeline editor
