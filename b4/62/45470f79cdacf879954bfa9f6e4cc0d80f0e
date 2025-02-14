@@ -5,3 +5,4 @@ Referenced by issue #63837, Add-on tabs no longer work
 Referenced by issue #63806, SurfaceDeform Modifier doesn't render correctly when using Shape Keys
 Referenced by issue #63772, Movie Clip Editor fails to show/hide toolbar
 Referenced by issue #63738, Blender 2.80 - Crash in "Point normals to target" mode when going back to object mode without confirming operations
+Referenced by issue #63705, Problems Baking Dynamic Paint with two canvases on one object (Blender 2.80)
