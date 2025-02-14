@@ -2,3 +2,4 @@ Referenced by commit f185cc0ca55, Fix T70729: Multi-object edit UV not transform
 Referenced by commit 4e3f186a8c9, Fix T70729: Multi-object edit UV not transform all meshes
 Referenced by commit fde88ad9d2f, Fix T66627: Multiobject Edit UV constraint to image bounds
 Referenced by commit 4df72208741, Fix crash with select linked when nothing is under the cursor
+Referenced by issue #66195, Alt+Wheel mouse doesn't work in "Loop Cut & Slide" operator (and in Slide operators) to change the control edge with (E)Even option
