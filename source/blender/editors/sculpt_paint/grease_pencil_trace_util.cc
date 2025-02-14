@@ -261,9 +261,7 @@ bke::CurvesGeometry trace_to_curves(const Trace &trace,
     }
   }
 
-  if (holes) {
-    holes.finish();
-  }
+  holes.finish();
   curves.tag_topology_changed();
   curves.tag_positions_changed();
   curves.tag_radii_changed();

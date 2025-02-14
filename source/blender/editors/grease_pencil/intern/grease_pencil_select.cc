@@ -624,7 +624,7 @@ template<typename T, typename DistanceFn>
 static void select_similar_by_value(Scene *scene,
                                     Object *object,
                                     GreasePencil &grease_pencil,
-                                    const bke::AttrDomain domain,
+                                    const bke::AttrDomain selection_domain,
                                     const StringRef attribute_id,
                                     float threshold,
                                     DistanceFn distance_fn)
@@ -639,40 +639,33 @@ static void select_similar_by_value(Scene *scene,
 
   blender::Set<T> selected_values;
   for (const MutableDrawingInfo &info : drawings) {
-    insert_selected_values(info.drawing.strokes(), domain, attribute_id, selected_values);
+    insert_selected_values(
+        info.drawing.strokes(), selection_domain, attribute_id, selected_values);
   }
 
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-    bke::MutableAttributeAccessor attributes =
-        info.drawing.strokes_for_write().attributes_for_write();
-    const int domain_size = attributes.domain_size(domain);
-    bke::SpanAttributeWriter<bool> selection_writer =
-        attributes.lookup_or_add_for_write_span<bool>(
-            ".selection",
-            domain,
-            bke::AttributeInitVArray(VArray<bool>::ForSingle(true, domain_size)));
-    if (!selection_writer) {
-      return;
-    }
-    const VArraySpan<T> values = *attributes.lookup_or_default<T>(
-        attribute_id, domain, default_value);
+    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
+        curves, selection_domain, CD_PROP_BOOL);
+    const VArraySpan<T> values = *curves.attributes().lookup_or_default<T>(
+        attribute_id, selection_domain, default_value);
 
     IndexMaskMemory memory;
     const IndexMask mask = ed::greasepencil::retrieve_editable_points(
         *object, info.drawing, info.layer_index, memory);
 
     mask.foreach_index(GrainSize(1024), [&](const int index) {
-      if (selection_writer.span[index]) {
+      if (selection.span[index]) {
         return;
       }
       for (const T &test_value : selected_values) {
         if (distance_fn(values[index], test_value) <= threshold) {
-          selection_writer.span[index] = true;
+          selection.span[index] = true;
         }
       }
     });
 
-    selection_writer.finish();
+    selection.finish();
   });
 }
 

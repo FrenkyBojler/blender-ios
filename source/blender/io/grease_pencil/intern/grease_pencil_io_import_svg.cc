@@ -193,7 +193,6 @@ static void shape_attributes_to_curves(bke::CurvesGeometry &curves,
   MutableSpan<int8_t> handle_types_right = curves.handle_types_right_for_write();
   bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_span<float>(
       "radius", bke::AttrDomain::Point);
-
   bke::SpanAttributeWriter<ColorGeometry4f> vertex_colors =
       attributes.lookup_or_add_for_write_span<ColorGeometry4f>("vertex_color",
                                                                bke::AttrDomain::Point);
@@ -250,19 +249,11 @@ static void shape_attributes_to_curves(bke::CurvesGeometry &curves,
   }
 
   materials.finish();
+  fill_colors.finish();
+  fill_opacities.finish();
   radii.finish();
-  if (fill_colors) {
-    fill_colors.finish();
-  }
-  if (fill_opacities) {
-    fill_opacities.finish();
-  }
-  if (vertex_colors) {
-    vertex_colors.finish();
-  }
-  if (point_opacities) {
-    point_opacities.finish();
-  }
+  vertex_colors.finish();
+  point_opacities.finish();
   curves.tag_positions_changed();
   curves.tag_radii_changed();
 }

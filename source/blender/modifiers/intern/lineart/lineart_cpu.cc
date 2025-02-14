@@ -5467,9 +5467,7 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
   stroke_cyclic.finish();
 
   point_radii.finish();
-  if (point_opacities) {
-    point_opacities.finish();
-  }
+  point_opacities.finish();
   stroke_materials.finish();
 
   Curves *original_curves = blender::bke::curves_new_nomain(drawing.strokes());

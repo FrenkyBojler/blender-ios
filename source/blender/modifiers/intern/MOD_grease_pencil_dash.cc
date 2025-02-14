@@ -322,9 +322,7 @@ static bke::CurvesGeometry create_dashes(const PatternInfo &pattern_info,
   dst_cyclic.finish();
   dst_material.finish();
   dst_radius.finish();
-  if (dst_opacity) {
-    dst_opacity.finish();
-  }
+  dst_opacity.finish();
   dst_curves.update_curve_types();
 
   return dst_curves;

@@ -210,9 +210,7 @@ static void generate_curves(GreasePencilMultiModifierData &mmd,
   }
 
   radii.finish();
-  if (opacities) {
-    opacities.finish();
-  }
+  opacities.finish();
 
   drawing.tag_topology_changed();
 }

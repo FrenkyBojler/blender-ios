@@ -1444,12 +1444,8 @@ Array<PointTransferData> compute_topology_change(
       }
     });
 
-    if (dst_start_caps) {
-      dst_start_caps.finish();
-    }
-    if (dst_end_caps) {
-      dst_end_caps.finish();
-    }
+    dst_start_caps.finish();
+    dst_end_caps.finish();
   }
 
   /* Copy/Interpolate point attributes. */
