@@ -1,1 +1,2 @@
 Referenced by commit 7f7ed8e0989, Fix T98571: corrupted face selection drawing with GPU subdivision
+Referenced by issue #98392, GPU Subdivision: Crash when knife cut is made on object with mirror modifier
