@@ -1,1 +1,2 @@
 Referenced by commit cc44b98871b, Fix #105720: crash when adding viewer node
+Referenced by commit e22247a965e, Fix: crash when opening file with visible node editor
