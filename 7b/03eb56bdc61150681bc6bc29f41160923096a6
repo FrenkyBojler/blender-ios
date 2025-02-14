@@ -1,1 +1,2 @@
 Referenced by issue #41039, Hook modifier sometimes fails to retain correct bezier curve point assignment (multiple curve segements?)
+Referenced by issue #39109, Vertice affected by Hook Modifiers change after "switch Direction" on Curves
