@@ -1,0 +1,1 @@
+Referenced by issue #88498, bpy.types.Object.parent_bone not reset when clearing a bone parent
