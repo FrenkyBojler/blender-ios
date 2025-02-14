@@ -1,0 +1,1 @@
+Referenced by issue #86355, sequences.new_effect() parameter frame_end always gets treated as 0
