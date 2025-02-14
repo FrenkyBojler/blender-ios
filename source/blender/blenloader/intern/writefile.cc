@@ -64,6 +64,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
+#include <iomanip>
+#include <sstream>
 
 #ifdef WIN32
 #  include "BLI_winstuff.h"
@@ -1350,16 +1352,43 @@ static int write_id_direct_linked_data_process_cb(LibraryIDLinkCallbackData *cb_
   return IDWALK_RET_NOP;
 }
 
+static std::string get_blend_file_header()
+{
+  const char pointer_size_char = sizeof(void *) == 8 ? '-' : '_';
+  const char endian_char = ENDIAN_ORDER == B_ENDIAN ? 'V' : 'v';
+
+  if (USER_EXPERIMENTAL_TEST(&U, write_large_blend_file_blocks)) {
+    const int header_size_in_bytes = MAX_SIZEOFBLENDERHEADER;
+
+    /* New blend file header format. */
+    std::stringstream ss;
+    ss << "BLENDER";
+    ss << header_size_in_bytes;
+    ss << pointer_size_char;
+    ss << std::setfill('0') << std::setw(2) << BLEND_FILE_VERSION_FORMAT;
+    ss << endian_char;
+    ss << std::setfill('0') << std::setw(4) << BLENDER_FILE_VERSION;
+
+    const std::string header = ss.str();
+    BLI_assert(header.size() == header_size_in_bytes);
+    return header;
+  }
+
+  /* Legacy blend file header format. */
+  std::stringstream ss;
+  ss << "BLENDER";
+  ss << pointer_size_char;
+  ss << endian_char;
+  ss << BLENDER_FILE_VERSION;
+  const std::string header = ss.str();
+  BLI_assert(header.size() == 12);
+  return header;
+}
+
 static void write_blend_file_header(WriteData *wd)
 {
-  char buf[16];
-  SNPRINTF(buf,
-           "BLENDER%c%c%.3d",
-           (sizeof(void *) == 8) ? '-' : '_',
-           (ENDIAN_ORDER == B_ENDIAN) ? 'V' : 'v',
-           BLENDER_FILE_VERSION);
-
-  mywrite(wd, buf, 12);
+  const std::string header = get_blend_file_header();
+  mywrite(wd, header.data(), header.size());
 }
 
 /**

@@ -59,3 +59,9 @@ enum {
 };
 
 #define BLEN_THUMB_MEMSIZE_FILE(_x, _y) (sizeof(int) * (2 + (size_t)(_x) * (size_t)(_y)))
+
+/**
+ * A low level blend file version number. Currently it is either 0 for the original blend file
+ * format (which didn't have this version number yet) or 1.
+ */
+#define BLEND_FILE_VERSION_FORMAT 1

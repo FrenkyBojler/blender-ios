@@ -962,6 +962,8 @@ struct BlenderHeader {
   int endian;
   /** #BLENDER_FILE_VERSION. */
   int file_version;
+  /** #BLEND_FILE_VERSION_FORMAT. */
+  int blend_file_version_format;
 };
 
 /** The file is detected to be a Blender file, but it could not be decoded successfully. */
@@ -974,7 +976,7 @@ using BlenderHeaderVariant = std::variant<InvalidHeader, UnknownBlenderHeader, B
 
 static BlenderHeaderVariant decode_blender_header(FileData *fd)
 {
-  char header_bytes[SIZEOFBLENDERHEADER];
+  char header_bytes[MAX_SIZEOFBLENDERHEADER];
   const int64_t readsize = fd->file->read(fd->file, header_bytes, sizeof(header_bytes));
   if (readsize != sizeof(header_bytes)) {
     return InvalidHeader{};
@@ -987,7 +989,54 @@ static BlenderHeaderVariant decode_blender_header(FileData *fd)
    * file of a potentially future version. */
 
   BlenderHeader header;
-  switch (header_bytes[7]) {
+  /* In the old file format, the next bytes indicate the pointer size. In the new format a version
+   * number comes next. */
+  const bool is_legacy_header = ELEM(header_bytes[7], '_', '-');
+
+  if (is_legacy_header) {
+    header.blend_file_version_format = 0;
+    switch (header_bytes[7]) {
+      case '_':
+        header.pointer_size = 4;
+        break;
+      case '-':
+        header.pointer_size = 8;
+        break;
+      default:
+        return UnknownBlenderHeader{};
+    }
+    switch (header_bytes[8]) {
+      case 'v':
+        header.endian = L_ENDIAN;
+        break;
+      case 'V':
+        header.endian = B_ENDIAN;
+        break;
+      default:
+        return UnknownBlenderHeader{};
+    }
+    if (!isdigit(header_bytes[9]) || !isdigit(header_bytes[10]) || !isdigit(header_bytes[11])) {
+      return UnknownBlenderHeader{};
+    }
+    char version_str[4];
+    memcpy(version_str, header_bytes + 9, 3);
+    version_str[3] = '\0';
+    header.file_version = atoi(version_str);
+    fd->file->seek(fd->file, 12, SEEK_SET);
+    return header;
+  }
+
+  if (!isdigit(header_bytes[7]) || !isdigit(header_bytes[8])) {
+    return UnknownBlenderHeader{};
+  }
+  char header_size_str[3];
+  memcpy(header_size_str, header_bytes + 7, 2);
+  header_size_str[2] = '\0';
+  const int header_size = atoi(header_size_str);
+  if (header_size != MAX_SIZEOFBLENDERHEADER) {
+    return UnknownBlenderHeader{};
+  }
+  switch (header_bytes[9]) {
     case '_':
       header.pointer_size = 4;
       break;
@@ -997,7 +1046,17 @@ static BlenderHeaderVariant decode_blender_header(FileData *fd)
     default:
       return UnknownBlenderHeader{};
   }
-  switch (header_bytes[8]) {
+  if (!isdigit(header_bytes[10]) || !isdigit(header_bytes[11])) {
+    return UnknownBlenderHeader{};
+  }
+  char blend_file_version_format_str[3];
+  memcpy(blend_file_version_format_str, header_bytes + 10, 2);
+  blend_file_version_format_str[2] = '\0';
+  header.blend_file_version_format = atoi(blend_file_version_format_str);
+  if (header.blend_file_version_format != 1) {
+    return UnknownBlenderHeader{};
+  }
+  switch (header_bytes[12]) {
     case 'v':
       header.endian = L_ENDIAN;
       break;
@@ -1007,13 +1066,15 @@ static BlenderHeaderVariant decode_blender_header(FileData *fd)
     default:
       return UnknownBlenderHeader{};
   }
-  if (!isdigit(header_bytes[9]) || !isdigit(header_bytes[10]) || !isdigit(header_bytes[11])) {
+  if (!isdigit(header_bytes[13]) || !isdigit(header_bytes[14]) || !isdigit(header_bytes[15]) ||
+      !isdigit(header_bytes[16]))
+  {
     return UnknownBlenderHeader{};
   }
-  char version_str[4];
-  memcpy(version_str, header_bytes + 9, 3);
-  version_str[3] = '\0';
-  header.file_version = atoi(version_str);
+  char version_str[5];
+  memcpy(version_str, header_bytes + 13, 4);
+  version_str[4] = '\0';
+  header.file_version = std::atoi(version_str);
   return header;
 }
 
@@ -1037,6 +1098,9 @@ static void read_blender_header(FileData *fd)
   }
   if (header.endian != ENDIAN_ORDER) {
     fd->flags |= FD_FLAGS_SWITCH_ENDIAN;
+  }
+  if (header.blend_file_version_format == 0) {
+    fd->flags |= FD_FLAGS_IS_SMALL_BHEAD8;
   }
   fd->fileversion = header.file_version;
 }
@@ -1363,7 +1427,7 @@ FileData *blo_filedata_from_memory(const void *mem,
                                    const int memsize,
                                    BlendFileReadReport *reports)
 {
-  if (!mem || memsize < SIZEOFBLENDERHEADER) {
+  if (!mem || memsize < MIN_SIZEOFBLENDERHEADER) {
     BKE_report(
         reports->reports, RPT_WARNING, (mem) ? RPT_("Unable to read") : RPT_("Unable to open"));
     return nullptr;

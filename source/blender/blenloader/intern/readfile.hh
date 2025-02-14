@@ -158,7 +158,8 @@ struct FileData {
   void *storage_handle = nullptr;
 };
 
-#define SIZEOFBLENDERHEADER 12
+#define MIN_SIZEOFBLENDERHEADER 12
+#define MAX_SIZEOFBLENDERHEADER 17
 
 /***/
 void blo_join_main(ListBase *mainlist);
