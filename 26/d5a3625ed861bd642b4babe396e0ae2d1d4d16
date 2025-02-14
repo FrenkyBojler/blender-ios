@@ -47,3 +47,4 @@ Referenced by issue #58184, Modifier texture changes don't update the modifier s
 Referenced by issue #58185, Crash when adjusting a torous in edit mode
 Referenced by issue #58187, object visibility controlled by driver bug
 Referenced by issue #58170, Crash when using Gpu
+Referenced by issue #58171, Crash when using over 2 particles systems
