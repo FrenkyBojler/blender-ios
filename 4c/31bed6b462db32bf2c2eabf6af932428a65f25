@@ -7,3 +7,4 @@ Referenced by issue #59516, crash for rendering a curve
 Referenced by issue #59306, Incorrect White
 Referenced by issue #59309, Viewport face orientation colours (non-overlay) appear to have been unified
 Referenced by issue #59154, Texture Paint Crash When Painting Only Selected Faces
+Referenced by issue #58930, Blender 2.8 Beta. Eevee crashes when trying to do a render
