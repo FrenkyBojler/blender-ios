@@ -1,2 +1,3 @@
 Referenced by commit a8b9a58608b, Fix #54468: crash calling transform operators with incomplete regiondata
 Referenced by issue #119205, Fix #54468: crash calling transform operators with incomplete regiondata
+Referenced by issue #54468, Segmentation fault when selecting context.area.type before applying operator (scripting)
