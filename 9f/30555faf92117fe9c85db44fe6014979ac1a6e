@@ -1,2 +1,3 @@
 Referenced by commit a1dceeec00b, Fix #110516: Geometry nodes use attribute toggle boolean values broken
 Referenced by commit c38dd2da2b1, Fix: geometry nodes modifier property not working after changing it in Python
+Referenced by issue #111433, Fix #110516: Geometry nodes use attribute toggle boolean values broken
