@@ -1,2 +1,3 @@
 Referenced by issue #107012, bevel
 Referenced by issue #106258, 3.5: Candidates for corrective releases
+Referenced by issue #105944, Sharp edges are removed when exiting edit mode if every edge is sharp
