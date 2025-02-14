@@ -1,1 +1,2 @@
 Referenced by commit fbfa5890bff, Fix build errors
+Referenced by issue #62999, Blender 2.8, Selection tool crashes blender in editmode. Only in Vertex and/or Edge Select.
