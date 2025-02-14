@@ -1,2 +1,3 @@
 Referenced by issue #107589, Regression: Failure to render stereoscopy correctly in background (rendering of curve objects with cycles and motion blur)
 Referenced by issue #94045, Selecting vertices and centering the model crashes Blender
+Referenced by issue #94033, Line Art - intersection lines do not receive weight transfers
