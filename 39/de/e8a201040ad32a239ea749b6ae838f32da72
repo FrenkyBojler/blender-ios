@@ -1,2 +1,3 @@
 Referenced by issue #48859, From Buildbot: impossible to modify values in an appended maerial
 Referenced by issue #48844, Appended Cycles materials are not editable in Properties panel/Node Editor
+Referenced by issue #48856, Cycles/Cuda crash when live rendering an object with an animated array modifier
