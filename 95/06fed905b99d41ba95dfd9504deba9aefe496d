@@ -1,3 +1,4 @@
 Referenced by commit 738dc431eb7, Fix: Sequencecache modifier opening a file mem allocation mismatch
 Referenced by commit d7bdfe39a39, Fix: Movieclip Editor opening a file mem allocation mismatch
 Referenced by issue #128755, Fix: Sequencecache modifier opening a file mem allocation mismatch
+Referenced by issue #127347, Fix: Movieclip Editor opening a file mem allocation mismatch
