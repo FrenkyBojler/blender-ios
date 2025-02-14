@@ -1,2 +1,3 @@
 Referenced by issue #53683, 2.79a release
 Referenced by issue #53577, Rake sculpt/paint option is always wrong on first step
+Referenced by issue #53581, Remesh modifier produces artifacts in sharp mode
