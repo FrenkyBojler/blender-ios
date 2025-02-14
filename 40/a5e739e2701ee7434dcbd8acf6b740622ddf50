@@ -13,3 +13,4 @@ Referenced by issue #120202, Total crash when trying to render on MacOs (Intel)
 Referenced by issue #120203, Crash on Intel Mac when rendering or opening material properties
 Referenced by issue #120187, Sculpting with multiresolution modifier in 4.1 crashes
 Referenced by issue #120080, Crash during sculpting (regression in 4.1, 4.0 is fine)
+Referenced by issue #119993, Memory access fault by GPU when using HIP Cycles
