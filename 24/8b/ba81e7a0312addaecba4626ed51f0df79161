@@ -3,3 +3,4 @@ Referenced by issue #52262, 2.79-rc1 "dri2 connection failed"
 Referenced by issue #52197, Knife Tool not working properly in Camera View
 Referenced by issue #52187, normals_split_custom_set() seems to smooth out given input
 Referenced by issue #52189, Principled shader does not interoperate nicely with texture alpha transparency
+Referenced by issue #52171, conversion of text objects to mesh generate improper mesh for letter T (even with default text font)
