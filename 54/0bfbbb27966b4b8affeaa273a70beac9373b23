@@ -1,2 +1,3 @@
 Referenced by issue #97917, Regression: wipe transition  don't working + moving strips separately  with stransition make a gap
 Referenced by issue #96901, Wipe transition effect not working
+Referenced by issue #96582, Regression: VSE Wipe transition does not work
