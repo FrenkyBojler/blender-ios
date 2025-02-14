@@ -1,1 +1,2 @@
 Referenced by issue #98484, Crash when switched from Solid mode to Material Preview Mode
+Referenced by issue #98486, gpu.types.GPUOffScreen together with gpu.state.depth_test_set causes blender ui to be unresponsive
