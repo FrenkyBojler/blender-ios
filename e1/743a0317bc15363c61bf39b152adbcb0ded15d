@@ -2,3 +2,4 @@ Referenced by issue #128320, GPU error CUDA misaligned address
 Referenced by issue #125835, Blender 3.0.0 and 4.1.1 constant crashes when on cycles render viewport
 Referenced by issue #125682, EEVEE Next: Fireflies in shadows
 Referenced by issue #125533, Blender crashes on open in i3-window manager
+Referenced by issue #124549, Can't change viewport text overlay color
