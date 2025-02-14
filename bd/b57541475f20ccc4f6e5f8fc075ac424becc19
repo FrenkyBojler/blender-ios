@@ -8,3 +8,4 @@ Referenced by issue #103108, Regression: NODE_OT_add_search ignores NodeItems en
 Referenced by issue #103047, Mix Color is not searchable
 Referenced by issue #102555, Regression: Node editor Add menu - nodes gets created offset when adding from the Search operator
 Referenced by issue #102529, Duplicate items in add node search after adding an asset
+Referenced by issue #102118, Mix Color Node removed from search menu. T101700 follow up.
