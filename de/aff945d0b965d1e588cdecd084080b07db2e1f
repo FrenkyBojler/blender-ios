@@ -9,3 +9,4 @@ Referenced by commit 2d1b560a4e2, Fix T77632: Deform modifier auto-binding not w
 Referenced by commit 495a98d6236, BLI_assert: prevent abort from suppressing return-type warning
 Referenced by commit 1b06d5742e8, Fix building after rBdeaff945d0b9... sic.
 Referenced by issue #100578, Regression: Surface Deform Modifier does not display correctly in Edit Mode while a Vertex Group is assigned to the Modifier.
+Referenced by issue #100191, Regression: Crash on toggling display mode of wave modifier in edit mode
