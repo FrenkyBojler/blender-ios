@@ -1,2 +1,3 @@
 Referenced by issue #62670, ShaderNodeCustomGroup insert_link is not listening to inserts
 Referenced by issue #62673, Objects in gizmo can not be selected
+Referenced by issue #62666, bpy.context.scene.update() causes erratic object selections
