@@ -1,3 +1,4 @@
 Referenced by issue #59799, Texture paint mode crash
 Referenced by issue #59800, Crash when unwrapping UV on object imported from .stl and entering texture paint mode.
 Referenced by issue #58686, Blender 2.8 Crashing on Alembic export of fluid animation past 80 frames
+Referenced by issue #57646, Clip random marker placement in track/mask - not working in 2.8
