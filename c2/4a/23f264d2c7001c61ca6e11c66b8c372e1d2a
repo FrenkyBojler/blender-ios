@@ -1,0 +1,1 @@
+Referenced by issue #39923, particle emitter not emitting in the same frequency when being parented to an empty, or object with rigid body dynamics.
