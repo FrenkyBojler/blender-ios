@@ -1,1 +1,2 @@
 Referenced by commit 76169472d39, Cycles: Resolve recent performance regression in oneAPI implementation for Intel® Arc™ GPUs
+Referenced by issue #101065, Regression: Denoising depth pass: different result from 3.2.2 (ok) to 3.3
