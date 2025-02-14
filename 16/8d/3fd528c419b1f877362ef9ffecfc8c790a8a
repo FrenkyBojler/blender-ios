@@ -1,2 +1,3 @@
 Referenced by issue #62092, Render image after camera position is animated does not use current camera position
 Referenced by issue #62047, New wireframes missing fresnel effect
+Referenced by issue #62033, Can't access bpy.data.screens by name.
