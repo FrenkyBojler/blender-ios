@@ -1,0 +1,1 @@
+Referenced by issue #121458, Crash if `draw_buttons_ext()` for `GeometryNodeBake` from `invoke_popup()`
