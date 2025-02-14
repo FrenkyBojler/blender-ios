@@ -1,1 +1,2 @@
 Referenced by issue #57770, Vertices visible in XRay/Edit Mode can't be reselected after initial select and transform operation
+Referenced by issue #57759, The eevee view model failed to load the texture, causing the model to be purple
