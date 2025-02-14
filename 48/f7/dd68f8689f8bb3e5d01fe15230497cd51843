@@ -6,3 +6,4 @@ Referenced by issue #47750, Hair particles lose position data when "Disconnect A
 Referenced by issue #47724, VSE crops video if horizontal resolution isn't divisible by 8
 Referenced by issue #47584, Pie Menu don't change modes
 Referenced by issue #47495, Overlay blending mode.
+Referenced by issue #47416, openGL renders do not have render slots
