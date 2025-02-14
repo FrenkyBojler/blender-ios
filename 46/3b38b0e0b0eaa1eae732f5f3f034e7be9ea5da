@@ -2,3 +2,4 @@ Referenced by issue #126899, White screen and crash on opening
 Referenced by issue #93077, Can't launch Blender 2.93.5
 Referenced by issue #92291, Blender crashes accessing the OpenCL settings with ROCm AMD drivers
 Referenced by issue #91713, Blender 2.93 crashes on startup on Windows 10
+Referenced by issue #91202, Blender 2.93.1 and 2..93.4 will not start on windows 10. worked last night
