@@ -3,3 +3,4 @@ Referenced by commit 653e3e2689a, Subdiv: Avoid repeatedly accessing mesh arrays
 Referenced by commit bcabd04e324, Mesh: Avoid retrieving edge and loop arrays repeatedly
 Referenced by commit 6f15141f273, Fix T101188: Fluid modifier doesn't work
 Referenced by commit 0a32f6b76a6, Fix T100863, T100875: Vertex group reading broken for recent files
+Referenced by commit be038b844cb, Cleanup: Tweak naming for recently added mesh accessors
