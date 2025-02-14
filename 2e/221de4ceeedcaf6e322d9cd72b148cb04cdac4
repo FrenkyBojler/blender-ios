@@ -26,3 +26,4 @@ Referenced by commit 8374208a570, Outliner: Port curve elements to new tree-elem
 Referenced by commit f63c3075cb3, Outliner: Port mesh elements to new tree-element code design
 Referenced by commit da1b6c4c02d, Outliner: Port sequencer elements to new tree-element design
 Referenced by commit 9bce134e56c, Outliner: Port RNA elements to new tree-element design
+Referenced by commit f59ff9e03a6, Fix crash when showing NLA actions in the Outliner
