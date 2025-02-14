@@ -22,3 +22,4 @@ Referenced by issue #60343, Grease Pencil Fill Crash
 Referenced by issue #60327, Adaptive length for imperial units no longer working properly. Entered as meters rather than feet.
 Referenced by issue #60315, Blender 2.80 - Not possible to have more than one particle system per object
 Referenced by issue #60318, can't change location of camera in camera view in Eevee when camera has keyframes
+Referenced by issue #60017, Eevee render display error in orthographic camera mode: Mesh material color changes during scaling
