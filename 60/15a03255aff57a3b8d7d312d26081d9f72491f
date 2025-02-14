@@ -1,1 +1,2 @@
 Referenced by issue #60267, Debug Assert in wm_messagebus: Occurs when manipulating collection visibility and (un)linking from a python script
+Referenced by issue #58722, Crash while trying to replace materials in the material slot
