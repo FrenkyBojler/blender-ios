@@ -12,3 +12,4 @@ Referenced by issue #59982, EEVEE - Distance Bump/Normal's Spec dancing - animat
 Referenced by issue #59969, Blender 2.8 triggers GPU lockup when entering Edit Mode
 Referenced by issue #59960, Blender shuts down
 Referenced by issue #59946, Multiple quit dialogs possible
+Referenced by issue #59947, Animated texture node (in Compositor) remains static in render
