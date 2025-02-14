@@ -1,1 +1,2 @@
 Referenced by commit 378f65f7d98, Fix Py-driver byte code access with Python 3.11
+Referenced by issue #99277, Fails to compile on Python 3.11b3 due to opaque PyFrameObject
