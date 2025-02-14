@@ -1,2 +1,3 @@
 Referenced by commit d9ea72291fc, Fix T100842: Display Texture Paint UVs option in UV editor not working
 Referenced by issue #100842, Regression: Missing UVs in imaged editor when in texture paint mode
+Referenced by issue #98773,   GPU Subdivision breaks auto selection in UV edit mode
