@@ -3,3 +3,4 @@ Referenced by issue #62712, Light Path node seems to be broken
 Referenced by issue #62196, Blender 2.8 Beta: Freestyle Lineset drawing order breaks when using textures
 Referenced by issue #61454, Some shortcuts don't work
 Referenced by issue #61451, Sometimes when clearing keyframes, the animation remains
+Referenced by issue #61426, Boolean Modifier Cancels UV Mapping
