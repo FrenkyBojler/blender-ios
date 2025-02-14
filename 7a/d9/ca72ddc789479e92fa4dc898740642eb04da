@@ -1,1 +1,2 @@
 Referenced by issue #45575, CUDA error with Cmake build
+Referenced by issue #45423, depsgraph: crash in IDDepsNode::tag_update
