@@ -1,1 +1,2 @@
 Referenced by commit 95763b8c8a7, Revert "Fix T46247: Side-reported, bbox for zero-verts object with OSD subsurf and GPU compute would be -INF."
+Referenced by issue #46247, Crash: OpenSubDiv Enable when Drivers are used with the Object (Windows)
