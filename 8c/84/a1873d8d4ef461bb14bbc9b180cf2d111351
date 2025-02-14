@@ -1,1 +1,2 @@
 Referenced by issue #46772, Boolean modifier not displaying in viewport on startup and after exiting edit mode
+Referenced by issue #46752, Collision between convex hull and triangle mesh causing slow fps in bge
