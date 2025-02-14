@@ -1,2 +1,3 @@
 Referenced by commit 0e94d8bbe09, Fix T72302: Only hide objects if their collection is visible
 Referenced by commit 280d6b03a7a, Fix T70670: Hidden collections are still rendered by Cycles in the Viewport
+Referenced by issue #85897, Slow viewport framerate (e.g. tumbling the camera, not scrubbing) due to commit 0812949bbc3d7acfd1f20a47087ff973110aa177
