@@ -1,2 +1,3 @@
 Referenced by issue #46253, Pull in new version of OpenSubdiv and re-enable AMD GLSL Compute
 Referenced by issue #45909, Garbage output in Viewport with OpenSubdiv device set to GLSL Compute
+Referenced by issue #45915, Can not select keys in Dope Sheet
