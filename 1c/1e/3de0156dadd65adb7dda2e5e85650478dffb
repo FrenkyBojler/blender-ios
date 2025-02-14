@@ -1,1 +1,2 @@
 Referenced by issue #64387, Crash:  Driver copy / paste between lights Energy property followed by frame change
+Referenced by issue #60434, Crash with OSL + Rendering Viewport + Material Tab in Properties
