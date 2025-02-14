@@ -9,3 +9,4 @@ Referenced by issue #61874, The title bar in the properties window says Scene ev
 Referenced by issue #61880, massively increased .blend load times
 Referenced by issue #61855, Loading times of files that link in external data has become inacceptable
 Referenced by issue #58938, Crash when using EEVEE and Intel HD 4000
+Referenced by issue #58307, Multires Modifier - No smooth shading and no rotation depth.
