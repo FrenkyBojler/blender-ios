@@ -1,0 +1,1 @@
+Referenced by issue #78361, Blender crashes on many modeling operations (loopcut, extrude, duplication, ...) on mesh with normal map node connected to material
