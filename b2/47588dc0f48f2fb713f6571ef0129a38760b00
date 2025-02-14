@@ -4,3 +4,4 @@ Referenced by issue #103700, Regression: Optimal Display still can't be turned o
 Referenced by issue #103706, Generative modifiers (Bevel, Triangulate, ...) wireframe not drawn correctly in Edit Mode
 Referenced by issue #103396, Regression: Crash when extruding a creased vertex in GPU subdivision
 Referenced by issue #102579, Regresion: Wireframe overlay not displayed on objects (with geometry nodes modifier using mesh primitives) with particle systems
+Referenced by issue #102393, With enabled Modifier On Cage option crashes on entering Edit Mode if in Render Viewport Shading
