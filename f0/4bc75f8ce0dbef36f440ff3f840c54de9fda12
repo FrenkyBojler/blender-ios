@@ -1,1 +1,2 @@
 Referenced by commit 08e0b35b314, Fix C-style formatting characters shown in operator reports
+Referenced by commit fbf47b9a126, Refactor: Use std::string for keymap string return values
