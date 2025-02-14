@@ -5,3 +5,4 @@ Referenced by issue #50233, Blender crash after adding a Texture Node in Composi
 Referenced by issue #50215, Blender crashes, when I add Input/Texture node
 Referenced by issue #50211, compositing bug
 Referenced by issue #50170, Texture Node may be broken
+Referenced by issue #50171, Blender 2.78a crashes using in Node Editor [Input] - [Texture]
