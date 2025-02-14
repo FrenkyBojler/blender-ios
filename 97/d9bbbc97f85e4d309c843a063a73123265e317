@@ -1,2 +1,3 @@
 Referenced by commit 392b84f879a, Fix #114515: Cycles: Numerical precision issues in triangle light sampling
 Referenced by issue #119224, Fix #114515: Cycles: Numerical precision issues in triangle light sampling
+Referenced by issue #114515, AGAIN:  Lights type of Mesh lights (emission) presents artifacts.
