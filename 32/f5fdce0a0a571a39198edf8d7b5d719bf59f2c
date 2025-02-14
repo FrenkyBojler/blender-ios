@@ -8,3 +8,4 @@ Referenced by issue #132434, Blender crashes when selecting File > New > 2D Anim
 Referenced by issue #132237, Crash when opening .ogg audio files with album art
 Referenced by issue #130221, 4.3: Candidates for corrective releases
 Referenced by issue #127722, EEVEE crash on AMD Radeon Graphics under Linux
+Referenced by issue #125589, Window_manager invoked popup crashes blender if File Browser opens maximized
