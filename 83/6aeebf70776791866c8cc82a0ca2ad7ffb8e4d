@@ -1,1 +1,2 @@
 Referenced by issue #90374, Blender doesn't start, probably after 'GHOST/X11: enable EGL' commit
+Referenced by issue #89831, When IME is On, passing key inputs excluding caret operation to IME. (Windows)
