@@ -3,3 +3,4 @@ Referenced by commit b4e6ef42798, Fix: MeshPolygon.use_smooth set inversed
 Referenced by issue #126391, Blender Viewport Speed Regression
 Referenced by issue #122344, Exporting PLY with Vertex Normals ON + Importing PLY causes Broken Vertex Normals
 Referenced by issue #119997, Regression: Baked Normal Map From Multiresolution Produces Strange Result on edges with crease
+Referenced by issue #119447, Auto Smooth versioning modifiers appearing on Append
