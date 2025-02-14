@@ -1,3 +1,4 @@
 Referenced by commit 422f3d0b0fe, Fix #105278: IDProperty UI missing library overridable toggle
 Referenced by issue #105370, Fix #105278: IDProperty UI missing library overridable toggle
 Referenced by issue #105278, Regression: IDProperty UI missing library overridable toggle for types other than float or int
+Referenced by issue #91256, Custom property settings not preserved when changing its type
