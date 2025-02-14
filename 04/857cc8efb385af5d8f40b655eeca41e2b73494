@@ -1,1 +1,2 @@
 Referenced by issue #91999, Cycles Regression: Modifying objects in the rendered viewport in certain ways leads to artifacts
+Referenced by issue #91968, Baking lighting for transformed objects is broken (3.0)
