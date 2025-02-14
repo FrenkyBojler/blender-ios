@@ -1,1 +1,2 @@
 Referenced by issue #64363, Texture node in EEVEE makes shader pink in lookDev and render view mode
+Referenced by issue #64344, (Resolved in 2.80 f877022956df) rig is causing blender to crash.
