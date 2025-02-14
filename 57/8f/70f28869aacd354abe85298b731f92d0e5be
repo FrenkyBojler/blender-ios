@@ -1,2 +1,3 @@
 Referenced by issue #47388, smoke render viewport vs final render
 Referenced by issue #47366, New Curve interpolation in Color Management works as the old method unless it gets reset.
+Referenced by issue #47353, texture paint grid bug
