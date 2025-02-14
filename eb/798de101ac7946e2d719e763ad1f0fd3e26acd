@@ -1,1 +1,2 @@
 Referenced by commit 627a3446351, Fix (unreported) broken python resgistrable classes checks logic.
+Referenced by issue #71876, Python API overview references old bpy.utils.register_module function
