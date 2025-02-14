@@ -4,3 +4,4 @@ Referenced by issue #121666, Regression: Modifying UVs of duplicate object affec
 Referenced by issue #113665, Color Attributes linked between unliked object data when using sculpt mode
 Referenced by issue #110471, Regression: Normal Edit modifier screws up UVs
 Referenced by issue #109670, Regression: Attributes shared between meshes after modification
+Referenced by issue #109665, Fix #109460: vertex weight slider not working correctly
