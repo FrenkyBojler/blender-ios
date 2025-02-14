@@ -1,0 +1,1 @@
+Referenced by issue #43976, OBJECT_OT_editmode_toggle crashes due to mismatch in context when setting `bpy.context.screen.scene`
