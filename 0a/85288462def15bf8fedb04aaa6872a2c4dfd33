@@ -1,1 +1,2 @@
 Referenced by issue #103064, Realtime Compositor: Crash on undo after dissolve node
+Referenced by issue #102238, Geometry Node: Memory leak -> EXCEPTION_ACCESS_VIOLATION -> EXCEPTION_INT_DIVIDE_BY_ZERO.
