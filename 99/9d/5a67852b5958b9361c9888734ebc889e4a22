@@ -1,2 +1,3 @@
 Referenced by issue #48695, Significant slowdown when editing a mesh with shrinkwraps & slightly high poly
 Referenced by issue #48547, Shrinkwrap not taking auxiliary target into account properly
+Referenced by issue #48507, Symmetrize doesn't work properly on Bendy Bones
