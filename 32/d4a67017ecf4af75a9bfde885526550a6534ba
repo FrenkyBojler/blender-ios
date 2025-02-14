@@ -1,2 +1,3 @@
 Referenced by commit 89abc14d6ce, Fix T81002: Images drawn with the Python gpu module no longer draw on top in the Image Editor
 Referenced by issue #81271, Fluid: Crash with empty cache path
+Referenced by issue #81002, Images drawn with the Python gpu module no longer draw on top in the Image Editor
