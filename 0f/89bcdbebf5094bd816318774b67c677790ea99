@@ -9,3 +9,4 @@ Referenced by issue #95571, Crashes in edit mode
 Referenced by issue #95467, Textures disappear when going to Edit Mesh on Solid Texture mode.
 Referenced by issue #95356, Blender crashes when renaming bone in Edit Mode, Saving, and than selecting/deselecting.
 Referenced by issue #95288, Shrinkwrap selection broken in edit mode.
+Referenced by issue #95165, Regression: Custom Normals tools dont update immediately (when started with Auto Smooth OFF)
