@@ -1,2 +1,3 @@
 Referenced by issue #93479, 3.0 Potential candidates for corrective releases
 Referenced by issue #92838, Crash when exceeding memory_cache_limit in the viewport
+Referenced by issue #92740, BlenLib/ImageCache : Use after free
