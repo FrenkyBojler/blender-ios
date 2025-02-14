@@ -1,3 +1,4 @@
 Referenced by commit 3d4231babf1, UI: Fix opacity of the popover arrow outline
 Referenced by issue #88785, graphical bug with sliders on 4k screen
 Referenced by issue #79615, UI: icons and widget emboss look different from earlier versions
+Referenced by issue #78331, NLA [Channels] colors black and broken
