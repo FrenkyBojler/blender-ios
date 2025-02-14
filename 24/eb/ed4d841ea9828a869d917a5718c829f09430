@@ -1,0 +1,1 @@
+Referenced by issue #51011, bpy.ops.action.new() does nothing when invoked from script
