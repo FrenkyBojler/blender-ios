@@ -1,1 +1,2 @@
 Referenced by issue #97828, Regression: Custom split normals of hidden faces/vertices remain visible (AMD GPU)
+Referenced by issue #89405, Viewport Render Preview glitching with Eevee Render Engine
