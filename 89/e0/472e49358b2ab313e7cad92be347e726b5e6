@@ -1,1 +1,2 @@
 Referenced by issue #134414, Compositor: Use gpu::TexturePool instead of legacy DRW API
+Referenced by issue #134567, Compositor: Memory leak when tweaking parameters.
