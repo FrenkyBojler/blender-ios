@@ -1,2 +1,3 @@
 Referenced by issue #63164, makesdna structure size mismatch on 32 bit.
 Referenced by issue #61413, Grease Pencil crashes in 32-Bit version
+Referenced by issue #60089, 2.80 32-bit appears broken (on 64-bit Windows at least)
