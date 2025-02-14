@@ -1,1 +1,2 @@
 Referenced by commit d1c2b458366, Geometry Nodes: rename bdata to blob
+Referenced by issue #112094, Simulation Zone in 4.0: No geometry output before the first cached frame, negative Delta Time values.
