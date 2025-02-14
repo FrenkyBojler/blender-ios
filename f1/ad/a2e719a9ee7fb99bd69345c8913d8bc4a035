@@ -1,1 +1,2 @@
 Referenced by issue #51341, cycles OpenCL corruption in todays buildbot (wasn't there 2 days ago)
+Referenced by issue #51343, gpu rendering needs that user goes to user pref after every start
