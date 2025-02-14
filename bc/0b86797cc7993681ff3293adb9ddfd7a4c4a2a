@@ -1,2 +1,3 @@
 Referenced by commit 7397fda92b6, Fix #133764: Collada crash (editmode + triangulate + apply modifiers)
 Referenced by issue #133859, Fix #133764: Collada crash (editmode + triangulate + apply modifiers)
+Referenced by issue #133764, Blender crashes on Collada export
