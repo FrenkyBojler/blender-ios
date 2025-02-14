@@ -1,1 +1,2 @@
 Referenced by issue #127542, OBJ material groups are not written when Materials is disabled
+Referenced by issue #103824, output_node.inputs.new() crash blender
