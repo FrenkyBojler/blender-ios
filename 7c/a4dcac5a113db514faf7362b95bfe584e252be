@@ -1,3 +1,4 @@
 Referenced by commit 1e81a353ad7, Cleanup: Wrong return value
 Referenced by commit fbf47b9a126, Refactor: Use std::string for keymap string return values
 Referenced by commit 4dc345ab1e6, Fix #117494: Crash when dropping collection
+Referenced by issue #118361, Cleanup: Wrong return value
