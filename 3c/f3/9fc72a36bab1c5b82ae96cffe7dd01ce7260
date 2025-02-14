@@ -1,1 +1,2 @@
 Referenced by issue #39743, Crash when deleting faces in with new autosmooth
+Referenced by issue #39747, Unable to update mesh vertex properties via Python when mesh is influenced by armature
