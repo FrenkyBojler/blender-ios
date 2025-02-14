@@ -1,1 +1,2 @@
 Referenced by issue #68159, Mesh->Normals-> Point to Target crashes when switching out of editmode
+Referenced by issue #65147, Gizmos do not appear when editing normals via the rotate or point to target functions
