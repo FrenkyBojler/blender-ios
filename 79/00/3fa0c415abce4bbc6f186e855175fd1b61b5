@@ -2,3 +2,4 @@ Referenced by issue #94101, Transform gizmo disappears when up very close
 Referenced by issue #73581, Since Blender 2.81a alpha and up, Blender cannot be run on Mac with System Console, Crashing on Startup
 Referenced by issue #72193, Adaptive Subdivision - Stray vertex / Spikes
 Referenced by issue #67641, Transform gizmo disappear in very close view
+Referenced by issue #53498, baking normal map using cycles does not support custom vertex normals on the baking target mesh
