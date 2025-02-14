@@ -1,0 +1,1 @@
+Referenced by issue #79767, Cycles animation render crash in scenes that use VDB cache and Vector pass (fixed in 2.9, request to backport to LTS)
