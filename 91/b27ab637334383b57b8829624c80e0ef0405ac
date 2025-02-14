@@ -7,3 +7,4 @@ Referenced by issue #119718, Fix #119544: Cage modifier deformation ignored in n
 Referenced by issue #119544, Regression: On Cage display mode of Armature modifier doesn't work correct
 Referenced by issue #115510, Regression: Poly Build does not update snapped geometry
 Referenced by issue #115169, Loop Cut overlay broken with Mirror Bisect Modifier
+Referenced by issue #110925, mirror modifier and subdivision surface.on_cage enabled crashes blender
