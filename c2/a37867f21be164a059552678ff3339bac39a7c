@@ -1,3 +1,4 @@
 Referenced by issue #72786, Sculpt Mode RMB menu appears at shifted hotspot under pointer
 Referenced by issue #72761, Adaptive domain very broken with collision objects: Mantaflow, Gas sim.
 Referenced by issue #72763, Crash opening file using Clump Curves on Particle Children
+Referenced by issue #72524, Weight Painting intermittent issues with brush, not adding or subtracting weight, not influencing correct areas
