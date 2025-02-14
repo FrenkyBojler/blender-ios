@@ -1,1 +1,2 @@
 Referenced by commit db297e7ea31, Revert "Fix T43471, based on patch submitted by @sean_loh."
+Referenced by issue #43471, Can't dynamically set particle birth time any more
