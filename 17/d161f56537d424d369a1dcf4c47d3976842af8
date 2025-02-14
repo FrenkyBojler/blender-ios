@@ -4,3 +4,4 @@ Referenced by issue #108867, Regression: Modifiers: Crash when adding Weighted N
 Referenced by issue #108788, Transfer Weights: unexpected result with "Nearest Face Interpolated"
 Referenced by issue #108483, Regression: DataTransfer Modifier is Broken
 Referenced by issue #108384, Regression: Normal issue when using weighted normal modifier with keep sharp option on.
+Referenced by issue #108273, Mirror modifier - Custom normals missing on mirrored geometry
