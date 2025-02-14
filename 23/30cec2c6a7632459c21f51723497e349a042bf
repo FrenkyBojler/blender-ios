@@ -1,2 +1,3 @@
 Referenced by issue #102545, Regression: Wireframe overlay: toggling edit-mode shows different edges in object-mode each time
 Referenced by issue #90644, Inconsistency on toggling triangulate option of Decimate modifier
+Referenced by issue #89176, Blender Crash in weight paint mode when wireframe overlay is activated on a mesh with Solidify Modifier
