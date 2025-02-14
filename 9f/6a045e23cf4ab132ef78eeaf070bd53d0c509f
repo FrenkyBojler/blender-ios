@@ -1,2 +1,3 @@
 Referenced by commit 4815d0706fb, Fix T103385: Asset Browser Thumbnails take long time to load
 Referenced by commit 77e8e73ed9a, Fix T103555: File output node saving to the wrong folder
+Referenced by commit 5d77c3a6a5a, Fix T102132: Directory selection fails to add trailing slash
