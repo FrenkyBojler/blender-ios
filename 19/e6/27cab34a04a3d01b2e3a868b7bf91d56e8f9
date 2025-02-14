@@ -59,3 +59,4 @@ Referenced by issue #39640, Crash on maximizing/minimizing UV/Image Editor
 Referenced by issue #39641, jittery red outline and clusters of yellow noise in rendered preview
 Referenced by issue #39629, Teapot creates corrupt mesh
 Referenced by issue #39630, Mouse Wheel doesn't detect Multi Window Focus.
+Referenced by issue #39614, Ping Pong Action doesn't work correct.
