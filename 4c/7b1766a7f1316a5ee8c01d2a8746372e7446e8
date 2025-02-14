@@ -1,1 +1,2 @@
 Referenced by commit bc090387ace, Fix T82388: Sculpt mode: Unexpected undo behavior.
+Referenced by issue #87631, Segfault on undo-ing mode switching and bone duplication
