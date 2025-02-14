@@ -1,3 +1,4 @@
 Referenced by issue #56763, Removing driver variable crashes Blender
 Referenced by issue #56755, Video Sequence Editor playback is choppy
 Referenced by issue #56740, Crash When operating with Spot Light Lapm
+Referenced by issue #56746, Crash on delete cube, add monkey, delete monkey, add cube
