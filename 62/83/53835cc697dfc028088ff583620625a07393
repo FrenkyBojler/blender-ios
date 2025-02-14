@@ -1,0 +1,1 @@
+Referenced by issue #40290, False (or malfunctioning) dependency-cycle warning when adding dupligroup objects to another group.
