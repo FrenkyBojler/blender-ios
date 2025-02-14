@@ -1,2 +1,3 @@
 Referenced by issue #78539, This version broke my one-click open for folders (file browser)
 Referenced by issue #78527, GPencil: Mirror is inconsistent with Mesh Mirror
+Referenced by issue #78529, Blend file corrupted during save caused by high Cubemap Size
