@@ -2,3 +2,4 @@ Referenced by commit 4c3e91e5f56, Fix T96520 Node editor: Tweak fails with unsel
 Referenced by commit d4bdf219296, Fix T96701: RMB select fails to show gizmo on mouse button release
 Referenced by commit fb875786987, Fix T96255: Node socket fails to drag
 Referenced by issue #101904, Keymap Option Tweak Missing
+Referenced by issue #96701, Gizmo does not show unless screen is updated(?) for right click select.
