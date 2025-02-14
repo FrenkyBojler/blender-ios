@@ -2,3 +2,4 @@ Referenced by commit 7540842ca76, Fix T99592: Exact Boolean: Skip empty material
 Referenced by commit bbb389589a0, Fix T99592: Exact Boolean: Skip empty materials, add index-based option
 Referenced by issue #102596, Viewport display of multiple Dupli-Collections when different draw-types are used : wireframe might disappear (only selected are garuanteed to draw)
 Referenced by issue #100690, Blender 3.2.1 Recent Files List Not Updating
+Referenced by issue #100416, Crashed out when start rendering
