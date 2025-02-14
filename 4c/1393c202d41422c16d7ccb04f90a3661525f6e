@@ -1,1 +1,2 @@
 Referenced by issue #76746, Alembic: Wrong result when exporting and importing curves
+Referenced by issue #76706, Multiple curves in one object exported with alembic are treated as one continuous curve in external application (UE4)
