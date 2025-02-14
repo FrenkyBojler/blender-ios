@@ -1,2 +1,3 @@
 Referenced by issue #46658, Spaces are replaced by underscore when creating a folder or a file
 Referenced by issue #46630, New folder with spaces in windows
+Referenced by issue #45900, Blender replacing spaces in filename with underscore
