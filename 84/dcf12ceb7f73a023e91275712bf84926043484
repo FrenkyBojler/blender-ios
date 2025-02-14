@@ -1,1 +1,2 @@
 Referenced by issue #101629, bpy.ops.object.duplicates_make_real() duplicates curve objects with geometry
+Referenced by issue #85373, Texture Paint N-Panel error in click detection on right-aligned buttons because margin to scroll bar is too small
