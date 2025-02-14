@@ -72,3 +72,4 @@ Referenced by issue #68638, Cycles fails to render Motion Tracking scene on Open
 Referenced by issue #68527, Bones are not selected when clicked on (except the first one)
 Referenced by issue #68499, weight paint gradient is broken when mirror modifier is enabled
 Referenced by issue #68367, Translated text NOT display
+Referenced by issue #68344, 3D cursor sets to "-nan(ind)m" or "nanm" on click
