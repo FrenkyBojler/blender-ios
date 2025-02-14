@@ -1,1 +1,2 @@
 Referenced by commit c66f00dc26b, Fix Cycles rendering with OptiX after instance limit increase when building with old SDK
+Referenced by issue #81431, Optix corrupt render (incomplete scene translated)
