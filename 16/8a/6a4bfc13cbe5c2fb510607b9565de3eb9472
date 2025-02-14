@@ -11,3 +11,4 @@ Referenced by issue #59112, Pinning data block display changes window content
 Referenced by issue #59123, Blender 2.8 Beta SMOKE impossible to bake
 Referenced by issue #59125, Outliner -  Scene display mode  - isn´t showing the count of the View Layers
 Referenced by issue #59102, Blender 2.8 - Pie menus are inaccurate
+Referenced by issue #59104, Snapping: Align rotation to target broken in edit mode
