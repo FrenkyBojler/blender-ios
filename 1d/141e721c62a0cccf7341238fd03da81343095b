@@ -1,1 +1,2 @@
 Referenced by issue #115386, Mouse cursor move to center when adjusting vaules on WIN32
+Referenced by issue #113511, Regresion: Can no longer infinite drag if the mouse hits an screen edge
