@@ -1,1 +1,2 @@
 Referenced by commit 717389887b0, Cleanup: Keep panel functions internal to UI code
+Referenced by issue #127012, 4.2 Regression: UI popover can not be scrolled upwards
