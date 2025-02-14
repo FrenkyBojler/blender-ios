@@ -8,3 +8,4 @@ Referenced by issue #85507, Blender will not launch
 Referenced by issue #85491, EXCEPTION_ACCESS_VIOLATION
 Referenced by issue #85424, Blender does not open
 Referenced by issue #85336, Blender crashes when rendering from the command line without display or remote display
+Referenced by issue #85141, Crash when running python script from command line
