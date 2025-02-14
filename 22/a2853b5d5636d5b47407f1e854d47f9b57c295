@@ -22,3 +22,4 @@ Referenced by issue #48174, Bevel Tool with "Clamp Overlap" Leave Degenerate Geo
 Referenced by issue #48164, Switching from non-retina to a retina display messes up the whole interface.
 Referenced by issue #48095, Animating sequencer speed affects itself
 Referenced by issue #48087, "Add" menu restrictions while in Pose Mode
+Referenced by issue #48088, Reproducible crash: Edges + Array Mod + Hair Particles
