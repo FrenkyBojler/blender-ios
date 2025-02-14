@@ -8,3 +8,4 @@ Referenced by issue #39242, Backface culling in sculpt mode with dynamic topolog
 Referenced by issue #39219, Collision of hairs doesn't works properly
 Referenced by issue #39221, CUDA Error: Invalid value in cuMem Alloc(&device_pointer, size)
 Referenced by issue #39223, Cuda Error with 2.70 not seen in 2.69
+Referenced by issue #39227, Multi-Number Button Editing doesn't work on Y value of the objects Dimensions on the Transform Properties Panel
