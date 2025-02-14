@@ -1,1 +1,2 @@
 Referenced by issue #50116, Light threshold broke branched path tracer
+Referenced by issue #38710, Rendering artifacts with volumetrics + object texture with alpha transparency
