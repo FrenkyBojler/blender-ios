@@ -1,3 +1,4 @@
 Referenced by issue #67091, Sculpt mask not showing with deformation modifiers
 Referenced by issue #65963, Tests: fix script_load_keymap hierarchy test
 Referenced by issue #65964, Cycles/Ctest : OSL Failing tests.
+Referenced by issue #65966, Blender doesn't quit.
