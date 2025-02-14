@@ -1,2 +1,3 @@
 Referenced by commit cbc0a73ae42, Fix T47034: Explode "Cut Edges" looses UV's
 Referenced by issue #47034, Explode Modifier with "Cut Edges" does not work with alpha texture
+Referenced by issue #46313, Cycles bake normal map
