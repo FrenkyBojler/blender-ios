@@ -3,3 +3,4 @@ Referenced by issue #92787, Cursor jumping to edge of screen when lifting pen fr
 Referenced by issue #92751, Grease Pencil: Eraser Brush ends on maximum radius
 Referenced by issue #90889, Wintab temporarily lacks pressure when switching windows
 Referenced by issue #89520, The Fly Navigation  starts panning unintentionally when used with a tablet.
+Referenced by issue #89341, No pressure for tablet in mouse mode.
