@@ -1,2 +1,3 @@
 Referenced by commit f9a75d1e406, Fix #122976: Cycles light linking broken for volumes with light tree
 Referenced by commit 56cbde568ba, Fix #120046: Broken render on AMD Metal GPUs
+Referenced by commit 891d71a4d48, Cycles: Drop noinline keyword for oneAPI device
