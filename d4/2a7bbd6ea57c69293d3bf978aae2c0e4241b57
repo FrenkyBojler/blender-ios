@@ -1,1 +1,2 @@
 Referenced by commit a9ac87be369, Fix T73842: UI: add cloth collision settings to Hair Dynamics panel
+Referenced by commit 96339c4cef1, Fix T73304: Crash using force fields and hair dynamics
