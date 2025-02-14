@@ -1,1 +1,2 @@
 Referenced by commit 8a2d09eb9f5, Fix T53854: branched path tracing correlation bug with transparency.
+Referenced by issue #53854, Overlapping volumes render incorrectly with branched path tracing
