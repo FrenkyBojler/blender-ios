@@ -18,3 +18,4 @@ Referenced by issue #52428, blender crash after pressing "F"
 Referenced by issue #52432, Blender crashes while using Ghost  (new depsgraph)
 Referenced by issue #52356, Lightning Failure with too many spot lights
 Referenced by issue #52335, VSE: Duplicate Scene Strip Crashes Blender
+Referenced by issue #52337, VSE/Viewport: No Audio
