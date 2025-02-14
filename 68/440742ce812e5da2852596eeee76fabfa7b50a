@@ -1,2 +1,3 @@
 Referenced by commit cf12d11de6b, Fix #111713: Nodes crash when library overriding
 Referenced by issue #111896, Regression: Crash for entering into Armature Edit Mode
+Referenced by issue #111782, Fix #111713: Nodes crash when library overriding
