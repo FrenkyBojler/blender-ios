@@ -1,1 +1,2 @@
 Referenced by issue #71311, Bridge Edge Loops crash when bridging cube edges
+Referenced by issue #71075, Particle collisions aren't simulated before frame zero for negative frame simulations
