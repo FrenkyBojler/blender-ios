@@ -64,3 +64,4 @@ Referenced by issue #47543, Select more/less functions do not work for curves.
 Referenced by issue #47544, "Path Steps" draw option in Particle Edit mode incorrectly draws 2 steps when set to 1. / Also cannot be set to 0 steps.
 Referenced by issue #47532, F6-menu drops mouseclicks
 Referenced by issue #47534, Crash attempting to use 'bpy.ops.paint.image_paint()'
+Referenced by issue #47523, Painting depth of field effect in viewport
