@@ -1,0 +1,1 @@
+Referenced by issue #82675, "ImportError: sys.meta_path is None, Python is likely shutting down" on exit when built as a Python module
