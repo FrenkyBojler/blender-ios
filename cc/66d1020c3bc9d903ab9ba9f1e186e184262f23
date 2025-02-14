@@ -17,3 +17,4 @@ Referenced by issue #97667, Sporadic crashes
 Referenced by issue #97629, Blender is killed on rendering its 3.1 splash logo
 Referenced by issue #97440, Geometry Nodes Mute bug
 Referenced by issue #97373, Geometry Nodes does not show instances of collections in "Render image" ok, while both cycles and eevee render those correctly in Viewport
+Referenced by issue #97376, Crash when selecting Vertex in Wireframe Shading mode.
