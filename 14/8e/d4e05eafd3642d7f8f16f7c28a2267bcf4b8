@@ -4,3 +4,4 @@ Referenced by issue #45003, some menus in UV/Image editor hare partially transla
 Referenced by issue #45004, Little refresh issue on img editor's header with 3D view active when switching render slots
 Referenced by issue #44930, Loading an image with bpy.data.images.load(path) Freezes the add-on panel in the 3D tool shelf
 Referenced by issue #44830, Sample number display while rendering Cycles AMD might work incorrect
+Referenced by issue #44807, Group Instance, empty rotation
