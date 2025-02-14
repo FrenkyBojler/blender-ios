@@ -1,2 +1,3 @@
 Referenced by commit 4b69e55da35, Fix T79757: Crash on prefetch when renaming strips
 Referenced by commit 1ccb997c6da, Fix T79497: Crash when removing strips with prefetching
+Referenced by issue #78573, Blender 2.831 - VSE - crash at remove strips.
