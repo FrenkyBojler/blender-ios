@@ -1,2 +1,3 @@
 Referenced by commit bf23d0e53cf, Fix #112011: PLY export broken when mesh contains faces with >255 vertices
 Referenced by commit 087fd3bdc51, Fix compilation error with USE_WELD_DEBUG
+Referenced by commit 34791dc37b5, Fix #108108: Remesh modifier crash with empty result
