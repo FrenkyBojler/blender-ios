@@ -1,2 +1,3 @@
 Referenced by commit 5703efab886, Fix T94784: Crop node gizmo doesn't work
 Referenced by commit 62e8d80a619, Fix out of bounds memory access displaying the compositor crop gizmo
+Referenced by issue #94784, Crop node gizmo doesn't work
