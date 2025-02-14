@@ -1,1 +1,2 @@
 Referenced by commit 75c2d511ad3, Fix: Add 'typename' to fix build error
+Referenced by issue #130612, Geometry Nodes: Undefined Node in "Curve Volume Advection" Demo File
