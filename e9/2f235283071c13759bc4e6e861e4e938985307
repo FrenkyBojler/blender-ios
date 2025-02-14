@@ -35,3 +35,4 @@ Referenced by issue #52080, File Permissions Bug in Windows  - Blender ignores W
 Referenced by issue #52076, Boolean. Change BMesh to Carve = crush
 Referenced by issue #52063, Bake Action inaccurate for Spline IK
 Referenced by issue #52050, Empty VSE preview for scene strips with OpenGL preview + Rendered settings
+Referenced by issue #52033, Blurry and mis-scaled UI with Dell's Intel HD 21.20.16.4664 driver
