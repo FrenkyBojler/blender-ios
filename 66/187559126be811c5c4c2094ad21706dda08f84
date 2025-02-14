@@ -1,2 +1,3 @@
 Referenced by issue #120811, Loop cut crash on specific part of mesh
 Referenced by issue #119188, 4.2.0 broken on Intel Mac, it fails to compile library. Cycles > GPU Compute, Mac Pro, Monterey 12.7.3
+Referenced by issue #119141, macOS GPU render falled
