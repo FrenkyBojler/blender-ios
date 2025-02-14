@@ -15,3 +15,4 @@ Referenced by issue #88278, Blender crashes upon opening a blender file
 Referenced by issue #88187, Clipping Region tool closes Blender
 Referenced by issue #88172, Object not following BezierCurve Blender 2.92
 Referenced by issue #88159, Duplicated objects have a transparent material
+Referenced by issue #88046, crash on startup 2.92
