@@ -58,3 +58,4 @@ Referenced by issue #51614, Animated FBX Export Glitch - Foot Bones Jerking
 Referenced by issue #51617, Logic Bricks: Actions based on Properties refuse to play with a Dynamic physics parent
 Referenced by issue #51620, Segmentation fault trying to make single copy from linked object
 Referenced by issue #51597, Camera safe area values incorrect (not enough padding)
+Referenced by issue #51607, Add to Pose-Library doesn't work while tweaking strips in NLA Editor
