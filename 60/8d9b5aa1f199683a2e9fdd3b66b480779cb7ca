@@ -1,1 +1,2 @@
 Referenced by commit 6dc7266cf1f, Fix T80464: Crash deleting bone constraints when the armature layer is
+Referenced by issue #80464, Deleting bone constraints when the armature layer isn't active crashes Blender
