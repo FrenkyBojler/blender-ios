@@ -1,1 +1,2 @@
 Referenced by commit efdcef7855e, Fix T100421: OBJ importer in 3.3 does not keep the vertex order
+Referenced by issue #100302, New OBJ importer produces too many vertices when object faces don't span a continuous range
