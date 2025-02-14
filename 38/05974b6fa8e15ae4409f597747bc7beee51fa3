@@ -1,0 +1,1 @@
+Referenced by commit 2220696d25a, BMesh: avoid copying by value for BMLoop triangles
