@@ -1,2 +1,3 @@
 Referenced by issue #91902, Ambient Occlusion not working right
 Referenced by issue #89842, Crash when baking vertex colors when Auto Smooth is enabled
+Referenced by issue #88738, Blender crashes with Glass BSDF + Sharp + Linux CPU
