@@ -8,3 +8,4 @@ Referenced by issue #100649, Regression: Environment texture is stretched when a
 Referenced by issue #100377, 3.2 normalmap node broken in eevee
 Referenced by issue #100278, EEVEE AOV blank if not attached or too distantly connected to material output node
 Referenced by issue #100163, Regression: Eevee: Displacement maps affected by the object's rotation.
+Referenced by issue #100166, Diffuse Light pass not working as expected in 3.2 Eevee with 'shader to RGB'
