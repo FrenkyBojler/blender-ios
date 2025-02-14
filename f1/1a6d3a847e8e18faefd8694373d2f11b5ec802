@@ -1,0 +1,1 @@
+Referenced by commit 5d695b4f063, Fix memory leak in BLI_file_older for WIN32
