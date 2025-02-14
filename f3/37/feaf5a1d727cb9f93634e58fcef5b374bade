@@ -28,3 +28,4 @@ Referenced by issue #48046, Exporting STL's from Blender 2.77
 Referenced by issue #48037, 2.77 and 2.69 both on Windows and Linux crashes when trying to play (unbaked,first try,play) rigid body physics
 Referenced by issue #48028, GPU Compute in Cycles is broken on AMD stable drivers and Blender stable release
 Referenced by issue #47991, Smoke preview in viewport not showing up on some Mac systems
+Referenced by issue #47996, Bug Hair (particles) Density/Length texture in Cycles
