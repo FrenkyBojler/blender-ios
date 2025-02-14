@@ -1,3 +1,4 @@
 Referenced by commit b8a634cb1df, Fix T95489: support writing to vertex groups with geometry nodes again
 Referenced by issue #95489, Write to Vertex Groups from Geometry Nodes is not working anymore
 Referenced by issue #95084, Geometry Nodes modifier with dependent outputs use modified value
+Referenced by issue #93715, Geometry nodes attribute output depends on order of outputs
