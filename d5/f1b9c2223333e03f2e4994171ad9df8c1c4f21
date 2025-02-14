@@ -6,3 +6,4 @@ Referenced by issue #97708, Blender forgets stereo settings
 Referenced by issue #53335, RNA error with texture nodes and EXR
 Referenced by issue #46629, OpenEXR (single layer) with Multi-View error when saving from Image Editor
 Referenced by issue #46394, bgelauncher embedded and standalone
+Referenced by issue #46235, Lens Flares no longer working in Blender's Internal renderer
