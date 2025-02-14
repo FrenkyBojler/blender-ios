@@ -1,2 +1,3 @@
 Referenced by issue #48727, Render time left not displayed in OpenCL rendering
 Referenced by issue #48716, Knife cut creates polygons with inverted normals
+Referenced by issue #48720, Extend doesn't work on in GPU(OpenCL/OpenGL) rendering
