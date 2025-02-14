@@ -1,1 +1,2 @@
 Referenced by commit 1c50dd8bb8c, Revert "Fix: Cycles: inconsistent normal checks when sampling and evaluating BSDF"
+Referenced by issue #115414, Cycles shading artifacts with metallic materials on round surfaces
