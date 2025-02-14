@@ -1,1 +1,2 @@
 Referenced by commit 91b4c1841a9, Fix T92272: Rigid Body Copy to Selected "Margin" crash
+Referenced by issue #99256, Regression: Meta balls segfaulting copy-to-selected
