@@ -1,1 +1,2 @@
 Referenced by issue #104539, Cycles Motion Blur setting causes dropped particle instances in animation.
+Referenced by issue #49163, Animated object visibilty 1 frame off when turning on motion blur
