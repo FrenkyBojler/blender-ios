@@ -1,1 +1,2 @@
 Referenced by commit cb8c5d77d9c, Fix error in NDOF button range check
+Referenced by issue #124155, ghost/ndof: Extend NDOF devices support on Windows
