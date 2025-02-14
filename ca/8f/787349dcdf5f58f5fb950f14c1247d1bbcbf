@@ -1,2 +1,3 @@
 Referenced by commit be983295ea1, Fix: Moving area edge could corrupt screen in very specific case
 Referenced by commit 4d1c5f1ec51, Change earlier fix to work with hiDPI
+Referenced by issue #55298, Assert when trying to section the Data Property area from top to bottom.
