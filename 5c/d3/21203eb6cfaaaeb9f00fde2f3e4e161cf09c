@@ -1,3 +1,4 @@
 Referenced by issue #38359, Wrong material reported in particles settings when pinning them and selecting another object.
 Referenced by issue #38322, COLLADA exporter breaks UV coordinates
 Referenced by issue #38307, Duplicating a text object causes crash
+Referenced by issue #38310, Adjusting the resolution of an ocean sim changes the ocean completely
