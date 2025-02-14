@@ -1,2 +1,3 @@
 Referenced by issue #48448, insert edge make blender freeze in some cases
 Referenced by issue #48382, Snap to a edge crash Blender
+Referenced by issue #48380, Cycles: Byte images render black after recent commit
