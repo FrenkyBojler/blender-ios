@@ -1,0 +1,1 @@
+Referenced by issue #48422, Blender freezes in multi-threaded tasks since recent rB98123ae91680, on windows - atomic ops issue?
