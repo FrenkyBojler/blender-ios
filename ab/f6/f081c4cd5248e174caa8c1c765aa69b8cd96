@@ -94,3 +94,4 @@ Referenced by issue #48668, Bevel fails in this case
 Referenced by issue #48670, Undo in the 3D view also performs an undo in the text editor.
 Referenced by issue #48655, Issues selecting vertices in 3DsMax interface mode
 Referenced by issue #48660, Render animation renders only one frame using render file node and if output path doesn't exists
+Referenced by issue #48663, The Soft Light blend type layer make the color darker in the 3D view
