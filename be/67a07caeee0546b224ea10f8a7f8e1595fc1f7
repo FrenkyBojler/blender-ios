@@ -1,0 +1,1 @@
+Referenced by issue #96917, Selected Objects render state (hidden in renders) causes baking of black images (also these are visible in renders after baking, setting is not as it was before)
