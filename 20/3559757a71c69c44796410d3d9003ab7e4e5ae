@@ -1,1 +1,2 @@
 Referenced by issue #113578, Compositor: glitch noise with classic Kuwahara filter in GPU compositor
+Referenced by issue #112323, Install of third party package rustworkx fails on 4.0 and 4.1 Alpha, works on 3.6.2
