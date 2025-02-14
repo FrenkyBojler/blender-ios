@@ -1,1 +1,2 @@
 Referenced by issue #97035, Regression: Crash when transferring face corner data
+Referenced by issue #96041, Memory usage of linked duplicates is extremely high (regression from 3.0)
