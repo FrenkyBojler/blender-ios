@@ -1,2 +1,3 @@
 Referenced by commit ee4f3065096, Fix T85844: high pressure at start of line.
 Referenced by commit 37afeb7eaa8, Fix T85844: high pressure at start of line.
+Referenced by issue #84830, Double clicking on text edit controls doesn't select the full word
