@@ -1,1 +1,2 @@
 Referenced by commit a351023bd50, Fix default surface resolution U/V mis-match
+Referenced by issue #105182, Curves: change default font offset from 1.0 to 0.0
