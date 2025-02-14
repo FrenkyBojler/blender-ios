@@ -1,2 +1,3 @@
 Referenced by commit cab9673bed1, Fix T79111: Cycles: Image Sequence not rendering
 Referenced by issue #79952, Cycles video texture bug (fixed in 2.90 beta and 2.91 alpha -- 2.83 LTS issue)
+Referenced by issue #79111, Cycles: Image Sequence not rendering
