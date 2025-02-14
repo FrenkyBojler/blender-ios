@@ -1,0 +1,1 @@
+Referenced by issue #82930, bpy.types.Bone.AxisRollFromMatrix() returns bad roll value
