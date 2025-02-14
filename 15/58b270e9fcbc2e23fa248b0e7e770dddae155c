@@ -1,1 +1,2 @@
 Referenced by commit 7306417ae46, Revert "Animation: Sensible frame range for motion paths"
+Referenced by issue #93047, Use other frame range for new motion paths instead of 1-250
