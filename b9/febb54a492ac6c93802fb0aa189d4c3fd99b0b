@@ -11,3 +11,4 @@ Referenced by issue #95458, Grease Pencil Lineart modifier don't work on curves.
 Referenced by issue #94723, Curve modifiers doesn't update properly
 Referenced by issue #94624, Object As Font not working
 Referenced by issue #94038, Text objects count as double in scene statistics
+Referenced by issue #93756, Regression: Hiding all points of a spline in curve edit mode does not hide splines
