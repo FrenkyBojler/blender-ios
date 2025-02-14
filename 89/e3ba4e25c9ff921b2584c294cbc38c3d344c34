@@ -9,3 +9,4 @@ Referenced by issue #117603, Replacing auto smooth with node group is not done o
 Referenced by issue #116922, Workflow Regression: Autosmooth 4.1
 Referenced by issue #116307, Regression: Crash with data transfer modifier in 4.0
 Referenced by issue #116069, Data Transfer's modifier Face Corner Custom Normals Tranfer don't work as expected
+Referenced by issue #115993, Different normals in 4.1 when using sharp faces with Auto Smooth disabled in 4.0
