@@ -77,3 +77,4 @@ Referenced by issue #51319, Alembic export crashes when using Simple child parti
 Referenced by issue #51310, bpy.ops.select_pattern() returns {FINISHED} even if object wasn't successfully selected
 Referenced by issue #51295, Blender cant find folders with ~ at the end
 Referenced by issue #51296, Particle: UV Texture coordinate issue on hairs emitted from verts
+Referenced by issue #51303, Cycles Nodes - Mix and Multiply Nodes Don't Skip Unnecessary Inputs
