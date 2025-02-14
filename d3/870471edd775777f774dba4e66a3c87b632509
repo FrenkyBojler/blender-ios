@@ -1,3 +1,4 @@
 Referenced by issue #61611, Blender 2.8 / rel. Feb. 15 - Viewport problems with colors and environment background
 Referenced by issue #61602, mesh disappears in multiresolution mode lower sibdivisions
 Referenced by issue #61474, Laggy interaction with gizmos, does not happen when running other 3D apps at the same time
+Referenced by issue #61477, Freestyle not updating in animation
