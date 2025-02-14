@@ -5,3 +5,4 @@ Referenced by commit 15f59470a30, Fix #105314: Custom node groups missing socket
 Referenced by issue #110225, Fix #110210: Hide Value option doesn't work on color sockets
 Referenced by issue #109298, Fix #109231: Python defined socket type switching broken
 Referenced by issue #109231, In custom trees socket type in group input nodes is not changing.
+Referenced by issue #105975, Add helper function to node_utils to create links to virtual sockets
