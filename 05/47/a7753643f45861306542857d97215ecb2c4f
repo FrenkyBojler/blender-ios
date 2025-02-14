@@ -4,3 +4,4 @@ Referenced by issue #70095, Quadriflow crash running on a messy mesh
 Referenced by issue #69868, failure to render eevee
 Referenced by issue #69864, Crash - Shading Workspace
 Referenced by issue #69853, fully broken scenes., by drag an object only the pivot point moves
+Referenced by issue #58428, Motion Tracking: pre Blender 2.8 file prefetch footage freezes Blender
