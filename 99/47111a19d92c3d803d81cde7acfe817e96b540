@@ -1,0 +1,1 @@
+Referenced by issue #124211, Float Curve node generates NAN's if the handle type is Vector
