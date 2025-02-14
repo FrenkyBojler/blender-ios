@@ -1,3 +1,4 @@
 Referenced by commit 2dd6d0ce4b6, Fix T76926: Crash with Full Screen file browser window preference
 Referenced by commit 6fbeded2854, Fix T76926: Crash with Full Screen file browser window preference
 Referenced by issue #76972, Heap-use-after-free when closing Save File editor in full screen mode
+Referenced by issue #75292, Blender File View looses buttons and input field
