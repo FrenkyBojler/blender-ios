@@ -5,3 +5,4 @@ Referenced by issue #56023, EEVEE : shadow bias bug when switch from 3d view to 
 Referenced by issue #56010, Material Nodes break in Eevee
 Referenced by issue #56012, Stencil Brush misalligned
 Referenced by issue #56014, Maximised editor crashes 2.8 after reverting to original screen layout
+Referenced by issue #55998, Blender 2.8 Crashes on accent use (Latin Characters)
