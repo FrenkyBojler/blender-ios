@@ -77,3 +77,4 @@ Referenced by issue #41346, No Snap During Vertex Slide
 Referenced by issue #41349, M-node crash
 Referenced by issue #41316, FBX exporter in Blender cause artifacts to appear on meshes with Shape Keys
 Referenced by issue #41301, Composite / OpenEXRMultiLayer output problem when no renderlayer is used
+Referenced by issue #41302, Blender Crashes after changing user settings and then panning/zooming
