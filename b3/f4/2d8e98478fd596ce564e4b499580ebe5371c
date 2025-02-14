@@ -3,3 +3,4 @@ Referenced by commit 1ba0494e33e, Fix failing test after own recent commit regar
 Referenced by issue #105083, Add a mechanism to abort blend file reading on critical error.
 Referenced by issue #105085, WIP: Add a mechanism to abort a blend file reading on critical error.
 Referenced by issue #100749, Blender LTS: Maintenance Task 3.3
+Referenced by issue #88449, Blender LTS: Maintenance Task 2.93
