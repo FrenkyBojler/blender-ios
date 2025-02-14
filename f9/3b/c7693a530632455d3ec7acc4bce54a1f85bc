@@ -74,3 +74,4 @@ Referenced by issue #40126, Le "Textured Shading" ne fonctionne pas.
 Referenced by issue #40131, Color ramp values limited to 4.875 maximum
 Referenced by issue #40113, Armatured object with shape key causes segfault in BGE
 Referenced by issue #40087, Boolean modifier on two planes produces odd results
+Referenced by issue #40072, Blender requires libSDL 1.2 but it is not installed by default in Ubuntu 14.04
