@@ -1,1 +1,2 @@
 Referenced by commit 6c9a8823403, Fix T75964: changing object's viewport display color does not update
+Referenced by issue #75964, changing an object's viewport display color does not auto update in viewport render mode.
