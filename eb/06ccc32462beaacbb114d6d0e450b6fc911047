@@ -5,3 +5,4 @@ Referenced by issue #90514, Drag sliding multiple values doesn't work as expecte
 Referenced by issue #90063, Regression: Set curve radius does not work
 Referenced by issue #89996, Resetting multi-button value does not work when active button value is the same
 Referenced by issue #87688, Crash when current frame is used as driver
+Referenced by issue #87637, Escaping editing a button does not reset change from dragging
