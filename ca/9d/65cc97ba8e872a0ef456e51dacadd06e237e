@@ -1,2 +1,3 @@
 Referenced by issue #99058, Regression: Geometry nodes: Object info does not care if referenced obejcts subdivision surface modifier is disabled
 Referenced by issue #98813, Regression: GPU subdivision crash when switched to edit mode
+Referenced by issue #98693, Regression: Issue with subdivision subsurface modifier and >= 8 levels
