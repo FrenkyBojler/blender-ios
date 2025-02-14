@@ -2,3 +2,4 @@ Referenced by commit d8cdc80263e, Fix T87808: Connected proportional editing inc
 Referenced by issue #89968, Regression: Strange crease when using proportional editing with the "connected only" option turned on (edge selected)
 Referenced by issue #87808, 2.93 - Proportional Edit Connected Mode with hidden geometry
 Referenced by issue #78752, Proportional Editing: 'Connected Only' option can cause distortions depending on topology
+Referenced by issue #53602, Mesh - Proportional Editing (Connected) Bug
