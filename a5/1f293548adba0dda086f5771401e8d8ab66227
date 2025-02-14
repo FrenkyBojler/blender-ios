@@ -5,3 +5,4 @@ Referenced by issue #126856, Compositor has no independent Texture access
 Referenced by issue #126818, The --cycles-device command line option does nothing
 Referenced by issue #126573, Segmentation Fault Upon Blender Startup
 Referenced by issue #126484, Blender crashes when the shading panel is opened.
+Referenced by issue #126458, Cycles volume rendering artifacts on AMD GPU - Linux
