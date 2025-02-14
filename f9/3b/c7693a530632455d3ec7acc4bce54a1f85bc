@@ -40,3 +40,4 @@ Referenced by issue #40575, 'Display modifier in realtime' setting affecting F12
 Referenced by issue #40562, Loop Cut in Vertex select mode automatically switches to Edge select mode
 Referenced by issue #40559, Maya keymap node selection bug
 Referenced by issue #40509, save shortcuts
+Referenced by issue #40497, Spline IK does not evaluate as expected
