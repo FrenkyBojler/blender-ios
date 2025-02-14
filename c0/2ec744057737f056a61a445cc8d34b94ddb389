@@ -1,1 +1,2 @@
 Referenced by issue #107575, Fix #107566: Gesture face set respect hidden faces
+Referenced by issue #104163, Cycles GPU CUDA rendering high number of points seems broken in LTS (main is fine, request for backport)
