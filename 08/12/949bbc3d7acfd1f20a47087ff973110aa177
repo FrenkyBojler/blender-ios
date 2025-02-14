@@ -3,3 +3,4 @@ Referenced by commit 280d6b03a7a, Fix T70670: Hidden collections are still rende
 Referenced by issue #85897, Slow viewport framerate (e.g. tumbling the camera, not scrubbing) due to commit 0812949bbc3d7acfd1f20a47087ff973110aa177
 Referenced by issue #72302, Shift+h turns off visibility of objects in hidden collections.
 Referenced by issue #71000, Scene statistics dont take hidden state into account (2.80 did)
+Referenced by issue #70407, Blender 2.81 Alpha on macOS 10.14.6 crashes upon launch starting with ff10ff782bde
