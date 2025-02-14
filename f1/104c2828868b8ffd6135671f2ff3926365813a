@@ -1,0 +1,1 @@
+Referenced by issue #78369, Sculpt Vertex Colors render as black color (when the Vertex Color node is used, Attribute node is fine)
