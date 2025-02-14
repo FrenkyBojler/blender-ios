@@ -266,15 +266,17 @@ static void ui_colorpicker_hsv_update_cb(bContext * /*C*/, void *bt1, void *bt2)
   uiBut *color_but = static_cast<uiBut *>(bt2);
   PointerRNA color_ptr = color_but->rnapoin;
   PropertyRNA *color_prop = color_but->rnaprop;
-  float rgba_scene_linear[4];
 
   if (color_prop) {
+    const int color_len = std::min(4, RNA_property_array_length(&color_ptr, color_prop));
+    float *rgba_scene_linear = new float[color_len];
     zero_v4(rgba_scene_linear);
     /* Get the current RGBA color for its (optional) Alpha component,
      * then update RGB components from the current HSV values. */
     RNA_property_float_get_array(&color_ptr, color_prop, rgba_scene_linear);
     ui_color_picker_hsv_to_rgb(cpicker->hsv_scene_linear, rgba_scene_linear);
     ui_update_color_picker_buts_rgba(but, but->block, cpicker, rgba_scene_linear);
+    delete rgba_scene_linear;
   }
 
   if (popup) {
