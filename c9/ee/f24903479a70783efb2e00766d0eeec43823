@@ -1,1 +1,2 @@
 Referenced by commit 78d4e0fbf2c, Fix full compilation after recent passes changes
+Referenced by issue #56799, "Save Buffers" doesn't allow saving the volume passes
