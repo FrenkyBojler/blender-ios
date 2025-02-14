@@ -1,1 +1,2 @@
 Referenced by issue #42257, Curve vertex parent not working with animation
+Referenced by issue #42258, Drivers: `dimensions.x` is always invalid, but `dimensions[0]` works
