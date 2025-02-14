@@ -1,3 +1,4 @@
 Referenced by commit 62bd007646b, Fix T100590: Crash when changing active image texture node
 Referenced by issue #100590, Crash when changing active image texture node
 Referenced by issue #99493, Don't affect Render Result when switching image editors to an active image
+Referenced by issue #94456, Render result image is missing the pin button.
