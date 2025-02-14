@@ -4,3 +4,4 @@ Referenced by issue #47890, Masking vertices in weight paint doesn't work with s
 Referenced by issue #47769, objects with transparent materials invisible on OS X 10.11
 Referenced by issue #47750, Hair particles lose position data when "Disconnect All" is used the first time from program load
 Referenced by issue #47724, VSE crops video if horizontal resolution isn't divisible by 8
+Referenced by issue #47584, Pie Menu don't change modes
