@@ -1,2 +1,3 @@
 Referenced by commit 98cd0fed360, Fix edit-mesh random select regression in random seed use
 Referenced by issue #87228, Apply random selection factor precisely for all operators
+Referenced by issue #48167, bpy.ops.mesh.select_random() not accurate
