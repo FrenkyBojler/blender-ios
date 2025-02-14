@@ -1,3 +1,4 @@
 Referenced by commit 5a9fe638ded, Fix #125935: Insert unicode text popup not working
 Referenced by commit 71b0e9d92af, UI: Don't refresh searchbox region blocks on text input
 Referenced by commit 46f5079f117, Fix: Various crashes and issues with popups
+Referenced by issue #125943, Fix #125935: Insert unicode text popup not working
