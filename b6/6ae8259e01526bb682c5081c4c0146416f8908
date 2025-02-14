@@ -1,1 +1,2 @@
 Referenced by commit f46ba1a7e06, Fix T72578: overwrite not animatable in 2.8x
+Referenced by issue #72578, Removed Keying ability overwrites files in 2.8x
