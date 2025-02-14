@@ -11,3 +11,4 @@ Referenced by issue #61028, Solid View not displayed and crash in wireframe view
 Referenced by issue #61009,  'Open Recent' remembers 'Load UI' setting from last file opening
 Referenced by issue #61014, Assert adding a driver that uses a single property of a scene ID
 Referenced by issue #61016, Camera's should have selectable focus objects while in the workbench render engine
+Referenced by issue #60713, EEVEE crashes during shader compilation
