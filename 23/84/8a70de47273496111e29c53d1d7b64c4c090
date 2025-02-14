@@ -1,1 +1,2 @@
 Referenced by issue #46579, Grease pencil + offscreen drawing error: draw is only correct after stroke is confirmed
+Referenced by issue #46503, snap seems broken when scaling
