@@ -1,2 +1,3 @@
 Referenced by issue #133240, Grease Pencil - Set Color Attribute and Reset Vertex color ignore selection mask
 Referenced by issue #132489, Selection Mask not working In Vertex Paint Mode of Grease Pencil
+Referenced by issue #132384, Grease Pencil: Reset vertex color in Vertex Paint Mode ignores selections
