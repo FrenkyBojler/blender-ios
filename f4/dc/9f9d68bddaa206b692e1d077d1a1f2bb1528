@@ -25,3 +25,4 @@ Referenced by issue #63373, 2.79b won't open some files
 Referenced by issue #63050, Script-generated compositor node groups don't update
 Referenced by issue #62889, Bump Mapping has been broken since Aug 2018
 Referenced by issue #62739, Bevel Weight not affecting Bevel modifier correctly
+Referenced by issue #62747, 2.79_Crash_Blender an OS during rendering animation.
