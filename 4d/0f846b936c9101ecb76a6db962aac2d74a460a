@@ -6,3 +6,4 @@ Referenced by issue #104026, Regression: Click-Drag to select channels in Graph 
 Referenced by issue #97277, Regression: Tweak drag transforming is broken for masks (RMB select)
 Referenced by issue #97152, Regression: Selection tools do nothing in particle hair edit?
 Referenced by issue #96835, Regression: GPencil: In edit mode "Tweak Tool: Left Mouse Select & Move" does not work correctly
+Referenced by issue #96520, Regression: Node editor: Tweak is broken and requires click, then click again to drag
