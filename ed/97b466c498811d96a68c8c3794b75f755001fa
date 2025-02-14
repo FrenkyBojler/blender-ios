@@ -1,0 +1,1 @@
+Referenced by issue #80443, When add "shape key" by script, active_shape_key return "None" but active_shape_key_index return 0
