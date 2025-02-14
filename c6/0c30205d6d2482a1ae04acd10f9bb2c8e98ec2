@@ -1,2 +1,3 @@
 Referenced by issue #82966, Banding artifacts in particle hair at render time (Rounded Ribbons)
 Referenced by issue #80786, Disabling Hair BVH makes Cycles CUDA GPU hair ribbons flicker between frames
+Referenced by issue #78152, Embree shades hair differently from CUDA and OptiX
