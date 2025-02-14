@@ -5,3 +5,4 @@ Referenced by issue #47769, objects with transparent materials invisible on OS X
 Referenced by issue #47750, Hair particles lose position data when "Disconnect All" is used the first time from program load
 Referenced by issue #47724, VSE crops video if horizontal resolution isn't divisible by 8
 Referenced by issue #47584, Pie Menu don't change modes
+Referenced by issue #47495, Overlay blending mode.
