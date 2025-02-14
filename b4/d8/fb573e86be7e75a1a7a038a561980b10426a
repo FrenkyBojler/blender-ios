@@ -17,3 +17,4 @@ Referenced by issue #43440, Tilde/Apostrophe key(~/`) no longer makes all layers
 Referenced by issue #43405, HSV color value does not translate properly to RGB
 Referenced by issue #43408, Particle hair segments error
 Referenced by issue #43385, Driver script which executes bpy.context.scene.update() crashes Blender
+Referenced by issue #43334, Object's viewport color changes when editing in Full Screen Mode
