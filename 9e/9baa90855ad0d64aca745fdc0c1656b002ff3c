@@ -1,0 +1,1 @@
+Referenced by issue #110481, Linux Cycles standalone 3.6.0, only embree 4 is present, external_libs.cmake does not manage embree 4
