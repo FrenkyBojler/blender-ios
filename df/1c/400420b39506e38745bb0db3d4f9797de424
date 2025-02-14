@@ -1,0 +1,1 @@
+Referenced by issue #42226, 2.72 fails to build, qsort_r ifdef guard is incomplete
