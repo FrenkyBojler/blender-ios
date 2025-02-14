@@ -23,3 +23,4 @@ Referenced by issue #94347, Crash when adding new scene in video editor and pres
 Referenced by issue #94314, OpenEXR can't be used to save results during the render process
 Referenced by issue #94304, Remesh + symmetry model bug? : Blender 3.0.0
 Referenced by issue #94264, Blender Crashing While Appending Animation Action
+Referenced by issue #94213, Old blend file corrupts to crash blender, I guess
