@@ -89,3 +89,4 @@ Referenced by issue #44535, Subdivision modifier's Subdivide UV not working corr
 Referenced by issue #44538, Crash when choose action
 Referenced by issue #44523, The ambient occlutions work inverted. not in close places but in open places
 Referenced by issue #44525, Long program hang
+Referenced by issue #44512, Cycles fails to bake normal map to a non-manifold mesh
