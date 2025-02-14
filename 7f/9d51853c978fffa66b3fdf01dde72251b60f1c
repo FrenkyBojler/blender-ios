@@ -4,3 +4,4 @@ Referenced by commit e86211cded5, Cleanup: Remove unnecessary search item in tex
 Referenced by issue #113446, Fix #113287: Industry Compatible Keymap: Node Editor Search missing
 Referenced by issue #113287, Industry Compatible Keymap: Node Editor Search missing
 Referenced by issue #112362, Command search prefilled with single "s"
+Referenced by issue #112107, No "Search" option in the shortcut menu in the compositor
