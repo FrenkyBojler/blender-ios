@@ -1,3 +1,4 @@
 Referenced by issue #38858, Random axis of the new vertex.
 Referenced by issue #38861, Text Malfunction In Image Editor
 Referenced by issue #38844, Crash if weight track = 0
+Referenced by issue #38846, Render layer checkbox is not refreshed
