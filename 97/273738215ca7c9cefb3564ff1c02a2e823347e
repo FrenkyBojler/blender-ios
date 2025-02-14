@@ -1,1 +1,2 @@
 Referenced by issue #113548, Make wmJob worker thread use their own reports list instead of WM one.
+Referenced by issue #112537, Make WM_report/WM_timer thread safe (or forbid their usage from non-main thread, and add dedicated API for such usages).
