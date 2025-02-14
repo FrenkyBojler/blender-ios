@@ -1,2 +1,3 @@
 Referenced by issue #64515, Crashing During Render View and Render
 Referenced by issue #63596, Keyframed group inputs bound to index not property
+Referenced by issue #63562, Changing group input stack doesn't update group node-tree
