@@ -1,3 +1,4 @@
 Referenced by issue #53250, Crash when linking/appending a scene to a blend when another linked scene in this blend is currently open/active
 Referenced by issue #51180, Bmesh primitives creation using parameter calc_uvs=True, crashes Blender
 Referenced by issue #50705, Long time to delete objects
+Referenced by issue #50112, Text layer in VSE causing crash on .blend file startup
