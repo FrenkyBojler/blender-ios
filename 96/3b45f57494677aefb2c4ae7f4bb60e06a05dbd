@@ -1,0 +1,1 @@
+Referenced by issue #81468, v2.90.1 Silently crashes with EXCEPTION_ACCESS_VIOLATION while loading .blend file from Blender 2.6x
