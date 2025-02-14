@@ -2,3 +2,4 @@ Referenced by issue #57102, HDRI  showing behind the objects even when world bac
 Referenced by issue #57110, Toggling Between Shading modes causes a crash with heavy scenes
 Referenced by issue #57094, Changing to other view modes while using solid color in viewport causes crash
 Referenced by issue #57045, Bevel modifier assert crash
+Referenced by issue #56998, Crash when entering wireframe mode with "single" color shading
