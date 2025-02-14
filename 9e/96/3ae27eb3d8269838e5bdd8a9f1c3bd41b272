@@ -1,3 +1,4 @@
 Referenced by issue #49887, Middle Mouse button for Rotate 3D view does not work (Mouse: Logitech MX Anywhere 2)
 Referenced by issue #47040, faces disappeared and could not be created
 Referenced by issue #44134, Weight paint colourization scheme not being displayed in  "Weight Paint" mode
+Referenced by issue #43800, KX_Camera.getScreenVect() returns incorrect results if called after camera has been moved on the same frame.
