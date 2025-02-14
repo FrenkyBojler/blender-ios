@@ -1,1 +1,2 @@
 Referenced by commit b72eddac619, Fix T100280: GG not toggling the offset transform mode in tracker
+Referenced by issue #100280, Regression. Pressing GG should give the tracker an offset. Instead it moves the tracker
