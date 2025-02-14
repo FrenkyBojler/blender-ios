@@ -1,0 +1,1 @@
+Referenced by issue #87929, Toggling "Indirect Only" for the view layers properties of a collection does not result in a change in the viewport (2.93, 3.0 regression)
