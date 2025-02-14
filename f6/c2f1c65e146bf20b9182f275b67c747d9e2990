@@ -1,1 +1,2 @@
 Referenced by commit 520d111eca5, Cleanup: Simplify code and remove duplications
+Referenced by issue #101455, Grease Pencil: Active element transform pivot uses wrong gizmo location
