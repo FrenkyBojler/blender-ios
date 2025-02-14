@@ -1,1 +1,2 @@
 Referenced by commit b2950b2ad77, Fix saving a quit.blend on exit when a file failed to load
+Referenced by commit d3d91b79e0a, Fix error from recent refactor failing to save user data on exit
