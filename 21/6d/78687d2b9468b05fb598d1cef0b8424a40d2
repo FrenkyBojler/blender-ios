@@ -1,1 +1,2 @@
 Referenced by commit 8948f73784c, Fix T81334: Python view-port drawing depth-test regression
+Referenced by issue #83203, bgl.glGetUniformLocation()  wrongly always returns -1
