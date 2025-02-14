@@ -1,1 +1,2 @@
 Referenced by issue #77172, EEVEE world doesn't update all viewports' object shaders
+Referenced by issue #67741, World Editor Mapping node does not update if one of viewports is in Look Dev Mode
