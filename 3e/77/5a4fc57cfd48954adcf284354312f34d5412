@@ -1,1 +1,2 @@
 Referenced by commit 160d57d33c7, Docs: tooltip update missing from 3e775a4fc57cfd48954adcf284354312f34d5412
+Referenced by issue #89532, Text datablocks don't self-register when getting a .00x suffix
