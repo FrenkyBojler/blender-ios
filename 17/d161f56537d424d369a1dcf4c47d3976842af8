@@ -3,3 +3,4 @@ Referenced by issue #109599, Regression: Artifacts after importing fbx file
 Referenced by issue #108867, Regression: Modifiers: Crash when adding Weighted Normal to large mesh
 Referenced by issue #108788, Transfer Weights: unexpected result with "Nearest Face Interpolated"
 Referenced by issue #108483, Regression: DataTransfer Modifier is Broken
+Referenced by issue #108384, Regression: Normal issue when using weighted normal modifier with keep sharp option on.
