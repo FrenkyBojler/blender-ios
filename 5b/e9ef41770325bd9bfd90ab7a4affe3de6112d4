@@ -4,3 +4,4 @@ Referenced by issue #85933, Object masking via Boolean Difference leads to damag
 Referenced by issue #85772, Image scale is reset after rendering in background mode
 Referenced by issue #85737, Color Picker popup in secondary monitor immediately closes while still hovering
 Referenced by issue #85597, Render issue
+Referenced by issue #85507, Blender will not launch
