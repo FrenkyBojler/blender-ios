@@ -10,3 +10,4 @@ Referenced by issue #84400, Bug in color wheel when choose value of color.
 Referenced by issue #84249, Color become into light from HSV to RGB
 Referenced by issue #83974, Regression. Inconsistency of visual color and values
 Referenced by issue #83853, Blender basic Standard color space converting is wrong
+Referenced by issue #82619, Color Channels are different between Materials and Color pickers
