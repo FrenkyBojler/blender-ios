@@ -1,1 +1,2 @@
 Referenced by commit f3899c13cd4, Fix T64827: "Batch-Generate Previews" crashes.
+Referenced by commit 125e0cfb253, Revert "Fix T64827 (part two): "Batch-Generate Previews" fails with certain files"
