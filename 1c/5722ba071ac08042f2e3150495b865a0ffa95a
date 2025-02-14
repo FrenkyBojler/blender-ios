@@ -1,0 +1,1 @@
+Referenced by issue #91197, Crash when setting asset preview image from python (ASAN heap-use-after-free in render_preview.c)
