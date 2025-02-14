@@ -10,3 +10,4 @@ Referenced by issue #103051, Regression: Deleting a material slot in 3.4 assigns
 Referenced by issue #102522, GN: Boolean doesent respect material index
 Referenced by issue #102502, Regression: DAE Imports materials wrong
 Referenced by issue #101871, Regression: Realize instances losing materials
+Referenced by issue #100822, Regression: Merging objects does not assign materials correctly
