@@ -1,1 +1,2 @@
 Referenced by commit 91f0368fe21, Fix #120871: VSE crashes when sound strip has hold start offset larger than start
+Referenced by issue #120891, Fix #120871: VSE crashes when sound strip has hold start offset larger than start
