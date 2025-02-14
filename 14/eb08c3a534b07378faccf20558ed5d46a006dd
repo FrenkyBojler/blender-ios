@@ -1,1 +1,2 @@
 Referenced by issue #115291, Incorrect object dimension setting when using modifiers
+Referenced by issue #115108, Regression 4.1: obj.dimensions is always (0,0,0) for armatures
