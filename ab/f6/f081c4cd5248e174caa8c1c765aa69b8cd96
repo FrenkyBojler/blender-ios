@@ -22,3 +22,4 @@ Referenced by issue #49607, Missing passes in .exr when imported
 Referenced by issue #49576, Cycles hangs with normal map node
 Referenced by issue #49468, Crash when trying to make a mask
 Referenced by issue #49470, Left/Right views are labelled incorrectly
+Referenced by issue #49471, Vertex Connect
