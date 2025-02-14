@@ -3,3 +3,4 @@ Referenced by issue #46425, Color gradients particle system not rendered in blen
 Referenced by issue #46369, mirror modifier rotates duplifaced objects 90 degrees
 Referenced by issue #46341, OS X trackpad and magic mouse gestures not working
 Referenced by issue #46317, Using Material Node group make everything in the group not showing up at render time - Blender Render
+Referenced by issue #46306, continuous grab causes jumping behavior of mouse cursor while adjusting values in sliders
