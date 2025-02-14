@@ -13,7 +13,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_alloca.h"
-#include "BLI_ghash.h"
 #include "BLI_math_color.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
@@ -35,7 +34,6 @@
 
 #include "GPU_batch.hh"
 #include "GPU_capabilities.hh"
-#include "GPU_context.hh"
 #include "GPU_material.hh"
 
 #include "DEG_depsgraph_query.hh"
@@ -184,11 +182,11 @@ static void particle_batch_cache_clear_hair(ParticleHairCache *hair_cache)
 
   for (int i = 0; i < MAX_MTFACE; i++) {
     GPU_VERTBUF_DISCARD_SAFE(hair_cache->proc_uv_buf[i]);
-    DRW_TEXTURE_FREE_SAFE(hair_cache->uv_tex[i]);
+    GPU_TEXTURE_FREE_SAFE(hair_cache->uv_tex[i]);
   }
   for (int i = 0; i < hair_cache->num_col_layers; i++) {
     GPU_VERTBUF_DISCARD_SAFE(hair_cache->proc_col_buf[i]);
-    DRW_TEXTURE_FREE_SAFE(hair_cache->col_tex[i]);
+    GPU_TEXTURE_FREE_SAFE(hair_cache->col_tex[i]);
   }
 
   for (int i = 0; i < MAX_HAIR_SUBDIV; i++) {
@@ -826,12 +824,11 @@ static void particle_batch_cache_ensure_procedural_final_points(ParticleHairCach
   GPUVertFormat format = {0};
   GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
 
-  /* Transform feedback buffer only needs to be resident in device memory. */
-  GPUUsageType type = GPU_transform_feedback_support() ? GPU_USAGE_DEVICE_ONLY : GPU_USAGE_STATIC;
+  /* Procedural Subdiv buffer only needs to be resident in device memory. */
   cache->final[subdiv].proc_buf = GPU_vertbuf_create_with_format_ex(
-      format, type | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
+      format, GPU_USAGE_DEVICE_ONLY | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
 
-  /* Create a destination buffer for the transform feedback. Sized appropriately */
+  /* Create a destination buffer for the procedural Subdiv. Sized appropriately */
   /* Those are points! not line segments. */
   uint point_len = cache->final[subdiv].strands_res * cache->strands_len;
   /* Avoid creating null sized VBO which can lead to crashes on certain platforms. */

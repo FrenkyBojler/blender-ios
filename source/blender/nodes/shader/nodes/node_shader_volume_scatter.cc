@@ -42,7 +42,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Alpha").default_value(0.5f).min(0.0f).max(500.0f);
   b.add_input<decl::Float>("Diameter")
       .default_value(20.0f)
-      .min(5.0f)
+      .min(0.0f)
       .max(50.0f)
       .description("Diameter of the water droplets, in micrometers");
   b.add_input<decl::Float>("Weight").available(false);
@@ -106,7 +106,12 @@ void register_node_type_sh_volume_scatter()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_VOLUME_SCATTER, "Volume Scatter", NODE_CLASS_SHADER);
+  sh_node_type_base(&ntype, "ShaderNodeVolumeScatter", SH_NODE_VOLUME_SCATTER);
+  ntype.ui_name = "Volume Scatter";
+  ntype.ui_description =
+      "Scatter light as it passes through the volume, often used to add fog to a scene";
+  ntype.enum_name_legacy = "VOLUME_SCATTER";
+  ntype.nclass = NODE_CLASS_SHADER;
   ntype.declare = file_ns::node_declare;
   ntype.add_ui_poll = object_shader_nodes_poll;
   ntype.draw_buttons = file_ns::node_shader_buts_scatter;

@@ -33,6 +33,8 @@
 #include "BKE_main.hh"
 #include "BKE_main_namemap.hh"
 
+#include "BLO_readfile.hh"
+
 #include "lib_intern.hh"
 
 #include "DEG_depsgraph.hh"
@@ -64,6 +66,8 @@ void BKE_libblock_free_data(ID *id, const bool do_id_user)
     MEM_freeN(id->library_weak_reference);
   }
 
+  BKE_libblock_free_runtime_data(id);
+
   BKE_animdata_free(id, do_id_user);
 }
 
@@ -79,6 +83,15 @@ void BKE_libblock_free_datablock(ID *id, const int /*flag*/)
   }
 
   BLI_assert_msg(0, "IDType Missing IDTypeInfo");
+}
+
+void BKE_libblock_free_runtime_data(ID *id)
+{
+  /* During "normal" file loading this data is released when versioning ends. Some versioning code
+   * also deletes IDs, though. For example, in the startup blend file, brushes that were replaced
+   * by assets are deleted. This means that the regular "delete this ID" flow (aka this code here)
+   * also needs to free this data. */
+  BLO_readfile_id_runtime_data_free(*id);
 }
 
 static int id_free(Main *bmain, void *idv, int flag, const bool use_flag_from_idtag)
@@ -248,8 +261,8 @@ static size_t id_delete(Main *bmain,
   const int remapping_flags = (ID_REMAP_STORE_NEVER_NULL_USAGE | ID_REMAP_FORCE_NEVER_NULL_USAGE |
                                ID_REMAP_FORCE_INTERNAL_RUNTIME_POINTERS | extra_remapping_flags);
 
-  ListBase *lbarray[INDEX_ID_MAX];
-  const int base_count = set_listbasepointers(bmain, lbarray);
+  MainListsArray lbarray = BKE_main_lists_get(*bmain);
+  const int base_count = lbarray.size();
 
   BKE_main_lock(bmain);
   BKE_layer_collection_resync_forbid();

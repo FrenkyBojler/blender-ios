@@ -16,8 +16,6 @@
 
 #include "../mathutils/mathutils.hh"
 
-#include "BLI_utildefines.h"
-
 #include "BKE_context.hh"
 
 #include "WM_message.hh"
@@ -143,17 +141,16 @@ static void bpy_msgbus_notify(bContext *C,
 {
   PyGILState_STATE gilstate;
   bpy_context_set(C, &gilstate);
+  const bool is_write_ok = pyrna_write_check();
+  if (!is_write_ok) {
+    pyrna_write_set(true);
+  }
 
   PyObject *user_data = static_cast<PyObject *>(msg_val->user_data);
   BLI_assert(PyTuple_GET_SIZE(user_data) == BPY_MSGBUS_USER_DATA_LEN);
 
   PyObject *callback_args = PyTuple_GET_ITEM(user_data, 0);
   PyObject *callback_notify = PyTuple_GET_ITEM(user_data, 1);
-
-  const bool is_write_ok = pyrna_write_check();
-  if (!is_write_ok) {
-    pyrna_write_set(true);
-  }
 
   PyObject *ret = PyObject_CallObject(callback_notify, callback_args);
 
@@ -168,11 +165,10 @@ static void bpy_msgbus_notify(bContext *C,
     Py_DECREF(ret);
   }
 
-  bpy_context_clear(C, &gilstate);
-
   if (!is_write_ok) {
     pyrna_write_set(false);
   }
+  bpy_context_clear(C, &gilstate);
 }
 
 /* Follow wmMsgSubscribeValueFreeDataFn spec */
@@ -276,7 +272,7 @@ static PyObject *bpy_msgbus_subscribe_rna(PyObject * /*self*/, PyObject *args, P
   /* NOTE: we may want to have a way to pass this in. */
   bContext *C = BPY_context_get();
   wmMsgBus *mbus = CTX_wm_message_bus(C);
-  wmMsgParams_RNA msg_key_params = {{nullptr}};
+  wmMsgParams_RNA msg_key_params = {{}};
 
   wmMsgSubscribeValue msg_val_params = {nullptr};
 
@@ -358,7 +354,7 @@ static PyObject *bpy_msgbus_publish_rna(PyObject * /*self*/, PyObject *args, PyO
   /* NOTE: we may want to have a way to pass this in. */
   bContext *C = BPY_context_get();
   wmMsgBus *mbus = CTX_wm_message_bus(C);
-  wmMsgParams_RNA msg_key_params = {{nullptr}};
+  wmMsgParams_RNA msg_key_params = {{}};
 
   if (py_msgbus_rna_key_from_py(py_sub, &msg_key_params, error_prefix) == -1) {
     return nullptr;

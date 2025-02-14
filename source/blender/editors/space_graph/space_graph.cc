@@ -15,8 +15,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_math_color.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -70,14 +71,14 @@ static SpaceLink *graph_create(const ScrArea * /*area*/, const Scene *scene)
   sipo->flag |= SIPO_SHOW_MARKERS;
 
   /* header */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "header for graphedit"));
+  region = BKE_area_region_new();
 
   BLI_addtail(&sipo->regionbase, region);
   region->regiontype = RGN_TYPE_HEADER;
   region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_BOTTOM : RGN_ALIGN_TOP;
 
   /* channels */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "channels region for graphedit"));
+  region = BKE_area_region_new();
 
   BLI_addtail(&sipo->regionbase, region);
   region->regiontype = RGN_TYPE_CHANNELS;
@@ -86,14 +87,14 @@ static SpaceLink *graph_create(const ScrArea * /*area*/, const Scene *scene)
   region->v2d.scroll = (V2D_SCROLL_RIGHT | V2D_SCROLL_BOTTOM);
 
   /* ui buttons */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "buttons region for graphedit"));
+  region = BKE_area_region_new();
 
   BLI_addtail(&sipo->regionbase, region);
   region->regiontype = RGN_TYPE_UI;
   region->alignment = RGN_ALIGN_RIGHT;
 
   /* main region */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "main region for graphedit"));
+  region = BKE_area_region_new();
 
   BLI_addtail(&sipo->regionbase, region);
   region->regiontype = RGN_TYPE_WINDOW;
@@ -176,9 +177,10 @@ static void graph_main_region_init(wmWindowManager *wm, ARegion *region)
 
   /* own keymap */
   keymap = WM_keymap_ensure(wm->defaultconf, "Graph Editor", SPACE_GRAPH, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
+  WM_event_add_keymap_handler_poll(
+      &region->runtime->handlers, keymap, WM_event_handler_region_v2d_mask_no_marker_poll);
   keymap = WM_keymap_ensure(wm->defaultconf, "Graph Editor Generic", SPACE_GRAPH, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler(&region->handlers, keymap);
+  WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
 /* Draw a darker area above 1 and below -1. */
@@ -337,6 +339,7 @@ static void graph_main_region_draw_overlay(const bContext *C, ARegion *region)
     /* scrollers */
     const rcti scroller_mask = ED_time_scrub_clamp_scroller_mask(v2d->mask);
     /* FIXME: args for scrollers depend on the type of data being shown. */
+    region->v2d.scroll |= V2D_SCROLL_BOTTOM;
     UI_view2d_scrollers_draw(v2d, &scroller_mask);
 
     /* scale numbers */
@@ -346,6 +349,9 @@ static void graph_main_region_draw_overlay(const bContext *C, ARegion *region)
           &rect, 0, 15 * UI_SCALE_FAC, 15 * UI_SCALE_FAC, region->winy - UI_TIME_SCRUB_MARGIN_Y);
       UI_view2d_draw_scale_y__values(region, v2d, &rect, TH_SCROLL_TEXT);
     }
+  }
+  else {
+    region->v2d.scroll &= ~V2D_SCROLL_BOTTOM;
   }
 }
 
@@ -366,9 +372,9 @@ static void graph_channel_region_init(wmWindowManager *wm, ARegion *region)
 
   /* own keymap */
   keymap = WM_keymap_ensure(wm->defaultconf, "Animation Channels", SPACE_EMPTY, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
   keymap = WM_keymap_ensure(wm->defaultconf, "Graph Editor Generic", SPACE_GRAPH, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler(&region->handlers, keymap);
+  WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
 static void set_v2d_height(View2D *v2d, const size_t item_count)
@@ -431,7 +437,7 @@ static void graph_buttons_region_init(wmWindowManager *wm, ARegion *region)
   ED_region_panels_init(wm, region);
 
   keymap = WM_keymap_ensure(wm->defaultconf, "Graph Editor Generic", SPACE_GRAPH, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
+  WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
 static void graph_buttons_region_draw(const bContext *C, ARegion *region)
@@ -538,7 +544,7 @@ static void graph_region_message_subscribe(const wmRegionMessageSubscribeParams 
    * so just whitelist the entire structs for updates
    */
   {
-    wmMsgParams_RNA msg_key_params = {{nullptr}};
+    wmMsgParams_RNA msg_key_params = {{}};
     StructRNA *type_array[] = {
         &RNA_DopeSheet, /* dopesheet filters */
 
@@ -827,7 +833,7 @@ static void graph_id_remap(ScrArea * /*area*/,
   }
 
   mappings.apply(reinterpret_cast<ID **>(&sgraph->ads->filter_grp), ID_REMAP_APPLY_DEFAULT);
-  mappings.apply(reinterpret_cast<ID **>(&sgraph->ads->source), ID_REMAP_APPLY_DEFAULT);
+  mappings.apply((&sgraph->ads->source), ID_REMAP_APPLY_DEFAULT);
 }
 
 static void graph_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data)
@@ -860,6 +866,7 @@ static int graph_space_subtype_get(ScrArea *area)
 static void graph_space_subtype_set(ScrArea *area, int value)
 {
   SpaceGraph *sgraph = static_cast<SpaceGraph *>(area->spacedata.first);
+  sgraph->mode_prev = sgraph->mode;
   sgraph->mode = value;
 }
 
@@ -868,6 +875,12 @@ static void graph_space_subtype_item_extend(bContext * /*C*/,
                                             int *totitem)
 {
   RNA_enum_items_add(item, totitem, rna_enum_space_graph_mode_items);
+}
+
+static int graph_space_subtype_prev_get(ScrArea *area)
+{
+  SpaceGraph *sgraph = static_cast<SpaceGraph *>(area->spacedata.first);
+  return sgraph->mode_prev;
 }
 
 static blender::StringRefNull graph_space_name_get(const ScrArea *area)
@@ -932,6 +945,7 @@ void ED_spacetype_ipo()
   st->space_subtype_item_extend = graph_space_subtype_item_extend;
   st->space_subtype_get = graph_space_subtype_get;
   st->space_subtype_set = graph_space_subtype_set;
+  st->space_subtype_prev_get = graph_space_subtype_prev_get;
   st->space_name_get = graph_space_name_get;
   st->space_icon_get = graph_space_icon_get;
   st->blend_read_data = graph_space_blend_read_data;

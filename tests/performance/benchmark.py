@@ -2,6 +2,12 @@
 # SPDX-FileCopyrightText: 2020-2023 Blender Authors
 #
 # SPDX-License-Identifier: Apache-2.0
+"""
+The main entry point to running benchmark tests.
+
+See https://developer.blender.org/docs/handbook/testing/performance/
+for a general introduction to the topic.
+"""
 
 import api
 import argparse
@@ -369,7 +375,9 @@ def main():
         sys.exit(0)
 
     if not env.base_dir.exists():
-        sys.stderr.write('Error: benchmark directory not initialized\n')
+        sys.stderr.write(
+            'Error: benchmark directory not initialized. '
+            'Run the \"init\" command to create the directory and a default configuration.\n')
         sys.exit(1)
 
     if args.command == 'list':

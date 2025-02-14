@@ -13,7 +13,6 @@
 #include "DNA_curve_types.h"
 #include "DNA_key_types.h"
 #include "DNA_material_types.h"
-#include "DNA_meta_types.h"
 #include "DNA_object_types.h"
 #include "DNA_pointcloud_types.h"
 #include "DNA_scene_types.h"
@@ -36,7 +35,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mball.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_runtime.hh"
@@ -905,7 +904,7 @@ static int foreach_libblock_make_usercounts_callback(LibraryIDLinkCallbackData *
     return IDWALK_RET_NOP;
   }
 
-  const int cb_flag = cb_data->cb_flag;
+  const LibraryForeachIDCallbackFlag cb_flag = cb_data->cb_flag;
   if (cb_flag & IDWALK_CB_USER) {
     id_us_plus(*id_p);
   }

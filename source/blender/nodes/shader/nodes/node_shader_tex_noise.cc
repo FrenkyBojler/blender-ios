@@ -76,7 +76,7 @@ static void node_shader_buts_tex_noise(uiLayout *layout, bContext * /*C*/, Point
   uiItemR(layout, ptr, "noise_dimensions", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   uiItemR(layout, ptr, "noise_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   if (ELEM(RNA_enum_get(ptr, "noise_type"), SHD_NOISE_FBM)) {
-    uiItemR(layout, ptr, "normalize", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+    uiItemR(layout, ptr, "normalize", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   }
 }
 
@@ -461,7 +461,11 @@ void register_node_type_sh_tex_noise()
 
   static blender::bke::bNodeType ntype;
 
-  sh_fn_node_type_base(&ntype, SH_NODE_TEX_NOISE, "Noise Texture", NODE_CLASS_TEXTURE);
+  sh_fn_node_type_base(&ntype, "ShaderNodeTexNoise", SH_NODE_TEX_NOISE);
+  ntype.ui_name = "Noise Texture";
+  ntype.ui_description = "Generate fractal Perlin noise";
+  ntype.enum_name_legacy = "TEX_NOISE";
+  ntype.nclass = NODE_CLASS_TEXTURE;
   ntype.declare = file_ns::sh_node_tex_noise_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_tex_noise;
   ntype.initfunc = file_ns::node_shader_init_tex_noise;

@@ -15,14 +15,17 @@ Otherwise you may call this script directly, for example:
    ./tools/utils_maintenance/autopep8_format_paths.py --changed-only tests/python
 """
 
+__all__ = (
+    "main",
+)
+
 import os
 import sys
 
 import subprocess
 import argparse
 
-# Temporary, until all platforms update to 2.3.1.
-VERSION_MIN = (1, 6, 0)
+VERSION_MIN = (2, 3, 1)
 VERSION_MAX_RECOMMENDED = (2, 3, 1)
 AUTOPEP8_FORMAT_CMD = "autopep8"
 AUTOPEP8_FORMAT_DEFAULT_ARGS = (

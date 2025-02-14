@@ -9,8 +9,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_dynstr.h"
-#include "BLI_string.h"
-#include "BLI_string_utils.hh"
 #include "BLI_vector.hh"
 
 #include "GPU_storage_buffer.hh"
@@ -212,7 +210,8 @@ void Shader::print_log(Span<StringRefNull> sources,
     /* Print the filename the error line is coming from. */
     if (!log_item.cursor.file_name_and_error_line.is_empty()) {
       char name_buf[256];
-      log_item.cursor.file_name_and_error_line.substr(0, sizeof(name_buf) - 1).copy(name_buf);
+      log_item.cursor.file_name_and_error_line.substr(0, sizeof(name_buf) - 1)
+          .copy_utf8_truncated(name_buf);
       BLI_dynstr_appendf(dynstr, "%s%s: %s", info_col, name_buf, reset_col);
     }
     else if (source_index > 0) {
@@ -333,9 +332,10 @@ void printf_begin(Context *ctx)
   if (!shader::gpu_shader_dependency_has_printf()) {
     return;
   }
-  BLI_assert(ctx->printf_buf == nullptr);
-  ctx->printf_buf = GPU_storagebuf_create(GPU_SHADER_PRINTF_MAX_CAPACITY * sizeof(uint32_t));
-  GPU_storagebuf_clear_to_zero(ctx->printf_buf);
+  GPUStorageBuf *printf_buf = GPU_storagebuf_create(GPU_SHADER_PRINTF_MAX_CAPACITY *
+                                                    sizeof(uint32_t));
+  GPU_storagebuf_clear_to_zero(printf_buf);
+  ctx->printf_buf.append(printf_buf);
 }
 
 void printf_end(Context *ctx)
@@ -343,14 +343,14 @@ void printf_end(Context *ctx)
   if (ctx == nullptr) {
     return;
   }
-  if (ctx->printf_buf == nullptr) {
+  if (ctx->printf_buf.is_empty()) {
     return;
   }
+  GPUStorageBuf *printf_buf = ctx->printf_buf.pop_last();
 
   Vector<uint32_t> data(GPU_SHADER_PRINTF_MAX_CAPACITY);
-  GPU_storagebuf_read(ctx->printf_buf, data.data());
-  GPU_storagebuf_free(ctx->printf_buf);
-  ctx->printf_buf = nullptr;
+  GPU_storagebuf_read(printf_buf, data.data());
+  GPU_storagebuf_free(printf_buf);
 
   uint32_t data_len = data[0];
   if (data_len == 0) {

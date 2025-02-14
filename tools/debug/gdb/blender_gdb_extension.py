@@ -21,8 +21,12 @@ To validate that things are registered correctly:
 3. Run `info frame-filter` and check for `blender-frame-filters`.
 '''
 
+__all__ = (
+    # Not used externally but functions as a `main`.
+    "register",
+)
+
 import gdb
-import functools
 from contextlib import contextmanager
 from gdb.FrameDecorator import FrameDecorator
 
@@ -436,8 +440,8 @@ class ErrorHandlingPrinter:
         try:
             with ensure_unwind_on_signal():
                 return self.printer.to_string()
-        except Exception as e:
-            return "Error"
+        except Exception as ex:
+            return f"Error: {ex!s}"
 
     def children(self):
         try:
@@ -675,4 +679,5 @@ def register():
     gdb.frame_filters[frame_filter.name] = frame_filter
 
 
-register()
+if __name__ == "__main__":
+    register()

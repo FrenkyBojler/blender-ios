@@ -24,6 +24,8 @@ class VKBuffer : public NonCopyable {
   size_t size_in_bytes_ = 0;
   VkBuffer vk_buffer_ = VK_NULL_HANDLE;
   VmaAllocation allocation_ = VK_NULL_HANDLE;
+  VkMemoryPropertyFlags vk_memory_property_flags_;
+
   /* Pointer to the virtually mapped memory. */
   void *mapped_memory_ = nullptr;
 
@@ -33,10 +35,15 @@ class VKBuffer : public NonCopyable {
 
   /** Has this buffer been allocated? */
   bool is_allocated() const;
+
+  /**
+   * Allocate the buffer.
+   */
   bool create(size_t size,
-              GPUUsageType usage,
               VkBufferUsageFlags buffer_usage,
-              bool is_host_visible = true);
+              VkMemoryPropertyFlags required_flags,
+              VkMemoryPropertyFlags preferred_flags,
+              VmaAllocationCreateFlags vma_allocation_flags);
   void clear(VKContext &context, uint32_t clear_value);
   void update_immediately(const void *data) const;
 

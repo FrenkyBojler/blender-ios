@@ -13,12 +13,10 @@
 #include <iomanip>
 #include <iostream>
 #include <regex>
-#include <sstream>
 #include <string>
 
 #include "BLI_ghash.h"
 #include "BLI_map.hh"
-#include "BLI_string.h"
 #include "BLI_string_ref.hh"
 
 #include "gpu_material_library.hh"
@@ -26,8 +24,6 @@
 #include "gpu_shader_dependency_private.hh"
 
 #include "../glsl_preprocess/glsl_preprocess.hh"
-
-#include "GPU_context.hh"
 
 extern "C" {
 #define SHADER_SOURCE(datatoc, filename, filepath) extern char datatoc[];
@@ -92,6 +88,7 @@ struct GPUSource {
 #else
         return BuiltinBits::NONE;
 #endif
+      case Builtin::assert:
       case Builtin::printf:
 #if GPU_SHADER_PRINTF_ENABLE
         return BuiltinBits::USE_PRINTF;
@@ -298,10 +295,10 @@ struct GPUSource {
     StringRef name = pop_token(line);
 
     GPUFunction *func = MEM_new<GPUFunction>(__func__);
-    name.copy(func->name, sizeof(func->name));
+    name.copy_utf8_truncated(func->name, sizeof(func->name));
     func->source = reinterpret_cast<void *>(this);
     func->totparam = 0;
-    while (1) {
+    while (true) {
       StringRef arg_qual = pop_token(line);
       StringRef arg_type = pop_token(line);
       if (arg_qual.is_empty()) {
@@ -462,7 +459,7 @@ void gpu_shader_dependency_init()
     /* Detect if there is any printf in node lib files.
      * See gpu_shader_dependency_force_gpu_print_injection(). */
     for (auto *value : g_sources->values()) {
-      if ((value->builtins & shader::BuiltinBits::USE_PRINTF) != shader::BuiltinBits::USE_PRINTF) {
+      if (bool(value->builtins & shader::BuiltinBits::USE_PRINTF)) {
         if (value->filename.startswith("gpu_shader_material_")) {
           force_printf_injection = true;
           break;
