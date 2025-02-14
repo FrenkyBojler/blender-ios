@@ -1,2 +1,3 @@
 Referenced by issue #43124, crash with rigid body constraints in linked group
 Referenced by issue #42399, Scaling rigid body causes pivot to also be scaled
+Referenced by issue #34521, "Rigid Body Joint" Pivot is simulated farther away than visually presented during editing
