@@ -14,3 +14,4 @@ Referenced by issue #104841, Cycle no longer takes into account the Sharp in ble
 Referenced by issue #104804, bpy.ops.wm.open_mainfile command overwrite the existing file without warning
 Referenced by issue #104572, Blender Eevee Render freeze when i change base color or color sliders #103843
 Referenced by issue #104369, Video Sequencer UI bug (Pink Mess)
+Referenced by issue #104140, Blender crashes after opening the Shading window
