@@ -1,3 +1,4 @@
 Referenced by commit 6256e2a8384, Fix #122150: UI: layout.template_search() crash without an active item
 Referenced by commit d6cefef98f8, UI: Better support for linked data-blocks in search buttons
 Referenced by commit 6c0cbfcd530, Fix T61696: Filepath buttons not accepting empty values
+Referenced by issue #122165, Fix #122150: UI: layout.template_search() crash without an active item
