@@ -5,3 +5,4 @@ Referenced by issue #65558, Crash on adding linked scene to Video Sequence Edito
 Referenced by issue #65523, Dyntopo + Snake tool produce weird artifacts after grab tool
 Referenced by issue #65507, Blender Crashes
 Referenced by issue #65502, Crash when moving Collection into disabled Collection
+Referenced by issue #63694, Multi window measure crash
