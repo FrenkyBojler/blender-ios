@@ -1,2 +1,3 @@
 Referenced by issue #37860, Bad curve viewport rendering
 Referenced by issue #37861, Bevel factor feature errors on rendering
+Referenced by issue #37691, F12 rendering creates artifacts on geometry created with Screw Modifier
