@@ -1,2 +1,3 @@
 Referenced by issue #84889, EnumProperty with ENUM_FLAG causes a crash
 Referenced by issue #82854, Bevel modifier custom profile handle type crash
+Referenced by issue #82836, Blender Grease Pencil edit mode crash
