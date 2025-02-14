@@ -58,3 +58,4 @@ Referenced by issue #46483, Sliding vertex/edges makes vertices pinned in UV edi
 Referenced by issue #46473, Can't save to a file path with a space in it
 Referenced by issue #46478, 3D Stereo Render Gui Bug
 Referenced by issue #46481, volume grid particles out of volume
+Referenced by issue #46482, Crash when undoing
