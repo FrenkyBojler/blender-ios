@@ -131,11 +131,11 @@ void USDLightWriter::do_write(HierarchyContext &context)
   float intensity;
   if (light->type == LA_SUN) {
     /* Unclear why, but approximately matches Karma. */
-    intensity = light->energy / 4.0f;
+    intensity = light->energy / 4.0f * exp2f(light->exposure);
   }
   else {
     /* Convert from radiant flux to intensity. */
-    intensity = light->energy / M_PI;
+    intensity = light->energy / M_PI * exp2f(light->exposure);
   }
 
   set_attribute(usd_light_api.CreateIntensityAttr(pxr::VtValue(), true),

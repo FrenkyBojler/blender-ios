@@ -163,13 +163,12 @@ static void rna_def_light(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "mode", LA_SHADOW);
   RNA_def_property_update(prop, 0, "rna_Light_draw_update");
 
-  // Add exposure property
   prop = RNA_def_property(srna, "exposure", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_default(prop, 0.0f);
   RNA_def_property_range(prop, -20.0f, 20.0f);
-RNA_def_property_ui_range(prop, -20.0f, 20.0f, 0.01f, 2);
+  RNA_def_property_ui_range(prop, -20.0f, 20.0f, 0.01f, 2);
   RNA_def_property_ui_text(prop, "Exposure",
-                            "Scales the power of the light exponentially as a power of 2. (I*2^E), Intensity * 2^Exposure");
+                            "Scales the power of the light exponentially, multiplying the intensity by 2^exposure");
   RNA_def_property_update(prop, 0, "rna_Light_update");
 
   /* nodes */
