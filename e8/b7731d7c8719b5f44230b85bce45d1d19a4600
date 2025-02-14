@@ -1,0 +1,1 @@
+Referenced by issue #117571, Simulation Zone in Geometry Nodes forces re-evaluate the nodes even if it doesn't affect the tree
