@@ -1,2 +1,3 @@
 Referenced by issue #38667, When using "Maya" Input Interface, pressing "E" does not initiate rotation in the UV/Image Editor
 Referenced by issue #38668, When using Maya Input style, there is no way to snap Knife tool to midpoints
+Referenced by issue #38332, Segmentation fault, when script active and render animation with motion blur
