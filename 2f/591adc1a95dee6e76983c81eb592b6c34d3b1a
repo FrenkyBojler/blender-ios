@@ -1,1 +1,2 @@
 Referenced by issue #95672, Crash: baking normals from multires in 3.1 (fixed in 3.2)
+Referenced by issue #95334, Crash when baking normals when smooth shading is set.
