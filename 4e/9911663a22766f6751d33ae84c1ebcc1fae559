@@ -1,1 +1,2 @@
 Referenced by issue #57670, Shader to RGB is not rendering on Eevee
+Referenced by issue #57677, Hardware acceleration in blender not working correctly while gizmos are present (noticeable lag)
