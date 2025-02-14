@@ -1,1 +1,2 @@
 Referenced by issue #64646, Eevee TAA not used for render viewport animation
+Referenced by issue #64132, No viewport anti-aliasing in the shaded mode in the latest 2.8 builds from blender-2.80.0-git.b331515d2e47-windows64 (May 03) onward
