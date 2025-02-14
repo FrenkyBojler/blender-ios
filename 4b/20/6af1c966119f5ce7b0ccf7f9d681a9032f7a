@@ -10,3 +10,4 @@ Referenced by issue #38487, Blur + Wrapped Translate = Crash
 Referenced by issue #38258, black spots
 Referenced by issue #38225, (complete) System Freeze, Frequent
 Referenced by issue #38226, critical 3d view transform and manipulator issues.
+Referenced by issue #38083, Submenu arrow is overlayed by menu item hotkey
