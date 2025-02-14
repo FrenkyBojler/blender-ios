@@ -9,3 +9,4 @@ Referenced by issue #71879, Select expand/contract from face mode to edge mode d
 Referenced by issue #71828, bug en viewport shading,xray
 Referenced by issue #71748, Blender crash when making a library override on a rig or mesh with rig
 Referenced by issue #68963, Viewport rotation not working after saving new default startup file.
+Referenced by issue #68829, Blender crashes each time I switch to rendered mode in shading viewport
