@@ -1,1 +1,2 @@
 Referenced by issue #108037, UV: Issues with pinned island support in packing
+Referenced by issue #68889, Improve UV packing to pack more tightly (not just considering bounding boxes)
