@@ -1,1 +1,2 @@
 Referenced by issue #64554, Maximize doesn't work on Python Console
+Referenced by issue #64427, Build broken for python module on master: make bpy (on linux and mac os)
