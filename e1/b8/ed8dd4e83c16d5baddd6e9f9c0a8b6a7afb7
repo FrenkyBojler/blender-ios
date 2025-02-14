@@ -1,2 +1,3 @@
 Referenced by issue #45067, Regression between testbuild to RC1: OpenCL corrupted render
 Referenced by issue #45054, transparent shwadows don't render correctly in OpenCL with GCN
+Referenced by issue #45014, Cycles - Subsurface Indirect render channel unable to resolve over-bright pixels from Branched Path Tracing
