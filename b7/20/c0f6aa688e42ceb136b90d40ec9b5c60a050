@@ -1,2 +1,3 @@
 Referenced by issue #71466, Library Override: Driven Shape Keys Don't Work
 Referenced by issue #71468, Checking the Dyntopo checkbox is undoable with Ctrl Z. Annoying. Looks like unintended behavior.
+Referenced by issue #71436, proportional_edit_objects turns off when translating 3d cursor in edit mode
