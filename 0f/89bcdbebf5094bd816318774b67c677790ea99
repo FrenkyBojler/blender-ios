@@ -6,3 +6,4 @@ Referenced by issue #102221, Regression: Entering editmode will invalidate the d
 Referenced by issue #96054, newly selected vertex group with lattices don't display weights in edit mode.
 Referenced by issue #95997, [3.1] Crash when entering edit mode
 Referenced by issue #95571, Crashes in edit mode
+Referenced by issue #95467, Textures disappear when going to Edit Mesh on Solid Texture mode.
