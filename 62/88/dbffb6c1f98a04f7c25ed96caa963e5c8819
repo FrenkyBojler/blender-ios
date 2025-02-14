@@ -1,2 +1,3 @@
 Referenced by commit a32ee63660f, Fix T72919: NDOF 'Free' orbit preference is ignored
 Referenced by issue #73687, Missing Movements for NDOF Devices
+Referenced by issue #72917, NDOF stuck in orbit mode.
