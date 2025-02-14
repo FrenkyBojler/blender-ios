@@ -1,3 +1,4 @@
 Referenced by commit 7c9e4099854, Outliner ID Remap Users: hide ID type from the UI
 Referenced by commit 0fbcb824d0f, Fix T76014: correct description of COLLECTION_OT_objects_remove_all
 Referenced by issue #100169, Collections without user not purged properly
+Referenced by issue #93799, Outliner: Remap Users crash (for `ID Type` `Object`)
