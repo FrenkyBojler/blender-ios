@@ -58,3 +58,4 @@ Referenced by issue #42534, blender crash switching to texture paint
 Referenced by issue #42540, save_pre not called when saving startup.blend file
 Referenced by issue #42523, image has numerous users when only 1 material actually is using it
 Referenced by issue #42524, Unwrap crashes blender
+Referenced by issue #42515, Dynamic Paint looses cache on blendfile name change
