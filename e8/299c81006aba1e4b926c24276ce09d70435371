@@ -36,3 +36,4 @@ Referenced by issue #50578, Image Preview for Scene strips in the Video Sequence
 Referenced by issue #50565, Transform: Planar constraints don't work properly with non-Blender key configurations
 Referenced by issue #50567, Blender 2.78a crashes when using environment texture (GPU)
 Referenced by issue #50550, GPUShader: compile error - Background image not showing in viewport
+Referenced by issue #50541, UV Image Paint Bugs: Smear Tool Black Alpha and Radius Global Hotkey Broken
