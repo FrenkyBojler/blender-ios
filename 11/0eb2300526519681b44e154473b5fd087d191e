@@ -1,1 +1,2 @@
 Referenced by issue #97056, MNEE caustics don't render with specific materials when Filter Glossy = 0
+Referenced by issue #96992, MNEE caustics are treated as "direct light" when they should be "indirect light"
