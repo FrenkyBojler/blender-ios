@@ -1,2 +1,3 @@
 Referenced by commit c7dae7e4552, Fix #122217 : Datablock Pointers id_properties_ui().update() crashes
 Referenced by commit 445fabeae99, Fix (unreported) crash when loading files with py-defined ID IDProperties.
+Referenced by issue #122306, Fix #122217 : Datablock Pointers id_properties_ui().update() crashes
