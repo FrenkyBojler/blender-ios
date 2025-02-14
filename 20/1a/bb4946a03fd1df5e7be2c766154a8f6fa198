@@ -1,0 +1,1 @@
+Referenced by issue #42005, Lambda as scene_update_pre handler may crash Blender upon unload
