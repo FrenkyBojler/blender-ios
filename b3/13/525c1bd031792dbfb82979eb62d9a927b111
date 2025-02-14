@@ -1,2 +1,3 @@
 Referenced by commit befb9d99f88, Fix T89331: Cycles lights flicker when transformed
 Referenced by issue #89331, Cycles - Lights flicker while being moved or rotated in viewport
+Referenced by issue #88515, Viewport Cycles does not update the position of lights from linked collections, from at least 2.91 to 2.93
