@@ -4,3 +4,4 @@ Referenced by commit fff74145f17, Fix #113186: The Render Result attribute "has_
 Referenced by issue #119503, Fix #119427: UI: The Metadata is gone for the rendered image
 Referenced by issue #119495, Fix #119427: UI: The Metadata is gone for the rendered image
 Referenced by issue #119427, UI: The Metadata is gone for the rendered image
+Referenced by issue #113282, Fix #113280: Incorrect display of Cycles border render while rendering
