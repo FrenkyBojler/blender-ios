@@ -1,1 +1,2 @@
 Referenced by issue #86895, Crash! (2.83—2.93): bpy.ops.curve.select_all(action='INVERT')
+Referenced by issue #86871, Crash with to_mesh() on tapered bezier curve
