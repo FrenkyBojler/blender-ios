@@ -1,1 +1,2 @@
 Referenced by issue #46895, Node editor can cause permanent loss of rendered image.
+Referenced by issue #38245, Render slot buffer gets deleted in compositor when input is an image
