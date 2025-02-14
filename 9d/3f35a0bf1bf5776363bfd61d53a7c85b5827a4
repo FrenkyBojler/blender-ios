@@ -2,3 +2,4 @@ Referenced by issue #96290, Regression: Blender crashes when access to gpu.shade
 Referenced by issue #95981, Setting Masking->Stencil Mask->Stencil Image crashes Blender. Includes fix
 Referenced by issue #95036, New noodle not drawn in shader editor.
 Referenced by issue #95003, Regression: Proper material shown as magenta
+Referenced by issue #94987, Dragged node links are invisible
