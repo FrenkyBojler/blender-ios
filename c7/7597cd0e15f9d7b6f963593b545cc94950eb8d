@@ -18,3 +18,4 @@ Referenced by issue #96379, Crashes when rendering in viewport with GPU complier
 Referenced by issue #96356, vertex paint face selction display bug gpu subdivision
 Referenced by issue #96344, GPU subdivision: Crash on select in Edit Mode with X-Ray on and Mirror Modifier
 Referenced by issue #96328, Cannot load video/movie files into Blender
+Referenced by issue #96300, Texture Baking
