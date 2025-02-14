@@ -1,1 +1,2 @@
 Referenced by commit dbc8b295195, glTF: Draco: Fix #130545 - Windows Draco dll was not in right directory
+Referenced by commit 99324277fa2, CMake: restore WITH_DRACO, WITH_PYTHON_INSTALL dependency
