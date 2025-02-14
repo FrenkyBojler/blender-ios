@@ -1,2 +1,3 @@
 Referenced by commit 9e1f02dd4d5, Refactor: File Browser: Extract folder/file "special icon" drawing
 Referenced by commit cd13f52e752, Refactor: File Browser: Extract preview loading icon drawing
+Referenced by commit e072853e63d, Refactor: File Browser: Split off indicator icon drawing
