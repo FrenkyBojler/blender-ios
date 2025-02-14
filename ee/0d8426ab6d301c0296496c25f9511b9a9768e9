@@ -8,3 +8,4 @@ Referenced by issue #64188, Crash on CTRL-S no changes saved.
 Referenced by issue #64154, Immediate crash when changing the current frame on the timeline
 Referenced by issue #64161, Crashing using undo and multiple windows
 Referenced by issue #62971, File Browser UI
+Referenced by issue #62903, uv select edge black bug in blender 2.80 64 bit build
