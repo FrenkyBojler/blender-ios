@@ -1,2 +1,3 @@
 Referenced by issue #51442, Compiling OpenCL program base: CL_DEVICE_NOT_AVAILABLE
 Referenced by issue #51429, Blender SEGFAULT on Intel HW and DWM.
+Referenced by issue #51431, freestyle svg exporter doesn't load anymore
