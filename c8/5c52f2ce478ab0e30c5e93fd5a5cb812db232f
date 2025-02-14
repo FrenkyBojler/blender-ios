@@ -1,1 +1,2 @@
 Referenced by commit 7475012e24a, Cleanup: rename BLI_paths_equal to BLI_path_cmp_normalized
+Referenced by issue #106684, USD export: implement MAPPING node (texture scale, translation and rotation)
