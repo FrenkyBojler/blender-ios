@@ -1,3 +1,4 @@
 Referenced by issue #53683, 2.79a release
 Referenced by issue #52749, New Depsgraph - Render View Mask is not initialized correctly
 Referenced by issue #52752, Blender 2.79 - Cycles Compute Device doesn't detect my AMD GPU
+Referenced by issue #52741, New Depsgraph - Empties have follow track constraint on them, scaling the depth object fast causes blender to crash
