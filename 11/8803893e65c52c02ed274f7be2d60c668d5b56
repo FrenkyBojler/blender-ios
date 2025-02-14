@@ -1,2 +1,3 @@
 Referenced by issue #96781, Regression: Blender crash when using a particle system + grease pencil line art modifier
 Referenced by issue #89942, Sculpt: Grid overlay for Grab active point do not work.
+Referenced by issue #89937, Attribute proximity broken after animating the "brush"
