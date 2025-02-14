@@ -2,3 +2,4 @@ Referenced by commit 1f62fca3213, Fix #116339: "Show Hidden Objects" operator's 
 Referenced by issue #119153, Fix #116339: "Show Hidden Objects" operator's options missing
 Referenced by issue #116339, "Show Hidden Objects" operator's options missing, which is inconsistent with "Reveal Hidden" operator
 Referenced by issue #73972, Collection in outliner grayed out when all child collections are disabled
+Referenced by issue #66741, Changing Hotkey for Perspective/Orthographic isn't working after being changed
