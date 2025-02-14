@@ -1,2 +1,3 @@
 Referenced by issue #80396, Potential candidates for corrective releases
 Referenced by issue #77348, Blender LTS: Maintenance Task 2.83
+Referenced by issue #62504, Access violation trying to access C.evaluated_get().view_layer_eval.depsgraph
