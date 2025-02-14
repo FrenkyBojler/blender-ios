@@ -1,0 +1,1 @@
+Referenced by issue #70194, VSE: 'Prefetch frames' causes excessive CPU usage whenever there is animation on a strip (freezes when tweaking animation [Graph Editor, Dopesheet, typing in new values])
