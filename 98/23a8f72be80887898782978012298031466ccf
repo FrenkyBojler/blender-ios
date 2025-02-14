@@ -1,2 +1,3 @@
 Referenced by commit 2b43173fa92, Fix T100862: only leading deform modifiers used in weight/vertex paint.
 Referenced by issue #106358, Switching to Sculpt mode crashes Blender
+Referenced by issue #100862, Regression: Weight Painting doesn't work with Mirror and Armature modifier
