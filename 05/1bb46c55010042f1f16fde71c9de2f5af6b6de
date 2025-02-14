@@ -1,0 +1,1 @@
+Referenced by issue #92241, Geometry Node: Set Tilt and Set Curve Radius node behave inconsistently when a Resample Curve node is used right after and its count set to 1.
