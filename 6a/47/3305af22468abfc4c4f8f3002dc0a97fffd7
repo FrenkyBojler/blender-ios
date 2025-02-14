@@ -1,2 +1,3 @@
 Referenced by commit 51c32ac1996, Revert "Fix T37920: BGE LibLoad failed for meshes with no materials"
 Referenced by issue #38133, Deleting a single dupligroup instance removes all instances
+Referenced by issue #37920, Repeatedly calling LibLoad and LibFree on the same library / blend will cause a crash.
