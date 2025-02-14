@@ -14,3 +14,4 @@ Referenced by issue #108908, having both casting & receiving shadow caustics ena
 Referenced by issue #108606, Color swatch in grease pencil in the topbar is half transparant, showing whats underneat
 Referenced by issue #108558, Emission performance bug (cycles render)
 Referenced by issue #108455, Crash without warning when opening material properties panel.
+Referenced by issue #108400, Tabbing into edit mode on a bezier curve crashes blender (Segmentation fault)
