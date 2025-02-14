@@ -3,3 +3,4 @@ Referenced by issue #119946, Blender 4.1 NLA Combine blend type is Broken
 Referenced by issue #117547, RBD Bake to Keyframes no longer working
 Referenced by issue #115816, removing shortcuts in the f3 menu doesn't work
 Referenced by issue #115789, Regression: Problems with adding keys
+Referenced by issue #115436, Error when canceling automatic key channels using custom properties in preferences menu by pressing the I key.
