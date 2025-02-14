@@ -7,3 +7,4 @@ Referenced by issue #95470, GP Lineart ignores subdivision modifier with GPU sub
 Referenced by issue #94939, Crash upon showing rig in 3D-viewport
 Referenced by issue #94871, Crash on production file due to OpenSubdiv OpenGL backend
 Referenced by issue #94865, Crash when switching to texture paint workspace on models with a subdivision modifier
+Referenced by issue #94671, Performance regression with subdivision modifier and enabled scene statistics
