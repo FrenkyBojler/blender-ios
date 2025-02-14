@@ -2,3 +2,4 @@ Referenced by commit d48d8b34567, Fix T81761: EEVEE enabled AO pass affects rend
 Referenced by commit 59afbf0c047, Fix T81157: Eevee MotionBlur steps setting make ao pass darker
 Referenced by issue #81761, Eevee enabled AO pass affects render result (even though AO is disabled in scene settings)
 Referenced by issue #81157, Eevee MotionBlur steps setting make  ao pass darker
+Referenced by issue #77267, EEVEE: Render AO pass even when AO setting is disabled in Scene
