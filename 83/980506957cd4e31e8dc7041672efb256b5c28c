@@ -2,3 +2,4 @@ Referenced by commit fcc3227efd8, Fix T86654: wrong Vertex Interpolation option 
 Referenced by commit 3fc07d1e748, Fix T83886: Particle instance modifier broken
 Referenced by commit ae609346ee9, Fix T81672: Array modifier default merge distance is 0.1m (typo)
 Referenced by commit c3238bd5001, Cleanup: Use DNA defaults for cloth modifier
+Referenced by issue #86654, Bad motion blur from alembic animation import in v2.92. Works as expected in v2.83.13
