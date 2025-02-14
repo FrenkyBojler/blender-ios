@@ -1,0 +1,1 @@
+Referenced by issue #92136, Accessing evaluated depsgraph data from Python leaks memory
