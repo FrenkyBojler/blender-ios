@@ -194,7 +194,7 @@ void BLI_rng_threaded_free(RNG_THREAD_ARRAY *rngarr)
 
 int BLI_rng_thread_rand(RNG_THREAD_ARRAY *rngarr, int thread)
 {
-  return BLI_rng_get_int(&rngarr->rng_tab[thread]);
+  return BLI_rng_get_int(&rngarr->rng_tab[size_t(thread)]);
 }
 
 /* ********* Low-discrepancy sequences ************** */
