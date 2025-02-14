@@ -1,1 +1,2 @@
 Referenced by commit 0d9cd1ee2d2, Fix crash hiding a region from Python with a popover & region overlap
+Referenced by issue #93410, OSX/Win Blender 2.93.6, 3.0, 3.1 crashes/"breaks" when starting modal operator from a popover if header is hidden
