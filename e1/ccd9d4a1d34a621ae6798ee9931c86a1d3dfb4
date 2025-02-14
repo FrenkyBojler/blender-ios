@@ -9,3 +9,4 @@ Referenced by issue #109528, Bake actions operator converting F-curves to linear
 Referenced by issue #109372, Crash when selecting line art
 Referenced by issue #109349, Can't save files in VSE mode
 Referenced by issue #109196, Deleting and creating a new world results in an error
+Referenced by issue #108930, Regression: Mirror modifier breaks custom normals
