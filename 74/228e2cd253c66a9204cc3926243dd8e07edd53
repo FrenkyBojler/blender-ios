@@ -1,2 +1,3 @@
 Referenced by issue #100709, Baking normals produces incorrect result
 Referenced by issue #99204, Texture baking results are different (and worse) from previous versions of Blender.
+Referenced by issue #97945, Baking. Max ray distance acts with wrong or unexpected distance in fact
