@@ -1,1 +1,2 @@
 Referenced by commit f9308a585ec, Fix particle system duplication duplicates all systems
+Referenced by issue #83317, Hair particles duplication with duplicate settings enabled copies all the particles instead of one selected
