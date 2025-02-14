@@ -17,3 +17,4 @@ Referenced by issue #42048, Keyframes missing when animating particle system ble
 Referenced by issue #42024, Material choices in PROPERTIES BAR > MATERIALS > SURFACE > Surface: are not in alphabetical order
 Referenced by issue #42016, link render layer with visible bug
 Referenced by issue #41962, command-line without specified filename doesn't renders
+Referenced by issue #41924, Cycles ID pass (Objekt and Material) Bug.
