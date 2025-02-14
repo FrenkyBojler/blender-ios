@@ -1,2 +1,3 @@
 Referenced by issue #126017, Crash: Sculpting on linked objects with Multeresolution
 Referenced by issue #125011, Scrubbing on Video Sequencer does not produce sound if scrbbing spans only a few frames
+Referenced by issue #124706, EEVEE rendering with Third-Party colorspaces crashes in Blender 4.2 RC
