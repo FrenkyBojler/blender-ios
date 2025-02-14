@@ -4,3 +4,4 @@ Referenced by commit 32757b2429a, Fix uninitialized variable use in asset metada
 Referenced by commit 95077549c1f, Fix failure in recently added asset library tests
 Referenced by issue #111411, Regression: Crash when selecting an object with an orphaned geo node link
 Referenced by issue #102778, Crash - Blender crashes if an assetbrowser editor has no asset library ref.
+Referenced by issue #102610, Regression: Asset disappearing on refresh
