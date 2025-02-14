@@ -1,1 +1,2 @@
 Referenced by issue #88570, Regression: Crash when saving after pressing ctrl+S twice.
+Referenced by issue #76926, Crash on saving or opening files with the Full Screen file browser window preference
