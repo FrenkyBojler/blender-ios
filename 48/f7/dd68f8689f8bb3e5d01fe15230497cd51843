@@ -61,3 +61,4 @@ Referenced by issue #46481, volume grid particles out of volume
 Referenced by issue #46482, Crash when undoing
 Referenced by issue #46465, Blender Player stutters when navigating rendered image sequence
 Referenced by issue #46467, Clean Keyframes removes the channels.
+Referenced by issue #46456, quitting while using dynotopo (dynamic topography) if you press ESC
