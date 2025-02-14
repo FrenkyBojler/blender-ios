@@ -1,2 +1,3 @@
 Referenced by commit 4e622fbccda, Revert "UI: Remove icon usage in brush tool RNA enums"
 Referenced by commit 39f0e3c0f4b, UI: Remove more use of brush tool type icons in enum
+Referenced by issue #121700, Brush icons are missing in every editor in 4.2
