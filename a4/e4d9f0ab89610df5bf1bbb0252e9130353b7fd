@@ -6,3 +6,4 @@ Referenced by issue #59992, Issues when trying to keyframe force field propertie
 Referenced by issue #59953, Particles not beeing rendered
 Referenced by issue #59943, Color banding present in Workbench render but not in viewport.
 Referenced by issue #59928, Reflection Plane - "Radius" option doesn't work
+Referenced by issue #59789, Region below transparent sidebar panels captures mouse input
