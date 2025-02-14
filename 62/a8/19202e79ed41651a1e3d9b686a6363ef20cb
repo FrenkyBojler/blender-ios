@@ -1,2 +1,3 @@
 Referenced by issue #79626, 2.91 Mantaflow crash when adaptive domain + noise are enabled
 Referenced by issue #79009, Mantaflow instant crash if noise baked with adaptive domain
+Referenced by issue #78732, When Press Bake Noise in Mantaflow Smoke, Blender 2.90 Alpha Crashes
