@@ -1,1 +1,2 @@
 Referenced by issue #84664, Crash/Assert with two modifiers that require normals data [e.g. DataTransfer]
+Referenced by issue #73941, Custom normals from normal edit modifier ignored by further modifiers
