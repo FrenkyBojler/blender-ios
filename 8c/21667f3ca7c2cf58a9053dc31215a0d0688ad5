@@ -1,0 +1,1 @@
+Referenced by issue #92444, Byte vertex colors are sometimes interpolated in sRGB, sometimes linear
