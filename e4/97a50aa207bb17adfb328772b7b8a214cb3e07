@@ -1,2 +1,3 @@
 Referenced by issue #105152, Regression: Python: removing a color attribute may leave a mesh without an active color attribute
 Referenced by issue #105150, Python: mesh.vertex_colors.new broken
+Referenced by issue #105063, Registering more than 3070 operators caused overriden built-in operators to fail
