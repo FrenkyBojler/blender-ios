@@ -1,3 +1,4 @@
 Referenced by commit 4ea2baf4ae3, CMake: revert last weeks modernizations
 Referenced by issue #113849, Animation player crashes upon launch
 Referenced by issue #110674, 3.6.1 cycles light tree will cause normal map looks not right
+Referenced by issue #110438, CMake: revert last weeks modernizations
