@@ -3,3 +3,4 @@ Referenced by issue #49201, Mesh with OpenSubdiv subsurf and a texture disappear
 Referenced by issue #49183, Bevel segments bug
 Referenced by issue #49174, Y rotation of objects stuttering when X/Z axis are locked
 Referenced by issue #49175, PBR crashes testbuild 2.78 ver2
+Referenced by issue #49151, Can't unlink particle systems (nor set to 0 users)
