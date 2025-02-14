@@ -1,1 +1,2 @@
 Referenced by issue #95246, Undo bone rotation after previous frame/keyframe jump operators undoes frame jump as well (frame in UI is still the same though)
+Referenced by issue #82769, Crash rendering particle animation with particle caches [disk cache works though]
