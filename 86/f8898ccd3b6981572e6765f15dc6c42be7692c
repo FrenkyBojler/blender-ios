@@ -1,0 +1,1 @@
+Referenced by issue #101618, Freeze when reloading a library while having an Object property with a custom getter function defined in Python
