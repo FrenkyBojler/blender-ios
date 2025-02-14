@@ -11,3 +11,4 @@ Referenced by issue #41997, segmentation fault on selection of a selected object
 Referenced by issue #41962, command-line without specified filename doesn't renders
 Referenced by issue #41964, 2.72 Freestyle renders two times longer on Linux
 Referenced by issue #41965, Background Images
+Referenced by issue #41951, Velocity vector is incorrect with Cycles.
