@@ -12,3 +12,4 @@ Referenced by issue #38884, UI lists missing item edit text field in v2.70 test 
 Referenced by issue #38854, crash adding new image in uv editor
 Referenced by issue #38859, Laplacian Deform Crash When Parent With Automatic Weight
 Referenced by issue #38848, Volume rendering: Changing color of a volume changes the color of the lightsource
+Referenced by issue #38843, Bone parallel to world z axis flicking when scale in edit mode.
