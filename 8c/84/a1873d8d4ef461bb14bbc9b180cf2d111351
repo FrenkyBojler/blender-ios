@@ -1,3 +1,4 @@
 Referenced by issue #46772, Boolean modifier not displaying in viewport on startup and after exiting edit mode
 Referenced by issue #46752, Collision between convex hull and triangle mesh causing slow fps in bge
 Referenced by issue #46750, TexPaint artefacts after projecting image with alpha
+Referenced by issue #46723, Issue with linking to rigs running Blender in new depsgraph mode
