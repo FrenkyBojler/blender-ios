@@ -1,0 +1,1 @@
+Referenced by issue #70919, Motion Path on proxy armature invalidates drivers, eventually segfaults.
