@@ -3,3 +3,4 @@ Referenced by issue #59643, Clicking on Armature in Scene Collection causes hard
 Referenced by issue #59637, Crash report - Overlays -> Face Orientation causes crash.
 Referenced by issue #59595, Grease Pencil and Camera View
 Referenced by issue #59207, Material suddenly became emissive, but not for all objects using it
+Referenced by issue #57457, Video texture / Image Sequence not refreshing under eevee
