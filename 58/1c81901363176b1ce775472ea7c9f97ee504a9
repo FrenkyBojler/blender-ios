@@ -1,0 +1,1 @@
+Referenced by commit cc2755b4439, Revert "Cycles: Fix wrong shading on GPU when background has NaN pixels and MIS enabled"
