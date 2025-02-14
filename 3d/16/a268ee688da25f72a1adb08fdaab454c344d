@@ -1,1 +1,2 @@
 Referenced by issue #90972, Crash calling Mesh.clear_geometry in edit-mode
+Referenced by issue #61342, segfault when clicking Use Nodes in 2D workspace
