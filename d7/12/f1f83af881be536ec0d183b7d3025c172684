@@ -7,3 +7,4 @@ Referenced by issue #76043, Select Edge Loop not working 2.83
 Referenced by issue #76045, Gizmo line_width does not work in latest version
 Referenced by issue #75850, Liquid simulation, cache type "Replay", doesn't recognize objects created after Domain creation, doesn't update
 Referenced by issue #74243, Workbench x-ray, wireframe and anti-aliasing artifacts on NVIDIA / Linux
+Referenced by issue #57570, 2.8x, unreliable GL_LINE_SMOOTH / GL_POLYGON_SMOOTH behavior
