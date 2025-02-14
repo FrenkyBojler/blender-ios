@@ -1,2 +1,3 @@
 Referenced by issue #94871, Crash on production file due to OpenSubdiv OpenGL backend
 Referenced by issue #94671, Performance regression with subdivision modifier and enabled scene statistics
+Referenced by issue #94420, UI freeze after adding Subdivision Surface
