@@ -6,3 +6,4 @@ Referenced by issue #46317, Using Material Node group make everything in the gro
 Referenced by issue #46306, continuous grab causes jumping behavior of mouse cursor while adjusting values in sliders
 Referenced by issue #46271, switching between texture maps doesn't update the preview of the texture
 Referenced by issue #46260, BI + Object Color + Shadeless = not rendering.
+Referenced by issue #46221, Mixed shader Glass and Transparent displayed as solid in render, prerender as wished.
