@@ -1,3 +1,4 @@
 Referenced by issue #101786, Spreadsheet crash when entering edit mode on a GN attached objects.
 Referenced by issue #101259, Geometry Nodes in searching pulls nodes from other node add-ons
 Referenced by issue #101262, Segfault entering Edit mode while Spreadsheet Open
+Referenced by issue #100749, Blender LTS: Maintenance Task 3.3
