@@ -1,0 +1,1 @@
+Referenced by issue #50950, converting all to mesh doesn't work when a boolean and solidify are present in scene.
