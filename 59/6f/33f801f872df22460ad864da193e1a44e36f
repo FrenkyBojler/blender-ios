@@ -1,3 +1,4 @@
 Referenced by issue #54918, Inset thickness/depth history regression
 Referenced by issue #54274, Launching a borderless window under macOS does not work
 Referenced by issue #54255, 2.79b release
+Referenced by issue #54206, bevel operator regression
