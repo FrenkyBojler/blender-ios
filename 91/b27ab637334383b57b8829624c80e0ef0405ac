@@ -1,1 +1,2 @@
 Referenced by commit ddcfc46ee65, Fix #119544: Cage modifier deformation ignored in next modifier
+Referenced by commit 2824e456781, Fix #115510: Poly Build does not update snapped geometry
