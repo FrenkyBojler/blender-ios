@@ -1,2 +1,3 @@
 Referenced by issue #90782, UV: unwrap. Margin size is not related to any useful measure
 Referenced by issue #85978, Smart UV island margin value changed since C rewrite
+Referenced by issue #63391, Smart UV Unwrap - bad island spaceing
