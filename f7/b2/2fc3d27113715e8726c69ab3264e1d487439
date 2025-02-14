@@ -4,3 +4,4 @@ Referenced by issue #88484, Compositor: adding viewer node with volume object ca
 Referenced by issue #88475, use after free Fluid sim seg fault
 Referenced by issue #88186, [2.92] Crash when loading mp3 file in VSE
 Referenced by issue #88113, Use after free: Baking Rigid Body physics causes instant crash
+Referenced by issue #87789, baking high res mantaflow sims ( both fluids and gas/smoke ) crashes blender 2.92
