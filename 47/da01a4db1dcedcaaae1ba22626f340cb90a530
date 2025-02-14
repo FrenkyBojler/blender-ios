@@ -1,1 +1,2 @@
 Referenced by commit d33c27d68bb, Fix T75457: Toggle brushes using same hotkey twice is broken
+Referenced by issue #70211, Sculpt Mode: brush shortcut keys don't work when a tool other than the brushes is active
