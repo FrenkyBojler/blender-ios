@@ -1,3 +1,4 @@
 Referenced by issue #47454, The line thickness of curve, paths, nurbs, etc. is wrong
 Referenced by issue #47455, Metaball cube and plane selection not possible
 Referenced by issue #47426, GPU render fails with 'illegal address in cuCtxSynchronize' when using 2nd GPU
+Referenced by issue #47429, Wrong line thickness of muted compositor Vector Curves node
