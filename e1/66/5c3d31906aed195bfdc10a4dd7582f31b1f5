@@ -2,3 +2,4 @@ Referenced by commit e11b33fec33, Remove math for 2D affine transform
 Referenced by commit 57136264220, VSE: Improve motion-picture workflow
 Referenced by issue #82165, Video Editing: Crop is Stretch & Offset
 Referenced by issue #78988, VSE 2.0: Media transform redesign
+Referenced by issue #54273, Large images gets cropped when downscaled in VSE
