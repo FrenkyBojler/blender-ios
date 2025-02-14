@@ -26,3 +26,4 @@ Referenced by issue #52281, Sculpt turned to low poly sphere
 Referenced by issue #52260, Blender 2.79 Objects made duplicates real still refer armature proxy
 Referenced by issue #52187, normals_split_custom_set() seems to smooth out given input
 Referenced by issue #52188, Canceling render takes too much time
+Referenced by issue #52173, snapping
