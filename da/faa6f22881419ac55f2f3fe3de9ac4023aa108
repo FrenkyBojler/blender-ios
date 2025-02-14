@@ -1,3 +1,4 @@
 Referenced by commit 67dc68d104a, Fix T59505: Knife tool cut preview line becomes black
 Referenced by commit 34a538ba1b7, Revert "Fix T59505: Knife tool cut preview line becomes black"
 Referenced by issue #59822, Blender 2.8 crash when reopening previously saved file "GRCollection 1: EXCEPTION_ACCESS_VIOLATION"
+Referenced by issue #59804, The bmesh.ops.symmetrize python interface does not support the "positive" variants of symmetry direction
