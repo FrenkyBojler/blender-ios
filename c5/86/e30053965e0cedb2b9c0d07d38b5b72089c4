@@ -7,3 +7,4 @@ Referenced by issue #46306, continuous grab causes jumping behavior of mouse cur
 Referenced by issue #46271, switching between texture maps doesn't update the preview of the texture
 Referenced by issue #46260, BI + Object Color + Shadeless = not rendering.
 Referenced by issue #46221, Mixed shader Glass and Transparent displayed as solid in render, prerender as wished.
+Referenced by issue #46223, Open EXR multiview image sequences crash Blender 2.75a and 2.76rc
