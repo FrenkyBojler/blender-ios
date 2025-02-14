@@ -1,1 +1,2 @@
 Referenced by commit ad5d5d3f3bb, EEVEE: Fix broken rendering caused by SSR + Alpha blended material
+Referenced by commit 3198fec1fed, Fix T80160: Workbench shadows are broken
