@@ -5,3 +5,4 @@ Referenced by issue #94312, Blender 3.0 crashes when motion tracking hits prefet
 Referenced by issue #94266, Crash with Movieclip background in Camera view
 Referenced by issue #93935, Blender 3.0 Motion tracking footage just crashes blender
 Referenced by issue #93479, 3.0 Potential candidates for corrective releases
+Referenced by issue #92838, Crash when exceeding memory_cache_limit in the viewport
