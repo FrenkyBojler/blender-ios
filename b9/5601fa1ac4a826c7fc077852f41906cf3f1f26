@@ -1,1 +1,2 @@
 Referenced by issue #98071, Regression: UV selection visualization on adjacent edges lost
+Referenced by issue #96836, UV verts dont draw if certain modifiers are present (e.g geometry nodes, GPU subdiv, WeightedNormal w/o Autosmooth)
