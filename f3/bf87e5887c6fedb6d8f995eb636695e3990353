@@ -1,2 +1,3 @@
 Referenced by commit af7233368de, Fix T91060: GPencil Time Offset Modifier breaks evaluation time
 Referenced by issue #91454, Grease pencil Time offset modifier crash
+Referenced by issue #91060, GPencil Time Offset Modifier together with Armature Modifier or/and Lattice Modifier broken in 2.93.3
