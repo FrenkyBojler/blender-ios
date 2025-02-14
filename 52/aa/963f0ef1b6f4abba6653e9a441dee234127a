@@ -1,1 +1,2 @@
 Referenced by commit 51f6b25afd8, Revert "Fix T55568: second click event ignored"
+Referenced by issue #55568, Pressing tab twice fast doesn't toggle edit mode twice
