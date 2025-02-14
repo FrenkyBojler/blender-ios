@@ -4,3 +4,4 @@ Referenced by issue #46296, Rigify: Bone Heat Weighting: failed to find solution
 Referenced by issue #44028, Vertex Colors Bakinng error
 Referenced by issue #43558, Brush fails in some perspectives and in certain distances from the object.
 Referenced by issue #43471, Can't dynamically set particle birth time any more
+Referenced by issue #41964, 2.72 Freestyle renders two times longer on Linux
