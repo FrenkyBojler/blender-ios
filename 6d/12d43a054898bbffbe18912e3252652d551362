@@ -1,2 +1,3 @@
 Referenced by issue #105314, Regression: ShaderNodeCustomGroup based nodes lost their UI
 Referenced by issue #103878, Regression: Crash when try recover last session
+Referenced by issue #103503, Edge creases disappear sometimes when using autosave recover file...
