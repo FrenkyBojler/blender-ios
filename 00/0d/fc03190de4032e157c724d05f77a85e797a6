@@ -37,3 +37,4 @@ Referenced by issue #45068, Scaled Capsule Collision Bounds do not match mesh
 Referenced by issue #45045, Decimate does not work with ngons
 Referenced by issue #45055, Move to layer doesn't accept number key input
 Referenced by issue #45024, Failure in mesh interpretation bug
+Referenced by issue #45032, Setting decimal value in Rotation angle step in User Preferences results in rounding
