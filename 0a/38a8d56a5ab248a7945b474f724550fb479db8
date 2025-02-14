@@ -1,0 +1,1 @@
+Referenced by issue #123339, Compile error in GHOST_WindowWayland.cc: too many initializers for ‘const wl_surface_listener’ (wayland-client-protocol.h)
