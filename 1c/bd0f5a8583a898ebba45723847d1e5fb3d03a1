@@ -5,3 +5,4 @@ Referenced by issue #121548, Viewport: Local View operator zooming to wrong loca
 Referenced by issue #121552, Fix #121548: Use evaluated object for local view
 Referenced by issue #120104, Regression: Vertices and faces extruded with Solidify no longer snap.
 Referenced by issue #114897, Fix #114870: Object dimensions does not used evaluated geometry
+Referenced by issue #114870, 4.1 Regression: Dimension is not reading information from modifiers
