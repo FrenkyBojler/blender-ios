@@ -1,1 +1,2 @@
 Referenced by issue #84690, Undo doesn't work on UVmap deletion & only 5-6 UVmaps on same object possible
+Referenced by issue #84684, Undo doesn't work after reverting of ID template changes
