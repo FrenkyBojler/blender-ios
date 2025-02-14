@@ -1,2 +1,3 @@
 Referenced by issue #98795, Regression: Crash after moving NLA action strips
 Referenced by issue #98700, Regression: Crash when recursively nesting NLA meta strips
+Referenced by issue #98196, Crash when moving tweaked NLA strip with empty track below
