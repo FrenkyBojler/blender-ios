@@ -1,3 +1,4 @@
 Referenced by issue #112118, Bone layer lost when subdividing rigify bones
 Referenced by issue #112119, The Chinese input method does not work properly when searching
 Referenced by issue #112120, When rotating the rigify bone and then pressing CTRL+Z, the bone group is lost
+Referenced by issue #110855, UI: support searching in menus
