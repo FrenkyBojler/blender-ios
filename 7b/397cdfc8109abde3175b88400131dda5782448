@@ -15,3 +15,4 @@ Referenced by issue #52605, FBX Exporter not scaling properly
 Referenced by issue #52580, principled BSDF Reflected Roughness bug.
 Referenced by issue #52567, Limit to selection to visible function (problem)
 Referenced by issue #52571, NLA Tracks cause lower performance with Armature Ghost
+Referenced by issue #52574, "Path tracing tile" starts at 0 instead of 1
