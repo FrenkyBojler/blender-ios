@@ -5,3 +5,4 @@ Referenced by issue #61880, massively increased .blend load times
 Referenced by issue #61858, Custom object coordinate does not work on Eevee
 Referenced by issue #61814, Cube metaball are broken
 Referenced by issue #61821, Wrong insertion of keyframe on camera object while on camera view on Eeevee
+Referenced by issue #61803, Z-Fighting in 3DView (Wireframe Mode)
