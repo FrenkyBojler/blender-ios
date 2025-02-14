@@ -1,2 +1,3 @@
 Referenced by commit f613614fceb, Fix T103136: Cannot activate viewer node in group
 Referenced by commit 587b213fe16, Fix: Node sorting broken after node identifier commit
+Referenced by issue #104233, Regression: Crash if in one node editor create node group but in other one delete this node
