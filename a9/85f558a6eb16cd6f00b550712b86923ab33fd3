@@ -1,1 +1,2 @@
 Referenced by commit b8a634cb1df, Fix T95489: support writing to vertex groups with geometry nodes again
+Referenced by issue #95489, Write to Vertex Groups from Geometry Nodes is not working anymore
