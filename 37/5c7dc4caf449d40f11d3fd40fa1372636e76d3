@@ -5,3 +5,4 @@ Referenced by issue #78037, fresh install of blender 2.83.0 not able to save use
 Referenced by issue #77102, (v2.82+, CYCLES) Rendering with motion blur enabled causing unexpected, broken-looking result on specific frames
 Referenced by issue #76981, crash when going to shading tab when i have vieuwportshading enabled
 Referenced by issue #76669, Dope Sheet Editor, crash right clicking on a Mask channel
+Referenced by issue #76651, Blender crashes when entering edit mode
