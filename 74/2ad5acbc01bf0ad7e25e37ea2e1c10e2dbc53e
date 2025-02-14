@@ -1,0 +1,1 @@
+Referenced by issue #79412, Blender failed to build due to error C4133 with MSVC on windows
