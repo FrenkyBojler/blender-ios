@@ -1,2 +1,3 @@
 Referenced by commit 0e6d70fec9a, Fix "Open Clip" operator in Clip Editor broken
 Referenced by commit 6bd270f3af7, Fix "Open Clip" operator in Clip Editor broken
+Referenced by issue #95366, Crash when closing render window in "Save as".
