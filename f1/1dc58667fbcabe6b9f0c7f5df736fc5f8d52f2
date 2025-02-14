@@ -1,0 +1,1 @@
+Referenced by issue #99532, OBJ: new 3.2 importer in some cases ("o" after vertex data) fails to import faces correctly
