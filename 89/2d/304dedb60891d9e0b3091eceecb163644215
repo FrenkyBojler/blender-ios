@@ -1,2 +1,3 @@
 Referenced by issue #53683, 2.79a release
 Referenced by issue #52291, Boolean - BMesh - Sometimes fails when using ngons
+Referenced by issue #49321, Bmesh Boolean fail to cut on subdivided mesh
