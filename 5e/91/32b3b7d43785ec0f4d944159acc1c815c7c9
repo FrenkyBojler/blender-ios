@@ -10,3 +10,4 @@ Referenced by issue #52393, Edge lengths are shown with wrong values
 Referenced by issue #52371, Baking normal maps with Cycles and Open Shading Language enabled is broken.
 Referenced by issue #52358, OSL not working in 2.79 RC1
 Referenced by issue #52349, Subsurface scattering renders black on particle effects
+Referenced by issue #52329, Difference Boolean Modifier does not work in most simple cases with Array Modifier
