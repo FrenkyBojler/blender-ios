@@ -3,3 +3,4 @@ Referenced by issue #94016, Pose Library: Clicking through the interface
 Referenced by issue #92364, UX: Prevent click-through panels and used header area
 Referenced by issue #91579, Click and drag on the right panel tabs will call active tool (Tweak, Box Select etc)
 Referenced by issue #91538, Pose library panel doesn't play well with left click keymap for viewport rotation
+Referenced by issue #86022, 3D View: mouse clicks pass through interface
