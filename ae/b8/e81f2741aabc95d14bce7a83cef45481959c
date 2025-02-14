@@ -1,3 +1,4 @@
 Referenced by commit 0c58ad8a34c, Cleanup: remove unused common_restrict_check function
 Referenced by commit d865ac8b1bb, Fix T69653: Freestyle modifiers "Distance from ..." python error
 Referenced by commit 6fdfa556678, Fix T60030: Select pattern fails with pose bones
+Referenced by issue #57929, Cache line in timeline is not updated when changing active object
