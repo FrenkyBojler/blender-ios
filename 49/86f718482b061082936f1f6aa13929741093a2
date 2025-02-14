@@ -4,3 +4,4 @@ Referenced by commit fb875786987, Fix T96255: Node socket fails to drag
 Referenced by issue #101904, Keymap Option Tweak Missing
 Referenced by issue #96701, Gizmo does not show unless screen is updated(?) for right click select.
 Referenced by issue #96515, Regression: Can not translate after selecting with Select Circle
+Referenced by issue #96120, Crash when trying to drag and drop from the file browser
