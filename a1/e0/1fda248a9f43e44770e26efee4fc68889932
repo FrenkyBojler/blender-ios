@@ -1,2 +1,3 @@
 Referenced by issue #45175, Internal / Cycles parent with particle system render mismatch
 Referenced by issue #45117, Dark dupliface objects in viewport
+Referenced by issue #45104, RGBA PNG Stereo 3d Anaglyph renders turn all shades of black into alpha in 2.75 RC1
