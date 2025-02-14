@@ -2,3 +2,4 @@ Referenced by issue #49051, Exp. Microdisplacement; trying to use adaptive dicin
 Referenced by issue #49057, 2.77.3 Textured viewport smooth shading regression
 Referenced by issue #49060, crashes during render with no apparent reason..
 Referenced by issue #49041, Link -> Make Local -> All doesnt do anything
+Referenced by issue #49048, Microdisplacement; adaptive dicing introduces interpolation errors in the rendered view
