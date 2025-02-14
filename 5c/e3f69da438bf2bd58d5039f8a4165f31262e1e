@@ -1,2 +1,3 @@
 Referenced by issue #77418, Changes in Texture Painting are not saved
 Referenced by issue #66628, "Auto Save Modified Image" when closing blender is not working.
+Referenced by issue #65511, Opening Blender's File Chooser from a Dialog Causes Blender to Crash
