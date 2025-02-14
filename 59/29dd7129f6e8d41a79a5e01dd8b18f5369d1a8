@@ -1,1 +1,2 @@
 Referenced by commit 65f674b570f, Fix T75535: Compositor backdrop gizmo dragging interrupts with node
+Referenced by issue #75535, Compositor: backdrop dragging interrupts with node mouse over (regression)
