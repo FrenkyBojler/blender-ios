@@ -1,1 +1,2 @@
 Referenced by commit 11be9edae26, Fix missing proper 'make local' call for liboverrides from outliner.
+Referenced by issue #92793, File - > Append crashes every time on 2.93.6 (ARM)
