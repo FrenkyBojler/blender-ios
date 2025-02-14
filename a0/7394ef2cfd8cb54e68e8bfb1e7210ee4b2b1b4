@@ -2,3 +2,4 @@ Referenced by commit bcfeeeecdab, Fix #122466: Underlines on Text objects have o
 Referenced by commit 629a1c1639c, Fix T70418: Text Underline stays Flat on TextCurve Extrude
 Referenced by issue #122540, Fix #122466: Underlines on Text objects have overlapping geometry
 Referenced by issue #122466, Underlines on default Text objects have overlapping (z-fighting) geometry
+Referenced by issue #70783, Unconsistencies with Underline of text
