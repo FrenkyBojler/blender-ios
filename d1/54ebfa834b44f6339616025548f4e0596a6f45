@@ -1,2 +1,3 @@
 Referenced by commit 22206a15928, Fix #110571: Property option 'TEXTEDIT_UPDATE' no longer updates
 Referenced by commit a4583f1cb88, Cleanup: quiet clang's missing-variable-declarations warning in RNA
+Referenced by issue #110571, String properties with TEXTEDIT_UPDATE option no longer update
