@@ -2,3 +2,4 @@ Referenced by commit 45d2e46752b, Cleanup: remove unnecessary shader flag in Chi
 Referenced by commit be9555d1181, EEVEE: change Glass BSDF to match Cycles
 Referenced by issue #111687, EEVEE: change Glass BSDF behaviour to match Cycles
 Referenced by issue #108211, Cycles All Transmission Render Passes wrong over bright image data with GlassBSDF
+Referenced by issue #99447, Principled v2 BSDF
