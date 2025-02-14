@@ -1,3 +1,4 @@
 Referenced by issue #44481, BGE crashes with Character Physics
 Referenced by issue #44463, Crash on "Full Sample"
 Referenced by issue #44464, Viewport mipmaps no longer toggle off
+Referenced by issue #44472, Stereo 3D save options missing from save image (F3)
