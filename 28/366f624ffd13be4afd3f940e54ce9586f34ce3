@@ -1,0 +1,1 @@
+Referenced by issue #127187, invoke_confirm() will show at the center of the viewport when passing 'message' argument, even if passing the 'default' 'message' value
