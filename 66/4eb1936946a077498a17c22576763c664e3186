@@ -1,1 +1,2 @@
 Referenced by commit 9c3adb789a4, GPU: ShaderBuilder: Fix compilation on non-Mac platform
+Referenced by issue #95047, WITH_GPU_SHADER_BUILDER doesn't work on Mac due to linking errors.
