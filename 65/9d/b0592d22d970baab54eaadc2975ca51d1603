@@ -1,0 +1,1 @@
+Referenced by issue #79313, GPencil: Select Last unexpectedly selects the oldest point (instead of the newest) with strokes extruded from a single Gpencil point
