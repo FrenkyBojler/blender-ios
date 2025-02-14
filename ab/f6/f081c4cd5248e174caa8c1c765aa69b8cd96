@@ -36,3 +36,4 @@ Referenced by issue #49288, Ease drivers don't migrate to new Bendy Bones (datap
 Referenced by issue #49239, Huion Graphics Tablet
 Referenced by issue #49183, Bevel segments bug
 Referenced by issue #49186, Volume Shaded object partially cancels out faces of other objects that touch its own faces
+Referenced by issue #49190, Model scaling distorts hair that uses kink
