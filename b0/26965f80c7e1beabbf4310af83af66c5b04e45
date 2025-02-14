@@ -1,1 +1,2 @@
 Referenced by issue #76649, crash  by moving an object with gizmos
+Referenced by issue #76504, Extrusion doesn't take in account the current transform orientation
