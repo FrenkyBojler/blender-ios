@@ -1,2 +1,3 @@
 Referenced by commit f4b7d575510, Fix T72175: DrawManager Crash Large Objects
 Referenced by issue #72175, Crash When Drawing Large Meshes
+Referenced by issue #72130, Wireframe overlay still visible after turning it off
