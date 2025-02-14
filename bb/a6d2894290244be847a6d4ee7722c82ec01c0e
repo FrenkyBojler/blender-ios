@@ -1,2 +1,3 @@
 Referenced by issue #102336, Regression: Enabling Dynamic Topology Causes Crash on Plane Mesh
 Referenced by issue #102318, Regression: Smoothing a Mesh in Edit Mode Causes Segmentation Fault
+Referenced by issue #102311, Regression: Crash when opening a file from a directory that is part of the asset library
