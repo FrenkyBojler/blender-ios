@@ -9,6 +9,8 @@
 
 #pragma once
 
+#include <cstring>
+
 #include "DNA_ID_enums.h"
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
@@ -417,6 +419,38 @@ typedef struct ID_Runtime {
   struct ID_Readfile_Data *readfile_data;
 } ID_Runtime;
 
+/**
+ * A hash of an ID. This is used for shallow and deep hashes of data-blocks.
+ * It has a null-state, which represents the case when the hash is not yet set.
+ */
+typedef struct IDHash {
+  char data[16];
+
+#ifdef __cplusplus
+  uint64_t hash() const
+  {
+    return *reinterpret_cast<const uint64_t *>(this->data);
+  }
+
+  bool is_null() const
+  {
+    constexpr IDHash null_hash{};
+    return *this == null_hash;
+  }
+
+  friend bool operator==(const IDHash &a, const IDHash &b)
+  {
+    return memcmp(a.data, b.data, sizeof(a.data)) == 0;
+  }
+
+  friend bool operator!=(const IDHash &a, const IDHash &b)
+  {
+    return !(a == b);
+  }
+
+#endif
+} IDHash;
+
 typedef struct ID {
   /* There's a nasty circular dependency here.... 'void *' to the rescue! I
    * really wonder why this is needed. */
@@ -459,6 +493,34 @@ typedef struct ID {
    * re-allocations (e.g. due to undo/redo steps).
    */
   unsigned int session_uid;
+
+  /**
+   * This is a hash of the contents of the ID without any of its dependencies. It only has a
+   * well-defined meaning in stored .blend files
+
+    TODO
+   *
+   * It is used to
+   * compute the deep hash when embedding a linked data-block. It is *not* updated eagerly on local
+   * data-blocks when they are updated. Instead, it may be randomized when writing the data-block
+   * to a .blend file.
+   *
+   * When embedding a linked data-block that does not have a shallow hash yet (because it was
+   * written in an older version of Blender), it can be derived from a hash of the entire .blend
+   * file.
+   */
+  IDHash shallow_hash;
+  /**
+   * This is only available on embedded linked data-blocks. It is a hash of the contents the
+   * data-block including all its dependencies. It is computed when first embedding the data-block
+   * and is not changed afterwards. It can be used to detect that embedded data-blocks in two
+   * separate .blend files are the same.
+   *
+   * Two data-blocks with the same deep hash are assumed to be interchangeable, but not necessarily
+   * exactly the same. For example, it's possible to change node positions on embedded data-blocks
+   * without changing the deep hash.
+   */
+  IDHash deep_hash;
 
   IDProperty *properties;
 

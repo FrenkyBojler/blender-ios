@@ -105,6 +105,7 @@
 #include "BKE_blender_version.h"
 #include "BKE_bpath.hh"
 #include "BKE_global.hh" /* For #Global `G`. */
+#include "BKE_id_hash.hh"
 #include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_layer.hh"
@@ -1078,7 +1079,9 @@ static void write_id(WriteData *wd, ID *id)
   if (id_type->blend_write != nullptr) {
     BlendWriter writer = {wd};
     BLO_Write_IDBuffer id_buffer{*id, &writer};
-    id_type->blend_write(&writer, id_buffer.get(), id);
+    ID *id_to_write = id_buffer.get();
+    id_to_write->shallow_hash = blender::bke::id_hash::get_new_random_shallow_hash();
+    id_type->blend_write(&writer, id_to_write, id);
   }
   mywrite_id_end(wd, id);
 }
