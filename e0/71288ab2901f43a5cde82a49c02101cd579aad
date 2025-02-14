@@ -1,2 +1,3 @@
 Referenced by commit 2d936717783, Fix: unnecessary node updates
 Referenced by commit cbcfca0a19e, Fix #112716: Custom sockets ignore draw_color method
+Referenced by commit f9c733dbd68, Fix #112014: Crash making node group with multiple input links
