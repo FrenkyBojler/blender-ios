@@ -1,3 +1,4 @@
 Referenced by commit 803c757c2b6, Fix T52855: Eevee: viewport artifacts
 Referenced by issue #52855, Eevee: viewport artifacts
 Referenced by issue #52812, Color difference between viewport and OpenGL render.
+Referenced by issue #52778, Blender Branch 2.8 crashes
