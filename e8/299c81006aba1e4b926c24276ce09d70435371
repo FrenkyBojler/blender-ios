@@ -70,3 +70,4 @@ Referenced by issue #50261, App crashes adding Inverse Kinematics
 Referenced by issue #50265, Low DPI when installing for the first time Blender in Windows 10
 Referenced by issue #50266, Blender crashes after multiple right clicks
 Referenced by issue #50269, OpenCL kernels compilation error with AMDGPU-PRO
+Referenced by issue #50242, Random crash to desktop in Edit Mode when try to select multiple face.
