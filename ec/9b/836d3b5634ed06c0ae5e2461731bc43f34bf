@@ -1,1 +1,2 @@
 Referenced by issue #85455, Linux: Double backslash in file path interpreted as path separator
+Referenced by issue #74579, File with file name "\" (single backslash) crashes Blender
