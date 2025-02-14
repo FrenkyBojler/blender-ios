@@ -1,2 +1,3 @@
 Referenced by issue #42231, Imperial Units not working
 Referenced by issue #42167, Blender crashes when calling LibNew/LibFree multiple times on objects with materials
+Referenced by issue #42061, Bevel modifier bevels edges that weren't specified in vertex group.
