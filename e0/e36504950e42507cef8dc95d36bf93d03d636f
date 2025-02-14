@@ -3,3 +3,4 @@ Referenced by issue #123406, Follow Active Quads broken in 4.0 onward
 Referenced by issue #115432, Regression: UV Follow Active Quads operator moves unselected vertices in UV editor
 Referenced by issue #115075, Follow Active Quads AssertionError if used via the UV Editor
 Referenced by issue #114869, Regression: Follow Active Quads not working
+Referenced by issue #109674, Uv folllow active quad its not working
