@@ -1,1 +1,2 @@
 Referenced by commit 65dcf812a5e, Fix T80182: Curve [Edit Mode] : Can't Deselect Control Point with Select Box
+Referenced by commit bf8b62e8748, Fix curve handle color ID display
