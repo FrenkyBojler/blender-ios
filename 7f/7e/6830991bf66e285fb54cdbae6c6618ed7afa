@@ -1,2 +1,3 @@
 Referenced by commit 0fe25a6232c, Fix T85939: Eevee Specular BSDF shader compile error
 Referenced by issue #93014, Blender crash on combining textures (intel)
+Referenced by issue #88219, Regression: Massive drops in Animation playback (fps) in the viewport
