@@ -3,3 +3,4 @@ Referenced by issue #59738, Buggy GUI
 Referenced by issue #59732, It's impossible to delete a Ruler
 Referenced by issue #59505, Knife tool cut preview line becomes black.
 Referenced by issue #58888, Crash on toggling "hide object" if "disable object" is driver controlled.
+Referenced by issue #58364, When Spacebar is set to "Search", toolbar tooltips don't show shortcuts.
