@@ -49,3 +49,4 @@ Referenced by issue #109256, Outliner: Port remaining ID elements to new tree-el
 Referenced by issue #109162, Outliner: Port object elements to new tree-element code design
 Referenced by issue #108964, Outliner: Port armature elements to new tree-element code design
 Referenced by issue #108943, Outliner: Port collection elements to new tree-element code design
+Referenced by issue #108929, Outliner: Port grease pencil legacy elements to new tree-element code design
