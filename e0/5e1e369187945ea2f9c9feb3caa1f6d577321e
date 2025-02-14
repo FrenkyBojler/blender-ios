@@ -21,3 +21,4 @@ Referenced by issue #98819, Blender 3.2.0 crashes at "Add Color Attribute" while
 Referenced by issue #98795, Regression: Crash after moving NLA action strips
 Referenced by issue #98731, Vertex Paint mode can edit only 8 color attributes
 Referenced by issue #98739, Blender 3.2.0 crashes at startup (BUT not with "blender-softwaregl")
+Referenced by issue #98719, Choosing HIP as Render Device Option causes immediate crash on Linux
