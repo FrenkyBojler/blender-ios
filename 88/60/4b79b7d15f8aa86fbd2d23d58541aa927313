@@ -1,2 +1,3 @@
 Referenced by commit 6c33d3d01b6, Fix T86944: Incorrect seeking in some movies
 Referenced by issue #86944, Regression: artefacts in video between Keyframes in VSE
+Referenced by issue #70529, Verify ffmpeg and other image and video libraries use optimal build flags
