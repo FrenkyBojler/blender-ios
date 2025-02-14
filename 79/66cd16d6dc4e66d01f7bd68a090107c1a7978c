@@ -10,3 +10,4 @@ Referenced by issue #108219, STL import crashes Blender
 Referenced by issue #108108, Regression: Crash when try to add remesh modifier
 Referenced by issue #107647, Combine crash
 Referenced by issue #106845, Geometry Nodes: Extrude Mesh node with individual mode disabled to watertight mesh causes crash
+Referenced by issue #106828, Regression: Geometry Nodes: Extrude Mesh node to faceless mesh causes crash
