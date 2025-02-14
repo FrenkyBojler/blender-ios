@@ -1,1 +1,2 @@
 Referenced by commit 52c32147765, Fix distortion regression test after recent commit
+Referenced by issue #101326, Find Missing Files operator corrects the sound file path but the sound strip doesn't work until it is updated
