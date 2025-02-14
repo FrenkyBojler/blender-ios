@@ -9,3 +9,4 @@ Referenced by issue #43122, Shrinkwrap modifier confusion on linked meshes
 Referenced by issue #43097, 2.72 not detecting CUDA?
 Referenced by issue #43086, UV Mapping Problem when using Nodes in GE
 Referenced by issue #43078, Proxy file doesn't respect the strip Color Space or Sequence's
+Referenced by issue #43046, Bool modifier must get re-applied when opening a file
