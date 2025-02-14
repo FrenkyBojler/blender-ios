@@ -1,1 +1,2 @@
 Referenced by commit 2d472b70e5a, Revert "Cycles: enable HIP for Vega and Vega II (Radeon 7) GPUs on Windows"
+Referenced by issue #96950, HIP compile error running Blender 3.2 Alpha on Linux with Vega 64 and ROCm 5.1
