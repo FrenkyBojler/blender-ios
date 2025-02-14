@@ -59,3 +59,4 @@ Referenced by issue #57973, Importing scikit-learn opens new scene from multipro
 Referenced by issue #57888, Grease Pencil Ruler Bug
 Referenced by issue #57793, Maintain Volume constraint appears to have no effect in 2.79
 Referenced by issue #57785, Bugged UI Text
+Referenced by issue #57747, Blender 2.79 Cycles Renders Depth/Mist with Banding in 32 bit .EXR Files
