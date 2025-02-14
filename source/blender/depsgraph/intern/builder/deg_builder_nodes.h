@@ -68,7 +68,6 @@ struct TimeSourceNode;
 class DepsgraphNodeBuilder : public DepsgraphBuilder {
  public:
   DepsgraphNodeBuilder(Main *bmain, Depsgraph *graph, DepsgraphBuilderCache *cache);
-  ~DepsgraphNodeBuilder() override;
 
   /* For given original ID get ID which is created by copy-on-evaluation system. */
   ID *get_cow_id(const ID *id_orig) const;
@@ -287,7 +286,7 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
    * Allows to re-use certain values, to speed up following evaluation. */
   struct IDInfo {
     /* Copy-on-written pointer of the corresponding ID. */
-    ID *id_cow;
+    ID *id_cow = nullptr;
     /* Mask of visible components from previous state of the
      * dependency graph. */
     IDComponentsMask previously_visible_components_mask;
@@ -295,6 +294,8 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
     uint32_t previous_eval_flags;
     /* Mesh CustomData mask from the previous depsgraph. */
     DEGCustomDataMeshMasks previous_customdata_masks;
+
+    ~IDInfo();
   };
 
  protected:
@@ -338,7 +339,7 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
   bool is_parent_collection_visible_;
 
   /* Indexed by original ID.session_uid, values are IDInfo. */
-  Map<uint, IDInfo *> id_info_hash_;
+  Map<uint, IDInfo> id_info_hash_;
 
   /* Set of IDs which were already build. Makes it easier to keep track of
    * what was already built and what was not. */
