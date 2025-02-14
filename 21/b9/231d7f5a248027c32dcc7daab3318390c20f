@@ -3,3 +3,4 @@ Referenced by issue #89968, Regression: Strange crease when using proportional e
 Referenced by issue #87808, 2.93 - Proportional Edit Connected Mode with hidden geometry
 Referenced by issue #78752, Proportional Editing: 'Connected Only' option can cause distortions depending on topology
 Referenced by issue #53602, Mesh - Proportional Editing (Connected) Bug
+Referenced by issue #43393, proportional editing issue with "connected" mode
