@@ -1,1 +1,2 @@
 Referenced by commit 112a2c0627f, Fix error from 21ea4995585931ad54f51c1878c06c526c3355a5
+Referenced by issue #100286, Crash when trying to autocomplete in console on a depsgraph instance
