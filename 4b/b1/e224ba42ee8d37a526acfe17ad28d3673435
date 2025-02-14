@@ -46,3 +46,4 @@ Referenced by issue #49653, Quicktime render error
 Referenced by issue #49656, Crash when starting playback while using JACK audio with A/V sync
 Referenced by issue #49706, Material Render mode viewport not updating with changes in image texture node
 Referenced by issue #49638, Changing multiple object dimensions doesn't work
+Referenced by issue #49639, Crash when disconnecting joystick while game engine is running
