@@ -1,2 +1,3 @@
 Referenced by issue #48822, Crash when I try to use "Join" (Ctrl Key + J) with two meshes
 Referenced by issue #48824, Cycles: Crash with glass+volume(?)
+Referenced by issue #48826, Crash while rendering in viewport (Cycles)
