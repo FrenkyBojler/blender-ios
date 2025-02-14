@@ -1,2 +1,3 @@
 Referenced by commit 768c68f19b8, Fix #120179: Assert failure after sculpt trim operation
 Referenced by commit 65274dc0966, Fix #116130: Mirrored custom normals broken again
+Referenced by issue #120179, Assert failure after Sculpt Trim operation
