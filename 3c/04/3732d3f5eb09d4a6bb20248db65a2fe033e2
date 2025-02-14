@@ -3,3 +3,4 @@ Referenced by issue #54360, FFMPEG bitrate not editable for all codecs
 Referenced by issue #52484, Linking Materials ignores Object or Data preference of source
 Referenced by issue #52419, OpenCL missing from Cycles Compute Device System option
 Referenced by issue #51738, Live render crash
+Referenced by issue #51453, GPU Render problem
