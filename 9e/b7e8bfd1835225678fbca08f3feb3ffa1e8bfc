@@ -1,1 +1,2 @@
 Referenced by commit e7e1fd8a205, Fix: Sculpt: Incorrect overlay visibility check
+Referenced by commit d065d54972b, Fix: Missing sculpt overlays for dynamic topology
