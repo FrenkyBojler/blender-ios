@@ -1,2 +1,3 @@
 Referenced by issue #66295, Collection instance duplicates don't have selection outline
 Referenced by issue #64810, Wrong selection outline color for dupli-face instances
+Referenced by issue #64438, Collection Instance object highlight wrong
