@@ -1,2 +1,3 @@
 Referenced by commit e0763760e43, Cleanup: `IDTypeInfo` new `asset_type_info` member.
 Referenced by issue #92939, Blender crash when drop hidden object to the viewport
+Referenced by issue #90198, Object Snapping on Drag & Drop
