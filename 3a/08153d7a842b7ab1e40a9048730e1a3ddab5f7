@@ -7,3 +7,4 @@ Referenced by issue #70146, hair eevee rendering broken.
 Referenced by issue #70123, Crash: Add a circle in the viewport
 Referenced by issue #70106, Objects with multiple materials are not displaying correctly - transparent faces
 Referenced by issue #70107, Blender crashes using Irradiance Volume with Curve inside
+Referenced by issue #70091, volumetric broken, not refresh
