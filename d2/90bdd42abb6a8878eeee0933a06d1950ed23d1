@@ -1,2 +1,3 @@
 Referenced by issue #75929, Blender 2.83 (sub 13) crashing on start, softwaregl working slow
 Referenced by issue #75610, Outliner select hierarchy parent and children drag'n'drop into another collection works incorrectly
+Referenced by issue #74052, Crash when baking Dynamic Paint Image Sequence multiple times in loop
