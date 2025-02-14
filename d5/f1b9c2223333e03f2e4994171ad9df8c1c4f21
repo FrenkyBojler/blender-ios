@@ -3,3 +3,4 @@ Referenced by commit de687b6fa02, Fix T44465: Crash using VSE OGL render + Greas
 Referenced by issue #97735, Stereo Convergence Plane Distance value is arbitrarily limited when mouse is used to increment it beyond a point.
 Referenced by issue #97716, In stereo interlaced mode the brush cursor is shown in mono
 Referenced by issue #97708, Blender forgets stereo settings
+Referenced by issue #53335, RNA error with texture nodes and EXR
