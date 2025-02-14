@@ -3,3 +3,4 @@ Referenced by issue #129845, can't open blender
 Referenced by issue #129556, Crash: Access Violation when running a python extension
 Referenced by issue #129479, gltf export loses translation information about Empty objects
 Referenced by issue #129401, Blender 4.2.3 crashes during BMesh garbage collection
+Referenced by issue #129406, VSE: Doing "copy to selected" with a Scene strip's input property (Camera/Sequencer) will crash Blender.
