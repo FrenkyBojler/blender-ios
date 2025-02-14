@@ -1,3 +1,4 @@
 Referenced by commit 6ce31d173d0, Fix #113505: Scale strips in nla with snap active seems broken
 Referenced by issue #113554, Fix #113505: Scale strips in nla with snap active seems broken
 Referenced by issue #110121, Fix #113552: NLA Markers do not reset when length reaches 0.0
+Referenced by issue #100749, Blender LTS: Maintenance Task 3.3
