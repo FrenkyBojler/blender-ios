@@ -1,2 +1,3 @@
 Referenced by issue #66628, "Auto Save Modified Image" when closing blender is not working.
 Referenced by issue #65939, Eevee shader compilation stalls, freezes OS (Windows), forces to restart computer
+Referenced by issue #65902, .psd files can be overwritten via "Save all all images" into lossy JPEG, resulting in irreversable loss of alpha channel and all the layer data!
