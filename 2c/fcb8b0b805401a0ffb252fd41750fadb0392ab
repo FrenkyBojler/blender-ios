@@ -3,3 +3,4 @@ Referenced by commit c38a52885bf, Fix #110037: uninitialized result array and ty
 Referenced by commit cd6a4282592, Cleanup: Use newer IndexMask implementation in split edges node
 Referenced by commit 986ff5a3a44, Cleanup: Remove IndexRange::as_span() static array and cache
 Referenced by issue #117805, BLI: support set operations on index masks
+Referenced by issue #110098, Fix #110037: Uninitialized result arrays and typos
