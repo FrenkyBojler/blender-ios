@@ -1,3 +1,4 @@
 Referenced by commit aa6f0f3d1fd, Depsgraph: remove mesh edit-mode pointer duplication
 Referenced by commit 45720922f7b, Revert "Temporarily disable material preview (T51796 workaround)"
 Referenced by issue #51796, Workspace: Memleak in particles and customdata
+Referenced by issue #51782, Workspace: Cycles material preview crash
