@@ -1,2 +1,3 @@
 Referenced by issue #56015, Crash within a few tries of attempting to render the scene with EEVEE and Freestyle enabled
 Referenced by issue #56020, Crash while opening .blend file made with older version
+Referenced by issue #56022, "terminate called after throwing an instance of 'std::bad_alloc'"
