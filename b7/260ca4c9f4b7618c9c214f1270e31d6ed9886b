@@ -1,1 +1,2 @@
 Referenced by commit de3fda29c79, Fix T93054: crash when deleting a missed linked file
+Referenced by issue #92799, File Can't be Opened at all When the Linked File Can't be Found.
