@@ -1,2 +1,3 @@
 Referenced by commit 988a14aa143, COW Fix: Transforming animated objects would jump when starting transforms
 Referenced by issue #54831, COW Operators: Transform
+Referenced by issue #54812, COW Operators: Pose Armature
