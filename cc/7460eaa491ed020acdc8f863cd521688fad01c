@@ -1,2 +1,3 @@
 Referenced by commit c935a06edbf, Cleanup: correct comments in ED_editors_init
 Referenced by issue #57715, Crash bug in blender.exe
+Referenced by issue #54809, Multi-Edit: After reloading files with multiple objects in pose mode, only single active object can be edited
