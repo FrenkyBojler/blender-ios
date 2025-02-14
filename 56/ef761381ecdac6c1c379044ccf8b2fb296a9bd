@@ -1,2 +1,3 @@
 Referenced by issue #72863, Blender Alembic export does not export material slots
 Referenced by issue #72841, Blender does not recognize and use my Nvidia GPU. It only uses the integrated intel graphics card
+Referenced by issue #63969, [Blender 2.8] Evee Baking Indirect Lighitng causes scene to crash
