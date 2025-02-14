@@ -2,3 +2,4 @@ Referenced by issue #62092, Render image after camera position is animated does 
 Referenced by issue #62047, New wireframes missing fresnel effect
 Referenced by issue #62033, Can't access bpy.data.screens by name.
 Referenced by issue #62040, Irradiance Volume broken
+Referenced by issue #57560, Crash while rendering short evee animation to ffmpeg video.
