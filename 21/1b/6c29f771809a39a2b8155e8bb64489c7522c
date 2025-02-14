@@ -7,3 +7,4 @@ Referenced by issue #78556, Inconsistent behavior in Dynamic Paint when moving C
 Referenced by issue #78205, Material preview with eevee render engine shows pink color regardless of material settings.
 Referenced by issue #78053, Crash on startup on old laptop
 Referenced by issue #77971, de-initializing execution taking too much time
+Referenced by issue #77892, Denoise node does not work
