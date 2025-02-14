@@ -5,3 +5,4 @@ Referenced by issue #128903, Key duplication in the dopesheet editor enables sna
 Referenced by issue #128864, macOS EEVEE - "Error: Shadow buffer full, may result in missing shadows and lower performance"
 Referenced by issue #128785, Brush asset icons won't reload allways after Undo
 Referenced by issue #128758, Error Message when using old Shortcut for Crease Brush
+Referenced by issue #128759, Wrong pop-up menu in Sculpt Mode on Curves Object
