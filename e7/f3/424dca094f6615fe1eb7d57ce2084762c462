@@ -1,1 +1,2 @@
 Referenced by issue #38996, bpy.ops.view3d.view_selected crashes with overridden context
+Referenced by issue #38814, Sculpt Mode Ctrl + Right Click Shortcut absent
