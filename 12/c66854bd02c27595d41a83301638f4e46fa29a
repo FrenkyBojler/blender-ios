@@ -1,3 +1,4 @@
 Referenced by issue #95695, Blender 2.93 Crashes after using Boolean modifier
 Referenced by issue #91339, Crash on Boolean modifier when ob_src->totcol > ob_dst->totcol
 Referenced by issue #90818, Crash to desktop with boolean modifier
+Referenced by issue #88449, Blender LTS: Maintenance Task 2.93
