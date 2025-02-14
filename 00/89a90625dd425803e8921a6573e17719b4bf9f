@@ -2,3 +2,4 @@ Referenced by commit 4e873487dca, Fix: Potential crash in curves attribute set o
 Referenced by commit b5e5d4b335a, Fix #134108: Set attribute operator crash with multiple objects
 Referenced by commit d80569cdd94, Fix #123116: Regression: F3 search crash in pose mode
 Referenced by issue #134108, Using Set Attribute when multiple Objects are selected will crash Blender if all the Objects don't have selected Attribute
+Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
