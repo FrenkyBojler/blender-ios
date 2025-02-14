@@ -8,3 +8,4 @@ Referenced by issue #47584, Pie Menu don't change modes
 Referenced by issue #47495, Overlay blending mode.
 Referenced by issue #47416, openGL renders do not have render slots
 Referenced by issue #47322, Cloth simulation + motion blur = rendering slower 100x and driver crush.
+Referenced by issue #47281, Blender crashes randomly on freshly installed windows 10 (OpenGL)
