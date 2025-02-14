@@ -1,0 +1,1 @@
+Referenced by issue #81155, `Keyframe.select_control_point` cannot be `False`
