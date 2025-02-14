@@ -1,0 +1,1 @@
+Referenced by issue #86106, bpy.types.SpaceView3D.draw_handler_remove(...) causes Blender to crash
