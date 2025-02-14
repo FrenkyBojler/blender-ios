@@ -5,3 +5,4 @@ Referenced by issue #68144, Boolean Difference works like Boolean Union - modifi
 Referenced by issue #67744, Boolean Redesign
 Referenced by issue #61845, BMesh booleans fail with holes
 Referenced by issue #58814, BMesh boolean is just too much unreliable
+Referenced by issue #55466, Boolean Modifier set to difference not substracting the whole volume
