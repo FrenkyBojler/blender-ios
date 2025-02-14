@@ -1,3 +1,4 @@
 Referenced by commit 1019df81ffb, Fix T82251: Outliner Material Drag&Drop missing tree update
 Referenced by commit 5ee60c98157, Fix (unreported): Walk expansion on scene collection
 Referenced by commit 53d1f893228, Fix T79987: Crash when joining objects
+Referenced by issue #106021, Outliner: two linked objects selected, instead of one
