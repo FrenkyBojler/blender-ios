@@ -1,1 +1,2 @@
 Referenced by commit d29bd6c6b7b, Selecing a pose bone in outliner deselect others
+Referenced by issue #63066, Outliner crash when selecting object being in armature editmode [modeswitch]
