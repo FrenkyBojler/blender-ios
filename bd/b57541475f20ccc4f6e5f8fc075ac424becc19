@@ -15,3 +15,4 @@ Referenced by issue #101259, Geometry Nodes in searching pulls nodes from other 
 Referenced by issue #101245, Regression: Node Editor: Crash On Typing or Scrolling In Add Search
 Referenced by issue #101249, Regression: Nodegroups don't show up in node search anymore
 Referenced by issue #95446, Display asset node groups in the add menu
+Referenced by issue #95447, Display asset node groups in link-drag search
