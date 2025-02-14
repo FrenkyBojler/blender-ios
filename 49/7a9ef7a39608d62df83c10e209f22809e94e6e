@@ -1,3 +1,4 @@
 Referenced by issue #59038, Intermittent Crashes with Eevee Animation Rendering
 Referenced by issue #58905, Debug Assert when using "cut through" option for Knife Project
 Referenced by issue #58906, Cycles Engine for Blender 2.80b crashes upon using GPU as render device, typical AMD driver problem?
+Referenced by issue #58750, Missing tooltip for forcefield setting "Falloff/Power"
