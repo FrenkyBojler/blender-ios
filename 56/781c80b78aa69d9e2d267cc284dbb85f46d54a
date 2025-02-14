@@ -1,3 +1,4 @@
 Referenced by commit 211d631428a, Fix error in own previous fix (56781c80b7)
 Referenced by issue #112673, "Jump to keyframe" grayed out. Unable to jump between keyframes.
 Referenced by issue #111254, Fix #111212: Error running search if cursor is outside Blender window
+Referenced by issue #111212, Regression: Menu Search crash if mouse is outside of the blender window
