@@ -2,3 +2,4 @@ Referenced by issue #62206, Color controllers stuck in multiply node and «infec
 Referenced by issue #60598, Shape key keyframes won't change in value. They keep snapping back to the original keyframe's value
 Referenced by issue #59992, Issues when trying to keyframe force field properties
 Referenced by issue #59904, Cannot change input field after changing value in Graph Editor
+Referenced by issue #59178, Insert and modify keyframes on evaluation time for path animation with linear interpolation impossible
