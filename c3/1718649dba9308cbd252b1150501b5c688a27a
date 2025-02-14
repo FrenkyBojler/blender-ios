@@ -1,2 +1,3 @@
 Referenced by commit 9ee45646b43, Fix #119239: Use attribute names after free
 Referenced by issue #119242, Fix #119239: Use attribute names after free
+Referenced by issue #117553, Extrude Mesh node crashes when vertex group is present
