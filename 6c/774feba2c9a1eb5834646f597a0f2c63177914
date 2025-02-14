@@ -9,3 +9,4 @@ Referenced by issue #113611, Convert Attribute Mode does not have "UVMap" in Ble
 Referenced by issue #113358, Regression: EEVEE: Crash on extract UV from evaluated mesh with open UV Editor and selection
 Referenced by issue #111807, UVMap cannot be renamed to the default name
 Referenced by issue #108150, Repeated file block addresses in files saved with 3.5.1
+Referenced by issue #108053, Collada Export: texcoord set="N" no longer starts at 0
