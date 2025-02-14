@@ -5,3 +5,4 @@ Referenced by issue #115486, Content from linked scenes disappears after reopeni
 Referenced by issue #113109, Regression: Linked Data is not kept in 4.0 when It's not used
 Referenced by issue #106321, How to handle preservations of linked IDs when they are effectively unused.
 Referenced by issue #105786, How to handle linked data with 'fake user' set
+Referenced by issue #105687, Linked texts don`t saved
