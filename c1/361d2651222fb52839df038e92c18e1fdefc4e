@@ -1,1 +1,2 @@
 Referenced by issue #55181, Crash when calling spacebar menu after calling an operator that opens a new window via spacebar menu
+Referenced by issue #55182, Crash wheh changing the mesh datablock used by one object to another mesh
