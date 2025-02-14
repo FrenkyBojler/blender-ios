@@ -1,3 +1,4 @@
 Referenced by commit c23b6596b91, GPencil: Fix subdivision modifier disabled on strokes with 2 points
 Referenced by commit 76f513f6dcc, Fix T78601: User count errors when reading home-file
 Referenced by issue #81950, Grease Pencil Ignores 'Stroke Placement: Stroke'
+Referenced by issue #78574, GPencil: Z pass combine not work
