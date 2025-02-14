@@ -1,3 +1,4 @@
 Referenced by commit 1c0230b5739, Fix for Fix (c) : Normals Edit modifier  using unititialized array of normals...
 Referenced by issue #84664, Crash/Assert with two modifiers that require normals data [e.g. DataTransfer]
 Referenced by issue #74005, Keyboard input stops being registered after a few minutes
+Referenced by issue #73941, Custom normals from normal edit modifier ignored by further modifiers
