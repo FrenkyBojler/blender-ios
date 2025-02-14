@@ -1,2 +1,3 @@
 Referenced by issue #83706, inaccurate bm.calc_volume values
 Referenced by issue #79394, Incorrect volume calculation for complex object from 3D-Print toolbox
+Referenced by issue #79369, BMesh calc_volume() reports an incorrect volume, off by a significant factor
