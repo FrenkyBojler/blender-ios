@@ -39,3 +39,4 @@ Referenced by issue #48021, Object scaled down to 0 on one axis showing wrong sh
 Referenced by issue #48000, Color Picker, sample merged.
 Referenced by issue #47991, Smoke preview in viewport not showing up on some Mac systems
 Referenced by issue #47992, Stereo 3D Anaglyph rendered Images saved too light.
+Referenced by issue #47974, Global Material Override does not work in Cycles viewport
