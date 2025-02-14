@@ -41,3 +41,4 @@ Referenced by issue #50543, Entering a 0 infront any number gives an error
 Referenced by issue #50527, Blender crashed right after add texture node in compositor
 Referenced by issue #50529, Invalid curves from exported alembic cache
 Referenced by issue #50531, Blender closes when reduced to icon, Windows 10
+Referenced by issue #50524, Basis shapekey editing while rendering bug
