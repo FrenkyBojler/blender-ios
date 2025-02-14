@@ -1,1 +1,2 @@
 Referenced by commit 69f50e6ea98, Fix: objects in outliner cannot be disabled
+Referenced by issue #61382, Resetting / Unsetting Editor Type to default value closes blender with no error / option to recover session
