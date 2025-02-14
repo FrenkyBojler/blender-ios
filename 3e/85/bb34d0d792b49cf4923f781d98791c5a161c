@@ -5,3 +5,4 @@ Referenced by issue #83939, Blender randomly stops responding under Linux.
 Referenced by issue #82892, Bevel tool creates asymmetrical results on symmetrical objects
 Referenced by issue #82730, Huion Windows Ink no presure
 Referenced by issue #82570, Loading render kernels is very slow
+Referenced by issue #82467, Pose Mode Crash - Blender 2.90.1
