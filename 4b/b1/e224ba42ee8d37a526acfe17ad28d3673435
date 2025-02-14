@@ -14,3 +14,4 @@ Referenced by issue #50828, Grace Pencil crashes when try to use OpenGL render a
 Referenced by issue #50720, Bevel objects along 3D curves get distorted
 Referenced by issue #50563, Selecting mesh with Subdivision Surface at 6 closes Blender
 Referenced by issue #50549, Lack of total internal reflection in refract
+Referenced by issue #50444, Alembic animation bug
