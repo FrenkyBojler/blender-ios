@@ -1,3 +1,4 @@
 Referenced by issue #55739, Edit mode subsurf modifier not visible.
 Referenced by issue #55741, in Orphan mode in outliner is crash when Purge
 Referenced by issue #55721, Removing the active object from the current collection crashes Blender
+Referenced by issue #55723, 3D View shading style preview's duplicates
