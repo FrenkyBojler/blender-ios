@@ -57,3 +57,4 @@ Referenced by issue #44871, Blender hangs when using masking, dilate-erode and s
 Referenced by issue #44844, Crease Factor user setting doesnt work properly
 Referenced by issue #44818, Particle animation render contains erratic errant particles not seen in viewport or OpenGL render.
 Referenced by issue #44800, This .blend crashes immediately on 32bit Windows 7
+Referenced by issue #44807, Group Instance, empty rotation
