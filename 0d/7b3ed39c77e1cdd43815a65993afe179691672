@@ -1,0 +1,1 @@
+Referenced by issue #122340, Python-defined FloatProperty displayed as int when step == 100
