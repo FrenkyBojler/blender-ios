@@ -1,0 +1,1 @@
+Referenced by issue #94338, bpy.data.libraries.load does not return the right thing (Geometry Nodes, Collections, Shader nodes are fine)
