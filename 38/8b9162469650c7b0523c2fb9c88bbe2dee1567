@@ -1,3 +1,4 @@
 Referenced by commit 4c46a098242, Fix constrain plane not being set in tranform code
 Referenced by issue #82777, Current transform orientation not taken into account when using 'Align to transform orientation' AGAIN
 Referenced by issue #82416, API regression (2.83.5 -> 2.90.1)
+Referenced by issue #81825, Basic extrude Command on Axis (press E and then (x,y,z for respective axis)) not working accurately
