@@ -1,2 +1,3 @@
 Referenced by commit b73b6633090, Fix: Redundant submenus are created in the Add menu for certain catalog names
 Referenced by commit 601fba20a69, Fix #113619: Incorrect nested group assets in compositor add menu
+Referenced by issue #122855, Fix: Redundant submenus are created in the Add menu for certain catalog names
