@@ -12,3 +12,4 @@ Referenced by issue #98889, Regression: Sculpting on a linked copy of an objects
 Referenced by issue #98565, Regression: Error in console for unknown/unused BRUSH_PAINT icon
 Referenced by issue #97895, Regression: Geometry Nodes Color Attributes not working for Eevee on face and edge domains.
 Referenced by issue #97183, Regression: Vertex paint mode (old style) work only with 1st attribute layer, no matter what selected is
+Referenced by issue #97132, Sculpt mode. Color filter brush moves all geometry when there is no color attribute
