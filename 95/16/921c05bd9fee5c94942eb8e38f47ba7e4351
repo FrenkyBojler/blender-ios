@@ -11,3 +11,4 @@ Referenced by issue #72871, Overlay: 'Show Cone' for Spotlights is much smaller 
 Referenced by issue #72574, Overlay: 'Show Cone' for Spotlights not working anymore
 Referenced by issue #72490, Collections: Exclude From View toggle causes segment violation.
 Referenced by issue #72444, Crash when ctrl-selecting vertices
+Referenced by issue #72114, Curves are not drawing anymore (objectmode)
