@@ -1,2 +1,3 @@
 Referenced by issue #89795, color type alpha channel not yet implemented (for attribute mix node)
 Referenced by issue #83592, Crash on linked scene reload while this scene is active
+Referenced by issue #82374, Mix Attributes Node for the trees and flowers use case
