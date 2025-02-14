@@ -1,3 +1,4 @@
 Referenced by commit ca0450feeff, Fix T91064: Cycles low poly meshes having black edges when shade smoothed
 Referenced by issue #91141, Problem rendering non flat quads
 Referenced by issue #91064, Cycles Lower Poly Meshes Having Obvious Black Edges When Shade Smoothed
+Referenced by issue #90423, Cycles - Render Pass contains black pixels with no values
