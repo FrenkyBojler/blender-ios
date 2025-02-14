@@ -1,2 +1,3 @@
 Referenced by issue #65996, metaballs converted to meshes appear to render at an incorrect isosurface
 Referenced by issue #65696, Sequencer fails to create a new sound sequence strip via Python
+Referenced by issue #65471, unable to select other objects if an armature is in pose mode, even if Lock Object Modes is unchecked
