@@ -6,3 +6,4 @@ Referenced by issue #114417, Cleanup: Sculpt: Simplify face and face set iterati
 Referenced by issue #114094, Mask by Color brush has stopped working
 Referenced by issue #114101, Fix #114094: Mask by Color brush has stopped working
 Referenced by issue #113646, WIP: Cleanup: Avoid storing redundant state for sculpt colors
+Referenced by issue #112957, Masks are broken in Multires
