@@ -1,1 +1,2 @@
 Referenced by commit 724a065cdc8, Fix: Overlay: Edit mesh normals display not writting to line buffer
+Referenced by commit f4a214166e4, Fix #133754: Overlay: Geometry Nodes viewer displays blue color for instances
