@@ -1,0 +1,1 @@
+Referenced by issue #106146, Cycles destroys an existing texture image while baking to a new image
