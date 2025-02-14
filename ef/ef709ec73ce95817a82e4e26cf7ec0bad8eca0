@@ -1,2 +1,3 @@
 Referenced by commit 89ad66fbbd3, Fix #1092563: invalid event timestamps on X11 after 49 days uptime
 Referenced by commit eb7d5d09724, Fix #115933: Assert with invalid time-stamp on X11 with XIM input
+Referenced by commit 86146c79f87, Cleanup: update comment, reference issue number
