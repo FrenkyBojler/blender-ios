@@ -1,1 +1,2 @@
 Referenced by issue #88500, Maximize button in the header is broken
+Referenced by issue #88503, Geometry nodes: Crash when using attribute proximity on mesh primitives when moving/rotating/scaling object
