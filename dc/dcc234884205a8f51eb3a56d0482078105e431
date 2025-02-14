@@ -1,1 +1,2 @@
 Referenced by issue #74537, Adaptive sampling + AO color node crashes (when shader rays exceed 32K).
+Referenced by issue #74504, Cycles new adaptive sampling causes wrong progress bar for the render process
