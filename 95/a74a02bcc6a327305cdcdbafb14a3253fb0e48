@@ -3,3 +3,4 @@ Referenced by issue #123768, Clay strips brush leaves cracks on mesh
 Referenced by issue #123583, sculpt mode face sets no longer visible in material preview mode
 Referenced by issue #123195, EEVEE-Next crash when duplicating many lights
 Referenced by issue #122805, Blender crashes when creating an object without any faces (e.g. Circle) while "Show Overlays" is off, then Overlays are turned on
+Referenced by issue #122786, Multiresolution > Apply Base produces garbled meshes
