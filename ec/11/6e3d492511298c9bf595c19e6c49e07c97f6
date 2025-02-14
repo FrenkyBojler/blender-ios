@@ -1,1 +1,2 @@
 Referenced by issue #59340, Python custom Operators fail to Undo properly if executed while in edit mode
+Referenced by issue #59344, Blender 2.8 - Knife cut - pressing Z at a fast speed doesnt register all of the toggles (keymap 2.7x)
