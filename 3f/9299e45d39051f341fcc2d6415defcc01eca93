@@ -1,2 +1,3 @@
 Referenced by issue #101209, Regression: Crash on changing the face sets threshold
 Referenced by issue #101141, Scaling in sculpting mode. Numeric input - unpredictable behavior.
+Referenced by issue #93113, Redo Panel of transform sculpt operation does not work properly
