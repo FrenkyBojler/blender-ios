@@ -1,2 +1,3 @@
 Referenced by issue #90423, Cycles - Render Pass contains black pixels with no values
 Referenced by issue #89521, CUDA error with Optix denoising on shared CPU+GPU rendering (The error is appearing on 2.9 LTS, but not on Stable 3.0)
+Referenced by issue #89330, Regression: Exact Boolean Fails On Simple Model
