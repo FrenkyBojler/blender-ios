@@ -1,0 +1,1 @@
+Referenced by issue #64735, constant crashes when assigning evaluated mesh to obj after recent depsgraph changes
