@@ -3,3 +3,4 @@ Referenced by commit 960a0b892c0, Fix T84101: Duplicate operator not available f
 Referenced by issue #84587, Node editor unlinking issue with duplicate nodes
 Referenced by issue #84570, No "Make Single User Copy" option in ID template menu for multi-user datablocks, "Duplicate" greyed out
 Referenced by issue #84233, Node editor: Creating new/copy of datablock disabled in nodes
+Referenced by issue #84101, Shader editor: duplicating material do not work there
