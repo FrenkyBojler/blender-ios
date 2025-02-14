@@ -1,0 +1,1 @@
+Referenced by issue #111813, Correct initialization of bNodeSocket::default_attribute_name
