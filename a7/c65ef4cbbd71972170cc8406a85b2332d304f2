@@ -1,2 +1,3 @@
 Referenced by issue #99661, Regression: Converting curve object to mesh makes object disappear from 3D view
 Referenced by issue #98237, Regression : Wrong memory usage using object.to_mesh()
+Referenced by issue #97450, Enabling/disabling "Keep Original" checkbox when converting Bezier Curve to Mesh crashes Blender 3.1
