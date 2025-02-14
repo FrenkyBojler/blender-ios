@@ -1,1 +1,2 @@
 Referenced by commit 8044f531c77, Fix #131107: Grease Pencil: Crash doing Grease Pencil Surface Reproject
+Referenced by commit d1a6cd92fea, GPv3: Fix compiler warning
