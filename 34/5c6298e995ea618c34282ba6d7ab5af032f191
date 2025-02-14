@@ -1,1 +1,2 @@
 Referenced by commit 147c24aeeb9, Fix T54032: Adding torus test fails
+Referenced by issue #54203, Crash when switching to Cycles while in texture paint
