@@ -1,0 +1,1 @@
+Referenced by commit 335274192e3, Revert "Task scheduler: Avoid mutex lock in number manipulation functions"
