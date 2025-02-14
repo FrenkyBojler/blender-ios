@@ -1,0 +1,1 @@
+Referenced by issue #70177, Blender crashes when to to_track_quat() called without arguments
