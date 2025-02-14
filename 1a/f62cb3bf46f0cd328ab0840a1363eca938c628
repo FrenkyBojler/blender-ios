@@ -3,3 +3,4 @@ Referenced by commit c3d803c2ef4, Cleanup: Use consistent "positions" term for m
 Referenced by commit b37111c574e, Cleanup: Use consistent "vert" term for mesh normals
 Referenced by commit 79d64bfde38, Geometry Nodes: Remove unnecessary position copying in delete node
 Referenced by commit d1b6f16906f, Fix #104980: Apply All Shape Keys operator not working
+Referenced by issue #109372, Crash when selecting line art
