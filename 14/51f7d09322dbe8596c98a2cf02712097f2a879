@@ -1,0 +1,1 @@
+Referenced by issue #84813, Cycles viewport denoising fails with OIDN if it's not selected before going into rendered mode (GPU)
