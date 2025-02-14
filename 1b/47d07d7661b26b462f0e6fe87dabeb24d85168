@@ -1,0 +1,1 @@
+Referenced by issue #95724, ASAN failure during bl_rigging_symmetrize test (BKE_fcurves_filter or BLI_str_unescape_ex)
