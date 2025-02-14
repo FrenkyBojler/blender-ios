@@ -1,1 +1,2 @@
 Referenced by commit 385bd0c4e97, Fix T103685: Animation on objects that are disabled is ignored
+Referenced by commit c26d49e854b, Fix T101906: Modifier apply not working if target object is in excluded collection
