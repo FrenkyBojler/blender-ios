@@ -1,3 +1,4 @@
 Referenced by commit f898c223490, Fix #106363: snap toggle affecting operators not set to 'Affect'
 Referenced by commit 45379d9b596, Fix (unreported): Snap not enabled if Ctrl is pressed before operation
 Referenced by issue #121266, Regression: Snap toggle during transform doesn't stick afterwards
+Referenced by issue #106323, Regression: Face Nearest snap preference not working
