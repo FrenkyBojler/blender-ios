@@ -1,2 +1,3 @@
 Referenced by commit bb00621965c, Fix recent regression preventing animation on any linked data.
 Referenced by issue #124029, Can't add drivers to library overridable linked object attributes
+Referenced by issue #119089, Fix recent regression preventing animation on any linked data.
