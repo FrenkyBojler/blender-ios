@@ -1,0 +1,1 @@
+Referenced by commit 3d1bf4eb744, Fix: Properly free/allocate non-trivial shrinkwrap cache struct
