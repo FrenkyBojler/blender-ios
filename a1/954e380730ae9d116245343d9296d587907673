@@ -1,2 +1,3 @@
 Referenced by issue #93121, Baking animation results in ValueError: Matrix.to_euler(): invalid euler order
 Referenced by issue #88359, Bake of animation keyframes are fail when object is quaternion define but bones is Eular define
+Referenced by issue #86193, Bake action result unexpected since 2.92
