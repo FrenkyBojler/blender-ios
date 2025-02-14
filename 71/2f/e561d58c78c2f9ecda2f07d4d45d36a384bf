@@ -1,0 +1,1 @@
+Referenced by issue #64325, NURBS curves cease NURBS behavior when reduced to one or two verticies, and never regain it.
