@@ -1,0 +1,1 @@
+Referenced by issue #68760, "Reload Scripts" disable all addons with error : 'bpy.utils' has no attribute '_sys_path_ensure'
