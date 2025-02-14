@@ -1,1 +1,2 @@
 Referenced by commit b450a8c8519, Cleanup: remove unused area smoothing logic for UV unwrap
+Referenced by issue #119627, UV Unwrap: 'Fill Holes' option distorts protruding parts in holes
