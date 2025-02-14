@@ -1,0 +1,1 @@
+Referenced by issue #86379, When using "Append" rigid body objects  + empty constraint, none of its constraints work.
