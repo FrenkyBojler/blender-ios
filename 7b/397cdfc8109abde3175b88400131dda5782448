@@ -4,3 +4,4 @@ Referenced by issue #52793, Blender crashes when changing viewport shading to re
 Referenced by issue #52704, Ctrl+P Automatic Weights Freezes Blender
 Referenced by issue #52671, Flipped names don't weight properly with Mirror Modifier
 Referenced by issue #52678, Blender crashes rotating grease pencil strokes when the frame is locked
+Referenced by issue #52660, CUDA error: Not found in cuModuleGetTexRef(&texref, cuModule, bind_name.c_str()). line 710
