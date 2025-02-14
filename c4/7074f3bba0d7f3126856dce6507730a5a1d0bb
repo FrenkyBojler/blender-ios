@@ -1,1 +1,2 @@
 Referenced by issue #109507, Blender 3.6. Python. Crash after 'bpy.ops.uv.pack_islands()' execution. Silent pack API is required
+Referenced by issue #109399, Blender LTS: Maintenance Task 3.6
