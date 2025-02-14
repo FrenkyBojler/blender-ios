@@ -1,1 +1,2 @@
 Referenced by commit 400151833db, Nodes: Avoid unnecessary sorting when selecting or moving nodes
+Referenced by issue #100958, Node editor: After cutting the node to Alt, the nodes are still moving apart
