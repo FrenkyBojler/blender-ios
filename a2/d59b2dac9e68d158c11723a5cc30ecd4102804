@@ -7,3 +7,4 @@ Referenced by issue #100369, Blender 3.2.1 - Particles - Particles generate diff
 Referenced by issue #100156, Grease Pencil crashing Blender 3.2.0 / 3.2.1.
 Referenced by issue #100079, Encoding with DNxHD fails due to bad parameters
 Referenced by issue #99970, Difference in rendering alpha between CUDA/Optix and HIP
+Referenced by issue #99813, Bevel is problematic in some cases
