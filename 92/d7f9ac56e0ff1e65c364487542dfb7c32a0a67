@@ -2,3 +2,4 @@ Referenced by commit d1810d11f42, Fix T103303: Dbl-click in the Graph Editor won
 Referenced by commit a26038ff385, Fix T99505: NLA tweak mode crashes with GPencil data
 Referenced by commit 051a341cf00, Fix T99491: Crash when opening modifiers panel
 Referenced by issue #118251, Fix #118225 possible crash double clicking on certain anim channels
+Referenced by issue #99505, Regression: Crash when hit Tab key in Non Linear Animation panel
