@@ -20,3 +20,4 @@ Referenced by issue #108226, glTF 2.0 Import crashes
 Referenced by issue #108133, Rendering Error in viewport for Intel Iris and Xe GPU
 Referenced by issue #107579, Light clamping from Normal or Bump maps near shadow terminator in Cycles
 Referenced by issue #107514, Weighted Normal modifier's keep sharp option causes broken normals
+Referenced by issue #107477, Getting a version mismatch error in blender 3.5 on Rigify Cloudrig due to higher vesion issue.
