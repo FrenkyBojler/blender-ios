@@ -1,2 +1,3 @@
 Referenced by commit 90ec634135a, Fix incorrect drag-event threshold when releasing modifiers early
 Referenced by issue #101772, Animation Editors: Modifier keys cancel out dragging handles
+Referenced by issue #89989, Letting go of Modifier keys will break Tweak Events
