@@ -5831,7 +5831,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 29)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       ToolSettings *ts = scene->toolsettings;
-      ts->imapaint.clone_brush.alpha = 0.5f;
+      ts->imapaint.clone_brush_alpha = 0.5f;
     }
   }
 

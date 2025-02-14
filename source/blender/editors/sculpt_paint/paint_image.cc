@@ -333,7 +333,7 @@ static bool image_paint_2d_clone_poll(bContext *C)
 
   if (!CTX_wm_region_view3d(C) && ED_image_tools_paint_poll(C)) {
     if (brush && (brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_CLONE)) {
-      if (image_paint_settings.clone_brush.image) {
+      if (image_paint_settings.clone_brush_image) {
         return true;
       }
     }
@@ -523,7 +523,7 @@ static void grab_clone_apply(bContext *C, wmOperator *op)
   float delta[2];
 
   RNA_float_get_array(op->ptr, "delta", delta);
-  add_v2_v2(image_paint_settings.clone_brush.offset, delta);
+  add_v2_v2(image_paint_settings.clone_brush_offset, delta);
   ED_region_tag_redraw(CTX_wm_region(C));
 }
 
@@ -542,7 +542,7 @@ static int grab_clone_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   GrabClone *cmv;
 
   cmv = MEM_cnew<GrabClone>("GrabClone");
-  copy_v2_v2(cmv->startoffset, image_paint_settings.clone_brush.offset);
+  copy_v2_v2(cmv->startoffset, image_paint_settings.clone_brush_offset);
   cmv->startx = event->xy[0];
   cmv->starty = event->xy[1];
   op->customdata = cmv;
@@ -578,7 +578,7 @@ static int grab_clone_modal(bContext *C, wmOperator *op, const wmEvent *event)
       delta[1] = fy - startfy;
       RNA_float_set_array(op->ptr, "delta", delta);
 
-      copy_v2_v2(image_paint_settings.clone_brush.offset, cmv->startoffset);
+      copy_v2_v2(image_paint_settings.clone_brush_offset, cmv->startoffset);
 
       grab_clone_apply(C, op);
       break;

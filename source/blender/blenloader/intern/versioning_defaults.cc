@@ -445,8 +445,8 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
   copy_v3_v3(ts->unified_paint_settings.rgb, default_ups.rgb);
   copy_v3_v3(ts->unified_paint_settings.secondary_rgb, default_ups.secondary_rgb);
 
-  if (ts->imapaint.clone_brush.alpha == 0.0f) {
-    ts->imapaint.clone_brush.alpha = 0.5f;
+  if (ts->imapaint.clone_brush_alpha == 0.0f) {
+    ts->imapaint.clone_brush_alpha = 0.5f;
   }
 }
 

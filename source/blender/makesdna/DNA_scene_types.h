@@ -1050,7 +1050,12 @@ typedef struct ImagePaintSettings {
   /** Display texture interpolation method. */
   int interp;
   char _pad[4];
-  struct CloneBrushData clone_brush;
+  struct Image *clone_brush_image;
+  /** Offset of clone image from canvas. */
+  float clone_brush_offset[2];
+  /** Transparency for drawing of clone image. */
+  float clone_brush_alpha;
+  char _pad2[4];
 } ImagePaintSettings;
 
 /** \} */

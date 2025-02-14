@@ -682,11 +682,11 @@ static void scene_foreach_toolsettings(LibraryForeachIDData *data,
                                                     &toolsett_old->imapaint.canvas,
                                                     IDWALK_CB_USER);
   BKE_LIB_FOREACHID_UNDO_PRESERVE_PROCESS_IDSUPER_P(data,
-                                                    &toolsett->imapaint.clone_brush.image,
+                                                    &toolsett->imapaint.clone_brush_image,
                                                     do_undo_restore,
                                                     SCENE_FOREACH_UNDO_RESTORE,
                                                     reader,
-                                                    &toolsett_old->imapaint.clone_brush.image,
+                                                    &toolsett_old->imapaint.clone_brush_image,
                                                     IDWALK_CB_USER);
 
   Paint *paint, *paint_old;
