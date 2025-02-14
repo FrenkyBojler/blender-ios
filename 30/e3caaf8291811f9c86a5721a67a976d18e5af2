@@ -2,3 +2,4 @@ Referenced by commit e924f316a7a, Fix #112021: Crash dragging node groups into a
 Referenced by issue #116571, Old node groups aren't working in asset browser when dragging and dropping them into GN
 Referenced by issue #112021, Node assets: Crash when dragging into an empty node editor
 Referenced by issue #112023, Fix #112021: Crash dragging node groups into an empty node editor
+Referenced by issue #109399, Blender LTS: Maintenance Task 3.6
