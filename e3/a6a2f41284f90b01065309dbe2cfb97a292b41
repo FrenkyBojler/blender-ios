@@ -1,2 +1,3 @@
 Referenced by commit b814f64f4ab, Fix: Broken build with OpenVDB turned off
 Referenced by commit dff15bb5bf4, Fix: Broken build with OpenVDB turned off
+Referenced by issue #99004, Geometry nodes Volume Cube crashes when volume is zero
