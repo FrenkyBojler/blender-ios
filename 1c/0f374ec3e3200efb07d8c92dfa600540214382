@@ -1,2 +1,3 @@
 Referenced by commit 11db0b9dadf, Fix #118524: Loopcut crashes when not near an edge
 Referenced by commit 92428db3bbe, Fix crash using the depth eye-dropper
+Referenced by issue #130890, Snap Selection To 3D Cursor doesnt work with multiple objects and Active Element Pivot Transform mode
