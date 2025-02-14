@@ -1,0 +1,1 @@
+Referenced by issue #71680, _PyObject_LookupAttr calls in class_(un)register leak python object
