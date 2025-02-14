@@ -1,2 +1,3 @@
 Referenced by commit 1469613d650, Fix Build Warnings
 Referenced by commit 72aeee96acc, Fix Build Warning in fileops.c
+Referenced by issue #107120, Issues with OS file operators in file browser
