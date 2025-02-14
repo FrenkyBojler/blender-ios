@@ -88,3 +88,4 @@ Referenced by issue #50094, crash when viewport rendering point density texture
 Referenced by issue #50096, Maybe grease pencil's bug I guess?
 Referenced by issue #50076, Blender Cycles crashes
 Referenced by issue #50062, Mask - Clicking in ActivePoint Parent makes Blender crash.
+Referenced by issue #50068, error while opening a file using dependency graph
