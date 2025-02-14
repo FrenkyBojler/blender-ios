@@ -3,3 +3,4 @@ Referenced by issue #41219, Cycles Fresnel nodes - broken gradients on objects w
 Referenced by issue #40910, Armature: MultyExtrude bug
 Referenced by issue #40766, Python fails on startup with UnicodeDecodeError
 Referenced by issue #40730, Branched Path Tracing crashes openGL driver
+Referenced by issue #37653, Specular material hardness influence for texture maps not working correctly or at all with certain specular types
