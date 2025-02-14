@@ -1,1 +1,2 @@
 Referenced by commit fce3e6646e8, Fix failure to set transform rotate around single
+Referenced by issue #86046, Bezier Curve handles stopped moving towards/away from Bezier Point with Scale
