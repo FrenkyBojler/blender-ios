@@ -1,0 +1,1 @@
+Referenced by issue #86983, `bl_description = None` triggers segfault on register.
