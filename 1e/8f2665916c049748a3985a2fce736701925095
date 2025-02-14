@@ -1,2 +1,3 @@
 Referenced by commit f60ac5068a6, PyDoc: remove CSS override for scrolling long enum lists
 Referenced by commit 1c6b66c9cf8, PyDoc: replace in-lined enum references with links where possible
+Referenced by issue #99209, [Sculpt] Masking crashes Blender when used after applying Remesh modifier in Sculpt mode
