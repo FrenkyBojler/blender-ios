@@ -1,2 +1,3 @@
 Referenced by commit 095516403c4, Curves: Correct and improve Catmull Rom interpolation
 Referenced by commit 643e94c0320, Cleanup: Add missing licence headers
+Referenced by issue #101379, Regression: Trim curve make spline disapear.
