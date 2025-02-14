@@ -17,3 +17,4 @@ Referenced by issue #98939, API: bpy.props getter function returns KeyError inst
 Referenced by issue #98884, Regression: Crash when switched to vertex paint mode
 Referenced by issue #98830, blender quits when switched to edit mode
 Referenced by issue #98834, Broken material assigment after changing mesh-linking to object-linking
+Referenced by issue #98819, Blender 3.2.0 crashes at "Add Color Attribute" while in edit mode
