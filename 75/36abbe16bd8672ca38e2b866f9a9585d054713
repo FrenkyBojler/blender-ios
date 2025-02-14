@@ -1,2 +1,3 @@
 Referenced by commit 3a1583972a1, Fix T104256: Curve to points node skips curve domain attributes
 Referenced by commit 9a4c54e8b0a, Fix: Curve to Points node has wrong field interface status
+Referenced by issue #104256, Regression: Geometry Nodes: Curve to Points node not propagating attributes from spline domain
