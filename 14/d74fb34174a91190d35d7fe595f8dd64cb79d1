@@ -1,0 +1,1 @@
+Referenced by commit 71da3f31d49, Fix use of uninitialized memory in BKE_scene_objects_as_gset
