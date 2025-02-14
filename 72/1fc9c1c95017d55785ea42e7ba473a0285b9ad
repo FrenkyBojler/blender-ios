@@ -1,3 +1,4 @@
 Referenced by commit 909f47e0e19, UV: fix crash with uv copy on empty selection
 Referenced by commit fba7461e1a5, UV: fix compile on windows
 Referenced by issue #102480, UV: Copy empty selection uv cused crash
+Referenced by issue #77911, UV Island Copy/Paste
