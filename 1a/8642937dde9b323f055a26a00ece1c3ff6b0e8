@@ -1,1 +1,2 @@
 Referenced by issue #72340, Face orientation color (front and back) doesn't stay saved
+Referenced by issue #72272, Weight paint and vertex paint mode broken by a TypeError for some blend files
