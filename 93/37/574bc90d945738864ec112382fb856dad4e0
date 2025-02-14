@@ -58,3 +58,4 @@ Referenced by issue #41535, Other Objects is flickering when emitter are disable
 Referenced by issue #41513, Collada import: segfault
 Referenced by issue #41506, Shapekey Keyframe Action selection breaks multiple things
 Referenced by issue #41507, Empty prevents image deletion
+Referenced by issue #41492, Keyframes on nodes in group of group don't show in the graph editor and dope sheet
