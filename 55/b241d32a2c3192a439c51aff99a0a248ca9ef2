@@ -2,3 +2,4 @@ Referenced by issue #55082, Add Paint Slots for texture painting not working.
 Referenced by issue #55071, Toolbar: Brush preview not working
 Referenced by issue #55073, Copy-on-write crash when painting after toggling edit mesh mode
 Referenced by issue #55074, Copy-on-write crash when rendering with Cycles
+Referenced by issue #55076, Proxy bones not moving
