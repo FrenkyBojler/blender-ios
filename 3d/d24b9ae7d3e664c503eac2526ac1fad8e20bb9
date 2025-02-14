@@ -1,1 +1,2 @@
 Referenced by commit a041297e54e, Fix: build error after moving lightprobe.c to c++
+Referenced by issue #106635, Fix: build error after moving lightprobe.c to c++
