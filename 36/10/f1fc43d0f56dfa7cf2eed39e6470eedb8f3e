@@ -2,3 +2,4 @@ Referenced by commit d753726ce71, Add font selection to VSE text strips
 Referenced by commit b3dbe17658f, Add font selection to VSE text strips
 Referenced by issue #60782, Add Font Selection to Text Effect Strip (backport from 2.8 to 2.7 branch)
 Referenced by issue #59952, Sound unlinking does nothing
+Referenced by issue #59827, Adding Normal Map to object in EEVEE results in emissive material
