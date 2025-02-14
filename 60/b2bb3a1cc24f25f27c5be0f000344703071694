@@ -1,3 +1,4 @@
 Referenced by issue #80396, Potential candidates for corrective releases
 Referenced by issue #80275, Smoke Simulation: Enabling Noise causes Distortions; Crashes when Baking
 Referenced by issue #79694, mantaflow modular bake flickers using gas fire and fire+smoke
+Referenced by issue #79626, 2.91 Mantaflow crash when adaptive domain + noise are enabled
