@@ -9,3 +9,4 @@ Referenced by issue #41904, 2.72 testbuild: Cycles crush when I set emission as 
 Referenced by issue #41877, Texture Paint - Quick Edit - Apply/Apply Camera Image - Version 2.71 and Test Build 2.72
 Referenced by issue #41856, "Screen Key" add-on missing
 Referenced by issue #41860, transformation constraint does not work correctly
+Referenced by issue #41861, Loopcut wire (incorrect mode-switch)
