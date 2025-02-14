@@ -1,2 +1,3 @@
 Referenced by commit 9435ee8c651, Curves: Port subdivide node to the new data-block
 Referenced by commit 7e55ff15b09, Fix: Incorrectly sized curves created in set conversion node
+Referenced by issue #101972, Regression: GN: Crashes when setting Spline Type from NURBS to Bezier in a row.
