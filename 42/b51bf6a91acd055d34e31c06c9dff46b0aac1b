@@ -1,3 +1,4 @@
 Referenced by commit d33758755b0, Revert "Fix T102571: Can't stop audio playback when using multiple windows"
 Referenced by issue #103008, Stopping Animation in Some Scenes Immediately Crashes Blender
 Referenced by issue #102571, Can't stop audio playback when using multiple windows
+Referenced by issue #71233, Sound continues to play if you switch between scenes without pausing the playback.
