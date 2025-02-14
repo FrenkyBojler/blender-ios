@@ -1,2 +1,3 @@
 Referenced by commit 3ddba827160, Cleanup: Remove unused PBVH node pointer
 Referenced by issue #75797, Persistent Base Layer Brush doesnt work first time and after Undo
+Referenced by issue #75743, Crash: Sculpt Layer brush + Stroke Method "Anchored" makes Blender crash
