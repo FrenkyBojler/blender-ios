@@ -3,3 +3,4 @@ Referenced by issue #58910, Motion Tracking - no toggle to show marker search ar
 Referenced by issue #58896, OBJ file import fails for objects with vertex groups defined when polygroups option is selected
 Referenced by issue #58882, Proportional Edit Influence Circle is Always draw in Origin in Projected 2D Mode
 Referenced by issue #58883, Mesh disappears when trying to move vertices while in isolation mode
+Referenced by issue #58804, Animated textures used in materials are not working correctly in EEVEE.
