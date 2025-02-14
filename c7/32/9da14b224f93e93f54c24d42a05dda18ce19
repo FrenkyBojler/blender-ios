@@ -1,2 +1,3 @@
 Referenced by commit 7d32a259bf9, Installdeps: make embree use TBB.
 Referenced by issue #73778, Cycles: Embree improvements
+Referenced by issue #71398, EEVEE: long background render times create sluggish viewport
