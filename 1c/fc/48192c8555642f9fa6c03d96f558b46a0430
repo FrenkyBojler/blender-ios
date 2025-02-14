@@ -1,2 +1,3 @@
 Referenced by issue #51459, Principled BSDF roughness is different between node editor and properties editor
 Referenced by issue #51432, "Find Missing Files" case sensitivity on windows
+Referenced by issue #51437, Denoiser produces black pixels
