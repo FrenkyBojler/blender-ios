@@ -1,1 +1,2 @@
 Referenced by commit 5723bf926dc, Fix T99191: Boolean modifier creates invalid material indices
+Referenced by issue #106106, .blend file crashing
