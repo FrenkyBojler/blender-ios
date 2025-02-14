@@ -1,1 +1,2 @@
 Referenced by commit 51da664fa18, Fix broken merge in fb45821, was missing changes from cc64872.
+Referenced by issue #49159, Experimental Adaptive Tesselation + Normalmap results in black object
