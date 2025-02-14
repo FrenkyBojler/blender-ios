@@ -1,3 +1,4 @@
 Referenced by issue #88399, Cycles rendering - Missing CUDA kernal (??)
 Referenced by issue #88383, Blender 2.93 and 3.0 both say they " No Compatible GPU's found" - 2.92 does show I have a GPU
 Referenced by issue #87789, baking high res mantaflow sims ( both fluids and gas/smoke ) crashes blender 2.92
+Referenced by issue #86164, Crash when baking mantaflow
