@@ -1,1 +1,2 @@
 Referenced by issue #75626, Changing properties of an object from a frame_change_post handler blocks animation
+Referenced by issue #73686, Motion Paths not working with BlenRig armatures
