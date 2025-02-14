@@ -21,3 +21,4 @@ Referenced by issue #92079, Text selection regression (difficult to see) since 2
 Referenced by issue #91445, Convert curve object data to mesh does not work when curve does not evaluate to mesh
 Referenced by issue #91353, Regression: Performance regression after support modifiers on curve objects commit
 Referenced by issue #90808, BoundBox/Dimensions of curve not showing correct values
+Referenced by issue #90566, Mesh to Curve node  setup crashes Cycles then Blender (EXCEPTION_ACCESS_VIOLATION)
