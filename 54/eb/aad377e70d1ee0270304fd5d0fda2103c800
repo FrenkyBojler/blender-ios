@@ -1,1 +1,2 @@
 Referenced by issue #38121, Inflate tool for Dynamic Topology creates extra geometry that blobs out the backside of the mesh.
+Referenced by issue #38088, Text following path means certain options are ignored but not greyed out?
