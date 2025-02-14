@@ -5,3 +5,4 @@ Referenced by issue #45165, Quickime/OSX: render output path with diacritic sign
 Referenced by issue #45167, Holding Ctrl right after trackpad scrolling makes unwanted zoom (OSX)
 Referenced by issue #45131, CUDA memory leak
 Referenced by issue #45069, Cannot move objects between layers using only keyboard.
+Referenced by issue #45058, Cycles hair shader reflects incorrectly for meshes
