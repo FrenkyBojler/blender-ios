@@ -5,3 +5,4 @@ Referenced by issue #96759, Missing toolbar in 2.93LTS when header position is f
 Referenced by issue #94717, Edit Mode and Sculpt mode top bar is on top of other
 Referenced by issue #94155, UV Editor Header and Windows background colors do not match in 3.0
 Referenced by issue #94065, Strange behavior in blender menu - layers
+Referenced by issue #93193, GUI elements drawn on top of eachother
