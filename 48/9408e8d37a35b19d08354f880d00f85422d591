@@ -1,0 +1,1 @@
+Referenced by issue #109435, Blender crashes when calling ArgumentParser.parse_args() if sys.argv is anything other than ["path/to/blender.exe"]
