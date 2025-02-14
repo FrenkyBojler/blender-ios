@@ -5,3 +5,4 @@ Referenced by issue #40432, AFTER 2.71 - Scaling to zero with manipulate center 
 Referenced by issue #40408, World Multiple importance sample + Equi-angular sampling gives noise and weirdness in volumes in 2.71 testbuild
 Referenced by issue #40383, Keying node doesn't work
 Referenced by issue #40377, Limit selection to visible doesn't work
+Referenced by issue #40360, can't toggle tab in user preferences window
