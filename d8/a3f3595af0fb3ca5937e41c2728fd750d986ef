@@ -1,2 +1,3 @@
 Referenced by issue #86658, Excessive CPU load and slow animation playback
 Referenced by issue #76553, Dragging in the timeline causes Blender to freeze
+Referenced by issue #76427, Edit mesh undo-push hangs WITH_TBB=OFF
