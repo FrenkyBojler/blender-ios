@@ -1,3 +1,4 @@
 Referenced by issue #62134, duplicating a material won't update node group's node tree user count anymore
 Referenced by issue #61767, duplicate-move doesn't work on parented objects
 Referenced by issue #61712, crash when reloading texture
+Referenced by issue #61714, set image path via python crash
