@@ -1,2 +1,3 @@
 Referenced by issue #82334, Mirror Global mirrors on local axis
 Referenced by issue #68521, Unexpected behaviour of object mode mirror, doesn't mirror rotation.
+Referenced by issue #37928, Rotated Empty cannot be mirrored as expected.
