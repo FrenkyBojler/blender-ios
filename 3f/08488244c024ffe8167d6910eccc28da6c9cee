@@ -1,1 +1,2 @@
 Referenced by commit 4fe8c62b56d, Cleanup: Readfile: Remove deprecated `BLO_library_link_copypaste`.
+Referenced by issue #91414, Unify link/append between WM operators and BPY context manager API, and cleanup usages of `BKE_library_make_local`
