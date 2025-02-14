@@ -1,1 +1,2 @@
 Referenced by commit e97443478e3, Fix T102797: Unlinking an Orphan Action crashes
+Referenced by issue #98753, Regression: Outliner Unlink material crash Blender 3.2
