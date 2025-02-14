@@ -10,3 +10,4 @@ Referenced by issue #38229, Shadeless option has no effect when GLSL is enabled
 Referenced by issue #38232, Crash when trying to open the blend file
 Referenced by issue #38220, Crash when rendering in Cycles on GPU
 Referenced by issue #38201, Blender Crash when rendering with CUDA / Cycles with old drivers
+Referenced by issue #38211, 2.69.8 Breaks RE:Ring AddOn
