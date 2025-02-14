@@ -1,2 +1,3 @@
 Referenced by commit 5045968f24b, Revert "Gizmo: optimize intersection tests, fix selection bias"
 Referenced by issue #100321, Regression: Extrude Tool XYZ Handles overlap on orthographic view and small world scale
+Referenced by issue #97120, Regression: Gizmos became significantly harder to use (in orthographic view)
