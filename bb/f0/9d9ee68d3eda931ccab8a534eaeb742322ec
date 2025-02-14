@@ -36,3 +36,4 @@ Referenced by issue #43795, Texture Offset between Cycles CPU and GPU render
 Referenced by issue #43777, Shaders produce different results when OSL is enabled
 Referenced by issue #43779, Cycles texture interpolation issues
 Referenced by issue #43780, CUDA error: Illegal address in cuCtxSyncronize()
+Referenced by issue #43769, Full scene copy loses link to the environment map image file
