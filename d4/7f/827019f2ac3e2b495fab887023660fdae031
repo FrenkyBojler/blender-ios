@@ -3,3 +3,4 @@ Referenced by issue #62810, Workbench Anti-Aliasing behavior inverted
 Referenced by issue #62749, Crash on selecting edges with multi-edit mode
 Referenced by issue #62731, Blender crashes after opening material tab.
 Referenced by issue #62637, Can't move hidden objects into collections with hotkey M
+Referenced by issue #62623, Poly Build crashes on 3D Cursor use (2.80)
