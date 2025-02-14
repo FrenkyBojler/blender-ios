@@ -1,3 +1,4 @@
 Referenced by issue #131518, GPU: ensure viewport does not use uninitialized images (#119685 and others)
 Referenced by issue #119685, VSE Preview area without alpha channel causes artifacts
 Referenced by issue #98620, Regression: Video sequencer screen corruption occurs when resizing
+Referenced by issue #97272, Regression: Blender 3.1 UI editor resize /border dragging performance
