@@ -39,3 +39,4 @@ Referenced by issue #43191, Missing Shortcuts in Edit Mode
 Referenced by issue #43196, Object/Edit mode Solid Shading Lighting Bug
 Referenced by issue #43197, Transforms entered in properties panel do not apply to GROUP - only to individual object
 Referenced by issue #43159, Relative filepaths may be broken by Image.copy()
+Referenced by issue #43037, startup error
