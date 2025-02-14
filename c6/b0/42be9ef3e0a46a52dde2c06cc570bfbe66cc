@@ -4,3 +4,4 @@ Referenced by issue #47262, Unknown or unsupported CUDA architecture, can't dete
 Referenced by issue #46863, Game Engine not working
 Referenced by issue #46688, GPU stuck
 Referenced by issue #46654, Blender Game Engine Physics : Convex Hull and Triangle Mesh Collision Bounds error.
+Referenced by issue #46470, Blender craches when "character" physic type is selected
