@@ -1,1 +1,2 @@
 Referenced by commit 0d0e2dc0a8d, DRW: fix use of potentially uninitialized variable
+Referenced by issue #94728, Auto Depth problem with Cliping Region
