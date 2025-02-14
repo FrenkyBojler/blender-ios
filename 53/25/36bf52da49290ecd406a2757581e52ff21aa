@@ -1,2 +1,3 @@
 Referenced by issue #63110, cant add IK constraint to bone
 Referenced by issue #63043, Armature mod. fails to work in conjunction with vertex parent type/child of constraint
+Referenced by issue #61559, Hide Object Constraints Properties when in Pose Mode
