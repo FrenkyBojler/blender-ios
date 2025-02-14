@@ -1,1 +1,2 @@
 Referenced by commit f1de256ea01, Fix T56679: Blender 2.8 crashes with bezier curve snap.
+Referenced by issue #56675, Crash when snapping Cursor to selected a Bone in Edit Mode
