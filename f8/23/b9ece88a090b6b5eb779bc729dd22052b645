@@ -1,1 +1,2 @@
 Referenced by issue #46620, Using 'correct uvs' option in edge or vertex slide causes uvs to become pinned.
+Referenced by issue #46483, Sliding vertex/edges makes vertices pinned in UV editor
