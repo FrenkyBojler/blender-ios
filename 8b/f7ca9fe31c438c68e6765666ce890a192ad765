@@ -1,1 +1,2 @@
 Referenced by commit 498397f7bd8, Fix (unreported) Separate bones creates empty armature
+Referenced by issue #72310, Separation of bone from multiple selected armatures in multiobject edit mode creates junk armature
