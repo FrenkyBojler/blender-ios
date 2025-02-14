@@ -1,1 +1,2 @@
 Referenced by issue #78726, EEVEE Soft shadows should not update with Color Management changes
+Referenced by issue #78624, Crash when baking particles using python
