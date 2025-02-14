@@ -1,1 +1,2 @@
 Referenced by issue #53247, Weird shading problems with the new CPU+GPU mixed mode
+Referenced by issue #53250, Crash when linking/appending a scene to a blend when another linked scene in this blend is currently open/active
