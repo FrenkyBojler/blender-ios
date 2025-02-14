@@ -1,1 +1,2 @@
 Referenced by issue #85471, Rotation pivot uses mesh object instead of pose bone while in weight paint mode
+Referenced by issue #81429, move tool's axis constraints not drawn completely when using local orientation
