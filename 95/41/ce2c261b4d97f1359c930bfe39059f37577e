@@ -2,3 +2,4 @@ Referenced by issue #61982, Subdivide in Sculpt Mode Crash bug
 Referenced by issue #61876, Objects not rendering with eevee
 Referenced by issue #61880, massively increased .blend load times
 Referenced by issue #61859, Workbench render - Hair distorts in random shapes
+Referenced by issue #61845, BMesh booleans fail with holes
