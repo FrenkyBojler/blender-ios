@@ -3,3 +3,4 @@ Referenced by issue #68728, Blender crashes while undoing a loop cut (mirror mod
 Referenced by issue #68004, Bones don't immediately update with active motion path
 Referenced by issue #67973, Crash on Fix Deforms operator
 Referenced by issue #67902, Crash when undo a loop cut
+Referenced by issue #67454, Blender crash
