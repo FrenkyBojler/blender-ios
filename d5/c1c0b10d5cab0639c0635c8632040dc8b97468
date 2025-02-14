@@ -1,1 +1,2 @@
 Referenced by issue #55032, Tool shelf options don't cause re-execution sometimes (regression in undo system)
+Referenced by issue #55033, Undo mask brush in sculpt mode with dyntopo on, crashes Blender
