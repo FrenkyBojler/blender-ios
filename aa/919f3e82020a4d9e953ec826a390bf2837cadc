@@ -1,2 +1,3 @@
 Referenced by commit 69be8039e80, Fix T73784: Python console: incorrect wrapped line cursor position
 Referenced by issue #73784, Python console: incorrect cursor position with wrapped lines
+Referenced by issue #73502, Themes don't work on Windows
