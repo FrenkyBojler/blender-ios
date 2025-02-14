@@ -1,3 +1,4 @@
 Referenced by issue #76851, Grease Pencil Behavior changes Brush when going in and out of Drawing mode
 Referenced by issue #76667, Render error not shown in VSE
 Referenced by issue #76668, The Denoise Node Turns the Rendered Image into Pure Black at the Resolution of 1920 *1920
+Referenced by issue #76669, Dope Sheet Editor, crash right clicking on a Mask channel
