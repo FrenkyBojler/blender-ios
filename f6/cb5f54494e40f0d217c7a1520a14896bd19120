@@ -67,3 +67,4 @@ Referenced by issue #68778, Crash when moving vertex
 Referenced by issue #68767, Crash on loading File
 Referenced by issue #68753, Singularity and Plurality
 Referenced by issue #68739, GPU CYCLES RENDERING PROBLEM
+Referenced by issue #68668, Weight Tools: Limit Total does not seem to set the requested limit
