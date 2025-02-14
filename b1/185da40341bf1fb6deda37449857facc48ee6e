@@ -1,3 +1,4 @@
 Referenced by commit c77b78ad53e, Fix: restore margin offset for UV packing
 Referenced by issue #106041, Concave Packer freeze with reset uvs
 Referenced by issue #105680, UV Packing, problems and solutions
+Referenced by issue #105393, Fix #102843: Add UV Packer with O(nlogn) performance
