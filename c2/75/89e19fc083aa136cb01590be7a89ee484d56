@@ -52,3 +52,4 @@ Referenced by issue #45857, Replacing an image that has been packed into .blend 
 Referenced by issue #45850, Segfault from using Auto-Smoothed Normals with Subsurf Modifier
 Referenced by issue #45817, BGE Crash with group instanced curve objects
 Referenced by issue #45818, Crash When Using Cycles
+Referenced by issue #45824, Pie menus doesnt display EnumProperties icons (It did on 2.72)
