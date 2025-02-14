@@ -1,3 +1,4 @@
 Referenced by issue #54887, OSL: Cycles Script Node with trace call crashes Blender on render
 Referenced by issue #50126, Modeling (mode edit) and stack overflow into the driver NVIDIA
 Referenced by issue #49649, Goal Strength parameter in “Soft Body Goal” works differently in 2.76+ versions
+Referenced by issue #48916, Proxy Custom File is broken
