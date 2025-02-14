@@ -1,3 +1,4 @@
 Referenced by issue #98796, Regression: Drop in performance when manipulating instances in geometry nodes Blender 3.2
 Referenced by issue #98717, GPU Subivsion behaves different in Blender 3.2
 Referenced by issue #96729, Geonode + Cycles displaying of instances that uses GPU subdiv (either rendering unsubdivided, or in combination with Set Material node completely vanishing)
+Referenced by issue #95700, GPU subdivision: Referencing object with subdivision surface with Object info node does not work
