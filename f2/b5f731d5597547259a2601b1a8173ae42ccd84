@@ -2,3 +2,4 @@ Referenced by issue #86500, Cycles: tapering hair transparency fails in '3D Curv
 Referenced by issue #86171, Cycles freeze on render and texture baking (with packed textures)
 Referenced by issue #82483, Blender freezes when repeating baking textures
 Referenced by issue #80125, Constraint missing after save and reopen the blend file (fixed in 2.90 - request to backport to LTS)
+Referenced by issue #78170, Mantaflow Crash | Whitewater Particles Baking
