@@ -1,3 +1,4 @@
 Referenced by commit ee3fdf40992, Fix: curves editmode operators available in pointcloud editmode
 Referenced by commit dcdafaa9f5f, Fix #114082: Disabling Geometry Nodes is_tool also disables is_modifier
 Referenced by commit 9909bf60c96, Fix: Missing updates for geometry node group tool properties
+Referenced by issue #128794, Fix: curves editmode operators available in pointcloud editmode
