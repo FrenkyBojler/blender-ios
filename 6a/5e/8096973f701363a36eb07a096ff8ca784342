@@ -1,3 +1,4 @@
 Referenced by issue #59001, UV Editor - Crash when hiding all UVs while 3D view is open and sync selection enabled
 Referenced by issue #58985, Wireframe is not displayed correctly with reference images on empties
 Referenced by issue #58988, Closing Blender through preferences or multitasking in OS.
+Referenced by issue #58978, Text Editor - Crash when using Ctrl Z after unlinking a text block
