@@ -1,3 +1,4 @@
 Referenced by issue #38707, Blender crash at start up
 Referenced by issue #38708, Blender crash at start
 Referenced by issue #38679, Cycles GPU Performance Regression on Titan
+Referenced by issue #38667, When using "Maya" Input Interface, pressing "E" does not initiate rotation in the UV/Image Editor
