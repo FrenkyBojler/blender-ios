@@ -60,3 +60,4 @@ Referenced by issue #45742, Drivers in Game Engine don't work for Spawned object
 Referenced by issue #45741, In Game Engine Steering Actuator Turn Speed has no effect
 Referenced by issue #45716, Can't open images after Purge Orphan Datablocks. Opened images are not zeroed user.
 Referenced by issue #45680, vertex weight modifier texture params doesn't accept driver input
+Referenced by issue #45683, The "Composite" compositor node does not take affect unless the Render Result is open in another window
