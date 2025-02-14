@@ -1,3 +1,4 @@
 Referenced by commit 88aa056d1ac, Fix: Image node alpha socket converted to operations twice
 Referenced by commit e91dd645a94, Fix concern: lookup could fail.
 Referenced by commit 187f358f33e, Cleanup: Use blender::MultiValueMap.
+Referenced by issue #86710, Crash in compositor with particular group node setup
