@@ -2,3 +2,4 @@ Referenced by issue #125835, Blender 3.0.0 and 4.1.1 constant crashes when on cy
 Referenced by issue #98047, Some Metadata lost by passing into File Output Node
 Referenced by issue #96718, Regression: Photo "blowout" when rendering and denoising in 3.1.0
 Referenced by issue #96556, Problem with parent_vertices attribute
+Referenced by issue #96032, Wrongly applying constraint make crashing Blender
