@@ -1,2 +1,3 @@
 Referenced by commit 30ec0753c75, Revert "Fix T81077 id_management test on macOS"
 Referenced by commit fc6a1f44d2e, macOS: use -fno-strict-aliasing for all build types.
+Referenced by issue #81077, Build Bot: MacOS X test fails
