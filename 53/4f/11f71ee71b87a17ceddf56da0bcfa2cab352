@@ -10,3 +10,4 @@ Referenced by issue #50117, Hard crash when adding texture input node to composi
 Referenced by issue #50025, Compositor crash
 Referenced by issue #49958, Adding a Texture Node in compositor crashes blender
 Referenced by issue #49946, Blender crash when you add a node texture in compositing nodes.
+Referenced by issue #49953, Adding Input ->Texture node results in a EXCEPTION_ACCESS_VIOLATION
