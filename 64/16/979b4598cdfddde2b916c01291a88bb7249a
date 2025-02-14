@@ -1,1 +1,2 @@
 Referenced by issue #39997, Crash with "simple" boolean modifier and opening blend file crashes again
+Referenced by issue #39984, regular error in particle placement when emitter is parented to an animated null
