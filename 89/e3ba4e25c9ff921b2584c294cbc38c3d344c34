@@ -1,1 +1,2 @@
 Referenced by commit 78c3253553f, Fix #116069: Incorrect data transfer custom normals behavior
+Referenced by commit b4e6ef42798, Fix: MeshPolygon.use_smooth set inversed
