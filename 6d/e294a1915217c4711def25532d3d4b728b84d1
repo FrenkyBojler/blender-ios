@@ -1,1 +1,2 @@
 Referenced by commit cdbde7d9413, Fix #113603: User modified key-map preferences for add-ons don't load
+Referenced by commit 8d62b7c01c5, Fix fast-path addon_utils._initialize_once not being used on startup
