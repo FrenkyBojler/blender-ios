@@ -1,0 +1,1 @@
+Referenced by issue #103031, Regression: My blend file crashes when rendering in Blender 3.4 upwards, because of an unchecked NULL in the code. (stack trace provided)
