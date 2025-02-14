@@ -4,3 +4,4 @@ Referenced by commit 3249853ebe5, Fix: Incorrect vertex group layer "construct" 
 Referenced by commit 4c91c24bc7c, Attributes: Avoid unnecessarily initializing new attributes
 Referenced by commit cccc6d6905b, Mesh: Avoid redundant custom data layer initialization
 Referenced by issue #104188, Regression: screw modifier effect is invisible in edit mode (wireframe display)
+Referenced by issue #100760, Regression: Paint initialize glitch color attribute
