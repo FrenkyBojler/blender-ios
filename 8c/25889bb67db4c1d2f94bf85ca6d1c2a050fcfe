@@ -1,2 +1,3 @@
 Referenced by issue #99253, 3.2 regression: deforming modifiers have stopped displaying original faces with on cage option enabled.
 Referenced by issue #97853, Crash upon entering Edit Mode and toggling X-Ray
+Referenced by issue #93602, Struct of Arrays Refactor for Mesh Vertices
