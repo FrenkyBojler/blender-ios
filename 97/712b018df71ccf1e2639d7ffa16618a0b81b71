@@ -1,1 +1,2 @@
 Referenced by commit 6eea5f70e3b, Attributes: Use names instead of layers for some functions
+Referenced by issue #90026, geometry_attributes_poll issues
