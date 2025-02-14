@@ -2,3 +2,4 @@ Referenced by issue #114040, Shader Editor and Vertex Paint Color pickers give d
 Referenced by issue #100469, Why these color values not the same when copying the same color
 Referenced by issue #94902, HSV values gives wrong RGB or HEX
 Referenced by issue #94244, color picker hue maps wrong
+Referenced by issue #89977, Color handling has changed between versions
