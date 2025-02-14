@@ -28,3 +28,4 @@ Referenced by issue #54287, Memory not freed after rendering with 2.79a
 Referenced by issue #54262, C and B selection on edit mode selects not only inside of circle (or rectangle) but several outside spots also selected.
 Referenced by issue #54235, Movie clip texture doesnt update in viewport using material or texture mode (cycles)
 Referenced by issue #54236, The button "Clear Custom Split Normals Data" not work for multiple object with alt key
+Referenced by issue #54241, Boolean modifier, snapping doesn't work
