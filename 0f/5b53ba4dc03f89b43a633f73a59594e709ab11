@@ -9,3 +9,4 @@ Referenced by issue #58878, Selection Miss-registering
 Referenced by issue #58758, Eevee unable to render correctly without screen space reflections turned on.
 Referenced by issue #58763, "Sample colour" picks incorrect colour if Mirror modifier exists on mesh
 Referenced by issue #58552, Lasso select not not alwys working
+Referenced by issue #58529, crash on edit mode
