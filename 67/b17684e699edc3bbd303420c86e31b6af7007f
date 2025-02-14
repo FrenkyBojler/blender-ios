@@ -2,3 +2,4 @@ Referenced by issue #77474, Blender crashes when creating linked duplicates of a
 Referenced by issue #77479, When using modal operator, auto save causes crash
 Referenced by issue #77441, Blender 2.9 crashes when UNDO limit is reached
 Referenced by issue #77396, 2.90 full crash with not output error after duplicating an object several times
+Referenced by issue #77338, June 3 2020 (today's) 2.90 Alpha version crashing constantly
