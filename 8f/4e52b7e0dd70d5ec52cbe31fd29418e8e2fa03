@@ -1,1 +1,2 @@
 Referenced by commit be40c67b56c, Fix T102512: Snapping Option Face Nearest is not working
+Referenced by issue #102053, Set material geometry node and mesh primitives break depth buffer
