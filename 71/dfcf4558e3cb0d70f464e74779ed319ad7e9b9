@@ -1,2 +1,3 @@
 Referenced by commit 454c8fd8667, Fix EEVEE-Next: Broken volume shadowing from sun lights
 Referenced by commit 71835808d3d, Fix EEVEE-Next: Inverted world coordinates
+Referenced by commit 8f49407128b, Fix EEVEE-Next: Broken Ambient Occlusion
