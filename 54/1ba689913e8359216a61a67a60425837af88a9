@@ -1,1 +1,2 @@
 Referenced by commit 8ecaa2d6247, Fix T96510: ASAN failure when selecting text in Text Editor
+Referenced by issue #96510, ASAN failure when selecting text in Text Editor
