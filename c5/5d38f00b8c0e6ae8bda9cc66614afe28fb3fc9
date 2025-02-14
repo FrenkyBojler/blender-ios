@@ -1,3 +1,4 @@
 Referenced by commit ed852c8401c, Fix: Curves sculptmode: deduplicate checks for being in mode
 Referenced by issue #104261, Geometry Node: Crash if Preview node trying to show instaces of Collection with curve with Beveling
 Referenced by issue #104015, Geometry Nodes: Viewer overlay disappears when enabling In Front
+Referenced by issue #103985, Crash When Adding Hair Subdivision upon Viewer node
