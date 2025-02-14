@@ -1,2 +1,3 @@
 Referenced by issue #82648, Grease Pencil drawing next to objects using 3D cursor and View mode previews
 Referenced by issue #82596, fly/walk navigation crash
+Referenced by issue #82388, Regression: Sculpt mode undo: Broken when undoing to a Global/memfile undo step after  rB4c7b1766a7f1
