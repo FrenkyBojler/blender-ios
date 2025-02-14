@@ -1,1 +1,2 @@
 Referenced by issue #39874, Bone roll resets if bones are moved in edit mode
+Referenced by issue #39458, Switching physics type from Character to Dynamic enables ghost flag silently
