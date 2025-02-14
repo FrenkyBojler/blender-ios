@@ -4,3 +4,4 @@ Referenced by issue #95969, Bake to vertex colors completely broken in 3.1 & 3.2
 Referenced by issue #95606, Crash on clicking in viewport with active GN workspace
 Referenced by issue #95479, GN mesh to curve to mesh causes hard crash with cage display
 Referenced by issue #95314, Viewer node is absent from Spreadsheet when attached to Curve Length, Attribute Statistics or Domain Size
+Referenced by issue #95212, The mirror modifier crashes Blender
