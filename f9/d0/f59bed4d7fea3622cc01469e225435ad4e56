@@ -2,3 +2,4 @@ Referenced by issue #77079, Blender Selection Lag
 Referenced by issue #76933, "Align to transform Orientation" crashes blender for Custom transform orientations
 Referenced by issue #76799, Crash from undoing the copy-pasting of multiple data blocks
 Referenced by issue #76725, Elastic Deform brush becomes extremely slow when Dyntopo is active
+Referenced by issue #76712, Texture with alpha renders differently in Eevee and Cycles
