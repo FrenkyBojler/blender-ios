@@ -1,2 +1,3 @@
 Referenced by commit d5fe4c40ed9, Fix #79961: Outliner Data API crash with a MeshSkinVertex in editmode
 Referenced by issue #119149, Fix #79961: Outliner Data API crash with a MeshSkinVertex in editmode
+Referenced by issue #95922, Outliner / Data API: Showing custom mesh attributes while in Edit Mode crashes blender
