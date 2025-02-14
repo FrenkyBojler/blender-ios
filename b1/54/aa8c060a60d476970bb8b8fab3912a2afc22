@@ -1,1 +1,2 @@
 Referenced by commit 599c8a2c8e4, Fix T43204: Shrinkwrap constraint, project mode: Space ignored in bone case.
+Referenced by issue #42447, Shrinkwrap constraint / wrong rotation of the constrained object in "project" mode
