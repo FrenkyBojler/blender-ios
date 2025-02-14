@@ -22,3 +22,4 @@ Referenced by issue #58441, Crash on Open
 Referenced by issue #58446, objects disappear doing any action in local view
 Referenced by issue #58427, Segfault on start, Ubuntu 18.04
 Referenced by issue #58411, mirror modifier + bevel modifier  error
+Referenced by issue #58418, Animated Textures dont update on frame change
