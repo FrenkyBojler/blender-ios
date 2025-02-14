@@ -1,2 +1,3 @@
 Referenced by commit 4eab8fae5a9, Fix #119697: Incorrect update after disabling light linking
 Referenced by commit 7abc1bc7d43, Fix #117760: Regression: Ctrl+Z causes Losing Audio Sound
+Referenced by issue #119698, Fix #119697: Incorrect update after disabling light linking
