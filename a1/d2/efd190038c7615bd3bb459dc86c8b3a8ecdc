@@ -1,1 +1,2 @@
 Referenced by issue #98714, Sculpting and hair particle edit broken on Wayland
+Referenced by issue #77311, Mouse cursor stays in-place with Ghost/Wayland for operators that grab cursor input
