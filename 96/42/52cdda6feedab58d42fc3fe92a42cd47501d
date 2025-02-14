@@ -1,1 +1,2 @@
 Referenced by issue #37755, Autokey doesn't work for local Z-Axis in Camera view with MotionPaths enabled
+Referenced by issue #37741, When splitting a Node Editor area containing Python nodes, the new area shows nodes but does not have an active nodetree
