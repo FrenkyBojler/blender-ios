@@ -1,1 +1,2 @@
 Referenced by issue #105976, Regression: Targa Files with Palettes/Indexed Colors are rendered in Grayscale w/ Eevee
+Referenced by issue #103075, Regression: crash when resizing grayscale textures (eg. setting "Limit Size" to a small value)
