@@ -4,3 +4,4 @@ Referenced by issue #116844, Transform > Move menu entry shows wrong shortcut
 Referenced by issue #115025, Unable to trigger  G,R,S in Particle editing point selection mode for blender 4.0
 Referenced by issue #113881, Sculpt Curves: R shortcut conflict
 Referenced by issue #113656, [Python] change gobal keymaps like "3D View" no longer effect the translate.tranlste operator properties
+Referenced by issue #110019, WIP: Avoid unintentional 3D View inheritance
