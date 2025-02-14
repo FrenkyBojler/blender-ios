@@ -2,3 +2,4 @@ Referenced by issue #74018, CRLF vs LF mismatches errors when patching OpenColla
 Referenced by issue #73942, Eevee mipmaps not respecting border mode
 Referenced by issue #73944, Generated texture coordinates incorrect on file load in presence of modifiers
 Referenced by issue #73941, Custom normals from normal edit modifier ignored by further modifiers
+Referenced by issue #73880, 2.83 Daily: UDIM Monster demo file causes "GPUShader: compile error: error C1102" errors
