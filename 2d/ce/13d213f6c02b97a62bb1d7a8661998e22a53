@@ -1,0 +1,1 @@
+Referenced by issue #40415, Simplify subprocess calls an remove deprecated uses of os.popen
