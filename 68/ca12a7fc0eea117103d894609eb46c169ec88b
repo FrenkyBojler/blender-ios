@@ -1,0 +1,1 @@
+Referenced by issue #96283, GPU subdivision: Last subsurf modifier is always used for GPU subdivision, even when disabled.
