@@ -1,1 +1,2 @@
 Referenced by issue #102487, Select Box Tool: Selecting more than 2500 objects when 2500 is selected changes the tool's behavior, deselecting everything
+Referenced by issue #43785, crash with border select (many objects)
