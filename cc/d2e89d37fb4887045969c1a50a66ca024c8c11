@@ -1,3 +1,4 @@
 Referenced by issue #100980, Geometry nodes tree still uses the animation of the original node tree where it was copied from
 Referenced by issue #98316, Regression: Geometry Node Tree Stop Update Upon Duplication
 Referenced by issue #97747, Duplicate of Geometry Node system sharing animation channel
+Referenced by issue #94559, Geometry nodes: keyframes being deleted if you delete the same node in a node tree duplicate
