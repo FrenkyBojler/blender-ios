@@ -1,2 +1,3 @@
 Referenced by commit 32a349d3a3b, Fix #108492 : Compo Track Position node wrong Y for Relative Start/Frame
 Referenced by issue #108504, Fix #108492 : Compo Track Position node wrong Y for Relative Start/Frame
+Referenced by issue #108492, Regression: Compositor Track Position node outputs incorrect Y values for Relative Start & Relative Frame
