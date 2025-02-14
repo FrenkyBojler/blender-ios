@@ -1,2 +1,3 @@
 Referenced by issue #92045, The cursor jumps sharply when it goes outside the viewport border
 Referenced by issue #88449, Blender LTS: Maintenance Task 2.93
+Referenced by issue #88386, arm64: Viewport and Timeline jump large distances when scrolling the pointer off screen using Shift-Middle Mouse
