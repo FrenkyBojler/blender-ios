@@ -1,1 +1,2 @@
 Referenced by commit 2930d4fcea4, Fix T80031: UI: Use a more specific label for stencil mask opacity
+Referenced by issue #80031, UI: Inaccurate Text -- Texture Paint -> Viewport Overlay -> "Stencil Opacity" -- does not affect Stencil, does affect the Stencil Mask Opacity
