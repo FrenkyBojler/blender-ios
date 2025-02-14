@@ -8,3 +8,4 @@ Referenced by issue #85982, Color Picker tool shift color value slider and RGB v
 Referenced by issue #85321, 0.08 now much lighter in value
 Referenced by issue #84400, Bug in color wheel when choose value of color.
 Referenced by issue #84249, Color become into light from HSV to RGB
+Referenced by issue #83974, Regression. Inconsistency of visual color and values
