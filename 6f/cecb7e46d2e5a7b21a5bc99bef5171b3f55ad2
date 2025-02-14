@@ -1,1 +1,2 @@
 Referenced by commit ac764d2498b, Fix: missing type casts after recent c++ conversion
+Referenced by commit ae5682fa105, Fix errors with built options disabled PyAPI C++ refactor
