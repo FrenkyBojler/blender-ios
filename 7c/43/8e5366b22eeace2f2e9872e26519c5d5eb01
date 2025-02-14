@@ -13,3 +13,4 @@ Referenced by issue #59969, Blender 2.8 triggers GPU lockup when entering Edit M
 Referenced by issue #59960, Blender shuts down
 Referenced by issue #59946, Multiple quit dialogs possible
 Referenced by issue #59947, Animated texture node (in Compositor) remains static in render
+Referenced by issue #59953, Particles not beeing rendered
