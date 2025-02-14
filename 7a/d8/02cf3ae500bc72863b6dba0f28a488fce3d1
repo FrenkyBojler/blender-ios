@@ -7,3 +7,4 @@ Referenced by issue #71153, Color space configuration of copies of image texture
 Referenced by issue #70688, Image Texture Node UI resets Color Space
 Referenced by issue #69244, color space turns back to default preset sRGB when changing texture in shader editor
 Referenced by issue #68047, Found a bug during shading process
+Referenced by issue #66979, Can not set one image node to non-color without changing it for every node using that image
