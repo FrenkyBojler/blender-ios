@@ -1,1 +1,2 @@
 Referenced by commit 54f248fa87a, Transform: Use orientation of active object with Auto Constraint
+Referenced by commit 515e8e4f7c2, Fix T77166: Transforming bone with constraint does not follow mouse position
