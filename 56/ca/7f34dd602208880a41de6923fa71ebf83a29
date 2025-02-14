@@ -1,2 +1,3 @@
 Referenced by commit 6a132aa65d4, Fix T45290: Selecting passes in image editor does no longer work
 Referenced by issue #45290, Selecting passes in image editor does no longer work
+Referenced by issue #45268, Cycles - OpenCL - EXR Image loading is different to CPU / CUDA
