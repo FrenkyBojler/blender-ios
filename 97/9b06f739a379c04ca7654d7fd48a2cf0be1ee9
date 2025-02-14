@@ -1,0 +1,1 @@
+Referenced by issue #104108, Regression: Importing of collada model with instances became a LOT slower since 2.80 (practically freezing)
