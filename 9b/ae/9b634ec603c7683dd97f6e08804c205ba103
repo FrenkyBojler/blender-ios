@@ -2,3 +2,4 @@ Referenced by issue #67542, Denoiser produces artifacts while handling the negat
 Referenced by issue #65326, OBJ import is broken
 Referenced by issue #65288, Blender crashes when adding a Reflection Plane and set to Render shading mode at Eevee
 Referenced by issue #65268, pan crash in wireframe
+Referenced by issue #65244, Can't add Emission shader in World shaders even though it is supported for Volumetrics
