@@ -1,0 +1,1 @@
+Referenced by issue #68623, bpy.types.UI_UL_list.filter_items_by_name is case sensitive
