@@ -1,2 +1,3 @@
 Referenced by issue #60819, using an empty to control a texture coordinate only updates in cycles , not eevee
 Referenced by issue #60793, Image editor colour tools , sometimes don't show up
+Referenced by issue #60714, Nested grease pencil , becomes uneditable after nested and deleted
