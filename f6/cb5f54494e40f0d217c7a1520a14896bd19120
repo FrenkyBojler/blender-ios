@@ -26,3 +26,4 @@ Referenced by issue #70279, crash, Helicopter, blender 2.74 demo file
 Referenced by issue #70227, VSE Low Playback Rate: Alpha Over will give a lower fps than Cross
 Referenced by issue #70228, VSE Low Playback Rate: Resolution mismatch will give a lower fps
 Referenced by issue #70229,  VSE Low Playback Rate: Show Cache On will cause a lower fps
+Referenced by issue #70213,  EXCEPTION_ACCESS_VIOLATION/found bundled python crash
