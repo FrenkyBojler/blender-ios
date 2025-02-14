@@ -1,1 +1,2 @@
 Referenced by issue #122728, Improve our BPY introspection for Operator types
+Referenced by issue #116579, bl_i18n_utils - `dump_addon_messages` is missing addon's operator data and has redundant strings
