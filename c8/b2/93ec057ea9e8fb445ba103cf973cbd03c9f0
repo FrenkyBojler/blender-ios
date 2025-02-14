@@ -1,1 +1,2 @@
 Referenced by issue #70111, brush.weight_paint_capabilities uses a cached value for the gradient and sample weight tool
+Referenced by issue #69097, Right-clicking on Sidebar > Dimensions controls spawn an empty menu
