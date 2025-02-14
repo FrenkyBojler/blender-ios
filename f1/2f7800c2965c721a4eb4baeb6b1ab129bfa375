@@ -2,3 +2,4 @@ Referenced by commit 385bd0c4e97, Fix T103685: Animation on objects that are dis
 Referenced by commit c26d49e854b, Fix T101906: Modifier apply not working if target object is in excluded collection
 Referenced by issue #103685, Regression: Animation on objects that are disabled from render is ignored while Render Animation
 Referenced by issue #101906, Regression: Modifier apply not working if target object is in excluded collection
+Referenced by issue #101851, Regression: Duplicating a particle system crashes Blender
