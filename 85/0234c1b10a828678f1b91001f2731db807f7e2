@@ -2,3 +2,4 @@ Referenced by commit 60e74d1ef7b, UV: restore axis alignment support for Smart U
 Referenced by commit 05a2382c084, Fix T82540: Smart UV project ignores seams
 Referenced by issue #83084, Smart UV Project invert the resulting UVs
 Referenced by issue #82540, UV Smart Project works wrong
+Referenced by issue #80620, Island margin for Smart UV unwrap and pack islands gives different results for same island margin value
