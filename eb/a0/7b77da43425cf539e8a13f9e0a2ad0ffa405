@@ -1,2 +1,3 @@
 Referenced by issue #37812, Blank rectangles in sculpt brush stroke
 Referenced by issue #37680, Texture image scale is not refreshing
+Referenced by issue #37566, {suspend,restore}Dynamics behaviour change between 2.69 and -current (91f0a38)
