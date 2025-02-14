@@ -1,3 +1,4 @@
 Referenced by commit dea067fb4da, Fix: Particle brush effect can't be inverted with shift key
 Referenced by commit 5d67f1eceb4, Fix: Broken sculpt performance tests after "pen_flip" removal
 Referenced by commit 6b302eeac43, Fix #129896: Console warning in texture, weight, vertex paint modes
+Referenced by issue #132525, Fix #132433: Some Grease Pencil modes don't switch behavior with ctrl
