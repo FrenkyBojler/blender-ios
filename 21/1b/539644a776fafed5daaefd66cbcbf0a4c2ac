@@ -1,1 +1,2 @@
 Referenced by issue #47998, Decimate Modifier; Bad geometry when following subsurf with planar decimation on a mesh with holes
+Referenced by issue #47984, Bridge Tool (official), lofting across more than 3 segments + use of multiple cuts = crash
