@@ -1,0 +1,1 @@
+Referenced by issue #59351, "GPUTexture: texture alloc failed. Likely not enough Video Memory." when rendering an animation with eevee, even on low quality
