@@ -3,3 +3,4 @@ Referenced by issue #63399, Obj exporter does not respect "Apply Modifiers" sett
 Referenced by issue #63345, changing scene and applying modifiers
 Referenced by issue #63244, object.to_mesh ignores object.update_from_editmode
 Referenced by issue #63217, Curve Modifier skipped in Cycles
+Referenced by issue #62916, Applying boolean modifier does not set material of new surfaces properly.
