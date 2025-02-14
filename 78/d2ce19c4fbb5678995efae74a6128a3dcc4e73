@@ -1,1 +1,2 @@
 Referenced by commit e56fe477489, Fix crash when saving render from temporarily maximized render window
+Referenced by issue #84013, Blender crashes when a file or folder is opened from the Preferences dialog if the Maximized File Browser option is active
