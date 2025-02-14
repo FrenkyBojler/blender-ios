@@ -1,0 +1,1 @@
+Referenced by commit 722226b6106, CacheFile: make sure SpinLock is destroyed when exiting Blender.
