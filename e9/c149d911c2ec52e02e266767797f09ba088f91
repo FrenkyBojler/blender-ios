@@ -1,1 +1,2 @@
 Referenced by issue #71740, Alembic: low performance playback when keyframing object visibility
+Referenced by issue #69182, Auto-Smooth does not work on Alembic meshes without normals
