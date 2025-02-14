@@ -1,2 +1,3 @@
 Referenced by issue #63005, EEVEE: Reflection probe breaks transparent background
 Referenced by issue #62511, Blender 2.79 vs 2.8 - Selection is significantly slower in production scenes
+Referenced by issue #62512, Blender 2.79 vs 2.8 - Changing between solid and wireframe mode is slower
