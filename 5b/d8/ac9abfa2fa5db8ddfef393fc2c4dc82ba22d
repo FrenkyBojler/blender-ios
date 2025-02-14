@@ -52,3 +52,4 @@ Referenced by issue #54204, Wrong selection on Clean Tracks (Motion Tracking)
 Referenced by issue #54175, First and second particle overlap when they shouldn't
 Referenced by issue #54157, Cycles GPU compute device doesn't work
 Referenced by issue #54132, RGB Curves Node missing the curve
+Referenced by issue #54133, Crash when baking normals with Cycles from object with dupli children
