@@ -38,3 +38,4 @@ Referenced by issue #111108, Outliner: Port constraint elements to new tree-elem
 Referenced by issue #110920, Outliner: Port view layer elements to new tree-element code design
 Referenced by issue #110806, Outliner: Port pose base elements to new tree-element code design
 Referenced by issue #110587, Outliner: Port pose group elements to new tree-element code design
+Referenced by issue #110551, Outliner: Port grease pencil effect elements to new tree-element code design
