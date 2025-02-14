@@ -41,3 +41,4 @@ Referenced by issue #60435, Proportional editor not not applying on one side of 
 Referenced by issue #60212, Unable to Drag View in Movie Clip Editor
 Referenced by issue #60135, OBJ file isn't importing
 Referenced by issue #59947, Animated texture node (in Compositor) remains static in render
+Referenced by issue #59743, Collada Export Missing Keyframes
