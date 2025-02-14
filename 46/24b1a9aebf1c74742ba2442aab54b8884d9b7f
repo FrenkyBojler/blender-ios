@@ -1,3 +1,4 @@
 Referenced by issue #123102, Blender 4.2 builds not starting using EXE
 Referenced by issue #122285, EEVEE-Next: Broken overscan in Viewport Render Image
 Referenced by issue #122291, EEVEE-Next: Reflections black spot
+Referenced by issue #122276, Crash when searching for a Collection Instance (Add > Collection Instance)
