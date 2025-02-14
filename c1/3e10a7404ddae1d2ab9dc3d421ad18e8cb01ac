@@ -1,2 +1,3 @@
 Referenced by issue #65520, Assigning Material a second time crashes Blender
 Referenced by issue #65504, Point Density causes Crash
+Referenced by issue #65481, Undo while sculpting hides the object momentarily
