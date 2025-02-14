@@ -1,1 +1,2 @@
 Referenced by commit b3e0101a35b, GHOST/Wayland: non-wrapping grab no longer locks the cursor
+Referenced by issue #39144, Moving cursor quickly jumps it out of the window when translating objects
