@@ -1,3 +1,4 @@
 Referenced by commit f6bafef1e1a, GPencil: Move Object Depth Order to Object
 Referenced by commit c182bb3adb5, Fix indentation issue introduced in rB54ffc4e19dc4
 Referenced by issue #62153, Jumping scrolling
+Referenced by issue #62059, ColorRamp doesn't update when a color stop is driven by expression
