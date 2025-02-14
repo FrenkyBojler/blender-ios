@@ -1,1 +1,2 @@
 Referenced by issue #53249, [regression] OpenCL performance becomes very random with big scenes.
+Referenced by issue #53237, Mouse-based bevel adjustment breaks when operator is applied > 1 times. Bevel width sticks on the maximum value
