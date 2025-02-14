@@ -1,2 +1,3 @@
 Referenced by commit 2b9965122e1, Sound: Revert all the recent changes to sound
 Referenced by commit c68c81a870b, Sound: Make sure spin lock is initialized for new sound datablocks
+Referenced by issue #64144, crashes when try to display audio waveforms in video sequence editor
