@@ -1,1 +1,2 @@
 Referenced by issue #47108, Bmesh boolean fails with overlapping faces
+Referenced by issue #47019, BMesh boolean fails to fill holes with very low threshold value
