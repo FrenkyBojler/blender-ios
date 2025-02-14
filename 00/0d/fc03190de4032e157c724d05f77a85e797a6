@@ -72,3 +72,4 @@ Referenced by issue #44653, Nvidia driver crashes during copying BVH info to GPU
 Referenced by issue #44632, Blender doesn't start
 Referenced by issue #44634, Slide edge (ops.transform.edge_slide()) not responding to ALT + WHEEL to change reference edge in "even mode"
 Referenced by issue #44635, Cannot open multiple panels at once by LMB-drag over them as stated in the manual.
+Referenced by issue #44621, Convert Hair Particules (Whole Group) doesn't respect duplicated Group Hierarchy
