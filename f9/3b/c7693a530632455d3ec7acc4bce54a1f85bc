@@ -25,3 +25,4 @@ Referenced by issue #40802, Blender disapper when running game logic
 Referenced by issue #40786, Sound strip crash in Video Sequence Editor
 Referenced by issue #40790, 2D Filters and anti-aliasing broke quad buffer stereo
 Referenced by issue #40758, Sculpting : Front faces only option doesnt seem to work.
+Referenced by issue #40739, Importing Collada DAE file crashes Blender
