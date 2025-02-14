@@ -2,3 +2,4 @@ Referenced by issue #63717,  Bug in the viewport
 Referenced by issue #63693, 2.8. 'Import images as planes' add-on. Transparency in PNGs not preserved.
 Referenced by issue #63694, Multi window measure crash
 Referenced by issue #63698, Selecting Materials after creating a new file throws EXCEPTION_ACCESS_VIOLATION
+Referenced by issue #63699, 2.8 Grease pencil. 'Pen up' event seems delayed relative to pen movement.
