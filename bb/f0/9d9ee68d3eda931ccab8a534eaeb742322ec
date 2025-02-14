@@ -24,3 +24,4 @@ Referenced by issue #43977, Freestyle traces objects that are invisible to camer
 Referenced by issue #43956, Bug in bevel op. in version 2.73a
 Referenced by issue #43923, Record animation with a rigid body fails to animate
 Referenced by issue #43921, Cycles - Displacement Modifier
+Referenced by issue #43905, Crash happens when press Create Plane Track
