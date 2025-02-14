@@ -1,1 +1,2 @@
 Referenced by issue #59729, no outlines in object mode in orthographic view - top, left, etc.
+Referenced by issue #59719, Bake Indirect Lighting doesn't update env map reflection
