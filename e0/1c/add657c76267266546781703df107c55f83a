@@ -1,3 +1,4 @@
 Referenced by commit bf7c52cfd52, Fix error in stereo3d side-by-side display
 Referenced by commit 74b47e4181d, Fix: VSE preview not showing stereo drawing (unreported)
 Referenced by commit 964a2dd73f6, UI: Bring Embossing for the top-bar and quad-view
+Referenced by issue #55664, Crash when splitting window layout
