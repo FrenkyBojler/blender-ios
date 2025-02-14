@@ -1,2 +1,3 @@
 Referenced by issue #58650, Issue copying HEX color code
 Referenced by issue #58593, Blender 2.8 - Viewport Display Animation doesnt work / hard crashes blender
+Referenced by issue #58528, Materials don't get assigned to objects other than the active object in multi edit mode
