@@ -3,3 +3,4 @@ Referenced by commit 6845aad1a27, Fix T90907: RNA pointers for material slots ar
 Referenced by commit f3a0267016c, Materials: support materials when applying modifier
 Referenced by commit b51bd859fd4, Fix: wrong rna pointer for material slot
 Referenced by issue #95417, Material Assignment broken when multiple materials assigned to Object
+Referenced by issue #90907, Change "Link materials to the object or the object's data" on multiple objects
