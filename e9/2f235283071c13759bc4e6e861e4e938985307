@@ -23,3 +23,4 @@ Referenced by issue #52341, Shotgun effect while selecting
 Referenced by issue #52325, Sculpt Tool will not work on 2D plane in Orthographic Mode if View Clip End set to 656 m or higher
 Referenced by issue #52328, There is no DPI setting under "User Preferences..." / System (tab)
 Referenced by issue #52281, Sculpt turned to low poly sphere
+Referenced by issue #52260, Blender 2.79 Objects made duplicates real still refer armature proxy
