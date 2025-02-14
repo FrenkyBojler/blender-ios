@@ -4,3 +4,4 @@ Referenced by issue #82385, EEVEE Alpha Clip shadows actually using Alpha Hashed
 Referenced by issue #78845, Some hair particles are rendered the wrong material in EEVEE
 Referenced by issue #77672, Eevee. Reflections with  reflection plane broken (regression)
 Referenced by issue #77346, Intel UHD 620: Blender crashes at modifying material properties
+Referenced by issue #66231, Performance degradation of Principled Shader in Eevee when metallic is turned off
