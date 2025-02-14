@@ -1,2 +1,3 @@
 Referenced by commit 26c0ca3aa7f, Outliner: Unified delete hierarchy operator
 Referenced by issue #77883, Cannot delete an object in the scene collection using the delete key
+Referenced by issue #67462, Outliner: support delete in the keymap for different data-types
