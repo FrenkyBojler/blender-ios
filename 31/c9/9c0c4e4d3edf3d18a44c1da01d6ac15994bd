@@ -1,1 +1,2 @@
 Referenced by issue #56676, New Depsgraph - Dual windows, unlinked layers in 3D viewport, objects which are not in active layers are not updated nicely
+Referenced by issue #56573, Crash when selecting a vertex in a scene with image textures in texture / material mode
