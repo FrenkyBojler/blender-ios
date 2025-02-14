@@ -1,2 +1,3 @@
 Referenced by issue #99281, Animated curves flickers when Motion Blur and Persistent Data are enabled
 Referenced by issue #96822, Persistent Data Causes Render Errors for Motion Blur
+Referenced by issue #95475, Cycles: Motion blur causing some frames to render objects incorrectly
