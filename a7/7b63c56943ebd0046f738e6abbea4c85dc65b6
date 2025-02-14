@@ -2,3 +2,4 @@ Referenced by commit e8d4304b554, Correct version patching of Preferences theme
 Referenced by issue #62390, Blender 2.8 Crashes when I Undo changes and press the left mouse button while working in weight paint
 Referenced by issue #60612, Blender 2.8 Beta, Motion Blur Flag disables soft shadows in Camera View.
 Referenced by issue #60296, Window Sleep Issue
+Referenced by issue #60219, 2.8 UV snap to pixel distortion
