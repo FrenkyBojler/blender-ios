@@ -1,1 +1,2 @@
 Referenced by issue #80867, Sculpt's trim brushes generates geometry instead of removing.
+Referenced by issue #80818, Deps: potrace 1.16
