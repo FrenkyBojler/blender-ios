@@ -2,3 +2,4 @@ Referenced by commit 1bd4a3c9f35, Fix #106141: crash when duplicating a node
 Referenced by commit 8d9d16fb53a, Fix #104396: Blender crashes when moving Keyframes in Graph Editor
 Referenced by commit 7beb487e9ad, Fix T104353: Crash on opening sculpting template
 Referenced by issue #106174, Fix #106141: crash when duplicating a node
+Referenced by issue #106141, Regression: Node duplication via menu results in a crash
