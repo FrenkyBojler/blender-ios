@@ -1,1 +1,2 @@
 Referenced by issue #54311, `--render-format EXR` saves as multi-layer EXR
+Referenced by issue #54269, EXRs produced by latest master non-readable in most editors
