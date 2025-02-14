@@ -1,0 +1,1 @@
+Referenced by issue #72935, Applying transform to a parent mesh with a child node using quaternions visibly changes rotation of child
