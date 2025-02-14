@@ -1,3 +1,4 @@
 Referenced by issue #60850, Emulate 3 button mouse couses weird behavior in UI
 Referenced by issue #60790, Unwanted alt click and drag with emulate MMB and tablet
 Referenced by issue #60776, Keymaps added from python doesn't behave correctly.
+Referenced by issue #60659, First click issue,Operator Menus (Pie, Menu) need 2nd or 3rd click to confirm on OSX
