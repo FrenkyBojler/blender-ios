@@ -1,2 +1,3 @@
 Referenced by issue #44566, Skin Modifier - hard crash.
 Referenced by issue #39775, Skin modifier crashes with certain meshes
+Referenced by issue #39097, Skin modifier crash with null skin radii (C++ assert)
