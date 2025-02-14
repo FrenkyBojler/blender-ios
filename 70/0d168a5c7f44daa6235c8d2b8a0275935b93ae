@@ -1,2 +1,3 @@
 Referenced by commit 537fdbbfa2f, Fix: Revert changes in Mesh to Volume node and modifier to Blender 3.6
 Referenced by commit 0b0a5d21ac0, Fix: Revert changes in Mesh to Volume node and modifier to Blender 3.6
+Referenced by issue #109297, Fix: revert changes in Mesh to Volume node and modifier to Blender 3.6
