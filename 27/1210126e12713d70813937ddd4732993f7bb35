@@ -1,2 +1,3 @@
 Referenced by issue #96048, Crash on appending with driver variables loop
 Referenced by issue #92430, Appending File Causes Blender To Crash (NSFW)
+Referenced by issue #91834, Appending objects with shape keys into new file is broken.
