@@ -38,3 +38,4 @@ Referenced by issue #58207, Render time going crazy!
 Referenced by issue #58208, Selecting particle system as Dynamic paint Brush crashes Blender
 Referenced by issue #58210, Surface Deform modifier doesn't indicate a successful bind, and shows a warning
 Referenced by issue #58211, Node inputs and output "hit boxes" are smaller when different select options are used.
+Referenced by issue #58191, Subdivision Surface modifier performance issues
