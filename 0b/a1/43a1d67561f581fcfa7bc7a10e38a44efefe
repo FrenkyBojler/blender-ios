@@ -4,3 +4,4 @@ Referenced by issue #62367, Blender 2.8 - Black Viewport
 Referenced by issue #62348, Cycles - Viewport rendering not updating when switching to allready rendered viewlayer
 Referenced by issue #62318, Blender crash whith 'corrupt' customdata (CD_BWEIGHT)
 Referenced by issue #62095, On Viewport Render, Camera BackGround Image is misaligned
+Referenced by issue #61768, Eevee Offscreen rendering
