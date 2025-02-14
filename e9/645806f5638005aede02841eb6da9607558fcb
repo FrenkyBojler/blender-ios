@@ -1,1 +1,2 @@
 Referenced by commit 2e46a8c8647, Remove noop code from WM_MOUSEWHEEL processing.
+Referenced by issue #42420, Touchpad zoom and scroll gester using touchpad stopped working on Lenovo Thinkpad Laptop E520
