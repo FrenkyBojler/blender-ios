@@ -3,3 +3,4 @@ Referenced by issue #84202, Sculpt crash after remesh (mask operators, cloth bru
 Referenced by issue #84132, Sculpt: crash in Sculpt Mode when using mask operators after voxel remeshing
 Referenced by issue #84002, Sculpt: Masking operations crash if multires is in play
 Referenced by issue #83040, Disappearing Mesh when sculpting cloth with multires
+Referenced by issue #81854, Crash in undoing switch from sculpt to edit mode and back.
