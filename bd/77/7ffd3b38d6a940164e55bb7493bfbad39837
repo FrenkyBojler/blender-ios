@@ -1,2 +1,3 @@
 Referenced by issue #40923, LibLoad & LibFree crash with endObject
 Referenced by issue #40924, LibNew & LibFree material bug
+Referenced by issue #40864, Cycles; use of color ramp node in latest builds will always crash after save and reload.
