@@ -1,2 +1,3 @@
 Referenced by commit abd630de62d, Disable Bake Jitter code (recently added)
 Referenced by issue #43772, Vertex slide crashes Blender
+Referenced by issue #43550, Bug in Cycles Bake Texture
