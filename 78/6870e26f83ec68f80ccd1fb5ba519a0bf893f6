@@ -1,2 +1,3 @@
 Referenced by issue #76246, "Paste Objects" doesn't copy source objects' collection heirarchy
 Referenced by issue #58229, Blender 2.79 & 2.8 - Undo when dealing with separate by loose parts ends up with duplicate objects
+Referenced by issue #58193, Blender 2.8 - Adding new collection from the Objects Menu, does not add the collection to the scene
