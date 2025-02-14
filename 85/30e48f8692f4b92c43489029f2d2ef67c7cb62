@@ -1,1 +1,2 @@
 Referenced by issue #101365, Regression: Can't save second Viewlayer as .exr
+Referenced by issue #96756, Crash when rendering a second time after saving the image to disk
