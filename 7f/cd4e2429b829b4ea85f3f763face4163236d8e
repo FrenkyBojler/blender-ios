@@ -1,1 +1,2 @@
 Referenced by commit 4cea295fcba, Fix #126392: Crash loading a file with "Load UI" disabled
+Referenced by issue #126392, Regression: Double clicking a file crashes Blender if load UI is off
