@@ -1,1 +1,2 @@
 Referenced by commit 94507a7fa7e, Fix T62589: Particle system Instance Collection option fails to set a user for a linked collection.
+Referenced by issue #61141, Append Particle Settings doesn't append the collection properly
