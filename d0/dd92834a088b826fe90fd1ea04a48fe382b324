@@ -11,3 +11,4 @@ Referenced by issue #115481, Blender Crashes with `SIGSEGV (Address boundary err
 Referenced by issue #115430, cycles+openimagedenoise: Blender crashes when enabling composition in realtime view
 Referenced by issue #115341, Mixing with a value produces a different result depending on the Blender version
 Referenced by issue #115282, File thumbnails does not show with files saved to OneDrive (Windows)
+Referenced by issue #115231, All interface colours are desaturated
