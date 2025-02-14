@@ -434,7 +434,7 @@ class NODE_OT_viewer_shortcut_set(Operator):
         return (
             space.type == 'NODE_EDITOR' and
             space.node_tree is not None and
-            space.tree_type == 'CompositorNodeTree'
+            (space.tree_type == 'CompositorNodeTree' or space.tree_type == 'GeometryNodeTree')
         )
 
     def execute(self, context):
@@ -469,8 +469,10 @@ class NODE_OT_viewer_shortcut_set(Operator):
             )
             return {'CANCELLED'}
 
-        # Use the node active status to enable this viewer node and disable others.
+        # activate_viewer() operator acts on the active node. So set the viewer node to active first.
+        # Note: the compositor already activates the viewer if the node is set to active.
         nodes.active = viewer_node
+        bpy.ops.node.activate_viewer()
         if old_active.type != 'VIEWER':
             nodes.active = old_active
 
@@ -497,7 +499,7 @@ class NODE_OT_viewer_shortcut_get(Operator):
         return (
             space.type == 'NODE_EDITOR' and
             space.node_tree is not None and
-            space.tree_type == 'CompositorNodeTree'
+            (space.tree_type == 'CompositorNodeTree' or space.tree_type == 'GeometryNodeTree')
         )
 
     def execute(self, context):
@@ -513,9 +515,11 @@ class NODE_OT_viewer_shortcut_get(Operator):
             self.report({'INFO'}, "Shortcut {:d} is not assigned to a Viewer node yet".format(self.viewer_index))
             return {'CANCELLED'}
 
-        # Use the node active status to enable this viewer node and disable others.
+        # activate_viewer() operator acts on the active node. So set the viewer node to active first.
+        # Note: the compositor already activates the viewer if the node is set to active.
         old_active = nodes.active
         nodes.active = viewer_node
+        bpy.ops.node.activate_viewer()
         if old_active.type != "VIEWER":
             nodes.active = old_active
 

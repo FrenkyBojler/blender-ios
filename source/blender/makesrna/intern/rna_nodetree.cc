@@ -1350,7 +1350,9 @@ static void rna_Node_shortcut_node_set(PointerRNA *ptr, int value)
 
   /* Avoid having two nodes with the same shortcut. */
   for (bNode *node : ntree.all_nodes()) {
-    if (node->is_type("CompositorNodeViewer") && node->custom1 == value) {
+    if ((node->is_type("CompositorNodeViewer") || node->is_type("GeometryNodeViewer")) &&
+        node->custom1 == value)
+    {
       node->custom1 = NODE_VIEWER_SHORTCUT_NONE;
     }
   }
@@ -10879,6 +10881,19 @@ static void def_geo_string_to_curves(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
+static void def_geo_viewer(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "ui_shortcut", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "custom1");
+  RNA_def_property_int_funcs(prop, nullptr, "rna_Node_shortcut_node_set", nullptr);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
+  RNA_def_property_int_default(prop, NODE_VIEWER_SHORTCUT_NONE);
+  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, nullptr);
+}
+
 static void rna_def_menu_switch_item(BlenderRNA *brna)
 {
   PropertyRNA *prop;
@@ -12618,7 +12633,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeUVPackIslands");
   define("GeometryNode", "GeometryNodeUVUnwrap");
   define("GeometryNode", "GeometryNodeVertexOfCorner");
-  define("GeometryNode", "GeometryNodeViewer");
+  define("GeometryNode", "GeometryNodeViewer", def_geo_viewer);
   define("GeometryNode", "GeometryNodeViewportTransform");
   define("GeometryNode", "GeometryNodeVolumeCube");
   define("GeometryNode", "GeometryNodeVolumeToMesh");
