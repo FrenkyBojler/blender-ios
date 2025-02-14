@@ -1,1 +1,2 @@
 Referenced by issue #88037, Selecting a Add Shader node in the Shader Editor window no longer highlights Shader Node line in Dope Sheet window
+Referenced by issue #62463, Skeleton rig with keyframes prevents selection of Shader Nodetree channels in Dope Sheet and Graph Editor
