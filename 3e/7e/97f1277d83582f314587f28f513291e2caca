@@ -1,0 +1,1 @@
+Referenced by issue #42838, bpy.ops.object.duplicates_make_real: use_hierarchy parameter doesn't work as expected
