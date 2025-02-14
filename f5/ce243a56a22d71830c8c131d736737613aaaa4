@@ -1,1 +1,2 @@
 Referenced by commit f17ea1f2a7b, Geometry Nodes: Remove realize instances legacy behavior
+Referenced by commit d960c786933, Fix T94545: support realizing instanced collections
