@@ -32,3 +32,4 @@ Referenced by issue #48037, 2.77 and 2.69 both on Windows and Linux crashes when
 Referenced by issue #48039, 3DConnexion-5Axis
 Referenced by issue #48023, Knife project work very bad (still)
 Referenced by issue #48028, GPU Compute in Cycles is broken on AMD stable drivers and Blender stable release
+Referenced by issue #48032, Blender 2.77 64bit linux crash when selecting object
