@@ -1,3 +1,4 @@
 Referenced by issue #81549, Full exit crash when pressing 'object constraint properties' when in pose mode
 Referenced by issue #81164, Switching to pose mode occurs crashes (2.90.1, fixed in master)
 Referenced by issue #81057, PoseBone Constraints are displayed in Object Constraints tab
+Referenced by issue #80396, Potential candidates for corrective releases
