@@ -1,0 +1,1 @@
+Referenced by issue #77249, Operators that create library data without being flaged to UNDO crash when undoing
