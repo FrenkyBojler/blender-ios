@@ -232,6 +232,21 @@ bool ED_gpencil_anim_copybuf_paste(bAnimContext *ac, short offset_mode);
 
 /* ------------ Grease-Pencil Undo System ------------------ */
 int ED_gpencil_session_active();
+/**
+ * \param step: eUndoStepDir.
+ */
+int ED_undo_gpencil_step(bContext *C, int step); /* eUndoStepDir. */
+
+/* ----------- Add Primitive Utilities -------------- */
+
+/**
+ * Get drawing reference point for conversion or projection of the stroke
+ * \param r_vec: Reference point found
+ */
+void ED_gpencil_drawing_reference_get(const Scene *scene,
+                                      const Object *ob,
+                                      char align_flag,
+                                      float r_vec[3]);
 
 /* texture coordinate utilities */
 
