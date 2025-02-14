@@ -1,1 +1,2 @@
 Referenced by commit e7b0a23283c, Fix (unreported) broken ID remapping code, and improve efficiency.
+Referenced by issue #104553, Use hash for Collection.gobject lookup, speedup object linking
