@@ -2,3 +2,4 @@ Referenced by issue #115226, A Shader Compile Error Occurs with Two AOV Outputs 
 Referenced by issue #107575, Fix #107566: Gesture face set respect hidden faces
 Referenced by issue #102700, Regression: Viewer node crash on empty by non-null mesh after join geometry with attribute output on viewer
 Referenced by issue #102662, NLA-Strip Corrupted after reopening file with library override
+Referenced by issue #102653, `insert_keyframe` takes too long, appears to run in linear time over the number of existing keyframes
