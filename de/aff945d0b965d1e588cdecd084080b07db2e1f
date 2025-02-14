@@ -7,3 +7,4 @@ Referenced by commit f8c8a5c092c, Fix T77607: Edit-mode shading regression 2.90
 Referenced by commit 0945a79ed1e, Fix crash using shrink-wrap modifier in edit-mode
 Referenced by commit 2d1b560a4e2, Fix T77632: Deform modifier auto-binding not working
 Referenced by commit 495a98d6236, BLI_assert: prevent abort from suppressing return-type warning
+Referenced by commit 1b06d5742e8, Fix building after rBdeaff945d0b9... sic.
