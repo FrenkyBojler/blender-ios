@@ -1,1 +1,2 @@
 Referenced by issue #95376, When switching to UV workspace blender crashes with Error: Dependency not found: gpu_shader_colorspace_lib.glsl
+Referenced by issue #95341, Gpu shaders color from 3.1 do not match those in 3.0
