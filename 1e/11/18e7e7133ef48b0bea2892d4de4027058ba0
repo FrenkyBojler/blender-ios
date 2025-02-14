@@ -3,3 +3,4 @@ Referenced by issue #47835, Solid Black smoke domain
 Referenced by issue #47803, Progressive Render Crash
 Referenced by issue #47807, Alt+F9 shortcut doesn't hide the header
 Referenced by issue #47785, Rendering Crash, Node Connector Crash, Changing Editors Crash
+Referenced by issue #47794, Point density sometime seems streched when rendered on GPU
