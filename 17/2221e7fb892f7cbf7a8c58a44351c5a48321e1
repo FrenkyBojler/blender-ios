@@ -1,2 +1,3 @@
 Referenced by issue #122795, Fix #122438: Orbit Around Selection drastically moves view
 Referenced by issue #122552, Fix #122438: Orbit Around Selection drastically moves view
+Referenced by issue #122438, If orbit around selection is enabled, selecting an object that is out of view and then moving makes the view jump
