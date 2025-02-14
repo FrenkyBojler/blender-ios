@@ -165,13 +165,13 @@ struct TaskPool {
   /* TBB task pool. */
   std::unique_ptr<TBBTaskGroup> tbb_group;
 #endif
-  volatile bool is_suspended;
+  volatile bool is_suspended = false;
   blender::Vector<Task> suspended_tasks;
 
   /* Background task pool. */
   ListBase background_threads;
   ThreadQueue *background_queue;
-  volatile bool background_is_canceling;
+  volatile bool background_is_canceling = false;
 
   TaskPool(const TaskPoolType type, const eTaskPriority priority, void *userdata)
       : type(type), userdata(userdata)
