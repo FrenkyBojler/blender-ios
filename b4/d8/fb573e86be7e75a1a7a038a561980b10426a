@@ -33,3 +33,4 @@ Referenced by issue #43243, Blender Importer Up axis selector's Y Up options whe
 Referenced by issue #43227, Select with seam limit is not working
 Referenced by issue #43233, OpenGL speed regression
 Referenced by issue #43200, GPU Cycles experimental feature set out of memory error on default cube
+Referenced by issue #43203, Continuous zoom fails to work in camera view
