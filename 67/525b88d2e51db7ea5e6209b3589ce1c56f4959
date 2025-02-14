@@ -1,1 +1,2 @@
 Referenced by commit 20b438d523c, Cleanup: Use array for BKE cursor functions
+Referenced by commit 5cf993f951b, Cleanup: Fix compile warning
