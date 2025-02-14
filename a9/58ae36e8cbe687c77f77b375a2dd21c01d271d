@@ -2,3 +2,4 @@ Referenced by commit 303014bfac0, Fix #108078: Crash when inverting results in p
 Referenced by issue #109157, Fix #108078: Crash when inverting results in pose library sidebar
 Referenced by issue #105773, Fix #104305: Crash in node editor with large asset libraries
 Referenced by issue #105535, New Asset Shelf steals temp data from file entry, leads to crash ultimately.
+Referenced by issue #104952, Crash when hovering asset category in geometry nodes add menu
