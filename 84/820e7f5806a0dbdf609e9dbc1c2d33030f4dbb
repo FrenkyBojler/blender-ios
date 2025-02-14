@@ -1,3 +1,4 @@
 Referenced by issue #62388, object visibilty using obj.hide_viewport not recognized by context.visible_objects and obj.visible_get()
 Referenced by issue #62135, duplicate-move on parented objects, doesn't move in world space
 Referenced by issue #62128, inconsistent material duplication
+Referenced by issue #62098, Outliner: Delete hierarchy crash
