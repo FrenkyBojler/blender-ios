@@ -4,3 +4,4 @@ Referenced by commit 887ccb85371, Fix T96152: Crash realizing curve instances
 Referenced by issue #96487, Crash when dynamically resampling splines using Spline Length (Point Count) + 1
 Referenced by issue #95941, Change curve component to store Curves data
 Referenced by issue #95443, Refactor curve nodes to use new data structure
+Referenced by issue #95355, New Curves data block
