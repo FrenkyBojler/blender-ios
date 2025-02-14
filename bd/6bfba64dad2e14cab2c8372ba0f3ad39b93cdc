@@ -1,2 +1,3 @@
 Referenced by issue #85099, Cycles GPU render crashes in 2.92, 2.93 on Ubuntu with rx580
 Referenced by issue #82561, Sky Texture for an OSL/Open Shading Language configured scene crashes Blender
+Referenced by issue #81454, Cycles: enable NanoVDB by default
