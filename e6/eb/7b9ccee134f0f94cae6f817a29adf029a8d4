@@ -1,0 +1,1 @@
+Referenced by issue #62483, Cursor "jumps" after basic actions, due to xorg's TransformationMatrix option
