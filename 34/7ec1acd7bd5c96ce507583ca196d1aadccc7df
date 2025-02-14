@@ -9,3 +9,4 @@ Referenced by issue #127474, Fix #127279: Various brushes do not work on multire
 Referenced by issue #127435, Fix #127396: Invert Mask doesn't apply to entire mesh
 Referenced by issue #127396, Sculpt Mode: Invert Mask only done on part of the mesh
 Referenced by issue #127279, Sculpt: Some parts of mesh can't be sculpted on 6 level of multires
+Referenced by issue #127281, Sculpt: Crash with cloth brush on multires level 7
