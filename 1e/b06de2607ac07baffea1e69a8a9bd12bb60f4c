@@ -1,1 +1,2 @@
 Referenced by issue #90811, blender 2.93.0+ crashes on applying boolean modifier
+Referenced by issue #90527, Blender does not use the GPU on Ryzen 5 with AMD Renoir GPU
