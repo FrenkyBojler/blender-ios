@@ -1,2 +1,3 @@
 Referenced by issue #40062, Some texture node modifications randomly do not take effect immediatelly
 Referenced by issue #40067, Math modulo node returns black for negative numbers.
+Referenced by issue #40051, DupliFaces: Inconsistent handling of group member types
