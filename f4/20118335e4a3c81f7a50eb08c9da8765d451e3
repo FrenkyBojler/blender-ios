@@ -1,1 +1,2 @@
 Referenced by issue #95529, Crash on rendering video (possibly OOM?)
+Referenced by issue #95522, Crash on startup (segfault), possibly endless path recursion
