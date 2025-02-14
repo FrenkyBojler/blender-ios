@@ -1,1 +1,2 @@
 Referenced by commit 47d961a4b1c, Fix: Apply tilt in curves data-block normals calculation
+Referenced by issue #95443, Refactor curve nodes to use new data structure
