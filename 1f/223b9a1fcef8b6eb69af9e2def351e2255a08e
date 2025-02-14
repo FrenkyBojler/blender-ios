@@ -1,1 +1,2 @@
 Referenced by commit b874c152a81, Fix (unreported): 'CoInitializeEx' being called without 'CoUninitialize'
+Referenced by issue #87621, The Blender File Open dialog triggers OneDrive Files On-Demand downloads
