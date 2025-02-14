@@ -1,1 +1,2 @@
 Referenced by commit bec72a43aef, Fix T92874: Custom normals reset when vertex is deleted
+Referenced by commit 647a8bff06b, Fix T90256: faces are flat shaded in edit mode with auto smooth
