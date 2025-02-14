@@ -2,3 +2,4 @@ Referenced by commit f1ac64921b4, Fix T71213: Mask or Mirror before Armature bre
 Referenced by issue #88665, Impossible to weight paint certain vertices
 Referenced by issue #70476, Pose brush breaks with subdiv modifier
 Referenced by issue #67934, Subdivision modifier and multirres modifier broke for weight paint, vertex paint and sculpt
+Referenced by issue #54082, Subsurf modifier is affecting the way in which the brush paints weights.
