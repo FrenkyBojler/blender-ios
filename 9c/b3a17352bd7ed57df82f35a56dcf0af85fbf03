@@ -1,1 +1,2 @@
 Referenced by issue #120806, Vector scope would crash blender if Color Management > Gamma is set too low
+Referenced by issue #120469, View animation not working with image sequence
