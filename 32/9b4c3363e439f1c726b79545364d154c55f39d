@@ -1,2 +1,3 @@
 Referenced by commit 82f51fe9132, Fix T77356: Texture Preview not taking alpha into account
 Referenced by issue #77356, Texture with alpha channel doesn't preview correctly.
+Referenced by issue #54329, Brush texture preview not working
