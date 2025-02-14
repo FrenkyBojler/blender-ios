@@ -1,2 +1,3 @@
 Referenced by commit 9cd9b357792, Fix T87816: Sculpt curve & line stroke hides dash settings
 Referenced by commit aede740c8af, Fix T87816: Sculpt curve & line stroke hides dash settings
+Referenced by commit f38c54d56ef, Fix Vertex weight gradient tool show wrong weight/strength values in the
