@@ -42,3 +42,4 @@ Referenced by issue #47992, Stereo 3D Anaglyph rendered Images saved too light.
 Referenced by issue #47974, Global Material Override does not work in Cycles viewport
 Referenced by issue #47975, Memory usage problem in 2.77
 Referenced by issue #47977, Multiple change of dimensions doesn't work properly
+Referenced by issue #47978, Remesh modifier causes splitting wrongly
