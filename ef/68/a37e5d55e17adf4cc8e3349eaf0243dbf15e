@@ -6,3 +6,4 @@ Referenced by issue #105370, Fix #105278: IDProperty UI missing library overrida
 Referenced by issue #105278, Regression: IDProperty UI missing library overridable toggle for types other than float or int
 Referenced by issue #104995, Fix #104902: Use forward compatible integers for boolean RNA properties
 Referenced by issue #103911, Issues with boolean custom property
+Referenced by issue #85306, Use boolean in the modifier for exposed boolean node group inputs
