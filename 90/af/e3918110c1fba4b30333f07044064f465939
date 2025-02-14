@@ -2,3 +2,4 @@ Referenced by issue #62246, Blender crash when File -> Save as ...
 Referenced by issue #62228, Data Transfer Modifier
 Referenced by issue #62235, Constant crashes file save, save as, new workspace, etc. perhaps related to grease pencil
 Referenced by issue #62191, Blender 2.8 - Object Animation - animated hide_render and hide_viewport do not work as expected
+Referenced by issue #62169, Object hidden in Collection is visible in Collection-Instance
