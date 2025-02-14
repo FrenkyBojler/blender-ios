@@ -1,2 +1,3 @@
 Referenced by issue #70109, Crash with the Data Transfer Modifier (with any 'Edge Data' option)
 Referenced by issue #69089, glTF addon: libextern_draco.so is missing
+Referenced by issue #69015, New Denoising feature in compositor is killing details
