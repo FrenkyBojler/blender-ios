@@ -1,2 +1,3 @@
 Referenced by issue #97926, RigidBody simulation creates ERRATIC motion between frames
 Referenced by issue #96391, Motion blur all out of whack
+Referenced by issue #96364, Rigid body constraint subframe glitch
