@@ -1,3 +1,4 @@
 Referenced by commit b53a9a671dc, Fix #130783: Image editor tools do not set active brush
 Referenced by commit ebc4759df58, Fix #128053: Crash when using Ctrl for eraser in grease pencil draw mode
 Referenced by issue #130946, Fix #130783: Image editor tools do not set active brush
+Referenced by issue #128349, Right clicking a sculpt brush in tool settings crashes Blender
