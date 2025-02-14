@@ -1,1 +1,2 @@
 Referenced by commit 71261343094, Fix #130967: hidden sockets are made visible when dragging nodes
+Referenced by issue #130984, Fix #130967: Hidden sockets are unhide in case of node dragging
