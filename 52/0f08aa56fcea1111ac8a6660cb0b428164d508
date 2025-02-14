@@ -1,0 +1,1 @@
+Referenced by issue #77241, 3DConnexion navigation stops when cursor interacts with UI outside of 3d viewport or TOOL is used on mesh (Knife, Extrude, Bevel, etc)
