@@ -4,3 +4,4 @@ Referenced by issue #46315, Blender 2.76 64 bit crashes on Debian Wheezy when tr
 Referenced by issue #46317, Using Material Node group make everything in the group not showing up at render time - Blender Render
 Referenced by issue #46323, Crash right after BVH build completes when hair particles applied
 Referenced by issue #46325, bone rotation
+Referenced by issue #46305, The viewport artifacts associated with the use of normal maps.
