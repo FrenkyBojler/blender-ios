@@ -1,1 +1,2 @@
 Referenced by issue #102596, Viewport display of multiple Dupli-Collections when different draw-types are used : wireframe might disappear (only selected are garuanteed to draw)
+Referenced by issue #62470, Blender 2.79 file opening in Blender 2.8, does not respect dupli-group display type
