@@ -1,1 +1,2 @@
 Referenced by issue #92151, Avoid loosing catalog edits on reload or library change
+Referenced by issue #91995, Asset browser will lost tree hierarchy when switching to a empty asset path
