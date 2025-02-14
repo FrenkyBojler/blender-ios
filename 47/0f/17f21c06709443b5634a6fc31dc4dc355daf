@@ -1,3 +1,4 @@
 Referenced by commit dfa3dcbab95, Fix T88625: Multiobject UV hiding/unhiding does not work with UV_SYNC_SELECTION
 Referenced by issue #76114, Unhideible UVs in Multi Object Edit
 Referenced by issue #75974, Multiobject editting UV map hiding and unhiding doesn't work.
+Referenced by issue #54645, Multi-Object-Mode: EditMesh UV Tools
