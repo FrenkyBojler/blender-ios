@@ -6,3 +6,4 @@ Referenced by issue #62291, strange sculpting bug with multires , only updates w
 Referenced by issue #62292, multires + sculpt does not update when object is set to smooth shading and viewport overlay is turned off
 Referenced by issue #62290, strange sculpting bug with multires , only updates when ovelay tab is turned off
 Referenced by issue #62160, Bone naming issue after using "Flip Names" command.
+Referenced by issue #62140, line segment disappears when using extrude of predefined grease pencil line stroke
