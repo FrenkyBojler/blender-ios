@@ -1,3 +1,4 @@
 Referenced by issue #46590, Strange camera behavior
 Referenced by issue #46510, Failed to get Full Preview in VSE
 Referenced by issue #46493, Cycles Motion Blur error - zoom effect
+Referenced by issue #46496, OpenGL Render fails on Intel-4600, with Anti-aliasing
