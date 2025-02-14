@@ -1,1 +1,2 @@
 Referenced by commit 728e92422ef, Fix T54524: keyframe and driver colors not showing in shape key list.
+Referenced by issue #54524, Drivers color not showing up in shapekeys values anymore
