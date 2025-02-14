@@ -1,1 +1,2 @@
 Referenced by issue #39029, Blender Internal: Render tiles do not appear until render is finished if Save Buffers enabled
+Referenced by issue #38969, Crash (regression) when rendering a flex rig character
