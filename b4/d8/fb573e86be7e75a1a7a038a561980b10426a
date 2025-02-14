@@ -23,3 +23,4 @@ Referenced by issue #43338, Cuda error with file from 2.71
 Referenced by issue #43322, Crash
 Referenced by issue #43307, Display or Material error？？
 Referenced by issue #43309, Strange behavior during blend file save
+Referenced by issue #43310, GPU memory explode since version 2.73
