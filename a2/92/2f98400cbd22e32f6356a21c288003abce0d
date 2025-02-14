@@ -1,1 +1,2 @@
 Referenced by issue #57296, Blender 2.8 crash on startup on Linux
+Referenced by issue #57288, Assert when deleting duplicated collection (id->us == 0)
