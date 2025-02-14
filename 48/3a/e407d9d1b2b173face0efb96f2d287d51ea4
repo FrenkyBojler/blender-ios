@@ -1,1 +1,2 @@
 Referenced by issue #65093, ASAN crash when using navigation (orbiting) gizmo
+Referenced by issue #65095, Hiding a nested collection doesn't immediately update its parent instances in the scene
