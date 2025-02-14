@@ -2,3 +2,4 @@ Referenced by issue #114209, Dark bar in result when rendering large image with 
 Referenced by issue #103556, Regression: Cycles viewport pixels change if the UI is updated in a certain way.
 Referenced by issue #103101, Cycles Crash on random frame in Blender 3.4
 Referenced by issue #102944, Cycles Viewport broken on 3.5.0 Alpha Master since 2022-12-01 build (MacBook Pro 15.4 Intel)
+Referenced by issue #96261, Metal Viewport
