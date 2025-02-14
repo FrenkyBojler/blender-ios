@@ -1,1 +1,2 @@
 Referenced by commit 5d1a5001f4d, Fix T52628: own error in string duplication
+Referenced by issue #52628, Crash when editing nodes group.
