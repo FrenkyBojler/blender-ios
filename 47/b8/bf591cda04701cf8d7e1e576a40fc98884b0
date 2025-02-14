@@ -1,1 +1,2 @@
 Referenced by issue #42160, CUDA error: ILLEGAL_ADDRESS in cuCtxSynchronize()
+Referenced by issue #42150, Crash on exit build 47b8bf5
