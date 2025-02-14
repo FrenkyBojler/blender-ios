@@ -3,3 +3,4 @@ Referenced by issue #60669, Freestyle loading unneeded collections
 Referenced by issue #60608, Properties dialogs created by addons via wm.invoke_props_dialog() jump around vertically.
 Referenced by issue #60614, Grease pencil mirror modifier with parent set to mirror object produces unexpected result
 Referenced by issue #60599, I believe there is a problem with having dynamesh and multires on the object at the same time. #Blender consistent crash
+Referenced by issue #60602, Pose bones' selection doesn't update in the viewport if it was changed outside of the viewport.
