@@ -49,3 +49,4 @@ Referenced by issue #54226, Crashes on opening settings
 Referenced by issue #54212, Cycles misses uvw coord. in render
 Referenced by issue #54216, Baking uses different coord. system for object normals in Blender and in Cycles
 Referenced by issue #54204, Wrong selection on Clean Tracks (Motion Tracking)
+Referenced by issue #54175, First and second particle overlap when they shouldn't
