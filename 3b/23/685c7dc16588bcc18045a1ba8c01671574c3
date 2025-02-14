@@ -1,3 +1,4 @@
 Referenced by issue #70450, newly added ffmpeg webm vp9 rgba support just hangs
 Referenced by issue #70414, EEVEE 2.81 VIEWPORT CRASH - having 2 viewports and UV edit window crashes blender
 Referenced by issue #70190, File browser access crashes Blender
+Referenced by issue #63994, Node Editor: Move All Selected Nodes when dragging
