@@ -1,3 +1,4 @@
 Referenced by commit 9175911ffab, Fix spin-gizmo button tool-tip placement
 Referenced by issue #87390, Regression: Quad View Gizmo Tooltips at wrong position
 Referenced by issue #86880, Cycles: Bevel node stop working after changing world shader
+Referenced by issue #85426, VSE: Speed Strip - Stretch to Input Strip Length has no effect
