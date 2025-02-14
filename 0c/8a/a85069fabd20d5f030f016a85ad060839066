@@ -1,3 +1,4 @@
 Referenced by issue #57693, Eevee: Lights dont cast shadows if they are part of an collection instance
 Referenced by issue #57598, If click on Bake Rigid Body World, it crashes.
 Referenced by issue #57601, Crashing after baking ( or clearing and baking ) simple smoke sim
+Referenced by issue #57566, Blender 2.8 crashes with the new multires. WITH_OPENSUBDIV_MODIFIER ON
