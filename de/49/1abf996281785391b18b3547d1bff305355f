@@ -1,2 +1,3 @@
 Referenced by commit 64c8d72ef1a, Modifiers: Use object passed to evaluation
 Referenced by issue #59162, to_mesh(..., True, calc_undeformed=True) calculates deformed anyway since de491ab
+Referenced by issue #58237, Exporters: Curve Modifier not applied when "apply modifiers" are selected
