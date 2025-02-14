@@ -1,1 +1,2 @@
 Referenced by commit f2250b7a5bb, Fix #105078: Regression: Memory leak in driver UI drawing code
+Referenced by issue #101592, Expose "mute" for drivers in the Edit Driver popup
