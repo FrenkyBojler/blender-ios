@@ -1,3 +1,4 @@
 Referenced by issue #47134, Failed to copy full data path
 Referenced by issue #47100, Open Cl Kernel Warnings
 Referenced by issue #47101, Grease Pencil eraser doesn't work when activated using D+RMB when using a tablet
+Referenced by issue #47087, Bmesh booleans fails when A mesh have coincident edge with B
