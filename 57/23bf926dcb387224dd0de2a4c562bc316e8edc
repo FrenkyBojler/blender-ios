@@ -1,2 +1,3 @@
 Referenced by issue #99704, Regression: Crash with boolean modifier
 Referenced by issue #99592, Regression: Boolean Difference modifier - material of hole created by hidden object different for fast and exact
+Referenced by issue #99191, Regression: Blender crashes when texture painting (caused by boolean modifers)
