@@ -1,3 +1,4 @@
 Referenced by commit abd630de62d, Disable Bake Jitter code (recently added)
 Referenced by commit 1b92dfa9616, Fix T43550: Bug in Cycles Bake Texture
 Referenced by issue #43550, Bug in Cycles Bake Texture
+Referenced by issue #43388, Cycles Baking gives different results than Cycles Render
