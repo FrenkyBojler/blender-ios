@@ -27,3 +27,4 @@ Referenced by issue #90087, data copy is ommitting vgroups
 Referenced by issue #90039, Pinning data (mesh, curve, grease pencil, lattice, particle system) makes certain tabs/options disappear (vertex groups, shapekeys facemaps)
 Referenced by issue #89899, BLI_assert failed: BKE_id_defgroup_list_get()
 Referenced by issue #89870, Vertex groups are lost if I save a file in 3.0 and open in 2.92 without warnings
+Referenced by issue #89316, Geometry Nodes: An existing Vertex Group (VG) can't be altered after a Boolean Node.
