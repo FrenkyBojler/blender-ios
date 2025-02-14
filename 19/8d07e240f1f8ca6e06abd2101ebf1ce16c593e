@@ -1,0 +1,1 @@
+Referenced by issue #132924, `FileNotFoundError: [WinError 206] The filename or extension is too long` while installing extension with packed wheels
