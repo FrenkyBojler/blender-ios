@@ -1,1 +1,2 @@
 Referenced by commit 96dd1943afc, Fix crash calling wm.open_mainfile from menu with --debug-memory enabled
+Referenced by issue #44688, To set stereo 3d mode to Time Sequential may crash Blender
