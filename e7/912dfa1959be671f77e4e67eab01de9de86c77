@@ -1,1 +1,2 @@
 Referenced by commit 1a8db5b7172, Fix: Only possible to create one 8 bit integer attribute
+Referenced by issue #95610, Writing to an attribute that is also a vertexgroup results in black when used in a shader
