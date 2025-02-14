@@ -1,1 +1,2 @@
 Referenced by commit 7bfd3130fb7, Fix T62866: 3D text not filled by default
+Referenced by issue #62883, Import SVG file remove fill color
