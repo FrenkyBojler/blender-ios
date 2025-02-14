@@ -3,3 +3,4 @@ Referenced by issue #99502, OBJ/MTL import: behavior changed for missing texture
 Referenced by issue #99156, Regression: UV Pins interfere with UV seams (regression)
 Referenced by issue #99036, Add Color Attribute: hex colors don't work
 Referenced by issue #98239, Unwrap and Live Unwrap can merge pinned UVs
+Referenced by issue #75007, Live unwrap interaction changes unwrapping and ignores pinned vertices
