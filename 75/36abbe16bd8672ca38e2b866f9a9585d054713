@@ -2,3 +2,4 @@ Referenced by commit 3a1583972a1, Fix T104256: Curve to points node skips curve 
 Referenced by commit 9a4c54e8b0a, Fix: Curve to Points node has wrong field interface status
 Referenced by issue #104256, Regression: Geometry Nodes: Curve to Points node not propagating attributes from spline domain
 Referenced by issue #102752, Joined point cloud is not properly visible in viewport
+Referenced by issue #101711, Regression: Geometry Node: Delete points created from curve will broken radius attribute
