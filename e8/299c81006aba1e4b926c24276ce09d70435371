@@ -24,3 +24,4 @@ Referenced by issue #50745, Shape key editing on bezier objects broken with Rend
 Referenced by issue #50734, Blender crash without error message
 Referenced by issue #50692, Python console shows no output
 Referenced by issue #50698, cycles bake artifacts with transparent textures and no color option
+Referenced by issue #50699, Gpu Cycles error with MacOs and Gtx580 - Render viewport and No glossy materials (render in black)
