@@ -1,3 +1,4 @@
 Referenced by issue #86980, Sculpting: Multiresolution visual issue with smooth brush
 Referenced by issue #86920, Edit Mode: Not all faces within the selection tools' bounds are being selected.
 Referenced by issue #86914, Crash when selecting an object in Sculpt Mode
+Referenced by issue #86871, Crash with to_mesh() on tapered bezier curve
