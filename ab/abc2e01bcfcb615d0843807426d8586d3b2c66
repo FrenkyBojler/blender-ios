@@ -1,1 +1,2 @@
 Referenced by commit e6f6db500ef, Fix: ED_view3d_depth_override cannot disable overlays
+Referenced by issue #132905, High idle CPU usage with PulseAudio in Linux is back
