@@ -47,3 +47,4 @@ Referenced by issue #40474, Sculpt Mode: Smooth Shading checkbox
 Referenced by issue #40461, Rotation handles inverted/don't work with Intel HD Graphics 4000
 Referenced by issue #40454, Soft body render misses
 Referenced by issue #40441, Hair particles are not rendered when in particle edit mode
+Referenced by issue #40408, World Multiple importance sample + Equi-angular sampling gives noise and weirdness in volumes in 2.71 testbuild
