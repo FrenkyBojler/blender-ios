@@ -1,0 +1,1 @@
+Referenced by issue #78956, Subdivision Surface Modifier causes vertex color map to display a lot of banding in cycles. (Eevee is fine)
