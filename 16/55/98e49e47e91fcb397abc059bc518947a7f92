@@ -1,2 +1,3 @@
 Referenced by issue #44633, movie textures hogging cpu and not drawing in rendered viewport.
 Referenced by issue #44636, Why the lamp hidden cause noise ?
+Referenced by issue #44631, Custom Normal Data Transfer crash.
