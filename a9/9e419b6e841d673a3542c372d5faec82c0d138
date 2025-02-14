@@ -2,3 +2,4 @@ Referenced by issue #123245, NLA stack no longer correctly evaluates top layer d
 Referenced by issue #119946, Blender 4.1 NLA Combine blend type is Broken
 Referenced by issue #117547, RBD Bake to Keyframes no longer working
 Referenced by issue #115816, removing shortcuts in the f3 menu doesn't work
+Referenced by issue #115789, Regression: Problems with adding keys
