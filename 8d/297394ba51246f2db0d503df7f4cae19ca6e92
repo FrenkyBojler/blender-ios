@@ -1,0 +1,1 @@
+Referenced by commit 2bfc3debd90, Bake-API: throws error if highpoly object(s) doesn't have uniform scale (fix T40156)
