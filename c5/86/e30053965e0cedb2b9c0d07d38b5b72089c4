@@ -20,3 +20,4 @@ Referenced by issue #46175, Screen not slide in File Browser with Arrow-key navi
 Referenced by issue #46155, Sequencer Text Effect: wrong vertical 'TOP' alignment
 Referenced by issue #46157, Using arrow keys to navigate in file browser does not scroll
 Referenced by issue #46158, opening user preferences ... crashes blender
+Referenced by issue #46151, New dependency graph Spline IK with curve control dependency cycles.
