@@ -1,1 +1,2 @@
 Referenced by commit 4952fb1669f, Fix T54323: Improve Paint category names in keymap preferences
+Referenced by issue #66557, BLI_expr_pylike_eval test failure
