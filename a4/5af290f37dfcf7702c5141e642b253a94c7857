@@ -1,1 +1,2 @@
 Referenced by issue #93908, Regression: Crash when toggling object type visibility with viewport on material preview in heavy scenes
+Referenced by issue #86357, Eevee Shadow Caster has exponential performance degradation with many (distinct) objects
