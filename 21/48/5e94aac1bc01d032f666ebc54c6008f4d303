@@ -1,2 +1,3 @@
 Referenced by commit 31d3f034ab8, Fix T76097: Simulations don't take animated gravity into account
 Referenced by issue #77827, Mantaflow - liquid refuses to rise above level of inflow object
+Referenced by issue #76276, Compiler Error C1061 due to too many nested if/else in MANTA_main.cpp
