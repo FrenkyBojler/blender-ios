@@ -1,1 +1,2 @@
 Referenced by commit 35368e8bfc5, Fix: mattes of cryptomatte node lost after write
+Referenced by issue #86026, 2.92 crashes when reopening file [Cryptomatte related].
