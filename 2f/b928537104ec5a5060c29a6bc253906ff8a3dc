@@ -1,1 +1,2 @@
 Referenced by issue #70039, Blender does not react to a file being opened from finder on a different desktop (MacOS)
+Referenced by issue #68707, macOS: Close File Dialog is not displayed when opening file from Finder
