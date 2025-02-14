@@ -1,3 +1,4 @@
 Referenced by commit e05552f7c4a, Revert "Fix T74572: adaptive sampling not scaling render passes correctly"
 Referenced by issue #75388, Adaptive sampling artifacts
 Referenced by issue #75396, Cycles – Rendering with "Adaptive Sampling" Produces Artifacts
+Referenced by issue #74572, Adaptive sampling breaks value Shader AOV's
