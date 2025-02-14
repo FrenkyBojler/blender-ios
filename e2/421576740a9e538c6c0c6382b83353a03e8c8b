@@ -1,1 +1,2 @@
 Referenced by issue #127550, 4.2 backport: Core: flush outputs before calling exiting on `execvp` failure
+Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
