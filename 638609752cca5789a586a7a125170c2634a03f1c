@@ -1,1 +1,2 @@
 Referenced by commit fd6df292f86, Fix #134448: Multi-object editing broken after recent fix
+Referenced by commit d41e49933b1, Fix: Mismatched MEM_new/MEM_freeN after recent fix
