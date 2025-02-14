@@ -6,3 +6,4 @@ Referenced by issue #97736, Transparent objects are visible inside volumetric ma
 Referenced by issue #97027, Regression: Triangle edges visible (ray/triangle intersection issue?)
 Referenced by issue #96537, Regression: Alpha/transparency not working correctly with intersecting mesh in Cycles
 Referenced by issue #96475, Overlapping geometry shows black faces on Cycles Blender 3.1 (Ray Tracing Precision)
+Referenced by issue #96381, Overlapping Volumes broken in Cycles, GPU only (possible regression)
