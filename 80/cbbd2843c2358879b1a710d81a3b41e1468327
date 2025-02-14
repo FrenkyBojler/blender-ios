@@ -1,2 +1,3 @@
 Referenced by commit 14901e37741, Fix T87080: Select shortest path fails in face mode
 Referenced by issue #87080, Select shortest path in face selection mode doesnt work
+Referenced by issue #87081, Face selection issue in X-ray mode
