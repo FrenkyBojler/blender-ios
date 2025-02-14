@@ -1,2 +1,3 @@
 Referenced by issue #40379, Cycles : CUDA Rendering : Environment with MIS uses double memory usage
 Referenced by issue #40182, BGE crash
+Referenced by issue #40172, LibFree() crashes Blender
