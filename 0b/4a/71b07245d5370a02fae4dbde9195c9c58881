@@ -1,1 +1,2 @@
 Referenced by issue #43124, crash with rigid body constraints in linked group
+Referenced by issue #42399, Scaling rigid body causes pivot to also be scaled
