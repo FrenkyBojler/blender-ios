@@ -5,3 +5,4 @@ Referenced by issue #115784, Blender 4.0.1 edit mode completely freezing/crashin
 Referenced by issue #115757, Blender Crashes
 Referenced by issue #115722, Blender 4.0.1 Segfault on Launch
 Referenced by issue #115714, Dragging in Poly Haven HDRI w/ACES colorspace crashes (viewport render or full render)
+Referenced by issue #115676, When rendering animation, it gives an error and closes every time
