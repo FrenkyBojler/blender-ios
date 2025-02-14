@@ -1,3 +1,4 @@
 Referenced by commit a5b996df88c, Fix T92608: Image Editor does not display stereo images
 Referenced by issue #92608, Image Editor doesn't display stereoscopic images
 Referenced by issue #90772, Image Editor not sampling color from the the currently selected pass
+Referenced by issue #88449, Blender LTS: Maintenance Task 2.93
