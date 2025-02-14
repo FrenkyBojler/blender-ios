@@ -68,6 +68,7 @@ struct TimeSourceNode;
 class DepsgraphNodeBuilder : public DepsgraphBuilder {
  public:
   DepsgraphNodeBuilder(Main *bmain, Depsgraph *graph, DepsgraphBuilderCache *cache);
+  ~DepsgraphNodeBuilder();
 
   /* For given original ID get ID which is created by copy-on-evaluation system. */
   ID *get_cow_id(const ID *id_orig) const;
@@ -289,13 +290,11 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
     ID *id_cow = nullptr;
     /* Mask of visible components from previous state of the
      * dependency graph. */
-    IDComponentsMask previously_visible_components_mask;
+    IDComponentsMask previously_visible_components_mask = 0;
     /* Special evaluation flag mask from the previous depsgraph. */
-    uint32_t previous_eval_flags;
+    uint32_t previous_eval_flags = 0;
     /* Mesh CustomData mask from the previous depsgraph. */
-    DEGCustomDataMeshMasks previous_customdata_masks;
-
-    ~IDInfo();
+    DEGCustomDataMeshMasks previous_customdata_masks = {};
   };
 
  protected:

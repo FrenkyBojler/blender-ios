@@ -135,11 +135,14 @@ DepsgraphNodeBuilder::DepsgraphNodeBuilder(Main *bmain,
 {
 }
 
-DepsgraphNodeBuilder::IDInfo::~IDInfo()
+DepsgraphNodeBuilder::~DepsgraphNodeBuilder()
 {
-  if (this->id_cow != nullptr) {
-    deg_free_eval_copy_datablock(this->id_cow);
-    MEM_freeN(this->id_cow);
+  /* Cannot be in an IDInfo destructor, as these COW IDs do not belong to the IDInfo data. */
+  for (IDInfo &id_info : id_info_hash_.values()) {
+    if (id_info.id_cow != nullptr) {
+      deg_free_eval_copy_datablock(id_info.id_cow);
+      MEM_freeN(id_info.id_cow);
+    }
   }
 }
 
@@ -380,7 +383,7 @@ void DepsgraphNodeBuilder::begin_build()
      * for whether id_cow is expanded to access freed memory. In order to deal with this we
      * check whether an evaluated copy is needed based on a scalar value which does not lead to
      * access of possibly deleted memory. */
-    IDInfo id_info;
+    IDInfo id_info{};
     if (deg_eval_copy_is_needed(id_node->id_type) && deg_eval_copy_is_expanded(id_node->id_cow) &&
         id_node->id_orig != id_node->id_cow)
     {
