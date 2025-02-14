@@ -1,0 +1,1 @@
+Referenced by commit bf23d0e53cf, Fix #112011: PLY export broken when mesh contains faces with >255 vertices
