@@ -1,2 +1,3 @@
 Referenced by commit 26d7b6c5179, Fix T43831: Image Editor: Render info not displayed
 Referenced by issue #43831, Image Editor: Render info not displayed
+Referenced by issue #39985, crash while rendering a scene with copositing nodes using another scene
