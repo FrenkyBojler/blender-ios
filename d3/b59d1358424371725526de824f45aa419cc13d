@@ -1,2 +1,3 @@
 Referenced by commit 50d78116cd3, Fix warning for duplicate field in DNA defaults
 Referenced by commit 3e25f70dddb, Fix compile error in lite build after recent commit
+Referenced by issue #80164, Missing DNA Defaults ("Reset to Default Value" sets to 0)
