@@ -7,3 +7,4 @@ Referenced by issue #88893, Blender freeze while working on mesh with texture
 Referenced by issue #88690, Repeated segmentation faults on animation playback
 Referenced by issue #88614, Mixdown crashes Blender 2.92.0 and 3.0.0 Alpha
 Referenced by issue #88579, Scale Cage doesn't work well for small/large objects
+Referenced by issue #88551, Blender crahses when I add an Image/Sequence in the VSE
