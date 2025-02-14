@@ -1,1 +1,2 @@
 Referenced by issue #46647, Extrude Individual Faces + tweak in Last Operator panel = Crash
+Referenced by issue #44966, no speed nor memory footprint improvement after selective node compilation commit
