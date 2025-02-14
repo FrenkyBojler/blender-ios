@@ -39,3 +39,4 @@ Referenced by issue #46632, Play animation not working when cursor over F-curves
 Referenced by issue #46636, Saving image from texture paint destroys the resolution
 Referenced by issue #46620, Using 'correct uvs' option in edge or vertex slide causes uvs to become pinned.
 Referenced by issue #46621, Undo doesn't work on unparenting an object in armature-edit-mode.
+Referenced by issue #46628, Strips overlapping in VSE
