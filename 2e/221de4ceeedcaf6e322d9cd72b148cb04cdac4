@@ -42,3 +42,4 @@ Referenced by issue #110551, Outliner: Port grease pencil effect elements to new
 Referenced by issue #110371, Outliner: Port grease pencil effect elements to new tree-element code design
 Referenced by issue #110245, Outliner: Port particle system elements to new tree-element code design
 Referenced by issue #110003, Outliner: Port deform group elements to new tree-element code design
+Referenced by issue #109793, Outliner: Port edit bone elements to new tree-element code design
