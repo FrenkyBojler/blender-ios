@@ -2,3 +2,4 @@ Referenced by issue #62221, Grease pencil & unusual fill artifact
 Referenced by issue #62102, Extrude of predefined grease pencil line stroke delayed
 Referenced by issue #62087, Crash when rendering in Cycles
 Referenced by issue #62093, Blender crashes when attempting to render scene with hide_render keyframes
+Referenced by issue #62094, Unable to insert a hide_viewport keyframe via the UI
