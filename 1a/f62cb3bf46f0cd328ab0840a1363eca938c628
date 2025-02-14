@@ -4,3 +4,4 @@ Referenced by commit b37111c574e, Cleanup: Use consistent "vert" term for mesh n
 Referenced by commit 79d64bfde38, Geometry Nodes: Remove unnecessary position copying in delete node
 Referenced by commit d1b6f16906f, Fix #104980: Apply All Shape Keys operator not working
 Referenced by issue #109372, Crash when selecting line art
+Referenced by issue #109042, Baking Normal and Displacement from Multires is different than previous versions
