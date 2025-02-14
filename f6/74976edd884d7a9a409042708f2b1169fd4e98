@@ -1,2 +1,3 @@
 Referenced by commit b7b1b2325c1, Fix T87274: Curve 2D resets to 3D on reload
 Referenced by issue #87274, Curve 2D resets to 3D on reload
+Referenced by issue #86440, transforming 2d curve sa 3d curve (rotation+depth)
