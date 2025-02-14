@@ -1,2 +1,3 @@
 Referenced by issue #48300, Using the Search Menu (Spacebar) outside the 3D View can cause crashes, mouse pointer capture in certain cases
 Referenced by issue #48092, 2.77 and 277a totally freezes OS by opening the attached file
+Referenced by issue #48028, GPU Compute in Cycles is broken on AMD stable drivers and Blender stable release
