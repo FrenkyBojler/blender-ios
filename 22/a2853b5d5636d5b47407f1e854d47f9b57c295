@@ -1,1 +1,2 @@
 Referenced by issue #53250, Crash when linking/appending a scene to a blend when another linked scene in this blend is currently open/active
+Referenced by issue #51180, Bmesh primitives creation using parameter calc_uvs=True, crashes Blender
