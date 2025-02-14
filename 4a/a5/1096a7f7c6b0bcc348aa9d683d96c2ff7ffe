@@ -5,3 +5,4 @@ Referenced by issue #44059, "User Preferences>Input>Node Editor>Translate" reset
 Referenced by issue #44063, Unchecking Load UI setting crashes Blender when opening a file
 Referenced by issue #44034, Copy to Selected crashes
 Referenced by issue #44025, OpenGL memory leaks when using Save User Settings.
+Referenced by issue #43994, Steering actuator bug with Navmesh
