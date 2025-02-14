@@ -1,2 +1,3 @@
 Referenced by commit b77e7480eff, VSE: Remove retiming tool for 3.6 release
 Referenced by commit 7bf56e5c75f, Fix failing lite build
+Referenced by issue #114951, hard cut sound in VSE resets Waveform
