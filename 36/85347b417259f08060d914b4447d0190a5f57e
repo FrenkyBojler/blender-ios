@@ -1,3 +1,4 @@
 Referenced by commit 24140444f2f, Fix T75556: Select Emitter Object via Hair
 Referenced by commit 849672a9912, Fix T75556: Select Emitter Object via Hair
 Referenced by issue #75556, Particle Hair cannot be selected anymore
+Referenced by issue #72842, Box and Lasso select is extremely unreliable in Face or Edge select mode (selects non-visible faces or edges)
