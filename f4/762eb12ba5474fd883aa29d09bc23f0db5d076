@@ -1,1 +1,2 @@
 Referenced by commit 03f1d8acab5, Use the term "N-gon" instead of "Polygon" for triangulation method
+Referenced by issue #83907, Misuse of the term Polygon in the Triangulate node
