@@ -5,3 +5,4 @@ Referenced by issue #102423, Regression: Screen Space Reflections on EEVEE rende
 Referenced by issue #101175, Eevee displacement behavior changed
 Referenced by issue #100904, SSS effect disappears when Mix Shader Node includes Shader To RGB Node
 Referenced by issue #100649, Regression: Environment texture is stretched when added to mesh
+Referenced by issue #100377, 3.2 normalmap node broken in eevee
