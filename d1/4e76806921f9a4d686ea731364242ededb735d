@@ -1,1 +1,2 @@
 Referenced by commit 57468ae37ef, Cleanup: missed renaming BLI_cleanup_unc_16 in recent refactor
+Referenced by issue #74506, Proposal for new names in `BLI_path_util`
