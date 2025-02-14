@@ -10,46 +10,51 @@
 
 namespace blender::bke {
 
-static ImplicitSharingPtr<> attribute_to_sharing_ptr(const GAttributeReader &attr)
+template<typename T> ArrayState<T> attribute_reader_to_array_state(const AttributeReader<T> &attr)
 {
   if (!attr) {
     return {};
   }
-  attr.sharing_info->add_user();
-  return ImplicitSharingPtr<>(attr.sharing_info);
+  return {attr.varray, attr.sharing_info};
 }
 
-static bool attribute_matches_state(const ImplicitSharingPtr<> &array_state,
-                                    const GAttributeReader &attr)
+template<typename T>
+bool attribute_reader_matches_array_state(const ArrayState<T> &array_state,
+                                          const AttributeReader<T> &attr)
 {
-  return array_state.get() == attr.sharing_info;
+  if (!attr) {
+    return array_state.is_empty();
+  }
+  return array_state.same_as(attr.varray, attr.sharing_info);
 }
 
 MeshTopologyState::MeshTopologyState(const Mesh &mesh)
 {
   const AttributeAccessor attributes = mesh.attributes();
-  edge_verts_ = attribute_to_sharing_ptr(attributes.lookup(".edge_verts"));
-  corner_verts_ = attribute_to_sharing_ptr(attributes.lookup(".corner_vert"));
-  corner_edges_ = attribute_to_sharing_ptr(attributes.lookup(".corner_edge"));
-  if (mesh.runtime->face_offsets_sharing_info) {
-    mesh.runtime->face_offsets_sharing_info->add_user();
-    face_offset_indices_ = ImplicitSharingPtr<>(mesh.runtime->face_offsets_sharing_info);
-  }
+  edge_verts_ = attribute_reader_to_array_state(attributes.lookup<int2>(".edge_verts"));
+  corner_verts_ = attribute_reader_to_array_state(attributes.lookup<int>(".corner_vert"));
+  corner_edges_ = attribute_reader_to_array_state(attributes.lookup<int>(".corner_edge"));
+  face_offset_indices_ = ArrayState<int>(VArray<int>::ForSpan(mesh.face_offsets()),
+                                         mesh.runtime->face_offsets_sharing_info);
 }
 
 bool MeshTopologyState::same_topology_as(const Mesh &mesh) const
 {
   const AttributeAccessor attributes = mesh.attributes();
-  if (!attribute_matches_state(edge_verts_, attributes.lookup(".edge_verts"))) {
+  if (!attribute_reader_matches_array_state(edge_verts_, attributes.lookup<int2>(".edge_verts"))) {
     return false;
   }
-  if (!attribute_matches_state(corner_verts_, attributes.lookup(".corner_vert"))) {
+  if (!attribute_reader_matches_array_state(corner_verts_, attributes.lookup<int>(".corner_vert")))
+  {
     return false;
   }
-  if (!attribute_matches_state(corner_edges_, attributes.lookup(".corner_edge"))) {
+  if (!attribute_reader_matches_array_state(corner_edges_, attributes.lookup<int>(".corner_edge")))
+  {
     return false;
   }
-  if (face_offset_indices_.get() != mesh.runtime->face_offsets_sharing_info) {
+  if (!face_offset_indices_.same_as(VArray<int>::ForSpan(mesh.face_offsets()),
+                                    mesh.runtime->face_offsets_sharing_info))
+  {
     return false;
   }
   return true;

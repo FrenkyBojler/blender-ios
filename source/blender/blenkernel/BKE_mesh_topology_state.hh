@@ -4,7 +4,8 @@
 
 #pragma once
 
-#include "BLI_implicit_sharing_ptr.hh"
+#include "BLI_array_state.hh"
+#include "BLI_math_vector_types.hh"
 
 struct Mesh;
 
@@ -13,16 +14,15 @@ namespace blender::bke {
 /**
  * Simplifies checking if the topology of a mesh before and after an operation is the same.
  *
- * It does so by adding an owner to the mesh topology attributes, which requires them to be
- * re-allocated for modifications. This allows checking for changes in constant time by simply
- * comparing the sharing info.
+ * It does so by remembering the topology of the mesh. In common cases, this can be done without
+ * additional copies in constant time by using implicit-sharing.
  */
 class MeshTopologyState {
  private:
-  ImplicitSharingPtr<> edge_verts_;
-  ImplicitSharingPtr<> corner_verts_;
-  ImplicitSharingPtr<> corner_edges_;
-  ImplicitSharingPtr<> face_offset_indices_;
+  ArrayState<int2> edge_verts_;
+  ArrayState<int> corner_verts_;
+  ArrayState<int> corner_edges_;
+  ArrayState<int> face_offset_indices_;
 
  public:
   MeshTopologyState(const Mesh &mesh);
