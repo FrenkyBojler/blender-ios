@@ -1,2 +1,3 @@
 Referenced by commit e5ace51295b, Fix T76734: Changing Envelope FModifier controlpoints missing update
 Referenced by issue #65802, F-curves modifiers in nodes doesn't updates properly
+Referenced by issue #46553, FCurve Modifier parameter is changed only with time change
