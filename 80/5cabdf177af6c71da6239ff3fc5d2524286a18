@@ -1,2 +1,3 @@
 Referenced by issue #66555, Handler render init ignores output placeholders
 Referenced by issue #65691, GPencil: Drawing long strokes turn invisible
+Referenced by issue #64483, Blender crash when we close the render window if we have selected Blener File in Outliner.
