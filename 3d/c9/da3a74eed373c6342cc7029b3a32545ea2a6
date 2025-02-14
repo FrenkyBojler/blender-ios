@@ -5,3 +5,4 @@ Referenced by issue #64424, Mesh sequence cache modifier not rendering properly
 Referenced by issue #64405, Eevee: Screen Space Reflections break with rotated dupli instances
 Referenced by issue #64400, x-axis mirror for edit mode and pose mode is the same
 Referenced by issue #64380, Display Overlays in Cycles
+Referenced by issue #64382, show_ortho_grid not working in orthographic top and bottom view
