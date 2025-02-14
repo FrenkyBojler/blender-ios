@@ -1,2 +1,3 @@
 Referenced by issue #92934, Crash rendering with wrong image path in image node [Compositor, Shader Editor]
 Referenced by issue #92577, Blender 3.0 beta Cannot open folder shortcuts under Windows
+Referenced by issue #91835, Adding animation data on instanced objects crashes the blender
