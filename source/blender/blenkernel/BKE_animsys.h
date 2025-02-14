@@ -12,10 +12,6 @@
 #include "BLI_span.hh"
 #include "BLI_sys_types.h" /* for bool */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct AnimData;
 struct BlendDataReader;
 struct BlendWriter;
@@ -313,8 +309,6 @@ void BKE_animsys_evaluate_all_animation(struct Main *main,
 
 /**
  * Evaluate Action (F-Curve Bag).
- *
- * Note that this is only used for either legacy Actions or for evaluation of the NLA.
  */
 void animsys_evaluate_action(struct PointerRNA *ptr,
                              struct bAction *act,
@@ -350,7 +344,3 @@ void BKE_animsys_eval_driver(struct Depsgraph *depsgraph,
 void BKE_animsys_update_driver_array(struct ID *id);
 
 /* ************************************* */
-
-#ifdef __cplusplus
-}
-#endif

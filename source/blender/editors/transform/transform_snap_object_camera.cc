@@ -6,9 +6,9 @@
  * \ingroup edtransform
  */
 
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.hh"
 
-#include "BKE_bvhutils.hh"
 #include "BKE_object.hh"
 #include "BKE_tracking.h"
 

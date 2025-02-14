@@ -44,7 +44,7 @@
 #include "BKE_cpp_types.hh"
 #include "BKE_global.hh"
 #include "BKE_idtype.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
 #include "BKE_particle.h"
@@ -61,6 +61,8 @@
 
 #include "IMB_imbuf.hh" /* For #IMB_init. */
 
+#include "MOV_util.hh"
+
 #include "RE_engine.h"
 #include "RE_texture.h"
 
@@ -70,7 +72,9 @@
 
 #include "RNA_define.hh"
 
-#include "GPU_compilation_subprocess.hh"
+#ifdef WITH_OPENGL_BACKEND
+#  include "GPU_compilation_subprocess.hh"
+#endif
 
 #ifdef WITH_FREESTYLE
 #  include "FRS_freestyle.h"
@@ -92,9 +96,7 @@
 
 #ifdef WITH_LIBMV
 #  include "libmv-capi.h"
-#endif
-
-#ifdef WITH_CYCLES_LOGGING
+#elif defined(WITH_CYCLES_LOGGING)
 #  include "CCL_api.h"
 #endif
 
@@ -495,10 +497,8 @@ int main(int argc,
 
   /* Must be initialized after #BKE_appdir_init to account for color-management paths. */
   IMB_init();
-#ifdef WITH_FFMPEG
   /* Keep after #ARG_PASS_SETTINGS since debug flags are checked. */
-  IMB_ffmpeg_init();
-#endif
+  MOV_init();
 
   /* After #ARG_PASS_SETTINGS arguments, this is so #WM_main_playanim skips #RNA_init. */
   RNA_init();

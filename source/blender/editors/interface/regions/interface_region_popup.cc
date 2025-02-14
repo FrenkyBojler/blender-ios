@@ -8,6 +8,7 @@
  * PopUp Region (Generic)
  */
 
+#include <algorithm>
 #include <cstdarg>
 #include <cstdlib>
 #include <cstring>
@@ -497,12 +498,8 @@ static void ui_popup_block_clip(wmWindow *window, uiBlock *block)
     block->rect.xmax += xofs;
   }
 
-  if (block->rect.ymin < margin) {
-    block->rect.ymin = margin;
-  }
-  if (block->rect.ymax > win_size[1] - UI_POPUP_MENU_TOP) {
-    block->rect.ymax = win_size[1] - UI_POPUP_MENU_TOP;
-  }
+  block->rect.ymin = std::max<float>(block->rect.ymin, margin);
+  block->rect.ymax = std::min<float>(block->rect.ymax, win_size[1] - UI_POPUP_MENU_TOP);
 
   /* ensure menu items draw inside left/right boundary */
   const float xofs = block->rect.xmin - xmin_orig;
@@ -685,7 +682,7 @@ uiBlock *ui_popup_block_refresh(bContext *C,
 
   if (block->handle) {
     memcpy(block->handle, handle, sizeof(uiPopupBlockHandle));
-    MEM_freeN(handle);
+    MEM_delete(handle);
     handle = block->handle;
   }
   else {
@@ -893,7 +890,7 @@ uiPopupBlockHandle *ui_popup_block_create(bContext *C,
   WM_cursor_set(window, WM_CURSOR_DEFAULT);
 
   /* create handle */
-  uiPopupBlockHandle *handle = MEM_cnew<uiPopupBlockHandle>(__func__);
+  uiPopupBlockHandle *handle = MEM_new<uiPopupBlockHandle>(__func__);
 
   /* store context for operator */
   handle->ctx_area = CTX_wm_area(C);
@@ -1002,7 +999,7 @@ void ui_popup_block_free(bContext *C, uiPopupBlockHandle *handle)
 
   ui_popup_block_remove(C, handle);
 
-  MEM_freeN(handle);
+  MEM_delete(handle);
 }
 
 /** \} */

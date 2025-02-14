@@ -9,7 +9,9 @@
  * separated by a separator spacer button.
  */
 
+#include "BLI_listbase.h"
 #include "BLI_math_vector_types.hh"
+#include "BLI_rect.h"
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
 
@@ -18,6 +20,7 @@
 #include "DNA_screen_types.h"
 
 #include "GPU_immediate.hh"
+#include "GPU_state.hh"
 
 #include "interface_intern.hh"
 

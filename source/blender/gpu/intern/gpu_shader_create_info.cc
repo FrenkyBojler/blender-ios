@@ -11,7 +11,6 @@
 #include "BLI_map.hh"
 #include "BLI_set.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_threads.h"
 
 #include "BKE_global.hh"
 
@@ -19,7 +18,6 @@
 #include "GPU_context.hh"
 #include "GPU_platform.hh"
 #include "GPU_shader.hh"
-#include "GPU_texture.hh"
 
 #include "gpu_shader_create_info.hh"
 #include "gpu_shader_create_info_private.hh"
@@ -28,6 +26,9 @@
 #undef GPU_SHADER_NAMED_INTERFACE_INFO
 #undef GPU_SHADER_INTERFACE_INFO
 #undef GPU_SHADER_CREATE_INFO
+#undef GPU_SHADER_NAMED_INTERFACE_END
+#undef GPU_SHADER_INTERFACE_END
+#undef GPU_SHADER_CREATE_END
 
 namespace blender::gpu::shader {
 
@@ -249,7 +250,7 @@ std::string ShaderCreateInfo::check_error() const
     if (this->vertex_source_.is_empty()) {
       error += "Missing vertex shader in " + this->name_ + ".\n";
     }
-    if (tf_type_ == GPU_SHADER_TFB_NONE && this->fragment_source_.is_empty()) {
+    if (this->fragment_source_.is_empty()) {
       error += "Missing fragment shader in " + this->name_ + ".\n";
     }
   }
@@ -464,6 +465,10 @@ void gpu_shader_create_info_init()
   g_create_infos->add_new(#_info, ptr_##_info); \
   _info
 
+#define GPU_SHADER_NAMED_INTERFACE_END(_inst_name) ;
+#define GPU_SHADER_INTERFACE_END() ;
+#define GPU_SHADER_CREATE_END() ;
+
 /* Declare, register and construct the infos. */
 #include "gpu_shader_create_info_list.hh"
 
@@ -558,8 +563,7 @@ bool gpu_shader_create_info_compile(const char *name_starts_with_filter)
         continue;
       }
       if ((info->metal_backend_only_ && GPU_backend_get_type() != GPU_BACKEND_METAL) ||
-          (GPU_geometry_shader_support() == false && info->geometry_source_ != nullptr) ||
-          (GPU_transform_feedback_support() == false && info->tf_type_ != GPU_SHADER_TFB_NONE))
+          (GPU_geometry_shader_support() == false && info->geometry_source_ != nullptr))
       {
         skipped++;
         continue;

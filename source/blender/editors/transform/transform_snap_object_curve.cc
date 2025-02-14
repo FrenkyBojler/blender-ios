@@ -6,11 +6,10 @@
  * \ingroup edtransform
  */
 
-#include "BLI_math_matrix.hh"
-
 #include "DNA_curve_types.h"
 
-#include "BKE_bvhutils.hh"
+#include "BLI_listbase.h"
+
 #include "BKE_curve.hh"
 #include "BKE_object.hh"
 

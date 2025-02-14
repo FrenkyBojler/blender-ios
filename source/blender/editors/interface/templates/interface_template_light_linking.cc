@@ -6,12 +6,12 @@
  * \ingroup edinterface
  */
 
-#include "UI_interface.hh"
-
 #include <cstdio>
 #include <memory>
 
 #include <fmt/format.h>
+
+#include "BLI_listbase.h"
 
 #include "BLT_translation.hh"
 
@@ -292,7 +292,7 @@ class CollectionViewItem : public BasicTreeViewItem {
     uiBlock *block = uiLayoutGetBlock(&row);
     const int icon = get_state_icon();
 
-    PointerRNA collection_light_linking_ptr = RNA_pointer_create(
+    PointerRNA collection_light_linking_ptr = RNA_pointer_create_discrete(
         &collection_.id, &RNA_CollectionLightLinking, &collection_light_linking_);
 
     uiBut *button = uiDefIconButR(block,

@@ -14,17 +14,16 @@
  * \note It is currently work in progress and should replace the old global draw manager.
  */
 
+#include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_sys_types.h"
 
 #include "GPU_material.hh"
 
 #include "draw_resource.hh"
-#include "draw_sculpt.hh"
 #include "draw_view.hh"
 
 #include <atomic>
-#include <string>
 
 namespace blender::draw {
 
