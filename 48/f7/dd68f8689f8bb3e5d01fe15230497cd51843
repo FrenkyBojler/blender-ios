@@ -24,3 +24,4 @@ Referenced by issue #46753, Scripted driver expressions not working in material 
 Referenced by issue #46743, Limit Rotation constraint w/ For Transform and Axis Angle rotation mode crash
 Referenced by issue #46747, sculpt appaerence "show brush" blender 2.76a
 Referenced by issue #46706, Blender Render Texture and Material Views Show Large Wireframes when viewing OpenSubDiv Objects
+Referenced by issue #46684, As of 2.76 Cycles matcap materials no longer work
