@@ -1,1 +1,2 @@
 Referenced by commit 71803f2c94b, Fix T69687: Edit Curve culling
+Referenced by issue #65893, Object edit cage disappears whenever the deformed object is out of view area
