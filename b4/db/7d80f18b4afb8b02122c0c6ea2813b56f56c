@@ -1,3 +1,4 @@
 Referenced by issue #62275, Eevee: Random Object Info node does not work correctly with instances
 Referenced by issue #62100, Grease Pencil draws on top of its object origin
 Referenced by issue #62060, 2.8: Hiding original object in render will also hide it's colection instances
+Referenced by issue #62003, Collection instance origins are set to (0,0,0) and can't be changed.
