@@ -1,1 +1,2 @@
 Referenced by commit e40f993a70d, Fix #108704: scrubbing timeline does not to proper sampling like normal frame change
+Referenced by commit b344e4ba61a, Fix #108704: missing redraw after timeline scrubbing with temporal denoise
