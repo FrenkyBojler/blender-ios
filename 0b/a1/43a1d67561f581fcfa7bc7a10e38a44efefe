@@ -1,3 +1,4 @@
 Referenced by issue #62371, Saves corrupted file causing weird crashing behaviour
 Referenced by issue #62372, Crash entering Edit Mode on specific object
 Referenced by issue #62367, Blender 2.8 - Black Viewport
+Referenced by issue #62348, Cycles - Viewport rendering not updating when switching to allready rendered viewlayer
