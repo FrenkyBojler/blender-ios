@@ -3415,11 +3415,6 @@ static size_t animdata_filter_dopesheet_scene(bAnimContext *ac,
       tmp_items += animdata_filter_ds_linestyle(ac, &tmp_data, sce, filter_mode);
     }
 
-    /* grease pencil */
-    if ((gpd) && !(ac->ads->filterflag & ADS_FILTER_NOGPENCIL)) {
-      tmp_items += animdata_filter_ds_gpencil(ac, &tmp_data, gpd, filter_mode);
-    }
-
     /* TODO: one day, when sequencer becomes its own datatype,
      * perhaps it should be included here. */
   }
