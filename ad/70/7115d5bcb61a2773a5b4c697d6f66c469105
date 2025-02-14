@@ -7,3 +7,4 @@ Referenced by issue #60602, Pose bones' selection doesn't update in the viewport
 Referenced by issue #60593, Undo erase all changes do using Dyntopo
 Referenced by issue #60585, 2.8 Builds are limited to 16 threads of processing
 Referenced by issue #60479, Unable to select vertices on right side of model
+Referenced by issue #59838, Smoke is not rendering in Blender 2.8
