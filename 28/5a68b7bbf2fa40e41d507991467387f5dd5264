@@ -1,3 +1,4 @@
 Referenced by issue #104040, Regression: contact shadows doesn't update in sculpt mode
 Referenced by issue #101925, Regression: Cycles Don`t updated Color Attributes
 Referenced by issue #100906, Regression: Lag in sculpt mode when navigating around an object with modifiers
+Referenced by issue #99196, Regression: Rendering in the viewport is constantly restarted by some sculpting brushes and the position of mouse cursor
