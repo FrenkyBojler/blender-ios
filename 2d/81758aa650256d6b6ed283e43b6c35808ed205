@@ -1,1 +1,2 @@
 Referenced by issue #54103, Solid color backgrounds have no multiple importance sampling causing volumes not to render properly
+Referenced by issue #53914, Transparency swallows volume scatter bounce
