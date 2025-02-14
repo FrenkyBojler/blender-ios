@@ -1,3 +1,4 @@
 Referenced by issue #84449, Crash Hide Non Selected Viewport Shading Cycles CPU
 Referenced by issue #84434, Adding an array modifier on one object changes appearance of a different object in cycles rendered view
 Referenced by issue #84217, Segmentation fault upon entering local view from rendered view
+Referenced by issue #83915, Subdivision Surface modifier causes visual artifacts in Cycles rendered viewport - CPU and OptiX
