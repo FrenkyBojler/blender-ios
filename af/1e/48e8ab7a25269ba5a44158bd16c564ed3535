@@ -1,1 +1,2 @@
 Referenced by commit b36e26bbcea, Revert "Mesh: Solve incorrect result of mesh.split_faces()"
+Referenced by issue #50662, 2.78b became slower on render and more vram consuming
