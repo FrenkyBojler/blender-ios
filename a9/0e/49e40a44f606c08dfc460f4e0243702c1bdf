@@ -1,3 +1,4 @@
 Referenced by issue #41318, OSL broken on Linux kubuntu 14.04
 Referenced by issue #41172, Blender refuses to start
 Referenced by issue #41092, Very high memory usage for Cycles baking compared to ordinary renders
+Referenced by issue #35961, Massive slowdown while changing addons in user preferences (but slow window in general)
