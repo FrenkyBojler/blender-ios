@@ -5,3 +5,4 @@ Referenced by commit 349c17cf543, Fix T85462: crash in render mode while removin
 Referenced by issue #87929, Toggling "Indirect Only" for the view layers properties of a collection does not result in a change in the viewport (2.93, 3.0 regression)
 Referenced by issue #86567, Quick Smoke with Cycles crashes Blender 2.93 alpha
 Referenced by issue #85926, Material not updated in Cycles viewport render when made single user (while rendering with OptiX?)
+Referenced by issue #85462, Crash in render mode while removing instances
