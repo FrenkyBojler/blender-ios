@@ -2,3 +2,4 @@ Referenced by issue #42069, Failed to choose Interface font from path containing
 Referenced by issue #42056, Cycles: Unknown seams appear on normal baking texture.
 Referenced by issue #42068, VSE: "Default fade" doesn't work
 Referenced by issue #42054, Problem when using Cast modifier with Wireframe modifier
+Referenced by issue #42055, BI: Texture node missing update for material and world (preview **and** render)
