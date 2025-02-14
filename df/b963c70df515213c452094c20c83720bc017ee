@@ -1,1 +1,2 @@
 Referenced by commit 2a09634d415, Fix particlesystem not duplicating their pointcache in NO_MAIN case.
+Referenced by issue #88307, Crash when rendering Crurve with Softbody combined with Freestyle
