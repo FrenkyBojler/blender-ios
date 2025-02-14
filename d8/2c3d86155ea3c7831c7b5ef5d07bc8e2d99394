@@ -2,3 +2,4 @@ Referenced by commit 574bd866c86, Fix T78520 EEVEE: No viewport update when chan
 Referenced by commit f3e724b93d5, Fix T79370 EEVEE: Texture paint does not update during stroke
 Referenced by commit bcc086584f3, Fix unreported 1 pixel offset when drawing with GPencil
 Referenced by issue #79370, Texture paint does not update during stroke on material and render viewport shading
+Referenced by issue #67236, multi monitor evvee keeps refreshing when moving image editor on second screen
