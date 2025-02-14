@@ -10,3 +10,4 @@ Referenced by issue #59154, Texture Paint Crash When Painting Only Selected Face
 Referenced by issue #58930, Blender 2.8 Beta. Eevee crashes when trying to do a render
 Referenced by issue #58689, Glass Material Blend Mode Crash
 Referenced by issue #58572, Restrict Viewport Render keyframes from 2.79b do not correctly import into 2.8
+Referenced by issue #58549, Color input adjusts more than one HSV field
