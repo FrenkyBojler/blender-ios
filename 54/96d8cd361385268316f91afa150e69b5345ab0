@@ -1,1 +1,2 @@
 Referenced by commit 2f7258d618a, Fix BLI_strncpy_wchar_from_utf8 result on Windows
+Referenced by issue #85960, Legacy invalid utf-8 characters not checked at file opening
