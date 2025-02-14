@@ -32,3 +32,4 @@ Referenced by issue #116325, Assigning `material.paint_active_slot` after copyin
 Referenced by issue #116314, Crash on start.
 Referenced by issue #116218, IMPOSIBLE RENDERIZAR CYCLES
 Referenced by issue #116158, Crash when using EEVEE in viewport or render on linux (Intel GPU)
+Referenced by issue #115957, Cycles GPU rendering with AMD card: very dark world/bounce lighting
