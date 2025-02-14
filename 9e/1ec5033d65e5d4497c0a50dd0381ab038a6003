@@ -1,1 +1,2 @@
 Referenced by issue #84647, Crash: Python/Undo related crash in BKE_scene_object_base_flag_sync_from_base
+Referenced by issue #84516, PoseBone lists inaccessible object variables when it has custom properties
