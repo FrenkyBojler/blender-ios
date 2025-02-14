@@ -1,2 +1,3 @@
 Referenced by issue #89046, Blender will not start if referencing bpy.context.scene.render.fps with expression in startup file
 Referenced by issue #88444, Macos 10.13.6 High Sierra cannot run new built of 2.93 beta and 3.0.0 alpha
+Referenced by issue #88436, Broken blender-2.93.0-beta
