@@ -2,3 +2,4 @@ Referenced by issue #52058, Jumping to keyframe causes Blender to freeze indefin
 Referenced by issue #52059, Blender crash when enabling OpenSubdiv
 Referenced by issue #52027, Crash in OSL getattribute call
 Referenced by issue #52034, Texture nodes regression in latest build of 2.78c
+Referenced by issue #52011, Border render is incorrect with multiple scenes
