@@ -9,3 +9,4 @@ Referenced by issue #42547, Seg Fault calling "wm.open_mainfile" inside a handle
 Referenced by issue #42505, Orto bug
 Referenced by issue #42448, Material ID pass from Cycles contains wrong samples (pixels)
 Referenced by issue #42427, The duplicated Window not close, when i close Blender.
+Referenced by issue #42406, Strange "Quad View" behavior
