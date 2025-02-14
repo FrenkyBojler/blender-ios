@@ -1,2 +1,3 @@
 Referenced by issue #100536, Regression: Boolean Modifier Distorts UVs
 Referenced by issue #89330, Regression: Exact Boolean Fails On Simple Model
+Referenced by issue #86308, Crash to desktop on Boolean union exact operation
