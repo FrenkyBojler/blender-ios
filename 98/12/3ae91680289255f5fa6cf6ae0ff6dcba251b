@@ -1,1 +1,2 @@
 Referenced by commit bb7da630bac, Fix T48422: Revert "BLI_task: nano-optimizations to BLI_task_parallel_range feature."
+Referenced by issue #48448, insert edge make blender freeze in some cases
