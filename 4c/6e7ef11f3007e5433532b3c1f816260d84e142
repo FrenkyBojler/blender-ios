@@ -2,3 +2,4 @@ Referenced by issue #59081, Some material node groups in 2.80, from 2.7x files, 
 Referenced by issue #58124, Crash: When Rendering in Workbench
 Referenced by issue #58105, Subdivision Set operator stuck in relative mode
 Referenced by issue #58106, Show light user preferences returns error
+Referenced by issue #57653, Crash when i switch from edit mode to sculpt mode
