@@ -1,1 +1,2 @@
 Referenced by issue #108407, Regression: Crash on deleting shape key from Blender File view.
+Referenced by issue #97688, Deleting a scene with a scene strip causes the referenced scene to have zero users
