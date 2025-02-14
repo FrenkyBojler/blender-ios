@@ -1,2 +1,3 @@
 Referenced by issue #77974, Sculpting: glitches after undoing a Dyntopo stroke
 Referenced by issue #77953, Crash when switching to Wireframe
+Referenced by issue #55218, Curve deselection won't work if the selection included end control points
