@@ -24,3 +24,4 @@ Referenced by issue #52325, Sculpt Tool will not work on 2D plane in Orthographi
 Referenced by issue #52328, There is no DPI setting under "User Preferences..." / System (tab)
 Referenced by issue #52281, Sculpt turned to low poly sphere
 Referenced by issue #52260, Blender 2.79 Objects made duplicates real still refer armature proxy
+Referenced by issue #52187, normals_split_custom_set() seems to smooth out given input
