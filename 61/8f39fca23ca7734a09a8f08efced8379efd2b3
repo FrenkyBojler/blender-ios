@@ -4,3 +4,4 @@ Referenced by commit cabf935afb7, Fix: Box select not working with tweak took in
 Referenced by commit 90864d3fb80, Curve: operate on handles when the knot is selected
 Referenced by issue #118188, Left-click selection with Tweak tool instead of moving 3d-cursor
 Referenced by issue #117016, Cannot select curve handles in Blender 4 as in previous versions
+Referenced by issue #116402, Curve Hook modifier broken due to selection changes
