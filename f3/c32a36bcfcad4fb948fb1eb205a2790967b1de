@@ -1,3 +1,4 @@
 Referenced by commit 8b3beeee82f, Fix #124836: Triangulate modifier changed behavior with custom normals
 Referenced by commit 9ce61d7222c, Fix #123076: Remove UI line for removed property
 Referenced by commit 1e237da1db0, Fix #123076: Remove UI line for removed property
+Referenced by issue #125499, Fix #124836: Triangulate modifier changed behavior with custom normals
