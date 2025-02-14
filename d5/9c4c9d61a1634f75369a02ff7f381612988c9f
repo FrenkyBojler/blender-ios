@@ -2,3 +2,4 @@ Referenced by issue #58819, Blender crashes when try to select different object 
 Referenced by issue #58821, mesh is not updated when select different object in sculpt mode
 Referenced by issue #58814, BMesh boolean is just too much unreliable
 Referenced by issue #58773, Motion Tracking curve deletion crashes blender 2.8 Beta
+Referenced by issue #58745, Blender 2.8 beta crash on startup on Linux
