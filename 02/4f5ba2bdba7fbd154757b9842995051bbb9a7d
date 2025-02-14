@@ -2,3 +2,4 @@ Referenced by commit 3508ffc34c1, Fix T59449: Particle system creates error in r
 Referenced by issue #61346, Rigid body with modifiers incorrect work
 Referenced by issue #61262, Armature and rigid body crash
 Referenced by issue #61256, Compositing scenes causes crash, but rendering separately does not
+Referenced by issue #57589, 2.79 Rigid Body Sim. Does Not Behave The Same In 2.8
