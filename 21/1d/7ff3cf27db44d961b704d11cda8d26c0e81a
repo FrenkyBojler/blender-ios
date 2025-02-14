@@ -1,1 +1,2 @@
 Referenced by issue #89367, Running select_linked_pick with a negative index crashes Blender with an access violation
+Referenced by issue #81288, 'Delimit' in 'Select Linked' works unexpectedly when editing multiple objects
