@@ -1,1 +1,2 @@
 Referenced by commit bf49e6040ca, Fix error in assertion after 92a99c14965905e73f049bc1f92b597a903977fc
+Referenced by issue #100130, Regression: Closing the view animation window crashes Blender
