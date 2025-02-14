@@ -16,3 +16,4 @@ Referenced by issue #58485, Cryptomatte not precise enough
 Referenced by issue #58492, smoke flow jitters around flow source when using adaptive domain
 Referenced by issue #58464, Wrong vertices are selected in edit mode
 Referenced by issue #58465, brush lag in texture painting
+Referenced by issue #58457, Subdivision Surface Modifier in "Simple" mode creates incorrect UVs
