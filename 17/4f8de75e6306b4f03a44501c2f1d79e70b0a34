@@ -1,2 +1,3 @@
 Referenced by issue #126487, Revert "Fix #123327: Crash when operator with properties opens render window"
 Referenced by issue #126392, Regression: Double clicking a file crashes Blender if load UI is off
+Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
