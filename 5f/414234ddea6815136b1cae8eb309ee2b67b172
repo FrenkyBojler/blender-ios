@@ -1,1 +1,2 @@
 Referenced by commit e26301f4d1a, Fix T79971 Regression: Transform Gizmos doesnt work anymore
+Referenced by issue #80107, Inconsistency in selecting occluded objects with Box selection
