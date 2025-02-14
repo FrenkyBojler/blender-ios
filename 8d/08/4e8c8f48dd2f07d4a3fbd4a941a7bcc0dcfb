@@ -1,1 +1,2 @@
 Referenced by commit 7fb68cf83f5, Fix python module (bpy) compilation - broken since 8d084e8c
+Referenced by issue #45632, motion blur (2d filter) not working
