@@ -2,3 +2,4 @@ Referenced by issue #59789, Region below transparent sidebar panels captures mou
 Referenced by issue #59793, bug
 Referenced by issue #59782, Grease Pencil: when creating a curve, MMB instead of RMB confirms action (mislabeled bottom info)
 Referenced by issue #59783, convert GP stroke to geometry is not working
+Referenced by issue #59785, Curve modifier does not update in realtime in object mode
