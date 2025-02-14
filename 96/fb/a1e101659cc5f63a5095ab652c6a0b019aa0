@@ -1,0 +1,1 @@
+Referenced by issue #55118, SIGSEGV on running a frame_change_pre handler
