@@ -1,3 +1,4 @@
 Referenced by commit 44aa9e40ffe, Cleanup: Remove unused sculpt and vertex color operators
 Referenced by commit 990ed109f2e, Fix (unreported) missing 'override-exclusion' flag on new RNA mesh data accessors.
 Referenced by commit 9f634a195d1, Fix crash drawing non-mesh objects with vertex color
+Referenced by issue #80478, Vertex color doesn't show in edit mode
