@@ -1,0 +1,1 @@
+Referenced by issue #85709, Offscreen rendering with bgl.glEnable(bgl.GL_DEPTH_TEST) results in black images (affects Windows only)
