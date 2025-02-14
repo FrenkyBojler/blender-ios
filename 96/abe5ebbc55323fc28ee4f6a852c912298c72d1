@@ -3,3 +3,4 @@ Referenced by issue #88051, Context override of bpy.ops.object.mode_set does not
 Referenced by issue #87853, Crash when `select none` on Weight painter
 Referenced by issue #86572, Blender 2.92 crashes when windows 10 wakes up from sleep
 Referenced by issue #85977, NVidia: Random crashes in 'DrvPresentBuffers'
+Referenced by issue #85943, EEVEE 2.92 rc irradiance bake crash
