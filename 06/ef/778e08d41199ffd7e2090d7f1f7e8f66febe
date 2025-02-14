@@ -1,0 +1,1 @@
+Referenced by issue #46699, copy_prev_settings() gives misleading error message when previous version's config dir doesn't exist
