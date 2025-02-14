@@ -1,1 +1,2 @@
 Referenced by commit 2fade47a9de, Fix: Transform geometry node doesn't translate volumes correctly
+Referenced by issue #104390, Regression: Object selection in viewport is not working
