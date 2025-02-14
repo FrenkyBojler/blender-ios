@@ -5,3 +5,4 @@ Referenced by issue #96575, Vertex Color in UV Editor
 Referenced by issue #84398, Multiview images show only one view
 Referenced by issue #81575, Vectorscope in Image Editor is not working correctly
 Referenced by issue #81126, Assert going to Texture Paint workspace without a UVMap
+Referenced by issue #80931, UV Editor proportional editing circle draws wrong
