@@ -5,3 +5,4 @@ Referenced by issue #59972, When editing UVs, Live Unwrap messes up with the sca
 Referenced by issue #59927, Blender fails on new file load
 Referenced by issue #59923, Material tab > Surface - buttons broken in recent build (2018-12-27)
 Referenced by issue #59898, difference of viewport performance between a model with modifiers and modifiers applied
+Referenced by issue #59888, blender-softwaregl crashes on start.
