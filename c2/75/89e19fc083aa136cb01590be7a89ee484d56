@@ -41,3 +41,4 @@ Referenced by issue #46009, Render view not updated when Images Draw Method is G
 Referenced by issue #46005, Incorrect output with "Display: Keep UI"
 Referenced by issue #45987, Win10 64-bit - Cycles - Various CUDA errors in cuCtxSynchronize()
 Referenced by issue #45973, Geometry displacement slider doesn't update 3D View Editor.
+Referenced by issue #45949, Win10 - Cycles with Cuda - ILLEGAL_ADDRESS om cuCtxSynchronize()
