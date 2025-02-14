@@ -81,3 +81,4 @@ Referenced by issue #53892, Vertex groups selection in Edit mode is not working 
 Referenced by issue #53872, Hair, Particle Edit automatically mirrors guide strands
 Referenced by issue #53873, Object moved after clear parent with keep transform
 Referenced by issue #53858, Cycles Crash when changing Transparency
+Referenced by issue #53849, Baking Procedural Textures Causing Some Pretty Noticeable Changes
