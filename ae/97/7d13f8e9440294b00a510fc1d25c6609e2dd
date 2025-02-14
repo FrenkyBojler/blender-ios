@@ -5,3 +5,4 @@ Referenced by issue #62161, Remembering values
 Referenced by issue #62162, Bones set to unselectable can't be fully selected through the viewport in edit mode.
 Referenced by issue #62164, Vertex/Edge/Polygon selection with python not functioning as it used to
 Referenced by issue #62156, Hair particle only shows up in final render when visible in viewport
+Referenced by issue #62157, Volumetric density settings not visible on MacOs
