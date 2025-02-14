@@ -1,0 +1,1 @@
+Referenced by issue #82859, Blender crashes anytime the renderer is set to OpenCL.
