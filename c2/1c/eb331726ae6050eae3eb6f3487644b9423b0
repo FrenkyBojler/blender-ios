@@ -1,1 +1,2 @@
 Referenced by issue #54973, blender 2.80 crash
+Referenced by issue #54906, NodeGroup input doesn't work when unconnected in Eevee renderer. (Also Cycles to a degree)
