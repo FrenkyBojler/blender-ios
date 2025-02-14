@@ -8,3 +8,4 @@ Referenced by issue #62272, Scene custom properties crash
 Referenced by issue #62259, RGB Curves behave differently in Cycles  and Eevee
 Referenced by issue #62253, unnecessary cubemap reflections on glass when reflection plane is used
 Referenced by issue #62257, Remove double vertices crash
+Referenced by issue #62238, Graph Editor generator for angles works in Radians while the graph editor displays the result in degrees.
