@@ -1,3 +1,4 @@
 Referenced by issue #44484, Tris to quad crash blender with non manifold edge in model.
 Referenced by issue #44485, Wrong Border, CTRL+LMB or RMB+Drag vertex selection in mesh edit mode
 Referenced by issue #44473, Blender crashes immediately after opening a saved file an klicking on a corner of a plane track
+Referenced by issue #32292, Add move buttons for game properties
