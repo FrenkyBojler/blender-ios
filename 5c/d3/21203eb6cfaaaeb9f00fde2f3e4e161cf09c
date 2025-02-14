@@ -2,3 +2,4 @@ Referenced by issue #38359, Wrong material reported in particles settings when p
 Referenced by issue #38322, COLLADA exporter breaks UV coordinates
 Referenced by issue #38307, Duplicating a text object causes crash
 Referenced by issue #38310, Adjusting the resolution of an ocean sim changes the ocean completely
+Referenced by issue #38229, Shadeless option has no effect when GLSL is enabled
