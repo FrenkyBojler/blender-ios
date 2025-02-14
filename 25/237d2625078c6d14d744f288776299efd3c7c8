@@ -2,3 +2,4 @@ Referenced by commit 9088a1f4764, Geometry: Avoid unnecessary initialization whe
 Referenced by commit 2636f6fdeeb, Fix T100760: No color attribute initialization when created by brush
 Referenced by commit 3249853ebe5, Fix: Incorrect vertex group layer "construct" callback
 Referenced by commit 4c91c24bc7c, Attributes: Avoid unnecessarily initializing new attributes
+Referenced by commit cccc6d6905b, Mesh: Avoid redundant custom data layer initialization
