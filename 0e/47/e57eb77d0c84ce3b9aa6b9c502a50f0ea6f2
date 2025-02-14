@@ -2,3 +2,4 @@ Referenced by issue #94079, Outliner: Object selected/deselected when clicking w
 Referenced by issue #93799, Outliner: Remap Users crash (for `ID Type` `Object`)
 Referenced by issue #82668, Properties editor "forgets" selected tab and always resets to Object properties tab when switching between objects or editors
 Referenced by issue #77408, Continued Outliner Improvements Design
+Referenced by issue #63991, Outliner/Properties syncing
