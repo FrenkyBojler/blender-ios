@@ -1,0 +1,1 @@
+Referenced by issue #50032, Alpha channel is not respected by emission (or some/any other) shaders, connected to one of two duplicated image texture nodes, one with alpha on and the other with alpha off.
