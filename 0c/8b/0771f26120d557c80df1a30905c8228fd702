@@ -1,0 +1,1 @@
+Referenced by issue #58045, When changing particle type from Emitter to Hair and then back to Emitter, effect is missing
