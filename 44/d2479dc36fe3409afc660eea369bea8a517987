@@ -3,3 +3,4 @@ Referenced by commit 73967e2047b, Fix undeclared identifiers with 'DEBUG_TIME'
 Referenced by issue #90017, Bone widget drawing inconsistent with editing
 Referenced by issue #89880, overlay.show_paint_wire doesn't work anymore
 Referenced by issue #89624, Vertex painting causes mesh to flicker
+Referenced by issue #89545, Weight / Vertex paint mode "Show Wireframe" is not working
