@@ -1,0 +1,1 @@
+Referenced by issue #43159, Relative filepaths may be broken by Image.copy()
