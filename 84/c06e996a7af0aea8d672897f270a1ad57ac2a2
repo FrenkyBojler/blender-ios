@@ -2,3 +2,4 @@ Referenced by issue #60737, Crash when rendering with Workbench engine
 Referenced by issue #60590, Crash applying explode modifier
 Referenced by issue #60584, Texture Painting feature currently bugged, Add Texture Slot clearing.?
 Referenced by issue #60559, Color for Viewport Display cannot be changed the value from keyframed value
+Referenced by issue #60567, brightening of the Viewport and subtle dimming of the UI
