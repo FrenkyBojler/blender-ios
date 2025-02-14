@@ -14,3 +14,4 @@ Referenced by issue #41965, Background Images
 Referenced by issue #41951, Velocity vector is incorrect with Cycles.
 Referenced by issue #41933, Node Editor: Crash occurs with Select by Suffix
 Referenced by issue #41937, Misbehavior on copy object with actuator(add object)
+Referenced by issue #41939, Dupliface: Inherit scale didn't update viewport render
