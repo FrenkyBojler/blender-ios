@@ -1,2 +1,3 @@
 Referenced by issue #99196, Regression: Rendering in the viewport is constantly restarted by some sculpting brushes and the position of mouse cursor
 Referenced by issue #98784, Sculpting template crash
+Referenced by issue #97362, USD image assets paths are not resolved in a cross platform manner
