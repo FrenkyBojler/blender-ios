@@ -2,3 +2,4 @@ Referenced by commit 073a1f8f7c4, Revert "Fix T38819: Mark Seam misbehaves when 
 Referenced by issue #38856, MARK Seam/Sharp (edge) command in search menu not always MARKs (sometime it CLEARs)
 Referenced by issue #38844, Crash if weight track = 0
 Referenced by issue #38826, Materials has user after deleting scene
+Referenced by issue #38827, Input preferences can not find Left Mouse or Left Arrow
