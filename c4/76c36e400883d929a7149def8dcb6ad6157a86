@@ -15,3 +15,4 @@ Referenced by issue #75016, Culled backfaces flicker during viewport navigation 
 Referenced by issue #74990, Sculpt mask darkens when interacting with the UI
 Referenced by issue #74957, Matcap flip function does not work in 2.83
 Referenced by issue #74872, Clipping Region delay
+Referenced by issue #74790, Artifacts in solid view
