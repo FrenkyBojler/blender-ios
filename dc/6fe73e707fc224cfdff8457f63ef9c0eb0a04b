@@ -1,1 +1,2 @@
 Referenced by issue #101954, Regression: Geometry Node: Delete hair curves from end and set radius form sample nearest surface create incorrect shifting of radius on viewport render
+Referenced by issue #98454, Geometry Nodes: Vertices from Subdivided Curve to Mesh geometry don't inherit Integer Attributes
