@@ -1,1 +1,2 @@
 Referenced by issue #107384, [Blender 2.93] When bpy.ops.file.bookmark_move.poll() is called outside of the File Browser, Blender crashes.
+Referenced by issue #102014, File Browser: Move Bookmark buttons malfunction if no item is selected
