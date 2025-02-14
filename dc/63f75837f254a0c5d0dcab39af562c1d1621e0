@@ -1,2 +1,3 @@
 Referenced by issue #106702, 3.6.0 Metal GPU Backend broken on Mac Intel AMD FirePro D500 macOS Monterey
 Referenced by issue #106494, Crash: WSL background rendering eevee  crashes without more info
+Referenced by issue #103033, Hard crash while resizing packed multichannel EXR
