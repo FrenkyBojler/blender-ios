@@ -1,2 +1,3 @@
 Referenced by issue #45768, Random crashes while editing mesh with subsurface modifier.
 Referenced by issue #45749, Segfault (missing MTFace cdlayer from SubSurf DM).
+Referenced by issue #45663, [B. Internal] UV mapping render result in radial circles (with this file)
