@@ -3,3 +3,4 @@ Referenced by issue #61854, Blender 2.80 Grease Pencil surface offset by viewpor
 Referenced by issue #61417, Blender 2.8 not showing image as planes meshes, then crashing on render
 Referenced by issue #61372, Crash on Add Curve
 Referenced by issue #61269, Crash when entering Particle Edit Mode with macOS + NVIDIA
+Referenced by issue #61213, Edge Seam not displayed
