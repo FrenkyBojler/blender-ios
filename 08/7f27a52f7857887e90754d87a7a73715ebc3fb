@@ -1,3 +1,4 @@
 Referenced by commit 8d4fa03e5c8, BLI_math: improve symmetrical values from sin_cos_from_fraction
 Referenced by commit 397731d4df4, BLI_math: improve symmetrical values from sin_cos_from_fraction
 Referenced by commit 82467e5dcf9, Cleanup: Typo with uv sphere normal creation
+Referenced by issue #87779, Asymmetric position vertices in circles primitives. Non-symmetrical edges in circles
