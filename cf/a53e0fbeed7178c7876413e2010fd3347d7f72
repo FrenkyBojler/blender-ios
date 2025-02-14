@@ -11,3 +11,4 @@ Referenced by commit c0674aa1450, Fix T95334: Crash with no vertex normals in mu
 Referenced by commit 2f591adc1a9, Fix T95334: Crash with no vertex normals in multires bake
 Referenced by commit b7a27efd781, Cleanup: Remove unused subdiv functions
 Referenced by issue #99141, Regression: "Copy Location" constraint doesn't work if the control object is a vertex and we're in edit mode.
+Referenced by issue #98546, Regression: Blender crash when baking Multires displacements
