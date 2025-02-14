@@ -1,2 +1,3 @@
 Referenced by issue #50051, Grease Pencil + OpenGL crash in VSE
 Referenced by issue #50033, v2.78a crashing in Win7 (32bit) because of IK constraint
+Referenced by issue #50026, "Only Insert Needed" doesn't work when using Trackball rotation
