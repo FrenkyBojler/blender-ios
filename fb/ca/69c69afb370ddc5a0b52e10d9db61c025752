@@ -1,2 +1,3 @@
 Referenced by commit 3bc5399f72f, Fix T46590 Strange camera behavior (partial revert of fbca69c6)
 Referenced by issue #46587, Drivers do not work in node groups.
+Referenced by issue #46590, Strange camera behavior
