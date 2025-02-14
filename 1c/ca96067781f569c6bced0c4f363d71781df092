@@ -1,3 +1,4 @@
 Referenced by commit 7f4a4fa6056, Fix #119787: Curves viewport attribute drawing crash
 Referenced by issue #120805, Empty Geonode Output Crashes When Connected to BSDF
 Referenced by issue #119795, Fix #119787: Curves viewport attribute drawing crash
+Referenced by issue #119787, Regression: Crash when hair curve shader uses attributes in Eevee and hair object animated
