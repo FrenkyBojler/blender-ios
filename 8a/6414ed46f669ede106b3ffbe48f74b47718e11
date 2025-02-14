@@ -3,3 +3,4 @@ Referenced by commit b019d8b2fe8, Fix edit-mesh face-dot drawing check
 Referenced by commit f30921fc687, Fix T64687: Loop select work only with edges
 Referenced by issue #65066, Armature and bone selection is broken on macOS
 Referenced by issue #65050, knife tool snapping indicator not visible
+Referenced by issue #64779, Vertex Selection broken
