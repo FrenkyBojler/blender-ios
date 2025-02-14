@@ -1,0 +1,1 @@
+Referenced by issue #58131, Blender will crash when running EEVEE if an object's uv map name is different from what is selected in the normal map node in node editor
