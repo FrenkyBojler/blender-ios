@@ -2,3 +2,4 @@ Referenced by commit 09bd0469752, Fix #115181: RMB Select sometimes to enter pos
 Referenced by commit 883033a0969, Curve: adjust behavior of invert selection for bezier handlers
 Referenced by commit cabf935afb7, Fix: Box select not working with tweak took in VSE
 Referenced by commit 90864d3fb80, Curve: operate on handles when the knot is selected
+Referenced by issue #118188, Left-click selection with Tweak tool instead of moving 3d-cursor
