@@ -94,3 +94,4 @@ Referenced by issue #51056, exception access violation after browsing for an ima
 Referenced by issue #51011, bpy.ops.action.new() does nothing when invoked from script
 Referenced by issue #51012, Force Field Curve Shape not working
 Referenced by issue #51017, Spline IK stretching bone (without Y stretching selected)
+Referenced by issue #51018, Appending a rigged character crash Blender since 2.78a
