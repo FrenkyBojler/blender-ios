@@ -2,3 +2,4 @@ Referenced by commit 48d2f536e18, Fix crash when loading Blender due to recent c
 Referenced by issue #120791, EEVEE-Next: Subsurface Scattering breaks when passed through Shader to RGB
 Referenced by issue #103903, Regression: Eevee render takes 3x longer in 3.4 than 3.1.2 - shading related?
 Referenced by issue #102423, Regression: Screen Space Reflections on EEVEE render shaders with roughness a minimum regardless the value or map in the shader
+Referenced by issue #101175, Eevee displacement behavior changed
