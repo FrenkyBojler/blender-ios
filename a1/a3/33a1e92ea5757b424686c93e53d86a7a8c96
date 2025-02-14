@@ -1,1 +1,2 @@
 Referenced by commit ff1d5991726, Fix T79357: VSE crash on prefetching when performing cuts
+Referenced by issue #79357, Blender VES crashing when performing cuts in Video/Audio strips
