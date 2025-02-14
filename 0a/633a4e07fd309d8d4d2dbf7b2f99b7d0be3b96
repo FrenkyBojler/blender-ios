@@ -1,1 +1,2 @@
 Referenced by commit 531ed680613, Fix #130686: Outliner vertex groups sorting is broken
+Referenced by commit 80e7c04726e, Fix #118475: Regression: NLA/driver data missing in outliner
