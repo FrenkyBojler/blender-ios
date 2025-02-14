@@ -23,3 +23,4 @@ Referenced by issue #56610, Crash when saving a Blender Image in a Python script
 Referenced by issue #56532, boolen error freeze
 Referenced by issue #56518, X-Ray display not working on linked or instanced meshes
 Referenced by issue #56412, Quick edit projection glitch
+Referenced by issue #56265, Blender does not seem to account for Environment variables on my Windows 10 system
