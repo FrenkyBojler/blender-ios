@@ -1,1 +1,2 @@
 Referenced by issue #39984, regular error in particle placement when emitter is parented to an animated null
+Referenced by issue #39966, Whole Group option of dupligroup visualization of particles does not work as expected for Viewport and Blender Internal
