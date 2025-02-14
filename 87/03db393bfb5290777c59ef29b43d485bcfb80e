@@ -2,3 +2,4 @@ Referenced by issue #107913, Hard Crash Opening Blender File With Library Overri
 Referenced by issue #104915, Regression: Multires wireframes are displayed incomplete
 Referenced by issue #104659, 3.5.0 crashes on Mac Pro Intel with AMD GPUs on Cycles / GPU Compute (macOS Monterey)
 Referenced by issue #104419, Unable to select anything in the viewport
+Referenced by issue #96261, Metal Viewport
