@@ -3,3 +3,4 @@ Referenced by issue #128418, EEVEE fails because of insufficient SSBO binding lo
 Referenced by issue #127779, Register to blender.org is hard because google is blocked
 Referenced by issue #127722, EEVEE crash on AMD Radeon Graphics under Linux
 Referenced by issue #127324, Blender 4.2 does not open at all ubuntu 24.04 nvidia geforce 635m
+Referenced by issue #127309, Blender Crash related to Extensions (blender_vscode)
