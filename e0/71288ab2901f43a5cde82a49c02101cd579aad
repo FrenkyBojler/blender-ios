@@ -3,3 +3,4 @@ Referenced by commit cbcfca0a19e, Fix #112716: Custom sockets ignore draw_color 
 Referenced by commit f9c733dbd68, Fix #112014: Crash making node group with multiple input links
 Referenced by commit f47de98def3, Fix: Node link drag search attachment to existing group input broken
 Referenced by commit 1bcd812a75d, Fix (unreported) memory leak in Nodes versioning code.
+Referenced by commit 9600b74318c, Fix: geometry nodes asset traits not written to file
