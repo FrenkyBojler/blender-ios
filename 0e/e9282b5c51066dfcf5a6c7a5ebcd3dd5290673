@@ -3,3 +3,4 @@ Referenced by commit 4c6e07230f7, Pencil: Fix regression (part2) with stroke buf
 Referenced by commit b4007173267, GPencil: Fix regression with stroke buffer introduced in rB0ee9282b5c51
 Referenced by commit a8731718a1c, GPencil: Fix regressions introduced in rB0ee9282b5c51
 Referenced by issue #103037, Regression: Grease Pencil Line Texture last point gets distorted
+Referenced by issue #102251, Regression: Grease Pencil: Drawing lines appear after releasing the mouse
