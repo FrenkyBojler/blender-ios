@@ -7,3 +7,4 @@ Referenced by issue #64400, x-axis mirror for edit mode and pose mode is the sam
 Referenced by issue #64380, Display Overlays in Cycles
 Referenced by issue #64382, show_ortho_grid not working in orthographic top and bottom view
 Referenced by issue #64334, TKEY error message on timeline
+Referenced by issue #64341, Alpha Hashed crash comes and goes
