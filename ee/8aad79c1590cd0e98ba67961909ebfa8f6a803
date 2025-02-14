@@ -1,2 +1,3 @@
 Referenced by issue #92561, Mesh Sequence Cache (ABC) an hair interpolated children distribution issue (triangulate modifier seem to fix it)
 Referenced by issue #63654, Alembic - Aplly scale doesn't work with the Mesh Sequence and hair
+Referenced by issue #56408, Hair interpolated children recalculation on every frame when attached onto an alembic imported mesh
