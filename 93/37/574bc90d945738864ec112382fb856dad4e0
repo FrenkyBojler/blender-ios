@@ -20,3 +20,4 @@ Referenced by issue #41962, command-line without specified filename doesn't rend
 Referenced by issue #41924, Cycles ID pass (Objekt and Material) Bug.
 Referenced by issue #41909, Doubleclick event bug
 Referenced by issue #41910, GPU render not working with Nvidia GTX 970
+Referenced by issue #41899, Driver to node tree not working
