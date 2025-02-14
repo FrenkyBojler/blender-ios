@@ -1,0 +1,1 @@
+Referenced by issue #66505, Deleting the last keyframe in Grease Pencil Dope Sheet will leave the channel visible, resulting in e.g. "View All" being broken
