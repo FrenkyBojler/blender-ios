@@ -1,1 +1,2 @@
 Referenced by commit 8f7ab269355, Revert "Image Editor: Make Rendering of Pure Emissive Colors Optional"
+Referenced by issue #80746, Image blur in compositor creates halo from alpha
