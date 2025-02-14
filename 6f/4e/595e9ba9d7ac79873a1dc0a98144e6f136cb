@@ -1,1 +1,2 @@
 Referenced by commit 6992fc0b3bf, Add 'EDBM_selectmode_disable_multi' and use in knifeproject
+Referenced by issue #68852, Knife Project: executing Link select afterwards will result in crash
