@@ -1,1 +1,2 @@
 Referenced by issue #123725, Version check of clang-format seems broken
+Referenced by issue #95196, Crash when modifing materials after using BMesh in Depsgraph-Pre event
