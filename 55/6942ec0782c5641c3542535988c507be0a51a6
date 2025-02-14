@@ -1,1 +1,2 @@
 Referenced by issue #52280, The Image node in Compositing can't read Z buffer of openEXR in 2.79
+Referenced by issue #51587, Blender fails to interpret a specific layer in OpenEXR multilayer file
