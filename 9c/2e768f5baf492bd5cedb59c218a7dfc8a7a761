@@ -1,2 +1,3 @@
 Referenced by commit f2cd1873eac, Fix #116275: Snap (align to target) crash without valid target location
 Referenced by commit fb556c75df4, Snap: New icons
+Referenced by issue #116292, Fix #116275: Snap (align to target) crash without valid target location
