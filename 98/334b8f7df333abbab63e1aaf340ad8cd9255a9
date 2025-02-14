@@ -1,3 +1,4 @@
 Referenced by commit f0500a28ee2, Fix: BLI: quaternion is not normalized after conversion
 Referenced by commit 39ba60e88da, Math: add unit test for `mat3_normalized_to_quat_fast`
 Referenced by issue #131296, Fix: BLI: quaternion is not normalized after conversion
+Referenced by issue #100749, Blender LTS: Maintenance Task 3.3
