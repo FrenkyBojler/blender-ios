@@ -34,3 +34,4 @@ Referenced by issue #50615, Node Editor> Compositor > Texture Node : Crashes Ble
 Referenced by issue #50597, Gizmo position is wrong for meshes with modifiers
 Referenced by issue #50578, Image Preview for Scene strips in the Video Sequence Editor doesn't update accurately when Scenes use Linked Libraries
 Referenced by issue #50565, Transform: Planar constraints don't work properly with non-Blender key configurations
+Referenced by issue #50567, Blender 2.78a crashes when using environment texture (GPU)
