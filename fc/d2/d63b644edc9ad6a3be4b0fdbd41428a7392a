@@ -1,1 +1,2 @@
 Referenced by commit 3f0d785d23b, Fix T90658: selection of some 3D gizmos failing
+Referenced by issue #90658, Using center of gizmo for translation is inconsistent based on viewing angle.
