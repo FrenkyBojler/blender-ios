@@ -1,1 +1,2 @@
 Referenced by commit 703dff333ce, Fix T99459: GPencil: Fill tool on the surface not in the correct place
+Referenced by commit 2d3a62fe165, Fix invalid NULL check in GPU_viewport_unbind_from_offscreen
