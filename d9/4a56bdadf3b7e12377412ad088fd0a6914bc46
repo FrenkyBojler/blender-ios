@@ -1,2 +1,3 @@
 Referenced by commit 8fc493f3211, Fix #134182: Regression: Enabling Tweak disappears NLA strip
 Referenced by issue #134209, Fix #134182: Regression: Enabling Tweak disappears NLA strip
+Referenced by issue #134182, Tweaking NLA strip causes datablock to disappear (when "Include Missing NLA" is off)
