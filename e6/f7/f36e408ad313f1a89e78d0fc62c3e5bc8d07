@@ -1,1 +1,2 @@
 Referenced by issue #45369, Temp-full screen layout kept saved without user "knowledge"; also giving troubles with layout navigation/ui freezing.
+Referenced by issue #45250, Snap to vertex with a single axis constraint does not work
