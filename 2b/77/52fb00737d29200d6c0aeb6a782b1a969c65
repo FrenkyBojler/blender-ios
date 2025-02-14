@@ -1,2 +1,3 @@
 Referenced by issue #61210, Crash when accessing new Armature in the Outliner
 Referenced by issue #59643, Clicking on Armature in Scene Collection causes hard crash
+Referenced by issue #56976, Crash when selecting non-selected armature datablock in outliner
