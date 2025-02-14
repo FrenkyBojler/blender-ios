@@ -1,1 +1,2 @@
 Referenced by issue #41736, Fluid simulation ignores delta transform
+Referenced by issue #41665, Functional bug: Brush jitter also used for setting the clone brush source position
