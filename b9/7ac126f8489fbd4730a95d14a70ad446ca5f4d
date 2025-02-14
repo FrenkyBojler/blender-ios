@@ -1,1 +1,2 @@
 Referenced by commit 6e152df547c, Fix #125319: Can't drop images in uv editor
+Referenced by commit 2f003277c59, Fix error in new IO drop handler ignoring uppercase extensions
