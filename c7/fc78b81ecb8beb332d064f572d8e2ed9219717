@@ -6,3 +6,4 @@ Referenced by issue #110646, Magic UV: Pack UV crashes Blender
 Referenced by issue #110445, Blender crashed when increasing Strand Steps in the Viewport Display on the Particle tab
 Referenced by issue #110175, CUDA misaligned address error when rendering the image
 Referenced by issue #110130, Randomly crashes when clicking Blender by moving the mouse from another monitor under Linux.
+Referenced by issue #109986, Regression: Using Grease Pencil Sculpt Grab Tool on a Stroke affected by Subdivide Modifier will Crash Blender
