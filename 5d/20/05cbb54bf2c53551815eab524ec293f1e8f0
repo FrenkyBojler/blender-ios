@@ -1,2 +1,3 @@
 Referenced by commit 608d9b5aa1f, UI: Add shortcuts for constraint panels
 Referenced by commit 053e0c0af37, UI: Add shortcuts for shader effect panels
+Referenced by issue #78666, Non-Uniform scaling of hair emitters results in incorrect Cycles renders
