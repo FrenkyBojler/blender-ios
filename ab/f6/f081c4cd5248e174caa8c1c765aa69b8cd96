@@ -47,3 +47,4 @@ Referenced by issue #49109, Frame selection in timeline and VSE does not respect
 Referenced by issue #49095, Custom Normals from DataTransfer Modifier are not applied
 Referenced by issue #49077, Collada exporter does not respect 'shadeless' flag
 Referenced by issue #49078, When rendering fire in cycles, odd duplicates appear when the camera is located inside the domain
+Referenced by issue #49082, Crash when connecting nodes with to node group input or output
