@@ -5,3 +5,4 @@ Referenced by commit ae57d86d42c, Fix #107095: Spikes during multires reshape pr
 Referenced by commit 19dbe049db9, Fix #106469: unstable tessellation with quad-flipping detection
 Referenced by commit 85bd64ece46, Fix: Crash and broken multires baking
 Referenced by commit 5efa39096c8, Fix	#106134: Broken triangulation without cached face normals
+Referenced by issue #112335, The color attribute from Particle Instance Modifier is incorrect
