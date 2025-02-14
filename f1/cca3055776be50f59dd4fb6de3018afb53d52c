@@ -26,3 +26,4 @@ Referenced by issue #94264, Blender Crashing While Appending Animation Action
 Referenced by issue #94213, Old blend file corrupts to crash blender, I guess
 Referenced by issue #94217, When baking to two images, CUDA crashes on the second image.
 Referenced by issue #94197, Boolean Apply Clearing custom data layers (bevel weight Weight / Vgroup Data)
+Referenced by issue #94107, Blender crash when tracking motion
