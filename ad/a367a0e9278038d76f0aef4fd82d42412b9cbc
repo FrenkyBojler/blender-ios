@@ -8,3 +8,4 @@ Referenced by issue #130649, Fix #130606: Crash when switching workspace
 Referenced by issue #129948, Fix #129871: converting linked text to mesh results in empty mesh
 Referenced by issue #129871, Convert a text object sharing data with another one into mesh give empty mesh
 Referenced by issue #127143, Fix #126949: Regression: Geometry nodes - instances and boolean operation bug
+Referenced by issue #126949, Regression: Geometry nodes - instances and boolean operation bug
