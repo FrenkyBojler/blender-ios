@@ -1,1 +1,2 @@
 Referenced by issue #134293, heap-use-after-free crash or assert when interacting with compositor after deleting view layer
+Referenced by issue #134025, Crash when creating asset
