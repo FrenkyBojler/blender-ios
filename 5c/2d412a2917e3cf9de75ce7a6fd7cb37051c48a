@@ -1,2 +1,3 @@
 Referenced by commit ddcf5bac44d, Revert "Fix image sequence detection to account for the number of digits"
 Referenced by issue #124902, Fix #124832: Allow .vdb sequences to be detected with unfixed digit size again
+Referenced by issue #124832, VDB sequence gets imported multiple times and gets chopped up
