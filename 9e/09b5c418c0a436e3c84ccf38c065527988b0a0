@@ -1,1 +1,2 @@
 Referenced by commit fdf77341cdc, CMake: Remove duplicate WITH_GMP options.
+Referenced by commit f1fee433be9, GMP/CMake: Remove duplicate GMP search logic.
