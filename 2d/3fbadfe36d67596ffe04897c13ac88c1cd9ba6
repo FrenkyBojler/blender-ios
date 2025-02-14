@@ -1,0 +1,1 @@
+Referenced by issue #62666, bpy.context.scene.update() causes erratic object selections
