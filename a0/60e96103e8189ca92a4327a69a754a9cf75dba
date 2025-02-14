@@ -1,2 +1,3 @@
 Referenced by commit 69e00c865d7, Fix #124217: Crashes with certain multi-layer/multi-part EXRs
 Referenced by issue #124458, Fix #124217: Crashes with certain multi-layer/multi-part EXRs
+Referenced by issue #124217, Blender crash when importing EXR from other DDC (e.g with Deep ID channels) and does not recognize passes.
