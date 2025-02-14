@@ -1,1 +1,2 @@
 Referenced by issue #74459, New "Vertex Color | Color" input does not bake diffuse with Cycles.
+Referenced by issue #73938, Cycles: Vertex Color shader node is not handled properly/ignored if no vertex color is specified (should use the 'active_render' then)
