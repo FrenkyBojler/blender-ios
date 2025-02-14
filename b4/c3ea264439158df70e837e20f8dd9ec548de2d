@@ -1,2 +1,3 @@
 Referenced by commit b43bdd8ba28, Fix T102751: missing tree update with muted nodes
 Referenced by commit ab819517fc8, Fix: Crash when deleting node
+Referenced by issue #102751, Regression: Geometry Node: No update for tree with muted nodes
