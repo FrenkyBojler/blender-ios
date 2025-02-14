@@ -1,2 +1,3 @@
 Referenced by issue #109461, Regression: Rest Position option cause missing selection for modified mesh
 Referenced by issue #107381, Regression: Geometry Nodes: Fill Volume input disappeared from the Mesh to Volume node
+Referenced by issue #107273, Regression: Group input is not listed in the node search
