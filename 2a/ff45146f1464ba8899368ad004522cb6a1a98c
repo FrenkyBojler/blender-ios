@@ -1,1 +1,2 @@
 Referenced by commit d2911124f42, BLI: improve exception safety of VectorSet
+Referenced by commit 8e18a998450, BLI: improve exception safety of Set and Map
