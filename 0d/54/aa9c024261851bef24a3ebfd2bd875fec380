@@ -1,0 +1,1 @@
+Referenced by issue #46521, Python: bvh.ray_cast doesn't find a plane facing in the other direction under certain circumstances
