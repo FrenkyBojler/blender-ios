@@ -6,3 +6,4 @@ Referenced by issue #60617, [Texture baking] Baking Diffuse from Metal Object ma
 Referenced by issue #60577, 2.8 Color sampling alters color value
 Referenced by issue #60441, 2.8 Color code
 Referenced by issue #60444, Blender compositor seperate and combine rgba yields different image.
+Referenced by issue #60423, No smooth shading when sculpting with multiresolution in 2.8
