@@ -1,3 +1,4 @@
 Referenced by issue #38845, Modal number input's strange behaviour
 Referenced by issue #38834, Knife tool "angle constrain" doesn't work properly after panning 3D view
 Referenced by issue #38843, Bone parallel to world z axis flicking when scale in edit mode.
+Referenced by issue #38805, Boolean Modifier does not use the object shading mode
