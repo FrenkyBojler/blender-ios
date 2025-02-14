@@ -1,2 +1,3 @@
 Referenced by commit 60772baebf6, Fix T97709: Compositor: Scenes are being set to no users after doing a full copy.
 Referenced by issue #98444, Regression: image.save_render() command changes color profile and file type when saving.
+Referenced by issue #98374, Assert fails in some tests
