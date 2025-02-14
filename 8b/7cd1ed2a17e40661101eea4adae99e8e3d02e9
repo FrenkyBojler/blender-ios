@@ -1,3 +1,4 @@
 Referenced by commit 997ff54d309, Fix: UI: broken texpaintslot/color attributes/attributes name filtering
 Referenced by commit 634e4a49d62, Fix T101334: Paint Texture Slots appear greyed out
 Referenced by issue #102878, Regression: UI texpaintslot/color attributes/attributes name filtering broken
+Referenced by issue #101334, i cant select the texture I created in texture paint
