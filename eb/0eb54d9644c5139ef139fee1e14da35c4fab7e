@@ -1,2 +1,3 @@
 Referenced by commit fb820496f5b, Tracking: Sort motion tracking tracks by start and end frames
 Referenced by issue #94454, Crash in nvoglv64.dll entering edit mode on curve
+Referenced by issue #91445, Convert curve object data to mesh does not work when curve does not evaluate to mesh
