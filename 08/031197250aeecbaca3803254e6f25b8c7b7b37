@@ -4,3 +4,4 @@ Referenced by issue #94467, Cycles Baking: 3.x is much slower than 2.93
 Referenced by issue #94169, Regression: Grease Pencil does not show up in render past 2049x2049 render resolution
 Referenced by issue #94041, Loading a new file gives crash while rendering in viewport
 Referenced by issue #92442, enabling motion blur in EEVEE stops cryptomatte object from working.
+Referenced by issue #92405, Emission Strength Animation of 2.93.5 inherited wrongly in 3.0
