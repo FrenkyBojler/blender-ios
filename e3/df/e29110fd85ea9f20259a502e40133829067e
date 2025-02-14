@@ -1,0 +1,1 @@
+Referenced by issue #65334, make error blender/makesdna/intern/dna_verify.c:147:1: error: redefinition of enumerator 'assert_line_147'
