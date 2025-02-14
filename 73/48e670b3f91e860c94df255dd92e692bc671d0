@@ -1,1 +1,2 @@
 Referenced by commit 6bdf9232b08, Fix #131565: missing null check for socket type
+Referenced by commit 680dbe70ae6, Fix: Nodes: use name as fallback for socket identifiers
