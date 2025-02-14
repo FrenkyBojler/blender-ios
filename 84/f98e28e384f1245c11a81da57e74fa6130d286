@@ -1,2 +1,3 @@
 Referenced by issue #91614, Blender 3.00 Alpha after Cycles X merge: AO node no longer affects volumes
 Referenced by issue #88449, Blender LTS: Maintenance Task 2.93
+Referenced by issue #87801, Eevee ambient occlusion is incorrect on M1 macMini
