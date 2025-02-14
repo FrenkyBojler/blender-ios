@@ -4,3 +4,4 @@ Referenced by issue #112689, Copying a render to clipboard from image editor doe
 Referenced by issue #112617, Intel GPUs: Crash on initializing Eevee rendered view
 Referenced by issue #112485, EXCEPTION_ACCESS_VIOLATION on Flamenco jobs
 Referenced by issue #112479, Importing a Reference or Background Image & Changing the Depth
+Referenced by issue #112024, my screen is flickring whenever i open blender why this happening
