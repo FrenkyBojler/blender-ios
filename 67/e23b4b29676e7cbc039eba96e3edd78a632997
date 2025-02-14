@@ -2,3 +2,4 @@ Referenced by commit 4da32e93344, Fix #106425: Mantaflow guiding with domains is
 Referenced by commit 77bc95bbd53, Fix T102257: Crash when making an Object as Effector set to Guide and trying to scrub the timeline
 Referenced by commit edc00429e8d, Fix T102257: Crash when making an Object as Effector set to Guide and trying to scrub the timeline
 Referenced by commit 715c86d9e58, Fix T101231: Console flooded with warnings when fluid type is Domain
+Referenced by issue #117067, Fix #106425: Mantaflow guiding with domains is broken
