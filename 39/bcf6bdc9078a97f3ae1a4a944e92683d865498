@@ -1,0 +1,1 @@
+Referenced by issue #121108, bpy.ops.image.clipboard_paste() causing crashes in 3dview , image editor have no problem.
