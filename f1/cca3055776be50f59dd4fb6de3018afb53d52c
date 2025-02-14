@@ -4,3 +4,4 @@ Referenced by issue #96718, Regression: Photo "blowout" when rendering and denoi
 Referenced by issue #96556, Problem with parent_vertices attribute
 Referenced by issue #96032, Wrongly applying constraint make crashing Blender
 Referenced by issue #95832, Linked libraries+Cloth objects+LineArt -> Blender crashes
+Referenced by issue #95409, Crash when hitting Texture Paint > Side bar > Tools > Options > External > Apply Camera Image & selecting an image.
