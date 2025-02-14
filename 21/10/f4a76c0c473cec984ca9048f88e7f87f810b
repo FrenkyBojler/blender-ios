@@ -1,1 +1,2 @@
 Referenced by issue #66743, Particle Systems keep reacting to a Force Field even though the Force Field's already been deleted
+Referenced by issue #66105, Force field does not update
