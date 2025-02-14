@@ -3,3 +3,4 @@ Referenced by issue #47455, Metaball cube and plane selection not possible
 Referenced by issue #47426, GPU render fails with 'illegal address in cuCtxSynchronize' when using 2nd GPU
 Referenced by issue #47429, Wrong line thickness of muted compositor Vector Curves node
 Referenced by issue #47430, GPU and CPU smoke rendering shows different "Color" values
+Referenced by issue #45093, Cycles: NVidia GTX 980 Ti rendering at 1/3rd  speed of NVidia GTX 980 the same machine?
