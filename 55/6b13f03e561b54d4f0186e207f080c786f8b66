@@ -1,3 +1,4 @@
 Referenced by issue #53683, 2.79a release
 Referenced by issue #53334, particles + motion blur cause artifacts
 Referenced by issue #53309, Shift+Alt+G not working for [Remove Selected From Active Group]
+Referenced by issue #53311, Normal transform orientation for edge is wrong when edge has specific coordinates
