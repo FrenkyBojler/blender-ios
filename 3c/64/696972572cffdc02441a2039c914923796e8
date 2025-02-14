@@ -1,2 +1,3 @@
 Referenced by issue #48654, Text in outliner is still visible during renaming
 Referenced by issue #48656, A parented camera in fly mode moves it's parent.
+Referenced by issue #48657, Incorrect render with Cycles (CPU) using texture
