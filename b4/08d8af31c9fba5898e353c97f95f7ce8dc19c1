@@ -1,3 +1,4 @@
 Referenced by commit 1a7c32a0aba, Fix T93320: Freestyle LineStyleModifier blend 'Minimum' error
 Referenced by commit 0e2bbd09048, Freestyle: Fix for round/square stroke caps causing line thinning.
 Referenced by commit b466a82fa5b, Partial fix for T44404: freestyle crashes blender.
+Referenced by commit eb8964fb7f1, Fix T41464: Material Boundary bug in Freestyle.
