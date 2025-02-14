@@ -1,3 +1,4 @@
 Referenced by issue #50616, Blender / Cycles / Material list Crash - When dealing with image sequences longer than 63 images long on Windows
 Referenced by issue #50000, OpenCL Cycles rendering is broken on AMD Hainan GPU
 Referenced by issue #50005, Continuous grab doesn't work with slider when leaving full screen
+Referenced by issue #49981, New Depsgraph - When camera is on inactive layer, it does not evaluate constraints
