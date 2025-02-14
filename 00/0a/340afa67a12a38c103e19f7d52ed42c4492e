@@ -5,3 +5,4 @@ Referenced by issue #85618, Wireframe Displays Strangely in Eevee (Rendered, mat
 Referenced by issue #85603, EEVEE: Baking Indirect lighting crashes Blender.
 Referenced by issue #85609, Viewport "vibrates" when mouse input is active
 Referenced by issue #81092, eevee pixel artifacts, holdout mixed with lightpathnode, reinforced with bloom and Dof
+Referenced by issue #68468, Depth of Field Refactor
