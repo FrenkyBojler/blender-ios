@@ -1,1 +1,2 @@
 Referenced by issue #102577, Cannot build Blender on macOS on M1/arm64: 'Mac OSX requires pre-compiled libs'
+Referenced by issue #102554, Regression: Crash when Use Nodes is enabled after enabling the viewport compositor
