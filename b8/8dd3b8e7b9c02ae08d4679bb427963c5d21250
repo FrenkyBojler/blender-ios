@@ -1,1 +1,2 @@
 Referenced by commit 78fc5ea1c39, Workaround T81065: Merge UV's when applying modifiers
+Referenced by issue #86896, Regression: Applied subdivision or bevel modifier breaks UV islands to pieces
