@@ -1,2 +1,3 @@
 Referenced by issue #84887, Blender 2.93.0 Alpha Materials
 Referenced by issue #84786, Startup.blend not having a Collection crashes Blender when trying to add any new objects.
+Referenced by issue #84773, gITF 2.0 Import error "could not link (...) Master collection overridden"
