@@ -4,3 +4,4 @@ Referenced by issue #41013, OSL and Crash
 Referenced by issue #40989, Intermittent crash clicking material color selector
 Referenced by issue #40971, Environment maps cause a hard crash with OSL enabled
 Referenced by issue #40946, Cycles High Resolution Render Crash
+Referenced by issue #40864, Cycles; use of color ramp node in latest builds will always crash after save and reload.
