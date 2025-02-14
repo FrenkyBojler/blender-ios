@@ -1,1 +1,2 @@
 Referenced by commit 1e5cfebf660, Fix key-map with fall-back tool on RMB select
+Referenced by issue #91680, Selection in the 3d view is broken in build from Xcode 13
