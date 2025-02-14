@@ -1,0 +1,1 @@
+Referenced by issue #93983, Copy To Selected (also ALT-changing with multiple objects selected) does not work with ID properties (this includes Geometry Nodes modifier UIs)
