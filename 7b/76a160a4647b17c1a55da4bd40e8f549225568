@@ -1,1 +1,2 @@
 Referenced by commit 462bd813993, Fix: Sequencer backdrop not updated during playback.
+Referenced by issue #82259, VSE: Empty sequence plays 100+ fps in 2.90 and only 20+ in 2.91
