@@ -1,3 +1,4 @@
 Referenced by issue #49388, Mesh Deform bind locks Mesh Deform target object
 Referenced by issue #47746, Improper or Sub-optimal Lighting Results with Clamp Direct (Cycles)
 Referenced by issue #47634, Node "Vector Transform" does not work on spot
+Referenced by issue #47559, Crash when scrubbing in time on a OpenVDB Smoke
