@@ -1,1 +1,2 @@
 Referenced by issue #86385, Blender close when render in viewfinder
+Referenced by issue #85016, Performance regression when rendering at very high resolution CPU+GPU - Cycles
