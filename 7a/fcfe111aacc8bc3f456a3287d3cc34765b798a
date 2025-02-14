@@ -4,3 +4,4 @@ Referenced by commit 5925b1821a5, Fix T102328: Incorrect strip state after copyi
 Referenced by commit 17a773cdcee, Fix T99216: RNA startdisp and enddisp return unreliable values
 Referenced by commit 06780aa4e6e, Fix T98797: VSE Slip Strip Contents doesn't work properly
 Referenced by commit 9c029a3eb0f, Fix T98621: Image does not update when tweaking strip properties
+Referenced by issue #125039, VSE: Fix linked time option for sequencer select
