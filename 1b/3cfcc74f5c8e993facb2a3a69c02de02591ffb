@@ -1,2 +1,3 @@
 Referenced by commit b9cbc5b3359, Fix #115909: Walk Navigation Up and Down is interrupted by WASD
 Referenced by commit 361bd68f21c, Fix error in recent cleanup to walk mode
+Referenced by issue #115926, Fix #115909: Walk Navigation Up and Down is interrupted by WASD
