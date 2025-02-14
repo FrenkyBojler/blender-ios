@@ -1,1 +1,2 @@
 Referenced by commit 581477dd080, Sculpt: Move more constant data out of each undo node
+Referenced by commit e0d9c452761, Sculpt: Move more BMesh information out of sculpt undo nodes
