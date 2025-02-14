@@ -1,1 +1,2 @@
 Referenced by issue #41094, Ping pong action works wrong when GLSL mode and Sun buffer shadow are enabled in BGE.
+Referenced by issue #41074, Several Mouse Look actuators not working well together when reset button are set in one or several of them
