@@ -1,3 +1,4 @@
 Referenced by issue #40147, Crash when accessing extra tracking settings
 Referenced by issue #40142, Group instance rendered at wrong position
 Referenced by issue #40108, Nodematerial keyframes get deleted in wrong material
+Referenced by issue #40113, Armatured object with shape key causes segfault in BGE
