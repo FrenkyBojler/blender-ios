@@ -51,3 +51,4 @@ Referenced by issue #47741, OpenGL render always renders against transparent bac
 Referenced by issue #47742, Blender cannot remember last used name and path while saving rendered image
 Referenced by issue #47722, FBX export interpolation is not accurate
 Referenced by issue #47699, VSE - FLAC stips play continuously instead of seeking from cursor
+Referenced by issue #47702, Freestyle not fully drawing edge marked lines in Blender Render
