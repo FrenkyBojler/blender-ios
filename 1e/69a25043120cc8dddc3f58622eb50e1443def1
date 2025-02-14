@@ -1,1 +1,2 @@
 Referenced by commit 684500837d2, Cleanup: convert function nodes socket list to use new API
+Referenced by commit 0ccbf506943, Cleanup: Convert geometry nodes socket list to use new API
