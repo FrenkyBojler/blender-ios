@@ -1,1 +1,2 @@
 Referenced by commit 57dd1b7799e, Fix T102386: crash when trying to link sockets from different node trees
+Referenced by issue #103321, Regression: NodeSocket.node is None on Node.copy
