@@ -5,3 +5,4 @@ Referenced by issue #98072, Regression: When appending a Scene, the Collections 
 Referenced by issue #93190, Appending grease pencil brushes creates "fake user" unintentionally
 Referenced by issue #92688, It is not possible to append objects which are part of linked collection
 Referenced by issue #92347, Append function excludes Collections that do not contain Objects directly
+Referenced by issue #92224, Handling of appending collections that contain linked materials has changed from 2.93 to 3.0, no longer works as expected
