@@ -1,3 +1,4 @@
 Referenced by issue #124801, Blender 4.2 LTS  crash using EEVEE
 Referenced by issue #116229, Graphical glitching on AMD Radeon GPU
 Referenced by issue #96669, Invisible object in preview mode
+Referenced by issue #89405, Viewport Render Preview glitching with Eevee Render Engine
