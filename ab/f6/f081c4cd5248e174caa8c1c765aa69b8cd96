@@ -72,3 +72,4 @@ Referenced by issue #48860, Christensen-Burley SSS glitch with Spatial Splits.
 Referenced by issue #48865, Bone custom shaping allows for semi-orphaning
 Referenced by issue #48821, Fly-through mode when in camera view moves 3D objects parented to the same object
 Referenced by issue #48824, Cycles: Crash with glass+volume(?)
+Referenced by issue #48831, Icon Preview generation for textures and images
