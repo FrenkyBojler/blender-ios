@@ -1,1 +1,2 @@
 Referenced by commit 030297209f2, Fix T54799: NDOF events not dispatched on windows.
+Referenced by issue #64583, Windows: Can't close a Blender window through the taskbar thumbnails unless that window has the focus
