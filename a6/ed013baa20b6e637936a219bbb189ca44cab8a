@@ -1,2 +1,3 @@
 Referenced by commit 77f874ae1dd, Fix #123782: Asset Browser does not show tags for active asset
 Referenced by issue #123818, Fix #123782: Asset Browser does not show tags for active asset
+Referenced by issue #123782, Asset Browser does not show tags for active asset (throws python error)
