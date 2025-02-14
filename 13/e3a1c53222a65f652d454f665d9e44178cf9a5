@@ -1,3 +1,4 @@
 Referenced by issue #76130, Not possible to render smoke simulation in created view layer
 Referenced by issue #76070, Anti-Aliasing possibly making viewport buggy
 Referenced by issue #75969, New View layers don't render in Cycles (passes get turned off)
+Referenced by issue #74243, Workbench x-ray, wireframe and anti-aliasing artifacts on NVIDIA / Linux
