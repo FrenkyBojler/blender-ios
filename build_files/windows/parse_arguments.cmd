@@ -115,6 +115,8 @@ if NOT "%1" == "" (
 	) else if "%1" == "doc_py" (
 		set DOC_PY=1
 		goto EOF
+	) else if "%1" == "force_msvc" (
+		set FORCE_MSVC=1
 	) else (
 		echo Command "%1" unknown, aborting!
 		goto ERR

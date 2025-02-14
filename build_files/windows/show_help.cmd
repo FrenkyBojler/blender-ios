@@ -40,4 +40,5 @@ echo - with_gpu_tests ^(enable both the render and draw gpu test suites includin
 echo - clang ^(enable building with clang^)
 echo - asan ^(enable asan^)
 echo - ninja ^(enable building with ninja instead of msbuild^)
+echo - force_msvc ^(force building with MSVC - namely for ARM64 which uses clang by default^)
 echo.

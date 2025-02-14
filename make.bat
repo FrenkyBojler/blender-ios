@@ -98,6 +98,26 @@ if "%CMAKE%" == "" (
 	exit /b 1
 )
 
+REM Enforce the default compiler to be clang on ARM64
+if "%BUILD_ARCH%" == "arm64" (
+	if not "%WITH_CLANG%" == "1" (
+		if "%FORCE_MSVC%" == "1" (
+			echo WARNING, MSVC compilation on Windows ARM64 is unsupported, and errors may occur.
+		) else (
+			echo Windows ARM64 builds with clang by default, enabling. If you wish to use MSVC ^(unsupported^), please use the force_msvc switch.
+			set WITH_CLANG=1
+		)
+	)
+)
+
+if "%WITH_CLANG%" == "1" (
+	call "%BLENDER_DIR%\build_files\windows\find_llvm.cmd"
+	if errorlevel 1 (
+		echo LLVM/Clang not found ^(try with the 'verbose' switch for more information^)
+		goto EOF
+	)
+)
+
 echo Building blender with VS%BUILD_VS_YEAR% for %BUILD_ARCH% in %BUILD_DIR%
 
 call "%BLENDER_DIR%\build_files\windows\check_libraries.cmd"
