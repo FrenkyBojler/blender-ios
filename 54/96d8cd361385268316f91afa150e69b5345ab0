@@ -1,0 +1,1 @@
+Referenced by commit 2f7258d618a, Fix BLI_strncpy_wchar_from_utf8 result on Windows
