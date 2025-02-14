@@ -1,3 +1,4 @@
 Referenced by issue #96860, Compositor: Missing output UI for Normal node
 Referenced by issue #95903, Geometry node don't expose materials to the solidify modifier
 Referenced by issue #95720, Spreadsheet does not display volume grid information for import vdb file
+Referenced by issue #94209, Viewport artifacts, slowdown, and crashing on Arch Linux w/ Intel graphics after driver update
