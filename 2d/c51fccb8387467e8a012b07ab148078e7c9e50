@@ -1,1 +1,2 @@
 Referenced by issue #102786, Blender crash with Intel Metal rendering on macOS
+Referenced by issue #101787, GPU Metal Render fails with error "CommandBuffer Failed: cycles metal integrator_ reset" on M2 MacBook Air
