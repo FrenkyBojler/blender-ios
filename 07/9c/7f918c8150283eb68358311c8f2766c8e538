@@ -1,2 +1,3 @@
 Referenced by issue #65771, Volumetric emission no longer works if density of reflective volume is set to zero
 Referenced by issue #65420, Crashes on first click on model
+Referenced by issue #65426, Mirror modifier on grease pencil object doesn't work correctly
