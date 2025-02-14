@@ -1,1 +1,2 @@
 Referenced by issue #93008, Cycles: Huge memory spike when saving tile to disk
+Referenced by issue #92867, Gimbal rotation broken when used for multiple objects rotated about individual orgins
