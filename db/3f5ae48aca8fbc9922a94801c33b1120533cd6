@@ -1,1 +1,2 @@
 Referenced by commit 025959da23c, Fix T97915: Regression: Blender doesn't translate viewpoint menu items.
+Referenced by issue #95506, Separate strings for "Back" (operator)
