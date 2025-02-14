@@ -1,1 +1,2 @@
 Referenced by issue #78730, RNA warning writes/reads outside allocated memory
+Referenced by issue #78324, Different results between CPU and GPU with new Nishita Sky Texture
