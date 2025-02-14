@@ -1,3 +1,4 @@
 Referenced by commit 6d2c7c509cc, Fix: failing keymap test for ARMATURE_OT_assign_to_collection
 Referenced by issue #111780, Bone collections and bone collection membership are not handled properly when undoing in armature edit mode
 Referenced by issue #111789, Bone Collections: linking the armature from 3.6 doesn't create bone collections
+Referenced by issue #111667, Fix: failing keymap test for ARMATURE_OT_assign_to_collection
