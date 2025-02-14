@@ -74,3 +74,4 @@ Referenced by issue #50242, Random crash to desktop in Edit Mode when try to sel
 Referenced by issue #50249, Blender crashes when bringing in a texture node in compositor
 Referenced by issue #50254, Blender 2.78a crash when making Single User copy
 Referenced by issue #50215, Blender crashes, when I add Input/Texture node
+Referenced by issue #50216, Using Weight trasfer from an object without faces crash blender
