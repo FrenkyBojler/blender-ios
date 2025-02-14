@@ -1,0 +1,1 @@
+Referenced by issue #113930, depsgraph_update_pre is not triggered on manual depsgraph update
