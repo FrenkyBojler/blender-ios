@@ -4,3 +4,4 @@ Referenced by issue #103942, ASAN error/crash invalid memory access
 Referenced by issue #68144, Boolean Difference works like Boolean Union - modifier bug
 Referenced by issue #67744, Boolean Redesign
 Referenced by issue #61845, BMesh booleans fail with holes
+Referenced by issue #58814, BMesh boolean is just too much unreliable
