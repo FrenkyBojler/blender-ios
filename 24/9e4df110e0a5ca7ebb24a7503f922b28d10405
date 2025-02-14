@@ -6,3 +6,4 @@ Referenced by commit 077db81638b, Outliner: Port linked object elements to new t
 Referenced by commit 02969de1553, Outliner: Port constraint elements to new tree-element code design
 Referenced by commit 485c98cc2c2, Outliner: Port pose base elements to new tree-element code design
 Referenced by commit 55117f20eec, Outliner: Port pose group elements to new tree-element code design
+Referenced by commit d5c7608b39c, Outliner: Port view layer elements to new tree-element code design
