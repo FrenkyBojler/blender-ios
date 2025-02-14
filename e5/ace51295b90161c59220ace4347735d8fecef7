@@ -2,3 +2,4 @@ Referenced by issue #77202, Flicker Volume Artifacts in EEVEE on RTX Cards by in
 Referenced by issue #77102, (v2.82+, CYCLES) Rendering with motion blur enabled causing unexpected, broken-looking result on specific frames
 Referenced by issue #76851, Grease Pencil Behavior changes Brush when going in and out of Drawing mode
 Referenced by issue #76837, Blender closing when clicking TAB after I hide object
+Referenced by issue #76734, Changing Envelope FModifier controlpoints missing update
