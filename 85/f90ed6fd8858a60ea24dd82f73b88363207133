@@ -1,2 +1,3 @@
 Referenced by commit 5d481d9e552, Fix: greasepencil selection of entire_strokes not working
 Referenced by issue #71410, Grease Pencil Sculpt mode  - clone brush and select
+Referenced by issue #68723, GPencil: Split Select Mode buttons for Edit and Sculpt modes
