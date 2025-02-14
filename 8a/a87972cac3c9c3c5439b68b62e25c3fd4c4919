@@ -1,3 +1,4 @@
 Referenced by issue #65996, metaballs converted to meshes appear to render at an incorrect isosurface
 Referenced by issue #65696, Sequencer fails to create a new sound sequence strip via Python
 Referenced by issue #65471, unable to select other objects if an armature is in pose mode, even if Lock Object Modes is unchecked
+Referenced by issue #65295, Regression: Converting a curve to mesh does not take the use of a bevel object into account when you have Keep Original checked in the Redo Panel.
