@@ -1,2 +1,3 @@
 Referenced by issue #61084, PyQt5 cuases textureproblems
 Referenced by issue #61063, Function from Python not being loaded for Driver when project opened
+Referenced by issue #61064, Interpolation changes using the Active Keyframe panel in the graph editor aren't updating 3D viewport
