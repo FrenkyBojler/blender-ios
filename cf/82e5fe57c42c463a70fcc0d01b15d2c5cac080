@@ -1,1 +1,2 @@
 Referenced by issue #111327, Mouse cursor jumps to the center of 3D View (Redo Panel: Add Object Operators)
+Referenced by issue #109720, bpy.app.driver_namespace: no way to properly initialize for driver in material
