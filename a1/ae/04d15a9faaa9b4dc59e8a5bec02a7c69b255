@@ -6,3 +6,4 @@ Referenced by issue #61034, Keyframeing outliner "view in..." crashing blender
 Referenced by issue #61035, Draw manager crash opening file with curves
 Referenced by issue #61039, Crash switching to wire shading with smoke simulation
 Referenced by issue #61043, Blender crashes on VSE zoom / scroll timeline sometimes
+Referenced by issue #61023, Workbench shading bugs out when using partially transparent materials,studio lighting and view clipping at the same time.
