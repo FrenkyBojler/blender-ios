@@ -13,3 +13,4 @@ Referenced by issue #105168, Regression: entering vertexpaint mode will create a
 Referenced by issue #105169, Fix #105168: Entering vertexpaint creates a non-default color attribute
 Referenced by issue #105152, Regression: Python: removing a color attribute may leave a mesh without an active color attribute
 Referenced by issue #105020, Fix #103761: creating a color attribute doesn't make it active
+Referenced by issue #103761, Regression: Creating the first vertex color on a mesh does not always make it active/default
