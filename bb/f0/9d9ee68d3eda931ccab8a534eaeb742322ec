@@ -32,3 +32,4 @@ Referenced by issue #43839, martinsh watershader doesn't work like excepted
 Referenced by issue #43796, startup 2 second and close
 Referenced by issue #43803, Crash playing smoke animation, when linked as group instance
 Referenced by issue #43788, Light casts shadow when use_shadow unchecked
+Referenced by issue #43795, Texture Offset between Cycles CPU and GPU render
