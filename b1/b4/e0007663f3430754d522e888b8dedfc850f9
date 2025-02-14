@@ -1,0 +1,1 @@
+Referenced by issue #70315, Blender exit with code `-6` with message `Attempt to free NULL pointer`.
