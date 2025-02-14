@@ -1,1 +1,2 @@
 Referenced by issue #106354, Operators in vertexpaint and weightpaint (incl. the gradient tool) affect hidden (in editmode) parts of the mesh
+Referenced by issue #99032, Faces unhide when switching from Edit mode to Weight Paint mode while vertex selection is enabled
