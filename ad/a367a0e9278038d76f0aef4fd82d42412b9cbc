@@ -1,1 +1,2 @@
 Referenced by commit 3941a4947b7, Fix #130606: Crash when switching workspace
+Referenced by commit fee02cc224d, Fix #129871: converting linked text to mesh results in empty mesh
