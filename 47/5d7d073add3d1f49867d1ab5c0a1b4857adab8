@@ -1,0 +1,1 @@
+Referenced by issue #74800, Bevel modifier generates vertex group weight > 1.0 once applied (geometry is flagged as invalid inside BKE_mesh_validate)
