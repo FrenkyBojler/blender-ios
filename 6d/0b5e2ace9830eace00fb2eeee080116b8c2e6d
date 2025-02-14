@@ -1,1 +1,2 @@
 Referenced by issue #126562, Opening Blender 3 document in Blender 4 breaks Alpha transparency in Cycles
+Referenced by issue #120762, Blender 4.1+ defaults to transparent shadows off on default material (also versioning for linked 4.0 materials is wrong)
