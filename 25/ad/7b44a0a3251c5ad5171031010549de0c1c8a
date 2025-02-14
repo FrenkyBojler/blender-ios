@@ -7,3 +7,4 @@ Referenced by issue #39117, Using operator and redo panel triggers 'undo' in tex
 Referenced by issue #39118, Particle system: Group instances contained by emitted groups are missing
 Referenced by issue #39101, Can not select object on backface by clicking when Matcap is on
 Referenced by issue #39103, Curve modifier added to mesh: Incorrect render and viewport result
+Referenced by issue #39104, 2 clothes on a collision object cause crash
