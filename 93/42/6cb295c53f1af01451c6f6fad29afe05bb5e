@@ -1,1 +1,2 @@
 Referenced by commit 286adfde383, Cycles: Bring back preview AA samples when using BPT
+Referenced by issue #51068, (min fix) extende labels in cycles render sampling panel
