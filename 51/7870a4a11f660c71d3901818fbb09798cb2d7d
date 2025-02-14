@@ -1,1 +1,2 @@
 Referenced by commit 18343c230d2, Fix/workaround initialization order of static TBB/MKL
+Referenced by issue #73155, Current Mantaflow build hideously unstable when baking gas sim with adaptive domain
