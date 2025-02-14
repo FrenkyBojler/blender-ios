@@ -1,2 +1,3 @@
 Referenced by commit 548b45d13be, Revert #116228: Check Interactivity in button comparisons
 Referenced by issue #116437, Revert #116228: Check Interactivity in button comparisons
+Referenced by issue #116426, Regression: Renaming in UILists (Shape Key, AOVs, ...) is broken
