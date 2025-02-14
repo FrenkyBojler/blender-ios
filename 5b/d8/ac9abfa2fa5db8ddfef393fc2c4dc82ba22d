@@ -8,3 +8,4 @@ Referenced by issue #61772, Particle system crash during animation after switchi
 Referenced by issue #61699, Background doesn't render in EEVEE in the rendered mode
 Referenced by issue #61043, Blender crashes on VSE zoom / scroll timeline sometimes
 Referenced by issue #59764, Crash when opening a file in 2.79 saved with 2.8
+Referenced by issue #59042, Subdivision mangling texture UVs and Vertex Colors in 2.80
