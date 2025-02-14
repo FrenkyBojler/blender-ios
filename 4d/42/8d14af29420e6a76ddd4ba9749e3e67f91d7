@@ -1,1 +1,2 @@
 Referenced by issue #52452, OSL trace in 2.79 sometimes miss surfaces (but not in 2.78)
+Referenced by issue #52443, Kernel compile error when rendering with OpenCL GPU.
