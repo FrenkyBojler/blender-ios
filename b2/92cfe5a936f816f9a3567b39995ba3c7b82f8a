@@ -17,3 +17,4 @@ Referenced by issue #101669, Regression: Normal baking strange artifacts in text
 Referenced by issue #101671, (Linux - OPTIX) Error: Device does not support queues
 Referenced by issue #101651, Cycles prints core dump when rendering with OPTIX and missing package `libnvidia-gl`
 Referenced by issue #89399, Mouse wrapping causes erratic movement
+Referenced by issue #74538, bpy.ops.gpencil.vertex_group_assign() doesn't work when invoked from the python console
