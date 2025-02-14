@@ -1,2 +1,3 @@
 Referenced by issue #102667, Rendering an animation freezes at random frame
 Referenced by issue #101999, Nodes: Assert and crash: Editing nodes through the material panel and undo.
+Referenced by issue #99151, Regression: cycles not updated when off object types in "View object Types" menu
