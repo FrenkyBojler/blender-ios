@@ -2,3 +2,4 @@ Referenced by issue #94852, Crash with Geometry Proximity node if input is point
 Referenced by issue #94608, switching to local view slower than previous builds
 Referenced by issue #94464, Blender Video texture not refreshing
 Referenced by issue #94454, Crash in nvoglv64.dll entering edit mode on curve
+Referenced by issue #94428, Geometry Nodes - Vertex Color Issues
