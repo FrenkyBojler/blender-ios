@@ -1,1 +1,2 @@
 Referenced by commit dbb1f56e553, Fix T77290: Crash displaying vertex colors in edit mode
+Referenced by commit b50b91c25db, Cleanup: Fix wrong assert introduced by rBd98ae27f02c7
