@@ -1,0 +1,1 @@
+Referenced by issue #38824, dupliobject which is constrained on a hidden layer causes cycles crash
