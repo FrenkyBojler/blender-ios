@@ -1,1 +1,2 @@
 Referenced by commit d00f54e574c, Transform: redo resize now constrains axis values
+Referenced by issue #73853, Transform: Redo does't work properly with NLA "Move" transform mode
