@@ -1,1 +1,2 @@
 Referenced by commit 1222f561a21, Revert "Fix T76313: Redo in Multires doesn't bring back stroke made after a subdivide"
+Referenced by issue #76313, Redo in Multires doesn't bring back stroke made after a subdivide
