@@ -1,1 +1,2 @@
 Referenced by commit 0bf12cb025a, Fix error in recent change "run UserDef versioning from readfile.c"
+Referenced by issue #81405, Cycles is not enabled by default on recent builds
