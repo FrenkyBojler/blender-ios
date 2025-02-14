@@ -1,3 +1,4 @@
 Referenced by issue #72834, Cannot Select Face when Clipping Region (Alt+B)
 Referenced by issue #72104, Blender selects faces outside of Clipping Region if X-Ray is off
 Referenced by issue #71461, Emitter particle system viewport display axis/cross/circle shows only first two particles
+Referenced by issue #70449, commit 3a08153d7a8 introduces X11 error
