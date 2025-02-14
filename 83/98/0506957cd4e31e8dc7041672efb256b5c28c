@@ -4,3 +4,4 @@ Referenced by commit ae609346ee9, Fix T81672: Array modifier default merge dista
 Referenced by commit c3238bd5001, Cleanup: Use DNA defaults for cloth modifier
 Referenced by issue #86654, Bad motion blur from alembic animation import in v2.92. Works as expected in v2.83.13
 Referenced by issue #83886, Particle instance modifier broken
+Referenced by issue #81672, Array modifier default merge distance is 0.1m (typo)
