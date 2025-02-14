@@ -20,3 +20,4 @@ Referenced by issue #95578, No viewport update after connecting nodes with hotke
 Referenced by issue #94977, Default node group input color ignored when link is muted
 Referenced by issue #94867, Regression: Cycles viewport render not updating when editing form fields of ColorRamp node
 Referenced by issue #94766, Regression: Texture coordinates from other object do not refresh if node inside group
+Referenced by issue #94480, Compositor in start up file does not show specific passes
