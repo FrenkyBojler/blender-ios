@@ -1,0 +1,1 @@
+Referenced by issue #75964, changing an object's viewport display color does not auto update in viewport render mode.
