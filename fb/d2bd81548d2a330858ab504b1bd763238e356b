@@ -1,1 +1,2 @@
 Referenced by commit 243f20ec101, Revert "Particles: remove Halo, Line and Path render options"
+Referenced by issue #80197, Halo, Line and Path are not being rendered by Eevee nor Cycles with emitter particles
