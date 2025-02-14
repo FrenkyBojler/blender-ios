@@ -1,2 +1,3 @@
 Referenced by issue #111447, Regression: Global Viewport Visibility no longer readable when object is appended from another file
 Referenced by issue #93402, Linking Collections links additional objects
+Referenced by issue #91414, Unify link/append between WM operators and BPY context manager API, and cleanup usages of `BKE_library_make_local`
