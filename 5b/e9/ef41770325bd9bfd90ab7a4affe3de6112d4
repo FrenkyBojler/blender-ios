@@ -10,3 +10,4 @@ Referenced by issue #85424, Blender does not open
 Referenced by issue #85336, Blender crashes when rendering from the command line without display or remote display
 Referenced by issue #85141, Crash when running python script from command line
 Referenced by issue #84952, Blender boolean tools not rendering correct output
+Referenced by issue #60017, Eevee render display error in orthographic camera mode: Mesh material color changes during scaling
