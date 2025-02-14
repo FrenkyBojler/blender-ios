@@ -1,2 +1,3 @@
 Referenced by commit 27fb63381e9, Fix T94121: PyAPI: ID property group returns wrong type with iter()
 Referenced by issue #94121, PyAPI: ID property group returns wrong type with iter()
+Referenced by issue #85675, Blender 3.0 (Python API deprecation, updates)
