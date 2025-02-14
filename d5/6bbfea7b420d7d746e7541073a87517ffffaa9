@@ -1,1 +1,2 @@
 Referenced by issue #100627, Regression: Nodes UI: Node Frame updating after draw causes artifacts
+Referenced by issue #94173, Node editor frames don't immediately update to "Toggle Hidden Sockets"
