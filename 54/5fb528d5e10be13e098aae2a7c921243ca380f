@@ -1,1 +1,2 @@
 Referenced by commit c8cec113536, Fix T102385: Set frame node active after joining nodes
+Referenced by issue #102385, Can no longer immediately rename a Frame node after joining nodes
