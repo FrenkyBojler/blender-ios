@@ -1,0 +1,1 @@
+Referenced by issue #86293, Crash after running `bpy.ops.object.duplicate()` followed by Undo
