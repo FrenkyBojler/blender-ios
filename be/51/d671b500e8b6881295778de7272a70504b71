@@ -1,1 +1,2 @@
 Referenced by issue #86448, EEVEE SSR Refraction Depth regression
+Referenced by issue #86121, Cycles: AttributeNode: Unexpected result when setting a nonexistent attribute
