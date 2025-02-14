@@ -4,3 +4,4 @@ Referenced by issue #71688, EEVEE Shader Compilation freezes and crashes afterwa
 Referenced by issue #71669, Mesh gets transparency in a specific vertex group after trying to render in EEVEE
 Referenced by issue #71671, Bones in edit mode appears some weird shapes.
 Referenced by issue #71649, blender 2.81 (and 2.80 as well) its running damn slow in windows 7.
+Referenced by issue #60689, Flip Active/Selected Bone does not work in weight paint mode.
