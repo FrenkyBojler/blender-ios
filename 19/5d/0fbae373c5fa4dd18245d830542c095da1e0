@@ -1,2 +1,3 @@
 Referenced by commit b5a976ec190, Fix GPencil depth checks
 Referenced by commit 4badf677392, Fix T51629: Select w/ object lock fails
+Referenced by issue #52180, New changes in Bevel modifier messed up particles hair distributions
