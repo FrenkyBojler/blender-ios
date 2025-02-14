@@ -1,1 +1,2 @@
 Referenced by commit 3e0f117ef57, Fix T47170: Sculpt w/ constructive modifier crash
+Referenced by issue #47170, Sculpt mode with Mask modifier enabled result an instant crash
