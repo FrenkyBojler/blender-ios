@@ -9,3 +9,4 @@ Referenced by issue #44226, Material does not show in 3D View
 Referenced by issue #44167, Blender won't open
 Referenced by issue #44168, Selection issue on masked geometry
 Referenced by issue #44156, Graphics become corrupted while using hardware OpenGL with ATI Radeon HD 8250/8280G
+Referenced by issue #44143, Objects created at the same point move together, but they are not linked
