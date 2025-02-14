@@ -6,3 +6,4 @@ Referenced by issue #86182, Blender crashes with cycles and GPU rendering with A
 Referenced by issue #85698, Blender crashes when rendering with OpenCL
 Referenced by issue #85099, Cycles GPU render crashes in 2.92, 2.93 on Ubuntu with rx580
 Referenced by issue #84579, OpenCL error: CL_INVALID_KERNEL_ARGS in clEnqueueNDRangeKernel()
+Referenced by issue #84461, Cycles: Split kernel error with OpenCL
