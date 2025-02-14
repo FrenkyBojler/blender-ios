@@ -9,3 +9,4 @@ Referenced by issue #92073, Cycles: Viewport flashes when moving in the camera v
 Referenced by issue #91597, Cycles regression: Light visible in volume when ray visibility for volumes is disabled
 Referenced by issue #91598, Cycles regression: Decreasing sample count below current viewport samples causes viewport to reset
 Referenced by issue #91592, Cycles: remaining render time is always -14:-08.-48
+Referenced by issue #90734, Fully transparent material creates light bounces
