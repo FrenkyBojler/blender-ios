@@ -1,2 +1,3 @@
 Referenced by commit 3507431c306, Subdiv: Optimize coarse position extraction with cache
 Referenced by commit 54072154c5b, Subdiv: Tag result mesh with no loose edges/verts
+Referenced by commit 3389cc80836, Fix: Incorrect mesh cache tagging causing excess calculation
