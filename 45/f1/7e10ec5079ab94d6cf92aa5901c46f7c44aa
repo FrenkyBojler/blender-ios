@@ -1,1 +1,2 @@
 Referenced by commit 84f7de432c7, Fix T78826: Move constraint is not fully disabled
+Referenced by issue #78826, Error disabling axis lock on grab in object mode
