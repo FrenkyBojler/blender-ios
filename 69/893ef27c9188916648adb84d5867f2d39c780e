@@ -1,2 +1,3 @@
 Referenced by commit 2a0db195c90, Fix viewport roll working wrong
 Referenced by issue #96299, Rolling the viewport always use last selection as pivot point
+Referenced by issue #89883, Bug? Inconsistency? Viewport roll use horizontal move instead angle
