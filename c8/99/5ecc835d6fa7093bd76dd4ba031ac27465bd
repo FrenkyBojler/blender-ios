@@ -1,0 +1,1 @@
+Referenced by issue #42905, Dupliface relies on vertex order of the face, rather then the face normal
