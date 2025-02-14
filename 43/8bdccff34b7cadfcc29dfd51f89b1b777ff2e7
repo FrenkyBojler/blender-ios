@@ -1,3 +1,4 @@
 Referenced by issue #48626, Cycles Crashes on rendering
 Referenced by issue #48614, Blender from buildbot crash when Separate selection in this particular scene
 Referenced by issue #48616, Transform operations, on consecutive edge loops, alter selection when auto merged
+Referenced by issue #48538, Render Fragments on CPU with Cycles
