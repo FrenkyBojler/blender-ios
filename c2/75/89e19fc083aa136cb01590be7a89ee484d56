@@ -11,3 +11,4 @@ Referenced by issue #46732, Proxy stamp ( Meta data) not rendering in hardware u
 Referenced by issue #46467, Clean Keyframes removes the channels.
 Referenced by issue #46456, quitting while using dynotopo (dynamic topography) if you press ESC
 Referenced by issue #46444, Blender crashes on .dae import
+Referenced by issue #46449, Blender VSE does not import all audio tracks on mp4.
