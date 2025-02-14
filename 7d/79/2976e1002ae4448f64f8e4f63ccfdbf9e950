@@ -4,3 +4,4 @@ Referenced by issue #61861, Blender Crashing
 Referenced by issue #61730, Cannot Proxy to Proxy with Bendy-Bones
 Referenced by issue #61731, Unstable field in Light: Object Data panel
 Referenced by issue #61688, Blender Crashing upon GPU render
+Referenced by issue #61666, mathematical operations in light 'power' field with letter W crash Blender
