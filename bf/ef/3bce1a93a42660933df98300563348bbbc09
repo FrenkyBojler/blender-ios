@@ -1,2 +1,3 @@
 Referenced by issue #67983, when in edit mode Boolean modifiers dont show
 Referenced by issue #64464, App crashes when navigating between UV Editor and Viewport and selecting via A or Alt-A or clicking.
+Referenced by issue #64351, crash on attempt to open a specific file
