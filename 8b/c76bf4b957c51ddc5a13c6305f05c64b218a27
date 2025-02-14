@@ -3,3 +3,4 @@ Referenced by commit 37d835f0bca, Fix T100582: Windows-10 Switching Desktops loc
 Referenced by issue #109525, Regression: Pressing multiple modifier keys at the same time locks mouse click
 Referenced by issue #105277, Alt key is always stuck when changing to Blender on Windows11
 Referenced by issue #103722, Regression: Alt key remains locked in inactive blender window
+Referenced by issue #101086, ALT does not work the first time when switching multiple windows. (Addition to T40059)
