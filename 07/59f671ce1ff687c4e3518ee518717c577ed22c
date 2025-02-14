@@ -1,3 +1,4 @@
 Referenced by issue #104055, Action Editor: Animations no longer work after renaming bones.
 Referenced by issue #102713, Saved blend file has a different hash when re-saved in a different instance
 Referenced by issue #102679, Copy Rotation Constraint unexpectedly have numerical instability
+Referenced by issue #102682, Viewport - Numpad Hotkeys - Spinning an orthographic camera via numpad 4 / 6 does not work as intended
