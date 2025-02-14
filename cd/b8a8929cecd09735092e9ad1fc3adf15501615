@@ -4,3 +4,4 @@ Referenced by issue #114033, Second UV map crash Blender
 Referenced by issue #111317, problem Blender 4.0 in a mac mini
 Referenced by issue #110162, Mac (Intel) + Eeeve/Metal : Possible "ignoring" of the 2nd UVmap on faces
 Referenced by issue #109363, GP Fill Tool not working on Mac with Metal GPU Backend
+Referenced by issue #107476, In blender 3.5, Edge Crease in 3D view isn't overlaid.
