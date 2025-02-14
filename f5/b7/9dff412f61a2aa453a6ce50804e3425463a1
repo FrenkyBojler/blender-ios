@@ -1,2 +1,3 @@
 Referenced by issue #39847, Crash on undo or reopening a file
 Referenced by issue #39523, Animated objects don't render
+Referenced by issue #39490, BGE: Text to Mesh, then MouseOver does not work
