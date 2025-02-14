@@ -27,3 +27,4 @@ Referenced by issue #87353, Blender full crash during smoke+noise baking "EXCEPT
 Referenced by issue #87247, Cant open new 2.92 Blender anymore
 Referenced by issue #87188, Dragging an image from a Safari webpage crashes Blender, while from Chrome or Firefox doesn't crash (and do nothing)  on MacOS
 Referenced by issue #87089, Windows 10 Crash on startup (Fresh install never before used)
+Referenced by issue #87062, Startup crash
