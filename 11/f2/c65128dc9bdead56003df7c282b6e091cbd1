@@ -4,3 +4,4 @@ Referenced by issue #60149, Glossy color pass for Principled Hair BSDF doesn't m
 Referenced by issue #60159, Toggling visibility of parent object in outliner using LMB + ctrl is broken
 Referenced by issue #60121, Cycles GPU Bake artifacts and crash
 Referenced by issue #60123, Memory leak and crash when playing with X-ray value in Wireframe mode
+Referenced by issue #60125, Please revisit T49451
