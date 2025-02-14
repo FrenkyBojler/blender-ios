@@ -61,3 +61,4 @@ Referenced by issue #44807, Group Instance, empty rotation
 Referenced by issue #44795, same menu item for different command in node editor
 Referenced by issue #44798, Force fields still affect rigid bodies after force fields have been deleted and rigid body cache is cleared.
 Referenced by issue #44782, Parent actuator causes blender to crash
+Referenced by issue #44784, Snapping while duplicating a clip in video editor causes a crash
