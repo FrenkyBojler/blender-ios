@@ -1,2 +1,3 @@
 Referenced by commit 7d784749415, AMD glitch: missing changes in f41ab375f38b
 Referenced by issue #63698, Selecting Materials after creating a new file throws EXCEPTION_ACCESS_VIOLATION
+Referenced by issue #62792, Edit mode, Clipping region, Visuals bug and editing vertices remain slow like when geometry is not hidden
