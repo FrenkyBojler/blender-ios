@@ -15,3 +15,4 @@ Referenced by issue #50760, Blender does not find any CUDA device with latest NV
 Referenced by issue #50764, Effect-Stripe cross ignore softcut (knife)
 Referenced by issue #50715, Artifacts in hair-particle-system
 Referenced by issue #50716, Blender Addon tab has no addons anymore and refreshing causes an error
+Referenced by issue #50723, Edge info incorrect numbers after import
