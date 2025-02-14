@@ -13,3 +13,4 @@ Referenced by issue #62125, snapping not working if invisible object is between 
 Referenced by issue #62111, Blender hangs switching to Edit Mode with Material Panel visible
 Referenced by issue #62112, Blender miscounts object faces
 Referenced by issue #62030, Wirefame , random crash
+Referenced by issue #61886, Blender crashes when creating new file using shortcut Cntrl N
