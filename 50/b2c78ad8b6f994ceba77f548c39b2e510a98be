@@ -1,0 +1,1 @@
+Referenced by commit 69fb3327096, Fix regression that Blender crashes on startup if UI translation is enabled, it was mistake in rB50b2c78ad8b6.
