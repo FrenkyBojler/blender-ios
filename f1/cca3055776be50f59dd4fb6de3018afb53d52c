@@ -21,3 +21,4 @@ Referenced by issue #94532, Blender 3.0 very slow with rx 5700XT
 Referenced by issue #94451, Large (135Mb) file without apparent data
 Referenced by issue #94347, Crash when adding new scene in video editor and pressing home
 Referenced by issue #94314, OpenEXR can't be used to save results during the render process
+Referenced by issue #94304, Remesh + symmetry model bug? : Blender 3.0.0
