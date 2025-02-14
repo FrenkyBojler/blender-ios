@@ -1,3 +1,4 @@
 Referenced by commit 2ab72f6db83, Fix T103964: Assert on mouse hover of empty node editor
 Referenced by commit 20b2d6fc718, Fix T103624: Last node is skipped for cursor and link picking
 Referenced by issue #103637, Nodes can no longer be connected in node editors
+Referenced by issue #103624, Regression: Nodes created by the "Use Nodes" button initially can't accept inputs
