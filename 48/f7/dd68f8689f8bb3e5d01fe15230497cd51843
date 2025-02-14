@@ -63,3 +63,4 @@ Referenced by issue #46465, Blender Player stutters when navigating rendered ima
 Referenced by issue #46467, Clean Keyframes removes the channels.
 Referenced by issue #46456, quitting while using dynotopo (dynamic topography) if you press ESC
 Referenced by issue #46450, the "Seams from islands" in UVs menu can't mark up edges as cyan color when select "Mark sharp" option at fist time
+Referenced by issue #42020, BGE crashes when LibLoading multiple files asynchronously
