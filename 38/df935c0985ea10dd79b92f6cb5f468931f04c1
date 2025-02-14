@@ -1,1 +1,2 @@
 Referenced by commit c399651637a, Fix T84708: Versioning for Set Alpha node
+Referenced by issue #84708, Set Alpha versioning code fails for nodes outside of node group
