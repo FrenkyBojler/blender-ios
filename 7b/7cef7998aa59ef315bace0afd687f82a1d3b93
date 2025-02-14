@@ -1,1 +1,2 @@
 Referenced by issue #114123, Crash: repeatedly selecting Cycles while Optix Denoiser is enabled
+Referenced by issue #114090, bpy.ops.ed.undo.poll() failed
