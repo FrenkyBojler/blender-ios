@@ -1,1 +1,2 @@
 Referenced by commit c145cb79989, Fix buffer overrun in paint_line_strokes_spacing
+Referenced by commit 6150dbb5bbe, Fix T87815: Sculpt: Curve stroke scene spacing not working
