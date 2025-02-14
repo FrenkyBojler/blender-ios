@@ -1,1 +1,2 @@
 Referenced by issue #91828, Blender crashes when reading to bgl.Buffer / gpu.types.Buffer
+Referenced by issue #85185, EEVEE Viewport crash
