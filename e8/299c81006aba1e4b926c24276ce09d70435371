@@ -44,3 +44,4 @@ Referenced by issue #50531, Blender closes when reduced to icon, Windows 10
 Referenced by issue #50524, Basis shapekey editing while rendering bug
 Referenced by issue #50504, Blender's renderer provides partially blackened images on this .blend file
 Referenced by issue #50506, blender windows 10 build 15014white screen
+Referenced by issue #50493, GLSL Shading with Textured shading caused UI freezing
