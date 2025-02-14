@@ -1,2 +1,3 @@
 Referenced by issue #103671, Regression: Memory leak: Something with materials slots
 Referenced by issue #103372, Memory leak when adjusting material properties in Rendered view
+Referenced by issue #103101, Cycles Crash on random frame in Blender 3.4
