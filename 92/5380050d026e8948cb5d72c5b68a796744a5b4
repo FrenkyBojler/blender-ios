@@ -9,3 +9,4 @@ Referenced by issue #58528, Materials don't get assigned to objects other than t
 Referenced by issue #58517, Multiview not working with OpenGL render using scene settings
 Referenced by issue #58519, Cycle render crashes when using multiview
 Referenced by issue #58506, Cycles: Viewport playback flickers to black
+Referenced by issue #58514, Selection in XRAY mode is broken
