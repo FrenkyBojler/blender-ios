@@ -1,2 +1,3 @@
 Referenced by commit 0c506a6ef0b, Fix T74044: Switching from Edge Slide to Move and Cancelling causes crash
 Referenced by commit b56957f0af0, Fix transform 'center_override' not being flagged
+Referenced by issue #74044, Switching from Edge Slide to Move and Cancelling causes crash
