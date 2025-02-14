@@ -3,3 +3,4 @@ Referenced by issue #60867, Light Bounces in 2.8 producing worse results
 Referenced by issue #60818, Blender crashes when deleting curve from alembic
 Referenced by issue #60043, macOS viewport lagging
 Referenced by issue #59958, Blender 2.80 - Removing second Particle System cache causes crash
+Referenced by issue #58731, Graphical glitch in Edit Mode: Vertices have hair-like extrusions (not to be confused with normals)
