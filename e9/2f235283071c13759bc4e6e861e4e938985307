@@ -34,3 +34,4 @@ Referenced by issue #52095, Blender 2.78.5/2.79 - Cannot switch to OpenCL render
 Referenced by issue #52080, File Permissions Bug in Windows  - Blender ignores Windows folder permissions and fails to write in valid folders with proper permissions.
 Referenced by issue #52076, Boolean. Change BMesh to Carve = crush
 Referenced by issue #52063, Bake Action inaccurate for Spline IK
+Referenced by issue #52050, Empty VSE preview for scene strips with OpenGL preview + Rendered settings
