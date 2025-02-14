@@ -5,3 +5,4 @@ Referenced by issue #55805, f12 render crash eevee
 Referenced by issue #55808, material & lamp properties crash
 Referenced by issue #55775, Crash when select keyframe of an object in timeline editor
 Referenced by issue #55776, Crash when open multiple window then reload new
+Referenced by issue #55780, Crash when trying to use the eyedropper in the dyntopo to get current mesh res.
