@@ -1,1 +1,2 @@
 Referenced by commit 1e3057f1777, GPUTexture: Return NULL texture if data grid is NULL too
+Referenced by issue #80698, Mantaflow simulation visible in last evaluated state outside of cached range
