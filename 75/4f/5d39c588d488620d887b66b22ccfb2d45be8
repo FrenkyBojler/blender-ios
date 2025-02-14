@@ -1,1 +1,2 @@
 Referenced by issue #53079, Blender Crash to Desktop Rendering with HDRI (EXR) Maybe others not tested
+Referenced by issue #52952, install_deps.sh - numpy build fails on linux
