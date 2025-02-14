@@ -1,1 +1,2 @@
 Referenced by commit 78080337f89, PyDoc: expanded documentation for bpy_struct.is_property_set
+Referenced by issue #82457, Python error when clicking on a tool in the viewport while a compositor editor is open.
