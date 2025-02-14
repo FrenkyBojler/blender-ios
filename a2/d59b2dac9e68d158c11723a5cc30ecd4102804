@@ -14,3 +14,4 @@ Referenced by issue #99592, Regression: Boolean Difference modifier - material o
 Referenced by issue #99568, Exception during start programm.
 Referenced by issue #99507, Camera Background image is appearing greyish in 3D Viewport
 Referenced by issue #99191, Regression: Blender crashes when texture painting (caused by boolean modifers)
+Referenced by issue #99015, Segmentation fault while texture painting
