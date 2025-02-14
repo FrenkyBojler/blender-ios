@@ -64,3 +64,4 @@ Referenced by issue #54019, Undefined behavior happen by copying objects with Ct
 Referenced by issue #54025, Constant Crashing
 Referenced by issue #53994, Failed loading render kernel
 Referenced by issue #54002, Depsgraph does not update
+Referenced by issue #54004, GPU Denoising turning tiles pure black, resulting in a pure black final frame.
