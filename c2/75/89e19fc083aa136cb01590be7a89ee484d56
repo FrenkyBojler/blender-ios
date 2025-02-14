@@ -78,3 +78,4 @@ Referenced by issue #45547, Crash when go to File-User Preferences-System or cho
 Referenced by issue #45539, Blender crashes when trying to display an OpenEXR Multilayer (created with the File Output Node)
 Referenced by issue #45542, Blender quits without warning when trying to render with AMD OpenCL
 Referenced by issue #45527, BMP import issue / crash on Ubuntu, but not on OSX
+Referenced by issue #45529, Texture Compositor node composition artifact (random pixels)
