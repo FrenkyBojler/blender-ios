@@ -3,3 +3,4 @@ Referenced by issue #119354, Fix #119030: Only access Location node input when a
 Referenced by issue #114493, NodeSocketFloatFactor (and many others) socket type rejected by NodeTreeInterface.new_socket()
 Referenced by issue #114389, Node input and output "bpy_prop_collection[key]" key is dropped after enabled=False in 4.0
 Referenced by issue #113353, Fix #113340: Socket naming consistency
+Referenced by issue #95432, Node group inputs and outputs have incorrect "name" property
