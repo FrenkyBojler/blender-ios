@@ -2,3 +2,4 @@ Referenced by issue #82963, Grease Pencil regression in tram file
 Referenced by issue #82918, File menu - save as versus save copy, file dialog always shows save as
 Referenced by issue #82905, Multires Subdivide Randomly Creates Spikes
 Referenced by issue #82461, Crash when importing numpy.
+Referenced by issue #81193, EEVEE crash when keyframing integer properties on modifiers with motion blur enabled
