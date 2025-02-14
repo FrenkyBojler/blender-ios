@@ -1,2 +1,3 @@
 Referenced by commit 2eeec49640b, Fix #105339: grease pencil selection can toggle object selection
 Referenced by issue #105342, Fix #105339: grease pencil selection can toggle object selection
+Referenced by issue #96835, Regression: GPencil: In edit mode "Tweak Tool: Left Mouse Select & Move" does not work correctly
