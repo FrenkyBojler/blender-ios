@@ -2,3 +2,4 @@ Referenced by commit 2ba13677ad3, Fix: Sculpt Scale tool adds up scale with non-
 Referenced by issue #127924, WIP: Fix: Sculpt Scale tool more issues with non-uniform object scaling
 Referenced by issue #127495, Fix: Sculpt Scale tool adds up scale with non-uniform object scaling
 Referenced by issue #69831, Transform tools sculpt mode : Orientation
+Referenced by issue #69804, New transform tools in sculpt mode works weird if origin is not in world center 0,0,0.
