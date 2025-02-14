@@ -1,1 +1,2 @@
 Referenced by commit eab95fa2aaa, Anim: enable visual keying of IK-influenced bones
+Referenced by commit be40f31d039, Keyframing: replace mat3_to_quat_is_ok with mat4_to_quat
