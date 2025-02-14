@@ -1,2 +1,3 @@
 Referenced by commit bb80716244d, Mesh: Parallelize remaining topology maps
 Referenced by issue #101726, Cycles does not generate the exact same images when a scene is rendered twice
+Referenced by issue #100250, Decimate modifier gives different result on every evaluation
