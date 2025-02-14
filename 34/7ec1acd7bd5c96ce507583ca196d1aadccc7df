@@ -5,3 +5,4 @@ Referenced by commit be4205b8248, Fix #127396: Invert Mask doesn't apply to enti
 Referenced by commit b4287a49020, Fix: Sculpt: Smooth brush crash and node data iteration issues
 Referenced by issue #129017, Fix #128999: Smooth Surface brush doesn't update viewport
 Referenced by issue #128221, Cleanup: Sculpt: Simplify threaded node iteration
+Referenced by issue #127474, Fix #127279: Various brushes do not work on multires
