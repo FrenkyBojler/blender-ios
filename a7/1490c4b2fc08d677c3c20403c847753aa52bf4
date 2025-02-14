@@ -1,1 +1,2 @@
 Referenced by issue #79952, Cycles video texture bug (fixed in 2.90 beta and 2.91 alpha -- 2.83 LTS issue)
+Referenced by issue #78537, High Memory Usage when render animation with Persistant Images enabled, and using Fix (T77734) reproducible with Latest 2.90 Blender
