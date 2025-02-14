@@ -1,2 +1,3 @@
 Referenced by commit cf178f71ac4, Fix T42641, Graphical fragments showing on Blender 2.71 and higher when baking.
 Referenced by issue #42641, Graphical fragments showing on Blender 2.71 and higher when baking.
+Referenced by issue #39830, Viewer node update error in the compositor when using the seperate/combine YCbCr nodes
