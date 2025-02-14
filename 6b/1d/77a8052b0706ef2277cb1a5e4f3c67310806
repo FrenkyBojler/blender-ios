@@ -1,1 +1,2 @@
 Referenced by commit 00166ff62e6, Better fix for T47787 - remove extra user due to 'user_one' as soon as we increase 'real' user count.
+Referenced by issue #47787, When performing operation 'Make single user' -> 'obj&data', object is removed from group.
