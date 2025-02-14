@@ -1,2 +1,3 @@
 Referenced by commit 1ca8dce9cc9, Fix: Assert when calling node tool
 Referenced by issue #124220, Fix: Assert when calling node tool
+Referenced by issue #124143, 'C-style MEM_freeN on a pointer created with CPP-style' error when switching to shader editor
