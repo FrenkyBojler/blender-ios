@@ -6,3 +6,4 @@ Referenced by issue #89977, Color handling has changed between versions
 Referenced by issue #87149, Color picker value not working as expected
 Referenced by issue #85982, Color Picker tool shift color value slider and RGB values incorrect
 Referenced by issue #85321, 0.08 now much lighter in value
+Referenced by issue #84400, Bug in color wheel when choose value of color.
