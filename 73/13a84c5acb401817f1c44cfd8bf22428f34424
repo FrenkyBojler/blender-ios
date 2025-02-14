@@ -1,0 +1,1 @@
+Referenced by issue #95610, Writing to an attribute that is also a vertexgroup results in black when used in a shader
