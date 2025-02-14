@@ -13,3 +13,4 @@ Referenced by issue #126880, SurfaceDeform does not work as expected in 4.2.1
 Referenced by issue #126391, Blender Viewport Speed Regression
 Referenced by issue #125670, Regression: Setting parent to triangle changes object location
 Referenced by issue #125560, Regression: Mesh deform does not work anymore with collision enabled and cloth sim on another object
+Referenced by issue #125295, Object not following another one
