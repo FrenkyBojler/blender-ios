@@ -1,0 +1,1 @@
+Referenced by issue #90791, Knife project leaks memory each time a text, curve, or surface object is used for cutting
