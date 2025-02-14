@@ -39,3 +39,4 @@ Referenced by issue #50550, GPUShader: compile error - Background image not show
 Referenced by issue #50541, UV Image Paint Bugs: Smear Tool Black Alpha and Radius Global Hotkey Broken
 Referenced by issue #50543, Entering a 0 infront any number gives an error
 Referenced by issue #50527, Blender crashed right after add texture node in compositor
+Referenced by issue #50529, Invalid curves from exported alembic cache
