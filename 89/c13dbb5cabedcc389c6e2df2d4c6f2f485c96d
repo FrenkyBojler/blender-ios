@@ -1,2 +1,3 @@
 Referenced by issue #126524, Meshes or Curves with just "wire" edges disappear in the viewport if SubD is used while in Viewport "Wireframe" mode
 Referenced by issue #124292, Crash: Display wireframe in object mode on subdivided mesh with a lone edge
+Referenced by issue #122455, Display Wireframe crashes on edge wire mesh
