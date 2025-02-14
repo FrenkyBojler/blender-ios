@@ -2,3 +2,4 @@ Referenced by issue #59559, Jump to Perspective Viewport
 Referenced by issue #59168, Blender 2.8 (9a8b6d51c12) - Crash when going in Edit Mode with Multiresolution modifier
 Referenced by issue #59050, Blender 2.8 Motion Tracking, Deleting trackers crashes Blender.
 Referenced by issue #59042, Subdivision mangling texture UVs and Vertex Colors in 2.80
+Referenced by issue #58984, Traceback error during FBX export
