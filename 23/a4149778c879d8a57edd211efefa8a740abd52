@@ -1,1 +1,2 @@
 Referenced by commit 4987b7d347a, Fix T80742: curve bevel fails with zero length handles at end-point
+Referenced by issue #71137, off-by-one bug in spline interpolation produces wrong geometry
