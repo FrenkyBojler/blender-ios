@@ -8,3 +8,4 @@ Referenced by issue #84620, Blender 2.91 won't open on my windows 10
 Referenced by issue #84519, Solidify generage an abnormal vertex point
 Referenced by issue #84360, ERROR EXCEPTION_ACCESS_VIOLATION IN WINDOWS 10 (64BIT)
 Referenced by issue #84324, Blender crashes during composited scenes rendering
+Referenced by issue #84300, File save is very slow under Big Sur, "Listing Dirs..." for minutes
