@@ -78,3 +78,4 @@ Referenced by issue #57103, Mesh Subdivide with smoothness for specific edges se
 Referenced by issue #57104, Mesh Subdivide with smoothness is coordinate dependent
 Referenced by issue #57073, Can't uninstall after clean installation
 Referenced by issue #57060, incorrect UV unwrap
+Referenced by issue #56903, Boolean modifier does not work
