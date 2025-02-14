@@ -1,3 +1,4 @@
 Referenced by commit dfbbc5067e4, Fix T64733: Error baking action
 Referenced by issue #64731, Blender freezes on evaluated_depsgraph_get when Python API is used to add/remove modifiers on an object
 Referenced by issue #64733, Error baking action
+Referenced by issue #58792, Particles python access is broken  in 2.8
