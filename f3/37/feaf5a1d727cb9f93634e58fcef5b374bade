@@ -48,3 +48,4 @@ Referenced by issue #47753, [BI] 2.77 World texture has no reaction to parented 
 Referenced by issue #47737, Blender crash when add Smoth modifier on Lattice.
 Referenced by issue #47738, Blender segmentation fault when Right-clicking on any object in 3d view.
 Referenced by issue #47741, OpenGL render always renders against transparent background
+Referenced by issue #47742, Blender cannot remember last used name and path while saving rendered image
