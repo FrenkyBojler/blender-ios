@@ -1,2 +1,3 @@
 Referenced by issue #85160, bake to vertex colors does not work with split normals
 Referenced by issue #84663, Blending Vertex Color when baking to it on UV seams (Bug or missing feature)
+Referenced by issue #68923, Vertex color baking with Cycles
