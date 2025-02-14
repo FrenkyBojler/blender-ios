@@ -1,3 +1,4 @@
 Referenced by commit eac3d37ab14, Fix #107422: Mesh context menus do not open with the last used option
 Referenced by commit 1f3be45f1fb, Fix T102242: Underline shortcut keys not working/appearing in sub-menu
 Referenced by commit 09b9e1e95ee, Fix T102225: Crash opening menus
+Referenced by commit 518d7dbebbd, UI/Nodes: Update node add menu as assets get loaded
