@@ -2,3 +2,4 @@ Referenced by issue #77572, Reference image opacity value doesn't work with Blen
 Referenced by issue #70356, Scaling up 1x1 pixel image reads past buffer bounds
 Referenced by issue #57646, Clip random marker placement in track/mask - not working in 2.8
 Referenced by issue #56312, UI elements ignore keyboard layout changes (ex. Swapped CTRL / CAPS)
+Referenced by issue #56209, Normal map node produces wrong result after reflection fix patch
