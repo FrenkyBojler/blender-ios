@@ -1,2 +1,3 @@
 Referenced by commit 6bcda04d1f1, Geometry Nodes: Port sample curves node to new data-block
 Referenced by issue #99370, Length parameterization failure case
+Referenced by issue #99287, Regression: Resample Curve after Fillet Curve node cause crash randomly
