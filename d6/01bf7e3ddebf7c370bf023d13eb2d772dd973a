@@ -1,2 +1,3 @@
 Referenced by commit 3ff2733279b, Cleanup: Sculpt: Remove PBVH frustum plane and related calculation
 Referenced by commit afa1a6bebfa, Fix: Data race writing to bitmap in PBVH draw
+Referenced by issue #129649, Cleanup: Sculpt: Remove PBVH frustum plane and related calculation
