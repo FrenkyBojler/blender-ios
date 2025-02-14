@@ -2,3 +2,4 @@ Referenced by issue #110257, Crash so often when modeling
 Referenced by issue #108516, crash when rendering with optics
 Referenced by issue #108455, Crash without warning when opening material properties panel.
 Referenced by issue #106657, Regression: Image rendering fails while viewport rendering is in progress
+Referenced by issue #106340, Blender 3.5 returns identity instead of real value for matrix_basis, 3.4 works ok
