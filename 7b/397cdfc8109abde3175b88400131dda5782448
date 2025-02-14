@@ -19,3 +19,4 @@ Referenced by issue #52574, "Path tracing tile" starts at 0 instead of 1
 Referenced by issue #52551, undo causes crash after enabling a new rigid body when scene uses a referenced rigid body world
 Referenced by issue #52562, Opacity slider of scene strip or image strip not reacting
 Referenced by issue #52544, Blender crash. Problem with ShrinkWrap or Subsurf Lvl 2
+Referenced by issue #52547, Cycles Cuda rendering fails for dedicated (non-display) Nvidia GTX1060
