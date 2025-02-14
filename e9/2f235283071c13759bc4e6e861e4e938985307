@@ -9,3 +9,4 @@ Referenced by issue #53042, 3D View, shelves background transparency not working
 Referenced by issue #52982, Join operator with override crashes Blender 2.79
 Referenced by issue #52669, Wrong shadow direction with 1-sided material
 Referenced by issue #52640, Crash when opening and closing image file browser
+Referenced by issue #52584, Blender 2.79 RC2 missing OpenCL rendering option
