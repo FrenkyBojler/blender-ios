@@ -1,2 +1,3 @@
 Referenced by issue #55244, Parenting object(s) to curve crashes blender
 Referenced by issue #55245, View layers bug on multiple windows after undo
+Referenced by issue #55242, Selecting infinitely thin objects that are perpendicular to the view is not possible (without wireframe)
