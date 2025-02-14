@@ -1,1 +1,2 @@
 Referenced by issue #51550, R+R rotation and snapping dont work
+Referenced by issue #51554, OpenCL Textures exceed available single buffer allocation memory limit
