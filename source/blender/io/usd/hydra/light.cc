@@ -78,15 +78,15 @@ void LightData::init()
   float intensity;
   if (light->type == LA_SUN) {
     /* Unclear why, but approximately matches Karma. */
-    intensity = (light->energy / 4.0f) * exp2f(light->exposure);
+    intensity = (light->energy / 4.0f);
   }
   else {
     /* Convert from radiant flux to intensity. */
-    intensity = (light->energy / M_PI) * exp2f(light->exposure);
+    intensity = (light->energy / M_PI);
   }
 
   data_[pxr::HdLightTokens->intensity] = intensity;
-  data_[pxr::HdLightTokens->exposure] = 0.0f;
+  data_[pxr::HdLightTokens->exposure] = light->exposure;
   data_[pxr::HdLightTokens->color] = pxr::GfVec3f(light->r, light->g, light->b);
   data_[pxr::HdLightTokens->diffuse] = light->diff_fac;
   data_[pxr::HdLightTokens->specular] = light->spec_fac;

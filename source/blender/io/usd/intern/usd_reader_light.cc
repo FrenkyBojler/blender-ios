@@ -147,11 +147,11 @@ void USDLightReader::read_object_data(Main *bmain, const double motionSampleTime
     if (intensity_attr.Get(&intensity, motionSampleTime)) {
       if (blight->type == LA_SUN) {
         /* Unclear why, but approximately matches Karma. */
-        blight->energy = (intensity * 4.0f) * exp2f(blight->exposure);
+        blight->energy = (intensity * 4.0f);
       }
       else {
         /* Convert from intensity to radiant flux. */
-        blight->energy = (intensity * M_PI) * exp2f(blight->exposure);
+        blight->energy = (intensity * M_PI);
       }
       blight->energy *= this->import_params_.light_intensity_scale;
     }
@@ -161,7 +161,7 @@ void USDLightReader::read_object_data(Main *bmain, const double motionSampleTime
   if (pxr::UsdAttribute exposure_attr = light_api.GetExposureAttr()) {
     float exposure = 0.0f;
     if (exposure_attr.Get(&exposure, motionSampleTime)) {
-      blight->energy *= pow(2.0f, exposure);
+      blight->exposure = exposure;
     }
   }
 
