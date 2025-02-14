@@ -11,3 +11,4 @@ Referenced by issue #75597, Viewport flashes with some variants of studio lighti
 Referenced by issue #75455, High World Space Cavity Samples Crash
 Referenced by issue #75106, Can't see wireframe (vertex, selected components) through semi-transparent object
 Referenced by issue #75087, Crash: Divide By Zero with workbench depth of field when antialiasing disabled
+Referenced by issue #75016, Culled backfaces flicker during viewport navigation when auto-depth is enabled
