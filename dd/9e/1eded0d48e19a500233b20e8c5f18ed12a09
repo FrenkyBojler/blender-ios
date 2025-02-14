@@ -3,3 +3,4 @@ Referenced by issue #104348, Regression: Geometry Nodes triangulate node incorre
 Referenced by issue #104334, Regression: Baking Bevel Shader does not work
 Referenced by issue #103818, VSE: frozen frames after simple edit/cut in final render
 Referenced by issue #103774, Crash scaling object with boolean modifier
+Referenced by issue #95966, Struct of Arrays Refactor for Mesh Edges
