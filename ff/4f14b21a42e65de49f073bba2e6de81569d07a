@@ -1,2 +1,3 @@
 Referenced by commit bbf87ee78c4, Fix #113786: Snapping to vertex is broken, when instances are used in GN
 Referenced by commit 688b408bbb9, Fix 'ED_transform_snap_object_project_ray_all' not return 'hit_list'
+Referenced by issue #102053, Set material geometry node and mesh primitives break depth buffer
