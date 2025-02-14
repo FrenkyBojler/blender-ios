@@ -1,1 +1,2 @@
 Referenced by commit 0f0bc1a940b, Fix #107426: error when texture bake cannot access evaluated mesh data
+Referenced by commit 4dd409a185e, Fix T99976: Animated visibility not rendering properly in viewport
