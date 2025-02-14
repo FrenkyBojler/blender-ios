@@ -1,1 +1,2 @@
 Referenced by issue #73043, Principled BSDF denoising albedo not working well for sheen and metal
+Referenced by issue #69870, Adaptive Domain causing 'twitches' in gas position when noise applied
