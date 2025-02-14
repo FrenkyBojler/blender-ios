@@ -1,2 +1,3 @@
 Referenced by issue #96401, Bake normals for multi-resolution object is broken
 Referenced by issue #95956, Editing in or switching to EEVEE causes freeze/crash. (possible link to nodes)
+Referenced by issue #95800, Regression: Crash after discarding texture paint changes
