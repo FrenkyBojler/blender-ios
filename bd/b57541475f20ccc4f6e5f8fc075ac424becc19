@@ -4,3 +4,4 @@ Referenced by commit 7e980f2b8cb, Fix T101249: Node groups don't show in node se
 Referenced by issue #116571, Old node groups aren't working in asset browser when dragging and dropping them into GN
 Referenced by issue #106138, Regression: Search in shader node editor exposes nodes that are not available in the current renderer
 Referenced by issue #103768, Geometry Nodes + Shader Editor + Asset Browser bug
+Referenced by issue #103108, Regression: NODE_OT_add_search ignores NodeItems entries
