@@ -23,3 +23,4 @@ Referenced by issue #52547, Cycles Cuda rendering fails for dedicated (non-displ
 Referenced by issue #52526, Alembic importing broken
 Referenced by issue #52533, Blender Shuts down when rendering duplicated smoke domain.
 Referenced by issue #52490, NDOF device does not lock into orthogonal view (top, front, right, etc) in 2.79RC2 as in prev versions
+Referenced by issue #52489, Oculus Legacy VR Flashing and 2d burnin
