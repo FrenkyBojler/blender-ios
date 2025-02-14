@@ -1,0 +1,1 @@
+Referenced by issue #104541, GPU rendering initialization freeze during loading multiple generated images (race condition)
