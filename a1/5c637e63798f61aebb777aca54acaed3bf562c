@@ -1,0 +1,1 @@
+Referenced by commit 06811804131, Fix #116280: bpy.ops.wm.url_open() cannot open file:///
