@@ -1,1 +1,2 @@
 Referenced by commit 038a19ce6c3, Fix macOS incomplete Python install after recent changes
+Referenced by issue #100913, Improve support for building Blender as a Python Module (WITH_PYTHON_MODULE)
