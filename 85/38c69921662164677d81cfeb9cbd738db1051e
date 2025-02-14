@@ -1,2 +1,3 @@
 Referenced by commit 8146c996ebd, Fix: Curves last evaluated segment is empty
 Referenced by commit d4bd9f6a278, Curves: Port convex hull node to new data-block
+Referenced by issue #95942, Add evaluation to new curves data structure
