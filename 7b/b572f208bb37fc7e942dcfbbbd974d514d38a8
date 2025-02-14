@@ -1,1 +1,2 @@
 Referenced by issue #98163, Regression: Rendering object with normal map differs in Cycles and Cycles + OSL
+Referenced by issue #94737, Different output of the normal map node with OSL enabled
