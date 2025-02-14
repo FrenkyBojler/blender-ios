@@ -1,1 +1,2 @@
 Referenced by issue #93906, Alembic not importing UVs (if file incorrectly sets geoScope to kVertexScope - even though actual data implies kFacevaryingScope - which 2.93 handled gracefully)
+Referenced by issue #88605, Alembic import crashes when missing `arbGeomParams`
