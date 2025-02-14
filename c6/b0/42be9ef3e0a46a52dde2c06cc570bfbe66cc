@@ -28,3 +28,4 @@ Referenced by issue #45336, OpenCL not working for AMD FirePro W5000
 Referenced by issue #45318, BGE_character physics type_CRASH_blender_2.75
 Referenced by issue #45311, Bug Physics Controller [ Game Engine ]
 Referenced by issue #45314, UV unwrapping no longer does a correct "project from view" on subsurfed obects.
+Referenced by issue #45298, Blender exits itself when I try to run the game engine
