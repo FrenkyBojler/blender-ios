@@ -25,3 +25,4 @@ Referenced by issue #48199, Shift O no longer cycles through all Falloff Types i
 Referenced by issue #48180, No checker pattern displayed for alpha transparency areas in rendered image
 Referenced by issue #48162, GPU render issue, CPU renders fine (Volumetric Emission)
 Referenced by issue #48046, Exporting STL's from Blender 2.77
+Referenced by issue #48037, 2.77 and 2.69 both on Windows and Linux crashes when trying to play (unbaked,first try,play) rigid body physics
