@@ -1,1 +1,2 @@
 Referenced by issue #76113, Crash closing file browsers with AMD GPUs
+Referenced by issue #75914, Debug assert is triggered when using the Knife tool
