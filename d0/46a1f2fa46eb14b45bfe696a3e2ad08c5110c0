@@ -1,2 +1,3 @@
 Referenced by issue #103514, Regression: 3.0.0: The curve is not hidden in the Viewport if there is a Bevel value
 Referenced by issue #99256, Regression: Meta balls segfaulting copy-to-selected
+Referenced by issue #91757, Generated UV texture coordinates produces no texture coordinates in Eevee
