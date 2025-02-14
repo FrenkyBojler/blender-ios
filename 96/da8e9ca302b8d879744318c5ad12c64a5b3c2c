@@ -1,1 +1,2 @@
 Referenced by commit 55a69d5707f, Geometry Nodes: realize instances before deform modifier
+Referenced by issue #85281, Support piping legacy modifiers with the geometry nodes modifiers
