@@ -2,3 +2,4 @@ Referenced by commit c2a01a6c118, Fix T83347: Smart UV project crashes with wire
 Referenced by commit e01bf7a92ec, Fix T82540: Smart UV project ignores seams
 Referenced by issue #85194, Smart UV project produces wrong, stretched UVs regardless of "Correct Aspect" option state
 Referenced by issue #82637, Smart UV project problem with non-manifold geometry [worked in 2.90.1]
+Referenced by issue #82540, UV Smart Project works wrong
