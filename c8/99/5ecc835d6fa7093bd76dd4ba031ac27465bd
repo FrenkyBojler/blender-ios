@@ -1,3 +1,4 @@
 Referenced by issue #42905, Dupliface relies on vertex order of the face, rather then the face normal
 Referenced by issue #42864, Knife Project bad precision
 Referenced by issue #42834, Scaling in global axis does not work correctly if the object has rotation
+Referenced by issue #42837, Sculpt lagging after restarting blender with VBO set
