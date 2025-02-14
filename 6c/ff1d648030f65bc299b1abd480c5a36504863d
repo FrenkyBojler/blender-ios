@@ -1,1 +1,2 @@
 Referenced by commit 1bc28fc73b9, Fix T92466: Crash snapping to text objects with XRay shading
+Referenced by issue #91734, Crash snapping mesh if a beveled curve is present
