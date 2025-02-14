@@ -1,2 +1,3 @@
 Referenced by commit 8c98fcc1f15, Fix: Grease pencil vertex paint brush tool not showing
 Referenced by commit 7180df49dd6, Fix: Incorrect tool brush check for grease pencil vertex paint mode
+Referenced by commit 65fdb3fa307, Grease Pencil: Properly support brushes with draw mode primitive tools
