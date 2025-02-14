@@ -1,1 +1,2 @@
 Referenced by issue #133870, Fix #133806: Use operator region for redo from Adjust Last Operation HUD
+Referenced by issue #133806, Some operators depending on region (e.g. Grease Pencil Reproject Strokes, Knife Project) can act weird in quad view (using the Adjust Last operation panel -- using the wrong region)
