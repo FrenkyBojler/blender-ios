@@ -1,2 +1,3 @@
 Referenced by issue #57679, Grease Pencil Origin Object Becomes Invisible When Going Into An Armature Pose/Edit Mode
 Referenced by issue #57680, Armature Bone Tip Rotation Not Functional
+Referenced by issue #57664, Crash generating material preview icons with a Normal Map node that uses Tangent Space and specific UV
