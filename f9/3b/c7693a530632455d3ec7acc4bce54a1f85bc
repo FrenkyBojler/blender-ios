@@ -27,3 +27,4 @@ Referenced by issue #40790, 2D Filters and anti-aliasing broke quad buffer stere
 Referenced by issue #40758, Sculpting : Front faces only option doesnt seem to work.
 Referenced by issue #40739, Importing Collada DAE file crashes Blender
 Referenced by issue #40741, Object Group Reorder
+Referenced by issue #40730, Branched Path Tracing crashes openGL driver
