@@ -47,3 +47,4 @@ Referenced by issue #46565, Segfault when rendering AVI animation to /tmp
 Referenced by issue #46570, Blender crashes when clicking back and forth in VSE timeline
 Referenced by issue #46571, Driver updated mapping node fields do not propagate to viewport when used with Material render mode
 Referenced by issue #46550, Cycles bake black
+Referenced by issue #46556, [BUG] BGE Segmentation fault (core dumped)
