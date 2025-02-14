@@ -1,3 +1,4 @@
 Referenced by issue #65707, Adding any shader to world other than "Background" causes HOM (hall of mirrors) effect/depth buffer to not be cleared
 Referenced by issue #65705, No cascade shadows in Eevee in orthographic view.
 Referenced by issue #65584, OpenGL render bugs with JACK
+Referenced by issue #65118, Eevee: ludicrous high value fireflys AO+Bent normals
