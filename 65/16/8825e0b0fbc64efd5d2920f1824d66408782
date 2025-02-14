@@ -1,2 +1,3 @@
 Referenced by issue #67010, Crashes when attempting to Render, most of the time.
 Referenced by issue #65924, Cycles Render Crash Windows/AMD RX Vega
+Referenced by issue #64740, OBJ Import failure (works on 2.79)
