@@ -1,2 +1,3 @@
 Referenced by commit 31f6d4db898, Fix: Incorrect assert in OBJ mesh edge creation
 Referenced by issue #109372, Crash when selecting line art
+Referenced by issue #108817, Geometry Nodes: Extrude Mesh node set to "Vertices" crashes Blender when appended into another file
