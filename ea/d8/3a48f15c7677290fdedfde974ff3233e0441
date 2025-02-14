@@ -1,1 +1,2 @@
 Referenced by issue #40800, If Viewport shading is 'Rendered', B3D crashes after browsing to file for texture node and connecting to any shader node.
+Referenced by issue #40726, "Use Nodes" must be clicked before Volume section appears in menu
