@@ -14,3 +14,4 @@ Referenced by issue #101359, Search menu slow to load
 Referenced by issue #101259, Geometry Nodes in searching pulls nodes from other node add-ons
 Referenced by issue #101245, Regression: Node Editor: Crash On Typing or Scrolling In Add Search
 Referenced by issue #101249, Regression: Nodegroups don't show up in node search anymore
+Referenced by issue #95446, Display asset node groups in the add menu
