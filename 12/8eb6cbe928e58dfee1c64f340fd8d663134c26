@@ -1,2 +1,3 @@
 Referenced by commit 472cf44166a, Alembic: read velocities on Points
 Referenced by commit 43394e41a8e, Fix Alembic point cloud streaming.
+Referenced by issue #117104, Cycles: motion blur on native fluid simulation
