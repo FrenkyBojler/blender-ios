@@ -1,1 +1,2 @@
 Referenced by issue #42688, python crash: bpy.context.scene.update()
+Referenced by issue #42689, GPU rendering won't render two point lamps at once
