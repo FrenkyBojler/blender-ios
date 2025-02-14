@@ -1,1 +1,2 @@
 Referenced by issue #60450, After denoising tiles rendered by GPU turn black (regression)
+Referenced by issue #60320, OpenCL Cycles Render Fail
