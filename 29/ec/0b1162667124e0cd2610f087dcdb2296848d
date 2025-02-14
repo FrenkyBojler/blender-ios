@@ -1,2 +1,3 @@
 Referenced by issue #52058, Jumping to keyframe causes Blender to freeze indefinitely
 Referenced by issue #52059, Blender crash when enabling OpenSubdiv
+Referenced by issue #52027, Crash in OSL getattribute call
