@@ -1,1 +1,2 @@
 Referenced by issue #119655, Normals loss when Deleting, Joining or Instancing geometry in GeoNodes
+Referenced by issue #91048, Joining meshes or realizing instances in geometry nodes removes custom normals data
