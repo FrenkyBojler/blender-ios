@@ -1,2 +1,3 @@
 Referenced by issue #86385, Blender close when render in viewfinder
 Referenced by issue #85016, Performance regression when rendering at very high resolution CPU+GPU - Cycles
+Referenced by issue #84578, Image Editor don't display correct image during rendering at very high resolution
