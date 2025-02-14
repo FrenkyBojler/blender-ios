@@ -2,3 +2,4 @@ Referenced by commit c275f4219f1, Fix #110204: Anim Player draws non-uniformly s
 Referenced by commit 5ec6bcd4748, Fix PlayAnim X/Y flipping
 Referenced by issue #110204, Animation Player draws non-uniformly scaled when resizing window
 Referenced by issue #110206, Fix #110204: Anim Player draws non-uniformly scaled when resizing window
+Referenced by issue #88194, Animation player displays washed out colors
