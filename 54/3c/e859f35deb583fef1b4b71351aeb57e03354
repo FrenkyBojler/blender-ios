@@ -1,1 +1,2 @@
 Referenced by commit 30e7bdfe106, Revert "Fix T40382: 2D stabilization uses disabled markers"
+Referenced by issue #40382, 2D stabilization ceases to apply to rendered video after indeterminate number of steps
