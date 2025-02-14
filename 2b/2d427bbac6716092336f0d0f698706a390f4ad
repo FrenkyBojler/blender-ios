@@ -1,2 +1,3 @@
 Referenced by issue #92016, Crash when undo the operator which contains load img action
 Referenced by issue #91501, Crash using Undo after Append a file
+Referenced by issue #91294, Draw: Crash on undo after adding new texture
