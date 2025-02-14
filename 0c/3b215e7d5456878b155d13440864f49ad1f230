@@ -1,3 +1,4 @@
 Referenced by commit b02ac2d8be3, Fix T93092: incomplete animation rendering of multi-layer exr composition
 Referenced by commit 45bd98d4cff, Fix T92934: crash rendering with wrong image path
 Referenced by commit b1bf8848895, Images: fix error in previous refactor
+Referenced by issue #93310, Compositor: Crash due to broken image paths
