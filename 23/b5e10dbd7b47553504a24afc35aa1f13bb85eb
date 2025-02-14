@@ -1,1 +1,2 @@
 Referenced by issue #97575, Regression: going in and out of full screen causes the compositor to re-calculate unnecessarily.
+Referenced by issue #78112, Video Sequence Editor Sequencer/Preview Crash
