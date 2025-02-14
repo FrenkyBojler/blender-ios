@@ -8,3 +8,4 @@ Referenced by issue #52652, Cycles 3/6 textures reversed on cube with generated 
 Referenced by issue #52653, Render output of linked scenes conflicts with other scenes with the same name
 Referenced by issue #52551, undo causes crash after enabling a new rigid body when scene uses a referenced rigid body world
 Referenced by issue #52462, Blender 2.79 RC2 Soft body collisions not working when
+Referenced by issue #52263, Crash When Splitting and Merging Areas with Header Text Set
