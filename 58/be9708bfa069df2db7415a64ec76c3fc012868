@@ -1,1 +1,2 @@
 Referenced by issue #96990, MNEE caustics with Multiscatter GGX materials are inconsistent.
+Referenced by issue #96991, MNEE does not fall back to alternative caustic technique when MNEE does not work.
