@@ -1,3 +1,4 @@
 Referenced by issue #130221, 4.3: Candidates for corrective releases
 Referenced by issue #128838, Skipping wheel for other system (macosx_10_9_universal2 != macosx_11.2_arm64)
 Referenced by issue #125091, Extensions - Blender doesn't recognize MacOS universal / multiple platform tags wheels
+Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
