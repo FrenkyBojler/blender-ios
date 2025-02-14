@@ -9,3 +9,4 @@ Referenced by issue #96425, Blender 3.1 - Texture Mapping under the node bar is 
 Referenced by issue #96396, is_active_output stopped working correctly
 Referenced by issue #96402, Nodegroups don't update the shaders anymore in 3.1
 Referenced by issue #96386, Crash when changing shader to nodegroup in properties
+Referenced by issue #96394, Regression: Missing update in custom Nodetree
