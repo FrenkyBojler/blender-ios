@@ -1,2 +1,3 @@
 Referenced by issue #79937, Brush cursor (sculpt, vertexpaint, weightpaint) stuck/doesn't draw under transparent part of N-panel
 Referenced by issue #63822, Sidebar tabs active area deadzone
+Referenced by issue #61554, Region Overlap: Input is blocked
