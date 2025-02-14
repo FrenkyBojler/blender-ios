@@ -1,1 +1,2 @@
 Referenced by issue #96104, Regression: Mesh geometry is broken with GPU subdivision
+Referenced by issue #95242, GPU Subdivision: Shade smooth Artifacts with edge crease
