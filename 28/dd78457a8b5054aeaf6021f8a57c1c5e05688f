@@ -1,2 +1,3 @@
 Referenced by commit 5d06e84b370, Fix: Failing unit tests after insert available changes
 Referenced by issue #126098, Fix: Autokey with only insert available can create empty action
+Referenced by issue #125884, Blender 4.2: "Animation" -> "Only Insert Available" not working as it should
