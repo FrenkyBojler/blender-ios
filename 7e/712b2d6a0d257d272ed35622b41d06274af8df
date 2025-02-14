@@ -4,3 +4,4 @@ Referenced by commit 28df0107d4a, Fix T94362: GPUMaterialTexture references free
 Referenced by commit dd01ce2cd07, Fix T94322: add missing updates after recent refactor
 Referenced by commit b4f978e9011, Fix: Missing update when toggling node mute
 Referenced by issue #98231, Regression: Material Output inside node group not working if there is a Group Output Node
+Referenced by issue #97375, Regression: Creating material node links in python is VERY slow in v3.1
