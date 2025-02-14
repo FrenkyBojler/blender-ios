@@ -1,1 +1,2 @@
 Referenced by commit 77db370cb6e, Fix: BMesh Python API errors after vertex_normals addition
+Referenced by issue #97213, Regression: Crash when creating a BMesh with "use_shape_key" on
