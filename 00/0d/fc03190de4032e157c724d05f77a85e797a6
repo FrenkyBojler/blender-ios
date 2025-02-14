@@ -24,3 +24,4 @@ Referenced by issue #45267, Disabling 'Use Material Caching' causes Blender to c
 Referenced by issue #45237, Dither dosn't work in Blender Internal Renderer 2.75 rc2
 Referenced by issue #45221, Cutting meta strip including keyframed speed effect produces right part with incorrect length of internal strips
 Referenced by issue #45208, Switching scene in the command line and calling a render from a python script does not render the selected scene
+Referenced by issue #45174, Particles volume grid
