@@ -4,3 +4,4 @@ Referenced by issue #59413, Unable to use image sequence shader in Eevee.
 Referenced by issue #59401, Multires; Objects altered by sculpts will see slow corruption of tangents whenever the 'subdivide' and 'apply base' buttons are pressed.
 Referenced by issue #59402, X mirror does not work.
 Referenced by issue #59404, OBJ import and rendering crash
+Referenced by issue #59351, "GPUTexture: texture alloc failed. Likely not enough Video Memory." when rendering an animation with eevee, even on low quality
