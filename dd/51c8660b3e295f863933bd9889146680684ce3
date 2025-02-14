@@ -1,2 +1,3 @@
 Referenced by commit 65ee1366625, Fix: Cycles kernel build failure when building without subsurface scattering
 Referenced by issue #132620, Fix: Cycles kernel build failure when building without subsurface scattering
+Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
