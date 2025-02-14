@@ -3,3 +3,4 @@ Referenced by issue #55772, Crashes opening a file
 Referenced by issue #55719, 2.8 Alpha Crash at using "Sample the mesh detail at click point" in sculpt mode, Dynatopo, Constant Detail.
 Referenced by issue #55696, Blender OpenGL crash on startup (Linux)
 Referenced by issue #55700, render crashes and freezes computer on both mac and windows
+Referenced by issue #55695, Crash due to GPU memory leak when tweaking shader and light settings with Eevee
