@@ -1,0 +1,1 @@
+Referenced by issue #97679, MeshVertex.co contains incorrect data after calling ShapeKey.normals_polygon_get()
