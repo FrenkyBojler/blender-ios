@@ -1,1 +1,2 @@
 Referenced by commit 3bf10e5d0ac, Fix T89996, T90063: bugs with multi-button reset and entering values in popups
+Referenced by commit e1a9ba94c59, Fix T87637: Dragging button value cancel not working
