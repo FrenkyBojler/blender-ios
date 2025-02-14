@@ -33,3 +33,4 @@ Referenced by issue #45301, Lock wiew to cursor not working
 Referenced by issue #45283, Blender crashes when trying to do anything with specific type of transparent image.
 Referenced by issue #45284, selection of face and edges selecting in unpredictable, random locations
 Referenced by issue #45269, Blender 2.75 crashes when I run my the game
+Referenced by issue #45270, Triple Buffer Window Draw Method causes flickering
