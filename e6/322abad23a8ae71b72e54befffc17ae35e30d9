@@ -1,0 +1,1 @@
+Referenced by commit 6fcaa5de061, Revert "Inline function BKE_mesh_boundbox_calc inside BKE_mesh_texspace_calc to avoid confusion."
