@@ -1,2 +1,3 @@
 Referenced by commit 451a765ab36, Fix #115471: Crash opening files with particle boid goal objects
 Referenced by issue #115482, Fix #115471: Crash opening files with particle boid goal objects
+Referenced by issue #115471, Blender Crashes when trying to access particle system on geometry from 3.6.5
