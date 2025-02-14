@@ -1,2 +1,3 @@
 Referenced by commit 940fd87e77b, Fix T103615: OSL image box mapping has flipped textures
 Referenced by issue #113038, shader editor's image texture node is aligning image to the wrong local axis when box projection is used.
+Referenced by issue #52652, Cycles 3/6 textures reversed on cube with generated co-ordinates and box mapping
