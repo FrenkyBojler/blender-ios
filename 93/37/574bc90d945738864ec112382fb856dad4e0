@@ -22,3 +22,4 @@ Referenced by issue #41909, Doubleclick event bug
 Referenced by issue #41910, GPU render not working with Nvidia GTX 970
 Referenced by issue #41899, Driver to node tree not working
 Referenced by issue #41903, cycles renders slow with viewport multi-sampling
+Referenced by issue #41870, Cycles OSL - Changing rotation value in anisotropic shader crashes Blender
