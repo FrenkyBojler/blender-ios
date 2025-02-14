@@ -12,3 +12,4 @@ Referenced by issue #49300, Displacement fail with image texture
 Referenced by issue #49304, Incorrect Custom Float Property Value Readout
 Referenced by issue #49287, unable to render displacement and sporadic crashing while using true displacement and adaptive subdivision
 Referenced by issue #49288, Ease drivers don't migrate to new Bendy Bones (datapath change, backwards-compatibility broken)
+Referenced by issue #49259, GLSL render doesn't consider custom transform
