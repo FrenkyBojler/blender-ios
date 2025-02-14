@@ -1,0 +1,1 @@
+Referenced by issue #69808, Python-defined nodes implementing a draw_label function causes a segmentation fault when drawn.
