@@ -1,0 +1,1 @@
+Referenced by issue #92850, Geometry nodes Curve Profile (node: Curve to Mesh) Translates curve insted of giving Profile if a Curve with no conected Points is used as Profile
