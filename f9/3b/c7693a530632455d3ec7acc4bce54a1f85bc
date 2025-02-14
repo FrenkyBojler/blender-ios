@@ -86,3 +86,4 @@ Referenced by issue #39990, Faces with double-sided normals don't show the doubl
 Referenced by issue #39997, Crash with "simple" boolean modifier and opening blend file crashes again
 Referenced by issue #39983, UI - Region Overlap isn't working under Ubuntu
 Referenced by issue #39945, Transparent image empties are not always transparent
+Referenced by issue #39949, Linking path problem
