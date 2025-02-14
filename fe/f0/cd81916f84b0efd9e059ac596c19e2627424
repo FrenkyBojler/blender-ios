@@ -1,3 +1,4 @@
 Referenced by issue #50125, Shortcut keys missing in menus for Clear Location, Rotation, and Scale
 Referenced by issue #49201, Mesh with OpenSubdiv subsurf and a texture disappears in Material viewport mode.
 Referenced by issue #49183, Bevel segments bug
+Referenced by issue #49174, Y rotation of objects stuttering when X/Z axis are locked
