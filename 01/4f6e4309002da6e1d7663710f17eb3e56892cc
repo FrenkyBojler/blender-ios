@@ -1,1 +1,2 @@
 Referenced by issue #108211, Cycles All Transmission Render Passes wrong over bright image data with GlassBSDF
+Referenced by issue #107577, Regression: Cycles: crash and CUDA error on rendering with denoising
