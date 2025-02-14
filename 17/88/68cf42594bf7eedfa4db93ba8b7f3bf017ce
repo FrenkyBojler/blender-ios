@@ -1,1 +1,2 @@
 Referenced by issue #99744, blender-thumbnailer null pointer reference and free
+Referenced by issue #79304, UV: Pivot set to Individual Origins does not work properly w/ sync-select & edge selection
