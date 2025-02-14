@@ -1,0 +1,1 @@
+Referenced by issue #54075, Align Objects fails with IndexError: bpy_prop_collection[-1]: out of range.
