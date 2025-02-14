@@ -17,3 +17,4 @@ Referenced by issue #93573, Regression: Selection outline of curves in edit mode
 Referenced by issue #93159, Particle don't emit curves/text in 3.0 beta
 Referenced by issue #92682, Eevee Motion Blur crash
 Referenced by issue #92120, Bone custom curve shape makes it invisible
+Referenced by issue #92079, Text selection regression (difficult to see) since 2.93
