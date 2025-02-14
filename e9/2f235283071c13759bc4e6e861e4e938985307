@@ -14,3 +14,4 @@ Referenced by issue #52556, Continuous Grab is very fast when running under Wayl
 Referenced by issue #52558, Cannot lock to axis of custom orientation while extruding, normal orientation would be used instead
 Referenced by issue #52547, Cycles Cuda rendering fails for dedicated (non-display) Nvidia GTX1060
 Referenced by issue #52490, NDOF device does not lock into orthogonal view (top, front, right, etc) in 2.79RC2 as in prev versions
+Referenced by issue #52428, blender crash after pressing "F"
