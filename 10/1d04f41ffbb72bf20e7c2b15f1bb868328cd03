@@ -2,3 +2,4 @@ Referenced by commit 745d2e18dca, Fix #107228: AttributeGroup.new crash when lay
 Referenced by commit 12ef20990b3, Fix #103410: name collisions between vertex groups and attributes
 Referenced by commit acfafeed88e, Fix #103761: creating a color attribute doesn't make it active
 Referenced by issue #118378, Fix #107228: AttributeGroup.new crash when layer cannot be created
+Referenced by issue #109910, Fix #103410: name collisions between vertex groups and attributes
