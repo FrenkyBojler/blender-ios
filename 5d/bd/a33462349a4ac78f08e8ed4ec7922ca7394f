@@ -1,1 +1,2 @@
 Referenced by issue #65544, python API: obj.evaluated_get does not handle vertex groups
+Referenced by issue #64794, since the recent depsgraph changes, applying array mods using new_from_object() clears vertex groups
