@@ -1,0 +1,1 @@
+Referenced by issue #79816, bpy.context.scene.statistics no longer exists in the Python API
