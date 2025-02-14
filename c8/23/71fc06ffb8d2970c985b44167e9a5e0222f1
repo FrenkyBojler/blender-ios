@@ -1,1 +1,2 @@
 Referenced by commit f700a13eb54, Revert "Mempool: simplify memory chunk list building"
+Referenced by issue #39651, crashes when rendering linked scenes in VSE
