@@ -1,1 +1,2 @@
 Referenced by commit 3482cdb1364, Cycles: Remove assert which is no longer valid
+Referenced by issue #46988, BMesh boolean fails with zero area faces
