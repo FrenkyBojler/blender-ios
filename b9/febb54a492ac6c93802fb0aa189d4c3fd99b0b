@@ -3,3 +3,4 @@ Referenced by commit edcbf741df2, Refactor: Evaluate surface objects as mesh com
 Referenced by issue #103514, Regression: 3.0.0: The curve is not hidden in the Viewport if there is a Bevel value
 Referenced by issue #101270, Regression: 'Object Info' 'Random' always gives the same seed for instanced bezier curves
 Referenced by issue #100706, Regression: Instanced NURBs or CURVES on mesh vertices are not visible in 3.2+
+Referenced by issue #99088, Regression: When making a collection real, curves with depth in the collection are instantiated twice
