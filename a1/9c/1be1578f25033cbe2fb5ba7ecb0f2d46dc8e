@@ -4,3 +4,4 @@ Referenced by issue #40807, Cycles volume preview (or render) crashes Blender
 Referenced by issue #40784, Rigging with ALT B Doesnt let you select
 Referenced by issue #40751, Bake preview missing (UV/Image Editor)
 Referenced by issue #40758, Sculpting : Front faces only option doesnt seem to work.
+Referenced by issue #40746, limit rotation constraint resets after 180ø
