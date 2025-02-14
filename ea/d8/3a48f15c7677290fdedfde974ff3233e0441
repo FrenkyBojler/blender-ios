@@ -1,0 +1,1 @@
+Referenced by issue #40800, If Viewport shading is 'Rendered', B3D crashes after browsing to file for texture node and connecting to any shader node.
