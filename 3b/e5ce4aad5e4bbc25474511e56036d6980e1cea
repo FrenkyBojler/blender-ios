@@ -8,3 +8,4 @@ Referenced by issue #92347, Append function excludes Collections that do not con
 Referenced by issue #92224, Handling of appending collections that contain linked materials has changed from 2.93 to 3.0, no longer works as expected
 Referenced by issue #91834, Appending objects with shape keys into new file is broken.
 Referenced by issue #91414, Unify link/append between WM operators and BPY context manager API, and cleanup usages of `BKE_library_make_local`
+Referenced by issue #90545, ID Deduplication on Append - Technical Implementation
