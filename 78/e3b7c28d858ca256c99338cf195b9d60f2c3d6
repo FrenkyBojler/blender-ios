@@ -3,3 +3,4 @@ Referenced by issue #76530, Hide masked + undo producing visual artifacts
 Referenced by issue #76277, Enabling Viewer Border in Compositor Crashes Blender
 Referenced by issue #75331, Faceset Glitch
 Referenced by issue #74906, Glitchy view after Undo in Sculpt mode with hidden mesh.
+Referenced by issue #74622, Face Sets visibility glitches
