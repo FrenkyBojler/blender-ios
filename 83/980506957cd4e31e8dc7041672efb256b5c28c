@@ -1,3 +1,4 @@
 Referenced by commit fcc3227efd8, Fix T86654: wrong Vertex Interpolation option default when importing alembic caches
 Referenced by commit 3fc07d1e748, Fix T83886: Particle instance modifier broken
 Referenced by commit ae609346ee9, Fix T81672: Array modifier default merge distance is 0.1m (typo)
+Referenced by commit c3238bd5001, Cleanup: Use DNA defaults for cloth modifier
