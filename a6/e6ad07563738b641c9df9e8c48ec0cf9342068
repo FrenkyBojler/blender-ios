@@ -1,2 +1,3 @@
 Referenced by issue #61055, Crash on windows when entering edit mode in Rendered viewport shading
 Referenced by issue #60762, Extra ghost edge per ngon in UV editor on Intel HD gfx
+Referenced by issue #60683, Repeatable Software Crash during BAKE Ambient Occlusion operation in Cycles Render Mode
