@@ -1,1 +1,2 @@
 Referenced by commit d4a36c7ad55, Fix T88234: Crash with Eevee when shader displacement socket connection is muted
+Referenced by issue #52659, Mute node links (design task)
