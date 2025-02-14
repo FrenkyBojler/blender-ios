@@ -1,0 +1,1 @@
+Referenced by issue #125865, Blender crashes when using bpy.ops.render.render("INVOKE_DEFAULT")
