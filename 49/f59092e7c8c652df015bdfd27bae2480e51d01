@@ -1,3 +1,4 @@
 Referenced by commit 65dcf812a5e, Fix T80182: Curve [Edit Mode] : Can't Deselect Control Point with Select Box
 Referenced by commit bf8b62e8748, Fix curve handle color ID display
 Referenced by issue #80182, Curve [Edit Mode] : Can't Deselect Control Point with Select Box
+Referenced by issue #79580, Control Mesh Only Partially Drawn After Filling a Surface From a Cage of Surface Curves
