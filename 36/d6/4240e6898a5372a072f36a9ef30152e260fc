@@ -1,2 +1,3 @@
 Referenced by issue #46166, Rendering only takes into account the render border of the current scene when compositing
 Referenced by issue #46175, Screen not slide in File Browser with Arrow-key navigation
+Referenced by issue #46155, Sequencer Text Effect: wrong vertical 'TOP' alignment
