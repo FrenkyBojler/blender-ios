@@ -3,3 +3,4 @@ Referenced by issue #110095, Fix #110021: Deform modifier binding can go wrong i
 Referenced by issue #110021, Mesh Deform Modifier Vertex Count Error
 Referenced by issue #109691, Regression: Edge Crease behaves differently between Complex and Simple Solidify
 Referenced by issue #105912, Regression: edge crease lost after a texture paint stroke (modifiers present)
+Referenced by issue #101373, Regression with Crease Attribute
