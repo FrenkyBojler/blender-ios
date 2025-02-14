@@ -1,1 +1,2 @@
 Referenced by issue #65999, Crash when disabling an addon while its panel is visible in the viewport
+Referenced by issue #56076, Crash when increasing shadow map resolution with EEVEE
