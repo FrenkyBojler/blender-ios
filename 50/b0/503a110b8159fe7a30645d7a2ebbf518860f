@@ -1,1 +1,2 @@
 Referenced by issue #93366, bpy.ops.wm.read_homefile() Crashes Blender 3.0
+Referenced by issue #92464, RuntimeError on bpy.ops.object.mode_set if executed from terminal but works in blender's text editor
