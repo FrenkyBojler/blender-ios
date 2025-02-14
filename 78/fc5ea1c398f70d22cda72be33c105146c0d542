@@ -1,2 +1,3 @@
 Referenced by commit e75adb979b0, Fix T99678: Crash applying non-existent modifiers
 Referenced by commit 756710800c0, File missing from 78fc5ea1c398f70d22cda72be33c105146c0d542
+Referenced by issue #98403, Mesh to Volume and Volume Displace modifiers crash with the new Hair Curve when pressing apply
