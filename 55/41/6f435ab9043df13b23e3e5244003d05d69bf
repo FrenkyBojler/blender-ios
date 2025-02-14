@@ -1,0 +1,1 @@
+Referenced by issue #37212, converted objects using hair particle are changed to empty objects when there is a large number of particle
