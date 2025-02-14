@@ -1,3 +1,4 @@
 Referenced by issue #88244, Eevee: Blender crashes when rendering complex scenes with Stereoscopy and Motion Blur
 Referenced by issue #88161, Dragging nodes and objects are delayed in 2.93
 Referenced by issue #87231, macOS: Glass shader is black in viewport
+Referenced by issue #85708, White Noise Glitch using Value Attribute of Particle Instances
