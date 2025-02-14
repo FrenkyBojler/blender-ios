@@ -1,3 +1,4 @@
 Referenced by issue #38869, Viewport Shading - Inconsistencies
 Referenced by issue #38784, Viewport needlessly jumping to perspective view
 Referenced by issue #38759, Theme: Movie Clip Editor - Region Background alpha not working anymore
+Referenced by issue #38763, Crash on OS X when exporting rigged mesh with option "Export for OpenSim" checked
