@@ -22,3 +22,4 @@ Referenced by issue #119013, Theme settings aren't precisely implemented
 Referenced by issue #118994, Execution region background broken under T H E M E preferences
 Referenced by issue #118574, blender crashes when pathname > OS' limits
 Referenced by issue #117583, Wayland: Mouse cursor becomes resize on the title bar of the render view window.
+Referenced by issue #117358, Blender crashes on startup - VMWare Workstation 17.5
