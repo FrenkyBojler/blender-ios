@@ -1,3 +1,4 @@
 Referenced by issue #59487, Viewport Render - Crash
 Referenced by issue #59352, Make Vertex Parent - the constrained object shifts after parenting
 Referenced by issue #59317, principled volume bsdf a always a cube shape
+Referenced by issue #59322, View Layer - Search not working
