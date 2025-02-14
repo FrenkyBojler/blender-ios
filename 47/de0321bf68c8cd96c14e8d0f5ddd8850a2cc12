@@ -1,1 +1,2 @@
 Referenced by commit 7c16739c755, Fix mouse input overwriting transform redo values
+Referenced by issue #87185, hotkeys for bpy.ops.transform: unable to set exact value
