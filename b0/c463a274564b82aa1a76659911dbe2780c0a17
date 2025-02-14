@@ -1,3 +1,4 @@
 Referenced by issue #57938, Dynamic paint baking issues
 Referenced by issue #57927, heap-use-after-free when resizing image empty
 Referenced by issue #57929, Cache line in timeline is not updated when changing active object
+Referenced by issue #57930, Wrong hair shading in particle edit mode
