@@ -20,3 +20,4 @@ Referenced by issue #42250, Add Tree issue. Errors when changing some settings.
 Referenced by issue #42251, Blender crash upon closing with VOBs enabled (today's BuildBot version)
 Referenced by issue #42239, Rigid body: Collision shape issues
 Referenced by issue #42212, Probable bug in (regular) Path tracing method
+Referenced by issue #42213, User preferences crashes Blender
