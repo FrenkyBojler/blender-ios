@@ -4,3 +4,4 @@ Referenced by issue #98370, Regression: keymap 2.7x: Right click does not select
 Referenced by issue #98191, Regression: Node detach with alt + left mouse not working if right click selection active
 Referenced by issue #98145, Regression: Cannot select and move multiple nodes in Shader Editor (Industry compatible keymap)
 Referenced by issue #98039, Regression: Node Wrangler node preview no longer working (TypeError: Converting py args to operator properties: : keyword "mouse_x" unrecognized)
+Referenced by issue #96520, Regression: Node editor: Tweak is broken and requires click, then click again to drag
