@@ -46,3 +46,4 @@ Referenced by issue #49118, Blender 3D view - Solid (Blender Render) material di
 Referenced by issue #49109, Frame selection in timeline and VSE does not respect left click preference
 Referenced by issue #49095, Custom Normals from DataTransfer Modifier are not applied
 Referenced by issue #49077, Collada exporter does not respect 'shadeless' flag
+Referenced by issue #49078, When rendering fire in cycles, odd duplicates appear when the camera is located inside the domain
