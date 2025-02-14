@@ -1,1 +1,2 @@
 Referenced by issue #113377, Regression: Geometry Nodes: Access Violation Exception when copying from Mesh with GPU Subdivision Surface Modifier
+Referenced by issue #102402, Geometry Nodes crashes on driver-based animation
