@@ -1,1 +1,2 @@
 Referenced by issue #45789, Materials with transparency not properly rendered in viewport in Material Render mode (cycles)
+Referenced by issue #45790, Parented camera moves the parent object when manipulating camera with "Lock Camera to View" enabled
