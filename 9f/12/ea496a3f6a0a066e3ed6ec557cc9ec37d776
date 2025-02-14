@@ -1,3 +1,4 @@
 Referenced by issue #81918, Using CPU as render device, set optix as denoising method and render in the viewport leads crash.
 Referenced by issue #81391, cycle denoising crashes blender
 Referenced by issue #81116, Blender 2.90.1 crashing when OptiX viewport denoising is enabled
+Referenced by issue #80477, Viewport Optix Denoiser is available when Cycles Render Device is set to None/CUDA, leading to a crash
