@@ -1,0 +1,1 @@
+Referenced by issue #102361, Disabled modifiers still seem to be calculated causing massive slow downs in the viewport activity.
