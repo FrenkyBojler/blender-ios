@@ -1,2 +1,3 @@
 Referenced by commit 9d25c4aaa6b, Fix #104513: UV packing produces different results on x86 vs apple silicon
 Referenced by issue #107829, How to handle difference in sinf/cosf for M1
+Referenced by issue #107717, Lineart modifier crashes Blender
