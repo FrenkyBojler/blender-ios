@@ -1,1 +1,2 @@
 Referenced by issue #78551, DRW: mem leak: sldata->renderpass_ubo.environment not freed in  void EEVEE_view_layer_data_free
+Referenced by issue #77686, EEVEE: Black environment pass when 'Transparency' is enabled
