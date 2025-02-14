@@ -2,3 +2,4 @@ Referenced by commit a60f6515026, Address #105786: How to handle linked data wit
 Referenced by commit 313c2e91050, Fix a test after recent changes to lib (in)directly linked ID handling.
 Referenced by issue #134023, Linked texts are always orphaned
 Referenced by issue #115486, Content from linked scenes disappears after reopening the linked-to file
+Referenced by issue #113109, Regression: Linked Data is not kept in 4.0 when It's not used
