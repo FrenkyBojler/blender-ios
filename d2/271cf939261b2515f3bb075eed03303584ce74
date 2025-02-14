@@ -1,3 +1,4 @@
 Referenced by commit 0c8de0eb3b3, Fix T100632: Regression: Node border snap guide line not drawing properly
 Referenced by commit 046b45749c3, Fix cursor snap not acting on selected UVs
 Referenced by issue #100632, Regression: Node border snap guide line not drawing properly
+Referenced by issue #93538, UV Snapping behaviour inconsistency
