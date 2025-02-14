@@ -1,3 +1,4 @@
 Referenced by commit e772087ed66, Fix T98753: Outliner Unlink material in Blender File mode crashes
 Referenced by commit 4a5cd4e6c75, Fix T96844: Crash when switching workspaces and outliner modes
 Referenced by issue #103881, Regression: Blender Crash when unlinking a Collection from Blender File
+Referenced by issue #98753, Regression: Outliner Unlink material crash Blender 3.2
