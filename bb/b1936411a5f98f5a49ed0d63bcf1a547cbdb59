@@ -1,2 +1,3 @@
 Referenced by commit 787350dde8a, Fix T90737: VSE adding nested strips could have non-unique names
 Referenced by commit f65a3172a8b, Fix issues introduced strip loading refactoring
+Referenced by issue #90737, Effect Strip added to a nested Metastrip gets duplicate name (thus inherits fcurves from other Strips)
