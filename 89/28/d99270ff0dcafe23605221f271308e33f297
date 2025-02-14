@@ -8,3 +8,4 @@ Referenced by issue #55033, Undo mask brush in sculpt mode with dyntopo on, cras
 Referenced by issue #54918, Inset thickness/depth history regression
 Referenced by issue #54417, Matcap Not working
 Referenced by issue #54411, Blender can't uninstall complated in windows system
+Referenced by issue #54397, "Surface Deform" modifier is overwriting the whole modifier stack
