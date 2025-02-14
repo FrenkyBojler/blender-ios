@@ -4,3 +4,4 @@ Referenced by issue #62423, Can only sculpt vertices in Second shapekey clicklin
 Referenced by issue #62424, Grid always shows in orthographic view even when turned off in Overlays
 Referenced by issue #62427, Multires: changing between simple and catmull-clark causes artifacts
 Referenced by issue #62434, EEVEE not using correct World Output node
+Referenced by issue #62406, Crash after manipulating Object.hide_viewport while iterating Collection.all_objects
