@@ -1,2 +1,3 @@
 Referenced by issue #95610, Writing to an attribute that is also a vertexgroup results in black when used in a shader
 Referenced by issue #95611, Regression: Capture Attribute in Face Corner mode produces garbage data
+Referenced by issue #95489, Write to Vertex Groups from Geometry Nodes is not working anymore
