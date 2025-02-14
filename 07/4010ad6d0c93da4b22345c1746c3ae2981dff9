@@ -1,1 +1,2 @@
 Referenced by issue #98570, Regression: Shader AOV doesn't seem to work for World on Cycles
+Referenced by issue #93278, Glass renders black in environment pass if Transparent Glass is checked, and custom AOV renders completely black
