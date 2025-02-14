@@ -1,3 +1,4 @@
 Referenced by issue #109182, Fix #100718: NLA Hold Forward Inconsistency
 Referenced by issue #107281, Fix #100718: NLA Hold Forward Inconsistency
 Referenced by issue #66946, NLA strip unexpectedly auto-switching from Hold to Hold Forward
+Referenced by issue #60552, Boolean modifier breaks colour/uv attribute in shader
