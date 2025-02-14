@@ -1,1 +1,2 @@
 Referenced by commit 5c961b3b582, Revert "Fix T62325, T91990: changing Cycles presets does not update the Blender UI"
+Referenced by issue #91990, Cycles Sampling Presets changes are being completely ignore.
