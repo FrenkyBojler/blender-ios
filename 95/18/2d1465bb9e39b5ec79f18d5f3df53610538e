@@ -37,3 +37,4 @@ Referenced by issue #42159, Enabling VBOs in Preferences crashes Blender on exit
 Referenced by issue #42160, CUDA error: ILLEGAL_ADDRESS in cuCtxSynchronize()
 Referenced by issue #42146, Windows + Blender 2.72: Icon on Quick Launch Bar have old file list
 Referenced by issue #42147, Can't select foreground object with right-mouse.
+Referenced by issue #42136, Cannot smooth shade fluid domain
