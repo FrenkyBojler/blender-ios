@@ -2,3 +2,4 @@ Referenced by issue #113801, "Snap to Same Target" don't work as expected
 Referenced by issue #113782, Crash (or Barbie pink hue) after adding empty background as a surface in world properties
 Referenced by issue #113684, Wayland and Xwayland mouse pointer stuttering
 Referenced by issue #113661, Node Tools in sculpt mode act weird when you join geometry
+Referenced by issue #105554, Optix fails when geometry nodes instance has animated translation and scale 0 and motion blur is on
