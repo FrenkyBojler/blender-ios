@@ -1,2 +1,3 @@
 Referenced by issue #49139, Memory leak in UV image editor related to Undo (and possibly Waveform and Vectorscope)
 Referenced by issue #49113, Blender crashes hard with new nvidia drivers
+Referenced by issue #49078, When rendering fire in cycles, odd duplicates appear when the camera is located inside the domain
