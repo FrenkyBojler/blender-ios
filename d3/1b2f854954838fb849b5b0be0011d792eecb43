@@ -1,1 +1,2 @@
 Referenced by issue #62280, Driver expressions that use functions injected by an addon no longer work.
+Referenced by issue #62195, Drivers that use modified namespaces only work after reloading twice blender files with the same internal script
