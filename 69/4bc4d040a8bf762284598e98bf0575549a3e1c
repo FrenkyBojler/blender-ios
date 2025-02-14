@@ -1,1 +1,2 @@
 Referenced by commit 3f9a15bc307, Fix #112052: Theme access asserts on startup
+Referenced by commit 3059c3ee269, UI: display a short pulse when displaying reports in the status bar
