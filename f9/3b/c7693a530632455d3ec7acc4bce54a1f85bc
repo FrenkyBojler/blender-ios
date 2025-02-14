@@ -20,3 +20,4 @@ Referenced by issue #40920, Linear Interpolation settings in user preferences do
 Referenced by issue #40893, 3D View>Grab/Transform Operator on y-Achsis >> Grab value flipps to -1x10^9
 Referenced by issue #40877, Bezier Hook to New Object does not work properly
 Referenced by issue #40858, Shift Modifier intermittent activity after edge selections
+Referenced by issue #40818, libpng warning: iCCP: known incorrect sRGB profile
