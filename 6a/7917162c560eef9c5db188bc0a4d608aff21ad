@@ -1,2 +1,3 @@
 Referenced by commit 1229b966524, Fix empty asset index files after bug in asset loading
 Referenced by issue #109053, File Append with recursions leads to crash
+Referenced by issue #102610, Regression: Asset disappearing on refresh
