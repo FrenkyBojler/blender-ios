@@ -1,0 +1,1 @@
+Referenced by issue #95197, Regression: object.local_view_get and object.visible_in_viewport_get() always returns False
