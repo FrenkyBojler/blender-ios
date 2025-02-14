@@ -1,0 +1,1 @@
+Referenced by issue #72143, Changing Start Frame and Offset of an Image Texture node with Eevee does not immediately update [it does on framechange though]
