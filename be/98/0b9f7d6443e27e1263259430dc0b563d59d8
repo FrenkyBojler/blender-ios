@@ -1,3 +1,4 @@
 Referenced by issue #41013, OSL and Crash
 Referenced by issue #40450, Regression: speed of creating objects (MSVC2013)
 Referenced by issue #40220, Darkened volume scatter rendering
+Referenced by issue #40180, Font: Space between letters adds space after last letter
