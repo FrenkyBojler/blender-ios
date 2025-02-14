@@ -18,3 +18,4 @@ Referenced by issue #52301, startup error
 Referenced by issue #52279, Scene->Exposure =Crash
 Referenced by issue #52280, The Image node in Compositing can't read Z buffer of openEXR in 2.79
 Referenced by issue #52260, Blender 2.79 Objects made duplicates real still refer armature proxy
+Referenced by issue #52262, 2.79-rc1 "dri2 connection failed"
