@@ -4,3 +4,4 @@ Referenced by issue #61474, Laggy interaction with gizmos, does not happen when 
 Referenced by issue #61477, Freestyle not updating in animation
 Referenced by issue #61468, Hotkey setting things
 Referenced by issue #61471, Blender 2.8: Shader node - Linking to Materiel Output/Volume causes a crash of Blender
+Referenced by issue #61202, Workbench poor antialiasing in Xray mode
