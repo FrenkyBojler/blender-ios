@@ -25,3 +25,4 @@ Referenced by issue #95917, Boolean modifiers creates odd shading when used in '
 Referenced by issue #95919, Apply Pose as Rest Pose Operator crashes Blender 3.1 Beta
 Referenced by issue #95839, Data race when lazily creating mesh normal layers
 Referenced by issue #95471, Baking normals gives wrong results (caused by normals MVert refactor)
+Referenced by issue #95334, Crash when baking normals when smooth shading is set.
