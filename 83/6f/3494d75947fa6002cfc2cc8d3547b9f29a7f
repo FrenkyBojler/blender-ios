@@ -1,1 +1,2 @@
 Referenced by issue #62059, ColorRamp doesn't update when a color stop is driven by expression
+Referenced by issue #61937, Image sequence offset driver has no effect without node editor
