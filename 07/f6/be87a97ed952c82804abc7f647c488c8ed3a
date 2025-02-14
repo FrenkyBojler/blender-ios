@@ -5,3 +5,4 @@ Referenced by issue #62968, F-Curve imprecision for large numbers
 Referenced by issue #62958, F-Curve imprecisions for exponential interpolation
 Referenced by issue #62937, Object parenting doesn't show up in the Outliner UI
 Referenced by issue #62945, Shortcuts don't appear on tooltips for tool icons.
+Referenced by issue #61474, Laggy interaction with gizmos, does not happen when running other 3D apps at the same time
