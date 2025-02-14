@@ -1,1 +1,2 @@
 Referenced by commit 15843b46abd, Fix #116854: context.property access crashes when properties have no ID
+Referenced by issue #116854, Hard crash using template_keymap_item_properties with wm.context_toggle
