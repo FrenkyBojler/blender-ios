@@ -1,3 +1,4 @@
 Referenced by commit 6757ca8b40b, NDOF: clean up after MinGW removal
 Referenced by issue #51651, Individual origins and translate works incorrectly
 Referenced by issue #51645, Normal Edit modifier creates flipped normal
+Referenced by issue #51301, Remove MinGW support
