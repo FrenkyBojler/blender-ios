@@ -1,0 +1,1 @@
+Referenced by issue #131729, batch_for_shader - ValueError: Unknown attribute 'pos' with builtin shader
