@@ -3,3 +3,4 @@ Referenced by issue #91929, Crashing randomly
 Referenced by issue #91443, Multiple image files imported as animation are strangely linked with another imported subsets of these images
 Referenced by issue #91213, crash
 Referenced by issue #91202, Blender 2.93.1 and 2..93.4 will not start on windows 10. worked last night
+Referenced by issue #91110, VSE: Memory leak importing bunch of medias
