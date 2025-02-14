@@ -1,1 +1,2 @@
 Referenced by commit 0570bdc13d2, Fix own regression in rB254aa8f3a0fb: Titles and sub-titles in menus were drawn shifted to the right.
+Referenced by commit 811ce5a696a, Code cleanup: Minor addition to rB254aa8f3a0fbffcbcb886cfaa81b630ae3e9bb78: handle copying of drawflag in ui_but_update_from_old_block()
