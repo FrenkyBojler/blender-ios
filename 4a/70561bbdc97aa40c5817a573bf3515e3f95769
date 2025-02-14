@@ -1,1 +1,2 @@
 Referenced by issue #97164, Voxel Remesher: Only "Vertex -> Color" color attributes are preserved
+Referenced by issue #96916, Crash if same object is dragged from asset browser as link and append (reuse data) sequentially.
