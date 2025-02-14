@@ -80,3 +80,4 @@ Referenced by issue #39516, Having an object with a dense triangle mesh will cau
 Referenced by issue #39504, mac mouse problem
 Referenced by issue #39506, Moving the origin is messing up Undo
 Referenced by issue #39490, BGE: Text to Mesh, then MouseOver does not work
+Referenced by issue #39497, Save as/Save copy loses textures from linked assets
