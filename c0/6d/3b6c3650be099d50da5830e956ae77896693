@@ -1,0 +1,1 @@
+Referenced by issue #48830, Missing null check in outliner_draw.c leads to crash with old userpref.blend
