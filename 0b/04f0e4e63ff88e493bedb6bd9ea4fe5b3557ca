@@ -1,1 +1,2 @@
 Referenced by issue #79303, Image texture node crashes EEVEE when connected to a shader output
+Referenced by issue #79306, DRW: small issues with yesterday commits modifying TEXTARGET
