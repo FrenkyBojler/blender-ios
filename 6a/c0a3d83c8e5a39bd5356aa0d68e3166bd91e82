@@ -1,1 +1,2 @@
 Referenced by commit 18e063b69db, Functions: use better conversion from float2 to float3
+Referenced by commit 644976548d5, Revert "BLI: add conversion from float2 to float3"
