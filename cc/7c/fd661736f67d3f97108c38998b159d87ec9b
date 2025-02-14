@@ -3,3 +3,4 @@ Referenced by issue #38710, Rendering artifacts with volumetrics + object textur
 Referenced by issue #38688, Rigify Dev Tools on every tab
 Referenced by issue #38690, Render hotkey is not in menu after editing
 Referenced by issue #38693, Unused NLA Tracks cannot be removed.
+Referenced by issue #38680, File output subpath is loading whole path
