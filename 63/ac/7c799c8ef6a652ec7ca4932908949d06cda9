@@ -1,3 +1,4 @@
 Referenced by issue #58704, Animated alembic curves dont update on render
 Referenced by issue #58566, Blender 2.8 with 2.7X input method shortcut inconsistencies
 Referenced by issue #58050, Crash when moving, rotating an object with Soft Body physics enabled (not baked)
+Referenced by issue #56996, Lagging when rotating the view
