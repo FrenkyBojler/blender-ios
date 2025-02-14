@@ -1,2 +1,3 @@
 Referenced by issue #121345, Regression: Viewlayer denoising versioning settings no longer apply correctly
 Referenced by issue #116029, Regression: Ctrl+Z breaks vertex paint
+Referenced by issue #115906, Regression: Freeze bug when changing a frame attribute in the geo node editor
