@@ -4,3 +4,4 @@ Referenced by commit 8245805ce3d, Fix creating operator properties without an ow
 Referenced by commit 0bf630493f6, Fix missing owner_id values from 919558854d624f5db40acfa9f5674ac8c94873b6
 Referenced by issue #89560, Insert key dropdown on keymap doesn't show keying sets anymore
 Referenced by issue #88251, "Operator Cheat Sheet" Crash 2.93.0
+Referenced by issue #65064, Added hotkeys to switch mode disfunctional / lost hotkeys in keymap
