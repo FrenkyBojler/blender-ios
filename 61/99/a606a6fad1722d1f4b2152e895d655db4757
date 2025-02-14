@@ -1,0 +1,1 @@
+Referenced by issue #68008, Branched Path Tracing will only use tiles with denoising off if progressive refine is disabled for Path Tracing.
