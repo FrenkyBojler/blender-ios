@@ -1,1 +1,2 @@
 Referenced by commit 610c0ecc3b9, Fix T88204 EEVEE: Animated world light doesnt work during render
+Referenced by issue #97625, Regression: Rendering hair instances size in animation bug with animated emitter object scale
