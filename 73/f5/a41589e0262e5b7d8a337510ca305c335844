@@ -1,2 +1,3 @@
 Referenced by issue #44839, BGE bug Textures
 Referenced by issue #43090, Cycles + Freestyle + border render = black render
+Referenced by issue #42866, Crash during rendering particle system with "render emitter" enabled
