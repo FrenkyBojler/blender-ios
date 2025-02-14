@@ -1,2 +1,3 @@
 Referenced by commit 2648d920d8a, Theme: Node Group color only needs RGB, not RGBA
 Referenced by commit ebe23745281, User Interface: Make the background inside a node group brighter
+Referenced by issue #94153, Node editor group background color can not be specified in 3.0
