@@ -1,1 +1,2 @@
 Referenced by commit 52cc412e0f5, Revert "Fix T63588: Cycles unnecessarily updates background importance sampling map"
+Referenced by issue #77273, Cycles crash enabling Portal for area lights
