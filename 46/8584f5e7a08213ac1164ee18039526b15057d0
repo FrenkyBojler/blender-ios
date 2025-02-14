@@ -1,1 +1,2 @@
 Referenced by commit ddbe073a6d3, Cleanup: Typo in prior commit.
+Referenced by issue #111254, Fix #111212: Error running search if cursor is outside Blender window
