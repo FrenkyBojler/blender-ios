@@ -1,1 +1,2 @@
 Referenced by issue #53098, Using Texture nodes for World nodes, crashes Blender when trying to render on GPU (OpenCL)
+Referenced by issue #53079, Blender Crash to Desktop Rendering with HDRI (EXR) Maybe others not tested
