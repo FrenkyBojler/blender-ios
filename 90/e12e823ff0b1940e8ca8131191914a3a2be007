@@ -3,3 +3,4 @@ Referenced by commit d29a720c45e, Fix T84002: Sculpt: Masking operations crash i
 Referenced by issue #98225, Regression: file saved with an object in sculptmode that is disabled in viewports crashes on reload
 Referenced by issue #84002, Sculpt: Masking operations crash if multires is in play
 Referenced by issue #81854, Crash in undoing switch from sculpt to edit mode and back.
+Referenced by issue #77348, Blender LTS: Maintenance Task 2.83
