@@ -1,3 +1,4 @@
 Referenced by commit b0350d8310f, Revert "GPUViewport: Use GPUBatch for viewport drawing"
 Referenced by issue #75612, Keying menu drawing causes crash
 Referenced by issue #75584, Crash: Pressing T in shader editor window crashes Blender
+Referenced by issue #70922, Intel IRS / Ice lake GPU slow viewport performance
