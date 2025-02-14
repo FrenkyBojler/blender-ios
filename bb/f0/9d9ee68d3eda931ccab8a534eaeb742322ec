@@ -46,3 +46,4 @@ Referenced by issue #43715, Error on stretched Pole Target IK
 Referenced by issue #43624, Freestyle uses wrong colour on second Line Set with textured lines in Cycles
 Referenced by issue #43617, "Make Local" button ignores dependencies between linked objects
 Referenced by issue #43622, bpy Vectors comparison
+Referenced by issue #43605, Spot Lamp "Show Cone" + Curve displays a view-port with a darker cone and darker objects within the cone.
