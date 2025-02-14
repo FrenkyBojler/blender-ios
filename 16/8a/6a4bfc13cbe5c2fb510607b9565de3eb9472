@@ -8,3 +8,4 @@ Referenced by issue #59126, Segmentation fault when running gpu.types.GPUOffScre
 Referenced by issue #59129, Hue/saturation change in Shader editor- Hue value changes saturation value
 Referenced by issue #59136, Crash whenever subsurface modifier is applied
 Referenced by issue #59112, Pinning data block display changes window content
+Referenced by issue #59123, Blender 2.8 Beta SMOKE impossible to bake
