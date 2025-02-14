@@ -1,1 +1,2 @@
 Referenced by commit ec66b3ef9b0, Fix issues with absolute time unit
+Referenced by issue #97927, bpy.utils.units.to_string uses wrong units for velocity, acceleration, lens length, and power
