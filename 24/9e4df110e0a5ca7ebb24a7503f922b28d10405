@@ -53,3 +53,4 @@ Referenced by issue #108943, Outliner: Port collection elements to new tree-elem
 Referenced by issue #108929, Outliner: Port grease pencil legacy elements to new tree-element code design
 Referenced by issue #108887, Outliner: Port linestyle elements to new tree-element code design
 Referenced by issue #108697, Outliner: Port texture elements to new tree-element code design
+Referenced by issue #108654, Outliner: Port metaball elements to new tree-element code design
