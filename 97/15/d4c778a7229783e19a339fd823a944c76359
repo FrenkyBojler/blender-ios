@@ -1,2 +1,3 @@
 Referenced by issue #45455, Select Linked is inconsistant
 Referenced by issue #45145, Camera scale bug - Cannot select when camera scale != 1 & looking through camera
+Referenced by issue #44759, Blender has problems reading and writing 42k images to PNG
