@@ -1,1 +1,2 @@
 Referenced by commit d0693c160ae, Revert "Fix T78071: Drivers reading object visibility not updating automatically"
+Referenced by issue #78071, Object drivers driven by outliner visibility not updating automatically
