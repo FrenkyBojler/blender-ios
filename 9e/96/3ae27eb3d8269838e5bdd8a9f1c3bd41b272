@@ -35,3 +35,4 @@ Referenced by issue #42749, Blender crashes on high poly count while rendering w
 Referenced by issue #42754, UI Bug with Full Window mode
 Referenced by issue #42755, Volumes do not appear when transparent film is enabled
 Referenced by issue #42756, texture paint crash
+Referenced by issue #42740, result of pressing CTRL+Z while the subdivision modifier over the cube object
