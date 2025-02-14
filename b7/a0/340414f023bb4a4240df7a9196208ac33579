@@ -1,1 +1,2 @@
 Referenced by issue #48645, Regression: crash in cycles after recent commit
+Referenced by issue #48629, pthread_dll.dll is missing on startup VS2015 build
