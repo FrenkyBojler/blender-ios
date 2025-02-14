@@ -1,0 +1,1 @@
+Referenced by issue #73774, Image Editor - AttributeError: 'NoneType' object has no attribute 'material_slots'
