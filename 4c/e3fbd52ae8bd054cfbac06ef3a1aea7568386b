@@ -1,1 +1,2 @@
 Referenced by issue #69747,  Texture Paint: alpha not used in gradient
+Referenced by issue #67646, eevee - unconnected Subsurface Scattering node makes whole material not working
