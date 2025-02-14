@@ -1,1 +1,2 @@
 Referenced by commit 61dd7cc1174, Transform: restore default rotation snapping increments
+Referenced by commit 09666e14987, Fix #119387: Precision transform fails to activate
