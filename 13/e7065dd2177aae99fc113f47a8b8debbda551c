@@ -1,0 +1,1 @@
+Referenced by issue #94890, Some mesh operations (e.g. smooth, randomize) are not using mirror modifier mirror object transform correctly for clipping
