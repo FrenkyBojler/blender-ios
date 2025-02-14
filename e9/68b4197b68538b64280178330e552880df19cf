@@ -1,3 +1,4 @@
 Referenced by commit 4da32e93344, Fix #106425: Mantaflow guiding with domains is broken
 Referenced by issue #117067, Fix #106425: Mantaflow guiding with domains is broken
 Referenced by issue #106425, Regression: Guiding in manta is broken
+Referenced by issue #102257, Regression: Crash when making an Object as Effector set to Guide and trying to scrub the timeline.
