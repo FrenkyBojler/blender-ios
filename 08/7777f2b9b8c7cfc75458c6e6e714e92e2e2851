@@ -1,1 +1,2 @@
 Referenced by commit 30ac21bf339, Fix regression: Crash garbage collecting VBOs on never evaluated scenes
+Referenced by issue #85291, Crash editing properties
