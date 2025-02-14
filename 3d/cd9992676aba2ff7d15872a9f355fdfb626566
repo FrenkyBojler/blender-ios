@@ -1,1 +1,2 @@
 Referenced by commit a6c30e1a0c6, Fix T103237: Prevent UV Unwrap from packing hidden UV islands
+Referenced by issue #103237, UV Unwrap changes nonselected uvs
