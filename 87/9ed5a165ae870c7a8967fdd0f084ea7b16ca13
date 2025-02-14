@@ -1,1 +1,2 @@
 Referenced by issue #82808, Eevee Render Crashed when Enable Motion Blur
+Referenced by issue #81193, EEVEE crash when keyframing integer properties on modifiers with motion blur enabled
