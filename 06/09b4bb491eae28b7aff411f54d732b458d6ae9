@@ -1,1 +1,2 @@
 Referenced by issue #98813, Regression: GPU subdivision crash when switched to edit mode
+Referenced by issue #98052, GPU subdivision: Blender crashes in background mode rendering if a specific object gets rendered
