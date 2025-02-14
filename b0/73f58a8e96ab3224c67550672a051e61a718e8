@@ -1,1 +1,2 @@
 Referenced by issue #96930, Cloth Disk cache not being saved and being deleted on files that have been linked and library override enabled.
+Referenced by issue #82503, Add Support of PointCaches to Library Overrides
