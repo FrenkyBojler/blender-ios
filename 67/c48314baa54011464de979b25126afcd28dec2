@@ -1,0 +1,1 @@
+Referenced by issue #71137, off-by-one bug in spline interpolation produces wrong geometry
