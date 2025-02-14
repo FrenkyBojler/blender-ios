@@ -1,0 +1,1 @@
+Referenced by issue #90666, Disabling motion blur while persistent data is enabled results in objects disappearing or not rendering properly - Cycles OptiX
