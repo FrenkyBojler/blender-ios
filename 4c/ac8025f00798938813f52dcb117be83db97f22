@@ -1,1 +1,2 @@
 Referenced by commit 79a34758f52, Fix T103253: Infinite drag of number buttons is broken on WIN32
+Referenced by commit 230744d6fd9, Revert "Fix T102346: Mouse escapes window during walk navigation"
