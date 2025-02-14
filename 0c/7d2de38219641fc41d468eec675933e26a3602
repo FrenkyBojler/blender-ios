@@ -1,0 +1,1 @@
+Referenced by commit 178bd849bf6, Blender Internal: Revert own previous commit for "Camera Data" node, correct GLSL code for view vector output of "Geometry" node.
