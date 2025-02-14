@@ -72,3 +72,4 @@ Referenced by issue #40120, OpenCL kernel compilation error when __CAMERA_MOTION
 Referenced by issue #40121, Smoke not masking objects
 Referenced by issue #40126, Le "Textured Shading" ne fonctionne pas.
 Referenced by issue #40131, Color ramp values limited to 4.875 maximum
+Referenced by issue #40113, Armatured object with shape key causes segfault in BGE
