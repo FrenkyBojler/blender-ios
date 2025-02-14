@@ -4,3 +4,4 @@ Referenced by issue #45670, Weight paint not showing in viewport
 Referenced by issue #44715, Crash compositing with undefined node
 Referenced by issue #43073, 2.72 Hair render in Cycles always crashes
 Referenced by issue #42803, GPU Rendering - EARLY Out of Memory
+Referenced by issue #42566, Sending one message triggers MessageSensor twice when received
