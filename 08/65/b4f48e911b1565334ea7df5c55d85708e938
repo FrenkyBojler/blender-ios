@@ -3,3 +3,4 @@ Referenced by issue #40323, Segfault on baking after rendering
 Referenced by issue #40306, Cycles baking starts to drop cpu cores after a while
 Referenced by issue #40297, Crash while ripping an edge when autosmooth is activated.
 Referenced by issue #40299, Crash on rendering
+Referenced by issue #40285, LibNew: add parameter 'verbose'.
