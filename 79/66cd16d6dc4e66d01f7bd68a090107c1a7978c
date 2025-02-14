@@ -8,3 +8,4 @@ Referenced by commit 11ba8c6ab4d, Fix #106622: Various errors filling cone/cylin
 Referenced by issue #108226, glTF 2.0 Import crashes
 Referenced by issue #108219, STL import crashes Blender
 Referenced by issue #108108, Regression: Crash when try to add remesh modifier
+Referenced by issue #107647, Combine crash
