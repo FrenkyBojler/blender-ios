@@ -4,3 +4,4 @@ Referenced by commit 6b302eeac43, Fix #129896: Console warning in texture, weigh
 Referenced by issue #132525, Fix #132433: Some Grease Pencil modes don't switch behavior with ctrl
 Referenced by issue #132433, Regression: Tool switching with the ctrl key is broken for grease pencil sculpt mode
 Referenced by issue #129929, Fix #129896: Console warning in texture, weight, vertex paint modes
+Referenced by issue #129896, Console warning in texture paint mode, RNA_boolean_get: OperatorStrokeElement.pen_flip not found
