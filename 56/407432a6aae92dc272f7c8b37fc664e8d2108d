@@ -1,1 +1,2 @@
 Referenced by commit a2dacefb463, Fix T96289: Crash when accessing mesh via `ob.data` in a driver
+Referenced by commit 53fe4f62fea, Fix T95806: subdivision missing in Cycles when using autosmooth
