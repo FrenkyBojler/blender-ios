@@ -1,2 +1,3 @@
 Referenced by issue #62515, Crash when baking or rendering while progress bar pop-up is showing
 Referenced by issue #62450, Undo crash after hiding object in edit mode
+Referenced by issue #62410, eevee not rendering height map
