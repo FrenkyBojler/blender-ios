@@ -1,2 +1,3 @@
 Referenced by commit bb3de31f84e, Revert "T78995: Enable keylist threaded drawing."
 Referenced by issue #92549, Keyframes Freak Out While Tweaking NLA Strip
+Referenced by issue #78995, Poor performance in Timeline, Dope Sheet, etc when at the top of the editor.
