@@ -3,3 +3,4 @@ Referenced by issue #43974, Alpha output of movie clip node crashes blender when
 Referenced by issue #43980, MouseLook (actuator) triggers MouseMovement (sensor) on other objects permanently
 Referenced by issue #43953, openGL render renders transparent with alpha set to Sky in the Render/Shading menu
 Referenced by issue #43893, crash in "material mode" view
+Referenced by issue #42015, cycles bake NormalMap problem
