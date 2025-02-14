@@ -1,1 +1,2 @@
 Referenced by commit 3e81d177ea0, Fix Grease Pencil materials added by Python missing
+Referenced by issue #102566, Regression: Grease Pencil materials added via Python do not show up in "Change Active Material" Menu
