@@ -1,2 +1,3 @@
 Referenced by issue #60776, Keymaps added from python doesn't behave correctly.
 Referenced by issue #60778, Grease pencil Hook modifier only affects strokes with more than 2 points
+Referenced by issue #60767, Freestyle rendering in Eevee has a grey outline.
