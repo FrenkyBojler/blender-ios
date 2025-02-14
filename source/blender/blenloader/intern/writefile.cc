@@ -758,6 +758,7 @@ static void write_bhead(WriteData *wd, const BHead &bhead)
   /* Check that the written buffer size is compatible with the limits of #SmallBHead8. */
   if (bhead.len > std::numeric_limits<decltype(bh.len)>::max()) {
     CLOG_ERROR(&LOG, "Written .blend file is corrupt, because a memory block is too large.");
+    return;
   }
   mywrite(wd, &bh, sizeof(bh));
 }
@@ -780,9 +781,11 @@ static void writestruct_at_address_nr(WriteData *wd,
   }
 
   const int64_t len_in_bytes = nr * DNA_struct_size(wd->sdna, struct_nr);
-  if (len_in_bytes > INT32_MAX) {
-    CLOG_ERROR(&LOG, "Cannot write chunks bigger than INT_MAX.");
-    return;
+  if (!USER_EXPERIMENTAL_TEST(&U, write_large_blend_file_blocks)) {
+    if (len_in_bytes > INT32_MAX) {
+      CLOG_ERROR(&LOG, "Cannot write chunks bigger than INT_MAX.");
+      return;
+    }
   }
 
   BHead bh;
