@@ -1,1 +1,2 @@
 Referenced by issue #82903, Exact Boolean with Incorrect Result - multiprecision/float round trips not exact
+Referenced by issue #82769, Crash rendering particle animation with particle caches [disk cache works though]
