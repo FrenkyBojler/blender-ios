@@ -1,3 +1,4 @@
 Referenced by commit 09bd0469752, Fix #115181: RMB Select sometimes to enter pose mode when selected
 Referenced by commit 883033a0969, Curve: adjust behavior of invert selection for bezier handlers
 Referenced by commit cabf935afb7, Fix: Box select not working with tweak took in VSE
+Referenced by commit 90864d3fb80, Curve: operate on handles when the knot is selected
