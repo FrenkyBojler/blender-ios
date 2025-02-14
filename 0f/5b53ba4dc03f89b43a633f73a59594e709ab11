@@ -29,3 +29,4 @@ Referenced by issue #58404, Node input/output grabbing (Lasso)
 Referenced by issue #58405, Inconsistent Color management behavior for textures between Solid and Eevee
 Referenced by issue #58406, Render mode shortcuts are listed as "O"
 Referenced by issue #58398, Keymap editor overwrites settings in non-active keymaps
+Referenced by issue #58209, 3D cursor not respecting orientation setting if other tools are active.
