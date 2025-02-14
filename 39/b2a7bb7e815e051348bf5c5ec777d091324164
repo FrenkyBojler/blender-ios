@@ -1,3 +1,4 @@
 Referenced by commit bec72a43aef, Fix T92874: Custom normals reset when vertex is deleted
 Referenced by commit 647a8bff06b, Fix T90256: faces are flat shaded in edit mode with auto smooth
 Referenced by commit 26c2c617b46, Fix T90421: edit-mode auto-smooth crash when angle set to 180degrees
+Referenced by commit 11cfa6c718b, Fix T90332: Auto-smooth crashes in edit-mode
