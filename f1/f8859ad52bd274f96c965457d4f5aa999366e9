@@ -1,2 +1,3 @@
 Referenced by issue #59791, 3D Print Tool plugin crashes when checking all problems in 2.80
 Referenced by issue #59774, Lightmap Pack Error: Element-wise multiplication: not supported between 'Quaternion' and 'Vector' types
+Referenced by issue #59743, Collada Export Missing Keyframes
