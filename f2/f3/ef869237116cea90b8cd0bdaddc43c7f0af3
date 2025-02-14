@@ -1,3 +1,4 @@
 Referenced by issue #93816, New knife tool first cut midpoint snap bug
 Referenced by issue #40805, Knife Cut Snap Behavior Regressed
 Referenced by issue #39760, Crash when editing a 'bone shape' mesh
+Referenced by issue #39617, Knife tool doesn't maintain snap to center when holding ctrl button.
