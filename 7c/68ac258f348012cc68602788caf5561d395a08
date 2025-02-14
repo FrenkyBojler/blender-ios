@@ -3,3 +3,4 @@ Referenced by issue #126821, Blender 4.2 - Compress Saving option gets removed w
 Referenced by issue #126792, Extensions - fail to install extension from cli
 Referenced by issue #126541, bpy.props.EnumProperty dynamic enum items tooltip appears to be broken?
 Referenced by issue #126468, Mesh Symmetry broken in Sculpt Mode with Grab/Elastic deform brushes
+Referenced by issue #125958, Disabling / uninstalling extensions doesn't always remove the extension's dependencies
