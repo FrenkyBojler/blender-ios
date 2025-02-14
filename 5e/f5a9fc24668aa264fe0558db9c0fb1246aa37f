@@ -1,1 +1,2 @@
 Referenced by commit 568b692bcf8, Compositor: Fix Map Range node To/From Max default value
+Referenced by issue #98322, Map Range node in the compositor has max values = 0
