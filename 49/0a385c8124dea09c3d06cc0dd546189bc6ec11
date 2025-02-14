@@ -12,3 +12,4 @@ Referenced by issue #62142, 2 incorrect line segments with predefined grease pen
 Referenced by issue #62125, snapping not working if invisible object is between you and the target
 Referenced by issue #62111, Blender hangs switching to Edit Mode with Material Panel visible
 Referenced by issue #62112, Blender miscounts object faces
+Referenced by issue #62030, Wirefame , random crash
