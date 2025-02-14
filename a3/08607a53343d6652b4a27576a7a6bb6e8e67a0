@@ -1,2 +1,3 @@
 Referenced by commit 81a0fffb2d2, Fix T82205: Curve Hooks not working
 Referenced by issue #82205, Curve Hooks not working
+Referenced by issue #81967, Crash when using extrude on a text object
