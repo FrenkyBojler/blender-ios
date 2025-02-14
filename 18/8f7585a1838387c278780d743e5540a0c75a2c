@@ -1,2 +1,3 @@
 Referenced by commit 4186b0ebe4e, Fix T101233: Crash on deleting the object in outliner due to null pointer access
 Referenced by issue #109590, Regression: Outliner: Assert in outliner_collect_objects_to_delete
+Referenced by issue #101233, Regression: Deleting Object in outliner with a specific filter setting crashes Blender.
