@@ -1,1 +1,2 @@
 Referenced by commit aeec19d2e76, Fix own mistake from 4cb4556fa5ba78ff
+Referenced by issue #48027, not freed memory blocks on regular exiting
