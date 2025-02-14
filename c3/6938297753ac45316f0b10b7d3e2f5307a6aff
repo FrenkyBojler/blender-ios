@@ -1,1 +1,2 @@
 Referenced by issue #87564, Geometry Nodes: Using "Input-Value"-node with "Attribute-Math-Divide"-node leads to incorrect results in following "Attribute-Math-Modulo"-node
+Referenced by issue #86578, white artifacts in EEVEE
