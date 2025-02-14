@@ -1,2 +1,3 @@
 Referenced by issue #86056, Blender not opening
 Referenced by issue #85980, Eevee diffuse colour pass goes white before showing result
+Referenced by issue #85963, Geometry Nodes: The Attribute Combine XYZ and Separate XYZ nodes don't work on instanced geometry
