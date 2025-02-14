@@ -18,3 +18,4 @@ Referenced by issue #125226, Anim: Rigify `limbs.spline_tentacle` doesn't genera
 Referenced by issue #125006, Purge Unused crashes if mouse not moved away from popup before confirm delete with enter key
 Referenced by issue #124292, Crash: Display wireframe in object mode on subdivided mesh with a lone edge
 Referenced by issue #122055, Segmentation fault on startup (Linux)
+Referenced by issue #117399, Adding assets (modifiers, such as Smooth by Angle) not working in background Python script because Asset list might not be fully loaded yet
