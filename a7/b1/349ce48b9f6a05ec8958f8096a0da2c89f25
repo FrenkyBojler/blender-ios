@@ -4,3 +4,4 @@ Referenced by issue #38423, Shortcuts hotkey problem
 Referenced by issue #38425, Cant bind numbers under linux
 Referenced by issue #38414, Auto Perspective
 Referenced by issue #38419, Text on Sliders are broken
+Referenced by issue #38420, Segfault when curve deform modifier and curve itself is parented to mesh object
