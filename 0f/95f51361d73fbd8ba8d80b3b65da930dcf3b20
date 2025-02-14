@@ -6,3 +6,4 @@ Referenced by issue #89629, Objects with "In Front" don't appear when overlays a
 Referenced by issue #85543, Mesh Object Types Visibility not working right
 Referenced by issue #85515, Edit mode. Hidden wire shading late update
 Referenced by issue #85114, Crash from Compositor
+Referenced by issue #84744, Toggling between Material Preview and Rendered mode does not refresh the 3D viewport
