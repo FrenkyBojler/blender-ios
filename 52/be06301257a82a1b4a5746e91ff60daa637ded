@@ -1,2 +1,3 @@
 Referenced by commit 9de3ed5c823, Fix T97490: snap to multiple objects with linked data can crash
 Referenced by commit 4b35d6950d4, Fix T96711: snap in edit mode for selected objects does not work
+Referenced by issue #97710, Regression: Crash When Appending Items and Editing Expressions
