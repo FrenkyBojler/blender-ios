@@ -29,3 +29,4 @@ Referenced by issue #94197, Boolean Apply Clearing custom data layers (bevel wei
 Referenced by issue #94107, Blender crash when tracking motion
 Referenced by issue #94112, Blender crashes often in GPU mode
 Referenced by issue #93926, "Hops" and "Boxcutter" modifiers work incorrectly in version 3.0
+Referenced by issue #93896, Vertex group (memory access?) change after applying modifier
