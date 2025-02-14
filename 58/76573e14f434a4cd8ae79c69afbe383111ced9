@@ -1,2 +1,3 @@
 Referenced by commit 23eef18b655, Fix #109047: Screw modifier's smooth shading option does not work
 Referenced by commit f6f2f4f2640, Fix #105681: Sculpt trim generates smooth shaded faces
+Referenced by issue #119992, Regression: Wrong orientation on shrinkwrap constrained instanced collection
