@@ -1,1 +1,2 @@
 Referenced by commit 6c8c30d865e, Fix T82002: ENTER does nothing when mouse cursor is over save dialog text field
+Referenced by issue #82002, Default button in File Browser does not always listen to the Return / Enter key (regression)
