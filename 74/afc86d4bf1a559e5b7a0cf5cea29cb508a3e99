@@ -1,3 +1,4 @@
 Referenced by issue #134454, Cycles: Rendering artifacts with overlapping faces in 3.1+ (works in 3.0-)
 Referenced by issue #110323, Regression: Mesh render artifacts
 Referenced by issue #99254, Blender artifacts when rendering overlapping objects with CUDA
+Referenced by issue #98764, Regression: Hair Rendering Tranparency Issue with Cycles
