@@ -1,3 +1,4 @@
 Referenced by issue #65059, Shift Ctrl Alt LMB / Ctrl Alt LMB in an empty scene closes / crashes Blender
 Referenced by issue #64721, scatter object pannel gone missing
 Referenced by issue #64571, Selecting Faces in Texture Paint Crashes Blender
+Referenced by issue #64405, Eevee: Screen Space Reflections break with rotated dupli instances
