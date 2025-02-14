@@ -1,2 +1,3 @@
 Referenced by issue #82715, Using another Mesh for Texture Indices (Texture Space / Generated Texture Coordinates)
 Referenced by issue #66693, Generated texture coordinates reset to 'Auto texture space' with modifiers
+Referenced by issue #66672, Out of edit mode, Texture Space is behaving like BoundBox
