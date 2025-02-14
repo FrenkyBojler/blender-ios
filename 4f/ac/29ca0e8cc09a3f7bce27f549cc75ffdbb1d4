@@ -1,1 +1,2 @@
 Referenced by issue #45110, Animated Armature stops when not reflected by ImageMirror
+Referenced by issue #43059, Animations don't stop when the scene is suspended with Scene actuator
