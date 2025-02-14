@@ -1,2 +1,3 @@
 Referenced by commit 4782e941c81, Fix T71494: brush curve transform crash in sculpt mode
 Referenced by commit 67310ed9761, Fix T70006: crash when transforming paint curve edit points in sculpt mode
+Referenced by issue #70006, Crash when using Curve as Stroke Method for Crease or Pinch in sculpt mode
