@@ -4,3 +4,4 @@ Referenced by issue #62942, Blender crashes when trying to change the path of al
 Referenced by issue #62872, Grease pencil extrude generates broken vertex weights
 Referenced by issue #62839, object scale changes normal map output in eevee
 Referenced by issue #62837, Cannot access particles through Python API
+Referenced by issue #61413, Grease Pencil crashes in 32-Bit version
