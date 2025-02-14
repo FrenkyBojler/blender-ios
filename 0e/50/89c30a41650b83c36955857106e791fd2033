@@ -4,3 +4,4 @@ Referenced by issue #49391, Texture Paint color space chaos
 Referenced by issue #49363, CUDA error at cuCtxCreate: Illegal address [experimental feature set]
 Referenced by issue #49370, Cuda cuMemFree error
 Referenced by issue #49353, Noise texture incorrectly displayed in the viewport Cycles
+Referenced by issue #49354, Voronoi texture incorrectly displayed in the viewport Cycles
