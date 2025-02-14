@@ -6,3 +6,4 @@ Referenced by issue #111336, Incorrect vertex weights shown in context menu
 Referenced by issue #111306, Item panel displays incorrect weights for active vertex
 Referenced by issue #111273, Regression: Edit mode weights panel shows incorrect values
 Referenced by issue #111001, Fix #109460: vertex weight slider not working correctly (backported)
+Referenced by issue #110737, The slider option when clicking on the weight paint side menu "vertex weights" does not work.
