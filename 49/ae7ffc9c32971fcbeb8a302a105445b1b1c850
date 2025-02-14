@@ -1,2 +1,3 @@
 Referenced by commit cdc7526aedc, Fix: Use correct set_attribute overload for USD writing
 Referenced by issue #133169, Fix: Use correct set_attribute overload for USD writing
+Referenced by issue #130759, Code Quality Project: USD
