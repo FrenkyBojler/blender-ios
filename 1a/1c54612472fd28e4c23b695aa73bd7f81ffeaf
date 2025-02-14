@@ -1,0 +1,1 @@
+Referenced by issue #91240, Full copy of scene causes failed assertion '(id_iter->tag & LIB_TAG_NEW) == 0'
