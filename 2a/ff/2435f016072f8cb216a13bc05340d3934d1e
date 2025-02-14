@@ -4,3 +4,4 @@ Referenced by issue #39207, Wrong evaluation of Action Constraint
 Referenced by issue #39209, Nodes in 2.70-RC2 and source build 211f08d extremely unstable (segfault crash)
 Referenced by issue #39210, Grid Fill is generating mesh that's inconsistent with selected edge loops
 Referenced by issue #38897, Problems moving animation channels up and down in dope sheet/action editor
+Referenced by issue #38259, Animation of bones not exported properly
