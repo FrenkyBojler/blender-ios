@@ -6,3 +6,4 @@ Referenced by issue #61887, NVIDIA OpenGL Errors crash 2.80 Beta after startup
 Referenced by issue #61872, Can`t assign shortcut in sculpt hide/mask menu
 Referenced by issue #61873, Middle Click dragging in the empty areas under the tool tabs does not work.
 Referenced by issue #61874, The title bar in the properties window says Scene even when the scene tab is not selected.
+Referenced by issue #61880, massively increased .blend load times
