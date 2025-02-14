@@ -1,0 +1,1 @@
+Referenced by issue #55013, Segfault in transform_conversions.c:3918: - member access within null pointer of type 'struct tGPFtransdata'
