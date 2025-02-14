@@ -1,1 +1,2 @@
 Referenced by issue #61370, Material turns bright white when boolean mesh is not UV-unwrapped
+Referenced by issue #61290, Poor denoising results with volumes and branched path tracing (with multiple volume samples and bounces).
