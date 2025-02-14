@@ -1,1 +1,2 @@
 Referenced by commit 067f6767d43, Fix #129571: Metal: Broken texture atomic workaround
+Referenced by commit 6ab4e99cf7d, Fix #133645: Metal: Crash when activating EEVEE on MacOS 13.7.2 with AMD
