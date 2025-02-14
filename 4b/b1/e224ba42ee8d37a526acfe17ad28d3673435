@@ -60,3 +60,4 @@ Referenced by issue #49553, Blender 2.78 crashes when File->Data Previews ->Refr
 Referenced by issue #49556, noise, voronoi and musgrave textures not working 3d viewport in blender 2.78
 Referenced by issue #49548, Entering Cycles Rendered Viewport Unlinks Material from Objects
 Referenced by issue #49533, Archimesh: Does not display all dimensions
+Referenced by issue #49528, Brightness difference between CPU and GPU rendering with HDR Lightning
