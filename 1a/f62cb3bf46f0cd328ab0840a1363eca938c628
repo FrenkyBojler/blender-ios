@@ -9,3 +9,4 @@ Referenced by issue #108150, Repeated file block addresses in files saved with 3
 Referenced by issue #107194, AttributeGroup API: "active" is meaningless (always refers to all attributes, not the specific AttributeGroup) -- e.g. mesh.color_attributes.active
 Referenced by issue #106926, Geometry Nodes Extrude producing weird normals when Mesh has Custom Normals
 Referenced by issue #106288, Blender Crash when trying to open 3.4 autosave blend file
+Referenced by issue #104980, Regression: "Apply All Shape Keys' not working
