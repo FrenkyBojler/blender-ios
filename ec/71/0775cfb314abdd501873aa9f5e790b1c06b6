@@ -1,0 +1,1 @@
+Referenced by issue #33288, Fixes for storage.c (mainly BLI_stat) on Windows platforms.
