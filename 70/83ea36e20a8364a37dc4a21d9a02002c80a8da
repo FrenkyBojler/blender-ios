@@ -1,0 +1,1 @@
+Referenced by issue #94085, Calling bpy.ops.curve.draw with an empty stroke list causes a segfault
