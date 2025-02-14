@@ -1,1 +1,2 @@
 Referenced by issue #78047, Cycles/Tests/MSVC: cycles_denoise tests are failing
+Referenced by issue #77023, blender either crashes immediately after rendering when using multiple denoise and file output nodes, or the output of random denoise nodes saved with the file output node are pure black.
