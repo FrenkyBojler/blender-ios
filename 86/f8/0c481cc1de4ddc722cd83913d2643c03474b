@@ -1,2 +1,3 @@
 Referenced by issue #46484, Particle Random distribution changed between 2.74 and newer versions
 Referenced by issue #44457, particle system does not spread
+Referenced by issue #44353, Particle distribution overlaps if number is greater than 256
