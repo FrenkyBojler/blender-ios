@@ -4,3 +4,4 @@ Referenced by issue #61343, Crash when selecting image source drop down in Image
 Referenced by issue #61345, Creating a texture crashes Blender
 Referenced by issue #61324, EXCEPTION_ACCESS_VIOLATION using bpy.utils.previews
 Referenced by issue #61306, Blender 2.8 close with a default cube, and material is clicked
+Referenced by issue #61307, Blender Crashes when Material Tab is clicked
