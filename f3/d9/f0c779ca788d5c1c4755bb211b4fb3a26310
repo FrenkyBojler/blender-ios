@@ -1,2 +1,3 @@
 Referenced by issue #51588, False positive error in Surface Deform modifier in some cases
 Referenced by issue #51589, Principled Subsurface Scattering, wrong shadow color
+Referenced by issue #51521, Incorrect windows scaling - mouse offset from view - menu bar invisible
