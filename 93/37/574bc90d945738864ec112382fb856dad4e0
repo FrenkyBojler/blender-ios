@@ -38,3 +38,4 @@ Referenced by issue #41753, sculpting performance in viewport
 Referenced by issue #41735, material type changings end s with wrong preview .
 Referenced by issue #41707, Select Linked behavior inconsistent. Sometimes doesn't work. Sometimes overflows.
 Referenced by issue #41713, Lattice - Influence vertexgroup in curve modifier gets ignored
+Referenced by issue #41684, Auto Smooth produce shadow (shading) problems
