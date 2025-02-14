@@ -4,3 +4,4 @@ Referenced by issue #53250, Crash when linking/appending a scene to a blend when
 Referenced by issue #51964, Can't sort Linked objects transparency in viewport
 Referenced by issue #50421, Blender crashes while Duplicating
 Referenced by issue #50408, Port EXCEPTION_ACCESS_VIOLATION fix to 2.76b
+Referenced by issue #49924, Grease Pencil (GP) not working on Video Sequencer Editor (VSE)
