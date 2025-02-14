@@ -1,1 +1,2 @@
 Referenced by commit 366abae3e74, Cleanup: use ifdef to disable enum string allocation
+Referenced by issue #96607, Panning images in the image viewer is broken
