@@ -78,3 +78,4 @@ Referenced by issue #48799, Particles set as objects cast wrong ray shadows in B
 Referenced by issue #48790, Wrong render with HDRi when there Sun lamp with strength=0
 Referenced by issue #48792, Armature / Mesh game physics issue
 Referenced by issue #48797, Dynamic Paint Sub-Steps not working when Canvas is moving
+Referenced by issue #48784, Blender crash on shift + RMB
