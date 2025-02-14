@@ -1,2 +1,3 @@
 Referenced by commit df0c567380a, Fix #129781: GPv3: Memory leak in the edit batch cache
 Referenced by commit ab89e367da5, Fix #129518: GPv3: Crash entering edit mode with locked layers
+Referenced by commit 18144705cfb, Fix #129353: GPv3: Crash when using Catmul-Rom curve type
