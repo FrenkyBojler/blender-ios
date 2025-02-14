@@ -1,1 +1,2 @@
 Referenced by issue #65831, workbench can not render when turen on the No anti-aliasing
+Referenced by issue #65834, Circle Select in edit mode seems to be locked to the local view axes of the first selection click/stroke (can't properly select while rotating the camera with a 3D mouse)
