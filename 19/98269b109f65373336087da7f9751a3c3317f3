@@ -1,1 +1,2 @@
 Referenced by issue #104370, Regression: color attribute is emitted as black on Eevee
+Referenced by issue #99293, Alembic Export don't export attributes that are not 'Face Corner' domain
