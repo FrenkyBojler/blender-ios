@@ -5,3 +5,4 @@ Referenced by issue #113334, Fix #113323: Paint Secondary color not working in t
 Referenced by issue #101794, alt brush doesn't work in image editor -> paint
 Referenced by issue #74425, Can't texture paint an images sequence anymore
 Referenced by issue #72474, Box mapping is broken in Cycles
+Referenced by issue #72440, Crash when drag & drop Color in the Image Editor
