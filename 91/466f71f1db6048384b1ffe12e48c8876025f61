@@ -1,2 +1,3 @@
 Referenced by commit 57eae31ce9c, Fix #127952: Crash on load after id_properties_ui type change
 Referenced by issue #127952, Crash on load after id_properties_ui type change
+Referenced by issue #119064, Python script has visual bugs when inputting floats and integers into geometry node inputs
