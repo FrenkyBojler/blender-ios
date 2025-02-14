@@ -49,3 +49,5 @@ Referenced by issue #46571, Driver updated mapping node fields do not propagate 
 Referenced by issue #46550, Cycles bake black
 Referenced by issue #46556, [BUG] BGE Segmentation fault (core dumped)
 Referenced by issue #46557, [BUG] BGE steering
+Referenced by issue #46528, 2.76 48f7dd6 / GPU Experimental CUDA Out of Memory on Default Cube
+NVIDIA 780 Ti 3GB
