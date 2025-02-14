@@ -15,3 +15,4 @@ Referenced by issue #115231, All interface colours are desaturated
 Referenced by issue #115127, Manpage: python script byte to string to fix blender.1.py
 Referenced by issue #115072, Blender 4.0 Missing Menu Options
 Referenced by issue #115074, Can't launch 4.0.1 in Ubuntu 23.10
+Referenced by issue #115065, Regression: Clicking Brush Blending Mode in Vertex Paint crashes
