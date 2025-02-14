@@ -2,3 +2,4 @@ Referenced by issue #116532, Sculpt: Performance regression when using Cloth Fil
 Referenced by issue #116489, Blender crashing when switching to the shading tab
 Referenced by issue #116386, Crashes on Load factory settings
 Referenced by issue #116373, Regression 4.1 alpha: foreach_get crash
+Referenced by issue #116325, Assigning `material.paint_active_slot` after copying nodes crashes Blender
