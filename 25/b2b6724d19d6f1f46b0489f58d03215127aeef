@@ -1,3 +1,4 @@
 Referenced by issue #75292, Blender File View looses buttons and input field
 Referenced by issue #75279, BLI_assert failed when deleting object in debug build (only)
 Referenced by issue #74224, Crash with Boids containing Fight Rule
+Referenced by issue #73404, Crash when using added hair particles
