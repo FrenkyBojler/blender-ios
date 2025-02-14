@@ -9,3 +9,4 @@ Referenced by issue #119997, Regression: Baked Normal Map From Multiresolution P
 Referenced by issue #119907, Active curve vertex/spline not visualizing properly
 Referenced by issue #119851, "Out of memory" Error when rendering in cycles
 Referenced by issue #119635, File Browser: Date and Size info overlapping in 'Horizontal List' Display Mode
+Referenced by issue #119586, Converting color attribute to other type in vertex paint mode then assign color cause a crash
