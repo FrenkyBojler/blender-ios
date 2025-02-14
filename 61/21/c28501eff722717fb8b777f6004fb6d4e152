@@ -1,2 +1,3 @@
 Referenced by commit e2d7681fe6c, Cleanup: Cycles: remove unused `ccl_loop_no_unroll`
 Referenced by issue #131100, Cleanup: Cycles: remove unused `ccl_loop_no_unroll`
+Referenced by issue #75895, LLVM ERROR: Error while trying to spill SGPR4_SGPR5 from class SReg_64: Cannot scavenge register without an emergency spill slot!
