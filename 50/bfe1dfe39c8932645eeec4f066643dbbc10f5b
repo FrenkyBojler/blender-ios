@@ -1,2 +1,3 @@
 Referenced by commit 457f4237190, Fix #108537: Incorrect early return in delete geometry node
 Referenced by issue #116819, Geometry Nodes: muted node erases attribute (Blender 3.6)
+Referenced by issue #111582, Regression: Delete Geometry node can't show vertices
