@@ -5,3 +5,4 @@ Referenced by issue #80053, Vertices in Edit mode are gone?
 Referenced by issue #80034, Crash using material panel on 2.91.0 alpha
 Referenced by issue #80036, 2.91 Immediate crash upon going into rendered view in EEVEE
 Referenced by issue #80005, Eevee shading modes crash Blender
+Referenced by issue #79775, Something in Blender can generate invalid (Nan) values in UVMaps
