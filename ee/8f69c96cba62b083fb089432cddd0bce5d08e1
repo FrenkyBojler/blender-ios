@@ -1,3 +1,4 @@
 Referenced by issue #102414, BLI_assert While Splitting File Browser
 Referenced by issue #97142, Regression: When Exporting Grease Pencil, File Dialog Shows No Subfolders
 Referenced by issue #69495, Crash after pressing ctrl+s in file view
+Referenced by issue #69469, Address Sanitizer reports read overrun in blender/windowmanager/intern/wm_operator_props.c
