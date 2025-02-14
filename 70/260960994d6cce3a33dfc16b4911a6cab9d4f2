@@ -4,3 +4,4 @@ Referenced by commit 81815681d0a, Python API: Add function to create links to vi
 Referenced by commit 15f59470a30, Fix #105314: Custom node groups missing sockets
 Referenced by issue #110225, Fix #110210: Hide Value option doesn't work on color sockets
 Referenced by issue #109298, Fix #109231: Python defined socket type switching broken
+Referenced by issue #109231, In custom trees socket type in group input nodes is not changing.
