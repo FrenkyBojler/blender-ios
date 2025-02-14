@@ -14,3 +14,4 @@ Referenced by issue #47217, Crash when adding tracking new tracker
 Referenced by issue #47154, Sequencer strip modified with 'Mask'. Add/Subtract modes.
 Referenced by issue #46994, Reproducible crash, apparently with carve.
 Referenced by issue #46998, Cannot change console scrollback value, stuck at 300
+Referenced by issue #46986, Hair Impossible to Comb on Tail of Mesh
