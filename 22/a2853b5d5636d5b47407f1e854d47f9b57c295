@@ -37,3 +37,4 @@ Referenced by issue #48013, UV Sculpt Brush Does not appear in UV window - but d
 Referenced by issue #48017, Default: Crash after a too high subdevision for a model is set (blender v 2.77)
 Referenced by issue #48021, Object scaled down to 0 on one axis showing wrong shading
 Referenced by issue #48000, Color Picker, sample merged.
+Referenced by issue #47991, Smoke preview in viewport not showing up on some Mac systems
