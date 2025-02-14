@@ -11,3 +11,4 @@ Referenced by issue #45907, VSE speed incorrect
 Referenced by issue #45910, [Rendered] Viewport Shading not running
 Referenced by issue #45687, COLLADA exports animations values for Location in world space instead of local space
 Referenced by issue #45675, Changing curve radius of first point in a curve scales an entire mesh that is parented to that curve
+Referenced by issue #45574, MeshDeform modifier gives abnormal deformations when rotated
