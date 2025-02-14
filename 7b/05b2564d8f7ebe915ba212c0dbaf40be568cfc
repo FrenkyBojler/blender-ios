@@ -1,2 +1,3 @@
 Referenced by issue #61103, Mirrored objects render black when using the Bevel Node
 Referenced by issue #61109, particle object sticks at emitter
+Referenced by issue #61088, Particles make cycles viewport preview loop on 1 sample only
