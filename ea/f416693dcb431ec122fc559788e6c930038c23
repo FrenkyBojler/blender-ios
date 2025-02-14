@@ -3,3 +3,4 @@ Referenced by commit 643e94c0320, Cleanup: Add missing licence headers
 Referenced by issue #101379, Regression: Trim curve make spline disapear.
 Referenced by issue #101256, Regression: Trim Curve Node Crash
 Referenced by issue #95443, Refactor curve nodes to use new data structure
+Referenced by issue #91936, Support cyclic splines in the trim curve node
