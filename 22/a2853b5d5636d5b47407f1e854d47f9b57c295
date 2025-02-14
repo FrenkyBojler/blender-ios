@@ -55,3 +55,4 @@ Referenced by issue #47921, Blender crashes when trying to select an object
 Referenced by issue #47923, "Persistent Images" breaks GPU freestyle rendering
 Referenced by issue #47911, Bug while sculpt edit finalize step.
 Referenced by issue #47912, Particles (Hair) sets displayed hair count to 100% after render
+Referenced by issue #47917, Edit Mode Boolean Fails completely in some situations
