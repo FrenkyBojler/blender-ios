@@ -1,2 +1,3 @@
 Referenced by issue #66072, Grease Pencil "stroke placement:surface" uses "stroke placement:stroke"s target parameters
 Referenced by issue #66067, Bevel corrupts UVs
+Referenced by issue #66041, Cycles Cuda error
