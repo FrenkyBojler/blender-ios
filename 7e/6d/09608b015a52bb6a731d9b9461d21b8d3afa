@@ -1,2 +1,3 @@
 Referenced by issue #47207, Material shading incorrectly handles colorramp node
 Referenced by issue #47129, new Bmesh boolean is deleting some of edges data, (Creases and Bweigh)
+Referenced by issue #47125, Standalone player segfaults, but embedded player works fine
