@@ -1,2 +1,3 @@
 Referenced by commit a7aa0f1a0c2, Fix T101991: "Absolute Grid Snap" not working
 Referenced by commit ba6f25dd1b6, Fix T101907: restore snapping in node editor
+Referenced by issue #101907, Regression: Node Editor snapping to grid not working
