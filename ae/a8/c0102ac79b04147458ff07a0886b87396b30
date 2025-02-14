@@ -1,1 +1,2 @@
 Referenced by commit d6dcf5b1ffd, Sculpt: Fix crash hovering mouse onto multire surface
+Referenced by issue #70140, Topology Automasking and 2D Falloff don't work correctly together
