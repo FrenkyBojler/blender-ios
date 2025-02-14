@@ -1,1 +1,2 @@
 Referenced by issue #88475, use after free Fluid sim seg fault
+Referenced by issue #82155, Overlay setting "Fade Inactive Geometry" does not work with instance collections.
