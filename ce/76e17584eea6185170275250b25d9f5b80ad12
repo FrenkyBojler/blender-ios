@@ -2,3 +2,4 @@ Referenced by issue #76612, [Interface] Blender crashes when trying to split are
 Referenced by issue #76564, Material not displays properly on curved mesh [no default CD_ORCO tex coordinate]
 Referenced by issue #76565, Array modifier is crazy, when using "object offset" pointed to empty, which is parented to curve
 Referenced by issue #76568, Sample texture color dialog isn't dismissed after use
+Referenced by issue #76558, Decreasing Viewport Anti-Aliasing levels makes cube whiter
