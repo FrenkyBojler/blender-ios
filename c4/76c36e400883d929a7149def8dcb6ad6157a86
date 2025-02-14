@@ -10,3 +10,4 @@ Referenced by issue #75736, Viewport update problem when switching between view 
 Referenced by issue #75597, Viewport flashes with some variants of studio lighting
 Referenced by issue #75455, High World Space Cavity Samples Crash
 Referenced by issue #75106, Can't see wireframe (vertex, selected components) through semi-transparent object
+Referenced by issue #75087, Crash: Divide By Zero with workbench depth of field when antialiasing disabled
