@@ -7,3 +7,4 @@ Referenced by issue #58561, Surface Pen First Events in Grease Pencil
 Referenced by issue #58566, Blender 2.8 with 2.7X input method shortcut inconsistencies
 Referenced by issue #58528, Materials don't get assigned to objects other than the active object in multi edit mode
 Referenced by issue #58517, Multiview not working with OpenGL render using scene settings
+Referenced by issue #58519, Cycle render crashes when using multiview
