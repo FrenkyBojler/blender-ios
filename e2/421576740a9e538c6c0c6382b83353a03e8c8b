@@ -1,0 +1,1 @@
+Referenced by issue #127550, 4.2 backport: Core: flush outputs before calling exiting on `execvp` failure
