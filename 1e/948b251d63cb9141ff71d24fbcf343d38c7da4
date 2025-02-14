@@ -1,1 +1,2 @@
 Referenced by commit c98308a77e3, Fix #113653: Compositor superfluously executes on scene changes
+Referenced by issue #113653, Compositor: In solid mode in heavy files the compositor freezes blender too often once it's enabled.
