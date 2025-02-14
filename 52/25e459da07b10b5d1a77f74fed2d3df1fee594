@@ -1,1 +1,2 @@
 Referenced by issue #105230, Regression: Blender crashes when you reload a linked library if the active scene is from that library
+Referenced by issue #86883, Unpredictable Library Override Collection Behavior on Updating/Relocating a Linked Library
