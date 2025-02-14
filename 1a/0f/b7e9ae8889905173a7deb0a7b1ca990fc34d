@@ -1,3 +1,4 @@
 Referenced by issue #44692, Multi-Value Editing on a node can change not related options on others nodes.
 Referenced by issue #44695, Multi-value editing seems sometimes inconsistent from user point of view.
 Referenced by issue #44697, Multi-value editing does not work well with layers.
+Referenced by issue #44344, Painting in 3D view produces gap at seams, or wont paint at all.
