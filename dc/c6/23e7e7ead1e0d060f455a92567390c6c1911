@@ -1,2 +1,3 @@
 Referenced by commit 2677e992170, Revert "Multi-Objects: ARMATURE_OT_select_hierarchy"
 Referenced by commit d95bb08f395, Multi-Objects: POSE_OT_select_hierarchy (no real change)
+Referenced by issue #54646, Multi-Object-Mode: Edit Armature Tools
