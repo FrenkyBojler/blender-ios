@@ -1,1 +1,2 @@
 Referenced by commit 4a445c8dc0e, LibOverride: Fix some issues from.revealed by recent previous commit.
+Referenced by issue #99261, Driver relationship is broken in linked scenes, when override is done in wrong order
