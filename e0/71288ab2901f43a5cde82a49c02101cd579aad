@@ -17,3 +17,4 @@ Referenced by issue #112027, Fix #112014: Crash making node group with multiple 
 Referenced by issue #112014, Regression: Crash when creating compositor node group
 Referenced by issue #111936, Regression: Nodes: Memory leaks
 Referenced by issue #111905, Error deleting an object with shape keys
+Referenced by issue #111890, Blender 4 Alpha Won't Open
