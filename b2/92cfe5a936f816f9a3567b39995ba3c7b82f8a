@@ -14,3 +14,4 @@ Referenced by issue #102423, Regression: Screen Space Reflections on EEVEE rende
 Referenced by issue #102131, Blender crash Ui interaction
 Referenced by issue #102125, 4090GPU will crash blender when enable "cycles render devices > optix"
 Referenced by issue #101669, Regression: Normal baking strange artifacts in texture bake
+Referenced by issue #101671, (Linux - OPTIX) Error: Device does not support queues
