@@ -1,2 +1,3 @@
 Referenced by commit 05b56d55e85, Fix T97386: Node socket labels swallow click/drag events
 Referenced by issue #97386, Regression: Click Dragging on Socket Labels does not register
+Referenced by issue #66765, Incorrect tooltip when hovering over the `Corner Pin` widget
