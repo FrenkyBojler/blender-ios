@@ -1,1 +1,2 @@
 Referenced by commit 5e0ec49570f, Fix T48416: Impossible to append from another file without localizing also all indirectly linked data.
+Referenced by issue #48416, Impossible to copy a linked object from a file to another one mantaining the linked library
