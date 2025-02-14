@@ -1,2 +1,3 @@
 Referenced by commit bb3a021427f, Fix T101004: Crash when invisible object becomes visible
 Referenced by issue #101004, Regression: Segfault when CTRL key hit
+Referenced by issue #100754, Hidden objects still affect viewport performance when they are hidden as collection
