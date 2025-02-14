@@ -1,2 +1,3 @@
 Referenced by issue #98136, Crash undoing "Make Library Override" for linked collection with shapekey
 Referenced by issue #90064, Library override and shapekey bug?
+Referenced by issue #70319, Library Override: Driven Shape Keys Don't Work (neither via custom properties nor transforms)
