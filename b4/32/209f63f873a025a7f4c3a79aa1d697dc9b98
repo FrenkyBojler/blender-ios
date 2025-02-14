@@ -1,2 +1,3 @@
 Referenced by issue #65062, Compositor doesn't update anymore
 Referenced by issue #63927, Compositing nodes - drivers don't really work
+Referenced by issue #60961, Camera DOF distance based on an object doesn't update on animations with compositing Defocus
