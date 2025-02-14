@@ -1,2 +1,3 @@
 Referenced by commit fe9e7036b00, Fix UV's not aligning with image.
 Referenced by issue #96554, No more panning in Image Editor
+Referenced by issue #96543, Panning Broken in the Image Editor (Image Editor: Incorrect Image Offsets)
