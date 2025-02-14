@@ -1,2 +1,3 @@
 Referenced by commit 73eb1bfd55d, Revert "Turned off clang warnings in third party includes."
 Referenced by issue #55672, Boolean - Animation - Viewport works correctly render view doesnt
+Referenced by issue #55632, Scaling back to 1 and transforming back to 1 (x, y, z altogether) multiple objects via properties->object->tranform panel gives incorrect result
