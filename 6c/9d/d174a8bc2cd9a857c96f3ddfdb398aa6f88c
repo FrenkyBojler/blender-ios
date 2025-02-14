@@ -1,1 +1,2 @@
 Referenced by issue #46338, Do not work change the grid taken from another scene.
+Referenced by issue #39053, 2.70 RC1 Actuator editObject.replaseMesh replaced only mesh, and not replaced material.
