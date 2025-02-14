@@ -1,2 +1,3 @@
 Referenced by commit 53b82efed66, Fix (unreported) geometry node attribute search not working in the
 Referenced by commit 9ba1ff1c632, Fix T86373: crash picking colors in geometry nodesockets
+Referenced by issue #86611, Support Attribute Search In Material Nodes
