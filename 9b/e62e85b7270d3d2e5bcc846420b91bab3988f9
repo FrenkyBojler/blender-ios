@@ -15,3 +15,4 @@ Referenced by issue #119464, Moving sockets in custom nodes not working
 Referenced by issue #119272, Geometry Nodes: node links assignment order using bpy
 Referenced by issue #119277, Zipping an addon with a .blend file causes the string to curves node to loose the fonts folder
 Referenced by issue #119281, Blender crashes during render with subdivision modifier
+Referenced by issue #119228, Blender is crashing at startup
