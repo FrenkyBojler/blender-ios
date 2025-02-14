@@ -1,1 +1,2 @@
 Referenced by issue #41840, bpy.context.object.collision.thickness_inner has no effect.
+Referenced by issue #41718, mask bug
