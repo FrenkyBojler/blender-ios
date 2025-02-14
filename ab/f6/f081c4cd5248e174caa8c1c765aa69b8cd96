@@ -65,3 +65,4 @@ Referenced by issue #48946, Blender+Tahiti+DRI3+Unity+Linux GUI corruption/not r
 Referenced by issue #48948, Cycles: Normalmap does not bake with Alpha
 Referenced by issue #48928, Cycles: From Dupli fails on Grid particles
 Referenced by issue #48916, Proxy Custom File is broken
+Referenced by issue #48924, Pen pressure not working (random behavior)
