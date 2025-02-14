@@ -40,3 +40,4 @@ Referenced by issue #49190, Model scaling distorts hair that uses kink
 Referenced by issue #49173, Shape of vertex-only bevels is distorted: edges should be curved but are straight
 Referenced by issue #49177, FBX export parameters aren't saved with the .blend file
 Referenced by issue #49153, Can't save ("No such file or directory")
+Referenced by issue #49146, Right-clicking makes Blender 2.77 crash!
