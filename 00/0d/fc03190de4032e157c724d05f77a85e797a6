@@ -13,3 +13,4 @@ Referenced by issue #46709, Sculpt mode freezes Blender with Dynamic topography
 Referenced by issue #46596, OpenGL display problems with submenus on OSX
 Referenced by issue #46327, UV interpolation problem using nodes and cycles
 Referenced by issue #46289, Smooth shading attribute on mesh has no effect when selected on mesh with subdivision modifier on top of a skin modifier.
+Referenced by issue #46150, FreeStyle: SVG Export won't fill Contours
