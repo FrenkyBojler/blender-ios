@@ -1,1 +1,2 @@
 Referenced by commit 8d080013f56, Fix T100285: Shader value node always outputs zero
+Referenced by issue #100285, Regression: EEVEE: Mix Shader node always receives 0.0 value from Value node
