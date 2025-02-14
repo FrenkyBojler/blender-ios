@@ -1,3 +1,4 @@
 Referenced by issue #116110, Geometry Node Noise Broken
 Referenced by issue #114706, 4.0: Candidates for corrective releases
 Referenced by issue #109399, Blender LTS: Maintenance Task 3.6
+Referenced by issue #100838, Geometry node - setting lacunarity to 0 crashes Blender (musgrave texture) [fine in 4.1, request to ackport]
