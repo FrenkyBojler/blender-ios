@@ -1,1 +1,2 @@
 Referenced by commit bd467100dd3, Fix T100142: Compare correct render_slot variable during clear operation
+Referenced by issue #100142, Regression: Clear Render Slot not working for first slot
