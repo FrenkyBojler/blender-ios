@@ -1,0 +1,1 @@
+Referenced by issue #52258, bpy.ops.render.render('INVOKE_DEFAULT') returns 'CANCELLED' during UI interaction
