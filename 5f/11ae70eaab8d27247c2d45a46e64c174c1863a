@@ -1,2 +1,3 @@
 Referenced by issue #125216, Cycles: Improve performance for transparency and volume
 Referenced by issue #122622, Cycles GPU performance regression in certain complex scenes
+Referenced by issue #98941, Cycles takes very long to cancel a render
