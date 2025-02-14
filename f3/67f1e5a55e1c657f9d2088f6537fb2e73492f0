@@ -1,0 +1,1 @@
+Referenced by issue #77593, OptiX viewport denoising does not work when preferences are set to CUDA (works with final render however)
