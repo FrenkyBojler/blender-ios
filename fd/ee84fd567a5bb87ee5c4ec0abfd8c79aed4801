@@ -1,2 +1,3 @@
 Referenced by commit bdcc2583050, Fix: VSE colormix blend factor not working
 Referenced by issue #75844, Blend modes are broken
+Referenced by issue #61733, The various color blend mode, like Screen, Multipley, Lighten, etc Do not use the correct Alpha channel
