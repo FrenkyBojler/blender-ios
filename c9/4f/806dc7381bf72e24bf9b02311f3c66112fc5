@@ -5,3 +5,4 @@ Referenced by issue #57859, Grease pencil sorting issues (backfacing/doublesided
 Referenced by issue #57845, Workspaces Issue
 Referenced by issue #57850, Crash Bevel Modifier with Vertex Group
 Referenced by issue #57841, Backfacing transparency appears black in GPU (OpenCL) rendering - Cycles
+Referenced by issue #57843, Annotations (D) do not work with 3d cursor tool (keymap issue)
