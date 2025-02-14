@@ -1,2 +1,3 @@
 Referenced by commit 1a4fc6dcd67, Fix versioning code after FCurves versioning not executed
 Referenced by issue #81743, Changed behaviour in RGB Curves node interpolation
+Referenced by issue #75881, Graph Editor : limitation of Bézier Handles
