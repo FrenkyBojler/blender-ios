@@ -1,0 +1,1 @@
+Referenced by commit 350bd60b11b, Fix: Cycles: Metal compilation when include is guarded behind `WITH_CYCLES_DEBUG`
