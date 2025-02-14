@@ -1,2 +1,3 @@
 Referenced by commit 586e2face61, Fix T93408: Snap performance regression at high poll rate
 Referenced by commit 0e4245bc28e, Fix T89554: UV snapping broken
+Referenced by issue #93408, Snap performance regression at high poll rate
