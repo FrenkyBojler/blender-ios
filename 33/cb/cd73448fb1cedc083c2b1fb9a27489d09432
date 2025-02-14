@@ -1,3 +1,4 @@
 Referenced by commit 7886db9ba97, Mesh eval: Do not condition clearing of auto texspace to dirty bbox.
 Referenced by issue #58492, smoke flow jitters around flow source when using adaptive domain
 Referenced by issue #57985, Out of the edit mode, the texture space is affected by the modifiers of a mesh.
+Referenced by issue #57933, Assert failure adding grease pencil stroke
