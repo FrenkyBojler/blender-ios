@@ -1,3 +1,4 @@
 Referenced by issue #69808, Python-defined nodes implementing a draw_label function causes a segmentation fault when drawn.
 Referenced by issue #69633, New Operator Description function alters behavior of operator_menu_enums
 Referenced by issue #66606, Blender crashes in LookDev/EEVEE but not in Solid/Cycles
+Referenced by issue #61853, Crash on Eevee render (MacOS)
