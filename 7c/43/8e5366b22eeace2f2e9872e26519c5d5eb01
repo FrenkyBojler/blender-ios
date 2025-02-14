@@ -17,3 +17,4 @@ Referenced by issue #59953, Particles not beeing rendered
 Referenced by issue #59943, Color banding present in Workbench render but not in viewport.
 Referenced by issue #59944, Python template operator_mesh_uv.py fails with an error
 Referenced by issue #59945, Redundant whitespace in prop_search()
+Referenced by issue #58887, Arbitrary crashes showing "Not enough Video Memory.Error: EXCEPTION_ACCESS_VIOLATION"
