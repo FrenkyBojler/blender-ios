@@ -1,0 +1,1 @@
+Referenced by issue #55126, COW problem: there is an active object even if unselectable
