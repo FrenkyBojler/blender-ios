@@ -1,3 +1,4 @@
 Referenced by issue #98298, Regression: Attribute capture yields broken results
 Referenced by issue #97810, Heavy Exr file will not generate previews in asset broswer/file broswer
 Referenced by issue #96023, Blender File Browser not generating previews for large (filezise) images
+Referenced by issue #70584, Heavy EXR images use too much memory when loading them (e.g. multi-threaded thumbnail generation causes swapping)
