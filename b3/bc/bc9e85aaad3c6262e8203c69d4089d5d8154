@@ -1,1 +1,2 @@
 Referenced by commit 6634eb34908, Make outliner new collection operator work via viewport too
+Referenced by issue #53442, Outliner: Drawing doesn't refresh after adding a new collection
