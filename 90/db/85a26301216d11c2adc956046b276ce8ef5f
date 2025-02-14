@@ -2,3 +2,4 @@ Referenced by issue #40399, Cycles Does not  with 2.70 90db85a Daily Build but d
 Referenced by issue #40378, Nurbs curve order setting won't preserve on duplication
 Referenced by issue #40337, GPU strange behavior
 Referenced by issue #40325, UILists do not save their height anymore
+Referenced by issue #40283, Variance-Shadow Display-Error in Viewport with Matcap
