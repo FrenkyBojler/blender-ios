@@ -1,2 +1,3 @@
 Referenced by commit 7bf820fb966, Fix uninitialized loop variable
 Referenced by issue #66630, X-Ray + Subdivision surface Face select problem
+Referenced by issue #62941, Subdivision Modifier Showing all face dots instead of just the nonsubdivided dot.
