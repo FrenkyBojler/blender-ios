@@ -1,1 +1,2 @@
 Referenced by commit 2b9eb5eee58, Fix T83361: UV Editor does not draw pinned selected UVs as pinned
+Referenced by commit 7db42b8f2a8, Fix T82460: Color Management Curves do not update when Image/UV Editor
