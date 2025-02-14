@@ -1,0 +1,1 @@
+Referenced by issue #62415, inconsistency in shader nodes when opening .blend vs. append in 2.8. Node conversion skipped when object is appended.
