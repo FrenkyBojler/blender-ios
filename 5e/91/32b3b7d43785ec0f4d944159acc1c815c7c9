@@ -5,3 +5,4 @@ Referenced by issue #52436, Importing keyconfig mess up blender configuration SH
 Referenced by issue #52418, Principled BSDF Shader node - Input number 16 does not exist
 Referenced by issue #52419, OpenCL missing from Cycles Compute Device System option
 Referenced by issue #52420, Wobble in the node editor (2.79)
+Referenced by issue #52421, Wobble in the node editor (2.79)
