@@ -1,2 +1,3 @@
 Referenced by issue #61898, eevee , mix shader, high contrast black and white image affects colour of shader
 Referenced by issue #61367, creating custom (combined ) texture brush is not visually updated in texture brush tab
+Referenced by issue #61368, Alpha overlay of texture brush is not rotating when rotating texture brush ( ctrl-f)
