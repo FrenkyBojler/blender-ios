@@ -1,0 +1,1 @@
+Referenced by issue #89765, Collection user counts are set to `1` on file load. Boolean modifier orphans Collections.
