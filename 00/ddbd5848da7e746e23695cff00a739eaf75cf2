@@ -1,0 +1,1 @@
+Referenced by commit 670e6cab431, Revert "Depsgraph: Fix crash with copy on write when scene has legacy bases"
