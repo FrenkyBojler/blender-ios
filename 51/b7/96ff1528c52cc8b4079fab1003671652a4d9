@@ -5,3 +5,4 @@ Referenced by issue #89377, Baking from MultiRes produces empty images.
 Referenced by issue #84477, Baking AO from Multires error and lack of option
 Referenced by issue #70543, Rigid Body Collision Shape Not Displayed In Viewport
 Referenced by issue #65542, Particle trails not working
+Referenced by issue #57810, Stereoscopy 3D viewport drawing
