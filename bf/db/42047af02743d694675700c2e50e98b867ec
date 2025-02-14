@@ -1,3 +1,4 @@
 Referenced by issue #47058, bug in starting blender
 Referenced by issue #46700, select interior faces doesn't support some kinds of interior geometry
 Referenced by issue #46574, problem with correct uvs while transforming
+Referenced by issue #46536, Viewport: Selecting many objects causes constant CPU usage
