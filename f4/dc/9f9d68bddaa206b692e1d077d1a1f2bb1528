@@ -89,3 +89,4 @@ Referenced by issue #56830, The liquid is not baked
 Referenced by issue #56782, Selection via right click fails partialy if scen contains many objects (ca. >12 000)
 Referenced by issue #56781, Box selection fails for more than 12 000 Objects
 Referenced by issue #56739, Latest build doesn't open
+Referenced by issue #56672, Blender open causes Echo in all applications that playback sounds.
