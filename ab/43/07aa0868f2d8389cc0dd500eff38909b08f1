@@ -1,1 +1,2 @@
 Referenced by commit c1095c7a9f1, Revert "Fix T47869: OpenColorIO Error with unicode path to config file under Windows"
+Referenced by issue #47869, OpenColorIO Error with unicode path to config file under Windows
