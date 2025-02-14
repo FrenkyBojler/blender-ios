@@ -1,0 +1,1 @@
+Referenced by issue #44593, 'Emit From -> Volume' setting of particles systems is ignored and instead set to 'Emit From -> Faces' if an unscaled mesh is very large.
