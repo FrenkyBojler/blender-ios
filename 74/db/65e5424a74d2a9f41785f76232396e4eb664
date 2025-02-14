@@ -3,3 +3,4 @@ Referenced by issue #59168, Blender 2.8 (9a8b6d51c12) - Crash when going in Edit
 Referenced by issue #59050, Blender 2.8 Motion Tracking, Deleting trackers crashes Blender.
 Referenced by issue #59042, Subdivision mangling texture UVs and Vertex Colors in 2.80
 Referenced by issue #58984, Traceback error during FBX export
+Referenced by issue #58958, Selection Issues on High Res Monitor
