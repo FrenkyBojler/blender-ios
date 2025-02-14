@@ -1,1 +1,2 @@
 Referenced by issue #95834, SpaceView3D.draw_handler_add with PRE_VIEW draw type does not result in visible draws
+Referenced by issue #88566, Mantaflow inflow with shapekeys is not working anymore (regression)
