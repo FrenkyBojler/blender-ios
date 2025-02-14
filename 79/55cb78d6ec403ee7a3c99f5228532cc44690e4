@@ -1,0 +1,1 @@
+Referenced by commit bfe29e0ef75, Revert 7955cb78d it causes GPU_pbvh_buffers_diffuse_changed to always
