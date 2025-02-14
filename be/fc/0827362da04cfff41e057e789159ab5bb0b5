@@ -1,3 +1,4 @@
 Referenced by issue #73087, Hard crash hiding animation curves
 Referenced by issue #73077, Blender exits incorrectly when editing any keyframe
 Referenced by issue #73029, 2.83: Unable to move, grab, or duplicate keyframes in any editor without a Crash
+Referenced by issue #71908, Keyframed parameters are not preserved when frame_change_post handler is used
