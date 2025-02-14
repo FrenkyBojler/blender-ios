@@ -1,3 +1,4 @@
 Referenced by issue #96104, Regression: Mesh geometry is broken with GPU subdivision
 Referenced by issue #95242, GPU Subdivision: Shade smooth Artifacts with edge crease
 Referenced by issue #94936, GPU subdivision option with subdivision surface modifier collapses geometry (AMD GPU)
+Referenced by issue #94919, Subdivision: different shading with GPU option enabled
