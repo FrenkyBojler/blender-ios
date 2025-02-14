@@ -29,3 +29,4 @@ Referenced by commit 9bce134e56c, Outliner: Port RNA elements to new tree-elemen
 Referenced by commit 4292bb060d5, Outliner: Port scene elements and some related types to new tree-element code design
 Referenced by commit 3a907e74250, Outliner: Barebones to port IDs to new Outliner tree-element code design
 Referenced by commit e0442a955ba, UI Code Quality: Port Outliner Grease Pencil layers to new design
+Referenced by commit 2e221de4cee, UI Code Quality: Start refactoring Outliner tree-element building (using C++)
