@@ -1,1 +1,2 @@
 Referenced by commit 34d157634ab, Fix #122623: Partial Resync fails to remap all ID pointers to existing unchanged overrides.
+Referenced by issue #122623, Linking and Make Library Override breaks Drivers in Curve Material
