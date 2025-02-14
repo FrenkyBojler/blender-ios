@@ -9,3 +9,4 @@ Inbox
  x
 Referenced by issue #42957, Problem in Blender 2.71 Cycle Rendering Engine, system error “A problem caused the program to stop working correctly”
 Referenced by issue #42318, 2.72(a) crash on unwrap of subdivided mesh
+Referenced by issue #42253, Ghosting is one frame short
