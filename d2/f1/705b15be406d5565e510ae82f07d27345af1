@@ -1,2 +1,3 @@
 Referenced by issue #63949, Blender hangs on Preferences>Settings (Linux OpenCL)
 Referenced by issue #63936, Selection does not work when deleting everything in the scene
+Referenced by issue #63933, object selection failing, when opengl depth picking is enabled
