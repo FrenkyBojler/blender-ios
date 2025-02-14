@@ -1,3 +1,4 @@
 Referenced by issue #124814, Colorspace list UI Buggy / Janky
 Referenced by issue #117711, Outliner Remap Users menu doesn't fit on screen, remap multiple doesn't remember last selection
 Referenced by issue #115085, Crash when opening operation menu inside Math node
+Referenced by issue #115023, Changing the mix node operation in the compositor crashes Blender
