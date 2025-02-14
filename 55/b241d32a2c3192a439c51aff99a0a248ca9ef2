@@ -7,3 +7,4 @@ Referenced by issue #55078, Crash when using bone selection overlay
 Referenced by issue #55080, Banding artifacts on workbench
 Referenced by issue #55068, Wireframe bones with custom shapes not working in object mode
 Referenced by issue #55069, 3D Manipulator not refreshing when switching pivot
+Referenced by issue #55070, Bones relationship lines are offsetted when armature origin is not 0,0,0.
