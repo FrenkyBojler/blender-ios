@@ -20,3 +20,4 @@ Referenced by issue #87850, 2.93 does not load Nishita Sky settings correctly fr
 Referenced by issue #87853, Crash when `select none` on Weight painter
 Referenced by issue #87849, 2.93 does not load Nishita Sky settings correctly from 2.92
 Referenced by issue #87731, Image with Alpha not exported properly with emissive materials on transparent background
+Referenced by issue #87725, Multires disp bake doesn't smooth UV
