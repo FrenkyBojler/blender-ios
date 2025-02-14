@@ -1,1 +1,2 @@
 Referenced by issue #38252, Transforms = invalid
+Referenced by issue #38239, Cycles becomes very unstable after a while when working on scenes with multiple render layers / compositing
