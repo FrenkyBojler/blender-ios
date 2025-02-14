@@ -13,3 +13,4 @@ Referenced by issue #40701, Editing a Rig (any bone) crashes Blender 2.71 (169c9
 Referenced by issue #40688, Blender crashes while rendering
 Referenced by issue #40689, Armature edit crash
 Referenced by issue #40676, Crash when editing Armature in Edit Mode
+Referenced by issue #40661, BGE soft body physics with unexpected behavior (game engine only)
