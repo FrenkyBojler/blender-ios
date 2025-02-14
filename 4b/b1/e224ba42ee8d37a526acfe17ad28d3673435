@@ -16,3 +16,4 @@ Referenced by issue #50563, Selecting mesh with Subdivision Surface at 6 closes 
 Referenced by issue #50549, Lack of total internal reflection in refract
 Referenced by issue #50444, Alembic animation bug
 Referenced by issue #50433, Errors in NLA editor Add and Subtract
+Referenced by issue #50434, Program freezing in pose mode when try to set ghosting
