@@ -11,3 +11,4 @@ Referenced by issue #99857, Rebuilding subdivisions with multiresolution deletes
 Referenced by issue #97208, Copy object from 3.1 to any lower version delete "all vertex groups"
 Referenced by issue #96550, Project opened on windows looses vertex groups on Linux.
 Referenced by issue #96494, Crash when a curve object got an array modifier with a mesh object containing a vertex group set as cap
+Referenced by issue #94634, regression, instanced object can't have different vertex group names (preventing instances to be rigged to other bones)
