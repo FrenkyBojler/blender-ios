@@ -1,1 +1,2 @@
 Referenced by commit e4faed120d9, Fix T73466: Unable to set particle rotation
+Referenced by issue #73279, "Rotation" tab checkbox for particles not grayed out when a bake exists
