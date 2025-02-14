@@ -1,1 +1,2 @@
 Referenced by issue #95843, Undo after remeshing or dyntopo creates a flat shading on normals
+Referenced by issue #95185, Invalid normals after undo in sculpt mode
