@@ -1,1 +1,2 @@
 Referenced by commit 4faccf0a782, Revert "Lock markers now also disallows selection of markers"
+Referenced by issue #45148, (de)select all markers no longer working
