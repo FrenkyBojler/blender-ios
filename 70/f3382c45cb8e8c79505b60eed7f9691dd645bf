@@ -1,1 +1,2 @@
 Referenced by issue #106394, Strange shading when motion blur is on (fixed in 3.6, request for backport)
+Referenced by issue #106013, A black stripe appears when applying hair to a black object, can't tell why
