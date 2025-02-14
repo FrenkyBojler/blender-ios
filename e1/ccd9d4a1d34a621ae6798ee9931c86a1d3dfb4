@@ -17,3 +17,4 @@ Referenced by issue #108455, Crash without warning when opening material propert
 Referenced by issue #108400, Tabbing into edit mode on a bezier curve crashes blender (Segmentation fault)
 Referenced by issue #108260, Application templates crashes if the startup.blend of the application template contains scene named "Asset"
 Referenced by issue #108226, glTF 2.0 Import crashes
+Referenced by issue #108133, Rendering Error in viewport for Intel Iris and Xe GPU
