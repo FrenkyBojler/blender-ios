@@ -1,1 +1,2 @@
 Referenced by commit 2ced22611ad, Cycles: Fix missing adjustment for device, used for denoising
+Referenced by issue #122742, Cycles: Fix assert failure for CPU render with no CPU device selected
