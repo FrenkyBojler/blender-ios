@@ -1,2 +1,3 @@
 Referenced by commit 4fecf652e24, Fix T100568: triangulate node resets vertices to rest position
 Referenced by issue #97571, Motion blur create wierd artifacts on certain frames when renderring animation with cycles
+Referenced by issue #95997, [3.1] Crash when entering edit mode
