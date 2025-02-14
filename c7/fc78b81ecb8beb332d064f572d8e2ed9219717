@@ -8,3 +8,4 @@ Referenced by issue #110175, CUDA misaligned address error when rendering the im
 Referenced by issue #110130, Randomly crashes when clicking Blender by moving the mouse from another monitor under Linux.
 Referenced by issue #109986, Regression: Using Grease Pencil Sculpt Grab Tool on a Stroke affected by Subdivide Modifier will Crash Blender
 Referenced by issue #109848, Applying Any “Modify” Modifier to a Mesh With Shape Keys Will Crash Blender
+Referenced by issue #109822, Regression: Average Brush in Vertex Paint Mode is broken
