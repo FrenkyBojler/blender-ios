@@ -1,1 +1,2 @@
 Referenced by issue #118453, WIP: Fix: `is_overridable` crash with certain ShapeKey functions parameters
+Referenced by issue #79633, "Copy to selected" on cycles properties (e.g. "shadow terminator offset") asserts / is broken
