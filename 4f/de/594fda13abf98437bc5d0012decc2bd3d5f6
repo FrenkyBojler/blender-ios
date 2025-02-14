@@ -1,1 +1,2 @@
 Referenced by issue #84650,  CPU render + OptiX denoiser leaves empty tiles unprocessed (Blender from Master)
+Referenced by issue #84049, Blender crashes when using Cycles Progressive Refine in OptiX CPU + GPU mode
