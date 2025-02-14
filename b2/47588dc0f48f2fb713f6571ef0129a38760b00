@@ -1,2 +1,3 @@
 Referenced by commit 9ca1abe0421, Fix T101100: missing smooth shading with linked subdivision surface in editmode
 Referenced by issue #104915, Regression: Multires wireframes are displayed incomplete
+Referenced by issue #103700, Regression: Optimal Display still can't be turned off in Edit Mode (New problem)
