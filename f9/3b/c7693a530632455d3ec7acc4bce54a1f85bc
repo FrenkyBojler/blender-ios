@@ -28,3 +28,4 @@ Referenced by issue #40758, Sculpting : Front faces only option doesnt seem to w
 Referenced by issue #40739, Importing Collada DAE file crashes Blender
 Referenced by issue #40741, Object Group Reorder
 Referenced by issue #40730, Branched Path Tracing crashes openGL driver
+Referenced by issue #40723, undo broken in node editor
