@@ -4,3 +4,4 @@ Referenced by issue #46431, blender-softwaregl crashes in 2.76RC3
 Referenced by issue #46437, obj export ZeroDivisionError
 Referenced by issue #46439, Difference between viewport and render, caused by transparent background.
 Referenced by issue #46420, Force quit when instancing smoke domain
+Referenced by issue #46421, Blender close when I try to launch "User preferences" option
