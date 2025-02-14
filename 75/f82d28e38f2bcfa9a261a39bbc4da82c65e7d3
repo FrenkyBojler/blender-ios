@@ -1,1 +1,2 @@
 Referenced by issue #72235, Crash when trying to enter in "Particle Edit" mode of an object with Cloth physics and baked cloth data
+Referenced by issue #59583, Hair Dynamics: entering particle edit mode with baked cache crashes blender
