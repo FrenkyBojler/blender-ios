@@ -1,1 +1,2 @@
 Referenced by issue #64821, Viewport gizmos in selection tools not updating.
+Referenced by issue #54686, Multi-Object-Mode: EditMesh GL selection objects don't occlude eachother
