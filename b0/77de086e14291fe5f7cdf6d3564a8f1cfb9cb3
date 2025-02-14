@@ -3,3 +3,4 @@ Referenced by commit 5ee60c98157, Fix (unreported): Walk expansion on scene coll
 Referenced by commit 53d1f893228, Fix T79987: Crash when joining objects
 Referenced by issue #106021, Outliner: two linked objects selected, instead of one
 Referenced by issue #105903, fix #99584: Outliner selection not working correctly after undoing object deletion
+Referenced by issue #99584, Outliner selection not working correctly after undoing object deletion
