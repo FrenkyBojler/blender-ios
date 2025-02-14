@@ -1,2 +1,3 @@
 Referenced by issue #74373, Instant crash going to material preview mode
 Referenced by issue #74362, Eevee: Lookdev: Blurry backgrounds causes assert on Debug builds
+Referenced by issue #74174, Eevee: Crash upon opening material properties
