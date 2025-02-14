@@ -1,1 +1,2 @@
 Referenced by commit 00ac2ddca23, Fix T103722: Stuck modifiers for wheel events over unfocused windows
+Referenced by commit 37d835f0bca, Fix T100582: Windows-10 Switching Desktops locks Ctrl Key
