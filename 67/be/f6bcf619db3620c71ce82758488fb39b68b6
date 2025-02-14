@@ -1,2 +1,3 @@
 Referenced by issue #52573, Cycles baking artifacts
 Referenced by issue #50565, Transform: Planar constraints don't work properly with non-Blender key configurations
+Referenced by issue #50550, GPUShader: compile error - Background image not showing in viewport
