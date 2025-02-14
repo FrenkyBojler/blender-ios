@@ -1,3 +1,4 @@
 Referenced by commit b6457dc568a, Fix #106740: VSE Image sequence can't be loaded from python
 Referenced by issue #114434, VSE: Separate Images (Y) is broken - It is only duplicating the first image to all the resulting strips
 Referenced by issue #110205, vse separate image after import not working
+Referenced by issue #106740, Sequencer, Python bug in scene.sequence_editor.sequences.new_image()
