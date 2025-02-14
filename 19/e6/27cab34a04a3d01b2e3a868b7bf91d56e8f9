@@ -73,3 +73,4 @@ Referenced by issue #39582, Blender executable not running in Linux Mint 13
 Referenced by issue #39537, Multi button editing is unreliable in RGB(A) selector widgets
 Referenced by issue #39538, Metaballs make blender crash in ubuntu
 Referenced by issue #39542, Possible memory leak when using particles and force fields
+Referenced by issue #39524, Backface culling is always on in Textured view in BI
