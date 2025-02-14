@@ -1,0 +1,1 @@
+Referenced by issue #52999, invoke_props_dialog() window changes position on redraw if the window has sufficient vertical height
