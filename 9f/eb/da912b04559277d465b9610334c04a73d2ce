@@ -1,3 +1,4 @@
 Referenced by issue #86278, Baking to vertex colors not working with subdivision surface modifier
 Referenced by issue #85550, Bake to Vertex Colors causes Blender to crash (app completely disappears)
 Referenced by issue #85530, Crashes during render
+Referenced by issue #84663, Blending Vertex Color when baking to it on UV seams (Bug or missing feature)
