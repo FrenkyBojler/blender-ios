@@ -9,3 +9,4 @@ Referenced by issue #106425, Regression: Guiding in manta is broken
 Referenced by issue #104358, Regression: Blender crash in weight paint mode and vertex select checked and then weights -> fix deforms
 Referenced by issue #103704, Regression: Hair Particles compatibility problem between 3.3.1 and 3.4.1
 Referenced by issue #103307, Regression: Crash when trying to read particle hair_key.co.
+Referenced by issue #101773, Regression: Mirror Vertex Weights gives unpredictable results
