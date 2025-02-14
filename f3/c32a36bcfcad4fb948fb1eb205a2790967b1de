@@ -4,3 +4,4 @@ Referenced by commit 1e237da1db0, Fix #123076: Remove UI line for removed proper
 Referenced by issue #125499, Fix #124836: Triangulate modifier changed behavior with custom normals
 Referenced by issue #124836, Triangulate modifier (also Triangulate Faces operator) changed behavior with custom normals
 Referenced by issue #124690, Keep Custom Normals Missing - Triangulate Modifier
+Referenced by issue #123079, Fix #123076: Remove UI line for removed property
