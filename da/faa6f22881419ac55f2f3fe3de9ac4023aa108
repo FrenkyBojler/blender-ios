@@ -4,3 +4,4 @@ Referenced by issue #59822, Blender 2.8 crash when reopening previously saved fi
 Referenced by issue #59804, The bmesh.ops.symmetrize python interface does not support the "positive" variants of symmetry direction
 Referenced by issue #59784, Eevee rendering "fireflies"
 Referenced by issue #59760, Wrong reflections in EEVEE using 16-bit normal maps
+Referenced by issue #59752, Filling fail
