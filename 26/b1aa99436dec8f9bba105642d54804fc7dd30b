@@ -10,3 +10,4 @@ Referenced by issue #58093, Collada exporter: Missing texcoord attribute
 Referenced by issue #58075, Crash on switching to vertex paint mode after going to the modeling workspace
 Referenced by issue #58080, Blender crashed when enabling "Cavity" in Matcap mode
 Referenced by issue #58062, Missing adjust last operator / redo panel
+Referenced by issue #58066, Crash switching to Modeling then Sculpting Workspace
