@@ -1,2 +1,3 @@
 Referenced by commit c072d42f6b2, Fix #129177: name 'bpy' is not defined at exit
 Referenced by issue #129177, "NameError: name 'bpy' is not defined" at exit
+Referenced by issue #125376, Standalone `bpy` module crashes Python on exit
