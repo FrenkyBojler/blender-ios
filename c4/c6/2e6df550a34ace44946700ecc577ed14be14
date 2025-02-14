@@ -1,3 +1,4 @@
 Referenced by issue #59077, Poor hair editing performance
 Referenced by issue #57697, Grease pencil -> Convert to bezier -> Bevel Curve | Geometry clipping
 Referenced by issue #57681, Extrude and Move on Normals does not move vertices or edges on normals
+Referenced by issue #57638, Possible wrong behavour in wireframe mode
