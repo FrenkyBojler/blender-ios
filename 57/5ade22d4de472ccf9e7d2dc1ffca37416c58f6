@@ -3,3 +3,4 @@ Referenced by issue #109971, Fix #109822: Average Brush in Vertex Paint Mode is 
 Referenced by issue #107845, Vertex paint mode breaks permanently under certain conditions (Global undo involved)
 Referenced by issue #98884, Regression: Crash when switched to vertex paint mode
 Referenced by issue #97597, Regression: Crash in weight painting
+Referenced by issue #97489, Unify Interpolation In Vertex Paint And Sculpt Mode
