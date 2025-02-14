@@ -1,2 +1,3 @@
 Referenced by issue #110257, Crash so often when modeling
 Referenced by issue #108516, crash when rendering with optics
+Referenced by issue #108455, Crash without warning when opening material properties panel.
