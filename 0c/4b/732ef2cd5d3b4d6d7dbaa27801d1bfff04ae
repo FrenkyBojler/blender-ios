@@ -2,3 +2,4 @@ Referenced by issue #83891, Vertex Colors not displayed in object/edit/sculpt mo
 Referenced by issue #80696, Solid mode, Colour > Vertex option doesn't show vertex colours while in mesh edit mode.
 Referenced by issue #80510, Setting Workbench color mode to Vertex shows only black mesh when in edit mode.
 Referenced by issue #80396, Potential candidates for corrective releases
+Referenced by issue #78225, Viewport vertex color mode: now it uses only sculpt vertex colors, even if datablock do not exist
