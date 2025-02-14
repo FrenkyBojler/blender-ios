@@ -7,3 +7,4 @@ Referenced by issue #70802, Hidden sockets in Compositor don't stay hidden when 
 Referenced by issue #56875, Compositor: Auto Render doesn't work
 Referenced by issue #53321, "Z" changed to "depth" breaks consistency in compositing and in Render layers
 Referenced by issue #51587, Blender fails to interpret a specific layer in OpenEXR multilayer file
+Referenced by issue #51455, Render Layers in compositor from a different scene not working
