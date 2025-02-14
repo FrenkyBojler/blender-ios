@@ -1,3 +1,4 @@
 Referenced by commit 29c66dab88c, Restore 'writable' handling in `bpy_class_call`.
 Referenced by issue #133183, Python  scripting - According to the order of inheritance, instancing a class may or may not succeed
 Referenced by issue #132451, Operators break if they don't singly and directly inherit from  `bpy.types.Operator`
+Referenced by issue #129699, Python: declaring __init__ for an operator causes RuntimeError
