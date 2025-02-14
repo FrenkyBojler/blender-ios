@@ -1,2 +1,3 @@
 Referenced by commit d1810d11f42, Fix T103303: Dbl-click in the Graph Editor wont select all keyframes
 Referenced by commit a26038ff385, Fix T99505: NLA tweak mode crashes with GPencil data
+Referenced by commit 051a341cf00, Fix T99491: Crash when opening modifiers panel
