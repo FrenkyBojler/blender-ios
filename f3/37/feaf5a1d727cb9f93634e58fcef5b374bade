@@ -72,3 +72,4 @@ Referenced by issue #47484, Crash on exporting collada file from menu
 Referenced by issue #47463, GeForce GTX 960 CUDA error: out of memory in cuArrayCreate(&handle,&desc)
 Referenced by issue #47471, Registry entries missing
 Referenced by issue #47449, Segmentation Fault during rendering
+Referenced by issue #47451, Origin-only object with ocean simulation modifier does not rendered.
