@@ -1,1 +1,2 @@
 Referenced by commit 8b235dd2e39, makesrna: Fix build error on windows.
+Referenced by issue #61765, Thread-unsafe logging used
