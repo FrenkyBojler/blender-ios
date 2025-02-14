@@ -23,3 +23,4 @@ Referenced by issue #54332, Keep Alt Key not work in the F-Curve properties
 Referenced by issue #54312, bpy.data.filepath is an Empty String When Blender is opened to a Startup File
 Referenced by issue #54304, Expression not work in materials
 Referenced by issue #54307, Long distance between cursor and description
+Referenced by issue #54294, Problem in Duplicate for Alembic object
