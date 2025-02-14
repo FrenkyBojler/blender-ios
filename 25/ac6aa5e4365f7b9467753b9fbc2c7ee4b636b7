@@ -1,0 +1,1 @@
+Referenced by issue #85233, Operators doing several different things can only have one tooltip (see e.g. Transfer weights tooltip).
