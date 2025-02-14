@@ -1,3 +1,4 @@
 Referenced by issue #101978, cycles, set collection to Holdout does not work with transparent shader
 Referenced by issue #88185, Alpha textures do not work with holdout collection in Eevee
 Referenced by issue #81875, Cycles: mesh becomes weirdly transparent after some samples CPU only
+Referenced by issue #78728, [Cycles] Render Layer only shadow and alpha problem
