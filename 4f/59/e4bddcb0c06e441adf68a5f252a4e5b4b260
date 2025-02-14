@@ -1,3 +1,4 @@
 Referenced by commit 58909abc685, EEVEE: Render: Fix regression caused by previous Motion blur fix
 Referenced by issue #79970, Camera Animation Breaks EEVEE Motion Blur (Two Steps or More)
 Referenced by issue #79672, Motion blur steps value incorrectly changes shutter duration and affects AA quality
+Referenced by issue #79630, Crop and transparent in render
