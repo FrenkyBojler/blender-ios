@@ -1,1 +1,2 @@
 Referenced by commit c9c95201d08, Fix T97679: Retrieving shape key normals modifies vertices
+Referenced by issue #97679, MeshVertex.co contains incorrect data after calling ShapeKey.normals_polygon_get()
