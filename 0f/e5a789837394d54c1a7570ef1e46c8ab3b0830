@@ -9,3 +9,4 @@ Referenced by issue #59049, Edge slide clamping doesn't work with Blender 2.7 ke
 Referenced by issue #59023, Wireframe + lock view to axis makes Blender crash
 Referenced by issue #59027, Orthographic wireframe view of a plane mesh causes crash
 Referenced by issue #59008, Black screen on View Animation window
+Referenced by issue #58994, Subdivision Surface modifier generates artifacts with Mean Crease=1
