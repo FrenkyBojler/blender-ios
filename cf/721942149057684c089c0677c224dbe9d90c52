@@ -1,2 +1,3 @@
 Referenced by commit 67c48314baa, Revert "Fix T71137: curve minimum twist producing wrong geometry"
 Referenced by issue #101843, Regression: cyclic curve twist behavior changed/broken
+Referenced by issue #71137, off-by-one bug in spline interpolation produces wrong geometry
