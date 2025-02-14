@@ -2,3 +2,4 @@ Referenced by commit 9cd9b357792, Fix T87816: Sculpt curve & line stroke hides d
 Referenced by commit aede740c8af, Fix T87816: Sculpt curve & line stroke hides dash settings
 Referenced by commit f38c54d56ef, Fix Vertex weight gradient tool show wrong weight/strength values in the
 Referenced by commit eb98cbb8c51, Fix: Missing category in IMAGE_PT_paint_settings_advanced panel
+Referenced by issue #72786, Sculpt Mode RMB menu appears at shifted hotspot under pointer
