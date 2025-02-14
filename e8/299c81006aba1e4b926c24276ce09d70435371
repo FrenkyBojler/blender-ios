@@ -26,3 +26,4 @@ Referenced by issue #50692, Python console shows no output
 Referenced by issue #50698, cycles bake artifacts with transparent textures and no color option
 Referenced by issue #50699, Gpu Cycles error with MacOs and Gtx580 - Render viewport and No glossy materials (render in black)
 Referenced by issue #50700, Possible NaNs with refractive BSDF
+Referenced by issue #50683, Cylinder Projection doesn't work from Python (does not use 3D view)
