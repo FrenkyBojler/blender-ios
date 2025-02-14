@@ -6,3 +6,4 @@ Referenced by issue #60129, Symmetrize/Bones work inconsistently and/or incorrec
 Referenced by issue #60132, convert hair particles to mesh
 Referenced by issue #60123, Memory leak and crash when playing with X-ray value in Wireframe mode
 Referenced by issue #60069, repeated extrusion is buggy
+Referenced by issue #60074, Eevee: Material not displayed
