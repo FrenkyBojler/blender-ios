@@ -1,0 +1,1 @@
+Referenced by issue #85121, Bug: Shift + L is assigned to two functions in the VSE, so one of them fails.
