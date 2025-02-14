@@ -36,3 +36,4 @@ Referenced by issue #111130, Outliner: Port linked object elements to new tree-e
 Referenced by issue #111114, Outliner: Port modifier elements to new tree-element code design
 Referenced by issue #111108, Outliner: Port constraint elements to new tree-element code design
 Referenced by issue #110920, Outliner: Port view layer elements to new tree-element code design
+Referenced by issue #110806, Outliner: Port pose base elements to new tree-element code design
