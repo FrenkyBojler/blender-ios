@@ -68,3 +68,4 @@ Referenced by issue #41413, Loop cut: Adding more than one cut defaults to Edge 
 Referenced by issue #41406, Smear bug
 Referenced by issue #41378, Particle update bug
 Referenced by issue #41366, Radeon 3d view crush
+Referenced by issue #41375, Texture update bug
