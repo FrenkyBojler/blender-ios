@@ -17,3 +17,4 @@ Referenced by issue #70752, Crash when undoing a loop cut.
 Referenced by issue #70754, Windows 10 Precision Touchpad multi-touch inputs not detected by Blender
 Referenced by issue #70738, Vertex color interpolation issue
 Referenced by issue #70699, Select Edge Ring not found in search menu
+Referenced by issue #70627, Crash when using Mesh>Normals>Point To Target
