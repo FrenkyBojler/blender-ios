@@ -3,3 +3,4 @@ Referenced by issue #95165, Regression: Custom Normals tools dont update immedia
 Referenced by issue #89323, Ctrl-R loop cut and LMB click doesn't always slide
 Referenced by issue #89303, UVs do not always show up in UV editor
 Referenced by issue #89293, Edit Mesh Mode - selection regression
+Referenced by issue #89271, Selecting all vertices on a face doesn't select the face and selects only some edges
