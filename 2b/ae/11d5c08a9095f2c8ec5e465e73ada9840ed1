@@ -1,2 +1,3 @@
 Referenced by commit 6114d909d6b, Fix T86417: Crash deleting Shader AOV from an empty list
 Referenced by issue #86417, Crash Shader AOV
+Referenced by issue #81094, EEVEE: AOVs
