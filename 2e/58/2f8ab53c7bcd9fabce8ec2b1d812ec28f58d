@@ -1,3 +1,4 @@
 Referenced by commit 2b9965122e1, Sound: Revert all the recent changes to sound
 Referenced by issue #64228, insert_keyframe and bpy.ops from bpy.app.timers, now causes Blender to crash
 Referenced by issue #64192, Crash on opening a file with a View Layer active which is not the first in the scene enumeration
+Referenced by issue #64183, Crash on BKE_sound_scene_playing due to Scene NULL
