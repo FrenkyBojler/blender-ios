@@ -1,2 +1,3 @@
 Referenced by commit df99c54b5b8, EEVEE: Fix compilation
 Referenced by issue #63404, EEVEE Volume Material Outpouts don't show in viewport or renders.
+Referenced by issue #62892, EEVEE HDRI lightning glitch
