@@ -1,2 +1,3 @@
 Referenced by issue #57296, Blender 2.8 crash on startup on Linux
 Referenced by issue #57288, Assert when deleting duplicated collection (id->us == 0)
+Referenced by issue #57246, Crash on creation of a Shape in a New Grease pencil object
