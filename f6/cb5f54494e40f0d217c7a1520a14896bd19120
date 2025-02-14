@@ -71,3 +71,4 @@ Referenced by issue #68668, Weight Tools: Limit Total does not seem to set the r
 Referenced by issue #68638, Cycles fails to render Motion Tracking scene on OpenCL GPU Compute
 Referenced by issue #68527, Bones are not selected when clicked on (except the first one)
 Referenced by issue #68499, weight paint gradient is broken when mirror modifier is enabled
+Referenced by issue #68367, Translated text NOT display
