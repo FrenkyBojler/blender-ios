@@ -1,2 +1,3 @@
 Referenced by issue #93310, Compositor: Crash due to broken image paths
 Referenced by issue #92934, Crash rendering with wrong image path in image node [Compositor, Shader Editor]
+Referenced by issue #92880, Compositor crashing when rendering
