@@ -1,1 +1,2 @@
 Referenced by commit d1810d11f42, Fix T103303: Dbl-click in the Graph Editor wont select all keyframes
+Referenced by issue #100093, Regression: Can't select graph editor channels and grouping them together crashes Blender
