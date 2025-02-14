@@ -92,3 +92,4 @@ Referenced by issue #44525, Long program hang
 Referenced by issue #44512, Cycles fails to bake normal map to a non-manifold mesh
 Referenced by issue #44496, VSE: Pressing Ctrl key just after duplicating a strip causes instant crash
 Referenced by issue #44500, Option to disable looping playback in timeline.
+Referenced by issue #44484, Tris to quad crash blender with non manifold edge in model.
