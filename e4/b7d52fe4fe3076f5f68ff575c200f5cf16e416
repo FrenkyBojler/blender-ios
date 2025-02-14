@@ -1,3 +1,4 @@
 Referenced by issue #95837, Regression: GPU memory accumulation in Cycles render
 Referenced by issue #95733, Cycles Cuda/Optix error message with multi GPU devices. (Invalid graphics context in cuGraphicsUnregisterResource)
 Referenced by issue #95651, GPU error (Invalid graphics context in cuGraphicsUnregisterResource)
+Referenced by issue #95631, VRAM is not being freed when rendering (Invalid graphics context in cuGraphicsUnregisterResource)
