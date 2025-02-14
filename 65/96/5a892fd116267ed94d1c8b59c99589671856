@@ -1,0 +1,1 @@
+Referenced by issue #89367, Running select_linked_pick with a negative index crashes Blender with an access violation
