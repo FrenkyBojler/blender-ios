@@ -14,3 +14,4 @@ Referenced by issue #94038, Text objects count as double in scene statistics
 Referenced by issue #93756, Regression: Hiding all points of a spline in curve edit mode does not hide splines
 Referenced by issue #93644, Beveled curves disappear in hair particle system
 Referenced by issue #93573, Regression: Selection outline of curves in edit mode
+Referenced by issue #93159, Particle don't emit curves/text in 3.0 beta
