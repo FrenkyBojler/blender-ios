@@ -1,2 +1,3 @@
 Referenced by issue #43071, Volume intersection objects
 Referenced by issue #42995, Unit of measure displayed in 3D View doesn't change when zooming in or out
+Referenced by issue #42952, Curve modifier not taken into account when curve is created from mesh
