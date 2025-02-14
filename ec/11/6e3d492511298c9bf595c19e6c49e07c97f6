@@ -2,3 +2,4 @@ Referenced by issue #59340, Python custom Operators fail to Undo properly if exe
 Referenced by issue #59344, Blender 2.8 - Knife cut - pressing Z at a fast speed doesnt register all of the toggles (keymap 2.7x)
 Referenced by issue #58571, Blender 2.79 & 2.8 - Limit Dissolve does not have the right 'Max Angle' when the Delimit mode is Material mode
 Referenced by issue #58572, Restrict Viewport Render keyframes from 2.79b do not correctly import into 2.8
+Referenced by issue #58086, ParticleEditSettings not updating when choosing tool from toolbar
