@@ -1,2 +1,3 @@
 Referenced by commit 6181341bad1, Fix #119091: Incorrect path for WM context RNA property
 Referenced by commit e72dae4949d, Fix crash when calculating the RNA path failed for property buttons
+Referenced by issue #119091, Regression: some operations displayed in the Info Editor log have a syntax error
