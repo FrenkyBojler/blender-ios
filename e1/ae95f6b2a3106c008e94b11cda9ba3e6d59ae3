@@ -1,2 +1,3 @@
 Referenced by issue #97204, Regression: Eevee & Cycles motion blur doesn't work correctly
 Referenced by issue #95527, Regression: Motion blur resulting from rigid body simulation vectors is amplified / wrong / too strong
+Referenced by issue #93520, Wrong motion blur with RBDs (wrong subframe interpolation?)
