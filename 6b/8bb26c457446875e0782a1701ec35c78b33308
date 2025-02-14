@@ -1,3 +1,4 @@
 Referenced by issue #107494, GPU debug mode creates excessive log, causing lack
 Referenced by issue #106440, Regression: EEVEE: World lighting does not affect volumetrics
 Referenced by issue #103313, Regression: Crash on EEVEE when launch with --debug-gpu-force-workarounds
+Referenced by issue #96261, Metal Viewport
