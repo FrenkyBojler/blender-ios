@@ -2,3 +2,4 @@ Referenced by commit cc925b92828, Nodes: Allow adding multiple search items per 
 Referenced by commit 543ea415690, Cleanup: Remove unused node "add and link node" operator
 Referenced by commit 36a830b4d36, Fix: Compare node missing from link drag search
 Referenced by issue #104794, Nodes: Allow adding multiple search items per node type in add menu
+Referenced by issue #96187, Node link drag search in shader editor doesn't filter by render engine compatibility
