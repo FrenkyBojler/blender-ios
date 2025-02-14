@@ -20,3 +20,4 @@ Referenced by issue #50850, Blender crash with cycles rendered viewport shading 
 Referenced by issue #50851, Specific scene multiple case crashes, but mostly on render
 Referenced by issue #50805, "Light path"-"is Singular Ray" node Affects material visibility trough a glass material different way in two Blender versions
 Referenced by issue #50757, Alembic material import bug
+Referenced by issue #50745, Shape key editing on bezier objects broken with Rendered Viewport Shading
