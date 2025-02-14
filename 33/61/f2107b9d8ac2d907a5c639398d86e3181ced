@@ -1,2 +1,3 @@
 Referenced by issue #52001, Artifacts with Principled BSDF in Material view - master
 Referenced by issue #51996, Point Density casts wrong shadows
+Referenced by issue #51997, particle evaluation order is wrong when viewport visibility is off
