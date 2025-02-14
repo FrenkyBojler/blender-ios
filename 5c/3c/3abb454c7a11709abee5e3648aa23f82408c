@@ -2,3 +2,4 @@ Referenced by issue #41770, Can't add plane, circles and other mesh except cube
 Referenced by issue #41395, Set Object As Camera - Monkey Render bug?
 Referenced by issue #41358, Complete crash when using CTRL-Z with graph editor open
 Referenced by issue #41257, New paint system always crashes when used on a multi-material mesh.
+Referenced by issue #41258, crash when entering edit mode while viewport render is enabled
