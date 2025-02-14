@@ -1,1 +1,2 @@
 Referenced by commit 4ec6b16b4eb, cycles/opencl: Fix compile error.
+Referenced by issue #61463, Cycles OpenCL: Split bake functions in their own program.
