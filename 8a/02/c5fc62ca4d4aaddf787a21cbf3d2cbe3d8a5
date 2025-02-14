@@ -2,3 +2,4 @@ Referenced by issue #49252, Microdisplacement; Very recent builds crash when ima
 Referenced by issue #49193, GP and Uv image editor - Sculpt offset
 Referenced by issue #49194, GP and Uv image editor - E shortcut conflict
 Referenced by issue #49195, GP and Uv image editor - no Undo on GP during edit mode
+Referenced by issue #49163, Animated object visibilty 1 frame off when turning on motion blur
