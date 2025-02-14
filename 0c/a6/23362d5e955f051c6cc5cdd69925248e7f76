@@ -1,1 +1,2 @@
 Referenced by issue #61837, assign/create a material while in sculpt mode + multiresolution modfier = blender crash
+Referenced by issue #61122, New Materials doesn't appear collada preview
