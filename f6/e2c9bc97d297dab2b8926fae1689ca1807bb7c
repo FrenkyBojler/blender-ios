@@ -2,3 +2,4 @@ Referenced by issue #121919, Python API: gpu.texture.from_image() fails with ima
 Referenced by issue #96312, Regression: Image Editor Flip option isn't working
 Referenced by issue #96323, Regression: Invert colour is not reflected in the image viewer until a UI change
 Referenced by issue #96324, Regression: Resizing an image is not correctly reflected in the image editor until the UI is updated
+Referenced by issue #96241, 3.1: Potential candidates for corrective releases
