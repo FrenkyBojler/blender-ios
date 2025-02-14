@@ -86,3 +86,4 @@ Referenced by issue #39485, Mesh Analysis
 Referenced by issue #39472, Changing Sequencer color space repeatedly changes movie strip's display gamma
 Referenced by issue #39458, Switching physics type from Character to Dynamic enables ghost flag silently
 Referenced by issue #39460, Mark seams display problem
+Referenced by issue #39465, scrolled down textures properties tab messes up when switching to another tab and back (need to scroll up)
