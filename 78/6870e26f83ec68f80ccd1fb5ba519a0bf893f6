@@ -2,3 +2,4 @@ Referenced by issue #76246, "Paste Objects" doesn't copy source objects' collect
 Referenced by issue #58229, Blender 2.79 & 2.8 - Undo when dealing with separate by loose parts ends up with duplicate objects
 Referenced by issue #58193, Blender 2.8 - Adding new collection from the Objects Menu, does not add the collection to the scene
 Referenced by issue #58195, Blender 2.8 - No way of adding collections that are manually created to the scene collection
+Referenced by issue #58188, Extreme FPS loss (24x) between 2.79 and 2.8 with particle systems
