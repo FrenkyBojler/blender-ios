@@ -1,1 +1,2 @@
 Referenced by commit cd9d4e992d6, macOS: replace BLI_expand_tilde with BLI_dir_home
+Referenced by commit e0f036f8f3a, Fix inconsistency between *BKE_appdir_folder_{home/default} on macOS
