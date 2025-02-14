@@ -1,3 +1,4 @@
 Referenced by issue #41567, Metaball rendering stuck on 1 sample
 Referenced by issue #41536, 2.71 getActionFrame no longer returns frames accurately
 Referenced by issue #41489, Strange behaviour of the solidify modifier when "even thickness" is enabled.
+Referenced by issue #41491, Strange behaviour of the solidify modifier when "even thickness" is enabled.
