@@ -1,2 +1,3 @@
 Referenced by commit 5eab5713c02, Fix T97019: Regression - GPencil Shrinkwrap modifier not longer working
 Referenced by issue #99248, Regression: Single-Vertex Grease Pencil strokes not affected by Push and Grab sculpt tools
+Referenced by issue #97019, Regression: Grease pencil Shrinkwrap modifier no longer working
