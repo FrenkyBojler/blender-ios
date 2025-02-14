@@ -1,1 +1,2 @@
 Referenced by commit 877d9c596ab, VSE: Fix various "off by half a pixel" issues in image transform
+Referenced by issue #116628, VSE: Fix various "off by half a pixel" issues in image transform
