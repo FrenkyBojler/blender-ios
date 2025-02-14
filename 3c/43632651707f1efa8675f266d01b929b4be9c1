@@ -1,0 +1,1 @@
+Referenced by issue #107694, Adding an (empty) split normals layer to a newly created (empty) mesh triggers an assert in debugmode
