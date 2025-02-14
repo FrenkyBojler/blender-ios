@@ -2,3 +2,4 @@ Referenced by commit ebde6e18526, Fix T88251: "Operator Cheat Sheet" Crash
 Referenced by commit 36863cf1294, Fix T87864: Context is None for draw method
 Referenced by commit 8245805ce3d, Fix creating operator properties without an owner_id
 Referenced by commit 0bf630493f6, Fix missing owner_id values from 919558854d624f5db40acfa9f5674ac8c94873b6
+Referenced by issue #89560, Insert key dropdown on keymap doesn't show keying sets anymore
