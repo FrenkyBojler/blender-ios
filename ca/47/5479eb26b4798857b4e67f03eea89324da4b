@@ -1,1 +1,2 @@
 Referenced by commit 3469e06c1a6, Fix memory leak when opening file browser
+Referenced by issue #83751, After renaming, Asset Browser shows old data-block name
