@@ -9,3 +9,4 @@ Referenced by issue #62160, Bone naming issue after using "Flip Names" command.
 Referenced by issue #62140, line segment disappears when using extrude of predefined grease pencil line stroke
 Referenced by issue #62141, zero length or missing line segment with predefined grease pencil line stroke
 Referenced by issue #62142, 2 incorrect line segments with predefined grease pencil line stroke
+Referenced by issue #62125, snapping not working if invisible object is between you and the target
