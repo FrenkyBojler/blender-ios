@@ -1,2 +1,3 @@
 Referenced by issue #55082, Add Paint Slots for texture painting not working.
 Referenced by issue #55071, Toolbar: Brush preview not working
+Referenced by issue #55073, Copy-on-write crash when painting after toggling edit mesh mode
