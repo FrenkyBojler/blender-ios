@@ -1,2 +1,3 @@
 Referenced by issue #115386, Mouse cursor move to center when adjusting vaules on WIN32
 Referenced by issue #113511, Regresion: Can no longer infinite drag if the mouse hits an screen edge
+Referenced by issue #107756, Sometime when using color picker, Cursor will snap to middle of the screen.
