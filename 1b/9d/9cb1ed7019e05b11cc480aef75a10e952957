@@ -1,0 +1,1 @@
+Referenced by issue #82164, Knife tool draws huge vertices (it draws verts with glPointSize is not initialized)
