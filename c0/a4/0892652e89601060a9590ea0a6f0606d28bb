@@ -1,2 +1,3 @@
 Referenced by issue #38379, Mesh Vertices only update when in cone of last created spotlight
 Referenced by issue #38356, Crash when UIList.filter_items returns too few items
+Referenced by issue #38358, Face snapping fails on Orthographic view
