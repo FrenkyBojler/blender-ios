@@ -1,1 +1,2 @@
 Referenced by commit 0bac7682239, Fix missing NULL checks in adb21faa83d69069418d7bb14e0211261072f3a9
+Referenced by issue #70286, Dissolve Vertices/Edges creates duplicate face
