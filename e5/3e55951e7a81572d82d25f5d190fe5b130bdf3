@@ -1,3 +1,4 @@
 Referenced by issue #113263, File loads in Blender 3.6 but crashes Blender 4.0 beta
 Referenced by issue #112887, EXCEPTION_ACCESS_VIOLATION when running Blender for a long time
 Referenced by issue #112689, Copying a render to clipboard from image editor doesn't respect color management
+Referenced by issue #112617, Intel GPUs: Crash on initializing Eevee rendered view
