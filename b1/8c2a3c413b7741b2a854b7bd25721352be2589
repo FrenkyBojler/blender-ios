@@ -1,3 +1,4 @@
 Referenced by issue #87272, Create the shadow catcher in eevee give a black result
 Referenced by issue #86823, Regression: Eevee SSR refraction depth works only for 1st refractive material and inherited by others
 Referenced by issue #82385, EEVEE Alpha Clip shadows actually using Alpha Hashed shadows
+Referenced by issue #78845, Some hair particles are rendered the wrong material in EEVEE
