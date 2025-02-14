@@ -2,3 +2,4 @@ Referenced by issue #97069, Crash deleting a scene after moving object between c
 Referenced by issue #76221, Drag Toggle Not Working | Viewport Local Collection
 Referenced by issue #71368, Can't click-drag visibility when local collections enabled
 Referenced by issue #69859, Crash when switching the 3D View to Rendered with EEVEE.
+Referenced by issue #61327, Per-Viewport Collection Visibility
