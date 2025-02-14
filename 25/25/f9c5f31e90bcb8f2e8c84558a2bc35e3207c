@@ -21,3 +21,4 @@ Referenced by issue #39181, CUDA - cannot render
 Referenced by issue #39168, Rendering with Cycles on GPU don't work.
 Referenced by issue #39169, The auto perspective function isn`t working
 Referenced by issue #39172, CUDA not working
+Referenced by issue #39174, Beveling edges perpendicular to sharp edges
