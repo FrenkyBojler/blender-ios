@@ -18,3 +18,4 @@ Referenced by issue #40776, Loss file editing curves
 Referenced by issue #40778, Game Engine returns NONE when accessing object's .groupMembers attribute
 Referenced by issue #40588, IK solver problem
 Referenced by issue #40565, Boolean Modifier not working properly
+Referenced by issue #40557, Vertex select mode to edge select mode
