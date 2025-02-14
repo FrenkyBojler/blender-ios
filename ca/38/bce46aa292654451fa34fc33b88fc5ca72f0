@@ -2,3 +2,4 @@ Referenced by issue #93332, Unable to set the Start Frame to a negative value
 Referenced by issue #87798, Playback and animations can NOT occur during negative frame ranges.
 Referenced by issue #81534, "Allow negative frames" does not allow entering negative start-/end frame
 Referenced by issue #81380, Playback set start/end operators can set rendering range fields to negative frames
+Referenced by issue #81286, Negative frames not being played in current project
