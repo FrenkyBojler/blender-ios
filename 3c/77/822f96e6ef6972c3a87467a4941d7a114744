@@ -1,1 +1,2 @@
 Referenced by issue #35917, Support parent relationship dynamics after restore
+Referenced by issue #19377, re-estabish dynamic object properties after unparenting doesn't work
