@@ -51,3 +51,4 @@ Referenced by issue #47954, Mesh selection shutdown
 Referenced by issue #47940, bones with custom shapes not selectable in pose mode when using opensource gpu drivers
 Referenced by issue #47942, Sequence Editor: Crash after switching imported png to over drop (blender v 2.77)
 Referenced by issue #47920, cycles video textures do not update in textured viewport with alt + a playback
+Referenced by issue #47921, Blender crashes when trying to select an object
