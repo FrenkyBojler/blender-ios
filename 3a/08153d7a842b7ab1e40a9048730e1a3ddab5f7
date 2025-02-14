@@ -10,3 +10,4 @@ Referenced by issue #70107, Blender crashes using Irradiance Volume with Curve i
 Referenced by issue #70091, volumetric broken, not refresh
 Referenced by issue #70079, Subidvide freezes blender
 Referenced by issue #70053, Viewport Bug report
+Referenced by issue #70011, NVIDIA issue prevents full indirect draw call batching performance
