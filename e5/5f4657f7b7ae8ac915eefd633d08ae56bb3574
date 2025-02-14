@@ -1,1 +1,2 @@
 Referenced by commit 56dba4df3c7, Revert "Fix T89560: Keymap editor no longer shows keying set dropdown"
+Referenced by issue #89560, Insert key dropdown on keymap doesn't show keying sets anymore
