@@ -1,1 +1,2 @@
 Referenced by issue #66515, Loaded OpenEXR file is displayed all black in 2.80. Looks fine in 2.79
+Referenced by issue #61607, OpenEXR file with only R channel fails to read
