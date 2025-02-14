@@ -1,2 +1,3 @@
 Referenced by issue #81861, 2.9x: Crash when editing curves with Cycles (Embree related?)
 Referenced by issue #78900, Single vertex sliding crashes
+Referenced by issue #61777, Proportional editing does not influence all objects in edit mode
