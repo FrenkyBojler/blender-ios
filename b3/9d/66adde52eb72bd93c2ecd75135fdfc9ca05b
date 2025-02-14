@@ -1,1 +1,2 @@
 Referenced by issue #90937, Rendering produces multiple Windows
+Referenced by issue #88909, More than one Render Window instances will be created after hitting F12 multiple times
