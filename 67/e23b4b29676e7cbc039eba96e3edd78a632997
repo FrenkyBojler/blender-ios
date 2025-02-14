@@ -6,3 +6,4 @@ Referenced by issue #117067, Fix #106425: Mantaflow guiding with domains is brok
 Referenced by issue #106425, Regression: Guiding in manta is broken
 Referenced by issue #102257, Regression: Crash when making an Object as Effector set to Guide and trying to scrub the timeline.
 Referenced by issue #101231, Regression: Console flooded with warnings when fluid type is Domain
+Referenced by issue #84369, Fluid: Missing cache invalidation when properties on non-domain objects change.
