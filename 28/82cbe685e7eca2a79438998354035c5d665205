@@ -1,1 +1,2 @@
 Referenced by issue #97507, Crash when adding multiple Adjustment layers and then deleting one of them
+Referenced by issue #97497, NLA strip names are not properly contained within the strip bounds
