@@ -1,2 +1,3 @@
 Referenced by issue #63035, Undoing in pose mode destroys the entire pose.
 Referenced by issue #61064, Interpolation changes using the Active Keyframe panel in the graph editor aren't updating 3D viewport
+Referenced by issue #58721, Keyframing one transform option reset other transforms
