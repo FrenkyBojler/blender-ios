@@ -2,3 +2,4 @@ Referenced by commit 957cb173f21, Fix T101447: Hold split not working correctly
 Referenced by commit 66de653784a, Fix incorrect strip position if pitch was animated
 Referenced by issue #108157, Regression: VSE: Copy-Paste of strips from one scene to another offsets the data
 Referenced by issue #103662, VSE: Adding packed sound via python API produces strip with incorrect length
+Referenced by issue #102663, Regression: Meta strips from older versions are broken
