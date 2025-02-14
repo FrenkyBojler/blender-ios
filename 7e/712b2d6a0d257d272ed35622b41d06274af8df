@@ -16,3 +16,4 @@ Referenced by issue #96278, Viewport/EEVEE: Alpha socket connection/disconnectio
 Referenced by issue #96180, Sky texture with Driver setting for Sun direction is not updated in real time in 3.1
 Referenced by issue #95749, Dot output of Normal node does not update in viewport
 Referenced by issue #95664, Regression: "Material Output" change is not visible in the 3D viewport
+Referenced by issue #95578, No viewport update after connecting nodes with hotkey
