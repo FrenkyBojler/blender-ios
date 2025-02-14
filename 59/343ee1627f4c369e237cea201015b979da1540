@@ -1,2 +1,3 @@
 Referenced by commit 398538b914a, Fix T95987: Data transfer modifier custom normals crash
 Referenced by commit ad3ee84f4e5, Cleanup: Remove unused mesh dirty flags
+Referenced by issue #95987, Data Transfer modifier for Custom Normals always crashes
