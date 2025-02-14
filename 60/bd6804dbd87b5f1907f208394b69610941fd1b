@@ -1,1 +1,2 @@
 Referenced by issue #95249, Texture margin generation Adjacent faces - border lookup fails in some directions around 45 degrees.
+Referenced by issue #95250, Texture border generation. Adjacent faces  uses stale UV map when in edit mode.
