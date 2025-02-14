@@ -1,2 +1,3 @@
 Referenced by commit 920d9a91655, Fix #114758: keep text field empty for global search
 Referenced by issue #114774, Fix #114758: keep text field empty for global search
+Referenced by issue #114758, Recently-searched option appears in global search even when incompatible with current mode/context
