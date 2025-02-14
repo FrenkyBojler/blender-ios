@@ -1,2 +1,3 @@
 Referenced by issue #101995, Regressoin: Bisect: Unstable display when UV editor is open
 Referenced by issue #95165, Regression: Custom Normals tools dont update immediately (when started with Auto Smooth OFF)
+Referenced by issue #93963, Inconsistent displaying object data in a Viewport between scenes
