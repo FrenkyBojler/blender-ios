@@ -23,3 +23,4 @@ Referenced by issue #63853, Unicode paths results in "No such file or directory"
 Referenced by issue #63595, Generated texture coordinates missing when switching from solid to rendered mode
 Referenced by issue #63373, 2.79b won't open some files
 Referenced by issue #63050, Script-generated compositor node groups don't update
+Referenced by issue #62889, Bump Mapping has been broken since Aug 2018
