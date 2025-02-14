@@ -21,3 +21,4 @@ Referenced by issue #52562, Opacity slider of scene strip or image strip not rea
 Referenced by issue #52544, Blender crash. Problem with ShrinkWrap or Subsurf Lvl 2
 Referenced by issue #52547, Cycles Cuda rendering fails for dedicated (non-display) Nvidia GTX1060
 Referenced by issue #52526, Alembic importing broken
+Referenced by issue #52533, Blender Shuts down when rendering duplicated smoke domain.
