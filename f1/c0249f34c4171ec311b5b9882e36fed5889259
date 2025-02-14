@@ -3,3 +3,4 @@ Referenced by commit b53c4fa8daa, Fix T102522: Geometry nodes boolean doesent re
 Referenced by commit 97f4e076c7f, Fix: USD & Alembic importers might not initialize material indices
 Referenced by commit 352d55b1c88, Mesh: Avoid saving redundant generic material index attribute
 Referenced by commit ecf3287533c, Fix T100822: Merging objects does not assign materials correctly
+Referenced by commit 6ee34319147, Fix: Use of deprecated field in legacy MFace conversion
