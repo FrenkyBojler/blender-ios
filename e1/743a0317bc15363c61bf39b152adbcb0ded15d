@@ -9,3 +9,4 @@ Referenced by issue #123974, Immediate crash on file open (related to "corrupt" 
 Referenced by issue #123164, Crash on startup
 Referenced by issue #122836, Freezing double screen under Linux (Pop-os)
 Referenced by issue #122826, EXCEPTION_ACCESS_VIOLATION When baking a simulation.
+Referenced by issue #122702, export usd crash
