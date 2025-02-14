@@ -1,2 +1,3 @@
 Referenced by issue #97799, Regression: Transforming a layer in GreasePencil doesn't transform Onion skin in >3.2
 Referenced by issue #96280, Grease pencil recursive modifiers bug
+Referenced by issue #96233, GPencil: Crash when multi-user grease pencil object has vertex groups
