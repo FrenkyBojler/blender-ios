@@ -6,3 +6,4 @@ Referenced by issue #62283, UV Sphere Crash - 2.8b
 Referenced by issue #62288, Bug when scaling an object in the Sculpt workspace
 Referenced by issue #62272, Scene custom properties crash
 Referenced by issue #62259, RGB Curves behave differently in Cycles  and Eevee
+Referenced by issue #62253, unnecessary cubemap reflections on glass when reflection plane is used
