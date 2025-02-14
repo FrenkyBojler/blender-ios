@@ -13,3 +13,4 @@ Referenced by issue #38856, MARK Seam/Sharp (edge) command in search menu not al
 Referenced by issue #38833, Preview chunks in compositor are not shown if offset in scale node is not zero
 Referenced by issue #38819, Mark/Clear seam misbehaves when executed from spacebar search menu in 3D view
 Referenced by issue #38822, Graphics Card not detected.
+Referenced by issue #38813, Texture node output uses different display space
