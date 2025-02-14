@@ -1,2 +1,3 @@
 Referenced by commit 3b1e2a4f565, Fix T62241: Repeat last translate, wrong direction
 Referenced by issue #84200, Rotating a paintcurve [all paintmodes] doesn’t work correctly
+Referenced by issue #62015, Duplicating object, rotating, pivot point not used
