@@ -2,3 +2,4 @@ Referenced by issue #71719, clicks are persistent across buttons, with hover
 Referenced by issue #70180, Batch Rename dialog gets added backslash (escapes valid characters)
 Referenced by issue #70144, Red 'filename, overwrite existing' when opening a file
 Referenced by issue #69487, Hair particles: cannot delete hair particles in particle edit mode until you comb it
+Referenced by issue #68629, Crash entering Edit Mode related to NULL CD_FACEMAP (fixed in 3.6, only relevant for 3.3. LTS)
