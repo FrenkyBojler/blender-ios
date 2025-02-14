@@ -1,2 +1,3 @@
 Referenced by commit b52b5e15af6, Outliner: Fix selection extend not toggling
 Referenced by issue #74779, Object deleted when deleting a modifier
+Referenced by issue #74332, driver can't be seen in the driver editor(blender2.82)
