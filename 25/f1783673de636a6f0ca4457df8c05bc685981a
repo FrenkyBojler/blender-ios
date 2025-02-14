@@ -1,1 +1,2 @@
 Referenced by commit ecafa4c27c6, Compositor: Fix Missing output UI for Normal node
+Referenced by issue #68702, Normal Node is not working after SOCK_COMPAT flag was added for vector values
