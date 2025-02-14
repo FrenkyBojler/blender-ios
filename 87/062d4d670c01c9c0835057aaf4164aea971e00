@@ -1,2 +1,3 @@
 Referenced by commit 8ef05d3180b, Fix T79636: Inserting special characters with Ctrl+Alt broken on Windows
 Referenced by issue #79702, Windows Lock Screen (Windows+L) writes a single character 'l' in the Text Editor
+Referenced by issue #79636, Text Editor: Issues with ALT key
