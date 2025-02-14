@@ -4,3 +4,4 @@ Referenced by issue #46423, Sequencer - Modifier - Copy to selected Strips effec
 Referenced by issue #46410, Sequencer Masking Bug - Doesn't honor mask animation properly
 Referenced by issue #46389, Shrinkwrap fails when target mesh is in edit mode
 Referenced by issue #46222, Eyedrop tool is inconsistant
+Referenced by issue #46219, Edit Mode : Knife Tool : wont cut some objects
