@@ -3,3 +3,4 @@ Referenced by commit 0b13c9c5a64, Fix #109490: Face and Extrude menu missing
 Referenced by commit 3c70e12cf3c, Partially Revert "Transform: Allow navigation by default"
 Referenced by issue #109660, Revert "Transform: Allow navigation by default"
 Referenced by issue #109504, Regreesion: Mouse wheel stop working for GRS
+Referenced by issue #109490, Regression: Edit mode Face menu seems to be missing
