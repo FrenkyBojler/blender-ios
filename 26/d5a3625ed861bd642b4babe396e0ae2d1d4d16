@@ -25,3 +25,4 @@ Referenced by issue #58254, Crash report
 Referenced by issue #58237, Exporters: Curve Modifier not applied when "apply modifiers" are selected
 Referenced by issue #58240, Random crashes with mathutils.Vector
 Referenced by issue #58242, Show whole scene transparent doesn't work correctly
+Referenced by issue #58232, When rendering it seems that the focal length of the camera is different
