@@ -1,0 +1,1 @@
+Referenced by issue #100300, Regression: Dropping a file in VSE does not create the strip at the cursor position as it did before
