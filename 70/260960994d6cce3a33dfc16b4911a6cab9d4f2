@@ -2,3 +2,4 @@ Referenced by commit 6a03f3a575d, Fix #110210: Hide Value option doesn't work on
 Referenced by commit c9a8b1f13f3, Fix #109231: Python defined socket type switching broken
 Referenced by commit 81815681d0a, Python API: Add function to create links to virtual sockets
 Referenced by commit 15f59470a30, Fix #105314: Custom node groups missing sockets
+Referenced by issue #110225, Fix #110210: Hide Value option doesn't work on color sockets
