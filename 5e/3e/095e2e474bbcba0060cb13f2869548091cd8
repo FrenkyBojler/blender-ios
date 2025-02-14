@@ -1,2 +1,3 @@
 Referenced by issue #41133, Audio: Speakers with animated pitch cause clicks in rendered animations, crashes or huge filesizes in rendered audio
 Referenced by issue #41044, Cycles Bake: world space location affects object space normal pass
+Referenced by issue #41047, Textobjects - flipped letters ä and ü
