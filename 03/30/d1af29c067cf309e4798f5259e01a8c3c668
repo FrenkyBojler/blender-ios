@@ -3,3 +3,4 @@ Referenced by issue #80903, Texturing with anchored type stroke
 Referenced by issue #80863, Can't control image transparency
 Referenced by issue #80784, Eevee bloom functioning differently in viewport render than in preview or render
 Referenced by issue #80774, Mac/Linux Not freed memory blocks showing version from command line
+Referenced by issue #80743, Blender 2.90 crashes on boot
