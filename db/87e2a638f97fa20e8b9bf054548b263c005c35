@@ -1,1 +1,2 @@
 Referenced by commit 16499217918, Fix: Sequencer "Pan" label using incorrect keyword 'heading_ctxt'
+Referenced by commit 31a64002798, Fix error referencing transition context which doesn't exist
