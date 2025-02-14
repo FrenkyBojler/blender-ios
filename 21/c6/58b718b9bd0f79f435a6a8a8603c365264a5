@@ -1,1 +1,2 @@
 Referenced by commit 5e05db3419e, Fix shader error sRGB gizmo drawing workaround
+Referenced by issue #79309, Safe Areas are not visible
