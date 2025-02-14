@@ -1,2 +1,3 @@
 Referenced by commit 65b4ebbbd5c, Fix T60056: Make Duplicates Real with Keep Hierarchy does nothing
 Referenced by issue #60056, Blender 2.8 Make Duplicates Real with Keep Hierarchy do nothing
+Referenced by issue #58481, Blender 2.8 "Make duplicates real" operator settings crashes blender
