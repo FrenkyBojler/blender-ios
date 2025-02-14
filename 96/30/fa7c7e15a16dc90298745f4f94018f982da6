@@ -1,2 +1,3 @@
 Referenced by issue #39215, Shortest Path error
 Referenced by issue #38995, Crash after select a object in scene
+Referenced by issue #38973, GPUShader Compile error messages when using Light Path node as Fac for Mix Shader node
