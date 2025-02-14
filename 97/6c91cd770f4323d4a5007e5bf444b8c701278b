@@ -1,1 +1,2 @@
 Referenced by issue #97449, GPU subdivision: Crash on adding subdivision surface modifier
+Referenced by issue #96756, Crash when rendering a second time after saving the image to disk
