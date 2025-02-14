@@ -1,2 +1,3 @@
 Referenced by issue #103685, Regression: Animation on objects that are disabled from render is ignored while Render Animation
 Referenced by issue #100653, Reported object statistics are very wrong (under reported).
+Referenced by issue #100656, Rigid body/cloth simulation not occurring.
