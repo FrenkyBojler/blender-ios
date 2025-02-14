@@ -2,3 +2,4 @@ Referenced by issue #119004, Settings are not loaded when opening a copy of the 
 Referenced by issue #108356, Regression: Toggle System Console create new process in taskbar
 Referenced by issue #94061, Middle Mouse Button on taskbar icon does not open a new instance
 Referenced by issue #93994, Most recent files doesn't work with Blender 3.0 and Windows 10
+Referenced by issue #93772, Blender icon on Windows 10 taskbar unexpected behavior
