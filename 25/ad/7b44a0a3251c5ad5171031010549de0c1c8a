@@ -1,3 +1,4 @@
 Referenced by issue #46801, Smart UV Project scales in one dimension to pack the UVs in the 0-1 space, instead of uniformly
 Referenced by issue #40363, Cycles: CUDA renderings are approximately 30% slower in 2.71-testbuild1
 Referenced by issue #39977, Hotkey Inconsistancy for cycles nodes
+Referenced by issue #39113, Invalid displacement of emitted objects in viewport
