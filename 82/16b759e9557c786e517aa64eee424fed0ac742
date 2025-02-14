@@ -1,3 +1,4 @@
 Referenced by commit 0b4cf2984f8, Fix: Remove incorrect assert in mesh modifier evaluation
 Referenced by commit b2f5540a021, Fix: Remove incorrect assert in mesh modifier evaluation
 Referenced by issue #87428, Curve to Mesh Node
+Referenced by issue #87245, Geometry Nodes: Curve Support Implementation
