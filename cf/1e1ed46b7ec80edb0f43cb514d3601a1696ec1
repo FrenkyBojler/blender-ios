@@ -3,3 +3,4 @@ Referenced by issue #115694, Can't get OptiX to work in 4.0 Linux
 Referenced by issue #115341, Mixing with a value produces a different result depending on the Blender version
 Referenced by issue #115231, All interface colours are desaturated
 Referenced by issue #114858, Crash in nvcuda64.dll - "Freeing memory after the leak detector has run." Blender 3.6.5 / 4.0.0 - Windows 11 / RTX 4090 laptop
+Referenced by issue #114498, Cycles F82 tint handling
