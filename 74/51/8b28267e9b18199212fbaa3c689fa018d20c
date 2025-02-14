@@ -1,1 +1,2 @@
 Referenced by commit 8da4936590e, Fix for build error in Cycles standalone caused by new DeviceDrawParams
+Referenced by issue #39631, Array Merge option broke mesh
