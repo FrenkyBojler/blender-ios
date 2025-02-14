@@ -2,3 +2,4 @@ Referenced by issue #63165, Freez S.0. Linux and win 10 pro
 Referenced by issue #62651, Dual monitor on separate graphics card driver error
 Referenced by issue #62621, object scale changes tangent node output in Eevee
 Referenced by issue #62563, Hair Dynamics: cannot generate a valid particle cache
+Referenced by issue #62564, Object with "Viewport display" - "Display as" "Box" and "Wireframe" are not displays in render (EEVEE)
