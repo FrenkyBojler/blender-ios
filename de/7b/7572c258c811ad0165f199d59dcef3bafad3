@@ -1,2 +1,3 @@
 Referenced by issue #46154, Text inside buttons vertically misaligned
 Referenced by issue #46161, Rotate around selection changes bezier curve handle type
+Referenced by issue #46086, Smoke cache with negative start frame doesn't read cache properly
