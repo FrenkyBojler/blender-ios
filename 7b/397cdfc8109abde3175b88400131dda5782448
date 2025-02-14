@@ -10,3 +10,4 @@ Referenced by issue #52651, Drop Down Menu's Glitch while Render Preview
 Referenced by issue #52652, Cycles 3/6 textures reversed on cube with generated co-ordinates and box mapping
 Referenced by issue #52653, Render output of linked scenes conflicts with other scenes with the same name
 Referenced by issue #52639, Crash - Using Smooth weight tool
+Referenced by issue #52626, Scene too complex to fit in available memory. (allocating buffer Denoising XtWY failed.)
