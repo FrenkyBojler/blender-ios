@@ -4,3 +4,4 @@ Referenced by commit 2b4afcbb4cd, Fix T91236: AssetBrowser crash with certain co
 Referenced by issue #91311, Unable to open spring production file (020_02A.blend)
 Referenced by issue #91236, Asset Browser: crash when linking/appending an asset made from a collection containing certain types of objects like a camera, a light...
 Referenced by issue #90566, Mesh to Curve node  setup crashes Cycles then Blender (EXCEPTION_ACCESS_VIOLATION)
+Referenced by issue #89657, Support geometry in Point Instance node
