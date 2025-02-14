@@ -6,3 +6,4 @@ Referenced by commit 78a7d5cfccd, UI: Support C defined menu types to listen to 
 Referenced by issue #107427, Fix #107422: Mesh context menus do not open with the last used option
 Referenced by issue #107422, Regression: Mesh edit context menus do not open with the last used option under the cursor
 Referenced by issue #102333, Regression: Context based keyboard shortcuts missing in enum menus
+Referenced by issue #102242, Regression: Underline shortcut keys not working/appearing in sub-menu
