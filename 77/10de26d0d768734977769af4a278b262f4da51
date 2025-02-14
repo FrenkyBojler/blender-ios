@@ -1,1 +1,2 @@
 Referenced by commit 26a827f2544, Workbench: Depth Of Field: Fix regression in look and avoid implicit cast
+Referenced by issue #78653, Blender 2.83 broken Depth of Field in Viewport (Mac OSX)
