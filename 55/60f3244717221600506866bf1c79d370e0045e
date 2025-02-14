@@ -1,1 +1,2 @@
 Referenced by issue #94733, Geometry nodes. Low performance case with instancing
+Referenced by issue #94078, Wrong Bound Box calculated for curves
