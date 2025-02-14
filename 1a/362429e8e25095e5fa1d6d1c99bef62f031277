@@ -1,1 +1,2 @@
 Referenced by issue #134124, Geometry Nodes: mute behavior is different compared to other node editors
+Referenced by issue #134080, Deleting an attribute deletes the vgroup of the same name when there is name collision
