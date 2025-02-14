@@ -4,3 +4,4 @@ Referenced by issue #61911, Onion Skin not showing in 3D View
 Referenced by issue #61900, hide_viewport is not working in viewport if it is set by driver
 Referenced by issue #61878, Selectin objects in 3D-view does not allways work in wireframe mode
 Referenced by issue #61880, massively increased .blend load times
+Referenced by issue #57457, Video texture / Image Sequence not refreshing under eevee
