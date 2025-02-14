@@ -1,1 +1,2 @@
 Referenced by commit 662c0ac970b, Overlay: Fix Line antialiasing broken for some objects
+Referenced by issue #81259, Blender Cache File Writing Fails Due to Special Characters in File Path
