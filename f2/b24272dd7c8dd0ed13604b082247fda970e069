@@ -2,3 +2,4 @@ Referenced by issue #95611, Regression: Capture Attribute in Face Corner mode pr
 Referenced by issue #95606, Crash on clicking in viewport with active GN workspace
 Referenced by issue #95278, 3.1 does not launch
 Referenced by issue #95093, VSE: Variable framerate videos cause proxies to mismatch
+Referenced by issue #93328, Blender VSE preview showing different result than Render
