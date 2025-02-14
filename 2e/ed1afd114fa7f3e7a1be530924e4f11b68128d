@@ -1,1 +1,2 @@
 Referenced by issue #96931, Regression: Crash on load with library overrides + multiple cloth cache slots
+Referenced by issue #92778, Cloth Point Cache Name disappears after Make Library Override
