@@ -30,3 +30,4 @@ Referenced by issue #40741, Object Group Reorder
 Referenced by issue #40730, Branched Path Tracing crashes openGL driver
 Referenced by issue #40723, undo broken in node editor
 Referenced by issue #40695, World surface shader visible when world volume shader is applied
+Referenced by issue #40696, Maya keymap: when you try to rotate a face in the 3d view, it's rotate the wrong axis you have selected.
