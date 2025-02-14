@@ -1,0 +1,1 @@
+Referenced by issue #46906, Syntax error while compilation OpenCL kernels (Cycles Render Engine): used type 'float' where floating point type is not allowed.
