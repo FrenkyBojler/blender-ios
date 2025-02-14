@@ -1,2 +1,3 @@
 Referenced by commit 5f1a31c88ae, GPv3: Change "active" property to "active_layer"
 Referenced by issue #121563, GPv3: Change layer property to "active_layer"
+Referenced by issue #121390, GPv3: Layer Group operations
