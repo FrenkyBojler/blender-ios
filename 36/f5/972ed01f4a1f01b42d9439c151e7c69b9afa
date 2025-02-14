@@ -1,2 +1,3 @@
 Referenced by issue #53683, 2.79a release
 Referenced by issue #52832, Segfault when playing baked particle + explode simulation
+Referenced by issue #52825, Bmesh - Incorrect boolean with vertex in in triangle exactly intersecting a face
