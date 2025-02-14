@@ -1,1 +1,2 @@
 Referenced by commit 6672b5373f1, Fix T103971: uv packing wasn't ignoring uv islands on hidden faces
+Referenced by commit 143e74c0b8e, Fix (unreported) uv unwrap selected was splitting selection
