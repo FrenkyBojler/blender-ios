@@ -1,2 +1,3 @@
 Referenced by commit 2ef5fabec9a, Fix T77900: File Browser in macOS fullscreen crashes
 Referenced by issue #77348, Blender LTS: Maintenance Task 2.83
+Referenced by issue #74101, Closing secondary full screen window destroys main Blender window too
