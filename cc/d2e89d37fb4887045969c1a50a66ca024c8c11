@@ -1,1 +1,2 @@
 Referenced by issue #100980, Geometry nodes tree still uses the animation of the original node tree where it was copied from
+Referenced by issue #98316, Regression: Geometry Node Tree Stop Update Upon Duplication
