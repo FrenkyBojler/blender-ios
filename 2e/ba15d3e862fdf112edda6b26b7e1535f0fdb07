@@ -1,1 +1,2 @@
 Referenced by issue #99132, Vertex Color from Weight Operator: Bug and Crash
+Referenced by issue #98975, Regression: Dirty Vertex Color, Invert, Levels, HSV, Brightness-Contrast ignores destination Color Attribute selection (also crash)
