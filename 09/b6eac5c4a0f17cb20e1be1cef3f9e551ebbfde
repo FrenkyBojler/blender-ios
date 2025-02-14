@@ -1,3 +1,4 @@
 Referenced by commit 4309c32be6e, Mesh: Replace older flip faces utilities
 Referenced by issue #110996, Fix #110471: Normal Edit modifier screws up UVs (backported)
 Referenced by issue #110702, Mesh: Replace older flip faces utilities
+Referenced by issue #109399, Blender LTS: Maintenance Task 3.6
