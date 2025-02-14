@@ -1,2 +1,3 @@
 Referenced by issue #45164, Rendering causes Blender to Crash when Motion Blur is turned on...
 Referenced by issue #45144, Multi-object edit of channel removes a strip from view, causes crash
+Referenced by issue #45148, (de)select all markers no longer working
