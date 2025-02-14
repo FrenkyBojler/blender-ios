@@ -1,1 +1,2 @@
 Referenced by issue #87534, Assert BLI_thread_is_main while rendering via a script
+Referenced by issue #81088, system reload scripts doesn't work for addons stored in an alternative file path as set in preferences/file paths/scripts
