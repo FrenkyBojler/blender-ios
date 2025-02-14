@@ -3,3 +3,4 @@ Referenced by issue #60778, Grease pencil Hook modifier only affects strokes wit
 Referenced by issue #60767, Freestyle rendering in Eevee has a grey outline.
 Referenced by issue #60770, Create options greyed out. Can't adjust settings.
 Referenced by issue #60757, The normal map node does not work by connecting it to the Displacement output node in cycles
+Referenced by issue #60737, Crash when rendering with Workbench engine
