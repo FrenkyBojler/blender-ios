@@ -1,1 +1,2 @@
 Referenced by issue #97543, Regression: Changing the layer and/or pass of an OpenEXR multi-layer image in the image editor does not update the image drawn in the editor
+Referenced by issue #95298, Regression: Multi-view images fail to display properly in the Image Editor
