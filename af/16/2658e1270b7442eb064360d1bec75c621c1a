@@ -1,2 +1,3 @@
 Referenced by commit 35c3644e78d, Fix T93117: Texture paint clone tool crash in certain situation
 Referenced by issue #41206, Render Border - Operator Panel - Only Camera - Broken?
+Referenced by issue #41189, Quad View - Properties Region - Lock rotation bug?
