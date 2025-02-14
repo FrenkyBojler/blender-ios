@@ -91,3 +91,4 @@ Referenced by issue #51159, Brightness/Lightness changes (lowers) for the whole 
 Referenced by issue #51117, Triangulation Modifier breaks split normals
 Referenced by issue #51074, Boolean modifier inverts Difference and Union (sometimes + strange behavior)
 Referenced by issue #51056, exception access violation after browsing for an image texture and connecting it to a node
+Referenced by issue #51011, bpy.ops.action.new() does nothing when invoked from script
