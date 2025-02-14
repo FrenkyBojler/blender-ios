@@ -3,3 +3,4 @@ Referenced by issue #52351, Blender eats all memory when painting texture
 Referenced by issue #52335, VSE: Duplicate Scene Strip Crashes Blender
 Referenced by issue #52337, VSE/Viewport: No Audio
 Referenced by issue #52327, NLA Tweak Strip Actions, disables Only Selected Keyframes
+Referenced by issue #52311, Filmic Looks "None" and "Base contrast" do the same
