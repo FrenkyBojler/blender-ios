@@ -32,3 +32,4 @@ Referenced by issue #46696, Crash when render large (>2GB) voxel data image sequ
 Referenced by issue #46679, Render Image output renders correctly but Render Animation output is incorrect.
 Referenced by issue #46668, CUDA out of Memory / Invalid value in ptr
 Referenced by issue #46670, Volume Emission doesn't render when background is transparent
+Referenced by issue #46654, Blender Game Engine Physics : Convex Hull and Triangle Mesh Collision Bounds error.
