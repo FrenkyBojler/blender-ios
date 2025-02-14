@@ -1,2 +1,3 @@
 Referenced by issue #49887, Middle Mouse button for Rotate 3D view does not work (Mouse: Logitech MX Anywhere 2)
 Referenced by issue #48020, When using keying sets, the toggling "all items" in the array target only goes from the index value down, instead of keying all
+Referenced by issue #47890, Masking vertices in weight paint doesn't work with subsurf
