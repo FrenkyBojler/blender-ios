@@ -1,3 +1,4 @@
 Referenced by commit 3df6e75a268, Fix T98972: EEVEE Bloom Pass Outputs Final Image Instead of Bloom.
 Referenced by issue #98972, Regression: 3.2 EEVEE Bloom Pass Outputs Final Image Instead of Bloom Only
 Referenced by issue #96920, Regression: Hair strands are drawn in wrong place.
+Referenced by issue #96921, Regression: Hair strands that use vertex colours result in graphical glitches
