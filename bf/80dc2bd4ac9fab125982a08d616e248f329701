@@ -1,2 +1,3 @@
 Referenced by issue #97743, OBJ/MTL import: opaque blend mode when d<1
 Referenced by issue #97642, OBJ/MTL export: problems with map_d imfchan, d
+Referenced by issue #97644, Regression: OBJ/MTL import: new 3.2 importer does not set EEVEE blend mode for illum values
