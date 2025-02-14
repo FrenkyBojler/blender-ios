@@ -1,1 +1,2 @@
 Referenced by commit 3b66f40d40e, Fix T85124: Undo assert changing property in redo panel.
+Referenced by issue #86609, Red brush width circle around cursor disappears after undo in Grease Pencil Sculpt Mode
