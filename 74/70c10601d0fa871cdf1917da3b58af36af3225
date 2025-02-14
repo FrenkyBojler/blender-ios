@@ -1,2 +1,3 @@
 Referenced by commit e497c1b93ca, Fix T85865: Crash when selecting Image texture node
 Referenced by commit f3b50380f04, Fix T83916: Cannot drag link from socket if node is inside frame
+Referenced by issue #85865, Crash when selecting Image texture node
