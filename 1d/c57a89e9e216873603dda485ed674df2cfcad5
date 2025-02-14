@@ -1,1 +1,2 @@
 Referenced by commit 99506b3d733, Fix: Crash in weighted normal modifier
+Referenced by issue #105707, Bug: All metaball and some surface type objects cause crash when added
