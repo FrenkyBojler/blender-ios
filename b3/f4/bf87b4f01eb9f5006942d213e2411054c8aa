@@ -1,1 +1,2 @@
 Referenced by issue #45975, Solidify Modifier does not work definitely.
+Referenced by issue #45976, Shape key data in bmesh is wrong; access causes Windows-specific crashes
