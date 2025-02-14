@@ -1,2 +1,3 @@
 Referenced by commit d5d8246441a, Fix #106095: FCurves not drawn when Extrapolation is disabled
 Referenced by issue #106095, Regression: Disabling "Show Extrapolation" stops curve drawing in Graph Editor
+Referenced by issue #106100, Fix #106095: FCurves not drawn when Extrapolation is disabled
