@@ -1,1 +1,2 @@
 Referenced by commit a6f74453b67, Fix unreported: inaccuracy of interpolation of custom color layers due to float truncation
+Referenced by issue #51038, Decimate causes errors with vertex colour data
