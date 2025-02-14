@@ -1,2 +1,3 @@
 Referenced by commit ce81bdc2840, Fix #115775: Curve object to mesh conversion crash
 Referenced by commit d46d1bbe6a6, Fix #114948: Parenting crash blender since ObjectRuntime refactor
+Referenced by issue #114948, Parenting crash blender since ObjectRuntime refactor
