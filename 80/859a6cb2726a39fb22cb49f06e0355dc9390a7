@@ -34,3 +34,4 @@ Referenced by issue #97983, Regression: Tangent Normal of Curves info behaves di
 Referenced by issue #97916, Regression: Blending materials ( color attributes ) glitchy
 Referenced by issue #97881, Regression: Specular highlights are missing in Glossy BSDF(Eevee).
 Referenced by issue #97796, Regression: alpha clipped materials render fuzzy (exactly like alpha hashed materials)
+Referenced by issue #97779, Regression: World volume noise stopped working
