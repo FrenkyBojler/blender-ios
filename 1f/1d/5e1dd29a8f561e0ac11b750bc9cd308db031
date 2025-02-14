@@ -1,1 +1,2 @@
 Referenced by issue #65049, rotate/pan the viewport makes blender crash (in very specific case)
+Referenced by issue #55242, Selecting infinitely thin objects that are perpendicular to the view is not possible (without wireframe)
