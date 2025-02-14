@@ -13,3 +13,4 @@ Referenced by issue #43046, Bool modifier must get re-applied when opening a fil
 Referenced by issue #43048, Crashes when trying to start game engine
 Referenced by issue #43032, Text editor arbitrarily adds/deletes characters and entire lines when a script is executed
 Referenced by issue #43033, VideoTexture module repeated loading of images causes memory leak
+Referenced by issue #43004, Spot light scale and rendering problem
