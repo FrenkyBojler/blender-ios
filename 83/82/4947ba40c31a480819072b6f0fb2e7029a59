@@ -1,0 +1,1 @@
+Referenced by issue #47870, Viewport rendering isn't updating with changing of values of a material node group. but working if you change inside node group!
