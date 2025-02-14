@@ -1,2 +1,3 @@
 Referenced by commit 26d5c24f0aa, Fix T80258: UILayout.prop_search() issues with datablock names
 Referenced by issue #80258, Crash on choosing Lattice in panel property
+Referenced by issue #80203, Crash when changing torus properties
