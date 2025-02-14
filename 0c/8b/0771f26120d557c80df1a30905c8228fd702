@@ -1,1 +1,2 @@
 Referenced by issue #58045, When changing particle type from Emitter to Hair and then back to Emitter, effect is missing
+Referenced by issue #58046, Crash when changing Particle type, when Hair has dynamics
