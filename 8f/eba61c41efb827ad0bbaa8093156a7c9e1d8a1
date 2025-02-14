@@ -1,0 +1,1 @@
+Referenced by issue #114264, Operator bpy.ops.object.simulation_nodes_cache_bake crashes (backport request, fine in main)
