@@ -1,1 +1,2 @@
 Referenced by commit c80e9866c86, Revert "Fix wrong job type used in cycles bake operator, could cause crashes."
+Referenced by issue #40077, crash trying to bake to active TS n-maps
