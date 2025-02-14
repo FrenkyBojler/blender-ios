@@ -1,2 +1,3 @@
 Referenced by issue #79684, Texture Paint: Very slow brushstroke in Blender 2.91 compared with older Blender version
 Referenced by issue #79370, Texture paint does not update during stroke on material and render viewport shading
+Referenced by issue #78915, Fading and disapearing brush stroke in viewport while painting in 'preview material' mode
