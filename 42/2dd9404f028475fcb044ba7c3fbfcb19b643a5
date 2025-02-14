@@ -1,3 +1,4 @@
 Referenced by commit df00c30fcd1, Fix #126201: Video artifacts when rendering into ffmpeg with PNG codec
 Referenced by issue #127956, VSE proxies build slower than it could be
 Referenced by issue #126317, Fix #126201: Video artifacts when rendering into ffmpeg with PNG codec
+Referenced by issue #126201, Frames are layered on top of each other separated by a scanline when exporting video with PNG video codec
