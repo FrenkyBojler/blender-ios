@@ -1,2 +1,3 @@
 Referenced by issue #108126, Texture paint crash (fixed already, backport request).
 Referenced by issue #105219, Crashes when texture painting
+Referenced by issue #103544, Texture Painting after boolean crash blender
