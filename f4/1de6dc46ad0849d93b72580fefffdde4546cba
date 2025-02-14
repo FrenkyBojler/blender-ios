@@ -1,0 +1,1 @@
+Referenced by issue #84404, In edit mode, when one vertice is selected, then by typing "CTRL+A",  this causes the program Blender to totally disappear.
