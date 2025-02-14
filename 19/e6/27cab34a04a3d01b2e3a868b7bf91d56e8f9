@@ -89,3 +89,4 @@ Referenced by issue #39460, Mark seams display problem
 Referenced by issue #39465, scrolled down textures properties tab messes up when switching to another tab and back (need to scroll up)
 Referenced by issue #39448, Background Image as a Video is missing options from previous versions like frame offset...
 Referenced by issue #39453, Bug in "Explode" effect
+Referenced by issue #39454, Cuda error on Branched Path Tracing mode.
