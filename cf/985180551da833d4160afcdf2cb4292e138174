@@ -2,3 +2,4 @@ Referenced by commit 444a42e71c7, Fix: Duplicate "Tool" geometry nodes menu with
 Referenced by commit 78a7d5cfccd, UI: Support C defined menu types to listen to notifiers
 Referenced by commit 99e5024e97f, UI: Support refreshing menu popups
 Referenced by issue #106621, Regression: Accessing a GN submenu via Quick Favorites causes crash in
+Referenced by issue #102311, Regression: Crash when opening a file from a directory that is part of the asset library
