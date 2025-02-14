@@ -1,2 +1,3 @@
 Referenced by commit 2e0a33745db, Revert editbone roll correction changes.
 Referenced by issue #38843, Bone parallel to world z axis flicking when scale in edit mode.
+Referenced by issue #38407, Bone roll calculation flips local axes at wrong rotation angle
