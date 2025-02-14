@@ -1,1 +1,2 @@
 Referenced by issue #64429, ColorRamp broken with non-standard display scales on Windows 10
+Referenced by issue #64363, Texture node in EEVEE makes shader pink in lookDev and render view mode
