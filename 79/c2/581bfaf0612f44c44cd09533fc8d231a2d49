@@ -1,0 +1,1 @@
+Referenced by issue #78238, It is possible for a file to have viewport denoising enabled with no engine selected, which rapidly consumes all memory
