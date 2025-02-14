@@ -1,1 +1,2 @@
 Referenced by commit 69e191604b5, Fix T85541: crash when replacing an existing node link
+Referenced by issue #85541, Geometry Nodes - Connecting Geometry output to Geometry input causes Blender to crash
