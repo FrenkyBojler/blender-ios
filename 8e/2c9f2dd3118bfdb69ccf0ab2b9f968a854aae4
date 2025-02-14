@@ -1,1 +1,2 @@
 Referenced by commit 367b484841a, Fix T94166: set handle position node crashed after refactor
+Referenced by issue #94166, Geometry Nodes: set handle position node crashed in lastest 3.1 alpha version
