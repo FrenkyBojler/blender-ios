@@ -1,1 +1,2 @@
 Referenced by commit 99b1f9f4f46, Revert "Eevee: Fix generated coordinates when no texture coordinates connected"
+Referenced by issue #52528, Eevee nodes (e.g., Checker Texture) has different coordinates than Cycles when no UV
