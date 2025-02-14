@@ -1,0 +1,1 @@
+Referenced by issue #93949, save_as_mainfile will crash if context has no screen
