@@ -1,2 +1,3 @@
 Referenced by issue #61334, Crash when loading .blend file saved after using Grease Pencil ellipse tool
 Referenced by issue #61022, sRGB default view transform settings use filmic for color picker
+Referenced by issue #60837, Color tone of 3d viewport not consistent with 2.79
