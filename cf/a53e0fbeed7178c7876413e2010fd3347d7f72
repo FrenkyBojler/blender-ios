@@ -18,3 +18,4 @@ Referenced by issue #97018, Meshes vertex normals changed via Python API are not
 Referenced by issue #96999, Mesh.calc_normals() after Mesh.transform() does not recalculate normals
 Referenced by issue #96894, Regression: Exported sculpt details are missing till you press clear custom split normals (e.g. after FBX export/import roundtrip)
 Referenced by issue #96305, Applying Wireframe modifier does not apply correctly
+Referenced by issue #96294, Regression: Crash when executing bpy.types.ShapeKey.normals_vertex_get
