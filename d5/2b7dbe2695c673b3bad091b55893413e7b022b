@@ -1,0 +1,1 @@
+Referenced by issue #89261, addons cause an EXCEPTION_ACCESS_VIOLATION possibly from mesh edit optimizations.
