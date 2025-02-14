@@ -1,2 +1,3 @@
 Referenced by issue #115915, Very strange constraint jiggling not present in blender 3.6.3
 Referenced by issue #114096, Asset Browser thumbnail has a weird shadow when created at world origin
+Referenced by issue #112409, Regression: Cavity shading disappears when Xray is enabled
