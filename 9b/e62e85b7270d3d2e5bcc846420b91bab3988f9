@@ -8,3 +8,4 @@ Referenced by issue #120013, Pose Library - asset shelf sub-catalogs gone after 
 Referenced by issue #119997, Regression: Baked Normal Map From Multiresolution Produces Strange Result on edges with crease
 Referenced by issue #119907, Active curve vertex/spline not visualizing properly
 Referenced by issue #119851, "Out of memory" Error when rendering in cycles
+Referenced by issue #119635, File Browser: Date and Size info overlapping in 'Horizontal List' Display Mode
