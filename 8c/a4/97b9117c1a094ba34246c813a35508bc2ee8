@@ -1,0 +1,1 @@
+Referenced by issue #51780, If an object is in two collections and I do a full copy of scene things go bad
