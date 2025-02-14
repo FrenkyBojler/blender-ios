@@ -27,3 +27,4 @@ Referenced by issue #117052, When inserting a new keyframe on a bone (and two ar
 Referenced by issue #116847, Force closed/crash when render with freestyle enabled
 Referenced by issue #116754, Blender doesn't starts after update
 Referenced by issue #116756, Side-by-Side stereo: UI text unreadable, 3D viewport proportions incorrect
+Referenced by issue #116537, Blender crashes on startup  Error:terminated by signal SIGSEGV (Address boundary error)
