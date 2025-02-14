@@ -7,3 +7,4 @@ Referenced by issue #40874, Blender 2.71 crashes when editing  armature.
 Referenced by issue #40755, Armature editing 2.71
 Referenced by issue #40749, Crashes on Toggle Fullscreen
 Referenced by issue #40731, Armature crashing in Ubuntu, Blender 2.71+2.71~git201406121839.169c95b
+Referenced by issue #40708, Blender crashes when manipulating Human(Meta-rig) in edit mode.
