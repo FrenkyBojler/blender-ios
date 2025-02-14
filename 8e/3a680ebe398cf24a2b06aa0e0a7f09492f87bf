@@ -1,3 +1,4 @@
 Referenced by issue #59008, Black screen on View Animation window
 Referenced by issue #57338, Saving a file with the viewport in Rendered shading mode ( in Eevee or Cycles ) and reloading shows the viewport in Solid mode
 Referenced by issue #57317, Crash when in edit mode and a 'subdivision surface' modifier is above an 'edge split' modifier
+Referenced by issue #57320, Crash when adding a linked scene, then deleting it
