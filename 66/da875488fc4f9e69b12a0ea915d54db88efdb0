@@ -1,2 +1,3 @@
 Referenced by commit 29186025869, Fix #119980: BMesh copy functions can clear selection
 Referenced by commit f38c4e0a39a, Fix #119980: BMesh copying functions can clear selection
+Referenced by issue #119980, `bmesh.ops.bisect_plane()['geom_cut']` doesn't seem to include all the new edges
