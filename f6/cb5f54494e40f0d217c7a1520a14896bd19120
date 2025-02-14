@@ -5,3 +5,4 @@ Referenced by issue #71687, blender 2.80 and 2.81 crashes when i tried to copy a
 Referenced by issue #71669, Mesh gets transparency in a specific vertex group after trying to render in EEVEE
 Referenced by issue #71657, Subdiv of certain model causes huge memory consumption and crash (regression bug)
 Referenced by issue #71660, Blender 2.80 (sub 75) crashes on Ubuntu when loading Spring 01_015_A file
+Referenced by issue #71602, Library Override: Overriding material causes BKE_id_is_in_global_main assert on file load
