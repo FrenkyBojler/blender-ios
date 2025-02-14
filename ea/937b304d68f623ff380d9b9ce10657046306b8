@@ -1,1 +1,2 @@
 Referenced by commit fea1d1d71fe, Fix: Unintentional move from constant in retrieve_attributes_for_transfer
+Referenced by issue #121063, Fix: Unintentional move from constant in retrieve_attributes_for_transfer
