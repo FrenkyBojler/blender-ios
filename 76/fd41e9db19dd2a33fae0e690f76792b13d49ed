@@ -1,2 +1,3 @@
 Referenced by commit 133966423aa, Revert "Depsgraph: Remove redundant copy-on-write operations"
 Referenced by commit 61d1fd7e2f8, Fix T85142: BMW scene quits Blender
+Referenced by issue #84717, Shading changes in the viewport shading popup menu require movement in the 3D viewport to take affect.
