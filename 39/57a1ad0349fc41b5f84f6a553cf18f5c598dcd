@@ -1,3 +1,4 @@
 Referenced by commit fde8e6ce650, Fix #109406: Ignore unsupported socket in shader
 Referenced by issue #109406, Regression: Crash in GPU_material_from_nodetree
 Referenced by issue #109410, Fix #109406: Ignore unsupported socket in shader
+Referenced by issue #109411, Cleanup: Update ntree_shader_disconnect_inactive_mix_branches for Rotation socket
