@@ -1,2 +1,3 @@
 Referenced by commit 9de3ed5c823, Fix T97490: snap to multiple objects with linked data can crash
 Referenced by commit 2e99295d5e1, Fix T96812: Regression: Snapping is broken with proportional editing
+Referenced by issue #97490, Regression: edge snap on multiple objects causes Blender to crash
