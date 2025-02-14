@@ -1,2 +1,3 @@
 Referenced by issue #120512, Metal: Potential fix #120038 - reverting bisected commit
 Referenced by issue #120048, EEVEE-Next: Async read back statistic and result buffers
+Referenced by issue #120050, Metal: Wait for finish when buffers are updated
