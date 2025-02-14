@@ -1,1 +1,2 @@
 Referenced by commit a976fe42ef7, Revert "Transform Snap: Clear 'SnapObjectData' after changes in the geometry"
+Referenced by issue #74531, File Browser not show image preview when set Display As `thumbnail` untill file browser window is resized
