@@ -17,3 +17,4 @@ Referenced by issue #81827, MacOS lines that should be thick are green instead
 Referenced by issue #81810, Crash entering edit mode when object and hair object have a rigidbody
 Referenced by issue #81520, Crash when choosing cycles device with python
 Referenced by issue #81432, crashing while texture painting and going back to layout mode
+Referenced by issue #81423, adding outflow object removes smoke from viewport
