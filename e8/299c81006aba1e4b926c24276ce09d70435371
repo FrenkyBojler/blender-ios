@@ -78,3 +78,4 @@ Referenced by issue #50216, Using Weight trasfer from an object without faces cr
 Referenced by issue #50210, Blender 2.78A crashes opening files created in previous versions
 Referenced by issue #50183, This smoke duplicated domain makes Blender crash
 Referenced by issue #50184, Grease Pencil Layer synchronization between Dope Sheet and Properties panel
+Referenced by issue #50161, Crash when loading huge OpenEXR files
