@@ -11,3 +11,4 @@ Referenced by issue #110676, Blender execution fails
 Referenced by issue #110608, Solidify in complex mode doesn't work properly in 4.0
 Referenced by issue #110485, Regression: Connecting this socket crashes Blender
 Referenced by issue #110257, Crash so often when modeling
+Referenced by issue #109780, Overlays not displayed for UV seams, freestyle edges and sharp edges
