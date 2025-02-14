@@ -1,1 +1,2 @@
 Referenced by issue #107865, Fix #107860: NULL check override_library->runtime
+Referenced by issue #107860, Interactions with timeline after undo makes Blender crash
