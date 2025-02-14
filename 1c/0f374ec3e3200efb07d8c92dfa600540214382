@@ -2,3 +2,4 @@ Referenced by commit 11db0b9dadf, Fix #118524: Loopcut crashes when not near an 
 Referenced by commit 92428db3bbe, Fix crash using the depth eye-dropper
 Referenced by issue #130890, Snap Selection To 3D Cursor doesnt work with multiple objects and Active Element Pivot Transform mode
 Referenced by issue #130289, bpy.data.libraries.load doesn't load matrix_world (worked in 3.6.5 and older)
+Referenced by issue #129282, Object move/rotate/scale does not register for operator redo panel
