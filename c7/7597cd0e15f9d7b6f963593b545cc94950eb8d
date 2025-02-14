@@ -11,3 +11,4 @@ Referenced by issue #96718, Regression: Photo "blowout" when rendering and denoi
 Referenced by issue #96693, Wireframe Modifier Can't Be Correctly Applied
 Referenced by issue #96616, Crash on Reload of Linked file
 Referenced by issue #96523, Image sequence as texture for particles density
+Referenced by issue #96473, Auto keying not keying for child bones and not transformed
