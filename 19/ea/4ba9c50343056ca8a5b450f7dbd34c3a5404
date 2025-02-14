@@ -1,0 +1,1 @@
+Referenced by issue #76399, mathutils.Vector.dot and mathutils.Vector.cross: wrong return type in PyDoc_STRVAR
