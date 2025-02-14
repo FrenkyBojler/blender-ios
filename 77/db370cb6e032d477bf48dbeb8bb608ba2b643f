@@ -1,1 +1,2 @@
 Referenced by issue #97213, Regression: Crash when creating a BMesh with "use_shape_key" on
+Referenced by issue #97025, bmesh.from_object() - SystemError: More keyword list entries (5) than format specifiers (4)
