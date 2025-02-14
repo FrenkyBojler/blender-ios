@@ -1,1 +1,2 @@
 Referenced by issue #48416, Impossible to copy a linked object from a file to another one mantaining the linked library
+Referenced by issue #48421, AO pass broken, only works when AO in cycles is enabled.
