@@ -24,3 +24,4 @@ Referenced by commit b67e5492c35, Outliner: Port texture elements to new tree-el
 Referenced by commit c5ddf63a4ae, Outliner: Port metaball elements to new tree-element code design
 Referenced by commit 8374208a570, Outliner: Port curve elements to new tree-element code design
 Referenced by commit f63c3075cb3, Outliner: Port mesh elements to new tree-element code design
+Referenced by commit da1b6c4c02d, Outliner: Port sequencer elements to new tree-element design
