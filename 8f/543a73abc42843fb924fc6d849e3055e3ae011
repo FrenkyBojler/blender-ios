@@ -3,3 +3,4 @@ Referenced by commit 58c54b58592, Fix #106396: UV stitch crash with hidden faces
 Referenced by issue #108130, Fix #108117: Crash in uv editor with hidden geometry
 Referenced by issue #106493, Fix #106396: UV stitch crash with hidden faces
 Referenced by issue #106396, UV editing Stitch crashes Blender with UV sync selection turned on (and hidden faces present))
+Referenced by issue #100076, OBJ import: new importer doesn't use //relative/image/paths
