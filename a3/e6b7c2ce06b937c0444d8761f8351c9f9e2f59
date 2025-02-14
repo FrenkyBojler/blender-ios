@@ -3,3 +3,4 @@ Referenced by issue #78510, Boolean and Parenting Inconsistencies
 Referenced by issue #78483, EEVEE animation render crashes periodically
 Referenced by issue #78486, Blender crashes on keymap->poll
 Referenced by issue #78384, Mantaflow - liquid sim - strange behaviour
+Referenced by issue #77738, Sculpt persistent mesh state management
