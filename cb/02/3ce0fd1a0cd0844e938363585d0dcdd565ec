@@ -1,2 +1,3 @@
 Referenced by issue #40317, Pressing V key in user preferences is recognized as Ctrl+V
 Referenced by issue #40059, Switching open windows ignores held modifiers on WIN32
+Referenced by issue #34255, Can't Scroll in User Preferences when opening with Shortcut
