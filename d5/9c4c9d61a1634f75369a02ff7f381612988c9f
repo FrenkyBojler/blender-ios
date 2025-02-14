@@ -1,2 +1,3 @@
 Referenced by issue #58819, Blender crashes when try to select different object from weight paint mode
 Referenced by issue #58821, mesh is not updated when select different object in sculpt mode
+Referenced by issue #58814, BMesh boolean is just too much unreliable
