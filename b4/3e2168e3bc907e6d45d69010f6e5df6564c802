@@ -1,2 +1,3 @@
 Referenced by commit 2f04f2184ce, Nodes: remove unused NOD_static_types.h file
 Referenced by commit 2afd946ba68, Refactor: Nodes: Move UI name out of NOD_static_types.h header
+Referenced by commit c01b7ff9ad8, Fix: Mistaken node legacy enum change in recent refactor
