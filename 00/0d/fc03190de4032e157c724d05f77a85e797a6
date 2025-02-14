@@ -83,3 +83,4 @@ Referenced by issue #44575, Crash on rendering
 Referenced by issue #44566, Skin Modifier - hard crash.
 Referenced by issue #44568, Abnormal behavior after unwrapping correctly of the uvs
 Referenced by issue #44547, Python driver can't change UV offset.
+Referenced by issue #44549, Crash when choose action after hide objects
