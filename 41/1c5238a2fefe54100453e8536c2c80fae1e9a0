@@ -1,1 +1,2 @@
 Referenced by commit d9e2adaaf98, Fix T80728: UV edge select splits UV's for lasso/box/circle select
+Referenced by issue #76351, UV editor tools not selecting edges when click drag.
