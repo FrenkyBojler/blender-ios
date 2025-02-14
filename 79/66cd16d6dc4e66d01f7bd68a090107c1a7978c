@@ -3,3 +3,4 @@ Referenced by commit 087fd3bdc51, Fix compilation error with USE_WELD_DEBUG
 Referenced by commit 34791dc37b5, Fix #108108: Remesh modifier crash with empty result
 Referenced by commit 15683d81bee, Fix: Mesh validate missing mesh polygon removal tags
 Referenced by commit 4170545dc52, Fix #106828: Extrude individual mode crash on mesh with no faces
+Referenced by commit 1a6cfa1ae16, Fix: Incorrect mesh data used in mesh remap code
