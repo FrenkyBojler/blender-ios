@@ -1,0 +1,1 @@
+Referenced by commit dde810c268f, Revert "Fix: T46526, Do not try to install sqlite3.dll anymore as we link it statically into pythons _sqlite"
