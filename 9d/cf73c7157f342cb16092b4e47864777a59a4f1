@@ -1,1 +1,2 @@
 Referenced by commit e581dde40fa, Transform: remove restricted assert
+Referenced by issue #114854, Anim: Restrict range of fcurve_to_keylist
