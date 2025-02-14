@@ -29,3 +29,4 @@ Referenced by issue #46110, Cycles: rays miss triangles
 Referenced by issue #46097, Can't save bckgrnd imgs
 Referenced by issue #46077, When I hit CTR+C in Dope Sheet, then Blender quit.
 Referenced by issue #46075, Problem with textures in combination with using min and max on the mapping node
+Referenced by issue #46053, osl in Cycles Branched Path Tracing bug
