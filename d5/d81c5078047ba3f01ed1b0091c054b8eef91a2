@@ -1,2 +1,3 @@
 Referenced by commit cffaa681c53, Fix #130944: VSE box select not working with industry compatible keymap
 Referenced by issue #131033, Fix #130944: VSE box select not working with industry compatible keymap
+Referenced by issue #130944, Regression: IC keymap: Click drag not invoking sequencer select box tool
