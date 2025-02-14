@@ -1,2 +1,3 @@
 Referenced by issue #131461, Blender crashing when moving to frame 1 with animated rigid body and collision
 Referenced by issue #115192, Inconsistancy renaming datablock behaviour
+Referenced by issue #115065, Regression: Clicking Brush Blending Mode in Vertex Paint crashes
