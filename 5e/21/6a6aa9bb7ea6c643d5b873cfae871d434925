@@ -2,3 +2,4 @@ Referenced by issue #41033, Blender crashs with trying to render a cycles scene
 Referenced by issue #41005, Seemingly random crashes with cycles rendering
 Referenced by issue #41013, OSL and Crash
 Referenced by issue #40989, Intermittent crash clicking material color selector
+Referenced by issue #40971, Environment maps cause a hard crash with OSL enabled
