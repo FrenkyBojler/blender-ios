@@ -6,3 +6,4 @@ Referenced by issue #44081, Incorrect mesh deformation behavior when using defor
 Referenced by issue #44088, Hair random rotation limited to 180 degrees
 Referenced by issue #44063, Unchecking Load UI setting crashes Blender when opening a file
 Referenced by issue #44054, Objects duplicated by Duplifaces refuse to render
+Referenced by issue #44056, High Quality DOF Glitches when GFX Card does not Support it- ATI Cards
