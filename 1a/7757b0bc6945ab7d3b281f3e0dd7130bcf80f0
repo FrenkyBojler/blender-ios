@@ -1,1 +1,2 @@
 Referenced by commit e6cd4761e7c, Fix T93321: Modified Mirror modifier behavior break some other tools like bound SurfaceDeform.
+Referenced by issue #95541, Regression: Broken vertex weight with mirror modifier
