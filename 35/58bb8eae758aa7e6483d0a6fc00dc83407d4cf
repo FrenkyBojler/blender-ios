@@ -2,3 +2,4 @@ Referenced by commit 6aa29549e88, Fix T103887: Line Art Vertex Weight Transfer t
 Referenced by issue #105640, Vertex Weight Proximity not working for Grease Pencil Thickness Modifier
 Referenced by issue #103887, Regression: Line Art - Vertex Weight Transfer to a target group doesn't work
 Referenced by issue #89477, Crash and/or stall with some geometry
+Referenced by issue #87739, Line Art further improvement list
