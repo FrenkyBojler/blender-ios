@@ -1,1 +1,2 @@
 Referenced by issue #108667, Compositor workspace:  Mouse jumps back to the original position when stereoscopy is enabled
+Referenced by issue #50876, Cycles Crash - Cycles crashes before sampling when certain meshes have autosmooth enabled.
