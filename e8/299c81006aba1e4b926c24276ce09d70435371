@@ -38,3 +38,4 @@ Referenced by issue #50567, Blender 2.78a crashes when using environment texture
 Referenced by issue #50550, GPUShader: compile error - Background image not showing in viewport
 Referenced by issue #50541, UV Image Paint Bugs: Smear Tool Black Alpha and Radius Global Hotkey Broken
 Referenced by issue #50543, Entering a 0 infront any number gives an error
+Referenced by issue #50527, Blender crashed right after add texture node in compositor
