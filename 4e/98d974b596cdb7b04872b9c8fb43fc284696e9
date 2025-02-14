@@ -1,1 +1,2 @@
 Referenced by commit 3471b0016cd, Fix T94215: compositer denoise node UI wrongly shows as disabled
+Referenced by issue #94215, Denoise node reports error: "Disabled, built without OpenImageDenoise" even when build with OpenImageDenoise
