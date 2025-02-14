@@ -3,3 +3,4 @@ Referenced by commit 29dbe007198, Fix T81484: Weight/Vertex paint with mirror an
 Referenced by commit 965bd4c8c37, Fix T66742: Frame selected last weightpaint/vertexpaint stroke not
 Referenced by commit 88a08ef8ad4, Fix weight paint Blur, Smear and Average breakage in multi-paint mode.
 Referenced by issue #55217, Sculpt Rotate Brush Bug
+Referenced by issue #53551, Weight paint crash when subsurf modifier is not first (master not 2.79)
