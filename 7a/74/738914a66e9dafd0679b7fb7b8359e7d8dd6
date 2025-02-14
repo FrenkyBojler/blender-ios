@@ -1,1 +1,2 @@
 Referenced by commit b47137ae46c, Fix T47644: crash (use-after-free) regression from rB7a74738914a66e.
+Referenced by issue #47644, Array modifier crash
