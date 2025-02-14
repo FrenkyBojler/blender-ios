@@ -1,2 +1,3 @@
 Referenced by commit 6a86dd5f340, LibOverride: Add ID pointer to operations over ID pointers.
 Referenced by issue #111907, Crash loading file with library overrides and object-linked materials
+Referenced by issue #110773, LibOverride: Add ID pointer to operations over ID pointers.
