@@ -1,2 +1,3 @@
 Referenced by issue #87534, Assert BLI_thread_is_main while rendering via a script
 Referenced by issue #81088, system reload scripts doesn't work for addons stored in an alternative file path as set in preferences/file paths/scripts
+Referenced by issue #79186, When returning to an open instance of Blender from other application, Blender (often) crashes immediately.
