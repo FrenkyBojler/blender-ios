@@ -1,2 +1,3 @@
 Referenced by issue #98429, VSE autokeying transforms in preview only creates keyframes for rotation/scale if rotating/scaling around cursor (should keyframe position as well)
 Referenced by issue #98430, VSE autokeying transforms in preview only creates keyframes if there is an FCurve already
+Referenced by issue #98431, VSE autokeying transforms in preview does not work during animation playback
