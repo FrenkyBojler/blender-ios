@@ -1,0 +1,1 @@
+Referenced by issue #116022, ply-Import fails if first byte of binary vertex coordinates is equal to 0x0a or 0x0d
