@@ -1,0 +1,1 @@
+Referenced by issue #36209, Use binary search function for evaluating fcurves to find relevant bezt instead of looping over all bezts
