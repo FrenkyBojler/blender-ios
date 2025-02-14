@@ -1,3 +1,4 @@
 Referenced by issue #97849, Blender 3.2 gpu shader overlay crash
 Referenced by issue #97854, overlay_shader_shared.h:XX:0: Error: C7011: implicit cast from "int" to "uint"
 Referenced by issue #97812, Blender 3.2 Beta Area & Spot Light gizmos not working as expected
+Referenced by issue #97737, GPU Subdivision: Crash after opening particular files
