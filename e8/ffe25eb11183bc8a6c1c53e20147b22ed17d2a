@@ -1,0 +1,1 @@
+Referenced by issue #68867, Lookdev HDRIs are never unloaded, a sort of memory leak (+ other HDRI issues)
