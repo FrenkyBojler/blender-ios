@@ -2,3 +2,4 @@ Referenced by commit 0791f530290, Fix shape-keys always being freed in BKE_mesh_
 Referenced by commit be32882e1c4, Fix T101883: Issue applying modifier to mesh with shape keys
 Referenced by commit 1f4dc51d09a, Fix T100974: Remesh operators reset mesh properties
 Referenced by issue #109523, Regression: Vertex Weight Mix crash on apply/undo when mesh has shape keys
+Referenced by issue #101883, Regression: Visual Geometry to Mesh create bonkers mesh if the applied mesh has shapekeys.
