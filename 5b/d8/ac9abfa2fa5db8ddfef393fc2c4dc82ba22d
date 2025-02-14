@@ -71,3 +71,4 @@ Referenced by issue #53979, Blender back-to-desktop on Cycles render
 Referenced by issue #53955, Issue in changing Radar Sensor Parameters with python dynamically
 Referenced by issue #53944, Move layer key M doesn't work
 Referenced by issue #53934, Crash on right click
+Referenced by issue #53939, Bug in User Ortho mode: mesh flipped or corrupted
