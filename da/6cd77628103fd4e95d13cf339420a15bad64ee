@@ -1,0 +1,1 @@
+Referenced by commit 647fb6ef1ed, fix D2552: Collada - Follow up change to complete the fix in rBda6cd7762810 (use unique id for bones with same name in different armatures)
