@@ -1,1 +1,2 @@
 Referenced by issue #99323, Regression: Geometry nodes result does not show in mesh edit mode
+Referenced by issue #99037, bpy.ops.transform.rotate doesn't work in blender in background mode. (same as T88610)
