@@ -1,1 +1,2 @@
 Referenced by commit c77b78ad53e, Fix: restore margin offset for UV packing
+Referenced by issue #106041, Concave Packer freeze with reset uvs
