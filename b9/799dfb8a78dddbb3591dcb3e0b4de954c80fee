@@ -1,3 +1,4 @@
 Referenced by issue #114872, Regression: Cycles point density node with a vertex color source renders without vertex colors (if these come from a Store Named Attribute node))
 Referenced by issue #98803, Regression: Vertex colors are now broken in hair strands
 Referenced by issue #97468, Update Attribute Conversion operator after recent color attribute changes.
+Referenced by issue #94428, Geometry Nodes - Vertex Color Issues
