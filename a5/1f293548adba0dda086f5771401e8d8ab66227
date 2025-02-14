@@ -15,3 +15,4 @@ Referenced by issue #125682, EEVEE Next: Fireflies in shadows
 Referenced by issue #125454, problème avec blender 4.2.0
 Referenced by issue #125357, Blender crashed while using camera DEPTH of Field
 Referenced by issue #125226, Anim: Rigify `limbs.spline_tentacle` doesn't generate correctly
+Referenced by issue #125006, Purge Unused crashes if mouse not moved away from popup before confirm delete with enter key
