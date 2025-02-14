@@ -1,1 +1,2 @@
 Referenced by issue #77247, extrude dissolve and intersect is leaving behind verts on ngons.
+Referenced by issue #77181, Deleting rigid body deletes object that is not selected but leaves the one that you tried to delete
