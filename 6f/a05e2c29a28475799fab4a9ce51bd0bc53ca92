@@ -1,1 +1,2 @@
 Referenced by commit 801db0d429a, Revert "Fix T102306: buildtime shader compilation option fails under Wayland"
+Referenced by issue #102306, GHOST: Wayland: buildtime shader compilation option with Libdecor failling
