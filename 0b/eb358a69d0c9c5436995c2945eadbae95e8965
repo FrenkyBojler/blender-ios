@@ -2,3 +2,4 @@ Referenced by issue #108126, Texture paint crash (fixed already, backport reques
 Referenced by issue #105219, Crashes when texture painting
 Referenced by issue #103544, Texture Painting after boolean crash blender
 Referenced by issue #103198, Crash on texture painting with invalid material indices attribute
+Referenced by issue #102967, 3.4: Potential candidates for corrective releases
