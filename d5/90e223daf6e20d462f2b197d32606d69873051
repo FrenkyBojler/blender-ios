@@ -1,1 +1,2 @@
 Referenced by commit e88d966737c, BMesh: merge normal and tessellation calculation on undo
+Referenced by issue #94974, Incorrect normals in edit mode (especially after undo)
