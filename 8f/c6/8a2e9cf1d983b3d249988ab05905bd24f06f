@@ -1,0 +1,1 @@
+Referenced by issue #69090, Collada export, does not take "diffuse" value from material's 'base color' when nodes are disabled
