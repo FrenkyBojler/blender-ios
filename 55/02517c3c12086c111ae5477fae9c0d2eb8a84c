@@ -2,3 +2,4 @@ Referenced by commit 36b6ea6cb10, Weight Paint: fix Multi-Paint weight display a
 Referenced by commit c51a70537b1, Fix T81745: Auto Weights fails with Mirror mod + Vertex Groups X
 Referenced by commit 084d911010f, Fix T81461: Weight paint crash with "Vertex Groups X Symmetry" option
 Referenced by issue #111039, Texture paint Backface culling option does not work if symmetry is enabled
+Referenced by issue #108107, Update sculpt mode symmetry options as properties of meshes
