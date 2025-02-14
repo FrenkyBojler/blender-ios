@@ -1,2 +1,3 @@
 Referenced by commit 0b564461cdf, Fix #130788: Select edge loops doesn't refresh
 Referenced by issue #130788, Select edge loops doesn't work
+Referenced by issue #128493, Modeling: Support selecting elements by pole count
