@@ -1,1 +1,2 @@
 Referenced by commit 858fffc2df8, Cycles: oneAPI: add support for SYCL host task
+Referenced by commit 454dd3f7f0a, Cycles: fix up logic in oneAPI devices filtering
