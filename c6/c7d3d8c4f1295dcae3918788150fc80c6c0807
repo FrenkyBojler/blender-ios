@@ -1,2 +1,3 @@
 Referenced by commit 6ea0b8cdb20, Fix #127758: Resorting keys in the Graph Editor with multiple actions failed
 Referenced by issue #127911, Fix #127758: Resorting keys in the Graph Editor with multiple actions failed
+Referenced by issue #127758, Keys deleting when moving key(s) in Graph Editor with shared animation across multiple objects
