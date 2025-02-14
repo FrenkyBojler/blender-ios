@@ -1,2 +1,3 @@
 Referenced by issue #102421, Image.save() more heavy than original when using bpy
 Referenced by issue #100281, Regression: Fail to save to right image via bpy when copying image
+Referenced by issue #98305, Regression: Calling save on image fails due to file path options not being correctly applied
