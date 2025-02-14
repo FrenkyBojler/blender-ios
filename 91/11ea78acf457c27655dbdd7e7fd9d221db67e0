@@ -1,2 +1,3 @@
 Referenced by commit 236be8e9f1c, Fix T93380: Texture paint clone tool crash without clone image
 Referenced by issue #106872, Crash when sculpting with a texture, deleting the image of the texture and exiting sculpt mode
+Referenced by issue #93380, Texture paint ,clone brush first click crash
