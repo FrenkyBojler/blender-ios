@@ -1,2 +1,3 @@
 Referenced by commit 5e1d4714fef, Fix T50745: Shape key editing on bezier objects broken with Rendered Viewport Shading
 Referenced by issue #78701, Switching Curve Shapekeys in Edit Mode go haywire if relative to one another
+Referenced by issue #50790, Problem with Auto Smooth in Cycles
