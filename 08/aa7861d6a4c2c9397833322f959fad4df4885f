@@ -1,0 +1,1 @@
+Referenced by issue #94685, bpy.types.SpaceSpreadsheet.draw_handler_add - TypeError: unknown space type 'SpaceSpreadsheet'
