@@ -1,2 +1,3 @@
 Referenced by commit 7334c481c03, Fix T86175: Missing viewport update when toggling HDRI preview
 Referenced by commit b20872d36eb, Fix T85543: Object Types Visibility missing shading notifier
+Referenced by issue #85515, Edit mode. Hidden wire shading late update
