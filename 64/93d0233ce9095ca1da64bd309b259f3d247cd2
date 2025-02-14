@@ -1,1 +1,2 @@
 Referenced by commit 7de49d5f801, Build: Ninja: Use similar logic for default heavy and regular jobs amount.
+Referenced by issue #116791, Build: Ninja: Enable pooljobs by default, add 'unity builds' to heavy pooljobs.
