@@ -5,3 +5,4 @@ Referenced by issue #132717, Cleanup: Compositor: Ghost data of a node storage
 Referenced by issue #114629, WIP: Refractor: Compositor: Render layer node to dynamic declaration
 Referenced by issue #70802, Hidden sockets in Compositor don't stay hidden when we duplicate any node or render starts
 Referenced by issue #56875, Compositor: Auto Render doesn't work
+Referenced by issue #53321, "Z" changed to "depth" breaks consistency in compositing and in Render layers
