@@ -1,1 +1,2 @@
 Referenced by commit b2dc0e6970e, Fix T53978: Bad memory access after recent fix to BSDF mixing
+Referenced by issue #53978, Cycles Displacement node makes Blender prone to crash
