@@ -1,1 +1,2 @@
 Referenced by issue #100918, Regression: The start frame of NLA tracks can not be negative.
+Referenced by issue #100280, Regression. Pressing GG should give the tracker an offset. Instead it moves the tracker
