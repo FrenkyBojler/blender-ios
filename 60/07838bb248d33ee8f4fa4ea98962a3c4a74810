@@ -1,1 +1,2 @@
 Referenced by issue #120761, Sculpt Hide Tool doesn't hide all adjacent faces when single vertex is selected
+Referenced by issue #119997, Regression: Baked Normal Map From Multiresolution Produces Strange Result on edges with crease
