@@ -1,0 +1,1 @@
+Referenced by issue #39392, Python bindings for geometry.box_pack_2d() return invalid total height
