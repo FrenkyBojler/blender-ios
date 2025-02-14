@@ -1,1 +1,2 @@
 Referenced by issue #109361, Regression: Bevel issue when its percent/absolute mode is operated on edge loop along sharp angle
+Referenced by issue #84465, Bevel Modifiers limit method "Weight" is buggy with certain width types
