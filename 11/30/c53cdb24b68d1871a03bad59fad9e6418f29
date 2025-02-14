@@ -1,1 +1,2 @@
 Referenced by commit 528841ba901, Depsgraph: Remove workarounds used for cyclic dependencies
+Referenced by issue #38824, dupliobject which is constrained on a hidden layer causes cycles crash
