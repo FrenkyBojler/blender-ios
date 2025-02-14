@@ -2,3 +2,4 @@ Referenced by issue #105711, Regression: Clone Tool in Image Editor not showing 
 Referenced by issue #103787, Regression: UV Relax Brush tears apart UVs
 Referenced by issue #103670, Regression: UV Editing: Lock Borders - Incorrectly defines borders
 Referenced by issue #101864, Regression: Crash when lasso masking in sculpt mode
+Referenced by issue #100985, Crash on sculpt mask brush when Multiresolution modifier is copied from another object (fixed in 3.4, request to backport)
