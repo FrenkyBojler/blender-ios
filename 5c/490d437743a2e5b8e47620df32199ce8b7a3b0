@@ -1,1 +1,2 @@
 Referenced by commit 9dbfc7ca8bf, Fix T74225: Image (from sequence) cannot be loaded
+Referenced by issue #74221, Crash when changing Image Source in UV editor
