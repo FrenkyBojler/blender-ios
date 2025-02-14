@@ -1,1 +1,2 @@
 Referenced by issue #53683, 2.79a release
+Referenced by issue #52723, bm.faces.layers.int.new() breaks bpy.ops.uv.reset()
