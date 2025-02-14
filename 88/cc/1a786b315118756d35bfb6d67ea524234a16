@@ -1,2 +1,3 @@
 Referenced by issue #44592, Object scale constrained to axis affects all axii
 Referenced by issue #42834, Scaling in global axis does not work correctly if the object has rotation
+Referenced by issue #42444, Negative scale objects with rotation flips 2x axis.
