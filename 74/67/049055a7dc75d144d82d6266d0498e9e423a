@@ -1,3 +1,4 @@
 Referenced by commit 185c2487a68, Fix T60737: Crash workbench rendering
 Referenced by issue #60850, Emulate 3 button mouse couses weird behavior in UI
 Referenced by issue #60737, Crash when rendering with Workbench engine
+Referenced by issue #60725, Models become glitchy and transparent in front of images.
