@@ -1,0 +1,1 @@
+Referenced by issue #89982, Geometry Nodes: 'New' Button tries to create node_tree on active modifier, rather than button context
