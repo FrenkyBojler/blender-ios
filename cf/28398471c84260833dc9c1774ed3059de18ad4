@@ -1,1 +1,2 @@
 Referenced by commit 716682365c6, Fix T91119: Curve to mesh node inverted face normals
+Referenced by issue #89687, Inside out face orientation of GN Curve-to-mesh-objects
