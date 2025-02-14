@@ -1,1 +1,2 @@
 Referenced by issue #85587, Grease Pencil crash selecting multiple frames with Multiframe enabled
+Referenced by issue #85549, GPencil's draw tool has its strokes offset after using fill tool
