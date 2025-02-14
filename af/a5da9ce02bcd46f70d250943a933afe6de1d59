@@ -1,1 +1,2 @@
 Referenced by issue #91297, bpy.props properties not showing up in invoke_props_dialog
+Referenced by issue #88152, Regression when accessing python prop defined in AddonPreferences
