@@ -32,7 +32,6 @@ class COLLECTION_PT_collection_flags(CollectionButtonsPanel, Panel):
     bl_label = "Visibility"
 
     def draw(self, context):
-
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = False
@@ -45,12 +44,12 @@ class COLLECTION_PT_collection_flags(CollectionButtonsPanel, Panel):
         col.prop(collection, "hide_viewport", text="Viewports", toggle=False, invert_checkbox=True)
         col.prop(collection, "hide_render", text="Renders", toggle=False, invert_checkbox=True)
 
+
 class COLLECTION_PT_viewlayer_flags(CollectionButtonsPanel, Panel):
     bl_label = "View Layer"
     bl_parent_id = "COLLECTION_PT_collection_flags"
 
     def draw(self, context):
-
         vl = context.view_layer
         vlc = vl.active_layer_collection
 
