@@ -1,2 +1,3 @@
 Referenced by commit 9624df5d1ed, Fix T63004: Make Links operator would still allow collection instancing
 Referenced by issue #63004, Linked Instanced collection data loss
+Referenced by issue #57934, Regression in classroom benchmark scene
