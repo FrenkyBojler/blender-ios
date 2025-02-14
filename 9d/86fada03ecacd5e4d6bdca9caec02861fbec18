@@ -1,1 +1,2 @@
 Referenced by commit b9ec08b551d, Fix #132861: Proportional edit broken due to uninitialized transform data
+Referenced by issue #132913, Fix #132861: Proportional edit broken due to uninitialized transform data
