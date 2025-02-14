@@ -1,1 +1,2 @@
 Referenced by issue #48472, Cycles Spatial Splits BHV fails to complete build in scenes containing lots of hair along with SSS materials
+Referenced by issue #48454, The display percentage parameter (for particles) breaks after a render is done if said particles have children
