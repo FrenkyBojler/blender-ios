@@ -1,2 +1,3 @@
 Referenced by commit 327985e8876, Revert "Fix T53430: Cut at the strip end fails w/ endstill"
 Referenced by issue #53683, 2.79a release
+Referenced by issue #53430, VSE - Scene strip soft cutted at end frame makes incorrect result
