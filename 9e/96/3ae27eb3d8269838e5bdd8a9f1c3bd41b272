@@ -46,3 +46,4 @@ Referenced by issue #42712, Baking an object's texture is effected by the 'Exclu
 Referenced by issue #42689, GPU rendering won't render two point lamps at once
 Referenced by issue #42658, Shrinkwrap modifier does not work with multiple scenes and VSE
 Referenced by issue #42634, Transparent shader leave traces
+Referenced by issue #42641, Graphical fragments showing on Blender 2.71 and higher when baking.
