@@ -1,3 +1,4 @@
 Referenced by commit 79da8921267, Fix #122587: File Output node can only save one size
 Referenced by issue #122824, Fix #122587: File Output node can only save one size
 Referenced by issue #122253, Unreadable OpenEXR output file
+Referenced by issue #121264, Crash after rendering to File Output node (OpenEXR with preview)
