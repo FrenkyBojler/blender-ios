@@ -1,2 +1,3 @@
 Referenced by commit 4abd59e204e, Fix #113320: 'Automatic Constraint' not working in 2D editors
 Referenced by issue #113379, Regression: UV: Automatic constraint (MMB to constrain to an axis) no longer works in the UV editor
+Referenced by issue #113320, MMB (Middle Mouse Button) Shortcut to constraint axis in the graph editor is not working
