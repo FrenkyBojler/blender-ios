@@ -1,2 +1,3 @@
 Referenced by issue #68867, Lookdev HDRIs are never unloaded, a sort of memory leak (+ other HDRI issues)
 Referenced by issue #68785, Blender crashes upon subdivision (corrupt mesh)
+Referenced by issue #66689, Viewport isn't updating Children hair particle on particle edit
