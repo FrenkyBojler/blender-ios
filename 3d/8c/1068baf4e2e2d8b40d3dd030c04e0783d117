@@ -1,1 +1,2 @@
 Referenced by issue #38465, QTRLE does not appear as an output option
+Referenced by issue #38420, Segfault when curve deform modifier and curve itself is parented to mesh object
