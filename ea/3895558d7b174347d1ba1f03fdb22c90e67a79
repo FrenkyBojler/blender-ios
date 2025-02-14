@@ -1,0 +1,1 @@
+Referenced by issue #89101, Grease Pencil Reproject Strokes on surfaces from a camera's point of view is incorrectly placing the strokes on the Back Faces when canvas is intersecting the object
