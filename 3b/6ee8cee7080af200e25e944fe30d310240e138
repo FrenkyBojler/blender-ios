@@ -9,3 +9,4 @@ Referenced by commit ae30f72c806, Fix T89870: Vertex groups lost when opening 3.
 Referenced by commit de913516dd2, Fix: missing null check
 Referenced by issue #99857, Rebuilding subdivisions with multiresolution deletes vertex groups
 Referenced by issue #97208, Copy object from 3.1 to any lower version delete "all vertex groups"
+Referenced by issue #96550, Project opened on windows looses vertex groups on Linux.
