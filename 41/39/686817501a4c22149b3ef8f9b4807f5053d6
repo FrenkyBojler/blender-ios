@@ -1,0 +1,1 @@
+Referenced by issue #45674, GLSL - color conversion from RGB to Value uses unweighted average (like vector conversion)
