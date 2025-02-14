@@ -1,1 +1,2 @@
 Referenced by commit 8f6a9c51764, Fix T89526: "Toggle Maximize Area" clears context screen properties
+Referenced by issue #89526, `bpy.ops.screen.screen_full_area()` resets certain fields of the context
