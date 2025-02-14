@@ -83,3 +83,4 @@ Referenced by issue #53873, Object moved after clear parent with keep transform
 Referenced by issue #53858, Cycles Crash when changing Transparency
 Referenced by issue #53849, Baking Procedural Textures Causing Some Pretty Noticeable Changes
 Referenced by issue #53824, The new 2.79 Blank render in Cycles
+Referenced by issue #53833, Particle Info node and Displacement Crash
