@@ -1,3 +1,4 @@
 Referenced by issue #86500, Cycles: tapering hair transparency fails in '3D Curves' mode [regression] (probably caused by embree)
 Referenced by issue #86171, Cycles freeze on render and texture baking (with packed textures)
 Referenced by issue #82483, Blender freezes when repeating baking textures
+Referenced by issue #80125, Constraint missing after save and reopen the blend file (fixed in 2.90 - request to backport to LTS)
