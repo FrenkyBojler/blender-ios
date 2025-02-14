@@ -1,2 +1,3 @@
 Referenced by commit 9e9ebaba8dc, Fix crash when creating lib overrides.
 Referenced by issue #86501, New object added to overridden collection doesn't show up in linking file on Resync.
+Referenced by issue #85041, Modifier targets sometimes being lost on overrides
