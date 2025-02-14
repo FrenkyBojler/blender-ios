@@ -20,3 +20,4 @@ Referenced by issue #48167, bpy.ops.mesh.select_random() not accurate
 Referenced by issue #48170, Sort Mesh Elements has no effect in vertex mode
 Referenced by issue #48174, Bevel Tool with "Clamp Overlap" Leave Degenerate Geometry
 Referenced by issue #48164, Switching from non-retina to a retina display messes up the whole interface.
+Referenced by issue #48095, Animating sequencer speed affects itself
