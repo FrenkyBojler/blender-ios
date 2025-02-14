@@ -1,0 +1,1 @@
+Referenced by issue #118364, Fix #118055: libOverride `resync()` RNA call crashes when view_layer is not specified.
