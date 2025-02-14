@@ -1,0 +1,1 @@
+Referenced by issue #91339, Crash on Boolean modifier when ob_src->totcol > ob_dst->totcol
