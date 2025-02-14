@@ -7,3 +7,4 @@ Referenced by issue #97771, Regression: light gizmos not working (Windows + NVid
 Referenced by issue #97483, Rotation tool only allows trackball style rotation
 Referenced by issue #97300, Scale gizmo impossible to click on (line is fine, box at end bad)
 Referenced by issue #97124, Regression: Area lights. Size manipulators lost (WIN+NVidia)
+Referenced by issue #97120, Regression: Gizmos became significantly harder to use (in orthographic view)
