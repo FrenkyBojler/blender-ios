@@ -1,0 +1,1 @@
+Referenced by issue #30730, Entering and exiting mesh edit mode uses a LOT of undo memory.
