@@ -1,1 +1,2 @@
 Referenced by commit ff7645c5edd, Fix T102404: Behavior change in CustomData API
+Referenced by issue #102419, Regression: Geometry nodes Missing Mesh overlays in edit mode
