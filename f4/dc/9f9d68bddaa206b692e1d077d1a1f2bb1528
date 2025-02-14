@@ -28,3 +28,4 @@ Referenced by issue #62739, Bevel Weight not affecting Bevel modifier correctly
 Referenced by issue #62747, 2.79_Crash_Blender an OS during rendering animation.
 Referenced by issue #62689, Model shown in black in 3D view
 Referenced by issue #62622, Blender 2.8 - viewport does not show changes in animated vertex positions without clicking a viewport shading button every time
+Referenced by issue #62408, opensubdiv crash in rendered viewport
