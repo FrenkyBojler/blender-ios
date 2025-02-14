@@ -1,3 +1,4 @@
 Referenced by commit 76de3ac4ce4, Cleanup: Remove data duplication from various lookup tables in Cycles
 Referenced by issue #53079, Blender Crash to Desktop Rendering with HDRI (EXR) Maybe others not tested
 Referenced by issue #53022, Normal map node causes crash when opencl render kernels are being loaded
+Referenced by issue #53001, Blender crashes when trying to render on AMD GPU
