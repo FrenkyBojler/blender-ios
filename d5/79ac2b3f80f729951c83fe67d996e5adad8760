@@ -7,3 +7,4 @@ Referenced by issue #119427, UI: The Metadata is gone for the rendered image
 Referenced by issue #113282, Fix #113280: Incorrect display of Cycles border render while rendering
 Referenced by issue #113280, Incorrect display of Cycles border render while rendering
 Referenced by issue #113199, Fix #113186: The Render Result attribute "has_data" is always False
+Referenced by issue #113186, The Render Result attribute "has_data" is always False
