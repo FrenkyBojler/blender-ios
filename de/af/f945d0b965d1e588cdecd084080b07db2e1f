@@ -20,3 +20,4 @@ Referenced by issue #79520, Data Transfer modifier: crash/assert going into edit
 Referenced by issue #77756, Going to editmode on a mesh that is target for a [shrinkwrap, mesh deform] modifier (Crash in Debug builds, wrong result in Release builds)
 Referenced by issue #77632, [Bisected] Mesh: skip conversion from edit-mesh to mesh in edit-mode, breaks surface deform modifier live preview.
 Referenced by issue #77607, Bad shading in edit mode. 2.90 regression
+Referenced by issue #77409, Instance face duplicated geometry doesn't render in edit mode
