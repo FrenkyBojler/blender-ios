@@ -1,1 +1,2 @@
 Referenced by issue #49282, Cycles displacement and image textures
+Referenced by issue #49252, Microdisplacement; Very recent builds crash when image textures are used (when the mode is set to 'true')
