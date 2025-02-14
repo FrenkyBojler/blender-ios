@@ -1,3 +1,4 @@
 Referenced by commit b874c152a81, Fix (unreported): 'CoInitializeEx' being called without 'CoUninitialize'
 Referenced by issue #87621, The Blender File Open dialog triggers OneDrive Files On-Demand downloads
 Referenced by issue #85710, macOS todo list
+Referenced by issue #81208, filter_glob not working with filenames
