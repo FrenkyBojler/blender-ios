@@ -60,3 +60,4 @@ Referenced by issue #51620, Segmentation fault trying to make single copy from l
 Referenced by issue #51597, Camera safe area values incorrect (not enough padding)
 Referenced by issue #51607, Add to Pose-Library doesn't work while tweaking strips in NLA Editor
 Referenced by issue #51595, Snap to edge does not work with high zoom level
+Referenced by issue #51550, R+R rotation and snapping dont work
