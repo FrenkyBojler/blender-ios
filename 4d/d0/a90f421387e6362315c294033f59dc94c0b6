@@ -1,3 +1,4 @@
 Referenced by issue #61449, Mouse pointer bug
 Referenced by issue #60473, Crash while using complex procedural shaders
 Referenced by issue #60126, Weight Painting affects hidden part of mesh
+Referenced by issue #60128, Can't exit pose mode with mouse click (As in 2.79)
