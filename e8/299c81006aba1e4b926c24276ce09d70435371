@@ -31,3 +31,4 @@ Referenced by issue #50633, Keyboard & Mouse stop working correctly on Ubuntu 16
 Referenced by issue #50623, Blender doesn't quit after python script/render in background mode (stuck trying to close OpenAL device)
 Referenced by issue #50610, Cycles black render with adaptive subdivision and normal map tangent
 Referenced by issue #50615, Node Editor> Compositor > Texture Node : Crashes Blender
+Referenced by issue #50597, Gizmo position is wrong for meshes with modifiers
