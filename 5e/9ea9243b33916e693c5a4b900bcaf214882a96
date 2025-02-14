@@ -1,2 +1,3 @@
 Referenced by commit 5b6e1c0cf6e, Fix #111898: Custom normals data transfer modifier does not work
 Referenced by commit 9cad2e87713, Fix #110682: Loading old files crashes from missing DNA rename
+Referenced by commit 95edff7495b, Cleanup: Rename mesh custom data fields
