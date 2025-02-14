@@ -1,2 +1,3 @@
 Referenced by issue #43706, Creating a directory in the file browser (by typing it in the file path) crashes Blender
 Referenced by issue #43685, Pointiness bug with multiple Subsurf modifier
+Referenced by issue #38808, Opening an image with 'relative path' selected, gets absolute path.
