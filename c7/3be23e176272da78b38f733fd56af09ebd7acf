@@ -1,2 +1,3 @@
 Referenced by issue #93751, Extrude crash
 Referenced by issue #89204, GPUOffscreen.draw_view3d() is 25 to 50 times slower
+Referenced by issue #89007, Blender crashes with Line Art type object applied to a curve and with more curves in the scene
