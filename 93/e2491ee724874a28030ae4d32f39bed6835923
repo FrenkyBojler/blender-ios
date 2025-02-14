@@ -1,1 +1,2 @@
 Referenced by commit 88aa056d1ac, Fix: Image node alpha socket converted to operations twice
+Referenced by commit e91dd645a94, Fix concern: lookup could fail.
