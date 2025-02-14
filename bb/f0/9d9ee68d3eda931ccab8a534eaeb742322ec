@@ -11,3 +11,4 @@ Referenced by issue #44168, Selection issue on masked geometry
 Referenced by issue #44156, Graphics become corrupted while using hardware OpenGL with ATI Radeon HD 8250/8280G
 Referenced by issue #44143, Objects created at the same point move together, but they are not linked
 Referenced by issue #44146, Ambiant Occlusion - Little circle in orthographic view
+Referenced by issue #44068, "Layered" option during autokey playback
