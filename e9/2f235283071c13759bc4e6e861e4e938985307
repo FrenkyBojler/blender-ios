@@ -50,3 +50,4 @@ Referenced by issue #51730, bmesh.ops.triangulate causes crash
 Referenced by issue #51699, Normals appear inverted/flipped when using mirror modifier on some versions Mac OS
 Referenced by issue #51702, shortcuts stop working when switching to non-latin keyboard on mac
 Referenced by issue #51705, Filter and Texture Nodes in Compositor crash Blender
+Referenced by issue #51683, Renaming numbered bones in Outliner does not re-order them alphabetically
