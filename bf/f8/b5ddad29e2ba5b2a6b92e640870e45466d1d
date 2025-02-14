@@ -9,3 +9,4 @@ Referenced by issue #45058, Cycles hair shader reflects incorrectly for meshes
 Referenced by issue #45052, Compositing-Masks are not editable with new DepsGraph
 Referenced by issue #45037, Cycles doesn't work at all
 Referenced by issue #45038, Cannot access to the system properties panel
+Referenced by issue #45020, Fail MultiView Ubuntu 14.10
