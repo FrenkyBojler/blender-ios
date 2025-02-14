@@ -1,1 +1,2 @@
 Referenced by issue #40528, Graphics driver crash on baking
+Referenced by issue #40370, Cycles baking: "CUDA error: Launch exceeded timeout in ..."
