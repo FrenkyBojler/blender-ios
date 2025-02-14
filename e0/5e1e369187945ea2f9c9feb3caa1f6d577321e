@@ -4,3 +4,4 @@ Referenced by issue #102114, Startup EXCEPTION_ACCESS_VIOLATION crash on Windows
 Referenced by issue #101669, Regression: Normal baking strange artifacts in texture bake
 Referenced by issue #100584, Hindi font displayed wrongly
 Referenced by issue #100288, Dragging  NLA strips on the same track crashes
+Referenced by issue #100229, Auto keyframe icon not update highlight icon in UI when press a shotcut key
