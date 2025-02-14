@@ -1,0 +1,1 @@
+Referenced by issue #69326, If the `parent_type` is set to `ARMATURE` (instead of using the modifier). The deformations are not shown in the viewport anymore.
