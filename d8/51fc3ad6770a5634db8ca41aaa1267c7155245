@@ -1,2 +1,3 @@
 Referenced by issue #89564, Curve based rig broken since 2.93
 Referenced by issue #81704, Spline IK "Bone Original" Y-scale Causes Scaling
+Referenced by issue #77330, Spline IK: First bone in chain scales on Y-axis regardless of Y Scale Mode
