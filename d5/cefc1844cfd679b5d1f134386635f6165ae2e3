@@ -1,1 +1,2 @@
 Referenced by commit 18412744c8c, Fix T93687: Transform Gpencil vertices not working if scale is zero
+Referenced by issue #50103, Parented object with Scale 1,1,0 seems to have Loc and Rot locked.
