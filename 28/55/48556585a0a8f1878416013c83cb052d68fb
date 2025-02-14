@@ -1,2 +1,3 @@
 Referenced by commit d8388ef36a1, Fix: avoid extra depsgraph evaluation when stopping animation playback
 Referenced by issue #43399, VSE Frame rate does not go away when the animation is stopped
+Referenced by issue #43008, Stacked Full Window Mode
