@@ -1,1 +1,2 @@
 Referenced by commit 957cb173f21, Fix T101447: Hold split not working correctly
+Referenced by commit 66de653784a, Fix incorrect strip position if pitch was animated
