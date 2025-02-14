@@ -1,1 +1,2 @@
 Referenced by issue #64908, In Pose Mode, clearing a bones Scale Transform also clears that bone's Bendy Bone Ease in/out values and also Scale in/out values
+Referenced by issue #48988, BBones Ease in/out don´t update the mesh deformation at current frame
