@@ -5,3 +5,4 @@ Referenced by issue #91713, Blender 2.93 crashes on startup on Windows 10
 Referenced by issue #91202, Blender 2.93.1 and 2..93.4 will not start on windows 10. worked last night
 Referenced by issue #89768, Win-x64 Blender 2.93.1 hangs when emulated on ARM64 Windows 11
 Referenced by issue #89024, Blender freezes the display at random on Linux, requiring a restart
+Referenced by issue #88473, Blender isn't Opening
