@@ -2,3 +2,4 @@ Referenced by commit 84c66fe9db9, Fix T102406: OSL script node no longer updates
 Referenced by issue #102611, No longer able to remove file output input sockets from python.
 Referenced by issue #102406, OSL Node no longer updates its in and outputs
 Referenced by issue #100872, Crash when creating geometry nodes in a for-loop with Python
+Referenced by issue #100770, Crash when creating Geometry Nodes group input with Python
