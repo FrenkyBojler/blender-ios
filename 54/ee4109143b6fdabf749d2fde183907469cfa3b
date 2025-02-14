@@ -2,3 +2,4 @@ Referenced by commit c63442d2f20, Fix T84673: Skin resize operator always using 
 Referenced by commit f41de6dc46a, Fix T84404: Crash when using Skin Resize in mesh without Skin modifier
 Referenced by issue #84673, Skin resize operator is always using object origin as pivot point
 Referenced by issue #84404, In edit mode, when one vertice is selected, then by typing "CTRL+A",  this causes the program Blender to totally disappear.
+Referenced by issue #84376, Skin Resize(Ctrl + A) does not work in Symmetry
