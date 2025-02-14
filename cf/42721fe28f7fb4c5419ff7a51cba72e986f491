@@ -1,1 +1,2 @@
 Referenced by commit 25eb0c9cf48, Fix T78151: Vertex/Edge Slide after enabling 'Even' doesn't cancel properly
+Referenced by commit c309177edd8, Fix initialization of Edge Slide with Single Side
