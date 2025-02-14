@@ -1,2 +1,3 @@
 Referenced by issue #50125, Shortcut keys missing in menus for Clear Location, Rotation, and Scale
 Referenced by issue #48971, Append creates linked image textures if object has shape keys
+Referenced by issue #48818, Objects with alpha maps cast wrong ray shadows in BI
