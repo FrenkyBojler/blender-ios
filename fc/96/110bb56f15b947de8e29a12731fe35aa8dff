@@ -1,1 +1,2 @@
 Referenced by commit 936c176a713, Fix T48743: Broken menu key accelerators
+Referenced by issue #48743, Moving the mouse ever so slightly breaks hotkey combos in menus
