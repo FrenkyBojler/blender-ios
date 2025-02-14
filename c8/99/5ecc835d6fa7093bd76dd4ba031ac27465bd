@@ -5,3 +5,4 @@ Referenced by issue #42837, Sculpt lagging after restarting blender with VBO set
 Referenced by issue #42844, Compositor scale offset
 Referenced by issue #42822, constraint transform dont use local axis
 Referenced by issue #42828, Unable to select objects in wireframe mode
+Referenced by issue #42815, Sampling differences between Path and Branched integrators
