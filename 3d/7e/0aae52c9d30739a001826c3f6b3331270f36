@@ -1,0 +1,1 @@
+Referenced by issue #38689, bpy.ops.object.add_named() doesnt work with unlinked objects
