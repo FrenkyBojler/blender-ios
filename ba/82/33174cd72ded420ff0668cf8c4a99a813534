@@ -1,3 +1,4 @@
 Referenced by issue #81791, Can`t start Blender (instacrash), 2.91
 Referenced by issue #81775, Crash on Exiting Texture Paint With Multiresolution (Image Editor involved)
 Referenced by issue #81769, GPU hungs after start cycle rendering
+Referenced by issue #81187, Assigning more than one material messes object up
