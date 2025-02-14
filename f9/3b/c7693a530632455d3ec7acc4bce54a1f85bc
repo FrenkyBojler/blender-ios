@@ -34,3 +34,4 @@ Referenced by issue #40696, Maya keymap: when you try to rotate a face in the 3d
 Referenced by issue #40692, Checker Texture Creep
 Referenced by issue #40661, BGE soft body physics with unexpected behavior (game engine only)
 Referenced by issue #40638, Crash in Particle System, Connect Hair
+Referenced by issue #40613, Boolean is messed up, consistently and repeatable.
