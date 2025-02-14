@@ -1,1 +1,2 @@
 Referenced by issue #62839, object scale changes normal map output in eevee
+Referenced by issue #62814, Impossible to select camera while in camera view if its clipping start is set to higher values
