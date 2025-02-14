@@ -1,2 +1,3 @@
 Referenced by commit ef8808d9908, Cleanup: Compositor: Ghost data of a node storage
 Referenced by commit 24330f679e3, Fix T56875: Auto Render not working after render pass name refactor
+Referenced by commit 04800ed4343, Fix T52113: Compositor doesnt mix unrendered render layers well
