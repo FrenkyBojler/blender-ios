@@ -1,1 +1,2 @@
 Referenced by commit 46e13cf8a52, Fix #104817: Camera lens gizmo out of sync when navigating via gizmos
+Referenced by commit 08c4f134d29, Fix T92783: Light size controller doesn't update position
