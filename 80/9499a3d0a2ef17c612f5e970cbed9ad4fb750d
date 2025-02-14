@@ -1,2 +1,3 @@
 Referenced by issue #118550, Vertical Scrollbar sensitivity and difference to Horizontal Scrollbar
 Referenced by issue #117835, Wrong values on Opacity slider
+Referenced by issue #117813, Regression: broken UI drawing of custom property values with slider=True.
