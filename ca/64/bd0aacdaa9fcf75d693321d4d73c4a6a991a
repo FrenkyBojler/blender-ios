@@ -1,1 +1,2 @@
 Referenced by commit ab125f466c9, Fix T94751: ground created by Setup Tracking Scene not marked as Shadow Catcher
+Referenced by issue #94751, The ground created by Setup Tracking Scene is no longer marked as a Shadow Catcher
