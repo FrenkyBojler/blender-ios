@@ -1,3 +1,4 @@
 Referenced by commit 75f82d28e38, Fix T72235: crash entering particle editmode with non-valid PTCacheEdit psys pointer
 Referenced by issue #70259, Hair particle selection broken in Point selection mode in specific blend file.
 Referenced by issue #69680, Unable to select hair keys in Particle Edit mode after some time of work
+Referenced by issue #59583, Hair Dynamics: entering particle edit mode with baked cache crashes blender
