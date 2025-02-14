@@ -1,2 +1,3 @@
 Referenced by issue #88233, Crash at playing viewport shading animation after resizing 3D viewport editor
 Referenced by issue #86922, Eevee: Rendering particle hair results in plain white pixels
+Referenced by issue #86194, Blender crashes with Noise Texture Node + Hair Particle System + Eevee
