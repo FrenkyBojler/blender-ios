@@ -2,3 +2,4 @@ Referenced by commit 4b1ad2dc174, Fix T92361: Zooming nodes clips text labels
 Referenced by commit 5c2330203e1, Fix T92293: Clipped labels for graph editor modifiers
 Referenced by commit 66e24ce35bb, Fix menu width regression in c7d94a7827a5be9343eea22a9638bb059f185206
 Referenced by issue #92361, Resizing a node shifts socket label text 'eating' characters
+Referenced by issue #92293, Graph Editor Modifiers UI Bug
