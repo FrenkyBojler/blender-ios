@@ -2,3 +2,4 @@ Referenced by commit 2db23d38ca4, Fix #107826: Missing defaults for principlied 
 Referenced by issue #112477, Reading an attribute from `Capture Attribute` after simulation nodes does not work. Bug?
 Referenced by issue #112381, Blender deleted my entire projects folder
 Referenced by issue #108878, Annonymous Attributes and Simulation Nodes - propagation issue
+Referenced by issue #108120, Regression: User interface graphic artefacts during cycles render
