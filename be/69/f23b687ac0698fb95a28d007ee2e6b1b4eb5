@@ -1,1 +1,2 @@
 Referenced by commit f359102589f, VSE: Fix incorrect condition for skipping prefetch frames
+Referenced by issue #76761, VSE crashes while adding a scene
