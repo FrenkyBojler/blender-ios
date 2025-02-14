@@ -1,3 +1,4 @@
 Referenced by issue #57817, Assert when entering quad-view
 Referenced by issue #57794, Text in Clip Editor Dopesheet not visible
 Referenced by issue #57527, Grease Pencil: Draw operator always capture tools
+Referenced by issue #55420, Fix problem with Viewport Manipulator Gizmo
