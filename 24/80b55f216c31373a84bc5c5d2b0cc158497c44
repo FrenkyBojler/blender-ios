@@ -10,3 +10,4 @@ Referenced by commit 2fc7e15164f, Fix: Use of uninitialized variable in recent c
 Referenced by issue #100494, Regression: Erratic undo behaviors with hidden faces in Sculpt and Vertex/Weight Paint modes
 Referenced by issue #100482, Regression: Face Set visibility is reset after saving
 Referenced by issue #100480, Regression: Hiding face sets in sculpt mode doesn't work with modifiers
+Referenced by issue #95966, Struct of Arrays Refactor for Mesh Edges
