@@ -1,0 +1,1 @@
+Referenced by issue #50046, Segmentation fault due to out-of-range VertexGroup.weight() call
