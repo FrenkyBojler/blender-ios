@@ -1,1 +1,2 @@
 Referenced by issue #73355, Multires: Missing updates are not communicated in the UI
+Referenced by issue #53043, Artefacts on render passes Shadow and Diffuse Direct when rendering image texture with zero value in a channel
