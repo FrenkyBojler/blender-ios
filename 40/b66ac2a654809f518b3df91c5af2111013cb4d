@@ -1,1 +1,2 @@
 Referenced by issue #64010, Extrude has proportional editing turned on all the time in the latest build resetting to factory defaults doesn't help
+Referenced by issue #64011, SHIFT D to Duplicate is activating proportional editing and moving the primary object from its initial place
