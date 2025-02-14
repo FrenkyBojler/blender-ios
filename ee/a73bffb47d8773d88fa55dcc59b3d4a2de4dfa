@@ -1,2 +1,3 @@
 Referenced by commit 028484f5316, Fix #122609: Child object dimmed in outliner when parent is hidden
 Referenced by issue #122653, Fix #122609: Child object dimmed in outliner when parent is hidden
+Referenced by issue #122609, Regression: Child objects also Dimmed at Outliner If only Parent Hidden in Viewport
