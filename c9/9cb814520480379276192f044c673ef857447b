@@ -1,2 +1,3 @@
 Referenced by commit 11bfbc3337b, Fix: Incorrect node socket name after recent refactor
 Referenced by issue #92636, Procedural texture "Camo" not rendering correctly in 3.0.0 Beta
+Referenced by issue #91661, Regression: attached Vector Rotate nodes detach
