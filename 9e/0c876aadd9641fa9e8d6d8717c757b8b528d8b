@@ -1,0 +1,1 @@
+Referenced by issue #85301, Eevee does not respect collection instance offset for hair (when rendering as 'Path')
