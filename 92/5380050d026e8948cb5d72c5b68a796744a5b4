@@ -8,3 +8,4 @@ Referenced by issue #58566, Blender 2.8 with 2.7X input method shortcut inconsis
 Referenced by issue #58528, Materials don't get assigned to objects other than the active object in multi edit mode
 Referenced by issue #58517, Multiview not working with OpenGL render using scene settings
 Referenced by issue #58519, Cycle render crashes when using multiview
+Referenced by issue #58506, Cycles: Viewport playback flickers to black
