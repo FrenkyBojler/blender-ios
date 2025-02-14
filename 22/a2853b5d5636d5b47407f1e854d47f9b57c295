@@ -59,3 +59,4 @@ Referenced by issue #47917, Edit Mode Boolean Fails completely in some situation
 Referenced by issue #47918, Array and Curve modifiers cause graphic card to crash
 Referenced by issue #47897, Segfault when selecting mesh object in blender 2.77 in ubuntu
 Referenced by issue #47901, CUDA error at cuCtxCreate: Already Mapped
+Referenced by issue #47902, Particle grid not using modifier stack
