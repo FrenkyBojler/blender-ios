@@ -3,3 +3,4 @@ Referenced by issue #56647, Key Configuration - Unable to Save
 Referenced by issue #56639, [2.8] Crash when overwritting armature pose on Copy/Paste pose with same pose
 Referenced by issue #56640, [2.8] Crash when stopping a Cycles render with denoising and nodes.
 Referenced by issue #56642, Gizmo orientation problem
+Referenced by issue #56643, Crash at Drag&Dropping name on Object Data tab
