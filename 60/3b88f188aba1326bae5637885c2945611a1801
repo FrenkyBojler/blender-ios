@@ -1,1 +1,2 @@
 Referenced by issue #117586, Deleting an unused light group caused the environment light group to render to another light group
+Referenced by issue #100749, Blender LTS: Maintenance Task 3.3
