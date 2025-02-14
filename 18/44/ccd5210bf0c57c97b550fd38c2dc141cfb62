@@ -1,0 +1,1 @@
+Referenced by issue #58101, Image empties are only rendering their border when using OpenGL multisample > 2.
