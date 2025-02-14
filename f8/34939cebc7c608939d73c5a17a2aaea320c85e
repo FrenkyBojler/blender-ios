@@ -1,1 +1,2 @@
 Referenced by issue #92248, Curves disappear( remove) when using join geometry.
+Referenced by issue #92225, Geometry nodes: Mesh Boolean gives empty geometry for difference between self and transformed self
