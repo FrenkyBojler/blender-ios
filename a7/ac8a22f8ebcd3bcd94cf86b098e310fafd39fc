@@ -1,3 +1,4 @@
 Referenced by issue #88665, Impossible to weight paint certain vertices
 Referenced by issue #70109, Crash with the Data Transfer Modifier (with any 'Edge Data' option)
 Referenced by issue #69484, Some Passes turn off when reopening a file despite saving
+Referenced by issue #69278, "Make Single User" not working properly, copying / pasting always linking object
