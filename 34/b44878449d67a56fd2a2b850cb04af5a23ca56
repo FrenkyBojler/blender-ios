@@ -3,3 +3,4 @@ Referenced by issue #121786, Fix #121666: Modifying UVs of duplicate affects the
 Referenced by issue #115234, Fix #109670: attribute shared between geometries even when edited (backport to 3.6)
 Referenced by issue #114173, Cannot undo python opeartor that writes to curve attribute - if
 Referenced by issue #113621, Regression: Can no longer set evaluated data in python for attributes
+Referenced by issue #109399, Blender LTS: Maintenance Task 3.6
