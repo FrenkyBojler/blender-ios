@@ -2,3 +2,4 @@ Referenced by commit 385bd0c4e97, Fix T103685: Animation on objects that are dis
 Referenced by commit e276558a50f, Fix T74983: Material preview icons don't refresh
 Referenced by commit dcb93126876, Depsgraph: fix crash caused by removing too many NO-OP nodes
 Referenced by issue #75591, Cycles, point lamp can`t recieve variable colors from nodes
+Referenced by issue #74983, Material preview icons don't refresh
