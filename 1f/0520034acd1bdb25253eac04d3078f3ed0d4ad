@@ -1,1 +1,2 @@
 Referenced by commit f622b4ce96e, Fix #113201: Assets in same folder as current file ignored in All library
+Referenced by issue #120231, Crash on `bpy.ops.uv.pack_islands` for certain geometry with `shape_method='CONVEX'`
