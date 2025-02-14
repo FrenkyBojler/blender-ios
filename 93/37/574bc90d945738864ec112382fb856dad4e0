@@ -66,3 +66,4 @@ Referenced by issue #41443, Seperate bug with Curves & Hooks
 Referenced by issue #41430, Vector pass errors with animated array, curve and subsurf modifier combined
 Referenced by issue #41413, Loop cut: Adding more than one cut defaults to Edge Select; even if in Vertex Select.
 Referenced by issue #41406, Smear bug
+Referenced by issue #41378, Particle update bug
