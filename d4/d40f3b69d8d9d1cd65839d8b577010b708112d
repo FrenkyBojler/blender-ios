@@ -1,2 +1,3 @@
 Referenced by issue #102491, Blender crashes frequently when rendering Smoke Simulation (Manta Flow) with Cycles using GPU
 Referenced by issue #102142, Bug baking objects with COMBINED and active objects error.
+Referenced by issue #101537, Regression: Crash render Cycles & Volume + Sky Texture on world shader
