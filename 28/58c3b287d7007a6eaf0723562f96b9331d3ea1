@@ -1,2 +1,3 @@
 Referenced by commit 69f93669110, Fix #127045: regression when importing assets from the asset browser
 Referenced by issue #127452, Fix #127045: regression when importing assets from the asset browser
+Referenced by issue #127045, Regression: Dragging Assets from the Library no longer transfers attached empties
