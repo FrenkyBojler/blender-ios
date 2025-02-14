@@ -9,3 +9,4 @@ Referenced by issue #115510, Regression: Poly Build does not update snapped geom
 Referenced by issue #115169, Loop Cut overlay broken with Mirror Bisect Modifier
 Referenced by issue #110925, mirror modifier and subdivision surface.on_cage enabled crashes blender
 Referenced by issue #110136, Crash when switching to the Face select mode in 3.6
+Referenced by issue #110001, Regression: Overlay -- Measurement display error when some modifiers are present in the object.
