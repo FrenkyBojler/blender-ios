@@ -9,3 +9,4 @@ Referenced by issue #50911, Broken user interface in render result window when i
 Referenced by issue #50864, Image Sequence Textures for Particles failing
 Referenced by issue #50850, Blender crash with cycles rendered viewport shading when changing settings of material with external jpg texture
 Referenced by issue #50829, Bake cache files gone
+Referenced by issue #50806, Parent/child transformation is incorrect when the parent's scaling is changed
