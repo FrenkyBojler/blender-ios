@@ -1,3 +1,4 @@
 Referenced by issue #61046, Cloth from Blender 2.79 project file doesn't bake properly in blender 2.80 (Object Constraint Problem?)
 Referenced by issue #60935, Poly Build tool is not detecting verts/edges properly
 Referenced by issue #60931, Workspaces are not working when nothing is selected (can cause crash)
+Referenced by issue #60914, Blender 2.80 no option to "delete hierarchy" outliers
