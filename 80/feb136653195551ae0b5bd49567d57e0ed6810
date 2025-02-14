@@ -1,2 +1,3 @@
 Referenced by commit 3d3569852fe, Animation: Change channel selection key preferences in IC keymap
 Referenced by commit 3ed297633d5, Fix unintended fall-through in ANIM_is_active_channel
+Referenced by issue #108790, Animation: Change channel selection key preferences in IC keymap
