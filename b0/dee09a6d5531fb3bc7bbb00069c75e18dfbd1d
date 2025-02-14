@@ -6,3 +6,4 @@ Referenced by issue #60684, Fourth and subsequent vertex color / UV layers displ
 Referenced by issue #60690, Cycles GPU render carsh with RX 580
 Referenced by issue #60671, GP weight paint crash when smoothing weights (and other weird behaviour)
 Referenced by issue #60672, Shape Key animation breaks basis mesh
+Referenced by issue #60677, GP vertex groups get messed up, when deleting a group
