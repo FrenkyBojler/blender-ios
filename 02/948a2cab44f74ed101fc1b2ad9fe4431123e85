@@ -12,3 +12,4 @@ Referenced by issue #88482, Segfault pasting stale driver.
 Referenced by issue #88410, Shader Image Mapping Issue
 Referenced by issue #88312, OBJ importer crashes
 Referenced by issue #88278, Blender crashes upon opening a blender file
+Referenced by issue #88187, Clipping Region tool closes Blender
