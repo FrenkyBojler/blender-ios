@@ -11,3 +11,4 @@ Referenced by issue #109349, Can't save files in VSE mode
 Referenced by issue #109196, Deleting and creating a new world results in an error
 Referenced by issue #108930, Regression: Mirror modifier breaks custom normals
 Referenced by issue #108908, having both casting & receiving shadow caustics enabled will break/negate ambient occlusion node in material editor (cycles)
+Referenced by issue #108606, Color swatch in grease pencil in the topbar is half transparant, showing whats underneat
