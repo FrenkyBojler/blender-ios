@@ -1,1 +1,2 @@
 Referenced by commit 9a6dc39d4b8, Sculpt: Fix T101694: Change operator for unhide face sets
+Referenced by issue #101722, Regression: Missing default face set for primitive meshes
