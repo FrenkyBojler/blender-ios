@@ -1,1 +1,2 @@
 Referenced by issue #45390, Cycles experimental displacement method (true and both) ignores scaling when render
+Referenced by issue #45237, Dither dosn't work in Blender Internal Renderer 2.75 rc2
