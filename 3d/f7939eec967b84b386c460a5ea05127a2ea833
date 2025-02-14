@@ -1,2 +1,3 @@
 Referenced by issue #126692, Hard Crash while baking Line Art Modifier for Geometry Nodes object
 Referenced by issue #121342, Alt + H unhides bones with drivers
+Referenced by issue #117583, Wayland: Mouse cursor becomes resize on the title bar of the render view window.
