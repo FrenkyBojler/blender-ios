@@ -1,1 +1,2 @@
 Referenced by issue #78586, In compositor image previews inside nodes don't update/refresh when they should
+Referenced by issue #78264, Auto Render stops working after rendering manually
