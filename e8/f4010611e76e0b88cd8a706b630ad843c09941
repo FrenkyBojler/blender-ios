@@ -4,3 +4,4 @@ Referenced by issue #105154, Fix #103387: Radius affects curves bounding box
 Referenced by issue #103566, Regression: Wrong bounding box for curve object
 Referenced by issue #103387, Set Curve Radius is Effecting Bounding Box of Curves
 Referenced by issue #96968, Object data bounds improvements proposal
+Referenced by issue #96894, Regression: Exported sculpt details are missing till you press clear custom split normals (e.g. after FBX export/import roundtrip)
