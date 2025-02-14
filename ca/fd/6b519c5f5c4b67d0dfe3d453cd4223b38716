@@ -1,2 +1,3 @@
 Referenced by commit cd5dd6e454f, Fix #115648: Crash on startup with an incompatible PYTHONPATH
 Referenced by commit 06212759bc7, Fix missing NULL check on macOS when system-python isn't found
+Referenced by issue #95410, Regression: Blender text editor lost support for dead keys
