@@ -2,3 +2,4 @@ Referenced by issue #116700, EEVEE: Material index changes between edit and obje
 Referenced by issue #116113, Thickness brush in Grease Pencil keeps reverting to add effect
 Referenced by issue #111671, Grid artefacts in ortho view on Intel Arc 770
 Referenced by issue #111556, Shader compilation freeze Blender on Intel Arc770
+Referenced by issue #110646, Magic UV: Pack UV crashes Blender
