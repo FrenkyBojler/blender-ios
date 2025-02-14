@@ -1,3 +1,4 @@
 Referenced by issue #128813, Grease Pencil is shown in front when deactivating "Show Overlays"
 Referenced by issue #127645, Grease Pencil objects get hidden when Overlay mode is off - Blender 4.2.2 RC v42.252cc7839f14
 Referenced by issue #126141, Grease Pencil objects are drawing on top in the viewport when Overlays is deactivated in solid shading mode
+Referenced by issue #125414, Grease Pencil is no longer composited into the scene when overlays are turned off
