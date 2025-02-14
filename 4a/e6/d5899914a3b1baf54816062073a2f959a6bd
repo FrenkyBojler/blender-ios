@@ -2,3 +2,4 @@ Referenced by issue #43682, Crash from objects created via FBX from earlier blen
 Referenced by issue #43651, New pointiness attribute doesnt work with displacement
 Referenced by issue #43648, VSE crash
 Referenced by issue #43631, Blender Crash when trying to append
+Referenced by issue #43634, Selecting 'Drop Color' from spacebar menu causes instant close
