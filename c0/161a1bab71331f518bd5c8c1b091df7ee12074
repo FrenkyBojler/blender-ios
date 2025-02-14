@@ -1,0 +1,1 @@
+Referenced by issue #89844, Nesting Collection instances cause first objects to disappear (restricted by MAX_DUPLI_RECUR)
