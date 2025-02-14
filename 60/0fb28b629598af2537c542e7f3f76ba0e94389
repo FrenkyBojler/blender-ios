@@ -1,1 +1,2 @@
 Referenced by commit 2bd0263fbf2, Fix T83346: Scrolling doesn't work with mouse over panel header
+Referenced by issue #89350, Color indicating animation status missing from many icon buttons (all defined with emboss=False)
