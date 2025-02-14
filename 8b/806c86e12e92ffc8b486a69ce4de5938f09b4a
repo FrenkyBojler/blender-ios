@@ -1,2 +1,3 @@
 Referenced by issue #82277, Poor Boolean Performance 2.91 Beta
 Referenced by issue #82027, Crash on Cycles render preview playing & stopping animation when using Quick Smoke
+Referenced by issue #81750, Render errors [glitchy frames] with baked cloth [from the UI, commandline as well as rendering  with 'Lock Interface' is OK]
