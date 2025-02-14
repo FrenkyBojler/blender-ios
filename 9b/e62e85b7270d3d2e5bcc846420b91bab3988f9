@@ -30,3 +30,4 @@ Referenced by issue #116756, Side-by-Side stereo: UI text unreadable, 3D viewpor
 Referenced by issue #116537, Blender crashes on startup  Error:terminated by signal SIGSEGV (Address boundary error)
 Referenced by issue #116325, Assigning `material.paint_active_slot` after copying nodes crashes Blender
 Referenced by issue #116314, Crash on start.
+Referenced by issue #116218, IMPOSIBLE RENDERIZAR CYCLES
