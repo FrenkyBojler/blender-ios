@@ -1,2 +1,3 @@
 Referenced by commit 45f34265592, Fix: UserDef_Experimental padding
 Referenced by issue #122714, Regression: Missing textures not shown in Texture Paint mode with magenta
+Referenced by issue #116985, Regression: Smoke is not visible in XRAY anymore
