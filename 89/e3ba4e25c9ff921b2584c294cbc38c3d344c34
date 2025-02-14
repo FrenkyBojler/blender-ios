@@ -15,3 +15,4 @@ Referenced by issue #114490, "Auto Smooth" GN modifiers do not appear on the nod
 Referenced by issue #114244, Regression: Smooth operators destroy manual sharp seams.
 Referenced by issue #114193, Blender adds Auto smooth to various objects and makes undo very slow
 Referenced by issue #114028, Cycles: Displacement splits flat-shaded faces
+Referenced by issue #114029, EEVEE Next: Displacement splits flat-shaded faces
