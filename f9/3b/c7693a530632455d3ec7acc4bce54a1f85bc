@@ -70,3 +70,4 @@ Referenced by issue #40160, Window Draw Method: Full = Drag and drop text does n
 Referenced by issue #40155, Alt (and ctrl) keys remain active after switching to Blender app
 Referenced by issue #40120, OpenCL kernel compilation error when __CAMERA_MOTION__ is enabled
 Referenced by issue #40121, Smoke not masking objects
+Referenced by issue #40126, Le "Textured Shading" ne fonctionne pas.
