@@ -1,2 +1,3 @@
 Referenced by commit 08588d06e86, Fix T71554: 'Hide Unselected' not working for certain selections
 Referenced by issue #62091, Eevee Particles Shading [Attribute Color | Random | Index etc]
+Referenced by issue #61547, Instanced Meshes incorrectly rendered in Cycles (Sample 1 renders over and over again)
