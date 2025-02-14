@@ -3,3 +3,4 @@ Referenced by commit 02379f3200f, Fix #119527: Aliased Wireframe In XRay
 Referenced by commit b5168ee771c, Fix #119527: Aliased Wireframe In XRay
 Referenced by issue #120285, Revert "Overlay: Wireframe: avoid using custom depth bias with xray enabled"
 Referenced by issue #120208, GPU Subdivision modifier produce aliased wireframe in xray
+Referenced by issue #119656, Fix #119527: Aliased Wireframe In XRay
