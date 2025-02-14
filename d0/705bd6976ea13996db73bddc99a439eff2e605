@@ -1,1 +1,2 @@
 Referenced by commit 6a3ca93c7e3, Fix #108788: Data transfer nearest interpolated broken
+Referenced by issue #108788, Transfer Weights: unexpected result with "Nearest Face Interpolated"
