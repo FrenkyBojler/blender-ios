@@ -2,3 +2,4 @@ Referenced by commit 97836115180, Fix #113287: Industry Compatible Keymap: Node 
 Referenced by commit 974edc58854, Cleanup: Remove unnecessary "add node search"
 Referenced by commit e86211cded5, Cleanup: Remove unnecessary search item in texture node add menu
 Referenced by issue #113446, Fix #113287: Industry Compatible Keymap: Node Editor Search missing
+Referenced by issue #113287, Industry Compatible Keymap: Node Editor Search missing
