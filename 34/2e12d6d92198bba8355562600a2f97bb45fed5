@@ -1,2 +1,3 @@
 Referenced by issue #105749, Regression: GPU Subdivision: EEVEE  doesn't refresh viewport correctly with Armature modifier
 Referenced by issue #103972, Regression: Crash when setting cloth simulation rest shape key with subdivision modifier
+Referenced by issue #102215, Generated Texture Coordinate Node In Shader Creates Broken Pattern Upon Applying Subdivision After Armature Modifier
