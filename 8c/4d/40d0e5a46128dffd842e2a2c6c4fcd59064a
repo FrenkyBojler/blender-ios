@@ -1,1 +1,2 @@
 Referenced by issue #37987, Blender goes into an infinite loop when opening a file
+Referenced by issue #37984, Blender crashes when packed image is used in a cycles node shader.
