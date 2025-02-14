@@ -20,3 +20,4 @@ Referenced by issue #54355, Python Version in  Blender 2.79 and 2.79a
 Referenced by issue #54342, Skin modifier crashes Blender
 Referenced by issue #54328, Sequencer - hard cut (shift k), is broken
 Referenced by issue #54332, Keep Alt Key not work in the F-Curve properties
+Referenced by issue #54312, bpy.data.filepath is an Empty String When Blender is opened to a Startup File
