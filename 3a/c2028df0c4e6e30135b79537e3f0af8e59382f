@@ -1,0 +1,1 @@
+Referenced by issue #48202, Texture paint in the 3d View will crash, if you not check "Clamp Overlap" in the Bevel modifier
