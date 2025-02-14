@@ -31,3 +31,4 @@ Referenced by issue #52146, hair not are simulateable and not editable in eevee.
 Referenced by issue #52131, particle hair not doing dynamic, just being static when enabled dynamic.
 Referenced by issue #52106, Render window don't close from Windows taskbar thumbnail
 Referenced by issue #52095, Blender 2.78.5/2.79 - Cannot switch to OpenCL render.
+Referenced by issue #52080, File Permissions Bug in Windows  - Blender ignores Windows folder permissions and fails to write in valid folders with proper permissions.
