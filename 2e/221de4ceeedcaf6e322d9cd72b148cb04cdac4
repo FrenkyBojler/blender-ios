@@ -3,3 +3,4 @@ Referenced by commit 81eb7edc8b3, Outliner: Port view collection base elements t
 Referenced by commit 668b31c5d86, Outliner: Port layer collection elements to new tree-element code design
 Referenced by commit 28f4bb20071, Outliner: Port modifier elements to new tree-element code design
 Referenced by commit 077db81638b, Outliner: Port linked object elements to new tree-element code design
+Referenced by commit 02969de1553, Outliner: Port constraint elements to new tree-element code design
