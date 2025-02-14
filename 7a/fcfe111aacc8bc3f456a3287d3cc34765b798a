@@ -9,3 +9,4 @@ Referenced by issue #114252, Regression: VSE: Splitting a meta-strip adds weird 
 Referenced by issue #99494, Regression: Wipe Transition not working
 Referenced by issue #99216, VSE: invalid sequence.frame_final_end
 Referenced by issue #99133, Regression: VSE Speed control - animating multiply factor on video strips crashe blender
+Referenced by issue #98797, Regression: VSE Slip Strip Contents doesn't work properly
