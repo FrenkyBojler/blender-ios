@@ -3,3 +3,4 @@ Referenced by issue #88681, Armature combined with subdivision incorrect normals
 Referenced by issue #71879, Select expand/contract from face mode to edge mode doesnt flush to faces if there are zero edges selected after contraction
 Referenced by issue #71882, Offset Edge Slide doesn't switch selection mode correctly
 Referenced by issue #71844, Outliner: show_active doesn't expand armature to show active bone
+Referenced by issue #71769, The plus icon is on the left and no effect when you click
