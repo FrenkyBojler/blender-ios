@@ -1,1 +1,2 @@
 Referenced by commit 7d22b113524, Fix #105601: Remove duplicates when inserting links into multi inputs
+Referenced by issue #107018, Regression: node input in-place swapping no longer works
