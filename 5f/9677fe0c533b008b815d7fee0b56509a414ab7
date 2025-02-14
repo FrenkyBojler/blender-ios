@@ -1,2 +1,3 @@
 Referenced by commit 2dbb492268c, Fix T89455: Cycles crash when rendering a Mesh with autosmooth
 Referenced by issue #89842, Crash when baking vertex colors when Auto Smooth is enabled
+Referenced by issue #89477, Crash and/or stall with some geometry
