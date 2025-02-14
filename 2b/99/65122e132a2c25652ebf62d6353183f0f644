@@ -1,1 +1,2 @@
 Referenced by issue #64254, blender 2.8 unable to open the sound file "Python"
+Referenced by issue #64228, insert_keyframe and bpy.ops from bpy.app.timers, now causes Blender to crash
