@@ -1,1 +1,2 @@
 Referenced by issue #75287, Cycles render passes have channels from other passes appearing in them.
+Referenced by issue #73372, Cryptomatte allows users to manually set odd values, while internally rounding down to the nearest even number.
