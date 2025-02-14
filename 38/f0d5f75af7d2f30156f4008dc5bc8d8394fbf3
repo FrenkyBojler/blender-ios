@@ -1,2 +1,3 @@
 Referenced by commit af53c3b1356, Fix crash reloading images used in compositor node
 Referenced by issue #61712, crash when reloading texture
+Referenced by issue #61714, set image path via python crash
