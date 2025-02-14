@@ -1,1 +1,2 @@
 Referenced by issue #107555, WM: don't skip AutoSave if modal operator is 'fileselect'
+Referenced by issue #77825, Autosave is postponed by 10 seconds when a modal operator is running
