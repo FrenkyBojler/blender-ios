@@ -1,0 +1,1 @@
+Referenced by issue #42441, Smoke doesn't render if object's maximum draw type is set to "wire"
