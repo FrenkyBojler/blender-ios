@@ -1,3 +1,4 @@
 Referenced by issue #109112, Mask on mesh with multires modifier looks strange, behave broken
 Referenced by issue #104183, Inconsistent pressure behavior between the size and the strength in the sculpt mode
 Referenced by issue #103587, Redo panel doesn't appear for spin operator
+Referenced by issue #101743, Regression: Redo panel created on sculpting
