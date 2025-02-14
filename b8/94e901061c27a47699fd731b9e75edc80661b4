@@ -1,1 +1,2 @@
 Referenced by issue #113206, Regression: Function unregister() is not called during shutdown of Blender 4.0
+Referenced by issue #112992, Tree View: Scroll bar and resize widget missing from the Group tab on the Node editor's side panel
