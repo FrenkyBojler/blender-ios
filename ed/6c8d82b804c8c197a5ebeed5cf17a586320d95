@@ -1,2 +1,3 @@
 Referenced by commit f0ebf696cbb, Fix T101964: Edge and face snapping no locking to axis
 Referenced by issue #101964, Regression: Edge snapping and face project snapping no longer locks to axis
+Referenced by issue #101196, Local space transform move is broken in orthographic view along x-axis
