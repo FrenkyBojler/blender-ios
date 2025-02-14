@@ -2,3 +2,4 @@ Referenced by commit 7397fda92b6, Fix #133764: Collada crash (editmode + triangu
 Referenced by issue #133859, Fix #133764: Collada crash (editmode + triangulate + apply modifiers)
 Referenced by issue #133764, Blender crashes on Collada export
 Referenced by issue #109399, Blender LTS: Maintenance Task 3.6
+Referenced by issue #100749, Blender LTS: Maintenance Task 3.3
