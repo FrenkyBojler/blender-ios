@@ -1,1 +1,2 @@
 Referenced by issue #91433, invalid value in cuMemcpy
+Referenced by issue #90308, Crash when moving data from dedicated GPU memory to shared during cycles Optix viewport rendering
