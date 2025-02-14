@@ -3,3 +3,4 @@ Referenced by issue #60758, Major Discrepancies in UV Maps and Meshes between So
 Referenced by issue #60023, Clicking on texture paint - instant crash - Linux
 Referenced by issue #59972, When editing UVs, Live Unwrap messes up with the scale and organization of the UV Islands.
 Referenced by issue #59927, Blender fails on new file load
+Referenced by issue #59923, Material tab > Surface - buttons broken in recent build (2018-12-27)
