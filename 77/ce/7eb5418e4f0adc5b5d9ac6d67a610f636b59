@@ -1,0 +1,1 @@
+Referenced by issue #44557, BGE leaves references in memory after quitting
