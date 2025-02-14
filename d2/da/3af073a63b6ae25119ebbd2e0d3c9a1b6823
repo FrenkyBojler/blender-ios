@@ -1,1 +1,2 @@
 Referenced by issue #129384, Memory (RAM) leak since 4.0.0 in bpy when rendering several frames with Cycles
+Referenced by issue #54287, Memory not freed after rendering with 2.79a
