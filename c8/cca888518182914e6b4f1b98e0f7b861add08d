@@ -1,1 +1,2 @@
 Referenced by commit 6ae08da5c8a, Fix T95756: Crash inserting geometry node after linking modifier
+Referenced by issue #95756, Crash when inserting a new node after linking a geometry nodes modifier to another object
