@@ -81,3 +81,4 @@ Referenced by issue #47413, Mac UV transparency now black in Windows UV transpar
 Referenced by issue #47392, OpenSubdiv is not reactivated though the Modifier after the Subsurf-Modifier is not displayed in Viewport
 Referenced by issue #47394, Explode Modifier: Particle UV setting
 Referenced by issue #47368, Crash: Re-linking Object to Different Scene
+Referenced by issue #47354, accented characteres
