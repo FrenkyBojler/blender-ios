@@ -16,3 +16,4 @@ Referenced by issue #115127, Manpage: python script byte to string to fix blende
 Referenced by issue #115072, Blender 4.0 Missing Menu Options
 Referenced by issue #115074, Can't launch 4.0.1 in Ubuntu 23.10
 Referenced by issue #115065, Regression: Clicking Brush Blending Mode in Vertex Paint crashes
+Referenced by issue #113062, [Linux/X11/Wayland] Blender crash report
