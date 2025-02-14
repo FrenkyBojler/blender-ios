@@ -1,1 +1,2 @@
 Referenced by issue #73838, Mantaflow: Viewport shading of gas changes as "Initial Temperature" is modified.
+Referenced by issue #73798, Splash Load Settings should quite gracefully on symbolic links (Windows)
