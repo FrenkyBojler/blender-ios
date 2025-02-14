@@ -2,3 +2,4 @@ Referenced by commit f1cb3dfbaaa, Fix broken behavior on active VR Landmark chan
 Referenced by commit 727a744e3c3, Fix broken behavior on active VR Landmark change
 Referenced by commit 954aa441bf3, Fix: Incorrect VR pose after changing landmark
 Referenced by issue #78997, Review updates to VR Scene Inspection Add-on
+Referenced by issue #78738, Mantaflow - Enabling "Noise" breaks fast-moving smoke
