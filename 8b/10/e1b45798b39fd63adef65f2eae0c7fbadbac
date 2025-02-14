@@ -1,1 +1,2 @@
 Referenced by issue #76471, Crash on BLI_assert(sfile->previews_timer == NULL);
+Referenced by issue #61780, Crash when trying to access screen areas through the outliner
