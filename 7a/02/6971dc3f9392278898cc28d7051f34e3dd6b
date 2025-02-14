@@ -1,1 +1,2 @@
 Referenced by commit 9b729adb6e2, Remove redundant workaround for T41548
+Referenced by issue #41548, Menu pulldown button behaves incorrectly on click if menu shadow width is set to 0 in theme prefs
