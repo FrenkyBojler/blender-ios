@@ -1,2 +1,3 @@
 Referenced by commit c4701a027fe, Fix T98558: island selection in UV editor can crash
 Referenced by issue #98558, Regression: Crash when using island selection in UV editor
+Referenced by issue #96544, Tweak tool consistency & behavior
