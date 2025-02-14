@@ -1,1 +1,2 @@
 Referenced by issue #58547, EEVEE Reflection plane probe does not work correctly in final render. The preview render okay.
+Referenced by issue #58188, Extreme FPS loss (24x) between 2.79 and 2.8 with particle systems
