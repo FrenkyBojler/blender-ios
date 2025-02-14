@@ -1,1 +1,2 @@
 Referenced by commit c48360c2559, Fix: NLA Blends Non-Animated Upper Channel Values
+Referenced by commit 5bc9ddd98b3, Fix T85380: NLA Evaluation Missing Null Check
