@@ -3,3 +3,4 @@ Referenced by issue #64558, Unable to Select GPU for GPU rendering OpenCL Ubuntu
 Referenced by issue #64500, Preferences are saved as soon as a change is made, not only when saved manually
 Referenced by issue #64502, Collection instances shade bad if mirrored
 Referenced by issue #64466, Eevee not working on Intel UHD 630 / HD 620 / Iris
+Referenced by issue #64408, Playback shortcut doesn't fully work
