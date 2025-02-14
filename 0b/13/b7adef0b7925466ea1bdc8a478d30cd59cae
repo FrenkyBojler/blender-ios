@@ -1,3 +1,4 @@
 Referenced by issue #49751, Crash when starting to render (F12) with a 3D viewport in Rendered shading mode
 Referenced by issue #49609, Point density textures: vertex colors are not properly averaged
 Referenced by issue #49592, Crash on "Load Factory Setting"
+Referenced by issue #49557, Fire/Smoke simulator
