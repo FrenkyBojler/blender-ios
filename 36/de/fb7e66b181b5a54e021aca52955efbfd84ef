@@ -1,3 +1,4 @@
 Referenced by issue #39799, Backdrop (compositor) ignores alpha
 Referenced by issue #39786, Transform node gives bad results
 Referenced by issue #39793, Cycles shading failure; major blowout when using an input in a certain setup on recent builds
+Referenced by issue #39794, Blender crashes when rendering specific file for the second time
