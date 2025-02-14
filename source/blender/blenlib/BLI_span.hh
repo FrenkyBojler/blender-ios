@@ -300,7 +300,7 @@ template<typename T> class Span {
    */
   constexpr bool contains_subrange(Span other) const
   {
-    return (this->begin() <= other.begin) && (other.size_ <= this->size_);
+    return (this->begin() <= other.begin()) && (other.size() <= this->size());
   }
   /**
    * Does a linear search to count how often the value is in the array.
