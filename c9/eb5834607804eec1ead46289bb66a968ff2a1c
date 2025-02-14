@@ -1,1 +1,2 @@
 Referenced by issue #103408, Regression: Blender crash when moving camera immediately after opening the project (OPTIX)
+Referenced by issue #103257, Enabling or disabling OptiX viewport denoising while using OptiX OSL results in an error
