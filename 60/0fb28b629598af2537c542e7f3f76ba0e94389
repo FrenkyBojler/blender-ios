@@ -1,3 +1,4 @@
 Referenced by commit 2bd0263fbf2, Fix T83346: Scrolling doesn't work with mouse over panel header
 Referenced by issue #89350, Color indicating animation status missing from many icon buttons (all defined with emboss=False)
 Referenced by issue #86299, grease pencil layers visibility icon doesn't change to purple when a driver is added
+Referenced by issue #83355, Driven or keyed states no longer visible on shapekey sliders
