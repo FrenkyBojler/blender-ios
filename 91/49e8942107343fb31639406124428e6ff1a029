@@ -1,3 +1,4 @@
 Referenced by issue #60372, Grease Pencil Always defaults to Eraser Tool when using the Veikk A50 Tablet.
 Referenced by issue #60374, edit mode, subdivide smooth doesn't affect 2d meshes
 Referenced by issue #59670, Blender Crashes when you click the Material selection Button
+Referenced by issue #59568, Cycles particle motion blur spans over whole particle life (when not cached)
