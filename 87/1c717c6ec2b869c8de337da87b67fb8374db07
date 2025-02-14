@@ -2,3 +2,4 @@ Referenced by commit 65803f262fc, Node Tools: Basic support for data-block input
 Referenced by commit 821060f75ac, Fix #114686: Cannot execute node tool operators
 Referenced by issue #121148, Node Tools: Basic support for data-block inputs
 Referenced by issue #114693, Fix #114686: Cannot execute node tool operators
+Referenced by issue #114686, Regression: Can not execute node tool operators
