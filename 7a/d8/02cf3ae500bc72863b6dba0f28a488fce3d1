@@ -1,3 +1,4 @@
 Referenced by issue #92938, Color Space in Material Slot resets to sRGB when updating the texture
 Referenced by issue #87844, Packed External Data Changes Material
 Referenced by issue #83840, Duplicate nodes as Instance Nodes
+Referenced by issue #74284, Changing image path in Image Texture node resets color space
