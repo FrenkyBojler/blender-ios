@@ -1,2 +1,3 @@
 Referenced by commit 72e20785e1e, Fix T96205: Active shape key gets lost upon edit mode undo
 Referenced by commit d961adb866c, Fix T96135: Mesh coordinates are set to the last edited shape-key
+Referenced by issue #44415, Shape keys get out of sync with Basis shape (when using UNDO in basis modification or manipulating basis via python)
