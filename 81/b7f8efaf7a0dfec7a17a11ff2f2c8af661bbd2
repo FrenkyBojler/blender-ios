@@ -1,3 +1,4 @@
 Referenced by issue #73272, Fire + Smoke broken in Linux
 Referenced by issue #73265, Grease Pencil Delete Active Frame operator throws error to console when first frame
 Referenced by issue #73252, Crash with links and Make proxy
+Referenced by issue #71075, Particle collisions aren't simulated before frame zero for negative frame simulations
