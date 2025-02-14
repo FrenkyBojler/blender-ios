@@ -1,1 +1,2 @@
 Referenced by issue #77249, Operators that create library data without being flaged to UNDO crash when undoing
+Referenced by issue #76558, Decreasing Viewport Anti-Aliasing levels makes cube whiter
