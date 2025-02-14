@@ -1,2 +1,3 @@
 Referenced by issue #89078, the suggestion about blender crash
 Referenced by issue #88051, Context override of bpy.ops.object.mode_set does not work
+Referenced by issue #87853, Crash when `select none` on Weight painter
