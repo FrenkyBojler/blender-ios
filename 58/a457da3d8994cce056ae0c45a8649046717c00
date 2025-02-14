@@ -1,1 +1,2 @@
 Referenced by issue #79680, Viewport denoiser interrupts on late sample start.
+Referenced by issue #78370, OIDN Viewport Denoiser start sample behaviour differs depending on number of viewport samples
