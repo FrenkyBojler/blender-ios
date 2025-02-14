@@ -43,3 +43,4 @@ Referenced by issue #45987, Win10 64-bit - Cycles - Various CUDA errors in cuCtx
 Referenced by issue #45973, Geometry displacement slider doesn't update 3D View Editor.
 Referenced by issue #45949, Win10 - Cycles with Cuda - ILLEGAL_ADDRESS om cuCtxSynchronize()
 Referenced by issue #45954, Inset: VCol not correctly initiated for new vertices
+Referenced by issue #45918, CustomDataLayer with type CD_MLOOPUV in Mesh::ldata::layers sometimes points to different memory than Mesh::mloopuv
