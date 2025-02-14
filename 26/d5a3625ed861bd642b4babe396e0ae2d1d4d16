@@ -5,3 +5,4 @@ Referenced by issue #58951, Subdivision not displaying correctly in edit mode
 Referenced by issue #58742, Segmentation faults while trying to render with GPU and CPU hybrid rendering in Cycles
 Referenced by issue #58672, Error by using modifiers
 Referenced by issue #58524, Cycles Compute Device only shows "none".
+Referenced by issue #58422, Mirror modifier doesn't work with Curves
