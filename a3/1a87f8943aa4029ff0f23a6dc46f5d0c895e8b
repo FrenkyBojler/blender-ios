@@ -1,2 +1,3 @@
 Referenced by commit 83e91485d09, GPU: Fix NOT ~ operator for eGPUSamplerState
 Referenced by issue #81572, Viewport Shading Cavity Glitch
+Referenced by issue #81340, UBSan: several runtime errors at launch.
