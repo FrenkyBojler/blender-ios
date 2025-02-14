@@ -1,1 +1,2 @@
 Referenced by issue #79187, "ID Data"  → "Make Single User" in Outliner for Curve animation data crashes Blender
+Referenced by issue #77277, DEG::is_reachable is taking 50% of DEG relation rebuild in coffee run file
