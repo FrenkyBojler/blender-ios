@@ -1,2 +1,3 @@
 Referenced by issue #56772, File Output node is missing "Save as render" option
 Referenced by issue #56764, "Save as render" option under IMAGE_OT_save_as RNA in key config doesn't work
+Referenced by issue #56712, Compositor image loader skips frames
