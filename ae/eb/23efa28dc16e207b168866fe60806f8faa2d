@@ -1,3 +1,4 @@
 Referenced by commit 02b36188737, File Browser: Keep file name after changing directory
 Referenced by commit 9a3dfa1f211, Fix crash when appending from File Browser
 Referenced by commit 5513fdc6298, Fix T45398: Saving file from File Browser doesn't work if no file is selected
+Referenced by issue #45398, Savedialog partially stopped working
