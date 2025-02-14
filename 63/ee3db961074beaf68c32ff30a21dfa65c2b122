@@ -1,1 +1,2 @@
 Referenced by commit f921ae46658, Fix T79453: Motion Tracking: marker does not remember 'enabled' state
+Referenced by issue #85061, Blender freezes, but does not crash
