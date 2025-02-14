@@ -4,3 +4,4 @@ Referenced by commit 26c2c617b46, Fix T90421: edit-mode auto-smooth crash when a
 Referenced by commit 11cfa6c718b, Fix T90332: Auto-smooth crashes in edit-mode
 Referenced by commit 66dfef10a79, Fix error setting sharp edges in recent normal calculation changes
 Referenced by issue #92874, Custom normals are destroyed whenever a vertex is deleted
+Referenced by issue #92875, Sharp Edges when merging doubles not behaving as expected
