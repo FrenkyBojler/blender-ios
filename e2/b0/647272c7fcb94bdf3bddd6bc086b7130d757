@@ -2,3 +2,4 @@ Referenced by issue #67443, Blender crashes when shifting from texture paint
 Referenced by issue #67424, Blender crashes when entering edit mode from sculpting mode
 Referenced by issue #67360, Problem with relations of particle physics 'keyed'
 Referenced by issue #67256, Object duplication after activating Dyntopo when changing parameters for new objects
+Referenced by issue #67258, Blender crashes when saving new texture image from texture context tab
