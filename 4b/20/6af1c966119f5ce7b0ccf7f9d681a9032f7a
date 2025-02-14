@@ -13,3 +13,4 @@ Referenced by issue #38226, critical 3d view transform and manipulator issues.
 Referenced by issue #38083, Submenu arrow is overlayed by menu item hotkey
 Referenced by issue #38003, Crash through Offset (Arraymodifier)
 Referenced by issue #37987, Blender goes into an infinite loop when opening a file
+Referenced by issue #37984, Blender crashes when packed image is used in a cycles node shader.
