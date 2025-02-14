@@ -1,0 +1,1 @@
+Referenced by issue #46534, Crashing buffer overflow in Source/blender/imbuf/intern/radiance_hdr.c::freadcolrs.
