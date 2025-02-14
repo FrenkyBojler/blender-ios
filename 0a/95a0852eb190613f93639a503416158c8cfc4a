@@ -1,1 +1,2 @@
 Referenced by issue #73675, rB0a95a0852eb1 tags all objects in a scene for depsgraph update when leaving edit mode, causing significant lag.
+Referenced by issue #69834,  Crash: Multi-object edit containing a (multiuser) mesh that is also used by an object in a hidden collection destroys CustomData layer
