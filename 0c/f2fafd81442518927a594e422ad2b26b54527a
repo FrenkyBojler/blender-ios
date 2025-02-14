@@ -1,2 +1,3 @@
 Referenced by issue #94570, Cycles Metal: Material with the 'Image Texture' and 'Ambient Occlusion' nodes turns black
 Referenced by issue #94527, UV issue with Cycles GPU rendering on Apple M1 Pro (Seems related to Bevel node + Texture Image)
+Referenced by issue #94050, Bug Ambient Occlusion +Texture not working. Apple M1 GPU Rendering
