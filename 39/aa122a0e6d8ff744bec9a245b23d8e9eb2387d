@@ -1,2 +1,3 @@
 Referenced by issue #77335, Circle Select tool selects faces perpendicular to the view.
 Referenced by issue #77130, Visually broken/stepped wireframe in object mode (regression)
+Referenced by issue #77015, box select doesnt select cameras when zoomed out, lasso and circle select do work.
