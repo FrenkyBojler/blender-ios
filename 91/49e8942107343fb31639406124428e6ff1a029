@@ -4,3 +4,4 @@ Referenced by issue #59670, Blender Crashes when you click the Material selectio
 Referenced by issue #59568, Cycles particle motion blur spans over whole particle life (when not cached)
 Referenced by issue #59519, Grease Pencil stroke with noise modifier crashes blender
 Referenced by issue #59520, Graphical glitch in dyntopo sculpt mode (ghost faces)
+Referenced by issue #59521, Redundant object settings
