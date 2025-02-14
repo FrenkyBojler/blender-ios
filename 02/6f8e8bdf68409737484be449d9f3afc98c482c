@@ -1,0 +1,1 @@
+Referenced by issue #120857, Viewport Compositing: Scale node does not render correctly, uses a lot of VRAM in 4.1 and crashes in 4.2
