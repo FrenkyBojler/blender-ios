@@ -1,0 +1,1 @@
+Referenced by issue #52551, undo causes crash after enabling a new rigid body when scene uses a referenced rigid body world
