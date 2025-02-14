@@ -8,3 +8,4 @@ Referenced by issue #61307, Blender Crashes when Material Tab is clicked
 Referenced by issue #61314, crash when drawing images, fonts etc using icon_value arg or template_icon_view function
 Referenced by issue #61315, Blender 2.80 crashes at start up
 Referenced by issue #61305, bug on material properties panel
+Referenced by issue #61196, clipping border allows selection of clipped vertices when x-ray mode is disabled
