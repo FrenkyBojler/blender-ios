@@ -1,0 +1,1 @@
+Referenced by issue #73771, New Bevel: Scaling Vertices, Edges by their individual origins has different behavior if bevel regions are direct neighbors (selection flushing to edges immediately?)
