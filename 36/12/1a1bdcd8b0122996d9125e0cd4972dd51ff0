@@ -1,3 +1,4 @@
 Referenced by issue #59702, Curve object invisible
 Referenced by issue #59694, Bake All Dynamics is only baking the last few seconds, and its wrong.
 Referenced by issue #59699, The curves have disappeared in object mode
+Referenced by issue #59600, Python-made grease pencil strokes not updating until manual stroke added
