@@ -4,3 +4,4 @@ Referenced by issue #61162, Fluid viscosity doesn't work
 Referenced by issue #61119, Sculpt mode ignores shape key when the object has a Mask modifier.
 Referenced by issue #61034, Keyframeing outliner "view in..." crashing blender
 Referenced by issue #61035, Draw manager crash opening file with curves
+Referenced by issue #61039, Crash switching to wire shading with smoke simulation
