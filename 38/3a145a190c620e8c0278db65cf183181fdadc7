@@ -4,3 +4,4 @@ Referenced by commit d3ff658b66d, Fix #115572: shape_key_remove operator leaves 
 Referenced by issue #123893, Fix #123882: Ocean Modifier not updating normals in "Displace" mode
 Referenced by issue #117332, Strange behavior of imported dae object
 Referenced by issue #115612, Fix #115526: missing normals on first chunk of array modifier
+Referenced by issue #115572, Regression: Removing shape keys via python iteration messes up normals
