@@ -1,1 +1,2 @@
 Referenced by commit c5d08aa0a36, Fix: muted nodes not handled correctly
+Referenced by issue #93555, Crash When Muting Group Nodes Containing Join Geometry Node
