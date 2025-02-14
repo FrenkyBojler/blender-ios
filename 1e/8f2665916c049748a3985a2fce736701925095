@@ -2,3 +2,4 @@ Referenced by commit f60ac5068a6, PyDoc: remove CSS override for scrolling long 
 Referenced by commit 1c6b66c9cf8, PyDoc: replace in-lined enum references with links where possible
 Referenced by issue #99209, [Sculpt] Masking crashes Blender when used after applying Remesh modifier in Sculpt mode
 Referenced by issue #84393, Sculpt: Activate Expand Mask on mesh w/ Voxel Remesh Crashes
+Referenced by issue #83538, Two materials: volumetric being in second slot causes error in EEVEE
