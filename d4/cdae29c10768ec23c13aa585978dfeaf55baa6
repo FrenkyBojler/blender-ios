@@ -1,1 +1,2 @@
 Referenced by issue #99256, Regression: Meta balls segfaulting copy-to-selected
+Referenced by issue #98266, Regression: Crash when removing mesh from Mesh Boolean in Geometry Nodes
