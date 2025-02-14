@@ -5,3 +5,4 @@ Referenced by issue #130604, Fix #130579: Un-isolating collection fails in prese
 Referenced by issue #130579, Regression: Cannot 'un-isolate' collection when a linked collection is also present
 Referenced by issue #129250, Fix #128099: Outliner isolate collection tweaks linked data
 Referenced by issue #128099, Outliner toggles of linked collections can be set by ctrl-clicking local collections
+Referenced by issue #128058, Fix #128056: Crash when Ctrl Click on Outliner collection toggles
