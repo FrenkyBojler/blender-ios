@@ -1,3 +1,4 @@
 Referenced by commit 95852bf42be, Fix #107882: subdivided mesh not available on curve
 Referenced by commit 4d3bfb3f419, Subdivision Surface: fix a serious performance hit when mixing CPU & GPU.
 Referenced by commit f134341e03b, Fix T94671: performance regression with subsurf modifier
+Referenced by issue #131857, Fix #107882: subdivided mesh not available on curve
