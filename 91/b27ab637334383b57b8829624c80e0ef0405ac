@@ -4,3 +4,4 @@ Referenced by commit c126708d69a, Fix #110001: Edit mesh overlay text uses final
 Referenced by issue #129140, Editing mesh through Corrective Smooth results in distortion after exiting Edit Mode
 Referenced by issue #120154, Regression displaying deformed face-normal in edit-mode
 Referenced by issue #119718, Fix #119544: Cage modifier deformation ignored in next modifier
+Referenced by issue #119544, Regression: On Cage display mode of Armature modifier doesn't work correct
