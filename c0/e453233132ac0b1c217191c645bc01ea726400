@@ -1,2 +1,3 @@
 Referenced by commit 37922eab90a, Fix T99794: regression from uv unwrap selected
 Referenced by issue #106841, UV Unwrapping Glitched
+Referenced by issue #99900, Segfault on Linux when running third party Python library function with multithreading enabled
