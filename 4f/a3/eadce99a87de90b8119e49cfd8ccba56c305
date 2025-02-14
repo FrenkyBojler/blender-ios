@@ -1,2 +1,3 @@
 Referenced by issue #97351, Brushes don't draw under the property region, with region overlap
 Referenced by issue #97320, Bad offsets when dragging same object from asset browser multiple times, mixing Link and Append options
+Referenced by issue #79937, Brush cursor (sculpt, vertexpaint, weightpaint) stuck/doesn't draw under transparent part of N-panel
