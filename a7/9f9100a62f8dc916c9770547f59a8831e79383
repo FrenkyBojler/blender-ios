@@ -1,2 +1,3 @@
 Referenced by commit 3798852071c, Sculpt/Paint: Bring back some brush tools for paint modes
 Referenced by issue #128066, Brush Assets: Improved tool system integration (usability changes)
+Referenced by issue #128027, Brush Assets: Erase tool in GP draw mode remember non-eraser brushes as active when switching
