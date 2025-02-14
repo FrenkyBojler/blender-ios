@@ -37,3 +37,4 @@ Referenced by issue #46657, VSE: Strip length jumps to a negative number
 Referenced by issue #46651, select linked (L) crashes Blender when used on isolated edges, marked as seams
 Referenced by issue #46632, Play animation not working when cursor over F-curves n panel
 Referenced by issue #46636, Saving image from texture paint destroys the resolution
+Referenced by issue #46620, Using 'correct uvs' option in edge or vertex slide causes uvs to become pinned.
