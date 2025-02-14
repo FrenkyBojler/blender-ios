@@ -3,3 +3,4 @@ Referenced by issue #50106, The object is shown even though outside of distance 
 Referenced by issue #50108, INCOMPATIBILITY with keyboard on screen (virtual keyboard)
 Referenced by issue #50097, Blender Crashes when zooming in the node editor
 Referenced by issue #50099, Blender crashes during render
+Referenced by issue #50001, Time required for rendering in cycle increased in the latest build.
