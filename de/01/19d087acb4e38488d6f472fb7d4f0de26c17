@@ -1,1 +1,2 @@
 Referenced by commit 5fef3c3326d, BLI_storage: Split text/binary version of mem-from-file funcs
+Referenced by issue #46992, Can't reload .py from blender\2.76\scripts\addons folder
