@@ -27,3 +27,4 @@ Referenced by issue #98245, Regression: Missing viewport update when shader to R
 Referenced by issue #98247, Regression: Shader To RGB not displaying textures
 Referenced by issue #98251, Regression: Wrong normalmaps on scaled objects
 Referenced by issue #98231, Regression: Material Output inside node group not working if there is a Group Output Node
+Referenced by issue #98190, Render of 3D image is very slow
