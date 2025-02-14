@@ -1,3 +1,4 @@
 Referenced by issue #110038, Regression: Crash when Sculpting on a mesh from a  GP Lineart Modifier
 Referenced by issue #108407, Regression: Crash on deleting shape key from Blender File view.
 Referenced by issue #97710, Regression: Crash When Appending Items and Editing Expressions
+Referenced by issue #97571, Motion blur create wierd artifacts on certain frames when renderring animation with cycles
