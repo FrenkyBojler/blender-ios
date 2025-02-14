@@ -18,3 +18,4 @@ Referenced by issue #79604, Switching to edit mode on boolean object runs out of
 Referenced by issue #79517, Data Transfer modifier not showing transferred uvs in editmode (when the "on_cage" modifier option is used)
 Referenced by issue #79520, Data Transfer modifier: crash/assert going into editmode on a source object
 Referenced by issue #77756, Going to editmode on a mesh that is target for a [shrinkwrap, mesh deform] modifier (Crash in Debug builds, wrong result in Release builds)
+Referenced by issue #77632, [Bisected] Mesh: skip conversion from edit-mesh to mesh in edit-mode, breaks surface deform modifier live preview.
