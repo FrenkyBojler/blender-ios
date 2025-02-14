@@ -3,3 +3,4 @@ Referenced by commit 913b6b9ec1b, Fix T96624: NLA crash when reordering tracks i
 Referenced by commit 89ae4a7a2a9, Fix NLA liboverride issues re tracks handling.
 Referenced by issue #121395, Fix #121121: NLA push down places local tracks before library overrides
 Referenced by issue #101930, NLA Actions Stash remove doesn't work on overriden linked data
+Referenced by issue #91393, Duplicating an action with python crashes Blender
