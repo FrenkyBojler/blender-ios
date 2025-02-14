@@ -8,3 +8,4 @@ Referenced by issue #115714, Dragging in Poly Haven HDRI w/ACES colorspace crash
 Referenced by issue #115676, When rendering animation, it gives an error and closes every time
 Referenced by issue #115670, Selecting HIP causes a complete hanging of Blender 4.0
 Referenced by issue #115481, Blender Crashes with `SIGSEGV (Address boundary error)`
+Referenced by issue #115430, cycles+openimagedenoise: Blender crashes when enabling composition in realtime view
