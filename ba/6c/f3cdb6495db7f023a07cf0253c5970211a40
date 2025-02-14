@@ -1,2 +1,3 @@
 Referenced by issue #61859, Workbench render - Hair distorts in random shapes
 Referenced by issue #61654, [Eevee] Point lights shine through walls
+Referenced by issue #61518, Normal map isn't working correctly (wrong Roughness and SSR, even light)
