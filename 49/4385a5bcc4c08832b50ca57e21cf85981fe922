@@ -1,0 +1,1 @@
+Referenced by issue #101848, matrix_world.to_quaternion() returns wrong rotation for 0 scaled matrices
