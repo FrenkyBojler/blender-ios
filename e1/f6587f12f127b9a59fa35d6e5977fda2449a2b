@@ -1,3 +1,4 @@
 Referenced by commit b77e7480eff, VSE: Remove retiming tool for 3.6 release
 Referenced by issue #110863, VSE: "Speed Factor" property for Sound strips should presumably be removed
 Referenced by issue #108870, VSE: Remove retiming tool
+Referenced by issue #108043, VSE: cursor for retiming stuck with undo/redo
