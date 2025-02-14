@@ -1,1 +1,2 @@
 Referenced by issue #72806, 'Dissolve' operator leaves inconsistent selection
+Referenced by issue #72792, Weld Modifier crashes Blender if vertex group influence is selected and the modifier is after generative modifier(s) in the stack
