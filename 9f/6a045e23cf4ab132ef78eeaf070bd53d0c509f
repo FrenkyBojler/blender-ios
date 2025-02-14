@@ -4,3 +4,4 @@ Referenced by commit 5d77c3a6a5a, Fix T102132: Directory selection fails to add 
 Referenced by commit e96ad822b38, Fix AssetCatalogTest failure on WIN32
 Referenced by issue #103555, File output nodes don't use the extra slash on the end unless there is a file sub path leading to incorrect file locations
 Referenced by issue #103385, Regression: Asset Browser Thumbnails take long time to load
+Referenced by issue #102132, Render output folder is missing a slash resulting in it saving to the incorrect spot.
