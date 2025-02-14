@@ -1,1 +1,2 @@
 Referenced by issue #124156, `C-style MEM_dupallocN on a pointer created with CPP-style` error creating link in node editor
+Referenced by issue #124158, Memory free error while deleting nodes with reconnect.
