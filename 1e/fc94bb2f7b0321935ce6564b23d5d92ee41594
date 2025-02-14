@@ -6,3 +6,4 @@ Referenced by issue #111411, Regression: Crash when selecting an object with an 
 Referenced by issue #102778, Crash - Blender crashes if an assetbrowser editor has no asset library ref.
 Referenced by issue #102610, Regression: Asset disappearing on refresh
 Referenced by issue #102482, GN: Crash with Shift+A when editing files containing node group assets
+Referenced by issue #102481, GN: Crash with Shift+A when using asset files with node groups in them
