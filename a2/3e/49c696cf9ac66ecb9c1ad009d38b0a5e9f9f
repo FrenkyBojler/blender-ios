@@ -1,1 +1,2 @@
 Referenced by issue #86170, `self is self.id_data` is inconsistent.
+Referenced by issue #77348, Blender LTS: Maintenance Task 2.83
