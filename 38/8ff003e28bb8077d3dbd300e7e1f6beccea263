@@ -2,3 +2,4 @@ Referenced by issue #71524, Boolean Modifier - Difference (Subtract) Operation B
 Referenced by issue #62945, Shortcuts don't appear on tooltips for tool icons.
 Referenced by issue #62628, explosions
 Referenced by issue #62622, Blender 2.8 - viewport does not show changes in animated vertex positions without clicking a viewport shading button every time
+Referenced by issue #62614, Eevee - adding new scene using 'Copy Settings' produces new scene but with the default settings
