@@ -24,3 +24,4 @@ Referenced by issue #50067, Any image with the extension .PNG, after loaded and 
 Referenced by issue #49962, Switch to Camera Perspective Misaligned
 Referenced by issue #49942, Unable to render texture.
 Referenced by issue #49935, Mesh deform modifier binding took forever
+Referenced by issue #49941, UV/Image editor unloads image when modifying a new mesh's parameters
