@@ -1,1 +1,2 @@
 Referenced by issue #79257, optix don't see my GPU
+Referenced by issue #79159, Optix denoising fails after loading render kernels (OPTIX_ERROR_INVALID_PTX)
