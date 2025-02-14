@@ -1,2 +1,3 @@
 Referenced by commit 30dea81fb6d, Revert "GP: New Python update API functions (WIP)"
 Referenced by issue #59647, Multiresolution Subdivide Crash with render "Simplify" option
+Referenced by issue #59600, Python-made grease pencil strokes not updating until manual stroke added
