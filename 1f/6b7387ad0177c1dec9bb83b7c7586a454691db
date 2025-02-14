@@ -1,2 +1,3 @@
 Referenced by commit 3ffe65a7fb9, CMake/macOS: Restore TIFF's optional status.
 Referenced by commit f56c5245d24, Cleanup: CMake: Remove arguments from endif(..)
+Referenced by commit 50ffcf12b2c, Cleanup: CMake/macOS: remove boost from OIIO libs.
