@@ -1,2 +1,3 @@
 Referenced by issue #80088, Mantaflow FLIP particles not working correctly
 Referenced by issue #79995, Mantaflow grid visible in spray, foam and bubbles particles
+Referenced by issue #79837, Cycles Optix cannot be brought back once AO node is added (does not recover removing the node or material)
