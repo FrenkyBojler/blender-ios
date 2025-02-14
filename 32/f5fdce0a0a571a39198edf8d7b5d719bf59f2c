@@ -5,3 +5,4 @@ Referenced by issue #132641, Undoing Vertex Group deletion in Edit Mode results 
 Referenced by issue #132643, EEVEE & Shader Nodes: Deleting Color Ramp's penultimate stop doesn't update the Color Ramp
 Referenced by issue #132635, Viewport Shading Issue
 Referenced by issue #132434, Blender crashes when selecting File > New > 2D Animation
+Referenced by issue #132237, Crash when opening .ogg audio files with album art
