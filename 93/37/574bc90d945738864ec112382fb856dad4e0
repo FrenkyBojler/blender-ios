@@ -12,3 +12,4 @@ Referenced by issue #42318, 2.72(a) crash on unwrap of subdivided mesh
 Referenced by issue #42253, Ghosting is one frame short
 Referenced by issue #42163, ctrl-clicking visibility keyframes only parent
 Referenced by issue #42089, The function of "project" in  "shrinkwrap" of modifier is no work
+Referenced by issue #42063, UV layout face orientation adversely effects how the texture appears when rendered.
