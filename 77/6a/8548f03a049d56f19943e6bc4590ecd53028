@@ -1,2 +1,3 @@
 Referenced by commit dd0de53d296, Fix T49466: Stupid typo in logicbricks new copy code from rB776a8548f03a
 Referenced by commit 7c532601090, Fix crash in own recent rB776a8548f03a049.
+Referenced by issue #49430, append scene with gamelogic broken
