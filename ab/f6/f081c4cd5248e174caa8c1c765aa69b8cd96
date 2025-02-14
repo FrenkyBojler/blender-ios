@@ -86,3 +86,4 @@ Referenced by issue #48753, The Text in the VSE must be restart for the internat
 Referenced by issue #48701, Blender 2.77a abf6f08 Cycles OpenCL horizontal noise
 Referenced by issue #48685, RGB Curves node having an effect on components that they shouldn't.
 Referenced by issue #48674, Cut and paste strokes (CTRL-X / CTRL-V) in Grease pencil malfunctions
+Referenced by issue #48679, Location/Rotation/Scale
