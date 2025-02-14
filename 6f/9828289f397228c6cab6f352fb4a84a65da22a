@@ -1,1 +1,2 @@
 Referenced by commit 6bbf63f2519, Fix T96054: Switching vertex group does not update display
+Referenced by issue #95356, Blender crashes when renaming bone in Edit Mode, Saving, and than selecting/deselecting.
