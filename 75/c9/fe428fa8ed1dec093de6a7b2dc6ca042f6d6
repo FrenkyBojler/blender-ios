@@ -1,1 +1,2 @@
 Referenced by issue #48441, Smoke sim initial velocity doesn't produce desired directions for the smoke emission
+Referenced by issue #48431, Smoke sim field intensities change when scaling the domain object in object mode
