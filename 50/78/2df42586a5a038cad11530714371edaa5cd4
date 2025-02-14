@@ -9,3 +9,4 @@ Referenced by issue #88099, No motion blur on skinned mesh with persistent data 
 Referenced by issue #87701, Failed assert when generating scene preview
 Referenced by issue #87534, Assert BLI_thread_is_main while rendering via a script
 Referenced by issue #87464, EEVEE Animation crashes with Motion Blur and Displacement modifier
+Referenced by issue #87283, 2.93 motion blur breaks persistent data
