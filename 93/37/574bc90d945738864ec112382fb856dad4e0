@@ -89,3 +89,4 @@ Referenced by issue #41213, Emit texture working funny
 Referenced by issue #41222, Blender gives weird ouput when baking (4096*4096) resolution on GPU
 Referenced by issue #41223, F-Curve sliders won't update values during playback when mouse cursor is outside the left panel
 Referenced by issue #41205, Volume Distance is not taken.
+Referenced by issue #41208, Blender material view crashes on Windows 8.1
