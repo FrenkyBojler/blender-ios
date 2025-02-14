@@ -91,3 +91,4 @@ Referenced by issue #53780, Particle edit doesn't work on a Baked, dynamic hair 
 Referenced by issue #53771, Full Sample AA breaks stereo renderings in Blender Render
 Referenced by issue #53751, Particle System: Interpolated Children hairs will often penetrate collision object
 Referenced by issue #53754, add a way for python to overwrite an operators tootip/bl_description at runtime
+Referenced by issue #53732, "Segmentation fault (Core dumped)" on startup.
