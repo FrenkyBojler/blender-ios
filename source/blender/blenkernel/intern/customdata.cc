@@ -2678,10 +2678,6 @@ void CustomData_init_layout_from(const CustomData *source,
 static void customData_free_layer__internal(CustomDataLayer *layer)
 {
   if (!layer->sharing_info) {
-    if (layer->data) {
-      MEM_freeN(layer->data);
-      MEM_freeN(layer->data);
-    }
     BLI_assert(!layer->data);
     return;
   }
