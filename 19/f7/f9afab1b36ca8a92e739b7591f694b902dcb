@@ -24,3 +24,4 @@ Referenced by issue #39030, Backwards compatibility with 2.70 and 2.69 and light
 Referenced by issue #39016, Side panels have still hardcoded hotkeys
 Referenced by issue #39019, "Multi-Number Button Editing" not working in "Dimensions" when entering values with the keyboard
 Referenced by issue #39020, Undo/Redo/History buttons missing in "Edit mode"
+Referenced by issue #39026, 2.7 BGE: No collisions detected with parented rigid body object
