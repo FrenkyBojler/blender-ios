@@ -7,3 +7,4 @@ Referenced by issue #76981, crash when going to shading tab when i have vieuwpor
 Referenced by issue #76669, Dope Sheet Editor, crash right clicking on a Mask channel
 Referenced by issue #76651, Blender crashes when entering edit mode
 Referenced by issue #76378, Unable to select GPU rendering - terminal shows error related to _cycles.available_devices(self.compute_device_type)
+Referenced by issue #76330, Blender 2.82 crashes when attempting to change of the cycles render output file path.
