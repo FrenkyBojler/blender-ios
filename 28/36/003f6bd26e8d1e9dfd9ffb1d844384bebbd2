@@ -1,2 +1,3 @@
 Referenced by issue #51408, Cycles - Principled BSDF Shader - Transparency is not working as expected
 Referenced by issue #51248, Default size of the User Preferences window does not account for DPI scale
+Referenced by issue #51187, Memory leak when exporting OpenEXR monochrome animation
