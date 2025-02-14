@@ -5,3 +5,4 @@ Referenced by issue #91398, Camera BG jitter offset (regression)
 Referenced by issue #88681, Armature combined with subdivision incorrect normals
 Referenced by issue #77195, Crash with Viewport measurements turned on
 Referenced by issue #76150, Viewport Axes not toggling correctly when 'Floor' and 'Grid' are turned off
+Referenced by issue #75971, Text Object Overlays disappear when Fill Mode is set to None (regression from 2.81a)
