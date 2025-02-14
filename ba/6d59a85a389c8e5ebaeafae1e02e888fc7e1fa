@@ -1,1 +1,2 @@
 Referenced by commit 2240ca3e7bb, Fix T101933: pick deselecting bones in empty space deactivates armature
+Referenced by issue #101933, Regression: Box select may not show channel rows in Animation Editors
