@@ -3,3 +3,4 @@ Referenced by commit 42198e9eb03, Fix T86601: Cycles accumulates displacement wh
 Referenced by commit 96e60cc22ca, Fix T86567: Cycles crashes when playing back animated volumes
 Referenced by commit 349c17cf543, Fix T85462: crash in render mode while removing instances
 Referenced by issue #87929, Toggling "Indirect Only" for the view layers properties of a collection does not result in a change in the viewport (2.93, 3.0 regression)
+Referenced by issue #86567, Quick Smoke with Cycles crashes Blender 2.93 alpha
