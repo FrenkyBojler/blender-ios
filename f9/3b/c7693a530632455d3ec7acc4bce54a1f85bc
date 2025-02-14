@@ -41,3 +41,4 @@ Referenced by issue #40562, Loop Cut in Vertex select mode automatically switche
 Referenced by issue #40559, Maya keymap node selection bug
 Referenced by issue #40509, save shortcuts
 Referenced by issue #40497, Spline IK does not evaluate as expected
+Referenced by issue #40498, 3D-View Error: Backface-Culling shown with 'Textured Solid' when disabled
