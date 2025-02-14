@@ -1,3 +1,4 @@
 Referenced by issue #124173, Grease Pencil: SVG export creates invalid xml
 Referenced by issue #124160, Crash when replacing vdb on disk with a vdb with less grids
 Referenced by issue #123227, Eevee Next: Ghosting on viewport rendering
+Referenced by issue #123201, Regression: Cycles: OSL misses Bump (from Material > Settings > Surface > Displacement > Displacement and Bump)
