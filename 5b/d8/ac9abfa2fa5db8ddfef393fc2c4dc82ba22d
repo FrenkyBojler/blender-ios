@@ -17,3 +17,4 @@ Referenced by issue #58226, terrible UI performance, basically unusable, very la
 Referenced by issue #57788, Rendering Still - Blender automatically appends Frame Number
 Referenced by issue #57658, Wrong vertex-per-face normal lines overlay
 Referenced by issue #57562, Unexpected rotation value when using keyboard shortcuts
+Referenced by issue #56951, Semi-transparent image object hides selected object behind itself
