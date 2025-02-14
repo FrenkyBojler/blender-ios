@@ -1,3 +1,4 @@
 Referenced by commit d742223197d, Fix #107273: Group input is not listed in the node search
 Referenced by issue #107323, Fix #107273: Group input is not listed in the node search
 Referenced by issue #107273, Regression: Group input is not listed in the node search
+Referenced by issue #106879, Regression: Texture Node add search is broken
