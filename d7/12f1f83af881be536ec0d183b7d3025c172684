@@ -4,3 +4,4 @@ Referenced by issue #76393, Crash on assert(batch->program_in_use == 0)
 Referenced by issue #76095, Liquid cache of type "Replay" doesn't get invalidated when moving participating objects
 Referenced by issue #76080, Glitches Workbench and Screen Cavity
 Referenced by issue #76043, Select Edge Loop not working 2.83
+Referenced by issue #76045, Gizmo line_width does not work in latest version
