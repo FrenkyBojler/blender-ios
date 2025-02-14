@@ -1,2 +1,3 @@
 Referenced by commit fad031a3a94, Fix (unreported) crash when setting current frame from the UI.
 Referenced by issue #124955, VSE strip drag-handle cursor is not scaled when using HiDPI displays
+Referenced by issue #124623, VSE misses strip auto-deselect with right click selection (Blender 2.7 x keymap)
