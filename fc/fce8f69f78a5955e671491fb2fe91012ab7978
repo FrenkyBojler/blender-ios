@@ -1,2 +1,3 @@
 Referenced by commit 5bdfec8d673, Fix: unhandled empty Optional in 'bounds_min_max()'
 Referenced by issue #120005, Crash on using Snap Base on verticies
+Referenced by issue #119631, 4.1: Candidates for corrective releases
