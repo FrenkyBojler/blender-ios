@@ -1,0 +1,1 @@
+Referenced by issue #62104, VertexGroup.add() doesn't push depsgraph update for the mesh.
