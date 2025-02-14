@@ -1,2 +1,3 @@
 Referenced by commit da25748be7e, Python Templates: Fix Operator Mesh Add
 Referenced by commit 3b8a14a3c07, Fix T65878: "Bpy.ops.object.camera_add" doesn't take the rotation
+Referenced by commit 2896ce7bc79, Fix using non-euler cursor orientation
