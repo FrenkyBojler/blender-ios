@@ -3,3 +3,4 @@ Referenced by issue #61344, Normal Map default values are wrong
 Referenced by issue #61265, Quick Favorite items not remembered after restarting Blender
 Referenced by issue #61267, Crash When Editing Mesh Used For Bone Custom Display
 Referenced by issue #61196, clipping border allows selection of clipped vertices when x-ray mode is disabled
+Referenced by issue #60965, Texture Painting is slow / lags with large brush size
