@@ -1,2 +1,3 @@
 Referenced by commit c7e9932c461, Fix #107677: Hair particle edit wrong on object with mirror modifier
 Referenced by issue #107804, Fix #107677: Hair particle edit wrong on object with mirror modifier
+Referenced by issue #107677, Regression: Hair Particle Edit on model with Mirror Modifier not working properly
