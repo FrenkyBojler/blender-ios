@@ -5,3 +5,4 @@ Referenced by issue #89389, Optix kernels not loading
 Referenced by issue #89206, Ray Visibility parameters in Object Properties (Cycles) are broken
 Referenced by issue #88893, Blender freeze while working on mesh with texture
 Referenced by issue #88690, Repeated segmentation faults on animation playback
+Referenced by issue #88614, Mixdown crashes Blender 2.92.0 and 3.0.0 Alpha
