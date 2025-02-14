@@ -1,0 +1,1 @@
+Referenced by issue #72916, Fluid/Smoke modifier has an "Apply" button, which is misleading/dangerous (only meaningful for mesh-baked liquid domains)
