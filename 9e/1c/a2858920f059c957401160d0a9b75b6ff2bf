@@ -1,1 +1,2 @@
 Referenced by issue #38165, Mesh editor does not account for stacked shape keys
+Referenced by issue #38149, Adding a meta object and setting the radius to 0 causes hang
