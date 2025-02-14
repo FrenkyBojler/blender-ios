@@ -1,2 +1,3 @@
 Referenced by commit 06b6c004f5f, Fix T100168: Sculpt positions undo not working after recent commit
 Referenced by issue #100168, Regression: Sculpt mode undo not working properly
+Referenced by issue #96810, Regression: Shading artefacts in sculpt mode
