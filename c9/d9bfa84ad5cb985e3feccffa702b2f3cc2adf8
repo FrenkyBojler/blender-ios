@@ -1,2 +1,3 @@
 Referenced by commit b0847eff2a2, Fix T93625: fallback tools don't work with RMB select
 Referenced by commit 68759625b11, Fix T92053: Industry compatible key-map fallback tools don't work
+Referenced by commit fa6b1007bad, Fix script_load_keymap failure from c9d9bfa84ad5cb985e3feccffa702b2f3cc2adf8
