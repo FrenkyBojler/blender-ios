@@ -1,0 +1,1 @@
+Referenced by issue #44742, Bevel should not create vertex meshes when only two edges at a vertex are beveled.
