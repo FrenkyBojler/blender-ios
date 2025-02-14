@@ -3,3 +3,4 @@ Referenced by issue #104845, MP3 will not play in VSE
 Referenced by issue #103847, Crash using latest Version 3.4.1
 Referenced by issue #103596, Blender 3.5: Cursor warping usable on windows remote desktop (RDP)
 Referenced by issue #103385, Regression: Asset Browser Thumbnails take long time to load
+Referenced by issue #103019, Wayland: High GPU usage
