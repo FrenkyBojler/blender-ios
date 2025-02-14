@@ -44,3 +44,4 @@ Referenced by issue #42115, Constraint motor Y axis broken
 Referenced by issue #42101, new fill and mask tools disapear in files created in older versions
 Referenced by issue #42111, Game engine in GLSL, multiple UV material, UV maps are wrong or mixed
 Referenced by issue #42095, Crash - object with particle hair on entering edit mode (Win 32 bit and 64 bit)
+Referenced by issue #42098, AVI Raw export produces broken files if the image width is not a multiple of 4
