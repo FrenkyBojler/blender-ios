@@ -1,1 +1,2 @@
 Referenced by issue #83657, Pose Mode: Clearing transform doesn't respect Mirror X
+Referenced by issue #76915, Pose bone: clearing transformations in pose mode does not affect the mirrored bones even when the X-axis mirror is activated.
