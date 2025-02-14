@@ -1,1 +1,2 @@
 Referenced by issue #88026, Repeated switch to Rendered viewport mode causes crash
+Referenced by issue #86992, Tagged ID deletion conflicts with properly freeing object data
