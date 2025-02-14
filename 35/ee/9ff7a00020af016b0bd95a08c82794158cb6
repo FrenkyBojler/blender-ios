@@ -1,3 +1,4 @@
 Referenced by issue #81103, Bug in particle system - missing particles representations
 Referenced by issue #54175, First and second particle overlap when they shouldn't
 Referenced by issue #52706, Node editor - "Unknown" values in Add menu
+Referenced by issue #52682, When hair number=faces number, particles/face = 1 , actually some hair is overlap.
