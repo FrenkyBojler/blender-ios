@@ -1,1 +1,2 @@
 Referenced by issue #68710, 2.80 Segfault on applying modifier after shape keys are removed
+Referenced by issue #68689, Part of a shader seem to crash blender (open file, copy/paste, link or attach)
