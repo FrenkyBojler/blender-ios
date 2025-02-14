@@ -1,2 +1,3 @@
 Referenced by issue #129028, VSE: Switch to box select default for timeline
 Referenced by issue #128671, Fix: VSE timeline error w/ quick switch to boxsel
+Referenced by issue #72272, Weight paint and vertex paint mode broken by a TypeError for some blend files
