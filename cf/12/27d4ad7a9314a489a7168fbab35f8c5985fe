@@ -1,1 +1,2 @@
 Referenced by issue #43951, Blender crashes when switching between layers (segfault in GPU/draw code?)
+Referenced by issue #43919, Blender crashes in saving any file
