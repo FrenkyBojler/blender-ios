@@ -1,1 +1,2 @@
 Referenced by issue #98927, Cursor input "low resolution" with Hi-DPI in gnome-shell
+Referenced by issue #98860, *VectorProperty types argument value COORDINATES was renamed to COORDS, breaking existing scripts
