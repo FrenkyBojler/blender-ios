@@ -13,3 +13,4 @@ Referenced by issue #70053, Viewport Bug report
 Referenced by issue #70011, NVIDIA issue prevents full indirect draw call batching performance
 Referenced by issue #70004, EEVEE: Texture Coordinate Node in world shader render artifacts (AMD)
 Referenced by issue #70008, Many issues around the visibility of an empty object
+Referenced by issue #69853, fully broken scenes., by drag an object only the pivot point moves
