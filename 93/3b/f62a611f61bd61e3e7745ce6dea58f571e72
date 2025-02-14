@@ -1,1 +1,2 @@
 Referenced by commit 61f1faac3f2, Fix T83868: Disabled or inactive list items are not grayed out
+Referenced by issue #83868, UI: disabled items are still drawn in white instead of grayed-out
