@@ -1,1 +1,2 @@
 Referenced by issue #54255, 2.79b release
+Referenced by issue #54054, Bmesh boolean modifier fails with co-planar geometry (carve doesn't)
