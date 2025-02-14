@@ -1,1 +1,2 @@
 Referenced by issue #53001, Blender crashes when trying to render on AMD GPU
+Referenced by issue #52645, Cycles: OpenCL compiler crashes with new AMD drivers
