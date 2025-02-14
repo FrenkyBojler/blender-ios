@@ -1,1 +1,2 @@
 Referenced by commit 199c37d7e44, Fix T68291: crash snapping to both verts and edges with linked meshes
+Referenced by issue #68291, Measure Tool crashes Blender when snapping (to vertices) in multi object edit mode
