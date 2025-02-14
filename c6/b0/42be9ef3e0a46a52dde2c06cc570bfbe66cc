@@ -2,3 +2,4 @@ Referenced by issue #49887, Middle Mouse button for Rotate 3D view does not work
 Referenced by issue #48371, Action Layers not working in newer Blender versions
 Referenced by issue #47262, Unknown or unsupported CUDA architecture, can't determine launch bounds - sm 3.7 tesla k80
 Referenced by issue #46863, Game Engine not working
+Referenced by issue #46688, GPU stuck
