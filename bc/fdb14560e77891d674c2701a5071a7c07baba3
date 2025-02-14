@@ -4,3 +4,4 @@ Referenced by issue #101250, Relocate library crashes to desktop in Blender 3.3
 Referenced by issue #100596, Line Art doesn't render from Sequencer Perspective
 Referenced by issue #100583, Library Override breaks materials dependent on armature
 Referenced by issue #100449, Blender Crash / Closes
+Referenced by issue #100261, Crash at startup on Linux - all recent Blender versions
