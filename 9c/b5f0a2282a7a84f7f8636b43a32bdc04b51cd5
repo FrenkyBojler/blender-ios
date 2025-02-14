@@ -1,2 +1,3 @@
 Referenced by commit 08aa7861d6a, Fix T94685: python error adding Space handlers for Spreadsheet
 Referenced by commit 3dab6f8b7b8, Spreadsheet: new spreadsheet editor
+Referenced by issue #86279, Spreadsheet Editor
