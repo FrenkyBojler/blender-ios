@@ -1,1 +1,2 @@
 Referenced by issue #73280, Weight paint expands far from brush radius to another vertexes (regression)
+Referenced by issue #73080, Weight paint brush is affected by radius unit option from sculpt mode
