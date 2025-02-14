@@ -12,3 +12,4 @@ Referenced by issue #52263, Crash When Splitting and Merging Areas with Header T
 Referenced by issue #51018, Appending a rigged character crash Blender since 2.78a
 Referenced by issue #50828, Grace Pencil crashes when try to use OpenGL render active viewport via Video Sequence Editor
 Referenced by issue #50720, Bevel objects along 3D curves get distorted
+Referenced by issue #50563, Selecting mesh with Subdivision Surface at 6 closes Blender
