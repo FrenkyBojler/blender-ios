@@ -2,3 +2,4 @@ Referenced by commit 7ca651d1827, Mesh: Remove unnecessary edge draw flag
 Referenced by commit 145839aa42f, Fix T102365: Wireframe skips edges after recent cleanup
 Referenced by issue #104417, Mesh: Remove unnecessary edge draw flag
 Referenced by issue #104376, Regression: Incorrect wireframe overlay with subdivision surface modifier
+Referenced by issue #102365, Regression: Wire frame display doesn't draw every edge in some cases
