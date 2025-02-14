@@ -1,2 +1,3 @@
 Referenced by commit e718f29ec37, I18n: fix node socket extraction regexes
 Referenced by issue #108681, Nodes: make node searches use both translated and original names
+Referenced by issue #108052, I18n: fix node socket extraction regexes
