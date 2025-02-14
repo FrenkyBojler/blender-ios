@@ -1,0 +1,1 @@
+Referenced by issue #48646, GPU rendering (CUDA) sometimes doesn't load images from image sequence textures.
