@@ -1,3 +1,4 @@
 Referenced by issue #61347, Crashes while turning on preview in the light property tab. 2.80 beta
 Referenced by issue #61220, Behavioural problem creating New Collection with Ctrl-G
 Referenced by issue #61206, Linux and AMD RV770 interface glitches
+Referenced by issue #61210, Crash when accessing new Armature in the Outliner
