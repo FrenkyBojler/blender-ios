@@ -1,2 +1,3 @@
 Referenced by commit c9621a002d8, Cleanup: Sculpt: Remove duplicate visibility update function
 Referenced by issue #110709, Cleanup: Sculpt: Remove duplicate visibility update function
+Referenced by issue #74694, Vertex and weight paint mode broken after using sculpt mode mask tools
