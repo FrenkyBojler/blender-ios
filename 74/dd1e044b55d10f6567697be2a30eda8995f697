@@ -1,1 +1,2 @@
 Referenced by commit d19e7cbb5ae, Fix #115540: nodes with sockets only on one side are hard to resize
+Referenced by commit f8c88782322, Fix #115451: hard to resize collapsed nodes
