@@ -1,1 +1,2 @@
 Referenced by issue #68542, Keyboard "A" to deselect all vertices only works inconsistently
+Referenced by issue #68442, ParticleSystem.uv_on_emitter returns always 0,0 while Particle.uv_on_emitter returns a value
