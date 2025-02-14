@@ -2,3 +2,4 @@ Referenced by commit c3b9a4e0010, Cleanup: Access attributes with new API instea
 Referenced by commit d58072caf4a, Fix: missing geometry copy before modifying it
 Referenced by issue #100562, Regression: Realize instance node crashes Blender
 Referenced by issue #99884, Geometrynodes: Crash when triming NURBS curve
+Referenced by issue #99677, Regression: Crash on when Convex Hull node is used on an empty mesh
