@@ -2,3 +2,4 @@ Referenced by issue #109551, Segfault on Linux when running third-party Python l
 Referenced by issue #109519, Orbit Around Selection in Edit Mode is not working after 3.6.0 update
 Referenced by issue #107539, MantaFlow (liquid fluids) Crash on Bake All
 Referenced by issue #107264, Color attributes from geometry nodes have no effect on volumes
+Referenced by issue #107204, Metal Viewport flickering on interaction
