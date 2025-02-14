@@ -7,3 +7,4 @@ Referenced by issue #38524, Setting sky texture direction with the python consol
 Referenced by issue #38471, linked objects lose parents on saving or on loading
 Referenced by issue #38391, Animating the speed setting in Rigid Body World causes strange behavior with constraints
 Referenced by issue #38394, Unwanted change user perspective (ortho to perspective) in 3d view
+Referenced by issue #38388, Creating a new scene with full copy sets rigidbody collision shapes to box.
