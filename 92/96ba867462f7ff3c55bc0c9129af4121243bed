@@ -1,2 +1,3 @@
 Referenced by commit c2a01a6c118, Fix T83347: Smart UV project crashes with wire edges
 Referenced by commit e01bf7a92ec, Fix T82540: Smart UV project ignores seams
+Referenced by issue #85194, Smart UV project produces wrong, stretched UVs regardless of "Correct Aspect" option state
