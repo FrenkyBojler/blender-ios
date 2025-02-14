@@ -1,1 +1,2 @@
 Referenced by issue #96165, Blender 3.2/Blender 3.1 - Incorrect render of barcelone scene with BVH2
+Referenced by issue #95462, Partly transparent objects appear to glow in the dark when HDRI environment lighting is present (BVH2/Some GPU rendering backends)
