@@ -1,0 +1,1 @@
+Referenced by issue #44266, GHOST_ContextWGL.cpp memory allocated with _strdup (malloc) is freed with delete.
