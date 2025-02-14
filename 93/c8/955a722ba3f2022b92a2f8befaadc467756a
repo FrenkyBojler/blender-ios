@@ -5,3 +5,4 @@ Referenced by issue #121871, Fix #103562: preserve custom normals in BM_mesh_tri
 Referenced by issue #121831, Custom split normal data on negative or non-uniform scaled geometries gets broken upon applying scale
 Referenced by issue #97698, Custom Normals: some operations that alter topology (bisect, loopcut, subdivide, knife, triangulate modifier) destroy them while other operations (e.g. Connect Vertex Path, triangulate operator) preserve them
 Referenced by issue #83025, Blender 2.91.0: Knife and Merge by Distance reset normals like before 2.90.
+Referenced by issue #81190, Strange edge marks after Merge by Distance
