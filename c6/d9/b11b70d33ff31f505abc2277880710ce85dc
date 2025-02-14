@@ -1,0 +1,1 @@
+Referenced by issue #40195, Smoke in some cases doesn't update animation state in Cycles after first render.
