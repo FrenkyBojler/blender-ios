@@ -7,3 +7,4 @@ Referenced by issue #102940, Regression: Blender 3.4.0 Release Candidate crash o
 Referenced by issue #101864, Regression: Crash when lasso masking in sculpt mode
 Referenced by issue #101722, Regression: Missing default face set for primitive meshes
 Referenced by issue #101348, Regression: Smooth Brush leaves artifacts when face sets are hidden.
+Referenced by issue #101203, Regression: Issues with undoing the visibility of face sets in sculpt mode
