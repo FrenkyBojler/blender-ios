@@ -1,2 +1,3 @@
 Referenced by issue #90065, Geometry Nodes: crash using attribute search on a 'Attribute Sample Texture' node (in the Properties Editor)
 Referenced by issue #89775, Immediate quit on started render with AO, Mist layers & denoising
+Referenced by issue #85652, Implement socket inspection and links values
