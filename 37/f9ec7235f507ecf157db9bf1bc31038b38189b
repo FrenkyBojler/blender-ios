@@ -1,1 +1,2 @@
 Referenced by commit 96c6f543ecc, Fix #131738: Grease Pencil: Use correct textures in `acquire_resources`.
+Referenced by issue #132343, Fix #131738: Grease Pencil: Use correct textures in `acquire_resources`.
