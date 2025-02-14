@@ -11,3 +11,4 @@ Referenced by issue #67150, Extrude Acting Like Move - 2.79
 Referenced by issue #67160, Cycles renders non-isolated objects, Eevee doesn't
 Referenced by issue #67099, Setting Shader Color to #B3FF4A causes Value + Alpha Sliders to not match their numerical values, causes weird color wheel sliding behavior
 Referenced by issue #65847, 2.79: Relationship Lines Not Visible for Stick/B-Bone/Envelope & Wire Bone Types
+Referenced by issue #65772, Solidify Modifier produces rim surfaces with faces but no edges
