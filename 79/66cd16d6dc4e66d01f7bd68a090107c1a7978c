@@ -1,1 +1,2 @@
 Referenced by commit bf23d0e53cf, Fix #112011: PLY export broken when mesh contains faces with >255 vertices
+Referenced by commit 087fd3bdc51, Fix compilation error with USE_WELD_DEBUG
