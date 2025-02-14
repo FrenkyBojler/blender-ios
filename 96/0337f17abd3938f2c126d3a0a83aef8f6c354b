@@ -1,0 +1,1 @@
+Referenced by issue #86455, Baking to Vertex Colors bakes without result to look at (if sculpt vertex color layer is present but experimental option is disabled)
