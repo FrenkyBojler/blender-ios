@@ -1,2 +1,3 @@
 Referenced by commit 0bda626ba3f, Fix #120721: Collada: Import with loose edges not immediately show them
 Referenced by commit 2d8eadacf9f, Fix: Missing DNA rename for recent mesh refactor
+Referenced by issue #120737, Fix #120721: Collada: Import with loose edges not immediately show them
