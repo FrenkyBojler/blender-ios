@@ -1,1 +1,2 @@
 Referenced by issue #116883, Crash when debugging under Wayland
+Referenced by issue #116885, Index Switch node assert fails when removing all items
