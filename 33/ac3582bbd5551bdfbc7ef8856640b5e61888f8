@@ -1,3 +1,4 @@
 Referenced by commit 691c021679f, Fix T82952: Crash changing mesh data block and switching scenes
 Referenced by issue #82952, Blender crashes when changing mesh data block and switching scenes
 Referenced by issue #77982, Instanced mesh only works half the time
+Referenced by issue #77359, Crash: Adding UV's in edit-mode with linked duplicates
