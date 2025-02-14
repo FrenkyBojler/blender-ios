@@ -1,1 +1,2 @@
 Referenced by issue #58101, Image empties are only rendering their border when using OpenGL multisample > 2.
+Referenced by issue #58008, Crash after deleting something on the scene and then clicking on the viewport
