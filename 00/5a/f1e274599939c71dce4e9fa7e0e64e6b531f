@@ -1,0 +1,1 @@
+Referenced by issue #73671, Collection instances controlled by proxy armatures sometimes have the instancing empties transformation applied
