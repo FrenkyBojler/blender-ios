@@ -2,3 +2,4 @@ Referenced by commit 3044980f095, Fix #130760: Grease Pencil: Group channel cras
 Referenced by commit ae5717905bd, Fix #130090: Grease Pencil object in NLA cause Blender to crash
 Referenced by issue #131299, Moving GP keyframes doesn't update in the viewport
 Referenced by issue #130787, Fix #130760: Grease Pencil: Group channel crash
+Referenced by issue #130148, Fix #130090: Grease Pencil object in NLA cause Blender to crash
