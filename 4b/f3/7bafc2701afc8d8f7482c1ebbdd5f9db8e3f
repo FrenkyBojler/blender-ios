@@ -1,2 +1,3 @@
 Referenced by issue #107274, Crash when trying to frame a big object in ortho view (global-buffer-overflow with imperial Unit System)
 Referenced by issue #75769, grid subdivisions has stopped working, so grid snapping is no longer effective.
+Referenced by issue #70764, Grid subdivisions not working.
