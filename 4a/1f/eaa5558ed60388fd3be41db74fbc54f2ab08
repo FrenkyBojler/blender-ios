@@ -1,3 +1,4 @@
 Referenced by commit 9bac74c27b3, Complement fixup for 4a1feaa5558ed603 (texture shaders)
 Referenced by commit 4c7ff8fb1e3, Fix animation transition in region overlay not working since 4a1feaa5
 Referenced by commit 36bbdf142c5, OpenGL: fix new shader for Mac
+Referenced by issue #49505, Blender2.8: New windows triple buffer broken
