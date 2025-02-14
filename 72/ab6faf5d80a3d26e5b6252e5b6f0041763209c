@@ -4,3 +4,4 @@ Referenced by commit 4130cad4891, Fix T101607: Changing Image source inadvertent
 Referenced by issue #127673, Fix #127651: Properly load generated UDIM image tiles in Cycles
 Referenced by issue #117907, EEVEE: UDIM Bump/Height Texture makes UV seams visible
 Referenced by issue #117472, Fix #117411: In memory UDIMs fail to pack correctly
+Referenced by issue #101607, Regression: Blender 3.4 can't find missing files
