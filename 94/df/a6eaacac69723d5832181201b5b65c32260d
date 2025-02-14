@@ -1,0 +1,1 @@
+Referenced by issue #59885, Blender build failed due to error C2362 on MSVC under /permissive- mode
