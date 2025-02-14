@@ -1,3 +1,4 @@
 Referenced by commit 1062649b5e6, Fix T87041: Driver Editor not updated in realtime
 Referenced by commit c371d699cab, Fix T84784: Time Remapping not displaying in the timeline
 Referenced by issue #84784, Regression: Time Remapping not displaying in the timeline anymore (displays wrong frame)
+Referenced by issue #81532, Timeline, Dope sheet, NLA Editor - slider covers button to reveal the sidebar
