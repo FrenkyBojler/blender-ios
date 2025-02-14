@@ -1,1 +1,2 @@
 Referenced by commit d373b43f07f, VSE: Better handling of effect strip splitting
+Referenced by issue #84847, Splitting effect strip and grabbing crashes (regression in 2.92)
