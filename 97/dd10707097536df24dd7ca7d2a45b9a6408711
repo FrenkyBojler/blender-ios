@@ -1,2 +1,3 @@
 Referenced by commit ac1ac6be9a1, Fix #107573:  Purging orphan data deletes used data.
 Referenced by issue #107573, Purging orphan data deletes used mesh
+Referenced by issue #98029, Handle 'isolated islands' of cyclic dependencies of effectively unused data-blocks in 'Recursive cleanup' code
