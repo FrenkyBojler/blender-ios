@@ -1,1 +1,2 @@
 Referenced by issue #120818, The application crashes when sculpting
+Referenced by issue #120080, Crash during sculpting (regression in 4.1, 4.0 is fine)
