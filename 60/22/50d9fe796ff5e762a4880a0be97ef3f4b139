@@ -1,1 +1,2 @@
 Referenced by issue #42748, Crash in subsurf_ccg.c ccgdm_getVertCos (possibly due to improper use of GET_INT_FROM_POINTER)
+Referenced by issue #41964, 2.72 Freestyle renders two times longer on Linux
