@@ -5,3 +5,4 @@ Referenced by issue #46437, obj export ZeroDivisionError
 Referenced by issue #46439, Difference between viewport and render, caused by transparent background.
 Referenced by issue #46420, Force quit when instancing smoke domain
 Referenced by issue #46421, Blender close when I try to launch "User preferences" option
+Referenced by issue #46424, Defocus Node in Blender 2.76 Not Working
