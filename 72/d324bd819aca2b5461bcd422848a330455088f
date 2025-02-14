@@ -2,3 +2,4 @@ Referenced by commit 40156dfba3b, Fix #119309: Face Set from Visible crash with 
 Referenced by commit 04d37cd8879, Fix #119309: Face Set from Visible crash with multires
 Referenced by commit 18912561b5d, Fix #118163: Crash hiding face sets with multires
 Referenced by issue #119311, Fix #119309: Face Set from Visible crash with multires
+Referenced by issue #118183, Fix #118163: Crash hiding face sets with multires
