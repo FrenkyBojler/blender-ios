@@ -1,0 +1,1 @@
+Referenced by issue #96904, 3D Texture Paint "Sample color" operator does not respect texture interpolation setting (always samples using bilinear interpolation)
