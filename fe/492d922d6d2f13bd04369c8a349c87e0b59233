@@ -1,1 +1,2 @@
 Referenced by commit 82ab2c16784, XR: Re-enable SteamVR OpenGL backend for AMD gpus
+Referenced by issue #78267, Crash when starting a VR Session using SteamVR
