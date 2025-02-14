@@ -85,3 +85,4 @@ Referenced by issue #53849, Baking Procedural Textures Causing Some Pretty Notic
 Referenced by issue #53824, The new 2.79 Blank render in Cycles
 Referenced by issue #53833, Particle Info node and Displacement Crash
 Referenced by issue #53834, The Scene Scale not effects on physics simulation
+Referenced by issue #53816, Denoiser produces artefacts depending on radius
