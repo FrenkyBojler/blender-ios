@@ -1,1 +1,2 @@
 Referenced by issue #51595, Snap to edge does not work with high zoom level
+Referenced by issue #43835, ray offsetting giving precission problems / render artifacts / cracks on far away geometry
