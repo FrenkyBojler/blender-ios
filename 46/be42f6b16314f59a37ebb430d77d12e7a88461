@@ -2,3 +2,4 @@ Referenced by commit c6725b935c2, Fix #109720: load_post can't be used to initia
 Referenced by commit 302137b14bd, Fix #107759: Crash when running modal operator in load_post handler
 Referenced by commit 95a114f3cae, Fix #107759: Crash when running modal operator in load_post handler
 Referenced by commit 0239eee1c62, Fix build error on Windows introduced in 46be42f6b1
+Referenced by issue #110448, Fix #109720: load_post can't be used to initialize the driver namespace (3.6 LTS)
