@@ -89,3 +89,4 @@ Referenced by issue #45406, Crash on Append
 Referenced by issue #45394, Motion blur and Follow track constrain
 Referenced by issue #45389, Can't display  .blend thumbnail in the Windows explorer
 Referenced by issue #45391, Can't uninstall completely and clean
+Referenced by issue #45376, viewport doesn't refreshes animated colors in node groups
