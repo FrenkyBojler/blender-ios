@@ -89,9 +89,9 @@ static void if_has_data_call_callback(const Span<int> offset_data,
                                       UnselectedCallback callback)
 {
   if (begin < end) {
-    const IndexRange slices = IndexRange::from_begin_end(begin, end);
-    const IndexRange data = IndexRange::from_begin_end(offset_data[begin], offset_data[end]);
-    callback(slices, data);
+    const IndexRange curves = IndexRange::from_begin_end(begin, end);
+    const IndexRange points = IndexRange::from_begin_end(offset_data[begin], offset_data[end]);
+    callback(curves, points);
   }
 };
 
