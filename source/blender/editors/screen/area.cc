@@ -880,12 +880,15 @@ WorkspaceStatus::WorkspaceStatus(bContext *C)
 /** \name Private helper functions to help ensure consistent spacing
  * \{ */
 
-static constexpr float STATUS_AFTER_TEXT = 0.7f;
-static constexpr float STATUS_MOUSE_ICON_PAD = -0.5f;
+static constexpr float STATUS_BEFORE_TEXT = 0.2f;
+static constexpr float STATUS_AFTER_TEXT = 0.6f;
+static constexpr float STATUS_MOUSE_ICON_PAD = -1.0f;
+static constexpr float STATUS_MOUSE_ICON_AFTER = -0.4f;
 
 static void ed_workspace_status_text_item(WorkSpace *workspace, std::string text)
 {
   if (!text.empty()) {
+    ed_workspace_status_space(workspace, STATUS_BEFORE_TEXT);
     ed_workspace_status_item(workspace, std::move(text), ICON_NONE);
     ed_workspace_status_space(workspace, STATUS_AFTER_TEXT);
   }
@@ -900,6 +903,9 @@ static void ed_workspace_status_icon_item(WorkSpace *workspace,
     if (icon >= ICON_MOUSE_LMB && icon <= ICON_MOUSE_MMB_SCROLL) {
       /* Negative space after narrow mice icons. */
       ed_workspace_status_space(workspace, STATUS_MOUSE_ICON_PAD);
+    }
+    else {
+      ed_workspace_status_space(workspace, STATUS_MOUSE_ICON_AFTER);
     }
   }
 }

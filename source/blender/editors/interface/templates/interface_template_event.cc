@@ -85,24 +85,27 @@ int uiTemplateStatusBarModalItem(uiLayout *layout,
 #endif
       for (int j = 0; j < ARRAY_SIZE(icon_mod) && icon_mod[j]; j++) {
         uiItemL(layout, "", icon_mod[j]);
-        const float offset = ui_event_icon_offset(icon_mod[j]);
+        const float offset = ui_event_icon_offset(icon_mod[j]) - 0.4f;
         if (offset != 0.0f) {
           uiItemS_ex(layout, offset);
         }
       }
       uiItemL(layout, "", icon);
+      uiItemS_ex(layout, -0.4f);
 
 #ifndef WITH_HEADLESS
       icon = UI_icon_from_keymap_item(kmi_y, icon_mod);
 #endif
       uiItemL(layout, "", icon);
+      uiItemS_ex(layout, -0.4f);
 
 #ifndef WITH_HEADLESS
       icon = UI_icon_from_keymap_item(kmi_z, icon_mod);
 #endif
       uiItemL(layout, "", icon);
+      uiItemS_ex(layout, -0.2f);
       uiItemL(layout, xyz_label, ICON_NONE);
-      uiItemS_ex(layout, 0.7f);
+      uiItemS_ex(layout, 0.6f);
       return 3;
     }
   }
@@ -127,7 +130,7 @@ bool uiTemplateEventFromKeymapItem(uiLayout *layout,
   if (icon != 0) {
     for (int j = 0; j < ARRAY_SIZE(icon_mod) && icon_mod[j]; j++) {
       uiItemL(layout, "", icon_mod[j]);
-      const float offset = ui_event_icon_offset(icon_mod[j]);
+      const float offset = ui_event_icon_offset(icon_mod[j]) - 0.4f;
       if (offset != 0.0f) {
         uiItemS_ex(layout, offset);
       }
@@ -138,23 +141,23 @@ bool uiTemplateEventFromKeymapItem(uiLayout *layout,
     uiItemL(layout, "", icon);
     if (icon >= ICON_MOUSE_LMB && icon <= ICON_MOUSE_MMB_SCROLL) {
       /* Negative space after narrow mice icons. */
-      uiItemS_ex(layout, -0.5f);
+      uiItemS_ex(layout, -0.7f);
     }
 
-    const float offset = ui_event_icon_offset(icon);
+    const float offset = ui_event_icon_offset(icon) - 0.2f;
     if (offset != 0.0f) {
       uiItemS_ex(layout, offset);
     }
 
     uiItemL(layout, CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, text.c_str()), ICON_NONE);
-    uiItemS_ex(layout, 0.7f);
+    uiItemS_ex(layout, 0.6f);
     ok = true;
   }
   else if (text_fallback) {
     const char *event_text = WM_key_event_string(kmi->type, true);
     uiItemL(layout, event_text, ICON_NONE);
     uiItemL(layout, CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, text.c_str()), ICON_NONE);
-    uiItemS_ex(layout, 0.5f);
+    uiItemS_ex(layout, 0.6f);
     ok = true;
   }
   return ok;
