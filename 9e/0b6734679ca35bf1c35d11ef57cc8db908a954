@@ -1,2 +1,3 @@
 Referenced by commit c51615923b3, Fix #130420: Undo/Redo broken when using Transfer Mode operator.
 Referenced by issue #132667, Transfer Mode on the active object gives a popup error
+Referenced by issue #130472, Fix #130420: Undo/Redo broken when using Transfer Mode operator.
