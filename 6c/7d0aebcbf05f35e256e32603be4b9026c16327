@@ -1,1 +1,2 @@
 Referenced by issue #78912, Text object is invisible in viewport with "Fast Editing" option (fixed in 2.9x -- backport to LTS?)
+Referenced by issue #75483, 3D Text Selection Obscures Text
