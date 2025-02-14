@@ -1,1 +1,2 @@
 Referenced by commit a8739ae6c2a, Fix regression in recent change 0708733c46cb6b50697c1b80a6541d6fb410267e
+Referenced by issue #91123, Freeing meshes in edit-mode leaks memory
