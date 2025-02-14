@@ -1,0 +1,1 @@
+Referenced by issue #61255, Data Transfer modifier & Transfer Weights operator don't work with the source on "All Layers" if the source mesh has vertex groups that the target mesh doesn't.
