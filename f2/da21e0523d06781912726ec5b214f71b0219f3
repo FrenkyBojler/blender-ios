@@ -1,0 +1,1 @@
+Referenced by issue #63594, python error in batch_for_shader when using more than one "in" parameter in a custom shader
