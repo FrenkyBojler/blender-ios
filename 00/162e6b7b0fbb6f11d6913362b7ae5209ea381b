@@ -1,3 +1,4 @@
 Referenced by issue #79681, Eevee Film always opaque
 Referenced by issue #79651, Grease Pencil: close shapes do Z-fighting (wrong overlapping) until stroke refreshment.
 Referenced by issue #79246, Blender won't start - GPUShader: compile error - AWS Elastic Graphics
+Referenced by issue #77348, Blender LTS: Maintenance Task 2.83
