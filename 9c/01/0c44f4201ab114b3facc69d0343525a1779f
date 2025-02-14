@@ -2,3 +2,4 @@ Referenced by issue #72217, Crash when switching scene
 Referenced by issue #70226, Blender crash when try to edit a mesh in devlook
 Referenced by issue #70206, 2.81 - On Texture Paint the UV Map doesnt show up on the left viewport as it does on 2.80
 Referenced by issue #69051, Vertex / Weight Paint. Blender does not show if vertex is selected.
+Referenced by issue #68954, Auto Smooth option conflicts with uvs
