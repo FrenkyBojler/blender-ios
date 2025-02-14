@@ -1,1 +1,2 @@
 Referenced by commit 53b03eff965, Fix T36496: unwanted behavior with NLA strip blend mode Replace.
+Referenced by issue #36496, Buggy distortion when two NLA Strips overlap
