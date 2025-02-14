@@ -4,3 +4,4 @@ Referenced by issue #61907, Interaction mode dropdown inverted after recent UI c
 Referenced by issue #61880, massively increased .blend load times
 Referenced by issue #61858, Custom object coordinate does not work on Eevee
 Referenced by issue #61814, Cube metaball are broken
+Referenced by issue #61821, Wrong insertion of keyframe on camera object while on camera view on Eeevee
