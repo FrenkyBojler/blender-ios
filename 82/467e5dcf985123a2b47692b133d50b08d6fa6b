@@ -1,1 +1,2 @@
 Referenced by issue #99921, Eevee, bump node seems to be ignored when using Shader to RGB node
+Referenced by issue #99695, Geometry nodes executes superfluously when the compositor node tree change
