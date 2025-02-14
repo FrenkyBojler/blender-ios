@@ -1,2 +1,3 @@
 Referenced by issue #40170, Cycles baking not working
 Referenced by issue #40156, Cycles Baking and applyRotation issues
+Referenced by issue #40115, Smoke simulator memory leak with high poly mesh emitter
