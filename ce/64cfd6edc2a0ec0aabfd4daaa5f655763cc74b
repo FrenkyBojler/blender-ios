@@ -1,2 +1,3 @@
 Referenced by issue #90690, Grease Pencil layer transformations ignored by select tool
 Referenced by issue #89306, Grease Pencil: Point selection doesn't work correctly with modifiers
+Referenced by issue #88844, AMD GPU - EEVEE - Compositor is broken again in 2.93 (Regression) - Alpha Channel crazy behaviour is back.
