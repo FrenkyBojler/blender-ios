@@ -1,0 +1,1 @@
+Referenced by issue #46405, Point density textures. When using vertices as source, the viewport preview render does not update when adding a modifier or changing modifier settings.
