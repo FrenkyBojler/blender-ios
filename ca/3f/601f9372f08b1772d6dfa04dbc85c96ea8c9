@@ -1,0 +1,1 @@
+Referenced by issue #52332, scene_to can be NULL and cause segfault
