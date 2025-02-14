@@ -1,3 +1,4 @@
 Referenced by issue #61084, PyQt5 cuases textureproblems
 Referenced by issue #61063, Function from Python not being loaded for Driver when project opened
 Referenced by issue #61064, Interpolation changes using the Active Keyframe panel in the graph editor aren't updating 3D viewport
+Referenced by issue #61065, Blender 2.80 - Incorrect rendering in viewport after adding a new material base color texture
