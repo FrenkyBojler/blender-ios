@@ -1,1 +1,2 @@
 Referenced by commit 503de163539, Fix #117583: Inaccessible title bar buttons on GNOME/Wayland
+Referenced by issue #117863, Window size is broken in Linux Gnome Wayland
