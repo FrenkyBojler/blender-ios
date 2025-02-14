@@ -1,2 +1,3 @@
 Referenced by commit 6672cbeb236, Fix T84202: Sculpt lasso mask crash after remesh.
 Referenced by issue #84202, Sculpt crash after remesh (mask operators, cloth brush, ...)
+Referenced by issue #84132, Sculpt: crash in Sculpt Mode when using mask operators after voxel remeshing
