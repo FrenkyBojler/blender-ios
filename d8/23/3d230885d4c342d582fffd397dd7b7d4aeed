@@ -1,2 +1,3 @@
 Referenced by issue #46712, Crash while rendering
 Referenced by issue #46619, "Levels node" becomes "undefined node"
+Referenced by issue #46621, Undo doesn't work on unparenting an object in armature-edit-mode.
