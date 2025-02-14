@@ -1,1 +1,2 @@
 Referenced by commit b4e869e2fc4, Cleanup: quiet warnings when reloading scripts
+Referenced by issue #116370, `bpy.utils.register_class` silently overrides existing classes with the same `bl_idname`
