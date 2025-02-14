@@ -1,3 +1,4 @@
 Referenced by commit 36ae6e66c10, Fix T84367: Fix crash when showing invalid/legacy constraints
 Referenced by commit 7a0a60dde8b, Dont show temporary IK constraints in the constraint stack
 Referenced by issue #84367, Select bone (with constraint) in Pose Mode from Outliner (and constraint tab in Properties Editor showing) crashes
+Referenced by issue #80437, Auto IK Double Generates IK constraints
