@@ -1,3 +1,4 @@
 Referenced by commit a55b00b53ba, Fix a number of small errors in area coordinate handling
 Referenced by commit 48ad67ef820, Cleanup: Add/use function to get area width/height from area vertices
 Referenced by issue #38463, Main window won't resize
+Referenced by issue #37617, "Add plane" now actually adds a 2*2 grid!
