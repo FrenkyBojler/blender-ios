@@ -1,2 +1,3 @@
 Referenced by issue #71719, clicks are persistent across buttons, with hover
 Referenced by issue #70180, Batch Rename dialog gets added backslash (escapes valid characters)
+Referenced by issue #70144, Red 'filename, overwrite existing' when opening a file
