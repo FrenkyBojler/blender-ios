@@ -2,3 +2,4 @@ Referenced by issue #41567, Metaball rendering stuck on 1 sample
 Referenced by issue #41568, Dissolve Vertices with Tear Boundary Option keeps one vert every two verts.
 Referenced by issue #41532, Some files bounce back and forth between 'packing BVH nodes' and 'Copying Transforms to Device'
 Referenced by issue #41535, Other Objects is flickering when emitter are disabled on particle system
+Referenced by issue #41474, Second renderlayer doesnt render if first one has 'Use Surfaces' disabled.
