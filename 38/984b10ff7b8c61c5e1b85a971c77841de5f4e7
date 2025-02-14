@@ -4,3 +4,4 @@ Referenced by issue #61195, Blender 2.80 crashes after deleting auto detected ma
 Referenced by issue #61185, Texture Changes don't update mesh when changed in Vertex Weight modifiers
 Referenced by issue #61187, Fluid Particle settings UI elements missing / broken
 Referenced by issue #60893, Handler frame_change_post not working properly
+Referenced by issue #58112, Error loading file ( rigid body / soft body / hair dynamics )
