@@ -1,0 +1,1 @@
+Referenced by issue #117539, Scaling UDIM images via Image.scale() only scales one tile
