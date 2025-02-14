@@ -1,1 +1,2 @@
 Referenced by commit 8ba63026964, Geometry Nodes: fix combining field inputs
+Referenced by issue #93845, Blender now freezes when long  (loop-like) geometry nodes chains are evaluated
