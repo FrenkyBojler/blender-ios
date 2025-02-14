@@ -5,3 +5,4 @@ Referenced by issue #59804, The bmesh.ops.symmetrize python interface does not s
 Referenced by issue #59784, Eevee rendering "fireflies"
 Referenced by issue #59760, Wrong reflections in EEVEE using 16-bit normal maps
 Referenced by issue #59752, Filling fail
+Referenced by issue #59505, Knife tool cut preview line becomes black.
