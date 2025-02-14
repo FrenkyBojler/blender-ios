@@ -1,0 +1,1 @@
+Referenced by issue #86222, macOS: attributedSubstringFromRange in GHOST_WindowViewCocoa.h leaks memory.
