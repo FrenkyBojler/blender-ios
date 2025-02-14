@@ -1,2 +1,3 @@
 Referenced by commit 1ba15f1f7f9, Speedup for usual non-manifold exact boolean case.
 Referenced by issue #87078, Geometry nodes boolean intersect sometimes not working
+Referenced by issue #86860, Intersect(Boolean) bug
