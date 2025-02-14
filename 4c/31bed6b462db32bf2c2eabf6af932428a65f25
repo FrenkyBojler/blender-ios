@@ -24,3 +24,4 @@ Referenced by issue #58291, unable to select Vert/edge/face after moving them in
 Referenced by issue #58295, Black Viewport on load
 Referenced by issue #58281, Wrong result with alpha for Principled BSDF base color
 Referenced by issue #58267, Node input output grabbing
+Referenced by issue #58126, Blender 2.8 crash when switch to sculpting
