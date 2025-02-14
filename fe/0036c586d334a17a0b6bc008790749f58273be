@@ -1,1 +1,2 @@
 Referenced by issue #77796, Curve handles can no longer be rotated when handle type is automatic
+Referenced by issue #76563, Attempting to rotate curve points with Automatic handle type doesn't switch them to Aligned handle type
