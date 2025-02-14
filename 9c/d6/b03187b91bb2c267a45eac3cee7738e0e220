@@ -2,3 +2,4 @@ Referenced by commit 3edc8c1f9bc, Fix rigid body not resimulating after cache in
 Referenced by issue #52374, Changes of rigid body related settings during simulation will break the simulation (worked in 2.78c)
 Referenced by issue #52034, Texture nodes regression in latest build of 2.78c
 Referenced by issue #51965, Custom Bone Shape Wireframe setting affects wireframe thickness
+Referenced by issue #51951, Texture overlapping in BI
