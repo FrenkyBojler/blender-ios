@@ -1,1 +1,2 @@
 Referenced by commit 5f8b6a9c0eb, Fix T85753: Default UVs for Icosphere are flipped horizontally
+Referenced by issue #47488, Add a good default UV map to our 'monkey' primitive.
