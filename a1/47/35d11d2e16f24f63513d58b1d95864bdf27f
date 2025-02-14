@@ -1,0 +1,1 @@
+Referenced by issue #71055, Modifiers which deform spline points propagate across all users of the same data unexpectedly
