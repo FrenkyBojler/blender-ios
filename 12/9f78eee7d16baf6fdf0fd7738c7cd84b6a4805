@@ -1,3 +1,4 @@
 Referenced by commit 2b77cd726db, Cleanup: wrap definitions across multiple lines, add struct identifiers
 Referenced by commit 39a94e370cd, I18n: restore unit messages after c++ migration broke extraction
 Referenced by commit 7fe1f141163, BLI_linklist_stack: restore type safety without needing explicit casts
+Referenced by commit e8187413cf8, Fix compiler error with `WITH_BULLET` disabled
