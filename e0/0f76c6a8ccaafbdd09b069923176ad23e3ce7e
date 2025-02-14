@@ -1,1 +1,2 @@
 Referenced by commit 874319a3443, Fix T103031: ViewLayer: Crash in indirect_only_get due to missing null check
+Referenced by issue #103031, Regression: My blend file crashes when rendering in Blender 3.4 upwards, because of an unchecked NULL in the code. (stack trace provided)
