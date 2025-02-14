@@ -61,3 +61,4 @@ Referenced by issue #54050, Alembic: Camera properties (focal length, focus dist
 Referenced by issue #54037, User preferences show in blank
 Referenced by issue #54018,  Transformation orientation stays stuck in Global
 Referenced by issue #54019, Undefined behavior happen by copying objects with Ctrl+C with custom material nodes
+Referenced by issue #54025, Constant Crashing
