@@ -4,3 +4,4 @@ Referenced by commit cb986446e29, Fix Crash: Switching to wireframe mode.
 Referenced by issue #98037, GPU: GPU accellerated depth testing for gizmos
 Referenced by issue #97996, Regression: Rotate tool trackball rotation mode doesn't work.
 Referenced by issue #97771, Regression: light gizmos not working (Windows + NVidia)
+Referenced by issue #97483, Rotation tool only allows trackball style rotation
