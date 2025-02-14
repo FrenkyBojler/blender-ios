@@ -1,1 +1,2 @@
 Referenced by commit 3df30c34c3d, Revert "Remove particle expander"
+Referenced by issue #50457, Make equal Animation types enum and definitions in anim_defines.c for particles (ANIMTYPE_DSPART)
