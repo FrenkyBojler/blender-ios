@@ -1,2 +1,3 @@
 Referenced by issue #96133, MacOS desktop freeze and crash on 3.1 beta up to 3.2.2 when moving mesh in Cycles Rendered view (Cycles CPU mode)
 Referenced by issue #95420, Regression: Crash on Stereoscopic Render
+Referenced by issue #93350, Cycles renders shows black during rendering huge resolutions
