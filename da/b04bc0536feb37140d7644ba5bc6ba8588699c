@@ -1,0 +1,1 @@
+Referenced by issue #93231, geometry nodes, crash when attribute domain set to 'edge' when outputting to vertex weights
