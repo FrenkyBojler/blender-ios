@@ -1,1 +1,2 @@
 Referenced by commit f8a70db5565, Fix T67047: Can't jump to frame when using jack in A/V sync mode
+Referenced by issue #65881, Can't scrobble playhead during playback in animation editors if FPS is slow
