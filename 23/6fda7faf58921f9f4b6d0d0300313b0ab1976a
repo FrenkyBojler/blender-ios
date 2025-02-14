@@ -1,3 +1,4 @@
 Referenced by commit 46cfd345e47, Fix typo and and incorrect property initialization
 Referenced by issue #101928, Info editor reports wrong transform options
 Referenced by issue #101343, Regression: useless Snapping menu in the adjustment popup of Edge bevel weight operator
+Referenced by issue #100749, Blender LTS: Maintenance Task 3.3
