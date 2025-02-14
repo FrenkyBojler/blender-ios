@@ -1,2 +1,3 @@
 Referenced by issue #88732, crash when zero float value in selection field of the mesh to curve node
 Referenced by issue #88455, Object-linked material slot not working correctly with generated geometry in geometry nodes
+Referenced by issue #87335, Geometry nodes material index attribute not working correctly on generated/instanced geometry
