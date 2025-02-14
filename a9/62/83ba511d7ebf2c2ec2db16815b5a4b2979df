@@ -1,0 +1,1 @@
+Referenced by issue #80477, Viewport Optix Denoiser is available when Cycles Render Device is set to None/CUDA, leading to a crash
