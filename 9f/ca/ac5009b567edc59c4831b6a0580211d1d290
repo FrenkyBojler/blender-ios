@@ -1,2 +1,3 @@
 Referenced by issue #41219, Cycles Fresnel nodes - broken gradients on objects with negative scale (final render only, not viewport)
 Referenced by issue #41147, Static BVH shading problem
+Referenced by issue #41079, Solid black render of object with negative scale and smooth shading
