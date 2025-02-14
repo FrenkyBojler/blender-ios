@@ -1,2 +1,3 @@
 Referenced by issue #94189, CTRL Z crash
 Referenced by issue #94115, Selecting current action in Undo History Undoes all the History
+Referenced by issue #93629, Regression: Reset To Default Value undoing everything when applied twice in the same menu.
