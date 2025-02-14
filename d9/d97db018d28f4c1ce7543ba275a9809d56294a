@@ -1,2 +1,3 @@
 Referenced by commit 563404d8ad4, Fix T100430: Restore larger node socket snap hitbox
 Referenced by commit a0c28a80548, Fix T100430: Restore larger node socket snap hitbox
+Referenced by issue #100430, Regression: Node socket active/snapping area became smaller
