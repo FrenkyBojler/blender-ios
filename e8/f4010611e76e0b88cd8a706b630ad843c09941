@@ -1,2 +1,3 @@
 Referenced by commit 97a8bb450cd, Fix #103387: Radius affects curves bounding box
 Referenced by commit 511ac66dabf, Mesh: Use shared cache for derived triangulation
+Referenced by issue #105154, Fix #103387: Radius affects curves bounding box
