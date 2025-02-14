@@ -1,1 +1,2 @@
 Referenced by commit f8d6bbeb63e, Fix compilation error.
+Referenced by issue #105057, When animating a mixnodes mix property and hitting 0 or 1,  the shader recompiles
