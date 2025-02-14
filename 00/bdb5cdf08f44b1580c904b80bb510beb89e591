@@ -1,0 +1,1 @@
+Referenced by commit e80527ec4de, DRW manager: Always assume that the GL_DITHER and GL_SCISSOR_TEST should be disabled if not used.
