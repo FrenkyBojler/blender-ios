@@ -2,3 +2,4 @@ Referenced by issue #56798, Normals in Cycles contain NaN
 Referenced by issue #56799, "Save Buffers" doesn't allow saving the volume passes
 Referenced by issue #56773, Latest Blender/Cycles build will crash in GPU mode (Blue Screen with 4594cc25ac8)
 Referenced by issue #56775, Cycles - Render crashes Blender
+Referenced by issue #56761, Crash - Principled Shader with Transmission greater than 0
