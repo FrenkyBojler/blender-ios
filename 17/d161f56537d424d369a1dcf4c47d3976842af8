@@ -1,2 +1,3 @@
 Referenced by commit 7449f0e14ca, Fix #109599: Setting custom normals can skip marking some edges sharp
 Referenced by issue #109599, Regression: Artifacts after importing fbx file
+Referenced by issue #108867, Regression: Modifiers: Crash when adding Weighted Normal to large mesh
