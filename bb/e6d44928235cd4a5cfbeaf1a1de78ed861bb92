@@ -9,3 +9,4 @@ Referenced by issue #85462, Crash in render mode while removing instances
 Referenced by issue #85144, Crash in Blender 2.93 when changing render properties with rendered viewport
 Referenced by issue #85048, Cycles Sculpt Vertex Color crash or wrong render
 Referenced by issue #85010, Cycles viewport not showing certain material changes when using GPU compute (2.93)
+Referenced by issue #79174, Cycles Procedural API and faster scene update
