@@ -12,3 +12,4 @@ Referenced by issue #106494, Crash: WSL background rendering eevee  crashes with
 Referenced by issue #106340, Blender 3.5 returns identity instead of real value for matrix_basis, 3.4 works ok
 Referenced by issue #106297, Malfunction when using Vertex Color as Separate Color and Distribute Points on Faces in Geometry Nodes
 Referenced by issue #106278, Regression: Blender 3.5 crashes when selecting either Viewport Shading Material and Rendered
+Referenced by issue #85622, Smoke Domain glitching outside of its cache range 2.91.2, 2.9 Beta
