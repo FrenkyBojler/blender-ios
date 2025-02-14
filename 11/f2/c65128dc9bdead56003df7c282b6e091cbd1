@@ -6,3 +6,4 @@ Referenced by issue #60121, Cycles GPU Bake artifacts and crash
 Referenced by issue #60123, Memory leak and crash when playing with X-ray value in Wireframe mode
 Referenced by issue #60125, Please revisit T49451
 Referenced by issue #60109, Transform tool - Gizmo mode not updated in viewport
+Referenced by issue #60114, simultaneous xyz input in "Transform" -> "Dimensions" in object mode broken
