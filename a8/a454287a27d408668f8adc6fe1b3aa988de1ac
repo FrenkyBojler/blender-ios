@@ -2,3 +2,4 @@ Referenced by commit c65fa57b0b6, Fix #109691: Edge crease not handled in comple
 Referenced by commit c5702ee87db, Fix: Wrong conversion for crease type in multires reshape
 Referenced by commit 1bacd09abb6, Fix: Mishandled creases in Cycles adaptive subdivision
 Referenced by commit ed28ba4e999, Fix T101393: Vertex Crease operator does not create vertex crease layer
+Referenced by commit fa1c214c5b2, Fix crash in Solidify modifier with Inner Crease
