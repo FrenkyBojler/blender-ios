@@ -1,1 +1,2 @@
 Referenced by issue #87502, Reducing the area light spread can produce a hard cutoff in the reflection.
+Referenced by issue #86456, Motion Tracking Keyframe A & B, relative not absolute.
