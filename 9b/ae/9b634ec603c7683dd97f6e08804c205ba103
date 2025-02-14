@@ -1,1 +1,2 @@
 Referenced by issue #67542, Denoiser produces artifacts while handling the negative float values
+Referenced by issue #65326, OBJ import is broken
