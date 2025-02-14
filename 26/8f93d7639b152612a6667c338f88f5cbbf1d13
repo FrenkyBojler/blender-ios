@@ -4,3 +4,4 @@ Referenced by issue #116503, Intel A770 crash+TDR on save in 4.0.2, but not 3.x,
 Referenced by issue #114103, Exit code 134 at "Updating Shaders" on CPU rendering
 Referenced by issue #109858, API's new context.property causing immediate Blender access violation crash.
 Referenced by issue #109399, Blender LTS: Maintenance Task 3.6
+Referenced by issue #100749, Blender LTS: Maintenance Task 3.3
