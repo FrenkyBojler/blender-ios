@@ -1,1 +1,2 @@
 Referenced by issue #70317, Equal clip range crashing in Hue Correct & RGB Curves Nodes
+Referenced by issue #69473, Curve widget crash when resetting curve with bad clipping values
