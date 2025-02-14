@@ -3,3 +3,4 @@ Referenced by commit 4dd409a185e, Fix T99976: Animated visibility not rendering 
 Referenced by issue #122451, Crash on animated viewport visibility + animated mesh positions
 Referenced by issue #107426, Regression: error baking objects with animated render visibility
 Referenced by issue #99976, Regression: curve with animated visibility not rendering properly in viewport
+Referenced by issue #99733, Objects with driven visibility are evaluated when not needed
