@@ -1,0 +1,1 @@
+Referenced by issue #42679, PHY_GetActiveEnvironment() fails while python controls BGE
