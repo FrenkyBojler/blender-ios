@@ -1,2 +1,3 @@
 Referenced by issue #69857, Loading image by API regression
 Referenced by issue #69858, Grease Pencil doesn't draw until stroke is finished
+Referenced by issue #69853, fully broken scenes., by drag an object only the pivot point moves
