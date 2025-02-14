@@ -1,1 +1,2 @@
 Referenced by issue #74531, File Browser not show image preview when set Display As `thumbnail` untill file browser window is resized
+Referenced by issue #74537, Adaptive sampling + AO color node crashes (when shader rays exceed 32K).
