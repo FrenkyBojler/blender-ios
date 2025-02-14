@@ -1,1 +1,2 @@
 Referenced by commit c174fd4e063, Cycles: Fix Python error in has_oidn_gpu_devices
+Referenced by issue #115045, OpenImageDenoise GPU acceleration
