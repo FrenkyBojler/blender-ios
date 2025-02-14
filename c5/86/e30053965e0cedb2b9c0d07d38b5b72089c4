@@ -10,3 +10,4 @@ Referenced by issue #46221, Mixed shader Glass and Transparent displayed as soli
 Referenced by issue #46223, Open EXR multiview image sequences crash Blender 2.75a and 2.76rc
 Referenced by issue #46217, Baked normal artifacts
 Referenced by issue #46201, Popup menus on post_load handlers crash blender.
+Referenced by issue #46206, Unable to UNDO, moving to layers require manual clicking on the OK button, which isn't what it used to be
