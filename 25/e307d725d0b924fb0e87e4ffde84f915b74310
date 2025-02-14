@@ -2,3 +2,4 @@ Referenced by commit be1745425ca, Nodes: Remove "level" building pass on update
 Referenced by commit 984edb2c4e6, Nodes: Replace implementation of select next/prev type operator
 Referenced by commit 58c650a44c2, Nodes: Use existing nodes span cache
 Referenced by commit e6557785edc, Fix: crash on undo due to missing node declaration
+Referenced by issue #104296, Regression: crash loading test file library_test_scene.blend
