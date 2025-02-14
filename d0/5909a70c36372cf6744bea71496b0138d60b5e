@@ -1,1 +1,2 @@
 Referenced by commit a6b6f5db10a, Fix issue with recent refactor in liboverride diffing.
+Referenced by issue #102766, Crash when editing geometry node tree or curves in the graph editor
