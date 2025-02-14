@@ -1,2 +1,3 @@
 Referenced by commit 1e61b759c7a, Fix T94797: crash when playing animation in eevee rendered view
 Referenced by issue #98157, Regression: Massive drops in Animation playback (fps) in the viewport (Depsgraph)
+Referenced by issue #94797, Crash when playing animation in eevee rendered view
