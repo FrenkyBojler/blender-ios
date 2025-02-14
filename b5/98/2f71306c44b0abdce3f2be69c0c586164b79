@@ -1,1 +1,2 @@
 Referenced by issue #40962, The new Ashikhmen Shirley shader; firefly explosion with very small lamps regardless of power.
+Referenced by issue #40896, Major shading errors when mixing a rough refractive shader with a transparent shader according to IOR
