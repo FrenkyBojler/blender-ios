@@ -1,2 +1,3 @@
 Referenced by issue #48553, Cycles GLSL - Box projection in Image node produces strong artifacts.
 Referenced by issue #48555, Cycles GLSL- Incorrect Vertex Color results from Attribute node.
+Referenced by issue #48503, Vertex Colors are not displayed in Material view
