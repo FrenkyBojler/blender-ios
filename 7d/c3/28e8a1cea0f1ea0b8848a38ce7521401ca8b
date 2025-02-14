@@ -1,3 +1,4 @@
 Referenced by issue #49254, Adaptive subdivision doesn't work when using panoramic fisheye equidistant camera
 Referenced by issue #49234, Alembic not importing motion blur
 Referenced by issue #49235, Cycles not working with GTX 1070, say kernel compilation error
+Referenced by issue #49196, BGE standalone player crash when pressing any key
