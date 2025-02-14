@@ -1,1 +1,2 @@
 Referenced by issue #101651, Cycles prints core dump when rendering with OPTIX and missing package `libnvidia-gl`
+Referenced by issue #100749, Blender LTS: Maintenance Task 3.3
