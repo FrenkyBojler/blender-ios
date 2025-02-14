@@ -48,3 +48,4 @@ Referenced by issue #47965, Panoramic Camera Dropdown doesn't change when select
 Referenced by issue #47967, Select next active does not work with some ngons
 Referenced by issue #47971, Blender 2.77 Crash When Rigid Body Cache 'Bake' Clicked
 Referenced by issue #47954, Mesh selection shutdown
+Referenced by issue #47940, bones with custom shapes not selectable in pose mode when using opensource gpu drivers
