@@ -1,0 +1,1 @@
+Referenced by issue #42588, Blender's code for finding files gets confused with files that are higher up in the file hierachy than itself; especially when collaborating
