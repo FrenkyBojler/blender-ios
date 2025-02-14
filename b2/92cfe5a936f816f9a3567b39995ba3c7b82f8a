@@ -10,3 +10,4 @@ Referenced by issue #102925, RDNA2 HIP LINUX crashes GPU when rendering default 
 Referenced by issue #102700, Regression: Viewer node crash on empty by non-null mesh after join geometry with attribute output on viewer
 Referenced by issue #102636, Blender Crash while selecting Object in Viewport
 Referenced by issue #102626, **SOLVED** [v3.0 and up] Program/computer crash when choosing Cycles, then going to Material Properties and expanding the Preview window. No problems with 2.93.8.
+Referenced by issue #102423, Regression: Screen Space Reflections on EEVEE render shaders with roughness a minimum regardless the value or map in the shader
