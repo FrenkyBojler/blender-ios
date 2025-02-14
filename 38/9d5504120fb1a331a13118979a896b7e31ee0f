@@ -1,1 +1,2 @@
 Referenced by issue #77106, Crash when baking diffuse map. (EXCEPTION_ACCESS_VIOLATION)
+Referenced by issue #65808, Crash when baking a normal map from procedural materials
