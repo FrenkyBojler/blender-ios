@@ -2,3 +2,4 @@ Referenced by issue #91611, Eevee Light Limitation failing to render at well und
 Referenced by issue #90887, PulseAudio breaks animation playback in new scene (no imported sound involved) LTS backport, 3.0 is fine
 Referenced by issue #90752, Blender popup windows open on the wrong screen
 Referenced by issue #88449, Blender LTS: Maintenance Task 2.93
+Referenced by issue #88089, PulseAudio: Animation playback in viewport corrupts sound output on linux
