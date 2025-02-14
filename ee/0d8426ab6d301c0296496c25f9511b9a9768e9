@@ -2,3 +2,4 @@ Referenced by commit 5aaa00ed555, Revert "UI: Dynamic region size for file brows
 Referenced by issue #64610, BMLops inconsistent order
 Referenced by issue #64400, x-axis mirror for edit mode and pose mode is the same
 Referenced by issue #64333, Sculpt: mirror and other modifiers not visible in workbench sculpt mode
+Referenced by issue #64284, Mirroed Collection Intances have flipped normals/face orientation.
