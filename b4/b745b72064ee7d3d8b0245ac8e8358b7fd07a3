@@ -1,1 +1,2 @@
 Referenced by commit c1361d26512, Depsgraph: tag depsgraph for copy-on-write flush when RNA changes
+Referenced by commit 67598d39b41, Revert "Depsgraph: refresh RNA that doesn't need a full rebuild"
