@@ -1,0 +1,1 @@
+Referenced by issue #80787, 2.91 Image Editor Quick Smoke (Fire) Pure Emission is displayed as (1.0, 1.0, 1.0) even when the actual values are 5 orders of magnitude lower.
