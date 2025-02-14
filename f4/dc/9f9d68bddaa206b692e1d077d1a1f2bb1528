@@ -15,3 +15,4 @@ Referenced by issue #65772, Solidify Modifier produces rim surfaces with faces b
 Referenced by issue #65516, Mesh Analysis and Measurement does not work when modifiers.show_in_editmode is true
 Referenced by issue #65394, Disk Cache combined with Cache Step does not work
 Referenced by issue #65136, Blender crashes after tabbing out and back in
+Referenced by issue #64799, Ctrl + Z resets model
