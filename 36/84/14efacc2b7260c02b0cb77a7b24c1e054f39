@@ -1,1 +1,2 @@
 Referenced by issue #53823, Enabling weight brush in particle edit mode of a hair particle system will cause a crash when entering an emitter system edit mode.
+Referenced by issue #53683, 2.79a release
