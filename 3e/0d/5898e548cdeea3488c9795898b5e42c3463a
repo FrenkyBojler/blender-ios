@@ -1,0 +1,1 @@
+Referenced by issue #39686, Unused omp firstprivate variable sphdata at line 4439 of particle.c
