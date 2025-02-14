@@ -1,1 +1,2 @@
 Referenced by commit b9967bfb3f6, Fix T40151: Problem in normal with subdivision surface + Boolean modifier
+Referenced by issue #39997, Crash with "simple" boolean modifier and opening blend file crashes again
