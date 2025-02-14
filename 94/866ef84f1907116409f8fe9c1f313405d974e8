@@ -1,2 +1,3 @@
 Referenced by commit d58476049e2, Fix T98025: Revert "Fix Bevel intersection continuity."
 Referenced by issue #98025, 3.2 Regression: Bevel Weight - mixed weights
+Referenced by issue #95578, No viewport update after connecting nodes with hotkey
