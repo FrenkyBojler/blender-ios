@@ -1,1 +1,2 @@
 Referenced by commit ad7455cd14b, Cleanup: remove unused MTex.pmapto, pmaptoneg & defines
+Referenced by commit 16f8444d9d6, Fix T47147: small particles incorrectly rendered as large particles (particle size influenced by texture).
