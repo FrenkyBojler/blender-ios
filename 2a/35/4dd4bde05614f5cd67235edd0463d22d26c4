@@ -3,3 +3,4 @@ Referenced by issue #57980, Assert failure in draw manager when opening file
 Referenced by issue #57971, Moving keys in the Dopesheet crashes with Segfault 11
 Referenced by issue #57870, Scaling keyframes in Graph Editor causes crash
 Referenced by issue #57530, moving keys on a rig, Crash
+Referenced by issue #57491, crash when trying to move keyframe in dope sheet
