@@ -1,1 +1,2 @@
 Referenced by commit 4c38e826dc4, Fix for a missing code update in my commit rB08528f577dcb.
+Referenced by commit fce731a1753, Fix for thinning strokes at intersections between visible and background hidden lines.
