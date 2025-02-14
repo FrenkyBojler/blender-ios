@@ -1,1 +1,2 @@
 Referenced by commit 006e70dbd7e, Fix T85203: GPencil: Drawing on locked axis plane
+Referenced by issue #85082, Panning the viewport should not rotate grease pencil view aligned canvas orientation
