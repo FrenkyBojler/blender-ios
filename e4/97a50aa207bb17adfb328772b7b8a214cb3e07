@@ -1,0 +1,1 @@
+Referenced by issue #105152, Regression: Python: removing a color attribute may leave a mesh without an active color attribute
