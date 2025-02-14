@@ -1,2 +1,3 @@
 Referenced by issue #97069, Crash deleting a scene after moving object between collections (from a collection that is hidden in the Outliner, but visible in a viewport)
 Referenced by issue #76221, Drag Toggle Not Working | Viewport Local Collection
+Referenced by issue #71368, Can't click-drag visibility when local collections enabled
