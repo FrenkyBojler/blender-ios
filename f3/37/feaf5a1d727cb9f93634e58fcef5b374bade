@@ -57,3 +57,4 @@ Referenced by issue #47667, Uneven width of colors in ColorRamp with constant se
 Referenced by issue #47627, Audio will not keep sync with video at 20 FPS.
 Referenced by issue #47635, Slowdown of texture painting
 Referenced by issue #47575, OSX Blender causes display failure
+Referenced by issue #47581, Sliding UI vertically outward when cursor is moving in sidebars
