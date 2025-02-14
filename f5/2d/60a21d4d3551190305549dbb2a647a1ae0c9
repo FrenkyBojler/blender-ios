@@ -1,0 +1,1 @@
+Referenced by issue #72338, `bpy.extras.object_data_add` not callable in a python script when "context.space_data" is None
