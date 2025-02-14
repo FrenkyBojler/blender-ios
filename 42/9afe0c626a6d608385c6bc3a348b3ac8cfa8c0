@@ -1,3 +1,4 @@
 Referenced by commit 8c3d42bd0f0, Fix T82129: Cycles "Persistent Images" incorrectly retains scene data
 Referenced by commit 17cf5001016, Cycles: Fixed Cycles standalone build.
 Referenced by commit 45da7ce1779, Cycles: Followup fixes for node ownership refactor.
+Referenced by issue #82129, Cycles "Persistent Images" incorrectly retains lighting & mesh data when rendering multiple times / animations.
