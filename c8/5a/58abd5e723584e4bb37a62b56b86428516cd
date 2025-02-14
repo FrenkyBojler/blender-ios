@@ -7,3 +7,4 @@ Referenced by issue #45221, Cutting meta strip including keyframed speed effect 
 Referenced by issue #45193, Image Node
 Referenced by issue #45197, long scrolled areas do not revert when switching objects
 Referenced by issue #45174, Particles volume grid
+Referenced by issue #45133, Crash when clicking materials tab in properties panel
