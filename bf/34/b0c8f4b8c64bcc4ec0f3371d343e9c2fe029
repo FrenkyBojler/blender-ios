@@ -2,3 +2,4 @@ Referenced by issue #79038, Blender freezes on vertex paint on linked mesh data.
 Referenced by issue #78054, Crash with Material preview
 Referenced by issue #77496, Invisible loose edges on objects used in bone visualization
 Referenced by issue #77342, Edit mesh fails to draw loose edges in 2.90x when working with high poly count objects
+Referenced by issue #77286, Stripple shader of box-/circle/lasso-select broken
