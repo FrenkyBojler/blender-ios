@@ -1,1 +1,2 @@
 Referenced by commit 8af22719d0c, Cleanup: Remove now redundant performance workaround for asset previews
+Referenced by issue #92922, Avoid performance issues when displaying many poses in asset view template
