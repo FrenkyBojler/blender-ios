@@ -1,2 +1,3 @@
 Referenced by commit 1b3955bc919, Fix #131574: Crash displaying modifier vertex group UI
 Referenced by commit ce5559d682a, Fix: Crash in UI code after recent StringRef cleanup
+Referenced by issue #132852, Fix: don't use nullptr for std::optional<StringRefNull>
