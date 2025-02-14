@@ -1,0 +1,1 @@
+Referenced by issue #55135, COW problem: evaluated versions of the same object don't have the same pointer
