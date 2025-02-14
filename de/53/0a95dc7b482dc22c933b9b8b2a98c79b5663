@@ -2,3 +2,4 @@ Referenced by commit 08048f7cceb, Fix T75810: Child bone frozen when both Auto I
 Referenced by commit d66aa525283, Cleanup: Use more descriptive names for functions
 Referenced by commit a6a9a12e8f3, Fix T75142: No autokeying with pose mode X-Mirror
 Referenced by issue #74032, Pose Mode X-Axis Mirror is not working properly with IK when skeleton is moved
+Referenced by issue #69572, Auto IK fails with X-Axis Mirror
