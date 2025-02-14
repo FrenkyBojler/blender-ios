@@ -66,3 +66,4 @@ Referenced by issue #57593, OpenCL error when trying to render with Vega 64
 Referenced by issue #57577, Scene too complex to fit in available memory, with lots of VRAM to spare
 Referenced by issue #57567, Blender won't open
 Referenced by issue #57534, NLA editor can subtlely influence keyframes when automatic keyframes are enabled
+Referenced by issue #57538, Windows 10 Pen input
