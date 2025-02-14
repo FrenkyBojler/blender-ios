@@ -1,2 +1,3 @@
 Referenced by commit 46508430f8e, Fix tool-system re-using last space type
 Referenced by issue #55197, Only view selected setting in action editor unresponsive
+Referenced by issue #55183, Crash on undo
