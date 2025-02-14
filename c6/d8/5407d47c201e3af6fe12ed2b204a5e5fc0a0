@@ -3,3 +3,4 @@ Referenced by issue #39847, Crash on undo or reopening a file
 Referenced by issue #39661, Crash with Loop Cut and Slide
 Referenced by issue #39633, beziermodelling
 Referenced by issue #39576, Keyboard input no longer works for multi button input in RGB(A) selectors
+Referenced by issue #39577, Incorrect preview of mixed anisotropic shaders.
