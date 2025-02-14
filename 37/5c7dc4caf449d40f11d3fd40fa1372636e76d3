@@ -2,3 +2,4 @@ Referenced by issue #134121, Not-Responding
 Referenced by issue #111069, Grease Pencil Blur effect turns everything yellow
 Referenced by issue #80603, Inverted alpha when rendering in workbench
 Referenced by issue #78037, fresh install of blender 2.83.0 not able to save user startup file
+Referenced by issue #77102, (v2.82+, CYCLES) Rendering with motion blur enabled causing unexpected, broken-looking result on specific frames
