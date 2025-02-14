@@ -6,3 +6,4 @@ Referenced by issue #60072, Eevee: Ambient Occlusion disappears
 Referenced by issue #60073,  Cannot remove input of Light Falloff node
 Referenced by issue #60074, Eevee: Material not displayed
 Referenced by issue #60030, select pattern fails in some type/mode combinations
+Referenced by issue #60043, macOS viewport lagging
