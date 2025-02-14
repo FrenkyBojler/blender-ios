@@ -2,3 +2,4 @@ Referenced by commit f68fb810642, Fix T98145: IC keymap can't select & move mult
 Referenced by commit d7053ba030f, Fix T98191: Alt-LMB for node detach fails with RMB select
 Referenced by issue #98370, Regression: keymap 2.7x: Right click does not select nodes
 Referenced by issue #98191, Regression: Node detach with alt + left mouse not working if right click selection active
+Referenced by issue #98145, Regression: Cannot select and move multiple nodes in Shader Editor (Industry compatible keymap)
