@@ -1,1 +1,2 @@
 Referenced by issue #53683, 2.79a release
+Referenced by issue #53509, Datablock ID Properties attached to bpy.types.Material are not saved (or loaded)
