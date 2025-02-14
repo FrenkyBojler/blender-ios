@@ -1,3 +1,4 @@
 Referenced by commit 2771dfd5632, UI: Revert design changes to data-block selector for the 2.92 release
 Referenced by commit 960a0b892c0, Fix T84101: Duplicate operator not available for some data-block selectors
 Referenced by issue #84587, Node editor unlinking issue with duplicate nodes
+Referenced by issue #84570, No "Make Single User Copy" option in ID template menu for multi-user datablocks, "Duplicate" greyed out
