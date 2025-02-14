@@ -1,2 +1,3 @@
 Referenced by issue #44747, Nodes: Dragging-to-toggle feature not work well sometimes
 Referenced by issue #44750, Even if Merge Limit of Mirror modifier pushes the increase button in the case of 1, the values do not increase.
+Referenced by issue #44714, crashing to desktop when switching to node editor.
