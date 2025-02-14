@@ -1,2 +1,3 @@
 Referenced by commit 4e9a8109b22, Fix T100571: Subdivision disabled with Orbit Around Selection
 Referenced by issue #100571, Armature modifier cancel subdivision, when option "edit mode" or "on cage" is enabled
+Referenced by issue #54292, Subsurf (adjust edit cage to modifier result disabled) and armature modifier (adjust edit cage to modifier result enabled) causes transformation distortion on certain vertices
