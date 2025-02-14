@@ -1,1 +1,2 @@
 Referenced by commit b0d37b42673, Fix #128074: Edit Mesh being occluded for snapping even in Xray
+Referenced by issue #128074, Snaping in solid mode (Xray 1.0) doesnt snap other geometry
