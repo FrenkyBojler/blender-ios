@@ -2,3 +2,4 @@ Referenced by issue #52353, Skin Modifier Resize Crash
 Referenced by issue #52101, EEVEE Light Probes do not Properly Reflect Metallic Objects
 Referenced by issue #52102, EEVEE Light Probes do not Update when Moving
 Referenced by issue #52103, EEVEE Slows to a Crawl when Adding Objects and Materials
+Referenced by issue #52078, Creating a duplicate cone mesh object and then typing in its coordinates after placement crashes blender
