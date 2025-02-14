@@ -6,3 +6,4 @@ Referenced by commit d1b6f16906f, Fix #104980: Apply All Shape Keys operator not
 Referenced by issue #109372, Crash when selecting line art
 Referenced by issue #109042, Baking Normal and Displacement from Multires is different than previous versions
 Referenced by issue #108150, Repeated file block addresses in files saved with 3.5.1
+Referenced by issue #107194, AttributeGroup API: "active" is meaningless (always refers to all attributes, not the specific AttributeGroup) -- e.g. mesh.color_attributes.active
