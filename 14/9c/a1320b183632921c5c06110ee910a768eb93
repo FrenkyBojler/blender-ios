@@ -1,1 +1,2 @@
 Referenced by issue #41785, The combination of movie-distortion and lens-distortion leads to artifacts
+Referenced by issue #41784, Re-enabling transparent shadows in Cycles doesn't work correctly
