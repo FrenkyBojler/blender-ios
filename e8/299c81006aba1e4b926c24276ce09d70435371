@@ -67,3 +67,4 @@ Referenced by issue #50285, Sculpt mode, matcap, multires
 Referenced by issue #50274, Crash opening User Preferences window while in Fullscreen mode and Unable to use Alt+Tab
 Referenced by issue #50275, numpy arctan2 gives incorrect angles
 Referenced by issue #50261, App crashes adding Inverse Kinematics
+Referenced by issue #50265, Low DPI when installing for the first time Blender in Windows 10
