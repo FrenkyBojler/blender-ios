@@ -72,15 +72,16 @@ void OpenCloseDevice::playing(bool playing)
 					m_delayed_close_thread.join();
 
 #ifdef __APPLE__
-        /* Closing coreAudio handles had issues on versions of MacOS < 15.2.
-         * See #121911 */
-        if (__builtin_available(macOS 15.2, *)) {
-          m_delayed_close_running = true;
-          m_delayed_close_thread = std::thread(&OpenCloseDevice::closeAfterDelay, this);
-        }
+                /* Closing coreAudio handles had issues on versions of MacOS < 15.2.
+                * See #121911 */
+                if (__builtin_available(macOS 15.2, *))
+                {
+                    m_delayed_close_running = true;
+                    m_delayed_close_thread = std::thread(&OpenCloseDevice::closeAfterDelay, this);
+                }
 #else
-        m_delayed_close_running = true;
-        m_delayed_close_thread = std::thread(&OpenCloseDevice::closeAfterDelay, this);
+                m_delayed_close_running = true;
+                m_delayed_close_thread = std::thread(&OpenCloseDevice::closeAfterDelay, this);
 #endif
 			}
 		}
