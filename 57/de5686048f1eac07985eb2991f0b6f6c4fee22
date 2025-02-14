@@ -1,1 +1,2 @@
 Referenced by commit 36e8561298c, Fix T81969 VSE: Wrong UI colorspace after scene strip update
+Referenced by issue #81004, Images drawn with Python gpu module show darker in the Sequence Editor
