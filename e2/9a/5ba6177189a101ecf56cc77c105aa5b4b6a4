@@ -1,1 +1,2 @@
 Referenced by commit 4ec61ff9f62, Curve/line width change broke outline drawing
+Referenced by issue #47677, Text Object Outline fails to daplay
