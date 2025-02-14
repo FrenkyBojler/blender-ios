@@ -1,2 +1,3 @@
 Referenced by issue #61835, multires makes blender crash if using shotcuts
 Referenced by issue #61836, saving while in multires makes blender crash
+Referenced by issue #61837, assign/create a material while in sculpt mode + multiresolution modfier = blender crash
