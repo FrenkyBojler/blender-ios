@@ -2,3 +2,4 @@ Referenced by issue #55926, [2.8] Crash enabling collection viewport with object
 Referenced by issue #55930, won't open projects from v7.9
 Referenced by issue #55923, [2.8] Crash on shape key tranfer above 200 vertexs
 Referenced by issue #55924, [2.8] Crash when enabled collection vierport with child collections
+Referenced by issue #55903, Crash Bug:  Adjusting the Energy of a Sun Light crashes Blender 2.8
