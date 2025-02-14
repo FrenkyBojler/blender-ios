@@ -40,3 +40,4 @@ Referenced by issue #93650, Unable to drag library assets to catalogs, when in t
 Referenced by issue #93619, Cycles Sampling Preferences in old demo files from Blender download page in newest Blender 3.0 are different
 Referenced by issue #93594, Regression: Header transform options hide on modal operation
 Referenced by issue #93565, Spot light no longer projecting an image texture in Blender 3
+Referenced by issue #93388, Asset browser: dropping object on grid in orthogonal view misses the floor plane
