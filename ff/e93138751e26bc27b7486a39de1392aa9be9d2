@@ -1,2 +1,3 @@
 Referenced by issue #111834, Blender just crashes for no reason, and the crash report is empty. (Segmentation fault)
 Referenced by issue #111720, Debug information not generated upon crash.
+Referenced by issue #111677, 3.6.2 Segmentation fault on startup with empty Python backtrace
