@@ -84,3 +84,4 @@ Referenced by issue #39497, Save as/Save copy loses textures from linked assets
 Referenced by issue #39499, Bevel on screw is growing
 Referenced by issue #39485, Mesh Analysis
 Referenced by issue #39472, Changing Sequencer color space repeatedly changes movie strip's display gamma
+Referenced by issue #39458, Switching physics type from Character to Dynamic enables ghost flag silently
