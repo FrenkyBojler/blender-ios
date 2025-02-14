@@ -1,1 +1,2 @@
 Referenced by issue #45067, Regression between testbuild to RC1: OpenCL corrupted render
+Referenced by issue #45054, transparent shwadows don't render correctly in OpenCL with GCN
