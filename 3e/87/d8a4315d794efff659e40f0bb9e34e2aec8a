@@ -2,3 +2,4 @@ Referenced by commit 2907227db2c, Fix T103880: Crash with Line Art Grease-Pencil
 Referenced by issue #90175, Properties Editor - Materials Tab -  Lineart Panel - dysfunctional decorators
 Referenced by issue #86822, context.collection not available in Object/Object Data Properties
 Referenced by issue #85691, Geometry of external objects loses its attributes after subdivision
+Referenced by issue #80194, LineArt: New module to generate lines over meshes using grease pencil as target
