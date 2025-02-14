@@ -1,1 +1,2 @@
 Referenced by issue #105218, "Repeat Last Command" crash Blender if the command is "Apply modifier"
+Referenced by issue #99812, Audio scrubbing freezes Blender 3.2.1
