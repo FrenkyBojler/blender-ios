@@ -1,1 +1,2 @@
 Referenced by issue #94202, crash or error when using GPUFrameBuffer.read_color(... data=data)
+Referenced by issue #93479, 3.0 Potential candidates for corrective releases
