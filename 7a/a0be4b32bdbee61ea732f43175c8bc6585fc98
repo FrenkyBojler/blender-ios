@@ -1,1 +1,2 @@
 Referenced by issue #96111, Terminate called after throwing an instance of ‘Manta::Error’
+Referenced by issue #95428, Regression: 3.1 & 3.2 Image/UV Editor poor performance (Byte textures, window dragging, maximizing area)
