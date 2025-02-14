@@ -1,2 +1,3 @@
 Referenced by issue #97035, Regression: Crash when transferring face corner data
 Referenced by issue #96041, Memory usage of linked duplicates is extremely high (regression from 3.0)
+Referenced by issue #92288, High memory consumption on instances in some cases (in 2.93 to render in Cycles, in 3.1 worse: also on file load)
