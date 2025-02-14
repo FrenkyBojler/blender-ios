@@ -1,1 +1,2 @@
 Referenced by commit 492277b4a14, Fix own regression in font->curve conversion
+Referenced by issue #38072, Duplicating text block with Alt-D causes crash
