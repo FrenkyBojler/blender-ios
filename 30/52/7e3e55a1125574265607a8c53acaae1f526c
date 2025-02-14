@@ -1,0 +1,1 @@
+Referenced by issue #43178, CcdPhysicsEnvironment::SetFixedTimeStep has hard-coded 60 Hz as frame rate
