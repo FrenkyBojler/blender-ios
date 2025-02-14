@@ -2,3 +2,4 @@ Referenced by issue #59092, Setting Dynamic Paint brush as particle crashes when
 Referenced by issue #59072, Blender 2.8 Beta: Text extrusion cannot be animated
 Referenced by issue #59024, Grease Pencil geometric shapes won't wrap onto a surface
 Referenced by issue #59018, When left select is set in preferences, the loop select does not work with the left mouse button
+Referenced by issue #58970, Cage baking it is not working on Blender 2.8. Same process and objects it is working in Blender 2.79
