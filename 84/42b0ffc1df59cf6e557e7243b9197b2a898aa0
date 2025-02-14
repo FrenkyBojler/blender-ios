@@ -1,0 +1,1 @@
+Referenced by issue #101027, Regression: Sculpt: Many operations not respecting the visibility anymore (probably everything that uses `BKE_pbvh_vertex_iter_begin`)
