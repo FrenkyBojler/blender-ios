@@ -1,1 +1,2 @@
 Referenced by commit c18ee2e84dc, Fix compile error on MSVC
+Referenced by issue #109320, Crash when using Menu-Search (F3) --Intel MacOS--
