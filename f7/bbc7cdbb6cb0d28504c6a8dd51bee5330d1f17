@@ -1,1 +1,2 @@
 Referenced by commit 44aa9e40ffe, Cleanup: Remove unused sculpt and vertex color operators
+Referenced by commit 990ed109f2e, Fix (unreported) missing 'override-exclusion' flag on new RNA mesh data accessors.
