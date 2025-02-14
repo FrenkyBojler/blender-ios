@@ -49,3 +49,4 @@ Referenced by issue #58187, object visibility controlled by driver bug
 Referenced by issue #58170, Crash when using Gpu
 Referenced by issue #58171, Crash when using over 2 particles systems
 Referenced by issue #58173, UV editor: "shared location" doesn't work correctly
+Referenced by issue #58176, Loop Cut Doesn't Exit Properly
