@@ -1,0 +1,1 @@
+Referenced by issue #111439, Linked overriden object cannot be made local (if it has a parent in the sourcefile)
