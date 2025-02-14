@@ -89,3 +89,4 @@ Referenced by issue #67966, UV editor doesn't select exact face
 Referenced by issue #67739, Freezed when resize new added metaball
 Referenced by issue #67720, Smoke Cache deleted when hiding the smoke domain
 Referenced by issue #67535, VSE crash and failure to update
+Referenced by issue #62466, Driver from world custom prop to material not refreshing realtime
