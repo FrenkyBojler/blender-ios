@@ -81,3 +81,4 @@ Referenced by issue #40052, Grid Particles Crash
 Referenced by issue #40034, Cycles bug - too many alpha textures not working
 Referenced by issue #40043, Blender network render GPU
 Referenced by issue #40002, crushed blend file
+Referenced by issue #40007, Bevel tool resets after getting to 1
