@@ -28,3 +28,4 @@ Referenced by issue #70228, VSE Low Playback Rate: Resolution mismatch will give
 Referenced by issue #70229,  VSE Low Playback Rate: Show Cache On will cause a lower fps
 Referenced by issue #70213,  EXCEPTION_ACCESS_VIOLATION/found bundled python crash
 Referenced by issue #69894, blender 2.8 crashing with segmentation fault
+Referenced by issue #69790, Blender 2.80 always crash when choosing material
