@@ -1,0 +1,1 @@
+Referenced by issue #123910, fix bl_text_utils/external_editor.py broken __all__
