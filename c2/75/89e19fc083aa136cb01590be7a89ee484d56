@@ -7,3 +7,4 @@ Referenced by issue #47401, Particle System- HAIR and Vertex Groups
 Referenced by issue #47394, Explode Modifier: Particle UV setting
 Referenced by issue #47242, Wierd behaviour of Mirror and Scale tools
 Referenced by issue #46731, Proxy controls break when appending in scenes to new file
+Referenced by issue #46732, Proxy stamp ( Meta data) not rendering in hardware using VSE
