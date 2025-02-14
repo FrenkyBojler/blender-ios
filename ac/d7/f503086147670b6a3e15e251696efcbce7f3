@@ -1,1 +1,2 @@
 Referenced by issue #42251, Blender crash upon closing with VOBs enabled (today's BuildBot version)
+Referenced by issue #42160, CUDA error: ILLEGAL_ADDRESS in cuCtxSynchronize()
