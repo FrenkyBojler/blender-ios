@@ -1,1 +1,2 @@
 Referenced by commit c6e4d922bad, Cleanup: Remove warning re: const qualifier discarded
+Referenced by issue #76346, Local collection visibility doesn't update when an item is moved between collections
