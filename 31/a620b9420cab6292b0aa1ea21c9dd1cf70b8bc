@@ -2,3 +2,4 @@ Referenced by commit a284e559b90, Fix T82561: shader compilation crashes in OSL
 Referenced by issue #82629, Random per island shading do not refresh properly with sharps and edge split modifier
 Referenced by issue #82617, Subsurface optimal display toggle seems to have permanent effects on vector displacement
 Referenced by issue #82561, Sky Texture for an OSL/Open Shading Language configured scene crashes Blender
+Referenced by issue #79174, Cycles Procedural API and faster scene update
