@@ -8,3 +8,4 @@ Referenced by issue #88093, Persistent data: Particles/Hair don't render
 Referenced by issue #88099, No motion blur on skinned mesh with persistent data enabled
 Referenced by issue #87701, Failed assert when generating scene preview
 Referenced by issue #87534, Assert BLI_thread_is_main while rendering via a script
+Referenced by issue #87464, EEVEE Animation crashes with Motion Blur and Displacement modifier
