@@ -1,3 +1,4 @@
 Referenced by issue #69083, Blender crashes when switching from solid view to rendered or lookdev mode in eevee.
 Referenced by issue #68963, Viewport rotation not working after saving new default startup file.
 Referenced by issue #68852, Knife Project: executing Link select afterwards will result in crash
+Referenced by issue #68849, Blender 2.8 Sudden Crashing with this file - iMacPro w/ osx 10.14.6
