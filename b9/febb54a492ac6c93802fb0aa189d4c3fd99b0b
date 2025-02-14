@@ -7,3 +7,4 @@ Referenced by issue #99088, Regression: When making a collection real, curves wi
 Referenced by issue #97151, Regression: Crash: Vertex Parent + SimpleDeform modifier with origin / Apply on Spline
 Referenced by issue #96167, Regression: Curve wire line not displayed in wireframe display mode when it has evaluated mesh/point/volume
 Referenced by issue #96138, Regression: Curve wire line not displayed in edit mode when it has evaluated mesh/point/volume
+Referenced by issue #95458, Grease Pencil Lineart modifier don't work on curves.
