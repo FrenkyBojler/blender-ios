@@ -1,1 +1,2 @@
 Referenced by issue #109302, Baking in multi-Tiles textures (Udim) from MultiRes only use the height of the last tile as reference
+Referenced by issue #97553, Regression: Sculpt Brushes not supported in Multiresolution and Dyntopo Mode
