@@ -1,2 +1,3 @@
 Referenced by issue #75480, Instant crash when opening any node editor
 Referenced by issue #75464, Screen Space Reflections in EEVEE not working when using a Mix Node.
+Referenced by issue #74572, Adaptive sampling breaks value Shader AOV's
