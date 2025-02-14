@@ -1,0 +1,1 @@
+Referenced by commit 40aee0b2e92, Fix possible use-after-free on error handling during VR view drawing
