@@ -3,3 +3,4 @@ Referenced by commit a48d4184b52, Fix #114094: Mask by Color brush has stopped w
 Referenced by issue #120934, Regression: Multiresolution sculpt mode: Expand mask by topology cancellation bug
 Referenced by issue #119307, Anchored stroke method creates artifacts when used with the mask brush (with multires)
 Referenced by issue #114417, Cleanup: Sculpt: Simplify face and face set iteration
+Referenced by issue #114094, Mask by Color brush has stopped working
