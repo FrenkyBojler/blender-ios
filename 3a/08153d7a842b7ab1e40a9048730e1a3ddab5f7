@@ -4,3 +4,4 @@ Referenced by issue #71461, Emitter particle system viewport display axis/cross/
 Referenced by issue #70449, commit 3a08153d7a8 introduces X11 error
 Referenced by issue #70413, 2.81 crash on startup - does not get as far as the splash screen
 Referenced by issue #70146, hair eevee rendering broken.
+Referenced by issue #70123, Crash: Add a circle in the viewport
