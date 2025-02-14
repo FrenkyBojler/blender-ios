@@ -1,2 +1,3 @@
 Referenced by issue #123195, EEVEE-Next crash when duplicating many lights
 Referenced by issue #122523, Crash on a faceless mesh if two viewports are showing it (one with Overlays disabled)
+Referenced by issue #121902, Regression: Color picker no longer accepts manual HEX color values in Blender 4.2.0 Alpha
