@@ -1,0 +1,1 @@
+Referenced by commit 82b3b1a3c61, Revert "Glyph cache is cleared by UI_view2d_zoom_cache_reset, when zooming V2D, but is required to calculate text height in UI_view2d_text_cache_draw"
