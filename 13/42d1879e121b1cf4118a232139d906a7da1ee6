@@ -1,2 +1,3 @@
 Referenced by commit 2cec4af124d, Fix T69582: Empties no longer support Rigid Body Constraints
 Referenced by issue #69582, Empties no longer support Rigid Body Constraints
+Referenced by issue #52551, undo causes crash after enabling a new rigid body when scene uses a referenced rigid body world
