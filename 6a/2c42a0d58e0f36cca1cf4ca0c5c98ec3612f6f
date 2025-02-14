@@ -1,1 +1,2 @@
 Referenced by commit b683a37824a, Fix T99301: RNA_boolean_get warning when saving a file for the first time
+Referenced by issue #99301, RNA_boolean_get warning when saving a file for the first time
