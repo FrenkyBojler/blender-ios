@@ -1,2 +1,3 @@
 Referenced by issue #47089, ViewRotate fails w/ AutoDepth & Cursor Depth
 Referenced by issue #47090, Pivot point doesn't match extrusion direction
+Referenced by issue #47081, Crash with Laplacian Smooth (W - key in edit mode)
