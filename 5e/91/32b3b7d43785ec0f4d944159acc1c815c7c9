@@ -1,2 +1,3 @@
 Referenced by issue #54542, Fly Mode Motion Speed Too Fast When Scene Unit Scale Changed
 Referenced by issue #52630, Denoising uses too much Vram
+Referenced by issue #52484, Linking Materials ignores Object or Data preference of source
