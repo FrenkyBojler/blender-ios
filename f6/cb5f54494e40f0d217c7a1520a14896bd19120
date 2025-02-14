@@ -88,3 +88,4 @@ Referenced by issue #68018, Being able to set the same location of proxies to so
 Referenced by issue #67966, UV editor doesn't select exact face
 Referenced by issue #67739, Freezed when resize new added metaball
 Referenced by issue #67720, Smoke Cache deleted when hiding the smoke domain
+Referenced by issue #67535, VSE crash and failure to update
