@@ -1,1 +1,2 @@
 Referenced by commit 5fa17ce720e, Mesh Batch Cache: Fix crash caused by rB3cbf2462391c
+Referenced by issue #68719, Textures applied wrong after reopening saved blender file (eevee rendered and lookdev mode)
