@@ -22,3 +22,4 @@ Referenced by issue #45376, viewport doesn't refreshes animated colors in node g
 Referenced by issue #45283, Blender crashes when trying to do anything with specific type of transparent image.
 Referenced by issue #45267, Disabling 'Use Material Caching' causes Blender to crash when calling LibLoad
 Referenced by issue #45237, Dither dosn't work in Blender Internal Renderer 2.75 rc2
+Referenced by issue #45221, Cutting meta strip including keyframed speed effect produces right part with incorrect length of internal strips
