@@ -1,1 +1,2 @@
 Referenced by commit 821316b0341, Reset submodule to the right place in master
+Referenced by issue #75938, MatCap inverts if Viewport Display Metallic and Roughness are set below certain threshold
