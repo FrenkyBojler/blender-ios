@@ -1,3 +1,4 @@
 Referenced by commit dd2525c3627, Revert "Freestyle: lazy load 'export_svg'"
 Referenced by issue #42313, Ruler always measures 0.0
 Referenced by issue #42294, Bullet Physic Rigid Body Updates In Viewport Playback, Object Using Constraints (Loc,Rot) Breaks One Frame In To Animation When Rendering, But Viewport Playback Updates Correctly
+Referenced by issue #42298, Problems with Freestyle SVG file output
