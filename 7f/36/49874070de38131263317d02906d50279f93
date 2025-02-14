@@ -1,1 +1,2 @@
 Referenced by commit 89757f918cf, Revert "Fix T86026: Crash Opening Cryptomatte File."
+Referenced by issue #86026, 2.92 crashes when reopening file [Cryptomatte related].
