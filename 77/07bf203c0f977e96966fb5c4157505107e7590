@@ -3,3 +3,4 @@ Referenced by issue #60793, Image editor colour tools , sometimes don't show up
 Referenced by issue #60714, Nested grease pencil , becomes uneditable after nested and deleted
 Referenced by issue #60710,  subdivision modifier ,adjust edit cage to modifier result ,  vertex selection bug
 Referenced by issue #60685, Blender crashes when I switch form object mode to particle edit
+Referenced by issue #60546, keyframe hair particle timing
