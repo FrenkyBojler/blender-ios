@@ -1,1 +1,2 @@
 Referenced by issue #102937, "view3d.view_roll" operator conflicts with Right Mouse button
+Referenced by issue #94528, bpy.ops.view3d.view_roll(type='ANGLE') Operation failure
