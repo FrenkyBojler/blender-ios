@@ -1,1 +1,2 @@
 Referenced by issue #92460, String to curves, to instance on points causes crash
+Referenced by issue #92243, Geonodes. Crush when using Instance on Points with String to Curve
