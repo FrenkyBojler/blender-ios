@@ -1,2 +1,3 @@
 Referenced by commit d544082e1d2, Fix #120925: Smooth scrolling mouse wheel broken on Wayland
 Referenced by issue #120587, Scrolling broken after recent commit
+Referenced by issue #107676, Trackpad is inverted in Linux (Wayland)
