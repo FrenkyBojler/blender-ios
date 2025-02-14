@@ -1,2 +1,3 @@
 Referenced by issue #100250, Decimate modifier gives different result on every evaluation
 Referenced by issue #96817, VSE: effect Strip 'Iris' and 'clock' are not working
+Referenced by issue #96308, Regression: Script using bmesh.ops.wireframe and bmesh.ops.bevel does not work the same in 3.1 and in 3.01.
