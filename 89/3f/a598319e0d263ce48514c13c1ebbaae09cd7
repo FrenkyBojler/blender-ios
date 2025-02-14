@@ -4,3 +4,4 @@ Referenced by issue #61988, Bevel mitering doens't work on small objects
 Referenced by issue #61956, Errors when instancing collection containing multiple grease pencil objects
 Referenced by issue #61959, Cannot join areas.
 Referenced by issue #61947, Edge slide changes edge when you type in the edge slide popup box
+Referenced by issue #61937, Image sequence offset driver has no effect without node editor
