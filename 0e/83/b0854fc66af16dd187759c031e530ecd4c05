@@ -1,1 +1,2 @@
 Referenced by commit 91264cfdd05, Revert "Fix T45191 Speed strip behaviour not easy to predict."
+Referenced by issue #45191, Incorrect behavior of speed control strip when based on soft-trimmed input strip
