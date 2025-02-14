@@ -2,3 +2,4 @@ Referenced by issue #70428, CYCLES: Surfaces inside volumes are Not Lit or Shado
 Referenced by issue #70379, Disabling combined RGBA pass for view layer does nothing
 Referenced by issue #70345, viewport display not showing the correct object transform (location & scale) with the lastest nightly build
 Referenced by issue #70338, Memory Increased
+Referenced by issue #70310, Difficult to change brush size from big to small (both in Sculpting mode/texture mode)
