@@ -1,0 +1,1 @@
+Referenced by commit ba5e2270f93, remove call to GLSL support query (it's always supported)
