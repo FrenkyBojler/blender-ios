@@ -1,1 +1,2 @@
 Referenced by issue #75287, Cycles render passes have channels from other passes appearing in them.
+Referenced by issue #74345, Denoising Albedo not working with Principled hair shader
