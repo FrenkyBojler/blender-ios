@@ -1,0 +1,1 @@
+Referenced by commit a2dacefb463, Fix T96289: Crash when accessing mesh via `ob.data` in a driver
