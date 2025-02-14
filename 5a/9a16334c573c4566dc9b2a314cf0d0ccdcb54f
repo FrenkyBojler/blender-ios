@@ -2,3 +2,4 @@ Referenced by commit 217e0a2ce61, Fix T95262: instances ignored in Frame Selecte
 Referenced by commit eaa35b27e0a, Fix T91311: incorrect batch generation for instances
 Referenced by commit 2b4afcbb4cd, Fix T91236: AssetBrowser crash with certain collections
 Referenced by issue #91311, Unable to open spring production file (020_02A.blend)
+Referenced by issue #91236, Asset Browser: crash when linking/appending an asset made from a collection containing certain types of objects like a camera, a light...
