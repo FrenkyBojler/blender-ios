@@ -1,3 +1,4 @@
 Referenced by issue #45624, Crash when switching from sculpt to object mode.
 Referenced by issue #45612, Blender crashes when I change it to object-mode after having edited the object which multires modifier was set in sculpt-mode.
 Referenced by issue #45616, Various crashes relative to tesselation faces
+Referenced by issue #45618, Normals not updated after sculpting
