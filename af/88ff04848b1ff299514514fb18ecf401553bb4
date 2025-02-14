@@ -1,1 +1,2 @@
 Referenced by commit 30c3f8eafb2, Revert "Fix #107676 detection of "natural" touchpad scrolling on Wayland"
+Referenced by issue #120587, Scrolling broken after recent commit
