@@ -1,1 +1,2 @@
 Referenced by commit 2ee94c954d6, Fix LayerTypeInfo for CD_PROP_COL
+Referenced by issue #80470, Crash when trying to assign Automatic Weights to this particular mesh
