@@ -1,2 +1,3 @@
 Referenced by issue #82958, Change Displacement Scale and have Adaptive Subdivision Crashes
 Referenced by issue #82852, Crash When Adding Material To a plane with Addabtive SubD Enabled [Cycles]
+Referenced by issue #82617, Subsurface optimal display toggle seems to have permanent effects on vector displacement
