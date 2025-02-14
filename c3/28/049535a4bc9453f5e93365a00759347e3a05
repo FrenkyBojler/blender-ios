@@ -1,0 +1,1 @@
+Referenced by issue #73719, Refactor ID types code/handling to use an `ID_type` structure, with callbacks for common generic ID management (creation, copy, delete, etc.).
