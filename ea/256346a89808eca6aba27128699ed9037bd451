@@ -2,3 +2,4 @@ Referenced by commit 7d6835f0432, Fix #124075: Read Alembic point cloud velocity
 Referenced by commit 3f8ec963e3e, Fix: Use correct datatype in MSC modify_geometry_set for the frame time
 Referenced by issue #125826, Crash switching Alembic file to use Render Engine Procedural
 Referenced by issue #124075, Alembic point reader fails to read in velocity data
+Referenced by issue #124077, Fix #124075: Read Alembic point cloud velocity data
