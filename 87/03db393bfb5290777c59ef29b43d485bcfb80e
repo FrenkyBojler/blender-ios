@@ -1,2 +1,3 @@
 Referenced by issue #107913, Hard Crash Opening Blender File With Library Overrides
 Referenced by issue #104915, Regression: Multires wireframes are displayed incomplete
+Referenced by issue #104659, 3.5.0 crashes on Mac Pro Intel with AMD GPUs on Cycles / GPU Compute (macOS Monterey)
