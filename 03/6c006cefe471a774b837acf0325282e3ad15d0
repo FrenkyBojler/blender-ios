@@ -1,0 +1,1 @@
+Referenced by commit ce952fd36e5, Fix T49342: TypeError when autocompleting bpy.app.something.
