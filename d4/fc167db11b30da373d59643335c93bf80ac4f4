@@ -1,1 +1,2 @@
 Referenced by issue #125865, Blender crashes when using bpy.ops.render.render("INVOKE_DEFAULT")
+Referenced by issue #125466, Asset shelf crash when opening a file
