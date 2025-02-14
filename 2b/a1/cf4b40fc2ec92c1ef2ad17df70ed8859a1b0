@@ -1,3 +1,4 @@
 Referenced by issue #86924, Enabling UV Sync selection with individual origins creates new UV islands
 Referenced by issue #80899, Crash on editing multiple UVs of multiple different objects at the same time
 Referenced by issue #80561, Crashing when I alter UVs in multi-mesh editing (using proportional editing)
+Referenced by issue #78880, UV Editor - Rip Region - Adjust last operation panel UV Rip Move shows two Proportional Editing
