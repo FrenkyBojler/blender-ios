@@ -1,1 +1,2 @@
 Referenced by commit ef0b163b498, Sculpt: Make BMesh BVH tree build similar to mesh/grids
+Referenced by commit 7e0029fb656, Sculpt: Simplify BVH node flag initialization, avoid normals update
