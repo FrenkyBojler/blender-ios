@@ -7,3 +7,4 @@ Referenced by issue #61814, Cube metaball are broken
 Referenced by issue #61821, Wrong insertion of keyframe on camera object while on camera view on Eeevee
 Referenced by issue #61803, Z-Fighting in 3DView (Wireframe Mode)
 Referenced by issue #61810, regression: Cycles Denoising data broken with OpenCL
+Referenced by issue #61811, Hidden Wire not working when X-Ray is on
