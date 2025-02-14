@@ -20,3 +20,4 @@ Referenced by issue #93704, gltf2 not exporting animations in 3.0
 Referenced by issue #93611, Crash on edit mesh with a curve modifier with both a vertex group assigned and the edit mode display option enabled
 Referenced by issue #92912, vertex groups get lost when opening a 3.0 file in Blender 2.93
 Referenced by issue #92083, Crash when renaming bone if parented to curve
+Referenced by issue #91532, File format is not supported in file and File written by newer Blender binary (300.11), expect loss of data!
