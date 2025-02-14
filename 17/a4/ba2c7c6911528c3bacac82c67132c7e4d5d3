@@ -4,3 +4,4 @@ Referenced by issue #38159, Switch node missing for material and texture nodes
 Referenced by issue #38160, N and T hot keys for opening the side panels are reversed in the image editor
 Referenced by issue #38141, OSX Retina: Add Reroute node wrong placement
 Referenced by issue #38145, Pressing Shift+Z in the game engine results in an error
+Referenced by issue #38147, Real time shadows are not working on Linux
