@@ -1,1 +1,2 @@
 Referenced by commit f5866f484f0, Remove patch for HDF5 library
+Referenced by commit 0102b9d47ed, Alembic: remove HDF5 support from CMake files
