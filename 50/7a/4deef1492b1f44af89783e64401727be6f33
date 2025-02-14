@@ -13,3 +13,4 @@ Referenced by issue #95908, render slots are not tied to the render
 Referenced by issue #95809, Image editor no longer reflecting changes of the node tree
 Referenced by issue #95800, Regression: Crash after discarding texture paint changes
 Referenced by issue #95791, Changing steroscopic view does not result in image viewer update
+Referenced by issue #95723, EEVEE: Viewport Render shows transparent image
