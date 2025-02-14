@@ -1,2 +1,3 @@
 Referenced by issue #49282, Cycles displacement and image textures
 Referenced by issue #49252, Microdisplacement; Very recent builds crash when image textures are used (when the mode is set to 'true')
+Referenced by issue #48847, I can't use the Keyboard Shortcuts "]" (select: "After Current Frames") in Dope Sheet Editor or Graph Editor
