@@ -1,1 +1,2 @@
 Referenced by issue #131518, GPU: ensure viewport does not use uninitialized images (#119685 and others)
+Referenced by issue #119685, VSE Preview area without alpha channel causes artifacts
