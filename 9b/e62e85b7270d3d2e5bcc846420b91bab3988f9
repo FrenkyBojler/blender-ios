@@ -3,3 +3,4 @@ Referenced by issue #121187, Regression: Dyntopo with manual detail crash if res
 Referenced by issue #120742, Second mask crash after ctrl+click
 Referenced by issue #120585, Blender doesn't startup after graphics driver update
 Referenced by issue #120202, Total crash when trying to render on MacOs (Intel)
+Referenced by issue #120203, Crash on Intel Mac when rendering or opening material properties
