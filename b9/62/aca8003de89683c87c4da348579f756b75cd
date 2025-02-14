@@ -1,2 +1,3 @@
 Referenced by commit 6278ab59bcd, Revert "UI: Open file browser in fullscreen by default"
 Referenced by issue #70046, Linked Instanced collections are not being displayed in the viewport with Local collections enabled
+Referenced by issue #70038, Vertex Paint ➔ Paint menu ➔ Smooth Vertex Colors could be improved
