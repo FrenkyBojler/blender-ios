@@ -1,1 +1,2 @@
 Referenced by commit d9de1b367e8, Revert "Fix flickering when transform snapping in edit mode and cursor is"
+Referenced by issue #40679, Snapping vertices with subserf modifier is harder in 2.71 RC2
