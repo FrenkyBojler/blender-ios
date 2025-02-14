@@ -1,3 +1,4 @@
 Referenced by issue #55181, Crash when calling spacebar menu after calling an operator that opens a new window via spacebar menu
 Referenced by issue #55182, Crash wheh changing the mesh datablock used by one object to another mesh
 Referenced by issue #55179, Camera doesn't display limits
+Referenced by issue #55144, Message bus to tag dependency graph for copy-on-write update
