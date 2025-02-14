@@ -1,2 +1,3 @@
 Referenced by commit 0f1d711681d, Fix T47830: Multi-edit w/ ui-list wont highlight
 Referenced by issue #47830, Selecting multiple Shape Keys values doesn't highlight them during selection
+Referenced by issue #47158, Inconsistent colours in Properies editor and/or some buttons
