@@ -1,0 +1,1 @@
+Referenced by issue #42858, bpy.ops.logic.controller_add() is too eager in making name unique
