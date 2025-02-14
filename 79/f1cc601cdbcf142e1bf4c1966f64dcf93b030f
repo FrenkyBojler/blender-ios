@@ -1,2 +1,3 @@
 Referenced by commit 6a7ca67a989, Fix #107725: ray-offset was incorrectly applied on motion triangles
 Referenced by issue #107748, Fix #107725: ray-offset was incorrectly applied on motion triangles
+Referenced by issue #97259, Wireframe visible when going relatively far from the 0,0,0 (20 meters)
