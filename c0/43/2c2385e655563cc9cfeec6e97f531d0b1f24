@@ -1,2 +1,3 @@
 Referenced by issue #64405, Eevee: Screen Space Reflections break with rotated dupli instances
 Referenced by issue #63046, Crashing loading .blend file with missing paint tool slots
+Referenced by issue #61413, Grease Pencil crashes in 32-Bit version
