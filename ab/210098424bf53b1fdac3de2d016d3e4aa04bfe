@@ -1,2 +1,3 @@
 Referenced by issue #85737, Color Picker popup in secondary monitor immediately closes while still hovering
 Referenced by issue #84701, Popup closes when dragging and letting RMB go while mouse is still moved
+Referenced by issue #84659, Walk navigation stylus issues in 2.92 - no mouse input until alt tabbing (regression)
