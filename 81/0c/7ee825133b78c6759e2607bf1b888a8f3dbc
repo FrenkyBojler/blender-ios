@@ -1,1 +1,2 @@
 Referenced by issue #43562, Cycles gets stuck rendering final tile at 100% CPU
+Referenced by issue #43552, Cannot jump between GP keyframes in dopesheet
