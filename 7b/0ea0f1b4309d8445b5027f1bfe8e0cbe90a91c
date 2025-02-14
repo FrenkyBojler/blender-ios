@@ -1,3 +1,4 @@
 Referenced by commit 5aa95941d1d, Fix #130998: Crash changing Color Palette in Object/Edit/Pose modes
 Referenced by commit c6885e00d37, Fix: Missing brush tool in grease pencil weight paint mode
 Referenced by issue #131031, Fix #130998: Crash changing Color Palette in Object/Edit/Pose modes
+Referenced by issue #130998, Crash When Clicking Custom Color Palette in Object/Edit/Pose Modes in 3D View
