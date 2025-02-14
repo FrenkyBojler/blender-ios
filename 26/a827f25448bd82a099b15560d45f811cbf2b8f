@@ -1,1 +1,2 @@
 Referenced by issue #80795, emulate numpad disables modifier keys on smaller keyboards.
+Referenced by issue #79116, GPU Cycles (OpenCL) casting shadow where it should be transparent -- if hair is also rendered in the scene
