@@ -1,1 +1,2 @@
 Referenced by commit 524e000678b, Revert "UI: Add Dimensions to Object Transform panel"
+Referenced by issue #69536, Setting dimension of objects parented in scaled object is broken
