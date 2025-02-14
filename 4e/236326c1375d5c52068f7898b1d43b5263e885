@@ -1,1 +1,2 @@
 Referenced by commit b1150fa1f5a, Fix T86448 EEVEE: SSRefraction Depth regression
+Referenced by issue #86473, Screen Space Reflections artifacts (most noticable when using half res trace)
