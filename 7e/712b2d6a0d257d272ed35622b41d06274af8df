@@ -24,3 +24,4 @@ Referenced by issue #94480, Compositor in start up file does not show specific p
 Referenced by issue #94416, Possibly recursive freeze
 Referenced by issue #94408, When append node group from asset browser, all sockets on the node group dissapear.
 Referenced by issue #94362, heap-use-after-free after assigning a material
+Referenced by issue #94322, Regression. Geometry nodes, viewer node shows nothing to spreadsheet when there is no value input
