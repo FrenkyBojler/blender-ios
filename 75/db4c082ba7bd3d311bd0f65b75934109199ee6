@@ -1,1 +1,2 @@
 Referenced by commit 10354b043f2, Fix crash selecting faces in wire-frame mode
+Referenced by issue #104652, Regression: UV Face Dots randomized
