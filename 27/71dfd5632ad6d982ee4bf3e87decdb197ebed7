@@ -1,2 +1,3 @@
 Referenced by commit 01b9dfeab49, Fix T84684: Undo operators not working
 Referenced by commit 73169628a18, Fix T84684: Undo operators not working
+Referenced by issue #84684, Undo doesn't work after reverting of ID template changes
