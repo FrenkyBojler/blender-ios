@@ -26,3 +26,4 @@ Referenced by issue #41870, Cycles OSL - Changing rotation value in anisotropic 
 Referenced by issue #41857, Movie Clip Editor's timeline allows scrubbing beyond the editor area
 Referenced by issue #41858, Undo bug
 Referenced by issue #41862, Shading problems with Autosmooth & Material Transparency
+Referenced by issue #41848,  startup file have problem with indirect lightning .
