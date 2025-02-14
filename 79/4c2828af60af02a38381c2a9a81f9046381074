@@ -1,1 +1,2 @@
 Referenced by commit ef29bf9023f, Assets: Expose option to reuse data-block data when appending
+Referenced by commit b63f7779502, Add missing GPencil `IDTYPE_FLAGS_APPEND_IS_REUSABLE` flag.
