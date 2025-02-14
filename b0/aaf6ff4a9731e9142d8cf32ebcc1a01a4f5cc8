@@ -1,3 +1,4 @@
 Referenced by commit c9c95201d08, Fix T97679: Retrieving shape key normals modifies vertices
 Referenced by issue #97679, MeshVertex.co contains incorrect data after calling ShapeKey.normals_polygon_get()
 Referenced by issue #96294, Regression: Crash when executing bpy.types.ShapeKey.normals_vertex_get
+Referenced by issue #96241, 3.1: Potential candidates for corrective releases
