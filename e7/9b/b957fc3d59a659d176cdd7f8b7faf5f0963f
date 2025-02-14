@@ -12,3 +12,4 @@ Referenced by issue #59081, Some material node groups in 2.80, from 2.7x files, 
 Referenced by issue #59070, Viewport stop working with outline disabled
 Referenced by issue #59056, Clicking the icon on the windows taskbar suddenly closes blender
 Referenced by issue #59057, Crashing when viewing a 2d plane from side ortho views that would project the plane as a line
+Referenced by issue #59046, LookDev HDRI changes are applied only to one quad in 3D Viewport Quad view
