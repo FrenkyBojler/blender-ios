@@ -1,1 +1,2 @@
 Referenced by commit 66a6ef01636, Fix #109045: Allow images with more than 4 channels to load
+Referenced by commit 0168c4b893d, Cleanup: remove unused "dds" directory
