@@ -15,3 +15,4 @@ Referenced by issue #106926, Geometry Nodes Extrude producing weird normals when
 Referenced by issue #106469, Regression: Cycles: unstable triangulation of mesh in viewport
 Referenced by issue #106387, Regression: Rendering (F12 in 3D Viewport) with Freestyle causes crash
 Referenced by issue #106225, Cycles HIP rendering doesn't work with Radeon RX 6800 XT
+Referenced by issue #106134, Regression: Different triangulation in Cycles
