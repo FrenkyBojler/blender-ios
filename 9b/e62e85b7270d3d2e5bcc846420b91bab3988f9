@@ -17,3 +17,4 @@ Referenced by issue #119277, Zipping an addon with a .blend file causes the stri
 Referenced by issue #119281, Blender crashes during render with subdivision modifier
 Referenced by issue #119228, Blender is crashing at startup
 Referenced by issue #119114, Grease Pencil mask stop working with 258 layers
+Referenced by issue #119064, Python script has visual bugs when inputting floats and integers into geometry node inputs
