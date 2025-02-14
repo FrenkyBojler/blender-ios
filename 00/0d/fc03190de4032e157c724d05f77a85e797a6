@@ -77,3 +77,4 @@ Referenced by issue #44622, Offsetting image sequence with driver on displace mo
 Referenced by issue #44626, Windows crash when CLOSING User Preferences window with ATI graphics card
 Referenced by issue #44599, Transparent BSDF casts shadow with background lighting
 Referenced by issue #44589, Assigning mesh data to object with skin modifier doesn't update skin_vertices data layer
+Referenced by issue #44591, ShortCut for Bone Group Index doesnt work
