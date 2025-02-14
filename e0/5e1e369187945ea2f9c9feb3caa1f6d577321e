@@ -19,3 +19,4 @@ Referenced by issue #98830, blender quits when switched to edit mode
 Referenced by issue #98834, Broken material assigment after changing mesh-linking to object-linking
 Referenced by issue #98819, Blender 3.2.0 crashes at "Add Color Attribute" while in edit mode
 Referenced by issue #98795, Regression: Crash after moving NLA action strips
+Referenced by issue #98731, Vertex Paint mode can edit only 8 color attributes
