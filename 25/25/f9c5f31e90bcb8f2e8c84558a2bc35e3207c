@@ -18,3 +18,4 @@ Referenced by issue #39194, CUDA error when trying to do viewport rendering
 Referenced by issue #39178, Some times deleted keys from custom key map are restored after importing key config
 Referenced by issue #39180, Particle with fluid physics unstable
 Referenced by issue #39181, CUDA - cannot render
+Referenced by issue #39168, Rendering with Cycles on GPU don't work.
