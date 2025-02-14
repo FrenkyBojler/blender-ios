@@ -5,3 +5,4 @@ Referenced by issue #81875, Cycles: mesh becomes weirdly transparent after some 
 Referenced by issue #81775, Crash on Exiting Texture Paint With Multiresolution (Image Editor involved)
 Referenced by issue #81208, filter_glob not working with filenames
 Referenced by issue #80265, Cycles ray visibility broken in render/viewport
+Referenced by issue #79964, Hiding faces in edit mode does not hide them in sculpt mode
