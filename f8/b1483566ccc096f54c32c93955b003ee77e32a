@@ -1,1 +1,2 @@
 Referenced by commit 6165395927c, Fix T101922: transforming surface points misses redraw
+Referenced by issue #101922, Regression: Nurbs surface extrude shows guiding lines at wrong position
