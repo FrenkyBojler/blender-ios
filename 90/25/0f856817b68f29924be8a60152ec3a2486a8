@@ -1,2 +1,3 @@
 Referenced by issue #47381, Pasting from buffer uses original layer
 Referenced by issue #47213, World Sampling in Cycles broken when rendering with GPU
+Referenced by issue #47166, AttributeError: 'GreasePencil' object has no attribute 'draw_mode'
