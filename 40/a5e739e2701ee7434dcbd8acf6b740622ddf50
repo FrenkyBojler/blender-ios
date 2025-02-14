@@ -1,2 +1,3 @@
 Referenced by issue #132707, save render emit pass image just like file UI interface operation
 Referenced by issue #131664, Volume disappears when rendered on blender 4.3 or 4.2, renders completely fine on 4.1
+Referenced by issue #124233, appending adds all collections (ignoring the selection)
