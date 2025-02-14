@@ -1,3 +1,4 @@
 Referenced by commit 1e2e20fe3cc, Fix #120200: Sculpting is slow with modifier with driver
 Referenced by commit e9dc9ef9a20, Fix #119936: Crash selecting in mask editor
 Referenced by commit d3504a6bab5, Fix #119907: Active curve vertex/spline not visualizing properly
+Referenced by issue #121342, Alt + H unhides bones with drivers
