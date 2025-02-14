@@ -1,2 +1,3 @@
 Referenced by commit ec220c17f52, GPv3: Rename `active_group` to `active`
 Referenced by commit e373625e73d, GPv3: Python error after `active_layer` renaming
+Referenced by issue #125296, GPv3: Python error after `active_layer` renaming
