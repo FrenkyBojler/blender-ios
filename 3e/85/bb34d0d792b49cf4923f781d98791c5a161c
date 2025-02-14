@@ -9,3 +9,4 @@ Referenced by issue #82467, Pose Mode Crash - Blender 2.90.1
 Referenced by issue #82415, Crash on remote machine
 Referenced by issue #82360, Crash after linked object is edited then switched to another scene (object origin scene)
 Referenced by issue #82203, Short NLA strips trim/elide action name unnecessarily
+Referenced by issue #82192, Crash Blender Hair
