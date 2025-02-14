@@ -645,8 +645,9 @@ static void select_similar_by_value(Scene *scene,
 
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
-    bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
+    bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
         curves, selection_domain, CD_PROP_BOOL);
+    MutableSpan<bool> selection = selection_writer.span.typed<bool>();
     const VArraySpan<T> values = *curves.attributes().lookup_or_default<T>(
         attribute_id, selection_domain, default_value);
 
@@ -655,17 +656,17 @@ static void select_similar_by_value(Scene *scene,
         *object, info.drawing, info.layer_index, memory);
 
     mask.foreach_index(GrainSize(1024), [&](const int index) {
-      if (selection.span[index]) {
+      if (selection[index]) {
         return;
       }
       for (const T &test_value : selected_values) {
         if (distance_fn(values[index], test_value) <= threshold) {
-          selection.span[index] = true;
+          selection[index] = true;
         }
       }
     });
 
-    selection.finish();
+    selection_writer.finish();
   });
 }
 
