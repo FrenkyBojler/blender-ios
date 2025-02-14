@@ -3,3 +3,4 @@ Referenced by issue #86500, Cycles: tapering hair transparency fails in '3D Curv
 Referenced by issue #86171, Cycles freeze on render and texture baking (with packed textures)
 Referenced by issue #82483, Blender freezes when repeating baking textures
 Referenced by issue #78390, Assign Materials on Faces of an object
+Referenced by issue #78384, Mantaflow - liquid sim - strange behaviour
