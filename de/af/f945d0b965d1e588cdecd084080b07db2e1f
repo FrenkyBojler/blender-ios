@@ -22,3 +22,4 @@ Referenced by issue #77632, [Bisected] Mesh: skip conversion from edit-mesh to m
 Referenced by issue #77607, Bad shading in edit mode. 2.90 regression
 Referenced by issue #77409, Instance face duplicated geometry doesn't render in edit mode
 Referenced by issue #77290, Crash on displaying Vertex Color in Edit mode
+Referenced by issue #77195, Crash with Viewport measurements turned on
