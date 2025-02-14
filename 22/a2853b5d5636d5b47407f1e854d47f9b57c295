@@ -53,3 +53,4 @@ Referenced by issue #47942, Sequence Editor: Crash after switching imported png 
 Referenced by issue #47920, cycles video textures do not update in textured viewport with alt + a playback
 Referenced by issue #47921, Blender crashes when trying to select an object
 Referenced by issue #47923, "Persistent Images" breaks GPU freestyle rendering
+Referenced by issue #47911, Bug while sculpt edit finalize step.
