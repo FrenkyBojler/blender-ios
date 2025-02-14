@@ -4,3 +4,4 @@ Referenced by issue #39977, Hotkey Inconsistancy for cycles nodes
 Referenced by issue #39113, Invalid displacement of emitted objects in viewport
 Referenced by issue #39116, Blender crashes when clicking in the field 'Mesh Analysis' in the N-Panel
 Referenced by issue #39117, Using operator and redo panel triggers 'undo' in text editor
+Referenced by issue #39118, Particle system: Group instances contained by emitted groups are missing
