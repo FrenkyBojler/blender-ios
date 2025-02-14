@@ -1,2 +1,3 @@
 Referenced by issue #44663, Corrective smooth apply as shape key does not work
 Referenced by issue #43822, Videotexture does not use sky color for off-screen rendering
+Referenced by issue #41893, sculpting error with stencil mapping of texture
