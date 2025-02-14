@@ -3,3 +3,4 @@ Referenced by issue #41536, 2.71 getActionFrame no longer returns frames accurat
 Referenced by issue #41489, Strange behaviour of the solidify modifier when "even thickness" is enabled.
 Referenced by issue #41491, Strange behaviour of the solidify modifier when "even thickness" is enabled.
 Referenced by issue #41472, Redundant freestyle stroke drawing during viewport render
+Referenced by issue #41473, Cycles volume rendering is too dark
