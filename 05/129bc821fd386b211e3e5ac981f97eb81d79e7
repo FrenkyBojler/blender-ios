@@ -1,1 +1,2 @@
 Referenced by issue #82049, Regression: material select button now only works for active object.
+Referenced by issue #81999, Boolean Exact and Self produce artifacts and wrong operation order with operand that has intersecting elements
