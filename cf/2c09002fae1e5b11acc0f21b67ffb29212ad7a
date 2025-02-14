@@ -1,1 +1,2 @@
 Referenced by commit 9054b834028, Cleanup depsgraph access in particle_edit.c
+Referenced by issue #69488, Hair particles: hair particle rekey disolves the hair, then crashes Blender
