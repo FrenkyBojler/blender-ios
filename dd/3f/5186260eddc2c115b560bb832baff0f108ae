@@ -5,3 +5,4 @@ Referenced by issue #60858, Shape Keys stoped working
 Referenced by issue #60848, Unit Broken between scene loaded from 2.79 to 2.8
 Referenced by issue #60830, Keyframes don't allow changing
 Referenced by issue #60733, Subdivision Surface Performance Degrades Markedly With Non-Quad Meshes
+Referenced by issue #60724, Subdivision Surface modifier doesn't works proper in 2.80
