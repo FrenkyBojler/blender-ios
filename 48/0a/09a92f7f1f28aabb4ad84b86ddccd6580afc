@@ -1,2 +1,3 @@
 Referenced by issue #79120, Changing dimension on multiple objects no-longer works
 Referenced by issue #64699, Pose Mode Semi-freeze or Lag with selective character rigs
+Referenced by issue #64065, Instant Crash upon trying to render in Eevee
