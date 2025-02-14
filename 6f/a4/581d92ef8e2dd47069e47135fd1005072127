@@ -1,2 +1,3 @@
 Referenced by issue #74475, Adding images as movies no longer works as expected
 Referenced by issue #74433, Sequencer Add->Movie only imports one Movie from multiple selected in FileWindow
+Referenced by issue #74334, VSE can't import multi movie files since 2.82
