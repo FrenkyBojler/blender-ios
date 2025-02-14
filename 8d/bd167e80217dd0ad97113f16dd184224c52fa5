@@ -1,1 +1,2 @@
 Referenced by commit b56daddda66, Anim: restore logging of key insertion errors on stdout
+Referenced by issue #121527, Anim: restore logging of key insertion errors on stdout
