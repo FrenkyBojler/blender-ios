@@ -1,2 +1,3 @@
 Referenced by issue #59531, Blender Crashes when I delete anything
 Referenced by issue #59517, Adding new scene causes crash
+Referenced by issue #53544, undo on bones in pose mode selects all channels in graph editor
