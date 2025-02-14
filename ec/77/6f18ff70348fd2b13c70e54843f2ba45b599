@@ -2,3 +2,4 @@ Referenced by issue #78371, Error "Gizmos hidden in this view" when trying to de
 Referenced by issue #78241, Cycles crashes when using adaptive sampling and after rendering
 Referenced by issue #78242, Sculpt - smear brush crash
 Referenced by issue #78246, Blender will not save enabled Normal, Color, and Emission passes
+Referenced by issue #77516, visual artifacts in 2.90 on a mesh imported from 2.83 with subdivision
