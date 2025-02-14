@@ -1,0 +1,1 @@
+Referenced by issue #46711, If an x, y, or z coordinate is more than 10m (10,000 units), the coordinates in the properties panel (N), do not give the right number
