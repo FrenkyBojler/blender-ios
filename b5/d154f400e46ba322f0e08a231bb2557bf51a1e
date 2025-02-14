@@ -1,1 +1,2 @@
 Referenced by commit 09a8f5ebcab, Fix T86384: Click detection fails in some cases with modifiers
+Referenced by issue #86384, Add to selection with Ctrl+left click requires additional click
