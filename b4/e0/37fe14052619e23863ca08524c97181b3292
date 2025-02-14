@@ -1,2 +1,3 @@
 Referenced by issue #58057, A bug on  apply visual geometry to mesh
 Referenced by issue #58059, Crash when in EEVEE Render middle mouse with AMD RX 560 GPU
+Referenced by issue #57070, 2.8 Crash in sculpting mode with tilling and Dyntopo
