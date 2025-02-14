@@ -1,1 +1,2 @@
 Referenced by issue #81752, Motion Blur in EEVEE is not blending steps properly for camera motion in newer versions
+Referenced by issue #79637, Motion blur gives artifacts when changing the camera
