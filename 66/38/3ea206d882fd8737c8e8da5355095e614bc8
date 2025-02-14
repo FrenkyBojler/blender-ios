@@ -6,3 +6,4 @@ Referenced by issue #52141, Applying Scale/Rotation/Location Broken
 Referenced by issue #52115, Set normals from faces should respect sharp edges
 Referenced by issue #52116, Blender Crashes While Rendering !
 Referenced by issue #52123, Motion blur sometimes fails to finish the frame properly (particle simulation)
+Referenced by issue #52106, Render window don't close from Windows taskbar thumbnail
