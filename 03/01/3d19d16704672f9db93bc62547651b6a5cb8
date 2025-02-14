@@ -4,3 +4,4 @@ Referenced by issue #94898, Vertex Color doesn't show up (in Eevee using the Ver
 Referenced by issue #93123, Massive lag when enabling Viewport Shading -> Color -> Vertex and using Sculpt Vertex Colors
 Referenced by issue #92750, Regression: Sculpt Vertex Colors shown as black
 Referenced by issue #88219, Regression: Massive drops in Animation playback (fps) in the viewport
+Referenced by issue #85075, Geometry Nodes: Support rendering generated attributes.
