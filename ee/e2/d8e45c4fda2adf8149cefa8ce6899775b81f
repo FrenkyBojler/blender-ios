@@ -1,1 +1,2 @@
 Referenced by issue #46445, specifying soft body goal strength via vertex group weights works only if 'default strength' is set to 1.0
+Referenced by issue #45247, *OLD* depsgraph - Softbody not evaluated on lattice? ('physics/sofbody_curve_lattice.blend' regression file)
