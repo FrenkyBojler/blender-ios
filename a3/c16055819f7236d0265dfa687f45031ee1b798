@@ -1,3 +1,4 @@
 Referenced by issue #75592, curves displayed incorrectly
 Referenced by issue #75536, particle_battle_crash
 Referenced by issue #74572, Adaptive sampling breaks value Shader AOV's
+Referenced by issue #70765, Input Mouse or Tablet events are too sparse when input device moves very fast in Windows
