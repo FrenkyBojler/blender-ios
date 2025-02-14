@@ -10,3 +10,4 @@ Referenced by issue #46425, Color gradients particle system not rendered in blen
 Referenced by issue #46403, Motion tracking on Blender 2.76 rc3 on mac osx
 Referenced by issue #46404, Motion blur acting up.
 Referenced by issue #46407, Enabling OSL breaks Vector Transform node
+Referenced by issue #46379, Metric (Separate) units 'N Panel' edit panel doesn't strip spaces.
