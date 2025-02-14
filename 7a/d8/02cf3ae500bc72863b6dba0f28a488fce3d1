@@ -5,3 +5,4 @@ Referenced by issue #74284, Changing image path in Image Texture node resets col
 Referenced by issue #73341, Wrong Texture Color Space assigned when opening 2.79 into 2.8x
 Referenced by issue #71153, Color space configuration of copies of image texture nodes is not independent.
 Referenced by issue #70688, Image Texture Node UI resets Color Space
+Referenced by issue #69244, color space turns back to default preset sRGB when changing texture in shader editor
