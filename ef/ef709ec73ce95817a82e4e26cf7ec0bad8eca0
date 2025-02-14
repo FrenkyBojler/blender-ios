@@ -2,3 +2,4 @@ Referenced by commit 89ad66fbbd3, Fix #1092563: invalid event timestamps on X11 
 Referenced by commit eb7d5d09724, Fix #115933: Assert with invalid time-stamp on X11 with XIM input
 Referenced by commit 86146c79f87, Cleanup: update comment, reference issue number
 Referenced by issue #116627, GHOST/X11 asserts in a debug build on a Linux system with 50+ days uptime
+Referenced by issue #115831, WIP: UI: dont run update functions if button values did not change
