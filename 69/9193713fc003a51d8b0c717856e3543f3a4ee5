@@ -1,1 +1,2 @@
 Referenced by issue #71199, Child-parent relationships arent kept after you make instances real
+Referenced by issue #66282, Make Instances Real: Keep Hierarchy option has no effect when duplicates are collection instances
