@@ -1,1 +1,2 @@
 Referenced by commit d94a11ed79b, Curves: Avoid unnecessarily initializing new positions layer
+Referenced by commit 4c91c24bc7c, Attributes: Avoid unnecessarily initializing new attributes
