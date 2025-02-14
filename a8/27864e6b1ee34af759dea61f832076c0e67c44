@@ -1,1 +1,2 @@
 Referenced by issue #104604, Nodes: Removing and freeing the next one during a linkbase iterating
+Referenced by issue #89709, Delete with reconnect can cause two links from same socket to go to the same multi_input socket
