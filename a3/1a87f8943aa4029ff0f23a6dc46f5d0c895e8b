@@ -1,1 +1,2 @@
 Referenced by commit 83e91485d09, GPU: Fix NOT ~ operator for eGPUSamplerState
+Referenced by issue #81572, Viewport Shading Cavity Glitch
