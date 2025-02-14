@@ -1,3 +1,4 @@
 Referenced by commit 680fa8a523e, Fix T100846: Bump blender file min version for forward compatibility warning
 Referenced by issue #113985, File crash on opening in version 3.6 but not 2.9
 Referenced by issue #100846, Problems with materials nodes in Alpha Trees
+Referenced by issue #100797, C++ exporters (OBJ/Collada/USD/Alembic) do not remember the path/filename on subsequent exports
