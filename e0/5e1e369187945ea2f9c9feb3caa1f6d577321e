@@ -6,3 +6,4 @@ Referenced by issue #100584, Hindi font displayed wrongly
 Referenced by issue #100288, Dragging  NLA strips on the same track crashes
 Referenced by issue #100229, Auto keyframe icon not update highlight icon in UI when press a shotcut key
 Referenced by issue #99524, Python: Grease Pencil frame not updating when frame number is changed
+Referenced by issue #99348, Blender crashes when editing liquid domain
