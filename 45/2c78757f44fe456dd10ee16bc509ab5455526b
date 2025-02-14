@@ -1,2 +1,3 @@
 Referenced by issue #92503, OSL: Blender crashes when activating object with OSL material
 Referenced by issue #92380, Blender can't access the locally shared and mapped folders on Windows
+Referenced by issue #92270, Remeshing a Klein Bottle stops Blender
