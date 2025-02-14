@@ -10,3 +10,4 @@ Referenced by issue #59878, 2.80 - Crash on Middle Mouse Button while in Edit Mo
 Referenced by issue #59861, converting GP stroke to curve doesn't immediately work
 Referenced by issue #59863, Keyframing of hide viewport and hide render not working
 Referenced by issue #59799, Texture paint mode crash
+Referenced by issue #56362, sub surface scattering does not work on eevee on radeon hd 7600 series
