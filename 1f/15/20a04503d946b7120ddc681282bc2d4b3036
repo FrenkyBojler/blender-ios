@@ -1,3 +1,4 @@
 Referenced by issue #75893, Undo causes crash with "Load UI" disabled
 Referenced by issue #75885, Mesh deform modifier not updating when rotating modified object in viewport
 Referenced by issue #75886, Blender Crash when open file from 2.82a
+Referenced by issue #75876, Changing value affects hue & saturation in 3D view gradient color sliders
