@@ -1,1 +1,2 @@
 Referenced by commit e3b49bb8500, Fix T81200: Crash on certain armature select operators when OpenGL Depth
+Referenced by issue #77560, Clicking the edge of a Bone in Edit mode Crashes Blender in 2.9 Alpha
