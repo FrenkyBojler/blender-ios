@@ -2,3 +2,4 @@ Referenced by issue #59381, UV editor - Pinned vertex turns red only after anoth
 Referenced by issue #59266, Hard to select a single face when set to display as wireframe
 Referenced by issue #59270, Modifiers not working for curves
 Referenced by issue #59241, Cannot shift + select to add more nodes to selection
+Referenced by issue #59229, Going to Wireframe while in edit mode crashes Blender
