@@ -1,2 +1,3 @@
 Referenced by commit 95d11b0d338, Fix Cycles area light using MIS when the spread is zero
 Referenced by commit 1d8ec324736, Fix Cycles area light using MIS when the spread is zero
+Referenced by issue #118584, Fix Cycles area light using MIS when the spread is zero
