@@ -1,1 +1,2 @@
 Referenced by issue #66613, Adding large number of objects much slower in 2.80
+Referenced by issue #66586, Workbench transparency rendering issue: "jump" to alpha 1.0 from .999
