@@ -36,3 +36,4 @@ Referenced by issue #40029, Apply hook location returns it to 0,0,0
 Referenced by issue #40019, VSE copy/paste keyframes
 Referenced by issue #40005, Shortcuts in menus partially broken (Dope Sheet / Graph Editor)
 Referenced by issue #39914, "Save Screenshot" doesn't share "Save as Image" settings
+Referenced by issue #39908, All text become unreadable when I deselect "Load UI" before opening a file
