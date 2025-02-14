@@ -25,3 +25,4 @@ Referenced by issue #117583, Wayland: Mouse cursor becomes resize on the title b
 Referenced by issue #117358, Blender crashes on startup - VMWare Workstation 17.5
 Referenced by issue #117052, When inserting a new keyframe on a bone (and two armatures share the same action), Blender seems to not play keyframed bone constraint influences on non active armatures (or the active one sometimes) in the scene
 Referenced by issue #116847, Force closed/crash when render with freestyle enabled
+Referenced by issue #116754, Blender doesn't starts after update
