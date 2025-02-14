@@ -12,3 +12,4 @@ Referenced by issue #47281, Blender crashes randomly on freshly installed window
 Referenced by issue #47268, Product does not launch
 Referenced by issue #47217, Crash when adding tracking new tracker
 Referenced by issue #47154, Sequencer strip modified with 'Mask'. Add/Subtract modes.
+Referenced by issue #46994, Reproducible crash, apparently with carve.
