@@ -5,3 +5,4 @@ Referenced by issue #72010, sculpting mode multires modifier Not used
 Referenced by issue #71952, Blender Crashes on HP Zbook x360 with Ubuntu 19.10 when HP G2 Stylus connects via wacom module
 Referenced by issue #71940, Blender 2.81 crash on ArchLinux with X11/Wayland
 Referenced by issue #71886, Overwriting "X" Shortcut leads to error message on clicking
+Referenced by issue #71879, Select expand/contract from face mode to edge mode doesnt flush to faces if there are zero edges selected after contraction
