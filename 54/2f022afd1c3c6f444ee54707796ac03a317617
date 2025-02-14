@@ -1,2 +1,3 @@
 Referenced by issue #87853, Crash when `select none` on Weight painter
 Referenced by issue #87410, Interaction menu cannot be changed.
+Referenced by issue #87414, Image reference using handles crash
