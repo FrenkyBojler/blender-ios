@@ -1,0 +1,1 @@
+Referenced by issue #123214, Compositor "File Output" Node attempts to export JPG alongside OpenEXR Multilayer file, causing crash
