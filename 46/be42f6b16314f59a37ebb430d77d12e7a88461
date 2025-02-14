@@ -1,2 +1,3 @@
 Referenced by commit c6725b935c2, Fix #109720: load_post can't be used to initialize the driver namespace
 Referenced by commit 302137b14bd, Fix #107759: Crash when running modal operator in load_post handler
+Referenced by commit 95a114f3cae, Fix #107759: Crash when running modal operator in load_post handler
