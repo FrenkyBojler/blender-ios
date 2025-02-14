@@ -1,2 +1,3 @@
 Referenced by issue #115226, A Shader Compile Error Occurs with Two AOV Outputs in a Specific Shader Node Configuration
 Referenced by issue #107575, Fix #107566: Gesture face set respect hidden faces
+Referenced by issue #102700, Regression: Viewer node crash on empty by non-null mesh after join geometry with attribute output on viewer
