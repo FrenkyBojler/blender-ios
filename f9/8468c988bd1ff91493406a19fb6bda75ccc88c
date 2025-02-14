@@ -1,1 +1,2 @@
 Referenced by issue #118016, OIDN denoising always occurs on CPU for GPU+CPU render
+Referenced by issue #117981, Cycles: Wrong denoising device reporting
