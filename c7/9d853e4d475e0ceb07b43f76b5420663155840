@@ -1,0 +1,1 @@
+Referenced by issue #103321, Regression: NodeSocket.node is None on Node.copy
