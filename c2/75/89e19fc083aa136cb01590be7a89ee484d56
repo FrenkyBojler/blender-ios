@@ -33,3 +33,4 @@ Referenced by issue #46053, osl in Cycles Branched Path Tracing bug
 Referenced by issue #46041, 2 GPU cards (GTX 980 and GTX 980 TI) cause crashes
 Referenced by issue #46044, Cycles: Material is rendered completely black without reason
 Referenced by issue #46047, Group Instance Transform
+Referenced by issue #46048, Cutom Properties
