@@ -1,0 +1,1 @@
+Referenced by issue #86170, `self is self.id_data` is inconsistent.
