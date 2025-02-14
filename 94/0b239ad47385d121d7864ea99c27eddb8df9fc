@@ -1,2 +1,3 @@
 Referenced by commit f364d181e36, UI: Fix collapsed panels not drawing header buttons
 Referenced by issue #101913, Regression: panels in the properties panel lose their place when scrolling one of the other property panels.
+Referenced by issue #82769, Crash rendering particle animation with particle caches [disk cache works though]
