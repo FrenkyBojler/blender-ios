@@ -1,2 +1,3 @@
 Referenced by issue #122123, Fix #122110: Remove text selection flickering completely
 Referenced by issue #122108, EEVEE-Next: Area light only cast shadow within 90 degree cone
+Referenced by issue #122101, Marker renaming is not working and crashing on typing
