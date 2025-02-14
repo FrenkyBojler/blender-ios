@@ -3,3 +3,4 @@ Referenced by commit 2824e456781, Fix #115510: Poly Build does not update snappe
 Referenced by commit c126708d69a, Fix #110001: Edit mesh overlay text uses final positions instead of cage
 Referenced by issue #129140, Editing mesh through Corrective Smooth results in distortion after exiting Edit Mode
 Referenced by issue #120154, Regression displaying deformed face-normal in edit-mode
+Referenced by issue #119718, Fix #119544: Cage modifier deformation ignored in next modifier
