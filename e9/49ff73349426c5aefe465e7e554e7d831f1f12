@@ -1,1 +1,2 @@
 Referenced by commit e7efb704fab, Fix #133367: Use `BKE_unit_value_as_string_scaled` for ruler gizmo
+Referenced by issue #133373, Fix #133367: Use `BKE_unit_value_as_string_scaled` for ruler gizmo
