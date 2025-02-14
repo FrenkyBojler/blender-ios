@@ -1,3 +1,4 @@
 Referenced by issue #80080, Cycles - Fixed Threads Cap UX inconsistency
 Referenced by issue #79602, Strange geometry  in preview and rendered mode
 Referenced by issue #79557, EEVEE normalize node gives infinity for a zero length vector, EMIT pass color is (NaN, NaN, NaN)
+Referenced by issue #77910, Sometimes the Viewport is damaged.
