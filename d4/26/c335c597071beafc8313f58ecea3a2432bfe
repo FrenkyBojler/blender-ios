@@ -1,2 +1,3 @@
 Referenced by issue #51154, Decline in performance, an increase of over 209% in the rendering
 Referenced by issue #51135, Cylinder primitive generates bad uvs.
+Referenced by issue #51048, Freestyle rendering, Rendering time infinite and total drain PC resources.
