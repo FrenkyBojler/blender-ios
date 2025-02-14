@@ -5,3 +5,4 @@ Referenced by issue #44720, Rigidbody simulation - flip object just at the simul
 Referenced by issue #44656, Blender crashes when duplicating strips in the VSE
 Referenced by issue #44420, segfault on startup
 Referenced by issue #44417, Typing "[" in the Python console disables backspace
+Referenced by issue #44226, Material does not show in 3D View
