@@ -2,3 +2,4 @@ Referenced by commit 01b9dfeab49, Fix T84684: Undo operators not working
 Referenced by commit 73169628a18, Fix T84684: Undo operators not working
 Referenced by issue #84684, Undo doesn't work after reverting of ID template changes
 Referenced by issue #84587, Node editor unlinking issue with duplicate nodes
+Referenced by issue #84570, No "Make Single User Copy" option in ID template menu for multi-user datablocks, "Duplicate" greyed out
