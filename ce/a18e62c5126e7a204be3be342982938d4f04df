@@ -1,3 +1,4 @@
 Referenced by commit 17fc09d5aac, Fix: GPv3: Group color tag icons in outliner and dopesheet
 Referenced by commit 5b444f59548, Fix: GPv3: Use `OPTYPE_UNDO` for color tag operator
 Referenced by issue #128287, GPv3: Group color tag icons in outliner and dopesheet
+Referenced by issue #123897, Fix: GPv3: Register undo step for color tag operator
