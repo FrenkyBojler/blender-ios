@@ -1,1 +1,2 @@
 Referenced by commit 81a93df6d22, Fix crash when startup file has an image in it
+Referenced by issue #61063, Function from Python not being loaded for Driver when project opened
