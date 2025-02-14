@@ -52,3 +52,4 @@ Referenced by issue #50432, Crash with texture node
 Referenced by issue #50435, Material viewport crashes
 Referenced by issue #50422, Blender stops working when I minimize it
 Referenced by issue #50406, Blender shutdown when use scale with shrinkwrapped objects
+Referenced by issue #50408, Port EXCEPTION_ACCESS_VIOLATION fix to 2.76b
