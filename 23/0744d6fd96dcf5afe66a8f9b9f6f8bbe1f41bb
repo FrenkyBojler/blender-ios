@@ -1,3 +1,4 @@
 Referenced by commit 79a34758f52, Fix T103253: Infinite drag of number buttons is broken on WIN32
 Referenced by issue #103596, Blender 3.5: Cursor warping usable on windows remote desktop (RDP)
 Referenced by issue #103253, Regression: Infinite drag of number buttons is broken
+Referenced by issue #102967, 3.4: Potential candidates for corrective releases
