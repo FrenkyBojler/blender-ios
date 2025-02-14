@@ -3,3 +3,4 @@ Referenced by issue #50876, Cycles Crash - Cycles crashes before sampling when c
 Referenced by issue #50672, Boolean modifier in bmesh solver creates random verts
 Referenced by issue #50675, Fluid baking limited to 30-40% CPU usage
 Referenced by issue #50676, Crash on closing while frameserver rendering
+Referenced by issue #50659, Unable to launch blender after a debug build
