@@ -23,3 +23,4 @@ Referenced by issue #50757, Alembic material import bug
 Referenced by issue #50745, Shape key editing on bezier objects broken with Rendered Viewport Shading
 Referenced by issue #50734, Blender crash without error message
 Referenced by issue #50692, Python console shows no output
+Referenced by issue #50698, cycles bake artifacts with transparent textures and no color option
