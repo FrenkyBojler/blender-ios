@@ -1,1 +1,2 @@
 Referenced by issue #76933, "Align to transform Orientation" crashes blender for Custom transform orientations
+Referenced by issue #76504, Extrusion doesn't take in account the current transform orientation
