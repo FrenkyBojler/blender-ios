@@ -1,3 +1,4 @@
 Referenced by commit 21ed3b32588, Fix T101025: Cycles motion blur crash with changing point cloud size
 Referenced by commit 05952aa94d3, Mesh: Remove redundant custom data pointers
 Referenced by issue #101025, Regression: Animating parameter in geometry nodes causes a crash on animated render
+Referenced by issue #95842, Prepare custom data API for attribute sharing.
