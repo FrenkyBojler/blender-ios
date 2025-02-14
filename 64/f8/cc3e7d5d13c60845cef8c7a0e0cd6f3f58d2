@@ -1,1 +1,2 @@
 Referenced by issue #53683, 2.79a release
+Referenced by issue #52998, Disabled Menu Entries with layout.enabled = False can still be executed with generic inbuilt shortcuts
