@@ -10,3 +10,4 @@ Referenced by issue #62253, unnecessary cubemap reflections on glass when reflec
 Referenced by issue #62257, Remove double vertices crash
 Referenced by issue #62238, Graph Editor generator for angles works in Radians while the graph editor displays the result in degrees.
 Referenced by issue #62239, Entering Particle Edit Mode crashes blender.
+Referenced by issue #62092, Render image after camera position is animated does not use current camera position
