@@ -24,3 +24,4 @@ Referenced by issue #50677, Shrinkwrap constraint don't get updated when target 
 Referenced by issue #50679, VSE locked strips moves with gaps tools
 Referenced by issue #50628, Blender 2.78b Cycles compute device selection UI issue
 Referenced by issue #50565, Transform: Planar constraints don't work properly with non-Blender key configurations
+Referenced by issue #48371, Action Layers not working in newer Blender versions
