@@ -1,1 +1,2 @@
 Referenced by issue #73265, Grease Pencil Delete Active Frame operator throws error to console when first frame
+Referenced by issue #71971, Inset with depth and offset relative has weird geometry and assert crash
