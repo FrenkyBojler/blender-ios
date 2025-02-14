@@ -1,1 +1,2 @@
 Referenced by issue #72459, Mask Modifier breaks Vertex Parenting
+Referenced by issue #66440, Empty with Vertex Parent moves to origin when mask modifier hides parent vertex
