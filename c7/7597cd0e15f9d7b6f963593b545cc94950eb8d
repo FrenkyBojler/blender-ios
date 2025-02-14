@@ -14,3 +14,4 @@ Referenced by issue #96523, Image sequence as texture for particles density
 Referenced by issue #96473, Auto keying not keying for child bones and not transformed
 Referenced by issue #96449, Edge creasing is randomly adding crease to another unselected edges, and blender crashes
 Referenced by issue #96416, Crash with Close Area menu 3D view
+Referenced by issue #96379, Crashes when rendering in viewport with GPU complier
