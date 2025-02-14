@@ -59,3 +59,4 @@ Referenced by issue #50382, Fluid sim broken when domain/fluid are at large coor
 Referenced by issue #50384,  Blender Crashes when switching to Cycles
 Referenced by issue #50375, Subsurf modifier: animating subdivisions crashes graphics card driver
 Referenced by issue #50347, Jumping grid lines in perspective views
+Referenced by issue #50353, Grid floor not parallel at big scales in perspective mode
