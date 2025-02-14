@@ -1,2 +1,3 @@
 Referenced by commit ada2b9f6e43, Fix T101341: make nodegroups active input/output non-animatable
 Referenced by commit cf9709fd1ee, Fix T84686: Node vector socket default values not animate-able
+Referenced by issue #84686, Regression: Adding a keyframe to the Mapping shader node fails
