@@ -1,1 +1,2 @@
 Referenced by commit 4574de1092a, Revert "Overlay: Wireframe: avoid using custom depth bias with xray enabled"
+Referenced by commit 02379f3200f, Fix #119527: Aliased Wireframe In XRay
