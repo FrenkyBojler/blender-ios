@@ -1,1 +1,2 @@
 Referenced by commit 116bab702e0, Fix T47639: OpenGL render with smoke and fire incorrect when using
+Referenced by issue #49637, clipping border with smoke does not work anymore
