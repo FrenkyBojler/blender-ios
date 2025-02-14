@@ -1,1 +1,2 @@
 Referenced by commit c4d0e88e6e2, Fix: Asset browser crash after recent cleanup
+Referenced by issue #119860, Regression: Undo shortcut in File Browser editor causes Blender to crash immediately
