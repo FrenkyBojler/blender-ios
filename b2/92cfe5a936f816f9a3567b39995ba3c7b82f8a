@@ -5,3 +5,4 @@ Referenced by issue #104191, 5.1 Audio Renders in order of audio loaded rather t
 Referenced by issue #103050, Measure Tool does not abide by snap settings. Specifically, exclude non-selectable doesn't seem to work in Blender 3.3.1
 Referenced by issue #103030, crash when pressing shift +z
 Referenced by issue #102978, Renderer window gets stuck in 3.x - 2.9 is ok
+Referenced by issue #102950, Blender 3.3.1 crashes when opening preferences or autosave
