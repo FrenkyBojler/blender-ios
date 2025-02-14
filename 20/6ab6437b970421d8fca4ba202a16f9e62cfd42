@@ -1,2 +1,3 @@
 Referenced by commit c076202e237, Fix illegal address error in Cycles Light Tree when no emitter is selected
 Referenced by commit 3cd14df7d84, Revert "Fix illegal address error in Cycles Light Tree when no emitter is selected"
+Referenced by issue #111428, Fix illegal address error in Cycles Light Tree when no emitter is selected
