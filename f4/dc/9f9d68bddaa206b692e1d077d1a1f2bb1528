@@ -62,3 +62,4 @@ Referenced by issue #57785, Bugged UI Text
 Referenced by issue #57747, Blender 2.79 Cycles Renders Depth/Mist with Banding in 32 bit .EXR Files
 Referenced by issue #57680, Armature Bone Tip Rotation Not Functional
 Referenced by issue #57589, 2.79 Rigid Body Sim. Does Not Behave The Same In 2.8
+Referenced by issue #57593, OpenCL error when trying to render with Vega 64
