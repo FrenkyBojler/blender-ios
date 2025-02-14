@@ -1,1 +1,2 @@
 Referenced by commit 684fd4643ae, Nodes: use BKE_main_ensure_invariants directly instead of ED_node_tree_propagate_change
+Referenced by issue #133048, Nodes: use BKE_main_ensure_invariants directly instead of ED_node_tree_propagate_change
