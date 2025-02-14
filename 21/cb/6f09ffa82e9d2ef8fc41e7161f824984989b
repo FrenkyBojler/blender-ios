@@ -5,3 +5,4 @@ Referenced by issue #79837, Cycles Optix cannot be brought back once AO node is 
 Referenced by issue #79780, Texture baking from multiple objects doesn't work.
 Referenced by issue #79533, Crash when opening file
 Referenced by issue #77910, Sometimes the Viewport is damaged.
+Referenced by issue #77298, Can't bake texture with multiple objects.
