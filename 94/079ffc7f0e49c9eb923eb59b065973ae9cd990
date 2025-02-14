@@ -1,0 +1,1 @@
+Referenced by issue #86879, Boolean union causing crash when combined with a dependency loop (2.93 regression)
