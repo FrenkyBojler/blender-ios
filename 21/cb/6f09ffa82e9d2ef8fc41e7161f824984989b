@@ -3,3 +3,4 @@ Referenced by issue #80088, Mantaflow FLIP particles not working correctly
 Referenced by issue #79859, MacOS EEVEE 2.90 crash on second render
 Referenced by issue #79837, Cycles Optix cannot be brought back once AO node is added (does not recover removing the node or material)
 Referenced by issue #79780, Texture baking from multiple objects doesn't work.
+Referenced by issue #79533, Crash when opening file
