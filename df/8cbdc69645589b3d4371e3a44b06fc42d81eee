@@ -1,2 +1,3 @@
 Referenced by issue #77632, [Bisected] Mesh: skip conversion from edit-mesh to mesh in edit-mode, breaks surface deform modifier live preview.
 Referenced by issue #77195, Crash with Viewport measurements turned on
+Referenced by issue #76997, Could not link object because the collection 'Master Collection'(of appended scene) is linked
