@@ -3,3 +3,4 @@ Referenced by issue #96952, Regression: Image Editor Texture Draw Stops Updating
 Referenced by issue #96670, Regression: Blender 3.1 bake from multires not reflected in the Image Editor
 Referenced by issue #96312, Regression: Image Editor Flip option isn't working
 Referenced by issue #96323, Regression: Invert colour is not reflected in the image viewer until a UI change
+Referenced by issue #96324, Regression: Resizing an image is not correctly reflected in the image editor until the UI is updated
