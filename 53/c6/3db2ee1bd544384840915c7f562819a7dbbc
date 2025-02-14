@@ -7,3 +7,4 @@ Referenced by issue #55775, Crash when select keyframe of an object in timeline 
 Referenced by issue #55776, Crash when open multiple window then reload new
 Referenced by issue #55780, Crash when trying to use the eyedropper in the dyntopo to get current mesh res.
 Referenced by issue #55781, Messed up viewport rendering.
+Referenced by issue #55768, crash when pin workspace panel
