@@ -73,3 +73,4 @@ Referenced by issue #51393, Fresh Blender 2.78c install freezes when moved to se
 Referenced by issue #51381, Baking particles crasch
 Referenced by issue #51346, Object Info node not working in material view
 Referenced by issue #51330, Locked strips are not locked in cutting
+Referenced by issue #51319, Alembic export crashes when using Simple child particles if Display value is set below 100%
