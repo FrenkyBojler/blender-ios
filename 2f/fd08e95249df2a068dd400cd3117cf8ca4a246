@@ -2,3 +2,4 @@ Referenced by commit 1706ce032f1, Fix #108456: Missed declaration function in Sh
 Referenced by commit c006ba83e0b, Fix: execution graph for geometry nodes contained cycles leading to crash
 Referenced by issue #108456, Regressino: Geometry Node: Edge Path to Curves does not work with anonymous attributes
 Referenced by issue #108460, Fix #108456: Missed declaration function in Shortest Edge Paths node
+Referenced by issue #106497, Geometry Nodes: Freeze Node
