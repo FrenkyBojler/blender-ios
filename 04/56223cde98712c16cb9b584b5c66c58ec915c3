@@ -1,0 +1,1 @@
+Referenced by issue #89046, Blender will not start if referencing bpy.context.scene.render.fps with expression in startup file
