@@ -1,2 +1,3 @@
 Referenced by commit 2838d9324d0, Cleanup: clang format
 Referenced by issue #103417, Regression: Submenus in toolbar are empty
+Referenced by issue #103405, Regression: Some modifiers not working
