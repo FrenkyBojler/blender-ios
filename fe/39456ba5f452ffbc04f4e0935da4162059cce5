@@ -1,3 +1,4 @@
 Referenced by commit f2ba12a053e, Fix: Workbench: Volume compositing
 Referenced by commit c6194afc41a, Fix: Workbench: Missing texture flag
 Referenced by issue #120628, Transfer Sculpt Mode flickering artefacts
+Referenced by issue #116403, Sculpt: Viewport drawing problem with clip and brush radius
