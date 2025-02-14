@@ -6,3 +6,4 @@ Referenced by issue #101329, Regression: EXR 'JPG Preview' doesn't use color spa
 Referenced by issue #99750, Crash with 'File Output' node
 Referenced by issue #98444, Regression: image.save_render() command changes color profile and file type when saving.
 Referenced by issue #74610, Saving image from image editor resets Image Texture color space
+Referenced by issue #68926, Color Management Improvements
