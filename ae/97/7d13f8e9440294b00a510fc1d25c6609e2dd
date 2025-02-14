@@ -1,3 +1,4 @@
 Referenced by issue #62312, All transforms made before or after Inset or Bevel are undone when exiting Edit mode
 Referenced by issue #62279, Rendering simple geometry corrupts with greasepencil layer
 Referenced by issue #62220, Solid shading mode - Shadow glitch
+Referenced by issue #62161, Remembering values
