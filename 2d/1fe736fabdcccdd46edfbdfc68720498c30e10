@@ -1,2 +1,3 @@
 Referenced by commit b70bbfadfec, Fix T102000: Curve Shrink Fatten doesn't work for zero radius
 Referenced by issue #102000, Spline radius doesn't work proerly
+Referenced by issue #96238, shrinking to zero doesn't actually scales the radius to zero
