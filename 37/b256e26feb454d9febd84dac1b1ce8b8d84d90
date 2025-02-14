@@ -1,2 +1,3 @@
 Referenced by commit bbe7183cd39, GHOST/Wayland: fix threaded event handling
 Referenced by commit c2c41fb14ce, Fix missing title-bar redrawing with Wayland & libdecor
+Referenced by issue #100855, GHOST/Wayland: Terminal Ctrl-C closes the window while Python is running
