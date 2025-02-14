@@ -3,3 +3,4 @@ Referenced by issue #79970, Camera Animation Breaks EEVEE Motion Blur (Two Steps
 Referenced by issue #79672, Motion blur steps value incorrectly changes shutter duration and affects AA quality
 Referenced by issue #79630, Crop and transparent in render
 Referenced by issue #79533, Crash when opening file
+Referenced by issue #78452, crash while switching camera in animation rendering (only when motion blur is on in eevee render settings )
