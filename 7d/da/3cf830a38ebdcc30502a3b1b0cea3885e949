@@ -1,1 +1,2 @@
 Referenced by commit d1d359b792f, Depsgraph: Fix missing relations for objects which are indirectly linked
+Referenced by issue #49993, Indirectly used taper/bevel crashes new dependency graph
