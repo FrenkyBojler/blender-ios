@@ -46,3 +46,4 @@ Referenced by issue #45954, Inset: VCol not correctly initiated for new vertices
 Referenced by issue #45918, CustomDataLayer with type CD_MLOOPUV in Mesh::ldata::layers sometimes points to different memory than Mesh::mloopuv
 Referenced by issue #45892, GPU Render Using AMD FirePro W5000 Crashes
 Referenced by issue #45903, ikSPline error with new depsgraph
+Referenced by issue #45884, Blender crashes when copy a of an armature is copied
