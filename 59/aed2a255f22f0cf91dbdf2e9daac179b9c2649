@@ -1,1 +1,2 @@
 Referenced by issue #77453, Image texture not repeating in viewport, renders correctly (2.83.0 and 2.90)
+Referenced by issue #73726, Artifacts appear on textures with 'Closest' interpolation set in Solid viewport renderer.
