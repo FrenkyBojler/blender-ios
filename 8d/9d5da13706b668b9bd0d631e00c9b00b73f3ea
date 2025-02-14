@@ -1,1 +1,2 @@
 Referenced by issue #99204, Texture baking results are different (and worse) from previous versions of Blender.
+Referenced by issue #94963, The viewport may update at 0 FPS while navigating, until the mouse is released.
