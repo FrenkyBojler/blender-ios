@@ -1,1 +1,2 @@
 Referenced by issue #80396, Potential candidates for corrective releases
+Referenced by issue #68024, Crash using Weight Paint Gradient on mesh with specific modifiers (2 mods depending on normals + generative mod) - missing CD_ORIGINDEX layer then
