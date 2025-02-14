@@ -2,3 +2,4 @@ Referenced by issue #44957, Buildbot Builds Crash (Gooseberry)
 Referenced by issue #44621, Convert Hair Particules (Whole Group) doesn't respect duplicated Group Hierarchy
 Referenced by issue #44631, Custom Normal Data Transfer crash.
 Referenced by issue #44616, Cycles : Texture Loading : 42k by 21k textures crash Cycles
+Referenced by issue #43486, Include Python executable with Blender.
