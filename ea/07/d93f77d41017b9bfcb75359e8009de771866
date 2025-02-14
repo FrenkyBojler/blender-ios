@@ -1,2 +1,3 @@
 Referenced by issue #41590, When scene scale is not 1.0, and units are "None," Blender assumes translations are in meters
 Referenced by issue #41524, Won't open blend file with "space" symbol in the name
+Referenced by issue #41497, Colour Ramp UI Bug
