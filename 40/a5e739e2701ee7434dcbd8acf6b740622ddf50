@@ -5,3 +5,4 @@ Referenced by issue #122310, Can't rename ID to a name if there's another ID of 
 Referenced by issue #121841, Image Separate/Combine XYZ to File Output with EXR leads to incorrect result
 Referenced by issue #120990, EXCEPTION_ACCESS_VIOLATION
 Referenced by issue #120736, Snap Closest from Bezier Curve object has one unit offset in Blender 4.1
+Referenced by issue #120556, Crash on start
