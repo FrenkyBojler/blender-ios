@@ -1,2 +1,3 @@
 Referenced by commit 36f0ecb978b, Fix #117900: Sculpt mode doesn't clear face corner normals
 Referenced by commit 5af8b839cfc, Fix #113988:  Deformed PBVH modifies original normals
+Referenced by issue #122947, Shading bugs of sculpting by curve stroke on an reused mesh
