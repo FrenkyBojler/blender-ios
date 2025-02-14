@@ -1,2 +1,3 @@
 Referenced by commit 9840dd233c0, Fix: VSE: use after free in for loop
 Referenced by issue #129835, Fix: VSE: use after free in for loop
+Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
