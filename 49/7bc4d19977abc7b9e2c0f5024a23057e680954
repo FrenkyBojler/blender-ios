@@ -1,3 +1,4 @@
 Referenced by commit b4ea8583ed3, WM: correct logic for resetting add-ons & caching meta-data
 Referenced by commit 6293cf61312, Fix T90630: Crash loading certain user preferences
 Referenced by issue #90630, Crash with certain startup/user preferences configurations after recent changes to WM init (rB497bc4d19977)
+Referenced by issue #89046, Blender will not start if referencing bpy.context.scene.render.fps with expression in startup file
