@@ -51,3 +51,4 @@ Referenced by issue #41585, Tex paint setting bug
 Referenced by issue #41589, 2.71 - Node editor header - add new texture in note editor does not show / intermittent
 Referenced by issue #41580, Cast modifier - Edit Cache problems
 Referenced by issue #41560, Multiple loop subdivide
+Referenced by issue #41554, Segments Value in Bevel Tool doesn't do anything when beveling vertices of a plane
