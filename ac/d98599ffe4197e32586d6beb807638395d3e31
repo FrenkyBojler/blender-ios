@@ -1,2 +1,3 @@
 Referenced by issue #71886, Overwriting "X" Shortcut leads to error message on clicking
 Referenced by issue #67149, Assigning shortcut to Sequencer data is wrongly 'hooked' the Scene instead of Scene's VSE data
+Referenced by issue #65397, Assigning shortcut to editor properties gives errors
