@@ -3,3 +3,4 @@ Referenced by commit 9cad2e87713, Fix #110682: Loading old files crashes from mi
 Referenced by commit 95edff7495b, Cleanup: Rename mesh custom data fields
 Referenced by issue #112037, Fix #111898: Custom normals data transfer modifier does not work
 Referenced by issue #111898, Regression: Custom normals data transfer modifier does not work
+Referenced by issue #110432, Cleanup: Rename mesh custom data fields
