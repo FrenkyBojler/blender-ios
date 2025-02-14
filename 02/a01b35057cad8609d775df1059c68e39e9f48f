@@ -1,0 +1,1 @@
+Referenced by issue #54033, Bmesh fails to cut a mesh when the bool object is a plane.
