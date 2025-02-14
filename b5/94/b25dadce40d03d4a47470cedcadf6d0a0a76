@@ -5,3 +5,4 @@ Referenced by issue #47681, bump node doesn't work with SSS shader
 Referenced by issue #47667, Uneven width of colors in ColorRamp with constant selected
 Referenced by issue #47655, OpenVDB cache files have extra "_00" at end.
 Referenced by issue #47658, Crashes with rendering extremely huge image
+Referenced by issue #47642, 2.77 hash 509270e Crash when Cycles Baking
