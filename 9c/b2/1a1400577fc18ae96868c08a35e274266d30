@@ -1,2 +1,3 @@
 Referenced by issue #51708, Vertex group panel won't show object's vertex groups
 Referenced by issue #50836, Combined Bake uses the wrong target image when there are multiple materials with image textures.
+Referenced by issue #50769, Crash on launch on Mac Pro with AMD FirePro D500 (CUDA?)
