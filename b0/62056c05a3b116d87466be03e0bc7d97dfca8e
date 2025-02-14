@@ -1,1 +1,2 @@
 Referenced by commit ec574b5b090, Cleanup: remove (unused) RNA update cache
+Referenced by issue #86675, properties made with python (bpy.props) do not update with drivers and keyframes animation
