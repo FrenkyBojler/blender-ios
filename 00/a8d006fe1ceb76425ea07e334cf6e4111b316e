@@ -1,2 +1,3 @@
 Referenced by commit 179f2a3cb11, PyGPU: Show error for unsupported POLYLINE shader configurations
 Referenced by commit 19fee82b726, Fix #131236: 'batch_for_shader' not working with POLYLINE shaders
+Referenced by issue #131133, Viewport Navigation Gizmo sometimes doesn't display the axis lines.
