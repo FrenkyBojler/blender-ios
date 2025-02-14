@@ -1,2 +1,3 @@
 Referenced by commit 3d72c37f7ad, Fix T101686: WPaint + Pose select fails with GPU depth-picking disabled
 Referenced by issue #101686, Regression: Weight Painting: CTRL+LClick to select bone does not work if mesh is in front of bone
+Referenced by issue #96752, Proposal: disable object mode selection cycling on first click
