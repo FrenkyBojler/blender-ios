@@ -25,3 +25,4 @@ Referenced by issue #46221, Mixed shader Glass and Transparent displayed as soli
 Referenced by issue #46223, Open EXR multiview image sequences crash Blender 2.75a and 2.76rc
 Referenced by issue #46217, Baked normal artifacts
 Referenced by issue #46133, Units change to none after editing an added cylinder
+Referenced by issue #46110, Cycles: rays miss triangles
