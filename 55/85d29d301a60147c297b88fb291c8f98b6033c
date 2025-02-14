@@ -1,1 +1,2 @@
 Referenced by commit 5c07d52240c, Fix #131745: Grease Pencil: Removing vertex group hits assert
+Referenced by commit 32c76ee768c, Fix: GPv3: Unused parameter in `remove_from_vertex_group`
