@@ -49,3 +49,4 @@ Referenced by issue #49077, Collada exporter does not respect 'shadeless' flag
 Referenced by issue #49078, When rendering fire in cycles, odd duplicates appear when the camera is located inside the domain
 Referenced by issue #49082, Crash when connecting nodes with to node group input or output
 Referenced by issue #49085, screen UI redraw bad characters
+Referenced by issue #49059, CUDA error: Launch failed in cuCtxSynchronize()
