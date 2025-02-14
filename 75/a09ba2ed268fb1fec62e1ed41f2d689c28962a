@@ -1,3 +1,4 @@
 Referenced by issue #78984, Deleting a bone crashes blender.
 Referenced by issue #78837, Prefetching can corrupt .blend files
 Referenced by issue #78659, Blender crash when opening video sequence editor after save and reopen of file
+Referenced by issue #77348, Blender LTS: Maintenance Task 2.83
