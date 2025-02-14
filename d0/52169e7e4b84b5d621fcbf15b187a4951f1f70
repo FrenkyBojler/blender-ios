@@ -1,1 +1,2 @@
 Referenced by commit f99beb730aa, Fix T96347: Pose gizmo shown at wrong location with multiple objects
+Referenced by issue #96347, Regression: The location of "Viewport Gizmos" is not correct in POSE mode (multi-object/armature editing, multiple bones selected)
