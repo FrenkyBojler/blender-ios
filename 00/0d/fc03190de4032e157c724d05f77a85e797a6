@@ -11,3 +11,4 @@ Referenced by issue #46731, Proxy controls break when appending in scenes to new
 Referenced by issue #46732, Proxy stamp ( Meta data) not rendering in hardware using VSE
 Referenced by issue #46709, Sculpt mode freezes Blender with Dynamic topography
 Referenced by issue #46596, OpenGL display problems with submenus on OSX
+Referenced by issue #46327, UV interpolation problem using nodes and cycles
