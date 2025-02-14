@@ -6,3 +6,4 @@ Referenced by issue #109047, Regression: Screw modifier's smooth shading option 
 Referenced by issue #109052, Fix #109047: Screw modifier's smooth shading option does not work
 Referenced by issue #107353, Regression: Array Caps broken on empty mesh in 3.5.
 Referenced by issue #105926, Sharp edge attribute gets cleared if all edges of mesh are sharp
+Referenced by issue #105587, Regression: Triangulated shading in sculpt mode
