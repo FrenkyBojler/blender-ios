@@ -1,2 +1,3 @@
 Referenced by commit 5da03630139, Fix #119617: crash because node sockets depend on experimental feature flag
 Referenced by issue #119617, Geometry Nodes: Crash when opening file
+Referenced by issue #119620, Fix #119617: crash because node sockets depend on experimental feature flag
