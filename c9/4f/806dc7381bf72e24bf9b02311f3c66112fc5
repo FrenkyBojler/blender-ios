@@ -4,3 +4,4 @@ Referenced by issue #57876, SSS in nodegroups are black in eevee
 Referenced by issue #57859, Grease pencil sorting issues (backfacing/doublesided)
 Referenced by issue #57845, Workspaces Issue
 Referenced by issue #57850, Crash Bevel Modifier with Vertex Group
+Referenced by issue #57841, Backfacing transparency appears black in GPU (OpenCL) rendering - Cycles
