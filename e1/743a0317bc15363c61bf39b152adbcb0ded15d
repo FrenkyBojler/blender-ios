@@ -7,3 +7,4 @@ Referenced by issue #124427, Cycles lacks support for MI300X
 Referenced by issue #124413, EEVEE_Next Unavalible
 Referenced by issue #123974, Immediate crash on file open (related to "corrupt" `NodesModifierBake`)
 Referenced by issue #123164, Crash on startup
+Referenced by issue #122836, Freezing double screen under Linux (Pop-os)
