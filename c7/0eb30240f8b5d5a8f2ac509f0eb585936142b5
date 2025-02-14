@@ -1,1 +1,2 @@
 Referenced by commit 9fe53bd4a1a, Build Environment/macOS/Python: link against zlib statically
+Referenced by issue #85648, macOS: addons fail to import due to Python 3.9 libraries linking against libz.dylib
