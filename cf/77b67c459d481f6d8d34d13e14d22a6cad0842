@@ -1,1 +1,2 @@
 Referenced by commit e2806b7429c, Revert "Fix T71576 Mesh error on mutimaterial Meshes on legacy nvidia drivers"
+Referenced by issue #71576, Viewport/crash artefacts with multiple materials and legacy NVIDIA drivers
