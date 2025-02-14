@@ -4,3 +4,4 @@ Referenced by issue #52034, Texture nodes regression in latest build of 2.78c
 Referenced by issue #51965, Custom Bone Shape Wireframe setting affects wireframe thickness
 Referenced by issue #51951, Texture overlapping in BI
 Referenced by issue #50230, Rigid body point cache jumps
+Referenced by issue #50126, Modeling (mode edit) and stack overflow into the driver NVIDIA
