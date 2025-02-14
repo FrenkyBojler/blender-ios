@@ -1,1 +1,2 @@
 Referenced by commit 58a67e6fb6d, Attributes: Adjustments to duplicate attribute API function
+Referenced by issue #102670, Regression: Crash after deleting color attributes and switching mode
