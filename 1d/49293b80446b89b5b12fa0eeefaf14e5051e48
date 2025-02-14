@@ -2,3 +2,4 @@ Referenced by commit 703dff333ce, Fix T99459: GPencil: Fill tool on the surface 
 Referenced by commit 2d3a62fe165, Fix invalid NULL check in GPU_viewport_unbind_from_offscreen
 Referenced by commit 6774cae3f25, Fix T94728: Auto Depth problem with Cliping Region
 Referenced by issue #92609, Default Compositing tab shows red overlay when stereoscopy is turned on
+Referenced by issue #92250, Eevee Render crash with Motion Blur and Overscan
