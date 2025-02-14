@@ -1,1 +1,2 @@
 Referenced by issue #102329, Regression: Geometry Node: Asset blender::bke::node_tree_runtime::topology_cache_is_available(*this) in debug when cut the link
+Referenced by issue #101361, Regression: Collapsed multi-input sockets not collapsing noodles
