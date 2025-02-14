@@ -1,1 +1,2 @@
 Referenced by issue #98779, UI: Reroutes not connecting as expected, always defaulting to "s" shape
+Referenced by issue #98230, Regression: Automatic Constraint doesn't work if cursor is not moving
