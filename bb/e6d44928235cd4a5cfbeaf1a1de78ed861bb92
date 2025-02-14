@@ -1,3 +1,4 @@
 Referenced by commit 88d94d89fad, Fix T87007: Cycles Background not updated if strength is initially null
 Referenced by commit 42198e9eb03, Fix T86601: Cycles accumulates displacement when transforming an Object
 Referenced by commit 96e60cc22ca, Fix T86567: Cycles crashes when playing back animated volumes
+Referenced by commit 349c17cf543, Fix T85462: crash in render mode while removing instances
