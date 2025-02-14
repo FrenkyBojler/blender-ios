@@ -1,0 +1,1 @@
+Referenced by issue #87035, Replace `#ifdef COM_Debug` with constexpr function.
