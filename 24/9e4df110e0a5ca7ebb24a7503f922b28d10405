@@ -28,3 +28,4 @@ Referenced by commit da1b6c4c02d, Outliner: Port sequencer elements to new tree-
 Referenced by commit 9bce134e56c, Outliner: Port RNA elements to new tree-element design
 Referenced by commit 4292bb060d5, Outliner: Port scene elements and some related types to new tree-element code design
 Referenced by commit 3a907e74250, Outliner: Barebones to port IDs to new Outliner tree-element code design
+Referenced by commit e0442a955ba, UI Code Quality: Port Outliner Grease Pencil layers to new design
