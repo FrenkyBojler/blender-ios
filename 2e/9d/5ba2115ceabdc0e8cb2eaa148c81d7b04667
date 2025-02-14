@@ -1,2 +1,3 @@
 Referenced by issue #73293, Mesh Edit -> Repeat Last menu option fails for vert/edge slide (while hotkey works)
 Referenced by issue #73051, Multiple IK chains influencing the same bone don't work
+Referenced by issue #62565, conflict with how Blender is sampling OSX input/stroke events
