@@ -1,3 +1,4 @@
 Referenced by issue #57673, FBX lost custom vertex normals after import to 3dsMax
 Referenced by issue #57663, Exported FBX has broken hard edges in 3dsMax
 Referenced by issue #57653, Crash when i switch from edit mode to sculpt mode
+Referenced by issue #57638, Possible wrong behavour in wireframe mode
