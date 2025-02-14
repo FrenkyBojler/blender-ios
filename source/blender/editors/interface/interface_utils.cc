@@ -396,7 +396,7 @@ static bool add_collection_search_item(CollItemSearch &cis,
   }
 
   return UI_search_item_add(items,
-                            cis.name.c_str(),
+                            cis.name,
                             cis.data,
                             cis.iconid,
                             cis.has_sep_char ? int(UI_BUT_HAS_SEP_CHAR) : 0,
@@ -603,13 +603,13 @@ int UI_icon_from_report_type(int type)
 int UI_icon_colorid_from_report_type(int type)
 {
   if (type & RPT_ERROR_ALL) {
-    return TH_INFO_ERROR;
+    return TH_ERROR;
   }
   if (type & RPT_WARNING_ALL) {
-    return TH_INFO_WARNING;
+    return TH_WARNING;
   }
   if (type & RPT_INFO_ALL) {
-    return TH_INFO_INFO;
+    return TH_INFO;
   }
   if (type & RPT_DEBUG_ALL) {
     return TH_INFO_DEBUG;
@@ -620,7 +620,7 @@ int UI_icon_colorid_from_report_type(int type)
   if (type & RPT_OPERATOR) {
     return TH_INFO_OPERATOR;
   }
-  return TH_INFO_WARNING;
+  return TH_WARNING;
 }
 
 int UI_text_colorid_from_report_type(int type)
@@ -1022,7 +1022,8 @@ std::optional<std::string> UI_key_event_operator_string(const bContext *C,
   short event_type = KM_NOTHING;
 
   uiBut *listbox = nullptr;
-  LISTBASE_FOREACH_BACKWARD (uiBut *, but_iter, &but->block->buttons) {
+  for (int i = but->block->buttons.size() - 1; i >= 0; i--) {
+    uiBut *but_iter = but->block->buttons[i].get();
     if ((but_iter->type == UI_BTYPE_LISTBOX) && ui_but_contains_rect(but_iter, &but->rect)) {
       listbox = but_iter;
       break;
