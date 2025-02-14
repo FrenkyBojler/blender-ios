@@ -2,3 +2,4 @@ Referenced by commit 908552e5f38, Fix #122300: F3 crash (missing null check in r
 Referenced by issue #122300, F3 operator search crashes
 Referenced by issue #122301, Fix #122300: F3 crash (missing null check in recent image operator poll)
 Referenced by issue #122131, Crash on Undo after editing an Image from a Linked Library
+Referenced by issue #122033, Packed images inside a linked library can be modified and saved by the main file, causing data loss on reload
