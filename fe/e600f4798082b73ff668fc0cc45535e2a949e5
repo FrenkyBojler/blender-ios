@@ -4,3 +4,4 @@ Referenced by issue #65413, Crash when applying material to a face
 Referenced by issue #65383, UI graphics glitches on macOS with Intel HD 4000
 Referenced by issue #65310, Blender 2.8 Cycles Image Texture node missing Color/Non-Color data option
 Referenced by issue #65311, Crash when right click on buttons
+Referenced by issue #65294, 3D View orbit navigation widget doesn't work in paint modes
