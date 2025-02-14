@@ -1,2 +1,3 @@
 Referenced by commit 1006767678e, Fix crash opening file saved in editmode with a brush image texture
 Referenced by issue #64094, Freeze & sudden crash when opening file.
+Referenced by issue #58423, UV Sculpt tools don't work
