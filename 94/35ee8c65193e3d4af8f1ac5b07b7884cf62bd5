@@ -1,2 +1,3 @@
 Referenced by issue #99851, Regression: Subdivide Curve nodes sets radius to 0 on multiple bezier splines
 Referenced by issue #99648, Regression: Subdivide Curve node functions incorrectly when operating on certain outputs of a Mesh to Curve node
+Referenced by issue #95443, Refactor curve nodes to use new data structure
