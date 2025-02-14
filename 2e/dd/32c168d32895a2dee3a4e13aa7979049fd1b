@@ -1,2 +1,3 @@
 Referenced by issue #60244, Bisect in mirror modifier doesn't work properly
 Referenced by issue #60246, Blender crashes when baking a texture from cycles
+Referenced by issue #60248, Pressing shift+D while in the outliner window when selecting an object causes Blender 2.8 to shut down immediately
