@@ -1,2 +1,3 @@
 Referenced by issue #44537, Cycles generated texture mapping stretching problem
 Referenced by issue #44074, Parenting camera to object makes the object move when Shift+F is used on the camera.
+Referenced by issue #44076, SSAO in solid mode in viewport disables Antialiasing for wireframe mode too.
