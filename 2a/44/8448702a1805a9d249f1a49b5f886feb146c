@@ -1,2 +1,3 @@
 Referenced by issue #41567, Metaball rendering stuck on 1 sample
 Referenced by issue #41568, Dissolve Vertices with Tear Boundary Option keeps one vert every two verts.
+Referenced by issue #41532, Some files bounce back and forth between 'packing BVH nodes' and 'Copying Transforms to Device'
