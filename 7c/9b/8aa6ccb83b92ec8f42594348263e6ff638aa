@@ -4,3 +4,4 @@ Referenced by issue #41489, Strange behaviour of the solidify modifier when "eve
 Referenced by issue #41491, Strange behaviour of the solidify modifier when "even thickness" is enabled.
 Referenced by issue #41472, Redundant freestyle stroke drawing during viewport render
 Referenced by issue #41473, Cycles volume rendering is too dark
+Referenced by issue #41450, Text in 3d viewport blurry with AA turned on
