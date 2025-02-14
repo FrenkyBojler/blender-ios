@@ -51,3 +51,4 @@ Referenced by issue #58171, Crash when using over 2 particles systems
 Referenced by issue #58173, UV editor: "shared location" doesn't work correctly
 Referenced by issue #58176, Loop Cut Doesn't Exit Properly
 Referenced by issue #58164, Parent/child hierarchy in Outliner doesn't show properly
+Referenced by issue #58167, Export arrow points the wrong way
