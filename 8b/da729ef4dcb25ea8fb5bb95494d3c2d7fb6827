@@ -5,3 +5,4 @@ Referenced by issue #113421, The attribute value does not show in instances from
 Referenced by issue #111308, crash on render/viewport render
 Referenced by issue #111201, crash when import fbx
 Referenced by issue #111176, Extrude along normals -> Extrude Region and Shrink Flatten -> Offset even -> Default not read from keymap settings
+Referenced by issue #110878, VSE: Frame Rate Base Rounding Leads To Vid / Audio Strips Out Of Sync by 1 Frame
