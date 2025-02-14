@@ -1,2 +1,3 @@
 Referenced by issue #93160, Boolean Operation on Mesh Grid Cause "Random Per Island" to Give Unpredictable Results in Cycles
 Referenced by issue #92962, Mesh Boolean node changes vertex indices randomly
+Referenced by issue #88449, Blender LTS: Maintenance Task 2.93
