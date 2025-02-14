@@ -2,3 +2,4 @@ Referenced by commit 71df15de04d, Fix #121265: Normals of faceless vertices are 
 Referenced by commit c3f1bacc806, Fix #118798: Weight paint overlay broken
 Referenced by commit 5463dd1f69d, Cleanup: Rename mesh extraction file
 Referenced by issue #121265, Normals of faceless vertices are not displayed anymore
+Referenced by issue #120781, 3D Viewport wireframes can anti-alias in a wonky way
