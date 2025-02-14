@@ -1,1 +1,2 @@
 Referenced by issue #36164, bad bevel modifier weight results
+Referenced by issue #34504, Bevel no longer maintains corect angle (distorts) when beveling at 45 degrees.
