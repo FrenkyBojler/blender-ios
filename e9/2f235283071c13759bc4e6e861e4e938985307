@@ -41,3 +41,4 @@ Referenced by issue #51994, Front View Mislabelled
 Referenced by issue #51996, Point Density casts wrong shadows
 Referenced by issue #51889, Broken UI after creating new file in 2.79 test and daily builds
 Referenced by issue #51854, Blender 2.78 crashes when Open Shading Language is turned on
+Referenced by issue #51841, Z and Y axis become same axis (Gimbal Lock?)
