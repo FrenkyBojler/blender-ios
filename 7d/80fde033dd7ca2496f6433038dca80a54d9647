@@ -7,3 +7,4 @@ Referenced by issue #122276, Crash when searching for a Collection Instance (Add
 Referenced by issue #122109, Crash opening toolbar and moving mouser down
 Referenced by issue #121954, Keyboard input is not working with HSV color
 Referenced by issue #121905, Spacebar action "Tools" freezes and crashes Blender
+Referenced by issue #121902, Regression: Color picker no longer accepts manual HEX color values in Blender 4.2.0 Alpha
