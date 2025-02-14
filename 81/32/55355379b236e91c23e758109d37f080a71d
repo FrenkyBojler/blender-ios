@@ -1,0 +1,1 @@
+Referenced by issue #47428, Deleting keyframe in node group makes a zombie action data block when the node had an action
