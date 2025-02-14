@@ -1,2 +1,3 @@
 Referenced by issue #69171, Rigify rig creation crashes blender
 Referenced by issue #69165, Changing bbone_easein/out outside of Edit Mode crashes Blender
+Referenced by issue #68826, eevee not showing multi material object properly when blend is loaded until mesh is updated
