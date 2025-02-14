@@ -1,2 +1,3 @@
 Referenced by issue #127645, Grease Pencil objects get hidden when Overlay mode is off - Blender 4.2.2 RC v42.252cc7839f14
 Referenced by issue #127271, Grease Pencil objects missing on some rendered frames when render done in Python with Eevee Next
+Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
