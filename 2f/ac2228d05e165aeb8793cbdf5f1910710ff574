@@ -1,2 +1,3 @@
 Referenced by commit ad0b9dbdd21, Fix #113763: Float2 attributes on curves not rendering in Cycles
 Referenced by issue #113884, Fix #113763: Float2 attributes on curves not rendering in Cycles
+Referenced by issue #113763, Spline attribute not rendered in Cycles (regression from 3.6)
