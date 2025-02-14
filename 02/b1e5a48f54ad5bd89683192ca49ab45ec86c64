@@ -1,2 +1,3 @@
 Referenced by commit 1717eb1919c, Fix 132769: Reset Mouse Cursor In Popups
 Referenced by issue #132775, Fix 132769: Reset Mouse Cursor In Popups
+Referenced by issue #132769, Regression: Cursor in popup don't update back to default after leaving numeric inputs
