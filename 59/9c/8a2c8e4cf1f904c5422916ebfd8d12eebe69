@@ -1,2 +1,3 @@
 Referenced by commit 7728bfd4c45, Constraints: remove special meaning of Local Space for parentless Objects.
 Referenced by issue #91117, Copy Rotation object constraint not working in local space
+Referenced by issue #43204, Bone shrinkwrap constraint in project mode does not respect pose space; acts in bone's local space
