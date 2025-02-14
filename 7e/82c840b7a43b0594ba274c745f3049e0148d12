@@ -2,3 +2,4 @@ Referenced by issue #96267, N-Panel font size in 3.1 too big
 Referenced by issue #93294, vertex paint sample color not working as intended.
 Referenced by issue #93155, Rendering window is displaying wrongly result during rendering.
 Referenced by issue #93130, View/Frame Selected (Vertex Paint mode) not working
+Referenced by issue #93129, Vertex Paint Viewport Overlays stencil mask not working
