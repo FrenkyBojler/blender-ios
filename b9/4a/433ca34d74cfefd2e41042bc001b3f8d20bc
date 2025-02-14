@@ -3,3 +3,4 @@ Referenced by issue #52488, Linux - Audio Mixdown - flac audio isnt created corr
 Referenced by issue #52295, Boolean - Bmesh - Fails when there are duplicate verts
 Referenced by issue #52291, Boolean - BMesh - Sometimes fails when using ngons
 Referenced by issue #52255, New Depsgraph - Constraint and Drivers not working together when the driver references itself
+Referenced by issue #52085, New Depsgraph - Changing camera is not evaluated properly
