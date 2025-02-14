@@ -1,1 +1,2 @@
 Referenced by commit dd0e2da00e3, Cleanup unintentional change in rB8a2270efc52a
+Referenced by issue #81265, Animation is not evaluated when collection is included into view layer
