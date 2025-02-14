@@ -1,3 +1,4 @@
 Referenced by issue #50533, Transparency shader doesn't cast shadows with curve segments
 Referenced by issue #50497, Python : prop_search not correctly drew in UI
 Referenced by issue #50486, Snap conflict, viewport clipping + work in the middle of two faces
+Referenced by issue #50474, Blender/Cycles 2.78a OpenCL kernel compilation error on AMD GPU
