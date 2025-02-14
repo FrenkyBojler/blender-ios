@@ -1,0 +1,1 @@
+Referenced by issue #70617, Python mesh.from_pydata() misses first edge if there are faces
