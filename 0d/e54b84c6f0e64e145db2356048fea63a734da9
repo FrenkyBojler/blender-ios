@@ -5,3 +5,4 @@ Referenced by issue #108878, Annonymous Attributes and Simulation Nodes - propag
 Referenced by issue #108120, Regression: User interface graphic artefacts during cycles render
 Referenced by issue #107826, Regression: Volumes not rendering (EEVEE & Cycles)
 Referenced by issue #107219, Simulation Nodes: Support anonymous attributes.
+Referenced by issue #104924, Geometry Nodes: add simulation support
