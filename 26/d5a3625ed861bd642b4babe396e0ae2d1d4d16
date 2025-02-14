@@ -53,3 +53,4 @@ Referenced by issue #58176, Loop Cut Doesn't Exit Properly
 Referenced by issue #58164, Parent/child hierarchy in Outliner doesn't show properly
 Referenced by issue #58167, Export arrow points the wrong way
 Referenced by issue #58168, Displace Modifier Viewport Update with Texture (Generated)
+Referenced by issue #58154, X-Mirror for edit mesh is broken in 2.8 Beta
