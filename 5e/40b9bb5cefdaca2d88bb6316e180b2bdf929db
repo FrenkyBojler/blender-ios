@@ -1,1 +1,2 @@
 Referenced by commit 89583e991db, Fix: Cycles rough diffuse rendering with bright input color in OSL
+Referenced by issue #123527, Cycles: Fix rough diffuse rendering with bright input color in OSL
