@@ -1,1 +1,2 @@
 Referenced by issue #94338, bpy.data.libraries.load does not return the right thing (Geometry Nodes, Collections, Shader nodes are fine)
+Referenced by issue #91414, Unify link/append between WM operators and BPY context manager API, and cleanup usages of `BKE_library_make_local`
