@@ -27,3 +27,4 @@ Referenced by issue #95839, Data race when lazily creating mesh normal layers
 Referenced by issue #95471, Baking normals gives wrong results (caused by normals MVert refactor)
 Referenced by issue #95334, Crash when baking normals when smooth shading is set.
 Referenced by issue #95212, The mirror modifier crashes Blender
+Referenced by issue #94986, Inset Faces operator depth not affecting existing vertices
