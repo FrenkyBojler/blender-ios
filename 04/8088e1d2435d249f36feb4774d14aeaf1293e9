@@ -1,1 +1,2 @@
 Referenced by commit 4243c294639, Revert "Fix T61988: Bevel mitering on small objects."
+Referenced by issue #61988, Bevel mitering doens't work on small objects
