@@ -1,2 +1,3 @@
 Referenced by commit 08048f7cceb, Fix T75810: Child bone frozen when both Auto IK and X-Axis mirror are
 Referenced by issue #75810, Child bone frozen when both Auto IK and X-Axis mirror are used
+Referenced by issue #75142, No automatic keyframe insertion with X-Mirror on armature in Pose Mode
