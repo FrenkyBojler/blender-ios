@@ -1,2 +1,3 @@
 Referenced by commit a1182e07b10, Build: upgrade Intel Graphics Compiler and ocloc on Linux
 Referenced by issue #127251, Build: upgrade Intel Graphics Compiler and ocloc on Linux
+Referenced by issue #117027, Cycles: build graphics binaries for Meteor Lake iGPUs
