@@ -1,1 +1,2 @@
 Referenced by commit d83a418c456, Fix T98727: Dynamic Paint does not update normals
+Referenced by issue #98056, Crash opening a certain file with "Autosmooth" set
