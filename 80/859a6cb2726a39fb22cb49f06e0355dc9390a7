@@ -29,3 +29,4 @@ Referenced by issue #98251, Regression: Wrong normalmaps on scaled objects
 Referenced by issue #98231, Regression: Material Output inside node group not working if there is a Group Output Node
 Referenced by issue #98190, Render of 3D image is very slow
 Referenced by issue #98128, Regression: EEVEE: Default Cube is black on Intel
+Referenced by issue #98026, Regression: Crash when rendering with Eevee and Cryptomatte passes enabled
