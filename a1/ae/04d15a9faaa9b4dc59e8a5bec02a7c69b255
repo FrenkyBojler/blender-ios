@@ -14,3 +14,4 @@ Referenced by issue #61016, Camera's should have selectable focus objects while 
 Referenced by issue #60713, EEVEE crashes during shader compilation
 Referenced by issue #60660, TEXTURE PAINT tab BUG- Undo a simple PAINT operation using CTRL-Z and it removes entire TEXTURE IMAGE-Workarounds and Thorough Steps to Repeatability BELOW.
 Referenced by issue #60536, Crashes after 2nd time rendering scene with GPU Compute
+Referenced by issue #58710, Eevee material preview white
