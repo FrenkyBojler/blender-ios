@@ -1,2 +1,3 @@
 Referenced by issue #77572, Reference image opacity value doesn't work with Blender 2.83+ (Intel HD 630 with Mesa 20, regression from D6729)
 Referenced by issue #70356, Scaling up 1x1 pixel image reads past buffer bounds
+Referenced by issue #57646, Clip random marker placement in track/mask - not working in 2.8
