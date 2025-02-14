@@ -1,1 +1,2 @@
 Referenced by issue #59913, Saving Cloth Preset gives error due to old code in presets.py
+Referenced by issue #59690, Error adding Cloth Preset [2.80] - no attribute Spring_damping
