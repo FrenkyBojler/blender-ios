@@ -1,1 +1,2 @@
 Referenced by issue #41532, Some files bounce back and forth between 'packing BVH nodes' and 'Copying Transforms to Device'
+Referenced by issue #41267, Cycles: lighting flick
