@@ -2,3 +2,4 @@ Referenced by issue #124070, Crash when accessing screen from depsgraph_update_p
 Referenced by issue #124060, Eevee-next Intel Arc: SSR is broken on Windows
 Referenced by issue #124044, EEVEE: Crash with motion blur - Linux/Mesa/RX7000
 Referenced by issue #123994, Local Repository Initialisation uses wrong path on drag and drop
+Referenced by issue #115942, Eevee-Next Intel Arc: Switching to Eevee-next causes Blender to stop redrawing
