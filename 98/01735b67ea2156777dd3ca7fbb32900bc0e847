@@ -1,0 +1,1 @@
+Referenced by issue #88190, IDProperty iterator fails when the data it's looping over goes out of scope
