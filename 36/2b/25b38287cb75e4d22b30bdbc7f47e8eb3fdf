@@ -1,1 +1,2 @@
 Referenced by commit 728d1ec5046, BGE: Fix T46381 : last action frame not updated.
+Referenced by issue #40379, Cycles : CUDA Rendering : Environment with MIS uses double memory usage
