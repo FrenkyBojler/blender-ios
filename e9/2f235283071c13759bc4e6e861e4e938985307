@@ -79,3 +79,4 @@ Referenced by issue #51295, Blender cant find folders with ~ at the end
 Referenced by issue #51296, Particle: UV Texture coordinate issue on hairs emitted from verts
 Referenced by issue #51303, Cycles Nodes - Mix and Multiply Nodes Don't Skip Unnecessary Inputs
 Referenced by issue #51264, Game Engine Crash in Blender 2.78c on a Win 10 PC
+Referenced by issue #51249, Snap to any mesh element in NURBS surface editing does not work properly
