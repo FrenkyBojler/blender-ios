@@ -4,3 +4,4 @@ Referenced by issue #109168, Regression: Immediate Blender Crash in 4.0 when upd
 Referenced by issue #108226, glTF 2.0 Import crashes
 Referenced by issue #108199, Sculpt "Comb" doesn't work on curves made from "Generate Hair Curves" built-in node
 Referenced by issue #108131, 3.6.0 crashes on Mac Pro Intel with AMD GPUs on Cycles / GPU Compute (macOS Monterey)
+Referenced by issue #107605, Blender 3.6.0 Alpha crashes upon rendering on Apple M1 MacBook Air
