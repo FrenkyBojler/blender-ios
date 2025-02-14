@@ -9,3 +9,4 @@ Referenced by issue #111671, Grid artefacts in ortho view on Intel Arc 770
 Referenced by issue #111677, 3.6.2 Segmentation fault on startup with empty Python backtrace
 Referenced by issue #111564, Merging/joining into single object massively increases file size / Fills all available memory.
 Referenced by issue #111556, Shader compilation freeze Blender on Intel Arc770
+Referenced by issue #111374, Sapling Tree Gen
