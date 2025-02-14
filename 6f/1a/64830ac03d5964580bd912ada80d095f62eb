@@ -1,2 +1,3 @@
 Referenced by issue #41079, Solid black render of object with negative scale and smooth shading
 Referenced by issue #40777, Regression ngon in RC2
+Referenced by issue #40507, Blender Internal Render's Gather don't use node's emit color.
