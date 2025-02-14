@@ -42,3 +42,4 @@ Referenced by issue #42745, Cross Effect Strip
 Referenced by issue #42714, Blender 2.72b closes
 Referenced by issue #42718, Smoke simulation rendering issues when enable Render Transparent
 Referenced by issue #42705, F-Curve modifier - Builtin-Function - Wrong Sine Amplitude for Angle transformation
+Referenced by issue #42712, Baking an object's texture is effected by the 'Exclude' option for the first render layer in the Render Layers menu.
