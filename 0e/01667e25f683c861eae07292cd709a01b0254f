@@ -1,1 +1,2 @@
 Referenced by commit bfe6128748d, Fix #114891: bpy.ops.sequencer.split ignores passed frame
+Referenced by issue #114905, Fix #114891: bpy.ops.sequencer.split ignores passed frame
