@@ -21,3 +21,4 @@ Referenced by issue #50421, Blender crashes while Duplicating
 Referenced by issue #50368, Bmesh 'from_mesh' operation removes information regarding bevel weight.
 Referenced by issue #50148, Wrong rounding when moving frames
 Referenced by issue #50067, Any image with the extension .PNG, after loaded and unwrapped in Cycles is shown as 'missing texture'
+Referenced by issue #49962, Switch to Camera Perspective Misaligned
