@@ -1,2 +1,3 @@
 Referenced by commit 341166c728e, Fix #118538: Sculpt smooth mask broken for multires
 Referenced by issue #120231, Crash on `bpy.ops.uv.pack_islands` for certain geometry with `shape_method='CONVEX'`
+Referenced by issue #118538, Smooth Mask doesn't work when we have multires modifier in sculpt mode
