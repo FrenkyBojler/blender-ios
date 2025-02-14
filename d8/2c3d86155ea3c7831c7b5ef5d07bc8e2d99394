@@ -1,2 +1,3 @@
 Referenced by commit 574bd866c86, Fix T78520 EEVEE: No viewport update when changing material nodetree
 Referenced by commit f3e724b93d5, Fix T79370 EEVEE: Texture paint does not update during stroke
+Referenced by commit bcc086584f3, Fix unreported 1 pixel offset when drawing with GPencil
