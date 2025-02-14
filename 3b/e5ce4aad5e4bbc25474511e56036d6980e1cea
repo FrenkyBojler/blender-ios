@@ -1,1 +1,2 @@
 Referenced by commit 4a009b54bc8, Fix broken WorkSpace use after recent refactor of append code.
+Referenced by commit b6d890672c5, Fix crash in 'drag asset' case in new append code from yesterday.
