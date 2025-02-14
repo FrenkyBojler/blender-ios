@@ -1,2 +1,3 @@
 Referenced by commit c78a0f3aa6c, Fix #114692: Sculpt on certain modifiers does not update normals
 Referenced by issue #117033, Fix #114692: Sculpt on certain modifiers does not update normals
+Referenced by issue #114692, Some modifiers affect sculpting brushes (normals not updating)
