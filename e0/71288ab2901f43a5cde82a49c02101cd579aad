@@ -15,3 +15,4 @@ Referenced by issue #112992, Tree View: Scroll bar and resize widget missing fro
 Referenced by issue #112716, Regression: Custom sockets ignore the draw_color method and are always Magenta
 Referenced by issue #112027, Fix #112014: Crash making node group with multiple input links
 Referenced by issue #112014, Regression: Crash when creating compositor node group
+Referenced by issue #111936, Regression: Nodes: Memory leaks
