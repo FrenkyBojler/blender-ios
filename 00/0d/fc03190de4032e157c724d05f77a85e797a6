@@ -51,3 +51,4 @@ Referenced by issue #44921, Cycles node editor, nodes position not maintained af
 Referenced by issue #44930, Loading an image with bpy.data.images.load(path) Freezes the add-on panel in the 3D tool shelf
 Referenced by issue #44917, blender crash on selecting the high density mesh
 Referenced by issue #44919, KX_GameObject pyattr getters leak memory
+Referenced by issue #44908, Blender crashes when trying to use cycles experimental displacement
