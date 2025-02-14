@@ -4,3 +4,4 @@ Referenced by issue #92364, UX: Prevent click-through panels and used header are
 Referenced by issue #91579, Click and drag on the right panel tabs will call active tool (Tweak, Box Select etc)
 Referenced by issue #91538, Pose library panel doesn't play well with left click keymap for viewport rotation
 Referenced by issue #86022, 3D View: mouse clicks pass through interface
+Referenced by issue #71899, Sculpt move tool is applied when clicking within negative space of UI, regardless of active sculpt tool
