@@ -2,3 +2,4 @@ Referenced by issue #54054, Bmesh boolean modifier fails with co-planar geometry
 Referenced by issue #47862, Sequence Editor Cuts
 Referenced by issue #44781, UV Pack islands gives unpredictable results
 Referenced by issue #43302, Error when opening Blender
+Referenced by issue #43100, cycles material crash
