@@ -1,1 +1,2 @@
 Referenced by issue #73044, Crash when changing UV selection modes after pinning UVs in a second UVMap while viewport shading is in solid mode and Color Type is Texture
+Referenced by issue #72044,   Error when highlight UV.
