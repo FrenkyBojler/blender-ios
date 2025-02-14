@@ -40,3 +40,4 @@ Referenced by issue #54577, Cycles smoke render differs on CPU from GPU
 Referenced by issue #54490, VSE breaks when I insert or remove headphones
 Referenced by issue #54477, .blend file can't be exported
 Referenced by issue #54478, Emissive Shader Animated Strength Crash
+Referenced by issue #54479, Pyplot crash when saving plot.
