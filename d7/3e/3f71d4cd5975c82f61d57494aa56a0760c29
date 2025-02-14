@@ -1,0 +1,1 @@
+Referenced by issue #42222, 2.72 fails to build with gcc 4.8/scons, implicit declaration of roundf
