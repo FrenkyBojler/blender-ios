@@ -1,2 +1,3 @@
 Referenced by issue #93896, Vertex group (memory access?) change after applying modifier
 Referenced by issue #90558, Changing output resolution produces gaps in VSE
+Referenced by issue #90294, Lattice not updating all resolution values at once
