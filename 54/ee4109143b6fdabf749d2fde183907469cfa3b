@@ -1,2 +1,3 @@
 Referenced by commit c63442d2f20, Fix T84673: Skin resize operator always using object origin as pivot
 Referenced by commit f41de6dc46a, Fix T84404: Crash when using Skin Resize in mesh without Skin modifier
+Referenced by issue #84673, Skin resize operator is always using object origin as pivot point
