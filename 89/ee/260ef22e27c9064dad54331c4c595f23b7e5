@@ -1,3 +1,4 @@
 Referenced by commit 0e8f36e63d5, Fix #106946: NLA sync length stops keys from being inserted
 Referenced by issue #123902, Fix #106946: NLA sync length stops keys from being inserted
 Referenced by issue #82309, Keying set failed to set keyframes
+Referenced by issue #63675, Placing keyframe outside of NLA Strip frame range while in Tweak Mode no longer possible
