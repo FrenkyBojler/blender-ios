@@ -1,2 +1,3 @@
 Referenced by issue #67671, Blender crashes when sidebar in Shader Editor is resized
 Referenced by issue #67669, Increasing Cylinder Vertices Increases amount of Cylinders
+Referenced by issue #67599, Subdivision Surface Modifier (Simple) on faceless corner acts like Catmull-Clark
