@@ -1,2 +1,3 @@
 Referenced by commit d20fd2da72d, Revert "Cleanup: set var twice"
 Referenced by issue #44853, Blender crashes when using multi edit
+Referenced by issue #44854, Creating hooks from curve to objects doesn't work.
