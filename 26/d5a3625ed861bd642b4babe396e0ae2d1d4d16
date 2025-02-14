@@ -44,3 +44,4 @@ Referenced by issue #58197, "Shading Mode" and "Proportional Editing Object Mode
 Referenced by issue #58199, Spin tool top bar settings don't apply
 Referenced by issue #58201, Viewport Visibility and Render Visibility keyframes don't work
 Referenced by issue #58184, Modifier texture changes don't update the modifier stack
+Referenced by issue #58185, Crash when adjusting a torous in edit mode
