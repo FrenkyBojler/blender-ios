@@ -1,3 +1,4 @@
 Referenced by issue #107122, After converting bmesh to bpy-Mesh mesh has incorrect uv coordinates
 Referenced by issue #106909, Import obj + new UVMap + go to object mode, blender closes
 Referenced by issue #106773, GPencil Fill tool is broken on all builds after April 07
+Referenced by issue #106702, 3.6.0 Metal GPU Backend broken on Mac Intel AMD FirePro D500 macOS Monterey
