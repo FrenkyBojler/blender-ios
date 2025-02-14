@@ -47,3 +47,4 @@ Referenced by issue #41668, Viewport not usable with Logitech M510 mouse
 Referenced by issue #41644, Cycles Motion Blur takes exponential time to render with GPU
 Referenced by issue #41611, Skin modifier - Slow process with deactivated deform modifiers
 Referenced by issue #41613, Closing crash
+Referenced by issue #41585, Tex paint setting bug
