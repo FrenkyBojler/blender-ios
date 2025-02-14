@@ -2,3 +2,4 @@ Referenced by issue #77880, Movie clip editor icon flickering
 Referenced by issue #77599, Clicking on image in image editor or UV editor causes it to switch to a kind of linear interpolation.
 Referenced by issue #77586, UDIM image Texture doesn't Display properly
 Referenced by issue #77370, Redundant anti aliasing/blur effect
+Referenced by issue #77171, Userprefs not saved when setting StringProperty of subtype='DIR_PATH' with directory browser
