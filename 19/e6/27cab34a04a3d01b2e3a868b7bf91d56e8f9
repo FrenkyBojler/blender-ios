@@ -29,3 +29,4 @@ Referenced by issue #40238, F-Curve Modifiers change currently selected curve wh
 Referenced by issue #40228, World multiple importance sample CUDA error
 Referenced by issue #40166, Dupligroup made out of a linked file object do not render on network.
 Referenced by issue #40168, A big crash
+Referenced by issue #40052, Grid Particles Crash
