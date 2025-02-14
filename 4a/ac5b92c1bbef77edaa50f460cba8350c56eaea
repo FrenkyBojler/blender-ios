@@ -2,3 +2,4 @@ Referenced by issue #104306, Regression: Blender crashes when making anchored st
 Referenced by issue #104053, Regression: Crash entering Vertex Paint Mode
 Referenced by issue #102918, The image node in GeoNodes can't use UDIM tiles
 Referenced by issue #102908, Joining geometry in geoNodes destroys UVs
+Referenced by issue #102824, Regression: Crash when switching to Sculpt or Vertex/Weight Painting mode
