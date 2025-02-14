@@ -1,2 +1,3 @@
 Referenced by issue #90532, Seg fault crash with various edit functions
 Referenced by issue #90489, Multiple crashes when working in Edit Face mode
+Referenced by issue #90256, Mesh appears flat shaded in edit mode when auto smooth is enabled
