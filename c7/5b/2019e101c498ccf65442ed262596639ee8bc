@@ -2,3 +2,4 @@ Referenced by issue #88652, CPU error message OIDN MacOS M1
 Referenced by issue #88241, macOS: Eevee Screen Space Reflections are broken on arm64
 Referenced by issue #87801, Eevee ambient occlusion is incorrect on M1 macMini
 Referenced by issue #86033, Broken/weird Continuous Grab behaviour
+Referenced by issue #78710, macOS: Support arm64
