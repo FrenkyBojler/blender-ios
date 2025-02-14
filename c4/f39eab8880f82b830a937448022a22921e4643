@@ -1,1 +1,2 @@
 Referenced by commit c47074f3bba, Fix #108171: bpy.ops.uv.pack_islands crash
+Referenced by issue #109377, Fix #108171: bpy.ops.uv.pack_islands crash
