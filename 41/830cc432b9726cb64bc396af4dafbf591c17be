@@ -1,1 +1,2 @@
 Referenced by issue #81267, Assert adding a new material with animation through the material template_ID
+Referenced by issue #58046, Crash when changing Particle type, when Hair has dynamics
