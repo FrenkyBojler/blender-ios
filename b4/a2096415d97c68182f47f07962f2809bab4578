@@ -1,2 +1,3 @@
 Referenced by commit e97443478e3, Fix T102797: Unlinking an Orphan Action crashes
 Referenced by issue #102797, Regression: Unlinking an Orphan Action Crashes Blender
+Referenced by issue #95679, Unlinking an animation action via the outliner still animates object in viewport
