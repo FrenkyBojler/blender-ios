@@ -82,3 +82,4 @@ Referenced by issue #51264, Game Engine Crash in Blender 2.78c on a Win 10 PC
 Referenced by issue #51249, Snap to any mesh element in NURBS surface editing does not work properly
 Referenced by issue #51252, Menu flickering under wayland unless "Window Draw Method" is set to "Full"
 Referenced by issue #51227, Blender v2.78c Weight Paint fails when Mirror Modifier is active on Mesh
+Referenced by issue #51184, Crash of Blender when I try to join an object with one that has booleans modifiers.
