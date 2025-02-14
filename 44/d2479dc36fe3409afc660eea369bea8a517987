@@ -7,3 +7,4 @@ Referenced by issue #89545, Weight / Vertex paint mode "Show Wireframe" is not w
 Referenced by issue #89360, Eevee transforms geometry when using "High Quality Normals"
 Referenced by issue #88550, Mesh Optimization Project Progress
 Referenced by issue #88450, Optimize `extract_edit_data` extraction.
+Referenced by issue #88385, overlay.show_paint_wire doesn't work in vertex paint modes depending on edit mode selection
