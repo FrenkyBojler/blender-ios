@@ -1,2 +1,3 @@
 Referenced by commit e51c721315a, Fix crash of alembic tests after recent depsgraph builder change
 Referenced by issue #80033, Crash when switching to other scene IF there are 2 view layers (2.91 Alpha regression, compared to the latest 2.90 Beta)
+Referenced by issue #80035, Crash to desktop with creating a new scene with a motion tracking file loaded
