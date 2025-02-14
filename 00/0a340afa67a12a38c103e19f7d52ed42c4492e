@@ -1,2 +1,3 @@
 Referenced by issue #85831, Strange EEVEE flickering and lack of clarity
 Referenced by issue #85720, EEVEE screen space reflections dont mix properly
+Referenced by issue #85714, EXCEPTION_INT_DIVIDE_BY_ZERO when Viewport Rending an image using EEVEE.
