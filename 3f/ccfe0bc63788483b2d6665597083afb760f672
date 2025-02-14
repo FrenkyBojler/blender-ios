@@ -3,3 +3,4 @@ Referenced by commit 2b1b6004562, Cleanup: Remove unused old sequencer iterator
 Referenced by commit 869372ffc33, Fix (studio-reported) VSE crash when deleting strips.
 Referenced by commit 9ecd1063070, Fix (unreported) VSE crash when duplicating 4 or more strips.
 Referenced by issue #114542, VSE snaps strips incorrectly which leads to a fatal error
+Referenced by issue #111909, VSE: use c++ container for strip iterator
