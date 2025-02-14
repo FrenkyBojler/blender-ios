@@ -1,3 +1,4 @@
 Referenced by commit e97d34aba6c, Fix #117266: Sculpt: Initialize Face Sets not updating
 Referenced by issue #117273, Fix #117266: Sculpt: Initialize Face Sets not updating
 Referenced by issue #117266, Sculpt: Initialize Face Sets By Loose Parts not updating right away
+Referenced by issue #116000, Regression: 'toggle visibility' mode of no longer works
