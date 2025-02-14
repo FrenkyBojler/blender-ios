@@ -1,0 +1,1 @@
+Referenced by issue #79837, Cycles Optix cannot be brought back once AO node is added (does not recover removing the node or material)
