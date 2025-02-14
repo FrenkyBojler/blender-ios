@@ -9,3 +9,4 @@ Referenced by issue #104475, Regression: Data transfer modifier no longer respec
 Referenced by issue #103400, Regression: Not possible to transfer Color Attributs Layer with "Transfer Mesh Data Layout"
 Referenced by issue #99719, Vertex Color Node no longer showing in Shader Editor
 Referenced by issue #98889, Regression: Sculpting on a linked copy of an objects crashes Blender
+Referenced by issue #98565, Regression: Error in console for unknown/unused BRUSH_PAINT icon
