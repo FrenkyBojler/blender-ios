@@ -2,3 +2,4 @@ Referenced by commit 3acbd93779a, Fix #132991: Array modifier + X-Ray crash sele
 Referenced by commit 62c6eb12bf7, Fix #105165: Weighted normal modifier crash after recent cleanup
 Referenced by commit eb68334b58d, Cleanup: Mesh: Access looptris with Span
 Referenced by issue #106315, Regression: Smooth shading artefacts with mirror modifier (in 3.5, 3.6 is fine, for corrective release)
+Referenced by issue #105331, Regression: Crash when opening file
