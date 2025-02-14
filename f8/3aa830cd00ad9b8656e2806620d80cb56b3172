@@ -2,3 +2,4 @@ Referenced by commit 3e55d7d6054, Fix T85499: Crash on switching to edit mode wi
 Referenced by commit 0a546beb1f3, Fix T85396: Display Texture Paint UV only working in editmode
 Referenced by issue #85499, Edit Curve Crash
 Referenced by issue #85396, Display Texture Paint UV not working
+Referenced by issue #83187, Linked meshes: Unselected UVs stay orange instead of gray, cannot deselect all UVs
