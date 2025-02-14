@@ -8,3 +8,4 @@ Referenced by issue #60441, 2.8 Color code
 Referenced by issue #60444, Blender compositor seperate and combine rgba yields different image.
 Referenced by issue #60423, No smooth shading when sculpting with multiresolution in 2.8
 Referenced by issue #60393, 2.8 Vertex paint problems
+Referenced by issue #60377, Duplicating Lights with vertices breaks edit mode operations on mesh
