@@ -1,2 +1,3 @@
 Referenced by commit 9439ff09e96, Fix #133259: Regression: Error when saving a theme
 Referenced by commit 6b63ec95d04, Fix: Update type name in `sphinx_doc_gen.py`
+Referenced by commit 88cc4e9ddfe, Fix: compile error when building without Audaspace
