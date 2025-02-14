@@ -3,3 +3,4 @@ Referenced by commit 66de653784a, Fix incorrect strip position if pitch was anim
 Referenced by issue #108157, Regression: VSE: Copy-Paste of strips from one scene to another offsets the data
 Referenced by issue #103662, VSE: Adding packed sound via python API produces strip with incorrect length
 Referenced by issue #102663, Regression: Meta strips from older versions are broken
+Referenced by issue #100688, Python API: sequencer_strip.frame_start inconsistancy
