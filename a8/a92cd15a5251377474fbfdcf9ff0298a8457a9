@@ -2,3 +2,4 @@ Referenced by commit d0d0d9d7c65, Fix broken compilation after recent GPencil co
 Referenced by issue #88853, SVG imports poorly
 Referenced by issue #83190, GPencil: Import/Export main task
 Referenced by issue #83191, GPencil: Export to SVG
+Referenced by issue #83192, GPencil: Export to PDF
