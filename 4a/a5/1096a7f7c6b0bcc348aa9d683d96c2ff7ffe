@@ -1,1 +1,2 @@
 Referenced by issue #46457, math_utils.geometry.intersect_line_line_2d gives incorrect results for colinear segments
+Referenced by issue #44983, Crash
