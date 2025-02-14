@@ -1,1 +1,2 @@
 Referenced by issue #106177, Regression: Operation 'Duplicate' in the nodes menu does not start the transform modal operator
+Referenced by issue #106097, Regression: Node Editor: Framed nodes are pasted with an offset
