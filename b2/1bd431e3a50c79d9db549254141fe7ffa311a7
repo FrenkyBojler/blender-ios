@@ -1,0 +1,1 @@
+Referenced by issue #60378, All armatures reset positions on linked collection when ctrl+z used on anything. Blender 2.80. Problem for production files!
