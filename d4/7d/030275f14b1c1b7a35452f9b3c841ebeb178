@@ -3,3 +3,4 @@ Referenced by issue #38856, MARK Seam/Sharp (edge) command in search menu not al
 Referenced by issue #38844, Crash if weight track = 0
 Referenced by issue #38826, Materials has user after deleting scene
 Referenced by issue #38827, Input preferences can not find Left Mouse or Left Arrow
+Referenced by issue #38833, Preview chunks in compositor are not shown if offset in scale node is not zero
