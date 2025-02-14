@@ -12,3 +12,4 @@ Referenced by issue #44156, Graphics become corrupted while using hardware OpenG
 Referenced by issue #44143, Objects created at the same point move together, but they are not linked
 Referenced by issue #44146, Ambiant Occlusion - Little circle in orthographic view
 Referenced by issue #44068, "Layered" option during autokey playback
+Referenced by issue #44069, Calling LibLoad and LibFree multiple times on a file that plays an Action crashes Blender
