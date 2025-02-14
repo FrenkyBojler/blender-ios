@@ -1,2 +1,3 @@
 Referenced by commit a269761ec1b, Cleanup: clang format
 Referenced by issue #76997, Could not link object because the collection 'Master Collection'(of appended scene) is linked
+Referenced by issue #76710, Objects can be moved or linked into linked collections (causing them to disappear after file reload)
