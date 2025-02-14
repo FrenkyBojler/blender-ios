@@ -75,3 +75,4 @@ Referenced by issue #57243, Blender Crash on opening user preferences
 Referenced by issue #57170, BUG: use_map_density
 Referenced by issue #57180, Alt-H won't work
 Referenced by issue #57103, Mesh Subdivide with smoothness for specific edges sends some vertices to NaN
+Referenced by issue #57104, Mesh Subdivide with smoothness is coordinate dependent
