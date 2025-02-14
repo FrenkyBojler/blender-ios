@@ -8,3 +8,4 @@ Referenced by issue #105945, Broken Materials
 Referenced by issue #105948, Multiprocessing with `--background` and `--python-console`
 Referenced by issue #105810, blender don't launch
 Referenced by issue #105392, Ambient Occlusion node breaks render kernels
+Referenced by issue #105050, Blender Windows crashes on loading file from Linux when using usdc Mesh Sequence Cache
