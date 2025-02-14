@@ -1,1 +1,2 @@
 Referenced by commit f72969f377a, Fix T103888: Regression: Side-by-side stereo renders ignore color management
+Referenced by issue #103888, Regression: Stereoscopic renders in 3.3.1 remove contrast and raise exposure upon saving file
