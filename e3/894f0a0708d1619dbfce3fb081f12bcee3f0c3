@@ -1,3 +1,4 @@
 Referenced by commit 42210342caf, Cleanup: Remove outdated references to UV_SCULPT
 Referenced by issue #133551, Crash: Invalid RNA code for `Scene.tool_settings.uv_sculpt`
 Referenced by issue #132016, Possible Relax vertices in UV crash (wrong uv_sculpt size, missing defaults)
+Referenced by issue #121410, Blender crashing upon opening or during edit of file: EXCEPTION_ACCESS_VIOLATION
