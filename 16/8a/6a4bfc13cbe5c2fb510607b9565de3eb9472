@@ -6,3 +6,4 @@ Referenced by issue #59152, Dyntopo Constant Detail freezes Blender on scaled ob
 Referenced by issue #59155, Cannot select a light before objects. Selection priority issue.
 Referenced by issue #59126, Segmentation fault when running gpu.types.GPUOffScreen.draw_view3d using a context override
 Referenced by issue #59129, Hue/saturation change in Shader editor- Hue value changes saturation value
+Referenced by issue #59136, Crash whenever subsurface modifier is applied
