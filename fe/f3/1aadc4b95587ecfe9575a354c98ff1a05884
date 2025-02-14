@@ -1,2 +1,3 @@
 Referenced by issue #45745, regression with transparent shadows and OpenCL split kernel
 Referenced by issue #45735, Lattice's bounding_box doesn't update
+Referenced by issue #45722, Shutdown when enabling world background display
