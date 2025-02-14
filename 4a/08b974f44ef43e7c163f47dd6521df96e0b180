@@ -1,2 +1,3 @@
 Referenced by issue #134381, Fix: Weight Paint undo ignores non-tool editor changes
 Referenced by issue #133835, Undo issues in mesh sculpt mode with other editors
+Referenced by issue #117417, Fix undo overreach in various paint modes for #69760 and related.
