@@ -1,2 +1,3 @@
 Referenced by commit d1cedf53faa, Revert "Fix T78823: Slash in custom property name does not work"
 Referenced by issue #84091, Crash when going to Properties Editor object properties with Custom Property containing nested dictionary [named "asset_data"]
+Referenced by issue #78823, Slash in custom property name does not work
