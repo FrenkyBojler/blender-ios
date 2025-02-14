@@ -1,2 +1,3 @@
 Referenced by commit c297bef9aff, Fix T85762: Crash when opening 2.83 VSE file
 Referenced by commit 7ccc7ef61fd, VSE: don't add crop and transform data for sound strips
+Referenced by issue #85762, 2.92 crashes when opening 2.83 files containing VSE strips created using Python API
