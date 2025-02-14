@@ -1,2 +1,3 @@
 Referenced by issue #120255, Fix #119959: Enabling "Distribute memory between devices" for Cycles results in error
 Referenced by issue #119959, Enable Distribute memory across device Denoise Optix Error
+Referenced by issue #119035, Out of GPU memory when rendering animations with Cycles and GPU denoising in Blender 4.1
