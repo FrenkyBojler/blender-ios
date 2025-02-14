@@ -1,3 +1,4 @@
 Referenced by commit abddd7d5f91, Fix T83566: bpy.props.CollectionProperty gives incorrect error
 Referenced by commit 841ae186056, Fix T83055: setting rna pointer properties can create bogus custom properties
 Referenced by commit f09dee5aed3, Fix error in PointerProperty argument list
+Referenced by issue #51198, Crash with new Datablock ID Properties
