@@ -1,1 +1,2 @@
 Referenced by commit f79930989d4, Revert "Fix T62210: endless loop in kd tree lookup"
+Referenced by issue #62247, Remove Double Vertices crashes Blender
