@@ -1,1 +1,2 @@
 Referenced by commit ceb612a79c7, Revert "Depsgraph: Implement 'ID_RECALC_GEOMETRY_DEFORM'"
+Referenced by issue #89941, Regression: no path`s bevel update, when I change bevel profile curve
