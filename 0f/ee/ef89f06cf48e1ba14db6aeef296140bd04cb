@@ -1,0 +1,1 @@
+Referenced by issue #52528, Eevee nodes (e.g., Checker Texture) has different coordinates than Cycles when no UV
