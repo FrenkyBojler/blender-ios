@@ -1,3 +1,4 @@
 Referenced by commit 1229b966524, Fix empty asset index files after bug in asset loading
 Referenced by commit 6a7917162c5, Fix asset index only generating empty entries since 1efc94bb2f7b
 Referenced by commit 32757b2429a, Fix uninitialized variable use in asset metadata test
+Referenced by commit 95077549c1f, Fix failure in recently added asset library tests
