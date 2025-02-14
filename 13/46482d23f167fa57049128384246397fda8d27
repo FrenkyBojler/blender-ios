@@ -1,0 +1,1 @@
+Referenced by commit 2382d1c401d, regression fix for 1346482d23f167fa57049128384246397fda8d27: The length of leaf bones should always be set to the length of the smallest bone. since the mentioned commit the importer did only recalculate the leaf bone length when the 'fix leaf bones' option was also enabled.
