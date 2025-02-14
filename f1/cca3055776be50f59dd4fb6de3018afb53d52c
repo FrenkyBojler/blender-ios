@@ -28,3 +28,4 @@ Referenced by issue #94217, When baking to two images, CUDA crashes on the secon
 Referenced by issue #94197, Boolean Apply Clearing custom data layers (bevel weight Weight / Vgroup Data)
 Referenced by issue #94107, Blender crash when tracking motion
 Referenced by issue #94112, Blender crashes often in GPU mode
+Referenced by issue #93926, "Hops" and "Boxcutter" modifiers work incorrectly in version 3.0
