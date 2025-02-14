@@ -1,0 +1,1 @@
+Referenced by issue #65010, Snap affect settings (Move, Rotate Scale) are used in the UV Editor, but are only accessible in the 3d view.
