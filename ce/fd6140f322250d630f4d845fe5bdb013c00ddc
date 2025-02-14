@@ -1,2 +1,3 @@
 Referenced by commit 1b216fc2370, Fix T100814: Cycles wrong area light parametric texture coordinates
 Referenced by issue #100299, Parametric doesn't generate UV correctly with area lights in 3.3 beta
+Referenced by issue #100119, Regression: Light object's parametric vector distorted in blender 3.4
