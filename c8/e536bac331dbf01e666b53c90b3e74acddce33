@@ -1,0 +1,1 @@
+Referenced by issue #94837, Tilt works strangely in a poly curve (or other type with U resolution of 1) with only two control points
