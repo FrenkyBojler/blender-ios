@@ -1,0 +1,1 @@
+Referenced by issue #44415, Shape keys get out of sync with Basis shape (when using UNDO in basis modification or manipulating basis via python)
