@@ -1,0 +1,1 @@
+Referenced by issue #38373, Blender fails to build in Ubuntu 13.04 64bit because it misses an entry in make OPENEXR_ROOT_DIR
