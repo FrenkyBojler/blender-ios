@@ -3,3 +3,4 @@ Referenced by commit aab947eb468, Fix T98349: Knife project resulting selection 
 Referenced by commit 26c6ec55941, Cleanup: remove context argument from EDBM_mesh_knife
 Referenced by commit 1dc0bf86bb5, Fix T93695: Discontinuous cutting with the knife tool
 Referenced by issue #98349, Regression: Knife project - resulting selection is wrong
+Referenced by issue #95138, Knife tool 'E' command missing
