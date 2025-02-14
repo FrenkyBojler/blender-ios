@@ -5,3 +5,4 @@ Referenced by issue #113446, Fix #113287: Industry Compatible Keymap: Node Edito
 Referenced by issue #113287, Industry Compatible Keymap: Node Editor Search missing
 Referenced by issue #112362, Command search prefilled with single "s"
 Referenced by issue #112107, No "Search" option in the shortcut menu in the compositor
+Referenced by issue #112056, Cleanup: Remove unnecessary "add node search"
