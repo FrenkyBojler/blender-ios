@@ -10,3 +10,4 @@ Referenced by issue #114657, Color attribute from applied Geometry Nodes modifie
 Referenced by issue #109443, Cannot set the Color attribute to display an object through Geometry Nodes
 Referenced by issue #107067, Active Color Attribute switches after save and reverting file
 Referenced by issue #105168, Regression: entering vertexpaint mode will create a color attribute that is not default (camera icon)
+Referenced by issue #105169, Fix #105168: Entering vertexpaint creates a non-default color attribute
