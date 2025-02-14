@@ -1,0 +1,1 @@
+Referenced by issue #44128, Ray visibility only enables diffuse if glossy is also enabled.
