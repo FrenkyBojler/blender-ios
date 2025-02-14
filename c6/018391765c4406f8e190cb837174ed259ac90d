@@ -1,2 +1,3 @@
 Referenced by issue #71147, 2.81 & 2.82 Eevee stops rendering in Rendered and Look Dev modes in viewports (macOS)
 Referenced by issue #70713, Viewport and Icons disappear after recent commit rBc6018391765c
+Referenced by issue #70106, Objects with multiple materials are not displaying correctly - transparent faces
