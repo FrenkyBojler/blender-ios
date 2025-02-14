@@ -1,0 +1,1 @@
+Referenced by issue #86654, Bad motion blur from alembic animation import in v2.92. Works as expected in v2.83.13
