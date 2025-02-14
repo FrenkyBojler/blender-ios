@@ -1,0 +1,1 @@
+Referenced by issue #63042, Grease pencil and armature will sometimes copy successfully because of the put in Collection order, sometimes fail.
