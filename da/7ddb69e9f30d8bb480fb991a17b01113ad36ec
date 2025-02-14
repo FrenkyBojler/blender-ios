@@ -1,3 +1,4 @@
 Referenced by issue #47387, Cycles Point Density Render Issues
 Referenced by issue #47379, crash when appending object with node group in material
 Referenced by issue #47356, Possible errors introduced in the new SSS implementation (in the days after it was committed)
+Referenced by issue #47332, selected faces in paint modes dont display properly
