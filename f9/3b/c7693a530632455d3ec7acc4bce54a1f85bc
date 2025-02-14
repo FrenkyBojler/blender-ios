@@ -36,3 +36,4 @@ Referenced by issue #40661, BGE soft body physics with unexpected behavior (game
 Referenced by issue #40638, Crash in Particle System, Connect Hair
 Referenced by issue #40613, Boolean is messed up, consistently and repeatable.
 Referenced by issue #40582, crash / strange mesh deformation when applying scale to multiresolution mesh with "Simplify" active
+Referenced by issue #40575, 'Display modifier in realtime' setting affecting F12 render
