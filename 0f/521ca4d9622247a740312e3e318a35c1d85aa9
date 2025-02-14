@@ -1,2 +1,3 @@
 Referenced by issue #72071, Blender crashes upon moving extruded vertices/edges with edge snapping enabled
 Referenced by issue #71707, Crash snapping edge to edge
+Referenced by issue #68778, Crash when moving vertex
