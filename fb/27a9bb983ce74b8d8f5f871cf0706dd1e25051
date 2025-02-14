@@ -4,3 +4,4 @@ Referenced by commit 5c6cc931b22, Gizmo: add flag to hide the gizmo group during
 Referenced by issue #104817, Regression: Drawing bug of the Camera Lens gizmo when using the 3D Viewport Axis
 Referenced by issue #94857, Regression: 'Gizmo Operator' from python templates is spining in accumulative way, when dragged.
 Referenced by issue #93594, Regression: Header transform options hide on modal operation
+Referenced by issue #92783, light size controller not update position
