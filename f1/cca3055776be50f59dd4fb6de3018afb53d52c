@@ -30,3 +30,4 @@ Referenced by issue #94107, Blender crash when tracking motion
 Referenced by issue #94112, Blender crashes often in GPU mode
 Referenced by issue #93926, "Hops" and "Boxcutter" modifiers work incorrectly in version 3.0
 Referenced by issue #93896, Vertex group (memory access?) change after applying modifier
+Referenced by issue #93866, Blender crashes when bevel edge(CTRL + B, not modifier) + Shade Smooth then press CTRL + Z two more times
