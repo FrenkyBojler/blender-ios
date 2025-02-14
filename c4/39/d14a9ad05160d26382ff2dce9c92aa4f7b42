@@ -1,3 +1,4 @@
 Referenced by issue #43981, Particles - Hair - Even distribution is not even
 Referenced by issue #43807, Convert filled curve to mesh fails silently
 Referenced by issue #43809, Convert of curve to mesh results in doubled edges, which remove-doubles won't fix.
+Referenced by issue #43773, Crash during append.
