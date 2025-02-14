@@ -6,3 +6,4 @@ Referenced by issue #43558, Brush fails in some perspectives and in certain dist
 Referenced by issue #43471, Can't dynamically set particle birth time any more
 Referenced by issue #41964, 2.72 Freestyle renders two times longer on Linux
 Referenced by issue #41877, Texture Paint - Quick Edit - Apply/Apply Camera Image - Version 2.71 and Test Build 2.72
+Referenced by issue #41482, Transparent background and volume emission material
