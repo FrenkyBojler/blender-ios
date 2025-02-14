@@ -1,2 +1,3 @@
 Referenced by issue #44984, Clamping in 'texture context -> colors panel' doesn't work under some extreme circumstances.
 Referenced by issue #44872, Missing UI control in Musgrave texture properties
+Referenced by issue #44863, Halo shader always makes random rings and lines regardless of the seed value set to 0
