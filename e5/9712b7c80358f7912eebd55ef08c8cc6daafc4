@@ -1,0 +1,1 @@
+Referenced by issue #78187, Attribute names can clash (e.g. Sculpt Vertex colors and Vertex Colors) leading to confusion using the Attribute shading node
