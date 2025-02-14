@@ -1,2 +1,3 @@
 Referenced by issue #64158, Mixed EEVEE SSS shader becomes brighter and brighter.
 Referenced by issue #63933, object selection failing, when opengl depth picking is enabled
+Referenced by issue #63894, Clicking on recent files from the splash screen opens the file browser instead
