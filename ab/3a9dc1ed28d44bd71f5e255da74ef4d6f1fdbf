@@ -1,1 +1,2 @@
 Referenced by issue #70194, VSE: 'Prefetch frames' causes excessive CPU usage whenever there is animation on a strip (freezes when tweaking animation [Graph Editor, Dopesheet, typing in new values])
+Referenced by issue #69924, Video Editor: Prefetch stops when moving playhead and makes Blender hang on new file.
