@@ -1,3 +1,4 @@
 Referenced by issue #105711, Regression: Clone Tool in Image Editor not showing the Clone Source Overlay
 Referenced by issue #103787, Regression: UV Relax Brush tears apart UVs
 Referenced by issue #103670, Regression: UV Editing: Lock Borders - Incorrectly defines borders
+Referenced by issue #101864, Regression: Crash when lasso masking in sculpt mode
