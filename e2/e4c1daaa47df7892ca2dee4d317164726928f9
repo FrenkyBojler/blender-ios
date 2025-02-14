@@ -1,2 +1,3 @@
 Referenced by issue #103824, output_node.inputs.new() crash blender
 Referenced by issue #98629, Float curve
+Referenced by issue #96839, HIP on Vega 64 crashes the graphics driver
