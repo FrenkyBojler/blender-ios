@@ -2,3 +2,4 @@ Referenced by commit 95749f5d548, Fix T70522: Sidebars in Clip Editor work incor
 Referenced by commit f604e46780f, Keymap: restore Ctrl-Tab in the dopesheet (removed by accident)
 Referenced by issue #90575, VSE View menu - missing hotkeys for sidebar and toolbar in Preview mode
 Referenced by issue #70522, Clip editor: toolbar and sidebar allowed to open in graph and dopesheet mode
+Referenced by issue #63772, Movie Clip Editor fails to show/hide toolbar
