@@ -48,3 +48,4 @@ Referenced by issue #49706, Material Render mode viewport not updating with chan
 Referenced by issue #49638, Changing multiple object dimensions doesn't work
 Referenced by issue #49639, Crash when disconnecting joystick while game engine is running
 Referenced by issue #49649, Goal Strength parameter in “Soft Body Goal” works differently in 2.76+ versions
+Referenced by issue #49629, Graph editor normalize function doesn't work on f-curves with a constant key value
