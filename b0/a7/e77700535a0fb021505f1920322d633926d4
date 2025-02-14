@@ -1,3 +1,4 @@
 Referenced by issue #48547, Shrinkwrap not taking auxiliary target into account properly
 Referenced by issue #48057, Copy Pasting does not respect layers.
 Referenced by issue #48012, Knife Project Crashes Blender
+Referenced by issue #47958, Crash in Walk Navigation in Camera mode (walk_invoke) on files that are just saved/just opened
