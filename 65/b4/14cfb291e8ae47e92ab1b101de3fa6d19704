@@ -1,1 +1,2 @@
 Referenced by issue #71319, Invalid material indices: Crash on simple mesh edit when switching to face mode.
+Referenced by issue #71015, Crash when entering edit mode with a lot of meshes selected
