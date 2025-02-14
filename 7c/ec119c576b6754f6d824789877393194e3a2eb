@@ -1,3 +1,4 @@
 Referenced by issue #69599, Grease Pencil: Changing Active Layer via Dopesheet sometimes doesn't update Fade Layers overlay
 Referenced by issue #69596, Grease Pencil Fade Layers Overlay sometimes not respecting main Overlay flag
 Referenced by issue #69597, Changing Grease Pencil Layer in Dopesheet unlocks all layers
+Referenced by issue #69585, Master/Eevee: This materials looks dark and depends on normal direction
