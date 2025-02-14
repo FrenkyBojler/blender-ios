@@ -26,3 +26,4 @@ Referenced by issue #45361, Camera does not rotate in walk mode (Shift - F)
 Referenced by issue #45365, Hitting 'Escape' while editing a shortcut enters that key on Windows, while on linux it cancels edition
 Referenced by issue #45336, OpenCL not working for AMD FirePro W5000
 Referenced by issue #45318, BGE_character physics type_CRASH_blender_2.75
+Referenced by issue #45311, Bug Physics Controller [ Game Engine ]
