@@ -1,2 +1,3 @@
 Referenced by commit 8390fdbd66e, Fix #134155: Crash when searching in properties editor.
 Referenced by commit dec38419cd5, Fix: Menu search crash after recent PointerRNA change
+Referenced by commit 190ea95ae66, Fix: Radial control operator crash after PointerRNA change
