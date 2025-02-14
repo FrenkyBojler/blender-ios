@@ -1,2 +1,3 @@
 Referenced by issue #38439, Index of refraction < 1 renders wrong in cycles
 Referenced by issue #38347, Outliner : adding keyframes whilst having it organised by groups does not work
+Referenced by issue #37999, blender window size does not match to given cmd-line arguments
