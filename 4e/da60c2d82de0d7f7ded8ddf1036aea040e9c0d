@@ -1,1 +1,2 @@
 Referenced by commit 93d464dcd15, Fix snapping with constraint flickering
+Referenced by commit 8d590e4b862, Fix T83801: UVEditor translation ignores "Pixel Coordinates" and aspect
