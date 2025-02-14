@@ -6,3 +6,4 @@ Referenced by commit 16fc9280689, Fix: uninitialized UVs when painting in sculpt
 Referenced by issue #121033, Fix #121004: bmesh.ops.dissolve_limit wrong in certain cases
 Referenced by issue #121004, Regression: stale BMesh UV data
 Referenced by issue #113611, Convert Attribute Mode does not have "UVMap" in Blender ver.3.6.4. (also ver.3.5.1)
+Referenced by issue #113358, Regression: EEVEE: Crash on extract UV from evaluated mesh with open UV Editor and selection
