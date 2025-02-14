@@ -1,3 +1,4 @@
 Referenced by issue #56181, Creating grease pencil data block removes proportionnal editing UI buttons.
 Referenced by issue #56182, Grease Pencil default interaction overrides Left click mouse select
 Referenced by issue #56185, Changing color of material of grease pencil crashes blender 2.8
+Referenced by issue #55747, [Crash] Typing ^ character
