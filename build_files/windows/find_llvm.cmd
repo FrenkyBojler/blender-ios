@@ -1,8 +1,10 @@
 REM Find a copy of LLVM on the system
 set LLVM_DIR=
 
-REM First, we try and find the copy on the PATH
-for %%X in (clang-cl.exe) do (set "LLVM_EXE=%%~$PATH:X")
+REM First, we try and find the copy on the PATH (unless already specified, in which case we use that)
+if "%LLVM_EXE%" == "" (
+  for %%X in (clang-cl.exe) do (set "LLVM_EXE=%%~$PATH:X")
+)
 
 if NOT "%LLVM_EXE%" == "" (
 	REM We have found LLVM on the path
