@@ -1,3 +1,4 @@
 Referenced by issue #64141, Eevee Glare node at High Quality causes seemingly random noise
 Referenced by issue #64072, Blender 2.8 DynamicPaint: Bake failed: Canvas mesh not updated
 Referenced by issue #61619, Some VSE attributes with keyframes are not sensibly evaluated when the scene is referenced as a strip from another VSE scene
+Referenced by issue #49658, Evaluation / animation of f-curves does not correct for a scene's position within another scene
