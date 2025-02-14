@@ -5,3 +5,4 @@ Referenced by issue #125943, Fix #125935: Insert unicode text popup not working
 Referenced by issue #125935, Insert text unicode not working in 4.2
 Referenced by issue #122276, Crash when searching for a Collection Instance (Add > Collection Instance)
 Referenced by issue #122109, Crash opening toolbar and moving mouser down
+Referenced by issue #121954, Keyboard input is not working with HSV color
