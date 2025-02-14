@@ -1,2 +1,3 @@
 Referenced by commit 834e87af7bb, Alembic: remove non-functional "Renderable Objects" only option
 Referenced by issue #89594, Alembic export not respecting the renderable flag.
+Referenced by issue #75936, Objects not exported to Alembic if disabled in render
