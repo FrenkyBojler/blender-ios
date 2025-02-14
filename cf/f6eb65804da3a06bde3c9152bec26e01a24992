@@ -1,1 +1,2 @@
 Referenced by commit e0ef5f36022, Fix T103234: GPencil applying armature does not work
+Referenced by issue #103234, Regression: Grease pencil: applying armature does not work. It is now similar to removing the armature modifier
