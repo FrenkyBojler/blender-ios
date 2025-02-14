@@ -5,3 +5,4 @@ Referenced by issue #115231, All interface colours are desaturated
 Referenced by issue #114858, Crash in nvcuda64.dll - "Freeing memory after the leak detector has run." Blender 3.6.5 / 4.0.0 - Windows 11 / RTX 4090 laptop
 Referenced by issue #114498, Cycles F82 tint handling
 Referenced by issue #114477, Blender is really laggy
+Referenced by issue #114304, Crash when I import OBJ file
