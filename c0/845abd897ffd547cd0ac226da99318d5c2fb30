@@ -1,1 +1,2 @@
 Referenced by commit 09640ab2919, Fix T99872: Crash Loading Embedded Fonts - Master
+Referenced by issue #99872, Regression: Crashes when using packed text font in VSE
