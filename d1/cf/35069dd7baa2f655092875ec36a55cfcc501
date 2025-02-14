@@ -1,2 +1,3 @@
 Referenced by issue #40186, can't change aligned handle length when pared with free/ vector curve handle
 Referenced by issue #40187, Can't set single keyframe handle as Vector
+Referenced by issue #40105, Segfault with some operations
