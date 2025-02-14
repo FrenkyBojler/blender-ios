@@ -1,2 +1,3 @@
 Referenced by commit e08c9324823, Fix T98925: Editor panels are broken
 Referenced by issue #100049, Regression: crash when render finishes
+Referenced by issue #98925, N-panel problem with old version files
