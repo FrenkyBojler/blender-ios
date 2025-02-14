@@ -85,3 +85,4 @@ Referenced by issue #44568, Abnormal behavior after unwrapping correctly of the 
 Referenced by issue #44547, Python driver can't change UV offset.
 Referenced by issue #44549, Crash when choose action after hide objects
 Referenced by issue #44530, Regression: Texture UV Mapping incorrect on meshes with Subsuf and Mirror modifiers
+Referenced by issue #44535, Subdivision modifier's Subdivide UV not working correctly with overlapping UV islands vertices.
