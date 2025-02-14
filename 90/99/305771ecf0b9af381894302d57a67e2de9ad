@@ -1,2 +1,3 @@
 Referenced by issue #63665, Auto Run Python Scripts not working
 Referenced by issue #63448, dragging in Image changes the resolution to square
+Referenced by issue #63124, Non-Object fcurve channels always selected in dopesheet (e.g. World and Shader Nodetree actions)
