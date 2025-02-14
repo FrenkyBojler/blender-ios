@@ -25,3 +25,4 @@ Referenced by issue #56518, X-Ray display not working on linked or instanced mes
 Referenced by issue #56412, Quick edit projection glitch
 Referenced by issue #56265, Blender does not seem to account for Environment variables on my Windows 10 system
 Referenced by issue #56137, Will not play animation after weight painting
+Referenced by issue #56074, Remove Doubles produces holes in mesh
