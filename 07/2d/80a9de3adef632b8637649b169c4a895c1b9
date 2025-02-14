@@ -1,1 +1,2 @@
 Referenced by issue #42858, bpy.ops.logic.controller_add() is too eager in making name unique
+Referenced by issue #29038, Logic Bricks allow same name for multiple bricks
