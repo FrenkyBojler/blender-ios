@@ -2,3 +2,4 @@ Referenced by commit 01d7211380f, Fix T92505: previewing specific node outputs d
 Referenced by issue #92667, Opening a certain file and splitting the main editor results in a crash
 Referenced by issue #92655, 3.0b crash after splitting area
 Referenced by issue #92505, Previewing specific node outputs in Compositor no longer works like before
+Referenced by issue #92167, Add field input to viewer node for spreadsheet visualization
