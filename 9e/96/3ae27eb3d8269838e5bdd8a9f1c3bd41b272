@@ -4,3 +4,4 @@ Referenced by issue #44134, Weight paint colourization scheme not being displaye
 Referenced by issue #43800, KX_Camera.getScreenVect() returns incorrect results if called after camera has been moved on the same frame.
 Referenced by issue #43558, Brush fails in some perspectives and in certain distances from the object.
 Referenced by issue #43454, Brush changes the tone color to choose a texture.
+Referenced by issue #43397, Math node - result is 0
