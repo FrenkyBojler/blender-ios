@@ -1,2 +1,3 @@
 Referenced by issue #114428, Blender 4.0 creates many invalid materials, corrupts file, Eevee crashes
 Referenced by issue #114383, Archimesh addon - Crash when add "rail windows"
+Referenced by issue #114324, Fix #114224: Bone Disappear in Pose Mode
