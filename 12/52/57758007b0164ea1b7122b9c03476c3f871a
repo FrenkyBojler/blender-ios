@@ -1,1 +1,2 @@
 Referenced by issue #71627, Linux wake from sleep the viewport shading window is messed up
+Referenced by issue #71552, Material view and Eevee Rendered View display glitch when scene contains hair particle systems with high amount of instances
