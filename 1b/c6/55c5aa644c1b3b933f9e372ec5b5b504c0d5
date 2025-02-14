@@ -1,3 +1,4 @@
 Referenced by issue #101270, Regression: 'Object Info' 'Random' always gives the same seed for instanced bezier curves
 Referenced by issue #92864, Cycles: Curve object evaluated mesh does not update
 Referenced by issue #92815, Geometry Nodes "Set Material" and Cuve to Mesh
+Referenced by issue #92606, Geometry nodes output gets synced to cycles wrong.
