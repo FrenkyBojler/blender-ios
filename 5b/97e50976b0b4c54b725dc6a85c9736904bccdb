@@ -1,1 +1,2 @@
 Referenced by issue #81272, Blender 2.90.1 silently exits on opening older .blend file, although open in 2.79b + save and open that new one in 2.90.1 succeeds
+Referenced by issue #80396, Potential candidates for corrective releases
