@@ -1,3 +1,4 @@
 Referenced by issue #98030, mirror error in particle system Hair
 Referenced by issue #95889, Alembic crashes on Linux
 Referenced by issue #93479, 3.0 Potential candidates for corrective releases
+Referenced by issue #92561, Mesh Sequence Cache (ABC) an hair interpolated children distribution issue (triangulate modifier seem to fix it)
