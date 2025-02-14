@@ -1,1 +1,2 @@
 Referenced by commit f600d5681b1, Fix #125346: wrong transparency for dashed node links
+Referenced by issue #125346, Regression: Wires  affects Dashed Lines Opacity in Node editor theme parameters.
