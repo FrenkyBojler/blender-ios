@@ -1,1 +1,2 @@
 Referenced by issue #62388, object visibilty using obj.hide_viewport not recognized by context.visible_objects and obj.visible_get()
+Referenced by issue #62191, Blender 2.8 - Object Animation - animated hide_render and hide_viewport do not work as expected
