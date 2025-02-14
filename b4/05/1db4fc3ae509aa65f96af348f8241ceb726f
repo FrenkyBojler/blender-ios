@@ -1,1 +1,2 @@
 Referenced by issue #68359, Crash when smoke type switch from Flow to Domain with Cycles viewport rendering
+Referenced by issue #67711, Crash when selecting Smoke Domain Material on Cycles
