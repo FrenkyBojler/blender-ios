@@ -1,1 +1,2 @@
 Referenced by commit d32188b85bf, Mesh: Fix BKE_mesh_translate changes referenced layer
+Referenced by issue #79965, Stateful behavior with ID.evaluated_get(..) and Object.to_mesh(preserve_all_data_layers=True, ..)
