@@ -1,1 +1,2 @@
 Referenced by commit 59b7aec9a2d, VSE: Add missing NULL check in poll
+Referenced by issue #102524, Strip length doesn't extend in VSE when extending the according scene framerange.
