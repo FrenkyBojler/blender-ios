@@ -5,3 +5,4 @@ Referenced by issue #61267, Crash When Editing Mesh Used For Bone Custom Display
 Referenced by issue #61196, clipping border allows selection of clipped vertices when x-ray mode is disabled
 Referenced by issue #60965, Texture Painting is slow / lags with large brush size
 Referenced by issue #60963, Hair dynamics: hair dynamics not rendered in animation mode when using a force field
+Referenced by issue #60953, Normal Map Tangent Space stopped working with Object Texture Coordinate
