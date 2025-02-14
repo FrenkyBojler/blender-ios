@@ -3,3 +3,4 @@ Referenced by commit 49fc4449e73, Fix T96357: Issue clicking on stem of arrow gi
 Referenced by commit cb986446e29, Fix Crash: Switching to wireframe mode.
 Referenced by issue #98037, GPU: GPU accellerated depth testing for gizmos
 Referenced by issue #97996, Regression: Rotate tool trackball rotation mode doesn't work.
+Referenced by issue #97771, Regression: light gizmos not working (Windows + NVidia)
