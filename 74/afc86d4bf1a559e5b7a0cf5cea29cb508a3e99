@@ -4,3 +4,4 @@ Referenced by issue #99254, Blender artifacts when rendering overlapping objects
 Referenced by issue #98764, Regression: Hair Rendering Tranparency Issue with Cycles
 Referenced by issue #97736, Transparent objects are visible inside volumetric materials (Cycles)
 Referenced by issue #97027, Regression: Triangle edges visible (ray/triangle intersection issue?)
+Referenced by issue #96537, Regression: Alpha/transparency not working correctly with intersecting mesh in Cycles
