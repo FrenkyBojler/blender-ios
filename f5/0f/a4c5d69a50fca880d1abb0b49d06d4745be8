@@ -1,3 +1,4 @@
 Referenced by issue #56138, Movie Clip Node Crash
 Referenced by issue #56120, Crash on "Import ..."  any light type (matcap, world hdri, env hdri)
 Referenced by issue #55727, Crashes when "s" is pressed while dragging 3d cursor
+Referenced by issue #55475, Crash due to zero uniform buffer binding for sssProfile
