@@ -1,3 +1,4 @@
 Referenced by commit 622e6f05f1b, Fix T92750: sculpt vertex colors missing in object mode
 Referenced by commit e7fedf6dba5, Revert "Eevee: support accessing custom mesh attributes"
 Referenced by issue #94898, Vertex Color doesn't show up (in Eevee using the Vertex Color shader node or in workbench vertex shading mode)
+Referenced by issue #93123, Massive lag when enabling Viewport Shading -> Color -> Vertex and using Sculpt Vertex Colors
