@@ -1,1 +1,2 @@
 Referenced by issue #71990, When applying Transforms to Armatures, Bone Orientations are affected differently to previous versions.
+Referenced by issue #69164, Area light resize gizmo (amongst other gizmos) missing undo step?
