@@ -1,2 +1,3 @@
 Referenced by commit fd5c1972cd5, Revert "DRW: Refactor to support draw call batching"
 Referenced by issue #70463, Very Slow Workbench/Eevee Performance
+Referenced by issue #70212, Node link is hidden when working in the shader editor
