@@ -1,2 +1,3 @@
 Referenced by issue #53683, 2.79a release
 Referenced by issue #52749, New Depsgraph - Render View Mask is not initialized correctly
+Referenced by issue #52752, Blender 2.79 - Cycles Compute Device doesn't detect my AMD GPU
