@@ -1,2 +1,3 @@
 Referenced by commit cb37fe751bf, Fix #118184: crash deleting a material output node
 Referenced by issue #122915, Eevee-Next: Normal Input for Shader Nodes aren't Normalized Automatically
+Referenced by issue #122085, 4.2.0 Freezes when using complex node setup
