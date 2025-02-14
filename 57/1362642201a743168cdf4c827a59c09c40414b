@@ -2,3 +2,4 @@ Referenced by commit 0f81dafe6ce, Fix T87010: VSE: adding strips crashes in cert
 Referenced by commit d8578925532, VSE: Fix proxy images have incorrect size
 Referenced by commit 247b10e6a25, Fix sequencer transform test failing
 Referenced by issue #87010, VSE: Crash When Trying to add Image Sequence / Movie [if based on file opened from pre 2.8]
+Referenced by issue #82755, Sequencer: Improve motion-picture workflow
