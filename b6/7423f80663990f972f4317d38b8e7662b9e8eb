@@ -1,1 +1,2 @@
 Referenced by issue #88484, Compositor: adding viewer node with volume object causes crash in DebugInfo::graphviz
+Referenced by issue #87868, Plane with transparent scattered as particle generates artifact in the intersection with the emitter object
