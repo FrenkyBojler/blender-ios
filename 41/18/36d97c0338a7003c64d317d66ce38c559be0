@@ -2,3 +2,4 @@ Referenced by issue #50616, Blender / Cycles / Material list Crash - When dealin
 Referenced by issue #50106, The object is shown even though outside of distance culling area.
 Referenced by issue #50108, INCOMPATIBILITY with keyboard on screen (virtual keyboard)
 Referenced by issue #50097, Blender Crashes when zooming in the node editor
+Referenced by issue #50099, Blender crashes during render
