@@ -1,2 +1,3 @@
 Referenced by issue #93913, Mist pass bug with subsurface scattering material
 Referenced by issue #93321, Blender 3.0 splash screen scene will rendered incorrectly
+Referenced by issue #93244, only one GPU rendering with HIP
