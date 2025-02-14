@@ -1,3 +1,4 @@
 Referenced by issue #38735, Tab mouse scrolling doesn't work if tabs are not at the edge of screen.
 Referenced by issue #38736, ShrinkWrap modifier doesnt work after Subsurf,
 Referenced by issue #38738, Bevel weight: unable to set exact parameter
+Referenced by issue #37557, Cycles crash tweaking nodes with viewport render and preview render
