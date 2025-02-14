@@ -2,3 +2,4 @@ Referenced by issue #61070, Blender 2.80 renaming parent directory of .blend fil
 Referenced by issue #60832, Blender 2.8 crashes after applying explode modifier on objects.
 Referenced by issue #60792, Possible bug in "bpy.data.libraries.write()"
 Referenced by issue #60722, Decimate modifier not working in operator settings
+Referenced by issue #60687, First vertex group not selecting properly
