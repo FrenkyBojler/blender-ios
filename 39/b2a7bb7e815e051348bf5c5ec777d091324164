@@ -8,3 +8,4 @@ Referenced by issue #92875, Sharp Edges when merging doubles not behaving as exp
 Referenced by issue #90421, Crash in Edit Mode with non-manifold meshes when autosmooth is enabled and set to exactly 180º
 Referenced by issue #90264, Blender crashes with custom normals
 Referenced by issue #90256, Mesh appears flat shaded in edit mode when auto smooth is enabled
+Referenced by issue #88550, Mesh Optimization Project Progress
