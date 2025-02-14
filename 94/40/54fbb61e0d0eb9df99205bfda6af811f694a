@@ -1,2 +1,3 @@
 Referenced by commit 0f4064c66ff, Fix T57028: Connect Vertex not working with more than 2 selected
 Referenced by issue #57028, Connect Vertex broken (not working with more than 2 vertices)
+Referenced by issue #54643, Multi-Object-Mode: EditMesh Tools
