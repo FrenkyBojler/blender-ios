@@ -1,2 +1,3 @@
 Referenced by commit 44b0c70919e, Fix T92288, T96041: instancing of shared mesh objects without modifiers broken
 Referenced by issue #92288, High memory consumption on instances in some cases (in 2.93 to render in Cycles, in 3.1 worse: also on file load)
+Referenced by issue #68211, Transfer Mesh Data with Custom Normal crash when Auto Smooth is enabled
