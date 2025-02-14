@@ -1,1 +1,2 @@
 Referenced by issue #106706, Regression: Cycles Nishita Sky Texture causes fireflies under certain conditions
+Referenced by issue #106293, Regression: World setup with two sky textures is lacking proper direct light sampling on the suns - 3.5+
