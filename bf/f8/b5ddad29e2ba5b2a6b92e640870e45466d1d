@@ -2,3 +2,4 @@ Referenced by issue #45236, Der "Fortschritt" Blaken lädt nicht obwohl die Szen
 Referenced by issue #45226, Memory leak and freeze when opening the properties panel
 Referenced by issue #45174, Particles volume grid
 Referenced by issue #45165, Quickime/OSX: render output path with diacritic signs produces no video file
+Referenced by issue #45167, Holding Ctrl right after trackpad scrolling makes unwanted zoom (OSX)
