@@ -7,3 +7,4 @@ Referenced by issue #74905, Transform gizmos having low opacity behind meshes.
 Referenced by issue #74139, DRW: Colormanagment of Gizmos and Addon callback
 Referenced by issue #73912, Highlight selected face option causes overall fade overlay
 Referenced by issue #73876, Pose bones display randomly in pose mode
+Referenced by issue #73834, Rendering a scene without light: result is not completely black
