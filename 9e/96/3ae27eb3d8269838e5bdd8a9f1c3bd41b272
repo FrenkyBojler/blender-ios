@@ -34,3 +34,4 @@ Referenced by issue #42768, Crash on 2013 Macbook Air 13 inch running OS X 10.10
 Referenced by issue #42749, Blender crashes on high poly count while rendering with cycles (even in viewport)
 Referenced by issue #42754, UI Bug with Full Window mode
 Referenced by issue #42755, Volumes do not appear when transparent film is enabled
+Referenced by issue #42756, texture paint crash
