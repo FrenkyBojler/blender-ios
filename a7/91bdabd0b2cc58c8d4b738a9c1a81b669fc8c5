@@ -4,3 +4,4 @@ Referenced by issue #92900, Failed to load CUDA kernel from filter_compute_75.pt
 Referenced by issue #92671, Wrong CPU Features Detection (AVX)
 Referenced by issue #92418, Particle system does not deal well with the weights that are generated/updated dynamically.
 Referenced by issue #92349, VP9 source video results in borked render
+Referenced by issue #92266, Any kind of baking makes Blender crash
