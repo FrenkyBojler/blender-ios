@@ -5,3 +5,4 @@ Referenced by issue #40634, Editing Lattice causes instant Blender crash
 Referenced by issue #40562, Loop Cut in Vertex select mode automatically switches to Edge select mode
 Referenced by issue #40560, Crash when subsurf applies
 Referenced by issue #40534, Multi button editing impossible to tell with color selectors
+Referenced by issue #40520, Properties panel in properties region in 3D view does not go away
