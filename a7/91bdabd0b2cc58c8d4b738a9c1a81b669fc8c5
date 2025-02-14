@@ -2,3 +2,4 @@ Referenced by issue #94532, Blender 3.0 very slow with rx 5700XT
 Referenced by issue #93025, Blender icon missing in KDE Application Launcher
 Referenced by issue #92900, Failed to load CUDA kernel from filter_compute_75.ptx
 Referenced by issue #92671, Wrong CPU Features Detection (AVX)
+Referenced by issue #92418, Particle system does not deal well with the weights that are generated/updated dynamically.
