@@ -2,3 +2,4 @@ Referenced by commit fb27a9bb983, Gizmo: show groups flagged with SHOW_MODAL_ALL
 Referenced by issue #104817, Regression: Drawing bug of the Camera Lens gizmo when using the 3D Viewport Axis
 Referenced by issue #93606, drawing of (addon defined) gizmos, while a modal operator runs
 Referenced by issue #93594, Regression: Header transform options hide on modal operation
+Referenced by issue #92954, Loop Cut Tool: Yellow preview line visible during operation
