@@ -1,0 +1,1 @@
+Referenced by issue #101164, GPencil: framechanging does not evaluate keyframed layer transform correctly (if this would result in identity matrix)
