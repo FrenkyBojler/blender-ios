@@ -1,1 +1,2 @@
 Referenced by issue #92258, Crash! Calling a modal operator from a load_post handler causes a segmentation fault
+Referenced by issue #92261, Render with Motion Blur and Overscan makes Blender crash
