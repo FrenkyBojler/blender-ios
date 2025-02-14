@@ -3,3 +3,4 @@ Referenced by issue #67435, Thinkpad Tablet 2. Blender wont start
 Referenced by issue #52822, Incorrect dimensions of imported svg files from Corel Draw
 Referenced by issue #49887, Middle Mouse button for Rotate 3D view does not work (Mouse: Logitech MX Anywhere 2)
 Referenced by issue #48916, Proxy Custom File is broken
+Referenced by issue #48275, where has bmesh.ops.shortest_path(bm, vert_start, vert_end, type) gone ?
