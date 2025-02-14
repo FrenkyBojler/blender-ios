@@ -1,2 +1,3 @@
 Referenced by commit 2ba72d847b2, Fix (unreported) Crash in Array modifier.
 Referenced by issue #96688, Cycles: Hair Info Intercept and Length yield 0 on GPU
+Referenced by issue #96494, Crash when a curve object got an array modifier with a mesh object containing a vertex group set as cap
