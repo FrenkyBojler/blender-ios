@@ -1,3 +1,4 @@
 Referenced by issue #40912, Collision Callbacks Don't Work if Set Directly
 Referenced by issue #40888, Memory error when selecting Cycles render engine
 Referenced by issue #40833, Crash when rendering with freestyle
+Referenced by issue #40581, Wrong texture mapping in render preview
