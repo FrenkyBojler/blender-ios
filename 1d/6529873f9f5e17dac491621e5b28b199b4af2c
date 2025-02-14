@@ -1,2 +1,3 @@
 Referenced by issue #77851, black and white textures eevee and cycle
 Referenced by issue #77854, Cycles render crashes with open VDB sequence and motion blur on.
+Referenced by issue #77735, Sculpt brush radial strength control uses scene-scaled values when typed in
