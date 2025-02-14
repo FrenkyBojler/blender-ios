@@ -1,0 +1,1 @@
+Referenced by issue #48749, Cycles doesn't render shadows when using the 360 stereo camera on the SSE4.1 kernel
