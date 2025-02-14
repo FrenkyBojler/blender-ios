@@ -2,3 +2,4 @@ Referenced by issue #60885, Boolean modifier problem when multiple modifiers act
 Referenced by issue #60735, Cycles renders only first duplivert when mesh has generative modifier
 Referenced by issue #60667, reflection plane bug in rendered view. EEVEE
 Referenced by issue #60601, Crash when check cavity and shadow from shading menu.
+Referenced by issue #60597, Material Shader Crashes Cycles
