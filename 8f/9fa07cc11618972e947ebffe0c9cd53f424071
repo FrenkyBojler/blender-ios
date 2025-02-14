@@ -1,1 +1,2 @@
 Referenced by issue #122070, GPU compositor mode crashes Blender when the scene is rendered via a .py script
+Referenced by issue #122057, Blender crashes in Sculpt mode when invoking the sculpt tools pop up menu
