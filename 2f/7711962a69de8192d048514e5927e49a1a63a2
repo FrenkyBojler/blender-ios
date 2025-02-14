@@ -2,3 +2,4 @@ Referenced by commit 963917e1b9b, Fix T65285: Crash with Object.to_mesh() in cer
 Referenced by issue #82715, Using another Mesh for Texture Indices (Texture Space / Generated Texture Coordinates)
 Referenced by issue #79965, Stateful behavior with ID.evaluated_get(..) and Object.to_mesh(preserve_all_data_layers=True, ..)
 Referenced by issue #65238, Latest depsgraph changes, now Object.to_mesh(preserve_all_data_layers=True, depsgraph=depsgraph) results in mesh with no materials
+Referenced by issue #58251, Blender ignores linked meshes when rendering in Cycles
