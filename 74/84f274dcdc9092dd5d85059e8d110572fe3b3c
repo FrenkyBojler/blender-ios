@@ -1,1 +1,2 @@
 Referenced by issue #99850, Regression: Unexpected result with curve to mesh on cyclic bezier curve with automatic or vector handles
+Referenced by issue #97365, Regression Tests: Run-Time Check Failure #3 - The variable 'ls' is being used without being initialized.
