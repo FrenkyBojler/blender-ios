@@ -1,3 +1,4 @@
 Referenced by issue #109361, Regression: Bevel issue when its percent/absolute mode is operated on edge loop along sharp angle
 Referenced by issue #84465, Bevel Modifiers limit method "Weight" is buggy with certain width types
 Referenced by issue #81884, Bevel modifier width type "percent"
+Referenced by issue #81865, Vertex Color layer corrupted after edge operations in EDIT mode
