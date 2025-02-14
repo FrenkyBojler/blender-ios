@@ -1,2 +1,3 @@
 Referenced by issue #46321, 3D view not refreshed immediatelly after pasting key frame in dope sheet window
 Referenced by issue #40455, Assigning textures in Cycles automatically reassigns textures to other unrelated objects
+Referenced by issue #40201, Keyframe edits fail to update the viewport in many places (fix included)
