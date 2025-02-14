@@ -1,2 +1,3 @@
 Referenced by issue #78520, EEVEE viewport isn't updating when adding or connecting new nodes to a material.
 Referenced by issue #78358, Crash while modifying shader nodes
+Referenced by issue #76970, Cycles viewport unneccessary update calls
