@@ -3,3 +3,4 @@ Referenced by commit 68759625b11, Fix T92053: Industry compatible key-map fallba
 Referenced by commit fa6b1007bad, Fix script_load_keymap failure from c9d9bfa84ad5cb985e3feccffa702b2f3cc2adf8
 Referenced by issue #93625, Box selection or any selection method doesn´t work when I drag the mouse with move tool active (when using right click select)
 Referenced by issue #92053, Industry Compatible keymap: dragging doesn't engage box select, even though the drag option is set to box select
+Referenced by issue #91698, VSE: Tool option Drag options exposed in Annotation & Sample Tool
