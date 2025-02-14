@@ -4708,41 +4708,42 @@ static bool edbm_fill_grid_prepare(BMesh *bm, int offset, int *span_p, const boo
         BMVert *v = static_cast<BMVert *>(v_link->data);
         const float angle = edbm_fill_grid_vert_tag_angle(v);
         ele_sort[i].sort_value = angle;
-        ele_sort[i].data = v;
+        ele_sort[i].data = v_link;
 
-        BM_elem_flag_disable(v, BM_ELEM_TAG);
+        /* Do not allow the best corner or the diagonally opposite corner to be detected.*/
+        if (i == 0 || i == verts_len / 2) {
+          ele_sort[i].sort_value = 0;
+        }
+
       }
 
       qsort(ele_sort, verts_len, sizeof(*ele_sort), BLI_sortutil_cmp_float_reverse);
 
-      /* check that we have at least 3 corners,
-       * if the angle on the 3rd angle is roughly the same as the last,
+      /* check that we have at least 3 corners.
+       * The excluded corners are the last and second from last elements. (both reset to 0)
+       * The best remaining corner is ele_sort[0]
+       * if the angle on the best remaining corner is roughly the same as the third-last,
        * then we can't calculate 3+ corners - fallback to the even span. */
-      if ((ele_sort[2].sort_value - ele_sort[verts_len - 1].sort_value) > eps_even) {
-        for (i = 0; i < 4; i++) {
-          BMVert *v = static_cast<BMVert *>(ele_sort[i].data);
-          BM_elem_flag_enable(v, BM_ELEM_TAG);
-        }
-
-        /* now find the first... */
-        for (v_link = static_cast<LinkData *>(verts->first), i = 0; i < verts_len / 2;
-             v_link = v_link->next, i++)
-        {
-          BMVert *v = static_cast<BMVert *>(v_link->data);
-          if (BM_elem_flag_test(v, BM_ELEM_TAG)) {
-            if (v != v_act) {
-              span = i;
-              break;
-            }
-          }
-        }
+      if ((ele_sort[0].sort_value - ele_sort[verts_len - 3].sort_value) > eps_even) {
+        span = BLI_findindex(verts, ele_sort[0].data);
       }
       MEM_freeN(ele_sort);
     }
+
     /* end span calc */
+    int start = 0;
+
+    /* The algorithm needs to iterate the shorter distance, between the best and second best vert.
+     * If the second best vert is near the beginning of the loop, it starts at 0 and walks forward.
+     * If, instead, the second best vert is near the end of the loop, then it starts at the second
+     * best vertex and walks to the end of the loop. */
+    if (span > verts_len / 2) {
+      span = (verts_len)-span;
+      start = (verts_len / 2) - span;
+    }
 
     /* un-flag 'rails' */
-    for (i = 0; i < span; i++) {
+    for (i = start; i < start+span; i++) {
       BM_elem_flag_disable(edges[i], BM_ELEM_TAG);
       BM_elem_flag_disable(edges[(verts_len / 2) + i], BM_ELEM_TAG);
     }
@@ -4815,14 +4816,6 @@ static FillGridSplitJoin *edbm_fill_grid_split_join_init(BMEditMesh *em)
       BM_elem_flag_enable(e_dst->v2, BM_ELEM_SELECT);
       BMO_slot_map_elem_insert(&split_join->weld_op, weld_target_map, e->v2, e_dst->v2);
     }
-
-    /* Since the grid fill is performed "inside out", (filling an exterior edge of an island,
-     * instead of a hole), the winding of the generated faces would be the reverse of normal.
-     * This reversal would cause both the span/offset computation in edbm_fill_grid_prepare, and
-     * the flip detection in bm_grid_fill, to alternate on repeated calls, causing the final result
-     * to alternate between two different, (but both valid!), results.  Reversing the direction of
-     * each edge after the split avoids that, resulting in the consistent results every time. */
-    BM_edge_verts_swap(e_dst);
   }
 
   /* Store the island for removal once it has been replaced by new fill_grid geometry . */
