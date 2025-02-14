@@ -10,3 +10,4 @@ Referenced by issue #42340, Blender video editor : The Green line which shows th
 Referenced by issue #42348, Bugs in ParticleSystem
 Referenced by issue #42331, Saving a model with multiple actions sometimes omits actions.
 Referenced by issue #42318, 2.72(a) crash on unwrap of subdivided mesh
+Referenced by issue #42325, Crash on .vob video import
