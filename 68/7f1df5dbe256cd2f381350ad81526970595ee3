@@ -1,3 +1,4 @@
 Referenced by issue #67183, Autosaves cause crashes on Windows 10 almost every session
 Referenced by issue #67187, Padded Zeroes in filenames Not Working
 Referenced by issue #67165, Walk navigation rotates locked camera
+Referenced by issue #66811, Painted area blinks in Weight Paint mode when the mesh is rigged (Blender 2.8.0 RC 1)
