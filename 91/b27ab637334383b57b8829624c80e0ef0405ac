@@ -1,2 +1,3 @@
 Referenced by commit ddcfc46ee65, Fix #119544: Cage modifier deformation ignored in next modifier
 Referenced by commit 2824e456781, Fix #115510: Poly Build does not update snapped geometry
+Referenced by commit c126708d69a, Fix #110001: Edit mesh overlay text uses final positions instead of cage
