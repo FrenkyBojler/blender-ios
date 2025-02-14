@@ -4,3 +4,4 @@ Referenced by issue #103881, Regression: Blender Crash when unlinking a Collecti
 Referenced by issue #98753, Regression: Outliner Unlink material crash Blender 3.2
 Referenced by issue #96844, Crash when trying to switch between workspaces and outliner modes
 Referenced by issue #92680, UI glitch in Outliner when opening file containing linked file
+Referenced by issue #82191, Outliner: Blender File view will collapse/expand libraries of different .blends simulatiously
