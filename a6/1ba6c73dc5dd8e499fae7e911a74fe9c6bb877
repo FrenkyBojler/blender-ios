@@ -1,1 +1,2 @@
 Referenced by issue #77791, Point lamp power value hard to change with unit scale (button step is calculated for Watts, but applied to milliWatts)
+Referenced by issue #71030, Library Override: Lots of operators allow to add objects to overridden collections, which is not currently supported (lost on save)
