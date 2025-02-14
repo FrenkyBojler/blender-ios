@@ -1,2 +1,3 @@
 Referenced by commit c1292b4a804, Revert "Fix: Revert changes in Mesh to Volume node and modifier to Blender 3.6"
 Referenced by issue #109340, Regression: Failed to generate Python API Documentation due to the missing context key.
+Referenced by issue #109334, Regression: Buffer overflow when hitting backspace or delete in text editor
