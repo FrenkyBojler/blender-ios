@@ -1,2 +1,3 @@
 Referenced by commit 1f76863f80a, BLI: Remove clamping from generic span slicing
 Referenced by commit 3cebc58936b, Fix: Assert in subdivide curves node after span slicing change
+Referenced by commit 584089879c5, BLI: Follow up and fix recent span slicing change
