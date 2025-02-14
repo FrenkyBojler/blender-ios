@@ -43,3 +43,4 @@ Referenced by issue #41686, Material Slot Bug
 Referenced by issue #41677, Skin modifier dont work with 0 face objects
 Referenced by issue #41679,   object color is splitted in two colors in the 3d view when a Cyclinder cap is  filled with the  bridge loop tool function .
 Referenced by issue #41681, in pose mode a .pose.bones.tail vector may suffer from an error due to floating point precision
+Referenced by issue #41668, Viewport not usable with Logitech M510 mouse
