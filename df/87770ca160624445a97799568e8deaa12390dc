@@ -1,1 +1,2 @@
 Referenced by issue #123339, Compile error in GHOST_WindowWayland.cc: too many initializers for ‘const wl_surface_listener’ (wayland-client-protocol.h)
+Referenced by issue #120587, Scrolling broken after recent commit
