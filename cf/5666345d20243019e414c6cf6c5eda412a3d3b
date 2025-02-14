@@ -2,3 +2,4 @@ Referenced by commit 678b827605c, Fix: USD export: revert renaming active UV map
 Referenced by issue #112234, Fix: USD export: revert renaming active UV maps
 Referenced by issue #111073, Regression: Crash when F3 is pressed
 Referenced by issue #111069, Grease Pencil Blur effect turns everything yellow
+Referenced by issue #108013, USD Targets for 4.0
