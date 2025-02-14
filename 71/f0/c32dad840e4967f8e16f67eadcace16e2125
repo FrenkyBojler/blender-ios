@@ -1,1 +1,2 @@
 Referenced by issue #52522, VSE renders with alpha transparent PNG image incorrectly
+Referenced by issue #52071, Images with alpha channel broken under non sRGB color space in Sequencer
