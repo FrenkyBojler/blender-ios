@@ -1,1 +1,2 @@
 Referenced by issue #42826, Blender is no longer able to find its executable path via binreloc on Linux
+Referenced by issue #42729, Blender wont start correctly using Symlinks
