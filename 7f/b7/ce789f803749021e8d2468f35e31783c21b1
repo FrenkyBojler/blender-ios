@@ -1,1 +1,2 @@
 Referenced by issue #38637, Boolean produces faces with holes which isn't supported by BMesh
+Referenced by issue #38631, Blender crashes when selection faces after new boolean modifier
