@@ -1,1 +1,2 @@
 Referenced by issue #97793, New OBJ importer: default value for missing "vt" values is incorrect (see T68249)
+Referenced by issue #97795, New OBJ importer: defaults a missing "-bm mult" value to be 0.0 but old importer uses 1.0 (see T57055)
