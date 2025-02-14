@@ -1,2 +1,3 @@
 Referenced by issue #97543, Regression: Changing the layer and/or pass of an OpenEXR multi-layer image in the image editor does not update the image drawn in the editor
 Referenced by issue #96952, Regression: Image Editor Texture Draw Stops Updating
+Referenced by issue #96670, Regression: Blender 3.1 bake from multires not reflected in the Image Editor
