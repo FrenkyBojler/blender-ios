@@ -1,0 +1,1 @@
+Referenced by issue #121129, Regression: Crash on `bmesh.ops.create_uvsphere` if underspecified
