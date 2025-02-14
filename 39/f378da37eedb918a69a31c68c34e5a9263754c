@@ -1,1 +1,2 @@
 Referenced by commit a7bcee8833e, Fix crash with change to window initialization order
+Referenced by issue #117863, Window size is broken in Linux Gnome Wayland
