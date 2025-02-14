@@ -80,3 +80,4 @@ Referenced by issue #45542, Blender quits without warning when trying to render 
 Referenced by issue #45527, BMP import issue / crash on Ubuntu, but not on OSX
 Referenced by issue #45529, Texture Compositor node composition artifact (random pixels)
 Referenced by issue #45492, segfault in CustomData_get_layer
+Referenced by issue #45475, Blender closes without notice when using hair with specific settings
