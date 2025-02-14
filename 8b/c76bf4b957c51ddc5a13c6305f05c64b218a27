@@ -5,3 +5,4 @@ Referenced by issue #105277, Alt key is always stuck when changing to Blender on
 Referenced by issue #103722, Regression: Alt key remains locked in inactive blender window
 Referenced by issue #101086, ALT does not work the first time when switching multiple windows. (Addition to T40059)
 Referenced by issue #100582, Regression: Windows-10 Switching Desktops locks Ctrl Key
+Referenced by issue #66088, modifier keys are ignored for mouse actions when window does not have focus
