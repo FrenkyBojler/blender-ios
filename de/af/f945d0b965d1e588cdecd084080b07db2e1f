@@ -21,3 +21,4 @@ Referenced by issue #77756, Going to editmode on a mesh that is target for a [sh
 Referenced by issue #77632, [Bisected] Mesh: skip conversion from edit-mesh to mesh in edit-mode, breaks surface deform modifier live preview.
 Referenced by issue #77607, Bad shading in edit mode. 2.90 regression
 Referenced by issue #77409, Instance face duplicated geometry doesn't render in edit mode
+Referenced by issue #77290, Crash on displaying Vertex Color in Edit mode
