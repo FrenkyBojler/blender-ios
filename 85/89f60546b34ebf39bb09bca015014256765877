@@ -1,3 +1,4 @@
 Referenced by issue #100906, Regression: Lag in sculpt mode when navigating around an object with modifiers
 Referenced by issue #100872, Crash when creating geometry nodes in a for-loop with Python
 Referenced by issue #98620, Regression: Video sequencer screen corruption occurs when resizing
+Referenced by issue #95443, Refactor curve nodes to use new data structure
