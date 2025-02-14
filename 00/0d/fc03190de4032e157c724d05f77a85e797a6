@@ -30,3 +30,4 @@ Referenced by issue #45172, Textobjects get spawned incorrectly in overlay scene
 Referenced by issue #45141, rotate widget
 Referenced by issue #45143, home button
 Referenced by issue #45114, Applying mirror modifier causes strange random faces appearing on render only in Blender renderer
+Referenced by issue #45101, Hard edges don't go away when removed despite disappearance of cyan lines
