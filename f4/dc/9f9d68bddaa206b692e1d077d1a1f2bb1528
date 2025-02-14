@@ -54,3 +54,4 @@ Referenced by issue #58121, Textures orphaned when loading .blend files from pri
 Referenced by issue #58108, Crash when switch from Edit Mode to Vertex Paint
 Referenced by issue #58109, New objects duplicated in isolate mode not visible.
 Referenced by issue #58111, Selection tools ignore Collections visibility.
+Referenced by issue #58077, Cycles Render Crash Glitch
