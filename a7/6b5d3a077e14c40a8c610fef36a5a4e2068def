@@ -1,2 +1,3 @@
 Referenced by commit e700e1f71c1, Fix #115843: Expose curves sculpt collision distance
 Referenced by issue #132997, Fix #115843: Expose curves sculpt collision distance
+Referenced by issue #115843, hair sculpt collision doesn't work well with real scale human head.
