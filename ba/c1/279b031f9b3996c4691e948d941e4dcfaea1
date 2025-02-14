@@ -2,3 +2,4 @@ Referenced by issue #49117, Frame counter while rendering does not respect blend
 Referenced by issue #49085, screen UI redraw bad characters
 Referenced by issue #49087, Alembic Realflow problem
 Referenced by issue #49045, Splash screen only shows up very quickly
+Referenced by issue #49046, Big speed regression in the OpenCL kernel (between 50% and 6x slower)
