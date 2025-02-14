@@ -1,2 +1,3 @@
 Referenced by issue #121514, GN primitives all seem to have bounds of 2/2/2 regardless of their settings unless they are realized
 Referenced by issue #121161, Regression: Frame Selected Includes Hidden Bones
+Referenced by issue #121017, Regression: Crash when scrubbing on the timeline
