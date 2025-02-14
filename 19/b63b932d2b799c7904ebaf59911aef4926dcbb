@@ -4,3 +4,4 @@ Referenced by commit 7beb487e9ad, Fix T104353: Crash on opening sculpting templa
 Referenced by issue #106174, Fix #106141: crash when duplicating a node
 Referenced by issue #106141, Regression: Node duplication via menu results in a crash
 Referenced by issue #104396, Regression: Crash when moving Keyframes in Graph Editor
+Referenced by issue #104353, Regression: Crash on opening sculpting template
