@@ -1,2 +1,3 @@
 Referenced by issue #89153, Follow Path for empty works only in negative values
 Referenced by issue #88505, Blender crashes with 'mutex failed' error on opening file with geometry nodes modifier.
+Referenced by issue #87854, Blender 2.93 - Follow Path: Camera overshoots path end and drops indefinetely in Z direction
