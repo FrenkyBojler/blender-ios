@@ -1,2 +1,3 @@
 Referenced by commit d6d2897ef04, Sequencer: Fix crash caused by stereo rendering fix
 Referenced by issue #77564, Video Sequence Editor lost stereoscopic preview
+Referenced by issue #76876, Anaglyph 3D not showing in backdrop of compositor.
