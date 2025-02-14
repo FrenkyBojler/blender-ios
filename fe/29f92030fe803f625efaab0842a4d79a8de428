@@ -1,1 +1,2 @@
 Referenced by commit a904db3ee7a, Color management: skip no-op colorspace transforms for float images (mostly affects VSE)
+Referenced by issue #127305, Color management: skip no-op colorspace transforms for float images (mostly affects VSE)
