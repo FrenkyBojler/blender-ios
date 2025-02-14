@@ -1,2 +1,3 @@
 Referenced by commit 5514ca58a4d, Fix T92313: Heading of redo panel is not aligned properly
 Referenced by issue #92555, [UI] [Minor Bug] Uneven padding on the header bar
+Referenced by issue #92562, UI: template_ID_preview reduced preview size
