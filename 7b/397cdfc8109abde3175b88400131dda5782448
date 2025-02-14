@@ -12,3 +12,4 @@ Referenced by issue #52653, Render output of linked scenes conflicts with other 
 Referenced by issue #52639, Crash - Using Smooth weight tool
 Referenced by issue #52626, Scene too complex to fit in available memory. (allocating buffer Denoising XtWY failed.)
 Referenced by issue #52605, FBX Exporter not scaling properly
+Referenced by issue #52580, principled BSDF Reflected Roughness bug.
