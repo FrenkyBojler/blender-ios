@@ -1,2 +1,3 @@
 Referenced by commit efd3c4b3c94, Fix #122896: Knife snap to edge fails when a vertex is behind the viewer
 Referenced by issue #122923, fix_122896
+Referenced by issue #122896, Knife inverts snaping position on edges when mesh is close
