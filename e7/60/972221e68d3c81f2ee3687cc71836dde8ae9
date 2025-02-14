@@ -1,1 +1,2 @@
 Referenced by issue #87583, AOV Output node dosen't change name when it's done in python commands
+Referenced by issue #72471, Custom AOV commit breaks diffuse/glossy direct/indirect passes
