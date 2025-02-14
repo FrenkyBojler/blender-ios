@@ -1,2 +1,3 @@
 Referenced by issue #86658, Excessive CPU load and slow animation playback
 Referenced by issue #76422, Render crash when an object is updated with a frame_change_post handler while another object's Show in Render property is keyframed
+Referenced by issue #71347, Virtual Reality - Milestone 1 - Scene Inspection
