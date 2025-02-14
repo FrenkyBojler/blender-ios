@@ -1,3 +1,4 @@
 Referenced by commit 7f5367eaae8, Windows: Fix RelWithDebInfo missing symbol information
 Referenced by issue #76246, "Paste Objects" doesn't copy source objects' collection heirarchy
 Referenced by issue #75919, Undo system: Debug assert while undoing several operations
+Referenced by issue #75061, Grease Pencil - Material - Fill - Style: broken Gradient and  Texture
