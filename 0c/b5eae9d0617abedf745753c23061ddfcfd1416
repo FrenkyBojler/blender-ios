@@ -9,3 +9,4 @@ Referenced by issue #97300, Scale gizmo impossible to click on (line is fine, bo
 Referenced by issue #97124, Regression: Area lights. Size manipulators lost (WIN+NVidia)
 Referenced by issue #97120, Regression: Gizmos became significantly harder to use (in orthographic view)
 Referenced by issue #96435, Regression: very long input delay when dragging some gizmos handles in macOS
+Referenced by issue #96357, Issue clicking on stem of arrow gizmos to scale on axis
