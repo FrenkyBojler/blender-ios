@@ -1,1 +1,2 @@
 Referenced by commit eb4f2b48970, Fix missing brackets in cpuid bitfield check.
+Referenced by issue #38815, Cycles AVX kernel detection leads to crash when CPU does support AVX but OS does NOT
