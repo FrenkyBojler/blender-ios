@@ -1,2 +1,3 @@
 Referenced by issue #90972, Crash calling Mesh.clear_geometry in edit-mode
 Referenced by issue #61342, segfault when clicking Use Nodes in 2D workspace
+Referenced by issue #61343, Crash when selecting image source drop down in Image Texture node
