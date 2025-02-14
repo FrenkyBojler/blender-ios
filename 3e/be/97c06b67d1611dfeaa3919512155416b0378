@@ -1,1 +1,2 @@
 Referenced by issue #80771, Mode switching hides vertices in Edit mode (Weight paint / Sculpt mode --> Edit mode)
+Referenced by issue #78665, Face Set visibility is reverted when toggling local view or face set overlay while working with Multires subdivisions
