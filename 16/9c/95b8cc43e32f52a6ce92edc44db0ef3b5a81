@@ -19,3 +19,4 @@ Referenced by issue #40669, BHV cache is not freed, and Copy Previous Settings t
 Referenced by issue #40671, two linked 'Child of - constraint' causes object to jump at 180 degree rotation
 Referenced by issue #40638, Crash in Particle System, Connect Hair
 Referenced by issue #40627, Tiles (image game property) not working in BGE and GLSL 3D view
+Referenced by issue #40630, Blender 2.7.1 RC1: When Lattice's vertices get moved Blender crashes
