@@ -1,1 +1,2 @@
 Referenced by commit ff144edd8c2, Revert "Cleanup: remove redundant active object NULL check & poll"
+Referenced by issue #76837, Blender closing when clicking TAB after I hide object
