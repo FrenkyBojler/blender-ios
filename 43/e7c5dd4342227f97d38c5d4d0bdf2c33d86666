@@ -1,1 +1,2 @@
 Referenced by issue #58290, ParticleSystem not updating when changing FieldWeights params
+Referenced by issue #58217, Import bpy makes mesh duplicate when changing location
