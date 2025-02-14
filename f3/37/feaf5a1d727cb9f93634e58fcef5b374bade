@@ -6,3 +6,4 @@ Referenced by issue #50421, Blender crashes while Duplicating
 Referenced by issue #50408, Port EXCEPTION_ACCESS_VIOLATION fix to 2.76b
 Referenced by issue #49924, Grease Pencil (GP) not working on Video Sequencer Editor (VSE)
 Referenced by issue #49887, Middle Mouse button for Rotate 3D view does not work (Mouse: Logitech MX Anywhere 2)
+Referenced by issue #49810, Objects deleted by switching layers
