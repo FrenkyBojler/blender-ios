@@ -1,3 +1,4 @@
 Referenced by issue #47000, Texture paint problem with soft bush gradients
 Referenced by issue #46835, Daily build glossy material crashes blender directly.
 Referenced by issue #46838, High Quality DOF does not work (Intel)
+Referenced by issue #46818, Cycles crashes when glossy, glass, and refraction shaders are used
