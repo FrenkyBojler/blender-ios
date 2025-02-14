@@ -1,1 +1,2 @@
 Referenced by issue #102584, Regression: Boundary Propagation doesn't work
+Referenced by issue #101430, Regression: Crash upon undo in sculpt mode after a stroke with no effect
