@@ -1,1 +1,2 @@
 Referenced by issue #95756, Crash when inserting a new node after linking a geometry nodes modifier to another object
+Referenced by issue #95532, merge by distance node deletes everything when selection is all false
