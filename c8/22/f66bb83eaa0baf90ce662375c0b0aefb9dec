@@ -1,1 +1,2 @@
 Referenced by commit 37bf71ad047, Fix T83588: Crash with Shrink/Fatten and Offset Even
+Referenced by issue #83307, Statusbar Shortcuts: The 3D View shortcuts are displayed in the Sequencer context when in Transform mode.
