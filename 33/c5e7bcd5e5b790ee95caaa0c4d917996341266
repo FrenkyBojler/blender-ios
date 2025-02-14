@@ -3,3 +3,4 @@ Referenced by commit 0479a663130, Fix broken versionning after recent refactor o
 Referenced by issue #93321, Blender 3.0 splash screen scene will rendered incorrectly
 Referenced by issue #88449, Blender LTS: Maintenance Task 2.93
 Referenced by issue #82160, LibOverrides - Refactor how diffing of RNA collections is handled, and extend diffing possibilities.
+Referenced by issue #77348, Blender LTS: Maintenance Task 2.83
