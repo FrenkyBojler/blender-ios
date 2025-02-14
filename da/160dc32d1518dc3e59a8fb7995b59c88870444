@@ -1,1 +1,2 @@
 Referenced by commit 0a6bca1f753, Cleanup: revert part of da160dc32d1518dc3e59a8fb7995b59c88870444
+Referenced by commit 5b1980859ad, Workaround T86992: Tagged ID deletion conflicts with freeing objects
