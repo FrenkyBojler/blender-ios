@@ -2,3 +2,4 @@ Referenced by commit 8ee020d11fe, Fix T103195: Initialize face sets from bevel w
 Referenced by issue #103011, Regression: Boolean modifier create uncorrect weight attribute for bevel modifier
 Referenced by issue #101471, Regression: Crash in Solidify Modifier with complex flat boundary mode
 Referenced by issue #101118, Regression: Crash in Solidify modifier when adjusting Bevel Convex slider
+Referenced by issue #95966, Struct of Arrays Refactor for Mesh Edges
