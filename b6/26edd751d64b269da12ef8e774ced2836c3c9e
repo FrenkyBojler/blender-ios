@@ -1,2 +1,3 @@
 Referenced by issue #96965, Blender crashes when typing a number while in Graph Editor -> Slider Operators -> Breakdown
 Referenced by issue #95834, SpaceView3D.draw_handler_add with PRE_VIEW draw type does not result in visible draws
+Referenced by issue #81785, Implementation: Modal Key Manipulation Operators
