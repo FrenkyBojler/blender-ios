@@ -1,2 +1,3 @@
 Referenced by issue #58215, GPU compute crash
 Referenced by issue #58183, Cycles combined CPU + GPU render crash
+Referenced by issue #57990, Crash Bug: Editing Geometry in EEVEE
