@@ -6,3 +6,4 @@ Referenced by issue #39192, Blend renders on 2.69.0 and 2.70 RC1 but not on 2.70
 Referenced by issue #39194, CUDA error when trying to do viewport rendering
 Referenced by issue #39182, layers problem with 2.70 release candidate
 Referenced by issue #39152, Blender crash when duplicate mesh with hooks and laplacian deform.
+Referenced by issue #39134, Sometimes "Freestyle" will be generate incorrect line.
