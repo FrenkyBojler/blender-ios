@@ -4,3 +4,4 @@ Referenced by issue #112183, Selecting a policy element does not take into accou
 Referenced by issue #112081, RMB context menu item displays active when it shouldn't
 Referenced by issue #111942, Renaming bone collections highlight color
 Referenced by issue #111831, UI: Search items are only partially highlighted
+Referenced by issue #45643, Highlight active item in pop-up menu (eg: Editor Type)
