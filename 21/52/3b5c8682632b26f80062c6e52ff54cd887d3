@@ -1,2 +1,3 @@
 Referenced by issue #59286, Cycles GPU Compute baking often fails
 Referenced by issue #59275, Eevee - Generated coordinates don't follow mesh deformation
+Referenced by issue #59266, Hard to select a single face when set to display as wireframe
