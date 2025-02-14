@@ -17,3 +17,4 @@ Referenced by issue #121931, Sculpting -> Box-Trim on "Hi"-Poly/Voxelcount extre
 Referenced by issue #121709, crash after python bpy.ops.object.mode_set(mode='OBJECT')
 Referenced by issue #121619, code marked as unreachable has been executed. Please report this as a bug.
 Referenced by issue #120960, EXCEPTION_ACCESS_VIOLATION
+Referenced by issue #120465, Crash when using certain tools in viewport on Wayland
