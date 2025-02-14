@@ -1,1 +1,2 @@
 Referenced by issue #113377, Regression: Geometry Nodes: Access Violation Exception when copying from Mesh with GPU Subdivision Surface Modifier
+Referenced by issue #102675, Render Animation Freezes / Hangs after a few hundred frames
