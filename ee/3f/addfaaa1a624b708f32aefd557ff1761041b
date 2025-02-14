@@ -1,1 +1,2 @@
 Referenced by commit 0fd31c53ee1, Rigidbody: Fix regression introduced in ee3fadd
+Referenced by issue #45350, Cloth Simulator: "Free all bakes" doesn't clear bake, but "Free Bake" works
