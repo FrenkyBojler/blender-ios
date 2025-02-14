@@ -1,1 +1,2 @@
 Referenced by issue #63064, Cycles viewport render border no longer shows scene behind with OpenGL
+Referenced by issue #62178, Eevee Image Texture Box mapping inconsistent with Cycles if object is scaled
