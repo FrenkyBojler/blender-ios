@@ -1,2 +1,3 @@
 Referenced by issue #107580, Issue with Glossy Direct/Indirect Pass in Compositing in Blender 3.5
 Referenced by issue #106705, Regression: Glossy Direct pass produce different results than it did in previous versions of Blender.
+Referenced by issue #104586, Regression: Blender 3.5: Hair: Cycles render passes GlossDir, GlossInd, GlossCol, TransDir, TransInd, and TransCol
