@@ -1,1 +1,2 @@
 Referenced by commit 797013b7f46, Fix #116866: crash when adding volume
+Referenced by issue #116843, Regression: Crash when sculpting with Multires modifier
