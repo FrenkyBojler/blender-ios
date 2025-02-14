@@ -1,1 +1,2 @@
 Referenced by issue #98956, Geometry Nodes crash when using "Store Named Attribute" with name "id"
+Referenced by issue #98910, Python: bizarre behavior of mesh.normals_split_custom_set for vectors with length < 1
