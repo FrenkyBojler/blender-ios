@@ -21,3 +21,4 @@ Referenced by issue #104886, Can't convert attribute to UV Map in 3.5 beta
 Referenced by issue #104789, uv_layers.remove() always raises error
 Referenced by issue #104501, Regression: Blender crashes after using Inset Faces
 Referenced by issue #104044, Regression: UVMap channels order breaks after scene reload
+Referenced by issue #104033, Regression: UV faces not selecting correctly
