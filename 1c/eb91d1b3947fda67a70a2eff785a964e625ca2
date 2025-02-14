@@ -1,2 +1,3 @@
 Referenced by issue #82298, Color picker samples merged (display output) colors on a certain object regardless of "Sample Merged" setting
 Referenced by issue #81775, Crash on Exiting Texture Paint With Multiresolution (Image Editor involved)
+Referenced by issue #81167, Texture Painting with Paint mask enabled, (de)selecting faces causes a mess with texture slots.
