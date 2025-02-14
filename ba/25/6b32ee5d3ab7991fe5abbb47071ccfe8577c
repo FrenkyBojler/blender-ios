@@ -1,2 +1,3 @@
 Referenced by issue #52013, Differences between CPU and GPU with this Volumetric World Texture
 Referenced by issue #52021, Shadow Catcher bug with transparency and Branched Path Tracing
+Referenced by issue #52001, Artifacts with Principled BSDF in Material view - master
