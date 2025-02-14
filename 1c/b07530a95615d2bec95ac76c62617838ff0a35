@@ -1,1 +1,2 @@
 Referenced by issue #82388, Regression: Sculpt mode undo: Broken when undoing to a Global/memfile undo step after  rB4c7b1766a7f1
+Referenced by issue #71564, Undo of the first stroke after entering sculpt mode for 2.8 models is lagging
