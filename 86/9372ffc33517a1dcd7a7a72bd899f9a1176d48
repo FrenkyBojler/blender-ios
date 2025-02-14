@@ -1,0 +1,1 @@
+Referenced by issue #114648, The compositor in an another scene is tiggered when geometry modifications are done in the main scene.
