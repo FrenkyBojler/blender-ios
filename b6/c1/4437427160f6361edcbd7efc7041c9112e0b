@@ -1,1 +1,2 @@
 Referenced by issue #57102, HDRI  showing behind the objects even when world background is set to transparent
+Referenced by issue #57110, Toggling Between Shading modes causes a crash with heavy scenes
