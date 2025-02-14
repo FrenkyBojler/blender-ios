@@ -59,13 +59,13 @@ static const CPPType &get_cpp_type(ResultType type)
       return CPPType::get<float>();
     case ResultType::Int:
       return CPPType::get<int>();
-    case ResultType::Vector:
+    case ResultType::Float3:
+      return CPPType::get<float3>();
     case ResultType::Color:
       return CPPType::get<float4>();
     case ResultType::MotionVector:
       return CPPType::get<MotionVector>();
     case ResultType::Float2:
-    case ResultType::Float3:
     case ResultType::Int2:
       /* Those types are internal and needn't be handled by operations. */
       break;
@@ -90,14 +90,13 @@ static void add_single_value_input_parameter(mf::ParamsBuilder &parameter_builde
     case ResultType::Color:
       parameter_builder.add_readonly_single_input_value(input.get_single_value<float4>());
       return;
-    case ResultType::Vector:
-      parameter_builder.add_readonly_single_input_value(input.get_single_value<float4>());
+    case ResultType::Float3:
+      parameter_builder.add_readonly_single_input_value(input.get_single_value<float3>());
       return;
     case ResultType::MotionVector:
       parameter_builder.add_readonly_single_input_value(input.get_single_value<MotionVector>());
       return;
     case ResultType::Float2:
-    case ResultType::Float3:
     case ResultType::Int2:
       /* Those types are internal and needn't be handled by operations. */
       BLI_assert_unreachable();
@@ -119,14 +118,13 @@ static void add_single_value_output_parameter(mf::ParamsBuilder &parameter_build
     case ResultType::Color:
       parameter_builder.add_uninitialized_single_output(&output.get_single_value<float4>());
       return;
-    case ResultType::Vector:
-      parameter_builder.add_uninitialized_single_output(&output.get_single_value<float4>());
+    case ResultType::Float3:
+      parameter_builder.add_uninitialized_single_output(&output.get_single_value<float3>());
       return;
     case ResultType::MotionVector:
       parameter_builder.add_uninitialized_single_output(&output.get_single_value<MotionVector>());
       return;
     case ResultType::Float2:
-    case ResultType::Float3:
     case ResultType::Int2:
       /* Those types are internal and needn't be handled by operations. */
       BLI_assert_unreachable();
@@ -148,14 +146,13 @@ static void upload_single_value_output_to_gpu(Result &output)
     case ResultType::Color:
       output.set_single_value(output.get_single_value<float4>());
       return;
-    case ResultType::Vector:
-      output.set_single_value(output.get_single_value<float4>());
+    case ResultType::Float3:
+      output.set_single_value(output.get_single_value<float3>());
       return;
     case ResultType::MotionVector:
       output.set_single_value(output.get_single_value<MotionVector>());
       return;
     case ResultType::Float2:
-    case ResultType::Float3:
     case ResultType::Int2:
       /* Those types are internal and needn't be handled by operations. */
       BLI_assert_unreachable();
@@ -307,8 +304,7 @@ mf::Variable *MultiFunctionProcedureOperation::get_constant_input_variable(DInpu
     }
     case SOCK_VECTOR: {
       const float3 value = float3(input->default_value_typed<bNodeSocketValueVector>()->value);
-      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<float4>>(
-          float4(value, 0.0f));
+      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<float3>>(value);
       break;
     }
     case SOCK_RGBA: {
@@ -385,8 +381,8 @@ static mf::MultiFunction *get_conversion_function(const ResultType variable_type
 {
   static auto float_to_int_function = mf::build::SI1_SO<float, int>(
       "Float To Int", float_to_int, mf::build::exec_presets::AllSpanOrSingle());
-  static auto float_to_vector_function = mf::build::SI1_SO<float, float4>(
-      "Float To Vector", float_to_vector, mf::build::exec_presets::AllSpanOrSingle());
+  static auto float_to_float3_function = mf::build::SI1_SO<float, float3>(
+      "Float To Float3", float_to_float3, mf::build::exec_presets::AllSpanOrSingle());
   static auto float_to_color_function = mf::build::SI1_SO<float, float4>(
       "Float To Color", float_to_color, mf::build::exec_presets::AllSpanOrSingle());
   static auto float_to_motion_vector_function = mf::build::SI1_SO<float, MotionVector>(
@@ -396,30 +392,30 @@ static mf::MultiFunction *get_conversion_function(const ResultType variable_type
 
   static auto int_to_float_function = mf::build::SI1_SO<int, float>(
       "Int To Float", int_to_float, mf::build::exec_presets::AllSpanOrSingle());
-  static auto int_to_vector_function = mf::build::SI1_SO<int, float4>(
-      "Int To Vector", int_to_vector, mf::build::exec_presets::AllSpanOrSingle());
+  static auto int_to_float3_function = mf::build::SI1_SO<int, float3>(
+      "Int To Float3", int_to_float3, mf::build::exec_presets::AllSpanOrSingle());
   static auto int_to_color_function = mf::build::SI1_SO<int, float4>(
       "Int To Color", int_to_color, mf::build::exec_presets::AllSpanOrSingle());
   static auto int_to_motion_vector_function = mf::build::SI1_SO<int, MotionVector>(
       "Int To Motion Vector", int_to_motion_vector, mf::build::exec_presets::AllSpanOrSingle());
 
-  static auto vector_to_float_function = mf::build::SI1_SO<float4, float>(
-      "Vector To Float", vector_to_float, mf::build::exec_presets::AllSpanOrSingle());
-  static auto vector_to_int_function = mf::build::SI1_SO<float4, int>(
-      "Vector To Int", vector_to_int, mf::build::exec_presets::AllSpanOrSingle());
-  static auto vector_to_color_function = mf::build::SI1_SO<float4, float4>(
-      "Vector To Color", vector_to_color, mf::build::exec_presets::AllSpanOrSingle());
-  static auto vector_to_motion_vector_function = mf::build::SI1_SO<float4, MotionVector>(
+  static auto float3_to_float_function = mf::build::SI1_SO<float3, float>(
+      "Float3 To Float", float3_to_float, mf::build::exec_presets::AllSpanOrSingle());
+  static auto float3_to_int_function = mf::build::SI1_SO<float3, int>(
+      "Float3 To Int", float3_to_int, mf::build::exec_presets::AllSpanOrSingle());
+  static auto float3_to_color_function = mf::build::SI1_SO<float3, float4>(
+      "Float3 To Color", float3_to_color, mf::build::exec_presets::AllSpanOrSingle());
+  static auto float3_to_motion_vector_function = mf::build::SI1_SO<float3, MotionVector>(
       "Vector To Motion Vector",
-      vector_to_motion_vector,
+      float3_to_motion_vector,
       mf::build::exec_presets::AllSpanOrSingle());
 
   static auto color_to_float_function = mf::build::SI1_SO<float4, float>(
       "Color To Float", color_to_float, mf::build::exec_presets::AllSpanOrSingle());
   static auto color_to_int_function = mf::build::SI1_SO<float4, int>(
       "Color To Int", color_to_int, mf::build::exec_presets::AllSpanOrSingle());
-  static auto color_to_vector_function = mf::build::SI1_SO<float4, float4>(
-      "Color To Vector", color_to_vector, mf::build::exec_presets::AllSpanOrSingle());
+  static auto color_to_float3_function = mf::build::SI1_SO<float4, float3>(
+      "Color To Float3", color_to_float3, mf::build::exec_presets::AllSpanOrSingle());
   static auto color_to_motion_vector_function = mf::build::SI1_SO<float4, MotionVector>(
       "Color To Motion Vector",
       color_to_motion_vector,
@@ -431,9 +427,9 @@ static mf::MultiFunction *get_conversion_function(const ResultType variable_type
       mf::build::exec_presets::AllSpanOrSingle());
   static auto motion_vector_to_int_function = mf::build::SI1_SO<MotionVector, int>(
       "Motion Vector To Int", motion_vector_to_int, mf::build::exec_presets::AllSpanOrSingle());
-  static auto motion_vector_to_vector_function = mf::build::SI1_SO<MotionVector, float4>(
-      "Motion Vector To Vector",
-      motion_vector_to_vector,
+  static auto motion_vector_to_float3_function = mf::build::SI1_SO<MotionVector, float3>(
+      "Motion Vector To Float3",
+      motion_vector_to_float3,
       mf::build::exec_presets::AllSpanOrSingle());
   static auto motion_vector_to_color_function = mf::build::SI1_SO<MotionVector, float4>(
       "Motion Vector To Color",
@@ -445,8 +441,8 @@ static mf::MultiFunction *get_conversion_function(const ResultType variable_type
       switch (expected_type) {
         case ResultType::Int:
           return &float_to_int_function;
-        case ResultType::Vector:
-          return &float_to_vector_function;
+        case ResultType::Float3:
+          return &float_to_float3_function;
         case ResultType::Color:
           return &float_to_color_function;
         case ResultType::MotionVector:
@@ -455,7 +451,6 @@ static mf::MultiFunction *get_conversion_function(const ResultType variable_type
           /* Same type, no conversion needed. */
           return nullptr;
         case ResultType::Float2:
-        case ResultType::Float3:
         case ResultType::Int2:
           /* Types are not user facing, so we needn't implement them. */
           break;
@@ -465,8 +460,8 @@ static mf::MultiFunction *get_conversion_function(const ResultType variable_type
       switch (expected_type) {
         case ResultType::Float:
           return &int_to_float_function;
-        case ResultType::Vector:
-          return &int_to_vector_function;
+        case ResultType::Float3:
+          return &int_to_float3_function;
         case ResultType::Color:
           return &int_to_color_function;
         case ResultType::MotionVector:
@@ -475,27 +470,25 @@ static mf::MultiFunction *get_conversion_function(const ResultType variable_type
           /* Same type, no conversion needed. */
           return nullptr;
         case ResultType::Float2:
-        case ResultType::Float3:
         case ResultType::Int2:
           /* Types are not user facing, so we needn't implement them. */
           break;
       }
       break;
-    case ResultType::Vector:
+    case ResultType::Float3:
       switch (expected_type) {
         case ResultType::Float:
-          return &vector_to_float_function;
+          return &float3_to_float_function;
         case ResultType::Int:
-          return &vector_to_int_function;
+          return &float3_to_int_function;
         case ResultType::Color:
-          return &vector_to_color_function;
+          return &float3_to_color_function;
         case ResultType::MotionVector:
-          return &vector_to_motion_vector_function;
-        case ResultType::Vector:
+          return &float3_to_motion_vector_function;
+        case ResultType::Float3:
           /* Same type, no conversion needed. */
           return nullptr;
         case ResultType::Float2:
-        case ResultType::Float3:
         case ResultType::Int2:
           /* Types are not user facing, so we needn't implement them. */
           break;
@@ -507,15 +500,14 @@ static mf::MultiFunction *get_conversion_function(const ResultType variable_type
           return &color_to_float_function;
         case ResultType::Int:
           return &color_to_int_function;
-        case ResultType::Vector:
-          return &color_to_vector_function;
+        case ResultType::Float3:
+          return &color_to_float3_function;
         case ResultType::MotionVector:
           return &color_to_motion_vector_function;
         case ResultType::Color:
           /* Same type, no conversion needed. */
           return nullptr;
         case ResultType::Float2:
-        case ResultType::Float3:
         case ResultType::Int2:
           /* Types are not user facing, so we needn't implement them. */
           break;
@@ -527,22 +519,20 @@ static mf::MultiFunction *get_conversion_function(const ResultType variable_type
           return &motion_vector_to_float_function;
         case ResultType::Int:
           return &motion_vector_to_int_function;
-        case ResultType::Vector:
-          return &motion_vector_to_vector_function;
+        case ResultType::Float3:
+          return &motion_vector_to_float3_function;
         case ResultType::Color:
           return &motion_vector_to_color_function;
         case ResultType::MotionVector:
           /* Same type, no conversion needed. */
           return nullptr;
         case ResultType::Float2:
-        case ResultType::Float3:
         case ResultType::Int2:
           /* Types are not user facing, so we needn't implement them. */
           break;
       }
       break;
     case ResultType::Float2:
-    case ResultType::Float3:
     case ResultType::Int2:
       /* Types are not user facing, so we needn't implement them. */
       break;

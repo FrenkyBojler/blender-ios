@@ -66,7 +66,7 @@ ResultType get_node_socket_result_type(const bNodeSocket *socket)
         return ResultType::MotionVector;
       }
       else {
-        return ResultType::Vector;
+        return ResultType::Float3;
       }
     }
     case SOCK_RGBA:

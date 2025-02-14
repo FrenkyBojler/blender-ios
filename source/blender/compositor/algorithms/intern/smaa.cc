@@ -1416,7 +1416,6 @@ static float3 get_luminance_coefficients(ResultType type)
       IMB_colormanagement_get_luminance_coefficients(luminance_coefficients);
       return luminance_coefficients;
     }
-    case ResultType::Vector:
     case ResultType::MotionVector:
       return float3(1.0f, 1.0f, 1.0f);
     case ResultType::Float:
@@ -1424,8 +1423,7 @@ static float3 get_luminance_coefficients(ResultType type)
     case ResultType::Float2:
       return float3(1.0f, 1.0f, 0.0f);
     case ResultType::Float3:
-      /* GPU module does not support float3 outputs. */
-      break;
+      return float3(1.0f, 1.0f, 1.0f);
     case ResultType::Int:
     case ResultType::Int2:
       /* SMAA does not support integer types. */
@@ -1588,7 +1586,6 @@ static const char *get_blend_shader_name(ResultType type)
 {
   switch (type) {
     case ResultType::Color:
-    case ResultType::Vector:
     case ResultType::MotionVector:
       return "compositor_smaa_neighborhood_blending_float4";
     case ResultType::Float2:
@@ -1596,8 +1593,7 @@ static const char *get_blend_shader_name(ResultType type)
     case ResultType::Float:
       return "compositor_smaa_neighborhood_blending_float";
     case ResultType::Float3:
-      /* GPU module does not support float3 outputs. */
-      break;
+      return "compositor_smaa_neighborhood_blending_float4";
     case ResultType::Int:
     case ResultType::Int2:
       /* SMAA does not support integer types. */
@@ -1664,9 +1660,6 @@ static void compute_single_value(Result &input, Result &output)
   output.allocate_single_value();
   switch (input.type()) {
     case ResultType::Color:
-      output.set_single_value(input.get_single_value<float4>());
-      break;
-    case ResultType::Vector:
       output.set_single_value(input.get_single_value<float4>());
       break;
     case ResultType::MotionVector:

@@ -21,9 +21,9 @@ inline int float_to_int(const float &value)
   return int(value);
 }
 
-inline float4 float_to_vector(const float &value)
+inline float3 float_to_float3(const float &value)
 {
-  return float4(float3(value), 1.0f);
+  return float3(value);
 }
 
 inline float4 float_to_color(const float &value)
@@ -45,9 +45,9 @@ inline float int_to_float(const int &value)
   return float(value);
 }
 
-inline float4 int_to_vector(const int &value)
+inline float3 int_to_float3(const int &value)
 {
-  return float_to_vector(int_to_float(value));
+  return float_to_float3(int_to_float(value));
 }
 
 inline float4 int_to_color(const int &value)
@@ -61,25 +61,25 @@ inline MotionVector int_to_motion_vector(const int &value)
 }
 
 /* --------------------------------------------------------------------
- * Vector to other.
+ * Float3 to other.
  */
 
-inline float vector_to_float(const float4 &value)
+inline float float3_to_float(const float3 &value)
 {
-  return math::reduce_add(value.xyz()) / 3.0f;
+  return math::reduce_add(value) / 3.0f;
 }
 
-inline int vector_to_int(const float4 &value)
+inline int float3_to_int(const float3 &value)
 {
-  return float_to_int(vector_to_float(value));
+  return float_to_int(float3_to_float(value));
 }
 
-inline float4 vector_to_color(const float4 &value)
+inline float4 float3_to_color(const float3 &value)
 {
   return float4(value.xyz(), 1.0f);
 }
 
-inline MotionVector vector_to_motion_vector(const float4 &value)
+inline MotionVector float3_to_motion_vector(const float3 &value)
 {
   return MotionVector(value.xy());
 }
@@ -98,9 +98,9 @@ inline int color_to_int(const float4 &value)
   return float_to_int(color_to_float(value));
 }
 
-inline float4 color_to_vector(const float4 &value)
+inline float3 color_to_float3(const float4 &value)
 {
-  return value;
+  return value.xyz();
 }
 
 inline MotionVector color_to_motion_vector(const float4 &value)
@@ -122,9 +122,9 @@ inline int motion_vector_to_int(const MotionVector &value)
   return float_to_int(motion_vector_to_float(value));
 }
 
-inline float4 motion_vector_to_vector(const MotionVector &value)
+inline float3 motion_vector_to_float3(const MotionVector &value)
 {
-  return float4(value.previous, 0.0f, 0.0f);
+  return float3(value.previous, 0.0f);
 }
 
 inline float4 motion_vector_to_color(const MotionVector &value)
