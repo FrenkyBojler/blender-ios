@@ -12,3 +12,4 @@ Referenced by issue #60949, No device input in 2.8 3D viewport
 Referenced by issue #60953, Normal Map Tangent Space stopped working with Object Texture Coordinate
 Referenced by issue #60931, Workspaces are not working when nothing is selected (can cause crash)
 Referenced by issue #58662, Crashes and freezes with hair and motion blur
+Referenced by issue #58193, Blender 2.8 - Adding new collection from the Objects Menu, does not add the collection to the scene
