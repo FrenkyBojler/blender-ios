@@ -87,3 +87,4 @@ Referenced by issue #47352, Crash in sculpting mode with dynamic topology
 Referenced by issue #47330, problem when 2 gamepads use in same time logitech  (button dont work but axix work) logic editor
 Referenced by issue #47319, The "Disconnect/Connect Hair" feature for particle hair systems does not work properly with "Use Modifier Stack"
 Referenced by issue #47320, Cycles baking: Some operations do not "take" until edit mode is exited
+Referenced by issue #47314, Misaligned DataBlock Previews for groups with custom center coordinates
