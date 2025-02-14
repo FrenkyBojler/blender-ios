@@ -26,3 +26,4 @@ Referenced by issue #42216, New DXF Importer in 2.72 struggles with "minimal DXF
 Referenced by issue #42217, Cannot select objects in wireframe view in object mode.
 Referenced by issue #42201, Rigid Body Collisions - Surface Response parameter values can be specified outside of expected bounds
 Referenced by issue #42202, Bone Constraints: IK & Copy Scale
+Referenced by issue #42205, Changes to the Movie Clip Editor's grid color preferences do not take effect
