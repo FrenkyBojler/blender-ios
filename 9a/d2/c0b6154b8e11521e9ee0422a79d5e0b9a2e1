@@ -1,3 +1,4 @@
 Referenced by commit 7553523af7b, Collections: Bring back simple visibility behaviour
 Referenced by commit fdeb125c7a8, Fix T53014: Cycles material preview not working
 Referenced by commit 8a1d787b898, Initial fix for T53014: Cycles material preview no light
+Referenced by issue #53014, Cycles material preview no light
