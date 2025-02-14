@@ -1,2 +1,3 @@
 Referenced by commit 0e75aa44fb9, Fix T78304: Scaling without a constraint axis shows wrong parameters in Adjust Last operator panel
 Referenced by issue #78304, Scaling without a constraint axis shows wrong parameters in Adjust Last operator panel
+Referenced by issue #76919, Rotation direction is inverted after SHIFT+D and R
