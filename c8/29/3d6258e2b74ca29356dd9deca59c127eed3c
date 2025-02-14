@@ -1,0 +1,1 @@
+Referenced by issue #86037, SSR being on causes the Rendered GlossDir and GlossCol AOVs to be multiplied/divided by the number of Render Samples.
