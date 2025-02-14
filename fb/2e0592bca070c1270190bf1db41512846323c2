@@ -1,2 +1,3 @@
 Referenced by issue #52672, Segment Fault using manipulator after enabling Object axis display
 Referenced by issue #52657, Blender crashes the minute I interact with the manipulator and Maya interaction mode can not be enabled.
+Referenced by issue #52665, Crash on move using arrow axis of transform gizmo.
