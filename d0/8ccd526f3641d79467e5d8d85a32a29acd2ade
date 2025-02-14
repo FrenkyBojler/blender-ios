@@ -1,0 +1,1 @@
+Referenced by issue #67208, Bone selection problem (maximum drawtype wire or viewport shading xray -- bones can only be selected by clicking on their wires even though shading suggests the whole bone is clickable)
