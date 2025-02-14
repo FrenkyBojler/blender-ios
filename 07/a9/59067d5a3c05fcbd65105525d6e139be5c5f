@@ -1,3 +1,4 @@
 Referenced by issue #73095, [Edit Mesh] overlay of linked meshes in Edit Mode. [2.82 regression]
 Referenced by issue #72848, Multiple windows displaying an linked duplicate, crashes when transforming in edit-mode
 Referenced by issue #72667, Outliner "delete hierarchy" crash with a mesh in edit-mode
+Referenced by issue #72217, Crash when switching scene
