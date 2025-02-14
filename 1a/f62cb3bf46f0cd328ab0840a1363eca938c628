@@ -1,3 +1,4 @@
 Referenced by commit afdbb734cf9, Cleanup: Avoid mesh positions copy applying sculpt to shape key
 Referenced by commit c3d803c2ef4, Cleanup: Use consistent "positions" term for mesh update tag functions
 Referenced by commit b37111c574e, Cleanup: Use consistent "vert" term for mesh normals
+Referenced by commit 79d64bfde38, Geometry Nodes: Remove unnecessary position copying in delete node
