@@ -1,0 +1,1 @@
+Referenced by issue #87056, Segfault in GPU_batch_clear() involing Lattice evaluation
