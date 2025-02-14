@@ -1,1 +1,2 @@
 Referenced by issue #54033, Bmesh fails to cut a mesh when the bool object is a plane.
+Referenced by issue #53883, Cycles normal map wrong with box mapping and no UVs
