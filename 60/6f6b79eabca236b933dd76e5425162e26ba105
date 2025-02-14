@@ -1,2 +1,3 @@
 Referenced by commit 9ddd83cec21, Fix T47724: VSE crops video if horizontal resolution isn't divisible by 8
 Referenced by issue #47806, Blender animation player stop working correctly with XVID codec
+Referenced by issue #47766, VSE patch affects scaling of CbCr planes
