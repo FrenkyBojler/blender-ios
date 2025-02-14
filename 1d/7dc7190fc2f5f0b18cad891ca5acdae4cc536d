@@ -1,1 +1,2 @@
 Referenced by commit 6eea579f114, Fix #128004: Clay strips tip roundness ignored with 1.0 hardness
+Referenced by issue #128004, Sculpt: Tip Roundness ignored in Clay Strips Brush when Hardness set to 1 OR Falloff set to Constant
