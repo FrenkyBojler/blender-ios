@@ -1,0 +1,1 @@
+Referenced by issue #80125, Constraint missing after save and reopen the blend file (fixed in 2.90 - request to backport to LTS)
