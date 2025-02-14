@@ -1,1 +1,2 @@
 Referenced by commit 15f5dfd45d1, Nodes: Remove unused shader and compositor NodeItem definitions
+Referenced by issue #111831, UI: Search items are only partially highlighted
