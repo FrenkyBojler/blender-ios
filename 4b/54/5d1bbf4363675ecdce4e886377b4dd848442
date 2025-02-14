@@ -4,3 +4,4 @@ Referenced by issue #59680, Impossible to have two different object interaction 
 Referenced by issue #59653, Blender 2.8 Beta for Linux: Executing blender-softwaregl in Terminal results in Segmentation Fault
 Referenced by issue #59509, Particle rotation bug
 Referenced by issue #59452, Different curve surface drawing in object- vs. edit-mode
+Referenced by issue #59437, After applying any modifier to object and change to "Edit Mode" Blender crash
