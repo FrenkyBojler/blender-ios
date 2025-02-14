@@ -1,1 +1,2 @@
 Referenced by issue #133251, Compositor denoise node accurate prefilter takes 200% longer in Blender 4.4
+Referenced by issue #132015, Compositor: Re-exporting EXR does not export cryptomatte (compresses the pass and metadata)
