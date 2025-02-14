@@ -38,3 +38,4 @@ Referenced by issue #69473, Curve widget crash when resetting curve with bad cli
 Referenced by issue #69439, Default cube has different vertex order than a New Cube (results in unexpected "transfer shape key")
 Referenced by issue #69266, [ Material > Viewport Display > Color ] no longer saved with the scene
 Referenced by issue #69270, Tools Solidify
+Referenced by issue #69259, Brick texture in Eeeve - crash when changing parameters
