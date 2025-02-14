@@ -1,2 +1,3 @@
 Referenced by issue #59600, Python-made grease pencil strokes not updating until manual stroke added
 Referenced by issue #59577, Can't Add Hair to OBJ
+Referenced by issue #59583, Hair Dynamics: entering particle edit mode with baked cache crashes blender
