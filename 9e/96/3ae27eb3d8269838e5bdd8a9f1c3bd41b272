@@ -71,3 +71,4 @@ Referenced by issue #42390, Bugged interface
 Referenced by issue #42391, render output different from Viewport Rendered shading output.
 Referenced by issue #42370, Problem speed ogv file in VSE
 Referenced by issue #42356, Changing vertex color alpha has no effect on transparency when using GLSL shading
+Referenced by issue #42166, Crash on exit (change in DPI size and/or using VBO)
