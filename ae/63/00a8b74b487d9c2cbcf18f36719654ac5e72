@@ -2,3 +2,4 @@ Referenced by issue #66047, Crash if after changing subdivision surface quality
 Referenced by issue #66025, RBG node crashes Blender 2.8
 Referenced by issue #66035, {Crash} Blender 2.8 Beta FBX Import Subdivision Crash
 Referenced by issue #66022, Crash when adding subsurf modifier
+Referenced by issue #63766, Multiresolution behavior when using crease edge
