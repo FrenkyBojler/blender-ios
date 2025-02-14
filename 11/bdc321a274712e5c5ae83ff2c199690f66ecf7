@@ -1,3 +1,4 @@
 Referenced by commit f68e50a263b, WM: operators that add their own undo pushes now clears the redo panel
 Referenced by commit 26f66e14230, Revert "Sculpt: Register sculpt brush op so it clears last operator panel"
 Referenced by issue #104174, Regression: Clicking over empty viewport creates undo step in sculpt mode
+Referenced by issue #101743, Regression: Redo panel created on sculpting
