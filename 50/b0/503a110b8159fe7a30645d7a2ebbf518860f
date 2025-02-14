@@ -1,0 +1,1 @@
+Referenced by issue #93366, bpy.ops.wm.read_homefile() Crashes Blender 3.0
