@@ -1,0 +1,1 @@
+Referenced by commit f16dbd0360e, ImBuf: no need to use double precision inside IMB_transform
