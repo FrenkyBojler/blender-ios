@@ -1,1 +1,2 @@
 Referenced by commit a67876103a6, Fix T101981: Incorrect playback of AVI files
+Referenced by issue #101981, The video sequencer does not correctly decode an AVI file
