@@ -29,3 +29,4 @@ Referenced by issue #48037, 2.77 and 2.69 both on Windows and Linux crashes when
 Referenced by issue #48028, GPU Compute in Cycles is broken on AMD stable drivers and Blender stable release
 Referenced by issue #47991, Smoke preview in viewport not showing up on some Mac systems
 Referenced by issue #47996, Bug Hair (particles) Density/Length texture in Cycles
+Referenced by issue #47971, Blender 2.77 Crash When Rigid Body Cache 'Bake' Clicked
