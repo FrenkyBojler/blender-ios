@@ -1,2 +1,3 @@
 Referenced by issue #51243, Delete Globally won't work with Datablock ID Properties
 Referenced by issue #51150, user_remap on itself changes users to 0
+Referenced by issue #51047, Copy Location constraint from bendy bone shows crazy jiggle behaviour in linked proxy rig.
