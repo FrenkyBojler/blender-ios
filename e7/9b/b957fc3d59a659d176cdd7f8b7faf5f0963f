@@ -8,3 +8,4 @@ Referenced by issue #59091, Bendy bone duplicate got wrong handles
 Referenced by issue #59092, Setting Dynamic Paint brush as particle crashes when selecting a particle system
 Referenced by issue #59079, Cycles Stereoscopic Render dies
 Referenced by issue #59080, No autoname left/right
+Referenced by issue #59081, Some material node groups in 2.80, from 2.7x files, crash in 2.80
