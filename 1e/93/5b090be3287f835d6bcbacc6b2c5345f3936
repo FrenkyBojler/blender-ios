@@ -1,1 +1,2 @@
 Referenced by issue #59774, Lightmap Pack Error: Element-wise multiplication: not supported between 'Quaternion' and 'Vector' types
+Referenced by issue #59051, Vertex paint overlay doesn't work with modifiers
