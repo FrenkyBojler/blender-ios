@@ -15,3 +15,4 @@ Referenced by issue #47721, viewport preview bounding box dotted line moves near
 Referenced by issue #47711, Cloth simulation bug
 Referenced by issue #47718, Too high default strength for hair particle brushes
 Referenced by issue #47702, Freestyle not fully drawing edge marked lines in Blender Render
+Referenced by issue #47697, Smoke simulation doesn't work in viewport
