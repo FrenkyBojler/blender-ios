@@ -1,0 +1,1 @@
+Referenced by issue #94546, Math node clamp scrolls value between 0 (soft min) and 1 (soft max) instead scrolling between values, that set as min/max
