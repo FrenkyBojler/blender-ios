@@ -1,1 +1,2 @@
 Referenced by issue #129129, For Each Element node crashes Blender when input is vertex without edges or faces
+Referenced by issue #128948, Regression: Crash due to switching node editor contexts in some addons
