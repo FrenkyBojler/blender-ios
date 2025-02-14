@@ -1,1 +1,2 @@
 Referenced by commit ee1fa8e1ca6, BLI: support set operations on index masks
+Referenced by commit c38a52885bf, Fix #110037: uninitialized result array and typos
