@@ -1,2 +1,3 @@
 Referenced by commit 8c3855dc6e9, Fix broken physics modifiers after cleanup commits
 Referenced by issue #89589, Renaming or altering an asset resets custom thumbnail
+Referenced by issue #89583, Particles do not react to collision objects anymore
