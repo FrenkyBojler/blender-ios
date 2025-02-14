@@ -1,1 +1,2 @@
 Referenced by commit 85623f6a559, UI: Add Copy Full Data Path to RMB menu
+Referenced by issue #52232, Crash in RNA_enum_from_value while inspecting compositor image node properties in outliner
