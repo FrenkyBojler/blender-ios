@@ -1,2 +1,3 @@
 Referenced by issue #101081, 3.3LTS: crash when entering sculpt mode of a wire mesh if it is a "custom object" of a bone
 Referenced by issue #100941, Smear brush gives artifact when the strength  is above 1
+Referenced by issue #100906, Regression: Lag in sculpt mode when navigating around an object with modifiers
