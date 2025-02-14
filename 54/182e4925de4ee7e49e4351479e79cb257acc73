@@ -1,2 +1,3 @@
 Referenced by commit 0d7d8c73cf5, Mesh: Use cached looptris in draw cache extraction
 Referenced by commit fca94c5e0d6, Fix: Incorrect dirty normal tag after mesh translation
+Referenced by issue #101137, Regression: Crash on connecting UV sphere node to transform node
