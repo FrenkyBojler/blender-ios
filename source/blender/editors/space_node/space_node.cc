@@ -962,8 +962,10 @@ static void node_region_listener(const wmRegionListenerParams *params)
       }
       break;
     case NC_ANIMATION:
+      if (wmn->data == ND_NLA_ACTCHANGE) {
         ED_region_tag_redraw(region);
-        break;
+      }
+      break;
     case NC_SCREEN:
       if (wmn->data == ND_LAYOUTSET || wmn->action == NA_EDITED) {
         WM_gizmomap_tag_refresh(gzmap);
