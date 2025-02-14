@@ -1,1 +1,2 @@
 Referenced by issue #102238, Geometry Node: Memory leak -> EXCEPTION_ACCESS_VIOLATION -> EXCEPTION_INT_DIVIDE_BY_ZERO.
+Referenced by issue #102066, Blender is no longer able to export .gltf objects with tangents
