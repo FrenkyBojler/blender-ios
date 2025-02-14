@@ -43,3 +43,4 @@ Referenced by issue #46628, Strips overlapping in VSE
 Referenced by issue #46605, Compositing causes access violation when rendering from command line
 Referenced by issue #46596, OpenGL display problems with submenus on OSX
 Referenced by issue #46572, Appending objects via Python API does not work under Linux
+Referenced by issue #46565, Segfault when rendering AVI animation to /tmp
