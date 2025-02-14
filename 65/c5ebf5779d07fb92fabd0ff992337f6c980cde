@@ -1,1 +1,2 @@
 Referenced by commit 929a2106085, Fix T97758: Applying modifiers bakes shape-keys
+Referenced by issue #103929, Applying Data Transfer Modifier - only the active Shape Key is taken into account
