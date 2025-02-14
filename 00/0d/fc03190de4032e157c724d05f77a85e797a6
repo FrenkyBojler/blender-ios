@@ -55,3 +55,4 @@ Referenced by issue #44908, Blender crashes when trying to use cycles experiment
 Referenced by issue #44909, Video editor import large image import
 Referenced by issue #44871, Blender hangs when using masking, dilate-erode and soften node
 Referenced by issue #44844, Crease Factor user setting doesnt work properly
+Referenced by issue #44818, Particle animation render contains erratic errant particles not seen in viewport or OpenGL render.
