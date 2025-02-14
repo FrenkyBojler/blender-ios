@@ -6,3 +6,4 @@ Referenced by commit 1bcd812a75d, Fix (unreported) memory leak in Nodes versioni
 Referenced by commit 9600b74318c, Fix: geometry nodes asset traits not written to file
 Referenced by issue #127426, Fix: unnecessary node updates
 Referenced by issue #116477, Regression: Warning in Consol when adding Frizz Hair Curves
+Referenced by issue #114148, Fix #112716: Custom sockets ignore draw_color method
