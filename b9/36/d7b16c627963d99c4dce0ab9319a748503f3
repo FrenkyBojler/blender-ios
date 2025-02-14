@@ -1,2 +1,3 @@
 Referenced by issue #63345, changing scene and applying modifiers
 Referenced by issue #63241, Instant crash upon parenting two separate armatures in the edit mode.
+Referenced by issue #63201, Random crashes during background rendering
