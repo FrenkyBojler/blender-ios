@@ -1,1 +1,2 @@
 Referenced by issue #47353, texture paint grid bug
+Referenced by issue #43735, Very important bug in Texture Paint mode while painting object when faces are pointing ~90degrees away from the view/camera
