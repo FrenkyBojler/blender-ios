@@ -1,3 +1,4 @@
 Referenced by issue #44714, crashing to desktop when switching to node editor.
 Referenced by issue #44700, Blenderplayer segfaults after "BGE: Adding material IPO support to GLSL materials"
 Referenced by issue #44684, Compositor backdrop isn't updating correctly
+Referenced by issue #22441, Material IPO's do not work in GLSL mode, only in multitexture
