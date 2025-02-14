@@ -15,3 +15,4 @@ Referenced by issue #95800, Regression: Crash after discarding texture paint cha
 Referenced by issue #95791, Changing steroscopic view does not result in image viewer update
 Referenced by issue #95723, EEVEE: Viewport Render shows transparent image
 Referenced by issue #95725, Changing render slot doesn't update displayed image
+Referenced by issue #95338, Render Image for composited scene shows inconsistent results
