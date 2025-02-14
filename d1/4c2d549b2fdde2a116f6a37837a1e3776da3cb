@@ -1,2 +1,3 @@
 Referenced by commit 29c68e25235, Fix T99869: Edge crease no longer working
 Referenced by issue #103783, Regression: Canceling vertex crease operation causes crash when mesh has vertex groups
+Referenced by issue #99869, Edge crease no longer working
