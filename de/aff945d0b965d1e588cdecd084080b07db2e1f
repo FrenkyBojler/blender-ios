@@ -1,3 +1,4 @@
 Referenced by commit d269ad35359, Fix T100578: Surface Deform modifier displays wrong in editmode
 Referenced by commit d037ac315b4, Fix T80996: Weight Proximity modifier: crash going to editmode on a
 Referenced by commit e0772c6607a, Fix T80098: Mesh deform doesn't update in edit mode
+Referenced by commit ad05e1100fd, Fix T77409: Crash showing vertex/face duplicators in edit-mode
