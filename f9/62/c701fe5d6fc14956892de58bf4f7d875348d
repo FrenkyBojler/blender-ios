@@ -1,1 +1,2 @@
 Referenced by issue #67646, eevee - unconnected Subsurface Scattering node makes whole material not working
+Referenced by issue #65017, Eevee: Object not using SSS renders incorrectly if a SSS node is unconnected
