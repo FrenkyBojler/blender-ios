@@ -3,3 +3,4 @@ Referenced by issue #45765, Hair problems particles to animate.
 Referenced by issue #45670, Weight paint not showing in viewport
 Referenced by issue #44715, Crash compositing with undefined node
 Referenced by issue #43073, 2.72 Hair render in Cycles always crashes
+Referenced by issue #42803, GPU Rendering - EARLY Out of Memory
