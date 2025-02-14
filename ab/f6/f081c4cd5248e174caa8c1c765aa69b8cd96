@@ -45,3 +45,4 @@ Referenced by issue #49132, Blender 2.77a hangs when a lot of vertices are selec
 Referenced by issue #49118, Blender 3D view - Solid (Blender Render) material diffuse and/specular not updating until tabbing into edit mode.
 Referenced by issue #49109, Frame selection in timeline and VSE does not respect left click preference
 Referenced by issue #49095, Custom Normals from DataTransfer Modifier are not applied
+Referenced by issue #49077, Collada exporter does not respect 'shadeless' flag
