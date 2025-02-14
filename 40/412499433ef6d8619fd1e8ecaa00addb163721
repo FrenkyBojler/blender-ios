@@ -5,3 +5,4 @@ Referenced by issue #62424, Grid always shows in orthographic view even when tur
 Referenced by issue #62427, Multires: changing between simple and catmull-clark causes artifacts
 Referenced by issue #62434, EEVEE not using correct World Output node
 Referenced by issue #62406, Crash after manipulating Object.hide_viewport while iterating Collection.all_objects
+Referenced by issue #62390, Blender 2.8 Crashes when I Undo changes and press the left mouse button while working in weight paint
