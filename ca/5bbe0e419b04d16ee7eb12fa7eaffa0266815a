@@ -1,0 +1,1 @@
+Referenced by commit f8eb006d091, OSX/cmake: rollback ca5bbe0e419b04d16ee7eb12fa7eaffa0266815a cause OSX versions can have not subversion thus sw_vers -productVersion is not usable for sdk setting
