@@ -1,2 +1,3 @@
 Referenced by issue #123195, EEVEE-Next crash when duplicating many lights
 Referenced by issue #123102, Blender 4.2 builds not starting using EXE
+Referenced by issue #122305, Segmentation fault while generating Python API documents
