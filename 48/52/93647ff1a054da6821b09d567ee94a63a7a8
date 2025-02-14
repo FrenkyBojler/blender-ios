@@ -1,2 +1,3 @@
 Referenced by issue #44033, shadeinput.c and zbuf.c... out of bounds memory indexing?
 Referenced by issue #42437, Physics/Compound Bug
+Referenced by issue #42438, Solidifys flipped normals dont work with Offset Materials
