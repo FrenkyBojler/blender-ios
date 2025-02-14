@@ -1,3 +1,4 @@
 Referenced by commit 71b451bb628, Fix T95288: Shrinkwrap selection broken in edit mode
 Referenced by issue #95479, GN mesh to curve to mesh causes hard crash with cage display
 Referenced by issue #95288, Shrinkwrap selection broken in edit mode.
+Referenced by issue #95222, Blender crash during transform
