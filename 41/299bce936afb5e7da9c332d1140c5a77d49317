@@ -1,1 +1,2 @@
 Referenced by issue #69808, Python-defined nodes implementing a draw_label function causes a segmentation fault when drawn.
+Referenced by issue #69578, Blender crash when playing with multiples metaballs particles system
