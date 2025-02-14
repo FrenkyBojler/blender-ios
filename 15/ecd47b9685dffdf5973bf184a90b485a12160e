@@ -1,1 +1,2 @@
 Referenced by issue #93367, Geometry Nodes in recent builds scramble meshes in various cases
+Referenced by issue #93256, Geometry Nodes: Instances to points doesn't generate any points
