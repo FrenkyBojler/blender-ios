@@ -1,1 +1,2 @@
 Referenced by commit fb3ac0d1788, Cleanup: Remove unnecessary draw brush function declaration
+Referenced by issue #131139, Size Sensitivity with Brush Alpha Completely Tanks Performance
