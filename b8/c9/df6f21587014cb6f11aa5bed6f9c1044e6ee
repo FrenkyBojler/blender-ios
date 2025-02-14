@@ -1,3 +1,4 @@
 Referenced by commit 5d3c815c2fe, Revert "Compositor: Added Weighted Standard Curve evaluation"
 Referenced by issue #56523, Enable/Disable Viewport Visibility Bug
 Referenced by issue #56524, Navigate Gizmo obscured by objects
+Referenced by issue #56525, Missing images in Texture Slots
