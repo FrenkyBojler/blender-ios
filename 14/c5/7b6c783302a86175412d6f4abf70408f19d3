@@ -1,1 +1,2 @@
 Referenced by issue #43250, light data shader node color output (GLSL) does not respect energy any more
+Referenced by issue #42074, Material viewport shading receives light from light sources on other layers when they have a texture assigned
