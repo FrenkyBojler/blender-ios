@@ -9,3 +9,4 @@ Referenced by issue #92224, Handling of appending collections that contain linke
 Referenced by issue #91834, Appending objects with shape keys into new file is broken.
 Referenced by issue #91414, Unify link/append between WM operators and BPY context manager API, and cleanup usages of `BKE_library_make_local`
 Referenced by issue #90545, ID Deduplication on Append - Technical Implementation
+Referenced by issue #55629, Append already linked Data
