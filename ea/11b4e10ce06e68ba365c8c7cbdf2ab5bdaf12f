@@ -1,2 +1,3 @@
 Referenced by issue #88389, Intel OpenCL doesn't work in binary, but does work when compiling from source
 Referenced by issue #88372, Export abc without subdiv does not work with instance collections (when source collection is disabled or linked)
+Referenced by issue #88324, VSE playback doesn't works
