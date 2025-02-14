@@ -12,3 +12,4 @@ Referenced by issue #39120, Timeline locker don't work with arrows keys
 Referenced by issue #39126, Convert To: Mesh from Curve/Meta/Surface does not respect "Keep Original"
 Referenced by issue #39127, Cycles volumetric
 Referenced by issue #39130, Bad mouse cursour while hover on vertical spacebar in Text Editor
+Referenced by issue #39111, 2.70 RC1 Windows 64, Boolean stress test.
