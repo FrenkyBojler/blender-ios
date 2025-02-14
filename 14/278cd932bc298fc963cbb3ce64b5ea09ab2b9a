@@ -1,1 +1,2 @@
 Referenced by issue #76881, Selecting Fluid>Mesh>"Use Speed Vectors" deletes all existing cache without warning
+Referenced by issue #76694, [Mantaflow] cache is deleted at changing upres factor
