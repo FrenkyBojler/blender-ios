@@ -1,1 +1,2 @@
 Referenced by commit 11db0b9dadf, Fix #118524: Loopcut crashes when not near an edge
+Referenced by commit 92428db3bbe, Fix crash using the depth eye-dropper
