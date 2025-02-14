@@ -67,3 +67,4 @@ Referenced by issue #39584, Effects strips render black
 Referenced by issue #39591, Blender crashes when playing back rendered Animation in version 2.7
 Referenced by issue #39595, Blender 2.7 startup crash when pcie audio card is installed in the pcie 2.0 16x slot instead of a pcie 2.0 1x slot
 Referenced by issue #39568, Hair particles disappear in BI after entering particle edit mode
+Referenced by issue #39569, Will not start
