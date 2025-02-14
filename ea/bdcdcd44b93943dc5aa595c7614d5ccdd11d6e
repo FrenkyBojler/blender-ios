@@ -1,1 +1,2 @@
 Referenced by issue #96520, Regression: Node editor: Tweak is broken and requires click, then click again to drag
+Referenced by issue #96324, Regression: Resizing an image is not correctly reflected in the image editor until the UI is updated
