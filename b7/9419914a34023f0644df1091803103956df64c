@@ -1,2 +1,3 @@
 Referenced by commit 3566a9e8de2, UI: Tooltip when bone collections are linked
 Referenced by issue #117715, UI: Tooltip when bone collections are linked
+Referenced by issue #117620, Crash when moving bones to another collection in linked Armature
