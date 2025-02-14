@@ -6,3 +6,4 @@ Referenced by issue #62564, Object with "Viewport display" - "Display as" "Box" 
 Referenced by issue #62566, Cubemap doesn't bake from current frame of animation.
 Referenced by issue #62569, Big 16-bit PNG files don't support Non-color data (EEVEE)
 Referenced by issue #62548, Reflection cubemap doesn't bake from objects, displayed as box.
+Referenced by issue #62528, data transfer modifier error
