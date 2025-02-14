@@ -2,3 +2,4 @@ Referenced by commit fadde9da75d, Fix: Regression of Grease Pencil arguments whe
 Referenced by commit e5a1a615247, Cleanup: Remove unused sculpt drawing code
 Referenced by issue #132871, Fix: Regression of Grease Pencil arguments when caching depth buffer
 Referenced by issue #131842, Fix #129145: Grease Pencil: Stroke depth detection and interpolation for drawing and primitives
+Referenced by issue #131363, Curves ignore Surface Object Setting
