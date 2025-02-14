@@ -6,3 +6,4 @@ Referenced by issue #127324, Blender 4.2 does not open at all ubuntu 24.04 nvidi
 Referenced by issue #127309, Blender Crash related to Extensions (blender_vscode)
 Referenced by issue #127134, Curve Guide Min Distance (Influnce Area) are Repelling Particles
 Referenced by issue #127048, Blender crashes in Ubuntu 24.04
+Referenced by issue #126818, The --cycles-device command line option does nothing
