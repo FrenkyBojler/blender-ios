@@ -1,2 +1,3 @@
 Referenced by commit 3e4e346e59a, Fix T71489: Video editor crash
 Referenced by commit 391b652be4c, Cleanup: clang format for rBb77da65e8c4d
+Referenced by issue #68700, Incorrect timing of animated masks in the Video Sequence Editor
