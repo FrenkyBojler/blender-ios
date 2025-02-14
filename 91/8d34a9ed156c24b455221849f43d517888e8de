@@ -1,2 +1,3 @@
 Referenced by commit a65df020317, Fix: Dont unpack resources that are packed in linked files (next round)
 Referenced by issue #122204, Fix: Dont unpack resources that are packed in linked files (next round)
+Referenced by issue #122033, Packed images inside a linked library can be modified and saved by the main file, causing data loss on reload
