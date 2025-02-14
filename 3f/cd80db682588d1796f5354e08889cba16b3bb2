@@ -1,2 +1,3 @@
 Referenced by commit d7a7491518e, Fix: EEVEE: Missing shader include
 Referenced by issue #125233, Fix: difference of transmissive closures in EEVEE blended and dithered mode
+Referenced by issue #125219, Eevee: (Regression) Translucenct BSDF in `Blended` mode not rendering correctly
