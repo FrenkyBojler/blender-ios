@@ -9,3 +9,4 @@ Referenced by issue #39101, Can not select object on backface by clicking when M
 Referenced by issue #39103, Curve modifier added to mesh: Incorrect render and viewport result
 Referenced by issue #39104, 2 clothes on a collision object cause crash
 Referenced by issue #39081, Full crash when hitting crtl+D to duplicate all the objects from a layer.
+Referenced by issue #39084, Can not set Screen layout
