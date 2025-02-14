@@ -1,1 +1,2 @@
 Referenced by issue #41094, Ping pong action works wrong when GLSL mode and Sun buffer shadow are enabled in BGE.
+Referenced by issue #40903, Rendering: Alpha Channel is Broken.
