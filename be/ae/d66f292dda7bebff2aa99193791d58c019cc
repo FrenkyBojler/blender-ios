@@ -1,1 +1,2 @@
 Referenced by commit 91d424b82a7, Fix tooltip colors not initialized correctly
+Referenced by issue #42548, Selecting a certain object in the outliner causes Blender to crash
