@@ -31,3 +31,4 @@ Referenced by issue #45314, UV unwrapping no longer does a correct "project from
 Referenced by issue #45298, Blender exits itself when I try to run the game engine
 Referenced by issue #45301, Lock wiew to cursor not working
 Referenced by issue #45283, Blender crashes when trying to do anything with specific type of transparent image.
+Referenced by issue #45284, selection of face and edges selecting in unpredictable, random locations
