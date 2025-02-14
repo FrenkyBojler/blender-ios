@@ -4,3 +4,4 @@ Referenced by issue #103685, Regression: Animation on objects that are disabled 
 Referenced by issue #101906, Regression: Modifier apply not working if target object is in excluded collection
 Referenced by issue #101851, Regression: Duplicating a particle system crashes Blender
 Referenced by issue #100820, Regression: Crash when renaming a modifier when other modifier's visibility is driven by a driver
+Referenced by issue #100653, Reported object statistics are very wrong (under reported).
