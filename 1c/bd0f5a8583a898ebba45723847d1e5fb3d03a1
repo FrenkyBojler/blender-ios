@@ -3,3 +3,4 @@ Referenced by commit 14eb08c3a53, Fix #114870: Object dimensions does not used e
 Referenced by issue #121570, Fix #121548: Local View operator zooming to non-evaluated mesh
 Referenced by issue #121548, Viewport: Local View operator zooming to wrong location
 Referenced by issue #121552, Fix #121548: Use evaluated object for local view
+Referenced by issue #120104, Regression: Vertices and faces extruded with Solidify no longer snap.
