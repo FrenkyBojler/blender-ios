@@ -2,3 +2,4 @@ Referenced by issue #43666, Emitted Metaball not showing and rendering correctly
 Referenced by issue #41226, Wrong Undo on curves
 Referenced by issue #41123, Add Transparent Shader to Mix Shader with Material Panel open equals crash - OSL segtfault?
 Referenced by issue #41128, Box selection bug with armatures
+Referenced by issue #41010, MetaBall Duplivert Unwanted Movement Bug
