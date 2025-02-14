@@ -1,1 +1,2 @@
 Referenced by commit ee8e1959463, Nodes: allow identifier lookup in nodes which use dynamic declarations now
+Referenced by commit f7383cfe9b0, Geometry Nodes: use dynamic declaration for switch node
