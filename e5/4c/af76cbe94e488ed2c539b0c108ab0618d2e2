@@ -1,0 +1,1 @@
+Referenced by issue #52663, SEGV when D.images.remove(D.images[0], do_unlink=True)
