@@ -1,1 +1,2 @@
 Referenced by commit ea3895558d7, Fix T88998: GPencil not projecting to the most front surface
+Referenced by issue #88313, Grease pencil: Reproject strokes bad behavior when used in orthographic free navigation.
