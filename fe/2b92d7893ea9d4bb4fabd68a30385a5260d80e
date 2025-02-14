@@ -1,1 +1,2 @@
 Referenced by issue #55632, Scaling back to 1 and transforming back to 1 (x, y, z altogether) multiple objects via properties->object->tranform panel gives incorrect result
+Referenced by issue #54976, Multi-Drag doesn't play well with Multi UI Edit
