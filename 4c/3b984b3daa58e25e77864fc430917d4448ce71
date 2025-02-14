@@ -1,3 +1,4 @@
 Referenced by issue #101130, Regression: Scaling of NLA Strip Via S Hotkey Not Working
 Referenced by issue #99383, Regression: Crash in sculpting with color filter
 Referenced by issue #99212, Inconsistent Behavior with Material Shader Node Tree between different versions of Blender
+Referenced by issue #99100, Undo/redo ignore mesh changes when using Sculpt Paint tools with Gravity option
