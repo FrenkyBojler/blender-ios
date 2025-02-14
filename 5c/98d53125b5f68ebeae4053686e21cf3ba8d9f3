@@ -1,0 +1,1 @@
+Referenced by issue #113400, Opening a blend file that has objects with animation transform cache previously imported from a USD will crash if the animation in the USD is missing afterwards
