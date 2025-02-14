@@ -6,3 +6,4 @@ Referenced by commit 41b45d9159f, Fix T76260: Inverted rotation in non-3d views
 Referenced by commit 080732ae5cc, Fix crash with Orbit Around Selection
 Referenced by issue #78424, Individual Origins + Normal = Broken Again (works in 2.90, broken in 2.83 LTS)
 Referenced by issue #76630, Crash: When changing extrude amount in redo panel
+Referenced by issue #66142, Proportional Editing (Edit Mode) not working on Operation Panel
