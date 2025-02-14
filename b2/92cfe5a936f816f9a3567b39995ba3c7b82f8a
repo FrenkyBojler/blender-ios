@@ -16,3 +16,4 @@ Referenced by issue #102125, 4090GPU will crash blender when enable "cycles rend
 Referenced by issue #101669, Regression: Normal baking strange artifacts in texture bake
 Referenced by issue #101671, (Linux - OPTIX) Error: Device does not support queues
 Referenced by issue #101651, Cycles prints core dump when rendering with OPTIX and missing package `libnvidia-gl`
+Referenced by issue #89399, Mouse wrapping causes erratic movement
