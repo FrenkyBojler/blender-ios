@@ -8,3 +8,4 @@ Referenced by issue #52660, CUDA error: Not found in cuModuleGetTexRef(&texref, 
 Referenced by issue #52643, Rendered Viewport after Quick Smoke crashes Blender
 Referenced by issue #52651, Drop Down Menu's Glitch while Render Preview
 Referenced by issue #52652, Cycles 3/6 textures reversed on cube with generated co-ordinates and box mapping
+Referenced by issue #52653, Render output of linked scenes conflicts with other scenes with the same name
