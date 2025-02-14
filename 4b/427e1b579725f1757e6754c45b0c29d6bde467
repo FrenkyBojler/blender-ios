@@ -1,2 +1,3 @@
 Referenced by commit ebab68d4f1f, Fix #120187: Over-allocation in multires sculpt undo nodes
 Referenced by issue #120187, Sculpting with multiresolution modifier in 4.1 crashes
+Referenced by issue #116843, Regression: Crash when sculpting with Multires modifier
