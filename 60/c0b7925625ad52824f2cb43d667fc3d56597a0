@@ -2,3 +2,4 @@ Referenced by issue #92995, Mouse Drag Threshold used instead of Tablet Drag Thr
 Referenced by issue #92787, Cursor jumping to edge of screen when lifting pen from tablet area (wintab)
 Referenced by issue #92751, Grease Pencil: Eraser Brush ends on maximum radius
 Referenced by issue #90889, Wintab temporarily lacks pressure when switching windows
+Referenced by issue #89520, The Fly Navigation  starts panning unintentionally when used with a tablet.
