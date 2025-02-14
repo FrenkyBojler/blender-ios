@@ -1,2 +1,3 @@
 Referenced by commit 4fac29ca0e8, Revert "Fix T40257: Frustum culling not working properly"
 Referenced by issue #42122, vibrating animation bug in the game engine
+Referenced by issue #41094, Ping pong action works wrong when GLSL mode and Sun buffer shadow are enabled in BGE.
