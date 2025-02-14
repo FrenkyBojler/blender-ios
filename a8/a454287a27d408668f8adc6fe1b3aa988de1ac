@@ -10,3 +10,4 @@ Referenced by issue #101401, Setting edge crease via PyAPI doesn't work
 Referenced by issue #101393, Regression: Vertex Crease operator does not create vertex crease layer
 Referenced by issue #101373, Regression with Crease Attribute
 Referenced by issue #101340, Regression: Crease values are lost after some modifiers
+Referenced by issue #95966, Struct of Arrays Refactor for Mesh Edges
