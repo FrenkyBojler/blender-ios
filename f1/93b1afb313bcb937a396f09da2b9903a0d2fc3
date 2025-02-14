@@ -3,3 +3,4 @@ Referenced by issue #100469, Why these color values not the same when copying th
 Referenced by issue #94902, HSV values gives wrong RGB or HEX
 Referenced by issue #94244, color picker hue maps wrong
 Referenced by issue #89977, Color handling has changed between versions
+Referenced by issue #87149, Color picker value not working as expected
