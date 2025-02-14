@@ -2,3 +2,4 @@ Referenced by issue #71740, Alembic: low performance playback when keyframing ob
 Referenced by issue #69182, Auto-Smooth does not work on Alembic meshes without normals
 Referenced by issue #65959, Alembic import issue with multiple materials on a mesh
 Referenced by issue #61375, Alembic export does not export smoothing groups
+Referenced by issue #50255, Realflow Alembic mesh smoothing.
