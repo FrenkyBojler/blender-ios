@@ -57,3 +57,4 @@ Referenced by issue #41546, Rendering to PNG sequences only does zero padding up
 Referenced by issue #41535, Other Objects is flickering when emitter are disabled on particle system
 Referenced by issue #41513, Collada import: segfault
 Referenced by issue #41506, Shapekey Keyframe Action selection breaks multiple things
+Referenced by issue #41507, Empty prevents image deletion
