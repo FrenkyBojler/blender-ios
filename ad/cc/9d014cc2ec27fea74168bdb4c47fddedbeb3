@@ -1,1 +1,2 @@
 Referenced by issue #72894, Mantaflow: several crashes due to null pointers.
+Referenced by issue #72783, "Persistent images" option crashes smoke animation render with Cycles
