@@ -9,3 +9,4 @@ Referenced by issue #41877, Texture Paint - Quick Edit - Apply/Apply Camera Imag
 Referenced by issue #41482, Transparent background and volume emission material
 Referenced by issue #41490, When storing time.time() in a game property, the game property doesn't return the same time
 Referenced by issue #41460, Animations in world space
+Referenced by issue #41361, Video Sequencer Editor freeze in preview.
