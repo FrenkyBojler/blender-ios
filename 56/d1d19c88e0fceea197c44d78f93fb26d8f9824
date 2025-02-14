@@ -1,1 +1,2 @@
 Referenced by issue #98444, Regression: image.save_render() command changes color profile and file type when saving.
+Referenced by issue #97345, Canvas Selector UX: Add option to create color layers directly from the popover.
