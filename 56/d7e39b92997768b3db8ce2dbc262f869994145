@@ -1,1 +1,2 @@
 Referenced by commit d037ac315b4, Fix T80996: Weight Proximity modifier: crash going to editmode on a
+Referenced by issue #79520, Data Transfer modifier: crash/assert going into editmode on a source object
