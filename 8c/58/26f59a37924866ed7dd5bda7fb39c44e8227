@@ -1,3 +1,4 @@
 Referenced by issue #51579, Crash immediately while trying to Cycle-Render imported *.obj Objects from SILO
 Referenced by issue #51314, CRASH CYCLES BAKE
 Referenced by issue #50808, Volume rendering with GPU bug
+Referenced by issue #50698, cycles bake artifacts with transparent textures and no color option
