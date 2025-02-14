@@ -1,1 +1,2 @@
 Referenced by commit 18af9da5729, Fix: Versioning problem with cyclic bezier NURBS
+Referenced by commit dbd9472ef58, Fix: Assert in set spline type node after recent commit
