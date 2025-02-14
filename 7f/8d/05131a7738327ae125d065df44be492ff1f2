@@ -1,3 +1,4 @@
 Referenced by commit 9ac81ed6abf, Fix corrupted blend files after issues from new name_map code.
 Referenced by commit 13e17507c06, Fix crashes due to non-uniqueness in ID names in some cases.
 Referenced by commit b0f96397335, Fix crash due to improper handling of new library runtime name_map data on read/write.
+Referenced by issue #73359, Blender editing performance with many datablocks
