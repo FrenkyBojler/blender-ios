@@ -1,1 +1,2 @@
 Referenced by commit fbf47b9a126, Refactor: Use std::string for keymap string return values
+Referenced by issue #117785, Refactor: Use std::string for keymap string return values
