@@ -1,1 +1,2 @@
 Referenced by issue #65077, Select loose geometry not working.
+Referenced by issue #65054, Blender 2.80 crashes when opening a scene created by blender 2.7x with hierarchy duplication set to "group"
