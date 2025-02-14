@@ -1,1 +1,2 @@
 Referenced by issue #88507, PulseAudio: Audio Files Don't Play in Video Sequencer
+Referenced by issue #87357, Geometry Nodes: Crash after linking node group which had socket removed with python
