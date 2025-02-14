@@ -1,3 +1,4 @@
 Referenced by commit 7334c481c03, Fix T86175: Missing viewport update when toggling HDRI preview
 Referenced by commit b20872d36eb, Fix T85543: Object Types Visibility missing shading notifier
 Referenced by commit cd24712c2c5, Fix T84717: Missing viewport update after shading changes
+Referenced by issue #102199, Regression: Armatures [in front] overlay doesn't update properly (toggling overlay ON and OFF)
