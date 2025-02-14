@@ -1,2 +1,3 @@
 Referenced by commit 60ac0421b3a, Fix #132830: Regression: Cursor restores the update in GN input
 Referenced by issue #132848, Fix #132830: Regression: Cursor restores the update in GN input
+Referenced by issue #132830, Regresion: Mouse cursor updated to default in gemetry node input
