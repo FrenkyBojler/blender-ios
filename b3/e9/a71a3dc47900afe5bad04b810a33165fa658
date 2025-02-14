@@ -1,1 +1,2 @@
 Referenced by issue #40519, Keyed parameter are not redrawed
+Referenced by issue #40489, multi-spline curve with some closed and some non-closed elements only shows closed elements; and unclosed elements are invisible in the UI unless object is selected or active
