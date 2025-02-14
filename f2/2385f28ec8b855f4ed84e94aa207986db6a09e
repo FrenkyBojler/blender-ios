@@ -1,1 +1,2 @@
 Referenced by commit 35d7211bfae, I18n: tweak/fix exception catching code of pgettex() wrapper.
+Referenced by issue #57359, Crash adding a Driver and then changing frame.
