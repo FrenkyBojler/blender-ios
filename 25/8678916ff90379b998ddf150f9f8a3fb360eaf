@@ -1,1 +1,2 @@
 Referenced by commit 536144983b8, Fix: group node inputs always requested unnecessarily
+Referenced by issue #106006, Fix #106002: Consider type when choosing switching type
