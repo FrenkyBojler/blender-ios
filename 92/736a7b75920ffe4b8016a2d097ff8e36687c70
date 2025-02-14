@@ -1,0 +1,1 @@
+Referenced by issue #97069, Crash deleting a scene after moving object between collections (from a collection that is hidden in the Outliner, but visible in a viewport)
