@@ -1,1 +1,2 @@
 Referenced by commit d600a38e44a, Cleanup: Fix warning from mistaken copying od node tree
+Referenced by issue #111593, Regression: Adding nodes into node network causes strange placement and jump of node
