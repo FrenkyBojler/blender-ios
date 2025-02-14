@@ -3,3 +3,4 @@ Referenced by commit 43394e41a8e, Fix Alembic point cloud streaming.
 Referenced by issue #117104, Cycles: motion blur on native fluid simulation
 Referenced by issue #116792, Rendering multiple deformation motion blur steps with "velocity" attribute is wrong and can cause memory problems
 Referenced by issue #116749, Alembic: read velocities on Points
+Referenced by issue #109185, Instancing Geometry on Imported Alembic Particles produces extremely long render times when motion blur is enabled.
