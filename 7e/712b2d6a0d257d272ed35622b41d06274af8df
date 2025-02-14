@@ -3,3 +3,4 @@ Referenced by commit d09b1d27598, Fix T94464: video texture is not refreshing
 Referenced by commit 28df0107d4a, Fix T94362: GPUMaterialTexture references freed ImageUser
 Referenced by commit dd01ce2cd07, Fix T94322: add missing updates after recent refactor
 Referenced by commit b4f978e9011, Fix: Missing update when toggling node mute
+Referenced by issue #98231, Regression: Material Output inside node group not working if there is a Group Output Node
