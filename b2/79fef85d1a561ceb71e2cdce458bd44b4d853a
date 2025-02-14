@@ -1,1 +1,2 @@
 Referenced by commit cf2933c38a3, Add 'foreach_nodeclass' for geometry nodetrees
+Referenced by commit 53b82efed66, Fix (unreported) geometry node attribute search not working in the
