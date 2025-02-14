@@ -24,3 +24,4 @@ Referenced by issue #58427, Segfault on start, Ubuntu 18.04
 Referenced by issue #58411, mirror modifier + bevel modifier  error
 Referenced by issue #58418, Animated Textures dont update on frame change
 Referenced by issue #58399, Some old materials before 2.79 Principled Shader crashes Blender 2.8 on startup
+Referenced by issue #58400, Crash while trying to get Area Options menu
