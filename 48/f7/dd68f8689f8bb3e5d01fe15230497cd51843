@@ -2,3 +2,4 @@ Referenced by issue #49887, Middle Mouse button for Rotate 3D view does not work
 Referenced by issue #48020, When using keying sets, the toggling "all items" in the array target only goes from the index value down, instead of keying all
 Referenced by issue #47890, Masking vertices in weight paint doesn't work with subsurf
 Referenced by issue #47769, objects with transparent materials invisible on OS X 10.11
+Referenced by issue #47750, Hair particles lose position data when "Disconnect All" is used the first time from program load
