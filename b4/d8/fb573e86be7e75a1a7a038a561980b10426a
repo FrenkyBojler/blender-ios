@@ -9,3 +9,4 @@ Referenced by issue #43931, bevel only vertex doesn't subdivide
 Referenced by issue #43846, Compositor memory allocation bug
 Referenced by issue #43753, Hair Kink Options not Following Object Rotation
 Referenced by issue #43728, FreeStyle: rendering of 2D objects (created by Shrinkwrap)
+Referenced by issue #43714, Regression: Join Area in causes crashes in some cases
