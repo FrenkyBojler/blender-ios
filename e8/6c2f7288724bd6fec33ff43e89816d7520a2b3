@@ -1,1 +1,2 @@
 Referenced by issue #102684, Grease Pencil: Crash when trying to sculpt on object with Dot Dash modifier
+Referenced by issue #99313, Crash when importing a file using python from the command line with an asset browser open
