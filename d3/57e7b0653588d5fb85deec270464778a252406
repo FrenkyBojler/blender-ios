@@ -2,3 +2,4 @@ Referenced by commit f16a28c4afb, Revert "Fix T68826 Eevee: Multi-Mat not workin
 Referenced by issue #69083, Blender crashes when switching from solid view to rendered or lookdev mode in eevee.
 Referenced by issue #69087, Error when using vertex color
 Referenced by issue #69088, Assert entering editmode with a UVEditor open
+Referenced by issue #68826, eevee not showing multi material object properly when blend is loaded until mesh is updated
