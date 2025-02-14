@@ -2,3 +2,4 @@ Referenced by issue #63911, Shift + R don't work
 Referenced by issue #63875, Right arrow to show properties region, won't work if you hide the header last.
 Referenced by issue #63866, Crash after using Dyntopo with assigned Displace
 Referenced by issue #63747, Blender crashes at switching to Texture view
+Referenced by issue #63602, Alpha Blend Mode closes the software
