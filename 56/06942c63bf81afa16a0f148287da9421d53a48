@@ -1,1 +1,2 @@
 Referenced by commit a646a4b47e4, Curves: Port string to curves node to the new data-block
+Referenced by issue #98965, Regression: Bezier curves fail to respect keyframed handle positions
