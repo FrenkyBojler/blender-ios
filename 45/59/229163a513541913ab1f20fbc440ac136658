@@ -1,1 +1,2 @@
 Referenced by commit e2400252766, Fix T49199: Combination of dialog + wm.open_mainfile causes crash
+Referenced by issue #49828, calling bpy.ops.wm.open_mainfile from class which is invoked from pop-up button results in crash.
