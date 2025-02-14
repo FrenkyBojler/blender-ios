@@ -1,1 +1,2 @@
 Referenced by issue #117075, CUDA illegal adress (Shadow Linking/GPU/Emission value)
+Referenced by issue #114889, 'Illegal address in CUDA queue copy_from_device' when we use 'Shadow Linking'
