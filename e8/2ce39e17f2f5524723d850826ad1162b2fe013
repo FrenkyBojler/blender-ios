@@ -7,3 +7,4 @@ Referenced by issue #128785, Brush asset icons won't reload allways after Undo
 Referenced by issue #128758, Error Message when using old Shortcut for Crease Brush
 Referenced by issue #128759, Wrong pop-up menu in Sculpt Mode on Curves Object
 Referenced by issue #128767, Regression: Batch Rename failed to rename bones
+Referenced by issue #128680, GPv3: Vertex color by default in paint mods
