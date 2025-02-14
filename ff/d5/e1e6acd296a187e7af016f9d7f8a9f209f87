@@ -3,3 +3,4 @@ Referenced by issue #83624, Bump map node is doing something strange which is ca
 Referenced by issue #79638, Bump node in Eevee. Huge performance drop.
 Referenced by issue #71201, eevee/blender freezing  for a few seconds when renaming a few materials via python
 Referenced by issue #70614, Texture won't display or won't do correctly on eevee when used as bump and other input
+Referenced by issue #70405, Bump Node not generating normals of textures using Geometry Position
