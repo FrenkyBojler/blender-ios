@@ -2,3 +2,4 @@ Referenced by commit 563404d8ad4, Fix T100430: Restore larger node socket snap h
 Referenced by commit a0c28a80548, Fix T100430: Restore larger node socket snap hitbox
 Referenced by issue #100430, Regression: Node socket active/snapping area became smaller
 Referenced by issue #95331, Node editors: Precision issues, when nodes are close together
+Referenced by issue #87829, Connector in node editors cannot connect when too close
