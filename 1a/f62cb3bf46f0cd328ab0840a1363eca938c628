@@ -12,3 +12,4 @@ Referenced by issue #106288, Blender Crash when trying to open 3.4 autosave blen
 Referenced by issue #104980, Regression: "Apply All Shape Keys' not working
 Referenced by issue #104348, Regression: Geometry Nodes triangulate node incorrectly alters point attributes
 Referenced by issue #104154, Regression: Shape Keys no longer work on Objects with Bevel Modifier
+Referenced by issue #103937, Regression: applying NonGeometrical modifiers (UVProject, DataTransfer, ...) looses shape key data
