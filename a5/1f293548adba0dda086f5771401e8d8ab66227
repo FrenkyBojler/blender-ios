@@ -6,3 +6,4 @@ Referenced by issue #126818, The --cycles-device command line option does nothin
 Referenced by issue #126573, Segmentation Fault Upon Blender Startup
 Referenced by issue #126484, Blender crashes when the shading panel is opened.
 Referenced by issue #126458, Cycles volume rendering artifacts on AMD GPU - Linux
+Referenced by issue #126114, viewport shadow crash
