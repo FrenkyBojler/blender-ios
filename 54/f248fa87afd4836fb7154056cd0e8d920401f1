@@ -1,1 +1,2 @@
 Referenced by commit 736b0d6894f, Revert "Transform: Use orientation of active object with Auto Constraint"
+Referenced by issue #84259, "active element" works correctly only when the axis is picked with middle mouse button.
