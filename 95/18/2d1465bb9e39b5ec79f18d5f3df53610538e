@@ -14,3 +14,4 @@ Referenced by issue #42395, Object disappears, Blender crashes
 Referenced by issue #42364, release 2.72b appears to be build 2.72
 Referenced by issue #42318, 2.72(a) crash on unwrap of subdivided mesh
 Referenced by issue #42309, Angular map in cycles - camera location
+Referenced by issue #42285, Crash of Blender in Gameengine/Physicsengine concerning ApplyForce
