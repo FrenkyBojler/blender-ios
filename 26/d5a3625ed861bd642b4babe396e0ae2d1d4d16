@@ -28,3 +28,4 @@ Referenced by issue #58242, Show whole scene transparent doesn't work correctly
 Referenced by issue #58232, When rendering it seems that the focal length of the camera is different
 Referenced by issue #58214, Annotations in any editor are hard to erase
 Referenced by issue #58216, The backdrop in the VSE is broken.
+Referenced by issue #58217, Import bpy makes mesh duplicate when changing location
