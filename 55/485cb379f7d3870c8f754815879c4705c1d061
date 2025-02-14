@@ -13,3 +13,4 @@ Referenced by issue #105013, --render-output command line argument and backslash
 Referenced by issue #104841, Cycle no longer takes into account the Sharp in blender 3.5 Beta
 Referenced by issue #104804, bpy.ops.wm.open_mainfile command overwrite the existing file without warning
 Referenced by issue #104572, Blender Eevee Render freeze when i change base color or color sliders #103843
+Referenced by issue #104369, Video Sequencer UI bug (Pink Mess)
