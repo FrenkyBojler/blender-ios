@@ -1,3 +1,4 @@
 Referenced by issue #93896, Vertex group (memory access?) change after applying modifier
 Referenced by issue #90558, Changing output resolution produces gaps in VSE
 Referenced by issue #90294, Lattice not updating all resolution values at once
+Referenced by issue #89863, Pressure Sensitivity Not Working in Blender 2.93 LTS
