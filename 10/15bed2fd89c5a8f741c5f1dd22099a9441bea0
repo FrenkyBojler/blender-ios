@@ -1,2 +1,3 @@
 Referenced by commit 637fd139574, CMake: mark FFTW3_LIBRARY_{F,D} as advanced, update doc-string
 Referenced by commit 76dd61d942c, Fix incorrect operator in sequencer context menu
+Referenced by issue #115305, Bug report. Exporting Audio from Video Editor
