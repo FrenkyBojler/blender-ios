@@ -1,0 +1,1 @@
+Referenced by issue #112851, bpy.ops undo argument doesn't work if the main operator has UNDO in bl_options
