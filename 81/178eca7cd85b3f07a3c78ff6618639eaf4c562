@@ -1,0 +1,1 @@
+Referenced by issue #86619, Blender failed to build due to error LNK2019 with MSVC on windows
