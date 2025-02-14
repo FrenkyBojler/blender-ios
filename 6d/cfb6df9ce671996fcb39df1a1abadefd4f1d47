@@ -1,1 +1,2 @@
 Referenced by commit cc6d8cd573f, Fix #105442: Cycles CUDA and HIP host memory fallback not working
+Referenced by issue #105442, Cuda Copy_from_device error in final render
