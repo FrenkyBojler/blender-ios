@@ -1,2 +1,3 @@
 Referenced by issue #62312, All transforms made before or after Inset or Bevel are undone when exiting Edit mode
 Referenced by issue #62318, Blender crash whith 'corrupt' customdata (CD_BWEIGHT)
+Referenced by issue #62319, Changing key values in graph editor has no effect to keyed object values in viewport
