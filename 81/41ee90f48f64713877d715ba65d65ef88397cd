@@ -1,0 +1,1 @@
+Referenced by issue #109992, `Brush settings > Texture > Mapping` mode `Area Plane` creates a smaller mapping, cause tiling effect.
