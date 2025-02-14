@@ -1,2 +1,3 @@
 Referenced by commit 303014bfac0, Fix #108078: Crash when inverting results in pose library sidebar
 Referenced by issue #109157, Fix #108078: Crash when inverting results in pose library sidebar
+Referenced by issue #105773, Fix #104305: Crash in node editor with large asset libraries
