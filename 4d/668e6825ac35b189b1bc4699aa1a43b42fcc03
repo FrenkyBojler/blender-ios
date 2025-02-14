@@ -5,3 +5,4 @@ Referenced by commit 27c8dd89e33, Fix (unreported) crash when showing VSE in som
 Referenced by commit 29fcce6a8c8, Fix build warnings
 Referenced by issue #114285, Fix #114287: Drawing in post-view draw handlers broken
 Referenced by issue #114287, VSE: Drawing in post-view draw handlers broken
+Referenced by issue #113494, Fix #113463: VSE Hold-Split has no visual indication anymore
