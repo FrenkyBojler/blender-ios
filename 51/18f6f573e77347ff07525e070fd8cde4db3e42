@@ -1,1 +1,2 @@
 Referenced by issue #115262, Regression: USDC Export of objects with Geometry Nodes Modifier crashes
+Referenced by issue #115264, Missing node group update with linked + overridden node tree data blocks
