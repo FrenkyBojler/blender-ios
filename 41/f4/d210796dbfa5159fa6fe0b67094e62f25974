@@ -1,3 +1,4 @@
 Referenced by issue #56682, Blender 2.8, grease pencil in Edit mode, deselected vertices not visible
 Referenced by issue #56685, (2.8) Compositing nodes not working
 Referenced by issue #56675, Crash when snapping Cursor to selected a Bone in Edit Mode
+Referenced by issue #56667, Cycles - Render Layer Node connection to File Output Node not possible
