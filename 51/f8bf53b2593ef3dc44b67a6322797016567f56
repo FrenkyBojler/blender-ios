@@ -1,1 +1,2 @@
 Referenced by commit c819d9fdc95, Fix #120579: incorrect compute context hashes
+Referenced by issue #120579, Rergression: Capture Attribute inside a Node Group + Mix Node is not working correctly
