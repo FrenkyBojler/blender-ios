@@ -1,2 +1,3 @@
 Referenced by issue #54255, 2.79b release
 Referenced by issue #54054, Bmesh boolean modifier fails with co-planar geometry (carve doesn't)
+Referenced by issue #54009, Merging bendy bones with the stretch to Constraint while using custom handle references crashes Blender
