@@ -1,1 +1,2 @@
 Referenced by issue #88185, Alpha textures do not work with holdout collection in Eevee
+Referenced by issue #77069, eevee: mix holdout with transparent fails
