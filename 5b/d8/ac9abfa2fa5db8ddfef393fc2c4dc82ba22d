@@ -78,3 +78,4 @@ Referenced by issue #53909, Joining armatures - Problems with same name on the b
 Referenced by issue #53882, Video Sound Crash 2.78c and 2.79
 Referenced by issue #53891, Performance issue: Active Object (with a group) drops viewport fps
 Referenced by issue #53892, Vertex groups selection in Edit mode is not working as expected
+Referenced by issue #53872, Hair, Particle Edit automatically mirrors guide strands
