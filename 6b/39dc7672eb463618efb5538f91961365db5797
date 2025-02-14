@@ -8,3 +8,4 @@ Referenced by issue #62654, eevee display object as wireframe in viewport is not
 Referenced by issue #62629, gease pencil ,jitter settings of 0.001
 Referenced by issue #62616, belender becomes unresponsive when subdiv is inserted
 Referenced by issue #62572, unwrapping bug
+Referenced by issue #62583, poly build alt +click does not desolve vertex
