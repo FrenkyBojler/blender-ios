@@ -1,1 +1,2 @@
 Referenced by issue #115167, Blender crashes when try to activate a deactived collection in the outliner
+Referenced by issue #115168, Fix #115167: crash opening files with missing fonts on disk
