@@ -1,3 +1,4 @@
 Referenced by commit fcc3227efd8, Fix T86654: wrong Vertex Interpolation option default when importing alembic caches
 Referenced by issue #94013, Bad frames importing Alembic file.
 Referenced by issue #86654, Bad motion blur from alembic animation import in v2.92. Works as expected in v2.83.13
+Referenced by issue #71981, Alembic override frame causes fluid sim mesh to have artifacts
