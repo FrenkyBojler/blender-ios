@@ -2,3 +2,4 @@ Referenced by commit b8359ede7df, Fix #105168: Entering vertexpaint creates a no
 Referenced by commit f9f29eefc77, Fix #105150: Mesh.vertex_colors.new() returns existing active layer
 Referenced by commit acfafeed88e, Fix #103761: creating a color attribute doesn't make it active
 Referenced by commit fb8778a28c9, Fix T103394: default/active color status lost after remeshing
+Referenced by commit 9e94135f179, Fix: Crash after mesh color attribute name commit
