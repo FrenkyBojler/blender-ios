@@ -1,1 +1,2 @@
 Referenced by issue #101705, Regression: assert and crash on Connecting empty reroute node to multi socket
+Referenced by issue #101410, Regression: Missing update and false input of reroute node when connected to boolean socket
