@@ -1,1 +1,2 @@
 Referenced by commit 16410eab9b9, Fix: Compiler warning about unused enum in switch case.
+Referenced by issue #130213, Fix: Compiler warning about unused enum in switch case.
