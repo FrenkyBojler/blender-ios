@@ -1,2 +1,3 @@
 Referenced by issue #102554, Regression: Crash when Use Nodes is enabled after enabling the viewport compositor
 Referenced by issue #102240, Viewer Node does not initialize from within Compositor node group
+Referenced by issue #102151, O shortcut to link node to Output node does not work inside node groups in viewport compositor
