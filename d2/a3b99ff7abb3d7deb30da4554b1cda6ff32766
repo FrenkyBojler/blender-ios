@@ -1,0 +1,1 @@
+Referenced by issue #99171, Regression: crash in BKE_mesh_tag_coords_changed when modifying vertex coods of appended item via script
