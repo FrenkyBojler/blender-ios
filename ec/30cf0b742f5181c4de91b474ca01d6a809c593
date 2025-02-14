@@ -1,2 +1,3 @@
 Referenced by commit 071799d4fc4, Fix T89265: Crash when tabbing through num inputs
 Referenced by issue #89265, Use-after-free when tabbing through numeric inputs
+Referenced by issue #88058, Editing a value with hover+return does not accept 0 as input
