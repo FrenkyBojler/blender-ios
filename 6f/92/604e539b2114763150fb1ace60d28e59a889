@@ -1,1 +1,2 @@
 Referenced by commit cade262c472, OpenGL render: Bugfix (unreported) after rB6f92604e539b2114763150fb1ace60d28e59a889
+Referenced by issue #50542, Frame metadata incorrect when running opengl render in console for pngs (and probably other file formats)
