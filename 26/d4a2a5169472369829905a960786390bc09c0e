@@ -1,3 +1,4 @@
 Referenced by issue #66525, Applying Rotation or Scale change object position if parent-child relation has more two nesting levels
 Referenced by issue #66526, child's objects move if change their origin position
 Referenced by issue #63790, Crash when applying Scale of Object with vertex parent
+Referenced by issue #63387,  It is not applied the scale object that parented with armature (weight painted).
