@@ -1,2 +1,3 @@
 Referenced by commit a801487ef50, Fix T65076: Missing EasingType implementation on the Dopesheet
 Referenced by commit 25b4b5fb9f8, Fix for invalid abs() use (from daccaa7)
+Referenced by issue #22084, Robert Penner easing equasions for f-curves
