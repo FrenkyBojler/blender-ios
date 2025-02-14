@@ -1,0 +1,1 @@
+Referenced by issue #63678, We failed to build Blender on x86 due to error LNK2005: _log2 already defined in libucrt.lib with MSVC.
