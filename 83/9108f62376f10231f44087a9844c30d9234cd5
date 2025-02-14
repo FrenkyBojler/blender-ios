@@ -1,3 +1,4 @@
 Referenced by commit ee7f30a3713, Fix #131989: Mesh paint mode selection does not work
 Referenced by commit fd974775297, Fix: Incorrect assignment of original edit mesh to evaluated mesh
 Referenced by issue #131989, Vertex / Weight Paint: Vertex / Face Selection does not work
+Referenced by issue #130869, Crash when enabling "Modified Edges" in UV overlays
