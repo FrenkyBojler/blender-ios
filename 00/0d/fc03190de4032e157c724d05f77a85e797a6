@@ -40,3 +40,4 @@ Referenced by issue #45024, Failure in mesh interpretation bug
 Referenced by issue #45032, Setting decimal value in Rotation angle step in User Preferences results in rounding
 Referenced by issue #45013, Sculpt curve with negative y worked in 2.73, not in 2.74 onward
 Referenced by issue #45017, crash in movie clip editor
+Referenced by issue #45019, Particle Motion Blur very slow rendering
