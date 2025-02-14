@@ -1,2 +1,3 @@
 Referenced by issue #52274, importing multipule alembic files in python doesnt import all files.
 Referenced by issue #52227, Time Slide tool doesn't take NLA mapping into account
+Referenced by issue #52210, Transition clip/tracks multiply other active layers
