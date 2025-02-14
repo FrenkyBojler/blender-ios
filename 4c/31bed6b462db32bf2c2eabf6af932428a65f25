@@ -23,3 +23,4 @@ Referenced by issue #58305, 3D View shading style preview's duplicates
 Referenced by issue #58291, unable to select Vert/edge/face after moving them in Wireframemode(Eevee)
 Referenced by issue #58295, Black Viewport on load
 Referenced by issue #58281, Wrong result with alpha for Principled BSDF base color
+Referenced by issue #58267, Node input output grabbing
