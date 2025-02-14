@@ -1,2 +1,3 @@
 Referenced by commit e7489664cee, Fix: Assert about invalid namemap with brush assets
 Referenced by issue #122182, Fix: Assert about invalid namemap with brush assets
+Referenced by issue #111905, Error deleting an object with shape keys
