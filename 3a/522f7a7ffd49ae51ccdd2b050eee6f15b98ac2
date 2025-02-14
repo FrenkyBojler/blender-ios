@@ -1,1 +1,2 @@
 Referenced by issue #79891, Using python handlers introduces artifacts with EEVEE motion blur
+Referenced by issue #79213, Eevee rendering with motion blur can change current frame
