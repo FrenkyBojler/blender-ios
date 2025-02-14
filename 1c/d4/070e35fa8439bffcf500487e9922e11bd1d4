@@ -1,1 +1,2 @@
 Referenced by issue #45729, Cycles Bake break when building a special mesh
+Referenced by issue #43786, Cycles bake disregards Auto Smooth (vertex per-face normals)
