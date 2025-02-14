@@ -2,3 +2,4 @@ Referenced by issue #59406, Blender 2.8 - Crash when baking Smoke scene
 Referenced by issue #59254, Crash on wireframe select
 Referenced by issue #59211, 2.8 crashes on enter edit mode
 Referenced by issue #59168, Blender 2.8 (9a8b6d51c12) - Crash when going in Edit Mode with Multiresolution modifier
+Referenced by issue #57342, Blender segfault on render with workbench render engine via command line.
