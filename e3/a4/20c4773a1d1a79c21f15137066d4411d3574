@@ -1,3 +1,4 @@
 Referenced by issue #76199, Bevel modifier and materials "bleed" over faces
 Referenced by issue #73966, Bevel Modifier: Inconsistent vertex colors with odd-numbered segment counts
 Referenced by issue #60302, bevel modifier material problem
+Referenced by issue #56625, Bevel modifier UV problem with corners
