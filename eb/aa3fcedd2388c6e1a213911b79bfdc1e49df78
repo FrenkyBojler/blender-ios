@@ -1,3 +1,4 @@
 Referenced by commit a5b996df88c, Fix T92608: Image Editor does not display stereo images
 Referenced by commit 5aa3167e48b, Fix T90772: Image Editor not sampling color from the the currently
 Referenced by issue #90772, Image Editor not sampling color from the the currently selected pass
+Referenced by issue #84398, Multiview images show only one view
