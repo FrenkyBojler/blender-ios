@@ -4,3 +4,4 @@ Referenced by commit 6f9828289f3, Fix T95356: Crash in armature edit mode and ce
 Referenced by commit 974981a6370, Fix T95222: Crash selecting vertices with modifier applied on cage
 Referenced by issue #102221, Regression: Entering editmode will invalidate the driver associated with that mesh
 Referenced by issue #96054, newly selected vertex group with lattices don't display weights in edit mode.
+Referenced by issue #95997, [3.1] Crash when entering edit mode
