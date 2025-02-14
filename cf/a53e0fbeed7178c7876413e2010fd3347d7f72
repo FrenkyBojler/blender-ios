@@ -13,3 +13,4 @@ Referenced by commit b7a27efd781, Cleanup: Remove unused subdiv functions
 Referenced by issue #99141, Regression: "Copy Location" constraint doesn't work if the control object is a vertex and we're in edit mode.
 Referenced by issue #98546, Regression: Blender crash when baking Multires displacements
 Referenced by issue #97528, Regression: Data Transfer Projected Face Interpolated mode gives wrong results
+Referenced by issue #97520, Regression: Previous strokes appears when drawing after undo with layer brush
