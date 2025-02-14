@@ -1,3 +1,4 @@
 Referenced by issue #85089, Crash when rendering with CUDA / OptiX
 Referenced by issue #84734, Denoising Data with large tiles causes instant crash and exit.
 Referenced by issue #83915, Subdivision Surface modifier causes visual artifacts in Cycles rendered viewport - CPU and OptiX
+Referenced by issue #69800, Cycles Optix feature completeness
