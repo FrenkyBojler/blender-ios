@@ -1,0 +1,1 @@
+Referenced by issue #118223, Regression: Crash if you use the measure tool while changing certain user preferences in a 'depsgraph_update_post' handler
