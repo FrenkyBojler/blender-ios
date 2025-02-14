@@ -1,1 +1,2 @@
 Referenced by commit c97794520f0, Revert "Fix T55668: Volume Keyframe on Cut-ted Metastrip."
+Referenced by issue #60194, Sequencer cut loses animation data for the right strip
