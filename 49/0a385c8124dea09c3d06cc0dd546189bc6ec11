@@ -4,3 +4,4 @@ Referenced by issue #62354, apply explosion effect results in hard crash
 Referenced by issue #62336, object info random to control random colours ( colour ramp )  of particle system   not working in eevee
 Referenced by issue #62291, strange sculpting bug with multires , only updates when ovelay tab is turned on
 Referenced by issue #62292, multires + sculpt does not update when object is set to smooth shading and viewport overlay is turned off
+Referenced by issue #62290, strange sculpting bug with multires , only updates when ovelay tab is turned off
