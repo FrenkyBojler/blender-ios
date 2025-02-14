@@ -1,2 +1,3 @@
 Referenced by commit 4401c93e452, Fix T100926: Show UV outline in texture paint mode
 Referenced by issue #80795, emulate numpad disables modifier keys on smaller keyboards.
+Referenced by issue #80770, UV Image Editor: Display Texture Paint UVs not working
