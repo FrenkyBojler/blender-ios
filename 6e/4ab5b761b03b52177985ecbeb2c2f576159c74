@@ -1,1 +1,2 @@
 Referenced by commit 1c18f05f0be, Fix T92252: User after free when opening file after Blender starts
+Referenced by issue #92252, User after free when opening file after Blender starts
