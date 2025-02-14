@@ -15,3 +15,4 @@ Referenced by issue #96473, Auto keying not keying for child bones and not trans
 Referenced by issue #96449, Edge creasing is randomly adding crease to another unselected edges, and blender crashes
 Referenced by issue #96416, Crash with Close Area menu 3D view
 Referenced by issue #96379, Crashes when rendering in viewport with GPU complier
+Referenced by issue #96356, vertex paint face selction display bug gpu subdivision
