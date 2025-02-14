@@ -1,3 +1,4 @@
 Referenced by commit 04a07d5e08c, Fix #110821: Tracker resizing with S+S also resizes search area
 Referenced by commit 175b1b449ec, Fix #105433: Offset Tracking Shortcut no longer working
 Referenced by issue #110821, Double Tapping S on Motion Tracking Panel no longer scale only the tracker size
+Referenced by issue #105433, Offset Tracking Shortcut no longer working
