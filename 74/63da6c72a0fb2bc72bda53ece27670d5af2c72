@@ -1,0 +1,1 @@
+Referenced by issue #74095, Cycles crash deleting (all) geometry in editmode [no bvh rebuild, tries to refit bvh instead]
