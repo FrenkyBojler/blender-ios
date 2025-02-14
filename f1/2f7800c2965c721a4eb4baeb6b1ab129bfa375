@@ -6,3 +6,4 @@ Referenced by issue #101851, Regression: Duplicating a particle system crashes B
 Referenced by issue #100820, Regression: Crash when renaming a modifier when other modifier's visibility is driven by a driver
 Referenced by issue #100653, Reported object statistics are very wrong (under reported).
 Referenced by issue #100656, Rigid body/cloth simulation not occurring.
+Referenced by issue #100470, Regression: Changing the domain type from gas to liquid crashes Blender
