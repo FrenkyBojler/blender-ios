@@ -1,1 +1,2 @@
 Referenced by commit 7ba82f3f0a8, Fix T62707: opening blend files over 2gb on win32 fails
+Referenced by issue #61855, Loading times of files that link in external data has become inacceptable
