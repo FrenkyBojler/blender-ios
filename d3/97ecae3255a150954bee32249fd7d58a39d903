@@ -1,1 +1,2 @@
 Referenced by commit 2fb829a2deb, Fix T103837: crash opening a specific file
+Referenced by issue #103837, Regression : crash opening file with uv from GN primitive
