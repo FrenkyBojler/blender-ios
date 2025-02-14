@@ -3,3 +3,4 @@ Referenced by commit f6f2f4f2640, Fix #105681: Sculpt trim generates smooth shad
 Referenced by issue #119992, Regression: Wrong orientation on shrinkwrap constrained instanced collection
 Referenced by issue #109070, Regression: Python primitive operator (e.g. Torus primitive) is generated with smooth shading
 Referenced by issue #109047, Regression: Screw modifier's smooth shading option does not work
+Referenced by issue #109052, Fix #109047: Screw modifier's smooth shading option does not work
