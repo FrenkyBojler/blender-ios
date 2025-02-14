@@ -1,3 +1,4 @@
 Referenced by issue #111933, GeoNodes behaviour differences between 3.6.3 RC, 4.0 master, and 1 month ago
 Referenced by issue #111304, Edges created by a bevel modifier are visible even for hidden items in edit mode (in wireframe display)
 Referenced by issue #111286, Freestyle render make crash without create folder. Part 2
+Referenced by issue #111258, reveal hidden shortcut doesn't work "ALT H"
