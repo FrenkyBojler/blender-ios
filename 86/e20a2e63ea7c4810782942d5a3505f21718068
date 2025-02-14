@@ -1,1 +1,2 @@
 Referenced by issue #55610, Renaming a UV map breaks references in UV map nodes
+Referenced by issue #55561, Dupligroup on particles lies down for change of sizefrom 1.0 to 0.1 and back to 1.0
