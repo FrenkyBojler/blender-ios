@@ -1,0 +1,1 @@
+Referenced by issue #46806, mesh.materials.clear() does not decrement users counts
