@@ -1,1 +1,2 @@
 Referenced by commit 186f16e84c5, Fix T102316: blank color-space menu drop-downs
+Referenced by issue #102316, Regression: 037b771e1af5 causes colorspace menu dropdowns to be blank.
