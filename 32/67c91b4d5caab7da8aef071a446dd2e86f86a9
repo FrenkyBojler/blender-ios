@@ -2,3 +2,4 @@ Referenced by commit b98a937db64, Fix T99364: Unable to select bones when custom
 Referenced by commit 34c701abbdb, Fix T99270: bones using empties as custom shapes can't be selected
 Referenced by commit b3d0abd8935, Fix T96378: B-Bone selection fails in pose-mode
 Referenced by issue #99364, Regression: Unable to select bones with custom shape and custom shape transform override, while shape display is turned off
+Referenced by issue #99270, Regression: Bones using Empties as Custom Shapes cannot be selected properly
