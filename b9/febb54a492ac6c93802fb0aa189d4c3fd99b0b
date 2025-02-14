@@ -1,2 +1,3 @@
 Referenced by commit a7c65ef4cbb, Fix T96498: Modifiers affect multiple curve objects
 Referenced by commit edcbf741df2, Refactor: Evaluate surface objects as mesh components
+Referenced by issue #103514, Regression: 3.0.0: The curve is not hidden in the Viewport if there is a Bevel value
