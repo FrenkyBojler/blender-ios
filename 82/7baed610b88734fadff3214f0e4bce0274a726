@@ -1,2 +1,3 @@
 Referenced by issue #115080, Crash when auto smooth is enabled
 Referenced by issue #112554, Principal BSDF Specular gives an incorrect result
+Referenced by issue #110001, Regression: Overlay -- Measurement display error when some modifiers are present in the object.
