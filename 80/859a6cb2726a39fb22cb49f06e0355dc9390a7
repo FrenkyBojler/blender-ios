@@ -19,3 +19,4 @@ Referenced by issue #99019, EEVEE: Regression: Specular BSDF does not apply occl
 Referenced by issue #98989, Regression: Eevee bad performance when using procedural bump map.
 Referenced by issue #98940, Texture nodes CPU evaluation design
 Referenced by issue #98919, Regression: AOV passes doesn´t work on eevee
+Referenced by issue #98901, Procedural Textures Crashing Blender 3.2 - Eevee
