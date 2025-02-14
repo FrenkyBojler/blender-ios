@@ -1,1 +1,2 @@
 Referenced by issue #73416, Blender crashes if you undo immediately after loading this file
+Referenced by issue #73234, Undo/redo with local collection crashes
