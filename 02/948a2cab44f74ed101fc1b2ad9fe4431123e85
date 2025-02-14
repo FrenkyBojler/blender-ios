@@ -17,3 +17,4 @@ Referenced by issue #88172, Object not following BezierCurve Blender 2.92
 Referenced by issue #88159, Duplicated objects have a transparent material
 Referenced by issue #88046, crash on startup 2.92
 Referenced by issue #87850, 2.93 does not load Nishita Sky settings correctly from 2.92
+Referenced by issue #87853, Crash when `select none` on Weight painter
