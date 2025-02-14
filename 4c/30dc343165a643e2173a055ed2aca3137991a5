@@ -1,2 +1,3 @@
 Referenced by commit ee98dc8d0fc, Fix T77277: building depsgraph inter-driver relations is slow
 Referenced by commit 7192a1bca31, Fix T73593: Drivers on hide_viewport and hide_render are unreliable
+Referenced by issue #78615, Really slow to return to the previous screen layout (after Maximize Area) in complex scenes
