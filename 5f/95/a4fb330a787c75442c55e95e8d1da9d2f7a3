@@ -1,0 +1,1 @@
+Referenced by issue #46720, Crash while entering edit mode if the object has subsurf and is child of another object with a bool modifier
