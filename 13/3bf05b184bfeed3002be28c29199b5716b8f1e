@@ -2,3 +2,4 @@ Referenced by issue #76182, Bake All Physics operator bake all except Hair Physi
 Referenced by issue #76173, bump / normal doesnt display on two meshes in Material Preview or Render view (Eevee)
 Referenced by issue #76179, Unable to select render passes when a render has fewer passes than one in another slot
 Referenced by issue #75736, Viewport update problem when switching between view layers
+Referenced by issue #74243, Workbench x-ray, wireframe and anti-aliasing artifacts on NVIDIA / Linux
