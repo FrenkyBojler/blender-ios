@@ -6,3 +6,4 @@ Referenced by issue #59167, Node knife tool
 Referenced by issue #59148, image sequence cant load
 Referenced by issue #59110, Brush Texture ColorRamp Broken
 Referenced by issue #58878, Selection Miss-registering
+Referenced by issue #58758, Eevee unable to render correctly without screen space reflections turned on.
