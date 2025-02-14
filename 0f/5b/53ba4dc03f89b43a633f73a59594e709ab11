@@ -31,3 +31,4 @@ Referenced by issue #58406, Render mode shortcuts are listed as "O"
 Referenced by issue #58398, Keymap editor overwrites settings in non-active keymaps
 Referenced by issue #58209, 3D cursor not respecting orientation setting if other tools are active.
 Referenced by issue #57596, Some edit mode tools cause Blender to crash with Cycles enabled in the same "edit mode session"
+Referenced by issue #56033, Display mirror modifier in Edit Mode doesn't work (2.80 Alpha)
