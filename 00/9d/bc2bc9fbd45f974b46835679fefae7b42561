@@ -5,3 +5,4 @@ Referenced by issue #63557, 2.8 Crashes on the startup
 Referenced by issue #63538, Vector transform node with constant input difference in Cycles and Eevee
 Referenced by issue #63509, Crash when enter in Edit Mode and try to a vertice.
 Referenced by issue #63472, Cursed blend file crashes on F12 render unless SSS is turned off.
+Referenced by issue #63468, Volumetrics broken in current compiled version
