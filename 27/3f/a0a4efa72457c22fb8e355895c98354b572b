@@ -1,3 +1,4 @@
 Referenced by issue #43911, Cloth Physics Bending
 Referenced by issue #43149, Grease Pencil fill areas look divided by multiples ray lines
 Referenced by issue #43139, Calling bpy.ops.screen.screen_full_area() multiple times in python console causes Blender to crash
+Referenced by issue #43131, vertices, edges or faces cannot be selected on dense mesh from distance point
