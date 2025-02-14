@@ -47,3 +47,4 @@ Referenced by issue #39800, Material residue internal to cycles
 Referenced by issue #39773, Reset Default button fail
 Referenced by issue #39763, Blender renders disabled Render Layers using Blender Internal
 Referenced by issue #39752, vertex painting with a mouse doesnt work at all
+Referenced by issue #39705, 3D Viewport's Start Clip has no effect in orthonormal view
