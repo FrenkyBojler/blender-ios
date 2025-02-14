@@ -1,0 +1,1 @@
+Referenced by issue #97018, Meshes vertex normals changed via Python API are not used by dupli vert instances
