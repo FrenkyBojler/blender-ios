@@ -1,1 +1,2 @@
 Referenced by commit f50da4040f9, Fix #111142: bl_static_type is empty for node groups and custom nodes
+Referenced by issue #111154, Fix #111142: Node group property 'bl_static_type' returns empty string for node groups and custom nodes
