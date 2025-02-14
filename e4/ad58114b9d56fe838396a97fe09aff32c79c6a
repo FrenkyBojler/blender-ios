@@ -1,2 +1,3 @@
 Referenced by commit 0b19f1f4a0b, Fix #119030: Only access Location node input when available
 Referenced by issue #119354, Fix #119030: Only access Location node input when available
+Referenced by issue #114493, NodeSocketFloatFactor (and many others) socket type rejected by NodeTreeInterface.new_socket()
