@@ -7,3 +7,4 @@ Referenced by issue #100820, Regression: Crash when renaming a modifier when oth
 Referenced by issue #100653, Reported object statistics are very wrong (under reported).
 Referenced by issue #100656, Rigid body/cloth simulation not occurring.
 Referenced by issue #100470, Regression: Changing the domain type from gas to liquid crashes Blender
+Referenced by issue #100394, Regression: Duplicating a modifier causes a crash
