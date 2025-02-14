@@ -2,3 +2,4 @@ Referenced by commit 6db09197242, Fix T94191: correct (time) translation headers
 Referenced by commit 5e12e62a6a4, Fix regression with incremental snap in Graph Editor
 Referenced by commit 08acbdc1ff7, Fix T91219: Crash canceling scale keyframes in dope sheet grease pencil
 Referenced by commit 2f0e350ffd0, Fix T90872: Dopesheet messes up keyframe handles
+Referenced by issue #93930, Dope Sheet shows absolute keyframe translation instead of delta
