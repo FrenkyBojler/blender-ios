@@ -5,3 +5,4 @@ Referenced by issue #40054, Cycles Bake requires to save externally first/won't 
 Referenced by issue #40056, Can't save file after saving externally
 Referenced by issue #40046, Blender quits on undo/redo after changing object color
 Referenced by issue #39950, Sculpt mode - hidden mesh parts unhide when sculpting if VBO enabled.
+Referenced by issue #37544, Strand Particles behave strangely with Subsurf
