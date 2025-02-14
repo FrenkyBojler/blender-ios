@@ -1,3 +1,4 @@
 Referenced by issue #124953, Blender is ignoring PYTHONPYCACHEPREFIX
 Referenced by issue #104000, python site-packages are not recognized after install (bug on linux / workes fine on Windows)
 Referenced by issue #73825, glFT export fail (update with:) when Thonny (Python IDE) is installed with NumPy package
+Referenced by issue #72807, Blender does not open
