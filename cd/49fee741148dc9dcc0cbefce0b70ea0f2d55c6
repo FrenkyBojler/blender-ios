@@ -1,1 +1,2 @@
 Referenced by commit e3afead9aa4, Fix (unreported) bad handling of embedded IDs on owner copying.
+Referenced by commit 6f80c60ce65, Fix T100850: Regression: Gpencil: crash on material color and other properties change.
