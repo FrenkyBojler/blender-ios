@@ -1,0 +1,1 @@
+Referenced by issue #63067, Overriding context in rigidbody operations [override not passed along in startup/bl_operators that themselves call bpy.ops]
