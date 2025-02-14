@@ -1,2 +1,3 @@
 Referenced by commit 69c27dce3c2, Cleanup: Correct incorrectly placed comment for area space-type
 Referenced by commit 2b88ed30cc3, Cleanup: Comments
+Referenced by issue #53211, RFC: Clang-format for Blender
