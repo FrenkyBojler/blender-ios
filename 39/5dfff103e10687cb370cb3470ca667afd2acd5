@@ -1,1 +1,2 @@
 Referenced by commit 926f7612fd7, Fix T86867: Node Editor: Avoid deselect-all triggering on every box-
+Referenced by issue #70457, Dopesheet click-drag-selection deselects channels [e.g. breaking copy-pasting keys workflow]
