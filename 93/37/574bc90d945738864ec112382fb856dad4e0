@@ -48,3 +48,4 @@ Referenced by issue #41644, Cycles Motion Blur takes exponential time to render 
 Referenced by issue #41611, Skin modifier - Slow process with deactivated deform modifiers
 Referenced by issue #41613, Closing crash
 Referenced by issue #41585, Tex paint setting bug
+Referenced by issue #41589, 2.71 - Node editor header - add new texture in note editor does not show / intermittent
