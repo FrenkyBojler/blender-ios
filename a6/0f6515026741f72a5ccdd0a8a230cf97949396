@@ -1,3 +1,4 @@
 Referenced by commit 3d49d738b75, Fix references to some nodegroups from new essentials staying around.
 Referenced by issue #134023, Linked texts are always orphaned
 Referenced by issue #106321, How to handle preservations of linked IDs when they are effectively unused.
+Referenced by issue #105786, How to handle linked data with 'fake user' set
