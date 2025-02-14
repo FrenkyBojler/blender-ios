@@ -1,3 +1,4 @@
 Referenced by issue #46337, Subsurf fails to activate
 Referenced by issue #46339, Edge sliding when there is only one vertex in the mesh crashes blender
 Referenced by issue #46343, Python Handlers not called while rendering when there is a sequence in the sequence editor.
+Referenced by issue #46345, The bl_width_max property of nodes reset to 320 automatically
