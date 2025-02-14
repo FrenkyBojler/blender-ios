@@ -1,2 +1,3 @@
 Referenced by issue #92052, Grease pencil over geometry occlussion problems
 Referenced by issue #92037, Custom Properties Soft Limit reset v 3.0 Alpha
+Referenced by issue #91944, Switching in and out of local view in rendered mode in Cycles can cause a crash in heavy scenes
