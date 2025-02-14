@@ -2,3 +2,4 @@ Referenced by issue #50409, texture to compositig cause crash
 Referenced by issue #50339, Crash after a texture to compositor nodes
 Referenced by issue #50249, Blender crashes when bringing in a texture node in compositor
 Referenced by issue #50233, Blender crash after adding a Texture Node in Compositor
+Referenced by issue #50215, Blender crashes, when I add Input/Texture node
