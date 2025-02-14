@@ -2,3 +2,4 @@ Referenced by issue #61334, Crash when loading .blend file saved after using Gre
 Referenced by issue #61022, sRGB default view transform settings use filmic for color picker
 Referenced by issue #60837, Color tone of 3d viewport not consistent with 2.79
 Referenced by issue #59363, Matcap display trouble, cavity. Screenshots for compare at different 2.8 beta builds.
+Referenced by issue #57649, View Transform and Look settings are ignored in LookDev mode
