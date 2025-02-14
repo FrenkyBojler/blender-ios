@@ -1,1 +1,2 @@
 Referenced by issue #62952, Lamp as camera: shadow buffer clipping extents sometimes inappropriately used as the viewport clipping extents.
+Referenced by issue #59059, Blender crashing after adding particle system and dynamic paint (Brush)
