@@ -1,1 +1,2 @@
 Referenced by issue #109770, Memory Leak: Open cycles project file when cycles addon is disabled
+Referenced by issue #109603, Fix #109770: WM: Memory leak of timers for file browser report
