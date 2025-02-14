@@ -3,3 +3,4 @@ Referenced by issue #61220, Behavioural problem creating New Collection with Ctr
 Referenced by issue #61206, Linux and AMD RV770 interface glitches
 Referenced by issue #61210, Crash when accessing new Armature in the Outliner
 Referenced by issue #61197, Mouse pointer stays the same when mode is changed from 'Edit' to 'Object' using undo
+Referenced by issue #58221, Blender crashes on "spin tool" use
