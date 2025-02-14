@@ -1,1 +1,2 @@
 Referenced by commit 04067a54c04, GPUShader: Fix previous "old Nvidia" fix commit
+Referenced by issue #55802, Segmentation fault crash starting Blender 2.8 under Linux
