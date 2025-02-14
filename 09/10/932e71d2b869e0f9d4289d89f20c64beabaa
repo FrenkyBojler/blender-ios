@@ -1,2 +1,3 @@
 Referenced by commit fae58962493, Fix T65059: Crash in empty scenes for context _bases functions
 Referenced by commit 6539cf31992, Visibility panel: Use "toggle" keyword
+Referenced by issue #65059, Shift Ctrl Alt LMB / Ctrl Alt LMB in an empty scene closes / crashes Blender
