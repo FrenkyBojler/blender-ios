@@ -1,1 +1,2 @@
 Referenced by commit 75580fa6a66, Fix flashing eevee render passes in viewport
+Referenced by issue #85261, Eevee AOV passes have inacurate colour and semi-transparent alpha channels that are set to 0.9844 instead of 1
