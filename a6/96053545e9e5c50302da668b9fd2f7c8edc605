@@ -1,2 +1,3 @@
 Referenced by issue #109592, Viewport: Switching to anaglyph 3D viewing mode not possible with Cycles.
 Referenced by issue #74692, Sculpt Mode significantly laggy after the addition of Face Sets?
+Referenced by issue #62582, Cycles viewport render stuck with stereoscopic viewport
