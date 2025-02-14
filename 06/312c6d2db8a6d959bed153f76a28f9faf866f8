@@ -2,3 +2,4 @@ Referenced by issue #68840, 2.8 Metaballs update 'NEVER' is not working, seems t
 Referenced by issue #67006, crash, using custom COMPAT_ENGINE in addon with bl_use_preview
 Referenced by issue #66976, Linux Blender 2.80 rc1 crashes in Eevee
 Referenced by issue #66942, Lamp (sun) cannot be rotated nor moved in space as expected (Shortcuts g + z ; r)
+Referenced by issue #66754, macOS missing shortcuts and menu entries with 2.80 RC1
