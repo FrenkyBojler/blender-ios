@@ -54,3 +54,4 @@ NVIDIA 780 Ti 3GB
 Referenced by issue #46517, Smoke Cycle - forgets settings when moving between Domain and Flow tabs
 Referenced by issue #46518, Unable to change Interaction from Maya to Blender (default) and have it "stick".
 Referenced by issue #46511, Subdivision surface modifler（Pixar Open Subdivision) bug
+Referenced by issue #46483, Sliding vertex/edges makes vertices pinned in UV editor
