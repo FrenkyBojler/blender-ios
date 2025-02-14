@@ -31,4 +31,6 @@ using IDHashResult = std::variant<ValidDeepHashes, MissingBlendFiles>;
  */
 IDHashResult compute_linked_id_deep_hashes(const Main &bmain, Span<const ID *> root_ids);
 
+std::string id_hash_to_hex(const IDHash &hash);
+
 }  // namespace blender::bke::id_hash

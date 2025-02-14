@@ -39,6 +39,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
+#include "BKE_id_hash.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image.hh"
 #include "BKE_library.hh"
@@ -1012,6 +1013,19 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
             {},
             UI_TIP_STYLE_NORMAL,
             UI_TIP_LC_NORMAL);
+        const auto result = blender::bke::id_hash::compute_linked_id_deep_hashes(*CTX_data_main(C),
+                                                                                 {id});
+        if (const auto *valid_hashes = std::get_if<blender::bke::id_hash::ValidDeepHashes>(
+                &result))
+        {
+          const IDHash &hash = valid_hashes->hashes.lookup(id);
+          const std::string hash_str = blender::bke::id_hash::id_hash_to_hex(hash);
+          UI_tooltip_text_field_add(*data,
+                                    fmt::format(fmt::runtime(TIP_("Deep Hash: {}")), hash_str),
+                                    {},
+                                    UI_TIP_STYLE_NORMAL,
+                                    UI_TIP_LC_NORMAL);
+        }
       }
     }
   }

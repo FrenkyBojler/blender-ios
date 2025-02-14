@@ -9,14 +9,14 @@
 
 #pragma once
 
-#include <string.h>
-
 #include "DNA_ID_enums.h"
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
 
 /** Workaround to forward-declare C++ type in C header. */
 #ifdef __cplusplus
+#  include <cstring>
+
 namespace blender::bke {
 struct PreviewImageRuntime;
 }

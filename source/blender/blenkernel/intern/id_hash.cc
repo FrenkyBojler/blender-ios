@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <fmt/format.h>
 #include <mutex>
 #include <xxhash.h>
 
@@ -166,6 +167,15 @@ IDHashResult compute_linked_id_deep_hashes(const Main &bmain, Span<const ID *> i
   }
 
   return ValidDeepHashes{hashes};
+}
+
+std::string id_hash_to_hex(const IDHash &hash)
+{
+  std::string hex_str;
+  for (const uint8_t byte : hash.data) {
+    hex_str += fmt::format("{:02x}", byte);
+  }
+  return hex_str;
 }
 
 }  // namespace blender::bke::id_hash
