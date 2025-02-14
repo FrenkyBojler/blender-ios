@@ -23,3 +23,4 @@ Referenced by issue #103728, Saving grayscale images involves only red channel d
 Referenced by issue #103568, Blender 3.4 - EXCEPTION_ACCESS_VIOLATION
 Referenced by issue #103536, failure when saving
 Referenced by issue #103483, Working window without bacground
+Referenced by issue #102018, Cycles HIP issues on Debian
