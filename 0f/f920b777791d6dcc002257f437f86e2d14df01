@@ -1,2 +1,3 @@
 Referenced by issue #109718, Regression: Cycles render crash using F12 render after running script that uses bpy.ops.render
 Referenced by issue #103027, Weight Paint gradient tool doesn't work with Paint Mask on
+Referenced by issue #100823, Crash on selecting interface font
