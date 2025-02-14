@@ -5,3 +5,4 @@ Referenced by issue #59322, View Layer - Search not working
 Referenced by issue #59306, Incorrect White
 Referenced by issue #59309, Viewport face orientation colours (non-overlay) appear to have been unified
 Referenced by issue #59295, Removing "Frame selected" default shortcut crashes Blender.
+Referenced by issue #59288, sqlite3 missing in Blender 2.80 Windows but not on Mac
