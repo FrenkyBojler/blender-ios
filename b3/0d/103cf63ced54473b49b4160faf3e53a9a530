@@ -3,3 +3,4 @@ Referenced by issue #56722, Crash - Entering mesh Edit Mode
 Referenced by issue #56559, UVProject modifier missing function and crashes
 Referenced by issue #56544, Blender 2.80 crashes at startup
 Referenced by issue #56545, Normal map node with named UV map crashes material preview
+Referenced by issue #56550, Blender2.8 crash when going out of editmode with bolean + bevel modifiers
