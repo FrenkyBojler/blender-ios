@@ -23,3 +23,4 @@ Referenced by issue #42212, Probable bug in (regular) Path tracing method
 Referenced by issue #42213, User preferences crashes Blender
 Referenced by issue #42214, Musgrave Texture gives different results when rendered and when baked using Cycles Render
 Referenced by issue #42216, New DXF Importer in 2.72 struggles with "minimal DXF" (by Paul Bourke) - was OK before.
+Referenced by issue #42217, Cannot select objects in wireframe view in object mode.
