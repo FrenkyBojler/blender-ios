@@ -1,1 +1,2 @@
 Referenced by commit 46c35dc2834, Fix UV shadow drawing not respecting 'UV Opacity' setting
+Referenced by commit 8c4965f86d6, Fix build error after 30cbbccc6002
