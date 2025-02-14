@@ -1,3 +1,4 @@
 Referenced by commit 0ef881cc578, Fix T71620: broken particle collisions due to rB0666ece2e2f9
 Referenced by commit e52ad1835a6, Fix hair collision instability with 'Quality Steps' > 1
 Referenced by issue #73051, Multiple IK chains influencing the same bone don't work
+Referenced by issue #71620, rB0666ece2e2f9 (Cloth: collision improvements) breaks particle collisions with moving meshes
