@@ -5,3 +5,4 @@ Referenced by issue #95606, Crash on clicking in viewport with active GN workspa
 Referenced by issue #95479, GN mesh to curve to mesh causes hard crash with cage display
 Referenced by issue #95314, Viewer node is absent from Spreadsheet when attached to Curve Length, Attribute Statistics or Domain Size
 Referenced by issue #95212, The mirror modifier crashes Blender
+Referenced by issue #94900, Sequencer Window background is shows green
