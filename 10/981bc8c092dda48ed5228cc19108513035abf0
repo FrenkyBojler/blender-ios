@@ -1,0 +1,1 @@
+Referenced by issue #98944, Uninitialized XRFrameState can prevent VR/OpenXR viewing.
