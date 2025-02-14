@@ -1,1 +1,2 @@
 Referenced by issue #49527, Blender stales when changing the ghosting range
+Referenced by issue #49466, Bug in sca.c since https://developer.blender.org/rB776a8548f03a049d56f19943e6bc4590ecd53028
