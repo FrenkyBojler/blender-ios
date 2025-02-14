@@ -1,1 +1,2 @@
 Referenced by commit fa9b5d54499, Fix T37939, concern raised in rBd9e0a94: Avoid access to linked node
+Referenced by issue #37939, Crash on exit (freeing nodes)
