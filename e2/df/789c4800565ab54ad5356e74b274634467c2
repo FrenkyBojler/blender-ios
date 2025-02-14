@@ -1,2 +1,3 @@
 Referenced by issue #69911, Adaptive displacement off-screen culling/dicing and camera shift.
 Referenced by issue #69899, Blender 2.81 baking soft body physics crashes in weight/vertex paint or sculpt mode
+Referenced by issue #69900, Simple deform modifier - bend seems broken 2.80, 2.81
