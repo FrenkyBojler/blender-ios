@@ -18,3 +18,4 @@ Referenced by issue #45532, Non-scalability of Dictionaries stored as ID Propert
 Referenced by issue #45467, Filenames/Itemnames cutted in browser
 Referenced by issue #45459, Edge Length with Separate Units Displayed As 1m 100cm
 Referenced by issue #45443, Render passes are not browsing via framebuffer menu
+Referenced by issue #45381, Crash Blender 2.75 in Win7x64amd card
