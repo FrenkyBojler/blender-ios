@@ -29,3 +29,4 @@ Referenced by issue #46687, motion tracking "weight" atribute ignores animation 
 Referenced by issue #46692, Dyntopo Claystrips crashes on certain meshes
 Referenced by issue #46694, Edge Loop Slide Correct UV random vertex Pin on the UV
 Referenced by issue #46696, Crash when render large (>2GB) voxel data image sequence on  Windows, OsX, Ubuntu
+Referenced by issue #46679, Render Image output renders correctly but Render Animation output is incorrect.
