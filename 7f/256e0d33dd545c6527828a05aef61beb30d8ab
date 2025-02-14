@@ -1,1 +1,2 @@
 Referenced by issue #114085, Projected sculpting deadzone around meshes while in orthographic views (fixed in main, request to backport to LTS)
+Referenced by issue #109555, Regression: Brushes in Sculpt, Weight, Vertex modes with Projected Falloff aren't consisent while in orthographic camera snapped to 90 axis
