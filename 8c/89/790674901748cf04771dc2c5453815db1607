@@ -4,3 +4,4 @@ Referenced by issue #61152, Instanced Collections Don't Honor Viewport Display S
 Referenced by issue #61077, Using ctrl+z is crashing Blender
 Referenced by issue #61080, Undo not working at all when you disable "Global Undo"
 Referenced by issue #61081, Some transform modes don't apply absolute grid snapping
+Referenced by issue #61082, Black screen, video driver resets, program not responding
