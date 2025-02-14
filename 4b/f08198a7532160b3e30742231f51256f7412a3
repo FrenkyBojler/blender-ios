@@ -1,1 +1,2 @@
 Referenced by commit a5376593413, Fix #127253: Compositor crop gizmo can produce invalid crop configurations
+Referenced by issue #130207, the compositing's corp node is not work
