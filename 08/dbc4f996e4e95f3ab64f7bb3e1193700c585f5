@@ -1,2 +1,3 @@
 Referenced by commit 81178eca7cd, Revert removal of lambda usage for Python RNA callbacks
 Referenced by commit 8d50a3e19e0, Fix T85930: Custom Property Error: Wrong Subtype
+Referenced by issue #86332, Python error when using lambda for poll function and annotations from future
