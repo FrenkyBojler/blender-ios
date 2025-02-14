@@ -4,3 +4,4 @@ Referenced by issue #59826, Suddenly crash when using the fill tool when a key f
 Referenced by issue #59763, Not working snapping the time indicator at the frame in the timeline.
 Referenced by issue #59691, Crash blender 2.80 when I delete data-block video or audio in a video editor.
 Referenced by issue #59674, Right-Click in all animation editor summary areaa gives a missing menu error message
+Referenced by issue #59675, Motion path incorrectly displays the number of frames and key frames.
