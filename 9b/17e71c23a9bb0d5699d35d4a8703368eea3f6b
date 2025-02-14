@@ -1,2 +1,3 @@
 Referenced by issue #84470, Undo Can Get Stuck If Sculpt Mode Has Been Entered via Undo
 Referenced by issue #84420, Linking Materials causes Regular Materials to be used in Grease Pencil
+Referenced by issue #82856, After updating the video card drivers to 20.11.2, interface artifacts appeared.
