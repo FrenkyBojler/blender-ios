@@ -2,3 +2,4 @@ Referenced by commit 6e845f54c35, Fix #126464: Subdiv optimal display edges caus
 Referenced by commit a716685f2f5, Fix #126149: Flat face wireframe edges hidden on some platforms
 Referenced by issue #127638, crash when viewing in 'Wireframe' mode an armature with custom shapes imported from older Blender
 Referenced by issue #126464, Overlay: Wireframe broken on subdiv meshes when using thin and aliased wires
+Referenced by issue #126290, Fix #126149: Flat face wireframe edges hidden on some platforms
