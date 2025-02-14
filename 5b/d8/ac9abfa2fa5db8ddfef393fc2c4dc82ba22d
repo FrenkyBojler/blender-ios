@@ -97,3 +97,4 @@ Referenced by issue #53713, Python API: user_remap for images seems broken
 Referenced by issue #53690, NVIDIA graphics causes a permanently white window
 Referenced by issue #53691, Motion Tracking Object Solver Constraint doesn't work as Bone Constraint
 Referenced by issue #53692, Not all OpenCL devices used during render
+Referenced by issue #53648, Input Cursor has a backgound square, input cannot be seen completely
