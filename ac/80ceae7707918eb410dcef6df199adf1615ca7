@@ -2,3 +2,4 @@ Referenced by issue #59537, Blender Crashes when opening the VFX workspace
 Referenced by issue #59538, Crash when deleting cube in default scene
 Referenced by issue #59539, Deleting Default Camera Crash
 Referenced by issue #59541, Blender 2.8 4fceaf3848b 64bit crash when deleting object from the first startup file
+Referenced by issue #59528, Crash when deleting something
