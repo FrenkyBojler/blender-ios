@@ -1,3 +1,4 @@
 Referenced by issue #44955, Using the 'Set brush shape' buttons for a curve is un-done when changing something in the Operator Redo Panel of another operator
 Referenced by issue #44964, Bisect tool
 Referenced by issue #44953, Bevel modifier gets disabled when entering texture paint mode
+Referenced by issue #44892, Issue when adding new nodes
