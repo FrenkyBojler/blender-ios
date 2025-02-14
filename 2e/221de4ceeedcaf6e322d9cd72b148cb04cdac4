@@ -32,3 +32,4 @@ Referenced by commit e0442a955ba, UI Code Quality: Port Outliner Grease Pencil l
 Referenced by issue #111230, Outliner: Port view collection base elements to new tree-element code design
 Referenced by issue #111220, Outliner: Port layer collection elements to new tree-element code design
 Referenced by issue #111167, Outliner: Port pose channel elements to new tree-element code design
+Referenced by issue #111130, Outliner: Port linked object elements to new tree-element code design
