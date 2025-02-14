@@ -1,2 +1,3 @@
 Referenced by issue #39968, crash report
 Referenced by issue #39880, Cancelling transforms in Graph Editor does not restore F-Curves to original state
+Referenced by issue #30271, Not freed memory blocks at exit
