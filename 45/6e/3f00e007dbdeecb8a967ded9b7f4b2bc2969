@@ -1,1 +1,2 @@
 Referenced by commit 9d6a1b990fe, Revert "Fix broken 'search pointer' UI since this morning."
+Referenced by issue #61998, bpy.data.* name lookups are no longer reliable
