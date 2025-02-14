@@ -7,3 +7,4 @@ Referenced by issue #121033, Fix #121004: bmesh.ops.dissolve_limit wrong in cert
 Referenced by issue #121004, Regression: stale BMesh UV data
 Referenced by issue #113611, Convert Attribute Mode does not have "UVMap" in Blender ver.3.6.4. (also ver.3.5.1)
 Referenced by issue #113358, Regression: EEVEE: Crash on extract UV from evaluated mesh with open UV Editor and selection
+Referenced by issue #111807, UVMap cannot be renamed to the default name
