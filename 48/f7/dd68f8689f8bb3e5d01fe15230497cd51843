@@ -21,3 +21,4 @@ Referenced by issue #46929, error exporting Key configuration
 Referenced by issue #46861, Separate part of mesh / shares animation data with original / Is not independent copy. Editing data on new object changes data on orginal object
 Referenced by issue #46798, Pose mode: Alt+I removes keyframes from all bones, not only selected
 Referenced by issue #46753, Scripted driver expressions not working in material nodes
+Referenced by issue #46743, Limit Rotation constraint w/ For Transform and Axis Angle rotation mode crash
