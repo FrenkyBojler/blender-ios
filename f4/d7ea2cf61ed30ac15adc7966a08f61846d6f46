@@ -1,2 +1,3 @@
 Referenced by commit 60420f6ea4c, Fix T100602: Incoming Vector in world shader for Eevee is inverted
 Referenced by issue #100602, Incoming Vector in world shader for Eevee is inverted in 3.3 beta
+Referenced by issue #99606, Regression: Texture Coordinate node still losing precision when camera moves away from origin of scene.
