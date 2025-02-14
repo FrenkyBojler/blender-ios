@@ -1,1 +1,2 @@
 Referenced by issue #93040, Optix Denoising seems not work properly in Blender 3
+Referenced by issue #93029, Regression: OptiX denoising artifacts at high sample counts in specific scenes.
