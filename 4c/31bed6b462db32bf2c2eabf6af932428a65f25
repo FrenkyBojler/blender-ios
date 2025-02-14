@@ -17,3 +17,4 @@ Referenced by issue #58363, Vector Curves node incorrect output after changing c
 Referenced by issue #58351, Make Single User crashes
 Referenced by issue #58345, Align Objects is not working
 Referenced by issue #58327, Quick Favorites "Remove from Favorites" missing for added Modifiers
+Referenced by issue #58302, Metaballs Objects Appear to be sharing internal data
