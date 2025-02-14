@@ -1,1 +1,2 @@
 Referenced by issue #96576, Regression: Light leaking when using normal maps with Multiscatter GGX
+Referenced by issue #96417, Multiscatter GGX regression with non-zero roughness and a bump texture on a non-manifold object
