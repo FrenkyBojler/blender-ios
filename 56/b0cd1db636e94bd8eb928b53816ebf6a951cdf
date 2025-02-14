@@ -1,1 +1,2 @@
 Referenced by commit 11b994e26e4, Fix T67671: Blender crashes when resizing sidebar with a colorbamp
+Referenced by issue #63605, Assert error squeezing a template_curve_mapping in a panel to almost zero horizontally
