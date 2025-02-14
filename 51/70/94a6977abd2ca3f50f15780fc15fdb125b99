@@ -15,3 +15,4 @@ Referenced by issue #40468, Network render: fluid domain remains a box
 Referenced by issue #40434, Crash when trying to add mirror to a curve
 Referenced by issue #40425, Viewport Ambient Lighting Setup broken in 2.71
 Referenced by issue #40414, Compositing Seemingly Broken under 2.71?
+Referenced by issue #40163, Ngons creating unwanted lines in Freestyle
