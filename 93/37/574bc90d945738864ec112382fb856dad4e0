@@ -83,3 +83,4 @@ Referenced by issue #41287, Color Picker applies color management incorrectly in
 Referenced by issue #41295, Rigid bodyfield weights not working.??
 Referenced by issue #41279, BI is rendering blocky
 Referenced by issue #41268, Mesh geometry can not be edited - cant move vertices
+Referenced by issue #41241, VSE: cropping strips puts a transparent line through the image
