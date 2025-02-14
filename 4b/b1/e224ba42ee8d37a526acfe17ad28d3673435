@@ -52,3 +52,4 @@ Referenced by issue #49629, Graph editor normalize function doesn't work on f-cu
 Referenced by issue #49616, Blender chrashes after Cuda 8.0 update
 Referenced by issue #49622, Grease pencil not rendering out of VSE
 Referenced by issue #49604, Cycles Render Engine - inconsistent Math Node values
+Referenced by issue #49605, Cycles Render Engine - inconsistent Math Node values
