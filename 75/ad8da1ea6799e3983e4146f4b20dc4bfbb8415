@@ -1,1 +1,2 @@
 Referenced by commit efbcfd87030, Mesh: Remove deprecated argumen to split_faces API function
+Referenced by commit efc2e5134f5, Fix #104841: Split function for Cycles for sharp edges ignores attribute
