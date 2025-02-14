@@ -1,1 +1,2 @@
 Referenced by issue #109727, Fix #109570: Error when using collection parameters in drivers
+Referenced by issue #109570, Error when collection visibility property is used in driver expression (fixed in main, backport request)
