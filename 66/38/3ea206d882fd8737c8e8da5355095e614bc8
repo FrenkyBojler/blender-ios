@@ -7,3 +7,4 @@ Referenced by issue #52115, Set normals from faces should respect sharp edges
 Referenced by issue #52116, Blender Crashes While Rendering !
 Referenced by issue #52123, Motion blur sometimes fails to finish the frame properly (particle simulation)
 Referenced by issue #52106, Render window don't close from Windows taskbar thumbnail
+Referenced by issue #48684, Circular/radial bands in this hair scene (most noticeable in CPU)
