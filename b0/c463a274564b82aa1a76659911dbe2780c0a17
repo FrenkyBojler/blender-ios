@@ -5,3 +5,4 @@ Referenced by issue #57930, Wrong hair shading in particle edit mode
 Referenced by issue #57931, Particle weight edit mode is not supported
 Referenced by issue #57933, Assert failure adding grease pencil stroke
 Referenced by issue #57934, Regression in classroom benchmark scene
+Referenced by issue #57889, Blender 2.8 Crashes when I click on undo and redo while working with image or image empty
