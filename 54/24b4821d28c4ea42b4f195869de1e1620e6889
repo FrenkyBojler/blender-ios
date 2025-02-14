@@ -1,1 +1,2 @@
 Referenced by issue #84434, Adding an array modifier on one object changes appearance of a different object in cycles rendered view
+Referenced by issue #84438, Crashing when compositing 2 scenes
