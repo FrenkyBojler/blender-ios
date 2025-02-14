@@ -2,3 +2,4 @@ Referenced by issue #58150, Blender 2.8 crashes when painting with "face selecti
 Referenced by issue #58151, Dope Sheet/Time line does not bind camera with CTRL-B
 Referenced by issue #58142,  blender  Crash  when use Cycles to render  Stereoscopy
 Referenced by issue #58108, Crash when switch from Edit Mode to Vertex Paint
+Referenced by issue #57653, Crash when i switch from edit mode to sculpt mode
