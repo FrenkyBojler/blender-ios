@@ -1,1 +1,2 @@
 Referenced by issue #84675, Batch Rendering Crashes if EEVEE set in scene
+Referenced by issue #84663, Blending Vertex Color when baking to it on UV seams (Bug or missing feature)
