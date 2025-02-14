@@ -1,1 +1,2 @@
 Referenced by commit 3508ffc34c1, Fix T59449: Particle system creates error in rigid body
+Referenced by issue #61346, Rigid body with modifiers incorrect work
