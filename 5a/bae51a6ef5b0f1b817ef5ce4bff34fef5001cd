@@ -1,3 +1,4 @@
 Referenced by commit 7f682dd7040, Fix T49226: Incorrect Material viewport shading of Cycles Normal Map node in Edit mode for an object with Array modifier
 Referenced by issue #51746, Normal map handling regression in 2.78c BI
 Referenced by issue #49499, Very slow subsurface with material mode in viewport and before rendering.
+Referenced by issue #48757, blender internal tangent normal bake error
