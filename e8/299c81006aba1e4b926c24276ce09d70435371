@@ -48,3 +48,4 @@ Referenced by issue #50493, GLSL Shading with Textured shading caused UI freezin
 Referenced by issue #50465, Blender crashes while inserting texture node into compositor
 Referenced by issue #50477, File Explorer opens extremely slowly (sometimes Blendes itself opens very slowly)
 Referenced by issue #50450, Breakdowner doesn't work in Tweak Mode on translated NLA Strips
+Referenced by issue #50432, Crash with texture node
