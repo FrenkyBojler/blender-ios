@@ -7,3 +7,4 @@ Referenced by issue #52678, Blender crashes rotating grease pencil strokes when 
 Referenced by issue #52660, CUDA error: Not found in cuModuleGetTexRef(&texref, cuModule, bind_name.c_str()). line 710
 Referenced by issue #52643, Rendered Viewport after Quick Smoke crashes Blender
 Referenced by issue #52651, Drop Down Menu's Glitch while Render Preview
+Referenced by issue #52652, Cycles 3/6 textures reversed on cube with generated co-ordinates and box mapping
