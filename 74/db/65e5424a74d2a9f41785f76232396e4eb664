@@ -6,3 +6,4 @@ Referenced by issue #58984, Traceback error during FBX export
 Referenced by issue #58958, Selection Issues on High Res Monitor
 Referenced by issue #58925, Blender 2.8 BETA, Unwrapping meshes with ngons give bad results
 Referenced by issue #58902, "Texture Paint" Workspace causes Traceback Error Popup
+Referenced by issue #58867, [SOLVED] Eevee viewport shading isn't working
