@@ -1,0 +1,1 @@
+Referenced by issue #98305, Regression: Calling save on image fails due to file path options not being correctly applied
