@@ -1,2 +1,3 @@
 Referenced by issue #47524, Applying a bool modifier crashes blender
 Referenced by issue #43388, Cycles Baking gives different results than Cycles Render
+Referenced by issue #40369, Using  OSL nodes result noisy incorrectly baked maps.
