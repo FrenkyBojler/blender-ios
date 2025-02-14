@@ -15,3 +15,4 @@ Referenced by issue #71080, Crash on adding material - Linux
 Referenced by issue #71024, Blender Crash on Starup. Ubuntu 19.04
 Referenced by issue #70752, Crash when undoing a loop cut.
 Referenced by issue #70754, Windows 10 Precision Touchpad multi-touch inputs not detected by Blender
+Referenced by issue #70738, Vertex color interpolation issue
