@@ -74,3 +74,4 @@ Referenced by issue #47471, Registry entries missing
 Referenced by issue #47449, Segmentation Fault during rendering
 Referenced by issue #47451, Origin-only object with ocean simulation modifier does not rendered.
 Referenced by issue #47444, Texture node in compositing nodes does not update "generated" textures in texture nodes
+Referenced by issue #47414, Smoke sim does not work with negative startframe
