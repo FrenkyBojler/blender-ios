@@ -1,3 +1,4 @@
 Referenced by commit 2a85a27609e, Fix #115697: Allow compression on auto-save files
 Referenced by issue #132685, Fix #115697: Allow compression on auto-save files
 Referenced by issue #103112, Regression: lag from camera view when using mouse scroll
+Referenced by issue #60695, Optimized per-datablock global undo
