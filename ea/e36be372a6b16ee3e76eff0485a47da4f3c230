@@ -2,3 +2,4 @@ Referenced by commit 481094ff5cf, Fix #114760: new attribute does not get active
 Referenced by commit 93d84e87b26, Fix T103400: Transfer Mesh Data Layout broken for color attributes
 Referenced by commit 177bc807480, Fix: add attribute with empty string name crash
 Referenced by commit b9799dfb8a7, Geometry Nodes: better support for byte color attributes
+Referenced by issue #114797, Fix #114760: new attribute does not get active for some domains
