@@ -1,1 +1,2 @@
 Referenced by commit 540bfbbb279, Fix T96582: Wipe effect not working
+Referenced by issue #97917, Regression: wipe transition  don't working + moving strips separately  with stransition make a gap
