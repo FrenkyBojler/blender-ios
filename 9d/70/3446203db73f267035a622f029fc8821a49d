@@ -3,3 +3,4 @@ Referenced by issue #49486, Rendering camera location shifts "x+"-wised drastica
 Referenced by issue #49471, Vertex Connect
 Referenced by issue #49411, Multiscatter GGX problem when the Roughness is zero
 Referenced by issue #49419, Color symbol gone
+Referenced by issue #49387, Blender 2.77 & up, GLSL Viewport rendering not working correctly, material glitches & artifacts
