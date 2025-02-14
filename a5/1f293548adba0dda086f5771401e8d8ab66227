@@ -11,3 +11,4 @@ Referenced by issue #126119, Blender EGL_BAD_MATCH linux
 Referenced by issue #126025, Crash when opening a shading preview on Blender 4.2
 Referenced by issue #125848, EEVEE render crashes - AMD Mesa
 Referenced by issue #125711, Blender 4.2 crashes during stereo render when saving EXR using "Stereo 3D"
+Referenced by issue #125682, EEVEE Next: Fireflies in shadows
