@@ -44,3 +44,4 @@ Referenced by issue #54479, Pyplot crash when saving plot.
 Referenced by issue #54418, VSE: audio clipping/distorted after render
 Referenced by issue #54422, Color Ramp set position controller changes the slider but Smoke Simulation doesn't change
 Referenced by issue #54405, Bfont (for text objects) is not international
+Referenced by issue #54355, Python Version in  Blender 2.79 and 2.79a
