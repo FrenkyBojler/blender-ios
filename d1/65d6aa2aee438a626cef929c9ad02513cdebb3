@@ -1,1 +1,2 @@
 Referenced by commit 6466c247c98, Fix: Overlay regression after d165d6aa2a
+Referenced by commit acd5889e50e, Fix #105042: Regression: Sculpt density overlay not working
