@@ -4,3 +4,4 @@ Referenced by commit 891d71a4d48, Cycles: Drop noinline keyword for oneAPI devic
 Referenced by issue #123537, Fix: Cycles Light Tree gives low weight to distant lights in large volume
 Referenced by issue #122999, Fix #122976: Cycles light linking broken for volumes with light tree
 Referenced by issue #122976, Light linking is broken for volumes.
+Referenced by issue #120476, Fix #120046: Broken render on AMD Metal GPUs
