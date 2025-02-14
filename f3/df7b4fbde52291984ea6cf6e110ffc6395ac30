@@ -1,0 +1,1 @@
+Referenced by issue #103075, Regression: crash when resizing grayscale textures (eg. setting "Limit Size" to a small value)
