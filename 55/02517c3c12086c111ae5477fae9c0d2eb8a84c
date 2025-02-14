@@ -5,3 +5,4 @@ Referenced by issue #111039, Texture paint Backface culling option does not work
 Referenced by issue #108107, Update sculpt mode symmetry options as properties of meshes
 Referenced by issue #84838, Enable "X" will also activate Symmetry mirror for weight painting in 2.91
 Referenced by issue #84518, XYZ symmetry options: unclear release notes
+Referenced by issue #79785, Make  XYZ symmetry a property of Objects
