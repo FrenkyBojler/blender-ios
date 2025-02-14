@@ -1,2 +1,3 @@
 Referenced by issue #100875, Crash on undo in Heist production files after recent changes in mesh data
 Referenced by issue #100881, bug to open project
+Referenced by issue #100863, Regression: Crash on opening the file containing weights
