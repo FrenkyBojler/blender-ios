@@ -1,2 +1,3 @@
 Referenced by commit 073a1f8f7c4, Revert "Fix T38819: Mark Seam misbehaves when accessed through spacebar search"
 Referenced by issue #38856, MARK Seam/Sharp (edge) command in search menu not always MARKs (sometime it CLEARs)
+Referenced by issue #38844, Crash if weight track = 0
