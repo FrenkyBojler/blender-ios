@@ -8,3 +8,4 @@ Referenced by issue #96537, Regression: Alpha/transparency not working correctly
 Referenced by issue #96475, Overlapping geometry shows black faces on Cycles Blender 3.1 (Ray Tracing Precision)
 Referenced by issue #96381, Overlapping Volumes broken in Cycles, GPU only (possible regression)
 Referenced by issue #95969, Bake to vertex colors completely broken in 3.1 & 3.2
+Referenced by issue #43835, ray offsetting giving precission problems / render artifacts / cracks on far away geometry
