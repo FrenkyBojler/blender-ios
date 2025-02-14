@@ -3,3 +3,4 @@ Referenced by commit 47396ea81ed, Fix T96123: Crash when click-dragging across t
 Referenced by commit 1747269ea57, Cleanup: misleading code from aa71414dfca7f301e101cce3e72551e7529290
 Referenced by issue #96255, Node socket click detection is broken in some cases
 Referenced by issue #96140, Dragging  & Drop color (fields) let's blender crash.
+Referenced by issue #96123, Crash when click-dragging across the visibility icons
