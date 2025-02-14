@@ -1,1 +1,2 @@
 Referenced by commit cd412b4454f, Drag & drop: Invert priority of name and session UUID in ID lookups
+Referenced by issue #98365, Blender 3.2.0 Beta crashes on startup
