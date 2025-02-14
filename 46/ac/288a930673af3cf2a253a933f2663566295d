@@ -1,3 +1,4 @@
 Referenced by issue #77102, (v2.82+, CYCLES) Rendering with motion blur enabled causing unexpected, broken-looking result on specific frames
 Referenced by issue #61854, Blender 2.80 Grease Pencil surface offset by viewport distance instead of geometry surface
 Referenced by issue #61417, Blender 2.8 not showing image as planes meshes, then crashing on render
+Referenced by issue #61372, Crash on Add Curve
