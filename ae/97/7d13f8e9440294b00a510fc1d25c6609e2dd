@@ -3,3 +3,4 @@ Referenced by issue #62279, Rendering simple geometry corrupts with greasepencil
 Referenced by issue #62220, Solid shading mode - Shadow glitch
 Referenced by issue #62161, Remembering values
 Referenced by issue #62162, Bones set to unselectable can't be fully selected through the viewport in edit mode.
+Referenced by issue #62164, Vertex/Edge/Polygon selection with python not functioning as it used to
