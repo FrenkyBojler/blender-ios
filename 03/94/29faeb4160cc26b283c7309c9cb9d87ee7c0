@@ -1,1 +1,2 @@
 Referenced by commit 6865aab133d, Cleanup: quiet unused parameter warning in lambda function
+Referenced by issue #101502, Regression: Artifacts/crash when sculpting with Dyntopo
