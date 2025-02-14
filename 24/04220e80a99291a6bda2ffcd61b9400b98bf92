@@ -1,2 +1,3 @@
 Referenced by issue #65929, Can't reset vectors on multiple objects
 Referenced by issue #65842, Hair particles disappear forever from viewport when its name is clicked at the list of particle systems.
+Referenced by issue #63376, Eevee: Plane with reflection plane rendered as transparent (alpha=0)
