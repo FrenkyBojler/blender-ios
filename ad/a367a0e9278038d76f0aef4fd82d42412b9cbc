@@ -1,3 +1,4 @@
 Referenced by commit 3941a4947b7, Fix #130606: Crash when switching workspace
 Referenced by commit fee02cc224d, Fix #129871: converting linked text to mesh results in empty mesh
 Referenced by commit a7d689f8316, Fix #129871: converting linked text to mesh results in empty mesh
+Referenced by commit 40ae2d7df6e, Fix #126949: Regression: Geometry nodes - instances and boolean operation bug
