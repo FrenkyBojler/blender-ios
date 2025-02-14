@@ -1,2 +1,3 @@
 Referenced by commit 1b909c726bd, Fix build warning
 Referenced by issue #88251, "Operator Cheat Sheet" Crash 2.93.0
+Referenced by issue #84341, VSE seems to delete blend files after opening and sometimes after saving.
