@@ -1,2 +1,3 @@
 Referenced by issue #53683, 2.79a release
 Referenced by issue #52852, Assert in looptri calculation after recent changes
+Referenced by issue #52816, regression can't open file in 2.79 (crash)
