@@ -1,1 +1,2 @@
 Referenced by issue #46121, split edge modifier gives weird results if used after boolean modifier (only in render)
+Referenced by issue #46086, Smoke cache with negative start frame doesn't read cache properly
