@@ -1,3 +1,4 @@
 Referenced by issue #77867, Duplicate Object, then Linked Duplicate Object, then Repeat Last Tool causes crash
 Referenced by issue #77348, Blender LTS: Maintenance Task 2.83
 Referenced by issue #77095, Artefacts when rendering with the GPU in Blender 2.90.2 and 2.83 release
+Referenced by issue #77023, blender either crashes immediately after rendering when using multiple denoise and file output nodes, or the output of random denoise nodes saved with the file output node are pure black.
