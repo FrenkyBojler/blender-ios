@@ -1,0 +1,1 @@
+Referenced by issue #42826, Blender is no longer able to find its executable path via binreloc on Linux
