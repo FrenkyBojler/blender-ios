@@ -1,0 +1,1 @@
+Referenced by issue #99830, Regression: Attribute input becomes single value when its socket is reordered past a string socket
