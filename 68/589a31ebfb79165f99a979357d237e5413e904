@@ -3,3 +3,4 @@ Referenced by issue #113378, Regression: Deleting Objects in a View Layer leaves
 Referenced by issue #101559, Rain Test Animation demo crashes Blender 3.3
 Referenced by issue #101394, Importing file after making a new collection active hits an assert (View Layer Object Base out of sync)
 Referenced by issue #101272, Missing view layer updates handling collections in python
+Referenced by issue #101128, Regression: Torus Adding Error (can't be selected because it is not in View Layer)
