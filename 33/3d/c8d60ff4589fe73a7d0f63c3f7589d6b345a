@@ -1,0 +1,1 @@
+Referenced by issue #50719, Memory consumption indicator won't reset (incremented instead) to zero while re-rendering on two video cards
