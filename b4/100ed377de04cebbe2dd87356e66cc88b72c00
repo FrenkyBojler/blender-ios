@@ -1,3 +1,4 @@
 Referenced by commit b77e7480eff, VSE: Remove retiming tool for 3.6 release
 Referenced by commit c02feb6773a, Fix failing VSE test
 Referenced by commit 6749593aecb, Fix mistake in previous commit
+Referenced by issue #108870, VSE: Remove retiming tool
