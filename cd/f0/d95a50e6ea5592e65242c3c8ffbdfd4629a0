@@ -1,0 +1,1 @@
+Referenced by issue #77126, Depsgraph not updating properly for `frame_change_pre` handler
