@@ -1,2 +1,3 @@
 Referenced by commit 6bbffc6b690, Revert "Fix #124082: GPv3: New frames created in sculpt mode are empty"
 Referenced by issue #125073, Fix #124082: GPv3: New keyframes created in Sculpt are empty
+Referenced by issue #124344, GPv3: Keyframes with duplicate drawings are generated in draw mode
