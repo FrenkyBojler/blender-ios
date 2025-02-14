@@ -1,0 +1,1 @@
+Referenced by issue #70560, Large cones are created with double vertices (even though the radius is zero)
