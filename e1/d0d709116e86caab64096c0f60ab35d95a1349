@@ -1,1 +1,2 @@
 Referenced by commit 5d610ad43a7, Fix #116308: muted nodes don't do type conversion correctly
+Referenced by issue #116308, Regression: The color ramp node behaves strangely in geometry nodes
