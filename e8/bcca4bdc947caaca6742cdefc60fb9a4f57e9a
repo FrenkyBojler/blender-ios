@@ -1,0 +1,1 @@
+Referenced by commit 0fdb9cd6507, GPU: Fix issue with GPU render boundaries being opened while a GPUBackend does not exist.
