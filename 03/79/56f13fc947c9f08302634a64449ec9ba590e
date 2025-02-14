@@ -1,1 +1,2 @@
 Referenced by issue #66075, Memory leak in Cycles render
+Referenced by issue #65927, Cycles denoise tile display on Windows 10 after recent change
