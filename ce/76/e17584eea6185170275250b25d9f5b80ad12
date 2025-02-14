@@ -5,3 +5,4 @@ Referenced by issue #76568, Sample texture color dialog isn't dismissed after us
 Referenced by issue #76558, Decreasing Viewport Anti-Aliasing levels makes cube whiter
 Referenced by issue #76277, Enabling Viewer Border in Compositor Crashes Blender
 Referenced by issue #74243, Workbench x-ray, wireframe and anti-aliasing artifacts on NVIDIA / Linux
+Referenced by issue #65012, Flip matcap doesn't work in workbench rendered display mode
