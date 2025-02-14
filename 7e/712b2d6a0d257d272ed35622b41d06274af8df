@@ -18,3 +18,4 @@ Referenced by issue #95749, Dot output of Normal node does not update in viewpor
 Referenced by issue #95664, Regression: "Material Output" change is not visible in the 3D viewport
 Referenced by issue #95578, No viewport update after connecting nodes with hotkey
 Referenced by issue #94977, Default node group input color ignored when link is muted
+Referenced by issue #94867, Regression: Cycles viewport render not updating when editing form fields of ColorRamp node
