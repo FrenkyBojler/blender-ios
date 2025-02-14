@@ -1,0 +1,1 @@
+Referenced by issue #76484, Infinite scene reload on calling `bpy.ops.wm.open_mainfile` with `load_ui=False` from integrated python console
