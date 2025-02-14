@@ -95,3 +95,4 @@ Referenced by issue #53732, "Segmentation fault (Core dumped)" on startup.
 Referenced by issue #53744, Bfont doesn't support russian characters in text object, while UI does show Russian characters
 Referenced by issue #53713, Python API: user_remap for images seems broken
 Referenced by issue #53690, NVIDIA graphics causes a permanently white window
+Referenced by issue #53691, Motion Tracking Object Solver Constraint doesn't work as Bone Constraint
