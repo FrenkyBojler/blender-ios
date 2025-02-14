@@ -5,3 +5,4 @@ Referenced by issue #75826, outline for selected bug
 Referenced by issue #75827, Boolean operation generates additional edges
 Referenced by issue #75807, crash sculpt mode in multires modify
 Referenced by issue #75729, Fluid: No Obstacle after resume baking
+Referenced by issue #75675, Image editor assert when image is unlinked [with setting users to zero]
