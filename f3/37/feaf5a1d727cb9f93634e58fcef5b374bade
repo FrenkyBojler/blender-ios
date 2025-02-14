@@ -77,3 +77,4 @@ Referenced by issue #47444, Texture node in compositing nodes does not update "g
 Referenced by issue #47414, Smoke sim does not work with negative startframe
 Referenced by issue #47422, "Too many fonts!!!" gets printed on the console after repeatedly calling bpy.ops.wm.read_factory_settings()
 Referenced by issue #47409, Packed images won't be saved to the blender file if "Load UI" is unchecked
+Referenced by issue #47413, Mac UV transparency now black in Windows UV transparency
