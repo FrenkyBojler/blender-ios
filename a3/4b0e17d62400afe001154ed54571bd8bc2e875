@@ -1,2 +1,3 @@
 Referenced by issue #129334, Sculpt: Multires face material index is inconsistent across "sculpt" levels
 Referenced by issue #128859, Sculpting on a mesh with a deform modifier & shape key cannot be undone under certain circumstances
+Referenced by issue #128200, Crash when duplicating essential brush asset
