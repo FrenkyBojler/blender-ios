@@ -18,3 +18,4 @@ Referenced by issue #38818, crashed when adding new image in UV editor
 Referenced by issue #38810, Tabs and Ctrl+LMB unclear behaviour
 Referenced by issue #38812, color picker not saving input when clicked away
 Referenced by issue #38766, Material transparency problems in solid viewport
+Referenced by issue #38768, new "audio" button in 2.70 release does not 'mixdown' audio
