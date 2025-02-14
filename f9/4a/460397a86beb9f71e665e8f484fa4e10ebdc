@@ -1,1 +1,2 @@
 Referenced by issue #49936, Cycles point density get's it's bounding box from basis shape key, which results in wrong renders ('block')
+Referenced by issue #49916, Regression OpenCL doesn't build anymore
