@@ -1,2 +1,3 @@
 Referenced by commit 434bb0c93f5, Fix #108754: remove overactive color management assert
 Referenced by issue #117914, Fix #108754: remove overactive color management assert
+Referenced by issue #108754, Test bf_imbuf_save fails with an assert in debug builds (DPX 8-bit save)
