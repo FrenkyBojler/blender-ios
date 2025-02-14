@@ -1,0 +1,1 @@
+Referenced by commit 282944caacd, CMake: revert use of CMAKE_INSTALL_PREFIX as it broke CPack on WIN32
