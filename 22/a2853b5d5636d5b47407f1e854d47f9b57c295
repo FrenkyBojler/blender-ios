@@ -12,3 +12,4 @@ Referenced by issue #48676, Crash in VSE when Adjustment Layer is the only strip
 Referenced by issue #48544, PASCAL GPUs can't perform renders (Cuda binary kernel 6.1 not found)
 Referenced by issue #48520, Blender crashes with particle baking
 Referenced by issue #48352, Blender GLSL viewport DoF doesn't respect world scale
+Referenced by issue #48278, Motion blur increases memory usage per frame when rendering animation
