@@ -1,1 +1,2 @@
 Referenced by commit faecac0b5e1, Fix T62815: Camera frame shift issue + stereo frame working
+Referenced by issue #62815, Camera outline does not represent Lens shifting in X axis correctly
