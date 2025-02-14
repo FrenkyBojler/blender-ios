@@ -1,1 +1,2 @@
 Referenced by issue #84908, "Fix T84049: Crash when using Cycles Progressive Refine with OptiX+CPU" actually causes hybrid rendering to crash
+Referenced by issue #84049, Blender crashes when using Cycles Progressive Refine in OptiX CPU + GPU mode
