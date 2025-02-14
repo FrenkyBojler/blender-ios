@@ -1,0 +1,1 @@
+Referenced by issue #89991, image datablocks fail to import multilayer exr layers that have a dot in the name.
