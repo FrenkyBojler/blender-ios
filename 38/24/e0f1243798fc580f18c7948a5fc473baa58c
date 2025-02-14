@@ -4,3 +4,4 @@ Referenced by issue #44076, SSAO in solid mode in viewport disables Antialiasing
 Referenced by issue #44029, glsl textured solid and matcap error.
 Referenced by issue #44034, Copy to Selected crashes
 Referenced by issue #43997, copy paste keyframes on curves fail on unselect handles
+Referenced by issue #43999, Multiple Importance sampling for environment broken after mult-threading commit
