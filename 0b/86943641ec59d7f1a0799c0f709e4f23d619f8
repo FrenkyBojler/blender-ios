@@ -1,2 +1,3 @@
 Referenced by issue #75575, Crash when modifying Eevee volumetric settings while in rendered mode
 Referenced by issue #75558, Smoke Simulation Crashes when switching viewport shading mode
+Referenced by issue #74901, Smoke Simulation crashes on eevee and is not persistent on Cycles
