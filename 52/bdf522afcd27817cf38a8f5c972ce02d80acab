@@ -1,2 +1,3 @@
 Referenced by issue #70180, Batch Rename dialog gets added backslash (escapes valid characters)
 Referenced by issue #70177, Blender crashes when to to_track_quat() called without arguments
+Referenced by issue #69593, VSE no update color of Color Effect Strip
