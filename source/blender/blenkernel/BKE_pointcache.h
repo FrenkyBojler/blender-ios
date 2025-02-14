@@ -8,14 +8,12 @@
  * \ingroup bke
  */
 
+#include "BLI_function_ref.hh"
+
 #include "DNA_boid_types.h"       /* for #BoidData */
 #include "DNA_pointcache_types.h" /* for #BPHYS_TOT_DATA */
 
 #include <stdio.h> /* for #FILE */
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* Point cache clearing option, for BKE_ptcache_id_clear, before
  * and after are non-inclusive (they won't remove the cfra) */
@@ -68,6 +66,7 @@ struct DynamicPaintSurface;
 struct FluidModifierData;
 struct ListBase;
 struct Main;
+struct ModifierData;
 struct Object;
 struct ParticleKey;
 struct ParticleSystem;
@@ -287,6 +286,12 @@ void BKE_ptcache_ids_from_object(struct ListBase *lb,
                                  struct Scene *scene,
                                  int duplis);
 
+using PointCacheIdFn = blender::FunctionRef<bool(PTCacheID &pid, ModifierData *md)>;
+void BKE_ptcache_foreach_object_cache(struct Object &ob,
+                                      struct Scene &scene,
+                                      bool duplis,
+                                      PointCacheIdFn fn);
+
 /****************** Query functions ****************************/
 
 /**
@@ -407,7 +412,3 @@ void BKE_ptcache_blend_read_data(struct BlendDataReader *reader,
                                  struct ListBase *ptcaches,
                                  struct PointCache **ocache,
                                  int force_disk);
-
-#ifdef __cplusplus
-}
-#endif

@@ -8,9 +8,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math_base.h"
+#include "DNA_vec_types.h"
+
 #include "BLI_polyfill_2d.h"
-#include "BLI_rect.h"
 #include "BLI_sort_utils.h"
 #include "BLI_utildefines.h"
 
@@ -25,7 +25,7 @@ blender::gpu::Batch *GPU_batch_tris_from_poly_2d_encoded(const uchar *polys_flat
                                                          uint polys_flat_len,
                                                          const rctf *rect)
 {
-  const uchar(*polys)[2] = static_cast<const uchar(*)[2]>((const void *)polys_flat);
+  const uchar(*polys)[2] = reinterpret_cast<const uchar(*)[2]>(polys_flat);
   const uint polys_len = polys_flat_len / 2;
   BLI_assert(polys_flat_len == polys_len * 2);
 
@@ -86,8 +86,8 @@ blender::gpu::Batch *GPU_batch_tris_from_poly_2d_encoded(const uchar *polys_flat
 
   const uint verts_len = (verts_step - verts);
   const uint tris_len = (tris_step - tris);
-  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(&format);
-  GPU_vertbuf_data_alloc(vbo, verts_len);
+  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
+  GPU_vertbuf_data_alloc(*vbo, verts_len);
 
   GPUVertBufRaw pos_step;
   GPU_vertbuf_attr_get_raw_data(vbo, attr_id.pos, &pos_step);
@@ -114,7 +114,7 @@ blender::gpu::Batch *GPU_batch_wire_from_poly_2d_encoded(const uchar *polys_flat
                                                          uint polys_flat_len,
                                                          const rctf *rect)
 {
-  const uchar(*polys)[2] = static_cast<const uchar(*)[2]>((const void *)polys_flat);
+  const uchar(*polys)[2] = reinterpret_cast<const uchar(*)[2]>(polys_flat);
   const uint polys_len = polys_flat_len / 2;
   BLI_assert(polys_flat_len == polys_len * 2);
 
@@ -186,9 +186,9 @@ blender::gpu::Batch *GPU_batch_wire_from_poly_2d_encoded(const uchar *polys_flat
     attr_id.pos = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   }
 
-  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(&format);
+  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
   const uint vbo_len_capacity = lines_len * 2;
-  GPU_vertbuf_data_alloc(vbo, vbo_len_capacity);
+  GPU_vertbuf_data_alloc(*vbo, vbo_len_capacity);
 
   GPUVertBufRaw pos_step;
   GPU_vertbuf_attr_get_raw_data(vbo, attr_id.pos, &pos_step);

@@ -2,9 +2,23 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(common_shape_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_math_vector_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_utildefines_lib.glsl)
+#pragma once
+
+#include "infos/eevee_common_info.hh"
+
+#include "common_shape_lib.glsl"
+#include "gpu_shader_math_vector_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
+
+/**
+ * Select the smallest viewport that can contain the given rectangle of tiles to render.
+ * Returns the viewport size in tile.
+ */
+ivec2 shadow_viewport_size_get(uint viewport_index)
+{
+  /* TODO(fclem): Experiment with non squared viewports. */
+  return ivec2(1u << viewport_index);
+}
 
 /* ---------------------------------------------------------------------- */
 /** \name Tile-map data
@@ -52,7 +66,6 @@ int shadow_tile_offset(uvec2 tile, int tiles_index, int lod)
   const int lod2_size = lod2_width * lod2_width;
   const int lod3_size = lod3_width * lod3_width;
   const int lod4_size = lod4_width * lod4_width;
-  const int lod5_size = lod5_width * lod5_width;
 
   /* TODO(fclem): Convert everything to uint. */
   int offset = tiles_index;
@@ -150,22 +163,28 @@ float shadow_directional_level_fractional(LightData light, vec3 lP)
      * we need to multiply by 2 to get the lod level which covers the following range:
      * [-coverage_get(lod)/2..coverage_get(lod)/2] */
     lod = log2(length(lP) * narrowing * 2.0);
+    /* Apply light LOD bias. */
+    lod = max(lod + light.lod_bias, light.lod_min);
   }
   else {
     /* The narrowing need to be stronger since the tile-map position is not rounded but floored. */
     const float narrowing = float(SHADOW_TILEMAP_RES) / (float(SHADOW_TILEMAP_RES) - 2.5001);
     /* Since we want half of the size, bias the level by -1. */
-    float lod_min_half_size = exp2(float(light_sun_data_get(light).clipmap_lod_min - 1));
+    float clipmap_lod_min_minus_one = float(light_sun_data_get(light).clipmap_lod_min - 1);
+    float lod_min_half_size = exp2(clipmap_lod_min_minus_one);
     lod = length(lP.xy) * narrowing / lod_min_half_size;
+    /* Apply cascade lod bias. Light bias is not supported here. */
+    lod += clipmap_lod_min_minus_one;
   }
-  float clipmap_lod = max(lod + light.lod_bias, light.lod_min);
-  return clamp(clipmap_lod,
+  return clamp(lod,
                float(light_sun_data_get(light).clipmap_lod_min),
                float(light_sun_data_get(light).clipmap_lod_max));
 }
 
 int shadow_directional_level(LightData light, vec3 lP)
 {
+  /* The level can be negative and is increasing with the distance.
+   * So we have to ceil instead of flooring. */
   return int(ceil(shadow_directional_level_fractional(light, lP)));
 }
 
@@ -211,11 +230,7 @@ float shadow_punctual_level_fractional(LightData light,
 {
   float ratio = shadow_punctual_pixel_ratio(
       light, lP, is_perspective, distance_to_camera, film_pixel_radius);
-  /* NOTE: Bias by one to counteract the ceil in the `int` variant. This is done because this
-   * function should return an upper bound. */
-  float lod = -log2(ratio) - 1.0;
-  lod = min(lod, float(SHADOW_TILEMAP_LOD));
-  return lod;
+  return clamp(-log2(ratio), 0.0, float(SHADOW_TILEMAP_LOD));
 }
 
 int shadow_punctual_level(LightData light,
@@ -224,8 +239,9 @@ int shadow_punctual_level(LightData light,
                           float distance_to_camera,
                           float film_pixel_radius)
 {
-  return int(ceil(shadow_punctual_level_fractional(
-      light, lP, is_perspective, distance_to_camera, film_pixel_radius)));
+  /* Conversion to positive int is the same as floor. */
+  return int(shadow_punctual_level_fractional(
+      light, lP, is_perspective, distance_to_camera, film_pixel_radius));
 }
 
 struct ShadowCoordinates {
@@ -354,10 +370,8 @@ int shadow_punctual_face_index_get(vec3 lL)
  */
 ShadowCoordinates shadow_punctual_coordinates(LightData light, vec3 lP, int face_id)
 {
-  float clip_near = intBitsToFloat(light.clip_near);
-  float clip_side = light_local_data_get(light).clip_side;
   /* UVs in [-1..+1] range. */
-  vec2 tilemap_uv = (lP.xy * clip_near) / abs(lP.z * clip_side);
+  vec2 tilemap_uv = lP.xy / abs(lP.z);
   /* UVs in [0..1] range. */
   tilemap_uv = saturate(tilemap_uv * 0.5 + 0.5);
 

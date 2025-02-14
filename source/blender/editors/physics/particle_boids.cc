@@ -13,7 +13,6 @@
 #include "DNA_particle_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_boids.h"
 #include "BKE_context.hh"
@@ -24,7 +23,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"

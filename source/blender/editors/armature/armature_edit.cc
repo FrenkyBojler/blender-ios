@@ -8,7 +8,6 @@
  */
 
 #include "DNA_armature_types.h"
-#include "DNA_constraint_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
@@ -16,15 +15,14 @@
 
 #include "BLT_translation.hh"
 
-#include "BLI_blenlib.h"
 #include "BLI_ghash.h"
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_armature.hh"
-#include "BKE_constraint.h"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_layer.hh"
@@ -35,7 +33,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "UI_interface_icons.hh"
 
@@ -1253,7 +1251,7 @@ static int armature_delete_selected_exec(bContext *C, wmOperator * /*op*/)
 
     for (curBone = static_cast<EditBone *>(arm->edbo->first); curBone; curBone = ebone_next) {
       ebone_next = curBone->next;
-      if (ANIM_bonecoll_is_visible_editbone(arm, curBone)) {
+      if (EBONE_VISIBLE(arm, curBone)) {
         if (curBone->flag & BONE_SELECTED) {
           if (curBone == arm->act_edbone) {
             arm->act_edbone = nullptr;
@@ -1395,13 +1393,13 @@ static int armature_dissolve_selected_exec(bContext *C, wmOperator * /*op*/)
 
     LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
       /* break connections for unseen bones */
-      if ((ANIM_bonecoll_is_visible_editbone(arm, ebone) &&
+      if ((EBONE_VISIBLE(arm, ebone) &&
            (ED_armature_ebone_selectflag_get(ebone) & (BONE_TIPSEL | BONE_SELECTED))) == 0)
       {
         ebone->temp.ebone = nullptr;
       }
 
-      if ((ANIM_bonecoll_is_visible_editbone(arm, ebone) &&
+      if ((EBONE_VISIBLE(arm, ebone) &&
            (ED_armature_ebone_selectflag_get(ebone) & (BONE_ROOTSEL | BONE_SELECTED))) == 0)
       {
         if (ebone->parent && (ebone->flag & BONE_CONNECTED)) {
@@ -1523,7 +1521,6 @@ static int armature_hide_exec(bContext *C, wmOperator *op)
     if (!changed) {
       continue;
     }
-    ED_armature_edit_validate_active(arm);
     ED_armature_edit_sync_selection(arm->edbo);
 
     WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
@@ -1581,7 +1578,6 @@ static int armature_reveal_exec(bContext *C, wmOperator *op)
     }
 
     if (changed) {
-      ED_armature_edit_validate_active(arm);
       ED_armature_edit_sync_selection(arm->edbo);
 
       WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);

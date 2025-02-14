@@ -8,42 +8,60 @@
 
 #pragma once
 
+#include "BLI_utildefines.h"
+
 #include "gpu_context_private.hh"
 
 #include "GHOST_Types.h"
 
 #include "render_graph/vk_render_graph.hh"
-#include "vk_command_buffers.hh"
 #include "vk_common.hh"
 #include "vk_debug.hh"
 #include "vk_descriptor_pools.hh"
+#include "vk_resource_pool.hh"
 
 namespace blender::gpu {
 class VKFrameBuffer;
 class VKVertexAttributeObject;
 class VKBatch;
 class VKStateManager;
+class VKShader;
+class VKThreadData;
+
+enum RenderGraphFlushFlags {
+  NONE = 0,
+  RENEW_RENDER_GRAPH = 1 << 0,
+  SUBMIT = 1 << 1,
+  WAIT_FOR_COMPLETION = 1 << 2,
+};
+ENUM_OPERATORS(RenderGraphFlushFlags, RenderGraphFlushFlags::WAIT_FOR_COMPLETION);
 
 class VKContext : public Context, NonCopyable {
  private:
-  VKCommandBuffers command_buffers_;
-  VKDescriptorPools descriptor_pools_;
-  VKDescriptorSetTracker descriptor_set_;
-
   VkExtent2D vk_extent_ = {};
-  VkFormat swap_chain_format_ = {};
+  VkSurfaceFormatKHR swap_chain_format_ = {};
   GPUTexture *surface_texture_ = nullptr;
   void *ghost_context_;
 
   /* Reusable data. Stored inside context to limit reallocations. */
   render_graph::VKResourceAccessInfo access_info_ = {};
 
- public:
-  render_graph::VKRenderGraph render_graph;
+  std::optional<std::reference_wrapper<VKThreadData>> thread_data_;
+  std::optional<std::reference_wrapper<render_graph::VKRenderGraph>> render_graph_;
 
-  VKContext(void *ghost_window,
-            void *ghost_context,
-            render_graph::VKResourceStateTracker &resources);
+ public:
+  VKDiscardPool discard_pool;
+
+  const render_graph::VKRenderGraph &render_graph() const
+  {
+    return render_graph_.value().get();
+  }
+  render_graph::VKRenderGraph &render_graph()
+  {
+    return render_graph_.value().get();
+  }
+
+  VKContext(void *ghost_window, void *ghost_context);
   virtual ~VKContext();
 
   void activate() override;
@@ -52,6 +70,8 @@ class VKContext : public Context, NonCopyable {
   void end_frame() override;
 
   void flush() override;
+
+  TimelineValue flush_render_graph(RenderGraphFlushFlags flags);
   void finish() override;
 
   void memory_statistics_get(int *r_total_mem_kb, int *r_free_mem_kb) override;
@@ -81,38 +101,25 @@ class VKContext : public Context, NonCopyable {
    */
   void rendering_end();
 
-  void bind_compute_pipeline();
-  render_graph::VKResourceAccessInfo &update_and_get_access_info();
+  render_graph::VKResourceAccessInfo &reset_and_get_access_info();
 
   /**
    * Update the give shader data with the current state of the context.
    */
-  void update_pipeline_data(render_graph::VKPipelineData &pipeline_data);
+  void update_pipeline_data(render_graph::VKPipelineData &r_pipeline_data);
+  void update_pipeline_data(GPUPrimType primitive,
+                            VKVertexAttributeObject &vao,
+                            render_graph::VKPipelineData &r_pipeline_data);
 
-  void bind_graphics_pipeline(const GPUPrimType prim_type,
-                              const VKVertexAttributeObject &vertex_attribute_object);
-  void sync_backbuffer();
+  void sync_backbuffer(bool cycle_resource_pool);
 
   static VKContext *get()
   {
     return static_cast<VKContext *>(Context::get());
   }
 
-  VKCommandBuffers &command_buffers_get()
-  {
-    return command_buffers_;
-  }
-
-  VKDescriptorPools &descriptor_pools_get()
-  {
-    return descriptor_pools_;
-  }
-
-  VKDescriptorSetTracker &descriptor_set_get()
-  {
-    return descriptor_set_;
-  }
-
+  VKDescriptorPools &descriptor_pools_get();
+  VKDescriptorSetTracker &descriptor_set_get();
   VKStateManager &state_manager_get() const;
 
   static void swap_buffers_pre_callback(const GHOST_VulkanSwapChainData *data);
@@ -121,6 +128,10 @@ class VKContext : public Context, NonCopyable {
  private:
   void swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &data);
   void swap_buffers_post_handler();
+
+  void update_pipeline_data(VKShader &shader,
+                            VkPipeline vk_pipeline,
+                            render_graph::VKPipelineData &r_pipeline_data);
 };
 
 BLI_INLINE bool operator==(const VKContext &a, const VKContext &b)

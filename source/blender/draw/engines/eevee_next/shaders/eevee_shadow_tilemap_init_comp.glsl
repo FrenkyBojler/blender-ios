@@ -10,8 +10,12 @@
  * Dispatched with one local thread per LOD0 tile and one work-group per tile-map.
  */
 
-#pragma BLENDER_REQUIRE(gpu_shader_utildefines_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_shadow_tilemap_lib.glsl)
+#include "infos/eevee_shadow_info.hh"
+
+COMPUTE_SHADER_CREATE_INFO(eevee_shadow_tilemap_init)
+
+#include "eevee_shadow_tilemap_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
 
 shared int directional_range_changed;
 
@@ -37,6 +41,7 @@ void main()
   if (gl_LocalInvocationIndex == 0u) {
     /* Reset shift to not tag for update more than once per sync cycle. */
     tilemaps_buf[tilemap_index].grid_shift = ivec2(0);
+    tilemaps_buf[tilemap_index].is_dirty = false;
 
     directional_range_changed = 0;
 
@@ -68,9 +73,10 @@ void main()
   barrier();
 
   ivec2 tile_co = ivec2(gl_GlobalInvocationID.xy);
-  ivec2 tile_shifted = tile_co + clamp(tilemap.grid_shift,
-                                       ivec2(-SHADOW_TILEMAP_RES),
-                                       ivec2(SHADOW_TILEMAP_RES));
+  ivec2 tile_shifted = tile_co +
+                       clamp(tilemap.is_dirty ? ivec2(SHADOW_TILEMAP_RES) : tilemap.grid_shift,
+                             ivec2(-SHADOW_TILEMAP_RES),
+                             ivec2(SHADOW_TILEMAP_RES));
   ivec2 tile_wrapped = ivec2((ivec2(SHADOW_TILEMAP_RES) + tile_shifted) % SHADOW_TILEMAP_RES);
 
   /* If this tile was shifted in and contains old information, update it.

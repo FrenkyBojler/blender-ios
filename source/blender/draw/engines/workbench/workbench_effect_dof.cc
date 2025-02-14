@@ -20,7 +20,8 @@
 #include "workbench_private.hh"
 
 #include "BKE_camera.h"
-#include "DEG_depsgraph_query.hh"
+
+#include "GPU_debug.hh"
 
 namespace blender::workbench {
 /**
@@ -107,7 +108,7 @@ void DofPass::init(const SceneState &scene_state)
   int2 half_res = scene_state.resolution / 2;
   half_res = {max_ii(half_res.x, 1), max_ii(half_res.y, 1)};
 
-  eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ;
+  eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
   source_tx_.ensure_2d(GPU_RGBA16F, half_res, usage, nullptr, 3);
   source_tx_.ensure_mip_views();
   source_tx_.filter_mode(true);
@@ -214,7 +215,7 @@ void DofPass::draw(Manager &manager, View &view, SceneResources &resources, int2
     return;
   }
 
-  DRW_stats_group_start("Depth Of Field");
+  GPU_debug_group_begin("Depth Of Field");
 
   int2 half_res = {max_ii(resolution.x / 2, 1), max_ii(resolution.y / 2, 1)};
   blur_tx_.acquire(
@@ -255,7 +256,7 @@ void DofPass::draw(Manager &manager, View &view, SceneResources &resources, int2
 
   blur_tx_.release();
 
-  DRW_stats_group_end();
+  GPU_debug_group_end();
 }
 
 bool DofPass::is_enabled()

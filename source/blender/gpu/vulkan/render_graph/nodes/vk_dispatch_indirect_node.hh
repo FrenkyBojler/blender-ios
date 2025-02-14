@@ -49,7 +49,8 @@ class VKDispatchIndirectNode
    * (`VK*Data`/`VK*CreateInfo`) types can be included in the same header file as the logic. The
    * actual node data (`VKRenderGraphNode` includes all header files.)
    */
-  template<typename Node> static void set_node_data(Node &node, const CreateInfo &create_info)
+  template<typename Node, typename Storage>
+  static void set_node_data(Node &node, Storage & /* storage */, const CreateInfo &create_info)
   {
     node.dispatch_indirect = create_info.dispatch_indirect_node;
     vk_pipeline_data_copy(node.dispatch_indirect.pipeline_data,
@@ -86,7 +87,7 @@ class VKDispatchIndirectNode
   {
     vk_pipeline_data_build_commands(command_buffer,
                                     data.pipeline_data,
-                                    r_bound_pipelines,
+                                    r_bound_pipelines.compute,
                                     VK_PIPELINE_BIND_POINT_COMPUTE,
                                     VK_SHADER_STAGE_COMPUTE_BIT);
     command_buffer.dispatch_indirect(data.buffer, data.offset);

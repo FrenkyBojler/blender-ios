@@ -8,10 +8,7 @@
  * The ray-tracing module class handles ray generation, scheduling, tracing and denoising.
  */
 
-#include <fstream>
-#include <iostream>
-
-#include "BKE_global.hh"
+#include "GPU_debug.hh"
 
 #include "eevee_instance.hh"
 
@@ -29,7 +26,14 @@ void RayTraceModule::init()
   const SceneEEVEE &sce_eevee = inst_.scene->eevee;
 
   ray_tracing_options_ = sce_eevee.ray_tracing_options;
+  if ((sce_eevee.flag & SCE_EEVEE_FAST_GI_ENABLED) == 0) {
+    ray_tracing_options_.trace_max_roughness = 1.0f;
+  }
+
   tracing_method_ = RaytraceEEVEE_Method(sce_eevee.ray_tracing_method);
+  fast_gi_ray_count_ = sce_eevee.fast_gi_ray_count;
+  fast_gi_step_count_ = sce_eevee.fast_gi_step_count;
+  fast_gi_ao_only_ = (sce_eevee.fast_gi_method == FAST_GI_AO_ONLY);
 
   float4 data(0.0f);
   radiance_dummy_black_tx_.ensure_2d(
@@ -85,6 +89,7 @@ void RayTraceModule::sync()
     pass.bind_texture(RBUFS_UTILITY_TEX_SLOT, inst_.pipelines.utility_tx);
     pass.bind_image("out_ray_data_img", &ray_data_tx_);
     pass.bind_ssbo("tiles_coord_buf", &raytrace_tracing_tiles_buf_);
+    pass.bind_resources(inst_.uniform_data);
     pass.bind_resources(inst_.sampling);
     pass.bind_resources(inst_.gbuffer);
     pass.dispatch(raytrace_tracing_dispatch_buf_);
@@ -104,6 +109,7 @@ void RayTraceModule::sync()
     pass.bind_image("ray_radiance_img", &ray_radiance_tx_);
     pass.bind_texture("depth_tx", &depth_tx);
     pass.bind_resources(inst_.uniform_data);
+    pass.bind_resources(inst_.sampling);
     pass.bind_resources(inst_.planar_probes);
     pass.bind_resources(inst_.volume_probes);
     pass.bind_resources(inst_.sphere_probes);
@@ -259,6 +265,9 @@ void RayTraceModule::sync()
     PassSimple &pass = horizon_scan_ps_;
     pass.init();
     GPUShader *sh = inst_.shaders.static_shader_get(HORIZON_SCAN);
+    pass.specialize_constant(sh, "fast_gi_slice_count", fast_gi_ray_count_);
+    pass.specialize_constant(sh, "fast_gi_step_count", fast_gi_step_count_);
+    pass.specialize_constant(sh, "fast_gi_ao_only", fast_gi_ao_only_);
     pass.shader_set(sh);
     pass.bind_texture("screen_radiance_tx", &downsampled_in_radiance_tx_);
     pass.bind_texture("screen_normal_tx", &downsampled_in_normal_tx_);
@@ -408,7 +417,7 @@ RayTraceResult RayTraceModule::render(RayTraceBuffer &rt_buffer,
 
   RayTraceResult result;
 
-  DRW_stats_group_start("Raytracing");
+  GPU_debug_group_begin("Raytracing");
 
   const bool has_active_closure = active_closures != CLOSURE_NONE;
 
@@ -424,7 +433,7 @@ RayTraceResult RayTraceModule::render(RayTraceBuffer &rt_buffer,
 
   if (has_active_closure) {
     if (use_horizon_scan) {
-      DRW_stats_group_start("Horizon Scan");
+      GPU_debug_group_begin("Horizon Scan");
 
       downsampled_in_radiance_tx_.acquire(tracing_res_horizon, RAYTRACE_RADIANCE_FORMAT, usage_rw);
       downsampled_in_normal_tx_.acquire(tracing_res_horizon, GPU_RGB10_A2, usage_rw);
@@ -455,11 +464,11 @@ RayTraceResult RayTraceModule::render(RayTraceBuffer &rt_buffer,
       downsampled_in_radiance_tx_.release();
       downsampled_in_normal_tx_.release();
 
-      DRW_stats_group_end();
+      GPU_debug_group_end();
     }
   }
 
-  DRW_stats_group_end();
+  GPU_debug_group_end();
 
   rt_buffer.history_persmat = render_view.persmat();
 
@@ -503,7 +512,7 @@ RayTraceResultTexture RayTraceModule::trace(
 
   eGPUTextureUsage usage_rw = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE;
 
-  DRW_stats_group_start("Raytracing");
+  GPU_debug_group_begin("Raytracing");
 
   data_.thickness = options.screen_trace_thickness;
   data_.quality = 1.0f - 0.95f * options.screen_trace_quality;
@@ -624,7 +633,7 @@ RayTraceResultTexture RayTraceModule::trace(
 
   denoise_variance_tx_.release();
 
-  DRW_stats_group_end();
+  GPU_debug_group_end();
 
   return result;
 }

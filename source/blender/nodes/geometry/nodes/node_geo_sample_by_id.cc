@@ -39,13 +39,6 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   node->custom1 = int(AttrDomain::Point);
 }
 
-static void node_gather_link_searches(GatherLinkSearchOpParams &params)
-{
-  const NodeDeclaration &declaration = *params.node_type().static_declaration;
-  search_link_ops_for_declarations(params, declaration.inputs);
-  search_link_ops_for_declarations(params, declaration.outputs);
-}
-
 static bool component_is_available(const GeometrySet &geometry,
                                    const GeometryComponent::Type type,
                                    const AttrDomain domain)
@@ -187,7 +180,9 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_SAMPLE_BY_ID, "Sample by ID", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeSampleByID");
+  ntype.ui_name = "Sample by ID";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;

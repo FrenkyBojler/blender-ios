@@ -13,10 +13,7 @@
 
 #include "rna_internal.hh"
 
-#include "DNA_pointcloud_types.h"
-
-#include "BLI_math_base.h"
-#include "BLI_string.h"
+#include "BKE_attribute.h"
 
 #ifdef RNA_RUNTIME
 
@@ -72,6 +69,7 @@ static void rna_PointCloud_points_begin(CollectionPropertyIterator *iter, Pointe
 {
   PointCloud *pointcloud = rna_pointcloud(ptr);
   rna_iterator_array_begin(iter,
+                           ptr,
                            get_pointcloud_positions(pointcloud),
                            sizeof(float[3]),
                            pointcloud->totpoint,
@@ -85,9 +83,8 @@ bool rna_PointCloud_points_lookup_int(PointerRNA *ptr, int index, PointerRNA *r_
   if (index < 0 || index >= pointcloud->totpoint) {
     return false;
   }
-  r_ptr->owner_id = &pointcloud->id;
-  r_ptr->type = &RNA_Point;
-  r_ptr->data = &get_pointcloud_positions(pointcloud)[index];
+  rna_pointer_create_with_ancestors(
+      *ptr, &RNA_Point, &get_pointcloud_positions(pointcloud)[index], *r_ptr);
   return true;
 }
 
@@ -207,7 +204,7 @@ static void rna_def_pointcloud(BlenderRNA *brna)
                                     nullptr,
                                     "rna_IDMaterials_assign_int");
 
-  rna_def_attributes_common(srna);
+  rna_def_attributes_common(srna, AttributeOwnerType::PointCloud);
 
   /* common */
   rna_def_animdata_common(srna);
