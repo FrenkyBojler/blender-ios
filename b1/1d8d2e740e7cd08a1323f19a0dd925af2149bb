@@ -1,2 +1,3 @@
 Referenced by issue #126836, Regression: Simulation/repeat zone overlay is opaque for frame titles
 Referenced by issue #124290, Nodes: Frames become invisible while an invalid Link exists
+Referenced by issue #123410, Regression: Node frame interfere with chevron button to toggle hide
