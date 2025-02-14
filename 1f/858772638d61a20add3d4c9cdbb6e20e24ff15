@@ -1,2 +1,3 @@
 Referenced by issue #115959, Fix #114838: Force Full Redraw When Duplicating Areas
 Referenced by issue #114838, Instant crash on Duplicate Area into new Window in fullscreen mode.
+Referenced by issue #98461, Regression: Crash running screenshot from the command-line
