@@ -1,1 +1,2 @@
 Referenced by issue #98339, Regression: GPU subdivision - Mesh does not immediately count viewport statistics
+Referenced by issue #96434, GPU subdivision: Bad performance with viewport statistics
