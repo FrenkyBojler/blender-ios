@@ -42,3 +42,4 @@ Referenced by issue #47802, bake does not accept DIFFUSE_COLOR as parameter in 2
 Referenced by issue #47782, Crash on MacBook Pro 2015 Retina when start to render on 2nd non retina display
 Referenced by issue #47756, RGB Curves node kills HDR values?
 Referenced by issue #47763, 2.77 RC2 (Fluid) Particle Baking slower compared to 2.67b.
+Referenced by issue #47746, Improper or Sub-optimal Lighting Results with Clamp Direct (Cycles)
