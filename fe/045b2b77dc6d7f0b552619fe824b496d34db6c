@@ -1,3 +1,4 @@
 Referenced by commit 47c6f41b892, Fix T77564: VSE (and compositor background) lost stereoscopy preview
 Referenced by commit 2e908156d0c, Fix T77564: VSE (and compositor background) lost stereoscopy preview
 Referenced by issue #77564, Video Sequence Editor lost stereoscopic preview
+Referenced by issue #76876, Anaglyph 3D not showing in backdrop of compositor.
