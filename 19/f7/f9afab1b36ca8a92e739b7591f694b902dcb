@@ -33,3 +33,4 @@ Referenced by issue #38991, Translate with explicit axis and amount malfunctions
 Referenced by issue #38994, Edited/linked particles cause crash
 Referenced by issue #38979, "User Ortho" and "User Persp" bug in Blender 2.70 RC1 in Linux
 Referenced by issue #38964, Processing becomes extremely slow when I set Shading in Textured Solid.
+Referenced by issue #26712, Particle group instance 'Use Count' value gets reset on file-load.
