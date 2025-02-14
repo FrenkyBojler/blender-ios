@@ -1,3 +1,4 @@
 Referenced by commit cc2b5959bb5, Sculpt: Fix inconsistent naming for cavity_from_mask operator
 Referenced by issue #108494, Fix #108303: Added missing Auto-Masking label
 Referenced by issue #108303, Sculpt brush settings panel missing the label for auto-masking
+Referenced by issue #103073, Sculpting - Cloth Filter, Use Face Sets do not work
