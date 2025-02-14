@@ -1,3 +1,4 @@
 Referenced by issue #66593, Boolean Modifier gives unpredictable results when executed in a loop via Python API
 Referenced by issue #66325, Animation Keyframe Undo/Redo Bug
 Referenced by issue #65945, Timeline showing key-frames for trackers all the time.
+Referenced by issue #64483, Blender crash when we close the render window if we have selected Blener File in Outliner.
