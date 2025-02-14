@@ -1,3 +1,4 @@
 Referenced by issue #52149, Crash on entering Edit Mode of high poly mesh used by Shrink Wrap
 Referenced by issue #51960, 2.79-testbuild1 Crash with SIGABRT on macos, OOM on linux
 Referenced by issue #51950, Abnormally long Cycles OpenCL GPU render times with certain panoramic camera settings
+Referenced by issue #51946, "Delete Lower" Multires subdivision level.
