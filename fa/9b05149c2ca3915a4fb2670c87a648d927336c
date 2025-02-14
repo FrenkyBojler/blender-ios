@@ -1,3 +1,4 @@
 Referenced by issue #121155, Regression: Weight paint with brush tool does not work
 Referenced by issue #108107, Update sculpt mode symmetry options as properties of meshes
 Referenced by issue #84520, "Double Symmetry" in Weight Painting
+Referenced by issue #65872, X-mirror activated in Edit Mode missleadingly affects symmetry in Weight Paint Mode
