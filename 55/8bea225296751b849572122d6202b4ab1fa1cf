@@ -1,3 +1,4 @@
 Referenced by issue #51845, UI Scale cause double width vertical borders
 Referenced by issue #51770, Black lines and dots with denoiser
 Referenced by issue #51767, Cycles denoising; Firefly/Highlight processing leads to pixels with negative values, values of -1.#INDO
+Referenced by issue #51681, Black Artefacts / Negative Pixels with Denoiser
