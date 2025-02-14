@@ -1,2 +1,3 @@
 Referenced by issue #38229, Shadeless option has no effect when GLSL is enabled
 Referenced by issue #38158, Region overlap does not work in the node editor
+Referenced by issue #38159, Switch node missing for material and texture nodes
