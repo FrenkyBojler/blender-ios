@@ -1,0 +1,1 @@
+Referenced by issue #64578, Correct 16bit byte image transform to scene-linear in Eevee, but not in Cycles
