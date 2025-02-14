@@ -3,3 +3,4 @@ Referenced by issue #86922, Eevee: Rendering particle hair results in plain whit
 Referenced by issue #86194, Blender crashes with Noise Texture Node + Hair Particle System + Eevee
 Referenced by issue #85641, Freeze when using Object.ray_cast in a driver script
 Referenced by issue #84371, Audio glitching in Chrome when Blender is open
+Referenced by issue #84268, Crash when selecting in weight mode (Paint Mask)
