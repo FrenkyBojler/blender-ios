@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include <cstring>
+#include <string.h>
 
 #include "DNA_ID_enums.h"
 #include "DNA_defs.h"
@@ -419,10 +419,6 @@ typedef struct ID_Runtime {
   struct ID_Readfile_Data *readfile_data;
 } ID_Runtime;
 
-/**
- * A hash of an ID. This is used for shallow and deep hashes of data-blocks.
- * It has a null-state, which represents the case when the hash is not yet set.
- */
 typedef struct IDHash {
   char data[16];
 
@@ -494,22 +490,6 @@ typedef struct ID {
    */
   unsigned int session_uid;
 
-  /**
-   * This is a hash of the contents of the ID without any of its dependencies. It only has a
-   * well-defined meaning in stored .blend files
-
-    TODO
-   *
-   * It is used to
-   * compute the deep hash when embedding a linked data-block. It is *not* updated eagerly on local
-   * data-blocks when they are updated. Instead, it may be randomized when writing the data-block
-   * to a .blend file.
-   *
-   * When embedding a linked data-block that does not have a shallow hash yet (because it was
-   * written in an older version of Blender), it can be derived from a hash of the entire .blend
-   * file.
-   */
-  IDHash shallow_hash;
   /**
    * This is only available on embedded linked data-blocks. It is a hash of the contents the
    * data-block including all its dependencies. It is computed when first embedding the data-block

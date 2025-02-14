@@ -1079,9 +1079,7 @@ static void write_id(WriteData *wd, ID *id)
   if (id_type->blend_write != nullptr) {
     BlendWriter writer = {wd};
     BLO_Write_IDBuffer id_buffer{*id, &writer};
-    ID *id_to_write = id_buffer.get();
-    id_to_write->shallow_hash = blender::bke::id_hash::get_new_random_shallow_hash();
-    id_type->blend_write(&writer, id_to_write, id);
+    id_type->blend_write(&writer, id_buffer.get(), id);
   }
   mywrite_id_end(wd, id);
 }
