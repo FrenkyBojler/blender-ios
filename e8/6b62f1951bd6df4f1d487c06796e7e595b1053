@@ -1,1 +1,2 @@
 Referenced by issue #97849, Blender 3.2 gpu shader overlay crash
+Referenced by issue #97854, overlay_shader_shared.h:XX:0: Error: C7011: implicit cast from "int" to "uint"
