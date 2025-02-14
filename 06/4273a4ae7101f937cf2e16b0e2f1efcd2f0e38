@@ -6,3 +6,4 @@ Referenced by issue #64152, Blender Auto-Close
 Referenced by issue #64154, Immediate crash when changing the current frame on the timeline
 Referenced by issue #64147, Crash when setting current frame from Python.
 Referenced by issue #64128, Click to close bug type on timeline
+Referenced by issue #64133, Assert after changing FPS
