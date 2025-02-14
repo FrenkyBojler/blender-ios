@@ -3,3 +3,4 @@ Referenced by issue #124235, Geometry Nodes setup breaks Vector render pass
 Referenced by issue #124185, Disabled object's keyframe doesn't update in viewport
 Referenced by issue #124192, Geometry Nodes point domain normals aren't normalized
 Referenced by issue #124118, Regression: Curves node incorrectly processes clamped handles
+Referenced by issue #123960, EEVEE: Volume Render Result vs. Viewport are very inconsistent in some conditions
