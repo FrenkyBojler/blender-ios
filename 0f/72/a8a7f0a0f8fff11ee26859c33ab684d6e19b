@@ -1,0 +1,1 @@
+Referenced by issue #38337, Depsgraph crash when calling to_mesh() on a Curve object after clearing its parent
