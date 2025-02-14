@@ -1,2 +1,3 @@
 Referenced by issue #55926, [2.8] Crash enabling collection viewport with object on path/curve
 Referenced by issue #55930, won't open projects from v7.9
+Referenced by issue #55923, [2.8] Crash on shape key tranfer above 200 vertexs
