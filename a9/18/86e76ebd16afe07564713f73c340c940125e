@@ -9,3 +9,4 @@ Referenced by issue #59676, unable to see curve ojects in Object mode
 Referenced by issue #59678, Built in Add-on "Extra Curves"  not drawing some curves
 Referenced by issue #59664, Crash deleting selected objects last material in Texture Paint workspace
 Referenced by issue #59665, Crash while changing material BlendMode in EEVEE-Rendered mode
+Referenced by issue #59651, Shading Error
