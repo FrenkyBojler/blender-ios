@@ -1,1 +1,2 @@
 Referenced by commit 3d40d6e1884, Fix #128999: Smooth Surface brush doesn't update viewport
+Referenced by commit f241c150426, Cleanup: Sculpt: Simplify threaded node iteration
