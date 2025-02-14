@@ -1,2 +1,3 @@
 Referenced by issue #88566, Mantaflow inflow with shapekeys is not working anymore (regression)
 Referenced by issue #74851, Material definitions cause blender 2.83 to crash on load
+Referenced by issue #74843,  Snap tool: shift+s -> Selection to cursor (keep offset) doesn't work in object
