@@ -1,0 +1,1 @@
+Referenced by issue #55168, When a hair particle system is created, it does not automatically get assigned the 'Path' render type.
