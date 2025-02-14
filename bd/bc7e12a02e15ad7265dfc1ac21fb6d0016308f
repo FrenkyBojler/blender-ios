@@ -1,2 +1,3 @@
 Referenced by commit d8fd575af9c, Fix T93154: Crash adding multiple movie strips
 Referenced by issue #97750, Audio scrubbing sounds glitchy
+Referenced by issue #91615, Instant crash when dragging video file into video editor sequencer
