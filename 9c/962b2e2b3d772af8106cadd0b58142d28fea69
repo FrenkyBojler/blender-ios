@@ -1,0 +1,1 @@
+Referenced by issue #96999, Mesh.calc_normals() after Mesh.transform() does not recalculate normals
