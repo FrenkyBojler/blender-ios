@@ -1,2 +1,3 @@
 Referenced by commit a324a19f1bc, Fix #117526: Crash when Changing Color Palette in Edit Mode
 Referenced by issue #117544, Fix #117526: Crash when Changing Color Palette in Edit Mode
+Referenced by issue #64804, Blender crashes when clicking on falloff option while in edit mode
