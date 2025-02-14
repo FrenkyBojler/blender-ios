@@ -7,3 +7,4 @@ Referenced by issue #115180, Fix #115105: Edge Crease Doesn't Transfer
 Referenced by issue #115105, Regression: Edge Crease Doesn't Transfer
 Referenced by issue #110942, Can't open .blend file with 3.6.1
 Referenced by issue #110095, Fix #110021: Deform modifier binding can go wrong in certain stacks
+Referenced by issue #110021, Mesh Deform Modifier Vertex Count Error
