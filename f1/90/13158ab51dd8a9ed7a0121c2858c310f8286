@@ -1,0 +1,1 @@
+Referenced by issue #43139, Calling bpy.ops.screen.screen_full_area() multiple times in python console causes Blender to crash
