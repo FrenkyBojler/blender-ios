@@ -1,2 +1,3 @@
 Referenced by commit 45c0762f1b9, Fix #107125: Entering Grease Pencil Vertex Paint mode crashes
 Referenced by issue #107131, Fix #107125: Entering Grease Pencil Vertex Paint mode crashes
+Referenced by issue #77003, GPencil: Crash on Draw mode with custom startup file
