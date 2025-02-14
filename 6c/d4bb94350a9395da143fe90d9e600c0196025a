@@ -1,0 +1,1 @@
+Referenced by issue #87764, 100 to 300MB memory leak per frame during EEVEE viewport render animation with cryptomatte enabled.
