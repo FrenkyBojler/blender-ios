@@ -1,0 +1,1 @@
+Referenced by issue #42363, BGE: segfault in btConvexShape::localGetSupportVertexWithoutMarginNonVirtual
