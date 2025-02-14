@@ -1,2 +1,3 @@
 Referenced by issue #126802, Wrong number of node group users when duplicating a shader
 Referenced by issue #89332, Grease pencil. Blender crashes when setting a masking layer to scale=0 via transform properties
+Referenced by issue #88526, Blender Crashes When Renaming a Linked Scene After Deletion
