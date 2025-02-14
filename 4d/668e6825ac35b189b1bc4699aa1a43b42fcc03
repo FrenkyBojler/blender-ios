@@ -1,1 +1,2 @@
 Referenced by commit 16e2698632d, Fix (unreported): VSE offset drawing not working
+Referenced by commit 7c739ad5600, Fix #114287: Drawing in post-view draw handlers broken
