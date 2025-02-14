@@ -20,3 +20,4 @@ Referenced by issue #52356, Lightning Failure with too many spot lights
 Referenced by issue #52335, VSE: Duplicate Scene Strip Crashes Blender
 Referenced by issue #52337, VSE/Viewport: No Audio
 Referenced by issue #52341, Shotgun effect while selecting
+Referenced by issue #52325, Sculpt Tool will not work on 2D plane in Orthographic Mode if View Clip End set to 656 m or higher
