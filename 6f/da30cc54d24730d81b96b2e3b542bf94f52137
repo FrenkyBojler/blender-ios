@@ -1,1 +1,2 @@
 Referenced by issue #84473, Duplicating an object or mesh geometry quickly followed by a MMB gesture locks to wrong axis.
+Referenced by issue #83387, MMB Tweak(Move, Scale, Rotate) with CTRL(to enable snapping) continues to work upon releasing.
