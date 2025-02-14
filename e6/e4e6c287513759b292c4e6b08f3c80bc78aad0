@@ -1,0 +1,1 @@
+Referenced by issue #125335, object loses initial transform on redo, when operator manipulates world matrix
