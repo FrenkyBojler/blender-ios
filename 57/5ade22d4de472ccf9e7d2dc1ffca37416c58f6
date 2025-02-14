@@ -1,3 +1,4 @@
 Referenced by commit ac3f4e959f5, Fix #109822: Average Brush in Vertex Paint Mode is broken
 Referenced by issue #109971, Fix #109822: Average Brush in Vertex Paint Mode is broken
 Referenced by issue #107845, Vertex paint mode breaks permanently under certain conditions (Global undo involved)
+Referenced by issue #98884, Regression: Crash when switched to vertex paint mode
