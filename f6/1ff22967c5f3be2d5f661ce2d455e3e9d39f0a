@@ -1,3 +1,4 @@
 Referenced by commit d0c61171969, Fix #107420: crash getting PTCacheID when baking scene rigid body world
 Referenced by issue #107536, Fix #107420: crash getting PTCacheID when baking scene rigid body world
 Referenced by issue #107420, Blender Crashes when I click on Bake
+Referenced by issue #102024, Malformed wired objects on Linux with Crocus driver
