@@ -1,2 +1,3 @@
 Referenced by commit baa1a835dec, Fix #131880: Multires & Front Faces option can cause artifacts
 Referenced by commit c1c2f8abd91, Cleanup: Sculpt: Remove old draw sharp brush code
+Referenced by issue #131886, Fix #131880: Multires & Front Faces option can cause artifacts
