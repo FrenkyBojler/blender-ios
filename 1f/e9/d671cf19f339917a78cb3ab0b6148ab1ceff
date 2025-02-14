@@ -6,3 +6,4 @@ Referenced by issue #49114, Exporting curves to Alembic crashes other software w
 Referenced by issue #49111, Automatically add suffix in export alembic(.abc) and collada(.dae)
 Referenced by issue #49112, The Alembic don't support Chinese path
 Referenced by issue #49075, Assignment of a keyframed material using the frame_change_pre handler doesn't update the keyframe using the new dependency graph
+Referenced by issue #49004, Dynamic Paint doesn't update mesh before 'start frame'
