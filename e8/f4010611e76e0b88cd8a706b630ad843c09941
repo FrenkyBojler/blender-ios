@@ -3,3 +3,4 @@ Referenced by commit 511ac66dabf, Mesh: Use shared cache for derived triangulati
 Referenced by issue #105154, Fix #103387: Radius affects curves bounding box
 Referenced by issue #103566, Regression: Wrong bounding box for curve object
 Referenced by issue #103387, Set Curve Radius is Effecting Bounding Box of Curves
+Referenced by issue #96968, Object data bounds improvements proposal
