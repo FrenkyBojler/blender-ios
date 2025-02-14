@@ -87,3 +87,4 @@ Referenced by issue #56854, F-Curve Modifiers are not animatable.
 Referenced by issue #56840, Holes on surface while sculpting
 Referenced by issue #56830, The liquid is not baked
 Referenced by issue #56782, Selection via right click fails partialy if scen contains many objects (ca. >12 000)
+Referenced by issue #56781, Box selection fails for more than 12 000 Objects
