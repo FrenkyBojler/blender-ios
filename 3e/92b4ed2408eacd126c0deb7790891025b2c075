@@ -1,3 +1,4 @@
 Referenced by commit 29e33cfff5b, Fix T94659: crash when deleting instances (part 2)
 Referenced by commit 6c906b7c219, Fix T94707: inverted output of separate geometry node incorrect
 Referenced by issue #94707, Geometry nodes: Inverted socket do not output correct part of geometry
+Referenced by issue #94659, Geometry Nodes crashes blender when a Collection Info node is connected to a Separate Geometry nodes set to Instance
