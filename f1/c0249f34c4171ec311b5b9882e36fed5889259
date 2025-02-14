@@ -1,2 +1,3 @@
 Referenced by commit bdd34f4fa25, Fix T103051: Changed behavior when removing a material slot
 Referenced by commit b53c4fa8daa, Fix T102522: Geometry nodes boolean doesent respect material index
+Referenced by commit 97f4e076c7f, Fix: USD & Alembic importers might not initialize material indices
