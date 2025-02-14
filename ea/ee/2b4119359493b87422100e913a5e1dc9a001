@@ -1,3 +1,4 @@
 Referenced by commit d33e7152597, Fix T77669: Copy-pasting strip twice crashes Blender
 Referenced by issue #77669, VSE copy-pasting strip 2nd usage in a row with crashes Blender (and other clipboard/undo actions)
 Referenced by issue #76637, Node editor cannot connect nodes [2 monitors with UI scaling]
+Referenced by issue #76612, [Interface] Blender crashes when trying to split areas
