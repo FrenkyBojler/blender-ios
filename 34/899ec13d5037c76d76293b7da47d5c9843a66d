@@ -1,1 +1,2 @@
 Referenced by commit 4b1d1858879, Fix crash when the animation player fails to create a texture (take 2)
+Referenced by commit a65f8066588, Revert "Fix crash when the animation player fails to create a texture"
