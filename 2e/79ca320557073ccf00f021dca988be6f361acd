@@ -1,1 +1,2 @@
 Referenced by commit 6b967287c96, MEM_guarded_alloc: restore execinfo.h back-trace on Linux/Apple
+Referenced by commit bcc0b9f73f9, Tweaks to previous commit affecting debug reports of our guarded allocator.
