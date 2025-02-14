@@ -1,3 +1,4 @@
 Referenced by issue #42307, Consistency
 Referenced by issue #42270, Renderbug Cycles preview
 Referenced by issue #42045, the displacment of a ss plane are only rendered with open Gl !
+Referenced by issue #41962, command-line without specified filename doesn't renders
