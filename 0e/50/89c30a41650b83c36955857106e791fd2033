@@ -14,3 +14,4 @@ Referenced by issue #49287, unable to render displacement and sporadic crashing 
 Referenced by issue #49288, Ease drivers don't migrate to new Bendy Bones (datapath change, backwards-compatibility broken)
 Referenced by issue #49259, GLSL render doesn't consider custom transform
 Referenced by issue #49247, Adaptive Subdivision Problem
+Referenced by issue #49249, Alembic export with multiple hair systems crash blender
