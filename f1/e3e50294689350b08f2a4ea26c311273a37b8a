@@ -1,3 +1,4 @@
 Referenced by issue #55700, render crashes and freezes computer on both mac and windows
 Referenced by issue #55487, Imagetextures are rendered as colour or black
 Referenced by issue #55441, Pop-Over Menus : Issues with draw if the button is over a certain size (width)
+Referenced by issue #55432, Principled BSDF Sliders Causing Crash on Mouse Drag.
