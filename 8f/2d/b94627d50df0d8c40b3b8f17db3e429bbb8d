@@ -1,3 +1,4 @@
 Referenced by issue #93439, Armature widgets from hidden collections are invisible.
 Referenced by issue #93384, Regression: objects with Constraints to curves have wrong locations on file load (curve boundingbox problem)
 Referenced by issue #93367, Geometry Nodes in recent builds scramble meshes in various cases
+Referenced by issue #93357, Crash at attempting to open Search menu
