@@ -5,3 +5,4 @@ Referenced by issue #62902, Eevee Rendering freeze the window
 Referenced by issue #62853, EEVEE: No motion blur if camera is parented to animated object
 Referenced by issue #62827, Prssing 'N'doesn't bring up the painting tools
 Referenced by issue #62820, Wrong OBJ Import
+Referenced by issue #62822, crash during inserting hair strands
