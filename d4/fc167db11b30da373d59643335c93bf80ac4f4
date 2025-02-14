@@ -1,2 +1,3 @@
 Referenced by issue #125865, Blender crashes when using bpy.ops.render.render("INVOKE_DEFAULT")
 Referenced by issue #125466, Asset shelf crash when opening a file
+Referenced by issue #123327, Regression: ACCESS VIOLATION for operators using class properties
