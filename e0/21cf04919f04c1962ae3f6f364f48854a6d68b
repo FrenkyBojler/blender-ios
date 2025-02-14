@@ -1,2 +1,3 @@
 Referenced by issue #133953, Cycles oneAPI renders textures blank
 Referenced by issue #133724, Tests: Disable --cycles-device arguments on non-Cycles tests
+Referenced by issue #128717, USD Targets for blender 4.4
