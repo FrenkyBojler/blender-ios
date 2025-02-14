@@ -1,0 +1,1 @@
+Referenced by issue #121742, Access violation when updating an image datablock's filepath from a frame change handler during playback.
