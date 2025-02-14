@@ -3,3 +3,4 @@ Referenced by issue #76117, Smooth Modifer Crash - TDR
 Referenced by issue #75911, Crash when switching to sculpt mode with multiresolution modifier is enabled
 Referenced by issue #75866, Blender 2.83 beta crashes on startup
 Referenced by issue #75850, Liquid simulation, cache type "Replay", doesn't recognize objects created after Domain creation, doesn't update
+Referenced by issue #75842, [ Grease Pencil ] Edit mode of unselected object is visible on the active one
