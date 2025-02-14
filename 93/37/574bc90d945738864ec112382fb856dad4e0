@@ -62,3 +62,4 @@ Referenced by issue #41492, Keyframes on nodes in group of group don't show in t
 Referenced by issue #41455, info panel incorrect.   bpy.context.object has no .key
 Referenced by issue #41452, Logic bricks, auto-connect Sensors to Actuators doens't work anymore latest build
 Referenced by issue #41453, Blender Render | Area lamp | Ray shadow artifacts
+Referenced by issue #41443, Seperate bug with Curves & Hooks
