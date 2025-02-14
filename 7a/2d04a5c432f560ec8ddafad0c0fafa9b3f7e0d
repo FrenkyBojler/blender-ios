@@ -1,1 +1,2 @@
 Referenced by commit 1e2e20fe3cc, Fix #120200: Sculpting is slow with modifier with driver
+Referenced by commit e9dc9ef9a20, Fix #119936: Crash selecting in mask editor
