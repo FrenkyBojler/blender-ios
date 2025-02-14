@@ -1,2 +1,3 @@
 Referenced by issue #69096, Crash in drawcode in a BI character file.
 Referenced by issue #69083, Blender crashes when switching from solid view to rendered or lookdev mode in eevee.
+Referenced by issue #69087, Error when using vertex color
