@@ -1,2 +1,3 @@
 Referenced by issue #47273, Cycles GPU performance regression on Nvidia's Maxwell cards
 Referenced by issue #47085, World background window-projected image green channel missing on CPU rendering
+Referenced by issue #45376, viewport doesn't refreshes animated colors in node groups
