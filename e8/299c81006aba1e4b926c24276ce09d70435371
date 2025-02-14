@@ -80,3 +80,4 @@ Referenced by issue #50183, This smoke duplicated domain makes Blender crash
 Referenced by issue #50184, Grease Pencil Layer synchronization between Dope Sheet and Properties panel
 Referenced by issue #50161, Crash when loading huge OpenEXR files
 Referenced by issue #50171, Blender 2.78a crashes using in Node Editor [Input] - [Texture]
+Referenced by issue #50157, IK Disallow movement failure when add pole target
