@@ -3,3 +3,4 @@ Referenced by issue #103596, Blender 3.5: Cursor warping usable on windows remot
 Referenced by issue #103253, Regression: Infinite drag of number buttons is broken
 Referenced by issue #102967, 3.4: Potential candidates for corrective releases
 Referenced by issue #102792, Regression: Sculpt cursor jumps to random place
+Referenced by issue #102346, Regression: Viewport Walk Navigation : mouse escapes window if it moves too fast
