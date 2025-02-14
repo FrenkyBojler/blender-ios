@@ -1,1 +1,2 @@
 Referenced by commit 067f0d40aee, Fix knife tool use-after free on completion
+Referenced by issue #96424, Knife tool creates an undo step even there is no cut over object
