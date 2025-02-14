@@ -1,2 +1,3 @@
 Referenced by issue #92972, Cycles HIP graphics interop issue on AMD 5500 XT and Windows
 Referenced by issue #92913, Blender crashes if the subdivision resolution is increased
+Referenced by issue #92868, Shadow catchers with transparency in front of other shadow catchers crash Cycles X
