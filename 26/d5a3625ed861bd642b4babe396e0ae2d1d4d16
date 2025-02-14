@@ -22,3 +22,4 @@ Referenced by issue #58256, "Tool `Select Box` not found for space `IMAGE_EDITOR
 Referenced by issue #58260, alt clicking to apply modifier to multiple objects doesn't work
 Referenced by issue #58249, Studio lighting options aren't available in the shading options in 3D viewport.
 Referenced by issue #58254, Crash report
+Referenced by issue #58237, Exporters: Curve Modifier not applied when "apply modifiers" are selected
