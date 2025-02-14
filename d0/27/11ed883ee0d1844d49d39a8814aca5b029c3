@@ -1,1 +1,2 @@
 Referenced by commit 6f66498c104, Revert "Eevee: Fix the NaN pixel issue."
+Referenced by issue #51979, Eevee: Bloom artifacts when triangle has colinear vertices
