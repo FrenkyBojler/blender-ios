@@ -1,2 +1,3 @@
 Referenced by issue #46001, Properties Editor -> Material Tab -> Cycles auto renders icon which crashes blender when the material uses up too much ram
 Referenced by issue #45931, Blender Fails to generate previews
+Referenced by issue #45933, Cannot select camera when camera has been scaled on the x / y / z
