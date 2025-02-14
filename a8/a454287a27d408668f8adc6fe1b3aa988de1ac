@@ -1,1 +1,2 @@
 Referenced by commit c65fa57b0b6, Fix #109691: Edge crease not handled in complex solidify
+Referenced by commit c5702ee87db, Fix: Wrong conversion for crease type in multires reshape
