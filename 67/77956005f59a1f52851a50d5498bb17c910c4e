@@ -1,2 +1,3 @@
 Referenced by issue #75200, GPU Crash out of Render.
 Referenced by issue #74973, Linux: Cryptomattes empty/buggy based on enabled render passes
+Referenced by issue #68370, Cryptomatte buffers broken with more than 16 enabled passes (Linux only?)
