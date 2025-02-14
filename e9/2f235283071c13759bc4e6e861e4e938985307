@@ -45,3 +45,4 @@ Referenced by issue #51841, Z and Y axis become same axis (Gimbal Lock?)
 Referenced by issue #51819, Inset, extrue, bevel operation is slow on highpoly meshes
 Referenced by issue #51784, Wrong window scaling
 Referenced by issue #51732, Array Modifier: Fit Curve calculation method ignores parent relation
+Referenced by issue #51728, Feature Suggestion: "allow remote" switch for RDP connections
