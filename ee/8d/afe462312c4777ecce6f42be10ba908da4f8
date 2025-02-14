@@ -3,3 +3,4 @@ Referenced by issue #41405, FBX export issue with 2.71.3 Hash: ee8dafe
 Referenced by issue #41406, Smear bug
 Referenced by issue #41387, Decimate bug
 Referenced by issue #41378, Particle update bug
+Referenced by issue #41380, Importing multiple images into VSE at one time fails, only first image selected imports
