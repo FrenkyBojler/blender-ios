@@ -1,3 +1,4 @@
 Referenced by issue #60698, Blender 2.8 - LookDev Mode Crashed
 Referenced by issue #59427, Bevel modifier crashing when selecting Normal Mode
 Referenced by issue #59434, After applying mirror modifier it acts like it is still on the object.
+Referenced by issue #59425, part of a GP stroke hidden when overlapping with stroke behind a mesh
