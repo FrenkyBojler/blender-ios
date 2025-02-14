@@ -7,3 +7,4 @@ Referenced by issue #81208, filter_glob not working with filenames
 Referenced by issue #80265, Cycles ray visibility broken in render/viewport
 Referenced by issue #79964, Hiding faces in edit mode does not hide them in sculpt mode
 Referenced by issue #79931, Infinite loop in scene "Full Copy" in 2.90
+Referenced by issue #78719, Can't render with Cycles: OpenCL/AMD
