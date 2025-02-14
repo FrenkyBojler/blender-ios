@@ -1,2 +1,3 @@
 Referenced by commit bcb9e8e1a70, Fix T85769: Grease Pencil Fill option when drawing no longer works
 Referenced by issue #85769, Grease Pencil Fill option when drawing no longer works in latest nightly
+Referenced by issue #80862, Grease pencil opacity bug when dealing with line thickness relative to screen
