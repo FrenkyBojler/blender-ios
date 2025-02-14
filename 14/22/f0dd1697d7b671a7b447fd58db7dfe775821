@@ -1,3 +1,4 @@
 Referenced by commit 0a277f7428b, Fix cycles-xml with OSL support after changes inroduced in 1422f0dd1697d7b671a7b447fd58db7dfe775821
 Referenced by issue #48937, different Skin Modifier outputs for same mesh
 Referenced by issue #48743, Moving the mouse ever so slightly breaks hotkey combos in menus
+Referenced by issue #48695, Significant slowdown when editing a mesh with shrinkwraps & slightly high poly
