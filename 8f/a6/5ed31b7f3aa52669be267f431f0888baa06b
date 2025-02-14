@@ -1,0 +1,1 @@
+Referenced by issue #65707, Adding any shader to world other than "Background" causes HOM (hall of mirrors) effect/depth buffer to not be cleared
