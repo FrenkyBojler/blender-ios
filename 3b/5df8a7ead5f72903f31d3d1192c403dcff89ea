@@ -1,3 +1,4 @@
 Referenced by issue #120849, "Texture slots" Panel missing in 4.x
 Referenced by issue #115331, 4.0.1 - Texture Paint - Properties - Tool - Missing Texture Slots and Masking Dropdown Menus
 Referenced by issue #115276, UI code error spam: space_view3d_toolbar line 678
+Referenced by issue #112186, Canvas picker doesn't get immediate update with change of active canvas
