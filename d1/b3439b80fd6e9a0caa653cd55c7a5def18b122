@@ -1,1 +1,2 @@
 Referenced by commit ba8233174cd, Fix build error with clean builds
+Referenced by issue #81747, missing `dna_type_infos.h` in `gpencil_modifiers`
