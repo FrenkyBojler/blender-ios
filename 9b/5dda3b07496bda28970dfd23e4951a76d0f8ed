@@ -1,1 +1,2 @@
 Referenced by commit 381fe684e20, GHOST: only use GHOST_PRINT when WITH_GHOST_DEBUG is enabled
+Referenced by issue #99200, Multiple console warnings starting Blender: GHOST_SystemWin32::wndProc: GHOST window event before creation
