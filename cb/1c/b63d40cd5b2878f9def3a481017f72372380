@@ -1,0 +1,1 @@
+Referenced by issue #46826, EXR Compression method set in UI does not always get passed correctly to the actual OpenEXR writing code
