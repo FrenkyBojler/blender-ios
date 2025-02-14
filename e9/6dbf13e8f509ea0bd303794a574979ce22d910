@@ -1,0 +1,1 @@
+Referenced by issue #107384, [Blender 2.93] When bpy.ops.file.bookmark_move.poll() is called outside of the File Browser, Blender crashes.
