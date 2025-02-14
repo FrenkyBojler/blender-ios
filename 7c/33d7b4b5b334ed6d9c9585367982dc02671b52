@@ -1,1 +1,2 @@
 Referenced by issue #101368, NLA editor does not allow moving strips to negative frames.
+Referenced by issue #100918, Regression: The start frame of NLA tracks can not be negative.
