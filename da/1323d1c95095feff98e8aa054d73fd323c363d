@@ -1,1 +1,2 @@
 Referenced by commit a261d6f2d3f, Fix T62328, T62209: revert recent fix for texture slots updates (T60366).
+Referenced by issue #60366, Creating a new image texture in shader editor does not appear among the texture slots
