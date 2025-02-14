@@ -1,0 +1,1 @@
+Referenced by issue #90737, Effect Strip added to a nested Metastrip gets duplicate name (thus inherits fcurves from other Strips)
