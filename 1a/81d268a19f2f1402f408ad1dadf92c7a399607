@@ -2,3 +2,4 @@ Referenced by commit 5723bf926dc, Fix T99191: Boolean modifier creates invalid m
 Referenced by commit 6845aad1a27, Fix T90907: RNA pointers for material slots are not unique across IDs
 Referenced by commit f3a0267016c, Materials: support materials when applying modifier
 Referenced by commit b51bd859fd4, Fix: wrong rna pointer for material slot
+Referenced by issue #95417, Material Assignment broken when multiple materials assigned to Object
