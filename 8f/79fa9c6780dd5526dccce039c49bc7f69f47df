@@ -2,3 +2,4 @@ Referenced by commit b0da080c2cb, Drag & drop: Use session UUID of IDs instead o
 Referenced by commit 7b778166db4, Cleanup: Use new helpers for passing IDs from drag & drop to operators
 Referenced by commit cd412b4454f, Drag & drop: Invert priority of name and session UUID in ID lookups
 Referenced by commit bc3dbf109c6, Fix T95706: Material asset not applied if appended and then linked
+Referenced by issue #95706, Asset Browser - Material is not applied if it is appended and then linked
