@@ -1,2 +1,3 @@
 Referenced by commit e40f993a70d, Fix #108704: scrubbing timeline does not to proper sampling like normal frame change
 Referenced by commit b344e4ba61a, Fix #108704: missing redraw after timeline scrubbing with temporal denoise
+Referenced by commit 9692262b9d9, Fix #108122: onion skin disappears after scrubbing timeline
