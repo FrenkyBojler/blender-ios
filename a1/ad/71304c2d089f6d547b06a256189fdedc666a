@@ -1,3 +1,4 @@
 Referenced by issue #65581, Latest Blender 2.8 Beta Crashes on Startup (MacOS)
 Referenced by issue #65586, --verbose option is incorrectly described in CLI "--help" page
 Referenced by issue #65044, Crash when Rendering (F12)
+Referenced by issue #63041, Eevee - crash when placing cursor during baking of indirect lighting
