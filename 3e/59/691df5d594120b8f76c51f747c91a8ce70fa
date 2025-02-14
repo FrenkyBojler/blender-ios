@@ -1,0 +1,1 @@
+Referenced by issue #46162, Cycles caches bvh in .config/cache folder of Blender, this can lead to huge amount of data never cleaned there
