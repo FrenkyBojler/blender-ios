@@ -12,3 +12,4 @@ Referenced by issue #50210, Blender 2.78A crashes opening files created in previ
 Referenced by issue #50076, Blender Cycles crashes
 Referenced by issue #50064, When Bevel modifier is applied to specific mesh Blender crashes
 Referenced by issue #49962, Switch to Camera Perspective Misaligned
+Referenced by issue #49935, Mesh deform modifier binding took forever
