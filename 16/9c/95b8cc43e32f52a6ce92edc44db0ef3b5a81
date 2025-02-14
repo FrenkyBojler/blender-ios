@@ -8,3 +8,4 @@ Referenced by issue #40755, Armature editing 2.71
 Referenced by issue #40749, Crashes on Toggle Fullscreen
 Referenced by issue #40731, Armature crashing in Ubuntu, Blender 2.71+2.71~git201406121839.169c95b
 Referenced by issue #40708, Blender crashes when manipulating Human(Meta-rig) in edit mode.
+Referenced by issue #40698, Using the Lattice Modifier on a cube (with subdivision surface) in Blender 2.71. Blender turns down. Work fine in version 2.69.
