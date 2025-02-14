@@ -36,3 +36,4 @@ Referenced by issue #93730, Crashing after render
 Referenced by issue #93684, context.engine return CYCLES whereas particle panel enumeration does not have it
 Referenced by issue #93680, Blender 3.0 is crashing when creating hair particle system (Windows, Intel)
 Referenced by issue #93641, blender3.0.0 f1cca3055776 crashing when render is stopped before finishing
+Referenced by issue #93650, Unable to drag library assets to catalogs, when in their current file
