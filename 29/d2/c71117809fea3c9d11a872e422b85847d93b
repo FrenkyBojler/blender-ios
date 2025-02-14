@@ -1,1 +1,2 @@
 Referenced by issue #43260, Setting node tree type to "Compositor" sometimes deletes render.
+Referenced by issue #43152, Crash when switching to material view in viewport
