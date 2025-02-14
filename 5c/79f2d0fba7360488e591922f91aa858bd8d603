@@ -1,2 +1,3 @@
 Referenced by commit 6b38c8a1ac1, Fix T70441: crash after deleting a material output node
 Referenced by issue #70614, Texture won't display or won't do correctly on eevee when used as bump and other input
+Referenced by issue #70441, Crash after delete material
