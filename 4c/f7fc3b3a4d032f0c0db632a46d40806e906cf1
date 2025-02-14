@@ -4,3 +4,4 @@ Referenced by commit 04800ed4343, Fix T52113: Compositor doesnt mix unrendered r
 Referenced by issue #132717, Cleanup: Compositor: Ghost data of a node storage
 Referenced by issue #114629, WIP: Refractor: Compositor: Render layer node to dynamic declaration
 Referenced by issue #70802, Hidden sockets in Compositor don't stay hidden when we duplicate any node or render starts
+Referenced by issue #56875, Compositor: Auto Render doesn't work
