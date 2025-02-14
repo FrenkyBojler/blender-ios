@@ -1,2 +1,3 @@
 Referenced by commit e254d8867d6, Outliner: Hide library overrdies context menu when no IDs are selected
 Referenced by commit 860c3dce1b7, Outliner: Don't show asset context menu when no IDs are selected
+Referenced by issue #104992, Regression: Crash when pressing F3 in outliner if no object is selected and Developer Extra is enabled
