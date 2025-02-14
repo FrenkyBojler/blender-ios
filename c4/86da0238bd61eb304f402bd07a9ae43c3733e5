@@ -1,2 +1,3 @@
 Referenced by issue #97591, Cycles HIP error with image textures on Linux and RDNA1
 Referenced by issue #97595, Regression: GeoNode attribute output passing does not work in the latest nightly
+Referenced by issue #97553, Regression: Sculpt Brushes not supported in Multiresolution and Dyntopo Mode
