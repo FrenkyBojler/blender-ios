@@ -1,3 +1,4 @@
 Referenced by commit 69f93669110, Fix #127045: regression when importing assets from the asset browser
 Referenced by issue #127452, Fix #127045: regression when importing assets from the asset browser
 Referenced by issue #127045, Regression: Dragging Assets from the Library no longer transfers attached empties
+Referenced by issue #126568, Asset Browser - Regression: Drag and drop linked collection to scene (not as instance) doesn't add to active scene
