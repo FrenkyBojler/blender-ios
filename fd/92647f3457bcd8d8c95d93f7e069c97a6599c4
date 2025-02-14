@@ -1,1 +1,2 @@
 Referenced by commit 0177c55880a, Fix: Curves: Missing check in `get_mutable_attribute`
+Referenced by commit 6a016ce2559, Cleanup: Remove unnecessary check
