@@ -15,3 +15,4 @@ Referenced by issue #104804, bpy.ops.wm.open_mainfile command overwrite the exis
 Referenced by issue #104572, Blender Eevee Render freeze when i change base color or color sliders #103843
 Referenced by issue #104369, Video Sequencer UI bug (Pink Mess)
 Referenced by issue #104140, Blender crashes after opening the Shading window
+Referenced by issue #104039, Grease Pencil: Multiframe Fill exits the program.
