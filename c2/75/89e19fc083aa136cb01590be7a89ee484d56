@@ -62,3 +62,4 @@ Referenced by issue #45716, Can't open images after Purge Orphan Datablocks. Ope
 Referenced by issue #45680, vertex weight modifier texture params doesn't accept driver input
 Referenced by issue #45683, The "Composite" compositor node does not take affect unless the Render Result is open in another window
 Referenced by issue #45686, freeze sculpt
+Referenced by issue #45669, Skin modifier root exploit
