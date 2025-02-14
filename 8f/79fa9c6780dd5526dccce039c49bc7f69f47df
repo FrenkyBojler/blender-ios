@@ -1,2 +1,3 @@
 Referenced by commit b0da080c2cb, Drag & drop: Use session UUID of IDs instead of name for dropping
 Referenced by commit 7b778166db4, Cleanup: Use new helpers for passing IDs from drag & drop to operators
+Referenced by commit cd412b4454f, Drag & drop: Invert priority of name and session UUID in ID lookups
