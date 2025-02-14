@@ -1,0 +1,1 @@
+Referenced by issue #46648, "Recalculate Normals" operator (on creating outside normals) non-functional on certain geometric volumes.
