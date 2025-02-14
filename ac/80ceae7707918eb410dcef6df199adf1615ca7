@@ -4,3 +4,4 @@ Referenced by issue #59539, Deleting Default Camera Crash
 Referenced by issue #59541, Blender 2.8 4fceaf3848b 64bit crash when deleting object from the first startup file
 Referenced by issue #59528, Crash when deleting something
 Referenced by issue #59532, Blender closes when attempting to delete object form build area
+Referenced by issue #59533, Crash press X
