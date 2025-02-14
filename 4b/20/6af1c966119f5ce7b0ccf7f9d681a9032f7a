@@ -5,3 +5,4 @@ Referenced by issue #43302, Error when opening Blender
 Referenced by issue #43100, cycles material crash
 Referenced by issue #39610, Shared mesh used for Mesh Deform causes crash
 Referenced by issue #38507, Inset Faces tool, offset even option doesn't work anymore
+Referenced by issue #38501, blender crashes right after adding image texture to material in cycles
