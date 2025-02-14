@@ -1,1 +1,2 @@
 Referenced by issue #62760, Dragging incorrect object into reference field - Crashes Blender
+Referenced by issue #60815, Drag and drop causes null pointer exception
