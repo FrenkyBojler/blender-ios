@@ -1,3 +1,4 @@
 Referenced by commit 61dd7cc1174, Transform: restore default rotation snapping increments
 Referenced by commit 09666e14987, Fix #119387: Precision transform fails to activate
 Referenced by issue #119395, Rotation Precision Increment (Shift+Ctrl) doesn't work properly if you press Shift first and then Ctrl
+Referenced by issue #119387, Graph Editor - precision mode doesn't activate
