@@ -18,3 +18,4 @@ Referenced by issue #58315, shader editor doesn't full screen
 Referenced by issue #58299, Removed Auto Perspective in preferences but Blender re-enables subsequently
 Referenced by issue #58301, Subsurface scatter \ separate albedo
 Referenced by issue #58271, Blender 2.8 Beta Crash when pressing some toggles
+Referenced by issue #58256, "Tool `Select Box` not found for space `IMAGE_EDITOR`." message is often displayed
