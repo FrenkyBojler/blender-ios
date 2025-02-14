@@ -10,3 +10,4 @@ Referenced by issue #46296, Rigify: Bone Heat Weighting: failed to find solution
 Referenced by issue #46298, Cannot access user preferences Blender crashes
 Referenced by issue #46299, File Browser Crash while listing big folders in preview mode (fonts, images...).
 Referenced by issue #46287, 3d cursor unwanted undo when isolate selected
+Referenced by issue #46291, File Browser Crash while listing big image folders
