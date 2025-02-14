@@ -1,3 +1,4 @@
 Referenced by commit e69f70e11f0, Revert "Fix T67577: Add-on unregister can't access preferences on factory reset"
 Referenced by commit eba3aa1837e, Revert "Fix T67577: Add-on unregister can't access preferences on factory reset"
 Referenced by issue #77265, 2.83.0 Beta addons need to be re-enabled after switching File->New-> any choise other than "General" (2DAnimation, Sculpting, VFX, Video editing)
+Referenced by issue #67577, Error registering addons disabled by Load Factory Settings (from preferences window)
