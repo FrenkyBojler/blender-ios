@@ -1,2 +1,3 @@
 Referenced by commit 6c1fdd52c12, Fix invalid polygon normal array access building bake data
 Referenced by issue #46305, The viewport artifacts associated with the use of normal maps.
+Referenced by issue #46313, Cycles bake normal map
