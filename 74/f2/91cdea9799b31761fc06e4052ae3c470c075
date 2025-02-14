@@ -1,2 +1,3 @@
 Referenced by issue #108579, Fix #108573: Remove GP eraser pen pressure conditional
 Referenced by issue #108573, Grease Pencil eraser acts as though full pressure was applied when tablet stylus is released
+Referenced by issue #47101, Grease Pencil eraser doesn't work when activated using D+RMB when using a tablet
