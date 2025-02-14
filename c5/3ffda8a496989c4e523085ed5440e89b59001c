@@ -1,2 +1,3 @@
 Referenced by issue #99256, Regression: Meta balls segfaulting copy-to-selected
 Referenced by issue #91797, Weird volumetric artifacts in Cycles (X) rendering
+Referenced by issue #91774, Using viewport visibility as a driver doesn't work without constantly updating it in the driver property
