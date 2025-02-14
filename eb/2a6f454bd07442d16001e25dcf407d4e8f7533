@@ -1,0 +1,1 @@
+Referenced by issue #90318, Dragging a asset from the asset browser while the thumbnail is still loading results in a crash.
