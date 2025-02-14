@@ -1,3 +1,4 @@
 Referenced by issue #78637, GPencil; Strokes disappear when new strokes are drawn
 Referenced by issue #78624, Crash when baking particles using python
 Referenced by issue #78603, GPencil: No vertex group filtering for noise modifier?
+Referenced by issue #78520, EEVEE viewport isn't updating when adding or connecting new nodes to a material.
