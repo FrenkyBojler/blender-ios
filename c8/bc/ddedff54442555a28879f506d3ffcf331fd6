@@ -1,0 +1,1 @@
+Referenced by issue #63977, AttributeError: 'UV_OT_select_linked' object has no attribute 'extend'
