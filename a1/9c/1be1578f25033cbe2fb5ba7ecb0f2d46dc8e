@@ -8,3 +8,4 @@ Referenced by issue #40746, limit rotation constraint resets after 180ø
 Referenced by issue #40747, Driver evaluates to wrong value.
 Referenced by issue #40749, Crashes on Toggle Fullscreen
 Referenced by issue #40720, Negative values defy "Limit Scale" constraint limit, Parent Empty
+Referenced by issue #40723, undo broken in node editor
