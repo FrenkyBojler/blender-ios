@@ -2,3 +2,4 @@ Referenced by commit 067d0d44669, Fix: Missing "Hair" to "Curves" rename
 Referenced by commit 40e8b9775d3, Fix: Missing changes in recent "Curves" rename
 Referenced by commit 516781da809, Fix: Incorrect size used for reading curves data
 Referenced by commit 2887df119c3, Fix: Complete curves renaming missed in previous commit
+Referenced by issue #95355, New Curves data block
