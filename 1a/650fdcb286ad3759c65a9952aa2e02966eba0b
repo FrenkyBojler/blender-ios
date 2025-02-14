@@ -1,2 +1,3 @@
 Referenced by commit ff51afb1944, Fix T84593: Operators on material (linked to local object but with
 Referenced by issue #84593, Cannot create new material on linked mesh, even though material_slot input is set to object instead of data.
+Referenced by issue #82049, Regression: material select button now only works for active object.
