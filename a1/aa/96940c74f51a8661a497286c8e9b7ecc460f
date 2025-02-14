@@ -2,3 +2,4 @@ Referenced by issue #41123, Add Transparent Shader to Mix Shader with Material P
 Referenced by issue #41087, Particles Density from Image Texture - UV coordinates problem
 Referenced by issue #41068, 3D viewport shading - Material or Window vs. Rendered
 Referenced by issue #41002, Action Actuattor broken
+Referenced by issue #40257, BGE: Frustrum culling not working properly
