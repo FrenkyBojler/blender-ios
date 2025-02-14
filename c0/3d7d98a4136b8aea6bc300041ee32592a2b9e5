@@ -1,3 +1,4 @@
 Referenced by issue #129407, Exporting glb file with full backing, and a step different than 1, crashes
 Referenced by issue #128837, Vertices popping out of the model
 Referenced by issue #128526, Some Blender shortcuts are not showing up in the menus on Ubuntu
+Referenced by issue #127847, Blender 4.2.2 (snap package) became slow and laggy on Ubuntu 22.04.5 LTS
