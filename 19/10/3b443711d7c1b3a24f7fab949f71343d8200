@@ -1,2 +1,3 @@
 Referenced by issue #38000, three vertex parent crash using simplify.
 Referenced by issue #37987, Blender goes into an infinite loop when opening a file
+Referenced by issue #37994, Blender crashes when enabling SSS on Blender Internal
