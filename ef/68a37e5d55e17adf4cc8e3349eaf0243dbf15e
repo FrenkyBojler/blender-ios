@@ -2,3 +2,4 @@ Referenced by commit 422f3d0b0fe, Fix #105278: IDProperty UI missing library ove
 Referenced by commit d90d6f86740, Fix #105259: Copy & paste boolean custom property as driver doesn't work
 Referenced by commit 720dbea429d, Fix #104902: Use forward compatible integers for boolean RNA properties
 Referenced by commit 2ea47e0def6, Geometry Nodes: Use checkbox for exposed boolean sockets
+Referenced by issue #105370, Fix #105278: IDProperty UI missing library overridable toggle
