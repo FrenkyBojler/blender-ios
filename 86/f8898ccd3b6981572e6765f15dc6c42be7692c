@@ -1,1 +1,2 @@
 Referenced by issue #101618, Freeze when reloading a library while having an Object property with a custom getter function defined in Python
+Referenced by issue #100749, Blender LTS: Maintenance Task 3.3
