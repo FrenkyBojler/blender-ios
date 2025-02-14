@@ -11,3 +11,4 @@ Referenced by issue #60959, texture paint bump , final result only  updated when
 Referenced by issue #60962, random crashes when modelling
 Referenced by issue #60945, Force field + hair dynamics not working in (linked) instanced collections
 Referenced by issue #60950, Need to change viewport display in order for texture paint
+Referenced by issue #60938, Blender refuses to unwrap a model ( after crashing ) gi
