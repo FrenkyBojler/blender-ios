@@ -1,1 +1,2 @@
 Referenced by commit 58db64a3b63, Revert "Fix T59713: Moving bones between layers in edit mode doesn't show the dot icon in the layers UI"
+Referenced by issue #59713, Armature layer dots not updated on changes
