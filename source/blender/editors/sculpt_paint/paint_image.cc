@@ -14,6 +14,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_vector.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -36,6 +37,7 @@
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_image.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_material.hh"
 #include "BKE_mesh.hh"
@@ -793,7 +795,7 @@ void PAINT_OT_sample_color(wmOperatorType *ot)
 
   prop = RNA_def_int_vector(
       ot->srna, "location", 2, nullptr, 0, INT_MAX, "Location", "", 0, 16384);
-  RNA_def_property_flag(prop, static_cast<PropertyFlag>(PROP_SKIP_SAVE | PROP_HIDDEN));
+  RNA_def_property_flag(prop, (PROP_SKIP_SAVE | PROP_HIDDEN));
 
   RNA_def_boolean(ot->srna, "merged", false, "Sample Merged", "Sample the output display color");
   RNA_def_boolean(ot->srna, "palette", false, "Add to Palette", "");

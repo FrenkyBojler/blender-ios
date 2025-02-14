@@ -45,6 +45,7 @@
 
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
+#include "BKE_anonymous_attribute_id.hh"
 #include "BKE_armature.hh"
 #include "BKE_camera.h"
 #include "BKE_collection.hh"
@@ -73,6 +74,7 @@
 #include "BKE_lib_override.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
+#include "BKE_library.hh"
 #include "BKE_light.h"
 #include "BKE_lightprobe.h"
 #include "BKE_main.hh"
@@ -632,7 +634,7 @@ Object *add_type_with_obdata(bContext *C,
     ob = BKE_object_add_for_data(bmain, scene, view_layer, type, name, obdata, true);
     const short *materials_len_p = BKE_id_material_len_p(obdata);
     if (materials_len_p && *materials_len_p > 0) {
-      BKE_object_materials_test(bmain, ob, static_cast<ID *>(ob->data));
+      BKE_object_materials_sync_length(bmain, ob, static_cast<ID *>(ob->data));
     }
   }
   else {
@@ -1442,8 +1444,7 @@ static int object_grease_pencil_add_exec(bContext *C, wmOperator *op)
       greasepencil::create_blank(*bmain, *object, scene->r.cfra);
 
       auto *grease_pencil = reinterpret_cast<GreasePencil *>(object->data);
-      auto *new_md = reinterpret_cast<ModifierData *>(
-          BKE_modifier_new(eModifierType_GreasePencilLineart));
+      auto *new_md = BKE_modifier_new(eModifierType_GreasePencilLineart);
       auto *md = reinterpret_cast<GreasePencilLineartModifierData *>(new_md);
 
       BLI_addtail(&object->modifiers, md);
@@ -4041,7 +4042,7 @@ static int object_convert_exec(bContext *C, wmOperator *op)
 
     /* Ensure new object has consistent material data with its new obdata. */
     if (newob) {
-      BKE_object_materials_test(bmain, newob, static_cast<ID *>(newob->data));
+      BKE_object_materials_sync_length(bmain, newob, static_cast<ID *>(newob->data));
     }
 
     /* tag obdata if it was been changed */
@@ -4249,7 +4250,6 @@ static void object_add_duplicate_internal(Main *bmain,
     *r_ob_new = obn;
   }
   DEG_id_tag_update(&obn->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
-  return;
 }
 
 static Base *object_add_duplicate_internal(Main *bmain,

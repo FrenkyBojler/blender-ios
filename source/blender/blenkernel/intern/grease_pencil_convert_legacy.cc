@@ -166,8 +166,8 @@ class AnimDataConvertor {
    * Source and destination RNA root path. These can be modified by user code at any time (e.g.
    * when processing animation data for different modifiers...).
    */
-  std::string root_path_src = "";
-  std::string root_path_dst = "";
+  std::string root_path_src;
+  std::string root_path_dst;
 
  private:
   /**
@@ -873,6 +873,8 @@ static Drawing legacy_gpencil_frame_to_grease_pencil_drawing(const bGPDframe &gp
                                                    MutableSpan<float3>();
   MutableSpan<float> radii = drawing.radii_for_write();
   MutableSpan<float> opacities = drawing.opacities_for_write();
+  /* Note: Since we *know* the drawing are created from scratch, we assume that the following
+   * `lookup_or_add_for_write_span` calls always return valid writers. */
   SpanAttributeWriter<float> delta_times = attributes.lookup_or_add_for_write_span<float>(
       "delta_time", AttrDomain::Point);
   SpanAttributeWriter<float> rotations = attributes.lookup_or_add_for_write_span<float>(
@@ -1536,7 +1538,9 @@ static ModifierData &legacy_object_modifier_common(ConversionData &conversion_da
     for (md = static_cast<ModifierData *>(object.modifiers.first);
          md && BKE_modifier_get_info(ModifierType(md->type))->type == ModifierTypeType::OnlyDeform;
          md = md->next)
+    {
       ;
+    }
     BLI_insertlinkbefore(&object.modifiers, md, &new_md);
   }
   else {

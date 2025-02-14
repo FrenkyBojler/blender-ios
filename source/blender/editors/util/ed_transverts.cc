@@ -16,6 +16,7 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_armature.hh"
@@ -160,10 +161,11 @@ void ED_transverts_update_obedit(TransVertStore *tvs, Object *obedit)
     Curves *curves_id = static_cast<Curves *>(obedit->data);
     blender::bke::CurvesGeometry &curves = curves_id->geometry.wrap();
     curves.tag_positions_changed();
+    curves.calculate_bezier_auto_handles();
   }
 }
 
-static void set_mapped_co(void *vuserdata, int index, const float co[3], const float[3] /*no*/)
+static void set_mapped_co(void *vuserdata, int index, const float co[3], const float /*no*/[3])
 {
   void **userdata = static_cast<void **>(vuserdata);
   BMEditMesh *em = static_cast<BMEditMesh *>(userdata[0]);

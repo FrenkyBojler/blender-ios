@@ -6,13 +6,10 @@
  * \ingroup nodes
  */
 
-#include <cstdio>
-
-#include "BLI_string.h"
-
-#include "DNA_color_types.h"
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
+
+#include "BLI_listbase.h"
 
 #include "BKE_context.hh"
 #include "BKE_global.hh"
@@ -31,8 +28,6 @@
 
 #include "NOD_composite.hh"
 #include "node_composite_util.hh"
-
-#include "COM_compositor.hh"
 
 static void composite_get_from_context(const bContext *C,
                                        blender::bke::bNodeTreeType * /*treetype*/,

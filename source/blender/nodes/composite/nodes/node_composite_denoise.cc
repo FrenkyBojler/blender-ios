@@ -6,7 +6,9 @@
  * \ingroup cmpnodes
  */
 
-#include "BLI_system.h"
+#ifndef __APPLE__
+#  include "BLI_system.h"
+#endif
 
 #include "MEM_guardedalloc.h"
 
@@ -19,6 +21,7 @@
 #include "DNA_node_types.h"
 
 #include "COM_denoised_auxiliary_pass.hh"
+#include "COM_derived_resources.hh"
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
 
@@ -145,8 +148,8 @@ class DenoiseOperation : public NodeOperation {
       temporary_buffers_to_free.append(input_color);
     }
     else {
-      input_color = input_image.float_texture();
-      output_color = output_image.float_texture();
+      input_color = static_cast<float *>(input_image.cpu_data().data());
+      output_color = static_cast<float *>(output_image.cpu_data().data());
     }
     oidn::FilterRef filter = device.newFilter("RT");
     filter.setImage("color", input_color, oidn::Format::Float3, width, height, 0, pixel_stride);
@@ -176,7 +179,7 @@ class DenoiseOperation : public NodeOperation {
           temporary_buffers_to_free.append(albedo);
         }
         else {
-          albedo = input_albedo.float_texture();
+          albedo = static_cast<float *>(input_albedo.cpu_data().data());
         }
       }
 
@@ -204,7 +207,7 @@ class DenoiseOperation : public NodeOperation {
           temporary_buffers_to_free.append(normal);
         }
         else {
-          normal = input_normal.float_texture();
+          normal = static_cast<float *>(input_normal.cpu_data().data());
         }
       }
 

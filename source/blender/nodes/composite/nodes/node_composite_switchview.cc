@@ -6,11 +6,12 @@
  * \ingroup cmpnodes
  */
 
+#include "BLI_listbase.h"
+
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
 
 #include "UI_interface.hh"
-#include "UI_resources.hh"
 
 #include "COM_node_operation.hh"
 

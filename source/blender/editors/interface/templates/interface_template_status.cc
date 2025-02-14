@@ -17,6 +17,7 @@
 #include "BKE_screen.hh"
 #include "BKE_workspace.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_rect.h"
@@ -218,27 +219,31 @@ static bool uiTemplateInputStatusHeader(ARegion *region, uiLayout *row)
 
 static bool uiTemplateInputStatus3DView(bContext *C, uiLayout *row)
 {
-  const ViewLayer *view_layer = CTX_data_view_layer(C);
-  const Object *ob = BKE_view_layer_active_object_get(view_layer);
-  if (ob && is_negative_m4(ob->object_to_world().ptr())) {
+  const Object *ob = CTX_data_active_object(C);
+  if (!ob) {
+    return false;
+  }
+
+  if (is_negative_m4(ob->object_to_world().ptr())) {
     uiItemS_ex(row, 1.0f);
     uiItemL(row, "", ICON_ERROR);
     uiItemS_ex(row, -0.2f);
     uiItemL(row, IFACE_("Active object has negative scale"), ICON_NONE);
-    uiItemS_ex(row, 1.0f, LayoutSeparatorType::Line);
-    uiItemS_ex(row, 0.5f);
+    uiItemS_ex(row, 0.5f, LayoutSeparatorType::Line);
+    uiItemS_ex(row, 0.8f);
+    /* Return false to allow other items to be added after. */
     return false;
   }
 
-  if (ob &&
-      !(fabsf(ob->scale[0] - ob->scale[1]) < 1e-4f && fabsf(ob->scale[1] - ob->scale[2]) < 1e-4f))
+  if (!(fabsf(ob->scale[0] - ob->scale[1]) < 1e-4f && fabsf(ob->scale[1] - ob->scale[2]) < 1e-4f))
   {
     uiItemS_ex(row, 1.0f);
     uiItemL(row, "", ICON_ERROR);
     uiItemS_ex(row, -0.2f);
-    uiItemL(row, IFACE_("Active Object has non-uniform scale"), ICON_NONE);
-    uiItemS_ex(row, 1.0f, LayoutSeparatorType::Line);
-    uiItemS_ex(row, 0.5f);
+    uiItemL(row, IFACE_("Active object has non-uniform scale"), ICON_NONE);
+    uiItemS_ex(row, 0.5f, LayoutSeparatorType::Line);
+    uiItemS_ex(row, 0.8f);
+    /* Return false to allow other items to be added after. */
     return false;
   }
 
@@ -357,7 +362,7 @@ void uiTemplateInputStatus(uiLayout *layout, bContext *C)
 static std::string ui_template_status_tooltip(bContext *C, void * /*argN*/, const char * /*tip*/)
 {
   Main *bmain = CTX_data_main(C);
-  std::string tooltip_message = "";
+  std::string tooltip_message;
 
   if (bmain->has_forward_compatibility_issues) {
     char writer_ver_str[12];
@@ -408,7 +413,7 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
       uiLayoutSetEmboss(row, UI_EMBOSS_NONE);
       /* This operator also works fine for blocked extensions. */
       uiItemO(row, "", ICON_ERROR, "EXTENSIONS_OT_userpref_show_for_update");
-      uiBut *but = static_cast<uiBut *>(uiLayoutGetBlock(layout)->buttons.last);
+      uiBut *but = uiLayoutGetBlock(layout)->buttons.last().get();
       uchar color[4];
       UI_GetThemeColor4ubv(TH_TEXT, color);
       copy_v4_v4_uchar(but->col, color);
@@ -433,7 +438,7 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
       else {
         uiLayoutSetEmboss(row, UI_EMBOSS_NONE);
         uiItemO(row, "", ICON_INTERNET_OFFLINE, "EXTENSIONS_OT_userpref_show_online");
-        uiBut *but = static_cast<uiBut *>(uiLayoutGetBlock(layout)->buttons.last);
+        uiBut *but = uiLayoutGetBlock(layout)->buttons.last().get();
         uchar color[4];
         UI_GetThemeColor4ubv(TH_TEXT, color);
         copy_v4_v4_uchar(but->col, color);
@@ -457,7 +462,7 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
       }
       uiLayoutSetEmboss(row, UI_EMBOSS_NONE);
       uiItemO(row, "", icon, "EXTENSIONS_OT_userpref_show_for_update");
-      uiBut *but = static_cast<uiBut *>(uiLayoutGetBlock(layout)->buttons.last);
+      uiBut *but = uiLayoutGetBlock(layout)->buttons.last().get();
       uchar color[4];
       UI_GetThemeColor4ubv(TH_TEXT, color);
       copy_v4_v4_uchar(but->col, color);
@@ -528,7 +533,7 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
                         0.0f,
                         "");
   /*# UI_BTYPE_ROUNDBOX's background color is set in `but->col`. */
-  UI_GetThemeColorType4ubv(TH_INFO_WARNING, SPACE_INFO, but->col);
+  UI_GetThemeColor4ubv(TH_WARNING, but->col);
 
   if (!warning_message.is_empty()) {
     /* Background for the rest of the message. */
@@ -546,7 +551,7 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
                    "");
 
     /* Use icon background at low opacity to highlight, but still contrasting with area TH_TEXT. */
-    UI_GetThemeColorType4ubv(TH_INFO_WARNING, SPACE_INFO, but->col);
+    UI_GetThemeColor4ubv(TH_WARNING, but->col);
     but->col[3] = 64;
   }
 
