@@ -1,0 +1,1 @@
+Referenced by issue #80747, bpy.data.objects['XXX'].vertex_groups.new(name = 'Test')
