@@ -1,1 +1,2 @@
 Referenced by commit 1e9b222322a, ShapeKey was missing lattice-flag
+Referenced by issue #47737, Blender crash when add Smoth modifier on Lattice.
