@@ -1,1 +1,2 @@
 Referenced by commit 0aeae0d0b98, Revert "Fix T99259: Python API: ViewLayer.aovs.remove isn't available"
+Referenced by issue #99259, Python API: ViewLayer.aovs.remove isn't available
