@@ -1,0 +1,1 @@
+Referenced by issue #55622, Proportional editing in Gpencil dope sheet will move all keyframes (e.g even when Proportional size is 0.0)
