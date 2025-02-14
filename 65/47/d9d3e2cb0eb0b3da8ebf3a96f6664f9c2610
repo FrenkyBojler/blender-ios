@@ -1,1 +1,2 @@
 Referenced by issue #75735, Armature Auto IK no longer uses the correct chain length
+Referenced by issue #75649, (Crash Report) Using "Auto IK" on FK controls with Rigify will crash Blender. (MacOS)
