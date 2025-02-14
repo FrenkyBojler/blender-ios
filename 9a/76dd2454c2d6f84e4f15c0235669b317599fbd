@@ -1,1 +1,2 @@
 Referenced by commit cff2807affc, Fix T103719: missing shortcuts info for some tool-settings
+Referenced by issue #103719, Regression: missing shortcuts info for some tolsettings (e.g. snap and proportional editing) buttons
