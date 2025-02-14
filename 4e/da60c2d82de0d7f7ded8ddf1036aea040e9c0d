@@ -5,3 +5,4 @@ Referenced by commit b8a25bbd8a4, Cleanup: remove unused function
 Referenced by issue #83801, UV Editor translation ignores "Pixel Coordinates" and aspect ratio
 Referenced by issue #83352, In "UV Editor", the movement of UV objects in pixels of an open texture map stopped working when using the [g]+[x/y] keyboard shortcuts (Blender 2.91)
 Referenced by issue #81465, Snapping to edge center doesn't work as expected when using axis locking
+Referenced by issue #81127, Transform constraints on a local axis with input numbers transforms in global space
