@@ -2,3 +2,4 @@ Referenced by commit 263148dbacc, Depsgraph: refactor tagging after time changes
 Referenced by commit 0b2cb96725b, Depsgraph: Fix wrong check for need-to-be-evaluated
 Referenced by commit 96843ae85cc, Fix T67883: Time Remapping doesn't work
 Referenced by issue #70463, Very Slow Workbench/Eevee Performance
+Referenced by issue #66378, VIEW LAYER'S keygramed".use" property does not refresh sometimes while rendering (both F12 and ctrl+F12)
