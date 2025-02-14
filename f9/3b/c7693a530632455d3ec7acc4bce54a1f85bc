@@ -14,3 +14,4 @@ Referenced by issue #41209, Run Armature actuator not working with DupliGroup ob
 Referenced by issue #41161, Blender swap keyboard layout by itself from QWERTZ (default on my PC) to QWERTY
 Referenced by issue #41060, Wrong texture 'Object' mapping in 3DView Rendered mode with Blender Internal - Update issue?
 Referenced by issue #41046, BGE Compound bug
+Referenced by issue #40996, Manually generated particle system point cache is constantly overwritten
