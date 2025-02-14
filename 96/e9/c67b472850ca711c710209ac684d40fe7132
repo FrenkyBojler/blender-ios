@@ -1,2 +1,3 @@
 Referenced by issue #38479, Bad assigned shortcut to shaders transparent and translucent.
 Referenced by issue #38328, GLSL display shows texture mapping completely messed up in some cases
+Referenced by issue #38283, Mass unwrapping of mesh pieces leads to some islands with bow-tie unwraps.
