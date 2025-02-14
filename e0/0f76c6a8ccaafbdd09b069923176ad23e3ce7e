@@ -1,0 +1,1 @@
+Referenced by commit 874319a3443, Fix T103031: ViewLayer: Crash in indirect_only_get due to missing null check
