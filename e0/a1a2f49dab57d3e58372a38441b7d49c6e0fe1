@@ -1,2 +1,3 @@
 Referenced by issue #87301, Cycles+OSL: Mysterious black lines in render
 Referenced by issue #87292, "File Output" node does not saves anything
+Referenced by issue #87279, External OSL scripts are not compiled anymore
