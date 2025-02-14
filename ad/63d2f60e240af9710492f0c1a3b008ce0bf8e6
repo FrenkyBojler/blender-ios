@@ -1,1 +1,2 @@
 Referenced by commit 2397287a51b, Fix T96503: Assert using PropertyGroup and PointerProperty prop in Panel.
+Referenced by commit e22a36e80a1, Cleanup: Use proper `RNA_pointer_is_null` helper.
