@@ -1,1 +1,2 @@
 Referenced by commit 2a72421cfb3, Fix error when filtering in Outliner "Blender File" mode with libraries
+Referenced by issue #72887, Crash when issuing an undo operation immediately after linking a collection when an outliner's display mode is set to "Blender File"
