@@ -5,3 +5,4 @@ Referenced by issue #78574, GPencil: Z pass combine not work
 Referenced by issue #74842, Grease Pencil Vertex Paint - Hotkey conflict with hotkey F for Blur and set radius
 Referenced by issue #73606, Parts displayed edges with points on origin disappear in wire frame view
 Referenced by issue #71711, Convert GPencil Sculpt and Weight brushes to real Blender Brushes
+Referenced by issue #70765, Input Mouse or Tablet events are too sparse when input device moves very fast in Windows
