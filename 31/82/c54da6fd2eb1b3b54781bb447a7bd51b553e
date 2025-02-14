@@ -1,3 +1,4 @@
 Referenced by issue #40315, Boolean modifier with Freestyle edges
 Referenced by issue #39882, global transform values for vertices are limited to 10Km
 Referenced by issue #39864, Fix T39839: Applying the subsurf modifier deletes the freestyle edge marks.
+Referenced by issue #39839, Applying the subsurf modifier deletes the freestyle edge marks.
