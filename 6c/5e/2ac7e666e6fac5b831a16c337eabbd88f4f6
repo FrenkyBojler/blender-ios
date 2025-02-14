@@ -1,1 +1,2 @@
 Referenced by issue #42557, Crash on delete or separate vertices with subsurf modifier + vertex parenting
+Referenced by issue #42489, user preferences crash
