@@ -1,3 +1,4 @@
 Referenced by issue #89307, Blender crashes when using operator panels on macOS
 Referenced by issue #89021, Focus to main window does not occur after pressing it while render window is visible
 Referenced by issue #88779, Mix/Add nodes breaks Eevee AO render pass if one socket is unfilled.
+Referenced by issue #88679, Playback locks to frame with Sync-to-Audo, when changing Sound Settings
