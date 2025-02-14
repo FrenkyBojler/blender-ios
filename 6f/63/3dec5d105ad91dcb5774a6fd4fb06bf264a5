@@ -3,3 +3,4 @@ Referenced by issue #52749, New Depsgraph - Render View Mask is not initialized 
 Referenced by issue #52752, Blender 2.79 - Cycles Compute Device doesn't detect my AMD GPU
 Referenced by issue #52741, New Depsgraph - Empties have follow track constraint on them, scaling the depth object fast causes blender to crash
 Referenced by issue #52747, IK-Stretching no longer stretches on Y-Axis
+Referenced by issue #52299, Setting resolution X to 4 pixels causes some input compositing nodes to be partially collapsed
