@@ -1,2 +1,3 @@
 Referenced by issue #72764, Blender crashes
 Referenced by issue #46279, Problem with direct navigation with NLA tracks with multiple NLA strips
+Referenced by issue #42808, NLA: Moving one strip resets extrapolation on other strip
