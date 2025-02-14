@@ -1,0 +1,1 @@
+Referenced by commit 8be20fcc611, GPU: Fix assert when running without --debug-gpu option on older GL
