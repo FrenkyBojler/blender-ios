@@ -2,3 +2,4 @@ Referenced by commit ba03407e338, Cleanup: Subdiv: Remove unnecessary C-API head
 Referenced by commit 509090e7c3e, Subdiv: Remove evaluator C-API wrapper
 Referenced by commit 774bf489255, Fix: Build error without OpenVDB
 Referenced by issue #130917, OpenSubdiv Usage Simplification
+Referenced by issue #129941, Cleanup: Subdiv: Remove unnecessary C-API header
