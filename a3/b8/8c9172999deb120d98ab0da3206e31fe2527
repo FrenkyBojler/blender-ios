@@ -1,2 +1,3 @@
 Referenced by issue #63500, segmentation fault during undo
 Referenced by issue #63501, Mesh deform modifier doesn't work after editing mesh object to deform with
+Referenced by issue #63505, Blender crashes when try to select a vertex from this particular file
