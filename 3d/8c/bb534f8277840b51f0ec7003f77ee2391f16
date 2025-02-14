@@ -1,3 +1,4 @@
 Referenced by issue #66472, Grid Fill- Span and offset can't be adjusted independently anymore
 Referenced by issue #62706, Orphan Data : I have now to save a file, close and reopen it, only then I can purge previous deleted meshes
 Referenced by issue #62707, Blender crashes when opening file - Older beta opens the file normal
+Referenced by issue #62053, Composite rendering more images than needed
