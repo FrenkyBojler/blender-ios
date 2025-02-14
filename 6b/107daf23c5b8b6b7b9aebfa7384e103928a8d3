@@ -1,1 +1,2 @@
 Referenced by issue #110780, Fix #110766: Prevent panning at limit with zoom-to-cursor
+Referenced by issue #110766, Zoom to mousepos makes 2D Views pan after zoom limits are reached
