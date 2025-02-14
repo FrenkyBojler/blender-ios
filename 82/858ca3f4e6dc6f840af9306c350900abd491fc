@@ -1,2 +1,3 @@
 Referenced by issue #94629, Out-of-bounds memory access in IMB_flipy() due to large image dimensions
 Referenced by issue #88449, Blender LTS: Maintenance Task 2.93
+Referenced by issue #77348, Blender LTS: Maintenance Task 2.83
