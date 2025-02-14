@@ -1,2 +1,3 @@
 Referenced by commit bee0a7587b4, Fix crash accessing nodes search menu
 Referenced by issue #47665, multiple scenes in different windows -> "DAG zero... not allowed to happen!"
+Referenced by issue #47660, Crash on invoke_search_popup
