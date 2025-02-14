@@ -1,0 +1,1 @@
+Referenced by issue #56170, Fake dependency cycle in new depsgraph + interleaved armature update + proxy
