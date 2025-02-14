@@ -1,1 +1,2 @@
 Referenced by issue #94708, New-file causes Python assert with negative reference count
+Referenced by issue #93479, 3.0 Potential candidates for corrective releases
