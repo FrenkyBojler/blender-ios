@@ -98,7 +98,7 @@ bool object_active_color_fill(Object &ob, const float fill_color[4], bool only_s
  *
  * \warning To avoid false negatives when detecting mesh changes, it is critical that the caller
  * adds an owner to the attribute data arrays before modifying the original object's mesh. This
- * requires changes to require a reallocation.
+ * allows constant time checks for whether the mesh has changed.
  */
 void store_mesh_from_eval(const wmOperator &op,
                           const Scene &scene,
