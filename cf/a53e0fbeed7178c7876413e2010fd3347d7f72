@@ -15,3 +15,4 @@ Referenced by issue #98546, Regression: Blender crash when baking Multires displ
 Referenced by issue #97528, Regression: Data Transfer Projected Face Interpolated mode gives wrong results
 Referenced by issue #97520, Regression: Previous strokes appears when drawing after undo with layer brush
 Referenced by issue #97018, Meshes vertex normals changed via Python API are not used by dupli vert instances
+Referenced by issue #96999, Mesh.calc_normals() after Mesh.transform() does not recalculate normals
