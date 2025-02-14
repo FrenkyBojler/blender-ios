@@ -1,1 +1,2 @@
 Referenced by issue #58686, Blender 2.8 Crashing on Alembic export of fluid animation past 80 frames
+Referenced by issue #52814, Alembic export with fluid simulation (resolution 250) causes Blender to close down with  no errors
