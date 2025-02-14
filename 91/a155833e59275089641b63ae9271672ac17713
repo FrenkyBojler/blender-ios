@@ -12,3 +12,4 @@ Referenced by issue #60377, Duplicating Lights with vertices breaks edit mode op
 Referenced by issue #60383, merge.merge keymap with type "at last" crashes blender when opening mesh(global) keymap tab in user prefs
 Referenced by issue #60385, dense meshes not drawn behind other objects in wireframe mode with x-ray on
 Referenced by issue #60366, Creating a new image texture in shader editor does not appear among the texture slots
+Referenced by issue #60367, freestyle camera not synched at rendertime
