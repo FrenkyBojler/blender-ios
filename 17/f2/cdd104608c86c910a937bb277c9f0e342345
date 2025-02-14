@@ -1,2 +1,3 @@
 Referenced by issue #122031, Cycles: Warning about non-existent Thinfilm parameters in console
 Referenced by issue #99447, Principled v2 BSDF
+Referenced by issue #49125, Add interference effects to glossy and glass shaders
