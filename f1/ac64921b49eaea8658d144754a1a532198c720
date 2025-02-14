@@ -1,2 +1,3 @@
 Referenced by issue #88665, Impossible to weight paint certain vertices
 Referenced by issue #72104, Blender selects faces outside of Clipping Region if X-Ray is off
+Referenced by issue #72082, Chooses coordinate axes does not affect on location transformation at sidebar
