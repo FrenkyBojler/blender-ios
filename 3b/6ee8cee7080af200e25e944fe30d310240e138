@@ -24,3 +24,4 @@ Referenced by issue #91532, File format is not supported in file and File writte
 Referenced by issue #90746, Vertex Group Missing When opening blend file saved in 3.0, on a lower blender version
 Referenced by issue #90441, File that was saved in 3.0 and after opened in 2.93.X will lose his vertex group data
 Referenced by issue #90087, data copy is ommitting vgroups
+Referenced by issue #90039, Pinning data (mesh, curve, grease pencil, lattice, particle system) makes certain tabs/options disappear (vertex groups, shapekeys facemaps)
