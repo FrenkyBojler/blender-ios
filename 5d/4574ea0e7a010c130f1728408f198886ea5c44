@@ -1,0 +1,1 @@
+Referenced by issue #99340, IMB_anim_get_duration no valid after undo if animation is playing
