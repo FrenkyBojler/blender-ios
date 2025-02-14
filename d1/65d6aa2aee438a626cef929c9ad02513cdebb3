@@ -1,2 +1,3 @@
 Referenced by commit 6466c247c98, Fix: Overlay regression after d165d6aa2a
 Referenced by commit acd5889e50e, Fix #105042: Regression: Sculpt density overlay not working
+Referenced by commit f4db58844d5, GPU: Fix wrong 2D shader used from 3D drawing
