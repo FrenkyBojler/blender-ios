@@ -1,1 +1,2 @@
 Referenced by commit dd23e957ea7, Assets/BPY: Remove unnecessary asset file handle context member
+Referenced by issue #112536, Assets: Replace most asset handle usages in BPY with asset representation
