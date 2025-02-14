@@ -1,2 +1,3 @@
 Referenced by issue #71393, Library Override: selection and visibility problem with overriden hook empties
 Referenced by issue #71030, Library Override: Lots of operators allow to add objects to overridden collections, which is not currently supported (lost on save)
+Referenced by issue #70875, Library Override: Clicking an Library Overriden Object crashes Blender
