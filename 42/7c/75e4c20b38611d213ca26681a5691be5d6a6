@@ -5,3 +5,4 @@ Referenced by issue #64502, Collection instances shade bad if mirrored
 Referenced by issue #64466, Eevee not working on Intel UHD 630 / HD 620 / Iris
 Referenced by issue #64408, Playback shortcut doesn't fully work
 Referenced by issue #63232, Irradiance Volume baking crashes Blender
+Referenced by issue #61129, Eevee alpha texture shadow bug
