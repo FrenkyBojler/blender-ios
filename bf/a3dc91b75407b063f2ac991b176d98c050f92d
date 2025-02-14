@@ -1,2 +1,3 @@
 Referenced by commit 4ed029fc02b, Fix T89929: Crash when hiding in the render a previously keyframed volume
 Referenced by issue #89941, Regression: no path`s bevel update, when I change bevel profile curve
+Referenced by issue #89929, Blender will crash when hiding a volume object rendered mode if it was previously keyframed
