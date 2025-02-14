@@ -11,3 +11,4 @@ Referenced by issue #124278, matrix_world.to_translation() loses data somehow an
 Referenced by issue #119348, Regression: Python: Objects loaded from blend files have default matrices before depsgraph update
 Referenced by issue #119304, Assertion triggered when exporting an STL file
 Referenced by issue #119250, Regression: Python: World matrix for newly created objects is not identity
+Referenced by issue #118694, Incorrect asset scaling values loaded from Asset Brower
