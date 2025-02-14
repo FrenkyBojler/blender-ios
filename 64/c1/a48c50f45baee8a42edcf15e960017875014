@@ -1,2 +1,3 @@
 Referenced by issue #53683, 2.79a release
 Referenced by issue #52977, Parent bone name disappeared in the UI in pose mode
+Referenced by issue #52927, Unexpected result in Compositor with Filter Node and Scale Node used to distort Clouds Texture
