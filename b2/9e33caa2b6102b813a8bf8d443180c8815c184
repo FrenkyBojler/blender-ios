@@ -1,1 +1,2 @@
 Referenced by issue #94427, Stops working after  bpy.ops.initial.settings() at startup. (apple beachball of death)
+Referenced by issue #94408, When append node group from asset browser, all sockets on the node group dissapear.
