@@ -16,3 +16,4 @@ Referenced by issue #48278, Motion blur increases memory usage per frame when re
 Referenced by issue #48272, Crash when hitting "Bake"
 Referenced by issue #48263, Crash on Armature Deform Parenting without an Armature
 Referenced by issue #48237, COLLADA: Secondlife / Sort by Object name not sorting
+Referenced by issue #48167, bpy.ops.mesh.select_random() not accurate
