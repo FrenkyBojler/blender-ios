@@ -1,2 +1,3 @@
 Referenced by commit a16ef95ff6c, Fix T102914: bpy.ops.wm.append no longer supports / in paths for  WIN32
 Referenced by commit db43aa77292, Fix T102201: File selector shows "\" before folder names on WIN32
+Referenced by issue #102914, Regression: bpy.ops.wm.append can't run correct in blender 3.4
