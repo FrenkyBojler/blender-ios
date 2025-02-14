@@ -1,2 +1,3 @@
 Referenced by issue #79855, Segmentation 11 fault on macOS Catalina
 Referenced by issue #79811, MacOS: Edit Mode - vertex/edge/face selection is missing
+Referenced by issue #65148, Can't use shape key properties in driver when modifiers generate a new mesh
