@@ -163,7 +163,7 @@ struct TaskPool {
 
 #ifdef WITH_TBB
   /* TBB task pool. */
-  TBBTaskGroup *tbb_group;
+  std::unique_ptr<TBBTaskGroup> tbb_group;
 #endif
   volatile bool is_suspended;
   blender::Vector<Task> suspended_tasks;
@@ -197,7 +197,7 @@ struct TaskPool {
 
 #ifdef WITH_TBB
         if (use_threads) {
-          this->tbb_group = new TBBTaskGroup(priority);
+          this->tbb_group = std::make_unique<TBBTaskGroup>(priority);
         }
 #else
         UNUSED_VARS(priority);
@@ -218,14 +218,8 @@ struct TaskPool {
     switch (type) {
       case TASK_POOL_TBB:
       case TASK_POOL_TBB_SUSPENDED:
-      case TASK_POOL_NO_THREADS: {
-#ifdef WITH_TBB
-        if (this->use_threads) {
-          delete this->tbb_group;
-        }
-#endif
+      case TASK_POOL_NO_THREADS:
         break;
-      }
       case TASK_POOL_BACKGROUND:
       case TASK_POOL_BACKGROUND_SERIAL: {
         this->background_task_pool_work_and_wait();
@@ -355,12 +349,16 @@ void TaskPool::tbb_task_pool_run(Task &&task)
   if (this->is_suspended) {
     /* Suspended task that will be executed in work_and_wait(). */
     this->suspended_tasks.append(std::move(task));
+
+    /* Added as part of original 'use TBB' commit (d8a3f3595af0fb). Unclear whether this is still
+     * needed, tests are passing on linux buildbot, but not sure if any would trigger the issue
+     * addressed by this code. So keeping around for now. */
 #if 0
 #  ifdef __GNUC__
-        /* Work around apparent compiler bug where task is not properly copied
-         * to task_mem. This appears unrelated to the use of placement new or
-         * move semantics, happens even writing to a plain C struct. Rather the
-         * call into TBB seems to have some indirect effect. */
+    /* Work around apparent compiler bug where task is not properly copied
+     * to task_mem. This appears unrelated to the use of placement new or
+     * move semantics, happens even writing to a plain C struct. Rather the
+     * call into TBB seems to have some indirect effect. */
     std::atomic_thread_fence(std::memory_order_release);
 #  endif
 #endif
