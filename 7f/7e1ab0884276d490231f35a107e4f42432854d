@@ -1,0 +1,1 @@
+Referenced by issue #131518, GPU: ensure viewport does not use uninitialized images (#119685 and others)
