@@ -1,1 +1,2 @@
 Referenced by commit db2a603f6ef, Depsgraph: Remove workaround for Blender Internal in viewport
+Referenced by issue #45702, editing smoke while viewport render and blender bug
