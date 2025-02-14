@@ -1,2 +1,3 @@
 Referenced by issue #48193, Incorrect api documentation for 'keyframe_insert' optional flags
 Referenced by issue #48191, Particle hair viewport colour only updates if 'material_slot' material is re-selected
+Referenced by issue #48192, Cursor remains a 'double headed arrow' when opening the 'Add Node' menu.
