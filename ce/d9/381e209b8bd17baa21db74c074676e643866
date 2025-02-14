@@ -1,0 +1,1 @@
+Referenced by issue #45704, Simplify code in defvert_remove_group() to use realloc
