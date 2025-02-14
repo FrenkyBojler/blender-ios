@@ -3,3 +3,4 @@ Referenced by issue #88046, crash on startup 2.92
 Referenced by issue #85933, Object masking via Boolean Difference leads to damaged object.
 Referenced by issue #85772, Image scale is reset after rendering in background mode
 Referenced by issue #85737, Color Picker popup in secondary monitor immediately closes while still hovering
+Referenced by issue #85597, Render issue
