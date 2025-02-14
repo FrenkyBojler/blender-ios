@@ -1,2 +1,3 @@
 Referenced by commit da1140f75e0, Revert "Objects: make evaluated data runtime storage usable for types other than mesh"
 Referenced by issue #74294, Transforming Objects disables modifiers
+Referenced by issue #74283, [Modifiers] Display of modifiers dissapears when tool acts
