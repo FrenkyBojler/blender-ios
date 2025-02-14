@@ -1,1 +1,2 @@
 Referenced by commit 62eb190d4e4, Cleanup: Remove old filter property.
+Referenced by issue #47377, Newer file crashes at render on official 2.76b version. (both, CPU or GPU)
