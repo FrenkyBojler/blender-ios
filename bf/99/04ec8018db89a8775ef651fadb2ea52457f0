@@ -7,3 +7,4 @@ Referenced by issue #62566, Cubemap doesn't bake from current frame of animation
 Referenced by issue #62569, Big 16-bit PNG files don't support Non-color data (EEVEE)
 Referenced by issue #62548, Reflection cubemap doesn't bake from objects, displayed as box.
 Referenced by issue #62528, data transfer modifier error
+Referenced by issue #62529, Jerky animation in viewport
