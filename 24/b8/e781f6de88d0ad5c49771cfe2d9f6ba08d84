@@ -1,2 +1,3 @@
 Referenced by issue #48957, Child Transformations calculated in World Space Coordinates
 Referenced by issue #48961, Material slots become easily desynced over linked duplicates
+Referenced by issue #48848, Cycles - Camera Culling - Camera Culling removes objects which are still in frame
