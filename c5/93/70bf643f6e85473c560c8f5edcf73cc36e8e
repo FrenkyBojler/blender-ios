@@ -5,3 +5,4 @@ Referenced by issue #60722, Decimate modifier not working in operator settings
 Referenced by issue #60687, First vertex group not selecting properly
 Referenced by issue #60660, TEXTURE PAINT tab BUG- Undo a simple PAINT operation using CTRL-Z and it removes entire TEXTURE IMAGE-Workarounds and Thorough Steps to Repeatability BELOW.
 Referenced by issue #60651, Adding new workspaces from old startup files fails
+Referenced by issue #60642, Cannot animate "Disable object in renders" property
