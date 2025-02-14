@@ -23,3 +23,4 @@ Referenced by issue #58260, alt clicking to apply modifier to multiple objects d
 Referenced by issue #58249, Studio lighting options aren't available in the shading options in 3D viewport.
 Referenced by issue #58254, Crash report
 Referenced by issue #58237, Exporters: Curve Modifier not applied when "apply modifiers" are selected
+Referenced by issue #58240, Random crashes with mathutils.Vector
