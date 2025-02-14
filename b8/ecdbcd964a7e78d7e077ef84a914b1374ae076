@@ -1,1 +1,2 @@
 Referenced by commit bffa1681577, Fix T90854: Cycles, normal map fails with applied transformations
+Referenced by commit 962153dbedb, Cycles: missing case for ignoring subdivision vertex normals
