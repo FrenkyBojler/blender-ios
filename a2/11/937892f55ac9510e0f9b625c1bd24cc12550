@@ -1,1 +1,2 @@
 Referenced by issue #57373, NLA tracks created by script do not animate.
+Referenced by issue #57361, Creating a new scene with a full copy doesn't work ( objects are instanced )
