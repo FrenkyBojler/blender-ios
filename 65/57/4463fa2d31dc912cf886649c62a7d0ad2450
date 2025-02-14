@@ -1,2 +1,3 @@
 Referenced by commit a1c9d425844, Fix T77021: Alembic export of animated mesh with multiple UV maps fails
 Referenced by issue #77021, Export animated mesh to alembic fail when there are multiple UV maps
+Referenced by issue #76132, Can't import or export Alembic with changing UVs
