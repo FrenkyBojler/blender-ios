@@ -1,2 +1,3 @@
 Referenced by issue #82495, Assert entering edit mode with a generate modifier followed by a cast modifier.
 Referenced by issue #75156, Cast Modifier crashes upon entering Edit Mode
+Referenced by issue #74863, Scrolling the results list in the operator search  in Video Editing view leads blender to crash
