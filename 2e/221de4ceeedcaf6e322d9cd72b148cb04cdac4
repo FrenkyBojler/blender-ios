@@ -20,3 +20,4 @@ Referenced by commit 93e2e749dad, Outliner: Port armature elements to new tree-e
 Referenced by commit 864798b4c7a, Outliner: Port collection elements to new tree-element code design
 Referenced by commit 3481376981c, Outliner: Port grease pencil legacy elements to new tree-element code design
 Referenced by commit a7ac317159d, Outliner: Port linestyle elements to new tree-element code design
+Referenced by commit b67e5492c35, Outliner: Port texture elements to new tree-element code design
