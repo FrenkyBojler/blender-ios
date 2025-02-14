@@ -1,2 +1,3 @@
 Referenced by issue #68767, Crash on loading File
 Referenced by issue #68574, Operator view3d.zoom_border doesn't work for bones in armature edit and pose mode
+Referenced by issue #68528, blender crash memory max
