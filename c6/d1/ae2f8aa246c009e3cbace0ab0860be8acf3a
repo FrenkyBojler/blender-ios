@@ -1,2 +1,3 @@
 Referenced by issue #62780, Window blink black when Toggle window fullscreen  switch back
 Referenced by issue #59802, Preferences window opening behind main window when in fullscreen mode
+Referenced by issue #57648, Quit messagebox is hidden when exit with Fullscreen mode enabled
