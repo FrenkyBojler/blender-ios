@@ -2,3 +2,4 @@ Referenced by commit 3ed4e51437f, Fix #117338: Texture paint sampling broken wit
 Referenced by issue #123529, Export Alembic hair cause crash (request to backport)
 Referenced by issue #120259, Fix #117338: Texture paint sampling broken with modifiers
 Referenced by issue #117338, Regression: Texture Painting: Subdiv modifier breaks texture color sampling
+Referenced by issue #116307, Regression: Crash with data transfer modifier in 4.0
