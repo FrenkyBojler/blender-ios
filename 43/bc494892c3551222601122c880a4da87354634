@@ -2,3 +2,4 @@ Referenced by commit 17906794f55, Fix T96330: Three times slower 'relink to new 
 Referenced by commit 8fbbd699467, Fix T92629: Crash on mesh separate after rB43bc494892c3.
 Referenced by issue #96330, "Make single user -> object & data" is extremely(!) slow in Blender 3.1, compared to previous versions
 Referenced by issue #92670, Separate Object results in a crash
+Referenced by issue #92629, Crash on mesh separate
