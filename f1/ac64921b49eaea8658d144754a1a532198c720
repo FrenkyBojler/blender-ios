@@ -3,3 +3,4 @@ Referenced by issue #72104, Blender selects faces outside of Clipping Region if 
 Referenced by issue #72082, Chooses coordinate axes does not affect on location transformation at sidebar
 Referenced by issue #72069, Smooth Vertices called from the F3 operator search will put you in a modal without knowing [doesnt execute immediately]
 Referenced by issue #72071, Blender crashes upon moving extruded vertices/edges with edge snapping enabled
+Referenced by issue #72054, Sculpt Mode crash when using Relax Mesh Filter with Dyntopo enabled
