@@ -1,3 +1,4 @@
 Referenced by commit 138b3815e52, Fix (unreported) missing clear of deprecated Window data on fileread.
 Referenced by commit 2c317457cbf, Fix File Browser filtering showing workspaces for "Environment" category
 Referenced by commit 51e743c7fa0, Fix T62199: Incorrect bpy.data.screens behavior
+Referenced by commit 946bc4d3c1d, Fix object selection doversion issue since Workspace
