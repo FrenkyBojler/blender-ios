@@ -1,1 +1,2 @@
 Referenced by commit b026965f80c, Revert "Fix T76504: Change in behavior of constraints orientation"
+Referenced by issue #76647, transform orientation always uses global.  Ignores any other setting (local, normal, gimbal etc)
