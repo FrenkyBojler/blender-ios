@@ -12,3 +12,4 @@ Referenced by issue #58689, Glass Material Blend Mode Crash
 Referenced by issue #58572, Restrict Viewport Render keyframes from 2.79b do not correctly import into 2.8
 Referenced by issue #58549, Color input adjusts more than one HSV field
 Referenced by issue #58507, Creating a NEW scene causes issues when assigning a new material with colors. Solid red,(ff0000) blue and green
+Referenced by issue #58453, Crash when rendering with stereoscopy->Multi-View
