@@ -1,2 +1,3 @@
 Referenced by issue #96401, Bake normals for multi-resolution object is broken
 Referenced by issue #95800, Regression: Crash after discarding texture paint changes
+Referenced by issue #94936, GPU subdivision option with subdivision surface modifier collapses geometry (AMD GPU)
