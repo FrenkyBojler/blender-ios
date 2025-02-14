@@ -3,3 +3,4 @@ Referenced by commit 053e0c0af37, UI: Add shortcuts for shader effect panels
 Referenced by commit 4176adaf963, Fix T78455: Failed assert when opening a viewport panel
 Referenced by commit 5d2005cbb54, UI: Add shortcuts for grease pencil modifier panels
 Referenced by issue #85716, Ctrl+A apply modifier does not show more important info message
+Referenced by issue #78326, Add shortcuts for modifier panels
