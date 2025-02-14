@@ -8,3 +8,4 @@ Referenced by issue #101583, Regression: apply data transfer crash
 Referenced by issue #101498, Bug with selecting objects
 Referenced by issue #101480, Blender GPU Render crashes with NVidia in Ubuntu
 Referenced by issue #101250, Relocate library crashes to desktop in Blender 3.3
+Referenced by issue #101045, Deleting a baked action results in an error
