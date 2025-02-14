@@ -1,3 +1,4 @@
 Referenced by issue #121841, Image Separate/Combine XYZ to File Output with EXR leads to incorrect result
 Referenced by issue #121187, Regression: Dyntopo with manual detail crash if resolution is too low
 Referenced by issue #120742, Second mask crash after ctrl+click
+Referenced by issue #120585, Blender doesn't startup after graphics driver update
