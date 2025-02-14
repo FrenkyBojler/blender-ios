@@ -1,3 +1,4 @@
 Referenced by issue #38333, Blender 2.69.9 Crashes On Render F12
 Referenced by issue #38271, Bevel (Ctrl+B) gives inaccurate/failed results when used with some Faces, Edge loops
 Referenced by issue #38250, Bevel function
+Referenced by issue #38234, change smooth/flat of a linked mesh
