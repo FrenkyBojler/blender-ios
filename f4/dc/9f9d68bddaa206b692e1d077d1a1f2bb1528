@@ -5,3 +5,4 @@ Referenced by issue #71657, Subdiv of certain model causes huge memory consumpti
 Referenced by issue #69840, curve handle colors viewport display inconsistent with theme settings
 Referenced by issue #68351, Blender Eevee Crash, radeonsi/si_descriptors.c
 Referenced by issue #67897, OpenCL and AMD Crash with Motion Blur
+Referenced by issue #67834, Clicking menus causes Mac to freeze entirely
