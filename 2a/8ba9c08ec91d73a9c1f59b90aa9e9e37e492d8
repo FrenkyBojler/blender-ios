@@ -1,0 +1,1 @@
+Referenced by issue #76471, Crash on BLI_assert(sfile->previews_timer == NULL);
