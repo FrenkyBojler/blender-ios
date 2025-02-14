@@ -1,3 +1,4 @@
 Referenced by issue #95611, Regression: Capture Attribute in Face Corner mode produces garbage data
 Referenced by issue #95606, Crash on clicking in viewport with active GN workspace
 Referenced by issue #95278, 3.1 does not launch
+Referenced by issue #95093, VSE: Variable framerate videos cause proxies to mismatch
