@@ -2,3 +2,4 @@ Referenced by commit 51c7a854fe2, Fix T81057: PoseBone Constraints are displayed
 Referenced by issue #81164, Switching to pose mode occurs crashes (2.90.1, fixed in master)
 Referenced by issue #81057, PoseBone Constraints are displayed in Object Constraints tab
 Referenced by issue #80464, Deleting bone constraints when the armature layer isn't active crashes Blender
+Referenced by issue #80396, Potential candidates for corrective releases
