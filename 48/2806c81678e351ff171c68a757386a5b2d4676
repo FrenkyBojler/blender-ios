@@ -1,3 +1,4 @@
 Referenced by commit 9a3c7da9349, Fix T92184: Cage gizmo doesn't with area light
 Referenced by issue #95290, Regression: 2D transform gizmo hover cursor does not indicate axis anymore
 Referenced by issue #94784, Crop node gizmo doesn't work
+Referenced by issue #92184, Manipulating area light size with widget is not working
