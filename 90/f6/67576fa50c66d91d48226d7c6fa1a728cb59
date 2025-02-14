@@ -1,0 +1,1 @@
+Referenced by issue #46001, Properties Editor -> Material Tab -> Cycles auto renders icon which crashes blender when the material uses up too much ram
