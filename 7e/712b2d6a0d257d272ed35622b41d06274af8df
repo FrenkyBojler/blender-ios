@@ -26,3 +26,4 @@ Referenced by issue #94408, When append node group from asset browser, all socke
 Referenced by issue #94362, heap-use-after-free after assigning a material
 Referenced by issue #94322, Regression. Geometry nodes, viewer node shows nothing to spreadsheet when there is no value input
 Referenced by issue #94170, Hide node sockets on group inputs/outputs results in a missing socket until you do an action
+Referenced by issue #93292, Node update refactor
