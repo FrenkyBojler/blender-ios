@@ -1,3 +1,4 @@
 Referenced by commit bb5c4de0097, Fix T82962: Crash changing lattice resolution with Vertex Group
 Referenced by commit 8b836f6894a, Fix (unreported) buffer-overflow in new lattice code.
 Referenced by commit c0beeeb5de0, Fix buffer-overflow in lattice deform evaluation
+Referenced by issue #82962, Crash when changing lattice resolution with Vertex Group
