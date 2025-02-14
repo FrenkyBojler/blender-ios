@@ -1,3 +1,4 @@
 Referenced by issue #128702, Edge Slide freezes blender and mouse cursor movement if geometry is too broken
 Referenced by issue #128418, EEVEE fails because of insufficient SSBO binding locations running with a A100 in docker
 Referenced by issue #127779, Register to blender.org is hard because google is blocked
+Referenced by issue #127722, EEVEE crash on AMD Radeon Graphics under Linux
