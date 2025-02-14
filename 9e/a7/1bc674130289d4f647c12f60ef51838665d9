@@ -1,2 +1,3 @@
 Referenced by issue #50135, Particle - Hair Objects - Hair objects are generated at origin point, not on mesh
 Referenced by issue #50104, Cycles - Material compilation randomly fails
+Referenced by issue #49630, regression MIS Split kernel OpenCL
