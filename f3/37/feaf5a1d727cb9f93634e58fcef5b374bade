@@ -75,3 +75,4 @@ Referenced by issue #47449, Segmentation Fault during rendering
 Referenced by issue #47451, Origin-only object with ocean simulation modifier does not rendered.
 Referenced by issue #47444, Texture node in compositing nodes does not update "generated" textures in texture nodes
 Referenced by issue #47414, Smoke sim does not work with negative startframe
+Referenced by issue #47422, "Too many fonts!!!" gets printed on the console after repeatedly calling bpy.ops.wm.read_factory_settings()
