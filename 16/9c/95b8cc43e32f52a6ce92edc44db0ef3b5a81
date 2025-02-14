@@ -1,2 +1,3 @@
 Referenced by issue #41706, Moving bone in edit mode crashes Blender consistently in Ubuntu 14.04 LTS
 Referenced by issue #41218, Blender Crashes when Extruding a New Bone
+Referenced by issue #41037, Dynamic texture refresh cpu performance problem
