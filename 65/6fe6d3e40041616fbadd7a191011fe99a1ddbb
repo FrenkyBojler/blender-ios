@@ -1,2 +1,3 @@
 Referenced by commit f8e06a5f5fa, Fix #125763: Uninitialized extension repos printing warnings on startup
 Referenced by issue #124954, Extensions: implement "blocklist" in Blender
+Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
