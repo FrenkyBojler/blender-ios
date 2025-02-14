@@ -1,3 +1,4 @@
 Referenced by commit 531ed680613, Fix #130686: Outliner vertex groups sorting is broken
 Referenced by commit 80e7c04726e, Fix #118475: Regression: NLA/driver data missing in outliner
 Referenced by commit 20b3e62e932, Fix #111896: Regression: Crash for entering into Armature Edit Mode
+Referenced by issue #130750, Fix #130686: Outliner vertex groups sorting is broken
