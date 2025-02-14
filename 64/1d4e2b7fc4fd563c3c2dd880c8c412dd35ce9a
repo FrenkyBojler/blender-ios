@@ -1,0 +1,1 @@
+Referenced by commit a4331be6c4d, Cleanup: Rename `BLI_libblock_ensure_unique_name` to use `BKE_` prefix.
