@@ -1,1 +1,2 @@
 Referenced by commit 663a82b10d2, Fix T86932: Curve: pick shortest path missing update of active point drawing
+Referenced by issue #64829, Active point of Curve objects is not displayed correctly
