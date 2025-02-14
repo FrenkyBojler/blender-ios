@@ -1,2 +1,3 @@
 Referenced by issue #45633, New Depsgraph break Modifiers animatability
 Referenced by issue #45624, Crash when switching from sculpt to object mode.
+Referenced by issue #45612, Blender crashes when I change it to object-mode after having edited the object which multires modifier was set in sculpt-mode.
