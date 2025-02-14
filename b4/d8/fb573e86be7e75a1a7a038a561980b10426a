@@ -15,3 +15,4 @@ Referenced by issue #43520, MinGW - FNM_CASEFOLD is undeclared
 Referenced by issue #43472, Loading BMP files
 Referenced by issue #43440, Tilde/Apostrophe key(~/`) no longer makes all layers visible, it seems that the key is no being registered by Blender when pressed.
 Referenced by issue #43405, HSV color value does not translate properly to RGB
+Referenced by issue #43408, Particle hair segments error
