@@ -1,0 +1,1 @@
+Referenced by issue #86073, Ctrl clicking 3 times without selecting any of the verts in NurbsPath leads crash.
