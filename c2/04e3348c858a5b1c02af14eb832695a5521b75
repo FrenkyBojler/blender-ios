@@ -1,0 +1,1 @@
+Referenced by issue #77217, object.mode_set keymap does not work in toggle mode in 2.83 (regression from 2.82)
