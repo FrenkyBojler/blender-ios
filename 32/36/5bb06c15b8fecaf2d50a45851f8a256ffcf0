@@ -1,1 +1,2 @@
 Referenced by issue #77201, Small movements of the mouse while dragging a shapekey slider registers as a click
+Referenced by issue #46402, UILists fail to scroll in recent Buildbot versions on Windows 7 using Click-Drag
