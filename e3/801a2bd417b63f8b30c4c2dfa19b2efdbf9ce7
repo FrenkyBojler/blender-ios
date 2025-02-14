@@ -1,0 +1,1 @@
+Referenced by issue #106354, Operators in vertexpaint and weightpaint (incl. the gradient tool) affect hidden (in editmode) parts of the mesh
