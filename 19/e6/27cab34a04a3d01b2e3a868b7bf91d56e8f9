@@ -2,3 +2,4 @@ Referenced by issue #54887, OSL: Cycles Script Node with trace call crashes Blen
 Referenced by issue #45544, Adding Armatures takes an increasing amount of logic time
 Referenced by issue #44028, Vertex Colors Bakinng error
 Referenced by issue #43558, Brush fails in some perspectives and in certain distances from the object.
+Referenced by issue #42764, Cycles GPU rendering - Significant slowdown since 2.71
