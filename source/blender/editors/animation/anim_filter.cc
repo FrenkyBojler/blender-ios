@@ -3665,6 +3665,15 @@ static size_t animdata_filter_dopesheet(bAnimContext *ac,
     }
   }
 
+  /* Annotations are always shown if "Only Show Selected" is disabled. This works in the Timeline
+   * as well as in the Dope Sheet.*/
+  if (!(ac->ads->filterflag & ADS_FILTER_ONLYSEL) && !(ac->ads->filterflag & ADS_FILTER_NOGPENCIL))
+  {
+    LISTBASE_FOREACH (bGPdata *, gp_data, &ac->bmain->gpencils) {
+      items += animdata_filter_ds_gpencil(ac, anim_data, gp_data, filter_mode);
+    }
+  }
+
   /* movie clip's animation */
   if (!(ac->ads->filterflag2 & ADS_FILTER_NOMOVIECLIPS) &&
       !(ac->ads->filterflag & ADS_FILTER_ONLYSEL))
