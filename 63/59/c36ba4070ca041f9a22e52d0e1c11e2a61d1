@@ -1,1 +1,2 @@
 Referenced by commit dde740bcd72, Cycles / CUDA: Change inline rules for BVH intersection functions.
+Referenced by issue #42095, Crash - object with particle hair on entering edit mode (Win 32 bit and 64 bit)
