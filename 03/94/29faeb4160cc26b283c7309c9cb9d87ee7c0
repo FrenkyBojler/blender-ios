@@ -2,3 +2,4 @@ Referenced by commit 6865aab133d, Cleanup: quiet unused parameter warning in lam
 Referenced by issue #101502, Regression: Artifacts/crash when sculpting with Dyntopo
 Referenced by issue #101467, Regression: Sculpt Mode: Hiding Face Sets will cause glitches
 Referenced by issue #101456, Crash when using "draw face sets" tool while cavity auto-mask is checked under "brush" and "options"
+Referenced by issue #101453, Regression: Immediate crash when switching to sculpt mode
