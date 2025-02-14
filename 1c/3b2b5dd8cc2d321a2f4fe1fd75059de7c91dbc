@@ -1,2 +1,3 @@
 Referenced by issue #77103, [Interface: Scenes] Blender crashes on making new scene
 Referenced by issue #77105, 2.83 beta crashes when clicking "new scene" button
+Referenced by issue #77088, Crash due to NULL `sculpt` pointer in toolsettings in draw code.
