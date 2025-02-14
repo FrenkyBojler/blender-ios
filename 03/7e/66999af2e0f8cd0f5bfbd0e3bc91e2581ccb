@@ -1,3 +1,4 @@
 Referenced by issue #91796, "Generated" Texture Coordinate Option does not work with anything
 Referenced by issue #91755, Eevee not rendering any of the texture nodes in Principled BSDF inputs.
 Referenced by issue #91757, Generated UV texture coordinates produces no texture coordinates in Eevee
+Referenced by issue #91697, EEVEE regression: Generated texture coordinates completly missing
