@@ -24,3 +24,4 @@ Referenced by issue #104044, Regression: UVMap channels order breaks after scene
 Referenced by issue #104033, Regression: UV faces not selecting correctly
 Referenced by issue #103837, Regression : crash opening file with uv from GN primitive
 Referenced by issue #97174, Dependent/Linked CustomData layers
+Referenced by issue #95965, Mesh Struct of Arrays Refactor
