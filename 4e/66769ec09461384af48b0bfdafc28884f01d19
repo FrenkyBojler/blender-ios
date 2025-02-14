@@ -1,2 +1,3 @@
 Referenced by commit 251069ae5b7, Sculpt: Reimplement face sets visibility operator
 Referenced by commit ccab01f97ff, Subdiv: Store multires sculpt grid visibility in BitGroupVector
+Referenced by commit 380b7c5dc39, Sculpt: Multithread mesh "show all" operation
