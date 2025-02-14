@@ -22,3 +22,4 @@ Referenced by issue #40627, Tiles (image game property) not working in BGE and G
 Referenced by issue #40630, Blender 2.7.1 RC1: When Lattice's vertices get moved Blender crashes
 Referenced by issue #40631, Crash when trying to exture single bone
 Referenced by issue #40633, 2.71 crashes when I try to duplicate a bone
+Referenced by issue #40616, Deformation Motion Blur for modifiers
