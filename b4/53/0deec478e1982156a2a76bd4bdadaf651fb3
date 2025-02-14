@@ -1,1 +1,2 @@
 Referenced by issue #84586, Use-after-free when expanding hierarchy in Outliner after deleting NLA track
+Referenced by issue #84486, When a strip is cut and edited in nla editor, the strip returns to its original length without the cut. blender 2.92 alpha
