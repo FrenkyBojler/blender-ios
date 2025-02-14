@@ -1,1 +1,2 @@
 Referenced by commit 1ec59c8e067, Revert "Cycles: Fix image textures were completely broken since recent unlimited textures commit"
+Referenced by issue #51341, cycles OpenCL corruption in todays buildbot (wasn't there 2 days ago)
