@@ -1,1 +1,2 @@
 Referenced by issue #72169, "New File" operator loads UI, even if explicitly told to not do so
+Referenced by issue #70039, Blender does not react to a file being opened from finder on a different desktop (MacOS)
