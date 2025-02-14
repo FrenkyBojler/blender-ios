@@ -1,1 +1,2 @@
 Referenced by issue #109599, Regression: Artifacts after importing fbx file
+Referenced by issue #108170, Regression: Imported FBX has wrong vertex normals/sharp edges in 3.6 Beta
