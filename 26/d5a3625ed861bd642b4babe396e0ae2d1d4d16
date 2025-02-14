@@ -6,3 +6,4 @@ Referenced by issue #58742, Segmentation faults while trying to render with GPU 
 Referenced by issue #58672, Error by using modifiers
 Referenced by issue #58524, Cycles Compute Device only shows "none".
 Referenced by issue #58422, Mirror modifier doesn't work with Curves
+Referenced by issue #58380, Set Origin for spline right click menu
