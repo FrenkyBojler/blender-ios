@@ -1,1 +1,2 @@
 Referenced by issue #121841, Image Separate/Combine XYZ to File Output with EXR leads to incorrect result
+Referenced by issue #121187, Regression: Dyntopo with manual detail crash if resolution is too low
