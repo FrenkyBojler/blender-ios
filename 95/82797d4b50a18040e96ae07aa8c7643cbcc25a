@@ -1,1 +1,2 @@
 Referenced by commit 1ceb91d1b39, Fix T81167: Texture Painting with Paint mask enabled, (de)selecting faces causes a mess with texture slots
+Referenced by issue #81167, Texture Painting with Paint mask enabled, (de)selecting faces causes a mess with texture slots.
