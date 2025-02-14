@@ -1,2 +1,3 @@
 Referenced by commit 52dc1ddaa0d, Revert "Outliner: Allow deleting entire selection"
 Referenced by issue #74302, EEVEE scene with many instances opens with huge white glare, or black materials
+Referenced by issue #67462, Outliner: support delete in the keymap for different data-types
