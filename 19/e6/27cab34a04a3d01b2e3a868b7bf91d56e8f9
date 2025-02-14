@@ -55,3 +55,4 @@ Referenced by issue #39671, Rendering Bug
 Referenced by issue #39673, Tablet navigation broken.
 Referenced by issue #39655, GPU support
 Referenced by issue #39660, Blender objects on non visible layer do not update location when parented
+Referenced by issue #39640, Crash on maximizing/minimizing UV/Image Editor
