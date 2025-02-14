@@ -1,2 +1,3 @@
 Referenced by commit fa8574b80b2, Fix: Geometry Nodes: Triangulate Mesh node assertion case
 Referenced by issue #132493, Fix: Geometry Nodes: Ensure Triangulate node generate only unique faces and edges
+Referenced by issue #132405, Fix: Geometry Nodes: Triangulate Mesh node assertion case
