@@ -1,1 +1,2 @@
 Referenced by issue #50616, Blender / Cycles / Material list Crash - When dealing with image sequences longer than 63 images long on Windows
+Referenced by issue #50000, OpenCL Cycles rendering is broken on AMD Hainan GPU
