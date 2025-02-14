@@ -1,3 +1,4 @@
 Referenced by issue #61231, Undo -ing during weight painting reverts (temporarily set) pose to keyframed pose
 Referenced by issue #57980, Assert failure in draw manager when opening file
 Referenced by issue #57971, Moving keys in the Dopesheet crashes with Segfault 11
+Referenced by issue #57870, Scaling keyframes in Graph Editor causes crash
