@@ -1,1 +1,2 @@
 Referenced by issue #84521, Cycles - Orthographic Size animation doesn't cause motion blur even with Motion Blur checked
+Referenced by issue #46523, Cycles: Camera zoom motion blur not enabled on ortho cams
