@@ -10,3 +10,4 @@ Referenced by issue #61238, vieport display colour in eevee render mode
 Referenced by issue #61225, Edit mesh:  indistinguishable between face and edge select modes.
 Referenced by issue #61226, Hair comb bug when combing a lot of hair
 Referenced by issue #61213, Edge Seam not displayed
+Referenced by issue #61196, clipping border allows selection of clipped vertices when x-ray mode is disabled
