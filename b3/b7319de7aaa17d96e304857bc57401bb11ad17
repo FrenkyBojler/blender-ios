@@ -1,0 +1,1 @@
+Referenced by issue #92224, Handling of appending collections that contain linked materials has changed from 2.93 to 3.0, no longer works as expected
