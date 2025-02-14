@@ -1,1 +1,2 @@
 Referenced by commit 96447402309, Fix T99949: Crash when last input from File Output node is deleted
+Referenced by issue #99949, Regression: Crash when last input from File Output node is deleted
