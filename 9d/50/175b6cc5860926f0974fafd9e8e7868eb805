@@ -1,1 +1,2 @@
 Referenced by commit d8661ee2d5e, Cycles: Remove re-hashing done in BPT volume code
+Referenced by issue #41143, sobol gives nonuniform noise
