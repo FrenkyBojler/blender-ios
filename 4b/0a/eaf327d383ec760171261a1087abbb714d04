@@ -1,3 +1,4 @@
 Referenced by issue #50125, Shortcut keys missing in menus for Clear Location, Rotation, and Scale
 Referenced by issue #48995, BI stencil works for every kind of map but normal maps
 Referenced by issue #48822, Crash when I try to use "Join" (Ctrl Key + J) with two meshes
+Referenced by issue #48791, Crash extruding using Ctrl+click + snap to face
