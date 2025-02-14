@@ -1,1 +1,2 @@
 Referenced by issue #71461, Emitter particle system viewport display axis/cross/circle shows only first two particles
+Referenced by issue #71432, View zoom (scale mode in particular) doesn't work well when dragging horizontally, or crossing the middle of the screen
