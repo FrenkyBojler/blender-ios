@@ -1,1 +1,2 @@
 Referenced by issue #42323, obejct selection outline invisible in Solid drawmode (because of non-null sculpt pointer in Object mode)
+Referenced by issue #42324, curve deform modifier from mesh edge doesnt work properly.
