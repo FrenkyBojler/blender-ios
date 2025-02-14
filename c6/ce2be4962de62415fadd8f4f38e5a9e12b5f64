@@ -1,0 +1,1 @@
+Referenced by issue #97627, Regression: BLI_findstring encountering segfault when script calls bpy.ops.wm.save_as_mainfile
