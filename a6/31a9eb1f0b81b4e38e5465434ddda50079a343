@@ -1,3 +1,4 @@
 Referenced by issue #88323, OSL, Windows, external scripts are not compiled anymore
 Referenced by issue #87279, External OSL scripts are not compiled anymore
 Referenced by issue #87124, Blender crashes when rendering with cycles in the viewport with OSL enabled
+Referenced by issue #86928, Error: OSL script compilation failed
