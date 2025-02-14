@@ -2,3 +2,4 @@ Referenced by commit f4e3b1e5732, Fix T89360: Eevee transforms geometry when usi
 Referenced by commit 73967e2047b, Fix undeclared identifiers with 'DEBUG_TIME'
 Referenced by issue #90017, Bone widget drawing inconsistent with editing
 Referenced by issue #89880, overlay.show_paint_wire doesn't work anymore
+Referenced by issue #89624, Vertex painting causes mesh to flicker
