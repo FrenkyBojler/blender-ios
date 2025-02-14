@@ -56,3 +56,4 @@ Referenced by issue #45824, Pie menus doesnt display EnumProperties icons (It di
 Referenced by issue #45806, Crash with the node editor
 Referenced by issue #45795, Non-symetrical bevel issue on edge of inseted face
 Referenced by issue #45771, Camera fly mode is broken on OSX
+Referenced by issue #45742, Drivers in Game Engine don't work for Spawned objects
