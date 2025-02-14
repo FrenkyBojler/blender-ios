@@ -1,0 +1,1 @@
+Referenced by issue #46243, New Depsgraph: Making local a linked group, it doesn't respect an Action till reloading the file or deleting the linked group.
