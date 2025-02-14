@@ -1,1 +1,2 @@
 Referenced by issue #98528, Build error macOS intel: (error: cannot increment expression of enum type 'AttributeDomain')
+Referenced by issue #97408, Converting the color attribute causes undo to fail
