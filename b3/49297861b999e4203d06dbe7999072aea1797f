@@ -1,1 +1,2 @@
 Referenced by commit 3bfa8d9fd47, Fix py-driver in startup.blend crash in background mode
+Referenced by commit d96ffde491e, Fix switching scenes w/ background render
