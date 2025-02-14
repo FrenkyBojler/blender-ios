@@ -1,1 +1,2 @@
 Referenced by issue #120579, Rergression: Capture Attribute inside a Node Group + Mix Node is not working correctly
+Referenced by issue #120245, Grid snap does not work when constraining axis too quickly
