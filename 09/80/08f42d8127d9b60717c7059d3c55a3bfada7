@@ -1,1 +1,2 @@
 Referenced by commit 81894719125, Fix T94392: 3D Cursor surface projection onto hidden geometry
+Referenced by issue #77295, Snapping in edit mode only works for non-selected polys/verts/edges
