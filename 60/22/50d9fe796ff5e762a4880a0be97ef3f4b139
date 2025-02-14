@@ -1,0 +1,1 @@
+Referenced by issue #42748, Crash in subsurf_ccg.c ccgdm_getVertCos (possibly due to improper use of GET_INT_FROM_POINTER)
