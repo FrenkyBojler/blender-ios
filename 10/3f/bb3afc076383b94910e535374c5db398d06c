@@ -1,1 +1,2 @@
 Referenced by issue #50340, Thread Dead-Loop with Edge-Split Modifier on certain meshes during scene_update_tagged_recursive
+Referenced by issue #49746, Crash on Boot (bug is related to User Settings)
