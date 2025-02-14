@@ -1,3 +1,4 @@
 Referenced by issue #93566, Mantaflow: problems with the German special Character (in German: "Umlaute" "ÖÄÜ") in Foldername
 Referenced by issue #75306, Fluid Cache empty when blend file is placed in path with special characters
 Referenced by issue #74822, Can't bake fluid in folder with diacritics/accents
+Referenced by issue #74155, 2.82 Mantaflow not writing cache files (unicode characters in filepath)
