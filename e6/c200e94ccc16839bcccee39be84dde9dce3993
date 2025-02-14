@@ -1,2 +1,3 @@
 Referenced by commit 36351f37964, Fix missing NULL check from fix for #113059 on Wayland/LIBDECOR
 Referenced by issue #115705, Fix #113059: file selector shrinks on each display under KDE
+Referenced by issue #114706, 4.0: Candidates for corrective releases
