@@ -3,3 +3,4 @@ Referenced by commit b9dbf2959d3, Fix: Crash with a BadAccess X_GLXMakeCurrent e
 Referenced by commit 98722773da2, Revert "Fix: Blender crashes opening a file with compositor"
 Referenced by issue #129793, Fix: Crash with a BadAccess X_GLXMakeCurrent error
 Referenced by issue #129366, 4.3 Regression: Blender crashes opening a file while preferences window is open
+Referenced by issue #128414, Compositor: Crash on file reopen
