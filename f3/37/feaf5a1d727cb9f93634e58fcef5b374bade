@@ -35,3 +35,4 @@ Referenced by issue #47909, Significant animation overhead remains after stoppin
 Referenced by issue #47908, Loop End action does not complete (behaves as Loop Stop)
 Referenced by issue #47860, Selecting object crashes Blender 2.77 on Ubuntu 14.04
 Referenced by issue #47838, Walk Navigation fails to use gravity with intersecting objects
+Referenced by issue #47825, backgrond images bug
