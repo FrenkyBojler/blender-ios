@@ -42,3 +42,4 @@ Referenced by issue #43735, Very important bug in Texture Paint mode while paint
 Referenced by issue #43706, Creating a directory in the file browser (by typing it in the file path) crashes Blender
 Referenced by issue #43708, Wrong manipulator behaviour in individual origin.
 Referenced by issue #43712, Crash on Kubuntu, caused by locale setting
+Referenced by issue #43715, Error on stretched Pole Target IK
