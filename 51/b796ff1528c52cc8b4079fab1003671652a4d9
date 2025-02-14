@@ -2,3 +2,4 @@ Referenced by commit 910469eccf9, Cleanup: Remove remaining unused code for Disp
 Referenced by commit 83155cce5b1, Particles: Fix uninitialized child orco passed to modifiers
 Referenced by commit 9befee49a76, Fix: Silence texture stack owner_id warnings in debug mode from anim_filtering code
 Referenced by issue #89377, Baking from MultiRes produces empty images.
+Referenced by issue #84477, Baking AO from Multires error and lack of option
