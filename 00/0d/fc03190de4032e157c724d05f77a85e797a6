@@ -48,3 +48,4 @@ Referenced by issue #44948, Changing animation frame before exiting Local View r
 Referenced by issue #44949, Object Mode (global) Undo deletes Edit Mode undo steps of all objects
 Referenced by issue #44941, Ctrl+Alt+U crash while in fullscreen (F11)
 Referenced by issue #44921, Cycles node editor, nodes position not maintained after Material panel changes
+Referenced by issue #44930, Loading an image with bpy.data.images.load(path) Freezes the add-on panel in the 3D tool shelf
