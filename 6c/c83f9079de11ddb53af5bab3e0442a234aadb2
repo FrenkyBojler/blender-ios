@@ -1,1 +1,2 @@
 Referenced by commit 827e9ccb29d, Revert "Fix T96728: 'Automatic Constraint' using the wrong orientation"
+Referenced by issue #96728, axis constrain in local mode only works the first time
