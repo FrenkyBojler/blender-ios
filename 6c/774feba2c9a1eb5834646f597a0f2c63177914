@@ -15,3 +15,4 @@ Referenced by issue #107168, Regression: Crash when executing a certain python s
 Referenced by issue #106469, Regression: Cycles: unstable triangulation of mesh in viewport
 Referenced by issue #106198, Realize instances node affects UVs (texture coordinate)
 Referenced by issue #106185, Fix #106128: OBJ exporter crash when a mesh only has loose vertices
+Referenced by issue #105916, mode='UV_MAP'
