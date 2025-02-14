@@ -1,1 +1,2 @@
 Referenced by commit 8b516d87120, Include node name for socket animation channel UI
+Referenced by issue #90595, VSE/Graph: Certain animated properties of visual strips do not identify strip name in graph editor
