@@ -2,3 +2,4 @@ Referenced by commit 6a132aa65d4, Fix T45290: Selecting passes in image editor d
 Referenced by issue #45290, Selecting passes in image editor does no longer work
 Referenced by issue #45268, Cycles - OpenCL - EXR Image loading is different to CPU / CUDA
 Referenced by issue #45237, Dither dosn't work in Blender Internal Renderer 2.75 rc2
+Referenced by issue #45193, Image Node
