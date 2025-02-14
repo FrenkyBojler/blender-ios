@@ -1,0 +1,1 @@
+Referenced by issue #94427, Stops working after  bpy.ops.initial.settings() at startup. (apple beachball of death)
