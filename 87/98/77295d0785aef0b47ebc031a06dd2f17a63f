@@ -1,3 +1,4 @@
 Referenced by issue #59081, Some material node groups in 2.80, from 2.7x files, crash in 2.80
 Referenced by issue #59082, De-selecting all, leaves the Move tool gizmo visible
 Referenced by issue #59023, Wireframe + lock view to axis makes Blender crash
+Referenced by issue #59015, Program Crash
