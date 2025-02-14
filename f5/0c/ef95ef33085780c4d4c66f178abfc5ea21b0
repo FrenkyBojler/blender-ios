@@ -1,0 +1,1 @@
+Referenced by issue #64731, Blender freezes on evaluated_depsgraph_get when Python API is used to add/remove modifiers on an object
