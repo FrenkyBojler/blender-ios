@@ -1282,7 +1282,7 @@ DerivedMesh *multires_make_derived_from_derived(
   }
 
   for (i = 0; i < numGrids; i++) {
-    MEM_freeN(subGridData[i]);
+    MEM_freeN(static_cast<void *>(subGridData[i]));
   }
   MEM_freeN(subGridData);
 
