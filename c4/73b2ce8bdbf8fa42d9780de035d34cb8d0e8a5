@@ -1,1 +1,2 @@
 Referenced by commit 762d3a48e86, Cleanup: Avoid storing pointers for attribute search callback
+Referenced by commit 22ffd69a91c, Fix T89313: Attribute search crash with animation playback
