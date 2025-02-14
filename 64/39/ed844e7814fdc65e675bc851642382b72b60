@@ -1,3 +1,4 @@
 Referenced by issue #64153, RenderEngine update_result() not showing intermediate result anymore
 Referenced by issue #60482, Blender 2.80 - Redo in Texture Paint produces incorrect rendering
 Referenced by issue #60469, Blender 2.80 - Unexpected behaviour of undo in Texture Paint
+Referenced by issue #60456, "Static Override to Local" button, "O" signifier, and "Chainlink with Arrow" disappear from data menu dropdown and outliner after saving and reopening blend
