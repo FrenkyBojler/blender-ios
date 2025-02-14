@@ -6,3 +6,4 @@ Referenced by issue #45167, Holding Ctrl right after trackpad scrolling makes un
 Referenced by issue #45131, CUDA memory leak
 Referenced by issue #45069, Cannot move objects between layers using only keyboard.
 Referenced by issue #45058, Cycles hair shader reflects incorrectly for meshes
+Referenced by issue #45052, Compositing-Masks are not editable with new DepsGraph
