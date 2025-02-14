@@ -513,32 +513,27 @@ using SelectedCallback = FunctionRef<void(
 using UnselectedCallback = FunctionRef<void(IndexRange curves, IndexRange unselected_points)>;
 
 /**
- * Calls callback function for each mask's content slice by `OffsetIndices`.
- * Used to handle selected points for each curve separately.
+ * Calls callback function for each curve having selected points.
  *
- * \param selected_points: Selected points in the current offset range.
- * \param slice_points: Current offset's `IndexRange`.
- * \param slice: Current offsets's index. Curve index if #CurvesGeometry::points_by_curve() is used
- * as `offset_indices`.
- * \param selected_fn: callback function called for each slice with at least one point selected.
+ * \param mask: selected points.
+ * \param points_by_curve: The offsets of every curve into arrays on the points domain.
+ * \param selected_fn: callback function called for each curve with at least one point selected.
  */
 void foreach_selected_point_ranges_per_curve(const IndexMask &mask,
-                                             const OffsetIndices<int> offset_indices,
+                                             const OffsetIndices<int> points_by_curve,
                                              SelectedCallback selected_fn);
 
 /**
- * Calls callback function for each mask's content slice by `OffsetIndices`.
- * Used to handle selected points for each curve separately.
+ * Calls callback function for each curve having selected points.
+ * Calls second callback for groups of curves with no points selected.
  *
- * \param selected_points: Selected points in the current offset range.
- * \param slice_points: Current offset's `IndexRange`.
- * \param slice: Current offsets's index. Curve index if #CurvesGeometry::points_by_curve() is used
- * as `offset_indices`.
- * \param selected_fn: callback function called for each slice with at least one point selected.
- * \param unselected_fn: callback function called for groups of slices with no selected points.
+ * \param mask: selected points.
+ * \param points_by_curve: The offsets of every curve into arrays on the points domain.
+ * \param selected_fn: callback function called for each curve with at least one point selected.
+ * \param unselected_fn: callback function called for groups of curves with no selected points.
  */
 void foreach_selected_point_ranges_per_curve(const IndexMask &mask,
-                                             const OffsetIndices<int> offset_indices,
+                                             const OffsetIndices<int> points_by_curve,
                                              SelectedCallback selected_fn,
                                              UnselectedCallback unselected_fn);
 
