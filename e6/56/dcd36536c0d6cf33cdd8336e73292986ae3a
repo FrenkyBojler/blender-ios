@@ -1,0 +1,1 @@
+Referenced by issue #50970, UV island select won't select contiguous faces when the polygons UV data flips from positive to negative inside an island
