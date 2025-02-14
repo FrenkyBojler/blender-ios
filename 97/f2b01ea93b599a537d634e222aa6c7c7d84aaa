@@ -1,2 +1,3 @@
 Referenced by commit 44b79af4fca, Cleanup: Sculpt: Simplify face and face set iteration
 Referenced by commit a48d4184b52, Fix #114094: Mask by Color brush has stopped working
+Referenced by issue #120934, Regression: Multiresolution sculpt mode: Expand mask by topology cancellation bug
