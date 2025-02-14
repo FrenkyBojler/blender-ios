@@ -2,3 +2,4 @@ Referenced by issue #76121, Driver depending on animated modifier property does 
 Referenced by issue #76117, Smooth Modifer Crash - TDR
 Referenced by issue #75911, Crash when switching to sculpt mode with multiresolution modifier is enabled
 Referenced by issue #75866, Blender 2.83 beta crashes on startup
+Referenced by issue #75850, Liquid simulation, cache type "Replay", doesn't recognize objects created after Domain creation, doesn't update
