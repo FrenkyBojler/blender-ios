@@ -1,0 +1,1 @@
+Referenced by issue #89782, Segfault populating popup menu with specific structure, `scale_x`, and element count. (GPUOffScreen buffer too large?)
