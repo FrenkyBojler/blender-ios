@@ -1,1 +1,2 @@
 Referenced by commit ec574b5b090, Cleanup: remove (unused) RNA update cache
+Referenced by issue #75686, Animating scene audio volume doesn't work
