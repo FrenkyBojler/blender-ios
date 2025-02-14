@@ -1,0 +1,1 @@
+Referenced by issue #109745, Mesh.polygon_normals[0].value reports incorrect normal
