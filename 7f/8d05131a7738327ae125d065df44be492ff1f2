@@ -1,1 +1,2 @@
 Referenced by commit 9ac81ed6abf, Fix corrupted blend files after issues from new name_map code.
+Referenced by commit 13e17507c06, Fix crashes due to non-uniqueness in ID names in some cases.
