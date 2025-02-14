@@ -1,0 +1,1 @@
+Referenced by issue #39764, Cycles fails with external EXR containing Z-depth, works if packed though
