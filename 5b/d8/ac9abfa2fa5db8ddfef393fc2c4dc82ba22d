@@ -37,3 +37,4 @@ Referenced by issue #54969, VSE crashes or hangs unpredictably 4-6 frames into c
 Referenced by issue #54916, Fluid Simulator, **spilling Massive amounts of fluid from objects which move**
 Referenced by issue #54918, Inset thickness/depth history regression
 Referenced by issue #54577, Cycles smoke render differs on CPU from GPU
+Referenced by issue #54490, VSE breaks when I insert or remove headphones
