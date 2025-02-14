@@ -1,2 +1,3 @@
 Referenced by issue #77172, EEVEE world doesn't update all viewports' object shaders
 Referenced by issue #77173, UI warnings contrast worsened from 2.82 to 2.83
+Referenced by issue #77130, Visually broken/stepped wireframe in object mode (regression)
