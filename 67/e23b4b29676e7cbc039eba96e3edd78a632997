@@ -4,3 +4,4 @@ Referenced by commit edc00429e8d, Fix T102257: Crash when making an Object as Ef
 Referenced by commit 715c86d9e58, Fix T101231: Console flooded with warnings when fluid type is Domain
 Referenced by issue #117067, Fix #106425: Mantaflow guiding with domains is broken
 Referenced by issue #106425, Regression: Guiding in manta is broken
+Referenced by issue #102257, Regression: Crash when making an Object as Effector set to Guide and trying to scrub the timeline.
