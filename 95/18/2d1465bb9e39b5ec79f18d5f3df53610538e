@@ -34,3 +34,4 @@ Referenced by issue #42197, Collada import and export wrongly handle skin morphs
 Referenced by issue #42182, Adjusting Cloth cache frame range can crash Blender
 Referenced by issue #42170, BI World doesn't update itself if its HDR texture is modified in the node editor
 Referenced by issue #42159, Enabling VBOs in Preferences crashes Blender on exit
+Referenced by issue #42160, CUDA error: ILLEGAL_ADDRESS in cuCtxSynchronize()
