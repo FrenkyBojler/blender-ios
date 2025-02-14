@@ -1,2 +1,3 @@
 Referenced by issue #49000, Cycles - Baking - Crashes with many lights
 Referenced by issue #48929, autosave doesn't save like normal save
+Referenced by issue #48930, not influenced snap points of the same mesh are ignored with proportional editing set on connected
