@@ -1,3 +1,4 @@
 Referenced by commit 07db110add1, Fix T82493: PyDoc generation throws exception on exit
 Referenced by issue #87271, Use after free when using an addon deriving from ShaderNodeCustomGroup
 Referenced by issue #82675, "ImportError: sys.meta_path is None, Python is likely shutting down" on exit when built as a Python module
+Referenced by issue #77348, Blender LTS: Maintenance Task 2.83
