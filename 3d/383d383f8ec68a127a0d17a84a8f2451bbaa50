@@ -1,1 +1,2 @@
 Referenced by commit a3e05f06a64, Fix: Draw manager uses empty positions after recent refactor
+Referenced by issue #109955, Regression: Loop overlay are not displayed when using Loop Cut
