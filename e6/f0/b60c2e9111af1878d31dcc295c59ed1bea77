@@ -2,3 +2,4 @@ Referenced by commit 5155feeeb8a, Cleanup: UI: Remove a1 and a2 unused arguments
 Referenced by commit 81ac0bf759d, Fix failing "Edit Source" (asserts) while number slider was visible
 Referenced by commit fd110291a5f, Fix T81794: ColorRampElement step regression
 Referenced by commit 3cafaf0fa86, Fix possible use-after-free for number slider buttons
+Referenced by issue #81794, Color Ramp Element position stepping is unusable
