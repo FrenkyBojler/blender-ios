@@ -1,2 +1,3 @@
 Referenced by issue #42413, Erroneous world_matrix when object scaled
 Referenced by issue #42367, Spline IK leaves a gap at the start of the bone chain
+Referenced by issue #42349, Windows Render command line Cycles Crash!
