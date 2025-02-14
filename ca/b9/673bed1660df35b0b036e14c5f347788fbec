@@ -2,3 +2,4 @@ Referenced by issue #80180, Shader Editor Image Sequence don't show up
 Referenced by issue #80062, cycles not rendering image sequence
 Referenced by issue #79952, Cycles video texture bug (fixed in 2.90 beta and 2.91 alpha -- 2.83 LTS issue)
 Referenced by issue #79312, Videos imported only render the first frame of the respective video file
+Referenced by issue #79111, Cycles: Image Sequence not rendering
