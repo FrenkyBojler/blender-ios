@@ -1,1 +1,2 @@
 Referenced by issue #61796, Linking a collection with instances inside will place the instanced object in the scene
+Referenced by issue #61787, Duplicating a collection instance does not duplicate the dupli_group
