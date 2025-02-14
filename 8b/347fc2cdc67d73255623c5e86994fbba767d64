@@ -1,1 +1,2 @@
 Referenced by commit e3b49bb8500, Fix T81200: Crash on certain armature select operators when OpenGL Depth
+Referenced by commit fc8a7a44b20, Fix T77560: Bone selection crashes
