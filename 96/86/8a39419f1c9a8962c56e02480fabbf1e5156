@@ -1,3 +1,4 @@
 Referenced by issue #51125, texture coordinate issue
 Referenced by issue #51034, rendering bug
 Referenced by issue #50925, AO bounce simplification diffences between GPU and CPU
+Referenced by issue #50927, intersect (knife) sometime crashes blender.
