@@ -1,1 +1,2 @@
 Referenced by commit d3c653c6d92, BLF: Revert FreeType Cache
+Referenced by commit 8b467313965, Fix Build Warnings in blf_font.c
