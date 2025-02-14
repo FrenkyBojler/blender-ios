@@ -1,0 +1,1 @@
+Referenced by commit 5e0ec49570f, Fix T48416: Impossible to append from another file without localizing also all indirectly linked data.
