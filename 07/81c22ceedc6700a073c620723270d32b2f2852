@@ -1,2 +1,3 @@
 Referenced by issue #96718, Regression: Photo "blowout" when rendering and denoising in 3.1.0
 Referenced by issue #95969, Bake to vertex colors completely broken in 3.1 & 3.2
+Referenced by issue #91856, [Bug] AO Baking to vertex color is broken
