@@ -3,3 +3,4 @@ Referenced by issue #53529, Rip tool on single edge crashes Blender
 Referenced by issue #52505, Selection Bug Report
 Referenced by issue #52428, blender crash after pressing "F"
 Referenced by issue #52390, Fire simulation
+Referenced by issue #52185, Material ID aliasing artifacts
