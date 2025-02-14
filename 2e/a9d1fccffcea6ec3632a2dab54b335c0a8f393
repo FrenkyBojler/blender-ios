@@ -1,1 +1,2 @@
 Referenced by issue #98021, Regression: Blender crashes when using the VSE which contains a scene on the timeline that contains audio
+Referenced by issue #97720, COSMETIC meta strip displays incorrect muted channel graphic when parent channel is muted
