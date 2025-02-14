@@ -3,3 +3,4 @@ Referenced by issue #60806, CUDA error: Launch failed in cuCtxSynchronize(), lin
 Referenced by issue #60783, (Certain) shapekeys stopped working in 2.8
 Referenced by issue #60674, Blender Streaming with 3rd-Party Application
 Referenced by issue #58686, Blender 2.8 Crashing on Alembic export of fluid animation past 80 frames
+Referenced by issue #58311, GPU render crash
