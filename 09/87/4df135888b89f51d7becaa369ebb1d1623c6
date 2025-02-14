@@ -1,2 +1,3 @@
 Referenced by commit 005dabbd9ad, Fix T39799: Backdrop (compositor) ignores alpha.
 Referenced by commit f5a716b5e05, Fix T39786: Transform node gives bad result.
+Referenced by issue #41573, Compositing reroute converts floats to red color
