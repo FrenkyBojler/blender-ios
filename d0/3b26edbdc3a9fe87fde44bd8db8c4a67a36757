@@ -1,1 +1,2 @@
 Referenced by commit c73be23e176, Revert "Fix T89204: slow repeated rendering with GPUOffscreen.draw_view3d"
+Referenced by issue #89204, GPUOffscreen.draw_view3d() is 25 to 50 times slower
