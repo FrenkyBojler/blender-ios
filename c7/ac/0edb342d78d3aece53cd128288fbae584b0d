@@ -1,3 +1,4 @@
 Referenced by issue #38847, Crash when importing Collada file with bones.
 Referenced by issue #38638, False warning on solidify modifier with bevelled curves
 Referenced by issue #38641, 3D manipulator widget is huge in files saved with later versions
+Referenced by issue #38643, Frame labels are invisible with default theme
