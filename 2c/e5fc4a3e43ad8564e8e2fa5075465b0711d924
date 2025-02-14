@@ -1,3 +1,4 @@
 Referenced by commit e6a8c45fd98, Fix #108578: Crash when unlinking input sockets
 Referenced by issue #109565, Regression: Array modifier change a merged Root vertex of Skin modifier
 Referenced by issue #108623, Fix #108578: Crash when unlinking input sockets
+Referenced by issue #108574, Regression: Error when trying to move a keyframe
