@@ -1,2 +1,3 @@
 Referenced by commit dff24f96f07, Fix T64817: Active tool gizmo doesn't respect toggle
 Referenced by issue #63600, VSE strip modifiers constantly segfaults on a .blend file converted from 2.79 to 2.80x
+Referenced by issue #63518, Per viewport transform gizmo settings for select tools, remove transform tool
