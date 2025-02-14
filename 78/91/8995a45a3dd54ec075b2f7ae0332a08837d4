@@ -1,2 +1,3 @@
 Referenced by issue #44421, Set the viewport to wire while texture painting crash blender
 Referenced by issue #40131, Color ramp values limited to 4.875 maximum
+Referenced by issue #40101, Can't bake combine, shadows, to active
