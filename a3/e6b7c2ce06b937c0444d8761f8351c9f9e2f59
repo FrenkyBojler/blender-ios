@@ -1,2 +1,3 @@
 Referenced by issue #78517, 'Crop Image size' in 'Crop' node removes helpful compositor transform widget
 Referenced by issue #78510, Boolean and Parenting Inconsistencies
+Referenced by issue #78483, EEVEE animation render crashes periodically
