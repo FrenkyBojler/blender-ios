@@ -1,2 +1,3 @@
 Referenced by issue #87476, Blender crash Cycles viewport
 Referenced by issue #86558, Eevee render / preview artifact
+Referenced by issue #86473, Screen Space Reflections artifacts (most noticable when using half res trace)
