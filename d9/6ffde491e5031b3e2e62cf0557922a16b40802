@@ -1,2 +1,3 @@
 Referenced by issue #47137, OpenExr file save bug
 Referenced by issue #46848, Crash when UV unwrapping non-manifold object
+Referenced by issue #46820, command line batch rendering: Scene Switching is ignored
