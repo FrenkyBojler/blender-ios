@@ -1,0 +1,1 @@
+Referenced by issue #81939, Crash when calling bmesh.utils.vert_separate()
