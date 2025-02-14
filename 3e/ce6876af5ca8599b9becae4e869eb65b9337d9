@@ -1,3 +1,4 @@
 Referenced by commit a13696a242f, Fix #115279: FModifier.type enum 'NULL' item was renamed to 'nullptr'
 Referenced by issue #115279, FModifier.type enum 'NULL' item was renamed to 'nullptr'
 Referenced by issue #109596, CMake fails to generate Xcode project
+Referenced by issue #109598, XCode build fails to link
