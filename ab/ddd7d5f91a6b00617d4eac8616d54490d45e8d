@@ -1,0 +1,1 @@
+Referenced by issue #83566, bpy.props.CollectionProperty() gives incorrect error message if passed a type which does not subclass bpy.types.PropertyGroup
