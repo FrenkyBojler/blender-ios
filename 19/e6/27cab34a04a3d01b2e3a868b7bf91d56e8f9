@@ -13,3 +13,4 @@ Referenced by issue #41065, Audio decoding fails on some video container formats
 Referenced by issue #40953, Volumetrics with intersecting geometry and low transparency depth cause crash in 2.71
 Referenced by issue #40915, Flipping / Mirroring does not work
 Referenced by issue #40873, Copy Scale constraint ignores negative values
+Referenced by issue #40787, Video Sequencer generates a faster video
