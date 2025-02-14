@@ -3,3 +3,4 @@ Referenced by issue #65221, armature selection bug
 Referenced by issue #64562, CTRL + G creates new (unlisted) collection
 Referenced by issue #64424, Mesh sequence cache modifier not rendering properly
 Referenced by issue #64405, Eevee: Screen Space Reflections break with rotated dupli instances
+Referenced by issue #64400, x-axis mirror for edit mode and pose mode is the same
