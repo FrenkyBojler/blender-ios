@@ -1,0 +1,1 @@
+Referenced by issue #73892, Wired objects get rendered as solid using "Viewport render image" if the viewport's shading type is "Rendered"
