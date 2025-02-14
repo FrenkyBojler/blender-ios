@@ -1,0 +1,1 @@
+Referenced by issue #88908, VSE, Python: bpy.ops.sequencer.image_strip_add() will truncate the directory name if the 'directory' variable does not end with a path separator
