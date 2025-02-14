@@ -1,1 +1,2 @@
 Referenced by issue #89345, Non-planar faces cause assertion failure when decimating
+Referenced by issue #89347, Make Planar Faces operator causes assertion failure with non-planar faces
