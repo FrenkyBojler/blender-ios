@@ -1,2 +1,3 @@
 Referenced by commit 5ce10722ab0, Revert "Fix #122808: Use Default Font when Vfont Missing"
 Referenced by issue #131821, VFONT: Text Objects Fallback Only When Default Font
+Referenced by issue #116251, Text Object: Not supported symbols is triangulated with wrong settings
