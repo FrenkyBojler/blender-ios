@@ -1,0 +1,1 @@
+Referenced by issue #61107, Python callback `wmGizmo.test_select` doesn't allow return of negative values.
