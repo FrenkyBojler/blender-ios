@@ -1,1 +1,2 @@
 Referenced by commit 3ffe65a7fb9, CMake/macOS: Restore TIFF's optional status.
+Referenced by commit f56c5245d24, Cleanup: CMake: Remove arguments from endif(..)
