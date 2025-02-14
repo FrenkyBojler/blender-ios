@@ -4,3 +4,4 @@ Referenced by issue #52484, Linking Materials ignores Object or Data preference 
 Referenced by issue #52436, Importing keyconfig mess up blender configuration SHIFT + A opens ADD menu and at the same time popups new external 3D window
 Referenced by issue #52418, Principled BSDF Shader node - Input number 16 does not exist
 Referenced by issue #52419, OpenCL missing from Cycles Compute Device System option
+Referenced by issue #52420, Wobble in the node editor (2.79)
