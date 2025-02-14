@@ -1,1 +1,2 @@
 Referenced by issue #69083, Blender crashes when switching from solid view to rendered or lookdev mode in eevee.
+Referenced by issue #68963, Viewport rotation not working after saving new default startup file.
