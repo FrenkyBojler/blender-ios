@@ -3,3 +3,4 @@ Referenced by commit b6d890672c5, Fix crash in 'drag asset' case in new append c
 Referenced by issue #99166, Regression: Append/Link of Object can create extra Scene
 Referenced by issue #98072, Regression: When appending a Scene, the Collections that are turned off get instanced into Current Scene
 Referenced by issue #93190, Appending grease pencil brushes creates "fake user" unintentionally
+Referenced by issue #92688, It is not possible to append objects which are part of linked collection
