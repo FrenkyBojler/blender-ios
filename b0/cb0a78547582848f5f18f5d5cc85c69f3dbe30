@@ -1,2 +1,3 @@
 Referenced by commit 22b69ed08f7, Fix T101001: crash setting texture node active in certain cases
 Referenced by commit c76d7f7bde3, Fix T99493: better syncing between Node Editor and Image Editor
+Referenced by issue #101001, Regression: Crash when left click on Point Density node
