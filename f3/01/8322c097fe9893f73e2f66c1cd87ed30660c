@@ -2,3 +2,4 @@ Referenced by issue #54328, Sequencer - hard cut (shift k), is broken
 Referenced by issue #54255, 2.79b release
 Referenced by issue #54200, Bug sequence editor with sound file cutting in Blender 2.79a
 Referenced by issue #53478, VSE - Scene strip soft cut at start frame gives incorrect results
+Referenced by issue #53430, VSE - Scene strip soft cutted at end frame makes incorrect result
