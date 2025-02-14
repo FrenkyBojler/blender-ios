@@ -32,3 +32,4 @@ Referenced by issue #42798, "snap onto itself" problem
 Referenced by issue #42780, Undo inserted keyframes of Linked Objects Closes Blender
 Referenced by issue #42768, Crash on 2013 Macbook Air 13 inch running OS X 10.10.1 and Blender 2.72
 Referenced by issue #42749, Blender crashes on high poly count while rendering with cycles (even in viewport)
+Referenced by issue #42754, UI Bug with Full Window mode
