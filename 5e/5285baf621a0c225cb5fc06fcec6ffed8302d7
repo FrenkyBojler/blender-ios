@@ -1,2 +1,3 @@
 Referenced by commit cb267cec555, Fix T96512: Crash selecting an edge
 Referenced by commit fbc36c77b03, Fix error with pose & deselect_all with 5e5285baf621a0c225cb5fc06fce
+Referenced by issue #96512, Crash when selecting edge
