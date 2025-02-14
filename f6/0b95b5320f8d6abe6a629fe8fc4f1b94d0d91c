@@ -1,1 +1,2 @@
 Referenced by commit 0d8c479225d, Shader Nodes: Use camel case for file names
+Referenced by commit 0f48b37aae0, Revert moving all shader nodes to c++
