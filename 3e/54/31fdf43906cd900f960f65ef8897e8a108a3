@@ -1,1 +1,2 @@
 Referenced by commit b80ed8396d2, Fix T89164: Sculpt "Smooth" brush crash with zero pressure
+Referenced by issue #89164, Crash in sculpt mode using "Smooth" brush and tab with tablet stylus
