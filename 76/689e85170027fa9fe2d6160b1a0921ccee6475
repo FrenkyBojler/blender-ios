@@ -1,1 +1,2 @@
 Referenced by commit b61b34a5d27, Fix T87236: crash reading file with grease pencil palettes
+Referenced by issue #87236, Crash on opening specific file
