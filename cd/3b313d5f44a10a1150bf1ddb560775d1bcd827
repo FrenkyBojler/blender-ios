@@ -1,0 +1,1 @@
+Referenced by commit 24162c977c2, Prevent G.fileflags changes when WM_OT_save_mainfile() is called from script
