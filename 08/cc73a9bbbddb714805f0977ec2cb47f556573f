@@ -1,2 +1,3 @@
 Referenced by commit 60bf09e8db9, Tests: Add render test for Orthographic camera with DOF with far nearclip
 Referenced by commit 56bb8b2b3c8, Fix #123324: Improve Cycles camera bounding box size calculation
+Referenced by issue #130500, Tests: Add render test for Orthographic camera with DOF with far nearclip
