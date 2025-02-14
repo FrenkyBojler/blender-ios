@@ -3,3 +3,4 @@ Referenced by commit b7386c66f9f, Fix T76150: Viewport Axes not toggling correct
 Referenced by commit 579447bd892, Fix T74096: Paint Masking overlay can`t be hidden
 Referenced by issue #91398, Camera BG jitter offset (regression)
 Referenced by issue #88681, Armature combined with subdivision incorrect normals
+Referenced by issue #77195, Crash with Viewport measurements turned on
