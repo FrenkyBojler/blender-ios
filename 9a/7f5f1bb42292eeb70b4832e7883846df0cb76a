@@ -1,2 +1,3 @@
 Referenced by commit a985b8bd9ef, Fix T80437: Auto IK Double Generates IK constraints
 Referenced by issue #80437, Auto IK Double Generates IK constraints
+Referenced by issue #75735, Armature Auto IK no longer uses the correct chain length
