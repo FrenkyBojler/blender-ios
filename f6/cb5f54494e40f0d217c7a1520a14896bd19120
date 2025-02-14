@@ -73,3 +73,4 @@ Referenced by issue #68527, Bones are not selected when clicked on (except the f
 Referenced by issue #68499, weight paint gradient is broken when mirror modifier is enabled
 Referenced by issue #68367, Translated text NOT display
 Referenced by issue #68344, 3D cursor sets to "-nan(ind)m" or "nanm" on click
+Referenced by issue #68314, Grid mesh with x/y_subdivisions = 1762, 896 creates broken UV map
