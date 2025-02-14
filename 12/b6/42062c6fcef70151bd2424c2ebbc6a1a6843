@@ -1,2 +1,3 @@
 Referenced by commit 21c29480c3e, Fix paste code linking 'direct' IDs with 'INDIRECT' flag.
 Referenced by commit 9e85812acc8, Fix macOS mouse positions inaccuracy
+Referenced by issue #38207, UI Tab bugs
