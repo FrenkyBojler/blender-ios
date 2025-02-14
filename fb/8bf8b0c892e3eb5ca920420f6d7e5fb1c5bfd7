@@ -1,3 +1,4 @@
 Referenced by commit 34d157634ab, Fix #122623: Partial Resync fails to remap all ID pointers to existing unchanged overrides.
 Referenced by issue #122623, Linking and Make Library Override breaks Drivers in Curve Material
 Referenced by issue #116135, UI: BLI_assert failed: blf_font_width_to_rstrlen(), at 'i_tmp == i'
+Referenced by issue #116137, Regression: A lot of spam in terminal about wrong time
