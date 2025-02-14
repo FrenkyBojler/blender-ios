@@ -179,21 +179,19 @@ class MeshState {
  public:
   MeshState(const Mesh &mesh)
   {
-    this->freeze_shared_state(mesh.runtime->face_offsets_sharing_info);
+    if (mesh.runtime->face_offsets_sharing_info) {
+      this->freeze_shared_state(*mesh.runtime->face_offsets_sharing_info);
+    }
     mesh.attributes().foreach_attribute([&](const bke::AttributeIter &iter) {
       const bke::GAttributeReader attribute = iter.get();
-      this->freeze_shared_state(attribute.sharing_info);
+      this->freeze_shared_state(*attribute.sharing_info);
     });
   }
 
-  void freeze_shared_state(const ImplicitSharingInfo *sharing_info)
+  void freeze_shared_state(const ImplicitSharingInfo &sharing_info)
   {
-    if (!sharing_info) {
-      /* Code must consider this data to always be changed if there is no sharing info. */
-      return;
-    }
-    if (sharing_infos_.add(sharing_info)) {
-      sharing_info->add_user();
+    if (sharing_infos_.add(&sharing_info)) {
+      sharing_info.add_user();
     }
   }
 
