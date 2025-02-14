@@ -2,3 +2,4 @@ Referenced by commit ebf3c879123, Fix T74699: File browser closing while loading
 Referenced by issue #74699, File browser closing while loading crash.
 Referenced by issue #70973, Where is the progress bar of Rebuild Proxy and Timecode Indices in VES
 Referenced by issue #68104, Video sequence rebuild proxy no indication bar
+Referenced by issue #66028, Proxy in VSE does not work
