@@ -65,3 +65,4 @@ Referenced by issue #42490, 2D Curves and Switch Direction
 Referenced by issue #42486, Crash on opening file
 Referenced by issue #42469, Cycles Texture Paint mode selection crashes
 Referenced by issue #42437, Physics/Compound Bug
+Referenced by issue #42438, Solidifys flipped normals dont work with Offset Materials
