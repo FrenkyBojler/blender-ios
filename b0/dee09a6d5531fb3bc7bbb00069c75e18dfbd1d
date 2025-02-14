@@ -3,3 +3,4 @@ Referenced by issue #60840, Multires modifier memory leak
 Referenced by issue #60699, EEVEE Diffuse ignores world material
 Referenced by issue #60683, Repeatable Software Crash during BAKE Ambient Occlusion operation in Cycles Render Mode
 Referenced by issue #60684, Fourth and subsequent vertex color / UV layers displayed black
+Referenced by issue #60690, Cycles GPU render carsh with RX 580
