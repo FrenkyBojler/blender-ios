@@ -1,0 +1,1 @@
+Referenced by issue #76393, Crash on assert(batch->program_in_use == 0)
