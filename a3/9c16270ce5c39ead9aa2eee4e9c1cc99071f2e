@@ -1,0 +1,1 @@
+Referenced by commit fc6975e218a, Unbreak build with WITH_IMAGE_OPENEXR disabled on macOS/ARM
