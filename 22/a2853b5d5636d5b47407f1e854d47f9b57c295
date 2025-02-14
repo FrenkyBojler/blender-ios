@@ -28,3 +28,4 @@ Referenced by issue #48046, Exporting STL's from Blender 2.77
 Referenced by issue #48049, Compositing 'Glare:Fog Glow' horrible distorted output
 Referenced by issue #48050, No antialiasing in Direct/Indirect passes
 Referenced by issue #48056, OBJ exports arbitrary number of normals
+Referenced by issue #48037, 2.77 and 2.69 both on Windows and Linux crashes when trying to play (unbaked,first try,play) rigid body physics
