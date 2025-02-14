@@ -1,0 +1,1 @@
+Referenced by issue #92905, Render with negative color values results in broken .hdr file (possible underflow error)
