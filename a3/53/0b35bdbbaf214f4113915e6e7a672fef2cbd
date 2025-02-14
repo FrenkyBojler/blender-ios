@@ -1,2 +1,3 @@
 Referenced by issue #46818, Cycles crashes when glossy, glass, and refraction shaders are used
 Referenced by issue #46820, command line batch rendering: Scene Switching is ignored
+Referenced by issue #46784, The connect tool creates a crooked path between vertices on certain meshes
