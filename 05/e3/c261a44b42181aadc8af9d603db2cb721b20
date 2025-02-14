@@ -1,1 +1,2 @@
 Referenced by issue #44373, Crash on duplicate something on video sequencer and use Crtl to align.
+Referenced by issue #43989, Sequencer - Ctrl snapping a sequencer strip does not work if you specify the x axis
