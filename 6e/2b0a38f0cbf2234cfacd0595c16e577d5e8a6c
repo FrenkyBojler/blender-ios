@@ -1,1 +1,2 @@
 Referenced by issue #97984, GPU Codegen crash when loading demo file
+Referenced by issue #97519, Creating texture with canvas menu (sculpt mode, paint tool) leading to shader fail (fuchsia)
