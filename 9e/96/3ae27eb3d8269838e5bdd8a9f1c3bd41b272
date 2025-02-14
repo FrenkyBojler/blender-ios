@@ -55,3 +55,4 @@ Referenced by issue #42559, Mesh edges don't come back after sending them away
 Referenced by issue #42548, Selecting a certain object in the outliner causes Blender to crash
 Referenced by issue #42533, iPhone 5s iOS8.1 - 120fps video incorrect video strip length in VSE
 Referenced by issue #42534, blender crash switching to texture paint
+Referenced by issue #42540, save_pre not called when saving startup.blend file
