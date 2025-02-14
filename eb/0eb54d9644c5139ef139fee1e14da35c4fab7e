@@ -1,1 +1,2 @@
 Referenced by commit fb820496f5b, Tracking: Sort motion tracking tracks by start and end frames
+Referenced by issue #94454, Crash in nvoglv64.dll entering edit mode on curve
