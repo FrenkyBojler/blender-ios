@@ -4,3 +4,4 @@ Referenced by issue #47830, Selecting multiple Shape Keys values doesn't highlig
 Referenced by issue #47833, view mapped grease pencil grab in edit mode
 Referenced by issue #47787, When performing operation 'Make single user' -> 'obj&data', object is removed from group.
 Referenced by issue #47753, [BI] 2.77 World texture has no reaction to parented camera rotation
+Referenced by issue #47741, OpenGL render always renders against transparent background
