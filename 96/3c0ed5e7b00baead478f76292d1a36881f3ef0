@@ -1,2 +1,3 @@
 Referenced by issue #112761, Regression: Box select no longer works with tweak tool in VSE
 Referenced by issue #112663, Shading turns pink if combining UDIM + AOV
+Referenced by issue #112650, UI: Missing Header Status in Node Editor after Turning off Auto-offset
