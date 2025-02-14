@@ -1,2 +1,3 @@
 Referenced by issue #59572, Particle Index Number not working
 Referenced by issue #59374, The UI overlays are flickering
+Referenced by issue #59334, Blender crashes if an object has a subdivision surface modifier and a displacement modifier linked to vertex group when switching to weight paint mode
