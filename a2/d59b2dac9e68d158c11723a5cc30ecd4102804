@@ -11,3 +11,4 @@ Referenced by issue #99813, Bevel is problematic in some cases
 Referenced by issue #99746, Blender 3.2.1 Very Slow Startup on Ubuntu 22.04
 Referenced by issue #99720, Blender Crash when i switch the viewport shading to material preview or render
 Referenced by issue #99592, Regression: Boolean Difference modifier - material of hole created by hidden object different for fast and exact
+Referenced by issue #99568, Exception during start programm.
