@@ -1,2 +1,3 @@
 Referenced by commit 057a8afb879, Fix T84024: Empty image opacity labeled transparency
 Referenced by issue #84024, Empty Image Opacity labeled Transparency
+Referenced by issue #81877, Crash using get_devices_for_type() to choose cycles device with python
