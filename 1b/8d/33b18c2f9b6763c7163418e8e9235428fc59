@@ -4,3 +4,4 @@ Referenced by issue #92695, Too easily crash Blender: Duplicate a Math Multiply 
 Referenced by issue #92244, Segmentation fault if drag PNG image to Video Sequensor Time Line
 Referenced by issue #90972, Crash calling Mesh.clear_geometry in edit-mode
 Referenced by issue #90640, Mouse cursor is virtually invisible
+Referenced by issue #90388, Blender 2.93.1 crash with Win10 and RADEON FURY
