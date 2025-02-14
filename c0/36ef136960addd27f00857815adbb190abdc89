@@ -1,1 +1,2 @@
 Referenced by issue #76503, Switching view modes to and from Cycles GPU / starting renders hangs system for a few seconds.
+Referenced by issue #76392, Crash with Load UI off and calling the same template twice
