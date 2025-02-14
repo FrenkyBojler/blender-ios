@@ -2,3 +2,4 @@ Referenced by commit 2efe77ca511, Fix missing hinting information in default fon
 Referenced by commit 3ced9c1c721, Fix missing hinting information in monospace font
 Referenced by issue #75898, The UI text font in 2.90 with anti-aliasing off looks crooked and unreadable on smaller scales
 Referenced by issue #73530, Crash on Rendering with Mesh Creation/Removal in frame_change_post handler.
+Referenced by issue #63012, Make status bar symbols follow OS conventions
