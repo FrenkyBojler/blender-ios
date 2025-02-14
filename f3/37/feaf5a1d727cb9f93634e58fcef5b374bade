@@ -79,3 +79,4 @@ Referenced by issue #47422, "Too many fonts!!!" gets printed on the console afte
 Referenced by issue #47409, Packed images won't be saved to the blender file if "Load UI" is unchecked
 Referenced by issue #47413, Mac UV transparency now black in Windows UV transparency
 Referenced by issue #47392, OpenSubdiv is not reactivated though the Modifier after the Subsurf-Modifier is not displayed in Viewport
+Referenced by issue #47394, Explode Modifier: Particle UV setting
