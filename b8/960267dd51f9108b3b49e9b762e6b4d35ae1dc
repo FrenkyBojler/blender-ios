@@ -2,3 +2,4 @@ Referenced by commit 90b2ed6c4b6, Fix T100277: Grease pencil lines don't start a
 Referenced by commit 9d0777e5144, Fix T99368: Annotation lines doesn't start where clicked
 Referenced by issue #100277, Regression: Grease pencil lines don't start where i click
 Referenced by issue #99368, Regression: Annotation lines doesn't start where clicked
+Referenced by issue #93599, Smooth Drag Threshold for Tweak Events
