@@ -14,3 +14,4 @@ Referenced by issue #38833, Preview chunks in compositor are not shown if offset
 Referenced by issue #38819, Mark/Clear seam misbehaves when executed from spacebar search menu in 3D view
 Referenced by issue #38822, Graphics Card not detected.
 Referenced by issue #38813, Texture node output uses different display space
+Referenced by issue #38798, Can get stuck in world nodes when switching from Cycles to BI
