@@ -1,3 +1,4 @@
 Referenced by commit 068ee2cd98f, Fix T47754: Meshes glitch on cycling Viewport Shading mode with Linked Groups
 Referenced by issue #44276, panel scrollbars shortcut keys now making timeline jump to next keyframe.
 Referenced by issue #44261, anim player has stopped updating the editor's windows.
+Referenced by issue #44183, Particles in linked group offset from object
