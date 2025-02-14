@@ -22,3 +22,4 @@ Referenced by issue #52544, Blender crash. Problem with ShrinkWrap or Subsurf Lv
 Referenced by issue #52547, Cycles Cuda rendering fails for dedicated (non-display) Nvidia GTX1060
 Referenced by issue #52526, Alembic importing broken
 Referenced by issue #52533, Blender Shuts down when rendering duplicated smoke domain.
+Referenced by issue #52490, NDOF device does not lock into orthogonal view (top, front, right, etc) in 2.79RC2 as in prev versions
