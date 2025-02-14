@@ -1,2 +1,3 @@
 Referenced by issue #44851, Blender chash at start up, Exception_lligal_Instruction
 Referenced by issue #44832, 3D Viewport rendering is different than final render
+Referenced by issue #44822, Hovering over 'Search' operator in Add Menu of Node editor when using custom shortcut causes crash
