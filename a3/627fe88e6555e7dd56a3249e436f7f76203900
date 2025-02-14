@@ -1,1 +1,2 @@
 Referenced by commit 38fcaf9ab93, Fix: Python error when no active object and hitting F3
+Referenced by issue #121370, Fix: Python error when no active object and hitting F3
