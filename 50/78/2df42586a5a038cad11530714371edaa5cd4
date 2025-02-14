@@ -5,3 +5,4 @@ Referenced by issue #88210, Image sequence texture don´t update with persistent
 Referenced by issue #88216, persistent data causes collection instance animation to not work properly
 Referenced by issue #88204, EEVEE - Animated world light doesnt work during render
 Referenced by issue #88093, Persistent data: Particles/Hair don't render
+Referenced by issue #88099, No motion blur on skinned mesh with persistent data enabled
