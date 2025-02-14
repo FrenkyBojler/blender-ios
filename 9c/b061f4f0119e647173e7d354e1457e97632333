@@ -1,0 +1,1 @@
+Referenced by issue #106340, Blender 3.5 returns identity instead of real value for matrix_basis, 3.4 works ok
