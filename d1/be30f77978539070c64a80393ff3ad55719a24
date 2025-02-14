@@ -1,1 +1,2 @@
 Referenced by issue #54996, The bridge tool fails in a situation with multiple rows of faces facing each other
+Referenced by issue #54962, Material combination causing crash on CPU render or CUDA error on GPU render with modifier index offset
