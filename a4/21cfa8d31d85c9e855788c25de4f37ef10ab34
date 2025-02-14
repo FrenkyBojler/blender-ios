@@ -2,3 +2,4 @@ Referenced by issue #57878, 2.8 Opening project in Blender Crashes
 Referenced by issue #57783, Crash on 2.80.30 race condition
 Referenced by issue #57737, select or move over the transform tool
 Referenced by issue #57732, Crash after rendering large scene
+Referenced by issue #57708, Crash on Eevee Rendering OpenGL issue ?
