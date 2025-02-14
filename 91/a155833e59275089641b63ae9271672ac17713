@@ -23,3 +23,4 @@ Referenced by issue #60327, Adaptive length for imperial units no longer working
 Referenced by issue #60315, Blender 2.80 - Not possible to have more than one particle system per object
 Referenced by issue #60318, can't change location of camera in camera view in Eevee when camera has keyframes
 Referenced by issue #60017, Eevee render display error in orthographic camera mode: Mesh material color changes during scaling
+Referenced by issue #57305, 3D Mouse (NDOF) frozen in Camera view w/ lock view to camera (WIN32+64)
