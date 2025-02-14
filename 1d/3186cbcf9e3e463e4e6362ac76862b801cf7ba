@@ -1,1 +1,2 @@
 Referenced by issue #134261, Shader node color wheel does not reset color wheel properly: magic number and just saturation resetting
+Referenced by issue #134248, Color wheel backspace issues on rgb shader node and others
