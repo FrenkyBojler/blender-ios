@@ -14,3 +14,4 @@ Referenced by issue #97895, Regression: Geometry Nodes Color Attributes not work
 Referenced by issue #97183, Regression: Vertex paint mode (old style) work only with 1st attribute layer, no matter what selected is
 Referenced by issue #97132, Sculpt mode. Color filter brush moves all geometry when there is no color attribute
 Referenced by issue #97110, Regression: Using Sculpt mode Paint tool and Dyntopo crashes blender.
+Referenced by issue #96895, GPU Subdivision destroys vertex color in Eevee
