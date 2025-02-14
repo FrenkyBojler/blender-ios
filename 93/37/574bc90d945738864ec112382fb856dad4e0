@@ -79,3 +79,4 @@ Referenced by issue #41316, FBX exporter in Blender cause artifacts to appear on
 Referenced by issue #41301, Composite / OpenEXRMultiLayer output problem when no renderlayer is used
 Referenced by issue #41302, Blender Crashes after changing user settings and then panning/zooming
 Referenced by issue #41307, FBX exporter writes malformed 'Current' section
+Referenced by issue #41287, Color Picker applies color management incorrectly in 2.71
