@@ -1,1 +1,2 @@
 Referenced by commit ec809d0cbfd, Fix boolean modifier when objects have transformations
+Referenced by issue #55183, Crash on undo
