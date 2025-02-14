@@ -1,2 +1,3 @@
 Referenced by commit ab1909fe06b, Deps: Python, install Cython package
 Referenced by issue #85526, Regression: SCREEN_OT_area_dupli from ActionZone Not Working Correctly
+Referenced by issue #85365, Libraries Changes for Blender 2.93
