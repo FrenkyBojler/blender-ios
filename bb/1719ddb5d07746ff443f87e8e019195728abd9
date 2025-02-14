@@ -1,0 +1,1 @@
+Referenced by issue #68547, Transform operator constrained to 2 axes snaps when it shouldn't on small scales.
