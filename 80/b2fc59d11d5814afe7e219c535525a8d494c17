@@ -1,1 +1,2 @@
 Referenced by issue #99873, Store/Remove Named Attribute issues with vertex groups
+Referenced by issue #99791, Regression: "Store Named Attribute" node affects all vertex groups after than the one specified.
