@@ -1,0 +1,1 @@
+Referenced by issue #89526, `bpy.ops.screen.screen_full_area()` resets certain fields of the context
