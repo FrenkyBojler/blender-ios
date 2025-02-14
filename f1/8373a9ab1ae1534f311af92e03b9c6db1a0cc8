@@ -1,1 +1,2 @@
 Referenced by issue #65159, Reflection Plane cause crash if used with any Particle Simulation
+Referenced by issue #65143, ctest: bmesh_boolean test fails on x86
