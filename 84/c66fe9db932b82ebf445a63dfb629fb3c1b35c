@@ -1,2 +1,3 @@
 Referenced by commit c4cfa1b23ee, Fix T102611: Unable to change file output node sockets from python
 Referenced by commit c0f33814c13, Fix T102611: Unable to change file output node sockets from python
+Referenced by issue #102406, OSL Node no longer updates its in and outputs
