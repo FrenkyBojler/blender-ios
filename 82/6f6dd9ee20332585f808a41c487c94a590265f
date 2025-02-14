@@ -1,2 +1,3 @@
 Referenced by issue #86658, Excessive CPU load and slow animation playback
 Referenced by issue #76095, Liquid cache of type "Replay" doesn't get invalidated when moving participating objects
+Referenced by issue #76080, Glitches Workbench and Screen Cavity
