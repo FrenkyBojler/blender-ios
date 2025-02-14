@@ -1,2 +1,3 @@
 Referenced by issue #41830, Cycles preview with multiple GPUs is only as fast as the lowest GPU
 Referenced by issue #41778, crash on animate boids xith a goal
+Referenced by issue #41782, Hotkeys in Image override by Frames
