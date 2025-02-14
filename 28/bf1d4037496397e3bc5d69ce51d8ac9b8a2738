@@ -1,1 +1,2 @@
 Referenced by issue #87554, freezes when entering edit mode with active geometry nodes
+Referenced by issue #87505, Point instance with boolean geometry node very unresponsive
