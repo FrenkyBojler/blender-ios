@@ -1,2 +1,3 @@
 Referenced by commit ccb92947c53, Fix #129067: Transforming an edit-mesh crashes with cage editing
 Referenced by issue #129067, Crash when using Subdivision Modifier and Armature Modifier on a skinned mesh(v4.2.3LTS)
+Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
