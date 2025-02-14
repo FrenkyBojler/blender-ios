@@ -1,2 +1,3 @@
 Referenced by issue #127986, Fix #123158: Viewport: Remove visible overlays when "Show Overlay" flag is disabled in active region
 Referenced by issue #59621, Blender 2.8: Applying more than one material on a mesh object Blender instantly crashes (Build: a2466049376 windows64)
+Referenced by issue #59602, set  NVIDIA   “Anisotropic filtering”  on ， EEVEE render get  wrong reflection
