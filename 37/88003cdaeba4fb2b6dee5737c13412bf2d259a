@@ -1,3 +1,4 @@
 Referenced by commit 17e92711d3b, UI: Refactor path dropping so logic doesn't depend on icons
 Referenced by issue #93557, [Blender 3.0] Line art is Flickering
 Referenced by issue #93537, Blender 3.0 Geometry Nodes breaks UV channels
+Referenced by issue #93368, File Browser drag and drop not working (when dragging with Display as Thumbnails)
