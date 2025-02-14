@@ -1,1 +1,2 @@
 Referenced by commit 0ef881cc578, Fix T71620: broken particle collisions due to rB0666ece2e2f9
+Referenced by commit e52ad1835a6, Fix hair collision instability with 'Quality Steps' > 1
