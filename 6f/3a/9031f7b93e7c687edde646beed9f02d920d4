@@ -1,3 +1,4 @@
 Referenced by commit e1eaf9e2b4e, Fix T81925: incorrectly skipped string copy in test_env_path
 Referenced by commit ef5d6e9c457, Fix T81925: incorrectly skipped string copy in test_env_path
 Referenced by issue #81925, Splash Screen can not be closed
+Referenced by issue #74510, Various Addons using filesystem properties (PROP_FILEPATH etc): UnicodeDecodeError: 'utf-8' codec can't decode byte 0xe0 in position 24: invalid continuation byte
