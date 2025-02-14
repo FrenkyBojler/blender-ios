@@ -1,2 +1,3 @@
 Referenced by commit ba274d20b4f, Fix T95959: crash when exporting subdivision to Alembic
 Referenced by issue #93906, Alembic not importing UVs (if file incorrectly sets geoScope to kVertexScope - even though actual data implies kFacevaryingScope - which 2.93 handled gracefully)
+Referenced by issue #88581, Python: setting editbone length flips bone Z axis
