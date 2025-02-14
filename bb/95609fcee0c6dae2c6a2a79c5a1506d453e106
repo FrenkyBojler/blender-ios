@@ -1,0 +1,1 @@
+Referenced by issue #101679, Duplicate objects are created when a library overridden collection has new objects added that are then also overridden.
