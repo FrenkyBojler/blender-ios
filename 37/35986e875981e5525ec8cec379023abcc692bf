@@ -1,1 +1,2 @@
 Referenced by issue #87650, Eevee AO glowing in material preview, short range at default trace precision.
+Referenced by issue #87440, EEVEE -  Specular Light Viewport Render Pass Behavior (AO and Screenspace Reflection - Over-Darkening Effect on Metallic Object)
