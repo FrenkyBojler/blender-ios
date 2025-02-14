@@ -1,2 +1,3 @@
 Referenced by commit 444a42e71c7, Fix: Duplicate "Tool" geometry nodes menu with asset catalog
 Referenced by commit 78a7d5cfccd, UI: Support C defined menu types to listen to notifiers
+Referenced by commit 99e5024e97f, UI: Support refreshing menu popups
