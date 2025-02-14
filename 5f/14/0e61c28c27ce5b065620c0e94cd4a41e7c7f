@@ -3,3 +3,4 @@ Referenced by issue #67359, Keyframes for material animations don't appear
 Referenced by issue #67313, Wavelength Color not working
 Referenced by issue #67195, denoising or using denoise passes on multiple GPUs is very slow
 Referenced by issue #64843, Particle Edit mode for non hair particles - 2 Crashes
+Referenced by issue #57936, Mesh modeling performance regressions
