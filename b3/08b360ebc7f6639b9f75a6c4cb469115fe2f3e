@@ -1,0 +1,1 @@
+Referenced by commit 1b0cef86fa8, Fix UNIX crash on startup when HOME isn't set
