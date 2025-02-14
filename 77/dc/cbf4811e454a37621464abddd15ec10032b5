@@ -1,3 +1,4 @@
 Referenced by issue #52943, Curves with no mesh, are still synced to cycles.
 Referenced by issue #52860, Text - Ctrl backspace when text is highlighted then typing crashes blender
 Referenced by issue #52851, Per-frame traking is broken
+Referenced by issue #52840, New Depsgraph - Mask editor not working correctly
