@@ -13,3 +13,4 @@ Referenced by issue #96550, Project opened on windows looses vertex groups on Li
 Referenced by issue #96494, Crash when a curve object got an array modifier with a mesh object containing a vertex group set as cap
 Referenced by issue #94634, regression, instanced object can't have different vertex group names (preventing instances to be rigged to other bones)
 Referenced by issue #94128, Vertex groups of fake user mesh data go missing when loading old files in 3.0
+Referenced by issue #93892, Change bone name cause vertex group not working until select another vertex group
