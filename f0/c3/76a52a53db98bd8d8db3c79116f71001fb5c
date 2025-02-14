@@ -3,3 +3,4 @@ Referenced by issue #80749, Principled volume doesn't work with EEVEE
 Referenced by issue #80630, Use-after-free when rendering material previews
 Referenced by issue #80614, blender2.90.0 Eevee Volumetrics not working
 Referenced by issue #80396, Potential candidates for corrective releases
+Referenced by issue #80332, Principle Volume in World Shader is not working
