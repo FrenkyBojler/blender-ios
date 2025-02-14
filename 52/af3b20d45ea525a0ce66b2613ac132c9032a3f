@@ -1,1 +1,2 @@
 Referenced by commit 2580d2bab50, PyAPI: Expose event.type_prev, value_prev
+Referenced by issue #99102, Regression: Information provided by event.value changed in 3.2
