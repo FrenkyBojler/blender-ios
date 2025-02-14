@@ -1,1 +1,2 @@
 Referenced by commit edee5a947b7, Revert "GPUShaderCreateInfo for interface abstraction"
+Referenced by issue #95341, Gpu shaders color from 3.1 do not match those in 3.0
