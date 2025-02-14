@@ -1,1 +1,2 @@
 Referenced by issue #108219, STL import crashes Blender
+Referenced by issue #106783, Regression: Recent MPoly refactor causes crash during FBX or 3DS import
