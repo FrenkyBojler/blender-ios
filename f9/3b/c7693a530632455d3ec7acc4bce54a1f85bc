@@ -45,3 +45,4 @@ Referenced by issue #40498, 3D-View Error: Backface-Culling shown with 'Textured
 Referenced by issue #40494, Align View doesn't work properly in sculpting mode when object's center is not at world origin.
 Referenced by issue #40474, Sculpt Mode: Smooth Shading checkbox
 Referenced by issue #40461, Rotation handles inverted/don't work with Intel HD Graphics 4000
+Referenced by issue #40454, Soft body render misses
