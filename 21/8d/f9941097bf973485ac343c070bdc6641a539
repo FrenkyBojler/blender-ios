@@ -1,1 +1,2 @@
 Referenced by commit d9a530c55e8, Fix compile error without `WITH_OCEANSIM` enabled
+Referenced by issue #83952, Crash to desktop with too high number in the ocean modifier resolution viewport value
