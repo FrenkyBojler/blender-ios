@@ -1,1 +1,2 @@
 Referenced by commit 1885bf77b67, Fix T80013: Crash when toggling maximized area
+Referenced by issue #79944, Tooltip that appears on adding meshes, moving, etc. is called "redo" when minimised.
