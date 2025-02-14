@@ -11,3 +11,4 @@ Referenced by issue #66979, Can not set one image node to non-color without chan
 Referenced by issue #66985, Texture color space in shader editor resets every time i import textures
 Referenced by issue #65332, Texture Image Node's Color Space Are Linked When Using Duplicates Of The Same Texture.
 Referenced by issue #64750, Allow OpenGL image drawing in UI colour space
+Referenced by issue #63571, "Disable hard coded Color Space texture setting" checkbox
