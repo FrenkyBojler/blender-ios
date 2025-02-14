@@ -1,2 +1,3 @@
 Referenced by issue #48648, Very recent buildbot build quits on various scenes when Cycles render starts
 Referenced by issue #48568, Lattice Shapekeys broken
+Referenced by issue #48571, Cycles/GPU - A lot of fireflies is this scene (mostly from Buildbot)
