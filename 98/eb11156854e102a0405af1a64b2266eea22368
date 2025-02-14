@@ -1,0 +1,1 @@
+Referenced by issue #97366, Regression: Numbers are replaced in image file names with "<UDIM>" and fails to open them
