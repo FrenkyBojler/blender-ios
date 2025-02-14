@@ -1,2 +1,3 @@
 Referenced by commit 599e52119f0, Fix #107101: Update depsgraph on muting VSE channel
 Referenced by issue #107116, Fix #107101: Update depsgraph on muting VSE channel
+Referenced by issue #107101, Sound plays in sequencer despite channel being muted
