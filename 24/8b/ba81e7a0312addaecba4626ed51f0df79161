@@ -1,2 +1,3 @@
 Referenced by issue #52436, Importing keyconfig mess up blender configuration SHIFT + A opens ADD menu and at the same time popups new external 3D window
 Referenced by issue #52262, 2.79-rc1 "dri2 connection failed"
+Referenced by issue #52197, Knife Tool not working properly in Camera View
