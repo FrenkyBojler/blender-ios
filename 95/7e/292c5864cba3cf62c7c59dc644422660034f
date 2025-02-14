@@ -1,2 +1,3 @@
 Referenced by commit 36f0a1ead7c, Fix T84823: crash rendering with unconnected input socket in File Output node
 Referenced by issue #84823, Adding more inputs to the File Output node and then hit render crashes Blender
+Referenced by issue #64953, Cryptomatte - File Output node is messing up the multilayer exr (metadata), so blender cryptomattes cannot be read properly in external compositors
