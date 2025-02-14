@@ -1,1 +1,2 @@
 Referenced by commit 9ef62fb13a9, Fix: missing grease pencil select menu
+Referenced by issue #109403, Classic GP Stroke not highlighted when selected (GPv3 Stroke does not show at all)
