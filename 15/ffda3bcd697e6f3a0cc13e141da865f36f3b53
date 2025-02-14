@@ -1,1 +1,2 @@
 Referenced by issue #87064, Fix: Avoid memory mapping a zero length file
+Referenced by issue #82602, Checking image header reads past buffer bounds
