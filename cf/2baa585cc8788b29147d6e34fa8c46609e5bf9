@@ -1,2 +1,3 @@
 Referenced by commit ffddf9e5c91, Fix T93338: Curve Guide force field crash
 Referenced by commit 6a0906c09a2, Fix T87854: Add clamp option to Path Animation
+Referenced by issue #93338, Curve Guide force field causes crash
