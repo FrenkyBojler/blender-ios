@@ -2,3 +2,4 @@ Referenced by issue #62312, All transforms made before or after Inset or Bevel a
 Referenced by issue #62279, Rendering simple geometry corrupts with greasepencil layer
 Referenced by issue #62220, Solid shading mode - Shadow glitch
 Referenced by issue #62161, Remembering values
+Referenced by issue #62162, Bones set to unselectable can't be fully selected through the viewport in edit mode.
