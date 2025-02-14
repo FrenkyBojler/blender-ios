@@ -1,3 +1,4 @@
 Referenced by issue #120380, Regression: The same glass shader works in different ways
 Referenced by issue #116917, Diffuse colour pass displaying some shading.
 Referenced by issue #96719, Cycles: Principled BSDF: materials with Sepcular within close proximity to 12.5 are completely black
+Referenced by issue #63938, Principled Shader - specular value 12.5
