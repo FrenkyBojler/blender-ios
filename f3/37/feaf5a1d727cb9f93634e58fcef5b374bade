@@ -93,3 +93,4 @@ Referenced by issue #47294, Particle hair textures do not work properly when "Em
 Referenced by issue #47273, Cycles GPU performance regression on Nvidia's Maxwell cards
 Referenced by issue #47276, Offset between mouse pointer and new node when insert a node from "search" feature in Node Editor
 Referenced by issue #47281, Blender crashes randomly on freshly installed windows 10 (OpenGL)
+Referenced by issue #47265, Search-to-add node by name report the list of node untranslated
