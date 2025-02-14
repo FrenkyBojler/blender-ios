@@ -1,2 +1,3 @@
 Referenced by commit 1b1e9471625, Fix T94600: Apply single shrinkwrap constraint fails
 Referenced by issue #96032, Wrongly applying constraint make crashing Blender
+Referenced by issue #93987, Disable Constraint Drivers Not Visible When Opening Older Files in 3.0
