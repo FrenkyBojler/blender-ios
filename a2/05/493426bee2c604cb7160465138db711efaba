@@ -8,3 +8,4 @@ Referenced by issue #58739, Camera Location, keyframe Bug
 Referenced by issue #58725, controlling camera movement with keyframes
 Referenced by issue #58685, Weight paint not painting on mesh in new pose
 Referenced by issue #58673, Blender 2.8 Beta - Geometry disappearing when extrude or grab while in "user perspective (local)"
+Referenced by issue #58659, Absolute grid snap don't work properly with custom grid scale
