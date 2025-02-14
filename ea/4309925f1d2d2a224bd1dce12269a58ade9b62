@@ -1,1 +1,2 @@
 Referenced by commit b2510b9e20a, Fix T89271: Selecting all vertices doesn't select all edges.
+Referenced by issue #95165, Regression: Custom Normals tools dont update immediately (when started with Auto Smooth OFF)
