@@ -50,3 +50,4 @@ Referenced by issue #58936, Crash after switching between collections in scene.
 Referenced by issue #58796, Blender causes BSOD
 Referenced by issue #58524, Cycles Compute Device only shows "none".
 Referenced by issue #58169, Blender crush down when open a scene! Unusual bug!
+Referenced by issue #58121, Textures orphaned when loading .blend files from prior versions of blender.
