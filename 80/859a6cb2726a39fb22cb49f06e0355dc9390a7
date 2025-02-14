@@ -30,3 +30,4 @@ Referenced by issue #98231, Regression: Material Output inside node group not wo
 Referenced by issue #98190, Render of 3D image is very slow
 Referenced by issue #98128, Regression: EEVEE: Default Cube is black on Intel
 Referenced by issue #98026, Regression: Crash when rendering with Eevee and Cryptomatte passes enabled
+Referenced by issue #97983, Regression: Tangent Normal of Curves info behaves differently in Eevee
