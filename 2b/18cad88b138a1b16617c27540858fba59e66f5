@@ -1,3 +1,4 @@
 Referenced by issue #133088, Applying pose as rest pose on armature with stretch to bone constraint deforms armature
 Referenced by issue #132111, Desktop Background and Taskbar Turn Black During Transformations in Blender 4.3.0
 Referenced by issue #131705, Crash when hovering over a UI component created with layout.prop_with_menu
+Referenced by issue #130743, Activating search menu via hotkey or from context menu crashes blender
