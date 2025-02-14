@@ -1,1 +1,2 @@
 Referenced by issue #81202, Mantaflow liquid sim mesh won't have speed vectors with OpenVDB as cache method
+Referenced by issue #78442, Mantaflow: motion blur does not work on liquids cached with OpenVDB format
