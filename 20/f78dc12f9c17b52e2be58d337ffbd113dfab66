@@ -1,0 +1,1 @@
+Referenced by issue #61430, window_manager.invoke_popup() does not respect preferences.view.ui_scale
