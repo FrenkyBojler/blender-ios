@@ -1,0 +1,1 @@
+Referenced by issue #44033, shadeinput.c and zbuf.c... out of bounds memory indexing?
