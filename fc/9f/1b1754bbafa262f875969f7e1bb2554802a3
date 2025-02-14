@@ -1,0 +1,1 @@
+Referenced by issue #81988, Surface Deform modifier results in arbitrary vertices extending away from the object's origin, rather than responding to the target mesh
