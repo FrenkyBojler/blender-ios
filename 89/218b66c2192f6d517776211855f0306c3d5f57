@@ -1,2 +1,3 @@
 Referenced by commit be9555d1181, EEVEE: change Glass BSDF to match Cycles
 Referenced by commit 2ed108cb84c, Fix EEVEE: Broken Normals and Transparency
+Referenced by issue #114956, blender 4.0 : Transmission Roughness is missing in Principled BSDF, preventing some textures from being used correctly in previous versions
