@@ -1,3 +1,4 @@
 Referenced by commit 9f12ea496a3, Fix T80477: Crash when rendering with Embree but denoising with OptiX
 Referenced by issue #81116, Blender 2.90.1 crashing when OptiX viewport denoising is enabled
 Referenced by issue #80477, Viewport Optix Denoiser is available when Cycles Render Device is set to None/CUDA, leading to a crash
+Referenced by issue #80396, Potential candidates for corrective releases
