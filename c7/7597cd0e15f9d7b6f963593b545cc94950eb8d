@@ -2,3 +2,4 @@ Referenced by issue #102308, Grease Pencil depth merge is broken when multiple G
 Referenced by issue #100261, Crash at startup on Linux - all recent Blender versions
 Referenced by issue #97926, RigidBody simulation creates ERRATIC motion between frames
 Referenced by issue #97718, Regression: Crash Using Text on Curve
+Referenced by issue #97404, crash Blender 3D
