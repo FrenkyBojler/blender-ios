@@ -5,3 +5,4 @@ Referenced by commit 352d55b1c88, Mesh: Avoid saving redundant generic material 
 Referenced by commit ecf3287533c, Fix T100822: Merging objects does not assign materials correctly
 Referenced by commit 6ee34319147, Fix: Use of deprecated field in legacy MFace conversion
 Referenced by issue #105577, Python API allows setting negative material indices
+Referenced by issue #105518, Regression: Crash in edit mode with boolean and subdivision modifier
