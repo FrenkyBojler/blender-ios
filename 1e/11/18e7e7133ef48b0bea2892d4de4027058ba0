@@ -14,3 +14,4 @@ Referenced by issue #47738, Blender segmentation fault when Right-clicking on an
 Referenced by issue #47721, viewport preview bounding box dotted line moves near sculpt brush during sculpting with multiresolution modifier
 Referenced by issue #47711, Cloth simulation bug
 Referenced by issue #47718, Too high default strength for hair particle brushes
+Referenced by issue #47702, Freestyle not fully drawing edge marked lines in Blender Render
