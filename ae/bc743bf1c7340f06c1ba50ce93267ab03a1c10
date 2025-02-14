@@ -1,1 +1,2 @@
 Referenced by issue #110504, Segfault after F12 render with multi-GPU Intel ARC A770 and experimental oneAPI packages on Debian
+Referenced by issue #110485, Regression: Connecting this socket crashes Blender
