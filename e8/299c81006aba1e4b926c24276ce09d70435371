@@ -65,3 +65,4 @@ Referenced by issue #50343, Meta Families
 Referenced by issue #50333, Blender closes when using texture paint in 3d view
 Referenced by issue #50285, Sculpt mode, matcap, multires
 Referenced by issue #50274, Crash opening User Preferences window while in Fullscreen mode and Unable to use Alt+Tab
+Referenced by issue #50275, numpy arctan2 gives incorrect angles
