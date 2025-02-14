@@ -7,3 +7,4 @@ Referenced by issue #103610, Some meshes causing crash on file opening since Ble
 Referenced by issue #103520, Regression: Using Bright/Contrast option on selected faces (paintmask) in Vertex Paint mode broken
 Referenced by issue #103143, Regression: Cycles doesn't use default color attributes with face corner domains.
 Referenced by issue #102852, Dyntopo warning will always activate when there is an element of the mesh selected in edit mode
+Referenced by issue #102318, Regression: Smoothing a Mesh in Edit Mode Causes Segmentation Fault
