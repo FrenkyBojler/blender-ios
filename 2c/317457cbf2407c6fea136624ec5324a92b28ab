@@ -1,3 +1,4 @@
 Referenced by commit fab772860d9, Asset browser: workspace in the wrong category
 Referenced by issue #82648, Grease Pencil drawing next to objects using 3D cursor and View mode previews
 Referenced by issue #81820, difference in rendering of alpha material between 2.90 and 2.91 (Eevee)
+Referenced by issue #77658, Reflection Plane partially missing reflections in EEVEE
