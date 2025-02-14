@@ -30,3 +30,4 @@ Referenced by issue #56062, Deleting Node with driver attach causes crash
 Referenced by issue #55902, Blender crashes when i want to open attatched File
 Referenced by issue #55412, Crop+full sample crashes blender (blender internal render)
 Referenced by issue #55307, 2.79 crashing after a few minutes, or when opening user preferences
+Referenced by issue #55271, GPU problem with camera position.
