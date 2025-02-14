@@ -1,3 +1,4 @@
 Referenced by commit 110373de6a5, Fix T53638: View layer renaming crashes 2/2
 Referenced by commit 94d40aca0c6, Fix doversion crash with 2.8 files that had freestyle 2.8
 Referenced by commit 15a0ad60274, Fix multi layer/multi pass render
+Referenced by issue #53638, View layer renaming crashes
