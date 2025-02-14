@@ -1,1 +1,2 @@
 Referenced by issue #100835, Crash when renaming lattice modifier and then entering edit mode
+Referenced by issue #100820, Regression: Crash when renaming a modifier when other modifier's visibility is driven by a driver
