@@ -1,2 +1,3 @@
 Referenced by commit 8aaca884029, Fix missing relation in compositor depsgraph
 Referenced by commit d865ad59fc3, Cleanup: Depsgraph, remove unused `Base *` parameter
+Referenced by issue #78071, Object drivers driven by outliner visibility not updating automatically
