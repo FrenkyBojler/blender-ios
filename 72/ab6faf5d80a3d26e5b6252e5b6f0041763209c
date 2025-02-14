@@ -1,1 +1,2 @@
 Referenced by commit 6385296e568, Fix #127651: Properly load generated UDIM image tiles in Cycles
+Referenced by commit 0c0885d3239, Fix #117411: In memory UDIMs fail to pack correctly
