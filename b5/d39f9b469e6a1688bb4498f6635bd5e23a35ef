@@ -1,1 +1,2 @@
 Referenced by issue #86087, Assert when changing compositor node value or invoking tooltip
+Referenced by issue #85979, Geometry nodes warning of missing attributes even when the geometry contains no data
