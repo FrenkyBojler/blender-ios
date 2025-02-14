@@ -3,3 +3,4 @@ Referenced by issue #63596, Keyframed group inputs bound to index not property
 Referenced by issue #63562, Changing group input stack doesn't update group node-tree
 Referenced by issue #63557, 2.8 Crashes on the startup
 Referenced by issue #63538, Vector transform node with constant input difference in Cycles and Eevee
+Referenced by issue #63509, Crash when enter in Edit Mode and try to a vertice.
