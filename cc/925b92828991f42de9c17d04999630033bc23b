@@ -4,3 +4,4 @@ Referenced by issue #107273, Regression: Group input is not listed in the node s
 Referenced by issue #106879, Regression: Texture Node add search is broken
 Referenced by issue #106138, Regression: Search in shader node editor exposes nodes that are not available in the current renderer
 Referenced by issue #105198, Regression: Node Editor: Search doesn't find the Frame or Reroute nodes
+Referenced by issue #103108, Regression: NODE_OT_add_search ignores NodeItems entries
