@@ -45,3 +45,4 @@ Referenced by issue #47977, Multiple change of dimensions doesn't work properly
 Referenced by issue #47978, Remesh modifier causes splitting wrongly
 Referenced by issue #47963, Weird blur over icons ? ? ?
 Referenced by issue #47965, Panoramic Camera Dropdown doesn't change when selecting Panoramic type.
+Referenced by issue #47967, Select next active does not work with some ngons
