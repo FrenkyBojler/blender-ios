@@ -1,1 +1,2 @@
 Referenced by commit 266caa18209, Fix T76755: texture paint on udims crash
+Referenced by issue #76757, texture paint crash
