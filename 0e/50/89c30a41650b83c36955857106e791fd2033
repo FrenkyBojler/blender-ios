@@ -16,3 +16,4 @@ Referenced by issue #49259, GLSL render doesn't consider custom transform
 Referenced by issue #49247, Adaptive Subdivision Problem
 Referenced by issue #49249, Alembic export with multiple hair systems crash blender
 Referenced by issue #49251, Moving smoke domain when additional resolution is increased causes blender to crash
+Referenced by issue #49253, Cycles blackbody shader-node doesn't  look the same with CPU, OSL and GPU.
