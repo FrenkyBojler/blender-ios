@@ -1,3 +1,4 @@
 Referenced by issue #51495, expose normal map color node problem
 Referenced by issue #51502, Cycles denoising: black bars and motion-blur like distortion w/ GPU rendering
 Referenced by issue #51490, template system can lead to crash after reloading new file
+Referenced by issue #51153, VSE Interlaced Video FPS not being honored
