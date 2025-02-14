@@ -1,0 +1,1 @@
+Referenced by issue #44815, bpy.ops.graph.sound_bake() doesn't check valid filepath
