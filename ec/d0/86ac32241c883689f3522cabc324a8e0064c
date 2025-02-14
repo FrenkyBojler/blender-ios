@@ -1,2 +1,3 @@
 Referenced by issue #62254, Hair object mode not rendering in right view of sterescopic mode
 Referenced by issue #62231, Add Sphere, adjust Rings, Crash
+Referenced by issue #62210, Python Kd-tree hangs  blender on code below (2.8 win10)
