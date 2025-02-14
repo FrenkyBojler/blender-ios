@@ -1,1 +1,2 @@
 Referenced by issue #104902, Addon BoolProperty saved in 3.5 does not preserve value when opened in earlier Blender versions
+Referenced by issue #85306, Use boolean in the modifier for exposed boolean node group inputs
