@@ -1,2 +1,3 @@
 Referenced by issue #124416, Opening the `brush_essentials_thumbnails.blend` crashes blender
 Referenced by issue #123935, Grease Pencil Layer available in Domain Size and Viewer nodes
+Referenced by issue #129967, GP keyframes invisible in dopesheet in VSE/node/image editor
