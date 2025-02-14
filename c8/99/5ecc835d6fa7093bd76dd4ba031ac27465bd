@@ -3,3 +3,4 @@ Referenced by issue #42864, Knife Project bad precision
 Referenced by issue #42834, Scaling in global axis does not work correctly if the object has rotation
 Referenced by issue #42837, Sculpt lagging after restarting blender with VBO set
 Referenced by issue #42844, Compositor scale offset
+Referenced by issue #42822, constraint transform dont use local axis
