@@ -6,3 +6,4 @@ Referenced by issue #38235, Strange Bone Behaviour in Editmode
 Referenced by issue #38243, Blender crashes while GPU Cycles viewport and usual rendering
 Referenced by issue #38226, critical 3d view transform and manipulator issues.
 Referenced by issue #38228, Grease Pencil curve creation issue
+Referenced by issue #38229, Shadeless option has no effect when GLSL is enabled
