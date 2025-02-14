@@ -1,2 +1,3 @@
 Referenced by issue #39189, Node editor Map Uv requires an scale node to work
 Referenced by issue #37978, Switching material output nodes is unpredictable
+Referenced by issue #37920, Repeatedly calling LibLoad and LibFree on the same library / blend will cause a crash.
