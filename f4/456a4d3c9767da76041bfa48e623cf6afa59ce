@@ -1,1 +1,2 @@
 Referenced by commit 16d329da284, Compositor: add pre/post/cancel handlers and background job info
+Referenced by issue #123086, Refactor: Consistent WM jobs API; avoid function pointers as identifiers
