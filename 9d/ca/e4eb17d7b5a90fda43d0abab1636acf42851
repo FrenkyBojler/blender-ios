@@ -1,1 +1,2 @@
 Referenced by commit 51c7a854fe2, Fix T81057: PoseBone Constraints are displayed in Object Constraints tab
+Referenced by issue #81164, Switching to pose mode occurs crashes (2.90.1, fixed in master)
