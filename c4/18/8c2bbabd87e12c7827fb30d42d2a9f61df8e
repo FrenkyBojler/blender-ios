@@ -1,1 +1,2 @@
 Referenced by issue #46939, Mesh explodes and massive slowdown with VBO default on
+Referenced by issue #46874, Texture Painting fails on a face that is partly behind viewport camera / outside of view
