@@ -1,2 +1,3 @@
 Referenced by issue #47271, "Copy Vertex Group to Selected" won't update viewport
 Referenced by issue #47250, OpenVDB crash
+Referenced by issue #46492, GGX distribution produces black pixels
