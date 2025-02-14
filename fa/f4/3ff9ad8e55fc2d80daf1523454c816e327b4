@@ -3,3 +3,4 @@ Referenced by issue #56267, on EEVEE, Glass BSDF + procedural textures bug
 Referenced by issue #56258, Blender 2.8 crash with modifier stack + separate by selection
 Referenced by issue #56263, Crash when sculpting a GP object with animation
 Referenced by issue #56251, Outliner crash on selecting nested
+Referenced by issue #56239, Blender 2.8 crashes upon creating material in OpenGL mode
