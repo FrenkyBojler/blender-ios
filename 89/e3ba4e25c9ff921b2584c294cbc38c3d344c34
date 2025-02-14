@@ -5,3 +5,4 @@ Referenced by issue #122344, Exporting PLY with Vertex Normals ON + Importing PL
 Referenced by issue #119997, Regression: Baked Normal Map From Multiresolution Produces Strange Result on edges with crease
 Referenced by issue #119447, Auto Smooth versioning modifiers appearing on Append
 Referenced by issue #118118, Smooth By Angle (Node Group 4.1) Does not work in older Blenders!
+Referenced by issue #117603, Replacing auto smooth with node group is not done on appending from old files into 4.1
