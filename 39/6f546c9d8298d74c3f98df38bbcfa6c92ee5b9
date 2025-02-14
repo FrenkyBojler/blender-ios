@@ -8,3 +8,4 @@ Referenced by issue #127134, Curve Guide Min Distance (Influnce Area) are Repell
 Referenced by issue #127048, Blender crashes in Ubuntu 24.04
 Referenced by issue #126818, The --cycles-device command line option does nothing
 Referenced by issue #126792, Extensions - fail to install extension from cli
+Referenced by issue #126566, Crashes, when using Smoke and cycles (AMD HIP)
