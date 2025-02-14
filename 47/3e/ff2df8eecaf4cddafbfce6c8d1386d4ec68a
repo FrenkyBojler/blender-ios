@@ -1,0 +1,1 @@
+Referenced by issue #47422, "Too many fonts!!!" gets printed on the console after repeatedly calling bpy.ops.wm.read_factory_settings()
