@@ -1,2 +1,3 @@
 Referenced by issue #56338, Blender 2.80 GEFORCE GTX 980: CUDA error.
 Referenced by issue #56267, on EEVEE, Glass BSDF + procedural textures bug
+Referenced by issue #56258, Blender 2.8 crash with modifier stack + separate by selection
