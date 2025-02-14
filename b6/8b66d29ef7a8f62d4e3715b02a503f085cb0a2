@@ -1,1 +1,2 @@
 Referenced by commit a6a32a8279f, Quiet compiler warning from b68b66d29ef7a8f62d4e3715b02a
+Referenced by issue #108917, Policy: disallow unsafe string manipulation functions
