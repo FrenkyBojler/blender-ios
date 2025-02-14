@@ -1,1 +1,2 @@
 Referenced by commit cd9d4e992d6, macOS: replace BLI_expand_tilde with BLI_dir_home
+Referenced by issue #128608, Vulkan: Cycles: Blender crash
