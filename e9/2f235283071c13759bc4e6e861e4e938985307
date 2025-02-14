@@ -68,3 +68,4 @@ Referenced by issue #51470, Alembic imports only two frames of animations when v
 Referenced by issue #51452, EnumProperty fill dynamically using callback
 Referenced by issue #51438, Texture ignores object coord in viewport
 Referenced by issue #51404, Wrong behaviour of property name used in a sensor
+Referenced by issue #51388, Mask moves when zoom is changed in the movie clip editor
