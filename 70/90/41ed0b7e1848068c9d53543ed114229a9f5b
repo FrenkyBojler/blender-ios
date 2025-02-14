@@ -1,3 +1,4 @@
 Referenced by issue #40712, "From Dupli" in Cycles Texture Coordinates not working
 Referenced by issue #39341, Cycles Rendered view laggy while using particles
 Referenced by issue #39045, Particle system display error
+Referenced by issue #38168, Crash on exiting game engine from dynamic addition of variance spotlight.
