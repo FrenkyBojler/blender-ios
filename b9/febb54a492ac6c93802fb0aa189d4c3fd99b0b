@@ -5,3 +5,4 @@ Referenced by issue #101270, Regression: 'Object Info' 'Random' always gives the
 Referenced by issue #100706, Regression: Instanced NURBs or CURVES on mesh vertices are not visible in 3.2+
 Referenced by issue #99088, Regression: When making a collection real, curves with depth in the collection are instantiated twice
 Referenced by issue #97151, Regression: Crash: Vertex Parent + SimpleDeform modifier with origin / Apply on Spline
+Referenced by issue #96167, Regression: Curve wire line not displayed in wireframe display mode when it has evaluated mesh/point/volume
