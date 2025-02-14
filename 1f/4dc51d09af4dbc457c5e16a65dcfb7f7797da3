@@ -1,2 +1,3 @@
 Referenced by issue #101004, Regression: Segfault when CTRL key hit
 Referenced by issue #100986, Materials are not locked to faces during edits
+Referenced by issue #100974, Voxel Remesh always resetting to its default values
