@@ -1,2 +1,3 @@
 Referenced by commit a70953242d4, Cleanup: Calm Warning
 Referenced by issue #115776, BMesh data copy with many layers is extremelly slow (100x slower) compared to blender 3.6
+Referenced by issue #111332, Regression: Files from last 4.0 can not be saved in 3.6.2 due to undefined region type
