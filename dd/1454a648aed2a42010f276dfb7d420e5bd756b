@@ -1,1 +1,2 @@
 Referenced by commit 6e0223a04c3, Fix #127356: Expand face set snapping doesn't work
+Referenced by commit 0adeeae2c72, Fix: Sculpt: Performance regression in expand operator
