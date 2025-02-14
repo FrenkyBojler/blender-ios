@@ -1,1 +1,2 @@
 Referenced by commit 609ac5e378e, Fix crash dragging images into the animation player (again)
+Referenced by issue #114654, Fix animation player bug upon shutdown
