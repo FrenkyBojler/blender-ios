@@ -1,1 +1,2 @@
 Referenced by commit f4755ef695f, Fix edit-mesh select crash when using face-dots
+Referenced by commit b019d8b2fe8, Fix edit-mesh face-dot drawing check
