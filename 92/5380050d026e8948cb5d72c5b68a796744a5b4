@@ -1,2 +1,3 @@
 Referenced by issue #58902, "Texture Paint" Workspace causes Traceback Error Popup
 Referenced by issue #58668, Selecting/editing multiple values at once in properties panel causes misalignment
+Referenced by issue #58569, Crash when a volume shader is plugged into the volume output of a smoke domain when no smoke is present.
