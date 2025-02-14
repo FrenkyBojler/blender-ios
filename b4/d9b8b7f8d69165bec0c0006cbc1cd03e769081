@@ -1,1 +1,2 @@
 Referenced by issue #92455, Regression: Blender 3.0.0: Cycles: Hair transmission: GlossInd, TransInd passes
+Referenced by issue #91893, Cycles Regression: Not all information from "Multiscatter GGX" in the "Glass BSDF" is saved to render passes
