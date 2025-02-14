@@ -1,0 +1,1 @@
+Referenced by issue #60602, Pose bones' selection doesn't update in the viewport if it was changed outside of the viewport.
