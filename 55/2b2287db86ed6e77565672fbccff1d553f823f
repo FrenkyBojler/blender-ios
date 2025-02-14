@@ -5,3 +5,4 @@ Referenced by issue #61114, Pen Input Lag in 2.8 Beta on Windows Ink in first 2 
 Referenced by issue #61104, Compositing two scenes with different output scales crashes blender
 Referenced by issue #61111, Mapping node values get stuck after setting a keyframe
 Referenced by issue #61089, Not really a bug but a difference between 2.8 and 2.79 (and previous)
+Referenced by issue #61092, Triple click needed to add edge ring to an existing selection
