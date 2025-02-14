@@ -1,2 +1,3 @@
 Referenced by commit b25e67189c8, Fix #125228: Image Editor Memory leaks showing image tooltip thumbnail
 Referenced by issue #125231, Fix #125228: Image Editor Memory leaks showing image tooltip thumbnail
+Referenced by issue #125228, Image Editor: Memory leaks when showing image thumbnail on dropdown
