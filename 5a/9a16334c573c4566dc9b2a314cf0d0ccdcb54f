@@ -1,1 +1,2 @@
 Referenced by commit 217e0a2ce61, Fix T95262: instances ignored in Frame Selected operator
+Referenced by commit eaa35b27e0a, Fix T91311: incorrect batch generation for instances
