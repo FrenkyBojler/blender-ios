@@ -1,2 +1,3 @@
 Referenced by issue #60871, Massive slowdown when switching to wireframe mode to see your mesh density while in sculpt mode
 Referenced by issue #60630, 2.8 crash - does not complete cycles texture bake
+Referenced by issue #58477, Mirror Modifier does not work with Bezier curves in Workbench, Eevee and partially Cycles
