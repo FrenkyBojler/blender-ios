@@ -23,3 +23,4 @@ Referenced by issue #48274, F-Curve channel name doesn't appear
 Referenced by issue #48215, Linux crash - Right clicking on any mesh will instantly crash Blender
 Referenced by issue #48199, Shift O no longer cycles through all Falloff Types in Proportional Edit mode
 Referenced by issue #48180, No checker pattern displayed for alpha transparency areas in rendered image
+Referenced by issue #48162, GPU render issue, CPU renders fine (Volumetric Emission)
