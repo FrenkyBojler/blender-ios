@@ -63,3 +63,4 @@ Referenced by issue #44798, Force fields still affect rigid bodies after force f
 Referenced by issue #44782, Parent actuator causes blender to crash
 Referenced by issue #44784, Snapping while duplicating a clip in video editor causes a crash
 Referenced by issue #44760, VSE: Continuus Camstudio clip changes framerate after an image clip.
+Referenced by issue #44751, ambient update bug
