@@ -1,2 +1,3 @@
 Referenced by issue #84397, Creating and removing many objects very quickly causes a crash
 Referenced by issue #84091, Crash when going to Properties Editor object properties with Custom Property containing nested dictionary [named "asset_data"]
+Referenced by issue #82819, Merge Asset Browser Milestone 1 (Not Necessarily Feature-Complete)
