@@ -1,0 +1,1 @@
+Referenced by issue #88365, GPUTexture.read does not respect texture color-depth
