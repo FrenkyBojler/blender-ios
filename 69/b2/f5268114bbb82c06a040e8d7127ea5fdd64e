@@ -7,3 +7,4 @@ Referenced by issue #61426, Boolean Modifier Cancels UV Mapping
 Referenced by issue #61408, NormalMap input causing Material Viewport issue in dual 3DView Layout
 Referenced by issue #61403, zoom/translate of viewport locks up
 Referenced by issue #61373, Often crashes in edit mode
+Referenced by issue #60479, Unable to select vertices on right side of model
