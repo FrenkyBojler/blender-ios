@@ -2,3 +2,4 @@ Referenced by issue #65996, metaballs converted to meshes appear to render at an
 Referenced by issue #65696, Sequencer fails to create a new sound sequence strip via Python
 Referenced by issue #65471, unable to select other objects if an armature is in pose mode, even if Lock Object Modes is unchecked
 Referenced by issue #65295, Regression: Converting a curve to mesh does not take the use of a bevel object into account when you have Keep Original checked in the Redo Panel.
+Referenced by issue #53498, baking normal map using cycles does not support custom vertex normals on the baking target mesh
