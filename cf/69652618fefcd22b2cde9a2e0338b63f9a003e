@@ -1,2 +1,3 @@
 Referenced by commit d3b3d723037, Fix T98520: Sculpt operators can unintentionally clear multires mask
 Referenced by commit ea5bfedb492, Cleanup: Further use of const for retrieved custom data layers
+Referenced by issue #98520, Regression: Sculpt Mode: Operators can unintentionally clear multires mask
