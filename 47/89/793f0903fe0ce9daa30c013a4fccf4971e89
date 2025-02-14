@@ -26,3 +26,4 @@ Referenced by issue #38755, Blender 2.70 test build 1 suddenly closes without er
 Referenced by issue #38756, Vertex Slide crippled functionality
 Referenced by issue #38760, Multi-Number Button Editing doesn't work for dimensions fields
 Referenced by issue #38752, Mask scaling not working
+Referenced by issue #38741, UV/Image editor - Create new image --> Crash
