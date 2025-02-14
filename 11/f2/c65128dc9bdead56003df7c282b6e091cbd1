@@ -1,3 +1,4 @@
 Referenced by issue #60933, can't run blender 2.8 on my 32 bit windows 7 . It crashes
 Referenced by issue #60172, UV smart project fails for unselected active object
 Referenced by issue #60149, Glossy color pass for Principled Hair BSDF doesn't match melanin concentration
+Referenced by issue #60159, Toggling visibility of parent object in outliner using LMB + ctrl is broken
