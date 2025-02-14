@@ -1,2 +1,3 @@
 Referenced by issue #42374, Hair dynamics doesn't cache to disk correctly if cache step is greater than 1
 Referenced by issue #42338, issue with shortcuts
+Referenced by issue #42326, Trim operation not canceled via ESC key
