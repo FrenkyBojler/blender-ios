@@ -1,2 +1,3 @@
 Referenced by commit 6e016a451e0, Revert "Fix T63921: Unable to use confirm on release for keyboard shortcuts"
 Referenced by issue #66146, Node Editor: Node Actions not started from the mouse are directly confirmed
+Referenced by issue #63921, Execution of a predefined shortcut
