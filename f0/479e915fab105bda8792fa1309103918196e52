@@ -4,3 +4,4 @@ Referenced by issue #130078, Add cube tool grid snapping will not work on top of
 Referenced by issue #128135, Fix #126665: Restore 'Absolute Grid Snap' option
 Referenced by issue #126665, New Snap To Grid snaps to "floor"/"visible" 2-dimensional grid only (4.1 was a 3-dimensional grid)
 Referenced by issue #120109, Snap to grid crash when locking axis before selecting snap base
+Referenced by issue #119556, Grid Snap Does not work when Snap Base is Used
