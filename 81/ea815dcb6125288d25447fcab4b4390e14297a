@@ -1,3 +1,4 @@
 Referenced by issue #59489, GLIBC on CentOS 7.5
 Referenced by issue #59391, 2.80 Crash on selecting an entire collection and snappping cursor to active.
 Referenced by issue #59303, crash when clicking "change shortcut" on the contextual menu
+Referenced by issue #59287, Using the Bevel Modifier crashes Blender
