@@ -1,2 +1,3 @@
 Referenced by commit 3a92a2df451, Add versioning for 2.90 files that may have invalid mesh
 Referenced by issue #80396, Potential candidates for corrective releases
+Referenced by issue #80233, Extrude manifold operator can create 'bugged' edges.
