@@ -8,3 +8,4 @@ Referenced by issue #121452, Regression: Color attribute status lost when joinin
 Referenced by issue #114699, Fix #114657: Color attribute from applied GN modifier not active
 Referenced by issue #114657, Color attribute from applied Geometry Nodes modifier gets disabled render icon
 Referenced by issue #109443, Cannot set the Color attribute to display an object through Geometry Nodes
+Referenced by issue #107067, Active Color Attribute switches after save and reverting file
