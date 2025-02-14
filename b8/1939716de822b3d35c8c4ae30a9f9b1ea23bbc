@@ -1,2 +1,3 @@
 Referenced by issue #72151, Rendering crashes cycles on a specific tile with segfault
 Referenced by issue #72098, Crash on startup with 2.82 and Intel HD + Windows
+Referenced by issue #70378, Grease pencil armature modifier not normalizing weights as expected.
