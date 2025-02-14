@@ -32,3 +32,4 @@ Referenced by issue #94974, Incorrect normals in edit mode (especially after und
 Referenced by issue #94967, Sculpt mode crashes with missing normals
 Referenced by issue #94972, Sculpt: Crash when using Filter type inflate
 Referenced by issue #94838, Normals not properly updating when using a Deform modifier after a Data Transfer (Custom Normals) modifier
+Referenced by issue #93602, Struct of Arrays Refactor for Mesh Vertices
