@@ -1,2 +1,3 @@
 Referenced by issue #39210, Grid Fill is generating mesh that's inconsistent with selected edge loops
 Referenced by issue #39080, Could not copy certain modifier and constraint settings
+Referenced by issue #39079, Drivers: duplication won't preserve targeted objects
