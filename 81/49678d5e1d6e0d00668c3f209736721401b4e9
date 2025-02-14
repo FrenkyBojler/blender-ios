@@ -1,3 +1,4 @@
 Referenced by commit ee8e1959463, Nodes: allow identifier lookup in nodes which use dynamic declarations now
 Referenced by commit f7383cfe9b0, Geometry Nodes: use dynamic declaration for switch node
 Referenced by commit b24610053fb, Fix: crash when using attribute search in Named Attribute node
+Referenced by commit acee93bd6d6, Fix #115207: dynamically typed Viewer node
