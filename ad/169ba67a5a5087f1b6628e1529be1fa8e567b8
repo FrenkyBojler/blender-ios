@@ -1,1 +1,2 @@
 Referenced by commit e5e07c184e8, Fix: Crash deleting geometry nodes node group
+Referenced by issue #123974, Immediate crash on file open (related to "corrupt" `NodesModifierBake`)
