@@ -1,1 +1,2 @@
 Referenced by commit 76d695f7611, Fix T52490: NDOF orbit doesn't lock in ortho view
+Referenced by issue #51324, "Auto-Depth" fails when rotating out of camera view
