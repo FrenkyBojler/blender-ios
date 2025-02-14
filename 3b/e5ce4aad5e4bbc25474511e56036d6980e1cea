@@ -1,3 +1,4 @@
 Referenced by commit 4a009b54bc8, Fix broken WorkSpace use after recent refactor of append code.
 Referenced by commit b6d890672c5, Fix crash in 'drag asset' case in new append code from yesterday.
 Referenced by issue #99166, Regression: Append/Link of Object can create extra Scene
+Referenced by issue #98072, Regression: When appending a Scene, the Collections that are turned off get instanced into Current Scene
