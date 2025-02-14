@@ -11,3 +11,4 @@ Referenced by issue #88937, Mem leak when rendering on GPU
 Referenced by issue #88941, Hiding an element in a collection, where that collection has been instanced, during an animation, results in a segfault.
 Referenced by issue #88945, Constantly crashes in sculpting mode
 Referenced by issue #88893, Blender freeze while working on mesh with texture
+Referenced by issue #88811, Render crash when using Python API to modify object Attribute data in frame_change_pre handler
