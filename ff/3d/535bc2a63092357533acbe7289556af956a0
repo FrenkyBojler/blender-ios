@@ -1,2 +1,3 @@
 Referenced by commit baae87ce86d, Fix: Incorrect custom data maxlayers in rare files
 Referenced by commit 945f32e66d6, Fix crash with recent refactor of customdata writing.
+Referenced by issue #45471, .blend files saved with 2.75a contain multiple file chunks (BHead) with same pointer address
