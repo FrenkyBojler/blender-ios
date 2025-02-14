@@ -7,3 +7,4 @@ Referenced by issue #97698, Custom Normals: some operations that alter topology 
 Referenced by issue #83025, Blender 2.91.0: Knife and Merge by Distance reset normals like before 2.90.
 Referenced by issue #81190, Strange edge marks after Merge by Distance
 Referenced by issue #81060, Vertex Slide and Loop Cut and Slide tools breaks the UVs and Vertex Colors after topology changes [new or deleted] (if CustomSplitNormals are present)
+Referenced by issue #78766, Blender crashes after deleting vertices with Custom Normals
