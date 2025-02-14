@@ -76,3 +76,4 @@ Referenced by issue #45556, Camera Walk Mode - Looking around with mouse not wor
 Referenced by issue #45562, Loading old .blend file that has grid subdivisions set to 0 crashes Blender
 Referenced by issue #45547, Crash when go to File-User Preferences-System or choose Cycles renderer
 Referenced by issue #45539, Blender crashes when trying to display an OpenEXR Multilayer (created with the File Output Node)
+Referenced by issue #45542, Blender quits without warning when trying to render with AMD OpenCL
