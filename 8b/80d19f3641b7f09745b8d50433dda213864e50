@@ -1,3 +1,4 @@
 Referenced by issue #92385, Rendered Viewport does not update Scene Lights or World Lights.
 Referenced by issue #90749, Cycles : Viewport passes do not change automatically in viewport upon selection in dropdown list
 Referenced by issue #90599, Cycles viewport Render doesn't update studiolights
+Referenced by issue #88552, Cycles changing Render Passes in viewport does not work
