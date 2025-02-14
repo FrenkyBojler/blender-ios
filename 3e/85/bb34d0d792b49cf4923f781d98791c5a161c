@@ -20,3 +20,4 @@ Referenced by issue #81432, crashing while texture painting and going back to la
 Referenced by issue #81423, adding outflow object removes smoke from viewport
 Referenced by issue #81360, Motion blur causes blender to crash while rendering on Eevee
 Referenced by issue #81158, crash when toggling viewport visibility
+Referenced by issue #81077, Build Bot: MacOS X test fails
