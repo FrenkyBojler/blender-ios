@@ -1,1 +1,2 @@
 Referenced by issue #75822, VSE: BLI_assert fails while rendering strip with changed font
+Referenced by issue #60782, Add Font Selection to Text Effect Strip (backport from 2.8 to 2.7 branch)
