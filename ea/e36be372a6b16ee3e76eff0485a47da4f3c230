@@ -5,3 +5,4 @@ Referenced by commit b9799dfb8a7, Geometry Nodes: better support for byte color 
 Referenced by issue #114797, Fix #114760: new attribute does not get active for some domains
 Referenced by issue #107194, AttributeGroup API: "active" is meaningless (always refers to all attributes, not the specific AttributeGroup) -- e.g. mesh.color_attributes.active
 Referenced by issue #104803, Regression: mesh.vertex_colors.active doesn't work since 3.2
+Referenced by issue #104475, Regression: Data transfer modifier no longer respects vertex group for transfers of vertex color
