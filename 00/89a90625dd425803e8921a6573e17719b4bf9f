@@ -1,2 +1,3 @@
 Referenced by commit 4e873487dca, Fix: Potential crash in curves attribute set operator
 Referenced by commit b5e5d4b335a, Fix #134108: Set attribute operator crash with multiple objects
+Referenced by commit d80569cdd94, Fix #123116: Regression: F3 search crash in pose mode
