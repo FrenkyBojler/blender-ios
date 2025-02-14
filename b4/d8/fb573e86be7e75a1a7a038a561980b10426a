@@ -32,3 +32,4 @@ Referenced by issue #43236, Switch from texture view to material view in viewpor
 Referenced by issue #43243, Blender Importer Up axis selector's Y Up options when selected sets it to X Up
 Referenced by issue #43227, Select with seam limit is not working
 Referenced by issue #43233, OpenGL speed regression
+Referenced by issue #43200, GPU Cycles experimental feature set out of memory error on default cube
