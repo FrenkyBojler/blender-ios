@@ -14,3 +14,4 @@ Referenced by issue #60385, dense meshes not drawn behind other objects in wiref
 Referenced by issue #60366, Creating a new image texture in shader editor does not appear among the texture slots
 Referenced by issue #60367, freestyle camera not synched at rendertime
 Referenced by issue #60368, Move tool and its settings appear instead of paint tool after reloading
+Referenced by issue #60363, project left in texture paint mode brings pink object after open
