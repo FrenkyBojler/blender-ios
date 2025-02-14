@@ -1,1 +1,2 @@
 Referenced by commit 4a03c5acf9a, Revert "Fix GPU subdivision: Crash on adding subdivision surface modifier"
+Referenced by issue #97449, GPU subdivision: Crash on adding subdivision surface modifier
