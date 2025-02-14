@@ -1,2 +1,3 @@
 Referenced by commit 935ed0791f0, Fix #116709: EEVEE-Next: Missing gbuffer closure writes
 Referenced by commit df91fb329eb, Fix: EEVEE-Next: Broken Support for SSS
+Referenced by issue #116548, EEVEE-Next roughness not working plus overall performance WAY worse
