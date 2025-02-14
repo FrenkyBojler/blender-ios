@@ -25,3 +25,4 @@ Referenced by issue #40633, 2.71 crashes when I try to duplicate a bone
 Referenced by issue #40616, Deformation Motion Blur for modifiers
 Referenced by issue #40617, Orthographic view trought camera selecting object behind ths camera
 Referenced by issue #40606, Blender 2.71RC1 for Windows uses too old blender.mo file in Japanese
+Referenced by issue #40601, Cycles baking crashes
