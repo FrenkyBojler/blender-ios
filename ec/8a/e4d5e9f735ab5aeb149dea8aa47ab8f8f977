@@ -1,1 +1,2 @@
 Referenced by issue #53249, [regression] OpenCL performance becomes very random with big scenes.
+Referenced by issue #51554, OpenCL Textures exceed available single buffer allocation memory limit
