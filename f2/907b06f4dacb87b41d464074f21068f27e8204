@@ -1,1 +1,2 @@
 Referenced by issue #78999, Segmentation fault when setting `D.scenes[0].sequence_editor.proxy_storage` with a second scene selected having no sequence editor
+Referenced by issue #77348, Blender LTS: Maintenance Task 2.83
