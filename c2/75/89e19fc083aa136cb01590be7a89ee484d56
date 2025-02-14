@@ -83,3 +83,4 @@ Referenced by issue #45492, segfault in CustomData_get_layer
 Referenced by issue #45475, Blender closes without notice when using hair with specific settings
 Referenced by issue #45452, Pressing AltGr forcing Blender generate double event on keyboard press
 Referenced by issue #45453, Driver menu buttons are the wrong size on Retina Display
+Referenced by issue #45436, Wrong smoothing surface.
