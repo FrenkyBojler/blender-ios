@@ -3,3 +3,4 @@ Referenced by commit f79b4850fb3, Fix T81248: World nodetree action is linked af
 Referenced by issue #127850, Fix #127833: Action linked after particle settings duplication
 Referenced by issue #65175, Animation Data on lamp stays linked even after unlinking all its data
 Referenced by issue #59256, FCurve modifiers are not autonomous on Nodes
+Referenced by issue #59062, Keyframed node properties stay linked after shading network duplication
