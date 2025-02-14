@@ -1,1 +1,2 @@
 Referenced by issue #44514, Crash under cycles rendering using F12
+Referenced by issue #44515, Smoke domain cuts out shadows of smoke from intersecting objects when working with different layers for compositing (CYCLES)
