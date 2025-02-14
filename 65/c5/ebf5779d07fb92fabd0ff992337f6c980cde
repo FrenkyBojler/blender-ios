@@ -1,2 +1,3 @@
 Referenced by commit 929a2106085, Fix T97758: Applying modifiers bakes shape-keys
 Referenced by issue #103929, Applying Data Transfer Modifier - only the active Shape Key is taken into account
+Referenced by issue #97758, Regression: Applying Vertex Weight Mix modifier bakes all shape keys with values > 0 into a selected shape key or Basis
