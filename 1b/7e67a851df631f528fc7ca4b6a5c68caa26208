@@ -3,3 +3,4 @@ Referenced by commit 6c2593cc133, Fix: EEVEE render crash after recent mesh inde
 Referenced by issue #124292, Crash: Display wireframe in object mode on subdivided mesh with a lone edge
 Referenced by issue #123171, Curve modifier on a mesh with "display in editmode" ON crashes when going into editmode
 Referenced by issue #121503, GN: crash with resample / fillet curve nodes (ngon fill)
+Referenced by issue #121444, Hiding part of a mesh in Edit Mode causes edges to draw between the wrong vertices.
