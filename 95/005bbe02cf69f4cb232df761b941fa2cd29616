@@ -1,2 +1,3 @@
 Referenced by issue #102144, Regression: Specific Geometry Nodes tree (involving curve nodes) crashes with specific input mesh
 Referenced by issue #99921, Eevee, bump node seems to be ignored when using Shader to RGB node
+Referenced by issue #97790, Regression: Crash when setting Outliner to "Blender File" with old files (IPO IDs)
