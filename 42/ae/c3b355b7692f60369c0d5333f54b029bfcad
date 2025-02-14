@@ -1,1 +1,2 @@
 Referenced by issue #48790, Wrong render with HDRi when there Sun lamp with strength=0
+Referenced by issue #48645, Regression: crash in cycles after recent commit
