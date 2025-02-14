@@ -1,3 +1,4 @@
 Referenced by commit 3ea4d3dc073, Fix (unreported) Image Editor UI drawing too dark
 Referenced by issue #75856, Backface culling viewport setting doesn't update right away
 Referenced by issue #75767, Cycles renders image too bright compare to old builds
+Referenced by issue #75750, Rendered result is much brighter than in viewport
