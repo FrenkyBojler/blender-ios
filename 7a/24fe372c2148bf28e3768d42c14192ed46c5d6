@@ -1,1 +1,2 @@
 Referenced by issue #102299, Mesh disappearing in sculpt mode if certain modifiers are disabled.
+Referenced by issue #99282, Regression: Object invisible in Sculpt Mode when using >8 color attributes
