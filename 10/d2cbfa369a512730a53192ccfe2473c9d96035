@@ -1,0 +1,1 @@
+Referenced by issue #84872, Blender 2.92/2.93 Adaptive Sampling: Hybrid GPU+CPU (OptiX/RTX) is using hidden CPU Branched Path Tracing samples and not the Path Tracing samples
