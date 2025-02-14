@@ -1,1 +1,2 @@
 Referenced by commit 4f284873d0e, Fix: Crash after recent attributes commit
+Referenced by issue #102926, Crash: Geometry nodes, Set spline resolution to negative will crash Blender
