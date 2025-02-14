@@ -2,3 +2,4 @@ Referenced by issue #92051, Coloured pixelated artifacts when using refraction i
 Referenced by issue #91354, Boolean modifier crash
 Referenced by issue #90353, Material keyframes
 Referenced by issue #89389, Optix kernels not loading
+Referenced by issue #89206, Ray Visibility parameters in Object Properties (Cycles) are broken
