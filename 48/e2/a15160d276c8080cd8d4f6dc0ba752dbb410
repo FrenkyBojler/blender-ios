@@ -1,1 +1,2 @@
 Referenced by issue #92634, Cycles noise has problems with large scales.
+Referenced by issue #77681, Musgrave texture behaves differently with OSL rendering turned on.
