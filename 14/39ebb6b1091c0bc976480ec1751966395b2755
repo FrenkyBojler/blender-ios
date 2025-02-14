@@ -1,1 +1,2 @@
 Referenced by issue #97886, Keying sets other than Whole Character (or keyframing in general) do not respect channel locks
+Referenced by issue #74330, Pose Library not saving rotations for bones prefixed with "DEF_"
