@@ -6,3 +6,4 @@ Referenced by issue #94041, Loading a new file gives crash while rendering in vi
 Referenced by issue #92442, enabling motion blur in EEVEE stops cryptomatte object from working.
 Referenced by issue #92405, Emission Strength Animation of 2.93.5 inherited wrongly in 3.0
 Referenced by issue #92073, Cycles: Viewport flashes when moving in the camera view with Render Region/Passepartout
+Referenced by issue #91597, Cycles regression: Light visible in volume when ray visibility for volumes is disabled
