@@ -65,3 +65,4 @@ Referenced by issue #51554, OpenCL Textures exceed available single buffer alloc
 Referenced by issue #51524, Instantiated Hair Object which has dupligroup children and hidden orig objects of group crash at render
 Referenced by issue #51486, Freezing
 Referenced by issue #51470, Alembic imports only two frames of animations when vertex color is checked while abc exporting
+Referenced by issue #51452, EnumProperty fill dynamically using callback
