@@ -19,3 +19,4 @@ Referenced by issue #93728, When seperating a grease pencil stroke to its own ob
 Referenced by issue #93704, gltf2 not exporting animations in 3.0
 Referenced by issue #93611, Crash on edit mesh with a curve modifier with both a vertex group assigned and the edit mode display option enabled
 Referenced by issue #92912, vertex groups get lost when opening a 3.0 file in Blender 2.93
+Referenced by issue #92083, Crash when renaming bone if parented to curve
