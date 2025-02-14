@@ -1,3 +1,4 @@
 Referenced by commit d373b43f07f, VSE: Better handling of effect strip splitting
 Referenced by issue #84847, Splitting effect strip and grabbing crashes (regression in 2.92)
 Referenced by issue #82833, GreasePencil: Crash when changing to Vertex Color mode in Draw mode
+Referenced by issue #77580, Sequencer: restructuring the code layout
