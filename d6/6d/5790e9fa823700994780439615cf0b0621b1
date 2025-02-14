@@ -1,0 +1,1 @@
+Referenced by issue #50765, Rigid body dynamics: Initially deactivated objects are not activated on collision, but on bounding box intersection
