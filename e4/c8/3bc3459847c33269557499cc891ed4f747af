@@ -1,1 +1,2 @@
 Referenced by issue #47298, rendering animation(cycles) repeats rendering the same frame over and over
+Referenced by issue #46679, Render Image output renders correctly but Render Animation output is incorrect.
