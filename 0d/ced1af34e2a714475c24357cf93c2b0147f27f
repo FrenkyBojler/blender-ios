@@ -1,2 +1,3 @@
 Referenced by commit 6b53e0adbc5, Better fix for crash ( with gpu only ) on render end/abort introduced in 0dced1a
 Referenced by commit ec776f18ff7, Fix crashing on render end/abort introduced in 0dced1a
+Referenced by issue #78149, Animation render seemingly not freeing up memory (2.90.0 Regression)
