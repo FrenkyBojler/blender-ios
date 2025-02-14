@@ -1,2 +1,3 @@
 Referenced by issue #63507, F12 Key doesn't work properly
 Referenced by issue #63299, Preset system broken in some files
+Referenced by issue #62633, Model normals not updating in a modifier stack after a deform modifier
