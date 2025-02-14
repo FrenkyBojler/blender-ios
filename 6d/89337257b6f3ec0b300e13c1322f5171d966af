@@ -2,3 +2,4 @@ Referenced by issue #59884, Rigidbody Calculate Mass Sets Mass to 0
 Referenced by issue #59874, Cycles CPU 25% load only during rendering
 Referenced by issue #59878, 2.80 - Crash on Middle Mouse Button while in Edit Mode after Adding Materials and Mirror Modifier
 Referenced by issue #59860, Tool Pane - Measure won't go away
+Referenced by issue #59850, blender 2.8 exports fbx to unity 2018.3. The rendering mode of Material is "Transparent". It depends of the color of the 3D object
