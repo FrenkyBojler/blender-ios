@@ -1,2 +1,3 @@
 Referenced by commit d00f54e574c, Transform: redo resize now constrains axis values
 Referenced by issue #73853, Transform: Redo does't work properly with NLA "Move" transform mode
+Referenced by issue #62757, Mirror operator fails with EXEC_DEFAULT
