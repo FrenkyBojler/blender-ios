@@ -1,1 +1,2 @@
 Referenced by commit 7484ed9bdcb, NLA Editor: box-select was selecting wrong elements
+Referenced by issue #64109, Non-keyboard shortcuts allowed to be set via context menu, but cannot be unset without going to user-preferences
