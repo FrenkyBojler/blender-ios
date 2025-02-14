@@ -16,3 +16,4 @@ Referenced by commit af92de664b9, Outliner: Port bone elements to new tree-eleme
 Referenced by commit 4094cd207ac, Outliner: Remove isExpandValid() from AbstractTreeElement and its sub-classes
 Referenced by commit 89f61015d18, Outliner: Port remaining ID elements to new tree-element code design
 Referenced by commit 888cfd29c35, Outliner: Port object elements to new tree-element code design
+Referenced by commit 93e2e749dad, Outliner: Port armature elements to new tree-element code design
