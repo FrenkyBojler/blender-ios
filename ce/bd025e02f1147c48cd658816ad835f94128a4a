@@ -1,1 +1,2 @@
 Referenced by commit 3cd398f16fb, Fix T92694: Auto Perspective is inconsistent with axis aligned views
+Referenced by commit 8e981efe38a, 3D View: support axis views with axis-aligned roll
