@@ -4,3 +4,4 @@ Referenced by issue #46313, Cycles bake normal map
 Referenced by issue #46215, Explode modifier on texured object
 Referenced by issue #45705, Selected to Active Cycles Baking no longer working
 Referenced by issue #45663, [B. Internal] UV mapping render result in radial circles (with this file)
+Referenced by issue #45616, Various crashes relative to tesselation faces
