@@ -1,1 +1,2 @@
 Referenced by issue #87335, Geometry nodes material index attribute not working correctly on generated/instanced geometry
+Referenced by issue #86050, Seg Fault when adding a point distribute node
