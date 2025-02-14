@@ -1,3 +1,4 @@
 Referenced by issue #40102, Right-Click on vertex and inmediatly "G" key, acts as double-G.
 Referenced by issue #40003, Start game with a "2d filter" actuator(set to custom filter) without a filter established do blender crash
 Referenced by issue #39989, Dupli group's objects in Particles are not displayed properly in 3D View
+Referenced by issue #39946, Tangent space normals maps are black when using OSL
