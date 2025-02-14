@@ -1,1 +1,2 @@
 Referenced by commit a8b9a58608b, Fix #54468: crash calling transform operators with incomplete regiondata
+Referenced by issue #119205, Fix #54468: crash calling transform operators with incomplete regiondata
