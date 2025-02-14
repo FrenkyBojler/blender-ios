@@ -1,1 +1,2 @@
 Referenced by issue #44984, Clamping in 'texture context -> colors panel' doesn't work under some extreme circumstances.
+Referenced by issue #44872, Missing UI control in Musgrave texture properties
