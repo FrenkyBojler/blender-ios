@@ -2,3 +2,4 @@ Referenced by issue #41706, Moving bone in edit mode crashes Blender consistentl
 Referenced by issue #41218, Blender Crashes when Extruding a New Bone
 Referenced by issue #41037, Dynamic texture refresh cpu performance problem
 Referenced by issue #40931, Armature Bone Rotation Crash
+Referenced by issue #40917, Moving a bone in edit mode makes Blender crash.
