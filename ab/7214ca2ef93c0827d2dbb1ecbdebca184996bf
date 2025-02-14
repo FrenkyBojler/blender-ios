@@ -1,1 +1,2 @@
 Referenced by commit 8af22719d0c, Cleanup: Remove now redundant performance workaround for asset previews
+Referenced by issue #93922, Geometry Nodes: This scene became extremely slow
