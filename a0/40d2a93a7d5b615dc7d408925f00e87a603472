@@ -1,2 +1,3 @@
 Referenced by issue #93866, Blender crashes when bevel edge(CTRL + B, not modifier) + Shade Smooth then press CTRL + Z two more times
 Referenced by issue #93557, [Blender 3.0] Line art is Flickering
+Referenced by issue #93454, blender 3.0 Line art rendering is very slow.
