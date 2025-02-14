@@ -1,1 +1,2 @@
 Referenced by commit e5901999495, Revert "Outliner: Fix selection sync for various operators"
+Referenced by issue #71404, 2.81 Outliner: selection not synced when editing armature
