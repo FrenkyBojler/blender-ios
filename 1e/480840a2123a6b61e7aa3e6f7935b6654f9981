@@ -1,2 +1,3 @@
 Referenced by issue #72186, Crash to desktop when trying to display meshes above certain poly counts in object mode
 Referenced by issue #72191, Bevel modifier segments crash
+Referenced by issue #72138, Crashing when scene doesn't have meshes and using command searcher, 100% repro
