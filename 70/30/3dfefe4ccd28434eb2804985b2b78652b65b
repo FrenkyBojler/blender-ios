@@ -1,2 +1,3 @@
 Referenced by issue #40161, Twisted object in render result
 Referenced by issue #40162, Vertex Connect creates extra face when cutting through non-planar NGon.
+Referenced by issue #40014, Broken shading with mirror modifier and auto smooth normals while hiding verts.
