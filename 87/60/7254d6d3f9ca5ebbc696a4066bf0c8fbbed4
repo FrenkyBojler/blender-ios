@@ -1,2 +1,3 @@
 Referenced by issue #54326, Import Alembic stuck in edit mode
 Referenced by issue #53762, Blender (newer 2.79 builds) quits when changing frames
+Referenced by issue #53733, Vertex color incorrectly displays in material view for meshes that share a material and do not have a vertex color layer after entering and leaving edit mode
