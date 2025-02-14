@@ -1,1 +1,2 @@
 Referenced by commit 7dc4ac71e8d, Fix T97278: wrong hair particle shape with kink spiral
+Referenced by issue #97278, Regression: Increasing the shape value for spiral kink generates hair to infinite
