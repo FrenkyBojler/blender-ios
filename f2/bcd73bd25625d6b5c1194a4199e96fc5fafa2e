@@ -1,2 +1,3 @@
 Referenced by commit 961d8ef6d5c, Fix #119426: Enabling dyntopo creates duplicate mask attribute
 Referenced by issue #119441, Fix #119426: Enabling dyntopo creates duplicate mask attribute
+Referenced by issue #119426, Regression: Activating DynTopo creates a hidden sculpt mask attribute that gets duplicated with every activation
