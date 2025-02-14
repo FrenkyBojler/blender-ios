@@ -1,1 +1,2 @@
 Referenced by issue #113552, Regression: NLA Markers do not reset when length reaches 0.0
+Referenced by issue #110121, Fix #113552: NLA Markers do not reset when length reaches 0.0
