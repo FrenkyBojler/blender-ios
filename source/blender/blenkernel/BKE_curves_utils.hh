@@ -507,6 +507,41 @@ void foreach_curve_by_type(const VArray<int8_t> &types,
                            FunctionRef<void(IndexMask)> poly_fn,
                            FunctionRef<void(IndexMask)> bezier_fn,
                            FunctionRef<void(IndexMask)> nurbs_fn);
+
+using SelectedCallback = FunctionRef<void(
+    int curve_i, IndexRange curve_points, Span<IndexRange> selected_point_ranges)>;
+using UnselectedCallback = FunctionRef<void(IndexRange curves, IndexRange unselected_points)>;
+
+/**
+ * Calls callback function for each mask's content slice by `OffsetIndices`.
+ * Used to handle selected points for each curve separately.
+ *
+ * \param selected_points: Selected points in the current offset range.
+ * \param slice_points: Current offset's `IndexRange`.
+ * \param slice: Current offsets's index. Curve index if #CurvesGeometry::points_by_curve() is used
+ * as `offset_indices`.
+ * \param selected_fn: callback function called for each slice with at least one point selected.
+ */
+void foreach_selected_point_ranges_per_curve(const IndexMask &mask,
+                                             const OffsetIndices<int> offset_indices,
+                                             SelectedCallback selected_fn);
+
+/**
+ * Calls callback function for each mask's content slice by `OffsetIndices`.
+ * Used to handle selected points for each curve separately.
+ *
+ * \param selected_points: Selected points in the current offset range.
+ * \param slice_points: Current offset's `IndexRange`.
+ * \param slice: Current offsets's index. Curve index if #CurvesGeometry::points_by_curve() is used
+ * as `offset_indices`.
+ * \param selected_fn: callback function called for each slice with at least one point selected.
+ * \param unselected_fn: callback function called for groups of slices with no selected points.
+ */
+void foreach_selected_point_ranges_per_curve(const IndexMask &mask,
+                                             const OffsetIndices<int> offset_indices,
+                                             SelectedCallback selected_fn,
+                                             UnselectedCallback unselected_fn);
+
 namespace bezier {
 
 /**
