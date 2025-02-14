@@ -12,3 +12,4 @@ Referenced by issue #52640, Crash when opening and closing image file browser
 Referenced by issue #52584, Blender 2.79 RC2 missing OpenCL rendering option
 Referenced by issue #52556, Continuous Grab is very fast when running under Wayland
 Referenced by issue #52558, Cannot lock to axis of custom orientation while extruding, normal orientation would be used instead
+Referenced by issue #52547, Cycles Cuda rendering fails for dedicated (non-display) Nvidia GTX1060
