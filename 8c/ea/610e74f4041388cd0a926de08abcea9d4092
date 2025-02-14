@@ -1,1 +1,2 @@
 Referenced by issue #40864, Cycles; use of color ramp node in latest builds will always crash after save and reload.
+Referenced by issue #40758, Sculpting : Front faces only option doesnt seem to work.
