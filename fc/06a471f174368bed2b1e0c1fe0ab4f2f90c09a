@@ -1,2 +1,3 @@
 Referenced by commit 16553c2a44e, Geometry Nodes: Support top-level instance meshes in boolean node
 Referenced by commit ba880db09a4, Fix #108175: Missing subversion bump for recent geometry nodes change
+Referenced by issue #114632, Geometry Nodes: Support top-level instance meshes in boolean node
