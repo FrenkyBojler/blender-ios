@@ -1,0 +1,1 @@
+Referenced by issue #49071, stdosl.h is not included anymore in some cycle shaders
