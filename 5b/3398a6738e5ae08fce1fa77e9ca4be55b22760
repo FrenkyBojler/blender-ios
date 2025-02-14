@@ -1,2 +1,3 @@
 Referenced by issue #111724, NLA crash moving sound strip (fixed in main, needs backport)
 Referenced by issue #110161, Regression: Crash on dragging a Speaker NLA strip
+Referenced by issue #109399, Blender LTS: Maintenance Task 3.6
