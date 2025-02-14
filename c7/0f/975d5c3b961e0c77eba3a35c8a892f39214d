@@ -1,0 +1,1 @@
+Referenced by issue #67999, calling obj.data.materials.clear() on an object with 2+ materials in lookdev or rendered(eevee) shading crashes Blender
