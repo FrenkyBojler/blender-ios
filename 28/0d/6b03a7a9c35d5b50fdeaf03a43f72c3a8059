@@ -1,1 +1,2 @@
 Referenced by issue #70838, [Segfault<>BKE_object_is_visible_in_viewport] when rendering the default cube in cycles, despite viewport rendering works fine.
+Referenced by issue #70670, Hidden collections are still rendered by Cycles in the Viewport
