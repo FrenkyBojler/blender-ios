@@ -1,3 +1,4 @@
 Referenced by issue #84502, Eevee volume render without shaders render parameters breaks
 Referenced by issue #84224, Sliding image transparency to 1 jumps it to 0
 Referenced by issue #84218, Scaling object with wrapping the mouse snaps object scale back to screen size
+Referenced by issue #84164, Regression: Dragging  header with MMB and continous drag ends with header jumps
