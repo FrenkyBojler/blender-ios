@@ -2,3 +2,4 @@ Referenced by issue #60933, can't run blender 2.8 on my 32 bit windows 7 . It cr
 Referenced by issue #59947, Animated texture node (in Compositor) remains static in render
 Referenced by issue #59574, Prop_search fails to set objects from scene
 Referenced by issue #58951, Subdivision not displaying correctly in edit mode
+Referenced by issue #58742, Segmentation faults while trying to render with GPU and CPU hybrid rendering in Cycles
