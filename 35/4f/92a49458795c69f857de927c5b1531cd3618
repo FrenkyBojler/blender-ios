@@ -1,1 +1,2 @@
 Referenced by commit 78c6684ee97, Freestyle: Unnecessary repeats of Cycles property copying.
+Referenced by issue #54005, Copy to selected not working for Python defined properties
