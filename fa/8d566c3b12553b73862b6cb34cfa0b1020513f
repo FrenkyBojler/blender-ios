@@ -1,2 +1,3 @@
 Referenced by issue #87850, 2.93 does not load Nishita Sky settings correctly from 2.92
 Referenced by issue #87849, 2.93 does not load Nishita Sky settings correctly from 2.92
+Referenced by issue #87564, Geometry Nodes: Using "Input-Value"-node with "Attribute-Math-Divide"-node leads to incorrect results in following "Attribute-Math-Modulo"-node
