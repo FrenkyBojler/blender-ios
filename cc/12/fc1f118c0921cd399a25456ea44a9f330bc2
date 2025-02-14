@@ -2,3 +2,4 @@ Referenced by issue #47891, vertices and edges throw shadow in edit mode
 Referenced by issue #47866, OpenGL Render Image Inconsistant
 Referenced by issue #47870, Viewport rendering isn't updating with changing of values of a material node group. but working if you change inside node group!
 Referenced by issue #47838, Walk Navigation fails to use gravity with intersecting objects
+Referenced by issue #47806, Blender animation player stop working correctly with XVID codec
