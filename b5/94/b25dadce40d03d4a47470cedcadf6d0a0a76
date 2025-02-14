@@ -8,3 +8,4 @@ Referenced by issue #47658, Crashes with rendering extremely huge image
 Referenced by issue #47642, 2.77 hash 509270e Crash when Cycles Baking
 Referenced by issue #47648, Emission material not working.
 Referenced by issue #47649, Point light not working properly inside a volume while rendering with GPU
+Referenced by issue #47626, Blender 2.77 RC  OPEN VDB import Failure
