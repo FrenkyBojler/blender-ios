@@ -1,1 +1,2 @@
 Referenced by issue #37890, Compositor does not honor fixed threads in performance render settings
+Referenced by issue #37721, Mesh isn't being displayed in Object mode (wireframe display mode)
