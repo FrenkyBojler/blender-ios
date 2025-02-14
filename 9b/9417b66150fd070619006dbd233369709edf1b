@@ -1,2 +1,3 @@
 Referenced by commit 11b4d0a3c37, Attempt to fix build errors on MSVC
 Referenced by issue #100261, Crash at startup on Linux - all recent Blender versions
+Referenced by issue #100079, Encoding with DNxHD fails due to bad parameters
