@@ -1,1 +1,2 @@
 Referenced by issue #97015, Undo incorrectly frees all the ImBufs of tiled images
+Referenced by issue #90593, Undo takes several seconds just to move default cube within scene containing panorama if viewport shows materials
