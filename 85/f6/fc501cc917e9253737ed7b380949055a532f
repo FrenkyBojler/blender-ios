@@ -1,0 +1,1 @@
+Referenced by issue #42943, Crashes occur when rna_info.BuildRNAInfo() is called multiple times
