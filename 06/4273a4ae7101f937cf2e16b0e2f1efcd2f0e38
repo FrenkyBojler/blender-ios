@@ -4,3 +4,4 @@ Referenced by issue #64185, Client Crashes when the frame position value is chan
 Referenced by issue #64190, Blender Crash using Timeline Editor
 Referenced by issue #64152, Blender Auto-Close
 Referenced by issue #64154, Immediate crash when changing the current frame on the timeline
+Referenced by issue #64147, Crash when setting current frame from Python.
