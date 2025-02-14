@@ -1,2 +1,3 @@
 Referenced by issue #60742, crashes when putting particles Along a Curve Without Curve Guide
 Referenced by issue #60264, Crash with particle simulation when using particles with a force field with the type set to curve.
+Referenced by issue #55974, Crash when using Surface Force Field Type on UV Sphere
