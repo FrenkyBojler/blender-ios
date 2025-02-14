@@ -1,0 +1,1 @@
+Referenced by issue #95006, Geometry Nodes: Parameters with animation data inside of a nested nodegroup don't trigger modifier evaluation on frame change
