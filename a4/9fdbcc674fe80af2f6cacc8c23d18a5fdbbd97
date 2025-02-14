@@ -1,3 +1,4 @@
 Referenced by issue #59437, After applying any modifier to object and change to "Edit Mode" Blender crash
 Referenced by issue #59287, Using the Bevel Modifier crashes Blender
 Referenced by issue #59211, 2.8 crashes on enter edit mode
+Referenced by issue #59183, Blender Crash when enter in edit mode
