@@ -1,1 +1,2 @@
 Referenced by commit c75d2d09e39, Fix: Cloth could ignore "Shear" vertexgroup
+Referenced by commit 0885484aa60, Fix T59587: Hair dynamics works different when opened in 2.8
