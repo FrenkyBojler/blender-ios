@@ -1,2 +1,3 @@
 Referenced by commit 7a8e04fcb10, Fix #122551: Metal displays black screen on ATI/Intel GPUs
 Referenced by issue #122993, Fix #122551: Metal displays black screen on ATI/Intel GPUs
+Referenced by issue #122551, EEVEE-next and Cycles not working on Macbook pro with AMD Radeon Pro Vega 20 and metal backend
