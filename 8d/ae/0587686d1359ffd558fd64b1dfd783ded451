@@ -1,1 +1,2 @@
 Referenced by issue #103033, Hard crash while resizing packed multichannel EXR
+Referenced by issue #71585, Blender crash in bmesh.to_mesh() while using it to modify weights (fixed in 3.6, only relevant for 3.3 LTS)
