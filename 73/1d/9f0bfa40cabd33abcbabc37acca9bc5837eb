@@ -1,3 +1,4 @@
 Referenced by issue #79159, Optix denoising fails after loading render kernels (OPTIX_ERROR_INVALID_PTX)
 Referenced by issue #79124, Blender crashes when using hotkey to change brush size in particle edit mode
 Referenced by issue #79029, 2.83 Mantaflow Smoke Simulation doesn't match 2.82 with Same Object Size when it's smaller than a particular value
+Referenced by issue #78733, Bevel edge with segment = 1 produces undesired UV result on UV boundry edge
