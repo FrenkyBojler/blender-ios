@@ -1,2 +1,3 @@
 Referenced by commit bb8dba8609e, Fix missing view layer update when iterating a collection from Python.
 Referenced by issue #101394, Importing file after making a new collection active hits an assert (View Layer Object Base out of sync)
+Referenced by issue #101272, Missing view layer updates handling collections in python
