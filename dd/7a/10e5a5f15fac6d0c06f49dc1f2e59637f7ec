@@ -1,0 +1,1 @@
+Referenced by issue #102214, Texture baking fails when using a "material_index" attribute and values assigned to faces refrerence a non-existent material slot
