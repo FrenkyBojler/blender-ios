@@ -1,1 +1,2 @@
 Referenced by commit 583c3213347, Revert "Fix T60044: Sculpting brush is not visible on file load"
+Referenced by issue #60150, export obj with material metallic will from 0 to 1
