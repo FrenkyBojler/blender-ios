@@ -1,2 +1,3 @@
 Referenced by issue #102144, Regression: Specific Geometry Nodes tree (involving curve nodes) crashes with specific input mesh
 Referenced by issue #101160, Regression: deleting a point in a (cyclic) nurbs curve permanently converts to poly, subdividing as well
+Referenced by issue #98917, Regression: Curve to Mesh node crashes blender if there is a single vertice curve
