@@ -2,3 +2,4 @@ Referenced by issue #42344, blurred BI-render, 2.72a regression?
 Referenced by issue #40959, Crash when using Fill (Alt+F)
 Referenced by issue #40899, Not clearing BVH Cache Files?
 Referenced by issue #40854, Collada Export Failure with Detached Layers
+Referenced by issue #32209, Autosave ignores multires sculpting (patch attached)
