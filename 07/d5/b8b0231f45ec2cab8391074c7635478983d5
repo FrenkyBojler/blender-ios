@@ -1,1 +1,2 @@
 Referenced by issue #75147, Object Tracker Constraint - Improper scale/placement, objects won't follow if tracks scaled in movie clip editior
+Referenced by issue #74322, Object Tracking markers are not scaled with the camera scale visually (but actually are scaled internally???) (With file and video)
