@@ -1,1 +1,2 @@
 Referenced by issue #106705, Regression: Glossy Direct pass produce different results than it did in previous versions of Blender.
+Referenced by issue #104435, Regression: create strip by Blender API - crash
