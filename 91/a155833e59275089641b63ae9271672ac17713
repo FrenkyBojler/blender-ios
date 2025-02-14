@@ -19,3 +19,4 @@ Referenced by issue #60346, Grease Pencil : I got artifacts on some strokes
 Referenced by issue #60348, Multiple issues using texture paint mode
 Referenced by issue #60338, Error when typing in measurment in different unit system then scene is set to
 Referenced by issue #60343, Grease Pencil Fill Crash
+Referenced by issue #60327, Adaptive length for imperial units no longer working properly. Entered as meters rather than feet.
