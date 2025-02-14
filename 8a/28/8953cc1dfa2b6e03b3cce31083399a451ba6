@@ -4,3 +4,4 @@ Referenced by issue #43128, Possibility to move a panel above first headerless o
 Referenced by issue #43113, Some System Folders do not contain go back arrow
 Referenced by issue #43114, Go back still seem like it should be select able
 Referenced by issue #43118, GPU renders using .hdr environment maps fail with error
+Referenced by issue #41964, 2.72 Freestyle renders two times longer on Linux
