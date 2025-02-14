@@ -1,2 +1,3 @@
 Referenced by commit 5723bf926dc, Fix T99191: Boolean modifier creates invalid material indices
 Referenced by commit 6845aad1a27, Fix T90907: RNA pointers for material slots are not unique across IDs
+Referenced by commit f3a0267016c, Materials: support materials when applying modifier
