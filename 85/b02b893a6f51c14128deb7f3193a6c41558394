@@ -6,3 +6,4 @@ Referenced by issue #114189, Workbench Next : VR Session crashes on exit
 Referenced by issue #112409, Regression: Cavity shading disappears when Xray is enabled
 Referenced by issue #112231, Regression: Workbench does not display sculpt texture paint canvas
 Referenced by issue #112164, Regression: Circle select tool low performance
+Referenced by issue #111555, Regression: VSE scene strips not working in 4.0 alpha?
