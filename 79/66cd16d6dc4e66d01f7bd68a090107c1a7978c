@@ -12,3 +12,4 @@ Referenced by issue #107647, Combine crash
 Referenced by issue #106845, Geometry Nodes: Extrude Mesh node with individual mode disabled to watertight mesh causes crash
 Referenced by issue #106828, Regression: Geometry Nodes: Extrude Mesh node to faceless mesh causes crash
 Referenced by issue #106780, Regression: In sculpt mode, remesh + undo 2 times, closes blender
+Referenced by issue #106783, Regression: Recent MPoly refactor causes crash during FBX or 3DS import
