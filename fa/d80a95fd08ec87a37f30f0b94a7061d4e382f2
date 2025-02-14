@@ -1,1 +1,2 @@
 Referenced by commit a83c67c1831, Fix incorrect use of BLI_snprintf in sequencer text concatenation
+Referenced by issue #84529, Crash when having a scene strip in VSE that references a scene that has been deleted
