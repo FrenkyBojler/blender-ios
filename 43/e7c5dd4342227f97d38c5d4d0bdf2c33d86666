@@ -2,3 +2,4 @@ Referenced by issue #58290, ParticleSystem not updating when changing FieldWeigh
 Referenced by issue #58217, Import bpy makes mesh duplicate when changing location
 Referenced by issue #58162, Object/color picker only works within the same window
 Referenced by issue #58153, Preview mono audio not the same as render
+Referenced by issue #58155, Weight painting through the mesh
