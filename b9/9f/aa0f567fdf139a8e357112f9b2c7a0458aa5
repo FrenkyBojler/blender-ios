@@ -1,2 +1,3 @@
 Referenced by issue #82628, Blender crashes on startup
 Referenced by issue #82596, fly/walk navigation crash
+Referenced by issue #80475, bad topology after Bevel without Loop Slide
