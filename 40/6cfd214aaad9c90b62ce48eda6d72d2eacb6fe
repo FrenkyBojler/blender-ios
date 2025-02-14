@@ -3,3 +3,4 @@ Referenced by commit 7f33a743d89, Fix #114963: Image Editor - Fill Tool doesn't 
 Referenced by commit eb3e32b653f, Fix #108136: Regression : Texture paint is broken
 Referenced by issue #120214, Fix #120113: crash reading large jpeg
 Referenced by issue #120113, Crash when reading large JPEG
+Referenced by issue #114989, Fix #114963: Image Editor - Fill Tool doesn't work as expected
