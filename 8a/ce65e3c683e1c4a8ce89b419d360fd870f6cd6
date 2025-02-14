@@ -1,3 +1,4 @@
 Referenced by commit d897fd34cb7, UV: restore internal solver state variable
 Referenced by commit a4aa5adf447, Fix #110729: Unwrap angle based fails with seams
 Referenced by commit a35ad5899fc, Fix #110626: restore abf uv unwrap logic
+Referenced by issue #110626, Regression: UV Unwrap node produce NaN vectors
