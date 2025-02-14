@@ -1,0 +1,1 @@
+Referenced by commit 96dd1943afc, Fix crash calling wm.open_mainfile from menu with --debug-memory enabled
