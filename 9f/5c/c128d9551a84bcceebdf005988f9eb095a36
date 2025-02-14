@@ -1,1 +1,2 @@
 Referenced by issue #80125, Constraint missing after save and reopen the blend file (fixed in 2.90 - request to backport to LTS)
+Referenced by issue #77847, "Add plane > align" causes crash when certain rigs are in the scene (2.83, fixed in 2.90)
