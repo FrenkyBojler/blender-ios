@@ -1,1 +1,2 @@
 Referenced by commit 00f88babed2, Fix #109042: Bake from multires different from previous versions
+Referenced by commit d622673f4b4, Fix #109161: Baking freeze with invalid edge array
