@@ -1,3 +1,4 @@
 Referenced by issue #76121, Driver depending on animated modifier property does not update
 Referenced by issue #76117, Smooth Modifer Crash - TDR
 Referenced by issue #75911, Crash when switching to sculpt mode with multiresolution modifier is enabled
+Referenced by issue #75866, Blender 2.83 beta crashes on startup
