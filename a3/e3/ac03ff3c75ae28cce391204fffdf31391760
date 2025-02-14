@@ -1,0 +1,1 @@
+Referenced by issue #42351, Freestyle will not render edges selected by Edge Type: Material Boundary, if the materials are different, but look identical.
