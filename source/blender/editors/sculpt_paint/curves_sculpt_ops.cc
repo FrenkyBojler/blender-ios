@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include "BLI_kdtree.h"
+#include "BLI_listbase.h"
 #include "BLI_rand.hh"
 #include "BLI_task.hh"
 #include "BLI_utildefines.h"
@@ -945,7 +946,7 @@ static void min_distance_edit_draw(bContext *C, int /*x*/, int /*y*/, void *cust
   RegionView3D *rv3d = op_data.rv3d;
   wmWindow *win = CTX_wm_window(C);
 
-  /* It does the same as: `view3d_operator_needs_opengl(C);`. */
+  /* It does the same as: `view3d_operator_needs_gpu(C);`. */
   wmViewport(&region->winrct);
   GPU_matrix_projection_set(rv3d->winmat);
   GPU_matrix_set(rv3d->viewmat);

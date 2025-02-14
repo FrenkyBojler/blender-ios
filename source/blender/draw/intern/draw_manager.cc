@@ -6,6 +6,8 @@
  * \ingroup draw
  */
 
+#include "DNA_userdef_types.h"
+
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 
@@ -141,7 +143,7 @@ void Manager::end_sync()
 
 void Manager::debug_bind()
 {
-#ifdef _DEBUG
+#ifdef WITH_DRAW_DEBUG
   if (DST.debug == nullptr) {
     return;
   }

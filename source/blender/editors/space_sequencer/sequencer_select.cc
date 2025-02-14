@@ -13,6 +13,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_ghash.h"
+#include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
@@ -24,6 +25,8 @@
 
 #include "BKE_context.hh"
 #include "BKE_report.hh"
+
+#include "BLT_translation.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -897,8 +900,13 @@ static void select_linked_time(const Scene *scene,
   }
 }
 
-/* Similar to `sequence_handle_size_get_clamped()` but allows for larger clickable area. */
-static float clickable_handle_size_get(const Scene *scene, const Strip *strip, const View2D *v2d)
+/* Similar to `strip_handle_draw_size_get()`, but returns a larger clickable area that is
+ * the same for a given zoom level no matter whether "simplified tweaking" is turned off or on.
+ * `strip_clickable_areas_get` will pad this past strip bounds by 1/3 of the inner handle size,
+ * making the full handle size either 15 + 5 = 20px or 1/4 + 1/12 = 1/3 of the strip size. */
+static float inner_clickable_handle_size_get(const Scene *scene,
+                                             const Strip *strip,
+                                             const View2D *v2d)
 {
   const float pixelx = 1 / UI_view2d_scale_get_x(v2d);
   const float strip_len = SEQ_time_right_handle_frame_get(scene, strip) -
@@ -918,6 +926,10 @@ bool ED_sequencer_can_select_handle(const Scene *scene, const Strip *strip, cons
     return false;
   }
 
+  /* This ensures clickable handles are deactivated when the strip gets too small (25 or 15
+   * frames). Since the full handle size for a small strip is 1/3 of the strip size (see
+   * `inner_clickable_handle_size_get`), this means handles cannot be smaller than 25/3 = 8px for
+   * simple tweaking, 15/3 = 5px for legacy behavior. */
   int min_len = 25 * U.pixelsize;
   if ((U.sequencer_editor_flag & USER_SEQ_ED_SIMPLE_TWEAKING) == 0) {
     min_len = 15 * U.pixelsize;
@@ -929,6 +941,11 @@ bool ED_sequencer_can_select_handle(const Scene *scene, const Strip *strip, cons
   if (strip_len / pixelx < min_len) {
     return false;
   }
+
+  if (UI_view2d_scale_get_y(v2d) < 16 * U.pixelsize) {
+    return false;
+  }
+
   return true;
 }
 
@@ -943,11 +960,11 @@ static void strip_clickable_areas_get(const Scene *scene,
   *r_left_handle = *r_body;
   *r_right_handle = *r_body;
 
-  const float handsize = clickable_handle_size_get(scene, strip, v2d);
-  BLI_rctf_pad(r_left_handle, handsize / 3, 0.0f);
-  BLI_rctf_pad(r_right_handle, handsize / 3, 0.0f);
+  const float handsize = inner_clickable_handle_size_get(scene, strip, v2d);
   r_left_handle->xmax = r_body->xmin + handsize;
   r_right_handle->xmin = r_body->xmax - handsize;
+  BLI_rctf_pad(r_left_handle, handsize / 3, 0.0f);
+  BLI_rctf_pad(r_right_handle, handsize / 3, 0.0f);
   BLI_rctf_pad(r_body, -handsize, 0.0f);
 }
 
@@ -1264,6 +1281,24 @@ static int sequencer_select_invoke(bContext *C, wmOperator *op, const wmEvent *e
   return retval;
 }
 
+static std::string sequencer_select_get_name(wmOperatorType *ot, PointerRNA *ptr)
+{
+  if (RNA_boolean_get(ptr, "ignore_connections")) {
+    return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select (Unconnected)");
+  }
+  if (RNA_boolean_get(ptr, "linked_time")) {
+    return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select (Linked Time)");
+  }
+  if (RNA_boolean_get(ptr, "linked_handle")) {
+    return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select (Linked Handle)");
+  }
+  if (RNA_boolean_get(ptr, "side_of_frame")) {
+    return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select (Side of Frame)");
+  }
+
+  return ED_select_pick_get_name(ot, ptr);
+}
+
 void SEQUENCER_OT_select(wmOperatorType *ot)
 {
   PropertyRNA *prop;
@@ -1278,7 +1313,7 @@ void SEQUENCER_OT_select(wmOperatorType *ot)
   ot->invoke = sequencer_select_invoke;
   ot->modal = WM_generic_select_modal;
   ot->poll = ED_operator_sequencer_active;
-  ot->get_name = ED_select_pick_get_name;
+  ot->get_name = sequencer_select_get_name;
 
   /* Flags. */
   ot->flag = OPTYPE_UNDO;
@@ -2046,9 +2081,8 @@ static int sequencer_box_select_exec(bContext *C, wmOperator *op)
     strip_rectf(scene, strip, &rq);
     if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
       if (handles) {
-        /* Get the handles draw size. */
-        float pixelx = BLI_rctf_size_x(&v2d->cur) / BLI_rcti_size_x(&v2d->mask);
-        float handsize = sequence_handle_size_get_clamped(scene, strip, pixelx) * 4;
+        /* Get the clickable handle size, ignoring padding. */
+        float handsize = inner_clickable_handle_size_get(scene, strip, v2d) * 4;
 
         /* Right handle. */
         if (rectf.xmax > (SEQ_time_right_handle_frame_get(scene, strip) - handsize)) {

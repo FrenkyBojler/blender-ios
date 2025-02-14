@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
 
@@ -19,9 +21,18 @@
 #include "COM_render_context.hh"
 #include "COM_result.hh"
 #include "COM_static_cache_manager.hh"
-#include "COM_texture_pool.hh"
 
 namespace blender::compositor {
+
+/* Enumerates the possible outputs that the compositor can compute. */
+enum class OutputTypes : uint8_t {
+  None = 0,
+  Composite = 1 << 0,
+  Viewer = 1 << 1,
+  FileOutput = 1 << 2,
+  Previews = 1 << 3,
+};
+ENUM_OPERATORS(OutputTypes, OutputTypes::Previews)
 
 /* ------------------------------------------------------------------------------------------------
  * Context
@@ -29,21 +40,15 @@ namespace blender::compositor {
  * A Context is an abstract class that is implemented by the caller of the evaluator to provide the
  * necessary data and functionalities for the correct operation of the evaluator. This includes
  * providing input data like render passes and the active scene, as well as references to the data
- * where the output of the evaluator will be written. The class also provides a reference to the
- * texture pool which should be implemented by the caller and provided during construction.
- * Finally, the class have an instance of a static resource manager for acquiring cached resources
- * efficiently. */
+ * where the output of the evaluator will be written. Finally, the class have an instance of a
+ * static resource manager for acquiring cached resources efficiently. */
 class Context {
  private:
-  /* A texture pool that can be used to allocate textures for the compositor efficiently. */
-  TexturePool &texture_pool_;
   /* A static cache manager that can be used to acquire cached resources for the compositor
    * efficiently. */
   StaticCacheManager cache_manager_;
 
  public:
-  Context(TexturePool &texture_pool);
-
   /* Get the compositing scene. */
   virtual const Scene &get_scene() const = 0;
 
@@ -57,11 +62,8 @@ class Context {
    * denoising quality on a node. */
   virtual eCompositorDenoiseQaulity get_denoise_quality() const = 0;
 
-  /* True if the compositor should write file outputs, false otherwise. */
-  virtual bool use_file_output() const = 0;
-
-  /* True if the compositor should compute node previews, false otherwise. */
-  virtual bool should_compute_node_previews() const = 0;
+  /* Returns all output types that should be computed. */
+  virtual OutputTypes needed_outputs() const = 0;
 
   /* Get the render settings for compositing. */
   virtual const RenderData &get_render_data() const = 0;
@@ -138,8 +140,8 @@ class Context {
    * executing as soon as possible. */
   virtual bool is_canceled() const;
 
-  /* Resets the context's internal structures like texture pool and cache manager. This should be
-   * called before every evaluation. */
+  /* Resets the context's internal structures like the cache manager. This should be called before
+   * every evaluation. */
   void reset();
 
   /* Get the size of the compositing region. See get_compositing_region(). The output size is
@@ -171,9 +173,6 @@ class Context {
 
   /* Create a result of the given type using the context's precision. */
   Result create_result(ResultType type);
-
-  /* Get a reference to the texture pool of this context. */
-  TexturePool &texture_pool();
 
   /* Get a reference to the static cache manager of this context. */
   StaticCacheManager &cache_manager();

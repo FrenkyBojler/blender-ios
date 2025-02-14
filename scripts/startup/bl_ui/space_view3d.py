@@ -983,6 +983,9 @@ class VIEW3D_HT_header(Header):
                 canvas_source = tool_settings.paint_mode.canvas_source
                 icon = 'GROUP_VCOL' if canvas_source == 'COLOR_ATTRIBUTE' else canvas_source
                 row.popover(panel="VIEW3D_PT_slots_paint_canvas", icon=icon)
+                # TODO: Update this boolean condition so that the Canvas button is only active when
+                # the appropriate color types are selected in Solid mode, I.E. 'TEXTURE'
+                row.active = is_paint_tool
             else:
                 row.popover(panel="VIEW3D_PT_slots_color_attributes", icon='GROUP_VCOL')
 
@@ -2595,7 +2598,7 @@ class VIEW3D_MT_grease_pencil_add(Menu):
 
     def draw(self, _context):
         layout = self.layout
-        layout.operator("object.grease_pencil_add", text="Empty", icon='EMPTY_AXIS').type = 'EMPTY'
+        layout.operator("object.grease_pencil_add", text="Blank", icon='EMPTY_AXIS').type = 'EMPTY'
         layout.operator("object.grease_pencil_add", text="Stroke", icon='STROKE').type = 'STROKE'
         layout.operator("object.grease_pencil_add", text="Monkey", icon='MONKEY').type = 'MONKEY'
         layout.separator()
@@ -4147,6 +4150,9 @@ class VIEW3D_MT_pose(Menu):
 
         layout.menu("VIEW3D_MT_pose_showhide")
         layout.menu("VIEW3D_MT_bone_options_toggle", text="Bone Settings")
+
+        layout.separator()
+        layout.operator("POSELIB.create_pose_asset")
 
 
 class VIEW3D_MT_pose_transform(Menu):
@@ -5732,7 +5738,8 @@ class VIEW3D_MT_edit_greasepencil(Menu):
         layout.separator()
 
         layout.operator("grease_pencil.copy", text="Copy", icon='COPYDOWN')
-        layout.operator("grease_pencil.paste", text="Paste", icon='PASTEDOWN')
+        layout.operator("grease_pencil.paste", text="Paste", icon='PASTEDOWN').type = 'ACTIVE'
+        layout.operator("grease_pencil.paste", text="Paste by Layer").type = 'LAYER'
 
         layout.separator()
 
@@ -6681,32 +6688,6 @@ class VIEW3D_PT_shading_options(Panel):
                 text="",
             )
 
-            col = layout.column()
-
-            row = col.row()
-            row.active = not xray_active
-            row.prop(shading, "show_cavity")
-
-            if shading.show_cavity and not xray_active:
-                row.prop(shading, "cavity_type", text="Type")
-
-                if shading.cavity_type in {'WORLD', 'BOTH'}:
-                    col.label(text="World Space")
-                    sub = col.row(align=True)
-                    sub.prop(shading, "cavity_ridge_factor", text="Ridge")
-                    sub.prop(shading, "cavity_valley_factor", text="Valley")
-                    sub.popover(
-                        panel="VIEW3D_PT_shading_options_ssao",
-                        icon='PREFERENCES',
-                        text="",
-                    )
-
-                if shading.cavity_type in {'SCREEN', 'BOTH'}:
-                    col.label(text="Screen Space")
-                    sub = col.row(align=True)
-                    sub.prop(shading, "curvature_ridge_factor", text="Ridge")
-                    sub.prop(shading, "curvature_valley_factor", text="Valley")
-
             row = col.row()
             row.active = not xray_active
             row.prop(shading, "use_dof", text="Depth of Field")
@@ -6756,6 +6737,57 @@ class VIEW3D_PT_shading_options_ssao(Panel):
         col.prop(scene.display, "matcap_ssao_samples")
         col.prop(scene.display, "matcap_ssao_distance")
         col.prop(scene.display, "matcap_ssao_attenuation")
+
+
+class VIEW3D_PT_shading_cavity(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'HEADER'
+    bl_label = "Cavity"
+    bl_parent_id = "VIEW3D_PT_shading"
+
+    @classmethod
+    def poll(cls, context):
+        shading = VIEW3D_PT_shading.get_shading(context)
+        return shading.type in {'SOLID'}
+
+    def draw_header(self, context):
+        layout = self.layout
+        shading = VIEW3D_PT_shading.get_shading(context)
+        xray_active = shading.show_xray and shading.xray_alpha != 1
+
+        row = layout.row()
+        row.active = not xray_active
+        row.prop(shading, "show_cavity")
+        if shading.show_cavity:
+            row.prop(shading, "cavity_type", text="Type")
+
+    def draw(self, context):
+        layout = self.layout
+        shading = VIEW3D_PT_shading.get_shading(context)
+        xray_active = shading.show_xray and shading.xray_alpha != 1
+
+        col = layout.column()
+        col.active = not xray_active
+
+        if shading.show_cavity:
+            if shading.cavity_type in {'WORLD', 'BOTH'}:
+                row = col.row()
+                row.label(text="World Space")
+                row.popover(
+                    panel="VIEW3D_PT_shading_options_ssao",
+                    icon='PREFERENCES',
+                    text="",
+                )
+
+                row = col.row()
+                row.prop(shading, "cavity_ridge_factor", text="Ridge")
+                row.prop(shading, "cavity_valley_factor", text="Valley")
+
+            if shading.cavity_type in {'SCREEN', 'BOTH'}:
+                col.label(text="Screen Space")
+                row = col.row()
+                row.prop(shading, "curvature_ridge_factor", text="Ridge")
+                row.prop(shading, "curvature_valley_factor", text="Valley")
 
 
 class VIEW3D_PT_shading_render_pass(Panel):
@@ -8126,9 +8158,10 @@ class VIEW3D_MT_greasepencil_edit_context_menu(Menu):
             col.separator()
 
             # Copy/paste
-            col.operator("grease_pencil.copy", text="Copy", icon='COPYDOWN')
-            col.operator("grease_pencil.paste", text="Paste", icon='PASTEDOWN')
             col.operator("grease_pencil.duplicate_move", text="Duplicate")
+            col.operator("grease_pencil.copy", text="Copy", icon='COPYDOWN')
+            col.operator("grease_pencil.paste", text="Paste", icon='PASTEDOWN').type = 'ACTIVE'
+            col.operator("grease_pencil.paste", text="Paste by Layer").type = 'LAYER'
 
             col.separator()
 
@@ -8801,7 +8834,7 @@ class View3DAssetShelf(BrushAssetShelf):
     bl_space_type = "VIEW_3D"
 
 
-class AssetShelfHiddenByDefault():
+class AssetShelfHiddenByDefault:
     # Take #BrushAssetShelf.bl_options but remove the 'DEFAULT_VISIBLE' flag.
     bl_options = {option for option in BrushAssetShelf.bl_options if option != 'DEFAULT_VISIBLE'}
 
@@ -9076,6 +9109,7 @@ classes = (
     VIEW3D_PT_shading_options,
     VIEW3D_PT_shading_options_shadow,
     VIEW3D_PT_shading_options_ssao,
+    VIEW3D_PT_shading_cavity,
     VIEW3D_PT_shading_render_pass,
     VIEW3D_PT_shading_compositor,
     VIEW3D_PT_gizmo_display,

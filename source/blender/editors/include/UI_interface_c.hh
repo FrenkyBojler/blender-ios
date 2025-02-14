@@ -17,7 +17,11 @@
 #include "BLI_string_utf8_symbols.h"
 #include "BLI_sys_types.h" /* size_t */
 #include "BLI_utildefines.h"
+
+#include "DNA_userdef_types.h"
+
 #include "UI_interface_icons.hh"
+
 #include "WM_types.hh"
 
 #include "MEM_guardedalloc.h"
@@ -1730,7 +1734,7 @@ void UI_but_func_identity_compare_set(uiBut *but, uiButIdentityCompareFunc cmp_f
  * \return false if there is nothing to add.
  */
 bool UI_search_item_add(uiSearchItems *items,
-                        const char *name,
+                        blender::StringRef name,
                         void *poin,
                         int iconid,
                         int but_flag,
@@ -1953,7 +1957,7 @@ struct AutoComplete;
 #define AUTOCOMPLETE_PARTIAL_MATCH 2
 
 AutoComplete *UI_autocomplete_begin(const char *startname, size_t maxncpy);
-void UI_autocomplete_update_name(AutoComplete *autocpl, const char *name);
+void UI_autocomplete_update_name(AutoComplete *autocpl, blender::StringRef name);
 int UI_autocomplete_end(AutoComplete *autocpl, char *autoname);
 
 /* Button drag-data (interface_drag.cc).
@@ -2885,11 +2889,8 @@ void uiTemplateAssetView(uiLayout *layout,
 
 namespace blender::ui {
 
-void template_asset_shelf_popover(uiLayout &layout,
-                                  const bContext &C,
-                                  StringRefNull asset_shelf_id,
-                                  StringRefNull name,
-                                  int icon);
+void template_asset_shelf_popover(
+    uiLayout &layout, const bContext &C, StringRefNull asset_shelf_id, StringRef name, int icon);
 
 }
 
@@ -3154,13 +3155,13 @@ void uiItemLDrag(uiLayout *layout, PointerRNA *ptr, blender::StringRef name, int
  */
 void uiItemM_ptr(uiLayout *layout, MenuType *mt, std::optional<blender::StringRef> name, int icon);
 void uiItemM(uiLayout *layout,
-             blender::StringRefNull menuname,
+             blender::StringRef menuname,
              std::optional<blender::StringRef> name,
              int icon);
 /**
  * Menu contents.
  */
-void uiItemMContents(uiLayout *layout, blender::StringRefNull menuname);
+void uiItemMContents(uiLayout *layout, blender::StringRef menuname);
 
 /* Decorators. */
 
@@ -3195,12 +3196,12 @@ void uiItemProgressIndicator(uiLayout *layout,
 void uiItemPopoverPanel_ptr(uiLayout *layout,
                             const bContext *C,
                             PanelType *pt,
-                            std::optional<blender::StringRefNull> name_opt,
+                            std::optional<blender::StringRef> name_opt,
                             int icon);
 void uiItemPopoverPanel(uiLayout *layout,
                         const bContext *C,
-                        blender::StringRefNull panel_type,
-                        std::optional<blender::StringRefNull> name_opt,
+                        blender::StringRef panel_type,
+                        std::optional<blender::StringRef> name_opt,
                         int icon);
 void uiItemPopoverPanelFromGroup(uiLayout *layout,
                                  bContext *C,

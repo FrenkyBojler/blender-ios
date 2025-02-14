@@ -16,6 +16,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_string.h"
 
@@ -707,9 +708,7 @@ static void sequencer_main_cursor(wmWindow *win, ScrArea *area, ARegion *region)
     return;
   }
 
-  const float scale_y = UI_view2d_scale_get_y(v2d);
-
-  if (!ED_sequencer_can_select_handle(scene, selection.seq1, v2d) || scale_y < 16 * U.pixelsize) {
+  if (!ED_sequencer_can_select_handle(scene, selection.seq1, v2d)) {
     WM_cursor_set(win, wmcursor);
     return;
   }

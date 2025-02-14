@@ -19,6 +19,7 @@
 #include "DNA_text_types.h"
 
 #include "BLI_fileops.h"
+#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
@@ -2544,7 +2545,7 @@ static BIFIconID tree_element_get_icon_from_id(const ID *id)
       if (id->tag & ID_TAG_MISSING) {
         return ICON_LIBRARY_DATA_BROKEN;
       }
-      else if (((Library *)id)->runtime.parent) {
+      else if (((Library *)id)->runtime->parent) {
         return ICON_LIBRARY_DATA_INDIRECT;
       }
       else {
@@ -2810,7 +2811,6 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
           case STRIP_TYPE_ADD:
           case STRIP_TYPE_SUB:
           case STRIP_TYPE_MUL:
-          case STRIP_TYPE_OVERDROP:
           case STRIP_TYPE_ALPHAOVER:
           case STRIP_TYPE_ALPHAUNDER:
           case STRIP_TYPE_COLORMIX:
@@ -3273,7 +3273,7 @@ static bool element_should_draw_faded(const TreeViewContext &tvc,
                                BKE_view_layer_base_find((ViewLayer *)tvc.view_layer, (Object *)ob);
         const bool is_visible = (base != nullptr) &&
                                 (base->flag & BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT) &&
-                                !BLI_listbase_is_empty(&te->subtree);
+                                !(te->flag & TE_CHILD_NOT_IN_COLLECTION);
 
         return !is_visible;
       }

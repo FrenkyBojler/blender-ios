@@ -669,28 +669,6 @@ static void node_area_listener(const wmSpaceTypeListenerParams *params)
   }
 }
 
-/* Returns true if an image editor exists that views the compositor result. */
-static bool is_compositor_viewer_image_visible(const bContext *C)
-{
-  wmWindowManager *window_manager = CTX_wm_manager(C);
-  LISTBASE_FOREACH (wmWindow *, window, &window_manager->windows) {
-    bScreen *screen = WM_window_get_active_screen(window);
-    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-      SpaceLink *space_link = static_cast<SpaceLink *>(area->spacedata.first);
-      if (!space_link || space_link->spacetype != SPACE_IMAGE) {
-        continue;
-      }
-      const SpaceImage *space_image = reinterpret_cast<const SpaceImage *>(space_link);
-      Image *image = ED_space_image(space_image);
-      if (image && image->source == IMA_SRC_VIEWER) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
 static void node_area_refresh(const bContext *C, ScrArea *area)
 {
   /* default now: refresh node is starting preview */
@@ -704,11 +682,7 @@ static void node_area_refresh(const bContext *C, ScrArea *area)
       if (scene->use_nodes) {
         if (snode->runtime->recalc_regular_compositing) {
           snode->runtime->recalc_regular_compositing = false;
-          /* Only start compositing if its result will be visible either in the backdrop or in a
-           * viewer image. */
-          if (snode->flag & SNODE_BACKDRAW || is_compositor_viewer_image_visible(C)) {
-            ED_node_composite_job(C, snode->nodetree, scene);
-          }
+          ED_node_composite_job(C, snode->nodetree, scene);
         }
       }
     }
@@ -1336,6 +1310,17 @@ static int node_space_subtype_get(ScrArea *area)
 static void node_space_subtype_set(ScrArea *area, int value)
 {
   SpaceNode *snode = static_cast<SpaceNode *>(area->spacedata.first);
+  int value_prev = node_space_subtype_get(area);
+
+  /* Save the subtype. */
+  blender::bke::bNodeTreeType *typeinfo = rna_node_tree_type_from_enum(value_prev);
+  if (typeinfo) {
+    STRNCPY(snode->tree_idname_prev, typeinfo->idname.c_str());
+  }
+  else {
+    snode->tree_idname_prev[0] = '\0';
+  }
+
   ED_node_set_tree_type(snode, rna_node_tree_type_from_enum(value));
 }
 
@@ -1347,6 +1332,12 @@ static void node_space_subtype_item_extend(bContext *C, EnumPropertyItem **item,
   if (free) {
     MEM_freeN((void *)item_src);
   }
+}
+
+static int node_space_subtype_prev_get(ScrArea *area)
+{
+  SpaceNode *snode = static_cast<SpaceNode *>(area->spacedata.first);
+  return rna_node_tree_idname_to_enum(snode->tree_idname_prev);
 }
 
 static blender::StringRefNull node_space_name_get(const ScrArea *area)
@@ -1416,6 +1407,7 @@ void ED_spacetype_node()
   st->space_subtype_item_extend = node_space_subtype_item_extend;
   st->space_subtype_get = node_space_subtype_get;
   st->space_subtype_set = node_space_subtype_set;
+  st->space_subtype_prev_get = node_space_subtype_prev_get;
   st->space_name_get = node_space_name_get;
   st->space_icon_get = node_space_icon_get;
   st->blend_read_data = node_space_blend_read_data;

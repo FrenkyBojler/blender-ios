@@ -16,6 +16,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_fileops.h"
+#include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
@@ -35,6 +36,7 @@
 #include "BKE_global.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
@@ -484,8 +486,8 @@ static void font_select_update_primary_clipboard(Object *obedit)
 static bool font_paste_wchar(Object *obedit,
                              const char32_t *str,
                              const size_t str_len,
-                             /* optional */
-                             CharInfo *str_info)
+                             /* Optional. */
+                             const CharInfo *str_info)
 {
   Curve *cu = static_cast<Curve *>(obedit->data);
   EditFont *ef = cu->editfont;
@@ -558,7 +560,7 @@ static char *font_select_to_buffer(Object *obedit)
   }
   Curve *cu = static_cast<Curve *>(obedit->data);
   EditFont *ef = cu->editfont;
-  char32_t *text_buf = ef->textbuf + selstart;
+  const char32_t *text_buf = ef->textbuf + selstart;
   const size_t text_buf_len = selend - selstart;
 
   const size_t len_utf8 = BLI_str_utf32_as_utf8_len_ex(text_buf, text_buf_len + 1);
@@ -2416,14 +2418,13 @@ static void font_ui_template_init(bContext *C, wmOperator *op)
 {
   PropertyPointerRNA *pprop;
 
-  op->customdata = pprop = static_cast<PropertyPointerRNA *>(
-      MEM_callocN(sizeof(PropertyPointerRNA), "OpenPropertyPointerRNA"));
+  op->customdata = pprop = MEM_new<PropertyPointerRNA>("OpenPropertyPointerRNA");
   UI_context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
 }
 
 static void font_open_cancel(bContext * /*C*/, wmOperator *op)
 {
-  MEM_freeN(op->customdata);
+  MEM_delete(static_cast<PropertyPointerRNA *>(op->customdata));
   op->customdata = nullptr;
 }
 
@@ -2461,7 +2462,7 @@ static int font_open_exec(bContext *C, wmOperator *op)
     RNA_property_update(C, &pprop->ptr, pprop->prop);
   }
 
-  MEM_freeN(op->customdata);
+  MEM_delete(static_cast<PropertyPointerRNA *>(op->customdata));
 
   return OPERATOR_FINISHED;
 }

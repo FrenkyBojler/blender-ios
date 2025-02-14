@@ -156,7 +156,7 @@ static int depthdropper_init(bContext *C, wmOperator *op)
     char *prop_data_path = RNA_string_get_alloc(op->ptr, "prop_data_path", nullptr, 0, nullptr);
     BLI_SCOPED_DEFER([&] { MEM_SAFE_FREE(prop_data_path); });
     if (!prop_data_path) {
-      MEM_freeN(ddr);
+      MEM_delete(ddr);
       return false;
     }
     PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Context, C);
@@ -266,7 +266,7 @@ static void depthdropper_depth_sample_pt(bContext *C,
         /* Unfortunately it's necessary to always draw otherwise we leave stale text. */
         ED_region_tag_redraw(region);
 
-        view3d_operator_needs_opengl(C);
+        view3d_operator_needs_gpu(C);
 
         /* Ensure the depth buffer is updated for #ED_view3d_autodist. */
         ED_view3d_depth_override(
