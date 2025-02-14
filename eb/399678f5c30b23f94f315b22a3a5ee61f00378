@@ -2,3 +2,4 @@ Referenced by issue #118133, Mirror modifier makes Blender crash
 Referenced by issue #116333, Blender crushing when trying to rotate multiple objects or use Cycles
 Referenced by issue #116156, Crash when rotating a bone (pose mode) on a model with subdiv modifier
 Referenced by issue #115527, Crash when duplicating object
+Referenced by issue #115479, Fix #115366: missing task isolation when computing loose subdiv edges
