@@ -1,1 +1,2 @@
 Referenced by issue #82859, Blender crashes anytime the renderer is set to OpenCL.
+Referenced by issue #82865, CUDA ERROR due to Global coordinates for texture in displace modifier
