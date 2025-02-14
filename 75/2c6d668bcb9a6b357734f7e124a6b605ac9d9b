@@ -1,3 +1,4 @@
 Referenced by commit dae9917915c, Fix T93384: Objects with Constraints to curves have wrong locations on file load
 Referenced by issue #94282, Geometry Nodes causes insane dimension property
 Referenced by issue #94113, Local view + Geometry Nodes is broken for instances
+Referenced by issue #93384, Regression: objects with Constraints to curves have wrong locations on file load (curve boundingbox problem)
