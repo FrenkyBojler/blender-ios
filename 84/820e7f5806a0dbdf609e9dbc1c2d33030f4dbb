@@ -2,3 +2,4 @@ Referenced by issue #62388, object visibilty using obj.hide_viewport not recogni
 Referenced by issue #62135, duplicate-move on parented objects, doesn't move in world space
 Referenced by issue #62128, inconsistent material duplication
 Referenced by issue #62098, Outliner: Delete hierarchy crash
+Referenced by issue #62074, 2.8: Python API: crash due to missing window context in Application timer
