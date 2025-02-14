@@ -16,3 +16,4 @@ Referenced by issue #49935, Mesh deform modifier binding took forever
 Referenced by issue #49924, Grease Pencil (GP) not working on Video Sequencer Editor (VSE)
 Referenced by issue #49828, calling bpy.ops.wm.open_mainfile from class which is invoked from pop-up button results in crash.
 Referenced by issue #49802, Transform constraint uses GLOBAL instead of LOCAL
+Referenced by issue #49758, 3D Viewport Lag with NVIDIA 373.06 Driver (and Earlier)
