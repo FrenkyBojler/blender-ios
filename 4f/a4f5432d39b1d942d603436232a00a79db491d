@@ -1,2 +1,3 @@
 Referenced by commit 2c28f87230c, Fix missing weight-paint overlay popover when mixing pose & weight-paint
 Referenced by issue #112765, Bone opacity option clash with the object/mode overlay split
+Referenced by issue #111624, UI: Split mode overlays into its own popover
