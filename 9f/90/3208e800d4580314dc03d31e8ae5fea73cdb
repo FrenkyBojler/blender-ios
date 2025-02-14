@@ -1,0 +1,1 @@
+Referenced by issue #36165, HDR texture values clamped to a minimum value of 0 when used in modifiers (*AFTER 2.68*)
