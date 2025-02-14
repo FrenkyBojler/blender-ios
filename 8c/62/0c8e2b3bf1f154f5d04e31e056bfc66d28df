@@ -4,3 +4,4 @@ Referenced by issue #58667, Enabling animate property of material property crash
 Referenced by issue #58574, Select/Deselect All broken
 Referenced by issue #58549, Color input adjusts more than one HSV field
 Referenced by issue #58554, CPU ressource usage
+Referenced by issue #58517, Multiview not working with OpenGL render using scene settings
