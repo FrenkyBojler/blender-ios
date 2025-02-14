@@ -1,1 +1,2 @@
 Referenced by issue #90715, Removing particle system modifier through Python API, delete wrong modifier
+Referenced by issue #78718, Crash when deleting particle system modifier with the X Shortcut
