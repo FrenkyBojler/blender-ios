@@ -1,2 +1,3 @@
 Referenced by issue #91253, Pose Bone Selection, Slow Since 2.8
 Referenced by issue #54887, OSL: Cycles Script Node with trace call crashes Blender on render
+Referenced by issue #53713, Python API: user_remap for images seems broken
