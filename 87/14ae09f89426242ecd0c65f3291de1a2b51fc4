@@ -1,1 +1,2 @@
 Referenced by commit 912151763d0, Followup to rB8714ae09f894: better not have several RNA properties affect a single DNA one.
+Referenced by commit 833029ba02f, Fix own rB8714ae09f894: Forgot to handle bone constraints in versionning code!
