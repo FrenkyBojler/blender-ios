@@ -6,3 +6,4 @@ Referenced by issue #51909, Blender 2.79 fur denoise bug
 Referenced by issue #51910, where is the problem?
 Referenced by issue #51896, Filmic default view isn't working correctly
 Referenced by issue #51889, Broken UI after creating new file in 2.79 test and daily builds
+Referenced by issue #51833, Principled BSDF Transmission works incorrectly if exposure is low. Blender 2.79
