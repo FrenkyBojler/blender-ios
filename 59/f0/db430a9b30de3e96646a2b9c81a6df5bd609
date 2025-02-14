@@ -1,0 +1,1 @@
+Referenced by issue #57861, Object.ray_cast (and all RNA functions using "ob->runtime") broken in Blender 2.80
