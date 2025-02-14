@@ -1,1 +1,2 @@
 Referenced by issue #71667, smooth mask in sculpt produces artifacts.
+Referenced by issue #70689, Smooth brush is very slow while using MultiRes compared to other brushes
