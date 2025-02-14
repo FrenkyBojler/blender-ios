@@ -1,2 +1,3 @@
 Referenced by issue #82355, Wacom problem on 2.92 since the 1 november build
 Referenced by issue #82288, Wintab walk navigation erratic (regression)
+Referenced by issue #82259, VSE: Empty sequence plays 100+ fps in 2.90 and only 20+ in 2.91
