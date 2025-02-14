@@ -30,3 +30,4 @@ Referenced by issue #89870, Vertex groups are lost if I save a file in 3.0 and o
 Referenced by issue #89316, Geometry Nodes: An existing Vertex Group (VG) can't be altered after a Boolean Node.
 Referenced by issue #88951, Move vertex group names from object to geometry
 Referenced by issue #88376, Vertex groups in copy linked object with wrong namming in field of modifier (Bevel)
+Referenced by issue #88334, Failure to preserve vertex groups through Geometry Nodes, new to 2.93
