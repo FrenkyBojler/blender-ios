@@ -1,1 +1,2 @@
 Referenced by commit 551856ed320, Revert "Fix several issues with handling of numpy in CMake."
+Referenced by commit fdc9350a9f6, Revert "Fix own error in rB5d570c875eda in CMake script."
