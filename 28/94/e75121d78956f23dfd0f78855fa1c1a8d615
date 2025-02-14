@@ -1,3 +1,4 @@
 Referenced by commit 9ad9d38786c, Fix T62601: parenting to curve (follow path) causes offset
 Referenced by issue #82156, Object with Copy Rotation Constraints translates when being parented
 Referenced by issue #80490, Child Object jumps away with changing the parent bone
+Referenced by issue #60623, Parenting objects to bones causes offset
