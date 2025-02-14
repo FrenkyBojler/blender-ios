@@ -1,1 +1,2 @@
 Referenced by commit f1775361e17, VSE: Update test after fix in 618b7f4a9b
+Referenced by commit 618b7f4a9b0, Fix #130742 Scene render from VSE is taking twice as long
