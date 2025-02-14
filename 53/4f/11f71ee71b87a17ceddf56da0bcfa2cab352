@@ -4,3 +4,4 @@ Referenced by issue #50249, Blender crashes when bringing in a texture node in c
 Referenced by issue #50233, Blender crash after adding a Texture Node in Compositor
 Referenced by issue #50215, Blender crashes, when I add Input/Texture node
 Referenced by issue #50211, compositing bug
+Referenced by issue #50170, Texture Node may be broken
