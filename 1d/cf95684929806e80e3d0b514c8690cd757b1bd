@@ -1,1 +1,2 @@
 Referenced by commit eaa0ae23a9d, Fix: Lighten blend mode is wrong for factors less than 1
+Referenced by issue #131242, Fix: Lighten blend mode is wrong for factors less than 1
