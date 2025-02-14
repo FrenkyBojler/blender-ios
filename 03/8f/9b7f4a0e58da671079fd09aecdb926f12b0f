@@ -1,2 +1,3 @@
 Referenced by issue #99955, Regression: Crash when trying to 'Cache Result' of render when 'all render layers are disabled'
 Referenced by issue #94506, Crash in Compositing
+Referenced by issue #91629, Blender crashing with "Open Cached Render" function
