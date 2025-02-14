@@ -1,0 +1,1 @@
+Referenced by issue #46801, Smart UV Project scales in one dimension to pack the UVs in the 0-1 space, instead of uniformly
