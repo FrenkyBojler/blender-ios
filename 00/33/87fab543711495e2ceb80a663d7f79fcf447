@@ -1,2 +1,3 @@
 Referenced by issue #40262, Bake crash if you set GPU
 Referenced by issue #40257, BGE: Frustrum culling not working properly
+Referenced by issue #40230, False alarm trying to add object to group: "dependency cycle detected"
