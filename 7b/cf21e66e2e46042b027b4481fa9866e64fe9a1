@@ -1,2 +1,3 @@
 Referenced by issue #94874, Drivers using bone custom properties don't work on modifiers
 Referenced by issue #88449, Blender LTS: Maintenance Task 2.93
+Referenced by issue #87039, Pose bone ID property driver causes dependency cycle
