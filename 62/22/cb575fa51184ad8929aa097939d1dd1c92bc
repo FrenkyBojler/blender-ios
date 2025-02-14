@@ -1,1 +1,2 @@
 Referenced by issue #71197, F-Curve Limited to 16384 points; crashes upon trying to display curve with 16385 points
+Referenced by issue #68950, Edge loops crashing blender (exeeding IMM_BUFFER_SIZE)
