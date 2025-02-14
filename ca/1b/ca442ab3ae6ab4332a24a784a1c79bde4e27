@@ -1,1 +1,2 @@
 Referenced by issue #41573, Compositing reroute converts floats to red color
+Referenced by issue #40993, Wrong snapping (active) in 2.71 (no active verts after extrusion, fallback snap median broken)
