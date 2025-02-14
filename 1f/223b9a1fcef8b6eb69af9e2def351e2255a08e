@@ -1,0 +1,1 @@
+Referenced by commit b874c152a81, Fix (unreported): 'CoInitializeEx' being called without 'CoUninitialize'
