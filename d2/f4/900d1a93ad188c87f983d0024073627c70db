@@ -1,2 +1,3 @@
 Referenced by issue #50828, Grace Pencil crashes when try to use OpenGL render active viewport via Video Sequence Editor
 Referenced by issue #50679, VSE locked strips moves with gaps tools
+Referenced by issue #50634, Hair Primitive as Triangles + Hair shader with a texture = crash
