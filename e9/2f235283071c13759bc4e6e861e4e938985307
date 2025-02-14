@@ -16,3 +16,4 @@ Referenced by issue #52547, Cycles Cuda rendering fails for dedicated (non-displ
 Referenced by issue #52490, NDOF device does not lock into orthogonal view (top, front, right, etc) in 2.79RC2 as in prev versions
 Referenced by issue #52428, blender crash after pressing "F"
 Referenced by issue #52432, Blender crashes while using Ghost  (new depsgraph)
+Referenced by issue #52356, Lightning Failure with too many spot lights
