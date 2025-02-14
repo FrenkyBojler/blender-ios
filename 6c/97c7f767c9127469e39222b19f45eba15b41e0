@@ -1,2 +1,3 @@
 Referenced by issue #89350, Color indicating animation status missing from many icon buttons (all defined with emboss=False)
 Referenced by issue #88449, Blender LTS: Maintenance Task 2.93
+Referenced by issue #86299, grease pencil layers visibility icon doesn't change to purple when a driver is added
