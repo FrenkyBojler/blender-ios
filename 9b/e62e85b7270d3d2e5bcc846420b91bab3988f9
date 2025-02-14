@@ -6,3 +6,4 @@ Referenced by issue #120202, Total crash when trying to render on MacOs (Intel)
 Referenced by issue #120203, Crash on Intel Mac when rendering or opening material properties
 Referenced by issue #120013, Pose Library - asset shelf sub-catalogs gone after restart
 Referenced by issue #119997, Regression: Baked Normal Map From Multiresolution Produces Strange Result on edges with crease
+Referenced by issue #119907, Active curve vertex/spline not visualizing properly
