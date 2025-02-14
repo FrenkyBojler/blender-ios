@@ -1,3 +1,4 @@
 Referenced by commit 0bfad6cc5a2, GPv3: Wrong radius property in draw context menu
 Referenced by issue #127459, Right click menu no longer appears during Grease Pencil Drawing
 Referenced by issue #127070, GPv3: Wrong radius property in draw context menu
+Referenced by issue #125263, GPv3: RMB Brush popup menu missing in Draw mode
