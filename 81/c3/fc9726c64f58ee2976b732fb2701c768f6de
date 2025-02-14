@@ -5,3 +5,4 @@ Referenced by issue #41290, Texture UV Crash bug
 Referenced by issue #40974, Black mesh rendered in minus one scale
 Referenced by issue #40955, LibNew doesn't clone Physics Mesh
 Referenced by issue #40958, "Align rotation with the snapping target" and "project individual elements" don't work together
+Referenced by issue #40948, Fill holes fails in certain case
