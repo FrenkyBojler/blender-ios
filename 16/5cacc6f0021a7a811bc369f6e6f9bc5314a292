@@ -1,0 +1,1 @@
+Referenced by issue #111595, VSE: Metadata is shown based on preview render buffer (so can easily be lost e.g. by having the "wrong" strip blend mode -- which happens to be default now)
