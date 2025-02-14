@@ -1,1 +1,2 @@
 Referenced by commit 05190a5a237, Fix: Add missing header used by recent backport fix
+Referenced by issue #108097, The performance of Blender decreases as the number of buffered frame increases
