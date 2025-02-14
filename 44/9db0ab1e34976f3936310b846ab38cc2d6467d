@@ -1,2 +1,3 @@
 Referenced by issue #109057, Regression: baking multi texture targets on single object is broken (adjacent faces option, Extend is fine)
 Referenced by issue #104059, Bake doesn't work well
+Referenced by issue #96942, Bake Normal problem when adjoining faces have different UV orientation
