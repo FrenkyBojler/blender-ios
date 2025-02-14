@@ -1,2 +1,3 @@
 Referenced by issue #78099, Muting pair of specific Nodes in the Compositor results in crash
 Referenced by issue #77348, Blender LTS: Maintenance Task 2.83
+Referenced by issue #71787, Compositor Reroute and Switch nodes use unpredictible channels when toggling the Switch
