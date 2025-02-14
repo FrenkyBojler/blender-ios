@@ -1,2 +1,3 @@
 Referenced by commit 031715f743c, Fix missing piece in recent rBce65fae8f32c (support for '+' key).
 Referenced by issue #48369, Error PADPLUSKEY [ latin1 ]
+Referenced by issue #46414, User Preferences, Input, german keyboard layout, = versus +
