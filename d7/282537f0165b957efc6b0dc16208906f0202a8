@@ -1,3 +1,4 @@
 Referenced by commit 2ee94c954d6, Fix LayerTypeInfo for CD_PROP_COL
 Referenced by issue #80470, Crash when trying to assign Automatic Weights to this particular mesh
 Referenced by issue #77208, Tablet - Huion : pen pressure working for texture paint but not working for scult mode
+Referenced by issue #77139, Blender 2.9: View Camera Center can't be found in Search
