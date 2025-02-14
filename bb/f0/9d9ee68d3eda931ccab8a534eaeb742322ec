@@ -57,3 +57,4 @@ Referenced by issue #43558, Brush fails in some perspectives and in certain dist
 Referenced by issue #43562, Cycles gets stuck rendering final tile at 100% CPU
 Referenced by issue #43529, Blender 2.73a crashes on startup on Ubuntu 14.04.1 x86_64
 Referenced by issue #43517, Mark Sharp information ignored on Export
+Referenced by issue #43498, Wrong creation in rotated curve objects
