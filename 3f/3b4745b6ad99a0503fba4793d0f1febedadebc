@@ -1,2 +1,3 @@
 Referenced by commit 947ba0d27bf, Fix T87355: Crash using menu search from the top bar
 Referenced by issue #87355, Crash using menu search from the top bar
+Referenced by issue #87187, pyrna_enum_to_py complains when iterate Python Console areas
