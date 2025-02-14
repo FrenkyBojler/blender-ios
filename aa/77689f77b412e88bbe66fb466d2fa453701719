@@ -1,1 +1,2 @@
 Referenced by commit 9c074548165, Keymap: Enable repeat for "Make Edge/Face" operator
+Referenced by issue #84531, pressing f down continuously only runs fill operator once.
