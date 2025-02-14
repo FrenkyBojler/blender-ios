@@ -2,3 +2,4 @@ Referenced by commit 58909abc685, EEVEE: Render: Fix regression caused by previo
 Referenced by issue #79970, Camera Animation Breaks EEVEE Motion Blur (Two Steps or More)
 Referenced by issue #79672, Motion blur steps value incorrectly changes shutter duration and affects AA quality
 Referenced by issue #79630, Crop and transparent in render
+Referenced by issue #79533, Crash when opening file
