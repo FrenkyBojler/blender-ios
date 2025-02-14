@@ -1,1 +1,2 @@
 Referenced by commit bdb85bdd981, Fix T100308: Removing scene time node does not update relations
+Referenced by issue #88332, Geometry nodes impacting performance even when GN modifier fully disabled
