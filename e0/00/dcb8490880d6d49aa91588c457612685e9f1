@@ -4,3 +4,4 @@ Referenced by issue #75958, Blender Crashes when an Object is selected after unc
 Referenced by issue #75112, GPencil – Crash When Selecting 2D Animation
 Referenced by issue #75063, Wireframe Drawing Errors
 Referenced by issue #74961, wireframe precision
+Referenced by issue #73831, orthographic view wireframe regression on small scale mesh ( cm )
