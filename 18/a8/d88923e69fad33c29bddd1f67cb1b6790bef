@@ -1,2 +1,3 @@
 Referenced by issue #38617, Render Buffers do not refresh after switching
 Referenced by issue #38608, Hidden mesh parts in sculpt mode are shown when matcaps are used
+Referenced by issue #38609, Sculpting multires is slower with matcap enabled
