@@ -2,3 +2,4 @@ Referenced by issue #49301, Displace Crash
 Referenced by issue #49244, Adaptive subdivision with external displacement map fail
 Referenced by issue #49245, Adaptive Subdivision + Auto Smooth cause weird mesh appearance
 Referenced by issue #49248, Blender crashes when try to render a simple scene
+Referenced by issue #49252, Microdisplacement; Very recent builds crash when image textures are used (when the mode is set to 'true')
