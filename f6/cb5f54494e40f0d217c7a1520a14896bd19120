@@ -11,3 +11,4 @@ Referenced by issue #71300, VSE: Crash in IMB_colormanagement_transform_threaded
 Referenced by issue #71267, spinning on Linus crashes
 Referenced by issue #71163, Metaball particle sources jumping around
 Referenced by issue #71090, Collections cannot be linked (do not appear in file browser)
+Referenced by issue #71080, Crash on adding material - Linux
