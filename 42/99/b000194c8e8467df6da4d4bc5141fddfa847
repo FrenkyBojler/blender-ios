@@ -1,0 +1,1 @@
+Referenced by issue #40987, Cycles is not rendering direct light with volumetrics, only indirect (builds from buildbot after 2.71). 2.71 renders are ok)
