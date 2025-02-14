@@ -1,3 +1,4 @@
 Referenced by issue #95654, Text object dupli renders incorrectly due to missing depsgraph relations
 Referenced by issue #94827, Regression: Group Input/Output cannot connect to some custom sockets
 Referenced by issue #92043, Relax/Push Pose operator not working on quaternion rotation
+Referenced by issue #88449, Blender LTS: Maintenance Task 2.93
