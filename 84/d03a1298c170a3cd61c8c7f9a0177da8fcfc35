@@ -1,1 +1,2 @@
 Referenced by issue #88924, Blender crashed while importing the file
+Referenced by issue #88755, Blender opens a new render window even when one is open already.
