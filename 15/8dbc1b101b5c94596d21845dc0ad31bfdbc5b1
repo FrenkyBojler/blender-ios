@@ -1,2 +1,3 @@
 Referenced by commit 729e86d5a3d, Cycles: oneAPI: fix perf regression by inlining svm_node_closure_bsdf
 Referenced by issue #112878, Cycles: oneAPI: fix perf regression by inlining svm_node_closure_bsdf
+Referenced by issue #76704, 'Reset to Default Value' sets any property on a node to 0
