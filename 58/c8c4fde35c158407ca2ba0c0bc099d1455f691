@@ -1,1 +1,2 @@
 Referenced by commit 2d21fc3f5d4, Cleanup: avoid multiplying lists multiple times
+Referenced by issue #107286, Animation: The keyframes of the bake action will overlap with the original keyframes
