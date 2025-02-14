@@ -2,3 +2,4 @@ Referenced by commit ba4228bcf77, Revert "EEVEE: Ensure Reflection: Use new impl
 Referenced by issue #88368, Regression: broken normal shading, sharp edges appear on smooth surfaces.
 Referenced by issue #87412, White artifacts in Blender EEVEE 2.93Alpha
 Referenced by issue #87331, Strange  light source artifact in evee
+Referenced by issue #87248, Eevee DoF with "Jitter Camera" creates fireflies
