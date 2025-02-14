@@ -1,2 +1,3 @@
 Referenced by commit b123aadeeeb, Fix T85895: Viewing value passes in Image Editor displays the value as alpha
 Referenced by issue #85895, Viewing value passes in render view displays the value as alpha
+Referenced by issue #74586, Switching between passes in the image editor can make the channel selector invalid.
