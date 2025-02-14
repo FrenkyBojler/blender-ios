@@ -1,2 +1,3 @@
 Referenced by issue #87724, Segmentation Fault when rendering with Cycles on 2.92
 Referenced by issue #87471, Volume objects not rendered on Cycles with GPU and AMD OpenCL
+Referenced by issue #86610, Blender Crashing when rendering with Opencl GPU on Ubuntu.
