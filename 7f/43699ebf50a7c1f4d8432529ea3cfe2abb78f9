@@ -1,1 +1,2 @@
 Referenced by commit e3ac2ac93e6, GPU: Shaders fail to compile on NVIDIA
+Referenced by issue #124217, Blender crash when importing EXR from other DDC (e.g with Deep ID channels) and does not recognize passes.
