@@ -1,2 +1,3 @@
 Referenced by issue #39848, 'Reroute' from 'Layout' in compositor causes no output from viewer
 Referenced by issue #39808, UV Map node not fully working
+Referenced by issue #39803, Segmentation fault in ColorIO on startup
