@@ -1,1 +1,2 @@
 Referenced by issue #76855, Subdiv: Incorrect topology comparison, leading to poor performance
+Referenced by issue #71908, Keyframed parameters are not preserved when frame_change_post handler is used
