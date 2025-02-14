@@ -95,3 +95,4 @@ Referenced by issue #47276, Offset between mouse pointer and new node when inser
 Referenced by issue #47281, Blender crashes randomly on freshly installed windows 10 (OpenGL)
 Referenced by issue #47265, Search-to-add node by name report the list of node untranslated
 Referenced by issue #47234, Excessive BVH build time for dupligroup instances of hair-covered objects
+Referenced by issue #47225, Blender Crashes in Sculpt Mode with dyntopo while pressing `esc` key
