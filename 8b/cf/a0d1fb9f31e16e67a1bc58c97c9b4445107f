@@ -1,1 +1,2 @@
 Referenced by commit 2476c47d758, VSE: Fix type mismatch introduced in rB8bcfa0d1fb9f
+Referenced by issue #51828, VSE Proxy smaller than 100% produces wrong results when using input Crop or Offset for movie strip
