@@ -1,1 +1,2 @@
 Referenced by commit 77257405437, UV: Edge support for select shortest path operator
+Referenced by commit c38187393ac, Fix T98214: UV selection crash with wire edges
