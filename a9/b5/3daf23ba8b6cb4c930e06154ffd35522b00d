@@ -1,3 +1,4 @@
 Referenced by commit 760a16b88b5, Fix for 3D view transform: flipped rotation direction for numeric input
 Referenced by issue #85287, Generated Grid image textures deadlock background Cycles renders.
 Referenced by issue #85261, Eevee AOV passes have inacurate colour and semi-transparent alpha channels that are set to 0.9844 instead of 1
+Referenced by issue #83092, Rotate with "R" key or using bpy.ops.transform.rotate produces inverted rotation. Effects Object, Mesh Edit and Pose Mode
