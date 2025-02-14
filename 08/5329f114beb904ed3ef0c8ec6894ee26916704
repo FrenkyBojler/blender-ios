@@ -1,2 +1,3 @@
 Referenced by commit 32d4a67017e, Revert "Fix T81002: Images drawn with the Python gpu module no longer draw on top in the Image Editor"
 Referenced by issue #81212, Some Viewport Overlay is gone if you move the view in Cycles render view
+Referenced by issue #81002, Images drawn with the Python gpu module no longer draw on top in the Image Editor
