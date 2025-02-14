@@ -1,1 +1,2 @@
 Referenced by issue #102238, Geometry Node: Memory leak -> EXCEPTION_ACCESS_VIOLATION -> EXCEPTION_INT_DIVIDE_BY_ZERO.
+Referenced by issue #101972, Regression: GN: Crashes when setting Spline Type from NURBS to Bezier in a row.
