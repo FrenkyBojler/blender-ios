@@ -2,3 +2,4 @@ Referenced by issue #109112, Mask on mesh with multires modifier looks strange, 
 Referenced by issue #104109, GN: Meshes that are generated with the screw modifier cant use the box projection type
 Referenced by issue #104028, 3.5.0 Alpha startup crash
 Referenced by issue #103997, Blender 3.5.0 alpha: segmentation fault on restart after enabling Metal GPU backend.
+Referenced by issue #103986, Rigify broken in 3.5.0 alpha (17 Jan 2023)
