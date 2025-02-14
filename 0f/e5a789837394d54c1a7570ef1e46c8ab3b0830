@@ -5,3 +5,4 @@ Referenced by issue #59097, Pose Library - Fake users and Appending can´t merge
 Referenced by issue #59078, core dumped when opening the file
 Referenced by issue #59082, De-selecting all, leaves the Move tool gizmo visible
 Referenced by issue #59083, Normal transform orientation ignores absolute grid snap
+Referenced by issue #59049, Edge slide clamping doesn't work with Blender 2.7 keymap
