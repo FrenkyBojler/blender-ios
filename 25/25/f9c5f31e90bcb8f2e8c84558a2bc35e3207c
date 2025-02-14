@@ -19,3 +19,4 @@ Referenced by issue #39178, Some times deleted keys from custom key map are rest
 Referenced by issue #39180, Particle with fluid physics unstable
 Referenced by issue #39181, CUDA - cannot render
 Referenced by issue #39168, Rendering with Cycles on GPU don't work.
+Referenced by issue #39169, The auto perspective function isn`t working
