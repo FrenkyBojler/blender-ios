@@ -1,1 +1,2 @@
 Referenced by issue #85089, Crash when rendering with CUDA / OptiX
+Referenced by issue #84734, Denoising Data with large tiles causes instant crash and exit.
