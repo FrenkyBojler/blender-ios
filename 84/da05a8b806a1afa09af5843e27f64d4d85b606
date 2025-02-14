@@ -8,3 +8,4 @@ Referenced by issue #89389, Optix kernels not loading
 Referenced by issue #89288, Problems around copy and paste betwen blenders if diferent versions/revisions.
 Referenced by issue #89149, Crashes after adding geometric nodes
 Referenced by issue #88937, Mem leak when rendering on GPU
+Referenced by issue #88941, Hiding an element in a collection, where that collection has been instanced, during an animation, results in a segfault.
