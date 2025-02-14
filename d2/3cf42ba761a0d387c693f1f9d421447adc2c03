@@ -1,1 +1,2 @@
 Referenced by issue #95798, changing the selected render slot's pass results in other render slots randomly changing to something different making it impossible to A/B
+Referenced by issue #95791, Changing steroscopic view does not result in image viewer update
