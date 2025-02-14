@@ -1,3 +1,4 @@
 Referenced by commit 2ca5a65add7, Fix #127434: copying node does not work in many cases
 Referenced by issue #130244, Viewer node toggle button strange cursor detection (eye icon)
 Referenced by issue #127460, Fix #127434: copying node does not work in many cases
+Referenced by issue #127434, Regression: Copy operation fails in nodes editor when mouse is over header
