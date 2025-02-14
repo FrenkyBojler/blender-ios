@@ -1,1 +1,2 @@
 Referenced by issue #46945, CL invalid buffer size   when trying to render on GPU
+Referenced by issue #46944, Mesh Deform binding to a cage object with modifiers is unreliable.
