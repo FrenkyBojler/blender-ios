@@ -11,3 +11,4 @@ Referenced by issue #111564, Merging/joining into single object massively increa
 Referenced by issue #111556, Shader compilation freeze Blender on Intel Arc770
 Referenced by issue #111374, Sapling Tree Gen
 Referenced by issue #111271, Blender Crashes when i try to add a geometry node to a new modifier
+Referenced by issue #111223, Crash while using Multires Displacement Smear Brush in Sculpt Mode
