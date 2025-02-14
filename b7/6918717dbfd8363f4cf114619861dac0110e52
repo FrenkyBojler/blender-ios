@@ -1,2 +1,3 @@
 Referenced by commit d1202bd641c, Fix T95620: Crash When Entering Edit Mode on a Curve
 Referenced by issue #95620, Crash When Entering Edit Mode on a Curve
+Referenced by issue #95573, GeoNodes with curve on the output is screwing up Frame Selected (Numpad.)
