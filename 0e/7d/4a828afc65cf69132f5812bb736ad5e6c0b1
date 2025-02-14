@@ -1,1 +1,2 @@
 Referenced by issue #42098, AVI Raw export produces broken files if the image width is not a multiple of 4
+Referenced by issue #4201, AVI files messed up when image width is not multiply of 4
