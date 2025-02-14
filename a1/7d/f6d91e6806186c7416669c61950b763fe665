@@ -1,1 +1,2 @@
 Referenced by issue #62841, Blender 2.8. Turn off 4,5,6,... collections visability hotkeys when you inside edit mode. Often press wrong [nearby] key ["4"]
+Referenced by issue #62845, VSE preview crash when setting rendered (EEVEE/Workbench)
