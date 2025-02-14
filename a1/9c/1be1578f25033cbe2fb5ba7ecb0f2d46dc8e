@@ -10,3 +10,4 @@ Referenced by issue #40749, Crashes on Toggle Fullscreen
 Referenced by issue #40720, Negative values defy "Limit Scale" constraint limit, Parent Empty
 Referenced by issue #40723, undo broken in node editor
 Referenced by issue #40709, Cycles Baking result does not show up
+Referenced by issue #40700, Tab to change edit-mode not working after switching to different screen-layout.
