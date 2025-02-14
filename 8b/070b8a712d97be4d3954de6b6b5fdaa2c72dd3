@@ -1,0 +1,1 @@
+Referenced by issue #78199, Reload scripts breaks ui if toolsystem icons are missing (e.g. in sculpt mode in rB65006bfaf4ef)
