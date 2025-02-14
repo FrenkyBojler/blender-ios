@@ -1,1 +1,2 @@
 Referenced by issue #100749, Blender LTS: Maintenance Task 3.3
+Referenced by issue #99141, Regression: "Copy Location" constraint doesn't work if the control object is a vertex and we're in edit mode.
