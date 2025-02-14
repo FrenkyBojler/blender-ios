@@ -1,3 +1,4 @@
 Referenced by commit cbd1739004f, Fix T68705: Changing any editor to the properties crashes Blender
 Referenced by issue #76471, Crash on BLI_assert(sfile->previews_timer == NULL);
 Referenced by issue #68705, Crash: Changing any editor to the properties crashes Blender
+Referenced by issue #67164, Editors change bug in built in menu's
