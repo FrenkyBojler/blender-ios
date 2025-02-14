@@ -29,3 +29,4 @@ Referenced by issue #54262, C and B selection on edit mode selects not only insi
 Referenced by issue #54235, Movie clip texture doesnt update in viewport using material or texture mode (cycles)
 Referenced by issue #54236, The button "Clear Custom Split Normals Data" not work for multiple object with alt key
 Referenced by issue #54241, Boolean modifier, snapping doesn't work
+Referenced by issue #54231, The marker menu has disappeared in 2.79a
