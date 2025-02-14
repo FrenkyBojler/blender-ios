@@ -3,3 +3,4 @@ Referenced by commit 81ac0bf759d, Fix failing "Edit Source" (asserts) while numb
 Referenced by commit fd110291a5f, Fix T81794: ColorRampElement step regression
 Referenced by commit 3cafaf0fa86, Fix possible use-after-free for number slider buttons
 Referenced by issue #81794, Color Ramp Element position stepping is unusable
+Referenced by issue #80613, Assert in UI_but_number_precision_set
