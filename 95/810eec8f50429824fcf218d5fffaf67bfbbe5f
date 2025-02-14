@@ -1,1 +1,2 @@
 Referenced by commit bca31c38467, Fix: handle cyclic links when detecting dangling reroutes
+Referenced by issue #120071, Blender 4.1.0 takes a very long time loading a geometry node group with a large number of reroute nodes
