@@ -4,3 +4,4 @@ Referenced by issue #39254, Cycles GPU fails
 Referenced by issue #39255, cycles does not render on GPU
 Referenced by issue #39261, high resolution smoke doesn't collide properly with animated objects
 Referenced by issue #39253, Fluids are broken (completely?)
+Referenced by issue #39242, Backface culling in sculpt mode with dynamic topology
