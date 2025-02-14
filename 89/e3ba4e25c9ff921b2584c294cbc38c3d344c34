@@ -7,3 +7,4 @@ Referenced by issue #119447, Auto Smooth versioning modifiers appearing on Appen
 Referenced by issue #118118, Smooth By Angle (Node Group 4.1) Does not work in older Blenders!
 Referenced by issue #117603, Replacing auto smooth with node group is not done on appending from old files into 4.1
 Referenced by issue #116922, Workflow Regression: Autosmooth 4.1
+Referenced by issue #116307, Regression: Crash with data transfer modifier in 4.0
