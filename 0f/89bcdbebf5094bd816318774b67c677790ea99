@@ -13,3 +13,4 @@ Referenced by issue #95165, Regression: Custom Normals tools dont update immedia
 Referenced by issue #94230, Crash rendering with EEVEE in mesh edit-mode
 Referenced by issue #93963, Inconsistent displaying object data in a Viewport between scenes
 Referenced by issue #93855, Cycles crash with edit mode and simultaneous viewport and final render
+Referenced by issue #76609, Multi-object editing is broken with linked objects with modifiers.
