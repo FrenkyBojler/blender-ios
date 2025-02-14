@@ -1,1 +1,2 @@
 Referenced by issue #97330, Adding subdivision surface modifier to default cube causes silent crash.
+Referenced by issue #96836, UV verts dont draw if certain modifiers are present (e.g geometry nodes, GPU subdiv, WeightedNormal w/o Autosmooth)
