@@ -1,3 +1,4 @@
 Referenced by issue #76933, "Align to transform Orientation" crashes blender for Custom transform orientations
 Referenced by issue #76682, Applying negative scale inverts multires displacement
 Referenced by issue #76668, The Denoise Node Turns the Rendered Image into Pure Black at the Resolution of 1920 *1920
+Referenced by issue #76670, Moving objects with gizmo crashes blender
