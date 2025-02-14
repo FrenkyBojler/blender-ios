@@ -1,1 +1,2 @@
 Referenced by issue #61349, Debug Assert in init_edge(edgehash.c): Occurs when importing a glTF asset
+Referenced by issue #61332, Python 3 syntax errors
