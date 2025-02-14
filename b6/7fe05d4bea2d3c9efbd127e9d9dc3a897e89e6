@@ -1,2 +1,3 @@
 Referenced by commit 3a454beae73, Fix T91094: missing update after collection changed
 Referenced by commit 49b3d00c10b, Fix: crash after recent commit
+Referenced by issue #87666, Geometry Nodes: Point Instance Node crashing after deleting instancer from Collections
