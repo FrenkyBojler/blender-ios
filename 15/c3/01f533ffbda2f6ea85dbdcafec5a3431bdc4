@@ -1,1 +1,2 @@
 Referenced by issue #45331, Limited bevel causes edges to move incorrectly (2.75 regression)
+Referenced by issue #32648, Bad rendering of textured planes (and solidified too).
