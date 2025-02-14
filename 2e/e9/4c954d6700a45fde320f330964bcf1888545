@@ -2,3 +2,5 @@ Referenced by issue #77247, extrude dissolve and intersect is leaving behind ver
 Referenced by issue #77181, Deleting rigid body deletes object that is not selected but leaves the one that you tried to delete
 Referenced by issue #76890, Performace regression in Blender 2.83 and Blender 2.90 compared with Blender 2.82a
 Referenced by issue #60695, Optimized per-datablock global undo
+Referenced by issue #42580, Artifacts during baking.
+Multicolored dots and dashes.
