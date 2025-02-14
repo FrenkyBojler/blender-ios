@@ -1,1 +1,2 @@
 Referenced by issue #41912, OpenCL kernel error (. used instead of ->)
+Referenced by issue #41916, Weight paint fails the normalization tests in suite
