@@ -15,3 +15,4 @@ Referenced by issue #43032, Text editor arbitrarily adds/deletes characters and 
 Referenced by issue #43033, VideoTexture module repeated loading of images causes memory leak
 Referenced by issue #43004, Spot light scale and rendering problem
 Referenced by issue #42995, Unit of measure displayed in 3D View doesn't change when zooming in or out
+Referenced by issue #43002, Blender 2.72b shows cuda errors when rendering bigger scenes
