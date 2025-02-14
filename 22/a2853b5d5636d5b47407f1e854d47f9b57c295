@@ -14,3 +14,4 @@ Referenced by issue #48520, Blender crashes with particle baking
 Referenced by issue #48352, Blender GLSL viewport DoF doesn't respect world scale
 Referenced by issue #48278, Motion blur increases memory usage per frame when rendering animation
 Referenced by issue #48272, Crash when hitting "Bake"
+Referenced by issue #48263, Crash on Armature Deform Parenting without an Armature
