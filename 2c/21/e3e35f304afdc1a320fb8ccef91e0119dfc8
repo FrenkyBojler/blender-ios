@@ -3,3 +3,4 @@ Referenced by issue #60239, Proportional editing acting weirdly - Only half of t
 Referenced by issue #60171, Hair Particles Not Displaying in Viewport
 Referenced by issue #60132, convert hair particles to mesh
 Referenced by issue #58489, Particle edit mode crash on macOS + NVIDIA
+Referenced by issue #58233, Crash selecting path as render as type in particle system.
