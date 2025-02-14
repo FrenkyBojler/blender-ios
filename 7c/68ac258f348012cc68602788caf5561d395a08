@@ -1,3 +1,4 @@
 Referenced by issue #126879, Crash on appending collection twice that contains a nested liboverride collection (request to backport, fixed in main)
 Referenced by issue #126821, Blender 4.2 - Compress Saving option gets removed when recovering from AutoSave
 Referenced by issue #126792, Extensions - fail to install extension from cli
+Referenced by issue #126541, bpy.props.EnumProperty dynamic enum items tooltip appears to be broken?
