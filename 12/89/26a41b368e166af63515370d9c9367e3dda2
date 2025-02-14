@@ -1,2 +1,3 @@
 Referenced by commit 433e3db8d89, Revert "GHOST: Delay opengl context initialization"
 Referenced by commit 800c3c5ca58, GHOST: WGL: Delay context initialization for offscreen contexts.
+Referenced by issue #55565, RenderDoc fails to launch 2.8 with BadDrawable error
