@@ -1,1 +1,2 @@
 Referenced by issue #112590, Regression: 'Split Edge' node can cause crash in blender 3.6.3
+Referenced by issue #111935, GeoNodes: Vertex Indicies are distributed differently on edge splitting, compared to 3.6.3 RC
