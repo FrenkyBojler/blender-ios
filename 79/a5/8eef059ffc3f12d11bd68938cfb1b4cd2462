@@ -1,1 +1,2 @@
 Referenced by issue #73977, Animation Nodes -> numpy.core.multiarray -> import aud
+Referenced by issue #73825, glFT export fail (update with:) when Thonny (Python IDE) is installed with NumPy package
