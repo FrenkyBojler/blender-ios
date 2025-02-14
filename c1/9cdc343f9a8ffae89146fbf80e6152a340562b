@@ -1,0 +1,1 @@
+Referenced by issue #95411, Collada export crashes (when relative "//" is in `Preferences` > `File Paths` > `Temporary Files`)
