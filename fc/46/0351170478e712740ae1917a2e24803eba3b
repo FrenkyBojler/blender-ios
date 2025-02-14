@@ -1,1 +1,2 @@
 Referenced by commit f13eb692692, Revert "Depsgraph: release GIL when evaluating the depsgraph"
+Referenced by issue #91046, "Create pose asset" button hangs blender
