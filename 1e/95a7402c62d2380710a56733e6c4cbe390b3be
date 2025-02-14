@@ -1,2 +1,3 @@
 Referenced by issue #79975, Blender 2.91 crashes with segmentation fault when enabling Sun Position Addon
 Referenced by issue #79978, Crashes after start
+Referenced by issue #79951, Blender 2.91 Alpha crash related to GPU_shader_create_from_python
