@@ -1,1 +1,2 @@
 Referenced by commit dd3222d2f89, BLI math: Do not use `BLI_ASSERT_` C-style checks in modern cpp code.
+Referenced by issue #122482, BLI math: Do not use `BLI_ASSERT_` C-style checks in modern cpp code.
