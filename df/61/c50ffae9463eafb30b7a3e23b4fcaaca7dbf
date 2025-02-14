@@ -1,1 +1,2 @@
 Referenced by issue #46679, Render Image output renders correctly but Render Animation output is incorrect.
+Referenced by issue #46651, select linked (L) crashes Blender when used on isolated edges, marked as seams
