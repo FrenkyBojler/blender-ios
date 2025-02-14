@@ -20,3 +20,4 @@ Referenced by issue #104000, python site-packages are not recognized after insta
 Referenced by issue #103972, Regression: Crash when setting cloth simulation rest shape key with subdivision modifier
 Referenced by issue #103951, EXCEPTION_ACCESS_VIOLATION Error
 Referenced by issue #103728, Saving grayscale images involves only red channel data from RGB.
+Referenced by issue #103568, Blender 3.4 - EXCEPTION_ACCESS_VIOLATION
