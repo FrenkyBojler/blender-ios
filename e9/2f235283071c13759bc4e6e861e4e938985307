@@ -81,3 +81,4 @@ Referenced by issue #51303, Cycles Nodes - Mix and Multiply Nodes Don't Skip Unn
 Referenced by issue #51264, Game Engine Crash in Blender 2.78c on a Win 10 PC
 Referenced by issue #51249, Snap to any mesh element in NURBS surface editing does not work properly
 Referenced by issue #51252, Menu flickering under wayland unless "Window Draw Method" is set to "Full"
+Referenced by issue #51227, Blender v2.78c Weight Paint fails when Mirror Modifier is active on Mesh
