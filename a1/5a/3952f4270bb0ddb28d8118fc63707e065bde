@@ -1,3 +1,4 @@
 Referenced by issue #46639, Pressing "CTRL" for snapping causes selected object/element to jump
 Referenced by issue #46640, UV editor, constraint on Y problem
 Referenced by issue #36364, Recursive Dupligroup let blender crash on exit
+Referenced by issue #35188, groupinstance and edit object actuator
