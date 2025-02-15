@@ -420,7 +420,10 @@ ccl_device Spectrum bsdf_microfacet_estimate_albedo(KernelGlobals kg,
   transmittance *= (float)eval_transmission;
 
   /* Use lookup tables for generalized Schlick reflection, otherwise assume smooth surface. */
-  if (!is_zero(reflectance) && bsdf->fresnel_type == MicrofacetFresnel::GENERALIZED_SCHLICK) {
+  if (is_zero(reflectance)) {
+    /* Reflectivity is either zero or not requested, so don't compute the more complex estimate. */
+  }
+  else if (bsdf->fresnel_type == MicrofacetFresnel::GENERALIZED_SCHLICK) {
     ccl_private FresnelGeneralizedSchlick *fresnel = (ccl_private FresnelGeneralizedSchlick *)
                                                          bsdf->fresnel;
 
@@ -451,6 +454,23 @@ ccl_device Spectrum bsdf_microfacet_estimate_albedo(KernelGlobals kg,
         kg, rough, cos_NI, 0.5f, kernel_data.tables.ggx_gen_schlick_s, 16, 16, 16);
     /* TODO: Precompute B factor term and account for it here. */
     reflectance = mix(fresnel->f0, one_spectrum(), s);
+  }
+  else if ((bsdf->fresnel_type == MicrofacetFresnel::DIELECTRIC ||
+            bsdf->fresnel_type == MicrofacetFresnel::DIELECTRIC_TINT) &&
+           bsdf->ior > 1.0f)
+  {
+    /* We can re-use the ggx_gen_schlick_ior_s table here, since it's already precomputed for our
+     * exponent<0 corner case where we use the real dielectric Fresnel. */
+    const float rough = sqrtf(sqrtf(bsdf->alpha_x * bsdf->alpha_y));
+    const float z = sqrtf(fabsf((bsdf->ior - 1.0f) / (bsdf->ior + 1.0f)));
+    const float s = lookup_table_read_3D(
+        kg, rough, cos_NI, z, kernel_data.tables.ggx_gen_schlick_ior_s, 16, 16, 16);
+    reflectance = make_spectrum(mix(F0_from_ior(bsdf->ior), 1.0f, s));
+    if (bsdf->fresnel_type == MicrofacetFresnel::DIELECTRIC_TINT) {
+      ccl_private FresnelDielectricTint *fresnel = (ccl_private FresnelDielectricTint *)
+                                                       bsdf->fresnel;
+      reflectance *= fresnel->reflection_tint;
+    }
   }
 
   return reflectance + transmittance;
