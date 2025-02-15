@@ -98,6 +98,19 @@ ccl_device float fresnel_dielectric_cos(const float cosi, const float eta)
   return 1.0f;  // TIR(no refracted component)
 }
 
+/* Numerical fit for the integral of 2*cosI * F(cosI, eta) over 0...1 with F being
+ * the real dielectric Fresnel. From "Revisiting Physically Based Shading at Imageworks"
+ * by Christopher Kulla and Alejandro Conty. */
+ccl_device_inline float fresnel_dielectric_Fss(const float eta)
+{
+  if (eta < 1.0f) {
+    return 0.997118f + eta * (0.1014f - eta * (0.965241f + eta * 0.130607f));
+  }
+  else {
+    return (eta - 1.0f) / (4.08567f + 1.00071f * eta);
+  }
+}
+
 ccl_device Spectrum fresnel_conductor(const float cosi, const Spectrum eta, const Spectrum k)
 {
   const Spectrum cosi2 = make_spectrum(cosi * cosi);

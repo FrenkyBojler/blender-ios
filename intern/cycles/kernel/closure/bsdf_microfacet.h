@@ -829,7 +829,12 @@ ccl_device void bsdf_microfacet_setup_fresnel_dielectric_tint(
 
   if (preserve_energy) {
     /* Assume that the transmissive tint makes up most of the overall color. */
-    microfacet_ggx_preserve_energy(kg, bsdf, sd, fresnel->transmission_tint);
+    Spectrum Fss = fresnel->transmission_tint;
+    if (is_zero(fresnel->transmission_tint)) {
+      /* For purely reflective closures, use the reflection component. */
+      Fss = fresnel_dielectric_Fss(bsdf->ior) * fresnel->reflection_tint;
+    }
+    microfacet_ggx_preserve_energy(kg, bsdf, sd, Fss);
   }
 }
 
@@ -851,20 +856,9 @@ ccl_device void bsdf_microfacet_setup_fresnel_generalized_schlick(
     if (is_zero(fresnel->transmission_tint)) {
       float s;
       if (fresnel->exponent < 0.0f) {
-        const float eta = bsdf->ior;
-        const float real_F0 = F0_from_ior(bsdf->ior);
-
-        /* Numerical fit for the integral of 2*cosI * F(cosI, eta) over 0...1 with F being
-         * the real dielectric Fresnel. From "Revisiting Physically Based Shading at Imageworks"
-         * by Christopher Kulla and Alejandro Conty. */
-        float real_Fss;
-        if (eta < 1.0f) {
-          real_Fss = 0.997118f + eta * (0.1014f - eta * (0.965241f + eta * 0.130607f));
-        }
-        else {
-          real_Fss = (eta - 1.0f) / (4.08567f + 1.00071f * eta);
-        }
-        s = saturatef(inverse_lerp(real_F0, 1.0f, real_Fss));
+        const float F0 = F0_from_ior(bsdf->ior);
+        const float Fss = fresnel_dielectric_Fss(bsdf->ior);
+        s = saturatef(inverse_lerp(F0, 1.0f, Fss));
       }
       else {
         /* Integral of 2*cosI * (1 - cosI)^exponent over 0...1. */
