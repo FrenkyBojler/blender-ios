@@ -16,6 +16,6 @@ namespace blender::io::usd {
  * \param allow_unicode: Whether to allow unicode encoded characters in the USD identifier
  * \return A valid USD identifier
  */
-std::string make_safe_name(const StringRef name, bool allow_unicode);
+std::string make_safe_name(StringRef name, bool allow_unicode);
 
 }  // namespace blender::io::usd
