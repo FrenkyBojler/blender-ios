@@ -26,6 +26,7 @@
 #include "BLI_bounds.hh"
 #include "BLI_convexhull_2d.h"
 #include "BLI_function_ref.hh"
+#include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_quaternion.hh"
@@ -43,6 +44,7 @@
 #include "BKE_global.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_node.hh"
@@ -1417,10 +1419,10 @@ static void node_socket_tooltip_set(uiBlock &block,
                             nullptr,
                             0,
                             0,
-                            nullptr);
+                            std::nullopt);
   UI_but_func_tooltip_set(
       but,
-      [](bContext *C, void *argN, const char * /*tip*/) {
+      [](bContext *C, void *argN, const StringRef /*tip*/) {
         const SpaceNode &snode = *CTX_wm_space_node(C);
         const bNodeTree &ntree = *snode.edittree;
         const int index_in_tree = POINTER_AS_INT(argN);
@@ -1647,8 +1649,8 @@ static void create_inspection_string_for_field_info(const bNodeSocket &socket,
     fmt::format_to(fmt::appender(buf), "\n");
 
     for (const int i : input_tooltips.index_range()) {
-      const blender::StringRefNull tooltip = input_tooltips[i];
-      fmt::format_to(fmt::appender(buf), fmt::runtime(TIP_("\u2022 {}")), TIP_(tooltip.c_str()));
+      const blender::StringRef tooltip = input_tooltips[i];
+      fmt::format_to(fmt::appender(buf), fmt::runtime(TIP_("\u2022 {}")), TIP_(tooltip));
       if (i < input_tooltips.size() - 1) {
         fmt::format_to(fmt::appender(buf), ".\n");
       }
@@ -1849,7 +1851,7 @@ static std::optional<std::string> create_description_inspection_string(const bNo
     return std::nullopt;
   }
 
-  return TIP_(description.c_str());
+  return TIP_(description);
 }
 
 static std::optional<std::string> create_log_inspection_string(geo_log::GeoTreeLog *geo_tree_log,
@@ -2134,7 +2136,7 @@ static void node_socket_add_tooltip_in_node_editor(const bNodeSocket &sock, uiLa
 {
   uiLayoutSetTooltipFunc(
       &layout,
-      [](bContext *C, void *argN, const char * /*tip*/) {
+      [](bContext *C, void *argN, const StringRef /*tip*/) {
         const SpaceNode &snode = *CTX_wm_space_node(C);
         const bNodeTree &ntree = *snode.edittree;
         const int index_in_tree = POINTER_AS_INT(argN);
@@ -2159,7 +2161,7 @@ void node_socket_add_tooltip(const bNodeTree &ntree, const bNodeSocket &sock, ui
 
   uiLayoutSetTooltipFunc(
       &layout,
-      [](bContext *C, void *argN, const char * /*tip*/) {
+      [](bContext *C, void *argN, const StringRef /*tip*/) {
         SocketTooltipData *data = static_cast<SocketTooltipData *>(argN);
         const SpaceNode *snode = CTX_wm_space_node(C);
         return node_socket_get_tooltip(snode, *data->ntree, *data->socket);
@@ -2516,7 +2518,7 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
         &block,
         UI_BTYPE_LABEL,
         0,
-        IFACE_(panel_decl.name.c_str()),
+        IFACE_(panel_decl.name),
         int(draw_bounds.xmin + NODE_MARGIN_X + 0.4f),
         int(*panel_runtime.header_center_y - NODE_DYS),
         short(draw_bounds.xmax - draw_bounds.xmin - (30.0f * UI_SCALE_FAC)),
@@ -2575,7 +2577,7 @@ struct NodeErrorsTooltipData {
   Span<geo_log::NodeWarning> warnings;
 };
 
-static std::string node_errors_tooltip_fn(bContext * /*C*/, void *argN, const char * /*tip*/)
+static std::string node_errors_tooltip_fn(bContext * /*C*/, void *argN, const StringRef /*tip*/)
 {
   NodeErrorsTooltipData &data = *(NodeErrorsTooltipData *)argN;
 
@@ -2849,7 +2851,7 @@ struct NamedAttributeTooltipArg {
   Map<StringRefNull, geo_log::NamedAttributeUsage> usage_by_attribute;
 };
 
-static std::string named_attribute_tooltip(bContext * /*C*/, void *argN, const char * /*tip*/)
+static std::string named_attribute_tooltip(bContext * /*C*/, void *argN, const StringRef /*tip*/)
 {
   NamedAttributeTooltipArg &arg = *static_cast<NamedAttributeTooltipArg *>(argN);
 
@@ -2998,7 +3000,7 @@ static void node_get_invalid_links_extra_info(const SpaceNode &snode,
   NodeExtraInfoRow row;
   row.text = IFACE_("Invalid Link");
 
-  row.tooltip_fn = [](bContext *C, void *arg, const char * /*tip*/) {
+  row.tooltip_fn = [](bContext *C, void *arg, const StringRef /*tip*/) {
     const bNodeTree &tree = *CTX_wm_space_node(C)->edittree;
     const bNode &node = *static_cast<const bNode *>(arg);
     const Span<bke::NodeLinkError> link_errors = tree.runtime->link_errors_by_target_node.lookup(
@@ -3268,6 +3270,36 @@ static void node_draw_extra_info_panel(const bContext &C,
   }
 }
 
+static short get_viewer_shortcut_icon(const bNode &node)
+{
+  BLI_assert(node.is_type("CompositorNodeViewer"));
+  switch (node.custom1) {
+    case NODE_VIEWER_SHORTCUT_NONE:
+      /* No change by default. */
+      return node.typeinfo->ui_icon;
+    case NODE_VIEWER_SHORCTUT_SLOT_1:
+      return ICON_EVENT_ONEKEY;
+    case NODE_VIEWER_SHORCTUT_SLOT_2:
+      return ICON_EVENT_TWOKEY;
+    case NODE_VIEWER_SHORCTUT_SLOT_3:
+      return ICON_EVENT_THREEKEY;
+    case NODE_VIEWER_SHORCTUT_SLOT_4:
+      return ICON_EVENT_FOURKEY;
+    case NODE_VIEWER_SHORCTUT_SLOT_5:
+      return ICON_EVENT_FIVEKEY;
+    case NODE_VIEWER_SHORCTUT_SLOT_6:
+      return ICON_EVENT_SIXKEY;
+    case NODE_VIEWER_SHORCTUT_SLOT_7:
+      return ICON_EVENT_SEVENKEY;
+    case NODE_VIEWER_SHORCTUT_SLOT_8:
+      return ICON_EVENT_EIGHTKEY;
+    case NODE_VIEWER_SHORCTUT_SLOT_9:
+      return ICON_EVENT_NINEKEY;
+  }
+
+  return node.typeinfo->ui_icon;
+}
+
 static void node_draw_basis(const bContext &C,
                             TreeDrawContext &tree_draw_ctx,
                             const View2D &v2d,
@@ -3461,6 +3493,25 @@ static void node_draw_basis(const bContext &C,
         but, node_toggle_button_cb, POINTER_FROM_INT(node.identifier), (void *)operator_idname);
     UI_block_emboss_set(&block, UI_EMBOSS);
   }
+  /* Viewer node shortcuts. */
+  if (node.is_type("CompositorNodeViewer")) {
+    short shortcut_icon = get_viewer_shortcut_icon(node);
+    iconofs -= iconbutw;
+    UI_block_emboss_set(&block, UI_EMBOSS_NONE);
+    uiDefIconBut(&block,
+                 UI_BTYPE_BUT,
+                 0,
+                 shortcut_icon,
+                 iconofs,
+                 rct.ymax - NODE_DY,
+                 iconbutw,
+                 UI_UNIT_Y,
+                 nullptr,
+                 0,
+                 0,
+                 "");
+    UI_block_emboss_set(&block, UI_EMBOSS);
+  }
 
   node_add_error_message_button(tree_draw_ctx, node, block, rct, iconofs);
 
@@ -3514,12 +3565,12 @@ static void node_draw_basis(const bContext &C,
                         TIP_(node.typeinfo->ui_description.c_str()));
   UI_but_func_tooltip_set(
       but,
-      [](bContext * /*C*/, void *arg, const char *tip) -> std::string {
+      [](bContext * /*C*/, void *arg, const StringRef tip) -> std::string {
         const bNode &node = *static_cast<const bNode *>(arg);
         if (node.typeinfo->ui_description_fn) {
           return node.typeinfo->ui_description_fn(node);
         }
-        return StringRef(tip);
+        return tip;
       },
       const_cast<bNode *>(&node),
       nullptr);
@@ -4367,7 +4418,7 @@ static void reroute_node_draw_label(TreeDrawContext &tree_draw_ctx,
   const int y = node.runtime->draw_bounds.ymax;
 
   uiBut *label_but = uiDefBut(
-      &block, UI_BTYPE_LABEL, 0, text, x, y, width, NODE_DY, nullptr, 0, 0, nullptr);
+      &block, UI_BTYPE_LABEL, 0, text, x, y, width, NODE_DY, nullptr, 0, 0, std::nullopt);
 
   UI_but_drawflag_disable(label_but, UI_BUT_TEXT_LEFT);
 
@@ -4782,10 +4833,6 @@ static bool compositor_is_in_use(const bContext &context)
 
   if (!scene->nodetree) {
     return false;
-  }
-
-  if (scene->r.compositor_device == SCE_COMPOSITOR_DEVICE_GPU) {
-    return true;
   }
 
   wmWindowManager *wm = CTX_wm_manager(&context);

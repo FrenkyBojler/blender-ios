@@ -13,6 +13,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_build_config.h"
+#include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
@@ -37,6 +38,7 @@
 #include "BKE_global.hh"
 #include "BKE_icons.h"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_mask.h"
 #include "BKE_object.hh"
@@ -4047,10 +4049,8 @@ static AreaDockTarget area_docking_target(sAreaJoinData *jd, const wmEvent *even
       jd->factor = area_docking_snap(std::max(1.0f - fac_y, min_fac_y), event);
       return AreaDockTarget::Top;
     }
-    else {
-      jd->factor = area_docking_snap(std::max(fac_y, min_fac_y), event);
-      return AreaDockTarget::Bottom;
-    }
+    jd->factor = area_docking_snap(std::max(fac_y, min_fac_y), event);
+    return AreaDockTarget::Bottom;
   }
   if (jd->sa2->winy < (min_y * 3)) {
     if (fac_x > 0.4f && fac_x < 0.6f) {
@@ -4060,10 +4060,8 @@ static AreaDockTarget area_docking_target(sAreaJoinData *jd, const wmEvent *even
       jd->factor = area_docking_snap(std::max(1.0f - fac_x, min_fac_x), event);
       return AreaDockTarget::Right;
     }
-    else {
-      jd->factor = area_docking_snap(std::max(fac_x, min_fac_x), event);
-      return AreaDockTarget::Left;
-    }
+    jd->factor = area_docking_snap(std::max(fac_x, min_fac_x), event);
+    return AreaDockTarget::Left;
   }
 
   /* Are we in the center? But not in same area! */
@@ -4144,11 +4142,7 @@ static float area_split_factor(bContext *C, sAreaJoinData *jd, const wmEvent *ev
   if (min_fac < 0.5f) {
     return std::clamp(fac, min_fac, 1.0f - min_fac);
   }
-  else {
-    return 0.5f;
-  }
-
-  return fac;
+  return 0.5f;
 }
 
 static void area_join_update_data(bContext *C, sAreaJoinData *jd, const wmEvent *event)
@@ -4761,6 +4755,7 @@ static int region_quadview_exec(bContext *C, wmOperator *op)
   }
   else if (region->alignment == RGN_ALIGN_QSPLIT) {
     /* Exit quad-view */
+    bScreen *screen = CTX_wm_screen(C);
     ScrArea *area = CTX_wm_area(C);
 
     /* keep current region */
@@ -4801,6 +4796,9 @@ static int region_quadview_exec(bContext *C, wmOperator *op)
     LISTBASE_FOREACH_MUTABLE (ARegion *, region_iter, &area->regionbase) {
       if (region_iter->alignment == RGN_ALIGN_QSPLIT) {
         ED_region_remove(C, area, region_iter);
+        if (region_iter == screen->active_region) {
+          screen->active_region = nullptr;
+        }
       }
     }
     ED_area_tag_redraw(area);

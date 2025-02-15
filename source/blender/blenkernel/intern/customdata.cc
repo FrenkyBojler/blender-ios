@@ -9,6 +9,8 @@
  * BKE_customdata.hh contains the function prototypes for this file.
  */
 
+#include <algorithm>
+
 #include "MEM_guardedalloc.h"
 
 /* Since we have versioning code here (CustomData_verify_versions()). */
@@ -46,6 +48,7 @@
 #include "BKE_customdata.hh"
 #include "BKE_customdata_file.h"
 #include "BKE_deform.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh_remap.hh"
 #include "BKE_multires.hh"
@@ -312,9 +315,7 @@ static void layerInterp_mdeformvert(const void **sources,
     dvert->totweight = totweight;
     int i = 0;
     for (node = dest_dwlink; node; node = node->next, i++) {
-      if (node->dw.weight > 1.0f) {
-        node->dw.weight = 1.0f;
-      }
+      node->dw.weight = std::min(node->dw.weight, 1.0f);
       dvert->dw[i] = node->dw;
     }
   }
@@ -900,30 +901,14 @@ static void layerDoMinMax_mloopcol(const void *data, void *vmin, void *vmax)
   MLoopCol *min = static_cast<MLoopCol *>(vmin);
   MLoopCol *max = static_cast<MLoopCol *>(vmax);
 
-  if (m->r < min->r) {
-    min->r = m->r;
-  }
-  if (m->g < min->g) {
-    min->g = m->g;
-  }
-  if (m->b < min->b) {
-    min->b = m->b;
-  }
-  if (m->a < min->a) {
-    min->a = m->a;
-  }
-  if (m->r > max->r) {
-    max->r = m->r;
-  }
-  if (m->g > max->g) {
-    max->g = m->g;
-  }
-  if (m->b > max->b) {
-    max->b = m->b;
-  }
-  if (m->a > max->a) {
-    max->a = m->a;
-  }
+  min->r = std::min(m->r, min->r);
+  min->g = std::min(m->g, min->g);
+  min->b = std::min(m->b, min->b);
+  min->a = std::min(m->a, min->a);
+  max->r = std::max(m->r, max->r);
+  max->g = std::max(m->g, max->g);
+  max->b = std::max(m->b, max->b);
+  max->a = std::max(m->a, max->a);
 }
 
 static void layerInitMinMax_mloopcol(void *vmin, void *vmax)
@@ -2739,24 +2724,6 @@ void CustomData_free(CustomData *data, const int totelem)
   CustomData_reset(data);
 }
 
-void CustomData_free_typemask(CustomData *data, const int totelem, eCustomDataMask mask)
-{
-  for (int i = 0; i < data->totlayer; i++) {
-    CustomDataLayer *layer = &data->layers[i];
-    if (!(mask & CD_TYPE_AS_MASK(layer->type))) {
-      continue;
-    }
-    customData_free_layer__internal(layer, totelem);
-  }
-
-  if (data->layers) {
-    MEM_freeN(data->layers);
-  }
-
-  CustomData_external_free(data);
-  CustomData_reset(data);
-}
-
 static void customData_update_offsets(CustomData *data)
 {
   const LayerTypeInfo *typeInfo;
@@ -3016,38 +2983,11 @@ void CustomData_set_layer_clone_index(CustomData *data, const eCustomDataType ty
   }
 }
 
-void CustomData_set_layer_stencil_index(CustomData *data, const eCustomDataType type, const int n)
-{
-#ifndef NDEBUG
-  const int layer_num = CustomData_number_of_layers(data, type);
-#endif
-  const int layer_index = n - data->typemap[type];
-  BLI_assert(customdata_typemap_is_valid(data));
-
-  for (int i = 0; i < data->totlayer; i++) {
-    if (data->layers[i].type == type) {
-      BLI_assert(uint(layer_index) < uint(layer_num));
-      data->layers[i].active_mask = layer_index;
-    }
-  }
-}
-
 void CustomData_set_layer_flag(CustomData *data, const eCustomDataType type, const int flag)
 {
   for (int i = 0; i < data->totlayer; i++) {
     if (data->layers[i].type == type) {
       data->layers[i].flag |= flag;
-    }
-  }
-}
-
-void CustomData_clear_layer_flag(CustomData *data, const eCustomDataType type, const int flag)
-{
-  const int nflag = ~flag;
-
-  for (int i = 0; i < data->totlayer; i++) {
-    if (data->layers[i].type == type) {
-      data->layers[i].flag &= nflag;
     }
   }
 }
@@ -3165,7 +3105,7 @@ static CustomDataLayer *customData_add_layer__internal(
   }
 
   if (!name.is_empty()) {
-    name.copy(new_layer.name);
+    name.copy_utf8_truncated(new_layer.name);
     CustomData_set_layer_unique_name(data, index);
   }
   else {
@@ -3790,7 +3730,7 @@ bool CustomData_set_layer_name(CustomData *data,
     return false;
   }
 
-  name.copy(data->layers[layer_index].name);
+  name.copy_utf8_truncated(data->layers[layer_index].name);
 
   return true;
 }
@@ -3982,25 +3922,6 @@ void CustomData_bmesh_alloc_block(CustomData *data, void **block)
   }
   else {
     *block = nullptr;
-  }
-}
-
-void CustomData_bmesh_free_block_data_exclude_by_type(CustomData *data,
-                                                      void *block,
-                                                      const eCustomDataMask mask_exclude)
-{
-  if (block == nullptr) {
-    return;
-  }
-  for (int i = 0; i < data->totlayer; i++) {
-    if ((CD_TYPE_AS_MASK(data->layers[i].type) & mask_exclude) == 0) {
-      const LayerTypeInfo *typeInfo = layerType_getInfo(eCustomDataType(data->layers[i].type));
-      const size_t offset = data->layers[i].offset;
-      if (typeInfo->free) {
-        typeInfo->free(POINTER_OFFSET(block, offset), 1);
-      }
-      memset(POINTER_OFFSET(block, offset), 0, typeInfo->size);
-    }
   }
 }
 
@@ -4570,9 +4491,7 @@ void CustomData_validate_layer_name(const CustomData *data,
     BLI_strncpy_utf8(outname, data->layers[index].name, MAX_CUSTOMDATA_LAYER_NAME);
   }
   else {
-    char name_c_str[MAX_CUSTOMDATA_LAYER_NAME];
-    name.copy(name_c_str);
-    BLI_strncpy_utf8(outname, name_c_str, MAX_CUSTOMDATA_LAYER_NAME);
+    name.copy_utf8_truncated(outname, MAX_CUSTOMDATA_LAYER_NAME);
   }
 }
 
@@ -5522,7 +5441,7 @@ void CustomData_debug_info_from_layers(const CustomData *data, const char *inden
           name,
           structname,
           type,
-          (const void *)pt,
+          pt,
           size,
           pt_size);
     }

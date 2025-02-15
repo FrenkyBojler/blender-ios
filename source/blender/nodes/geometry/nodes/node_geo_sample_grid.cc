@@ -2,9 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "DNA_userdef_types.h"
+
 #include "BKE_type_conversions.hh"
 #include "BKE_volume_grid.hh"
-#include "BKE_volume_openvdb.hh"
 
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"

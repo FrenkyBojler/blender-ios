@@ -11,6 +11,7 @@
 #include "DNA_node_types.h"
 
 #include "BLI_easing.h"
+#include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_stack.hh"
 
@@ -739,7 +740,7 @@ static int view_socket(const bContext &C,
   /* Try to find a viewer that is already active. */
   for (bNode *node : btree.all_nodes()) {
     if (is_viewer_node(*node)) {
-      if (node->flag & NODE_DO_OUTPUT) {
+      if (node->flag & NODE_DO_OUTPUT && node->custom1 == NODE_VIEWER_SHORTCUT_NONE) {
         viewer_node = node;
         break;
       }
@@ -759,7 +760,7 @@ static int view_socket(const bContext &C,
 
   if (viewer_node == nullptr) {
     for (bNode *node : btree.all_nodes()) {
-      if (is_viewer_node(*node)) {
+      if (is_viewer_node(*node) && node->custom1 == NODE_VIEWER_SHORTCUT_NONE) {
         viewer_node = node;
         break;
       }

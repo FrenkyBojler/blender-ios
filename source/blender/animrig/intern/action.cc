@@ -6,7 +6,6 @@
  * \ingroup animrig
  */
 
-#include "DNA_action_defaults.h"
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_array_utils.hh"
@@ -14,7 +13,6 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_listbase_wrapper.hh"
 #include "BLI_map.hh"
 #include "BLI_math_base.h"
 #include "BLI_string.h"
@@ -26,9 +24,9 @@
 #include "BKE_anim_data.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_nla.hh"
-#include "BKE_preview_image.hh"
 #include "BKE_report.hh"
 
 #include "RNA_access.hh"
@@ -46,11 +44,8 @@
 #include "ANIM_action_legacy.hh"
 #include "ANIM_animdata.hh"
 #include "ANIM_fcurve.hh"
-#include "ANIM_nla.hh"
 
 #include "action_runtime.hh"
-
-#include "atomic_ops.h"
 
 #include <cstdio>
 #include <cstring>
@@ -405,6 +400,12 @@ static void slot_identifier_ensure_unique(Action &action, Slot &slot)
 
 void Action::slot_display_name_set(Main &bmain, Slot &slot, StringRefNull new_display_name)
 {
+  this->slot_display_name_define(slot, new_display_name);
+  this->slot_identifier_propagate(bmain, slot);
+}
+
+void Action::slot_display_name_define(Slot &slot, StringRefNull new_display_name)
+{
   BLI_assert_msg(StringRef(new_display_name).size() >= 1,
                  "Action Slot display names must not be empty");
   BLI_assert_msg(StringRef(slot.identifier).size() >= 2,
@@ -413,7 +414,13 @@ void Action::slot_display_name_set(Main &bmain, Slot &slot, StringRefNull new_di
 
   BLI_strncpy_utf8(slot.identifier + 2, new_display_name.c_str(), ARRAY_SIZE(slot.identifier) - 2);
   slot_identifier_ensure_unique(*this, slot);
-  this->slot_identifier_propagate(bmain, slot);
+}
+
+void Action::slot_idtype_define(Slot &slot, ID_Type idtype)
+{
+  slot.idtype = idtype;
+  slot.identifier_ensure_prefix();
+  slot_identifier_ensure_unique(*this, slot);
 }
 
 void Action::slot_identifier_set(Main &bmain, Slot &slot, const StringRefNull new_identifier)
@@ -584,6 +591,17 @@ bool Action::slot_remove(Slot &slot_to_remove)
   dna::array::remove_index(
       &this->slot_array, &this->slot_array_num, nullptr, slot_index, slot_ptr_destructor);
   return true;
+}
+
+void Action::slot_move_to_index(Slot &slot, const int to_slot_index)
+{
+  BLI_assert(this->slots().index_range().contains(to_slot_index));
+
+  const int from_slot_index = this->slots().first_index_try(&slot);
+  BLI_assert_msg(from_slot_index >= 0, "Slot not in this action.");
+
+  array_shift_range(
+      this->slot_array, this->slot_array_num, from_slot_index, from_slot_index + 1, to_slot_index);
 }
 
 void Action::slot_active_set(const slot_handle_t slot_handle)
@@ -1123,7 +1141,7 @@ void Slot::users_invalidate(Main &bmain)
   bmain.is_action_slot_to_id_map_dirty = true;
 }
 
-std::string Slot::identifier_prefix_for_idtype() const
+std::string Slot::idtype_string() const
 {
   if (!this->has_idtype()) {
     return slot_untyped_prefix;
@@ -1132,6 +1150,14 @@ std::string Slot::identifier_prefix_for_idtype() const
   char name[3] = {0};
   *reinterpret_cast<short *>(name) = this->idtype;
   return name;
+}
+
+StringRef Slot::identifier_prefix() const
+{
+  StringRef identifier(this->identifier);
+  BLI_assert(identifier.size() >= 2);
+
+  return identifier.substr(0, 2);
 }
 
 StringRefNull Slot::identifier_without_prefix() const
@@ -1743,11 +1769,17 @@ Channelbag *StripKeyframeData::channelbag_for_slot(const Slot &slot)
 
 Channelbag &StripKeyframeData::channelbag_for_slot_add(const Slot &slot)
 {
-  BLI_assert_msg(channelbag_for_slot(slot) == nullptr,
-                 "Cannot add chans-for-slot for already-registered slot");
+  return this->channelbag_for_slot_add(slot.handle);
+}
+
+Channelbag &StripKeyframeData::channelbag_for_slot_add(const slot_handle_t slot_handle)
+{
+  BLI_assert_msg(channelbag_for_slot(slot_handle) == nullptr,
+                 "Cannot add channelbag for already-registered slot");
+  BLI_assert_msg(slot_handle != Slot::unassigned, "Cannot add channelbag for 'unassigned' slot");
 
   Channelbag &channels = MEM_new<ActionChannelbag>(__func__)->wrap();
-  channels.slot_handle = slot.handle;
+  channels.slot_handle = slot_handle;
 
   grow_array_and_append<ActionChannelbag *>(
       &this->channelbag_array, &this->channelbag_array_num, &channels);
@@ -1757,11 +1789,16 @@ Channelbag &StripKeyframeData::channelbag_for_slot_add(const Slot &slot)
 
 Channelbag &StripKeyframeData::channelbag_for_slot_ensure(const Slot &slot)
 {
-  Channelbag *channelbag = this->channelbag_for_slot(slot);
+  return this->channelbag_for_slot_ensure(slot.handle);
+}
+
+Channelbag &StripKeyframeData::channelbag_for_slot_ensure(const slot_handle_t slot_handle)
+{
+  Channelbag *channelbag = this->channelbag_for_slot(slot_handle);
   if (channelbag != nullptr) {
     return *channelbag;
   }
-  return this->channelbag_for_slot_add(slot);
+  return this->channelbag_for_slot_add(slot_handle);
 }
 
 static void channelbag_ptr_destructor(ActionChannelbag **dna_channelbag_ptr)
@@ -1925,7 +1962,7 @@ void Channelbag::fcurve_detach_by_index(const int64_t fcurve_index)
    * depsgraph evaluation results though. */
 }
 
-void Channelbag::fcurve_move(FCurve &fcurve, int to_fcurve_index)
+void Channelbag::fcurve_move_to_index(FCurve &fcurve, int to_fcurve_index)
 {
   BLI_assert(to_fcurve_index >= 0 && to_fcurve_index < this->fcurves().size());
 
@@ -2277,7 +2314,7 @@ bool Channelbag::channel_group_remove(bActionGroup &group)
   return true;
 }
 
-void Channelbag::channel_group_move(bActionGroup &group, const int to_group_index)
+void Channelbag::channel_group_move_to_index(bActionGroup &group, const int to_group_index)
 {
   BLI_assert(to_group_index >= 0 && to_group_index < this->channel_groups().size());
 
