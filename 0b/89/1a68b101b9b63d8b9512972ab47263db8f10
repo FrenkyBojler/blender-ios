@@ -1,2 +1,3 @@
 Referenced by issue #134591, Sculpt: Crash with node tool.
 Referenced by pull request #134597, Fix #134591: Node tool crashes when modifying mesh topology
+Referenced by commit 03a2d675a7e22915345568e80791223ab5fc3517, Fix #134591: Node tool crashes when modifying mesh topology
