@@ -1,1 +1,2 @@
 Referenced by commit 6e0cf86e73f, Cleanup: use new c++ guarded allocator API
+Referenced by pull request #134452, Cleanup: Replace `MEM_[cm]allocN` with `MEM_cnew`.
