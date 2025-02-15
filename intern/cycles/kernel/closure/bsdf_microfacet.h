@@ -931,6 +931,9 @@ ccl_device void bsdf_microfacet_setup_fresnel_dielectric(KernelGlobals kg,
 {
   bsdf->fresnel_type = MicrofacetFresnel::DIELECTRIC;
   bsdf->sample_weight *= average(bsdf_microfacet_estimate_albedo(kg, sd, bsdf, true, true));
+
+  const float Fss = fresnel_dielectric_Fss(bsdf->ior);
+  microfacet_ggx_preserve_energy(kg, bsdf, sd, make_spectrum(Fss));
 }
 
 /* GGX microfacet with Smith shadow-masking from:
