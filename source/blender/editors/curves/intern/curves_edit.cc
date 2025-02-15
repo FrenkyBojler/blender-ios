@@ -76,6 +76,52 @@ static void curve_offsets_from_selection(const Span<IndexRange> selected_points,
                               curves_added);
 }
 
+static void append_data_to_geometry(const bke::CurvesGeometry &src_curves,
+                                    const Span<int> dst_to_src_curve,
+                                    const Span<int> offsets,
+                                    const Span<bool> cyclic,
+                                    const Span<IndexRange> src_ranges,
+                                    const OffsetIndices<int> dst_offsets,
+                                    bke::CurvesGeometry &dst_curves)
+{
+  const int old_curves_num = dst_curves.curves_num();
+  const int num_curves_to_add = dst_to_src_curve.size();
+  dst_curves.resize(offsets.last(), old_curves_num + num_curves_to_add);
+
+  array_utils::copy(offsets, dst_curves.offsets_for_write().drop_front(old_curves_num));
+  dst_curves.cyclic_for_write().drop_front(old_curves_num).copy_from(cyclic);
+
+  const bke::AttributeAccessor src_attributes = src_curves.attributes();
+  bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
+
+  for (auto &attribute :
+       bke::retrieve_attributes_for_transfer(src_attributes,
+                                             dst_attributes,
+                                             ATTR_DOMAIN_MASK_CURVE,
+                                             bke::attribute_filter_from_skip_ref({"cyclic"})))
+  {
+    bke::attribute_math::gather(
+        attribute.src, dst_to_src_curve, attribute.dst.span.take_back(num_curves_to_add));
+    attribute.dst.finish();
+  };
+
+  dst_curves.update_curve_types();
+
+  for (auto &attribute : bke::retrieve_attributes_for_transfer(
+           src_attributes,
+           dst_attributes,
+           ATTR_DOMAIN_MASK_POINT,
+           bke::attribute_filter_from_skip_ref(
+               ed::curves::get_curves_selection_attribute_names(dst_curves))))
+  {
+    bke::attribute_math::gather_ranges_to_groups(
+        src_ranges, dst_offsets, attribute.src, attribute.dst.span);
+    attribute.dst.finish();
+  };
+
+  dst_curves.tag_topology_changed();
+}
+
 void duplicate_points(bke::CurvesGeometry &curves, const IndexMask &mask)
 {
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
@@ -84,13 +130,8 @@ void duplicate_points(bke::CurvesGeometry &curves, const IndexMask &mask)
   Vector<int> dst_to_src_curve;
   Vector<int> new_curve_offsets({points_by_curve.data().last()});
   Vector<IndexRange> src_ranges;
-  Vector<int> dst_offsets({0});
+  Vector<int> dst_offsets({points_by_curve.data().last()});
   Vector<bool> dst_cyclic;
-  dst_to_src_curve.reserve(curves.curves_num());
-  new_curve_offsets.reserve(curves.curves_num() + 1);
-  src_ranges.reserve(curves.curves_num());
-  dst_offsets.reserve(curves.curves_num() + 1);
-  dst_cyclic.reserve(curves.curves_num());
 
   /* Add the duplicated curves and points. */
   bke::curves::foreach_selected_point_ranges_per_curve(
@@ -108,65 +149,20 @@ void duplicate_points(bke::CurvesGeometry &curves, const IndexMask &mask)
                                      dst_to_src_curve);
       });
 
-  const int old_curves_num = curves.curves_num();
-  const int old_points_num = curves.points_num();
-  const int num_curves_to_add = dst_to_src_curve.size();
-  const int num_points_to_add = mask.size();
-
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
   /* Delete selection attribute so that it will not have to be resized. */
   remove_selection_attributes(attributes);
 
-  curves.resize(old_points_num + num_points_to_add, old_curves_num + num_curves_to_add);
+  append_data_to_geometry(curves,
+                          dst_to_src_curve,
+                          new_curve_offsets,
+                          dst_cyclic,
+                          src_ranges,
+                          dst_offsets.as_span(),
+                          curves);
 
-  array_utils::copy(new_curve_offsets.as_span(),
-                    curves.offsets_for_write().drop_front(old_curves_num));
-
-  /* Transfer curve and point attributes. */
-  attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
-    bke::GSpanAttributeWriter attribute = attributes.lookup_for_write_span(iter.name);
-    if (!attribute) {
-      return;
-    }
-
-    switch (iter.domain) {
-      case bke::AttrDomain::Curve: {
-        if (iter.name == "cyclic") {
-          attribute.finish();
-          return;
-        }
-        bke::attribute_math::gather(
-            attribute.span,
-            dst_to_src_curve,
-            attribute.span.slice(IndexRange(old_curves_num, num_curves_to_add)));
-        break;
-      }
-      case bke::AttrDomain::Point: {
-        bke::attribute_math::gather_ranges_to_groups(
-            src_ranges.as_span(),
-            dst_offsets.as_span(),
-            attribute.span,
-            attribute.span.slice(IndexRange(old_points_num, num_points_to_add)));
-        break;
-      }
-      default: {
-        attribute.finish();
-        BLI_assert_unreachable();
-        return;
-      }
-    }
-
-    attribute.finish();
-  });
-
-  if (!(src_cyclic.is_single() && !src_cyclic.get_internal_single())) {
-    array_utils::copy(dst_cyclic.as_span(), curves.cyclic_for_write().drop_front(old_curves_num));
-  }
-
-  curves.update_curve_types();
-  curves.tag_topology_changed();
-
+  const int num_points_to_add = mask.size();
   for (const StringRef selection_name : get_curves_selection_attribute_names(curves)) {
     bke::SpanAttributeWriter<bool> selection = attributes.lookup_or_add_for_write_span<bool>(
         selection_name, bke::AttrDomain::Point);
@@ -358,38 +354,11 @@ bke::CurvesGeometry split_points(const bke::CurvesGeometry &curves,
         }
       });
 
-  bke::CurvesGeometry new_curves = bke::curves::copy_only_curve_domain(curves);
-  new_curves.resize(new_offsets.last(), curve_map.size());
-  std::copy_n(new_offsets.data(), new_offsets.size(), new_curves.offsets_for_write().data());
-  new_curves.cyclic_for_write().copy_from(new_cyclic);
+  bke::CurvesGeometry new_curves;
+  append_data_to_geometry(
+      curves, curve_map, new_offsets, new_cyclic, src_ranges, dst_offsets.as_span(), new_curves);
 
-  const bke::AttributeAccessor src_attributes = curves.attributes();
-  bke::MutableAttributeAccessor dst_attributes = new_curves.attributes_for_write();
-
-  bke::gather_attributes(src_attributes,
-                         bke::AttrDomain::Curve,
-                         bke::AttrDomain::Curve,
-                         bke::attribute_filter_from_skip_ref({"cyclic"}),
-                         curve_map,
-                         dst_attributes);
-
-  for (auto &attribute : bke::retrieve_attributes_for_transfer(
-           src_attributes,
-           dst_attributes,
-           ATTR_DOMAIN_MASK_POINT,
-           bke::attribute_filter_from_skip_ref(
-               ed::curves::get_curves_selection_attribute_names(curves))))
-  {
-    bke::attribute_math::gather_ranges_to_groups(
-        src_ranges.as_span(), dst_offsets.as_span(), attribute.src, attribute.dst.span);
-    attribute.dst.finish();
-  };
-
-  new_curves.update_curve_types();
-  new_curves.tag_topology_changed();
-
-  OffsetIndices<int> new_points_by_curve(new_offsets.as_span());
-  remove_selection_attributes(dst_attributes);
+  OffsetIndices<int> new_points_by_curve = new_curves.points_by_curve();
   foreach_selection_attribute_writer(
       new_curves, bke::AttrDomain::Point, [&](bke::GSpanAttributeWriter &selection) {
         for (const IndexRange curves : deselect) {
