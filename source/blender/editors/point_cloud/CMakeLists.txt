@@ -16,6 +16,7 @@ set(INC_SYS
 set(SRC
   intern/point_cloud_ops.cc
   intern/point_cloud_selection.cc
+  intern/point_cloud_undo.cc
   )
 
 set(LIB
@@ -23,6 +24,7 @@ set(LIB
   PRIVATE bf::blenlib
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::windowmanager
 )

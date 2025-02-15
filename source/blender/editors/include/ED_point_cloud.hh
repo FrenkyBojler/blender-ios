@@ -14,6 +14,7 @@
 
 struct bContext;
 struct PointCloud;
+struct UndoType;
 struct wmKeyConfig;
 namespace blender::bke {
 struct GSpanAttributeWriter;
@@ -25,6 +26,7 @@ class GMutableSpan;
 namespace blender::ed::point_cloud {
 
 void operatortypes_point_cloud();
+void undosys_type_register(UndoType *ut);
 void keymap_point_cloud(wmKeyConfig *keyconf);
 
 /* -------------------------------------------------------------------- */
