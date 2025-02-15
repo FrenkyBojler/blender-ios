@@ -9,7 +9,6 @@
 #pragma once
 
 #include "BLI_index_mask_fwd.hh"
-#include "BLI_string_ref.hh"
 
 #include "DNA_customdata_types.h"
 
@@ -17,7 +16,6 @@ struct bContext;
 struct PointCloud;
 struct wmKeyConfig;
 namespace blender::bke {
-enum class AttrDomain : int8_t;
 struct GSpanAttributeWriter;
 }  // namespace blender::bke
 namespace blender {
