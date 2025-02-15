@@ -279,7 +279,7 @@ static int change_frame_invoke(bContext *C, wmOperator *op, const wmEvent *event
 
   screen->scrubbing = true;
 
-  if (RNA_boolean_get(op->ptr, "seq_preview")) {
+  if (RNA_boolean_get(op->ptr, "seq_solo_preview")) {
     SpaceSeq *sseq = CTX_wm_space_seq(C);
     if (sseq) {
       change_frame_seq_preview_begin(C, event, sseq);
@@ -313,7 +313,7 @@ static void change_frame_cancel(bContext *C, wmOperator *op)
   bScreen *screen = CTX_wm_screen(C);
   screen->scrubbing = false;
 
-  if (RNA_boolean_get(op->ptr, "seq_preview")) {
+  if (RNA_boolean_get(op->ptr, "seq_solo_preview")) {
     SpaceSeq *sseq = CTX_wm_space_seq(C);
     if (sseq != nullptr) {
       change_frame_seq_preview_end(sseq);
@@ -376,7 +376,7 @@ static int change_frame_modal(bContext *C, wmOperator *op, const wmEvent *event)
     bScreen *screen = CTX_wm_screen(C);
     screen->scrubbing = false;
 
-    if (RNA_boolean_get(op->ptr, "seq_preview")) {
+    if (RNA_boolean_get(op->ptr, "seq_solo_preview")) {
       SpaceSeq *sseq = CTX_wm_space_seq(C);
       if (sseq != nullptr) {
         change_frame_seq_preview_end(sseq);
@@ -394,7 +394,7 @@ static int change_frame_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 static std::string change_frame_get_name(wmOperatorType * /*ot*/, PointerRNA *ptr)
 {
-  if (RNA_boolean_get(ptr, "seq_preview")) {
+  if (RNA_boolean_get(ptr, "seq_solo_preview")) {
     return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Set Frame (Solo Preview)");
   }
 
@@ -426,7 +426,7 @@ static void ANIM_OT_change_frame(wmOperatorType *ot)
   ot->prop = RNA_def_float(
       ot->srna, "frame", 0, MINAFRAME, MAXFRAME, "Frame", "", MINAFRAME, MAXFRAME);
   prop = RNA_def_boolean(ot->srna, "snap", false, "Snap", "");
-  prop = RNA_def_boolean(ot->srna, "seq_preview", false, "Solo Preview", "");
+  prop = RNA_def_boolean(ot->srna, "seq_solo_preview", false, "Solo Preview", "");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
