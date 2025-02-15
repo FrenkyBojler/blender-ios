@@ -72,7 +72,7 @@
 
 #include "interface_intern.hh"
 
-using blender::Span;
+using blender::IndexRange;
 using blender::StringRef;
 using blender::StringRefNull;
 using blender::Vector;
@@ -846,13 +846,14 @@ static bool ui_but_equals_old(const uiBut *but, const uiBut *oldbut)
 static uiBut *ui_but_find_old(uiBlock *block_old,
                               const uiBut *but_new,
                               const blender::Set<const uiBut *> &ignore_old_buttons,
-                              const Span<std::unique_ptr<uiBut>> mask_range)
+                              const IndexRange mask_range)
 {
-  BLI_assert(block_old->buttons.as_span().contains_subrange(mask_range));
+  BLI_assert(block_old->buttons.index_range().contains(mask_range));
   UNUSED_VARS(block_old);
-  for (const std::unique_ptr<uiBut> &but : mask_range) {
-    if (!ignore_old_buttons.contains(but.get()) && ui_but_equals_old(but_new, but.get())) {
-      return but.get();
+  for (const int i : mask_range) {
+    uiBut *but = block_old->buttons[i].get();
+    if (!ignore_old_buttons.contains(but) && ui_but_equals_old(but_new, but)) {
+      return but;
     }
   }
   return nullptr;
@@ -860,20 +861,21 @@ static uiBut *ui_but_find_old(uiBlock *block_old,
 
 uiBut *ui_but_find_old(uiBlock *block_old, const uiBut *but_new)
 {
-  return ui_but_find_old(block_old, but_new, {}, block_old->buttons);
+  return ui_but_find_old(block_old, but_new, {}, block_old->buttons.index_range());
 }
 
 static std::optional<int64_t> ui_but_find_old_idx(
     uiBlock *block_old,
     const uiBut *but_new,
-    const Span<std::unique_ptr<uiBut>> mask_range,
+    const IndexRange mask_range,
     const blender::Set<const uiBut *> &ignore_old_buttons = {})
 {
-  BLI_assert(block_old->buttons.as_span().contains_subrange(mask_range));
+  BLI_assert(block_old->buttons.index_range().contains(mask_range));
 
-  for (const std::unique_ptr<uiBut> &but : mask_range) {
-    if (!ignore_old_buttons.contains(but.get()) && ui_but_equals_old(but_new, but.get())) {
-      return &but - block_old->buttons.begin();
+  for (const int i : mask_range) {
+    uiBut *but = block_old->buttons[i].get();
+    if (!ignore_old_buttons.contains(but) && ui_but_equals_old(but_new, but)) {
+      return i;
     }
   }
   return std::nullopt;
@@ -1059,7 +1061,7 @@ static void ui_but_update_old_active_from_new(uiBut *oldbut, uiBut *but)
  */
 static bool ui_but_update_from_old_block(uiBlock *block,
                                          blender::Set<const uiBut *> &matched_old_buttons,
-                                         Span<std::unique_ptr<uiBut>> &old_buttons_mask_range,
+                                         IndexRange &old_buttons_mask_range,
                                          std::unique_ptr<uiBut> *but_uptr,
                                          std::optional<int64_t> *but_old_idx)
 {
@@ -1068,7 +1070,7 @@ static bool ui_but_update_from_old_block(uiBlock *block,
 
 #if 0
   /* Simple method - search every time. Keep this for easy testing of the "fast path." */
-  uiBut *oldbut = ui_but_find_old(oldblock, but, matched_old_buttons,old_buttons_mask_range);
+  uiBut *oldbut = ui_but_find_old(oldblock, but, matched_old_buttons, old_buttons_mask_range);
   UNUSED_VARS(but_old_p);
 #else
   BLI_assert(!but_old_idx->has_value() || oldblock->buttons.index_range().contains(**but_old_idx));
@@ -1136,10 +1138,11 @@ static bool ui_but_update_from_old_block(uiBlock *block,
     but->flag = (but->flag & ~flag_copy) | (oldbut->flag & flag_copy);
   }
   int front_matched_count = 0;
-  for (const std::unique_ptr<uiBut> &but : old_buttons_mask_range) {
-    if (!matched_old_buttons.contains(but.get())) {
+  for (const int i : old_buttons_mask_range) {
+    if (!matched_old_buttons.contains(oldblock->buttons[i].get())) {
       break;
     }
+    front_matched_count++;
   }
   old_buttons_mask_range = old_buttons_mask_range.drop_front(front_matched_count);
   return found_active;
@@ -1974,8 +1977,7 @@ void UI_block_update_from_old(const bContext *C, uiBlock *block)
     }
     last_inactive_count++;
   }
-  Span<std::unique_ptr<uiBut>> mask_range = block->oldblock->buttons.as_span().drop_back(
-      last_inactive_count);
+  IndexRange mask_range = block->oldblock->buttons.index_range().drop_back(last_inactive_count);
 
   matched_old_buttons.reserve(mask_range.size());
 
