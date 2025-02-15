@@ -5808,6 +5808,8 @@ def km_edit_point_cloud(params):
 
     items.extend([
         *_template_items_select_actions(params, "point_cloud.select_all"),
+        ("point_cloud.delete", {"type": 'X', "value": 'PRESS'}, None),
+        ("point_cloud.delete", {"type": 'DEL', "value": 'PRESS'}, None),
     ])
 
     return keymap

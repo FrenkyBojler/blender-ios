@@ -65,6 +65,18 @@ bke::GSpanAttributeWriter ensure_selection_attribute(PointCloud &point_cloud,
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Editing
+ * \{ */
+
+/**
+ * Remove selected points based on the ".selection" attribute.
+ * \returns true if any point was removed.
+ */
+bool remove_selection(PointCloud &point_cloud);
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Poll Functions
  * \{ */
 

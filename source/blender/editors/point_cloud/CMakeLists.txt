@@ -14,6 +14,7 @@ set(INC_SYS
 )
 
 set(SRC
+  intern/point_cloud_edit.cc
   intern/point_cloud_ops.cc
   intern/point_cloud_selection.cc
   )
