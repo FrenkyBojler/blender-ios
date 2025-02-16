@@ -6734,7 +6734,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
         nor_node = blender::bke::node_add_static_node(C, ntree, SH_NODE_NORMAL_MAP);
 
         in_sock = blender::bke::node_find_socket(nor_node, SOCK_IN, "Color");
-        blender::bke::node_add_link(ntree, out_node, out_sock, nor_node, in_sock);
+        blender::bke::node_add_link(*ntree, * out_node, * out_sock, * nor_node, * in_sock);
 
         in_sock = blender::bke::node_find_socket(in_node, SOCK_IN, "Normal");
         out_sock = blender::bke::node_find_socket(nor_node, SOCK_OUT, "Normal");
@@ -6746,7 +6746,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
         bump_node = blender::bke::node_add_static_node(C, ntree, SH_NODE_BUMP);
 
         in_sock = blender::bke::node_find_socket(bump_node, SOCK_IN, "Height");
-        blender::bke::node_add_link(ntree, out_node, out_sock, bump_node, in_sock);
+        blender::bke::node_add_link(*ntree, * out_node, * out_sock, * bump_node, * in_sock);
 
         in_sock = blender::bke::node_find_socket(in_node, SOCK_IN, "Normal");
         out_sock = blender::bke::node_find_socket(bump_node, SOCK_OUT, "Normal");
@@ -6770,7 +6770,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
       /* Check if the socket in already connected to something */
       bNodeLink *link = in_sock ? in_sock->link : nullptr;
       if (in_sock != nullptr && link == nullptr) {
-        blender::bke::node_add_link(ntree, out_node, out_sock, in_node, in_sock);
+        blender::bke::node_add_link(*ntree, * out_node, * out_sock, * in_node, * in_sock);
 
         blender::bke::node_position_relative(*out_node, *in_node, *out_sock, *in_sock);
       }

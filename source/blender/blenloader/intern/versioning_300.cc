@@ -583,45 +583,45 @@ static bNodeTree *add_realize_node_tree(Main *bmain)
   realize->locx_legacy = separate->locx_legacy - 200.0f;
   realize->locy_legacy = join->locy_legacy;
 
-  blender::bke::node_add_link(node_tree,
-                              group_input,
-                              static_cast<bNodeSocket *>(group_input->outputs.first),
-                              realize,
-                              static_cast<bNodeSocket *>(realize->inputs.first));
-  blender::bke::node_add_link(node_tree,
-                              realize,
+  blender::bke::node_add_link(*node_tree,
+                              *group_input,
+                              *static_cast<bNodeSocket *>(group_input->outputs.first),
+                              *realize,
+                              *static_cast<bNodeSocket *>(realize->inputs.first));
+  blender::bke::node_add_link(*node_tree,*
+                              realize,*
                               static_cast<bNodeSocket *>(realize->outputs.first),
-                              separate,
+                              *separate,*
                               static_cast<bNodeSocket *>(separate->inputs.first));
-  blender::bke::node_add_link(node_tree,
-                              conv,
+  blender::bke::node_add_link(*node_tree,*
+                              conv,*
                               static_cast<bNodeSocket *>(conv->outputs.first),
-                              join,
-                              static_cast<bNodeSocket *>(join->inputs.first));
-  blender::bke::node_add_link(node_tree,
-                              separate,
-                              static_cast<bNodeSocket *>(BLI_findlink(&separate->outputs, 3)),
-                              join,
-                              static_cast<bNodeSocket *>(join->inputs.first));
-  blender::bke::node_add_link(node_tree,
-                              separate,
+                              *join,
+                              *static_cast<bNodeSocket *>(join->inputs.first));
+  blender::bke::node_add_link(*node_tree,*
+                              separate,*
+                              static_cast<bNodeSocket *>(BLI_findlink(&separate->outputs,3)),
+                              *join,
+                              *static_cast<bNodeSocket *>(join->inputs.first));
+  blender::bke::node_add_link(*node_tree,*
+                              separate,*
                               static_cast<bNodeSocket *>(BLI_findlink(&separate->outputs, 1)),
-                              conv,
-                              static_cast<bNodeSocket *>(conv->inputs.first));
-  blender::bke::node_add_link(node_tree,
-                              separate,
+                              *conv,
+                              *static_cast<bNodeSocket *>(conv->inputs.first));
+  blender::bke::node_add_link(*node_tree,*
+                              separate,*
                               static_cast<bNodeSocket *>(BLI_findlink(&separate->outputs, 2)),
-                              join,
+                              *join,
+                              *static_cast<bNodeSocket *>(join->inputs.first));
+  blender::bke::node_add_link(*node_tree,*
+                              separate,*
+                              static_cast<bNodeSocket *>(separate->outputs.first),*
+                              join,*
                               static_cast<bNodeSocket *>(join->inputs.first));
-  blender::bke::node_add_link(node_tree,
-                              separate,
-                              static_cast<bNodeSocket *>(separate->outputs.first),
-                              join,
-                              static_cast<bNodeSocket *>(join->inputs.first));
-  blender::bke::node_add_link(node_tree,
-                              join,
-                              static_cast<bNodeSocket *>(join->outputs.first),
-                              group_output,
+  blender::bke::node_add_link(*node_tree,*
+                              join,*
+                              static_cast<bNodeSocket *>(join->outputs.first),*
+                              group_output,*
                               static_cast<bNodeSocket *>(group_output->inputs.first));
 
   LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
@@ -733,11 +733,11 @@ static void version_geometry_nodes_replace_transfer_attribute_node(bNodeTree *nt
         sample_index->locx_legacy = node->locx_legacy + 25.0f;
         sample_index->locy_legacy = node->locy_legacy;
         if (old_geometry_socket->link) {
-          blender::bke::node_add_link(
-              ntree,
-              old_geometry_socket->link->fromnode,
-              old_geometry_socket->link->fromsock,
-              sample_index,
+          blender::bke::node_add_link(*
+              ntree,*
+              old_geometry_socket->link->fromnode,*
+              old_geometry_socket->link->fromsock,*
+              sample_index,*
               blender::bke::node_find_socket(sample_index, SOCK_IN, "Geometry"));
         }
 
@@ -749,11 +749,11 @@ static void version_geometry_nodes_replace_transfer_attribute_node(bNodeTree *nt
         sample_nearest->locx_legacy = node->locx_legacy - 25.0f;
         sample_nearest->locy_legacy = node->locy_legacy;
         if (old_geometry_socket->link) {
-          blender::bke::node_add_link(
-              ntree,
-              old_geometry_socket->link->fromnode,
-              old_geometry_socket->link->fromsock,
-              sample_nearest,
+          blender::bke::node_add_link(*
+              ntree,*
+              old_geometry_socket->link->fromnode,*
+              old_geometry_socket->link->fromsock,*
+              sample_nearest,*
               blender::bke::node_find_socket(sample_nearest, SOCK_IN, "Geometry"));
         }
         static auto sample_nearest_remap = []() {
@@ -776,11 +776,11 @@ static void version_geometry_nodes_replace_transfer_attribute_node(bNodeTree *nt
         node_tree_relink_with_socket_id_map(*ntree, *node, *sample_index, sample_index_remap);
 
         blender::bke::node_add_link(
-            ntree,
-            sample_nearest,
-            blender::bke::node_find_socket(sample_nearest, SOCK_OUT, "Index"),
-            sample_index,
-            blender::bke::node_find_socket(sample_index, SOCK_IN, "Index"));
+            *ntree,
+            *sample_nearest,
+            *blender::bke::node_find_socket(sample_nearest, SOCK_OUT, "Index"),
+            *sample_index,
+            *blender::bke::node_find_socket(sample_index, SOCK_IN, "Index"));
         break;
       }
       case GEO_NODE_ATTRIBUTE_TRANSFER_INDEX: {
@@ -816,11 +816,11 @@ static void version_geometry_nodes_replace_transfer_attribute_node(bNodeTree *nt
           index->locx_legacy = node->locx_legacy - 25.0f;
           index->locy_legacy = node->locy_legacy - 25.0f;
           blender::bke::node_add_link(
-              ntree,
-              index,
-              blender::bke::node_find_socket(index, SOCK_OUT, "Index"),
-              sample_index,
-              blender::bke::node_find_socket(sample_index, SOCK_IN, "Index"));
+              *ntree,
+              *index,
+              *blender::bke::node_find_socket(index, SOCK_OUT, "Index"),
+              *sample_index,
+              *blender::bke::node_find_socket(sample_index, SOCK_IN, "Index"));
         }
         break;
       }
@@ -2858,7 +2858,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
 
             bNodeSocket *new_socket = do_version_replace_float_size_with_vector(
                 ntree, node, socket);
-            blender::bke::node_add_link(ntree, link_fromnode, link_fromsock, node, new_socket);
+            blender::bke::node_add_link(*ntree,* link_fromnode,* link_fromsock,* node,* new_socket);
           }
         }
       }

@@ -657,16 +657,16 @@ void node_unique_id(bNodeTree *ntree, bNode *node);
  */
 void node_remove_node(Main *bmain, bNodeTree *ntree, bNode *node, bool do_id_user);
 
-void node_dimensions_get(const bNode *node, float *r_width, float *r_height);
-void node_tag_update_id(bNode *node);
-void node_internal_links(bNode *node, bNodeLink **r_links, int *r_len);
+float2 node_dimensions_get(const bNode &node);
+void node_tag_update_id(bNode &node);
+void node_internal_links(bNode &node, bNodeLink **r_links, int *r_len);
 
 /**
  * Also used via RNA API, so we check for proper input output direction.
  */
-bNodeLink *node_add_link(
-    bNodeTree *ntree, bNode *fromnode, bNodeSocket *fromsock, bNode *tonode, bNodeSocket *tosock);
-void node_remove_link(bNodeTree *ntree, bNodeLink *link);
+bNodeLink &node_add_link(
+    bNodeTree &ntree, bNode &fromnode, bNodeSocket &fromsock, bNode &tonode, bNodeSocket &tosock);
+void node_remove_link(bNodeTree *ntree, bNodeLink &link);
 void node_remove_socket_links(bNodeTree *ntree, bNodeSocket *sock);
 
 bool node_link_is_hidden(const bNodeLink *link);

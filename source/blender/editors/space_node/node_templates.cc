@@ -174,7 +174,7 @@ static void node_socket_disconnect(Main *bmain,
     return;
   }
 
-  bke::node_remove_link(ntree, sock_to->link);
+  bke::node_remove_link(ntree, *sock_to->link);
   sock_to->flag |= SOCK_COLLAPSED;
 
   BKE_ntree_update_tag_node_property(ntree, node_to);
@@ -211,7 +211,7 @@ static void node_socket_add_replace(const bContext *C,
   /* unlink existing node */
   if (sock_to->link) {
     node_prev = sock_to->link->fromnode;
-    bke::node_remove_link(ntree, sock_to->link);
+    bke::node_remove_link(ntree, *sock_to->link);
   }
 
   /* find existing node that we can use */
@@ -253,7 +253,7 @@ static void node_socket_add_replace(const bContext *C,
 
   /* add link */
   sock_from_tmp = (bNodeSocket *)BLI_findlink(&node_from->outputs, item->socket_index);
-  bke::node_add_link(ntree, node_from, sock_from_tmp, node_to, sock_to);
+  bke::node_add_link(*ntree, *node_from, *sock_from_tmp, *node_to, *sock_to);
   sock_to->flag &= ~SOCK_COLLAPSED;
 
   /* copy input sockets from previous node */
@@ -272,8 +272,8 @@ static void node_socket_add_replace(const bContext *C,
           bNodeLink *link = sock_prev->link;
 
           if (link && link->fromnode) {
-            bke::node_add_link(ntree, link->fromnode, link->fromsock, node_from, sock_from);
-            bke::node_remove_link(ntree, link);
+            bke::node_add_link(*ntree, *link->fromnode, *link->fromsock, *node_from, *sock_from);
+            bke::node_remove_link(ntree, *link);
           }
 
           node_socket_copy_default_value(sock_from, sock_prev);

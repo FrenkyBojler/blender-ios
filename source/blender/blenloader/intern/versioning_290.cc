@@ -401,7 +401,7 @@ static void version_node_socket_duplicate(bNodeTree *ntree,
       bNodeSocket *dest_socket = blender::bke::node_find_socket(node, SOCK_IN, new_name);
       BLI_assert(dest_socket);
       if (STREQ(link->tosock->name, old_name)) {
-        blender::bke::node_add_link(ntree, link->fromnode, link->fromsock, node, dest_socket);
+        blender::bke::node_add_link(*ntree, *link->fromnode, *link->fromsock, *node, *dest_socket);
       }
     }
   }

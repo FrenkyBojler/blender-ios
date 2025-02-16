@@ -2185,51 +2185,51 @@ static bNodeTree *add_auto_smooth_node_tree(Main &bmain, Library *owner_library)
   less_than_or_equal->location[0] = -240.0f;
   less_than_or_equal->location[1] = -180.0f;
 
-  node_add_link(group,
-                edge_angle,
-                node_find_socket(edge_angle, SOCK_OUT, "Unsigned Angle"),
-                less_than_or_equal,
-                node_find_socket(less_than_or_equal, SOCK_IN, "A"));
-  node_add_link(group,
-                shade_smooth_face,
-                node_find_socket(shade_smooth_face, SOCK_OUT, "Geometry"),
-                group_output,
-                node_find_socket(group_output, SOCK_IN, "Socket_0"));
-  node_add_link(group,
-                group_input_angle,
-                node_find_socket(group_input_angle, SOCK_OUT, "Socket_2"),
-                less_than_or_equal,
-                node_find_socket(less_than_or_equal, SOCK_IN, "B"));
-  node_add_link(group,
-                less_than_or_equal,
-                node_find_socket(less_than_or_equal, SOCK_OUT, "Result"),
-                boolean_and,
-                node_find_socket(boolean_and, SOCK_IN, "Boolean"));
-  node_add_link(group,
-                face_smooth,
-                node_find_socket(face_smooth, SOCK_OUT, "Smooth"),
-                boolean_and,
-                node_find_socket(boolean_and, SOCK_IN, "Boolean_001"));
-  node_add_link(group,
-                group_input_mesh,
-                node_find_socket(group_input_mesh, SOCK_OUT, "Socket_1"),
-                shade_smooth_edge,
-                node_find_socket(shade_smooth_edge, SOCK_IN, "Geometry"));
-  node_add_link(group,
-                edge_smooth,
-                node_find_socket(edge_smooth, SOCK_OUT, "Smooth"),
-                shade_smooth_edge,
-                node_find_socket(shade_smooth_edge, SOCK_IN, "Selection"));
-  node_add_link(group,
-                shade_smooth_edge,
-                node_find_socket(shade_smooth_edge, SOCK_OUT, "Geometry"),
-                shade_smooth_face,
-                node_find_socket(shade_smooth_face, SOCK_IN, "Geometry"));
-  node_add_link(group,
-                boolean_and,
-                node_find_socket(boolean_and, SOCK_OUT, "Boolean"),
-                shade_smooth_edge,
-                node_find_socket(shade_smooth_edge, SOCK_IN, "Shade Smooth"));
+  node_add_link(*group,
+                *edge_angle,
+                *node_find_socket(edge_angle, SOCK_OUT, "Unsigned Angle"),
+                *less_than_or_equal,
+                *node_find_socket(less_than_or_equal, SOCK_IN, "A"));
+  node_add_link(*group,
+                *shade_smooth_face,
+                *node_find_socket(shade_smooth_face, SOCK_OUT, "Geometry"),
+                *group_output,
+                *node_find_socket(group_output, SOCK_IN, "Socket_0"));
+  node_add_link(*group,
+                *group_input_angle,
+                *node_find_socket(group_input_angle, SOCK_OUT, "Socket_2"),
+                *less_than_or_equal,
+                *node_find_socket(less_than_or_equal, SOCK_IN, "B"));
+  node_add_link(*group,
+                *less_than_or_equal,
+                *node_find_socket(less_than_or_equal, SOCK_OUT, "Result"),
+                *boolean_and,
+                *node_find_socket(boolean_and, SOCK_IN, "Boolean"));
+  node_add_link(*group,
+                *face_smooth,
+                *node_find_socket(face_smooth, SOCK_OUT, "Smooth"),
+                *boolean_and,
+                *node_find_socket(boolean_and, SOCK_IN, "Boolean_001"));
+  node_add_link(*group,
+                *group_input_mesh,
+                *node_find_socket(group_input_mesh, SOCK_OUT, "Socket_1"),
+                *shade_smooth_edge,
+                *node_find_socket(shade_smooth_edge, SOCK_IN, "Geometry"));
+  node_add_link(*group,
+                *edge_smooth,
+                *node_find_socket(edge_smooth, SOCK_OUT, "Smooth"),
+                *shade_smooth_edge,
+                *node_find_socket(shade_smooth_edge, SOCK_IN, "Selection"));
+  node_add_link(*group,
+                *shade_smooth_edge,
+                *node_find_socket(shade_smooth_edge, SOCK_OUT, "Geometry"),
+                *shade_smooth_face,
+                *node_find_socket(shade_smooth_face, SOCK_IN, "Geometry"));
+  node_add_link(*group,
+                *boolean_and,
+                *node_find_socket(boolean_and, SOCK_OUT, "Boolean"),
+                *shade_smooth_edge,
+                *node_find_socket(shade_smooth_edge, SOCK_IN, "Shade Smooth"));
 
   LISTBASE_FOREACH (bNode *, node, &group->nodes) {
     node_set_selected(node, false);

@@ -2479,7 +2479,7 @@ void node_remove_socket_ex(bNodeTree &ntree, bNode &node, bNodeSocket &sock, con
 {
   LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &ntree.links) {
     if (link->fromsock == &sock || link->tosock == &sock) {
-      node_remove_link(&ntree, link);
+      node_remove_link(&ntree, *link);
     }
   }
 
@@ -2969,63 +2969,55 @@ static int node_count_links(const bNodeTree *ntree, const bNodeSocket *socket)
   return count;
 }
 
-bNodeLink *node_add_link(
-    bNodeTree *ntree, bNode *fromnode, bNodeSocket *fromsock, bNode *tonode, bNodeSocket *tosock)
+bNodeLink &node_add_link(
+    bNodeTree &ntree, bNode &fromnode, bNodeSocket &fromsock, bNode &tonode, bNodeSocket &tosock)
 {
-  BLI_assert(fromnode);
-  BLI_assert(tonode);
-  BLI_assert(ntree->all_nodes().contains(fromnode));
-  BLI_assert(ntree->all_nodes().contains(tonode));
+  BLI_assert(ntree.all_nodes().contains(&fromnode));
+  BLI_assert(ntree.all_nodes().contains(&tonode));
 
   bNodeLink *link = nullptr;
-  if (eNodeSocketInOut(fromsock->in_out) == SOCK_OUT &&
-      eNodeSocketInOut(tosock->in_out) == SOCK_IN)
+  if (eNodeSocketInOut(fromsock.in_out) == SOCK_OUT &&
+      eNodeSocketInOut(tosock.in_out) == SOCK_IN)
   {
     link = MEM_cnew<bNodeLink>(__func__);
-    if (ntree) {
-      BLI_addtail(&ntree->links, link);
-    }
-    link->fromnode = fromnode;
-    link->fromsock = fromsock;
-    link->tonode = tonode;
-    link->tosock = tosock;
+    BLI_addtail(&ntree.links, link);
+    link->fromnode = &fromnode;
+    link->fromsock = &fromsock;
+    link->tonode = &tonode;
+    link->tosock = &tosock;
   }
-  else if (eNodeSocketInOut(fromsock->in_out) == SOCK_IN &&
-           eNodeSocketInOut(tosock->in_out) == SOCK_OUT)
+  else if (eNodeSocketInOut(fromsock.in_out) == SOCK_IN &&
+           eNodeSocketInOut(tosock.in_out) == SOCK_OUT)
   {
     /* OK but flip */
     link = MEM_cnew<bNodeLink>(__func__);
-    if (ntree) {
-      BLI_addtail(&ntree->links, link);
-    }
-    link->fromnode = tonode;
-    link->fromsock = tosock;
-    link->tonode = fromnode;
-    link->tosock = fromsock;
+    BLI_addtail(&ntree.links, link);
+    link->fromnode = &tonode;
+    link->fromsock = &tosock;
+    link->tonode = &fromnode;
+    link->tosock = &fromsock;
   }
 
-  if (ntree) {
-    BKE_ntree_update_tag_link_added(ntree, link);
-  }
+  BKE_ntree_update_tag_link_added(&ntree, link);
 
   if (link != nullptr && link->tosock->is_multi_input()) {
-    link->multi_input_sort_id = node_count_links(ntree, link->tosock) - 1;
+    link->multi_input_sort_id = node_count_links(&ntree, link->tosock) - 1;
   }
 
-  return link;
+  return *link;
 }
 
-void node_remove_link(bNodeTree *ntree, bNodeLink *link)
+void node_remove_link(bNodeTree *ntree, bNodeLink &link)
 {
   /* Can be called for links outside a node tree (e.g. clipboard). */
   if (ntree) {
-    BLI_remlink(&ntree->links, link);
+    BLI_remlink(&ntree->links, &link);
   }
 
-  if (link->tosock) {
-    link->tosock->link = nullptr;
+  if (link.tosock) {
+    link.tosock->link = nullptr;
   }
-  MEM_freeN(link);
+  MEM_freeN(&link);
 
   if (ntree) {
     BKE_ntree_update_tag_link_removed(ntree);
@@ -3045,7 +3037,7 @@ void node_remove_socket_links(bNodeTree *ntree, bNodeSocket *sock)
 {
   LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &ntree->links) {
     if (link->fromsock == sock || link->tosock == sock) {
-      node_remove_link(ntree, link);
+      node_remove_link(ntree, *link);
     }
   }
 }
@@ -3100,7 +3092,7 @@ void node_internal_relink(bNodeTree &ntree, bNode &node)
         adjust_multi_input_indices_after_removed_link(
             &ntree, link->tosock, link->multi_input_sort_id);
       }
-      node_remove_link(&ntree, link);
+      node_remove_link(&ntree, *link);
       continue;
     }
 
@@ -3135,13 +3127,13 @@ void node_internal_relink(bNodeTree &ntree, bNode &node)
   }
 
   for (bNodeLink *link : duplicate_links_to_remove) {
-    node_remove_link(&ntree, link);
+    node_remove_link(&ntree, *link);
   }
 
   /* remove remaining upstream links */
   LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &ntree.links) {
     if (link->tonode == &node) {
-      node_remove_link(&ntree, link);
+      node_remove_link(&ntree, *link);
     }
   }
 }
@@ -3469,7 +3461,7 @@ void node_unlink_node(bNodeTree &ntree, bNode &node)
       }
       LISTBASE_FOREACH (const bNodeSocket *, sock, lb) {
         if (link->fromsock == sock || link->tosock == sock) {
-          node_remove_link(&ntree, link);
+          node_remove_link(&ntree, *link);
           break;
         }
       }
@@ -4018,21 +4010,20 @@ bool node_declaration_ensure(bNodeTree &ntree, bNode &node)
   return false;
 }
 
-void node_dimensions_get(const bNode *node, float *r_width, float *r_height)
+float2 node_dimensions_get(const bNode &node)
 {
-  *r_width = node->runtime->draw_bounds.xmax - node->runtime->draw_bounds.xmin;
-  *r_height = node->runtime->draw_bounds.ymax - node->runtime->draw_bounds.ymin;
+  return float2(node.runtime->draw_bounds.xmax, node.runtime->draw_bounds.ymax) - float2(node.runtime->draw_bounds.xmin, node.runtime->draw_bounds.ymin);
 }
 
-void node_tag_update_id(bNode *node)
+void node_tag_update_id(bNode &node)
 {
-  node->runtime->update |= NODE_UPDATE_ID;
+  node.runtime->update |= NODE_UPDATE_ID;
 }
 
-void node_internal_links(bNode *node, bNodeLink **r_links, int *r_len)
+void node_internal_links(bNode &node, bNodeLink **r_links, int *r_len)
 {
-  *r_links = node->runtime->internal_links.data();
-  *r_len = node->runtime->internal_links.size();
+  *r_links = node.runtime->internal_links.data();
+  *r_len = node.runtime->internal_links.size();
 }
 
 /* Node Instance Hash */

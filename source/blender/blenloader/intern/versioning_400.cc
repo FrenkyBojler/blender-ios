@@ -420,7 +420,7 @@ static void versioning_eevee_material_shadow_none(Material *material)
       if (sock && sock->link) {
         bNodeLink *link = sock->link;
         bNodeSocket *to_sock = blender::bke::node_find_socket(new_output, SOCK_IN, socket_name);
-        blender::bke::node_add_link(ntree, link->fromnode, link->fromsock, new_output, to_sock);
+        blender::bke::node_add_link(*ntree,* link->fromnode,* link->fromsock,* new_output,* to_sock);
       }
     };
 
@@ -447,13 +447,13 @@ static void versioning_eevee_material_shadow_none(Material *material)
   bNodeSocket *mix_in_2 = static_cast<bNodeSocket *>(BLI_findlink(&mix_node->inputs, 2));
   bNodeSocket *mix_out = static_cast<bNodeSocket *>(BLI_findlink(&mix_node->outputs, 0));
   if (old_out_sock->link != nullptr) {
-    blender::bke::node_add_link(
-        ntree, old_out_sock->link->fromnode, old_out_sock->link->fromsock, mix_node, mix_in_1);
+    blender::bke::node_add_link(*
+        ntree,* old_out_sock->link->fromnode,* old_out_sock->link->fromsock,* mix_node,* mix_in_1);
     if (out_sock->link != nullptr) {
-      blender::bke::node_remove_link(ntree, out_sock->link);
+      blender::bke::node_remove_link(ntree,* out_sock->link);
     }
   }
-  blender::bke::node_add_link(ntree, mix_node, mix_out, output_node, out_sock);
+  blender::bke::node_add_link(*ntree,* mix_node,* mix_out,* output_node,* out_sock);
 
   /* Add light path node to control shadow visibility */
   bNode *lp_node = blender::bke::node_add_node(nullptr, ntree, "ShaderNodeLightPath");
@@ -462,7 +462,7 @@ static void versioning_eevee_material_shadow_none(Material *material)
   lp_node->locx_legacy = output_node->locx_legacy;
   lp_node->locy_legacy = mix_node->locy_legacy + 35;
   bNodeSocket *is_shadow = blender::bke::node_find_socket(lp_node, SOCK_OUT, "Is Shadow Ray");
-  blender::bke::node_add_link(ntree, lp_node, is_shadow, mix_node, mix_fac);
+  blender::bke::node_add_link(*ntree,* lp_node,* is_shadow,* mix_node,* mix_fac);
   /* Hide unconnected sockets for cleaner look. */
   LISTBASE_FOREACH (bNodeSocket *, sock, &lp_node->outputs) {
     if (sock != is_shadow) {
@@ -477,7 +477,7 @@ static void versioning_eevee_material_shadow_none(Material *material)
   bsdf_node->locx_legacy = output_node->locx_legacy;
   bsdf_node->locy_legacy = mix_node->locy_legacy - 35;
   bNodeSocket *bsdf_out = blender::bke::node_find_socket(bsdf_node, SOCK_OUT, "BSDF");
-  blender::bke::node_add_link(ntree, bsdf_node, bsdf_out, mix_node, mix_in_2);
+  blender::bke::node_add_link(*ntree,* bsdf_node,* bsdf_out,* mix_node,* mix_in_2);
 }
 
 /**
@@ -713,7 +713,7 @@ static bool versioning_eevee_material_blend_mode_settings(bNodeTree *ntree, floa
   bool is_opaque = (threshold == 2.0f);
   if (is_opaque) {
     if (alpha.socket->link != nullptr) {
-      blender::bke::node_remove_link(ntree, alpha.socket->link);
+      blender::bke::node_remove_link(ntree,* alpha.socket->link);
     }
 
     float value = (alpha.is_transparency) ? 0.0f : 1.0f;
@@ -734,7 +734,7 @@ static bool versioning_eevee_material_blend_mode_settings(bNodeTree *ntree, floa
       bNode *from_node = alpha.socket->link->fromnode;
       bNodeSocket *to_socket = alpha.socket->link->tosock;
       bNodeSocket *from_socket = alpha.socket->link->fromsock;
-      blender::bke::node_remove_link(ntree, alpha.socket->link);
+      blender::bke::node_remove_link(ntree,* alpha.socket->link);
 
       bNode *math_node = blender::bke::node_add_node(nullptr, ntree, "ShaderNodeMath");
       math_node->custom1 = NODE_MATH_GREATER_THAN;
@@ -749,8 +749,8 @@ static bool versioning_eevee_material_blend_mode_settings(bNodeTree *ntree, floa
       bNodeSocket *alpha_sock = input_1;
       bNodeSocket *threshold_sock = input_2;
 
-      blender::bke::node_add_link(ntree, from_node, from_socket, math_node, alpha_sock);
-      blender::bke::node_add_link(ntree, math_node, output, to_node, to_socket);
+      blender::bke::node_add_link(*ntree,* from_node,* from_socket,* math_node,* alpha_sock);
+      blender::bke::node_add_link(*ntree,* math_node,* output,* to_node,* to_socket);
 
       *version_cycles_node_socket_float_value(threshold_sock) = alpha.is_transparency ?
                                                                     1.0f - threshold :
@@ -803,7 +803,7 @@ static void versioning_replace_splitviewer(bNodeTree *ntree)
         ntree, node, SOCK_OUT, SOCK_IMAGE, PROP_NONE, "Image", "Image");
     bNodeSocket *viewer_in_socket = blender::bke::node_find_socket(viewer_node, SOCK_IN, "Image");
 
-    blender::bke::node_add_link(ntree, node, split_out_socket, viewer_node, viewer_in_socket);
+    blender::bke::node_add_link(*ntree,* node,* split_out_socket,* viewer_node,* viewer_in_socket);
   }
 }
 
@@ -1082,8 +1082,8 @@ static void do_version_glare_node_options_to_inputs(const Scene *scene,
       }
 
       /* Relink from the Image output to the Glare output. */
-      blender::bke::node_add_link(node_tree, node, glare_output, link->tonode, link->tosock);
-      blender::bke::node_remove_link(node_tree, link);
+      blender::bke::node_add_link(*node_tree,* node,* glare_output,* link->tonode,* link->tosock);
+      blender::bke::node_remove_link(node_tree,* link);
     }
   }
 }
@@ -1227,7 +1227,7 @@ static void do_version_color_to_float_conversion(bNodeTree *node_tree)
                             *existing_link->fromsock,
                             *link->tonode,
                             *link->tosock);
-      blender::bke::node_remove_link(node_tree, link);
+      blender::bke::node_remove_link(node_tree,* link);
       continue;
     }
 
@@ -1283,7 +1283,7 @@ static void do_version_color_to_float_conversion(bNodeTree *node_tree)
     color_to_float_links.add_new(link->fromsock, final_link);
 
     /* Remove the old link. */
-    blender::bke::node_remove_link(node_tree, link);
+    blender::bke::node_remove_link(node_tree,* link);
   }
 }
 
@@ -1794,7 +1794,7 @@ static void versioning_remove_microfacet_sharp_distribution(bNodeTree *ntree)
       }
 
       if (socket->link != nullptr) {
-        blender::bke::node_remove_link(ntree, socket->link);
+        blender::bke::node_remove_link(ntree,* socket->link);
       }
       bNodeSocketValueFloat *socket_value = (bNodeSocketValueFloat *)socket->default_value;
       socket_value->value = 0.0f;
@@ -1830,12 +1830,12 @@ static void version_replace_texcoord_normal_socket(bNodeTree *ntree)
         NodeShaderVectTransform *nodeprop = (NodeShaderVectTransform *)transform_node->storage;
         nodeprop->type = SHD_VECT_TRANSFORM_TYPE_NORMAL;
 
-        blender::bke::node_add_link(
-            ntree, geometry_node, incoming_socket, transform_node, vec_in_socket);
+        blender::bke::node_add_link(*
+            ntree,* geometry_node,* incoming_socket,* transform_node,* vec_in_socket);
       }
-      blender::bke::node_add_link(
-          ntree, transform_node, vec_out_socket, link->tonode, link->tosock);
-      blender::bke::node_remove_link(ntree, link);
+      blender::bke::node_add_link(*
+          ntree,* transform_node,* vec_out_socket,* link->tonode,* link->tosock);
+      blender::bke::node_remove_link(ntree,* link);
     }
   }
 }
@@ -1936,7 +1936,7 @@ static void version_refraction_depth_to_thickness_value(bNodeTree *ntree, float 
 
     *version_cycles_node_socket_float_value(socket_value) = thickness;
 
-    blender::bke::node_add_link(ntree, value_node, socket_value, node, thickness_socket);
+    blender::bke::node_add_link(*ntree,* value_node,* socket_value,* node,* thickness_socket);
   }
 
   version_socket_update_is_used(ntree);
@@ -1991,10 +1991,10 @@ static void versioning_update_noise_texture_node(bNodeTree *ntree)
       *version_cycles_node_socket_float_value(clamp_socket_min) = 0.0f;
       *version_cycles_node_socket_float_value(clamp_socket_max) = 1.0f;
 
-      blender::bke::node_remove_link(ntree, roughness_link);
-      blender::bke::node_add_link(
-          ntree, roughness_from_node, roughness_from_socket, clamp_node, clamp_socket_value);
-      blender::bke::node_add_link(ntree, clamp_node, clamp_socket_out, node, roughness_socket);
+      blender::bke::node_remove_link(ntree,* roughness_link);
+      blender::bke::node_add_link(*
+          ntree,* roughness_from_node,* roughness_from_socket,* clamp_node,* clamp_socket_value);
+      blender::bke::node_add_link(*ntree,* clamp_node,* clamp_socket_out,* node,* roughness_socket);
     }
     else {
       *roughness = std::clamp(*roughness, 0.0f, 1.0f);
@@ -2093,11 +2093,11 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
       *version_cycles_node_socket_float_value(min_socket_B) = 14.0f;
       *version_cycles_node_socket_float_value(sub1_socket_B) = 1.0f;
 
-      blender::bke::node_remove_link(ntree, detail_link);
-      blender::bke::node_add_link(
-          ntree, detail_from_node, detail_from_socket, sub1_node, sub1_socket_A);
-      blender::bke::node_add_link(ntree, sub1_node, sub1_socket_out, min_node, min_socket_A);
-      blender::bke::node_add_link(ntree, min_node, min_socket_out, node, detail_socket);
+      blender::bke::node_remove_link(ntree,* detail_link);
+      blender::bke::node_add_link(*
+          ntree,* detail_from_node,* detail_from_socket,* sub1_node,* sub1_socket_A);
+      blender::bke::node_add_link(*ntree,* sub1_node,* sub1_socket_out,* min_node,* min_socket_A);
+      blender::bke::node_add_link(*ntree,* min_node,* min_socket_out,* node,* detail_socket);
 
       if (ELEM(noise_type, SHD_NOISE_RIDGED_MULTIFRACTAL, SHD_NOISE_HETERO_TERRAIN)) {
         locy_offset -= 40.0f;
@@ -2119,10 +2119,10 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
 
         *version_cycles_node_socket_float_value(greater_socket_B) = 1.0f;
 
-        blender::bke::node_add_link(
-            ntree, detail_from_node, detail_from_socket, greater_node, greater_socket_A);
-        blender::bke::node_add_link(
-            ntree, greater_node, greater_socket_out, sub1_node, sub1_socket_B);
+        blender::bke::node_add_link(*
+            ntree,* detail_from_node,* detail_from_socket,* greater_node,* greater_socket_A);
+        blender::bke::node_add_link(*
+            ntree,* greater_node,* greater_socket_out,* sub1_node,* sub1_socket_B);
       }
       else {
         /* Add Clamp node and Multiply Math node behind Fac output. */
@@ -2187,31 +2187,31 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
 
           LISTBASE_FOREACH_BACKWARD_MUTABLE (bNodeLink *, link, &ntree->links) {
             if (link->fromsock == fac_socket) {
-              blender::bke::node_add_link(
-                  ntree, add_node, add_socket_out, link->tonode, link->tosock);
-              blender::bke::node_remove_link(ntree, link);
+              blender::bke::node_add_link(*
+                  ntree,* add_node,* add_socket_out,* link->tonode,* link->tosock);
+              blender::bke::node_remove_link(ntree,* link);
             }
           }
 
-          blender::bke::node_add_link(ntree, mul_node, mul_socket_out, add_node, add_socket_A);
-          blender::bke::node_add_link(
-              ntree, detail_from_node, detail_from_socket, sub2_node, sub2_socket_B);
-          blender::bke::node_add_link(ntree, sub2_node, sub2_socket_out, add_node, add_socket_B);
+          blender::bke::node_add_link(*ntree,* mul_node,* mul_socket_out,* add_node,* add_socket_A);
+          blender::bke::node_add_link(*
+              ntree,* detail_from_node,* detail_from_socket,* sub2_node,* sub2_socket_B);
+          blender::bke::node_add_link(*ntree,* sub2_node,* sub2_socket_out,* add_node,* add_socket_B);
         }
         else {
           LISTBASE_FOREACH_BACKWARD_MUTABLE (bNodeLink *, link, &ntree->links) {
             if (link->fromsock == fac_socket) {
-              blender::bke::node_add_link(
-                  ntree, mul_node, mul_socket_out, link->tonode, link->tosock);
-              blender::bke::node_remove_link(ntree, link);
+              blender::bke::node_add_link(*
+                  ntree,* mul_node,* mul_socket_out,* link->tonode,* link->tosock);
+              blender::bke::node_remove_link(ntree,* link);
             }
           }
         }
 
-        blender::bke::node_add_link(ntree, node, fac_socket, mul_node, mul_socket_A);
-        blender::bke::node_add_link(
-            ntree, detail_from_node, detail_from_socket, clamp_node, clamp_socket_value);
-        blender::bke::node_add_link(ntree, clamp_node, clamp_socket_out, mul_node, mul_socket_B);
+        blender::bke::node_add_link(*ntree,* node,* fac_socket,* mul_node,* mul_socket_A);
+        blender::bke::node_add_link(*
+            ntree,* detail_from_node,* detail_from_socket,* clamp_node,* clamp_socket_value);
+        blender::bke::node_add_link(*ntree,* clamp_node,* clamp_socket_out,* mul_node,* mul_socket_B);
       }
     }
     else {
@@ -2254,25 +2254,25 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
 
             LISTBASE_FOREACH_BACKWARD_MUTABLE (bNodeLink *, link, &ntree->links) {
               if (link->fromsock == fac_socket) {
-                blender::bke::node_add_link(
-                    ntree, add_node, add_socket_out, link->tonode, link->tosock);
-                blender::bke::node_remove_link(ntree, link);
+                blender::bke::node_add_link(*
+                    ntree,* add_node,* add_socket_out,* link->tonode,* link->tosock);
+                blender::bke::node_remove_link(ntree,* link);
               }
             }
 
-            blender::bke::node_add_link(ntree, mul_node, mul_socket_out, add_node, add_socket_A);
+            blender::bke::node_add_link(*ntree,* mul_node,* mul_socket_out,* add_node,* add_socket_A);
           }
           else {
             LISTBASE_FOREACH_BACKWARD_MUTABLE (bNodeLink *, link, &ntree->links) {
               if (link->fromsock == fac_socket) {
-                blender::bke::node_add_link(
-                    ntree, mul_node, mul_socket_out, link->tonode, link->tosock);
-                blender::bke::node_remove_link(ntree, link);
+                blender::bke::node_add_link(*
+                    ntree,* mul_node,* mul_socket_out,* link->tonode,* link->tosock);
+                blender::bke::node_remove_link(ntree,* link);
               }
             }
           }
 
-          blender::bke::node_add_link(ntree, node, fac_socket, mul_node, mul_socket_A);
+          blender::bke::node_add_link(*ntree,* node,* fac_socket,* mul_node,* mul_socket_A);
 
           *detail = 0.0f;
         }
@@ -2328,12 +2328,12 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
       *version_cycles_node_socket_float_value(mul_socket_B) = -1.0f;
       *version_cycles_node_socket_float_value(pow_socket_A) = *lacunarity;
 
-      blender::bke::node_remove_link(ntree, roughness_link);
-      blender::bke::node_add_link(
-          ntree, roughness_from_node, roughness_from_socket, max1_node, max1_socket_A);
-      blender::bke::node_add_link(ntree, max1_node, max1_socket_out, mul_node, mul_socket_A);
-      blender::bke::node_add_link(ntree, mul_node, mul_socket_out, pow_node, pow_socket_B);
-      blender::bke::node_add_link(ntree, pow_node, pow_socket_out, node, roughness_socket);
+      blender::bke::node_remove_link(ntree,* roughness_link);
+      blender::bke::node_add_link(*
+          ntree,* roughness_from_node,* roughness_from_socket,* max1_node,* max1_socket_A);
+      blender::bke::node_add_link(*ntree,* max1_node,* max1_socket_out,* mul_node,* mul_socket_A);
+      blender::bke::node_add_link(*ntree,* mul_node,* mul_socket_out,* pow_node,* pow_socket_B);
+      blender::bke::node_add_link(*ntree,* pow_node,* pow_socket_out,* node,* roughness_socket);
 
       if (lacunarity_link != nullptr) {
         /* Add Maximum Math node after output of lacunarity_from_node. */
@@ -2353,11 +2353,11 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
 
         *version_cycles_node_socket_float_value(max2_socket_B) = -1e-5f;
 
-        blender::bke::node_remove_link(ntree, lacunarity_link);
-        blender::bke::node_add_link(
-            ntree, lacunarity_from_node, lacunarity_from_socket, max2_node, max2_socket_A);
-        blender::bke::node_add_link(ntree, max2_node, max2_socket_out, pow_node, pow_socket_A);
-        blender::bke::node_add_link(ntree, max2_node, max2_socket_out, node, lacunarity_socket);
+        blender::bke::node_remove_link(ntree,* lacunarity_link);
+        blender::bke::node_add_link(*
+            ntree,* lacunarity_from_node,* lacunarity_from_socket,* max2_node,* max2_socket_A);
+        blender::bke::node_add_link(*ntree,* max2_node,* max2_socket_out,* pow_node,* pow_socket_A);
+        blender::bke::node_add_link(*ntree,* max2_node,* max2_socket_out,* node,* lacunarity_socket);
       }
     }
     else if ((lacunarity_link != nullptr) && (roughness_link == nullptr)) {
@@ -2388,12 +2388,12 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
       *version_cycles_node_socket_float_value(pow_socket_A) = *lacunarity;
       *version_cycles_node_socket_float_value(pow_socket_B) = -(*roughness);
 
-      blender::bke::node_remove_link(ntree, lacunarity_link);
-      blender::bke::node_add_link(
-          ntree, lacunarity_from_node, lacunarity_from_socket, max2_node, max2_socket_A);
-      blender::bke::node_add_link(ntree, max2_node, max2_socket_out, pow_node, pow_socket_A);
-      blender::bke::node_add_link(ntree, max2_node, max2_socket_out, node, lacunarity_socket);
-      blender::bke::node_add_link(ntree, pow_node, pow_socket_out, node, roughness_socket);
+      blender::bke::node_remove_link(ntree,* lacunarity_link);
+      blender::bke::node_add_link(*
+          ntree,* lacunarity_from_node,* lacunarity_from_socket,* max2_node,* max2_socket_A);
+      blender::bke::node_add_link(*ntree,* max2_node,* max2_socket_out,* pow_node,* pow_socket_A);
+      blender::bke::node_add_link(*ntree,* max2_node,* max2_socket_out,* node,* lacunarity_socket);
+      blender::bke::node_add_link(*ntree,* pow_node,* pow_socket_out,* node,* roughness_socket);
     }
     else {
       *roughness = std::pow(*lacunarity, -(*roughness));
@@ -2464,23 +2464,23 @@ static void version_principled_bsdf_subsurface(bNodeTree *ntree)
       *version_cycles_node_socket_float_value(fac_in) = *subsurf_val;
 
       if (base_col->link) {
-        blender::bke::node_add_link(
-            ntree, base_col->link->fromnode, base_col->link->fromsock, mix, a_in);
-        blender::bke::node_remove_link(ntree, base_col->link);
+        blender::bke::node_add_link(*
+            ntree,* base_col->link->fromnode,* base_col->link->fromsock,* mix,* a_in);
+        blender::bke::node_remove_link(ntree,* base_col->link);
       }
       if (subsurf_col->link) {
-        blender::bke::node_add_link(
-            ntree, subsurf_col->link->fromnode, subsurf_col->link->fromsock, mix, b_in);
-        blender::bke::node_remove_link(ntree, subsurf_col->link);
+        blender::bke::node_add_link(*
+            ntree,* subsurf_col->link->fromnode,* subsurf_col->link->fromsock,* mix,* b_in);
+        blender::bke::node_remove_link(ntree,* subsurf_col->link);
       }
       if (subsurf->link) {
-        blender::bke::node_add_link(
-            ntree, subsurf->link->fromnode, subsurf->link->fromsock, mix, fac_in);
-        blender::bke::node_add_link(
-            ntree, subsurf->link->fromnode, subsurf->link->fromsock, node, scale_in);
-        blender::bke::node_remove_link(ntree, subsurf->link);
+        blender::bke::node_add_link(*
+            ntree,* subsurf->link->fromnode,* subsurf->link->fromsock,* mix,* fac_in);
+        blender::bke::node_add_link(*
+            ntree,* subsurf->link->fromnode,* subsurf->link->fromsock,* node,* scale_in);
+        blender::bke::node_remove_link(ntree,* subsurf->link);
       }
-      blender::bke::node_add_link(ntree, mix, result_out, node, base_col);
+      blender::bke::node_add_link(*ntree,* mix,* result_out,* node,* base_col);
     }
     /* Mix the fixed values. */
     interp_v4_v4v4(base_col_val, base_col_val, subsurf_col_val, *subsurf_val);
@@ -2583,11 +2583,11 @@ static void change_input_socket_to_rotation_type(bNodeTree &ntree,
     link->tonode = convert;
     link->tosock = blender::bke::node_find_socket(convert, SOCK_IN, "Euler");
 
-    blender::bke::node_add_link(&ntree,
-                                convert,
-                                blender::bke::node_find_socket(convert, SOCK_OUT, "Rotation"),
-                                &node,
-                                &socket);
+    blender::bke::node_add_link(ntree,
+                                *convert,
+                                *blender::bke::node_find_socket(convert, SOCK_OUT, "Rotation"),
+                                node,
+                                socket);
   }
 }
 
@@ -2615,10 +2615,10 @@ static void change_output_socket_to_rotation_type(bNodeTree &ntree,
     link->fromnode = convert;
     link->fromsock = blender::bke::node_find_socket(convert, SOCK_OUT, "Euler");
 
-    blender::bke::node_add_link(&ntree,
-                                &node,
-                                &socket,
-                                convert,
+    blender::bke::node_add_link(*&ntree,*
+                                &node,*
+                                &socket,*
+                                convert,*
                                 blender::bke::node_find_socket(convert, SOCK_IN, "Rotation"));
   }
 }
@@ -2968,14 +2968,14 @@ static void version_principled_bsdf_specular_tint(bNodeTree *ntree)
 
       copy_v4_v4(version_cycles_node_socket_rgba_value(a_in), base_color);
       if (base_color_sock->link) {
-        blender::bke::node_add_link(
-            ntree, base_color_sock->link->fromnode, base_color_sock->link->fromsock, mix, a_in);
+        blender::bke::node_add_link(*
+            ntree,* base_color_sock->link->fromnode,* base_color_sock->link->fromsock,* mix,* a_in);
       }
       copy_v4_v4(version_cycles_node_socket_rgba_value(b_in), one);
       *version_cycles_node_socket_float_value(fac_in) = metallic;
       if (metallic_sock->link) {
-        blender::bke::node_add_link(
-            ntree, metallic_sock->link->fromnode, metallic_sock->link->fromsock, mix, fac_in);
+        blender::bke::node_add_link(*
+            ntree,* metallic_sock->link->fromnode,* metallic_sock->link->fromsock,* mix,* fac_in);
       }
     }
     else if (base_color_sock->link) {
@@ -3000,18 +3000,18 @@ static void version_principled_bsdf_specular_tint(bNodeTree *ntree)
       copy_v4_v4(version_cycles_node_socket_rgba_value(a_in), one);
       copy_v4_v4(version_cycles_node_socket_rgba_value(b_in), metallic_mix);
       if (metallic_mix_out) {
-        blender::bke::node_add_link(ntree, metallic_mix_node, metallic_mix_out, mix, b_in);
+        blender::bke::node_add_link(*ntree,* metallic_mix_node,* metallic_mix_out,* mix,* b_in);
       }
       *version_cycles_node_socket_float_value(fac_in) = specular_tint_old;
       if (specular_tint_sock->link) {
-        blender::bke::node_add_link(ntree,
-                                    specular_tint_sock->link->fromnode,
-                                    specular_tint_sock->link->fromsock,
-                                    mix,
+        blender::bke::node_add_link(*ntree,*
+                                    specular_tint_sock->link->fromnode,*
+                                    specular_tint_sock->link->fromsock,*
+                                    mix,*
                                     fac_in);
-        blender::bke::node_remove_link(ntree, specular_tint_sock->link);
+        blender::bke::node_remove_link(ntree,* specular_tint_sock->link);
       }
-      blender::bke::node_add_link(ntree, mix, result_out, node, specular_tint_sock);
+      blender::bke::node_add_link(*ntree,* mix,* result_out,* node,* specular_tint_sock);
     }
   }
 }
@@ -3318,10 +3318,10 @@ static void fix_geometry_nodes_object_info_scale(bNodeTree &ntree)
     absolute_value->parent = node->parent;
     absolute_value->locx_legacy = node->locx_legacy + 100;
     absolute_value->locy_legacy = node->locy_legacy - 50;
-    blender::bke::node_add_link(&ntree,
-                                node,
-                                scale,
-                                absolute_value,
+    blender::bke::node_add_link(*&ntree,*
+                                node,*
+                                scale,*
+                                absolute_value,*
                                 static_cast<bNodeSocket *>(absolute_value->inputs.first));
     for (bNodeLink *link : links) {
       link->fromnode = absolute_value;

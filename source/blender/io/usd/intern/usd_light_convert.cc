@@ -189,11 +189,11 @@ static bNode *append_node(bNode *dst_node,
     return nullptr;
   }
 
-  bke::node_add_link(ntree,
-                     src_node,
-                     bke::node_find_socket(src_node, SOCK_OUT, out_sock),
-                     dst_node,
-                     bke::node_find_socket(dst_node, SOCK_IN, in_sock));
+  bke::node_add_link(*ntree,
+                     *src_node,
+                     *bke::node_find_socket(src_node, SOCK_OUT, out_sock),
+                     *dst_node,
+                     *bke::node_find_socket(dst_node, SOCK_IN, in_sock));
 
   src_node->location[0] = dst_node->location[0] - offset;
   src_node->location[1] = dst_node->location[1];
@@ -465,7 +465,7 @@ void dome_light_to_world_material(const USDImportParams &params,
   bNodeSocket *shader_input = bke::node_find_socket(bgshader, SOCK_IN, "Color");
 
   if (shader_input && shader_input->link) {
-    bke::node_remove_link(ntree, shader_input->link);
+    bke::node_remove_link(ntree, *shader_input->link);
   }
 
   /* Set the background shader intensity. */

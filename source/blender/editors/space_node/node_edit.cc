@@ -608,11 +608,11 @@ void ED_node_shader_default(const bContext *C, ID *id)
 
       shader = blender::bke::node_add_static_node(nullptr, ntree, SH_NODE_BACKGROUND);
       output = blender::bke::node_add_static_node(nullptr, ntree, SH_NODE_OUTPUT_WORLD);
-      blender::bke::node_add_link(ntree,
-                                  shader,
-                                  blender::bke::node_find_socket(shader, SOCK_OUT, "Background"),
-                                  output,
-                                  blender::bke::node_find_socket(output, SOCK_IN, "Surface"));
+      blender::bke::node_add_link(*ntree,
+                                  *shader,
+                                  *blender::bke::node_find_socket(shader, SOCK_OUT, "Background"),
+                                  *output,
+                                  *blender::bke::node_find_socket(output, SOCK_IN, "Surface"));
 
       bNodeSocket *color_sock = blender::bke::node_find_socket(shader, SOCK_IN, "Color");
       copy_v3_v3(((bNodeSocketValueRGBA *)color_sock->default_value)->value, &world->horr);
@@ -620,11 +620,11 @@ void ED_node_shader_default(const bContext *C, ID *id)
     else {
       shader = blender::bke::node_add_static_node(nullptr, ntree, SH_NODE_EMISSION);
       output = blender::bke::node_add_static_node(nullptr, ntree, SH_NODE_OUTPUT_LIGHT);
-      blender::bke::node_add_link(ntree,
-                                  shader,
-                                  blender::bke::node_find_socket(shader, SOCK_OUT, "Emission"),
-                                  output,
-                                  blender::bke::node_find_socket(output, SOCK_IN, "Surface"));
+      blender::bke::node_add_link(*ntree,
+                                  *shader,
+                                  *blender::bke::node_find_socket(shader, SOCK_OUT, "Emission"),
+                                  *output,
+                                  *blender::bke::node_find_socket(output, SOCK_IN, "Surface"));
     }
 
     shader->location[0] = 10.0f;
@@ -665,7 +665,7 @@ void ED_node_composit_default(const bContext *C, Scene *sce)
   /* Links from color to color. */
   bNodeSocket *fromsock = (bNodeSocket *)in->outputs.first;
   bNodeSocket *tosock = (bNodeSocket *)out->inputs.first;
-  blender::bke::node_add_link(sce->nodetree, in, fromsock, out, tosock);
+  blender::bke::node_add_link(*sce->nodetree, *in, *fromsock, *out, *tosock);
 
   BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), *sce->nodetree);
 }
@@ -693,7 +693,7 @@ void ED_node_texture_default(const bContext *C, Tex *tex)
 
   bNodeSocket *fromsock = (bNodeSocket *)in->outputs.first;
   bNodeSocket *tosock = (bNodeSocket *)out->inputs.first;
-  blender::bke::node_add_link(tex->nodetree, in, fromsock, out, tosock);
+  blender::bke::node_add_link(*tex->nodetree, *in, *fromsock, *out, *tosock);
 
   BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), *tex->nodetree);
 }

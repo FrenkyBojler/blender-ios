@@ -384,7 +384,7 @@ static void connect_nested_node_to_node(const Span<bNodeTreePath *> treepath,
     bNodeSocket *out_socket = blender::bke::node_find_enabled_input_socket(*output_node,
                                                                            route_name);
 
-    bke::node_add_link(nested_nt, nested_node_iter, nested_socket_iter, output_node, out_socket);
+    bke::node_add_link(*nested_nt, * nested_node_iter, * nested_socket_iter, * output_node, * out_socket);
     BKE_ntree_update_after_single_tree_change(*G.pr_main, *nested_nt);
 
     /* Change the `nested_node` pointer to the nested node-group instance node. The tree path
@@ -401,11 +401,11 @@ static void connect_nested_node_to_node(const Span<bNodeTreePath *> treepath,
                                                                        route_name);
   }
 
-  bke::node_add_link(treepath.first()->nodetree,
-                     nested_node_iter,
-                     nested_socket_iter,
-                     &final_node,
-                     &final_socket);
+  bke::node_add_link(*treepath.first()->nodetree,
+                     *nested_node_iter,
+                     *nested_socket_iter,
+                     final_node,
+                     final_socket);
 }
 
 /* Connect the node to the output of the first nodetree from `treepath`. Last element of `treepath`
@@ -430,7 +430,7 @@ static void connect_node_to_surface_output(const Span<bNodeTreePath *> treepath,
   out_surface_socket = bke::node_find_socket(&output_node, SOCK_IN, "Surface");
   if (out_surface_socket->link) {
     /* Make sure no node is already wired to the output before wiring. */
-    bke::node_remove_link(main_nt, out_surface_socket->link);
+    bke::node_remove_link(main_nt, *out_surface_socket->link);
   }
 
   connect_nested_node_to_node(treepath,
@@ -525,10 +525,10 @@ static bool prepare_viewlayer_update(void *pvl_data, ViewLayer *vl, Depsgraph *d
   bNodeSocket *displacement_socket = bke::node_find_socket(
       job_data->mat_output_copy, SOCK_IN, "Displacement");
   if (job_data->mat_displacement_copy.first != nullptr && displacement_socket->link == nullptr) {
-    bke::node_add_link(job_data->treepath_copy.first()->nodetree,
-                       job_data->mat_displacement_copy.first,
-                       job_data->mat_displacement_copy.second,
-                       job_data->mat_output_copy,
+    bke::node_add_link(*job_data->treepath_copy.first()->nodetree, *
+                       job_data->mat_displacement_copy.first, *
+                       job_data->mat_displacement_copy.second, *
+                       job_data->mat_output_copy, *
                        displacement_socket);
   }
   connect_node_to_surface_output(job_data->treepath_copy, nodesocket, *job_data->mat_output_copy);

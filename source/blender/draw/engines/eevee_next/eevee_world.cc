@@ -28,7 +28,7 @@ DefaultWorldNodeTree::DefaultWorldNodeTree()
   bNode *output = bke::node_add_static_node(nullptr, ntree, SH_NODE_OUTPUT_WORLD);
   bNodeSocket *background_out = bke::node_find_socket(background, SOCK_OUT, "Background");
   bNodeSocket *output_in = bke::node_find_socket(output, SOCK_IN, "Surface");
-  bke::node_add_link(ntree, background, background_out, output, output_in);
+  bke::node_add_link(*ntree, * background, * background_out, * output, * output_in);
   bke::node_set_active(ntree, output);
 
   color_socket_ =

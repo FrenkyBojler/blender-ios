@@ -206,29 +206,29 @@ void USDPointInstancerReader::read_object_data(Main *bmain, const double motionS
   scale_attrib_node->location[0] = 100.0f;
   scale_attrib_node->location[1] = -900.0f;
 
-  bke::node_add_link(ntree,
-                     group_input,
-                     static_cast<bNodeSocket *>(group_input->outputs.first),
-                     instance_on_points_node,
-                     bke::node_find_socket(instance_on_points_node, SOCK_IN, "Points"));
+  bke::node_add_link(*ntree,
+                     *group_input,
+                     *static_cast<bNodeSocket *>(group_input->outputs.first),
+                     *instance_on_points_node,
+                     *bke::node_find_socket(instance_on_points_node, SOCK_IN, "Points"));
 
-  bke::node_add_link(ntree,
-                     mask_attrib_node,
-                     bke::node_find_socket(mask_attrib_node, SOCK_OUT, "Attribute"),
-                     instance_on_points_node,
-                     bke::node_find_socket(instance_on_points_node, SOCK_IN, "Selection"));
+  bke::node_add_link(*ntree,
+                     *mask_attrib_node,
+                     *bke::node_find_socket(mask_attrib_node, SOCK_OUT, "Attribute"),
+                     *instance_on_points_node,
+                     *bke::node_find_socket(instance_on_points_node, SOCK_IN, "Selection"));
 
-  bke::node_add_link(ntree,
-                     indices_attrib_node,
-                     bke::node_find_socket(indices_attrib_node, SOCK_OUT, "Attribute"),
-                     instance_on_points_node,
-                     bke::node_find_socket(instance_on_points_node, SOCK_IN, "Instance Index"));
+  bke::node_add_link(*ntree,
+                     *indices_attrib_node,
+                     *bke::node_find_socket(indices_attrib_node, SOCK_OUT, "Attribute"),
+                     *instance_on_points_node,
+                     *bke::node_find_socket(instance_on_points_node, SOCK_IN, "Instance Index"));
 
-  bke::node_add_link(ntree,
-                     scale_attrib_node,
-                     bke::node_find_socket(scale_attrib_node, SOCK_OUT, "Attribute"),
-                     instance_on_points_node,
-                     bke::node_find_socket(instance_on_points_node, SOCK_IN, "Scale"));
+  bke::node_add_link(*ntree,
+                     *scale_attrib_node,
+                     *bke::node_find_socket(scale_attrib_node, SOCK_OUT, "Attribute"),
+                     *instance_on_points_node,
+                     *bke::node_find_socket(instance_on_points_node, SOCK_IN, "Scale"));
 
   bke::node_add_link(ntree,
                      rotation_attrib_node,
@@ -242,11 +242,11 @@ void USDPointInstancerReader::read_object_data(Main *bmain, const double motionS
                      instance_on_points_node,
                      bke::node_find_socket(instance_on_points_node, SOCK_IN, "Instance"));
 
-  bke::node_add_link(ntree,
-                     instance_on_points_node,
-                     bke::node_find_socket(instance_on_points_node, SOCK_OUT, "Instances"),
-                     group_output,
-                     static_cast<bNodeSocket *>(group_output->inputs.first));
+  bke::node_add_link(*ntree,
+                     *instance_on_points_node,
+                     *bke::node_find_socket(instance_on_points_node, SOCK_OUT, "Instances"),
+                     *group_output,
+                     *static_cast<bNodeSocket *>(group_output->inputs.first));
 
   BKE_ntree_update_after_single_tree_change(*bmain, *ntree);
 

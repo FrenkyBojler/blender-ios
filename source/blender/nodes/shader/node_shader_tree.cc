@@ -340,7 +340,7 @@ static bool ntree_shader_expand_socket_default(bNodeTree *localtree,
     default:
       return false;
   }
-  blender::bke::node_add_link(localtree, value_node, value_socket, node, socket);
+  blender::bke::node_add_link(*localtree, * value_node, * value_socket, * node, * socket);
   return true;
 }
 
@@ -364,7 +364,7 @@ static void ntree_shader_unlink_hidden_value_sockets(bNode *group_node, bNodeSoc
             ntree_shader_unlink_hidden_value_sockets(node, sock);
           }
           else {
-            blender::bke::node_remove_link(group_ntree, sock->link);
+            blender::bke::node_remove_link(group_ntree, *sock->link);
             removed_link = true;
           }
         }
@@ -401,13 +401,13 @@ static void ntree_shader_groups_expand_inputs(bNodeTree *localtree)
           if ((socket->type == SOCK_FLOAT) && (link->fromsock->type != link->tosock->type)) {
             if (link->fromsock->type == SOCK_RGBA) {
               bNode *tmp = blender::bke::node_add_static_node(nullptr, localtree, SH_NODE_RGBTOBW);
-              blender::bke::node_add_link(localtree,
-                                          link->fromnode,
-                                          link->fromsock,
-                                          tmp,
+              blender::bke::node_add_link(*localtree, *
+                                          link->fromnode, *
+                                          link->fromsock, *
+                                          tmp, *
                                           static_cast<bNodeSocket *>(tmp->inputs.first));
-              blender::bke::node_add_link(
-                  localtree, tmp, static_cast<bNodeSocket *>(tmp->outputs.first), node, socket);
+              blender::bke::node_add_link(*
+                  localtree, * tmp, * static_cast<bNodeSocket *>(tmp->outputs.first), * node, * socket);
             }
             else if (link->fromsock->type == SOCK_VECTOR) {
               bNode *tmp = blender::bke::node_add_static_node(
@@ -418,10 +418,10 @@ static void ntree_shader_groups_expand_inputs(bNodeTree *localtree)
               bNodeSocketValueVector *input2_socket_value = static_cast<bNodeSocketValueVector *>(
                   dot_input2->default_value);
               copy_v3_fl(input2_socket_value->value, 1.0f / 3.0f);
-              blender::bke::node_add_link(
-                  localtree, link->fromnode, link->fromsock, tmp, dot_input1);
-              blender::bke::node_add_link(
-                  localtree, tmp, static_cast<bNodeSocket *>(tmp->outputs.last), node, socket);
+              blender::bke::node_add_link(*
+                  localtree, * link->fromnode, * link->fromsock, * tmp, * dot_input1);
+              blender::bke::node_add_link(*
+                  localtree, * tmp, * static_cast<bNodeSocket *>(tmp->outputs.last), * node, * socket);
             }
           }
           continue;
@@ -456,7 +456,7 @@ static void ntree_shader_groups_remove_muted_links(bNodeTree *ntree)
   }
   LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &ntree->links) {
     if (link->flag & NODE_LINK_MUTED) {
-      blender::bke::node_remove_link(ntree, link);
+      blender::bke::node_remove_link(ntree, *link);
     }
   }
 }
@@ -507,8 +507,8 @@ static void flatten_group_do(bNodeTree *ntree, bNode *gnode)
              tlink = tlink->next)
         {
           if (tlink->tonode == gnode && STREQ(tlink->tosock->identifier, identifier)) {
-            blender::bke::node_add_link(
-                ntree, tlink->fromnode, tlink->fromsock, link->tonode, link->tosock);
+            blender::bke::node_add_link(*
+                ntree, * tlink->fromnode, * tlink->fromsock, * link->tonode, * link->tosock);
           }
         }
       }
@@ -527,8 +527,8 @@ static void flatten_group_do(bNodeTree *ntree, bNode *gnode)
           /* only use active output node */
           if (link->tonode->is_group_output() && (link->tonode->flag & NODE_DO_OUTPUT)) {
             if (STREQ(link->tosock->identifier, identifier)) {
-              blender::bke::node_add_link(
-                  ntree, link->fromnode, link->fromsock, tlink->tonode, tlink->tosock);
+              blender::bke::node_add_link(*
+                  ntree, * link->fromnode, * link->fromsock, * tlink->tonode, * tlink->tosock);
             }
           }
         }
@@ -653,29 +653,29 @@ static void ntree_shader_copy_branch(bNodeTree *ntree,
       bNode *from_node = nodes_copy[link->fromnode->runtime->tmp_flag];
       bNode *to_node = nodes_copy[link->tonode->runtime->tmp_flag];
       blender::bke::node_add_link(
-          ntree,
-          from_node,
-          ntree_shader_node_find_output(from_node, link->fromsock->identifier),
-          to_node,
-          ntree_shader_node_find_input(to_node, link->tosock->identifier));
+          *ntree,
+          *from_node,
+          *ntree_shader_node_find_output(from_node, link->fromsock->identifier),
+          *to_node,
+          *ntree_shader_node_find_input(to_node, link->tosock->identifier));
     }
     else if (to_copy) {
       bNode *to_node = nodes_copy[link->tonode->runtime->tmp_flag];
-      blender::bke::node_add_link(ntree,
-                                  link->fromnode,
-                                  link->fromsock,
-                                  to_node,
-                                  ntree_shader_node_find_input(to_node, link->tosock->identifier));
+      blender::bke::node_add_link(*ntree,
+                                  *link->fromnode,
+                                  *link->fromsock,
+                                  *to_node,
+                                  *ntree_shader_node_find_input(to_node, link->tosock->identifier));
     }
     else if (from_copy && branch_nodes.contains(link->tonode)) {
       bNode *from_node = nodes_copy[link->fromnode->runtime->tmp_flag];
       blender::bke::node_add_link(
-          ntree,
-          from_node,
-          ntree_shader_node_find_output(from_node, link->fromsock->identifier),
-          link->tonode,
-          link->tosock);
-      blender::bke::node_remove_link(ntree, link);
+          *ntree,
+          *from_node,
+          *ntree_shader_node_find_output(from_node, link->fromsock->identifier),
+          *link->tonode,
+          *link->tosock);
+      blender::bke::node_remove_link(ntree, *link);
     }
   }
 }
@@ -691,9 +691,9 @@ static bool ntree_shader_implicit_closure_cast(bNodeTree *ntree)
       bNode *emission_node = blender::bke::node_add_static_node(nullptr, ntree, SH_NODE_EMISSION);
       bNodeSocket *in_sock = ntree_shader_node_find_input(emission_node, "Color");
       bNodeSocket *out_sock = ntree_shader_node_find_output(emission_node, "Emission");
-      blender::bke::node_add_link(ntree, link->fromnode, link->fromsock, emission_node, in_sock);
-      blender::bke::node_add_link(ntree, emission_node, out_sock, link->tonode, link->tosock);
-      blender::bke::node_remove_link(ntree, link);
+      blender::bke::node_add_link(*ntree, *link->fromnode, *link->fromsock, *emission_node, *in_sock);
+      blender::bke::node_add_link(*ntree, *emission_node, *out_sock, *link->tonode, *link->tosock);
+      blender::bke::node_remove_link(ntree, *link);
       modified = true;
     }
     else if ((link->fromsock->type == SOCK_SHADER) && (link->tosock->type != SOCK_SHADER)) {
@@ -723,9 +723,9 @@ static void ntree_weight_tree_merge_weight(bNodeTree *ntree,
   bNodeSocket *addsock_in0 = ntree_shader_node_input_get(addnode, 0);
   bNodeSocket *addsock_in1 = ntree_shader_node_input_get(addnode, 1);
   bNodeLink *oldlink = fromsock->link;
-  blender::bke::node_add_link(ntree, oldlink->fromnode, oldlink->fromsock, addnode, addsock_in0);
-  blender::bke::node_add_link(ntree, *tonode, *tosock, addnode, addsock_in1);
-  blender::bke::node_remove_link(ntree, oldlink);
+  blender::bke::node_add_link(*ntree, *oldlink->fromnode, *oldlink->fromsock, *addnode, *addsock_in0);
+  blender::bke::node_add_link(*ntree, **tonode, **tosock, *addnode, *addsock_in1);
+  blender::bke::node_remove_link(ntree, *oldlink);
   *tonode = addnode;
   *tosock = addsock_out;
 }
@@ -850,22 +850,22 @@ static void ntree_shader_weight_tree_invert(bNodeTree *ntree, bNode *output_node
           tonode = nodes_copy[id_start + 1];
           fromsock = ntree_shader_node_output_get(fromnode, 0);
           tosock = ntree_shader_node_input_get(tonode, 1);
-          blender::bke::node_add_link(ntree, fromnode, fromsock, tonode, tosock);
+          blender::bke::node_add_link(*ntree, *fromnode, *fromsock, *tonode, *tosock);
           /* Link mix input to first node. */
           fromnode = nodes_copy[id_start + 2];
           tonode = nodes_copy[id_start];
           fromsock = ntree_shader_node_output_get(fromnode, 0);
           tosock = ntree_shader_node_input_get(tonode, 1);
-          blender::bke::node_add_link(ntree, fromnode, fromsock, tonode, tosock);
+          blender::bke::node_add_link(*ntree, * fromnode, * fromsock, * tonode, * tosock);
           /* Link weight input to both multiply nodes. */
           fromnode = nodes_copy[id_start + 3];
           fromsock = ntree_shader_node_output_get(fromnode, 0);
           tonode = nodes_copy[id_start];
           tosock = ntree_shader_node_input_get(tonode, 0);
-          blender::bke::node_add_link(ntree, fromnode, fromsock, tonode, tosock);
+          blender::bke::node_add_link(*ntree, * fromnode, * fromsock, * tonode, * tosock);
           tonode = nodes_copy[id_start + 1];
           tosock = ntree_shader_node_input_get(tonode, 0);
-          blender::bke::node_add_link(ntree, fromnode, fromsock, tonode, tosock);
+          blender::bke::node_add_link(*ntree, * fromnode, * fromsock, * tonode, * tosock);
           break;
         }
         default:
@@ -974,7 +974,7 @@ static void ntree_shader_weight_tree_invert(bNodeTree *ntree, bNode *output_node
 
           /* Manually add the link to the socket to avoid calling:
            * `BKE_ntree_update(G.main, oop)`. */
-          fromsock->link = blender::bke::node_add_link(ntree, fromnode, fromsock, tonode, tosock);
+          fromsock->link = &blender::bke::node_add_link(*ntree, * fromnode, * fromsock, * tonode, * tosock);
           BLI_assert(fromsock->link);
         }
       }
@@ -982,12 +982,12 @@ static void ntree_shader_weight_tree_invert(bNodeTree *ntree, bNode *output_node
   }
   /* Restore displacement & thickness link. */
   if (displace_link) {
-    blender::bke::node_add_link(
-        ntree, displace_link->fromnode, displace_link->fromsock, output_node, displace_output);
+    blender::bke::node_add_link(*
+        ntree, * displace_link->fromnode, * displace_link->fromsock, * output_node, * displace_output);
   }
   if (thickness_link) {
-    blender::bke::node_add_link(
-        ntree, thickness_link->fromnode, thickness_link->fromsock, output_node, thickness_output);
+    blender::bke::node_add_link(*
+        ntree, * thickness_link->fromnode, * thickness_link->fromsock, * output_node, * thickness_output);
   }
   BKE_ntree_update_after_single_tree_change(*G.main, *ntree);
 }
@@ -1078,7 +1078,7 @@ static void shader_node_disconnect_input(bNodeTree *ntree, bNode *node, int inde
 {
   bNodeLink *link = ntree_shader_node_input_get(node, index)->link;
   if (link) {
-    blender::bke::node_remove_link(ntree, link);
+    blender::bke::node_remove_link(ntree, *link);
   }
 }
 

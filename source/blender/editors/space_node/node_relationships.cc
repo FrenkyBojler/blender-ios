@@ -94,7 +94,7 @@ static void pick_link(bNodeLinkDrag &nldrag,
   bNodeLink link = create_drag_link(*link_to_pick.fromnode, *link_to_pick.fromsock);
 
   nldrag.links.append(link);
-  bke::node_remove_link(snode.edittree, &link_to_pick);
+  bke::node_remove_link(snode.edittree, link_to_pick);
   snode.edittree->ensure_topology_cache();
   BLI_assert(nldrag.last_node_hovered_while_dragging_a_link != nullptr);
   update_multi_input_indices_for_removed_links(*nldrag.last_node_hovered_while_dragging_a_link);
@@ -271,7 +271,7 @@ static bool snode_autoconnect_input(SpaceNode &snode,
     bke::node_remove_socket_links(ntree, sock_to);
   }
 
-  bke::node_add_link(ntree, node_fr, sock_fr, node_to, sock_to);
+  bke::node_add_link(*ntree, *node_fr, *sock_fr, *node_to, *sock_to);
   return true;
 }
 
@@ -488,7 +488,7 @@ static void remove_links_to_unavailable_viewer_sockets(bNodeTree &btree, bNode &
   LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &btree.links) {
     if (link->tonode == &viewer_node) {
       if (link->tosock->flag & SOCK_UNAVAIL) {
-        bke::node_remove_link(&btree, link);
+        bke::node_remove_link(&btree, *link);
       }
     }
   }
@@ -788,8 +788,8 @@ static int view_socket(const bContext &C,
     }
   }
   if (viewer_link == nullptr) {
-    viewer_link = bke::node_add_link(
-        &btree, &bnode_to_view, &bsocket_to_view, viewer_node, viewer_bsocket);
+    viewer_link = &bke::node_add_link(
+        btree, bnode_to_view, bsocket_to_view, *viewer_node, *viewer_bsocket);
   }
   else {
     viewer_link->fromnode = &bnode_to_view;
@@ -1044,7 +1044,7 @@ static void displace_links(bNodeTree *ntree, const bNode *node, bNodeLink *inser
     bNodeLink *displaced_link = linked_socket->directly_linked_links().first();
 
     if (!replacement_socket) {
-      bke::node_remove_link(ntree, displaced_link);
+      bke::node_remove_link(ntree, *displaced_link);
       return;
     }
 
@@ -1054,7 +1054,7 @@ static void displace_links(bNodeTree *ntree, const bNode *node, bNodeLink *inser
       /* Check for duplicate links when linking to multi input sockets. */
       for (bNodeLink *existing_link : replacement_socket->runtime->directly_linked_links) {
         if (existing_link->fromsock == displaced_link->fromsock) {
-          bke::node_remove_link(ntree, displaced_link);
+          bke::node_remove_link(ntree, *displaced_link);
           return;
         }
       }
@@ -1073,7 +1073,7 @@ static void displace_links(bNodeTree *ntree, const bNode *node, bNodeLink *inser
         BKE_ntree_update_tag_link_changed(ntree);
       }
       else {
-        bke::node_remove_link(ntree, link);
+        bke::node_remove_link(ntree, *link);
         BKE_ntree_update_tag_link_removed(ntree);
       }
     }
@@ -1107,7 +1107,7 @@ static void node_swap_links(bNodeLinkDrag &nldrag, bNodeTree &ntree)
       }
       if (link->fromnode == start_node) {
         /* Don't link a node to itself. */
-        bke::node_remove_link(&ntree, link);
+        bke::node_remove_link(&ntree, *link);
         continue;
       }
 
@@ -1122,7 +1122,7 @@ static void node_swap_links(bNodeLinkDrag &nldrag, bNodeTree &ntree)
       }
       if (link->tonode == start_node) {
         /* Don't link a node to itself. */
-        bke::node_remove_link(&ntree, link);
+        bke::node_remove_link(&ntree, *link);
         continue;
       }
       link->fromsock = start_socket;
@@ -1175,7 +1175,7 @@ static void node_remove_existing_links_if_needed(bNodeLinkDrag &nldrag, bNodeTre
   }
 
   for (bNodeLink *link : links_to_remove) {
-    bke::node_remove_link(&ntree, link);
+    bke::node_remove_link(&ntree, *link);
   }
 }
 
@@ -1437,7 +1437,7 @@ static void remove_unavailable_links(bNodeTree &tree, bNodeSocket &socket)
   Vector<bNodeLink *> links = socket.directly_linked_links();
   for (bNodeLink *link : links) {
     if (!link->is_available()) {
-      bke::node_remove_link(&tree, link);
+      bke::node_remove_link(&tree, *link);
     }
   }
 }
@@ -1468,7 +1468,7 @@ static std::unique_ptr<bNodeLinkDrag> node_link_init(ARegion &region,
           oplink.flag |= NODE_LINK_VALID;
 
           nldrag->links.append(oplink);
-          bke::node_remove_link(snode.edittree, link);
+          bke::node_remove_link(snode.edittree, *link);
         }
       }
     }
@@ -1507,7 +1507,7 @@ static std::unique_ptr<bNodeLinkDrag> node_link_init(ARegion &region,
         oplink.flag |= NODE_LINK_VALID;
 
         nldrag->links.append(oplink);
-        bke::node_remove_link(snode.edittree, link_to_pick);
+        bke::node_remove_link(snode.edittree, *link_to_pick);
 
         /* Send changed event to original link->tonode. */
         BKE_ntree_update_tag_node_property(snode.edittree, &node);
@@ -1699,7 +1699,7 @@ static int cut_links_exec(bContext *C, wmOperator *op)
   Set<bNode *> affected_nodes;
   for (bNodeLink *link : links_to_remove) {
     bNode *to_node = link->tonode;
-    bke::node_remove_link(snode.edittree, link);
+    bke::node_remove_link(snode.edittree, *link);
     affected_nodes.add(to_node);
   }
 
@@ -2467,14 +2467,14 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
     BKE_ntree_update_tag_link_changed(&ntree);
   }
   else {
-    bke::node_remove_link(&ntree, old_link);
+    bke::node_remove_link(&ntree, *old_link);
   }
 
   if (best_input != nullptr) {
     /* Don't change an existing link. */
     if (!best_input_is_linked) {
       /* Add a new link that connects the node on the left to the newly inserted node. */
-      bke::node_add_link(&ntree, from_node, from_socket, node_to_insert, best_input);
+      bke::node_add_link(ntree, *from_node, *from_socket, *node_to_insert, *best_input);
     }
   }
 

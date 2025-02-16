@@ -387,8 +387,8 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
              tlink = tlink->next)
         {
           if (tlink->tonode == gnode && STREQ(tlink->tosock->identifier, identifier)) {
-            bke::node_add_link(
-                ntree, tlink->fromnode, tlink->fromsock, link->tonode, link->tosock);
+            bke::node_add_link(*
+                ntree, * tlink->fromnode, * tlink->fromsock, * link->tonode, * link->tosock);
             num_external_links++;
           }
         }
@@ -426,8 +426,8 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
           /* only use active output node */
           if (tlink->tonode->is_group_output() && (tlink->tonode->flag & NODE_DO_OUTPUT)) {
             if (STREQ(tlink->tosock->identifier, identifier)) {
-              bke::node_add_link(
-                  ntree, tlink->fromnode, tlink->fromsock, link->tonode, link->tosock);
+              bke::node_add_link(*
+                  ntree, * tlink->fromnode, * tlink->fromsock, * link->tonode, * link->tosock);
               num_internal_links++;
             }
           }
@@ -574,10 +574,10 @@ static bool node_group_separate_selected(
     if (make_copy) {
       /* make a copy of internal links */
       if (fromselect && toselect) {
-        bke::node_add_link(&ntree,
-                           node_map.lookup(link->fromnode),
-                           socket_map.lookup(link->fromsock),
-                           node_map.lookup(link->tonode),
+        bke::node_add_link(ntree, *
+                           node_map.lookup(link->fromnode), *
+                           socket_map.lookup(link->fromsock), *
+                           node_map.lookup(link->tonode), *
                            socket_map.lookup(link->tosock));
       }
     }
@@ -588,7 +588,7 @@ static bool node_group_separate_selected(
         BLI_addtail(&ntree.links, link);
       }
       else if (fromselect || toselect) {
-        bke::node_remove_link(&ngroup, link);
+        bke::node_remove_link(&ngroup, *link);
       }
     }
   }
@@ -1137,7 +1137,7 @@ static void node_group_make_insert_selected(const bContext &C,
   }
 
   for (bNodeLink *link : links_to_remove) {
-    bke::node_remove_link(&ntree, link);
+    bke::node_remove_link(&ntree, *link);
   }
 
   /* Handle links to the new group inputs. */
@@ -1161,7 +1161,7 @@ static void node_group_make_insert_selected(const bContext &C,
     /* Create a new link inside of the group. */
     const StringRefNull io_identifier = info.interface_socket->identifier;
     bNodeSocket *output_sock = node_group_output_find_socket(output_node, io_identifier);
-    bke::node_add_link(&group, info.link->fromnode, info.link->fromsock, output_node, output_sock);
+    bke::node_add_link(group, * info.link->fromnode, * info.link->fromsock, * output_node, * output_sock);
   }
 
   /* Handle new links inside the group. */
@@ -1169,11 +1169,11 @@ static void node_group_make_insert_selected(const bContext &C,
     const StringRefNull io_identifier = info.interface_socket->identifier;
     if (info.socket->in_out == SOCK_IN) {
       bNodeSocket *input_socket = node_group_input_find_socket(input_node, io_identifier);
-      bke::node_add_link(&group, input_node, input_socket, info.node, info.socket);
+      bke::node_add_link(group, * input_node, * input_socket, * info.node, * info.socket);
     }
     else {
       bNodeSocket *output_socket = node_group_output_find_socket(output_node, io_identifier);
-      bke::node_add_link(&group, info.node, info.socket, output_node, output_socket);
+      bke::node_add_link(group, * info.node, * info.socket, * output_node, * output_socket);
     }
   }
 
@@ -1188,7 +1188,7 @@ static void node_group_make_insert_selected(const bContext &C,
   for (const auto item : input_links.items()) {
     const StringRefNull interface_identifier = item.value.interface_socket->identifier;
     bNodeSocket *group_node_socket = node_group_find_input_socket(gnode, interface_identifier);
-    bke::node_add_link(&ntree, item.value.from_node, item.key, gnode, group_node_socket);
+    bke::node_add_link(ntree, * item.value.from_node, * item.key, * gnode, * group_node_socket);
   }
 
   /* Add new links to outputs outside the group. */

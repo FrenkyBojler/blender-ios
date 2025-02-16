@@ -197,11 +197,11 @@ static int add_reroute_exec(bContext *C, wmOperator *op)
 
     bNode *reroute = bke::node_add_static_node(C, &ntree, NODE_REROUTE);
 
-    bke::node_add_link(&ntree,
-                       item.value.from_node,
-                       item.key,
-                       reroute,
-                       static_cast<bNodeSocket *>(reroute->inputs.first));
+    bke::node_add_link(ntree,
+                       *item.value.from_node,
+                       *item.key,
+                       *reroute,
+                       *static_cast<bNodeSocket *>(reroute->inputs.first));
 
     /* Reconnect links from the original output socket to the new reroute. */
     for (bNodeLink *link : cuts.keys()) {
@@ -807,7 +807,7 @@ static int node_add_file_exec(bContext *C, wmOperator *op)
     }
     else {
       node->id = (ID *)image;
-      blender::bke::node_tag_update_id(node);
+      blender::bke::node_tag_update_id(*node);
     }
     BKE_ntree_update_tag_node_property(&node_tree, node);
     nodes.append(node);

@@ -437,11 +437,11 @@ void add_realize_instances_before_socket(bNodeTree *ntree,
     realize_node->parent = node->parent;
     realize_node->locx_legacy = node->locx_legacy - 100;
     realize_node->locy_legacy = node->locy_legacy;
-    blender::bke::node_add_link(ntree,
-                                link->fromnode,
-                                link->fromsock,
-                                realize_node,
-                                static_cast<bNodeSocket *>(realize_node->inputs.first));
+    blender::bke::node_add_link(*ntree,
+                                *link->fromnode,
+                                *link->fromsock,
+                                *realize_node,
+                                *static_cast<bNodeSocket *>(realize_node->inputs.first));
     link->fromnode = realize_node;
     link->fromsock = static_cast<bNodeSocket *>(realize_node->outputs.first);
   }
@@ -545,7 +545,7 @@ void version_update_node_input(
     }
 
     /* Replace links with updated equivalent */
-    blender::bke::node_remove_link(ntree, link);
+    blender::bke::node_remove_link(ntree, *link);
     update_input_link(fromnode, fromsock, tonode, tosock);
 
     need_update = true;

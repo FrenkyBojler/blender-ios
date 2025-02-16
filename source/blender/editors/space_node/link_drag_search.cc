@@ -70,18 +70,18 @@ static void add_reroute_node_fn(nodes::LinkSearchOpParams &params)
 {
   bNode &reroute = params.add_node("NodeReroute");
   if (params.socket.in_out == SOCK_IN) {
-    bke::node_add_link(&params.node_tree,
-                       &reroute,
-                       static_cast<bNodeSocket *>(reroute.outputs.first),
-                       &params.node,
-                       &params.socket);
+    bke::node_add_link(params.node_tree,
+                       reroute,
+                       *static_cast<bNodeSocket *>(reroute.outputs.first),
+                       params.node,
+                       params.socket);
   }
   else {
-    bke::node_add_link(&params.node_tree,
-                       &params.node,
-                       &params.socket,
-                       &reroute,
-                       static_cast<bNodeSocket *>(reroute.inputs.first));
+    bke::node_add_link(params.node_tree,
+                       params.node,
+                       params.socket,
+                       reroute,
+                       *static_cast<bNodeSocket *>(reroute.inputs.first));
   }
 }
 
@@ -122,7 +122,7 @@ static void add_group_input_node_fn(nodes::LinkSearchOpParams &params)
   if (socket) {
     /* Unhide the socket for the new input in the new node and make a connection to it. */
     socket->flag &= ~SOCK_HIDDEN;
-    bke::node_add_link(&params.node_tree, &group_input, socket, &params.node, &params.socket);
+    bke::node_add_link(params.node_tree, group_input, *socket, params.node, params.socket);
 
     bke::node_socket_move_default_value(
         *CTX_data_main(&params.C), params.node_tree, params.socket, *socket);
@@ -146,7 +146,7 @@ static void add_existing_group_input_fn(nodes::LinkSearchOpParams &params,
   bNodeSocket *socket = bke::node_find_socket(&group_input, SOCK_OUT, interface_socket.identifier);
   if (socket != nullptr) {
     socket->flag &= ~SOCK_HIDDEN;
-    bke::node_add_link(&params.node_tree, &group_input, socket, &params.node, &params.socket);
+    bke::node_add_link(params.node_tree, group_input, *socket, params.node, params.socket);
   }
 }
 
@@ -224,7 +224,7 @@ static void search_link_ops_for_asset_metadata(const bNodeTree &node_tree,
            if (new_node_socket != nullptr) {
              /* Rely on the way #node_add_link switches in/out if necessary. */
              bke::node_add_link(
-                 &params.node_tree, &params.node, &params.socket, &node, new_node_socket);
+                 params.node_tree, params.node, params.socket, node, *new_node_socket);
            }
          },
          weight});

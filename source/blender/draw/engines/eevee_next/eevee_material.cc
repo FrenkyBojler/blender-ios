@@ -32,7 +32,7 @@ DefaultSurfaceNodeTree::DefaultSurfaceNodeTree()
   bNode *output = bke::node_add_static_node(nullptr, ntree, SH_NODE_OUTPUT_MATERIAL);
   bNodeSocket *bsdf_out = bke::node_find_socket(bsdf, SOCK_OUT, "BSDF");
   bNodeSocket *output_in = bke::node_find_socket(output, SOCK_IN, "Surface");
-  bke::node_add_link(ntree, bsdf, bsdf_out, output, output_in);
+  bke::node_add_link(*ntree, * bsdf, * bsdf_out, * output, * output_in);
   bke::node_set_active(ntree, output);
 
   color_socket_ =
@@ -88,11 +88,11 @@ MaterialModule::MaterialModule(Instance &inst) : inst_(inst)
 
     bNode *output = bke::node_add_static_node(nullptr, ntree, SH_NODE_OUTPUT_MATERIAL);
 
-    bke::node_add_link(ntree,
-                       bsdf,
-                       bke::node_find_socket(bsdf, SOCK_OUT, "BSDF"),
-                       output,
-                       bke::node_find_socket(output, SOCK_IN, "Surface"));
+    bke::node_add_link(*ntree, 
+                       *bsdf, 
+                       *bke::node_find_socket(bsdf, SOCK_OUT, "BSDF"),
+                       *output,
+                       *bke::node_find_socket(output, SOCK_IN, "Surface"));
 
     bke::node_set_active(ntree, output);
   }
@@ -111,11 +111,11 @@ MaterialModule::MaterialModule(Instance &inst) : inst_(inst)
 
     bNode *output = bke::node_add_static_node(nullptr, ntree, SH_NODE_OUTPUT_MATERIAL);
 
-    bke::node_add_link(ntree,
-                       bsdf,
-                       bke::node_find_socket(bsdf, SOCK_OUT, "BSDF"),
-                       output,
-                       bke::node_find_socket(output, SOCK_IN, "Surface"));
+    bke::node_add_link(*ntree,
+                       *bsdf,
+                       *bke::node_find_socket(bsdf, SOCK_OUT, "BSDF"),
+                       *output,
+                       *bke::node_find_socket(output, SOCK_IN, "Surface"));
 
     bke::node_set_active(ntree, output);
   }
@@ -132,11 +132,11 @@ MaterialModule::MaterialModule(Instance &inst) : inst_(inst)
 
     bNode *output = bke::node_add_static_node(nullptr, ntree, SH_NODE_OUTPUT_MATERIAL);
 
-    bke::node_add_link(ntree,
-                       bsdf,
-                       bke::node_find_socket(bsdf, SOCK_OUT, "Emission"),
-                       output,
-                       bke::node_find_socket(output, SOCK_IN, "Surface"));
+    bke::node_add_link(*ntree,
+                       *bsdf,
+                       *bke::node_find_socket(bsdf, SOCK_OUT, "Emission"),
+                       *output,
+                       *bke::node_find_socket(output, SOCK_IN, "Surface"));
 
     bke::node_set_active(ntree, output);
   }
