@@ -1213,6 +1213,7 @@ static bNode *rna_NodeTree_node_new(bNodeTree *ntree,
                                     blender::StringRefNull type)
 {
   blender::bke::bNodeType *ntype;
+  bNode *node;
 
   if (!rna_NodeTree_check(ntree, reports)) {
     return nullptr;
@@ -1248,8 +1249,8 @@ static bNode *rna_NodeTree_node_new(bNodeTree *ntree,
     }
   }
 
-  bNode &node = blender::bke::node_add_node(C, *ntree, type);
-  BLI_assert(node.typeinfo);
+  node = blender::bke::node_add_node(C, *ntree, type);
+  BLI_assert(node && node->typeinfo);
 
   if (ntree->type == NTREE_TEXTURE) {
     ntreeTexCheckCyclics(ntree);
@@ -1259,7 +1260,7 @@ static bNode *rna_NodeTree_node_new(bNodeTree *ntree,
   BKE_main_ensure_invariants(*bmain, ntree->id);
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 
-  return &node;
+  return node;
 }
 
 static void rna_NodeTree_node_remove(bNodeTree *ntree,

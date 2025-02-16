@@ -2683,7 +2683,7 @@ void node_unique_id(bNodeTree &ntree, bNode &node)
   BLI_assert(node.runtime->index_in_tree == ntree.runtime->nodes_by_id.index_of(&node));
 }
 
-bNode &node_add_node(const bContext *C, bNodeTree &ntree, const StringRef idname)
+bNode *node_add_node(const bContext *C, bNodeTree &ntree, const StringRef idname)
 {
   bNode *node = MEM_cnew<bNode>(__func__);
   node->runtime = MEM_new<bNodeRuntime>(__func__);
@@ -2696,7 +2696,7 @@ bNode &node_add_node(const bContext *C, bNodeTree &ntree, const StringRef idname
 
   BKE_ntree_update_tag_node_new(&ntree, node);
 
-  return *node;
+  return node;
 }
 
 bNode *node_add_static_node(const bContext *C, bNodeTree &ntree, const int type)
@@ -2720,7 +2720,7 @@ bNode *node_add_static_node(const bContext *C, bNodeTree &ntree, const int type)
     CLOG_ERROR(&LOG, "static node type %d undefined", type);
     return nullptr;
   }
-  return &node_add_node(C, ntree, *idname);
+  return node_add_node(C, ntree, *idname);
 }
 
 static void node_socket_copy(bNodeSocket *sock_dst, const bNodeSocket *sock_src, const int flag)

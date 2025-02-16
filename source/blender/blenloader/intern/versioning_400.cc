@@ -410,19 +410,19 @@ static void versioning_eevee_material_shadow_none(Material *material)
     /* We do not want to affect Cycles. So we split the output into two specific outputs. */
     output_node->custom1 = SHD_OUTPUT_CYCLES;
 
-    bNode &new_output = blender::bke::node_add_node(nullptr, *ntree, "ShaderNodeOutputMaterial");
-    new_output.custom1 = SHD_OUTPUT_EEVEE;
-    new_output.parent = output_node->parent;
-    new_output.locx_legacy = output_node->locx_legacy;
-    new_output.locy_legacy = output_node->locy_legacy - output_node->height - 120;
+    bNode *new_output = blender::bke::node_add_node(nullptr, *ntree, "ShaderNodeOutputMaterial");
+    new_output->custom1 = SHD_OUTPUT_EEVEE;
+    new_output->parent = output_node->parent;
+    new_output->locx_legacy = output_node->locx_legacy;
+    new_output->locy_legacy = output_node->locy_legacy - output_node->height - 120;
 
     auto copy_link = [&](const char *socket_name) {
       bNodeSocket *sock = blender::bke::node_find_socket(*output_node, SOCK_IN, socket_name);
       if (sock && sock->link) {
         bNodeLink *link = sock->link;
-        bNodeSocket *to_sock = blender::bke::node_find_socket(new_output, SOCK_IN, socket_name);
+        bNodeSocket *to_sock = blender::bke::node_find_socket(*new_output, SOCK_IN, socket_name);
         blender::bke::node_add_link(
-            *ntree, *link->fromnode, *link->fromsock, new_output, *to_sock);
+            *ntree, *link->fromnode, *link->fromsock, *new_output, *to_sock);
       }
     };
 
@@ -431,55 +431,58 @@ static void versioning_eevee_material_shadow_none(Material *material)
     copy_link("Displacement");
     copy_link("Thickness");
 
-    output_node = &new_output;
+    output_node = new_output;
   }
 
   bNodeSocket *out_sock = blender::bke::node_find_socket(*output_node, SOCK_IN, "Surface");
   bNodeSocket *old_out_sock = blender::bke::node_find_socket(*old_output_node, SOCK_IN, "Surface");
 
   /* Add mix node for mixing between original material, and transparent BSDF for shadows */
-  bNode &mix_node = blender::bke::node_add_node(nullptr, *ntree, "ShaderNodeMixShader");
-  STRNCPY(mix_node.label, "Disable Shadow");
-  mix_node.flag |= NODE_HIDDEN;
-  mix_node.parent = output_node->parent;
-  mix_node.locx_legacy = output_node->locx_legacy;
-  mix_node.locy_legacy = output_node->locy_legacy - output_node->height - 120;
-  bNodeSocket *mix_fac = static_cast<bNodeSocket *>(BLI_findlink(&mix_node.inputs, 0));
-  bNodeSocket *mix_in_1 = static_cast<bNodeSocket *>(BLI_findlink(&mix_node.inputs, 1));
-  bNodeSocket *mix_in_2 = static_cast<bNodeSocket *>(BLI_findlink(&mix_node.inputs, 2));
-  bNodeSocket *mix_out = static_cast<bNodeSocket *>(BLI_findlink(&mix_node.outputs, 0));
+  bNode *mix_node = blender::bke::node_add_node(nullptr, *ntree, "ShaderNodeMixShader");
+  STRNCPY(mix_node->label, "Disable Shadow");
+  mix_node->flag |= NODE_HIDDEN;
+  mix_node->parent = output_node->parent;
+  mix_node->locx_legacy = output_node->locx_legacy;
+  mix_node->locy_legacy = output_node->locy_legacy - output_node->height - 120;
+  bNodeSocket *mix_fac = static_cast<bNodeSocket *>(BLI_findlink(&mix_node->inputs, 0));
+  bNodeSocket *mix_in_1 = static_cast<bNodeSocket *>(BLI_findlink(&mix_node->inputs, 1));
+  bNodeSocket *mix_in_2 = static_cast<bNodeSocket *>(BLI_findlink(&mix_node->inputs, 2));
+  bNodeSocket *mix_out = static_cast<bNodeSocket *>(BLI_findlink(&mix_node->outputs, 0));
   if (old_out_sock->link != nullptr) {
-    blender::bke::node_add_link(
-        *ntree, *old_out_sock->link->fromnode, *old_out_sock->link->fromsock, mix_node, *mix_in_1);
+    blender::bke::node_add_link(*ntree,
+                                *old_out_sock->link->fromnode,
+                                *old_out_sock->link->fromsock,
+                                *mix_node,
+                                *mix_in_1);
     if (out_sock->link != nullptr) {
       blender::bke::node_remove_link(ntree, *out_sock->link);
     }
   }
-  blender::bke::node_add_link(*ntree, mix_node, *mix_out, *output_node, *out_sock);
+  blender::bke::node_add_link(*ntree, *mix_node, *mix_out, *output_node, *out_sock);
 
   /* Add light path node to control shadow visibility */
-  bNode &lp_node = blender::bke::node_add_node(nullptr, *ntree, "ShaderNodeLightPath");
-  lp_node.flag |= NODE_HIDDEN;
-  lp_node.parent = output_node->parent;
-  lp_node.locx_legacy = output_node->locx_legacy;
-  lp_node.locy_legacy = mix_node.locy_legacy + 35;
-  bNodeSocket *is_shadow = blender::bke::node_find_socket(lp_node, SOCK_OUT, "Is Shadow Ray");
-  blender::bke::node_add_link(*ntree, lp_node, *is_shadow, mix_node, *mix_fac);
+  bNode *lp_node = blender::bke::node_add_node(nullptr, *ntree, "ShaderNodeLightPath");
+  lp_node->flag |= NODE_HIDDEN;
+  lp_node->parent = output_node->parent;
+  lp_node->locx_legacy = output_node->locx_legacy;
+  lp_node->locy_legacy = mix_node->locy_legacy + 35;
+  bNodeSocket *is_shadow = blender::bke::node_find_socket(*lp_node, SOCK_OUT, "Is Shadow Ray");
+  blender::bke::node_add_link(*ntree, *lp_node, *is_shadow, *mix_node, *mix_fac);
   /* Hide unconnected sockets for cleaner look. */
-  LISTBASE_FOREACH (bNodeSocket *, sock, &lp_node.outputs) {
+  LISTBASE_FOREACH (bNodeSocket *, sock, &lp_node->outputs) {
     if (sock != is_shadow) {
       sock->flag |= SOCK_HIDDEN;
     }
   }
 
   /* Add transparent BSDF to make shadows transparent. */
-  bNode &bsdf_node = blender::bke::node_add_node(nullptr, *ntree, "ShaderNodeBsdfTransparent");
-  bsdf_node.flag |= NODE_HIDDEN;
-  bsdf_node.parent = output_node->parent;
-  bsdf_node.locx_legacy = output_node->locx_legacy;
-  bsdf_node.locy_legacy = mix_node.locy_legacy - 35;
-  bNodeSocket *bsdf_out = blender::bke::node_find_socket(bsdf_node, SOCK_OUT, "BSDF");
-  blender::bke::node_add_link(*ntree, bsdf_node, *bsdf_out, mix_node, *mix_in_2);
+  bNode *bsdf_node = blender::bke::node_add_node(nullptr, *ntree, "ShaderNodeBsdfTransparent");
+  bsdf_node->flag |= NODE_HIDDEN;
+  bsdf_node->parent = output_node->parent;
+  bsdf_node->locx_legacy = output_node->locx_legacy;
+  bsdf_node->locy_legacy = mix_node->locy_legacy - 35;
+  bNodeSocket *bsdf_out = blender::bke::node_find_socket(*bsdf_node, SOCK_OUT, "BSDF");
+  blender::bke::node_add_link(*ntree, *bsdf_node, *bsdf_out, *mix_node, *mix_in_2);
 }
 
 /**
@@ -738,21 +741,21 @@ static bool versioning_eevee_material_blend_mode_settings(bNodeTree *ntree, floa
       bNodeSocket *from_socket = alpha.socket->link->fromsock;
       blender::bke::node_remove_link(ntree, *alpha.socket->link);
 
-      bNode &math_node = blender::bke::node_add_node(nullptr, *ntree, "ShaderNodeMath");
-      math_node.custom1 = NODE_MATH_GREATER_THAN;
-      math_node.flag |= NODE_HIDDEN;
-      math_node.parent = to_node->parent;
-      math_node.locx_legacy = to_node->locx_legacy - math_node.width - 30;
-      math_node.locy_legacy = min_ff(to_node->locy_legacy, from_node->locy_legacy);
+      bNode *math_node = blender::bke::node_add_node(nullptr, *ntree, "ShaderNodeMath");
+      math_node->custom1 = NODE_MATH_GREATER_THAN;
+      math_node->flag |= NODE_HIDDEN;
+      math_node->parent = to_node->parent;
+      math_node->locx_legacy = to_node->locx_legacy - math_node->width - 30;
+      math_node->locy_legacy = min_ff(to_node->locy_legacy, from_node->locy_legacy);
 
-      bNodeSocket *input_1 = static_cast<bNodeSocket *>(BLI_findlink(&math_node.inputs, 0));
-      bNodeSocket *input_2 = static_cast<bNodeSocket *>(BLI_findlink(&math_node.inputs, 1));
-      bNodeSocket *output = static_cast<bNodeSocket *>(math_node.outputs.first);
+      bNodeSocket *input_1 = static_cast<bNodeSocket *>(BLI_findlink(&math_node->inputs, 0));
+      bNodeSocket *input_2 = static_cast<bNodeSocket *>(BLI_findlink(&math_node->inputs, 1));
+      bNodeSocket *output = static_cast<bNodeSocket *>(math_node->outputs.first);
       bNodeSocket *alpha_sock = input_1;
       bNodeSocket *threshold_sock = input_2;
 
-      blender::bke::node_add_link(*ntree, *from_node, *from_socket, math_node, *alpha_sock);
-      blender::bke::node_add_link(*ntree, math_node, *output, *to_node, *to_socket);
+      blender::bke::node_add_link(*ntree, *from_node, *from_socket, *math_node, *alpha_sock);
+      blender::bke::node_add_link(*ntree, *math_node, *output, *to_node, *to_socket);
 
       *version_cycles_node_socket_float_value(threshold_sock) = alpha.is_transparency ?
                                                                     1.0f - threshold :
@@ -2587,16 +2590,16 @@ static void change_input_socket_to_rotation_type(bNodeTree &ntree,
       /* Make versioning idempotent. */
       continue;
     }
-    bNode &convert = blender::bke::node_add_node(nullptr, ntree, "FunctionNodeEulerToRotation");
-    convert.parent = node.parent;
-    convert.locx_legacy = node.locx_legacy - 40;
-    convert.locy_legacy = node.locy_legacy;
-    link->tonode = &convert;
-    link->tosock = blender::bke::node_find_socket(convert, SOCK_IN, "Euler");
+    bNode *convert = blender::bke::node_add_node(nullptr, ntree, "FunctionNodeEulerToRotation");
+    convert->parent = node.parent;
+    convert->locx_legacy = node.locx_legacy - 40;
+    convert->locy_legacy = node.locy_legacy;
+    link->tonode = convert;
+    link->tosock = blender::bke::node_find_socket(*convert, SOCK_IN, "Euler");
 
     blender::bke::node_add_link(ntree,
-                                convert,
-                                *blender::bke::node_find_socket(convert, SOCK_OUT, "Rotation"),
+                                *convert,
+                                *blender::bke::node_find_socket(*convert, SOCK_OUT, "Rotation"),
                                 node,
                                 socket);
   }
@@ -2619,18 +2622,18 @@ static void change_output_socket_to_rotation_type(bNodeTree &ntree,
     { /* Make versioning idempotent. */
       continue;
     }
-    bNode &convert = blender::bke::node_add_node(nullptr, ntree, "FunctionNodeRotationToEuler");
-    convert.parent = node.parent;
-    convert.locx_legacy = node.locx_legacy + 40;
-    convert.locy_legacy = node.locy_legacy;
-    link->fromnode = &convert;
-    link->fromsock = blender::bke::node_find_socket(convert, SOCK_OUT, "Euler");
+    bNode *convert = blender::bke::node_add_node(nullptr, ntree, "FunctionNodeRotationToEuler");
+    convert->parent = node.parent;
+    convert->locx_legacy = node.locx_legacy + 40;
+    convert->locy_legacy = node.locy_legacy;
+    link->fromnode = convert;
+    link->fromsock = blender::bke::node_find_socket(*convert, SOCK_OUT, "Euler");
 
     blender::bke::node_add_link(ntree,
                                 node,
                                 socket,
-                                convert,
-                                *blender::bke::node_find_socket(convert, SOCK_IN, "Rotation"));
+                                *convert,
+                                *blender::bke::node_find_socket(*convert, SOCK_IN, "Rotation"));
   }
 }
 
@@ -3327,19 +3330,19 @@ static void fix_geometry_nodes_object_info_scale(bNodeTree &ntree)
     if (links.is_empty()) {
       continue;
     }
-    bNode &absolute_value = blender::bke::node_add_node(nullptr, ntree, "ShaderNodeVectorMath");
-    absolute_value.custom1 = NODE_VECTOR_MATH_ABSOLUTE;
-    absolute_value.parent = node->parent;
-    absolute_value.locx_legacy = node->locx_legacy + 100;
-    absolute_value.locy_legacy = node->locy_legacy - 50;
+    bNode *absolute_value = blender::bke::node_add_node(nullptr, ntree, "ShaderNodeVectorMath");
+    absolute_value->custom1 = NODE_VECTOR_MATH_ABSOLUTE;
+    absolute_value->parent = node->parent;
+    absolute_value->locx_legacy = node->locx_legacy + 100;
+    absolute_value->locy_legacy = node->locy_legacy - 50;
     blender::bke::node_add_link(*&ntree,
                                 *node,
                                 *scale,
-                                absolute_value,
-                                *static_cast<bNodeSocket *>(absolute_value.inputs.first));
+                                *absolute_value,
+                                *static_cast<bNodeSocket *>(absolute_value->inputs.first));
     for (bNodeLink *link : links) {
-      link->fromnode = &absolute_value;
-      link->fromsock = static_cast<bNodeSocket *>(absolute_value.outputs.first);
+      link->fromnode = absolute_value;
+      link->fromsock = static_cast<bNodeSocket *>(absolute_value->outputs.first);
     }
   }
 }
