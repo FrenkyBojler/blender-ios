@@ -351,7 +351,7 @@ bool push_compute_context_for_tree_path(const SpaceNode &snode,
   for (const int i : tree_path.index_range().drop_back(1)) {
     bNodeTree *tree = tree_path[i]->nodetree;
     const char *group_node_name = tree_path[i + 1]->node_name;
-    const bNode *group_node = blender::bke::node_find_node_by_name(tree, group_node_name);
+    const bNode *group_node = blender::bke::node_find_node_by_name(*tree, group_node_name);
     if (group_node == nullptr) {
       return false;
     }

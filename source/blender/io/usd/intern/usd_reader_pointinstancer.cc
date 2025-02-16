@@ -282,7 +282,7 @@ void USDPointInstancerReader::set_collection(Main *bmain, Collection &coll)
     return;
   }
 
-  bNode *collection_node = bke::node_find_node_by_name(ntree, "Collection Info");
+  bNode *collection_node = bke::node_find_node_by_name(*ntree, "Collection Info");
   if (!collection_node) {
     BLI_assert_unreachable();
     return;

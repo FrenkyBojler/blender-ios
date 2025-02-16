@@ -667,12 +667,12 @@ void node_internal_links(bNode &node, bNodeLink **r_links, int *r_len);
 bNodeLink &node_add_link(
     bNodeTree &ntree, bNode &fromnode, bNodeSocket &fromsock, bNode &tonode, bNodeSocket &tosock);
 void node_remove_link(bNodeTree *ntree, bNodeLink &link);
-void node_remove_socket_links(bNodeTree *ntree, bNodeSocket *sock);
+void node_remove_socket_links(bNodeTree &ntree, bNodeSocket &sock);
 
-bool node_link_is_hidden(const bNodeLink *link);
+bool node_link_is_hidden(const bNodeLink &link);
 
-void node_attach_node(bNodeTree *ntree, bNode *node, bNode *parent);
-void node_detach_node(bNodeTree *ntree, bNode *node);
+void node_attach_node(bNodeTree &ntree, bNode &node, bNode &parent);
+void node_detach_node(bNodeTree &ntree, bNode &node);
 
 /**
  * Finds a node based on given socket, returning null in the case where the socket is not part of
@@ -691,15 +691,15 @@ const bNode &node_find_node(const bNodeTree &ntree, const bNodeSocket &socket);
 /**
  * Finds a node based on its name.
  */
-bNode *node_find_node_by_name(bNodeTree *ntree, StringRefNull name);
+bNode *node_find_node_by_name(bNodeTree &ntree, StringRefNull name);
 
 /** Try to find an input item with the given identifier in the entire node interface tree. */
 const bNodeTreeInterfaceSocket *node_find_interface_input_by_identifier(const bNodeTree &ntree,
                                                                         StringRef identifier);
 
-bool node_is_parent_and_child(const bNode *parent, const bNode *child);
+bool node_is_parent_and_child(const bNode &parent, const bNode &child);
 
-int node_count_socket_links(const bNodeTree *ntree, const bNodeSocket *sock);
+int node_count_socket_links(const bNodeTree &ntree, const bNodeSocket &sock);
 
 /**
  * Selects or deselects the node. If the node is deselected, all its sockets are deselected too.

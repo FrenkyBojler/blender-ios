@@ -304,7 +304,7 @@ static int node_clipboard_copy_exec(bContext *C, wmOperator * /*op*/)
         new_node->parent = node_map.lookup(new_node->parent);
       }
       else {
-        bke::node_detach_node(&tree, new_node);
+        bke::node_detach_node(tree, *new_node);
       }
     }
   }

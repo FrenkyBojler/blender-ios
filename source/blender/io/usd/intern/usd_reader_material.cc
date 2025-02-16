@@ -161,7 +161,7 @@ static void link_nodes(
   }
 
   /* Only add the link if this is the first one to be connected. */
-  if (blender::bke::node_count_socket_links(ntree, dest_socket) == 0) {
+  if (blender::bke::node_count_socket_links(*ntree, *dest_socket) == 0) {
     blender::bke::node_add_link(*ntree, *source, *source_socket, *dest, *dest_socket);
   }
 }

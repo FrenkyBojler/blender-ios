@@ -268,7 +268,7 @@ static bool snode_autoconnect_input(SpaceNode &snode,
   bNodeTree *ntree = snode.edittree;
 
   if (replace) {
-    bke::node_remove_socket_links(ntree, sock_to);
+    bke::node_remove_socket_links(*ntree, *sock_to);
   }
 
   bke::node_add_link(*ntree, *node_fr, *sock_fr, *node_to, *sock_to);
@@ -1455,7 +1455,7 @@ static std::unique_ptr<bNodeLinkDrag> node_link_init(ARegion &region,
     std::unique_ptr<bNodeLinkDrag> nldrag = std::make_unique<bNodeLinkDrag>();
     nldrag->start_node = &node;
     nldrag->start_socket = sock;
-    nldrag->start_link_count = bke::node_count_socket_links(snode.edittree, sock);
+    nldrag->start_link_count = bke::node_count_socket_links(*snode.edittree, *sock);
     int link_limit = bke::node_socket_link_limit(sock);
     if (nldrag->start_link_count > 0 && (nldrag->start_link_count >= link_limit || detach)) {
       /* Dragged links are fixed on input side. */
@@ -1489,7 +1489,7 @@ static std::unique_ptr<bNodeLinkDrag> node_link_init(ARegion &region,
     nldrag->start_node = &node;
     nldrag->start_socket = sock;
 
-    nldrag->start_link_count = bke::node_count_socket_links(snode.edittree, sock);
+    nldrag->start_link_count = bke::node_count_socket_links(*snode.edittree, *sock);
     if (nldrag->start_link_count > 0) {
       /* Dragged links are fixed on output side. */
       nldrag->in_out = SOCK_OUT;
@@ -1924,8 +1924,8 @@ static int node_parent_set_exec(bContext *C, wmOperator * /*op*/)
       continue;
     }
     if (node->flag & NODE_SELECT) {
-      bke::node_detach_node(&ntree, node);
-      bke::node_attach_node(&ntree, node, frame);
+      bke::node_detach_node(ntree, *node);
+      bke::node_attach_node(ntree, *node, *frame);
     }
   }
 
@@ -1984,13 +1984,13 @@ static void node_join_attach_recursive(bNodeTree &ntree,
     }
     else if (selected_nodes.contains(node)) {
       /* if parent is not an descendant of the frame, reattach the node */
-      bke::node_detach_node(&ntree, node);
-      bke::node_attach_node(&ntree, node, frame);
+      bke::node_detach_node(ntree, *node);
+      bke::node_attach_node(ntree, *node, *frame);
       join_states[node->index()].descendent = true;
     }
   }
   else if (selected_nodes.contains(node)) {
-    bke::node_attach_node(&ntree, node, frame);
+    bke::node_attach_node(ntree, *node, *frame);
     join_states[node->index()].descendent = true;
   }
 }
@@ -2122,12 +2122,12 @@ static int node_attach_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *e
     }
 
     /* Disallow moving a parent into its child. */
-    if (node->is_frame() && bke::node_is_parent_and_child(node, frame)) {
+    if (node->is_frame() && bke::node_is_parent_and_child(*node, *frame)) {
       continue;
     }
 
     if (node->parent == nullptr) {
-      bke::node_attach_node(&ntree, node, frame);
+      bke::node_attach_node(ntree, *node, *frame);
       changed = true;
       continue;
     }
@@ -2137,13 +2137,13 @@ static int node_attach_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *e
     }
 
     /* Attach nodes which share parent with the frame. */
-    const bool share_parent = bke::node_is_parent_and_child(node->parent, frame);
+    const bool share_parent = bke::node_is_parent_and_child(*node->parent, *frame);
     if (!share_parent) {
       continue;
     }
 
-    bke::node_detach_node(&ntree, node);
-    bke::node_attach_node(&ntree, node, frame);
+    bke::node_detach_node(ntree, *node);
+    bke::node_attach_node(ntree, *node, *frame);
     changed = true;
   }
 
@@ -2196,7 +2196,7 @@ static void node_detach_recursive(bNodeTree &ntree,
     }
     else if (node->flag & NODE_SELECT) {
       /* If parent is not a descendant of a selected node, detach. */
-      bke::node_detach_node(&ntree, node);
+      bke::node_detach_node(ntree, *node);
       detach_states[node->index()].descendent = true;
     }
   }
@@ -2597,7 +2597,7 @@ static void node_parent_offset_apply(NodeInsertOfsData *data, bNode *parent, con
   /* Flag all children as offset to prevent them from being offset
    * separately (they've already moved with the parent). */
   for (bNode *node : data->ntree->all_nodes()) {
-    if (bke::node_is_parent_and_child(parent, node)) {
+    if (bke::node_is_parent_and_child(*parent, *node)) {
       /* NODE_TEST is used to flag nodes that shouldn't be offset (again) */
       node->flag |= NODE_TEST;
     }
@@ -2637,7 +2637,7 @@ static void node_link_insert_offset_frame_chains(bNodeTree *ntree,
                                                  const bool reversed)
 {
   for (bNode *node : ntree->all_nodes()) {
-    if (bke::node_is_parent_and_child(parent, node)) {
+    if (bke::node_is_parent_and_child(*parent, *node)) {
       bke::node_chain_iterator(
           ntree, node, node_link_insert_offset_frame_chain_cb, data, reversed);
     }
@@ -2665,7 +2665,7 @@ static bool node_link_insert_offset_chain_cb(bNode *fromnode,
       node_offset_apply(*ofs_node, data->offset_x);
     }
 
-    if (!bke::node_is_parent_and_child(data->insert_parent, ofs_node)) {
+    if (!bke::node_is_parent_and_child(*data->insert_parent, *ofs_node)) {
       data->insert_parent = nullptr;
     }
   }
@@ -2767,7 +2767,7 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
     if (needs_alignment) {
       bNode *offs_node = right_alignment ? next : prev;
       if (!offs_node->parent || offs_node->parent == insert.parent ||
-          bke::node_is_parent_and_child(offs_node->parent, &insert))
+          bke::node_is_parent_and_child(*offs_node->parent, insert))
       {
         node_offset_apply(*offs_node, addval);
       }

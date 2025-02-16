@@ -94,7 +94,7 @@ static void local_merge(Main *bmain, bNodeTree *localtree, bNodeTree *ntree)
   blender::bke::node_preview_merge_tree(ntree, localtree, true);
 
   LISTBASE_FOREACH (bNode *, lnode, &localtree->nodes) {
-    if (bNode *orig_node = blender::bke::node_find_node_by_name(ntree, lnode->name)) {
+    if (bNode *orig_node = blender::bke::node_find_node_by_name(*ntree, lnode->name)) {
       if (lnode->type_legacy == CMP_NODE_VIEWER) {
         if (lnode->id && (lnode->flag & NODE_DO_OUTPUT)) {
           /* image_merge does sanity check for pointers */

@@ -1370,7 +1370,7 @@ float node_link_dim_factor(const View2D &v2d, const bNodeLink &link)
 
 bool node_link_is_hidden_or_dimmed(const View2D &v2d, const bNodeLink &link)
 {
-  return bke::node_link_is_hidden(&link) || node_link_dim_factor(v2d, link) < 0.5f;
+  return bke::node_link_is_hidden(link) || node_link_dim_factor(v2d, link) < 0.5f;
 }
 
 /** \} */
@@ -1398,8 +1398,8 @@ static void node_duplicate_reparent_recursive(bNodeTree *ntree,
   }
   /* Reparent node copy to parent copy. */
   if (parent) {
-    bke::node_detach_node(ntree, node_map.lookup(node));
-    bke::node_attach_node(ntree, node_map.lookup(node), node_map.lookup(parent));
+    bke::node_detach_node(*ntree, *node_map.lookup(node));
+    bke::node_attach_node(*ntree, *node_map.lookup(node), *node_map.lookup(parent));
   }
 }
 

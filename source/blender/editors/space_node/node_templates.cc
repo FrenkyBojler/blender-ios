@@ -260,7 +260,7 @@ static void node_socket_add_replace(const bContext *C,
   if (node_prev && node_from != node_prev) {
     LISTBASE_FOREACH (bNodeSocket *, sock_prev, &node_prev->inputs) {
       LISTBASE_FOREACH (bNodeSocket *, sock_from, &node_from->inputs) {
-        if (bke::node_count_socket_links(ntree, sock_from) >=
+        if (bke::node_count_socket_links(*ntree, *sock_from) >=
             bke::node_socket_link_limit(sock_from))
         {
           continue;

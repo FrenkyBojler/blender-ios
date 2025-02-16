@@ -2502,10 +2502,10 @@ void node_remove_socket_ex(bNodeTree &ntree, bNode &node, bNodeSocket &sock, con
   BKE_ntree_update_tag_socket_removed(&ntree);
 }
 
-bNode *node_find_node_by_name(bNodeTree *ntree, const StringRefNull name)
+bNode *node_find_node_by_name(bNodeTree &ntree, const StringRefNull name)
 {
   return reinterpret_cast<bNode *>(
-      BLI_findstring(&ntree->nodes, name.c_str(), offsetof(bNode, name)));
+      BLI_findstring(&ntree.nodes, name.c_str(), offsetof(bNode, name)));
 }
 
 bNode &node_find_node(bNodeTree &ntree, bNodeSocket &socket)
@@ -2557,10 +2557,10 @@ bNode *node_find_root_parent(bNode &node)
   return parent_iter;
 }
 
-bool node_is_parent_and_child(const bNode *parent, const bNode *child)
+bool node_is_parent_and_child(const bNode &parent, const bNode &child)
 {
-  for (const bNode *child_iter = child; child_iter; child_iter = child_iter->parent) {
-    if (child_iter == parent) {
+  for (const bNode *child_iter = &child; child_iter; child_iter = child_iter->parent) {
+    if (child_iter == &parent) {
       return true;
     }
   }
@@ -3032,18 +3032,18 @@ void node_link_set_mute(bNodeTree &ntree, bNodeLink &link, const bool muted)
   }
 }
 
-void node_remove_socket_links(bNodeTree *ntree, bNodeSocket *sock)
+void node_remove_socket_links(bNodeTree &ntree, bNodeSocket &sock)
 {
-  LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &ntree->links) {
-    if (link->fromsock == sock || link->tosock == sock) {
-      node_remove_link(ntree, *link);
+  LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &ntree.links) {
+    if (link->fromsock == &sock || link->tosock == &sock) {
+      node_remove_link(&ntree, *link);
     }
   }
 }
 
-bool node_link_is_hidden(const bNodeLink *link)
+bool node_link_is_hidden(const bNodeLink &link)
 {
-  return !(link->fromsock->is_visible() && link->tosock->is_visible());
+  return !(link.fromsock->is_visible() && link.tosock->is_visible());
 }
 
 bool node_link_is_selected(const bNodeLink &link)
@@ -3137,20 +3137,20 @@ void node_internal_relink(bNodeTree &ntree, bNode &node)
   }
 }
 
-void node_attach_node(bNodeTree *ntree, bNode *node, bNode *parent)
+void node_attach_node(bNodeTree &ntree, bNode &node, bNode &parent)
 {
-  BLI_assert(parent->is_frame());
+  BLI_assert(parent.is_frame());
   BLI_assert(!node_is_parent_and_child(parent, node));
-  node->parent = parent;
-  BKE_ntree_update_tag_parent_change(ntree, node);
+  node.parent = &parent;
+  BKE_ntree_update_tag_parent_change(&ntree, &node);
 }
 
-void node_detach_node(bNodeTree *ntree, bNode *node)
+void node_detach_node(bNodeTree &ntree, bNode &node)
 {
-  if (node->parent) {
-    BLI_assert(node->parent->is_frame());
-    node->parent = nullptr;
-    BKE_ntree_update_tag_parent_change(ntree, node);
+  if (node.parent) {
+    BLI_assert(node.parent->is_frame());
+    node.parent = nullptr;
+    BKE_ntree_update_tag_parent_change(&ntree, &node);
   }
 }
 
@@ -3472,7 +3472,7 @@ static void node_unlink_attached(bNodeTree *ntree, const bNode *parent)
 {
   for (bNode *node : ntree->all_nodes()) {
     if (node->parent == parent) {
-      node_detach_node(ntree, node);
+      node_detach_node(*ntree, *node);
     }
   }
 }
@@ -3848,11 +3848,11 @@ bool node_tree_contains_tree(const bNodeTree *tree_to_search_in,
   return ntree_contains_tree_exec(tree_to_search_in, tree_to_search_for, already_passed);
 }
 
-int node_count_socket_links(const bNodeTree *ntree, const bNodeSocket *sock)
+int node_count_socket_links(const bNodeTree &ntree, const bNodeSocket &sock)
 {
   int tot = 0;
-  LISTBASE_FOREACH (const bNodeLink *, link, &ntree->links) {
-    if (link->fromsock == sock || link->tosock == sock) {
+  LISTBASE_FOREACH (const bNodeLink *, link, &ntree.links) {
+    if (link->fromsock == &sock || link->tosock == &sock) {
       tot++;
     }
   }

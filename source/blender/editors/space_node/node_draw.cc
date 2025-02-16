@@ -1393,7 +1393,7 @@ static void node_draw_mute_line(const bContext &C,
   GPU_blend(GPU_BLEND_ALPHA);
 
   for (const bNodeLink &link : node.internal_links()) {
-    if (!bke::node_link_is_hidden(&link)) {
+    if (!bke::node_link_is_hidden(link)) {
       node_draw_link_bezier(C, v2d, snode, link, TH_WIRE_INNER, TH_WIRE_INNER, TH_WIRE, false);
     }
   }
@@ -4756,14 +4756,14 @@ static void node_draw_nodetree(const bContext &C,
   nodelink_batch_start(snode);
 
   for (const bNodeLink *link : ntree.all_links()) {
-    if (!bke::node_link_is_hidden(link) && !bke::node_link_is_selected(*link)) {
+    if (!bke::node_link_is_hidden(*link) && !bke::node_link_is_selected(*link)) {
       node_draw_link(C, region.v2d, snode, *link, false);
     }
   }
 
   /* Draw selected node links after the unselected ones, so they are shown on top. */
   for (const bNodeLink *link : ntree.all_links()) {
-    if (!bke::node_link_is_hidden(link) && bke::node_link_is_selected(*link)) {
+    if (!bke::node_link_is_hidden(*link) && bke::node_link_is_selected(*link)) {
       node_draw_link(C, region.v2d, snode, *link, true);
     }
   }

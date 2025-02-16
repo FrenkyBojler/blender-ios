@@ -221,7 +221,7 @@ static int add_reroute_exec(bContext *C, wmOperator *op)
     for (const int i : frame_nodes.index_range()) {
       bNode *frame_node = frame_nodes.last(i);
       if (BLI_rctf_isect_pt_v(&frame_node->runtime->draw_bounds, insert_point)) {
-        bke::node_attach_node(&ntree, reroute, frame_node);
+        bke::node_attach_node(ntree, *reroute, *frame_node);
         break;
       }
     }

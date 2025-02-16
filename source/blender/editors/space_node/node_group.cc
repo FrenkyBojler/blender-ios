@@ -554,7 +554,7 @@ static bool node_group_separate_selected(
 
     /* ensure valid parent pointers, detach if parent stays inside the group */
     if (newnode->parent && !(newnode->parent->flag & NODE_SELECT)) {
-      bke::node_detach_node(&ngroup, newnode);
+      bke::node_detach_node(ngroup, *newnode);
     }
 
     if (!newnode->parent) {
@@ -1003,7 +1003,7 @@ static void node_group_make_insert_selected(const bContext &C,
       }
 
       for (bNodeLink *link : output_socket->directly_linked_links()) {
-        if (bke::node_link_is_hidden(link)) {
+        if (bke::node_link_is_hidden(*link)) {
           links_to_remove.add(link);
           continue;
         }
@@ -1044,7 +1044,7 @@ static void node_group_make_insert_selected(const bContext &C,
       }
 
       for (bNodeLink *link : input_socket->directly_linked_links()) {
-        if (bke::node_link_is_hidden(link)) {
+        if (bke::node_link_is_hidden(*link)) {
           links_to_remove.add(link);
           continue;
         }
@@ -1076,12 +1076,12 @@ static void node_group_make_insert_selected(const bContext &C,
   /* Un-parent nodes when only the parent or child moves into the group. */
   for (bNode *node : ntree.all_nodes()) {
     if (node->parent && nodes_to_move.contains(node->parent) && !nodes_to_move.contains(node)) {
-      bke::node_detach_node(&ntree, node);
+      bke::node_detach_node(ntree, *node);
     }
   }
   for (bNode *node : nodes_to_move) {
     if (node->parent && !nodes_to_move.contains(node->parent)) {
-      bke::node_detach_node(&ntree, node);
+      bke::node_detach_node(ntree, *node);
     }
   }
 
@@ -1384,7 +1384,7 @@ static int node_default_group_width_set_exec(bContext *C, wmOperator * /*op*/)
     return OPERATOR_CANCELLED;
   }
   parent_ntree->ensure_topology_cache();
-  bNode *parent_node = bke::node_find_node_by_name(parent_ntree, last_path_item->node_name);
+  bNode *parent_node = bke::node_find_node_by_name(*parent_ntree, last_path_item->node_name);
   if (!parent_node) {
     return OPERATOR_CANCELLED;
   }

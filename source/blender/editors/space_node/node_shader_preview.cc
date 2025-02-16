@@ -121,7 +121,7 @@ static std::optional<ComputeContextHash> get_compute_context_hash_for_node_edito
   for (const int i : treepath.index_range().drop_back(1)) {
     /* The tree path contains the name of the node but not its ID. */
     bNodeTree *tree = treepath[i]->nodetree;
-    const bNode *node = bke::node_find_node_by_name(tree, treepath[i + 1]->node_name);
+    const bNode *node = bke::node_find_node_by_name(*tree, treepath[i + 1]->node_name);
     if (node == nullptr) {
       /* The current tree path is invalid, probably because some parent group node has been
        * deleted. */
@@ -390,7 +390,7 @@ static void connect_nested_node_to_node(const Span<bNodeTreePath *> treepath,
 
     /* Change the `nested_node` pointer to the nested node-group instance node. The tree path
      * contains the name of the instance node but not its ID. */
-    nested_node_iter = bke::node_find_node_by_name(path_prev->nodetree, path->node_name);
+    nested_node_iter = bke::node_find_node_by_name(*path_prev->nodetree, path->node_name);
 
     /* Update the sockets of the node because we added a new interface. */
     BKE_ntree_update_tag_node_property(path_prev->nodetree, nested_node_iter);
@@ -813,7 +813,7 @@ static void ensure_nodetree_previews(const bContext &C,
        original_path;
        original_path = original_path->next)
   {
-    bNode *parent = bke::node_find_node_by_name(job_data->treepath_copy.last()->nodetree,
+    bNode *parent = bke::node_find_node_by_name(*job_data->treepath_copy.last()->nodetree,
                                                 original_path->node_name);
     if (parent == nullptr) {
       /* In some cases (e.g. muted nodes), there may not be an equivalent node in the copied

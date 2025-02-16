@@ -1412,15 +1412,15 @@ static bNodeLink *rna_NodeTree_link_new(bNodeTree *ntree,
 
   if (verify_limits) {
     /* remove other socket links if limit is exceeded */
-    if (blender::bke::node_count_socket_links(ntree, fromsock) + 1 >
+    if (blender::bke::node_count_socket_links(*ntree, *fromsock) + 1 >
         blender::bke::node_socket_link_limit(fromsock))
     {
-      blender::bke::node_remove_socket_links(ntree, fromsock);
+      blender::bke::node_remove_socket_links(*ntree, *fromsock);
     }
-    if (blender::bke::node_count_socket_links(ntree, tosock) + 1 >
+    if (blender::bke::node_count_socket_links(*ntree, *tosock) + 1 >
         blender::bke::node_socket_link_limit(tosock))
     {
-      blender::bke::node_remove_socket_links(ntree, tosock);
+      blender::bke::node_remove_socket_links(*ntree, *tosock);
     }
     if (tosock->flag & SOCK_MULTI_INPUT) {
       LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &ntree->links) {
@@ -1642,7 +1642,7 @@ static void rna_NodeTree_interface_update(bNodeTree *ntree, bContext *C)
 static bool rna_NodeLink_is_hidden_get(PointerRNA *ptr)
 {
   bNodeLink *link = static_cast<bNodeLink *>(ptr->data);
-  return blender::bke::node_link_is_hidden(link);
+  return blender::bke::node_link_is_hidden(*link);
 }
 
 static void rna_NodeLink_swap_multi_input_sort_id(
@@ -2393,7 +2393,7 @@ static void rna_Node_parent_set(PointerRNA *ptr, PointerRNA value, ReportList * 
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(ptr->owner_id);
 
   if (!parent) {
-    blender::bke::node_detach_node(ntree, node);
+    blender::bke::node_detach_node(*ntree, *node);
     return;
   }
 
@@ -2404,12 +2404,12 @@ static void rna_Node_parent_set(PointerRNA *ptr, PointerRNA value, ReportList * 
     return;
   }
 
-  if (blender::bke::node_is_parent_and_child(node, parent)) {
+  if (blender::bke::node_is_parent_and_child(*node, *parent)) {
     return;
   }
 
-  blender::bke::node_detach_node(ntree, node);
-  blender::bke::node_attach_node(ntree, node, parent);
+  blender::bke::node_detach_node(*ntree, *node);
+  blender::bke::node_attach_node(*ntree, *node, *parent);
 }
 
 static void rna_Node_internal_links_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
@@ -2494,7 +2494,7 @@ static bool rna_Node_parent_poll(PointerRNA *ptr, PointerRNA value)
     return false;
   }
 
-  if (node->is_frame() && blender::bke::node_is_parent_and_child(node, parent)) {
+  if (node->is_frame() && blender::bke::node_is_parent_and_child(*node, *parent)) {
     return false;
   }
 
