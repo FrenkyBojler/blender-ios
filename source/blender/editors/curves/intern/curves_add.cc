@@ -92,11 +92,11 @@ void ensure_surface_deformation_node_exists(bContext &C, Object &curves_ob)
 
   BKE_main_ensure_invariants(*bmain, nmd.node_group->id);
 
-  bke::node_add_link(*ntree, *
-                     group_input, *
-                     static_cast<bNodeSocket *>(group_input->outputs.first), *
-                     deform_node, *
-                     bke::node_find_socket(deform_node, SOCK_IN, "Curves"));
+  bke::node_add_link(*ntree,
+                     *group_input,
+                     *static_cast<bNodeSocket *>(group_input->outputs.first),
+                     *deform_node,
+                     *bke::node_find_socket(deform_node, SOCK_IN, "Curves"));
   bke::node_add_link(*ntree,
                      *deform_node,
                      *bke::node_find_socket(deform_node, SOCK_OUT, "Curves"),

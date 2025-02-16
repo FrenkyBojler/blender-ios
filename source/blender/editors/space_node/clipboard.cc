@@ -465,7 +465,7 @@ static int node_clipboard_paste_exec(bContext *C, wmOperator *op)
     if (!from || !to) {
       continue;
     }
-    bNodeLink &new_link = bke::node_add_link(tree, * from_node, * from, * to_node, * to);
+    bNodeLink &new_link = bke::node_add_link(tree, *from_node, *from, *to_node, *to);
     new_link.multi_input_sort_id = link.multi_input_sort_id;
   }
 

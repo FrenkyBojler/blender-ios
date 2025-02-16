@@ -2976,8 +2976,7 @@ bNodeLink &node_add_link(
   BLI_assert(ntree.all_nodes().contains(&tonode));
 
   bNodeLink *link = nullptr;
-  if (eNodeSocketInOut(fromsock.in_out) == SOCK_OUT &&
-      eNodeSocketInOut(tosock.in_out) == SOCK_IN)
+  if (eNodeSocketInOut(fromsock.in_out) == SOCK_OUT && eNodeSocketInOut(tosock.in_out) == SOCK_IN)
   {
     link = MEM_cnew<bNodeLink>(__func__);
     BLI_addtail(&ntree.links, link);
@@ -4012,7 +4011,8 @@ bool node_declaration_ensure(bNodeTree &ntree, bNode &node)
 
 float2 node_dimensions_get(const bNode &node)
 {
-  return float2(node.runtime->draw_bounds.xmax, node.runtime->draw_bounds.ymax) - float2(node.runtime->draw_bounds.xmin, node.runtime->draw_bounds.ymin);
+  return float2(node.runtime->draw_bounds.xmax, node.runtime->draw_bounds.ymax) -
+         float2(node.runtime->draw_bounds.xmin, node.runtime->draw_bounds.ymin);
 }
 
 void node_tag_update_id(bNode &node)
