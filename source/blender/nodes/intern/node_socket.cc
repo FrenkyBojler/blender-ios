@@ -544,7 +544,7 @@ void node_verify_sockets(bNodeTree *ntree, bNode *node, bool do_id_user)
     return;
   }
   if (ntype->declare) {
-    blender::bke::node_declaration_ensure_on_outdated_node(ntree, node);
+    blender::bke::node_declaration_ensure_on_outdated_node(*ntree, *node);
     refresh_node(*ntree, *node, *node->runtime->declaration, do_id_user);
     return;
   }

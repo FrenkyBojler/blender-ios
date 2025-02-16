@@ -151,15 +151,15 @@ static void node_shader_update_tex_noise(bNodeTree *ntree, bNode *node)
   bNodeSocket *inGainSock = bke::node_find_socket(node, SOCK_IN, "Gain");
 
   const NodeTexNoise &storage = node_storage(*node);
-  bke::node_set_socket_availability(ntree, sockVector, storage.dimensions != 1);
+  bke::node_set_socket_availability(*ntree, *sockVector, storage.dimensions != 1);
   bke::node_set_socket_availability(
-      ntree, sockW, storage.dimensions == 1 || storage.dimensions == 4);
-  bke::node_set_socket_availability(ntree,
-                                    inOffsetSock,
+      *ntree, *sockW, storage.dimensions == 1 || storage.dimensions == 4);
+  bke::node_set_socket_availability(*ntree,
+                                    *inOffsetSock,
                                     storage.type != SHD_NOISE_MULTIFRACTAL &&
                                         storage.type != SHD_NOISE_FBM);
-  bke::node_set_socket_availability(ntree,
-                                    inGainSock,
+  bke::node_set_socket_availability(*ntree,
+                                    *inGainSock,
                                     storage.type == SHD_NOISE_HYBRID_MULTIFRACTAL ||
                                         storage.type == SHD_NOISE_RIDGED_MULTIFRACTAL);
 }

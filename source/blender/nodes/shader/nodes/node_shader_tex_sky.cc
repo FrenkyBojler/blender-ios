@@ -281,7 +281,7 @@ static void node_shader_update_sky(bNodeTree *ntree, bNode *node)
 
   NodeTexSky *tex = (NodeTexSky *)node->storage;
   bke::node_set_socket_availability(
-      ntree, sockVector, !(tex->sky_model == 2 && tex->sun_disc == 1));
+      *ntree, *sockVector, !(tex->sky_model == 2 && tex->sun_disc == 1));
 }
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)

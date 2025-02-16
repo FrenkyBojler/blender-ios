@@ -44,8 +44,8 @@ static void node_update(bNodeTree *ntree, bNode *node)
   bNodeSocket *sockB = sockA->next;
   bNodeSocket *sockC = sockB->next;
 
-  bke::node_set_socket_availability(ntree, sockB, !one_input_ops);
-  bke::node_set_socket_availability(ntree, sockC, three_input_ops);
+  bke::node_set_socket_availability(*ntree, *sockB, !one_input_ops);
+  bke::node_set_socket_availability(*ntree, *sockC, three_input_ops);
 
   node_sock_label_clear(sockA);
   node_sock_label_clear(sockB);

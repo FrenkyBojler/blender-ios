@@ -82,11 +82,11 @@ static void node_shader_update_tex_gabor(bNodeTree *ntree, bNode *node)
 
   bNodeSocket *orientation_2d_socket = bke::node_find_socket(node, SOCK_IN, "Orientation 2D");
   bke::node_set_socket_availability(
-      ntree, orientation_2d_socket, storage.type == SHD_GABOR_TYPE_2D);
+      *ntree, *orientation_2d_socket, storage.type == SHD_GABOR_TYPE_2D);
 
   bNodeSocket *orientation_3d_socket = bke::node_find_socket(node, SOCK_IN, "Orientation 3D");
   bke::node_set_socket_availability(
-      ntree, orientation_3d_socket, storage.type == SHD_GABOR_TYPE_3D);
+      *ntree, *orientation_3d_socket, storage.type == SHD_GABOR_TYPE_3D);
 }
 
 static int node_shader_gpu_tex_gabor(GPUMaterial *material,

@@ -1655,7 +1655,7 @@ void BKE_texpaint_slot_refresh_cache(Scene *scene, Material *ma, const Object *o
       ma->texpaintslot = static_cast<TexPaintSlot *>(
           MEM_callocN(sizeof(TexPaintSlot) * count, "texpaint_slots"));
 
-      bNode *active_node = blender::bke::node_get_active_paint_canvas(ma->nodetree);
+      bNode *active_node = blender::bke::node_get_active_paint_canvas(*ma->nodetree);
 
       fill_texpaint_slots_recursive(ma->nodetree, active_node, ob, ma, count, slot_filter);
 

@@ -703,11 +703,11 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
   }
 }
 
-bool blender::bke::node_is_connected_to_output(const bNodeTree *ntree, const bNode *node)
+bool blender::bke::node_is_connected_to_output(const bNodeTree &ntree, const bNode &node)
 {
-  ntree->ensure_topology_cache();
+  ntree.ensure_topology_cache();
   Stack<const bNode *> nodes_to_check;
-  for (const bNodeSocket *socket : node->output_sockets()) {
+  for (const bNodeSocket *socket : node.output_sockets()) {
     for (const bNodeLink *link : socket->directly_linked_links()) {
       nodes_to_check.push(link->tonode);
     }

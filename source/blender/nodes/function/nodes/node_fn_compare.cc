@@ -77,22 +77,22 @@ static void node_update(bNodeTree *ntree, bNode *node)
 
   LISTBASE_FOREACH (bNodeSocket *, socket, &node->inputs) {
     bke::node_set_socket_availability(
-        ntree, socket, socket->type == (eNodeSocketDatatype)data->data_type);
+        *ntree, *socket, socket->type == (eNodeSocketDatatype)data->data_type);
   }
 
   bke::node_set_socket_availability(
-      ntree,
-      sock_epsilon,
+      *ntree,
+      *sock_epsilon,
       ELEM(data->operation, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL) &&
           !ELEM(data->data_type, SOCK_INT, SOCK_STRING));
 
-  bke::node_set_socket_availability(ntree,
-                                    sock_comp,
+  bke::node_set_socket_availability(*ntree,
+                                    *sock_comp,
                                     ELEM(data->mode, NODE_COMPARE_MODE_DOT_PRODUCT) &&
                                         data->data_type == SOCK_VECTOR);
 
-  bke::node_set_socket_availability(ntree,
-                                    sock_angle,
+  bke::node_set_socket_availability(*ntree,
+                                    *sock_angle,
                                     ELEM(data->mode, NODE_COMPARE_MODE_DIRECTION) &&
                                         data->data_type == SOCK_VECTOR);
 }

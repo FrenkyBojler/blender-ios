@@ -450,7 +450,7 @@ static int node_clipboard_paste_exec(bContext *C, wmOperator *op)
   remap_node_pairing(tree, node_map);
 
   for (bNode *new_node : node_map.values()) {
-    bke::node_declaration_ensure(&tree, new_node);
+    bke::node_declaration_ensure(tree, *new_node);
   }
 
   /* Add links between existing nodes. */

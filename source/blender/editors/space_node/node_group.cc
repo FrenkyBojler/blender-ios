@@ -596,7 +596,7 @@ static bool node_group_separate_selected(
   remap_pairing(ntree, nodes_to_move, node_identifier_map);
 
   for (bNode *node : node_map.values()) {
-    bke::node_declaration_ensure(&ntree, node);
+    bke::node_declaration_ensure(ntree, *node);
   }
 
   /* and copy across the animation,

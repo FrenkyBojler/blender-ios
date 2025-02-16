@@ -185,40 +185,40 @@ static void node_shader_update_tex_voronoi(bNodeTree *ntree, bNode *node)
   const NodeTexVoronoi &storage = node_storage(*node);
 
   bke::node_set_socket_availability(
-      ntree, inWSock, storage.dimensions == 1 || storage.dimensions == 4);
-  bke::node_set_socket_availability(ntree, inVectorSock, storage.dimensions != 1);
+      *ntree, *inWSock, storage.dimensions == 1 || storage.dimensions == 4);
+  bke::node_set_socket_availability(*ntree, *inVectorSock, storage.dimensions != 1);
   bke::node_set_socket_availability(
-      ntree,
-      inExponentSock,
+      *ntree,
+      *inExponentSock,
       storage.distance == SHD_VORONOI_MINKOWSKI && storage.dimensions != 1 &&
           !ELEM(storage.feature, SHD_VORONOI_DISTANCE_TO_EDGE, SHD_VORONOI_N_SPHERE_RADIUS));
   bke::node_set_socket_availability(
-      ntree, inDetailSock, storage.feature != SHD_VORONOI_N_SPHERE_RADIUS);
+      *ntree, *inDetailSock, storage.feature != SHD_VORONOI_N_SPHERE_RADIUS);
   bke::node_set_socket_availability(
-      ntree, inRoughnessSock, storage.feature != SHD_VORONOI_N_SPHERE_RADIUS);
+      *ntree, *inRoughnessSock, storage.feature != SHD_VORONOI_N_SPHERE_RADIUS);
   bke::node_set_socket_availability(
-      ntree, inLacunaritySock, storage.feature != SHD_VORONOI_N_SPHERE_RADIUS);
+      *ntree, *inLacunaritySock, storage.feature != SHD_VORONOI_N_SPHERE_RADIUS);
   bke::node_set_socket_availability(
-      ntree, inSmoothnessSock, storage.feature == SHD_VORONOI_SMOOTH_F1);
+      *ntree, *inSmoothnessSock, storage.feature == SHD_VORONOI_SMOOTH_F1);
 
   bke::node_set_socket_availability(
-      ntree, outDistanceSock, storage.feature != SHD_VORONOI_N_SPHERE_RADIUS);
-  bke::node_set_socket_availability(ntree,
-                                    outColorSock,
+      *ntree, *outDistanceSock, storage.feature != SHD_VORONOI_N_SPHERE_RADIUS);
+  bke::node_set_socket_availability(*ntree,
+                                    *outColorSock,
                                     storage.feature != SHD_VORONOI_DISTANCE_TO_EDGE &&
                                         storage.feature != SHD_VORONOI_N_SPHERE_RADIUS);
-  bke::node_set_socket_availability(ntree,
-                                    outPositionSock,
+  bke::node_set_socket_availability(*ntree,
+                                    *outPositionSock,
                                     storage.feature != SHD_VORONOI_DISTANCE_TO_EDGE &&
                                         storage.feature != SHD_VORONOI_N_SPHERE_RADIUS &&
                                         storage.dimensions != 1);
-  bke::node_set_socket_availability(ntree,
-                                    outWSock,
+  bke::node_set_socket_availability(*ntree,
+                                    *outWSock,
                                     storage.feature != SHD_VORONOI_DISTANCE_TO_EDGE &&
                                         storage.feature != SHD_VORONOI_N_SPHERE_RADIUS &&
                                         ELEM(storage.dimensions, 1, 4));
   bke::node_set_socket_availability(
-      ntree, outRadiusSock, storage.feature == SHD_VORONOI_N_SPHERE_RADIUS);
+      *ntree, *outRadiusSock, storage.feature == SHD_VORONOI_N_SPHERE_RADIUS);
 }
 
 static mf::MultiFunction::ExecutionHints voronoi_execution_hints{50, false};

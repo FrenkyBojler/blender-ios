@@ -227,14 +227,14 @@ static void data_from_gpu_stack_list(ListBase *sockets, bNodeStack **ns, GPUNode
   }
 }
 
-bool blender::bke::node_supports_active_flag(const bNode *node, int sub_activity)
+bool blender::bke::node_supports_active_flag(const bNode &node, int sub_activity)
 {
   BLI_assert(ELEM(sub_activity, NODE_ACTIVE_TEXTURE, NODE_ACTIVE_PAINT_CANVAS));
   switch (sub_activity) {
     case NODE_ACTIVE_TEXTURE:
-      return node->typeinfo->nclass == NODE_CLASS_TEXTURE;
+      return node.typeinfo->nclass == NODE_CLASS_TEXTURE;
     case NODE_ACTIVE_PAINT_CANVAS:
-      return ELEM(node->type_legacy, SH_NODE_TEX_IMAGE, SH_NODE_ATTRIBUTE);
+      return ELEM(node.type_legacy, SH_NODE_TEX_IMAGE, SH_NODE_ATTRIBUTE);
   }
   return false;
 }
@@ -258,7 +258,7 @@ static bNode *node_get_active(bNodeTree *ntree, int sub_activity)
         return node;
       }
     }
-    else if (!inactivenode && blender::bke::node_supports_active_flag(node, sub_activity)) {
+    else if (!inactivenode && blender::bke::node_supports_active_flag(*node, sub_activity)) {
       inactivenode = node;
     }
     else if (node->type_legacy == NODE_GROUP) {
@@ -306,9 +306,9 @@ bNode *node_get_active_texture(bNodeTree *ntree)
   return node_get_active(ntree, NODE_ACTIVE_TEXTURE);
 }
 
-bNode *node_get_active_paint_canvas(bNodeTree *ntree)
+bNode *node_get_active_paint_canvas(bNodeTree &ntree)
 {
-  return node_get_active(ntree, NODE_ACTIVE_PAINT_CANVAS);
+  return node_get_active(&ntree, NODE_ACTIVE_PAINT_CANVAS);
 }
 }  // namespace blender::bke
 

@@ -97,10 +97,10 @@ static void node_shader_update_map_range(bNodeTree *ntree, bNode *node)
   }
 
   LISTBASE_FOREACH_INDEX (bNodeSocket *, socket, &node->inputs, index) {
-    bke::node_set_socket_availability(ntree, socket, new_input_availability[index]);
+    bke::node_set_socket_availability(*ntree, *socket, new_input_availability[index]);
   }
   LISTBASE_FOREACH_INDEX (bNodeSocket *, socket, &node->outputs, index) {
-    bke::node_set_socket_availability(ntree, socket, new_output_availability[index]);
+    bke::node_set_socket_availability(*ntree, *socket, new_output_availability[index]);
   }
 }
 

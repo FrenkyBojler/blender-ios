@@ -431,7 +431,7 @@ static void ui_node_sock_name(const bNodeTree *ntree,
     bNode *node = sock->link->fromnode;
     char node_name[UI_MAX_NAME_STR];
 
-    bke::nodeLabel(ntree, node, node_name, sizeof(node_name));
+    bke::nodeLabel(*ntree, *node, node_name, sizeof(node_name));
 
     if (BLI_listbase_is_empty(&node->inputs) && node->outputs.first != node->outputs.last) {
       BLI_snprintf(

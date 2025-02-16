@@ -1505,7 +1505,7 @@ static int node_duplicate_exec(bContext *C, wmOperator *op)
   }
 
   for (bNode *node : node_map.values()) {
-    blender::bke::node_declaration_ensure(ntree, node);
+    blender::bke::node_declaration_ensure(*ntree, *node);
   }
 
   ntree->ensure_topology_cache();

@@ -367,7 +367,7 @@ static void cmp_node_image_verify_outputs(bNodeTree *ntree, bNode *node, bool rl
     sock_next = sock->next;
     if (BLI_linklist_index(available_sockets.list, sock) >= 0) {
       sock->flag &= ~SOCK_HIDDEN;
-      blender::bke::node_set_socket_availability(ntree, sock, true);
+      blender::bke::node_set_socket_availability(*ntree, *sock, true);
     }
     else {
       bNodeLink *link;
@@ -381,7 +381,7 @@ static void cmp_node_image_verify_outputs(bNodeTree *ntree, bNode *node, bool rl
         blender::bke::node_remove_socket(ntree, node, sock);
       }
       else {
-        blender::bke::node_set_socket_availability(ntree, sock, false);
+        blender::bke::node_set_socket_availability(*ntree, *sock, false);
       }
     }
   }

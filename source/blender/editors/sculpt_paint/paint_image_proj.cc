@@ -6778,7 +6778,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
 
     BKE_main_ensure_invariants(*bmain);
     /* In case we added more than one node, position them too. */
-    blender::bke::node_position_propagate(out_node);
+    blender::bke::node_position_propagate(*out_node);
 
     if (ima) {
       BKE_texpaint_slot_refresh_cache(scene, ma, ob);

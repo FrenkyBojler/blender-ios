@@ -80,12 +80,12 @@ static void node_update(bNodeTree *ntree, bNode *node)
                   (mode == GEO_NODE_MESH_LINE_MODE_END_POINTS) ? N_("End Location") :
                                                                  N_("Offset"));
 
-  bke::node_set_socket_availability(ntree,
-                                    resolution_socket,
+  bke::node_set_socket_availability(*ntree,
+                                    *resolution_socket,
                                     mode == GEO_NODE_MESH_LINE_MODE_END_POINTS &&
                                         count_mode == GEO_NODE_MESH_LINE_COUNT_RESOLUTION);
-  bke::node_set_socket_availability(ntree,
-                                    count_socket,
+  bke::node_set_socket_availability(*ntree,
+                                    *count_socket,
                                     mode == GEO_NODE_MESH_LINE_MODE_OFFSET ||
                                         count_mode == GEO_NODE_MESH_LINE_COUNT_TOTAL);
 }

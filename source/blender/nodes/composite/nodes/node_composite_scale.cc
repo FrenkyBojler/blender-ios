@@ -59,7 +59,7 @@ static void node_composite_update_scale(bNodeTree *ntree, bNode *node)
   /* Only show X/Y scale factor inputs for modes using them! */
   LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
     if (STR_ELEM(sock->name, "X", "Y")) {
-      bke::node_set_socket_availability(ntree, sock, use_xy_scale);
+      bke::node_set_socket_availability(*ntree, *sock, use_xy_scale);
     }
   }
 }

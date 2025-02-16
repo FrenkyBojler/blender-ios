@@ -183,7 +183,7 @@ static void ntree_copy_data(Main * /*bmain*/,
   }
 
   for (bNode *node : ntree_dst->all_nodes()) {
-    node_declaration_ensure(ntree_dst, node);
+    node_declaration_ensure(*ntree_dst, *node);
   }
 
   ntree_dst->tree_interface.copy_data(ntree_src->tree_interface, flag);
@@ -2545,9 +2545,9 @@ const bNodeTreeInterfaceSocket *node_find_interface_input_by_identifier(const bN
   return nullptr;
 }
 
-bNode *node_find_root_parent(bNode *node)
+bNode *node_find_root_parent(bNode &node)
 {
-  bNode *parent_iter = node;
+  bNode *parent_iter = &node;
   while (parent_iter->parent != nullptr) {
     parent_iter = parent_iter->parent;
   }
@@ -3205,13 +3205,13 @@ void node_position_relative(bNode *from_node,
   from_node->location[1] = to_node->location[1] - offset_y;
 }
 
-void node_position_propagate(bNode *node)
+void node_position_propagate(bNode &node)
 {
-  LISTBASE_FOREACH (bNodeSocket *, socket, &node->inputs) {
+  LISTBASE_FOREACH (bNodeSocket *, socket, &node.inputs) {
     if (socket->link != nullptr) {
       bNodeLink *link = socket->link;
       node_position_relative(link->fromnode, link->tonode, link->fromsock, link->tosock);
-      node_position_propagate(link->fromnode);
+      node_position_propagate(*link->fromnode);
     }
   }
 }
@@ -3294,10 +3294,10 @@ bNodeTree *node_tree_copy_tree(Main *bmain, const bNodeTree *ntree)
  * using node_preview_init_tree to set up previews for a whole node tree in advance.
  * This should be left more to the individual node tree implementations. */
 
-bool node_preview_used(const bNode *node)
+bool node_preview_used(const bNode &node)
 {
   /* XXX check for closed nodes? */
-  return (node->typeinfo->flag & NODE_PREVIEW) != 0;
+  return (node.typeinfo->flag & NODE_PREVIEW) != 0;
 }
 
 bNodePreview *node_preview_verify(bNodeInstanceHash *previews,
@@ -3358,7 +3358,7 @@ static void node_preview_init_tree_recursive(bNodeInstanceHash *previews,
   for (bNode *node : ntree->all_nodes()) {
     bNodeInstanceKey key = node_instance_key(parent_key, ntree, node);
 
-    if (node_preview_used(node)) {
+    if (node_preview_used(*node)) {
       node_preview_verify(previews, key, xsize, ysize, false);
     }
 
@@ -3389,7 +3389,7 @@ static void node_preview_tag_used_recursive(bNodeInstanceHash *previews,
   for (bNode *node : ntree->all_nodes()) {
     bNodeInstanceKey key = node_instance_key(parent_key, ntree, node);
 
-    if (node_preview_used(node)) {
+    if (node_preview_used(*node)) {
       node_instance_hash_tag_key(previews, key);
     }
 
@@ -3919,8 +3919,8 @@ void node_clear_active(bNodeTree *ntree)
 
 void node_set_active(bNodeTree *ntree, bNode *node)
 {
-  const bool is_paint_canvas = node_supports_active_flag(node, NODE_ACTIVE_PAINT_CANVAS);
-  const bool is_texture_class = node_supports_active_flag(node, NODE_ACTIVE_TEXTURE);
+  const bool is_paint_canvas = node_supports_active_flag(*node, NODE_ACTIVE_PAINT_CANVAS);
+  const bool is_texture_class = node_supports_active_flag(*node, NODE_ACTIVE_TEXTURE);
   int flags_to_set = NODE_ACTIVE;
   SET_FLAG_FROM_TEST(flags_to_set, is_paint_canvas, NODE_ACTIVE_PAINT_CANVAS);
   SET_FLAG_FROM_TEST(flags_to_set, is_texture_class, NODE_ACTIVE_TEXTURE);
@@ -3932,18 +3932,18 @@ void node_set_active(bNodeTree *ntree, bNode *node)
   node->flag |= flags_to_set;
 }
 
-void node_set_socket_availability(bNodeTree *ntree, bNodeSocket *sock, const bool is_available)
+void node_set_socket_availability(bNodeTree &ntree, bNodeSocket &sock, const bool is_available)
 {
-  if (is_available == sock->is_available()) {
+  if (is_available == sock.is_available()) {
     return;
   }
   if (is_available) {
-    sock->flag &= ~SOCK_UNAVAIL;
+    sock.flag &= ~SOCK_UNAVAIL;
   }
   else {
-    sock->flag |= SOCK_UNAVAIL;
+    sock.flag |= SOCK_UNAVAIL;
   }
-  BKE_ntree_update_tag_socket_availability(ntree, sock);
+  BKE_ntree_update_tag_socket_availability(&ntree, &sock);
 }
 
 int node_socket_link_limit(const bNodeSocket *sock)
@@ -3991,32 +3991,30 @@ void node_socket_declarations_update(bNode *node)
   update_socket_declarations(&node->outputs, node->runtime->declaration->outputs);
 }
 
-bool node_declaration_ensure_on_outdated_node(bNodeTree *ntree, bNode *node)
+bool node_declaration_ensure_on_outdated_node(bNodeTree &ntree, bNode &node)
 {
-  if (node->runtime->declaration != nullptr) {
+  if (node.runtime->declaration != nullptr) {
     return false;
   }
-  if (node->typeinfo->declare) {
-    if (node->typeinfo->static_declaration) {
-      if (!node->typeinfo->static_declaration->is_context_dependent) {
-        node->runtime->declaration = node->typeinfo->static_declaration;
+  if (node.typeinfo->declare) {
+    if (node.typeinfo->static_declaration) {
+      if (!node.typeinfo->static_declaration->is_context_dependent) {
+        node.runtime->declaration = node.typeinfo->static_declaration;
         return true;
       }
     }
   }
-  if (node->typeinfo->declare) {
-    BLI_assert(ntree != nullptr);
-    BLI_assert(node != nullptr);
-    nodes::update_node_declaration_and_sockets(*ntree, *node);
+  if (node.typeinfo->declare) {
+    nodes::update_node_declaration_and_sockets(ntree, node);
     return true;
   }
   return false;
 }
 
-bool node_declaration_ensure(bNodeTree *ntree, bNode *node)
+bool node_declaration_ensure(bNodeTree &ntree, bNode &node)
 {
   if (node_declaration_ensure_on_outdated_node(ntree, node)) {
-    node_socket_declarations_update(node);
+    node_socket_declarations_update(&node);
     return true;
   }
   return false;
@@ -4287,38 +4285,38 @@ void node_tree_update_all_users(Main *main, ID *id)
 
 /* ************* node type access ********** */
 
-void nodeLabel(const bNodeTree *ntree, const bNode *node, char *label, const int label_maxncpy)
+void nodeLabel(const bNodeTree &ntree, const bNode &node, char *label, const int label_maxncpy)
 {
   label[0] = '\0';
 
-  if (node->label[0] != '\0') {
-    BLI_strncpy(label, node->label, label_maxncpy);
+  if (node.label[0] != '\0') {
+    BLI_strncpy(label, node.label, label_maxncpy);
   }
-  else if (node->typeinfo->labelfunc) {
-    node->typeinfo->labelfunc(ntree, node, label, label_maxncpy);
+  else if (node.typeinfo->labelfunc) {
+    node.typeinfo->labelfunc(&ntree, &node, label, label_maxncpy);
   }
   if (label[0] != '\0') {
     /* The previous methods (labelfunc) could not provide an adequate label for the node. */
     return;
   }
 
-  BLI_strncpy(label, IFACE_(node->typeinfo->ui_name.c_str()), label_maxncpy);
+  BLI_strncpy(label, IFACE_(node.typeinfo->ui_name.c_str()), label_maxncpy);
 }
 
-std::optional<StringRefNull> nodeSocketShortLabel(const bNodeSocket *sock)
+std::optional<StringRefNull> nodeSocketShortLabel(const bNodeSocket &sock)
 {
-  if (sock->runtime->declaration != nullptr) {
-    StringRefNull short_label = sock->runtime->declaration->short_label;
+  if (sock.runtime->declaration != nullptr) {
+    StringRefNull short_label = sock.runtime->declaration->short_label;
     if (!short_label.is_empty()) {
-      return sock->runtime->declaration->short_label.data();
+      return sock.runtime->declaration->short_label.data();
     }
   }
   return std::nullopt;
 }
 
-StringRefNull nodeSocketLabel(const bNodeSocket *sock)
+StringRefNull nodeSocketLabel(const bNodeSocket &sock)
 {
-  return (sock->label[0] != '\0') ? sock->label : sock->name;
+  return (sock.label[0] != '\0') ? sock.label : sock.name;
 }
 
 static void node_type_base_defaults(bNodeType &ntype)

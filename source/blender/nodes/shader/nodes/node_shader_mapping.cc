@@ -78,7 +78,7 @@ static void node_shader_update_mapping(bNodeTree *ntree, bNode *node)
 {
   bNodeSocket *sock = bke::node_find_socket(node, SOCK_IN, "Location");
   bke::node_set_socket_availability(
-      ntree, sock, ELEM(node->custom1, NODE_MAPPING_TYPE_POINT, NODE_MAPPING_TYPE_TEXTURE));
+      *ntree, *sock, ELEM(node->custom1, NODE_MAPPING_TYPE_POINT, NODE_MAPPING_TYPE_TEXTURE));
 }
 
 NODE_SHADER_MATERIALX_BEGIN

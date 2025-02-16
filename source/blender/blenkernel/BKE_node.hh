@@ -999,12 +999,12 @@ void node_position_relative(bNode *from_node,
                             const bNodeSocket *from_sock,
                             const bNodeSocket *to_sock);
 
-void node_position_propagate(bNode *node);
+void node_position_propagate(bNode &node);
 
 /**
  * \note Recursive.
  */
-bNode *node_find_root_parent(bNode *node);
+bNode *node_find_root_parent(bNode &node);
 
 /**
  * Iterate over a chain of nodes, starting with \a node_start, executing
@@ -1051,30 +1051,30 @@ void node_parents_iterator(bNode *node, bool (*callback)(bNode *, void *), void 
  * A dangling reroute node is a reroute node that does *not* have a "data source", i.e. no
  * non-reroute node is connected to its input.
  */
-bool node_is_dangling_reroute(const bNodeTree *ntree, const bNode *node);
+bool node_is_dangling_reroute(const bNodeTree &ntree, const bNode &node);
 
-bNode *node_get_active_paint_canvas(bNodeTree *ntree);
+bNode *node_get_active_paint_canvas(bNodeTree &ntree);
 
 /**
  * \brief Does the given node supports the sub active flag.
  *
  * \param sub_active: The active flag to check. #NODE_ACTIVE_TEXTURE / #NODE_ACTIVE_PAINT_CANVAS.
  */
-bool node_supports_active_flag(const bNode *node, int sub_activity);
+bool node_supports_active_flag(const bNode &node, int sub_activity);
 
-void node_set_socket_availability(bNodeTree *ntree, bNodeSocket *sock, bool is_available);
+void node_set_socket_availability(bNodeTree &ntree, bNodeSocket &sock, bool is_available);
 
 /**
  * If the node implements a `declare` function, this function makes sure that `node->declaration`
  * is up to date. It is expected that the sockets of the node are up to date already.
  */
-bool node_declaration_ensure(bNodeTree *ntree, bNode *node);
+bool node_declaration_ensure(bNodeTree &ntree, bNode &node);
 
 /**
  * Just update `node->declaration` if necessary. This can also be called on nodes that may not be
  * up to date (e.g. because the need versioning or are dynamic).
  */
-bool node_declaration_ensure_on_outdated_node(bNodeTree *ntree, bNode *node);
+bool node_declaration_ensure_on_outdated_node(bNodeTree &ntree, bNode &node);
 
 /**
  * Update `socket->declaration` for all sockets in the node. This assumes that the node declaration
@@ -1126,7 +1126,7 @@ BLI_INLINE bool node_instance_hash_iterator_done(bNodeInstanceHashIterator *iter
        blender::bke::node_instance_hash_iterator_step(&iter_))
 
 /* Node Previews */
-bool node_preview_used(const bNode *node);
+bool node_preview_used(const bNode &node);
 
 bNodePreview *node_preview_verify(
     bNodeInstanceHash *previews, bNodeInstanceKey key, int xsize, int ysize, bool create);
@@ -1145,18 +1145,18 @@ void node_preview_merge_tree(bNodeTree *to_ntree, bNodeTree *from_ntree, bool re
 /** \name Node Type Access
  * \{ */
 
-void nodeLabel(const bNodeTree *ntree, const bNode *node, char *label, int label_maxncpy);
+void nodeLabel(const bNodeTree &ntree, const bNode &node, char *label, int label_maxncpy);
 
 /**
  * Get node socket label if it is set.
  */
-StringRefNull nodeSocketLabel(const bNodeSocket *sock);
+StringRefNull nodeSocketLabel(const bNodeSocket &sock);
 
 /**
  * Get node socket short label if it is set.
  * It is used when grouping sockets under panels, to avoid redundancy in the label.
  */
-std::optional<StringRefNull> nodeSocketShortLabel(const bNodeSocket *sock);
+std::optional<StringRefNull> nodeSocketShortLabel(const bNodeSocket &sock);
 
 /**
  * Initialize a new node type struct with default values and callbacks.
@@ -1184,7 +1184,7 @@ void node_type_size_preset(bNodeType &ntype, eNodeSizePreset size);
 /** \name Node Generic Functions
  * \{ */
 
-bool node_is_connected_to_output(const bNodeTree *ntree, const bNode *node);
+bool node_is_connected_to_output(const bNodeTree &ntree, const bNode &node);
 
 bNodeSocket *node_find_enabled_socket(bNode &node, eNodeSocketInOut in_out, StringRef name);
 

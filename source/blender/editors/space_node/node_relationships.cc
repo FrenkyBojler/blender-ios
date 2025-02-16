@@ -2535,7 +2535,7 @@ bNodeSocket *get_main_socket(bNodeTree &ntree, bNode &node, eNodeSocketInOut in_
   ListBase *sockets = (in_out == SOCK_IN) ? &node.inputs : &node.outputs;
 
   /* Try to get the main socket based on the socket declaration. */
-  bke::node_declaration_ensure(&ntree, &node);
+  bke::node_declaration_ensure(ntree, node);
   const nodes::NodeDeclaration *node_decl = node.declaration();
   if (node_decl != nullptr) {
     Span<nodes::SocketDeclaration *> socket_decls = (in_out == SOCK_IN) ? node_decl->inputs :
@@ -2670,7 +2670,7 @@ static bool node_link_insert_offset_chain_cb(bNode *fromnode,
     }
   }
   else if (ofs_node->parent) {
-    bNode *node = bke::node_find_root_parent(ofs_node);
+    bNode *node = bke::node_find_root_parent(*ofs_node);
     node_offset_apply(*node, data->offset_x);
   }
   else {
@@ -2772,7 +2772,7 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
         node_offset_apply(*offs_node, addval);
       }
       else if (!insert.parent && offs_node->parent) {
-        node_offset_apply(*bke::node_find_root_parent(offs_node), addval);
+        node_offset_apply(*bke::node_find_root_parent(*offs_node), addval);
       }
       margin = addval;
     }
