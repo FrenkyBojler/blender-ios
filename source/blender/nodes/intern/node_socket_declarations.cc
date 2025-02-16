@@ -715,12 +715,8 @@ GeometryBuilder &GeometryBuilder::only_instances(bool value)
 
 bNodeSocket &Shader::build(bNodeTree &ntree, bNode &node) const
 {
-  bNodeSocket &socket = *bke::node_add_socket(ntree,
-                                              node,
-                                              this->in_out,
-                                              "NodeSocketShader",
-                                              this->identifier.c_str(),
-                                              this->name.c_str());
+  bNodeSocket &socket = *bke::node_add_socket(
+      ntree, node, this->in_out, "NodeSocketShader", this->identifier.c_str(), this->name.c_str());
   this->set_common_flags(socket);
   return socket;
 }

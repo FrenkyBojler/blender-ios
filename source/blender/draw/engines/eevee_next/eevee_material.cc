@@ -41,8 +41,8 @@ DefaultSurfaceNodeTree::DefaultSurfaceNodeTree()
       (bNodeSocketValueFloat *)bke::node_find_socket(*bsdf, SOCK_IN, "Metallic")->default_value;
   roughness_socket_ =
       (bNodeSocketValueFloat *)bke::node_find_socket(*bsdf, SOCK_IN, "Roughness")->default_value;
-  specular_socket_ = (bNodeSocketValueFloat *)bke::node_find_socket(*
-                         bsdf, SOCK_IN, "Specular IOR Level")
+  specular_socket_ = (bNodeSocketValueFloat *)bke::node_find_socket(
+                         *bsdf, SOCK_IN, "Specular IOR Level")
                          ->default_value;
   ntree_ = ntree;
 }

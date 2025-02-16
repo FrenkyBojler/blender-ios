@@ -255,8 +255,7 @@ template<typename Accessor>
   update_node_declaration_and_sockets(ntree, extend_node);
   if (extend_socket.is_input()) {
     const std::string item_identifier = get_socket_identifier<Accessor>(*item, SOCK_IN);
-    bNodeSocket *new_socket = bke::node_find_socket(
-        extend_node, SOCK_IN, item_identifier.c_str());
+    bNodeSocket *new_socket = bke::node_find_socket(extend_node, SOCK_IN, item_identifier.c_str());
     link.tosock = new_socket;
   }
   else {

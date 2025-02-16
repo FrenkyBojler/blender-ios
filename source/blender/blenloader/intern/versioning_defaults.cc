@@ -645,13 +645,13 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     if (ma->nodetree) {
       for (bNode *node : ma->nodetree->all_nodes()) {
         if (node->type_legacy == SH_NODE_BSDF_PRINCIPLED) {
-          bNodeSocket *roughness_socket = blender::bke::node_find_socket(*
-              node, SOCK_IN, "Roughness");
+          bNodeSocket *roughness_socket = blender::bke::node_find_socket(
+              *node, SOCK_IN, "Roughness");
           *version_cycles_node_socket_float_value(roughness_socket) = 0.5f;
           bNodeSocket *emission = blender::bke::node_find_socket(*node, SOCK_IN, "Emission Color");
           copy_v4_fl(version_cycles_node_socket_rgba_value(emission), 1.0f);
-          bNodeSocket *emission_strength = blender::bke::node_find_socket(*
-              node, SOCK_IN, "Emission Strength");
+          bNodeSocket *emission_strength = blender::bke::node_find_socket(
+              *node, SOCK_IN, "Emission Strength");
           *version_cycles_node_socket_float_value(emission_strength) = 0.0f;
 
           node->custom1 = SHD_GLOSSY_MULTI_GGX;

@@ -190,8 +190,8 @@ static void process_inputs(const USDExporterContext &usd_export_context,
 
     if (input_spec.input_name == usdtokens::emissive_color) {
       /* Don't export emission color if strength is zero. */
-      const bNodeSocket *emission_strength_sock = bke::node_find_socket(*
-          node, SOCK_IN, "Emission Strength");
+      const bNodeSocket *emission_strength_sock = bke::node_find_socket(
+          *node, SOCK_IN, "Emission Strength");
       if (!emission_strength_sock) {
         continue;
       }
@@ -263,16 +263,17 @@ static void process_inputs(const USDExporterContext &usd_export_context,
           if (vector_math_node->custom1 == NODE_VECTOR_MATH_MULTIPLY_ADD) {
             /* Attempt one more traversal in case the current node is not the
              * correct NODE_VECTOR_MATH_MULTIPLY_ADD (see code in usd_reader_material). */
-            bNodeSocket *sock_current = bke::node_find_socket(*vector_math_node, SOCK_IN, "Vector");
+            bNodeSocket *sock_current = bke::node_find_socket(
+                *vector_math_node, SOCK_IN, "Vector");
             bNodeLink *temp_link = traverse_channel(sock_current, SH_NODE_VECTOR_MATH);
             if (temp_link && temp_link->fromnode->custom1 == NODE_VECTOR_MATH_MULTIPLY_ADD) {
               vector_math_node = temp_link->fromnode;
             }
 
-            bNodeSocket *sock_scale = bke::node_find_socket(*
-                vector_math_node, SOCK_IN, "Vector_001");
-            bNodeSocket *sock_bias = bke::node_find_socket(*
-                vector_math_node, SOCK_IN, "Vector_002");
+            bNodeSocket *sock_scale = bke::node_find_socket(
+                *vector_math_node, SOCK_IN, "Vector_001");
+            bNodeSocket *sock_bias = bke::node_find_socket(
+                *vector_math_node, SOCK_IN, "Vector_002");
             const float *scale_value =
                 static_cast<bNodeSocketValueVector *>(sock_scale->default_value)->value;
             const float *bias_value =
@@ -330,8 +331,8 @@ static void process_inputs(const USDExporterContext &usd_export_context,
 
                 if (math_node->custom1 == NODE_MATH_LESS_THAN) {
                   /* We found the upstream less-than with the threshold value. */
-                  bNodeSocket *threshold_sock = blender::bke::node_find_socket(*
-                      math_node, SOCK_IN, "Value_001");
+                  bNodeSocket *threshold_sock = blender::bke::node_find_socket(
+                      *math_node, SOCK_IN, "Value_001");
                   threshold = ((bNodeSocketValueFloat *)threshold_sock->default_value)->value;
                 }
               }

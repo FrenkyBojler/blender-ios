@@ -523,8 +523,8 @@ static bool prepare_viewlayer_update(void *pvl_data, ViewLayer *vl, Depsgraph *d
     return job_data->AOV_nodes.size() > 0 && !vl->prev;
   }
 
-  bNodeSocket *displacement_socket = bke::node_find_socket(*
-      job_data->mat_output_copy, SOCK_IN, "Displacement");
+  bNodeSocket *displacement_socket = bke::node_find_socket(
+      *job_data->mat_output_copy, SOCK_IN, "Displacement");
   if (job_data->mat_displacement_copy.first != nullptr && displacement_socket->link == nullptr) {
     bke::node_add_link(*job_data->treepath_copy.first()->nodetree,
                        *job_data->mat_displacement_copy.first,
