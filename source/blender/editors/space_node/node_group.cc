@@ -1221,15 +1221,15 @@ static bNode *node_group_make_from_nodes(const bContext &C,
   BKE_id_move_to_same_lib(*bmain, ngroup->id, ntree.id);
 
   /* make group node */
-  bNode *gnode = bke::node_add_node(&C, ntree, ntype);
-  gnode->id = (ID *)ngroup;
+  bNode &gnode = bke::node_add_node(&C, ntree, ntype);
+  gnode.id = (ID *)ngroup;
 
-  gnode->location[0] = 0.5f * (min[0] + max[0]);
-  gnode->location[1] = 0.5f * (min[1] + max[1]);
+  gnode.location[0] = 0.5f * (min[0] + max[0]);
+  gnode.location[1] = 0.5f * (min[1] + max[1]);
 
-  node_group_make_insert_selected(C, ntree, gnode, nodes_to_group);
+  node_group_make_insert_selected(C, ntree, &gnode, nodes_to_group);
 
-  return gnode;
+  return &gnode;
 }
 
 static int node_group_make_exec(bContext *C, wmOperator *op)

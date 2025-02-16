@@ -82,16 +82,16 @@ bNode *add_node(const bContext &C, const StringRef idname, const float2 &locatio
 
   const std::string idname_str = idname;
 
-  bNode *node = bke::node_add_node(&C, node_tree, idname_str.c_str());
-  BLI_assert(node && node->typeinfo);
+  bNode &node = bke::node_add_node(&C, node_tree, idname_str.c_str());
+  BLI_assert(node.typeinfo);
 
-  position_node_based_on_mouse(*node, location);
+  position_node_based_on_mouse(node, location);
 
-  bke::node_set_selected(*node, true);
-  ED_node_set_active(&bmain, &snode, &node_tree, node, nullptr);
+  bke::node_set_selected(node, true);
+  ED_node_set_active(&bmain, &snode, &node_tree, &node, nullptr);
 
   BKE_main_ensure_invariants(bmain, node_tree.id);
-  return node;
+  return &node;
 }
 
 bNode *add_static_node(const bContext &C, int type, const float2 &location)
