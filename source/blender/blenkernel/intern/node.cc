@@ -3940,7 +3940,7 @@ int node_socket_link_limit(const bNodeSocket &sock)
     return sock.limit;
   }
   return eNodeSocketInOut(sock.in_out) == SOCK_IN ? stype.input_link_limit :
-                                                     stype.output_link_limit;
+                                                    stype.output_link_limit;
 }
 
 static void update_socket_declarations(ListBase *sockets,
