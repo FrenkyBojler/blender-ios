@@ -411,8 +411,8 @@ void MaterialNode::set_specular(COLLADAFW::ColorOrTexture &cot)
      * TODO: This is a solution only for a corner case. We must find a better
      * way to handle specularity in general. Also note that currently we
      * do not export specularity values, see EffectExporter::operator() */
-    bNodeSocket *socket = blender::bke::node_find_socket(*
-        shader_node, SOCK_IN, "Specular IOR Level");
+    bNodeSocket *socket = blender::bke::node_find_socket(
+        *shader_node, SOCK_IN, "Specular IOR Level");
     ((bNodeSocketValueFloat *)socket->default_value)->value = 0.0f;
   }
 }

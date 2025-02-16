@@ -584,8 +584,8 @@ void USDMaterialReader::set_principled_node_inputs(bNode *principled,
     }
   }
 
-  bNodeSocket *emission_strength_sock = blender::bke::node_find_socket(*
-      principled, SOCK_IN, "Emission Strength");
+  bNodeSocket *emission_strength_sock = blender::bke::node_find_socket(
+      *principled, SOCK_IN, "Emission Strength");
   ((bNodeSocketValueFloat *)emission_strength_sock->default_value)->value = emission_strength;
 
   if (pxr::UsdShadeInput specular_input = usd_shader.GetInput(usdtokens::specularColor)) {
@@ -825,7 +825,8 @@ static IntermediateNode add_scale_bias(const pxr::UsdShadeShader &usd_shader,
   scale_bias.sock_input_name = "Vector";
   scale_bias.sock_output_name = "Vector";
 
-  bNodeSocket *sock_scale = blender::bke::node_find_socket(*scale_bias.node, SOCK_IN, "Vector_001");
+  bNodeSocket *sock_scale = blender::bke::node_find_socket(
+      *scale_bias.node, SOCK_IN, "Vector_001");
   bNodeSocket *sock_bias = blender::bke::node_find_socket(*scale_bias.node, SOCK_IN, "Vector_002");
   copy_v3_v3(((bNodeSocketValueVector *)sock_scale->default_value)->value, scale.data());
   copy_v3_v3(((bNodeSocketValueVector *)sock_bias->default_value)->value, bias.data());

@@ -269,11 +269,13 @@ Material *BlenderStrokeRenderer::GetStrokeShader(Main *bmain,
   shader_emission->location[0] = 400.0f;
   shader_emission->location[1] = -200.0f;
 
-  bNode *input_light_path = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_LIGHT_PATH);
+  bNode *input_light_path = blender::bke::node_add_static_node(
+      nullptr, *ntree, SH_NODE_LIGHT_PATH);
   input_light_path->location[0] = 400.0f;
   input_light_path->location[1] = 100.0f;
 
-  bNode *mix_shader_color = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_MIX_SHADER);
+  bNode *mix_shader_color = blender::bke::node_add_static_node(
+      nullptr, *ntree, SH_NODE_MIX_SHADER);
   mix_shader_color->location[0] = 600.0f;
   mix_shader_color->location[1] = -100.0f;
 
@@ -282,7 +284,8 @@ Material *BlenderStrokeRenderer::GetStrokeShader(Main *bmain,
   shader_transparent->location[0] = 600.0f;
   shader_transparent->location[1] = 100.0f;
 
-  bNode *mix_shader_alpha = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_MIX_SHADER);
+  bNode *mix_shader_alpha = blender::bke::node_add_static_node(
+      nullptr, *ntree, SH_NODE_MIX_SHADER);
   mix_shader_alpha->location[0] = 800.0f;
   mix_shader_alpha->location[1] = 100.0f;
 
@@ -293,39 +296,39 @@ Material *BlenderStrokeRenderer::GetStrokeShader(Main *bmain,
 
   fromsock = (bNodeSocket *)BLI_findlink(&input_attr_color->outputs, 0);  // Color
   tosock = (bNodeSocket *)BLI_findlink(&mix_rgb_color->inputs, 1);        // Color1
-  blender::bke::node_add_link(*ntree,* input_attr_color,* fromsock,* mix_rgb_color,* tosock);
+  blender::bke::node_add_link(*ntree, *input_attr_color, *fromsock, *mix_rgb_color, *tosock);
 
   fromsock = (bNodeSocket *)BLI_findlink(&mix_rgb_color->outputs, 0);  // Color
   tosock = (bNodeSocket *)BLI_findlink(&shader_emission->inputs, 0);   // Color
-  blender::bke::node_add_link(*ntree,* mix_rgb_color,* fromsock,* shader_emission,* tosock);
+  blender::bke::node_add_link(*ntree, *mix_rgb_color, *fromsock, *shader_emission, *tosock);
 
   fromsock = (bNodeSocket *)BLI_findlink(&shader_emission->outputs, 0);  // Emission
   tosock = (bNodeSocket *)BLI_findlink(&mix_shader_color->inputs, 2);    // Shader (second)
-  blender::bke::node_add_link(*ntree,* shader_emission,* fromsock,* mix_shader_color,* tosock);
+  blender::bke::node_add_link(*ntree, *shader_emission, *fromsock, *mix_shader_color, *tosock);
 
   fromsock = (bNodeSocket *)BLI_findlink(&input_light_path->outputs, 0);  // In Camera Ray
   tosock = (bNodeSocket *)BLI_findlink(&mix_shader_color->inputs, 0);     // Fac
-  blender::bke::node_add_link(*ntree,* input_light_path,* fromsock,* mix_shader_color,* tosock);
+  blender::bke::node_add_link(*ntree, *input_light_path, *fromsock, *mix_shader_color, *tosock);
 
   fromsock = (bNodeSocket *)BLI_findlink(&mix_rgb_alpha->outputs, 0);  // Color
   tosock = (bNodeSocket *)BLI_findlink(&mix_shader_alpha->inputs, 0);  // Fac
-  blender::bke::node_add_link(*ntree,* mix_rgb_alpha,* fromsock,* mix_shader_alpha,* tosock);
+  blender::bke::node_add_link(*ntree, *mix_rgb_alpha, *fromsock, *mix_shader_alpha, *tosock);
 
   fromsock = (bNodeSocket *)BLI_findlink(&input_attr_alpha->outputs, 0);  // Color
   tosock = (bNodeSocket *)BLI_findlink(&mix_rgb_alpha->inputs, 1);        // Color1
-  blender::bke::node_add_link(*ntree,* input_attr_alpha,* fromsock,* mix_rgb_alpha,* tosock);
+  blender::bke::node_add_link(*ntree, *input_attr_alpha, *fromsock, *mix_rgb_alpha, *tosock);
 
   fromsock = (bNodeSocket *)BLI_findlink(&shader_transparent->outputs, 0);  // BSDF
   tosock = (bNodeSocket *)BLI_findlink(&mix_shader_alpha->inputs, 1);       // Shader (first)
-  blender::bke::node_add_link(*ntree,* shader_transparent,* fromsock,* mix_shader_alpha,* tosock);
+  blender::bke::node_add_link(*ntree, *shader_transparent, *fromsock, *mix_shader_alpha, *tosock);
 
   fromsock = (bNodeSocket *)BLI_findlink(&mix_shader_color->outputs, 0);  // Shader
   tosock = (bNodeSocket *)BLI_findlink(&mix_shader_alpha->inputs, 2);     // Shader (second)
-  blender::bke::node_add_link(*ntree,* mix_shader_color,* fromsock,* mix_shader_alpha,* tosock);
+  blender::bke::node_add_link(*ntree, *mix_shader_color, *fromsock, *mix_shader_alpha, *tosock);
 
   fromsock = (bNodeSocket *)BLI_findlink(&mix_shader_alpha->outputs, 0);  // Shader
   tosock = (bNodeSocket *)BLI_findlink(&output_material->inputs, 0);      // Surface
-  blender::bke::node_add_link(*ntree,* mix_shader_alpha,* fromsock,* output_material,* tosock);
+  blender::bke::node_add_link(*ntree, *mix_shader_alpha, *fromsock, *output_material, *tosock);
 
   if (output_linestyle) {
     bNodeSocket *outsock;
@@ -338,7 +341,8 @@ Material *BlenderStrokeRenderer::GetStrokeShader(Main *bmain,
     tosock = (bNodeSocket *)BLI_findlink(&mix_rgb_color->inputs, 2);      // Color2
     link = (bNodeLink *)BLI_findptr(&ntree->links, outsock, offsetof(bNodeLink, tosock));
     if (link) {
-      blender::bke::node_add_link(*ntree,* link->fromnode,* link->fromsock,* mix_rgb_color,* tosock);
+      blender::bke::node_add_link(
+          *ntree, *link->fromnode, *link->fromsock, *mix_rgb_color, *tosock);
     }
     else {
       float color[4];
@@ -352,7 +356,8 @@ Material *BlenderStrokeRenderer::GetStrokeShader(Main *bmain,
     tosock = (bNodeSocket *)BLI_findlink(&mix_rgb_color->inputs, 0);      // Fac
     link = (bNodeLink *)BLI_findptr(&ntree->links, outsock, offsetof(bNodeLink, tosock));
     if (link) {
-      blender::bke::node_add_link(*ntree,* link->fromnode,* link->fromsock,* mix_rgb_color,* tosock);
+      blender::bke::node_add_link(
+          *ntree, *link->fromnode, *link->fromsock, *mix_rgb_color, *tosock);
     }
     else {
       fromptr = RNA_pointer_create_discrete((ID *)ntree, &RNA_NodeSocket, outsock);
@@ -364,7 +369,8 @@ Material *BlenderStrokeRenderer::GetStrokeShader(Main *bmain,
     tosock = (bNodeSocket *)BLI_findlink(&mix_rgb_alpha->inputs, 2);      // Color2
     link = (bNodeLink *)BLI_findptr(&ntree->links, outsock, offsetof(bNodeLink, tosock));
     if (link) {
-      blender::bke::node_add_link(*ntree,* link->fromnode,* link->fromsock,* mix_rgb_alpha,* tosock);
+      blender::bke::node_add_link(
+          *ntree, *link->fromnode, *link->fromsock, *mix_rgb_alpha, *tosock);
     }
     else {
       float color[4];
@@ -379,7 +385,8 @@ Material *BlenderStrokeRenderer::GetStrokeShader(Main *bmain,
     tosock = (bNodeSocket *)BLI_findlink(&mix_rgb_alpha->inputs, 0);      // Fac
     link = (bNodeLink *)BLI_findptr(&ntree->links, outsock, offsetof(bNodeLink, tosock));
     if (link) {
-      blender::bke::node_add_link(*ntree,* link->fromnode,* link->fromsock,* mix_rgb_alpha,* tosock);
+      blender::bke::node_add_link(
+          *ntree, *link->fromnode, *link->fromsock, *mix_rgb_alpha, *tosock);
     }
     else {
       fromptr = RNA_pointer_create_discrete((ID *)ntree, &RNA_NodeSocket, outsock);
@@ -408,7 +415,8 @@ Material *BlenderStrokeRenderer::GetStrokeShader(Main *bmain,
         // replace links from the UV Along Stroke node by links from the UV Map node
         LISTBASE_FOREACH (bNodeLink *, link, &ntree->links) {
           if (link->fromnode == node && link->fromsock == sock) {
-            blender::bke::node_add_link(*ntree,* input_uvmap,* fromsock,* link->tonode,* link->tosock);
+            blender::bke::node_add_link(
+                *ntree, *input_uvmap, *fromsock, *link->tonode, *link->tosock);
           }
         }
         blender::bke::node_remove_socket_links(*ntree, *sock);
