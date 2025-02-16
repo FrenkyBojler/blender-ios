@@ -9,11 +9,11 @@
 #include "sky_float3.h"
 #include "sky_model.h"
 
-/* Constants */
+/* Parameters */
 static const float rayleigh_scale = 8e3f;       /* Rayleigh scale height (m). */
 static const float mie_scale = 1.2e3f;          /* Mie scale height (m). */
 static const float mie_coeff = 3.996e-6f;       /* Mie scattering coefficient (m^-1). */
-static const float mie_diameter = 0.5f;         /* aerosol particles diameter (um). */
+static const float mie_G = 0.76f;               /* aerosols anisotropy. */
 static const float earth_radius = 6360e3f;      /* radius of Earth (m). */
 static const float atmosphere_radius = 6420e3f; /* radius of atmosphere (m). */
 static const int steps = 32;                    /* segments of primary ray. */
@@ -129,14 +129,7 @@ static float density_mie(float height)
 
 static float density_ozone(float height)
 {
-  float den = 0.0f;
-  if (height >= 10000.0f && height < 25000.0f) {
-    den = 1.0f / 15000.0f * height - 2.0f / 3.0f;
-  }
-  else if (height >= 25000 && height < 40000) {
-    den = -(1.0f / 15000.0f * height - 8.0f / 3.0f);
-  }
-  return den;
+  return fmax(0.0, 1.0 - (fabs(height - 25000.0) / 15000.0));
 }
 
 static float phase_rayleigh(float mu)
@@ -144,43 +137,10 @@ static float phase_rayleigh(float mu)
   return (0.1875f * M_1_PI_F) * (1.0f + sqr(mu));
 }
 
-static float phase_henyey_greenstein(float mu, float g)
+static float phase_henyey_greenstein(float mu)
 {
-  if (fabsf(g) < 1e-3f) {
-    return M_1_4PI_F;
-  }
-  float fac = 1 + g * (g - 2 * mu);
-  return (1 - sqr(g)) / (M_4PI_F * fac * safe_sqrtf(fac));
-}
-
-static float phase_draine(float mu, float g, float alpha)
-{
-  /* Check special cases. */
-  if (fabsf(g) < 1e-3f && alpha > 0.999f) {
-    return phase_rayleigh(mu);
-  }
-  if (fabsf(alpha) < 1e-3f) {
-    return phase_henyey_greenstein(mu, g);
-  }
-
-  const float g2 = sqr(g);
-  const float fac = 1 + g2 - 2 * g * mu;
-  return ((1 - g2) * (1 + alpha * sqr(mu))) /
-         ((1 + (alpha * (1 + 2 * g2)) * (1 / 3.0f)) * M_4PI_F * fac * sqrtf(fac));
-}
-
-static float phase_mie(float mu)
-{
-  const float log_d = log2f(mie_diameter) * M_LN2_F;
-  float g_HG = 0.862f - 0.143f * sqr(log_d);
-  const float a = (log_d - 0.238604f) * (log_d + 1.00667f);
-  const float b = 0.507522f - 0.15677f * log_d;
-  const float c = 1.19692f * cosf(a / b) + 1.37932f * log_d + 0.0625835f;
-  float g_D = 0.379685f * cosf(c) + 0.344213f;
-  float alpha = 250.0f;
-  float w = 0.146209f * cosf(3.38707f * log_d + 2.11193f) + 0.316072f + 0.0778917f * log_d;
-
-  return ((1.0f - w) * phase_henyey_greenstein(mu, g_HG) + w * phase_draine(mu, g_D, alpha));
+  float fac = 1 + mie_G * (mie_G - 2 * mu);
+  return (1 - sqr(mie_G)) / (M_4PI_F * fac * safe_sqrtf(fac));
 }
 
 /* Intersection helpers */
@@ -272,7 +232,7 @@ static void single_scattering(float3 ray_dir,
 
   /* phase function for scattering and the density scale factor */
   float mu = dot(ray_dir, sun_dir);
-  float3 phase_function = make_float3(phase_rayleigh(mu), phase_mie(mu), 0.0f);
+  float3 phase_function = make_float3(phase_rayleigh(mu), phase_henyey_greenstein(mu), 0.0f);
   float3 density_scale = make_float3(air_density, dust_density, ozone_density);
 
   /* the density and in-scattering of each segment is evaluated at its middle */

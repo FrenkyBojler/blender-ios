@@ -31,9 +31,6 @@
 #ifndef M_4PI_F
 #  define M_4PI_F (12.566370614359172f) /* `4*pi` */
 #endif
-#ifndef M_LN2_F
-#  define M_LN2_F (0.6931471805599453f) /* `ln(2)` */
-#endif
 
 struct float3 {
   float x, y, z;
