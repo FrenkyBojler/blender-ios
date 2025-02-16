@@ -27,8 +27,8 @@ bool remove_selection(PointCloud &point_cloud)
 
   PointCloud *point_cloud_new = BKE_pointcloud_new_nomain(mask.size());
   bke::gather_attributes(attributes,
-                         bke::AttrDomain::Point,
-                         bke::AttrDomain::Point,
+                         selection_domain,
+                         selection_domain,
                          {},
                          mask,
                          point_cloud_new->attributes_for_write());
