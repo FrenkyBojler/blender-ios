@@ -412,7 +412,7 @@ static int node_clipboard_paste_exec(bContext *C, wmOperator *op)
   }
 
   for (bNode *new_node : node_map.values()) {
-    bke::node_set_selected(new_node, true);
+    bke::node_set_selected(*new_node, true);
 
     new_node->flag &= ~NODE_ACTIVE;
 

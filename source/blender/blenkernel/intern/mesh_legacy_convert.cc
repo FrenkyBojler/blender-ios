@@ -2232,7 +2232,7 @@ static bNodeTree *add_auto_smooth_node_tree(Main &bmain, Library *owner_library)
                 *node_find_socket(shade_smooth_edge, SOCK_IN, "Shade Smooth"));
 
   LISTBASE_FOREACH (bNode *, node, &group->nodes) {
-    node_set_selected(node, false);
+    node_set_selected(*node, false);
   }
 
   BKE_ntree_update_after_single_tree_change(bmain, *group);

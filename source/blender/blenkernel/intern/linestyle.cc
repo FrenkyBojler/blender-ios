@@ -1951,7 +1951,7 @@ void BKE_linestyle_default_shader(const bContext *C, FreestyleLineStyle *linesty
   output_linestyle->custom1 = MA_RAMP_BLEND;
   output_linestyle->custom2 = 0; /* use_clamp */
 
-  blender::bke::node_set_active(ntree, input_texture);
+  blender::bke::node_set_active(*ntree, *input_texture);
 
   fromsock = static_cast<bNodeSocket *>(BLI_findlink(&uv_along_stroke->outputs, 0)); /* UV */
   tosock = static_cast<bNodeSocket *>(BLI_findlink(&input_texture->inputs, 0));      /* UV */

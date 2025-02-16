@@ -541,7 +541,7 @@ void USDMaterialReader::import_usd_preview_nodes(Material *mtl,
     mtl->displacement_method = MA_DISPLACEMENT_BOTH;
   }
 
-  blender::bke::node_set_active(ntree, output);
+  blender::bke::node_set_active(*ntree, *output);
 
   BKE_ntree_update_after_single_tree_change(*bmain_, *ntree);
 

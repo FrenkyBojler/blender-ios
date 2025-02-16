@@ -705,19 +705,19 @@ int node_count_socket_links(const bNodeTree &ntree, const bNodeSocket &sock);
  * Selects or deselects the node. If the node is deselected, all its sockets are deselected too.
  * \return True if any selection was changed.
  */
-bool node_set_selected(bNode *node, bool select);
+bool node_set_selected(bNode &node, bool select);
 /**
  * Two active flags, ID nodes have special flag for buttons display.
  */
-void node_set_active(bNodeTree *ntree, bNode *node);
-bNode *node_get_active(bNodeTree *ntree);
-void node_clear_active(bNodeTree *ntree);
+void node_set_active(bNodeTree &ntree, bNode &node);
+bNode *node_get_active(bNodeTree &ntree);
+void node_clear_active(bNodeTree &ntree);
 /**
  * Two active flags, ID nodes have special flag for buttons display.
  */
 bNode *node_get_active_texture(bNodeTree *ntree);
 
-int node_socket_link_limit(const bNodeSocket *sock);
+int node_socket_link_limit(const bNodeSocket &sock);
 
 /**
  * Node Instance Hash.
@@ -893,10 +893,10 @@ bNodeTree *node_tree_add_tree_embedded(Main *bmain,
  * Free (or release) any data used by this node-tree.
  * Does not free the node-tree itself and does no ID user counting.
  */
-void node_tree_free_tree(bNodeTree *ntree);
+void node_tree_free_tree(bNodeTree &ntree);
 
-bNodeTree *node_tree_copy_tree_ex(const bNodeTree *ntree, Main *bmain, bool do_id_user);
-bNodeTree *node_tree_copy_tree(Main *bmain, const bNodeTree *ntree);
+bNodeTree *node_tree_copy_tree_ex(const bNodeTree &ntree, Main *bmain, bool do_id_user);
+bNodeTree *node_tree_copy_tree(Main *bmain, const bNodeTree &ntree);
 
 void node_tree_free_local_node(bNodeTree &ntree, bNode &node);
 

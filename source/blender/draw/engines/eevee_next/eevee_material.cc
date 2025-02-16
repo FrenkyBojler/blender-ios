@@ -33,7 +33,7 @@ DefaultSurfaceNodeTree::DefaultSurfaceNodeTree()
   bNodeSocket *bsdf_out = bke::node_find_socket(bsdf, SOCK_OUT, "BSDF");
   bNodeSocket *output_in = bke::node_find_socket(output, SOCK_IN, "Surface");
   bke::node_add_link(*ntree, *bsdf, *bsdf_out, *output, *output_in);
-  bke::node_set_active(ntree, output);
+  bke::node_set_active(*ntree, *output);
 
   color_socket_ =
       (bNodeSocketValueRGBA *)bke::node_find_socket(bsdf, SOCK_IN, "Base Color")->default_value;
@@ -94,7 +94,7 @@ MaterialModule::MaterialModule(Instance &inst) : inst_(inst)
                        *output,
                        *bke::node_find_socket(output, SOCK_IN, "Surface"));
 
-    bke::node_set_active(ntree, output);
+    bke::node_set_active(*ntree, *output);
   }
   {
     metallic_mat = (::Material *)BKE_id_new_nomain(ID_MA, "EEVEE default metal");
@@ -117,7 +117,7 @@ MaterialModule::MaterialModule(Instance &inst) : inst_(inst)
                        *output,
                        *bke::node_find_socket(output, SOCK_IN, "Surface"));
 
-    bke::node_set_active(ntree, output);
+    bke::node_set_active(*ntree, *output);
   }
   {
     error_mat_ = (::Material *)BKE_id_new_nomain(ID_MA, "EEVEE default error");
@@ -138,7 +138,7 @@ MaterialModule::MaterialModule(Instance &inst) : inst_(inst)
                        *output,
                        *bke::node_find_socket(output, SOCK_IN, "Surface"));
 
-    bke::node_set_active(ntree, output);
+    bke::node_set_active(*ntree, *output);
   }
 }
 

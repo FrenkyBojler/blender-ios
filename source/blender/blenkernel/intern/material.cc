@@ -2047,7 +2047,7 @@ static void material_default_surface_init(Material *ma)
   output->location[0] = 300.0f;
   output->location[1] = 300.0f;
 
-  blender::bke::node_set_active(ntree, output);
+  blender::bke::node_set_active(*ntree, *output);
 }
 
 static void material_default_volume_init(Material *ma)
@@ -2073,7 +2073,7 @@ static void material_default_volume_init(Material *ma)
   output->location[0] = 300.0f;
   output->location[1] = 300.0f;
 
-  blender::bke::node_set_active(ntree, output);
+  blender::bke::node_set_active(*ntree, *output);
 }
 
 static void material_default_holdout_init(Material *ma)
@@ -2098,7 +2098,7 @@ static void material_default_holdout_init(Material *ma)
   output->location[0] = 300.0f;
   output->location[1] = 300.0f;
 
-  blender::bke::node_set_active(ntree, output);
+  blender::bke::node_set_active(*ntree, *output);
 }
 
 Material *BKE_material_default_empty()

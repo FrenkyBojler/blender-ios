@@ -501,7 +501,7 @@ void dome_light_to_world_material(const USDImportParams &params,
       copy_v3_v3(((bNodeSocketValueRGBA *)color_sock->default_value)->value, color.data());
     }
 
-    bke::node_set_active(ntree, output);
+    bke::node_set_active(*ntree, *output);
     BKE_ntree_update_after_single_tree_change(*bmain, *ntree);
 
     return;
@@ -614,7 +614,7 @@ void dome_light_to_world_material(const USDImportParams &params,
     copy_v3_v3(rot_value->value, rot_vec.data());
   }
 
-  bke::node_set_active(ntree, output);
+  bke::node_set_active(*ntree, *output);
   DEG_id_tag_update(&ntree->id, ID_RECALC_NTREE_OUTPUT);
   BKE_ntree_update_after_single_tree_change(*bmain, *ntree);
 }

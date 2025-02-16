@@ -625,7 +625,7 @@ static bNodeTree *add_realize_node_tree(Main *bmain)
                               *static_cast<bNodeSocket *>(group_output->inputs.first));
 
   LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
-    blender::bke::node_set_selected(node, false);
+    blender::bke::node_set_selected(*node, false);
   }
 
   version_socket_update_is_used(node_tree);

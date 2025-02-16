@@ -87,7 +87,7 @@ bNode *add_node(const bContext &C, const StringRef idname, const float2 &locatio
 
   position_node_based_on_mouse(*node, location);
 
-  bke::node_set_selected(node, true);
+  bke::node_set_selected(*node, true);
   ED_node_set_active(&bmain, &snode, &node_tree, node, nullptr);
 
   BKE_main_ensure_invariants(bmain, node_tree.id);
@@ -107,7 +107,7 @@ bNode *add_static_node(const bContext &C, int type, const float2 &location)
 
   position_node_based_on_mouse(*node, location);
 
-  bke::node_set_selected(node, true);
+  bke::node_set_selected(*node, true);
   ED_node_set_active(&bmain, &snode, &node_tree, node, nullptr);
 
   BKE_main_ensure_invariants(bmain, node_tree.id);
@@ -332,7 +332,7 @@ static int node_add_group_exec(bContext *C, wmOperator *op)
   id_us_plus(group_node->id);
   BKE_ntree_update_tag_node_property(snode->edittree, group_node);
 
-  bke::node_set_active(ntree, group_node);
+  bke::node_set_active(*ntree, *group_node);
   BKE_main_ensure_invariants(*bmain);
   WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);
   DEG_relations_tag_update(bmain);
@@ -435,7 +435,7 @@ static bool add_node_group_asset(const bContext &C,
   id_us_plus(group_node->id);
   BKE_ntree_update_tag_node_property(&edit_tree, group_node);
 
-  bke::node_set_active(&edit_tree, group_node);
+  bke::node_set_active(edit_tree, *group_node);
   BKE_main_ensure_invariants(bmain);
   WM_event_add_notifier(&C, NC_NODE | NA_ADDED, nullptr);
   DEG_relations_tag_update(&bmain);
@@ -546,7 +546,7 @@ static int node_add_object_exec(bContext *C, wmOperator *op)
   id_us_plus(&object->id);
   BKE_ntree_update_tag_socket_property(ntree, sock);
 
-  bke::node_set_active(ntree, object_node);
+  bke::node_set_active(*ntree, *object_node);
   BKE_main_ensure_invariants(*bmain, ntree->id);
   DEG_relations_tag_update(bmain);
 
@@ -633,7 +633,7 @@ static int node_add_collection_exec(bContext *C, wmOperator *op)
   id_us_plus(&collection->id);
   BKE_ntree_update_tag_socket_property(&ntree, sock);
 
-  bke::node_set_active(&ntree, collection_node);
+  bke::node_set_active(ntree, *collection_node);
   BKE_main_ensure_invariants(*bmain, ntree.id);
   DEG_relations_tag_update(bmain);
 
@@ -822,7 +822,7 @@ static int node_add_file_exec(bContext *C, wmOperator *op)
   /* Set new nodes as selected. */
   node_deselect_all(node_tree);
   for (bNode *node : nodes) {
-    bke::node_set_selected(node, true);
+    bke::node_set_selected(*node, true);
   }
   ED_node_set_active(bmain, &snode, &node_tree, nodes[0], nullptr);
 
@@ -1094,7 +1094,7 @@ static int node_add_color_exec(bContext *C, wmOperator *op)
     copy_v4_v4(socket_data->value, color);
   }
 
-  bke::node_set_active(ntree, color_node);
+  bke::node_set_active(*ntree, *color_node);
   BKE_main_ensure_invariants(*bmain, ntree->id);
 
   return OPERATOR_FINISHED;

@@ -1310,7 +1310,7 @@ static void rna_NodeTree_node_clear(bNodeTree *ntree, Main *bmain, ReportList *r
 static PointerRNA rna_NodeTree_active_node_get(PointerRNA *ptr)
 {
   bNodeTree *ntree = static_cast<bNodeTree *>(ptr->data);
-  bNode *node = blender::bke::node_get_active(ntree);
+  bNode *node = blender::bke::node_get_active(*ntree);
   return RNA_pointer_create_with_parent(*ptr, &RNA_Node, node);
 }
 
@@ -1322,7 +1322,7 @@ static void rna_NodeTree_active_node_set(PointerRNA *ptr,
   bNode *node = static_cast<bNode *>(value.data);
 
   if (node && BLI_findindex(&ntree->nodes, node) != -1) {
-    blender::bke::node_set_active(ntree, node);
+    blender::bke::node_set_active(*ntree, *node);
 
     /* Handle NODE_DO_OUTPUT as well. */
     if (node->typeinfo->nclass == NODE_CLASS_OUTPUT && node->type_legacy != CMP_NODE_OUTPUT_FILE) {
@@ -1339,7 +1339,7 @@ static void rna_NodeTree_active_node_set(PointerRNA *ptr,
     }
   }
   else {
-    blender::bke::node_clear_active(ntree);
+    blender::bke::node_clear_active(*ntree);
   }
 }
 
@@ -1413,12 +1413,12 @@ static bNodeLink *rna_NodeTree_link_new(bNodeTree *ntree,
   if (verify_limits) {
     /* remove other socket links if limit is exceeded */
     if (blender::bke::node_count_socket_links(*ntree, *fromsock) + 1 >
-        blender::bke::node_socket_link_limit(fromsock))
+        blender::bke::node_socket_link_limit(*fromsock))
     {
       blender::bke::node_remove_socket_links(*ntree, *fromsock);
     }
     if (blender::bke::node_count_socket_links(*ntree, *tosock) + 1 >
-        blender::bke::node_socket_link_limit(tosock))
+        blender::bke::node_socket_link_limit(*tosock))
     {
       blender::bke::node_remove_socket_links(*ntree, *tosock);
     }
@@ -2588,7 +2588,7 @@ static void rna_Node_socket_value_update(ID *id, bNode * /*node*/, bContext *C)
 static void rna_Node_select_set(PointerRNA *ptr, bool value)
 {
   bNode *node = static_cast<bNode *>(ptr->data);
-  blender::bke::node_set_selected(node, value);
+  blender::bke::node_set_selected(*node, value);
 }
 
 static void rna_Node_name_set(PointerRNA *ptr, const char *value)

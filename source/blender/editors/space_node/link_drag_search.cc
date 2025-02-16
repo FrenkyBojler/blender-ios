@@ -380,8 +380,8 @@ static void link_drag_search_exec_fn(bContext *C, void *arg1, void *arg2)
     new_node->location[0] -= new_node->width;
   }
 
-  bke::node_set_selected(new_node, true);
-  bke::node_set_active(&node_tree, new_node);
+  bke::node_set_selected(*new_node, true);
+  bke::node_set_active(node_tree, *new_node);
 
   /* Ideally it would be possible to tag the node tree in some way so it updates only after the
    * translate operation is finished, but normally moving nodes around doesn't cause updates. */

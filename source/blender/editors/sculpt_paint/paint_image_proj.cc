@@ -6644,7 +6644,7 @@ static void default_paint_slot_color_get(int layer_type, Material *ma, float col
       }
       /* Cleanup */
       if (ntree) {
-        blender::bke::node_tree_free_tree(ntree);
+        blender::bke::node_tree_free_tree(*ntree);
         MEM_freeN(ntree);
       }
       return;
@@ -6714,7 +6714,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
         BLI_assert_unreachable();
         return false;
     }
-    blender::bke::node_set_active(ntree, new_node);
+    blender::bke::node_set_active(*ntree, *new_node);
 
     /* Connect to first available principled BSDF node. */
     ntree->ensure_topology_cache();

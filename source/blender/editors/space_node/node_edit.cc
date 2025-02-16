@@ -225,7 +225,7 @@ static void compo_freejob(void *cjv)
       bke::node_tree_local_merge(cj->bmain, cj->localtree, cj->ntree);
     }
 
-    bke::node_tree_free_tree(cj->localtree);
+    bke::node_tree_free_tree(*cj->localtree);
     MEM_freeN(cj->localtree);
   }
 
@@ -588,7 +588,7 @@ void ED_node_shader_default(const bContext *C, ID *id)
       ma_default = BKE_material_default_surface();
     }
 
-    ma->nodetree = blender::bke::node_tree_copy_tree(bmain, ma_default->nodetree);
+    ma->nodetree = blender::bke::node_tree_copy_tree(bmain, *ma_default->nodetree);
     ma->nodetree->owner_id = &ma->id;
     for (bNode *node_iter : ma->nodetree->all_nodes()) {
       STRNCPY_UTF8(node_iter->name, DATA_(node_iter->name));
@@ -631,7 +631,7 @@ void ED_node_shader_default(const bContext *C, ID *id)
     shader->location[1] = 300.0f;
     output->location[0] = 300.0f;
     output->location[1] = 300.0f;
-    blender::bke::node_set_active(ntree, output);
+    blender::bke::node_set_active(*ntree, *output);
     BKE_ntree_update_after_single_tree_change(*bmain, *ntree);
   }
   else {
@@ -660,7 +660,7 @@ void ED_node_composit_default(const bContext *C, Scene *sce)
   bNode *in = blender::bke::node_add_static_node(C, sce->nodetree, CMP_NODE_R_LAYERS);
   in->location[0] = -200.0f;
   in->location[1] = 200.0f;
-  blender::bke::node_set_active(sce->nodetree, in);
+  blender::bke::node_set_active(*sce->nodetree, *in);
 
   /* Links from color to color. */
   bNodeSocket *fromsock = (bNodeSocket *)in->outputs.first;
@@ -689,7 +689,7 @@ void ED_node_texture_default(const bContext *C, Tex *tex)
   bNode *in = blender::bke::node_add_static_node(C, tex->nodetree, TEX_NODE_CHECKER);
   in->location[0] = 10.0f;
   in->location[1] = 300.0f;
-  blender::bke::node_set_active(tex->nodetree, in);
+  blender::bke::node_set_active(*tex->nodetree, *in);
 
   bNodeSocket *fromsock = (bNodeSocket *)in->outputs.first;
   bNodeSocket *tosock = (bNodeSocket *)out->inputs.first;
@@ -751,7 +751,7 @@ void ED_node_set_active(
     *r_active_texture_changed = false;
   }
 
-  blender::bke::node_set_active(ntree, node);
+  blender::bke::node_set_active(*ntree, *node);
   if (node->type_legacy == NODE_GROUP) {
     return;
   }
@@ -974,7 +974,7 @@ static void node_resize_exit(bContext *C, wmOperator *op, bool cancel)
   /* Restore old data on cancel. */
   if (cancel) {
     SpaceNode *snode = CTX_wm_space_node(C);
-    bNode *node = bke::node_get_active(snode->edittree);
+    bNode *node = bke::node_get_active(*snode->edittree);
     NodeSizeWidget *nsw = (NodeSizeWidget *)op->customdata;
 
     node->location[0] = nsw->oldlocx;
@@ -1033,7 +1033,7 @@ static int node_resize_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   ARegion *region = CTX_wm_region(C);
-  bNode *node = bke::node_get_active(snode->edittree);
+  bNode *node = bke::node_get_active(*snode->edittree);
   NodeSizeWidget *nsw = (NodeSizeWidget *)op->customdata;
 
   if (event->type == EVT_MODAL_MAP) {
@@ -1132,7 +1132,7 @@ static int node_resize_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   ARegion *region = CTX_wm_region(C);
-  const bNode *node = bke::node_get_active(snode->edittree);
+  const bNode *node = bke::node_get_active(*snode->edittree);
 
   if (node == nullptr) {
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
@@ -1538,9 +1538,9 @@ static int node_duplicate_exec(bContext *C, wmOperator *op)
     bNode *src_node = item.key;
     bNode *dst_node = item.value;
 
-    bke::node_set_selected(src_node, false);
+    bke::node_set_selected(*src_node, false);
     src_node->flag &= ~(NODE_ACTIVE | NODE_ACTIVE_TEXTURE);
-    bke::node_set_selected(dst_node, true);
+    bke::node_set_selected(*dst_node, true);
   }
 
   tree_draw_order_update(*snode->edittree);
@@ -2077,7 +2077,7 @@ static int node_output_file_add_socket_exec(bContext *C, wmOperator *op)
   }
   else if (snode && snode->edittree) {
     ntree = snode->edittree;
-    node = bke::node_get_active(snode->edittree);
+    node = bke::node_get_active(*snode->edittree);
   }
 
   if (!node || node->type_legacy != CMP_NODE_OUTPUT_FILE) {
@@ -2129,7 +2129,7 @@ static int node_output_file_remove_active_socket_exec(bContext *C, wmOperator * 
   }
   else if (snode && snode->edittree) {
     ntree = snode->edittree;
-    node = bke::node_get_active(snode->edittree);
+    node = bke::node_get_active(*snode->edittree);
   }
 
   if (!node || node->type_legacy != CMP_NODE_OUTPUT_FILE) {
@@ -2176,7 +2176,7 @@ static int node_output_file_move_active_socket_exec(bContext *C, wmOperator *op)
     node = (bNode *)ptr.data;
   }
   else if (snode && snode->edittree) {
-    node = bke::node_get_active(snode->edittree);
+    node = bke::node_get_active(*snode->edittree);
   }
 
   if (!node || node->type_legacy != CMP_NODE_OUTPUT_FILE) {
@@ -2248,7 +2248,7 @@ static int node_copy_color_exec(bContext *C, wmOperator * /*op*/)
   SpaceNode &snode = *CTX_wm_space_node(C);
   bNodeTree &ntree = *snode.edittree;
 
-  bNode *active_node = bke::node_get_active(&ntree);
+  bNode *active_node = bke::node_get_active(ntree);
   if (!active_node) {
     return OPERATOR_CANCELLED;
   }
@@ -2306,7 +2306,7 @@ static bool node_shader_script_update_poll(bContext *C)
   bNode *node = (bNode *)CTX_data_pointer_get_type(C, "node", &RNA_ShaderNodeScript).data;
 
   if (!node && snode && snode->edittree) {
-    node = bke::node_get_active(snode->edittree);
+    node = bke::node_get_active(*snode->edittree);
   }
 
   if (node && node->type_legacy == SH_NODE_SCRIPT) {
@@ -2377,7 +2377,7 @@ static int node_shader_script_update_exec(bContext *C, wmOperator *op)
   }
   else if (snode && snode->edittree) {
     ntree_base = snode->edittree;
-    node = bke::node_get_active(snode->edittree);
+    node = bke::node_get_active(*snode->edittree);
   }
 
   if (node) {
@@ -2575,7 +2575,7 @@ static int node_cryptomatte_add_socket_exec(bContext *C, wmOperator * /*op*/)
   }
   else if (snode && snode->edittree) {
     ntree = snode->edittree;
-    node = bke::node_get_active(snode->edittree);
+    node = bke::node_get_active(*snode->edittree);
   }
 
   if (!node || node->type_legacy != CMP_NODE_CRYPTOMATTE_LEGACY) {
@@ -2623,7 +2623,7 @@ static int node_cryptomatte_remove_socket_exec(bContext *C, wmOperator * /*op*/)
   }
   else if (snode && snode->edittree) {
     ntree = snode->edittree;
-    node = bke::node_get_active(snode->edittree);
+    node = bke::node_get_active(*snode->edittree);
   }
 
   if (!node || node->type_legacy != CMP_NODE_CRYPTOMATTE_LEGACY) {

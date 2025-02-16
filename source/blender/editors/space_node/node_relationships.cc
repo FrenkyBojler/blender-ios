@@ -829,7 +829,7 @@ static int node_link_viewer(const bContext &C, bNode &bnode_to_view, bNodeSocket
 static int node_active_link_viewer_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceNode &snode = *CTX_wm_space_node(C);
-  bNode *node = bke::node_get_active(snode.edittree);
+  bNode *node = bke::node_get_active(*snode.edittree);
 
   if (!node) {
     return OPERATOR_CANCELLED;
@@ -1014,7 +1014,7 @@ static bNodeSocket *node_find_linkable_socket(const bNodeTree &ntree,
       const bool sockets_are_compatible = socket->typeinfo == socket_to_match->typeinfo;
       if (sockets_are_compatible) {
         const int link_count = node_socket_count_links(ntree, *socket);
-        const bool socket_has_capacity = link_count < bke::node_socket_link_limit(socket);
+        const bool socket_has_capacity = link_count < bke::node_socket_link_limit(*socket);
         if (socket_has_capacity) {
           /* Found a valid free socket we can swap to. */
           return socket;
@@ -1138,7 +1138,7 @@ static void node_remove_existing_links_if_needed(bNodeLinkDrag &nldrag, bNodeTre
   bNodeSocket &linked_socket = *nldrag.hovered_socket;
 
   int link_count = node_socket_count_links(ntree, linked_socket);
-  const int link_limit = bke::node_socket_link_limit(&linked_socket);
+  const int link_limit = bke::node_socket_link_limit(linked_socket);
   Set<bNodeLink *> links_to_remove;
 
   ntree.ensure_topology_cache();
@@ -1456,7 +1456,7 @@ static std::unique_ptr<bNodeLinkDrag> node_link_init(ARegion &region,
     nldrag->start_node = &node;
     nldrag->start_socket = sock;
     nldrag->start_link_count = bke::node_count_socket_links(*snode.edittree, *sock);
-    int link_limit = bke::node_socket_link_limit(sock);
+    int link_limit = bke::node_socket_link_limit(*sock);
     if (nldrag->start_link_count > 0 && (nldrag->start_link_count >= link_limit || detach)) {
       /* Dragged links are fixed on input side. */
       nldrag->in_out = SOCK_IN;
@@ -1914,7 +1914,7 @@ static int node_parent_set_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceNode &snode = *CTX_wm_space_node(C);
   bNodeTree &ntree = *snode.edittree;
-  bNode *frame = bke::node_get_active(&ntree);
+  bNode *frame = bke::node_get_active(ntree);
   if (!frame || !frame->is_frame()) {
     return OPERATOR_CANCELLED;
   }
@@ -2043,7 +2043,7 @@ static int node_join_exec(bContext *C, wmOperator * /*op*/)
   const VectorSet<bNode *> selected_nodes = get_selected_nodes(ntree);
 
   bNode *frame_node = bke::node_add_static_node(C, &ntree, NODE_FRAME);
-  bke::node_set_active(&ntree, frame_node);
+  bke::node_set_active(ntree, *frame_node);
   frame_node->parent = const_cast<bNode *>(find_common_parent_node(selected_nodes.as_span()));
 
   ntree.ensure_topology_cache();

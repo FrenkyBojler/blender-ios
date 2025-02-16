@@ -132,7 +132,7 @@ static void localize(bNodeTree *localtree, bNodeTree * /*ntree*/)
       if (node->is_group() && node->id) {
         /* Free the group like in #ntree_shader_groups_flatten. */
         bNodeTree *group = reinterpret_cast<bNodeTree *>(node->id);
-        blender::bke::node_tree_free_tree(group);
+        blender::bke::node_tree_free_tree(*group);
         MEM_freeN(group);
         node->id = nullptr;
       }
@@ -565,7 +565,7 @@ static void ntree_shader_groups_flatten(bNodeTree *localtree)
       /* delete the group instance and its localtree. */
       bNodeTree *ngroup = (bNodeTree *)node->id;
       blender::bke::node_tree_free_local_node(*localtree, *node);
-      blender::bke::node_tree_free_tree(ngroup);
+      blender::bke::node_tree_free_tree(*ngroup);
       BLI_assert(!ngroup->id.py_instance); /* Or call #BKE_libblock_free_data_py. */
       MEM_freeN(ngroup);
     }

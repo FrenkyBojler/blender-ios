@@ -3263,15 +3263,15 @@ bNodeTree *node_tree_add_tree_embedded(Main * /*bmain*/,
   return node_tree_add_tree_do(nullptr, std::nullopt, owner_id, true, name, idname);
 }
 
-bNodeTree *node_tree_copy_tree_ex(const bNodeTree *ntree, Main *bmain, const bool do_id_user)
+bNodeTree *node_tree_copy_tree_ex(const bNodeTree &ntree, Main *bmain, const bool do_id_user)
 {
   const int flag = do_id_user ? 0 : LIB_ID_CREATE_NO_USER_REFCOUNT | LIB_ID_CREATE_NO_MAIN;
 
   bNodeTree *ntree_copy = reinterpret_cast<bNodeTree *>(
-      BKE_id_copy_ex(bmain, reinterpret_cast<const ID *>(ntree), nullptr, flag));
+      BKE_id_copy_ex(bmain, reinterpret_cast<const ID *>(&ntree), nullptr, flag));
   return ntree_copy;
 }
-bNodeTree *node_tree_copy_tree(Main *bmain, const bNodeTree *ntree)
+bNodeTree *node_tree_copy_tree(Main *bmain, const bNodeTree &ntree)
 {
   return node_tree_copy_tree_ex(ntree, bmain, true);
 }
@@ -3620,21 +3620,21 @@ static void free_localized_node_groups(bNodeTree *ntree)
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
     bNodeTree *ngroup = reinterpret_cast<bNodeTree *>(node->id);
     if (node->is_group() && ngroup != nullptr) {
-      node_tree_free_tree(ngroup);
+      node_tree_free_tree(*ngroup);
       MEM_freeN(ngroup);
     }
   }
 }
 
-void node_tree_free_tree(bNodeTree *ntree)
+void node_tree_free_tree(bNodeTree &ntree)
 {
-  ntree_free_data(&ntree->id);
-  BKE_animdata_free(&ntree->id, false);
+  ntree_free_data(&ntree.id);
+  BKE_animdata_free(&ntree.id, false);
 }
 
 void node_tree_free_embedded_tree(bNodeTree *ntree)
 {
-  node_tree_free_tree(ntree);
+  node_tree_free_tree(*ntree);
   BKE_libblock_free_data(&ntree->id, true);
   BKE_libblock_free_data_py(&ntree->id);
 }
@@ -3642,10 +3642,10 @@ void node_tree_free_embedded_tree(bNodeTree *ntree)
 void node_tree_free_local_tree(bNodeTree *ntree)
 {
   if (ntree->id.tag & ID_TAG_LOCALIZED) {
-    node_tree_free_tree(ntree);
+    node_tree_free_tree(*ntree);
   }
   else {
-    node_tree_free_tree(ntree);
+    node_tree_free_tree(*ntree);
     BKE_libblock_free_data(&ntree->id, true);
   }
 }
@@ -3859,13 +3859,9 @@ int node_count_socket_links(const bNodeTree &ntree, const bNodeSocket &sock)
   return tot;
 }
 
-bNode *node_get_active(bNodeTree *ntree)
+bNode *node_get_active(bNodeTree &ntree)
 {
-  if (ntree == nullptr) {
-    return nullptr;
-  }
-
-  for (bNode *node : ntree->all_nodes()) {
+  for (bNode *node : ntree.all_nodes()) {
     if (node->flag & NODE_ACTIVE) {
       return node;
     }
@@ -3873,52 +3869,48 @@ bNode *node_get_active(bNodeTree *ntree)
   return nullptr;
 }
 
-bool node_set_selected(bNode *node, const bool select)
+bool node_set_selected(bNode &node, const bool select)
 {
   bool changed = false;
-  if (select != ((node->flag & NODE_SELECT) != 0)) {
+  if (select != ((node.flag & NODE_SELECT) != 0)) {
     changed = true;
-    SET_FLAG_FROM_TEST(node->flag, select, NODE_SELECT);
+    SET_FLAG_FROM_TEST(node.flag, select, NODE_SELECT);
   }
   if (select) {
     return changed;
   }
   /* Deselect sockets too. */
-  LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
+  LISTBASE_FOREACH (bNodeSocket *, sock, &node.inputs) {
     changed |= (sock->flag & NODE_SELECT) != 0;
     sock->flag &= ~NODE_SELECT;
   }
-  LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
+  LISTBASE_FOREACH (bNodeSocket *, sock, &node.outputs) {
     changed |= (sock->flag & NODE_SELECT) != 0;
     sock->flag &= ~NODE_SELECT;
   }
   return changed;
 }
 
-void node_clear_active(bNodeTree *ntree)
+void node_clear_active(bNodeTree &ntree)
 {
-  if (ntree == nullptr) {
-    return;
-  }
-
-  for (bNode *node : ntree->all_nodes()) {
+  for (bNode *node : ntree.all_nodes()) {
     node->flag &= ~NODE_ACTIVE;
   }
 }
 
-void node_set_active(bNodeTree *ntree, bNode *node)
+void node_set_active(bNodeTree &ntree, bNode &node)
 {
-  const bool is_paint_canvas = node_supports_active_flag(*node, NODE_ACTIVE_PAINT_CANVAS);
-  const bool is_texture_class = node_supports_active_flag(*node, NODE_ACTIVE_TEXTURE);
+  const bool is_paint_canvas = node_supports_active_flag(node, NODE_ACTIVE_PAINT_CANVAS);
+  const bool is_texture_class = node_supports_active_flag(node, NODE_ACTIVE_TEXTURE);
   int flags_to_set = NODE_ACTIVE;
   SET_FLAG_FROM_TEST(flags_to_set, is_paint_canvas, NODE_ACTIVE_PAINT_CANVAS);
   SET_FLAG_FROM_TEST(flags_to_set, is_texture_class, NODE_ACTIVE_TEXTURE);
 
   /* Make sure only one node is active per node tree. */
-  for (bNode *tnode : ntree->all_nodes()) {
+  for (bNode *tnode : ntree.all_nodes()) {
     tnode->flag &= ~flags_to_set;
   }
-  node->flag |= flags_to_set;
+  node.flag |= flags_to_set;
 }
 
 void node_set_socket_availability(bNodeTree &ntree, bNodeSocket &sock, const bool is_available)
@@ -3935,19 +3927,19 @@ void node_set_socket_availability(bNodeTree &ntree, bNodeSocket &sock, const boo
   BKE_ntree_update_tag_socket_availability(&ntree, &sock);
 }
 
-int node_socket_link_limit(const bNodeSocket *sock)
+int node_socket_link_limit(const bNodeSocket &sock)
 {
-  if (sock->is_multi_input()) {
+  if (sock.is_multi_input()) {
     return 4095;
   }
-  if (sock->typeinfo == nullptr) {
-    return sock->limit;
+  if (sock.typeinfo == nullptr) {
+    return sock.limit;
   }
-  const bNodeSocketType &stype = *sock->typeinfo;
+  const bNodeSocketType &stype = *sock.typeinfo;
   if (!stype.use_link_limits_of_type) {
-    return sock->limit;
+    return sock.limit;
   }
-  return eNodeSocketInOut(sock->in_out) == SOCK_IN ? stype.input_link_limit :
+  return eNodeSocketInOut(sock.in_out) == SOCK_IN ? stype.input_link_limit :
                                                      stype.output_link_limit;
 }
 

@@ -1052,7 +1052,7 @@ static int /*eContextResult*/ node_context(const bContext *C,
   }
   if (CTX_data_equals(member, "active_node")) {
     if (snode->edittree) {
-      bNode *node = bke::node_get_active(snode->edittree);
+      bNode *node = bke::node_get_active(*snode->edittree);
       CTX_data_pointer_set(result, &snode->edittree->id, &RNA_Node, node);
     }
 

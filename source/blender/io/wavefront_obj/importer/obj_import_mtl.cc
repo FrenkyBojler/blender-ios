@@ -428,7 +428,7 @@ bNodeTree *create_mtl_node_tree(Main *bmain,
   set_bsdf_socket_values(bsdf, mat, mtl_mat);
   add_image_textures(bmain, ntree, bsdf, mat, mtl_mat, relative_paths);
   link_sockets(ntree, bsdf, "BSDF", output, "Surface");
-  bke::node_set_active(ntree, output);
+  bke::node_set_active(*ntree, *output);
 
   return ntree;
 }

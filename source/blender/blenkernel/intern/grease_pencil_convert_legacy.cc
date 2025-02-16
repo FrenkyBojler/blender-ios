@@ -1283,7 +1283,7 @@ static bNodeTree *offset_radius_node_tree_add(ConversionData &conversion_data, L
                      *bke::node_find_socket(set_curve_radius, SOCK_IN, "Radius"));
 
   LISTBASE_FOREACH (bNode *, node, &group->nodes) {
-    bke::node_set_selected(node, false);
+    bke::node_set_selected(*node, false);
   }
 
   return group;

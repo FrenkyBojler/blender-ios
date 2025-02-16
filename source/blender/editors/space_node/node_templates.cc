@@ -249,7 +249,7 @@ static void node_socket_add_replace(const bContext *C,
     BKE_main_ensure_invariants(*bmain, ntree->id);
   }
 
-  bke::node_set_active(ntree, node_from);
+  bke::node_set_active(*ntree, *node_from);
 
   /* add link */
   sock_from_tmp = (bNodeSocket *)BLI_findlink(&node_from->outputs, item->socket_index);
@@ -261,7 +261,7 @@ static void node_socket_add_replace(const bContext *C,
     LISTBASE_FOREACH (bNodeSocket *, sock_prev, &node_prev->inputs) {
       LISTBASE_FOREACH (bNodeSocket *, sock_from, &node_from->inputs) {
         if (bke::node_count_socket_links(*ntree, *sock_from) >=
-            bke::node_socket_link_limit(sock_from))
+            bke::node_socket_link_limit(*sock_from))
         {
           continue;
         }

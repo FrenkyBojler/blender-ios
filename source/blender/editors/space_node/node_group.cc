@@ -135,7 +135,7 @@ StringRef node_group_idname(bContext *C)
 static bNode *node_group_get_active(bContext *C, const StringRef node_idname)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
-  bNode *node = bke::node_get_active(snode->edittree);
+  bNode *node = bke::node_get_active(*snode->edittree);
 
   if (node && node->idname == node_idname) {
     return node;
@@ -281,7 +281,7 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
    * - `ngroup` (i.e. the source NodeTree) is left unscathed.
    * - Temp copy. do change ID user-count for the copies.
    */
-  bNodeTree *wgroup = bke::node_tree_copy_tree(bmain, ngroup);
+  bNodeTree *wgroup = bke::node_tree_copy_tree(bmain, *ngroup);
 
   /* Add the nodes into the `ntree`. */
   Vector<bNode *> new_nodes;
@@ -731,7 +731,7 @@ static bool node_group_make_test_selected(bNodeTree &ntree,
   /* make a local pseudo node tree to pass to the node poll functions */
   bNodeTree *ngroup = bke::node_tree_add_tree(nullptr, "Pseudo Node Group", ntree_idname);
   BLI_SCOPED_DEFER([&]() {
-    bke::node_tree_free_tree(ngroup);
+    bke::node_tree_free_tree(*ngroup);
     MEM_freeN(ngroup);
   });
 
@@ -1252,7 +1252,7 @@ static int node_group_make_exec(bContext *C, wmOperator *op)
   if (gnode) {
     bNodeTree *ngroup = (bNodeTree *)gnode->id;
 
-    bke::node_set_active(&ntree, gnode);
+    bke::node_set_active(ntree, *gnode);
     if (ngroup) {
       ED_node_tree_push(&snode, ngroup, gnode);
     }
@@ -1321,7 +1321,7 @@ static int node_group_insert_exec(bContext *C, wmOperator *op)
 
   node_group_make_insert_selected(*C, *ntree, gnode, nodes_to_group);
 
-  bke::node_set_active(ntree, gnode);
+  bke::node_set_active(*ntree, *gnode);
   ED_node_tree_push(snode, ngroup, gnode);
 
   return OPERATOR_FINISHED;

@@ -372,7 +372,7 @@ static bool rna_NodeSocket_is_output_get(PointerRNA *ptr)
 static int rna_NodeSocket_link_limit_get(PointerRNA *ptr)
 {
   bNodeSocket *sock = static_cast<bNodeSocket *>(ptr->data);
-  return blender::bke::node_socket_link_limit(sock);
+  return blender::bke::node_socket_link_limit(*sock);
 }
 
 static void rna_NodeSocket_link_limit_set(PointerRNA *ptr, int value)
