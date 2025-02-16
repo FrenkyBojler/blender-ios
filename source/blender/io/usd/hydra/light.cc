@@ -78,11 +78,11 @@ void LightData::init()
   float intensity;
   if (light->type == LA_SUN) {
     /* Unclear why, but approximately matches Karma. */
-    intensity = (light->energy / 4.0f);
+    intensity = light->energy / 4.0f;
   }
   else {
     /* Convert from radiant flux to intensity. */
-    intensity = (light->energy / M_PI);
+    intensity = light->energy / M_PI;
   }
 
   data_[pxr::HdLightTokens->intensity] = intensity;
