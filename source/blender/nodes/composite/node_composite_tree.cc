@@ -119,7 +119,7 @@ static void local_merge(Main *bmain, bNodeTree *localtree, bNodeTree *ntree)
 
 static void update(bNodeTree *ntree)
 {
-  blender::bke::node_tree_set_output(ntree);
+  blender::bke::node_tree_set_output(*ntree);
 
   ntree_update_reroute_nodes(ntree);
 }
@@ -165,7 +165,7 @@ void register_node_tree_type_cmp()
 
   tt->rna_ext.srna = &RNA_CompositorNodeTree;
 
-  blender::bke::node_tree_type_add(tt);
+  blender::bke::node_tree_type_add(*tt);
 }
 
 /* *********************************************** */

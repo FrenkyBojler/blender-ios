@@ -301,9 +301,9 @@ static bNode *node_get_active(bNodeTree *ntree, int sub_activity)
 
 namespace blender::bke {
 
-bNode *node_get_active_texture(bNodeTree *ntree)
+bNode *node_get_active_texture(bNodeTree &ntree)
 {
-  return node_get_active(ntree, NODE_ACTIVE_TEXTURE);
+  return node_get_active(&ntree, NODE_ACTIVE_TEXTURE);
 }
 
 bNode *node_get_active_paint_canvas(bNodeTree &ntree)

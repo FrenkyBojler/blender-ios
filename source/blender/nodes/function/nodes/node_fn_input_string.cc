@@ -70,7 +70,7 @@ static void node_register()
   blender::bke::node_type_storage(ntype, "NodeInputString", node_storage_free, node_storage_copy);
   ntype.build_multi_function = node_build_multi_function;
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

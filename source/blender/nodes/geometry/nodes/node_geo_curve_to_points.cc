@@ -382,7 +382,7 @@ static void node_register()
   blender::bke::node_type_storage(
       ntype, "NodeGeometryCurveToPoints", node_free_standard_storage, node_copy_standard_storage);
   ntype.initfunc = node_init;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

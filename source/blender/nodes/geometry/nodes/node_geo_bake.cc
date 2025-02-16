@@ -582,7 +582,7 @@ static void node_register()
   ntype.register_operators = node_operators;
   ntype.gather_link_search_ops = node_gather_link_searches;
   blender::bke::node_type_storage(ntype, "NodeGeometryBake", node_free_storage, node_copy_storage);
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

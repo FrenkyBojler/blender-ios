@@ -362,10 +362,10 @@ static void node_shader_update_principled(bNodeTree *ntree, bNode *node)
   const int sss_method = node->custom2;
 
   bke::node_set_socket_availability(*ntree,
-                                    *bke::node_find_socket(node, SOCK_IN, "Subsurface IOR"),
+                                    *bke::node_find_socket(*node, SOCK_IN, "Subsurface IOR"),
                                     sss_method == SHD_SUBSURFACE_RANDOM_WALK_SKIN);
   bke::node_set_socket_availability(*ntree,
-                                    *bke::node_find_socket(node, SOCK_IN, "Subsurface Anisotropy"),
+                                    *bke::node_find_socket(*node, SOCK_IN, "Subsurface Anisotropy"),
                                     sss_method != SHD_SUBSURFACE_BURLEY);
 }
 
@@ -675,5 +675,5 @@ void register_node_type_sh_bsdf_principled()
   ntype.updatefunc = file_ns::node_shader_update_principled;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

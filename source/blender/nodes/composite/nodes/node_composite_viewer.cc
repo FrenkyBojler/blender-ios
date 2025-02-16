@@ -341,5 +341,5 @@ void register_node_type_cmp_viewer()
 
   ntype.no_muting = true;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

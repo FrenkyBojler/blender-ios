@@ -592,7 +592,7 @@ void ED_node_shader_default(const bContext *C, ID *id)
     ma->nodetree->owner_id = &ma->id;
     for (bNode *node_iter : ma->nodetree->all_nodes()) {
       STRNCPY_UTF8(node_iter->name, DATA_(node_iter->name));
-      blender::bke::node_unique_name(ma->nodetree, node_iter);
+      blender::bke::node_unique_name(*ma->nodetree, *node_iter);
     }
 
     BKE_ntree_update_after_single_tree_change(*bmain, *ma->nodetree);
@@ -606,25 +606,25 @@ void ED_node_shader_default(const bContext *C, ID *id)
     if (GS(id->name) == ID_WO) {
       World *world = (World *)id;
 
-      shader = blender::bke::node_add_static_node(nullptr, ntree, SH_NODE_BACKGROUND);
-      output = blender::bke::node_add_static_node(nullptr, ntree, SH_NODE_OUTPUT_WORLD);
+      shader = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_BACKGROUND);
+      output = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_WORLD);
       blender::bke::node_add_link(*ntree,
                                   *shader,
-                                  *blender::bke::node_find_socket(shader, SOCK_OUT, "Background"),
+                                  *blender::bke::node_find_socket(*shader, SOCK_OUT, "Background"),
                                   *output,
-                                  *blender::bke::node_find_socket(output, SOCK_IN, "Surface"));
+                                  *blender::bke::node_find_socket(*output, SOCK_IN, "Surface"));
 
-      bNodeSocket *color_sock = blender::bke::node_find_socket(shader, SOCK_IN, "Color");
+      bNodeSocket *color_sock = blender::bke::node_find_socket(*shader, SOCK_IN, "Color");
       copy_v3_v3(((bNodeSocketValueRGBA *)color_sock->default_value)->value, &world->horr);
     }
     else {
-      shader = blender::bke::node_add_static_node(nullptr, ntree, SH_NODE_EMISSION);
-      output = blender::bke::node_add_static_node(nullptr, ntree, SH_NODE_OUTPUT_LIGHT);
+      shader = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_EMISSION);
+      output = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_LIGHT);
       blender::bke::node_add_link(*ntree,
                                   *shader,
-                                  *blender::bke::node_find_socket(shader, SOCK_OUT, "Emission"),
+                                  *blender::bke::node_find_socket(*shader, SOCK_OUT, "Emission"),
                                   *output,
-                                  *blender::bke::node_find_socket(output, SOCK_IN, "Surface"));
+                                  *blender::bke::node_find_socket(*output, SOCK_IN, "Surface"));
     }
 
     shader->location[0] = 10.0f;
@@ -653,11 +653,11 @@ void ED_node_composit_default(const bContext *C, Scene *sce)
   sce->nodetree = blender::bke::node_tree_add_tree_embedded(
       nullptr, &sce->id, "Compositing Nodetree", ntreeType_Composite->idname);
 
-  bNode *out = blender::bke::node_add_static_node(C, sce->nodetree, CMP_NODE_COMPOSITE);
+  bNode *out = blender::bke::node_add_static_node(C, *sce->nodetree, CMP_NODE_COMPOSITE);
   out->location[0] = 200.0f;
   out->location[1] = 200.0f;
 
-  bNode *in = blender::bke::node_add_static_node(C, sce->nodetree, CMP_NODE_R_LAYERS);
+  bNode *in = blender::bke::node_add_static_node(C, *sce->nodetree, CMP_NODE_R_LAYERS);
   in->location[0] = -200.0f;
   in->location[1] = 200.0f;
   blender::bke::node_set_active(*sce->nodetree, *in);
@@ -682,11 +682,11 @@ void ED_node_texture_default(const bContext *C, Tex *tex)
   tex->nodetree = blender::bke::node_tree_add_tree_embedded(
       nullptr, &tex->id, "Texture Nodetree", ntreeType_Texture->idname);
 
-  bNode *out = blender::bke::node_add_static_node(C, tex->nodetree, TEX_NODE_OUTPUT);
+  bNode *out = blender::bke::node_add_static_node(C, *tex->nodetree, TEX_NODE_OUTPUT);
   out->location[0] = 300.0f;
   out->location[1] = 300.0f;
 
-  bNode *in = blender::bke::node_add_static_node(C, tex->nodetree, TEX_NODE_CHECKER);
+  bNode *in = blender::bke::node_add_static_node(C, *tex->nodetree, TEX_NODE_CHECKER);
   in->location[0] = 10.0f;
   in->location[1] = 300.0f;
   blender::bke::node_set_active(*tex->nodetree, *in);
@@ -798,7 +798,7 @@ void ED_node_set_active(
       /* If active texture changed, free GLSL materials. */
       LISTBASE_FOREACH (Material *, ma, &bmain->materials) {
         if (ma->nodetree && ma->use_nodes &&
-            blender::bke::node_tree_contains_tree(ma->nodetree, ntree))
+            blender::bke::node_tree_contains_tree(*ma->nodetree, *ntree))
         {
           GPU_material_free(&ma->gpumaterial);
 
@@ -819,7 +819,7 @@ void ED_node_set_active(
 
       LISTBASE_FOREACH (World *, wo, &bmain->worlds) {
         if (wo->nodetree && wo->use_nodes &&
-            blender::bke::node_tree_contains_tree(wo->nodetree, ntree))
+            blender::bke::node_tree_contains_tree(*wo->nodetree, *ntree))
         {
           GPU_material_free(&wo->gpumaterial);
         }
@@ -1985,7 +1985,7 @@ static int node_delete_exec(bContext *C, wmOperator * /*op*/)
 
   LISTBASE_FOREACH_MUTABLE (bNode *, node, &snode->edittree->nodes) {
     if (node->flag & SELECT) {
-      bke::node_remove_node(bmain, snode->edittree, node, true);
+      bke::node_remove_node(bmain, *snode->edittree, *node, true);
     }
   }
 
@@ -2028,7 +2028,7 @@ static int node_delete_reconnect_exec(bContext *C, wmOperator * /*op*/)
   LISTBASE_FOREACH_MUTABLE (bNode *, node, &snode->edittree->nodes) {
     if (node->flag & SELECT) {
       blender::bke::node_internal_relink(*snode->edittree, *node);
-      bke::node_remove_node(bmain, snode->edittree, node, true);
+      bke::node_remove_node(bmain, *snode->edittree, *node, true);
 
       /* Since this node might have been animated, and that animation data been
        * deleted, a notifier call is necessary to redraw any animation editor. */

@@ -489,7 +489,7 @@ static void node_register()
                                   "NodeGeometrySimulationInput",
                                   node_free_standard_storage,
                                   node_copy_standard_storage);
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
@@ -867,7 +867,7 @@ static void node_register()
   ntype.get_extra_info = node_extra_info;
   blender::bke::node_type_storage(
       ntype, "NodeGeometrySimulationOutput", node_free_storage, node_copy_storage);
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

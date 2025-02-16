@@ -524,7 +524,7 @@ void register_node_type_frame()
   blender::bke::node_type_size(*ntype, 150, 100, 0);
   ntype->flag |= NODE_BACKGROUND;
 
-  blender::bke::node_register_type(ntype);
+  blender::bke::node_register_type(*ntype);
 }
 
 /** \} */
@@ -569,7 +569,7 @@ void register_node_type_reroute()
   ntype->initfunc = node_reroute_init;
   node_type_storage(*ntype, "NodeReroute", node_free_standard_storage, node_copy_standard_storage);
 
-  blender::bke::node_register_type(ntype);
+  blender::bke::node_register_type(*ntype);
 }
 
 struct RerouteTargetPriority {
@@ -851,7 +851,7 @@ void register_node_type_group_input()
   ntype->declare = blender::nodes::group_input_declare;
   ntype->insert_link = blender::nodes::group_input_insert_link;
 
-  blender::bke::node_register_type(ntype);
+  blender::bke::node_register_type(*ntype);
 }
 
 bNodeSocket *node_group_output_find_socket(bNode *node, const StringRef identifier)
@@ -881,7 +881,7 @@ void register_node_type_group_output()
 
   ntype->no_muting = true;
 
-  blender::bke::node_register_type(ntype);
+  blender::bke::node_register_type(*ntype);
 }
 
 /** \} */

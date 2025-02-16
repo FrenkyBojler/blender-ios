@@ -175,7 +175,7 @@ static void node_register()
   ntype.draw_buttons = node_layout;
   blender::bke::node_type_storage(
       ntype, "NodeGeometryMeshToVolume", node_free_standard_storage, node_copy_standard_storage);
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

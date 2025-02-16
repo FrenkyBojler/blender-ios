@@ -140,7 +140,7 @@ static void node_register()
   ntype.updatefunc = node_update;
   ntype.build_multi_function = node_build_multi_function;
   ntype.deprecation_notice = N_("Use the \"Rotate Rotation\" node instead");
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

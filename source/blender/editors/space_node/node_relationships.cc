@@ -2042,7 +2042,7 @@ static int node_join_exec(bContext *C, wmOperator * /*op*/)
 
   const VectorSet<bNode *> selected_nodes = get_selected_nodes(ntree);
 
-  bNode *frame_node = bke::node_add_static_node(C, &ntree, NODE_FRAME);
+  bNode *frame_node = bke::node_add_static_node(C, ntree, NODE_FRAME);
   bke::node_set_active(ntree, *frame_node);
   frame_node->parent = const_cast<bNode *>(find_common_parent_node(selected_nodes.as_span()));
 

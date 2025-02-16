@@ -1027,7 +1027,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
         bNode *node = static_cast<bNode *>(ntree->nodes.first);
 
         while (node) {
-          blender::bke::node_unique_name(ntree, node);
+          blender::bke::node_unique_name(*ntree, *node);
           node = node->next;
         }
 

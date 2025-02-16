@@ -60,7 +60,7 @@ void register_node_type_tex_valtorgb()
       ntype, "ColorBand", node_free_standard_storage, node_copy_standard_storage);
   ntype.exec_fn = valtorgb_exec;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 
 /* **************** RGBTOBW ******************** */
@@ -102,5 +102,5 @@ void register_node_type_tex_rgbtobw()
   blender::bke::node_type_socket_templates(&ntype, rgbtobw_in, rgbtobw_out);
   ntype.exec_fn = rgbtobw_exec;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

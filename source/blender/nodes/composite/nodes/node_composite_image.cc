@@ -95,7 +95,7 @@ static void cmp_node_image_add_pass_output(bNodeTree *ntree,
 
   /* Replace if types don't match. */
   if (sock && sock->type != type) {
-    blender::bke::node_remove_socket(ntree, node, sock);
+    blender::bke::node_remove_socket(*ntree, *node, *sock);
     sock = nullptr;
   }
 
@@ -107,7 +107,7 @@ static void cmp_node_image_add_pass_output(bNodeTree *ntree,
     }
     else {
       sock = blender::bke::node_add_static_socket(
-          ntree, node, SOCK_OUT, type, PROP_NONE, name, name);
+          *ntree, *node, SOCK_OUT, type, PROP_NONE, name, name);
     }
     /* extra socket info */
     NodeImageLayer *sockdata = MEM_cnew<NodeImageLayer>(__func__);
@@ -378,7 +378,7 @@ static void cmp_node_image_verify_outputs(bNodeTree *ntree, bNode *node, bool rl
       }
       if (!link && (!rlayer || sock_index >= NUM_LEGACY_SOCKETS)) {
         MEM_freeN(sock->storage);
-        blender::bke::node_remove_socket(ntree, node, sock);
+        blender::bke::node_remove_socket(*ntree, *node, *sock);
       }
       else {
         blender::bke::node_set_socket_availability(*ntree, *sock, false);
@@ -521,7 +521,7 @@ void register_node_type_cmp_image()
   ntype.labelfunc = node_image_label;
   ntype.flag |= NODE_PREVIEW;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 
 /* **************** RENDER RESULT ******************** */
@@ -842,5 +842,5 @@ void register_node_type_cmp_rlayers()
   ntype.initfunc = node_cmp_rlayers_outputs;
   blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Large);
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

@@ -82,7 +82,7 @@ bNode *add_node(const bContext &C, const StringRef idname, const float2 &locatio
 
   const std::string idname_str = idname;
 
-  bNode *node = bke::node_add_node(&C, &node_tree, idname_str.c_str());
+  bNode *node = bke::node_add_node(&C, node_tree, idname_str.c_str());
   BLI_assert(node && node->typeinfo);
 
   position_node_based_on_mouse(*node, location);
@@ -102,7 +102,7 @@ bNode *add_static_node(const bContext &C, int type, const float2 &location)
 
   node_deselect_all(node_tree);
 
-  bNode *node = bke::node_add_static_node(&C, &node_tree, type);
+  bNode *node = bke::node_add_static_node(&C, node_tree, type);
   BLI_assert(node && node->typeinfo);
 
   position_node_based_on_mouse(*node, location);
@@ -195,7 +195,7 @@ static int add_reroute_exec(bContext *C, wmOperator *op)
   for (const auto item : cuts_per_socket.items()) {
     const Map<bNodeLink *, float2> &cuts = item.value.links;
 
-    bNode *reroute = bke::node_add_static_node(C, &ntree, NODE_REROUTE);
+    bNode *reroute = bke::node_add_static_node(C, ntree, NODE_REROUTE);
 
     bke::node_add_link(ntree,
                        *item.value.from_node,
@@ -535,7 +535,7 @@ static int node_add_object_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  bNodeSocket *sock = bke::node_find_socket(object_node, SOCK_IN, "Object");
+  bNodeSocket *sock = bke::node_find_socket(*object_node, SOCK_IN, "Object");
   if (!sock) {
     BLI_assert_unreachable();
     return OPERATOR_CANCELLED;
@@ -622,7 +622,7 @@ static int node_add_collection_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  bNodeSocket *sock = bke::node_find_socket(collection_node, SOCK_IN, "Collection");
+  bNodeSocket *sock = bke::node_find_socket(*collection_node, SOCK_IN, "Collection");
   if (!sock) {
     BKE_report(op->reports, RPT_WARNING, "Could not find node collection socket");
     return OPERATOR_CANCELLED;

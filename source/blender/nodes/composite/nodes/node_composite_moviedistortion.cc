@@ -182,5 +182,5 @@ void register_node_type_cmp_moviedistortion()
       ntype, std::nullopt, file_ns::storage_free, file_ns::storage_copy);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

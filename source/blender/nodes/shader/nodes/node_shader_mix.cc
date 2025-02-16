@@ -617,5 +617,5 @@ void register_node_type_sh_mix()
   ntype.gather_link_search_ops = file_ns::node_mix_gather_link_searches;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

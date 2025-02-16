@@ -149,7 +149,7 @@ void register_node_tree_type_tex()
 
   tt->rna_ext.srna = &RNA_TextureNodeTree;
 
-  blender::bke::node_tree_type_add(tt);
+  blender::bke::node_tree_type_add(*tt);
 }
 
 /**** Material/Texture trees ****/

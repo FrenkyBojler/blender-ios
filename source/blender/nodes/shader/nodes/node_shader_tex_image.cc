@@ -292,5 +292,5 @@ void register_node_type_sh_tex_image()
   blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Large);
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

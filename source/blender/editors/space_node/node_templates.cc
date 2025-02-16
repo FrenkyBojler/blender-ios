@@ -159,7 +159,7 @@ static void node_remove_linked(Main *bmain, bNodeTree *ntree, bNode *rem_node)
     next = node->next;
 
     if (node->flag & NODE_TEST) {
-      bke::node_remove_node(bmain, ntree, node, true);
+      bke::node_remove_node(bmain, *ntree, *node, true);
     }
   }
 }
@@ -234,7 +234,7 @@ static void node_socket_add_replace(const bContext *C,
     node_from = node_prev;
   }
   else if (!node_from) {
-    node_from = bke::node_add_static_node(C, ntree, type);
+    node_from = bke::node_add_static_node(C, *ntree, type);
     if (node_prev != nullptr) {
       /* If we're replacing existing node, use its location. */
       node_from->location[0] = node_prev->location[0];

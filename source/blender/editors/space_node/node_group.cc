@@ -308,8 +308,8 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
     BLI_remlink(&wgroup->nodes, node);
     BLI_addtail(&ntree->nodes, node);
     const int32_t old_identifier = node->identifier;
-    bke::node_unique_id(ntree, node);
-    bke::node_unique_name(ntree, node);
+    bke::node_unique_id(*ntree, *node);
+    bke::node_unique_name(*ntree, *node);
     node_identifier_map.add(old_identifier, node->identifier);
 
     BKE_ntree_update_tag_node_new(ntree, node);
@@ -449,13 +449,13 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
   }
 
   for (bNode *node : nodes_delayed_free) {
-    bke::node_remove_node(bmain, ntree, node, false);
+    bke::node_remove_node(bmain, *ntree, *node, false);
   }
 
   update_nested_node_refs_after_ungroup(*ntree, *ngroup, *gnode, node_identifier_map);
 
   /* delete the group instance and dereference group tree */
-  bke::node_remove_node(bmain, ntree, gnode, true);
+  bke::node_remove_node(bmain, *ntree, *gnode, true);
 }
 
 static int node_group_ungroup_exec(bContext *C, wmOperator * /*op*/)
@@ -537,8 +537,8 @@ static bool node_group_separate_selected(
       BLI_remlink(&ngroup.nodes, newnode);
       BLI_addtail(&ntree.nodes, newnode);
       const int32_t old_identifier = node->identifier;
-      bke::node_unique_id(&ntree, newnode);
-      bke::node_unique_name(&ntree, newnode);
+      bke::node_unique_id(ntree, *newnode);
+      bke::node_unique_name(ntree, *newnode);
       node_identifier_map.add(old_identifier, newnode->identifier);
     }
     node_map.add_new(node, newnode);
@@ -954,13 +954,13 @@ static void node_group_make_insert_selected(const bContext &C,
     if (bNode *node = group.group_output_node()) {
       return node;
     }
-    bNode *output_node = bke::node_add_static_node(&C, &group, NODE_GROUP_OUTPUT);
+    bNode *output_node = bke::node_add_static_node(&C, group, NODE_GROUP_OUTPUT);
     output_node->location[0] = real_max[0] - center[0] + 50.0f;
     return output_node;
   }();
 
   /* Create new group input node for easier organization of the new nodes inside the group. */
-  bNode *input_node = bke::node_add_static_node(&C, &group, NODE_GROUP_INPUT);
+  bNode *input_node = bke::node_add_static_node(&C, group, NODE_GROUP_INPUT);
   input_node->location[0] = real_min[0] - center[0] - 200.0f;
 
   struct InputSocketInfo {
@@ -1107,8 +1107,8 @@ static void node_group_make_insert_selected(const bContext &C,
 
     BLI_remlink(&ntree.nodes, node);
     BLI_addtail(&group.nodes, node);
-    bke::node_unique_id(&group, node);
-    bke::node_unique_name(&group, node);
+    bke::node_unique_id(group, *node);
+    bke::node_unique_name(group, *node);
 
     node_identifier_map.add(old_identifier, node->identifier);
 
@@ -1221,7 +1221,7 @@ static bNode *node_group_make_from_nodes(const bContext &C,
   BKE_id_move_to_same_lib(*bmain, ngroup->id, ntree.id);
 
   /* make group node */
-  bNode *gnode = bke::node_add_node(&C, &ntree, ntype);
+  bNode *gnode = bke::node_add_node(&C, ntree, ntype);
   gnode->id = (ID *)ngroup;
 
   gnode->location[0] = 0.5f * (min[0] + max[0]);
@@ -1308,7 +1308,7 @@ static int node_group_insert_exec(bContext *C, wmOperator *op)
     if (!group->is_group() || group->id == nullptr) {
       continue;
     }
-    if (bke::node_tree_contains_tree(reinterpret_cast<bNodeTree *>(group->id), ngroup)) {
+    if (bke::node_tree_contains_tree(*reinterpret_cast<bNodeTree *>(group->id), *ngroup)) {
       BKE_reportf(
           op->reports, RPT_WARNING, "Cannot insert group '%s' in '%s'", group->name, gnode->name);
       return OPERATOR_CANCELLED;

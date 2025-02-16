@@ -158,7 +158,7 @@ static void node_register()
   ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.no_muting = true;
   ntype.get_extra_info = node_extra_info;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

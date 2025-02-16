@@ -98,13 +98,13 @@ static void node_shader_update_metallic(bNodeTree *ntree, bNode *node)
   const bool is_physical = (node->custom2 == SHD_PHYSICAL_CONDUCTOR);
 
   bke::node_set_socket_availability(
-      *ntree, *bke::node_find_socket(node, SOCK_IN, "Base Color"), !is_physical);
+      *ntree, *bke::node_find_socket(*node, SOCK_IN, "Base Color"), !is_physical);
   bke::node_set_socket_availability(
-      *ntree, *bke::node_find_socket(node, SOCK_IN, "Edge Tint"), !is_physical);
+      *ntree, *bke::node_find_socket(*node, SOCK_IN, "Edge Tint"), !is_physical);
   bke::node_set_socket_availability(
-      *ntree, *bke::node_find_socket(node, SOCK_IN, "IOR"), is_physical);
+      *ntree, *bke::node_find_socket(*node, SOCK_IN, "IOR"), is_physical);
   bke::node_set_socket_availability(
-      *ntree, *bke::node_find_socket(node, SOCK_IN, "Extinction"), is_physical);
+      *ntree, *bke::node_find_socket(*node, SOCK_IN, "Extinction"), is_physical);
 }
 
 NODE_SHADER_MATERIALX_BEGIN
@@ -168,5 +168,5 @@ void register_node_type_sh_bsdf_metallic()
   ntype.updatefunc = file_ns::node_shader_update_metallic;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

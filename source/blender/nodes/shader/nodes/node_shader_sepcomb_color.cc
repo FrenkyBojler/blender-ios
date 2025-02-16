@@ -112,7 +112,7 @@ void register_node_type_sh_sepcolor()
   ntype.gpu_fn = file_ns::gpu_shader_sepcolor;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 
 /* **************** COMBINE COLOR ******************** */
@@ -217,5 +217,5 @@ void register_node_type_sh_combcolor()
   ntype.gpu_fn = file_ns::gpu_shader_combcolor;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

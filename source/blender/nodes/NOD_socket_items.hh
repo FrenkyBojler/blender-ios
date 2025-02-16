@@ -256,13 +256,13 @@ template<typename Accessor>
   if (extend_socket.is_input()) {
     const std::string item_identifier = get_socket_identifier<Accessor>(*item, SOCK_IN);
     bNodeSocket *new_socket = bke::node_find_socket(
-        &extend_node, SOCK_IN, item_identifier.c_str());
+        extend_node, SOCK_IN, item_identifier.c_str());
     link.tosock = new_socket;
   }
   else {
     const std::string item_identifier = get_socket_identifier<Accessor>(*item, SOCK_OUT);
     bNodeSocket *new_socket = bke::node_find_socket(
-        &extend_node, SOCK_OUT, item_identifier.c_str());
+        extend_node, SOCK_OUT, item_identifier.c_str());
     link.fromsock = new_socket;
   }
   return true;

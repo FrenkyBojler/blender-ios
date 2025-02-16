@@ -86,5 +86,5 @@ void register_node_type_sh_bsdf_refraction()
   ntype.gpu_fn = file_ns::node_shader_gpu_bsdf_refraction;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

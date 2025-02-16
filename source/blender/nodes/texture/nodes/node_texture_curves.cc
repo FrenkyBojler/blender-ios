@@ -65,7 +65,7 @@ void register_node_type_tex_curve_time()
   ntype.init_exec_fn = node_initexec_curves;
   ntype.exec_fn = time_exec;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 
 /* **************** CURVE RGB  ******************** */
@@ -118,5 +118,5 @@ void register_node_type_tex_curve_rgb()
   ntype.init_exec_fn = node_initexec_curves;
   ntype.exec_fn = rgb_exec;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

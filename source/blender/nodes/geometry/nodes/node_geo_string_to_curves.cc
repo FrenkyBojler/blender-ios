@@ -392,7 +392,7 @@ static void node_register()
   blender::bke::node_type_storage(
       ntype, "NodeGeometryStringToCurves", node_free_standard_storage, node_copy_standard_storage);
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

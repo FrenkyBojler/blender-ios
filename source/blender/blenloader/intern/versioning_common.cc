@@ -211,11 +211,11 @@ bNode &version_node_add_empty(bNodeTree &ntree, const char *idname)
   bNode *node = MEM_cnew<bNode>(__func__);
   node->runtime = MEM_new<blender::bke::bNodeRuntime>(__func__);
   BLI_addtail(&ntree.nodes, node);
-  blender::bke::node_unique_id(&ntree, node);
+  blender::bke::node_unique_id(ntree, *node);
 
   STRNCPY(node->idname, idname);
   DATA_(ntype->ui_name).copy_utf8_truncated(node->name);
-  blender::bke::node_unique_name(&ntree, node);
+  blender::bke::node_unique_name(ntree, *node);
 
   node->flag = NODE_SELECT | NODE_OPTIONS | NODE_INIT;
   node->width = ntype->width;
@@ -292,12 +292,12 @@ bNodeSocket *version_node_add_socket_if_not_exist(bNodeTree *ntree,
                                                   const char *identifier,
                                                   const char *name)
 {
-  bNodeSocket *sock = blender::bke::node_find_socket(node, eNodeSocketInOut(in_out), identifier);
+  bNodeSocket *sock = blender::bke::node_find_socket(*node, eNodeSocketInOut(in_out), identifier);
   if (sock != nullptr) {
     return sock;
   }
-  return blender::bke::node_add_static_socket(
-      ntree, node, eNodeSocketInOut(in_out), type, subtype, identifier, name);
+  return blender::bke::node_add_static_socket(*
+      ntree, *node, eNodeSocketInOut(in_out), type, subtype, identifier, name);
 }
 
 void version_node_id(bNodeTree *ntree, const int node_type, const char *new_name)
@@ -386,7 +386,7 @@ void node_tree_relink_with_socket_id_map(bNodeTree &ntree,
       bNodeSocket *old_socket = link->tosock;
       if (old_socket->is_available()) {
         if (const std::string *new_identifier = map.lookup_ptr_as(old_socket->identifier)) {
-          bNodeSocket *new_socket = blender::bke::node_find_socket(
+          bNodeSocket *new_socket = blender::bke::node_find_socket(*
               &new_node, SOCK_IN, *new_identifier);
           link->tonode = &new_node;
           link->tosock = new_socket;
@@ -398,7 +398,7 @@ void node_tree_relink_with_socket_id_map(bNodeTree &ntree,
       bNodeSocket *old_socket = link->fromsock;
       if (old_socket->is_available()) {
         if (const std::string *new_identifier = map.lookup_ptr_as(old_socket->identifier)) {
-          bNodeSocket *new_socket = blender::bke::node_find_socket(
+          bNodeSocket *new_socket = blender::bke::node_find_socket(*
               &new_node, SOCK_OUT, *new_identifier);
           link->fromnode = &new_node;
           link->fromsock = new_socket;
@@ -433,7 +433,7 @@ void add_realize_instances_before_socket(bNodeTree *ntree,
     }
 
     bNode *realize_node = blender::bke::node_add_static_node(
-        nullptr, ntree, GEO_NODE_REALIZE_INSTANCES);
+        nullptr, *ntree, GEO_NODE_REALIZE_INSTANCES);
     realize_node->parent = node->parent;
     realize_node->locx_legacy = node->locx_legacy - 100;
     realize_node->locy_legacy = node->locy_legacy;
@@ -555,7 +555,7 @@ void version_update_node_input(
    * Do this after the link update in case it changes the identifier. */
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
     if (check_node(node)) {
-      bNodeSocket *input = blender::bke::node_find_socket(node, SOCK_IN, socket_identifier);
+      bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, socket_identifier);
       if (input != nullptr) {
         update_input(node, input);
       }

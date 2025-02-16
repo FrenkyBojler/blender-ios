@@ -315,5 +315,5 @@ void register_node_type_cmp_ellipsemask()
       ntype, "NodeEllipseMask", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

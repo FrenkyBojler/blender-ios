@@ -133,5 +133,5 @@ void register_node_type_sh_subsurface_scattering()
   ntype.updatefunc = file_ns::node_shader_update_subsurface_scattering;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

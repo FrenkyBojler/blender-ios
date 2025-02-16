@@ -165,10 +165,10 @@ static void node_shader_update_vector_math(bNodeTree *ntree, bNode *node)
 {
   bNodeSocket *sockB = (bNodeSocket *)BLI_findlink(&node->inputs, 1);
   bNodeSocket *sockC = (bNodeSocket *)BLI_findlink(&node->inputs, 2);
-  bNodeSocket *sockScale = bke::node_find_socket(node, SOCK_IN, "Scale");
+  bNodeSocket *sockScale = bke::node_find_socket(*node, SOCK_IN, "Scale");
 
-  bNodeSocket *sockVector = bke::node_find_socket(node, SOCK_OUT, "Vector");
-  bNodeSocket *sockValue = bke::node_find_socket(node, SOCK_OUT, "Value");
+  bNodeSocket *sockVector = bke::node_find_socket(*node, SOCK_OUT, "Vector");
+  bNodeSocket *sockValue = bke::node_find_socket(*node, SOCK_OUT, "Value");
 
   bke::node_set_socket_availability(*ntree,
                                     *sockB,
@@ -573,5 +573,5 @@ void register_node_type_sh_vect_math()
   ntype.eval_inverse_elem = file_ns::node_eval_inverse_elem;
   ntype.eval_inverse = file_ns::node_eval_inverse;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
