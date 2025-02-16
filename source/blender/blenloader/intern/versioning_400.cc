@@ -449,11 +449,8 @@ static void versioning_eevee_material_shadow_none(Material *material)
   bNodeSocket *mix_in_2 = static_cast<bNodeSocket *>(BLI_findlink(&mix_node.inputs, 2));
   bNodeSocket *mix_out = static_cast<bNodeSocket *>(BLI_findlink(&mix_node.outputs, 0));
   if (old_out_sock->link != nullptr) {
-    blender::bke::node_add_link(*ntree,
-                                *old_out_sock->link->fromnode,
-                                *old_out_sock->link->fromsock,
-                                mix_node,
-                                *mix_in_1);
+    blender::bke::node_add_link(
+        *ntree, *old_out_sock->link->fromnode, *old_out_sock->link->fromsock, mix_node, *mix_in_1);
     if (out_sock->link != nullptr) {
       blender::bke::node_remove_link(ntree, *out_sock->link);
     }
