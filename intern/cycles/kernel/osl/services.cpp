@@ -1106,9 +1106,10 @@ bool OSLRenderServices::get_attribute(OSL::ShaderGlobals *sg,
 
   ShaderData *sd = globals->sd;
   const ThreadKernelGlobalsCPU *kg = globals->kg;
-  int object;
 
   /* lookup of attribute on another object */
+  uint attr_offset;
+  uint attr_type;
   if (object_name != u_empty) {
     const OSLGlobals::ObjectNameMap::iterator it = kg->osl.globals->object_name_map.find(
         object_name);
@@ -1117,15 +1118,24 @@ bool OSLRenderServices::get_attribute(OSL::ShaderGlobals *sg,
       return false;
     }
 
-    object = it->second;
+    attr_offset = object_attribute_map_offset(kg, it->second);
+    attr_type = PRIMITIVE_NONE;
+  }
+  else if (sd->object != OBJECT_NONE) {
+    attr_offset = object_attribute_map_offset(kg, sd->object);
+    attr_type = sd->type;
+  }
+  else if (sd->lamp != LAMP_NONE) {
+    attr_offset = lamp_attribute_map_offset(kg, sd->lamp);
+    attr_type = PRIMITIVE_NONE;
   }
   else {
-    object = sd->object;
+    return false;
   }
 
   /* find attribute on object */
   const AttributeDescriptor desc = find_attribute(
-      kg, object, sd->prim, object == sd->object ? sd->type : PRIMITIVE_NONE, name.hash());
+      kg, attr_offset, sd->prim, attr_type, name.hash());
   if (desc.offset != ATTR_STD_NOT_FOUND) {
     return get_object_attribute(kg, sd, desc, type, derivatives, val);
   }

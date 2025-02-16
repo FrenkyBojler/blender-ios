@@ -30,16 +30,8 @@ ccl_device AttributeDescriptor svm_node_attr_init(KernelGlobals kg,
 
   AttributeDescriptor desc;
 
-  if (sd->object != OBJECT_NONE) {
-    desc = find_attribute(kg, sd, node.y);
-    if (desc.offset == ATTR_STD_NOT_FOUND) {
-      desc = attribute_not_found();
-      desc.offset = 0;
-      desc.type = (NodeAttributeType)node.w;
-    }
-  }
-  else {
-    /* background */
+  desc = find_attribute(kg, sd, node.y);
+  if (desc.offset == ATTR_STD_NOT_FOUND) {
     desc = attribute_not_found();
     desc.offset = 0;
     desc.type = (NodeAttributeType)node.w;

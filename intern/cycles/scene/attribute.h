@@ -256,8 +256,8 @@ class AttributeRequestSet {
   void add(AttributeRequestSet &reqs);
   void add_standard(ustring name);
 
-  bool find(ustring name);
-  bool find(AttributeStandard std);
+  bool find(ustring name) const;
+  bool find(AttributeStandard std) const;
 
   size_t size();
   void clear();

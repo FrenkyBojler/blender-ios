@@ -47,15 +47,15 @@ ccl_device_inline uint object_attribute_map_offset(KernelGlobals kg, const int o
   return kernel_data_fetch(objects, object).attribute_map_offset;
 }
 
-ccl_device_inline AttributeDescriptor find_attribute(
-    KernelGlobals kg, const int object, const int prim, const int type, const uint64_t id)
+ccl_device_inline uint lamp_attribute_map_offset(KernelGlobals kg, const int lamp)
 {
-  if (object == OBJECT_NONE) {
-    return attribute_not_found();
-  }
+  return kernel_data_fetch(lights, lamp).attribute_map_offset;
+}
 
+ccl_device_inline AttributeDescriptor find_attribute(
+    KernelGlobals kg, int attr_offset, const int prim, const int type, const uint64_t id)
+{
   /* for SVM, find attribute by unique id */
-  uint attr_offset = object_attribute_map_offset(kg, object);
   attr_offset += attribute_primitive_type(kg, prim, type);
   AttributeMap attr_map = kernel_data_fetch(attributes_map, attr_offset);
 
@@ -95,7 +95,18 @@ ccl_device_inline AttributeDescriptor find_attribute(KernelGlobals kg,
                                                      const ccl_private ShaderData *sd,
                                                      const uint64_t id)
 {
-  return find_attribute(kg, sd->object, sd->prim, sd->type, id);
+  uint attr_offset = 0;
+  if (sd->object != OBJECT_NONE) {
+    attr_offset = object_attribute_map_offset(kg, sd->object);
+  }
+  else if (sd->lamp != LAMP_NONE) {
+    attr_offset = lamp_attribute_map_offset(kg, sd->lamp);
+  }
+  else {
+    return attribute_not_found();
+  }
+
+  return find_attribute(kg, attr_offset, sd->prim, sd->type, id);
 }
 
 /* Transform matrix attribute on meshes */

@@ -185,12 +185,7 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
     if (!((layer_flag & view_layer.holdout_layer) && (layer_flag & view_layer.exclude_layer)))
 #endif
     {
-      sync_light(b_parent,
-                 persistent_id,
-                 b_ob_info,
-                 is_instance ? b_instance.random_id() : 0,
-                 tfm,
-                 use_portal);
+      sync_light(b_parent, persistent_id, b_ob_info, b_instance, tfm, use_portal);
     }
 
     return nullptr;
@@ -276,7 +271,9 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
 
   /* special case not tracked by object update flags */
 
-  if (sync_object_attributes(b_instance, object)) {
+  if (sync_object_attributes(
+          b_instance, object->get_geometry()->needed_attributes(), object->attributes))
+  {
     object_updated = true;
   }
 
@@ -396,13 +393,11 @@ static float4 lookup_instance_property(BL::DepsgraphObjectInstance &b_instance,
   return value;
 }
 
-bool BlenderSync::sync_object_attributes(BL::DepsgraphObjectInstance &b_instance, Object *object)
+bool BlenderSync::sync_object_attributes(BL::DepsgraphObjectInstance &b_instance,
+                                         const AttributeRequestSet &requests,
+                                         vector<ParamValue> &attributes)
 {
-  /* Find which attributes are needed. */
-  AttributeRequestSet requests = object->get_geometry()->needed_attributes();
-
   /* Delete attributes that became unnecessary. */
-  vector<ParamValue> &attributes = object->attributes;
   bool changed = false;
 
   for (int i = attributes.size() - 1; i >= 0; i--) {

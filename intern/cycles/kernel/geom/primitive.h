@@ -35,6 +35,15 @@ ccl_device_forceinline float primitive_surface_attribute_float(KernelGlobals kg,
                                                                ccl_private float *dfdx,
                                                                ccl_private float *dfdy)
 {
+  if (desc.element & (ATTR_ELEMENT_OBJECT | ATTR_ELEMENT_MESH)) {
+    if (dfdx) {
+      *dfdx = 0.0f;
+    }
+    if (dfdy) {
+      *dfdy = 0.0f;
+    }
+    return kernel_data_fetch(attributes_float, desc.offset);
+  }
   if (sd->type & PRIMITIVE_TRIANGLE) {
     if (subd_triangle_patch(kg, sd->prim) == ~0) {
       return triangle_attribute_float(kg, sd, desc, dfdx, dfdy);
@@ -68,6 +77,15 @@ ccl_device_forceinline float2 primitive_surface_attribute_float2(KernelGlobals k
                                                                  ccl_private float2 *dfdx,
                                                                  ccl_private float2 *dfdy)
 {
+  if (desc.element & (ATTR_ELEMENT_OBJECT | ATTR_ELEMENT_MESH)) {
+    if (dfdx) {
+      *dfdx = zero_float2();
+    }
+    if (dfdy) {
+      *dfdy = zero_float2();
+    }
+    return kernel_data_fetch(attributes_float2, desc.offset);
+  }
   if (sd->type & PRIMITIVE_TRIANGLE) {
     if (subd_triangle_patch(kg, sd->prim) == ~0) {
       return triangle_attribute_float2(kg, sd, desc, dfdx, dfdy);
@@ -101,6 +119,15 @@ ccl_device_forceinline float3 primitive_surface_attribute_float3(KernelGlobals k
                                                                  ccl_private float3 *dfdx,
                                                                  ccl_private float3 *dfdy)
 {
+  if (desc.element & (ATTR_ELEMENT_OBJECT | ATTR_ELEMENT_MESH)) {
+    if (dfdx) {
+      *dfdx = zero_float3();
+    }
+    if (dfdy) {
+      *dfdy = zero_float3();
+    }
+    return kernel_data_fetch(attributes_float3, desc.offset);
+  }
   if (sd->type & PRIMITIVE_TRIANGLE) {
     if (subd_triangle_patch(kg, sd->prim) == ~0) {
       return triangle_attribute_float3(kg, sd, desc, dfdx, dfdy);
@@ -134,6 +161,15 @@ ccl_device_forceinline float4 primitive_surface_attribute_float4(KernelGlobals k
                                                                  ccl_private float4 *dfdx,
                                                                  ccl_private float4 *dfdy)
 {
+  if (desc.element & (ATTR_ELEMENT_OBJECT | ATTR_ELEMENT_MESH)) {
+    if (dfdx) {
+      *dfdx = zero_float4();
+    }
+    if (dfdy) {
+      *dfdy = zero_float4();
+    }
+    return kernel_data_fetch(attributes_float4, desc.offset);
+  }
   if (sd->type & PRIMITIVE_TRIANGLE) {
     if (subd_triangle_patch(kg, sd->prim) == ~0) {
       return triangle_attribute_float4(kg, sd, desc, dfdx, dfdy);

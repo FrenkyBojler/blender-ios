@@ -254,7 +254,8 @@ class GeometryManager {
                              DeviceScene *dscene,
                              Scene *scene,
                              vector<AttributeRequestSet> &geom_attributes,
-                             vector<AttributeRequestSet> &object_attributes);
+                             vector<AttributeRequestSet> &object_attributes,
+                             vector<AttributeRequestSet> &light_attributes);
 
   /* Compute verts/triangles/curves offsets in global arrays. */
   void geom_calc_offset(Scene *scene, BVHLayout bvh_layout);

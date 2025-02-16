@@ -197,6 +197,17 @@ size_t Attribute::element_size(Geometry *geom, AttributePrimitive prim) const
     return buffer.size() / data_sizeof();
   }
 
+  if (geom == nullptr) {
+    switch (element) {
+      case ATTR_ELEMENT_OBJECT:
+      case ATTR_ELEMENT_MESH:
+      case ATTR_ELEMENT_VOXEL:
+        return 1;
+      default:
+        return 0;
+    }
+  }
+
   size_t size = 0;
 
   switch (element) {
@@ -532,7 +543,10 @@ Attribute *AttributeSet::add(AttributeStandard std, ustring name)
     name = Attribute::standard_name(std);
   }
 
-  if (geometry->is_mesh()) {
+  if (geometry == nullptr) {
+    assert(0);
+  }
+  else if (geometry->is_mesh()) {
     switch (std) {
       case ATTR_STD_VERTEX_NORMAL:
         attr = add(name, TypeNormal, ATTR_ELEMENT_VERTEX);
@@ -797,7 +811,9 @@ void AttributeSet::update(AttributeSet &&new_attributes)
   }
 
   /* If all attributes were replaced, transform is no longer applied. */
-  geometry->transform_applied = false;
+  if (geometry != nullptr) {
+    geometry->transform_applied = false;
+  }
 }
 
 void AttributeSet::clear_modified()
@@ -941,7 +957,7 @@ void AttributeRequestSet::add_standard(ustring name)
   }
 }
 
-bool AttributeRequestSet::find(ustring name)
+bool AttributeRequestSet::find(ustring name) const
 {
   for (const AttributeRequest &req : requests) {
     if (req.name == name) {
@@ -952,7 +968,7 @@ bool AttributeRequestSet::find(ustring name)
   return false;
 }
 
-bool AttributeRequestSet::find(AttributeStandard std)
+bool AttributeRequestSet::find(AttributeStandard std) const
 {
   for (const AttributeRequest &req : requests) {
     if (req.std == std) {

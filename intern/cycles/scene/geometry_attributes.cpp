@@ -141,7 +141,7 @@ static void emit_attribute_mapping(AttributeMap *attr_map,
 {
   emit_attribute_map_entry(attr_map, index, id, req.type, req.desc);
 
-  if (geom->is_mesh()) {
+  if (geom && geom->is_mesh()) {
     Mesh *mesh = static_cast<Mesh *>(geom);
     if (mesh->get_num_subd_faces()) {
       emit_attribute_map_entry(attr_map, index + 1, id, req.subd_type, req.subd_desc);
@@ -153,7 +153,8 @@ void GeometryManager::update_svm_attributes(Device * /*unused*/,
                                             DeviceScene *dscene,
                                             Scene *scene,
                                             vector<AttributeRequestSet> &geom_attributes,
-                                            vector<AttributeRequestSet> &object_attributes)
+                                            vector<AttributeRequestSet> &object_attributes,
+                                            vector<AttributeRequestSet> &light_attributes)
 {
   /* for SVM, the attributes_map table is used to lookup the offset of an
    * attribute, based on a unique shader attribute id. */
@@ -194,6 +195,19 @@ void GeometryManager::update_svm_attributes(Device * /*unused*/,
     else {
       object->attr_map_offset = attr_map_size;
       attr_map_size += (object_attributes[i].size() + 1) * ATTR_PRIM_TYPES;
+    }
+  }
+
+  for (size_t i = 0; i < scene->lights.size(); i++) {
+    Light *light = scene->lights[i];
+
+    /* only allocate a table for the light if it actually has attributes */
+    if (light_attributes[i].size() == 0) {
+      light->attr_map_offset = 0;
+    }
+    else {
+      light->attr_map_offset = attr_map_size;
+      attr_map_size += (light_attributes[i].size() + 1) * ATTR_PRIM_TYPES;
     }
   }
 
@@ -263,6 +277,31 @@ void GeometryManager::update_svm_attributes(Device * /*unused*/,
       }
 
       emit_attribute_map_terminator(attr_map, index, true, object->geometry->attr_map_offset);
+    }
+  }
+
+  for (size_t i = 0; i < scene->lights.size(); i++) {
+    Light *light = scene->lights[i];
+    AttributeRequestSet &attributes = light_attributes[i];
+
+    /* set light attributes */
+    if (attributes.size() > 0) {
+      size_t index = light->attr_map_offset;
+
+      for (AttributeRequest &req : attributes.requests) {
+        uint64_t id;
+        if (req.std == ATTR_STD_NONE) {
+          id = scene->shader_manager->get_attribute_id(req.name);
+        }
+        else {
+          id = scene->shader_manager->get_attribute_id(req.std);
+        }
+
+        emit_attribute_mapping(attr_map, index, id, req, nullptr);
+        index += ATTR_PRIM_TYPES;
+      }
+
+      emit_attribute_map_terminator(attr_map, index, false, 0);
     }
   }
 
@@ -384,7 +423,10 @@ void GeometryManager::update_attribute_element_offset(Geometry *geom,
 
     /* mesh vertex/curve index is global, not per object, so we sneak
      * a correction for that in here */
-    if (geom->is_mesh()) {
+    if (geom == nullptr) {
+      /* Lights only support per-light attributes, so nothing to do here. */
+    }
+    else if (geom->is_mesh()) {
       Mesh *mesh = static_cast<Mesh *>(geom);
       if (mesh->subdivision_type == Mesh::SUBDIVISION_CATMULL_CLARK &&
           desc.flags & ATTR_SUBDIVIDED)
@@ -540,6 +582,33 @@ void GeometryManager::device_update_attributes(Device *device,
     }
   }
 
+  /* convert light attributes to use the same data structures as geometry ones */
+  vector<AttributeRequestSet> light_attributes;
+  vector<AttributeSet> light_attribute_values;
+
+  light_attributes.reserve(scene->lights.size());
+  light_attribute_values.reserve(scene->lights.size());
+
+  for (size_t i = 0; i < scene->lights.size(); i++) {
+    Light *light = scene->lights[i];
+    light_attributes.push_back(light->get_effective_shader(scene)->attributes);
+    light_attribute_values.push_back(AttributeSet(nullptr, ATTR_PRIM_GEOMETRY));
+
+    AttributeRequestSet &attributes = light_attributes[i];
+    AttributeSet &values = light_attribute_values[i];
+
+    for (size_t j = 0; j < light->attributes.size(); j++) {
+      const ParamValue &param = light->attributes[j];
+
+      /* add attributes that are requested */
+      if (attributes.find(param.name())) {
+        Attribute *attr = values.add(param.name(), param.type(), ATTR_ELEMENT_OBJECT);
+        assert(param.datasize() == attr->buffer.size());
+        memcpy(attr->buffer.data(), param.data(), param.datasize());
+      }
+    }
+  }
+
   /* mesh attribute are stored in a single array per data type. here we fill
    * those arrays, and set the offset and element type to create attribute
    * maps next */
@@ -589,6 +658,19 @@ void GeometryManager::device_update_attributes(Device *device,
 
     for (Attribute &attr : object_attribute_values[i].attributes) {
       update_attribute_element_size(object->geometry,
+                                    &attr,
+                                    ATTR_PRIM_GEOMETRY,
+                                    &attr_float_size,
+                                    &attr_float2_size,
+                                    &attr_float3_size,
+                                    &attr_float4_size,
+                                    &attr_uchar4_size);
+    }
+  }
+
+  for (AttributeSet &values : light_attribute_values) {
+    for (Attribute &attr : values.attributes) {
+      update_attribute_element_size(nullptr,
                                     &attr,
                                     ATTR_PRIM_GEOMETRY,
                                     &attr_float_size,
@@ -721,12 +803,50 @@ void GeometryManager::device_update_attributes(Device *device,
     }
   }
 
+  for (size_t i = 0; i < scene->lights.size(); i++) {
+    AttributeRequestSet &attributes = light_attributes[i];
+    AttributeSet &values = light_attribute_values[i];
+
+    for (AttributeRequest &req : attributes.requests) {
+      Attribute *attr = values.find(req);
+
+      if (attr) {
+        attr->modified |= attributes_need_realloc[Attribute::kernel_type(*attr)];
+      }
+
+      update_attribute_element_offset(nullptr,
+                                      dscene->attributes_float,
+                                      attr_float_offset,
+                                      dscene->attributes_float2,
+                                      attr_float2_offset,
+                                      dscene->attributes_float3,
+                                      attr_float3_offset,
+                                      dscene->attributes_float4,
+                                      attr_float4_offset,
+                                      dscene->attributes_uchar4,
+                                      attr_uchar4_offset,
+                                      attr,
+                                      ATTR_PRIM_GEOMETRY,
+                                      req.type,
+                                      req.desc);
+
+      /* light attributes don't care about subdivision */
+      req.subd_type = req.type;
+      req.subd_desc = req.desc;
+
+      if (progress.get_cancel()) {
+        return;
+      }
+    }
+  }
+
   /* create attribute lookup maps */
   if (scene->shader_manager->use_osl()) {
     update_osl_globals(device, scene);
   }
 
-  update_svm_attributes(device, dscene, scene, geom_attributes, object_attributes);
+  update_svm_attributes(
+      device, dscene, scene, geom_attributes, object_attributes, light_attributes);
 
   if (progress.get_cancel()) {
     return;

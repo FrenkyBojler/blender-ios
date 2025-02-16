@@ -152,7 +152,9 @@ class BlenderSync {
                        BL::MeshSequenceCacheModifier &b_mesh_cache,
                        bool has_subdivision);
 
-  bool sync_object_attributes(BL::DepsgraphObjectInstance &b_instance, Object *object);
+  bool sync_object_attributes(BL::DepsgraphObjectInstance &b_instance,
+                              const AttributeRequestSet &requests,
+                              vector<ParamValue> &attributes);
 
   /* Volume */
   void sync_volume(BObjectInfo &b_ob_info, Volume *volume);
@@ -209,7 +211,7 @@ class BlenderSync {
   void sync_light(BL::Object &b_parent,
                   int persistent_id[OBJECT_PERSISTENT_ID_SIZE],
                   BObjectInfo &b_ob_info,
-                  const int random_id,
+                  BL::DepsgraphObjectInstance &b_instance,
                   Transform &tfm,
                   bool *use_portal);
   void sync_background_light(BL::SpaceView3D &b_v3d, bool use_portal);

@@ -15,7 +15,7 @@ CCL_NAMESPACE_BEGIN
 void BlenderSync::sync_light(BL::Object &b_parent,
                              int persistent_id[OBJECT_PERSISTENT_ID_SIZE],
                              BObjectInfo &b_ob_info,
-                             const int random_id,
+                             BL::DepsgraphObjectInstance &b_instance,
                              Transform &tfm,
                              bool *use_portal)
 {
@@ -123,7 +123,7 @@ void BlenderSync::sync_light(BL::Object &b_parent,
   light->set_max_bounces(get_int(clight, "max_bounces"));
 
   if (b_ob_info.real_object != b_ob_info.iter_object) {
-    light->set_random_id(random_id);
+    light->set_random_id(b_instance.random_id());
   }
   else {
     light->set_random_id(hash_uint2(hash_string(b_ob_info.real_object.name().c_str()), 0));
@@ -159,6 +159,9 @@ void BlenderSync::sync_light(BL::Object &b_parent,
       BlenderLightLink::get_light_set_membership(PointerRNA_NULL, b_ob_info.real_object));
   light->set_shadow_set_membership(
       BlenderLightLink::get_shadow_set_membership(PointerRNA_NULL, b_ob_info.real_object));
+
+  /* Attributes */
+  sync_object_attributes(b_instance, light->needed_attributes(), light->attributes);
 
   /* tag */
   light->tag_update(scene);

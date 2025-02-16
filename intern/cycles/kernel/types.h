@@ -1618,6 +1618,7 @@ struct KernelLight {
     KernelAreaLight area;
     KernelDistantLight distant;
   };
+  uint attribute_map_offset;
   uint64_t light_set_membership;
   uint64_t shadow_set_membership;
 };

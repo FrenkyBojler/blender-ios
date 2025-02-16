@@ -77,7 +77,13 @@ class Light : public Node {
   /* Normalize power by the surface area of the light. */
   NODE_SOCKET_API(bool, normalize)
 
+  /* Attributes */
+  vector<ParamValue> attributes;
+  AttributeRequestSet needed_attributes();
+
   void tag_update(Scene *scene);
+
+  Shader *get_effective_shader(const Scene *scene) const;
 
   /* Check whether the light has contribution the scene. */
   bool has_contribution(Scene *scene);
@@ -92,6 +98,12 @@ class Light : public Node {
   float3 get_axisu() const;
   float3 get_axisv() const;
 
+ protected:
+  /* Reference to the attribute map with light attributes,
+   * or 0 if none. Set in update_svm_attributes. */
+  size_t attr_map_offset;
+
+  friend class GeometryManager;
   friend class LightManager;
   friend class LightTree;
 };

@@ -1395,17 +1395,26 @@ ccl_device_extern bool osl_get_attribute(ccl_private ShaderGlobals *sg,
 {
   KernelGlobals kg = nullptr;
   ccl_private ShaderData *const sd = sg->sd;
-  int object;
 
+  uint attr_offset;
+  uint attr_type;
   if (object_name != DeviceStrings::_emptystring_) {
     /* TODO: Get object index from name */
     return false;
   }
+  else if (sd->object != OBJECT_NONE) {
+    attr_offset = object_attribute_map_offset(kg, sd->object);
+    attr_type = sd->type;
+  }
+  else if (sd->lamp != LAMP_NONE) {
+    attr_offset = lamp_attribute_map_offset(kg, sd->lamp);
+    attr_type = PRIMITIVE_NONE;
+  }
   else {
-    object = sd->object;
+    return false;
   }
 
-  const AttributeDescriptor desc = find_attribute(kg, object, sd->prim, sd->type, name);
+  const AttributeDescriptor desc = find_attribute(kg, attr_offset, sd->prim, attr_type, name);
   if (desc.offset != ATTR_STD_NOT_FOUND) {
     return get_object_attribute(kg, sd, desc, type, derivatives, res);
   }

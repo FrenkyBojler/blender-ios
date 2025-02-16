@@ -144,6 +144,16 @@ NODE_DEFINE(Light)
 Light::Light() : Node(get_node_type())
 {
   dereference_all_used_nodes();
+  attr_map_offset = 0;
+}
+
+AttributeRequestSet Light::needed_attributes()
+{
+  AttributeRequestSet result;
+  if (shader != nullptr) {
+    result.add(shader->attributes);
+  }
+  return result;
 }
 
 void Light::tag_update(Scene *scene)
@@ -151,6 +161,14 @@ void Light::tag_update(Scene *scene)
   if (is_modified()) {
     scene->light_manager->tag_update(scene, LightManager::LIGHT_MODIFIED);
   }
+}
+
+Shader *Light::get_effective_shader(const Scene *scene) const
+{
+  if (shader != nullptr) {
+    return shader;
+  }
+  return scene->default_light;
 }
 
 bool Light::has_contribution(Scene *scene)
@@ -165,8 +183,7 @@ bool Light::has_contribution(Scene *scene)
     return true;
   }
 
-  const Shader *effective_shader = (shader) ? shader : scene->default_light;
-  return !is_zero(effective_shader->emission_estimate);
+  return !is_zero(get_effective_shader(scene)->emission_estimate);
 }
 
 bool Light::has_light_linking() const
@@ -1208,8 +1225,7 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
       continue;
     }
 
-    Shader *shader = (light->shader) ? light->shader : scene->default_light;
-    int shader_id = scene->shader_manager->get_shader_id(shader);
+    int shader_id = scene->shader_manager->get_shader_id(light->get_effective_shader(scene));
     const float random = (float)light->random_id * (1.0f / (float)0xFFFFFFFF);
 
     if (!light->cast_shadow) {
@@ -1399,6 +1415,8 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
 
     klights[light_index].light_set_membership = light->light_set_membership;
     klights[light_index].shadow_set_membership = light->shadow_set_membership;
+
+    klights[light_index].attribute_map_offset = light->attr_map_offset;
 
     light_index++;
   }
