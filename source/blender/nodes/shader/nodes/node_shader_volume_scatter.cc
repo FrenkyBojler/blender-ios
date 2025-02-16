@@ -65,7 +65,8 @@ static void node_shader_update_scatter(bNodeTree *ntree, bNode *node)
 
   LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
     if (STR_ELEM(sock->name, "IOR", "Backscatter")) {
-      bke::node_set_socket_availability(*ntree, *sock, phase_function == SHD_PHASE_FOURNIER_FORAND);
+      bke::node_set_socket_availability(
+          *ntree, *sock, phase_function == SHD_PHASE_FOURNIER_FORAND);
     }
     else if (STR_ELEM(sock->name, "Anisotropy")) {
       bke::node_set_socket_availability(
