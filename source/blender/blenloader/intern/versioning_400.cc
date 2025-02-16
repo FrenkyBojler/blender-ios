@@ -2626,9 +2626,9 @@ static void change_output_socket_to_rotation_type(bNodeTree &ntree,
     link->fromnode = convert;
     link->fromsock = blender::bke::node_find_socket(convert, SOCK_OUT, "Euler");
 
-    blender::bke::node_add_link(*&ntree,
-                                *&node,
-                                *&socket,
+    blender::bke::node_add_link(ntree,
+                                node,
+                                socket,
                                 *convert,
                                 *blender::bke::node_find_socket(convert, SOCK_IN, "Rotation"));
   }
