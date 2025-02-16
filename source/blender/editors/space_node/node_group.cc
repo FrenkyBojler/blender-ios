@@ -563,7 +563,7 @@ static bool node_group_separate_selected(
     }
   }
   if (!make_copy) {
-    bke::node_rebuild_id_vector(&ngroup);
+    bke::node_rebuild_id_vector(ngroup);
   }
 
   /* add internal links to the ntree */
@@ -1115,7 +1115,7 @@ static void node_group_make_insert_selected(const bContext &C,
     BKE_ntree_update_tag_node_removed(&ntree);
     BKE_ntree_update_tag_node_new(&group, node);
   }
-  bke::node_rebuild_id_vector(&ntree);
+  bke::node_rebuild_id_vector(ntree);
 
   /* Update input and output node first, since the group node declaration can depend on them. */
   nodes::update_node_declaration_and_sockets(group, *input_node);

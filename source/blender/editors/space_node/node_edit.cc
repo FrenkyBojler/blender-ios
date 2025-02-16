@@ -2027,7 +2027,7 @@ static int node_delete_reconnect_exec(bContext *C, wmOperator * /*op*/)
 
   LISTBASE_FOREACH_MUTABLE (bNode *, node, &snode->edittree->nodes) {
     if (node->flag & SELECT) {
-      blender::bke::node_internal_relink(snode->edittree, node);
+      blender::bke::node_internal_relink(*snode->edittree, *node);
       bke::node_remove_node(bmain, snode->edittree, node, true);
 
       /* Since this node might have been animated, and that animation data been

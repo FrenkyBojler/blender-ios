@@ -898,14 +898,14 @@ void node_tree_free_tree(bNodeTree *ntree);
 bNodeTree *node_tree_copy_tree_ex(const bNodeTree *ntree, Main *bmain, bool do_id_user);
 bNodeTree *node_tree_copy_tree(Main *bmain, const bNodeTree *ntree);
 
-void node_tree_free_local_node(bNodeTree *ntree, bNode *node);
+void node_tree_free_local_node(bNodeTree &ntree, bNode &node);
 
-void node_tree_update_all_new(Main *main);
+void node_tree_update_all_new(Main &main);
 
 /** Update asset meta-data cache of data-block properties. */
 void node_update_asset_metadata(bNodeTree &node_tree);
 
-void node_tree_node_flag_set(const bNodeTree *ntree, int flag, bool enable);
+void node_tree_node_flag_set(const bNodeTree &ntree, int flag, bool enable);
 
 /**
  * Merge local tree results back, and free local tree.
@@ -919,30 +919,30 @@ void node_tree_local_merge(Main *bmain, bNodeTree *localtree, bNodeTree *ntree);
  */
 void node_tree_blend_read_data(BlendDataReader *reader, ID *owner_id, bNodeTree *ntree);
 
-bool node_type_is_undefined(const bNode *node);
+bool node_type_is_undefined(const bNode &node);
 
-bool node_is_static_socket_type(const bNodeSocketType *stype);
+bool node_is_static_socket_type(const bNodeSocketType &stype);
 
 StringRefNull node_socket_sub_type_label(int subtype);
 
-void node_remove_socket_ex(bNodeTree *ntree, bNode *node, bNodeSocket *sock, bool do_id_user);
+void node_remove_socket_ex(bNodeTree &ntree, bNode &node, bNodeSocket &sock, bool do_id_user);
 
-void node_modify_socket_type(bNodeTree *ntree,
-                             bNode *node,
-                             bNodeSocket *sock,
+void node_modify_socket_type(bNodeTree &ntree,
+                             bNode &node,
+                             bNodeSocket &sock,
                              StringRefNull idname);
 
 /**
  * \note Goes over entire tree.
  */
-void node_unlink_node(bNodeTree *ntree, bNode *node);
+void node_unlink_node(bNodeTree &ntree, bNode &node);
 
 /**
  * Rebuild the `node_by_id` runtime vector set. Call after removing a node if not handled
  * separately. This is important instead of just using `nodes_by_id.remove()` since it maintains
  * the node order.
  */
-void node_rebuild_id_vector(bNodeTree *node_tree);
+void node_rebuild_id_vector(bNodeTree &node_tree);
 
 /**
  * \note keeps socket list order identical, for copying links.
@@ -975,7 +975,7 @@ void node_socket_move_default_value(Main &bmain,
  *
  * \note ID user reference-counting and changing the `nodes_by_id` vector are up to the caller.
  */
-void node_free_node(bNodeTree *tree, bNode *node);
+void node_free_node(bNodeTree *tree, bNode &node);
 
 /**
  * Iterate over all ID usages of the given node.
@@ -988,16 +988,16 @@ void node_node_foreach_id(bNode *node, LibraryForeachIDData *data);
 /**
  * Set the mute status of a single link.
  */
-void node_link_set_mute(bNodeTree *ntree, bNodeLink *link, const bool muted);
+void node_link_set_mute(bNodeTree &ntree, bNodeLink &link, const bool muted);
 
-bool node_link_is_selected(const bNodeLink *link);
+bool node_link_is_selected(const bNodeLink &link);
 
-void node_internal_relink(bNodeTree *ntree, bNode *node);
+void node_internal_relink(bNodeTree &ntree, bNode &node);
 
-void node_position_relative(bNode *from_node,
-                            const bNode *to_node,
-                            const bNodeSocket *from_sock,
-                            const bNodeSocket *to_sock);
+void node_position_relative(bNode &from_node,
+                            const bNode &to_node,
+                            const bNodeSocket &from_sock,
+                            const bNodeSocket &to_sock);
 
 void node_position_propagate(bNode &node);
 

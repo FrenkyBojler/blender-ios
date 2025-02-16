@@ -470,12 +470,12 @@ static void refresh_node_sockets_and_panels(bNodeTree &ntree,
   /* Destroy any remaining sockets that are no longer in the declaration. */
   LISTBASE_FOREACH_MUTABLE (bNodeSocket *, old_socket, &node.inputs) {
     if (!new_inputs.contains(old_socket)) {
-      blender::bke::node_remove_socket_ex(&ntree, &node, old_socket, do_id_user);
+      blender::bke::node_remove_socket_ex(ntree, node, *old_socket, do_id_user);
     }
   }
   LISTBASE_FOREACH_MUTABLE (bNodeSocket *, old_socket, &node.outputs) {
     if (!new_outputs.contains(old_socket)) {
-      blender::bke::node_remove_socket_ex(&ntree, &node, old_socket, do_id_user);
+      blender::bke::node_remove_socket_ex(ntree, node, *old_socket, do_id_user);
     }
   }
 

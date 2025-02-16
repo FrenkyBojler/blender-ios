@@ -86,7 +86,7 @@ struct NodeClipboard {
   void clear()
   {
     for (NodeClipboardItem &item : this->nodes) {
-      bke::node_free_node(nullptr, item.node);
+      bke::node_free_node(nullptr, *item.node);
     }
     this->nodes.clear_and_shrink();
     this->links.clear_and_shrink();

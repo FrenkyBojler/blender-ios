@@ -915,7 +915,7 @@ static void version_geometry_nodes_primitive_uv_maps(bNodeTree &ntree)
     BLI_addhead(&ntree.nodes, node);
   }
   if (!new_nodes.is_empty()) {
-    blender::bke::node_rebuild_id_vector(&ntree);
+    blender::bke::node_rebuild_id_vector(ntree);
   }
 }
 
@@ -1061,7 +1061,7 @@ static void version_geometry_nodes_extrude_smooth_propagation(bNodeTree &ntree)
     BLI_addhead(&ntree.nodes, node);
   }
   if (!new_nodes.is_empty()) {
-    blender::bke::node_rebuild_id_vector(&ntree);
+    blender::bke::node_rebuild_id_vector(ntree);
   }
 }
 

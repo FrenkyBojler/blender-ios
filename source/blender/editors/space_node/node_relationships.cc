@@ -1803,7 +1803,7 @@ static int mute_links_exec(bContext *C, wmOperator *op)
   bke::node_tree_runtime::AllowUsingOutdatedInfo allow_outdated_info{ntree};
 
   for (bNodeLink *link : affected_links) {
-    bke::node_link_set_mute(&ntree, link, !(link->flag & NODE_LINK_MUTED));
+    bke::node_link_set_mute(ntree, *link, !(link->flag & NODE_LINK_MUTED));
     const bool muted = link->flag & NODE_LINK_MUTED;
 
     /* Propagate mute status downstream past reroute nodes. */
@@ -1812,7 +1812,7 @@ static int mute_links_exec(bContext *C, wmOperator *op)
       links.push_multiple(link->tonode->output_socket(0).directly_linked_links());
       while (!links.is_empty()) {
         bNodeLink *link = links.pop();
-        bke::node_link_set_mute(&ntree, link, muted);
+        bke::node_link_set_mute(ntree, *link, muted);
         if (!link->tonode->is_reroute()) {
           continue;
         }
@@ -1826,7 +1826,7 @@ static int mute_links_exec(bContext *C, wmOperator *op)
         links.push_multiple(link->fromnode->input_socket(0).directly_linked_links());
         while (!links.is_empty()) {
           bNodeLink *link = links.pop();
-          bke::node_link_set_mute(&ntree, link, muted);
+          bke::node_link_set_mute(ntree, *link, muted);
           if (!link->fromnode->is_reroute()) {
             continue;
           }
@@ -1882,7 +1882,7 @@ static int detach_links_exec(bContext *C, wmOperator * /*op*/)
 
   for (bNode *node : ntree.all_nodes()) {
     if (node->flag & SELECT) {
-      bke::node_internal_relink(&ntree, node);
+      bke::node_internal_relink(ntree, *node);
     }
   }
 
@@ -2698,7 +2698,7 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
   float margin = width;
 
   /* NODE_TEST will be used later, so disable for all nodes */
-  bke::node_tree_node_flag_set(ntree, NODE_TEST, false);
+  bke::node_tree_node_flag_set(*ntree, NODE_TEST, false);
 
   /* `insert.draw_bounds` isn't updated yet,
    * so `totr_insert` is used to get the correct world-space coords. */

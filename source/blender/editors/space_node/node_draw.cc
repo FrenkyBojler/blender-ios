@@ -3588,7 +3588,7 @@ static void node_draw_basis(const bContext &C,
   const float outline_width = U.pixelsize;
   {
     /* Use warning color to indicate undefined types. */
-    if (bke::node_type_is_undefined(&node)) {
+    if (bke::node_type_is_undefined(node)) {
       UI_GetThemeColorBlend4f(TH_REDALERT, TH_NODE, 0.4f, color);
     }
     /* Muted nodes get a mix of the background with the node color. */
@@ -3666,7 +3666,7 @@ static void node_draw_basis(const bContext &C,
     if (node.flag & SELECT) {
       UI_GetThemeColor4fv((node.flag & NODE_ACTIVE) ? TH_ACTIVE : TH_SELECT, color_outline);
     }
-    else if (bke::node_type_is_undefined(&node)) {
+    else if (bke::node_type_is_undefined(node)) {
       UI_GetThemeColor4fv(TH_REDALERT, color_outline);
     }
     else if (const bke::bNodeZoneType *zone_type = bke::zone_type_by_node_type(node.type_legacy)) {
@@ -3730,7 +3730,7 @@ static void node_draw_hidden(const bContext &C,
   /* Body. */
   float color[4];
   {
-    if (bke::node_type_is_undefined(&node)) {
+    if (bke::node_type_is_undefined(node)) {
       /* Use warning color to indicate undefined types. */
       UI_GetThemeColorBlend4f(TH_REDALERT, TH_NODE, 0.4f, color);
     }
@@ -3832,7 +3832,7 @@ static void node_draw_hidden(const bContext &C,
     if (node.flag & SELECT) {
       UI_GetThemeColor4fv((node.flag & NODE_ACTIVE) ? TH_ACTIVE : TH_SELECT, color_outline);
     }
-    else if (bke::node_type_is_undefined(&node)) {
+    else if (bke::node_type_is_undefined(node)) {
       UI_GetThemeColor4fv(TH_REDALERT, color_outline);
     }
     else {
@@ -4756,14 +4756,14 @@ static void node_draw_nodetree(const bContext &C,
   nodelink_batch_start(snode);
 
   for (const bNodeLink *link : ntree.all_links()) {
-    if (!bke::node_link_is_hidden(link) && !bke::node_link_is_selected(link)) {
+    if (!bke::node_link_is_hidden(link) && !bke::node_link_is_selected(*link)) {
       node_draw_link(C, region.v2d, snode, *link, false);
     }
   }
 
   /* Draw selected node links after the unselected ones, so they are shown on top. */
   for (const bNodeLink *link : ntree.all_links()) {
-    if (!bke::node_link_is_hidden(link) && bke::node_link_is_selected(link)) {
+    if (!bke::node_link_is_hidden(link) && bke::node_link_is_selected(*link)) {
       node_draw_link(C, region.v2d, snode, *link, true);
     }
   }

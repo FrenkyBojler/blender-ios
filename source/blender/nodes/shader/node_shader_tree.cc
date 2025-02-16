@@ -137,8 +137,8 @@ static void localize(bNodeTree *localtree, bNodeTree * /*ntree*/)
         node->id = nullptr;
       }
 
-      blender::bke::node_internal_relink(localtree, node);
-      blender::bke::node_tree_free_local_node(localtree, node);
+      blender::bke::node_internal_relink(*localtree, *node);
+      blender::bke::node_tree_free_local_node(*localtree, *node);
     }
   }
 }
@@ -163,7 +163,7 @@ static bool shader_validate_link(eNodeSocketDatatype from, eNodeSocketDatatype t
 static bool shader_node_tree_socket_type_valid(blender::bke::bNodeTreeType * /*ntreetype*/,
                                                blender::bke::bNodeSocketType *socket_type)
 {
-  return blender::bke::node_is_static_socket_type(socket_type) && ELEM(socket_type->type,
+  return blender::bke::node_is_static_socket_type(*socket_type) && ELEM(socket_type->type,
                                                                        SOCK_FLOAT,
                                                                        SOCK_INT,
                                                                        SOCK_BOOLEAN,
@@ -538,7 +538,7 @@ static void flatten_group_do(bNodeTree *ntree, bNode *gnode)
 
   while (group_interface_nodes) {
     bNode *node = static_cast<bNode *>(BLI_linklist_pop(&group_interface_nodes));
-    blender::bke::node_tree_free_local_node(ntree, node);
+    blender::bke::node_tree_free_local_node(*ntree, *node);
   }
 
   BKE_ntree_update_tag_all(ntree);
@@ -558,7 +558,7 @@ static void ntree_shader_groups_flatten(bNodeTree *localtree)
       node_next = node->next;
       /* delete the group instance and its localtree. */
       bNodeTree *ngroup = (bNodeTree *)node->id;
-      blender::bke::node_tree_free_local_node(localtree, node);
+      blender::bke::node_tree_free_local_node(*localtree, *node);
       blender::bke::node_tree_free_tree(ngroup);
       BLI_assert(!ngroup->id.py_instance); /* Or call #BKE_libblock_free_data_py. */
       MEM_freeN(ngroup);
@@ -1197,7 +1197,7 @@ static void ntree_shader_pruned_unused(bNodeTree *ntree, bNode *output_node)
 
   LISTBASE_FOREACH_MUTABLE (bNode *, node, &ntree->nodes) {
     if (node->runtime->tmp_flag == 0) {
-      blender::bke::node_tree_free_local_node(ntree, node);
+      blender::bke::node_tree_free_local_node(*ntree, *node);
       changed = true;
     }
   }
