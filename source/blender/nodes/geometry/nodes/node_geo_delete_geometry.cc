@@ -117,10 +117,8 @@ static void node_register()
   ntype.ui_description = "Remove selected elements of a geometry";
   ntype.enum_name_legacy = "DELETE_GEOMETRY";
   ntype.nclass = NODE_CLASS_GEOMETRY;
-  blender::bke::node_type_storage(ntype,
-                                  "NodeGeometryDeleteGeometry",
-                                  node_free_standard_storage,
-                                  node_copy_standard_storage);
+  blender::bke::node_type_storage(
+      ntype, "NodeGeometryDeleteGeometry", node_free_standard_storage, node_copy_standard_storage);
 
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
