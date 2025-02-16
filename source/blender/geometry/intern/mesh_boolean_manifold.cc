@@ -30,10 +30,12 @@
 #include "BKE_attribute_math.hh"
 #include "BKE_customdata.hh"
 #include "BKE_geometry_set.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 
 #include "GEO_join_geometries.hh"
+#include "GEO_transform.hh"
 
 #include "mesh_boolean_manifold.hh"
 
@@ -1331,14 +1333,17 @@ static bool is_plane(const Mesh *mesh, float3 *r_normal, float *r_origin_offset)
 /* Handle special case of one manifold mesh, which has been converted to
  * \a manifold 0, and one plane, which has normalized normal \a normal
  * and distance from origin \a origin_offset. */
-static MeshGL mesh_trim_manifold(Manifold &manifold0, float3 normal, float origin_offset, const MeshOffsets &mesh_offsets)
+static MeshGL mesh_trim_manifold(Manifold &manifold0,
+                                 float3 normal,
+                                 float origin_offset,
+                                 const MeshOffsets &mesh_offsets)
 {
-  Manifold man_result = manifold0.TrimByPlane(manifold::vec3(normal[0], normal[1],  normal[2]), double(origin_offset));
+  Manifold man_result = manifold0.TrimByPlane(manifold::vec3(normal[0], normal[1], normal[2]),
+                                              double(origin_offset));
   MeshGL meshgl = man_result.GetMeshGL();
   /* This meshgl_result has a non-standard (but non-zero) original ID for the
    * plane faces, and faceIDs that make no sense for them. Fix this. */
-  BLI_assert(meshgl.runOriginalID.size() == 2 &&
-             meshgl.runOriginalID[1] > 0);
+  BLI_assert(meshgl.runOriginalID.size() == 2 && meshgl.runOriginalID[1] > 0);
   meshgl.runOriginalID[1] = 1;
   BLI_assert(meshgl.runIndex.size() == 3);
   int plane_face_start = meshgl.runIndex[1] / 3;
@@ -1522,6 +1527,41 @@ static bke::GeometrySet join_meshes(Span<const Mesh *> meshes)
   return geometry::join_geometries(geometries, {});
 }
 
+static bke::GeometrySet join_meshes_with_transforms(Span<const Mesh *> meshes,
+                                                    Span<float4x4> transforms)
+{
+#ifdef DEBUG_TIME
+  timeit::ScopedTimer jtimer("join meshes with transforms");
+#endif
+  const int meshes_num = meshes.size();
+  Array<Mesh *> transformed_meshes(transforms.size(), nullptr);
+  for (const int i : transforms.index_range()) {
+    const float4x4 &transform = transforms[i];
+    if (math::is_identity(transform)) {
+      continue;
+    }
+    Mesh *copy = BKE_mesh_copy_for_eval(*meshes[i]);
+    bke::GeometrySet copy_set = bke::GeometrySet::from_mesh(copy,
+                                                            bke::GeometryOwnershipType::Editable);
+    transform_geometry(copy_set, transform);
+    transformed_meshes[i] = copy;
+  }
+  Array<bke::GeometrySet> geometries(meshes_num);
+  for (const int i : geometries.index_range()) {
+    Mesh *mesh_i = transformed_meshes[i] ? transformed_meshes[i] : const_cast<Mesh *>(meshes[i]);
+    geometries[i] = bke::GeometrySet::from_mesh(mesh_i,
+                                                bke::GeometryOwnershipType::ReadOnly);
+  }
+  bke::GeometrySet ans = geometry::join_geometries(geometries, {});
+  for (const int i : transformed_meshes.index_range()) {
+    if (transformed_meshes[i] != nullptr) {
+      BKE_id_free(nullptr, transformed_meshes[i]);
+    }
+  }
+  return ans;
+}
+
+
 Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
                             Span<float4x4> transforms,
                             const float4x4 &target_transform,
@@ -1541,19 +1581,18 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
 #endif
     const int num_meshes = meshes.size();
     std::vector<Manifold> manifolds(num_meshes);
-    Array<bool> manifold_ok(num_meshes);
+    bke::GeometrySet joined_meshes_set;
     bool no_transforms = math::is_identity(target_transform);
     no_transforms &= std::all_of(transforms.begin(), transforms.end(), [](const float4x4 &t) {
       return math::is_identity(t);
     });
     if (!no_transforms) {
-      // TODO: fix this
-      std::cout << "IMPLEMENT ME: mesh_boolean_manifold with transforms\n";
-      *r_error = BooleanError::UnknownError;
-      return nullptr;
+      joined_meshes_set = join_meshes_with_transforms(meshes, transforms);
+    }
+    else {
+      joined_meshes_set = join_meshes(meshes);
     }
     MeshOffsets mesh_offsets(meshes);
-    bke::GeometrySet joined_meshes_set = join_meshes(meshes);
     const Mesh *joined_mesh = joined_meshes_set.get_mesh();
     BLI_assert(joined_mesh != nullptr);
     get_manifolds(manifolds, joined_mesh, mesh_offsets);
@@ -1566,10 +1605,10 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
       /* Check special case of subtracting a plane, which Manifold can handle. */
       float3 normal;
       float origin_offset;
-      if (num_meshes == 2 &&
-          op == Operation::Difference &&
+      if (num_meshes == 2 && op == Operation::Difference &&
           manifolds[0].Status() == Manifold::Error::NoError &&
-          is_plane(meshes[1], &normal, &origin_offset)) {
+          is_plane(meshes[1], &normal, &origin_offset))
+      {
 #ifdef DEBUG_TIME
         timeit::ScopedTimer timer_trim("DOING BOOLEAN SLICE, GETTING MESH_GL RESULT");
 #endif
@@ -1582,9 +1621,9 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
     }
     else {
       manifold::OpType mop = op == Operation::Intersect ?
-                               manifold::OpType::Intersect :
-                               (op == Operation::Union ? manifold::OpType::Add :
-                                                         manifold::OpType::Subtract);
+                                 manifold::OpType::Intersect :
+                                 (op == Operation::Union ? manifold::OpType::Add :
+                                                           manifold::OpType::Subtract);
 #ifdef DEBUG_TIME
       timeit::ScopedTimer timer_bool("DOING BOOLEAN, GETTING MESH_GL RESULT");
 #endif
@@ -1602,8 +1641,11 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
 #endif
       mesh_result = meshgl_to_mesh(meshgl_result, joined_mesh, mesh_offsets, r_intersecting_edges);
     }
-    /* TODO: if (unlikely) target_transform is not identity, trasform the mesh. */
-    UNUSED_VARS(target_transform);
+    if (!math::is_identity(target_transform)) {
+      bke::GeometrySet gset = bke::GeometrySet::from_mesh(mesh_result,
+                                                          bke::GeometryOwnershipType::Editable);
+      transform_geometry(gset, target_transform);
+    }
     return mesh_result;
   }
   catch (const std::exception &e) {
