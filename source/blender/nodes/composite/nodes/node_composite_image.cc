@@ -515,7 +515,7 @@ void register_node_type_cmp_image()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.initfunc = file_ns::node_composit_init_image;
   blender::bke::node_type_storage(
-      &ntype, "ImageUser", file_ns::node_composit_free_image, file_ns::node_composit_copy_image);
+      ntype, "ImageUser", file_ns::node_composit_free_image, file_ns::node_composit_copy_image);
   ntype.updatefunc = file_ns::cmp_node_image_update;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
   ntype.labelfunc = node_image_label;
@@ -834,13 +834,13 @@ void register_node_type_cmp_rlayers()
   ntype.compositor_unsupported_message = N_(
       "Render passes in the Viewport compositor are only supported in EEVEE");
   ntype.flag |= NODE_PREVIEW;
-  blender::bke::node_type_storage(&ntype,
+  blender::bke::node_type_storage(ntype,
                                   std::nullopt,
                                   file_ns::node_composit_free_rlayers,
                                   file_ns::node_composit_copy_rlayers);
   ntype.updatefunc = file_ns::cmp_node_rlayers_update;
   ntype.initfunc = node_cmp_rlayers_outputs;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
+  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Large);
 
   blender::bke::node_register_type(&ntype);
 }

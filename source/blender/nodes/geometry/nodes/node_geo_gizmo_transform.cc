@@ -70,7 +70,7 @@ static void node_register()
   ntype.ui_description = "Show a transform gizmo in the viewport";
   ntype.enum_name_legacy = "GIZMO_TRANSFORM";
   ntype.nclass = NODE_CLASS_INTERFACE;
-  bke::node_type_storage(&ntype,
+  bke::node_type_storage(ntype,
                          "NodeGeometryTransformGizmo",
                          node_free_standard_storage,
                          node_copy_standard_storage);

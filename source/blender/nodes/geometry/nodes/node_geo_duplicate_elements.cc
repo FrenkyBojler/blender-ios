@@ -1249,7 +1249,7 @@ static void node_register()
   ntype.ui_description = "Generate an arbitrary number copies of each selected input element";
   ntype.enum_name_legacy = "DUPLICATE_ELEMENTS";
   ntype.nclass = NODE_CLASS_GEOMETRY;
-  blender::bke::node_type_storage(&ntype,
+  blender::bke::node_type_storage(ntype,
                                   "NodeGeometryDuplicateElements",
                                   node_free_standard_storage,
                                   node_copy_standard_storage);

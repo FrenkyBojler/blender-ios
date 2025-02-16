@@ -214,11 +214,11 @@ static void node_register()
       "Store the result of a field on a geometry as an attribute with the specified name";
   ntype.enum_name_legacy = "STORE_NAMED_ATTRIBUTE";
   ntype.nclass = NODE_CLASS_ATTRIBUTE;
-  blender::bke::node_type_storage(&ntype,
+  blender::bke::node_type_storage(ntype,
                                   "NodeGeometryStoreNamedAttribute",
                                   node_free_standard_storage,
                                   node_copy_standard_storage);
-  blender::bke::node_type_size(&ntype, 140, 100, 700);
+  blender::bke::node_type_size(ntype, 140, 100, 700);
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.gather_link_search_ops = node_gather_link_searches;

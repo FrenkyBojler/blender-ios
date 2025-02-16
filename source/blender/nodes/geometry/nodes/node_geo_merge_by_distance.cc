@@ -165,7 +165,7 @@ static void node_register()
   ntype.enum_name_legacy = "MERGE_BY_DISTANCE";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(&ntype,
+  blender::bke::node_type_storage(ntype,
                                   "NodeGeometryMergeByDistance",
                                   node_free_standard_storage,
                                   node_copy_standard_storage);

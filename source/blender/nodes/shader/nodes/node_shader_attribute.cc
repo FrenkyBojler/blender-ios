@@ -115,7 +115,7 @@ void register_node_type_sh_attribute()
   ntype.draw_buttons = file_ns::node_shader_buts_attribute;
   ntype.initfunc = file_ns::node_shader_init_attribute;
   blender::bke::node_type_storage(
-      &ntype, "NodeShaderAttribute", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeShaderAttribute", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_shader_gpu_attribute;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 

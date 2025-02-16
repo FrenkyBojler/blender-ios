@@ -142,10 +142,10 @@ void register_node_type_cmp_valtorgb()
   ntype.enum_name_legacy = "VALTORGB";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = file_ns::cmp_node_valtorgb_declare;
-  blender::bke::node_type_size(&ntype, 240, 200, 320);
+  blender::bke::node_type_size(ntype, 240, 200, 320);
   ntype.initfunc = file_ns::node_composit_init_valtorgb;
   blender::bke::node_type_storage(
-      &ntype, "ColorBand", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "ColorBand", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_gpu_material;
   ntype.build_multi_function = file_ns::node_build_multi_function;
 
@@ -208,7 +208,7 @@ void register_node_type_cmp_rgbtobw()
   ntype.enum_name_legacy = "RGBTOBW";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = file_ns::cmp_node_rgbtobw_declare;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Default);
+  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Default);
   ntype.gpu_fn = file_ns::node_gpu_material;
   ntype.build_multi_function = file_ns::node_build_multi_function;
 

@@ -212,7 +212,7 @@ static void node_register()
   ntype.build_multi_function = node_build_multi_function;
   ntype.gather_link_search_ops = node_gather_link_search_ops;
   blender::bke::node_type_storage(
-      &ntype, "NodeRandomValue", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeRandomValue", node_free_standard_storage, node_copy_standard_storage);
   blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)

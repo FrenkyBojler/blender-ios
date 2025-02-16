@@ -610,7 +610,7 @@ void register_node_type_sh_mix()
   ntype.updatefunc = file_ns::sh_node_mix_update;
   ntype.initfunc = file_ns::node_mix_init;
   blender::bke::node_type_storage(
-      &ntype, "NodeShaderMix", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeShaderMix", node_free_standard_storage, node_copy_standard_storage);
   ntype.build_multi_function = file_ns::sh_node_mix_build_multi_function;
   ntype.draw_buttons = file_ns::sh_node_mix_layout;
   ntype.labelfunc = file_ns::sh_node_mix_label;

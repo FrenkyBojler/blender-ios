@@ -180,7 +180,7 @@ void register_node_type_cmp_color_matte()
   ntype.flag |= NODE_PREVIEW;
   ntype.initfunc = file_ns::node_composit_init_color_matte;
   blender::bke::node_type_storage(
-      &ntype, "NodeChroma", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeChroma", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_gpu_material;
   ntype.build_multi_function = file_ns::node_build_multi_function;
 

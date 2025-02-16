@@ -18,7 +18,7 @@ static void register_node_type_geo_group()
 {
   static blender::bke::bNodeType ntype;
 
-  bke::node_type_base_custom(&ntype, "GeometryNodeGroup", "Group", "GROUP", NODE_CLASS_GROUP);
+  bke::node_type_base_custom(ntype, "GeometryNodeGroup", "Group", "GROUP", NODE_CLASS_GROUP);
   ntype.enum_name_legacy = "GROUP";
   ntype.type_legacy = NODE_GROUP;
   ntype.poll = geo_node_poll_default;
@@ -31,7 +31,7 @@ static void register_node_type_geo_group()
   RNA_struct_blender_type_set(ntype.rna_ext.srna, &ntype);
 
   bke::node_type_size(
-      &ntype, GROUP_NODE_DEFAULT_WIDTH, GROUP_NODE_MIN_WIDTH, GROUP_NODE_MAX_WIDTH);
+      ntype, GROUP_NODE_DEFAULT_WIDTH, GROUP_NODE_MIN_WIDTH, GROUP_NODE_MAX_WIDTH);
   ntype.labelfunc = node_group_label;
   ntype.declare = node_group_declare;
 

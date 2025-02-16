@@ -914,7 +914,7 @@ void register_node_type_cmp_output_file()
   ntype.initfunc_api = file_ns::init_output_file;
   ntype.flag |= NODE_PREVIEW;
   blender::bke::node_type_storage(
-      &ntype, "NodeImageMultiFile", file_ns::free_output_file, file_ns::copy_output_file);
+      ntype, "NodeImageMultiFile", file_ns::free_output_file, file_ns::copy_output_file);
   ntype.updatefunc = file_ns::update_output_file;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 

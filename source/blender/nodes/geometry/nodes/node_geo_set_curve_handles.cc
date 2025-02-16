@@ -210,7 +210,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.minwidth = 100.0f;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(&ntype,
+  blender::bke::node_type_storage(ntype,
                                   "NodeGeometrySetCurveHandlePositions",
                                   node_free_standard_storage,
                                   node_copy_standard_storage);

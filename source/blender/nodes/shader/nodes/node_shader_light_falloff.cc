@@ -63,7 +63,7 @@ void register_node_type_sh_light_falloff()
   ntype.enum_name_legacy = "LIGHT_FALLOFF";
   ntype.nclass = NODE_CLASS_OP_COLOR;
   ntype.declare = file_ns::node_declare;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Middle);
+  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Middle);
   ntype.gpu_fn = file_ns::node_shader_gpu_light_falloff;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 

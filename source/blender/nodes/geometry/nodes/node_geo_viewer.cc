@@ -150,7 +150,7 @@ static void node_register()
   ntype.enum_name_legacy = "VIEWER";
   ntype.nclass = NODE_CLASS_OUTPUT;
   blender::bke::node_type_storage(
-      &ntype, "NodeGeometryViewer", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeGeometryViewer", node_free_standard_storage, node_copy_standard_storage);
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;

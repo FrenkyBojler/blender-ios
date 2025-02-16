@@ -216,7 +216,7 @@ void register_node_type_sh_tex_gabor()
   ntype.draw_buttons = file_ns::node_shader_buts_tex_gabor;
   ntype.initfunc = file_ns::node_shader_init_tex_gabor;
   node_type_storage(
-      &ntype, "NodeTexGabor", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeTexGabor", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_shader_gpu_tex_gabor;
   ntype.updatefunc = file_ns::node_shader_update_tex_gabor;
   ntype.build_multi_function = file_ns::build_multi_function;

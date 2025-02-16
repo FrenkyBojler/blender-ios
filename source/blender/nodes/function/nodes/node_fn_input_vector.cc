@@ -45,7 +45,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   blender::bke::node_type_storage(
-      &ntype, "NodeInputVector", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeInputVector", node_free_standard_storage, node_copy_standard_storage);
   ntype.build_multi_function = node_build_multi_function;
   ntype.draw_buttons = node_layout;
   blender::bke::node_register_type(&ntype);

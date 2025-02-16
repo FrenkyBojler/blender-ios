@@ -4321,13 +4321,13 @@ StringRefNull nodeSocketLabel(const bNodeSocket *sock)
   return (sock->label[0] != '\0') ? sock->label : sock->name;
 }
 
-static void node_type_base_defaults(bNodeType *ntype)
+static void node_type_base_defaults(bNodeType &ntype)
 {
   /* default size values */
   node_type_size_preset(ntype, eNodeSizePreset::Default);
-  ntype->height = 100;
-  ntype->minheight = 30;
-  ntype->maxheight = FLT_MAX;
+  ntype.height = 100;
+  ntype.minheight = 30;
+  ntype.maxheight = FLT_MAX;
 }
 
 /* allow this node for any tree type */
@@ -4358,9 +4358,9 @@ static int16_t get_next_auto_legacy_type()
   return new_type;
 }
 
-void node_type_base(bNodeType *ntype, std::string idname, std::optional<int16_t> legacy_type)
+void node_type_base(bNodeType &ntype, std::string idname, std::optional<int16_t> legacy_type)
 {
-  ntype->idname = std::move(idname);
+  ntype.idname = std::move(idname);
 
   if (!legacy_type.has_value()) {
     /* Still auto-generate a legacy type for this node type if none was specified. This is
@@ -4370,35 +4370,35 @@ void node_type_base(bNodeType *ntype, std::string idname, std::optional<int16_t>
   }
 
   if (!ELEM(*legacy_type, NODE_CUSTOM, NODE_UNDEFINED)) {
-    StructRNA *srna = RNA_struct_find(ntype->idname.c_str());
+    StructRNA *srna = RNA_struct_find(ntype.idname.c_str());
     BLI_assert(srna != nullptr);
-    ntype->rna_ext.srna = srna;
-    RNA_struct_blender_type_set(srna, ntype);
+    ntype.rna_ext.srna = srna;
+    RNA_struct_blender_type_set(srna, &ntype);
   }
 
   /* make sure we have a valid type (everything registered) */
-  BLI_assert(ntype->idname[0] != '\0');
+  BLI_assert(ntype.idname[0] != '\0');
 
-  ntype->type_legacy = *legacy_type;
-  ntype->nclass = NODE_CLASS_CONVERTER;
+  ntype.type_legacy = *legacy_type;
+  ntype.nclass = NODE_CLASS_CONVERTER;
 
   node_type_base_defaults(ntype);
 
-  ntype->poll = node_poll_default;
-  ntype->poll_instance = node_poll_instance_default;
+  ntype.poll = node_poll_default;
+  ntype.poll_instance = node_poll_instance_default;
 }
 
-void node_type_base_custom(bNodeType *ntype,
+void node_type_base_custom(bNodeType &ntype,
                            const StringRefNull idname,
                            const StringRefNull name,
                            const StringRefNull enum_name,
                            const short nclass)
 {
-  ntype->idname = idname;
-  ntype->type_legacy = NODE_CUSTOM;
-  ntype->ui_name = name;
-  ntype->nclass = nclass;
-  ntype->enum_name_legacy = enum_name.c_str();
+  ntype.idname = idname;
+  ntype.type_legacy = NODE_CUSTOM;
+  ntype.ui_name = name;
+  ntype.nclass = nclass;
+  ntype.enum_name_legacy = enum_name.c_str();
 
   node_type_base_defaults(ntype);
 }
@@ -4626,19 +4626,19 @@ void node_type_socket_templates(bNodeType *ntype,
   }
 }
 
-void node_type_size(bNodeType *ntype, const int width, const int minwidth, const int maxwidth)
+void node_type_size(bNodeType &ntype, const int width, const int minwidth, const int maxwidth)
 {
-  ntype->width = width;
-  ntype->minwidth = minwidth;
+  ntype.width = width;
+  ntype.minwidth = minwidth;
   if (maxwidth <= minwidth) {
-    ntype->maxwidth = FLT_MAX;
+    ntype.maxwidth = FLT_MAX;
   }
   else {
-    ntype->maxwidth = maxwidth;
+    ntype.maxwidth = maxwidth;
   }
 }
 
-void node_type_size_preset(bNodeType *ntype, const eNodeSizePreset size)
+void node_type_size_preset(bNodeType &ntype, const eNodeSizePreset size)
 {
   switch (size) {
     case eNodeSizePreset::Default:
@@ -4656,16 +4656,16 @@ void node_type_size_preset(bNodeType *ntype, const eNodeSizePreset size)
   }
 }
 
-void node_type_storage(bNodeType *ntype,
+void node_type_storage(bNodeType &ntype,
                        const std::optional<StringRefNull> storagename,
                        void (*freefunc)(bNode *node),
                        void (*copyfunc)(bNodeTree *dest_ntree,
                                         bNode *dest_node,
                                         const bNode *src_node))
 {
-  ntype->storagename = storagename.value_or("");
-  ntype->copyfunc = copyfunc;
-  ntype->freefunc = freefunc;
+  ntype.storagename = storagename.value_or("");
+  ntype.copyfunc = copyfunc;
+  ntype.freefunc = freefunc;
 }
 
 void node_system_init()

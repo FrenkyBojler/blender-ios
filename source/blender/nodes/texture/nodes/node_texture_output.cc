@@ -143,9 +143,9 @@ void register_node_type_tex_output()
   ntype.enum_name_legacy = "OUTPUT";
   ntype.nclass = NODE_CLASS_OUTPUT;
   blender::bke::node_type_socket_templates(&ntype, inputs, nullptr);
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Middle);
+  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Middle);
   ntype.initfunc = init;
-  blender::bke::node_type_storage(&ntype, "TexNodeOutput", node_free_standard_storage, copy);
+  blender::bke::node_type_storage(ntype, "TexNodeOutput", node_free_standard_storage, copy);
   ntype.exec_fn = exec;
 
   ntype.flag |= NODE_PREVIEW;

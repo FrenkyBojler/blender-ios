@@ -113,7 +113,7 @@ static void node_register()
   ntype.ui_description = "Split a geometry into two geometry outputs based on a selection";
   ntype.enum_name_legacy = "SEPARATE_GEOMETRY";
   ntype.nclass = NODE_CLASS_GEOMETRY;
-  blender::bke::node_type_storage(&ntype,
+  blender::bke::node_type_storage(ntype,
                                   "NodeGeometrySeparateGeometry",
                                   node_free_standard_storage,
                                   node_copy_standard_storage);

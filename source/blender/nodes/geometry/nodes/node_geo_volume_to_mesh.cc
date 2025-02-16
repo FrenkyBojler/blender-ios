@@ -251,8 +251,8 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   blender::bke::node_type_storage(
-      &ntype, "NodeGeometryVolumeToMesh", node_free_standard_storage, node_copy_standard_storage);
-  blender::bke::node_type_size(&ntype, 170, 120, 700);
+      ntype, "NodeGeometryVolumeToMesh", node_free_standard_storage, node_copy_standard_storage);
+  blender::bke::node_type_size(ntype, 170, 120, 700);
   ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;

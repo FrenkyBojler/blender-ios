@@ -150,7 +150,7 @@ static void node_register()
   ntype.enum_name_legacy = "CURVE_PRIMITIVE_BEZIER_SEGMENT";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(&ntype,
+  blender::bke::node_type_storage(ntype,
                                   "NodeGeometryCurvePrimitiveBezierSegment",
                                   node_free_standard_storage,
                                   node_copy_standard_storage);

@@ -766,7 +766,7 @@ bool node_group_poll(const bNodeTree *nodetree,
                      const bNodeTree *grouptree,
                      const char **r_disabled_hint);
 
-void node_type_base_custom(bNodeType *ntype,
+void node_type_base_custom(bNodeType &ntype,
                            StringRefNull idname,
                            StringRefNull name,
                            StringRefNull enum_name,
@@ -777,7 +777,7 @@ void node_type_base_custom(bNodeType *ntype,
  * Otherwise nodes will reload as undefined (#46619).
  * #storagename is optional due to some compositor nodes use non-DNA storage type.
  */
-void node_type_storage(bNodeType *ntype,
+void node_type_storage(bNodeType &ntype,
                        std::optional<StringRefNull> storagename,
                        void (*freefunc)(bNode *node),
                        void (*copyfunc)(bNodeTree *dest_ntree,
@@ -1161,7 +1161,7 @@ std::optional<StringRefNull> nodeSocketShortLabel(const bNodeSocket *sock);
 /**
  * Initialize a new node type struct with default values and callbacks.
  */
-void node_type_base(bNodeType *ntype,
+void node_type_base(bNodeType &ntype,
                     std::string idname,
                     std::optional<int16_t> legacy_type = std::nullopt);
 
@@ -1169,7 +1169,7 @@ void node_type_socket_templates(bNodeType *ntype,
                                 bNodeSocketTemplate *inputs,
                                 bNodeSocketTemplate *outputs);
 
-void node_type_size(bNodeType *ntype, int width, int minwidth, int maxwidth);
+void node_type_size(bNodeType &ntype, int width, int minwidth, int maxwidth);
 
 enum class eNodeSizePreset : int8_t {
   Default,
@@ -1178,7 +1178,7 @@ enum class eNodeSizePreset : int8_t {
   Large,
 };
 
-void node_type_size_preset(bNodeType *ntype, eNodeSizePreset size);
+void node_type_size_preset(bNodeType &ntype, eNodeSizePreset size);
 
 /* -------------------------------------------------------------------- */
 /** \name Node Generic Functions

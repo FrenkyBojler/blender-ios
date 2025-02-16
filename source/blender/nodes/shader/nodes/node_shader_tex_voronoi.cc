@@ -829,7 +829,7 @@ void register_node_type_sh_tex_voronoi()
   ntype.draw_buttons = file_ns::node_shader_buts_tex_voronoi;
   ntype.initfunc = file_ns::node_shader_init_tex_voronoi;
   blender::bke::node_type_storage(
-      &ntype, "NodeTexVoronoi", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeTexVoronoi", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_shader_gpu_tex_voronoi;
   ntype.updatefunc = file_ns::node_shader_update_tex_voronoi;
   ntype.build_multi_function = file_ns::sh_node_voronoi_build_multi_function;

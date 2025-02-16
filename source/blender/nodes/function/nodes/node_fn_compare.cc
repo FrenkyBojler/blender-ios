@@ -745,7 +745,7 @@ static void node_register()
   ntype.updatefunc = node_update;
   ntype.initfunc = node_init;
   blender::bke::node_type_storage(
-      &ntype, "NodeFunctionCompare", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeFunctionCompare", node_free_standard_storage, node_copy_standard_storage);
   ntype.build_multi_function = node_build_multi_function;
   ntype.draw_buttons = node_layout;
   ntype.gather_link_search_ops = node_gather_link_searches;

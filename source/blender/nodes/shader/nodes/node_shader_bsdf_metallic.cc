@@ -162,7 +162,7 @@ void register_node_type_sh_bsdf_metallic()
   ntype.declare = file_ns::node_declare;
   ntype.add_ui_poll = object_shader_nodes_poll;
   ntype.draw_buttons = file_ns::node_shader_buts_metallic;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
+  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Large);
   ntype.initfunc = file_ns::node_shader_init_metallic;
   ntype.gpu_fn = file_ns::node_shader_gpu_bsdf_metallic;
   ntype.updatefunc = file_ns::node_shader_update_metallic;
