@@ -16,6 +16,7 @@ set(INC_SYS
 set(SRC
   intern/attribute_set.cc
   intern/duplicate.cc
+  intern/join.cc
   intern/point_cloud_ops.cc
   intern/point_cloud_selection.cc
   )
@@ -25,6 +26,7 @@ set(LIB
   PRIVATE bf::blenlib
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::geometry
   PRIVATE bf::functions
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::windowmanager
