@@ -32,8 +32,10 @@ int join_objects(bContext *C, wmOperator *op)
   BLI_assert(active_object->type == OB_CURVES);
 
   Vector<Object *> objects{active_object};
+  bool active_object_selected = false;
   CTX_DATA_BEGIN (C, Object *, object, selected_editable_objects) {
     if (object == active_object) {
+      active_object_selected = true;
       continue;
     }
     if (object->type != OB_CURVES) {
@@ -43,7 +45,7 @@ int join_objects(bContext *C, wmOperator *op)
   }
   CTX_DATA_END;
 
-  if (!objects.contains(active_object)) {
+  if (!active_object_selected) {
     BKE_report(op->reports, RPT_WARNING, "Active object is not a selected curves object");
     return OPERATOR_CANCELLED;
   }
