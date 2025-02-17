@@ -38,8 +38,8 @@ namespace undo {
 
 struct StepObject {
   UndoRefID_Object obedit_ref = {};
-  CustomData *custom_data = {};
-  int totpoint = {};
+  CustomData custom_data = {};
+  int totpoint = 0;
 };
 
 struct PointCloudUndoStep {
@@ -65,11 +65,9 @@ static bool step_encode(bContext *C, Main *bmain, UndoStep *us_p)
       Object *ob = objects[i];
       StepObject &object = us->objects[i];
       PointCloud &point_cloud = *static_cast<PointCloud *>(ob->data);
-
       object.obedit_ref.ptr = ob;
-      object.custom_data = MEM_new<CustomData>(__func__);
       CustomData_init_from(
-          &point_cloud.pdata, object.custom_data, CD_MASK_ALL, point_cloud.totpoint);
+          &point_cloud.pdata, &object.custom_data, CD_MASK_ALL, point_cloud.totpoint);
       object.totpoint = point_cloud.totpoint;
     }
   });
@@ -97,10 +95,11 @@ static void step_decode(
   BLI_assert(BKE_object_is_in_editmode(us->objects.first().obedit_ref.ptr));
 
   for (const StepObject &object : us->objects) {
-    PointCloud &point_cloud_id = *static_cast<PointCloud *>(object.obedit_ref.ptr->data);
-    CustomData_free(&point_cloud_id.pdata, point_cloud_id.totpoint);
-    CustomData_init_from(object.custom_data, &point_cloud_id.pdata, CD_MASK_ALL, object.totpoint);
-    DEG_id_tag_update(&point_cloud_id.id, ID_RECALC_GEOMETRY);
+    PointCloud &point_cloud = *static_cast<PointCloud *>(object.obedit_ref.ptr->data);
+    CustomData_free(&point_cloud.pdata, point_cloud.totpoint);
+    CustomData_init_from(&object.custom_data, &point_cloud.pdata, CD_MASK_ALL, object.totpoint);
+    point_cloud.totpoint = object.totpoint;
+    DEG_id_tag_update(&point_cloud.id, ID_RECALC_GEOMETRY);
   }
 
   ED_undo_object_set_active_or_warn(
@@ -114,9 +113,8 @@ static void step_decode(
 static void step_free(UndoStep *us_p)
 {
   PointCloudUndoStep *us = reinterpret_cast<PointCloudUndoStep *>(us_p);
-  for (const StepObject &object : us->objects) {
-    CustomData_free(object.custom_data, object.totpoint);
-    MEM_delete(object.custom_data);
+  for (StepObject &object : us->objects) {
+    CustomData_free(&object.custom_data, object.totpoint);
   }
   us->objects.~Array();
 }
