@@ -149,7 +149,8 @@ static int select_random_exec(bContext *C, wmOperator *op)
 
   for (PointCloud *point_cloud : unique_point_cloud) {
     IndexMaskMemory memory;
-    const IndexMask inv_random_elements = random_mask(*point_cloud, seed, probability, memory)
+    const IndexMask inv_random_elements = random_mask(
+                                              point_cloud->totpoint, seed, probability, memory)
                                               .complement(IndexRange(point_cloud->totpoint),
                                                           memory);
     const bool was_anything_selected = has_anything_selected(*point_cloud);
