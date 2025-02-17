@@ -3252,10 +3252,10 @@ static int sequencer_strip_transform_clear_exec(bContext *C, wmOperator *op)
           transform->xofs = 0;
           transform->yofs = 0;
           if (use_autokeyframe) {
-            prop = RNA_struct_find_property(&ptr, "xofs");
+            prop = RNA_struct_find_property(&ptr, "offset_x");
             blender::animrig::autokeyframe_property(
                 C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
-            prop = RNA_struct_find_property(&ptr, "yofs");
+            prop = RNA_struct_find_property(&ptr, "offset_y");
             blender::animrig::autokeyframe_property(
                 C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
           }
@@ -3287,10 +3287,10 @@ static int sequencer_strip_transform_clear_exec(bContext *C, wmOperator *op)
           transform->scale_y = 1.0f;
           transform->rotation = 0.0f;
           if (use_autokeyframe) {
-            prop = RNA_struct_find_property(&ptr, "xofs");
+            prop = RNA_struct_find_property(&ptr, "offset_x");
             blender::animrig::autokeyframe_property(
                 C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
-            prop = RNA_struct_find_property(&ptr, "yofs");
+            prop = RNA_struct_find_property(&ptr, "offset_y");
             blender::animrig::autokeyframe_property(
                 C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
             prop = RNA_struct_find_property(&ptr, "scale_x");
