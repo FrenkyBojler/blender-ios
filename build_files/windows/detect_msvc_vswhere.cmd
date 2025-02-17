@@ -14,19 +14,16 @@ if not exist "%vs_where%" (
 )
 
 if "%BUILD_ARCH%" == "arm64" (
-	if NOT "%verbose%" == "" (
-		echo "%vs_where%" -latest %VSWHERE_ARGS% -version ^[%BUILD_VS_VER%.0^,%BUILD_VS_VER%.99^) -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64
-	)
-	for /f "usebackq tokens=1* delims=: " %%i in (`"%vs_where%" -latest -version ^[%BUILD_VS_VER%.0^,%BUILD_VS_VER%.99^) %VSWHERE_ARGS% -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64`) do (
-		if /i "%%i"=="installationPath" set VS_InstallDir=%%j
-	)
+	set VSWHERE_ARCH=ARM64
 ) else (
-	if NOT "%verbose%" == "" (
-		echo "%vs_where%" -latest %VSWHERE_ARGS% -version ^[%BUILD_VS_VER%.0^,%BUILD_VS_VER%.99^) -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64
-	)
-	for /f "usebackq tokens=1* delims=: " %%i in (`"%vs_where%" -latest -version ^[%BUILD_VS_VER%.0^,%BUILD_VS_VER%.99^) %VSWHERE_ARGS% -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64`) do (
-		if /i "%%i"=="installationPath" set VS_InstallDir=%%j
-	)
+	set VSWHERE_ARCH=x86.64
+)
+
+if NOT "%verbose%" == "" (
+	echo "%vs_where%" -latest %VSWHERE_ARGS% -version ^[%BUILD_VS_VER%.0^,%BUILD_VS_VER%.99^) -requires Microsoft.VisualStudio.Component.VC.Tools.%VSWHERE_ARCH%
+)
+for /f "usebackq tokens=1* delims=: " %%i in (`"%vs_where%" -latest -version ^[%BUILD_VS_VER%.0^,%BUILD_VS_VER%.99^) %VSWHERE_ARGS% -requires Microsoft.VisualStudio.Component.VC.Tools.%VSWHERE_ARCH%`) do (
+	if /i "%%i"=="installationPath" set VS_InstallDir=%%j
 )
 
 if NOT "%verbose%" == "" (
