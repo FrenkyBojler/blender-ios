@@ -96,7 +96,7 @@ static void step_decode(
 
   for (const StepObject &object : us->objects) {
     PointCloud &point_cloud = *static_cast<PointCloud *>(object.obedit_ref.ptr->data);
-    CustomData_free(&point_cloud.pdata, point_cloud.totpoint);
+    CustomData_free(&point_cloud.pdata);
     CustomData_init_from(&object.custom_data, &point_cloud.pdata, CD_MASK_ALL, object.totpoint);
     point_cloud.totpoint = object.totpoint;
     DEG_id_tag_update(&point_cloud.id, ID_RECALC_GEOMETRY);
@@ -114,7 +114,7 @@ static void step_free(UndoStep *us_p)
 {
   PointCloudUndoStep *us = reinterpret_cast<PointCloudUndoStep *>(us_p);
   for (StepObject &object : us->objects) {
-    CustomData_free(&object.custom_data, object.totpoint);
+    CustomData_free(&object.custom_data);
   }
   us->objects.~Array();
 }
