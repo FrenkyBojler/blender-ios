@@ -31,7 +31,7 @@ bool remove_selection(PointCloud &point_cloud)
                          {},
                          mask,
                          point_cloud_new->attributes_for_write());
-
+  pointcloud_copy_parameters(point_cloud, *point_cloud_new);
   BKE_pointcloud_nomain_to_pointcloud(point_cloud_new, &point_cloud);
   return point_cloud.totpoint != domain_size_orig;
 }
