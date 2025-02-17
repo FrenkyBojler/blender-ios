@@ -4714,7 +4714,6 @@ static bool edbm_fill_grid_prepare(BMesh *bm, int offset, int *span_p, const boo
         if (i == 0 || i == verts_len / 2) {
           ele_sort[i].sort_value = 0;
         }
-
       }
 
       qsort(ele_sort, verts_len, sizeof(*ele_sort), BLI_sortutil_cmp_float_reverse);
@@ -4743,7 +4742,7 @@ static bool edbm_fill_grid_prepare(BMesh *bm, int offset, int *span_p, const boo
     }
 
     /* un-flag 'rails' */
-    for (i = start; i < start+span; i++) {
+    for (i = start; i < start + span; i++) {
       BM_elem_flag_disable(edges[i], BM_ELEM_TAG);
       BM_elem_flag_disable(edges[(verts_len / 2) + i], BM_ELEM_TAG);
     }
