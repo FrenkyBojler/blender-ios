@@ -744,6 +744,7 @@ static void write_bhead(WriteData *wd, const BHead &bhead)
     return;
   }
   if (USER_EXPERIMENTAL_TEST(&U, write_large_blend_file_blocks)) {
+    /* Write new #LargeBHead8 headers if enabled. Older Blender versions can't read those. */
     static_assert(sizeof(BHead) == sizeof(LargeBHead8));
     mywrite(wd, &bhead, sizeof(bhead));
     return;

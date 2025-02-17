@@ -738,7 +738,7 @@ static BHeadN *get_bhead(FileData *fd)
           bhead.len = 0;
         }
       }
-      else if (fd->flags & FD_FLAGS_IS_SMALL_BHEAD8) {
+      else if (fd->flags & FD_FLAGS_IS_SMALL_BHEAD) {
         SmallBHead8 small_bhead8{};
         small_bhead8.code = BLO_CODE_DATA;
         const int64_t readsize = fd->file->read(fd->file, &small_bhead8, sizeof(small_bhead8));
@@ -977,8 +977,10 @@ using BlenderHeaderVariant = std::variant<InvalidHeader, UnknownBlenderHeader, B
 static BlenderHeaderVariant decode_blender_header(FileData *fd)
 {
   char header_bytes[MAX_SIZEOFBLENDERHEADER];
-  const int64_t readsize = fd->file->read(fd->file, header_bytes, sizeof(header_bytes));
-  if (readsize != sizeof(header_bytes)) {
+  /* We read the minimal number of header bytes first. If necessary, the remaining bytes are read
+   * below. */
+  int64_t readsize = fd->file->read(fd->file, header_bytes, MIN_SIZEOFBLENDERHEADER);
+  if (readsize != MIN_SIZEOFBLENDERHEADER) {
     return InvalidHeader{};
   }
   if (!STREQLEN(header_bytes, "BLENDER", 7)) {
@@ -989,8 +991,8 @@ static BlenderHeaderVariant decode_blender_header(FileData *fd)
    * file of a potentially future version. */
 
   BlenderHeader header;
-  /* In the old file format, the next bytes indicate the pointer size. In the new format a version
-   * number comes next. */
+  /* In the old header format, the next bytes indicate the pointer size. In the new format a
+   * version number comes next. */
   const bool is_legacy_header = ELEM(header_bytes[7], '_', '-');
 
   if (is_legacy_header) {
@@ -1022,7 +1024,6 @@ static BlenderHeaderVariant decode_blender_header(FileData *fd)
     memcpy(version_str, header_bytes + 9, 3);
     version_str[3] = '\0';
     header.file_version = atoi(version_str);
-    fd->file->seek(fd->file, 12, SEEK_SET);
     return header;
   }
 
@@ -1036,6 +1037,15 @@ static BlenderHeaderVariant decode_blender_header(FileData *fd)
   if (header_size != MAX_SIZEOFBLENDERHEADER) {
     return UnknownBlenderHeader{};
   }
+
+  /* Read remaining header bytes. */
+  const int64_t remaining_bytes_to_read = header_size - MIN_SIZEOFBLENDERHEADER;
+  readsize = fd->file->read(
+      fd->file, header_bytes + MIN_SIZEOFBLENDERHEADER, remaining_bytes_to_read);
+  if (readsize != remaining_bytes_to_read) {
+    return UnknownBlenderHeader{};
+  }
+
   switch (header_bytes[9]) {
     case '_':
       header.pointer_size = 4;
@@ -1100,7 +1110,7 @@ static void read_blender_header(FileData *fd)
     fd->flags |= FD_FLAGS_SWITCH_ENDIAN;
   }
   if (header.blend_file_version_format == 0) {
-    fd->flags |= FD_FLAGS_IS_SMALL_BHEAD8;
+    fd->flags |= FD_FLAGS_IS_SMALL_BHEAD;
   }
   fd->fileversion = header.file_version;
 }

@@ -50,7 +50,7 @@ enum eFileDataFlag {
    * 'from the future'. Improves report to the user.
    */
   FD_FLAGS_FILE_FUTURE = 1 << 5,
-  FD_FLAGS_IS_SMALL_BHEAD8 = 1 << 6,
+  FD_FLAGS_IS_SMALL_BHEAD = 1 << 6,
 };
 ENUM_OPERATORS(eFileDataFlag, FD_FLAGS_IS_MEMFILE)
 
