@@ -1730,6 +1730,79 @@ MatBase<T, 4, 4> perspective(T left, T right, T bottom, T top, T near_clip, T fa
 }
 
 template<typename T>
+MatBase<T, 4, 4> orthodox(T left, T right, T bottom, T top, T near_clip, T far_clip, T factor, T distance )
+{
+  const T x_delta = right - left;
+  const T y_delta = top - bottom;
+  const T z_delta = far_clip - near_clip;
+
+  MatBase<T, 4, 4> mat = MatBase<T, 4, 4>::identity();
+  if (x_delta != 0 && y_delta != 0 && z_delta != 0) {
+    T Zn = -near_clip;
+    T Zd = -((distance > T(2.0) * near_clip) ? distance: T(2.0) * near_clip);
+    T Zf = -((T(2.0) * distance < far_clip) ? far_clip: T(2.0) * distance);
+    const T Kf = T(1.0) - factor;
+    const T Kz = factor / Zd;
+    T Zq = T(0.0);
+    if (Kz != 0) {
+      Zq = (0.01f - Kf)/Kz;
+      Zn = (Kz<0.0f && Zn>Zq) ? Zq : Zn;
+      Zf = (Kz>0.0f && Zf<Zq) ? Zq : Zf;
+    }
+    const T DX = -(right + left) / x_delta;
+    const T DY = -(top + bottom) / y_delta;
+    mat[0][0] = T(2.0) / x_delta;;
+    mat[2][0] = DX * Kz;
+    mat[3][0] = DX * Kf;
+    mat[1][1] = T(2.0) / y_delta;
+    mat[2][1] = DY * Kz;
+    mat[3][1] = DY * Kf;
+    mat[2][2] = (Kz * (Zf + Zn) + T(2.0) * Kf) / (Zf - Zn);
+    mat[3][2] = (Kz * Zf + Kf) - mat[2][2] * Zf;
+    mat[2][3] = Kz;
+    mat[3][3] = Kf;
+  }
+  return mat;
+}
+
+template<typename T>
+MatBase<T, 4, 4> orthodox_S(T left, T right, T bottom, T top, T near_clip, T far_clip, T factor, T distance )
+{
+  const T x_delta = right - left;
+  const T y_delta = top - bottom;
+  const T z_delta = far_clip - near_clip;
+
+  MatBase<T, 4, 4> mat = MatBase<T, 4, 4>::identity();
+  if (x_delta != 0 && y_delta != 0 && z_delta != 0) {
+    T Zn = -near_clip;
+    T Zf = -far_clip;
+    T Zd = -((distance > T(2.0) * near_clip) ? ((distance < far_clip/T(2.0)) ? distance: far_clip/T(2.0)): T(2.0) * near_clip);
+    T Kf = T(1.0) - factor;
+    Kf = Kf<T(0.0)? T(0.0): (Kf>T(2.0)? T(2.0):Kf);
+    const T Kz = factor / Zd;
+    // T Zq = T(0.0);
+    // if (Kz != 0) {
+    //   Zq = (0.01f - Kf)/Kz;
+    //   Zn = (Kz<0.0f && Zn>Zq) ? Zq : Zn;
+    //   Zf = (Kz>0.0f && Zf<Zq) ? Zq : Zf;
+    // }
+    const T DX = -(right + left) / x_delta;
+    const T DY = -(top + bottom) / y_delta;
+    mat[0][0] = T(2.0) / x_delta;;
+    mat[2][0] = DX * Kz;
+    mat[3][0] = DX * Kf;
+    mat[1][1] = T(2.0) / y_delta;
+    mat[2][1] = DY * Kz;
+    mat[3][1] = DY * Kf;
+    mat[2][2] = (Kz * (Zf + Zn) + T(2.0) * Kf) / (Zf - Zn);
+    mat[3][2] = (Kz * Zf + Kf) - mat[2][2] * Zf;
+    mat[2][3] = Kz;
+    mat[3][3] = Kf;
+  }
+  return mat;
+}
+
+template<typename T>
 MatBase<T, 4, 4> perspective_infinite(T left, T right, T bottom, T top, T near_clip)
 {
   const T x_delta = right - left;

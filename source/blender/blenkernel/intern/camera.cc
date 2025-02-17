@@ -337,6 +337,11 @@ void BKE_camera_params_init(CameraParams *params)
   /* fallback for non camera objects */
   params->clip_start = 0.1f;
   params->clip_end = 100.0f;
+
+  params->use_orthodox = 0;
+  params->orthodox_factor = 0.0f;
+  params->orthodox_tilt_x = 0.0f;
+  params->orthodox_tilt_y = 0.0f;
 }
 
 void BKE_camera_params_from_object(CameraParams *params, const Object *cam_ob)
@@ -364,6 +369,11 @@ void BKE_camera_params_from_object(CameraParams *params, const Object *cam_ob)
 
     params->clip_start = cam->clip_start;
     params->clip_end = cam->clip_end;
+
+    params->use_orthodox = cam->use_orthodox;
+    params->orthodox_factor = cam->orthodox_factor;
+    params->orthodox_tilt_x = cam->orthodox_tilt_x;
+    params->orthodox_tilt_y = cam->orthodox_tilt_y;
   }
   else if (cam_ob->type == OB_LAMP) {
     /* light object */
