@@ -208,14 +208,14 @@ class SequencerFadesAdd(Operator):
 
         # We must create a scene action first if there's none
         scene = context.scene
-        if not scene.animation_data:
-            scene.animation_data_create()
-        if not scene.animation_data.action:
+        scene_adt = scene.animation_data_create()
+        if not scene_adt.action:
             action = bpy.data.actions.new(scene.name + "Action")
-            scene.animation_data.action = action
-
-        if not scene.animation_data.action_slot:
-            scene.animation_data.action_slot = scene.animation_data.action.slots.new(scene.id_type, scene.name)
+            scene_adt.action = action
+            scene_adt.action_slot = action.slots.new(scene.id_type, scene.name)
+        elif not scene_adt.action_slot:
+            action = scene_adt.action
+            scene_adt.action_slot = action.slots.new(scene.id_type, scene.name)
 
         sequences = context.selected_strips
 
@@ -290,16 +290,21 @@ class SequencerFadesAdd(Operator):
         Returns the matching FCurve or creates a new one if the function can't find a match.
         """
         scene = context.scene
-        fade_fcurve = None
-        fcurves = scene.animation_data.action.fcurves
+        action = scene.animation_data.action
+        action_slot = scene.animation_data.action_slot
         searched_data_path = sequence.path_from_id(animated_property)
-        for fcurve in fcurves:
-            if fcurve.data_path == searched_data_path:
-                fade_fcurve = fcurve
-                break
-        if not fade_fcurve:
-            fade_fcurve = fcurves.new(data_path=searched_data_path)
-        return fade_fcurve
+
+        for layer in reversed(action.layers):
+            for strip in layer.strips:
+                cbag = strip.channelbag(action_slot)
+                if not cbag:
+                    continue
+
+                fcurve = cbag.fcurves.find(searched_data_path)
+                if fcurve:
+                    return fcurve
+
+        return fcurves.new(data_path=searched_data_path)
 
     def fade_animation_clear(self, fade_fcurve, fades):
         """
