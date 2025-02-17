@@ -1302,7 +1302,7 @@ static int duplicate_exec(bContext *C, wmOperator * /*op*/)
     IndexMaskMemory memory;
     switch (bke::AttrDomain(curves_id->selection_domain)) {
       case bke::AttrDomain::Point:
-        duplicate_points(curves, retrieve_all_selected_points(curves, memory));
+        duplicate_points(curves, retrieve_selected_points(*curves_id, memory));
         break;
       case bke::AttrDomain::Curve:
         duplicate_curves(curves, retrieve_selected_curves(*curves_id, memory));
