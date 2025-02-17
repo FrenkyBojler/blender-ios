@@ -214,6 +214,10 @@ class SequencerFadesAdd(Operator):
             action = bpy.data.actions.new(scene.name + "Action")
             scene.animation_data.action = action
 
+        if not scene.animation_data.action_slot:
+            scene.animation_data.action_slot = scene.animation_data.action.slots.new(scene.id_type, scene.name)
+
+
         sequences = context.selected_strips
 
         if not sequences:
