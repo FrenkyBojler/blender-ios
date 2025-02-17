@@ -16,6 +16,16 @@ class CsvRecord {
  public:
   CsvRecord(Span<Span<char>> fields) : fields_(fields) {}
 
+  int64_t size() const
+  {
+    return fields_.size();
+  }
+
+  IndexRange index_range() const
+  {
+    return fields_.index_range();
+  }
+
   Span<char> field(const int64_t index) const
   {
     BLI_assert(index >= 0);

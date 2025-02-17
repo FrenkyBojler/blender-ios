@@ -45,6 +45,51 @@ static std::optional<Vector<std::string>> parse_record_fields(
   return result;
 }
 
+struct StrParseResult {
+  bool success = false;
+  Vector<std::string> column_names;
+  Vector<Vector<std::string>> records;
+};
+
+static StrParseResult parse_csv_fields(const StringRef str, const CsvParseOptions &options)
+{
+  struct Chunk {
+    Vector<Vector<std::string>> fields;
+  };
+
+  StrParseResult result;
+  const std::optional<Vector<Chunk>> chunks = parse_csv_in_chunks<Chunk>(
+      Span<char>(str),
+      options,
+      [&](const Span<Span<char>> headers) {
+        for (const Span<char> header : headers) {
+          result.column_names.append(std::string(header.begin(), header.end()));
+        }
+      },
+      [&](const CsvRecords &records) {
+        Chunk result;
+        for (const int64_t record_i : records.index_range()) {
+          const CsvRecord record = records.record(record_i);
+          Vector<std::string> fields;
+          for (const int64_t column_i : record.index_range()) {
+            const Span<char> value = record.field(column_i);
+            fields.append(std::string(value.begin(), value.end()));
+          }
+          result.fields.append(std::move(fields));
+        }
+        return result;
+      });
+  if (!chunks.has_value()) {
+    result.success = false;
+    return result;
+  }
+  result.success = true;
+  for (const Chunk &chunk : *chunks) {
+    result.records.extend(std::move(chunk.fields));
+  }
+  return result;
+}
+
 TEST(csv_parse, FindEndOfSimpleField)
 {
   EXPECT_EQ(find_end_of_simple_field("123", 0), 3);
@@ -122,66 +167,94 @@ TEST(csv_parse, ParseRecordFields)
   EXPECT_EQ(parse_record_fields("\"a\"  \nb"), StrVec({"a"}));
 }
 
-TEST(csv_parse, ParseCsvInChunks)
+TEST(csv_parse, ParseCsvBasic)
 {
-  struct Chunk {
-    Vector<Vector<std::string>> fields;
-  };
-
-  const std::string buffer = "a,b,c\n1,2,3,4\n4\n77,88,99\n";
-
   CsvParseOptions options;
   options.chunk_size_bytes = 1;
+  StrParseResult result = parse_csv_fields("a,b,c\n1,2,3,4\n4\n77,88,99\n", options);
 
-  Vector<std::string> column_names;
-  const std::optional<Vector<Chunk>> result_opt = parse_csv_in_chunks<Chunk>(
-      Span<char>(buffer.data(), buffer.size()),
-      options,
-      [&](const Span<Span<char>> headers) {
-        for (const Span<char> header : headers) {
-          column_names.append(std::string(header.begin(), header.end()));
-        }
-      },
-      [&](const CsvRecords &records) {
-        Chunk result;
-        for (const int64_t record_i : records.index_range()) {
-          const CsvRecord record = records.record(record_i);
-          Vector<std::string> fields;
-          for (const int64_t column_i : column_names.index_range()) {
-            const Span<char> value = record.field(column_i);
-            fields.append(std::string(value.begin(), value.end()));
-          }
-          result.fields.append(std::move(fields));
-        }
-        return result;
-      });
-  EXPECT_TRUE(result_opt.has_value());
-  Vector<Vector<std::string>> combined;
-  for (const Chunk &chunk : *result_opt) {
-    combined.extend(std::move(chunk.fields));
-  }
+  EXPECT_TRUE(result.success);
 
-  EXPECT_EQ(column_names.size(), 3);
-  EXPECT_EQ(column_names[0], "a");
-  EXPECT_EQ(column_names[1], "b");
-  EXPECT_EQ(column_names[2], "c");
+  EXPECT_EQ(result.column_names.size(), 3);
+  EXPECT_EQ(result.column_names[0], "a");
+  EXPECT_EQ(result.column_names[1], "b");
+  EXPECT_EQ(result.column_names[2], "c");
 
-  EXPECT_EQ(combined.size(), 3);
-  EXPECT_EQ(combined[0].size(), 3);
-  EXPECT_EQ(combined[1].size(), 3);
-  EXPECT_EQ(combined[2].size(), 3);
+  EXPECT_EQ(result.records.size(), 3);
+  EXPECT_EQ(result.records[0].size(), 4);
+  EXPECT_EQ(result.records[1].size(), 1);
+  EXPECT_EQ(result.records[2].size(), 3);
 
-  EXPECT_EQ(combined[0][0], "1");
-  EXPECT_EQ(combined[0][1], "2");
-  EXPECT_EQ(combined[0][2], "3");
+  EXPECT_EQ(result.records[0][0], "1");
+  EXPECT_EQ(result.records[0][1], "2");
+  EXPECT_EQ(result.records[0][2], "3");
+  EXPECT_EQ(result.records[0][3], "4");
 
-  EXPECT_EQ(combined[1][0], "4");
-  EXPECT_EQ(combined[1][1], "");
-  EXPECT_EQ(combined[1][2], "");
+  EXPECT_EQ(result.records[1][0], "4");
 
-  EXPECT_EQ(combined[2][0], "77");
-  EXPECT_EQ(combined[2][1], "88");
-  EXPECT_EQ(combined[2][2], "99");
+  EXPECT_EQ(result.records[2][0], "77");
+  EXPECT_EQ(result.records[2][1], "88");
+  EXPECT_EQ(result.records[2][2], "99");
+}
+
+TEST(csv_parse, ParseCsvMissingEnd)
+{
+  CsvParseOptions options;
+  options.chunk_size_bytes = 1;
+  StrParseResult result = parse_csv_fields("a,b,c\n1,\"2", options);
+  EXPECT_FALSE(result.success);
+}
+
+TEST(csv_parse, ParseCsvMultiLine)
+{
+  CsvParseOptions options;
+  options.chunk_size_bytes = 1;
+  StrParseResult result = parse_csv_fields("a,b,c\n1,\"2\n\n\",3,4", options);
+  EXPECT_TRUE(result.success);
+  EXPECT_EQ(result.records.size(), 1);
+  EXPECT_EQ(result.records[0].size(), 4);
+  EXPECT_EQ(result.records[0][0], "1");
+  EXPECT_EQ(result.records[0][1], "2\n\n");
+  EXPECT_EQ(result.records[0][2], "3");
+  EXPECT_EQ(result.records[0][3], "4");
+}
+
+TEST(csv_parse, ParseCsvEmpty)
+{
+  CsvParseOptions options;
+  options.chunk_size_bytes = 1;
+  StrParseResult result = parse_csv_fields("", options);
+  EXPECT_TRUE(result.success);
+  EXPECT_EQ(result.column_names.size(), 0);
+  EXPECT_EQ(result.records.size(), 0);
+}
+
+TEST(csv_parse, ParseCsvTitlesOnly)
+{
+  CsvParseOptions options;
+  options.chunk_size_bytes = 1;
+  StrParseResult result = parse_csv_fields("a,b,c", options);
+  EXPECT_TRUE(result.success);
+  EXPECT_EQ(result.column_names.size(), 3);
+  EXPECT_EQ(result.column_names[0], "a");
+  EXPECT_EQ(result.column_names[1], "b");
+  EXPECT_EQ(result.column_names[2], "c");
+  EXPECT_TRUE(result.records.is_empty());
+}
+
+TEST(csv_parse, ParseCsvTrailingNewline)
+{
+  CsvParseOptions options;
+  options.chunk_size_bytes = 1;
+  StrParseResult result = parse_csv_fields("a\n1\n2\n", options);
+  EXPECT_TRUE(result.success);
+  EXPECT_EQ(result.column_names.size(), 1);
+  EXPECT_EQ(result.column_names[0], "a");
+  EXPECT_EQ(result.records.size(), 2);
+  EXPECT_EQ(result.records[0].size(), 1);
+  EXPECT_EQ(result.records[0][0], "1");
+  EXPECT_EQ(result.records[1].size(), 1);
+  EXPECT_EQ(result.records[1][0], "2");
 }
 
 }  // namespace blender::csv_parse::tests
