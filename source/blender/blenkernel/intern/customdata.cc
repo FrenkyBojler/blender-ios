@@ -2555,6 +2555,7 @@ static void ensure_layer_data_is_mutable(CustomDataLayer &layer, const int totel
   if (layer.data == nullptr) {
     return;
   }
+  BLI_assert(layer.sharing_info != nullptr);
   if (layer.sharing_info->is_mutable()) {
     layer.sharing_info->tag_ensured_mutable();
   }
@@ -2611,6 +2612,7 @@ void CustomData_realloc(CustomData *data,
         BLI_assert(layer->data != nullptr);
         memcpy(new_layer_data, layer->data, std::min(old_size_in_bytes, new_size_in_bytes));
       }
+      BLI_assert(layer->sharing_info != nullptr);
       layer->sharing_info->remove_user_and_delete_if_last();
       layer->sharing_info = nullptr;
     }
