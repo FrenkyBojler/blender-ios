@@ -798,23 +798,13 @@ void BKE_packedfile_pack_all_libraries(Main *bmain, ReportList *reports)
 {
   Library *lib;
 
-  /* Test for relativeness. */
   for (lib = static_cast<Library *>(bmain->libraries.first); lib;
        lib = static_cast<Library *>(lib->id.next))
   {
     if (!BLI_path_is_rel(lib->filepath)) {
-      break;
+      BKE_reportf(reports, RPT_WARNING, "Cannot pack absolute file: '%s'", lib->filepath);
+      continue;
     }
-  }
-
-  if (lib) {
-    BKE_reportf(reports, RPT_ERROR, "Cannot pack absolute file: '%s'", lib->filepath);
-    return;
-  }
-
-  for (lib = static_cast<Library *>(bmain->libraries.first); lib;
-       lib = static_cast<Library *>(lib->id.next))
-  {
     if (lib->packedfile == nullptr) {
       lib->packedfile = BKE_packedfile_new(reports, lib->filepath, BKE_main_blendfile_path(bmain));
     }
