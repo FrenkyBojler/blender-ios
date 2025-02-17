@@ -74,7 +74,7 @@ bool editable_point_cloud_in_edit_mode_poll(bContext *C)
   return point_cloud_poll_impl(C, true, true);
 }
 
-static VectorSet<PointCloud *> get_unique_editable_point_clouds(const bContext &C)
+VectorSet<PointCloud *> get_unique_editable_point_clouds(const bContext &C)
 {
   VectorSet<PointCloud *> unique_points;
 
@@ -142,7 +142,24 @@ static void POINT_CLOUD_OT_select_all(wmOperatorType *ot)
 
 void operatortypes_point_cloud()
 {
+  WM_operatortype_append(POINT_CLOUD_OT_attribute_set);
+  WM_operatortype_append(POINT_CLOUD_OT_duplicate);
   WM_operatortype_append(POINT_CLOUD_OT_select_all);
+}
+
+void operatormacros_point_cloud()
+{
+  wmOperatorType *ot;
+  wmOperatorTypeMacro *otmacro;
+
+  ot = WM_operatortype_append_macro("POINT_CLOUD_OT_duplicate_move",
+                                    "Duplicate",
+                                    "Make copies of selected elements and move them",
+                                    OPTYPE_UNDO | OPTYPE_REGISTER);
+  WM_operatortype_macro_define(ot, "POINT_CLOUD_OT_duplicate");
+  otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
+  RNA_boolean_set(otmacro->ptr, "use_proportional_edit", false);
+  RNA_boolean_set(otmacro->ptr, "mirror", false);
 }
 
 void keymap_point_cloud(wmKeyConfig *keyconf)
