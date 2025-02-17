@@ -26,6 +26,7 @@
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
+#include "DNA_userdef_types.h"
 #include "DNA_world_types.h"
 
 #include "BLI_color.hh"
@@ -863,7 +864,7 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
         BLO_write_struct(writer, NodeGeometryAttributeCapture, node->storage);
         nodes::socket_items::blend_write<nodes::CaptureAttributeItemsAccessor>(writer, *node);
       }
-      else if (node->typeinfo != &NodeTypeUndefined) {
+      else if (!node->is_undefined()) {
         BLO_write_struct_by_name(writer, node->typeinfo->storagename.c_str(), node->storage);
       }
     }
@@ -1459,7 +1460,7 @@ static void node_init(const bContext *C, bNodeTree *ntree, bNode *node)
    *     Data have their own translation option!
    *     This solution may be a bit rougher than nodeLabel()'s returned string, but it's simpler
    *     than adding "do_translate" flags to this func (and labelfunc() as well). */
-  STRNCPY_UTF8(node->name, DATA_(ntype->ui_name.c_str()));
+  DATA_(ntype->ui_name).copy_utf8_truncated(node->name);
   node_unique_name(ntree, node);
 
   /* Generally sockets should be added after the initialization, because the set of sockets might

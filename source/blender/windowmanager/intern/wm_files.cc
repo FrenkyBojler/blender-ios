@@ -36,6 +36,7 @@
 #include "BLI_fileops.h"
 #include "BLI_filereader.h"
 #include "BLI_linklist.h"
+#include "BLI_listbase.h"
 #include "BLI_math_time.h"
 #include "BLI_memory_cache.hh"
 #include "BLI_string.h"
@@ -75,6 +76,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
 #include "BKE_lib_remap.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_main_namemap.hh"
 #include "BKE_node.hh"
@@ -2096,7 +2098,7 @@ static bool wm_file_write_check_with_report_on_failure(Main *bmain,
   }
 
   LISTBASE_FOREACH (Library *, li, &bmain->libraries) {
-    if (BLI_path_cmp(li->runtime.filepath_abs, filepath) == 0) {
+    if (BLI_path_cmp(li->runtime->filepath_abs, filepath) == 0) {
       BKE_reportf(reports, RPT_ERROR, "Cannot overwrite used library '%.240s'", filepath);
       return false;
     }
@@ -2253,9 +2255,6 @@ static bool wm_file_write(bContext *C,
       IMB_thumb_delete(filepath, THB_FAIL); /* Without this a failed thumb overrides. */
       ibuf_thumb = IMB_thumb_create(filepath, THB_LARGE, THB_SOURCE_BLEND, ibuf_thumb);
     }
-
-    /* Without this there is no feedback the file was saved. */
-    BKE_reportf(reports, RPT_INFO, "Saved \"%s\"", BLI_path_basename(filepath));
   }
 
   BKE_callback_exec_string(
@@ -3655,6 +3654,7 @@ static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
   char filepath[FILE_MAX];
   const bool is_save_as = (op->type->invoke == wm_save_as_mainfile_invoke);
   const bool use_save_as_copy = is_save_as && RNA_boolean_get(op->ptr, "copy");
+  const bool is_incremental = RNA_boolean_get(op->ptr, "incremental");
 
   /* We could expose all options to the users however in most cases remapping
    * existing relative paths is a good default.
@@ -3680,7 +3680,7 @@ static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if ((is_save_as == false) && RNA_boolean_get(op->ptr, "incremental")) {
+  if ((is_save_as == false) && is_incremental) {
     char head[FILE_MAXFILE], tail[FILE_MAXFILE];
     ushort digits;
     int num = BLI_path_sequence_decode(filepath, head, sizeof(head), tail, sizeof(tail), &digits);
@@ -3723,6 +3723,24 @@ static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
 
   if (success == false) {
     return OPERATOR_CANCELLED;
+  }
+
+  const char *filename = BLI_path_basename(filepath);
+
+  if (is_incremental) {
+    BKE_reportf(op->reports, RPT_INFO, "Saved incremental as \"%s\"", filename);
+  }
+  else if (is_save_as) {
+    /* use_save_as_copy depends upon is_save_as. */
+    if (use_save_as_copy) {
+      BKE_reportf(op->reports, RPT_INFO, "Saved copy as \"%s\"", filename);
+    }
+    else {
+      BKE_reportf(op->reports, RPT_INFO, "Saved as \"%s\"", filename);
+    }
+  }
+  else {
+    BKE_reportf(op->reports, RPT_INFO, "Saved \"%s\"", filename);
   }
 
   if (!use_save_as_copy) {
@@ -4060,7 +4078,7 @@ static uiBlock *block_create_autorun_warning(bContext *C, ARegion *region, void 
 
   const int dialog_width = std::max(int(400.0f * UI_SCALE_FAC),
                                     text_width + int(style->columnspace * 2.5));
-  const short icon_size = 64 * UI_SCALE_FAC;
+  const short icon_size = 40 * UI_SCALE_FAC;
   uiLayout *layout = uiItemsAlertBox(
       block, style, dialog_width + icon_size, ALERT_ICON_ERROR, icon_size);
 
@@ -4075,7 +4093,7 @@ static uiBlock *block_create_autorun_warning(bContext *C, ARegion *region, void 
   PointerRNA pref_ptr = RNA_pointer_create_discrete(nullptr, &RNA_PreferencesFilePaths, &U);
   uiItemR(layout, &pref_ptr, "use_scripts_auto_execute", UI_ITEM_NONE, checkbox_text, ICON_NONE);
 
-  uiItemS_ex(layout, 3.0f);
+  uiItemS_ex(layout, 2.0f);
 
   /* Buttons. */
   uiBut *but;
@@ -4735,7 +4753,7 @@ static uiBlock *block_create__close_file_dialog(bContext *C, ARegion *region, vo
 
   BKE_reports_free(&reports);
 
-  uiItemS_ex(layout, has_extra_checkboxes ? 2.0f : 4.0f);
+  uiItemS_ex(layout, 2.0f);
 
   /* Buttons. */
 #ifdef _WIN32

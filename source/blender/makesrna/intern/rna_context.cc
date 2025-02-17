@@ -50,6 +50,7 @@ const EnumPropertyItem rna_enum_context_mode_items[] = {
 #ifdef RNA_RUNTIME
 
 #  include "DNA_asset_types.h"
+#  include "DNA_userdef_types.h"
 
 #  ifdef WITH_PYTHON
 #    include "BPY_extern.hh"
@@ -66,7 +67,8 @@ static PointerRNA rna_Context_manager_get(PointerRNA *ptr)
 static PointerRNA rna_Context_window_get(PointerRNA *ptr)
 {
   bContext *C = (bContext *)ptr->data;
-  return rna_pointer_inherit_refine(ptr, &RNA_Window, CTX_wm_window(C));
+  return RNA_pointer_create_discrete(
+      reinterpret_cast<ID *>(CTX_wm_manager(C)), &RNA_Window, CTX_wm_window(C));
 }
 
 static PointerRNA rna_Context_workspace_get(PointerRNA *ptr)
@@ -155,10 +157,8 @@ static PointerRNA rna_Context_scene_get(PointerRNA *ptr)
 static PointerRNA rna_Context_view_layer_get(PointerRNA *ptr)
 {
   bContext *C = (bContext *)ptr->data;
-  Scene *scene = CTX_data_scene(C);
-
-  PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
-  return rna_pointer_inherit_refine(&scene_ptr, &RNA_ViewLayer, CTX_data_view_layer(C));
+  return RNA_pointer_create_id_subdata(
+      *reinterpret_cast<ID *>(CTX_data_scene(C)), &RNA_ViewLayer, CTX_data_view_layer(C));
 }
 
 static void rna_Context_engine_get(PointerRNA *ptr, char *value)
@@ -184,20 +184,16 @@ static PointerRNA rna_Context_collection_get(PointerRNA *ptr)
 static PointerRNA rna_Context_layer_collection_get(PointerRNA *ptr)
 {
   bContext *C = (bContext *)ptr->data;
-  Scene *scene = CTX_data_scene(C);
-
-  PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
-  return rna_pointer_inherit_refine(
-      &scene_ptr, &RNA_LayerCollection, CTX_data_layer_collection(C));
+  return RNA_pointer_create_discrete(reinterpret_cast<ID *>(CTX_data_scene(C)),
+                                     &RNA_LayerCollection,
+                                     CTX_data_layer_collection(C));
 }
 
 static PointerRNA rna_Context_tool_settings_get(PointerRNA *ptr)
 {
   bContext *C = (bContext *)ptr->data;
-  Scene *scene = CTX_data_scene(C);
-
-  PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
-  return rna_pointer_inherit_refine(&scene_ptr, &RNA_ToolSettings, CTX_data_tool_settings(C));
+  return RNA_pointer_create_id_subdata(
+      *reinterpret_cast<ID *>(CTX_data_scene(C)), &RNA_ToolSettings, CTX_data_tool_settings(C));
 }
 
 static PointerRNA rna_Context_preferences_get(PointerRNA * /*ptr*/)

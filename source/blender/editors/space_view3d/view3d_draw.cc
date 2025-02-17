@@ -1390,6 +1390,14 @@ static void draw_selected_name(
     info_array[i++] = msg_space;
     info_array[i++] = ob->id.name + 2;
 
+    /* Show object data name when not in object mode. */
+    if (ob->mode != OB_MODE_OBJECT) {
+      if (const ID *data_id = static_cast<const ID *>(ob->data)) {
+        info_array[i++] = " | ";
+        info_array[i++] = data_id->name + 2;
+      }
+    }
+
     /* name(s) to display depends on type of object */
     if (ob->type == OB_ARMATURE) {
       bArmature *arm = static_cast<bArmature *>(ob->data);
@@ -2734,7 +2742,9 @@ void ED_scene_draw_fps(const Scene *scene, int xoffset, int *yoffset)
   if (state.fps_average + 0.5f < state.fps_target) {
     /* Always show fractional when under performing. */
     show_fractional = true;
-    BLF_color4ub(font_id, 225, 36, 36, 255);
+    float alert_color[4];
+    UI_GetThemeColorBlend4f(TH_REDALERT, TH_TEXT_HI, 0.5f, alert_color);
+    BLF_color4fv(font_id, alert_color);
   }
 
   if (show_fractional) {
