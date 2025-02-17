@@ -49,9 +49,9 @@ void InputSingleValueOperation::execute()
     case ResultType::Color:
       result.set_single_value(float4(bsocket->default_value_typed<bNodeSocketValueRGBA>()->value));
       break;
-    case ResultType::MotionVector:
+    case ResultType::Float4:
       result.set_single_value(
-          MotionVector(float2(bsocket->default_value_typed<bNodeSocketValueVector>()->value)));
+          float4(float3(bsocket->default_value_typed<bNodeSocketValueVector>()->value), 0.0f));
       break;
     case ResultType::Float2:
     case ResultType::Float3:

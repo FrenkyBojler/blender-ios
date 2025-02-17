@@ -292,7 +292,7 @@ class Context : public compositor::Context {
         return compositor::ResultType::Float3;
       case 4:
         if (StringRef(pass->chan_id) == "XYZW") {
-          return compositor::ResultType::MotionVector;
+          return compositor::ResultType::Float4;
         }
         else {
           return compositor::ResultType::Color;

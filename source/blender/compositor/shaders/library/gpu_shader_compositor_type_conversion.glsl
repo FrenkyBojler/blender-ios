@@ -21,7 +21,7 @@ vec4 float_to_color(float value)
   return vec4(vec3(value), 1.0);
 }
 
-vec4 float_to_motion_vector(float value)
+vec4 float_to_float4(float value)
 {
   return vec4(value);
 }
@@ -45,9 +45,9 @@ vec4 int_to_color(int value)
   return float_to_color(int_to_float(value));
 }
 
-vec4 int_to_motion_vector(int value)
+vec4 int_to_float4(int value)
 {
-  return float_to_motion_vector(int_to_float(value));
+  return float_to_float4(int_to_float(value));
 }
 
 /* --------------------------------------------------------------------
@@ -69,9 +69,9 @@ vec4 vector_to_color(vec4 value)
   return vec4(value.xyz, 1.0);
 }
 
-vec4 vector_to_motion_vector(vec4 value)
+vec4 vector_to_float4(vec4 value)
 {
-  return vec4(value.xy, value.xy);
+  return value;
 }
 
 /* --------------------------------------------------------------------
@@ -93,31 +93,31 @@ vec4 color_to_vector(vec4 value)
   return value;
 }
 
-vec4 color_to_motion_vector(vec4 value)
+vec4 color_to_float4(vec4 value)
 {
   return value;
 }
 
 /* --------------------------------------------------------------------
- * Motion Vector to other.
+ * Float4 to other.
  */
 
-float motion_vector_to_float(vec4 value)
+float float4_to_float(vec4 value)
 {
-  return (length(value.xy) + length(value.zw)) / 2.0;
+  return dot(value, vec4(1.0)) / 4.0;
 }
 
-int motion_vector_to_int(vec4 value)
+int float4_to_int(vec4 value)
 {
-  return float_to_int(motion_vector_to_float(value));
+  return float_to_int(float4_to_float(value));
 }
 
-vec4 motion_vector_to_vector(vec4 value)
+vec4 float4_to_vector(vec4 value)
 {
-  return vec4(value.xy, 0.0f, 0.0f);
+  return value;
 }
 
-vec4 motion_vector_to_color(vec4 value)
+vec4 float4_to_color(vec4 value)
 {
   return value;
 }

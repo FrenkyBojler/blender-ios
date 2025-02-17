@@ -683,7 +683,7 @@ class FileOutputOperation : public NodeOperation {
       case ResultType::Float3:
         file_output.add_pass(pass_name, view_name, "XYZ", buffer);
         break;
-      case ResultType::MotionVector:
+      case ResultType::Float4:
         file_output.add_pass(pass_name, view_name, "XYZW", buffer);
         break;
       case ResultType::Float:
@@ -723,11 +723,11 @@ class FileOutputOperation : public NodeOperation {
         });
         return buffer;
       }
-      case ResultType::MotionVector: {
+      case ResultType::Float4: {
         float *buffer = static_cast<float *>(MEM_malloc_arrayN(
             size_t(size.x) * size.y, sizeof(float[4]), "File Output Inflated Buffer."));
 
-        const MotionVector value = result.get_single_value<MotionVector>();
+        const float4 value = result.get_single_value<float4>();
         parallel_for(size, [&](const int2 texel) {
           copy_v4_v4(buffer + ((int64_t(texel.y) * size.x + texel.x) * 4), value);
         });
@@ -772,7 +772,7 @@ class FileOutputOperation : public NodeOperation {
       case ResultType::Color:
         file_output.add_view(view_name, 4, buffer);
         break;
-      case ResultType::MotionVector:
+      case ResultType::Float4:
         file_output.add_view(view_name, 4, buffer);
         break;
       case ResultType::Vector:

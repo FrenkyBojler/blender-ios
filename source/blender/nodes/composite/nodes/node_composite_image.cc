@@ -767,7 +767,7 @@ class RenderLayerOperation : public NodeOperation {
         return "compositor_read_input_float";
       case ResultType::Vector:
       case ResultType::Color:
-      case ResultType::MotionVector:
+      case ResultType::Float4:
       case ResultType::Float3:
         return "compositor_read_input_float4";
       default:

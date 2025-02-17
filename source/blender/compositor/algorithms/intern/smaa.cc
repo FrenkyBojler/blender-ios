@@ -1417,7 +1417,7 @@ static float3 get_luminance_coefficients(ResultType type)
       return luminance_coefficients;
     }
     case ResultType::Vector:
-    case ResultType::MotionVector:
+    case ResultType::Float4:
       return float3(1.0f, 1.0f, 1.0f);
     case ResultType::Float:
       return float3(1.0f, 0.0f, 0.0f);
@@ -1589,7 +1589,7 @@ static const char *get_blend_shader_name(ResultType type)
   switch (type) {
     case ResultType::Color:
     case ResultType::Vector:
-    case ResultType::MotionVector:
+    case ResultType::Float4:
       return "compositor_smaa_neighborhood_blending_float4";
     case ResultType::Float2:
       return "compositor_smaa_neighborhood_blending_float2";
@@ -1669,8 +1669,8 @@ static void compute_single_value(Result &input, Result &output)
     case ResultType::Vector:
       output.set_single_value(input.get_single_value<float4>());
       break;
-    case ResultType::MotionVector:
-      output.set_single_value(input.get_single_value<MotionVector>());
+    case ResultType::Float4:
+      output.set_single_value(input.get_single_value<float4>());
       break;
     case ResultType::Float2:
       output.set_single_value(input.get_single_value<float2>());

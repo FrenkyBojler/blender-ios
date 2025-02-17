@@ -36,8 +36,8 @@ void node_compositor_store_output_color(const float id, vec4 color, out vec4 out
   out_color = color;
 }
 
-void node_compositor_store_output_motion_vector(const float id, vec4 value, out vec4 out_value)
+void node_compositor_store_output_float4(const float id, vec4 value, out vec4 out_value)
 {
-  store_motion_vector(floatBitsToUint(id), value);
+  store_float4(floatBitsToUint(id), value);
   out_value = value;
 }
