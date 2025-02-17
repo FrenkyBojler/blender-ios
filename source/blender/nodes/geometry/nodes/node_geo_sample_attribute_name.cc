@@ -11,7 +11,7 @@
 #include "NOD_rna_define.hh"
 #include "RNA_enum_types.hh"
 
-namespace blender::nodes::node_geo_attribute_name_cc {
+namespace blender::nodes::node_geo_sample_attribute_name_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -39,7 +39,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bNode &node = params.node();
 
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
-  const int search_index = params.extract_input<int>("Index");
+  const int sample_index = params.extract_input<int>("Index");
   const eCustomDataType data_type = eCustomDataType(node.custom1);
   const AttrDomain domain = AttrDomain(node.custom2);
 
@@ -67,7 +67,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   attributes.foreach_attribute([&](const AttributeIter &iter) {
     if (iter.domain == domain && iter.data_type == data_type && iter.name[0] != '.') {
-      if (attribute_count == search_index) {
+      if (attribute_count == sample_index) {
         attribute_name = iter.name;
       }
       attribute_count++;
@@ -107,10 +107,10 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeAttributeName");
+  geo_node_type_base(&ntype, "GeometryNodeSampleAttributeName");
   ntype.ui_name = "Attribute Name";
   ntype.ui_description =
-      "Retrieves string name of attribute given an index, data type, and domain";
+      "Samples attribute name as a string given an index, data type, and domain";
   ntype.nclass = NODE_CLASS_ATTRIBUTE;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.initfunc = node_init;
@@ -122,4 +122,4 @@ static void node_register()
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_attribute_name_cc
+}  // namespace blender::nodes::node_geo_sample_attribute_name_cc
