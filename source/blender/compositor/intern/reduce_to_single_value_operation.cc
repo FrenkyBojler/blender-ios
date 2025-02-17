@@ -50,8 +50,8 @@ void ReduceToSingleValueOperation::execute()
     case ResultType::Float3:
       result.set_single_value(float4(static_cast<float *>(pixel)));
       break;
-    case ResultType::MotionVector:
-      result.set_single_value(MotionVector(static_cast<float *>(pixel)));
+    case ResultType::Float4:
+      result.set_single_value(float4(static_cast<float *>(pixel)));
       break;
     case ResultType::Float:
       result.set_single_value(*static_cast<float *>(pixel));

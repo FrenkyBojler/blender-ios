@@ -132,7 +132,7 @@ const char *RealizeOnDomainOperation::get_realization_shader_name()
         return "compositor_realize_on_domain_bicubic_float";
       case ResultType::Color:
       case ResultType::Float3:
-      case ResultType::MotionVector:
+      case ResultType::Float4:
         return "compositor_realize_on_domain_bicubic_float4";
       case ResultType::Int:
       case ResultType::Int2:
@@ -147,7 +147,7 @@ const char *RealizeOnDomainOperation::get_realization_shader_name()
         return "compositor_realize_on_domain_float";
       case ResultType::Color:
       case ResultType::Float3:
-      case ResultType::MotionVector:
+      case ResultType::Float4:
         return "compositor_realize_on_domain_float4";
       case ResultType::Int:
       case ResultType::Int2:

@@ -204,7 +204,7 @@ static ImBuf *compute_linear_buffer(ImBuf *image_buffer)
 /* Returns the appropriate result type for the given image buffer, which represents the pass in the
  * given render result with the given image user. The type is determined based on the channels
  * count of the buffer, except for when the channels count is 4, because it can either be a color
- * or a motion vector pass, which is determined by inspecting the channels IDs of the pass. */
+ * or a float4 pass, which is determined by inspecting the channels IDs of the pass. */
 static ResultType get_result_type(const RenderResult *render_result,
                                   const ImageUser &image_user,
                                   const ImBuf *image_buffer)
@@ -217,7 +217,7 @@ static ResultType get_result_type(const RenderResult *render_result,
     case 3:
       return ResultType::Float3;
     case 4:
-      /* The 4 channel case is ambiguous, it can either be a color or a motion vector, so we need
+      /* The 4 channel case is ambiguous, it can either be a color or a float4, so we need
        * to investigate the pass channel IDs outside of the switch to identify its type. */
       break;
     default:
@@ -243,7 +243,7 @@ static ResultType get_result_type(const RenderResult *render_result,
   }
 
   if (StringRef(render_pass->chan_id) == "XYZW") {
-    return ResultType::MotionVector;
+    return ResultType::Float4;
   }
 
   return ResultType::Color;

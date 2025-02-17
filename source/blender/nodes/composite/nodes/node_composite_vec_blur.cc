@@ -12,7 +12,6 @@
 #include "BLI_math_base.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
-#include "BLI_motion_vector.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -106,16 +105,16 @@ static float2 max_velocity_approximate(const float2 &a,
 static Result compute_max_tile_velocity_cpu(Context &context, const Result &velocity_image)
 {
   if (velocity_image.is_single_value()) {
-    Result output = context.create_result(ResultType::MotionVector);
+    Result output = context.create_result(ResultType::Float4);
     output.allocate_single_value();
-    output.set_single_value(velocity_image.get_single_value<MotionVector>());
+    output.set_single_value(velocity_image.get_single_value<float4>());
     return output;
   }
 
   const int2 tile_size = int2(MOTION_BLUR_TILE_SIZE);
   const int2 velocity_size = velocity_image.domain().size;
   const int2 tiles_count = math::divide_ceil(velocity_size, tile_size);
-  Result output = context.create_result(ResultType::MotionVector);
+  Result output = context.create_result(ResultType::Float4);
   output.allocate_texture(Domain(tiles_count));
 
   parallel_for(tiles_count, [&](const int2 texel) {
@@ -125,13 +124,13 @@ static Result compute_max_tile_velocity_cpu(Context &context, const Result &velo
     for (int j = 0; j < tile_size.y; j++) {
       for (int i = 0; i < tile_size.x; i++) {
         int2 sub_texel = texel * tile_size + int2(i, j);
-        const MotionVector velocity = velocity_image.load_pixel_extended<MotionVector>(sub_texel);
-        max_previous_velocity = max_velocity(velocity.previous, max_previous_velocity);
-        max_next_velocity = max_velocity(velocity.next, max_next_velocity);
+        const float4 velocity = velocity_image.load_pixel_extended<float4>(sub_texel);
+        max_previous_velocity = max_velocity(velocity.xy(), max_previous_velocity);
+        max_next_velocity = max_velocity(velocity.zw(), max_next_velocity);
       }
     }
 
-    const MotionVector max_velocity = MotionVector(max_previous_velocity, max_next_velocity);
+    const float4 max_velocity = float4(max_previous_velocity, max_next_velocity);
     output.store_pixel(texel, max_velocity);
   });
 
@@ -198,25 +197,25 @@ static Result dilate_max_velocity_cpu(Context &context,
                                       const float shutter_speed)
 {
   if (max_tile_velocity.is_single_value()) {
-    Result output = context.create_result(ResultType::MotionVector);
+    Result output = context.create_result(ResultType::Float4);
     output.allocate_single_value();
-    output.set_single_value(max_tile_velocity.get_single_value<MotionVector>());
+    output.set_single_value(max_tile_velocity.get_single_value<float4>());
     return output;
   }
 
   const int2 size = max_tile_velocity.domain().size;
-  Result output = context.create_result(ResultType::MotionVector);
+  Result output = context.create_result(ResultType::Float4);
   output.allocate_texture(Domain(size));
 
-  parallel_for(size, [&](const int2 texel) { output.store_pixel(texel, MotionVector(0.0f)); });
+  parallel_for(size, [&](const int2 texel) { output.store_pixel(texel, float4(0.0f)); });
 
   for (const int64_t y : IndexRange(size.y)) {
     for (const int64_t x : IndexRange(size.x)) {
       const int2 src_tile = int2(x, y);
 
-      const MotionVector max_motion = max_tile_velocity.load_pixel<MotionVector>(src_tile);
-      const float2 max_previous_velocity = max_motion.previous * shutter_speed;
-      const float2 max_next_velocity = max_motion.next * -shutter_speed;
+      const float4 max_motion = max_tile_velocity.load_pixel<float4>(src_tile);
+      const float2 max_previous_velocity = max_motion.xy() * shutter_speed;
+      const float2 max_next_velocity = max_motion.zw() * -shutter_speed;
 
       {
         /* Rectangular area (in tiles) where the motion vector spreads. */
@@ -227,13 +226,12 @@ static Result dilate_max_velocity_cpu(Context &context,
           for (int i = 0; i < motion_rect.extent.x; i++) {
             int2 tile = motion_rect.bottom_left + int2(i, j);
             if (is_inside_motion_line(tile, motion_line)) {
-              const MotionVector current_max_velocity = output.load_pixel<MotionVector>(tile);
+              const float4 current_max_velocity = output.load_pixel<float4>(tile);
               const float2 new_max_previous_velocity = max_velocity_approximate(
-                  current_max_velocity.previous, max_previous_velocity, tile, src_tile);
+                  current_max_velocity.xy(), max_previous_velocity, tile, src_tile);
               const float2 new_max_next_velocity = max_velocity_approximate(
-                  current_max_velocity.next, max_next_velocity, tile, src_tile);
-              output.store_pixel(tile,
-                                 MotionVector(new_max_previous_velocity, new_max_next_velocity));
+                  current_max_velocity.zw(), max_next_velocity, tile, src_tile);
+              output.store_pixel(tile, float4(new_max_previous_velocity, new_max_next_velocity));
             }
           }
         }
@@ -248,13 +246,12 @@ static Result dilate_max_velocity_cpu(Context &context,
           for (int i = 0; i < motion_rect.extent.x; i++) {
             int2 tile = motion_rect.bottom_left + int2(i, j);
             if (is_inside_motion_line(tile, motion_line)) {
-              const MotionVector current_max_velocity = output.load_pixel<MotionVector>(tile);
+              const float4 current_max_velocity = output.load_pixel<float4>(tile);
               const float2 new_max_previous_velocity = max_velocity_approximate(
-                  current_max_velocity.previous, max_previous_velocity, tile, src_tile);
+                  current_max_velocity.xy(), max_previous_velocity, tile, src_tile);
               const float2 new_max_next_velocity = max_velocity_approximate(
-                  current_max_velocity.next, max_next_velocity, tile, src_tile);
-              output.store_pixel(tile,
-                                 MotionVector(new_max_previous_velocity, new_max_next_velocity));
+                  current_max_velocity.zw(), max_next_velocity, tile, src_tile);
+              output.store_pixel(tile, float4(new_max_previous_velocity, new_max_next_velocity));
             }
           }
         }
@@ -440,9 +437,9 @@ static void motion_blur_cpu(const Result &input_image,
 
         /* Data of the center pixel of the gather (target). */
         float center_depth = input_depth.load_pixel<float, true>(texel);
-        MotionVector center_motion = input_velocity.load_pixel<MotionVector, true>(texel);
-        float2 center_previous_motion = center_motion.previous * shutter_speed;
-        float2 center_next_motion = center_motion.previous * -shutter_speed;
+        float4 center_motion = input_velocity.load_pixel<float4, true>(texel);
+        float2 center_previous_motion = center_motion.xy() * shutter_speed;
+        float2 center_next_motion = center_motion.zw() * -shutter_speed;
         float4 center_color = input_image.load_pixel<float4>(texel);
 
         /* Randomize tile boundary to avoid ugly discontinuities. Randomize 1/4th of the tile.
@@ -453,7 +450,7 @@ static void motion_blur_cpu(const Result &input_image,
 
         /* No need to multiply by the shutter speed and invert the next velocities since this was
          * already done in dilate_max_velocity. */
-        MotionVector max_motion = max_velocity.load_pixel<MotionVector, true>(tile);
+        float4 max_motion = max_velocity.load_pixel<float4, true>(tile);
 
         Accumulator accum;
         accum.weight = float3(0.0f, 0.0f, 1.0f);
@@ -467,7 +464,7 @@ static void motion_blur_cpu(const Result &input_image,
                     uv,
                     center_previous_motion,
                     center_depth,
-                    max_motion.previous,
+                    max_motion.xy(),
                     rand,
                     false,
                     samples_count,
@@ -481,7 +478,7 @@ static void motion_blur_cpu(const Result &input_image,
                     uv,
                     center_next_motion,
                     center_depth,
-                    max_motion.next,
+                    max_motion.zw(),
                     rand,
                     true,
                     samples_count,
@@ -517,7 +514,7 @@ class VectorBlurOperation : public NodeOperation {
  public:
   VectorBlurOperation(Context &context, DNode node) : NodeOperation(context, node)
   {
-    this->get_input_descriptor("Speed").type = ResultType::MotionVector;
+    this->get_input_descriptor("Speed").type = ResultType::Float4;
   }
 
   void execute() override
@@ -558,7 +555,7 @@ class VectorBlurOperation : public NodeOperation {
     Result &input = get_input("Speed");
     input.bind_as_texture(shader, "input_tx");
 
-    Result output = context().create_result(ResultType::MotionVector);
+    Result output = context().create_result(ResultType::Float4);
     const int2 tiles_count = math::divide_ceil(input.domain().size, int2(32));
     output.allocate_texture(Domain(tiles_count));
     output.bind_as_image(shader, "output_img");
