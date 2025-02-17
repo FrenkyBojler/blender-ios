@@ -24,7 +24,7 @@ ccl_device_inline float4 one_float4()
   return make_float4(1.0f);
 }
 
-template<> inline float4 make_zero()
+ccl_device_inline_template float4 make_zero()
 {
   return zero_float4();
 }

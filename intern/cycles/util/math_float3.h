@@ -26,7 +26,7 @@ ccl_device_inline float3 one_float3()
   return make_float3(1.0f, 1.0f, 1.0f);
 }
 
-template<> inline float3 make_zero()
+ccl_device_inline_template float3 make_zero()
 {
   return zero_float3();
 }
