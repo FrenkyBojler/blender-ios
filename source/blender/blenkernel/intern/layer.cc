@@ -1421,9 +1421,6 @@ void BKE_layer_collection_sync(const Scene *scene, ViewLayer *view_layer)
     view_layer->active_collection = static_cast<LayerCollection *>(
         view_layer->layer_collections.first);
   }
-  else if (active->flag & LAYER_COLLECTION_EXCLUDE) {
-    BKE_layer_collection_activate_parent(view_layer, active);
-  }
 }
 
 void BKE_scene_collection_sync(const Scene *scene)
