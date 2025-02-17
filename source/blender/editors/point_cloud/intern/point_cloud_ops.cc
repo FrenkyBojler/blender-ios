@@ -144,10 +144,10 @@ namespace point_cloud_delete {
 
 static int delete_exec(bContext *C, wmOperator * /*op*/)
 {
-  for (PointCloud *point_cloud_id : get_unique_editable_point_clouds(*C)) {
-    if (remove_selection(*point_cloud_id)) {
-      DEG_id_tag_update(&point_cloud_id->id, ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(C, NC_GEOM | ND_DATA, &point_cloud_id);
+  for (PointCloud *point_cloud : get_unique_editable_point_clouds(*C)) {
+    if (remove_selection(*point_cloud)) {
+      DEG_id_tag_update(&point_cloud->id, ID_RECALC_GEOMETRY);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, &point_cloud);
     }
   }
 
