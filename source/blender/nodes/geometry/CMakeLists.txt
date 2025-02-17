@@ -26,6 +26,7 @@ set(SRC
   nodes/node_geo_accumulate_field.cc
   nodes/node_geo_attribute_capture.cc
   nodes/node_geo_attribute_domain_size.cc
+  nodes/node_geo_attribute_name.cc
   nodes/node_geo_attribute_statistic.cc
   nodes/node_geo_bake.cc
   nodes/node_geo_blur_attribute.cc
