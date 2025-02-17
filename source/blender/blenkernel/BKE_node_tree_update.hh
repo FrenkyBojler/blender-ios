@@ -64,13 +64,23 @@ void BKE_ntree_update_tag_id_changed(Main *bmain, ID *id);
 void BKE_ntree_update_tag_image_user_changed(bNodeTree *ntree, ImageUser *iuser);
 
 struct NodeTreeUpdateResult {
+  /** The tree that was checked by the node tree update code. */
   bNodeTree *tree = nullptr;
+  /** Whether the tree was modified. */
   bool modified = false;
+  /**
+   * False when the output definitely was not changed, i.e. no reevaluation is necessary.
+   * If true, the output was likely changed.
+   */
   bool modified_output = false;
+  /**
+   * Whether the interface (aka inputs and outputs, description, etc.) was modified.
+   */
   bool modified_interface = false;
 };
 
 struct UpdatedNodeTrees {
+  /** Information about the updated node trees. */
   blender::Vector<NodeTreeUpdateResult> trees;
 };
 
@@ -82,8 +92,6 @@ struct UpdatedNodeTrees {
  *   be modified too.
  * \param modified_trees: Optional filter for node trees that have been modified. Passing this in
  *   may make the update faster by avoiding having to iterate over all node trees.
- * \param params: Additional parameters that allow the caller to properly tag the depsgraph and
- *   sent notifiers.
  */
 UpdatedNodeTrees BKE_ntree_update(
     Main &bmain, std::optional<blender::Span<bNodeTree *>> modified_trees = std::nullopt);

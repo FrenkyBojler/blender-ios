@@ -60,6 +60,7 @@ static void propagate_node_tree_changes(Main &bmain,
   }
 
   const UpdatedNodeTrees updated_trees = BKE_ntree_update(bmain, modified_trees);
+
   blender::Set<bNodeTree *> trees_with_updated_interface;
   for (const NodeTreeUpdateResult &result : updated_trees.trees) {
     bNodeTree &ntree = *result.tree;
@@ -75,6 +76,8 @@ static void propagate_node_tree_changes(Main &bmain,
       trees_with_updated_interface.add(&ntree);
     }
   }
+
+  /* Update Geometry Nodes modifiers that reference node trees with changed interfaces. */
   if (!trees_with_updated_interface.is_empty()) {
     LISTBASE_FOREACH (Object *, ob, &bmain.objects) {
       LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
