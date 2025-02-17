@@ -248,7 +248,7 @@ void ConversionOperation::execute_single(const Result &input, Result &output)
           output.set_single_value(float3_to_color(input.get_single_value<float3>()));
           return;
         case ResultType::Float4:
-          output.set_single_value(vector_to_float4(input.get_single_value<float4>()));
+          output.set_single_value(float3_to_float4(input.get_single_value<float3>()));
           return;
         case ResultType::Float3:
           /* Same type, no conversion needed. */

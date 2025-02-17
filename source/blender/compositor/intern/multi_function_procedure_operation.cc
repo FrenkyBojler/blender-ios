@@ -411,7 +411,7 @@ static mf::MultiFunction *get_conversion_function(const ResultType variable_type
   static auto color_to_int_function = mf::build::SI1_SO<float4, int>(
       "Color To Int", color_to_int, mf::build::exec_presets::AllSpanOrSingle());
   static auto color_to_float3_function = mf::build::SI1_SO<float4, float3>(
-      "Color To Float3", color_to_vector, mf::build::exec_presets::AllSpanOrSingle());
+      "Color To Float3", color_to_float3, mf::build::exec_presets::AllSpanOrSingle());
   static auto color_to_float4_function = mf::build::SI1_SO<float4, float4>(
       "Color To Float4", color_to_float4, mf::build::exec_presets::AllSpanOrSingle());
 
