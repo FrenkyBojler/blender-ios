@@ -418,7 +418,7 @@ class LightTree {
     return make_unique<LightTreeNode>(measure, bit_trial);
   }
 
-  size_t num_emitters()
+  size_t num_emitters() const
   {
     return emitters_.size();
   }
