@@ -849,8 +849,7 @@ static uiBut *ui_but_find_old(uiBlock *block_old,
                               const IndexRange mask_range)
 {
   BLI_assert(block_old->buttons.index_range().contains(mask_range));
-  UNUSED_VARS(block_old);
-  for (const int i : mask_range) {
+  for (const int64_t i : mask_range) {
     uiBut *but = block_old->buttons[i].get();
     if (!ignore_old_buttons.contains(but) && ui_but_equals_old(but_new, but)) {
       return but;
@@ -871,8 +870,7 @@ static std::optional<int64_t> ui_but_find_old_idx(
     const blender::Set<const uiBut *> &ignore_old_buttons = {})
 {
   BLI_assert(block_old->buttons.index_range().contains(mask_range));
-
-  for (const int i : mask_range) {
+  for (const int64_t i : mask_range) {
     uiBut *but = block_old->buttons[i].get();
     if (!ignore_old_buttons.contains(but) && ui_but_equals_old(but_new, but)) {
       return i;
@@ -1982,6 +1980,9 @@ void UI_block_update_from_old(const bContext *C, uiBlock *block)
   matched_old_buttons.reserve(mask_range.size());
 
   for (std::unique_ptr<uiBut> &but : block->buttons) {
+    if (mask_range.is_empty()) {
+      break;
+    }
     if (ui_but_update_from_old_block(block, matched_old_buttons, mask_range, &but, &but_old_idx)) {
       ui_but_update(but.get());
 
@@ -1989,9 +1990,6 @@ void UI_block_update_from_old(const bContext *C, uiBlock *block)
       if (but->tip_func) {
         UI_but_tooltip_refresh((bContext *)C, but.get());
       }
-    }
-    if (mask_range.is_empty()) {
-      break;
     }
   }
   for (const std::unique_ptr<uiBut> &but : block->oldblock->buttons) {
