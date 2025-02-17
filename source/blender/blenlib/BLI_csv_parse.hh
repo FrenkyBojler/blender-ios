@@ -5,6 +5,7 @@
 #include "BLI_any.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_offset_indices.hh"
+#include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
 namespace blender::csv_parse {
@@ -59,8 +60,15 @@ class CsvRecords {
   }
 };
 
+struct CsvParseOptions {
+  char delimiter = ',';
+  char quote = '"';
+  Span<char> quote_escape_chars = Span<char>{'"', '\\'};
+};
+
 std::optional<Vector<Any<>>> parse_csv_in_chunks(
     const Span<char> buffer,
+    const CsvParseOptions &options,
     FunctionRef<void(Span<Span<char>>)> process_header,
     FunctionRef<Any<>(const CsvRecords &records)> process_records);
 
@@ -95,6 +103,13 @@ std::optional<int64_t> find_end_of_quoted_field(Span<char> buffer,
                                                 int64_t start,
                                                 char quote = '"',
                                                 Span<char> escape_chars = Span<char>{'"', '\\'});
+
+std::optional<int64_t> parse_record_fields(const Span<char> buffer,
+                                           const int64_t start,
+                                           const char delimiter,
+                                           const char quote,
+                                           const Span<char> quote_escape_chars,
+                                           Vector<Span<char>> &r_fields);
 
 }  // namespace detail
 

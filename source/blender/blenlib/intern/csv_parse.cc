@@ -6,15 +6,49 @@
 
 namespace blender::csv_parse {
 
-template<typename FindEndOfSimpleFieldFn, typename FindEndOfQuotedFieldFn>
-static std::optional<int64_t> parse_record_fields(
+std::optional<Vector<Any<>>> parse_csv_in_chunks(
     const Span<char> buffer,
-    const int64_t start,
-    const char delimiter,
-    const char quote,
-    const FindEndOfSimpleFieldFn &find_end_of_simple_field_fn,
-    const FindEndOfQuotedFieldFn &find_end_of_quoted_field_fn,
-    Vector<Span<char>> &r_fields)
+    const CsvParseOptions &options,
+    FunctionRef<void(Span<Span<char>>)> process_header,
+    FunctionRef<Any<>(const CsvRecords &records)> process_records)
+{
+  using namespace detail;
+
+  Vector<Span<char>> header_fields;
+  const std::optional<int64_t> first_data_record_start = parse_record_fields(
+      buffer, 0, options.delimiter, options.quote, options.quote_escape_chars, header_fields);
+  if (!first_data_record_start.has_value()) {
+    return std::nullopt;
+  }
+  process_header(header_fields);
+
+  Vector<int64_t> data_offsets;
+  Vector<Span<char>> data_fields;
+  data_offsets.append(0);
+  int64_t start = *first_data_record_start;
+  while (start < buffer.size()) {
+    const std::optional<int64_t> next_record_start = parse_record_fields(
+        buffer, start, options.delimiter, options.quote, options.quote_escape_chars, data_fields);
+    if (!next_record_start.has_value()) {
+      return std::nullopt;
+    }
+    data_offsets.append(data_fields.size());
+    start = *next_record_start;
+  }
+
+  CsvRecords records(std::move(data_offsets), std::move(data_fields));
+  Any<> result = process_records(records);
+  return Vector{result};
+}
+
+namespace detail {
+
+std::optional<int64_t> parse_record_fields(const Span<char> buffer,
+                                           const int64_t start,
+                                           const char delimiter,
+                                           const char quote,
+                                           const Span<char> quote_escape_chars,
+                                           Vector<Span<char>> &r_fields)
 {
   using namespace detail;
 
@@ -49,10 +83,12 @@ static std::optional<int64_t> parse_record_fields(
     }
     if (c == quote) {
       i++;
-      const std::optional<int64_t> end_of_field = find_end_of_quoted_field_fn(i);
+      const std::optional<int64_t> end_of_field = find_end_of_quoted_field(
+          buffer, i, quote, quote_escape_chars);
       if (!end_of_field.has_value()) {
         return std::nullopt;
       }
+      r_fields.append(buffer.slice(IndexRange::from_begin_end(i, *end_of_field)));
       i = *end_of_field;
       while (i < buffer.size()) {
         const char inner_c = buffer[i];
@@ -72,7 +108,7 @@ static std::optional<int64_t> parse_record_fields(
       }
       continue;
     }
-    const int64_t end_of_field = find_end_of_simple_field_fn(i);
+    const int64_t end_of_field = find_end_of_simple_field(buffer, i, delimiter);
     r_fields.append(buffer.slice(IndexRange::from_begin_end(i, end_of_field)));
     i = end_of_field;
     while (i < buffer.size()) {
@@ -91,61 +127,6 @@ static std::optional<int64_t> parse_record_fields(
 
   return buffer.size();
 }
-
-std::optional<Vector<Any<>>> parse_csv_in_chunks(
-    const Span<char> buffer,
-    FunctionRef<void(Span<Span<char>>)> process_header,
-    FunctionRef<Any<>(const CsvRecords &records)> process_records)
-{
-  using namespace detail;
-
-  const auto find_end_of_simple_field_fn = [=](const int64_t start) {
-    return find_end_of_simple_field(buffer, start, ',');
-  };
-  const auto find_end_of_quoted_field_fn = [=](const int64_t start) {
-    return find_end_of_quoted_field(buffer, start, '"');
-  };
-
-  Vector<Span<char>> header_fields;
-  const std::optional<int64_t> first_data_record_start = parse_record_fields(
-      buffer,
-      0,
-      ',',
-      '"',
-      find_end_of_simple_field_fn,
-      find_end_of_quoted_field_fn,
-      header_fields);
-  if (!first_data_record_start.has_value()) {
-    return std::nullopt;
-  }
-  process_header(header_fields);
-
-  Vector<int64_t> data_offsets;
-  Vector<Span<char>> data_fields;
-  data_offsets.append(0);
-  int64_t start = *first_data_record_start;
-  while (start < buffer.size()) {
-    const std::optional<int64_t> next_record_start = parse_record_fields(
-        buffer,
-        0,
-        ',',
-        '"',
-        find_end_of_simple_field_fn,
-        find_end_of_quoted_field_fn,
-        data_fields);
-    if (!next_record_start.has_value()) {
-      return std::nullopt;
-    }
-    data_offsets.append(data_fields.size());
-    start = *next_record_start;
-  }
-
-  CsvRecords records(std::move(data_offsets), std::move(data_fields));
-  Any<> result = process_records(records);
-  return Vector{result};
-}
-
-namespace detail {
 
 int64_t find_end_of_simple_field(const Span<char> buffer,
                                  const int64_t start,

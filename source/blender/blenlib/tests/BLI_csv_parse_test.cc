@@ -25,6 +25,26 @@ static std::optional<int64_t> find_end_of_quoted_field(const StringRef buffer,
   return detail::find_end_of_quoted_field(Span<char>(buffer), start, quote, escape_chars);
 }
 
+static std::optional<Vector<std::string>> parse_record_fields(
+    const StringRef buffer,
+    const int64_t start = 0,
+    const char delimiter = ',',
+    const char quote = '"',
+    const Span<char> quote_escape_chars = Span<char>{'"', '\\'})
+{
+  Vector<Span<char>> fields;
+  const std::optional<int64_t> end_of_record = detail::parse_record_fields(
+      Span<char>(buffer), start, delimiter, quote, quote_escape_chars, fields);
+  if (!end_of_record.has_value()) {
+    return std::nullopt;
+  }
+  Vector<std::string> result;
+  for (const Span<char> field : fields) {
+    result.append(std::string(field.begin(), field.end()));
+  }
+  return result;
+}
+
 TEST(csv_parse, FindEndOfSimpleField)
 {
   EXPECT_EQ(find_end_of_simple_field("123", 0), 3);
@@ -78,6 +98,28 @@ TEST(csv_parse, FindEndOfQuotedField)
   EXPECT_EQ(find_end_of_quoted_field("\\\"\"\"\"", 0), 4);
 }
 
-TEST(csv_parse, HandlePotentiallyTrailingDelimiter) {}
+TEST(csv_parse, ParseRecordFields)
+{
+  using StrVec = Vector<std::string>;
+  EXPECT_EQ(parse_record_fields(""), StrVec());
+  EXPECT_EQ(parse_record_fields("1"), StrVec{"1"});
+  EXPECT_EQ(parse_record_fields("1,2"), StrVec({"1", "2"}));
+  EXPECT_EQ(parse_record_fields("1,2,3"), StrVec({"1", "2", "3"}));
+  EXPECT_EQ(parse_record_fields("1\n,2,3"), StrVec({"1"}));
+  EXPECT_EQ(parse_record_fields("1, 2\n,3"), StrVec({"1", " 2"}));
+  EXPECT_EQ(parse_record_fields("1, 2\r\n,3"), StrVec({"1", " 2"}));
+  EXPECT_EQ(parse_record_fields("\"1,2,3\""), StrVec({"1,2,3"}));
+  EXPECT_EQ(parse_record_fields("\"1,2,3"), std::nullopt);
+  EXPECT_EQ(parse_record_fields("\"1,\n2\t\r\n,3\""), StrVec({"1,\n2\t\r\n,3"}));
+  EXPECT_EQ(parse_record_fields("\"1,2,3\",\"4,5\""), StrVec({"1,2,3", "4,5"}));
+  EXPECT_EQ(parse_record_fields(","), StrVec({"", ""}));
+  EXPECT_EQ(parse_record_fields(",,"), StrVec({"", "", ""}));
+  EXPECT_EQ(parse_record_fields(",,\n"), StrVec({"", "", ""}));
+  EXPECT_EQ(parse_record_fields("\r\n,,"), StrVec());
+  EXPECT_EQ(parse_record_fields("\"a\"\"b\""), StrVec({"a\"\"b"}));
+  EXPECT_EQ(parse_record_fields("\"a\\\"b\""), StrVec({"a\\\"b"}));
+  EXPECT_EQ(parse_record_fields("\"a\"\nb"), StrVec({"a"}));
+  EXPECT_EQ(parse_record_fields("\"a\"  \nb"), StrVec({"a"}));
+}
 
 }  // namespace blender::csv_parse::tests
