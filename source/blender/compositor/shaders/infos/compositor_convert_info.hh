@@ -153,7 +153,7 @@ DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
 /* --------------------------------------------------------------------
- * Motion Vector to other.
+ * Float4 to other.
  */
 
 GPU_SHADER_CREATE_INFO(compositor_convert_float4_to_float)
