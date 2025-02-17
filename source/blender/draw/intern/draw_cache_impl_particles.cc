@@ -820,8 +820,8 @@ static void particle_batch_cache_ensure_procedural_final_points(ParticleHairCach
                                                                 int subdiv)
 {
   /* Same format as proc_point_buf. */
-  GPUVertFormat format = {0};
-  GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+  static const GPUVertFormat format = GPU_vertformat_from_attribute(
+      "pos", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
 
   /* Procedural Subdiv buffer only needs to be resident in device memory. */
   cache->final[subdiv].proc_buf = GPU_vertbuf_create_with_format_ex(
@@ -1211,6 +1211,10 @@ static void particle_batch_cache_ensure_pos_and_seg(PTCacheEdit *edit,
       }
     }
   }
+
+  attr_id.pos = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  attr_id.tan = GPU_vertformat_attr_add(&format, "nor", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  attr_id.ind = GPU_vertformat_attr_add(&format, "ind", GPU_COMP_I32, 1, GPU_FETCH_INT);
 
   if (psmd) {
     uv_id = static_cast<uint *>(MEM_mallocN(sizeof(*uv_id) * num_uv_layers, "UV attr format"));
