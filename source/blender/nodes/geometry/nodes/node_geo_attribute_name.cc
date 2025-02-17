@@ -24,17 +24,20 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
   uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
   uiItemR(layout, ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+}
+
+static void node_init(bNodeTree * /*tree*/, bNode *node)
+{
+  node->custom1 = static_cast<int16_t>(CD_PROP_FLOAT);
+  node->custom2 = static_cast<int16_t>(AttrDomain::Point);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const bNode &node = params.node();
 
-  /* Get inputs from sockets. */
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
   const int search_index = params.extract_input<int>("Index");
   const eCustomDataType data_type = eCustomDataType(node.custom1);
@@ -110,6 +113,7 @@ static void node_register()
       "Retrieves string name of attribute given an index, data type, and domain";
   ntype.nclass = NODE_CLASS_ATTRIBUTE;
   ntype.geometry_node_execute = node_geo_exec;
+  ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
   blender::bke::node_register_type(&ntype);
