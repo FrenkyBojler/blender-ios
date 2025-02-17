@@ -96,10 +96,6 @@ std::optional<int64_t> find_end_of_quoted_field(Span<char> buffer,
                                                 char quote = '"',
                                                 Span<char> escape_chars = Span<char>{'"', '\\'});
 
-void handle_potentially_trailing_delimiter(Span<char> buffer,
-                                           int64_t i,
-                                           Vector<Span<char>> &r_fields);
-
 }  // namespace detail
 
 /** \} */

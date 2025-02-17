@@ -78,4 +78,6 @@ TEST(csv_parse, FindEndOfQuotedField)
   EXPECT_EQ(find_end_of_quoted_field("\\\"\"\"\"", 0), 4);
 }
 
+TEST(csv_parse, HandlePotentiallyTrailingDelimiter) {}
+
 }  // namespace blender::csv_parse::tests

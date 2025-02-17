@@ -18,6 +18,19 @@ static std::optional<int64_t> parse_record_fields(
 {
   using namespace detail;
 
+  const auto handle_potentially_trailing_delimiter = [&](const int64_t i) {
+    if (i <= buffer.size()) {
+      if (i < buffer.size()) {
+        if (ELEM(buffer[i], '\n', '\r')) {
+          r_fields.append({});
+        }
+      }
+      else {
+        r_fields.append({});
+      }
+    }
+  };
+
   int64_t i = start;
   while (i < buffer.size()) {
     const char c = buffer[i];
@@ -31,7 +44,7 @@ static std::optional<int64_t> parse_record_fields(
     if (c == delimiter) {
       r_fields.append({});
       i++;
-      handle_potentially_trailing_delimiter(buffer, i, r_fields);
+      handle_potentially_trailing_delimiter(i);
       continue;
     }
     if (c == quote) {
@@ -49,7 +62,7 @@ static std::optional<int64_t> parse_record_fields(
         }
         if (inner_c == delimiter) {
           i++;
-          handle_potentially_trailing_delimiter(buffer, i, r_fields);
+          handle_potentially_trailing_delimiter(i);
           break;
         }
         if (ELEM(inner_c, '\n', '\r')) {
@@ -66,7 +79,7 @@ static std::optional<int64_t> parse_record_fields(
       const char inner_c = buffer[i];
       if (inner_c == delimiter) {
         i++;
-        handle_potentially_trailing_delimiter(buffer, i, r_fields);
+        handle_potentially_trailing_delimiter(i);
         break;
       }
       if (ELEM(inner_c, '\n', '\r')) {
@@ -133,21 +146,6 @@ std::optional<Vector<Any<>>> parse_csv_in_chunks(
 }
 
 namespace detail {
-void handle_potentially_trailing_delimiter(const Span<char> buffer,
-                                           int64_t i,
-                                           Vector<Span<char>> &r_fields)
-{
-  if (i <= buffer.size()) {
-    if (i < buffer.size()) {
-      if (ELEM(buffer[i], '\n', '\r')) {
-        r_fields.append({});
-      }
-    }
-    else {
-      r_fields.append({});
-    }
-  }
-}
 
 int64_t find_end_of_simple_field(const Span<char> buffer,
                                  const int64_t start,
