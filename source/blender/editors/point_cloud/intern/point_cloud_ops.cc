@@ -11,8 +11,6 @@
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
 
-#include "BLT_translation.hh"
-
 #include "ED_point_cloud.hh"
 #include "ED_screen.hh"
 #include "ED_select_utils.hh"
@@ -76,7 +74,7 @@ bool editable_point_cloud_in_edit_mode_poll(bContext *C)
   return point_cloud_poll_impl(C, true, true);
 }
 
-static VectorSet<PointCloud *> get_unique_editable_point_clouds(const bContext &C)
+VectorSet<PointCloud *> get_unique_editable_point_clouds(const bContext &C)
 {
   VectorSet<PointCloud *> unique_points;
 
@@ -149,17 +147,13 @@ static int select_random_exec(bContext *C, wmOperator *op)
   const int seed = RNA_int_get(op->ptr, "seed");
   const float probability = RNA_float_get(op->ptr, "probability");
 
-  for (PointCloud *point_cloud_id : unique_point_cloud) {
-    const int domain_size = point_cloud_id->attributes().domain_size(
-        blender::bke::AttrDomain::Point);
-
+  for (PointCloud *point_cloud : unique_point_cloud) {
     IndexMaskMemory memory;
-    const IndexMask inv_random_elements = random_mask(*point_cloud_id, seed, probability, memory)
-                                              .complement(IndexRange(domain_size), memory);
-
-    const bool was_anything_selected = has_anything_selected(*point_cloud_id);
-    bke::GSpanAttributeWriter selection = ensure_selection_attribute(*point_cloud_id,
-                                                                     CD_PROP_BOOL);
+    const IndexMask inv_random_elements = random_mask(*point_cloud, seed, probability, memory)
+                                              .complement(IndexRange(point_cloud->totpoint),
+                                                          memory);
+    const bool was_anything_selected = has_anything_selected(*point_cloud);
+    bke::GSpanAttributeWriter selection = ensure_selection_attribute(*point_cloud, CD_PROP_BOOL);
     if (!was_anything_selected) {
       point_cloud::fill_selection_true(selection.span);
     }
@@ -169,8 +163,8 @@ static int select_random_exec(bContext *C, wmOperator *op)
 
     /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
      * attribute for now. */
-    DEG_id_tag_update(&point_cloud_id->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, point_cloud_id);
+    DEG_id_tag_update(&point_cloud->id, ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, point_cloud);
   }
   return OPERATOR_FINISHED;
 }
@@ -180,7 +174,7 @@ static void select_random_ui(bContext * /*C*/, wmOperator *op)
   uiLayout *layout = op->layout;
 
   uiItemR(layout, op->ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, op->ptr, "probability", UI_ITEM_R_SLIDER, IFACE_("Probability"), ICON_NONE);
+  uiItemR(layout, op->ptr, "probability", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 }
 
 static void POINT_CLOUD_OT_select_random(wmOperatorType *ot)
@@ -217,8 +211,25 @@ static void POINT_CLOUD_OT_select_random(wmOperatorType *ot)
 
 void operatortypes_point_cloud()
 {
+  WM_operatortype_append(POINT_CLOUD_OT_attribute_set);
+  WM_operatortype_append(POINT_CLOUD_OT_duplicate);
   WM_operatortype_append(POINT_CLOUD_OT_select_all);
   WM_operatortype_append(POINT_CLOUD_OT_select_random);
+}
+
+void operatormacros_point_cloud()
+{
+  wmOperatorType *ot;
+  wmOperatorTypeMacro *otmacro;
+
+  ot = WM_operatortype_append_macro("POINT_CLOUD_OT_duplicate_move",
+                                    "Duplicate",
+                                    "Make copies of selected elements and move them",
+                                    OPTYPE_UNDO | OPTYPE_REGISTER);
+  WM_operatortype_macro_define(ot, "POINT_CLOUD_OT_duplicate");
+  otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
+  RNA_boolean_set(otmacro->ptr, "use_proportional_edit", false);
+  RNA_boolean_set(otmacro->ptr, "mirror", false);
 }
 
 void keymap_point_cloud(wmKeyConfig *keyconf)

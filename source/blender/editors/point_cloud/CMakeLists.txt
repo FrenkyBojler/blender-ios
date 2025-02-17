@@ -14,17 +14,21 @@ set(INC_SYS
 )
 
 set(SRC
+  intern/attribute_set.cc
+  intern/duplicate.cc
   intern/point_cloud_masks.cc
   intern/point_cloud_ops.cc
   intern/point_cloud_selection.cc
+  intern/point_cloud_undo.cc
   )
 
 set(LIB
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
-  PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::functions
+  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::windowmanager
 )
