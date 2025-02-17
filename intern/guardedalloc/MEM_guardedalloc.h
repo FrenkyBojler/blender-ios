@@ -293,18 +293,15 @@ void MEM_use_guarded_allocator(void);
  * Allocate new memory for an object of type #T, and construct it.
  * #MEM_delete must be used to delete the object. Calling #MEM_freeN on it is illegal.
  *
- * \note Do not assume that this ever zero-initializes memory (even when it does), explicitly
- *       initialize.
+ * Do not assume that this ever zero-initializes memory (even when it does), explicitly initialize.
  *
- *       Although calling this without arguments will cause zero-initialization for many types,
- *       simple changes to the type can break this.
- *
- *       Basic explanation: With no arguments, this will initialize using `T()` (value
- *       initialization) not `T` (default initialization). Details are involved, but for "C-style"
- *       structs ("Plain old Data" structs or structs with a compiler generated constructor) memory
- *       will be zero-initialized. A change like simply adding a custom default constructor would
- *       change initialization behavior.
- *       See: https://stackoverflow.com/a/4982720, https://stackoverflow.com/a/620402
+ * Although calling this without arguments will cause zero-initialization for many types, simple
+ * changes to the type can break this. Basic explanation:
+ * With no arguments, this will initialize using `T()` (value initialization) not `T` (default
+ * initialization). Details are involved, but for "C-style" structs ("Plain old Data" structs or
+ * structs with a compiler generated constructor) memory will be zero-initialized. A change like
+ * simply adding a custom default constructor would change initialization behavior.
+ * See: https://stackoverflow.com/a/4982720, https://stackoverflow.com/a/620402
  */
 template<typename T, typename... Args>
 inline T *MEM_new(const char *allocation_name, Args &&...args)
