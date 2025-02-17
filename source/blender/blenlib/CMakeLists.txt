@@ -177,6 +177,7 @@ set(SRC
   BLI_allocator.hh
   BLI_any.hh
   BLI_array.hh
+  BLI_array_state.hh
   BLI_array_store.h
   BLI_array_store_utils.h
   BLI_array_utils.h
