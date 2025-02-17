@@ -3,8 +3,40 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_csv_parse.hh"
+#include "BLI_task.hh"
 
 namespace blender::csv_parse {
+
+/**
+ * Returns a guess for the start of the next record. Note that this could split up quoted fields.
+ * This case needs to be detected at a higher level.
+ */
+static int64_t guess_next_record_start(const Span<char> buffer, const int64_t start)
+{
+  int64_t i = start;
+  while (i < buffer.size()) {
+    const char c = buffer[i];
+    if (c == '\n') {
+      return i + 1;
+    }
+    i++;
+  }
+  return buffer.size();
+}
+
+static Vector<Span<char>> split_to_chunks(const Span<char> buffer, int64_t approximate_chunk_size)
+{
+  approximate_chunk_size = std::max<int64_t>(approximate_chunk_size, 1);
+  Vector<Span<char>> chunks;
+  int64_t start = 0;
+  while (start < buffer.size()) {
+    int64_t end = std::min(start + approximate_chunk_size, buffer.size());
+    end = guess_next_record_start(buffer, end);
+    chunks.append(buffer.slice(IndexRange::from_begin_end(start, end)));
+    start = end;
+  }
+  return chunks;
+}
 
 std::optional<Vector<Any<>>> parse_csv_in_chunks(
     const Span<char> buffer,
@@ -22,23 +54,46 @@ std::optional<Vector<Any<>>> parse_csv_in_chunks(
   }
   process_header(header_fields);
 
-  Vector<int64_t> data_offsets;
-  Vector<Span<char>> data_fields;
-  data_offsets.append(0);
-  int64_t start = *first_data_record_start;
-  while (start < buffer.size()) {
-    const std::optional<int64_t> next_record_start = parse_record_fields(
-        buffer, start, options.delimiter, options.quote, options.quote_escape_chars, data_fields);
-    if (!next_record_start.has_value()) {
+  const Span<char> data_buffer = buffer.drop_front(*first_data_record_start);
+  const Vector<Span<char>> data_buffer_chunks = split_to_chunks(data_buffer, 1);
+  Vector<std::optional<Any<>>> chunk_results(data_buffer_chunks.size());
+  threading::parallel_for(chunk_results.index_range(), 1, [&](const IndexRange range) {
+    for (const int64_t i : range) {
+      const Span<char> chunk_buffer = data_buffer_chunks[i];
+      Vector<int64_t> data_offsets;
+      Vector<Span<char>> data_fields;
+      data_offsets.append(0);
+      int64_t start = 0;
+      while (start < chunk_buffer.size()) {
+        const std::optional<int64_t> next_record_start = parse_record_fields(
+            chunk_buffer,
+            start,
+            options.delimiter,
+            options.quote,
+            options.quote_escape_chars,
+            data_fields);
+        if (!next_record_start.has_value()) {
+          return;
+        }
+        data_offsets.append(data_fields.size());
+        start = *next_record_start;
+      }
+      CsvRecords records(std::move(data_offsets), std::move(data_fields));
+      chunk_results[i] = process_records(records);
+    }
+  });
+
+  Vector<Any<>> results;
+  for (const std::optional<Any<>> &result : chunk_results) {
+    if (result.has_value()) {
+      results.append(result.value());
+    }
+    else {
       return std::nullopt;
     }
-    data_offsets.append(data_fields.size());
-    start = *next_record_start;
   }
 
-  CsvRecords records(std::move(data_offsets), std::move(data_fields));
-  Any<> result = process_records(records);
-  return Vector{result};
+  return results;
 }
 
 namespace detail {
