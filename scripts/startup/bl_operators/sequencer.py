@@ -217,7 +217,6 @@ class SequencerFadesAdd(Operator):
         if not scene.animation_data.action_slot:
             scene.animation_data.action_slot = scene.animation_data.action.slots.new(scene.id_type, scene.name)
 
-
         sequences = context.selected_strips
 
         if not sequences:
