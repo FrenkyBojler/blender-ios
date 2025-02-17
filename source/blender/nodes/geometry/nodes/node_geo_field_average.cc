@@ -123,26 +123,22 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
 template<typename T> T calculate_median(Vector<T> &values)
 {
-  // If the type is float3, calculate the median for each component (x, y, z) separately
   if constexpr (std::is_same<T, float3>::value) {
     Vector<float> x_vals, y_vals, z_vals;
     x_vals.reserve(values.size());
     y_vals.reserve(values.size());
     z_vals.reserve(values.size());
 
-    // Extract x, y, z components
     for (const auto &v : values) {
       x_vals.append(v.x);
       y_vals.append(v.y);
       z_vals.append(v.z);
     }
 
-    // Sort each component independently
     std::sort(x_vals.begin(), x_vals.end());
     std::sort(y_vals.begin(), y_vals.end());
     std::sort(z_vals.begin(), z_vals.end());
 
-    // Calculate median for each component
     size_t n = x_vals.size();
     float median_x = (n % 2 == 0) ? (x_vals[n / 2 - 1] + x_vals[n / 2]) / 2.0f : x_vals[n / 2];
     float median_y = (n % 2 == 0) ? (y_vals[n / 2 - 1] + y_vals[n / 2]) / 2.0f : y_vals[n / 2];
@@ -157,9 +153,8 @@ template<typename T> T calculate_median(Vector<T> &values)
     if (n % 2 == 0) {
       return (values[n / 2 - 1] + values[n / 2]) / 2.0f;
     }
-    else {
-      return values[n / 2];
-    }
+    
+    return values[n / 2];
   }
 }
 
