@@ -1317,8 +1317,8 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
 
         elif brush.image_tool == 'CLONE':
             if mode == 'PAINT_2D':
-                layout.prop(settings, "clone_brush_image", text="Image")
-                layout.prop(settings, "clone_brush_alpha", text="Alpha")
+                layout.prop(settings, "clone_image", text="Image")
+                layout.prop(settings, "clone_alpha", text="Alpha")
 
     # Vertex Paint #
     elif mode == 'PAINT_VERTEX':
