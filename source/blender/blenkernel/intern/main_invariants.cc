@@ -2,17 +2,22 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <optional>
+
 #include "BKE_lib_id.hh"
+#include "BKE_main.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_node_tree_update.hh"
 
 #include "DEG_depsgraph.hh"
 
+#include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
+
+#include "MOD_nodes.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
-#include <optional>
 
 static void send_notifiers_after_node_tree_change(ID *id, bNodeTree *ntree)
 {
@@ -55,6 +60,7 @@ static void propagate_node_tree_changes(Main &bmain,
   }
 
   const UpdatedNodeTrees updated_trees = BKE_ntree_update(bmain, modified_trees);
+  blender::Set<bNodeTree *> trees_with_updated_interface;
   for (const NodeTreeUpdateResult &result : updated_trees.trees) {
     bNodeTree &ntree = *result.tree;
     ID *owner = BKE_id_owner_get(&result.tree->id);
@@ -64,6 +70,23 @@ static void propagate_node_tree_changes(Main &bmain,
     }
     if (result.modified_output) {
       DEG_id_tag_update(&ntree.id, ID_RECALC_NTREE_OUTPUT);
+    }
+    if (result.modified_interface) {
+      trees_with_updated_interface.add(&ntree);
+    }
+  }
+  if (!trees_with_updated_interface.is_empty()) {
+    LISTBASE_FOREACH (Object *, ob, &bmain.objects) {
+      LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
+        if (md->type != eModifierType_Nodes) {
+          continue;
+        }
+        NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
+        if (!trees_with_updated_interface.contains(nmd->node_group)) {
+          continue;
+        }
+        MOD_nodes_update_interface(ob, nmd);
+      }
     }
   }
 }
