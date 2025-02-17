@@ -2890,11 +2890,8 @@ static void rna_def_object(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "data", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "ID");
-  RNA_def_property_pointer_funcs(prop,
-                                 "rna_Object_data_get",
-                                 "rna_Object_data_set",
-                                 "rna_Object_data_typef",
-                                 nullptr);
+  RNA_def_property_pointer_funcs(
+      prop, "rna_Object_data_get", "rna_Object_data_set", "rna_Object_data_typef", nullptr);
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NEVER_UNLINK);
   RNA_def_property_ui_text(prop, "Data", "Object data");
   RNA_def_property_update(prop, 0, "rna_Object_data_update");
