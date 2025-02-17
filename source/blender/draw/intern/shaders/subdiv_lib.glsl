@@ -122,7 +122,6 @@ struct PosNorLoop {
 struct LoopNormal {
   float nx, ny, nz, flag;
 };
-#endif
 
 vec3 get_vertex_pos(PosNorLoop vertex_data)
 {
@@ -143,29 +142,7 @@ LoopNormal get_normal_and_flag(PosNorLoop vertex_data)
   loop_nor.flag = vertex_data.flag;
   return loop_nor;
 }
-
-void set_vertex_pos(inout PosNorLoop vertex_data, vec3 pos)
-{
-  vertex_data.x = pos.x;
-  vertex_data.y = pos.y;
-  vertex_data.z = pos.z;
-}
-
-/* Set the vertex normal but preserve the existing flag. This is for when we compute manually the
- * vertex normals when we cannot use the limit surface, in which case the flag and the normal are
- * set by two separate compute pass. */
-void set_vertex_nor(inout PosNorLoop vertex_data, vec3 nor)
-{
-  vertex_data.nx = nor.x;
-  vertex_data.ny = nor.y;
-  vertex_data.nz = nor.z;
-}
-
-void set_vertex_nor(inout PosNorLoop vertex_data, vec3 nor, float flag)
-{
-  set_vertex_nor(vertex_data, nor);
-  vertex_data.flag = flag;
-}
+#endif
 
 void add_newell_cross_v3_v3v3(inout vec3 n, vec3 v_prev, vec3 v_curr)
 {

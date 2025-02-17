@@ -485,8 +485,9 @@ void main()
     }
 
     PosNorLoop vertex_data;
-    set_vertex_pos(vertex_data, pos);
-    set_vertex_nor(vertex_data, nor, flag);
+    vertex_data.pos = pos;
+    vertex_data.nor = nor;
+    vertex_data.flag = flag;
     output_verts[loop_index] = vertex_data;
 
 #  if defined(ORCO_EVALUATION)
