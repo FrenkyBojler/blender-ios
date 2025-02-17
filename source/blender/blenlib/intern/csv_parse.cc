@@ -2,25 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_csv.hh"
+#include "BLI_csv_parse.hh"
 
-namespace blender::csv {
-
-static void handle_potentially_trailing_delimiter(const Span<char> buffer,
-                                                  int64_t i,
-                                                  Vector<Span<char>> &r_fields)
-{
-  if (i <= buffer.size()) {
-    if (i < buffer.size()) {
-      if (ELEM(buffer[i], '\n', '\r')) {
-        r_fields.append({});
-      }
-    }
-    else {
-      r_fields.append({});
-    }
-  }
-}
+namespace blender::csv_parse {
 
 template<typename FindEndOfSimpleFieldFn, typename FindEndOfQuotedFieldFn>
 static std::optional<int64_t> parse_record_fields(
@@ -32,6 +16,8 @@ static std::optional<int64_t> parse_record_fields(
     const FindEndOfQuotedFieldFn &find_end_of_quoted_field_fn,
     Vector<Span<char>> &r_fields)
 {
+  using namespace detail;
+
   int64_t i = start;
   while (i < buffer.size()) {
     const char c = buffer[i];
@@ -93,55 +79,13 @@ static std::optional<int64_t> parse_record_fields(
   return buffer.size();
 }
 
-/**
- * Find the index that ends the current field, i.e. the index of the next delimiter of newline.
- * The start index has to be the index of the first character in the field. It may also be the
- * end of the field already if it is empty.
- */
-static int64_t find_end_of_simple_field(const Span<char> buffer,
-                                        const int64_t start,
-                                        const char delimiter)
-{
-  int64_t i = start;
-  while (i < start) {
-    const char c = buffer[i];
-    if (ELEM(c, delimiter, '\n', '\r')) {
-      return i;
-    }
-    i++;
-  }
-  return buffer.size();
-}
-
-/**
- * Find the index of the quote that ends the current field.
- * The start index has to be the index after the opening quote.
- */
-static std::optional<int64_t> find_end_of_quoted_field(const Span<char> buffer,
-                                                       const int64_t start,
-                                                       const char quote)
-{
-  int64_t i = start;
-  while (i < start) {
-    const char c = buffer[i];
-    if (c == quote) {
-      if (i + 1 < buffer.size() && buffer[i + 1] == quote) {
-        /* Two consecutive quotes are interpreted as escape code for a single quote. */
-        i += 2;
-        continue;
-      }
-      return i;
-    }
-    i++;
-  }
-  return std::nullopt;
-}
-
 std::optional<Vector<Any<>>> parse_csv_in_chunks(
     const Span<char> buffer,
     FunctionRef<void(Span<Span<char>>)> process_header,
     FunctionRef<Any<>(const CsvRecords &records)> process_records)
 {
+  using namespace detail;
+
   const auto find_end_of_simple_field_fn = [=](const int64_t start) {
     return find_end_of_simple_field(buffer, start, ',');
   };
@@ -188,4 +132,60 @@ std::optional<Vector<Any<>>> parse_csv_in_chunks(
   return Vector{result};
 }
 
-}  // namespace blender::csv
+namespace detail {
+void handle_potentially_trailing_delimiter(const Span<char> buffer,
+                                           int64_t i,
+                                           Vector<Span<char>> &r_fields)
+{
+  if (i <= buffer.size()) {
+    if (i < buffer.size()) {
+      if (ELEM(buffer[i], '\n', '\r')) {
+        r_fields.append({});
+      }
+    }
+    else {
+      r_fields.append({});
+    }
+  }
+}
+
+int64_t find_end_of_simple_field(const Span<char> buffer,
+                                 const int64_t start,
+                                 const char delimiter)
+{
+  int64_t i = start;
+  while (i < buffer.size()) {
+    const char c = buffer[i];
+    if (ELEM(c, delimiter, '\n', '\r')) {
+      return i;
+    }
+    i++;
+  }
+  return buffer.size();
+}
+
+std::optional<int64_t> find_end_of_quoted_field(const Span<char> buffer,
+                                                const int64_t start,
+                                                const char quote,
+                                                const Span<char> escape_chars)
+{
+  int64_t i = start;
+  while (i < buffer.size()) {
+    const char c = buffer[i];
+    if (escape_chars.contains(c)) {
+      if (i + 1 < buffer.size() && buffer[i + 1] == quote) {
+        i += 2;
+        continue;
+      }
+    }
+    if (c == quote) {
+      return i;
+    }
+    i++;
+  }
+  return std::nullopt;
+}
+
+}  // namespace detail
+
+}  // namespace blender::csv_parse
