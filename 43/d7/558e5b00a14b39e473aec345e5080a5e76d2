@@ -1,2 +1,3 @@
 Referenced by issue #130556, NLA - hotkey K adding value
 Referenced by issue #130268, Assertion: `ID_REAL_USERS(related_id) == 0` triggered when animate property from Material panel
+Referenced by issue #134636, VSE - Fade In and Out not working
