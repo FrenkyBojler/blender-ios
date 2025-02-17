@@ -539,7 +539,7 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
         UI_block_layout_set_current(block, column);
 
         uiItemL(column, IFACE_(cname), ICON_NODE);
-        but = (uiBut *)block->buttons.last;
+        but = block->buttons.last().get();
 
         first = 0;
       }
@@ -628,7 +628,7 @@ static void ui_template_node_link_menu(bContext *C, uiLayout *layout, void *but_
 
   if (sock->link) {
     uiItemL(column, IFACE_("Link"), ICON_NONE);
-    but = (uiBut *)block->buttons.last;
+    but = block->buttons.last().get();
     but->drawflag = UI_BUT_TEXT_LEFT;
 
     but = uiDefBut(block,
@@ -755,7 +755,7 @@ static void ui_node_draw_panel(uiLayout &layout,
                                 UI_BTYPE_BUT,
                                 0,
                                 panel_state.is_collapsed() ? ICON_RIGHTARROW : ICON_DOWNARROW_HLT,
-                                IFACE_(panel_decl.name.c_str()),
+                                IFACE_(panel_decl.name),
                                 0,
                                 0,
                                 UI_UNIT_X * 4,
