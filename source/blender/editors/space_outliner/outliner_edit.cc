@@ -41,6 +41,7 @@
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
@@ -646,6 +647,7 @@ static int outliner_id_remap_exec(bContext *C, wmOperator *op)
       bmain, old_id, new_id, ID_REMAP_SKIP_INDIRECT_USAGE | ID_REMAP_SKIP_NEVER_NULL_USAGE);
 
   BKE_main_lib_objects_recalc_all(bmain);
+  BKE_main_ensure_invariants(*bmain);
 
   /* recreate dependency graph to include new objects */
   DEG_relations_tag_update(bmain);

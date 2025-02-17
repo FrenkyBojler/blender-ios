@@ -289,14 +289,14 @@ struct TreeUpdateResult {
 class NodeTreeMainUpdater {
  private:
   Main *bmain_;
-  const NodeTreeUpdateExtraParams &params_;
   Map<bNodeTree *, TreeUpdateResult> update_result_by_tree_;
   NodeTreeRelations relations_;
   bool needs_relations_update_ = false;
+  UpdatedNodeTrees &result_;
 
  public:
-  NodeTreeMainUpdater(Main *bmain, const NodeTreeUpdateExtraParams &params)
-      : bmain_(bmain), params_(params), relations_(bmain)
+  NodeTreeMainUpdater(Main *bmain, UpdatedNodeTrees &result)
+      : bmain_(bmain), relations_(bmain), result_(result)
   {
   }
 
@@ -363,31 +363,15 @@ class NodeTreeMainUpdater {
 
       this->reset_changed_flags(*ntree);
 
-      if (result.interface_changed) {
-        if (ntree->type == NTREE_GEOMETRY) {
-          relations_.ensure_modifier_users();
-          for (const ObjectModifierPair &pair : relations_.get_modifier_users(ntree)) {
-            Object *object = pair.first;
-            ModifierData *md = pair.second;
-
-            if (md->type == eModifierType_Nodes) {
-              MOD_nodes_update_interface(object, (NodesModifierData *)md);
-            }
-          }
-        }
-      }
+      NodeTreeUpdateResult update_result;
+      update_result.tree = ntree;
+      update_result.modified = true;
+      update_result.modified_interface = result.interface_changed;
+      update_result.modified_output = result.output_changed;
+      result_.trees.append(update_result);
 
       if (result.output_changed) {
         ntree->runtime->geometry_nodes_lazy_function_graph_info.reset();
-      }
-
-      ID *owner_id = BKE_id_owner_get(&ntree->id);
-      ID &owner_or_self_id = owner_id ? *owner_id : ntree->id;
-      if (params_.tree_changed_fn) {
-        params_.tree_changed_fn(*ntree, owner_or_self_id);
-      }
-      if (params_.tree_output_changed_fn && result.output_changed) {
-        params_.tree_output_changed_fn(*ntree, owner_or_self_id);
       }
     }
 
@@ -1841,16 +1825,16 @@ bool operator==(const bNestedNodePath &a, const bNestedNodePath &b)
  */
 static bool is_updating = false;
 
-void BKE_ntree_update(Main &bmain,
-                      const std::optional<blender::Span<bNodeTree *>> modified_trees,
-                      const NodeTreeUpdateExtraParams &params)
+UpdatedNodeTrees BKE_ntree_update(Main &bmain,
+                                  const std::optional<blender::Span<bNodeTree *>> modified_trees)
 {
   if (is_updating) {
-    return;
+    return {};
   }
 
   is_updating = true;
-  blender::bke::NodeTreeMainUpdater updater{&bmain, params};
+  UpdatedNodeTrees result;
+  blender::bke::NodeTreeMainUpdater updater{&bmain, result};
   if (modified_trees.has_value()) {
     updater.update_rooted(*modified_trees);
   }
@@ -1858,13 +1842,12 @@ void BKE_ntree_update(Main &bmain,
     updater.update();
   }
   is_updating = false;
+  return result;
 }
 
-void BKE_ntree_update_after_single_tree_change(Main &bmain,
-                                               bNodeTree &modified_tree,
-                                               const NodeTreeUpdateExtraParams &params)
+UpdatedNodeTrees BKE_ntree_update_after_single_tree_change(Main &bmain, bNodeTree &modified_tree)
 {
-  BKE_ntree_update(bmain, blender::Span{&modified_tree}, params);
+  return BKE_ntree_update(bmain, blender::Span{&modified_tree});
 }
 
 void BKE_ntree_update_without_main(bNodeTree &tree)
@@ -1873,8 +1856,8 @@ void BKE_ntree_update_without_main(bNodeTree &tree)
     return;
   }
   is_updating = true;
-  NodeTreeUpdateExtraParams params;
-  blender::bke::NodeTreeMainUpdater updater{nullptr, params};
+  UpdatedNodeTrees result;
+  blender::bke::NodeTreeMainUpdater updater{nullptr, result};
   updater.update_rooted({&tree});
   is_updating = false;
 }

@@ -12,6 +12,7 @@
 #include <optional>
 
 #include "BLI_span.hh"
+#include "BLI_vector.hh"
 
 struct ID;
 struct ImageUser;
@@ -62,18 +63,15 @@ void BKE_ntree_update_tag_id_changed(Main *bmain, ID *id);
 /** Used when an image user is updated that is used by any part of the node tree. */
 void BKE_ntree_update_tag_image_user_changed(bNodeTree *ntree, ImageUser *iuser);
 
-struct NodeTreeUpdateExtraParams {
-  /**
-   * Called for every tree that has been changed during the update. This can be used to send
-   * notifiers to trigger redraws or depsgraph updates.
-   */
-  std::function<void(bNodeTree &, ID &owner)> tree_changed_fn;
+struct NodeTreeUpdateResult {
+  bNodeTree *tree = nullptr;
+  bool modified = false;
+  bool modified_output = false;
+  bool modified_interface = false;
+};
 
-  /**
-   * Called for every tree whose output value may have changed based on the provided update tags.
-   * This can be used to tag the depsgraph if necessary.
-   */
-  std::function<void(bNodeTree &, ID &owner)> tree_output_changed_fn;
+struct UpdatedNodeTrees {
+  blender::Vector<NodeTreeUpdateResult> trees;
 };
 
 /**
@@ -87,17 +85,14 @@ struct NodeTreeUpdateExtraParams {
  * \param params: Additional parameters that allow the caller to properly tag the depsgraph and
  *   sent notifiers.
  */
-void BKE_ntree_update(Main &bmain,
-                      std::optional<blender::Span<bNodeTree *>> modified_trees = std::nullopt,
-                      const NodeTreeUpdateExtraParams &params = {});
+UpdatedNodeTrees BKE_ntree_update(
+    Main &bmain, std::optional<blender::Span<bNodeTree *>> modified_trees = std::nullopt);
 
 /**
  * Same as #BKE_ntree_update but with a simpler API for the case when only a single tree has been
  * modified.
  */
-void BKE_ntree_update_after_single_tree_change(Main &bmain,
-                                               bNodeTree &modified_tree,
-                                               const NodeTreeUpdateExtraParams &params = {});
+UpdatedNodeTrees BKE_ntree_update_after_single_tree_change(Main &bmain, bNodeTree &modified_tree);
 
 /**
  * Can be used to update trees locally, without affecting other trees. For example, when building a

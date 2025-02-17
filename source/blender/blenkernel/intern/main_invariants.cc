@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_lib_id.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_node_tree_update.hh"
 
@@ -42,14 +43,6 @@ static void send_notifiers_after_node_tree_change(ID *id, bNodeTree *ntree)
 static void propagate_node_tree_changes(Main &bmain,
                                         const std::optional<blender::Span<ID *>> modified_ids)
 {
-  NodeTreeUpdateExtraParams params;
-  params.tree_changed_fn = [](bNodeTree &ntree, ID &owner_id) {
-    send_notifiers_after_node_tree_change(&owner_id, &ntree);
-    DEG_id_tag_update(&ntree.id, ID_RECALC_SYNC_TO_EVAL);
-  };
-  params.tree_output_changed_fn = [](bNodeTree &ntree, ID & /*owner_id*/) {
-    DEG_id_tag_update(&ntree.id, ID_RECALC_NTREE_OUTPUT);
-  };
 
   std::optional<blender::Vector<bNodeTree *>> modified_trees;
   if (modified_ids.has_value()) {
@@ -61,7 +54,18 @@ static void propagate_node_tree_changes(Main &bmain,
     }
   }
 
-  BKE_ntree_update(bmain, modified_trees, params);
+  const UpdatedNodeTrees updated_trees = BKE_ntree_update(bmain, modified_trees);
+  for (const NodeTreeUpdateResult &result : updated_trees.trees) {
+    bNodeTree &ntree = *result.tree;
+    ID *owner = BKE_id_owner_get(&result.tree->id);
+    if (result.modified) {
+      send_notifiers_after_node_tree_change(owner ? owner : &ntree.id, &ntree);
+      DEG_id_tag_update(&result.tree->id, ID_RECALC_SYNC_TO_EVAL);
+    }
+    if (result.modified_output) {
+      DEG_id_tag_update(&ntree.id, ID_RECALC_NTREE_OUTPUT);
+    }
+  }
 }
 
 void BKE_main_ensure_invariants(Main &bmain, const std::optional<blender::Span<ID *>> modified_ids)
