@@ -374,30 +374,6 @@ template<typename T> inline T *MEM_cnew_array(const size_t length, const char *a
 }
 
 /**
- * Allocate non-initialized memory for an object of type #T. The constructor of #T is not called,
- * therefore this should only be used with trivial types (like all C types).
- *
- * #MEM_cfree must be used to free a pointer returned by this call. Calling #MEM_delete on it is
- * illegal.
- */
-template<typename T> inline T *MEM_cnew_uninitialized(const char *allocation_name)
-{
-  static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_new must be used.");
-  return static_cast<T *>(MEM_malloc_arrayN_aligned(1, sizeof(T), alignof(T), allocation_name));
-}
-
-/**
- * Same as #MEM_cnew_uninitialized but for arrays, better alternative to #MEM_malloc_arrayN.
- */
-template<typename T>
-inline T *MEM_cnew_array_uninitialized(const size_t length, const char *allocation_name)
-{
-  static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_new must be used.");
-  return static_cast<T *>(
-      MEM_malloc_arrayN_aligned(length, sizeof(T), alignof(T), allocation_name));
-}
-
-/**
  * Allocate memory for an object of type #T and memory-copy `other` into it.
  * Only applicable for trivial types.
  *
