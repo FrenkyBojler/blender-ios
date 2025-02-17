@@ -71,7 +71,7 @@ vec4 float3_to_color(vec3 value)
 
 vec4 float3_to_float4(vec3 value)
 {
-  return value;
+  return vec4(value, 0.0);
 }
 
 /* --------------------------------------------------------------------
