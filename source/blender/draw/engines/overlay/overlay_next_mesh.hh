@@ -552,10 +552,11 @@ class MeshUVs : Overlay {
         mask_id_ = nullptr;
       }
     }
-    enabled_ = !is_viewer || show_mask_;
 
     /* Only disable UV drawing on top of render results.
      * Otherwise, show UVs even in the absence of active image. */
+    enabled_ = !is_viewer || show_mask_;
+
     if (!enabled_) {
       return;
     }
