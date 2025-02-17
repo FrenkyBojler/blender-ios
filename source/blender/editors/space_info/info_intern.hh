@@ -28,6 +28,7 @@ void FILE_OT_report_missing_files(wmOperatorType *ot);
 void FILE_OT_find_missing_files(wmOperatorType *ot);
 
 void INFO_OT_reports_display_update(wmOperatorType *ot);
+void INFO_OT_depsgraph_diagnostics(wmOperatorType *ot);
 
 /* `info_draw.cc` */
 

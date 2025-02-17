@@ -11,6 +11,7 @@
 #include "DNA_scene_types.h"
 
 #include "BKE_global.hh"
+#include "BKE_report.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -177,6 +178,12 @@ bool DEG_debug_consistency_check(Depsgraph *graph)
 }
 
 /* ------------------------------------------------ */
+
+void DEG_move_reports_to(Depsgraph *graph, ReportList *reports)
+{
+  deg::Depsgraph *deg_graph = reinterpret_cast<deg::Depsgraph *>(graph);
+  BKE_reports_move_to_reports(reports, &deg_graph->reports);
+}
 
 void DEG_stats_simple(const Depsgraph *graph,
                       size_t *r_outer,

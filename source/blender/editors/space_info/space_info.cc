@@ -15,8 +15,10 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
+#include "BKE_report.hh"
 #include "BKE_screen.hh"
 
+#include "ED_info.hh"
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
 
@@ -67,13 +69,19 @@ static SpaceLink *info_create(const ScrArea * /*area*/, const Scene * /*scene*/)
   /* for now, aspect ratio should be maintained, and zoom is clamped within sane default limits */
   // region->v2d.keepzoom = (V2D_KEEPASPECT|V2D_LIMITZOOM);
 
+  sinfo->runtime = new SpaceInfo_Runtime;
+  BKE_reports_init(&sinfo->runtime->Diagnostics, RPT_STORE | RPT_PRINT_HANDLED_BY_OWNER);
+
   return (SpaceLink *)sinfo;
 }
 
 /* Doesn't free the space-link itself. */
-static void info_free(SpaceLink * /*sl*/)
+static void info_free(SpaceLink *sl)
 {
-  //  SpaceInfo *sinfo = (SpaceInfo *) sl;
+  SpaceInfo *sinfo = (SpaceInfo *)sl;
+
+  BKE_reports_free(&sinfo->runtime->Diagnostics);
+  delete sinfo->runtime;
 }
 
 /* spacetype; init callback */
@@ -108,8 +116,10 @@ static void info_textview_update_rect(const bContext *C, ARegion *region)
   SpaceInfo *sinfo = CTX_wm_space_info(C);
   View2D *v2d = &region->v2d;
 
-  UI_view2d_totRect_set(
-      v2d, region->winx - 1, info_textview_height(sinfo, region, CTX_wm_reports(C)));
+  const ReportList *use_reports = sinfo->page == eSpaceInfo_Page::INFO_PAGE_REPORTS ?
+                                      CTX_wm_reports(C) :
+                                      &sinfo->runtime->Diagnostics;
+  UI_view2d_totRect_set(v2d, region->winx - 1, info_textview_height(sinfo, region, use_reports));
 }
 
 static void info_main_region_draw(const bContext *C, ARegion *region)
@@ -131,7 +141,11 @@ static void info_main_region_draw(const bContext *C, ARegion *region)
   /* Works best with no view2d matrix set. */
   UI_view2d_view_ortho(v2d);
 
-  info_textview_main(sinfo, region, CTX_wm_reports(C));
+  const ReportList *use_reports = sinfo->page == eSpaceInfo_Page::INFO_PAGE_REPORTS ?
+                                      CTX_wm_reports(C) :
+                                      &sinfo->runtime->Diagnostics;
+
+  info_textview_main(sinfo, region, use_reports);
 
   /* reset view matrix */
   UI_view2d_view_restore(C);
@@ -154,6 +168,7 @@ static void info_operatortypes()
   WM_operatortype_append(FILE_OT_report_missing_files);
   WM_operatortype_append(FILE_OT_find_missing_files);
   WM_operatortype_append(INFO_OT_reports_display_update);
+  WM_operatortype_append(INFO_OT_depsgraph_diagnostics);
 
   /* `info_report.cc` */
   WM_operatortype_append(INFO_OT_select_pick);
@@ -247,6 +262,14 @@ static void info_header_region_message_subscribe(const wmRegionMessageSubscribeP
   WM_msg_subscribe_rna_anon_prop(mbus, ViewLayer, name, &msg_sub_value_region_tag_redraw);
 }
 
+static void info_space_blend_read_data(BlendDataReader * /*reader*/, SpaceLink *sl)
+{
+  SpaceInfo *sinfo = (SpaceInfo *)sl;
+
+  sinfo->runtime = new SpaceInfo_Runtime;
+  BKE_reports_init(&sinfo->runtime->Diagnostics, RPT_STORE | RPT_PRINT_HANDLED_BY_OWNER);
+}
+
 static void info_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
   BLO_write_struct(writer, SpaceInfo, sl);
@@ -266,6 +289,7 @@ void ED_spacetype_info()
   st->duplicate = info_duplicate;
   st->operatortypes = info_operatortypes;
   st->keymap = info_keymap;
+  st->blend_read_data = info_space_blend_read_data;
   st->blend_write = info_space_blend_write;
 
   /* regions: main window */

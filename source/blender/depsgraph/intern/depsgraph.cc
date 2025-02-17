@@ -16,6 +16,7 @@
 
 #include "BKE_global.hh"
 #include "BKE_idtype.hh"
+#include "BKE_report.hh"
 #include "BKE_scene.hh"
 
 #include "DEG_depsgraph.hh"
@@ -66,6 +67,8 @@ Depsgraph::Depsgraph(Main *bmain, Scene *scene, ViewLayer *view_layer, eEvaluati
   memset(physics_relations, 0, sizeof(physics_relations));
 
   add_time_source();
+
+  BKE_reports_init(&this->reports, RPT_STORE | RPT_PRINT_HANDLED_BY_OWNER);
 }
 
 Depsgraph::~Depsgraph()
@@ -73,6 +76,8 @@ Depsgraph::~Depsgraph()
   clear_id_nodes();
   delete time_source;
   BLI_spin_end(&lock);
+
+  BKE_reports_free(&this->reports);
 }
 
 /* Node Management ---------------------------- */

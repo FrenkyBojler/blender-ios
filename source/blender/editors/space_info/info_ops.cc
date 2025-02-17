@@ -35,6 +35,8 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
+#include "ED_info.hh"
+
 #include "info_intern.hh"
 
 /* -------------------------------------------------------------------- */
@@ -660,6 +662,47 @@ void INFO_OT_reports_display_update(wmOperatorType *ot)
 
   /* api callbacks */
   ot->invoke = update_reports_display_invoke;
+
+  /* flags */
+  ot->flag = 0;
+
+  /* properties */
+}
+
+static bool depsgraph_diagnostics_poll(bContext *C)
+{
+  SpaceLink *space = CTX_wm_space_data(C);
+  if (!space || space->spacetype != SPACE_INFO) {
+    return false;
+  }
+  return true;
+}
+
+static int depsgraph_diagnostics_invoke(bContext *C,
+                                        wmOperator * /*op*/,
+                                        const wmEvent * /*event*/)
+{
+  SpaceLink *space = CTX_wm_space_data(C);
+  SpaceInfo *sinfo = reinterpret_cast<SpaceInfo *>(space);
+  ED_info_refresh_dependency_cycles(CTX_data_main(C),
+                                    CTX_data_scene(C),
+                                    CTX_data_view_layer(C),
+                                    eEvaluationMode::DAG_EVAL_RENDER,
+                                    &sinfo->runtime->Diagnostics);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_INFO, nullptr);
+  return OPERATOR_FINISHED;
+}
+
+void INFO_OT_depsgraph_diagnostics(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Depsgraph Diagnostics";
+  ot->idname = "INFO_OT_depsgraph_diagnostics";
+  ot->description = "Build a dependency graph and check for issues";
+
+  /* api callbacks */
+  ot->poll = depsgraph_diagnostics_poll;
+  ot->invoke = depsgraph_diagnostics_invoke;
 
   /* flags */
   ot->flag = 0;

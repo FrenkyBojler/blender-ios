@@ -43,6 +43,7 @@ struct bGPdata;
 struct bNodeTree;
 struct wmOperator;
 struct wmTimer;
+struct ReportList;
 
 #ifdef __cplusplus
 namespace blender::asset_system {
@@ -57,6 +58,11 @@ typedef struct AssetRepresentationHandle AssetRepresentationHandle;
 typedef struct SpaceProperties_Runtime SpaceProperties_Runtime;
 
 #ifdef __cplusplus
+namespace blender::ed::info {
+struct SpaceInfo_Runtime;
+}  // namespace blender::ed::info
+using SpaceInfo_Runtime = blender::ed::info::SpaceInfo_Runtime;
+
 namespace blender::ed::space_node {
 struct SpaceNode_Runtime;
 }  // namespace blender::ed::space_node
@@ -82,6 +88,7 @@ struct SpaceSpreadsheet_Runtime;
 }  // namespace blender::ed::spreadsheet
 using SpaceSpreadsheet_Runtime = blender::ed::spreadsheet::SpaceSpreadsheet_Runtime;
 #else
+typedef struct SpaceInfo_Runtime SpaceInfo_Runtime;
 typedef struct SpaceNode_Runtime SpaceNode_Runtime;
 typedef struct SpaceOutliner_Runtime SpaceOutliner_Runtime;
 typedef struct SpaceSeq_Runtime SpaceSeq_Runtime;
@@ -143,8 +150,11 @@ typedef struct SpaceInfo {
   char _pad0[6];
   /* End 'SpaceLink' header. */
 
+  char page;
   char rpt_mask;
-  char _pad[7];
+  char _pad[6];
+
+  SpaceInfo_Runtime *runtime;
 } SpaceInfo;
 
 /** #SpaceInfo.rpt_mask */
@@ -155,6 +165,12 @@ typedef enum eSpaceInfo_RptMask {
   INFO_RPT_WARN = (1 << 3),
   INFO_RPT_ERR = (1 << 4),
 } eSpaceInfo_RptMask;
+
+/** #SpaceInfo.rpt_mask */
+typedef enum eSpaceInfo_Page {
+  INFO_PAGE_REPORTS = 0,
+  INFO_PAGE_DIAGNOSTICS = (1 << 0),
+} eSpaceInfo_Page;
 
 /** \} */
 

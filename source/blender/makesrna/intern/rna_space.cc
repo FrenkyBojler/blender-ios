@@ -7548,11 +7548,28 @@ static void rna_def_space_info(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
+  static const EnumPropertyItem info_page_items[] = {
+      {eSpaceInfo_Page::INFO_PAGE_REPORTS, "REPORTS", 0, "Reports", "Regular reports"},
+      {eSpaceInfo_Page::INFO_PAGE_DIAGNOSTICS,
+       "DIAGNOSTICS",
+       0,
+       "Diagnostics",
+       "Summarized Diagnostics"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   srna = RNA_def_struct(brna, "SpaceInfo", "Space");
   RNA_def_struct_sdna(srna, "SpaceInfo");
   RNA_def_struct_ui_text(srna, "Space Info", "Info space data");
 
-  /* reporting display */
+  /* Info page. */
+  prop = RNA_def_property(srna, "page", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "page");
+  RNA_def_property_enum_items(prop, info_page_items);
+  RNA_def_property_ui_text(prop, "Info Page", "Display info page");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_INFO_REPORT, nullptr);
+
+  /* Info report filters. */
   prop = RNA_def_property(srna, "show_report_debug", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "rpt_mask", INFO_RPT_DEBUG);
   RNA_def_property_ui_text(prop, "Show Debug", "Display debug reporting info");

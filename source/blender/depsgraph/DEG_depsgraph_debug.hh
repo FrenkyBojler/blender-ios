@@ -18,6 +18,7 @@ struct Depsgraph;
 struct Main;
 struct Scene;
 struct ViewLayer;
+struct ReportList;
 
 /* ------------------------------------------------ */
 
@@ -65,3 +66,6 @@ bool DEG_debug_graph_relations_validate(Depsgraph *graph,
 
 /** Perform consistency check on the graph. */
 bool DEG_debug_consistency_check(Depsgraph *graph);
+
+/* Move diagnostics info for UI to `reports` */
+void DEG_move_reports_to(Depsgraph *graph, ReportList *reports);

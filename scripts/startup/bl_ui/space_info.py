@@ -16,6 +16,12 @@ class INFO_HT_header(Header):
 
         INFO_MT_editor_menus.draw_collapsible(context, layout)
 
+        view = context.space_data
+        layout.prop(view, "page", expand=True)
+
+        if view.page == 'DIAGNOSTICS':
+            layout.operator("info.depsgraph_diagnostics")
+
 
 class INFO_MT_editor_menus(Menu):
     bl_idname = "INFO_MT_editor_menus"

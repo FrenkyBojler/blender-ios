@@ -49,10 +49,12 @@
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
+#include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_subdiv_ccg.hh"
 #include "BKE_subdiv_modifier.hh"
 
+#include "DEG_depsgraph_debug.hh"
 #include "DEG_depsgraph_query.hh"
 
 #include "ED_info.hh"
@@ -858,4 +860,15 @@ void ED_info_draw_stats(
     stats_row(col1, labels[FACES], col2, stats_fmt.totfacesel, stats_fmt.totface, y, height);
     stats_row(col1, labels[TRIS], col2, stats_fmt.tottrisel, stats_fmt.tottri, y, height);
   }
+}
+
+void ED_info_refresh_dependency_cycles(
+    Main *bmain, Scene *scene, ViewLayer *view_layer, eEvaluationMode mode, ReportList *reports)
+{
+  BKE_reports_clear(reports);
+  Depsgraph *depsgraph = DEG_graph_new(bmain, scene, view_layer, mode);
+  DEG_graph_build_for_all_objects(depsgraph);
+  DEG_move_reports_to(depsgraph, reports);
+  DEG_graph_free(depsgraph);
+  BKE_report(reports, RPT_INFO, "------[ Done ]------");
 }

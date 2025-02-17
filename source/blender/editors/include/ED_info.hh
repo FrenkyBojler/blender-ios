@@ -8,11 +8,20 @@
 
 #pragma once
 
+#include "BKE_report.hh"
+#include "DEG_depsgraph.hh"
+
 struct Main;
 struct Scene;
 struct View3D;
 struct ViewLayer;
 struct wmWindowManager;
+
+namespace blender::ed::info {
+struct SpaceInfo_Runtime {
+  ReportList Diagnostics;
+};
+}  // namespace blender::ed::info
 
 /* `info_stats.cc` */
 
@@ -37,3 +46,8 @@ void ED_info_draw_stats(Main *bmain,
                         int x,
                         int *y,
                         int height);
+
+/* Try building a dependency graph for specified scene, view_layer and evaluation mode to generate
+ * a dependency cycle report to be shown on the UI. */
+void ED_info_refresh_dependency_cycles(
+    Main *bmain, Scene *scene, ViewLayer *view_layer, eEvaluationMode mode, ReportList *reports);

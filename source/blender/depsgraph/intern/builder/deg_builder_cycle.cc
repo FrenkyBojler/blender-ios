@@ -12,6 +12,8 @@
 #include <cstdio>
 #include <cstdlib>
 
+#include "BKE_report.hh"
+
 #include "BLI_stack.h"
 
 #include "intern/node/deg_node.hh"
@@ -165,16 +167,38 @@ void solve_cycles(CyclesSolverState *state)
         OperationNode *to = (OperationNode *)rel->to;
         eCyclicCheckVisitedState to_state = get_node_visited_state(to);
         if (to_state == NODE_IN_STACK) {
-          std::string cycle_str = "  " + to->full_identifier() + " depends on\n  " +
-                                  node->full_identifier() + " via '" + rel->name + "'\n";
-          StackEntry *current = entry;
-          while (current->node != to) {
-            BLI_assert(current != nullptr);
-            cycle_str += "  " + current->from->node->full_identifier() + " via '" +
-                         current->via_relation->name + "'\n";
-            current = current->from;
+          {
+            std::string cycle_str = "  " + to->full_identifier() + " depends on\n  " +
+                                    node->full_identifier() + " via '" + rel->name + "'\n";
+            StackEntry *current = entry;
+            while (current->node != to) {
+              BLI_assert(current != nullptr);
+              cycle_str += "  " + current->from->node->full_identifier() + " via '" +
+                           current->via_relation->name + "'\n";
+              current = current->from;
+            }
+            printf("Dependency cycle detected:\n%s", cycle_str.c_str());
           }
-          printf("Dependency cycle detected:\n%s", cycle_str.c_str());
+
+          {
+            std::string this_name = to->owner->owner->name;
+            std::string formatted = "Dependency cycle:\n  " + this_name + " [" + rel->name + "] " +
+                                    node->owner->owner->name + "\n";
+            this_name = node->owner->owner->name;
+            StackEntry *current = entry;
+            while (current->node != to) {
+              BLI_assert(current != nullptr);
+              const std::string &that_name = current->from->node->owner->owner->name;
+              if (this_name != that_name) {
+                formatted += "  " + this_name + " [" + current->via_relation->name + "] " +
+                             that_name + "\n";
+                this_name = that_name;
+              }
+              current = current->from;
+            }
+            BKE_report(&state->graph->reports, RPT_WARNING, formatted.c_str());
+          }
+
           Relation *sacrificial_relation = select_relation_to_murder(rel, entry);
           sacrificial_relation->flag |= RELATION_FLAG_CYCLIC;
           ++state->num_cycles;
