@@ -63,6 +63,7 @@ struct CsvParseOptions {
   char delimiter = ',';
   char quote = '"';
   Span<char> quote_escape_chars = Span<char>{'"', '\\'};
+  int64_t chunk_size_bytes = 32 * 1024;
 };
 
 std::optional<Vector<Any<>>> parse_csv_in_chunks(
@@ -124,6 +125,13 @@ std::optional<int64_t> find_end_of_quoted_field(Span<char> buffer,
                                                 char quote = '"',
                                                 Span<char> escape_chars = Span<char>{'"', '\\'});
 
+/**
+ * Finds all fields for the record starting at the given index. Typically, the record ends with a
+ * newline, but quoted multiline records are supported as well.
+ *
+ * \return Index of the the start of the next record or the end of the buffer. Nullopt is returned
+ *   if the buffer has a malformed record at the end, i.e. a quoted field that is not closed.
+ */
 std::optional<int64_t> parse_record_fields(const Span<char> buffer,
                                            const int64_t start,
                                            const char delimiter,

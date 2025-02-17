@@ -129,10 +129,14 @@ TEST(csv_parse, ParseCsvInChunks)
   };
 
   const std::string buffer = "a,b,c\n1,2,3,4\n4\n77,88,99\n";
+
+  CsvParseOptions options;
+  options.chunk_size_bytes = 1;
+
   Vector<std::string> column_names;
   const std::optional<Vector<Chunk>> result_opt = parse_csv_in_chunks<Chunk>(
       Span<char>(buffer.data(), buffer.size()),
-      CsvParseOptions{},
+      options,
       [&](const Span<Span<char>> headers) {
         for (const Span<char> header : headers) {
           column_names.append(std::string(header.begin(), header.end()));

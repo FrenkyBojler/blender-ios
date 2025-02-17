@@ -38,6 +38,27 @@ static Vector<Span<char>> split_to_chunks(const Span<char> buffer, int64_t appro
   return chunks;
 }
 
+static std::optional<CsvRecords> parse_records(const Span<char> buffer,
+                                               const CsvParseOptions &options)
+{
+  using namespace detail;
+
+  Vector<int64_t> data_offsets;
+  Vector<Span<char>> data_fields;
+  data_offsets.append(0);
+  int64_t start = 0;
+  while (start < buffer.size()) {
+    const std::optional<int64_t> next_record_start = parse_record_fields(
+        buffer, start, options.delimiter, options.quote, options.quote_escape_chars, data_fields);
+    if (!next_record_start.has_value()) {
+      return std::nullopt;
+    }
+    data_offsets.append(data_fields.size());
+    start = *next_record_start;
+  }
+  return CsvRecords(std::move(data_offsets), std::move(data_fields));
+}
+
 std::optional<Vector<Any<>>> parse_csv_in_chunks(
     const Span<char> buffer,
     const CsvParseOptions &options,
@@ -46,53 +67,62 @@ std::optional<Vector<Any<>>> parse_csv_in_chunks(
 {
   using namespace detail;
 
+  /* First parse the first row to get the column names. */
   Vector<Span<char>> header_fields;
   const std::optional<int64_t> first_data_record_start = parse_record_fields(
       buffer, 0, options.delimiter, options.quote, options.quote_escape_chars, header_fields);
   if (!first_data_record_start.has_value()) {
     return std::nullopt;
   }
+  /* Call this before starting to process the remaining data. This allows the caller to do some
+   * preprocessing that is used during chunk parsing. */
   process_header(header_fields);
 
+  /* This buffer contains only the data records, without the header. */
   const Span<char> data_buffer = buffer.drop_front(*first_data_record_start);
-  const Vector<Span<char>> data_buffer_chunks = split_to_chunks(data_buffer, 1);
+  /* Split the buffer into chunks that can be processed in parallel. */
+  const Vector<Span<char>> data_buffer_chunks = split_to_chunks(data_buffer,
+                                                                options.chunk_size_bytes);
+
+  /* It's not common, but it can happen that .csv files contain quoted multi-line values. In the
+   * unlucky case that we split the buffer in the middle of such a multi-line field, there will be
+   * malformed chunks. In this case we fallback to parsing the whole buffer with a single thread.
+   * If this case becomes more common, we could try to avoid splitting into malformed chunks by
+   * making the splitting logic a bit smarter. */
+  std::atomic<bool> found_malformed_chunk = false;
   Vector<std::optional<Any<>>> chunk_results(data_buffer_chunks.size());
   threading::parallel_for(chunk_results.index_range(), 1, [&](const IndexRange range) {
     for (const int64_t i : range) {
-      const Span<char> chunk_buffer = data_buffer_chunks[i];
-      Vector<int64_t> data_offsets;
-      Vector<Span<char>> data_fields;
-      data_offsets.append(0);
-      int64_t start = 0;
-      while (start < chunk_buffer.size()) {
-        const std::optional<int64_t> next_record_start = parse_record_fields(
-            chunk_buffer,
-            start,
-            options.delimiter,
-            options.quote,
-            options.quote_escape_chars,
-            data_fields);
-        if (!next_record_start.has_value()) {
-          return;
-        }
-        data_offsets.append(data_fields.size());
-        start = *next_record_start;
+      if (found_malformed_chunk.load(std::memory_order_relaxed)) {
+        /* All work is cancelled when there was a malformed chunk. */
+        return;
       }
-      CsvRecords records(std::move(data_offsets), std::move(data_fields));
-      chunk_results[i] = process_records(records);
+      const Span<char> chunk_buffer = data_buffer_chunks[i];
+      const std::optional<CsvRecords> records = parse_records(chunk_buffer, options);
+      if (!records.has_value()) {
+        found_malformed_chunk.store(true, std::memory_order_relaxed);
+        return;
+      }
+      chunk_results[i] = process_records(*records);
     }
   });
 
-  Vector<Any<>> results;
-  for (const std::optional<Any<>> &result : chunk_results) {
-    if (result.has_value()) {
-      results.append(result.value());
-    }
-    else {
+  /* If there was a malformed chunk, process the data again in a single thread. This should happen
+   * quite rarely but is important for overall correctness. */
+  if (found_malformed_chunk) {
+    chunk_results.clear();
+    const std::optional<CsvRecords> records = parse_records(data_buffer, options);
+    if (!records.has_value()) {
       return std::nullopt;
     }
+    chunk_results.append(process_records(*records));
   }
 
+  Vector<Any<>> results;
+  for (std::optional<Any<>> &result : chunk_results) {
+    BLI_assert(result.has_value());
+    results.append(std::move(result.value()));
+  }
   return results;
 }
 
