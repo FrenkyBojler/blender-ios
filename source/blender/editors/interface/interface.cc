@@ -1170,6 +1170,13 @@ static void ui_menu_block_set_keyaccels(uiBlock *block)
         continue;
       }
 
+      if (pass == 0 && ELEM(but->type, UI_BTYPE_ICON_TOGGLE, UI_BTYPE_ICON_TOGGLE_N)) {
+        /* Until 4.4, toggles did not get accelerator keys. Ignore them on the first pass to keep
+         * the most-used accelerator keys (those on the first letter) the same. In general it seems
+         * more desired to give operators priority over toggles. #134492 */
+        continue;
+      }
+
       if (but->menu_key != '\0') {
         continue;
       }
@@ -2896,8 +2903,8 @@ static void ui_get_but_string_unit(
 static float ui_get_but_step_unit(uiBut *but, float step_default)
 {
   const int unit_type = RNA_SUBTYPE_UNIT_VALUE(UI_but_unit_type_get(but));
-  const double step_orig = step_default * UI_PRECISION_FLOAT_SCALE;
-  /* Scaling up 'step_origg ' here is a bit arbitrary,
+  const double step_orig = double(step_default) * double(UI_PRECISION_FLOAT_SCALE);
+  /* Scaling up 'step_orig ' here is a bit arbitrary,
    * its just giving better scales from user POV */
   const double scale_step = ui_get_but_scale_unit(but, step_orig * 10);
   const double step = BKE_unit_closest_scalar(scale_step, but->block->unit->system, unit_type);
