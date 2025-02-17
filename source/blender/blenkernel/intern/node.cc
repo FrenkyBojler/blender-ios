@@ -58,6 +58,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_node.hh"
 #include "BKE_node_enum.hh"
 #include "BKE_node_legacy_types.hh"
@@ -4258,7 +4259,7 @@ void node_tree_update_all_new(Main *main)
     }
   }
   FOREACH_NODETREE_END;
-  BKE_ntree_update(*main);
+  BKE_main_ensure_invariants(*main);
 }
 
 void node_tree_update_all_users(Main *main, ID *id)
@@ -4280,7 +4281,7 @@ void node_tree_update_all_users(Main *main, ID *id)
   }
   FOREACH_NODETREE_END;
   if (need_update) {
-    BKE_ntree_update(*main);
+    BKE_main_ensure_invariants(*main);
   }
 }
 
