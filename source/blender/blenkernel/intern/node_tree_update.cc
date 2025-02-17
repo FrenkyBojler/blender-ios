@@ -185,7 +185,6 @@ static bool is_tree_changed(const bNodeTree &tree)
 }
 
 using TreeNodePair = std::pair<bNodeTree *, bNode *>;
-using ObjectModifierPair = std::pair<Object *, ModifierData *>;
 using NodeSocketPair = std::pair<bNode *, bNodeSocket *>;
 
 /**
@@ -197,7 +196,6 @@ struct NodeTreeRelations {
   Main *bmain_;
   std::optional<Vector<bNodeTree *>> all_trees_;
   std::optional<MultiValueMap<bNodeTree *, TreeNodePair>> group_node_users_;
-  std::optional<MultiValueMap<bNodeTree *, ObjectModifierPair>> modifiers_users_;
 
  public:
   NodeTreeRelations(Main *bmain) : bmain_(bmain) {}
@@ -242,34 +240,6 @@ struct NodeTreeRelations {
         }
       }
     }
-  }
-
-  void ensure_modifier_users()
-  {
-    if (modifiers_users_.has_value()) {
-      return;
-    }
-    modifiers_users_.emplace();
-    if (bmain_ == nullptr) {
-      return;
-    }
-
-    LISTBASE_FOREACH (Object *, object, &bmain_->objects) {
-      LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
-        if (md->type == eModifierType_Nodes) {
-          NodesModifierData *nmd = (NodesModifierData *)md;
-          if (nmd->node_group != nullptr) {
-            modifiers_users_->add(nmd->node_group, {object, md});
-          }
-        }
-      }
-    }
-  }
-
-  Span<ObjectModifierPair> get_modifier_users(bNodeTree *ntree)
-  {
-    BLI_assert(modifiers_users_.has_value());
-    return modifiers_users_->lookup(ntree);
   }
 
   Span<TreeNodePair> get_group_node_users(bNodeTree *ntree)
