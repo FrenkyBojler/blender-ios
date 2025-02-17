@@ -5,7 +5,6 @@
 #include "BLI_any.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_offset_indices.hh"
-#include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
 namespace blender::csv_parse {
@@ -71,6 +70,27 @@ std::optional<Vector<Any<>>> parse_csv_in_chunks(
     const CsvParseOptions &options,
     FunctionRef<void(Span<Span<char>>)> process_header,
     FunctionRef<Any<>(const CsvRecords &records)> process_records);
+
+template<typename ChunkT>
+inline std::optional<Vector<ChunkT>> parse_csv_in_chunks(
+    const Span<char> buffer,
+    const CsvParseOptions &options,
+    FunctionRef<void(Span<Span<char>>)> process_header,
+    FunctionRef<ChunkT(const CsvRecords &records)> process_records)
+{
+  std::optional<Vector<Any<>>> result = parse_csv_in_chunks(
+      buffer, options, process_header, [&](const CsvRecords &records) {
+        return Any<>(process_records(records));
+      });
+  if (!result.has_value()) {
+    return std::nullopt;
+  }
+  Vector<ChunkT> result_chunks;
+  for (Any<> &value : *result) {
+    result_chunks.append(std::move(value.get<ChunkT>()));
+  }
+  return result_chunks;
+}
 
 /* -------------------------------------------------------------------- */
 /** \name Internal functions exposed for testing.

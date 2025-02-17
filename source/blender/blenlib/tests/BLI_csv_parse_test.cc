@@ -122,4 +122,62 @@ TEST(csv_parse, ParseRecordFields)
   EXPECT_EQ(parse_record_fields("\"a\"  \nb"), StrVec({"a"}));
 }
 
+TEST(csv_parse, ParseCsvInChunks)
+{
+  struct Chunk {
+    Vector<Vector<std::string>> fields;
+  };
+
+  const std::string buffer = "a,b,c\n1,2,3,4\n4\n77,88,99\n";
+  Vector<std::string> column_names;
+  const std::optional<Vector<Chunk>> result_opt = parse_csv_in_chunks<Chunk>(
+      Span<char>(buffer.data(), buffer.size()),
+      CsvParseOptions{},
+      [&](const Span<Span<char>> headers) {
+        for (const Span<char> header : headers) {
+          column_names.append(std::string(header.begin(), header.end()));
+        }
+      },
+      [&](const CsvRecords &records) {
+        Chunk result;
+        for (const int64_t record_i : records.index_range()) {
+          const CsvRecord record = records.record(record_i);
+          Vector<std::string> fields;
+          for (const int64_t column_i : column_names.index_range()) {
+            const Span<char> value = record.field(column_i);
+            fields.append(std::string(value.begin(), value.end()));
+          }
+          result.fields.append(std::move(fields));
+        }
+        return result;
+      });
+  EXPECT_TRUE(result_opt.has_value());
+  Vector<Vector<std::string>> combined;
+  for (const Chunk &chunk : *result_opt) {
+    combined.extend(std::move(chunk.fields));
+  }
+
+  EXPECT_EQ(column_names.size(), 3);
+  EXPECT_EQ(column_names[0], "a");
+  EXPECT_EQ(column_names[1], "b");
+  EXPECT_EQ(column_names[2], "c");
+
+  EXPECT_EQ(combined.size(), 3);
+  EXPECT_EQ(combined[0].size(), 3);
+  EXPECT_EQ(combined[1].size(), 3);
+  EXPECT_EQ(combined[2].size(), 3);
+
+  EXPECT_EQ(combined[0][0], "1");
+  EXPECT_EQ(combined[0][1], "2");
+  EXPECT_EQ(combined[0][2], "3");
+
+  EXPECT_EQ(combined[1][0], "4");
+  EXPECT_EQ(combined[1][1], "");
+  EXPECT_EQ(combined[1][2], "");
+
+  EXPECT_EQ(combined[2][0], "77");
+  EXPECT_EQ(combined[2][1], "88");
+  EXPECT_EQ(combined[2][2], "99");
+}
+
 }  // namespace blender::csv_parse::tests
