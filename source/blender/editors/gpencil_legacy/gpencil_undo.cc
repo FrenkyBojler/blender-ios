@@ -50,6 +50,8 @@ int ED_undo_gpencil_step(bContext *C, const int step)
 {
   bGPdata **gpd_ptr = nullptr, *new_gpd = nullptr;
 
+  gpd_ptr = ED_gpencil_data_get_pointers(C, nullptr);
+
   const eUndoStepDir undo_step = (eUndoStepDir)step;
   if (undo_step == STEP_UNDO) {
     if (cur_node->prev) {
