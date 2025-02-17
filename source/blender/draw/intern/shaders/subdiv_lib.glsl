@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "draw_subdiv_shader_shared.hh"
 
 #ifndef USE_GPU_SHADER_CREATE_INFO
 
@@ -108,6 +107,7 @@ uint get_index(uint i)
   return (i >> 2) & 0x3FFFFFFFu;
 }
 
+#ifndef USE_GPU_SHADER_CREATE_INFO
 /* Duplicate of #PosNorLoop from the mesh extract CPU code.
  * We do not use a vec3 for the position as it will be padded to a vec4 which is incompatible with
  * the format. */
@@ -122,6 +122,7 @@ struct PosNorLoop {
 struct LoopNormal {
   float nx, ny, nz, flag;
 };
+#endif
 
 vec3 get_vertex_pos(PosNorLoop vertex_data)
 {

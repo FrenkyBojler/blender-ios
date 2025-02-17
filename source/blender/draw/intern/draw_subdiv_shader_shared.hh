@@ -54,3 +54,25 @@ struct DRWSubdivUboStorage {
   int _pad4;
 };
 BLI_STATIC_ASSERT_ALIGN(DRWSubdivUboStorage, 16)
+
+
+/* Duplicate of #PosNorLoop from the mesh extract CPU code.
+ * We do not use a vec3 for the position as it will be padded to a vec4 which is incompatible with
+ * the format. */
+struct PosNorLoop {
+  float x, y, z;
+  /* TODO(@kevindietrich): figure how to compress properly as GLSL does not have char/short types,
+   * bit operations get tricky. */
+  float nx, ny, nz;
+  float flag;
+};
+
+struct LoopNormal {
+  float nx, ny, nz, flag;
+};
+
+/* TODO: after migrating all shaders we should replace these defines with 'shader_data.define'.
+ * Currently only added to support both legacy and shader create info. */
+#ifdef GPU_SHADER
+#  define total_dispatch_size shader_data.total_dispatch_size
+#endif

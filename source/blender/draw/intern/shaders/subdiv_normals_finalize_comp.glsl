@@ -4,7 +4,10 @@
 
 /* To be compiled with subdiv_lib.glsl */
 
-#ifndef USE_GPU_SHADER_CREATE_INFO
+#include "subdiv_lib.glsl"
+
+#ifdef USE_GPU_SHADER_CREATE_INFO
+#else
 #  ifdef CUSTOM_NORMALS
 struct CustomNormal {
   float x;
