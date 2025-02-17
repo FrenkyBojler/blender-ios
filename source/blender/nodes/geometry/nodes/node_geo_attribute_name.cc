@@ -8,8 +8,8 @@
 #include "UI_resources.hh"
 
 #include "BKE_attribute.hh"
-#include "RNA_enum_types.hh"
 #include "NOD_rna_define.hh"
+#include "RNA_enum_types.hh"
 
 namespace blender::nodes::node_geo_attribute_name_cc {
 
@@ -63,10 +63,10 @@ static void node_geo_exec(GeoNodeExecParams params)
   std::string attribute_name;
 
   attributes.foreach_attribute([&](const AttributeIter &iter) {
-    if (iter.domain == domain && iter.data_type == data_type && iter.name[0] != '.')
-    {
-      if (attribute_count == search_index)
-      {attribute_name = iter.name;}
+    if (iter.domain == domain && iter.data_type == data_type && iter.name[0] != '.') {
+      if (attribute_count == search_index) {
+        attribute_name = iter.name;
+      }
       attribute_count++;
     }
   });
@@ -92,12 +92,12 @@ static void node_rna(StructRNA *srna)
       });
 
   RNA_def_node_enum(srna,
-      "domain",
-      "Domain",
-      "Which attribute to filter",
-      rna_enum_attribute_domain_items,
-      NOD_inline_enum_accessors(custom2),
-      int(AttrDomain::Point));
+                    "domain",
+                    "Domain",
+                    "Which attribute to filter",
+                    rna_enum_attribute_domain_items,
+                    NOD_inline_enum_accessors(custom2),
+                    int(AttrDomain::Point));
 }
 
 static void node_register()
@@ -106,7 +106,8 @@ static void node_register()
 
   geo_node_type_base(&ntype, "GeometryNodeAttributeName");
   ntype.ui_name = "Attribute Name";
-  ntype.ui_description = "Retrieves string name of attribute given an index, data type, and domain";
+  ntype.ui_description =
+      "Retrieves string name of attribute given an index, data type, and domain";
   ntype.nclass = NODE_CLASS_ATTRIBUTE;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
@@ -117,4 +118,4 @@ static void node_register()
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_attribtue_name_cc
+}  // namespace blender::nodes::node_geo_attribute_name_cc
