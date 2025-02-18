@@ -714,6 +714,14 @@ bool BLI_path_abs_from_cwd(char *path, size_t path_maxncpy) ATTR_NONNULL(1);
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Blender Variables
+ * \{ */
+
+bool BLI_path_apply_variables(char path[FILE_MAX]);
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Native Slash Defines & Checks
  * \{ */
 

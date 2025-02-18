@@ -356,6 +356,7 @@ static int sound_mixdown_exec(bContext *C, wmOperator *op)
   specs.channels = AUD_Channels(RNA_enum_get(op->ptr, "channels"));
   specs.rate = RNA_int_get(op->ptr, "mixrate");
 
+  BLI_path_apply_variables(filepath);
   BLI_path_abs(filepath, BKE_main_blendfile_path(bmain));
 
   const double fps = double(scene_eval->r.frs_sec) / double(scene_eval->r.frs_sec_base);

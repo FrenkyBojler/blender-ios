@@ -207,6 +207,7 @@ void SEQ_add_image_init_alpha_mode(Strip *strip)
 
     BLI_path_join(
         filepath, sizeof(filepath), strip->data->dirpath, strip->data->stripdata->filename);
+    BLI_path_apply_variables(filepath);
     BLI_path_abs(filepath, BKE_main_blendfile_path_from_global());
 
     /* Initialize input color space. */
@@ -255,6 +256,7 @@ Strip *SEQ_add_image_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqLoad
   /* Set initial scale based on load_data->fit_method. */
   char file_path[FILE_MAX];
   STRNCPY(file_path, load_data->path);
+  BLI_path_apply_variables(file_path);
   BLI_path_abs(file_path, BKE_main_blendfile_path(bmain));
   ImBuf *ibuf = IMB_loadiffname(
       file_path, IB_rect | IB_multilayer, strip->data->colorspace_settings.name);
@@ -396,6 +398,7 @@ Strip *SEQ_add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqLoad
 {
   char filepath[sizeof(load_data->path)];
   STRNCPY(filepath, load_data->path);
+  BLI_path_apply_variables(filepath);
   BLI_path_abs(filepath, BKE_main_blendfile_path(bmain));
 
   char colorspace[64] = "\0"; /* MAX_COLORSPACE_NAME */
@@ -568,6 +571,7 @@ void SEQ_add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool
 
       BLI_path_join(
           filepath, sizeof(filepath), strip->data->dirpath, strip->data->stripdata->filename);
+      BLI_path_apply_variables(filepath);
       BLI_path_abs(filepath, BKE_main_blendfile_path_from_global());
 
       SEQ_relations_sequence_free_anim(strip);

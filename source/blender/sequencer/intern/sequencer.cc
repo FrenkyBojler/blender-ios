@@ -940,6 +940,7 @@ static bool strip_doversion_250_sound_proxy_update_cb(Strip *strip, void *user_d
                   sizeof(filepath_abs),
                   strip->data->dirpath,
                   strip->data->stripdata->filename);
+    BLI_path_apply_variables(filepath_abs);
     BLI_path_abs(filepath_abs, BKE_main_blendfile_path(bmain));
     strip->sound = BKE_sound_new_file(bmain, filepath_abs);
     strip->type = STRIP_TYPE_SOUND_RAM;

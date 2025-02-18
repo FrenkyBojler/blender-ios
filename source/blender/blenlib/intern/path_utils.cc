@@ -1235,6 +1235,8 @@ bool BLI_path_abs_from_cwd(char *path, const size_t path_maxncpy)
   return false;
 }
 
+bool BLI_path_apply_variables(char path[FILE_MAX]) {}
+
 #ifdef _WIN32
 /**
  * Tries appending each of the semicolon-separated extensions in the `PATHEXT`

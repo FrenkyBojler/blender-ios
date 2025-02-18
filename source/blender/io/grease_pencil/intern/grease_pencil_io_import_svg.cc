@@ -294,6 +294,7 @@ bool SVGImporter::read(StringRefNull filepath)
 
   char abs_filepath[FILE_MAX];
   STRNCPY(abs_filepath, filepath.c_str());
+  BLI_path_apply_variables(abs_filepath);
   BLI_path_abs(abs_filepath, BKE_main_blendfile_path_from_global());
 
   NSVGimage *svg_data = nullptr;

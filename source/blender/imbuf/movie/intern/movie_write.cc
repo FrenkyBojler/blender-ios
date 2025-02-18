@@ -1198,6 +1198,7 @@ static void ffmpeg_filepath_get(MovieWriter *context,
   }
 
   BLI_strncpy(filepath, rd->pic, FILE_MAX);
+  BLI_path_apply_variables(filepath);
   BLI_path_abs(filepath, BKE_main_blendfile_path_from_global());
 
   BLI_file_ensure_parent_dir_exists(filepath);

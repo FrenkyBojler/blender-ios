@@ -1348,6 +1348,7 @@ static ImBuf *icon_preview_imbuf_from_brush(Brush *brush)
     char filepath[FILE_MAX];
 
     STRNCPY(filepath, brush->icon_filepath);
+    BLI_path_apply_variables(filepath);
     BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&brush->id));
 
     /* Use default color-spaces for brushes. */

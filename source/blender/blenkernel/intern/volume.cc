@@ -395,6 +395,7 @@ static int volume_sequence_frame(const Depsgraph *depsgraph, const Volume *volum
 static void volume_filepath_get(const Main *bmain, const Volume *volume, char r_filepath[FILE_MAX])
 {
   BLI_strncpy(r_filepath, volume->filepath, FILE_MAX);
+  BLI_path_apply_variables(r_filepath);
   BLI_path_abs(r_filepath, ID_BLEND_PATH(bmain, &volume->id));
 
   int path_frame, path_digits;

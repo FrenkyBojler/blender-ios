@@ -1600,6 +1600,7 @@ static int image_file_browse_exec(bContext *C, wmOperator *op)
 
   char filepath[FILE_MAX];
   RNA_string_get(op->ptr, "filepath", filepath);
+  BLI_path_apply_variables(filepath);
   if (BLI_path_is_rel(filepath)) {
     /* Relative path created by the file-browser are always relative to the current blendfile, need
      * to be made relative to the library blendfile path in case image is an editable linked data.
@@ -1636,6 +1637,7 @@ static int image_file_browse_invoke(bContext *C, wmOperator *op, const wmEvent *
 
   char filepath[FILE_MAX];
   STRNCPY(filepath, ima->filepath);
+  BLI_path_apply_variables(filepath);
   BLI_path_abs(filepath,
                ID_IS_LINKED(&ima->id) ? ima->id.lib->runtime->filepath_abs :
                                         BKE_main_blendfile_path(CTX_data_main(C)));
@@ -1863,6 +1865,7 @@ static void image_save_options_from_op(Main *bmain, ImageSaveOptions *opts, wmOp
 {
   if (RNA_struct_property_is_set(op->ptr, "filepath")) {
     RNA_string_get(op->ptr, "filepath", opts->filepath);
+    BLI_path_apply_variables(opts->filepath);
     BLI_path_abs(opts->filepath, BKE_main_blendfile_path(bmain));
   }
 

@@ -1748,6 +1748,7 @@ static void ui_tooltip_from_vfont(const VFont &font, uiTooltipData &data)
 
   char filepath_abs[FILE_MAX];
   STRNCPY(filepath_abs, font.filepath);
+  BLI_path_apply_variables(filepath_abs);
   BLI_path_abs(filepath_abs, ID_BLEND_PATH_FROM_GLOBAL(&font.id));
 
   if (!BLI_exists(filepath_abs)) {

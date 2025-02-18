@@ -1021,8 +1021,9 @@ static void render_result_exr_file_cache_path(Scene *sce,
   if (*root == '\0') {
     root = BKE_tempdir_base();
   }
-  else if (BLI_path_is_rel(root)) {
+  else {
     STRNCPY(root_buf, root);
+    BLI_path_apply_variables(root_buf);
     BLI_path_abs(root_buf, dirname);
     root = root_buf;
   }

@@ -257,6 +257,7 @@ static PyObject *bpy_lib_load(BPy_PropertyRNA *self, PyObject *args, PyObject *k
   Py_XDECREF(filepath_data.value_coerce);
 
   STRNCPY(ret->abspath, ret->relpath);
+  BLI_path_apply_variables(ret->abspath);
   BLI_path_abs(ret->abspath, BKE_main_blendfile_path(bmain));
 
   ret->bmain = bmain;
