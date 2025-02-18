@@ -6,28 +6,16 @@
 
 namespace blender::workbench {
 
+ShaderCache *ShaderCache::static_cache_ = new ShaderCache();
+
 ShaderCache &ShaderCache::get()
 {
-  if (!ShaderCache::static_cache_) {
-    std::lock_guard lock(static_mutex_);
-    /* Check again in case it was created between first check and lock. */
-    if (!ShaderCache::static_cache_) {
-      ShaderCache::static_cache_ = new ShaderCache();
-    }
-  }
   return *ShaderCache::static_cache_;
 }
 
 void ShaderCache::release()
 {
-  if (ShaderCache::static_cache_) {
-    std::lock_guard lock(static_mutex_);
-    /* Check again in case it was created between first check and lock. */
-    if (!ShaderCache::static_cache_) {
-      delete ShaderCache::static_cache_;
-      ShaderCache::static_cache_ = nullptr;
-    }
-  }
+  delete ShaderCache::static_cache_;
 }
 
 ShaderCache::ShaderCache()

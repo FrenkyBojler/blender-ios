@@ -24,8 +24,7 @@ using namespace draw;
 
 class ShaderCache {
  private:
-  static inline ShaderCache *static_cache_ = nullptr;
-  static inline std::mutex static_mutex_;
+  static ShaderCache *static_cache_;
 
   StaticShader prepass_[geometry_type_len][pipeline_type_len][lighting_type_len][shader_type_len]
                        [2 /*clip*/];
