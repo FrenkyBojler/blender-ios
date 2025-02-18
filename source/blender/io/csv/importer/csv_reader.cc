@@ -345,6 +345,7 @@ PointCloud *import_csv_as_point_cloud(const CSVImportParams &import_params)
                    bke::AttrDomain::Point,
                    type,
                    bke::AttributeInitShared{data->data.data(), *data});
+    data->remove_user_and_delete_if_last();
   }
 
   return pointcloud;
