@@ -1,2 +1,3 @@
 Referenced by issue #134594, Low FPS status playback warning is now gray
 Referenced by pull request #134700, Fix #134594: Show Overlay FPS in a brighter color
+Referenced by commit dda9a30a8389dda4146e63167fc1da501377068f, Fix #134594: Show Overlay FPS in a brighter color
