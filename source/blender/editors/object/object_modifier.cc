@@ -82,7 +82,6 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
-#include "RNA_path.hh"
 #include "RNA_prototypes.hh"
 
 #include "ED_armature.hh"
@@ -385,15 +384,7 @@ static bool object_modifier_remove(
     ob->mode &= ~OB_MODE_PARTICLE_EDIT;
   }
 
-  PointerRNA modifier_ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Modifier, md);
-  const std::optional<std::string> base_path = RNA_path_from_ID_to_struct(&modifier_ptr);
-  if (base_path.has_value()) {
-    BKE_animdata_driver_path_remove(&ob->id, base_path.value().c_str());
-  }
-  else {
-    /* The modifier exists, so the path should always resolve. */
-    BLI_assert_unreachable();
-  }
+  BKE_animdata_drivers_remove_for_rna_struct(ob->id, RNA_Modifier, md);
 
   BKE_modifier_remove_from_list(ob, md);
   BKE_modifier_free(md);
