@@ -74,7 +74,7 @@ void Instance::init(const int2 &output_res,
   info_ = "";
 
   shaders_are_ready_ = shaders.is_ready(is_image_render());
-  if (!is_state_valid()) {
+  if (!shaders_are_ready_) {
     return;
   }
 
@@ -107,10 +107,6 @@ void Instance::init(const int2 &output_res,
   camera.init();
   film.init(output_res, output_rect);
   if (!is_state_valid()) {
-    int2 render_extent = film.render_extent_get();
-    info_append_i18n("Reported texture size limit (%dpx) is lower than output size (%dpx)",
-                     GPU_max_texture_size(),
-                     max_ii(render_extent.x, render_extent.y));
     return;
   }
   render_buffers.init();
@@ -514,6 +510,13 @@ void Instance::render_read_result(RenderLayer *render_layer, const char *view_na
 
 void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, const char *view_name)
 {
+  if (!is_state_valid()) {
+    if (!info_.empty()) {
+      RE_engine_set_error_message(engine, info_.c_str());
+      info_ = "";
+    }
+    return;
+  }
   /* TODO: Break on RE_engine_test_break(engine) */
   while (!sampling.finished()) {
     this->render_sample();
@@ -608,6 +611,9 @@ void Instance::draw_viewport()
 
 void Instance::draw_viewport_image_render()
 {
+  if (!is_state_valid()) {
+    return;
+  }
   while (!sampling.finished_viewport()) {
     this->render_sample();
   }
@@ -620,6 +626,9 @@ void Instance::draw_viewport_image_render()
 
 void Instance::store_metadata(RenderResult *render_result)
 {
+  if (!is_state_valid()) {
+    return;
+  }
   cryptomatte.store_metadata(render_result);
 }
 

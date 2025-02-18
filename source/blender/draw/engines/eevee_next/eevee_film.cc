@@ -331,6 +331,16 @@ void Film::init(const int2 &extent, const rcti *output_rect)
     data_.overscan = overscan_pixels_get(inst_.camera.overscan(), data_.render_extent);
     data_.render_extent += data_.overscan * 2;
 
+    if (data_.render_extent.x > GPU_max_texture_size() ||
+        data_.render_extent.y > GPU_max_texture_size())
+    {
+      inst_.info_append_i18n(
+          "Required render size ({}px) is larger than reported texture size limit ({}px).",
+          max_ii(data_.render_extent.x, data_.render_extent.y),
+          GPU_max_texture_size());
+      return;
+    }
+
     data_.filter_radius = clamp_f(scene.r.gauss, 0.0f, 100.0f);
     if (sampling.sample_count() == 1) {
       /* Disable filtering if sample count is 1. */
