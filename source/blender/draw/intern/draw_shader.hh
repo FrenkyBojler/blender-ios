@@ -66,6 +66,7 @@ class StaticShader : NonCopyable {
  private:
   std::string info_name_;
   GPUShader *shader_ = nullptr;
+  std::unique_lock<std::mutex> mutex_;
 
  public:
   StaticShader(std::string info_name) : info_name_(info_name) {}
@@ -81,8 +82,6 @@ class StaticShader : NonCopyable {
 
   GPUShader *get()
   {
-    /*TODO: Per instance mutex.*/
-    static std::mutex mutex_;
     if (!shader_) {
       std::scoped_lock lock(mutex_);
       /* Check again in case it was created between first check and lock. */
