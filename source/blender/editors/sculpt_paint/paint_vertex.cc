@@ -1565,11 +1565,15 @@ static void calculate_average_color(VPaintData &vpd,
     const Span<Color> colors = attribute.typed<T>().template cast<Color>();
 
     Array<VPaintAverageAccum<Blend>> accum(nodes.size());
-    node_mask.foreach_index(GrainSize(1), [&](const int i) {
-      LocalData &tls = all_tls.local();
+    for (const int i : nodes.index_range()) {
       VPaintAverageAccum<Blend> &accum2 = accum[i];
       accum2.len = 0;
       memset(accum2.value, 0, sizeof(accum2.value));
+    }
+
+    node_mask.foreach_index(GrainSize(1), [&](const int i) {
+      VPaintAverageAccum<Blend> &accum2 = accum[i];
+      LocalData &tls = all_tls.local();
 
       const Span<int> verts = nodes[i].verts();
       tls.factors.resize(verts.size());
