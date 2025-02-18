@@ -4,8 +4,12 @@
 
 #pragma once
 
+#include "subdiv_info.hh"
 
-#ifndef USE_GPU_SHADER_CREATE_INFO
+#ifdef USE_GPU_SHADER_CREATE_INFO
+/* TODO: Do not use compute variables directly in a library. */
+COMPUTE_SHADER_CREATE_INFO(subdiv_base)
+#else
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
@@ -135,9 +139,9 @@ void subdiv_set_vertex_pos(inout PosNorLoop vertex_data, vec3 pos)
  * vertex normals when we cannot use the limit surface, in which case the flag and the normal are
  * set by two separate compute pass. */
 /* Using macros as the Metal backend only support thread local inout. */
-#define subdiv_set_vertex_nor(vertex_data, nor)\
-  vertex_data.nx = nor.x;\
-  vertex_data.ny = nor.y;\
+#define subdiv_set_vertex_nor(vertex_data, nor) \
+  vertex_data.nx = nor.x; \
+  vertex_data.ny = nor.y; \
   vertex_data.nz = nor.z;
 
 void subdiv_set_vertex_nor_and_flag(inout PosNorLoop vertex_data, vec3 nor, float flag)

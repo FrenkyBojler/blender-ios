@@ -2,14 +2,16 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "draw_subdiv_defines.hh"
-
 #ifdef GPU_SHADER
 #  pragma once
 #  include "gpu_glsl_cpp_stubs.hh"
+
+#  include "draw_subdiv_shader_shared.hh"
 #endif
 
 #include "gpu_shader_create_info.hh"
+
+#include "draw_subdiv_defines.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name
