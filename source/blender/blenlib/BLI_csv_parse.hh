@@ -112,6 +112,7 @@ inline std::optional<Vector<ChunkT>> parse_csv_in_chunks(
     return std::nullopt;
   }
   Vector<ChunkT> result_chunks;
+  result_chunks.reserve(result->size());
   for (Any<> &value : *result) {
     result_chunks.append(std::move(value.get<ChunkT>()));
   }
