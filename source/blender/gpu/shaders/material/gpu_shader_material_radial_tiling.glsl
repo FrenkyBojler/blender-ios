@@ -24,15 +24,15 @@ void node_radial_tiling(vec3 coord,
                         out float out_max_unit_parameter,
                         out float out_x_axis_A_angle_bisector)
 {
-  vec4 out_variables = calculate_out_fields(bool(calculate_r_gon_parameter_field),
-                                            bool(calculate_max_unit_parameter),
-                                            bool(normalize_r_gon_parameter),
-                                            max(r_gon_sides, 2.0),
-                                            clamp(r_gon_roundness, 0.0, 1.0),
-                                            clamp(irregular_r_gon_corner_shape, 0.0, 1.0),
-                                            vec2(coord.x, coord.y));
+  vec4 out_variables = calculate_out_variables(bool(calculate_r_gon_parameter_field),
+                                               bool(calculate_max_unit_parameter),
+                                               bool(normalize_r_gon_parameter),
+                                               max(r_gon_sides, 2.0),
+                                               clamp(r_gon_roundness, 0.0, 1.0),
+                                               clamp(irregular_r_gon_corner_shape, 0.0, 1.0),
+                                               vec2(coord.x, coord.y));
 
-  out_segment_coordinates = vec3(out_variables.y, out_variables.x - 1.0, 0.0);
+  out_segment_coordinates = vec3(out_variables.y, out_variables.x, 0.0);
   out_max_unit_parameter = out_variables.z;
   out_x_axis_A_angle_bisector = out_variables.w;
 }

@@ -87,11 +87,11 @@ using namespace math;
  * The ratio z/w is expressed as z_R_w, which is an abbreviation of z_Ratio_y. */
 
 ccl_device float4
-calculate_out_fields_full_roundness_irregular_elliptical(bool calculate_r_gon_parameter_field,
-                                                         bool normalize_r_gon_parameter,
-                                                         float r_gon_sides,
-                                                         float2 coord,
-                                                         float l_coord)
+calculate_out_variables_full_roundness_irregular_elliptical(bool calculate_r_gon_parameter_field,
+                                                            bool normalize_r_gon_parameter,
+                                                            float r_gon_sides,
+                                                            float2 coord,
+                                                            float l_coord)
 {
   float x_axis_A_coord = atan2f(coord.y, coord.x) + float(coord.y < float(0.0)) * M_TAU_F;
   float ref_A_angle_bisector = M_PI_F / r_gon_sides;
@@ -213,13 +213,14 @@ calculate_out_fields_full_roundness_irregular_elliptical(bool calculate_r_gon_pa
   }
 }
 
-ccl_device float4 calculate_out_fields_irregular_elliptical(bool calculate_r_gon_parameter_field,
-                                                            bool calculate_max_unit_parameter,
-                                                            bool normalize_r_gon_parameter,
-                                                            float r_gon_sides,
-                                                            float r_gon_roundness,
-                                                            float2 coord,
-                                                            float l_coord)
+ccl_device float4
+calculate_out_variables_irregular_elliptical(bool calculate_r_gon_parameter_field,
+                                             bool calculate_max_unit_parameter,
+                                             bool normalize_r_gon_parameter,
+                                             float r_gon_sides,
+                                             float r_gon_roundness,
+                                             float2 coord,
+                                             float l_coord)
 {
   float x_axis_A_coord = atan2f(coord.y, coord.x) + float(coord.y < float(0.0)) * M_TAU_F;
   float ref_A_angle_bisector = M_PI_F / r_gon_sides;
@@ -565,11 +566,11 @@ ccl_device float4 calculate_out_fields_irregular_elliptical(bool calculate_r_gon
 }
 
 ccl_device float4
-calculate_out_fields_full_roundness_irregular_circular(bool calculate_r_gon_parameter_field,
-                                                       bool normalize_r_gon_parameter,
-                                                       float r_gon_sides,
-                                                       float2 coord,
-                                                       float l_coord)
+calculate_out_variables_full_roundness_irregular_circular(bool calculate_r_gon_parameter_field,
+                                                          bool normalize_r_gon_parameter,
+                                                          float r_gon_sides,
+                                                          float2 coord,
+                                                          float l_coord)
 {
   float x_axis_A_coord = atan2f(coord.y, coord.x) + float(coord.y < float(0.0)) * M_TAU_F;
   float ref_A_angle_bisector = M_PI_F / r_gon_sides;
@@ -755,13 +756,13 @@ calculate_out_fields_full_roundness_irregular_circular(bool calculate_r_gon_para
   }
 }
 
-ccl_device float4 calculate_out_fields_irregular_circular(bool calculate_r_gon_parameter_field,
-                                                          bool calculate_max_unit_parameter,
-                                                          bool normalize_r_gon_parameter,
-                                                          float r_gon_sides,
-                                                          float r_gon_roundness,
-                                                          float2 coord,
-                                                          float l_coord)
+ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_gon_parameter_field,
+                                                             bool calculate_max_unit_parameter,
+                                                             bool normalize_r_gon_parameter,
+                                                             float r_gon_sides,
+                                                             float r_gon_roundness,
+                                                             float2 coord,
+                                                             float l_coord)
 {
   float x_axis_A_coord = atan2f(coord.y, coord.x) + float(coord.y < float(0.0)) * M_TAU_F;
   float ref_A_angle_bisector = M_PI_F / r_gon_sides;
@@ -1188,14 +1189,15 @@ ccl_device float4 calculate_out_fields_irregular_circular(bool calculate_r_gon_p
   }
 }
 
-ccl_device float4 calculate_out_fields(bool calculate_r_gon_parameter_field,
-                                       bool calculate_max_unit_parameter,
-                                       bool normalize_r_gon_parameter,
-                                       float r_gon_sides,
-                                       float r_gon_roundness,
-                                       float irregular_r_gon_corner_shape,
-                                       float2 coord)
+ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
+                                          bool calculate_max_unit_parameter,
+                                          bool normalize_r_gon_parameter,
+                                          float r_gon_sides,
+                                          float r_gon_roundness,
+                                          float irregular_r_gon_corner_shape,
+                                          float2 coord)
 {
+  float4 out_variables;
   float l_coord = sqrtf(squaref(coord.x) + squaref(coord.y));
 
   if (fractf(r_gon_sides) == float(0.0)) {
@@ -1226,10 +1228,10 @@ ccl_device float4 calculate_out_fields(bool calculate_r_gon_parameter_field,
       if (calculate_max_unit_parameter) {
         max_unit_parameter = (r_gon_sides != float(2.0)) ? tanf(ref_A_angle_bisector) : float(0.0);
       }
-      return make_float4(l_angle_bisector,
-                         r_gon_parameter,
-                         max_unit_parameter,
-                         segment_id * ref_A_next_ref + ref_A_angle_bisector);
+      out_variables = make_float4(l_angle_bisector,
+                                  r_gon_parameter,
+                                  max_unit_parameter,
+                                  segment_id * ref_A_next_ref + ref_A_angle_bisector);
     }
     else if (r_gon_roundness == float(1.0)) {
       /* Regular rounded part. */
@@ -1244,10 +1246,10 @@ ccl_device float4 calculate_out_fields(bool calculate_r_gon_parameter_field,
           r_gon_parameter /= ref_A_angle_bisector;
         }
       }
-      return make_float4(l_coord,
-                         r_gon_parameter,
-                         ref_A_angle_bisector,
-                         segment_id * ref_A_next_ref + ref_A_angle_bisector);
+      out_variables = make_float4(l_coord,
+                                  r_gon_parameter,
+                                  ref_A_angle_bisector,
+                                  segment_id * ref_A_next_ref + ref_A_angle_bisector);
     }
     else {
       float ref_A_bevel_start = ref_A_angle_bisector -
@@ -1318,10 +1320,10 @@ ccl_device float4 calculate_out_fields(bool calculate_r_gon_parameter_field,
           max_unit_parameter = tanf(bevel_start_A_angle_bisector) + spline_start_bevel_start +
                                r_gon_roundness * ref_A_bevel_start;
         }
-        return make_float4(l_angle_bisector,
-                           r_gon_parameter,
-                           max_unit_parameter,
-                           segment_id * ref_A_next_ref + ref_A_angle_bisector);
+        out_variables = make_float4(l_angle_bisector,
+                                    r_gon_parameter,
+                                    max_unit_parameter,
+                                    segment_id * ref_A_next_ref + ref_A_angle_bisector);
       }
       else {
         /* Regular straight part. */
@@ -1352,10 +1354,10 @@ ccl_device float4 calculate_out_fields(bool calculate_r_gon_parameter_field,
           max_unit_parameter = tanf(bevel_start_A_angle_bisector) + spline_start_bevel_start +
                                r_gon_roundness * ref_A_bevel_start;
         }
-        return make_float4(l_angle_bisector,
-                           r_gon_parameter,
-                           max_unit_parameter,
-                           segment_id * ref_A_next_ref + ref_A_angle_bisector);
+        out_variables = make_float4(l_angle_bisector,
+                                    r_gon_parameter,
+                                    max_unit_parameter,
+                                    segment_id * ref_A_next_ref + ref_A_angle_bisector);
       }
     }
   }
@@ -1390,10 +1392,10 @@ ccl_device float4 calculate_out_fields(bool calculate_r_gon_parameter_field,
         if (calculate_max_unit_parameter) {
           max_unit_parameter = tanf(ref_A_angle_bisector);
         }
-        return make_float4(l_angle_bisector,
-                           r_gon_parameter,
-                           max_unit_parameter,
-                           segment_id * ref_A_next_ref + ref_A_angle_bisector);
+        out_variables = make_float4(l_angle_bisector,
+                                    r_gon_parameter,
+                                    max_unit_parameter,
+                                    segment_id * ref_A_next_ref + ref_A_angle_bisector);
       }
       else {
         /* Irregular straight part. */
@@ -1422,15 +1424,15 @@ ccl_device float4 calculate_out_fields(bool calculate_r_gon_parameter_field,
         if (calculate_max_unit_parameter) {
           max_unit_parameter = tanf(last_angle_bisector_A_x_axis);
         }
-        return make_float4(l_angle_bisector,
-                           r_gon_parameter,
-                           max_unit_parameter,
-                           segment_id * ref_A_next_ref + last_angle_bisector_A_x_axis);
+        out_variables = make_float4(l_angle_bisector,
+                                    r_gon_parameter,
+                                    max_unit_parameter,
+                                    segment_id * ref_A_next_ref + last_angle_bisector_A_x_axis);
       }
     }
     else if (r_gon_roundness == float(1.0)) {
       if (irregular_r_gon_corner_shape == float(1.0)) {
-        return calculate_out_fields_full_roundness_irregular_elliptical(
+        out_variables = calculate_out_variables_full_roundness_irregular_elliptical(
             calculate_r_gon_parameter_field,
             normalize_r_gon_parameter,
             r_gon_sides,
@@ -1438,7 +1440,7 @@ ccl_device float4 calculate_out_fields(bool calculate_r_gon_parameter_field,
             l_coord);
       }
       else if (irregular_r_gon_corner_shape == float(0.0)) {
-        return calculate_out_fields_full_roundness_irregular_circular(
+        out_variables = calculate_out_variables_full_roundness_irregular_circular(
             calculate_r_gon_parameter_field,
             normalize_r_gon_parameter,
             r_gon_sides,
@@ -1446,59 +1448,68 @@ ccl_device float4 calculate_out_fields(bool calculate_r_gon_parameter_field,
             l_coord);
       }
       else {
-        return mix(
-            calculate_out_fields_full_roundness_irregular_circular(calculate_r_gon_parameter_field,
-                                                                   normalize_r_gon_parameter,
-                                                                   r_gon_sides,
-                                                                   coord,
-                                                                   l_coord),
-            calculate_out_fields_full_roundness_irregular_elliptical(
-                calculate_r_gon_parameter_field,
-                normalize_r_gon_parameter,
-                r_gon_sides,
-                coord,
-                l_coord),
-            irregular_r_gon_corner_shape);
+        out_variables = mix(calculate_out_variables_full_roundness_irregular_circular(
+                                calculate_r_gon_parameter_field,
+                                normalize_r_gon_parameter,
+                                r_gon_sides,
+                                coord,
+                                l_coord),
+                            calculate_out_variables_full_roundness_irregular_elliptical(
+                                calculate_r_gon_parameter_field,
+                                normalize_r_gon_parameter,
+                                r_gon_sides,
+                                coord,
+                                l_coord),
+                            irregular_r_gon_corner_shape);
       }
     }
     else {
       if (irregular_r_gon_corner_shape == float(1.0)) {
-        return calculate_out_fields_irregular_elliptical(calculate_r_gon_parameter_field,
-                                                         calculate_max_unit_parameter,
-                                                         normalize_r_gon_parameter,
-                                                         r_gon_sides,
-                                                         r_gon_roundness,
-                                                         coord,
-                                                         l_coord);
+        out_variables = calculate_out_variables_irregular_elliptical(
+            calculate_r_gon_parameter_field,
+            calculate_max_unit_parameter,
+            normalize_r_gon_parameter,
+            r_gon_sides,
+            r_gon_roundness,
+            coord,
+            l_coord);
       }
       else if (irregular_r_gon_corner_shape == float(0.0)) {
-        return calculate_out_fields_irregular_circular(calculate_r_gon_parameter_field,
+        out_variables = calculate_out_variables_irregular_circular(calculate_r_gon_parameter_field,
+                                                                   calculate_max_unit_parameter,
+                                                                   normalize_r_gon_parameter,
+                                                                   r_gon_sides,
+                                                                   r_gon_roundness,
+                                                                   coord,
+                                                                   l_coord);
+      }
+      else {
+        out_variables = mix(
+            calculate_out_variables_irregular_circular(calculate_r_gon_parameter_field,
                                                        calculate_max_unit_parameter,
                                                        normalize_r_gon_parameter,
                                                        r_gon_sides,
                                                        r_gon_roundness,
                                                        coord,
-                                                       l_coord);
-      }
-      else {
-        return mix(calculate_out_fields_irregular_circular(calculate_r_gon_parameter_field,
-                                                           calculate_max_unit_parameter,
-                                                           normalize_r_gon_parameter,
-                                                           r_gon_sides,
-                                                           r_gon_roundness,
-                                                           coord,
-                                                           l_coord),
-                   calculate_out_fields_irregular_elliptical(calculate_r_gon_parameter_field,
-                                                             calculate_max_unit_parameter,
-                                                             normalize_r_gon_parameter,
-                                                             r_gon_sides,
-                                                             r_gon_roundness,
-                                                             coord,
-                                                             l_coord),
-                   irregular_r_gon_corner_shape);
+                                                       l_coord),
+            calculate_out_variables_irregular_elliptical(calculate_r_gon_parameter_field,
+                                                         calculate_max_unit_parameter,
+                                                         normalize_r_gon_parameter,
+                                                         r_gon_sides,
+                                                         r_gon_roundness,
+                                                         coord,
+                                                         l_coord),
+            irregular_r_gon_corner_shape);
       }
     }
   }
+
+  out_variables.x -= float(1.0);
+  if (normalize_r_gon_parameter) {
+    out_variables.y = float(0.5) * out_variables.y + float(0.5);
+  }
+
+  return out_variables;
 }
 
 /* Undefine macros used for code translation. */

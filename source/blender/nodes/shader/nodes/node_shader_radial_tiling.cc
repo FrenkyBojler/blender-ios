@@ -189,7 +189,7 @@ class RoundedPolygonFunction : public mf::MultiFunction {
     const bool calc_x_axis_A_angle_bisector = !r_x_axis_A_angle_bisector.is_empty();
 
     mask.foreach_index([&](const int64_t i) {
-      float4 out_variables = calculate_out_fields(
+      float4 out_variables = calculate_out_variables(
           calc_r_gon_parameter_field,
           calc_max_unit_parameter,
           normalize_r_gon_parameter_,
@@ -199,7 +199,7 @@ class RoundedPolygonFunction : public mf::MultiFunction {
           float2(coord[i].x, coord[i].y));
 
       if (calc_r_gon_parameter_field) {
-        r_segment_coordinates[i] = float3(out_variables.y, out_variables.x - 1.0f, 0.0);
+        r_segment_coordinates[i] = float3(out_variables.y, out_variables.x, 0.0);
       }
       if (calc_max_unit_parameter) {
         r_max_unit_parameter[i] = out_variables.z;

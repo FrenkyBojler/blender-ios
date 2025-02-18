@@ -52,17 +52,17 @@ ccl_device_noinline int svm_node_radial_tiling(
   float r_gon_roundness = stack_load_float(stack, so.r_gon_roundness);
   float irregular_r_gon_corner_shape = stack_load_float(stack, so.irregular_r_gon_corner_shape);
 
-  float4 out_variables = calculate_out_fields(calculate_r_gon_parameter_field,
-                                              calculate_max_unit_parameter,
-                                              normalize_r_gon_parameter,
-                                              fmaxf(r_gon_sides, 2.0f),
-                                              clamp(r_gon_roundness, 0.0f, 1.0f),
-                                              clamp(irregular_r_gon_corner_shape, 0.0f, 1.0f),
-                                              make_float2(coord.x, coord.y));
+  float4 out_variables = calculate_out_variables(calculate_r_gon_parameter_field,
+                                                 calculate_max_unit_parameter,
+                                                 normalize_r_gon_parameter,
+                                                 fmaxf(r_gon_sides, 2.0f),
+                                                 clamp(r_gon_roundness, 0.0f, 1.0f),
+                                                 clamp(irregular_r_gon_corner_shape, 0.0f, 1.0f),
+                                                 make_float2(coord.x, coord.y));
 
   if (stack_valid(so.segment_coordinates)) {
     stack_store_float3(
-        stack, so.segment_coordinates, make_float3(out_variables.y, out_variables.x - 1.0f, 0.0));
+        stack, so.segment_coordinates, make_float3(out_variables.y, out_variables.x, 0.0));
   }
   if (stack_valid(so.max_unit_parameter)) {
     stack_store_float(stack, so.max_unit_parameter, out_variables.z);
