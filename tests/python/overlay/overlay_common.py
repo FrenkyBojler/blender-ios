@@ -33,7 +33,9 @@ class Permutations:
         """Setup the initial set of permutations.
 
         :reset_key: str - The variants_dict key that resets the test to its default state.
-        :variants_dict: {str: lambda} - Each lambda should set the test to the "key" state.
+        :variants_dict: {str: lambda}
+            - Where the key is the name of the state variation (for example "xray-on" or "xray-off")
+              and the lambda sets the blend to that state.
         """
         reset = []
         if reset_key:
