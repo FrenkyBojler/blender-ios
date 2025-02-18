@@ -164,6 +164,7 @@ void ED_spacemacros_init()
   ED_operatormacros_clip();
   ED_operatormacros_curve();
   curves::operatormacros_curves();
+  point_cloud::operatormacros_point_cloud();
   ED_operatormacros_mask();
   ED_operatormacros_sequencer();
   ED_operatormacros_paint();
@@ -205,7 +206,7 @@ void ED_spacetypes_keymap(wmKeyConfig *keyconf)
   ED_keymap_view2d(keyconf);
   ED_keymap_ui(keyconf);
 
-  ED_keymap_transform(keyconf);
+  transform::keymap_transform(keyconf);
 
   for (const std::unique_ptr<SpaceType> &type : BKE_spacetypes_list()) {
     if (type->keymap) {
