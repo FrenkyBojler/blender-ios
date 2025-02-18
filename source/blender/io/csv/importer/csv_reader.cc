@@ -6,6 +6,7 @@
  * \ingroup csv
  */
 
+#include <atomic>
 #include <charconv>
 #include <optional>
 #include <variant>
