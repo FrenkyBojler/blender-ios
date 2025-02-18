@@ -128,28 +128,29 @@ struct LoopNormal {
 };
 #endif
 
-void subdiv_set_vertex_pos(inout PosNorLoop vertex_data, vec3 pos)
+PosNorLoop subdiv_set_vertex_pos(PosNorLoop in_vertex_data, vec3 pos)
 {
-  vertex_data.x = pos.x;
-  vertex_data.y = pos.y;
-  vertex_data.z = pos.z;
+  in_vertex_data.x = pos.x;
+  in_vertex_data.y = pos.y;
+  in_vertex_data.z = pos.z;
+  return in_vertex_data;
 }
 
 /* Set the vertex normal but preserve the existing flag. This is for when we compute manually the
  * vertex normals when we cannot use the limit surface, in which case the flag and the normal are
  * set by two separate compute pass. */
-/* Using macros as the Metal backend only support thread local inout. */
-#define subdiv_set_vertex_nor(vertex_data, nor) \
-  vertex_data.nx = nor.x; \
-  vertex_data.ny = nor.y; \
-  vertex_data.nz = nor.z;
-
-void subdiv_set_vertex_nor_and_flag(inout PosNorLoop vertex_data, vec3 nor, float flag)
+PosNorLoop subdiv_set_vertex_nor(PosNorLoop in_vertex_data, vec3 nor)
 {
-  vertex_data.nx = nor.x;
-  vertex_data.ny = nor.y;
-  vertex_data.nz = nor.z;
-  vertex_data.flag = flag;
+  in_vertex_data.nx = nor.x;
+  in_vertex_data.ny = nor.y;
+  in_vertex_data.nz = nor.z;
+  return in_vertex_data;
+}
+
+PosNorLoop subdiv_set_vertex_flag(PosNorLoop in_vertex_data, float flag)
+{
+  in_vertex_data.flag = flag;
+  return in_vertex_data;
 }
 
 vec3 subdiv_get_vertex_pos(PosNorLoop vertex_data)

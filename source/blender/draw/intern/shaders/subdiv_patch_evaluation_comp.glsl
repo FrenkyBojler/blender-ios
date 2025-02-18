@@ -485,8 +485,9 @@ void main()
     }
 
     PosNorLoop vertex_data;
-    subdiv_set_vertex_pos(vertex_data, pos);
-    subdiv_set_vertex_nor_and_flag(vertex_data, nor, flag);
+    vertex_data = subdiv_set_vertex_pos(vertex_data, pos);
+    vertex_data = subdiv_set_vertex_nor(vertex_data, nor);
+    vertex_data = subdiv_set_vertex_flag(vertex_data, flag);
     output_verts[loop_index] = vertex_data;
 
 #  if defined(ORCO_EVALUATION)

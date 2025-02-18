@@ -2,7 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/* To be compiled with subdiv_lib.glsl */
+/* Finalize normals after accumulating or interpolation.
+ *
+ * Normals are accumulated in the `subdiv_normals_accumulate_comp.glsl`, (custom) split normals are
+ * interpolated as custom data layer in `subdiv_custom_data_interp_comp.glsl` using GPU_COMP_U16.
+ */
 
 #include "subdiv_lib.glsl"
 
@@ -56,13 +60,14 @@ void main()
   for (int i = 0; i < 4; i++) {
     CustomNormal custom_normal = custom_normals[start_loop_index + i];
     vec3 nor = vec3(custom_normal.x, custom_normal.y, custom_normal.z);
-    subdiv_set_vertex_nor(pos_nor[start_loop_index + i], normalize(nor));
+    pos_nor[start_loop_index + i] = subdiv_set_vertex_nor(pos_nor[start_loop_index + i],
+                                                          normalize(nor));
   }
 #else
   for (int i = 0; i < 4; i++) {
     uint subdiv_vert_index = vert_loop_map[start_loop_index + i];
     vec3 nor = vertex_normals[subdiv_vert_index];
-    subdiv_set_vertex_nor(pos_nor[start_loop_index + i], nor);
+    pos_nor[start_loop_index + i] = subdiv_set_vertex_nor(pos_nor[start_loop_index + i], nor);
   }
 #endif
 }

@@ -1032,7 +1032,6 @@ static void draw_subdiv_init_ubo_storage(const DRWSubdivCache &cache,
 }
 
 static void draw_subdiv_ubo_update_and_bind(const DRWSubdivCache &cache,
-                                            GPUShader *shader,
                                             const int src_offset,
                                             const int dst_offset,
                                             const uint total_dispatch_size,
@@ -1054,9 +1053,7 @@ static void draw_subdiv_ubo_update_and_bind(const DRWSubdivCache &cache,
   }
 
   GPU_uniformbuf_update(cache.ubo, &storage);
-
-  const int binding = GPU_shader_get_ubo_binding(shader, "shader_data");
-  GPU_uniformbuf_bind(cache.ubo, binding);
+  GPU_uniformbuf_bind(cache.ubo, SHADER_DATA_BUF_SLOT);
 }
 
 /** \} */
@@ -1107,13 +1104,8 @@ static void drw_subdiv_compute_dispatch(const DRWSubdivCache &cache,
    * we presume it all fits. */
   BLI_assert(dispatch_ry < uint(GPU_max_work_group_count(1)));
 
-  draw_subdiv_ubo_update_and_bind(cache,
-                                  shader,
-                                  src_offset,
-                                  dst_offset,
-                                  total_dispatch_size,
-                                  has_sculpt_mask,
-                                  edge_loose_offset);
+  draw_subdiv_ubo_update_and_bind(
+      cache, src_offset, dst_offset, total_dispatch_size, has_sculpt_mask, edge_loose_offset);
 
   GPU_compute_dispatch(shader, dispatch_rx, dispatch_ry, 1);
 }
@@ -1377,11 +1369,10 @@ void draw_subdiv_finalize_normals(const DRWSubdivCache &cache,
   GPUShader *shader = DRW_shader_subdiv_get(SubdivShaderType::BUFFER_NORMALS_FINALIZE);
   GPU_shader_bind(shader);
 
-  int binding_point = 0;
-  GPU_vertbuf_bind_as_ssbo(vert_normals, binding_point++);
-  GPU_vertbuf_bind_as_ssbo(subdiv_loop_subdiv_vert_index, binding_point++);
-  GPU_vertbuf_bind_as_ssbo(pos_nor, binding_point++);
-  BLI_assert(binding_point <= MAX_GPU_SUBDIV_SSBOS);
+  GPU_vertbuf_bind_as_ssbo(vert_normals, NORMALS_FINALIZE_VERTEX_NORMALS_BUF_SLOT);
+  GPU_vertbuf_bind_as_ssbo(subdiv_loop_subdiv_vert_index,
+                           NORMALS_FINALIZE_VERTEX_LOOP_MAP_BUF_SLOT);
+  GPU_vertbuf_bind_as_ssbo(pos_nor, NORMALS_FINALIZE_POS_NOR_BUF_SLOT);
 
   drw_subdiv_compute_dispatch(cache, shader, 0, 0, cache.num_subdiv_quads);
 
