@@ -127,6 +127,49 @@ static ParseIntColumnResult parse_column_as_ints(const csv_parse::CsvRecords &re
   return result;
 }
 
+static ChunkResult parse_records_chunk(const csv_parse::CsvRecords &records,
+                                       ColumnsInfo &columns_info)
+{
+  const int columns_num = columns_info.names.size();
+  ChunkResult chunk_result;
+  chunk_result.rows_num = records.size();
+  chunk_result.columns.resize(columns_num);
+  for (const int column_i : IndexRange(columns_num)) {
+    ColumnTypeInfo &type_info = columns_info.types[column_i];
+    if (type_info.found_invalid.load(std::memory_order_relaxed)) {
+      continue;
+    }
+    const bool found_float = type_info.found_float.load(std::memory_order_relaxed);
+    if (found_float) {
+      ParseFloatColumnResult column_result = parse_column_as_floats(records, column_i);
+      if (column_result.found_invalid) {
+        type_info.found_invalid.store(true, std::memory_order_relaxed);
+        continue;
+      }
+      chunk_result.columns[column_i] = std::move(column_result.data);
+      continue;
+    }
+    ParseIntColumnResult column_result = parse_column_as_ints(records, column_i);
+    if (column_result.found_invalid) {
+      type_info.found_invalid.store(true, std::memory_order_relaxed);
+      continue;
+    }
+    if (column_result.found_float) {
+      type_info.found_float.store(true, std::memory_order_relaxed);
+      ParseFloatColumnResult column_result = parse_column_as_floats(records, column_i);
+      if (column_result.found_invalid) {
+        type_info.found_invalid.store(true, std::memory_order_relaxed);
+        continue;
+      }
+      chunk_result.columns[column_i] = std::move(column_result.data);
+      continue;
+    }
+    chunk_result.columns[column_i] = std::move(column_result.data);
+    type_info.found_int.store(true, std::memory_order_relaxed);
+  }
+  return chunk_result;
+}
+
 PointCloud *import_csv_as_point_cloud(const CSVImportParams &import_params)
 {
   size_t buffer_len;
@@ -157,44 +200,7 @@ PointCloud *import_csv_as_point_cloud(const CSVImportParams &import_params)
     }
   };
   const auto parse_data_chunk = [&](const csv_parse::CsvRecords &records) {
-    const int columns_num = columns_info.names.size();
-    ChunkResult chunk_result;
-    chunk_result.rows_num = records.size();
-    chunk_result.columns.resize(columns_num);
-    for (const int column_i : IndexRange(columns_num)) {
-      ColumnTypeInfo &type_info = columns_info.types[column_i];
-      if (type_info.found_invalid.load(std::memory_order_relaxed)) {
-        continue;
-      }
-      const bool found_float = type_info.found_float.load(std::memory_order_relaxed);
-      if (found_float) {
-        ParseFloatColumnResult column_result = parse_column_as_floats(records, column_i);
-        if (column_result.found_invalid) {
-          type_info.found_invalid.store(true, std::memory_order_relaxed);
-          continue;
-        }
-        chunk_result.columns[column_i] = std::move(column_result.data);
-        continue;
-      }
-      ParseIntColumnResult column_result = parse_column_as_ints(records, column_i);
-      if (column_result.found_invalid) {
-        type_info.found_invalid.store(true, std::memory_order_relaxed);
-        continue;
-      }
-      if (column_result.found_float) {
-        type_info.found_float.store(true, std::memory_order_relaxed);
-        ParseFloatColumnResult column_result = parse_column_as_floats(records, column_i);
-        if (column_result.found_invalid) {
-          type_info.found_invalid.store(true, std::memory_order_relaxed);
-          continue;
-        }
-        chunk_result.columns[column_i] = std::move(column_result.data);
-        continue;
-      }
-      chunk_result.columns[column_i] = std::move(column_result.data);
-      type_info.found_int.store(true, std::memory_order_relaxed);
-    }
-    return chunk_result;
+    return parse_records_chunk(records, columns_info);
   };
 
   const Span<char> buffer_span{static_cast<char *>(buffer), int64_t(buffer_len)};
