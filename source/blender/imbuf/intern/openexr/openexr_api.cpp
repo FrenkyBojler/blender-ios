@@ -75,6 +75,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_fileops.h"
+#include "BLI_listbase.h"
 #include "BLI_math_base.hh"
 #include "BLI_math_color.h"
 #include "BLI_mmap.h"
@@ -1521,7 +1522,8 @@ static int imb_exr_split_channel_name(ExrChannel *echan,
   if (len == 1) {
     echan->chan_id = BLI_toupper_ascii(channelname[0]);
   }
-  else if (len > 1) {
+  else {
+    BLI_assert(len > 1); /* Checks above ensure. */
     if (len == 2) {
       /* Some multi-layers are using two-letter channels name,
        * like, MX or NZ, which is basically has structure of

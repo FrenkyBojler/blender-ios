@@ -6,6 +6,7 @@
 
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_multi_function.hh"
+#include "NOD_node_declaration.hh"
 #include "NOD_node_in_compute_context.hh"
 #include "NOD_socket_usage_inference.hh"
 
@@ -21,6 +22,7 @@
 #include "ANIM_action.hh"
 #include "ANIM_action_iterators.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_stack.hh"
 
 namespace blender::nodes::socket_usage_inference {
@@ -145,6 +147,10 @@ struct SocketUsageInferencer {
   void usage_task(const SocketInContext &socket)
   {
     if (all_socket_usages_.contains(socket)) {
+      return;
+    }
+    if (socket->owner_node().is_undefined()) {
+      all_socket_usages_.add_new(socket, false);
       return;
     }
     if (socket->is_input()) {
@@ -480,6 +486,10 @@ struct SocketUsageInferencer {
       /* Task is done already. */
       return;
     }
+    if (socket->owner_node().is_undefined()) {
+      all_socket_values_.add_new(socket, nullptr);
+      return;
+    }
     const CPPType *base_type = socket->typeinfo->base_cpp_type;
     if (!base_type) {
       /* The socket type is unknown for some reason (maybe a socket type from the future?).*/
@@ -763,6 +773,13 @@ struct SocketUsageInferencer {
       /* The value of animated sockets is not known statically. */
       all_socket_values_.add_new(socket, nullptr);
       return;
+    }
+    if (const SocketDeclaration *socket_decl = socket.socket->runtime->declaration) {
+      if (socket_decl->input_field_type == InputSocketFieldType::Implicit) {
+        /* Implicit fields inputs don't have a single static value. */
+        all_socket_values_.add_new(socket, nullptr);
+        return;
+      }
     }
 
     const CPPType &base_type = *socket->typeinfo->base_cpp_type;

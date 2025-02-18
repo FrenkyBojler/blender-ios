@@ -809,12 +809,37 @@ class Slot : public ::ActionSlot {
   static_assert(sizeof(NlaStrip::last_slot_identifier) == identifier_length_max);
 
   /**
-   * Return the prefix of this Slot's identifier.
+   * Return a string that represents the Slot's 'idtype'.
    *
-   * This corresponds to the intended ID type (`idtype`) of the slot, e.g "OB"
-   * for object, "CA" for camera, etc.
+   * E.g "OB" for object, "CA" for camera, etc.
+   *
+   * This is different from `identifier_prefix()`: this constructs a
+   * string directly from the actual 'idtype' field of the Slot, whereas
+   * `identifier_prefix()` returns the first two characters of the
+   * identifier string.
+   *
+   * This distinction matters in some lower-level code where the two can
+   * momentarily be out of sync, although this should always be corrected before
+   * exiting such code so that it's never observable in higher-level code.
+   *
+   * \see identifier_prefix()
+   * \see identifier_ensure_prefix()
    */
-  std::string identifier_prefix_for_idtype() const;
+  std::string idtype_string() const;
+
+  /**
+   * Return the two-character type prefix of this Slot's identifier.
+   *
+   * This corresponds to the intended ID type of the slot, e.g "OB" for object,
+   * "CA" for camera, etc.
+   *
+   * This is subtly different from `idtype_string()`. See its documentation for
+   * details.
+   *
+   * \see idtype_string()
+   * \see identifier_ensure_prefix()
+   */
+  StringRef identifier_prefix() const;
 
   /**
    * Return this Slot's identifier without the prefix, also known as the
@@ -822,7 +847,7 @@ class Slot : public ::ActionSlot {
    *
    * E.g. if the identifier is "OBCube", then "Cube" is returned.
    *
-   * \see identifier_prefix_for_idtype
+   * \see identifier_prefix()
    */
   StringRefNull identifier_without_prefix() const;
 
@@ -845,14 +870,15 @@ class Slot : public ::ActionSlot {
    * method returning `false` should NOT be taken as a guarantee that this Slot
    * will never be used by the given ID or other IDs of the same type.
    *
-   * \see identifier_prefix_for_idtype() \see has_idtype()
+   * \see idtype_string()
+   * \see has_idtype()
    */
   bool is_suitable_for(const ID &animated_id) const;
 
   /**
    * Return whether this Slot has a specified intended ID type (`idtype`) set.
    *
-   * \see identifier_prefix_for_idtype()
+   * \see idtype_string()
    * \see is_suitable_for()
    */
   bool has_idtype() const;
@@ -1603,6 +1629,29 @@ Span<const FCurve *> fcurves_for_action_slot(const Action &action, slot_handle_t
  * Find or create an F-Curve on the given action that matches the given fcurve
  * descriptor.
  *
+ * \note This function also ensures that dependency graph relationships are
+ * rebuilt. This is necessary when adding a new F-Curve, as a
+ * previously-unanimated depsgraph component may become animated now.
+ *
+ * \param action: MUST already be assigned to the animated ID.
+ *
+ * \param animated_id: The ID that is animated by this Action. It is used to
+ * create and assign an appropriate slot if needed when creating the fcurve, and
+ * set the fcurve color properly
+ *
+ * \param fcurve_descriptor: description of the fcurve to lookup/create. Note
+ * that this is *not* relative to `ptr` (e.g. if `ptr` is not an ID). It should
+ * contain the exact data path of the fcurve to be looked up/created.
+ */
+FCurve *action_fcurve_ensure(Main *bmain,
+                             bAction &action,
+                             ID &animated_id,
+                             FCurveDescriptor fcurve_descriptor);
+
+/**
+ * Find or create an F-Curve on the given action that matches the given fcurve
+ * descriptor.
+ *
  * This function is primarily intended for use with legacy actions, but for
  * reasons of expedience it now also works with layered actions under the
  * following limited circumstances: `ptr` must be non-null and must have an
@@ -1620,12 +1669,15 @@ Span<const FCurve *> fcurves_for_action_slot(const Action &action, slot_handle_t
  * \param fcurve_descriptor: description of the fcurve to lookup/create. Note
  * that this is *not* relative to `ptr` (e.g. if `ptr` is not an ID). It should
  * contain the exact data path of the fcurve to be looked up/created.
+ *
+ * \see action_fcurve_ensure for a function that is specific to layered actions,
+ * and is easier to use because it does not depend on an RNA pointer.
  */
-FCurve *action_fcurve_ensure(Main *bmain,
-                             bAction *act,
-                             const char group[],
-                             PointerRNA *ptr,
-                             FCurveDescriptor fcurve_descriptor);
+FCurve *action_fcurve_ensure_ex(Main *bmain,
+                                bAction *act,
+                                const char group[],
+                                PointerRNA *ptr,
+                                FCurveDescriptor fcurve_descriptor);
 
 /**
  * Same as above, but creates a legacy Action.

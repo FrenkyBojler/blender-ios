@@ -9,6 +9,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_fileops.h"
+#include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
@@ -23,6 +24,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_global.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_sound.h"
@@ -1287,7 +1289,7 @@ static int sequencer_reassign_inputs_exec(bContext *C, wmOperator *op)
   /* Force time position update for reassigned effects.
    * TODO(Richard): This is because internally startdisp is still used, due to poor performance of
    * mapping effect range to inputs. This mapping could be cached though. */
-  SEQ_strip_lookup_invalidate(scene);
+  SEQ_strip_lookup_invalidate(scene->ed);
   SEQ_time_left_handle_frame_set(scene, seq1, SEQ_time_left_handle_frame_get(scene, seq1));
 
   SEQ_relations_invalidate_cache_preprocessed(scene, active_strip);
@@ -2097,7 +2099,7 @@ static int sequencer_meta_make_exec(bContext *C, wmOperator * /*op*/)
     SEQ_transform_seqbase_shuffle(active_seqbase, seqm, scene);
   }
 
-  SEQ_strip_lookup_invalidate(scene);
+  SEQ_strip_lookup_invalidate(ed);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 
@@ -2672,7 +2674,6 @@ const EnumPropertyItem sequencer_prop_effect_types[] = {
     {STRIP_TYPE_ALPHAUNDER, "ALPHA_UNDER", 0, "Alpha Under", "Alpha Under effect strip type"},
     {STRIP_TYPE_GAMCROSS, "GAMMA_CROSS", 0, "Gamma Cross", "Gamma Cross effect strip type"},
     {STRIP_TYPE_MUL, "MULTIPLY", 0, "Multiply", "Multiply effect strip type"},
-    {STRIP_TYPE_OVERDROP, "OVER_DROP", 0, "Alpha Over Drop", "Alpha Over Drop effect strip type"},
     {STRIP_TYPE_WIPE, "WIPE", 0, "Wipe", "Wipe effect strip type"},
     {STRIP_TYPE_GLOW, "GLOW", 0, "Glow", "Glow effect strip type"},
     {STRIP_TYPE_TRANSFORM, "TRANSFORM", 0, "Transform", "Transform effect strip type"},
@@ -3417,7 +3418,8 @@ static int sequencer_set_2d_cursor_exec(bContext *C, wmOperator *op)
   float cursor_pixel[2];
   RNA_float_get_array(op->ptr, "location", cursor_pixel);
 
-  SEQ_image_preview_unit_from_px(scene, cursor_pixel, sseq->cursor);
+  blender::float2 cursor_region = SEQ_image_preview_unit_from_px(scene, cursor_pixel);
+  copy_v2_v2(sseq->cursor, cursor_region);
 
   WM_event_add_notifier(C, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
 

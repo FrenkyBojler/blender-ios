@@ -74,6 +74,7 @@
 #include "BKE_lib_override.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
+#include "BKE_library.hh"
 #include "BKE_light.h"
 #include "BKE_lightprobe.h"
 #include "BKE_main.hh"
@@ -633,7 +634,7 @@ Object *add_type_with_obdata(bContext *C,
     ob = BKE_object_add_for_data(bmain, scene, view_layer, type, name, obdata, true);
     const short *materials_len_p = BKE_id_material_len_p(obdata);
     if (materials_len_p && *materials_len_p > 0) {
-      BKE_object_materials_test(bmain, ob, static_cast<ID *>(ob->data));
+      BKE_object_materials_sync_length(bmain, ob, static_cast<ID *>(ob->data));
     }
   }
   else {
@@ -4041,7 +4042,7 @@ static int object_convert_exec(bContext *C, wmOperator *op)
 
     /* Ensure new object has consistent material data with its new obdata. */
     if (newob) {
-      BKE_object_materials_test(bmain, newob, static_cast<ID *>(newob->data));
+      BKE_object_materials_sync_length(bmain, newob, static_cast<ID *>(newob->data));
     }
 
     /* tag obdata if it was been changed */
@@ -4433,8 +4434,12 @@ void OBJECT_OT_duplicate(wmOperatorType *ot)
                          "Duplicate object but not object data, linking to the original data");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
-  prop = RNA_def_enum(
-      ot->srna, "mode", rna_enum_transform_mode_type_items, TFM_TRANSLATION, "Mode", "");
+  prop = RNA_def_enum(ot->srna,
+                      "mode",
+                      rna_enum_transform_mode_type_items,
+                      blender::ed::transform::TFM_TRANSLATION,
+                      "Mode",
+                      "");
   RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 

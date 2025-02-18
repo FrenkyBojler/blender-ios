@@ -40,6 +40,7 @@
 #include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
@@ -1080,6 +1081,7 @@ static void do_vpaint_brush_blur_loops(const bContext *C,
     tls.factors.resize(verts.size());
     const MutableSpan<float> factors = tls.factors;
     fill_factor_from_hide(hide_vert, verts, factors);
+    filter_region_clip_factors(ss, vert_positions, verts, factors);
     if (!select_vert.is_empty()) {
       filter_factors_with_selection(select_vert, verts, factors);
     }
@@ -1235,6 +1237,7 @@ static void do_vpaint_brush_blur_verts(const bContext *C,
     tls.factors.resize(verts.size());
     const MutableSpan<float> factors = tls.factors;
     fill_factor_from_hide(hide_vert, verts, factors);
+    filter_region_clip_factors(ss, vert_positions, verts, factors);
     if (!select_vert.is_empty()) {
       filter_factors_with_selection(select_vert, verts, factors);
     }
@@ -1393,6 +1396,7 @@ static void do_vpaint_brush_smear(const bContext *C,
     tls.factors.resize(verts.size());
     const MutableSpan<float> factors = tls.factors;
     fill_factor_from_hide(hide_vert, verts, factors);
+    filter_region_clip_factors(ss, vert_positions, verts, factors);
     if (!select_vert.is_empty()) {
       filter_factors_with_selection(select_vert, verts, factors);
     }
@@ -1575,6 +1579,7 @@ static void calculate_average_color(VPaintData &vpd,
       tls.factors.resize(verts.size());
       const MutableSpan<float> factors = tls.factors;
       fill_factor_from_hide(hide_vert, verts, factors);
+      filter_region_clip_factors(ss, vert_positions, verts, factors);
       if (!select_vert.is_empty()) {
         filter_factors_with_selection(select_vert, verts, factors);
       }
@@ -1704,6 +1709,7 @@ static void vpaint_do_draw(const bContext *C,
     tls.factors.resize(verts.size());
     const MutableSpan<float> factors = tls.factors;
     fill_factor_from_hide(hide_vert, verts, factors);
+    filter_region_clip_factors(ss, vert_positions, verts, factors);
     if (!select_vert.is_empty()) {
       filter_factors_with_selection(select_vert, verts, factors);
     }
@@ -2201,8 +2207,7 @@ static void fill_mesh_color(Mesh &mesh,
 {
   if (BMEditMesh *em = mesh.runtime->edit_mesh.get()) {
     BMesh *bm = em->bm;
-    const std::string name = attribute_name;
-    const CustomDataLayer *layer = BKE_id_attributes_color_find(&mesh.id, name.c_str());
+    const CustomDataLayer *layer = BKE_id_attributes_color_find(&mesh.id, attribute_name);
     AttributeOwner owner = AttributeOwner::from_id(&mesh.id);
     const AttrDomain domain = BKE_attribute_domain(owner, layer);
     if (layer->type == CD_PROP_COLOR) {

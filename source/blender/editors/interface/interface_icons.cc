@@ -1345,7 +1345,7 @@ static void svg_replace_color_attributes(std::string &svg,
   uchar tool_white[] = {255, 255, 255, 255};
   uchar tool_red[] = {214, 45, 48, 255};
 
-  struct ColorItem {
+  const struct ColorItem {
     const char *name;
     uchar *col = nullptr;
     int colorid = TH_UNDEFINED;
@@ -1360,10 +1360,10 @@ static void svg_replace_color_attributes(std::string &svg,
       {"blender_back", nullptr, TH_BACK},
       {"blender_text", nullptr, TH_TEXT},
       {"blender_text_hi", nullptr, TH_TEXT_HI},
-      {"blender_red_alert", nullptr, TH_REDALERT},
-      {"blender_error", nullptr, TH_INFO_ERROR, SPACE_INFO},
-      {"blender_warning", nullptr, TH_INFO_WARNING, SPACE_INFO},
-      {"blender_info", nullptr, TH_INFO_INFO, SPACE_INFO},
+      {"blender_red_alert", nullptr, TH_ERROR},
+      {"blender_error", nullptr, TH_ERROR},
+      {"blender_warning", nullptr, TH_WARNING},
+      {"blender_info", nullptr, TH_INFO},
       {"blender_scene", nullptr, TH_ICON_SCENE},
       {"blender_collection", nullptr, TH_ICON_COLLECTION},
       {"blender_object", nullptr, TH_ICON_OBJECT},

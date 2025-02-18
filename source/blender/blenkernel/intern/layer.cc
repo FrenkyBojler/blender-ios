@@ -28,6 +28,7 @@
 #include "BKE_idprop.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
@@ -1417,7 +1418,10 @@ void BKE_layer_collection_sync(const Scene *scene, ViewLayer *view_layer)
 
   /* Always set a valid active collection. */
   LayerCollection *active = view_layer->active_collection;
-  if (active == nullptr) {
+  if (active && layer_collection_hidden(view_layer, active)) {
+    BKE_layer_collection_activate_parent(view_layer, active);
+  }
+  else if (active == nullptr) {
     view_layer->active_collection = static_cast<LayerCollection *>(
         view_layer->layer_collections.first);
   }
