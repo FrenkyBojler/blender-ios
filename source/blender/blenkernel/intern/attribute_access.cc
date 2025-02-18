@@ -955,25 +955,30 @@ void gather_attributes_group_to_group(const AttributeAccessor src_attributes,
                                       const IndexMask &selection,
                                       MutableAttributeAccessor dst_attributes)
 {
-  src_attributes.foreach_attribute([&](const AttributeIter &iter) {
-    if (iter.domain != src_domain) {
-      return;
-    }
-    if (iter.data_type == CD_PROP_STRING) {
-      return;
-    }
-    if (attribute_filter.allow_skip(iter.name)) {
-      return;
-    }
-    const GVArraySpan src = *iter.get(src_domain);
-    GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
-        iter.name, dst_domain, iter.data_type);
-    if (!dst) {
-      return;
-    }
-    attribute_math::gather_group_to_group(src_offsets, dst_offsets, selection, src, dst.span);
-    dst.finish();
-  });
+  if (selection.size() == src_offsets.size()) {
+    copy_attributes(src_attributes, src_domain, dst_domain, attribute_filter, dst_attributes);
+  }
+  else {
+    src_attributes.foreach_attribute([&](const AttributeIter &iter) {
+      if (iter.domain != src_domain) {
+        return;
+      }
+      if (iter.data_type == CD_PROP_STRING) {
+        return;
+      }
+      if (attribute_filter.allow_skip(iter.name)) {
+        return;
+      }
+      const GVArraySpan src = *iter.get(src_domain);
+      GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
+          iter.name, dst_domain, iter.data_type);
+      if (!dst) {
+        return;
+      }
+      attribute_math::gather_group_to_group(src_offsets, dst_offsets, selection, src, dst.span);
+      dst.finish();
+    });
+  }
 }
 
 void gather_attributes_to_groups(const AttributeAccessor src_attributes,
