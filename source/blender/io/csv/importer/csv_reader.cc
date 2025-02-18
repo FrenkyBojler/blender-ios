@@ -180,7 +180,7 @@ static ChunkResult parse_records_chunk(const csv_parse::CsvRecords &records,
   return chunk_result;
 }
 
-static Array<std::optional<FlattenedAttribute>> flatten_chunk_as_attributes(
+static Array<std::optional<FlattenedAttribute>> flatten_valid_attribute_chunks(
     const Span<ColumnInfo> columns_info,
     OffsetIndices<int> chunk_offsets,
     const Span<ChunkResult> chunks)
@@ -211,6 +211,8 @@ static Array<std::optional<FlattenedAttribute>> flatten_chunk_as_attributes(
                   float_vec->data(), dst_range.size(), attribute_buffer + dst_range.first());
             }
             else if (const auto *int_vec = std::get_if<Vector<int>>(&column_data)) {
+              /* This chunk was read entirely as integers, so it still has to be converted to
+               * floats. */
               BLI_assert(int_vec->size() == dst_range.size());
               uninitialized_convert_n(int_vec->data(), dst_range.size(), attribute_buffer);
             }
@@ -318,7 +320,7 @@ PointCloud *import_csv_as_point_cloud(const CSVImportParams &import_params)
   threading::memory_bandwidth_bound_task(points_num * 16, [&]() {
     threading::parallel_invoke([&]() { pointcloud->positions_for_write().fill(float3(0)); },
                                [&]() {
-                                 flattened_attributes = flatten_chunk_as_attributes(
+                                 flattened_attributes = flatten_valid_attribute_chunks(
                                      columns_info, chunk_offsets, *parsed_chunks);
                                });
   });
