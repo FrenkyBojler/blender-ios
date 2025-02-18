@@ -45,12 +45,11 @@ class CsvRecord {
 
 class CsvRecords {
  private:
-  Vector<int64_t> offsets_;
-  Vector<Span<char>> fields_;
+  Span<int64_t> offsets_;
+  Span<Span<char>> fields_;
 
  public:
-  CsvRecords(Vector<int64_t> offsets, Vector<Span<char>> fields)
-      : offsets_(offsets), fields_(fields)
+  CsvRecords(Span<int64_t> offsets, Span<Span<char>> fields) : offsets_(offsets), fields_(fields)
   {
   }
 
@@ -72,7 +71,7 @@ class CsvRecords {
   CsvRecord record(const int64_t index) const
   {
     OffsetIndices offsets = this->offsets();
-    return CsvRecord(fields_.as_span().slice(offsets[index]));
+    return CsvRecord(fields_.slice(offsets[index]));
   }
 };
 

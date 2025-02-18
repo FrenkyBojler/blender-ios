@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_csv_parse.hh"
+#include "BLI_enumerable_thread_specific.hh"
 #include "BLI_task.hh"
 
 namespace blender::csv_parse {
@@ -39,24 +40,31 @@ static Vector<Span<char>> split_to_chunks(const Span<char> buffer, int64_t appro
 }
 
 static std::optional<CsvRecords> parse_records(const Span<char> buffer,
-                                               const CsvParseOptions &options)
+                                               const CsvParseOptions &options,
+                                               Vector<int64_t> &r_data_offsets,
+                                               Vector<Span<char>> &r_data_fields)
 {
   using namespace detail;
+  r_data_offsets.clear();
+  r_data_fields.clear();
 
-  Vector<int64_t> data_offsets;
-  Vector<Span<char>> data_fields;
-  data_offsets.append(0);
+  r_data_offsets.append(0);
   int64_t start = 0;
   while (start < buffer.size()) {
     const std::optional<int64_t> next_record_start = parse_record_fields(
-        buffer, start, options.delimiter, options.quote, options.quote_escape_chars, data_fields);
+        buffer,
+        start,
+        options.delimiter,
+        options.quote,
+        options.quote_escape_chars,
+        r_data_fields);
     if (!next_record_start.has_value()) {
       return std::nullopt;
     }
-    data_offsets.append(data_fields.size());
+    r_data_offsets.append(r_data_fields.size());
     start = *next_record_start;
   }
-  return CsvRecords(std::move(data_offsets), std::move(data_fields));
+  return CsvRecords(std::move(r_data_offsets), std::move(r_data_fields));
 }
 
 std::optional<Vector<Any<>>> parse_csv_in_chunks(
@@ -91,14 +99,21 @@ std::optional<Vector<Any<>>> parse_csv_in_chunks(
    * making the splitting logic a bit smarter. */
   std::atomic<bool> found_malformed_chunk = false;
   Vector<std::optional<Any<>>> chunk_results(data_buffer_chunks.size());
+  struct TLS {
+    Vector<int64_t> data_offsets;
+    Vector<Span<char>> data_fields;
+  };
+  threading::EnumerableThreadSpecific<TLS> all_tls;
   threading::parallel_for(chunk_results.index_range(), 1, [&](const IndexRange range) {
+    TLS &tls = all_tls.local();
     for (const int64_t i : range) {
       if (found_malformed_chunk.load(std::memory_order_relaxed)) {
         /* All work is cancelled when there was a malformed chunk. */
         return;
       }
       const Span<char> chunk_buffer = data_buffer_chunks[i];
-      const std::optional<CsvRecords> records = parse_records(chunk_buffer, options);
+      const std::optional<CsvRecords> records = parse_records(
+          chunk_buffer, options, tls.data_offsets, tls.data_fields);
       if (!records.has_value()) {
         found_malformed_chunk.store(true, std::memory_order_relaxed);
         return;
@@ -111,7 +126,9 @@ std::optional<Vector<Any<>>> parse_csv_in_chunks(
    * quite rarely but is important for overall correctness. */
   if (found_malformed_chunk) {
     chunk_results.clear();
-    const std::optional<CsvRecords> records = parse_records(data_buffer, options);
+    TLS &tls = all_tls.local();
+    const std::optional<CsvRecords> records = parse_records(
+        data_buffer, options, tls.data_offsets, tls.data_fields);
     if (!records.has_value()) {
       return std::nullopt;
     }
