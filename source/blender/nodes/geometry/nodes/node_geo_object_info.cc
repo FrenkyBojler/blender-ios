@@ -31,6 +31,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Object>("Object").hide_label();
   b.add_input<decl::Bool>("As Instance")
+      .default_value(true)
       .description(
           "Output the entire object as single instance. "
           "This allows instancing non-geometry object types");
