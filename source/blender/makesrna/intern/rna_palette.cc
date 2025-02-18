@@ -18,8 +18,10 @@
 
 #  include "DNA_brush_types.h"
 
+#  include "BKE_library.hh"
 #  include "BKE_paint.hh"
 #  include "BKE_report.hh"
+
 static PaletteColor *rna_Palette_color_new(Palette *palette)
 {
   if (!ID_IS_EDITABLE(palette) || ID_IS_OVERRIDE_LIBRARY(palette)) {
@@ -46,7 +48,7 @@ static void rna_Palette_color_remove(Palette *palette, ReportList *reports, Poin
 
   BKE_palette_color_remove(palette, color);
 
-  RNA_POINTER_INVALIDATE(color_ptr);
+  color_ptr->invalidate();
 }
 
 static void rna_Palette_color_clear(Palette *palette)

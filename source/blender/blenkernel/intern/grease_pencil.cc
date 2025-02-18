@@ -31,6 +31,7 @@
 #include "BLI_array_utils.hh"
 #include "BLI_bounds.hh"
 #include "BLI_enumerable_thread_specific.hh"
+#include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_euler_types.hh"
 #include "BLI_math_geom.h"
@@ -152,7 +153,7 @@ static void grease_pencil_free_data(ID *id)
 
   MEM_SAFE_FREE(grease_pencil->material_array);
 
-  CustomData_free(&grease_pencil->layers_data, grease_pencil->layers().size());
+  CustomData_free(&grease_pencil->layers_data);
 
   free_drawing_array(*grease_pencil);
   MEM_delete(&grease_pencil->root_group());
@@ -644,6 +645,11 @@ void Drawing::set_texture_matrices(Span<float4x2> matrices, const IndexMask &sel
       "uv_scale",
       AttrDomain::Curve,
       AttributeInitVArray(VArray<float2>::ForSingle(float2(1.0f, 1.0f), curves.curves_num())));
+
+  if (!uv_rotations || !uv_translations || !uv_scales) {
+    /* FIXME: It might be better to ensure the attributes exist and are on the right domain. */
+    return;
+  }
 
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   const Span<float3> positions = curves.positions();
@@ -1912,9 +1918,9 @@ std::optional<MutableSpan<float3>> GreasePencilDrawingEditHints::positions_for_w
  * \{ */
 
 bool BKE_grease_pencil_drawing_attribute_required(const GreasePencilDrawing * /*drawing*/,
-                                                  const char *name)
+                                                  const blender::StringRef name)
 {
-  return STREQ(name, ATTR_POSITION);
+  return name == ATTR_POSITION;
 }
 
 GreasePencil *BKE_grease_pencil_add(Main *bmain, const char *name)
@@ -2015,7 +2021,7 @@ void BKE_grease_pencil_nomain_to_grease_pencil(GreasePencil *grease_pencil_src,
   }
 
   /* Layers. */
-  CustomData_free(&grease_pencil_dst->layers_data, grease_pencil_src->layers().size());
+  CustomData_free(&grease_pencil_dst->layers_data);
   if (grease_pencil_dst->root_group_ptr) {
     MEM_delete(&grease_pencil_dst->root_group());
   }
@@ -2181,6 +2187,23 @@ static void grease_pencil_do_layer_adjustments(GreasePencil &grease_pencil)
   }
 }
 
+static void grease_pencil_evaluate_layers(GreasePencil &grease_pencil)
+{
+  using namespace blender;
+  using namespace blender::bke::greasepencil;
+
+  /* Copy the layer cache into an array here, because removing a layer will invalidate the layer
+   * cache. This will only copy the pointers to the layers, not the layers themselves. */
+  Array<Layer *> layers = grease_pencil.layers_for_write();
+
+  for (Layer *layer : layers) {
+    if (!layer->is_visible()) {
+      /* Remove layer from evaluated data. */
+      grease_pencil.remove_layer(*layer);
+    }
+  }
+}
+
 void BKE_grease_pencil_data_update(Depsgraph *depsgraph, Scene *scene, Object *object)
 {
   using namespace blender;
@@ -2188,10 +2211,12 @@ void BKE_grease_pencil_data_update(Depsgraph *depsgraph, Scene *scene, Object *o
   /* Free any evaluated data and restore original data. */
   BKE_object_free_derived_caches(object);
 
-  /* Evaluate modifiers. */
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(object->data);
   /* Store the frame that this grease pencil is evaluated on. */
   grease_pencil->runtime->eval_frame = int(DEG_get_ctime(depsgraph));
+  /* This will remove layers that aren't visible. */
+  grease_pencil_evaluate_layers(*grease_pencil);
+
   GeometrySet geometry_set = GeometrySet::from_grease_pencil(grease_pencil,
                                                              GeometryOwnershipType::ReadOnly);
   /* The layer adjustments for tinting and radii offsets are applied before modifier evaluation.
@@ -2282,10 +2307,11 @@ int BKE_grease_pencil_stroke_point_count(const GreasePencil &grease_pencil)
 }
 
 void BKE_grease_pencil_point_coords_get(const GreasePencil &grease_pencil,
-                                        GreasePencilPointCoordinates *elem_data)
+                                        blender::MutableSpan<blender::float3> all_positions,
+                                        blender::MutableSpan<float> all_radii)
 {
   using namespace blender;
-
+  int64_t index = 0;
   for (const int layer_i : grease_pencil.layers().index_range()) {
     const bke::greasepencil::Layer &layer = grease_pencil.layer(layer_i);
     const float4x4 layer_to_object = layer.local_transform();
@@ -2303,19 +2329,20 @@ void BKE_grease_pencil_point_coords_get(const GreasePencil &grease_pencil,
           const VArray<float> radii = drawing.radii();
 
           for (const int i : curves.points_range()) {
-            copy_v3_v3(elem_data->co, math::transform_point(layer_to_object, positions[i]));
-            elem_data->radius = radii[i];
-            elem_data++;
+            all_positions[index] = math::transform_point(layer_to_object, positions[i]);
+            all_radii[index] = radii[i];
+            index++;
           }
         });
   }
 }
 
 void BKE_grease_pencil_point_coords_apply(GreasePencil &grease_pencil,
-                                          GreasePencilPointCoordinates *elem_data)
+                                          blender::Span<blender::float3> all_positions,
+                                          blender::Span<float> all_radii)
 {
   using namespace blender;
-
+  int64_t index = 0;
   for (const int layer_i : grease_pencil.layers().index_range()) {
     bke::greasepencil::Layer &layer = grease_pencil.layer(layer_i);
     const float4x4 layer_to_object = layer.local_transform();
@@ -2333,22 +2360,22 @@ void BKE_grease_pencil_point_coords_apply(GreasePencil &grease_pencil,
       MutableSpan<float> radii = drawing.radii_for_write();
 
       for (const int i : curves.points_range()) {
-        positions[i] = math::transform_point(object_to_layer, float3(elem_data->co));
-        radii[i] = elem_data->radius;
-        elem_data++;
+        positions[i] = math::transform_point(object_to_layer, all_positions[index]);
+        radii[i] = all_radii[index];
+        index++;
       }
     });
   }
 }
 
 void BKE_grease_pencil_point_coords_apply_with_mat4(GreasePencil &grease_pencil,
-                                                    GreasePencilPointCoordinates *elem_data,
+                                                    blender::Span<blender::float3> all_positions,
+                                                    blender::Span<float> all_radii,
                                                     const blender::float4x4 &mat)
 {
   using namespace blender;
-
   const float scalef = mat4_to_scale(mat.ptr());
-
+  int64_t index = 0;
   for (const int layer_i : grease_pencil.layers().index_range()) {
     bke::greasepencil::Layer &layer = grease_pencil.layer(layer_i);
     const float4x4 layer_to_object = layer.local_transform();
@@ -2366,9 +2393,9 @@ void BKE_grease_pencil_point_coords_apply_with_mat4(GreasePencil &grease_pencil,
       MutableSpan<float> radii = drawing.radii_for_write();
 
       for (const int i : curves.points_range()) {
-        positions[i] = math::transform_point(object_to_layer * mat, float3(elem_data->co));
-        radii[i] = elem_data->radius * scalef;
-        elem_data++;
+        positions[i] = math::transform_point(object_to_layer * mat, all_positions[index]);
+        radii[i] = all_radii[index] * scalef;
+        index++;
       }
     });
   }
@@ -3583,7 +3610,7 @@ static void reorder_customdata(CustomData &data, const Span<int> new_by_old_map)
     const int new_i = new_by_old_map[old_i];
     CustomData_copy_data(&data, &new_data, old_i, new_i, 1);
   }
-  CustomData_free(&data, new_by_old_map.size());
+  CustomData_free(&data);
   data = new_data;
 }
 
@@ -3919,7 +3946,7 @@ static void shrink_customdata(CustomData &data, const int index_to_remove, const
         &data, &new_data, range_after.start(), range_after.start() - 1, range_after.size());
   }
 
-  CustomData_free(&data, size);
+  CustomData_free(&data);
   data = new_data;
 }
 

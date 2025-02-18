@@ -16,6 +16,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_memory_utils.hh"
 #include "BLI_utildefines.h"
 
 #include "GPU_shader.hh"
@@ -317,10 +318,13 @@ class Result {
    * result, the reference count of the master result is incremented instead. */
   void increment_reference_count(int count = 1);
 
-  /* Decrement the reference count of the result by the given count and free its data if it reaches
-   * zero. The given count should not be more than the current reference count. If this result have
-   * a master result, the master result is released instead. */
-  void release(const int count = 1);
+  /* Decrement the reference count of the result by the given count. If this result have a master
+   * result, the reference count of the master result is decremented instead. */
+  void decrement_reference_count(int count = 1);
+
+  /* Decrement the reference count of the result and free its data if it reaches zero. If this
+   * result have a master result, the master result is released instead. */
+  void release();
 
   /* Frees the result data. If the result is not allocated or wraps external data, then this does
    * nothing. If this result have a master result, the master result is freed instead. */
@@ -447,9 +451,6 @@ class Result {
                          const float2 &y_gradient) const;
 
  private:
-  /* Return true if the provided template type is an int or an int vector. */
-  template<typename T> static constexpr bool is_int_type();
-
   /* Allocates the image data for the given size, either on the GPU or CPU based on the result's
    * context. See the allocate_texture method for information about the from_pool argument. */
   void allocate_data(int2 size, bool from_pool);
@@ -527,7 +528,7 @@ template<typename T> inline void Result::set_single_value(const T &value)
 
   switch (storage_type_) {
     case ResultStorageType::GPU:
-      if constexpr (Result::is_int_type<T>()) {
+      if constexpr (is_same_any_v<T, int, int2>) {
         if constexpr (std::is_scalar_v<T>) {
           GPU_texture_update(this->gpu_texture(), GPU_DATA_INT, &value);
         }
@@ -866,16 +867,6 @@ inline float4 Result::sample_ewa_zero(const float2 &coordinates,
                  const_cast<Result *>(this),
                  pixel_value);
   return pixel_value;
-}
-
-template<typename T> constexpr bool Result::is_int_type()
-{
-  if constexpr (std::is_scalar_v<T>) {
-    return std::is_same_v<T, int>;
-  }
-  else {
-    return std::is_same_v<typename T::base_type, int>;
-  }
 }
 
 inline int64_t Result::get_pixel_index(const int2 &texel) const
