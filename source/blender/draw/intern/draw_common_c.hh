@@ -26,16 +26,14 @@ struct ViewLayer;
 struct Scene;
 struct DRWData;
 namespace blender::draw {
-struct CurvesUniformBufPool;
 class Manager;
-class CurveRefinePass;
+class CurvesModule;
 }  // namespace blender::draw
 
 /* Keep in sync with globalsBlock in shaders */
 BLI_STATIC_ASSERT_ALIGN(GlobalsUboStorage, 16)
 
 void DRW_globals_update();
-void DRW_globals_free();
 
 /* draw_hair.cc */
 
@@ -50,9 +48,6 @@ void DRW_hair_duplimat_get(Object *object,
                            ModifierData *md,
                            float (*dupli_mat)[4]);
 
-void DRW_hair_init();
-void DRW_hair_free();
-
 /* draw_curves.cc */
 
 namespace blender::draw {
@@ -62,11 +57,10 @@ namespace blender::draw {
  */
 gpu::VertBuf *DRW_curves_pos_buffer_get(Object *object);
 
-void DRW_curves_init(DRWData *drw_data);
-void DRW_curves_ubos_pool_free(CurvesUniformBufPool *pool);
-void DRW_curves_refine_pass_free(CurveRefinePass *pass);
+/* If drw_data is nullptr, DST global is access to get it. */
+void DRW_curves_init(DRWData *drw_data = nullptr);
+void DRW_curves_module_free(draw::CurvesModule *module);
 void DRW_curves_update(draw::Manager &manager);
-void DRW_curves_free();
 
 /* draw_pointcloud.cc */
 
@@ -104,8 +98,5 @@ struct DRW_Global {
   GlobalsUboStorage block;
   /** Define "globalsBlock" uniform for 'block'. */
   GPUUniformBuf *block_ubo;
-
-  GPUTexture *ramp;
-  GPUTexture *weight_ramp;
 };
 extern DRW_Global G_draw;
