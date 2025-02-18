@@ -10,6 +10,10 @@
 
 namespace blender::csv_parse {
 
+/**
+ * Contains the fields of a single record of a .csv file. Usually that corresponds to a single
+ * line.
+ */
 class CsvRecord {
  private:
   Span<Span<char>> fields_;
@@ -17,13 +21,18 @@ class CsvRecord {
  public:
   CsvRecord(Span<Span<char>> fields);
 
+  /** Number of fields in the record. */
   int64_t size() const;
   IndexRange index_range() const;
 
+  /** Get the field at the given index. Empty data is returned if the index is too large. */
   Span<char> field(const int64_t index) const;
   StringRef field_str(const int64_t index) const;
 };
 
+/**
+ * Contains the fields of multiple records.
+ */
 class CsvRecords {
  private:
   Span<int64_t> offsets_;
@@ -32,26 +41,63 @@ class CsvRecords {
  public:
   CsvRecords(Span<int64_t> offsets, Span<Span<char>> fields);
 
+  /** Number of records (rows). */
   int64_t size() const;
   IndexRange index_range() const;
   OffsetIndices<int64_t> offsets() const;
 
+  /** Get the record at the given index. */
   CsvRecord record(const int64_t index) const;
 };
 
 struct CsvParseOptions {
+  /** The character that separates fields within a row. */
   char delimiter = ',';
+  /**
+   * The character that can be used to enclose fields which contain the delimiter or span multiple
+   * lines.
+   */
   char quote = '"';
+  /**
+   * Characters that can be used to escape the quote character. By default, "" or \" both represent
+   * an escaped quote.
+   */
   Span<char> quote_escape_chars = Span<char>{'"', '\\'};
-  int64_t chunk_size_bytes = 32 * 1024;
+  /** Approximate number of bytes per chunk that the input is split into. */
+  int64_t chunk_size_bytes = 64 * 1024;
 };
 
+/**
+ * Parses a .csv file. There are two important aspects to the way this interface is designed:
+ * 1. It allows the file to be split into chunks that can be parsed in parallel.
+ * 2. Splitting the file into individual records and fields is separated from parsing the actual
+ *    content into e.g. floats. This simplifies the implementation of both parts because the
+ *    logical parsing does not have to worry about e.g. the delimiter or quote characters. It also
+ *    simplifies unit testing.
+ *
+ * \param buffer: The buffer containing the .csv file.
+ * \param options: Options that control how the file is parsed.
+ * \param process_header: A function that is called at most once and contains the fields of the
+ *   first row/record.
+ * \param process_records: A function that is called potentially many times in parallel and that
+ *   processes a chunk of parsed records. Typically this function parses raw byte fields into e.g.
+ *   ints or floats. The result of the parsing process has to be returned. Note that under specific
+ *   circumstances, this function may be called twice for the same records. That can happen when
+ *   the .csv file contains multi-line fields which were split incorrectly at first.
+ * \return A vector containing the return values of the `process_records` function in the correct
+ *   order. Nullopt is returned if the file was malformed, e.g. if it has a quoted field that is
+ *   not closed.
+ */
 std::optional<Vector<Any<>>> parse_csv_in_chunks(
     const Span<char> buffer,
     const CsvParseOptions &options,
     FunctionRef<void(const CsvRecord &record)> process_header,
     FunctionRef<Any<>(const CsvRecords &records)> process_records);
 
+/**
+ * Same as above, but uses a templated chunk type instead of using #Any which can be more
+ * convenient to use.
+ */
 template<typename ChunkT>
 inline std::optional<Vector<ChunkT>> parse_csv_in_chunks(
     const Span<char> buffer,
