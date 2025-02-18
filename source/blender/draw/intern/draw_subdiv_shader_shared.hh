@@ -59,18 +59,20 @@ BLI_STATIC_ASSERT_ALIGN(DRWSubdivUboStorage, 16)
  * We do not use a vec3 for the position as it will be padded to a vec4 which is incompatible with
  * the format. */
 struct PosNorLoop {
-  packed_float3 pos;
-  packed_float3 nor;
+  float x, y, z;
+  float nx, ny, nz;
   float flag;
 };
 
 struct LoopNormal {
-  packed_float3 nor;
+  float nx, ny, nz;
   float flag;
 };
 
 struct CustomNormal {
-  packed_float3 nor;
+  float x;
+  float y;
+  float z;
 };
 
 /* TODO: after migrating all shaders we should replace these defines with 'shader_data.define'.
