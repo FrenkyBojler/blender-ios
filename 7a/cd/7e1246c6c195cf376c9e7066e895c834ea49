@@ -1,3 +1,4 @@
 Referenced by commit 7684bbedb8a, Fix: Assets: Previews of local IDs not showing in asset shelf
 Referenced by commit 9a8779e0d85, Fix #134025: Crash displaying asset from current file in asset shelf
 Referenced by issue #134025, Crash when creating asset
+Referenced by pull request #110462, WIP: Store asset preview in asset represenation
