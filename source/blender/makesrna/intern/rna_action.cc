@@ -1395,9 +1395,8 @@ static FCurve *rna_Action_fcurve_ensure_for_datablock(bAction *_self,
     }
   }
 
-  PointerRNA ptr = RNA_id_pointer_create(datablock);
   FCurve *fcurve = blender::animrig::action_fcurve_ensure(
-      bmain, _self, "", &ptr, {data_path, array_index});
+      bmain, *_self, *datablock, {data_path, array_index});
 
   if (!fcurve) {
     /* This should never happen, given the precondition check above. */
