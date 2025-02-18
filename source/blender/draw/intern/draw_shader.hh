@@ -66,13 +66,30 @@ class StaticShader : NonCopyable {
  private:
   std::string info_name_;
   GPUShader *shader_ = nullptr;
+  std::mutex mutex_;
+
+  void move(StaticShader &&other)
+  {
+    std::scoped_lock lock1(mutex_);
+    std::scoped_lock lock2(other.mutex_);
+    BLI_assert(shader_ == nullptr && info_name_.empty());
+    std::swap(info_name_, other.info_name_);
+    std::swap(shader_, other.shader_);
+  }
 
  public:
   StaticShader(std::string info_name) : info_name_(info_name) {}
 
   StaticShader() = default;
-  StaticShader(StaticShader &&other) = default;
-  StaticShader &operator=(StaticShader &&other) = default;
+  StaticShader(StaticShader &&other)
+  {
+    move(std::move(other));
+  }
+  StaticShader &operator=(StaticShader &&other)
+  {
+    move(std::move(other));
+    return *this;
+  };
 
   ~StaticShader()
   {
@@ -81,8 +98,6 @@ class StaticShader : NonCopyable {
 
   GPUShader *get()
   {
-    /*TODO: Per instance mutex.*/
-    static std::mutex mutex_;
     if (!shader_) {
       std::scoped_lock lock(mutex_);
       /* Check again in case it was created between first check and lock. */
