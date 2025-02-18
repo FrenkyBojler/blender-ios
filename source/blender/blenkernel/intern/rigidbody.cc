@@ -12,6 +12,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <mutex>
 
 #include "CLG_log.h"
 
@@ -73,6 +74,7 @@ struct RigidBodyWorld_Runtime {
 #ifdef WITH_BULLET
   rbDynamicsWorld *physics_world = nullptr;
 #endif
+  std::mutex mutex;
 
   ~RigidBodyWorld_Runtime()
   {
@@ -2172,6 +2174,9 @@ void BKE_rigidbody_rebuild_world(Depsgraph *depsgraph, Scene *scene, float ctime
   PointCache *cache;
   PTCacheID pid;
   int startframe, endframe;
+
+  /* Avoid multiple depsgraph evaluations accessing the same shared data. */
+  std::unique_lock lock(rbw->shared->runtime->mutex);
 
   BKE_ptcache_id_from_rigidbody(&pid, nullptr, rbw);
   BKE_ptcache_id_time(&pid, scene, ctime, &startframe, &endframe, nullptr);
