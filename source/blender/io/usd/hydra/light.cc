@@ -13,7 +13,6 @@
 #include "BLI_math_rotation.h"
 
 #include "hydra_scene_delegate.hh"
-#include <Kernel/math.h>
 
 namespace blender::io::hydra {
 
