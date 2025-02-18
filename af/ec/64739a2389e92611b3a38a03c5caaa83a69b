@@ -1,3 +1,3 @@
 Referenced by issue #134630, Multi-type editors do not switch the first time
-Referenced by pull request #134642, Fix #134630: Simplify Area Subtype Processing
+Referenced by pull request #134642, Fix #134630: Do Not Set Area Subtype For Previously Stored Editors
 Referenced by commit fa4026f2bf95b7442a3ced8fd0ee3fe0409d8faf, Revert "Fix #130372: Implements memory of the previous state of eSpace_Types."
