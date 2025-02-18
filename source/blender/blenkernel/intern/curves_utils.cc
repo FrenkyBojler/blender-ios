@@ -104,10 +104,10 @@ static void foreach_selected_point_ranges_per_curve_(const IndexMask &mask,
   Vector<IndexRange> ranges;
   Span<int> offset_data = points_by_curve.data();
 
-  int curve_i = 0;
+  int curve_i = mask.is_empty() ? -1 : 0;
 
-  int range_first = mask.first();
-  int range_last = mask.first() - 1;
+  int range_first = mask.is_empty() ? 0 : mask.first();
+  int range_last = mask.is_empty() ? -1 : mask.first() - 1;
 
   mask.foreach_index([&](const int64_t index) {
     if (offset_data[curve_i + 1] <= index) {
