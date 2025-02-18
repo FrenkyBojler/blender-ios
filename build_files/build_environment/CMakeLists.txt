@@ -28,12 +28,14 @@ include(cmake/options.cmake)
 # `versions.cmake` needs to be included after `options.cmake`
 # due to the `BLENDER_PLATFORM_ARM` variable being needed.
 include(cmake/versions.cmake)
-include(cmake/download.cmake)
+if(PACKAGE_DOWNLOAD_SOURCES)
+  include(cmake/download.cmake)
+endif()
 include(cmake/macros.cmake)
 # `setup_msys2.cmake` to install `perl`,
 # which HIP needs to function for the compiler detection to work properly,
 # hence needs to be included before `check_compilers.cmake`.
-if(ENABLE_MSYS2)
+if(ENABLE_MSYS2 AND PACKAGE_DOWNLOAD_SOURCES)
   include(cmake/setup_msys2.cmake)
 else()
   set(mingw_LIBDIR ${LIBDIR})

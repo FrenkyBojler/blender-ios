@@ -64,7 +64,9 @@ add_custom_target(cve_check
     ${NVD_ARGS}
     -i ${CMAKE_CURRENT_BINARY_DIR}/cve_check.csv
     --affected-versions
+  COMMENT "Running cve-bin-tool to generate console report"
   SOURCES ${CMAKE_CURRENT_BINARY_DIR}/cve_check.csv
+  USES_TERMINAL
 )
 
 # This will write out blender_dependencies.html
@@ -73,5 +75,23 @@ add_custom_target(cve_check_html
     ${NVD_ARGS}
     -i ${CMAKE_CURRENT_BINARY_DIR}/cve_check.csv
     -f html
+  COMMENT "Running cve-bin-tool to generate html report"
   SOURCES ${CMAKE_CURRENT_BINARY_DIR}/cve_check.csv
+  USES_TERMINAL
 )
+
+# This can be used by a CI pipeline, it will generate both an html and json artifacts with stable filenames, that can
+# be picked up by the next stage in the pipeline
+add_custom_target(cve_check_ci
+  COMMAND ${CMAKE_COMMAND} -E rm -f ${CMAKE_CURRENT_BINARY_DIR}/cve_check.json
+  COMMAND ${CMAKE_COMMAND} -E rm -f ${CMAKE_CURRENT_BINARY_DIR}/cve_check.html
+  COMMAND cve-bin-tool
+    ${NVD_ARGS}
+    -i ${CMAKE_CURRENT_BINARY_DIR}/cve_check.csv
+    -f json,html
+    -o cve_check
+  COMMENT "Running cve-bin-tool in CI configuration"
+  SOURCES ${CMAKE_CURRENT_BINARY_DIR}/cve_check.csv
+  USES_TERMINAL
+)
+

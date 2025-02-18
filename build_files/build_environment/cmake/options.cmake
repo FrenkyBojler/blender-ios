@@ -8,6 +8,9 @@ if(WIN32)
 endif()
 option(FORCE_CHECK_HASH "Force a check of all hashses during CMake the configure phase" OFF)
 
+# This option is required to be on to build any of the dependencies. However to support generating the CVE report or the HTML version report the download phase is unnecessary and may be skipped
+option(PACKAGE_DOWNLOAD_SOURCES "Download all sources during configure phase" ON)
+
 cmake_host_system_information(RESULT NUM_CORES QUERY NUMBER_OF_LOGICAL_CORES)
 set(MAKE_THREADS ${NUM_CORES} CACHE STRING "Number of threads to run make with")
 
