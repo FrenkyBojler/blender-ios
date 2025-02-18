@@ -35,7 +35,7 @@
 #include "strip_time.hh"
 #include "utils.hh"
 
-float SEQ_time_media_playback_rate_factor_get(const Strip *strip, const float frames_per_second)
+float SEQ_time_media_playback_rate_factor_get(const Strip *strip, const float scene_fps)
 {
   if ((strip->flag & SEQ_AUTO_PLAYBACK_RATE) == 0) {
     return 1.0f;
@@ -43,7 +43,7 @@ float SEQ_time_media_playback_rate_factor_get(const Strip *strip, const float fr
   if (strip->media_playback_rate == 0.0f) {
     return 1.0f;
   }
-  return strip->media_playback_rate / frames_per_second;
+  return strip->media_playback_rate / scene_fps;
 }
 
 float SEQ_give_frame_index(const Scene *scene, const Strip *strip, float timeline_frame)
@@ -75,8 +75,8 @@ float SEQ_give_frame_index(const Scene *scene, const Strip *strip, float timelin
 
   frame_index = max_ff(frame_index, 0);
 
-  const float frames_per_second = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
-  frame_index *= SEQ_time_media_playback_rate_factor_get(strip, frames_per_second);
+  const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
+  frame_index *= SEQ_time_media_playback_rate_factor_get(strip, scene_fps);
 
   if (SEQ_retiming_is_active(strip)) {
     const float retiming_factor = strip_retiming_evaluate(strip, frame_index);
@@ -451,16 +451,16 @@ bool SEQ_time_has_still_frames(const Scene *scene, const Strip *strip)
 
 int SEQ_time_strip_length_get(const Scene *scene, const Strip *strip)
 {
-  const float frames_per_second = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
+  const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
   if (SEQ_retiming_is_active(strip)) {
     const int last_key_frame = SEQ_retiming_key_timeline_frame_get(
         scene, strip, SEQ_retiming_last_key_get(strip));
     /* Last key is mapped to last frame index. Numbering starts from 0. */
-    const int sound_offset = SEQ_time_get_rounded_sound_offset(strip, frames_per_second);
+    const int sound_offset = SEQ_time_get_rounded_sound_offset(strip, scene_fps);
     return last_key_frame + 1 - SEQ_time_start_frame_get(strip) - sound_offset;
   }
 
-  return strip->len / SEQ_time_media_playback_rate_factor_get(strip, frames_per_second);
+  return strip->len / SEQ_time_media_playback_rate_factor_get(strip, scene_fps);
 }
 
 float SEQ_time_start_frame_get(const Strip *strip)
