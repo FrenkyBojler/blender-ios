@@ -565,11 +565,13 @@ void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, con
 
 void Instance::draw_viewport()
 {
-  if (!is_state_valid()) {
+  if (!shaders_are_ready_) {
     DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
     GPU_framebuffer_clear_color_depth(dfbl->default_fb, float4(0.0f), 1.0f);
     info_append_i18n("Compiling EEVEE engine shaders");
     DRW_viewport_request_redraw();
+  }
+  if (!is_state_valid()) {
     return;
   }
 
