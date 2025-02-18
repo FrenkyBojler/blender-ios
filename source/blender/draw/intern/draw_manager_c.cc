@@ -353,8 +353,7 @@ void DRW_viewport_data_free(DRWData *drw_data)
     DRW_view_data_free(drw_data->view_data[i]);
   }
   DRW_volume_ubos_pool_free(drw_data->volume_grids_ubos);
-  DRW_curves_ubos_pool_free(drw_data->curves_ubos);
-  DRW_curves_refine_pass_free(drw_data->curves_refine);
+  DRW_curves_module_free(drw_data->curves_module);
   delete drw_data->default_view;
   MEM_freeN(drw_data);
 }
@@ -2860,7 +2859,6 @@ void DRW_engines_free()
 
   DRW_shaders_free();
   DRW_pointcloud_free();
-  DRW_curves_free();
   DRW_volume_free();
   DRW_globals_free();
 
@@ -2971,12 +2969,15 @@ void DRW_gpu_context_enable_ex(bool /*restore*/)
     GPU_render_begin();
     WM_system_gpu_context_activate(DST.system_gpu_context);
     GPU_context_active_set(DST.blender_gpu_context);
+    GPU_context_begin_frame(DST.blender_gpu_context);
   }
 }
 
 void DRW_gpu_context_disable_ex(bool restore)
 {
   if (DST.system_gpu_context != nullptr) {
+    GPU_context_end_frame(DST.blender_gpu_context);
+
     if (BLI_thread_is_main() && restore) {
       wm_window_reset_drawable();
     }
