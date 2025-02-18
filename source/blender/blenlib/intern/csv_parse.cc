@@ -134,8 +134,9 @@ std::optional<Vector<Any<>>> parse_csv_in_chunks(
     }
   });
 
-  /* If there was a malformed chunk, process the data again in a single thread. This should happen
-   * quite rarely but is important for overall correctness. */
+  /* If there was a malformed chunk, process the data again in a single thread without splitting
+   * the input into chunks. This should happen quite rarely but is important for overall
+   * correctness. */
   if (found_malformed_chunk) {
     chunk_results.clear();
     TLS &tls = all_tls.local();
