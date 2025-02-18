@@ -283,7 +283,7 @@ CachedImage::CachedImage(Context &context,
   const bool use_half_float = linear_image_buffer->flags & IB_halffloat;
   this->result.set_precision(use_half_float ? ResultPrecision::Half : ResultPrecision::Full);
 
-  this->result.set_type(get_result_type(render_result, *image_user, linear_image_buffer));
+  this->result.set_type(get_result_type(render_result, image_user_for_pass, linear_image_buffer));
 
   /* For GPU, we wrap the texture returned by IMB module and free it ourselves in destructor. For
    * CPU, we allocate the result and copy to it from the image buffer. */
