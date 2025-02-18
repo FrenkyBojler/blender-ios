@@ -40,6 +40,10 @@ ExternalProject_Add(external_hiprt
   CMAKE_GENERATOR ${PLATFORM_ALT_GENERATOR}
   PREFIX ${BUILD_DIR}/hiprt
 
+  PATCH_COMMAND ${PATCH_CMD} -p 1 -d
+    ${BUILD_DIR}/hiprt/src/external_hiprt <
+    ${PATCH_DIR}/hiprt.diff
+
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/hiprt
     ${HIPRT_EXTRA_ARGS}
@@ -75,4 +79,5 @@ else()
   )
   harvest(external_hiprt hiprt/include hiprt/include "*.h")
   harvest(external_hiprt hiprt/bin hiprt/lib "*${SHAREDLIBEXT}*")
+  harvest(external_hiprt hiprt/bin hiprt/lib "*.hipfb")
 endif()
