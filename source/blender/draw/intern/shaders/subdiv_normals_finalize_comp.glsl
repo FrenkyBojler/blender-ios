@@ -51,13 +51,13 @@ void main()
   for (int i = 0; i < 4; i++) {
     CustomNormal custom_normal = custom_normals[start_loop_index + i];
     vec3 nor = vec3(custom_normal.x, custom_normal.y, custom_normal.z);
-    set_vertex_nor(pos_nor[start_loop_index + i], normalize(nor));
+    subdiv_set_vertex_nor(pos_nor[start_loop_index + i], normalize(nor));
   }
 #else
   for (int i = 0; i < 4; i++) {
     uint subdiv_vert_index = vert_loop_map[start_loop_index + i];
     vec3 nor = vertex_normals[subdiv_vert_index];
-    set_vertex_nor(pos_nor[start_loop_index + i], nor);
+    subdiv_set_vertex_nor(pos_nor[start_loop_index + i], nor);
   }
 #endif
 }
