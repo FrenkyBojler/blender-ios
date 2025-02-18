@@ -7,210 +7,77 @@
  */
 
 #include <optional>
+#include <variant>
+
+#include "BKE_anonymous_attribute_id.hh"
+#include "fast_float.h"
 
 #include "BKE_attribute.hh"
 #include "BKE_pointcloud.hh"
 #include "BKE_report.hh"
 
+#include "BLI_csv_parse.hh"
 #include "BLI_fileops.hh"
-#include "BLI_generic_span.hh"
 #include "BLI_vector.hh"
 
 #include "IO_csv.hh"
-#include "IO_string_utils.hh"
 
 namespace blender::io::csv {
 
-static Vector<StringRef> parse_column_names(const StringRef line)
+using ColumnData = std::variant<std::monostate, Vector<float>, Vector<int>>;
+
+struct ChunkResult {
+  int rows_num;
+  Vector<ColumnData> columns;
+};
+
+struct ColumnTypeInfo {
+  std::atomic<bool> found_invalid = false;
+  std::atomic<bool> found_int = false;
+  std::atomic<bool> found_float = false;
+};
+
+struct ColumnsInfo {
+  Array<StringRef> names;
+  Array<ColumnTypeInfo> types;
+};
+
+struct ParseFloatColumnResult {
+  Vector<float> data;
+  bool found_invalid = false;
+};
+
+enum class FinalColumnType {
+  Int,
+  Float,
+  Invalid,
+};
+
+static ParseFloatColumnResult parse_column_as_floats(const csv_parse::CsvRecords &records,
+                                                     const int column_i)
 {
-  Vector<StringRef> columns;
-  const char delim = ',';
-  const char *start = line.begin(), *end = line.end();
-  const char *cell_start = start, *cell_end = start;
-
-  int64_t delim_index = line.find_first_of(delim);
-
-  while (delim_index != StringRef::not_found) {
-    cell_end = start + delim_index;
-
-    columns.append_as(cell_start, cell_end);
-
-    cell_start = cell_end + 1;
-    delim_index = line.find_first_of(delim, delim_index + 1);
-  }
-
-  /* Handle last cell, --end because the end in StringRef is one_after_ern */
-  columns.append_as(cell_start, --end);
-
-  return columns;
-}
-
-static std::optional<eCustomDataType> get_column_type(const char *start, const char *end)
-{
-  bool success = false;
-
-  int _val_int = 0;
-  try_parse_int(start, end, 0, success, _val_int);
-
-  if (success) {
-    return CD_PROP_INT32;
-  }
-
-  float _val_float = 0.0f;
-  try_parse_float(start, end, 0.0f, success, _val_float);
-
-  if (success) {
-    return CD_PROP_FLOAT;
-  }
-
-  return std::nullopt;
-}
-
-static bool get_column_types(const StringRef line, Vector<eCustomDataType> &column_types)
-{
-  const char delim = ',';
-  const char *start = line.begin(), *end = line.end();
-  const char *cell_start = start, *cell_end = start;
-
-  int64_t delim_index = line.find_first_of(delim);
-
-  while (delim_index != StringRef::not_found) {
-    cell_end = start + delim_index;
-
-    std::optional<eCustomDataType> column_type = get_column_type(cell_start, cell_end);
-    if (!column_type.has_value()) {
-      return false;
+  ParseFloatColumnResult result;
+  result.data.reserve(records.size());
+  for (const int row_i : records.index_range()) {
+    const Span<char> value_span = records.record(row_i).field(column_i);
+    const char *value_begin = value_span.begin();
+    const char *value_end = value_span.end();
+    while (value_begin < value_end && ELEM(*value_begin, ' ', '+')) {
+      value_begin++;
     }
-    column_types.append(column_type.value());
-
-    cell_start = cell_end + 1;
-    delim_index = line.find_first_of(delim, delim_index + 1);
-  }
-
-  /* Handle last cell, --end because the end in StringRef is one_after_ern */
-  std::optional<eCustomDataType> column_type = get_column_type(cell_start, --end);
-  if (!column_type.has_value()) {
-    return false;
-  }
-  column_types.append(column_type.value());
-
-  return true;
-}
-
-static int64_t get_row_count(StringRef buffer)
-{
-  int64_t row_count = 1;
-
-  while (!buffer.is_empty()) {
-    read_next_line(buffer);
-    row_count++;
-  }
-
-  return row_count;
-}
-
-static void parse_csv_cell(const Span<GMutableSpan> data,
-                           const Span<eCustomDataType> types,
-                           const Span<StringRef> column_names,
-                           const int64_t row_index,
-                           const int64_t col_index,
-                           const char *start,
-                           const char *end,
-                           const CSVImportParams &import_params)
-{
-  bool success = false;
-
-  switch (types[col_index]) {
-    case CD_PROP_INT32: {
-      int value = 0;
-      try_parse_int(start, end, 0, success, value);
-      data[col_index].typed<int>()[row_index] = value;
-      if (!success) {
-        StringRef column_name = column_names[col_index];
-        BKE_reportf(import_params.reports,
-                    RPT_ERROR,
-                    "CSV Import: file '%s' has an unexpected value at row %d for column %s of "
-                    "type Integer",
-                    import_params.filepath,
-                    int(row_index),
-                    std::string(column_name).c_str());
-      }
-      break;
+    float value;
+    fast_float::from_chars_result res = fast_float::from_chars(value_begin, value_end, value);
+    if (res.ec != std::errc()) {
+      result.found_invalid = true;
+      return result;
     }
-    case CD_PROP_FLOAT: {
-      float value = 0.0f;
-      try_parse_float(start, end, 0.0f, success, value);
-      data[col_index].typed<float>()[row_index] = value;
-      if (!success) {
-        StringRef column_name = column_names[col_index];
-        BKE_reportf(import_params.reports,
-                    RPT_ERROR,
-                    "CSV Import: file '%s' has an unexpected value at row %d for column %s of "
-                    "type Float",
-                    import_params.filepath,
-                    int(row_index),
-                    std::string(column_name).c_str());
-      }
-      break;
+    if (res.ptr < value_end) {
+      result.found_invalid = true;
+      return result;
     }
-    default: {
-      StringRef column_name = column_names[col_index];
-      BKE_reportf(import_params.reports,
-                  RPT_ERROR,
-                  "CSV Import: file '%s' has an unsupported value at row %d for column %s",
-                  import_params.filepath,
-                  int(row_index),
-                  std::string(column_name).c_str());
-      break;
-    }
+    result.data.append(value);
   }
-}
-
-static void parse_csv_line(const Span<GMutableSpan> data,
-                           const Span<eCustomDataType> types,
-                           const Span<StringRef> column_names,
-                           int64_t row_index,
-                           const StringRef line,
-                           const CSVImportParams &import_params)
-{
-  const char delim = ',';
-  const char *start = line.begin(), *end = line.end();
-  const char *cell_start = start, *cell_end = start;
-
-  int64_t col_index = 0;
-
-  int64_t delim_index = line.find_first_of(delim);
-
-  while (delim_index != StringRef::not_found) {
-    cell_end = start + delim_index;
-
-    parse_csv_cell(
-        data, types, column_names, row_index, col_index, cell_start, cell_end, import_params);
-    col_index++;
-
-    cell_start = cell_end + 1;
-    delim_index = line.find_first_of(delim, delim_index + 1);
-  }
-
-  /* Handle last cell, --end because the end in StringRef is one_after_ern */
-  parse_csv_cell(
-      data, types, column_names, row_index, col_index, cell_start, --end, import_params);
-}
-
-static void parse_csv_data(const Span<GMutableSpan> data,
-                           const Span<eCustomDataType> types,
-                           const Span<StringRef> column_names,
-                           StringRef buffer,
-                           const CSVImportParams &import_params)
-{
-  int64_t row_index = 0;
-  while (!buffer.is_empty()) {
-    const StringRef line = read_next_line(buffer);
-
-    parse_csv_line(data, types, column_names, row_index, line, import_params);
-
-    row_index++;
-  }
+  return result;
 }
 
 PointCloud *import_csv_as_point_cloud(const CSVImportParams &import_params)
@@ -227,59 +94,139 @@ PointCloud *import_csv_as_point_cloud(const CSVImportParams &import_params)
 
   BLI_SCOPED_DEFER([&]() { MEM_freeN(buffer); });
 
-  StringRef buffer_str{static_cast<char *>(buffer), int64_t(buffer_len)};
-  if (buffer_str.is_empty()) {
+  if (buffer_len == 0) {
     BKE_reportf(
         import_params.reports, RPT_ERROR, "CSV Import: empty file '%s'", import_params.filepath);
     return nullptr;
   }
 
-  const StringRef header = read_next_line(buffer_str);
-  const Vector<StringRef> names = parse_column_names(header);
+  ColumnsInfo columns_info;
 
-  if (buffer_str.is_empty()) {
+  const auto parse_header = [&](const csv_parse::CsvRecord &record) {
+    columns_info.names.reinitialize(record.size());
+    columns_info.types.reinitialize(record.size());
+    for (const int i : record.index_range()) {
+      columns_info.names[i] = record.field_str(i);
+    }
+  };
+  const auto parse_data_chunk = [&](const csv_parse::CsvRecords &records) {
+    const int columns_num = columns_info.names.size();
+    ChunkResult chunk_result;
+    chunk_result.rows_num = records.size();
+    chunk_result.columns.resize(columns_num);
+    for (const int column_i : IndexRange(columns_num)) {
+      ColumnTypeInfo &type_info = columns_info.types[column_i];
+      if (type_info.found_invalid.load(std::memory_order_relaxed)) {
+        continue;
+      }
+      ParseFloatColumnResult column_result = parse_column_as_floats(records, column_i);
+      if (column_result.found_invalid) {
+        type_info.found_invalid.store(true, std::memory_order_relaxed);
+        continue;
+      }
+      chunk_result.columns[column_i] = std::move(column_result.data);
+      if (!type_info.found_float.load(std::memory_order_relaxed)) {
+        type_info.found_float.store(true, std::memory_order_relaxed);
+      }
+    }
+    return chunk_result;
+  };
+
+  const Span<char> buffer_span{static_cast<char *>(buffer), int64_t(buffer_len)};
+  csv_parse::CsvParseOptions parse_options;
+  const std::optional<Vector<ChunkResult>> parsed_chunks =
+      csv_parse::parse_csv_in_chunks<ChunkResult>(
+          buffer_span, parse_options, parse_header, parse_data_chunk);
+  for (StringRef name : columns_info.names) {
+    printf("name: %s\n", std::string(name).c_str());
+  }
+  if (!parsed_chunks.has_value()) {
     BKE_reportf(import_params.reports,
                 RPT_ERROR,
-                "CSV Import: no rows in file '%s'",
+                "CSV import: failed to parse file '%s'",
                 import_params.filepath);
     return nullptr;
   }
 
-  /* Shallow copy buffer to preserve pointers from first row for parsing */
-  const StringRef data_buffer(buffer_str.begin(), buffer_str.end());
-
-  const StringRef first_row = read_next_line(buffer_str);
-
-  Vector<eCustomDataType> column_types;
-  if (!get_column_types(first_row, column_types)) {
-    std::string column_name = names[column_types.size()];
-    BKE_reportf(import_params.reports,
-                RPT_ERROR,
-                "CSV Import: file '%s', Column %s is of unsupported data type",
-                import_params.filepath,
-                column_name.c_str());
-    return nullptr;
+  Vector<int> flatten_offsets_vec;
+  flatten_offsets_vec.append(0);
+  for (const ChunkResult &chunk : *parsed_chunks) {
+    flatten_offsets_vec.append(flatten_offsets_vec.last() + chunk.rows_num);
   }
+  const OffsetIndices<int> chunk_offsets(flatten_offsets_vec);
+  const int points_num = flatten_offsets_vec.last();
 
-  const int64_t rows_num = get_row_count(buffer_str);
+  struct FlattenedAttribute {
+    eCustomDataType type;
+    void *data;
+  };
+  Array<std::optional<FlattenedAttribute>> flattened_attributes(columns_info.names.size());
+  threading::parallel_for(
+      columns_info.names.index_range(), 1, [&](const IndexRange columns_range) {
+        for (const int column_i : columns_range) {
+          const ColumnTypeInfo &type_info = columns_info.types[column_i];
+          if (type_info.found_invalid) {
+            /* Can't read data from this column. */
+            continue;
+          }
+          if (type_info.found_float) {
+            /* Should read column as floats. */
+            float *attribute_buffer = static_cast<float *>(MEM_mallocN_aligned(
+                sizeof(float) * points_num, alignof(float), "csv float attribute"));
+            flattened_attributes[column_i] = FlattenedAttribute{CD_PROP_FLOAT, attribute_buffer};
+            threading::parallel_for(
+                parsed_chunks->index_range(), 1, [&](const IndexRange chunks_range) {
+                  for (const int chunk_i : chunks_range) {
+                    const IndexRange dst_range = chunk_offsets[chunk_i];
+                    const ChunkResult &chunk = (*parsed_chunks)[chunk_i];
+                    const ColumnData &column_data = chunk.columns[column_i];
+                    if (const auto *float_vec = std::get_if<Vector<float>>(&column_data)) {
+                      BLI_assert(float_vec->size() == dst_range.size());
+                      uninitialized_copy_n(float_vec->data(),
+                                           dst_range.size(),
+                                           attribute_buffer + dst_range.first());
+                    }
+                    else if (const auto *int_vec = std::get_if<Vector<int>>(&column_data)) {
+                      BLI_assert(int_vec->size() == dst_range.size());
+                      uninitialized_convert_n(int_vec->data(), dst_range.size(), attribute_buffer);
+                    }
+                    else {
+                      /* Expected data to be available, because the `found_invalid` flag was not
+                       * set. */
+                      BLI_assert_unreachable();
+                    }
+                  }
+                });
+            continue;
+          }
+          if (type_info.found_int) {
+            /* Should read column as ints. */
+            continue;
+          }
+        }
+      });
 
-  PointCloud *pointcloud = BKE_pointcloud_new_nomain(rows_num);
+  PointCloud *pointcloud = BKE_pointcloud_new_nomain(points_num);
   pointcloud->positions_for_write().fill(float3(0));
 
-  Array<bke::GSpanAttributeWriter> attribute_writers(names.size());
-  Array<GMutableSpan> attribute_data(names.size());
-
   bke::MutableAttributeAccessor attributes = pointcloud->attributes_for_write();
-  for (const int i : names.index_range()) {
-    attribute_writers[i] = attributes.lookup_or_add_for_write_span(
-        names[i], bke::AttrDomain::Point, column_types[i]);
-    attribute_data[i] = attribute_writers[i].span;
-  }
 
-  parse_csv_data(attribute_data, column_types, names, data_buffer, import_params);
-
-  for (bke::GSpanAttributeWriter &attr : attribute_writers) {
-    attr.finish();
+  for (const int column_i : columns_info.names.index_range()) {
+    const std::optional<FlattenedAttribute> &attribute = flattened_attributes[column_i];
+    if (!attribute.has_value()) {
+      continue;
+    }
+    const StringRef name = columns_info.names[column_i];
+    if (!bke::allow_procedural_attribute_access(name)) {
+      continue;
+    }
+    if (bke::attribute_name_is_anonymous(name)) {
+      continue;
+    }
+    attributes.add(name,
+                   bke::AttrDomain::Point,
+                   attribute->type,
+                   bke::AttributeInitMoveArray{attribute->data});
   }
 
   return pointcloud;

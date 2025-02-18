@@ -5,6 +5,7 @@
 #include "BLI_any.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_offset_indices.hh"
+#include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
 namespace blender::csv_parse {
@@ -33,6 +34,12 @@ class CsvRecord {
       return {};
     }
     return fields_[index];
+  }
+
+  StringRef field_str(const int64_t index) const
+  {
+    const Span<char> value = this->field(index);
+    return StringRef(value.data(), value.size());
   }
 };
 
@@ -79,14 +86,14 @@ struct CsvParseOptions {
 std::optional<Vector<Any<>>> parse_csv_in_chunks(
     const Span<char> buffer,
     const CsvParseOptions &options,
-    FunctionRef<void(Span<Span<char>>)> process_header,
+    FunctionRef<void(const CsvRecord &record)> process_header,
     FunctionRef<Any<>(const CsvRecords &records)> process_records);
 
 template<typename ChunkT>
 inline std::optional<Vector<ChunkT>> parse_csv_in_chunks(
     const Span<char> buffer,
     const CsvParseOptions &options,
-    FunctionRef<void(Span<Span<char>>)> process_header,
+    FunctionRef<void(const CsvRecord &record)> process_header,
     FunctionRef<ChunkT(const CsvRecords &records)> process_records)
 {
   std::optional<Vector<Any<>>> result = parse_csv_in_chunks(

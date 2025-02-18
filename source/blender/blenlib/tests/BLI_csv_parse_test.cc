@@ -61,9 +61,9 @@ static StrParseResult parse_csv_fields(const StringRef str, const CsvParseOption
   const std::optional<Vector<Chunk>> chunks = parse_csv_in_chunks<Chunk>(
       Span<char>(str),
       options,
-      [&](const Span<Span<char>> headers) {
-        for (const Span<char> header : headers) {
-          result.column_names.append(std::string(header.begin(), header.end()));
+      [&](const CsvRecord &record) {
+        for (const int64_t i : record.index_range()) {
+          result.column_names.append(record.field_str(i));
         }
       },
       [&](const CsvRecords &records) {
@@ -72,8 +72,7 @@ static StrParseResult parse_csv_fields(const StringRef str, const CsvParseOption
           const CsvRecord record = records.record(record_i);
           Vector<std::string> fields;
           for (const int64_t column_i : record.index_range()) {
-            const Span<char> value = record.field(column_i);
-            fields.append(std::string(value.begin(), value.end()));
+            fields.append(record.field_str(column_i));
           }
           result.fields.append(std::move(fields));
         }

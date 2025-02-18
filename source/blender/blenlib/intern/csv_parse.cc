@@ -62,7 +62,7 @@ static std::optional<CsvRecords> parse_records(const Span<char> buffer,
 std::optional<Vector<Any<>>> parse_csv_in_chunks(
     const Span<char> buffer,
     const CsvParseOptions &options,
-    FunctionRef<void(Span<Span<char>>)> process_header,
+    FunctionRef<void(const CsvRecord &record)> process_header,
     FunctionRef<Any<>(const CsvRecords &records)> process_records)
 {
   using namespace detail;
@@ -76,7 +76,7 @@ std::optional<Vector<Any<>>> parse_csv_in_chunks(
   }
   /* Call this before starting to process the remaining data. This allows the caller to do some
    * preprocessing that is used during chunk parsing. */
-  process_header(header_fields);
+  process_header(CsvRecord(header_fields));
 
   /* This buffer contains only the data records, without the header. */
   const Span<char> data_buffer = buffer.drop_front(*first_data_record_start);
