@@ -25,19 +25,19 @@
 
 namespace blender::io::csv {
 
-using ColumnData = std::variant<std::monostate, Vector<float>, Vector<int>>;
-
-struct ChunkResult {
-  int rows_num;
-  Vector<ColumnData> columns;
-};
-
 struct ColumnInfo {
   StringRef name;
   bool has_invalid_name = false;
   std::atomic<bool> found_invalid = false;
   std::atomic<bool> found_int = false;
   std::atomic<bool> found_float = false;
+};
+
+using ColumnData = std::variant<std::monostate, Vector<float>, Vector<int>>;
+
+struct ChunkResult {
+  int rows_num;
+  Vector<ColumnData> columns;
 };
 
 struct ParseFloatColumnResult {
@@ -180,6 +180,10 @@ static ChunkResult parse_records_chunk(const csv_parse::CsvRecords &records,
   return chunk_result;
 }
 
+/**
+ * So far, the parsed data is still split into many chunks. This function flattens the chunks into
+ * continuous buffers that can be used as attributes.
+ */
 static Array<std::optional<FlattenedAttribute>> flatten_valid_attribute_chunks(
     const Span<ColumnInfo> columns_info,
     OffsetIndices<int> chunk_offsets,
@@ -309,6 +313,8 @@ PointCloud *import_csv_as_point_cloud(const CSVImportParams &import_params)
     return nullptr;
   }
 
+  /* Count the total number of records and compute the offset of each chunk which is used when
+   * flattening the parsed data. */
   Vector<int> chunk_offsets_vec;
   chunk_offsets_vec.append(0);
   for (const ChunkResult &chunk : *parsed_chunks) {

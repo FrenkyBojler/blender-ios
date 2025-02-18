@@ -25,7 +25,13 @@ static int64_t guess_next_record_start(const Span<char> buffer, const int64_t st
   return buffer.size();
 }
 
-static Vector<Span<char>> split_to_chunks(const Span<char> buffer, int64_t approximate_chunk_size)
+/**
+ * Split the buffer into chunks of approximately the given size. The function attempts to align the
+ * chunks so that records are not split. This works in the majority of cases, but can fail with
+ * multi-line fields. This has to be detected at a higher level.
+ */
+static Vector<Span<char>> split_into_aligned_chunks(const Span<char> buffer,
+                                                    int64_t approximate_chunk_size)
 {
   approximate_chunk_size = std::max<int64_t>(approximate_chunk_size, 1);
   Vector<Span<char>> chunks;
@@ -39,12 +45,18 @@ static Vector<Span<char>> split_to_chunks(const Span<char> buffer, int64_t appro
   return chunks;
 }
 
+/**
+ * Parses the given buffer into records and their fields.
+ *
+ * r_data_offsets and r_data_fields are passed into to be able to reuse their memory.
+ */
 static std::optional<CsvRecords> parse_records(const Span<char> buffer,
                                                const CsvParseOptions &options,
                                                Vector<int64_t> &r_data_offsets,
                                                Vector<Span<char>> &r_data_fields)
 {
   using namespace detail;
+  /* Clear the data that may still be in there, but do not free the memory. */
   r_data_offsets.clear();
   r_data_fields.clear();
 
@@ -89,8 +101,8 @@ std::optional<Vector<Any<>>> parse_csv_in_chunks(
   /* This buffer contains only the data records, without the header. */
   const Span<char> data_buffer = buffer.drop_front(*first_data_record_start);
   /* Split the buffer into chunks that can be processed in parallel. */
-  const Vector<Span<char>> data_buffer_chunks = split_to_chunks(data_buffer,
-                                                                options.chunk_size_bytes);
+  const Vector<Span<char>> data_buffer_chunks = split_into_aligned_chunks(
+      data_buffer, options.chunk_size_bytes);
 
   /* It's not common, but it can happen that .csv files contain quoted multi-line values. In the
    * unlucky case that we split the buffer in the middle of such a multi-line field, there will be
@@ -135,6 +147,7 @@ std::optional<Vector<Any<>>> parse_csv_in_chunks(
     chunk_results.append(process_records(*records));
   }
 
+  /* Prepare the return value. */
   Vector<Any<>> results;
   for (std::optional<Any<>> &result : chunk_results) {
     BLI_assert(result.has_value());
