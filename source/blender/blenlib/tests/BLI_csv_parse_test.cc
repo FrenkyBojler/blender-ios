@@ -16,11 +16,11 @@ static std::optional<int64_t> find_end_of_simple_field(const StringRef buffer,
   return detail::find_end_of_simple_field(Span<char>(buffer), start, delimiter);
 }
 
-static std::optional<int64_t> find_end_of_quoted_field(const StringRef buffer,
-                                                       const int64_t start,
-                                                       const char quote = '"',
-                                                       const Span<char> escape_chars = Span<char>{
-                                                           '"', '\\'})
+static std::optional<int64_t> find_end_of_quoted_field(
+    const StringRef buffer,
+    const int64_t start,
+    const char quote = '"',
+    const Span<char> escape_chars = Span<char>(StringRef("\"\\")))
 {
   return detail::find_end_of_quoted_field(Span<char>(buffer), start, quote, escape_chars);
 }

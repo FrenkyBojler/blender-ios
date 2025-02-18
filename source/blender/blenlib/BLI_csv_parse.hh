@@ -61,7 +61,7 @@ struct CsvParseOptions {
    * Characters that can be used to escape the quote character. By default, "" or \" both represent
    * an escaped quote.
    */
-  Span<char> quote_escape_chars = Span<char>{'"', '\\'};
+  Span<char> quote_escape_chars = Span<char>(StringRef("\"\\"));
   /** Approximate number of bytes per chunk that the input is split into. */
   int64_t chunk_size_bytes = 64 * 1024;
 };
@@ -194,7 +194,7 @@ namespace detail {
  * \param delimiter: The character that ends the field.
  * \return Index of the next delimiter, a newline character or the end of the buffer.
  */
-int64_t find_end_of_simple_field(Span<char> buffer, int64_t start, char delimiter = ',');
+int64_t find_end_of_simple_field(Span<char> buffer, int64_t start, char delimiter);
 
 /**
  * Find the index of the quote that ends the current field.
@@ -207,8 +207,8 @@ int64_t find_end_of_simple_field(Span<char> buffer, int64_t start, char delimite
  */
 std::optional<int64_t> find_end_of_quoted_field(Span<char> buffer,
                                                 int64_t start,
-                                                char quote = '"',
-                                                Span<char> escape_chars = Span<char>{'"', '\\'});
+                                                char quote,
+                                                Span<char> escape_chars);
 
 /**
  * Finds all fields for the record starting at the given index. Typically, the record ends with a
