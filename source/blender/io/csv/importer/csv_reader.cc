@@ -72,8 +72,14 @@ static ParseFloatColumnResult parse_column_as_floats(const csv_parse::CsvRecords
       return result;
     }
     if (res.ptr < value_end) {
-      result.found_invalid = true;
-      return result;
+      /* Allow trailing whitespace in the value. */
+      while (res.ptr < value_end && res.ptr[0] == ' ') {
+        res.ptr++;
+      }
+      if (res.ptr < value_end) {
+        result.found_invalid = true;
+        return result;
+      }
     }
     result.data.append(value);
   }
