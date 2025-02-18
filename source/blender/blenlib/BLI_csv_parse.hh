@@ -35,16 +35,15 @@ class CsvRecord {
  */
 class CsvRecords {
  private:
-  Span<int64_t> offsets_;
+  OffsetIndices<int64_t> offsets_;
   Span<Span<char>> fields_;
 
  public:
-  CsvRecords(Span<int64_t> offsets, Span<Span<char>> fields);
+  CsvRecords(OffsetIndices<int64_t> offsets, Span<Span<char>> fields);
 
   /** Number of records (rows). */
   int64_t size() const;
   IndexRange index_range() const;
-  OffsetIndices<int64_t> offsets() const;
 
   /** Get the record at the given index. */
   CsvRecord record(const int64_t index) const;
@@ -156,30 +155,24 @@ inline StringRef CsvRecord::field_str(const int64_t index) const
 /** \name #CsvRecords inline functions.
  * \{ */
 
-inline CsvRecords::CsvRecords(Span<int64_t> offsets, Span<Span<char>> fields)
+inline CsvRecords::CsvRecords(const OffsetIndices<int64_t> offsets, const Span<Span<char>> fields)
     : offsets_(offsets), fields_(fields)
 {
 }
 
-inline OffsetIndices<int64_t> CsvRecords::offsets() const
-{
-  return OffsetIndices<int64_t>(offsets_, offset_indices::NoSortCheck{});
-}
-
 inline int64_t CsvRecords::size() const
 {
-  return this->offsets().size();
+  return offsets_.size();
 }
 
 inline IndexRange CsvRecords::index_range() const
 {
-  return this->offsets().index_range();
+  return offsets_.index_range();
 }
 
 inline CsvRecord CsvRecords::record(const int64_t index) const
 {
-  OffsetIndices offsets = this->offsets();
-  return CsvRecord(fields_.slice(offsets[index]));
+  return CsvRecord(fields_.slice(offsets_[index]));
 }
 
 /** \} */

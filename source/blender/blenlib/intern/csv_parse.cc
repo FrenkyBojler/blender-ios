@@ -76,7 +76,7 @@ static std::optional<CsvRecords> parse_records(const Span<char> buffer,
     r_data_offsets.append(r_data_fields.size());
     start = *next_record_start;
   }
-  return CsvRecords(std::move(r_data_offsets), std::move(r_data_fields));
+  return CsvRecords(OffsetIndices<int64_t>(r_data_offsets), r_data_fields);
 }
 
 std::optional<Vector<Any<>>> parse_csv_in_chunks(
