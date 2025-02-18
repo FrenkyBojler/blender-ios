@@ -2602,7 +2602,7 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
   SpaceType *st = BKE_spacetype_from_id(type);
 
   /* Are we reusing a space already stored in this area? */
-  bool stored_space = false;
+  bool is_restored_space = false;
 
   if (area->spacetype != type) {
     SpaceLink *slold = static_cast<SpaceLink *>(area->spacedata.first);
@@ -2667,7 +2667,7 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
 
     if (sl) {
       /* swap regions */
-      stored_space = true;
+      is_restored_space = true;
       slold->regionbase = area->regionbase;
       area->regionbase = sl->regionbase;
       BLI_listbase_clear(&sl->regionbase);
@@ -2713,8 +2713,8 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
     ED_area_tag_refresh(area);
   }
 
-  /* Set area space subtype if applicable. */
-  if (!stored_space && st && st->space_subtype_item_extend != nullptr) {
+  /* Set area space subtype if applicable and newly created. */
+  if (!is_restored_space && st && st->space_subtype_item_extend != nullptr) {
     st->space_subtype_set(area, area->butspacetype_subtype);
   }
 
