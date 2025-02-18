@@ -11,6 +11,7 @@
 #include <functional>
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_indirect_iterator.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
@@ -681,6 +682,11 @@ struct uiBlock {
   int but_index(const uiBut *but) const;
   [[nodiscard]] uiBut *next_but(const uiBut *but) const;
   [[nodiscard]] uiBut *prev_but(const uiBut *but) const;
+
+  blender::IndirectIterator<std::unique_ptr<uiBut>> buttons_ref()
+  {
+    return this->buttons.as_span();
+  }
 };
 
 struct uiSafetyRct {

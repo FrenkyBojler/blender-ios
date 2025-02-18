@@ -7,9 +7,9 @@
 /** \file
  * \ingroup bli
  *
- * An `blender::IndirectIterator<T>` references a range T contigous elements owned by someone else, and
- * provides a dereferenced access of this elements, this dereferenced type can be used in for loop
- * as variable type.
+ * An `blender::IndirectIterator<T>` references a range T contiguous elements owned by someone
+ * else, and provides a dereferenced access of this elements, this dereferenced type can be used in
+ * for loop as variable type.
  *
  * For an array of std::unique_ptr<int>, this mostly like `Blender::Span<SmartPtrType>` however
  * this avoids to use unique pointer semantics where cannot be used or are not required. As
@@ -42,30 +42,32 @@ template<typename T> struct DereferencedType {
 };
 
 template<typename T> struct DereferencedType<T *> {
-  using Type = T;
+  using Type = T &;
 };
 
 template<typename T> struct DereferencedType<std::unique_ptr<T>> {
-  using Type = T;
+  using Type = T &;
 };
 
 template<typename T> struct DereferencedType<std::shared_ptr<T>> {
-  using Type = T;
+  using Type = T &;
 };
 
 /**
- * References a range of `T` contigous elements and provides a dereferenced access to each element.
+ * References a range of `T` contiguous elements and provides a dereferenced access to each
+ * element.
  */
 
 template<
     /** Source type of iterable values. */
     typename T,
     /** Value type of the dereferencing `T`. */
-    typename Reference = typename DereferencedType<T>::Type &>
+    typename Reference = typename DereferencedType<T>::Type>
 class IndirectIterator {
+  static_assert(std::is_reference_v<Reference>);
 
  public:
-   using Pointer = typename std::remove_reference_t<Reference> *;
+  using Pointer = typename std::remove_reference_t<Reference> *;
 
   class Iterator {
    private:
@@ -125,6 +127,19 @@ class IndirectIterator {
   }
 
   constexpr IndirectIterator(Span<T> span) : IndirectIterator(span.begin(), span.size()) {}
+
+  template<typename U, typename OtherRef> friend class IndirectIterator;
+  /**
+   * Support implicit conversions like:
+   * IndirectIterator<std::unique_ptr<T>> -> IndirectIterator<std::unique_ptr<T>, const T&>
+   */
+  template<typename OtherRef,
+           BLI_ENABLE_IF((is_span_convertible_pointer_v<std::remove_reference_t<OtherRef> *,
+                                                        std::remove_reference_t<Reference> *>))>
+  constexpr IndirectIterator(IndirectIterator<T, OtherRef> other)
+      : begin_{other.begin_}, end_{other.end_}
+  {
+  }
 
   constexpr Iterator begin() const
   {

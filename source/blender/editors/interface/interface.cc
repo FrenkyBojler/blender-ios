@@ -876,9 +876,9 @@ static std::optional<int64_t> ui_but_find_old_idx(
 
 uiBut *ui_but_find_new(uiBlock *block_new, const uiBut *but_old)
 {
-  for (const std::unique_ptr<uiBut> &but : block_new->buttons) {
-    if (ui_but_equals_old(but.get(), but_old)) {
-      return but.get();
+  for (uiBut &but : block_new->buttons_ref()) {
+    if (ui_but_equals_old(&but, but_old)) {
+      return &but;
     }
   }
   return nullptr;
@@ -1184,11 +1184,11 @@ bool UI_block_active_only_flagged_buttons(const bContext *C, ARegion *region, ui
   BLI_assert(block->endblock);
 
   bool done = false;
-  for (const std::unique_ptr<uiBut> &but : block->buttons) {
-    if (but->flag & UI_BUT_ACTIVATE_ON_INIT) {
-      but->flag &= ~UI_BUT_ACTIVATE_ON_INIT;
-      if (ui_but_is_editable(but.get())) {
-        if (UI_but_active_only_ex(C, region, block, but.get(), false)) {
+  for (uiBut &but : block->buttons_ref()) {
+    if (but.flag & UI_BUT_ACTIVATE_ON_INIT) {
+      but.flag &= ~UI_BUT_ACTIVATE_ON_INIT;
+      if (ui_but_is_editable(&but)) {
+        if (UI_but_active_only_ex(C, region, block, &but, false)) {
           done = true;
           break;
         }
@@ -1199,8 +1199,8 @@ bool UI_block_active_only_flagged_buttons(const bContext *C, ARegion *region, ui
   if (done) {
     /* Run this in a second pass since it's possible activating the button
      * removes the buttons being looped over. */
-    for (const std::unique_ptr<uiBut> &but : block->buttons) {
-      but->flag &= ~UI_BUT_ACTIVATE_ON_INIT;
+    for (uiBut &but : block->buttons_ref()) {
+      but.flag &= ~UI_BUT_ACTIVATE_ON_INIT;
     }
   }
 
@@ -1248,8 +1248,8 @@ static void ui_menu_block_set_keyaccels(uiBlock *block)
     /* 2 Passes: One for first letter only, second for any letter if the first pass fails.
      * Run first pass on all buttons so first word chars always get first priority. */
 
-    for (const std::unique_ptr<uiBut> &but : block->buttons) {
-      if (!ELEM(but->type,
+    for (uiBut &but : block->buttons_ref()) {
+      if (!ELEM(but.type,
                 UI_BTYPE_BUT,
                 UI_BTYPE_BUT_MENU,
                 UI_BTYPE_MENU,
@@ -1260,27 +1260,27 @@ static void ui_menu_block_set_keyaccels(uiBlock *block)
 
                 /* For PIE-menus. */
                 UI_BTYPE_ROW) ||
-          (but->flag & UI_HIDDEN))
+          (but.flag & UI_HIDDEN))
       {
         continue;
       }
 
-      if (pass == 0 && ELEM(but->type, UI_BTYPE_ICON_TOGGLE, UI_BTYPE_ICON_TOGGLE_N)) {
+      if (pass == 0 && ELEM(but.type, UI_BTYPE_ICON_TOGGLE, UI_BTYPE_ICON_TOGGLE_N)) {
         /* Until 4.4, toggles did not get accelerator keys. Ignore them on the first pass to keep
          * the most-used accelerator keys (those on the first letter) the same. In general it seems
          * more desired to give operators priority over toggles. #134492 */
         continue;
       }
 
-      if (but->menu_key != '\0') {
+      if (but.menu_key != '\0') {
         continue;
       }
 
-      if (but->str.empty()) {
+      if (but.str.empty()) {
         continue;
       }
 
-      const char *str_pt = but->str.c_str();
+      const char *str_pt = but.str.c_str();
       uchar menu_key;
       do {
         menu_key = tolower(*str_pt);
@@ -1306,7 +1306,7 @@ static void ui_menu_block_set_keyaccels(uiBlock *block)
       } while (*str_pt);
 
       if (*str_pt) {
-        but->menu_key = menu_key;
+        but.menu_key = menu_key;
       }
       else {
         /* run second pass */
