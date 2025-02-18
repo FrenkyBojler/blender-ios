@@ -208,9 +208,11 @@ class SequencerFadesAdd(Operator):
 
         # We must create a scene action first if there's none
         scene = context.scene
-        scene_adt = scene.animation_data_create()
-        if not scene_adt.action:
-            scene_adt.action = bpy.data.actions.new(scene.name + "Action")
+        if not scene.animation_data:
+            scene.animation_data_create()
+        if not scene.animation_data.action:
+            action = bpy.data.actions.new(scene.name + "Action")
+            scene.animation_data.action = action
 
         sequences = context.selected_strips
 
