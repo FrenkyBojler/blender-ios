@@ -40,16 +40,6 @@ ccl_device_inline Transform object_fetch_transform(KernelGlobals kg,
   return kernel_data_fetch(objects, object).tfm;
 }
 
-/* Lamp to world space transformation */
-
-ccl_device_inline Transform lamp_fetch_transform(KernelGlobals kg, const int lamp, bool inverse)
-{
-  if (inverse) {
-    return kernel_data_fetch(lights, lamp).itfm;
-  }
-  return kernel_data_fetch(lights, lamp).tfm;
-}
-
 /* Object to world space transformation for motion vectors */
 
 ccl_device_inline Transform object_fetch_motion_pass_transform(KernelGlobals kg,
@@ -173,7 +163,7 @@ ccl_device_inline void object_inverse_normal_transform(KernelGlobals kg,
 {
 #ifdef __OBJECT_MOTION__
   if (sd->object_flag & SD_OBJECT_MOTION) {
-    if ((sd->object != OBJECT_NONE) || (sd->type == PRIMITIVE_LAMP)) {
+    if (sd->object != OBJECT_NONE) {
       *N = safe_normalize(transform_direction_transposed_auto(&sd->ob_tfm_motion, *N));
     }
     return;
@@ -182,10 +172,6 @@ ccl_device_inline void object_inverse_normal_transform(KernelGlobals kg,
 
   if (sd->object != OBJECT_NONE) {
     const Transform tfm = object_fetch_transform(kg, sd->object, OBJECT_TRANSFORM);
-    *N = safe_normalize(transform_direction_transposed(&tfm, *N));
-  }
-  else if (sd->type == PRIMITIVE_LAMP) {
-    const Transform tfm = lamp_fetch_transform(kg, sd->lamp, false);
     *N = safe_normalize(transform_direction_transposed(&tfm, *N));
   }
 }
@@ -205,10 +191,6 @@ ccl_device_inline void object_normal_transform(KernelGlobals kg,
 
   if (sd->object != OBJECT_NONE) {
     const Transform tfm = object_fetch_transform(kg, sd->object, OBJECT_INVERSE_TRANSFORM);
-    *N = normalize(transform_direction_transposed(&tfm, *N));
-  }
-  else if (sd->type == PRIMITIVE_LAMP) {
-    const Transform tfm = lamp_fetch_transform(kg, sd->lamp, true);
     *N = normalize(transform_direction_transposed(&tfm, *N));
   }
 }
@@ -304,17 +286,6 @@ ccl_device_inline float object_pass_id(KernelGlobals kg, const int object)
   return kernel_data_fetch(objects, object).pass_id;
 }
 
-/* Light-group of lamp. */
-
-ccl_device_inline int lamp_lightgroup(KernelGlobals kg, const int lamp)
-{
-  if (lamp == LAMP_NONE) {
-    return LIGHTGROUP_NONE;
-  }
-
-  return kernel_data_fetch(lights, lamp).lightgroup;
-}
-
 /* Light-group of object. */
 
 ccl_device_inline int object_lightgroup(KernelGlobals kg, const int object)
@@ -324,17 +295,6 @@ ccl_device_inline int object_lightgroup(KernelGlobals kg, const int object)
   }
 
   return kernel_data_fetch(objects, object).lightgroup;
-}
-
-/* Per lamp random number for shader variation */
-
-ccl_device_inline float lamp_random_number(KernelGlobals kg, const int lamp)
-{
-  if (lamp == LAMP_NONE) {
-    return 0.0f;
-  }
-
-  return kernel_data_fetch(lights, lamp).random;
 }
 
 /* Per object random number for shader variation */
