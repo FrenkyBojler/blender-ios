@@ -6,6 +6,7 @@
  * \ingroup csv
  */
 
+#include <charconv>
 #include <optional>
 #include <variant>
 
@@ -47,10 +48,10 @@ struct ParseFloatColumnResult {
   bool found_invalid = false;
 };
 
-enum class FinalColumnType {
-  Int,
-  Float,
-  Invalid,
+struct ParseIntColumnResult {
+  Vector<int> data;
+  bool found_invalid = false;
+  bool found_float = false;
 };
 
 static ParseFloatColumnResult parse_column_as_floats(const csv_parse::CsvRecords &records,
@@ -62,6 +63,7 @@ static ParseFloatColumnResult parse_column_as_floats(const csv_parse::CsvRecords
     const Span<char> value_span = records.record(row_i).field(column_i);
     const char *value_begin = value_span.begin();
     const char *value_end = value_span.end();
+    /* Skip leading whitespace and plus sign. */
     while (value_begin < value_end && ELEM(*value_begin, ' ', '+')) {
       value_begin++;
     }
@@ -72,6 +74,45 @@ static ParseFloatColumnResult parse_column_as_floats(const csv_parse::CsvRecords
       return result;
     }
     if (res.ptr < value_end) {
+      /* Allow trailing whitespace in the value. */
+      while (res.ptr < value_end && res.ptr[0] == ' ') {
+        res.ptr++;
+      }
+      if (res.ptr < value_end) {
+        result.found_invalid = true;
+        return result;
+      }
+    }
+    result.data.append(value);
+  }
+  return result;
+}
+
+static ParseIntColumnResult parse_column_as_ints(const csv_parse::CsvRecords &records,
+                                                 const int column_i)
+{
+  ParseIntColumnResult result;
+  result.data.reserve(records.size());
+  for (const int row_i : records.index_range()) {
+    const Span<char> value_span = records.record(row_i).field(column_i);
+    const char *value_begin = value_span.begin();
+    const char *value_end = value_span.end();
+    /* Skip leading whitespace and plus sign. */
+    while (value_begin < value_end && ELEM(*value_begin, ' ', '+')) {
+      value_begin++;
+    }
+    int value;
+    std::from_chars_result res = std::from_chars(value_begin, value_end, value);
+    if (res.ec != std::errc()) {
+      result.found_invalid = true;
+      return result;
+    }
+    if (res.ptr < value_end) {
+      /* If the next character after the value is a dot, it should be parsed again as float. */
+      if (res.ptr[0] == '.') {
+        result.found_float = true;
+        return result;
+      }
       /* Allow trailing whitespace in the value. */
       while (res.ptr < value_end && res.ptr[0] == ' ') {
         res.ptr++;
@@ -125,15 +166,33 @@ PointCloud *import_csv_as_point_cloud(const CSVImportParams &import_params)
       if (type_info.found_invalid.load(std::memory_order_relaxed)) {
         continue;
       }
-      ParseFloatColumnResult column_result = parse_column_as_floats(records, column_i);
+      const bool found_float = type_info.found_float.load(std::memory_order_relaxed);
+      if (found_float) {
+        ParseFloatColumnResult column_result = parse_column_as_floats(records, column_i);
+        if (column_result.found_invalid) {
+          type_info.found_invalid.store(true, std::memory_order_relaxed);
+          continue;
+        }
+        chunk_result.columns[column_i] = std::move(column_result.data);
+        continue;
+      }
+      ParseIntColumnResult column_result = parse_column_as_ints(records, column_i);
       if (column_result.found_invalid) {
         type_info.found_invalid.store(true, std::memory_order_relaxed);
         continue;
       }
-      chunk_result.columns[column_i] = std::move(column_result.data);
-      if (!type_info.found_float.load(std::memory_order_relaxed)) {
+      if (column_result.found_float) {
         type_info.found_float.store(true, std::memory_order_relaxed);
+        ParseFloatColumnResult column_result = parse_column_as_floats(records, column_i);
+        if (column_result.found_invalid) {
+          type_info.found_invalid.store(true, std::memory_order_relaxed);
+          continue;
+        }
+        chunk_result.columns[column_i] = std::move(column_result.data);
+        continue;
       }
+      chunk_result.columns[column_i] = std::move(column_result.data);
+      type_info.found_int.store(true, std::memory_order_relaxed);
     }
     return chunk_result;
   };
@@ -207,6 +266,27 @@ PointCloud *import_csv_as_point_cloud(const CSVImportParams &import_params)
           }
           if (type_info.found_int) {
             /* Should read column as ints. */
+            int *attribute_buffer = static_cast<int *>(
+                MEM_mallocN_aligned(sizeof(int) * points_num, alignof(int), "csv int attribute"));
+            flattened_attributes[column_i] = FlattenedAttribute{CD_PROP_INT32, attribute_buffer};
+            threading::parallel_for(
+                parsed_chunks->index_range(), 1, [&](const IndexRange chunks_range) {
+                  for (const int chunk_i : chunks_range) {
+                    const IndexRange dst_range = chunk_offsets[chunk_i];
+                    const ChunkResult &chunk = (*parsed_chunks)[chunk_i];
+                    const ColumnData &column_data = chunk.columns[column_i];
+                    if (const auto *int_vec = std::get_if<Vector<int>>(&column_data)) {
+                      BLI_assert(int_vec->size() == dst_range.size());
+                      uninitialized_copy_n(
+                          int_vec->data(), dst_range.size(), attribute_buffer + dst_range.first());
+                    }
+                    else {
+                      /* Expected data to be available, because the `found_invalid` and
+                       * `found_float` flags were not set. */
+                      BLI_assert_unreachable();
+                    }
+                  }
+                });
             continue;
           }
         }
