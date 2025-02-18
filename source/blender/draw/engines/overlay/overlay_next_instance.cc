@@ -130,6 +130,7 @@ void Instance::begin_sync()
   resources.begin_sync();
 
   background.begin_sync(resources, state);
+  cursor.begin_sync(resources, state);
   image_prepass.begin_sync(resources, state);
   motion_paths.begin_sync(resources, state);
   origins.begin_sync(resources, state);
@@ -354,7 +355,7 @@ void Instance::end_sync()
     DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
 
     if (dtxl->depth_in_front == nullptr) {
-      int2 size = int2(DRW_viewport_size_get()[0], DRW_viewport_size_get()[1]);
+      int2 size = int2(DRW_viewport_size_get());
 
       dtxl->depth_in_front = GPU_texture_create_2d("txl.depth_in_front",
                                                    size.x,
@@ -465,6 +466,8 @@ void Instance::draw_v2d(Manager &manager, View &view)
   background.draw_output(resources.overlay_output_color_only_fb, manager, view);
   grid.draw_color_only(resources.overlay_output_color_only_fb, manager, view);
   regular.mesh_uvs.draw(resources.overlay_output_fb, manager, view);
+
+  cursor.draw_output(resources.overlay_output_color_only_fb, manager, view);
 }
 
 void Instance::draw_v3d(Manager &manager, View &view)
@@ -609,6 +612,7 @@ void Instance::draw_v3d(Manager &manager, View &view)
 
     background.draw_output(resources.overlay_output_color_only_fb, manager, view);
     anti_aliasing.draw_output(resources.overlay_output_color_only_fb, manager, view);
+    cursor.draw_output(resources.overlay_output_color_only_fb, manager, view);
   }
 }
 

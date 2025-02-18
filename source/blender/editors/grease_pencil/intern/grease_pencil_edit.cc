@@ -1382,33 +1382,41 @@ static int grease_pencil_caps_set_exec(bContext *C, wmOperator *op)
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
     if (ELEM(mode, CapsMode::ROUND, CapsMode::FLAT)) {
-      bke::SpanAttributeWriter<int8_t> start_caps =
-          attributes.lookup_or_add_for_write_span<int8_t>("start_cap", bke::AttrDomain::Curve);
-      bke::SpanAttributeWriter<int8_t> end_caps = attributes.lookup_or_add_for_write_span<int8_t>(
-          "end_cap", bke::AttrDomain::Curve);
-
       const int8_t flag_set = (mode == CapsMode::ROUND) ? int8_t(GP_STROKE_CAP_TYPE_ROUND) :
                                                           int8_t(GP_STROKE_CAP_TYPE_FLAT);
-
-      index_mask::masked_fill(start_caps.span, flag_set, strokes);
-      index_mask::masked_fill(end_caps.span, flag_set, strokes);
-      start_caps.finish();
-      end_caps.finish();
+      if (bke::SpanAttributeWriter<int8_t> start_caps =
+              attributes.lookup_or_add_for_write_span<int8_t>("start_cap", bke::AttrDomain::Curve))
+      {
+        index_mask::masked_fill(start_caps.span, flag_set, strokes);
+        start_caps.finish();
+      }
+      if (bke::SpanAttributeWriter<int8_t> end_caps =
+              attributes.lookup_or_add_for_write_span<int8_t>("end_cap", bke::AttrDomain::Curve))
+      {
+        index_mask::masked_fill(end_caps.span, flag_set, strokes);
+        end_caps.finish();
+      }
     }
     else {
       switch (mode) {
         case CapsMode::START: {
-          bke::SpanAttributeWriter<int8_t> caps = attributes.lookup_or_add_for_write_span<int8_t>(
-              "start_cap", bke::AttrDomain::Curve);
-          toggle_caps(caps.span, strokes);
-          caps.finish();
+          if (bke::SpanAttributeWriter<int8_t> caps =
+                  attributes.lookup_or_add_for_write_span<int8_t>("start_cap",
+                                                                  bke::AttrDomain::Curve))
+          {
+            toggle_caps(caps.span, strokes);
+            caps.finish();
+          }
           break;
         }
         case CapsMode::END: {
-          bke::SpanAttributeWriter<int8_t> caps = attributes.lookup_or_add_for_write_span<int8_t>(
-              "end_cap", bke::AttrDomain::Curve);
-          toggle_caps(caps.span, strokes);
-          caps.finish();
+          if (bke::SpanAttributeWriter<int8_t> caps =
+                  attributes.lookup_or_add_for_write_span<int8_t>("end_cap",
+                                                                  bke::AttrDomain::Curve))
+          {
+            toggle_caps(caps.span, strokes);
+            caps.finish();
+          }
           break;
         }
         case CapsMode::ROUND:
@@ -2584,7 +2592,8 @@ static int grease_pencil_copy_strokes_exec(bContext *C, wmOperator *op)
     }
     else if (selection_domain == bke::AttrDomain::Point) {
       const IndexMask selected_points = ed::curves::retrieve_selected_points(curves, memory);
-      copied_curves = curves_copy_point_selection(curves, selected_points, {});
+      copied_curves = remove_points_and_split(
+          curves, selected_points.complement(curves.points_range(), memory));
       num_elements_copied += copied_curves.points_num();
     }
 
@@ -3187,9 +3196,9 @@ static int grease_pencil_reproject_exec(bContext *C, wmOperator *op)
   const float offset = RNA_float_get(op->ptr, "offset");
 
   /* Init snap context for geometry projection. */
-  SnapObjectContext *snap_context = nullptr;
+  transform::SnapObjectContext *snap_context = nullptr;
   if (mode == ReprojectMode::Surface) {
-    snap_context = ED_transform_snap_object_context_create(&scene, 0);
+    snap_context = transform::snap_object_context_create(&scene, 0);
   }
 
   const bke::AttrDomain selection_domain = ED_grease_pencil_edit_selection_domain_get(
@@ -3269,17 +3278,17 @@ static int grease_pencil_reproject_exec(bContext *C, wmOperator *op)
           float3 hit_position(0.0f);
           float3 hit_normal(0.0f);
 
-          SnapObjectParams params{};
+          transform::SnapObjectParams params{};
           params.snap_target_select = SCE_SNAP_TARGET_ALL;
-          if (ED_transform_snap_object_project_ray(snap_context,
-                                                   depsgraph,
-                                                   v3d,
-                                                   &params,
-                                                   ray_start,
-                                                   ray_direction,
-                                                   &hit_depth,
-                                                   hit_position,
-                                                   hit_normal))
+          if (transform::snap_object_project_ray(snap_context,
+                                                 depsgraph,
+                                                 v3d,
+                                                 &params,
+                                                 ray_start,
+                                                 ray_direction,
+                                                 &hit_depth,
+                                                 hit_position,
+                                                 hit_normal))
           {
             /* Apply offset over surface. */
             position = math::transform_point(
@@ -3302,7 +3311,7 @@ static int grease_pencil_reproject_exec(bContext *C, wmOperator *op)
   }
 
   if (snap_context != nullptr) {
-    ED_transform_snap_object_context_destroy(snap_context);
+    transform::snap_object_context_destroy(snap_context);
   }
 
   if (mode == ReprojectMode::Surface) {
