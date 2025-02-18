@@ -2027,7 +2027,10 @@ void BKE_bone_offset_matrix_get(const Bone *bone, float offs_bone[4][4])
   copy_v3_v3(offs_bone[3], bone->head);
 
   /* Get the length translation of parent (length along y axis). */
-  offs_bone[3][1] += bone->parent->length;
+  // offs_bone[3][1] += bone->parent->length;
+
+  /* Get the length translation of parent (length along z axis). */
+  offs_bone[3][2] += bone->parent->length;
 }
 
 void BKE_bone_parent_transform_calc_from_pchan(const bPoseChannel *pchan,
