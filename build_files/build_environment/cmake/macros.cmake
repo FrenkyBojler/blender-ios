@@ -18,3 +18,12 @@ macro(unpack_only name)
     INSTALL_COMMAND echo .
   )
 endmacro()
+
+# turn a c:\something\somefile.txt path into /c/something/somefile.txt 
+macro(cmake_to_msys_path MsysPath ResultingPath)
+  string(REPLACE ":" "" TmpPath "${MsysPath}")
+  string(SUBSTRING ${TmpPath} 0 1 Drive)
+  string(SUBSTRING ${TmpPath} 1 255 PathPart)
+  string(TOLOWER ${Drive} LowerDrive)
+  string(CONCAT ${ResultingPath} "/" ${LowerDrive} ${PathPart})
+endmacro()

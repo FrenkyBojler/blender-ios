@@ -76,13 +76,6 @@ download_package(GAS)
 download_package(AR)
 
 message("LIBDIR = ${LIBDIR}")
-macro(cmake_to_msys_path MsysPath ResultingPath)
-  string(REPLACE ":" "" TmpPath "${MsysPath}")
-  string(SUBSTRING ${TmpPath} 0 1 Drive)
-  string(SUBSTRING ${TmpPath} 1 255 PathPart)
-  string(TOLOWER ${Drive} LowerDrive)
-  string(CONCAT ${ResultingPath} "/" ${LowerDrive} ${PathPart})
-endmacro()
 cmake_to_msys_path(${LIBDIR} msys2_LIBDIR)
 message("msys2_LIBDIR = ${msys2_LIBDIR}")
 
