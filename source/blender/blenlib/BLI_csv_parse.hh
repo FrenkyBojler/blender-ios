@@ -15,32 +15,13 @@ class CsvRecord {
   Span<Span<char>> fields_;
 
  public:
-  CsvRecord(Span<Span<char>> fields) : fields_(fields) {}
+  CsvRecord(Span<Span<char>> fields);
 
-  int64_t size() const
-  {
-    return fields_.size();
-  }
+  int64_t size() const;
+  IndexRange index_range() const;
 
-  IndexRange index_range() const
-  {
-    return fields_.index_range();
-  }
-
-  Span<char> field(const int64_t index) const
-  {
-    BLI_assert(index >= 0);
-    if (index >= fields_.size()) {
-      return {};
-    }
-    return fields_[index];
-  }
-
-  StringRef field_str(const int64_t index) const
-  {
-    const Span<char> value = this->field(index);
-    return StringRef(value.data(), value.size());
-  }
+  Span<char> field(const int64_t index) const;
+  StringRef field_str(const int64_t index) const;
 };
 
 class CsvRecords {
@@ -49,30 +30,13 @@ class CsvRecords {
   Span<Span<char>> fields_;
 
  public:
-  CsvRecords(Span<int64_t> offsets, Span<Span<char>> fields) : offsets_(offsets), fields_(fields)
-  {
-  }
+  CsvRecords(Span<int64_t> offsets, Span<Span<char>> fields);
 
-  OffsetIndices<int64_t> offsets() const
-  {
-    return OffsetIndices<int64_t>(offsets_, offset_indices::NoSortCheck{});
-  }
+  int64_t size() const;
+  IndexRange index_range() const;
+  OffsetIndices<int64_t> offsets() const;
 
-  int64_t size() const
-  {
-    return this->offsets().size();
-  }
-
-  IndexRange index_range() const
-  {
-    return this->offsets().index_range();
-  }
-
-  CsvRecord record(const int64_t index) const
-  {
-    OffsetIndices offsets = this->offsets();
-    return CsvRecord(fields_.slice(offsets[index]));
-  }
+  CsvRecord record(const int64_t index) const;
 };
 
 struct CsvParseOptions {
@@ -108,6 +72,71 @@ inline std::optional<Vector<ChunkT>> parse_csv_in_chunks(
   }
   return result_chunks;
 }
+
+/* -------------------------------------------------------------------- */
+/** \name #CsvRecord inline functions.
+ * \{ */
+
+inline CsvRecord::CsvRecord(Span<Span<char>> fields) : fields_(fields) {}
+
+inline int64_t CsvRecord::size() const
+{
+  return fields_.size();
+}
+
+inline IndexRange CsvRecord::index_range() const
+{
+  return fields_.index_range();
+}
+
+inline Span<char> CsvRecord::field(const int64_t index) const
+{
+  BLI_assert(index >= 0);
+  if (index >= fields_.size()) {
+    return {};
+  }
+  return fields_[index];
+}
+
+inline StringRef CsvRecord::field_str(const int64_t index) const
+{
+  const Span<char> value = this->field(index);
+  return StringRef(value.data(), value.size());
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name #CsvRecords inline functions.
+ * \{ */
+
+inline CsvRecords::CsvRecords(Span<int64_t> offsets, Span<Span<char>> fields)
+    : offsets_(offsets), fields_(fields)
+{
+}
+
+inline OffsetIndices<int64_t> CsvRecords::offsets() const
+{
+  return OffsetIndices<int64_t>(offsets_, offset_indices::NoSortCheck{});
+}
+
+inline int64_t CsvRecords::size() const
+{
+  return this->offsets().size();
+}
+
+inline IndexRange CsvRecords::index_range() const
+{
+  return this->offsets().index_range();
+}
+
+inline CsvRecord CsvRecords::record(const int64_t index) const
+{
+  OffsetIndices offsets = this->offsets();
+  return CsvRecord(fields_.slice(offsets[index]));
+}
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Internal functions exposed for testing.
