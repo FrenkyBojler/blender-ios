@@ -653,6 +653,28 @@ void RNA_def_camera(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Type", "Camera types");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
+  /* orthodox */
+  prop = RNA_def_property(srna, "use_orthodox", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "use_orthodox", CAM_DOF_ENABLED);
+  RNA_def_property_ui_text(prop, "Orthodox", "Use Orthodox");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
+
+  prop = RNA_def_property(srna, "orthodox_factor", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "orthodox_factor");
+  RNA_def_property_ui_range(prop, -10, 10, 1, 3);
+  RNA_def_property_ui_text(prop, "Factor", "Orthodox factor");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
+
+  prop = RNA_def_property(srna, "orthodox_tilt_x", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "orthodox_tilt_x");
+  RNA_def_property_ui_text(prop, "Tilt x", "Orthodox horizontal tilt");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
+
+  prop = RNA_def_property(srna, "orthodox_tilt_y", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "orthodox_tilt_y");
+  RNA_def_property_ui_text(prop, "Tilt y", "Orthodox vertical tilt");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
+
   prop = RNA_def_property(srna, "sensor_fit", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "sensor_fit");
   RNA_def_property_enum_items(prop, sensor_fit_items);

@@ -84,9 +84,10 @@ CullingTile tile_culling_get(uvec2 tile_co)
   }
 
   bool is_persp = ProjectionMatrix[3][3] == 0.0;
+  bool is_ortho = ProjectionMatrix[2][3] == 0.0;
   CullingTile tile;
   tile.bounds = (is_persp) ? tile_bound_cone(corners[0], corners[4], corners[7], corners[3]) :
-                             tile_bound_cylinder(corners[0], corners[4], corners[7], corners[3]);
+  ((is_ortho)? tile_bound_cylinder(corners[0], corners[4], corners[7], corners[3]): tile_bound_cone(corners[0], corners[4], corners[7], corners[3]));
 
   tile.frustum = isect_frustum_setup(shape_frustum(corners));
   return tile;

@@ -108,7 +108,13 @@ typedef struct Camera {
   float central_cylindrical_range_v_min;
   float central_cylindrical_range_v_max;
   float central_cylindrical_radius;
-  float _pad2;
+
+    /* Orthodox camera properties. */
+  float orthodox_factor;
+  float orthodox_tilt_x;
+  float orthodox_tilt_y;
+  short use_orthodox;
+  char _pad2[6];
 
   /** Old animation system, deprecated for 2.5. */
   struct Ipo *ipo DNA_DEPRECATED;

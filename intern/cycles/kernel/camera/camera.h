@@ -166,12 +166,85 @@ ccl_device void camera_sample_perspective(KernelGlobals kg,
   ray->tmax = kernel_data.cam.cliplength * z_inv;
 }
 
+/* Orthodox Camera */
+ccl_device void camera_sample_orthodox(KernelGlobals kg,
+                                       const float2 raster_xy,
+                                       const float2 rand_lens,
+                                       ccl_private Ray *ray)
+{
+  /* create ray form raster position */
+  const ProjectionTransform rastertocamera = kernel_data.cam.rastertocamera;
+
+  float3 Pcam = transform_perspective(&rastertocamera,
+                                      make_float3(raster_xy.x, raster_xy.y, 0.0f));
+  /* orthodox cycles transform */
+  const float tilt_x = kernel_data.cam.orthodox_tilt_x;
+  const float tilt_y = kernel_data.cam.orthodox_tilt_y;
+  const float factor = kernel_data.cam.orthodox_factor;
+  const float distance = kernel_data.cam.focaldistance;
+  
+  Pcam.z = 0.0f;
+
+  /* modify ray for depth of field */
+  const float aperturesize = kernel_data.cam.aperturesize;
+
+  float3 aperture_offset = make_float3(0.0f, 0.0f, 0.0f);
+
+  if (aperturesize > 0.0f) {
+    float2 offset = camera_sample_aperture(&kernel_data.cam, rand_lens) * aperturesize;
+    aperture_offset = make_float3(offset.x, offset.y, 0.0f);
+  }
+
+  /* compute point on plane of focus */
+
+  float3 offset = make_float3(0.0f, 0.0f, distance);
+  float3 shift_tilt_offset = make_float3( 0.0f, 0.0f, tilt_x * Pcam.x + tilt_y * Pcam.y);
+  float3 V = Pcam + offset + shift_tilt_offset;
+
+  float3 P = (Pcam + shift_tilt_offset) * (1.0f - factor) + aperture_offset;
+  float3 D = normalize(V - P);
+
+  /* transform ray from camera to world */
+  Transform cameratoworld = kernel_data.cam.cameratoworld;
+
+  if (kernel_data.cam.num_motion_steps) {
+    transform_motion_array_interpolate(&cameratoworld,
+                                       kernel_data_array(camera_motion),
+                                       kernel_data.cam.num_motion_steps,
+                                       ray->time);
+  }
+
+  ray->P = transform_point(&cameratoworld, P);
+  ray->D = normalize(transform_direction(&cameratoworld, D));
+
+#ifdef __RAY_DIFFERENTIALS__
+  /* ray differential */
+  differential3 dP;
+  dP.dx = make_float3(kernel_data.cam.dx);
+  dP.dy = make_float3(kernel_data.cam.dx);
+
+  ray->dP = differential_make_compact(dP);
+  ray->dD = differential_zero_compact();
+#endif
+
+  /* clipping */
+  ray->tmin = 0.0f;
+  ray->tmax = kernel_data.cam.cliplength;
+}
+
 /* Orthographic Camera */
 ccl_device void camera_sample_orthographic(KernelGlobals kg,
                                            const float2 raster_xy,
                                            const float2 rand_lens,
                                            ccl_private Ray *ray)
 {
+  const bool use_orthodox = kernel_data.cam.use_orthodox;
+
+  if( use_orthodox ) {
+    camera_sample_orthodox(kg, raster_xy, rand_lens, ray);
+    return;
+  }
+
   /* create ray form raster position */
   const ProjectionTransform rastertocamera = kernel_data.cam.rastertocamera;
   const float3 Pcamera = transform_perspective(&rastertocamera, make_float3(raster_xy));

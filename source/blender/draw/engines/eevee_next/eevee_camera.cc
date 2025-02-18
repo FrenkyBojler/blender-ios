@@ -94,6 +94,7 @@ void Camera::sync()
   /* Over-scan in film pixel. Not the same as `render_overscan_get`. */
   int film_overscan = Film::overscan_pixels_get(overscan_, film_extent);
 
+  rctf viewplane;
   rcti film_rect;
   BLI_rcti_init(&film_rect,
                 film_offset.x,
@@ -113,6 +114,7 @@ void Camera::sync()
   data.uv_scale = float2(film_extent + film_overscan * 2) / uv_region.size();
   data.uv_bias = (float2(film_offset - film_overscan) - uv_region.min) / uv_region.size();
 
+  CameraParams params;
   if (inst_.is_baking()) {
     /* Any view so that shadows and light culling works during irradiance bake. */
     draw::View &view = inst_.volume_probes.bake.view_z_;
@@ -155,7 +157,7 @@ void Camera::sync()
                                    params.viewplane,
                                    overscan_,
                                    data.winmat.ptr());
-
+    viewplane = params.viewplane;
     if (params.lens == 0.0f) {
       /* Can happen for the case of XR.
        * In this case the produced winmat is degenerate. So just revert to the input matrix. */
@@ -170,7 +172,7 @@ void Camera::sync()
     RE_GetCameraModelMatrix(re, camera_eval, data.viewinv.ptr());
     data.viewmat = math::invert(data.viewinv);
 
-    rctf viewplane = re->viewplane;
+    viewplane = re->viewplane;
     BKE_camera_params_crop_viewplane(&viewplane, UNPACK2(display_extent), &film_rect);
 
     RE_GetWindowMatrixWithOverscan(this->is_orthographic(),
@@ -212,6 +214,11 @@ void Camera::sync()
     data.equirect_bias = float2(0.0f);
     data.equirect_scale = float2(0.0f);
 #endif
+    /* Orthodox mode */
+    if (cam->use_orthodox) {
+      data.winmat = math::projection::orthodox( viewplane.xmin, viewplane.xmax, viewplane.ymin, viewplane.ymax, cam->clip_start, cam->clip_end, cam->orthodox_factor, cam->dof.focus_distance );
+    }
+
     is_camera_object_ = true;
   }
   else if (inst_.drw_view) {

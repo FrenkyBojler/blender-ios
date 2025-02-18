@@ -77,6 +77,11 @@ class BlenderCamera {
   float central_cylindrical_range_v_max = 1.0f;
   float central_cylindrical_radius = 1.0f;
 
+  bool use_orthodox = false;
+  float orthodox_factor = 0.0f;
+  float orthodox_tilt_x = 0.0f;
+  float orthodox_tilt_y = 0.0f;
+
   enum { AUTO, HORIZONTAL, VERTICAL } sensor_fit = AUTO;
   float sensor_width = 36.0f;
   float sensor_height = 24.0f;
@@ -204,6 +209,11 @@ static void blender_camera_from_object(BlenderCamera *bcam,
     bcam->central_cylindrical_range_v_max = b_camera.central_cylindrical_range_v_max();
     bcam->central_cylindrical_radius = b_camera.central_cylindrical_radius();
 
+    bcam->use_orthodox = b_camera.use_orthodox();
+    bcam->orthodox_tilt_x = b_camera.orthodox_tilt_x();
+    bcam->orthodox_tilt_y = b_camera.orthodox_tilt_y();
+    bcam->orthodox_factor = b_camera.orthodox_factor();
+
     bcam->interocular_distance = b_camera.stereo().interocular_distance();
     if (b_camera.stereo().convergence_mode() == BL::CameraStereoData::convergence_mode_PARALLEL) {
       bcam->convergence_distance = FLT_MAX;
@@ -238,7 +248,7 @@ static void blender_camera_from_object(BlenderCamera *bcam,
 
       bcam->apertureblades = b_camera.dof().aperture_blades();
       bcam->aperturerotation = b_camera.dof().aperture_rotation();
-      bcam->focaldistance = blender_camera_focal_distance(b_engine, b_ob, b_camera, bcam);
+      //bcam->focaldistance = blender_camera_focal_distance(b_engine, b_ob, b_camera, bcam);
       bcam->aperture_ratio = b_camera.dof().aperture_ratio();
     }
     else {
@@ -246,9 +256,10 @@ static void blender_camera_from_object(BlenderCamera *bcam,
       bcam->aperturesize = 0.0f;
       bcam->apertureblades = 0;
       bcam->aperturerotation = 0.0f;
-      bcam->focaldistance = 0.0f;
+      //bcam->focaldistance = 0.0f;
       bcam->aperture_ratio = 1.0f;
     }
+    bcam->focaldistance = blender_camera_focal_distance(b_engine, b_ob, b_camera, bcam);
 
     bcam->shift.x = b_engine.camera_shift_x(b_ob, bcam->use_spherical_stereo);
     bcam->shift.y = b_camera.shift_y();
@@ -482,7 +493,12 @@ static void blender_camera_sync(Camera *cam,
   cam->set_fisheye_polynomial_k1(bcam->fisheye_polynomial_k1);
   cam->set_fisheye_polynomial_k2(bcam->fisheye_polynomial_k2);
   cam->set_fisheye_polynomial_k3(bcam->fisheye_polynomial_k3);
-  cam->set_fisheye_polynomial_k4(bcam->fisheye_polynomial_k4);
+
+  /* orthodox */
+  cam->set_use_orthodox(bcam->use_orthodox);
+  cam->set_orthodox_factor(bcam->orthodox_factor);
+  cam->set_orthodox_tilt_x(bcam->orthodox_tilt_x);
+  cam->set_orthodox_tilt_y(bcam->orthodox_tilt_y);
 
   cam->set_longitude_min(bcam->longitude_min);
   cam->set_longitude_max(bcam->longitude_max);

@@ -149,6 +149,21 @@ class DATA_PT_lens(CameraButtonsPanel, Panel):
         sub.prop(cam, "clip_start", text="Clip Start")
         sub.prop(cam, "clip_end", text="End", text_ctxt=i18n_contexts.id_camera)
 
+        if cam.type == 'ORTHO':
+            col.prop(cam, "use_orthodox", text="Use Orthodox")
+            if cam.use_orthodox:
+                engine = context.engine
+                if engine in {'CYCLES', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}:
+                    col.prop(cam, "orthodox_factor", text="Factor")
+                    dof = cam.dof
+                    col.prop(dof, "focus_object", text="Focus Object")
+                    sub = col.column()
+                    sub.active = (dof.focus_object is None)
+                    sub.prop(dof, "focus_distance", text="Distance")
+                    if engine in {'CYCLES'}:
+                        col.prop(cam, "orthodox_tilt_x", text="Tilt X")
+                        col.prop(cam, "orthodox_tilt_y", text="Tilt Y")
+
 
 class DATA_PT_camera_stereoscopy(CameraButtonsPanel, Panel):
     bl_label = "Stereoscopy"
