@@ -8,6 +8,7 @@
 #include "DRW_render.hh"
 #include "draw_manager.hh"
 #include "draw_pass.hh"
+#include "draw_shader.hh"
 
 #include "workbench_defines.hh"
 #include "workbench_enums.hh"
@@ -20,33 +21,6 @@ extern "C" DrawEngineType draw_engine_workbench;
 namespace blender::workbench {
 
 using namespace draw;
-
-class StaticShader : NonCopyable {
- private:
-  std::string info_name_;
-  GPUShader *shader_ = nullptr;
-
- public:
-  StaticShader(std::string info_name) : info_name_(info_name) {}
-
-  StaticShader() = default;
-  StaticShader(StaticShader &&other) = default;
-  StaticShader &operator=(StaticShader &&other) = default;
-
-  ~StaticShader()
-  {
-    GPU_SHADER_FREE_SAFE(shader_);
-  }
-
-  GPUShader *get()
-  {
-    if (!shader_) {
-      BLI_assert(!info_name_.empty());
-      shader_ = GPU_shader_create_from_info_name(info_name_.c_str());
-    }
-    return shader_;
-  }
-};
 
 class ShaderCache {
  private:

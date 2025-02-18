@@ -55,3 +55,43 @@ GPUShader *DRW_shader_subdiv_get(SubdivShaderType shader_type);
 GPUShader *DRW_shader_subdiv_custom_data_get(GPUVertCompType comp_type, int dimensions);
 
 void DRW_shaders_free();
+
+#include "BLI_utility_mixins.hh"
+#include "GPU_shader.hh"
+#include <mutex>
+
+namespace blender::draw {
+
+class StaticShader : NonCopyable {
+ private:
+  std::string info_name_;
+  GPUShader *shader_ = nullptr;
+
+ public:
+  StaticShader(std::string info_name) : info_name_(info_name) {}
+
+  StaticShader() = default;
+  StaticShader(StaticShader &&other) = default;
+  StaticShader &operator=(StaticShader &&other) = default;
+
+  ~StaticShader()
+  {
+    GPU_SHADER_FREE_SAFE(shader_);
+  }
+
+  GPUShader *get()
+  {
+    static std::mutex mutex_;
+    if (!shader_) {
+      std::scoped_lock lock(mutex_);
+      /* Check again in case it was created between first check and lock. */
+      if (!shader_) {
+        BLI_assert(!info_name_.empty());
+        shader_ = GPU_shader_create_from_info_name(info_name_.c_str());
+      }
+    }
+    return shader_;
+  }
+};
+
+}  // namespace blender::draw
