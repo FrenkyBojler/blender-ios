@@ -300,7 +300,7 @@ static void tracking_objects_copy(ListBase *tracking_objects_dst,
   BLI_listbase_clear(tracking_objects_dst);
 
   LISTBASE_FOREACH (MovieTrackingObject *, tracking_object_src, tracking_objects_src) {
-    MovieTrackingObject *tracking_object_dst = MEM_cnew<MovieTrackingObject>(__func__);
+    MovieTrackingObject *tracking_object_dst = MEM_callocN<MovieTrackingObject>(__func__);
     tracking_object_copy(tracking_object_dst, tracking_object_src, flag);
     BLI_addtail(tracking_objects_dst, tracking_object_dst);
   }
@@ -502,7 +502,7 @@ MovieTrackingTrack *BKE_tracking_track_add_empty(MovieTracking *tracking, ListBa
 {
   const MovieTrackingSettings *settings = &tracking->settings;
 
-  MovieTrackingTrack *track = MEM_cnew<MovieTrackingTrack>("add_marker_exec track");
+  MovieTrackingTrack *track = MEM_callocN<MovieTrackingTrack>("add_marker_exec track");
   STRNCPY(track->name, CTX_DATA_(BLT_I18NCONTEXT_ID_MOVIECLIP, "Track"));
 
   /* Fill track's settings from default settings. */
@@ -567,7 +567,7 @@ MovieTrackingTrack *BKE_tracking_track_duplicate(MovieTrackingTrack *track)
 {
   MovieTrackingTrack *new_track;
 
-  new_track = MEM_cnew<MovieTrackingTrack>("tracking_track_duplicate new_track");
+  new_track = MEM_callocN<MovieTrackingTrack>("tracking_track_duplicate new_track");
 
   *new_track = *track;
   new_track->next = new_track->prev = nullptr;
@@ -1264,7 +1264,7 @@ MovieTrackingMarker *BKE_tracking_marker_insert(MovieTrackingTrack *track,
         MEM_reallocN(track->markers, sizeof(MovieTrackingMarker) * track->markersnr));
   }
   else {
-    track->markers = MEM_cnew<MovieTrackingMarker>("MovieTracking markers");
+    track->markers = MEM_callocN<MovieTrackingMarker>("MovieTracking markers");
   }
 
   /* shift array to "free" space for new marker */
@@ -1571,7 +1571,7 @@ MovieTrackingPlaneTrack *BKE_tracking_plane_track_add(MovieTracking *tracking,
   }
 
   /* Allocate new plane track. */
-  plane_track = MEM_cnew<MovieTrackingPlaneTrack>("new plane track");
+  plane_track = MEM_callocN<MovieTrackingPlaneTrack>("new plane track");
 
   /* Use some default name. */
   STRNCPY(plane_track->name, DATA_("Plane Track"));
@@ -1896,7 +1896,7 @@ void BKE_tracking_plane_marker_get_subframe_corners(MovieTrackingPlaneTrack *pla
 
 MovieTrackingObject *BKE_tracking_object_add(MovieTracking *tracking, const char *name)
 {
-  MovieTrackingObject *tracking_object = MEM_cnew<MovieTrackingObject>("tracking object");
+  MovieTrackingObject *tracking_object = MEM_callocN<MovieTrackingObject>("tracking object");
 
   if (tracking->tot_object == 0) {
     /* first object is always camera */
@@ -2269,7 +2269,7 @@ MovieDistortion *BKE_tracking_distortion_new(MovieTracking *tracking,
   tracking_cameraIntrinscisOptionsFromTracking(
       tracking, calibration_width, calibration_height, &camera_intrinsics_options);
 
-  distortion = MEM_cnew<MovieDistortion>("BKE_tracking_distortion_create");
+  distortion = MEM_callocN<MovieDistortion>("BKE_tracking_distortion_create");
   distortion->intrinsics = libmv_cameraIntrinsicsNew(&camera_intrinsics_options);
 
   const MovieTrackingCamera *camera = &tracking->camera;
@@ -2313,7 +2313,7 @@ MovieDistortion *BKE_tracking_distortion_copy(MovieDistortion *distortion)
 {
   MovieDistortion *new_distortion;
 
-  new_distortion = MEM_cnew<MovieDistortion>("BKE_tracking_distortion_create");
+  new_distortion = MEM_callocN<MovieDistortion>("BKE_tracking_distortion_create");
   *new_distortion = *distortion;
   new_distortion->intrinsics = libmv_cameraIntrinsicsCopy(distortion->intrinsics);
 
@@ -3263,7 +3263,7 @@ static void tracking_dopesheet_channels_calc(MovieTracking *tracking)
       continue;
     }
 
-    MovieTrackingDopesheetChannel *channel = MEM_cnew<MovieTrackingDopesheetChannel>(
+    MovieTrackingDopesheetChannel *channel = MEM_callocN<MovieTrackingDopesheetChannel>(
         "tracking dopesheet channel");
     channel->track = track;
 
@@ -3409,7 +3409,7 @@ static void tracking_dopesheet_calc_coverage(MovieTracking *tracking)
         end_segment_frame++;
       }
 
-      coverage_segment = MEM_cnew<MovieTrackingDopesheetCoverageSegment>(
+      coverage_segment = MEM_callocN<MovieTrackingDopesheetCoverageSegment>(
           "tracking coverage segment");
       coverage_segment->coverage = prev_coverage;
       coverage_segment->start_frame = last_segment_frame;

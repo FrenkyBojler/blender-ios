@@ -542,7 +542,7 @@ AutoTrackContext *BKE_autotrack_context_new(MovieClip *clip,
                                             MovieClipUser *user,
                                             const bool is_backwards)
 {
-  AutoTrackContext *context = MEM_cnew<AutoTrackContext>("autotrack context");
+  AutoTrackContext *context = MEM_callocN<AutoTrackContext>("autotrack context");
 
   context->start_scene_frame = user->framenr;
   context->is_backwards = is_backwards;
@@ -651,7 +651,7 @@ static void autotrack_context_step_cb(void *__restrict userdata,
 
   const int new_marker_frame = libmv_current_marker.frame + frame_delta;
 
-  AutoTrackTrackingResult *autotrack_result = MEM_cnew<AutoTrackTrackingResult>(
+  AutoTrackTrackingResult *autotrack_result = MEM_callocN<AutoTrackTrackingResult>(
       "autotrack result");
   autotrack_result->libmv_marker = libmv_current_marker;
   autotrack_result->libmv_marker.frame = new_marker_frame;

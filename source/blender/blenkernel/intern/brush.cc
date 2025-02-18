@@ -562,7 +562,7 @@ Brush *BKE_brush_add(Main *bmain, const char *name, const eObjectMode ob_mode)
 void BKE_brush_init_gpencil_settings(Brush *brush)
 {
   if (brush->gpencil_settings == nullptr) {
-    brush->gpencil_settings = MEM_cnew<BrushGpencilSettings>("BrushGpencilSettings");
+    brush->gpencil_settings = MEM_callocN<BrushGpencilSettings>("BrushGpencilSettings");
   }
 
   brush->gpencil_settings->draw_smoothlvl = 1;
@@ -604,7 +604,7 @@ bool BKE_brush_delete(Main *bmain, Brush *brush)
 void BKE_brush_init_curves_sculpt_settings(Brush *brush)
 {
   if (brush->curves_sculpt_settings == nullptr) {
-    brush->curves_sculpt_settings = MEM_cnew<BrushCurvesSculptSettings>(__func__);
+    brush->curves_sculpt_settings = MEM_callocN<BrushCurvesSculptSettings>(__func__);
   }
   BrushCurvesSculptSettings *settings = brush->curves_sculpt_settings;
   settings->flag = BRUSH_CURVES_SCULPT_FLAG_INTERPOLATE_RADIUS;
@@ -1482,7 +1482,7 @@ static bool brush_gen_texture(const Brush *br,
 
 ImBuf *BKE_brush_gen_radial_control_imbuf(Brush *br, bool secondary, bool display_gradient)
 {
-  ImBuf *im = MEM_cnew<ImBuf>("radial control texture");
+  ImBuf *im = MEM_callocN<ImBuf>("radial control texture");
   int side = 512;
   int half = side / 2;
 

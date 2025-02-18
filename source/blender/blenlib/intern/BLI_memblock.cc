@@ -47,7 +47,7 @@ BLI_memblock *BLI_memblock_create_ex(uint elem_size, uint chunk_size)
 {
   BLI_assert(elem_size < chunk_size);
 
-  BLI_memblock *mblk = MEM_cnew<BLI_memblock>("BLI_memblock");
+  BLI_memblock *mblk = MEM_callocN<BLI_memblock>("BLI_memblock");
   mblk->elem_size = int(elem_size);
   mblk->elem_next = 0;
   mblk->elem_last = -1;

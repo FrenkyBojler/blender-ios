@@ -488,7 +488,7 @@ static SlidePointData *slide_point_customdata(bContext *C, wmOperator *op, const
   }
 
   if (action != SLIDE_ACTION_NONE) {
-    customdata = MEM_cnew<SlidePointData>("mask slide point data");
+    customdata = MEM_callocN<SlidePointData>("mask slide point data");
     customdata->event_invoke_type = event->type;
     customdata->mask = mask;
     customdata->mask_layer = mask_layer;
@@ -1032,7 +1032,7 @@ static SlideSplineCurvatureData *slide_spline_curvature_customdata(bContext *C,
     return nullptr;
   }
 
-  slide_data = MEM_cnew<SlideSplineCurvatureData>("slide curvature slide");
+  slide_data = MEM_callocN<SlideSplineCurvatureData>("slide curvature slide");
   slide_data->event_invoke_type = event->type;
   slide_data->mask = mask;
   slide_data->mask_layer = mask_layer;

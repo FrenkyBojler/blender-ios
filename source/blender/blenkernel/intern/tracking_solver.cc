@@ -324,7 +324,7 @@ MovieReconstructContext *BKE_tracking_reconstruction_context_new(
     int height)
 {
   MovieTracking *tracking = &clip->tracking;
-  MovieReconstructContext *context = MEM_cnew<MovieReconstructContext>(
+  MovieReconstructContext *context = MEM_callocN<MovieReconstructContext>(
       "MovieReconstructContext data");
   const float aspy = 1.0f / tracking->camera.pixel_aspect;
   const int num_tracks = BLI_listbase_count(&tracking_object->tracks);

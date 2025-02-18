@@ -100,7 +100,7 @@ static void node_operators()
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeIndexSwitch *data = MEM_cnew<NodeIndexSwitch>(__func__);
+  NodeIndexSwitch *data = MEM_callocN<NodeIndexSwitch>(__func__);
   data->data_type = SOCK_GEOMETRY;
   data->next_identifier = 0;
 

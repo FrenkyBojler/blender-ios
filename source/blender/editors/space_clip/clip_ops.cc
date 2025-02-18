@@ -377,7 +377,7 @@ static void view_pan_init(bContext *C, wmOperator *op, const wmEvent *event)
   SpaceClip *sc = CTX_wm_space_clip(C);
   ViewPanData *vpd;
 
-  op->customdata = vpd = MEM_cnew<ViewPanData>("ClipViewPanData");
+  op->customdata = vpd = MEM_callocN<ViewPanData>("ClipViewPanData");
 
   /* Grab will be set when running from gizmo. */
   vpd->own_cursor = (win->grabcursor == 0);
@@ -553,7 +553,7 @@ static void view_zoom_init(bContext *C, wmOperator *op, const wmEvent *event)
   ARegion *region = CTX_wm_region(C);
   ViewZoomData *vpd;
 
-  op->customdata = vpd = MEM_cnew<ViewZoomData>("ClipViewZoomData");
+  op->customdata = vpd = MEM_callocN<ViewZoomData>("ClipViewZoomData");
 
   /* Grab will be set when running from gizmo. */
   vpd->own_cursor = (win->grabcursor == 0);
@@ -1538,7 +1538,7 @@ static int clip_rebuild_proxy_exec(bContext *C, wmOperator * /*op*/)
                        WM_JOB_PROGRESS,
                        WM_JOB_TYPE_CLIP_BUILD_PROXY);
 
-  pj = MEM_cnew<ProxyJob>("proxy rebuild job");
+  pj = MEM_callocN<ProxyJob>("proxy rebuild job");
   pj->scene = scene;
   pj->main = CTX_data_main(C);
   pj->clip = clip;

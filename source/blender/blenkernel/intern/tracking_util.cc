@@ -50,7 +50,7 @@
 
 TracksMap *tracks_map_new(const char *object_name, int num_tracks)
 {
-  TracksMap *map = MEM_cnew<TracksMap>("TrackingsMap");
+  TracksMap *map = MEM_callocN<TracksMap>("TrackingsMap");
 
   STRNCPY(map->object_name, object_name);
 
@@ -885,7 +885,7 @@ TrackingImageAccessor *tracking_image_accessor_new(MovieClip *clips[MAX_ACCESSOR
                                                    MovieTrackingTrack **tracks,
                                                    int num_tracks)
 {
-  TrackingImageAccessor *accessor = MEM_cnew<TrackingImageAccessor>("tracking image accessor");
+  TrackingImageAccessor *accessor = MEM_callocN<TrackingImageAccessor>("tracking image accessor");
 
   BLI_assert(num_clips <= MAX_ACCESSOR_CLIP);
 

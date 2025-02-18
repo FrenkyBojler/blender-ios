@@ -408,7 +408,7 @@ static SlideMarkerData *create_slide_marker_data(SpaceClip *sc,
                                                  int width,
                                                  int height)
 {
-  SlideMarkerData *data = MEM_cnew<SlideMarkerData>("slide marker data");
+  SlideMarkerData *data = MEM_callocN<SlideMarkerData>("slide marker data");
   int framenr = ED_space_clip_get_clip_frame_number(sc);
 
   marker = BKE_tracking_marker_ensure(track, framenr);

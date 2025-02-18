@@ -31,7 +31,7 @@ static DitherContext *create_dither_context(float dither)
 {
   DitherContext *di;
 
-  di = MEM_cnew<DitherContext>("dithering context");
+  di = MEM_callocN<DitherContext>("dithering context");
   di->dither = dither;
 
   return di;

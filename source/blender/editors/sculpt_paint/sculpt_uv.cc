@@ -651,7 +651,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
   Scene *scene = CTX_data_scene(C);
   Object *obedit = CTX_data_edit_object(C);
   ToolSettings *ts = scene->toolsettings;
-  UvSculptData *data = MEM_cnew<UvSculptData>(__func__);
+  UvSculptData *data = MEM_callocN<UvSculptData>(__func__);
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   BMesh *bm = em->bm;
 

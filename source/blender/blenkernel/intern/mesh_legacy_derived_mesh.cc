@@ -285,7 +285,7 @@ static void cdDM_release(DerivedMesh *dm)
 /**************** CDDM interface functions ****************/
 static CDDerivedMesh *cdDM_create(const char *desc)
 {
-  CDDerivedMesh *cddm = MEM_cnew<CDDerivedMesh>(desc);
+  CDDerivedMesh *cddm = MEM_callocN<CDDerivedMesh>(desc);
   DerivedMesh *dm = &cddm->dm;
 
   dm->getNumVerts = cdDM_getNumVerts;

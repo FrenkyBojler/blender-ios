@@ -209,7 +209,7 @@ MaskRasterHandle *BKE_maskrasterize_handle_new()
 {
   MaskRasterHandle *mr_handle;
 
-  mr_handle = MEM_cnew<MaskRasterHandle>("MaskRasterHandle");
+  mr_handle = MEM_callocN<MaskRasterHandle>("MaskRasterHandle");
 
   return mr_handle;
 }

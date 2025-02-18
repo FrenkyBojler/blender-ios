@@ -60,7 +60,7 @@ NodesModifierPackedBake *pack_bake_from_disk(const BakePath &bake_path, ReportLi
   const Vector<NodesModifierBakeFile> blob_bake_files = pack_files_from_directory(
       bake_path.blobs_dir, reports);
 
-  NodesModifierPackedBake *packed_bake = MEM_cnew<NodesModifierPackedBake>(__func__);
+  NodesModifierPackedBake *packed_bake = MEM_callocN<NodesModifierPackedBake>(__func__);
   packed_bake->meta_files_num = meta_bake_files.size();
   packed_bake->blob_files_num = blob_bake_files.size();
 

@@ -1550,7 +1550,7 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
                                          int useSubsurfUv,
                                          DerivedMesh *dm)
 {
-  CCGDerivedMesh *ccgdm = MEM_cnew<CCGDerivedMesh>(__func__);
+  CCGDerivedMesh *ccgdm = MEM_callocN<CCGDerivedMesh>(__func__);
   DM_from_template(&ccgdm->dm,
                    dm,
                    DM_TYPE_CCGDM,

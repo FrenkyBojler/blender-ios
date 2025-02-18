@@ -174,7 +174,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   NodeGeometryForeachGeometryElementInput *data =
-      MEM_cnew<NodeGeometryForeachGeometryElementInput>(__func__);
+      MEM_callocN<NodeGeometryForeachGeometryElementInput>(__func__);
   /* Needs to be initialized for the node to work. */
   data->output_node_id = 0;
   node->storage = data;
@@ -307,7 +307,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   NodeGeometryForeachGeometryElementOutput *data =
-      MEM_cnew<NodeGeometryForeachGeometryElementOutput>(__func__);
+      MEM_callocN<NodeGeometryForeachGeometryElementOutput>(__func__);
 
   data->generation_items.items = MEM_cnew_array<NodeForeachGeometryElementGenerationItem>(
       1, __func__);

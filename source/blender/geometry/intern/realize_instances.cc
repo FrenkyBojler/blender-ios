@@ -1544,7 +1544,7 @@ static void copy_vertex_group_names(Mesh &dst_mesh,
       if (existing_names.contains(src_name)) {
         continue;
       }
-      bDeformGroup *dst = MEM_cnew<bDeformGroup>(__func__);
+      bDeformGroup *dst = MEM_callocN<bDeformGroup>(__func__);
       src_name.copy_utf8_truncated(dst->name);
       BLI_addtail(&dst_mesh.vertex_group_names, dst);
     }

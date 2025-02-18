@@ -1533,7 +1533,7 @@ static int walk_invoke(bContext *C, wmOperator *op, const wmEvent *event)
     return OPERATOR_CANCELLED;
   }
 
-  WalkInfo *walk = MEM_cnew<WalkInfo>("NavigationWalkOperation");
+  WalkInfo *walk = MEM_callocN<WalkInfo>("NavigationWalkOperation");
 
   op->customdata = walk;
 

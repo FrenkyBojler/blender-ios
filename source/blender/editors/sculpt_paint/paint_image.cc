@@ -537,7 +537,7 @@ static int grab_clone_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   Brush *brush = image_paint_brush(C);
   GrabClone *cmv;
 
-  cmv = MEM_cnew<GrabClone>("GrabClone");
+  cmv = MEM_callocN<GrabClone>("GrabClone");
   copy_v2_v2(cmv->startoffset, brush->clone.offset);
   cmv->startx = event->xy[0];
   cmv->starty = event->xy[1];

@@ -483,7 +483,7 @@ static bNodeSocket *make_socket(bNodeTree *ntree,
     return nullptr;
   }
 
-  bNodeSocket *sock = MEM_cnew<bNodeSocket>(__func__);
+  bNodeSocket *sock = MEM_callocN<bNodeSocket>(__func__);
   sock->runtime = MEM_new<bNodeSocketRuntime>(__func__);
   StringRef(stype->idname).copy_utf8_truncated(sock->idname);
   sock->in_out = int(in_out);
@@ -1970,7 +1970,7 @@ static bNodeSocket *make_socket(bNodeTree *ntree,
   BLI_uniquename_cb(
       unique_identifier_check, lb, "socket", '_', auto_identifier, sizeof(auto_identifier));
 
-  bNodeSocket *sock = MEM_cnew<bNodeSocket>(__func__);
+  bNodeSocket *sock = MEM_callocN<bNodeSocket>(__func__);
   sock->runtime = MEM_new<bNodeSocketRuntime>(__func__);
   sock->in_out = in_out;
 
@@ -2685,7 +2685,7 @@ void node_unique_id(bNodeTree *ntree, bNode *node)
 
 bNode *node_add_node(const bContext *C, bNodeTree *ntree, const StringRef idname)
 {
-  bNode *node = MEM_cnew<bNode>(__func__);
+  bNode *node = MEM_callocN<bNode>(__func__);
   node->runtime = MEM_new<bNodeRuntime>(__func__);
   BLI_addtail(&ntree->nodes, node);
   node_unique_id(ntree, node);
@@ -2981,7 +2981,7 @@ bNodeLink *node_add_link(
   if (eNodeSocketInOut(fromsock->in_out) == SOCK_OUT &&
       eNodeSocketInOut(tosock->in_out) == SOCK_IN)
   {
-    link = MEM_cnew<bNodeLink>(__func__);
+    link = MEM_callocN<bNodeLink>(__func__);
     if (ntree) {
       BLI_addtail(&ntree->links, link);
     }
@@ -2994,7 +2994,7 @@ bNodeLink *node_add_link(
            eNodeSocketInOut(tosock->in_out) == SOCK_OUT)
   {
     /* OK but flip */
-    link = MEM_cnew<bNodeLink>(__func__);
+    link = MEM_callocN<bNodeLink>(__func__);
     if (ntree) {
       BLI_addtail(&ntree->links, link);
     }
@@ -3309,7 +3309,7 @@ bNodePreview *node_preview_verify(bNodeInstanceHash *previews,
   bNodePreview *preview = static_cast<bNodePreview *>(node_instance_hash_lookup(previews, key));
   if (!preview) {
     if (create) {
-      preview = MEM_cnew<bNodePreview>("node preview");
+      preview = MEM_callocN<bNodePreview>("node preview");
       preview->ibuf = IMB_allocImBuf(xsize, ysize, 32, IB_rect);
       node_instance_hash_insert(previews, key, preview);
     }

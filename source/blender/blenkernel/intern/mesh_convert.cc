@@ -358,14 +358,14 @@ struct VertLink {
 
 static void prependPolyLineVert(ListBase *lb, uint index)
 {
-  VertLink *vl = MEM_cnew<VertLink>("VertLink");
+  VertLink *vl = MEM_callocN<VertLink>("VertLink");
   vl->index = index;
   BLI_addhead(lb, vl);
 }
 
 static void appendPolyLineVert(ListBase *lb, uint index)
 {
-  VertLink *vl = MEM_cnew<VertLink>("VertLink");
+  VertLink *vl = MEM_callocN<VertLink>("VertLink");
   vl->index = index;
   BLI_addtail(lb, vl);
 }
@@ -393,7 +393,7 @@ void BKE_mesh_to_curve_nurblist(const Mesh *mesh, ListBase *nurblist, const int 
   /* create edges from all faces (so as to find edges not in any faces) */
   for (const int i : mesh_edges.index_range()) {
     if (edge_users[i] == edge_users_test) {
-      EdgeLink *edl = MEM_cnew<EdgeLink>("EdgeLink");
+      EdgeLink *edl = MEM_callocN<EdgeLink>("EdgeLink");
       edl->edge = &mesh_edges[i];
 
       BLI_addtail(&edges, edl);

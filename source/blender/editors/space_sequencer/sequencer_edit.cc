@@ -517,7 +517,7 @@ static int sequencer_slip_invoke(bContext *C, wmOperator *op, const wmEvent *eve
     return OPERATOR_CANCELLED;
   }
 
-  data = MEM_cnew<SlipData>("trimdata");
+  data = MEM_callocN<SlipData>("trimdata");
   op->customdata = static_cast<void *>(data);
   data->strip_array = MEM_cnew_array<Strip *>(num_seq, "trimdata_strips");
   data->num_seq = num_seq;
@@ -603,7 +603,7 @@ static int sequencer_slip_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  SlipData *data = MEM_cnew<SlipData>("trimdata");
+  SlipData *data = MEM_callocN<SlipData>("trimdata");
   op->customdata = static_cast<void *>(data);
   data->strip_array = MEM_cnew_array<Strip *>(num_seq, "trimdata_strips");
   data->num_seq = num_seq;

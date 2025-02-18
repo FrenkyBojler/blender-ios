@@ -856,7 +856,7 @@ BVHTree *BLI_bvhtree_new(int maxsize, float epsilon, char tree_type, char axis)
 
   BLI_assert(tree_type >= 2 && tree_type <= MAX_TREETYPE);
 
-  BVHTree *tree = MEM_cnew<BVHTree>(__func__);
+  BVHTree *tree = MEM_callocN<BVHTree>(__func__);
 
   /* tree epsilon must be >= FLT_EPSILON
    * so that tangent rays can still hit a bounding volume..

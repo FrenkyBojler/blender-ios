@@ -89,7 +89,7 @@ struct LaplacianSystem {
 
 static LaplacianSystem *newLaplacianSystem()
 {
-  LaplacianSystem *sys = MEM_cnew<LaplacianSystem>(__func__);
+  LaplacianSystem *sys = MEM_callocN<LaplacianSystem>(__func__);
 
   sys->is_matrix_computed = false;
   sys->has_solution = false;

@@ -913,7 +913,7 @@ static float2 get_frame_range_of_fcurves(Span<const FCurve *> fcurves,
 
 Layer *Layer::duplicate_with_shallow_strip_copies(const StringRefNull allocation_name) const
 {
-  ActionLayer *copy = MEM_cnew<ActionLayer>(allocation_name.c_str());
+  ActionLayer *copy = MEM_callocN<ActionLayer>(allocation_name.c_str());
   *copy = *reinterpret_cast<const ActionLayer *>(this);
 
   /* Make a shallow copy of the Strips, without copying their data. */
@@ -1621,7 +1621,7 @@ std::optional<std::pair<Action *, Slot *>> get_action_slot_pair(ID &animated_id)
 Strip &Strip::create(Action &owning_action, const Strip::Type type)
 {
   /* Create the strip. */
-  ActionStrip *strip = MEM_cnew<ActionStrip>(__func__);
+  ActionStrip *strip = MEM_callocN<ActionStrip>(__func__);
   memcpy(strip, DNA_struct_default_get(ActionStrip), sizeof(*strip));
   strip->strip_type = int8_t(type);
 

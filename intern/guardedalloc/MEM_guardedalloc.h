@@ -92,13 +92,19 @@ extern void *(*MEM_recallocN_id)(void *vmemh,
 #define MEM_reallocN(vmemh, len) MEM_reallocN_id(vmemh, len, __func__)
 #define MEM_recallocN(vmemh, len) MEM_recallocN_id(vmemh, len, __func__)
 
+extern void *(*MEM_callocN_imp)(size_t len,
+                                const char *str) /* ATTR_MALLOC */ ATTR_WARN_UNUSED_RESULT
+    ATTR_ALLOC_SIZE(1) ATTR_NONNULL(2);
+
 /**
  * Allocate a block of memory of size len, with tag name str. The
  * memory is cleared. The name must be static, because only a
  * pointer to it is stored!
  */
-extern void *(*MEM_callocN)(size_t len, const char *str) /* ATTR_MALLOC */ ATTR_WARN_UNUSED_RESULT
-    ATTR_ALLOC_SIZE(1) ATTR_NONNULL(2);
+inline void *MEM_callocN(size_t len, const char *str)
+{
+  return MEM_callocN_imp(len, str);
+}
 
 /**
  * Allocate a block of memory of size (len * size), with tag name
@@ -338,13 +344,26 @@ template<typename T> inline void MEM_delete(const T *ptr)
  * Allocate zero-initialized memory for an object of type #T. The constructor of #T is not called,
  * therefore this should only be used with trivial types (like all C types).
  *
+ * When allocating a `void *` buffer, #forced_alloc_size must be specified. Using this parameter
+ * should be avoided when allocating a known data type, although it is still required in some
+ * cases, e.g. for ID allocation based on #IDTypeInfo::struct_size.
+ *
  * #MEM_freeN must be used to free a pointer returned by this call. Calling #MEM_delete on it is
  * illegal.
  */
-template<typename T> inline T *MEM_cnew(const char *allocation_name)
+template<typename T>
+inline T *MEM_callocN(const char *allocation_name, size_t forced_alloc_size = 0)
 {
-  static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_new must be used.");
-  return static_cast<T *>(MEM_calloc_arrayN_aligned(1, sizeof(T), alignof(T), allocation_name));
+  if constexpr (std::is_void_v<T>) {
+    return MEM_calloc_arrayN_aligned(1, forced_alloc_size, MEM_MIN_CPP_ALIGNMENT, allocation_name);
+  }
+  else {
+    static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_new must be used.");
+    const size_t alloc_size = forced_alloc_size > 0 ? forced_alloc_size : sizeof(T);
+    const size_t alloc_alignment = forced_alloc_size > 0 ? MEM_MIN_CPP_ALIGNMENT : alignof(T);
+    return static_cast<T *>(
+        MEM_calloc_arrayN_aligned(1, alloc_size, alloc_alignment, allocation_name));
+  }
 }
 
 /**

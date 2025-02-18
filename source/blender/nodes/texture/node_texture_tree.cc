@@ -167,7 +167,7 @@ bNodeThreadStack *ntreeGetThreadStack(bNodeTreeExec *exec, int thread)
   }
 
   if (!nts) {
-    nts = MEM_cnew<bNodeThreadStack>("bNodeThreadStack");
+    nts = MEM_callocN<bNodeThreadStack>("bNodeThreadStack");
     nts->stack = (bNodeStack *)MEM_dupallocN(exec->stack);
     nts->used = true;
     BLI_addtail(lb, nts);

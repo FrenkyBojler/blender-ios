@@ -85,7 +85,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryBake *data = MEM_cnew<NodeGeometryBake>(__func__);
+  NodeGeometryBake *data = MEM_callocN<NodeGeometryBake>(__func__);
 
   data->items = MEM_cnew_array<NodeGeometryBakeItem>(1, __func__);
   data->items_num = 1;
@@ -868,7 +868,7 @@ static void draw_bake_data_block_list_item(uiList * /*ui_list*/,
 void draw_data_blocks(const bContext *C, uiLayout *layout, PointerRNA &bake_rna)
 {
   static const uiListType *data_block_list = []() {
-    uiListType *list = MEM_cnew<uiListType>(__func__);
+    uiListType *list = MEM_callocN<uiListType>(__func__);
     STRNCPY(list->idname, "DATA_UL_nodes_modifier_data_blocks");
     list->draw_item = draw_bake_data_block_list_item;
     WM_uilisttype_add(list);

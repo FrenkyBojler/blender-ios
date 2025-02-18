@@ -143,7 +143,7 @@ void render_result_views_shallowcopy(RenderResult *dst, RenderResult *src)
   LISTBASE_FOREACH (RenderView *, rview, &src->views) {
     RenderView *rv;
 
-    rv = MEM_cnew<RenderView>("new render view");
+    rv = MEM_callocN<RenderView>("new render view");
     BLI_addtail(&dst->views, rv);
 
     STRNCPY(rv->name, rview->name);
@@ -235,7 +235,7 @@ RenderPass *render_layer_add_pass(RenderResult *rr,
                                   const bool allocate)
 {
   const int view_id = BLI_findstringindex(&rr->views, viewname, offsetof(RenderView, name));
-  RenderPass *rpass = MEM_cnew<RenderPass>(name);
+  RenderPass *rpass = MEM_callocN<RenderPass>(name);
 
   rpass->channels = channels;
   rpass->rectx = rl->rectx;
@@ -287,7 +287,7 @@ RenderResult *render_result_new(Render *re,
     return nullptr;
   }
 
-  rr = MEM_cnew<RenderResult>("new render result");
+  rr = MEM_callocN<RenderResult>("new render result");
   rr->rectx = rectx;
   rr->recty = recty;
 
@@ -309,7 +309,7 @@ RenderResult *render_result_new(Render *re,
       }
     }
 
-    rl = MEM_cnew<RenderLayer>("new render layer");
+    rl = MEM_callocN<RenderLayer>("new render layer");
     BLI_addtail(&rr->layers, rl);
 
     STRNCPY(rl->name, view_layer->name);
@@ -337,7 +337,7 @@ RenderResult *render_result_new(Render *re,
 
   /* Preview-render doesn't do layers, so we make a default one. */
   if (BLI_listbase_is_empty(&rr->layers) && !(layername && layername[0])) {
-    rl = MEM_cnew<RenderLayer>("new render layer");
+    rl = MEM_callocN<RenderLayer>("new render layer");
     BLI_addtail(&rr->layers, rl);
 
     rl->rectx = rectx;
@@ -575,7 +575,7 @@ static void *ml_addlayer_cb(void *base, const char *str)
 {
   RenderResult *rr = static_cast<RenderResult *>(base);
 
-  RenderLayer *rl = MEM_cnew<RenderLayer>("new render layer");
+  RenderLayer *rl = MEM_callocN<RenderLayer>("new render layer");
   BLI_addtail(&rr->layers, rl);
 
   BLI_strncpy(rl->name, str, EXR_LAY_MAXNAME);
@@ -592,7 +592,7 @@ static void ml_addpass_cb(void *base,
 {
   RenderResult *rr = static_cast<RenderResult *>(base);
   RenderLayer *rl = static_cast<RenderLayer *>(lay);
-  RenderPass *rpass = MEM_cnew<RenderPass>("loaded pass");
+  RenderPass *rpass = MEM_callocN<RenderPass>("loaded pass");
 
   BLI_addtail(&rl->passes, rpass);
   rpass->rectx = rr->rectx;
@@ -621,7 +621,7 @@ static void *ml_addview_cb(void *base, const char *str)
 {
   RenderResult *rr = static_cast<RenderResult *>(base);
 
-  RenderView *rv = MEM_cnew<RenderView>("new render view");
+  RenderView *rv = MEM_callocN<RenderView>("new render view");
   STRNCPY(rv->name, str);
 
   /* For stereo drawing we need to ensure:
@@ -707,7 +707,7 @@ static int order_render_passes(const void *a, const void *b)
 RenderResult *render_result_new_from_exr(
     void *exrhandle, const char *colorspace, bool predivide, int rectx, int recty)
 {
-  RenderResult *rr = MEM_cnew<RenderResult>(__func__);
+  RenderResult *rr = MEM_callocN<RenderResult>(__func__);
   const char *to_colorspace = IMB_colormanagement_role_colorspace_name_get(
       COLOR_ROLE_SCENE_LINEAR);
   const char *data_colorspace = IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DATA);
@@ -747,7 +747,7 @@ RenderResult *render_result_new_from_exr(
 
 void render_result_view_new(RenderResult *rr, const char *viewname)
 {
-  RenderView *rv = MEM_cnew<RenderView>("new render view");
+  RenderView *rv = MEM_callocN<RenderView>("new render view");
   BLI_addtail(&rr->views, rv);
   STRNCPY(rv->name, viewname);
 }

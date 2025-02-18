@@ -821,7 +821,7 @@ static void *init_heights_data(MultiresBakeRender *bkr, ImBuf *ibuf)
                                                           "MultiresBake heights");
   }
 
-  height_data = MEM_cnew<MHeightBakeData>("MultiresBake heightData");
+  height_data = MEM_callocN<MHeightBakeData>("MultiresBake heightData");
 
   height_data->heights = userdata->displacement_buffer;
 
@@ -965,7 +965,7 @@ static void *init_normal_data(MultiresBakeRender *bkr, ImBuf * /*ibuf*/)
   MNormalBakeData *normal_data;
   DerivedMesh *lodm = bkr->lores_dm;
 
-  normal_data = MEM_cnew<MNormalBakeData>("MultiresBake normalData");
+  normal_data = MEM_callocN<MNormalBakeData>("MultiresBake normalData");
 
   normal_data->orig_index_mp_to_orig = static_cast<const int *>(
       lodm->getPolyDataArray(lodm, CD_ORIGINDEX));
@@ -1508,7 +1508,7 @@ static void bake_images(MultiresBakeRender *bkr, MultiresBakeResult *result)
       ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
 
       if (ibuf->x > 0 && ibuf->y > 0) {
-        BakeImBufuserData *userdata = MEM_cnew<BakeImBufuserData>("MultiresBake userdata");
+        BakeImBufuserData *userdata = MEM_callocN<BakeImBufuserData>("MultiresBake userdata");
         userdata->mask_buffer = MEM_cnew_array<char>(ibuf->y * ibuf->x, "MultiresBake imbuf mask");
         ibuf->userdata = userdata;
 

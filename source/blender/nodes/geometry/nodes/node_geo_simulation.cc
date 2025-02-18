@@ -446,7 +446,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometrySimulationInput *data = MEM_cnew<NodeGeometrySimulationInput>(__func__);
+  NodeGeometrySimulationInput *data = MEM_callocN<NodeGeometrySimulationInput>(__func__);
   /* Needs to be initialized for the node to work. */
   data->output_node_id = 0;
   node->storage = data;
@@ -795,7 +795,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometrySimulationOutput *data = MEM_cnew<NodeGeometrySimulationOutput>(__func__);
+  NodeGeometrySimulationOutput *data = MEM_callocN<NodeGeometrySimulationOutput>(__func__);
 
   data->next_identifier = 0;
 

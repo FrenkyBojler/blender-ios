@@ -107,7 +107,7 @@ void SEQ_connect(blender::VectorSet<Strip *> &strip_list)
       if (seq1 == seq2) {
         continue;
       }
-      StripConnection *con = MEM_cnew<StripConnection>("stripconnection");
+      StripConnection *con = MEM_callocN<StripConnection>("stripconnection");
       con->strip_ref = seq2;
       BLI_addtail(&seq1->connections, con);
     }

@@ -2038,7 +2038,7 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
     return;
   }
 
-  AttributeSearchData *data = MEM_cnew<AttributeSearchData>(__func__);
+  AttributeSearchData *data = MEM_callocN<AttributeSearchData>(__func__);
   data->object_session_uid = object->id.session_uid;
   STRNCPY(data->modifier_name, ctx.nmd.modifier.name);
   STRNCPY(data->socket_identifier, socket.identifier);
