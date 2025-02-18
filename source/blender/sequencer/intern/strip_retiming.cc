@@ -62,7 +62,7 @@ static int content_frame_index_get(const Scene *scene,
   const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
   const int sound_offset = SEQ_time_get_rounded_sound_offset(strip, scene_fps);
   return (timeline_frame - SEQ_time_start_frame_get(strip) - sound_offset) *
-         SEQ_time_media_playback_rate_factor_get(strip, frames_per_second);
+         SEQ_time_media_playback_rate_factor_get(strip, scene_fps);
 }
 
 SeqRetimingKey *SEQ_retiming_key_get_by_timeline_frame(const Scene *scene,
