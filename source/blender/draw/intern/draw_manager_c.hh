@@ -33,6 +33,7 @@ struct Mesh;
 namespace blender::draw {
 struct CurvesModule;
 struct VolumeModule;
+struct PointCloudModule;
 struct DRW_Attributes;
 struct DRW_MeshCDMask;
 class CurveRefinePass;
@@ -72,6 +73,7 @@ struct DRWData {
   /** Module storage. */
   blender::draw::CurvesModule *curves_module;
   blender::draw::VolumeModule *volume_module;
+  blender::draw::PointCloudModule *point_cloud_module;
   /** Default view that feeds every engine. */
   blender::draw::View *default_view;
 };
