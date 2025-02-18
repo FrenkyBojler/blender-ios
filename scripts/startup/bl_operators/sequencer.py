@@ -210,12 +210,7 @@ class SequencerFadesAdd(Operator):
         scene = context.scene
         scene_adt = scene.animation_data_create()
         if not scene_adt.action:
-            action = bpy.data.actions.new(scene.name + "Action")
-            scene_adt.action = action
-            scene_adt.action_slot = action.slots.new(scene.id_type, scene.name)
-        elif not scene_adt.action_slot:
-            action = scene_adt.action
-            scene_adt.action_slot = action.slots.new(scene.id_type, scene.name)
+            scene_adt.action = bpy.data.actions.new(scene.name + "Action")
 
         sequences = context.selected_strips
 
@@ -291,20 +286,8 @@ class SequencerFadesAdd(Operator):
         """
         scene = context.scene
         action = scene.animation_data.action
-        action_slot = scene.animation_data.action_slot
         searched_data_path = sequence.path_from_id(animated_property)
-
-        for layer in reversed(action.layers):
-            for strip in layer.strips:
-                cbag = strip.channelbag(action_slot)
-                if not cbag:
-                    continue
-
-                fcurve = cbag.fcurves.find(searched_data_path)
-                if fcurve:
-                    return fcurve
-
-        return fcurves.new(data_path=searched_data_path)
+        return action.fcurve_ensure_for_datablock(scene, searched_data_path)
 
     def fade_animation_clear(self, fade_fcurve, fades):
         """
