@@ -77,6 +77,8 @@ struct PointCloudEvalCache {
 struct PointCloudBatchCache {
   PointCloudEvalCache eval_cache;
 
+  gpu::Batch *overlay_dots;
+
   /* settings to determine if cache is invalid */
   bool is_dirty;
 
@@ -161,6 +163,8 @@ static void pointcloud_batch_cache_clear(PointCloud &pointcloud)
   GPU_VERTBUF_DISCARD_SAFE(cache->eval_cache.pos_rad);
   GPU_VERTBUF_DISCARD_SAFE(cache->eval_cache.attr_viewer);
   GPU_INDEXBUF_DISCARD_SAFE(cache->eval_cache.geom_indices);
+
+  GPU_BATCH_DISCARD_SAFE(cache->overlay_dots);
 
   if (cache->eval_cache.surface_per_mat) {
     for (int i = 0; i < cache->eval_cache.mat_len; i++) {
@@ -455,6 +459,61 @@ void DRW_pointcloud_batch_cache_create_requested(Object *ob)
   if (DRW_vbo_requested(cache.eval_cache.pos_rad)) {
     pointcloud_extract_position_and_radius(*pointcloud, cache);
   }
+}
+
+static void pointcloud_batch_cache_create_overlay_batches(PointCloud *pointcloud)
+{
+  const Span<float3> positions = pointcloud->positions();
+  const VArray selection = *pointcloud->attributes().lookup_or_default<bool>(
+      ".selection", bke::AttrDomain::Point, true);
+
+  if (!selection) {
+    return;
+  }
+
+  PointCloudBatchCache *cache = pointcloud_batch_cache_get(*pointcloud);
+  if (cache->overlay_dots == nullptr) {
+    static struct {
+      uint pos, data;
+    } attr_id;
+    static const GPUVertFormat format = [&]() {
+      GPUVertFormat format{};
+      attr_id.pos = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+      attr_id.data = GPU_vertformat_attr_add(&format, "data", GPU_COMP_U8, 1, GPU_FETCH_INT);
+      return format;
+    }();
+
+    const int vert_len = pointcloud->totpoint;
+
+    gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
+    GPU_vertbuf_data_alloc(*vbo, vert_len);
+
+    threading::parallel_for(IndexRange(0, vert_len - 1), 1024, [&](IndexRange range) {
+      for (const int64_t i : range) {
+        float3 position = positions[i];
+        char vflag = 0;
+
+        if (selection[i]) {
+          vflag |= VFLAG_VERT_SELECTED;
+        }
+
+        GPU_vertbuf_attr_set(vbo, attr_id.pos, i, position);
+        GPU_vertbuf_attr_set(vbo, attr_id.data, i, &vflag);
+      }
+    });
+    cache->overlay_dots = GPU_batch_create_ex(GPU_PRIM_POINTS, vbo, nullptr, GPU_BATCH_OWNS_VBO);
+  }
+}
+
+gpu::Batch *DRW_pointcloud_batch_cache_get_edit_dots(PointCloud *pointcloud)
+{
+  PointCloudBatchCache *cache = pointcloud_batch_cache_get(*pointcloud);
+
+  if (cache->overlay_dots == nullptr) {
+    pointcloud_batch_cache_create_overlay_batches(pointcloud);
+  }
+
+  return cache->overlay_dots;
 }
 
 /** \} */

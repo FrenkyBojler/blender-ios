@@ -714,6 +714,28 @@ OVERLAY_INFO_CLIP_VARIATION(overlay_edit_particle_point)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Edit PointCloud
+ * \{ */
+
+GPU_SHADER_CREATE_INFO(overlay_edit_pointcloud_base)
+VERTEX_IN(0, VEC3, pos)
+VERTEX_IN(1, UINT, data)
+VERTEX_OUT(overlay_edit_flat_color_iface)
+DEFINE("LINE_OUTPUT")
+FRAGMENT_OUT(0, VEC4, fragColor)
+FRAGMENT_OUT(1, VEC4, lineOutput)
+VERTEX_SOURCE("overlay_edit_pointcloud_vert.glsl")
+FRAGMENT_SOURCE("overlay_point_varying_color_frag.glsl")
+ADDITIONAL_INFO(draw_view)
+ADDITIONAL_INFO(draw_resource_handle_new)
+ADDITIONAL_INFO(draw_globals)
+GPU_SHADER_CREATE_END()
+
+OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_edit_pointcloud, overlay_edit_pointcloud_base)
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Edit GPencil
  * \{ */
 

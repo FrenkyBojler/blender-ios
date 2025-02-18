@@ -271,6 +271,7 @@ set(SRC
   engines/overlay/overlay_next_outline.hh
   engines/overlay/overlay_next_paint.hh
   engines/overlay/overlay_next_particle.hh
+  engines/overlay/overlay_next_pointcloud.hh
   engines/overlay/overlay_next_prepass.hh
   engines/overlay/overlay_next_private.hh
   engines/overlay/overlay_next_relation.hh
@@ -659,6 +660,7 @@ set(GLSL_SRC
   engines/overlay/shaders/overlay_edit_mesh_vertex_vert.glsl
   engines/overlay/shaders/overlay_edit_particle_point_vert.glsl
   engines/overlay/shaders/overlay_edit_particle_strand_vert.glsl
+  engines/overlay/shaders/overlay_edit_pointcloud_vert.glsl
   engines/overlay/shaders/overlay_edit_uv_edges_frag.glsl
   engines/overlay/shaders/overlay_edit_uv_edges_vert.glsl
   engines/overlay/shaders/overlay_edit_uv_face_dots_vert.glsl
