@@ -1,1 +1,1 @@
-Referenced by issue #134436, Slow Gaussian Blur in CPU Compositor
+Referenced by issue #134436, Compositor: Blur in new CPU Compositor is significantly slower on Windows
