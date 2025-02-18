@@ -137,35 +137,39 @@ static ChunkResult parse_records_chunk(const csv_parse::CsvRecords &records,
   for (const int column_i : IndexRange(columns_num)) {
     ColumnTypeInfo &type_info = columns_info.types[column_i];
     if (type_info.found_invalid.load(std::memory_order_relaxed)) {
+      /* Invalid values have been found in this column already, skip it. */
       continue;
     }
+    /* A float was found in this column already, so parse everything as floats. */
     const bool found_float = type_info.found_float.load(std::memory_order_relaxed);
     if (found_float) {
-      ParseFloatColumnResult column_result = parse_column_as_floats(records, column_i);
-      if (column_result.found_invalid) {
+      ParseFloatColumnResult float_column_result = parse_column_as_floats(records, column_i);
+      if (float_column_result.found_invalid) {
         type_info.found_invalid.store(true, std::memory_order_relaxed);
         continue;
       }
-      chunk_result.columns[column_i] = std::move(column_result.data);
+      chunk_result.columns[column_i] = std::move(float_column_result.data);
       continue;
     }
-    ParseIntColumnResult column_result = parse_column_as_ints(records, column_i);
-    if (column_result.found_invalid) {
+    /* No float was found so far in this column, so attempt to parse it as integers. */
+    ParseIntColumnResult int_column_result = parse_column_as_ints(records, column_i);
+    if (int_column_result.found_invalid) {
       type_info.found_invalid.store(true, std::memory_order_relaxed);
       continue;
     }
-    if (column_result.found_float) {
-      type_info.found_float.store(true, std::memory_order_relaxed);
-      ParseFloatColumnResult column_result = parse_column_as_floats(records, column_i);
-      if (column_result.found_invalid) {
-        type_info.found_invalid.store(true, std::memory_order_relaxed);
-        continue;
-      }
-      chunk_result.columns[column_i] = std::move(column_result.data);
+    if (!int_column_result.found_float) {
+      chunk_result.columns[column_i] = std::move(int_column_result.data);
+      type_info.found_int.store(true, std::memory_order_relaxed);
       continue;
     }
-    chunk_result.columns[column_i] = std::move(column_result.data);
-    type_info.found_int.store(true, std::memory_order_relaxed);
+    /* While parsing it as integers, floats were detected. So parse it as floats again. */
+    type_info.found_float.store(true, std::memory_order_relaxed);
+    ParseFloatColumnResult float_column_result = parse_column_as_floats(records, column_i);
+    if (float_column_result.found_invalid) {
+      type_info.found_invalid.store(true, std::memory_order_relaxed);
+      continue;
+    }
+    chunk_result.columns[column_i] = std::move(float_column_result.data);
   }
   return chunk_result;
 }
