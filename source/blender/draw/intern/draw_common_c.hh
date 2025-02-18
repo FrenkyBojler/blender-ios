@@ -27,7 +27,8 @@ struct Scene;
 struct DRWData;
 namespace blender::draw {
 class Manager;
-class CurvesModule;
+struct CurvesModule;
+struct VolumeModule;
 }  // namespace blender::draw
 
 /* Keep in sync with globalsBlock in shaders */
@@ -58,7 +59,7 @@ namespace blender::draw {
  */
 gpu::VertBuf *DRW_curves_pos_buffer_get(Object *object);
 
-/* If drw_data is nullptr, DST global is access to get it. */
+/* If drw_data is nullptr, DST global is accessed to get it. */
 void DRW_curves_init(DRWData *drw_data = nullptr);
 void DRW_curves_module_free(draw::CurvesModule *module);
 void DRW_curves_update(draw::Manager &manager);
@@ -68,13 +69,13 @@ void DRW_curves_update(draw::Manager &manager);
 void DRW_pointcloud_init();
 void DRW_pointcloud_free();
 
-}  // namespace blender::draw
-
 /* draw_volume.cc */
 
-void DRW_volume_init(DRWData *drw_data);
-void DRW_volume_ubos_pool_free(void *pool);
-void DRW_volume_free();
+/* If drw_data is nullptr, DST global is accessed to get it. */
+void DRW_volume_init(DRWData *drw_data = nullptr);
+void DRW_volume_module_free(draw::VolumeModule *module);
+
+}  // namespace blender::draw
 
 /* `draw_fluid.cc` */
 
