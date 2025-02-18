@@ -80,7 +80,7 @@ static void screen_free_data(ID *id)
   BKE_previewimg_free(&screen->preview);
 
   /* Region and timer are freed by the window manager. */
-  MEM_SAFE_DELETE(screen->tool_tip);
+  MEM_SAFE_FREE(screen->tool_tip);
 }
 
 void BKE_screen_foreach_id_screen_area(LibraryForeachIDData *data, ScrArea *area)
