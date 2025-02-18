@@ -183,7 +183,7 @@ static ChunkResult parse_records_chunk(const csv_parse::CsvRecords &records,
 static Array<std::optional<FlattenedAttribute>> flatten_valid_attribute_chunks(
     const Span<ColumnInfo> columns_info,
     OffsetIndices<int> chunk_offsets,
-    const Span<ChunkResult> chunks)
+    MutableSpan<ChunkResult> chunks)
 {
   const int points_num = chunk_offsets.total_size();
   Array<std::optional<FlattenedAttribute>> flattened_attributes(columns_info.size());
@@ -203,8 +203,8 @@ static Array<std::optional<FlattenedAttribute>> flatten_valid_attribute_chunks(
         threading::parallel_for(chunks.index_range(), 1, [&](const IndexRange chunks_range) {
           for (const int chunk_i : chunks_range) {
             const IndexRange dst_range = chunk_offsets[chunk_i];
-            const ChunkResult &chunk = chunks[chunk_i];
-            const ColumnData &column_data = chunk.columns[column_i];
+            ChunkResult &chunk = chunks[chunk_i];
+            ColumnData &column_data = chunk.columns[column_i];
             if (const auto *float_vec = std::get_if<Vector<float>>(&column_data)) {
               BLI_assert(float_vec->size() == dst_range.size());
               uninitialized_copy_n(
@@ -221,6 +221,8 @@ static Array<std::optional<FlattenedAttribute>> flatten_valid_attribute_chunks(
                * set. */
               BLI_assert_unreachable();
             }
+            /* Free data for chunk. */
+            column_data = std::monostate{};
           }
         });
         continue;
@@ -233,8 +235,8 @@ static Array<std::optional<FlattenedAttribute>> flatten_valid_attribute_chunks(
         threading::parallel_for(chunks.index_range(), 1, [&](const IndexRange chunks_range) {
           for (const int chunk_i : chunks_range) {
             const IndexRange dst_range = chunk_offsets[chunk_i];
-            const ChunkResult &chunk = chunks[chunk_i];
-            const ColumnData &column_data = chunk.columns[column_i];
+            ChunkResult &chunk = chunks[chunk_i];
+            ColumnData &column_data = chunk.columns[column_i];
             if (const auto *int_vec = std::get_if<Vector<int>>(&column_data)) {
               BLI_assert(int_vec->size() == dst_range.size());
               uninitialized_copy_n(
@@ -245,6 +247,8 @@ static Array<std::optional<FlattenedAttribute>> flatten_valid_attribute_chunks(
                * `found_float` flags were not set. */
               BLI_assert_unreachable();
             }
+            /* Free data for chunk. */
+            column_data = std::monostate{};
           }
         });
         continue;
@@ -294,9 +298,8 @@ PointCloud *import_csv_as_point_cloud(const CSVImportParams &import_params)
 
   const Span<char> buffer_span{static_cast<char *>(buffer), int64_t(buffer_len)};
   csv_parse::CsvParseOptions parse_options;
-  const std::optional<Vector<ChunkResult>> parsed_chunks =
-      csv_parse::parse_csv_in_chunks<ChunkResult>(
-          buffer_span, parse_options, parse_header, parse_data_chunk);
+  std::optional<Vector<ChunkResult>> parsed_chunks = csv_parse::parse_csv_in_chunks<ChunkResult>(
+      buffer_span, parse_options, parse_header, parse_data_chunk);
 
   if (!parsed_chunks.has_value()) {
     BKE_reportf(import_params.reports,
