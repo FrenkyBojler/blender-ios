@@ -28,6 +28,7 @@ struct CurvesUniformBufPool {
     used = 0;
     /* Allocate dummy. */
     alloc();
+    ubos.first()->push_update();
   }
 
   CurvesInfosBuf &dummy_get()
