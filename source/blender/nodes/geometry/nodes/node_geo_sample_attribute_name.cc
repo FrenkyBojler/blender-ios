@@ -108,7 +108,7 @@ static void node_register()
   static blender::bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeSampleAttributeName");
-  ntype.ui_name = "Attribute Name";
+  ntype.ui_name = "Sample Attribute Name";
   ntype.ui_description =
       "Samples attribute name as a string given an index, data type, and domain";
   ntype.nclass = NODE_CLASS_ATTRIBUTE;
