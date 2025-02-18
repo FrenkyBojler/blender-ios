@@ -81,6 +81,7 @@ class StaticShader : NonCopyable {
 
   GPUShader *get()
   {
+    /*TODO: Per instance mutex.*/
     static std::mutex mutex_;
     if (!shader_) {
       std::scoped_lock lock(mutex_);
