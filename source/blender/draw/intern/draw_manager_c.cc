@@ -1488,9 +1488,6 @@ void DRW_draw_render_loop_ex(Depsgraph *depsgraph,
   drw_engines_enable(view_layer, engine_type, gpencil_engine_needed);
   drw_engines_data_validate();
 
-  /* Update UBO's */
-  DRW_globals_update();
-
   drw_debug_init();
   DRW_point_cloud_init(DST.vmempool);
   DRW_curves_init(DST.vmempool);
@@ -2000,9 +1997,6 @@ void DRW_draw_render_loop_2d_ex(Depsgraph *depsgraph,
   drw_engines_enable_editors();
   drw_engines_data_validate();
 
-  /* Update UBO's */
-  DRW_globals_update();
-
   drw_debug_init();
 
   /* No frame-buffer allowed before drawing. */
@@ -2240,9 +2234,6 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   }
   drw_engines_data_validate();
 
-  /* Update UBO's */
-  DRW_globals_update();
-
   /* Init engines */
   drw_engines_init();
   DRW_point_cloud_init(DST.vmempool);
@@ -2414,9 +2405,6 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
   GPU_framebuffer_bind(depth_fb);
   GPU_framebuffer_clear_depth(depth_fb, 1.0f);
 
-  /* Update UBO's */
-  DRW_globals_update();
-
   /* Init engines */
   drw_engines_init();
   DRW_point_cloud_init(DST.vmempool);
@@ -2515,9 +2503,8 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
 
   drw_manager_init(&DST, viewport, nullptr);
 
-  /* Update UBO's */
+  /* Make sure select engine gets the correct vertex size. */
   UI_SetTheme(SPACE_VIEW3D, RGN_TYPE_WINDOW);
-  DRW_globals_update();
 
   /* Select Engine */
   use_drw_engine(&draw_engine_select_type);
@@ -2859,14 +2846,9 @@ void DRW_engines_free()
   GPU_FRAMEBUFFER_FREE_SAFE(g_select_buffer.framebuffer_depth_only);
 
   DRW_shaders_free();
-  DRW_globals_free();
 
   drw_debug_module_free(DST.debug);
   DST.debug = nullptr;
-
-  GPU_UBO_FREE_SAFE(G_draw.block_ubo);
-  GPU_TEXTURE_FREE_SAFE(G_draw.ramp);
-  GPU_TEXTURE_FREE_SAFE(G_draw.weight_ramp);
 
   DRW_gpu_context_disable();
 }

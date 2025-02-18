@@ -32,12 +32,6 @@ struct PointCloudModule;
 struct VolumeModule;
 }  // namespace blender::draw
 
-/* Keep in sync with globalsBlock in shaders */
-BLI_STATIC_ASSERT_ALIGN(GlobalsUboStorage, 16)
-
-void DRW_globals_update();
-void DRW_globals_free();
-
 /* draw_hair.cc */
 
 /**
@@ -92,18 +86,3 @@ void DRW_smoke_free(FluidModifierData *fmd);
 
 void DRW_smoke_init(DRWData *drw_data);
 void DRW_smoke_exit(DRWData *drw_data);
-
-/* `draw_common.cc` */
-
-struct DRW_Global {
-  /** If needed, contains all global/Theme colors
-   * Add needed theme colors / values to DRW_globals_update() and update UBO
-   * Not needed for constant color. */
-  GlobalsUboStorage block;
-  /** Define "globalsBlock" uniform for 'block'. */
-  GPUUniformBuf *block_ubo;
-
-  GPUTexture *ramp;
-  GPUTexture *weight_ramp;
-};
-extern DRW_Global G_draw;
