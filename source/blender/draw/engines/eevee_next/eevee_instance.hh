@@ -289,7 +289,9 @@ class Instance {
     return DEG_id_type_any_exists(depsgraph, ID_GP);
   }
 
-  /** Skip rendering when state isn't valid */
+  /**
+   * True when shaders are not compiled, or the render extend doesn't fit GPU limits.
+   */
   bool is_state_valid() const
   {
     const int2 render_extent = film.render_extent_get();
