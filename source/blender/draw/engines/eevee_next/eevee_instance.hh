@@ -83,8 +83,8 @@ class Instance {
 
   uint64_t depsgraph_last_update_ = 0;
   bool overlays_enabled_ = false;
-
   bool shaders_are_ready_ = true;
+  bool skip_render_ = false;
 
   /** Info string displayed at the top of the render / viewport, or the console when baking. */
   std::string info_ = "";
@@ -287,16 +287,6 @@ class Instance {
   bool gpencil_engine_enabled() const
   {
     return DEG_id_type_any_exists(depsgraph, ID_GP);
-  }
-
-  /**
-   * True when shaders are not compiled, or the render extend doesn't fit GPU limits.
-   */
-  bool is_state_valid() const
-  {
-    const int2 render_extent = film.render_extent_get();
-    return shaders_are_ready_ && render_extent.x <= GPU_max_texture_size() &&
-           render_extent.y <= GPU_max_texture_size();
   }
 
   bool is_playback() const
