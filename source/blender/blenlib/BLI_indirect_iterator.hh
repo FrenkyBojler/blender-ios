@@ -11,8 +11,8 @@
  * else, and provides a dereferenced access of this elements, this dereferenced type can be used in
  * for loop as variable type.
  *
- * For an array of std::unique_ptr<int>, this mostly like `Blender::Span<SmartPtrType>` however
- * this avoids to use unique pointer semantics where cannot be used or are not required. As
+ * For an array of std::unique_ptr<int>, this mostly like `Blender::Span<std::unique_ptr<int>>`
+ * however this avoids to use unique pointer semantics where cannot be used or are not required. As
  * example, with Span a for loop must be written as follows:
  *
  * - for (const std::unique_ptr<int> &val : blender::Span<std::unique_ptr<int>>())
@@ -57,7 +57,6 @@ template<typename T> struct DereferencedType<std::shared_ptr<T>> {
  * References a range of `T` contiguous elements and provides a dereferenced access to each
  * element.
  */
-
 template<
     /** Source type of iterable values. */
     typename T,
@@ -67,8 +66,6 @@ class IndirectIterator {
   static_assert(std::is_reference_v<Reference>);
 
  public:
-  using Pointer = typename std::remove_reference_t<Reference> *;
-
   class Iterator {
    private:
     const T *itr_;
@@ -129,6 +126,7 @@ class IndirectIterator {
   constexpr IndirectIterator(Span<T> span) : IndirectIterator(span.begin(), span.size()) {}
 
   template<typename U, typename OtherRef> friend class IndirectIterator;
+
   /**
    * Support implicit conversions like:
    * IndirectIterator<std::unique_ptr<T>> -> IndirectIterator<std::unique_ptr<T>, const T&>
@@ -170,7 +168,7 @@ class IndirectIterator {
   }
 
   /**
-   * Return if the in the range has zero elements.
+   * Return if the range has zero elements.
    */
   constexpr bool is_empty() const
   {
@@ -188,19 +186,21 @@ class IndirectIterator {
   }
 
   /**
-   * Return the pointer to the first element in the range, returns null if empty.
+   * Return the first element in the range.
    */
-  constexpr Pointer first() const
+  constexpr Reference first() const
   {
-    return this->is_empty() ? nullptr : &*begin_;
+    BLI_assert(!this->is_empty());
+    return **begin_;
   }
 
   /**
-   * Return the pointer to the last element in the range, returns null if empty.
+   * Return the last element in the range.
    */
-  constexpr Pointer last() const
+  constexpr Reference last() const
   {
-    return this->is_empty() ? nullptr : &*(end_ - 1);
+    BLI_assert(!this->is_empty());
+    return **(end_ - 1);
   }
 
   constexpr IndexRange index_range() const
