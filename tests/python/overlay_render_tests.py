@@ -12,6 +12,8 @@ import sys
 from pathlib import Path
 import sys
 
+from modules import render_report
+
 
 class OverlayReport(render_report.Report):
     def __init__(self, title, output_dir, oiiotool, variation=None, blocklist=[]):
