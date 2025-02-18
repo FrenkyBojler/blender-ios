@@ -9021,11 +9021,19 @@ void ui_but_active_free(const bContext *C, uiBut *but)
   /* this gets called when the button somehow disappears while it is still
    * active, this is bad for user interaction, but we need to handle this
    * case cleanly anyway in case it happens */
-  if (but->active) {
-    uiHandleButtonData *data = but->active;
-    data->cancel = true;
-    button_activate_exit((bContext *)C, but, data, false, true);
+  if (!but->active) {
+    return;
   }
+
+  /* This shouldn't happen ideally, but see comment in ui_but_free. */
+  if (C == nullptr) {
+    MEM_SAFE_DELETE(but->active);
+    return;
+  }
+
+  uiHandleButtonData *data = but->active;
+  data->cancel = true;
+  button_activate_exit((bContext *)C, but, data, false, true);
 }
 
 void ui_but_semi_modal_state_free(const bContext *C, uiBut *but)
@@ -9033,6 +9041,13 @@ void ui_but_semi_modal_state_free(const bContext *C, uiBut *but)
   if (!but->semi_modal_state) {
     return;
   }
+
+  /* This shouldn't happen ideally, but see comment in ui_but_free. */
+  if (C == nullptr) {
+    MEM_SAFE_DELETE(but->semi_modal_state);
+    return;
+  }
+
   /* Activate the button (using the semi modal state) and use the normal active button freeing. */
   with_but_active_as_semi_modal(const_cast<bContext *>(C),
                                 but->semi_modal_state->region,
