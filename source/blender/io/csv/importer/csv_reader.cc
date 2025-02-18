@@ -11,15 +11,16 @@
 #include <optional>
 #include <variant>
 
-#include "BKE_anonymous_attribute_id.hh"
 #include "fast_float.h"
 
+#include "BKE_anonymous_attribute_id.hh"
 #include "BKE_attribute.hh"
 #include "BKE_pointcloud.hh"
 #include "BKE_report.hh"
 
 #include "BLI_csv_parse.hh"
 #include "BLI_fileops.hh"
+#include "BLI_implicit_sharing.hh"
 #include "BLI_vector.hh"
 
 #include "IO_csv.hh"
@@ -50,11 +51,6 @@ struct ParseIntColumnResult {
   Vector<int> data;
   bool found_invalid = false;
   bool found_float = false;
-};
-
-struct FlattenedAttribute {
-  eCustomDataType type;
-  void *data;
 };
 
 static ParseFloatColumnResult parse_column_as_floats(const csv_parse::CsvRecords &records,
@@ -185,13 +181,13 @@ static ChunkResult parse_records_chunk(const csv_parse::CsvRecords &records,
  * So far, the parsed data is still split into many chunks. This function flattens the chunks into
  * continuous buffers that can be used as attributes.
  */
-static Array<std::optional<FlattenedAttribute>> flatten_valid_attribute_chunks(
+static Array<std::optional<GArray<>>> flatten_valid_attribute_chunks(
     const Span<ColumnInfo> columns_info,
     OffsetIndices<int> chunk_offsets,
     MutableSpan<ChunkResult> chunks)
 {
   const int points_num = chunk_offsets.total_size();
-  Array<std::optional<FlattenedAttribute>> flattened_attributes(columns_info.size());
+  Array<std::optional<GArray<>>> flattened_attributes(columns_info.size());
 
   threading::parallel_for(columns_info.index_range(), 1, [&](const IndexRange columns_range) {
     for (const int column_i : columns_range) {
@@ -202,9 +198,8 @@ static Array<std::optional<FlattenedAttribute>> flatten_valid_attribute_chunks(
       }
       if (column_info.found_float) {
         /* Should read column as floats. */
-        float *attribute_buffer = static_cast<float *>(MEM_mallocN_aligned(
-            sizeof(float) * points_num, alignof(float), "csv float attribute"));
-        flattened_attributes[column_i] = FlattenedAttribute{CD_PROP_FLOAT, attribute_buffer};
+        GArray<> attribute(CPPType::get<float>(), points_num);
+        float *attribute_buffer = static_cast<float *>(attribute.data());
         threading::parallel_for(chunks.index_range(), 1, [&](const IndexRange chunks_range) {
           for (const int chunk_i : chunks_range) {
             const IndexRange dst_range = chunk_offsets[chunk_i];
@@ -230,13 +225,13 @@ static Array<std::optional<FlattenedAttribute>> flatten_valid_attribute_chunks(
             column_data = std::monostate{};
           }
         });
+        flattened_attributes[column_i] = std::move(attribute);
         continue;
       }
       if (column_info.found_int) {
         /* Should read column as ints. */
-        int *attribute_buffer = static_cast<int *>(
-            MEM_mallocN_aligned(sizeof(int) * points_num, alignof(int), "csv int attribute"));
-        flattened_attributes[column_i] = FlattenedAttribute{CD_PROP_INT32, attribute_buffer};
+        GArray<> attribute(CPPType::get<int>(), points_num);
+        int *attribute_buffer = static_cast<int *>(attribute.data());
         threading::parallel_for(chunks.index_range(), 1, [&](const IndexRange chunks_range) {
           for (const int chunk_i : chunks_range) {
             const IndexRange dst_range = chunk_offsets[chunk_i];
@@ -256,6 +251,7 @@ static Array<std::optional<FlattenedAttribute>> flatten_valid_attribute_chunks(
             column_data = std::monostate{};
           }
         });
+        flattened_attributes[column_i] = std::move(attribute);
         continue;
       }
     }
@@ -326,7 +322,7 @@ PointCloud *import_csv_as_point_cloud(const CSVImportParams &import_params)
 
   PointCloud *pointcloud = BKE_pointcloud_new_nomain(points_num);
 
-  Array<std::optional<FlattenedAttribute>> flattened_attributes;
+  Array<std::optional<GArray<>>> flattened_attributes;
   threading::memory_bandwidth_bound_task(points_num * 16, [&]() {
     threading::parallel_invoke([&]() { pointcloud->positions_for_write().fill(float3(0)); },
                                [&]() {
@@ -338,15 +334,17 @@ PointCloud *import_csv_as_point_cloud(const CSVImportParams &import_params)
   /* Add all valid attributes to the pointcloud. */
   bke::MutableAttributeAccessor attributes = pointcloud->attributes_for_write();
   for (const int column_i : columns_info.index_range()) {
-    const std::optional<FlattenedAttribute> &attribute = flattened_attributes[column_i];
+    const std::optional<GArray<>> &attribute = flattened_attributes[column_i];
     if (!attribute.has_value()) {
       continue;
     }
+    const auto *data = new ImplicitSharedValue<GArray<>>(std::move(*attribute));
+    const eCustomDataType type = bke::cpp_type_to_custom_data_type(attribute->type());
     const ColumnInfo &column_info = columns_info[column_i];
     attributes.add(column_info.name,
                    bke::AttrDomain::Point,
-                   attribute->type,
-                   bke::AttributeInitMoveArray{attribute->data});
+                   type,
+                   bke::AttributeInitShared{data->data.data(), *data});
   }
 
   return pointcloud;
