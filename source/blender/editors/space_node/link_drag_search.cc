@@ -343,7 +343,7 @@ static void link_drag_search_update_fn(
   const Vector<SocketLinkOperation *> filtered_items = search.query(string);
 
   for (SocketLinkOperation *item : filtered_items) {
-    if (!UI_search_item_add(items, item->name.c_str(), item, ICON_NONE, 0, 0)) {
+    if (!UI_search_item_add(items, item->name, item, ICON_NONE, 0, 0)) {
       break;
     }
   }
@@ -444,7 +444,7 @@ static uiBlock *create_search_popup_block(bContext *C, ARegion *region, void *ar
            nullptr,
            0,
            0,
-           nullptr);
+           std::nullopt);
 
   const int2 offset = {0, -UI_UNIT_Y};
   UI_block_bounds_set_popup(block, 0.3f * U.widget_unit, offset);

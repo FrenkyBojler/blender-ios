@@ -6,8 +6,9 @@
  * \ingroup draw
  */
 
-#include "DNA_texture_types.h"
+#include "DNA_userdef_types.h"
 #include "DNA_view3d_types.h"
+
 #include "DRW_render.hh"
 
 #include "GPU_texture.hh"
@@ -205,11 +206,9 @@ void DRW_globals_update()
   gb->size_edge = U.pixelsize * max_ff(1.0f, UI_GetThemeValuef(TH_EDGE_WIDTH)) / 2.0f;
   gb->size_edge_fix = U.pixelsize * (0.5f + 2.0f * (1.0f * (gb->size_edge * float(M_SQRT1_2))));
 
-  gb->pixel_fac = *DRW_viewport_pixelsize_get();
+  gb->pixel_fac = (ctx->rv3d) ? ctx->rv3d->pixsize : 1.0f;
 
-  copy_v2_v2(&gb->size_viewport[0], DRW_viewport_size_get());
-  copy_v2_v2(&gb->size_viewport[2], &gb->size_viewport[0]);
-  invert_v2(&gb->size_viewport[2]);
+  gb->size_viewport = float4(DRW_viewport_size_get(), 1.0f / DRW_viewport_size_get());
 
   /* Color management. */
   {
@@ -227,89 +226,4 @@ void DRW_globals_update()
   }
 
   GPU_uniformbuf_update(G_draw.block_ubo, gb);
-
-  if (!G_draw.ramp) {
-    ColorBand ramp = {0};
-    float *colors;
-    int col_size;
-
-    ramp.tot = 3;
-    ramp.data[0].a = 1.0f;
-    ramp.data[0].b = 1.0f;
-    ramp.data[0].pos = 0.0f;
-    ramp.data[1].a = 1.0f;
-    ramp.data[1].g = 1.0f;
-    ramp.data[1].pos = 0.5f;
-    ramp.data[2].a = 1.0f;
-    ramp.data[2].r = 1.0f;
-    ramp.data[2].pos = 1.0f;
-
-    BKE_colorband_evaluate_table_rgba(&ramp, &colors, &col_size);
-
-    G_draw.ramp = GPU_texture_create_1d(
-        "ramp", col_size, 1, GPU_RGBA8, GPU_TEXTURE_USAGE_SHADER_READ, colors);
-
-    MEM_freeN(colors);
-  }
-
-  /* Weight Painting color ramp texture */
-  bool user_weight_ramp = (U.flag & USER_CUSTOM_RANGE) != 0;
-
-  if (weight_ramp_custom != user_weight_ramp ||
-      (user_weight_ramp && memcmp(&weight_ramp_copy, &U.coba_weight, sizeof(ColorBand)) != 0))
-  {
-    GPU_TEXTURE_FREE_SAFE(G_draw.weight_ramp);
-  }
-
-  if (G_draw.weight_ramp == nullptr) {
-    weight_ramp_custom = user_weight_ramp;
-    memcpy(&weight_ramp_copy, &U.coba_weight, sizeof(ColorBand));
-
-    G_draw.weight_ramp = DRW_create_weight_colorramp_texture();
-  }
-}
-
-/* ********************************* SHGROUP ************************************* */
-
-void DRW_globals_free() {}
-
-/* ******************************************** COLOR UTILS ************************************ */
-
-static void DRW_evaluate_weight_to_color(const float weight, float result[4])
-{
-  if (U.flag & USER_CUSTOM_RANGE) {
-    BKE_colorband_evaluate(&U.coba_weight, weight, result);
-  }
-  else {
-    /* Use gamma correction to even out the color bands:
-     * increasing widens yellow/cyan vs red/green/blue.
-     * Gamma 1.0 produces the original 2.79 color ramp. */
-    const float gamma = 1.5f;
-    const float hsv[3] = {(2.0f / 3.0f) * (1.0f - weight), 1.0f, pow(0.5f + 0.5f * weight, gamma)};
-
-    hsv_to_rgb_v(hsv, result);
-
-    for (int i = 0; i < 3; i++) {
-      result[i] = pow(result[i], 1.0f / gamma);
-    }
-  }
-}
-
-static GPUTexture *DRW_create_weight_colorramp_texture()
-{
-  float pixels[256][4];
-  for (int i = 0; i < 256; i++) {
-    DRW_evaluate_weight_to_color(i / 255.0f, pixels[i]);
-    pixels[i][3] = 1.0f;
-  }
-
-  uchar4 pixels_ubyte[256];
-  for (int i = 0; i < 256; i++) {
-    unit_float_to_uchar_clamp_v4(pixels_ubyte[i], pixels[i]);
-  }
-
-  eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ;
-  GPUTexture *tx = GPU_texture_create_1d("weight_ramp", 256, 1, GPU_SRGB8_A8, usage, nullptr);
-  GPU_texture_update(tx, GPU_DATA_UBYTE, pixels_ubyte);
-  return tx;
 }

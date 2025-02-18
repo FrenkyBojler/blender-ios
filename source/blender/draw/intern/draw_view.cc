@@ -10,9 +10,11 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
 
+#include "DRW_render.hh"
 #include "GPU_compute.hh"
 #include "GPU_debug.hh"
 
+#include "draw_manager_c.hh"
 #include "draw_shader.hh"
 #include "draw_view.hh"
 
@@ -101,7 +103,10 @@ void View::frustum_culling_planes_calc(int view_id)
                       culling_[view_id].frustum_planes.planes[2]);
   /* Normalize. */
   for (float4 &plane : culling_[view_id].frustum_planes.planes) {
-    plane /= math::length(plane.xyz());
+    float len = math::length(plane.xyz());
+    if (len != 0.0f) {
+      plane /= len;
+    }
   }
 }
 

@@ -572,7 +572,7 @@ static void rna_userdef_script_directory_remove(ReportList *reports, PointerRNA 
   }
 
   BLI_freelinkN(&U.script_directories, script_dir);
-  RNA_POINTER_INVALIDATE(ptr);
+  ptr->invalidate();
   USERDEF_TAG_DIRTY;
 }
 
@@ -611,7 +611,7 @@ static void rna_userdef_asset_library_remove(bContext *C, ReportList *reports, P
   /* Trigger refresh for the Asset Browser. */
   WM_main_add_notifier(NC_SPACE | ND_SPACE_ASSET_PARAMS, nullptr);
 
-  RNA_POINTER_INVALIDATE(ptr);
+  ptr->invalidate();
   USERDEF_TAG_DIRTY;
 }
 
@@ -656,7 +656,7 @@ static void rna_userdef_extension_repo_remove(ReportList *reports, PointerRNA *p
     return;
   }
   BKE_preferences_extension_repo_remove(&U, repo);
-  RNA_POINTER_INVALIDATE(ptr);
+  ptr->invalidate();
 
   BKE_callback_exec_null(bmain, BKE_CB_EVT_EXTENSION_REPOS_UPDATE_POST);
   USERDEF_TAG_DIRTY;
@@ -989,7 +989,7 @@ static void rna_userdef_addon_remove(ReportList *reports, PointerRNA *addon_ptr)
   }
   BLI_remlink(addons_list, addon);
   BKE_addon_free(addon);
-  RNA_POINTER_INVALIDATE(addon_ptr);
+  addon_ptr->invalidate();
   USERDEF_TAG_DIRTY;
 }
 
@@ -1011,7 +1011,7 @@ static void rna_userdef_pathcompare_remove(ReportList *reports, PointerRNA *path
   }
 
   BLI_freelinkN(&U.autoexec_paths, path_cmp);
-  RNA_POINTER_INVALIDATE(path_cmp_ptr);
+  path_cmp_ptr->invalidate();
   USERDEF_TAG_DIRTY;
 }
 
@@ -1677,6 +1677,26 @@ static void rna_def_userdef_theme_ui_wcol_state(BlenderRNA *brna)
   RNA_def_struct_sdna(srna, "uiWidgetStateColors");
   RNA_def_struct_ui_text(
       srna, "Theme Widget State Color", "Theme settings for widget state colors");
+
+  prop = RNA_def_property(srna, "error", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(prop, "Error", "Color for error items");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "warning", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(prop, "Warning", "Color for warning items");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "info", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(prop, "Info", "Color for informational items");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "success", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(prop, "Success", "Color for successful items");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   prop = RNA_def_property(srna, "inner_anim", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
@@ -3134,29 +3154,14 @@ static void rna_def_userdef_theme_space_info(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Selected Line Text Color", "Text color of selected line");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  prop = RNA_def_property(srna, "info_error", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(prop, "Error Icon Background", "Background color of Error icon");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
   prop = RNA_def_property(srna, "info_error_text", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Error Icon Foreground", "Foreground color of Error icon");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  prop = RNA_def_property(srna, "info_warning", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(prop, "Warning Icon Background", "Background color of Warning icon");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
   prop = RNA_def_property(srna, "info_warning_text", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Warning Icon Foreground", "Foreground color of Warning icon");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
-  prop = RNA_def_property(srna, "info_info", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(prop, "Info Icon Background", "Background color of Info icon");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   prop = RNA_def_property(srna, "info_info_text", PROP_FLOAT, PROP_COLOR_GAMMA);
@@ -6769,7 +6774,12 @@ static void rna_def_userdef_input(BlenderRNA *brna)
   /* TODO: update description when fly-mode visuals are in place
    * ("projected position in fly mode"). */
   RNA_def_property_ui_text(
-      prop, "Show Navigation Guide", "Display the center and axis during rotation");
+      prop, "Show Orbit Axis Guide", "Display the center and axis during rotation");
+
+  prop = RNA_def_property(srna, "ndof_show_guide_orbit_center", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "ndof_flag", NDOF_SHOW_GUIDE_ORBIT_CENTER);
+  RNA_def_property_ui_text(
+      prop, "Show Orbit Center Guide", "Display the orbit center during rotation");
 
   /* 3D view */
   prop = RNA_def_property(srna, "ndof_view_navigate_method", PROP_ENUM, PROP_NONE);
@@ -6781,6 +6791,23 @@ static void rna_def_userdef_input(BlenderRNA *brna)
   RNA_def_property_enum_bitflag_sdna(prop, nullptr, "ndof_flag");
   RNA_def_property_enum_items(prop, ndof_view_rotation_items);
   RNA_def_property_ui_text(prop, "NDOF View Rotation", "Rotation style in the viewport");
+
+  prop = RNA_def_property(srna, "ndof_orbit_center_auto", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "ndof_flag", NDOF_ORBIT_CENTER_AUTO);
+  RNA_def_property_ui_text(prop,
+                           "Auto",
+                           "Auto sets the orbit center dynamically. "
+                           "When the complete model is in view, the center of "
+                           "volume of the whole model is used as the rotation point. "
+                           "When you move closer, the orbit center will be set "
+                           "on an object close to your center of the view.");
+
+  prop = RNA_def_property(srna, "ndof_orbit_center_selected", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "ndof_flag", NDOF_ORBIT_CENTER_SELECTED);
+  RNA_def_property_ui_text(prop,
+                           "Use Selected Items",
+                           "Use selected item forces the orbit center "
+                           "to only take the currently selected objects into account.");
 
   /* 3D view: yaw */
   prop = RNA_def_property(srna, "ndof_rotx_invert_axis", PROP_BOOLEAN, PROP_NONE);

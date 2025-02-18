@@ -1303,7 +1303,7 @@ class VIEW3D_MT_transform(VIEW3D_MT_transform_base, Menu):
         if context.mode == 'EDIT_MESH':
             layout.operator("transform.shrink_fatten", text="Shrink/Fatten")
             layout.operator("transform.skin_resize")
-        elif context.mode in {'EDIT_CURVE', 'EDIT_GREASE_PENCIL', 'EDIT_CURVES'}:
+        elif context.mode in {'EDIT_CURVE', 'EDIT_GREASE_PENCIL', 'EDIT_CURVES', 'EDIT_POINT_CLOUD'}:
             layout.operator("transform.transform", text="Radius").mode = 'CURVE_SHRINKFATTEN'
 
         if context.mode != 'EDIT_CURVES' and context.mode != 'EDIT_GREASE_PENCIL':
@@ -2319,6 +2319,11 @@ class VIEW3D_MT_select_edit_point_cloud(Menu):
 
     def draw(self, _context):
         layout = self.layout
+
+        layout.operator("point_cloud.select_all", text="All").action = 'SELECT'
+        layout.operator("point_cloud.select_all", text="None").action = 'DESELECT'
+        layout.operator("point_cloud.select_all", text="Invert").action = 'INVERT'
+
         layout.template_node_operator_asset_menu_items(catalog_path=self.bl_label)
 
 
@@ -2598,7 +2603,7 @@ class VIEW3D_MT_grease_pencil_add(Menu):
 
     def draw(self, _context):
         layout = self.layout
-        layout.operator("object.grease_pencil_add", text="Empty", icon='EMPTY_AXIS').type = 'EMPTY'
+        layout.operator("object.grease_pencil_add", text="Blank", icon='EMPTY_AXIS').type = 'EMPTY'
         layout.operator("object.grease_pencil_add", text="Stroke", icon='STROKE').type = 'STROKE'
         layout.operator("object.grease_pencil_add", text="Monkey", icon='MONKEY').type = 'MONKEY'
         layout.separator()
@@ -5738,7 +5743,8 @@ class VIEW3D_MT_edit_greasepencil(Menu):
         layout.separator()
 
         layout.operator("grease_pencil.copy", text="Copy", icon='COPYDOWN')
-        layout.operator("grease_pencil.paste", text="Paste", icon='PASTEDOWN')
+        layout.operator("grease_pencil.paste", text="Paste", icon='PASTEDOWN').type = 'ACTIVE'
+        layout.operator("grease_pencil.paste", text="Paste by Layer").type = 'LAYER'
 
         layout.separator()
 
@@ -5893,6 +5899,13 @@ class VIEW3D_MT_edit_pointcloud(Menu):
 
     def draw(self, context):
         layout = self.layout
+        layout.menu("VIEW3D_MT_transform")
+        layout.separator()
+        layout.operator("point_cloud.duplicate_move")
+        layout.separator()
+        layout.operator("point_cloud.attribute_set")
+        layout.operator("point_cloud.delete")
+        layout.operator("point_cloud.separate")
         layout.template_node_operator_asset_menu_items(catalog_path=self.bl_label)
 
 
@@ -8157,9 +8170,10 @@ class VIEW3D_MT_greasepencil_edit_context_menu(Menu):
             col.separator()
 
             # Copy/paste
-            col.operator("grease_pencil.copy", text="Copy", icon='COPYDOWN')
-            col.operator("grease_pencil.paste", text="Paste", icon='PASTEDOWN')
             col.operator("grease_pencil.duplicate_move", text="Duplicate")
+            col.operator("grease_pencil.copy", text="Copy", icon='COPYDOWN')
+            col.operator("grease_pencil.paste", text="Paste", icon='PASTEDOWN').type = 'ACTIVE'
+            col.operator("grease_pencil.paste", text="Paste by Layer").type = 'LAYER'
 
             col.separator()
 

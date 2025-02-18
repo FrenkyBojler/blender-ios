@@ -15,6 +15,7 @@
 #include "DNA_view2d_types.h"
 
 #include "BLI_bitmap.h"
+#include "BLI_listbase.h"
 #include "BLI_span.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"

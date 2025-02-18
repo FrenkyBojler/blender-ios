@@ -23,6 +23,7 @@
 
 #include "BLI_dynstr.h"
 #include "BLI_ghash.h"
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
@@ -38,6 +39,7 @@
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
 #include "BKE_report.hh"
@@ -173,14 +175,13 @@ PointerRNA RNA_main_pointer_create(Main *main)
 
 PointerRNA RNA_id_pointer_create(ID *id)
 {
-  PointerRNA ptr{id, &RNA_ID, id};
-
   if (id) {
-    ptr.type = ID_code_to_RNA_type(GS(id->name));
+    PointerRNA ptr{id, ID_code_to_RNA_type(GS(id->name)), id};
     rna_pointer_refine(ptr);
+    return ptr;
   }
 
-  return ptr;
+  return PointerRNA_NULL;
 }
 
 PointerRNA RNA_pointer_create_discrete(ID *id, StructRNA *type, void *data)
@@ -2584,6 +2585,22 @@ void RNA_property_boolean_get_array(PointerRNA *ptr, PropertyRNA *prop, bool *va
     rna_property_boolean_get_default_array_values(ptr, bprop, values);
   }
 }
+void RNA_property_boolean_get_array_at_most(PointerRNA *ptr,
+                                            PropertyRNA *prop,
+                                            bool *values,
+                                            int values_num)
+{
+  BLI_assert(values_num >= 0);
+  const int array_num = RNA_property_array_length(ptr, prop);
+  if (values_num >= array_num) {
+    RNA_property_boolean_get_array(ptr, prop, values);
+    return;
+  }
+
+  blender::Array<bool, RNA_STACK_ARRAY> value_buf(array_num);
+  RNA_property_boolean_get_array(ptr, prop, value_buf.data());
+  memcpy(values, value_buf.data(), sizeof(*values) * values_num);
+}
 
 bool RNA_property_boolean_get_index(PointerRNA *ptr, PropertyRNA *prop, int index)
 {
@@ -2670,6 +2687,23 @@ void RNA_property_boolean_set_array(PointerRNA *ptr, PropertyRNA *prop, const bo
       }
     }
   }
+}
+void RNA_property_boolean_set_array_at_most(PointerRNA *ptr,
+                                            PropertyRNA *prop,
+                                            const bool *values,
+                                            int values_num)
+{
+  BLI_assert(values_num >= 0);
+  const int array_num = RNA_property_array_length(ptr, prop);
+  if (values_num >= array_num) {
+    RNA_property_boolean_set_array(ptr, prop, values);
+    return;
+  }
+
+  blender::Array<bool, RNA_STACK_ARRAY> value_buf(array_num);
+  RNA_property_boolean_get_array(ptr, prop, value_buf.data());
+  memcpy(value_buf.data(), values, sizeof(*values) * values_num);
+  RNA_property_boolean_set_array(ptr, prop, value_buf.data());
 }
 
 void RNA_property_boolean_set_index(PointerRNA *ptr, PropertyRNA *prop, int index, bool value)
@@ -2927,6 +2961,22 @@ void RNA_property_int_get_array(PointerRNA *ptr, PropertyRNA *prop, int *values)
     rna_property_int_get_default_array_values(ptr, iprop, values);
   }
 }
+void RNA_property_int_get_array_at_most(PointerRNA *ptr,
+                                        PropertyRNA *prop,
+                                        int *values,
+                                        int values_num)
+{
+  BLI_assert(values_num >= 0);
+  const int array_num = RNA_property_array_length(ptr, prop);
+  if (values_num >= array_num) {
+    RNA_property_int_get_array(ptr, prop, values);
+    return;
+  }
+
+  blender::Array<int, RNA_STACK_ARRAY> value_buf(array_num);
+  RNA_property_int_get_array(ptr, prop, value_buf.data());
+  memcpy(values, value_buf.data(), sizeof(*values) * values_num);
+}
 
 void RNA_property_int_get_array_range(PointerRNA *ptr, PropertyRNA *prop, int values[2])
 {
@@ -3029,6 +3079,23 @@ void RNA_property_int_set_array(PointerRNA *ptr, PropertyRNA *prop, const int *v
                          .release());
     }
   }
+}
+void RNA_property_int_set_array_at_most(PointerRNA *ptr,
+                                        PropertyRNA *prop,
+                                        const int *values,
+                                        int values_num)
+{
+  BLI_assert(values_num >= 0);
+  const int array_num = RNA_property_array_length(ptr, prop);
+  if (values_num >= array_num) {
+    RNA_property_int_set_array(ptr, prop, values);
+    return;
+  }
+
+  blender::Array<int, RNA_STACK_ARRAY> value_buf(array_num);
+  RNA_property_int_get_array(ptr, prop, value_buf.data());
+  memcpy(value_buf.data(), values, sizeof(*values) * values_num);
+  RNA_property_int_set_array(ptr, prop, value_buf.data());
 }
 
 void RNA_property_int_set_index(PointerRNA *ptr, PropertyRNA *prop, int index, int value)
@@ -3298,6 +3365,22 @@ void RNA_property_float_get_array(PointerRNA *ptr, PropertyRNA *prop, float *val
     rna_property_float_get_default_array_values(ptr, fprop, values);
   }
 }
+void RNA_property_float_get_array_at_most(PointerRNA *ptr,
+                                          PropertyRNA *prop,
+                                          float *values,
+                                          int values_num)
+{
+  BLI_assert(values_num >= 0);
+  const int array_num = RNA_property_array_length(ptr, prop);
+  if (values_num >= array_num) {
+    RNA_property_float_get_array(ptr, prop, values);
+    return;
+  }
+
+  blender::Array<float, RNA_STACK_ARRAY> value_buf(array_num);
+  RNA_property_float_get_array(ptr, prop, value_buf.data());
+  memcpy(values, value_buf.data(), sizeof(*values) * values_num);
+}
 
 void RNA_property_float_get_array_range(PointerRNA *ptr, PropertyRNA *prop, float values[2])
 {
@@ -3410,6 +3493,23 @@ void RNA_property_float_set_array(PointerRNA *ptr, PropertyRNA *prop, const floa
                          .release());
     }
   }
+}
+void RNA_property_float_set_array_at_most(PointerRNA *ptr,
+                                          PropertyRNA *prop,
+                                          const float *values,
+                                          int values_num)
+{
+  BLI_assert(values_num >= 0);
+  const int array_num = RNA_property_array_length(ptr, prop);
+  if (values_num >= array_num) {
+    RNA_property_float_set_array(ptr, prop, values);
+    return;
+  }
+
+  blender::Array<float, RNA_STACK_ARRAY> value_buf(array_num);
+  RNA_property_float_get_array(ptr, prop, value_buf.data());
+  memcpy(value_buf.data(), values, sizeof(*values) * values_num);
+  RNA_property_float_set_array(ptr, prop, value_buf.data());
 }
 
 void RNA_property_float_set_index(PointerRNA *ptr, PropertyRNA *prop, int index, float value)
