@@ -8,14 +8,14 @@
  * The shadow module manages shadow update tagging & shadow rendering.
  */
 
-#include "BKE_global.hh"
 #include "BLI_math_matrix.hh"
 #include "GPU_compute.hh"
 
 #include "eevee_instance.hh"
 
+#include "GPU_debug.hh"
+#include "draw_cache.hh"
 #include "draw_debug.hh"
-#include <iostream>
 
 namespace blender::eevee {
 
@@ -1309,7 +1309,7 @@ void ShadowModule::set_view(View &view, int2 extent)
 
   int loop_count = 0;
   do {
-    DRW_stats_group_start("Shadow");
+    GPU_debug_group_begin("Shadow");
     {
       GPU_uniformbuf_clear_to_zero(shadow_multi_view_.matrices_ubo_get());
 
@@ -1376,7 +1376,7 @@ void ShadowModule::set_view(View &view, int2 extent)
 
       GPU_memory_barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS | GPU_BARRIER_TEXTURE_FETCH);
     }
-    DRW_stats_group_end();
+    GPU_debug_group_end();
 
     loop_count++;
 

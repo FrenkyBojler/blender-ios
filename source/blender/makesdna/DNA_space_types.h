@@ -484,8 +484,10 @@ typedef struct SpaceGraph {
 
   /** Mode for the Graph editor (eGraphEdit_Mode). */
   short mode;
+  short mode_prev;
   /* Snapping now lives on the Scene. */
   short autosnap DNA_DEPRECATED;
+  char _pad[2];
   /** Settings for Graph editor (eGraphEdit_Flag). */
   int flag;
 
@@ -495,7 +497,6 @@ typedef struct SpaceGraph {
   float cursorVal;
   /** Pivot point for transforms. */
   int around;
-  char _pad[4];
 
   SpaceGraph_Runtime runtime;
 } SpaceGraph;
@@ -630,7 +631,7 @@ typedef struct SequencerTimelineOverlay {
 typedef enum eSpaceSeq_SequencerTimelineOverlay_Flag {
   SEQ_TIMELINE_SHOW_STRIP_OFFSETS = (1 << 1),
   SEQ_TIMELINE_SHOW_THUMBNAILS = (1 << 2),
-  /** Use #Sequence::color_tag */
+  /** Use #Strip::color_tag */
   SEQ_TIMELINE_SHOW_STRIP_COLOR_TAG = (1 << 3),
   SEQ_TIMELINE_SHOW_STRIP_RETIMING = (1 << 4),
   SEQ_TIMELINE_SHOW_FCURVES = (1 << 5),
@@ -914,7 +915,7 @@ typedef struct SpaceFile {
 
   /** Is this a File Browser or an Asset Browser? */
   char browse_mode; /* eFileBrowse_Mode */
-  char _pad1[1];
+  char browse_mode_prev;
 
   short tags;
 
@@ -1609,6 +1610,7 @@ typedef struct SpaceNode {
 
   /* tree type for the current node tree */
   char tree_idname[64];
+  char tree_idname_prev[64];
   /** Same as #bNodeTree::type (deprecated). */
   int treetype DNA_DEPRECATED;
 

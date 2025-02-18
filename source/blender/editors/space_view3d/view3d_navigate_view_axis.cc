@@ -6,9 +6,10 @@
  * \ingroup spview3d
  */
 
-#include "MEM_guardedalloc.h"
-
+#include "BLI_math_base.h"
 #include "BLI_math_rotation.h"
+
+#include "DNA_userdef_types.h"
 
 #include "BLT_translation.hh"
 

@@ -14,6 +14,8 @@
 
 #include "COM_shader_node.hh"
 #include "COM_utilities.hh"
+#include "COM_utilities_gpu_material.hh"
+#include "COM_utilities_type_conversion.hh"
 
 namespace blender::compositor {
 
@@ -25,49 +27,29 @@ ShaderNode::ShaderNode(DNode node) : node_(node)
   populate_outputs();
 }
 
-GPUNodeStack *ShaderNode::get_inputs_array()
+void ShaderNode::compile(GPUMaterial *material)
 {
-  return inputs_.data();
+  node_->typeinfo->gpu_fn(
+      material, const_cast<bNode *>(node_.bnode()), nullptr, inputs_.data(), outputs_.data());
 }
 
-GPUNodeStack *ShaderNode::get_outputs_array()
+GPUNodeStack &ShaderNode::get_input(const StringRef identifier)
 {
-  return outputs_.data();
+  return get_shader_node_input(*node_, inputs_.data(), identifier);
 }
 
-GPUNodeStack &ShaderNode::get_input(StringRef identifier)
+GPUNodeStack &ShaderNode::get_output(const StringRef identifier)
 {
-  return inputs_[node_.input_by_identifier(identifier)->index()];
-}
-
-GPUNodeStack &ShaderNode::get_output(StringRef identifier)
-{
-  return outputs_[node_.output_by_identifier(identifier)->index()];
-}
-
-GPUNodeLink *ShaderNode::get_input_link(StringRef identifier)
-{
-  GPUNodeStack &input = get_input(identifier);
-  if (input.link) {
-    return input.link;
-  }
-  return GPU_uniform(input.vec);
-}
-
-const DNode &ShaderNode::node() const
-{
-  return node_;
-}
-
-const bNode &ShaderNode::bnode() const
-{
-  return *node_;
+  return get_shader_node_output(*node_, outputs_.data(), identifier);
 }
 
 static eGPUType gpu_type_from_socket_type(eNodeSocketDatatype type)
 {
   switch (type) {
     case SOCK_FLOAT:
+      return GPU_FLOAT;
+    case SOCK_INT:
+      /* GPUMaterial doesn't support int, so it is passed as a float. */
       return GPU_FLOAT;
     case SOCK_VECTOR:
       return GPU_VEC3;
@@ -84,63 +66,100 @@ static eGPUType gpu_type_from_socket_type(eNodeSocketDatatype type)
  * conversion if needed. */
 static void gpu_stack_vector_from_socket(GPUNodeStack &stack, const bNodeSocket *socket)
 {
-  switch (socket->type) {
+  const eNodeSocketDatatype input_type = static_cast<eNodeSocketDatatype>(socket->type);
+  const eNodeSocketDatatype expected_type = static_cast<eNodeSocketDatatype>(stack.sockettype);
+
+  switch (input_type) {
     case SOCK_FLOAT: {
       const float value = socket->default_value_typed<bNodeSocketValueFloat>()->value;
-      switch (stack.sockettype) {
+      switch (expected_type) {
         case SOCK_FLOAT:
           stack.vec[0] = value;
           return;
+        case SOCK_INT:
+          /* GPUMaterial doesn't support int, so it is passed as a float. */
+          stack.vec[0] = float(float_to_int(value));
+          return;
         case SOCK_VECTOR:
-          copy_v3_fl(stack.vec, value);
+          copy_v4_v4(stack.vec, float_to_vector(value));
           return;
         case SOCK_RGBA:
-          copy_v4_fl(stack.vec, value);
-          stack.vec[3] = 1.0f;
+          copy_v4_v4(stack.vec, float_to_color(value));
           return;
         default:
-          BLI_assert_unreachable();
-          return;
+          break;
       }
+      break;
+    }
+    case SOCK_INT: {
+      const int value = socket->default_value_typed<bNodeSocketValueInt>()->value;
+      switch (expected_type) {
+        case SOCK_FLOAT:
+          stack.vec[0] = int_to_float(value);
+          return;
+        case SOCK_INT:
+          /* GPUMaterial doesn't support int, so it is passed as a float. */
+          stack.vec[0] = float(value);
+          return;
+        case SOCK_VECTOR:
+          copy_v4_v4(stack.vec, int_to_vector(value));
+          return;
+        case SOCK_RGBA:
+          copy_v4_v4(stack.vec, int_to_color(value));
+          return;
+        default:
+          break;
+      }
+      break;
     }
     case SOCK_VECTOR: {
-      const float *value = socket->default_value_typed<bNodeSocketValueVector>()->value;
-      switch (stack.sockettype) {
+      const float4 value = float4(
+          float3(socket->default_value_typed<bNodeSocketValueVector>()->value), 0.0f);
+      switch (expected_type) {
         case SOCK_FLOAT:
-          stack.vec[0] = (value[0] + value[1] + value[2]) / 3.0f;
+          stack.vec[0] = vector_to_float(value);
+          return;
+        case SOCK_INT:
+          /* GPUMaterial doesn't support int, so it is passed as a float. */
+          stack.vec[0] = float(vector_to_int(value));
           return;
         case SOCK_VECTOR:
           copy_v3_v3(stack.vec, value);
           return;
         case SOCK_RGBA:
-          copy_v3_v3(stack.vec, value);
-          stack.vec[3] = 1.0f;
+          copy_v4_v4(stack.vec, vector_to_color(value));
           return;
         default:
-          BLI_assert_unreachable();
-          return;
+          break;
       }
+      break;
     }
     case SOCK_RGBA: {
-      const float *value = socket->default_value_typed<bNodeSocketValueRGBA>()->value;
-      switch (stack.sockettype) {
+      const float4 value = socket->default_value_typed<bNodeSocketValueRGBA>()->value;
+      switch (expected_type) {
         case SOCK_FLOAT:
-          stack.vec[0] = (value[0] + value[1] + value[2]) / 3.0f;
+          stack.vec[0] = color_to_float(value);
+          return;
+        case SOCK_INT:
+          /* GPUMaterial doesn't support int, so it is passed as a float. */
+          stack.vec[0] = float(color_to_int(value));
           return;
         case SOCK_VECTOR:
-          copy_v3_v3(stack.vec, value);
+          copy_v4_v4(stack.vec, color_to_vector(value));
           return;
         case SOCK_RGBA:
           copy_v4_v4(stack.vec, value);
           return;
         default:
-          BLI_assert_unreachable();
-          return;
+          break;
       }
+      break;
     }
     default:
-      BLI_assert_unreachable();
+      break;
   }
+
+  BLI_assert_unreachable();
 }
 
 static void populate_gpu_node_stack(DSocket socket, GPUNodeStack &stack)

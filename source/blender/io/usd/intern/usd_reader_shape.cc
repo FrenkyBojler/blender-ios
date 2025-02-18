@@ -2,7 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_attribute.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
@@ -21,11 +20,13 @@
 #include <pxr/usd/usdGeom/cone.h>
 #include <pxr/usd/usdGeom/cube.h>
 #include <pxr/usd/usdGeom/cylinder.h>
+#include <pxr/usd/usdGeom/plane.h>
 #include <pxr/usd/usdGeom/sphere.h>
 #include <pxr/usdImaging/usdImaging/capsuleAdapter.h>
 #include <pxr/usdImaging/usdImaging/coneAdapter.h>
 #include <pxr/usdImaging/usdImaging/cubeAdapter.h>
 #include <pxr/usdImaging/usdImaging/cylinderAdapter.h>
+#include <pxr/usdImaging/usdImaging/planeAdapter.h>
 #include <pxr/usdImaging/usdImaging/sphereAdapter.h>
 
 namespace blender::io::usd {
@@ -118,6 +119,12 @@ bool USDShapeReader::read_mesh_values(double motionSampleTime,
     return true;
   }
 
+  if (prim_.IsA<pxr::UsdGeomPlane>()) {
+    read_values<pxr::UsdImagingPlaneAdapter>(
+        motionSampleTime, positions, face_indices, face_counts);
+    return true;
+  }
+
   BKE_reportf(reports(),
               RPT_ERROR,
               "Unhandled Gprim type: %s (%s)",
@@ -187,18 +194,9 @@ void USDShapeReader::apply_primvars_to_mesh(Mesh *mesh, const double motionSampl
   pxr::TfToken active_color_name;
 
   for (const pxr::UsdGeomPrimvar &pv : primvars) {
-    if (!pv.HasValue()) {
-      BKE_reportf(reports(),
-                  RPT_WARNING,
-                  "Skipping primvar %s, mesh %s -- no value",
-                  pv.GetName().GetText(),
-                  &mesh->id.name[2]);
-      continue;
-    }
-
-    if (!pv.GetAttr().GetTypeName().IsArray()) {
-      /* Non-array attributes are technically improper USD. */
-      continue;
+    const pxr::SdfValueTypeName pv_type = pv.GetTypeName();
+    if (!pv_type.IsArray()) {
+      continue; /* Skip non-array primvar attributes. */
     }
 
     const pxr::TfToken name = pxr::UsdGeomPrimvar::StripPrimvarsName(pv.GetPrimvarName());
@@ -208,9 +206,7 @@ void USDShapeReader::apply_primvars_to_mesh(Mesh *mesh, const double motionSampl
       continue;
     }
 
-    const pxr::SdfValueTypeName sdf_type = pv.GetTypeName();
-
-    const std::optional<eCustomDataType> type = convert_usd_type_to_blender(sdf_type);
+    const std::optional<eCustomDataType> type = convert_usd_type_to_blender(pv_type);
     if (type == CD_PROP_COLOR) {
       /* Set the active color name to 'displayColor', if a color primvar
        * with this name exists.  Otherwise, use the name of the first
@@ -310,6 +306,13 @@ bool USDShapeReader::is_time_varying()
   if (prim_.IsA<pxr::UsdGeomSphere>()) {
     pxr::UsdGeomSphere geom(prim_);
     return geom.GetRadiusAttr().ValueMightBeTimeVarying();
+  }
+
+  if (prim_.IsA<pxr::UsdGeomPlane>()) {
+    pxr::UsdGeomPlane geom(prim_);
+    return (geom.GetWidthAttr().ValueMightBeTimeVarying() ||
+            geom.GetLengthAttr().ValueMightBeTimeVarying() ||
+            geom.GetAxisAttr().ValueMightBeTimeVarying());
   }
 
   BKE_reportf(reports(),

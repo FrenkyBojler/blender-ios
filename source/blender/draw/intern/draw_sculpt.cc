@@ -8,14 +8,19 @@
 
 #include "draw_sculpt.hh"
 
+#include "DNA_mesh_types.h"
 #include "draw_attributes.hh"
+#include "draw_view.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
-#include "BKE_mesh_types.hh"
+#include "BKE_object.hh"
 #include "BKE_paint.hh"
 
+#include "BLI_math_matrix.hh"
+
 #include "DRW_pbvh.hh"
+#include "DRW_render.hh"
 
 namespace blender::draw {
 
@@ -159,7 +164,7 @@ Vector<SculptBatch> sculpt_batches_per_material_get(const Object *ob,
 
   DRW_Attributes draw_attrs;
   DRW_MeshCDMask cd_needed;
-  DRW_mesh_get_attributes(*ob, *mesh, materials.data(), materials.size(), &draw_attrs, &cd_needed);
+  DRW_mesh_get_attributes(*ob, *mesh, materials, &draw_attrs, &cd_needed);
 
   Vector<pbvh::AttributeRequest, 16> attrs;
 

@@ -608,6 +608,8 @@ def km_uv_editor(params):
         ("uv.hide", {"type": 'H', "value": 'PRESS', "shift": True},
          {"properties": [("unselected", True)]}),
         ("uv.reveal", {"type": 'H', "value": 'PRESS', "alt": True}, None),
+        ("uv.copy", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
+        ("uv.paste", {"type": 'V', "value": 'PRESS', "ctrl": True}, None),
         op_menu_pie("IMAGE_MT_uvs_snap_pie", {"type": 'X', "value": 'PRESS', "shift": True}),
         *_template_items_context_menu("IMAGE_MT_uvs_context_menu", {"type": 'RIGHTMOUSE', "value": 'PRESS'}),
         ("wm.context_toggle", {"type": 'B', "value": 'PRESS'},
@@ -2723,7 +2725,8 @@ def km_image_paint(params):
         ("paint.image_paint", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True},
          {"properties": [("mode", 'INVERT')]}),
         # Colors
-        ("paint.sample_color", {"type": 'I', "value": 'PRESS'}, None),
+        ("paint.sample_color", {"type": 'I', "value": 'PRESS'}, {"properties": [("merged", False)]}),
+        ("paint.sample_color", {"type": 'I', "value": 'PRESS', "shift": True}, {"properties": [("merged", True)]}),
         ("paint.brush_colors_flip", {"type": 'X', "value": 'PRESS'}, None),
         # Clone
         ("paint.grab_clone", {"type": 'MIDDLEMOUSE', "value": 'PRESS'}, None),
@@ -2782,7 +2785,7 @@ def km_vertex_paint(params):
         ("paint.vertex_paint", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True},
          {"properties": [("mode", 'SMOOTH')]}),
         # Colors
-        ("paint.sample_color", {"type": 'I', "value": 'PRESS'}, None),
+        ("paint.sample_color", {"type": 'I', "value": 'PRESS'}, {"properties": [("merged", False)]}),
         ("paint.brush_colors_flip", {"type": 'X', "value": 'PRESS'}, None),
         ("paint.vertex_color_set", {"type": 'BACK_SPACE', "value": 'PRESS'}, None),
         # Brush properties

@@ -42,6 +42,9 @@ const char *GHOST_SystemPathsUnix::getSystemDir(int /*version*/, const char *ver
   return nullptr;
 }
 
+/**
+ * See doc-string & code-comments for #BLI_dir_home which matches this functionality.
+ */
 static const char *home_dir_get()
 {
   const char *home_dir = getenv("HOME");
@@ -55,7 +58,7 @@ static const char *home_dir_get()
 
 const char *GHOST_SystemPathsUnix::getUserDir(int version, const char *versionstr) const
 {
-  static string user_path = "";
+  static string user_path;
   static int last_version = 0;
 
   /* in blender 2.64, we migrate to XDG. to ensure the copy previous settings
@@ -100,7 +103,7 @@ const char *GHOST_SystemPathsUnix::getUserDir(int version, const char *versionst
 const char *GHOST_SystemPathsUnix::getUserSpecialDir(GHOST_TUserSpecialDirTypes type) const
 {
   const char *type_str;
-  static string path = "";
+  static string path;
 
   switch (type) {
     case GHOST_kUserSpecialDirDesktop:
@@ -128,7 +131,10 @@ const char *GHOST_SystemPathsUnix::getUserSpecialDir(GHOST_TUserSpecialDirTypes 
       }
 
       /* If `XDG_CACHE_HOME` is not set, then `$HOME/.cache is used`. */
-      const char *home_dir = getenv("HOME");
+      const char *home_dir = home_dir_get();
+      if (home_dir == nullptr) {
+        return nullptr;
+      }
       path = string(home_dir) + "/.cache";
       return path.c_str();
     }

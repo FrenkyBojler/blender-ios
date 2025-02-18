@@ -8,6 +8,7 @@
 
 #include "DNA_curve_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h"
@@ -354,8 +355,7 @@ void ViewOpsData::init_navigation(bContext *C,
     ED_view3d_win_to_vector(region, mval, this->init.mousevec);
 
     {
-      int event_xy_offset[2];
-      add_v2_v2v2_int(event_xy_offset, event->xy, this->init.event_xy_offset);
+      int2 event_xy_offset = int2(event->xy) + this->init.event_xy_offset;
 
       /* For rotation with trackball rotation. */
       calctrackballvec(&region->winrct, event_xy_offset, this->init.trackvec);
@@ -405,10 +405,10 @@ struct ViewOpsData_Utility : ViewOpsData {
   ListBase keymap_items;
 
   /* Used by #ED_view3d_navigation_do. */
-  bool is_modal_event;
+  bool is_modal_event = false;
 
   ViewOpsData_Utility(bContext *C, const wmKeyMapItem *kmi_merge = nullptr)
-      : ViewOpsData(), keymap_items(), is_modal_event(false)
+      : ViewOpsData(), keymap_items()
   {
     this->init_context(C);
 
@@ -592,6 +592,13 @@ bool view3d_rotation_poll(bContext *C)
 bool view3d_zoom_or_dolly_poll(bContext *C)
 {
   return view3d_navigation_poll_impl(C, RV3D_LOCK_ZOOM_AND_DOLLY);
+}
+
+bool view3d_zoom_or_dolly_or_rotation_poll(bContext *C)
+{
+  /* This combination of flags is needed for the dolly operator,
+   * see code-comments there for details. */
+  return view3d_navigation_poll_impl(C, RV3D_LOCK_ZOOM_AND_DOLLY | RV3D_LOCK_ROTATION);
 }
 
 int view3d_navigate_modal_fn(bContext *C, wmOperator *op, const wmEvent *event)

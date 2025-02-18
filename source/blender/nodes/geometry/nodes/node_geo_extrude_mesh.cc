@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_array_utils.hh"
+#include "BLI_listbase.h"
 #include "BLI_task.hh"
 #include "BLI_vector_set.hh"
 
@@ -23,6 +24,8 @@
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
+
+#include "FN_multi_function_builder.hh"
 
 #include "node_geometry_util.hh"
 
@@ -1541,7 +1544,13 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_EXTRUDE_MESH, "Extrude Mesh", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeExtrudeMesh", GEO_NODE_EXTRUDE_MESH);
+  ntype.ui_name = "Extrude Mesh";
+  ntype.ui_description =
+      "Generate new vertices, edges, or faces from selected elements and move them based on an "
+      "offset while keeping them connected by their boundary";
+  ntype.enum_name_legacy = "EXTRUDE_MESH";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;

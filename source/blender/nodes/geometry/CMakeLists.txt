@@ -8,21 +8,12 @@ set(INC
   include
   ../intern
   ../../editors/include
-  ../../blenkernel
-  ../../blenloader
-  ../../blentranslation
-  ../../bmesh
-  ../../functions
-  ../../geometry
-  ../../gpu
-  ../../imbuf
   ../../makesrna
   ../../modifiers
-  ../../render
-  ../../windowmanager
   ../../io/common
-  ../../io/ply
+  ../../io/csv
   ../../io/stl
+  ../../io/ply
   ../../io/wavefront_obj
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -95,6 +86,7 @@ set(SRC
   nodes/node_geo_image.cc
   nodes/node_geo_image_info.cc
   nodes/node_geo_image_texture.cc
+  nodes/node_geo_import_csv.cc
   nodes/node_geo_import_obj.cc
   nodes/node_geo_import_ply.cc
   nodes/node_geo_import_stl.cc
@@ -247,18 +239,34 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
-  bf_bmesh
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
-  bf_functions
-  bf_geometry
+  PRIVATE bf::functions
+  PRIVATE bf::geometry
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
+  PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::guardedalloc
   bf_nodes
   PRIVATE bf::intern::atomic
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::extern::xxhash
+  PRIVATE bf::render
+  PRIVATE bf::windowmanager
 )
+
+if(WITH_IO_CSV)
+  list(APPEND LIB
+    PRIVATE bf_io_common
+    PRIVATE bf_io_csv
+  )
+  add_definitions(-DWITH_IO_CSV)
+endif()
 
 if(WITH_IO_STL)
   list(APPEND LIB

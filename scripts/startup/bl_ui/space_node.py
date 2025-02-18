@@ -230,7 +230,7 @@ class NODE_MT_editor_menus(Menu):
         layout.menu("NODE_MT_node")
 
 
-class NODE_MT_add(bpy.types.Menu):
+class NODE_MT_add(Menu):
     bl_space_type = 'NODE_EDITOR'
     bl_label = "Add"
     bl_translation_context = i18n_contexts.operator_default
@@ -697,7 +697,7 @@ class NODE_PT_active_node_generic(Panel):
         layout.prop(node, "name", icon='NODE')
         layout.prop(node, "label", icon='NODE')
 
-        if tree.type == "GEOMETRY":
+        if tree.type == 'GEOMETRY':
             layout.prop(node, "warning_propagation")
 
 
@@ -829,7 +829,7 @@ class NODE_PT_backdrop(Panel):
         col.operator("node.backimage_fit", text="Fit")
 
 
-class NODE_PT_quality(bpy.types.Panel):
+class NODE_PT_quality(Panel):
     bl_space_type = 'NODE_EDITOR'
     bl_region_type = 'UI'
     bl_category = "Options"
@@ -853,7 +853,8 @@ class NODE_PT_quality(bpy.types.Panel):
 
         col = layout.column()
         col.prop(rd, "compositor_device", text="Device")
-        col.prop(rd, "compositor_precision", text="Precision")
+        if rd.compositor_device == 'GPU':
+            col.prop(rd, "compositor_precision", text="Precision")
 
         col = layout.column()
         col.prop(tree, "use_viewer_border")
@@ -1039,10 +1040,6 @@ class NODE_PT_annotation(AnnotationDataPanel, Panel):
     def poll(cls, context):
         snode = context.space_data
         return snode is not None and snode.node_tree is not None
-
-
-def node_draw_tree_view(_layout, _context):
-    pass
 
 
 # Adapt properties editor panel to display in node editor. We have to

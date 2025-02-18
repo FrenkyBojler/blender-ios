@@ -10,6 +10,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 
 #include "BKE_context.hh"
@@ -291,7 +292,7 @@ static void special_aftertrans_update__movieclip_for_curves(bContext *C, TransIn
     if (t->context != nullptr) {
       Main *bmain = CTX_data_main(C);
       BKE_ntree_update_tag_id_changed(bmain, &clip->id);
-      BKE_ntree_update_main(bmain, nullptr);
+      BKE_ntree_update(*bmain);
       WM_event_add_notifier(C, NC_SCENE | ND_NODES, nullptr);
     }
   }

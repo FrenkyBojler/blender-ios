@@ -20,10 +20,15 @@
 
 namespace blender {
 struct NodesModifierRuntime;
+namespace bke {
+struct BVHTreeFromMesh;
 }
+}  // namespace blender
 using NodesModifierRuntimeHandle = blender::NodesModifierRuntime;
+using BVHTreeFromMeshHandle = blender::bke::BVHTreeFromMesh;
 #else
 typedef struct NodesModifierRuntimeHandle NodesModifierRuntimeHandle;
+typedef struct BVHTreeFromMeshHandle BVHTreeFromMeshHandle;
 #endif
 struct LineartModifierRuntime;
 
@@ -956,7 +961,7 @@ typedef struct SurfaceModifierData_Runtime {
   struct Mesh *mesh;
 
   /** Bounding volume hierarchy of the mesh faces. */
-  struct BVHTreeFromMesh *bvhtree;
+  BVHTreeFromMeshHandle *bvhtree;
 
   int cfra_prev, verts_num;
 
@@ -2101,6 +2106,12 @@ enum {
 enum {
   MOD_MESHCACHE_PLAY_CFEA = 0,
   MOD_MESHCACHE_PLAY_EVAL = 1,
+};
+
+enum {
+  MOD_MESHCACHE_FLIP_AXIS_X = 1 << 0,
+  MOD_MESHCACHE_FLIP_AXIS_Y = 1 << 1,
+  MOD_MESHCACHE_FLIP_AXIS_Z = 1 << 2,
 };
 
 typedef struct LaplacianDeformModifierData {

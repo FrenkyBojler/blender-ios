@@ -13,8 +13,9 @@
 #include "BLI_compiler_attrs.h"
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
-#include "BLI_rect.h"
 #include "BLI_vector.hh"
+
+#include "DNA_vec_types.h"
 
 #include "RNA_types.hh"
 
@@ -129,6 +130,7 @@ struct SpaceType {
   int (*space_subtype_get)(ScrArea *area);
   void (*space_subtype_set)(ScrArea *area, int value);
   void (*space_subtype_item_extend)(bContext *C, EnumPropertyItem **item, int *totitem);
+  int (*space_subtype_prev_get)(ScrArea *area);
 
   /* Return a custom name, based on subtype or other reason. */
   blender::StringRefNull (*space_name_get)(const ScrArea *area);
