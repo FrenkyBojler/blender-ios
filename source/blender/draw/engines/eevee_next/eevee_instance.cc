@@ -74,7 +74,7 @@ void Instance::init(const int2 &output_res,
   info_ = "";
 
   shaders_are_ready_ = shaders.is_ready(is_image_render());
-  if (!shaders_are_ready_) {
+  if (!is_state_valid()) {
     return;
   }
 
@@ -106,6 +106,13 @@ void Instance::init(const int2 &output_res,
   sampling.init(scene);
   camera.init();
   film.init(output_res, output_rect);
+  if (!is_state_valid()) {
+    int2 render_extent = film.render_extent_get();
+    info_append_i18n("Reported texture size limit (%dpx) is lower than output size (%dpx)",
+                     GPU_max_texture_size(),
+                     max_ii(render_extent.x, render_extent.y));
+    return;
+  }
   render_buffers.init();
   ambient_occlusion.init();
   velocity.init();
@@ -200,7 +207,7 @@ void Instance::view_update()
 
 void Instance::begin_sync()
 {
-  if (!shaders_are_ready_) {
+  if (!is_state_valid()) {
     return;
   }
 
@@ -244,7 +251,7 @@ void Instance::begin_sync()
 
 void Instance::object_sync(ObjectRef &ob_ref)
 {
-  if (!shaders_are_ready_) {
+  if (!is_state_valid()) {
     return;
   }
 
@@ -320,7 +327,7 @@ void Instance::object_sync_render(void *instance_,
 
 void Instance::end_sync()
 {
-  if (!shaders_are_ready_) {
+  if (!is_state_valid()) {
     return;
   }
 
@@ -558,7 +565,7 @@ void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, con
 
 void Instance::draw_viewport()
 {
-  if (!shaders_are_ready_) {
+  if (!is_state_valid()) {
     DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
     GPU_framebuffer_clear_color_depth(dfbl->default_fb, float4(0.0f), 1.0f);
     info_append_i18n("Compiling EEVEE engine shaders");

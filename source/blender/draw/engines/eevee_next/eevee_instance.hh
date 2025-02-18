@@ -289,6 +289,14 @@ class Instance {
     return DEG_id_type_any_exists(depsgraph, ID_GP);
   }
 
+  /** Skip rendering when state isn't valid */
+  bool is_state_valid() const
+  {
+    const int2 render_extent = film.render_extent_get();
+    return shaders_are_ready_ && render_extent.x <= GPU_max_texture_size() &&
+           render_extent.y <= GPU_max_texture_size();
+  }
+
   bool is_playback() const
   {
     return DRW_state_is_playback();
