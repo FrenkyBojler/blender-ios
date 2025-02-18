@@ -140,10 +140,56 @@ static void POINT_CLOUD_OT_select_all(wmOperatorType *ot)
   WM_operator_properties_select_all(ot);
 }
 
+namespace point_cloud_delete {
+
+static int delete_exec(bContext *C, wmOperator * /*op*/)
+{
+  for (PointCloud *point_cloud : get_unique_editable_point_clouds(*C)) {
+    if (remove_selection(*point_cloud)) {
+      DEG_id_tag_update(&point_cloud->id, ID_RECALC_GEOMETRY);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, &point_cloud);
+    }
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+}  // namespace point_cloud_delete
+
+static void POINT_CLOUD_OT_delete(wmOperatorType *ot)
+{
+  ot->name = "Delete";
+  ot->idname = __func__;
+  ot->description = "Remove selected points";
+
+  ot->exec = point_cloud_delete::delete_exec;
+  ot->poll = editable_point_cloud_in_edit_mode_poll;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
 void operatortypes_point_cloud()
 {
   WM_operatortype_append(POINT_CLOUD_OT_attribute_set);
+  WM_operatortype_append(POINT_CLOUD_OT_delete);
+  WM_operatortype_append(POINT_CLOUD_OT_duplicate);
   WM_operatortype_append(POINT_CLOUD_OT_select_all);
+  WM_operatortype_append(POINT_CLOUD_OT_separate);
+}
+
+void operatormacros_point_cloud()
+{
+  wmOperatorType *ot;
+  wmOperatorTypeMacro *otmacro;
+
+  ot = WM_operatortype_append_macro("POINT_CLOUD_OT_duplicate_move",
+                                    "Duplicate",
+                                    "Make copies of selected elements and move them",
+                                    OPTYPE_UNDO | OPTYPE_REGISTER);
+  WM_operatortype_macro_define(ot, "POINT_CLOUD_OT_duplicate");
+  otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
+  RNA_boolean_set(otmacro->ptr, "use_proportional_edit", false);
+  RNA_boolean_set(otmacro->ptr, "mirror", false);
 }
 
 void keymap_point_cloud(wmKeyConfig *keyconf)

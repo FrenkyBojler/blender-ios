@@ -5807,7 +5807,16 @@ def km_edit_point_cloud(params):
     )
 
     items.extend([
+        # Transform Actions.
+        *_template_items_transform_actions(params, use_bend=True, use_mirror=True),
+
+        ("point_cloud.duplicate_move", {"type": 'D', "value": 'PRESS', "shift": True}, None),
         *_template_items_select_actions(params, "point_cloud.select_all"),
+        ("point_cloud.delete", {"type": 'X', "value": 'PRESS'}, None),
+        ("point_cloud.delete", {"type": 'DEL', "value": 'PRESS'}, None),
+        ("point_cloud.separate", {"type": 'P', "value": 'PRESS'}, None),
+        ("transform.transform", {"type": 'S', "value": 'PRESS', "alt": True},
+         {"properties": [("mode", 'CURVE_SHRINKFATTEN')]}),
     ])
 
     return keymap

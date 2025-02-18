@@ -57,7 +57,7 @@ static bool wm_msg_rna_gset_cmp(const void *key_a_p, const void *key_b_p)
 static void *wm_msg_rna_gset_key_duplicate(const void *key_p)
 {
   const wmMsgSubscribeKey_RNA *key_src = static_cast<const wmMsgSubscribeKey_RNA *>(key_p);
-  return MEM_new<wmMsgSubscribeKey_RNA>(__func__, std::move(*key_src));
+  return MEM_new<wmMsgSubscribeKey_RNA>(__func__, *key_src);
 }
 static void wm_msg_rna_gset_key_free(void *key_p)
 {
