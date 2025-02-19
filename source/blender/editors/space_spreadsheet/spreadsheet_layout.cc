@@ -113,7 +113,7 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
           [](bContext * /*C*/, void *argN, const StringRef /*tip*/) {
             return fmt::format("{}", *((int *)argN));
           },
-          MEM_callocN<int>(__func__, value),
+          MEM_cnew<int>(__func__, value),
           MEM_freeN);
       /* Right-align Integers. */
       UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
@@ -170,7 +170,7 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
           [](bContext * /*C*/, void *argN, const StringRef /*tip*/) {
             return fmt::format("{:f}", *((float *)argN));
           },
-          MEM_callocN<float>(__func__, value),
+          MEM_cnew<float>(__func__, value),
           MEM_freeN);
       /* Right-align Floats. */
       UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
@@ -306,7 +306,7 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
           [](bContext * /*C*/, void *argN, const StringRef /*tip*/) {
             return fmt::format("{:f}", *((float *)argN));
           },
-          MEM_callocN<float>(__func__, value),
+          MEM_cnew<float>(__func__, value),
           MEM_freeN);
       /* Right-align Floats. */
       UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
@@ -341,7 +341,7 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
           [](bContext * /*C*/, void *argN, const StringRef /*tip*/) {
             return fmt::format("{}", *((int *)argN));
           },
-          MEM_callocN<int>(__func__, value),
+          MEM_cnew<int>(__func__, value),
           MEM_freeN);
       /* Right-align Floats. */
       UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);

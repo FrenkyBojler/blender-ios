@@ -1318,7 +1318,7 @@ ID *BKE_libblock_alloc_notest(short type)
   const char *name;
   size_t size = BKE_libblock_get_alloc_info(type, &name);
   if (size != 0) {
-    return MEM_callocN<ID>(name, size);
+    return static_cast<ID *>(MEM_callocN(size, name));
   }
   BLI_assert_msg(0, "Request to allocate unknown data type");
   return nullptr;
