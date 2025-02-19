@@ -181,12 +181,6 @@ static void propagate_left_to_right(
     nodes::StructureTypeInterface &derived_interface)
 {
   for (const bNode *node : tree.toposort_left_to_right()) {
-    if (node->is_type("ShaderNodeTexWhiteNoise")) {
-      printf("ShaderNodeTexWhiteNoise\n");
-    }
-    if (node->is_type("FunctionNodeRandomValue")) {
-      printf("FunctionNodeRandomValue\n");
-    }
 
     for (const bNodeSocket *input_socket : node->input_sockets()) {
       if (!input_socket->is_available()) {
