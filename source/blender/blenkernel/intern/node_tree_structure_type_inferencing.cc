@@ -34,6 +34,8 @@ struct SocketStatus {
 static void initialize_usages_from_socket_declarations(const bNodeTree &tree,
                                                        MutableSpan<SocketStatus> socket_usages)
 {
+  // TODO: I'm confusing NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO and
+  // NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC
   for (const bNodeSocket *socket : tree.all_sockets()) {
     const nodes::SocketDeclaration *declaration = socket->runtime->declaration;
     if (!socket->runtime->declaration) {
@@ -83,11 +85,11 @@ static void update_interface_structure_types(const bNodeTree &tree,
     if (usage.is_single_value) {
       derived_interface.inputs[input_i] = StructureType::Single;
     }
-    else if (usage.is_field) {
-      derived_interface.inputs[input_i] = StructureType::Field;
-    }
     else if (usage.is_grid) {
       derived_interface.inputs[input_i] = StructureType::Grid;
+    }
+    else if (usage.is_field) {
+      derived_interface.inputs[input_i] = StructureType::Field;
     }
     else {
       derived_interface.inputs[input_i] = StructureType::Dynamic;
@@ -107,11 +109,11 @@ static void update_interface_structure_types(const bNodeTree &tree,
       if (usage.is_single_value) {
         derived_interface.outputs[output_i] = StructureType::Single;
       }
-      else if (usage.is_field) {
-        derived_interface.outputs[output_i] = StructureType::Field;
-      }
       else if (usage.is_grid) {
         derived_interface.outputs[output_i] = StructureType::Grid;
+      }
+      else if (usage.is_field) {
+        derived_interface.outputs[output_i] = StructureType::Field;
       }
       else {
         derived_interface.outputs[output_i] = StructureType::Dynamic;
@@ -281,15 +283,17 @@ static std::unique_ptr<nodes::StructureTypeInterface> calc_structure_type_interf
 
   const Span<const bNodeSocket *> sockets = tree.all_sockets();
   for (const int i : sockets.index_range()) {
-    derived_interface->all_sockets[i] = StructureType::Dynamic;
-    if (socket_usages[i].is_field) {
-      derived_interface->all_sockets[i] = StructureType::Field;
-    }
     if (socket_usages[i].is_single_value) {
       derived_interface->all_sockets[i] = StructureType::Single;
     }
     if (socket_usages[i].is_grid) {
       derived_interface->all_sockets[i] = StructureType::Grid;
+    }
+    if (socket_usages[i].is_field) {
+      derived_interface->all_sockets[i] = StructureType::Field;
+    }
+    else {
+      derived_interface->all_sockets[i] = StructureType::Dynamic;
     }
   }
 
