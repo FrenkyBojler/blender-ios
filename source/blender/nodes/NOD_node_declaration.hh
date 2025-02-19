@@ -92,7 +92,7 @@ struct StructureTypeInterface {
   Array<StructureType> outputs;
   Array<StructureType> all_sockets;
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(StructureTypeInterface, inputs, outputs)
+  BLI_STRUCT_EQUALITY_OPERATORS_3(StructureTypeInterface, inputs, outputs, all_sockets)
 };
 
 namespace anonymous_attribute_lifetime {
