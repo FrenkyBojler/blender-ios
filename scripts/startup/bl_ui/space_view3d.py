@@ -1285,6 +1285,7 @@ class VIEW3D_MT_transform_base:
             'EDIT_CURVES',
             'EDIT_LATTICE',
             'EDIT_METABALL',
+            'EDIT_POINT_CLOUD',
         }:
             layout.operator("transform.vertex_warp", text="Warp")
             layout.operator_context = 'EXEC_REGION_WIN'
@@ -3388,16 +3389,19 @@ class VIEW3D_MT_object_convert(Menu):
         layout = self.layout
         ob = context.active_object
 
-        if ob and ob.type != 'EMPTY':
-            layout.operator_enum("object.convert", "target")
+        layout.operator_enum("object.convert", "target")
 
-        else:
+        if ob and ob.type == 'EMPTY':
             # Potrace lib dependency.
             if bpy.app.build_options.potrace:
+                layout.separator()
+
                 layout.operator("image.convert_to_mesh_plane", text="Convert to Mesh Plane", icon='MESH_PLANE')
                 layout.operator("grease_pencil.trace_image", icon='OUTLINER_OB_GREASEPENCIL')
 
         if ob and ob.type == 'CURVES':
+            layout.separator()
+
             layout.operator("curves.convert_to_particle_system", text="Particle System")
 
         layout.template_node_operator_asset_menu_items(catalog_path="Object/Convert")
@@ -5905,6 +5909,7 @@ class VIEW3D_MT_edit_pointcloud(Menu):
         layout.separator()
         layout.operator("point_cloud.attribute_set")
         layout.operator("point_cloud.delete")
+        layout.operator("point_cloud.separate")
         layout.template_node_operator_asset_menu_items(catalog_path=self.bl_label)
 
 
