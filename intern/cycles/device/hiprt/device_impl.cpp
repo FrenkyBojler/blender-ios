@@ -357,7 +357,7 @@ hiprtGeometryBuildInput HIPRTDevice::prepare_triangle_blas(BVHHIPRT *bvh, Mesh *
   hiprtGeometryBuildInput geom_input;
   geom_input.geomType = Triangle;
 
-  if (mesh->has_motion_blur()) {
+  if (use_motion_blur && mesh->has_motion_blur()) {
 
     const Attribute *attr_mP = mesh->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
     const float3 *vert_steps = attr_mP->data_float3();
@@ -483,7 +483,7 @@ hiprtGeometryBuildInput HIPRTDevice::prepare_curve_blas(BVHHIPRT *bvh, Hair *hai
     curve_attr_mP = hair->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
   }
 
-  if (hair->has_motion_blur()) {
+  if (use_motion_blur && hair->has_motion_blur()) {
     curve_attr_mP = hair->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
   }
 
@@ -623,7 +623,7 @@ hiprtGeometryBuildInput HIPRTDevice::prepare_point_blas(BVHHIPRT *bvh, PointClou
   hiprtGeometryBuildInput geom_input;
 
   const Attribute *point_attr_mP = nullptr;
-  if (pointcloud->has_motion_blur()) {
+  if (use_motion_blur && pointcloud->has_motion_blur()) {
     point_attr_mP = pointcloud->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
   }
 
