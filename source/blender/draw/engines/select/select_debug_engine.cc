@@ -16,6 +16,7 @@
 
 #include "draw_manager.hh"
 #include "draw_pass.hh"
+#include "draw_shader.hh"
 
 #include "select_engine.hh"
 
@@ -29,9 +30,34 @@ struct SELECTIDDEBUG_Data {
   void *engine_type;
 };
 
-static struct {
-  struct GPUShader *select_debug_sh;
-} e_data = {nullptr}; /* Engine data */
+namespace blender::draw::SelectDebug {
+
+class ShaderCache {
+ private:
+  static ShaderCache *static_cache_;
+
+ public:
+  static ShaderCache &get();
+  static void release();
+
+  StaticShader select_debug = {"select_debug_fullscreen"};
+};
+
+ShaderCache *ShaderCache::static_cache_ = new ShaderCache();
+
+ShaderCache &ShaderCache::get()
+{
+  return *ShaderCache::static_cache_;
+}
+
+void ShaderCache::release()
+{
+  delete ShaderCache::static_cache_;
+}
+
+}  // namespace blender::draw::SelectDebug
+
+using namespace blender::draw::SelectDebug;
 
 /** \} */
 
@@ -46,16 +72,12 @@ static void select_debug_draw_scene(void * /*vedata*/)
     return;
   }
 
-  if (!e_data.select_debug_sh) {
-    e_data.select_debug_sh = GPU_shader_create_from_info_name("select_debug_fullscreen");
-  }
-
   using namespace blender::draw;
 
   PassSimple pass = {"SelectEngineDebug"};
   pass.init();
   pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA);
-  pass.shader_set(e_data.select_debug_sh);
+  pass.shader_set(ShaderCache::get().select_debug.get());
   pass.bind_texture("image", texture_u32);
   pass.bind_texture("image", texture_u32);
   pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
@@ -65,7 +87,7 @@ static void select_debug_draw_scene(void * /*vedata*/)
 
 static void select_debug_engine_free()
 {
-  GPU_SHADER_FREE_SAFE(e_data.select_debug_sh);
+  ShaderCache::release();
 }
 
 /** \} */
