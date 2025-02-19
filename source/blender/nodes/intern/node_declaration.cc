@@ -681,6 +681,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::dependent_field()
 {
   BLI_assert(this->is_output());
   decl_base_->output_field_dependency = OutputFieldDependency::ForDependentField();
+  this->structure_type(StructureType::Dynamic);
   this->reference_pass_all();
   return *this;
 }

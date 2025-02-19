@@ -182,6 +182,13 @@ static void propagate_left_to_right(
     nodes::StructureTypeInterface &derived_interface)
 {
   for (const bNode *node : tree.toposort_left_to_right()) {
+    if (node->is_type("ShaderNodeTexWhiteNoise")) {
+      printf("ShaderNodeTexWhiteNoise\n");
+    }
+    if (node->is_type("FunctionNodeRandomValue")) {
+      printf("FunctionNodeRandomValue\n");
+    }
+
     for (const bNodeSocket *input_socket : node->input_sockets()) {
       if (!input_socket->is_available()) {
         continue;
@@ -204,59 +211,49 @@ static void propagate_left_to_right(
       }
     }
 
-    switch (node->type_legacy) {
-      case NODE_REROUTE: {
-        const int input = node->input_socket(0).index_in_tree();
-        const int output = node->output_socket(0).index_in_tree();
-        socket_usages[output] = socket_usages[input];
-        break;
-      }
-      case NODE_GROUP_INPUT: {
-        break;
-      }
-      default: {
-        const nodes::aal::RelationsInNode *relations = relations_by_node[node->index()];
-        if (!relations) {
-          break;
-        }
-        for (const nodes::aal::ReferenceRelation &relation : relations->reference_relations) {
-          const bNodeSocket &output_socket = node->output_socket(relation.to_field_output);
-          if (!output_socket.is_available()) {
-            continue;
-          }
-          socket_usages[output_socket.index_in_tree()].is_field = true;
-        }
+    if (node->is_group_input()) {
+      continue;
+    }
 
-        for (const nodes::aal::ReferenceRelation &relation : relations->reference_relations) {
-          const bNodeSocket &output_socket = node->output_socket(relation.to_field_output);
-          if (!output_socket.is_available()) {
-            continue;
-          }
-          if (output_socket.runtime->declaration) {
-            if (output_socket.runtime->declaration->structure_type != StructureType::Dynamic) {
-              continue;
-            }
-          }
-          const bNodeSocket &input_socket = node->input_socket(relation.from_field_input);
-          if (!input_socket.is_available()) {
-            continue;
-          }
-          const int input = input_socket.index_in_tree();
-          const int output = output_socket.index_in_tree();
-          socket_usages[output].is_field = socket_usages[input].is_field;
-        }
+    if (node->is_reroute()) {
+      const int input = node->input_socket(0).index_in_tree();
+      const int output = node->output_socket(0).index_in_tree();
+      socket_usages[output] = socket_usages[input];
+      continue;
+    }
 
-        for (const bNodeSocket *output_socket : node->output_sockets()) {
-          if (!output_socket->is_available()) {
-            continue;
-          }
-          if (output_socket->runtime->declaration) {
-            if (output_socket->runtime->declaration->structure_type == StructureType::Single) {
-              socket_usages[output_socket->index_in_tree()].is_single_value = true;
-            }
-          }
+    const nodes::aal::RelationsInNode *relations = relations_by_node[node->index()];
+    if (!relations) {
+      continue;
+    }
+
+    for (const nodes::aal::ReferenceRelation &relation : relations->reference_relations) {
+      const bNodeSocket &output_socket = node->output_socket(relation.to_field_output);
+      if (!output_socket.is_available()) {
+        continue;
+      }
+      if (output_socket.runtime->declaration) {
+        if (output_socket.runtime->declaration->structure_type != StructureType::Dynamic) {
+          continue;
         }
-        break;
+      }
+      const bNodeSocket &input_socket = node->input_socket(relation.from_field_input);
+      if (!input_socket.is_available()) {
+        continue;
+      }
+      const int input = input_socket.index_in_tree();
+      const int output = output_socket.index_in_tree();
+      socket_usages[output].is_field = socket_usages[input].is_field;
+    }
+
+    for (const bNodeSocket *output_socket : node->output_sockets()) {
+      if (!output_socket->is_available()) {
+        continue;
+      }
+      if (output_socket->runtime->declaration) {
+        if (output_socket->runtime->declaration->structure_type == StructureType::Single) {
+          socket_usages[output_socket->index_in_tree()].is_single_value = true;
+        }
       }
     }
   }
