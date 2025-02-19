@@ -307,8 +307,8 @@ class GeoNodeExecParams {
   }
 
   /**
-   * If the path is relative, attempt to make it absolute. If the current node tree is linked,
-   * the path is relative to the linked file. Otherwise, the path is relative to the current file.
+   * If the path is relative, attempt to make it absolute. The current .blend file path is used as
+   * base path, even if the owner node tree of the current node is linked.
    */
   std::optional<std::string> ensure_absolute_path(StringRefNull path) const;
 
