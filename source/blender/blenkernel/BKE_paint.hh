@@ -367,6 +367,13 @@ struct SculptTopologyIslandCache {
 
 using ActiveVert = std::variant<std::monostate, int, BMVert *>;
 
+/* Helper return struct for associated data. */
+struct PersistentMultiresData {
+  blender::Span<blender::float3> positions;
+  blender::Span<blender::float3> normals;
+  blender::MutableSpan<float> displacements;
+};
+
 struct SculptSession : blender::NonCopyable, blender::NonMovable {
   /* Mesh data (not copied) can come either directly from a Mesh, or from a MultiresDM */
   struct { /* Special handling for multires meshes */
@@ -448,9 +455,15 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
 
   /* "Persistent" positions and normals for multires. (For mesh the
    * ".sculpt_persistent_co" attribute is used, etc.). */
-  blender::Array<blender::float3> sculpt_persistent_co;
-  blender::Array<blender::float3> sculpt_persistent_no;
-  blender::Array<float> sculpt_persistent_disp;
+  struct {
+    blender::Array<blender::float3> sculpt_persistent_co;
+    blender::Array<blender::float3> sculpt_persistent_no;
+    blender::Array<float> sculpt_persistent_disp;
+
+    /* Similar to sculpt undo, used to indicate whether or not the prior data is valid */
+    int grids_num = -1;
+    int grid_size = -1;
+  } persistent;
 
   SculptVertexInfo vertex_info = {};
   SculptFakeNeighbors fake_neighbors = {};
@@ -554,6 +567,8 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
 
   void set_active_vert(ActiveVert vert);
   void clear_active_vert(bool persist_last_active);
+
+  std::optional<PersistentMultiresData> persistent_multires_data();
 };
 
 void BKE_sculptsession_free(Object *ob);
