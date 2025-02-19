@@ -880,12 +880,14 @@ WorkspaceStatus::WorkspaceStatus(bContext *C)
 /** \name Private helper functions to help ensure consistent spacing
  * \{ */
 
-static constexpr float STATUS_AFTER_TEXT = 0.7f;
-static constexpr float STATUS_MOUSE_ICON_PAD = -0.5f;
+static constexpr float STATUS_BEFORE_TEXT = 0.17f;
+static constexpr float STATUS_AFTER_TEXT = 0.90f;
+static constexpr float STATUS_MOUSE_ICON_PAD = -0.68f;
 
 static void ed_workspace_status_text_item(WorkSpace *workspace, std::string text)
 {
   if (!text.empty()) {
+    ed_workspace_status_space(workspace, STATUS_BEFORE_TEXT);
     ed_workspace_status_item(workspace, std::move(text), ICON_NONE);
     ed_workspace_status_space(workspace, STATUS_AFTER_TEXT);
   }
@@ -2602,9 +2604,7 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
   wmWindow *win = CTX_wm_window(C);
   SpaceType *st = BKE_spacetype_from_id(type);
 
-  const bool change_spacetype = area->spacetype != type;
-
-  if (change_spacetype) {
+  if (area->spacetype != type) {
     SpaceLink *slold = static_cast<SpaceLink *>(area->spacedata.first);
     /* store area->type->exit callback */
     void (*area_exit)(wmWindowManager *, ScrArea *) = area->type ? area->type->exit : nullptr;
@@ -2713,13 +2713,10 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
   }
 
   /* Set area space subtype if applicable. */
-  if (st && st->space_subtype_item_extend != nullptr) {
-    BLI_assert(st->space_subtype_prev_get != nullptr);
+  if (st->space_subtype_item_extend != nullptr) {
     st->space_subtype_set(area, area->butspacetype_subtype);
-    if (change_spacetype) {
-      st->space_subtype_set(area, st->space_subtype_prev_get(area));
-    }
   }
+  area->butspacetype_subtype = 0;
 
   if (BLI_listbase_is_single(&CTX_wm_screen(C)->areabase)) {
     /* If there is only one area update the window title. */

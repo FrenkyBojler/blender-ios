@@ -26,6 +26,7 @@ struct ViewContext;
 struct rcti;
 struct TransVertStore;
 struct wmKeyConfig;
+struct wmOperator;
 namespace blender::bke {
 enum class AttrDomain : int8_t;
 struct GSpanAttributeWriter;
@@ -81,7 +82,7 @@ void remove_selection_attributes(
 Span<float3> get_selection_attribute_positions(
     const bke::CurvesGeometry &curves,
     const bke::crazyspace::GeometryDeformation &deformation,
-    const StringRef attribute_name);
+    StringRef attribute_name);
 
 using SelectionRangeFn = FunctionRef<void(
     IndexRange range, Span<float3> positions, StringRef selection_attribute_name)>;
@@ -140,6 +141,7 @@ void CURVES_OT_attribute_set(wmOperatorType *ot);
 void CURVES_OT_draw(wmOperatorType *ot);
 void CURVES_OT_extrude(wmOperatorType *ot);
 void CURVES_OT_select_linked_pick(wmOperatorType *ot);
+void CURVES_OT_separate(wmOperatorType *ot);
 
 /** \} */
 
@@ -459,6 +461,8 @@ void resize_curves(bke::CurvesGeometry &curves,
  * reorder curves.
  */
 void reorder_curves(bke::CurvesGeometry &curves, Span<int> old_by_new_indices_map);
+
+int join_objects(bContext *C, wmOperator *op);
 
 /** \} */
 
