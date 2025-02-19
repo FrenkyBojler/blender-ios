@@ -948,9 +948,6 @@ void update_input_properties_from_node_tree(const bNodeTree &tree,
                                                        SOCK_CUSTOM;
     IDProperty *new_prop = id_property_create_from_socket(socket, use_name_for_ids).release();
     if (new_prop == nullptr) {
-      /* Out of the set of supported input sockets, only
-       * geometry sockets aren't added to the modifier. */
-      BLI_assert(ELEM(socket_type, SOCK_GEOMETRY, SOCK_MATRIX));
       continue;
     }
 
