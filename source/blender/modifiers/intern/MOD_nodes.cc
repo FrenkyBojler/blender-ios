@@ -858,6 +858,9 @@ static void check_property_socket_sync(const Object *ob, ModifierData *md)
       geometry_socket_count++;
       continue;
     }
+    if (nodes::StructureType(socket->structure_type) == nodes::StructureType::Grid) {
+      continue;
+    }
 
     IDProperty *property = IDP_GetPropertyFromGroup(nmd->settings.properties, socket->identifier);
     if (property == nullptr) {

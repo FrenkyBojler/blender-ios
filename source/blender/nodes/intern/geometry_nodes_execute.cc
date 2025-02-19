@@ -120,6 +120,9 @@ std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_property_create_f
   const eNodeSocketDatatype type = typeinfo ? eNodeSocketDatatype(typeinfo->type) : SOCK_CUSTOM;
   switch (type) {
     case SOCK_FLOAT: {
+      if (StructureType(socket.structure_type) == StructureType::Grid) {
+        return nullptr;
+      }
       const bNodeSocketValueFloat *value = static_cast<const bNodeSocketValueFloat *>(
           socket.socket_data);
       auto property = bke::idprop::create(identifier, value->value);
@@ -131,6 +134,9 @@ std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_property_create_f
       return property;
     }
     case SOCK_INT: {
+      if (StructureType(socket.structure_type) == StructureType::Grid) {
+        return nullptr;
+      }
       const bNodeSocketValueInt *value = static_cast<const bNodeSocketValueInt *>(
           socket.socket_data);
       auto property = bke::idprop::create(identifier, value->value);
@@ -142,6 +148,9 @@ std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_property_create_f
       return property;
     }
     case SOCK_VECTOR: {
+      if (StructureType(socket.structure_type) == StructureType::Grid) {
+        return nullptr;
+      }
       const bNodeSocketValueVector *value = static_cast<const bNodeSocketValueVector *>(
           socket.socket_data);
       auto property = bke::idprop::create(
@@ -158,6 +167,9 @@ std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_property_create_f
       return property;
     }
     case SOCK_RGBA: {
+      if (StructureType(socket.structure_type) == StructureType::Grid) {
+        return nullptr;
+      }
       const bNodeSocketValueRGBA *value = static_cast<const bNodeSocketValueRGBA *>(
           socket.socket_data);
       auto property = bke::idprop::create(
@@ -177,6 +189,9 @@ std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_property_create_f
       return property;
     }
     case SOCK_BOOLEAN: {
+      if (StructureType(socket.structure_type) == StructureType::Grid) {
+        return nullptr;
+      }
       if (is_layer_selection_field(socket)) {
         /* We can't use the value from the socket here since it doesn't storing a string. */
         return bke::idprop::create(identifier, "");
