@@ -250,7 +250,7 @@ get_init_socket_fn(const bNodeTreeInterface &interface, const bNodeTreeInterface
 static BaseSocketDeclarationBuilder &build_interface_socket_declaration(
     const bNodeTree &tree,
     const bNodeTreeInterfaceSocket &io_socket,
-    const StructureType structure_type,
+    const std::optional<StructureType> structure_type,
     const eNodeSocketInOut in_out,
     DeclarationListBuilder &b)
 {
@@ -373,7 +373,9 @@ static BaseSocketDeclarationBuilder &build_interface_socket_declaration(
   decl->description(io_socket.description ? io_socket.description : "");
   decl->hide_value(io_socket.flag & NODE_INTERFACE_SOCKET_HIDE_VALUE);
   decl->compact(io_socket.flag & NODE_INTERFACE_SOCKET_COMPACT);
-  decl->structure_type(structure_type);
+  if (structure_type) {
+    decl->structure_type(*structure_type);
+  }
   return *decl;
 }
 
@@ -435,7 +437,7 @@ static void node_group_declare_panel_recursive(
           add_layout_if_needed();
         }
         build_interface_socket_declaration(
-            group, io_socket, structure_type_by_socket.lookup(&io_socket), in_out, b);
+            group, io_socket, structure_type_by_socket.lookup_try(&io_socket), in_out, b);
         break;
       }
       case NODE_INTERFACE_PANEL: {
@@ -477,20 +479,22 @@ void node_group_declare(NodeDeclarationBuilder &b)
   group->ensure_interface_cache();
 
   Map<const bNodeTreeInterfaceSocket *, StructureType> structure_type_by_socket;
-  structure_type_by_socket.reserve(group->interface_items().size());
+  if (group->type == NTREE_GEOMETRY) {
+    structure_type_by_socket.reserve(group->interface_items().size());
 
-  const Span<const bNodeTreeInterfaceSocket *> inputs = group->interface_inputs();
-  const Span<StructureType> input_structure_types =
-      group->runtime->structure_type_interface->inputs;
-  for (const int i : inputs.index_range()) {
-    structure_type_by_socket.add(inputs[i], input_structure_types[i]);
-  }
+    const Span<const bNodeTreeInterfaceSocket *> inputs = group->interface_inputs();
+    const Span<StructureType> input_structure_types =
+        group->runtime->structure_type_interface->inputs;
+    for (const int i : inputs.index_range()) {
+      structure_type_by_socket.add(inputs[i], input_structure_types[i]);
+    }
 
-  const Span<const bNodeTreeInterfaceSocket *> outputs = group->interface_outputs();
-  const Span<StructureType> output_structure_types =
-      group->runtime->structure_type_interface->outputs;
-  for (const int i : outputs.index_range()) {
-    structure_type_by_socket.add(outputs[i], output_structure_types[i]);
+    const Span<const bNodeTreeInterfaceSocket *> outputs = group->interface_outputs();
+    const Span<StructureType> output_structure_types =
+        group->runtime->structure_type_interface->outputs;
+    for (const int i : outputs.index_range()) {
+      structure_type_by_socket.add(outputs[i], output_structure_types[i]);
+    }
   }
 
   node_group_declare_panel_recursive(
