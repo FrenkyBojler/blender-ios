@@ -2227,19 +2227,18 @@ std::optional<PersistentMultiresData> SculptSession::persistent_multires_data()
 {
   BLI_assert(subdiv_ccg);
   if (persistent.grids_num == -1 || persistent.grid_size == -1) {
-    return {};
+    return std::nullopt;
   }
 
   if (this->subdiv_ccg->grids_num != persistent.grids_num ||
       this->subdiv_ccg->grid_size != persistent.grid_size)
   {
-    return {};
+    return std::nullopt;
   }
 
-  PersistentMultiresData result = {persistent.sculpt_persistent_co,
-                                   persistent.sculpt_persistent_no,
-                                   persistent.sculpt_persistent_disp};
-  return result;
+  return PersistentMultiresData{persistent.sculpt_persistent_co,
+                                persistent.sculpt_persistent_no,
+                                persistent.sculpt_persistent_disp};
 }
 
 static MultiresModifierData *sculpt_multires_modifier_get(const Scene *scene,
