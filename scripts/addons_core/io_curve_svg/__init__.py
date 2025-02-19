@@ -38,8 +38,6 @@ class ImportSVG(bpy.types.Operator, ImportHelper):
     bl_label = "Import SVG"
     bl_options = {'UNDO'}
 
-    directory: StringProperty()
-
     filename_ext = ".svg"
     filter_glob: StringProperty(default="*.svg", options={'HIDDEN'})
 
