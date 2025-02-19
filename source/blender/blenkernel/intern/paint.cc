@@ -2230,7 +2230,9 @@ std::optional<PersistentMultiresData> SculptSession::persistent_multires_data()
     return {};
   }
 
-  if (this->subdiv_ccg->grids_num != persistent.grids_num || this->subdiv_ccg->grid_size != persistent.grid_size) {
+  if (this->subdiv_ccg->grids_num != persistent.grids_num ||
+      this->subdiv_ccg->grid_size != persistent.grid_size)
+  {
     return {};
   }
 
