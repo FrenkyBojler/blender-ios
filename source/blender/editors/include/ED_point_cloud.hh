@@ -24,6 +24,7 @@ struct PointCloud;
 struct rcti;
 struct UndoType;
 struct wmKeyConfig;
+struct wmOperator;
 struct wmOperatorType;
 namespace blender::bke {
 struct GSpanAttributeWriter;
@@ -124,6 +125,7 @@ IndexMask retrieve_selected_points(const PointCloud &pointcloud, IndexMaskMemory
  * \returns true if any point was removed.
  */
 bool remove_selection(PointCloud &point_cloud);
+PointCloud *copy_selection(const PointCloud &src, const IndexMask &mask);
 
 /** \} */
 
@@ -141,6 +143,9 @@ bool editable_point_cloud_in_edit_mode_poll(bContext *C);
 
 void POINT_CLOUD_OT_attribute_set(wmOperatorType *ot);
 void POINT_CLOUD_OT_duplicate(wmOperatorType *ot);
+void POINT_CLOUD_OT_separate(wmOperatorType *ot);
+
+int join_objects(bContext *C, wmOperator *op);
 
 /** \} */
 
