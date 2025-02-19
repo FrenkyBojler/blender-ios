@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_map.hh"
+
 #include "DNA_scene_types.h"
 
 #include "BKE_context.hh"
@@ -27,10 +29,10 @@ int join_objects(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   Object *active_object = CTX_data_active_object(C);
-  PointCloud &active_pointcloud = *static_cast<PointCloud *>(active_object->data);
-  const float4x4 &world_to_active = active_object->world_to_object();
   BLI_assert(active_object);
   BLI_assert(active_object->type == OB_POINTCLOUD);
+  PointCloud &active_pointcloud = *static_cast<PointCloud *>(active_object->data);
+  const float4x4 &world_to_active = active_object->world_to_object();
 
   Vector<Object *> objects{active_object};
   bool active_object_selected = false;
