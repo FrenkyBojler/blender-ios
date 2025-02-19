@@ -13,6 +13,7 @@
 #include "DNA_ID.h"
 
 #include "DRW_engine.hh"
+#include "DRW_render.hh"
 
 #include "draw_manager.hh"
 #include "draw_pass.hh"
