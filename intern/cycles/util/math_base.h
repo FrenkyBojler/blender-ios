@@ -215,7 +215,7 @@ ccl_device_inline float max4(const float a, const float b, float c, const float 
 
 template<typename T> ccl_device_inline T make_zero();
 
-ccl_device_inline_template float make_zero()
+ccl_device_template_spec float make_zero()
 {
   return 0.0f;
 }

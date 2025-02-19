@@ -103,27 +103,27 @@ ccl_device_inline AttributeDescriptor find_attribute(KernelGlobals kg,
 /* Templated functions to read from the attribute data */
 template<typename T> ccl_device_inline T attribute_data_fetch(KernelGlobals kg, int offset);
 
-ccl_device_inline_template float attribute_data_fetch(KernelGlobals kg, int offset)
+ccl_device_template_spec float attribute_data_fetch(KernelGlobals kg, int offset)
 {
   return kernel_data_fetch(attributes_float, offset);
 }
 
-ccl_device_inline_template float2 attribute_data_fetch(KernelGlobals kg, int offset)
+ccl_device_template_spec float2 attribute_data_fetch(KernelGlobals kg, int offset)
 {
   return kernel_data_fetch(attributes_float2, offset);
 }
 
-ccl_device_inline_template float3 attribute_data_fetch(KernelGlobals kg, int offset)
+ccl_device_template_spec float3 attribute_data_fetch(KernelGlobals kg, int offset)
 {
   return kernel_data_fetch(attributes_float3, offset);
 }
 
-ccl_device_inline_template float4 attribute_data_fetch(KernelGlobals kg, int offset)
+ccl_device_template_spec float4 attribute_data_fetch(KernelGlobals kg, int offset)
 {
   return kernel_data_fetch(attributes_float4, offset);
 }
 
-ccl_device_inline_template uchar4 attribute_data_fetch(KernelGlobals kg, int offset)
+ccl_device_template_spec uchar4 attribute_data_fetch(KernelGlobals kg, int offset)
 {
   return kernel_data_fetch(attributes_uchar4, offset);
 }
@@ -137,13 +137,13 @@ ccl_device_inline T attribute_data_fetch_bytecolor(KernelGlobals kg, int offset)
   return make_zero<T>();
 }
 
-ccl_device_inline_template float4 attribute_data_fetch_bytecolor(KernelGlobals kg, int offset)
+ccl_device_template_spec float4 attribute_data_fetch_bytecolor(KernelGlobals kg, int offset)
 {
   return color_srgb_to_linear_v4(
       color_uchar4_to_float4(kernel_data_fetch(attributes_uchar4, offset)));
 }
 
-ccl_device_inline_template Transform attribute_data_fetch(KernelGlobals kg, int offset)
+ccl_device_template_spec Transform attribute_data_fetch(KernelGlobals kg, int offset)
 {
   Transform tfm;
 

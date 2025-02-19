@@ -20,7 +20,7 @@ ccl_device_inline float2 one_float2()
   return make_float2(1.0f, 1.0f);
 }
 
-ccl_device_inline_template float2 make_zero()
+ccl_device_template_spec float2 make_zero()
 {
   return zero_float2();
 }

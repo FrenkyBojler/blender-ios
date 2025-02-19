@@ -476,7 +476,7 @@ inline void set_data_float4(
   }
 }
 
-ccl_device_inline_template bool set_attribute(
+ccl_device_template_spec bool set_attribute(
     const float v, const float dx, const float dy, TypeDesc type, bool derivatives, void *val)
 {
   if (type == TypeFloatArray4) {
@@ -499,7 +499,7 @@ ccl_device_inline_template bool set_attribute(
   return false;
 }
 
-ccl_device_inline_template bool set_attribute(
+ccl_device_template_spec bool set_attribute(
     const float2 v, const float2 dx, const float2 dy, TypeDesc type, bool derivatives, void *val)
 {
   if (type == TypeFloatArray4) {
@@ -522,7 +522,7 @@ ccl_device_inline_template bool set_attribute(
   return false;
 }
 
-ccl_device_inline_template bool set_attribute(
+ccl_device_template_spec bool set_attribute(
     const float3 v, const float3 dx, const float3 dy, TypeDesc type, bool derivatives, void *val)
 {
   if (type == TypeFloatArray4) {
@@ -550,7 +550,7 @@ ccl_device_inline_template bool set_attribute(
  * this for the correct operation of the Attribute node.
  */
 
-ccl_device_inline_template bool set_attribute(
+ccl_device_template_spec bool set_attribute(
     const float4 v, const float4 dx, const float4 dy, TypeDesc type, bool derivatives, void *val)
 {
   if (type == TypeFloatArray4) {
@@ -578,10 +578,10 @@ ccl_device_inline bool set_attribute(const T f, const TypeDesc type, bool deriva
   return set_attribute(f, make_zero<T>(), make_zero<T>(), type, derivatives, val);
 }
 
-ccl_device_inline_template bool set_attribute(const int i,
-                                              const TypeDesc type,
-                                              bool derivatives,
-                                              void *val)
+ccl_device_template_spec bool set_attribute(const int i,
+                                            const TypeDesc type,
+                                            bool derivatives,
+                                            void *val)
 {
   if (type.basetype == TypeDesc::INT && type.aggregate == TypeDesc::SCALAR && type.arraylen == 0) {
     int *ival = (int *)val;
@@ -598,10 +598,10 @@ ccl_device_inline_template bool set_attribute(const int i,
   return false;
 }
 
-ccl_device_inline_template bool set_attribute(ustring str,
-                                              const TypeDesc type,
-                                              bool derivatives,
-                                              void *val)
+ccl_device_template_spec bool set_attribute(ustring str,
+                                            const TypeDesc type,
+                                            bool derivatives,
+                                            void *val)
 {
   if (type.basetype == TypeDesc::STRING && type.aggregate == TypeDesc::SCALAR &&
       type.arraylen == 0)

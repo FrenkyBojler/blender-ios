@@ -878,13 +878,12 @@ ccl_device_inline void set_data_float4(
   }
 }
 
-template<>
-inline bool set_attribute(const float v,
-                          const float dx,
-                          const float dy,
-                          const TypeDesc type,
-                          bool derivatives,
-                          ccl_private void *val)
+ccl_device_template_spec bool set_attribute(const float v,
+                                            const float dx,
+                                            const float dy,
+                                            const TypeDesc type,
+                                            bool derivatives,
+                                            ccl_private void *val)
 {
   const unsigned char type_basetype = type & 0xFF;
   const unsigned char type_aggregate = (type >> 8) & 0xFF;
@@ -913,13 +912,12 @@ inline bool set_attribute(const float v,
 
   return false;
 }
-template<>
-inline bool set_attribute(const float2 v,
-                          const float2 dx,
-                          const float2 dy,
-                          const TypeDesc type,
-                          bool derivatives,
-                          ccl_private void *val)
+ccl_device_template_spec bool set_attribute(const float2 v,
+                                            const float2 dx,
+                                            const float2 dy,
+                                            const TypeDesc type,
+                                            bool derivatives,
+                                            ccl_private void *val)
 {
   const unsigned char type_basetype = type & 0xFF;
   const unsigned char type_aggregate = (type >> 8) & 0xFF;
@@ -947,13 +945,12 @@ inline bool set_attribute(const float2 v,
 
   return false;
 }
-template<>
-inline bool set_attribute(const float3 v,
-                          const float3 dx,
-                          const float3 dy,
-                          const TypeDesc type,
-                          bool derivatives,
-                          ccl_private void *val)
+ccl_device_template_spec bool set_attribute(const float3 v,
+                                            const float3 dx,
+                                            const float3 dy,
+                                            const TypeDesc type,
+                                            bool derivatives,
+                                            ccl_private void *val)
 {
   const unsigned char type_basetype = type & 0xFF;
   const unsigned char type_aggregate = (type >> 8) & 0xFF;
@@ -979,13 +976,12 @@ inline bool set_attribute(const float3 v,
 
   return false;
 }
-template<>
-inline bool set_attribute(const float4 v,
-                          const float4 dx,
-                          const float4 dy,
-                          const TypeDesc type,
-                          bool derivatives,
-                          ccl_private void *val)
+ccl_device_template_spec bool set_attribute(const float4 v,
+                                            const float4 dx,
+                                            const float4 dy,
+                                            const TypeDesc type,
+                                            bool derivatives,
+                                            ccl_private void *val)
 {
   const unsigned char type_basetype = type & 0xFF;
   const unsigned char type_aggregate = (type >> 8) & 0xFF;
@@ -1039,11 +1035,10 @@ ccl_device_inline bool set_attribute_matrix(const ccl_private Transform &tfm,
   return false;
 }
 
-template<>
-inline bool set_attribute(const int i,
-                          const TypeDesc type,
-                          bool derivatives,
-                          ccl_private void *val)
+ccl_device_template_spec bool set_attribute(const int i,
+                                            const TypeDesc type,
+                                            bool derivatives,
+                                            ccl_private void *val)
 {
   ccl_private int *ival = static_cast<ccl_private int *>(val);
 

@@ -45,18 +45,18 @@ ccl_device_inline float3 volume_normalized_position(KernelGlobals kg,
 
 template<typename T> ccl_device_inline T volume_attribute_value(const float4 value);
 
-ccl_device_inline_template float volume_attribute_value(const float4 value)
+ccl_device_template_spec float volume_attribute_value(const float4 value)
 {
   return average(make_float3(value));
 }
 
-ccl_device_inline_template float2 volume_attribute_value(const float4 value)
+ccl_device_template_spec float2 volume_attribute_value(const float4 value)
 {
   kernel_assert(!"Float2 attribute not supported for volumes");
   return zero_float2();
 }
 
-ccl_device_inline_template float3 volume_attribute_value(const float4 value)
+ccl_device_template_spec float3 volume_attribute_value(const float4 value)
 {
   if (value.w > 1e-6f && value.w != 1.0f) {
     /* For RGBA colors, unpremultiply after interpolation. */
@@ -65,7 +65,7 @@ ccl_device_inline_template float3 volume_attribute_value(const float4 value)
   return make_float3(value);
 }
 
-ccl_device_inline_template float4 volume_attribute_value(const float4 value)
+ccl_device_template_spec float4 volume_attribute_value(const float4 value)
 {
   return value;
 }
