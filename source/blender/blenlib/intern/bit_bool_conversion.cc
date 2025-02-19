@@ -99,7 +99,7 @@ template<int S> struct PredicateByteToBit {
     BLI_assert(predicate_bytes.size() <= S);
     static_assert(S >= 1);
     for (int i = 0; i < S; i++) {
-      const int src_i = i < S ? i : 0;
+      const int src_i = i < predicate_bytes.size() ? i : 0;
       this->predicate_bytes[i] = predicate_bytes[src_i];
 #if BLI_HAVE_SSE2
       this->predicate_chunks[i] = _mm_set1_epi8(predicate_bytes[src_i]);
@@ -141,15 +141,15 @@ bool bytes_to_bits(Span<char> bytes,
     return or_bytes_into_bits(
         bytes, r_bits, allowed_overshoot, PredicateByteToBit<1>(predicate_bytes));
   }
-  if (predicate_bytes.size() == 2) {
+  if (predicate_bytes.size() <= 2) {
     return or_bytes_into_bits(
         bytes, r_bits, allowed_overshoot, PredicateByteToBit<2>(predicate_bytes));
   }
-  if (predicate_bytes.size() == 4) {
+  if (predicate_bytes.size() <= 4) {
     return or_bytes_into_bits(
         bytes, r_bits, allowed_overshoot, PredicateByteToBit<4>(predicate_bytes));
   }
-  if (predicate_bytes.size() == 8) {
+  if (predicate_bytes.size() <= 8) {
     return or_bytes_into_bits(
         bytes, r_bits, allowed_overshoot, PredicateByteToBit<8>(predicate_bytes));
   }

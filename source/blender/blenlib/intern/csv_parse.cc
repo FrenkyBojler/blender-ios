@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_bit_bool_conversion.hh"
+#include "BLI_bit_iterator.hh"
 #include "BLI_bit_vector.hh"
 #include "BLI_csv_parse.hh"
 #include "BLI_enumerable_thread_specific.hh"
-#include "BLI_math_bits.h"
 #include "BLI_task.hh"
 
 namespace blender::csv_parse {
@@ -48,6 +48,56 @@ static Vector<Span<char>> split_into_aligned_chunks(const Span<char> buffer,
   return chunks;
 }
 
+static std::optional<CsvRecords> parse_records2(const Span<char> buffer,
+                                                const CsvParseOptions &options,
+                                                Vector<int64_t> &r_data_offsets,
+                                                Vector<Span<char>> &r_data_fields)
+{
+  Vector<char, 32> special_chars;
+  special_chars.append_non_duplicates(options.quote);
+  special_chars.append_non_duplicates(options.delimiter);
+  special_chars.append_non_duplicates('\r');
+  special_chars.append_non_duplicates('\n');
+  special_chars.extend_non_duplicates(options.quote_escape_chars);
+
+  BitVector<1024> special_char_bits(buffer.size());
+  bits::bytes_to_bits(buffer, special_chars, special_char_bits);
+
+  /* Clear the data that may still be in there, but do not free the memory. */
+  r_data_offsets.clear();
+  r_data_fields.clear();
+
+  r_data_offsets.append(0);
+
+  bits::SetBitIterable set_bits(special_char_bits);
+  bits::SetBitIterator set_bits_it = set_bits.begin();
+  bits::SetBitIterator set_bits_end = set_bits.end();
+
+  printf("\nChars: ");
+  while (set_bits_it != set_bits_end) {
+    const int64_t i = *set_bits_it;
+    const char c = buffer[i];
+    switch (c) {
+      case '\n':
+        printf("\\n");
+        break;
+      case '\r':
+        printf("\\r");
+        break;
+      case '\t':
+        printf("\\t");
+        break;
+      default:
+        printf("%c", c);
+        break;
+    }
+    ++set_bits_it;
+  }
+  printf("\n");
+
+  return CsvRecords(OffsetIndices<int64_t>(r_data_offsets), r_data_fields);
+}
+
 /**
  * Parses the given buffer into records and their fields.
  *
@@ -58,6 +108,8 @@ static std::optional<CsvRecords> parse_records(const Span<char> buffer,
                                                Vector<int64_t> &r_data_offsets,
                                                Vector<Span<char>> &r_data_fields)
 {
+  parse_records2(buffer, options, r_data_offsets, r_data_fields);
+
   using namespace detail;
   /* Clear the data that may still be in there, but do not free the memory. */
   r_data_offsets.clear();
@@ -79,31 +131,6 @@ static std::optional<CsvRecords> parse_records(const Span<char> buffer,
     r_data_offsets.append(r_data_fields.size());
     start = *next_record_start;
   }
-  return CsvRecords(OffsetIndices<int64_t>(r_data_offsets), r_data_fields);
-}
-
-static std::optional<CsvRecords> parse_records2(const Span<char> buffer,
-                                                const CsvParseOptions &options,
-                                                Vector<int64_t> &r_data_offsets,
-                                                Vector<Span<char>> &r_data_fields)
-{
-  Vector<char, 32> special_chars;
-  special_chars.append_non_duplicates(options.quote);
-  special_chars.append_non_duplicates(options.delimiter);
-  special_chars.extend_non_duplicates(options.quote_escape_chars);
-
-  BitVector<1024> special_char_bits(buffer.size());
-  bits::bytes_to_bits(buffer, special_chars, special_char_bits);
-
-  /* Clear the data that may still be in there, but do not free the memory. */
-  r_data_offsets.clear();
-  r_data_fields.clear();
-
-  r_data_offsets.append(0);
-  int64_t i = 0;
-  while (i < buffer.size()) {
-  }
-
   return CsvRecords(OffsetIndices<int64_t>(r_data_offsets), r_data_fields);
 }
 
