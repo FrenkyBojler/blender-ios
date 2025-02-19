@@ -382,7 +382,12 @@ template<typename T> inline T *MEM_calloc_arrayN(const size_t length, const char
  */
 template<typename T> inline T *MEM_dupallocN(const char *allocation_name, const T &other)
 {
+#  ifndef _WIN32
+  /* MSVC seems to consider C-style types using the MEM_CXX_CLASS_ALLOC_FUNCS as non-trivial. GCC
+   * and clang (both on linux and OSX) do not.
+   * So for now, disable the triviality check on Windows. */
   static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_new must be used.");
+#  endif
   T *new_object = static_cast<T *>(MEM_mallocN_aligned(sizeof(T), alignof(T), allocation_name));
   if (new_object) {
     memcpy(new_object, &other, sizeof(T));
