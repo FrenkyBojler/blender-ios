@@ -141,12 +141,10 @@ static void POINTCLOUD_OT_select_all(wmOperatorType *ot)
 
 static int select_random_exec(bContext *C, wmOperator *op)
 {
-  VectorSet<PointCloud *> unique_pointcloud = get_unique_editable_pointclouds(*C);
-
   const int seed = RNA_int_get(op->ptr, "seed");
   const float probability = RNA_float_get(op->ptr, "probability");
 
-  for (PointCloud *pointcloud : unique_pointcloud) {
+  for (PointCloud *pointcloud : get_unique_editable_pointclouds(*C)) {
     IndexMaskMemory memory;
     const IndexMask inv_random_elements = random_mask(
                                               pointcloud->totpoint, seed, probability, memory)
