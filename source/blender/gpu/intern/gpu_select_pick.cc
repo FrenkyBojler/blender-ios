@@ -82,7 +82,7 @@ static void rect_subregion_stride_calc(const rcti *src, const rcti *dst, SubRect
  * Ignore depth clearing as a change,
  * only check if its been changed _and_ filled in (ignore clearing since XRAY does this).
  */
-BLI_INLINE bool depth_is_filled(const depth_t *prev, const depth_t *curr)
+BLI_INLINE static bool depth_is_filled(const depth_t *prev, const depth_t *curr)
 {
   return (*prev != *curr) && (*curr != DEPTH_MAX);
 }

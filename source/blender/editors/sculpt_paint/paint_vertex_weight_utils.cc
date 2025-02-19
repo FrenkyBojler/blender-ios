@@ -150,34 +150,34 @@ int ED_wpaint_mirror_vgroup_ensure(Object *ob, const int vgroup_active)
 /** \name Weight Blending Modes
  * \{ */
 
-BLI_INLINE float wval_blend(const float weight, const float paintval, const float alpha)
+BLI_INLINE static float wval_blend(const float weight, const float paintval, const float alpha)
 {
   const float talpha = std::min(alpha, 1.0f); /* blending with values over 1 doesn't make sense */
   return (paintval * talpha) + (weight * (1.0f - talpha));
 }
-BLI_INLINE float wval_add(const float weight, const float paintval, const float alpha)
+BLI_INLINE static float wval_add(const float weight, const float paintval, const float alpha)
 {
   return weight + (paintval * alpha);
 }
-BLI_INLINE float wval_sub(const float weight, const float paintval, const float alpha)
+BLI_INLINE static float wval_sub(const float weight, const float paintval, const float alpha)
 {
   return weight - (paintval * alpha);
 }
-BLI_INLINE float wval_mul(const float weight, const float paintval, const float alpha)
+BLI_INLINE static float wval_mul(const float weight, const float paintval, const float alpha)
 { /* first mul, then blend the fac */
   return ((1.0f - alpha) + (alpha * paintval)) * weight;
 }
-BLI_INLINE float wval_lighten(const float weight, const float paintval, const float alpha)
+BLI_INLINE static float wval_lighten(const float weight, const float paintval, const float alpha)
 {
   return (weight < paintval) ? wval_blend(weight, paintval, alpha) : weight;
 }
-BLI_INLINE float wval_darken(const float weight, const float paintval, const float alpha)
+BLI_INLINE static float wval_darken(const float weight, const float paintval, const float alpha)
 {
   return (weight > paintval) ? wval_blend(weight, paintval, alpha) : weight;
 }
 
 /* mainly for color */
-BLI_INLINE float wval_colordodge(float weight, float paintval, float fac)
+BLI_INLINE static float wval_colordodge(float weight, float paintval, float fac)
 {
   float mfac, temp;
   if (fac == 0.0f) {
@@ -188,7 +188,7 @@ BLI_INLINE float wval_colordodge(float weight, float paintval, float fac)
                               std::min((weight * (225.0f / 255.0f)) / (1.0f - paintval), 1.0f);
   return mfac * weight + temp * fac;
 }
-BLI_INLINE float wval_difference(float weight, float paintval, float fac)
+BLI_INLINE static float wval_difference(float weight, float paintval, float fac)
 {
   float mfac, temp;
   if (fac == 0.0f) {
@@ -198,7 +198,7 @@ BLI_INLINE float wval_difference(float weight, float paintval, float fac)
   temp = fabsf(weight - paintval);
   return mfac * weight + temp * fac;
 }
-BLI_INLINE float wval_screen(float weight, float paintval, float fac)
+BLI_INLINE static float wval_screen(float weight, float paintval, float fac)
 {
   float mfac, temp;
   if (fac == 0.0f) {
@@ -208,7 +208,7 @@ BLI_INLINE float wval_screen(float weight, float paintval, float fac)
   temp = std::max(1.0f - ((1.0f - weight) * (1.0f - paintval)), 0.0f);
   return mfac * weight + temp * fac;
 }
-BLI_INLINE float wval_hardlight(float weight, float paintval, float fac)
+BLI_INLINE static float wval_hardlight(float weight, float paintval, float fac)
 {
   float mfac, temp;
   if (fac == 0.0f) {
@@ -223,7 +223,7 @@ BLI_INLINE float wval_hardlight(float weight, float paintval, float fac)
   }
   return mfac * weight + temp * fac;
 }
-BLI_INLINE float wval_overlay(float weight, float paintval, float fac)
+BLI_INLINE static float wval_overlay(float weight, float paintval, float fac)
 {
   float mfac, temp;
   if (fac == 0.0f) {
@@ -238,7 +238,7 @@ BLI_INLINE float wval_overlay(float weight, float paintval, float fac)
   }
   return mfac * weight + temp * fac;
 }
-BLI_INLINE float wval_softlight(float weight, float paintval, float fac)
+BLI_INLINE static float wval_softlight(float weight, float paintval, float fac)
 {
   float mfac, temp;
   if (fac == 0.0f) {
@@ -253,7 +253,7 @@ BLI_INLINE float wval_softlight(float weight, float paintval, float fac)
   }
   return temp * fac + weight * mfac;
 }
-BLI_INLINE float wval_exclusion(float weight, float paintval, float fac)
+BLI_INLINE static float wval_exclusion(float weight, float paintval, float fac)
 {
   float mfac, temp;
   if (fac == 0.0f) {

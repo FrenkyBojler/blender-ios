@@ -692,10 +692,10 @@ bool BM_face_split_edgenet(BMesh *bm,
 /* can be X or Y */
 #define SORT_AXIS 0
 
-BLI_INLINE bool edge_isect_verts_point_2d(const BMEdge *e,
-                                          const BMVert *v_a,
-                                          const BMVert *v_b,
-                                          float r_isect[2])
+BLI_INLINE static bool edge_isect_verts_point_2d(const BMEdge *e,
+                                                 const BMVert *v_a,
+                                                 const BMVert *v_b,
+                                                 float r_isect[2])
 {
   /* This bias seems like it could be too large,
    * mostly its not needed, see #52329 for example where it is. */
@@ -705,7 +705,7 @@ BLI_INLINE bool edge_isect_verts_point_2d(const BMEdge *e,
           ((e->v1 != v_a) && (e->v2 != v_a) && (e->v1 != v_b) && (e->v2 != v_b)));
 }
 
-BLI_INLINE int axis_pt_cmp(const float pt_a[2], const float pt_b[2])
+BLI_INLINE static int axis_pt_cmp(const float pt_a[2], const float pt_b[2])
 {
   if (pt_a[0] < pt_b[0]) {
     return -1;

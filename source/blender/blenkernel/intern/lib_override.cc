@@ -100,7 +100,7 @@ static void lib_override_library_property_clear(IDOverrideLibraryProperty *op);
 static void lib_override_library_property_operation_clear(
     IDOverrideLibraryPropertyOperation *opop);
 
-BLI_INLINE IDOverrideLibraryRuntime *override_library_runtime_ensure(
+BLI_INLINE static IDOverrideLibraryRuntime *override_library_runtime_ensure(
     IDOverrideLibrary *liboverride)
 {
   if (liboverride->runtime == nullptr) {
@@ -114,7 +114,7 @@ BLI_INLINE IDOverrideLibraryRuntime *override_library_runtime_ensure(
  * A bit annoying to have this special case, but not much to be done here currently, since the
  * matching RNA property is read-only.
  */
-BLI_INLINE void lib_override_object_posemode_transfer(ID *id_dst, ID *id_src)
+BLI_INLINE static void lib_override_object_posemode_transfer(ID *id_dst, ID *id_src)
 {
   if (GS(id_src->name) == ID_OB && GS(id_dst->name) == ID_OB) {
     Object *ob_src = reinterpret_cast<Object *>(id_src);
@@ -127,10 +127,8 @@ BLI_INLINE void lib_override_object_posemode_transfer(ID *id_dst, ID *id_src)
 }
 
 /** Get override data for a given ID. Needed because of our beloved shape keys snowflake. */
-BLI_INLINE const IDOverrideLibrary *BKE_lib_override_library_get(const Main * /*bmain*/,
-                                                                 const ID *id,
-                                                                 const ID * /*owner_id_hint*/,
-                                                                 const ID **r_owner_id)
+BLI_INLINE static const IDOverrideLibrary *BKE_lib_override_library_get(
+    const Main * /*bmain*/, const ID *id, const ID * /*owner_id_hint*/, const ID **r_owner_id)
 {
   if (id->flag & ID_FLAG_EMBEDDED_DATA_LIB_OVERRIDE) {
     const ID *owner_id = BKE_id_owner_get(const_cast<ID *>(id));
@@ -3873,7 +3871,7 @@ void BKE_lib_override_library_make_local(Main *bmain, ID *id)
 }
 
 /* We only build override GHash on request. */
-BLI_INLINE GHash *override_library_rna_path_mapping_ensure(IDOverrideLibrary *liboverride)
+BLI_INLINE static GHash *override_library_rna_path_mapping_ensure(IDOverrideLibrary *liboverride)
 {
   IDOverrideLibraryRuntime *liboverride_runtime = override_library_runtime_ensure(liboverride);
   if (liboverride_runtime->rna_path_to_override_properties == nullptr) {

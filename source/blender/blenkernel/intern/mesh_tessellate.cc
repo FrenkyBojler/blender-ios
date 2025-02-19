@@ -35,14 +35,14 @@ namespace blender::bke::mesh {
 /**
  * \param face_normal: This will be optimized out as a constant.
  */
-BLI_INLINE void mesh_calc_tessellation_for_face_impl(const Span<int> corner_verts,
-                                                     const Span<float3> positions,
-                                                     const int face_start,
-                                                     const int face_size,
-                                                     int3 *tri,
-                                                     MemArena **pf_arena_p,
-                                                     const bool face_normal,
-                                                     const float normal_precalc[3])
+BLI_INLINE static void mesh_calc_tessellation_for_face_impl(const Span<int> corner_verts,
+                                                            const Span<float3> positions,
+                                                            const int face_start,
+                                                            const int face_size,
+                                                            int3 *tri,
+                                                            MemArena **pf_arena_p,
+                                                            const bool face_normal,
+                                                            const float normal_precalc[3])
 {
   auto create_tri = [&](int i1, int i2, int i3) {
     (*tri)[0] = face_start + i1;

@@ -41,20 +41,20 @@ static CLG_LogRef LOG = {"ed.gizmo.library_utils"};
 /* factor for precision tweaking */
 #define GIZMO_PRECISION_FAC 0.05f
 
-BLI_INLINE float gizmo_offset_from_value_constr(const float range_fac,
-                                                const float min,
-                                                const float range,
-                                                const float value,
-                                                const bool inverted)
+BLI_INLINE static float gizmo_offset_from_value_constr(const float range_fac,
+                                                       const float min,
+                                                       const float range,
+                                                       const float value,
+                                                       const bool inverted)
 {
   return inverted ? (range_fac * (min + range - value) / range) : (range_fac * (value / range));
 }
 
-BLI_INLINE float gizmo_value_from_offset_constr(const float range_fac,
-                                                const float min,
-                                                const float range,
-                                                const float value,
-                                                const bool inverted)
+BLI_INLINE static float gizmo_value_from_offset_constr(const float range_fac,
+                                                       const float min,
+                                                       const float range,
+                                                       const float value,
+                                                       const bool inverted)
 {
   return inverted ? (min + range - (value * range / range_fac)) : (value * range / range_fac);
 }

@@ -122,10 +122,10 @@ static int neighStraightY[8] = {0, 1, 0, -1, 1, 1, -1, -1};
 #define MAX_WETNESS 5.0f
 
 /* dissolve inline function */
-BLI_INLINE void value_dissolve(float *r_value,
-                               const float time,
-                               const float scale,
-                               const bool is_log)
+BLI_INLINE static void value_dissolve(float *r_value,
+                                      const float time,
+                                      const float scale,
+                                      const bool is_log)
 {
   *r_value = (is_log) ? (*r_value) * powf(MIN_WETNESS, 1.0f / (1.2f * time / scale)) :
                         (*r_value) - 1.0f / time * scale;

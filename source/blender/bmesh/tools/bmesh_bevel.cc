@@ -483,7 +483,7 @@ static BoundVert *add_new_bound_vert(MemArena *mem_arena, VMesh *vm, const float
   return ans;
 }
 
-BLI_INLINE void adjust_bound_vert(BoundVert *bv, const float co[3])
+BLI_INLINE static void adjust_bound_vert(BoundVert *bv, const float co[3])
 {
   copy_v3_v3(bv->nv.co, co);
 }

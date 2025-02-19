@@ -1071,7 +1071,7 @@ static void reshape_subdiv_refine(const MultiresReshapeSmoothContext *reshape_sm
   reshape_subdiv->evaluator->eval_output->refine();
 }
 
-BLI_INLINE const GridCoord *reshape_subdiv_refine_vertex_grid_coord(const Vertex *vertex)
+BLI_INLINE static const GridCoord *reshape_subdiv_refine_vertex_grid_coord(const Vertex *vertex)
 {
   if (vertex->num_grid_coords == 0) {
     /* This is a loose vertex, the coordinate is not important. */

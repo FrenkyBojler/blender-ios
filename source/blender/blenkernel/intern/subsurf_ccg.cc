@@ -670,7 +670,7 @@ static int ccgDM_getNumLoops(DerivedMesh *dm)
 }
 
 /* utility function */
-BLI_INLINE void ccgDM_to_MVert(float mv[3], const CCGKey *key, CCGElem *elem)
+BLI_INLINE static void ccgDM_to_MVert(float mv[3], const CCGKey *key, CCGElem *elem)
 {
   copy_v3_v3(mv, CCG_elem_co(*key, elem));
 }
@@ -738,7 +738,7 @@ static void ccgDM_copyFinalVertArray(DerivedMesh *dm, float (*r_positions)[3])
 }
 
 /* utility function */
-BLI_INLINE void ccgDM_to_MEdge(blender::int2 *edge, const int v1, const int v2)
+BLI_INLINE static void ccgDM_to_MEdge(blender::int2 *edge, const int v1, const int v2)
 {
   edge->x = v1;
   edge->y = v2;

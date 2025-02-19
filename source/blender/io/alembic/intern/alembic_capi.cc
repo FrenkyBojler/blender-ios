@@ -79,12 +79,12 @@ using Alembic::AbcMaterial::IMaterial;
 
 using namespace blender::io::alembic;
 
-BLI_INLINE ArchiveReader *archive_from_handle(CacheArchiveHandle *handle)
+BLI_INLINE static ArchiveReader *archive_from_handle(CacheArchiveHandle *handle)
 {
   return reinterpret_cast<ArchiveReader *>(handle);
 }
 
-BLI_INLINE CacheArchiveHandle *handle_from_archive(ArchiveReader *archive)
+BLI_INLINE static CacheArchiveHandle *handle_from_archive(ArchiveReader *archive)
 {
   return reinterpret_cast<CacheArchiveHandle *>(archive);
 }

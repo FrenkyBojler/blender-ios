@@ -334,10 +334,10 @@ static void process_normals(CDStreamConfig &config,
   }
 }
 
-BLI_INLINE void read_uvs_params(CDStreamConfig &config,
-                                AbcMeshData &abc_data,
-                                const IV2fGeomParam &uv,
-                                const ISampleSelector &selector)
+BLI_INLINE static void read_uvs_params(CDStreamConfig &config,
+                                       AbcMeshData &abc_data,
+                                       const IV2fGeomParam &uv,
+                                       const ISampleSelector &selector)
 {
   if (!uv.valid()) {
     return;

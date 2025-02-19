@@ -1924,7 +1924,7 @@ double BKE_unit_value_scale(const UnitSettings &settings, const int unit_type, d
   }
 }
 
-BLI_INLINE bool isalpha_or_utf8(const int ch)
+BLI_INLINE static bool isalpha_or_utf8(const int ch)
 {
   return (ch >= 128 || isalpha(ch));
 }

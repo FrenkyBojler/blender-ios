@@ -122,7 +122,7 @@ static void partial_redraw_array_init(ImagePaintPartialRedraw *pr);
 
 /* Defines and Structs */
 /* unit_float_to_uchar_clamp as inline function */
-BLI_INLINE uchar f_to_char(const float val)
+BLI_INLINE static uchar f_to_char(const float val)
 {
   return unit_float_to_uchar_clamp(val);
 }

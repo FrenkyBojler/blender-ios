@@ -35,10 +35,10 @@
 
 #include "DEG_depsgraph_query.hh"
 
-BLI_INLINE void tan_calc_quat_v3(float r_quat[4],
-                                 const float co_1[3],
-                                 const float co_2[3],
-                                 const float co_3[3])
+BLI_INLINE static void tan_calc_quat_v3(float r_quat[4],
+                                        const float co_1[3],
+                                        const float co_2[3],
+                                        const float co_3[3])
 {
   float vec_u[3], vec_v[3];
   float nor[3];

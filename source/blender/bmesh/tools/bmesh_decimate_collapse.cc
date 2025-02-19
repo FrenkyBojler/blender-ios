@@ -836,7 +836,7 @@ static bool bm_edge_tag_test(BMEdge *e)
 }
 
 /* takes the edges loop */
-BLI_INLINE int bm_edge_is_manifold_or_boundary(BMLoop *l)
+BLI_INLINE static int bm_edge_is_manifold_or_boundary(BMLoop *l)
 {
 #if 0
   /* less optimized version of check below */

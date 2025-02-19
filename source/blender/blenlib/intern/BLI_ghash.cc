@@ -101,12 +101,12 @@ struct GHash {
 /** \name Internal Utility API
  * \{ */
 
-BLI_INLINE void ghash_entry_copy(GHash *gh_dst,
-                                 Entry *dst,
-                                 const GHash *gh_src,
-                                 const Entry *src,
-                                 GHashKeyCopyFP keycopyfp,
-                                 GHashValCopyFP valcopyfp)
+BLI_INLINE static void ghash_entry_copy(GHash *gh_dst,
+                                        Entry *dst,
+                                        const GHash *gh_src,
+                                        const Entry *src,
+                                        GHashKeyCopyFP keycopyfp,
+                                        GHashValCopyFP valcopyfp)
 {
   dst->key = (keycopyfp) ? keycopyfp(src->key) : src->key;
 
@@ -124,7 +124,7 @@ BLI_INLINE void ghash_entry_copy(GHash *gh_dst,
 /**
  * Get the full hash for a key.
  */
-BLI_INLINE uint ghash_keyhash(const GHash *gh, const void *key)
+BLI_INLINE static uint ghash_keyhash(const GHash *gh, const void *key)
 {
   return gh->hashfp(key);
 }
@@ -132,7 +132,7 @@ BLI_INLINE uint ghash_keyhash(const GHash *gh, const void *key)
 /**
  * Get the full hash for an entry.
  */
-BLI_INLINE uint ghash_entryhash(const GHash *gh, const Entry *e)
+BLI_INLINE static uint ghash_entryhash(const GHash *gh, const Entry *e)
 {
   return gh->hashfp(e->key);
 }
@@ -140,7 +140,7 @@ BLI_INLINE uint ghash_entryhash(const GHash *gh, const Entry *e)
 /**
  * Get the bucket-index for an already-computed full hash.
  */
-BLI_INLINE uint ghash_bucket_index(const GHash *gh, const uint hash)
+BLI_INLINE static uint ghash_bucket_index(const GHash *gh, const uint hash)
 {
 #ifdef GHASH_USE_MODULO_BUCKETS
   return hash % gh->nbuckets;
@@ -152,7 +152,7 @@ BLI_INLINE uint ghash_bucket_index(const GHash *gh, const uint hash)
 /**
  * Find the index of next used bucket, starting from \a curr_bucket (\a gh is assumed non-empty).
  */
-BLI_INLINE uint ghash_find_next_bucket_index(const GHash *gh, uint curr_bucket)
+BLI_INLINE static uint ghash_find_next_bucket_index(const GHash *gh, uint curr_bucket)
 {
   if (curr_bucket >= gh->nbuckets) {
     curr_bucket = 0;
@@ -334,7 +334,7 @@ static void ghash_buckets_contract(GHash *gh,
 /**
  * Clear and reset \a gh buckets, reserve again buckets for given number of entries.
  */
-BLI_INLINE void ghash_buckets_reset(GHash *gh, const uint nentries)
+BLI_INLINE static void ghash_buckets_reset(GHash *gh, const uint nentries)
 {
   MEM_SAFE_FREE(gh->buckets);
 
@@ -362,7 +362,9 @@ BLI_INLINE void ghash_buckets_reset(GHash *gh, const uint nentries)
  * Takes hash and bucket_index arguments to avoid calling #ghash_keyhash and #ghash_bucket_index
  * multiple times.
  */
-BLI_INLINE Entry *ghash_lookup_entry_ex(const GHash *gh, const void *key, const uint bucket_index)
+BLI_INLINE static Entry *ghash_lookup_entry_ex(const GHash *gh,
+                                               const void *key,
+                                               const uint bucket_index)
 {
   Entry *e;
   /* If we do not store GHash, not worth computing it for each entry here!
@@ -382,10 +384,10 @@ BLI_INLINE Entry *ghash_lookup_entry_ex(const GHash *gh, const void *key, const 
  * multiple times.
  * Useful when modifying buckets somehow (like removing an entry...).
  */
-BLI_INLINE Entry *ghash_lookup_entry_prev_ex(GHash *gh,
-                                             const void *key,
-                                             Entry **r_e_prev,
-                                             const uint bucket_index)
+BLI_INLINE static Entry *ghash_lookup_entry_prev_ex(GHash *gh,
+                                                    const void *key,
+                                                    Entry **r_e_prev,
+                                                    const uint bucket_index)
 {
   /* If we do not store GHash, not worth computing it for each entry here!
    * Typically, comparison function will be quicker, and since it's needed in the end anyway... */
@@ -403,7 +405,7 @@ BLI_INLINE Entry *ghash_lookup_entry_prev_ex(GHash *gh,
 /**
  * Internal lookup function. Only wraps #ghash_lookup_entry_ex
  */
-BLI_INLINE Entry *ghash_lookup_entry(const GHash *gh, const void *key)
+BLI_INLINE static Entry *ghash_lookup_entry(const GHash *gh, const void *key)
 {
   const uint hash = ghash_keyhash(gh, key);
   const uint bucket_index = ghash_bucket_index(gh, hash);
@@ -436,7 +438,7 @@ static GHash *ghash_new(GHashHashFP hashfp,
  * Takes hash and bucket_index arguments to avoid calling #ghash_keyhash and #ghash_bucket_index
  * multiple times.
  */
-BLI_INLINE void ghash_insert_ex(GHash *gh, void *key, void *val, const uint bucket_index)
+BLI_INLINE static void ghash_insert_ex(GHash *gh, void *key, void *val, const uint bucket_index)
 {
   GHashEntry *e = BLI_mempool_alloc<GHashEntry>(gh->entrypool);
 
@@ -454,10 +456,10 @@ BLI_INLINE void ghash_insert_ex(GHash *gh, void *key, void *val, const uint buck
 /**
  * Insert function that takes a pre-allocated entry.
  */
-BLI_INLINE void ghash_insert_ex_keyonly_entry(GHash *gh,
-                                              void *key,
-                                              const uint bucket_index,
-                                              Entry *e)
+BLI_INLINE static void ghash_insert_ex_keyonly_entry(GHash *gh,
+                                                     void *key,
+                                                     const uint bucket_index,
+                                                     Entry *e)
 {
   BLI_assert((gh->flag & GHASH_FLAG_ALLOW_DUPES) || (BLI_ghash_haskey(gh, key) == 0));
 
@@ -471,7 +473,7 @@ BLI_INLINE void ghash_insert_ex_keyonly_entry(GHash *gh,
 /**
  * Insert function that doesn't set the value (use for GSet)
  */
-BLI_INLINE void ghash_insert_ex_keyonly(GHash *gh, void *key, const uint bucket_index)
+BLI_INLINE static void ghash_insert_ex_keyonly(GHash *gh, void *key, const uint bucket_index)
 {
   Entry *e = BLI_mempool_alloc<Entry>(gh->entrypool);
 
@@ -485,7 +487,7 @@ BLI_INLINE void ghash_insert_ex_keyonly(GHash *gh, void *key, const uint bucket_
   ghash_buckets_expand(gh, ++gh->nentries, false);
 }
 
-BLI_INLINE void ghash_insert(GHash *gh, void *key, void *val)
+BLI_INLINE static void ghash_insert(GHash *gh, void *key, void *val)
 {
   const uint hash = ghash_keyhash(gh, key);
   const uint bucket_index = ghash_bucket_index(gh, hash);
@@ -493,12 +495,12 @@ BLI_INLINE void ghash_insert(GHash *gh, void *key, void *val)
   ghash_insert_ex(gh, key, val, bucket_index);
 }
 
-BLI_INLINE bool ghash_insert_safe(GHash *gh,
-                                  void *key,
-                                  void *val,
-                                  const bool override,
-                                  GHashKeyFreeFP keyfreefp,
-                                  GHashValFreeFP valfreefp)
+BLI_INLINE static bool ghash_insert_safe(GHash *gh,
+                                         void *key,
+                                         void *val,
+                                         const bool override,
+                                         GHashKeyFreeFP keyfreefp,
+                                         GHashValFreeFP valfreefp)
 {
   const uint hash = ghash_keyhash(gh, key);
   const uint bucket_index = ghash_bucket_index(gh, hash);
@@ -523,10 +525,10 @@ BLI_INLINE bool ghash_insert_safe(GHash *gh,
   return true;
 }
 
-BLI_INLINE bool ghash_insert_safe_keyonly(GHash *gh,
-                                          void *key,
-                                          const bool override,
-                                          GHashKeyFreeFP keyfreefp)
+BLI_INLINE static bool ghash_insert_safe_keyonly(GHash *gh,
+                                                 void *key,
+                                                 const bool override,
+                                                 GHashKeyFreeFP keyfreefp)
 {
   const uint hash = ghash_keyhash(gh, key);
   const uint bucket_index = ghash_bucket_index(gh, hash);

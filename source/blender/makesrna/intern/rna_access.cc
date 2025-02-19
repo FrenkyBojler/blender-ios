@@ -135,7 +135,7 @@ void RNA_exit()
 
 /* Pointer */
 
-BLI_INLINE void rna_pointer_refine(PointerRNA &r_ptr)
+BLI_INLINE static void rna_pointer_refine(PointerRNA &r_ptr)
 {
   while (r_ptr.type->refine) {
     StructRNA *type = r_ptr.type->refine(&r_ptr);

@@ -328,11 +328,11 @@ static int buildAdjacencyMap(const blender::OffsetIndices<int> polys,
   return MOD_SDEF_BIND_RESULT_SUCCESS;
 }
 
-BLI_INLINE void sortPolyVertsEdge(uint *indices,
-                                  const int *const corner_verts,
-                                  const int *const corner_edges,
-                                  const uint edge,
-                                  const uint num)
+BLI_INLINE static void sortPolyVertsEdge(uint *indices,
+                                         const int *const corner_verts,
+                                         const int *const corner_edges,
+                                         const uint edge,
+                                         const uint num)
 {
   bool found = false;
 
@@ -353,10 +353,10 @@ BLI_INLINE void sortPolyVertsEdge(uint *indices,
   }
 }
 
-BLI_INLINE void sortPolyVertsTri(uint *indices,
-                                 const int *const corner_verts,
-                                 const uint loopstart,
-                                 const uint num)
+BLI_INLINE static void sortPolyVertsTri(uint *indices,
+                                        const int *const corner_verts,
+                                        const uint loopstart,
+                                        const uint num)
 {
   for (int i = loopstart; i < num; i++) {
     *indices = corner_verts[i];
@@ -369,7 +369,7 @@ BLI_INLINE void sortPolyVertsTri(uint *indices,
   }
 }
 
-BLI_INLINE uint nearestVert(SDefBindCalcData *const data, const float point_co[3])
+BLI_INLINE static uint nearestVert(SDefBindCalcData *const data, const float point_co[3])
 {
   BVHTreeNearest nearest{};
   nearest.dist_sq = FLT_MAX;
@@ -409,7 +409,7 @@ BLI_INLINE uint nearestVert(SDefBindCalcData *const data, const float point_co[3
   return edge[1];
 }
 
-BLI_INLINE int isPolyValid(const float coords[][2], const uint nr)
+BLI_INLINE static int isPolyValid(const float coords[][2], const uint nr)
 {
   float prev_co[2], prev_prev_co[2];
   float curr_vec[2], prev_vec[2];
@@ -466,13 +466,13 @@ static void freeBindData(SDefBindWeightData *const bwdata)
   MEM_freeN(bwdata);
 }
 
-BLI_INLINE float computeAngularWeight(const float point_angle, const float edgemid_angle)
+BLI_INLINE static float computeAngularWeight(const float point_angle, const float edgemid_angle)
 {
   return sinf(min_ff(point_angle / edgemid_angle, 1) * M_PI_2);
 }
 
-BLI_INLINE SDefBindWeightData *computeBindWeights(SDefBindCalcData *const data,
-                                                  const float point_co[3])
+BLI_INLINE static SDefBindWeightData *computeBindWeights(SDefBindCalcData *const data,
+                                                         const float point_co[3])
 {
   const uint nearest = nearestVert(data, point_co);
   const SDefAdjacency *const vert_edges = data->vert_edges[nearest].first;
@@ -924,9 +924,9 @@ BLI_INLINE SDefBindWeightData *computeBindWeights(SDefBindCalcData *const data,
   return bwdata;
 }
 
-BLI_INLINE float computeNormalDisplacement(const float point_co[3],
-                                           const float point_co_proj[3],
-                                           const float normal[3])
+BLI_INLINE static float computeNormalDisplacement(const float point_co[3],
+                                                  const float point_co_proj[3],
+                                                  const float normal[3])
 {
   float disp_vec[3];
   float normal_dist;

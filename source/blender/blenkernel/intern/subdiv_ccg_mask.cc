@@ -64,9 +64,9 @@ static int mask_get_grid_and_coord(SubdivCCGMaskEvaluator *mask_evaluator,
   return corner;
 }
 
-BLI_INLINE float read_mask_grid(const GridPaintMask *mask_grid,
-                                const float grid_u,
-                                const float grid_v)
+BLI_INLINE static float read_mask_grid(const GridPaintMask *mask_grid,
+                                       const float grid_u,
+                                       const float grid_v)
 {
   if (mask_grid->data == nullptr) {
     return 0;

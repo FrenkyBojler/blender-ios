@@ -44,7 +44,7 @@ struct EdgeFaceRef {
   int p2;
 };
 
-BLI_INLINE bool edgeref_is_init(const EdgeFaceRef *edge_ref)
+BLI_INLINE static bool edgeref_is_init(const EdgeFaceRef *edge_ref)
 {
   return !((edge_ref->p1 == 0) && (edge_ref->p2 == 0));
 }

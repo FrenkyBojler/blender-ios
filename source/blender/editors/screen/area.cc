@@ -2845,7 +2845,7 @@ static void region_clear_fully_transparent(const bContext *C)
   GPU_clear_color(0, 0, 0, 0);
 }
 
-BLI_INLINE bool streq_array_any(const char *s, const char *arr[])
+BLI_INLINE static bool streq_array_any(const char *s, const char *arr[])
 {
   for (uint i = 0; arr[i]; i++) {
     if (STREQ(arr[i], s)) {

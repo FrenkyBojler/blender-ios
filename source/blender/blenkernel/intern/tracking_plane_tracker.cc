@@ -201,7 +201,8 @@ void BKE_tracking_retrack_plane_from_existing_motion_at_segment(
   }
 }
 
-BLI_INLINE void float_corners_to_double(/*const*/ float corners[4][2], double double_corners[4][2])
+BLI_INLINE static void float_corners_to_double(/*const*/ float corners[4][2],
+                                               double double_corners[4][2])
 {
   copy_v2db_v2fl(double_corners[0], corners[0]);
   copy_v2db_v2fl(double_corners[1], corners[1]);

@@ -202,7 +202,7 @@ int BLI_rng_thread_rand(RNG_THREAD_ARRAY *rngarr, int thread)
 
 /* incremental halton sequence generator, from:
  * "Instant Radiosity", Keller A. */
-BLI_INLINE double halton_ex(double invprimes, double *offset)
+BLI_INLINE static double halton_ex(double invprimes, double *offset)
 {
   double e = fabs((1.0 - *offset) - 1e-10);
 
@@ -264,7 +264,7 @@ void BLI_halton_3d(const uint prime[3], double offset[3], int n, double *r)
 
 /* From "Sampling with Hammersley and Halton Points" TT Wong
  * Appendix: Source Code 1 */
-BLI_INLINE double radical_inverse(uint n)
+BLI_INLINE static double radical_inverse(uint n)
 {
   double u = 0;
 

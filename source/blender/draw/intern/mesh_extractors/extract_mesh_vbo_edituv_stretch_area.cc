@@ -18,7 +18,7 @@
 
 namespace blender::draw {
 
-BLI_INLINE float area_ratio_get(float area, float uvarea)
+BLI_INLINE static float area_ratio_get(float area, float uvarea)
 {
   if (area >= FLT_EPSILON && uvarea >= FLT_EPSILON) {
     return uvarea / area;
@@ -26,7 +26,7 @@ BLI_INLINE float area_ratio_get(float area, float uvarea)
   return 0.0f;
 }
 
-BLI_INLINE float area_ratio_to_stretch(float ratio, float tot_ratio)
+BLI_INLINE static float area_ratio_to_stretch(float ratio, float tot_ratio)
 {
   ratio *= tot_ratio;
   return (ratio > 1.0f) ? (1.0f / ratio) : ratio;

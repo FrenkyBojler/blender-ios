@@ -165,7 +165,7 @@ static PolyIndex *pf_ear_tip_find(PolyFill *pf
 static bool pf_ear_tip_check(PolyFill *pf, PolyIndex *pi_ear_tip, const eSign sign_accept);
 static void pf_ear_tip_cut(PolyFill *pf, PolyIndex *pi_ear_tip);
 
-BLI_INLINE eSign signum_enum(float a)
+BLI_INLINE static eSign signum_enum(float a)
 {
   if (a > 0.0f) {
     return CONVEX;
@@ -182,7 +182,9 @@ BLI_INLINE eSign signum_enum(float a)
  *
  * \note removes / 2 since its not needed since we only need the sign.
  */
-BLI_INLINE float area_tri_signed_v2_alt_2x(const float v1[2], const float v2[2], const float v3[2])
+BLI_INLINE static float area_tri_signed_v2_alt_2x(const float v1[2],
+                                                  const float v2[2],
+                                                  const float v3[2])
 {
   float d2[2], d3[2];
   sub_v2_v2v2(d2, v2, v1);

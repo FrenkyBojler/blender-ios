@@ -26,17 +26,17 @@ namespace blender::bke::subdiv {
  * \{ */
 
 /* Number of ptex faces for a given face. */
-BLI_INLINE int num_ptex_faces_per_face_get(const IndexRange face)
+BLI_INLINE static int num_ptex_faces_per_face_get(const IndexRange face)
 {
   return (face.size() == 4) ? 1 : face.size();
 }
 
-BLI_INLINE int num_edges_per_ptex_face_get(const int resolution)
+BLI_INLINE static int num_edges_per_ptex_face_get(const int resolution)
 {
   return 2 * (resolution - 1) * resolution;
 }
 
-BLI_INLINE int num_inner_edges_per_ptex_face_get(const int resolution)
+BLI_INLINE static int num_inner_edges_per_ptex_face_get(const int resolution)
 {
   if (resolution < 2) {
     return 0;
@@ -45,13 +45,13 @@ BLI_INLINE int num_inner_edges_per_ptex_face_get(const int resolution)
 }
 
 /* Number of subdivision polygons per ptex face. */
-BLI_INLINE int num_faces_per_ptex_get(const int resolution)
+BLI_INLINE static int num_faces_per_ptex_get(const int resolution)
 {
   return (resolution - 1) * (resolution - 1);
 }
 
 /* Subdivision resolution per given face's ptex faces. */
-BLI_INLINE int ptex_face_resolution_get(const IndexRange face, int resolution)
+BLI_INLINE static int ptex_face_resolution_get(const IndexRange face, int resolution)
 {
   return (face.size() == 4) ? (resolution) : ((resolution >> 1) + 1);
 }

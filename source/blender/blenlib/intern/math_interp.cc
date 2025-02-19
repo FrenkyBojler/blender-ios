@@ -20,7 +20,7 @@
 
 namespace blender::math {
 
-BLI_INLINE int wrap_coord(float u, int size, InterpWrapMode wrap)
+BLI_INLINE static int wrap_coord(float u, int size, InterpWrapMode wrap)
 {
   int x = 0;
   switch (wrap) {
@@ -98,7 +98,7 @@ template<enum eCubicFilter filter> static float4 cubic_filter_coefficients(float
 
 #if BLI_HAVE_SSE4
 template<eCubicFilter filter>
-BLI_INLINE void bicubic_interpolation_uchar_simd(
+BLI_INLINE static void bicubic_interpolation_uchar_simd(
     const uchar *src_buffer, uchar *output, int width, int height, float u, float v)
 {
   __m128 uv = _mm_set_ps(0, 0, v, u);
@@ -149,15 +149,15 @@ BLI_INLINE void bicubic_interpolation_uchar_simd(
 #endif /* BLI_HAVE_SSE4 */
 
 template<typename T, eCubicFilter filter>
-BLI_INLINE void bicubic_interpolation(const T *src_buffer,
-                                      T *output,
-                                      int width,
-                                      int height,
-                                      int components,
-                                      float u,
-                                      float v,
-                                      InterpWrapMode wrap_u,
-                                      InterpWrapMode wrap_v)
+BLI_INLINE static void bicubic_interpolation(const T *src_buffer,
+                                             T *output,
+                                             int width,
+                                             int height,
+                                             int components,
+                                             float u,
+                                             float v,
+                                             InterpWrapMode wrap_u,
+                                             InterpWrapMode wrap_v)
 {
   BLI_assert(src_buffer && output);
 
@@ -267,15 +267,15 @@ BLI_INLINE void bicubic_interpolation(const T *src_buffer,
   }
 }
 
-BLI_INLINE void bilinear_fl_impl(const float *buffer,
-                                 float *output,
-                                 int width,
-                                 int height,
-                                 int components,
-                                 float u,
-                                 float v,
-                                 InterpWrapMode wrap_x,
-                                 InterpWrapMode wrap_y)
+BLI_INLINE static void bilinear_fl_impl(const float *buffer,
+                                        float *output,
+                                        int width,
+                                        int height,
+                                        int components,
+                                        float u,
+                                        float v,
+                                        InterpWrapMode wrap_x,
+                                        InterpWrapMode wrap_y)
 {
   BLI_assert(buffer && output);
   float a, b;
@@ -392,7 +392,8 @@ BLI_INLINE void bilinear_fl_impl(const float *buffer,
 }
 
 template<bool border>
-BLI_INLINE uchar4 bilinear_byte_impl(const uchar *buffer, int width, int height, float u, float v)
+BLI_INLINE static uchar4 bilinear_byte_impl(
+    const uchar *buffer, int width, int height, float u, float v)
 {
   BLI_assert(buffer);
   uchar4 res;

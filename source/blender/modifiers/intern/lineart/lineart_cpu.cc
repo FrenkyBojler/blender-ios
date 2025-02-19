@@ -354,7 +354,8 @@ void lineart_edge_cut(LineartData *ld,
 /**
  * To see if given line is connected to an adjacent intersection line.
  */
-BLI_INLINE bool lineart_occlusion_is_adjacent_intersection(LineartEdge *e, LineartTriangle *tri)
+BLI_INLINE static bool lineart_occlusion_is_adjacent_intersection(LineartEdge *e,
+                                                                  LineartTriangle *tri)
 {
   return (((e->target_reference & LRT_LIGHT_CONTOUR_TARGET) == tri->target_reference) ||
           (((e->target_reference >> 32) & LRT_LIGHT_CONTOUR_TARGET) == tri->target_reference));

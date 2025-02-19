@@ -4216,7 +4216,7 @@ void UV_OT_select_pinned(wmOperatorType *ot)
 /** \name Select Overlap Operator
  * \{ */
 
-BLI_INLINE uint overlap_hash(const void *overlap_v)
+BLI_INLINE static uint overlap_hash(const void *overlap_v)
 {
   const BVHTreeOverlap *overlap = static_cast<const BVHTreeOverlap *>(overlap_v);
 
@@ -4229,7 +4229,7 @@ BLI_INLINE uint overlap_hash(const void *overlap_v)
   return BLI_hash_int_2d(x, y);
 }
 
-BLI_INLINE bool overlap_cmp(const void *a_v, const void *b_v)
+BLI_INLINE static bool overlap_cmp(const void *a_v, const void *b_v)
 {
   const BVHTreeOverlap *a = static_cast<const BVHTreeOverlap *>(a_v);
   const BVHTreeOverlap *b = static_cast<const BVHTreeOverlap *>(b_v);

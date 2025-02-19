@@ -701,7 +701,7 @@ void BKE_mask_point_segment_co(MaskSpline *spline, MaskSplinePoint *point, float
       co, bezt->vec[1], bezt->vec[2], bezt_next->vec[0], bezt_next->vec[1], u);
 }
 
-BLI_INLINE void orthogonal_direction_get(const float vec[2], float result[2])
+BLI_INLINE static void orthogonal_direction_get(const float vec[2], float result[2])
 {
   result[0] = -vec[1];
   result[1] = vec[0];
@@ -1583,7 +1583,7 @@ void BKE_mask_layer_shape_to_mask(MaskLayer *masklay, MaskLayerShape *masklay_sh
   }
 }
 
-BLI_INLINE void interp_v2_v2v2_flfl(
+BLI_INLINE static void interp_v2_v2v2_flfl(
     float target[2], const float a[2], const float b[2], const float t, const float s)
 {
   target[0] = s * a[0] + t * b[0];

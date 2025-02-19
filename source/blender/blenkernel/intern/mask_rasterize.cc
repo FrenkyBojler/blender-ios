@@ -129,7 +129,7 @@ static void rotate_point_v2(
   r_p[1] = p_new[1] + cent[1];
 }
 
-BLI_INLINE uint clampis_uint(const uint v, const uint min, const uint max)
+BLI_INLINE static uint clampis_uint(const uint v, const uint min, const uint max)
 {
   return v < min ? min : (v > max ? max : v);
 }
@@ -1320,7 +1320,7 @@ static float maskrasterize_layer_isect(const uint *face,
   return 1.0f;
 }
 
-BLI_INLINE uint layer_bucket_index_from_xy(MaskRasterLayer *layer, const float xy[2])
+BLI_INLINE static uint layer_bucket_index_from_xy(MaskRasterLayer *layer, const float xy[2])
 {
   BLI_assert(BLI_rctf_isect_pt_v(&layer->bounds, xy));
 

@@ -676,7 +676,7 @@ static const GHOST_XrPose *wm_xr_session_controller_aim_pose_find(const wmXrSess
   return controller ? &controller->aim_pose : nullptr;
 }
 
-BLI_INLINE bool test_float_state(const float *state, float threshold, eXrAxisFlag flag)
+BLI_INLINE static bool test_float_state(const float *state, float threshold, eXrAxisFlag flag)
 {
   if ((flag & XR_AXIS0_POS) != 0) {
     if (*state > threshold) {
@@ -696,7 +696,7 @@ BLI_INLINE bool test_float_state(const float *state, float threshold, eXrAxisFla
   return false;
 }
 
-BLI_INLINE bool test_vec2f_state(const float state[2], float threshold, eXrAxisFlag flag)
+BLI_INLINE static bool test_vec2f_state(const float state[2], float threshold, eXrAxisFlag flag)
 {
   if ((flag & XR_AXIS0_POS) != 0) {
     if (state[0] < 0.0f) {

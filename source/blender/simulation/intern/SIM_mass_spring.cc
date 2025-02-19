@@ -354,7 +354,7 @@ static int UNUSED_FUNCTION(cloth_calc_helper_forces)(
   return 1;
 }
 
-BLI_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s)
+BLI_INLINE static void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s)
 {
   Cloth *cloth = clmd->clothObject;
   ClothSimSettings *parms = clmd->sim_parms;
@@ -785,12 +785,12 @@ static void cloth_calc_force(
 }
 
 /* returns vertices' motion state */
-BLI_INLINE void cloth_get_grid_location(Implicit_Data *data,
-                                        float cell_scale,
-                                        const float cell_offset[3],
-                                        int index,
-                                        float x[3],
-                                        float v[3])
+BLI_INLINE static void cloth_get_grid_location(Implicit_Data *data,
+                                               float cell_scale,
+                                               const float cell_offset[3],
+                                               int index,
+                                               float x[3],
+                                               float v[3])
 {
   SIM_mass_spring_get_position(data, index, x);
   SIM_mass_spring_get_new_velocity(data, index, v);
@@ -800,7 +800,7 @@ BLI_INLINE void cloth_get_grid_location(Implicit_Data *data,
 }
 
 /* returns next spring forming a continuous hair sequence */
-BLI_INLINE LinkNode *hair_spring_next(LinkNode *spring_link)
+BLI_INLINE static LinkNode *hair_spring_next(LinkNode *spring_link)
 {
   ClothSpring *spring = (ClothSpring *)spring_link->link;
   LinkNode *next = spring_link->next;

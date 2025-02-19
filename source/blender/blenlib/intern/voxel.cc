@@ -11,7 +11,7 @@
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
-BLI_INLINE float D(const float *data, const int res[3], int x, int y, int z)
+BLI_INLINE static float D(const float *data, const int res[3], int x, int y, int z)
 {
   CLAMP(x, 0, res[0] - 1);
   CLAMP(y, 0, res[1] - 1);
@@ -22,7 +22,7 @@ BLI_INLINE float D(const float *data, const int res[3], int x, int y, int z)
 /* *** nearest neighbor *** */
 
 /* returns highest integer <= x as integer (slightly faster than floor()) */
-BLI_INLINE int FLOORI(float x)
+BLI_INLINE static int FLOORI(float x)
 {
   const int r = int(x);
   return ((x >= 0.0f) || float(r) == x) ? r : (r - 1);
@@ -36,7 +36,7 @@ BLI_INLINE int FLOORI(float x)
  * this causes the test (x + 2) < 0 with int x == 2147483647 to return false (x being an integer,
  * x + 2 should wrap around to -2147483647 so the test < 0 should return true, which it doesn't).
  */
-BLI_INLINE int64_t _clamp(int a, int b, int c)
+BLI_INLINE static int64_t _clamp(int a, int b, int c)
 {
   return (a < b) ? b : ((a > c) ? c : a);
 }

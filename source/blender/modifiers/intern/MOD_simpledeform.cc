@@ -57,14 +57,14 @@ static const uint axis_map_table[3][3] = {
     {0, 1, 2},
 };
 
-BLI_INLINE void copy_v3_v3_map(float a[3], const float b[3], const uint map[3])
+BLI_INLINE static void copy_v3_v3_map(float a[3], const float b[3], const uint map[3])
 {
   a[0] = b[map[0]];
   a[1] = b[map[1]];
   a[2] = b[map[2]];
 }
 
-BLI_INLINE void copy_v3_v3_unmap(float a[3], const float b[3], const uint map[3])
+BLI_INLINE static void copy_v3_v3_unmap(float a[3], const float b[3], const uint map[3])
 {
   a[map[0]] = b[0];
   a[map[1]] = b[1];

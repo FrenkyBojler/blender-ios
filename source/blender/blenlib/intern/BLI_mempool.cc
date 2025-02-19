@@ -173,7 +173,7 @@ static uint power_of_2_max_u(uint x)
 }
 #endif
 
-BLI_INLINE BLI_mempool_chunk *mempool_chunk_find(BLI_mempool_chunk *head, uint index)
+BLI_INLINE static BLI_mempool_chunk *mempool_chunk_find(BLI_mempool_chunk *head, uint index)
 {
   while (index-- && head) {
     head = head->next;
@@ -187,7 +187,7 @@ BLI_INLINE BLI_mempool_chunk *mempool_chunk_find(BLI_mempool_chunk *head, uint i
  * \note for small pools 1 is a good default, the elements need to be initialized,
  * adding overhead on creation which is redundant if they aren't used.
  */
-BLI_INLINE uint mempool_maxchunks(const uint elem_num, const uint pchunk)
+BLI_INLINE static uint mempool_maxchunks(const uint elem_num, const uint pchunk)
 {
   return (elem_num <= pchunk) ? 1 : ((elem_num / pchunk) + 1);
 }

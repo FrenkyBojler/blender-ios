@@ -230,7 +230,7 @@ IDTypeInfo IDType_ID_SO = {
 static char **audio_device_names = nullptr;
 #endif
 
-BLI_INLINE void sound_verify_evaluated_id(const ID *id)
+BLI_INLINE static void sound_verify_evaluated_id(const ID *id)
 {
   UNUSED_VARS_NDEBUG(id);
   /* This is a bit tricky and not quite reliable, but good enough check.

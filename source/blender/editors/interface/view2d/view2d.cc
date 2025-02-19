@@ -48,7 +48,7 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize);
 /** \name Internal Utilities
  * \{ */
 
-BLI_INLINE int clamp_float_to_int(const float f)
+BLI_INLINE static int clamp_float_to_int(const float f)
 {
   const float min = float(INT_MIN);
   const float max = float(INT_MAX);
@@ -66,7 +66,7 @@ BLI_INLINE int clamp_float_to_int(const float f)
  * use instead of #BLI_rcti_rctf_copy so we have consistent behavior
  * with users of #clamp_float_to_int.
  */
-BLI_INLINE void clamp_rctf_to_rcti(rcti *dst, const rctf *src)
+BLI_INLINE static void clamp_rctf_to_rcti(rcti *dst, const rctf *src)
 {
   dst->xmin = clamp_float_to_int(src->xmin);
   dst->xmax = clamp_float_to_int(src->xmax);

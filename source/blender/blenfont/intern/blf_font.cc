@@ -375,7 +375,7 @@ static void blf_batch_draw_end()
 /** \name Glyph Stepping Utilities (Internal)
  * \{ */
 
-BLI_INLINE ft_pix blf_kerning(FontBLF *font, const GlyphBLF *g_prev, const GlyphBLF *g)
+BLI_INLINE static ft_pix blf_kerning(FontBLF *font, const GlyphBLF *g_prev, const GlyphBLF *g)
 {
   ft_pix adjustment = 0;
 
@@ -410,13 +410,13 @@ BLI_INLINE ft_pix blf_kerning(FontBLF *font, const GlyphBLF *g_prev, const Glyph
   return adjustment;
 }
 
-BLI_INLINE GlyphBLF *blf_glyph_from_utf8_and_step(FontBLF *font,
-                                                  GlyphCacheBLF *gc,
-                                                  const GlyphBLF *g_prev,
-                                                  const char *str,
-                                                  size_t str_len,
-                                                  size_t *i_p,
-                                                  int32_t *pen_x)
+BLI_INLINE static GlyphBLF *blf_glyph_from_utf8_and_step(FontBLF *font,
+                                                         GlyphCacheBLF *gc,
+                                                         const GlyphBLF *g_prev,
+                                                         const char *str,
+                                                         size_t str_len,
+                                                         size_t *i_p,
+                                                         int32_t *pen_x)
 {
   uint charcode = BLI_str_utf8_as_unicode_step_safe(str, str_len, i_p);
   /* Invalid unicode sequences return the byte value, stepping forward one.

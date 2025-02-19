@@ -1473,7 +1473,7 @@ void uiItemEnumO(uiLayout *layout,
   }
 }
 
-BLI_INLINE bool ui_layout_is_radial(const uiLayout *layout)
+BLI_INLINE static bool ui_layout_is_radial(const uiLayout *layout)
 {
   return (layout->type == ITEM_LAYOUT_RADIAL) ||
          ((layout->type == ITEM_LAYOUT_ROOT) && (layout->root->type == UI_LAYOUT_PIEMENU));

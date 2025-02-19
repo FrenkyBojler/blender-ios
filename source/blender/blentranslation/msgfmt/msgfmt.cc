@@ -98,7 +98,7 @@ static blender::StringRef unescape(std::string &str)
   return ret_str.substr(0, curr);
 }
 
-BLI_INLINE size_t uint32_to_bytes(const int value, char *bytes)
+BLI_INLINE static size_t uint32_to_bytes(const int value, char *bytes)
 {
   size_t i;
   for (i = 0; i < sizeof(value); i++) {
@@ -107,7 +107,7 @@ BLI_INLINE size_t uint32_to_bytes(const int value, char *bytes)
   return i;
 }
 
-BLI_INLINE size_t msg_to_bytes(const std::string &msg, char *bytes, uint32_t size)
+BLI_INLINE static size_t msg_to_bytes(const std::string &msg, char *bytes, uint32_t size)
 {
   BLI_assert(msg.size() == size - 1);
   memcpy(bytes, msg.c_str(), size);

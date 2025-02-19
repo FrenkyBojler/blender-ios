@@ -78,7 +78,7 @@ static int oedge_cmp(const void *a1, const void *a2)
   return 0;
 }
 
-BLI_INLINE bool is_boundary_edge(uint i_a, uint i_b, const uint coord_last)
+BLI_INLINE static bool is_boundary_edge(uint i_a, uint i_b, const uint coord_last)
 {
   BLI_assert(i_a < i_b);
   return ((i_a + 1 == i_b) || UNLIKELY((i_a == 0) && (i_b == coord_last)));

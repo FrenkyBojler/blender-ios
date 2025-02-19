@@ -64,7 +64,7 @@ struct BoxVert {
 #define BRF 8
 #define CORNERFLAGS (BLF | TRF | TLF | BRF)
 
-BLI_INLINE int quad_flag(uint q)
+BLI_INLINE static int quad_flag(uint q)
 {
   BLI_assert(q < 4);
   return (1 << q);
@@ -105,13 +105,13 @@ static float box_ymax_get(const BoxPack *box)
 /** \name Box Placement
  * \{ */
 
-BLI_INLINE void box_v34x_update(BoxPack *box)
+BLI_INLINE static void box_v34x_update(BoxPack *box)
 {
   box->v[TL]->x = box->v[BL]->x;
   box->v[BR]->x = box->v[TR]->x;
 }
 
-BLI_INLINE void box_v34y_update(BoxPack *box)
+BLI_INLINE static void box_v34y_update(BoxPack *box)
 {
   box->v[TL]->y = box->v[TR]->y;
   box->v[BR]->y = box->v[BL]->y;

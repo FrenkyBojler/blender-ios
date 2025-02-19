@@ -36,19 +36,19 @@ static inline uint32_t rotl32(uint32_t x, int8_t r)
  * handle aligned reads, do the conversion here
  */
 
-BLI_INLINE uint32_t getblock32(const uint32_t *p, int i)
+BLI_INLINE static uint32_t getblock32(const uint32_t *p, int i)
 {
   return p[i];
 }
 
-BLI_INLINE uint64_t getblock64(const uint64_t *p, int i)
+BLI_INLINE static uint64_t getblock64(const uint64_t *p, int i)
 {
   return p[i];
 }
 
 /* Finalization mix - force all bits of a hash block to avalanche */
 
-BLI_INLINE uint32_t fmix32(uint32_t h)
+BLI_INLINE static uint32_t fmix32(uint32_t h)
 {
   h ^= h >> 16;
   h *= 0x85ebca6b;
@@ -59,7 +59,7 @@ BLI_INLINE uint32_t fmix32(uint32_t h)
   return h;
 }
 
-BLI_INLINE uint64_t fmix64(uint64_t k)
+BLI_INLINE static uint64_t fmix64(uint64_t k)
 {
   k ^= k >> 33;
   k *= BIG_CONSTANT(0xff51afd7ed558ccd);

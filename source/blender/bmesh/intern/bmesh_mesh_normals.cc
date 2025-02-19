@@ -65,11 +65,11 @@ struct BMVertsCalcNormalsWithCoordsData {
   MutableSpan<float3> vnos;
 };
 
-BLI_INLINE void bm_vert_calc_normals_accum_loop(const BMLoop *l_iter,
-                                                const float e1diff[3],
-                                                const float e2diff[3],
-                                                const float f_no[3],
-                                                float v_no[3])
+BLI_INLINE static void bm_vert_calc_normals_accum_loop(const BMLoop *l_iter,
+                                                       const float e1diff[3],
+                                                       const float e2diff[3],
+                                                       const float f_no[3],
+                                                       float v_no[3])
 {
   /* Calculate the dot product of the two edges that meet at the loop's vertex. */
   /* Edge vectors are calculated from `e->v1` to `e->v2`, so adjust the dot product if one but not
@@ -787,9 +787,9 @@ static int bm_loop_index_cmp(const void *a, const void *b)
  * - The faces of the edge have compatible (non-flipped) topological normal (winding),
  *   i.e. both loops on the same edge do not share the same vertex.
  */
-BLI_INLINE bool bm_edge_is_smooth_no_angle_test(const BMEdge *e,
-                                                const BMLoop *l_a,
-                                                const BMLoop *l_b)
+BLI_INLINE static bool bm_edge_is_smooth_no_angle_test(const BMEdge *e,
+                                                       const BMLoop *l_a,
+                                                       const BMLoop *l_b)
 {
   BLI_assert(l_a->radial_next == l_b);
   return (

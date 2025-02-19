@@ -367,7 +367,7 @@ size_t BLI_str_escape(char *__restrict dst, const char *__restrict src, const si
   return len;
 }
 
-BLI_INLINE bool str_unescape_pair(char c_next, char *r_out)
+BLI_INLINE static bool str_unescape_pair(char c_next, char *r_out)
 {
 #define CASE_PAIR(value_src, value_dst) \
   case value_src: { \

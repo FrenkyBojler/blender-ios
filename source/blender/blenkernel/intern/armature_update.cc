@@ -805,7 +805,7 @@ void BKE_pose_pchan_index_rebuild(bPose *pose)
   }
 }
 
-BLI_INLINE bPoseChannel *pose_pchan_get_indexed(Object *ob, int pchan_index)
+BLI_INLINE static bPoseChannel *pose_pchan_get_indexed(Object *ob, int pchan_index)
 {
   bPose *pose = ob->pose;
   BLI_assert(pose != nullptr);

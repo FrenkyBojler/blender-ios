@@ -255,23 +255,23 @@ static void print_lmatrix(const lMatrix &m)
   }
 }
 
-BLI_INLINE void lMatrix_reserve_elems(lMatrix &m, int num)
+BLI_INLINE static void lMatrix_reserve_elems(lMatrix &m, int num)
 {
   m.reserve(Eigen::VectorXi::Constant(m.cols(), num));
 }
 
-BLI_INLINE float *lVector_v3(lVector &v, int vertex)
+BLI_INLINE static float *lVector_v3(lVector &v, int vertex)
 {
   return v.data() + 3 * vertex;
 }
 
-BLI_INLINE const float *lVector_v3(const lVector &v, int vertex)
+BLI_INLINE static const float *lVector_v3(const lVector &v, int vertex)
 {
   return v.data() + 3 * vertex;
 }
 
 #  if 0
-BLI_INLINE void triplets_m3(TripletList &tlist, float m[3][3], int i, int j)
+BLI_INLINE static void triplets_m3(TripletList &tlist, float m[3][3], int i, int j)
 {
   i *= 3;
   j *= 3;
@@ -282,7 +282,7 @@ BLI_INLINE void triplets_m3(TripletList &tlist, float m[3][3], int i, int j)
   }
 }
 
-BLI_INLINE void triplets_m3fl(TripletList &tlist, float m[3][3], int i, int j, float factor)
+BLI_INLINE static void triplets_m3fl(TripletList &tlist, float m[3][3], int i, int j, float factor)
 {
   i *= 3;
   j *= 3;
@@ -293,21 +293,21 @@ BLI_INLINE void triplets_m3fl(TripletList &tlist, float m[3][3], int i, int j, f
   }
 }
 
-BLI_INLINE void lMatrix_add_triplets(lMatrix &r, const TripletList &tlist)
+BLI_INLINE static void lMatrix_add_triplets(lMatrix &r, const TripletList &tlist)
 {
   lMatrix t(r.rows(), r.cols());
   t.setFromTriplets(tlist.begin(), tlist.end());
   r += t;
 }
 
-BLI_INLINE void lMatrix_madd_triplets(lMatrix &r, const TripletList &tlist, float f)
+BLI_INLINE static void lMatrix_madd_triplets(lMatrix &r, const TripletList &tlist, float f)
 {
   lMatrix t(r.rows(), r.cols());
   t.setFromTriplets(tlist.begin(), tlist.end());
   r += f * t;
 }
 
-BLI_INLINE void lMatrix_sub_triplets(lMatrix &r, const TripletList &tlist)
+BLI_INLINE static void lMatrix_sub_triplets(lMatrix &r, const TripletList &tlist)
 {
   lMatrix t(r.rows(), r.cols());
   t.setFromTriplets(tlist.begin(), tlist.end());
@@ -315,21 +315,21 @@ BLI_INLINE void lMatrix_sub_triplets(lMatrix &r, const TripletList &tlist)
 }
 #  endif
 
-BLI_INLINE void outerproduct(float r[3][3], const float a[3], const float b[3])
+BLI_INLINE static void outerproduct(float r[3][3], const float a[3], const float b[3])
 {
   mul_v3_v3fl(r[0], a, b[0]);
   mul_v3_v3fl(r[1], a, b[1]);
   mul_v3_v3fl(r[2], a, b[2]);
 }
 
-BLI_INLINE void cross_m3_v3m3(float r[3][3], const float v[3], float m[3][3])
+BLI_INLINE static void cross_m3_v3m3(float r[3][3], const float v[3], float m[3][3])
 {
   cross_v3_v3v3(r[0], v, m[0]);
   cross_v3_v3v3(r[1], v, m[1]);
   cross_v3_v3v3(r[2], v, m[2]);
 }
 
-BLI_INLINE void cross_v3_identity(float r[3][3], const float v[3])
+BLI_INLINE static void cross_v3_identity(float r[3][3], const float v[3])
 {
   r[0][0] = 0.0f;
   r[1][0] = v[2];
@@ -342,7 +342,7 @@ BLI_INLINE void cross_v3_identity(float r[3][3], const float v[3])
   r[2][2] = 0.0f;
 }
 
-BLI_INLINE void madd_m3_m3fl(float r[3][3], float m[3][3], float f)
+BLI_INLINE static void madd_m3_m3fl(float r[3][3], float m[3][3], float f)
 {
   r[0][0] += m[0][0] * f;
   r[0][1] += m[0][1] * f;
@@ -355,7 +355,7 @@ BLI_INLINE void madd_m3_m3fl(float r[3][3], float m[3][3], float f)
   r[2][2] += m[2][2] * f;
 }
 
-BLI_INLINE void madd_m3_m3m3fl(float r[3][3], float a[3][3], float b[3][3], float f)
+BLI_INLINE static void madd_m3_m3m3fl(float r[3][3], float a[3][3], float b[3][3], float f)
 {
   r[0][0] = a[0][0] + b[0][0] * f;
   r[0][1] = a[0][1] + b[0][1] * f;
@@ -458,18 +458,27 @@ int SIM_mass_spring_solver_numvert(Implicit_Data *id)
 
 /* ==== Transformation from/to root reference frames ==== */
 
-BLI_INLINE void world_to_root_v3(Implicit_Data *data, int index, float r[3], const float v[3])
+BLI_INLINE static void world_to_root_v3(Implicit_Data *data,
+                                        int index,
+                                        float r[3],
+                                        const float v[3])
 {
   copy_v3_v3(r, v);
   mul_transposed_m3_v3(data->tfm[index], r);
 }
 
-BLI_INLINE void root_to_world_v3(Implicit_Data *data, int index, float r[3], const float v[3])
+BLI_INLINE static void root_to_world_v3(Implicit_Data *data,
+                                        int index,
+                                        float r[3],
+                                        const float v[3])
 {
   mul_v3_m3v3(r, data->tfm[index], v);
 }
 
-BLI_INLINE void world_to_root_m3(Implicit_Data *data, int index, float r[3][3], float m[3][3])
+BLI_INLINE static void world_to_root_m3(Implicit_Data *data,
+                                        int index,
+                                        float r[3][3],
+                                        float m[3][3])
 {
   float trot[3][3];
   copy_m3_m3(trot, data->tfm[index]);
@@ -477,7 +486,10 @@ BLI_INLINE void world_to_root_m3(Implicit_Data *data, int index, float r[3][3], 
   mul_m3_m3m3(r, trot, m);
 }
 
-BLI_INLINE void root_to_world_m3(Implicit_Data *data, int index, float r[3][3], float m[3][3])
+BLI_INLINE static void root_to_world_m3(Implicit_Data *data,
+                                        int index,
+                                        float r[3][3],
+                                        float m[3][3])
 {
   mul_m3_m3m3(r, data->tfm[index], m);
 }
@@ -846,7 +858,8 @@ void SIM_mass_spring_force_edge_wind(Implicit_Data *data, int v1, int v2, const 
   madd_v3_v3fl(data->F.v3(v2), nor, effector_scale * length);
 }
 
-BLI_INLINE void dfdx_spring(float to[3][3], const float dir[3], float length, float L, float k)
+BLI_INLINE static void dfdx_spring(
+    float to[3][3], const float dir[3], float length, float L, float k)
 {
   /* dir is unit length direction, rest is spring's restlength, k is spring constant. */
   // return ((I - outerprod(dir, dir)) * Min(1.0f, rest / length) - I) * -k;
@@ -860,7 +873,7 @@ BLI_INLINE void dfdx_spring(float to[3][3], const float dir[3], float length, fl
 
 /* unused */
 #  if 0
-BLI_INLINE void dfdx_damp(float to[3][3],
+BLI_INLINE static void dfdx_damp(float to[3][3],
                           const float dir[3],
                           float length,
                           const float vel[3],
@@ -875,28 +888,28 @@ BLI_INLINE void dfdx_damp(float to[3][3],
 }
 #  endif
 
-BLI_INLINE void dfdv_damp(float to[3][3], const float dir[3], float damping)
+BLI_INLINE static void dfdv_damp(float to[3][3], const float dir[3], float damping)
 {
   /* Derivative of force with regards to velocity. */
   outerproduct(to, dir, dir);
   mul_m3_fl(to, -damping);
 }
 
-BLI_INLINE float fb(float length, float L)
+BLI_INLINE static float fb(float length, float L)
 {
   float x = length / L;
   return (-11.541f * powf(x, 4) + 34.193f * powf(x, 3) - 39.083f * powf(x, 2) + 23.116f * x -
           9.713f);
 }
 
-BLI_INLINE float fbderiv(float length, float L)
+BLI_INLINE static float fbderiv(float length, float L)
 {
   float x = length / L;
 
   return (-46.164f * powf(x, 3) + 102.579f * powf(x, 2) - 78.166f * x + 23.116f);
 }
 
-BLI_INLINE float fbstar(float length, float L, float kb, float cb)
+BLI_INLINE static float fbstar(float length, float L, float kb, float cb)
 {
   float tempfb_fl = kb * fb(length, L);
   float fbstar_fl = cb * (length - L);
@@ -910,7 +923,7 @@ BLI_INLINE float fbstar(float length, float L, float kb, float cb)
 }
 
 /* Function to calculate bending spring force (taken from Choi & Co). */
-BLI_INLINE float fbstar_jacobi(float length, float L, float kb, float cb)
+BLI_INLINE static float fbstar_jacobi(float length, float L, float kb, float cb)
 {
   float tempfb_fl = kb * fb(length, L);
   float fbstar_fl = cb * (length - L);
@@ -924,13 +937,13 @@ BLI_INLINE float fbstar_jacobi(float length, float L, float kb, float cb)
 }
 
 /* calculate elongation */
-BLI_INLINE bool spring_length(Implicit_Data *data,
-                              int i,
-                              int j,
-                              float r_extent[3],
-                              float r_dir[3],
-                              float *r_length,
-                              float r_vel[3])
+BLI_INLINE static bool spring_length(Implicit_Data *data,
+                                     int i,
+                                     int j,
+                                     float r_extent[3],
+                                     float r_dir[3],
+                                     float *r_length,
+                                     float r_vel[3])
 {
   sub_v3_v3v3(r_extent, data->X.v3(j), data->X.v3(i));
   sub_v3_v3v3(r_vel, data->V.v3(j), data->V.v3(i));
@@ -957,7 +970,7 @@ BLI_INLINE bool spring_length(Implicit_Data *data,
   return true;
 }
 
-BLI_INLINE void apply_spring(
+BLI_INLINE static void apply_spring(
     Implicit_Data *data, int i, int j, const float f[3], float dfdx[3][3], float dfdv[3][3])
 {
   add_v3_v3(data->F.v3(i), f);
@@ -1098,7 +1111,7 @@ bool SIM_mass_spring_force_spring_bending(Implicit_Data *data,
  *
  * dD_ij/dx_i = -dD_ij/dx_j = (D_ij * D_ij^T - I) / len_ij
  */
-BLI_INLINE void spring_grad_dir(
+BLI_INLINE static void spring_grad_dir(
     Implicit_Data *data, int i, int j, float edge[3], float dir[3], float grad_dir[3][3])
 {
   float length;
@@ -1116,17 +1129,17 @@ BLI_INLINE void spring_grad_dir(
   }
 }
 
-BLI_INLINE void spring_angbend_forces(Implicit_Data *data,
-                                      int i,
-                                      int j,
-                                      int k,
-                                      const float goal[3],
-                                      float stiffness,
-                                      float damping,
-                                      int q,
-                                      const float dx[3],
-                                      const float dv[3],
-                                      float r_f[3])
+BLI_INLINE static void spring_angbend_forces(Implicit_Data *data,
+                                             int i,
+                                             int j,
+                                             int k,
+                                             const float goal[3],
+                                             float stiffness,
+                                             float damping,
+                                             int q,
+                                             const float dx[3],
+                                             const float dv[3],
+                                             float r_f[3])
 {
   float edge_ij[3], dir_ij[3];
   float edge_jk[3], dir_jk[3];
@@ -1187,15 +1200,15 @@ BLI_INLINE void spring_angbend_forces(Implicit_Data *data,
 }
 
 /* Finite Differences method for estimating the jacobian of the force */
-BLI_INLINE void spring_angbend_estimate_dfdx(Implicit_Data *data,
-                                             int i,
-                                             int j,
-                                             int k,
-                                             const float goal[3],
-                                             float stiffness,
-                                             float damping,
-                                             int q,
-                                             float dfdx[3][3])
+BLI_INLINE static void spring_angbend_estimate_dfdx(Implicit_Data *data,
+                                                    int i,
+                                                    int j,
+                                                    int k,
+                                                    const float goal[3],
+                                                    float stiffness,
+                                                    float damping,
+                                                    int q,
+                                                    float dfdx[3][3])
 {
   const float delta = 0.00001f; /* TODO: find a good heuristic for this. */
   float dvec_null[3][3], dvec_pos[3][3], dvec_neg[3][3];
@@ -1226,15 +1239,15 @@ BLI_INLINE void spring_angbend_estimate_dfdx(Implicit_Data *data,
 }
 
 /* Finite Differences method for estimating the jacobian of the force */
-BLI_INLINE void spring_angbend_estimate_dfdv(Implicit_Data *data,
-                                             int i,
-                                             int j,
-                                             int k,
-                                             const float goal[3],
-                                             float stiffness,
-                                             float damping,
-                                             int q,
-                                             float dfdv[3][3])
+BLI_INLINE static void spring_angbend_estimate_dfdv(Implicit_Data *data,
+                                                    int i,
+                                                    int j,
+                                                    int k,
+                                                    const float goal[3],
+                                                    float stiffness,
+                                                    float damping,
+                                                    int q,
+                                                    float dfdv[3][3])
 {
   const float delta = 0.00001f; /* TODO: find a good heuristic for this. */
   float dvec_null[3][3], dvec_pos[3][3], dvec_neg[3][3];

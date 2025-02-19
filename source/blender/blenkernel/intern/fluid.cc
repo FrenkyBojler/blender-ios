@@ -821,16 +821,16 @@ static void bb_combineMaps(FluidObjectBB *output,
 /** \name Effectors
  * \{ */
 
-BLI_INLINE void apply_effector_fields(FluidEffectorSettings * /*fes*/,
-                                      int index,
-                                      float src_distance_value,
-                                      float *dest_phi_in,
-                                      float src_numobjs_value,
-                                      float *dest_numobjs,
-                                      float const src_vel_value[3],
-                                      float *dest_vel_x,
-                                      float *dest_vel_y,
-                                      float *dest_vel_z)
+BLI_INLINE static void apply_effector_fields(FluidEffectorSettings * /*fes*/,
+                                             int index,
+                                             float src_distance_value,
+                                             float *dest_phi_in,
+                                             float src_numobjs_value,
+                                             float *dest_numobjs,
+                                             float const src_vel_value[3],
+                                             float *dest_vel_x,
+                                             float *dest_vel_y,
+                                             float *dest_vel_z)
 {
   /* Ensure that distance value is "joined" into the levelset. */
   if (dest_phi_in) {
@@ -2372,16 +2372,16 @@ static void adaptive_domain_adjust(
   }
 }
 
-BLI_INLINE void apply_outflow_fields(int index,
-                                     float distance_value,
-                                     float *density,
-                                     float *heat,
-                                     float *fuel,
-                                     float *react,
-                                     float *color_r,
-                                     float *color_g,
-                                     float *color_b,
-                                     float *phiout)
+BLI_INLINE static void apply_outflow_fields(int index,
+                                            float distance_value,
+                                            float *density,
+                                            float *heat,
+                                            float *fuel,
+                                            float *react,
+                                            float *color_r,
+                                            float *color_g,
+                                            float *color_b,
+                                            float *phiout)
 {
   /* Set levelset value for liquid inflow.
    * Ensure that distance value is "joined" into the levelset. */
@@ -2407,26 +2407,26 @@ BLI_INLINE void apply_outflow_fields(int index,
   }
 }
 
-BLI_INLINE void apply_inflow_fields(FluidFlowSettings *ffs,
-                                    float emission_value,
-                                    float distance_value,
-                                    int index,
-                                    float *density_in,
-                                    const float *density,
-                                    float *heat_in,
-                                    const float *heat,
-                                    float *fuel_in,
-                                    const float *fuel,
-                                    float *react_in,
-                                    const float *react,
-                                    float *color_r_in,
-                                    const float *color_r,
-                                    float *color_g_in,
-                                    const float *color_g,
-                                    float *color_b_in,
-                                    const float *color_b,
-                                    float *phi_in,
-                                    float *emission_in)
+BLI_INLINE static void apply_inflow_fields(FluidFlowSettings *ffs,
+                                           float emission_value,
+                                           float distance_value,
+                                           int index,
+                                           float *density_in,
+                                           const float *density,
+                                           float *heat_in,
+                                           const float *heat,
+                                           float *fuel_in,
+                                           const float *fuel,
+                                           float *react_in,
+                                           const float *react,
+                                           float *color_r_in,
+                                           const float *color_r,
+                                           float *color_g_in,
+                                           const float *color_g,
+                                           float *color_b_in,
+                                           const float *color_b,
+                                           float *phi_in,
+                                           float *emission_in)
 {
   /* Set levelset value for liquid inflow.
    * Ensure that distance value is "joined" into the levelset. */

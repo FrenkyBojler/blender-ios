@@ -43,12 +43,12 @@ using namespace blender;
 
 /* ActKeyColumns (Keyframe Columns) ------------------------------------------ */
 
-BLI_INLINE bool is_cfra_eq(const float a, const float b)
+BLI_INLINE static bool is_cfra_eq(const float a, const float b)
 {
   return IS_EQT(a, b, BEZT_BINARYSEARCH_THRESH);
 }
 
-BLI_INLINE bool is_cfra_lt(const float a, const float b)
+BLI_INLINE static bool is_cfra_lt(const float a, const float b)
 {
   return (b - a) > BEZT_BINARYSEARCH_THRESH;
 }

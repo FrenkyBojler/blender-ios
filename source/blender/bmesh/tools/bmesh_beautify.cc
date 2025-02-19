@@ -209,7 +209,9 @@ static float bm_edge_calc_rotate_beauty(const BMEdge *e, const short flag, const
 /* -------------------------------------------------------------------- */
 /* Update the edge cost of rotation in the heap */
 
-BLI_INLINE bool edge_in_array(const BMEdge *e, const BMEdge **edge_array, const int edge_array_len)
+BLI_INLINE static bool edge_in_array(const BMEdge *e,
+                                     const BMEdge **edge_array,
+                                     const int edge_array_len)
 {
   const int index = BM_elem_index_get(e);
   return ((index >= 0) && (index < edge_array_len) && (e == edge_array[index]));

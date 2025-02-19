@@ -404,7 +404,7 @@ static bool gizmo2d_calc_transform_pivot(const bContext *C, float r_pivot[2])
 /**
  * Convert origin (or any other point) from view to region space.
  */
-BLI_INLINE void gizmo2d_origin_to_region(ARegion *region, float *r_origin)
+BLI_INLINE static void gizmo2d_origin_to_region(ARegion *region, float *r_origin)
 {
   UI_view2d_view_to_region_fl(&region->v2d, r_origin[0], r_origin[1], &r_origin[0], &r_origin[1]);
 }

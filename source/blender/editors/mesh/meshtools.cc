@@ -814,10 +814,10 @@ int ED_mesh_shapes_join_objects_exec(bContext *C, wmOperator *op)
 
 static MirrTopoStore_t mesh_topo_store = {nullptr, -1, -1, false};
 
-BLI_INLINE void mesh_mirror_topo_table_get_meshes(Object *ob,
-                                                  Mesh *mesh_eval,
-                                                  Mesh **r_mesh_mirror,
-                                                  BMEditMesh **r_em_mirror)
+BLI_INLINE static void mesh_mirror_topo_table_get_meshes(Object *ob,
+                                                         Mesh *mesh_eval,
+                                                         Mesh **r_mesh_mirror,
+                                                         BMEditMesh **r_em_mirror)
 {
   Mesh *mesh_mirror = nullptr;
   BMEditMesh *em_mirror = nullptr;

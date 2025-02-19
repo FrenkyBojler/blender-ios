@@ -952,9 +952,9 @@ bool BKE_subdiv_ccg_check_coord_valid(const SubdivCCG &subdiv_ccg, const SubdivC
   return true;
 }
 
-BLI_INLINE void subdiv_ccg_neighbors_init(SubdivCCGNeighbors &neighbors,
-                                          const int num_unique,
-                                          const int num_duplicates)
+BLI_INLINE static void subdiv_ccg_neighbors_init(SubdivCCGNeighbors &neighbors,
+                                                 const int num_unique,
+                                                 const int num_duplicates)
 {
   const int size = num_unique + num_duplicates;
   neighbors.coords.reinitialize(size);
@@ -962,7 +962,8 @@ BLI_INLINE void subdiv_ccg_neighbors_init(SubdivCCGNeighbors &neighbors,
 }
 
 /* Check whether given coordinate belongs to a grid corner. */
-BLI_INLINE bool is_corner_grid_coord(const SubdivCCG &subdiv_ccg, const SubdivCCGCoord &coord)
+BLI_INLINE static bool is_corner_grid_coord(const SubdivCCG &subdiv_ccg,
+                                            const SubdivCCGCoord &coord)
 {
   const int grid_size_1 = subdiv_ccg.grid_size - 1;
   return (coord.x == 0 && coord.y == 0) || (coord.x == 0 && coord.y == grid_size_1) ||
@@ -971,15 +972,16 @@ BLI_INLINE bool is_corner_grid_coord(const SubdivCCG &subdiv_ccg, const SubdivCC
 }
 
 /* Check whether given coordinate belongs to a grid boundary. */
-BLI_INLINE bool is_boundary_grid_coord(const SubdivCCG &subdiv_ccg, const SubdivCCGCoord &coord)
+BLI_INLINE static bool is_boundary_grid_coord(const SubdivCCG &subdiv_ccg,
+                                              const SubdivCCGCoord &coord)
 {
   const int grid_size_1 = subdiv_ccg.grid_size - 1;
   return coord.x == 0 || coord.y == 0 || coord.x == grid_size_1 || coord.y == grid_size_1;
 }
 
 /* Check whether coordinate is at the boundary between two grids of the same face. */
-BLI_INLINE bool is_inner_edge_grid_coordinate(const SubdivCCG &subdiv_ccg,
-                                              const SubdivCCGCoord &coord)
+BLI_INLINE static bool is_inner_edge_grid_coordinate(const SubdivCCG &subdiv_ccg,
+                                                     const SubdivCCGCoord &coord)
 {
   const int grid_size_1 = subdiv_ccg.grid_size - 1;
   if (coord.x == 0) {
@@ -991,16 +993,16 @@ BLI_INLINE bool is_inner_edge_grid_coordinate(const SubdivCCG &subdiv_ccg,
   return false;
 }
 
-BLI_INLINE SubdivCCGCoord coord_at_prev_row(const SubdivCCG & /*subdiv_ccg*/,
-                                            const SubdivCCGCoord &coord)
+BLI_INLINE static SubdivCCGCoord coord_at_prev_row(const SubdivCCG & /*subdiv_ccg*/,
+                                                   const SubdivCCGCoord &coord)
 {
   BLI_assert(coord.y > 0);
   SubdivCCGCoord result = coord;
   result.y -= 1;
   return result;
 }
-BLI_INLINE SubdivCCGCoord coord_at_next_row(const SubdivCCG &subdiv_ccg,
-                                            const SubdivCCGCoord &coord)
+BLI_INLINE static SubdivCCGCoord coord_at_next_row(const SubdivCCG &subdiv_ccg,
+                                                   const SubdivCCGCoord &coord)
 {
   UNUSED_VARS_NDEBUG(subdiv_ccg);
   BLI_assert(coord.y < subdiv_ccg.grid_size - 1);
@@ -1009,16 +1011,16 @@ BLI_INLINE SubdivCCGCoord coord_at_next_row(const SubdivCCG &subdiv_ccg,
   return result;
 }
 
-BLI_INLINE SubdivCCGCoord coord_at_prev_col(const SubdivCCG & /*subdiv_ccg*/,
-                                            const SubdivCCGCoord &coord)
+BLI_INLINE static SubdivCCGCoord coord_at_prev_col(const SubdivCCG & /*subdiv_ccg*/,
+                                                   const SubdivCCGCoord &coord)
 {
   BLI_assert(coord.x > 0);
   SubdivCCGCoord result = coord;
   result.x -= 1;
   return result;
 }
-BLI_INLINE SubdivCCGCoord coord_at_next_col(const SubdivCCG &subdiv_ccg,
-                                            const SubdivCCGCoord &coord)
+BLI_INLINE static SubdivCCGCoord coord_at_next_col(const SubdivCCG &subdiv_ccg,
+                                                   const SubdivCCGCoord &coord)
 {
   UNUSED_VARS_NDEBUG(subdiv_ccg);
   BLI_assert(coord.x < subdiv_ccg.grid_size - 1);
@@ -1054,8 +1056,8 @@ static SubdivCCGCoord coord_step_inside_from_boundary(const SubdivCCG &subdiv_cc
   return result;
 }
 
-BLI_INLINE
-int next_grid_index_from_coord(const SubdivCCG &subdiv_ccg, const SubdivCCGCoord &coord)
+BLI_INLINE static int next_grid_index_from_coord(const SubdivCCG &subdiv_ccg,
+                                                 const SubdivCCGCoord &coord)
 {
   const IndexRange face = subdiv_ccg.faces[subdiv_ccg.grid_to_face_map[coord.grid_index]];
   const int face_grid_index = coord.grid_index;
@@ -1065,7 +1067,8 @@ int next_grid_index_from_coord(const SubdivCCG &subdiv_ccg, const SubdivCCGCoord
   }
   return face.start() + next_face_grid_index;
 }
-BLI_INLINE int prev_grid_index_from_coord(const SubdivCCG &subdiv_ccg, const SubdivCCGCoord &coord)
+BLI_INLINE static int prev_grid_index_from_coord(const SubdivCCG &subdiv_ccg,
+                                                 const SubdivCCGCoord &coord)
 {
   const IndexRange face = subdiv_ccg.faces[subdiv_ccg.grid_to_face_map[coord.grid_index]];
   const int face_grid_index = coord.grid_index;

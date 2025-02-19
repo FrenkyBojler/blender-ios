@@ -60,9 +60,9 @@
     GROW_ARRAY(mem, len_alloc); \
   }
 
-BLI_INLINE bool partial_elem_vert_ensure(BMPartialUpdate *bmpinfo,
-                                         BLI_bitmap *verts_tag,
-                                         BMVert *v)
+BLI_INLINE static bool partial_elem_vert_ensure(BMPartialUpdate *bmpinfo,
+                                                BLI_bitmap *verts_tag,
+                                                BMVert *v)
 {
   const int i = BM_elem_index_get(v);
   if (!BLI_BITMAP_TEST(verts_tag, i)) {
@@ -74,9 +74,9 @@ BLI_INLINE bool partial_elem_vert_ensure(BMPartialUpdate *bmpinfo,
   return false;
 }
 
-BLI_INLINE bool partial_elem_face_ensure(BMPartialUpdate *bmpinfo,
-                                         BLI_bitmap *faces_tag,
-                                         BMFace *f)
+BLI_INLINE static bool partial_elem_face_ensure(BMPartialUpdate *bmpinfo,
+                                                BLI_bitmap *faces_tag,
+                                                BMFace *f)
 {
   const int i = BM_elem_index_get(f);
   if (!BLI_BITMAP_TEST(faces_tag, i)) {

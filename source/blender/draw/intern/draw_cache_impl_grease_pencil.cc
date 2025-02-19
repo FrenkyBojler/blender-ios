@@ -196,7 +196,7 @@ static GreasePencilBatchCache *grease_pencil_batch_cache_get(GreasePencil &greas
 /** \name Vertex Buffers
  * \{ */
 
-BLI_INLINE int32_t pack_rotation_aspect_hardness(float rot, float asp, float softness)
+BLI_INLINE static int32_t pack_rotation_aspect_hardness(float rot, float asp, float softness)
 {
   int32_t packed = 0;
   /* Aspect uses 9 bits */

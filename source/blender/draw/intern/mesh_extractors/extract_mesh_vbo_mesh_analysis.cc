@@ -37,7 +37,7 @@ static void axis_from_enum_v3(float v[3], const char axis)
   }
 }
 
-BLI_INLINE float overhang_remap(float fac, float min, float max, float minmax_irange)
+BLI_INLINE static float overhang_remap(float fac, float min, float max, float minmax_irange)
 {
   if (fac < min) {
     fac = 1.0f;
@@ -110,7 +110,7 @@ static void uv_from_jitter_v2(float uv[2])
   clamp_v2(uv, 0.0f, 1.0f);
 }
 
-BLI_INLINE float thickness_remap(float fac, float min, float max, float minmax_irange)
+BLI_INLINE static float thickness_remap(float fac, float min, float max, float minmax_irange)
 {
   /* important not '<=' */
   if (fac < max) {
@@ -357,7 +357,7 @@ static void statvis_calc_intersect(const MeshRenderData &mr, MutableSpan<float> 
   }
 }
 
-BLI_INLINE float distort_remap(float fac, float min, float /*max*/, float minmax_irange)
+BLI_INLINE static float distort_remap(float fac, float min, float /*max*/, float minmax_irange)
 {
   if (fac >= min) {
     fac = (fac - min) * minmax_irange;
@@ -459,7 +459,7 @@ static void statvis_calc_distort(const MeshRenderData &mr, MutableSpan<float> r_
   }
 }
 
-BLI_INLINE float sharp_remap(float fac, float min, float /*max*/, float minmax_irange)
+BLI_INLINE static float sharp_remap(float fac, float min, float /*max*/, float minmax_irange)
 {
   /* important not '>=' */
   if (fac > min) {

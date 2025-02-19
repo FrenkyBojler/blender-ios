@@ -103,11 +103,11 @@ static const MDisps *displacement_get_other_grid(Displacement *displacement,
   return &data->mdisps[face[next_corner]];
 }
 
-BLI_INLINE eAverageWith read_displacement_grid(const MDisps *displacement_grid,
-                                               const int grid_size,
-                                               const float grid_u,
-                                               const float grid_v,
-                                               float r_tangent_D[3])
+BLI_INLINE static eAverageWith read_displacement_grid(const MDisps *displacement_grid,
+                                                      const int grid_size,
+                                                      const float grid_u,
+                                                      const float grid_v,
+                                                      float r_tangent_D[3])
 {
   if (displacement_grid->disps == nullptr) {
     zero_v3(r_tangent_D);

@@ -54,7 +54,7 @@ struct TextViewDrawState {
   bool do_draw;
 };
 
-BLI_INLINE void textview_step_sel(TextViewDrawState *tds, const int step)
+BLI_INLINE static void textview_step_sel(TextViewDrawState *tds, const int step)
 {
   tds->sel[0] += step;
   tds->sel[1] += step;

@@ -384,10 +384,10 @@ static void bchunk_decref(BArrayMemory *bs_mem, BChunk *chunk)
   }
 }
 
-BLI_INLINE bool bchunk_data_compare_unchecked(const BChunk *chunk,
-                                              const uchar *data_base,
-                                              const size_t data_base_len,
-                                              const size_t offset)
+BLI_INLINE static bool bchunk_data_compare_unchecked(const BChunk *chunk,
+                                                     const uchar *data_base,
+                                                     const size_t data_base_len,
+                                                     const size_t offset)
 {
   BLI_assert(offset + size_t(chunk->data_len) <= data_base_len);
   UNUSED_VARS_NDEBUG(data_base_len);
@@ -794,7 +794,7 @@ static void bchunk_list_fill_from_array(const BArrayInfo *info,
 
 #define HASH_INIT (5381)
 
-BLI_INLINE hash_key hash_data_single(const uchar p)
+BLI_INLINE static hash_key hash_data_single(const uchar p)
 {
   return ((HASH_INIT << 5) + HASH_INIT) + (hash_key) * ((signed char *)&p);
 }
@@ -862,7 +862,9 @@ static void hash_array_from_cref(const BArrayInfo *info,
   BLI_assert(i == hash_array_len);
 }
 
-BLI_INLINE void hash_accum_impl(hash_key *hash_array, const size_t i_dst, const size_t i_ahead)
+BLI_INLINE static void hash_accum_impl(hash_key *hash_array,
+                                       const size_t i_dst,
+                                       const size_t i_ahead)
 {
   /* Tested to give good results when accumulating unique values from an array of booleans.
    * (least unused cells in the `BTableRef **table`). */

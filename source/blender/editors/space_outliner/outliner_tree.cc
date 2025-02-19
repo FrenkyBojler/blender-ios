@@ -389,16 +389,16 @@ TreeElement *AbstractTreeDisplay::add_element(ListBase *lb,
 
 /* ======================================================= */
 
-BLI_INLINE void outliner_add_collection_init(TreeElement *te, Collection *collection)
+BLI_INLINE static void outliner_add_collection_init(TreeElement *te, Collection *collection)
 {
   te->name = BKE_collection_ui_name_get(collection);
   te->directdata = collection;
 }
 
-BLI_INLINE void outliner_add_collection_objects(SpaceOutliner *space_outliner,
-                                                ListBase *tree,
-                                                Collection *collection,
-                                                TreeElement *parent)
+BLI_INLINE static void outliner_add_collection_objects(SpaceOutliner *space_outliner,
+                                                       ListBase *tree,
+                                                       Collection *collection,
+                                                       TreeElement *parent)
 {
   LISTBASE_FOREACH (CollectionObject *, cob, &collection->gobject) {
     AbstractTreeDisplay::add_element(

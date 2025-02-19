@@ -203,24 +203,24 @@ static void mesh_batch_cache_discard_batch(MeshBatchCache &cache, const DRWBatch
 }
 
 /* Return true is all layers in _b_ are inside _a_. */
-BLI_INLINE bool mesh_cd_layers_type_overlap(DRW_MeshCDMask a, DRW_MeshCDMask b)
+BLI_INLINE static bool mesh_cd_layers_type_overlap(DRW_MeshCDMask a, DRW_MeshCDMask b)
 {
   return (*((uint32_t *)&a) & *((uint32_t *)&b)) == *((uint32_t *)&b);
 }
 
-BLI_INLINE bool mesh_cd_layers_type_equal(DRW_MeshCDMask a, DRW_MeshCDMask b)
+BLI_INLINE static bool mesh_cd_layers_type_equal(DRW_MeshCDMask a, DRW_MeshCDMask b)
 {
   return *((uint32_t *)&a) == *((uint32_t *)&b);
 }
 
-BLI_INLINE void mesh_cd_layers_type_merge(DRW_MeshCDMask *a, DRW_MeshCDMask b)
+BLI_INLINE static void mesh_cd_layers_type_merge(DRW_MeshCDMask *a, DRW_MeshCDMask b)
 {
   uint32_t *a_p = (uint32_t *)a;
   uint32_t *b_p = (uint32_t *)&b;
   atomic_fetch_and_or_uint32(a_p, *b_p);
 }
 
-BLI_INLINE void mesh_cd_layers_type_clear(DRW_MeshCDMask *a)
+BLI_INLINE static void mesh_cd_layers_type_clear(DRW_MeshCDMask *a)
 {
   *((uint32_t *)a) = 0;
 }
@@ -524,7 +524,7 @@ static void drw_mesh_weight_state_extract(
 /** \name Mesh gpu::Batch Cache
  * \{ */
 
-BLI_INLINE void mesh_batch_cache_add_request(MeshBatchCache &cache, DRWBatchFlag new_flag)
+BLI_INLINE static void mesh_batch_cache_add_request(MeshBatchCache &cache, DRWBatchFlag new_flag)
 {
   atomic_fetch_and_or_uint32((uint32_t *)(&cache.batch_requested), *(uint32_t *)&new_flag);
 }

@@ -39,10 +39,10 @@ using blender::MutableSpan;
 /**
  * \param face_normal: This will be optimized out as a constant.
  */
-BLI_INLINE void bmesh_calc_tessellation_for_face_impl(std::array<BMLoop *, 3> *looptris,
-                                                      BMFace *efa,
-                                                      MemArena **pf_arena_p,
-                                                      const bool face_normal)
+BLI_INLINE static void bmesh_calc_tessellation_for_face_impl(std::array<BMLoop *, 3> *looptris,
+                                                             BMFace *efa,
+                                                             MemArena **pf_arena_p,
+                                                             const bool face_normal)
 {
 #ifndef NDEBUG
   /* The face normal is used for projecting faces into 2D space for tessellation.

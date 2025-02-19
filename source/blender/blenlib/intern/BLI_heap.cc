@@ -69,7 +69,7 @@ struct Heap {
 #  define HEAP_EQUALS(a, b) ((a)->value == (b)->value)
 #endif
 
-BLI_INLINE void heap_swap(Heap *heap, const uint i, const uint j)
+BLI_INLINE static void heap_swap(Heap *heap, const uint i, const uint j)
 {
   HeapNode **tree = heap->tree;
   HeapNode *pi = tree[i], *pj = tree[j];

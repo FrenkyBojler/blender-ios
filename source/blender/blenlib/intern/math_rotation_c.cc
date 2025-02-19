@@ -2416,7 +2416,7 @@ static int _axis_convert_lut[23][24] = {
 
 // _axis_convert_num = {'X': 0, 'Y': 1, 'Z': 2, '-X': 3, '-Y': 4, '-Z': 5}
 
-BLI_INLINE int _axis_signed(const int axis)
+BLI_INLINE static int _axis_signed(const int axis)
 {
   return (axis < 3) ? axis : axis - 3;
 }

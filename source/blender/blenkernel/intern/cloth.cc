@@ -871,7 +871,7 @@ static void cloth_from_mesh(ClothModifierData *clmd, const Object *ob, Mesh *mes
 /** \name Spring Network Building Implementation
  * \{ */
 
-BLI_INLINE void spring_verts_ordered_set(ClothSpring *spring, int v0, int v1)
+BLI_INLINE static void spring_verts_ordered_set(ClothSpring *spring, int v0, int v1)
 {
   if (v0 < v1) {
     spring->ij = v0;
@@ -921,7 +921,7 @@ static void cloth_free_errorsprings(Cloth *cloth,
   cloth->edgeset.clear();
 }
 
-BLI_INLINE void cloth_bend_poly_dir(
+BLI_INLINE static void cloth_bend_poly_dir(
     ClothVertex *verts, int i, int j, const int *inds, int len, float r_dir[3])
 {
   float cent[3] = {0};
@@ -1234,7 +1234,7 @@ static void cloth_update_spring_lengths(ClothModifierData *clmd, Mesh *mesh)
   }
 }
 
-BLI_INLINE void cross_identity_v3(float r[3][3], const float v[3])
+BLI_INLINE static void cross_identity_v3(float r[3][3], const float v[3])
 {
   zero_m3(r);
   r[0][1] = v[2];
@@ -1245,7 +1245,7 @@ BLI_INLINE void cross_identity_v3(float r[3][3], const float v[3])
   r[2][1] = -v[0];
 }
 
-BLI_INLINE void madd_m3_m3fl(float r[3][3], const float m[3][3], float f)
+BLI_INLINE static void madd_m3_m3fl(float r[3][3], const float m[3][3], float f)
 {
   r[0][0] += m[0][0] * f;
   r[0][1] += m[0][1] * f;
@@ -1354,7 +1354,7 @@ static bool cloth_add_shear_bend_spring(ClothModifierData *clmd,
   return true;
 }
 
-BLI_INLINE bool cloth_bend_set_poly_vert_array(int **poly, int len, const int *corner_verts)
+BLI_INLINE static bool cloth_bend_set_poly_vert_array(int **poly, int len, const int *corner_verts)
 {
   int *p = static_cast<int *>(MEM_mallocN(sizeof(int) * len, "spring poly"));
 

@@ -314,7 +314,7 @@ bool DNA_struct_exists_with_alias(const SDNA *sdna, const char *str)
 
 /* ************************* READ DNA ********************** */
 
-BLI_INLINE const char *pad_up_4(const char *ptr)
+BLI_INLINE static const char *pad_up_4(const char *ptr)
 {
   return (const char *)((uintptr_t(ptr) + 3) & ~3);
 }

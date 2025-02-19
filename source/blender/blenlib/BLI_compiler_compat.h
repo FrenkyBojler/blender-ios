@@ -32,15 +32,9 @@ template<typename T> static inline T decltype_helper(T x)
 
 /* little macro so inline keyword works */
 #if defined(_MSC_VER)
-#  define BLI_INLINE static __forceinline
+#  define BLI_INLINE __forceinline
 #else
-#  define BLI_INLINE static inline __attribute__((always_inline)) __attribute__((__unused__))
-#endif
-
-#if defined(_MSC_VER)
-#  define BLI_INLINE_METHOD __forceinline
-#else
-#  define BLI_INLINE_METHOD inline __attribute__((always_inline)) __attribute__((__unused__))
+#  define BLI_INLINE inline __attribute__((always_inline)) __attribute__((__unused__))
 #endif
 
 #if defined(__GNUC__)

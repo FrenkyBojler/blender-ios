@@ -4714,7 +4714,7 @@ static ImBuf *image_get_cached_ibuf(
   return ibuf;
 }
 
-BLI_INLINE bool image_quick_test(Image *ima, const ImageUser *iuser)
+BLI_INLINE static bool image_quick_test(Image *ima, const ImageUser *iuser)
 {
   if (ima == nullptr) {
     return false;
@@ -5068,7 +5068,7 @@ void BKE_image_pool_free(ImagePool *pool)
   MEM_freeN(pool);
 }
 
-BLI_INLINE ImBuf *image_pool_find_item(
+BLI_INLINE static ImBuf *image_pool_find_item(
     ImagePool *pool, Image *image, int entry, int index, bool *r_found)
 {
   LISTBASE_FOREACH (ImagePoolItem *, item, &pool->image_buffers) {

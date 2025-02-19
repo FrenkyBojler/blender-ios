@@ -127,7 +127,7 @@ static std::array<BMEdge *, 3> bm_edges_from_tri(BMesh &bm, const Span<BMVert *>
   };
 }
 
-BLI_INLINE std::array<BMVert *, 3> bm_face_as_array(BMFace *f)
+BLI_INLINE static std::array<BMVert *, 3> bm_face_as_array(BMFace *f)
 {
   BMLoop *l = BM_FACE_FIRST_LOOP(f);
 
@@ -396,30 +396,32 @@ static bool pbvh_bmesh_node_limit_ensure(BMesh &bm,
 
 /**********************************************************************/
 
-BLI_INLINE int pbvh_bmesh_node_index_from_vert(const int cd_vert_node_offset, const BMVert *key)
+BLI_INLINE static int pbvh_bmesh_node_index_from_vert(const int cd_vert_node_offset,
+                                                      const BMVert *key)
 {
   const int node_index = BM_ELEM_CD_GET_INT((const BMElem *)key, cd_vert_node_offset);
   BLI_assert(node_index != DYNTOPO_NODE_NONE);
   return node_index;
 }
 
-BLI_INLINE int pbvh_bmesh_node_index_from_face(const int cd_face_node_offset, const BMFace *key)
+BLI_INLINE static int pbvh_bmesh_node_index_from_face(const int cd_face_node_offset,
+                                                      const BMFace *key)
 {
   const int node_index = BM_ELEM_CD_GET_INT((const BMElem *)key, cd_face_node_offset);
   BLI_assert(node_index != DYNTOPO_NODE_NONE);
   return node_index;
 }
 
-BLI_INLINE BMeshNode *pbvh_bmesh_node_from_vert(MutableSpan<BMeshNode> nodes,
-                                                const int cd_vert_node_offset,
-                                                const BMVert *key)
+BLI_INLINE static BMeshNode *pbvh_bmesh_node_from_vert(MutableSpan<BMeshNode> nodes,
+                                                       const int cd_vert_node_offset,
+                                                       const BMVert *key)
 {
   return &nodes[pbvh_bmesh_node_index_from_vert(cd_vert_node_offset, key)];
 }
 
-BLI_INLINE BMeshNode *pbvh_bmesh_node_from_face(MutableSpan<BMeshNode> nodes,
-                                                const int cd_face_node_offset,
-                                                const BMFace *key)
+BLI_INLINE static BMeshNode *pbvh_bmesh_node_from_face(MutableSpan<BMeshNode> nodes,
+                                                       const int cd_face_node_offset,
+                                                       const BMFace *key)
 {
   return &nodes[pbvh_bmesh_node_index_from_face(cd_face_node_offset, key)];
 }

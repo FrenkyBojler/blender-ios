@@ -499,7 +499,7 @@ static float4 studiolight_calculate_radiance(const ImBuf *ibuf, const float dire
 /*
  * Spherical Harmonics
  */
-BLI_INLINE float area_element(float x, float y)
+BLI_INLINE static float area_element(float x, float y)
 {
   return atan2(x * y, sqrtf(x * x + y * y + 1));
 }

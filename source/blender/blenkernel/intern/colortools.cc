@@ -1404,7 +1404,7 @@ void BKE_curvemapping_blend_read(BlendDataReader *reader, CurveMapping *cumap)
 
 #define INV_255 (1.0f / 255.0f)
 
-BLI_INLINE int get_bin_float(float f)
+BLI_INLINE static int get_bin_float(float f)
 {
   int bin = int((f * 255.0f) + 0.5f); /* 0.5 to prevent quantization differences */
 

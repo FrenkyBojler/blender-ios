@@ -53,7 +53,7 @@
  * using a function instead of a lookup-table is between 2 & 3 times faster.
  * \{ */
 
-BLI_INLINE int utf8_char_compute_skip(const char c)
+BLI_INLINE static int utf8_char_compute_skip(const char c)
 {
   if (UNLIKELY(c >= 192)) {
     if ((c & 0xe0) == 0xc0) {
@@ -75,7 +75,7 @@ BLI_INLINE int utf8_char_compute_skip(const char c)
   return 1;
 }
 
-BLI_INLINE int utf8_char_compute_skip_or_error(const char c)
+BLI_INLINE static int utf8_char_compute_skip_or_error(const char c)
 {
   if (c < 128) {
     return 1;
@@ -98,7 +98,7 @@ BLI_INLINE int utf8_char_compute_skip_or_error(const char c)
   return -1;
 }
 
-BLI_INLINE int utf8_char_compute_skip_or_error_with_mask(const char c, char *r_mask)
+BLI_INLINE static int utf8_char_compute_skip_or_error_with_mask(const char c, char *r_mask)
 {
   /* Originally from GLIB `UTF8_COMPUTE` macro. */
   if (c < 128) {
@@ -131,7 +131,10 @@ BLI_INLINE int utf8_char_compute_skip_or_error_with_mask(const char c, char *r_m
 /**
  * Decode a UTF8 code-point, use in combination with #utf8_char_compute_skip_or_error_with_mask.
  */
-BLI_INLINE uint utf8_char_decode(const char *p, const char mask, const int len, const uint err)
+BLI_INLINE static uint utf8_char_decode(const char *p,
+                                        const char mask,
+                                        const int len,
+                                        const uint err)
 {
   /* Originally from GLIB `UTF8_GET` macro, added an 'err' argument. */
   uint result = p[0] & mask;
@@ -320,7 +323,9 @@ int BLI_str_utf8_invalid_strip(char *str, size_t length)
  *
  * \note the caller is responsible for null terminating the string.
  */
-BLI_INLINE char *str_utf8_copy_max_bytes_impl(char *dst, const char *src, size_t dst_maxncpy)
+BLI_INLINE static char *str_utf8_copy_max_bytes_impl(char *dst,
+                                                     const char *src,
+                                                     size_t dst_maxncpy)
 {
   /* Cast to `uint8_t` is a no-op, quiets array subscript of type `char` warning.
    * No need to check `src` points to a nil byte as this will return from the switch statement. */

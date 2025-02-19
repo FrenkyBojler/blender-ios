@@ -82,7 +82,7 @@ struct BLI_memiter {
 #endif
 };
 
-BLI_INLINE uint data_offset_from_size(uint size)
+BLI_INLINE static uint data_offset_from_size(uint size)
 {
   return PADUP(size, uint(sizeof(data_t))) / uint(sizeof(data_t));
 }
@@ -285,7 +285,7 @@ bool BLI_memiter_iter_done(const BLI_memiter_handle *iter)
   return iter->elem_left != 0;
 }
 
-BLI_INLINE void memiter_chunk_step(BLI_memiter_handle *iter)
+BLI_INLINE static void memiter_chunk_step(BLI_memiter_handle *iter)
 {
   BLI_assert(iter->elem->size < 0);
   BLI_memiter_chunk *chunk = (BLI_memiter_chunk *)(((data_t *)iter->elem) + iter->elem->size);

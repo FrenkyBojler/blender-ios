@@ -77,49 +77,51 @@ static short plane_point_test_v3(const float plane[4],
  * \{ */
 
 /** Enable when vertex is in the center and its faces have been added to the stack. */
-BLI_INLINE void vert_is_center_enable(BMVert *v)
+BLI_INLINE static void vert_is_center_enable(BMVert *v)
 {
   BM_elem_flag_enable(v, BM_ELEM_TAG);
 }
-BLI_INLINE void vert_is_center_disable(BMVert *v)
+BLI_INLINE static void vert_is_center_disable(BMVert *v)
 {
   BM_elem_flag_disable(v, BM_ELEM_TAG);
 }
-BLI_INLINE bool vert_is_center_test(BMVert *v)
+BLI_INLINE static bool vert_is_center_test(BMVert *v)
 {
   return (BM_elem_flag_test(v, BM_ELEM_TAG) != 0);
 }
 
-BLI_INLINE bool vert_pair_adjacent_in_orig_face(BMVert *v_a, BMVert *v_b, const uint f_len_orig)
+BLI_INLINE static bool vert_pair_adjacent_in_orig_face(BMVert *v_a,
+                                                       BMVert *v_b,
+                                                       const uint f_len_orig)
 {
   const uint delta = uint(abs(int(BM_VERT_LOOPINDEX(v_a)) - int(BM_VERT_LOOPINDEX(v_b))));
   return ELEM(delta, 1, uint(f_len_orig - 1));
 }
 
 /** Enable when the edge can be cut. */
-BLI_INLINE void edge_is_cut_enable(BMEdge *e)
+BLI_INLINE static void edge_is_cut_enable(BMEdge *e)
 {
   BM_elem_flag_enable(e, BM_ELEM_TAG);
 }
-BLI_INLINE void edge_is_cut_disable(BMEdge *e)
+BLI_INLINE static void edge_is_cut_disable(BMEdge *e)
 {
   BM_elem_flag_disable(e, BM_ELEM_TAG);
 }
-BLI_INLINE bool edge_is_cut_test(BMEdge *e)
+BLI_INLINE static bool edge_is_cut_test(BMEdge *e)
 {
   return (BM_elem_flag_test(e, BM_ELEM_TAG) != 0);
 }
 
 /** Enable when the faces are added to the stack. */
-BLI_INLINE void face_in_stack_enable(BMFace *f)
+BLI_INLINE static void face_in_stack_enable(BMFace *f)
 {
   BM_elem_flag_disable(f, BM_ELEM_TAG);
 }
-BLI_INLINE void face_in_stack_disable(BMFace *f)
+BLI_INLINE static void face_in_stack_disable(BMFace *f)
 {
   BM_elem_flag_enable(f, BM_ELEM_TAG);
 }
-BLI_INLINE bool face_in_stack_test(BMFace *f)
+BLI_INLINE static bool face_in_stack_test(BMFace *f)
 {
   return (BM_elem_flag_test(f, BM_ELEM_TAG) == 0);
 }

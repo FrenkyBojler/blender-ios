@@ -119,7 +119,7 @@ struct UIDFaceStepItem {
   uint list_len;
 };
 
-BLI_INLINE bool bm_uidwalk_face_test(UIDWalk *uidwalk, BMFace *f)
+BLI_INLINE static bool bm_uidwalk_face_test(UIDWalk *uidwalk, BMFace *f)
 {
   if (uidwalk->use_face_isolate) {
     return BM_elem_flag_test_bool(f, BM_ELEM_TAG);
@@ -127,7 +127,7 @@ BLI_INLINE bool bm_uidwalk_face_test(UIDWalk *uidwalk, BMFace *f)
   return true;
 }
 
-BLI_INLINE bool bm_uidwalk_vert_lookup(UIDWalk *uidwalk, BMVert *v, UID_Int *r_uid)
+BLI_INLINE static bool bm_uidwalk_vert_lookup(UIDWalk *uidwalk, BMVert *v, UID_Int *r_uid)
 {
   void **ret;
   ret = BLI_ghash_lookup_p(uidwalk->verts_uid, v);
@@ -138,7 +138,7 @@ BLI_INLINE bool bm_uidwalk_vert_lookup(UIDWalk *uidwalk, BMVert *v, UID_Int *r_u
   return false;
 }
 
-BLI_INLINE bool bm_uidwalk_face_lookup(UIDWalk *uidwalk, BMFace *f, UID_Int *r_uid)
+BLI_INLINE static bool bm_uidwalk_face_lookup(UIDWalk *uidwalk, BMFace *f, UID_Int *r_uid)
 {
   void **ret;
   ret = BLI_ghash_lookup_p(uidwalk->faces_uid, f);
@@ -904,7 +904,7 @@ static void bm_face_array_visit(BMFace **faces,
 /* signed user id */
 using SUID_Int = intptr_t;
 
-BLI_INLINE intptr_t abs_intptr(intptr_t a)
+BLI_INLINE static intptr_t abs_intptr(intptr_t a)
 {
   return (a < 0) ? -a : a;
 }

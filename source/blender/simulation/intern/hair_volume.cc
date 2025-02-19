@@ -34,17 +34,17 @@
 
 static float I[3][3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
 
-BLI_INLINE int floor_int(float value)
+BLI_INLINE static int floor_int(float value)
 {
   return value > 0.0f ? int(value) : int(value) - 1;
 }
 
-BLI_INLINE float floor_mod(float value)
+BLI_INLINE static float floor_mod(float value)
 {
   return value - floorf(value);
 }
 
-BLI_INLINE int hair_grid_size(const int res[3])
+BLI_INLINE static int hair_grid_size(const int res[3])
 {
   return res[0] * res[1] * res[2];
 }
@@ -67,10 +67,10 @@ struct HairGrid {
 #define HAIR_GRID_INDEX_AXIS(vec, res, gmin, scale, axis) \
   min_ii(max_ii(int((vec[axis] - gmin[axis]) * scale), 0), res[axis] - 2)
 
-BLI_INLINE int hair_grid_offset(const float vec[3],
-                                const int res[3],
-                                const float gmin[3],
-                                float scale)
+BLI_INLINE static int hair_grid_offset(const float vec[3],
+                                       const int res[3],
+                                       const float gmin[3],
+                                       float scale)
 {
   int i, j, k;
   i = HAIR_GRID_INDEX_AXIS(vec, res, gmin, scale, 0);
@@ -79,7 +79,7 @@ BLI_INLINE int hair_grid_offset(const float vec[3],
   return i + (j + k * res[1]) * res[0];
 }
 
-BLI_INLINE int hair_grid_interp_weights(
+BLI_INLINE static int hair_grid_interp_weights(
     const int res[3], const float gmin[3], float scale, const float vec[3], float uvw[3])
 {
   int i, j, k, offset;
@@ -102,16 +102,16 @@ BLI_INLINE int hair_grid_interp_weights(
   return offset;
 }
 
-BLI_INLINE void hair_grid_interpolate(const HairGridVert *grid,
-                                      const int res[3],
-                                      const float gmin[3],
-                                      float scale,
-                                      const float vec[3],
-                                      float *density,
-                                      float velocity[3],
-                                      float vel_smooth[3],
-                                      float density_gradient[3],
-                                      float velocity_gradient[3][3])
+BLI_INLINE static void hair_grid_interpolate(const HairGridVert *grid,
+                                             const int res[3],
+                                             const float gmin[3],
+                                             float scale,
+                                             const float vec[3],
+                                             float *density,
+                                             float velocity[3],
+                                             float vel_smooth[3],
+                                             float density_gradient[3],
+                                             float velocity_gradient[3][3])
 {
   HairGridVert data[8];
   float uvw[3], muvw[3];
@@ -286,19 +286,21 @@ void SIM_hair_volume_grid_clear(HairGrid *grid)
   }
 }
 
-BLI_INLINE bool hair_grid_point_valid(const float vec[3], const float gmin[3], const float gmax[3])
+BLI_INLINE static bool hair_grid_point_valid(const float vec[3],
+                                             const float gmin[3],
+                                             const float gmax[3])
 {
   return !(vec[0] < gmin[0] || vec[1] < gmin[1] || vec[2] < gmin[2] || vec[0] > gmax[0] ||
            vec[1] > gmax[1] || vec[2] > gmax[2]);
 }
 
-BLI_INLINE float dist_tent_v3f3(const float a[3], float x, float y, float z)
+BLI_INLINE static float dist_tent_v3f3(const float a[3], float x, float y, float z)
 {
   float w = (1.0f - fabsf(a[0] - x)) * (1.0f - fabsf(a[1] - y)) * (1.0f - fabsf(a[2] - z));
   return w;
 }
 
-BLI_INLINE float weights_sum(const float weights[8])
+BLI_INLINE static float weights_sum(const float weights[8])
 {
   float totweight = 0.0f;
   int i;
@@ -309,7 +311,7 @@ BLI_INLINE float weights_sum(const float weights[8])
 }
 
 /* returns the grid array offset as well to avoid redundant calculation */
-BLI_INLINE int hair_grid_weights(
+BLI_INLINE static int hair_grid_weights(
     const int res[3], const float gmin[3], float scale, const float vec[3], float weights[8])
 {
   int i, j, k, offset;
@@ -338,7 +340,7 @@ BLI_INLINE int hair_grid_weights(
   return offset;
 }
 
-BLI_INLINE void grid_to_world(HairGrid *grid, float vecw[3], const float vec[3])
+BLI_INLINE static void grid_to_world(HairGrid *grid, float vecw[3], const float vec[3])
 {
   copy_v3_v3(vecw, vec);
   mul_v3_fl(vecw, grid->cellsize);
@@ -372,7 +374,7 @@ void SIM_hair_volume_add_vertex(HairGrid *grid, const float x[3], const float v[
 }
 
 #if 0
-BLI_INLINE void hair_volume_eval_grid_vertex(HairGridVert *vert,
+BLI_INLINE static void hair_volume_eval_grid_vertex(HairGridVert *vert,
                                              const float loc[3],
                                              float radius,
                                              float dist_scale,
@@ -398,7 +400,7 @@ BLI_INLINE void hair_volume_eval_grid_vertex(HairGridVert *vert,
   }
 }
 
-BLI_INLINE int major_axis_v3(const float v[3])
+BLI_INLINE static int major_axis_v3(const float v[3])
 {
   const float a = fabsf(v[0]);
   const float b = fabsf(v[1]);
@@ -406,7 +408,7 @@ BLI_INLINE int major_axis_v3(const float v[3])
   return a > b ? (a > c ? 0 : 2) : (b > c ? 1 : 2);
 }
 
-BLI_INLINE void hair_volume_add_segment_2D(HairGrid *grid,
+BLI_INLINE static void hair_volume_add_segment_2D(HairGrid *grid,
                                            const float /*x1*/ [3],
                                            const float /*v1*/ [3]),
                                            const float x2[3],
@@ -594,12 +596,12 @@ void SIM_hair_volume_add_segment(HairGrid *grid,
   }
 }
 #else
-BLI_INLINE void hair_volume_eval_grid_vertex_sample(HairGridVert *vert,
-                                                    const float loc[3],
-                                                    float radius,
-                                                    float dist_scale,
-                                                    const float x[3],
-                                                    const float v[3])
+BLI_INLINE static void hair_volume_eval_grid_vertex_sample(HairGridVert *vert,
+                                                           const float loc[3],
+                                                           float radius,
+                                                           float dist_scale,
+                                                           const float x[3],
+                                                           const float v[3])
 {
   float dist, weight;
 
@@ -687,9 +689,9 @@ static const float density_threshold = 0.001f;
  * This is based on the model found in
  * "Two-way Coupled SPH and Particle Level Set Fluid Simulation" (Losasso et al., 2008)
  */
-BLI_INLINE float hair_volume_density_divergence(float density,
-                                                float target_density,
-                                                float strength)
+BLI_INLINE static float hair_volume_density_divergence(float density,
+                                                       float target_density,
+                                                       float strength)
 {
   if (density > density_threshold && density > target_density) {
     return strength * logf(target_density / density);
@@ -1029,7 +1031,7 @@ bool SIM_hair_volume_solve_divergence(HairGrid *grid,
  * See https://en.wikipedia.org/wiki/Filter_%28large_eddy_simulation%29
  */
 
-BLI_INLINE void hair_volume_filter_box_convolute(
+BLI_INLINE static void hair_volume_filter_box_convolute(
     HairVertexGrid *grid, float invD, const int kernel_size[3], int i, int j, int k)
 {
   int res = grid->res;

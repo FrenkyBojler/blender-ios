@@ -591,24 +591,24 @@ static opj_image_t *rawtoimage(const char *filename,
     (_val) <= 0.0f ? 0 : ((_val) >= 1.0f ? 65535 : int(65535.0f * (_val)))
 #else
 
-BLI_INLINE int UPSAMPLE_8_TO_12(const uchar _val)
+BLI_INLINE static int UPSAMPLE_8_TO_12(const uchar _val)
 {
   return (_val << 4) | (_val & ((1 << 4) - 1));
 }
-BLI_INLINE int UPSAMPLE_8_TO_16(const uchar _val)
+BLI_INLINE static int UPSAMPLE_8_TO_16(const uchar _val)
 {
   return (_val << 8) + _val;
 }
 
-BLI_INLINE int DOWNSAMPLE_FLOAT_TO_8BIT(const float _val)
+BLI_INLINE static int DOWNSAMPLE_FLOAT_TO_8BIT(const float _val)
 {
   return (_val) <= 0.0f ? 0 : ((_val) >= 1.0f ? 255 : int(255.0f * (_val)));
 }
-BLI_INLINE int DOWNSAMPLE_FLOAT_TO_12BIT(const float _val)
+BLI_INLINE static int DOWNSAMPLE_FLOAT_TO_12BIT(const float _val)
 {
   return (_val) <= 0.0f ? 0 : ((_val) >= 1.0f ? 4095 : int(4095.0f * (_val)));
 }
-BLI_INLINE int DOWNSAMPLE_FLOAT_TO_16BIT(const float _val)
+BLI_INLINE static int DOWNSAMPLE_FLOAT_TO_16BIT(const float _val)
 {
   return (_val) <= 0.0f ? 0 : ((_val) >= 1.0f ? 65535 : int(65535.0f * (_val)));
 }

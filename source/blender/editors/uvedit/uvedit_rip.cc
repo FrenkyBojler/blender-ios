@@ -87,7 +87,7 @@ struct ULData {
 /** Ensure this fits in an int (loop index). */
 BLI_STATIC_ASSERT(sizeof(ULData) <= sizeof(int), "");
 
-BLI_INLINE ULData *UL(BMLoop *l)
+BLI_INLINE static ULData *UL(BMLoop *l)
 {
   return (ULData *)&l->head.index;
 }

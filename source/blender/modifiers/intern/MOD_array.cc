@@ -102,7 +102,7 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
   }
 }
 
-BLI_INLINE float sum_v3(const float v[3])
+BLI_INLINE static float sum_v3(const float v[3])
 {
   return v[0] + v[1] + v[2];
 }

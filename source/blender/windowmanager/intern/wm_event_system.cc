@@ -832,9 +832,9 @@ static bool wm_event_always_pass(const wmEvent *event)
  * because the event will have been freed then.
  * When null, always check the event (assume the caller knows the event was not freed).
  */
-BLI_INLINE void wm_event_handler_return_value_check(const bContext *C,
-                                                    const wmEvent *event,
-                                                    const eHandlerActionFlag action)
+BLI_INLINE static void wm_event_handler_return_value_check(const bContext *C,
+                                                           const wmEvent *event,
+                                                           const eHandlerActionFlag action)
 {
 #ifndef NDEBUG
   if (C == nullptr || CTX_wm_window(C)) {
@@ -2305,7 +2305,7 @@ void WM_event_remove_handlers(bContext *C, ListBase *handlers)
   }
 }
 
-BLI_INLINE bool wm_eventmatch(const wmEvent *winevent, const wmKeyMapItem *kmi)
+BLI_INLINE static bool wm_eventmatch(const wmEvent *winevent, const wmKeyMapItem *kmi)
 {
   if (kmi->flag & KMI_INACTIVE) {
     return false;

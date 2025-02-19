@@ -373,7 +373,7 @@ BMFace *BM_face_copy(BMesh *bm_dst, BMFace *f, const bool copy_verts, const bool
  *
  * \note Caller needs to handle customdata.
  */
-BLI_INLINE BMFace *bm_face_create__internal(BMesh *bm)
+BLI_INLINE static BMFace *bm_face_create__internal(BMesh *bm)
 {
   BMFace *f;
 
@@ -2102,7 +2102,7 @@ bool BM_vert_splice(BMesh *bm, BMVert *v_dst, BMVert *v_src)
  * \{ */
 
 /* BM_edge_face_count(e) >= 1 */
-BLI_INLINE bool bm_edge_supports_separate(const BMEdge *e)
+BLI_INLINE static bool bm_edge_supports_separate(const BMEdge *e)
 {
   return (e->l && e->l->radial_next != e->l);
 }

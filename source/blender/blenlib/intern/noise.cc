@@ -25,12 +25,12 @@ namespace blender::noise {
  * https://burtleburtle.net/bob/c/lookup3.c
  * \{ */
 
-BLI_INLINE uint32_t hash_bit_rotate(uint32_t x, uint32_t k)
+BLI_INLINE static uint32_t hash_bit_rotate(uint32_t x, uint32_t k)
 {
   return (x << k) | (x >> (32 - k));
 }
 
-BLI_INLINE void hash_bit_mix(uint32_t &a, uint32_t &b, uint32_t &c)
+BLI_INLINE static void hash_bit_mix(uint32_t &a, uint32_t &b, uint32_t &c)
 {
   a -= c;
   a ^= hash_bit_rotate(c, 4);
@@ -52,7 +52,7 @@ BLI_INLINE void hash_bit_mix(uint32_t &a, uint32_t &b, uint32_t &c)
   b += a;
 }
 
-BLI_INLINE void hash_bit_final(uint32_t &a, uint32_t &b, uint32_t &c)
+BLI_INLINE static void hash_bit_final(uint32_t &a, uint32_t &b, uint32_t &c)
 {
   c ^= b;
   c -= hash_bit_rotate(b, 14);
@@ -122,7 +122,7 @@ uint32_t hash(uint32_t kx, uint32_t ky, uint32_t kz, uint32_t kw)
   return c;
 }
 
-BLI_INLINE uint32_t float_as_uint(float f)
+BLI_INLINE static uint32_t float_as_uint(float f)
 {
   union {
     uint32_t i;
@@ -159,7 +159,7 @@ uint32_t hash_float(const float4x4 &k)
 
 /* Hashing a number of uint32_t into a float in the range [0, 1]. */
 
-BLI_INLINE float uint_to_float_01(uint32_t k)
+BLI_INLINE static float uint_to_float_01(uint32_t k)
 {
   return float(k) / float(0xFFFFFFFFu);
 }
@@ -287,7 +287,7 @@ template<typename T> T static mix(T v0, T v1, float x)
  *  @ + + + + @       @------> x
  * v0          v1
  */
-BLI_INLINE float mix(float v0, float v1, float v2, float v3, float x, float y)
+BLI_INLINE static float mix(float v0, float v1, float v2, float v3, float x, float y)
 {
   float x1 = 1.0 - x;
   return (1.0 - y) * (v0 * x1 + v1 * x) + y * (v2 * x1 + v3 * x);
@@ -311,17 +311,17 @@ BLI_INLINE float mix(float v0, float v1, float v2, float v3, float x, float y)
  *          @ + + + + + + @
  *        v0               v1
  */
-BLI_INLINE float mix(float v0,
-                     float v1,
-                     float v2,
-                     float v3,
-                     float v4,
-                     float v5,
-                     float v6,
-                     float v7,
-                     float x,
-                     float y,
-                     float z)
+BLI_INLINE static float mix(float v0,
+                            float v1,
+                            float v2,
+                            float v3,
+                            float v4,
+                            float v5,
+                            float v6,
+                            float v7,
+                            float x,
+                            float y,
+                            float z)
 {
   float x1 = 1.0 - x;
   float y1 = 1.0 - y;
@@ -331,50 +331,50 @@ BLI_INLINE float mix(float v0,
 }
 
 /* Quadrilinear Interpolation. */
-BLI_INLINE float mix(float v0,
-                     float v1,
-                     float v2,
-                     float v3,
-                     float v4,
-                     float v5,
-                     float v6,
-                     float v7,
-                     float v8,
-                     float v9,
-                     float v10,
-                     float v11,
-                     float v12,
-                     float v13,
-                     float v14,
-                     float v15,
-                     float x,
-                     float y,
-                     float z,
-                     float w)
+BLI_INLINE static float mix(float v0,
+                            float v1,
+                            float v2,
+                            float v3,
+                            float v4,
+                            float v5,
+                            float v6,
+                            float v7,
+                            float v8,
+                            float v9,
+                            float v10,
+                            float v11,
+                            float v12,
+                            float v13,
+                            float v14,
+                            float v15,
+                            float x,
+                            float y,
+                            float z,
+                            float w)
 {
   return mix(mix(v0, v1, v2, v3, v4, v5, v6, v7, x, y, z),
              mix(v8, v9, v10, v11, v12, v13, v14, v15, x, y, z),
              w);
 }
 
-BLI_INLINE float fade(float t)
+BLI_INLINE static float fade(float t)
 {
   return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
 }
 
-BLI_INLINE float negate_if(float value, uint32_t condition)
+BLI_INLINE static float negate_if(float value, uint32_t condition)
 {
   return (condition != 0u) ? -value : value;
 }
 
-BLI_INLINE float noise_grad(uint32_t hash, float x)
+BLI_INLINE static float noise_grad(uint32_t hash, float x)
 {
   uint32_t h = hash & 15u;
   float g = 1u + (h & 7u);
   return negate_if(g, h & 8u) * x;
 }
 
-BLI_INLINE float noise_grad(uint32_t hash, float x, float y)
+BLI_INLINE static float noise_grad(uint32_t hash, float x, float y)
 {
   uint32_t h = hash & 7u;
   float u = h < 4u ? x : y;
@@ -382,7 +382,7 @@ BLI_INLINE float noise_grad(uint32_t hash, float x, float y)
   return negate_if(u, h & 1u) + negate_if(v, h & 2u);
 }
 
-BLI_INLINE float noise_grad(uint32_t hash, float x, float y, float z)
+BLI_INLINE static float noise_grad(uint32_t hash, float x, float y, float z)
 {
   uint32_t h = hash & 15u;
   float u = h < 8u ? x : y;
@@ -391,7 +391,7 @@ BLI_INLINE float noise_grad(uint32_t hash, float x, float y, float z)
   return negate_if(u, h & 1u) + negate_if(v, h & 2u);
 }
 
-BLI_INLINE float noise_grad(uint32_t hash, float x, float y, float z, float w)
+BLI_INLINE static float noise_grad(uint32_t hash, float x, float y, float z, float w)
 {
   uint32_t h = hash & 31u;
   float u = h < 24u ? x : y;
@@ -400,14 +400,14 @@ BLI_INLINE float noise_grad(uint32_t hash, float x, float y, float z, float w)
   return negate_if(u, h & 1u) + negate_if(v, h & 2u) + negate_if(s, h & 4u);
 }
 
-BLI_INLINE float floor_fraction(float x, int &i)
+BLI_INLINE static float floor_fraction(float x, int &i)
 {
   float x_floor = math::floor(x);
   i = int(x_floor);
   return x - x_floor;
 }
 
-BLI_INLINE float perlin_noise(float position)
+BLI_INLINE static float perlin_noise(float position)
 {
   int X;
 
@@ -420,7 +420,7 @@ BLI_INLINE float perlin_noise(float position)
   return r;
 }
 
-BLI_INLINE float perlin_noise(float2 position)
+BLI_INLINE static float perlin_noise(float2 position)
 {
   int X, Y;
 
@@ -440,7 +440,7 @@ BLI_INLINE float perlin_noise(float2 position)
   return r;
 }
 
-BLI_INLINE float perlin_noise(float3 position)
+BLI_INLINE static float perlin_noise(float3 position)
 {
   int X, Y, Z;
 
@@ -467,7 +467,7 @@ BLI_INLINE float perlin_noise(float3 position)
   return r;
 }
 
-BLI_INLINE float perlin_noise(float4 position)
+BLI_INLINE static float perlin_noise(float4 position)
 {
   int X, Y, Z, W;
 
@@ -785,25 +785,25 @@ float perlin_select(T p,
  * OSL only supports float hashes and we need to maintain compatibility with it.
  */
 
-BLI_INLINE float random_float_offset(float seed)
+BLI_INLINE static float random_float_offset(float seed)
 {
   return 100.0f + hash_float_to_float(seed) * 100.0f;
 }
 
-BLI_INLINE float2 random_float2_offset(float seed)
+BLI_INLINE static float2 random_float2_offset(float seed)
 {
   return float2(100.0f + hash_float_to_float(float2(seed, 0.0f)) * 100.0f,
                 100.0f + hash_float_to_float(float2(seed, 1.0f)) * 100.0f);
 }
 
-BLI_INLINE float3 random_float3_offset(float seed)
+BLI_INLINE static float3 random_float3_offset(float seed)
 {
   return float3(100.0f + hash_float_to_float(float2(seed, 0.0f)) * 100.0f,
                 100.0f + hash_float_to_float(float2(seed, 1.0f)) * 100.0f,
                 100.0f + hash_float_to_float(float2(seed, 2.0f)) * 100.0f);
 }
 
-BLI_INLINE float4 random_float4_offset(float seed)
+BLI_INLINE static float4 random_float4_offset(float seed)
 {
   return float4(100.0f + hash_float_to_float(float2(seed, 0.0f)) * 100.0f,
                 100.0f + hash_float_to_float(float2(seed, 1.0f)) * 100.0f,
@@ -813,25 +813,25 @@ BLI_INLINE float4 random_float4_offset(float seed)
 
 /* Perlin noises to be added to the position to distort other noises. */
 
-BLI_INLINE float perlin_distortion(float position, float strength)
+BLI_INLINE static float perlin_distortion(float position, float strength)
 {
   return perlin_signed(position + random_float_offset(0.0)) * strength;
 }
 
-BLI_INLINE float2 perlin_distortion(float2 position, float strength)
+BLI_INLINE static float2 perlin_distortion(float2 position, float strength)
 {
   return float2(perlin_signed(position + random_float2_offset(0.0f)) * strength,
                 perlin_signed(position + random_float2_offset(1.0f)) * strength);
 }
 
-BLI_INLINE float3 perlin_distortion(float3 position, float strength)
+BLI_INLINE static float3 perlin_distortion(float3 position, float strength)
 {
   return float3(perlin_signed(position + random_float3_offset(0.0f)) * strength,
                 perlin_signed(position + random_float3_offset(1.0f)) * strength,
                 perlin_signed(position + random_float3_offset(2.0f)) * strength);
 }
 
-BLI_INLINE float4 perlin_distortion(float4 position, float strength)
+BLI_INLINE static float4 perlin_distortion(float4 position, float strength)
 {
   return float4(perlin_signed(position + random_float4_offset(0.0f)) * strength,
                 perlin_signed(position + random_float4_offset(1.0f)) * strength,

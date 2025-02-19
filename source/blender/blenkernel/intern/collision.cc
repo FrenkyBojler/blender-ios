@@ -161,7 +161,7 @@ void bvhtree_update_from_mvert(BVHTree *bvhtree,
  * Collision modifier code end
  * *************************** */
 
-BLI_INLINE int next_ind(int i)
+BLI_INLINE static int next_ind(int i)
 {
   return (++i < 3) ? i : 0;
 }
@@ -1711,7 +1711,7 @@ int cloth_bvh_collision(
   return std::min(ret, 1);
 }
 
-BLI_INLINE void max_v3_v3v3(float r[3], const float a[3], const float b[3])
+BLI_INLINE static void max_v3_v3v3(float r[3], const float a[3], const float b[3])
 {
   r[0] = max_ff(a[0], b[0]);
   r[1] = max_ff(a[1], b[1]);

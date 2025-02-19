@@ -2801,10 +2801,10 @@ ImBuf *BKE_tracking_get_search_imbuf(const ImBuf *ibuf,
   return searchibuf;
 }
 
-BLI_INLINE int plane_marker_size_len_in_pixels(const float a[2],
-                                               const float b[2],
-                                               const int frame_width,
-                                               const int frame_height)
+BLI_INLINE static int plane_marker_size_len_in_pixels(const float a[2],
+                                                      const float b[2],
+                                                      const int frame_width,
+                                                      const int frame_height)
 {
   const float a_px[2] = {a[0] * frame_width, a[1] * frame_height};
   const float b_px[2] = {b[0] * frame_width, b[1] * frame_height};
