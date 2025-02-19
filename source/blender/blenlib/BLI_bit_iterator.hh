@@ -18,13 +18,20 @@ class SetBitIterator {
   int64_t size_in_bits_;
   int64_t bit_index_;
   BitInt current_int_;
+  int64_t offset_;
 
  public:
-  SetBitIterator(const BitInt *data, const int64_t size_in_bits, const int64_t bit_index)
+  SetBitIterator(const BitInt *data,
+                 const int64_t size_in_bits,
+                 const int64_t bit_index,
+                 const int64_t offset)
       : data_(data),
         size_in_bits_(size_in_bits),
         bit_index_(bit_index),
-        current_int_(bit_index == size_in_bits ? 0 : data[bit_index >> BitToIntIndexShift])
+        current_int_(bit_index == size_in_bits ? 0 :
+                                                 data[bit_index >> BitToIntIndexShift] &
+                                                     ~mask_first_n_bits(bit_index & BitIndexMask)),
+        offset_(offset)
   {
   }
 
@@ -35,7 +42,7 @@ class SetBitIterator {
 
   int64_t operator*() const
   {
-    return bit_index_;
+    return bit_index_ - offset_;
   }
 
   SetBitIterator &operator++()
@@ -63,15 +70,13 @@ class SetBitIterable {
   BitSpan span_;
 
  public:
-  SetBitIterable(const BitSpan span) : span_(span)
-  {
-    /* Other cases are not yet supported. */
-    BLI_assert(span.bit_range().start() == 0);
-  }
+  SetBitIterable(const BitSpan span) : span_(span) {}
 
   SetBitIterator begin() const
   {
-    SetBitIterator it{span_.data(), span_.size(), 0};
+    const IndexRange bit_range = span_.bit_range();
+    SetBitIterator it{
+        span_.data(), bit_range.one_after_last(), bit_range.start(), bit_range.start()};
     if (!span_.is_empty()) {
       ++it;
     }
@@ -80,7 +85,9 @@ class SetBitIterable {
 
   SetBitIterator end() const
   {
-    return SetBitIterator(span_.data(), span_.size(), span_.size());
+    const IndexRange bit_range = span_.bit_range();
+    return SetBitIterator(
+        span_.data(), bit_range.one_after_last(), bit_range.one_after_last(), bit_range.start());
   }
 };
 

@@ -320,11 +320,34 @@ TEST(bit_span, SetBitIteratorEmpty)
   EXPECT_TRUE(indices.is_empty());
 }
 
+TEST(bit_span, SetBitIteratorEmptyWithOffset)
+{
+  BitVector<> bits(1000, false);
+  Vector<int64_t> indices;
+  for (const int64_t i : SetBitIterable(BitSpan(bits).slice(IndexRange::from_begin_size(500, 0))))
+  {
+    indices.append(i);
+  }
+  EXPECT_TRUE(indices.is_empty());
+}
+
 TEST(bit_span, SetBitIteratorAllZero)
 {
   BitVector<> bits(1000, false);
   Vector<int64_t> indices;
   for (const int64_t i : SetBitIterable(bits)) {
+    indices.append(i);
+  }
+  EXPECT_TRUE(indices.is_empty());
+}
+
+TEST(bit_span, SetBitIteratorAllZeroWithOffset)
+{
+  BitVector<> bits(1000, false);
+  Vector<int64_t> indices;
+  for (const int64_t i :
+       SetBitIterable(BitSpan(bits).slice(IndexRange::from_begin_size(500, 100))))
+  {
     indices.append(i);
   }
   EXPECT_TRUE(indices.is_empty());
@@ -342,6 +365,20 @@ TEST(bit_span, SetBitIteratorSingleOne)
   EXPECT_EQ(indices[0], 400);
 }
 
+TEST(bit_span, SetBitIteratorSingleOneWithOffset)
+{
+  BitVector<> bits(1000, false);
+  bits[400].set();
+  Vector<int64_t> indices;
+  for (const int64_t i :
+       SetBitIterable(BitSpan(bits).slice(IndexRange::from_begin_size(300, 200))))
+  {
+    indices.append(i);
+  }
+  EXPECT_EQ(indices.size(), 1);
+  EXPECT_EQ(indices[0], 100);
+}
+
 TEST(bit_span, SetBitIteratorAllOne)
 {
   BitVector<> bits(10, true);
@@ -351,6 +388,21 @@ TEST(bit_span, SetBitIteratorAllOne)
   }
   EXPECT_EQ(indices.size(), 10);
   for (int64_t i = 0; i < 10; i++) {
+    EXPECT_EQ(indices[i], i);
+  }
+}
+
+TEST(bit_span, SetBitIteratorAllOneWithOffset)
+{
+  BitVector<> bits(1000, true);
+  Vector<int64_t> indices;
+  for (const int64_t i :
+       SetBitIterable(BitSpan(bits).slice(IndexRange::from_begin_size(500, 100))))
+  {
+    indices.append(i);
+  }
+  EXPECT_EQ(indices.size(), 100);
+  for (int64_t i = 0; i < 100; i++) {
     EXPECT_EQ(indices[i], i);
   }
 }
@@ -365,13 +417,18 @@ TEST(bit_span, SetBitIteratorFuzz)
     set_indices.add(index);
     bits[index].set();
   }
-  Vector<int64_t> found_indices;
-  for (const int64_t i : SetBitIterable(bits)) {
-    found_indices.append(i);
+  Set<int64_t> found_indices;
+  const IndexRange bit_range = IndexRange::from_begin_end_inclusive(1'000, 90'000);
+  for (const int64_t i : SetBitIterable(BitSpan(bits).slice(bit_range))) {
+    found_indices.add_new(i);
   }
-  EXPECT_EQ(found_indices.size(), set_indices.size());
   for (const int64_t i : found_indices) {
-    EXPECT_TRUE(set_indices.contains(i));
+    EXPECT_TRUE(set_indices.contains(i + bit_range.start()));
+  }
+  for (const int64_t i : set_indices) {
+    if (bit_range.contains(i)) {
+      EXPECT_TRUE(found_indices.contains(i - bit_range.start()));
+    }
   }
 }
 
