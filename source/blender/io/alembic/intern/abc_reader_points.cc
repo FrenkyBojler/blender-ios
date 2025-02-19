@@ -153,9 +153,9 @@ void AbcPointsReader::read_geometry(bke::GeometrySet &geometry_set,
 
   bke::MutableAttributeAccessor attribute_accessor = pointcloud->attributes_for_write();
 
-  MutableSpan<float3> point_positions = point_cloud->positions_for_write();
+  MutableSpan<float3> point_positions = pointcloud->positions_for_write();
   N3fArraySamplePtr normals = read_points_sample(m_schema, sample_sel, point_positions);
-  MutableSpan<float> point_radii = point_cloud->radius_for_write();
+  MutableSpan<float> point_radii = pointcloud->radius_for_write();
 
   if (radii) {
     for (size_t i = 0; i < radii->size(); i++) {
