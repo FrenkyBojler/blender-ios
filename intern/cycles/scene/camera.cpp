@@ -108,6 +108,11 @@ NODE_DEFINE(Camera)
   SOCKET_FLOAT(central_cylindrical_range_v_min, "Central Cylindrical Range V Min", -1.0f);
   SOCKET_FLOAT(central_cylindrical_range_v_max, "Central Cylindrical Range V Max", 1.0f);
 
+  SOCKET_BOOLEAN(use_orthodox, "Use Orthodox", false);
+  SOCKET_FLOAT(orthodox_factor, "Orthodox Factor", 0.0f);
+  SOCKET_FLOAT(orthodox_tilt_x, "Orthodox Tilt X", 0.0f);
+  SOCKET_FLOAT(orthodox_tilt_y, "Orthodox Tilt Y", 0.0f);
+
   static NodeEnum stereo_eye_enum;
   stereo_eye_enum.insert("none", STEREO_NONE);
   stereo_eye_enum.insert("left", STEREO_LEFT);
@@ -429,6 +434,11 @@ void Camera::update(Scene *scene)
                                                 -central_cylindrical_range_u_max,
                                                 central_cylindrical_range_v_min,
                                                 central_cylindrical_range_v_max);
+  /* orthodox */
+  kcam->use_orthodox = use_orthodox;
+  kcam->orthodox_factor = orthodox_factor;
+  kcam->orthodox_tilt_x = orthodox_tilt_x;
+  kcam->orthodox_tilt_y = orthodox_tilt_y;
 
   switch (stereo_eye) {
     case STEREO_LEFT:

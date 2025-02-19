@@ -228,6 +228,21 @@ void AntiAliasingPass::setup_view(View &view, const SceneState &scene_state)
 
   setup_taa_weights(sample_offset, weights_, weights_sum_);
 
+  if (scene_state.camera) {
+    if (scene_state.camera->use_orthodox) {
+      float left, right, bottom, top, near, far;
+      projmat_dimensions(winmat.ptr(), &left, &right, &bottom, &top, &near, &far);
+      winmat = math::projection::orthodox(left,
+                                          right,
+                                          bottom,
+                                          top,
+                                          near,
+                                          far,
+                                          scene_state.camera->orthodox_factor,
+                                          scene_state.camera->dof.focus_distance);
+    }
+  }
+
   window_translate_m4(winmat.ptr(),
                       persmat.ptr(),
                       sample_offset.x / scene_state.resolution.x,

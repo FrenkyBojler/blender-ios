@@ -1280,7 +1280,7 @@ struct KernelCamera {
 
   int pad1;
   int pad2;
-  int pad3;
+  // int pad3;
 
   /* panorama */
   int panorama_type;
@@ -1290,6 +1290,12 @@ struct KernelCamera {
   float4 equirectangular_range;
   float4 fisheye_lens_polynomial_coefficients;
   float4 central_cylindrical_range;
+
+  /* orthodox */
+  int use_orthodox;
+  float orthodox_tilt_x;
+  float orthodox_tilt_y;
+  float orthodox_factor;
 
   /* stereo */
   float interocular_offset;

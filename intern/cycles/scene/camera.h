@@ -91,6 +91,12 @@ class Camera : public Node {
   NODE_SOCKET_API(float, central_cylindrical_range_v_min)
   NODE_SOCKET_API(float, central_cylindrical_range_v_max)
 
+  /* orthodox */
+  NODE_SOCKET_API(bool, use_orthodox)
+  NODE_SOCKET_API(float, orthodox_factor)
+  NODE_SOCKET_API(float, orthodox_tilt_x)
+  NODE_SOCKET_API(float, orthodox_tilt_y)
+
   /* panorama stereo */
   NODE_SOCKET_API(StereoEye, stereo_eye)
   NODE_SOCKET_API(bool, use_spherical_stereo)

@@ -35,8 +35,15 @@ void projmat_dimensions(mat4 winmat,
     r_right = (-winmat[3][0] + 1.0) / winmat[0][0];
     r_bottom = (-winmat[3][1] - 1.0) / winmat[1][1];
     r_top = (-winmat[3][1] + 1.0) / winmat[1][1];
-    r_near = (winmat[3][2] + 1.0) / winmat[2][2];
-    r_far = (winmat[3][2] - 1.0) / winmat[2][2];
+    if (winmat[2][3] == 0.0) {
+      r_near = (winmat[3][2] + 1.0) / winmat[2][2];
+      r_far = (winmat[3][2] - 1.0) / winmat[2][2];
+    }
+    else {
+      r_far = (winmat[3][3] - winmat[3][2]) / (winmat[2][3] - winmat[2][2]);
+      r_near = (2.0f * winmat[3][3] - r_far * (winmat[2][3] - winmat[2][2])) /
+               (winmat[2][3] + winmat[2][2]);
+    }
   }
 }
 

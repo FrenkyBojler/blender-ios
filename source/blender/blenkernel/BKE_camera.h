@@ -61,6 +61,12 @@ typedef struct CameraParams {
   float clip_start;
   float clip_end;
 
+  /* set orthodox */
+  float orthodox_tilt_x;
+  float orthodox_tilt_y;
+  float orthodox_factor;
+  bool use_orthodox;
+
   /* computed viewplane */
   float ycor;
   float viewdx;
