@@ -23,8 +23,12 @@ if "bpy" in locals():
         importlib.reload(import_svg)
 
 
+import os
 import bpy
-from bpy.props import StringProperty
+from bpy.props import (
+    StringProperty,
+    CollectionProperty
+)
 from bpy_extras.io_utils import ImportHelper
 
 
@@ -34,13 +38,30 @@ class ImportSVG(bpy.types.Operator, ImportHelper):
     bl_label = "Import SVG"
     bl_options = {'UNDO'}
 
+    directory: StringProperty()
+
     filename_ext = ".svg"
     filter_glob: StringProperty(default="*.svg", options={'HIDDEN'})
 
+    files: CollectionProperty(
+        name="File Path",
+        type=bpy.types.OperatorFileListElement,
+    )
+
+
     def execute(self, context):
         from . import import_svg
+    
+        if not self.files:
+            return import_svg.load(self, context, filepath=self.filepath)
 
-        return import_svg.load(self, context, filepath=self.filepath)
+        ret = {'CANCELLED'}
+        dirname = os.path.dirname(self.filepath)
+        for file in self.files:
+            path = os.path.join(dirname, file.name)
+            if import_svg.load(self, context, filepath=path) == {'FINISHED'}:
+                ret = {'FINISHED'}
+        return ret
 
 
 def menu_func_import(self, context):
