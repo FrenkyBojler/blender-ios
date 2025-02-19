@@ -869,6 +869,9 @@ class NodeTreeMainUpdater {
                        const bNodeSocket &socket)
   {
     const int index = socket.index_in_tree();
+    if (socket.runtime->declaration->identifier == "__extend__") {
+      return SOCK_DISPLAY_SHAPE_CIRCLE;
+    }
     if (socket.in_out == SOCK_OUT) {
       if (structure_types[index] == StructureType::Grid) {
         return SOCK_DISPLAY_SHAPE_VOLUME_GRID;
