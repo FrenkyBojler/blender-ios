@@ -16,12 +16,12 @@ namespace blender::bke::node_structure_type_inferencing {
 using nodes::StructureType;
 namespace aal = nodes::anonymous_attribute_lifetime;
 
-struct SocketUsageInfo {
+struct SocketStatus {
   bool is_single_value = false;
   bool is_grid = false;
   bool is_field = false;
 
-  void merge(const SocketUsageInfo &other, const bool do_grid = true)
+  void merge(const SocketStatus &other, const bool do_grid = true)
   {
     this->is_single_value |= other.is_single_value;
     if (do_grid) {
@@ -32,7 +32,7 @@ struct SocketUsageInfo {
 };
 
 static void initialize_usages_from_socket_declarations(const bNodeTree &tree,
-                                                       MutableSpan<SocketUsageInfo> socket_usages)
+                                                       MutableSpan<SocketStatus> socket_usages)
 {
   for (const bNodeSocket *socket : tree.all_sockets()) {
     const nodes::SocketDeclaration *declaration = socket->runtime->declaration;
@@ -61,11 +61,11 @@ static void initialize_usages_from_socket_declarations(const bNodeTree &tree,
 }
 
 static void update_interface_structure_types(const bNodeTree &tree,
-                                             const Span<SocketUsageInfo> socket_usages,
+                                             const Span<SocketStatus> socket_usages,
                                              nodes::StructureTypeInterface &derived_interface)
 {
   /* Merge usages from all group input nodes. */
-  Array<SocketUsageInfo> group_input_usages(tree.interface_inputs().size());
+  Array<SocketStatus> group_input_usages(tree.interface_inputs().size());
   for (const bNode *node : tree.group_input_nodes()) {
     for (const bNodeSocket *socket : node->output_sockets().drop_back(1)) {
       group_input_usages[socket->index()].merge(socket_usages[socket->index_in_tree()]);
@@ -80,7 +80,7 @@ static void update_interface_structure_types(const bNodeTree &tree,
       continue;
     }
 
-    const SocketUsageInfo &usage = group_input_usages[input_i];
+    const SocketStatus &usage = group_input_usages[input_i];
     if (usage.is_single_value) {
       derived_interface.inputs[input_i] = StructureType::Single;
     }
@@ -103,7 +103,7 @@ static void update_interface_structure_types(const bNodeTree &tree,
         derived_interface.outputs[output_i] = StructureType(io_socket.structure_type);
         continue;
       }
-      const SocketUsageInfo &usage =
+      const SocketStatus &usage =
           socket_usages[output_node->input_socket(output_i).index_in_tree()];
       if (usage.is_single_value) {
         derived_interface.outputs[output_i] = StructureType::Single;
@@ -124,7 +124,7 @@ static void update_interface_structure_types(const bNodeTree &tree,
 static void propagate_right_to_left(
     const bNodeTree &tree,
     const Span<const nodes::anonymous_attribute_lifetime::RelationsInNode *> relations_by_node,
-    MutableSpan<SocketUsageInfo> socket_usages,
+    MutableSpan<SocketStatus> socket_usages,
     nodes::StructureTypeInterface &derived_interface)
 {
   for (const bNode *node : tree.toposort_right_to_left()) {
@@ -135,7 +135,7 @@ static void propagate_right_to_left(
 
     /* Constraint outputs based on where they are connected. */
     for (const bNodeSocket *output_socket : node->output_sockets()) {
-      SocketUsageInfo &output_usage = socket_usages[output_socket->index_in_tree()];
+      SocketStatus &output_usage = socket_usages[output_socket->index_in_tree()];
       for (const bNodeLink *link : output_socket->directly_linked_links()) {
         if (!link->is_used()) {
           continue;
@@ -178,7 +178,7 @@ static void propagate_right_to_left(
 static void propagate_left_to_right(
     const bNodeTree &tree,
     const Span<const nodes::anonymous_attribute_lifetime::RelationsInNode *> relations_by_node,
-    MutableSpan<SocketUsageInfo> socket_usages,
+    MutableSpan<SocketStatus> socket_usages,
     nodes::StructureTypeInterface &derived_interface)
 {
   for (const bNode *node : tree.toposort_left_to_right()) {
@@ -193,7 +193,7 @@ static void propagate_left_to_right(
       if (!input_socket->is_available()) {
         continue;
       }
-      SocketUsageInfo &socket_structure_type = socket_usages[input_socket->index_in_tree()];
+      SocketStatus &socket_structure_type = socket_usages[input_socket->index_in_tree()];
       if (input_socket->is_directly_linked()) {
         const bNodeLink &link = *input_socket->directly_linked_links()[0];
         if (link.is_used()) {
@@ -276,7 +276,7 @@ static std::unique_ptr<nodes::StructureTypeInterface> calc_structure_type_interf
   derived_interface->outputs.reinitialize(tree.interface_outputs().size());
   derived_interface->all_sockets.reinitialize(tree.all_sockets().size());
 
-  Array<SocketUsageInfo> socket_usages(tree.all_sockets().size());
+  Array<SocketStatus> socket_usages(tree.all_sockets().size());
 
   ResourceScope scope;
   Array<const nodes::anonymous_attribute_lifetime::RelationsInNode *> relations_by_node =
