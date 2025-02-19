@@ -12,11 +12,12 @@
 #include "DNA_brush_enums.h"
 #include "DNA_curve_types.h"
 #include "DNA_defs.h"
-#include "DNA_texture_types.h" /* for MTex */
+#include "DNA_texture_types.h" /* for MTex and MTexAccessor*/
 
 struct CurveMapping;
 struct Image;
 struct MTex;
+struct MTexAccessor;
 struct Material;
 
 typedef struct BrushClone {
@@ -164,12 +165,6 @@ typedef struct BrushCurvesSculptSettings {
   struct CurveMapping *curve_parameter_falloff;
 } BrushCurvesSculptSettings;
 
-/* Struct to hold masks for brushes. */
-typedef struct MTexAccessor {
-  struct MTex color;
-  struct MTex mask;
-} MTexAccessor;
-
 /** Max number of propagation steps for automasking settings. */
 #define AUTOMASKING_BOUNDARY_EDGES_MAX_PROPAGATION_STEPS 20
 /**
@@ -184,7 +179,7 @@ typedef struct Brush {
   struct BrushClone clone;
   /** Falloff curve. */
   struct CurveMapping *curve;
-  struct MTexAccessor mtex;
+  struct MTexAccessor mtex_accessor;
 
   struct Brush *toggle_brush;
 

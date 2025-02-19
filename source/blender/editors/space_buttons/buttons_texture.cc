@@ -337,14 +337,14 @@ static void buttons_texture_users_from_context(ListBase *users,
 
     /* texture */
     PointerRNA ptr = RNA_pointer_create_discrete(
-        &brush->id, &RNA_BrushTextureSlot, &brush->mtex.color);
+        &brush->id, &RNA_BrushTextureSlot, &brush->mtex_accessor.color);
     prop = RNA_struct_find_property(&ptr, "texture");
 
     buttons_texture_user_property_add(
         users, &brush->id, ptr, prop, N_("Brush"), ICON_BRUSH_DATA, IFACE_("Brush"));
 
     /* mask texture */
-    ptr = RNA_pointer_create_discrete(&brush->id, &RNA_BrushTextureSlot, &brush->mtex.mask);
+    ptr = RNA_pointer_create_discrete(&brush->id, &RNA_BrushTextureSlot, &brush->mtex_accessor.mask);
     prop = RNA_struct_find_property(&ptr, "texture");
 
     buttons_texture_user_property_add(

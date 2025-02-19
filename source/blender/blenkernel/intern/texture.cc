@@ -531,17 +531,17 @@ void set_active_mtex(ID *id, short act)
 
 Tex *give_current_brush_texture(Brush *br)
 {
-  return br->mtex.color.tex;
+  return br->mtex_accessor.color.tex;
 }
 
 void set_current_brush_texture(Brush *br, Tex *newtex)
 {
-  if (br->mtex.color.tex) {
-    id_us_min(&br->mtex.color.tex->id);
+  if (br->mtex_accessor.color.tex) {
+    id_us_min(&br->mtex_accessor.color.tex->id);
   }
 
   if (newtex) {
-    br->mtex.color.tex = newtex;
+    br->mtex_accessor.color.tex = newtex;
     id_us_plus(&newtex->id);
   }
   BKE_brush_tag_unsaved_changes(br);

@@ -1922,7 +1922,7 @@ static ProjPixel *project_paint_uvpixel_init(const ProjPaintState *ps,
   }
 
   /* Screen-space unclamped, we could keep its z and w values but don't need them at the moment. */
-  if (ps->brush->mtex.color.brush_map_mode == MTEX_MAP_MODE_3D) {
+  if (ps->brush->mtex_accessor.color.brush_map_mode == MTEX_MAP_MODE_3D) {
     copy_v3_v3(projPixel->worldCoSS, world_spaceCo);
   }
 
@@ -3013,7 +3013,7 @@ static void project_paint_face_init(const ProjPaintState *ps,
   /* for convenience only, these will be assigned to tri_uv[0],1,2 or tri_uv[0],2,3 */
   float *uv1co, *uv2co, *uv3co;
   float pixelScreenCo[4];
-  bool do_3d_mapping = ps->brush->mtex.color.brush_map_mode == MTEX_MAP_MODE_3D;
+  bool do_3d_mapping = ps->brush->mtex_accessor.color.brush_map_mode == MTEX_MAP_MODE_3D;
 
   /* Image-space bounds. */
   rcti bounds_px;
@@ -5427,7 +5427,7 @@ static void do_projectpaint_thread(TaskPool *__restrict /*pool*/, void *ph_v)
 
             /* Color texture (alpha used as mask). */
             if (ps->is_texbrush) {
-              const MTex *mtex = &brush->mtex.color;
+              const MTex *mtex = &brush->mtex_accessor.color;
               float samplecos[3];
               float texrgba[4];
 
@@ -5865,10 +5865,11 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 
     /* disable for 3d mapping also because painting on mirrored mesh can create "stripes" */
     ps->do_masking = paint_use_opacity_masking(brush);
-    ps->is_texbrush = (brush->mtex.color.tex && ps->brush_type == IMAGE_PAINT_BRUSH_TYPE_DRAW) ?
+    ps->is_texbrush = (brush->mtex_accessor.color.tex &&
+                       ps->brush_type == IMAGE_PAINT_BRUSH_TYPE_DRAW) ?
                           true :
                           false;
-    ps->is_maskbrush = (brush->mtex.mask.tex) ? true : false;
+    ps->is_maskbrush = (brush->mtex_accessor.mask.tex) ? true : false;
   }
   else {
     /* Brush may be nullptr. */

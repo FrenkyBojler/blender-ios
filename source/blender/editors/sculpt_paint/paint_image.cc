@@ -349,19 +349,20 @@ static bool image_paint_2d_clone_poll(bContext *C)
 
 bool paint_use_opacity_masking(Brush *brush)
 {
-  return ((brush->flag & BRUSH_AIRBRUSH) || (brush->flag & BRUSH_DRAG_DOT) ||
-                  (brush->flag & BRUSH_ANCHORED) ||
-                  ELEM(brush->image_brush_type,
-                       IMAGE_PAINT_BRUSH_TYPE_SMEAR,
-                       IMAGE_PAINT_BRUSH_TYPE_SOFTEN) ||
-                  (brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_FILL) ||
-                  (brush->flag & BRUSH_USE_GRADIENT) ||
-                  (brush->mtex.color.tex && !ELEM(brush->mtex.color.brush_map_mode,
-                                                  MTEX_MAP_MODE_TILED,
-                                                  MTEX_MAP_MODE_STENCIL,
-                                                  MTEX_MAP_MODE_3D)) ?
-              false :
-              true);
+  return (
+      (brush->flag & BRUSH_AIRBRUSH) || (brush->flag & BRUSH_DRAG_DOT) ||
+              (brush->flag & BRUSH_ANCHORED) ||
+              ELEM(brush->image_brush_type,
+                   IMAGE_PAINT_BRUSH_TYPE_SMEAR,
+                   IMAGE_PAINT_BRUSH_TYPE_SOFTEN) ||
+              (brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_FILL) ||
+              (brush->flag & BRUSH_USE_GRADIENT) ||
+              (brush->mtex_accessor.color.tex && !ELEM(brush->mtex_accessor.color.brush_map_mode,
+                                                       MTEX_MAP_MODE_TILED,
+                                                       MTEX_MAP_MODE_STENCIL,
+                                                       MTEX_MAP_MODE_3D)) ?
+          false :
+          true);
 }
 
 void paint_brush_color_get(Scene *scene,
@@ -411,12 +412,12 @@ void paint_brush_init_tex(Brush *brush)
 {
   /* init mtex nodes */
   if (brush) {
-    MTex *mtex = &brush->mtex.color;
+    MTex *mtex = &brush->mtex_accessor.color;
     if (mtex->tex && mtex->tex->nodetree) {
       /* has internal flag to detect it only does it once */
       ntreeTexBeginExecTree(mtex->tex->nodetree);
     }
-    mtex = &brush->mtex.mask;
+    mtex = &brush->mtex_accessor.mask;
     if (mtex->tex && mtex->tex->nodetree) {
       ntreeTexBeginExecTree(mtex->tex->nodetree);
     }
@@ -426,11 +427,11 @@ void paint_brush_init_tex(Brush *brush)
 void paint_brush_exit_tex(Brush *brush)
 {
   if (brush) {
-    MTex *mtex = &brush->mtex.color;
+    MTex *mtex = &brush->mtex_accessor.color;
     if (mtex->tex && mtex->tex->nodetree) {
       ntreeTexEndExecTree(mtex->tex->nodetree->runtime->execdata);
     }
-    mtex = &brush->mtex.mask;
+    mtex = &brush->mtex_accessor.mask;
     if (mtex->tex && mtex->tex->nodetree) {
       ntreeTexEndExecTree(mtex->tex->nodetree->runtime->execdata);
     }

@@ -257,10 +257,10 @@ void BKE_paint_invalidate_overlay_tex(Scene *scene, ViewLayer *view_layer, const
     return;
   }
 
-  if (br->mtex.color.tex == tex) {
+  if (br->mtex_accessor.color.tex == tex) {
     overlay_flags |= PAINT_OVERLAY_INVALID_TEXTURE_PRIMARY;
   }
-  if (br->mtex.mask.tex == tex) {
+  if (br->mtex_accessor.mask.tex == tex) {
     overlay_flags |= PAINT_OVERLAY_INVALID_TEXTURE_SECONDARY;
   }
 }
@@ -1957,7 +1957,7 @@ void paint_update_brush_rake_rotation(UnifiedPaintSettings &ups,
 {
   ups.brush_rotation = rotation;
 
-  if (brush.mtex.mask.brush_angle_mode & MTEX_ANGLE_RAKE) {
+  if (brush.mtex_accessor.mask.brush_angle_mode & MTEX_ANGLE_RAKE) {
     ups.brush_rotation_sec = rotation;
   }
   else {
@@ -1972,8 +1972,9 @@ static bool paint_rake_rotation_active(const MTex &mtex)
 
 static bool paint_rake_rotation_active(const Brush &brush, PaintMode paint_mode)
 {
-  return paint_rake_rotation_active(brush.mtex.color) ||
-         paint_rake_rotation_active(brush.mtex.mask) || BKE_brush_has_cube_tip(&brush, paint_mode);
+  return paint_rake_rotation_active(brush.mtex_accessor.color) ||
+         paint_rake_rotation_active(brush.mtex_accessor.mask) ||
+         BKE_brush_has_cube_tip(&brush, paint_mode);
 }
 
 bool paint_calculate_rake_rotation(UnifiedPaintSettings &ups,

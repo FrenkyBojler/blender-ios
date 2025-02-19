@@ -63,6 +63,17 @@ typedef struct MTex {
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name #MTexAccessor
+ * \{ */
+
+typedef struct MTexAccessor {
+  struct MTex color;
+  struct MTex mask;
+} MTexAccessor;
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name #ColorBand
  * \{ */
 

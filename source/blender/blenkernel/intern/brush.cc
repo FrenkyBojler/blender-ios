@@ -206,10 +206,10 @@ static void brush_foreach_id(ID *id, LibraryForeachIDData *data)
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, brush->gpencil_settings->material, IDWALK_CB_USER);
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, brush->gpencil_settings->material_alt, IDWALK_CB_USER);
   }
-  BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data,
-                                          BKE_texture_mtex_foreach_id(data, &brush->mtex.color));
-  BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data,
-                                          BKE_texture_mtex_foreach_id(data, &brush->mtex.mask));
+  BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
+      data, BKE_texture_mtex_foreach_id(data, &brush->mtex_accessor.color));
+  BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
+      data, BKE_texture_mtex_foreach_id(data, &brush->mtex_accessor.mask));
 }
 
 static void brush_foreach_path(ID *id, BPathForeachPathData *bpath_data)
@@ -527,8 +527,8 @@ static void brush_defaults(Brush *brush)
   FROM_DEFAULT_PTR(sub_col);
   FROM_DEFAULT(stencil_pos);
   FROM_DEFAULT(stencil_dimension);
-  FROM_DEFAULT(mtex.color);
-  FROM_DEFAULT(mtex.mask);
+  FROM_DEFAULT(mtex_accessor.color);
+  FROM_DEFAULT(mtex_accessor.mask);
   FROM_DEFAULT(falloff_shape);
   FROM_DEFAULT(tip_scale_x);
   FROM_DEFAULT(tip_roundness);
@@ -886,7 +886,7 @@ float BKE_brush_sample_masktex(
     const Scene *scene, Brush *br, const float point[2], const int thread, ImagePool *pool)
 {
   UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
-  MTex *mtex = &br->mtex.mask;
+  MTex *mtex = &br->mtex_accessor.mask;
   float rgba[4], intensity;
 
   if (!mtex->tex) {
@@ -1440,7 +1440,7 @@ static bool brush_gen_texture(const Brush *br,
                               const bool use_secondary,
                               float *rect)
 {
-  const MTex *mtex = (use_secondary) ? &br->mtex.mask : &br->mtex.color;
+  const MTex *mtex = (use_secondary) ? &br->mtex_accessor.mask : &br->mtex_accessor.color;
   if (mtex->tex == nullptr) {
     return false;
   }

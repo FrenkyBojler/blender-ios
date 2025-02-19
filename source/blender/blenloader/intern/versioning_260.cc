@@ -2185,7 +2185,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 265, 10)) {
     LISTBASE_FOREACH (Brush *, br, &bmain->brushes) {
       if (br->ob_mode & OB_MODE_TEXTURE_PAINT) {
-        br->mtex.color.brush_map_mode = MTEX_MAP_MODE_TILED;
+        br->mtex_accessor.color.brush_map_mode = MTEX_MAP_MODE_TILED;
       }
     }
   }
@@ -2383,7 +2383,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 266, 4)) {
     LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
-      BKE_texture_mtex_default(&brush->mtex.mask);
+      BKE_texture_mtex_default(&brush->mtex_accessor.mask);
 
       if (brush->ob_mode & OB_MODE_TEXTURE_PAINT) {
         brush->spacing /= 2;

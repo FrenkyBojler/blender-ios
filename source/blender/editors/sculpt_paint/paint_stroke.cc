@@ -353,7 +353,7 @@ bool paint_brush_update(bContext *C,
 
   if (paint_supports_dynamic_tex_coords(brush, mode)) {
 
-    if (ELEM(brush.mtex.color.brush_map_mode,
+    if (ELEM(brush.mtex_accessor.color.brush_map_mode,
              MTEX_MAP_MODE_VIEW,
              MTEX_MAP_MODE_AREA,
              MTEX_MAP_MODE_RANDOM))
@@ -361,7 +361,7 @@ bool paint_brush_update(bContext *C,
       do_random = true;
     }
 
-    if (brush.mtex.color.brush_map_mode == MTEX_MAP_MODE_RANDOM) {
+    if (brush.mtex_accessor.color.brush_map_mode == MTEX_MAP_MODE_RANDOM) {
       BKE_brush_randomize_texture_coords(&ups, false);
     }
     else {
@@ -369,9 +369,9 @@ bool paint_brush_update(bContext *C,
     }
 
     /* take care of mask texture, if any */
-    if (brush.mtex.mask.tex) {
+    if (brush.mtex_accessor.mask.tex) {
 
-      if (ELEM(brush.mtex.mask.brush_map_mode,
+      if (ELEM(brush.mtex_accessor.mask.brush_map_mode,
                MTEX_MAP_MODE_VIEW,
                MTEX_MAP_MODE_AREA,
                MTEX_MAP_MODE_RANDOM))
@@ -379,7 +379,7 @@ bool paint_brush_update(bContext *C,
         do_random_mask = true;
       }
 
-      if (brush.mtex.mask.brush_map_mode == MTEX_MAP_MODE_RANDOM) {
+      if (brush.mtex_accessor.mask.brush_map_mode == MTEX_MAP_MODE_RANDOM) {
         BKE_brush_randomize_texture_coords(&ups, true);
       }
       else {
@@ -456,16 +456,16 @@ bool paint_brush_update(bContext *C,
   }
 
   if (do_random) {
-    if (brush.mtex.color.brush_angle_mode & MTEX_ANGLE_RANDOM) {
-      ups.brush_rotation += -brush.mtex.color.random_angle / 2.0f +
-                            brush.mtex.color.random_angle * stroke->rng->get_float();
+    if (brush.mtex_accessor.color.brush_angle_mode & MTEX_ANGLE_RANDOM) {
+      ups.brush_rotation += -brush.mtex_accessor.color.random_angle / 2.0f +
+                            brush.mtex_accessor.color.random_angle * stroke->rng->get_float();
     }
   }
 
   if (do_random_mask) {
-    if (brush.mtex.mask.brush_angle_mode & MTEX_ANGLE_RANDOM) {
-      ups.brush_rotation_sec += -brush.mtex.mask.random_angle / 2.0f +
-                                brush.mtex.mask.random_angle * stroke->rng->get_float();
+    if (brush.mtex_accessor.mask.brush_angle_mode & MTEX_ANGLE_RANDOM) {
+      ups.brush_rotation_sec += -brush.mtex_accessor.mask.random_angle / 2.0f +
+                                brush.mtex_accessor.mask.random_angle * stroke->rng->get_float();
     }
   }
 
@@ -936,14 +936,14 @@ PaintStroke *paint_stroke_new(bContext *C,
   ups->do_linear_conversion = false;
   ups->colorspace = nullptr;
 
-  if (br->mtex.color.tex && br->mtex.color.tex->type == TEX_IMAGE && br->mtex.color.tex->ima) {
+  if (br->mtex_accessor.color.tex && br->mtex_accessor.color.tex->type == TEX_IMAGE && br->mtex_accessor.color.tex->ima) {
     ImBuf *tex_ibuf = BKE_image_pool_acquire_ibuf(
-        br->mtex.color.tex->ima, &br->mtex.color.tex->iuser, nullptr);
+        br->mtex_accessor.color.tex->ima, &br->mtex_accessor.color.tex->iuser, nullptr);
     if (tex_ibuf && tex_ibuf->float_buffer.data == nullptr) {
       ups->do_linear_conversion = true;
       ups->colorspace = tex_ibuf->byte_buffer.colorspace;
     }
-    BKE_image_pool_release_ibuf(br->mtex.color.tex->ima, tex_ibuf, nullptr);
+    BKE_image_pool_release_ibuf(br->mtex_accessor.color.tex->ima, tex_ibuf, nullptr);
   }
 
   if (stroke->stroke_mode == BRUSH_STROKE_INVERT) {
@@ -1012,11 +1012,11 @@ static void stroke_done(bContext *C, wmOperator *op, PaintStroke *stroke)
   UnifiedPaintSettings *ups = stroke->ups;
 
   /* reset rotation here to avoid doing so in cursor display */
-  if (!(stroke->brush->mtex.color.brush_angle_mode & MTEX_ANGLE_RAKE)) {
+  if (!(stroke->brush->mtex_accessor.color.brush_angle_mode & MTEX_ANGLE_RAKE)) {
     ups->brush_rotation = 0.0f;
   }
 
-  if (!(stroke->brush->mtex.mask.brush_angle_mode & MTEX_ANGLE_RAKE)) {
+  if (!(stroke->brush->mtex_accessor.mask.brush_angle_mode & MTEX_ANGLE_RAKE)) {
     ups->brush_rotation_sec = 0.0f;
   }
 
@@ -1372,8 +1372,8 @@ static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *str
                                     sizeof(float[2]));
     }
 
-    if ((br.mtex.color.brush_angle_mode & MTEX_ANGLE_RAKE) ||
-        (br.mtex.mask.brush_angle_mode & MTEX_ANGLE_RAKE))
+    if ((br.mtex_accessor.color.brush_angle_mode & MTEX_ANGLE_RAKE) ||
+        (br.mtex_accessor.mask.brush_angle_mode & MTEX_ANGLE_RAKE))
     {
       do_rake = true;
       for (int j = 0; j < 2; j++) {
@@ -1598,8 +1598,8 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintS
     paint_stroke_line_constrain(stroke, mouse);
 
     if (stroke->stroke_started && (first_modal || ISMOUSE_MOTION(event->type))) {
-      if ((br->mtex.color.brush_angle_mode & MTEX_ANGLE_RAKE) ||
-          (br->mtex.mask.brush_angle_mode & MTEX_ANGLE_RAKE))
+      if ((br->mtex_accessor.color.brush_angle_mode & MTEX_ANGLE_RAKE) ||
+          (br->mtex_accessor.mask.brush_angle_mode & MTEX_ANGLE_RAKE))
       {
         copy_v2_v2(stroke->ups->last_rake, stroke->last_mouse_position);
       }
