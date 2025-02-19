@@ -4720,6 +4720,7 @@ static bool object_join_poll(bContext *C)
            OB_CURVES_LEGACY,
            OB_SURF,
            OB_ARMATURE,
+           OB_CURVES,
            OB_GREASE_PENCIL,
            OB_POINTCLOUD))
   {
@@ -4761,6 +4762,9 @@ static int object_join_exec(bContext *C, wmOperator *op)
   }
   else if (ob->type == OB_POINTCLOUD) {
     ret = point_cloud::join_objects(C, op);
+  }
+  else if (ob->type == OB_CURVES) {
+    ret = curves::join_objects(C, op);
   }
   else if (ob->type == OB_GREASE_PENCIL) {
     ret = ED_grease_pencil_join_objects_exec(C, op);
