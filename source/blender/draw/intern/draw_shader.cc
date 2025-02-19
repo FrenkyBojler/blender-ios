@@ -16,7 +16,80 @@
 
 #include "DRW_render.hh"
 
-extern "C" char datatoc_common_hair_lib_glsl[];
+namespace blender::draw::Shader {
+
+class ShaderCache {
+ private:
+  static ShaderCache *static_cache_;
+
+ public:
+  static ShaderCache &get();
+  static void release();
+
+  StaticShader hair_refine = {"draw_hair_refine_compute"};
+  StaticShader debug_draw_display = {"draw_debug_draw_display"};
+  StaticShader draw_visibility_compute = {"draw_visibility_compute"};
+  StaticShader draw_view_finalize = {"draw_view_finalize"};
+  StaticShader draw_resource_finalize = {"draw_resource_finalize"};
+  StaticShader draw_command_generate = {"draw_command_generate"};
+};
+
+ShaderCache *ShaderCache::static_cache_ = new ShaderCache();
+
+ShaderCache &ShaderCache::get()
+{
+  return *ShaderCache::static_cache_;
+}
+
+void ShaderCache::release()
+{
+  delete ShaderCache::static_cache_;
+}
+
+}  // namespace blender::draw::Shader
+
+using namespace blender::draw::Shader;
+
+GPUShader *DRW_shader_hair_refine_get(ParticleRefineShader /*refinement*/)
+{
+  return ShaderCache::get().hair_refine.get();
+}
+
+GPUShader *DRW_shader_curves_refine_get(blender::draw::CurvesEvalShader /*type*/)
+{
+  /* TODO: Implement curves evaluation types (Bezier and Catmull Rom). */
+  return ShaderCache::get().hair_refine.get();
+}
+
+GPUShader *DRW_shader_debug_draw_display_get()
+{
+  return ShaderCache::get().debug_draw_display.get();
+}
+
+GPUShader *DRW_shader_draw_visibility_compute_get()
+{
+  return ShaderCache::get().draw_visibility_compute.get();
+}
+
+GPUShader *DRW_shader_draw_view_finalize_get()
+{
+  return ShaderCache::get().draw_view_finalize.get();
+}
+
+GPUShader *DRW_shader_draw_resource_finalize_get()
+{
+  return ShaderCache::get().draw_resource_finalize.get();
+}
+
+GPUShader *DRW_shader_draw_command_generate_get()
+{
+  return ShaderCache::get().draw_command_generate.get();
+}
+
+/* -------------------------------------------------------------------- */
+/** \name Subdivision
+ * \{ */
+
 extern "C" char datatoc_subdiv_custom_data_interp_comp_glsl[];
 extern "C" char datatoc_subdiv_ibo_lines_comp_glsl[];
 extern "C" char datatoc_subdiv_ibo_tris_comp_glsl[];
@@ -32,94 +105,9 @@ extern "C" char datatoc_subdiv_vbo_edituv_strech_area_comp_glsl[];
 
 #define SHADER_CUSTOM_DATA_INTERP_MAX_DIMENSIONS 4
 static struct {
-  GPUShader *hair_refine_sh[PART_REFINE_MAX_SHADER];
-  GPUShader *debug_print_display_sh;
-  GPUShader *debug_draw_display_sh;
-  GPUShader *draw_visibility_compute_sh;
-  GPUShader *draw_view_finalize_sh;
-  GPUShader *draw_resource_finalize_sh;
-  GPUShader *draw_command_generate_sh;
-
   GPUShader *subdiv_sh[SUBDIVISION_MAX_SHADERS];
   GPUShader *subdiv_custom_data_sh[SHADER_CUSTOM_DATA_INTERP_MAX_DIMENSIONS][GPU_COMP_MAX];
 } e_data = {{nullptr}};
-
-/* -------------------------------------------------------------------- */
-/** \name Hair refinement
- * \{ */
-
-static GPUShader *hair_refine_shader_compute_create(ParticleRefineShader /*refinement*/)
-{
-  return GPU_shader_create_from_info_name("draw_hair_refine_compute");
-}
-
-GPUShader *DRW_shader_hair_refine_get(ParticleRefineShader refinement)
-{
-  if (e_data.hair_refine_sh[refinement] == nullptr) {
-    GPUShader *sh = hair_refine_shader_compute_create(refinement);
-    e_data.hair_refine_sh[refinement] = sh;
-  }
-
-  return e_data.hair_refine_sh[refinement];
-}
-
-GPUShader *DRW_shader_curves_refine_get(blender::draw::CurvesEvalShader type)
-{
-  /* TODO: Implement curves evaluation types (Bezier and Catmull Rom). */
-  if (e_data.hair_refine_sh[type] == nullptr) {
-    GPUShader *sh = hair_refine_shader_compute_create(PART_REFINE_CATMULL_ROM);
-    e_data.hair_refine_sh[type] = sh;
-  }
-
-  return e_data.hair_refine_sh[type];
-}
-
-GPUShader *DRW_shader_debug_draw_display_get()
-{
-  if (e_data.debug_draw_display_sh == nullptr) {
-    e_data.debug_draw_display_sh = GPU_shader_create_from_info_name("draw_debug_draw_display");
-  }
-  return e_data.debug_draw_display_sh;
-}
-
-GPUShader *DRW_shader_draw_visibility_compute_get()
-{
-  if (e_data.draw_visibility_compute_sh == nullptr) {
-    e_data.draw_visibility_compute_sh = GPU_shader_create_from_info_name(
-        "draw_visibility_compute");
-  }
-  return e_data.draw_visibility_compute_sh;
-}
-
-GPUShader *DRW_shader_draw_view_finalize_get()
-{
-  if (e_data.draw_view_finalize_sh == nullptr) {
-    e_data.draw_view_finalize_sh = GPU_shader_create_from_info_name("draw_view_finalize");
-  }
-  return e_data.draw_view_finalize_sh;
-}
-
-GPUShader *DRW_shader_draw_resource_finalize_get()
-{
-  if (e_data.draw_resource_finalize_sh == nullptr) {
-    e_data.draw_resource_finalize_sh = GPU_shader_create_from_info_name("draw_resource_finalize");
-  }
-  return e_data.draw_resource_finalize_sh;
-}
-
-GPUShader *DRW_shader_draw_command_generate_get()
-{
-  if (e_data.draw_command_generate_sh == nullptr) {
-    e_data.draw_command_generate_sh = GPU_shader_create_from_info_name("draw_command_generate");
-  }
-  return e_data.draw_command_generate_sh;
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Subdivision
- * \{ */
 
 static blender::StringRefNull get_subdiv_shader_name(SubdivShaderType shader_type)
 {
@@ -387,15 +375,7 @@ GPUShader *DRW_shader_subdiv_custom_data_get(GPUVertCompType comp_type, int dime
 
 void DRW_shaders_free()
 {
-  for (int i = 0; i < PART_REFINE_MAX_SHADER; i++) {
-    GPU_SHADER_FREE_SAFE(e_data.hair_refine_sh[i]);
-  }
-  GPU_SHADER_FREE_SAFE(e_data.debug_print_display_sh);
-  GPU_SHADER_FREE_SAFE(e_data.debug_draw_display_sh);
-  GPU_SHADER_FREE_SAFE(e_data.draw_visibility_compute_sh);
-  GPU_SHADER_FREE_SAFE(e_data.draw_view_finalize_sh);
-  GPU_SHADER_FREE_SAFE(e_data.draw_resource_finalize_sh);
-  GPU_SHADER_FREE_SAFE(e_data.draw_command_generate_sh);
+  return ShaderCache::release();
 
   for (int i = 0; i < SUBDIVISION_MAX_SHADERS; i++) {
     GPU_SHADER_FREE_SAFE(e_data.subdiv_sh[i]);
