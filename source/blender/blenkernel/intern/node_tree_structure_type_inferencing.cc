@@ -39,8 +39,7 @@ static void initialize_usages_from_socket_declarations(const bNodeTree &tree,
     if (!socket->runtime->declaration) {
       continue;
     }
-    const StructureType structure_type = declaration->structure_type;
-    switch (structure_type) {
+    switch (declaration->structure_type) {
       case StructureType::Dynamic: {
         break;
       }
