@@ -111,18 +111,18 @@ static void foreach_selected_point_ranges_per_curve_(const IndexMask &mask,
 
   mask.foreach_index([&](const int64_t index) {
     if (offset_data[curve_i + 1] <= index) {
-      int first_unselected_slice = curve_i;
+      int first_unselected_curve = curve_i;
       if (range_last >= range_first) {
         ranges.append(IndexRange::from_begin_end_inclusive(range_first, range_last));
         selected_fn(curve_i, points_by_curve[curve_i], ranges);
         ranges.clear();
-        first_unselected_slice++;
+        first_unselected_curve++;
       }
       do {
         ++curve_i;
       } while (offset_data[curve_i + 1] <= index);
       if constexpr (std::is_invocable_r_v<void, Fn, IndexRange, IndexRange>) {
-        if_has_data_call_callback(offset_data, first_unselected_slice, curve_i, unselected_fn);
+        if_has_data_call_callback(offset_data, first_unselected_curve, curve_i, unselected_fn);
       }
       range_first = index;
     }
