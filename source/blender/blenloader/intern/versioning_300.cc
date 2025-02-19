@@ -3798,7 +3798,8 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
           if (node->type_legacy == GEO_NODE_MERGE_BY_DISTANCE) {
             if (node->storage == nullptr) {
-              NodeGeometryMergeByDistance *data = MEM_callocN<NodeGeometryMergeByDistance>(__func__);
+              NodeGeometryMergeByDistance *data = MEM_callocN<NodeGeometryMergeByDistance>(
+                  __func__);
               data->mode = GEO_NODE_MERGE_BY_DISTANCE_MODE_ALL;
               node->storage = data;
             }

@@ -20,6 +20,14 @@ enum class AllocationType {
 /** Internal implementation of #MEM_freeN, exposed because #MEM_delete needs access to it. */
 extern void (*mem_freeN_ex)(void *vmemh, AllocationType allocation_type);
 
+/**
+ * Internal implementation of #MEM_callocN, exposed because public #MEM_callocN cannot be a
+ * function pointer anymore, to allow its overload by C++ template version.
+ */
+extern void *(*mem_callocN_impl)(size_t len,
+                                 const char *str) /* ATTR_MALLOC */ ATTR_WARN_UNUSED_RESULT
+    ATTR_ALLOC_SIZE(1) ATTR_NONNULL(2);
+
 /** Internal implementation of #MEM_mallocN_aligned, exposed because #MEM_new needs access to it.
  */
 extern void *(*mem_mallocN_aligned_ex)(size_t len,

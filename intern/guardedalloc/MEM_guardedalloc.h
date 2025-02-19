@@ -92,19 +92,12 @@ extern void *(*MEM_recallocN_id)(void *vmemh,
 #define MEM_reallocN(vmemh, len) MEM_reallocN_id(vmemh, len, __func__)
 #define MEM_recallocN(vmemh, len) MEM_recallocN_id(vmemh, len, __func__)
 
-extern void *(*MEM_callocN_imp)(size_t len,
-                                const char *str) /* ATTR_MALLOC */ ATTR_WARN_UNUSED_RESULT
-    ATTR_ALLOC_SIZE(1) ATTR_NONNULL(2);
-
 /**
  * Allocate a block of memory of size len, with tag name str. The
  * memory is cleared. The name must be static, because only a
  * pointer to it is stored!
  */
-inline void *MEM_callocN(size_t len, const char *str)
-{
-  return MEM_callocN_imp(len, str);
-}
+void *MEM_callocN(size_t len, const char *str);
 
 /**
  * Allocate a block of memory of size (len * size), with tag name

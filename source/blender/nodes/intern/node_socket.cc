@@ -591,7 +591,8 @@ void node_socket_init_default_value_data(eNodeSocketDatatype datatype, int subty
       break;
     }
     case SOCK_BOOLEAN: {
-      bNodeSocketValueBoolean *dval = MEM_callocN<bNodeSocketValueBoolean>("node socket value bool");
+      bNodeSocketValueBoolean *dval = MEM_callocN<bNodeSocketValueBoolean>(
+          "node socket value bool");
       dval->value = false;
 
       *data = dval;
@@ -604,7 +605,8 @@ void node_socket_init_default_value_data(eNodeSocketDatatype datatype, int subty
     }
     case SOCK_VECTOR: {
       static float default_value[] = {0.0f, 0.0f, 0.0f};
-      bNodeSocketValueVector *dval = MEM_callocN<bNodeSocketValueVector>("node socket value vector");
+      bNodeSocketValueVector *dval = MEM_callocN<bNodeSocketValueVector>(
+          "node socket value vector");
       dval->subtype = subtype;
       copy_v3_v3(dval->value, default_value);
       dval->min = -FLT_MAX;
@@ -622,7 +624,8 @@ void node_socket_init_default_value_data(eNodeSocketDatatype datatype, int subty
       break;
     }
     case SOCK_STRING: {
-      bNodeSocketValueString *dval = MEM_callocN<bNodeSocketValueString>("node socket value string");
+      bNodeSocketValueString *dval = MEM_callocN<bNodeSocketValueString>(
+          "node socket value string");
       dval->subtype = subtype;
       dval->value[0] = '\0';
 
@@ -637,7 +640,8 @@ void node_socket_init_default_value_data(eNodeSocketDatatype datatype, int subty
       break;
     }
     case SOCK_OBJECT: {
-      bNodeSocketValueObject *dval = MEM_callocN<bNodeSocketValueObject>("node socket value object");
+      bNodeSocketValueObject *dval = MEM_callocN<bNodeSocketValueObject>(
+          "node socket value object");
       dval->value = nullptr;
 
       *data = dval;
