@@ -1564,7 +1564,7 @@ static void calculate_average_color(VPaintData &vpd,
     using Blend = typename Traits::BlendType;
     const Span<Color> colors = attribute.typed<T>().template cast<Color>();
 
-    Array<VPaintAverageAccum<Blend>> accum(nodes.size(), {0, {0}});
+    Array<VPaintAverageAccum<Blend>> accum(nodes.size(), {0, {0, 0, 0}});
     node_mask.foreach_index(GrainSize(1), [&](const int i) {
       VPaintAverageAccum<Blend> &accum2 = accum[i];
       LocalData &tls = all_tls.local();
