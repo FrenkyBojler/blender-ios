@@ -870,10 +870,8 @@ class NodeTreeMainUpdater {
   {
     const int index = socket.index_in_tree();
     if (socket.in_out == SOCK_OUT) {
-      if (socket.runtime->declaration) {
-        if (structure_types[index] == StructureType::Grid) {
-          return SOCK_DISPLAY_SHAPE_VOLUME_GRID;
-        }
+      if (structure_types[index] == StructureType::Grid) {
+        return SOCK_DISPLAY_SHAPE_VOLUME_GRID;
       }
       switch (field_states[socket.index_in_tree()]) {
         case bke::FieldSocketState::RequiresSingle:
@@ -885,17 +883,15 @@ class NodeTreeMainUpdater {
       }
     }
     else {
-      if (socket.runtime->declaration) {
-        switch (structure_types[index]) {
-          case StructureType::Single:
-            return SOCK_DISPLAY_SHAPE_LINE;
-          case StructureType::Dynamic:
-            return SOCK_DISPLAY_SHAPE_CIRCLE;
-          case StructureType::Field:
-            return SOCK_DISPLAY_SHAPE_CIRCLE;
-          case StructureType::Grid:
-            return SOCK_DISPLAY_SHAPE_VOLUME_GRID;
-        }
+      switch (structure_types[index]) {
+        case StructureType::Single:
+          return SOCK_DISPLAY_SHAPE_LINE;
+        case StructureType::Dynamic:
+          return SOCK_DISPLAY_SHAPE_CIRCLE;
+        case StructureType::Field:
+          return SOCK_DISPLAY_SHAPE_CIRCLE;
+        case StructureType::Grid:
+          return SOCK_DISPLAY_SHAPE_VOLUME_GRID;
       }
     }
     return socket.display_shape;
