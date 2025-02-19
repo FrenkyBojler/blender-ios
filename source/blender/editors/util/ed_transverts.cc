@@ -212,6 +212,8 @@ bool ED_transverts_check_obedit(const Object *obedit)
 
 void ED_transverts_create_from_obedit(TransVertStore *tvs, const Object *obedit, const int mode)
 {
+  using namespace blender;
+
   Nurb *nu;
   BezTriple *bezt;
   BPoint *bp;
@@ -517,7 +519,6 @@ void ED_transverts_create_from_obedit(TransVertStore *tvs, const Object *obedit,
   else if (obedit->type == OB_POINTCLOUD) {
     PointCloud *pointcloud = static_cast<PointCloud *>(obedit->data);
 
-    using namespace blender;
     IndexMaskMemory memory;
     const IndexMask selection = blender::ed::point_cloud::retrieve_selected_points(*pointcloud,
                                                                                    memory);
