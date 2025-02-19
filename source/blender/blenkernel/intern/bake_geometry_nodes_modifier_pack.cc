@@ -64,10 +64,10 @@ NodesModifierPackedBake *pack_bake_from_disk(const BakePath &bake_path, ReportLi
   packed_bake->meta_files_num = meta_bake_files.size();
   packed_bake->blob_files_num = blob_bake_files.size();
 
-  packed_bake->meta_files = MEM_cnew_array<NodesModifierBakeFile>(packed_bake->meta_files_num,
-                                                                  __func__);
-  packed_bake->blob_files = MEM_cnew_array<NodesModifierBakeFile>(packed_bake->blob_files_num,
-                                                                  __func__);
+  packed_bake->meta_files = MEM_calloc_arrayN<NodesModifierBakeFile>(packed_bake->meta_files_num,
+                                                                     __func__);
+  packed_bake->blob_files = MEM_calloc_arrayN<NodesModifierBakeFile>(packed_bake->blob_files_num,
+                                                                     __func__);
 
   uninitialized_copy_n(meta_bake_files.data(), meta_bake_files.size(), packed_bake->meta_files);
   uninitialized_copy_n(blob_bake_files.data(), blob_bake_files.size(), packed_bake->blob_files);

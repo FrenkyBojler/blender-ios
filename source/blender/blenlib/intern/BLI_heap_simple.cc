@@ -142,7 +142,7 @@ HeapSimple *BLI_heapsimple_new_ex(uint reserve_num)
   /* ensure we have at least one so we can keep doubling it */
   heap->size = 0;
   heap->bufsize = std::max(1u, reserve_num);
-  heap->tree = MEM_cnew_array<HeapSimpleNode>(heap->bufsize, "BLIHeapSimpleTree");
+  heap->tree = MEM_calloc_arrayN<HeapSimpleNode>(heap->bufsize, "BLIHeapSimpleTree");
   return heap;
 }
 

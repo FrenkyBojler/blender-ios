@@ -1334,7 +1334,7 @@ static uchar *proxy_thread_next_frame(ProxyQueue *queue,
       return nullptr;
     }
 
-    mem = MEM_cnew_array<uchar>(size, "movieclip proxy memory file");
+    mem = MEM_calloc_arrayN<uchar>(size, "movieclip proxy memory file");
 
     if (BLI_read(file, mem, size) != size) {
       close(file);
@@ -1425,7 +1425,7 @@ static void do_sequence_proxy(void *pjv,
   queue.progress = progress;
 
   TaskPool *task_pool = BLI_task_pool_create(&queue, TASK_PRIORITY_LOW);
-  handles = MEM_cnew_array<ProxyThread>(tot_thread, "proxy threaded handles");
+  handles = MEM_calloc_arrayN<ProxyThread>(tot_thread, "proxy threaded handles");
   for (int i = 0; i < tot_thread; i++) {
     ProxyThread *handle = &handles[i];
 

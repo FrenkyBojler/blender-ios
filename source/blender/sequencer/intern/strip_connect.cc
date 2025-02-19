@@ -27,7 +27,7 @@ static void strip_connections_free(Strip *strip)
 void SEQ_connections_duplicate(ListBase *connections_dst, ListBase *connections_src)
 {
   LISTBASE_FOREACH (StripConnection *, con, connections_src) {
-    StripConnection *con_duplicate = MEM_cnew<StripConnection>(__func__, *con);
+    StripConnection *con_duplicate = MEM_dupallocN<StripConnection>(__func__, *con);
     BLI_addtail(connections_dst, con_duplicate);
   }
 }

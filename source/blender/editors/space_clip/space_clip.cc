@@ -235,7 +235,7 @@ static void clip_init(wmWindowManager * /*wm*/, ScrArea *area)
 
 static SpaceLink *clip_duplicate(SpaceLink *sl)
 {
-  SpaceClip *scn = MEM_cnew("clip_duplicate", *reinterpret_cast<SpaceClip *>(sl));
+  SpaceClip *scn = MEM_dupallocN("clip_duplicate", *reinterpret_cast<SpaceClip *>(sl));
 
   /* clear or remove stuff from old */
   scn->scopes.track_search = nullptr;

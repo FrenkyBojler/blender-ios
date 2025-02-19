@@ -206,7 +206,7 @@ static void render_layer_allocate_pass(RenderResult *rr, RenderPass *rp)
    * channels. */
 
   const size_t rectsize = size_t(rr->rectx) * rr->recty * rp->channels;
-  float *buffer_data = MEM_cnew_array<float>(rectsize, rp->name);
+  float *buffer_data = MEM_calloc_arrayN<float>(rectsize, rp->name);
 
   rp->ibuf = IMB_allocImBuf(rr->rectx, rr->recty, get_num_planes_for_pass_ibuf(*rp), 0);
   rp->ibuf->channels = rp->channels;
@@ -1149,7 +1149,7 @@ void RE_render_result_rect_from_ibuf(RenderResult *rr, const ImBuf *ibuf, const 
     rr->have_combined = true;
 
     if (!rv_ibuf->float_buffer.data) {
-      float *data = MEM_cnew_array<float>(4 * rr->rectx * rr->recty, "render_seq rectf");
+      float *data = MEM_calloc_arrayN<float>(4 * rr->rectx * rr->recty, "render_seq rectf");
       IMB_assign_float_buffer(rv_ibuf, data, IB_TAKE_OWNERSHIP);
     }
 
@@ -1165,7 +1165,7 @@ void RE_render_result_rect_from_ibuf(RenderResult *rr, const ImBuf *ibuf, const 
     rr->have_combined = true;
 
     if (!rv_ibuf->byte_buffer.data) {
-      uint8_t *data = MEM_cnew_array<uint8_t>(4 * rr->rectx * rr->recty, "render_seq rect");
+      uint8_t *data = MEM_calloc_arrayN<uint8_t>(4 * rr->rectx * rr->recty, "render_seq rect");
       IMB_assign_byte_buffer(rv_ibuf, data, IB_TAKE_OWNERSHIP);
     }
 
@@ -1183,7 +1183,7 @@ void render_result_rect_fill_zero(RenderResult *rr, const int view_id)
   ImBuf *ibuf = RE_RenderViewEnsureImBuf(rr, rv);
 
   if (!ibuf->float_buffer.data && !ibuf->byte_buffer.data) {
-    uint8_t *data = MEM_cnew_array<uint8_t>(4 * rr->rectx * rr->recty, "render_seq rect");
+    uint8_t *data = MEM_calloc_arrayN<uint8_t>(4 * rr->rectx * rr->recty, "render_seq rect");
     IMB_assign_byte_buffer(ibuf, data, IB_TAKE_OWNERSHIP);
     return;
   }
@@ -1293,7 +1293,7 @@ RenderView *RE_RenderViewGetByName(RenderResult *rr, const char *viewname)
 
 static RenderPass *duplicate_render_pass(RenderPass *rpass)
 {
-  RenderPass *new_rpass = MEM_cnew<RenderPass>("new render pass", *rpass);
+  RenderPass *new_rpass = MEM_dupallocN<RenderPass>("new render pass", *rpass);
   new_rpass->next = new_rpass->prev = nullptr;
 
   new_rpass->ibuf = IMB_dupImBuf(rpass->ibuf);
@@ -1303,7 +1303,7 @@ static RenderPass *duplicate_render_pass(RenderPass *rpass)
 
 static RenderLayer *duplicate_render_layer(RenderLayer *rl)
 {
-  RenderLayer *new_rl = MEM_cnew<RenderLayer>("new render layer", *rl);
+  RenderLayer *new_rl = MEM_dupallocN<RenderLayer>("new render layer", *rl);
   new_rl->next = new_rl->prev = nullptr;
   new_rl->passes.first = new_rl->passes.last = nullptr;
   new_rl->exrhandle = nullptr;
@@ -1316,7 +1316,7 @@ static RenderLayer *duplicate_render_layer(RenderLayer *rl)
 
 static RenderView *duplicate_render_view(RenderView *rview)
 {
-  RenderView *new_rview = MEM_cnew<RenderView>("new render view", *rview);
+  RenderView *new_rview = MEM_dupallocN<RenderView>("new render view", *rview);
 
   new_rview->ibuf = IMB_dupImBuf(rview->ibuf);
 
@@ -1325,7 +1325,7 @@ static RenderView *duplicate_render_view(RenderView *rview)
 
 RenderResult *RE_DuplicateRenderResult(RenderResult *rr)
 {
-  RenderResult *new_rr = MEM_cnew<RenderResult>("new duplicated render result", *rr);
+  RenderResult *new_rr = MEM_dupallocN<RenderResult>("new duplicated render result", *rr);
   new_rr->next = new_rr->prev = nullptr;
   new_rr->layers.first = new_rr->layers.last = nullptr;
   new_rr->views.first = new_rr->views.last = nullptr;

@@ -156,7 +156,7 @@ static void createFaceRingMap(const int mvert_tot,
 {
   int indices_num = 0;
   int *indices, *index_iter;
-  MeshElemMap *map = MEM_cnew_array<MeshElemMap>(mvert_tot, __func__);
+  MeshElemMap *map = MEM_calloc_arrayN<MeshElemMap>(mvert_tot, __func__);
 
   for (const int i : corner_tris.index_range()) {
     const blender::int3 &tri = corner_tris[i];
@@ -166,7 +166,7 @@ static void createFaceRingMap(const int mvert_tot,
       indices_num++;
     }
   }
-  indices = MEM_cnew_array<int>(indices_num, __func__);
+  indices = MEM_calloc_arrayN<int>(indices_num, __func__);
   index_iter = indices;
   for (int i = 0; i < mvert_tot; i++) {
     map[i].indices = index_iter;
@@ -190,7 +190,7 @@ static void createVertRingMap(const int mvert_tot,
                               MeshElemMap **r_map,
                               int **r_indices)
 {
-  MeshElemMap *map = MEM_cnew_array<MeshElemMap>(mvert_tot, __func__);
+  MeshElemMap *map = MEM_calloc_arrayN<MeshElemMap>(mvert_tot, __func__);
   int i, vid[2], indices_num = 0;
   int *indices, *index_iter;
 
@@ -201,7 +201,7 @@ static void createVertRingMap(const int mvert_tot,
     map[vid[1]].count++;
     indices_num += 2;
   }
-  indices = MEM_cnew_array<int>(indices_num, __func__);
+  indices = MEM_calloc_arrayN<int>(indices_num, __func__);
   index_iter = indices;
   for (i = 0; i < mvert_tot; i++) {
     map[i].indices = index_iter;

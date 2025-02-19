@@ -1045,7 +1045,7 @@ static void move_shapekey_layers_to_keyblocks(const Mesh &mesh,
     if (kb->totelem != mesh.verts_num) {
       MEM_SAFE_FREE(kb->data);
       kb->totelem = mesh.verts_num;
-      kb->data = MEM_cnew_array<float3>(kb->totelem, __func__);
+      kb->data = MEM_calloc_arrayN<float3>(kb->totelem, __func__);
       CLOG_ERROR(&LOG, "Data for shape key '%s' on mesh missing from evaluated mesh ", kb->name);
     }
   }

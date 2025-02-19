@@ -3131,7 +3131,7 @@ static int filelist_readjob_list_dir(FileListReadJob *job_params,
 
       /* Is this a file that points to another file? */
       if (entry->attributes & FILE_ATTR_ALIAS) {
-        entry->redirection_path = MEM_cnew_array<char>(FILE_MAXDIR, __func__);
+        entry->redirection_path = MEM_calloc_arrayN<char>(FILE_MAXDIR, __func__);
         if (BLI_file_alias_target(full_path, entry->redirection_path)) {
           if (BLI_is_dir(entry->redirection_path)) {
             entry->typeflag = FILE_TYPE_DIR;

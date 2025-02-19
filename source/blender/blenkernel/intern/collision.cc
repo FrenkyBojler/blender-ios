@@ -1293,7 +1293,7 @@ Object **BKE_collision_objects_create(Depsgraph *depsgraph,
 
   int maxnum = BLI_listbase_count(relations);
   int num = 0;
-  Object **objects = MEM_cnew_array<Object *>(maxnum, __func__);
+  Object **objects = MEM_calloc_arrayN<Object *>(maxnum, __func__);
 
   LISTBASE_FOREACH (CollisionRelation *, relation, relations) {
     /* Get evaluated object. */
@@ -1577,8 +1577,8 @@ int cloth_bvh_collision(
                                             eModifierType_Collision);
 
     if (collobjs) {
-      coll_counts_obj = MEM_cnew_array<uint>(numcollobj, "CollCounts");
-      overlap_obj = MEM_cnew_array<BVHTreeOverlap *>(numcollobj, "BVHOverlap");
+      coll_counts_obj = MEM_calloc_arrayN<uint>(numcollobj, "CollCounts");
+      overlap_obj = MEM_calloc_arrayN<BVHTreeOverlap *>(numcollobj, "BVHOverlap");
 
       for (i = 0; i < numcollobj; i++) {
         Object *collob = collobjs[i];
@@ -1618,7 +1618,7 @@ int cloth_bvh_collision(
       CollPair **collisions;
       bool collided = false;
 
-      collisions = MEM_cnew_array<CollPair *>(numcollobj, "CollPair");
+      collisions = MEM_calloc_arrayN<CollPair *>(numcollobj, "CollPair");
 
       for (i = 0; i < numcollobj; i++) {
         Object *collob = collobjs[i];

@@ -720,7 +720,7 @@ void *MEM_guarded_calloc_arrayN_aligned(const size_t len,
     return nullptr;
   }
   if (alignment <= MEM_MIN_CPP_ALIGNMENT) {
-    return mem_callocN_impl(bytes_num, str);
+    return mem_callocN(bytes_num, str);
   }
   /* There is no lower level #calloc with an alignment parameter, so we have to fallback to using
    * #memset unfortunately. */

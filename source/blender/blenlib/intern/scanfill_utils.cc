@@ -367,7 +367,7 @@ bool BLI_scanfill_calc_self_isect(ScanFillContext *sf_ctx,
     return false;
   }
 
-  PolyInfo *poly_info = MEM_cnew_array<PolyInfo>(poly_num, __func__);
+  PolyInfo *poly_info = MEM_calloc_arrayN<PolyInfo>(poly_num, __func__);
 
   /* get the polygon span */
   if (sf_ctx->poly_nr == 0) {

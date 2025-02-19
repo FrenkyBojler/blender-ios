@@ -442,7 +442,7 @@ static void refresh_node_sockets_and_panels(bNodeTree &ntree,
   /* New panel states buffer. */
   MEM_SAFE_FREE(node.panel_states_array);
   node.num_panel_states = new_num_panels;
-  node.panel_states_array = MEM_cnew_array<bNodePanelState>(new_num_panels, __func__);
+  node.panel_states_array = MEM_calloc_arrayN<bNodePanelState>(new_num_panels, __func__);
 
   /* Find list of sockets to add, mixture of old and new sockets. */
   VectorSet<bNodeSocket *> new_inputs;

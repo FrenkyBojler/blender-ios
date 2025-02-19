@@ -519,7 +519,7 @@ static int sequencer_slip_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 
   data = MEM_callocN<SlipData>("trimdata");
   op->customdata = static_cast<void *>(data);
-  data->strip_array = MEM_cnew_array<Strip *>(num_seq, "trimdata_strips");
+  data->strip_array = MEM_calloc_arrayN<Strip *>(num_seq, "trimdata_strips");
   data->num_seq = num_seq;
   data->previous_offset = 0;
 
@@ -605,7 +605,7 @@ static int sequencer_slip_exec(bContext *C, wmOperator *op)
 
   SlipData *data = MEM_callocN<SlipData>("trimdata");
   op->customdata = static_cast<void *>(data);
-  data->strip_array = MEM_cnew_array<Strip *>(num_seq, "trimdata_strips");
+  data->strip_array = MEM_calloc_arrayN<Strip *>(num_seq, "trimdata_strips");
   data->num_seq = num_seq;
 
   slip_add_sequences(ed->seqbasep, data->strip_array);
@@ -2786,7 +2786,7 @@ static int sequencer_change_path_exec(bContext *C, wmOperator *op)
     if (strip->data->stripdata) {
       MEM_freeN(strip->data->stripdata);
     }
-    strip->data->stripdata = se = MEM_cnew_array<StripElem>(len, "stripelem");
+    strip->data->stripdata = se = MEM_calloc_arrayN<StripElem>(len, "stripelem");
 
     if (use_placeholders) {
       sequencer_image_seq_reserve_frames(op, se, len, minext_frameme, numdigits);

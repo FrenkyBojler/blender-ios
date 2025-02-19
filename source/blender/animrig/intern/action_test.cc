@@ -1253,7 +1253,7 @@ TEST_F(ActionLayersTest, action_move_slot)
 /* Allocate fcu->bezt, and also return a unique_ptr to it for easily freeing the memory. */
 static void allocate_keyframes(FCurve &fcu, const size_t num_keyframes)
 {
-  fcu.bezt = MEM_cnew_array<BezTriple>(num_keyframes, __func__);
+  fcu.bezt = MEM_calloc_arrayN<BezTriple>(num_keyframes, __func__);
 }
 
 /* Append keyframe, assumes that fcu->bezt is allocated and has enough space. */

@@ -109,7 +109,7 @@ static void args_print_wrapper(void * /*user_data*/, const char *format, va_list
 bArgs *BLI_args_create(int argc, const char **argv)
 {
   bArgs *ba = MEM_callocN<bArgs>("bArgs");
-  ba->passes = MEM_cnew_array<int>(argc, "bArgs passes");
+  ba->passes = MEM_calloc_arrayN<int>(argc, "bArgs passes");
   ba->items = BLI_ghash_new(keyhash, keycmp, "bArgs passes gh");
   BLI_listbase_clear(&ba->docs);
   ba->argc = argc;

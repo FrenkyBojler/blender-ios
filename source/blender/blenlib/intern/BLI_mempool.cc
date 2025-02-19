@@ -618,7 +618,8 @@ ParallelMempoolTaskData *mempool_iter_threadsafe_create(BLI_mempool *pool, const
 {
   BLI_assert(pool->flag & BLI_MEMPOOL_ALLOW_ITER);
 
-  ParallelMempoolTaskData *iter_arr = MEM_cnew_array<ParallelMempoolTaskData>(iter_num, __func__);
+  ParallelMempoolTaskData *iter_arr = MEM_calloc_arrayN<ParallelMempoolTaskData>(iter_num,
+                                                                                 __func__);
   BLI_mempool_chunk **curchunk_threaded_shared = MEM_callocN<BLI_mempool_chunk *>(__func__);
 
   mempool_threadsafe_iternew(pool, &iter_arr->ts_iter);

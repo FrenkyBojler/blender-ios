@@ -1054,7 +1054,7 @@ MaskLayerShape *BKE_mask_layer_shape_alloc(MaskLayer *masklay, const int frame)
   masklay_shape = MEM_callocN<MaskLayerShape>(__func__);
   masklay_shape->frame = frame;
   masklay_shape->tot_vert = tot_vert;
-  masklay_shape->data = MEM_cnew_array<float>(tot_vert * MASK_OBJECT_SHAPE_ELEM_SIZE, __func__);
+  masklay_shape->data = MEM_calloc_arrayN<float>(tot_vert * MASK_OBJECT_SHAPE_ELEM_SIZE, __func__);
 
   return masklay_shape;
 }
@@ -1474,7 +1474,7 @@ void BKE_mask_spline_ensure_deform(MaskSpline *spline)
       MEM_freeN(spline->points_deform);
     }
 
-    spline->points_deform = MEM_cnew_array<MaskSplinePoint>(spline->tot_point, __func__);
+    spline->points_deform = MEM_calloc_arrayN<MaskSplinePoint>(spline->tot_point, __func__);
   }
   else {
     // printf("alloc spline done\n");
@@ -1849,8 +1849,8 @@ void BKE_mask_layer_shape_changed_add(MaskLayer *masklay,
         float *data_resized;
 
         masklay_shape->tot_vert++;
-        data_resized = MEM_cnew_array<float>(masklay_shape->tot_vert * MASK_OBJECT_SHAPE_ELEM_SIZE,
-                                             __func__);
+        data_resized = MEM_calloc_arrayN<float>(
+            masklay_shape->tot_vert * MASK_OBJECT_SHAPE_ELEM_SIZE, __func__);
         if (index > 0) {
           memcpy(data_resized,
                  masklay_shape->data,
@@ -1909,8 +1909,8 @@ void BKE_mask_layer_shape_changed_remove(MaskLayer *masklay, int index, int coun
       float *data_resized;
 
       masklay_shape->tot_vert -= count;
-      data_resized = MEM_cnew_array<float>(masklay_shape->tot_vert * MASK_OBJECT_SHAPE_ELEM_SIZE,
-                                           __func__);
+      data_resized = MEM_calloc_arrayN<float>(
+          masklay_shape->tot_vert * MASK_OBJECT_SHAPE_ELEM_SIZE, __func__);
       if (index > 0) {
         memcpy(data_resized,
                masklay_shape->data,

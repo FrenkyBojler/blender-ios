@@ -1606,7 +1606,7 @@ void *paint_2d_new_stroke(bContext *C, wmOperator *op, int mode)
   }
 
   s->num_tiles = BLI_listbase_count(&s->image->tiles);
-  s->tiles = MEM_cnew_array<ImagePaintTile>(s->num_tiles, __func__);
+  s->tiles = MEM_calloc_arrayN<ImagePaintTile>(s->num_tiles, __func__);
   for (int i = 0; i < s->num_tiles; i++) {
     s->tiles[i].iuser = sima->iuser;
   }

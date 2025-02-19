@@ -223,7 +223,7 @@ static void ntree_copy_data(Main * /*bmain*/,
   }
 
   if (ntree_src->geometry_node_asset_traits) {
-    ntree_dst->geometry_node_asset_traits = MEM_cnew<GeometryNodeAssetTraits>(
+    ntree_dst->geometry_node_asset_traits = MEM_dupallocN<GeometryNodeAssetTraits>(
         __func__, *ntree_src->geometry_node_asset_traits);
   }
 

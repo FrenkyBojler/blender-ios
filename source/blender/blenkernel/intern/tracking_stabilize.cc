@@ -882,7 +882,7 @@ static void init_all_tracks(StabContext *ctx, float aspect)
     return;
   }
 
-  order = MEM_cnew_array<TrackInitOrder>(track_len, "stabilization track order");
+  order = MEM_calloc_arrayN<TrackInitOrder>(track_len, "stabilization track order");
   if (!order) {
     return;
   }

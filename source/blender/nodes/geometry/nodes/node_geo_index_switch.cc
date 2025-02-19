@@ -106,7 +106,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 
   BLI_assert(data->items == nullptr);
   const int default_items_num = 2;
-  data->items = MEM_cnew_array<IndexSwitchItem>(default_items_num, __func__);
+  data->items = MEM_calloc_arrayN<IndexSwitchItem>(default_items_num, __func__);
   for (const int i : IndexRange(default_items_num)) {
     data->items[i].identifier = data->next_identifier++;
   }
@@ -354,7 +354,7 @@ static void node_free_storage(bNode *node)
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeIndexSwitch &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_cnew<NodeIndexSwitch>(__func__, src_storage);
+  auto *dst_storage = MEM_dupallocN<NodeIndexSwitch>(__func__, src_storage);
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<IndexSwitchItemsAccessor>(*src_node, *dst_node);

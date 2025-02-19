@@ -717,7 +717,7 @@ static uchar *prefetch_read_file_to_memory(
     return nullptr;
   }
 
-  uchar *mem = MEM_cnew_array<uchar>(size, "movieclip prefetch memory file");
+  uchar *mem = MEM_calloc_arrayN<uchar>(size, "movieclip prefetch memory file");
   if (mem == nullptr) {
     close(file);
     return nullptr;

@@ -1584,7 +1584,7 @@ static bool is_track_clean(MovieTrackingTrack *track, int frames, int del)
   int markersnr = track->markersnr;
 
   if (del) {
-    new_markers = MEM_cnew_array<MovieTrackingMarker>(markersnr, "track cleaned markers");
+    new_markers = MEM_calloc_arrayN<MovieTrackingMarker>(markersnr, "track cleaned markers");
   }
 
   for (int a = 0; a < markersnr; a++) {

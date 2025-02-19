@@ -73,7 +73,7 @@ static int *dm_getCornerEdgeArray(DerivedMesh *dm)
 static int *dm_getPolyArray(DerivedMesh *dm)
 {
   if (!dm->face_offsets) {
-    dm->face_offsets = MEM_cnew_array<int>(dm->getNumPolys(dm) + 1, __func__);
+    dm->face_offsets = MEM_calloc_arrayN<int>(dm->getNumPolys(dm) + 1, __func__);
     dm->copyPolyArray(dm, dm->face_offsets);
   }
   return dm->face_offsets;

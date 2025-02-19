@@ -817,8 +817,8 @@ static void *init_heights_data(MultiresBakeRender *bkr, ImBuf *ibuf)
   BakeImBufuserData *userdata = static_cast<BakeImBufuserData *>(ibuf->userdata);
 
   if (userdata->displacement_buffer == nullptr) {
-    userdata->displacement_buffer = MEM_cnew_array<float>(ibuf->x * ibuf->y,
-                                                          "MultiresBake heights");
+    userdata->displacement_buffer = MEM_calloc_arrayN<float>(ibuf->x * ibuf->y,
+                                                             "MultiresBake heights");
   }
 
   height_data = MEM_callocN<MHeightBakeData>("MultiresBake heightData");
@@ -1509,7 +1509,8 @@ static void bake_images(MultiresBakeRender *bkr, MultiresBakeResult *result)
 
       if (ibuf->x > 0 && ibuf->y > 0) {
         BakeImBufuserData *userdata = MEM_callocN<BakeImBufuserData>("MultiresBake userdata");
-        userdata->mask_buffer = MEM_cnew_array<char>(ibuf->y * ibuf->x, "MultiresBake imbuf mask");
+        userdata->mask_buffer = MEM_calloc_arrayN<char>(ibuf->y * ibuf->x,
+                                                        "MultiresBake imbuf mask");
         ibuf->userdata = userdata;
 
         switch (bkr->mode) {

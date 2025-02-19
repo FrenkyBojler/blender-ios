@@ -2180,7 +2180,7 @@ static void execute_realize_grease_pencil_tasks(
   if (!all_grease_pencils_info.materials.is_empty()) {
     MEM_SAFE_FREE(dst_grease_pencil->material_array);
     dst_grease_pencil->material_array_num = all_grease_pencils_info.materials.size();
-    dst_grease_pencil->material_array = MEM_cnew_array<Material *>(
+    dst_grease_pencil->material_array = MEM_calloc_arrayN<Material *>(
         dst_grease_pencil->material_array_num, __func__);
     uninitialized_copy_n(all_grease_pencils_info.materials.data(),
                          dst_grease_pencil->material_array_num,

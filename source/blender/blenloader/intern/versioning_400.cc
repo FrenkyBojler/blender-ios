@@ -3107,7 +3107,7 @@ static void version_nodes_insert_item(bNodeTreeInterfacePanel &parent,
   blender::MutableSpan<bNodeTreeInterfaceItem *> old_items = {parent.items_array,
                                                               parent.items_num};
   parent.items_num++;
-  parent.items_array = MEM_cnew_array<bNodeTreeInterfaceItem *>(parent.items_num, __func__);
+  parent.items_array = MEM_calloc_arrayN<bNodeTreeInterfaceItem *>(parent.items_num, __func__);
   parent.items().take_front(position).copy_from(old_items.take_front(position));
   parent.items().drop_front(position + 1).copy_from(old_items.drop_front(position));
   parent.items()[position] = &socket.item;
@@ -5256,7 +5256,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
           continue;
         }
         storage->capture_items_num = 1;
-        storage->capture_items = MEM_cnew_array<NodeGeometryAttributeCaptureItem>(
+        storage->capture_items = MEM_calloc_arrayN<NodeGeometryAttributeCaptureItem>(
             storage->capture_items_num, __func__);
         NodeGeometryAttributeCaptureItem &item = storage->capture_items[0];
         item.data_type = storage->data_type_legacy;

@@ -197,7 +197,7 @@ static void tracking_tracks_copy(TrackingCopyContext *ctx,
   BLI_listbase_clear(tracks_dst);
 
   LISTBASE_FOREACH (MovieTrackingTrack *, track_src, tracks_src) {
-    MovieTrackingTrack *track_dst = MEM_cnew<MovieTrackingTrack>(__func__, *track_src);
+    MovieTrackingTrack *track_dst = MEM_dupallocN<MovieTrackingTrack>(__func__, *track_src);
     if (track_src->markers) {
       track_dst->markers = static_cast<MovieTrackingMarker *>(MEM_dupallocN(track_src->markers));
     }
@@ -221,12 +221,12 @@ static void tracking_plane_tracks_copy(TrackingCopyContext *ctx,
   BLI_listbase_clear(plane_tracks_list_dst);
 
   LISTBASE_FOREACH (MovieTrackingPlaneTrack *, plane_track_src, plane_tracks_list_src) {
-    MovieTrackingPlaneTrack *plane_track_dst = MEM_cnew(__func__, *plane_track_src);
+    MovieTrackingPlaneTrack *plane_track_dst = MEM_dupallocN(__func__, *plane_track_src);
     if (plane_track_src->markers) {
       plane_track_dst->markers = static_cast<MovieTrackingPlaneMarker *>(
           MEM_dupallocN(plane_track_src->markers));
     }
-    plane_track_dst->point_tracks = MEM_cnew_array<MovieTrackingTrack *>(
+    plane_track_dst->point_tracks = MEM_calloc_arrayN<MovieTrackingTrack *>(
         sizeof(*plane_track_dst->point_tracks) * plane_track_dst->point_tracksnr, __func__);
     for (int i = 0; i < plane_track_dst->point_tracksnr; i++) {
       plane_track_dst->point_tracks[i] = static_cast<MovieTrackingTrack *>(
@@ -656,7 +656,7 @@ MovieTrackingTrack **BKE_tracking_selected_tracks_in_active_object(MovieTracking
     return nullptr;
   }
 
-  MovieTrackingTrack **source_tracks = MEM_cnew_array<MovieTrackingTrack *>(
+  MovieTrackingTrack **source_tracks = MEM_calloc_arrayN<MovieTrackingTrack *>(
       num_selected_tracks, "selected tracks array");
   int source_track_index = 0;
   LISTBASE_FOREACH (MovieTrackingTrack *, track, &tracking_object->tracks) {
@@ -798,7 +798,7 @@ void BKE_tracking_tracks_join(MovieTracking *tracking,
   MovieTrackingMarker *markers;
 
   tot = dst_track->markersnr + src_track->markersnr;
-  markers = MEM_cnew_array<MovieTrackingMarker>(tot, "tmp tracking joined tracks");
+  markers = MEM_calloc_arrayN<MovieTrackingMarker>(tot, "tmp tracking joined tracks");
 
   while (a < src_track->markersnr || b < dst_track->markersnr) {
     if (b >= dst_track->markersnr) {
@@ -894,7 +894,7 @@ void BKE_tracking_tracks_join(MovieTracking *tracking,
 
   MEM_freeN(dst_track->markers);
 
-  dst_track->markers = MEM_cnew_array<MovieTrackingMarker>(i, "tracking joined tracks");
+  dst_track->markers = MEM_calloc_arrayN<MovieTrackingMarker>(i, "tracking joined tracks");
   memcpy(dst_track->markers, markers, i * sizeof(MovieTrackingMarker));
 
   dst_track->markersnr = i;
@@ -955,9 +955,9 @@ static void tracking_average_markers(MovieTrackingTrack *dst_track,
   const int num_frames = last_frame - first_frame + 1;
 
   /* Allocate temporary array where averaging will happen into. */
-  MovieTrackingMarker *accumulator = MEM_cnew_array<MovieTrackingMarker>(
+  MovieTrackingMarker *accumulator = MEM_calloc_arrayN<MovieTrackingMarker>(
       num_frames, "tracks average accumulator");
-  int *counters = MEM_cnew_array<int>(num_frames, "tracks accumulator counters");
+  int *counters = MEM_calloc_arrayN<int>(num_frames, "tracks accumulator counters");
   for (int frame = first_frame; frame <= last_frame; ++frame) {
     const int frame_index = frame - first_frame;
     accumulator[frame_index].framenr = frame;
@@ -1144,7 +1144,7 @@ float *tracking_track_get_mask_for_region(const int frame_width,
   if (layer != nullptr) {
     const int mask_width = region_max[0] - region_min[0];
     const int mask_height = region_max[1] - region_min[1];
-    mask = MEM_cnew_array<float>(mask_width * mask_height, "track mask");
+    mask = MEM_calloc_arrayN<float>(mask_width * mask_height, "track mask");
     track_mask_gpencil_layer_rasterize(
         frame_width, frame_height, region_min, layer, mask, mask_width, mask_height);
   }
@@ -1579,8 +1579,8 @@ MovieTrackingPlaneTrack *BKE_tracking_plane_track_add(MovieTracking *tracking,
   plane_track->image_opacity = 1.0f;
 
   /* Use selected tracks from given list as a plane. */
-  plane_track->point_tracks = MEM_cnew_array<MovieTrackingTrack *>(num_selected_tracks,
-                                                                   "new plane tracks array");
+  plane_track->point_tracks = MEM_calloc_arrayN<MovieTrackingTrack *>(num_selected_tracks,
+                                                                      "new plane tracks array");
   int track_index = 0;
   LISTBASE_FOREACH (MovieTrackingTrack *, track, tracks) {
     if (TRACK_SELECTED(track)) {
@@ -1656,7 +1656,7 @@ bool BKE_tracking_plane_track_remove_point_track(MovieTrackingPlaneTrack *plane_
     return false;
   }
 
-  MovieTrackingTrack **new_point_tracks = MEM_cnew_array<MovieTrackingTrack *>(
+  MovieTrackingTrack **new_point_tracks = MEM_calloc_arrayN<MovieTrackingTrack *>(
       plane_track->point_tracksnr - 1, "new point tracks array");
 
   for (int i = 0, track_index = 0; i < plane_track->point_tracksnr; i++) {
@@ -3204,7 +3204,8 @@ static void tracking_dopesheet_channels_segments_calc(MovieTrackingDopesheetChan
     return;
   }
 
-  channel->segments = MEM_cnew_array<int>(2 * channel->tot_segment, "tracking channel segments");
+  channel->segments = MEM_calloc_arrayN<int>(2 * channel->tot_segment,
+                                             "tracking channel segments");
 
   /* create segments */
   i = 0;
@@ -3370,7 +3371,7 @@ static void tracking_dopesheet_calc_coverage(MovieTracking *tracking)
   frames = end_frame - start_frame + 1;
 
   /* this is a per-frame counter of markers (how many markers belongs to the same frame) */
-  per_frame_counter = MEM_cnew_array<int>(frames, "per frame track counter");
+  per_frame_counter = MEM_calloc_arrayN<int>(frames, "per frame track counter");
 
   /* find per-frame markers count */
   LISTBASE_FOREACH (MovieTrackingTrack *, track, &tracking_object->tracks) {

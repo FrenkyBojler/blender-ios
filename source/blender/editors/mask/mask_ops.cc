@@ -1386,7 +1386,7 @@ static void delete_feather_points(MaskSplinePoint *point)
     MaskSplinePointUW *new_uw;
     int j = 0;
 
-    new_uw = MEM_cnew_array<MaskSplinePointUW>(count, "new mask uw points");
+    new_uw = MEM_calloc_arrayN<MaskSplinePointUW>(count, "new mask uw points");
 
     for (int i = 0; i < point->tot_uw; i++) {
       if ((point->uw[i].flag & SELECT) == 0) {
@@ -1451,7 +1451,7 @@ static int delete_exec(bContext *C, wmOperator * /*op*/)
       else {
         MaskSplinePoint *new_points;
 
-        new_points = MEM_cnew_array<MaskSplinePoint>(count, "deleteMaskPoints");
+        new_points = MEM_calloc_arrayN<MaskSplinePoint>(count, "deleteMaskPoints");
 
         for (int i = 0, j = 0; i < tot_point_orig; i++) {
           MaskSplinePoint *point = &spline->points[i];
@@ -2027,8 +2027,8 @@ static int mask_duplicate_exec(bContext *C, wmOperator * /*op*/)
 
           /* Allocate new points and copy them from old spline. */
           new_spline->tot_point = end - start + 1;
-          new_spline->points = MEM_cnew_array<MaskSplinePoint>(new_spline->tot_point,
-                                                               "duplicated mask points");
+          new_spline->points = MEM_calloc_arrayN<MaskSplinePoint>(new_spline->tot_point,
+                                                                  "duplicated mask points");
 
           memcpy(new_spline->points,
                  spline->points + start,

@@ -1769,7 +1769,7 @@ static void legacy_object_modifier_dash(ConversionData &conversion_data,
   md_dash.segment_active_index = legacy_md_dash.segment_active_index;
   md_dash.segments_num = legacy_md_dash.segments_len;
   MEM_SAFE_FREE(md_dash.segments_array);
-  md_dash.segments_array = MEM_cnew_array<GreasePencilDashModifierSegment>(
+  md_dash.segments_array = MEM_calloc_arrayN<GreasePencilDashModifierSegment>(
       legacy_md_dash.segments_len, __func__);
   for (const int i : IndexRange(md_dash.segments_num)) {
     GreasePencilDashModifierSegment &dst_segment = md_dash.segments_array[i];
@@ -2481,7 +2481,7 @@ static void legacy_object_modifier_time(ConversionData &conversion_data,
   md_time.segment_active_index = legacy_md_time.segment_active_index;
   md_time.segments_num = legacy_md_time.segments_len;
   MEM_SAFE_FREE(md_time.segments_array);
-  md_time.segments_array = MEM_cnew_array<GreasePencilTimeModifierSegment>(
+  md_time.segments_array = MEM_calloc_arrayN<GreasePencilTimeModifierSegment>(
       legacy_md_time.segments_len, __func__);
   for (const int i : IndexRange(md_time.segments_num)) {
     GreasePencilTimeModifierSegment &dst_segment = md_time.segments_array[i];

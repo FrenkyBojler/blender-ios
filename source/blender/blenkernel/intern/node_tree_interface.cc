@@ -448,7 +448,7 @@ static void panel_init(bNodeTreeInterfacePanel &panel,
                        UidGeneratorFn generate_uid)
 {
   panel.items_num = items_src.size();
-  panel.items_array = MEM_cnew_array<bNodeTreeInterfaceItem *>(panel.items_num, __func__);
+  panel.items_array = MEM_calloc_arrayN<bNodeTreeInterfaceItem *>(panel.items_num, __func__);
 
   /* Copy buffers. */
   for (const int i : items_src.index_range()) {
@@ -887,7 +887,7 @@ void bNodeTreeInterfacePanel::insert_item(bNodeTreeInterfaceItem &item, int posi
 
   blender::MutableSpan<bNodeTreeInterfaceItem *> old_items = this->items();
   items_num++;
-  items_array = MEM_cnew_array<bNodeTreeInterfaceItem *>(items_num, __func__);
+  items_array = MEM_calloc_arrayN<bNodeTreeInterfaceItem *>(items_num, __func__);
   this->items().take_front(position).copy_from(old_items.take_front(position));
   this->items().drop_front(position + 1).copy_from(old_items.drop_front(position));
   this->items()[position] = &item;
@@ -906,7 +906,7 @@ bool bNodeTreeInterfacePanel::remove_item(bNodeTreeInterfaceItem &item, const bo
 
   blender::MutableSpan<bNodeTreeInterfaceItem *> old_items = this->items();
   items_num--;
-  items_array = MEM_cnew_array<bNodeTreeInterfaceItem *>(items_num, __func__);
+  items_array = MEM_calloc_arrayN<bNodeTreeInterfaceItem *>(items_num, __func__);
   this->items().take_front(position).copy_from(old_items.take_front(position));
   this->items().drop_front(position).copy_from(old_items.drop_front(position + 1));
 

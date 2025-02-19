@@ -2151,7 +2151,8 @@ BMLoopNorEditDataArray *BM_loop_normal_editdata_array_init(BMesh *bm,
   BLI_assert(bm->spacearr_dirty == 0);
 
   BMLoopNorEditDataArray *lnors_ed_arr = MEM_callocN<BMLoopNorEditDataArray>(__func__);
-  lnors_ed_arr->lidx_to_lnor_editdata = MEM_cnew_array<BMLoopNorEditData *>(bm->totloop, __func__);
+  lnors_ed_arr->lidx_to_lnor_editdata = MEM_calloc_arrayN<BMLoopNorEditData *>(bm->totloop,
+                                                                               __func__);
 
   BM_data_layer_ensure_named(bm, &bm->ldata, CD_PROP_INT16_2D, "custom_normal");
   const int cd_custom_normal_offset = CustomData_get_offset_named(
