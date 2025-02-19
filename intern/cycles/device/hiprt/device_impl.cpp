@@ -483,8 +483,12 @@ hiprtGeometryBuildInput HIPRTDevice::prepare_curve_blas(BVHHIPRT *bvh, Hair *hai
     curve_attr_mP = hair->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
   }
 
-  if (curve_attr_mP == nullptr || bvh->params.num_motion_curve_steps == 0) {
+  if (hair->has_motion_blur()) {
+    curve_attr_mP = hair->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
+  }
 
+  if (curve_attr_mP == nullptr || bvh->params.num_motion_curve_steps == 0) {
+    curve_attr_mP = nullptr;
     bvh->custom_prim_info.resize(num_segments);
     bvh->custom_primitive_bound.alloc(num_segments);
   }
