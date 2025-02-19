@@ -272,7 +272,8 @@ std::optional<std::string> GeoNodeExecParams::ensure_absolute_path(const StringR
     return path;
   }
   const Main &bmain = *this->bmain();
-  const char *base_path = bmain.filepath;
+  const bNodeTree &tree = node_.owner_tree();
+  const char *base_path = ID_BLEND_PATH(&bmain, &tree.id);
   if (!base_path || base_path[0] == '\0') {
     return std::nullopt;
   }
