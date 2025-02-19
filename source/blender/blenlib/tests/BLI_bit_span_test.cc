@@ -4,10 +4,13 @@
 
 #include <array>
 
+#include "BLI_bit_iterator.hh"
 #include "BLI_bit_span.hh"
 #include "BLI_bit_span_ops.hh"
 #include "BLI_bit_span_to_index_ranges.hh"
 #include "BLI_bit_vector.hh"
+#include "BLI_rand.hh"
+#include "BLI_set.hh"
 #include "BLI_timeit.hh"
 #include "BLI_vector.hh"
 
@@ -305,6 +308,71 @@ TEST(bit_span, to_index_ranges_all_ones)
 
   EXPECT_EQ(builder.size(), 1);
   EXPECT_EQ(builder[0], IndexRange(8765));
+}
+
+TEST(bit_span, SetBitIteratorEmpty)
+{
+  BitVector<> bits(0, false);
+  Vector<int64_t> indices;
+  for (const int64_t i : SetBitIterable(bits)) {
+    indices.append(i);
+  }
+  EXPECT_TRUE(indices.is_empty());
+}
+
+TEST(bit_span, SetBitIteratorAllZero)
+{
+  BitVector<> bits(1000, false);
+  Vector<int64_t> indices;
+  for (const int64_t i : SetBitIterable(bits)) {
+    indices.append(i);
+  }
+  EXPECT_TRUE(indices.is_empty());
+}
+
+TEST(bit_span, SetBitIteratorSingleOne)
+{
+  BitVector<> bits(1000, false);
+  bits[400].set();
+  Vector<int64_t> indices;
+  for (const int64_t i : SetBitIterable(bits)) {
+    indices.append(i);
+  }
+  EXPECT_EQ(indices.size(), 1);
+  EXPECT_EQ(indices[0], 400);
+}
+
+TEST(bit_span, SetBitIteratorAllOne)
+{
+  BitVector<> bits(10, true);
+  Vector<int64_t> indices;
+  for (const int64_t i : SetBitIterable(bits)) {
+    indices.append(i);
+  }
+  EXPECT_EQ(indices.size(), 10);
+  for (int64_t i = 0; i < 10; i++) {
+    EXPECT_EQ(indices[i], i);
+  }
+}
+
+TEST(bit_span, SetBitIteratorFuzz)
+{
+  BitVector<> bits(100'000, false);
+  Set<int64_t> set_indices;
+  RandomNumberGenerator rng{0};
+  for ([[maybe_unused]] const int64_t _ : IndexRange(1'000)) {
+    const int index = rng.get_int32() % bits.size();
+    set_indices.add(index);
+    bits[index].set();
+  }
+  Vector<int64_t> found_indices;
+  for (const int64_t i : SetBitIterable(bits)) {
+    found_indices.append(i);
+  }
+  EXPECT_EQ(found_indices.size(), set_indices.size());
+  for (const int64_t i : found_indices) {
+    EXPECT_TRUE(set_indices.contains(i));
+  }
 }
 
 }  // namespace blender::bits::tests

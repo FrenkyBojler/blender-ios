@@ -88,4 +88,74 @@ bool or_bools_into_bits(const Span<bool> bools,
   return or_bytes_into_bits(bools.cast<char>(), r_bits, allowed_overshoot, BoolToBit());
 }
 
+template<int S> struct PredicateByteToBit {
+  std::array<char, S> predicate_bytes;
+#if BLI_HAVE_SSE2
+  std::array<__m128i, S> predicate_chunks;
+#endif
+
+  PredicateByteToBit(const Span<char> &predicate_bytes)
+  {
+    BLI_assert(predicate_bytes.size() <= S);
+    static_assert(S >= 1);
+    for (int i = 0; i < S; i++) {
+      const int src_i = i < S ? i : 0;
+      this->predicate_bytes[i] = predicate_bytes[src_i];
+#if BLI_HAVE_SSE2
+      this->predicate_chunks[i] = _mm_set1_epi8(predicate_bytes[src_i]);
+#endif
+    }
+  }
+
+  bool single(const char c) const
+  {
+    for (int i = 0; i < S; i++) {
+      if (c == this->predicate_bytes[i]) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+#if BLI_HAVE_SSE2
+  uint16_t see2_chunk(const __m128i chunk) const
+  {
+    __m128i mask = _mm_cmpeq_epi8(chunk, this->predicate_chunks[0]);
+    for (int i = 1; i < S; i++) {
+      mask = _mm_or_si128(mask, _mm_cmpeq_epi8(chunk, this->predicate_chunks[i]));
+    }
+    return _mm_movemask_epi8(mask);
+  }
+#endif
+};
+
+bool bytes_to_bits(Span<char> bytes,
+                   Span<char> predicate_bytes,
+                   MutableBitSpan r_bits,
+                   int64_t allowed_overshoot)
+{
+  if (predicate_bytes.is_empty()) {
+    return false;
+  }
+  if (predicate_bytes.size() == 1) {
+    return or_bytes_into_bits(
+        bytes, r_bits, allowed_overshoot, PredicateByteToBit<1>(predicate_bytes));
+  }
+  if (predicate_bytes.size() == 2) {
+    return or_bytes_into_bits(
+        bytes, r_bits, allowed_overshoot, PredicateByteToBit<2>(predicate_bytes));
+  }
+  if (predicate_bytes.size() == 4) {
+    return or_bytes_into_bits(
+        bytes, r_bits, allowed_overshoot, PredicateByteToBit<4>(predicate_bytes));
+  }
+  if (predicate_bytes.size() == 8) {
+    return or_bytes_into_bits(
+        bytes, r_bits, allowed_overshoot, PredicateByteToBit<8>(predicate_bytes));
+  }
+  /* Not yet implemented. */
+  BLI_assert_unreachable();
+  return false;
+}
+
 }  // namespace blender::bits

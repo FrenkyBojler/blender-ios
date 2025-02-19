@@ -22,4 +22,9 @@ namespace blender::bits {
  */
 bool or_bools_into_bits(Span<bool> bools, MutableBitSpan r_bits, int64_t allowed_overshoot = 0);
 
+bool bytes_to_bits(Span<char> bytes,
+                   Span<char> predicate_bytes,
+                   MutableBitSpan r_bits,
+                   int64_t allowed_overshoot = 0);
+
 }  // namespace blender::bits

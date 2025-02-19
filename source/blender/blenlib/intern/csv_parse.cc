@@ -2,8 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_bit_bool_conversion.hh"
+#include "BLI_bit_vector.hh"
 #include "BLI_csv_parse.hh"
 #include "BLI_enumerable_thread_specific.hh"
+#include "BLI_math_bits.h"
 #include "BLI_task.hh"
 
 namespace blender::csv_parse {
@@ -79,6 +82,31 @@ static std::optional<CsvRecords> parse_records(const Span<char> buffer,
   return CsvRecords(OffsetIndices<int64_t>(r_data_offsets), r_data_fields);
 }
 
+static std::optional<CsvRecords> parse_records2(const Span<char> buffer,
+                                                const CsvParseOptions &options,
+                                                Vector<int64_t> &r_data_offsets,
+                                                Vector<Span<char>> &r_data_fields)
+{
+  Vector<char, 32> special_chars;
+  special_chars.append_non_duplicates(options.quote);
+  special_chars.append_non_duplicates(options.delimiter);
+  special_chars.extend_non_duplicates(options.quote_escape_chars);
+
+  BitVector<1024> special_char_bits(buffer.size());
+  bits::bytes_to_bits(buffer, special_chars, special_char_bits);
+
+  /* Clear the data that may still be in there, but do not free the memory. */
+  r_data_offsets.clear();
+  r_data_fields.clear();
+
+  r_data_offsets.append(0);
+  int64_t i = 0;
+  while (i < buffer.size()) {
+  }
+
+  return CsvRecords(OffsetIndices<int64_t>(r_data_offsets), r_data_fields);
+}
+
 std::optional<Vector<Any<>>> parse_csv_in_chunks(
     const Span<char> buffer,
     const CsvParseOptions &options,
@@ -105,10 +133,10 @@ std::optional<Vector<Any<>>> parse_csv_in_chunks(
       data_buffer, options.chunk_size_bytes);
 
   /* It's not common, but it can happen that .csv files contain quoted multi-line values. In the
-   * unlucky case that we split the buffer in the middle of such a multi-line field, there will be
-   * malformed chunks. In this case we fallback to parsing the whole buffer with a single thread.
-   * If this case becomes more common, we could try to avoid splitting into malformed chunks by
-   * making the splitting logic a bit smarter. */
+   * unlucky case that we split the buffer in the middle of such a multi-line field, there will
+   * be malformed chunks. In this case we fallback to parsing the whole buffer with a single
+   * thread. If this case becomes more common, we could try to avoid splitting into malformed
+   * chunks by making the splitting logic a bit smarter. */
   std::atomic<bool> found_malformed_chunk = false;
   Vector<std::optional<Any<>>> chunk_results(data_buffer_chunks.size());
   struct TLS {
