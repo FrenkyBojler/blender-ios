@@ -140,11 +140,11 @@ void AbcPointsReader::read_geometry(bke::GeometrySet &geometry_set,
   const P3fArraySamplePtr &positions = sample.getPositions();
 
   const IFloatGeomParam widths_param = m_schema.getWidthsParam();
-  FloatArraySamplePtr radii;
+  FloatArraySamplePtr widths;
 
   if (widths_param.valid()) {
     IFloatGeomParam::Sample wsample = widths_param.getExpandedValue(sample_sel);
-    radii = wsample.getVals();
+    widths = wsample.getVals();
   }
 
   if (pointcloud->totpoint != positions->size()) {
@@ -157,9 +157,9 @@ void AbcPointsReader::read_geometry(bke::GeometrySet &geometry_set,
   N3fArraySamplePtr normals = read_points_sample(m_schema, sample_sel, point_positions);
   MutableSpan<float> point_radii = pointcloud->radius_for_write();
 
-  if (radii) {
-    for (size_t i = 0; i < radii->size(); i++) {
-      point_radii[i] = (*radii)[i];
+  if (widths) {
+    for (size_t i = 0; i < widths->size(); i++) {
+      point_radii[i] = (*widths)[i] / 2.0f;
     }
   }
   else {
