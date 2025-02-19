@@ -3120,6 +3120,11 @@ static bool ui_textedit_delete_selection(uiBut *but, uiTextEdit &text_edit)
     changed = true;
   }
 
+  if (but->ofs > but->selsta) {
+    /* Decrease the ofset by the amount of the selection that is hidden. */
+    but->ofs -= (but->ofs - but->selsta);
+  }
+
   but->pos = but->selend = but->selsta;
   return changed;
 }
