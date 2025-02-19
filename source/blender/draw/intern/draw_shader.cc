@@ -375,7 +375,7 @@ GPUShader *DRW_shader_subdiv_custom_data_get(GPUVertCompType comp_type, int dime
 
 void DRW_shaders_free()
 {
-  return ShaderCache::release();
+  ShaderCache::release();
 
   for (int i = 0; i < SUBDIVISION_MAX_SHADERS; i++) {
     GPU_SHADER_FREE_SAFE(e_data.subdiv_sh[i]);
