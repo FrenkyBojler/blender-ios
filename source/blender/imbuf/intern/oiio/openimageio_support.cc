@@ -312,6 +312,12 @@ bool imb_oiio_write(const WriteContext &ctx, const char *filepath, const ImageSp
     IMB_colormanagement_get_luminance_coefficients(weights);
     ImageBufAlgo::channel_sum(final_buf, orig_buf, {weights, nchannels});
   }
+  else if (ctx.ibuf->channels == 3 && file_spec.nchannels == 4) {
+    /* Convert RGB to RGBA if the file requires an alpha channel by filling an alpha channel with
+     * 1.0. */
+    ImageBufAlgo::channels(
+        final_buf, orig_buf, 4, {0, 1, 2, -1}, {0, 0, 0, 1.0}, {"", "", "", "A"});
+  }
   else {
     /* If we are moving from an 1-channel format to n-channel we need to
      * ensure the original data is copied into the higher channels. */
