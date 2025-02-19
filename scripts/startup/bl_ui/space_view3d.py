@@ -1303,7 +1303,7 @@ class VIEW3D_MT_transform(VIEW3D_MT_transform_base, Menu):
         if context.mode == 'EDIT_MESH':
             layout.operator("transform.shrink_fatten", text="Shrink/Fatten")
             layout.operator("transform.skin_resize")
-        elif context.mode in {'EDIT_CURVE', 'EDIT_GREASE_PENCIL', 'EDIT_CURVES'}:
+        elif context.mode in {'EDIT_CURVE', 'EDIT_GREASE_PENCIL', 'EDIT_CURVES', 'EDIT_POINT_CLOUD'}:
             layout.operator("transform.transform", text="Radius").mode = 'CURVE_SHRINKFATTEN'
 
         if context.mode != 'EDIT_CURVES' and context.mode != 'EDIT_GREASE_PENCIL':
@@ -3388,16 +3388,19 @@ class VIEW3D_MT_object_convert(Menu):
         layout = self.layout
         ob = context.active_object
 
-        if ob and ob.type != 'EMPTY':
-            layout.operator_enum("object.convert", "target")
+        layout.operator_enum("object.convert", "target")
 
-        else:
+        if ob and ob.type == 'EMPTY':
             # Potrace lib dependency.
             if bpy.app.build_options.potrace:
+                layout.separator()
+
                 layout.operator("image.convert_to_mesh_plane", text="Convert to Mesh Plane", icon='MESH_PLANE')
                 layout.operator("grease_pencil.trace_image", icon='OUTLINER_OB_GREASEPENCIL')
 
         if ob and ob.type == 'CURVES':
+            layout.separator()
+
             layout.operator("curves.convert_to_particle_system", text="Particle System")
 
         layout.template_node_operator_asset_menu_items(catalog_path="Object/Convert")
@@ -5899,6 +5902,13 @@ class VIEW3D_MT_edit_pointcloud(Menu):
 
     def draw(self, context):
         layout = self.layout
+        layout.menu("VIEW3D_MT_transform")
+        layout.separator()
+        layout.operator("point_cloud.duplicate_move")
+        layout.separator()
+        layout.operator("point_cloud.attribute_set")
+        layout.operator("point_cloud.delete")
+        layout.operator("point_cloud.separate")
         layout.template_node_operator_asset_menu_items(catalog_path=self.bl_label)
 
 

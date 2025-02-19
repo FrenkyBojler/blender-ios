@@ -505,6 +505,17 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
       }
     }
 
+    /* Add library weak references to avoid duplicating materials from essentials. */
+    const std::optional<std::string> assets_path = BKE_appdir_folder_id(BLENDER_SYSTEM_DATAFILES,
+                                                                        "assets/brushes");
+    if (assets_path.has_value()) {
+      const std::string assets_blend_path = *assets_path + "/essentials_brushes-gp_draw.blend";
+      LISTBASE_FOREACH (Material *, material, &bmain->materials) {
+        BKE_main_library_weak_reference_add(
+            &material->id, assets_blend_path.c_str(), material->id.name);
+      }
+    }
+
     /* Reset grease pencil paint modes. */
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       ToolSettings *ts = scene->toolsettings;
@@ -617,8 +628,8 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     }
     else {
       /* Remove sculpt-mask data in default mesh objects for all non-sculpt templates. */
-      CustomData_free_layers(&mesh->vert_data, CD_PAINT_MASK, mesh->verts_num);
-      CustomData_free_layers(&mesh->corner_data, CD_GRID_PAINT_MASK, mesh->corners_num);
+      CustomData_free_layers(&mesh->vert_data, CD_PAINT_MASK);
+      CustomData_free_layers(&mesh->corner_data, CD_GRID_PAINT_MASK);
     }
     mesh->attributes_for_write().remove(".sculpt_face_set");
   }
