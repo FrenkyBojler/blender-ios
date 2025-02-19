@@ -765,7 +765,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
       endif()
 
       # Overlay
-      if(WITH_GPU_RENDER_TESTS_NON_BACKGROUND)
+      if(WITH_GPU_RENDER_TESTS_HEADED)
         if(WITH_OPENGL_BACKEND)
           add_render_test(
             overlay_opengl
