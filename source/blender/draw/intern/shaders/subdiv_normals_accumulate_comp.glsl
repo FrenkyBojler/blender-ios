@@ -5,7 +5,7 @@
 /* Accumulate vertex normals from their adjacent faces.
  *
  * Accumulated normals needs to be finalized `subdiv_normals_finalize_comp.glsl`.
- * to be stored as loop data.
+ * to be stored as loops.
  */
 
 #include "subdiv_lib.glsl"
