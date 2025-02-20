@@ -11,11 +11,14 @@
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
 
 #include "BLI_fileops.h"
 #include "BLI_fnmatch.h"
+#include "BLI_index_range.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_ref.hh"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
@@ -1235,7 +1238,74 @@ bool BLI_path_abs_from_cwd(char *path, const size_t path_maxncpy)
   return false;
 }
 
-bool BLI_path_apply_variables(char path[FILE_MAX]) {}
+static std::optional<std::pair<blender::IndexRange, blender::StringRef>> next_path_variable(
+    char path[FILE_MAX])
+{
+  int start = -1;
+  int end = -1;
+  for (int i = 0; i < FILE_MAX && path[i] != '\0'; i++) {
+    /* Check if we've found a starting "${". */
+    if (start == -1) {
+      if ((i + 1) < FILE_MAX && path[i] == '$' && path[i + 1] == '{') {
+        start = i;
+        i++; /* To jump passed the "{" as well. */
+      }
+      continue;
+    }
+
+    /* "$" or "{" within a variable name is illegal, so we bail.
+     *
+     * TODO: is this the right thing to do when we encounter this? */
+    if (path[i] == '$' || path[i] == '{') {
+      break;
+    }
+
+    /* Check if we've found the closing "}". */
+    if (path[i] == '}') {
+      end = i + 1; /* Exclusive end. */
+    }
+  }
+
+  if (start == -1 || end == -1) {
+    return std::nullopt;
+  }
+
+  return {{blender::IndexRange::from_begin_end(start, end),
+           blender::StringRef(path + start + 2, path + end - 1)}};
+}
+
+bool BLI_path_apply_variables(char path[FILE_MAX])
+{
+  bool was_modified = false;
+
+  while (auto path_variable = next_path_variable(path)) {
+    blender::IndexRange replacement_range = path_variable->first;
+    blender::StringRef variable_name = path_variable->second;
+
+    printf("%s\n", std::string(variable_name).c_str());
+
+    char *replacement_string = "";
+    if (variable_name == "foo") {
+      replacement_string = "hooray";
+    }
+    else if (variable_name == "bar") {
+      replacement_string = "boooo";
+    }
+    else if (variable_name == "flub") {
+      replacement_string = "what";
+    }
+
+    BLI_string_replace_range(path,
+                             FILE_MAX,
+                             replacement_range.start(),
+                             replacement_range.one_after_last(),
+                             replacement_string);
+
+    was_modified = true;
+  }
+
+  return was_modified;
+}
 
 #ifdef _WIN32
 /**
