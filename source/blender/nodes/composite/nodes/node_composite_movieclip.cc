@@ -21,9 +21,7 @@
 #include "RNA_access.hh"
 
 #include "UI_interface.hh"
-#include "UI_resources.hh"
 
-#include "GPU_shader.hh"
 #include "GPU_texture.hh"
 
 #include "COM_node_operation.hh"
@@ -268,11 +266,12 @@ void register_node_type_cmp_movieclip()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeMovieClip", CMP_NODE_MOVIECLIP, NODE_CLASS_INPUT);
+  cmp_node_type_base(&ntype, "CompositorNodeMovieClip", CMP_NODE_MOVIECLIP);
   ntype.ui_name = "Movie Clip";
   ntype.ui_description =
       "Input image or movie from a movie clip datablock, typically used for motion tracking";
   ntype.enum_name_legacy = "MOVIECLIP";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = file_ns::cmp_node_movieclip_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_movieclip;
   ntype.draw_buttons_ex = file_ns::node_composit_buts_movieclip_ex;
@@ -280,7 +279,7 @@ void register_node_type_cmp_movieclip()
   ntype.initfunc_api = file_ns::init;
   ntype.flag |= NODE_PREVIEW;
   blender::bke::node_type_storage(
-      &ntype, "MovieClipUser", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "MovieClipUser", node_free_standard_storage, node_copy_standard_storage);
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

@@ -187,8 +187,6 @@ class Geometry : public Node {
 
   /* Updates */
   void tag_update(Scene *scene, bool rebuild);
-
-  void tag_bvh_update(bool rebuild);
 };
 
 /* Geometry Manager */
@@ -227,6 +225,7 @@ class GeometryManager {
 
   /* Update Flags */
   bool need_flags_update;
+  bool first_bvh_build = true;
 
   /* Constructor/Destructor */
   GeometryManager();

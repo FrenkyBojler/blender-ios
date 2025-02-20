@@ -132,16 +132,17 @@ void register_node_type_cmp_pixelate()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodePixelate", CMP_NODE_PIXELATE, NODE_CLASS_OP_FILTER);
+  cmp_node_type_base(&ntype, "CompositorNodePixelate", CMP_NODE_PIXELATE);
   ntype.ui_name = "Pixelate";
   ntype.ui_description =
       "Reduce detail in an image by making individual pixels more prominent, for a blocky or "
       "mosaic-like appearance";
   ntype.enum_name_legacy = "PIXELATE";
+  ntype.nclass = NODE_CLASS_OP_FILTER;
   ntype.declare = file_ns::cmp_node_pixelate_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_pixelate;
   ntype.initfunc = file_ns::node_composit_init_pixelate;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

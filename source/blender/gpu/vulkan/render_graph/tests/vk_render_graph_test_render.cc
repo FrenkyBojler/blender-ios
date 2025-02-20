@@ -16,7 +16,7 @@ TEST_P(VKRenderGraphTestRender, begin_clear_attachments_end_read_back)
   VkHandle<VkImageView> image_view(2u);
   VkHandle<VkBuffer> buffer(3u);
 
-  resources.add_image(image, 1, VK_IMAGE_LAYOUT_UNDEFINED, ResourceOwner::APPLICATION);
+  resources.add_image(image, 1);
   resources.add_buffer(buffer);
 
   {
@@ -69,7 +69,7 @@ TEST_P(VKRenderGraphTestRender, begin_clear_attachments_end_read_back)
     render_graph->add_node(copy_image_to_buffer);
   }
 
-  render_graph->submit_buffer_for_read(buffer);
+  submit(render_graph, command_buffer);
 
   EXPECT_EQ(6, log.size());
   EXPECT_EQ(
@@ -143,7 +143,7 @@ TEST_P(VKRenderGraphTestRender, begin_draw_end)
   VkHandle<VkPipelineLayout> pipeline_layout(4u);
   VkHandle<VkPipeline> pipeline(3u);
 
-  resources.add_image(image, 1, VK_IMAGE_LAYOUT_UNDEFINED, ResourceOwner::APPLICATION);
+  resources.add_image(image, 1);
 
   {
     VKResourceAccessInfo access_info = {};
@@ -185,7 +185,7 @@ TEST_P(VKRenderGraphTestRender, begin_draw_end)
     render_graph->add_node(end_rendering);
   }
 
-  render_graph->submit();
+  submit(render_graph, command_buffer);
   EXPECT_EQ(5, log.size());
   EXPECT_EQ(
       "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, "
@@ -224,7 +224,7 @@ TEST_P(VKRenderGraphTestRender, begin_draw_end__layered)
   VkHandle<VkPipelineLayout> pipeline_layout(4u);
   VkHandle<VkPipeline> pipeline(3u);
 
-  resources.add_image(image, 2, VK_IMAGE_LAYOUT_UNDEFINED, ResourceOwner::APPLICATION);
+  resources.add_image(image, 2);
 
   {
     VKResourceAccessInfo access_info = {};
@@ -267,7 +267,7 @@ TEST_P(VKRenderGraphTestRender, begin_draw_end__layered)
     render_graph->add_node(end_rendering);
   }
 
-  render_graph->submit();
+  submit(render_graph, command_buffer);
   EXPECT_EQ(7, log.size());
   EXPECT_EQ(
       "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, "

@@ -6,8 +6,6 @@
  * \ingroup edsculpt
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
@@ -485,7 +483,7 @@ static void grow_factors_bmesh(const ePaintSymmetryFlags symm,
     }
 
     if (max > prev_mask[vert]) {
-      const float3 &position = bm_vert->co;
+      const float3 position = bm_vert->co;
       pose_factor[vert] = max;
       if (SCULPT_check_vertex_pivot_symmetry(position, pose_initial_position, symm)) {
         gftd.pos_avg += position;
@@ -2143,7 +2141,7 @@ void do_pose_brush(const Depsgraph &depsgraph,
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
       Mesh &mesh = *static_cast<Mesh *>(ob.data);
-      const MeshAttributeData attribute_data(mesh.attributes());
+      const MeshAttributeData attribute_data(mesh);
       MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
       const PositionDeformData position_data(depsgraph, ob);
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
@@ -2175,7 +2173,7 @@ void do_pose_brush(const Depsgraph &depsgraph,
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  bke::pbvh::flush_bounds_to_parents(pbvh);
+  pbvh.flush_bounds_to_parents();
 }
 
 }  // namespace blender::ed::sculpt_paint::pose

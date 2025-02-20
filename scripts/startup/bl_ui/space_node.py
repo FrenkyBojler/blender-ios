@@ -230,7 +230,7 @@ class NODE_MT_editor_menus(Menu):
         layout.menu("NODE_MT_node")
 
 
-class NODE_MT_add(bpy.types.Menu):
+class NODE_MT_add(Menu):
     bl_space_type = 'NODE_EDITOR'
     bl_label = "Add"
     bl_translation_context = i18n_contexts.operator_default
@@ -697,7 +697,7 @@ class NODE_PT_active_node_generic(Panel):
         layout.prop(node, "name", icon='NODE')
         layout.prop(node, "label", icon='NODE')
 
-        if tree.type == "GEOMETRY":
+        if tree.type == 'GEOMETRY':
             layout.prop(node, "warning_propagation")
 
 
@@ -829,7 +829,7 @@ class NODE_PT_backdrop(Panel):
         col.operator("node.backimage_fit", text="Fit")
 
 
-class NODE_PT_quality(bpy.types.Panel):
+class NODE_PT_quality(Panel):
     bl_space_type = 'NODE_EDITOR'
     bl_region_type = 'UI'
     bl_category = "Options"
@@ -853,7 +853,7 @@ class NODE_PT_quality(bpy.types.Panel):
 
         col = layout.column()
         col.prop(rd, "compositor_device", text="Device")
-        if rd.compositor_device == "GPU":
+        if rd.compositor_device == 'GPU':
             col.prop(rd, "compositor_precision", text="Precision")
 
         col = layout.column()

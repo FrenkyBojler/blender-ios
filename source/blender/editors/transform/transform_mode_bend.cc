@@ -10,8 +10,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_gpencil_legacy_types.h"
-
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -35,6 +33,8 @@
 #include "transform_snap.hh"
 
 #include "transform_mode.hh"
+
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Transform (Bend) Custom Data
@@ -84,7 +84,7 @@ static void transdata_elem_bend(const TransInfo *t,
                                 float angle,
                                 const BendCustomData *bend_data,
                                 const float warp_sta_local[3],
-                                const float[3] /*warp_end_local*/,
+                                const float /*warp_end_local*/[3],
                                 const float warp_end_radius_local[3],
                                 const float pivot_local[3],
 
@@ -384,3 +384,5 @@ TransModeInfo TransMode_bend = {
     /*snap_apply_fn*/ nullptr,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

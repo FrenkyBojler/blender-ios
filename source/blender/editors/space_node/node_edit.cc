@@ -32,6 +32,7 @@
 #include "BKE_scene.hh"
 #include "BKE_scene_runtime.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_string.h"
@@ -75,6 +76,7 @@
 #include "node_intern.hh" /* own include */
 
 #include "COM_compositor.hh"
+#include "COM_context.hh"
 #include "COM_profiler.hh"
 
 namespace blender::ed::space_node {
@@ -109,6 +111,7 @@ struct CompoJob {
   bool cancelled;
 
   compositor::Profiler profiler;
+  compositor::OutputTypes needed_outputs;
 };
 
 float node_socket_calculate_height(const bNodeSocket &socket)
@@ -222,7 +225,7 @@ static void compo_freejob(void *cjv)
       bke::node_tree_local_merge(cj->bmain, cj->localtree, cj->ntree);
     }
 
-    bke::node_tree_free_tree(cj->localtree);
+    bke::node_tree_free_tree(*cj->localtree);
     MEM_freeN(cj->localtree);
   }
 
@@ -244,6 +247,12 @@ static void compo_initjob(void *cjv)
     compositor_runtime.preview_depsgraph = DEG_graph_new(
         bmain, scene, view_layer, DAG_EVAL_RENDER);
     DEG_debug_name_set(compositor_runtime.preview_depsgraph, "COMPOSITOR");
+  }
+
+  /* Update the viewer layer of the compositor since it changed since the depsgraph was created. */
+  if (DEG_get_input_view_layer(compositor_runtime.preview_depsgraph) != view_layer) {
+    DEG_graph_replace_owners(compositor_runtime.preview_depsgraph, bmain, scene, view_layer);
+    DEG_graph_tag_relations_update(compositor_runtime.preview_depsgraph);
   }
 
   cj->compositor_depsgraph = compositor_runtime.preview_depsgraph;
@@ -308,14 +317,15 @@ static void compo_startjob(void *cjv, wmJobWorkerStatus *worker_status)
   BKE_callback_exec_id(cj->bmain, &cj->scene->id, BKE_CB_EVT_COMPOSITE_PRE);
 
   if ((scene->r.scemode & R_MULTIVIEW) == 0) {
-    COM_execute(cj->re, &scene->r, scene, ntree, "", nullptr, &cj->profiler);
+    COM_execute(cj->re, &scene->r, scene, ntree, "", nullptr, &cj->profiler, cj->needed_outputs);
   }
   else {
     LISTBASE_FOREACH (SceneRenderView *, srv, &scene->r.views) {
       if (BKE_scene_multiview_is_render_view_active(&scene->r, srv) == false) {
         continue;
       }
-      COM_execute(cj->re, &scene->r, scene, ntree, srv->name, nullptr, &cj->profiler);
+      COM_execute(
+          cj->re, &scene->r, scene, ntree, srv->name, nullptr, &cj->profiler, cj->needed_outputs);
     }
   }
 
@@ -378,8 +388,63 @@ static bool is_compositing_possible(const bContext *C)
   return true;
 }
 
+/* Returns the compositor outputs that need to be computed because their result is visible to the
+ * user. */
+static blender::compositor::OutputTypes get_compositor_needed_outputs(const bContext *C)
+{
+  blender::compositor::OutputTypes needed_outputs = blender::compositor::OutputTypes::None;
+
+  wmWindowManager *window_manager = CTX_wm_manager(C);
+  LISTBASE_FOREACH (wmWindow *, window, &window_manager->windows) {
+    bScreen *screen = WM_window_get_active_screen(window);
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      SpaceLink *space_link = static_cast<SpaceLink *>(area->spacedata.first);
+      if (!space_link || !ELEM(space_link->spacetype, SPACE_NODE, SPACE_IMAGE)) {
+        continue;
+      }
+      if (space_link->spacetype == SPACE_NODE) {
+        const SpaceNode *space_node = reinterpret_cast<const SpaceNode *>(space_link);
+        if (space_node->flag & SNODE_BACKDRAW) {
+          needed_outputs |= blender::compositor::OutputTypes::Viewer;
+        }
+        if (space_node->overlay.flag & SN_OVERLAY_SHOW_PREVIEWS) {
+          needed_outputs |= blender::compositor::OutputTypes::Previews;
+        }
+      }
+      else if (space_link->spacetype == SPACE_IMAGE) {
+        const SpaceImage *space_image = reinterpret_cast<const SpaceImage *>(space_link);
+        Image *image = ED_space_image(space_image);
+        if (!image || image->source != IMA_SRC_VIEWER) {
+          continue;
+        }
+        if (image->type == IMA_TYPE_R_RESULT) {
+          needed_outputs |= blender::compositor::OutputTypes::Composite;
+        }
+        else if (image->type == IMA_TYPE_COMPOSITE) {
+          needed_outputs |= blender::compositor::OutputTypes::Viewer;
+        }
+      }
+
+      /* All outputs are already needed, return early. */
+      if (needed_outputs ==
+          (blender::compositor::OutputTypes::Composite | blender::compositor::OutputTypes::Viewer |
+           blender::compositor::OutputTypes::Previews))
+      {
+        return needed_outputs;
+      }
+    }
+  }
+
+  return needed_outputs;
+}
+
 void ED_node_composite_job(const bContext *C, bNodeTree *nodetree, Scene *scene_owner)
 {
+  blender::compositor::OutputTypes needed_outputs = get_compositor_needed_outputs(C);
+  if (needed_outputs == blender::compositor::OutputTypes::None) {
+    return;
+  }
+
   using namespace blender::ed::space_node;
 
   Main *bmain = CTX_data_main(C);
@@ -416,6 +481,7 @@ void ED_node_composite_job(const bContext *C, bNodeTree *nodetree, Scene *scene_
   cj->view_layer = view_layer;
   cj->ntree = nodetree;
   cj->recalc_flags = compo_get_recalc_flags(C);
+  cj->needed_outputs = needed_outputs;
 
   /* Set up job. */
   WM_jobs_customdata_set(wm_job, cj, compo_freejob);
@@ -468,16 +534,6 @@ bool composite_node_editable(bContext *C)
 /* -------------------------------------------------------------------- */
 /** \name Node Editor Public API Functions
  * \{ */
-
-void ED_node_tree_propagate_change(Main &bmain, bNodeTree *root_ntree)
-{
-  if (root_ntree) {
-    BKE_main_ensure_invariants(bmain, {{&root_ntree->id}});
-  }
-  else {
-    BKE_main_ensure_invariants(bmain);
-  }
-}
 
 void ED_node_set_tree_type(SpaceNode *snode, blender::bke::bNodeTreeType *typeinfo)
 {
@@ -532,11 +588,11 @@ void ED_node_shader_default(const bContext *C, ID *id)
       ma_default = BKE_material_default_surface();
     }
 
-    ma->nodetree = blender::bke::node_tree_copy_tree(bmain, ma_default->nodetree);
+    ma->nodetree = blender::bke::node_tree_copy_tree(bmain, *ma_default->nodetree);
     ma->nodetree->owner_id = &ma->id;
     for (bNode *node_iter : ma->nodetree->all_nodes()) {
       STRNCPY_UTF8(node_iter->name, DATA_(node_iter->name));
-      blender::bke::node_unique_name(ma->nodetree, node_iter);
+      blender::bke::node_unique_name(*ma->nodetree, *node_iter);
     }
 
     BKE_ntree_update_after_single_tree_change(*bmain, *ma->nodetree);
@@ -550,32 +606,32 @@ void ED_node_shader_default(const bContext *C, ID *id)
     if (GS(id->name) == ID_WO) {
       World *world = (World *)id;
 
-      shader = blender::bke::node_add_static_node(nullptr, ntree, SH_NODE_BACKGROUND);
-      output = blender::bke::node_add_static_node(nullptr, ntree, SH_NODE_OUTPUT_WORLD);
-      blender::bke::node_add_link(ntree,
-                                  shader,
-                                  blender::bke::node_find_socket(shader, SOCK_OUT, "Background"),
-                                  output,
-                                  blender::bke::node_find_socket(output, SOCK_IN, "Surface"));
+      shader = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_BACKGROUND);
+      output = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_WORLD);
+      blender::bke::node_add_link(*ntree,
+                                  *shader,
+                                  *blender::bke::node_find_socket(*shader, SOCK_OUT, "Background"),
+                                  *output,
+                                  *blender::bke::node_find_socket(*output, SOCK_IN, "Surface"));
 
-      bNodeSocket *color_sock = blender::bke::node_find_socket(shader, SOCK_IN, "Color");
+      bNodeSocket *color_sock = blender::bke::node_find_socket(*shader, SOCK_IN, "Color");
       copy_v3_v3(((bNodeSocketValueRGBA *)color_sock->default_value)->value, &world->horr);
     }
     else {
-      shader = blender::bke::node_add_static_node(nullptr, ntree, SH_NODE_EMISSION);
-      output = blender::bke::node_add_static_node(nullptr, ntree, SH_NODE_OUTPUT_LIGHT);
-      blender::bke::node_add_link(ntree,
-                                  shader,
-                                  blender::bke::node_find_socket(shader, SOCK_OUT, "Emission"),
-                                  output,
-                                  blender::bke::node_find_socket(output, SOCK_IN, "Surface"));
+      shader = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_EMISSION);
+      output = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_LIGHT);
+      blender::bke::node_add_link(*ntree,
+                                  *shader,
+                                  *blender::bke::node_find_socket(*shader, SOCK_OUT, "Emission"),
+                                  *output,
+                                  *blender::bke::node_find_socket(*output, SOCK_IN, "Surface"));
     }
 
     shader->location[0] = 10.0f;
     shader->location[1] = 300.0f;
     output->location[0] = 300.0f;
     output->location[1] = 300.0f;
-    blender::bke::node_set_active(ntree, output);
+    blender::bke::node_set_active(*ntree, *output);
     BKE_ntree_update_after_single_tree_change(*bmain, *ntree);
   }
   else {
@@ -597,19 +653,19 @@ void ED_node_composit_default(const bContext *C, Scene *sce)
   sce->nodetree = blender::bke::node_tree_add_tree_embedded(
       nullptr, &sce->id, "Compositing Nodetree", ntreeType_Composite->idname);
 
-  bNode *out = blender::bke::node_add_static_node(C, sce->nodetree, CMP_NODE_COMPOSITE);
+  bNode *out = blender::bke::node_add_static_node(C, *sce->nodetree, CMP_NODE_COMPOSITE);
   out->location[0] = 200.0f;
   out->location[1] = 200.0f;
 
-  bNode *in = blender::bke::node_add_static_node(C, sce->nodetree, CMP_NODE_R_LAYERS);
+  bNode *in = blender::bke::node_add_static_node(C, *sce->nodetree, CMP_NODE_R_LAYERS);
   in->location[0] = -200.0f;
   in->location[1] = 200.0f;
-  blender::bke::node_set_active(sce->nodetree, in);
+  blender::bke::node_set_active(*sce->nodetree, *in);
 
   /* Links from color to color. */
   bNodeSocket *fromsock = (bNodeSocket *)in->outputs.first;
   bNodeSocket *tosock = (bNodeSocket *)out->inputs.first;
-  blender::bke::node_add_link(sce->nodetree, in, fromsock, out, tosock);
+  blender::bke::node_add_link(*sce->nodetree, *in, *fromsock, *out, *tosock);
 
   BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), *sce->nodetree);
 }
@@ -626,18 +682,18 @@ void ED_node_texture_default(const bContext *C, Tex *tex)
   tex->nodetree = blender::bke::node_tree_add_tree_embedded(
       nullptr, &tex->id, "Texture Nodetree", ntreeType_Texture->idname);
 
-  bNode *out = blender::bke::node_add_static_node(C, tex->nodetree, TEX_NODE_OUTPUT);
+  bNode *out = blender::bke::node_add_static_node(C, *tex->nodetree, TEX_NODE_OUTPUT);
   out->location[0] = 300.0f;
   out->location[1] = 300.0f;
 
-  bNode *in = blender::bke::node_add_static_node(C, tex->nodetree, TEX_NODE_CHECKER);
+  bNode *in = blender::bke::node_add_static_node(C, *tex->nodetree, TEX_NODE_CHECKER);
   in->location[0] = 10.0f;
   in->location[1] = 300.0f;
-  blender::bke::node_set_active(tex->nodetree, in);
+  blender::bke::node_set_active(*tex->nodetree, *in);
 
   bNodeSocket *fromsock = (bNodeSocket *)in->outputs.first;
   bNodeSocket *tosock = (bNodeSocket *)out->inputs.first;
-  blender::bke::node_add_link(tex->nodetree, in, fromsock, out, tosock);
+  blender::bke::node_add_link(*tex->nodetree, *in, *fromsock, *out, *tosock);
 
   BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), *tex->nodetree);
 }
@@ -691,12 +747,11 @@ void snode_set_context(const bContext &C)
 void ED_node_set_active(
     Main *bmain, SpaceNode *snode, bNodeTree *ntree, bNode *node, bool *r_active_texture_changed)
 {
-  const bool was_active_texture = (node->flag & NODE_ACTIVE_TEXTURE) != 0;
   if (r_active_texture_changed) {
     *r_active_texture_changed = false;
   }
 
-  blender::bke::node_set_active(ntree, node);
+  blender::bke::node_set_active(*ntree, *node);
   if (node->type_legacy == NODE_GROUP) {
     return;
   }
@@ -705,9 +760,9 @@ void ED_node_set_active(
   bool do_update = false;
 
   /* Generic node group output: set node as active output. */
-  if (node->type_legacy == NODE_GROUP_OUTPUT) {
+  if (node->is_group_output()) {
     for (bNode *node_iter : ntree->all_nodes()) {
-      if (node_iter->type_legacy == NODE_GROUP_OUTPUT) {
+      if (node_iter->is_group_output()) {
         node_iter->flag &= ~NODE_DO_OUTPUT;
       }
     }
@@ -737,13 +792,13 @@ void ED_node_set_active(
       BKE_ntree_update_tag_active_output_changed(ntree);
     }
 
-    ED_node_tree_propagate_change(*bmain, ntree);
+    BKE_main_ensure_invariants(*bmain, ntree->id);
 
-    if ((node->flag & NODE_ACTIVE_TEXTURE) && !was_active_texture) {
+    if (node->flag & NODE_ACTIVE_TEXTURE) {
       /* If active texture changed, free GLSL materials. */
       LISTBASE_FOREACH (Material *, ma, &bmain->materials) {
         if (ma->nodetree && ma->use_nodes &&
-            blender::bke::node_tree_contains_tree(ma->nodetree, ntree))
+            blender::bke::node_tree_contains_tree(*ma->nodetree, *ntree))
         {
           GPU_material_free(&ma->gpumaterial);
 
@@ -764,7 +819,7 @@ void ED_node_set_active(
 
       LISTBASE_FOREACH (World *, wo, &bmain->worlds) {
         if (wo->nodetree && wo->use_nodes &&
-            blender::bke::node_tree_contains_tree(wo->nodetree, ntree))
+            blender::bke::node_tree_contains_tree(*wo->nodetree, *ntree))
         {
           GPU_material_free(&wo->gpumaterial);
         }
@@ -781,7 +836,7 @@ void ED_node_set_active(
       if (r_active_texture_changed) {
         *r_active_texture_changed = true;
       }
-      ED_node_tree_propagate_change(*bmain, ntree);
+      BKE_main_ensure_invariants(*bmain, ntree->id);
       WM_main_add_notifier(NC_IMAGE, nullptr);
     }
 
@@ -799,7 +854,7 @@ void ED_node_set_active(
       node->flag |= NODE_DO_OUTPUT;
       if (was_output == 0) {
         BKE_ntree_update_tag_active_output_changed(ntree);
-        ED_node_tree_propagate_change(*bmain, ntree);
+        BKE_main_ensure_invariants(*bmain, ntree->id);
       }
 
       /* Adding a node doesn't link this yet. */
@@ -815,11 +870,11 @@ void ED_node_set_active(
 
         node->flag |= NODE_DO_OUTPUT;
         BKE_ntree_update_tag_active_output_changed(ntree);
-        ED_node_tree_propagate_change(*bmain, ntree);
+        BKE_main_ensure_invariants(*bmain, ntree->id);
       }
     }
     else if (do_update) {
-      ED_node_tree_propagate_change(*bmain, ntree);
+      BKE_main_ensure_invariants(*bmain, ntree->id);
     }
   }
   else if (ntree->type == NTREE_GEOMETRY) {
@@ -919,7 +974,7 @@ static void node_resize_exit(bContext *C, wmOperator *op, bool cancel)
   /* Restore old data on cancel. */
   if (cancel) {
     SpaceNode *snode = CTX_wm_space_node(C);
-    bNode *node = bke::node_get_active(snode->edittree);
+    bNode *node = bke::node_get_active(*snode->edittree);
     NodeSizeWidget *nsw = (NodeSizeWidget *)op->customdata;
 
     node->location[0] = nsw->oldlocx;
@@ -962,10 +1017,12 @@ wmKeyMap *node_resize_modal_keymap(wmKeyConfig *keyconf)
   return keymap;
 }
 
-/* Compute the nearest 1D coordinate corresponding to the nearest grid in node. */
+/* Compute the nearest 1D coordinate corresponding to the nearest grid in node editors. */
 static float nearest_node_grid_coord(float co)
 {
-  float grid_size = grid_size_get();
+  /* Size and location of nodes are independent of UI scale, so grid size should be independent of
+   * UI scale as well. */
+  float grid_size = grid_size_get() / UI_SCALE_FAC;
   float rest = fmod(co, grid_size);
   float offset = rest - grid_size / 2 >= 0 ? grid_size : 0;
 
@@ -976,7 +1033,7 @@ static int node_resize_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   ARegion *region = CTX_wm_region(C);
-  bNode *node = bke::node_get_active(snode->edittree);
+  bNode *node = bke::node_get_active(*snode->edittree);
   NodeSizeWidget *nsw = (NodeSizeWidget *)op->customdata;
 
   if (event->type == EVT_MODAL_MAP) {
@@ -1075,7 +1132,7 @@ static int node_resize_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   ARegion *region = CTX_wm_region(C);
-  const bNode *node = bke::node_get_active(snode->edittree);
+  const bNode *node = bke::node_get_active(*snode->edittree);
 
   if (node == nullptr) {
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
@@ -1313,7 +1370,7 @@ float node_link_dim_factor(const View2D &v2d, const bNodeLink &link)
 
 bool node_link_is_hidden_or_dimmed(const View2D &v2d, const bNodeLink &link)
 {
-  return bke::node_link_is_hidden(&link) || node_link_dim_factor(v2d, link) < 0.5f;
+  return bke::node_link_is_hidden(link) || node_link_dim_factor(v2d, link) < 0.5f;
 }
 
 /** \} */
@@ -1341,8 +1398,8 @@ static void node_duplicate_reparent_recursive(bNodeTree *ntree,
   }
   /* Reparent node copy to parent copy. */
   if (parent) {
-    bke::node_detach_node(ntree, node_map.lookup(node));
-    bke::node_attach_node(ntree, node_map.lookup(node), node_map.lookup(parent));
+    bke::node_detach_node(*ntree, *node_map.lookup(node));
+    bke::node_attach_node(*ntree, *node_map.lookup(node), *node_map.lookup(parent));
   }
 }
 
@@ -1448,7 +1505,7 @@ static int node_duplicate_exec(bContext *C, wmOperator *op)
   }
 
   for (bNode *node : node_map.values()) {
-    blender::bke::node_declaration_ensure(ntree, node);
+    blender::bke::node_declaration_ensure(*ntree, *node);
   }
 
   ntree->ensure_topology_cache();
@@ -1481,13 +1538,13 @@ static int node_duplicate_exec(bContext *C, wmOperator *op)
     bNode *src_node = item.key;
     bNode *dst_node = item.value;
 
-    bke::node_set_selected(src_node, false);
+    bke::node_set_selected(*src_node, false);
     src_node->flag &= ~(NODE_ACTIVE | NODE_ACTIVE_TEXTURE);
-    bke::node_set_selected(dst_node, true);
+    bke::node_set_selected(*dst_node, true);
   }
 
   tree_draw_order_update(*snode->edittree);
-  ED_node_tree_propagate_change(*bmain, snode->edittree);
+  BKE_main_ensure_invariants(*bmain, snode->edittree->id);
   return OPERATOR_FINISHED;
 }
 
@@ -1550,7 +1607,7 @@ static int node_read_viewlayers_exec(bContext *C, wmOperator * /*op*/)
     }
   }
 
-  ED_node_tree_propagate_change(*bmain, &edit_tree);
+  BKE_main_ensure_invariants(*bmain, edit_tree.id);
 
   return OPERATOR_FINISHED;
 }
@@ -1716,7 +1773,7 @@ static int node_preview_toggle_exec(bContext *C, wmOperator * /*op*/)
 
   node_flag_toggle_exec(snode, NODE_PREVIEW);
 
-  ED_node_tree_propagate_change(*CTX_data_main(C), snode->edittree);
+  BKE_main_ensure_invariants(*CTX_data_main(C), snode->edittree->id);
 
   return OPERATOR_FINISHED;
 }
@@ -1767,7 +1824,7 @@ static int node_deactivate_viewer_exec(bContext *C, wmOperator * /*op*/)
     }
   }
 
-  ED_node_tree_propagate_change(*CTX_data_main(C), snode.edittree);
+  BKE_main_ensure_invariants(*CTX_data_main(C), snode.edittree->id);
 
   return OPERATOR_FINISHED;
 }
@@ -1846,7 +1903,7 @@ static int node_socket_toggle_exec(bContext *C, wmOperator * /*op*/)
     }
   }
 
-  ED_node_tree_propagate_change(*CTX_data_main(C), snode->edittree);
+  BKE_main_ensure_invariants(*CTX_data_main(C), snode->edittree->id);
 
   WM_event_add_notifier(C, NC_NODE | ND_DISPLAY, nullptr);
   /* Hack to force update of the button state after drawing, see #112462. */
@@ -1890,7 +1947,7 @@ static int node_mute_exec(bContext *C, wmOperator * /*op*/)
     }
   }
 
-  ED_node_tree_propagate_change(*bmain, snode->edittree);
+  BKE_main_ensure_invariants(*bmain, snode->edittree->id);
 
   return OPERATOR_FINISHED;
 }
@@ -1928,11 +1985,11 @@ static int node_delete_exec(bContext *C, wmOperator * /*op*/)
 
   LISTBASE_FOREACH_MUTABLE (bNode *, node, &snode->edittree->nodes) {
     if (node->flag & SELECT) {
-      bke::node_remove_node(bmain, snode->edittree, node, true);
+      bke::node_remove_node(bmain, *snode->edittree, *node, true);
     }
   }
 
-  ED_node_tree_propagate_change(*bmain, snode->edittree);
+  BKE_main_ensure_invariants(*bmain, snode->edittree->id);
 
   return OPERATOR_FINISHED;
 }
@@ -1970,8 +2027,8 @@ static int node_delete_reconnect_exec(bContext *C, wmOperator * /*op*/)
 
   LISTBASE_FOREACH_MUTABLE (bNode *, node, &snode->edittree->nodes) {
     if (node->flag & SELECT) {
-      blender::bke::node_internal_relink(snode->edittree, node);
-      bke::node_remove_node(bmain, snode->edittree, node, true);
+      blender::bke::node_internal_relink(*snode->edittree, *node);
+      bke::node_remove_node(bmain, *snode->edittree, *node, true);
 
       /* Since this node might have been animated, and that animation data been
        * deleted, a notifier call is necessary to redraw any animation editor. */
@@ -1979,7 +2036,7 @@ static int node_delete_reconnect_exec(bContext *C, wmOperator * /*op*/)
     }
   }
 
-  ED_node_tree_propagate_change(*bmain, snode->edittree);
+  BKE_main_ensure_invariants(*bmain, snode->edittree->id);
 
   return OPERATOR_FINISHED;
 }
@@ -2020,7 +2077,7 @@ static int node_output_file_add_socket_exec(bContext *C, wmOperator *op)
   }
   else if (snode && snode->edittree) {
     ntree = snode->edittree;
-    node = bke::node_get_active(snode->edittree);
+    node = bke::node_get_active(*snode->edittree);
   }
 
   if (!node || node->type_legacy != CMP_NODE_OUTPUT_FILE) {
@@ -2030,7 +2087,7 @@ static int node_output_file_add_socket_exec(bContext *C, wmOperator *op)
   RNA_string_get(op->ptr, "file_path", file_path);
   ntreeCompositOutputFileAddSocket(ntree, node, file_path, &scene->r.im_format);
 
-  ED_node_tree_propagate_change(*CTX_data_main(C), snode->edittree);
+  BKE_main_ensure_invariants(*CTX_data_main(C), snode->edittree->id);
 
   return OPERATOR_FINISHED;
 }
@@ -2072,7 +2129,7 @@ static int node_output_file_remove_active_socket_exec(bContext *C, wmOperator * 
   }
   else if (snode && snode->edittree) {
     ntree = snode->edittree;
-    node = bke::node_get_active(snode->edittree);
+    node = bke::node_get_active(*snode->edittree);
   }
 
   if (!node || node->type_legacy != CMP_NODE_OUTPUT_FILE) {
@@ -2083,7 +2140,7 @@ static int node_output_file_remove_active_socket_exec(bContext *C, wmOperator * 
     return OPERATOR_CANCELLED;
   }
 
-  ED_node_tree_propagate_change(*CTX_data_main(C), ntree);
+  BKE_main_ensure_invariants(*CTX_data_main(C), ntree->id);
 
   return OPERATOR_FINISHED;
 }
@@ -2119,7 +2176,7 @@ static int node_output_file_move_active_socket_exec(bContext *C, wmOperator *op)
     node = (bNode *)ptr.data;
   }
   else if (snode && snode->edittree) {
-    node = bke::node_get_active(snode->edittree);
+    node = bke::node_get_active(*snode->edittree);
   }
 
   if (!node || node->type_legacy != CMP_NODE_OUTPUT_FILE) {
@@ -2155,7 +2212,7 @@ static int node_output_file_move_active_socket_exec(bContext *C, wmOperator *op)
   }
 
   BKE_ntree_update_tag_node_property(snode->edittree, node);
-  ED_node_tree_propagate_change(*CTX_data_main(C), snode->edittree);
+  BKE_main_ensure_invariants(*CTX_data_main(C), snode->edittree->id);
 
   return OPERATOR_FINISHED;
 }
@@ -2191,7 +2248,7 @@ static int node_copy_color_exec(bContext *C, wmOperator * /*op*/)
   SpaceNode &snode = *CTX_wm_space_node(C);
   bNodeTree &ntree = *snode.edittree;
 
-  bNode *active_node = bke::node_get_active(&ntree);
+  bNode *active_node = bke::node_get_active(ntree);
   if (!active_node) {
     return OPERATOR_CANCELLED;
   }
@@ -2249,7 +2306,7 @@ static bool node_shader_script_update_poll(bContext *C)
   bNode *node = (bNode *)CTX_data_pointer_get_type(C, "node", &RNA_ShaderNodeScript).data;
 
   if (!node && snode && snode->edittree) {
-    node = bke::node_get_active(snode->edittree);
+    node = bke::node_get_active(*snode->edittree);
   }
 
   if (node && node->type_legacy == SH_NODE_SCRIPT) {
@@ -2320,7 +2377,7 @@ static int node_shader_script_update_exec(bContext *C, wmOperator *op)
   }
   else if (snode && snode->edittree) {
     ntree_base = snode->edittree;
-    node = bke::node_get_active(snode->edittree);
+    node = bke::node_get_active(*snode->edittree);
   }
 
   if (node) {
@@ -2438,7 +2495,7 @@ static int viewer_border_exec(bContext *C, wmOperator *op)
         btree->flag |= NTREE_VIEWER_BORDER;
       }
 
-      ED_node_tree_propagate_change(*bmain, btree);
+      BKE_main_ensure_invariants(*bmain, btree->id);
       WM_event_add_notifier(C, NC_NODE | ND_DISPLAY, nullptr);
     }
     else {
@@ -2478,7 +2535,7 @@ static int clear_viewer_border_exec(bContext *C, wmOperator * /*op*/)
   bNodeTree *btree = snode->nodetree;
 
   btree->flag &= ~NTREE_VIEWER_BORDER;
-  ED_node_tree_propagate_change(*CTX_data_main(C), btree);
+  BKE_main_ensure_invariants(*CTX_data_main(C), btree->id);
   WM_event_add_notifier(C, NC_NODE | ND_DISPLAY, nullptr);
 
   return OPERATOR_FINISHED;
@@ -2518,7 +2575,7 @@ static int node_cryptomatte_add_socket_exec(bContext *C, wmOperator * /*op*/)
   }
   else if (snode && snode->edittree) {
     ntree = snode->edittree;
-    node = bke::node_get_active(snode->edittree);
+    node = bke::node_get_active(*snode->edittree);
   }
 
   if (!node || node->type_legacy != CMP_NODE_CRYPTOMATTE_LEGACY) {
@@ -2527,7 +2584,7 @@ static int node_cryptomatte_add_socket_exec(bContext *C, wmOperator * /*op*/)
 
   ntreeCompositCryptomatteAddSocket(ntree, node);
 
-  ED_node_tree_propagate_change(*CTX_data_main(C), ntree);
+  BKE_main_ensure_invariants(*CTX_data_main(C), ntree->id);
 
   return OPERATOR_FINISHED;
 }
@@ -2566,7 +2623,7 @@ static int node_cryptomatte_remove_socket_exec(bContext *C, wmOperator * /*op*/)
   }
   else if (snode && snode->edittree) {
     ntree = snode->edittree;
-    node = bke::node_get_active(snode->edittree);
+    node = bke::node_get_active(*snode->edittree);
   }
 
   if (!node || node->type_legacy != CMP_NODE_CRYPTOMATTE_LEGACY) {
@@ -2577,7 +2634,7 @@ static int node_cryptomatte_remove_socket_exec(bContext *C, wmOperator * /*op*/)
     return OPERATOR_CANCELLED;
   }
 
-  ED_node_tree_propagate_change(*CTX_data_main(C), ntree);
+  BKE_main_ensure_invariants(*CTX_data_main(C), ntree->id);
 
   return OPERATOR_FINISHED;
 }

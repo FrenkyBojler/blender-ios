@@ -20,7 +20,8 @@
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
+#include "BLI_path_utils.hh"
 #include "BLI_utildefines.h"
 
 #include "BKE_appdir.hh"
@@ -66,7 +67,7 @@ static void wm_block_splash_add_label(uiBlock *block, const char *label, int x, 
   UI_block_emboss_set(block, UI_EMBOSS_NONE);
 
   uiBut *but = uiDefBut(
-      block, UI_BTYPE_LABEL, 0, label, 0, y, x, UI_UNIT_Y, nullptr, 0, 0, nullptr);
+      block, UI_BTYPE_LABEL, 0, label, 0, y, x, UI_UNIT_Y, nullptr, 0, 0, std::nullopt);
   UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
   UI_but_drawflag_enable(but, UI_BUT_TEXT_RIGHT);
 
@@ -148,6 +149,13 @@ static ImBuf *wm_block_splash_image(int width, int *r_height)
   }
 
   if (ibuf == nullptr) {
+    const char *custom_splash_path = BLI_getenv("BLENDER_CUSTOM_SPLASH");
+    if (custom_splash_path) {
+      ibuf = IMB_loadiffname(custom_splash_path, IB_rect, nullptr);
+    }
+  }
+
+  if (ibuf == nullptr) {
     const uchar *splash_data = (const uchar *)datatoc_splash_png;
     size_t splash_data_size = datatoc_splash_png_size;
     ibuf = IMB_ibImageFromMemory(
@@ -169,6 +177,62 @@ static ImBuf *wm_block_splash_image(int width, int *r_height)
   UNUSED_VARS(width);
 #endif
   *r_height = height;
+  return ibuf;
+}
+
+static ImBuf *wm_block_splash_banner_image(int *r_width,
+                                           int *r_height,
+                                           int max_width,
+                                           int max_height)
+{
+  ImBuf *ibuf = nullptr;
+  int height = 0;
+  int width = max_width;
+#ifndef WITH_HEADLESS
+
+  const char *custom_splash_path = BLI_getenv("BLENDER_CUSTOM_SPLASH_BANNER");
+  if (custom_splash_path) {
+    ibuf = IMB_loadiffname(custom_splash_path, IB_rect, nullptr);
+  }
+
+  if (!ibuf) {
+    return nullptr;
+  }
+
+  ibuf->planes = 32; /* The image might not have an alpha channel. */
+
+  width = ibuf->x;
+  height = ibuf->y;
+  if (width > 0 && height > 0 && (width > max_width || height > max_height)) {
+    const float splash_ratio = max_width / float(max_height);
+    const float banner_ratio = ibuf->x / float(ibuf->y);
+
+    if (banner_ratio > splash_ratio) {
+      /* The banner is wider than the splash image. */
+      width = max_width;
+      height = max_width / banner_ratio;
+    }
+    else if (banner_ratio < splash_ratio) {
+      /* The banner is taller than the splash image. */
+      height = max_height;
+      width = max_height * banner_ratio;
+    }
+    else {
+      width = max_width;
+      height = max_height;
+    }
+    if (width != ibuf->x || height != ibuf->y) {
+      IMB_scale(ibuf, width, height, IMBScaleFilter::Box, false);
+    }
+  }
+
+  IMB_premultiply_alpha(ibuf);
+
+#else
+  UNUSED_VARS(width);
+#endif
+  *r_height = height;
+  *r_width = width;
   return ibuf;
 }
 
@@ -249,6 +313,20 @@ static uiBlock *wm_block_splash_create(bContext *C, ARegion *region, void * /*ar
                               BKE_blender_version_string(),
                               splash_width - 8.0 * UI_SCALE_FAC,
                               splash_height - 13.0 * UI_SCALE_FAC);
+  }
+
+  /* Banner image passed through the environment, to overlay on the splash and
+   * indicate a custom Blender version. Transparency can be used. To replace the
+   * full splash screen, see BLENDER_CUSTOM_SPLASH. */
+  int banner_width = 0;
+  int banner_height = 0;
+  ImBuf *bannerbuf = wm_block_splash_banner_image(
+      &banner_width, &banner_height, splash_width, splash_height);
+  if (bannerbuf) {
+    uiBut *banner_but = uiDefButImage(
+        block, bannerbuf, 0, 0.5f * U.widget_unit, banner_width, banner_height, nullptr);
+
+    UI_but_func_set(banner_but, wm_block_splash_close, block, nullptr);
   }
 
   const int layout_margin_x = UI_SCALE_FAC * 26;

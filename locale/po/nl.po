@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'52cb367a9b67')\n"
+"Project-Id-Version: Blender 4.4.0 Beta (b'ed5b077f929a')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-13 11:47+0000\n"
-"PO-Revision-Date: 2024-12-30 14:39+0000\n"
+"POT-Creation-Date: 2025-02-17 14:06+0000\n"
+"PO-Revision-Date: 2025-01-27 09:56+0000\n"
 "Last-Translator: Sander Spolspoel <sander@sworl.be>\n"
 "Language-Team: Dutch <https://translate.blender.org/projects/blender-ui/ui/nl/>\n"
 "Language: nl\n"
@@ -239,58 +239,6 @@ msgid "Collection of action groups"
 msgstr "Collectie van actiegroepen"
 
 
-msgid "Influence"
-msgstr "Invloed"
-
-
-msgid "How much of this layer is used when blending into the lower layers"
-msgstr "Hoeveel wordt van deze laag getoond wanneer je'm mengt met lagen eronder"
-
-
-msgid "Mix Mode"
-msgstr "Mixmodus"
-
-
-msgid "How animation of this layer is blended into the lower layers"
-msgstr "Hoe de animatie van deze laag gemengd wordt met lagen eronder"
-
-
-msgid "Replace"
-msgstr "Vervangen"
-
-
-msgid "Channels in this layer override the same channels from underlying layers"
-msgstr "Kanalen in deze laag overschrijven dezelfde kanalen van onderliggende lagen"
-
-
-msgid "Channels in this layer are added to underlying layers as sequential operations"
-msgstr "Kanalen in deze laag worden toegevoegd aan onderliggende lagen als opeenvolgende operaties"
-
-
-msgid "Add"
-msgstr "Toevoegen"
-
-
-msgid "Channels in this layer are added to underlying layers on a per-channel basis"
-msgstr "Kanalen in deze laag worden per kanaal toegevoegd aan onderliggende lagen"
-
-
-msgid "Subtract"
-msgstr "Aftrekken"
-
-
-msgid "Channels in this layer are subtracted to underlying layers on a per-channel basis"
-msgstr "Kanalen in deze laag worden per kanaal afgetrokken van onderliggende lagen"
-
-
-msgid "Multiply"
-msgstr "Vermenigvuldigen"
-
-
-msgid "Channels in this layer are multiplied with underlying layers on a per-channel basis"
-msgstr "Kanalen in deze laag worden per kanaal vermenigvuldigd met onderliggende lagen"
-
-
 msgid "Strips"
 msgstr "Strook"
 
@@ -437,8 +385,24 @@ msgid "Action"
 msgstr "Actie"
 
 
+msgid "Replace"
+msgstr "Vervangen"
+
+
 msgid "Combine"
 msgstr "Combineer"
+
+
+msgid "Add"
+msgstr "Toevoegen"
+
+
+msgid "Subtract"
+msgstr "Aftrekken"
+
+
+msgid "Multiply"
+msgstr "Vermenigvuldigen"
 
 
 msgid "Nothing"
@@ -1164,6 +1128,10 @@ msgid "Rotation error"
 msgstr "Rotatiefout"
 
 
+msgid "Influence"
+msgstr "Invloed"
+
+
 msgid "Disable"
 msgstr "Uitzetten"
 
@@ -1210,6 +1178,10 @@ msgstr "Skelet"
 
 msgid "Floor"
 msgstr "Vloer"
+
+
+msgid "Mix Mode"
+msgstr "Mixmodus"
 
 
 msgid "Active Clip"
@@ -2735,14 +2707,6 @@ msgid "Mask"
 msgstr "Mask"
 
 
-msgid "Show/Hide"
-msgstr "Toon/Verberg"
-
-
-msgid "Names"
-msgstr "Namen"
-
-
 msgid "Mirror"
 msgstr "Spiegel"
 
@@ -2783,6 +2747,10 @@ msgid "Quick Effects"
 msgstr "Snelle Effecten"
 
 
+msgid "Show/Hide"
+msgstr "Toon/Verberg"
+
+
 msgid "Convert"
 msgstr "Converteer"
 
@@ -2793,6 +2761,10 @@ msgstr "Haken"
 
 msgid "Clear Transform"
 msgstr "Maak Transformatie Leeg"
+
+
+msgid "Names"
+msgstr "Namen"
 
 
 msgid "Text"
@@ -4114,6 +4086,10 @@ msgstr "Pas Aanpassers Toe"
 
 msgid "Visible Objects"
 msgstr "Zichtbare Objecten"
+
+
+msgid "Keep Original"
+msgstr "Hou Orgineel"
 
 
 msgid "General"
@@ -5452,10 +5428,6 @@ msgid "Apply Visual Transform to Pose"
 msgstr "Pas Visuele Transformatie Toe aan Pose"
 
 
-msgid "Keep Original"
-msgstr "Hou Orgineel"
-
-
 msgctxt "Operator"
 msgid "Render"
 msgstr "Render"
@@ -6680,10 +6652,6 @@ msgid "Invert Z Axis"
 msgstr "Draai Z As Om"
 
 
-msgid "Show Navigation Guide"
-msgstr "Toon Navigatie Gids"
-
-
 msgid "Continue"
 msgstr "Verder"
 
@@ -6986,10 +6954,6 @@ msgstr "Geluid"
 msgctxt "Sequence"
 msgid "Cross"
 msgstr "Kruisovergang"
-
-
-msgid "Add Sequence"
-msgstr "Voeg Sequentie Toe"
 
 
 msgid "Use Annotations"
@@ -8486,10 +8450,6 @@ msgid "To 3D Cursor"
 msgstr "Naar 3D Cursor"
 
 
-msgid "Developer"
-msgstr "Ontwikkelaar"
-
-
 msgid "Material Name"
 msgstr "Materiaal Naam"
 
@@ -8611,6 +8571,10 @@ msgid "Too many points selected: %d"
 msgstr "Teveel punten geselecteerd: %d"
 
 
+msgid "Cancel"
+msgstr "Annuleren"
+
+
 msgctxt "Curve"
 msgid "CurvePath"
 msgstr "Kromme Pad"
@@ -8710,10 +8674,6 @@ msgstr "Kopieer Alles naar Geselecteerd"
 
 msgid "OK"
 msgstr "OK"
-
-
-msgid "Cancel"
-msgstr "Annuleren"
 
 
 msgid "Movie"
@@ -8938,6 +8898,18 @@ msgid "No vertex selected"
 msgstr "Geen punten geselecteerd"
 
 
+msgid "Use mouse"
+msgstr "Gebruik muis"
+
+
+msgid "Use Pivot"
+msgstr "Gebruik draaipunt"
+
+
+msgid "Set and use 3D cursor"
+msgstr "Plaats en gebruik 3D cursor"
+
+
 msgid "No edges selected"
 msgstr "Geen randen geselecteerd"
 
@@ -9143,10 +9115,6 @@ msgstr "(leeg)"
 
 msgid "Mask not found"
 msgstr "Masker niet gevonden"
-
-
-msgid "TODO: in what cases does this happen?"
-msgstr "TODO: wanneer gebeurt dit?"
 
 
 msgid "No valid inputs to swap"

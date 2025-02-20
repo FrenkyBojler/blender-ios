@@ -8,11 +8,8 @@
 
 #include <algorithm>
 #include <cfloat>
-#include <climits>
 #include <cmath>
 #include <cstring>
-
-#include "MEM_guardedalloc.h"
 
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
@@ -31,7 +28,7 @@
 
 #include "BLF_api.hh"
 
-#include "UI_interface.hh"
+#include "UI_resources.hh"
 #include "UI_view2d.hh"
 
 /* Compute display grid resolution

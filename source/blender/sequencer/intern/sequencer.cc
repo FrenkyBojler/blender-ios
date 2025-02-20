@@ -17,7 +17,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_listBase.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_sound_types.h"
@@ -302,7 +301,7 @@ void SEQ_editing_free(Scene *scene, const bool do_id_user)
   }
 
   BLI_freelistN(&ed->metastack);
-  SEQ_strip_lookup_free(scene);
+  SEQ_strip_lookup_free(ed);
   blender::seq::media_presence_free(scene);
   blender::seq::thumbnail_cache_destroy(scene);
   SEQ_channels_free(&ed->channels);
@@ -324,8 +323,8 @@ static void seq_new_fix_links_recursive(Strip *strip, blender::Map<Strip *, Stri
   }
 
   if (SEQ_is_strip_connected(strip)) {
-    LISTBASE_FOREACH (SeqConnection *, con, &strip->connections) {
-      con->seq_ref = strip_map.lookup_default(con->seq_ref, con->seq_ref);
+    LISTBASE_FOREACH (StripConnection *, con, &strip->connections) {
+      con->strip_ref = strip_map.lookup_default(con->strip_ref, con->strip_ref);
     }
   }
 
@@ -433,7 +432,7 @@ static MetaStack *seq_meta_stack_alloc(const Scene *scene, Strip *strip_meta)
   ms->parseq = strip_meta;
 
   /* Reference to previously displayed timeline data. */
-  Strip *higher_level_meta = SEQ_lookup_meta_by_strip(scene, strip_meta);
+  Strip *higher_level_meta = SEQ_lookup_meta_by_strip(ed, strip_meta);
   ms->oldbasep = higher_level_meta ? &higher_level_meta->seqbase : &ed->seqbase;
   ms->old_channels = higher_level_meta ? &higher_level_meta->channels : &ed->channels;
 
@@ -461,7 +460,7 @@ void SEQ_meta_stack_set(const Scene *scene, Strip *dst_seq)
     /* Allocate meta stack in a way, that represents meta hierarchy in timeline. */
     seq_meta_stack_alloc(scene, dst_seq);
     Strip *meta_parent = dst_seq;
-    while ((meta_parent = SEQ_lookup_meta_by_strip(scene, meta_parent))) {
+    while ((meta_parent = SEQ_lookup_meta_by_strip(ed, meta_parent))) {
       seq_meta_stack_alloc(scene, meta_parent);
     }
 
@@ -790,8 +789,8 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
     BLO_write_struct(writer, SeqTimelineChannel, channel);
   }
 
-  LISTBASE_FOREACH (SeqConnection *, con, &strip->connections) {
-    BLO_write_struct(writer, SeqConnection, con);
+  LISTBASE_FOREACH (StripConnection *, con, &strip->connections) {
+    BLO_write_struct(writer, StripConnection, con);
   }
 
   if (strip->retiming_keys != nullptr) {
@@ -911,10 +910,10 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
 
   SEQ_modifier_blend_read_data(reader, &strip->modifiers);
 
-  BLO_read_struct_list(reader, SeqConnection, &strip->connections);
-  LISTBASE_FOREACH (SeqConnection *, con, &strip->connections) {
-    if (con->seq_ref) {
-      BLO_read_struct(reader, Strip, &con->seq_ref);
+  BLO_read_struct_list(reader, StripConnection, &strip->connections);
+  LISTBASE_FOREACH (StripConnection *, con, &strip->connections) {
+    if (con->strip_ref) {
+      BLO_read_struct(reader, Strip, &con->strip_ref);
     }
   }
 

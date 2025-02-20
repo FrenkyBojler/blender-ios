@@ -64,7 +64,7 @@ class Prepass : Overlay {
   PassMain::Sub *mesh_flat_ps_ = nullptr;
   PassMain::Sub *hair_ps_ = nullptr;
   PassMain::Sub *curves_ps_ = nullptr;
-  PassMain::Sub *point_cloud_ps_ = nullptr;
+  PassMain::Sub *pointcloud_ps_ = nullptr;
   PassMain::Sub *grease_pencil_ps_ = nullptr;
 
   bool use_material_slot_selection_ = false;
@@ -72,14 +72,14 @@ class Prepass : Overlay {
  public:
   void begin_sync(Resources &res, const State &state) final
   {
-    enabled_ = state.is_space_v3d();
+    enabled_ = state.is_space_v3d() && (!state.xray_enabled || res.is_selection());
 
     if (!enabled_) {
       /* Not used. But release the data. */
       ps_.init();
       mesh_ps_ = nullptr;
       curves_ps_ = nullptr;
-      point_cloud_ps_ = nullptr;
+      pointcloud_ps_ = nullptr;
       return;
     }
 
@@ -91,6 +91,7 @@ class Prepass : Overlay {
 
     ps_.init();
     ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+    ps_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
     ps_.state_set(DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL | backface_cull_state,
                   state.clipping_plane_count);
     res.select_bind(ps_);
@@ -117,8 +118,8 @@ class Prepass : Overlay {
     }
     {
       auto &sub = ps_.sub("PointCloud");
-      sub.shader_set(res.shaders.depth_point_cloud.get());
-      point_cloud_ps_ = &sub;
+      sub.shader_set(res.shaders.depth_pointcloud.get());
+      pointcloud_ps_ = &sub;
     }
     {
       auto &sub = ps_.sub("GreasePencil");
@@ -190,7 +191,11 @@ class Prepass : Overlay {
                    Resources &res,
                    const State &state) final
   {
-    if (!enabled_) {
+    bool is_solid = ob_ref.object->dt >= OB_SOLID ||
+                    (state.v3d->shading.type == OB_RENDER &&
+                     !(ob_ref.object->visibility_flag & OB_HIDE_CAMERA));
+
+    if (!enabled_ || !is_solid) {
       return;
     }
 
@@ -212,7 +217,7 @@ class Prepass : Overlay {
       case OB_MESH:
         if (use_material_slot_selection_) {
           /* TODO(fclem): Improve the API. */
-          const int materials_len = DRW_cache_object_material_count_get(ob_ref.object);
+          const int materials_len = BKE_object_material_used_with_fallback_eval(*ob_ref.object);
           Array<GPUMaterial *> materials(materials_len, nullptr);
           geom_list = DRW_cache_mesh_surface_shaded_get(ob_ref.object, materials);
         }
@@ -244,15 +249,15 @@ class Prepass : Overlay {
         }
         break;
       case OB_POINTCLOUD:
-        geom_single = point_cloud_sub_pass_setup(*point_cloud_ps_, ob_ref.object);
-        pass = point_cloud_ps_;
+        geom_single = pointcloud_sub_pass_setup(*pointcloud_ps_, ob_ref.object);
+        pass = pointcloud_ps_;
         break;
       case OB_CURVES:
         geom_single = curves_sub_pass_setup(*curves_ps_, state.scene, ob_ref.object);
         pass = curves_ps_;
         break;
       case OB_GREASE_PENCIL:
-        if (!res.is_selection()) {
+        if (!res.is_selection() && state.is_render_depth_available) {
           /* Disable during display, only enable for selection.
            * The grease pencil engine already renders it properly. */
           return;

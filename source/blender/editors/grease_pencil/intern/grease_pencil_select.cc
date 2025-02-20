@@ -10,8 +10,10 @@
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_object.hh"
 
 #include "BLI_enumerable_thread_specific.hh"
+#include "BLI_index_mask.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_task.hh"
 
@@ -265,11 +267,15 @@ bool selection_update(const ViewContext *vc,
 
         /* Modes that un-set all elements not in the mask. */
         if (ELEM(sel_op, SEL_OP_SET, SEL_OP_AND)) {
-          bke::SpanAttributeWriter<bool> selection =
-              curves.attributes_for_write().lookup_or_add_for_write_span<bool>(attribute_name,
-                                                                               selection_domain);
-          ed::curves::fill_selection_false(selection.span);
-          selection.finish();
+          if (bke::SpanAttributeWriter<bool> selection =
+                  curves.attributes_for_write().lookup_or_add_for_write_span<bool>(
+                      attribute_name, selection_domain))
+          {
+            const IndexMask not_in_mask = changed_element_mask.complement(
+                selection.span.index_range(), memory);
+            ed::curves::fill_selection_false(selection.span, not_in_mask);
+            selection.finish();
+          }
         }
 
         if (use_segment_selection) {
@@ -496,12 +502,11 @@ static int select_random_exec(bContext *C, wmOperator *op)
         if (selectable_elements.is_empty()) {
           return {};
         }
-        return ed::curves::random_mask(info.drawing.strokes(),
-                                       selectable_elements,
-                                       selection_domain,
-                                       blender::get_default_hash<int>(seed, info.layer_index),
-                                       ratio,
-                                       memory);
+        return random_mask(selectable_elements,
+                           info.drawing.strokes().points_num(),
+                           blender::get_default_hash<int>(seed, info.layer_index),
+                           ratio,
+                           memory);
       });
 
   /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
@@ -619,7 +624,7 @@ template<typename T, typename DistanceFn>
 static void select_similar_by_value(Scene *scene,
                                     Object *object,
                                     GreasePencil &grease_pencil,
-                                    const bke::AttrDomain domain,
+                                    const bke::AttrDomain selection_domain,
                                     const StringRef attribute_id,
                                     float threshold,
                                     DistanceFn distance_fn)
@@ -634,32 +639,29 @@ static void select_similar_by_value(Scene *scene,
 
   blender::Set<T> selected_values;
   for (const MutableDrawingInfo &info : drawings) {
-    insert_selected_values(info.drawing.strokes(), domain, attribute_id, selected_values);
+    insert_selected_values(
+        info.drawing.strokes(), selection_domain, attribute_id, selected_values);
   }
 
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-    bke::MutableAttributeAccessor attributes =
-        info.drawing.strokes_for_write().attributes_for_write();
-    const int domain_size = attributes.domain_size(domain);
-    bke::SpanAttributeWriter<bool> selection_writer =
-        attributes.lookup_or_add_for_write_span<bool>(
-            ".selection",
-            domain,
-            bke::AttributeInitVArray(VArray<bool>::ForSingle(true, domain_size)));
-    const VArraySpan<T> values = *attributes.lookup_or_default<T>(
-        attribute_id, domain, default_value);
+    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
+        curves, selection_domain, CD_PROP_BOOL);
+    MutableSpan<bool> selection = selection_writer.span.typed<bool>();
+    const VArraySpan<T> values = *curves.attributes().lookup_or_default<T>(
+        attribute_id, selection_domain, default_value);
 
     IndexMaskMemory memory;
     const IndexMask mask = ed::greasepencil::retrieve_editable_points(
         *object, info.drawing, info.layer_index, memory);
 
     mask.foreach_index(GrainSize(1024), [&](const int index) {
-      if (selection_writer.span[index]) {
+      if (selection[index]) {
         return;
       }
       for (const T &test_value : selected_values) {
         if (distance_fn(values[index], test_value) <= threshold) {
-          selection_writer.span[index] = true;
+          selection[index] = true;
         }
       }
     });
@@ -848,19 +850,11 @@ static void GREASE_PENCIL_OT_select_ends(wmOperatorType *ot)
               INT32_MAX);
 }
 
-static int select_set_mode_exec(bContext *C, wmOperator *op)
+bool ensure_selection_domain(ToolSettings *ts, Object *object)
 {
-  using namespace blender::bke::greasepencil;
-
-  /* Set new selection mode. */
-  const int mode_new = RNA_enum_get(op->ptr, "mode");
-  ToolSettings *ts = CTX_data_tool_settings(C);
-
-  bool changed = (mode_new != ts->gpencil_selectmode_edit);
-  ts->gpencil_selectmode_edit = mode_new;
+  bool changed = false;
 
   /* Convert all drawings of the active GP to the new selection domain. */
-  Object *object = CTX_data_active_object(C);
   const bke::AttrDomain domain = ED_grease_pencil_selection_domain_get(ts, object);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
   Span<GreasePencilDrawingBase *> drawings = grease_pencil.drawings();
@@ -914,9 +908,38 @@ static int select_set_mode_exec(bContext *C, wmOperator *op)
     }
   }
 
+  return changed;
+}
+
+static int select_set_mode_exec(bContext *C, wmOperator *op)
+{
+  using namespace blender::bke::greasepencil;
+
+  /* Set new selection mode. */
+  const int mode_new = RNA_enum_get(op->ptr, "mode");
+  ToolSettings *ts = CTX_data_tool_settings(C);
+  Object *ob = CTX_data_active_object(C);
+
+  bool changed = false;
+  if (BKE_object_is_mode_compat(ob, OB_MODE_EDIT)) {
+    changed = (mode_new != ts->gpencil_selectmode_edit);
+    ts->gpencil_selectmode_edit = mode_new;
+  }
+  else if (BKE_object_is_mode_compat(ob, OB_MODE_SCULPT_GREASE_PENCIL)) {
+    changed = (mode_new != ts->gpencil_selectmode_sculpt);
+    ts->gpencil_selectmode_sculpt = mode_new;
+  }
+  else if (BKE_object_is_mode_compat(ob, OB_MODE_VERTEX_GREASE_PENCIL)) {
+    changed = (mode_new != ts->gpencil_selectmode_vertex);
+    ts->gpencil_selectmode_vertex = mode_new;
+  }
+
+  changed |= ensure_selection_domain(ts, ob);
+
   if (changed) {
     /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
      * attribute for now. */
+    GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
 

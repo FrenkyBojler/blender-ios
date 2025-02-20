@@ -78,6 +78,7 @@ _km_hierarchy = [
             _km_expand_from_toolsystem('VIEW_3D', 'EDIT_TEXT'),
         ]),
         ('Grease Pencil', 'EMPTY', 'WINDOW', []),
+        ('Point Cloud', 'EMPTY', 'WINDOW', []),
         ('Pose', 'EMPTY', 'WINDOW', [
             _km_expand_from_toolsystem('VIEW_3D', 'POSE'),
         ]),
@@ -231,4 +232,12 @@ _km_hierarchy = [
 
     # Grease Pencil Fill Tool
     ('Fill Tool Modal Map', 'EMPTY', 'WINDOW', []),
+
+    ('Generic Gizmo', 'EMPTY', 'WINDOW', [
+        ('Generic Gizmo Drag', 'EMPTY', 'WINDOW', []),
+        ('Generic Gizmo Click Drag', 'EMPTY', 'WINDOW', []),
+        ('Generic Gizmo Maybe Drag', 'EMPTY', 'WINDOW', []),
+        ('Generic Gizmo Select', 'EMPTY', 'WINDOW', []),
+        ('Generic Gizmo Tweak Modal Map', 'EMPTY', 'WINDOW', []),
+    ]),
 ]

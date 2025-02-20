@@ -8,20 +8,15 @@
  * Converts the different renderable object types to drawcalls.
  */
 
-#include "eevee_engine.h"
-
-#include "BKE_gpencil_legacy.h"
-#include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
-#include "DEG_depsgraph_query.hh"
 #include "DNA_curves_types.h"
-#include "DNA_gpencil_legacy_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_pointcloud_types.h"
 #include "DNA_volume_types.h"
 
+#include "draw_cache.hh"
 #include "draw_common.hh"
 #include "draw_sculpt.hh"
 
@@ -261,7 +256,7 @@ bool SyncModule::sync_sculpt(Object *ob, ObjectHandle &ob_handle, const ObjectRe
 /** \name Point Cloud
  * \{ */
 
-void SyncModule::sync_point_cloud(Object *ob, ObjectHandle &ob_handle, const ObjectRef &ob_ref)
+void SyncModule::sync_pointcloud(Object *ob, ObjectHandle &ob_handle, const ObjectRef &ob_ref)
 {
   const int material_slot = POINTCLOUD_MATERIAL_NR;
 
@@ -271,14 +266,14 @@ void SyncModule::sync_point_cloud(Object *ob, ObjectHandle &ob_handle, const Obj
       ob_handle.object_key, ob_ref, ob_handle.recalc, res_handle);
 
   Material &material = inst_.materials.material_get(
-      ob, has_motion, material_slot - 1, MAT_GEOM_POINT_CLOUD);
+      ob, has_motion, material_slot - 1, MAT_GEOM_POINTCLOUD);
 
   auto drawcall_add = [&](MaterialPass &matpass) {
     if (matpass.sub_pass == nullptr) {
       return;
     }
     PassMain::Sub &object_pass = matpass.sub_pass->sub("Point Cloud Sub Pass");
-    gpu::Batch *geometry = point_cloud_sub_pass_setup(object_pass, ob, matpass.gpumat);
+    gpu::Batch *geometry = pointcloud_sub_pass_setup(object_pass, ob, matpass.gpumat);
     object_pass.draw(geometry, res_handle);
   };
 
@@ -371,7 +366,7 @@ void SyncModule::sync_volume(Object *ob, ObjectHandle &ob_handle, const ObjectRe
   };
 
   /* Use bounding box tag empty spaces. */
-  gpu::Batch *geom = DRW_cache_cube_get();
+  gpu::Batch *geom = inst_.volume.unit_cube_batch_get();
 
   bool is_rendered = false;
   is_rendered |= drawcall_add(material.volume_occupancy, geom, res_handle);

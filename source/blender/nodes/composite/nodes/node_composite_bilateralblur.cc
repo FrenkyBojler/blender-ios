@@ -182,17 +182,17 @@ void register_node_type_cmp_bilateralblur()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(
-      &ntype, "CompositorNodeBilateralblur", CMP_NODE_BILATERALBLUR, NODE_CLASS_OP_FILTER);
+  cmp_node_type_base(&ntype, "CompositorNodeBilateralblur", CMP_NODE_BILATERALBLUR);
   ntype.ui_name = "Bilateral Blur";
   ntype.ui_description = "Adaptively blur image, while retaining sharp edges";
   ntype.enum_name_legacy = "BILATERALBLUR";
+  ntype.nclass = NODE_CLASS_OP_FILTER;
   ntype.declare = file_ns::cmp_node_bilateralblur_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_bilateralblur;
   ntype.initfunc = file_ns::node_composit_init_bilateralblur;
   blender::bke::node_type_storage(
-      &ntype, "NodeBilateralBlurData", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeBilateralBlurData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

@@ -8,10 +8,13 @@
 
 #pragma once
 
+#include "BKE_context.hh"
 #include "BKE_movieclip.h"
 #include "BKE_object.hh"
 
 #include "BLI_function_ref.hh"
+
+#include "DNA_world_types.h"
 
 #include "GPU_matrix.hh"
 
@@ -20,6 +23,7 @@
 #include "UI_resources.hh"
 #include "draw_manager.hh"
 #include "draw_pass.hh"
+#include "draw_view_data.hh"
 #include "gpu_shader_create_info.hh"
 
 #include "../select/select_instance.hh"
@@ -53,8 +57,10 @@ struct BoneInstanceData {
 
   BoneInstanceData() = default;
 
-  /* Constructor used by metaball overlays and expected to be used for drawing
-   * metaball edit circles with armature wire shader that produces wide-lines. */
+  /**
+   * Constructor used by meta-ball overlays and expected to be used for drawing
+   * meta-ball edit circles with armature wire shader that produces wide-lines.
+   */
   BoneInstanceData(const float4x4 &ob_mat,
                    const float3 &pos,
                    const float radius,
@@ -138,14 +144,18 @@ struct State {
   bool is_material_select = false;
   /** Whether we should render the background or leave it transparent. */
   bool draw_background = false;
+  /** True if the render engine outputs satisfactory depth information to the depth buffer. */
+  bool is_render_depth_available = false;
   /** Should text draw in this mode? */
   bool show_text = false;
   bool hide_overlays = false;
   bool xray_enabled = false;
   bool xray_enabled_and_not_wire = false;
-  /* Brings the active pose armature in front of all objects. */
+  /** Can be true even if X-ray Alpha is 1.0. */
+  bool xray_flag_enabled = false;
+  /** Brings the active pose armature in front of all objects. */
   bool do_pose_xray = false;
-  /* Add a veil on top of all surfaces to make the active pose armature pop out. */
+  /** Add a veil on top of all surfaces to make the active pose armature pop out. */
   bool do_pose_fade_geom = false;
   float xray_opacity = 0.0f;
   short v3d_flag = 0;     /* TODO: move to #View3DOverlay. */
@@ -155,7 +165,7 @@ struct State {
   float3 camera_forward = float3(0.0f);
   int clipping_plane_count = 0;
 
-  /* Active Image properties. Only valid image space only. */
+  /** Active Image properties. Only valid image space only. */
   bool is_image_valid = false;
   int2 image_size = int2(0);
   float2 image_uv_aspect = float2(0.0f);
@@ -169,19 +179,24 @@ struct State {
     return View::OffsetData(*rv3d);
   }
 
+  /* Factor to use for wireframe offset.
+   * Result of GPU_polygon_offset_calc for the current view.
+   * Only valid at draw time, so use push constant reference instead of copy. */
+  float ndc_offset_factor = 0.0f;
+
   /** Convenience functions. */
 
-  /* Scene geometry is solid. Occlude overlays behind scene geometry. */
+  /** Scene geometry is solid. Occlude overlays behind scene geometry. */
   bool is_solid() const
   {
     return xray_opacity == 1.0f;
   }
-  /* Scene geometry is semi-transparent. Fade overlays behind scene geometry (see #XrayFade). */
+  /** Scene geometry is semi-transparent. Fade overlays behind scene geometry (see #XrayFade). */
   bool is_xray() const
   {
     return (xray_opacity < 1.0f) && (xray_opacity > 0.0f);
   }
-  /* Scene geometry is fully transparent. Scene geometry does not occlude overlays. */
+  /** Scene geometry is fully transparent. Scene geometry does not occlude overlays. */
   bool is_wire() const
   {
     return xray_opacity == 0.0f;
@@ -258,6 +273,30 @@ struct State {
   }
 };
 
+/* Matches Vertex Format. */
+struct Vertex {
+  float3 pos;
+  int vclass;
+};
+
+struct VertexWithColor {
+  float3 pos;
+  float3 color;
+};
+
+struct VertShaded {
+  float3 pos;
+  int v_class;
+  float3 nor;
+};
+
+/* TODO(fclem): Might be good to remove for simplicity. */
+struct VertexTriple {
+  float2 pos0;
+  float2 pos1;
+  float2 pos2;
+};
+
 /**
  * Contains all overlay generic geometry batches.
  */
@@ -286,6 +325,10 @@ class ShapeCache {
   BatchPtr bone_degrees_of_freedom_wire;
 
   BatchPtr grid;
+  BatchPtr cube_solid;
+
+  BatchPtr cursor_circle;
+  BatchPtr cursor_lines;
 
   BatchPtr quad_wire;
   BatchPtr quad_solid;
@@ -341,6 +384,67 @@ class ShapeCache {
   BatchPtr lightprobe_grid;
 
   ShapeCache();
+
+ private:
+  GPUVertFormat format_vert = {0};
+  GPUVertFormat format_vert_with_color = {0};
+  GPUVertFormat format_vert_shaded = {0};
+  GPUVertFormat format_vert_triple = {0};
+
+  const GPUVertFormat &get_format(Vertex /*unused*/)
+  {
+    GPUVertFormat &format = format_vert;
+    if (format.attr_len != 0) {
+      return format;
+    }
+    GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+    GPU_vertformat_attr_add(&format, "vclass", GPU_COMP_I32, 1, GPU_FETCH_INT);
+    return format;
+  }
+
+  const GPUVertFormat &get_format(VertexWithColor /*unused*/)
+  {
+    GPUVertFormat &format = format_vert_with_color;
+    if (format.attr_len != 0) {
+      return format;
+    }
+    GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+    GPU_vertformat_attr_add(&format, "color", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+    return format;
+  }
+
+  const GPUVertFormat &get_format(VertShaded /*unused*/)
+  {
+    GPUVertFormat &format = format_vert_shaded;
+    if (format.attr_len != 0) {
+      return format;
+    }
+    GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+    GPU_vertformat_attr_add(&format, "vclass", GPU_COMP_I32, 1, GPU_FETCH_INT);
+    GPU_vertformat_attr_add(&format, "nor", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+    return format;
+  }
+
+  const GPUVertFormat &get_format(VertexTriple /*unused*/)
+  {
+    GPUVertFormat &format = format_vert_triple;
+    if (format.attr_len != 0) {
+      return format;
+    }
+    GPU_vertformat_attr_add(&format, "pos0", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    GPU_vertformat_attr_add(&format, "pos1", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    GPU_vertformat_attr_add(&format, "pos2", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    return format;
+  }
+
+  /* Caller gets ownership of the #gpu::VertBuf. */
+  template<typename T> gpu::VertBuf *vbo_from_vector(const Vector<T> &vector)
+  {
+    gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(get_format(T()));
+    GPU_vertbuf_data_alloc(*vbo, vector.size());
+    vbo->data<T>().copy_from(vector);
+    return vbo;
+  }
 };
 
 /**
@@ -385,15 +489,15 @@ class ShaderModule {
   ShaderPtr lattice_points = shader_clippable("overlay_edit_lattice_point");
   ShaderPtr lattice_wire = shader_clippable("overlay_edit_lattice_wire");
   ShaderPtr legacy_curve_edit_handles = shader_clippable("overlay_edit_curve_handle");
-  ShaderPtr legacy_curve_edit_normals = shader("overlay_edit_curve_normals");
+  ShaderPtr legacy_curve_edit_normals = shader_clippable("overlay_edit_curve_normals");
   ShaderPtr legacy_curve_edit_points = shader_clippable("overlay_edit_curve_point");
   ShaderPtr legacy_curve_edit_wires = shader_clippable("overlay_edit_curve_wire");
   ShaderPtr light_spot_cone = shader_clippable("overlay_extra_spot_cone");
   ShaderPtr mesh_analysis = shader_clippable("overlay_edit_mesh_analysis");
   ShaderPtr mesh_edit_depth = shader_clippable("overlay_edit_mesh_depth");
-  ShaderPtr mesh_edit_edge = shader("overlay_edit_mesh_edge");
+  ShaderPtr mesh_edit_edge = shader_clippable("overlay_edit_mesh_edge");
   ShaderPtr mesh_edit_face = shader_clippable("overlay_edit_mesh_face");
-  ShaderPtr mesh_edit_facedot = shader("overlay_edit_mesh_facedot");
+  ShaderPtr mesh_edit_facedot = shader_clippable("overlay_edit_mesh_facedot");
   ShaderPtr mesh_edit_vert = shader_clippable("overlay_edit_mesh_vert");
   ShaderPtr mesh_edit_skin_root = shader_clippable("overlay_edit_mesh_skin_root");
   ShaderPtr mesh_face_normal = shader_clippable("overlay_mesh_face_normal");
@@ -401,6 +505,7 @@ class ShaderModule {
   ShaderPtr mesh_loop_normal = shader_clippable("overlay_mesh_loop_normal");
   ShaderPtr mesh_loop_normal_subdiv = shader_clippable("overlay_mesh_loop_normal_subdiv");
   ShaderPtr mesh_vert_normal = shader_clippable("overlay_mesh_vert_normal");
+  ShaderPtr mesh_vert_normal_subdiv = shader_clippable("overlay_mesh_vert_normal_subdiv");
   ShaderPtr motion_path_line = shader_clippable("overlay_motion_path_line");
   ShaderPtr motion_path_vert = shader_clippable("overlay_motion_path_point");
   ShaderPtr outline_detect = shader("overlay_outline_detect");
@@ -449,7 +554,7 @@ class ShaderModule {
   ShaderPtr depth_grease_pencil = shader_selectable("overlay_depth_gpencil");
   ShaderPtr depth_mesh = shader_selectable("overlay_depth_mesh");
   ShaderPtr depth_mesh_conservative = shader_selectable("overlay_depth_mesh_conservative");
-  ShaderPtr depth_point_cloud = shader_selectable("overlay_depth_pointcloud");
+  ShaderPtr depth_pointcloud = shader_selectable("overlay_depth_pointcloud");
   ShaderPtr extra_shape = shader_selectable("overlay_extra");
   ShaderPtr extra_point = shader_selectable("overlay_extra_point");
   ShaderPtr extra_wire = shader_selectable("overlay_extra_wire");
@@ -555,12 +660,9 @@ struct Resources : public select::SelectMap {
   detail::SubPassVector<GreasePencilDepthPlane, 16> depth_planes;
   int64_t depth_planes_count = 0;
 
-  /** TODO(fclem): Copy of G_data.block that should become theme colors only and managed by the
-   * engine. */
-  GlobalsUboStorage theme_settings;
-  /* References, not owned. */
-  GPUUniformBuf *globals_buf;
-  TextureRef weight_ramp_tx;
+  draw::UniformBuffer<GlobalsUboStorage> globals_buf;
+  GlobalsUboStorage &theme_settings = globals_buf;
+  draw::UniformArrayBuffer<float4, 6> clip_planes_buf;
   /* Wrappers around #DefaultTextureList members. */
   TextureRef depth_in_front_tx;
   TextureRef color_overlay_tx;
@@ -581,6 +683,12 @@ struct Resources : public select::SelectMap {
   TextureRef depth_target_tx;
   TextureRef depth_target_in_front_tx;
 
+  /** Copy of the settings the current texture was generated with. Used to detect updates. */
+  bool weight_ramp_custom = false;
+  ColorBand weight_ramp_copy = {};
+  /** Baked color ramp texture from theme and user settings. Maps weight [0..1] to color. */
+  Texture weight_ramp_tx = {"weight_ramp"};
+
   Vector<MovieClip *> bg_movie_clips;
 
   const ShapeCache &shapes;
@@ -594,6 +702,9 @@ struct Resources : public select::SelectMap {
   {
     free_movieclips_textures();
   }
+
+  void update_theme_settings(const State &state);
+  void update_clip_planes(const State &state);
 
   void begin_sync()
   {
@@ -777,7 +888,7 @@ struct Resources : public select::SelectMap {
   {
     if (state.v3d->shading.background_type == V3D_SHADING_BACKGROUND_WORLD) {
       if (state.scene->world) {
-        return float4(float3(&state.scene->world->horr));
+        return float4(float3(&state.scene->world->horr), 0.0f);
       }
     }
     else if (state.v3d->shading.background_type == V3D_SHADING_BACKGROUND_VIEWPORT) {
@@ -794,6 +905,12 @@ struct Resources : public select::SelectMap {
     for (MovieClip *clip : bg_movie_clips) {
       BKE_movieclip_free_gputexture(clip);
     }
+  }
+
+  static float vertex_size_get()
+  {
+    /* M_SQRT2 to be at least the same size of the old square */
+    return U.pixelsize * max_ff(1.0f, UI_GetThemeValuef(TH_VERTEX_SIZE) * float(M_SQRT2) / 2.0f);
   }
 
   /** Convenience functions. */

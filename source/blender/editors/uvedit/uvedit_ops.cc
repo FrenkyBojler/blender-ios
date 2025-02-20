@@ -33,6 +33,7 @@
 #include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_material.hh"
 #include "BKE_mesh_mapping.hh"
 #include "BKE_mesh_types.hh"
@@ -122,7 +123,7 @@ bool ED_object_get_active_image(Object *ob,
   Material *ma = DEG_is_evaluated_object(ob) ? BKE_object_material_get_eval(ob, mat_nr) :
                                                BKE_object_material_get(ob, mat_nr);
   bNodeTree *ntree = (ma && ma->use_nodes) ? ma->nodetree : nullptr;
-  bNode *node = (ntree) ? bke::node_get_active_texture(ntree) : nullptr;
+  bNode *node = (ntree) ? bke::node_get_active_texture(*ntree) : nullptr;
 
   if (node && is_image_texture_node(node)) {
     if (r_ima) {
@@ -167,11 +168,11 @@ bool ED_object_get_active_image(Object *ob,
 void ED_object_assign_active_image(Main *bmain, Object *ob, int mat_nr, Image *ima)
 {
   Material *ma = BKE_object_material_get(ob, mat_nr);
-  bNode *node = (ma && ma->use_nodes) ? bke::node_get_active_texture(ma->nodetree) : nullptr;
+  bNode *node = (ma && ma->use_nodes) ? bke::node_get_active_texture(*ma->nodetree) : nullptr;
 
   if (node && is_image_texture_node(node)) {
     node->id = &ima->id;
-    ED_node_tree_propagate_change(*bmain, ma->nodetree);
+    BKE_main_ensure_invariants(*bmain, ma->nodetree->id);
   }
 }
 

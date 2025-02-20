@@ -40,7 +40,7 @@ NODE_ABSTRACT_DEFINE(Geometry)
 {
   NodeType *type = NodeType::add("geometry_base", nullptr);
 
-  SOCKET_UINT(motion_steps, "Motion Steps", 3);
+  SOCKET_UINT(motion_steps, "Motion Steps", 0);
   SOCKET_BOOLEAN(use_motion_blur, "Use Motion Blur", false);
   SOCKET_NODE_ARRAY(used_shaders, "Shaders", Shader::get_node_type());
 
@@ -162,15 +162,6 @@ void Geometry::tag_update(Scene *scene, bool rebuild)
   }
 
   scene->geometry_manager->tag_update(scene, GeometryManager::GEOMETRY_MODIFIED);
-}
-
-void Geometry::tag_bvh_update(bool rebuild)
-{
-  tag_modified();
-
-  if (rebuild) {
-    need_update_rebuild = true;
-  }
 }
 
 /* Geometry Manager */
@@ -335,11 +326,16 @@ void GeometryManager::geom_calc_offset(Scene *scene, BVHLayout bvh_layout)
     }
 
     if (prim_offset_changed) {
-      /* Need to rebuild BVH in OptiX, since refit only allows modified mesh data there */
-      const bool has_optix_bvh = bvh_layout == BVH_LAYOUT_OPTIX ||
-                                 bvh_layout == BVH_LAYOUT_MULTI_OPTIX ||
-                                 bvh_layout == BVH_LAYOUT_MULTI_OPTIX_EMBREE;
-      geom->need_update_rebuild |= has_optix_bvh;
+      /* Need to rebuild BVH in OptiX, since refit only allows modified mesh data.
+       * Metal has optimization for static BVH, that also require a rebuild. */
+      const bool need_update_rebuild = (bvh_layout == BVH_LAYOUT_OPTIX ||
+                                        bvh_layout == BVH_LAYOUT_MULTI_OPTIX ||
+                                        bvh_layout == BVH_LAYOUT_MULTI_OPTIX_EMBREE) ||
+                                       ((bvh_layout == BVH_LAYOUT_METAL ||
+                                         bvh_layout == BVH_LAYOUT_MULTI_METAL ||
+                                         bvh_layout == BVH_LAYOUT_MULTI_METAL_EMBREE) &&
+                                        scene->params.bvh_type == BVH_TYPE_STATIC);
+      geom->need_update_rebuild |= need_update_rebuild;
       geom->need_update_bvh_for_offset = true;
     }
   }
@@ -640,7 +636,7 @@ void GeometryManager::device_update_displacement_images(Device *device,
           }
 
           ImageSlotTextureNode *image_node = static_cast<ImageSlotTextureNode *>(node);
-          for (int i = 0; i < image_node->handle.num_tiles(); i++) {
+          for (int i = 0; i < image_node->handle.num_svm_slots(); i++) {
             const int slot = image_node->handle.svm_slot(i);
             if (slot != -1) {
               bump_images.insert(slot);
@@ -947,13 +943,23 @@ void GeometryManager::device_update(Device *device,
     });
     TaskPool pool;
 
+    /* Work around Embree/oneAPI bug #129596 with BVH updates. */
+    const bool use_multithreaded_build = first_bvh_build ||
+                                         !device->info.contains_device_type(DEVICE_ONEAPI);
+    first_bvh_build = false;
+
     size_t i = 0;
     for (Geometry *geom : scene->geometry) {
       if (geom->is_modified() || geom->need_update_bvh_for_offset) {
         need_update_scene_bvh = true;
-        pool.push([geom, device, dscene, scene, &progress, i, num_bvh] {
+        if (use_multithreaded_build) {
+          pool.push([geom, device, dscene, scene, &progress, i, num_bvh] {
+            geom->compute_bvh(device, dscene, &scene->params, &progress, i, num_bvh);
+          });
+        }
+        else {
           geom->compute_bvh(device, dscene, &scene->params, &progress, i, num_bvh);
-        });
+        }
         if (geom->need_build_bvh(bvh_layout)) {
           i++;
         }

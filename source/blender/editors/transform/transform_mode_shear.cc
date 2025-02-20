@@ -6,9 +6,8 @@
  * \ingroup edtransform
  */
 
-#include "DNA_gpencil_legacy_types.h"
-
 #include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 #include "BLI_string.h"
 #include "BLI_task.h"
 
@@ -25,6 +24,8 @@
 #include "transform_snap.hh"
 
 #include "transform_mode.hh"
+
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Transform (Shear) Element
@@ -366,3 +367,5 @@ TransModeInfo TransMode_shear = {
     /*snap_apply_fn*/ nullptr,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

@@ -21,7 +21,6 @@
 #include "BKE_report.hh"
 #include "BKE_unit.hh"
 
-#include "ED_node.hh"
 #include "ED_screen.hh"
 
 #include "UI_interface.hh"
@@ -33,7 +32,7 @@
 #include "transform_mode.hh"
 #include "transform_snap.hh"
 
-using namespace blender;
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Transform (Translate) Custom Data
@@ -350,10 +349,10 @@ static void ApplySnapTranslation(TransInfo *t, float vec[3])
 
   if (t->spacetype == SPACE_SEQ) {
     if (t->region->regiontype == RGN_TYPE_PREVIEW) {
-      transform_snap_sequencer_image_apply_translate(t, vec);
+      snap_sequencer_image_apply_translate(t, vec);
     }
     else {
-      transform_snap_sequencer_apply_seqslide(t, vec);
+      snap_sequencer_apply_seqslide(t, vec);
     }
   }
   else {
@@ -670,3 +669,5 @@ TransModeInfo TransMode_translate = {
     /*snap_apply_fn*/ ApplySnapTranslation,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

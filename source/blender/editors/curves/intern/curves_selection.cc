@@ -11,7 +11,6 @@
 #include "BLI_index_mask.hh"
 #include "BLI_lasso_2d.hh"
 #include "BLI_math_geom.h"
-#include "BLI_rand.hh"
 #include "BLI_rect.h"
 
 #include "BKE_attribute.hh"
@@ -19,7 +18,6 @@
 #include "BKE_curves.hh"
 
 #include "ED_curves.hh"
-#include "ED_object.hh"
 #include "ED_select_utils.hh"
 #include "ED_view3d.hh"
 
@@ -459,7 +457,7 @@ bool has_anything_selected(const GSpan selection)
   if (selection.type().is<bool>()) {
     return selection.typed<bool>().contains(true);
   }
-  else if (selection.type().is<float>()) {
+  if (selection.type().is<float>()) {
     for (const float elem : selection.typed<float>()) {
       if (elem > 0.0f) {
         return true;
@@ -467,25 +465,6 @@ bool has_anything_selected(const GSpan selection)
     }
   }
   return false;
-}
-
-static void invert_selection(MutableSpan<float> selection)
-{
-  threading::parallel_for(selection.index_range(), 2048, [&](IndexRange range) {
-    for (const int i : range) {
-      selection[i] = 1.0f - selection[i];
-    }
-  });
-}
-
-static void invert_selection(GMutableSpan selection)
-{
-  if (selection.type().is<bool>()) {
-    array_utils::invert_booleans(selection.typed<bool>());
-  }
-  else if (selection.type().is<float>()) {
-    invert_selection(selection.typed<float>());
-  }
 }
 
 static void invert_selection(MutableSpan<float> selection, const IndexMask &mask)
@@ -502,6 +481,11 @@ static void invert_selection(GMutableSpan selection, const IndexMask &mask)
   else if (selection.type().is<float>()) {
     invert_selection(selection.typed<float>(), mask);
   }
+}
+
+static void invert_selection(GMutableSpan selection)
+{
+  invert_selection(selection, IndexRange(selection.size()));
 }
 
 void select_all(bke::CurvesGeometry &curves,
@@ -839,7 +823,7 @@ static std::optional<FindClosestData> find_closest_curve_to_screen_co(
               return;
             }
 
-            best_match = {curve, std::sqrt(distance_proj_sq)};
+            best_match = {curve, distance_proj_sq};
             return;
           }
 
@@ -855,7 +839,7 @@ static std::optional<FindClosestData> find_closest_curve_to_screen_co(
               return;
             }
 
-            best_match = {curve, std::sqrt(distance_proj_sq)};
+            best_match = {curve, distance_proj_sq};
           };
           for (const int segment_i : points.drop_back(1)) {
             process_segment(segment_i, segment_i + 1);

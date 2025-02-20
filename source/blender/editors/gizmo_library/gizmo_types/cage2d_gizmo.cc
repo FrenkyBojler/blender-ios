@@ -28,7 +28,6 @@
 #include "GPU_immediate_util.hh"
 #include "GPU_matrix.hh"
 #include "GPU_select.hh"
-#include "GPU_shader.hh"
 #include "GPU_state.hh"
 
 #include "RNA_access.hh"
@@ -1308,7 +1307,10 @@ static void gizmo_cage2d_exit(bContext *C, wmGizmo *gz, const bool cancel)
 {
   RectTransformInteraction *data = static_cast<RectTransformInteraction *>(gz->interaction_data);
 
-  MEM_SAFE_FREE(data->dial);
+  if (data->dial) {
+    BLI_dial_free(data->dial);
+    data->dial = nullptr;
+  }
 
   if (!cancel) {
     return;

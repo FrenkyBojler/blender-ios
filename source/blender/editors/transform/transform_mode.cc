@@ -10,7 +10,7 @@
 
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
-#include "DNA_gpencil_legacy_types.h"
+#include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 
 #include "BLI_listbase.h"
@@ -33,6 +33,8 @@
 
 /* Own include. */
 #include "transform_mode.hh"
+
+namespace blender::ed::transform {
 
 eTfmMode transform_mode_really_used(bContext *C, eTfmMode mode)
 {
@@ -297,6 +299,11 @@ void constraintTransLim(const TransInfo *t, const TransDataContainer *tc, TransD
             add_v3_v3(cob.matrix[3], tc->mat[3]);
           }
         }
+        else if (con->ownspace == CONSTRAINT_SPACE_POSE) {
+          /* Bone space without considering object transformations. */
+          mul_m3_v3(td->mtx, cob.matrix[3]);
+          mul_m3_v3(tc->imat3, cob.matrix[3]);
+        }
         else if (con->ownspace != CONSTRAINT_SPACE_LOCAL) {
           /* Skip... incompatible spacetype. */
           continue;
@@ -316,6 +323,10 @@ void constraintTransLim(const TransInfo *t, const TransDataContainer *tc, TransD
           if (tc->use_local_mat) {
             sub_v3_v3(cob.matrix[3], tc->mat[3]);
           }
+          mul_m3_v3(td->smtx, cob.matrix[3]);
+        }
+        else if (con->ownspace == CONSTRAINT_SPACE_POSE) {
+          mul_m3_v3(tc->mat3, cob.matrix[3]);
           mul_m3_v3(td->smtx, cob.matrix[3]);
         }
 
@@ -1059,8 +1070,7 @@ void ElementResize(const TransInfo *t,
 
       float ratio = values_final_evil[0];
       float transformed_value = td->ival * fabs(ratio);
-      *td->val = blender::math::max(
-          blender::math::interpolate(td->ival, transformed_value, gp_falloff), 0.001f);
+      *td->val = math::max(math::interpolate(td->ival, transformed_value, gp_falloff), 0.001f);
     }
   }
   else {
@@ -1215,16 +1225,15 @@ void transform_mode_default_modal_orientation_set(TransInfo *t, int type)
     rv3d = static_cast<RegionView3D *>(t->region->regiondata);
   }
 
-  t->orient[O_DEFAULT].type = ED_transform_calc_orientation_from_type_ex(
-      t->scene,
-      t->view_layer,
-      v3d,
-      rv3d,
-      nullptr,
-      nullptr,
-      type,
-      V3D_AROUND_CENTER_BOUNDS,
-      t->orient[O_DEFAULT].matrix);
+  t->orient[O_DEFAULT].type = calc_orientation_from_type_ex(t->scene,
+                                                            t->view_layer,
+                                                            v3d,
+                                                            rv3d,
+                                                            nullptr,
+                                                            nullptr,
+                                                            type,
+                                                            V3D_AROUND_CENTER_BOUNDS,
+                                                            t->orient[O_DEFAULT].matrix);
 
   if (t->orient_curr == O_DEFAULT) {
     /* Update Orientation. */
@@ -1233,3 +1242,5 @@ void transform_mode_default_modal_orientation_set(TransInfo *t, int type)
 }
 
 /** \} */
+
+}  // namespace blender::ed::transform

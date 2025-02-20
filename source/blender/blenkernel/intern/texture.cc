@@ -16,7 +16,6 @@
 
 #include "BLI_kdopbvh.hh"
 #include "BLI_listbase.h"
-#include "BLI_math_color.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
@@ -34,7 +33,6 @@
 #include "DNA_linestyle_types.h"
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
-#include "DNA_object_types.h"
 #include "DNA_particle_types.h"
 
 #include "BKE_brush.hh"
@@ -728,7 +726,7 @@ static void texture_nodes_fetch_images_for_pool(Tex *texture, bNodeTree *ntree, 
       Image *image = (Image *)node->id;
       BKE_image_pool_acquire_ibuf(image, &texture->iuser, pool);
     }
-    else if (node->type_legacy == NODE_GROUP && node->id != nullptr) {
+    else if (node->is_group() && node->id != nullptr) {
       /* TODO(sergey): Do we need to control recursion here? */
       bNodeTree *nested_tree = (bNodeTree *)node->id;
       texture_nodes_fetch_images_for_pool(texture, nested_tree, pool);

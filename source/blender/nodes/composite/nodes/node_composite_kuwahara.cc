@@ -785,17 +785,18 @@ void register_node_type_cmp_kuwahara()
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeKuwahara", CMP_NODE_KUWAHARA, NODE_CLASS_OP_FILTER);
+  cmp_node_type_base(&ntype, "CompositorNodeKuwahara", CMP_NODE_KUWAHARA);
   ntype.ui_name = "Kuwahara";
   ntype.ui_description =
       "Apply smoothing filter that preserves edges, for stylized and painterly effects";
   ntype.enum_name_legacy = "KUWAHARA";
+  ntype.nclass = NODE_CLASS_OP_FILTER;
   ntype.declare = file_ns::cmp_node_kuwahara_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_kuwahara;
   ntype.initfunc = file_ns::node_composit_init_kuwahara;
   blender::bke::node_type_storage(
-      &ntype, "NodeKuwaharaData", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeKuwaharaData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

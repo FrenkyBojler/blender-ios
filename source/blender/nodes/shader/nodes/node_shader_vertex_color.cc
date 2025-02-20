@@ -88,18 +88,19 @@ void register_node_type_sh_vertex_color()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, "ShaderNodeVertexColor", SH_NODE_VERTEX_COLOR, NODE_CLASS_INPUT);
+  sh_node_type_base(&ntype, "ShaderNodeVertexColor", SH_NODE_VERTEX_COLOR);
   ntype.ui_name = "Color Attribute";
   ntype.ui_description =
       "Retrieve a color attribute, or the default fallback if none is specified";
   ntype.enum_name_legacy = "VERTEX_COLOR";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = file_ns::node_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_vertex_color;
   ntype.initfunc = file_ns::node_shader_init_vertex_color;
   blender::bke::node_type_storage(
-      &ntype, "NodeShaderVertexColor", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeShaderVertexColor", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_shader_gpu_vertex_color;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

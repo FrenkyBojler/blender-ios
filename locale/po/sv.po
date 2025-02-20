@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'52cb367a9b67')\n"
+"Project-Id-Version: Blender 4.4.0 Beta (b'ed5b077f929a')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-13 11:47+0000\n"
+"POT-Creation-Date: 2025-02-17 14:06+0000\n"
 "PO-Revision-Date: 2024-01-17 19:22+0000\n"
 "Last-Translator: Peter Simonsson <peter@simonsson.com>\n"
 "Language-Team: Swedish <https://translate.blender.org/projects/blender-ui/ui/sv/>\n"
@@ -61,6 +61,10 @@ msgstr "Samling av AOV"
 
 msgid "F-Curves"
 msgstr "F-kurvor"
+
+
+msgid "Slot"
+msgstr "Plats"
 
 
 msgid "Groups of F-Curves"
@@ -199,36 +203,16 @@ msgid "Expanded in Graph Editor"
 msgstr "Expanderad i grafredigeraren"
 
 
-msgid "Influence"
-msgstr "Inflytande"
-
-
-msgid "Replace"
-msgstr "Ersätt"
-
-
-msgid "Offset"
-msgstr "Förskjutning"
-
-
-msgid "Add"
-msgstr "Addera"
-
-
-msgid "Subtract"
-msgstr "Subtrahera"
-
-
-msgid "Multiply"
-msgstr "Multiplicera"
-
-
 msgid "Collection of timeline markers"
 msgstr "Samling av tidslinjemarkörer"
 
 
 msgid "Active"
 msgstr "Aktiv"
+
+
+msgid "Show Expanded"
+msgstr "Visa utvikt"
 
 
 msgctxt "ID"
@@ -406,10 +390,6 @@ msgid "World"
 msgstr "Värld"
 
 
-msgid "Show Expanded"
-msgstr "Visa utvikt"
-
-
 msgid "Keyframe"
 msgstr "Keyframe"
 
@@ -494,8 +474,24 @@ msgid "Animation data for data-block"
 msgstr "Animationsdata för datablock"
 
 
+msgid "Replace"
+msgstr "Ersätt"
+
+
 msgid "Combine"
 msgstr "Kombinera"
+
+
+msgid "Add"
+msgstr "Addera"
+
+
+msgid "Subtract"
+msgstr "Subtrahera"
+
+
+msgid "Multiply"
+msgstr "Multiplicera"
 
 
 msgid "Nothing"
@@ -2140,6 +2136,10 @@ msgid "Image"
 msgstr "Bild"
 
 
+msgid "Offset"
+msgstr "Förskjutning"
+
+
 msgid "Rotation"
 msgstr "Rotation"
 
@@ -2254,6 +2254,10 @@ msgstr "Alpha"
 
 msgid "Position"
 msgstr "Position"
+
+
+msgid "Influence"
+msgstr "Inflytande"
 
 
 msgid "World Space"
@@ -5205,28 +5209,12 @@ msgid "Mask"
 msgstr "Mask"
 
 
-msgid "Show/Hide"
-msgstr "Visa/dölj"
-
-
-msgid "Clean Up"
-msgstr "Städa upp"
-
-
-msgid "Pivot Point"
-msgstr "Fast punkt"
+msgid "Mirror"
+msgstr "Spegla"
 
 
 msgid "Snap"
 msgstr "Snäpp"
-
-
-msgid "Names"
-msgstr "Namn"
-
-
-msgid "Mirror"
-msgstr "Spegla"
 
 
 msgid "Local View"
@@ -5277,12 +5265,28 @@ msgid "Quick Effects"
 msgstr "Snabbeffekter"
 
 
+msgid "Show/Hide"
+msgstr "Visa/dölj"
+
+
+msgid "Clean Up"
+msgstr "Städa upp"
+
+
 msgid "Asset"
 msgstr "Tillgång"
 
 
+msgid "Names"
+msgstr "Namn"
+
+
 msgid "Text"
 msgstr "Text"
+
+
+msgid "Pivot Point"
+msgstr "Fast punkt"
 
 
 msgid "Catalog"
@@ -8228,15 +8232,6 @@ msgstr "Skapa en objektsamling från markerade objekt"
 
 msgid "Name of the new collection"
 msgstr "Namn på den nya samlingen"
-
-
-msgctxt "Operator"
-msgid "Add Selected to Active Collection"
-msgstr "Lägg till markerade i aktiv samling"
-
-
-msgid "Add the object to an object collection that contains the active object"
-msgstr "Lägg till objektet i en objektsamling som innehåller det aktiva objektet"
 
 
 msgid "The collection to add other selected objects to"
@@ -11610,10 +11605,6 @@ msgid "Dither"
 msgstr "Rastrering"
 
 
-msgid "UV Sculpting"
-msgstr "UV-skulptering"
-
-
 msgid "Active Tool"
 msgstr "Aktivt verktyg"
 
@@ -11641,10 +11632,6 @@ msgstr "Ljusgrupper"
 
 msgid "Threads"
 msgstr "Trådar"
-
-
-msgid "Slot"
-msgstr "Plats"
 
 
 msgid "Bookmarks"
@@ -12160,10 +12147,6 @@ msgstr "Invertera Y-axel"
 
 msgid "Invert Z Axis"
 msgstr "Invertera Z-axel"
-
-
-msgid "Show Navigation Guide"
-msgstr "Visa navigationsguide"
 
 
 msgid "Display the center and axis during rotation"
@@ -12985,14 +12968,6 @@ msgid "Vectorscope Opacity"
 msgstr "Genomskinlighet för vektroskop"
 
 
-msgid "Inverse Gain"
-msgstr "Invers nivå"
-
-
-msgid "Proxy parameters for a sequence strip"
-msgstr "Mellanparametrar för en sekvensremsa"
-
-
 msgid "Median Point"
 msgstr "Medianpunkt"
 
@@ -13113,8 +13088,20 @@ msgid "Gamma Cross"
 msgstr "Gamma-övertona"
 
 
+msgid "Meta Strip"
+msgstr "Meta-remsa"
+
+
 msgid "Camera Override"
 msgstr "Åsidosätt kamera"
+
+
+msgid "Inverse Gain"
+msgstr "Invers nivå"
+
+
+msgid "Proxy parameters for a sequence strip"
+msgstr "Mellanparametrar för en sekvensremsa"
 
 
 msgctxt "Light"
@@ -13154,10 +13141,6 @@ msgstr "Ytmarkering"
 
 msgid "Theme settings for the Blender Preferences"
 msgstr "Tema-inställningar för Blender-inställningarna"
-
-
-msgid "Meta Strip"
-msgstr "Meta-remsa"
 
 
 msgid "Theme User Interface"
@@ -13226,6 +13209,10 @@ msgstr "Lägg till & ersätt"
 
 msgid "Select Mode"
 msgstr "Markeringsläge"
+
+
+msgid "UV Sculpting"
+msgstr "UV-skulptering"
 
 
 msgid "Weight value of a vertex in a vertex group"
@@ -15703,10 +15690,6 @@ msgid "Marker Names"
 msgstr "Markörnamn"
 
 
-msgid "Developer"
-msgstr "Utvecklare"
-
-
 msgid "Fade Geometry"
 msgstr "Tona ut geometri"
 
@@ -15922,6 +15905,10 @@ msgid "Sculpting"
 msgstr "Skulptering"
 
 
+msgid "Cancel"
+msgstr "Avbryt"
+
+
 msgid "Path is empty, cannot save"
 msgstr "Sökvägen är tom, kan inte spara"
 
@@ -15963,10 +15950,6 @@ msgstr "Värde:"
 msgctxt "Color"
 msgid "Value"
 msgstr "Värde"
-
-
-msgid "Cancel"
-msgstr "Avbryt"
 
 
 msgid "Movie"

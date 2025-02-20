@@ -10,8 +10,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_math_vector.h"
+#include "BLI_string.h"
 
 #include "BKE_unit.hh"
 
@@ -32,6 +32,8 @@
 #include "transform_convert.hh"
 #include "transform_mode.hh"
 #include "transform_snap.hh"
+
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Transform (Sequencer Slide)
@@ -160,6 +162,8 @@ TransModeInfo TransMode_seqslide = {
     /*transform_matrix_fn*/ nullptr,
     /*handle_event_fn*/ nullptr,
     /*snap_distance_fn*/ nullptr,
-    /*snap_apply_fn*/ transform_snap_sequencer_apply_seqslide,
+    /*snap_apply_fn*/ snap_sequencer_apply_seqslide,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

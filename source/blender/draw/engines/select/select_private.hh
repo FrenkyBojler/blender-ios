@@ -12,6 +12,7 @@
 
 #include "draw_manager.hh"
 #include "draw_pass.hh"
+#include "draw_view_data.hh"
 
 #include "DRW_render.hh"
 
@@ -45,10 +46,6 @@ struct SELECTID_Instance {
 
 struct SELECTID_Data {
   void *engine_type;
-  DRWViewportEmptyList *fbl;
-  DRWViewportEmptyList *txl;
-  DRWViewportEmptyList *psl;
-  DRWViewportEmptyList *stl;
   SELECTID_Instance *instance;
 
   char info[GPU_INFO_SIZE];
