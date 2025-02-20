@@ -131,9 +131,4 @@ inline float4 float4_to_color(const float4 &value)
   return value;
 }
 
-inline float4 color_to_float4(const float4 &value)
-{
-  return value;
-}
-
 }  // namespace blender::compositor

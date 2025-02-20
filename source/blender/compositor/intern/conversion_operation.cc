@@ -177,26 +177,6 @@ const char *ConversionOperation::get_conversion_shader_name()
           break;
       }
       break;
-    case ResultType::Float4:
-      switch (this->get_result().type()) {
-        case ResultType::Float:
-          return "compositor_convert_float4_to_float";
-        case ResultType::Int:
-          return "compositor_convert_float4_to_int";
-        case ResultType::Vector:
-          return "compositor_convert_float4_to_vector";
-        case ResultType::Color:
-          return "compositor_convert_float4_to_color";
-        case ResultType::Float4:
-          /* Same type, no conversion needed. */
-          break;
-        case ResultType::Float2:
-        case ResultType::Float3:
-        case ResultType::Int2:
-          /* Types are not user facing, so we needn't implement them. */
-          break;
-      }
-      break;
     case ResultType::Float2:
     case ResultType::Int2:
       /* Types are not user facing, so we needn't implement them. */
@@ -289,9 +269,6 @@ void ConversionOperation::execute_single(const Result &input, Result &output)
           return;
         case ResultType::Float3:
           output.set_single_value(color_to_float3(input.get_single_value<float4>()));
-          return;
-        case ResultType::Float4:
-          output.set_single_value(color_to_float4(input.get_single_value<float4>()));
           return;
         case ResultType::Float4:
           output.set_single_value(color_to_float4(input.get_single_value<float4>()));
@@ -448,11 +425,6 @@ void ConversionOperation::execute_cpu(const Result &input, Result &output)
         case ResultType::Float3:
           parallel_for(input.domain().size, [&](const int2 texel) {
             output.store_pixel(texel, color_to_float3(input.load_pixel<float4>(texel)));
-          });
-          return;
-        case ResultType::Float4:
-          parallel_for(input.domain().size, [&](const int2 texel) {
-            output.store_pixel(texel, color_to_float4(input.load_pixel<float4>(texel)));
           });
           return;
         case ResultType::Float4:

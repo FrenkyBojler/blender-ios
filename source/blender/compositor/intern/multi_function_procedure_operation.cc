@@ -96,9 +96,6 @@ static void add_single_value_input_parameter(mf::ParamsBuilder &parameter_builde
     case ResultType::Float4:
       parameter_builder.add_readonly_single_input_value(input.get_single_value<float4>());
       return;
-    case ResultType::Float4:
-      parameter_builder.add_readonly_single_input_value(input.get_single_value<float4>());
-      return;
     case ResultType::Float2:
     case ResultType::Int2:
       /* Those types are internal and needn't be handled by operations. */
@@ -127,9 +124,6 @@ static void add_single_value_output_parameter(mf::ParamsBuilder &parameter_build
     case ResultType::Float4:
       parameter_builder.add_uninitialized_single_output(&output.get_single_value<float4>());
       return;
-    case ResultType::Float4:
-      parameter_builder.add_uninitialized_single_output(&output.get_single_value<float4>());
-      return;
     case ResultType::Float2:
     case ResultType::Int2:
       /* Those types are internal and needn't be handled by operations. */
@@ -154,9 +148,6 @@ static void upload_single_value_output_to_gpu(Result &output)
       return;
     case ResultType::Float3:
       output.set_single_value(output.get_single_value<float3>());
-      return;
-    case ResultType::Float4:
-      output.set_single_value(output.get_single_value<float4>());
       return;
     case ResultType::Float4:
       output.set_single_value(output.get_single_value<float4>());

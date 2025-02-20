@@ -133,30 +133,6 @@ vec4 color_to_float4(vec4 value)
 }
 
 /* --------------------------------------------------------------------
- * Float4 to other.
- */
-
-float float4_to_float(vec4 value)
-{
-  return dot(value, vec4(1.0)) / 4.0;
-}
-
-int float4_to_int(vec4 value)
-{
-  return float_to_int(float4_to_float(value));
-}
-
-vec4 float4_to_vector(vec4 value)
-{
-  return value;
-}
-
-vec4 float4_to_color(vec4 value)
-{
-  return value;
-}
-
-/* --------------------------------------------------------------------
  * GPUMatrial-specific implicit conversion functions.
  *
  * Those should have the same interface and names as the macros in gpu_shader_codegen_lib.glsl
