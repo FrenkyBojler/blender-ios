@@ -6,33 +6,6 @@
 
 COMPUTE_SHADER_CREATE_INFO(subdiv_normals_accumulate)
 
-#if 0
-layout(std430, binding = 0) readonly buffer inputVertexData
-{
-  PosNorLoop pos_nor[];
-};
-
-layout(std430, binding = 1) readonly buffer faceAdjacencyOffsets
-{
-  uint face_adjacency_offsets[];
-};
-
-layout(std430, binding = 2) readonly buffer faceAdjacencyLists
-{
-  uint face_adjacency_lists[];
-};
-
-layout(std430, binding = 3) readonly buffer vertexLoopMap
-{
-  uint vert_loop_map[];
-};
-
-layout(std430, binding = 4) writeonly buffer vertexNormals
-{
-  vec3 normals[];
-};
-#endif
-
 void find_prev_and_next_vertex_on_face(
     uint face_index, uint vertex_index, out uint curr, out uint next, out uint prev)
 {
