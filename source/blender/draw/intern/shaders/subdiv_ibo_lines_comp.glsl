@@ -2,34 +2,12 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/* To be compiled with subdiv_lib.glsl */
-
-#ifndef LINES_LOOSE
-
-layout(std430, binding = 1) readonly buffer inputEdgeDrawFlag
-{
-  int input_edge_draw_flag[];
-};
-
-layout(std430, binding = 2) readonly restrict buffer extraCoarseFaceData
-{
-  uint extra_coarse_face_data[];
-};
-
-#endif
-
-layout(std430, binding = 3) writeonly buffer outputLinesIndices
-{
-  uint output_lines[];
-};
+#include "subdiv_lib.glsl"
 
 #ifdef LINES_LOOSE
-
-layout(std430, binding = 4) readonly buffer LinesLooseFlags
-{
-  uint lines_loose_flags[];
-};
-
+COMPUTE_SHADER_CREATE_INFO(subdiv_lines_loose)
+#else
+COMPUTE_SHADER_CREATE_INFO(subdiv_lines)
 #endif
 
 #ifndef LINES_LOOSE
