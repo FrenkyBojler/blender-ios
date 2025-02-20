@@ -148,9 +148,9 @@ void SEQ_retiming_reset(Scene *scene, Strip *strip)
 
   SEQ_retiming_data_clear(strip);
 
-  blender::Span<Strip *> effects = SEQ_lookup_effects_by_strip(scene, strip);
+  blender::Span<Strip *> effects = SEQ_lookup_effects_by_strip(scene->ed, strip);
   strip_time_update_effects_strip_range(scene, effects);
-  SEQ_time_update_meta_strip_range(scene, SEQ_lookup_meta_by_strip(scene, strip));
+  SEQ_time_update_meta_strip_range(scene, SEQ_lookup_meta_by_strip(scene->ed, strip));
 
   retiming_key_overlap(scene, strip);
 }
@@ -554,10 +554,7 @@ SeqRetimingKey *SEQ_retiming_add_freeze_frame(const Scene *scene,
 
   const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
   const int clamped_offset = strip_retiming_clamp_create_offset(
-      scene,
-      strip,
-      key,
-      offset * SEQ_time_media_playback_rate_factor_get(strip, scene_fps));
+      scene, strip, key, offset * SEQ_time_media_playback_rate_factor_get(strip, scene_fps));
 
   const int orig_timeline_frame = SEQ_retiming_key_timeline_frame_get(scene, strip, key);
   const float orig_retiming_factor = key->retiming_factor;
@@ -691,8 +688,7 @@ static void strip_retiming_fix_transition(const Scene *scene, Strip *strip, SeqR
   const int keys_num = strip->retiming_keys_num;
   const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
   const float transition_duration = (key->original_strip_frame_index - key->strip_frame_index) /
-                                    SEQ_time_media_playback_rate_factor_get(strip,
-                                      scene_fps);
+                                    SEQ_time_media_playback_rate_factor_get(strip, scene_fps);
   SeqRetimingKey *orig_key = strip_retiming_remove_transition(strip, key);
   SEQ_retiming_add_transition(scene, strip, orig_key, transition_duration);
   BLI_assert(keys_num == strip->retiming_keys_num);
@@ -783,9 +779,9 @@ void SEQ_retiming_key_timeline_frame_set(const Scene *scene,
     strip_retiming_key_offset(scene, strip, key, offset);
   }
 
-  blender::Span<Strip *> effects = SEQ_lookup_effects_by_strip(scene, strip);
+  blender::Span<Strip *> effects = SEQ_lookup_effects_by_strip(scene->ed, strip);
   strip_time_update_effects_strip_range(scene, effects);
-  SEQ_time_update_meta_strip_range(scene, SEQ_lookup_meta_by_strip(scene, strip));
+  SEQ_time_update_meta_strip_range(scene, SEQ_lookup_meta_by_strip(scene->ed, strip));
 }
 
 float SEQ_retiming_key_speed_get(const Strip *strip, const SeqRetimingKey *key)
@@ -819,8 +815,8 @@ void SEQ_retiming_key_speed_set(
 
   const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
   const float segment_timeline_duration = (frame_index - frame_index_prev) /
-                                          SEQ_time_media_playback_rate_factor_get(
-                                              strip, scene_fps);
+                                          SEQ_time_media_playback_rate_factor_get(strip,
+                                                                                  scene_fps);
   const float new_timeline_duration = segment_timeline_duration / speed;
 
   const float orig_timeline_frame = SEQ_retiming_key_timeline_frame_get(scene, strip, key);
@@ -1046,7 +1042,7 @@ static RetimingRangeData strip_retiming_range_data_get(const Scene *scene, const
 {
   RetimingRangeData strip_retiming_data = RetimingRangeData(strip);
 
-  const Strip *meta_parent = SEQ_lookup_meta_by_strip(scene, strip);
+  const Strip *meta_parent = SEQ_lookup_meta_by_strip(scene->ed, strip);
   if (meta_parent == nullptr) {
     return strip_retiming_data;
   }

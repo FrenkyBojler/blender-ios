@@ -1626,6 +1626,43 @@ Span<FCurve *> fcurves_for_action_slot(Action &action, slot_handle_t slot_handle
 Span<const FCurve *> fcurves_for_action_slot(const Action &action, slot_handle_t slot_handle);
 
 /**
+ * Find or create a Channelbag on the given action, for the given ID.
+ *
+ * This function also ensures that there is a layer and a keyframe strip for the
+ * channelbag to exist on.
+ *
+ * \param action: MUST already be assigned to the animated ID.
+ *
+ * \param animated_id: The ID that is animated by this Action. It is used to
+ * create and assign an appropriate slot if needed when creating the fcurve, and
+ * set the fcurve color properly
+ */
+Channelbag *action_channelbag_ensure(bAction &dna_action, ID &animated_id);
+
+/**
+ * Find or create an F-Curve on the given action that matches the given fcurve
+ * descriptor.
+ *
+ * \note This function also ensures that dependency graph relationships are
+ * rebuilt. This is necessary when adding a new F-Curve, as a
+ * previously-unanimated depsgraph component may become animated now.
+ *
+ * \param action: MUST already be assigned to the animated ID.
+ *
+ * \param animated_id: The ID that is animated by this Action. It is used to
+ * create and assign an appropriate slot if needed when creating the fcurve, and
+ * set the fcurve color properly
+ *
+ * \param fcurve_descriptor: description of the fcurve to lookup/create. Note
+ * that this is *not* relative to `ptr` (e.g. if `ptr` is not an ID). It should
+ * contain the exact data path of the fcurve to be looked up/created.
+ */
+FCurve *action_fcurve_ensure(Main *bmain,
+                             bAction &action,
+                             ID &animated_id,
+                             FCurveDescriptor fcurve_descriptor);
+
+/**
  * Find or create an F-Curve on the given action that matches the given fcurve
  * descriptor.
  *
@@ -1646,12 +1683,15 @@ Span<const FCurve *> fcurves_for_action_slot(const Action &action, slot_handle_t
  * \param fcurve_descriptor: description of the fcurve to lookup/create. Note
  * that this is *not* relative to `ptr` (e.g. if `ptr` is not an ID). It should
  * contain the exact data path of the fcurve to be looked up/created.
+ *
+ * \see action_fcurve_ensure for a function that is specific to layered actions,
+ * and is easier to use because it does not depend on an RNA pointer.
  */
-FCurve *action_fcurve_ensure(Main *bmain,
-                             bAction *act,
-                             const char group[],
-                             PointerRNA *ptr,
-                             FCurveDescriptor fcurve_descriptor);
+FCurve *action_fcurve_ensure_ex(Main *bmain,
+                                bAction *act,
+                                const char group[],
+                                PointerRNA *ptr,
+                                FCurveDescriptor fcurve_descriptor);
 
 /**
  * Same as above, but creates a legacy Action.
