@@ -352,13 +352,13 @@ VFont *BKE_vfont_load_exists_ex(Main *bmain, const char *filepath, bool *r_exist
   char filepath_abs[FILE_MAX], filepath_test[FILE_MAX];
 
   STRNCPY(filepath_abs, filepath);
-  BLI_path_apply_variables(filepath_abs);
+  BLI_path_apply_variables(filepath_abs, BLI_build_path_variable_dictionary());
   BLI_path_abs(filepath_abs, BKE_main_blendfile_path(bmain));
 
   /* first search an identical filepath */
   LISTBASE_FOREACH (VFont *, vfont, &bmain->fonts) {
     STRNCPY(filepath_test, vfont->filepath);
-    BLI_path_apply_variables(filepath_test);
+    BLI_path_apply_variables(filepath_test, BLI_build_path_variable_dictionary());
     BLI_path_abs(filepath_test, ID_BLEND_PATH(bmain, &vfont->id));
 
     if (BLI_path_cmp(filepath_test, filepath_abs) == 0) {

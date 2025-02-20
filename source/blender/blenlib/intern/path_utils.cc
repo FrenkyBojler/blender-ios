@@ -16,6 +16,7 @@
 #include "BLI_fileops.h"
 #include "BLI_fnmatch.h"
 #include "BLI_index_range.hh"
+#include "BLI_map.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
@@ -1274,7 +1275,20 @@ static std::optional<std::pair<blender::IndexRange, blender::StringRef>> next_pa
            blender::StringRef(path + start + 2, path + end - 1)}};
 }
 
-bool BLI_path_apply_variables(char path[FILE_MAX])
+blender::Map<std::string, std::string> BLI_build_path_variable_dictionary()
+{
+  blender::Map<std::string, std::string> dict;
+
+  dict.add("foo", "hooray");
+  dict.add("bar", "boooo");
+  dict.add("flub", "what");
+  dict.add("josh", "bob");
+
+  return dict;
+}
+
+bool BLI_path_apply_variables(char path[FILE_MAX],
+                              const blender::Map<std::string, std::string> &variable_dictionary)
 {
   bool was_modified = false;
 
@@ -1284,24 +1298,19 @@ bool BLI_path_apply_variables(char path[FILE_MAX])
 
     printf("%s\n", std::string(variable_name).c_str());
 
-    const char *replacement_string = "";
-    if (variable_name == "foo") {
-      replacement_string = "hooray";
+    const std::string *replacement_string = variable_dictionary.lookup_ptr_as(variable_name);
+    if (replacement_string != nullptr) {
+      BLI_string_replace_range(path,
+                               FILE_MAX,
+                               replacement_range.start(),
+                               replacement_range.one_after_last(),
+                               replacement_string->c_str());
+      was_modified = true;
     }
-    else if (variable_name == "bar") {
-      replacement_string = "boooo";
+    else {
+      /* TODO: something smarter than this. */
+      break;
     }
-    else if (variable_name == "flub") {
-      replacement_string = "what";
-    }
-
-    BLI_string_replace_range(path,
-                             FILE_MAX,
-                             replacement_range.start(),
-                             replacement_range.one_after_last(),
-                             replacement_string);
-
-    was_modified = true;
   }
 
   return was_modified;

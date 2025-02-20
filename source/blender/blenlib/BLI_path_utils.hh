@@ -9,6 +9,7 @@
 
 #include "BLI_compiler_attrs.h"
 #include "BLI_compiler_compat.h"
+#include "BLI_map.hh"
 #include "BLI_utildefines.h"
 #include "BLI_utildefines_variadic.h"
 
@@ -717,7 +718,9 @@ bool BLI_path_abs_from_cwd(char *path, size_t path_maxncpy) ATTR_NONNULL(1);
 /** \name Blender Variables
  * \{ */
 
-bool BLI_path_apply_variables(char path[FILE_MAX]);
+blender::Map<std::string, std::string> BLI_build_path_variable_dictionary();
+bool BLI_path_apply_variables(char path[FILE_MAX],
+                              const blender::Map<std::string, std::string> &variable_dictionary);
 
 /** \} */
 

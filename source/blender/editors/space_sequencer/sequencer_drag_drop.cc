@@ -354,7 +354,7 @@ static void get_drag_path(const bContext *C, wmDrag *drag, char r_path[FILE_MAX]
   else {
     BLI_strncpy(r_path, WM_drag_get_single_path(drag), FILE_MAX);
   }
-  BLI_path_apply_variables(r_path);
+  BLI_path_apply_variables(r_path, BLI_build_path_variable_dictionary());
 }
 
 static void draw_seq_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, const int xy[2])

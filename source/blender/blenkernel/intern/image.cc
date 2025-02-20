@@ -1058,7 +1058,7 @@ static void image_abs_path(Main *bmain,
                            char *r_filepath_abs)
 {
   BLI_strncpy(r_filepath_abs, filepath, FILE_MAX);
-  BLI_path_apply_variables(r_filepath_abs);
+  BLI_path_apply_variables(r_filepath_abs, BLI_build_path_variable_dictionary());
   if (owner_library) {
     BLI_path_abs(r_filepath_abs, owner_library->runtime->filepath_abs);
   }
@@ -1133,7 +1133,7 @@ Image *BKE_image_load_exists_in_lib(Main *bmain,
   {
     if (!ELEM(ima->source, IMA_SRC_VIEWER, IMA_SRC_GENERATED)) {
       STRNCPY(filepath_test, ima->filepath);
-      BLI_path_apply_variables(filepath_test);
+      BLI_path_apply_variables(filepath_test, BLI_build_path_variable_dictionary());
       BLI_path_abs(filepath_test, ID_BLEND_PATH(bmain, &ima->id));
 
       if (BLI_path_cmp(filepath_test, filepath_abs) != 0) {
@@ -1250,7 +1250,7 @@ static ImBuf *add_ibuf_for_tile(Image *ima, ImageTile *tile)
   }
 
   STRNCPY(ibuf->filepath, ima->filepath);
-  BLI_path_apply_variables(ibuf->filepath);
+  BLI_path_apply_variables(ibuf->filepath, BLI_build_path_variable_dictionary());
   BLI_path_abs(ibuf->filepath, ID_BLEND_PATH_FROM_GLOBAL(&ima->id));
 
   /* Mark the tile itself as having been generated. */
@@ -3343,7 +3343,7 @@ void BKE_image_signal(Main *bmain, Image *ima, ImageUser *iuser, int signal)
 
         char filepath[FILE_MAX];
         STRNCPY(filepath, ima->filepath);
-        BLI_path_apply_variables(filepath);
+        BLI_path_apply_variables(filepath, BLI_build_path_variable_dictionary());
         BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&ima->id));
         bool result = BKE_image_get_tile_info(filepath, &new_tiles, &new_start, &new_range);
         if (result) {
@@ -5366,7 +5366,7 @@ void BKE_image_user_file_path_ex(const Main *bmain,
     }
   }
 
-  BLI_path_apply_variables(filepath);
+  BLI_path_apply_variables(filepath, BLI_build_path_variable_dictionary());
   BLI_path_abs(filepath, ID_BLEND_PATH(bmain, &ima->id));
 }
 
@@ -5712,7 +5712,7 @@ static void image_update_views_format(Image *ima, ImageUser *iuser)
       char filepath[FILE_MAX];
 
       STRNCPY(filepath, iv->filepath);
-      BLI_path_apply_variables(filepath);
+      BLI_path_apply_variables(filepath, BLI_build_path_variable_dictionary());
       BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&ima->id));
 
       /* exists? */

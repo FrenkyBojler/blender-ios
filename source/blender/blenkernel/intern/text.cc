@@ -423,7 +423,7 @@ bool BKE_text_reload(Text *text)
   }
 
   STRNCPY(filepath_abs, text->filepath);
-  BLI_path_apply_variables(filepath_abs);
+  BLI_path_apply_variables(filepath_abs, BLI_build_path_variable_dictionary());
   BLI_path_abs(filepath_abs, ID_BLEND_PATH_FROM_GLOBAL(&text->id));
 
   buffer = static_cast<uchar *>(BLI_file_read_text_as_mem(filepath_abs, 0, &buffer_len));
@@ -461,7 +461,7 @@ Text *BKE_text_load_ex(Main *bmain,
   BLI_stat_t st;
 
   STRNCPY(filepath_abs, filepath);
-  BLI_path_apply_variables(filepath_abs);
+  BLI_path_apply_variables(filepath_abs, BLI_build_path_variable_dictionary());
   BLI_path_abs(filepath_abs, relbase);
 
   buffer = static_cast<uchar *>(BLI_file_read_text_as_mem(filepath_abs, 0, &buffer_len));
@@ -534,7 +534,7 @@ int BKE_text_file_modified_check(const Text *text)
   }
 
   STRNCPY(filepath, text->filepath);
-  BLI_path_apply_variables(filepath);
+  BLI_path_apply_variables(filepath, BLI_build_path_variable_dictionary());
   BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&text->id));
 
   if (!BLI_exists(filepath)) {
@@ -569,7 +569,7 @@ void BKE_text_file_modified_ignore(Text *text)
   }
 
   STRNCPY(filepath, text->filepath);
-  BLI_path_apply_variables(filepath);
+  BLI_path_apply_variables(filepath, BLI_build_path_variable_dictionary());
   BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&text->id));
 
   if (!BLI_exists(filepath)) {

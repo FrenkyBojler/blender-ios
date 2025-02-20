@@ -134,7 +134,7 @@ bool BKE_bpath_foreach_path_fixed_process(BPathForeachPathData *bpath_data,
 
   if (absolute_base_path) {
     STRNCPY(path_src_buf, path);
-    BLI_path_apply_variables(path_src_buf);
+    BLI_path_apply_variables(path_src_buf, BLI_build_path_variable_dictionary());
     BLI_path_abs(path_src_buf, absolute_base_path);
     path_src = path_src_buf;
   }
@@ -171,7 +171,7 @@ bool BKE_bpath_foreach_path_dirfile_fixed_process(BPathForeachPathData *bpath_da
   STRNCPY(path_dst, path_src);
 
   if (absolute_base_path) {
-    BLI_path_apply_variables(path_src);
+    BLI_path_apply_variables(path_src, BLI_build_path_variable_dictionary());
     BLI_path_abs(path_src, absolute_base_path);
   }
 
@@ -196,7 +196,7 @@ bool BKE_bpath_foreach_path_allocated_process(BPathForeachPathData *bpath_data, 
 
   if (absolute_base_path) {
     STRNCPY(path_src_buf, *path);
-    BLI_path_apply_variables(path_src_buf);
+    BLI_path_apply_variables(path_src_buf, BLI_build_path_variable_dictionary());
     BLI_path_abs(path_src_buf, absolute_base_path);
     path_src = path_src_buf;
   }
@@ -461,7 +461,7 @@ static bool relative_rebase_foreach_path_cb(BPathForeachPathData *bpath_data,
 
   char filepath[(FILE_MAXDIR * 2) + FILE_MAXFILE];
   BLI_strncpy(filepath, path_src, FILE_MAX);
-  BLI_path_apply_variables(filepath);
+  BLI_path_apply_variables(filepath, BLI_build_path_variable_dictionary());
   if (!BLI_path_abs(filepath, data->basedir_src)) {
     BKE_reportf(data->reports, RPT_WARNING, "Path '%s' cannot be made absolute", path_src);
     data->summary.count_failed++;
@@ -569,7 +569,7 @@ static bool absolute_convert_foreach_path_cb(BPathForeachPathData *bpath_data,
 
   char path_test[FILE_MAX];
   STRNCPY(path_test, path_src);
-  BLI_path_apply_variables(path_test);
+  BLI_path_apply_variables(path_test, BLI_build_path_variable_dictionary());
   BLI_path_abs(path_test, data->basedir);
   if (BLI_path_is_rel(path_test)) {
     const char *type_name = BKE_idtype_get_info_from_id(bpath_data->owner_id)->name;

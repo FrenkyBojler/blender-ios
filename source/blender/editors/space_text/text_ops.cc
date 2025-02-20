@@ -685,7 +685,7 @@ static void txt_write_file(Main *bmain, Text *text, ReportList *reports)
   }
 
   STRNCPY(filepath, text->filepath);
-  BLI_path_apply_variables(filepath);
+  BLI_path_apply_variables(filepath, BLI_build_path_variable_dictionary());
   BLI_path_abs(filepath, BKE_main_blendfile_path(bmain));
 
   /* Check if file write permission is ok. */

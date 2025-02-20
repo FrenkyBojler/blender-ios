@@ -260,7 +260,7 @@ bSound *BKE_sound_new_file(Main *bmain, const char *filepath)
   char filepath_abs[FILE_MAX];
 
   STRNCPY(filepath_abs, filepath);
-  BLI_path_apply_variables(filepath_abs);
+  BLI_path_apply_variables(filepath_abs, BLI_build_path_variable_dictionary());
   BLI_path_abs(filepath_abs, blendfile_path);
 
   sound = static_cast<bSound *>(BKE_libblock_alloc(bmain, ID_SO, BLI_path_basename(filepath), 0));
@@ -289,7 +289,7 @@ bSound *BKE_sound_new_file_exists_ex(Main *bmain, const char *filepath, bool *r_
   char filepath_abs[FILE_MAX], filepath_test[FILE_MAX];
 
   STRNCPY(filepath_abs, filepath);
-  BLI_path_apply_variables(filepath_abs);
+  BLI_path_apply_variables(filepath_abs, BLI_build_path_variable_dictionary());
   BLI_path_abs(filepath_abs, BKE_main_blendfile_path(bmain));
 
   /* first search an identical filepath */
@@ -297,7 +297,7 @@ bSound *BKE_sound_new_file_exists_ex(Main *bmain, const char *filepath, bool *r_
        sound = static_cast<bSound *>(sound->id.next))
   {
     STRNCPY(filepath_test, sound->filepath);
-    BLI_path_apply_variables(filepath_test);
+    BLI_path_apply_variables(filepath_test, BLI_build_path_variable_dictionary());
     BLI_path_abs(filepath_test, ID_BLEND_PATH(bmain, &sound->id));
 
     if (BLI_path_cmp(filepath_test, filepath_abs) == 0) {
@@ -557,7 +557,7 @@ static void sound_load_audio(Main *bmain, bSound *sound, bool free_waveform)
 
     /* Don't modify `sound->filepath`, only change a copy. */
     STRNCPY(fullpath, sound->filepath);
-    BLI_path_apply_variables(fullpath);
+    BLI_path_apply_variables(fullpath, BLI_build_path_variable_dictionary());
     BLI_path_abs(fullpath, ID_BLEND_PATH(bmain, &sound->id));
 
     /* but we need a packed file then */
@@ -1301,7 +1301,7 @@ bool BKE_sound_stream_info_get(Main *main,
   int stream_count;
 
   STRNCPY(filepath_abs, filepath);
-  BLI_path_apply_variables(filepath_abs);
+  BLI_path_apply_variables(filepath_abs, BLI_build_path_variable_dictionary());
   BLI_path_abs(filepath_abs, blendfile_path);
 
   sound = AUD_Sound_file(filepath_abs);

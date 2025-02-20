@@ -182,14 +182,14 @@ static std::string get_path_from_seq(Scene *scene, const Strip *strip, float tim
       const StripElem *s_elem = SEQ_render_give_stripelem(scene, strip, timeline_frame);
       if (s_elem != nullptr) {
         BLI_path_join(filepath, sizeof(filepath), strip->data->dirpath, s_elem->filename);
-        BLI_path_apply_variables(filepath);
+        BLI_path_apply_variables(filepath, BLI_build_path_variable_dictionary());
         BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&scene->id));
       }
     } break;
     case STRIP_TYPE_MOVIE:
       BLI_path_join(
           filepath, sizeof(filepath), strip->data->dirpath, strip->data->stripdata->filename);
-      BLI_path_apply_variables(filepath);
+      BLI_path_apply_variables(filepath, BLI_build_path_variable_dictionary());
       BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&scene->id));
       break;
   }
@@ -536,7 +536,7 @@ void thumbnail_cache_invalidate_strip(Scene *scene, const Strip *strip)
                                               BKE_main_blendfile_path_from_global();
         for (int i = 0; i < paths_count; i++, elem++) {
           BLI_path_join(filepath, sizeof(filepath), strip->data->dirpath, elem->filename);
-          BLI_path_apply_variables(filepath);
+          BLI_path_apply_variables(filepath, BLI_build_path_variable_dictionary());
           BLI_path_abs(filepath, basepath);
           cache->remove_entry(filepath);
         }
