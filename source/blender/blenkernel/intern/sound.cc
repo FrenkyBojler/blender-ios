@@ -707,7 +707,7 @@ void BKE_sound_update_fps(Main *bmain, Scene *scene)
 
   if (scene->sound_scene) {
     const float cur_time = get_cur_time(scene);
-    AUD_Sequence_setFPS(scene->sound_scene, FPS);
+    AUD_Sequence_setFPS(scene->sound_scene, BKE_scene_frames_per_second_get(scene));
     if (scene->playback_handle && is_animation_playing(bmain)) {
       AUD_seekSynchronizer(scene->playback_handle, cur_time);
     }

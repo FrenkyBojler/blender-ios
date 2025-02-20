@@ -93,6 +93,8 @@
 
 #include "RE_engine.h"
 
+#include "WM_types.hh"
+
 #include "RNA_access.hh"
 
 #include "SEQ_iterator.hh"
@@ -2327,6 +2329,28 @@ void BKE_scene_frame_set(Scene *scene, float frame)
   scene->r.cfra = int(intpart);
 }
 
+void BKE_scene_frames_per_second_sync(Main *bmain, Scene *scene)
+{
+  LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
+    Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer);
+    if (!depsgraph) {
+      continue;
+    }
+    Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
+    BKE_sound_update_fps(bmain, scene_eval);
+  }
+  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+    if (screen->animtimer) {
+      screen->animtimer->time_step = (1.0 / BKE_scene_frames_per_second_get(scene));
+    }
+  }
+}
+
+double BKE_scene_frames_per_second_get(Scene *scene)
+{
+  return ((double)scene->r.frs_sec) / ((double)scene->r.frs_sec_base);
+}
+
 /* -------------------------------------------------------------------- */
 /** \name Scene Orientation Slots
  * \{ */
@@ -2451,7 +2475,7 @@ void BKE_scene_update_sound(Depsgraph *depsgraph, Main *bmain)
     BKE_sound_seek_scene(bmain, scene);
   }
   if (recalc & ID_RECALC_AUDIO_FPS) {
-    BKE_sound_update_fps(bmain, scene);
+    // BKE_sound_update_fps(bmain, scene);
   }
   if (recalc & ID_RECALC_AUDIO_VOLUME) {
     BKE_sound_set_scene_volume(scene, scene->audio.volume);
