@@ -40,6 +40,10 @@
 
 static CLG_LogRef LOG = {"rna.define"};
 
+#ifdef RNA_RUNTIME
+#  include "RNA_prototypes.hh"
+#endif
+
 #ifndef NDEBUG
 #  define ASSERT_SOFT_HARD_LIMITS \
     if (softmin < hardmin || softmax > hardmax) { \
@@ -1204,6 +1208,36 @@ void RNA_def_struct_idprops_func(StructRNA *srna, const char *idproperties)
 
   if (idproperties) {
     srna->idproperties = (IDPropertiesFunc)idproperties;
+  }
+}
+
+#ifdef RNA_RUNTIME
+PointerRNA rna_struct_system_properties_get(PointerRNA *ptr)
+{
+  IDProperty *system_idprops_root = RNA_struct_system_idprops(ptr, false);
+
+  return RNA_pointer_create_with_parent(*ptr, &RNA_PropertyGroup, system_idprops_root);
+}
+#endif
+
+void RNA_def_struct_system_idprops_func(StructRNA *srna,
+                                        const char *system_idproperties,
+                                        const bool generate_rna_property)
+{
+  if (!DefRNA.preprocess) {
+    CLOG_ERROR(&LOG, "only during preprocessing.");
+    return;
+  }
+
+  if (system_idproperties) {
+    srna->system_idproperties = reinterpret_cast<IDPropertiesFunc>(
+        const_cast<char *>(system_idproperties));
+
+    if (generate_rna_property) {
+      PropertyRNA *prop = RNA_def_pointer(srna, "bl_system_properties", "PropertyGroup", "", "");
+      RNA_def_property_pointer_funcs(
+          prop, "rna_struct_system_properties_get", nullptr, nullptr, nullptr);
+    }
   }
 }
 

@@ -678,6 +678,7 @@ void DepsgraphNodeBuilder::build_generic_id(ID *id)
   }
 
   build_idproperties(id->properties);
+  build_idproperties(id->system_properties);
   build_animdata(id);
   build_parameters(id);
 }
@@ -722,6 +723,7 @@ void DepsgraphNodeBuilder::build_collection(LayerCollection *from_layer_collecti
     add_operation_node(&collection->id, NodeType::HIERARCHY, OperationCode::HIERARCHY);
 
     build_idproperties(collection->id.properties);
+    build_idproperties(collection->id.system_properties);
     build_parameters(&collection->id);
     add_operation_node(&collection->id, NodeType::GEOMETRY, OperationCode::GEOMETRY_EVAL_DONE);
   }
@@ -826,6 +828,7 @@ void DepsgraphNodeBuilder::build_object(int base_index,
    * from object's data. */
   build_parameters(&object->id);
   build_idproperties(object->id.properties);
+  build_idproperties(object->id.system_properties);
   /* Build animation data,
    *
    * Do it now because it's possible object data will affect
@@ -1309,6 +1312,7 @@ void DepsgraphNodeBuilder::build_action(bAction *action)
     return;
   }
   build_idproperties(action->id.properties);
+  build_idproperties(action->id.system_properties);
   add_operation_node(&action->id, NodeType::ANIMATION, OperationCode::ANIMATION_EVAL);
 }
 
@@ -1471,6 +1475,7 @@ void DepsgraphNodeBuilder::build_world(World *world)
       OperationCode::WORLD_UPDATE,
       [world_cow](::Depsgraph *depsgraph) { BKE_world_eval(depsgraph, world_cow); });
   build_idproperties(world->id.properties);
+  build_idproperties(world->id.system_properties);
   /* Animation. */
   build_animdata(&world->id);
   build_parameters(&world->id);
@@ -1667,6 +1672,7 @@ void DepsgraphNodeBuilder::build_shapekeys(Key *key)
     return;
   }
   build_idproperties(key->id.properties);
+  build_idproperties(key->id.system_properties);
   build_animdata(&key->id);
   build_parameters(&key->id);
   /* This is an exit operation for the entire key datablock, is what is used
@@ -1724,6 +1730,7 @@ void DepsgraphNodeBuilder::build_object_data_geometry_datablock(ID *obdata)
   (void)add_id_node(obdata);
   ID *obdata_cow = get_cow_id(obdata);
   build_idproperties(obdata->properties);
+  build_idproperties(obdata->system_properties);
   /* Animation. */
   build_animdata(obdata);
   /* ShapeKeys */
@@ -1845,6 +1852,7 @@ void DepsgraphNodeBuilder::build_armature(bArmature *armature)
     return;
   }
   build_idproperties(armature->id.properties);
+  build_idproperties(armature->id.system_properties);
   build_animdata(&armature->id);
   build_parameters(&armature->id);
   /* This operation is no longer necessary, as it was updating things with the bone layers (which
@@ -1881,6 +1889,7 @@ void DepsgraphNodeBuilder::build_camera(Camera *camera)
     return;
   }
   build_idproperties(camera->id.properties);
+  build_idproperties(camera->id.system_properties);
   build_animdata(&camera->id);
   build_parameters(&camera->id);
   if (camera->dof.focus_object != nullptr) {
@@ -1894,6 +1903,7 @@ void DepsgraphNodeBuilder::build_light(Light *lamp)
     return;
   }
   build_idproperties(lamp->id.properties);
+  build_idproperties(lamp->id.system_properties);
   build_animdata(&lamp->id);
   build_parameters(&lamp->id);
   /* light's nodetree */
@@ -1940,6 +1950,7 @@ void DepsgraphNodeBuilder::build_nodetree(bNodeTree *ntree)
   /* General parameters. */
   build_parameters(&ntree->id);
   build_idproperties(ntree->id.properties);
+  build_idproperties(ntree->id.system_properties);
   /* Animation, */
   build_animdata(&ntree->id);
   /* Output update. */
@@ -2046,6 +2057,7 @@ void DepsgraphNodeBuilder::build_material(Material *material)
       OperationCode::MATERIAL_UPDATE,
       [material_cow](::Depsgraph *depsgraph) { BKE_material_eval(depsgraph, material_cow); });
   build_idproperties(material->id.properties);
+  build_idproperties(material->id.system_properties);
   /* Material animation. */
   build_animdata(&material->id);
   build_parameters(&material->id);
@@ -2071,6 +2083,7 @@ void DepsgraphNodeBuilder::build_texture(Tex *texture)
   /* Texture itself. */
   add_id_node(&texture->id);
   build_idproperties(texture->id.properties);
+  build_idproperties(texture->id.system_properties);
   build_animdata(&texture->id);
   build_parameters(&texture->id);
   /* Texture's nodetree. */
@@ -2092,6 +2105,7 @@ void DepsgraphNodeBuilder::build_image(Image *image)
   }
   build_parameters(&image->id);
   build_idproperties(image->id.properties);
+  build_idproperties(image->id.system_properties);
   add_operation_node(
       &image->id, NodeType::GENERIC_DATABLOCK, OperationCode::GENERIC_DATABLOCK_UPDATE);
 }
@@ -2105,6 +2119,7 @@ void DepsgraphNodeBuilder::build_cachefile(CacheFile *cache_file)
   add_id_node(cache_file_id);
   CacheFile *cache_file_cow = get_cow_datablock(cache_file);
   build_idproperties(cache_file_id->properties);
+  build_idproperties(cache_file_id->system_properties);
   /* Animation, */
   build_animdata(cache_file_id);
   build_parameters(cache_file_id);
@@ -2125,6 +2140,7 @@ void DepsgraphNodeBuilder::build_mask(Mask *mask)
   ID *mask_id = &mask->id;
   Mask *mask_cow = (Mask *)ensure_cow_id(mask_id);
   build_idproperties(mask->id.properties);
+  build_idproperties(mask->id.system_properties);
   /* F-Curve based animation. */
   build_animdata(mask_id);
   build_parameters(mask_id);
@@ -2163,6 +2179,7 @@ void DepsgraphNodeBuilder::build_freestyle_linestyle(FreestyleLineStyle *linesty
   ID *linestyle_id = &linestyle->id;
   build_parameters(linestyle_id);
   build_idproperties(linestyle->id.properties);
+  build_idproperties(linestyle->id.system_properties);
   build_animdata(linestyle_id);
   build_nodetree(linestyle->nodetree);
 }
@@ -2175,6 +2192,7 @@ void DepsgraphNodeBuilder::build_movieclip(MovieClip *clip)
   ID *clip_id = &clip->id;
   MovieClip *clip_cow = (MovieClip *)ensure_cow_id(clip_id);
   build_idproperties(clip_id->properties);
+  build_idproperties(clip_id->system_properties);
   /* Animation. */
   build_animdata(clip_id);
   build_parameters(clip_id);
@@ -2195,6 +2213,7 @@ void DepsgraphNodeBuilder::build_lightprobe(LightProbe *probe)
   /* Placeholder so we can add relations and tag ID node for update. */
   add_operation_node(&probe->id, NodeType::PARAMETERS, OperationCode::LIGHT_PROBE_EVAL);
   build_idproperties(probe->id.properties);
+  build_idproperties(probe->id.system_properties);
   build_animdata(&probe->id);
   build_parameters(&probe->id);
 }
@@ -2207,6 +2226,7 @@ void DepsgraphNodeBuilder::build_speaker(Speaker *speaker)
   /* Placeholder so we can add relations and tag ID node for update. */
   add_operation_node(&speaker->id, NodeType::AUDIO, OperationCode::SPEAKER_EVAL);
   build_idproperties(speaker->id.properties);
+  build_idproperties(speaker->id.system_properties);
   build_animdata(&speaker->id);
   build_parameters(&speaker->id);
   if (speaker->sound != nullptr) {
@@ -2228,6 +2248,7 @@ void DepsgraphNodeBuilder::build_sound(bSound *sound)
                        BKE_sound_evaluate(depsgraph, bmain, sound_cow);
                      });
   build_idproperties(sound->id.properties);
+  build_idproperties(sound->id.system_properties);
   build_animdata(&sound->id);
   build_parameters(&sound->id);
 }
@@ -2239,6 +2260,7 @@ void DepsgraphNodeBuilder::build_vfont(VFont *vfont)
   }
   build_parameters(&vfont->id);
   build_idproperties(vfont->id.properties);
+  build_idproperties(vfont->id.system_properties);
   add_operation_node(
       &vfont->id, NodeType::GENERIC_DATABLOCK, OperationCode::GENERIC_DATABLOCK_UPDATE);
 }

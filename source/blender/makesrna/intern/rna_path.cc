@@ -427,7 +427,7 @@ static bool rna_path_parse(const PointerRNA *ptr,
 
     prop = nullptr;
     if (use_id_prop) { /* look up property name in current struct */
-      IDProperty *group = RNA_struct_idprops(&curptr, false);
+      IDProperty *group = RNA_struct_system_idprops(&curptr, false);
       if (group && quoted) {
         prop = (PropertyRNA *)IDP_GetPropertyFromGroup(group, token);
       }
@@ -922,7 +922,7 @@ static char *rna_idp_path(PointerRNA *ptr,
 std::optional<std::string> RNA_path_from_struct_to_idproperty(PointerRNA *ptr,
                                                               const IDProperty *needle)
 {
-  const IDProperty *haystack = RNA_struct_idprops(ptr, false);
+  const IDProperty *haystack = RNA_struct_system_idprops(ptr, false);
 
   if (!haystack) { /* can fail when called on bones */
     return std::nullopt;

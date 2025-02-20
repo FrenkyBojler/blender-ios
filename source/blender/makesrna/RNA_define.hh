@@ -75,6 +75,17 @@ void RNA_def_struct_clear_flag(StructRNA *srna, int flag);
 void RNA_def_struct_property_tags(StructRNA *srna, const EnumPropertyItem *prop_tag_defines);
 void RNA_def_struct_refine_func(StructRNA *srna, const char *refine);
 void RNA_def_struct_idprops_func(StructRNA *srna, const char *idproperties);
+/**
+ * Define the callback to access the struct's system IDProperty root.
+ *
+ * \param generate_rna_property If `true`, also generate a `PropertyGroup` RNA opinter property, to
+ * give access to the system properties through the 'dict-like' `bl_system_properties` member. Note
+ * that this should not be created for all system properties containers, e.g. it would cause issues
+ * with Operator property containers.
+ */
+void RNA_def_struct_system_idprops_func(StructRNA *srna,
+                                        const char *system_idproperties,
+                                        bool generate_rna_property);
 void RNA_def_struct_register_funcs(StructRNA *srna,
                                    const char *reg,
                                    const char *unreg,

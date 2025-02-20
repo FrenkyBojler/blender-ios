@@ -2261,6 +2261,11 @@ static void direct_link_id_common(BlendDataReader *reader,
     IDP_BlendDataRead(reader, &id->properties);
   }
 
+  if (id->system_properties) {
+    BLO_read_struct(reader, IDProperty, &id->system_properties);
+    IDP_BlendDataRead(reader, &id->system_properties);
+  }
+
   id->flag &= ~ID_FLAG_INDIRECT_WEAK_LINK;
 
   /* NOTE: It is important to not clear the recalc flags for undo/redo.
