@@ -479,7 +479,8 @@ static void assign_samples_to_segments(const int num_dst_points,
   }
   const float total_length = segment_lengths.last();
 
-  if (total_length > 0.0f) {
+  constexpr float length_epsilon = 1e-4f;
+  if (total_length > length_epsilon) {
     /* Factor for computing the fraction of remaining samples in a segment. */
     const float length_to_free_sample_count = math::safe_divide(float(num_free_samples),
                                                                 total_length);
