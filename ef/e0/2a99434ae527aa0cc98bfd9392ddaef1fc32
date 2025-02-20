@@ -1,1 +1,2 @@
 Referenced by issue #134841, Crash when running a script on a scene with grease pencil node tree
+Referenced by issue #134843, blender crashes when grease pencil "duplicate active keyframe" has no active keyframe
