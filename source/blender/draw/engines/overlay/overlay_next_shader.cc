@@ -12,7 +12,7 @@ namespace blender::draw::overlay {
 
 ShaderModule *ShaderModule::g_shader_modules[2][2] = {{nullptr}};
 
-ShaderModule::ShaderPtr ShaderModule::shader_clippable(const char *create_info_name)
+StaticShader ShaderModule::shader_clippable(const char *create_info_name)
 {
   std::string name = create_info_name;
 
@@ -20,10 +20,10 @@ ShaderModule::ShaderPtr ShaderModule::shader_clippable(const char *create_info_n
     name += "_clipped";
   }
 
-  return ShaderPtr(GPU_shader_create_from_info_name(name.c_str()));
+  return StaticShader(name);
 }
 
-ShaderModule::ShaderPtr ShaderModule::shader_selectable(const char *create_info_name)
+StaticShader ShaderModule::shader_selectable(const char *create_info_name)
 {
   std::string name = create_info_name;
 
@@ -35,10 +35,10 @@ ShaderModule::ShaderPtr ShaderModule::shader_selectable(const char *create_info_
     name += "_clipped";
   }
 
-  return ShaderPtr(GPU_shader_create_from_info_name(name.c_str()));
+  return StaticShader(name);
 }
 
-ShaderModule::ShaderPtr ShaderModule::shader_selectable_no_clip(const char *create_info_name)
+StaticShader ShaderModule::shader_selectable_no_clip(const char *create_info_name)
 {
   std::string name = create_info_name;
 
@@ -46,18 +46,23 @@ ShaderModule::ShaderPtr ShaderModule::shader_selectable_no_clip(const char *crea
     name += "_selectable";
   }
 
-  return ShaderPtr(GPU_shader_create_from_info_name(name.c_str()));
+  return StaticShader(name);
 }
 
 using namespace blender::gpu::shader;
 
 ShaderModule &ShaderModule::module_get(SelectionType selection_type, bool clipping_enabled)
 {
+  static std::mutex mutex;
+
   int selection_index = selection_type == SelectionType::DISABLED ? 0 : 1;
   ShaderModule *&g_shader_module = g_shader_modules[selection_index][clipping_enabled];
   if (g_shader_module == nullptr) {
-    /* TODO(@fclem) thread-safety. */
-    g_shader_module = new ShaderModule(selection_type, clipping_enabled);
+    std::lock_guard lock(mutex);
+    /* Check again in case it was created between first check and lock. */
+    if (g_shader_module == nullptr) {
+      g_shader_module = new ShaderModule(selection_type, clipping_enabled);
+    }
   }
   return *g_shader_module;
 }
