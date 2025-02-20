@@ -177,6 +177,14 @@ class USDMaterialReader {
                                          bNodeTree *ntree,
                                          int column,
                                          NodePlacementContext *r_ctx) const;
+  void convert_usd_primvar_reader_generic(const pxr::UsdShadeShader &usd_shader,
+                                          const pxr::TfToken &usd_source_name,
+                                          StringRef output_type,
+                                          bNode *dest_node,
+                                          const char *dest_socket_name,
+                                          bNodeTree *ntree,
+                                          int column,
+                                          NodePlacementContext *r_ctx) const;
 };
 
 /* Utility functions. */
