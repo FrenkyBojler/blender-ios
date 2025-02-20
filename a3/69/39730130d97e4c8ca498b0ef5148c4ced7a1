@@ -1,1 +1,2 @@
 Referenced by issue #134828, CRASH -  sculpt mode Dyntopo + wireframe overlay
+Referenced by commit ab979d6742f714e585ac940d2cfed3afab73cf0c, Fix #134828: Dynamic topology wireframe overlay crash
