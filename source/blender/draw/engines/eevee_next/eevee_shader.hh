@@ -18,6 +18,7 @@
 #include "DRW_render.hh"
 #include "GPU_material.hh"
 #include "GPU_shader.hh"
+#include "draw_shader.hh"
 
 #include "eevee_material.hh"
 #include "eevee_sync.hh"
@@ -166,12 +167,13 @@ enum eShaderType {
  */
 class ShaderModule {
  private:
-  std::array<GPUShader *, MAX_SHADER_TYPE> shaders_;
+  std::array<StaticShader, MAX_SHADER_TYPE> shaders_;
   BatchHandle compilation_handle_ = 0;
   SpecializationBatchHandle specialization_handle_ = 0;
 
   /** Shared shader module across all engine instances. */
   static ShaderModule *g_shader_module;
+  static inline std::mutex g_mutex_;
 
  public:
   ShaderModule();

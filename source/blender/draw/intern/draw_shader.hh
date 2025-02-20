@@ -66,6 +66,7 @@ class StaticShader : NonCopyable {
  private:
   std::string info_name_;
   GPUShader *shader_ = nullptr;
+  bool failed_ = false;
   std::mutex mutex_;
 
   void move(StaticShader &&other)
@@ -75,6 +76,7 @@ class StaticShader : NonCopyable {
     BLI_assert(shader_ == nullptr && info_name_.empty());
     std::swap(info_name_, other.info_name_);
     std::swap(shader_, other.shader_);
+    std::swap(failed_, other.failed_);
   }
 
  public:
@@ -98,15 +100,25 @@ class StaticShader : NonCopyable {
 
   GPUShader *get()
   {
-    if (!shader_) {
+    if (!shader_ && !failed_) {
       std::scoped_lock lock(mutex_);
       /* Check again in case it was created between first check and lock. */
-      if (!shader_) {
+      if (!shader_ && !failed_) {
         BLI_assert(!info_name_.empty());
         shader_ = GPU_shader_create_from_info_name(info_name_.c_str());
+        failed_ = shader_ != nullptr;
       }
     }
     return shader_;
+  }
+
+  /* For batch compiled shaders. */
+  /* TODO: Find a better way to handle this. */
+  void set(GPUShader *shader)
+  {
+    std::scoped_lock lock(mutex_);
+    BLI_assert(shader_ == nullptr);
+    shader_ = shader;
   }
 };
 

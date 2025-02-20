@@ -34,8 +34,10 @@ ShaderModule *ShaderModule::g_shader_module = nullptr;
 ShaderModule *ShaderModule::module_get()
 {
   if (g_shader_module == nullptr) {
-    /* TODO(@fclem) thread-safety. */
-    g_shader_module = new ShaderModule();
+    std::lock_guard lock(g_mutex_);
+    if (g_shader_module == nullptr) {
+      g_shader_module = new ShaderModule();
+    }
   }
   return g_shader_module;
 }
@@ -51,17 +53,19 @@ void ShaderModule::module_free()
 
 ShaderModule::ShaderModule()
 {
-  for (GPUShader *&shader : shaders_) {
-    shader = nullptr;
-  }
-
   Vector<const GPUShaderCreateInfo *> infos;
   infos.reserve(MAX_SHADER_TYPE);
 
   for (auto i : IndexRange(MAX_SHADER_TYPE)) {
     const char *name = static_shader_create_info_name_get(eShaderType(i));
     const GPUShaderCreateInfo *create_info = GPU_shader_create_info_get(name);
-    infos.append(create_info);
+
+    if (GPU_use_parallel_compilation()) {
+      infos.append(create_info);
+    }
+    else {
+      shaders_[i] = {name};
+    }
 
 #ifndef NDEBUG
     if (name == nullptr) {
@@ -84,10 +88,6 @@ ShaderModule::~ShaderModule()
     /* Finish compilation to avoid asserts on exit at GLShaderCompiler destructor. */
     is_ready(true);
   }
-
-  for (GPUShader *&shader : shaders_) {
-    GPU_SHADER_FREE_SAFE(shader);
-  }
 }
 
 /** \} */
@@ -101,8 +101,6 @@ void ShaderModule::precompile_specializations(int render_buffers_shadow_id,
                                               int shadow_ray_count,
                                               int shadow_ray_step_count)
 {
-  BLI_assert(specialization_handle_ == 0);
-
   if (!GPU_use_parallel_compilation()) {
     return;
   }
@@ -125,16 +123,22 @@ void ShaderModule::precompile_specializations(int render_buffers_shadow_id,
     }
   }
 
+  std::lock_guard lock(g_mutex_);
+  /* TODO: This is broken. Different scenes can have different specializations. */
+  BLI_assert(specialization_handle_ == 0);
+
   specialization_handle_ = GPU_shader_batch_specializations(specializations);
 }
 
 bool ShaderModule::is_ready(bool block)
 {
+  std::lock_guard lock(g_mutex_);
+
   if (compilation_handle_) {
     if (GPU_shader_batch_is_ready(compilation_handle_) || block) {
       Vector<GPUShader *> shaders = GPU_shader_batch_finalize(compilation_handle_);
       for (int i : IndexRange(MAX_SHADER_TYPE)) {
-        shaders_[i] = shaders[i];
+        shaders_[i].set(shaders[i]);
       }
     }
   }
@@ -385,17 +389,13 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
 GPUShader *ShaderModule::static_shader_get(eShaderType shader_type)
 {
   BLI_assert(is_ready());
-  if (shaders_[shader_type] == nullptr) {
+  if (GPU_use_parallel_compilation() && shaders_[shader_type].get() == nullptr) {
     const char *shader_name = static_shader_create_info_name_get(shader_type);
-    if (GPU_use_parallel_compilation()) {
-      fprintf(stderr, "EEVEE: error: Could not compile static shader \"%s\"\n", shader_name);
-      BLI_assert(0);
-    }
-    else {
-      shaders_[shader_type] = GPU_shader_create_from_info_name(shader_name);
-    }
+    fprintf(stderr, "EEVEE: error: Could not compile static shader \"%s\"\n", shader_name);
+    BLI_assert(0);
   }
-  return shaders_[shader_type];
+
+  return shaders_[shader_type].get();
 }
 
 /** \} */
