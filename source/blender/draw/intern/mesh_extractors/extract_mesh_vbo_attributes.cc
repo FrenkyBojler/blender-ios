@@ -20,7 +20,6 @@
 #include "extract_mesh.hh"
 
 #include "GPU_vertex_buffer.hh"
-#include <optional>
 
 namespace blender::draw {
 
