@@ -1,2 +1,3 @@
 Referenced by commit 23ff989dc0b, Fix: Grease Pencil: Move use_selection property to new row in redo panel
 Referenced by issue #133520, Fix: Grease Pencil: Move use_selection property to new row in redo panel
+Referenced by issue #134808, Blender Crash using Grease Pencil Interpolation
