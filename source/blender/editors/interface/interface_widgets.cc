@@ -2541,7 +2541,10 @@ static void widget_state(uiWidgetType *wt, const uiWidgetStateInfo *state, eUIEm
       UI_GetThemeColor3ubv(TH_REDALERT, wt->wcol.inner);
     }
     else {
-      UI_GetThemeColor3ubv(TH_REDALERT, wt->wcol.text);
+      uchar red[4];
+      UI_GetThemeColor3ubv(TH_REDALERT, red);
+      color_mul_hsl_v3(red, 1.0f, 1.5f, 1.5f);
+      color_blend_v3_v3(wt->wcol.text, red, 0.5f);
     }
   }
 
@@ -2593,10 +2596,10 @@ static bool draw_emboss(const uiBut *but)
   if (but->drawflag & UI_BUT_ALIGN_DOWN) {
     return false;
   }
-
+  uiBut *but_next = but->block->next_but(but);
   if (but->type == UI_BTYPE_TAB &&
       (BLI_rctf_size_y(&but->block->rect) > BLI_rctf_size_x(&but->block->rect)) &&
-      !(but->next == nullptr || but->next->type == UI_BTYPE_SEPR))
+      !(but_next == nullptr || but_next->type == UI_BTYPE_SEPR))
   {
     /* Vertical tabs, emboss at end and before separators. */
     return false;
@@ -3961,7 +3964,7 @@ static void widget_swatch(uiBut *but,
   if (but->rnaprop) {
     BLI_assert(but->rnaindex == -1);
 
-    if (RNA_property_array_length(&but->rnapoin, but->rnaprop) == 4) {
+    if (RNA_property_array_length(&but->rnapoin, but->rnaprop) >= 4) {
       col[3] = RNA_property_float_get_index(&but->rnapoin, but->rnaprop, 3);
     }
   }
@@ -4351,7 +4354,10 @@ static void widget_state_label(uiWidgetType *wt,
   }
 
   if (state->but_flag & UI_BUT_REDALERT) {
-    UI_GetThemeColor3ubv(TH_REDALERT, wt->wcol.text);
+    uchar red[4];
+    UI_GetThemeColor3ubv(TH_REDALERT, red);
+    color_mul_hsl_v3(red, 1.0f, 1.5f, 1.5f);
+    color_blend_v3_v3(wt->wcol.text, red, 0.5f);
   }
 }
 

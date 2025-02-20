@@ -81,9 +81,9 @@ void multires_customdata_delete(Mesh *mesh)
   }
   else {
     CustomData_external_remove(&mesh->corner_data, &mesh->id, CD_MDISPS, mesh->corners_num);
-    CustomData_free_layer_active(&mesh->corner_data, CD_MDISPS, mesh->corners_num);
+    CustomData_free_layer_active(&mesh->corner_data, CD_MDISPS);
 
-    CustomData_free_layer_active(&mesh->corner_data, CD_GRID_PAINT_MASK, mesh->corners_num);
+    CustomData_free_layer_active(&mesh->corner_data, CD_GRID_PAINT_MASK);
   }
 }
 
@@ -1116,7 +1116,7 @@ void multires_modifier_update_mdisps(DerivedMesh *dm, Scene *scene)
       }
 
       /* lower level dm no longer needed at this point */
-      MEM_freeN(diffGrid);
+      MEM_freeN(static_cast<void *>(diffGrid));
       lowdm->release(lowdm);
 
       /* subsurf higher levels again with difference of coordinates */
@@ -1130,7 +1130,7 @@ void multires_modifier_update_mdisps(DerivedMesh *dm, Scene *scene)
       /* free */
       highdm->release(highdm);
       for (i = 0; i < numGrids; i++) {
-        MEM_freeN(subGridData[i]);
+        MEM_freeN(static_cast<void *>(subGridData[i]));
       }
       MEM_freeN(subGridData);
     }
@@ -1282,7 +1282,7 @@ DerivedMesh *multires_make_derived_from_derived(
   }
 
   for (i = 0; i < numGrids; i++) {
-    MEM_freeN(subGridData[i]);
+    MEM_freeN(static_cast<void *>(subGridData[i]));
   }
   MEM_freeN(subGridData);
 
