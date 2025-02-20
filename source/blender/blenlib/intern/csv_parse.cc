@@ -84,8 +84,11 @@ static Vector<Span<char>> split_into_aligned_chunks(const Span<char> buffer,
      *   - a quote character that starts the next field
      *   - a delimiter that ends the next field in case that field is empty
      *   - a \r or \n character
-     * - `set_bits_it` points to the next special character starting at and including `i`.
+     * - `set_bits_it` points to the next special character starting at and including `i` or to the
+     *   end.
      */
+
+    BLI_assert(set_bits_it == set_bits_end || *set_bits_it >= i);
 
     const char c = buffer[i];
     if (c == '\n') {
@@ -96,12 +99,14 @@ static Vector<Span<char>> split_into_aligned_chunks(const Span<char> buffer,
       BLI_assert(i == *set_bits_it);
       /* Ignore this character.*/
       i++;
+      ++set_bits_it;
       continue;
     }
     if (c == delimiter) {
       BLI_assert(i == *set_bits_it);
       r_fields.append({});
       i++;
+      ++set_bits_it;
       handle_potentially_trailing_delimiter(i);
       continue;
     }
@@ -172,6 +177,7 @@ static Vector<Span<char>> split_into_aligned_chunks(const Span<char> buffer,
         r_fields.append(buffer.slice(IndexRange::from_begin_end(field_start, i)));
         break;
       }
+      ++set_bits_it;
     }
   }
   return false;
