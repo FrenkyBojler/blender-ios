@@ -47,6 +47,7 @@
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
 #include "BKE_packedFile.hh"
+#include "BKE_scene.hh"
 #include "BKE_sound.h"
 
 #include "DEG_depsgraph.hh"
@@ -682,15 +683,46 @@ void BKE_sound_mute_scene(Scene *scene, int muted)
   }
 }
 
+static double get_cur_time(Scene *scene)
+{
+  /* We divide by the current `framelen` to take into account time remapping.
+   * Otherwise we will get the wrong starting time which will break A/V sync.
+   * See #74111 for further details. */
+  return FRA2TIME((scene->r.cfra + scene->r.subframe) / double(scene->r.framelen));
+}
+
+static bool is_animation_playing(Main *bmain)
+{
+  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+    if (screen->animtimer) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void BKE_sound_update_fps(Main *bmain, Scene *scene)
 {
   sound_verify_evaluated_id(&scene->id);
 
   if (scene->sound_scene) {
+    const float cur_time = get_cur_time(scene);
     AUD_Sequence_setFPS(scene->sound_scene, FPS);
+    if (scene->playback_handle && is_animation_playing(bmain)) {
+      AUD_seekSynchronizer(scene->playback_handle, cur_time);
+    }
   }
 
   SEQ_sound_update_length(bmain, scene);
+}
+
+float BKE_sound_get_fps(Scene *scene)
+{
+  sound_verify_evaluated_id(&scene->id);
+  if (scene->sound_scene) {
+    return AUD_Sequence_getFPS(scene->sound_scene);
+  }
+  return FPS;
 }
 
 void BKE_sound_update_scene_listener(Scene *scene)
@@ -902,14 +934,6 @@ static void sound_start_play_scene(Scene *scene)
   }
 }
 
-static double get_cur_time(Scene *scene)
-{
-  /* We divide by the current `framelen` to take into account time remapping.
-   * Otherwise we will get the wrong starting time which will break A/V sync.
-   * See #74111 for further details. */
-  return FRA2TIME((scene->r.cfra + scene->r.subframe) / double(scene->r.framelen));
-}
-
 void BKE_sound_play_scene(Scene *scene)
 {
   sound_verify_evaluated_id(&scene->id);
@@ -973,12 +997,10 @@ void BKE_sound_seek_scene(Main *bmain, Scene *scene)
   sound_verify_evaluated_id(&scene->id);
 
   AUD_Status status;
-  bScreen *screen;
-  int animation_playing;
 
   const double one_frame = 1.0 / FPS +
                            (U.audiorate > 0 ? U.mixbufsize / double(U.audiorate) : 0.0);
-  const double cur_time = FRA2TIME(scene->r.cfra);
+  const double cur_time = FRA2TIME(BKE_scene_frame_get(scene));
 
   AUD_Device_lock(sound_device);
 
@@ -996,15 +1018,7 @@ void BKE_sound_seek_scene(Main *bmain, Scene *scene)
     AUD_Handle_pause(scene->playback_handle);
   }
 
-  animation_playing = 0;
-  for (screen = static_cast<bScreen *>(bmain->screens.first); screen;
-       screen = static_cast<bScreen *>(screen->id.next))
-  {
-    if (screen->animtimer) {
-      animation_playing = 1;
-      break;
-    }
-  }
+  const bool animation_playing = is_animation_playing(bmain);
 
   if (scene->audio.flag & AUDIO_SCRUB && !animation_playing) {
     /* Playback one frame of audio without advancing the timeline. */
@@ -1395,6 +1409,7 @@ void BKE_sound_update_scene(Depsgraph * /*depsgraph*/, Scene * /*scene*/) {}
 void BKE_sound_update_scene_sound(void * /*handle*/, bSound * /*sound*/) {}
 void BKE_sound_update_scene_listener(Scene * /*scene*/) {}
 void BKE_sound_update_fps(Main * /*bmain*/, Scene * /*scene*/) {}
+float BKE_sound_get_fps(Scene * /* scene */) {}
 void BKE_sound_set_scene_sound_volume_at_frame(void * /*handle*/,
                                                int /*frame*/,
                                                float /*volume*/,
