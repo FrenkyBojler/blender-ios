@@ -2947,6 +2947,7 @@ static void rna_def_gpencil_interpolate(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna,
                          "Grease Pencil Interpolate Settings",
                          "Settings for Grease Pencil interpolation tools");
+  RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
 
   /* Custom curve-map. */
   prop = RNA_def_property(srna, "interpolation_curve", PROP_POINTER, PROP_NONE);
@@ -3198,6 +3199,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "ToolSettings", nullptr);
   RNA_def_struct_path_func(srna, "rna_ToolSettings_path");
   RNA_def_struct_ui_text(srna, "Tool Settings", "");
+  RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
 
   prop = RNA_def_property(srna, "sculpt", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Sculpt");
@@ -4155,6 +4157,7 @@ static void rna_def_sequencer_tool_settings(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "SequencerToolSettings", nullptr);
   RNA_def_struct_path_func(srna, "rna_SequencerToolSettings_path");
   RNA_def_struct_ui_text(srna, "Sequencer Tool Settings", "");
+  RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
 
   /* Add strip settings. */
   prop = RNA_def_property(srna, "fit_method", PROP_ENUM, PROP_NONE);
@@ -4247,6 +4250,7 @@ static void rna_def_unified_paint_settings(BlenderRNA *brna)
   RNA_def_struct_path_func(srna, "rna_UnifiedPaintSettings_path");
   RNA_def_struct_ui_text(
       srna, "Unified Paint Settings", "Overrides for some of the active brush's settings");
+  RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
 
   /* high-level flags to enable or disable unified paint settings */
   prop = RNA_def_property(srna, "use_unified_size", PROP_BOOLEAN, PROP_NONE);
@@ -4355,6 +4359,7 @@ static void rna_def_curve_paint_settings(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "CurvePaintSettings", nullptr);
   RNA_def_struct_path_func(srna, "rna_CurvePaintSettings_path");
   RNA_def_struct_ui_text(srna, "Curve Paint Settings", "");
+  RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
 
   static const EnumPropertyItem curve_type_items[] = {
       {CU_POLY, "POLY", 0, "Poly", ""},
@@ -4505,6 +4510,7 @@ static void rna_def_statvis(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "MeshStatVis", nullptr);
   RNA_def_struct_path_func(srna, "rna_MeshStatVis_path");
   RNA_def_struct_ui_text(srna, "Mesh Visualize Statistics", "");
+  RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
 
   prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, stat_type);
