@@ -167,7 +167,6 @@ TEST_F(ActionIteratorsTest, foreach_action_slot_use_with_rna)
   ASSERT_NE(slot_cube, nullptr);
   Slot &another_slot = action->slot_add();
 
-  bool all_assigns_ok = true;
   const auto assign_other_slot = [&](ID & /* animated_id */,
                                      bAction *action,
                                      PointerRNA &action_slot_owner_ptr,
@@ -175,12 +174,10 @@ TEST_F(ActionIteratorsTest, foreach_action_slot_use_with_rna)
                                      char * /*last_slot_identifier*/) -> bool {
     PointerRNA rna_slot = RNA_pointer_create_discrete(&action->id, &RNA_ActionSlot, &another_slot);
     RNA_property_pointer_set(&action_slot_owner_ptr, &action_slot_prop, rna_slot, nullptr);
-
     return true;
   };
 
   foreach_action_slot_use_with_rna(cube->id, assign_other_slot);
-  ASSERT_TRUE(all_assigns_ok);
 
   /* Check the result, the slot assignment should have been changed. */
   std::optional<std::pair<Action *, Slot *>> action_and_slot = get_action_slot_pair(cube->id);
