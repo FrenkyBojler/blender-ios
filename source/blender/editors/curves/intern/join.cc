@@ -69,7 +69,7 @@ int join_objects(bContext *C, wmOperator *op)
       geometry::RealizeInstancesOptions());
 
   if (!realized_geometry.has_curves()) {
-    BKE_report(op->reports, RPT_WARNING, "No Curves data to join");
+    BKE_report(op->reports, RPT_WARNING, "No curves data to join");
     return OPERATOR_CANCELLED;
   }
 
