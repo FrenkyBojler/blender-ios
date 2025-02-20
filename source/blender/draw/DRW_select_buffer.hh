@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "BLI_map.hh"
 #include "DNA_ID.h"
 
 #include "BLI_array.hh"
@@ -35,30 +36,26 @@ struct SELECTID_ObjectData {
   bool is_drawn;
 };
 
-struct ObjectOffsets {
-  /* For convenience only. */
-  union {
-    uint offset;
-    uint face_start;
-  };
-  union {
-    uint face;
-    uint edge_start;
-  };
-  union {
-    uint edge;
-    uint vert_start;
-  };
-  uint vert;
+/* Indices inside the selection framebuffer associated with the elements of a mesh. */
+struct ElemIndexRanges {
+  /* Range for each element type. */
+  blender::IndexRange face = {0, 0};
+  blender::IndexRange edge = {0, 0};
+  blender::IndexRange vert = {0, 0};
+  /* Combined range for the whole object. */
+  blender::IndexRange total = {0, 0};
 };
 
 struct SELECTID_Context {
   /* All context objects */
-  blender::Array<Object *> objects;
-  blender::Array<ObjectOffsets> index_offsets;
+  blender::Vector<Object *> objects;
+  blender::Map<Object *, ElemIndexRanges> elem_ranges;
 
-  /** Total number of element indices `index_offsets[object_drawn_len - 1].vert`. */
-  uint index_drawn_len;
+  /**
+   * Maximum index value that can be contained inside the selection framebuffer.
+   * Each object/element type has different range which are described inside `elem_ranges`.
+   */
+  uint max_index_drawn_len;
 
   short select_mode;
 
@@ -71,7 +68,12 @@ struct SELECTID_Context {
 
 /* `draw_select_buffer.cc` */
 
-bool DRW_select_buffer_elem_get(uint sel_id, uint *r_elem, uint *r_base_index, char *r_elem_type);
+bool DRW_select_buffer_elem_get(uint sel_id, uint &r_elem, uint &r_base_index, char &r_elem_type);
+
+/**
+ * Assume it is called right after `DRW_select_buffer_bitmap_from_*` so that the same evaluated
+ * object is used for drawing and as parameter to this function.
+ */
 uint DRW_select_buffer_context_offset_for_object_elem(Depsgraph *depsgraph,
                                                       Object *object,
                                                       char elem_type);
