@@ -137,7 +137,6 @@ static eNodeSocketDatatype socket_type_from_pass(const RenderPass *pass)
     case 2:
     case 3:
       return SOCK_VECTOR;
-      return SOCK_VECTOR;
     case 4:
       if (blender::StringRef(pass->chan_id) == "XYZW") {
         return SOCK_VECTOR;
