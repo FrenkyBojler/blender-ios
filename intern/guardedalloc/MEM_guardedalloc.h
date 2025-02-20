@@ -397,6 +397,36 @@ template<typename T> inline T *MEM_cnew(const char *allocation_name, const T &ot
   return new_object;
 }
 
+/* Static warning hack taken from
+ * https://stackoverflow.com/questions/8936063/does-there-exist-a-static-warning */
+#  if defined(__GNUC__)
+#    define DEPRECATE(foo, msg) foo __attribute__((deprecated(msg)))
+#  elif defined(_MSC_VER)
+#    define DEPRECATE(foo, msg) __declspec(deprecated(msg)) foo
+#  else
+#    error This compiler is not supported
+#  endif
+
+#  define PP_CAT(x, y) PP_CAT1(x, y)
+#  define PP_CAT1(x, y) x##y
+
+namespace detail {
+struct true_type {};
+struct false_type {};
+template<int test> struct converter : public true_type {};
+template<> struct converter<0> : public false_type {};
+}  // namespace detail
+
+#  define STATIC_WARNING(cond, msg) \
+    struct PP_CAT(static_warning, __LINE__) { \
+      DEPRECATE(void _(::detail::false_type const &), msg){}; \
+      void _(::detail::true_type const &){}; \
+      PP_CAT(static_warning, __LINE__)() \
+      { \
+        _(::detail::converter<(cond)>()); \
+      } \
+    }
+
 template<typename T> inline void MEM_freeN(T *ptr)
 {
   if constexpr (std::is_void_v<T>) {
@@ -410,7 +440,10 @@ template<typename T> inline void MEM_freeN(T *ptr)
      *
      * So for now, disable the triviality check on Windows. */
     static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_delete must be used.");
+#  else
+    STATIC_WARNING(std::is_trivial_v<T>, "For non-trivial types, MEM_delete must be used.");
 #  endif
+
     mem_guarded::internal::mem_freeN_ex(const_cast<void *>(static_cast<const void *>(ptr)),
                                         mem_guarded::internal::AllocationType::ALLOC_FREE);
   }
