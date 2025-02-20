@@ -16,7 +16,7 @@ if not exist "%vs_where%" (
 if "%BUILD_ARCH%" == "arm64" (
 	set VSWHERE_ARCH=ARM64
 ) else (
-	set VSWHERE_ARCH=x86.64
+	set VSWHERE_ARCH=x86.x64
 )
 
 if NOT "%verbose%" == "" (
