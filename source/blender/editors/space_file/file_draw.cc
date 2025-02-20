@@ -433,7 +433,6 @@ static void file_draw_string_mulitline_clipped(int sx,
                                                const uchar col[4])
 {
   rcti rect;
-  char filename[FILE_MAXFILE];
 
   if (string[0] == '\0' || width < 1) {
     return;
@@ -441,11 +440,6 @@ static void file_draw_string_mulitline_clipped(int sx,
 
   const uiStyle *style = UI_style_get();
   uiFontStyle fs = style->widget;
-  BLF_enable(fs.uifont_id, BLF_WORD_WRAP | BLF_WORD_WRAP_HARD);
-  BLF_wordwrap(fs.uifont_id, width);
-
-  STRNCPY(filename, string);
-  UI_text_clip_middle_ex(&fs, filename, width * line_count, UI_ICON_SIZE, sizeof(filename), '\0');
 
   /* no text clipping needed, UI_fontstyle_draw does it but is a bit too strict
    * (for buttons it works) */
@@ -458,7 +452,7 @@ static void file_draw_string_mulitline_clipped(int sx,
   font_style_params.align = align;
   font_style_params.word_wrap = eFontStyle_Wrapping::Hard;
 
-  UI_fontstyle_draw(&fs, &rect, filename, sizeof(filename), col, &font_style_params);
+  UI_fontstyle_draw_multiline_clipped(&fs, &rect, string, col, &font_style_params);
 }
 
 static void file_draw_string(int sx,

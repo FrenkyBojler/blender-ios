@@ -1272,6 +1272,9 @@ static void blf_font_wrap_apply(FontBLF *font,
 
   GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
 
+  const bool use_softwrap = ELEM(font->wrap_type, FontWrapType::Soft, FontWrapType::Mixed);
+  const bool use_hardwrap = ELEM(font->wrap_type, FontWrapType::Hard, FontWrapType::Mixed);
+
   struct WordWrapVars {
     ft_pix wrap_width;
     /** Beginning and end of current line. */
@@ -1312,7 +1315,7 @@ static void blf_font_wrap_apply(FontBLF *font,
      */
 
     pen_x_next = pen_x + g->advance_x;
-    if (UNLIKELY((pen_x_next >= wrap.wrap_width) && (wrap.start != wrap.last))) {
+    if (UNLIKELY(use_softwrap && (pen_x_next >= wrap.wrap_width) && (wrap.start != wrap.last))) {
       /* Wrap the line at the previous space. */
       flush_line = true;
     }
@@ -1322,38 +1325,38 @@ static void blf_font_wrap_apply(FontBLF *font,
       wrap.next = i;
       flush_line = true;
     }
-    else if (UNLIKELY(g->c == '\n')) {
+    else if (UNLIKELY(use_softwrap && g->c == '\n')) {
       wrap.last = i_curr + 1;
       wrap.next = i;
       flush_line = true;
     }
-    else if (UNLIKELY(g->c != ' ' && (g_prev ? g_prev->c == ' ' : false))) {
+    else if (UNLIKELY(use_softwrap && g->c != ' ' && (g_prev ? g_prev->c == ' ' : false))) {
       /* Previous character was a space, current character starts a new word. Make this character a
        * potential line break.  */
       wrap.last = i_curr;
       wrap.next = i_curr;
     }
     /* REVIEW NOTE: Noticed lines are sometimes wrapped to early, this should fix it. */
-    else if (UNLIKELY(g->c == ' ' && (g_prev ? g_prev->c != ' ' : false))) {
+    else if (UNLIKELY(use_softwrap && g->c == ' ' && (g_prev ? g_prev->c != ' ' : false))) {
       /* Current character is a space, previous character ended a new word. Make this character a
        * potential line break.  */
       wrap.last = i_curr + 1;
       wrap.next = i_curr + 1;
     }
     /* If no space or newline character, allow hard wrapping if enabled. */
-    else if (UNLIKELY((font->flags & BLF_WORD_WRAP_HARD) && (pen_x_next >= wrap.wrap_width))) {
+    else if (UNLIKELY(use_hardwrap && (pen_x_next >= wrap.wrap_width))) {
       wrap.last = i_curr;
-      wrap.next = i_curr;
+      wrap.next = i;
       flush_line = true;
       strip_last_char = false;
     }
 
-    if (UNLIKELY(flush_line)) {
-#if 0
+    if (UNLIKELY(flush_line) && (str[wrap.start] != '\0')) {
+#if 1
       printf("(%03lu..%03lu)  `%.*s`\n",
              wrap.start,
              wrap.last,
-             int((wrap.last - wrap.start) - 1),
+             int((wrap.last - wrap.start) - (strip_last_char ? 1 : 0)),
              &str[wrap.start]);
 #endif
 

@@ -3397,6 +3397,24 @@ void UI_fontstyle_draw(const uiFontStyle *fs,
                        size_t str_len,
                        const uchar col[4],
                        const uiFontStyleDraw_Params *fs_params);
+
+void UI_fontstyle_draw_multiline_clipped_ex(const uiFontStyle *fs,
+                                            const rcti *rect,
+                                            const char *str,
+                                            const uchar col[4],
+                                            const uiFontStyleDraw_Params *fs_params,
+                                            int *r_xofs,
+                                            int *r_yofs,
+                                            ResultBLF *r_info);
+/**
+ * Draws text with wrapping and shortening using "..." so that it fits into the given rectangle.
+ */
+void UI_fontstyle_draw_multiline_clipped(const uiFontStyle *fs,
+                                         const rcti *rect,
+                                         const char *str,
+                                         const uchar col[4],
+                                         const uiFontStyleDraw_Params *fs_params);
+
 /**
  * Drawn same as #UI_fontstyle_draw, but at 90 degree angle.
  */

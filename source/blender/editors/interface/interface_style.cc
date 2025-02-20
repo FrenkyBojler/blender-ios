@@ -146,11 +146,21 @@ void UI_fontstyle_draw_ex(const uiFontStyle *fs,
     BLF_shadow(fs->uifont_id, FontShadowType(fs->shadow), shadow_color);
     BLF_shadow_offset(fs->uifont_id, fs->shadx, fs->shady);
   }
-  if (fs_params->word_wrap == eFontStyle_Wrapping::Soft) {
+  if (fs_params->word_wrap != eFontStyle_Wrapping::None) {
+    const FontWrapType wrap_type = [&]() {
+      switch (fs_params->word_wrap) {
+        case eFontStyle_Wrapping::Hard:
+          return FontWrapType::Hard;
+        case eFontStyle_Wrapping::Soft:
+          return FontWrapType::Soft;
+        default:
+          BLI_assert_unreachable();
+          return FontWrapType::Soft;
+      }
+    }();
+
     font_flag |= BLF_WORD_WRAP;
-  }
-  else if (fs_params->word_wrap == eFontStyle_Wrapping::Hard) {
-    font_flag |= BLF_WORD_WRAP | BLF_WORD_WRAP_HARD;
+    BLF_wordwrap(fs->uifont_id, BLI_rcti_size_x(rect), wrap_type);
   }
   if (fs->bold) {
     font_flag |= BLF_BOLD;
@@ -240,6 +250,118 @@ void UI_fontstyle_draw(const uiFontStyle *fs,
                        const uiFontStyleDraw_Params *fs_params)
 {
   UI_fontstyle_draw_ex(fs, rect, str, str_len, col, fs_params, nullptr, nullptr, nullptr);
+}
+
+void UI_fontstyle_draw_multiline_clipped_ex(const uiFontStyle *fs,
+                                            const rcti *rect,
+                                            const char *str,
+                                            const uchar col[4],
+                                            const uiFontStyleDraw_Params *fs_params,
+                                            int *r_xofs,
+                                            int *r_yofs,
+                                            ResultBLF *r_info)
+{
+  int xofs = 0, yofs;
+  int font_flag = BLF_CLIPPING | BLF_WORD_WRAP;
+
+  UI_fontstyle_set(fs);
+
+  /* set the flag */
+  if (fs->shadow) {
+    font_flag |= BLF_SHADOW;
+    const float shadow_color[4] = {
+        fs->shadowcolor, fs->shadowcolor, fs->shadowcolor, fs->shadowalpha};
+    BLF_shadow(fs->uifont_id, FontShadowType(fs->shadow), shadow_color);
+    BLF_shadow_offset(fs->uifont_id, fs->shadx, fs->shady);
+  }
+  if (fs->bold) {
+    font_flag |= BLF_BOLD;
+  }
+  if (fs->italic) {
+    font_flag |= BLF_ITALIC;
+  }
+
+  BLF_enable(fs->uifont_id, font_flag);
+
+  const int max_width = BLI_rcti_size_x(rect);
+  const int max_height = BLI_rcti_size_y(rect);
+  const int line_height = BLF_height_max(fs->uifont_id);
+  const int max_line_count = max_height / line_height;
+
+  /* Draw from bound-box top. */
+  yofs = max_height - line_height;
+  yofs = std::max(0, yofs);
+
+  BLF_clipping(fs->uifont_id, rect->xmin, rect->ymin, rect->xmax, rect->ymax);
+  BLF_color4ubv(fs->uifont_id, col);
+
+  /* First, try if mixed-wrapping (soft wrapping plus hard wrapping for overflowing lines) gives a
+   * result that fits. */
+  BLF_wordwrap(fs->uifont_id, max_width, FontWrapType::Mixed);
+  blender::Vector<blender::StringRef> lines = BLF_string_wrap(fs->uifont_id, str, max_width);
+
+  char new_drawstr[UI_MAX_DRAW_STR];
+  /* If soft-wrapping doesn't fit, . */
+  if (lines.size() > max_line_count) {
+    STRNCPY(new_drawstr, str);
+    /* Wrapping messes up shortening/clipping, disable it. */
+    BLF_disable(fs->uifont_id, BLF_WORD_WRAP);
+    const float new_width = UI_text_clip_middle_ex(
+        fs, new_drawstr, max_width * max_line_count, UI_ICON_SIZE, sizeof(new_drawstr), '\0');
+    BLF_enable(fs->uifont_id, BLF_WORD_WRAP);
+
+    /* Optimization: We already know the shortened string fits, skip line wrapping calculations. */
+    if (new_width <= max_width) {
+      lines = blender::Vector<blender::StringRef>{new_drawstr};
+    }
+    else {
+      BLF_wordwrap(fs->uifont_id, max_width, FontWrapType::Hard);
+      lines = BLF_string_wrap(fs->uifont_id, new_drawstr, max_width);
+    }
+    BLI_assert(lines.size() <= max_line_count);
+  }
+
+  ResultBLF line_result = {0, 0};
+  /* Draw each line with the given alignment. */
+  for (StringRef line : lines) {
+    /* String wrapping might have trailing/leading whitespace. */
+    line.trim();
+
+    if (fs_params->align == UI_STYLE_TEXT_CENTER) {
+      xofs = floor(0.5f * (max_width - BLF_width(fs->uifont_id, line.data(), line.size())));
+    }
+    else if (fs_params->align == UI_STYLE_TEXT_RIGHT) {
+      xofs = max_width - BLF_width(fs->uifont_id, line.data(), line.size());
+    }
+    xofs = std::max(0, xofs);
+
+    BLF_position(fs->uifont_id, rect->xmin + xofs, rect->ymin + yofs, 0.0f);
+    BLF_draw(fs->uifont_id, line.data(), line.size(), &line_result);
+    yofs -= line_height;
+  }
+
+  if (r_info) {
+    r_info->width = line_result.width;
+    r_info->lines = lines.size();
+  }
+
+  BLF_disable(fs->uifont_id, font_flag);
+
+  if (r_xofs) {
+    *r_xofs = xofs;
+  }
+  if (r_yofs) {
+    *r_yofs = yofs;
+  }
+}
+
+void UI_fontstyle_draw_multiline_clipped(const uiFontStyle *fs,
+                                         const rcti *rect,
+                                         const char *str,
+                                         const uchar col[4],
+                                         const uiFontStyleDraw_Params *fs_params)
+{
+  UI_fontstyle_draw_multiline_clipped_ex(fs, rect, str, col, fs_params, nullptr, nullptr, nullptr);
 }
 
 void UI_fontstyle_draw_rotated(const uiFontStyle *fs,

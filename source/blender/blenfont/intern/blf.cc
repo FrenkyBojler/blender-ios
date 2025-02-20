@@ -910,12 +910,13 @@ void BLF_clipping(int fontid, int xmin, int ymin, int xmax, int ymax)
   }
 }
 
-void BLF_wordwrap(int fontid, int wrap_width)
+void BLF_wordwrap(int fontid, int wrap_width, FontWrapType wrap_type)
 {
   FontBLF *font = blf_get(fontid);
 
   if (font) {
     font->wrap_width = wrap_width;
+    font->wrap_type = wrap_type;
   }
 }
 

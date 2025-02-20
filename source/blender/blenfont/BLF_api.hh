@@ -37,6 +37,16 @@ enum class FontShadowType {
   Outline = 6,
 };
 
+enum class FontWrapType {
+  /** Wrap at spaces and newline characters only. Lines can overflow if they don't contain any. */
+  Soft,
+  /** Wrap at any character. */
+  Hard,
+  /** Wrap at spaces and newline characters, or if a line doesn't contain any and would overflow,
+   * wrap at any character. */
+  Mixed,
+};
+
 int BLF_init();
 void BLF_exit();
 
@@ -309,7 +319,7 @@ int BLF_glyph_advance(int fontid, const char *str);
  */
 void BLF_rotation(int fontid, float angle);
 void BLF_clipping(int fontid, int xmin, int ymin, int xmax, int ymax);
-void BLF_wordwrap(int fontid, int wrap_width);
+void BLF_wordwrap(int fontid, int wrap_width, FontWrapType wrap_type = FontWrapType::Soft);
 
 blender::Vector<blender::StringRef> BLF_string_wrap(int fontid,
                                                     blender::StringRef str,
@@ -395,10 +405,8 @@ enum {
   BLF_SHADOW = 1 << 2,
   // BLF_FLAG_UNUSED_3 = 1 << 3, /* dirty */
   // BLF_MATRIX = 1 << 4,
-  BLF_ASPECT = 1 << 4,
-  BLF_WORD_WRAP = 1 << 5,
-  /** Requires #BLF_WORD_WRAP */
-  BLF_WORD_WRAP_HARD = 1 << 6,
+  BLF_ASPECT = 1 << 3,
+  BLF_WORD_WRAP = 1 << 4,
   /** No anti-aliasing. */
   BLF_MONOCHROME = 1 << 7,
   BLF_HINTING_NONE = 1 << 8,
