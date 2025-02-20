@@ -6,13 +6,16 @@
  * \ingroup edtransform
  */
 
-#include "DNA_brush_types.h"
-#include "DNA_gpencil_legacy_types.h"
+#include <algorithm>
 
-#include "BLI_blenlib.h"
+#include "DNA_brush_types.h"
+
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 #include "BLI_rand.h"
+#include "BLI_string_utf8.h"
 #include "BLI_time.h"
 
 #include "BLT_translation.hh"
@@ -25,6 +28,7 @@
 #include "BKE_mask.h"
 #include "BKE_modifier.hh"
 #include "BKE_paint.hh"
+#include "BKE_screen.hh"
 
 #include "SEQ_transform.hh"
 
@@ -47,7 +51,7 @@
 #include "transform_orientations.hh"
 #include "transform_snap.hh"
 
-using namespace blender;
+namespace blender::ed::transform {
 
 /* ************************** GENERICS **************************** */
 
@@ -740,10 +744,10 @@ void freeTransCustomDataForMode(TransInfo *t)
 void postTrans(bContext *C, TransInfo *t)
 {
   if (t->draw_handle_view) {
-    ED_region_draw_cb_exit(t->region->type, t->draw_handle_view);
+    ED_region_draw_cb_exit(t->region->runtime->type, t->draw_handle_view);
   }
   if (t->draw_handle_pixel) {
-    ED_region_draw_cb_exit(t->region->type, t->draw_handle_pixel);
+    ED_region_draw_cb_exit(t->region->runtime->type, t->draw_handle_pixel);
   }
   if (t->draw_handle_cursor) {
     WM_paint_cursor_end(static_cast<wmPaintCursor *>(t->draw_handle_cursor));
@@ -953,7 +957,8 @@ void calculateCenterCursor2D(TransInfo *t, float r_center[2])
   }
   if (t->spacetype == SPACE_SEQ) {
     SpaceSeq *sseq = (SpaceSeq *)t->area->spacedata.first;
-    SEQ_image_preview_unit_to_px(t->scene, sseq->cursor, cursor_local_buf);
+    const float2 cursor_pixel = SEQ_image_preview_unit_to_px(t->scene, sseq->cursor);
+    copy_v2_v2(cursor_local_buf, cursor_pixel);
     cursor = cursor_local_buf;
   }
   else if (t->spacetype == SPACE_CLIP) {
@@ -1086,7 +1091,7 @@ bool calculateCenterActive(TransInfo *t, bool select_only, float r_center[3])
     return false;
   }
   if (tc->obedit) {
-    if (blender::ed::object::calc_active_center_for_editmode(tc->obedit, select_only, r_center)) {
+    if (object::calc_active_center_for_editmode(tc->obedit, select_only, r_center)) {
       mul_m4_v3(tc->obedit->object_to_world().ptr(), r_center);
       return true;
     }
@@ -1094,7 +1099,7 @@ bool calculateCenterActive(TransInfo *t, bool select_only, float r_center[3])
   else if (t->options & CTX_POSE_BONE) {
     BKE_view_layer_synced_ensure(t->scene, t->view_layer);
     Object *ob = BKE_view_layer_active_object_get(t->view_layer);
-    if (blender::ed::object::calc_active_center_for_posemode(ob, select_only, r_center)) {
+    if (object::calc_active_center_for_posemode(ob, select_only, r_center)) {
       mul_m4_v3(ob->object_to_world().ptr(), r_center);
       return true;
     }
@@ -1295,9 +1300,7 @@ void calculatePropRatio(TransInfo *t)
            * Certain corner cases with connectivity and individual centers
            * can give values of rdist larger than propsize.
            */
-          if (dist < 0.0f) {
-            dist = 0.0f;
-          }
+          dist = std::max(dist, 0.0f);
 
           switch (t->prop_mode) {
             case PROP_SHARP:
@@ -1500,3 +1503,5 @@ Object *transform_object_deform_pose_armature_get(const TransInfo *t, Object *ob
   }
   return nullptr;
 }
+
+}  // namespace blender::ed::transform

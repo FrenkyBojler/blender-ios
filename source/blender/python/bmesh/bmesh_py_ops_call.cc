@@ -23,7 +23,6 @@
 #include "bmesh_py_types.hh"
 
 #include "../generic/py_capi_utils.hh"
-#include "../generic/python_utildefines.hh"
 
 BLI_STATIC_ASSERT(sizeof(PyC_FlagSet) == sizeof(BMO_FlagSet), "size mismatch");
 
@@ -837,7 +836,7 @@ PyObject *BPy_BMO_call(BPy_BMeshOpFunc *self, PyObject *args, PyObject *kw)
       }
 
 #if 1
-      /* temp code, strip off '.out' while we keep this convention */
+      /* Temporary code, strip off `.out` while we keep this convention. */
       {
         char slot_name_strip[MAX_SLOTNAME];
         const char *ch = strchr(slot->slot_name, '.'); /* can't fail! */

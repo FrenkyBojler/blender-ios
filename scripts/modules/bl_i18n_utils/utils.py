@@ -4,6 +4,16 @@
 
 # Some misc utilities...
 
+__all__ = (
+    "I18n",
+    "I18nMessage",
+    "I18nMessages",
+    "enable_addons",
+    "find_best_isocode_matches",
+    "get_po_files_from_dir",
+    "list_po_dir",
+)
+
 import collections
 import os
 import platform
@@ -65,10 +75,11 @@ def locale_explode(locale):
     m = _locale_explode_re.match(locale)
     if m:
         lang, country, variant = m.groups()
-        return (lang, country, variant,
-                "%s_%s" % (lang, country) if country else None,
-                "%s@%s" % (lang, variant) if variant else None)
-
+        return (
+            lang, country, variant,
+            "{:s}_{:s}".format(lang, country) if country else None,
+            "{:s}@{:s}".format(lang, variant) if variant else None
+        )
     try:
         import bpy.app.translations as bpy_translations
         assert ret == bpy_translations.locale_explode(locale)
@@ -1431,7 +1442,7 @@ class I18n:
         """
         txts = []
         if os.path.isdir(src):
-            for root, dnames, fnames in os.walk(src):
+            for root, _dnames, fnames in os.walk(src):
                 for fname in fnames:
                     if not fname.endswith(".py"):
                         continue

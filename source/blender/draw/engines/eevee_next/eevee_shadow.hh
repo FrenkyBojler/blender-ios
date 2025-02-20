@@ -339,7 +339,11 @@ class ShadowModule {
 
  public:
   ShadowModule(Instance &inst, ShadowSceneData &data);
-  ~ShadowModule(){};
+
+  ~ShadowModule()
+  {
+    GPU_BATCH_DISCARD_SAFE(box_batch_);
+  }
 
   void init();
 
@@ -393,7 +397,6 @@ class ShadowModule {
 
  private:
   void remove_unused();
-  void debug_page_map_call(DRWPass *pass);
   bool shadow_update_finished(int loop_count);
 
   /** Compute approximate punctual shadow pixel world space radius, 1 unit away of the light. */

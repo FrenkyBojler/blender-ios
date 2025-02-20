@@ -15,11 +15,9 @@
 #include "GEO_extract_elements.hh"
 #include "GEO_join_geometries.hh"
 
-#include "FN_lazy_function_execute.hh"
+#include "FN_lazy_function_graph_executor.hh"
 
 #include "BLT_translation.hh"
-
-#include "BLI_array_utils.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -142,7 +140,7 @@ class ForeachGeometryElementNodeExecuteWrapper : public lf::GraphExecutorNodeExe
 
   void execute_node(const lf::FunctionNode &node,
                     lf::Params &params,
-                    const lf::Context &context) const
+                    const lf::Context &context) const override
   {
     GeoNodesLFUserData &user_data = *static_cast<GeoNodesLFUserData *>(context.user_data);
     const int index = lf_body_nodes_->index_of_try(const_cast<lf::FunctionNode *>(&node));
@@ -504,7 +502,7 @@ class LazyFunctionForForeachGeometryElementZone : public LazyFunction {
             eval_storage.main_geometry, id, mask, attribute_filter);
       }
 
-      /* Prepare remaining inputs that come from the field evaluation.*/
+      /* Prepare remaining inputs that come from the field evaluation. */
       component_info.item_input_values.reinitialize(node_storage.input_items.items_num);
       for (const int item_i : IndexRange(node_storage.input_items.items_num)) {
         const NodeForeachGeometryElementInputItem &item = node_storage.input_items.items[item_i];

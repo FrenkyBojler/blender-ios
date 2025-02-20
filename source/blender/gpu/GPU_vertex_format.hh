@@ -12,9 +12,8 @@
 
 #include "BLI_assert.h"
 #include "BLI_compiler_compat.h"
-#include "BLI_math_geom.h"
+#include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
-#include "GPU_common.hh"
 
 struct GPUShader;
 
@@ -96,6 +95,15 @@ void GPU_vertformat_from_shader(GPUVertFormat *format, const GPUShader *shader);
 uint GPU_vertformat_attr_add(
     GPUVertFormat *, const char *name, GPUVertCompType, uint comp_len, GPUVertFetchMode);
 void GPU_vertformat_alias_add(GPUVertFormat *, const char *alias);
+
+/**
+ * Return a vertex format from a single attribute description.
+ * The attribute ID is ensured to be 0.
+ */
+GPUVertFormat GPU_vertformat_from_attribute(const char *name,
+                                            const GPUVertCompType comp_type,
+                                            const uint comp_len,
+                                            const GPUVertFetchMode fetch_mode);
 
 /**
  * Makes vertex attribute from the next vertices to be accessible in the vertex shader.

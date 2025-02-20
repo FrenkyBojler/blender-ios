@@ -25,9 +25,9 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
+#include "DNA_userdef_types.h"
 #include "DNA_view3d_types.h"
 
-#include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
@@ -54,6 +54,8 @@
 #  include "BPY_extern.hh"
 #endif
 
+#include "WM_types.hh"
+
 using blender::Span;
 using blender::Vector;
 
@@ -78,7 +80,12 @@ static void screen_free_data(ID *id)
   BKE_previewimg_free(&screen->preview);
 
   /* Region and timer are freed by the window manager. */
-  MEM_SAFE_FREE(screen->tool_tip);
+  /* Cannot use MEM_SAFE_FREE, as #wmTooltipState type is only defined in `WM_types.hh`, which is
+   * currently not included here. */
+  if (screen->tool_tip) {
+    MEM_freeN(static_cast<void *>(screen->tool_tip));
+    screen->tool_tip = nullptr;
+  }
 }
 
 void BKE_screen_foreach_id_screen_area(LibraryForeachIDData *data, ScrArea *area)
@@ -334,45 +341,39 @@ static void panel_list_copy(ListBase *newlb, const ListBase *lb)
 
 ARegion *BKE_area_region_copy(const SpaceType *st, const ARegion *region)
 {
-  ARegion *newar = static_cast<ARegion *>(MEM_dupallocN(region));
+  ARegion *dst = static_cast<ARegion *>(MEM_dupallocN(region));
 
-  newar->runtime = MEM_new<blender::bke::ARegionRuntime>(__func__);
+  dst->runtime = MEM_new<blender::bke::ARegionRuntime>(__func__);
+  dst->runtime->type = region->runtime->type;
+  dst->runtime->do_draw = region->runtime->do_draw;
 
-  newar->prev = newar->next = nullptr;
-  BLI_listbase_clear(&newar->handlers);
-  BLI_listbase_clear(&newar->uiblocks);
-  BLI_listbase_clear(&newar->panels_category);
-  BLI_listbase_clear(&newar->panels_category_active);
-  BLI_listbase_clear(&newar->ui_lists);
-  newar->visible = 0;
-  newar->gizmo_map = nullptr;
-  newar->regiontimer = nullptr;
-  newar->headerstr = nullptr;
-  newar->draw_buffer = nullptr;
+  dst->prev = dst->next = nullptr;
+  BLI_listbase_clear(&dst->panels_category_active);
+  BLI_listbase_clear(&dst->ui_lists);
 
   /* use optional regiondata callback */
   if (region->regiondata) {
     ARegionType *art = BKE_regiontype_from_id(st, region->regiontype);
 
     if (art && art->duplicate) {
-      newar->regiondata = art->duplicate(region->regiondata);
+      dst->regiondata = art->duplicate(region->regiondata);
     }
     else if (region->flag & RGN_FLAG_TEMP_REGIONDATA) {
-      newar->regiondata = nullptr;
+      dst->regiondata = nullptr;
     }
     else {
-      newar->regiondata = MEM_dupallocN(region->regiondata);
+      dst->regiondata = MEM_dupallocN(region->regiondata);
     }
   }
 
-  panel_list_copy(&newar->panels, &region->panels);
+  panel_list_copy(&dst->panels, &region->panels);
 
-  BLI_listbase_clear(&newar->ui_previews);
-  BLI_duplicatelist(&newar->ui_previews, &region->ui_previews);
-  BLI_listbase_clear(&newar->view_states);
-  BLI_duplicatelist(&newar->view_states, &region->view_states);
+  BLI_listbase_clear(&dst->ui_previews);
+  BLI_duplicatelist(&dst->ui_previews, &region->ui_previews);
+  BLI_listbase_clear(&dst->view_states);
+  BLI_duplicatelist(&dst->view_states, &region->view_states);
 
-  return newar;
+  return dst;
 }
 
 ARegion *BKE_area_region_new()
@@ -483,8 +484,8 @@ void BKE_screen_gizmo_tag_refresh(bScreen *screen)
 
   LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
     LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-      if (region->gizmo_map != nullptr) {
-        region_refresh_tag_gizmomap_callback(region->gizmo_map);
+      if (region->runtime->gizmo_map != nullptr) {
+        region_refresh_tag_gizmomap_callback(region->runtime->gizmo_map);
       }
     }
   }
@@ -582,8 +583,8 @@ void BKE_area_region_free(SpaceType *st, ARegion *region)
       printf("regiondata free error\n");
     }
   }
-  else if (region->type && region->type->free) {
-    region->type->free(region);
+  else if (region->runtime->type && region->runtime->type->free) {
+    region->runtime->type->free(region);
   }
 
   BKE_area_region_panels_free(&region->panels);
@@ -598,21 +599,16 @@ void BKE_area_region_free(SpaceType *st, ARegion *region)
     MEM_SAFE_FREE(uilst->dyn_data);
   }
 
-  if (region->gizmo_map != nullptr) {
-    region_free_gizmomap_callback(region->gizmo_map);
+  if (region->runtime->gizmo_map != nullptr) {
+    region_free_gizmomap_callback(region->runtime->gizmo_map);
   }
 
-  if (region->runtime->block_name_map != nullptr) {
-    BLI_ghash_free(region->runtime->block_name_map, nullptr, nullptr);
-    region->runtime->block_name_map = nullptr;
-  }
-
-  MEM_delete(region->runtime);
   BLI_freelistN(&region->ui_lists);
   BLI_freelistN(&region->ui_previews);
-  BLI_freelistN(&region->panels_category);
+  BLI_freelistN(&region->runtime->panels_category);
   BLI_freelistN(&region->panels_category_active);
   BLI_freelistN(&region->view_states);
+  MEM_delete(region->runtime);
 }
 
 void BKE_screen_area_free(ScrArea *area)
@@ -1264,17 +1260,6 @@ static void direct_link_region(BlendDataReader *reader, ARegion *region, int spa
   region->runtime = MEM_new<blender::bke::ARegionRuntime>(__func__);
   region->v2d.sms = nullptr;
   region->v2d.alpha_hor = region->v2d.alpha_vert = 255; /* visible by default */
-  BLI_listbase_clear(&region->panels_category);
-  BLI_listbase_clear(&region->handlers);
-  BLI_listbase_clear(&region->uiblocks);
-  region->headerstr = nullptr;
-  region->visible = 0;
-  region->type = nullptr;
-  region->do_draw = 0;
-  region->gizmo_map = nullptr;
-  region->regiontimer = nullptr;
-  region->draw_buffer = nullptr;
-  memset(&region->drawrct, 0, sizeof(region->drawrct));
 }
 
 void BKE_screen_view3d_do_versions_250(View3D *v3d, ListBase *regions)

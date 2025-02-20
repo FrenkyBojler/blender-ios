@@ -234,6 +234,8 @@ if(WITH_BLENDER)
       cancel
       cancel_large
       center_only
+      char_notdef
+      char_replacement
       checkbox_dehlt
       checkbox_hlt
       checkmark
@@ -401,6 +403,7 @@ if(WITH_BLENDER)
       greasepencil_layer_group
       grid
       grip
+      grip_v
       group
       group_bone
       group_uvs
@@ -458,7 +461,7 @@ if(WITH_BLENDER)
       keyframe
       keyframe_hlt
       keyingset
-	    key_backspace
+      key_backspace
       key_backspace_filled
       key_command
       key_command_filled
@@ -639,6 +642,7 @@ if(WITH_BLENDER)
       normals_face
       normals_vertex
       normals_vertex_face
+      not_found
       object_data
       object_datamode
       object_hidden
@@ -958,7 +962,6 @@ if(WITH_BLENDER)
     # Blend files.
     data_to_c_simple(../../../../release/datafiles/preview.blend SRC)
     data_to_c_simple(../../../../release/datafiles/preview_grease_pencil.blend SRC)
-    data_to_c_simple(../../../../release/datafiles/preview_grease_pencil_legacy.blend SRC)
 
     # Images.
     data_to_c_simple(../../../../release/datafiles/splash.png SRC)

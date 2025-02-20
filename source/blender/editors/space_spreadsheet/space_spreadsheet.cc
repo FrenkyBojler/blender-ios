@@ -8,6 +8,7 @@
 #include "BLI_string.h"
 
 #include "BKE_screen.hh"
+#include "BKE_viewer_path.hh"
 
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
@@ -35,6 +36,7 @@
 
 #include "BLF_api.hh"
 
+#include "spreadsheet_column.hh"
 #include "spreadsheet_data_source_geometry.hh"
 #include "spreadsheet_intern.hh"
 #include "spreadsheet_layout.hh"
@@ -183,12 +185,12 @@ static void spreadsheet_main_region_init(wmWindowManager *wm, ARegion *region)
   {
     wmKeyMap *keymap = WM_keymap_ensure(
         wm->defaultconf, "View2D Buttons List", SPACE_EMPTY, RGN_TYPE_WINDOW);
-    WM_event_add_keymap_handler(&region->handlers, keymap);
+    WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
   }
   {
     wmKeyMap *keymap = WM_keymap_ensure(
         wm->defaultconf, "Spreadsheet Generic", SPACE_SPREADSHEET, RGN_TYPE_WINDOW);
-    WM_event_add_keymap_handler(&region->handlers, keymap);
+    WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
   }
 }
 
@@ -619,7 +621,7 @@ static void spreadsheet_footer_region_draw(const bContext *C, ARegion *region)
                                      style);
   uiItemSpacer(layout);
   uiLayoutSetAlignment(layout, UI_LAYOUT_ALIGN_RIGHT);
-  uiItemL(layout, stats_str.c_str(), ICON_NONE);
+  uiItemL(layout, stats_str, ICON_NONE);
   UI_block_layout_resolve(block, nullptr, nullptr);
   UI_block_align_end(block);
   UI_block_end(C, block);
@@ -665,7 +667,7 @@ static void spreadsheet_sidebar_init(wmWindowManager *wm, ARegion *region)
 
   wmKeyMap *keymap = WM_keymap_ensure(
       wm->defaultconf, "Spreadsheet Generic", SPACE_SPREADSHEET, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler(&region->handlers, keymap);
+  WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
 static void spreadsheet_right_region_free(ARegion * /*region*/) {}

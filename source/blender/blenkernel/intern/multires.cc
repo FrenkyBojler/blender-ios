@@ -17,15 +17,17 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_bitmap.h"
+#include "BLI_index_mask.hh"
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_task.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_ccg.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_mesh.hh"
+#include "BKE_mesh.h"
 #include "BKE_mesh_legacy_derived_mesh.hh"
 #include "BKE_mesh_runtime.hh"
+#include "BKE_mesh_types.hh"
 #include "BKE_modifier.hh"
 #include "BKE_multires.hh"
 #include "BKE_paint.hh"
@@ -79,9 +81,9 @@ void multires_customdata_delete(Mesh *mesh)
   }
   else {
     CustomData_external_remove(&mesh->corner_data, &mesh->id, CD_MDISPS, mesh->corners_num);
-    CustomData_free_layer_active(&mesh->corner_data, CD_MDISPS, mesh->corners_num);
+    CustomData_free_layer_active(&mesh->corner_data, CD_MDISPS);
 
-    CustomData_free_layer_active(&mesh->corner_data, CD_GRID_PAINT_MASK, mesh->corners_num);
+    CustomData_free_layer_active(&mesh->corner_data, CD_GRID_PAINT_MASK);
   }
 }
 
@@ -1100,7 +1102,7 @@ void multires_modifier_update_mdisps(DerivedMesh *dm, Scene *scene)
       }
 
       /* lower level dm no longer needed at this point */
-      MEM_freeN(diffGrid);
+      MEM_freeN(static_cast<void *>(diffGrid));
       lowdm->release(lowdm);
 
       /* subsurf higher levels again with difference of coordinates */
@@ -1114,7 +1116,7 @@ void multires_modifier_update_mdisps(DerivedMesh *dm, Scene *scene)
       /* free */
       highdm->release(highdm);
       for (int i = 0; i < numGrids; i++) {
-        MEM_freeN(subGridData[i]);
+        MEM_freeN(static_cast<void *>(subGridData[i]));
       }
       MEM_freeN(subGridData);
     }
@@ -1263,7 +1265,7 @@ DerivedMesh *multires_make_derived_from_derived(DerivedMesh *dm,
   }
 
   for (int i = 0; i < numGrids; i++) {
-    MEM_freeN(subGridData[i]);
+    MEM_freeN(static_cast<void *>(subGridData[i]));
   }
   MEM_freeN(subGridData);
 

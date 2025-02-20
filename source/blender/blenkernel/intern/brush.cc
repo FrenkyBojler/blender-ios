@@ -18,7 +18,6 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_base.hh"
-#include "BLI_math_rotation.h"
 #include "BLI_rand.h"
 
 #include "BLT_translation.hh"
@@ -35,7 +34,7 @@
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_paint.hh"
 #include "BKE_preview_image.hh"
 #include "BKE_texture.h"
@@ -163,18 +162,6 @@ static void brush_make_local(Main *bmain, ID *id, const int flags)
   bool force_local, force_copy;
   BKE_lib_id_make_local_generic_action_define(bmain, id, flags, &force_local, &force_copy);
 
-  if (brush->clone.image) {
-    /* Special case: `ima` always local immediately.
-     * Clone image should only have one user anyway. */
-    /* FIXME: Recursive calls affecting other non-embedded IDs are really bad and should be avoided
-     * in IDType callbacks. Higher-level ID management code usually does not expect such things and
-     * does not deal properly with it. */
-    /* NOTE: assert below ensures that the comment above is valid, and that exception is
-     * acceptable for the time being. */
-    BKE_lib_id_make_local(bmain, &brush->clone.image->id, LIB_ID_MAKELOCAL_ASSET_DATA_CLEAR);
-    BLI_assert(!ID_IS_LINKED(brush->clone.image) && brush->clone.image->id.newid == nullptr);
-  }
-
   if (force_local) {
     BKE_lib_id_clear_library_data(bmain, &brush->id, flags);
     BKE_lib_id_expand_local(bmain, &brush->id, flags);
@@ -201,7 +188,6 @@ static void brush_foreach_id(ID *id, LibraryForeachIDData *data)
   Brush *brush = (Brush *)id;
 
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, brush->toggle_brush, IDWALK_CB_NOP);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, brush->clone.image, IDWALK_CB_NOP);
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, brush->paint_curve, IDWALK_CB_USER);
   if (brush->gpencil_settings) {
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, brush->gpencil_settings->material, IDWALK_CB_USER);
@@ -506,7 +492,6 @@ static void brush_defaults(Brush *brush)
   FROM_DEFAULT(disconnected_distance_max);
   FROM_DEFAULT(sculpt_plane);
   FROM_DEFAULT(plane_offset);
-  FROM_DEFAULT(clone.alpha);
   FROM_DEFAULT(normal_weight);
   FROM_DEFAULT(fill_threshold);
   FROM_DEFAULT(flag);

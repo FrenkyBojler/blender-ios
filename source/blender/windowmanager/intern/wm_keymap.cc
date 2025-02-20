@@ -11,7 +11,6 @@
 #include <cstring>
 #include <fmt/format.h>
 
-#include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
@@ -21,8 +20,9 @@
 #include "CLG_log.h"
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_string_utils.hh"
+#include "BLI_listbase.h"
+#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BLF_api.hh"
@@ -42,6 +42,7 @@
 #include "RNA_enum_types.hh"
 
 #include "WM_api.hh"
+#include "WM_keymap.hh"
 #include "WM_types.hh"
 #include "wm_event_system.hh"
 #include "wm_event_types.hh"
@@ -1163,7 +1164,8 @@ const char *WM_key_event_string(const short type, const bool compact)
       case EVT_RETKEY:
         return key_event_glyph_or_text(font_id, IFACE_("Enter"), BLI_STR_UTF8_RETURN_SYMBOL);
       case EVT_SPACEKEY:
-        return key_event_glyph_or_text(font_id, IFACE_("Space"), BLI_STR_UTF8_OPEN_BOX);
+        return key_event_glyph_or_text(
+            font_id, CTX_IFACE_(BLT_I18NCONTEXT_UI_EVENTS, "Space"), BLI_STR_UTF8_OPEN_BOX);
       case EVT_LEFTARROWKEY:
         return key_event_glyph_or_text(font_id, IFACE_("Left"), BLI_STR_UTF8_LEFTWARDS_ARROW);
       case EVT_UPARROWKEY:
@@ -1337,7 +1339,7 @@ static wmKeyMapItem *wm_keymap_item_find_in_keymap(wmKeyMap *keymap,
             IDProperty *properties_default = IDP_CopyProperty(
                 static_cast<const IDProperty *>(kmi->ptr->data));
 
-            PointerRNA opptr = RNA_pointer_create(nullptr, ot->srna, properties_default);
+            PointerRNA opptr = RNA_pointer_create_discrete(nullptr, ot->srna, properties_default);
             WM_operator_properties_default(&opptr, true);
 
             if (IDP_EqualsProperties_ex(properties, properties_default, is_strict)) {
@@ -1464,7 +1466,7 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
           found = wm_keymap_item_find_handlers(C,
                                                wm,
                                                win,
-                                               &region->handlers,
+                                               &region->runtime->handlers,
                                                opname,
                                                opcontext,
                                                properties,
@@ -1483,7 +1485,7 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
         found = wm_keymap_item_find_handlers(C,
                                              wm,
                                              win,
-                                             &region->handlers,
+                                             &region->runtime->handlers,
                                              opname,
                                              opcontext,
                                              properties,
@@ -1501,7 +1503,7 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
         found = wm_keymap_item_find_handlers(C,
                                              wm,
                                              win,
-                                             &region->handlers,
+                                             &region->runtime->handlers,
                                              opname,
                                              opcontext,
                                              properties,
@@ -1515,7 +1517,7 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
         found = wm_keymap_item_find_handlers(C,
                                              wm,
                                              win,
-                                             &region->handlers,
+                                             &region->runtime->handlers,
                                              opname,
                                              opcontext,
                                              properties,
@@ -1563,7 +1565,7 @@ static wmKeyMapItem *wm_keymap_item_find(const bContext *C,
       /* Make a copy of the properties and unset the 'ot->prop' one if set. */
       IDProperty *properties_temp = IDP_CopyProperty(properties);
 
-      PointerRNA opptr = RNA_pointer_create(nullptr, ot->srna, properties_temp);
+      PointerRNA opptr = RNA_pointer_create_discrete(nullptr, ot->srna, properties_temp);
 
       if (RNA_property_is_set(&opptr, ot->prop)) {
         /* For operator that has enum menu,
@@ -1585,7 +1587,7 @@ static wmKeyMapItem *wm_keymap_item_find(const bContext *C,
         /* Make a copy of the properties and set unset ones to their default values. */
         IDProperty *properties_default = IDP_CopyProperty(properties);
 
-        PointerRNA opptr = RNA_pointer_create(nullptr, ot->srna, properties_default);
+        PointerRNA opptr = RNA_pointer_create_discrete(nullptr, ot->srna, properties_default);
         WM_operator_properties_default(&opptr, true);
 
         wmKeyMap *km;
@@ -1839,9 +1841,9 @@ static bool wm_keymap_test_and_clear_update(wmKeyMap *km)
   return (update != 0);
 }
 
-static wmKeyMap *wm_keymap_preset(wmWindowManager *wm, wmKeyMap *km)
+static wmKeyMap *wm_keymap_preset(wmWindowManager *wm, wmKeyConfig *keyconf, wmKeyMap *km)
 {
-  wmKeyConfig *keyconf = WM_keyconfig_active(wm);
+  BLI_assert(keyconf == WM_keyconfig_active(wm));
   wmKeyMap *keymap = WM_keymap_list_find(&keyconf->keymaps, km->idname, km->spaceid, km->regionid);
   if (!keymap && wm->defaultconf) {
     keymap = WM_keymap_list_find(&wm->defaultconf->keymaps, km->idname, km->spaceid, km->regionid);
@@ -1889,6 +1891,8 @@ void WM_keyconfig_update_ex(wmWindowManager *wm, bool keep_properties)
   }
 
   if (wm_keymap_update_flag & WM_KEYMAP_UPDATE_RECONFIGURE) {
+    wmKeyConfig *kc_active = WM_keyconfig_active(wm);
+
     /* Update operator properties for non-modal user keymaps. */
     LISTBASE_FOREACH (wmKeyMap *, km, &U.user_keymaps) {
       if ((km->flag & KEYMAP_MODAL) == 0) {
@@ -1912,7 +1916,7 @@ void WM_keyconfig_update_ex(wmWindowManager *wm, bool keep_properties)
       /* Only diff if the user keymap was modified. */
       if (wm_keymap_test_and_clear_update(km)) {
         /* Find keymaps. */
-        wmKeyMap *defaultmap = wm_keymap_preset(wm, km);
+        wmKeyMap *defaultmap = wm_keymap_preset(wm, kc_active, km);
         wmKeyMap *addonmap = WM_keymap_list_find(
             &wm->addonconf->keymaps, km->idname, km->spaceid, km->regionid);
 
@@ -1926,7 +1930,7 @@ void WM_keyconfig_update_ex(wmWindowManager *wm, bool keep_properties)
     /* Create user key configuration from preset + addon + user preferences. */
     LISTBASE_FOREACH (wmKeyMap *, km, &wm->defaultconf->keymaps) {
       /* Find keymaps. */
-      wmKeyMap *defaultmap = wm_keymap_preset(wm, km);
+      wmKeyMap *defaultmap = wm_keymap_preset(wm, kc_active, km);
       wmKeyMap *addonmap = WM_keymap_list_find(
           &wm->addonconf->keymaps, km->idname, km->spaceid, km->regionid);
       wmKeyMap *usermap = WM_keymap_list_find(
@@ -2032,7 +2036,8 @@ void WM_keymap_item_restore_to_default(wmWindowManager *wm, wmKeyMap *keymap, wm
   }
 
   /* Construct default keymap from preset + addons. */
-  wmKeyMap *defaultmap = wm_keymap_preset(wm, keymap);
+  wmKeyConfig *kc_active = WM_keyconfig_active(wm);
+  wmKeyMap *defaultmap = wm_keymap_preset(wm, kc_active, keymap);
   wmKeyMap *addonmap = WM_keymap_list_find(
       &wm->addonconf->keymaps, keymap->idname, keymap->spaceid, keymap->regionid);
 

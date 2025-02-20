@@ -4,19 +4,22 @@
 
 #include "workbench_private.hh"
 
+#include "DNA_userdef_types.h"
+
 #include "BKE_camera.h"
+#include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_mesh_types.hh"
-#include "BKE_modifier.hh"
-#include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
-#include "BKE_particle.h"
 
 #include "DEG_depsgraph_query.hh"
-#include "DNA_fluid_types.h"
+
+#include "DNA_world_types.h"
+
 #include "ED_paint.hh"
 #include "ED_view3d.hh"
+
 #include "GPU_capabilities.hh"
 
 namespace blender::workbench {
@@ -32,7 +35,7 @@ void SceneState::init(Object *camera_ob /*=nullptr*/)
 
   scene = DEG_get_evaluated_scene(context->depsgraph);
 
-  if (assign_if_different(resolution, int2(float2(DRW_viewport_size_get())))) {
+  if (assign_if_different(resolution, int2(DRW_viewport_size_get()))) {
     /* In some cases, the viewport can change resolution without a call to `workbench_view_update`.
      * This is the case when dragging a window between two screen with different DPI settings.
      * (See #128712) */
@@ -115,9 +118,7 @@ void SceneState::init(Object *camera_ob /*=nullptr*/)
     rv3d->rflag &= ~RV3D_GPULIGHT_UPDATE;
   }
 
-  float4x4 matrix;
-  /* TODO(@pragma37): New API? */
-  DRW_view_persmat_get(nullptr, matrix.ptr(), false);
+  float4x4 matrix = View::default_get().persmat();
   if (matrix != view_projection_matrix) {
     view_projection_matrix = matrix;
     reset_taa = true;
@@ -179,10 +180,11 @@ void SceneState::init(Object *camera_ob /*=nullptr*/)
 
   draw_object_id = (draw_outline || draw_curvature);
 
-  /* Legacy Vulkan devices don't support gaps between color attachments. We disable outline drawing
-   * in wireframe mode. */
+  /* Legacy Vulkan devices don't support gaps between color attachments. We disable outline
+   * drawing on these devices. There are situations outline drawing can just work, but we need to
+   * be sure transparency depth drawing isn't used. */
   /* TODO(jbakker): Add support on legacy Vulkan devices by introducing specific depth shaders. */
-  if (shading.type < OB_SOLID && GPU_vulkan_render_pass_workaround()) {
+  if ((shading.type < OB_SOLID || xray_mode) && GPU_vulkan_render_pass_workaround()) {
     draw_object_id = false;
     draw_outline = false;
   }

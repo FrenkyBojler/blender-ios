@@ -2,45 +2,33 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#ifdef GPU_SHADER
+#  pragma once
+#  include "BLI_utildefines_variadic.h"
+
+#  include "gpu_glsl_cpp_stubs.hh"
+
+#  include "draw_object_infos_info.hh"
+#  include "draw_view_info.hh"
+#  include "eevee_shader_shared.hh"
+
+#  include "eevee_common_info.hh"
+#  include "eevee_volume_info.hh"
+
+#  define HAIR_SHADER
+#  define DRW_HAIR_INFO
+
+#  define POINTCLOUD_SHADER
+#  define DRW_POINTCLOUD_INFO
+
+#  define SHADOW_UPDATE_ATOMIC_RASTER
+#  define MAT_TRANSPARENT
+
+#  define thickness_mode 1.0
+#endif
+
 #include "eevee_defines.hh"
 #include "gpu_shader_create_info.hh"
-
-/* -------------------------------------------------------------------- */
-/** \name Common
- * \{ */
-
-/* TODO(@fclem): This is a bit out of place at the moment. */
-GPU_SHADER_CREATE_INFO(eevee_shared)
-TYPEDEF_SOURCE("eevee_defines.hh")
-TYPEDEF_SOURCE("eevee_shader_shared.hh")
-GPU_SHADER_CREATE_END()
-
-GPU_SHADER_CREATE_INFO(eevee_global_ubo)
-UNIFORM_BUF(UNIFORM_BUF_SLOT, UniformData, uniform_buf)
-GPU_SHADER_CREATE_END()
-
-GPU_SHADER_CREATE_INFO(eevee_sampling_data)
-DEFINE("EEVEE_SAMPLING_DATA")
-ADDITIONAL_INFO(eevee_shared)
-STORAGE_BUF(SAMPLING_BUF_SLOT, READ, SamplingData, sampling_buf)
-GPU_SHADER_CREATE_END()
-
-GPU_SHADER_CREATE_INFO(eevee_utility_texture)
-DEFINE("EEVEE_UTILITY_TX")
-SAMPLER(RBUFS_UTILITY_TEX_SLOT, FLOAT_2D_ARRAY, utility_tx)
-GPU_SHADER_CREATE_END()
-
-GPU_SHADER_NAMED_INTERFACE_INFO(eevee_clip_plane_iface, clip_interp)
-SMOOTH(FLOAT, clip_distance)
-GPU_SHADER_NAMED_INTERFACE_END(clip_interp)
-
-GPU_SHADER_CREATE_INFO(eevee_clip_plane)
-VERTEX_OUT(eevee_clip_plane_iface)
-UNIFORM_BUF(CLIP_PLANE_BUF, ClipPlaneData, clip_plane)
-DEFINE("MAT_CLIP_PLANE")
-GPU_SHADER_CREATE_END()
-
-/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Surface Mesh Type
@@ -67,21 +55,21 @@ ADDITIONAL_INFO(draw_resource_id_varying)
 ADDITIONAL_INFO(draw_view)
 GPU_SHADER_CREATE_END()
 
-GPU_SHADER_NAMED_INTERFACE_INFO(eevee_surf_point_cloud_iface, point_cloud_interp)
+GPU_SHADER_NAMED_INTERFACE_INFO(eevee_surf_pointcloud_iface, pointcloud_interp)
 SMOOTH(FLOAT, radius)
 SMOOTH(VEC3, position)
-GPU_SHADER_NAMED_INTERFACE_END(point_cloud_interp)
-GPU_SHADER_NAMED_INTERFACE_INFO(eevee_surf_point_cloud_flat_iface, point_cloud_interp_flat)
+GPU_SHADER_NAMED_INTERFACE_END(pointcloud_interp)
+GPU_SHADER_NAMED_INTERFACE_INFO(eevee_surf_pointcloud_flat_iface, pointcloud_interp_flat)
 FLAT(INT, id)
-GPU_SHADER_NAMED_INTERFACE_END(point_cloud_interp_flat)
+GPU_SHADER_NAMED_INTERFACE_END(pointcloud_interp_flat)
 
-GPU_SHADER_CREATE_INFO(eevee_geom_point_cloud)
+GPU_SHADER_CREATE_INFO(eevee_geom_pointcloud)
 ADDITIONAL_INFO(eevee_shared)
-DEFINE("MAT_GEOM_POINT_CLOUD")
-VERTEX_SOURCE("eevee_geom_point_cloud_vert.glsl")
+DEFINE("MAT_GEOM_POINTCLOUD")
+VERTEX_SOURCE("eevee_geom_pointcloud_vert.glsl")
 VERTEX_OUT(eevee_surf_iface)
-VERTEX_OUT(eevee_surf_point_cloud_iface)
-VERTEX_OUT(eevee_surf_point_cloud_flat_iface)
+VERTEX_OUT(eevee_surf_pointcloud_iface)
+VERTEX_OUT(eevee_surf_pointcloud_flat_iface)
 ADDITIONAL_INFO(draw_pointcloud_new)
 ADDITIONAL_INFO(draw_modelmat_new)
 ADDITIONAL_INFO(draw_object_infos_new)
@@ -163,18 +151,6 @@ GPU_SHADER_CREATE_END()
   image(slot, format, qualifier, ImageType::FLOAT_2D, name, Frequency::PASS)
 #define image_array_out(slot, qualifier, format, name) \
   image(slot, format, qualifier, ImageType::FLOAT_2D_ARRAY, name, Frequency::PASS)
-
-GPU_SHADER_CREATE_INFO(eevee_render_pass_out)
-DEFINE("MAT_RENDER_PASS_SUPPORT")
-ADDITIONAL_INFO(eevee_global_ubo)
-IMAGE_FREQ(RBUFS_COLOR_SLOT, GPU_RGBA16F, WRITE, FLOAT_2D_ARRAY, rp_color_img, PASS)
-IMAGE_FREQ(RBUFS_VALUE_SLOT, GPU_R16F, WRITE, FLOAT_2D_ARRAY, rp_value_img, PASS)
-GPU_SHADER_CREATE_END()
-
-GPU_SHADER_CREATE_INFO(eevee_cryptomatte_out)
-STORAGE_BUF(CRYPTOMATTE_BUF_SLOT, READ, vec2, cryptomatte_object_buf[])
-IMAGE_FREQ(RBUFS_CRYPTOMATTE_SLOT, GPU_RGBA32F, WRITE, FLOAT_2D, rp_cryptomatte_img, PASS)
-GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_surf_deferred_base)
 DEFINE("MAT_DEFERRED")
@@ -388,7 +364,7 @@ GPU_SHADER_CREATE_END()
     /* CREATE_INFO_VARIANT(prefix##_gpencil, eevee_geom_gpencil, __VA_ARGS__) */ \
     CREATE_INFO_VARIANT(prefix##_curves, eevee_geom_curves, __VA_ARGS__) \
     CREATE_INFO_VARIANT(prefix##_mesh, eevee_geom_mesh, __VA_ARGS__) \
-    CREATE_INFO_VARIANT(prefix##_point_cloud, eevee_geom_point_cloud, __VA_ARGS__) \
+    CREATE_INFO_VARIANT(prefix##_pointcloud, eevee_geom_pointcloud, __VA_ARGS__) \
     CREATE_INFO_VARIANT(prefix##_volume, eevee_geom_volume, __VA_ARGS__)
 
 #  define EEVEE_MAT_PIPE_VARIATIONS(name, ...) \
