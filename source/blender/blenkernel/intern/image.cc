@@ -132,6 +132,7 @@ static void image_runtime_reset(Image *image)
   memset(&image->runtime, 0, sizeof(image->runtime));
   image->runtime.cache_mutex = MEM_mallocN(sizeof(ThreadMutex), "image runtime cache_mutex");
   BLI_mutex_init(static_cast<ThreadMutex *>(image->runtime.cache_mutex));
+  image->runtime.last_update = 0;
 }
 
 /** Reset runtime image fields when data-block is being copied. */
@@ -5302,6 +5303,7 @@ static void image_user_id_eval_animation(Image *ima,
       float cfra = DEG_get_ctime(depsgraph);
 
       BKE_image_user_frame_calc(ima, iuser, cfra);
+      ima->runtime.last_update = DEG_get_update_count(depsgraph);
     }
   }
 }
