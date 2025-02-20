@@ -10,12 +10,12 @@ namespace blender::nodes::node_geo_curve_primitive_spiral_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Int>("Resolution")
-      .default_value(32)
-      .min(1)
-      .max(1024)
-      .subtype(PROP_UNSIGNED)
-      .description("Number of points in one rotation of the spiral");
+  b.add_input<decl::Float>("Resolution")
+      .default_value(32.0f)
+      .min(1.0f)
+      .max(1024.0f)
+      .subtype(PROP_NONE)
+      .description("Average number of points in one rotation of the spiral");
   b.add_input<decl::Float>("Rotations")
       .default_value(2.0f)
       .min(0.0f)
@@ -39,13 +39,13 @@ static void node_declare(NodeDeclarationBuilder &b)
 }
 
 static Curves *create_spiral_curve(const float rotations,
-                                   const int resolution,
+                                   const float resolution,
                                    const float start_radius,
                                    const float end_radius,
                                    const float height,
                                    const bool direction)
 {
-  const int totalpoints = std::max(int(resolution * rotations), 1);
+  const int totalpoints = std::max(int(round(resolution * rotations)), 1);
   const float delta_radius = (end_radius - start_radius) / float(totalpoints);
   const float delta_height = height / float(totalpoints);
   const float delta_theta = (M_PI * 2 * rotations) / float(totalpoints) *
@@ -78,7 +78,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   Curves *curves = create_spiral_curve(rotations,
-                                       std::max(params.extract_input<int>("Resolution"), 1),
+                                       std::max(params.extract_input<float>("Resolution"), 0.0f),
                                        params.extract_input<float>("Start Radius"),
                                        params.extract_input<float>("End Radius"),
                                        params.extract_input<float>("Height"),
