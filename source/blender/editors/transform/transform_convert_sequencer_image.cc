@@ -33,13 +33,13 @@
 #include "transform.hh"
 #include "transform_convert.hh"
 
-using namespace blender;
+namespace blender::ed::transform {
 
 /** Used for sequencer transform. */
 struct TransDataSeq {
   Strip *strip;
   Array<float2> quad_orig;
-  float4x4 orig_matrix;
+  float3x3 orig_matrix;
 
   float orig_origin_relative[2];
   float orig_origin_position[2];
@@ -52,8 +52,7 @@ static TransData *SeqToTransData(
     const Scene *scene, Strip *strip, TransData *td, TransData2D *td2d, int vert_index)
 {
   const StripTransform *transform = strip->data->transform;
-  float origin[2];
-  SEQ_image_transform_origin_offset_pixelspace_get(scene, strip, origin);
+  const float2 origin = SEQ_image_transform_origin_offset_pixelspace_get(scene, strip);
   float vertex[2] = {origin[0], origin[1]};
 
   /* Add control vertex, so rotation and scale can be calculated.
@@ -225,8 +224,7 @@ static float3 transform_translation_get(TransInfo *t,
                                         Strip *strip)
 {
   TransformData data = transform_data_get(td2d);
-  float2 mirror;
-  SEQ_image_transform_mirror_factor_get(strip, mirror);
+  float2 mirror = SEQ_image_transform_mirror_factor_get(strip);
   // float3 translation = (float3(tdseq->orig_origin_position) - data.origin) * float3(mirror);
   float3 translation = {(tdseq->orig_origin_position[0] - data.origin.x) * mirror.x,
                         (tdseq->orig_origin_position[1] - data.origin.y) * mirror.y,
@@ -288,8 +286,7 @@ static float2 calculate_translation_offset(TransInfo *t, TransDataSeq *tdseq)
   transform->yofs = tdseq->orig_translation[1];
 
   const float2 viewport_pixel_aspect = {t->scene->r.xasp / t->scene->r.yasp, 1.0f};
-  float2 mirror;
-  SEQ_image_transform_mirror_factor_get(strip, mirror);
+  float2 mirror = SEQ_image_transform_mirror_factor_get(strip);
 
   Array<float2> quad_new = SEQ_image_transform_final_quad_get(t->scene, strip);
   return (quad_new[0] - tdseq->quad_orig[0]) * mirror / viewport_pixel_aspect;
@@ -306,8 +303,7 @@ static float2 calculate_new_origin_position(TransInfo *t, TransDataSeq *tdseq, T
   }
 
   const float3 viewport_pixel_aspect = {t->scene->r.xasp / t->scene->r.yasp, 1.0f, 1.0f};
-  float2 mirror;
-  SEQ_image_transform_mirror_factor_get(strip, mirror);
+  float2 mirror = SEQ_image_transform_mirror_factor_get(strip);
 
   const float3 origin = {tdseq->orig_origin_position[0], tdseq->orig_origin_position[1], 0.0f};
   const float3 translation = transform_translation_get(t, tdseq, td2d, strip);
@@ -390,3 +386,5 @@ TransConvertTypeInfo TransConvertType_SequencerImage = {
     /*recalc_data*/ recalcData_sequencer_image,
     /*special_aftertrans_update*/ special_aftertrans_update__sequencer_image,
 };
+
+}  // namespace blender::ed::transform

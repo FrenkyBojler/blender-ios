@@ -38,8 +38,6 @@
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
-#include "BLO_userdef_default.h"
-
 #include "BLT_translation.hh"
 
 #include "BKE_appdir.hh"
@@ -47,6 +45,8 @@
 #include "BKE_idtype.hh"
 #include "BKE_main.hh"
 #include "BKE_preferences.h"
+
+#include "BLO_userdef_default.h"
 
 #include "BLF_api.hh"
 
@@ -1329,7 +1329,6 @@ void ED_fileselect_exit(wmWindowManager *wm, SpaceFile *sfile)
   if (sfile->files) {
     ED_fileselect_clear(wm, sfile);
     filelist_free(sfile->files);
-    MEM_freeN(sfile->files);
     sfile->files = nullptr;
   }
 }

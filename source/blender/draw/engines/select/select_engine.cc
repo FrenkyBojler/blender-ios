@@ -23,6 +23,8 @@
 #include "draw_common_c.hh"
 #include "draw_manager_c.hh"
 
+#include "../overlay/overlay_next_private.hh"
+
 #include "select_engine.hh"
 #include "select_private.hh"
 
@@ -187,10 +189,11 @@ static void select_cache_init(void *vedata)
     inst.select_id_vert_ps.init();
     inst.select_vert = nullptr;
     if (e_data.context.select_mode & SCE_SELECT_VERTEX) {
+      const float vertex_size = blender::draw::overlay::Resources::vertex_size_get();
       auto &sub = inst.select_id_vert_ps.sub("Sub");
       sub.state_set(state, clipping_plane_count);
       sub.shader_set(sh->select_id_flat);
-      sub.push_constant("sizeVertex", float(2 * G_draw.block.size_vertex));
+      sub.push_constant("vertex_size", float(2 * vertex_size));
       sub.push_constant("retopologyOffset", retopology_offset);
       inst.select_vert = &sub;
     }
@@ -330,13 +333,10 @@ static void select_instance_free(void *instance)
 /** \name Engine Type
  * \{ */
 
-static const DrawEngineDataSize select_data_size = DRW_VIEWPORT_DATA_SIZE(SELECTID_Data);
-
 DrawEngineType draw_engine_select_type = {
     /*next*/ nullptr,
     /*prev*/ nullptr,
     /*idname*/ N_("Select ID"),
-    /*vedata_size*/ &select_data_size,
     /*engine_init*/ &select_engine_init,
     /*engine_free*/ &select_engine_free,
     /*instance_free*/ select_instance_free,

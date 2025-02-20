@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'5c1749f7b7d3')\n"
+"Project-Id-Version: Blender 4.4.0 Beta (b'ed5b077f929a')\n"
 "Report-Msgid-Bugs-To: Ivan Paulos Tomé <ivan.paulos.tome@yandex.com>\n"
-"POT-Creation-Date: 2025-02-03 14:39+0000\n"
-"PO-Revision-Date: 2025-01-31 18:56+0000\n"
+"POT-Creation-Date: 2025-02-17 14:06+0000\n"
+"PO-Revision-Date: 2025-02-17 14:06+0000\n"
 "Last-Translator: Duarte Ramos <duarte.framos@gmail.com>\n"
 "Language-Team: Portuguese <https://translate.blender.org/projects/blender-ui/ui/pt/>\n"
 "Language: pt\n"
@@ -84,6 +84,14 @@ msgstr "Grupos de Curvas-F"
 
 msgid "Groupings of F-Curves for display purposes, in e.g. the dopesheet and graph editor"
 msgstr "Agrupamento de Curvas-F para efeitos de exibição, por exemplo no Plano de Animação e no Editor de Gráficos"
+
+
+msgid "Slot"
+msgstr "Compartimentos"
+
+
+msgid "The Slot that the Channelbag's animation data is for"
+msgstr "O Compartimento para o qual o a animação do Saco do Canal é"
 
 
 msgid "Collection of F-Curves for a specific action slot, on a specific strip"
@@ -290,62 +298,6 @@ msgid "Action Layer"
 msgstr "Camada de Acção"
 
 
-msgid "Influence"
-msgstr "Influência"
-
-
-msgid "How much of this layer is used when blending into the lower layers"
-msgstr "Que quantidade desta camada é usada ao misturar com as camadas inferiores"
-
-
-msgid "Mix Mode"
-msgstr "Modo de mistura"
-
-
-msgid "How animation of this layer is blended into the lower layers"
-msgstr "Como animação desta camada é misturada com as camadas inferiores"
-
-
-msgid "Replace"
-msgstr "Substituir"
-
-
-msgid "Channels in this layer override the same channels from underlying layers"
-msgstr "Canais nesta camada substituem os mesmos canais das camadas inferiores"
-
-
-msgid "Offset"
-msgstr "Deslocamento"
-
-
-msgid "Channels in this layer are added to underlying layers as sequential operations"
-msgstr "Canais nesta camada são adicionados às camadas inferiores como operações sequenciais"
-
-
-msgid "Add"
-msgstr "Adicionar"
-
-
-msgid "Channels in this layer are added to underlying layers on a per-channel basis"
-msgstr "Canais nesta camada são adicionados às camadas inferiores por canal"
-
-
-msgid "Subtract"
-msgstr "Subtrair"
-
-
-msgid "Channels in this layer are subtracted to underlying layers on a per-channel basis"
-msgstr "Canais nesta camada são subtraídos às camadas inferiores por canal"
-
-
-msgid "Multiply"
-msgstr "Multiplicar"
-
-
-msgid "Channels in this layer are multiplied with underlying layers on a per-channel basis"
-msgstr "Canais nesta camada são multiplicados às camadas inferiores por canal"
-
-
 msgid "Strips"
 msgstr "Faixas"
 
@@ -445,6 +397,10 @@ msgstr "Estando de expansão do compartimento"
 msgctxt "ID"
 msgid "Target ID Type"
 msgstr "Tipo de ID Alvo"
+
+
+msgid "Type of data-block that this slot is intended to animate; can be set when 'UNSPECIFIED' but is otherwise read-only"
+msgstr "Tipo de bloco-de-dados que este compartimento deve animar; pode ser atribuído quando for 'UNSPECIFIED', caso contrário é apenas de leitura"
 
 
 msgctxt "ID"
@@ -999,6 +955,10 @@ msgid "Method used for combining Active Action's result with result of NLA stack
 msgstr "Método usado para combinar o resultado das ações ativas com os resultados da pilha de animação não linear."
 
 
+msgid "Replace"
+msgstr "Substituir"
+
+
 msgid "The strip values replace the accumulated results by amount specified by influence"
 msgstr "Os valores da faixa substituem os resultados acumulados pela quantidade especificada pela influência"
 
@@ -1011,12 +971,24 @@ msgid "The strip values are combined with accumulated results by appropriately u
 msgstr "Os valores da faixa são combinados com os resultados acumulados por correcta escolha de adição, multiplicação, ou matemática de quaterniões, dependendo do tipo de canal"
 
 
+msgid "Add"
+msgstr "Adicionar"
+
+
 msgid "Weighted result of strip is added to the accumulated results"
 msgstr "O resultado após a aplicação de peso na faixa é adicionado aos resultados acumulados."
 
 
+msgid "Subtract"
+msgstr "Subtrair"
+
+
 msgid "Weighted result of strip is removed from the accumulated results"
 msgstr "O resultado após a aplicação do peso da faixa é removido dos resultados acumulados."
+
+
+msgid "Multiply"
+msgstr "Multiplicar"
 
 
 msgid "Weighted result of strip is multiplied with the accumulated results"
@@ -4815,6 +4787,14 @@ msgid "Has Pinch Factor"
 msgstr "Há fator para pinçar"
 
 
+msgid "Has Plane Depth"
+msgstr "Tem Profundidade de Plano"
+
+
+msgid "Has Plane Height"
+msgstr "Tem Altura de Plano"
+
+
 msgid "Has Plane Offset"
 msgstr "Há deslocamento de plano"
 
@@ -5873,6 +5853,10 @@ msgstr "Revogar Imagem Fundo"
 
 msgid "In a local override camera, whether this background image comes from the linked reference camera, or is local to the override"
 msgstr "Numa câmara revogada localmente, se a imagem vem da câmara de referência conectada, ou é local da revogação"
+
+
+msgid "Offset"
+msgstr "Deslocamento"
 
 
 msgid "Rotation"
@@ -7542,6 +7526,10 @@ msgid "Amount of residual error in radians for constraints that work on orientat
 msgstr "Quantidade de erro residual em radianos para restrições que funcionam em orientações."
 
 
+msgid "Influence"
+msgstr "Influência"
+
+
 msgid "Amount of influence constraint will have on the final solution"
 msgstr "A quantidade de influência que a restrição terá na solução final. O valor de 1.000 representa 100%."
 
@@ -7932,6 +7920,10 @@ msgstr "Mínimo"
 
 msgid "Minimum value for target channel range"
 msgstr "Valor mínimo para o campo do canal alvo."
+
+
+msgid "Mix Mode"
+msgstr "Modo de mistura"
 
 
 msgid "Specify how existing transformations and the action channels are combined"
@@ -19641,6 +19633,34 @@ msgid "Active paint curve"
 msgstr "Curva de pintura activa"
 
 
+msgid "The maximum distance below the plane for affected vertices. Increasing the depth affects vertices farther below the plane."
+msgstr "A distância máxima abaixo do plano para vértices afectados. Aumentar a profundidade afecta vértices a maior distância abaixo do plano."
+
+
+msgid "The maximum distance above the plane for affected vertices. Increasing the height affects vertices farther above the plane."
+msgstr "A distância máxima acima do plano para vértices afectados. Aumentar a altura afecta vértices a maior distância acima do plano."
+
+
+msgid "Inversion Mode"
+msgstr "Modo de Inversão"
+
+
+msgid "Invert Displacement"
+msgstr "Inverter Deslocamento"
+
+
+msgid "Displace the vertices away from the plane."
+msgstr "Deslocar os vértices para longe do plano"
+
+
+msgid "Swap Height and Depth"
+msgstr "Trocar Altura e Profundidade"
+
+
+msgid "Swap the roles of Height and Depth."
+msgstr "Trocar o papel da Altura e Profundidadeq"
+
+
 msgid "Plane Offset"
 msgstr "Deslocamento de plano"
 
@@ -19815,6 +19835,11 @@ msgstr "Raspar"
 
 
 msgctxt "Brush"
+msgid "Plane"
+msgstr "Plano"
+
+
+msgctxt "Brush"
 msgid "Multi-plane Scrape"
 msgstr "Raspar Multi-Plano"
 
@@ -19959,6 +19984,22 @@ msgstr "Modifica a totalidade da malha usando deformação elástica"
 
 msgid "Spacing between brush daubs as a percentage of brush diameter"
 msgstr "Espaçamento entre rabiscos de pincel como uma porcentagem do diâmetro do pincel."
+
+
+msgid "Stabilize Normal"
+msgstr "Estabilizar Normal"
+
+
+msgid "Stabilize the orientation of the brush plane."
+msgstr "Estabilizar a orientação do plano do pincel."
+
+
+msgid "Stabilize Plane"
+msgstr "Estabilizar Plano"
+
+
+msgid "Stabilize the center of the brush plane."
+msgstr "Estabilizar o centro do plano do pincel."
 
 
 msgid "Stencil Dimensions"
@@ -25974,6 +26015,10 @@ msgid "Display the object's name"
 msgstr "Mostra o nome do objecto."
 
 
+msgid "Solo Active Shape Key"
+msgstr "Isolar Forma Chave Activa"
+
+
 msgid "Only show the active shape key at full value"
 msgstr "Mostrar apenas a Forma Chave activa no valor máximo"
 
@@ -29370,14 +29415,6 @@ msgstr "Comunitários"
 
 msgid "Maintained by community developers"
 msgstr "Mantido por desenvolvedores da comunidade."
-
-
-msgid "Testing"
-msgstr "Em Testes"
-
-
-msgid "Newly contributed scripts (excluded from release builds)"
-msgstr "Scripts recentemente contribuídos (excluídos de lançamentos)"
 
 
 msgid "Addon Tags"
@@ -34308,56 +34345,12 @@ msgid "Editor menu containing buttons"
 msgstr "Menu de editor contendo botões"
 
 
-msgid "Metaball"
-msgstr "Esfera-meta"
-
-
-msgid "Show/Hide"
-msgstr "Mostrar ou ocultar"
-
-
-msgid "Names"
-msgstr "Nomes"
-
-
-msgid "Bone Roll"
-msgstr "Rolagem do osso"
-
-
-msgid "Clean Up"
-msgstr "Limpeza"
-
-
-msgid "Pivot Point"
-msgstr "Pontos de pivô"
+msgid "Mirror"
+msgstr "Espelhar"
 
 
 msgid "Snap"
 msgstr "Atrair"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Tipo de decaimento para edição proporcional"
-
-
-msgid "Mask Edit"
-msgstr "Edição de Máscara"
-
-
-msgid "Automasking"
-msgstr "Auto Máscara"
-
-
-msgid "Face Sets Edit"
-msgstr "Edições de Conjuntos de Faces"
-
-
-msgid "Vertex Group Locks"
-msgstr "Bloqueios de Grupos de Vértices"
-
-
-msgid "Mirror"
-msgstr "Espelhar"
 
 
 msgid "UV Mapping"
@@ -34412,6 +34405,10 @@ msgid "Assign Material"
 msgstr "Aplicar Material"
 
 
+msgid "Metaball"
+msgstr "Esfera-meta"
+
+
 msgid "Light"
 msgstr "Leve"
 
@@ -34444,6 +34441,14 @@ msgid "Quick Effects"
 msgstr "Efeitos instantâneos"
 
 
+msgid "Show/Hide"
+msgstr "Mostrar ou ocultar"
+
+
+msgid "Clean Up"
+msgstr "Limpeza"
+
+
 msgid "Asset"
 msgstr "Recurso"
 
@@ -34462,6 +34467,10 @@ msgstr "Vincular/Transferir Dados"
 
 msgid "Hooks"
 msgstr "Ganchos"
+
+
+msgid "Vertex Group Locks"
+msgstr "Bloqueios de Grupos de Vértices"
 
 
 msgid "Trim/Add"
@@ -34494,6 +34503,10 @@ msgstr "Propagar"
 
 msgid "Bone Collections"
 msgstr "Colecções de Ossos"
+
+
+msgid "Names"
+msgstr "Nomes"
 
 
 msgid "Toggle Bone Options"
@@ -34538,6 +34551,30 @@ msgstr "Kerning"
 
 msgid "Text"
 msgstr "Texto"
+
+
+msgid "Bone Roll"
+msgstr "Rolagem do osso"
+
+
+msgid "Pivot Point"
+msgstr "Pontos de pivô"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Tipo de decaimento para edição proporcional"
+
+
+msgid "Mask Edit"
+msgstr "Edição de Máscara"
+
+
+msgid "Automasking"
+msgstr "Auto Máscara"
+
+
+msgid "Face Sets Edit"
+msgstr "Edições de Conjuntos de Faces"
 
 
 msgid "Keyframe Insert Pie"
@@ -35162,6 +35199,10 @@ msgstr "Vazio"
 msgctxt "Constraint"
 msgid "Track"
 msgstr "Faixa"
+
+
+msgid "Modify Pose Asset"
+msgstr "Modificar Recurso de Pose"
 
 
 msgid "Rigify"
@@ -44493,12 +44534,28 @@ msgid "Create matte based on differences in color channels"
 msgstr "Criar máscara com base nas diferenças entre canais de cor"
 
 
+msgid "RGB (Red, Green, Blue) color space"
+msgstr "Espaço de cor RGB (Vermelho, Verde, Azul)"
+
+
+msgid "HSV (Hue, Saturation, Value) color space"
+msgstr "Espaço de cor HSV (Tonalidade, Saturação, Valor)"
+
+
 msgid "YUV"
 msgstr "YUV"
 
 
+msgid "YUV (Y - luma, U V - chroma) color space"
+msgstr "Espaço de cor YUV (Y - Luma, U V - Chroma)"
+
+
 msgid "YCbCr"
 msgstr "YCbCr"
+
+
+msgid "YCbCr (Y - luma, Cb - blue-difference chroma, Cr - red-difference chroma) color space"
+msgstr "Espaço de cor YCbCr (Y - Luma, Cb - Chroma de diferença de Azul, Cr - Chroma de diferença de Vermelho)"
 
 
 msgctxt "Color"
@@ -45022,6 +45079,26 @@ msgstr "Combinar uma imagem a partir dos seus canais de cor compósitos"
 
 msgid "Mode of color processing"
 msgstr "Modo de processamento de cor"
+
+
+msgid "Use RGB (Red, Green, Blue) color processing"
+msgstr "Usar processamento de Cor RGB (Vermelho, Verde, Azul)"
+
+
+msgid "Use HSV (Hue, Saturation, Value) color processing"
+msgstr "Usar processamento de cor HSV (Tonalidade, Saturação, Valor)"
+
+
+msgid "Use HSL (Hue, Saturation, Lightness) color processing"
+msgstr "Usar processamento de cor HSL (Tonalidade, Saturação, Luminosidade)"
+
+
+msgid "Use YCbCr (Y - luma, Cb - blue-difference chroma, Cr - red-difference chroma) color processing"
+msgstr "Usar processamento de cor YCbCr (Y - Luma, Cb - Chroma de diferença de Azul, Cr - Chroma de diferença de Vermelho)"
+
+
+msgid "Use YUV (Y - luma, U V - chroma) color processing"
+msgstr "Usar processamento de cor YUV (Y - Luma, U V - Chroma)"
 
 
 msgid "Color space used for YCbCrA processing"
@@ -46951,16 +47028,36 @@ msgid "Use relative (fraction of input image size) values to define translation"
 msgstr "Usa valores relativos (em frações do tamanho da imagem de entrada) para definir o movimento."
 
 
+msgid "Repeats image on a specific axis"
+msgstr "Repetir imagem num eixo específico"
+
+
+msgid "No repeating"
+msgstr "Sem repetição"
+
+
 msgid "X Axis"
 msgstr "Eixo X"
+
+
+msgid "Repeats on the X axis"
+msgstr "Repetir no eixo X"
 
 
 msgid "Y Axis"
 msgstr "Eixo Y"
 
 
+msgid "Repeats on the Y axis"
+msgstr "Repetir no eixo Y"
+
+
 msgid "Both Axes"
 msgstr "Ambos os eixos"
+
+
+msgid "Repeats on both axes"
+msgstr "Repetir em abos os eixos"
 
 
 msgid "Map values to colors with the use of a gradient"
@@ -54288,6 +54385,19 @@ msgid "Parent Node Tree"
 msgstr "Árvore de nós parente"
 
 
+msgid "Activate a specific compositor viewer node using 1,2,..,9 keys"
+msgstr "Activar um Nó de Visualização do compositor usando as teclas 1,2,..,9"
+
+
+msgctxt "Operator"
+msgid "Fast Preview"
+msgstr "Pré Visualização Rápida"
+
+
+msgid "Create a compositor viewer shortcut for the selected node by pressing ctrl+1,2,..9"
+msgstr "Criar um Nó de Visualização do compositor para o nó seleccionado, carregando nas teclas 1,2,..,9"
+
+
 msgctxt "Operator"
 msgid "Add Modifier"
 msgstr "Adicionar modificador"
@@ -54600,11 +54710,6 @@ msgstr "Converter Biblioteca de Poses de Legado"
 msgctxt "Operator"
 msgid "Copy Pose as Asset"
 msgstr "Copiar Pose como Recurso"
-
-
-msgctxt "Operator"
-msgid "Create Pose Asset"
-msgstr "Criar Recurso de Pose"
 
 
 msgctxt "Operator"
@@ -60338,6 +60443,10 @@ msgid "Select all points in curves with any point selection"
 msgstr "Seleccionar todos os pontos em curvas com qualquer ponto seleccionado"
 
 
+msgid "Select all points in the curve under the cursor"
+msgstr "Seleccionar todos os pontos na curva sob do cursor do rato"
+
+
 msgid "Deselect linked control points rather than selecting them"
 msgstr "De-seleciona os pontos de controlo conectados ao invés de seleccioná-los."
 
@@ -61190,6 +61299,10 @@ msgid "Remove Preview"
 msgstr "Remover Pré-Visualização"
 
 
+msgid "Remove the preview of this data-block"
+msgstr "Remover a pré visualização desde bloco-de-dados"
+
+
 msgctxt "Operator"
 msgid "Unlink Data-Block"
 msgstr "Desconectar Bloco-de-Dados"
@@ -61820,6 +61933,10 @@ msgid "Filter Actions to be exported"
 msgstr "Filtrar Acções a serem exportadas"
 
 
+msgid "Export Active Vertex Color When No Material"
+msgstr "Exportar A Cor De Vértices Activa Quando Não Há Material"
+
+
 msgid "When there is no material on object, export active vertex color"
 msgstr "Quando não há material no objecto, exportar a cor de vértices activa"
 
@@ -61830,6 +61947,10 @@ msgstr "Incluir Todas as Influências de Ossos"
 
 msgid "Allow export of all joint vertex influences. Models may appear incorrectly in many viewers"
 msgstr "Permitir a exportação de todas as influências conjuntas de vértices. Modelos podem aparecer incorrectamente em muitos visualizadores"
+
+
+msgid "Export All Vertex Colors"
+msgstr "Exportar Todas as Cores De Vértices"
 
 
 msgid "Export all vertex colors, even if not used by any material. If no Vertex Color is used in the mesh materials, a fake COLOR_0 will be created, in order to keep material unchanged"
@@ -61852,8 +61973,16 @@ msgid "Export all actions, bound to a single armature. WARNING: Option does not 
 msgstr "Exportar todas as acções vinculadas a uma só armação. AVISO: Opção não suporta exportações que incluam várias armações"
 
 
+msgid "Set All glTF Animation Starting at 0"
+msgstr "Fazer Todas as Animações glTF a Começar no 0"
+
+
 msgid "Set all glTF animation starting at 0.0s. Can be useful for looping animations"
 msgstr "Definir todas as animações glTF a começar aos 0.0s. Pode sr útil para animações cíclicas."
+
+
+msgid "Animation Mode"
+msgstr "Modo de Animação"
 
 
 msgid "Export Animation mode"
@@ -61920,6 +62049,10 @@ msgid "Export cameras"
 msgstr "Exportar câmaras"
 
 
+msgid "Convert TRS/Weights to Animation Pointer"
+msgstr "Converter TRS/Pesos em Apontadores de Animação"
+
+
 msgid "Export TRS and weights as Animation Pointer. Using KHR_animation_pointer extension"
 msgstr "Exportar TRS e pesos como Apontadores de Animações. Usando extensão KHR_animation_pointer"
 
@@ -61944,32 +62077,72 @@ msgid "Export Deformation bones only"
 msgstr "Exportar apenas ossos de deformação"
 
 
+msgid "Color Quantization Bits"
+msgstr "Bits de Quantização de Cor"
+
+
 msgid "Quantization bits for color values (0 = no quantization)"
 msgstr "Bits de quantização para valores de cor (0 para não quantizar)"
+
+
+msgid "Generic Quantization Bits"
+msgstr "Gerir Bits de Quantização"
 
 
 msgid "Quantization bits for generic values like weights or joints (0 = no quantization)"
 msgstr "Bits de quantização para valores genéricos como pesos ou articulações (0 = sem quantização)"
 
 
+msgid "Draco Mesh Compression"
+msgstr "Compressão de Malha Draco"
+
+
 msgid "Compress mesh using Draco"
 msgstr "Comprimir malha usando Draco"
+
+
+msgid "Compression Level"
+msgstr "Nível de Compressão"
 
 
 msgid "Compression level (0 = most speed, 6 = most compression, higher values currently not supported)"
 msgstr "Nível de compressão (0 = mais rápido, 6 = mais compressão, valores mais altos não suportados actualmente)"
 
 
+msgid "Normal Quantization Bits"
+msgstr "Bits de Quantização de Normal"
+
+
 msgid "Quantization bits for normal values (0 = no quantization)"
 msgstr "Bits de quantização para valores de normal (0 = sem quantização)"
+
+
+msgid "Position Quantization Bits"
+msgstr "Bits de Quantização de Posição"
 
 
 msgid "Quantization bits for position values (0 = no quantization)"
 msgstr "Bits de quantização para valores de posição (0 = sem quantização)"
 
 
+msgid "Texcoord Quantization Bits"
+msgstr "Bits de Quantização de Coordenadas de Textura"
+
+
 msgid "Quantization bits for texture coordinate values (0 = no quantization)"
 msgstr "Bits de quantização para valores de coordenadas de textura (0 = sem quantização)"
+
+
+msgid "Prepare Extra Animations"
+msgstr "Prepara Animações Extra"
+
+
+msgid ""
+"Export additional animations.\n"
+"This feature is not standard and needs an external extension to be included in the glTF file"
+msgstr ""
+"Exportar animações adicionais.\n"
+"Esta funcionalidade é não standard e precisa que seja incluída uma extensão externa no ficheiro glTF."
 
 
 msgid "Export custom properties as glTF extras"
@@ -61994,6 +62167,14 @@ msgstr "Limitar ao Intervalo de Reprodução"
 
 msgid "Clips animations to selected playback range"
 msgstr "Cortar as animações ao limite de reprodução seleccionado"
+
+
+msgid "Keep Named Nodes"
+msgstr "Manter Nós com Nome"
+
+
+msgid "Restrict some optimization to keep named nodes and meshes attached to named nodes so that named nodes can be transformed externally"
+msgstr "Restringir alguma optimização para manter nós com nome e malhas acopladas a nós com nome, de modo a que nós com nome possam ser transformados externamente"
 
 
 msgid "Disable Quantization"
@@ -62172,8 +62353,16 @@ msgid "Don't export images"
 msgstr "Não exportar imagens"
 
 
+msgid "Image Quality"
+msgstr "Qualidade de Imagem"
+
+
 msgid "Quality of image export"
 msgstr "Qualidade de exportação de imagens"
+
+
+msgid "WebP Fallback"
+msgstr "Reserva WebP"
 
 
 msgid "For all WebP textures, create a PNG fallback texture"
@@ -62216,6 +62405,10 @@ msgid "Choose how many Bone influences to export"
 msgstr "Escolher quantas influências de ossos exportar"
 
 
+msgid "JPEG Quality"
+msgstr "Qualidade JPEG"
+
+
 msgid "Quality of JPEG export"
 msgstr "Qualidade da exportação JPEG"
 
@@ -62254,6 +62447,202 @@ msgstr "Não exportar materiais, mas escrever varias grupos de primitivas por ma
 
 msgid "No export"
 msgstr "Sem exportação"
+
+
+msgid "Do not export materials, and combine mesh primitive groups, losing material slot information"
+msgstr "Não exportar materiais, e combinar grupos de primitivas de malhas, descartando a informação de compartimentos de materiais"
+
+
+msgid "Merge Animation"
+msgstr "Fundir Animação"
+
+
+msgid "Merge Animations"
+msgstr "Fundir Animações"
+
+
+msgid "NLA Track Names"
+msgstr "Nomes das Faixas de Animação Não Linear"
+
+
+msgid "Merge by NLA Track Names"
+msgstr "Fundir por nomes de Faixas de Animação Não Linear"
+
+
+msgid "Merge by Actions"
+msgstr "Fundir por Ações"
+
+
+msgid "No Merge"
+msgstr "Não Fundir"
+
+
+msgid "Do Not Merge Animations"
+msgstr "Não Fundir Animações"
+
+
+msgid "Export shape keys (morph targets)"
+msgstr "Exportar Formas Chave (alvos morph)"
+
+
+msgid "Shape Key Animations"
+msgstr "Animações de Formas Chave"
+
+
+msgid "Export shape keys animations (morph targets)"
+msgstr "Exportar animações de formas chave (alvos morph)"
+
+
+msgid "Shape Key Normals"
+msgstr "Normais das Formas Chave"
+
+
+msgid "Export vertex normals with shape keys (morph targets)"
+msgstr "Exportar normais de vértices com formas chave (alvos morph)"
+
+
+msgid "Reset Shape Keys Between Actions"
+msgstr "Repor Formas Chave entre Acções"
+
+
+msgid "Reset shape keys between each action exported. This is needed when some SK channels are not keyed on some animations"
+msgstr "Repor as formas chave entre cada acção exportada. Necessário quando alguns canais forma chave não têm fotogramas em algumas animações"
+
+
+msgid "Shape Key Tangents"
+msgstr "Tangentes das Formas Chave"
+
+
+msgid "Export vertex tangents with shape keys (morph targets)"
+msgstr "Exportar tangentes de vértices com formas chave (alvos morph)"
+
+
+msgid "Negative Frames"
+msgstr "Fotogramas Negativos"
+
+
+msgid "Negative Frames are slid or cropped"
+msgstr "Fotogramas negativos são ou cortados"
+
+
+msgid "Slide"
+msgstr "Deslizar"
+
+
+msgid "Slide animation to start at frame 0"
+msgstr "Deslizar animação para iniciar no fotograma 0"
+
+
+msgid "Keep only frames above frame 0"
+msgstr "Manter apenas fotogramas acima do fotograma 0"
+
+
+msgid "Group by NLA Track"
+msgstr "Agrupar por Faixa do Editor Não Linear"
+
+
+msgid "When on, multiple actions become part of the same glTF animation if they're pushed onto NLA tracks with the same name. When off, all the currently assigned actions become one glTF animation"
+msgstr "Quando ligado, múltiplas acções tornam-se parte do mesma animação glTF se forem empurradas para dentro de Faixas do Editor Não Linear com o mesmo nome. Quando desligado, todas as acções actualmente atribuídas tornam-se uma animação glTF"
+
+
+msgid "Merged Animation Name"
+msgstr "Nome da Animação Fundida"
+
+
+msgid "Name of single glTF animation to be exported"
+msgstr "Nome da animação glTF única a ser exportada"
+
+
+msgid "Export vertex normals with meshes"
+msgstr "Exportar normais de vértices com malhas"
+
+
+msgid "Force Keeping Channels for Bones"
+msgstr "Forçar Manter Canais para Ossos"
+
+
+msgid "If all keyframes are identical in a rig, force keeping the minimal animation. When off, all possible channels for the bones will be exported, even if empty (minimal animation, 2 keyframes)"
+msgstr "Se todos os fotogramas chave para uma rig forem idênticos, forçar manter a animação mínima. Quando desligado, todos os canais possíveis para ossos serão exportados, mesmo se vazios (animação mínima, 2 fotogramas chave)"
+
+
+msgid "Force Keeping Channel for Objects"
+msgstr "Forçar Manter Canais para Objectos"
+
+
+msgid "If all keyframes are identical for object transformations, force keeping the minimal animation"
+msgstr "Se todos os fotogramas chave para transformações de objectos forem idênticos, forçar manter a animação mínima."
+
+
+msgid "Optimize Animation Size"
+msgstr "Optimizar Tamanho da Animação"
+
+
+msgid "Reduce exported file size by removing duplicate keyframes"
+msgstr "Reduzir tamanho de ficheiro exportado removendo fotogramas duplicados"
+
+
+msgid "Disable Viewport for Other Objects"
+msgstr "Desactivar Janela de Visualização para Outros Objectos"
+
+
+msgid "When exporting animations, disable viewport for other objects, for performance"
+msgstr "Ao exportar animações, desactivar janela de visualização para outros objectos, para efeitos de performance"
+
+
+msgid "Export Original PBR Specular"
+msgstr "Exportar Especular PBR Original"
+
+
+msgid "Export original glTF PBR Specular, instead of Blender Principled Shader Specular"
+msgstr "Exportar especular PBR original, em vez de especular do Sombreador Principled do Blender"
+
+
+msgid "Export Animation Pointer (Experimental)"
+msgstr "Exportar Apontador de Animação (Experimental)"
+
+
+msgid "Export material, Light & Camera animation as Animation Pointer. Available only for baked animation mode 'NLA Tracks' and 'Scene'"
+msgstr "Exportar animação de material, luz e câmara como Apontador de Animação. Disponível apenas para modo de animação pré-calculado 'Faixas Editor Não Linear' e 'Cena'"
+
+
+msgid "Reset Pose Bones Between Actions"
+msgstr "Repor Ossos de Pose Entre Acções"
+
+
+msgid "Reset pose bones between each action exported. This is needed when some bones are not keyed on some animations"
+msgstr "Repor ossos de pose entre casa acção exportada. Isto é necessário quando alguns ossos não têm fotogramas chave em algumas animações"
+
+
+msgid "Use Rest Position Armature"
+msgstr "Usar Armação em Pose de Descanso"
+
+
+msgid "Export armatures using rest position as joints' rest pose. When off, current frame pose is used as rest pose"
+msgstr "Exportar armações usando a pose de descanso como pose de descanso das articulações"
+
+
+msgid "Sampling Interpolation Fallback"
+msgstr "Reserva de Amostragem de Interpolação"
+
+
+msgid "Interpolation fallback for sampled animations, when the property is not keyed"
+msgstr "Reserva de interpolação para animações amostradas, quando a propriedade não tem fotogramas chave"
+
+
+msgid "Linear interpolation between keyframes"
+msgstr "Interpolação linear entre fotogramas chave"
+
+
+msgid "No interpolation between keyframes"
+msgstr "Sem interpolação entre fotogramas chave"
+
+
+msgid "Shared Accessors"
+msgstr "Acessores Partilhados"
+
+
+msgid "Export Primitives using shared accessors for attributes"
+msgstr "Exportar primitivas usando acessores partilhados para atributos"
 
 
 msgid "Identifier of caller (in case of add-on calling this exporter). Can be useful in case of Extension added by other add-ons"
@@ -75815,10 +76204,6 @@ msgid "Text Boxes"
 msgstr "Caixas de texto"
 
 
-msgid "Slot"
-msgstr "Compartimentos"
-
-
 msgid "Filters"
 msgstr "Filtros"
 
@@ -77710,10 +78095,6 @@ msgstr "Inverter o eixo de rolagem (Z)"
 
 msgid "Overall sensitivity of the 3D Mouse for panning"
 msgstr "Sensibilidade geral do rato 3D para movimentar em panorama."
-
-
-msgid "Show Navigation Guide"
-msgstr "Mostrar a guia de navegação"
 
 
 msgid "Display the center and axis during rotation"
