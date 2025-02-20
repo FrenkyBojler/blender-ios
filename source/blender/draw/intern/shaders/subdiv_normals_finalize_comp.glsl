@@ -16,34 +16,6 @@ COMPUTE_SHADER_CREATE_INFO(subdiv_custom_normals_finalize)
 #  else
 COMPUTE_SHADER_CREATE_INFO(subdiv_normals_finalize)
 #  endif
-#else
-#  ifdef CUSTOM_NORMALS
-struct CustomNormal {
-  float x;
-  float y;
-  float z;
-};
-
-layout(std430, binding = 0) readonly buffer inputNormals
-{
-  CustomNormal custom_normals[];
-};
-#  else
-layout(std430, binding = 0) readonly buffer inputNormals
-{
-  vec3 vertex_normals[];
-};
-
-layout(std430, binding = 1) readonly buffer inputSubdivVertLoopMap
-{
-  uint vert_loop_map[];
-};
-#  endif
-
-layout(std430, binding = 2) buffer outputPosNor
-{
-  PosNorLoop pos_nor[];
-};
 #endif
 
 void main()
@@ -60,14 +32,15 @@ void main()
   for (int i = 0; i < 4; i++) {
     CustomNormal custom_normal = custom_normals[start_loop_index + i];
     vec3 nor = vec3(custom_normal.x, custom_normal.y, custom_normal.z);
-    pos_nor[start_loop_index + i] = subdiv_set_vertex_nor(pos_nor[start_loop_index + i],
-                                                          normalize(nor));
+    PosNorLoop vertex_data = pos_nor[start_loop_index + i];
+    pos_nor[start_loop_index + i] = subdiv_set_vertex_nor(vertex_data, normalize(nor));
   }
 #else
   for (int i = 0; i < 4; i++) {
     uint subdiv_vert_index = vert_loop_map[start_loop_index + i];
     vec3 nor = vertex_normals[subdiv_vert_index];
-    pos_nor[start_loop_index + i] = subdiv_set_vertex_nor(pos_nor[start_loop_index + i], nor);
+    PosNorLoop vertex_data = pos_nor[start_loop_index + i];
+    pos_nor[start_loop_index + i] = subdiv_set_vertex_nor(vertex_data, nor);
   }
 #endif
 }
