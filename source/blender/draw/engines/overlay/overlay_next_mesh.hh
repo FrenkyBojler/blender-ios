@@ -528,16 +528,6 @@ class MeshUVs : Overlay {
     const ToolSettings *tool_setting = state.scene->toolsettings;
     const SpaceImage *space_image = reinterpret_cast<const SpaceImage *>(state.space_data);
     ::Image *image = space_image->image;
-    const bool is_tiled_image = image && (image->source == IMA_SRC_TILED);
-    const bool is_viewer = image && ELEM(image->type, IMA_TYPE_R_RESULT, IMA_TYPE_COMPOSITE);
-    /* Only disable UV drawing on top of render results.
-     * Otherwise, show UVs even in the absence of active image. */
-    enabled_ = !is_viewer;
-
-    if (!enabled_) {
-      return;
-    }
-
     const bool space_mode_is_paint = space_image->mode == SI_MODE_PAINT;
     const bool space_mode_is_view = space_image->mode == SI_MODE_VIEW;
     const bool space_mode_is_mask = space_image->mode == SI_MODE_MASK;
@@ -545,6 +535,31 @@ class MeshUVs : Overlay {
 
     const bool object_mode_is_edit = state.object_mode & OB_MODE_EDIT;
     const bool object_mode_is_paint = state.object_mode & OB_MODE_TEXTURE_PAINT;
+
+    const bool is_viewer = image && ELEM(image->type, IMA_TYPE_R_RESULT, IMA_TYPE_COMPOSITE);
+    const bool is_tiled_image = image && (image->source == IMA_SRC_TILED);
+
+    /* The mask overlay is always drawn when enabled, even on top of viewers. */
+    {
+      /* Mask Overlay. */
+      show_mask_ = space_mode_is_mask && space_image->mask_info.mask &&
+                   space_image->mask_info.draw_flag & MASK_DRAWFLAG_OVERLAY;
+      if (show_mask_) {
+        mask_mode_ = eMaskOverlayMode(space_image->mask_info.overlay_mode);
+        mask_id_ = (Mask *)DEG_get_evaluated_id(state.depsgraph, &space_image->mask_info.mask->id);
+      }
+      else {
+        mask_id_ = nullptr;
+      }
+    }
+
+    /* Only disable UV drawing on top of render results.
+     * Otherwise, show UVs even in the absence of active image. */
+    enabled_ = !is_viewer || show_mask_;
+
+    if (!enabled_) {
+      return;
+    }
 
     {
       /* Edit UV Overlay. */
@@ -600,22 +615,11 @@ class MeshUVs : Overlay {
     }
     {
       /* Brush Stencil Overlay. */
-      const Brush *brush = BKE_paint_brush_for_read(&tool_setting->imapaint.paint);
+      const ImagePaintSettings &image_paint_settings = tool_setting->imapaint;
+      const Brush *brush = BKE_paint_brush_for_read(&image_paint_settings.paint);
       show_stencil_ = space_mode_is_paint && brush &&
                       (brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_CLONE) &&
-                      brush->clone.image;
-    }
-    {
-      /* Mask Overlay. */
-      show_mask_ = space_mode_is_mask && space_image->mask_info.mask &&
-                   space_image->mask_info.draw_flag & MASK_DRAWFLAG_OVERLAY;
-      if (show_mask_) {
-        mask_mode_ = eMaskOverlayMode(space_image->mask_info.overlay_mode);
-        mask_id_ = (Mask *)DEG_get_evaluated_id(state.depsgraph, &space_image->mask_info.mask->id);
-      }
-      else {
-        mask_id_ = nullptr;
-      }
+                      image_paint_settings.clone;
     }
     {
       /* UDIM Overlay. */
@@ -857,8 +861,8 @@ class MeshUVs : Overlay {
       pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_ALWAYS |
                      DRW_STATE_BLEND_ALPHA_PREMUL);
 
-      const Brush *brush = BKE_paint_brush_for_read(&tool_setting->imapaint.paint);
-      ::Image *stencil_image = brush->clone.image;
+      const ImagePaintSettings &image_paint_settings = tool_setting->imapaint;
+      ::Image *stencil_image = image_paint_settings.clone;
       TextureRef stencil_texture;
       stencil_texture.wrap(BKE_image_get_gpu_texture(stencil_image, nullptr));
 
@@ -870,8 +874,8 @@ class MeshUVs : Overlay {
         pass.bind_texture("imgTexture", stencil_texture);
         pass.push_constant("imgPremultiplied", true);
         pass.push_constant("imgAlphaBlend", true);
-        pass.push_constant("ucolor", float4(1.0f, 1.0f, 1.0f, brush->clone.alpha));
-        pass.push_constant("brush_offset", float2(brush->clone.offset));
+        pass.push_constant("ucolor", float4(1.0f, 1.0f, 1.0f, image_paint_settings.clone_alpha));
+        pass.push_constant("brush_offset", float2(image_paint_settings.clone_offset));
         pass.push_constant("brush_scale", float2(stencil_texture.size().xy()) / size_image);
         pass.draw(res.shapes.quad_solid.get());
       }
