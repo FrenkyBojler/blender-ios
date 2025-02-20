@@ -129,6 +129,43 @@ template<int S> struct PredicateByteToBit {
 #endif
 };
 
+struct ByteToBit5 {
+  Span<char> predicate_bytes_;
+  __m128i x1_;
+  __m128i x2_;
+  __m128i x3_;
+  __m128i x4_;
+  __m128i x5_;
+
+  ByteToBit5(const Span<char> predicate_bytes)
+  {
+    BLI_assert(predicate_bytes.size() == 5);
+    predicate_bytes_ = predicate_bytes;
+    x1_ = _mm_set1_epi8(predicate_bytes[0]);
+    x2_ = _mm_set1_epi8(predicate_bytes[1]);
+    x3_ = _mm_set1_epi8(predicate_bytes[2]);
+    x4_ = _mm_set1_epi8(predicate_bytes[3]);
+    x5_ = _mm_set1_epi8(predicate_bytes[4]);
+  }
+
+  bool single(const char c) const
+  {
+    return predicate_bytes_.contains(c);
+  }
+
+  uint16_t see2_chunk(const __m128i chunk) const
+  {
+    const __m128i mask1 = _mm_cmpeq_epi8(chunk, x1_);
+    const __m128i mask2 = _mm_cmpeq_epi8(chunk, x2_);
+    const __m128i mask3 = _mm_cmpeq_epi8(chunk, x3_);
+    const __m128i mask4 = _mm_cmpeq_epi8(chunk, x4_);
+    const __m128i mask5 = _mm_cmpeq_epi8(chunk, x5_);
+    const __m128i mask = _mm_or_si128(
+        _mm_or_si128(_mm_or_si128(mask1, mask2), _mm_or_si128(mask3, mask4)), mask5);
+    return _mm_movemask_epi8(mask);
+  }
+};
+
 bool bytes_to_bits(Span<char> bytes,
                    Span<char> predicate_bytes,
                    MutableBitSpan r_bits,
@@ -150,8 +187,7 @@ bool bytes_to_bits(Span<char> bytes,
         bytes, r_bits, allowed_overshoot, PredicateByteToBit<4>(predicate_bytes));
   }
   if (predicate_bytes.size() <= 5) {
-    return or_bytes_into_bits(
-        bytes, r_bits, allowed_overshoot, PredicateByteToBit<5>(predicate_bytes));
+    return or_bytes_into_bits(bytes, r_bits, allowed_overshoot, ByteToBit5(predicate_bytes));
   }
   if (predicate_bytes.size() <= 8) {
     return or_bytes_into_bits(
