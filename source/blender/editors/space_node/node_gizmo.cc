@@ -479,7 +479,7 @@ static bool WIDGETGROUP_node_box_mask_poll(const bContext *C, wmGizmoGroupType *
   }
 
   if (snode && snode->edittree && snode->edittree->type == NTREE_COMPOSIT) {
-    bNode *node = bke::node_get_active(snode->edittree);
+    bNode *node = bke::node_get_active(*snode->edittree);
 
     if (node && ELEM(node->type_legacy, CMP_NODE_MASK_BOX)) {
       return true;
@@ -534,10 +534,10 @@ static void WIDGETGROUP_node_box_mask_refresh(const bContext *C, wmGizmoGroup *g
     WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
 
     SpaceNode *snode = CTX_wm_space_node(C);
-    bNode *node = bke::node_get_active(snode->edittree);
+    bNode *node = bke::node_get_active(*snode->edittree);
 
     mask_group->update_data.context = (bContext *)C;
-    mask_group->update_data.ptr = RNA_pointer_create(
+    mask_group->update_data.ptr = RNA_pointer_create_discrete(
         (ID *)snode->edittree, &RNA_CompositorNodeCrop, node);
     mask_group->update_data.prop = RNA_struct_find_property(&mask_group->update_data.ptr, "x");
 
