@@ -447,8 +447,8 @@ def addons_panel_draw_items(
         addon_extension_block_map,  # `dict[str, PkgBlock_Normalized]`
 
         show_development,  # `bool`
-        window_manager,  # Added window_manager parameter
         show_developer_ui,  # `bool`
+        window_manager,  # Added window_manager parameter
 ):  # `-> set[str]`
     # NOTE: this duplicates logic from `USERPREF_PT_addons` eventually this logic should be used instead.
     # Don't de-duplicate the logic as this is a temporary state - as long as extensions remains experimental.
