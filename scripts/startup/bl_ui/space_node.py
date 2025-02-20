@@ -630,9 +630,9 @@ class NODE_MT_context_menu(Menu):
 
         layout.separator()
 
-        layout.operator("node.swap_node").menu_idname = "NODE_MT_add"
-        layout.operator("node.delete", icon='X')
-        layout.operator_context = 'EXEC_REGION_WIN'
+        layout.operator("node.swap_node").menu_idname = "NODE_MT_dummy_add"
+        layout.operator("node.delete", icon="X")
+        layout.operator_context = "EXEC_REGION_WIN"
         layout.operator("node.delete_reconnect", text="Dissolve")
 
         if selected_nodes_len > 1:

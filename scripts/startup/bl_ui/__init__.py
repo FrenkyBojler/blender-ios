@@ -16,6 +16,7 @@ _modules = [
     "node_add_menu",
     "node_add_menu_compositor",
     "node_add_menu_geometry",
+    "node_dummy_add_menu_geometry",
     "node_add_menu_shader",
     "node_add_menu_texture",
     "properties_animviz",
