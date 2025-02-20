@@ -2336,12 +2336,16 @@ void BKE_scene_frames_per_second_sync(Main *bmain, Scene *scene)
     if (!depsgraph) {
       continue;
     }
+    /* The sound system requires an evaluated scene. In order to ensure the evaluated scene is up
+     * to date, evaluate the depsgraph before. */
+    DEG_evaluate_on_refresh(depsgraph);
     Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
     BKE_sound_update_fps(bmain, scene_eval);
   }
+  const double fps = BKE_scene_frames_per_second_get(scene);
   LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
     if (screen->animtimer) {
-      screen->animtimer->time_step = (1.0 / BKE_scene_frames_per_second_get(scene));
+      screen->animtimer->time_step = (1.0 / fps);
     }
   }
 }
@@ -2473,9 +2477,6 @@ void BKE_scene_update_sound(Depsgraph *depsgraph, Main *bmain)
   BKE_sound_ensure_scene(scene);
   if (recalc & ID_RECALC_FRAME_CHANGE) {
     BKE_sound_seek_scene(bmain, scene);
-  }
-  if (recalc & ID_RECALC_AUDIO_FPS) {
-    // BKE_sound_update_fps(bmain, scene);
   }
   if (recalc & ID_RECALC_AUDIO_VOLUME) {
     BKE_sound_set_scene_volume(scene, scene->audio.volume);

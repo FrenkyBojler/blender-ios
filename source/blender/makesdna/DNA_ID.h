@@ -1074,7 +1074,6 @@ typedef enum IDRecalcFlag {
   /* Runs on frame-change (used for seeking audio too). */
   ID_RECALC_FRAME_CHANGE = (1 << 15),
 
-  ID_RECALC_AUDIO_FPS = (1 << 16),
   ID_RECALC_AUDIO_VOLUME = (1 << 17),
   ID_RECALC_AUDIO_MUTE = (1 << 18),
   ID_RECALC_AUDIO_LISTENER = (1 << 19),
