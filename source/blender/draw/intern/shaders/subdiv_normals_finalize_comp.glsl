@@ -10,12 +10,10 @@
 
 #include "subdiv_lib.glsl"
 
-#ifdef USE_GPU_SHADER_CREATE_INFO
-#  ifdef CUSTOM_NORMALS
+#ifdef CUSTOM_NORMALS
 COMPUTE_SHADER_CREATE_INFO(subdiv_custom_normals_finalize)
-#  else
+#else
 COMPUTE_SHADER_CREATE_INFO(subdiv_normals_finalize)
-#  endif
 #endif
 
 void main()
