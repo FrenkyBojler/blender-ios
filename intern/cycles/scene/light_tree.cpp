@@ -244,11 +244,11 @@ static void sort_leaf(const int start, const int end, LightTreeEmitter *emitters
 {
   /* Sort primitive by light link mask so that specialized trees can use a subset of these. */
   if (end > start) {
-    std::sort(emitters + start,
-              emitters + end,
-              [](const LightTreeEmitter &a, const LightTreeEmitter &b) {
-                return a.light_set_membership < b.light_set_membership;
-              });
+    std::stable_sort(emitters + start,
+                     emitters + end,
+                     [](const LightTreeEmitter &a, const LightTreeEmitter &b) {
+                       return a.light_set_membership < b.light_set_membership;
+                     });
   }
 }
 
@@ -479,8 +479,7 @@ void LightTree::recursive_build(const Child child,
 
     if (split_dim != -1) {
       /* Partition the emitters between start and end based on the centroids. */
-      std::nth_element(emitters + start,
-                       emitters + middle,
+      std::stable_sort(emitters + start,
                        emitters + end,
                        [split_dim](const LightTreeEmitter &l, const LightTreeEmitter &r) {
                          return l.centroid[split_dim] < r.centroid[split_dim];
