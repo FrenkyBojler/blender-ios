@@ -32,6 +32,7 @@
 #include "BKE_object_deform.h"
 #include "BKE_report.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_vector.h"
 #include "BLI_set.hh"
@@ -44,6 +45,7 @@
 
 #include "ANIM_animdata.hh"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -1088,8 +1090,8 @@ void import_mesh_skel_bindings(Object *mesh_obj, const pxr::UsdPrim &prim, Repor
     if (std::find(used_indices.begin(), used_indices.end(), index) == used_indices.end()) {
       /* We haven't accounted for this index yet. */
       if (index < 0 || index >= joints.size()) {
-        CLOG_WARN(&LOG, "Out of bound joint index %d", index);
-        continue;
+        CLOG_ERROR(&LOG, "Out of bound joint index %d for mesh %s", index, mesh_obj->id.name + 2);
+        return;
       }
       used_indices.append(index);
     }
@@ -1313,9 +1315,7 @@ void export_deform_verts(const Mesh *mesh,
   int max_totweight = 1;
   for (const int i : dverts.index_range()) {
     const MDeformVert &vert = dverts[i];
-    if (vert.totweight > max_totweight) {
-      max_totweight = vert.totweight;
-    }
+    max_totweight = std::max(vert.totweight, max_totweight);
   }
 
   /* elem_size will specify the number of

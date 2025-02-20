@@ -29,7 +29,7 @@ static void cmp_node_map_uv_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .compositor_realization_options(CompositorInputRealizationOptions::None);
+      .compositor_realization_mode(CompositorInputRealizationMode::Transforms);
   b.add_input<decl::Vector>("UV")
       .default_value({1.0f, 0.0f, 0.0f})
       .min(0.0f)
@@ -312,5 +312,5 @@ void register_node_type_cmp_mapuv()
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
   ntype.initfunc = file_ns::node_composit_init_map_uv;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

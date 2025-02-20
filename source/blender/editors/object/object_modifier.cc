@@ -6,7 +6,6 @@
  * \ingroup edobj
  */
 
-#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 
@@ -36,6 +35,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_animsys.h"
+#include "BKE_anonymous_attribute_id.hh"
 #include "BKE_armature.hh"
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
@@ -52,6 +52,7 @@
 #include "BKE_lattice.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_material.hh"
@@ -145,7 +146,7 @@ static void object_force_modifier_bind_simple_options(Depsgraph *depsgraph,
                                                       Object *object,
                                                       ModifierData *md)
 {
-  ModifierData *md_eval = (ModifierData *)BKE_modifier_get_evaluated(depsgraph, object, md);
+  ModifierData *md_eval = BKE_modifier_get_evaluated(depsgraph, object, md);
   const int mode = md_eval->mode;
   md_eval->mode |= eModifierMode_Realtime;
   object_force_modifier_update_for_bind(depsgraph, object);
@@ -1343,7 +1344,9 @@ static bool modifier_apply_obdata(ReportList *reports,
       multires_force_sculpt_rebuild(ob);
     }
 
-    if (mmd && mmd->totlvl && mti->type == ModifierTypeType::OnlyDeform) {
+    if (mmd && mmd->totlvl &&
+        (mti->type == ModifierTypeType::OnlyDeform || md_eval->type == eModifierType_Nodes))
+    {
       if (!multiresModifier_reshapeFromDeformModifier(depsgraph, ob, mmd, md_eval)) {
         BKE_report(reports, RPT_ERROR, "Multires modifier returned error, skipping apply");
         return false;
@@ -1397,13 +1400,9 @@ static bool modifier_apply_obdata(ReportList *reports,
                RPT_INFO,
                "Applied modifier only changed CV points, not tessellated/bevel vertices");
 
-    int verts_num;
-    float(*vertexCos)[3] = BKE_curve_nurbs_vert_coords_alloc(&curve_eval->nurb, &verts_num);
-    mti->deform_verts(
-        md_eval, &mectx, nullptr, {reinterpret_cast<float3 *>(vertexCos), verts_num});
+    Array<float3> vertexCos = BKE_curve_nurbs_vert_coords_alloc(&curve_eval->nurb);
+    mti->deform_verts(md_eval, &mectx, nullptr, vertexCos);
     BKE_curve_nurbs_vert_coords_apply(&curve->nurb, vertexCos, false);
-
-    MEM_freeN(vertexCos);
 
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   }
@@ -1417,13 +1416,9 @@ static bool modifier_apply_obdata(ReportList *reports,
       return false;
     }
 
-    int verts_num;
-    float(*vertexCos)[3] = BKE_lattice_vert_coords_alloc(lattice, &verts_num);
-    mti->deform_verts(
-        md_eval, &mectx, nullptr, {reinterpret_cast<float3 *>(vertexCos), verts_num});
-    BKE_lattice_vert_coords_apply(lattice, vertexCos);
-
-    MEM_freeN(vertexCos);
+    Array<float3> positions = BKE_lattice_vert_coords_alloc(lattice);
+    mti->deform_verts(md_eval, &mectx, nullptr, positions);
+    BKE_lattice_vert_coords_apply(lattice, positions);
 
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   }
@@ -2792,7 +2787,7 @@ static void modifier_skin_customdata_delete(Object *ob)
     BM_data_layer_free(em->bm, &em->bm->vdata, CD_MVERT_SKIN);
   }
   else {
-    CustomData_free_layer_active(&mesh->vert_data, CD_MVERT_SKIN, mesh->verts_num);
+    CustomData_free_layer_active(&mesh->vert_data, CD_MVERT_SKIN);
   }
 }
 

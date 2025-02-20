@@ -22,22 +22,16 @@
 
 #include "BLI_bounds.hh"
 #include "BLI_endian_switch.h"
-#include "BLI_ghash.h"
 #include "BLI_hash.h"
 #include "BLI_implicit_sharing.hh"
 #include "BLI_index_range.hh"
-#include "BLI_linklist.h"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.hh"
-#include "BLI_memarena.h"
 #include "BLI_memory_counter.hh"
-#include "BLI_ordered_edge.hh"
-#include "BLI_resource_scope.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_string.h"
-#include "BLI_string_utils.hh"
 #include "BLI_task.hh"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
@@ -47,6 +41,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_anim_data.hh"
+#include "BKE_anonymous_attribute_id.hh"
 #include "BKE_attribute.hh"
 #include "BKE_bake_data_block_id.hh"
 #include "BKE_bpath.hh"
@@ -166,6 +161,7 @@ static void mesh_copy_data(Main *bmain,
   mesh_dst->runtime->bvh_cache_loose_edges = mesh_src->runtime->bvh_cache_loose_edges;
   mesh_dst->runtime->bvh_cache_loose_edges_no_hidden =
       mesh_src->runtime->bvh_cache_loose_edges_no_hidden;
+  mesh_dst->runtime->max_material_index = mesh_src->runtime->max_material_index;
   if (mesh_src->runtime->bake_materials) {
     mesh_dst->runtime->bake_materials = std::make_unique<blender::bke::bake::BakeMaterialsList>(
         *mesh_src->runtime->bake_materials);
@@ -482,9 +478,9 @@ IDTypeInfo IDType_ID_ME = {
     /*lib_override_apply_post*/ nullptr,
 };
 
-bool BKE_mesh_attribute_required(const char *name)
+bool BKE_mesh_attribute_required(const StringRef name)
 {
-  return ELEM(StringRef(name), "position", ".corner_vert", ".corner_edge", ".edge_verts");
+  return ELEM(name, "position", ".corner_vert", ".corner_edge", ".edge_verts");
 }
 
 void BKE_mesh_ensure_skin_customdata(Mesh *mesh)
@@ -584,11 +580,11 @@ void BKE_mesh_free_data_for_undo(Mesh *mesh)
  */
 static void mesh_clear_geometry(Mesh &mesh)
 {
-  CustomData_free(&mesh.vert_data, mesh.verts_num);
-  CustomData_free(&mesh.edge_data, mesh.edges_num);
-  CustomData_free(&mesh.fdata_legacy, mesh.totface_legacy);
-  CustomData_free(&mesh.corner_data, mesh.corners_num);
-  CustomData_free(&mesh.face_data, mesh.faces_num);
+  CustomData_free(&mesh.vert_data);
+  CustomData_free(&mesh.edge_data);
+  CustomData_free(&mesh.fdata_legacy);
+  CustomData_free(&mesh.corner_data);
+  CustomData_free(&mesh.face_data);
   if (mesh.face_offset_indices) {
     blender::implicit_sharing::free_shared_data(&mesh.face_offset_indices,
                                                 &mesh.runtime->face_offsets_sharing_info);
@@ -627,7 +623,7 @@ void BKE_mesh_clear_geometry_and_metadata(Mesh *mesh)
 static void mesh_tessface_clear_intern(Mesh *mesh, int free_customdata)
 {
   if (free_customdata) {
-    CustomData_free(&mesh->fdata_legacy, mesh->totface_legacy);
+    CustomData_free(&mesh->fdata_legacy);
   }
   else {
     CustomData_reset(&mesh->fdata_legacy);
@@ -808,10 +804,10 @@ Mesh *mesh_new_no_attributes(const int verts_num,
   mesh->verts_num = verts_num;
   mesh->edges_num = edges_num;
   mesh->corners_num = corners_num;
-  CustomData_free_layer_named(&mesh->vert_data, "position", 0);
-  CustomData_free_layer_named(&mesh->edge_data, ".edge_verts", 0);
-  CustomData_free_layer_named(&mesh->corner_data, ".corner_vert", 0);
-  CustomData_free_layer_named(&mesh->corner_data, ".corner_edge", 0);
+  CustomData_free_layer_named(&mesh->vert_data, "position");
+  CustomData_free_layer_named(&mesh->edge_data, ".edge_verts");
+  CustomData_free_layer_named(&mesh->corner_data, ".corner_vert");
+  CustomData_free_layer_named(&mesh->corner_data, ".corner_edge");
   return mesh;
 }
 
@@ -1167,7 +1163,7 @@ void BKE_mesh_assign_object(Main *bmain, Object *ob, Mesh *mesh)
     id_us_plus((ID *)mesh);
   }
 
-  BKE_object_materials_test(bmain, ob, (ID *)mesh);
+  BKE_object_materials_sync_length(bmain, ob, (ID *)mesh);
 
   BKE_modifiers_test_object(ob);
 }
@@ -1350,6 +1346,36 @@ void BKE_mesh_transform(Mesh *mesh, const float mat[4][4], bool do_keys)
   }
 
   mesh->tag_positions_changed();
+}
+
+std::optional<int> Mesh::material_index_max() const
+{
+  this->runtime->max_material_index.ensure([&](std::optional<int> &value) {
+    if (this->runtime->edit_mesh && this->runtime->edit_mesh->bm) {
+      BMesh *bm = this->runtime->edit_mesh->bm;
+      if (bm->totface == 0) {
+        value = std::nullopt;
+        return;
+      }
+      int max_material_index = 0;
+      BMFace *efa;
+      BMIter iter;
+      BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
+        max_material_index = std::max<int>(max_material_index, efa->mat_nr);
+      }
+      value = max_material_index;
+      return;
+    }
+    if (this->faces_num == 0) {
+      value = std::nullopt;
+      return;
+    }
+    value = blender::bounds::max<int>(
+        this->attributes()
+            .lookup_or_default<int>("material_index", blender::bke::AttrDomain::Face, 0)
+            .varray);
+  });
+  return this->runtime->max_material_index.data();
 }
 
 static void translate_positions(MutableSpan<float3> positions, const float3 &translation)

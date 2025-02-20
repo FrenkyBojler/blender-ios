@@ -38,7 +38,7 @@ void ReduceToSingleValueOperation::execute()
     need_to_free_pixel = true;
   }
   else {
-    pixel = input.float_texture();
+    pixel = input.cpu_data().data();
   }
 
   Result &result = get_result();
@@ -48,6 +48,9 @@ void ReduceToSingleValueOperation::execute()
       result.set_single_value(float4(static_cast<float *>(pixel)));
       break;
     case ResultType::Vector:
+      result.set_single_value(float4(static_cast<float *>(pixel)));
+      break;
+    case ResultType::Float4:
       result.set_single_value(float4(static_cast<float *>(pixel)));
       break;
     case ResultType::Float:

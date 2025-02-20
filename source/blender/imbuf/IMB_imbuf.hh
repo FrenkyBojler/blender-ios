@@ -42,6 +42,7 @@
 
 #include "../gpu/GPU_texture.hh"
 
+#include "BLI_math_matrix_types.hh"
 #include "BLI_utildefines.h"
 
 #include "IMB_imbuf_types.hh"
@@ -581,7 +582,7 @@ void IMB_processor_apply_threaded(
     int handle_size,
     void *init_customdata,
     void(init_handle)(void *handle, int start_line, int tot_line, void *customdata),
-    void *(do_thread)(void *));
+    void(do_thread)(void *));
 
 using ScanlineThreadFunc = void (*)(void *custom_data, int scanline);
 void IMB_processor_apply_threaded_scanlines(int total_scanlines,
@@ -625,7 +626,7 @@ void IMB_transform(const ImBuf *src,
                    ImBuf *dst,
                    eIMBTransformMode mode,
                    eIMBInterpolationFilterMode filter,
-                   const float transform_matrix[4][4],
+                   const blender::float3x3 &transform_matrix,
                    const rctf *src_crop);
 
 GPUTexture *IMB_create_gpu_texture(const char *name,
@@ -676,18 +677,6 @@ void IMB_stereo3d_write_dimensions(
     char mode, bool is_squeezed, size_t width, size_t height, size_t *r_width, size_t *r_height);
 void IMB_stereo3d_read_dimensions(
     char mode, bool is_squeezed, size_t width, size_t height, size_t *r_width, size_t *r_height);
-int *IMB_stereo3d_from_rect(const ImageFormatData *im_format,
-                            size_t x,
-                            size_t y,
-                            size_t channels,
-                            int *rect_left,
-                            int *rect_right);
-float *IMB_stereo3d_from_rectf(const ImageFormatData *im_format,
-                               size_t x,
-                               size_t y,
-                               size_t channels,
-                               float *rectf_left,
-                               float *rectf_right);
 /**
  * Left/right are always float.
  */

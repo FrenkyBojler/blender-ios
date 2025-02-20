@@ -7,6 +7,8 @@
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
+#include "IMB_colormanagement.hh"
+
 namespace blender::compositor {
 
 /* --------------------------------------------------------------------
@@ -28,6 +30,11 @@ inline float4 float_to_color(const float &value)
   return float4(float3(value), 1.0f);
 }
 
+inline float4 float_to_float4(const float &value)
+{
+  return float4(value);
+}
+
 /* --------------------------------------------------------------------
  * Int to other.
  */
@@ -45,6 +52,11 @@ inline float4 int_to_vector(const int &value)
 inline float4 int_to_color(const int &value)
 {
   return float_to_color(int_to_float(value));
+}
+
+inline float4 int_to_float4(const int &value)
+{
+  return float_to_float4(int_to_float(value));
 }
 
 /* --------------------------------------------------------------------
@@ -66,13 +78,18 @@ inline float4 vector_to_color(const float4 &value)
   return float4(value.xyz(), 1.0f);
 }
 
+inline float4 vector_to_float4(const float4 &value)
+{
+  return value;
+}
+
 /* --------------------------------------------------------------------
- * Vector to other.
+ * Color to other.
  */
 
 inline float color_to_float(const float4 &value)
 {
-  return math::reduce_add(value.xyz()) / 3.0f;
+  return IMB_colormanagement_get_luminance(value);
 }
 
 inline int color_to_int(const float4 &value)
@@ -81,6 +98,35 @@ inline int color_to_int(const float4 &value)
 }
 
 inline float4 color_to_vector(const float4 &value)
+{
+  return value;
+}
+
+inline float4 color_to_float4(const float4 &value)
+{
+  return value;
+}
+
+/* --------------------------------------------------------------------
+ * Float4 to other.
+ */
+
+inline float float4_to_float(const float4 &value)
+{
+  return math::reduce_add(value) / 4.0f;
+}
+
+inline int float4_to_int(const float4 &value)
+{
+  return float_to_int(float4_to_float(value));
+}
+
+inline float4 float4_to_vector(const float4 &value)
+{
+  return value;
+}
+
+inline float4 float4_to_color(const float4 &value)
 {
   return value;
 }

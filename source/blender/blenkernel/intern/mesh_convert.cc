@@ -13,7 +13,6 @@
 #include "DNA_curve_types.h"
 #include "DNA_key_types.h"
 #include "DNA_material_types.h"
-#include "DNA_meta_types.h"
 #include "DNA_object_types.h"
 #include "DNA_pointcloud_types.h"
 #include "DNA_scene_types.h"
@@ -547,7 +546,7 @@ void BKE_mesh_to_pointcloud(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/
 
   PointCloud *pointcloud = BKE_pointcloud_add(bmain, ob->id.name + 2);
 
-  CustomData_free(&pointcloud->pdata, pointcloud->totpoint);
+  CustomData_free(&pointcloud->pdata);
   pointcloud->totpoint = mesh_eval->verts_num;
   CustomData_merge(
       &mesh_eval->vert_data, &pointcloud->pdata, CD_MASK_PROP_ALL, mesh_eval->verts_num);

@@ -11,18 +11,19 @@
 #include "BKE_linestyle.h"
 #include "BKE_scene.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 
 #include "BLT_translation.hh"
 
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
+#include "DNA_texture_types.h"
 #include "DNA_world_types.h"
 
 #include "ED_render.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 
@@ -48,7 +49,6 @@ void uiTemplatePreview(uiLayout *layout,
                        const char *preview_id)
 {
   Material *ma = nullptr;
-  Tex *tex = (Tex *)id;
   short *pr_texture = nullptr;
 
   char _preview_id[sizeof(uiPreview::preview_id)];
@@ -156,7 +156,7 @@ void uiTemplatePreview(uiLayout *layout,
       }
 
       /* Create RNA Pointer */
-      PointerRNA material_ptr = RNA_pointer_create(&ma->id, &RNA_Material, ma);
+      PointerRNA material_ptr = RNA_id_pointer_create(&ma->id);
 
       col = uiLayoutColumn(row, true);
       uiLayoutSetScaleX(col, 1.5);
@@ -172,7 +172,7 @@ void uiTemplatePreview(uiLayout *layout,
 
     if (pr_texture) {
       /* Create RNA Pointer */
-      PointerRNA texture_ptr = RNA_pointer_create(id, &RNA_Texture, tex);
+      PointerRNA texture_ptr = RNA_id_pointer_create(id);
 
       uiLayoutRow(layout, true);
       uiDefButS(block,

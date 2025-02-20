@@ -11,8 +11,6 @@
 
 #include "BKE_geometry_fields.hh"
 
-#include "BLI_task.hh"
-
 #include "RNA_enum_types.hh"
 
 #include "NOD_socket_search_link.hh"
@@ -102,7 +100,7 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

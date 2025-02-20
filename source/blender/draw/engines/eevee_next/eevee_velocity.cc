@@ -19,6 +19,7 @@
 #include "DNA_particle_types.h"
 #include "DNA_rigidbody_types.h"
 
+#include "draw_cache.hh"
 #include "draw_cache_impl.hh"
 
 #include "eevee_instance.hh"
@@ -104,15 +105,11 @@ void VelocityModule::step_sync(eVelocityStep step, float time)
   object_steps_usage[step_] = 0;
   step_camera_sync();
 
-  draw::hair_init();
-  draw::curves_init();
+  DRW_curves_init();
 
   DRW_render_object_iter(&inst_, inst_.render, inst_.depsgraph, step_object_sync_render);
 
-  draw::hair_update(*inst_.manager);
-  draw::curves_update(*inst_.manager);
-  draw::hair_free();
-  draw::curves_free();
+  DRW_curves_update(*inst_.manager);
 
   geometry_steps_fill();
 }

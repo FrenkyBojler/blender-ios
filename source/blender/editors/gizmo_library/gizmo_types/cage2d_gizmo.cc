@@ -27,7 +27,6 @@
 #include "GPU_immediate_util.hh"
 #include "GPU_matrix.hh"
 #include "GPU_select.hh"
-#include "GPU_shader.hh"
 #include "GPU_state.hh"
 
 #include "RNA_access.hh"
@@ -1291,7 +1290,11 @@ static void gizmo_cage2d_exit(bContext *C, wmGizmo *gz, const bool cancel)
 {
   RectTransformInteraction *data = static_cast<RectTransformInteraction *>(gz->interaction_data);
 
-  MEM_SAFE_FREE(data->dial);
+  /* Cannot use MEM_SAFE_FREE, as #Dial type is only forward-declared in `BLI_dial_2d.h` */
+  if (data->dial) {
+    MEM_freeN(static_cast<void *>(data->dial));
+    data->dial = nullptr;
+  }
 
   if (!cancel) {
     return;

@@ -7,10 +7,7 @@
  */
 
 #include <cctype>
-#include <cstdio>
 #include <cstdlib>
-
-#include "BLI_utildefines.h"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
@@ -64,7 +61,15 @@ const EnumPropertyItem rna_enum_window_cursor_items[] = {
 
 #ifdef RNA_RUNTIME
 
+#  include "DNA_userdef_types.h"
+
+#  include "BLI_string.h"
+#  include "BLI_string_utf8.h"
+
 #  include "BKE_context.hh"
+#  include "BKE_global.hh"
+#  include "BKE_main.hh"
+#  include "BKE_report.hh"
 #  include "BKE_undo_system.hh"
 
 #  include "WM_types.hh"
@@ -438,7 +443,7 @@ static void rna_KeyMap_item_remove(wmKeyMap *km, ReportList *reports, PointerRNA
   }
 
   WM_keymap_remove_item(km, kmi);
-  RNA_POINTER_INVALIDATE(kmi_ptr);
+  kmi_ptr->invalidate();
 }
 
 static PointerRNA rna_KeyMap_item_find_from_operator(ID *id,
@@ -453,14 +458,14 @@ static PointerRNA rna_KeyMap_item_find_from_operator(ID *id,
 
   wmKeyMapItem *kmi = WM_key_event_operator_from_keymap(
       km, idname_bl, static_cast<IDProperty *>(properties->data), include_mask, exclude_mask);
-  PointerRNA kmi_ptr = RNA_pointer_create(id, &RNA_KeyMapItem, kmi);
+  PointerRNA kmi_ptr = RNA_pointer_create_discrete(id, &RNA_KeyMapItem, kmi);
   return kmi_ptr;
 }
 
 static PointerRNA rna_KeyMap_item_match_event(ID *id, wmKeyMap *km, bContext *C, wmEvent *event)
 {
   wmKeyMapItem *kmi = WM_event_match_keymap_item(C, km, event);
-  PointerRNA kmi_ptr = RNA_pointer_create(id, &RNA_KeyMapItem, kmi);
+  PointerRNA kmi_ptr = RNA_pointer_create_discrete(id, &RNA_KeyMapItem, kmi);
   return kmi_ptr;
 }
 
@@ -511,14 +516,12 @@ static wmKeyMap *rna_KeyMaps_find(wmKeyConfig *keyconf,
 
 static wmKeyMap *rna_KeyMaps_find_modal(wmKeyConfig * /*keyconf*/, const char *idname)
 {
-  wmOperatorType *ot = WM_operatortype_find(idname, 0);
+  wmOperatorType *ot = WM_operatortype_find(idname, false);
 
   if (!ot) {
     return nullptr;
   }
-  else {
-    return ot->modalkeymap;
-  }
+  return ot->modalkeymap;
 }
 
 static void rna_KeyMaps_remove(wmKeyConfig *keyconfig, ReportList *reports, PointerRNA *keymap_ptr)
@@ -535,7 +538,7 @@ static void rna_KeyMaps_remove(wmKeyConfig *keyconfig, ReportList *reports, Poin
   }
 
   WM_keymap_remove(keyconfig, keymap);
-  RNA_POINTER_INVALIDATE(keymap_ptr);
+  keymap_ptr->invalidate();
 }
 
 static void rna_KeyMaps_clear(wmKeyConfig *keyconfig)
@@ -556,7 +559,7 @@ static void rna_KeyConfig_remove(wmWindowManager *wm, ReportList *reports, Point
     return;
   }
   WM_keyconfig_remove(wm, keyconf);
-  RNA_POINTER_INVALIDATE(keyconf_ptr);
+  keyconf_ptr->invalidate();
 }
 
 static PointerRNA rna_KeyConfig_find_item_from_operator(wmWindowManager *wm,
@@ -579,8 +582,8 @@ static PointerRNA rna_KeyConfig_find_item_from_operator(wmWindowManager *wm,
                                             include_mask,
                                             exclude_mask,
                                             &km);
-  *km_ptr = RNA_pointer_create(&wm->id, &RNA_KeyMap, km);
-  PointerRNA kmi_ptr = RNA_pointer_create(&wm->id, &RNA_KeyMapItem, kmi);
+  *km_ptr = RNA_pointer_create_discrete(&wm->id, &RNA_KeyMap, km);
+  PointerRNA kmi_ptr = RNA_pointer_create_discrete(&wm->id, &RNA_KeyMapItem, kmi);
   return kmi_ptr;
 }
 
@@ -610,7 +613,7 @@ static PointerRNA rna_PopMenuBegin(bContext *C,
   }
 
   void *data = (void *)UI_popup_menu_begin(C, title, icon);
-  PointerRNA r_ptr = RNA_pointer_create(nullptr, &RNA_UIPopupMenu, data);
+  PointerRNA r_ptr = RNA_pointer_create_discrete(nullptr, &RNA_UIPopupMenu, data);
   return r_ptr;
 }
 
@@ -630,7 +633,7 @@ static PointerRNA rna_PopoverBegin(bContext *C,
   }
 
   void *data = (void *)UI_popover_begin(C, U.widget_unit * ui_units_x, from_active_button);
-  PointerRNA r_ptr = RNA_pointer_create(nullptr, &RNA_UIPopover, data);
+  PointerRNA r_ptr = RNA_pointer_create_discrete(nullptr, &RNA_UIPopover, data);
   return r_ptr;
 }
 
@@ -650,7 +653,7 @@ static PointerRNA rna_PieMenuBegin(
   void *data = (void *)UI_pie_menu_begin(
       C, title, icon, static_cast<const wmEvent *>(event->data));
 
-  PointerRNA r_ptr = RNA_pointer_create(nullptr, &RNA_UIPieMenu, data);
+  PointerRNA r_ptr = RNA_pointer_create_discrete(nullptr, &RNA_UIPieMenu, data);
   return r_ptr;
 }
 
