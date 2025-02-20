@@ -720,7 +720,11 @@ class RenderLayerOperation : public NodeOperation {
       return;
     }
 
-    result.set_type(pass.type());
+    /* Vector sockets can either be 3D or 4D, so we need to overwrite the type based on the pass
+     * type. */
+    if (result.type() == ResultType::Vector) {
+      result.set_type(pass.type());
+    }
     result.set_precision(pass.precision());
 
     if (this->context().use_gpu()) {
