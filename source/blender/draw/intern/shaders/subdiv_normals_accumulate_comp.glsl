@@ -2,6 +2,12 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/* Accumulate vertex normals from their adjacent faces.
+ *
+ * Accumulated normals needs to be finalized `subdiv_normals_finalize_comp.glsl`.
+ * to be stored as loop data.
+ */
+
 #include "subdiv_lib.glsl"
 
 COMPUTE_SHADER_CREATE_INFO(subdiv_normals_accumulate)
