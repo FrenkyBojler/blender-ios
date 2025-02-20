@@ -149,7 +149,7 @@ CachedTexture &CachedTextureContainer::get(Context &context,
   auto &cached_textures_for_id = map_.lookup_or_add_default(id_key);
 
   /* Invalidate the cache for that texture ID if it was changed and reset the recalculate flag. */
-  if (context.query_id_recalc_flag(reinterpret_cast<ID *>(texture)) & ID_RECALC_ALL) {
+  if (context.query_id_recalc_flag(texture) & ID_RECALC_ALL) {
     cached_textures_for_id.clear();
   }
 

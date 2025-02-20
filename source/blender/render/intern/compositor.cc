@@ -316,15 +316,6 @@ class Context : public compositor::Context {
      * incomplete support, and leave more specific message to individual nodes? */
   }
 
-  IDRecalcFlag query_id_recalc_flag(ID *id) const override
-  {
-    DrawEngineType *owner = (DrawEngineType *)this;
-    DrawData *draw_data = DRW_drawdata_ensure(id, owner, sizeof(DrawData), nullptr, nullptr);
-    IDRecalcFlag recalc_flag = IDRecalcFlag(draw_data->recalc);
-    draw_data->recalc = IDRecalcFlag(0);
-    return recalc_flag;
-  }
-
   void populate_meta_data_for_pass(const Scene *scene,
                                    int view_layer_id,
                                    const char *pass_name,

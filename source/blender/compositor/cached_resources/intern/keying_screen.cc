@@ -272,7 +272,7 @@ Result &KeyingScreenContainer::get(Context &context,
 
   /* Invalidate the keying screen cache for that MovieClip ID if it was changed and reset the
    * recalculate flag. */
-  if (context.query_id_recalc_flag(reinterpret_cast<ID *>(movie_clip)) & ID_RECALC_ALL) {
+  if (context.query_id_recalc_flag(movie_clip) & ID_RECALC_ALL) {
     cached_keying_screens_for_id.clear();
   }
 

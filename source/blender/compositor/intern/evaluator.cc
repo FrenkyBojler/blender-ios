@@ -24,9 +24,9 @@ using namespace nodes::derived_node_tree_types;
 
 Evaluator::Evaluator(Context &context) : context_(context) {}
 
-void Evaluator::evaluate()
+void Evaluator::evaluate(const Depsgraph *depsgraph)
 {
-  context_.reset();
+  context_.reset(depsgraph);
 
   if (!is_compiled_) {
     compile_and_evaluate();

@@ -195,15 +195,6 @@ class Context : public compositor::Context {
   {
     message.copy_utf8_truncated(info_message_, GPU_INFO_SIZE);
   }
-
-  IDRecalcFlag query_id_recalc_flag(ID *id) const override
-  {
-    DrawEngineType *owner = &draw_engine_compositor_type;
-    DrawData *draw_data = DRW_drawdata_ensure(id, owner, sizeof(DrawData), nullptr, nullptr);
-    IDRecalcFlag recalc_flag = IDRecalcFlag(draw_data->recalc);
-    draw_data->recalc = IDRecalcFlag(0);
-    return recalc_flag;
-  }
 };
 
 class Engine {
@@ -230,7 +221,7 @@ class Engine {
      * now. See pull request #134394 for more information. TODO: This should be cleaned up in the
      * future. */
     evaluator_.reset();
-    evaluator_.evaluate();
+    evaluator_.evaluate(DRW_context_state_get()->depsgraph);
   }
 
   /* If the size of the compositing region changed from the last time the compositor was evaluated,

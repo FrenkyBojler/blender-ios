@@ -121,8 +121,10 @@ class Evaluator {
 
   /* Evaluate the compositor node tree. If the node tree is already compiled into an operations
    * stream, that stream will be evaluated directly. Otherwise, the node tree will be compiled and
-   * evaluated. */
-  void evaluate();
+   * evaluated.
+   * The given dependency graph is used to detect resource updates (i.e. Images, Mask...).
+   * If null, every resource will be considered updated. */
+  void evaluate(const Depsgraph *depsgraph = nullptr);
 
   /* Invalidate the operations stream that was compiled for the node tree. This should be called
    * when the node tree changes or the structure of any of the resources used by it changes. By

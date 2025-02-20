@@ -48,6 +48,12 @@ class Context {
    * efficiently. */
   StaticCacheManager cache_manager_;
 
+  /* Depsgraph update cycle count used to detect updates on IDs.
+   * `depsgraph_last_update_` is the previous value of `depsgraph_current_update_`.
+   * These values gets updated at the start of the evaluation. */
+  uint64_t depsgraph_last_update_ = 0;
+  uint64_t depsgraph_current_update_ = 0;
+
  public:
   /* Get the compositing scene. */
   virtual const Scene &get_scene() const = 0;
@@ -111,7 +117,10 @@ class Context {
    * The ID recalculate flag is a mechanism through which one can identify if an ID has changed
    * since the last time the flag was reset, hence why the method reset the flag after querying it,
    * that is, to ready it to track the next change. */
-  virtual IDRecalcFlag query_id_recalc_flag(ID *id) const = 0;
+  IDRecalcFlag query_id_recalc_flag(Image *image) const;
+  IDRecalcFlag query_id_recalc_flag(Tex *texture) const;
+  IDRecalcFlag query_id_recalc_flag(MovieClip *movie_clip) const;
+  IDRecalcFlag query_id_recalc_flag(Mask *mask) const;
 
   /* True if the compositor should treat viewers as composite outputs because it has no concept of
    * or support for viewers. */
@@ -141,8 +150,10 @@ class Context {
   virtual bool is_canceled() const;
 
   /* Resets the context's internal structures like the cache manager. This should be called before
-   * every evaluation. */
-  void reset();
+   * every evaluation.
+   * The given dependency graph is used to detect resource updates (i.e. Images, Mask...).
+   * If null, every resource will be considered updated. */
+  void reset(const Depsgraph *depsgraph = nullptr);
 
   /* Get the size of the compositing region. See get_compositing_region(). The output size is
    * sanitized such that it is at least 1 in both dimensions. However, the developer is expected to
