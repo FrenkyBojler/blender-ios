@@ -2,3 +2,4 @@ Referenced by commit 566a38ffee9, Fix: Crash rendering of rigid body setup witho
 Referenced by commit 769c57b38a7, SoftBody: share point cache between CoW copies
 Referenced by issue #131039, Fix: Crash rendering of rigid body setup without baking dynamics first
 Referenced by issue #67123, Blender shuts down when playing a Rigid Body animation in a linked scene
+Referenced by pull request #134779, Fix #134120: Crash evaluating rigid body in animation render
