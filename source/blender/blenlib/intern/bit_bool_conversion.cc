@@ -149,6 +149,10 @@ bool bytes_to_bits(Span<char> bytes,
     return or_bytes_into_bits(
         bytes, r_bits, allowed_overshoot, PredicateByteToBit<4>(predicate_bytes));
   }
+  if (predicate_bytes.size() <= 5) {
+    return or_bytes_into_bits(
+        bytes, r_bits, allowed_overshoot, PredicateByteToBit<5>(predicate_bytes));
+  }
   if (predicate_bytes.size() <= 8) {
     return or_bytes_into_bits(
         bytes, r_bits, allowed_overshoot, PredicateByteToBit<8>(predicate_bytes));

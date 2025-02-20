@@ -35,9 +35,14 @@ class SetBitIterator {
   {
   }
 
-  bool operator!=(const SetBitIterator &other) const
+  friend bool operator!=(const SetBitIterator &a, const SetBitIterator &b)
   {
-    return bit_index_ != other.bit_index_;
+    return a.bit_index_ != b.bit_index_;
+  }
+
+  friend bool operator==(const SetBitIterator &a, const SetBitIterator &b)
+  {
+    return !(a != b);
   }
 
   int64_t operator*() const

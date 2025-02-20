@@ -48,10 +48,144 @@ static Vector<Span<char>> split_into_aligned_chunks(const Span<char> buffer,
   return chunks;
 }
 
+/**
+ * \param start: Index of the first character of the record (e.g. 0 for the start of the file, or
+ *   the index after a newline character).
+ * \param set_bits_it: Iterator the points to the next special character in that record (or end if
+ *   there is none). After the function, it points to the newline character of end.
+ */
+[[nodiscard]] static bool parse_record_fields2(const Span<char> buffer,
+                                               const int64_t start,
+                                               bits::SetBitIterator &set_bits_it,
+                                               const bits::SetBitIterator &set_bits_end,
+                                               const char delimiter,
+                                               const char quote,
+                                               const Span<char> quote_escape_chars,
+                                               Vector<Span<char>> &r_fields)
+{
+  const auto handle_potentially_trailing_delimiter = [&](const int64_t i) {
+    if (i <= buffer.size()) {
+      if (i < buffer.size()) {
+        if (ELEM(buffer[i], '\n', '\r')) {
+          r_fields.append({});
+        }
+      }
+      else {
+        r_fields.append({});
+      }
+    }
+  };
+
+  int64_t i = start;
+  while (i < buffer.size()) {
+    /* Invariants that should always be true at the beginning of this loop:
+     * - `i` points either to:
+     *   - the start of the next field
+     *   - a quote character that starts the next field
+     *   - a delimiter that ends the next field in case that field is empty
+     *   - a \r or \n character
+     * - `set_bits_it` points to the next special character starting at and including `i`.
+     */
+
+    const char c = buffer[i];
+    if (c == '\n') {
+      BLI_assert(i == *set_bits_it);
+      return true;
+    }
+    if (c == '\r') {
+      BLI_assert(i == *set_bits_it);
+      /* Ignore this character.*/
+      i++;
+      continue;
+    }
+    if (c == delimiter) {
+      BLI_assert(i == *set_bits_it);
+      r_fields.append({});
+      i++;
+      handle_potentially_trailing_delimiter(i);
+      continue;
+    }
+    if (c == quote) {
+      BLI_assert(i == *set_bits_it);
+      const int64_t field_start = i + 1;
+      while (true) {
+        ++set_bits_it;
+        if (set_bits_it == set_bits_end) {
+          /* Missing closing quote. */
+          return false;
+        }
+        i = *set_bits_it;
+        const char inner_c = buffer[i];
+        if (quote_escape_chars.contains(inner_c)) {
+          if (i + 1 < buffer.size() && buffer[i + 1] == quote) {
+            /* Ignore this escape character. */
+            ++set_bits_it;
+            /* Ignore the next quote character. */
+            BLI_assert(buffer[*set_bits_it] == '"');
+            ++set_bits_it;
+            continue;
+          }
+        }
+        if (inner_c == quote) {
+          /* Found the closing quote. */
+          r_fields.append(buffer.slice(IndexRange::from_begin_end(field_start, i)));
+          ++set_bits_it;
+          break;
+        }
+      }
+      /* Go to start of next field or end of record. */
+      while (true) {
+        if (set_bits_it == set_bits_end) {
+          return true;
+        }
+        i = *set_bits_it;
+        const char inner_c = buffer[i];
+        if (inner_c == delimiter) {
+          ++set_bits_it;
+          i++;
+          handle_potentially_trailing_delimiter(i);
+          break;
+        }
+        if (ELEM(inner_c, '\n', '\r')) {
+          break;
+        }
+        ++set_bits_it;
+      }
+      continue;
+    }
+    const int64_t field_start = i;
+    while (true) {
+      if (set_bits_it == set_bits_end) {
+        r_fields.append(buffer.slice(IndexRange::from_begin_end(field_start, buffer.size())));
+        return true;
+      }
+      i = *set_bits_it;
+      const char inner_c = buffer[i];
+      if (inner_c == delimiter) {
+        r_fields.append(buffer.slice(IndexRange::from_begin_end(field_start, i)));
+        ++set_bits_it;
+        i++;
+        handle_potentially_trailing_delimiter(i);
+        break;
+      }
+      if (ELEM(inner_c, '\n', '\r')) {
+        r_fields.append(buffer.slice(IndexRange::from_begin_end(field_start, i)));
+        break;
+      }
+    }
+  }
+  return false;
+}
+
+struct LocalParseMemoryCache {
+  Vector<int64_t> data_offsets;
+  Vector<Span<char>> data_fields;
+  BitVector<> special_char_bits;
+};
+
 static std::optional<CsvRecords> parse_records2(const Span<char> buffer,
                                                 const CsvParseOptions &options,
-                                                Vector<int64_t> &r_data_offsets,
-                                                Vector<Span<char>> &r_data_fields)
+                                                LocalParseMemoryCache &memory_cache)
 {
   Vector<char, 32> special_chars;
   special_chars.append_non_duplicates(options.quote);
@@ -60,42 +194,44 @@ static std::optional<CsvRecords> parse_records2(const Span<char> buffer,
   special_chars.append_non_duplicates('\n');
   special_chars.extend_non_duplicates(options.quote_escape_chars);
 
-  BitVector<1024> special_char_bits(buffer.size());
-  bits::bytes_to_bits(buffer, special_chars, special_char_bits);
+  memory_cache.special_char_bits.resize(buffer.size());
+  memory_cache.special_char_bits.fill(false);
+  bits::bytes_to_bits(buffer, special_chars, memory_cache.special_char_bits);
 
   /* Clear the data that may still be in there, but do not free the memory. */
-  r_data_offsets.clear();
-  r_data_fields.clear();
+  memory_cache.data_offsets.clear();
+  memory_cache.data_fields.clear();
 
-  r_data_offsets.append(0);
+  memory_cache.data_offsets.append(0);
 
-  bits::SetBitIterable set_bits(special_char_bits);
+  bits::SetBitIterable set_bits(memory_cache.special_char_bits);
   bits::SetBitIterator set_bits_it = set_bits.begin();
   bits::SetBitIterator set_bits_end = set_bits.end();
 
-  printf("\nChars: ");
-  while (set_bits_it != set_bits_end) {
-    const int64_t i = *set_bits_it;
-    const char c = buffer[i];
-    switch (c) {
-      case '\n':
-        printf("\\n");
-        break;
-      case '\r':
-        printf("\\r");
-        break;
-      case '\t':
-        printf("\\t");
-        break;
-      default:
-        printf("%c", c);
-        break;
+  int64_t next_record_start = 0;
+  while (next_record_start < buffer.size()) {
+    const bool success = parse_record_fields2(buffer,
+                                              next_record_start,
+                                              set_bits_it,
+                                              set_bits_end,
+                                              options.delimiter,
+                                              options.quote,
+                                              options.quote_escape_chars,
+                                              memory_cache.data_fields);
+    if (!success) {
+      return std::nullopt;
     }
+    memory_cache.data_offsets.append(memory_cache.data_fields.size());
+    if (set_bits_it == set_bits_end) {
+      break;
+    }
+    const int64_t newline_index = *set_bits_it;
+    BLI_assert(buffer[newline_index] == '\n');
+    next_record_start = newline_index + 1;
     ++set_bits_it;
   }
-  printf("\n");
 
-  return CsvRecords(OffsetIndices<int64_t>(r_data_offsets), r_data_fields);
+  return CsvRecords(OffsetIndices<int64_t>(memory_cache.data_offsets), memory_cache.data_fields);
 }
 
 /**
@@ -105,17 +241,16 @@ static std::optional<CsvRecords> parse_records2(const Span<char> buffer,
  */
 static std::optional<CsvRecords> parse_records(const Span<char> buffer,
                                                const CsvParseOptions &options,
-                                               Vector<int64_t> &r_data_offsets,
-                                               Vector<Span<char>> &r_data_fields)
+                                               LocalParseMemoryCache &memory_cache)
 {
-  parse_records2(buffer, options, r_data_offsets, r_data_fields);
+  return parse_records2(buffer, options, memory_cache);
 
   using namespace detail;
   /* Clear the data that may still be in there, but do not free the memory. */
-  r_data_offsets.clear();
-  r_data_fields.clear();
+  memory_cache.data_offsets.clear();
+  memory_cache.data_fields.clear();
 
-  r_data_offsets.append(0);
+  memory_cache.data_offsets.append(0);
   int64_t start = 0;
   while (start < buffer.size()) {
     const std::optional<int64_t> next_record_start = parse_record_fields(
@@ -124,14 +259,14 @@ static std::optional<CsvRecords> parse_records(const Span<char> buffer,
         options.delimiter,
         options.quote,
         options.quote_escape_chars,
-        r_data_fields);
+        memory_cache.data_fields);
     if (!next_record_start.has_value()) {
       return std::nullopt;
     }
-    r_data_offsets.append(r_data_fields.size());
+    memory_cache.data_offsets.append(memory_cache.data_fields.size());
     start = *next_record_start;
   }
-  return CsvRecords(OffsetIndices<int64_t>(r_data_offsets), r_data_fields);
+  return CsvRecords(OffsetIndices<int64_t>(memory_cache.data_offsets), memory_cache.data_fields);
 }
 
 std::optional<Vector<Any<>>> parse_csv_in_chunks(
@@ -167,8 +302,7 @@ std::optional<Vector<Any<>>> parse_csv_in_chunks(
   std::atomic<bool> found_malformed_chunk = false;
   Vector<std::optional<Any<>>> chunk_results(data_buffer_chunks.size());
   struct TLS {
-    Vector<int64_t> data_offsets;
-    Vector<Span<char>> data_fields;
+    LocalParseMemoryCache memory_cache;
   };
   threading::EnumerableThreadSpecific<TLS> all_tls;
   threading::parallel_for(chunk_results.index_range(), 1, [&](const IndexRange range) {
@@ -180,7 +314,7 @@ std::optional<Vector<Any<>>> parse_csv_in_chunks(
       }
       const Span<char> chunk_buffer = data_buffer_chunks[i];
       const std::optional<CsvRecords> records = parse_records(
-          chunk_buffer, options, tls.data_offsets, tls.data_fields);
+          chunk_buffer, options, tls.memory_cache);
       if (!records.has_value()) {
         found_malformed_chunk.store(true, std::memory_order_relaxed);
         return;
@@ -196,7 +330,7 @@ std::optional<Vector<Any<>>> parse_csv_in_chunks(
     chunk_results.clear();
     TLS &tls = all_tls.local();
     const std::optional<CsvRecords> records = parse_records(
-        data_buffer, options, tls.data_offsets, tls.data_fields);
+        data_buffer, options, tls.memory_cache);
     if (!records.has_value()) {
       return std::nullopt;
     }

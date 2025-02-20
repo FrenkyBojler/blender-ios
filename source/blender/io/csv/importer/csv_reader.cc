@@ -21,6 +21,7 @@
 #include "BLI_csv_parse.hh"
 #include "BLI_fileops.hh"
 #include "BLI_implicit_sharing.hh"
+#include "BLI_timeit.hh"
 #include "BLI_vector.hh"
 
 #include "IO_csv.hh"
@@ -301,6 +302,12 @@ PointCloud *import_csv_as_pointcloud(const CSVImportParams &import_params)
   };
 
   const Span<char> buffer_span{static_cast<char *>(buffer), int64_t(buffer_len)};
+  // {
+  //   SCOPED_TIMER_AVERAGED("parse_csv");
+  //   csv_parse::parse_csv_in_chunks(
+  //       buffer_span, parse_options, [](auto) {}, [](auto) { return 0; });
+  // }
+  // return nullptr;
   std::optional<Vector<ChunkResult>> parsed_chunks = csv_parse::parse_csv_in_chunks<ChunkResult>(
       buffer_span, parse_options, parse_header, parse_data_chunk);
 
