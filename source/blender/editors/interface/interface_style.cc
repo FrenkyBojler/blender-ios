@@ -204,8 +204,10 @@ void UI_fontstyle_draw_ex(const uiFontStyle *fs,
       BLF_draw(fs->uifont_id, line.data(), line.size(), &line_result);
       yofs -= line_height;
     }
-    r_info->width = line_result.width;
-    r_info->lines = lines.size();
+    if (r_info) {
+      r_info->width = line_result.width;
+      r_info->lines = lines.size();
+    }
   }
   else {
     if (fs_params->align == UI_STYLE_TEXT_CENTER) {
