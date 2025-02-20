@@ -434,15 +434,15 @@ template<typename T> inline void MEM_freeN(T *ptr)
                                         mem_guarded::internal::AllocationType::ALLOC_FREE);
   }
   else {
-#  ifndef _WIN32
+    // #  ifndef _WIN32
     /* MSVC seems to consider C-style types using the MEM_CXX_CLASS_ALLOC_FUNCS as non-trivial. GCC
      * and clang (both on linux and OSX) do not.
      *
      * So for now, disable the triviality check on Windows. */
     static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_delete must be used.");
-#  else
-    STATIC_WARNING(std::is_trivial_v<T>, "For non-trivial types, MEM_delete must be used.");
-#  endif
+    // #  else
+    //     STATIC_WARNING(std::is_trivial_v<T>, "For non-trivial types, MEM_delete must be used.");
+    // #  endif
 
     mem_guarded::internal::mem_freeN_ex(const_cast<void *>(static_cast<const void *>(ptr)),
                                         mem_guarded::internal::AllocationType::ALLOC_FREE);
