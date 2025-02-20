@@ -720,9 +720,9 @@ class RenderLayerOperation : public NodeOperation {
       return;
     }
 
-    /* Vector sockets can either be 3D or 4D, so we need to overwrite the type based on the pass
-     * type. */
-    if (result.type() == ResultType::Vector) {
+    /* Vector sockets are 3D by default, so we need to overwrite the type if the pass turned out to
+     * be 4D. */
+    if (result.type() == ResultType::Vector && pass.type() == ResultType::Float4) {
       result.set_type(pass.type());
     }
     result.set_precision(pass.precision());
