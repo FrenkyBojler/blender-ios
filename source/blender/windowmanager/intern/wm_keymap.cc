@@ -33,6 +33,7 @@
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
 #include "BKE_main.hh"
+#include "BKE_report.hh"
 #include "BKE_screen.hh"
 #include "BKE_workspace.hh"
 
@@ -499,6 +500,12 @@ bool WM_keymap_poll(bContext *C, wmKeyMap *keymap)
     return keymap->poll(C);
   }
   return true;
+}
+
+static bool wm_keymap_is_match(const wmKeyMap *km_a, const wmKeyMap *km_b)
+{
+  return ((km_a->spaceid == km_b->spaceid) && (km_a->regionid == km_b->regionid) &&
+          STREQ(km_a->idname, km_b->idname));
 }
 
 static void keymap_event_set(wmKeyMapItem *kmi, const KeyMapItem_Params *params)
@@ -2121,40 +2128,109 @@ const char *WM_bool_as_string(bool test)
   return test ? IFACE_("ON") : IFACE_("OFF");
 }
 
-wmKeyMapItem *WM_keymap_item_find_user_from_addon(wmKeyMap *km_user,
-                                                  wmKeyMap *km_addon,
-                                                  wmKeyMapItem *kmi_addon)
+wmKeyMapItem *WM_keymap_item_find_match(wmKeyMap *km_base,
+                                        wmKeyMap *km_match,
+                                        wmKeyMapItem *kmi_match,
+                                        ReportList *reports)
 {
-  /* Perform the following lookup that calculates the ID that *would* be used
-   * if the user key-map was re-created, see: #WM_keymap_item_restore_to_default.
-   *
-   * Find the index of the key-map item and add this to the `defaultmap`'s key-map index
-   * since this is how the "user" key-map ID's are generated.
-   *
-   * This is needed so add-ons can show the user key-map items in preferences. */
-
-  wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
-
-  BLI_assert(km_user ==
-             WM_keymap_list_find(
-                 &wm->userconf->keymaps, km_user->idname, km_user->spaceid, km_user->regionid));
-  BLI_assert(km_addon ==
-             WM_keymap_list_find(
-                 &wm->addonconf->keymaps, km_user->idname, km_user->spaceid, km_user->regionid));
-
-  const int kmi_index = BLI_findindex(&km_addon->items, kmi_addon);
-  BLI_assert(kmi_index != -1);
-
-  wmKeyMap *defaultmap = wm_keymap_preset(wm, km_user);
-  if (defaultmap == nullptr) {
-    /* This should practically never fail, it could be caused by failure
-     * to refresh the user key-map after manipulating the add-on key-map. */
+  if (wm_keymap_update_flag != 0) {
+    /* NOTE: this could be limited to the keymaps marked for updating.
+     * However #KEYMAP_UPDATE is only cleared for `wm->userconf`
+     * so only check the global flag for now. */
+    BKE_reportf(
+        reports,
+        RPT_ERROR,
+        "KeyMap cannot run when an update is pending, "
+        "call `context.window_manager.keyconfigs.update()` to ensure matches can be found.");
     return nullptr;
   }
 
-  const int kmi_id = defaultmap->kmi_id + kmi_index + 1;
+  if (km_base == km_match) {
+    /* We could also return `kmi_match` (it's technically correct)
+     * however this hints at API misuse. */
+    BKE_report(reports, RPT_ERROR, "KeyMaps are equal");
+    return nullptr;
+  }
 
-  return WM_keymap_item_find_id(km_user, kmi_id);
+  const char *idname = km_base->idname;
+  const short spaceid = km_base->spaceid;
+  const short regionid = km_base->regionid;
+
+  if (!wm_keymap_is_match(km_base, km_match)) {
+    BKE_reportf(
+        reports, RPT_ERROR, "KeyMap \"%s\" doesn't match \"%s\"", idname, km_match->idname);
+    return nullptr;
+  }
+
+  wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
+  wmKeyConfig *kc_active = WM_keyconfig_active(wm);
+
+  /* NOTE: the key-maps could store this, it would simplify checks here. */
+  enum {
+    KM_TYPE_UNKNOWN = 0,
+    KM_TYPE_USER,
+    KM_TYPE_ADDON,
+    KM_TYPE_ACTIVE,
+    /* No support yet for preferences. */
+  } base_type = KM_TYPE_UNKNOWN,
+    match_type = KM_TYPE_UNKNOWN;
+
+  if (km_base->flag & KEYMAP_USER) {
+    if (km_base == WM_keymap_list_find(&wm->userconf->keymaps, idname, spaceid, regionid)) {
+      base_type = KM_TYPE_USER;
+    }
+  }
+
+  if ((km_match->flag & KEYMAP_USER) == 0) {
+    if (km_match == WM_keymap_list_find(&wm->addonconf->keymaps, idname, spaceid, regionid)) {
+      match_type = KM_TYPE_ADDON;
+    }
+    else if (km_match == WM_keymap_list_find(&kc_active->keymaps, idname, spaceid, regionid)) {
+      match_type = KM_TYPE_ACTIVE;
+    }
+  }
+
+  if (base_type == KM_TYPE_UNKNOWN) {
+    BKE_reportf(reports, RPT_ERROR, "KeyMap \"%s\" (base) must be a user keymap", idname);
+    return nullptr;
+  }
+
+  if (match_type == KM_TYPE_UNKNOWN) {
+    BKE_reportf(
+        reports, RPT_ERROR, "KeyMap \"%s\" (other) must be an add-on or active keymap", idname);
+    return nullptr;
+  }
+
+  const int kmi_index = BLI_findindex(&km_match->items, kmi_match);
+  if (kmi_index == -1) {
+    BKE_reportf(reports, RPT_ERROR, "KeyMap \"%s\" item not part of the keymap", idname);
+    return nullptr;
+  }
+
+  int kmi_id;
+  if (match_type == KM_TYPE_ADDON) {
+    /* Perform the following lookup that calculates the ID that *would* be used
+     * if the user key-map was re-created, see: #WM_keymap_item_restore_to_default.
+     *
+     * Find the index of the key-map item and add this to the `defaultmap`'s key-map index
+     * since this is how the "user" key-map ID's are generated.
+     *
+     * This is needed so add-ons can show the user key-map items in preferences. */
+
+    wmKeyMap *defaultmap = wm_keymap_preset(wm, kc_active, km_base);
+    if (defaultmap == nullptr) {
+      /* This should practically never fail, it could be caused by failure
+       * to refresh the user key-map after manipulating the add-on key-map. */
+      return nullptr;
+    }
+    kmi_id = defaultmap->kmi_id + kmi_index + 1;
+  }
+  else {
+    kmi_id = kmi_match->id;
+  }
+
+  /* Returning null here is not an error. */
+  return WM_keymap_item_find_id(km_base, kmi_id);
 }
 
 /** \} */

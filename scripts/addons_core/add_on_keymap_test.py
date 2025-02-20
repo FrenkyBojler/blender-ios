@@ -31,8 +31,8 @@ class HotkeyExampleAddonPrefs(AddonPreferences):
 
         wm = context.window_manager
         kc_user = wm.keyconfigs.user
-        km_user = kc_user.keymaps.find(name=km.name, space_type=km.space_type, region_type=km.region_type)
-        kmi_user = km_user.keymap_items.find_user_from_addon(km, kmi)
+        km_user = kc_user.keymaps.find_match(km)
+        kmi_user = km_user.keymap_items.find_match(km, kmi)
 
         print("Debugging purposes only:")
         print(kmi_user, kmi_user.to_string())

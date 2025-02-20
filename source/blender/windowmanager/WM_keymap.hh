@@ -93,11 +93,14 @@ wmKeyMapItem *WM_keymap_item_find_id(wmKeyMap *keymap, int id);
 bool WM_keymap_item_compare(const wmKeyMapItem *k1, const wmKeyMapItem *k2);
 
 /**
- * Return the user key-map item from an add-on key-map & item.
+ * Return the user key-map item from `km_base` based on `km_match` & `kmi_match`,
+ * currently the supported use case is looking up "User" key-map items from "Add-on" key-maps.
+ * Other lookups may be supported.
  */
-wmKeyMapItem *WM_keymap_item_find_user_from_addon(wmKeyMap *km_user,
-                                                  wmKeyMap *km_addon,
-                                                  wmKeyMapItem *kmi_addon);
+wmKeyMapItem *WM_keymap_item_find_match(wmKeyMap *km_base,
+                                        wmKeyMap *km_match,
+                                        wmKeyMapItem *kmi_match,
+                                        ReportList *reports);
 
 /* `wm_keymap_utils.cc`. */
 
