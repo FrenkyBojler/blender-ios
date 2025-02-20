@@ -6,3 +6,4 @@ Referenced by issue #68954, Auto Smooth option conflicts with uvs
 Referenced by issue #68658, Text offset makes scale to fit not to work
 Referenced by issue #66463, Speedup Mesh Batch Cache
 Referenced by issue #134825, Weight Paint: Debug assert in draw code when enabling "Paint Mask"
+Referenced by pull request #134856, Fix #134825: Assert in draw code when enabling "Paint Mask"
