@@ -127,11 +127,6 @@ vec4 float4_to_color(vec4 value)
   return value;
 }
 
-vec4 color_to_float4(vec4 value)
-{
-  return value;
-}
-
 /* --------------------------------------------------------------------
  * GPUMatrial-specific implicit conversion functions.
  *
