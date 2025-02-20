@@ -41,3 +41,9 @@ void node_compositor_store_output_float4(const float id, vec4 value, out vec4 ou
   store_float4(floatBitsToUint(id), value);
   out_value = value;
 }
+
+void node_compositor_store_output_float4(const float id, vec4 value, out vec4 out_value)
+{
+  store_float4(floatBitsToUint(id), value);
+  out_value = value;
+}

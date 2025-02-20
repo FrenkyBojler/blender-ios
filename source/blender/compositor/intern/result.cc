@@ -289,6 +289,9 @@ void Result::allocate_single_value()
     case ResultType::Float4:
       this->set_single_value(float4(0.0f));
       break;
+    case ResultType::Float4:
+      this->set_single_value(float4(0.0f));
+      break;
     case ResultType::Float2:
       this->set_single_value(float2(0.0f));
       break;

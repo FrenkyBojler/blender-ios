@@ -790,6 +790,9 @@ class FileOutputOperation : public NodeOperation {
           file_output.add_view(view_name, 3, buffer);
         }
         break;
+      case ResultType::Float3:
+        file_output.add_view(view_name, 3, buffer);
+        break;
       case ResultType::Float:
         file_output.add_view(view_name, 1, buffer);
         break;
