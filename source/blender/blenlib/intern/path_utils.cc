@@ -1284,7 +1284,7 @@ bool BLI_path_apply_variables(char path[FILE_MAX])
 
     printf("%s\n", std::string(variable_name).c_str());
 
-    char *replacement_string = "";
+    const char *replacement_string = "";
     if (variable_name == "foo") {
       replacement_string = "hooray";
     }
