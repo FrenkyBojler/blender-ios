@@ -92,6 +92,13 @@ bool WM_keymap_poll(bContext *C, wmKeyMap *keymap);
 wmKeyMapItem *WM_keymap_item_find_id(wmKeyMap *keymap, int id);
 bool WM_keymap_item_compare(const wmKeyMapItem *k1, const wmKeyMapItem *k2);
 
+/**
+ * Return the user key-map item from an add-on key-map & item.
+ */
+wmKeyMapItem *WM_keymap_item_find_user_from_addon(wmKeyMap *km_user,
+                                                  wmKeyMap *km_addon,
+                                                  wmKeyMapItem *kmi_addon);
+
 /* `wm_keymap_utils.cc`. */
 
 /* Wrappers for #WM_keymap_add_item. */

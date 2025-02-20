@@ -446,6 +446,45 @@ static void rna_KeyMap_item_remove(wmKeyMap *km, ReportList *reports, PointerRNA
   kmi_ptr->invalidate();
 }
 
+static PointerRNA rna_KeyMap_item_find_user_from_addon(
+    ID *id, wmKeyMap *km_user, ReportList *reports, wmKeyMap *km_addon, wmKeyMapItem *kmi_addon)
+{
+  const char *idname = km_user->idname;
+  const short spaceid = km_user->spaceid;
+  const short regionid = km_user->regionid;
+
+  if (!(STREQ(idname, km_addon->idname) && (spaceid == km_addon->spaceid) &&
+        (regionid == km_addon->regionid)))
+  {
+    BKE_reportf(
+        reports, RPT_ERROR, "KeyMap \"%s\" doesn't match the user key-map", km_addon->idname);
+    return PointerRNA_NULL;
+  }
+
+  wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
+
+  /* Ideally we could avoid these kinds of lookups for every key-map item. */
+  if (((km_user->flag & KEYMAP_USER) == 0) ||
+      (km_user != WM_keymap_list_find(&wm->userconf->keymaps, idname, spaceid, regionid)))
+  {
+    BKE_reportf(reports, RPT_ERROR, "This keymap isn't a user keymap");
+    return PointerRNA_NULL;
+  }
+
+  if ((km_addon->flag & KEYMAP_USER) ||
+      (km_addon != WM_keymap_list_find(&wm->addonconf->keymaps, idname, spaceid, regionid)))
+  {
+    BKE_reportf(reports, RPT_ERROR, "KeyMap \"%s\" is not an add-on keymap", km_addon->idname);
+    return PointerRNA_NULL;
+  }
+
+  wmKeyMapItem *kmi_user = WM_keymap_item_find_user_from_addon(km_user, km_addon, kmi_addon);
+  if (kmi_user) {
+    return RNA_pointer_create_discrete(id, &RNA_KeyMapItem, kmi_user);
+  }
+  return PointerRNA_NULL;
+}
+
 static PointerRNA rna_KeyMap_item_find_from_operator(ID *id,
                                                      wmKeyMap *km,
                                                      const char *idname,
@@ -1345,6 +1384,19 @@ void RNA_api_keymapitems(StructRNA *srna)
       func, "include", rna_enum_event_type_mask_items, EVT_TYPE_MASK_ALL, "Include", "");
   RNA_def_enum_flag(func, "exclude", rna_enum_event_type_mask_items, 0, "Exclude", "");
   parm = RNA_def_pointer(func, "item", "KeyMapItem", "", "");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_RNAPTR);
+  RNA_def_function_return(func, parm);
+
+  func = RNA_def_function(srna, "find_user_from_addon", "rna_KeyMap_item_find_user_from_addon");
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_REPORTS);
+
+  parm = RNA_def_pointer(func, "keymap", "KeyMap", "", "The add-on keymap");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  parm = RNA_def_pointer(func, "item", "KeyMapItem", "", "The add-on keymap item");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  parm = RNA_def_pointer(func, "result", "KeyMapItem", "", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_RNAPTR);
   RNA_def_function_return(func, parm);
 

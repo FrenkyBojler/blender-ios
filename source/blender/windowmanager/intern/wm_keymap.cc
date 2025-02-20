@@ -2121,4 +2121,40 @@ const char *WM_bool_as_string(bool test)
   return test ? IFACE_("ON") : IFACE_("OFF");
 }
 
+wmKeyMapItem *WM_keymap_item_find_user_from_addon(wmKeyMap *km_user,
+                                                  wmKeyMap *km_addon,
+                                                  wmKeyMapItem *kmi_addon)
+{
+  /* Perform the following lookup that calculates the ID that *would* be used
+   * if the user key-map was re-created, see: #WM_keymap_item_restore_to_default.
+   *
+   * Find the index of the key-map item and add this to the `defaultmap`'s key-map index
+   * since this is how the "user" key-map ID's are generated.
+   *
+   * This is needed so add-ons can show the user key-map items in preferences. */
+
+  wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
+
+  BLI_assert(km_user ==
+             WM_keymap_list_find(
+                 &wm->userconf->keymaps, km_user->idname, km_user->spaceid, km_user->regionid));
+  BLI_assert(km_addon ==
+             WM_keymap_list_find(
+                 &wm->addonconf->keymaps, km_user->idname, km_user->spaceid, km_user->regionid));
+
+  const int kmi_index = BLI_findindex(&km_addon->items, kmi_addon);
+  BLI_assert(kmi_index != -1);
+
+  wmKeyMap *defaultmap = wm_keymap_preset(wm, km_user);
+  if (defaultmap == nullptr) {
+    /* This should practically never fail, it could be caused by failure
+     * to refresh the user key-map after manipulating the add-on key-map. */
+    return nullptr;
+  }
+
+  const int kmi_id = defaultmap->kmi_id + kmi_index + 1;
+
+  return WM_keymap_item_find_id(km_user, kmi_id);
+}
+
 /** \} */
