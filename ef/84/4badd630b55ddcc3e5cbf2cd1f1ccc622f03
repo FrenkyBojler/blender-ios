@@ -1,1 +1,1 @@
-Referenced by pull request #134865, Fix #134482: Grease Pencil interpolation leaves uninitialized values
+Referenced by pull request #134865, Fix #134482: Grease Pencil: Interpolation creates uninitialized values
