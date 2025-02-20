@@ -18,6 +18,7 @@
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_userdef_types.h"
 #include "DNA_view3d_types.h"
 
 #include "ED_grease_pencil.hh"
@@ -70,7 +71,7 @@ void region_reset(ARegion &region, const RegionViewData &data)
   region.winrct = data.winrct;
 
   ED_view3d_mats_rv3d_restore(&rv3d, data.rv3d_store);
-  MEM_freeN(data.rv3d_store);
+  ED_view3D_mats_rv3d_free(data.rv3d_store);
 }
 
 GPUOffScreen *image_render_begin(const int2 &win_size)

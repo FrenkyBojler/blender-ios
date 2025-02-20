@@ -9,6 +9,8 @@
 #include "draw_sculpt.hh"
 
 #include "DNA_mesh_types.h"
+#include "DNA_scene_types.h"
+#include "draw_manager_c.hh"
 #include "draw_view.hh"
 
 #include "BKE_attribute.hh"

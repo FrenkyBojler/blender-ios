@@ -208,9 +208,7 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
   color_blend_f3_f3(active_color, main_color, 0.3f);
 
   /* `alert_color` is red, push a bit toward text color. */
-  alert_color[0] = 0.7f;
-  alert_color[1] = 0.0f;
-  alert_color[2] = 0.0f;
+  UI_GetThemeColor3fv(TH_REDALERT, alert_color);
   color_blend_f3_f3(alert_color, main_color, 0.3f);
 
   /* Draw text. */
@@ -1102,7 +1100,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
 
     if (but->rnaprop) {
       BLI_assert(but->rnaindex == -1);
-      has_alpha = RNA_property_array_length(&but->rnapoin, but->rnaprop) == 4;
+      has_alpha = RNA_property_array_length(&but->rnapoin, but->rnaprop) >= 4;
       if (has_alpha) {
         color[3] = RNA_property_float_get_index(&but->rnapoin, but->rnaprop, 3);
       }

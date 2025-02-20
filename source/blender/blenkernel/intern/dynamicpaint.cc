@@ -14,6 +14,7 @@
 
 #include "BLI_fileops.h"
 #include "BLI_kdtree.h"
+#include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
@@ -4338,6 +4339,8 @@ static bool dynamicPaint_paintMesh(Depsgraph *depsgraph,
         add_v3_v3(avg_brushNor, nor);
       }
     }
+
+    mesh->tag_positions_changed();
 
     if (brush->flags & MOD_DPAINT_PROX_PROJECT && brush->collision != MOD_DPAINT_COL_VOLUME) {
       mul_v3_fl(avg_brushNor, 1.0f / float(numOfVerts));

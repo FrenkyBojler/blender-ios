@@ -82,7 +82,7 @@ static void eevee_engine_init(void *vedata)
     }
 
     if (DRW_state_is_viewport_image_render()) {
-      const float *vp_size = DRW_viewport_size_get();
+      const float2 vp_size = DRW_viewport_size_get();
       visible_rect.xmax = vp_size[0];
       visible_rect.ymax = vp_size[1];
       visible_rect.xmin = visible_rect.ymin = 0;
@@ -183,8 +183,6 @@ static void eevee_render_update_passes(RenderEngine *engine, Scene *scene, ViewL
   eevee::Instance::update_passes(engine, scene, view_layer);
 }
 
-extern "C" {
-
 DrawEngineType draw_engine_eevee_next_type = {
     /*next*/ nullptr,
     /*prev*/ nullptr,
@@ -225,4 +223,3 @@ RenderEngineType DRW_engine_viewport_eevee_next_type = {
         /*call*/ nullptr,
     },
 };
-}
