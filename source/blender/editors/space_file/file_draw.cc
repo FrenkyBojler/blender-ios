@@ -432,7 +432,6 @@ static void file_draw_string_mulitline_clipped(int sx,
                                                eFontStyle_Align align,
                                                const uchar col[4])
 {
-  uiFontStyle fs;
   rcti rect;
   char filename[FILE_MAXFILE];
 
@@ -441,31 +440,25 @@ static void file_draw_string_mulitline_clipped(int sx,
   }
 
   const uiStyle *style = UI_style_get();
-  fs = style->widget;
+  uiFontStyle fs = style->widget;
+  BLF_enable(fs.uifont_id, BLF_WORD_WRAP | BLF_WORD_WRAP_HARD);
+  BLF_wordwrap(fs.uifont_id, width);
 
-  const int len = strlen(string);
-  BLI_strncpy(filename, string, len + 1);
+  STRNCPY(filename, string);
   UI_text_clip_middle_ex(&fs, filename, width * line_count, UI_ICON_SIZE, sizeof(filename), '\0');
 
   /* no text clipping needed, UI_fontstyle_draw does it but is a bit too strict
    * (for buttons it works) */
   rect.xmin = sx;
   rect.xmax = sx + round_fl_to_int(width);
+  rect.ymax = sy;
+  rect.ymin = sy - line_height * line_count;
 
-  const char *filename_ofs = filename;
-  for (int i = 0; i < line_count && filename_ofs[0]; i++) {
-    rect.ymax = sy - line_height * i;
-    rect.ymin = sy - line_height * (i + 1);
+  uiFontStyleDraw_Params font_style_params{};
+  font_style_params.align = align;
+  font_style_params.word_wrap = eFontStyle_Wrapping::Hard;
 
-    uiFontStyleDraw_Params font_style_params{};
-    font_style_params.align = align;
-
-    const int line_strlen = BLF_width_to_strlen(
-        fs.uifont_id, filename_ofs, sizeof(filename), width, nullptr);
-
-    UI_fontstyle_draw(&fs, &rect, filename_ofs, line_strlen, col, &font_style_params);
-    filename_ofs += line_strlen;
-  }
+  UI_fontstyle_draw(&fs, &rect, filename, sizeof(filename), col, &font_style_params);
 }
 
 static void file_draw_string(int sx,
@@ -520,7 +513,7 @@ static void file_draw_string_multiline(int sx,
 
   uiFontStyleDraw_Params font_style_params{};
   font_style_params.align = UI_STYLE_TEXT_LEFT;
-  font_style_params.word_wrap = true;
+  font_style_params.word_wrap = eFontStyle_Wrapping::Soft;
 
   ResultBLF result;
   UI_fontstyle_draw_ex(

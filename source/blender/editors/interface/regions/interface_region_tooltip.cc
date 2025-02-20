@@ -226,7 +226,7 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
     if (field->format.style == UI_TIP_STYLE_HEADER) {
       uiFontStyleDraw_Params fs_params{};
       fs_params.align = UI_STYLE_TEXT_LEFT;
-      fs_params.word_wrap = true;
+      fs_params.word_wrap = eFontStyle_Wrapping::Soft;
 
       /* Draw header and active data (is done here to be able to change color). */
       rgb_float_to_uchar(drawcol, tip_colors[UI_TIP_LC_MAIN]);
@@ -257,7 +257,7 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
     else if (field->format.style == UI_TIP_STYLE_MONO) {
       uiFontStyleDraw_Params fs_params{};
       fs_params.align = UI_STYLE_TEXT_LEFT;
-      fs_params.word_wrap = true;
+      fs_params.word_wrap = eFontStyle_Wrapping::Soft;
       uiFontStyle fstyle_mono = data->fstyle;
       fstyle_mono.uifont_id = blf_mono_font;
 
@@ -339,7 +339,7 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
       BLI_assert(field->format.style == UI_TIP_STYLE_NORMAL);
       uiFontStyleDraw_Params fs_params{};
       fs_params.align = UI_STYLE_TEXT_LEFT;
-      fs_params.word_wrap = true;
+      fs_params.word_wrap = eFontStyle_Wrapping::Soft;
 
       /* Draw remaining data. */
       rgb_float_to_uchar(drawcol, tip_colors[int(field->format.color_id)]);

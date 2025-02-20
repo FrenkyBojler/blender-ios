@@ -420,7 +420,7 @@ static void draw_marker_name(const uchar *text_color,
   const int icon_half_width = UI_ICON_SIZE * 0.6;
   uiFontStyleDraw_Params fs_params{};
   fs_params.align = UI_STYLE_TEXT_LEFT;
-  fs_params.word_wrap = 0;
+  fs_params.word_wrap = eFontStyle_Wrapping::None;
 
   rcti rect{};
   rect.xmin = marker_x + icon_half_width;

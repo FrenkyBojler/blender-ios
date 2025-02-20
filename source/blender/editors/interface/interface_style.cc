@@ -146,8 +146,11 @@ void UI_fontstyle_draw_ex(const uiFontStyle *fs,
     BLF_shadow(fs->uifont_id, FontShadowType(fs->shadow), shadow_color);
     BLF_shadow_offset(fs->uifont_id, fs->shadx, fs->shady);
   }
-  if (fs_params->word_wrap == 1) {
+  if (fs_params->word_wrap == eFontStyle_Wrapping::Soft) {
     font_flag |= BLF_WORD_WRAP;
+  }
+  else if (fs_params->word_wrap == eFontStyle_Wrapping::Hard) {
+    font_flag |= BLF_WORD_WRAP | BLF_WORD_WRAP_HARD;
   }
   if (fs->bold) {
     font_flag |= BLF_BOLD;
@@ -158,7 +161,7 @@ void UI_fontstyle_draw_ex(const uiFontStyle *fs,
 
   BLF_enable(fs->uifont_id, font_flag);
 
-  if (fs_params->word_wrap == 1) {
+  if (fs_params->word_wrap != eFontStyle_Wrapping::None) {
     /* Draw from bound-box top. */
     yofs = BLI_rcti_size_y(rect) - BLF_height_max(fs->uifont_id);
   }

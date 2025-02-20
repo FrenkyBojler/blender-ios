@@ -1274,15 +1274,27 @@ static void blf_font_wrap_apply(FontBLF *font,
 
   struct WordWrapVars {
     ft_pix wrap_width;
-    size_t start, last[2];
-  } wrap = {max_pixel_width != -1 ? ft_pix_from_int(max_pixel_width) : INT_MAX, 0, {0, 0}};
+    /** Beginning and end of current line. */
+    size_t start, last;
+    /** Begin of the next line. */
+    size_t next;
+  };
+  WordWrapVars wrap;
+  wrap.wrap_width = max_pixel_width != -1 ? ft_pix_from_int(max_pixel_width) : INT_MAX;
+  wrap.start = 0;
+  wrap.last = 0;
+  wrap.next = 0;
 
   // printf("%s wrapping (%d, %d) `%s`:\n", __func__, str_len, strlen(str), str);
   while ((i < str_len) && str[i]) {
 
     /* Wrap variables. */
     const size_t i_curr = i;
-    bool do_draw = false;
+    /* When a line is completed, set this to true to draw or otherwise handle it. */
+    bool flush_line = false;
+    /* Strip the last character. Wanted when wrapping at a space or newline, not when
+     * hard-wrapping (wrapping between two normal characters). */
+    bool strip_last_char = true;
 
     g = blf_glyph_from_utf8_and_step(font, gc, g_prev, str, str_len, &i, &pen_x);
 
@@ -1298,38 +1310,61 @@ static void blf_font_wrap_apply(FontBLF *font,
      *
      * This is _only_ done when we know for sure the character is ascii (newline or a space).
      */
+
     pen_x_next = pen_x + g->advance_x;
-    if (UNLIKELY((pen_x_next >= wrap.wrap_width) && (wrap.start != wrap.last[0]))) {
-      do_draw = true;
+    if (UNLIKELY((pen_x_next >= wrap.wrap_width) && (wrap.start != wrap.last))) {
+      /* Wrap the line at the previous space. */
+      flush_line = true;
     }
     else if (UNLIKELY(((i < str_len) && str[i]) == 0)) {
       /* Need check here for trailing newline, else we draw it. */
-      wrap.last[0] = i + ((g->c != '\n') ? 1 : 0);
-      wrap.last[1] = i;
-      do_draw = true;
+      wrap.last = i + ((g->c != '\n') ? 1 : 0);
+      wrap.next = i;
+      flush_line = true;
     }
     else if (UNLIKELY(g->c == '\n')) {
-      wrap.last[0] = i_curr + 1;
-      wrap.last[1] = i;
-      do_draw = true;
+      wrap.last = i_curr + 1;
+      wrap.next = i;
+      flush_line = true;
     }
     else if (UNLIKELY(g->c != ' ' && (g_prev ? g_prev->c == ' ' : false))) {
-      wrap.last[0] = i_curr;
-      wrap.last[1] = i_curr;
+      /* Previous character was a space, current character starts a new word. Make this character a
+       * potential line break.  */
+      wrap.last = i_curr;
+      wrap.next = i_curr;
+    }
+    /* REVIEW NOTE: Noticed lines are sometimes wrapped to early, this should fix it. */
+    else if (UNLIKELY(g->c == ' ' && (g_prev ? g_prev->c != ' ' : false))) {
+      /* Current character is a space, previous character ended a new word. Make this character a
+       * potential line break.  */
+      wrap.last = i_curr + 1;
+      wrap.next = i_curr + 1;
+    }
+    /* If no space or newline character, allow hard wrapping if enabled. */
+    else if (UNLIKELY((font->flags & BLF_WORD_WRAP_HARD) && (pen_x_next >= wrap.wrap_width))) {
+      wrap.last = i_curr;
+      wrap.next = i_curr;
+      flush_line = true;
+      strip_last_char = false;
     }
 
-    if (UNLIKELY(do_draw)) {
+    if (UNLIKELY(flush_line)) {
 #if 0
-      printf("(%03d..%03d)  `%.*s`\n",
+      printf("(%03lu..%03lu)  `%.*s`\n",
              wrap.start,
-             wrap.last[0],
-             (wrap.last[0] - wrap.start) - 1,
+             wrap.last,
+             int((wrap.last - wrap.start) - 1),
              &str[wrap.start]);
 #endif
 
-      callback(font, gc, &str[wrap.start], (wrap.last[0] - wrap.start) - 1, pen_y, userdata);
-      wrap.start = wrap.last[0];
-      i = wrap.last[1];
+      callback(font,
+               gc,
+               &str[wrap.start],
+               (wrap.last - wrap.start) - (strip_last_char ? 1 : 0),
+               pen_y,
+               userdata);
+      wrap.start = wrap.last;
+      i = wrap.next;
       pen_x = 0;
       pen_y -= line_height;
       g_prev = nullptr;

@@ -395,8 +395,10 @@ enum {
   BLF_SHADOW = 1 << 2,
   // BLF_FLAG_UNUSED_3 = 1 << 3, /* dirty */
   // BLF_MATRIX = 1 << 4,
-  BLF_ASPECT = 1 << 5,
-  BLF_WORD_WRAP = 1 << 6,
+  BLF_ASPECT = 1 << 4,
+  BLF_WORD_WRAP = 1 << 5,
+  /** Requires #BLF_WORD_WRAP */
+  BLF_WORD_WRAP_HARD = 1 << 6,
   /** No anti-aliasing. */
   BLF_MONOCHROME = 1 << 7,
   BLF_HINTING_NONE = 1 << 8,

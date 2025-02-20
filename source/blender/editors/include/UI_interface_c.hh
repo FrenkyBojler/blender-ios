@@ -3368,9 +3368,15 @@ enum eFontStyle_Align {
   UI_STYLE_TEXT_RIGHT = 2,
 };
 
+enum class eFontStyle_Wrapping : uint8_t {
+  None = 0,
+  Soft,
+  Hard,
+};
+
 struct uiFontStyleDraw_Params {
   eFontStyle_Align align;
-  uint word_wrap : 1;
+  eFontStyle_Wrapping word_wrap;
 };
 
 /* Styled text draw */
