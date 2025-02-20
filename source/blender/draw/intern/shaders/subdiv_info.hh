@@ -26,8 +26,22 @@ ADDITIONAL_INFO(subdiv_base)
 GPU_SHADER_CREATE_END()
 
 /* -------------------------------------------------------------------- */
-/** \name Normals Finalize
+/** \name Normals
  * \{ */
+
+GPU_SHADER_CREATE_INFO(subdiv_normals_accumulate)
+DO_STATIC_COMPILATION()
+STORAGE_BUF(NORMALS_ACCUMULATE_POS_NOR_BUF_SLOT, READ, PosNorLoop, pos_nor[])
+STORAGE_BUF(NORMALS_ACCUMULATE_FACE_ADJACENCY_OFFSETS_BUF_SLOT,
+            READ,
+            uint,
+            face_adjacency_offsets[])
+STORAGE_BUF(NORMALS_ACCUMULATE_FACE_ADJACENCY_LISTS_BUF_SLOT, READ, uint, face_adjacency_lists[])
+STORAGE_BUF(NORMALS_ACCUMULATE_VERTEX_LOOP_MAP_BUF_SLOT, READ, uint, vert_loop_map[])
+STORAGE_BUF(NORMALS_ACCUMULATE_NORMALS_BUF_SLOT, WRITE, vec3, normals[])
+COMPUTE_SOURCE("subdiv_normals_accumulate_comp.glsl")
+ADDITIONAL_INFO(subdiv_base)
+GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(subdiv_normals_finalize)
 DO_STATIC_COMPILATION()
