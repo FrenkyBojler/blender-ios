@@ -314,9 +314,9 @@ bool imb_oiio_write(const WriteContext &ctx, const char *filepath, const ImageSp
     ImageBufAlgo::channel_sum(final_buf, orig_buf, {weights, original_channels_count});
   }
   else if (original_channels_count == 1 && file_spec.nchannels > 1) {
-    /* Broadcast the gray-scale channel to the as many channels as needed, filling the alpha
-     * channel with one if needed. 0 channel order mean we will be copying from the first channel,
-     * while -1 means we will be filling based on the corresponding value from the defined channel
+    /* Broadcast the gray-scale channel to as many channels as needed, filling the alpha channel
+     * with ones if needed. 0 channel order mean we will be copying from the first channel, while
+     * -1 means we will be filling based on the corresponding value from the defined channel
      * values. */
     const int channel_order[] = {0, 0, 0, -1};
     const float channel_values[] = {0.0f, 0.0f, 0.0f, 1.0f};
@@ -332,8 +332,8 @@ bool imb_oiio_write(const WriteContext &ctx, const char *filepath, const ImageSp
     /* Either trim or fill new channels based on the needed channels count. */
     int channel_order[4];
     for (int i = 0; i < 4; i++) {
-      /* If a channel exists in the original buffer, we copy it, if not, we fill it by supplying 1,
-       * which is a special value that means filling based on the value in the defined channels
+      /* If a channel exists in the original buffer, we copy it, if not, we fill it by supplying
+       * -1, which is a special value that means filling based on the value in the defined channels
        * values. So alpha is filled with 1, and other channels are filled with zero. */
       const bool channel_exists = i + 1 <= original_channels_count;
       channel_order[i] = channel_exists ? i : -1;
