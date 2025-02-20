@@ -2338,7 +2338,7 @@ void BKE_scene_frames_per_second_sync(Main *bmain, Scene *scene)
     }
     /* The sound system requires an evaluated scene. In order to ensure the evaluated scene is up
      * to date, evaluate the depsgraph before. */
-    DEG_evaluate_on_refresh(depsgraph);
+    BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
     Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
     BKE_sound_update_fps(bmain, scene_eval);
   }
