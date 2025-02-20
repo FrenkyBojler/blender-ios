@@ -5441,11 +5441,7 @@ static int screen_animation_step_invoke(bContext *C, wmOperator * /*op*/, const 
   else if ((scene->audio.flag & AUDIO_SYNC) && (sad->flag & ANIMPLAY_FLAG_REVERSE) == false &&
            isfinite(time = BKE_sound_sync_scene(scene_eval)))
   {
-    /* Using the FPS of the sound because when the FPS are changed during playback there is a frame
-     * where the FPS of the audio and the FPS of the scene are out of sync. That is because the
-     * sound FPS are changed after this line, but the scene FPS are changed right away. See
-     * #131493. */
-    scene->r.cfra = round(time * BKE_sound_get_fps(scene_eval));
+    scene->r.cfra = round(time * BKE_scene_frames_per_second_get(scene_eval));
 
 #ifdef PROFILE_AUDIO_SYNC
     newfra_int = scene->r.cfra;
