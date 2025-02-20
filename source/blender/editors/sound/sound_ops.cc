@@ -434,6 +434,7 @@ static const char *snd_ext_sound[] = {
     ".mp3",
     ".ogg",
     ".wav",
+    ".aac",
     nullptr,
 };
 
@@ -448,7 +449,7 @@ static bool sound_mixdown_check(bContext * /*C*/, wmOperator *op)
     if (item->value == container) {
       const char **ext = snd_ext_sound;
       while (*ext != nullptr) {
-        if (STREQ(*ext + 1, item->name)) {
+        if (STRCASEEQ(*ext + 1, item->name)) {
           extension = *ext;
           break;
         }
