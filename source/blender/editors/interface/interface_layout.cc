@@ -519,13 +519,12 @@ static void ui_layer_but_cb(bContext *C, void *arg_but, void *arg_index)
   const int len = RNA_property_array_length(ptr, prop);
 
   if (!shift) {
-    RNA_property_boolean_set_index(ptr, prop, index, true);
+    BLI_assert(index < len);
+    blender::Array<bool, RNA_STACK_ARRAY> value_array(len);
+    value_array.fill(false);
+    value_array[index] = true;
 
-    for (int i = 0; i < len; i++) {
-      if (i != index) {
-        RNA_property_boolean_set_index(ptr, prop, i, false);
-      }
-    }
+    RNA_property_boolean_set_array(ptr, prop, value_array.data());
 
     RNA_property_update(C, ptr, prop);
 
@@ -3398,8 +3397,9 @@ void uiItemS_ex(uiLayout *layout, float factor, const LayoutSeparatorType type)
     return;
   }
 
-  int space = (is_menu) ? int(0.35f * UI_UNIT_X) : int(0.3f * UI_UNIT_X);
-  space *= factor;
+  /* Sizing of spaces should not depend on line width. */
+  const int space = (is_menu) ? int(7.0f * UI_SCALE_FAC * factor) :
+                                int(6.0f * UI_SCALE_FAC * factor);
 
   eButType but_type;
 
