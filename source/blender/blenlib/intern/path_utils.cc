@@ -1240,14 +1240,14 @@ bool BLI_path_abs_from_cwd(char *path, const size_t path_maxncpy)
 }
 
 static std::optional<std::pair<blender::IndexRange, blender::StringRef>> next_path_variable(
-    char path[FILE_MAX])
+    char *path, const int path_allocation_size)
 {
   int start = -1;
   int end = -1;
-  for (int i = 0; i < FILE_MAX && path[i] != '\0'; i++) {
+  for (int i = 0; i < path_allocation_size && path[i] != '\0'; i++) {
     /* Check if we've found a starting "${". */
     if (start == -1) {
-      if ((i + 1) < FILE_MAX && path[i] == '$' && path[i + 1] == '{') {
+      if ((i + 1) < path_allocation_size && path[i] == '$' && path[i + 1] == '{') {
         start = i;
         i++; /* To jump passed the "{" as well. */
       }
@@ -1292,7 +1292,8 @@ bool BLI_path_apply_variables(char path[FILE_MAX],
 {
   bool was_modified = false;
 
-  while (auto path_variable = next_path_variable(path)) {
+  int processed = 0;
+  while (auto path_variable = next_path_variable(path + processed, FILE_MAX - processed)) {
     blender::IndexRange replacement_range = path_variable->first;
     blender::StringRef variable_name = path_variable->second;
 
@@ -1300,16 +1301,21 @@ bool BLI_path_apply_variables(char path[FILE_MAX],
 
     const std::string *replacement_string = variable_dictionary.lookup_ptr_as(variable_name);
     if (replacement_string != nullptr) {
-      BLI_string_replace_range(path,
-                               FILE_MAX,
+      BLI_string_replace_range(path + processed,
+                               FILE_MAX - processed,
                                replacement_range.start(),
                                replacement_range.one_after_last(),
                                replacement_string->c_str());
+
+      processed += replacement_range.one_after_last();
+      processed -= replacement_range.size();
+      processed += replacement_string->size();
+
       was_modified = true;
     }
     else {
-      /* TODO: something smarter than this. */
-      break;
+      /* No matching variable, so skip. */
+      processed += replacement_range.one_after_last();
     }
   }
 
