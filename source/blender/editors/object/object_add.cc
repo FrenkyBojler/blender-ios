@@ -4001,6 +4001,7 @@ static int object_convert_exec(bContext *C, wmOperator *op)
   }
 
   bool mball_converted = false;
+  bool some_failed = false;
 
   for (const PointerRNA &ptr : selected_editable_bases) {
     Object *newob = nullptr;
@@ -4049,6 +4050,7 @@ static int object_convert_exec(bContext *C, wmOperator *op)
           newob = convert_point_cloud(*base, target_type, info, &new_base);
           break;
         default:
+          some_failed = true;
           continue;
       }
     }
@@ -4124,6 +4126,10 @@ static int object_convert_exec(bContext *C, wmOperator *op)
         WM_event_add_notifier(C, NC_OBJECT | ND_DATA, object);
       }
     }
+  }
+
+  if (some_failed) {
+    WM_report(RPT_WARNING, "Object conversion: Some objects failed to convert");
   }
 
   DEG_relations_tag_update(bmain);
