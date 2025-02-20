@@ -2224,7 +2224,7 @@ enum eUI_Item_Flag {
 ENUM_OPERATORS(eUI_Item_Flag, UI_ITEM_R_TEXT_BUT_FORCE_SEMI_MODAL_ACTIVE)
 #define UI_ITEM_NONE eUI_Item_Flag(0)
 
-#define UI_HEADER_OFFSET ((void)0, 0.4f * UI_UNIT_X)
+#define UI_HEADER_OFFSET ((void)0, 12.0f * UI_SCALE_FAC)
 
 /* uiLayoutOperatorButs flags */
 enum {

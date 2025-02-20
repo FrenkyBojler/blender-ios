@@ -316,6 +316,21 @@ static void region_draw_azones(ScrArea *area, ARegion *region)
     if (BLI_rcti_isect(&region->runtime->drawrct, &azrct, nullptr)) {
       if (az->type == AZONE_AREA) {
         area_draw_azone(az->x1, az->y1, az->x2, az->y2);
+        if (az->x1 < area->totrct.xmin + 1) {
+          if ((region->alignment == RGN_ALIGN_TOP && az->y2 > area->totrct.ymax - 1) ||
+              (region->alignment == RGN_ALIGN_BOTTOM && az->y1 < area->totrct.ymin + 1))
+          {
+            UI_icon_draw_ex(az->x1 - (1 * UI_SCALE_FAC),
+                            az->y1 + (5 * UI_SCALE_FAC),
+                            ICON_GRIP_V,
+                            1.0 / UI_SCALE_FAC,
+                            0.5f,
+                            0.0f,
+                            nullptr,
+                            false,
+                            UI_NO_ICON_OVERLAY_TEXT);
+          }
+        }
       }
       else if (az->type == AZONE_REGION) {
         if (az->region && !(az->region->flag & RGN_FLAG_POLL_FAILED)) {
@@ -1003,25 +1018,25 @@ static void area_azone_init(const wmWindow *win, const bScreen *screen, ScrArea 
 
   const float coords[4][4] = {
       /* Bottom-left. */
-      {area->totrct.xmin - U.pixelsize,
+      {area->totrct.xmin,
        area->totrct.ymin - U.pixelsize,
-       area->totrct.xmin + AZONESPOTW,
-       area->totrct.ymin + AZONESPOTH},
+       area->totrct.xmin + UI_HEADER_OFFSET,
+       area->totrct.ymin + ED_area_headersize()},
       /* Bottom-right. */
       {area->totrct.xmax - AZONESPOTW,
-       area->totrct.ymin - U.pixelsize,
-       area->totrct.xmax + U.pixelsize,
+       area->totrct.ymin,
+       area->totrct.xmax,
        area->totrct.ymin + AZONESPOTH},
       /* Top-left. */
-      {area->totrct.xmin - U.pixelsize,
-       area->totrct.ymax - AZONESPOTH,
-       area->totrct.xmin + AZONESPOTW,
+      {area->totrct.xmin,
+       area->totrct.ymax - ED_area_headersize(),
+       area->totrct.xmin + UI_HEADER_OFFSET,
        area->totrct.ymax + U.pixelsize},
       /* Top-right. */
       {area->totrct.xmax - AZONESPOTW,
        area->totrct.ymax - AZONESPOTH,
-       area->totrct.xmax + U.pixelsize,
-       area->totrct.ymax + U.pixelsize},
+       area->totrct.xmax,
+       area->totrct.ymax},
   };
 
   for (int i = 0; i < 4; i++) {
