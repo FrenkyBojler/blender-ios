@@ -95,7 +95,7 @@ static void cmp_node_image_add_pass_output(bNodeTree *ntree,
 
   /* Replace if types don't match. */
   if (sock && sock->type != type) {
-    blender::bke::node_remove_socket(ntree, node, sock);
+    blender::bke::node_remove_socket(*ntree, *node, *sock);
     sock = nullptr;
   }
 
@@ -107,7 +107,7 @@ static void cmp_node_image_add_pass_output(bNodeTree *ntree,
     }
     else {
       sock = blender::bke::node_add_static_socket(
-          ntree, node, SOCK_OUT, type, PROP_NONE, name, name);
+          *ntree, *node, SOCK_OUT, type, PROP_NONE, name, name);
     }
     /* extra socket info */
     NodeImageLayer *sockdata = MEM_cnew<NodeImageLayer>(__func__);
@@ -367,7 +367,7 @@ static void cmp_node_image_verify_outputs(bNodeTree *ntree, bNode *node, bool rl
     sock_next = sock->next;
     if (BLI_linklist_index(available_sockets.list, sock) >= 0) {
       sock->flag &= ~SOCK_HIDDEN;
-      blender::bke::node_set_socket_availability(ntree, sock, true);
+      blender::bke::node_set_socket_availability(*ntree, *sock, true);
     }
     else {
       bNodeLink *link;
@@ -378,10 +378,10 @@ static void cmp_node_image_verify_outputs(bNodeTree *ntree, bNode *node, bool rl
       }
       if (!link && (!rlayer || sock_index >= NUM_LEGACY_SOCKETS)) {
         MEM_freeN(sock->storage);
-        blender::bke::node_remove_socket(ntree, node, sock);
+        blender::bke::node_remove_socket(*ntree, *node, *sock);
       }
       else {
-        blender::bke::node_set_socket_availability(ntree, sock, false);
+        blender::bke::node_set_socket_availability(*ntree, *sock, false);
       }
     }
   }
@@ -472,6 +472,7 @@ class ImageOperation : public NodeOperation {
       extract_alpha(context(), cached_image, result);
     }
     else {
+      result.set_type(cached_image.type());
       result.set_precision(cached_image.precision());
       result.wrap_external(cached_image);
     }
@@ -515,13 +516,13 @@ void register_node_type_cmp_image()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.initfunc = file_ns::node_composit_init_image;
   blender::bke::node_type_storage(
-      &ntype, "ImageUser", file_ns::node_composit_free_image, file_ns::node_composit_copy_image);
+      ntype, "ImageUser", file_ns::node_composit_free_image, file_ns::node_composit_copy_image);
   ntype.updatefunc = file_ns::cmp_node_image_update;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
   ntype.labelfunc = node_image_label;
   ntype.flag |= NODE_PREVIEW;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 
 /* **************** RENDER RESULT ******************** */
@@ -719,6 +720,13 @@ class RenderLayerOperation : public NodeOperation {
       return;
     }
 
+    /* Vector sockets are 3D by default, so we need to overwrite the type if the pass turned out to
+     * be 4D. */
+    if (result.type() == ResultType::Vector && pass.type() == ResultType::Float4) {
+      result.set_type(pass.type());
+    }
+    result.set_precision(pass.precision());
+
     if (this->context().use_gpu()) {
       this->execute_pass_gpu(pass, result);
     }
@@ -729,8 +737,6 @@ class RenderLayerOperation : public NodeOperation {
 
   void execute_pass_gpu(const Result &pass, Result &result)
   {
-    result.set_precision(pass.precision());
-
     GPUShader *shader = this->context().get_shader(this->get_shader_name(pass, result),
                                                    result.precision());
     GPU_shader_bind(shader);
@@ -764,11 +770,10 @@ class RenderLayerOperation : public NodeOperation {
       case ResultType::Float:
         return "compositor_read_input_float";
       case ResultType::Vector:
-        return "compositor_read_input_vector";
       case ResultType::Color:
-        return "compositor_read_input_color";
+      case ResultType::Float4:
       case ResultType::Float3:
-        return "compositor_read_input_vector";
+        return "compositor_read_input_float4";
       default:
         /* Other types are internal and needn't be handled by operations. */
         break;
@@ -834,13 +839,13 @@ void register_node_type_cmp_rlayers()
   ntype.compositor_unsupported_message = N_(
       "Render passes in the Viewport compositor are only supported in EEVEE");
   ntype.flag |= NODE_PREVIEW;
-  blender::bke::node_type_storage(&ntype,
+  blender::bke::node_type_storage(ntype,
                                   std::nullopt,
                                   file_ns::node_composit_free_rlayers,
                                   file_ns::node_composit_copy_rlayers);
   ntype.updatefunc = file_ns::cmp_node_rlayers_update;
   ntype.initfunc = node_cmp_rlayers_outputs;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
+  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Large);
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

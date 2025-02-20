@@ -143,7 +143,7 @@ bNodeSocket *ntreeCompositOutputFileAddSocket(bNodeTree *ntree,
 {
   NodeImageMultiFile *nimf = (NodeImageMultiFile *)node->storage;
   bNodeSocket *sock = blender::bke::node_add_static_socket(
-      ntree, node, SOCK_IN, SOCK_RGBA, PROP_NONE, "", name);
+      *ntree, *node, SOCK_IN, SOCK_RGBA, PROP_NONE, "", name);
 
   /* create format data for the input socket */
   NodeImageMultiFileSocket *sockdata = MEM_cnew<NodeImageMultiFileSocket>(__func__);
@@ -192,7 +192,7 @@ int ntreeCompositOutputFileRemoveActiveSocket(bNodeTree *ntree, bNode *node)
   /* free format data */
   MEM_freeN(sock->storage);
 
-  blender::bke::node_remove_socket(ntree, node, sock);
+  blender::bke::node_remove_socket(*ntree, *node, *sock);
   return 1;
 }
 
@@ -290,11 +290,11 @@ static void update_output_file(bNodeTree *ntree, bNode *node)
    */
   LISTBASE_FOREACH_MUTABLE (bNodeSocket *, sock, &node->inputs) {
     if (sock->storage == nullptr) {
-      blender::bke::node_remove_socket(ntree, node, sock);
+      blender::bke::node_remove_socket(*ntree, *node, *sock);
     }
   }
   LISTBASE_FOREACH_MUTABLE (bNodeSocket *, sock, &node->outputs) {
-    blender::bke::node_remove_socket(ntree, node, sock);
+    blender::bke::node_remove_socket(*ntree, *node, *sock);
   }
 
   cmp_node_update_default(ntree, node);
@@ -513,6 +513,7 @@ class FileOutputOperation : public NodeOperation {
       descriptor.realization_mode = this->is_multi_layer() ?
                                         InputRealizationMode::OperationDomain :
                                         InputRealizationMode::Transforms;
+      descriptor.skip_type_conversion = true;
     }
   }
 
@@ -677,12 +678,13 @@ class FileOutputOperation : public NodeOperation {
         }
         break;
       case ResultType::Vector:
-        if (result.meta_data.is_4d_vector) {
-          file_output.add_pass(pass_name, view_name, "XYZW", buffer);
-        }
-        else {
-          file_output.add_pass(pass_name, view_name, "XYZ", float4_to_float3_image(size, buffer));
-        }
+        file_output.add_pass(pass_name, view_name, "XYZ", float4_to_float3_image(size, buffer));
+        break;
+      case ResultType::Float3:
+        file_output.add_pass(pass_name, view_name, "XYZ", buffer);
+        break;
+      case ResultType::Float4:
+        file_output.add_pass(pass_name, view_name, "XYZW", buffer);
         break;
       case ResultType::Float:
         file_output.add_pass(pass_name, view_name, "V", buffer);
@@ -715,11 +717,29 @@ class FileOutputOperation : public NodeOperation {
         float *buffer = static_cast<float *>(MEM_malloc_arrayN(
             size_t(size.x) * size.y, sizeof(float[4]), "File Output Inflated Buffer."));
 
-        const float4 value = result.type() == ResultType::Color ?
-                                 result.get_single_value<float4>() :
-                                 result.get_single_value<float4>();
+        const float4 value = result.get_single_value<float4>();
         parallel_for(size, [&](const int2 texel) {
           copy_v4_v4(buffer + ((int64_t(texel.y) * size.x + texel.x) * 4), value);
+        });
+        return buffer;
+      }
+      case ResultType::Float4: {
+        float *buffer = static_cast<float *>(MEM_malloc_arrayN(
+            size_t(size.x) * size.y, sizeof(float[4]), "File Output Inflated Buffer."));
+
+        const float4 value = result.get_single_value<float4>();
+        parallel_for(size, [&](const int2 texel) {
+          copy_v4_v4(buffer + ((int64_t(texel.y) * size.x + texel.x) * 4), value);
+        });
+        return buffer;
+      }
+      case ResultType::Float3: {
+        float *buffer = static_cast<float *>(MEM_malloc_arrayN(
+            size_t(size.x) * size.y, sizeof(float[3]), "File Output Inflated Buffer."));
+
+        const float3 value = result.get_single_value<float3>();
+        parallel_for(size, [&](const int2 texel) {
+          copy_v3_v3(buffer + ((int64_t(texel.y) * size.x + texel.x) * 3), value);
         });
         return buffer;
       }
@@ -752,8 +772,14 @@ class FileOutputOperation : public NodeOperation {
       case ResultType::Color:
         file_output.add_view(view_name, 4, buffer);
         break;
+      case ResultType::Float4:
+        file_output.add_view(view_name, 4, buffer);
+        break;
       case ResultType::Vector:
         file_output.add_view(view_name, 3, float4_to_float3_image(size, buffer));
+        break;
+      case ResultType::Float3:
+        file_output.add_view(view_name, 3, buffer);
         break;
       case ResultType::Float:
         file_output.add_view(view_name, 1, buffer);
@@ -914,9 +940,9 @@ void register_node_type_cmp_output_file()
   ntype.initfunc_api = file_ns::init_output_file;
   ntype.flag |= NODE_PREVIEW;
   blender::bke::node_type_storage(
-      &ntype, "NodeImageMultiFile", file_ns::free_output_file, file_ns::copy_output_file);
+      ntype, "NodeImageMultiFile", file_ns::free_output_file, file_ns::copy_output_file);
   ntype.updatefunc = file_ns::update_output_file;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
