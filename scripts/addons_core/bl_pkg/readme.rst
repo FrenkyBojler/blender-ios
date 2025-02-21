@@ -181,8 +181,8 @@ changes to these files cause the cache to be re-generated.
 Dragging & Dropping a URL
 -------------------------
 
-Extensions drag & drop is handled the same way as dropping images or other strings,
-using Blender's drop-boxes.
+Extensions drag & drop is handled with Blender's drop-boxes.
+This works in much the same way as dropping images in the 3D viewport or blend files.
 
 There are two drop-boxes used one for file-paths another for URL's.
 Both check the path contains a ``.zip`` extension,
