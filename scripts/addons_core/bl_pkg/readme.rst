@@ -165,7 +165,7 @@ is responsible for ensuring extensions are compatible before loading.
 - On startup run: ``_initialize_extensions_repos_once`` which sets up repositories and handlers.
 - If the "compatibility cache" doesn't exist it is created (each extension's TOML file is inspected for compatibility).
   A dictionary of incompatible extensions is stored in the compatibility cache which is checked
-  whoever ``addon_utils.enable(..)`` is used to enable an extension.
+  whenever ``addon_utils.enable(..)`` is used to enable an extension.
 - If the "compatibility cache" exists it is validated by each extensions TOML modification-time & size,
   re-generating upon any changes.
 - The compatibility data stores the reason the extension being disabled,
