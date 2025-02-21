@@ -2,8 +2,15 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/* To be compiled with subdiv_lib.glsl */
+#include "subdiv_lib.glsl"
 
+#ifdef GPU_AMD_DRIVER_BYTE_BUG
+COMPUTE_SHADER_CREATE_INFO(subdiv_edge_fac_amd_legacy)
+#else
+COMPUTE_SHADER_CREATE_INFO(subdiv_edge_fac)
+#endif
+
+#if 0
 layout(std430, binding = 0) readonly buffer inputVertexData
 {
   PosNorLoop pos_nor[];
@@ -21,12 +28,13 @@ layout(std430, binding = 2) readonly buffer inputPolyOtherMap
 
 layout(std430, binding = 3) writeonly buffer outputEdgeFactors
 {
-#ifdef GPU_AMD_DRIVER_BYTE_BUG
+#  ifdef GPU_AMD_DRIVER_BYTE_BUG
   float output_edge_fac[];
-#else
+#  else
   uint output_edge_fac[];
-#endif
+#  endif
 };
+#endif
 
 void write_vec4(uint index, vec4 edge_facs)
 {
