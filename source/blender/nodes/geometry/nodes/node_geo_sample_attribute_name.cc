@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2024 Blender Authors
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -30,7 +30,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  node->custom1 = static_cast<int16_t>(CD_PROP_FLOAT);
+  node->custom1 = CD_PROP_FLOAT;
   node->custom2 = static_cast<int16_t>(AttrDomain::Point);
 }
 
@@ -38,7 +38,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   const bNode &node = params.node();
 
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
+  const GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
   const int sample_index = params.extract_input<int>("Index");
   const eCustomDataType data_type = eCustomDataType(node.custom1);
   const AttrDomain domain = AttrDomain(node.custom2);
@@ -116,7 +116,7 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }
