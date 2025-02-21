@@ -87,6 +87,8 @@ COMPUTE_SOURCE("subdiv_ibo_lines_comp.glsl")
 ADDITIONAL_INFO(subdiv_base)
 GPU_SHADER_CREATE_END()
 
+/** \} */
+
 /* -------------------------------------------------------------------- */
 /** \name Edge fac
  * \{ */
