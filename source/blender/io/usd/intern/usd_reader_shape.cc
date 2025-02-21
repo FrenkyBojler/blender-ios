@@ -17,6 +17,7 @@
 #include "usd_reader_shape.hh"
 
 #include <pxr/usd/usdGeom/capsule.h>
+#include <pxr/usd/usdGeom/capsule_1.h>
 #include <pxr/usd/usdGeom/cone.h>
 #include <pxr/usd/usdGeom/cube.h>
 #include <pxr/usd/usdGeom/cylinder.h>
@@ -89,7 +90,7 @@ bool USDShapeReader::read_mesh_values(double motionSampleTime,
                                       pxr::VtIntArray &face_indices,
                                       pxr::VtIntArray &face_counts) const
 {
-  if (prim_.IsA<pxr::UsdGeomCapsule>()) {
+  if (prim_.IsA<pxr::UsdGeomCapsule>() || prim_.IsA<pxr::UsdGeomCapsule_1>()) {
     read_values<pxr::UsdImagingCapsuleAdapter>(
         motionSampleTime, positions, face_indices, face_counts);
     return true;
@@ -282,6 +283,14 @@ bool USDShapeReader::is_time_varying()
     return (geom.GetAxisAttr().ValueMightBeTimeVarying() ||
             geom.GetHeightAttr().ValueMightBeTimeVarying() ||
             geom.GetRadiusAttr().ValueMightBeTimeVarying());
+  }
+
+  if (prim_.IsA<pxr::UsdGeomCapsule_1>()) {
+    pxr::UsdGeomCapsule_1 geom(prim_);
+    return (geom.GetAxisAttr().ValueMightBeTimeVarying() ||
+            geom.GetHeightAttr().ValueMightBeTimeVarying() ||
+            geom.GetRadiusTopAttr().ValueMightBeTimeVarying() ||
+            geom.GetRadiusBottomAttr().ValueMightBeTimeVarying());
   }
 
   if (prim_.IsA<pxr::UsdGeomCylinder>()) {
