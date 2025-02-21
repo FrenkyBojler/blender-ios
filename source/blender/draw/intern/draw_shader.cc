@@ -351,7 +351,6 @@ GPUShader *DRW_shader_subdiv_get(SubdivShaderType shader_type)
     std::optional<blender::StringRefNull> defines;
 
     if (ELEM(shader_type,
-             SubdivShaderType::BUFFER_LINES,
              SubdivShaderType::BUFFER_LNOR,
              SubdivShaderType::BUFFER_TRIS_MULTIPLE_MATERIALS,
              SubdivShaderType::BUFFER_UV_STRETCH_AREA))

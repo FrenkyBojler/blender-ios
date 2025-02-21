@@ -1532,6 +1532,7 @@ void draw_subdiv_build_lines_buffer(const DRWSubdivCache &cache, gpu::IndexBuf *
   GPUShader *shader = DRW_shader_subdiv_get(SubdivShaderType::BUFFER_LINES);
   GPU_shader_bind(shader);
 
+  GPU_vertbuf_bind_as_ssbo(cache.subdiv_face_offset_buffer, SUBDIV_FACE_OFFSET_BUF_SLOT);
   GPU_vertbuf_bind_as_ssbo(cache.edges_draw_flag, LINES_INPUT_EDGE_DRAW_FLAG_BUF_SLOT);
   GPU_vertbuf_bind_as_ssbo(cache.extra_coarse_face_data, LINES_EXTRA_COARSE_FACE_DATA_BUF_SLOT);
   GPU_indexbuf_bind_as_ssbo(lines_indices, LINES_OUTPUT_LINES_BUF_SLOT);
