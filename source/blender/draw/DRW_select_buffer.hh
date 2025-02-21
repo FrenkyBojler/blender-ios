@@ -9,6 +9,7 @@
 #pragma once
 
 #include "BLI_map.hh"
+#include "BLI_set.hh"
 #include "DNA_ID.h"
 
 #include "BLI_array.hh"
@@ -24,18 +25,6 @@ struct RegionView3D;
 struct View3D;
 struct rcti;
 
-struct SELECTID_ObjectData {
-  DrawData dd;
-
-  uint drawn_index;
-
-  /* Used to avoid adding to the pass more than once. */
-  bool in_pass;
-
-  /* Used to detect and remove objects that are not included in the array. */
-  bool is_drawn;
-};
-
 /* Indices inside the selection framebuffer associated with the elements of a mesh. */
 struct ElemIndexRanges {
   /* Range for each element type. */
@@ -49,6 +38,7 @@ struct ElemIndexRanges {
 struct SELECTID_Context {
   /* All context objects */
   blender::Vector<Object *> objects;
+  blender::Set<Object *> objects_set;
   blender::Map<Object *, ElemIndexRanges> elem_ranges;
 
   /**

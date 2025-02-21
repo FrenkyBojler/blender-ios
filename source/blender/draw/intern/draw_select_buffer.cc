@@ -470,6 +470,7 @@ void DRW_select_buffer_context_create(Depsgraph *depsgraph,
 
   select_ctx->objects.reinitialize(bases.size());
   select_ctx->elem_ranges.clear();
+  select_ctx->objects_set.clear();
 
   for (const int i : bases.index_range()) {
     Object *obj = bases[i]->object;

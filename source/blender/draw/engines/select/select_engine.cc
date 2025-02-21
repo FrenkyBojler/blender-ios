@@ -230,12 +230,7 @@ static void select_cache_init(void *vedata)
   /* Create selection data. */
   for (uint sel_id : e_data.context.objects.index_range()) {
     Object *obj_eval = e_data.context.objects[sel_id];
-    DrawData *data = DRW_drawdata_ensure(
-        &obj_eval->id, &draw_engine_select_type, sizeof(SELECTID_ObjectData), nullptr, nullptr);
-    SELECTID_ObjectData *sel_data = reinterpret_cast<SELECTID_ObjectData *>(data);
-    sel_data->drawn_index = sel_id;
-    sel_data->in_pass = false;
-    sel_data->is_drawn = false;
+    e_data.context.objects_set.add(obj_eval);
   }
 
   e_data.context.persmat = float4x4(draw_ctx->rv3d->persmat);
@@ -408,17 +403,12 @@ static void select_cache_populate(void *vedata, Object *ob)
   ObjectRef ob_ref = DRW_object_ref_get(ob);
   SelectEngineData &e_data = get_engine_data();
   SELECTID_Instance &inst = *reinterpret_cast<SELECTID_Data *>(vedata)->instance;
-  SELECTID_ObjectData *sel_data = (SELECTID_ObjectData *)DRW_drawdata_get(
-      &ob->id, &draw_engine_select_type);
+  const DRWContextState *draw_ctx = DRW_context_state_get();
 
-  if (!sel_data || sel_data->is_drawn) {
-    if (sel_data) {
-      /* Remove data, object is not in array. */
-      DrawDataList *drawdata = DRW_drawdatalist_from_id(&ob->id);
-      BLI_freelinkN((ListBase *)drawdata, sel_data);
-    }
+  bool selectable = e_data.context.objects_set.contains(ob);
 
-    /* This object is not in the array. It is here to participate in the depth buffer. */
+  if (!selectable) {
+    /* This object is not selectable. It is here to participate in the depth buffer. */
     if (ob->dt >= OB_SOLID) {
       blender::gpu::Batch *geom_faces = DRW_mesh_batch_cache_get_surface(
           *static_cast<Mesh *>(ob->data));
@@ -426,11 +416,7 @@ static void select_cache_populate(void *vedata, Object *ob)
       inst.depth_occlude->draw(geom_faces, manager.resource_handle(ob_ref));
     }
   }
-  else if (!sel_data->in_pass) {
-    sel_data->in_pass = true;
-
-    const DRWContextState *draw_ctx = DRW_context_state_get();
-
+  else {
     uint start_index = e_data.context.max_index_drawn_len;
 
     ResourceHandle res_handle = manager.resource_handle(ob_ref);
@@ -479,14 +465,6 @@ static void select_draw_scene(void *vedata)
 
   if (e_data.context.select_mode & SCE_SELECT_VERTEX) {
     manager.submit(inst.select_id_vert_ps, inst.view_verts);
-  }
-
-  /* Mark objects from the array to later identify which ones are not in the array. */
-  for (Object *obj_eval : e_data.context.objects) {
-    DrawData *data = DRW_drawdata_ensure(
-        &obj_eval->id, &draw_engine_select_type, sizeof(SELECTID_ObjectData), nullptr, nullptr);
-    SELECTID_ObjectData *sel_data = reinterpret_cast<SELECTID_ObjectData *>(data);
-    sel_data->is_drawn = true;
   }
 }
 
