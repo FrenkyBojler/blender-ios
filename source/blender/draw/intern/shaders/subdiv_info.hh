@@ -90,7 +90,7 @@ GPU_SHADER_CREATE_END()
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Edge fac
+/** \name Edge data for object mode wireframe
  * \{ */
 
 GPU_SHADER_CREATE_INFO(subdiv_edge_fac_base)
