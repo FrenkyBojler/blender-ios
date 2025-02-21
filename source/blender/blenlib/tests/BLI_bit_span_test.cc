@@ -315,6 +315,20 @@ TEST(bit_span, FindFirst1Index)
     EXPECT_EQ(find_first_1_index(vec), 2'500);
     EXPECT_EQ(find_first_1_index(BitSpan(vec).drop_front(100)), 2'400);
   }
+  {
+    BitVector<> vec_a(10'000, false);
+    BitVector<> vec_b(10'000, false);
+    vec_a[2'000].set();
+    vec_a[2'400].set();
+    vec_a[2'500].set();
+    vec_b[2'000].set();
+    vec_b[2'400].set();
+    vec_b[2'600].set();
+    /* This finds the first index where the two vectors are different. */
+    EXPECT_EQ(find_first_1_index_expr(
+                  [](const BitInt a, const BitInt b) { return a ^ b; }, vec_a, vec_b),
+              2'500);
+  }
 }
 
 TEST(bit_span, FindFirst0Index)
