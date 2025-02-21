@@ -81,11 +81,11 @@ void resize_fcurve(FCurve *fcu, uint bezt_count)
 }
 
 /* Utility: create curve at the given array index and add it as a channel to a group. */
-FCurve *create_fcurve(blender::animrig::Channelbag *channelbag,
+FCurve *create_fcurve(blender::animrig::Channelbag &channelbag,
                       const blender::animrig::FCurveDescriptor fcurve_descriptor,
                       const int totvert)
 {
-  FCurve *fcurve = channelbag->fcurve_create_unique(nullptr, fcurve_descriptor);
+  FCurve *fcurve = channelbag.fcurve_create_unique(nullptr, fcurve_descriptor);
   BLI_assert_msg(fcurve, "The same F-Curve is being created twice, this is unexpected.");
   BKE_fcurve_bezt_resize(fcurve, totvert);
   return fcurve;
@@ -152,7 +152,7 @@ void import_skeleton_curves(Main *bmain,
   bAction *act = blender::animrig::id_action_ensure(bmain, &arm_obj->id);
   BKE_id_rename(*bmain, act->id, anim_query.GetPrim().GetName().GetText());
 
-  blender::animrig::Channelbag *channelbag = blender::animrig::action_channelbag_ensure(
+  blender::animrig::Channelbag &channelbag = blender::animrig::action_channelbag_ensure(
       *act, arm_obj->id);
 
   /* Create the curves. */
@@ -634,7 +634,7 @@ void import_blendshapes(Main *bmain,
 
   /* Create the animation and curves. */
   bAction *act = blender::animrig::id_action_ensure(bmain, &key->id);
-  blender::animrig::Channelbag *channelbag = blender::animrig::action_channelbag_ensure(*act,
+  blender::animrig::Channelbag &channelbag = blender::animrig::action_channelbag_ensure(*act,
                                                                                         key->id);
 
   blender::Vector<FCurve *> curves;
