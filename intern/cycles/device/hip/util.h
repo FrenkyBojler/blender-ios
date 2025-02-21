@@ -63,7 +63,17 @@ static inline bool hipSupportsDevice(const int hipDevId)
   hipDeviceGetAttribute(&major, hipDeviceAttributeComputeCapabilityMajor, hipDevId);
   hipDeviceGetAttribute(&minor, hipDeviceAttributeComputeCapabilityMinor, hipDevId);
 
-  return (major >= 10);
+  bool device_is_supported = (major >= 10);
+
+#  ifdef _WIN32
+  int driver_version;
+  hipDriverGetVersion(&driver_version);
+  /* Cycles crashes during rendering due to issues in the GPU driver unless the HIP driver version
+   * is new enough. */
+  device_is_supported &= (driver_version >= 60140252);
+#  endif
+
+  return device_is_supported;
 }
 
 static inline bool hipSupportsDeviceOIDN(const int hipDevId)
