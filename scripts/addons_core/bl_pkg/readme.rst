@@ -16,7 +16,7 @@ Add-on: Blender Modules
   Defines the extensions UI, select between add-ons, themes, tag-filtering.
 
 - ``bl_extension_ops.py``
-  Defines extension operators, this is the main entry point for extension logic (besides notifications).
+  Defines extension operators, this is the main entry point for extension logic (except notifications, see below).
 
   This module defines a mechanism for a modal operator to run commands as sub-processes
   monitoring their progress (via STDOUT).
