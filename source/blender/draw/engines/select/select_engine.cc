@@ -258,7 +258,7 @@ namespace blender {
 /* Return a new range if size `n` after `total_range` and grow `total_range` by the same amount. */
 static IndexRange alloc_range(IndexRange &total_range, uint size)
 {
-  IndexRange indices = total_range.after(size);
+  const IndexRange indices = total_range.after(size);
   total_range = IndexRange::from_begin_size(total_range.start(), total_range.size() + size);
   return indices;
 }

@@ -28,11 +28,11 @@ struct rcti;
 /* Indices inside the selection framebuffer associated with the elements of a mesh. */
 struct ElemIndexRanges {
   /* Range for each element type. */
-  blender::IndexRange face = {0, 0};
-  blender::IndexRange edge = {0, 0};
-  blender::IndexRange vert = {0, 0};
+  blender::IndexRange face;
+  blender::IndexRange edge;
+  blender::IndexRange vert;
   /* Combined range for the whole object. */
-  blender::IndexRange total = {0, 0};
+  blender::IndexRange total;
 };
 
 struct SELECTID_Context {
