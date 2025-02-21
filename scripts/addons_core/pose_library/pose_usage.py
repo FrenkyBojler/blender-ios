@@ -9,6 +9,7 @@ Pose Library - usage functions.
 from typing import Set
 import re
 import bpy
+from bpy_extras import anim_utils
 
 from bpy.types import (
     Action,
@@ -17,18 +18,28 @@ from bpy.types import (
 )
 
 
-def _find_best_slot(action: Action, object: Object) -> ActionSlot:
+def _find_best_slot(action: Action, object: Object) -> ActionSlot | None:
+    """
+    Trying to find a slot that is the best match for the given object.
+    The best slot is either
+    the slot of the given object if that exists in the action,
+    or the first slot of type object
+    """
     if not action.slots:
         return None
-    assigned_slot = None
+    anim_data = None
     # For the selection code, the object doesn't need to be animated yet.
-    if object.animation_data and object.animation_data.action_slot:
-        assigned_slot = object.animation_data.action_slot
+    if object.animation_data:
+        anim_data = object.animation_data
 
-    if assigned_slot and assigned_slot.identifier in action.slots:
-        return action.slots[assigned_slot.identifier]
+    # last_slot_identifier will equal to the current slot identifier if one is assigned.
+    if anim_data and anim_data.last_slot_identifier in action.slots:
+        return action.slots[anim_data.last_slot_identifier]
 
-    return action.slots[0]
+    for slot in action.slots:
+        if slot.target_id_type == "Object":
+            return slot
+    return None
 
 
 def select_bones(arm_object: Object, action: Action, *, select: bool, flipped: bool) -> None:
@@ -42,32 +53,30 @@ def select_bones(arm_object: Object, action: Action, *, select: bool, flipped: b
         return
 
     seen_bone_names: Set[str] = set()
-    for layer in action.layers:
-        for strip in layer.strips:
-            channelbag = strip.channelbag(slot)
-            if not channelbag:
-                continue
-            for fcurve in channelbag.fcurves:
-                data_path: str = fcurve.data_path
-                match = pose_bone_re.match(data_path)
-                if not match:
-                    continue
+    channelbag = anim_utils.action_get_channelbag_for_slot(action, slot)
+    if not channelbag:
+        return
+    for fcurve in channelbag.fcurves:
+        data_path: str = fcurve.data_path
+        regex_match = pose_bone_re.match(data_path)
+        if not regex_match:
+            continue
 
-                bone_name = match.group(1)
+        bone_name = regex_match.group(1)
 
-                if bone_name in seen_bone_names:
-                    continue
-                seen_bone_names.add(bone_name)
+        if bone_name in seen_bone_names:
+            continue
+        seen_bone_names.add(bone_name)
 
-                if flipped:
-                    bone_name = bpy.utils.flip_name(bone_name)
+        if flipped:
+            bone_name = bpy.utils.flip_name(bone_name)
 
-                try:
-                    pose_bone = pose.bones[bone_name]
-                except KeyError:
-                    continue
+        try:
+            pose_bone = pose.bones[bone_name]
+        except KeyError:
+            continue
 
-                pose_bone.bone.select = select
+        pose_bone.bone.select = select
 
 
 if __name__ == '__main__':
