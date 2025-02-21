@@ -208,7 +208,13 @@ Once drop is activated:
 Other checks are performed to ensure the repository exists locally.
 If the extension isn't found to be incompatible, the user may install it.
 
-Unfortunately chaining popups together (setup wizard) is not well supported in Blender.
+Dropping a URL may prompt the user for actions that need to be done before the extensions may be installed.
+
+- Dropping a URL with "Online Access" disabled prompts the user to enable online-access.
+- Dropping a URL from an unknown remote repository prompts the user to add the repository.
+- Otherwise, dropping the URL of a compatible extension will prompt the user to install the extension.
+
+Unfortunately chaining popups together (setup wizard) or merging popups together is not well supported in Blender.
 Causing some fairly bad worst-case scenarios when dropping a URL which isn't part of a known repository.
 
 
