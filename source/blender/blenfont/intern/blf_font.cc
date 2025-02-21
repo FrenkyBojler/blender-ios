@@ -1348,7 +1348,9 @@ static void blf_font_wrap_apply(FontBLF *font,
       /* Wrap the line at the previous space. */
       flush_line = true;
     }
-    else if (UNLIKELY(use_softwrap && ((i < str_len) && str[i]) == 0)) {
+    /* Overflow may happen here if this is the last character, since no new line will be created.
+     * Overflows must only happen for soft breaking. */
+    else if (UNLIKELY((font->wrap_type == FontWrapType::Soft) && ((i < str_len) && str[i]) == 0)) {
       /* Need check here for trailing newline, else we draw it. */
       wrap.last = i + ((g->c != '\n') ? 1 : 0);
       wrap.next = i;
