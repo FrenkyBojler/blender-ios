@@ -120,7 +120,7 @@ static void node_register()
   ntype.insert_link = node_insert_link;
   ntype.draw_buttons_ex = node_layout_ex;
   blender::bke::node_type_storage(
-      &ntype, "NodeGeometryClosureInput", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeGeometryClosureInput", node_free_standard_storage, node_copy_standard_storage);
   blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
@@ -196,8 +196,7 @@ static void node_register()
   ntype.register_operators = node_operators;
   ntype.insert_link = node_insert_link;
   ntype.draw_buttons_ex = node_layout_ex;
-  bke::node_type_storage(
-      &ntype, "NodeGeometryClosureOutput", node_free_storage, node_copy_storage);
+  bke::node_type_storage(ntype, "NodeGeometryClosureOutput", node_free_storage, node_copy_storage);
   blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)

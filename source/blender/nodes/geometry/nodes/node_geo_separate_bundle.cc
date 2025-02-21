@@ -141,7 +141,7 @@ static void node_register()
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.register_operators = node_operators;
   bke::node_type_storage(
-      &ntype, "NodeGeometrySeparateBundle", node_free_storage, node_copy_storage);
+      ntype, "NodeGeometrySeparateBundle", node_free_storage, node_copy_storage);
   blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)

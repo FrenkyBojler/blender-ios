@@ -592,8 +592,8 @@ bNodeSocket &Menu::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &s
 
 bNodeSocket &Bundle::build(bNodeTree &ntree, bNode &node) const
 {
-  bNodeSocket &socket = *bke::node_add_static_socket(&ntree,
-                                                     &node,
+  bNodeSocket &socket = *bke::node_add_static_socket(ntree,
+                                                     node,
                                                      this->in_out,
                                                      SOCK_BUNDLE,
                                                      PROP_NONE,
@@ -640,8 +640,8 @@ bNodeSocket &Bundle::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket 
 
 bNodeSocket &Closure::build(bNodeTree &ntree, bNode &node) const
 {
-  bNodeSocket &socket = *bke::node_add_static_socket(&ntree,
-                                                     &node,
+  bNodeSocket &socket = *bke::node_add_static_socket(ntree,
+                                                     node,
                                                      this->in_out,
                                                      SOCK_CLOSURE,
                                                      PROP_NONE,
