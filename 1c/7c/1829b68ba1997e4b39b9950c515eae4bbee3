@@ -1,2 +1,3 @@
 Referenced by issue #134758, Renaming a compositing node breaks that node's drivers
 Referenced by pull request #134936, Fix #134758: renaming a node breaks animation
+Referenced by commit 981e06f3bd2b12d790f8610a52398e1ad861a345, Fix #134758: renaming a node breaks animation
