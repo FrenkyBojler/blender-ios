@@ -177,10 +177,10 @@ it's a simple format that stores the Blender version & a magic number that can b
 changes to these files cause the cache to be re-generated.
 
 
-Dropping a URL
---------------
+Dragging & Dropping a URL
+-------------------------
 
-Dropping extensions is handled the same way as dropping images or other strings,
+Extensions drag & drop is handled the same way as dropping images or other strings,
 using Blender's drop-boxes.
 
 There are two drop-boxes used one for file-paths another for URL's.
