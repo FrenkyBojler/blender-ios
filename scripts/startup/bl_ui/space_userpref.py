@@ -1021,7 +1021,6 @@ class USERPREF_PT_theme(ThemePanel, Panel):
 
         row = split.row(align=True)
 
-
         # Unlike most presets (which use the classes bl_label),
         # themes store the path, use this when set.
         if filepath := context.preferences.themes[0].filepath:
