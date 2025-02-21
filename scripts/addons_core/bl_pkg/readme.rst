@@ -99,7 +99,7 @@ as it relates to how extensions are loaded by Blender.
 
    Unfortunately there is no special handling for version conflicts.
    When different versions of the same wheel are found, the latest version is installed.
-   This will break any extensions depending on the old version of a wheel.
+   This may break any extensions depending on the old version of a wheel.
 
 ``./scripts/modules/_bpy_internal/extensions/stale_file_manager.py``
    On MS-Windows it's common that files are locked and can't be deleted
