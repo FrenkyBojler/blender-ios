@@ -242,7 +242,9 @@ Inter Process Communication (IPC)
   to send feedback to the user.
 - Input is limited to the request to cancel
   (if the user cancels the operator or presses Control-C on the command line).
-- Internally actions are split up in small steps to avoid "hanging" once the user has requested to exit.
+- Internally functions are responsible for checking if the user has requested to exit.
+  This is especially important before IO or anything that could cause the process to wait
+  so as to avoid "hanging" once the user has requested to exit.
 
 All IPC is handled by ``bl_extension_utils.CommandBatch`` which can run multiple commands,
 a common case is running multiple updates at once.
