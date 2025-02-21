@@ -262,4 +262,4 @@ Tests can be run via the Make file using the local Python::
 
    make -C scripts/addons_core/bl_pkg test
 
-Besides ``test`` there are targets: ``check_mypy``, ``check_ruff`` & ``check_pylint``.
+Run the ``help`` target for a list of convenience targets to run checkers & tests.
