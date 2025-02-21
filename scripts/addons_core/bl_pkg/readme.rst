@@ -75,7 +75,8 @@ Add-on: Other Scripts
 Other Modules
 -------------
 
-Some functionality is included elsewhere as it relates to how extensions are loaded by Blender.
+Some functionality that's relevant to the extensions system is implemented in other modules,
+as it relates to how extensions are loaded by Blender.
 
 *Paths are relative to Blender's source tree.*
 
