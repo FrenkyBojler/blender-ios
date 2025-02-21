@@ -38,7 +38,7 @@ COMPUTE_SOURCE("subdiv_ibo_tris_comp.glsl")
 ADDITIONAL_INFO(subdiv_polygon_offset_base)
 GPU_SHADER_CREATE_END()
 
-GPU_SHADER_CREATE_INFO(subdiv_tris_multi_materials)
+GPU_SHADER_CREATE_INFO(subdiv_tris_multiple_materials)
 DO_STATIC_COMPILATION()
 STORAGE_BUF(TRIS_EXTRA_COARSE_FACE_DATA_BUF_SLOT, READ, uint, extra_coarse_face_data[])
 STORAGE_BUF(TRIS_OUTPUT_TRIS_BUF_SLOT, WRITE, uint, output_tris[])

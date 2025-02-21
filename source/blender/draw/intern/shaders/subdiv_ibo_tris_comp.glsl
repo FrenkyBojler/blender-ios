@@ -25,16 +25,14 @@ void main()
   }
 
   uint loop_index = quad_index * 4;
-
   uint coarse_quad_index = coarse_face_index_from_subdiv_quad_index(quad_index,
                                                                     shader_data.coarse_face_count);
 
 #ifdef SINGLE_MATERIAL
   uint triangle_loop_index = quad_index * 6;
 #else
-  int mat_offset = face_mat_offset[coarse_quad_index];
-
-  int triangle_loop_index = (int(quad_index) + mat_offset) * 6;
+  uint mat_offset = face_mat_offset[coarse_quad_index];
+  uint triangle_loop_index = (quad_index + mat_offset) * 6;
 #endif
 
   if (shader_data.use_hide && is_face_hidden(coarse_quad_index)) {
