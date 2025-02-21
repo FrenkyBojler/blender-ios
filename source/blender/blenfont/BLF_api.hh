@@ -284,6 +284,10 @@ void BLF_boundbox(int fontid,
  */
 float BLF_width(int fontid, const char *str, size_t str_len, ResultBLF *r_info = nullptr)
     ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(2);
+float BLF_width_wrapped(int fontid,
+                            const char *str,
+                            const size_t str_len,
+                            ResultBLF *r_info = nullptr);
 float BLF_height(int fontid, const char *str, size_t str_len, ResultBLF *r_info = nullptr)
     ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(2);
 

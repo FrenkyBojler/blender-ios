@@ -1028,6 +1028,35 @@ float blf_font_height(FontBLF *font, const char *str, const size_t str_len, Resu
   return float(BLI_rcti_size_y(&box)) * ya;
 }
 
+float blf_font_width_wrapped(FontBLF *font,
+                             const char *str,
+                             const size_t str_len,
+                             ResultBLF *r_info)
+{
+  float xa;
+  rcti box;
+
+  if (font->flags & BLF_ASPECT) {
+    xa = font->aspect[0];
+  }
+  else {
+    xa = 1.0f;
+  }
+
+  if (font->flags & BLF_WORD_WRAP) {
+    ResultBLF info;
+    blf_font_boundbox__wrap(font, str, str_len, &box, &info);
+    if (r_info) {
+      *r_info = info;
+    }
+    /* The size of each line except of the last one, plus the size of the last line. */
+    return info.lines > 0 ? float((info.lines - 1) * BLI_rcti_size_x(&box) + info.width) * xa : 0;
+  }
+
+  blf_font_boundbox(font, str, str_len, &box, r_info);
+  return float(BLI_rcti_size_x(&box)) * xa;
+}
+
 float blf_font_fixed_width(FontBLF *font)
 {
   const GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
@@ -1319,7 +1348,7 @@ static void blf_font_wrap_apply(FontBLF *font,
       /* Wrap the line at the previous space. */
       flush_line = true;
     }
-    else if (UNLIKELY(((i < str_len) && str[i]) == 0)) {
+    else if (UNLIKELY(use_softwrap && ((i < str_len) && str[i]) == 0)) {
       /* Need check here for trailing newline, else we draw it. */
       wrap.last = i + ((g->c != '\n') ? 1 : 0);
       wrap.next = i;
@@ -1346,13 +1375,21 @@ static void blf_font_wrap_apply(FontBLF *font,
     /* If no space or newline character, allow hard wrapping if enabled. */
     else if (UNLIKELY(use_hardwrap && (pen_x_next >= wrap.wrap_width))) {
       wrap.last = i_curr;
+      wrap.next = i_curr;
+      flush_line = true;
+      strip_last_char = false;
+    }
+    else if (UNLIKELY(use_hardwrap && ((i < str_len) && str[i]) == 0)) {
+      /* Need check here for trailing newline, else we draw it. */
+      wrap.last = i;
       wrap.next = i;
       flush_line = true;
       strip_last_char = false;
     }
 
-    if (UNLIKELY(flush_line) && (str[wrap.start] != '\0')) {
-#if 1
+    if (UNLIKELY(flush_line)) {
+      BLI_assert(wrap.start < str_len);
+#if 0
       printf("(%03lu..%03lu)  `%.*s`\n",
              wrap.start,
              wrap.last,

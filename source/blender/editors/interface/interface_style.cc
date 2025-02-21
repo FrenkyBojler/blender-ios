@@ -263,6 +263,7 @@ void UI_fontstyle_draw_multiline_clipped_ex(const uiFontStyle *fs,
 {
   int xofs = 0, yofs;
   int font_flag = BLF_CLIPPING | BLF_WORD_WRAP;
+  // int font_flag = BLF_WORD_WRAP;
 
   UI_fontstyle_set(fs);
 
@@ -298,17 +299,15 @@ void UI_fontstyle_draw_multiline_clipped_ex(const uiFontStyle *fs,
   /* First, try if mixed-wrapping (soft wrapping plus hard wrapping for overflowing lines) gives a
    * result that fits. */
   BLF_wordwrap(fs->uifont_id, max_width, FontWrapType::Mixed);
+  // BLF_wordwrap(fs->uifont_id, max_width, FontWrapType::Hard);
   blender::Vector<blender::StringRef> lines = BLF_string_wrap(fs->uifont_id, str, max_width);
 
   char new_drawstr[UI_MAX_DRAW_STR];
-  /* If soft-wrapping doesn't fit, . */
+  /* If soft-wrapping doesn't fit, clip the string and apply hard wrapping. */
   if (lines.size() > max_line_count) {
     STRNCPY(new_drawstr, str);
-    /* Wrapping messes up shortening/clipping, disable it. */
-    BLF_disable(fs->uifont_id, BLF_WORD_WRAP);
     const float new_width = UI_text_clip_middle_ex(
         fs, new_drawstr, max_width * max_line_count, UI_ICON_SIZE, sizeof(new_drawstr), '\0');
-    BLF_enable(fs->uifont_id, BLF_WORD_WRAP);
 
     /* Optimization: We already know the shortened string fits, skip line wrapping calculations. */
     if (new_width <= max_width) {
@@ -318,10 +317,15 @@ void UI_fontstyle_draw_multiline_clipped_ex(const uiFontStyle *fs,
       BLF_wordwrap(fs->uifont_id, max_width, FontWrapType::Hard);
       lines = BLF_string_wrap(fs->uifont_id, new_drawstr, max_width);
     }
-    BLI_assert(lines.size() <= max_line_count);
   }
 
+  // BLI_assert(lines.size() <= max_line_count);
+
+  /* Manually draw lines without BLF wrapping.  */
+  BLF_disable(fs->uifont_id, BLF_WORD_WRAP);
+
   ResultBLF line_result = {0, 0};
+  int largest_width = -100000;
   /* Draw each line with the given alignment. */
   for (StringRef line : lines) {
     /* String wrapping might have trailing/leading whitespace. */
@@ -337,11 +341,13 @@ void UI_fontstyle_draw_multiline_clipped_ex(const uiFontStyle *fs,
 
     BLF_position(fs->uifont_id, rect->xmin + xofs, rect->ymin + yofs, 0.0f);
     BLF_draw(fs->uifont_id, line.data(), line.size(), &line_result);
+
+    largest_width = std::max(largest_width, line_result.width);
     yofs -= line_height;
   }
 
   if (r_info) {
-    r_info->width = line_result.width;
+    r_info->width = largest_width;
     r_info->lines = lines.size();
   }
 

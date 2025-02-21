@@ -1494,7 +1494,7 @@ float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
   /* need to set this first */
   UI_fontstyle_set(fstyle);
 
-  float strwidth = BLF_width(fstyle->uifont_id, str, max_len);
+  float strwidth = BLF_width_wrapped(fstyle->uifont_id, str, max_len);
 
   if ((okwidth > 0.0f) && (strwidth > okwidth)) {
     const char sep[] = BLI_STR_UTF8_HORIZONTAL_ELLIPSIS;
@@ -1565,7 +1565,7 @@ float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
         /* -1 to remove trailing '\0'! */
         final_lpart_len = size_t(l_end + sep_len + r_len - 1);
 
-        while (BLF_width(fstyle->uifont_id, str, max_len) > okwidth) {
+        while (BLF_width_wrapped(fstyle->uifont_id, str, max_len) > okwidth) {
           /* This will happen because a lot of string width processing is done in integer pixels,
            * which can introduce a rather high error in the end (about 2 pixels or so).
            * Only one char removal shall ever be needed in real-life situation... */
@@ -1583,7 +1583,7 @@ float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
       okwidth += rpart_width;
     }
 
-    strwidth = BLF_width(fstyle->uifont_id, str, max_len);
+    strwidth = BLF_width_wrapped(fstyle->uifont_id, str, max_len);
   }
 
   /* The following assert is meant to catch code changes that break this function's result, but

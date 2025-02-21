@@ -810,6 +810,19 @@ float BLF_width(int fontid, const char *str, const size_t str_len, ResultBLF *r_
   return 0.0f;
 }
 
+float BLF_width_wrapped(int fontid, const char *str, const size_t str_len, ResultBLF *r_info)
+{
+  FontBLF *font = blf_get(fontid);
+
+  BLF_RESULT_CHECK_INIT(r_info);
+
+  if (font) {
+    return blf_font_width_wrapped(font, str, str_len, r_info);
+  }
+
+  return 0.0f;
+}
+
 float BLF_fixed_width(int fontid)
 {
   FontBLF *font = blf_get(fontid);

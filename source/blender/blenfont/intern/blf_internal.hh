@@ -145,6 +145,10 @@ void blf_font_width_and_height(FontBLF *font,
                                ResultBLF *r_info);
 float blf_font_width(FontBLF *font, const char *str, size_t str_len, ResultBLF *r_info);
 float blf_font_height(FontBLF *font, const char *str, size_t str_len, ResultBLF *r_info);
+float blf_font_width_wrapped(FontBLF *font,
+                             const char *str,
+                             const size_t str_len,
+                             ResultBLF *r_info);
 float blf_font_fixed_width(FontBLF *font);
 int blf_font_glyph_advance(FontBLF *font, const char *str);
 int blf_font_height_max(FontBLF *font);
