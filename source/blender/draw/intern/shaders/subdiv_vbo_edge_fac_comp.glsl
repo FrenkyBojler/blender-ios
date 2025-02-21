@@ -12,32 +12,6 @@ COMPUTE_SHADER_CREATE_INFO(subdiv_edge_fac_amd_legacy)
 COMPUTE_SHADER_CREATE_INFO(subdiv_edge_fac)
 #endif
 
-#if 0
-layout(std430, binding = 0) readonly buffer inputVertexData
-{
-  PosNorLoop pos_nor[];
-};
-
-layout(std430, binding = 1) readonly buffer inputEdgeDrawFlag
-{
-  uint input_edge_draw_flag[];
-};
-
-layout(std430, binding = 2) readonly buffer inputPolyOtherMap
-{
-  int input_poly_other_map[];
-};
-
-layout(std430, binding = 3) writeonly buffer outputEdgeFactors
-{
-#  ifdef GPU_AMD_DRIVER_BYTE_BUG
-  float output_edge_fac[];
-#  else
-  uint output_edge_fac[];
-#  endif
-};
-#endif
-
 void write_vec4(uint index, vec4 edge_facs)
 {
 #ifdef GPU_AMD_DRIVER_BYTE_BUG
