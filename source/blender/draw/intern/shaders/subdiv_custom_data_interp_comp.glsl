@@ -183,7 +183,8 @@ void main()
   uint start_loop_index = quad_index * 4;
 
   /* Find which coarse polygon we came from. */
-  uint coarse_face = coarse_face_index_from_subdiv_quad_index(quad_index, shader_data.coarse_face_count);
+  uint coarse_face = coarse_face_index_from_subdiv_quad_index(quad_index,
+                                                              shader_data.coarse_face_count);
   uint loop_start = get_loop_start(coarse_face);
 
   /* Find the number of vertices for the coarse polygon. */

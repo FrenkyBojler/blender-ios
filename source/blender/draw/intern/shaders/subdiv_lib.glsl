@@ -62,7 +62,6 @@ uint get_global_invocation_index()
   return gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * invocations_per_row;
 }
 
-
 vec2 decode_uv(uint encoded_uv)
 {
   float u = float((encoded_uv >> 16) & 0xFFFFu) / 65535.0;

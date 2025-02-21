@@ -239,21 +239,21 @@ ADDITIONAL_INFO(subdiv_custom_data_4d_base)
 ADDITIONAL_INFO(subdiv_custom_data_f32_base)
 GPU_SHADER_CREATE_END()
 #else
-#define SUBDIV_CUSTOM_DATA_DIMENSION_VARIATIONS(prefix, ...) \
-  CREATE_INFO_VARIANT(prefix##_1d, subdiv_custom_data_1d_base, __VA_ARGS__)
+#  define SUBDIV_CUSTOM_DATA_DIMENSION_VARIATIONS(prefix, ...) \
+    CREATE_INFO_VARIANT(prefix##_1d, subdiv_custom_data_1d_base, __VA_ARGS__)
 CREATE_INFO_VARIANT(prefix##_2d, subdiv_custom_data_2d_base, __VA_ARGS__)
 CREATE_INFO_VARIANT(prefix##_3d, subdiv_custom_data_3d_base, __VA_ARGS__)
 CREATE_INFO_VARIANT(prefix##_4d, subdiv_custom_data_4d_base, __VA_ARGS__)
 
-#define SUBDIV_CUSTOM_DATA_DATA_TYPE_VARIATIONS(prefix, ...) \
-  SUBDIV_CUSTOM_DATA_DIMENSION_VARIATIONS(prefix##_u16, subdiv_custom_data_u16_base, __VA_ARGS__)
+#  define SUBDIV_CUSTOM_DATA_DATA_TYPE_VARIATIONS(prefix, ...) \
+    SUBDIV_CUSTOM_DATA_DIMENSION_VARIATIONS(prefix##_u16, subdiv_custom_data_u16_base, __VA_ARGS__)
 SUBDIV_CUSTOM_DATA_DIMENSION_VARIATIONS(prefix##_i32, subdiv_custom_data_i32_base, __VA_ARGS__)
 SUBDIV_CUSTOM_DATA_DIMENSION_VARIATIONS(prefix##_f32, subdiv_custom_data_f32_base, __VA_ARGS__)
 
 SUBDIV_CUSTOM_DATA_DATA_TYPE_VARIATIONS(subdiv_custom_data_interp, subdiv_custom_data_base)
 
-#undef SUBDIV_CUSTOM_DATA_DATA_TYPE_VARIATIONS
-#undef SUBDIV_CUSTOM_DATA_DIMENSION_VARIATIONS
+#  undef SUBDIV_CUSTOM_DATA_DATA_TYPE_VARIATIONS
+#  undef SUBDIV_CUSTOM_DATA_DIMENSION_VARIATIONS
 #endif
 /** \} */
 
