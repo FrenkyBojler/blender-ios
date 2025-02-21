@@ -253,12 +253,10 @@ The caller can use methods on the CommandBatch to access the status and report a
 Tooling
 =======
 
-The tests are not yet integrated into CTest.
+The tests are not yet integrated into CTest
+because some tests depend on the ``wheel`` module (not distributed with Blender's Python).
 
-Some of the tests require the ``wheel`` package to be installed locally via ``pip``,
-used for generating ``*.whl`` files.
-
-Tests can be run via the Make file using the local Python::
+Tests can be run via the ``Makefile`` using the local Python::
 
    make -C scripts/addons_core/bl_pkg test
 
