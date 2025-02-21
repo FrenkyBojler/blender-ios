@@ -395,29 +395,38 @@ GPUShader *DRW_shader_subdiv_custom_data_get(GPUVertCompType comp_type, int dime
   GPUShader *&shader = e_data.subdiv_custom_data_sh[dimensions - 1][comp_type];
 
   if (shader == nullptr) {
-    SubdivShaderType shader_type = SubdivShaderType(
-        uint(SubdivShaderType::COMP_CUSTOM_DATA_INTERP_1D) + dimensions - 1);
-    const blender::StringRefNull compute_code = get_subdiv_shader_code(shader_type);
-
-    std::string defines = "#define SUBDIV_POLYGON_OFFSET\n";
-    defines += "#define DIMENSIONS " + std::to_string(dimensions) + "\n";
-    switch (comp_type) {
-      case GPU_COMP_U16:
-        defines += "#define GPU_COMP_U16\n";
+    std::string info_name = "subdiv_custom_data_interp";
+    switch (dimensions) {
+      case 1:
+        info_name += "_1d";
         break;
-      case GPU_COMP_I32:
-        defines += "#define GPU_COMP_I32\n";
+      case 2:
+        info_name += "_2d";
         break;
-      case GPU_COMP_F32:
-        /* float is the default */
+      case 3:
+        info_name += "_3d";
+        break;
+      case 4:
+        info_name += "_4d";
         break;
       default:
         BLI_assert_unreachable();
-        break;
     }
 
-    shader = GPU_shader_create_compute(
-        compute_code, datatoc_subdiv_lib_glsl, defines, get_subdiv_shader_name(shader_type));
+    switch (comp_type) {
+      case GPU_COMP_U16:
+        info_name += "_u16";
+        break;
+      case GPU_COMP_I32:
+        info_name += "_u16";
+        break;
+      case GPU_COMP_F32:
+        info_name += "_f32";
+        break;
+      default:
+        BLI_assert_unreachable();
+    }
+    shader = GPU_shader_create_from_info_name(info_name.c_str());
   }
   return shader;
 }

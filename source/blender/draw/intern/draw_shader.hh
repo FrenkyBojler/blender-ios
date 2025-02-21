@@ -41,6 +41,7 @@ enum class SubdivShaderType {
   PATCH_EVALUATION_FACE_DOTS = 11,
   PATCH_EVALUATION_FACE_DOTS_WITH_NORMALS = 12,
   PATCH_EVALUATION_ORCO = 13,
+  /* TODO: remove custom data types as they are not used outside `draw_shader.cc` */
   COMP_CUSTOM_DATA_INTERP_1D = 14,
   COMP_CUSTOM_DATA_INTERP_2D = 15,
   COMP_CUSTOM_DATA_INTERP_3D = 16,
