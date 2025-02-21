@@ -137,6 +137,10 @@ typedef struct Image_Runtime {
   /* Compositor viewer might be translated, and that translation will be stored in this runtime
    * vector by the compositor so that the editor draw code can draw the image translated. */
   float backdrop_offset[2];
+
+  void *_pad;
+  /* The Depsgraph::update_count when this ID was last updated. Covers any IDRecalcFlag. */
+  uint64_t last_update;
 } Image_Runtime;
 
 typedef struct Image {

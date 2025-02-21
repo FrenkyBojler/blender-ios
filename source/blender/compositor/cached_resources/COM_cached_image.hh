@@ -69,6 +69,8 @@ class CachedImageContainer : CachedResourceContainer {
  private:
   Map<std::string, Map<CachedImageKey, std::unique_ptr<CachedImage>>> map_;
 
+  Map<std::string, uint64_t> update_ids_;
+
  public:
   void reset() override;
 

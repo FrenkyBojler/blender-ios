@@ -411,14 +411,18 @@ Result CachedImageContainer::get(Context &context,
   const std::string id_key = std::string(image->id.name) + library_key;
   auto &cached_images_for_id = map_.lookup_or_add_default(id_key);
 
-  /* Invalidate the cache for that image ID if it was changed and reset the recalculate flag. */
-  if (context.query_id_recalc_flag(reinterpret_cast<ID *>(image)) & ID_RECALC_ALL) {
+  /* Invalidate the cache for that image ID if it was changed. */
+  if (!cached_images_for_id.is_empty() && image->runtime.last_update != update_ids_.lookup(id_key))
+  {
     cached_images_for_id.clear();
   }
 
   auto &cached_image = *cached_images_for_id.lookup_or_add_cb(key, [&]() {
     return std::make_unique<CachedImage>(context, image, &image_user_for_frame, pass_name);
   });
+
+  /* Set the update ID to its last update ID when it was cached. */
+  update_ids_.add_overwrite(id_key, image->runtime.last_update);
 
   cached_image.needed = true;
   return cached_image.result;

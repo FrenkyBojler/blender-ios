@@ -296,6 +296,8 @@ static void image_changed(Main *bmain, Image *ima)
       texture_changed(bmain, tex);
     }
   }
+
+  ima->runtime.last_update++;
 }
 
 static void scene_changed(Main *bmain, Scene *scene)
