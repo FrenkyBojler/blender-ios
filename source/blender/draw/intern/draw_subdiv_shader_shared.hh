@@ -74,5 +74,3 @@ struct CustomNormal {
   float y;
   float z;
 };
-
-
