@@ -221,7 +221,7 @@ as well as files for a Python package for add-ons or an XML for themes.
 Repositories
 ------------
 
-Information about repositories is stored in user preferences,
+Information about repositories is stored in user preferences.
 The main values are a unique name, module path & optionally a remote URL.
 
 When the URL is set this is used for synchronizing updates.
