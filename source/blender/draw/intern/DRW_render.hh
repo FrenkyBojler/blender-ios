@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include "BLI_math_vector_types.hh"
 #include "DNA_object_enums.h"
 
 #include "GPU_material.hh"
@@ -105,8 +106,7 @@ void DRW_shader_queue_optimize_material(GPUMaterial *mat);
 
 /* Viewport. */
 
-const float *DRW_viewport_size_get();
-const float *DRW_viewport_invert_size_get();
+blender::float2 DRW_viewport_size_get();
 
 DefaultFramebufferList *DRW_viewport_framebuffer_list_get();
 DefaultTextureList *DRW_viewport_texture_list_get();
@@ -165,10 +165,6 @@ DrawData *DRW_drawdata_ensure(ID *id,
                               size_t size,
                               DrawDataInitCb init_cb,
                               DrawDataFreeCb free_cb);
-/**
- * Return nullptr if not a dupli or a pointer of pointer to the engine data.
- */
-void **DRW_duplidata_get(void *vedata);
 
 /* Settings. */
 
