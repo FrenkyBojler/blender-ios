@@ -1785,13 +1785,13 @@ static void draw_subdiv_cache_ensure_mat_offsets(DRWSubdivCache &cache,
 }
 
 /**
- * The evaluator are owned by the `OpenSubdiv_EvaluatorCache` is being referenced by all
- * `bke::subdiv::Subdiv->evaluator`. We can't free the evaluator cache until all references are
- * freed. Therefore, since this evaluator cache is global, we cannot allow concurent usage and need
- * synchronization. The user counting allows to free the evaluator when there is no more subdiv.
+ * The evaluators are owned by the `OpenSubdiv_EvaluatorCache` which is being referenced by
+ * `bke::subdiv::Subdiv->evaluator`. So the evaluator cache cannot be freed until all references
+ * are gone. The user counting allows to free the evaluator when there is no more subdiv.
  */
 static OpenSubdiv_EvaluatorCache *g_subdiv_evaluator_cache = nullptr;
 static uint64_t g_subdiv_evaluator_users = 0;
+/* The evaluator cache is global, so we cannot allow concurent usage and need synchronization. */
 static std::mutex g_subdiv_eval_mutex;
 
 static bool draw_subdiv_create_requested_buffers(Object &ob,
