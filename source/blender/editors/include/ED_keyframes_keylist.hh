@@ -208,6 +208,21 @@ void summary_to_keylist(bAnimContext *ac,
                         int saction_flag,
                         blender::float2 range);
 
+void action_slot_summary_to_keylist(bAnimContext *ac,
+                                    AnimData *adt,
+                                    blender::animrig::Action &action,
+                                    blender::animrig::slot_handle_t slot_handle,
+                                    AnimKeylist *keylist,
+                                    const int saction_flag,
+                                    blender::float2 range);
+
+void action_summary_to_keylist(bAnimContext *ac,
+                               AnimData *adt,
+                               bAction *dna_action,
+                               AnimKeylist *keylist,
+                               const int saction_flag,
+                               blender::float2 range);
+
 /* Grease Pencil datablock summary (Legacy) */
 void gpencil_to_keylist(bDopeSheet *ads, bGPdata *gpd, AnimKeylist *keylist, bool active);
 

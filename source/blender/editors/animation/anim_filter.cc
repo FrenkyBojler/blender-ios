@@ -1553,12 +1553,12 @@ static size_t animfilter_act_group(bAnimContext *ac,
 /**
  * Add a channel for each Slot, with their FCurves when the Slot is expanded.
  */
-static size_t animfilter_action_slot(bAnimContext *ac,
-                                     ListBase *anim_data,
-                                     animrig::Action &action,
-                                     animrig::Slot &slot,
-                                     const eAnimFilter_Flags filter_mode,
-                                     ID *animated_id)
+size_t ANIM_animfilter_action_slot(bAnimContext *ac,
+                                   ListBase *anim_data,
+                                   animrig::Action &action,
+                                   animrig::Slot &slot,
+                                   const eAnimFilter_Flags filter_mode,
+                                   ID *animated_id)
 {
   /* Don't include anything from this animation if it is linked in from another
    * file, and we're getting stuff for editing... */
@@ -1658,7 +1658,8 @@ static size_t animfilter_action_slots(bAnimContext *ac,
       /* This is not necessarily correct, but at least it prevents nullptr dereference. */
       animated_id = owner_id;
     }
-    num_items += animfilter_action_slot(ac, anim_data, action, *slot, filter_mode, animated_id);
+    num_items += ANIM_animfilter_action_slot(
+        ac, anim_data, action, *slot, filter_mode, animated_id);
   }
 
   return num_items;
@@ -1726,7 +1727,7 @@ static size_t animfilter_action(bAnimContext *ac,
     /* Can happen when an Action is assigned, but not a Slot. */
     return 0;
   }
-  return animfilter_action_slot(ac, anim_data, action, *slot, filter_mode, owner_id);
+  return ANIM_animfilter_action_slot(ac, anim_data, action, *slot, filter_mode, owner_id);
 }
 
 /* Include NLA-Data for NLA-Editor:

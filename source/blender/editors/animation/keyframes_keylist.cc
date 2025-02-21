@@ -978,6 +978,76 @@ void summary_to_keylist(bAnimContext *ac,
   ANIM_animdata_freelist(&anim_data);
 }
 
+void action_slot_summary_to_keylist(bAnimContext *ac,
+                                    AnimData *adt,
+                                    animrig::Action &action,
+                                    const animrig::slot_handle_t slot_handle,
+                                    AnimKeylist *keylist,
+                                    const int saction_flag,
+                                    blender::float2 range)
+{
+  // for (FCurve *fcurve : fcurves_for_action_slot(action, slot_handle)) {
+  //   fcurve_to_keylist(adt, fcurve, keylist, saction_flag, range, true);
+  // }
+
+  printf("LOOOOOOOO\n");
+
+  BLI_assert(GS(action.id.name) == ID_AC);
+
+  if (!ac || !ac->obact) {
+    return;
+  }
+
+  animrig::Slot *slot = action.slot_for_handle(slot_handle);
+  BLI_assert(slot);
+
+  ListBase anim_data = {nullptr, nullptr};
+
+  /* Get F-Curves to take keyframes from. */
+  const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE;
+  ANIM_animfilter_action_slot(ac, &anim_data, action, *slot, filter, &ac->obact->id);
+
+  printf("FOOOOOOOO\n");
+  LISTBASE_FOREACH (const bAnimListElem *, ale, &anim_data) {
+    printf("HALLOOOO\n");
+    /* As of the writing of this code, Actions ultimately only contain FCurves.
+     * If/when that changes in the future, this may need to be updated. */
+    if (ale->datatype != ALE_FCURVE) {
+      continue;
+    }
+    fcurve_to_keylist(ale->adt,
+                      static_cast<FCurve *>(ale->data),
+                      keylist,
+                      saction_flag,
+                      range,
+                      ANIM_nla_mapping_allowed(ale));
+  }
+
+  ANIM_animdata_freelist(&anim_data);
+}
+
+void action_summary_to_keylist(bAnimContext *ac,
+                               AnimData *adt,
+                               bAction *dna_action,
+                               AnimKeylist *keylist,
+                               const int saction_flag,
+                               blender::float2 range)
+{
+  if (!dna_action) {
+    return;
+  }
+
+  blender::animrig::Action &action = dna_action->wrap();
+  BLI_assert(action.is_action_layered());
+
+  /**
+   * Assumption: the animation is bound to adt->slot_handle. This assumption will break when we
+   * have things like reference strips, where the strip can reference another slot handle.
+   */
+  BLI_assert(adt);
+  action_slot_summary_to_keylist(ac, adt, action, adt->slot_handle, keylist, saction_flag, range);
+}
+
 void scene_to_keylist(bDopeSheet *ads,
                       Scene *sce,
                       AnimKeylist *keylist,

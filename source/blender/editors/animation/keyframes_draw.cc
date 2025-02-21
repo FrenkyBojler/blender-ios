@@ -453,18 +453,20 @@ static void build_channel_keylist(ChannelListElement *elem, blender::float2 rang
       break;
     }
     case ChannelType::ACTION_LAYERED: {
-      action_to_keylist(elem->adt, elem->act, elem->keylist, elem->saction_flag, range);
+      action_summary_to_keylist(
+          elem->ac, elem->adt, elem->act, elem->keylist, elem->saction_flag, range);
       break;
     }
     case ChannelType::ACTION_SLOT: {
       BLI_assert(elem->act);
       BLI_assert(elem->action_slot);
-      action_slot_to_keylist(elem->adt,
-                             elem->act->wrap(),
-                             elem->action_slot->handle,
-                             elem->keylist,
-                             elem->saction_flag,
-                             range);
+      action_slot_summary_to_keylist(elem->ac,
+                                     elem->adt,
+                                     elem->act->wrap(),
+                                     elem->action_slot->handle,
+                                     elem->keylist,
+                                     elem->saction_flag,
+                                     range);
       break;
     }
     case ChannelType::ACTION_LEGACY: {

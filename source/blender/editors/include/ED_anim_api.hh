@@ -55,6 +55,11 @@ struct PropertyRNA;
 
 struct MPathTarget;
 
+namespace blender::animrig {
+class Action;
+class Slot;
+}  // namespace blender::animrig
+
 /* ************************************************ */
 /* ANIMATION CHANNEL FILTERING */
 /* `anim_filter.cc` */
@@ -516,6 +521,13 @@ ENUM_OPERATORS(eAnimFilter_Flags, ANIMFILTER_TMP_IGNORE_ONLYSEL);
 /* -------------------------------------------------------------------- */
 /** \name Public API
  * \{ */
+
+size_t ANIM_animfilter_action_slot(bAnimContext *ac,
+                                   ListBase *anim_data,
+                                   blender::animrig::Action &action,
+                                   blender::animrig::Slot &slot,
+                                   const eAnimFilter_Flags filter_mode,
+                                   ID *animated_id);
 
 /**
  * This function filters the active data source to leave only animation channels suitable for
