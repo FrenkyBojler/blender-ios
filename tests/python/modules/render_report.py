@@ -584,6 +584,9 @@ class Report:
             else:
                 print_message(test.name, 'SUCCESS', 'OK')
 
+            if os.path.exists(test.tmp_out_img):
+                os.remove(test.tmp_out_img)
+
         return test_results
 
     def _run_all_tests(self, dirname, dirpath, blender, arguments_cb, batch, fail_silently):
