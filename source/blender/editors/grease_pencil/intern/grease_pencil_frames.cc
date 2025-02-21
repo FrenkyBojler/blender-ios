@@ -804,7 +804,7 @@ static int grease_pencil_frame_duplicate_exec(bContext *C, wmOperator *op)
   const int current_frame = scene->r.cfra;
   bool changed = false;
 
-   auto insert_duplicate_frame = [&](Layer &layer, std::optional<int> active_frame_number) {
+  auto insert_duplicate_frame = [&](Layer &layer, std::optional<int> active_frame_number) {
     if (!active_frame_number.has_value()) {
       return false;
     }
