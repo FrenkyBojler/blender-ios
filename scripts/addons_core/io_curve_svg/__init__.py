@@ -49,17 +49,18 @@ class ImportSVG(bpy.types.Operator, ImportHelper):
 
     def execute(self, context):
         from . import import_svg
-    
-        if not self.files:
+
+        if self.files:
+            ret = {'CANCELLED'}
+            dirname = os.path.dirname(self.filepath)
+            for file in self.files:
+                path = os.path.join(dirname, file.name)
+                if import_svg.load(self, context, filepath=path) == {'FINISHED'}:
+                    ret = {'FINISHED'}
+            return ret
+        else:
             return import_svg.load(self, context, filepath=self.filepath)
 
-        ret = {'CANCELLED'}
-        dirname = os.path.dirname(self.filepath)
-        for file in self.files:
-            path = os.path.join(dirname, file.name)
-            if import_svg.load(self, context, filepath=path) == {'FINISHED'}:
-                ret = {'FINISHED'}
-        return ret
 
 
 def menu_func_import(self, context):
