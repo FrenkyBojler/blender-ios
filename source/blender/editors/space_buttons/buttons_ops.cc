@@ -34,6 +34,7 @@
 #include "ED_undo.hh"
 
 #include "RNA_access.hh"
+#include "RNA_define.hh"
 #include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
@@ -426,6 +427,11 @@ void BUTTONS_OT_file_browse(wmOperatorType *ot)
                                  WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH,
                                  FILE_DEFAULTDISPLAY,
                                  FILE_SORT_DEFAULT);
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_string(ot->srna, "filter_glob", nullptr, 0, "Glob Filter", "Custom filter");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 void BUTTONS_OT_directory_browse(wmOperatorType *ot)
