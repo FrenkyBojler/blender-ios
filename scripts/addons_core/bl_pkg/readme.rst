@@ -244,7 +244,7 @@ Inter Process Communication (IPC)
   (if the user cancels the operator or presses Control-C on the command line).
 - Internally actions are split up in small steps to avoid "hanging" once the user has requested to exit.
 
-Most IPC is handled by ``bl_extension_utils.CommandBatch`` which can run multiple commands,
+All IPC is handled by ``bl_extension_utils.CommandBatch`` which can run multiple commands,
 a common case is running multiple updates at once.
 
 The caller can use methods on the CommandBatch to access the status and report any problems.
