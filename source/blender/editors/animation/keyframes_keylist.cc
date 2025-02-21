@@ -978,6 +978,7 @@ void summary_to_keylist(bAnimContext *ac,
   ANIM_animdata_freelist(&anim_data);
 }
 
+/* TODO: we no longer use the `adt` parameter.  Remove. */
 void action_slot_summary_to_keylist(bAnimContext *ac,
                                     AnimData *adt,
                                     animrig::Action &action,
@@ -986,21 +987,12 @@ void action_slot_summary_to_keylist(bAnimContext *ac,
                                     const int saction_flag,
                                     blender::float2 range)
 {
-  // for (FCurve *fcurve : fcurves_for_action_slot(action, slot_handle)) {
-  //   fcurve_to_keylist(adt, fcurve, keylist, saction_flag, range, true);
-  // }
-
-  printf("LOOOOOOOO\n");
-
   BLI_assert(GS(action.id.name) == ID_AC);
 
-  if (!ac) {
-    printf("AAAAAAAAAAAAA\n");
-    return;
-  }
-
-  if (!ac->obact) {
-    printf("BBBBBBBBBBB\n");
+  /* TODO: a null obact might actually be fine, if
+   * `ANIM_animfilter_action_slot()` accepts a null ID.  Check that out and
+   * update appropriately. */
+  if (!ac | !ac->obact) {
     return;
   }
 
@@ -1013,9 +1005,7 @@ void action_slot_summary_to_keylist(bAnimContext *ac,
   const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE;
   ANIM_animfilter_action_slot(ac, &anim_data, action, *slot, filter, &ac->obact->id);
 
-  printf("FOOOOOOOO\n");
   LISTBASE_FOREACH (const bAnimListElem *, ale, &anim_data) {
-    printf("HALLOOOO\n");
     /* As of the writing of this code, Actions ultimately only contain FCurves.
      * If/when that changes in the future, this may need to be updated. */
     if (ale->datatype != ALE_FCURVE) {
