@@ -523,13 +523,15 @@ class NODE_OT_viewer_shortcut_get(Operator):
         return {"FINISHED"}
 
 
-class NODE_OT_swap_node(Operator):
+class NODE_OT_swap_node(NodeAddOperator, Operator):
     bl_idname = "node.swap_node"
     bl_label = "Swap Node" 
     bl_options = {"REGISTER", "UNDO"}
 
-    # node_type: StringProperty(name="New Node", default="GeometryNodeJoinGeometry")
-    menu_idname: StringProperty(name="Menu ID", default="NODE_MT_add")
+    type: StringProperty(
+        name="Node Type",
+        description="Node type",
+    )
     
     @classmethod
     def poll(cls, context):
@@ -538,29 +540,12 @@ class NODE_OT_swap_node(Operator):
             and (context.area.type == "NODE_EDITOR")
             and (context.active_node is not None)
         )
-    
-    def invoke(self, context, event):
+
+    def execute(self, context):
         self.old_node = context.active_node
         self.current_nodes = [node for node in self.old_node.id_data.nodes]
+        self.create_node(context, self.type)
         
-        context.window_manager.modal_handler_add(self)
-        bpy.ops.wm.search_single_menu('INVOKE_DEFAULT', menu_idname=self.menu_idname)
-        return {'RUNNING_MODAL'}
-
-    def modal(self, context, event):
-        if event.type == "ESC":
-            return {"CANCELLED"}
-
-        nodes = [node for node in self.old_node.id_data.nodes]
-        for node in nodes:
-            if node not in self.current_nodes:
-                self.new_node = node
-                self.exectute(context)
-                return {"FINISHED"}
-        
-        return {"RUNNING_MODAL"}
-    
-    def exectute(self, context):
         tree = self.old_node.id_data
         node_new = [node for node in tree.nodes if node not in self.current_nodes][0]
 
