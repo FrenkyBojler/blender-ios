@@ -36,9 +36,9 @@ struct ElemIndexRanges {
 };
 
 struct SELECTID_Context {
-  /* All context objects */
+  /* All selectable evaluated objects. */
   blender::Vector<Object *> objects;
-  blender::Set<Object *> objects_set;
+  /* Map of the selectable objects from `objects` to their indices ranges. */
   blender::Map<Object *, ElemIndexRanges> elem_ranges;
 
   /**

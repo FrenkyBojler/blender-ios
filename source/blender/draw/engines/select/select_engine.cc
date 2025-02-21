@@ -227,11 +227,7 @@ static void select_cache_init(void *vedata)
     }
   }
 
-  /* Create selection data. */
-  for (uint sel_id : e_data.context.objects.index_range()) {
-    Object *obj_eval = e_data.context.objects[sel_id];
-    e_data.context.objects_set.add(obj_eval);
-  }
+  e_data.context.elem_ranges.clear();
 
   e_data.context.persmat = float4x4(draw_ctx->rv3d->persmat);
   e_data.context.max_index_drawn_len = 1;
@@ -402,33 +398,29 @@ static void select_cache_populate(void *vedata, Object *ob)
   Manager &manager = *DRW_manager_get();
   ObjectRef ob_ref = DRW_object_ref_get(ob);
   SelectEngineData &e_data = get_engine_data();
+  SELECTID_Context &sel_ctx = e_data.context;
   SELECTID_Instance &inst = *reinterpret_cast<SELECTID_Data *>(vedata)->instance;
   const DRWContextState *draw_ctx = DRW_context_state_get();
 
-  bool selectable = e_data.context.objects_set.contains(ob);
+  if (!sel_ctx.objects.contains(ob) && ob->dt >= OB_SOLID) {
+    /* This object is not selectable. It is here to participate in occlusion.
+     * This is the case in retopology mode. */
+    blender::gpu::Batch *geom_faces = DRW_mesh_batch_cache_get_surface(
+        *static_cast<Mesh *>(ob->data));
 
-  if (!selectable) {
-    /* This object is not selectable. It is here to participate in the depth buffer. */
-    if (ob->dt >= OB_SOLID) {
-      blender::gpu::Batch *geom_faces = DRW_mesh_batch_cache_get_surface(
-          *static_cast<Mesh *>(ob->data));
-
-      inst.depth_occlude->draw(geom_faces, manager.resource_handle(ob_ref));
-    }
+    inst.depth_occlude->draw(geom_faces, manager.resource_handle(ob_ref));
+    return;
   }
-  else {
-    uint start_index = e_data.context.max_index_drawn_len;
 
+  /* Only sync selectable object once.
+   * This can happen in retopology mode where there is two sync loop. */
+  sel_ctx.elem_ranges.lookup_or_add_cb(ob, [&]() {
     ResourceHandle res_handle = manager.resource_handle(ob_ref);
-
-    ElemIndexRanges &elem_ranges = e_data.context.elem_ranges.lookup_or_add_default(ob);
-    elem_ranges = select_id_object_sync(
-        inst, draw_ctx->v3d, ob, res_handle, e_data.context.select_mode, start_index);
-
-    blender::IndexRange total_range = elem_ranges.total;
-
-    e_data.context.max_index_drawn_len = total_range.one_after_last();
-  }
+    ElemIndexRanges elem_ranges = select_id_object_sync(
+        inst, draw_ctx->v3d, ob, res_handle, sel_ctx.select_mode, sel_ctx.max_index_drawn_len);
+    sel_ctx.max_index_drawn_len = elem_ranges.total.one_after_last();
+    return elem_ranges;
+  });
 }
 
 static void select_draw_scene(void *vedata)

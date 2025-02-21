@@ -469,8 +469,6 @@ void DRW_select_buffer_context_create(Depsgraph *depsgraph,
   SELECTID_Context *select_ctx = DRW_select_engine_context_get();
 
   select_ctx->objects.reinitialize(bases.size());
-  select_ctx->elem_ranges.clear();
-  select_ctx->objects_set.clear();
 
   for (const int i : bases.index_range()) {
     Object *obj = bases[i]->object;
