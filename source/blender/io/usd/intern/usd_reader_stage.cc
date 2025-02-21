@@ -28,6 +28,7 @@
 #include <pxr/usd/usdGeom/cone.h>
 #include <pxr/usd/usdGeom/cube.h>
 #include <pxr/usd/usdGeom/cylinder.h>
+#include <pxr/usd/usdGeom/cylinder_1.h>
 #include <pxr/usd/usdGeom/mesh.h>
 #include <pxr/usd/usdGeom/metrics.h>
 #include <pxr/usd/usdGeom/nurbsCurves.h>
@@ -223,9 +224,9 @@ bool USDStageReader::valid() const
 bool USDStageReader::is_primitive_prim(const pxr::UsdPrim &prim) const
 {
   return (prim.IsA<pxr::UsdGeomCapsule>() || prim.IsA<pxr::UsdGeomCapsule_1>() ||
-          prim.IsA<pxr::UsdGeomCylinder>() || prim.IsA<pxr::UsdGeomCone>() ||
-          prim.IsA<pxr::UsdGeomCube>() || prim.IsA<pxr::UsdGeomSphere>() ||
-          prim.IsA<pxr::UsdGeomPlane>());
+          prim.IsA<pxr::UsdGeomCylinder>() || prim.IsA<pxr::UsdGeomCylinder_1>() ||
+          prim.IsA<pxr::UsdGeomCone>() || prim.IsA<pxr::UsdGeomCube>() ||
+          prim.IsA<pxr::UsdGeomSphere>() || prim.IsA<pxr::UsdGeomPlane>());
 }
 
 USDPrimReader *USDStageReader::create_reader_if_allowed(const pxr::UsdPrim &prim)
