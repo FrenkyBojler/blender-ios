@@ -154,7 +154,6 @@ void import_skeleton_curves(Main *bmain,
 
   blender::animrig::Channelbag *channelbag = blender::animrig::action_channelbag_ensure(
       *act, arm_obj->id);
-  BLI_assert(channelbag);
 
   /* Create the curves. */
 
@@ -637,7 +636,6 @@ void import_blendshapes(Main *bmain,
   bAction *act = blender::animrig::id_action_ensure(bmain, &key->id);
   blender::animrig::Channelbag *channelbag = blender::animrig::action_channelbag_ensure(*act,
                                                                                         key->id);
-  BLI_assert(channelbag);
 
   blender::Vector<FCurve *> curves;
   curves.reserve(blendshapes.size());
