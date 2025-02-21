@@ -128,7 +128,8 @@ C++ Sources
    Operators for adding/removing repositories as well as dropping URL's to initiate installation.
 
 ``./source/blender/python/intern/bpy_app_handlers.cc``
-   Handlers for extensions ``bpy.app.handlers._extension_repos_*``.
+   Handlers for extensions ``bpy.app.handlers._extension_repos_*``,
+   *note the leading underscore as they are not part of the public API.*
 
    Unfortunately these handlers were needed as a way for Python to hook into lower level code paths,
    so it's possible (for example) to refresh the extensions from an RNA update function
