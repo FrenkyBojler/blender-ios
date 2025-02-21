@@ -93,3 +93,15 @@ struct BlenderPatchCoord {
   int patch_index;
   uint encoded_uv;
 };
+
+/* Patch evaluation - fdots */
+/* vec3 is padded to vec4, but the format used for face-dots does not have any padding. */
+struct FDotVert {
+  float x, y, z;
+};
+
+/* Same here, do not use vec3. */
+struct FDotNor {
+  float x, y, z;
+  float flag;
+};

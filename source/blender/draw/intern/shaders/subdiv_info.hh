@@ -26,7 +26,95 @@ ADDITIONAL_INFO(subdiv_base)
 GPU_SHADER_CREATE_END()
 
 /* -------------------------------------------------------------------- */
-/** \name Loop normals
+/** \name Patch evaluation
+ * \{ */
+
+GPU_SHADER_CREATE_INFO(subdiv_patch_evaluation_base)
+DEFINE("OSD_PATCH_BASIS_GLSL")
+DEFINE("OPENSUBDIV_GLSL_COMPUTE_USE_1ST_DERIVATIVES")
+COMPUTE_SOURCE("subdiv_patch_evaluation_comp.glsl")
+STORAGE_BUF(PATCH_EVALUATION_SOURCE_VERTEX_BUFFER_BUF_SLOT, READ float, srcVertexBuffer[])
+STORAGE_BUF(PATCH_EVALUATION_INPUT_PATCH_HANDLES_BUF_SLOT,
+            READ,
+            PatchHandle,
+            input_patch_handles[])
+STORAGE_BUF(PATCH_EVALUATION_QUAD_NODES_BUF_SLOT, READ, QuadNode, quad_nodes[])
+STORAGE_BUF(PATCH_EVALUATION_PATCH_COORDS_BUF_SLOT, READ, BlenderPatchCoord, patch_coords[])
+STORAGE_BUF(PATCH_EVALUATION_INPUT_VERTEX_ORIG_INDEX_BUF_SLOT, READ, int, input_vert_origindex[])
+STORAGE_BUF(PATCH_EVALUATION_PATCH_INDEX_BUFFER_BUF_SLOT, READ, int, patchIndexBufferp[])
+STORAGE_BUF(PATCH_EVALUATION_PATCH_PARAM_BUFFER_BUF_SLOT, READ, OsdPatchParam, patchParamBuffer)
+ADDITIONAL_INFO(subdiv_base)
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(subdiv_patch_evaluation_fvar_base)
+DEFINE("FVAR_EVALUATION")
+STORAGE_BUF(PATCH_EVALUATION_OUTPUT_FVAR_BUF_SLOT, WRITE, packed_float2, output_fvar[])
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(subdiv_patch_evaluation_fdots_base)
+DEFINE("FDOTS_EVALUATION")
+STORAGE_BUF(PATCH_EVALUATION_OUTPUT_VERTEX_BUF_SLOT, WRITE, FDotVert, output_verts[])
+STORAGE_BUF(PATCH_EVALUATION_OUTPUT_INDICES_BUF_SLOT, WRITE, uint, output_indices[])
+STORAGE_BUF(PATCH_EVALUATION_EXTRA_COARSE_FACE_DATA_BUF_SLOT, READ, uint, extra_coarse_face_data[])
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(subdiv_patch_evaluation_fdots_normals_base)
+DO_STATIC_COMPILATION()
+DEFINE("FDOTS_NORMALS")
+STORAGE_BUF(PATCH_EVALUATION_OUTPUT_NORMALS_BUF_SLOT, WRITE, FDotNor, output_nors[])
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(subdiv_patch_evaluation_verts_base)
+DEFINE("VERTS_EVALUATION")
+STORAGE_BUF(PATCH_EVALUATION_FLAGS_BUFFER_BUF_SLOT, READ, int, flags_buffer[])
+STORAGE_BUF(PATCH_EVALUATION_OUTPUT_VERTS_BUF_SLOT, WRITE, PosNorLoop, output_verts[])
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(subdiv_patch_evaluation_verts_orco_base)
+DEFINE("ORCO_EVALUATION")
+STORAGE_BUF(PATCH_EVALUATION_SOURCE_EXTRA_VERTEX_BUFFER_BUF_SLOT,
+            READ,
+            float,
+            srcExtraVertexBuffer[])
+STORAGE_BUF(PATCH_EVALUATION_OUTPUT_ORCOS_BUF_SLOT, WRITE, vec4, output_orcos[])
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(subdiv_patch_evaluation_fvar)
+DO_STATIC_COMPILATION()
+ADDITIONAL_INFO(subdiv_patch_evaluation_base)
+ADDITIONAL_INFO(subdiv_patch_evaluation_fvar_base)
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(subdiv_patch_evaluation_fdots)
+DO_STATIC_COMPILATION()
+ADDITIONAL_INFO(subdiv_patch_evaluation_base)
+ADDITIONAL_INFO(subdiv_patch_evaluation_fdots_base)
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(subdiv_patch_evaluation_fdots_normals)
+DO_STATIC_COMPILATION()
+ADDITIONAL_INFO(subdiv_patch_evaluation_base)
+ADDITIONAL_INFO(subdiv_patch_evaluation_fdots_base)
+ADDITIONAL_INFO(subdiv_patch_evaluation_fdots_normals_base)
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(subdiv_patch_evaluation_verts)
+DO_STATIC_COMPILATION()
+ADDITIONAL_INFO(subdiv_patch_evaluation_base)
+ADDITIONAL_INFO(subdiv_patch_evaluation_verts_base)
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(subdiv_patch_evaluation_verts_orcos)
+DO_STATIC_COMPILATION()
+ADDITIONAL_INFO(subdiv_patch_evaluation_base)
+ADDITIONAL_INFO(subdiv_patch_evaluation_verts_base)
+ADDITIONAL_INFO(subdiv_patch_evaluation_verts_orcos_base)
+GPU_SHADER_CREATE_END()
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Loop Normals
  * \{ */
 
 GPU_SHADER_CREATE_INFO(subdiv_loop_normals)

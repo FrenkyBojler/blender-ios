@@ -145,6 +145,21 @@ static blender::StringRefNull get_subdiv_shader_info_name(SubdivShaderType shade
     case SubdivShaderType::BUFFER_SCULPT_DATA:
       return "subdiv_sculpt_data";
 
+    case SubdivShaderType::PATCH_EVALUATION:
+      return "subdiv_patch_evaluation_verts";
+
+    case SubdivShaderType::PATCH_EVALUATION_FVAR:
+      return "subdiv_patch_evaluation_fvar";
+
+    case SubdivShaderType::PATCH_EVALUATION_FACE_DOTS:
+      return "subdiv_patch_evaluation_fdots";
+
+    case SubdivShaderType::PATCH_EVALUATION_FACE_DOTS_WITH_NORMALS:
+      return "subdiv_patch_evaluation_fdots_normals";
+
+    case SubdivShaderType::PATCH_EVALUATION_ORCO:
+      return "subdiv_patch_evaluation_verts_orcos";
+
     case SubdivShaderType::BUFFER_UV_STRETCH_ANGLE:
       return "subdiv_edituv_stretch_angle";
 
@@ -165,6 +180,7 @@ static blender::StringRefNull get_subdiv_shader_info_name(SubdivShaderType shade
 
     case SubdivShaderType::COMP_CUSTOM_DATA_INTERP:
       break;
+
     default:
       break;
   }

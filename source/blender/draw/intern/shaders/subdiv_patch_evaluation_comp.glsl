@@ -2,98 +2,25 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/* To be compiled with subdiv_lib.glsl */
-
-/* Source buffer. */
-layout(std430, binding = 0) buffer src_buffer
-{
-  float srcVertexBuffer[];
-};
-
-/* #DRWPatchMap */
-layout(std430, binding = 1) readonly buffer inputPatchHandles
-{
-  PatchHandle input_patch_handles[];
-};
-
-layout(std430, binding = 2) readonly buffer inputQuadNodes
-{
-  QuadNode quad_nodes[];
-};
-
-layout(std430, binding = 3) readonly buffer inputPatchCoords
-{
-  BlenderPatchCoord patch_coords[];
-};
-
-layout(std430, binding = 4) readonly buffer inputVertOrigIndices
-{
-  int input_vert_origindex[];
-};
-
-/* Patch buffers. */
-layout(std430, binding = 5) buffer patchArray_buffer
-{
-  OsdPatchArray patchArrayBuffer[];
-};
-
-layout(std430, binding = 6) buffer patchIndex_buffer
-{
-  int patchIndexBuffer[];
-};
-
-layout(std430, binding = 7) buffer patchParam_buffer
-{
-  OsdPatchParam patchParamBuffer[];
-};
-
-/* Output buffer(s). */
+#include "subdiv_lib.glsl"
 
 #if defined(FVAR_EVALUATION)
-layout(std430, binding = 8) writeonly buffer outputFVarData
-{
-  vec2 output_fvar[];
-};
+COMPUTE_SHADER_CREATE_INFO(subdiv_patch_evaluation_fvar)
 #elif defined(FDOTS_EVALUATION)
-/* For face dots, we build the position, normals, and index buffers in one go. */
-
-/* vec3 is padded to vec4, but the format used for face-dots does not have any padding. */
-struct FDotVert {
-  float x, y, z;
-};
-
-/* Same here, do not use vec3. */
-struct FDotNor {
-  float x, y, z;
-  float flag;
-};
-
-layout(std430, binding = 8) writeonly buffer outputVertices
-{
-  FDotVert output_verts[];
-};
-
-#  ifdef FDOTS_NORMALS
-layout(std430, binding = 9) writeonly buffer outputNormals
-{
-  FDotNor output_nors[];
-};
+#  if defined(FDOTS_NORMALS)
+COMPUTE_SHADER_CREATE_INFO(subdiv_patch_evaluation_fdots_normals)
+#  else
+COMPUTE_SHADER_CREATE_INFO(subdiv_patch_evaluation_fdots)
 #  endif
+#elif defined(VERTS_EVALUATION)
+#  if defined(ORCO_EVALUATION)
+COMPUTE_SHADER_CREATE_INFO(subdiv_patch_evaluation_verts_orco)
+#  else
+COMPUTE_SHADER_CREATE_INFO(subdiv_patch_evaluation_verts)
+#  endif
+#endif
 
-layout(std430, binding = 10) writeonly buffer outputFdotsIndices
-{
-  uint output_indices[];
-};
-
-layout(std430, binding = 11) readonly buffer extraCoarseFaceData
-{
-  uint extra_coarse_face_data[];
-};
-#else
-layout(std430, binding = 8) readonly buffer inputFlagsBuffer
-{
-  int flags_buffer[]; /*char*/
-};
+#if defined(VERTS_EVALUATION)
 float get_flag(int vertex)
 {
   int char_4 = flags_buffer[vertex / 4];
@@ -104,20 +31,6 @@ float get_flag(int vertex)
 
   return float(flag);
 }
-layout(std430, binding = 9) writeonly buffer outputVertexData
-{
-  PosNorLoop output_verts[];
-};
-#  if defined(ORCO_EVALUATION)
-layout(std430, binding = 10) buffer src_extra_buffer
-{
-  float srcExtraVertexBuffer[];
-};
-layout(std430, binding = 11) writeonly buffer outputOrcoData
-{
-  vec4 output_orcos[];
-};
-#  endif
 #endif
 
 vec2 read_vec2(int index)
