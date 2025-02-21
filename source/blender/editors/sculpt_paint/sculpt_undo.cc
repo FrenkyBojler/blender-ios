@@ -868,7 +868,7 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
               return indices_contain_true(modified_grids, nodes[i].grids());
             });
         pbvh.tag_positions_changed(changed_nodes);
-        multires_mark_as_modified(depsgraph, &object, MULTIRES_COORDS_MODIFIED);
+        multires_flush_sculpt_updates(&object);
       }
       else {
         MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
@@ -941,7 +941,7 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
       BKE_pbvh_sync_visibility_from_verts(object);
       pbvh.update_visibility(object);
       if (BKE_sculpt_multires_active(scene, &object)) {
-        multires_mark_as_modified(depsgraph, &object, MULTIRES_HIDDEN_MODIFIED);
+        multires_flush_sculpt_updates(&object);
       }
       break;
     }
@@ -1006,6 +1006,7 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
             });
         bke::pbvh::update_mask_grids(*ss.subdiv_ccg, changed_nodes, pbvh);
         pbvh.tag_masks_changed(changed_nodes);
+        multires_flush_sculpt_updates(&object);
       }
       else {
         MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();

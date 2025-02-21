@@ -172,7 +172,7 @@ void grids_show_all(Depsgraph &depsgraph, Object &object, const IndexMask &node_
   BKE_subdiv_ccg_grid_hidden_free(subdiv_ccg);
   BKE_pbvh_sync_visibility_from_verts(object);
   pbvh.update_visibility(object);
-  multires_mark_as_modified(&depsgraph, &object, MULTIRES_HIDDEN_MODIFIED);
+  multires_flush_sculpt_updates(&object);
 }
 
 /** \} */
@@ -368,7 +368,7 @@ static void grid_hide_update(Depsgraph &depsgraph,
     return;
   }
   pbvh.tag_visibility_changed(node_mask);
-  multires_mark_as_modified(&depsgraph, &object, MULTIRES_HIDDEN_MODIFIED);
+  multires_flush_sculpt_updates(&object);
   BKE_pbvh_sync_visibility_from_verts(object);
 }
 
@@ -757,7 +757,7 @@ static void invert_visibility_grids(Depsgraph &depsgraph,
   });
 
   pbvh.tag_visibility_changed(node_mask);
-  multires_mark_as_modified(&depsgraph, &object, MULTIRES_HIDDEN_MODIFIED);
+  multires_flush_sculpt_updates(&object);
   BKE_pbvh_sync_visibility_from_verts(object);
 }
 
@@ -1076,7 +1076,7 @@ static void grow_shrink_visibility_grid(Depsgraph &depsgraph,
   pbvh.tag_visibility_changed(node_mask);
   pbvh.update_visibility(object);
 
-  multires_mark_as_modified(&depsgraph, &object, MULTIRES_HIDDEN_MODIFIED);
+  multires_flush_sculpt_updates(&object);
   BKE_pbvh_sync_visibility_from_verts(object);
 }
 

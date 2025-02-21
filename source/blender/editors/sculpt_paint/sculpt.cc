@@ -5230,8 +5230,7 @@ void flush_update_step(const bContext *C, const UpdateType update_type)
   const SculptSession &ss = *ob.sculpt;
   const MultiresModifierData *mmd = ss.multires.modifier;
   if (mmd != nullptr) {
-    Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
-    multires_mark_as_modified(&depsgraph, &ob, MULTIRES_COORDS_MODIFIED);
+    multires_flush_sculpt_updates(&ob);
   }
 
   ARegion &region = *CTX_wm_region(C);

@@ -407,10 +407,6 @@ void multires_flush_sculpt_updates(Object *object)
     return;
   }
 
-  if (!subdiv_ccg->dirty.coords && !subdiv_ccg->dirty.hidden) {
-    return;
-  }
-
   Mesh *mesh = static_cast<Mesh *>(object->data);
 
   /* Check that the multires modifier still exists.
@@ -437,9 +433,6 @@ void multires_flush_sculpt_updates(Object *object)
 
   multiresModifier_reshapeFromCCG(
       sculpt_session->multires.modifier->totlvl, mesh, sculpt_session->subdiv_ccg);
-
-  subdiv_ccg->dirty.coords = false;
-  subdiv_ccg->dirty.hidden = false;
 }
 
 void multires_force_sculpt_rebuild(Object *object)
