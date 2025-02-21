@@ -2627,6 +2627,9 @@ typedef enum NodeCompareOperation {
   NODE_COMPARE_NOT_EQUAL = 5,
   NODE_COMPARE_COLOR_BRIGHTER = 6,
   NODE_COMPARE_COLOR_DARKER = 7,
+  NODE_COMPARE_STR_STARTS_WITH = 8,
+  NODE_COMPARE_STR_ENDS_WITH = 9,
+  NODE_COMPARE_STR_CONTAINS = 10,
 } NodeCompareOperation;
 
 typedef enum NodeIntegerMathOperation {

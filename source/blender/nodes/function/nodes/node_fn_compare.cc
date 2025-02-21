@@ -6,6 +6,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
+#include "BLI_string.h"
 #include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
@@ -149,7 +150,13 @@ static std::optional<eNodeSocketDatatype> get_compare_type_for_operation(
       }
       return type;
     case SOCK_STRING:
-      if (!ELEM(operation, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL)) {
+      if (!ELEM(operation,
+                NODE_COMPARE_EQUAL,
+                NODE_COMPARE_NOT_EQUAL,
+                NODE_COMPARE_STR_STARTS_WITH,
+                NODE_COMPARE_STR_ENDS_WITH,
+                NODE_COMPARE_STR_CONTAINS))
+      {
         return std::nullopt;
       }
       return type;
@@ -600,6 +607,25 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
               "Not Equal", [](std::string a, std::string b) { return a != b; });
           return &fn;
         }
+        case NODE_COMPARE_STR_STARTS_WITH: {
+          static auto fn = mf::build::SI2_SO<std::string, std::string, bool>(
+              "Starts With", [](std::string a, std::string b) {
+                return BLI_str_startswith(a.c_str(), b.c_str());
+              });
+          return &fn;
+        }
+        case NODE_COMPARE_STR_ENDS_WITH: {
+          static auto fn = mf::build::SI2_SO<std::string, std::string, bool>(
+              "Ends With",
+              [](std::string a, std::string b) { return BLI_str_endswith(a.c_str(), b.c_str()); });
+          return &fn;
+        }
+        case NODE_COMPARE_STR_CONTAINS: {
+          static auto fn = mf::build::SI2_SO<std::string, std::string, bool>(
+              "Contains",
+              [](std::string a, std::string b) { return a.find(b) != std::string::npos; });
+          return &fn;
+        }
       }
       break;
   }
@@ -632,6 +658,13 @@ static void data_type_update(Main *bmain, Scene *scene, PointerRNA *ptr)
   }
   else if (node_storage->data_type != SOCK_RGBA &&
            ELEM(node_storage->operation, NODE_COMPARE_COLOR_BRIGHTER, NODE_COMPARE_COLOR_DARKER))
+  {
+    node_storage->operation = NODE_COMPARE_EQUAL;
+  }
+  else if (node_storage->data_type != SOCK_STRING && ELEM(node_storage->operation,
+                                                          NODE_COMPARE_STR_STARTS_WITH,
+                                                          NODE_COMPARE_STR_ENDS_WITH,
+                                                          NODE_COMPARE_STR_CONTAINS))
   {
     node_storage->operation = NODE_COMPARE_EQUAL;
   }
@@ -682,16 +715,26 @@ static void node_rna(StructRNA *srna)
         NodeFunctionCompare *data = static_cast<NodeFunctionCompare *>(node->storage);
 
         if (ELEM(data->data_type, SOCK_FLOAT, SOCK_INT, SOCK_VECTOR)) {
-          return enum_items_filter(
-              rna_enum_node_compare_operation_items, [](const EnumPropertyItem &item) {
-                return !ELEM(item.value, NODE_COMPARE_COLOR_BRIGHTER, NODE_COMPARE_COLOR_DARKER);
-              });
+          return enum_items_filter(rna_enum_node_compare_operation_items,
+                                   [](const EnumPropertyItem &item) {
+                                     return !ELEM(item.value,
+                                                  NODE_COMPARE_COLOR_BRIGHTER,
+                                                  NODE_COMPARE_COLOR_DARKER,
+                                                  NODE_COMPARE_STR_STARTS_WITH,
+                                                  NODE_COMPARE_STR_ENDS_WITH,
+                                                  NODE_COMPARE_STR_CONTAINS);
+                                   });
         }
         if (data->data_type == SOCK_STRING) {
-          return enum_items_filter(
-              rna_enum_node_compare_operation_items, [](const EnumPropertyItem &item) {
-                return ELEM(item.value, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL);
-              });
+          return enum_items_filter(rna_enum_node_compare_operation_items,
+                                   [](const EnumPropertyItem &item) {
+                                     return ELEM(item.value,
+                                                 NODE_COMPARE_EQUAL,
+                                                 NODE_COMPARE_NOT_EQUAL,
+                                                 NODE_COMPARE_STR_STARTS_WITH,
+                                                 NODE_COMPARE_STR_ENDS_WITH,
+                                                 NODE_COMPARE_STR_CONTAINS);
+                                   });
         }
         if (data->data_type == SOCK_RGBA) {
           return enum_items_filter(rna_enum_node_compare_operation_items,
