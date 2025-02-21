@@ -366,11 +366,16 @@ template<typename T> inline void MEM_delete(const T *ptr)
  */
 template<typename T> inline T *MEM_callocN(const char *allocation_name)
 {
-#  ifndef _MSC_VER
-  /* MSVC seems to consider C-style types using the DNA_DEFINE_CXX_METHODS as non-trivial. GCC
-   * and clang (both on linux, OSX and clang-cl on Windows on Arm) do not.
+#  ifdef _MSC_VER
+  /* MSVC considers C-style types using the DNA_DEFINE_CXX_METHODS as non-trivial (more
+   * specifically, non-trivially copyable, likely because the default copy constructors are
+   * deleted). GCC and clang (both on linux, OSX, and clang-cl on Windows on Arm) do not.
    *
-   * So for now, disable the triviality check on MSVC. */
+   * So for now, use a more restricted check on MSVC, should still catch most of actual invalid
+   * cases. */
+  static_assert(std::is_trivially_constructible_v<T>,
+                "For non-trivial types, MEM_delete must be used.");
+#  else
   static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_delete must be used.");
 #  endif
   return static_cast<T *>(MEM_calloc_arrayN_aligned(1, sizeof(T), alignof(T), allocation_name));
@@ -381,11 +386,16 @@ template<typename T> inline T *MEM_callocN(const char *allocation_name)
  */
 template<typename T> inline T *MEM_calloc_arrayN(const size_t length, const char *allocation_name)
 {
-#  ifndef _MSC_VER
-  /* MSVC seems to consider C-style types using the DNA_DEFINE_CXX_METHODS as non-trivial. GCC
-   * and clang (both on linux, OSX and clang-cl on Windows on Arm) do not.
+#  ifdef _MSC_VER
+  /* MSVC considers C-style types using the DNA_DEFINE_CXX_METHODS as non-trivial (more
+   * specifically, non-trivially copyable, likely because the default copy constructors are
+   * deleted). GCC and clang (both on linux, OSX, and clang-cl on Windows on Arm) do not.
    *
-   * So for now, disable the triviality check on MSVC. */
+   * So for now, use a more restricted check on MSVC, should still catch most of actual invalid
+   * cases. */
+  static_assert(std::is_trivially_constructible_v<T>,
+                "For non-trivial types, MEM_delete must be used.");
+#  else
   static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_delete must be used.");
 #  endif
   return static_cast<T *>(
@@ -404,11 +414,16 @@ template<typename T> inline T *MEM_calloc_arrayN(const size_t length, const char
  */
 template<typename T> inline T *MEM_dupallocN(const char *allocation_name, const T &other)
 {
-#  ifndef _MSC_VER
-  /* MSVC seems to consider C-style types using the DNA_DEFINE_CXX_METHODS as non-trivial. GCC
-   * and clang (both on linux, OSX and clang-cl on Windows on Arm) do not.
+#  ifdef _MSC_VER
+  /* MSVC considers C-style types using the DNA_DEFINE_CXX_METHODS as non-trivial (more
+   * specifically, non-trivially copyable, likely because the default copy constructors are
+   * deleted). GCC and clang (both on linux, OSX, and clang-cl on Windows on Arm) do not.
    *
-   * So for now, disable the triviality check on MSVC. */
+   * So for now, use a more restricted check on MSVC, should still catch most of actual invalid
+   * cases. */
+  static_assert(std::is_trivially_constructible_v<T>,
+                "For non-trivial types, MEM_delete must be used.");
+#  else
   static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_delete must be used.");
 #  endif
   T *new_object = static_cast<T *>(MEM_mallocN_aligned(sizeof(T), alignof(T), allocation_name));
