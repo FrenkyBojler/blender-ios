@@ -1501,7 +1501,8 @@ static void icon_draw_size(float x,
     if (G.debug & G_DEBUG) {
       printf("%s: Internal error, no icon for icon ID: %d\n", __func__, icon_id);
     }
-    return;
+    icon_id = ICON_NOT_FOUND;
+    icon = BKE_icon_get(icon_id);
   }
 
   if (icon->obj_type != ICON_DATA_STUDIOLIGHT) {
@@ -1574,7 +1575,11 @@ static void icon_draw_size(float x,
                                                  0.3f) :
                                             0.0f;
     float color[4];
-    if (mono_rgba) {
+    if (icon_id == ICON_NOT_FOUND) {
+      UI_GetThemeColorBlend4f(TH_ERROR, TH_TEXT, 0.4f, color);
+      outline_intensity = 0.4f;
+    }
+    else if (mono_rgba) {
       rgba_uchar_to_float(color, mono_rgba);
     }
     else {
