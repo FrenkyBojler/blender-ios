@@ -994,7 +994,13 @@ void action_slot_summary_to_keylist(bAnimContext *ac,
 
   BLI_assert(GS(action.id.name) == ID_AC);
 
-  if (!ac || !ac->obact) {
+  if (!ac) {
+    printf("AAAAAAAAAAAAA\n");
+    return;
+  }
+
+  if (!ac->obact) {
+    printf("BBBBBBBBBBB\n");
     return;
   }
 

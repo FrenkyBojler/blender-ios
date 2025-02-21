@@ -378,6 +378,7 @@ static void draw_keyframes(bAnimContext *ac,
         break;
       case ALE_ACTION_SLOT:
         ED_add_action_slot_channel(draw_list,
+                                   ac,
                                    ale,
                                    static_cast<bAction *>(ale->key_data)->wrap(),
                                    *static_cast<animrig::Slot *>(ale->data),
@@ -387,6 +388,7 @@ static void draw_keyframes(bAnimContext *ac,
         break;
       case ALE_ACT:
         ED_add_action_channel(draw_list,
+                              ac,
                               ale,
                               static_cast<bAction *>(ale->key_data),
                               ycenter,

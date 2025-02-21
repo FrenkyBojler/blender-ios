@@ -763,6 +763,7 @@ void ED_add_action_layered_channel(ChannelDrawList *channel_list,
 }
 
 void ED_add_action_slot_channel(ChannelDrawList *channel_list,
+                                bAnimContext *ac,
                                 bAnimListElem *ale,
                                 animrig::Action &action,
                                 animrig::Slot &slot,
@@ -775,6 +776,7 @@ void ED_add_action_slot_channel(ChannelDrawList *channel_list,
 
   ChannelListElement *draw_elem = channel_list_add_element(
       channel_list, ChannelType::ACTION_SLOT, ypos, yscale_fac, eSAction_Flag(saction_flag));
+  draw_elem->ac = ac;
   draw_elem->adt = ale->adt;
   draw_elem->act = &action;
   draw_elem->action_slot = &slot;
@@ -782,6 +784,7 @@ void ED_add_action_slot_channel(ChannelDrawList *channel_list,
 }
 
 void ED_add_action_channel(ChannelDrawList *channel_list,
+                           bAnimContext *ac,
                            bAnimListElem *ale,
                            bAction *act,
                            float ypos,
@@ -795,6 +798,7 @@ void ED_add_action_channel(ChannelDrawList *channel_list,
 
   ChannelListElement *draw_elem = channel_list_add_element(
       channel_list, ChannelType::ACTION_LEGACY, ypos, yscale_fac, eSAction_Flag(saction_flag));
+  draw_elem->ac = ac;
   draw_elem->adt = ale->adt;
   draw_elem->act = act;
   draw_elem->channel_locked = locked;
