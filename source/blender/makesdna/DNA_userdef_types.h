@@ -998,7 +998,8 @@ typedef struct UserDef {
   char ipo_new;
   /** Handle types for newly added keyframes. */
   char keyhandles_new;
-  char _pad11[4];
+  char mouse_cursor_type;
+  char _pad11[3];
   /** #eZoomFrame_Mode. */
   char view_frame_type;
 
@@ -1575,6 +1576,14 @@ typedef enum eUserpref_FactorDisplay {
   USER_FACTOR_AS_FACTOR = 0,
   USER_FACTOR_AS_PERCENTAGE = 1,
 } eUserpref_FactorDisplay;
+
+/** #UserDef.mouse_cursor_type */
+typedef enum eUserpref_MouseCursorTypes {
+  USER_MOUSE_CURSOR_PLATFORM = 0,
+  USER_MOUSE_CURSOR_LINUX_SMALL = 1,
+  USER_MOUSE_CURSOR_LINUX_MEDIUM = 2,
+  USER_MOUSE_CURSOR_LINUX_LARGE = 3,
+} eUserpref_MouseCursorTypes;
 
 typedef enum eUserpref_RenderDisplayType {
   USER_RENDER_DISPLAY_NONE = 0,
