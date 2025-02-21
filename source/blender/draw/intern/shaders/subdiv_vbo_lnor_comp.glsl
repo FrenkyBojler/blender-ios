@@ -39,7 +39,8 @@ void main()
   /* The start index of the loop is quad_index * 4. */
   uint start_loop_index = quad_index * 4;
 
-  uint coarse_quad_index = coarse_face_index_from_subdiv_quad_index(quad_index, shader_data.coarse_face_count);
+  uint coarse_quad_index = coarse_face_index_from_subdiv_quad_index(quad_index,
+                                                                    shader_data.coarse_face_count);
 
   if ((extra_coarse_face_data[coarse_quad_index] & shader_data.coarse_face_smooth_mask) != 0) {
     /* Face is smooth, use vertex normals. */
