@@ -1,2 +1,3 @@
 Referenced by commit e2e6b977a64, Cleanup: Remove pre-SSE4 fallbacks in BLI pixel interpolation functions
 Referenced by issue #120583, Cleanup: Remove pre-SSE4 fallbacks in BLI pixel interpolation functions
+Referenced by issue #134933, Build configuration: SUPPORT_SSE42_BUILD may be false positive for old CPUs
