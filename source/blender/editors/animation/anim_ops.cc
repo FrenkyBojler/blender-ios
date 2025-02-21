@@ -10,6 +10,7 @@
 #include <cmath>
 #include <cstdlib>
 
+#include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
@@ -957,6 +958,10 @@ void ED_operatortypes_anim()
 
   WM_operatortype_append(ANIM_OT_convert_legacy_action);
   WM_operatortype_append(ANIM_OT_merge_animation);
+
+  WM_operatortype_append(blender::ed::animrig::POSELIB_OT_create_pose_asset);
+  WM_operatortype_append(blender::ed::animrig::POSELIB_OT_asset_modify);
+  WM_operatortype_append(blender::ed::animrig::POSELIB_OT_asset_delete);
 }
 
 void ED_keymap_anim(wmKeyConfig *keyconf)

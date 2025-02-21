@@ -358,6 +358,11 @@ add_blender_test(
   --run-all-tests
 )
 
+add_blender_test(
+  object_api
+  --python ${TEST_PYTHON_DIR}/bl_object.py
+)
+
 # ------------------------------------------------------------------------------
 # MODIFIERS TESTS
 add_blender_test(
@@ -487,6 +492,13 @@ add_blender_test(
 )
 
 add_blender_test(
+  bl_pose_assets
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pose_assets.py
+  --
+  --testdir "${TEST_SRC_DIR}/animation"
+)
+
+add_blender_test(
   bl_animation_nla_strip
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_nla_strip.py
 )
@@ -552,6 +564,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
     message(WARNING "Disabling render tests because WITH_OPENCOLORIO is disabled")
   else()
     set(render_tests
+      attributes
       camera
       bsdf
       hair
@@ -606,6 +619,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
     # Cycles
     if(WITH_CYCLES)
       set(_cycles_blocklist "")
+      set(_cycles_known_test_devices CPU CUDA OPTIX HIP HIP-RT METAL METAL-RT ONEAPI ONEAPI-RT)
       if((NOT WITH_CYCLES_OSL) OR (WITH_CYCLES_TEST_OSL AND WITH_CYCLES_OSL))
         # Disable OSL tests if built without OSL or
         # Disable OSL tests during the "normal" test phase to avoid double
@@ -613,6 +627,10 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
         set(_cycles_blocklist OSL)
       endif()
       foreach(_cycles_device ${CYCLES_TEST_DEVICES})
+        if(NOT ${_cycles_device} IN_LIST _cycles_known_test_devices)
+          message(FATAL_ERROR "Unknown Cycles test device ${_cycles_device}."
+              "Supported devices are: ${_cycles_known_test_devices}")
+        endif()
         string(TOLOWER "${_cycles_device}" _cycles_device_lower)
         set(_cycles_render_tests bake;${render_tests};osl)
 
@@ -655,6 +673,7 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
         endforeach()
       endforeach()
       unset(_cycles_blocklist)
+      unset(_cycles_known_test_devices)
     endif()
 
     if(WITH_GPU_RENDER_TESTS)
@@ -670,10 +689,10 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
       if(WITH_OPENGL_BACKEND)
         foreach(render_test ${gpu_render_tests})
           add_render_test(
-            eevee_next_${render_test}_opengl
+            eevee_next_opengl_${render_test}
             ${CMAKE_CURRENT_LIST_DIR}/eevee_next_render_tests.py
             --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/eevee_next"
+            --outdir "${TEST_OUT_DIR}/eevee_next_opengl"
             --gpu-backend opengl
             ${_gpu_render_tests_arguments}
           )
@@ -683,10 +702,10 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
       if(WITH_METAL_BACKEND)
         foreach(render_test ${gpu_render_tests})
           add_render_test(
-            eevee_next_${render_test}_metal
+            eevee_next_metal_${render_test}
             ${CMAKE_CURRENT_LIST_DIR}/eevee_next_render_tests.py
             --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/eevee_next"
+            --outdir "${TEST_OUT_DIR}/eevee_next_metal"
             --gpu-backend metal
             ${_gpu_render_tests_arguments}
           )
@@ -696,10 +715,10 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
       if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
         foreach(render_test ${gpu_render_tests})
           add_render_test(
-            eevee_next_${render_test}_vulkan
+            eevee_next_vulkan_${render_test}
             ${CMAKE_CURRENT_LIST_DIR}/eevee_next_render_tests.py
             --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/eevee_next"
+            --outdir "${TEST_OUT_DIR}/eevee_next_vulkan"
             --gpu-backend vulkan
             ${_gpu_render_tests_arguments}
           )
@@ -710,10 +729,10 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
       if(WITH_OPENGL_BACKEND)
         foreach(render_test ${gpu_render_tests})
           add_render_test(
-            workbench_${render_test}_opengl
+            workbench_opengl_${render_test}
             ${CMAKE_CURRENT_LIST_DIR}/workbench_render_tests.py
             --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/workbench"
+            --outdir "${TEST_OUT_DIR}/workbench_opengl"
             --gpu-backend opengl
             ${_gpu_render_tests_arguments}
           )
@@ -723,10 +742,10 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
       if(WITH_METAL_BACKEND)
         foreach(render_test ${gpu_render_tests})
           add_render_test(
-            workbench_${render_test}_metal
+            workbench_metal_${render_test}
             ${CMAKE_CURRENT_LIST_DIR}/workbench_render_tests.py
             --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/workbench"
+            --outdir "${TEST_OUT_DIR}/workbench_metal"
             --gpu-backend metal
             ${_gpu_render_tests_arguments}
           )
@@ -736,16 +755,52 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
       if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
         foreach(render_test ${gpu_render_tests})
           add_render_test(
-            workbench_${render_test}_vulkan
+            workbench_vulkan_${render_test}
             ${CMAKE_CURRENT_LIST_DIR}/workbench_render_tests.py
             --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/workbench"
+            --outdir "${TEST_OUT_DIR}/workbench/vulkan"
             --gpu-backend vulkan
             ${_gpu_render_tests_arguments}
           )
         endforeach()
       endif()
 
+      # Overlay
+      if(WITH_GPU_RENDER_TESTS_HEADED)
+        if(WITH_OPENGL_BACKEND)
+          add_render_test(
+            overlay_opengl
+            ${CMAKE_CURRENT_LIST_DIR}/overlay_render_tests.py
+            --testdir "${TEST_SRC_DIR}/overlay"
+            --outdir "${TEST_OUT_DIR}/overlay"
+            --gpu-backend opengl
+            ${_gpu_render_tests_arguments}
+          )
+        endif()
+
+        if(WITH_METAL_BACKEND)
+          add_render_test(
+            overlay_metal
+            ${CMAKE_CURRENT_LIST_DIR}/overlay_render_tests.py
+            --testdir "${TEST_SRC_DIR}/overlay"
+            --outdir "${TEST_OUT_DIR}/overlay"
+            --gpu-backend metal
+            ${_gpu_render_tests_arguments}
+          )
+        endif()
+
+        if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
+          add_render_test(
+            overlay_vulkan
+            ${CMAKE_CURRENT_LIST_DIR}/overlay_render_tests.py
+            --testdir "${TEST_SRC_DIR}/overlay"
+            --outdir "${TEST_OUT_DIR}/overlay"
+            --gpu-backend vulkan
+            ${_gpu_render_tests_arguments}
+          )
+        endif()
+      endif()
+      
       if(WITH_HYDRA)
         # Hydra Storm
         foreach(render_test ${gpu_render_tests})
@@ -786,6 +841,7 @@ else()
     output
     vector
 
+    pixel_nodes
     multiple_node_setups
   )
 
@@ -802,6 +858,14 @@ else()
     )
   endforeach()
 
+  add_blender_test(
+    compositor_cpu_file_output
+    --python ${CMAKE_CURRENT_LIST_DIR}/compositor_file_output_tests.py
+    --
+    --testdir "${TEST_SRC_DIR}/compositor/file_output/"
+    --outdir "${TEST_OUT_DIR}/compositor_cpu/file_output"
+  )
+
 endif()
 
 if(WITH_GPU_COMPOSITOR_TESTS)
@@ -816,6 +880,7 @@ if(WITH_GPU_COMPOSITOR_TESTS)
       output
       vector
 
+      pixel_nodes
       multiple_node_setups
     )
 
@@ -823,15 +888,63 @@ if(WITH_GPU_COMPOSITOR_TESTS)
       list(APPEND compositor_tests distort matte)
     endif()
 
-    foreach(comp_test ${compositor_tests})
-      add_render_test(
-        compositor_gpu_${comp_test}
-        ${CMAKE_CURRENT_LIST_DIR}/compositor_render_tests.py
-        --testdir "${TEST_SRC_DIR}/compositor/${comp_test}"
-        --outdir "${TEST_OUT_DIR}/compositor_gpu"
-        --gpu
+    if(WITH_OPENGL_BACKEND)
+      foreach(comp_test ${compositor_tests})
+        add_render_test(
+          compositor_opengl_${comp_test}
+          ${CMAKE_CURRENT_LIST_DIR}/compositor_render_tests.py
+          --testdir "${TEST_SRC_DIR}/compositor/${comp_test}"
+          --outdir "${TEST_OUT_DIR}/compositor_opengl"
+          --gpu-backend opengl
+        )
+      endforeach()
+      add_blender_test(
+        compositor_opengl_file_output
+        --python ${CMAKE_CURRENT_LIST_DIR}/compositor_file_output_tests.py
+        --
+        --testdir "${TEST_SRC_DIR}/compositor/file_output/"
+        --outdir "${TEST_OUT_DIR}/compositor_opengl/file_output"
+        --gpu-backend opengl
       )
-    endforeach()
+    endif()
+    if(WITH_METAL_BACKEND)
+      foreach(comp_test ${compositor_tests})
+        add_render_test(
+          compositor_metal_${comp_test}
+          ${CMAKE_CURRENT_LIST_DIR}/compositor_render_tests.py
+          --testdir "${TEST_SRC_DIR}/compositor/${comp_test}"
+          --outdir "${TEST_OUT_DIR}/compositor_metal"
+          --gpu-backend metal
+        )
+      endforeach()
+      add_blender_test(
+        compositor_metal_file_output
+        --python ${CMAKE_CURRENT_LIST_DIR}/compositor_file_output_tests.py
+        --
+        --testdir "${TEST_SRC_DIR}/compositor/file_output/"
+        --outdir "${TEST_OUT_DIR}/compositor_metal/file_output"
+        --gpu-backend metal
+      )
+    endif()
+    if(WITH_VULKAN_BACKEND)
+      foreach(comp_test ${compositor_tests})
+        add_render_test(
+          compositor_vulkan_${comp_test}
+          ${CMAKE_CURRENT_LIST_DIR}/compositor_render_tests.py
+          --testdir "${TEST_SRC_DIR}/compositor/${comp_test}"
+          --outdir "${TEST_OUT_DIR}/compositor_vulkan"
+          --gpu-backend vulkan
+        )
+      endforeach()
+      add_blender_test(
+        compositor_vulkan_file_output
+        --python ${CMAKE_CURRENT_LIST_DIR}/compositor_file_output_tests.py
+        --
+        --testdir "${TEST_SRC_DIR}/compositor/file_output/"
+        --outdir "${TEST_OUT_DIR}/compositor_vulkan/file_output"
+        --gpu-backend vulkan
+      )
+    endif()
   endif()
 endif()
 
@@ -1074,6 +1187,28 @@ else()
       --outdir "${TEST_OUT_DIR}/sequence_editing"
     )
   endforeach()
+endif()
+
+# ------------------------------------------------------------------------------
+# SCULPTING RENDER TESTS
+
+if(WITH_GPU_RENDER_TESTS)
+  if(NOT OPENIMAGEIO_TOOL)
+    message(STATUS "Disabling sculpting render tests because OIIO oiiotool does not exist")
+  else()
+    set(render_tests
+      brushes
+    )
+
+    foreach(render_test ${render_tests})
+      add_render_test(
+        sculpt_render_${render_test}
+        ${CMAKE_CURRENT_LIST_DIR}/sculpt_brush_render_tests.py
+        --testdir "${TEST_SRC_DIR}/sculpting/${render_test}"
+        --outdir "${TEST_OUT_DIR}/sculpting"
+      )
+    endforeach()
+  endif()
 endif()
 
 

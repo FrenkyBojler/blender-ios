@@ -17,6 +17,7 @@
 #include "BKE_paint.hh"
 #include "BKE_report.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 
@@ -447,8 +448,8 @@ void add_armature_automatic_weights(Scene &scene, Object &object, const Object &
 
 struct ClosestGreasePencilDrawing {
   const bke::greasepencil::Drawing *drawing = nullptr;
-  int active_defgroup_index;
-  ed::curves::FindClosestData elem = {};
+  int active_defgroup_index = -1;
+  ed::curves::FindClosestData elem;
 };
 
 static int weight_sample_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *event)

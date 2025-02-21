@@ -24,6 +24,7 @@
 #include "BKE_anim_data.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_nla.hh"
 #include "BKE_report.hh"
@@ -1140,7 +1141,7 @@ void Slot::users_invalidate(Main &bmain)
   bmain.is_action_slot_to_id_map_dirty = true;
 }
 
-std::string Slot::identifier_prefix_for_idtype() const
+std::string Slot::idtype_string() const
 {
   if (!this->has_idtype()) {
     return slot_untyped_prefix;
@@ -1149,6 +1150,14 @@ std::string Slot::identifier_prefix_for_idtype() const
   char name[3] = {0};
   *reinterpret_cast<short *>(name) = this->idtype;
   return name;
+}
+
+StringRef Slot::identifier_prefix() const
+{
+  StringRef identifier(this->identifier);
+  BLI_assert(identifier.size() >= 2);
+
+  return identifier.substr(0, 2);
 }
 
 StringRefNull Slot::identifier_without_prefix() const
@@ -2587,11 +2596,11 @@ Vector<FCurve *> fcurves_in_listbase_filtered(ListBase /* FCurve * */ fcurves,
   return found;
 }
 
-FCurve *action_fcurve_ensure(Main *bmain,
-                             bAction *act,
-                             const char group[],
-                             PointerRNA *ptr,
-                             FCurveDescriptor fcurve_descriptor)
+FCurve *action_fcurve_ensure_ex(Main *bmain,
+                                bAction *act,
+                                const char group[],
+                                PointerRNA *ptr,
+                                FCurveDescriptor fcurve_descriptor)
 {
   if (act == nullptr) {
     return nullptr;
@@ -2617,13 +2626,18 @@ FCurve *action_fcurve_ensure(Main *bmain,
    * hold, or if this is even the best place to handle the layered action
    * cases at all, was leading to discussion of larger changes than made sense
    * to tackle at that point. */
-  Action &action = act->wrap();
-
   BLI_assert(ptr != nullptr);
   if (ptr == nullptr || ptr->owner_id == nullptr) {
     return nullptr;
   }
-  ID &animated_id = *ptr->owner_id;
+
+  return action_fcurve_ensure(bmain, *act, *ptr->owner_id, fcurve_descriptor);
+}
+
+Channelbag *action_channelbag_ensure(bAction &dna_action, ID &animated_id)
+{
+  Action &action = dna_action.wrap();
+
   BLI_assert(get_action(animated_id) == &action);
   if (get_action(animated_id) != &action) {
     return nullptr;
@@ -2632,7 +2646,9 @@ FCurve *action_fcurve_ensure(Main *bmain,
   /* Ensure the id has an assigned slot. */
   Slot *slot = assign_action_ensure_slot_for_keying(action, animated_id);
   if (!slot) {
-    /* This means the ID type is not animatable. */
+    /* This means the ID type is not animatable. How did an Action get assigned
+     * in the first place? */
+    BLI_assert_unreachable();
     return nullptr;
   }
 
@@ -2641,7 +2657,21 @@ FCurve *action_fcurve_ensure(Main *bmain,
   assert_baklava_phase_1_invariants(action);
   StripKeyframeData &strip_data = action.layer(0)->strip(0)->data<StripKeyframeData>(action);
 
-  return &strip_data.channelbag_for_slot_ensure(*slot).fcurve_ensure(bmain, fcurve_descriptor);
+  return &strip_data.channelbag_for_slot_ensure(*slot);
+}
+
+FCurve *action_fcurve_ensure(Main *bmain,
+                             bAction &dna_action,
+                             ID &animated_id,
+                             FCurveDescriptor fcurve_descriptor)
+{
+  Channelbag *channelbag = action_channelbag_ensure(dna_action, animated_id);
+  BLI_assert(channelbag);
+  if (!channelbag) {
+    return nullptr;
+  }
+
+  return &channelbag->fcurve_ensure(bmain, fcurve_descriptor);
 }
 
 FCurve *action_fcurve_ensure_legacy(Main *bmain,
