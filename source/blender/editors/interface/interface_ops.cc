@@ -1239,7 +1239,7 @@ bool UI_context_copy_to_selected_list(bContext *C,
 
     /* Now filter out non-matching nodes (by idname). */
     if (node) {
-      const std::string node_idname = node->idname;
+      const blender::StringRef node_idname = node->idname;
       lb = CTX_data_collection_get(C, "selected_nodes");
       lb.remove_if([&](const PointerRNA &link) {
         bNode *node_data = static_cast<bNode *>(link.data);
