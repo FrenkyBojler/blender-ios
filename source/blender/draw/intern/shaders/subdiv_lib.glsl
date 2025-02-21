@@ -62,11 +62,6 @@ uint get_global_invocation_index()
   return gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * invocations_per_row;
 }
 
-/* Structure for #CompressedPatchCoord. */
-struct BlenderPatchCoord {
-  int patch_index;
-  uint encoded_uv;
-};
 
 vec2 decode_uv(uint encoded_uv)
 {
