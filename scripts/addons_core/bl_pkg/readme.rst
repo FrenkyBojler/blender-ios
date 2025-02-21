@@ -237,7 +237,8 @@ Inter Process Communication (IPC)
 ---------------------------------
 
 - Most long running operations are performed by the stand-alone script ``cli/blender_ext.py``.
-- Its state is passed in via command line arguments.
+- The state of the extensions repository (repository location, blender-version, API tokens etc)
+  are passed in via command line arguments.
 - This can be configured to only output JSON messages to the STDOUT which Blender parses and uses
   to send feedback to the user.
 - Input is limited to the request to cancel
