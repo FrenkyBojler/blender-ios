@@ -66,7 +66,7 @@ Add-on: Other Scripts
   This script typically runs as an external process
   (called by ``bl_extension_utils.py`` or in some cases ``bl_extension_cli.py``).
 
-  Inter process communication (IPC) is used so Blender's UI can show the status of each command.
+  :ref:`Inter process communication (IPC) <IPC>` is used so Blender's UI can show the status of each command.
 
 - ``extensions_map_from_legacy_addons``
 
@@ -232,6 +232,7 @@ where the user manages the files.
 
 Once extensions have been installed their TOML files are compared with the repository to check for updates.
 
+.. _IPC:
 
 Inter Process Communication (IPC)
 ---------------------------------
