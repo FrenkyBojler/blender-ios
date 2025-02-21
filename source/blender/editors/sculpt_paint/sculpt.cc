@@ -5227,11 +5227,6 @@ void flush_update_step(const bContext *C, const UpdateType update_type)
     rv3d->rflag |= RV3D_PAINTING;
   }
 
-  const SculptSession &ss = *ob.sculpt;
-  const MultiresModifierData *mmd = ss.multires.modifier;
-  if (mmd != nullptr) {
-    multires_flush_sculpt_updates(&ob);
-  }
 
   ARegion &region = *CTX_wm_region(C);
   if (update_type == UpdateType::Image) {
@@ -5245,6 +5240,7 @@ void flush_update_step(const bContext *C, const UpdateType update_type)
 
   DEG_id_tag_update(&ob.id, ID_RECALC_SHADING);
 
+  const SculptSession &ss = *ob.sculpt;
   const bool use_pbvh_draw = BKE_sculptsession_use_pbvh_draw(&ob, rv3d);
   /* Only current viewport matters, slower update for all viewports will
    * be done in sculpt_flush_update_done. */
@@ -5347,6 +5343,12 @@ void flush_update_done(const bContext *C, Object &ob, const UpdateType update_ty
       SculptSession &ss = *ob.sculpt;
       BKE_pbvh_bmesh_after_stroke(*ss.bm, pbvh);
     }
+  }
+
+  const SculptSession &ss = *ob.sculpt;
+  const MultiresModifierData *mmd = ss.multires.modifier;
+  if (mmd != nullptr) {
+    multires_flush_sculpt_updates(&ob);
   }
 
   if (need_tag) {
