@@ -192,6 +192,9 @@ void WM_operator_properties_filesel(wmOperatorType *ot,
       ot->srna, "filter_blenlib", (filter & FILE_TYPE_BLENDERLIB) != 0, "Filter Blender IDs", "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
+  prop = RNA_def_string(ot->srna, "filter_glob", nullptr, 0, "Glob Filter", "Custom filter");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+
   /* TODO: asset only filter? */
 
   prop = RNA_def_int(

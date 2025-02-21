@@ -676,6 +676,10 @@ using StringPropertySearchFunc =
              const char *edit_text,
              blender::FunctionRef<void(StringPropertySearchVisitParams)> visit_fn);
 
+using StringPropertyPathFilterFunc = std::optional<std::string> (*)(const bContext *C,
+                                                                    PointerRNA *ptr,
+                                                                    PropertyRNA *prop);
+
 using EnumPropertyGetFunc = int (*)(PointerRNA *ptr, PropertyRNA *prop);
 using EnumPropertySetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, int value);
 /* same as PropEnumItemFunc */

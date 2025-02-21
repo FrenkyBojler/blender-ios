@@ -393,6 +393,9 @@ static int file_browse_invoke(bContext *C, wmOperator *op, const wmEvent *event)
     const bool is_output_path = (RNA_property_flag(prop) & PROP_PATH_OUTPUT) != 0;
     RNA_property_boolean_set(op->ptr, prop_check_existing, is_output_path);
   }
+  if (std::optional<std::string> filter = RNA_property_string_path_filter(C, &ptr, prop)) {
+    RNA_string_set(op->ptr, "filter_glob", filter->c_str());
+  }
 
   WM_event_add_fileselect(C, op);
 
