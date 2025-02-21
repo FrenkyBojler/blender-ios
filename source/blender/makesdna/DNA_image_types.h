@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+/*st SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -139,7 +139,8 @@ typedef struct Image_Runtime {
   float backdrop_offset[2];
 
   void *_pad;
-  /* The Depsgraph::update_count when this ID was last updated. Covers any IDRecalcFlag. */
+  /* An initially zero value that is incremented every time the image is changed. This can be used
+   * to identify if the image was changed since the last time it was cached. */
   uint64_t last_update;
 } Image_Runtime;
 
