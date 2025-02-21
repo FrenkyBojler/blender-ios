@@ -168,11 +168,11 @@ is responsible for ensuring extensions are compatible before loading.
   whenever ``addon_utils.enable(..)`` is used to enable an extension.
 - If the "compatibility cache" exists it is validated by each extensions TOML modification-time & size,
   re-generating upon any changes.
-- The compatibility data stores the reason the extension being disabled,
+- The compatibility data stores the reason the extension is disabled,
   this is reported if the user attempts to enable it.
 
 
-The details of the compatibility cache are document in ``addon_utils``,
+The details of the compatibility cache are documented in ``addon_utils``,
 it's a simple format that stores the Blender version & a magic number that can be bumped at any time,
 changes to these files cause the cache to be re-generated.
 
