@@ -80,14 +80,12 @@ void resize_fcurve(FCurve *fcu, uint bezt_count)
   fcu->totvert = bezt_count;
 }
 
-/* Utility: create curve at the given array index and
- * add it as a channel to a group. */
+/* Utility: create curve at the given array index and add it as a channel to a group. */
 FCurve *create_fcurve(blender::animrig::Channelbag *channelbag,
-                      Main *bmain,
                       const blender::animrig::FCurveDescriptor fcurve_descriptor,
                       const int totvert)
 {
-  FCurve *fcurve = channelbag->fcurve_create_unique(bmain, fcurve_descriptor);
+  FCurve *fcurve = channelbag->fcurve_create_unique(nullptr, fcurve_descriptor);
   BLI_assert_msg(fcurve, "The same F-Curve is being created twice, this is unexpected.");
   BKE_fcurve_bezt_resize(fcurve, totvert);
   return fcurve;
@@ -184,22 +182,22 @@ void import_skeleton_curves(Main *bmain,
 
     /* Add translation curves. */
     std::string rna_path = "pose.bones[\"" + *name + "\"].location";
-    loc_curves.append(create_fcurve(channelbag, bmain, {rna_path, 0, {}, *name}, num_samples));
-    loc_curves.append(create_fcurve(channelbag, bmain, {rna_path, 1, {}, *name}, num_samples));
-    loc_curves.append(create_fcurve(channelbag, bmain, {rna_path, 2, {}, *name}, num_samples));
+    loc_curves.append(create_fcurve(channelbag, {rna_path, 0, {}, *name}, num_samples));
+    loc_curves.append(create_fcurve(channelbag, {rna_path, 1, {}, *name}, num_samples));
+    loc_curves.append(create_fcurve(channelbag, {rna_path, 2, {}, *name}, num_samples));
 
     /* Add rotation curves. */
     rna_path = "pose.bones[\"" + *name + "\"].rotation_quaternion";
-    rot_curves.append(create_fcurve(channelbag, bmain, {rna_path, 0, {}, *name}, num_samples));
-    rot_curves.append(create_fcurve(channelbag, bmain, {rna_path, 1, {}, *name}, num_samples));
-    rot_curves.append(create_fcurve(channelbag, bmain, {rna_path, 2, {}, *name}, num_samples));
-    rot_curves.append(create_fcurve(channelbag, bmain, {rna_path, 3, {}, *name}, num_samples));
+    rot_curves.append(create_fcurve(channelbag, {rna_path, 0, {}, *name}, num_samples));
+    rot_curves.append(create_fcurve(channelbag, {rna_path, 1, {}, *name}, num_samples));
+    rot_curves.append(create_fcurve(channelbag, {rna_path, 2, {}, *name}, num_samples));
+    rot_curves.append(create_fcurve(channelbag, {rna_path, 3, {}, *name}, num_samples));
 
     /* Add scale curves. */
     rna_path = "pose.bones[\"" + *name + "\"].scale";
-    scale_curves.append(create_fcurve(channelbag, bmain, {rna_path, 0, {}, *name}, num_samples));
-    scale_curves.append(create_fcurve(channelbag, bmain, {rna_path, 1, {}, *name}, num_samples));
-    scale_curves.append(create_fcurve(channelbag, bmain, {rna_path, 2, {}, *name}, num_samples));
+    scale_curves.append(create_fcurve(channelbag, {rna_path, 0, {}, *name}, num_samples));
+    scale_curves.append(create_fcurve(channelbag, {rna_path, 1, {}, *name}, num_samples));
+    scale_curves.append(create_fcurve(channelbag, {rna_path, 2, {}, *name}, num_samples));
   }
 
   /* Sanity checks: make sure we have a curve entry for each joint. */
@@ -654,7 +652,7 @@ void import_blendshapes(Main *bmain,
 
     /* Create the curve for this shape key. */
     std::string rna_path = "key_blocks[\"" + blendshape_name.GetString() + "\"].value";
-    FCurve *fcu = create_fcurve(channelbag, bmain, {rna_path, 0}, times.size());
+    FCurve *fcu = create_fcurve(channelbag, {rna_path, 0}, times.size());
     curves.append(fcu);
   }
 
