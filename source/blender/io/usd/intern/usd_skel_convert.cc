@@ -82,7 +82,7 @@ void resize_fcurve(FCurve *fcu, uint bezt_count)
 
 /* Utility: create curve at the given array index and add it as a channel to a group. */
 FCurve *create_fcurve(blender::animrig::Channelbag &channelbag,
-                      const blender::animrig::FCurveDescriptor fcurve_descriptor,
+                      const blender::animrig::FCurveDescriptor &fcurve_descriptor,
                       const int totvert)
 {
   FCurve *fcurve = channelbag.fcurve_create_unique(nullptr, fcurve_descriptor);
