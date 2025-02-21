@@ -186,7 +186,7 @@ This works in much the same way as dropping images in the 3D viewport or blend f
 
 There are two drop-boxes used one for file-paths another for URL's.
 Both check the path contains a ``.zip`` extension,
-where the URL logic needs to strip any parameters which may be part of the URL.
+where the URL logic needs to strips the query string and the fragment from the URL.
 
 The drop action runs the operator ``extensions.package_install`` (from ``bl_extension_ops.py``)
 which checks if the ``url`` property has been set.
