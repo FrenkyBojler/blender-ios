@@ -8,6 +8,7 @@
 #include "UI_resources.hh"
 
 #include "BKE_attribute.hh"
+#include "BLI_sort.hh"
 #include "NOD_rna_define.hh"
 #include "RNA_enum_types.hh"
 
@@ -64,15 +65,25 @@ static void node_geo_exec(GeoNodeExecParams params)
   const AttributeAccessor attributes = *component->attributes();
   int attribute_count = 0;
   std::string attribute_name;
+  std::vector<AttributeIter> sort_attributes;
 
   attributes.foreach_attribute([&](const AttributeIter &iter) {
     if (iter.domain == domain && iter.data_type == data_type && iter.name[0] != '.') {
-      if (attribute_count == sample_index) {
-        attribute_name = iter.name;
-      }
-      attribute_count++;
+      sort_attributes.push_back(iter);
     }
   });
+
+  if (!sort_attributes.empty()) {
+    attribute_count = sort_attributes.size();
+
+    parallel_sort(sort_attributes.begin(),
+                  sort_attributes.end(),
+                  [](const AttributeIter &a, const AttributeIter &b) { return a.name < b.name; });
+
+    if (sample_index < sort_attributes.size()) {
+      attribute_name = sort_attributes[sample_index].name;
+    }
+  }
 
   params.set_output("Attribute Name", attribute_name);
   params.set_output("Total Attributes", attribute_count);
