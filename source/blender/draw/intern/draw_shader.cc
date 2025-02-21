@@ -124,11 +124,20 @@ GPUShader *DRW_shader_draw_command_generate_get()
 static blender::StringRefNull get_subdiv_shader_info_name(SubdivShaderType shader_type)
 {
   switch (shader_type) {
+    case SubdivShaderType::BUFFER_NORMALS_ACCUMULATE:
+      return "subdiv_normals_accumulate";
+
     case SubdivShaderType::BUFFER_NORMALS_FINALIZE:
       return "subdiv_normals_finalize";
 
     case SubdivShaderType::BUFFER_CUSTOM_NORMALS_FINALIZE:
       return "subdiv_custom_normals_finalize";
+
+    case SubdivShaderType::BUFFER_LINES:
+      return "subdiv_lines";
+
+    case SubdivShaderType::BUFFER_LINES_LOOSE:
+      return "subdiv_lines_loose";
 
     default:
       break;
@@ -326,6 +335,9 @@ GPUShader *DRW_shader_subdiv_get(SubdivShaderType shader_type)
 
   if (e_data.subdiv_sh[uint(shader_type)] == nullptr &&
       ELEM(shader_type,
+           SubdivShaderType::BUFFER_LINES,
+           SubdivShaderType::BUFFER_LINES_LOOSE,
+           SubdivShaderType::BUFFER_NORMALS_ACCUMULATE,
            SubdivShaderType::BUFFER_NORMALS_FINALIZE,
            SubdivShaderType::BUFFER_CUSTOM_NORMALS_FINALIZE))
   {
@@ -339,7 +351,6 @@ GPUShader *DRW_shader_subdiv_get(SubdivShaderType shader_type)
     std::optional<blender::StringRefNull> defines;
 
     if (ELEM(shader_type,
-             SubdivShaderType::BUFFER_LINES,
              SubdivShaderType::BUFFER_LNOR,
              SubdivShaderType::BUFFER_TRIS_MULTIPLE_MATERIALS,
              SubdivShaderType::BUFFER_UV_STRETCH_AREA))
@@ -351,18 +362,12 @@ GPUShader *DRW_shader_subdiv_get(SubdivShaderType shader_type)
           "#define SUBDIV_POLYGON_OFFSET\n"
           "#define SINGLE_MATERIAL\n";
     }
-    else if (shader_type == SubdivShaderType::BUFFER_LINES_LOOSE) {
-      defines = "#define LINES_LOOSE\n";
-    }
     else if (shader_type == SubdivShaderType::BUFFER_EDGE_FAC) {
       /* No separate shader for the AMD driver case as we assume that the GPU will not change
        * during the execution of the program. */
       if (GPU_crappy_amd_driver()) {
         defines = "#define GPU_AMD_DRIVER_BYTE_BUG\n";
       }
-    }
-    else if (shader_type == SubdivShaderType::BUFFER_CUSTOM_NORMALS_FINALIZE) {
-      defines = "#define CUSTOM_NORMALS\n";
     }
 
     e_data.subdiv_sh[uint(shader_type)] = GPU_shader_create_compute(
