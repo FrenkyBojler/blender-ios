@@ -953,8 +953,6 @@ class ThemePanel:
 
 class USERPREF_MT_interface_theme_presets(Menu):
     bl_label = "Presets"
-    default_theme_label = "Blender Dark"
-
     preset_subdir = "interface_theme"
     preset_operator = "script.execute_preset"
     preset_type = 'XML'
@@ -1009,36 +1007,32 @@ class USERPREF_MT_interface_theme_presets(Menu):
     def post_cb(context, filepath):
         context.preferences.themes[0].filepath = filepath
 
-    @classmethod
-    def display_label(cls, context):
-        import os
-        
-        # Unlike most presets (which use the classes bl_label),
-        # themes store the path, use this when set.
-        theme = context.preferences.themes[0]
-        filepath = theme.filepath
-        
-        if filepath != "":
-            return bpy.path.display_name(os.path.basename(filepath))
-        # When the user theme is reset, the theme used is simply named "Default"
-        # Use the name assumed by `default_theme_label` instead
-        else:
-            return cls.default_theme_label
-
 
 class USERPREF_PT_theme(ThemePanel, Panel):
     bl_label = "Themes"
     bl_options = {'HIDE_HEADER'}
 
     def draw(self, context):
+        import os
+
         layout = self.layout
 
         split = layout.split(factor=0.6)
 
         row = split.row(align=True)
 
-        preset_label = USERPREF_MT_interface_theme_presets.display_label(context)
+
+        # Unlike most presets (which use the classes bl_label),
+        # themes store the path, use this when set.
+        if filepath := context.preferences.themes[0].filepath:
+            preset_label = bpy.path.display_name(os.path.basename(filepath))
+        # If the filepath is empty, assume the theme was reset
+        # and use the default theme name as a label
+        else:
+            preset_label = "Blender Dark"
+
         row.menu("USERPREF_MT_interface_theme_presets", text=preset_label)
+        del filepath, preset_label
 
         row.operator("wm.interface_theme_preset_add", text="", icon='ADD')
         row.operator("wm.interface_theme_preset_remove", text="", icon='REMOVE')
