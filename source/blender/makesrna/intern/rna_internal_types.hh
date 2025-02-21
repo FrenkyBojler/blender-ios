@@ -493,7 +493,7 @@ struct StringPropertyRNA {
   eStringPropertySearchFlag search_flag;
 
   /**
-   * Used for string which are #PROP_FILEPATH to have a default filter when opening a file
+   * Used for strings which are #PROP_FILEPATH to have a default filter when opening a file
    * browser.
    */
   StringPropertyPathFilterFunc path_filter;
