@@ -2,6 +2,18 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#ifdef GPU_SHADER
+#  pragma once
+#  include "gpu_glsl_cpp_stubs.hh"
+
+#  include "draw_common_shader_shared.hh"
+#  include "draw_object_infos_info.hh"
+#  include "draw_view_info.hh"
+#  include "gpu_index_load_info.hh"
+
+#  define VERT
+#endif
+
 #include "overlay_common_info.hh"
 
 GPU_SHADER_INTERFACE_INFO(overlay_edit_flat_color_iface)
@@ -525,7 +537,7 @@ GPU_SHADER_CREATE_INFO(overlay_edit_curve_wire)
 DO_STATIC_COMPILATION()
 VERTEX_IN(0, VEC3, pos)
 VERTEX_IN(1, VEC3, nor)
-VERTEX_IN(2, VEC3, tan)
+VERTEX_IN(2, VEC3, tangent)
 VERTEX_IN(3, FLOAT, rad)
 PUSH_CONSTANT(FLOAT, normalSize)
 VERTEX_OUT(overlay_edit_flat_color_iface)
@@ -545,7 +557,7 @@ DO_STATIC_COMPILATION()
 STORAGE_BUF_FREQ(0, READ, float, pos[], GEOMETRY)
 STORAGE_BUF_FREQ(1, READ, float, rad[], GEOMETRY)
 STORAGE_BUF_FREQ(2, READ, uint, nor[], GEOMETRY)
-STORAGE_BUF_FREQ(3, READ, uint, tan[], GEOMETRY)
+STORAGE_BUF_FREQ(3, READ, uint, tangent[], GEOMETRY)
 PUSH_CONSTANT(IVEC2, gpu_attr_0)
 PUSH_CONSTANT(IVEC2, gpu_attr_1)
 PUSH_CONSTANT(IVEC2, gpu_attr_2)

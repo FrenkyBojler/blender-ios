@@ -29,8 +29,8 @@ void main()
   float radius = rad[gpu_attr_load_index(v_i, gpu_attr_1)];
   vec3 ls_N = use_hq_normals ? gpu_attr_load_short4_snorm(nor, gpu_attr_2, v_i).xyz :
                                gpu_attr_load_uint_1010102_snorm(nor, gpu_attr_2, v_i).xyz;
-  vec3 ls_T = use_hq_normals ? gpu_attr_load_short4_snorm(tan, gpu_attr_3, v_i).xyz :
-                               gpu_attr_load_uint_1010102_snorm(tan, gpu_attr_3, v_i).xyz;
+  vec3 ls_T = use_hq_normals ? gpu_attr_load_short4_snorm(tangent, gpu_attr_3, v_i).xyz :
+                               gpu_attr_load_uint_1010102_snorm(tangent, gpu_attr_3, v_i).xyz;
 
   if ((gl_VertexID & 1) == 0) {
     float flip = ((gl_VertexID & 2) == 0) ? -1.0 : 1.0;
