@@ -5721,7 +5721,7 @@ class VIEW3D_MT_edit_greasepencil_cleanup(Menu):
         layout.operator("grease_pencil.frame_clean_duplicate")
 
         if ob.mode != 'PAINT_GREASE_PENCIL':
-            layout.operator("grease_pencil.resample_by_distance", text="Resample by Distance")
+            layout.operator("grease_pencil.stroke_merge_by_distance", text="Simplify Strokes by Distance")
 
         layout.operator("grease_pencil.reproject")
 
