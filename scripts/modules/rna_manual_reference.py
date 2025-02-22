@@ -575,7 +575,7 @@ url_manual_mapping = (
     ("bpy.ops.armature.rigify_apply_selection_colors*", "addons/rigging/rigify/metarigs.html#bpy-ops-armature-rigify-apply-selection-colors"),
     ("bpy.ops.ed.lib_id_generate_preview_from_object*", "editors/asset_browser.html#bpy-ops-ed-lib-id-generate-preview-from-object"),
     ("bpy.ops.grease_pencil.material_lock_unselected*", "grease_pencil/materials/properties.html#bpy-ops-grease-pencil-material-lock-unselected"),
-    ("bpy.ops.grease_pencil.stroke_merge_by_distance*", "grease_pencil/modes/edit/grease_pencil_menu.html#bpy-ops-grease-pencil-stroke-merge-by-distance"),
+    ("bpy.ops.grease_pencil.resample_by_distance*", "grease_pencil/modes/edit/grease_pencil_menu.html#bpy-ops-grease-pencil-stroke-merge-by-distance"),
     ("bpy.ops.paint.vertex_color_brightness_contrast*", "sculpt_paint/vertex_paint/editing.html#bpy-ops-paint-vertex-color-brightness-contrast"),
     ("bpy.types.brush.use_automasking_boundary_edges*", "sculpt_paint/brush/brush_settings.html#bpy-types-brush-use-automasking-boundary-edges"),
     ("bpy.types.brushcurvessculptsettings.add_amount*", "sculpt_paint/curves_sculpting/brushes/add_curves.html#bpy-types-brushcurvessculptsettings-add-amount"),
