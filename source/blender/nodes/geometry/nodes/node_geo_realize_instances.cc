@@ -99,7 +99,8 @@ static void node_rna(StructRNA *srna)
 {
   RNA_def_node_boolean(srna,
                        "scale_radius",
-                       "Scale Radius", "Uniformly apply transformation to a radius.",
+                       "Scale Radius",
+                       "Uniformly apply transformation to a radius.",
                        NOD_inline_boolean_accessors(custom1, 1));
 }
 
