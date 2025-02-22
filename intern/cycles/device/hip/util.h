@@ -63,17 +63,7 @@ static inline bool hipSupportsDevice(const int hipDevId)
   hipDeviceGetAttribute(&major, hipDeviceAttributeComputeCapabilityMajor, hipDevId);
   hipDeviceGetAttribute(&minor, hipDeviceAttributeComputeCapabilityMinor, hipDevId);
 
-  bool device_is_supported = (major >= 10);
-
-#  ifdef _WIN32
-  int driver_version;
-  hipDriverGetVersion(&driver_version);
-  /* Cycles crashes during rendering due to issues in the GPU driver unless the HIP driver version
-   * is new enough. */
-  device_is_supported &= (driver_version >= 60140252);
-#  endif
-
-  return device_is_supported;
+  return (major >= 10);
 }
 
 static inline bool hipSupportsDeviceOIDN(const int hipDevId)
@@ -81,6 +71,28 @@ static inline bool hipSupportsDeviceOIDN(const int hipDevId)
   /* Matches HIPDevice::getArch in HIP. */
   const std::string arch = hipDeviceArch(hipDevId);
   return (arch == "gfx1030" || arch == "gfx1100" || arch == "gfx1101" || arch == "gfx1102");
+}
+
+static inline bool hipSupportsDriver()
+{
+#  ifdef _WIN32
+#    ifndef WITH_HIP_SDK_5
+  /* This check is only neccesary if we're using HIP SDK 6 or newer. */
+  int driver_version = 0;
+  hipError_t result = hipDriverGetVersion(&driver_version);
+  if (result != hipSuccess) {
+    return false;
+  }
+
+  if (driver_version >= 60140252) {
+    /* Cycles crashes during rendering due to issues in the GPU driver lower than this HIP driver
+     * version. */
+    return true;
+  }
+#    endif
+#  endif
+
+  return true;
 }
 
 CCL_NAMESPACE_END

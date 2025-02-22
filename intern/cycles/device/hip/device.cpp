@@ -154,7 +154,7 @@ void device_hip_info(vector<DeviceInfo> &devices)
       continue;
     }
 
-    if (!hipSupportsDevice(num)) {
+    if (!hipSupportsDevice(num) || !hipSupportsDriver()) {
       continue;
     }
 
