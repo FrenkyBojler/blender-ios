@@ -95,6 +95,14 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Geometry", std::move(new_geometry_set));
 }
 
+static void node_rna(StructRNA *srna)
+{
+  RNA_def_node_boolean(srna,
+                       "scale_radius",
+                       "Scale Radius", "Uniformly apply transformation to a radius.",
+                       NOD_inline_boolean_accessors(custom1, 1));
+}
+
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
@@ -109,6 +117,8 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;
   blender::bke::node_register_type(ntype);
+
+  node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)
 
