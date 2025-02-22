@@ -102,14 +102,15 @@ static GHOST_TKey ghost_key_from_keysym_or_keycode(const KeySym key_sym,
 static char *txt_cut_buffer = nullptr;
 static char *txt_select_buffer = nullptr;
 
+/* In case copied image is large and we need to use INCR
+ * when sending data to client trying to paste */
+#define INCR_THRESHOLD (64 * 1024)  /* 64KB threshold */
+#define CHUNK_SIZE     4096         /* Send data in 4KB chunks */
 
 // for copy and slect image
 static bool has_clipboard_image = false; 
-
 static char *img_cut_buffer = nullptr;
-static char *img_select_buffer = nullptr;
 static size_t img_cut_buffer_size = 0;
-static size_t img_select_buffer_size = 0;
 
 #ifdef WITH_XWAYLAND_HACK
 static bool use_xwayland_hack = false;
@@ -1535,6 +1536,8 @@ void GHOST_SystemX11::processEvent(XEvent *xe)
           else if (ELEM(xse->target,
                         m_atom.IMAGE_PNG))
           {
+
+            // TODO: Implement check and functionality for INCR if img_cut_buffeer_size > threshold
             if (xse->selection == XInternAtom(m_display, "CLIPBOARD", False)) {
                 XChangeProperty(m_display,
                                 xse->requestor,
@@ -2083,7 +2086,7 @@ static GHOST_TKey ghost_key_from_keycode(const XkbDescPtr xkb_descr, const KeyCo
 #define XCLIB_XCOUT_FALLBACK_JPEG   8  /* Fallback to JPEG */
 #define XCLIB_XCOUT_FALLBACK_BMP    9  /* Fallback to BMP */
 #define XCLIB_XCOUT_FALLBACK_ICON   10  /* Fallback to ICON */
-#define XCLIB_XCOUT_FALLBACK_IMAGE_FAIL   11  /* Fallback to ICON */
+#define XCLIB_XCOUT_FALLBACK_IMAGE_FAIL   11  /* Out of supported fallback image options */
 
 /* Retrieves the contents of a selections. */
 void GHOST_SystemX11::getClipboard_xcout(
@@ -2446,9 +2449,8 @@ void GHOST_SystemX11::getClipboardImage_xcout(
   int pty_format;
   unsigned char *buffer = nullptr;
   unsigned long pty_size, pty_items;
-  unsigned char *limg = *img;  // Pointer to accumulated image data
+  unsigned char *limg = *img;
 
-  // Get our window
   const std::vector<GHOST_IWindow *> &win_vec = m_windowManager->getWindows();
   auto win_it = win_vec.begin();
   GHOST_WindowX11 *window = static_cast<GHOST_WindowX11 *>(*win_it);
@@ -2831,7 +2833,6 @@ uint *GHOST_SystemX11::getClipboardImage(int *r_width, int *r_height) const
   return rgba;
 }
 
-
 GHOST_TSuccess GHOST_SystemX11::putClipboardImage(uint *rgba, int width, int height) const {
     Window m_window, owner;
 
@@ -2854,7 +2855,7 @@ GHOST_TSuccess GHOST_SystemX11::putClipboardImage(uint *rgba, int width, int hei
     }
 
     /* Get the encoded PNG data. */
-    char *buffer_data = reinterpret_cast<char *> (ibuf->encoded_buffer.data);
+    char *buffer_data = reinterpret_cast<char *>(ibuf->encoded_buffer.data);
     size_t buffer_size = ibuf->encoded_buffer_size;
     
     XSetSelectionOwner(m_display, m_atom.CLIPBOARD, m_window, CurrentTime);
@@ -2862,21 +2863,23 @@ GHOST_TSuccess GHOST_SystemX11::putClipboardImage(uint *rgba, int width, int hei
 
     /* Free any previously allocated buffer. */
     if (img_cut_buffer) {
-        free((void *) img_cut_buffer);
+        free(img_cut_buffer);
     }
    
     img_cut_buffer = (char *)malloc(buffer_size);
-    memcpy(img_cut_buffer, buffer_data, buffer_size); 
-  
-    /*
-    if (owner != m_window) {
-      fprintf(stderr, "Failed to own CLIPBOARD.\n");
+    if (!img_cut_buffer) {
+        IMB_freeImBuf(ibuf);
+        return GHOST_kFailure;
     }
-    */
+
+    memcpy(img_cut_buffer, buffer_data, buffer_size);
+    img_cut_buffer_size = buffer_size;
+  
     has_clipboard_image = true; 
     IMB_freeImBuf(ibuf);
     return GHOST_kSuccess;
 }
+
 /* -------------------------------------------------------------------- */
 /** \name Message Box
  * \{ */
