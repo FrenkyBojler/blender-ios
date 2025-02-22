@@ -78,15 +78,15 @@ static inline bool hipSupportsDriver()
 #  ifdef _WIN32
 #    ifndef WITH_HIP_SDK_5
   /* This check is only neccesary if we're using HIP SDK 6 or newer. */
-  int driver_version = 0;
-  hipError_t result = hipDriverGetVersion(&driver_version);
+  int hip_driver_version = 0;
+  hipError_t result = hipDriverGetVersion(&hip_driver_version);
   if (result != hipSuccess) {
     return false;
   }
 
-  if (driver_version >= 60140252) {
-    /* Cycles crashes during rendering due to issues in the GPU driver lower than this HIP driver
-     * version. */
+  if (hip_driver_version >= 60140252) {
+    /* Cycles crashes during rendering due to issues in older GPU drivers. This HIP driver version
+     * corrisponds to Adrenalin 24.6.1 and newer. */
     return true;
   }
 #    endif

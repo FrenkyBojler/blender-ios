@@ -1775,7 +1775,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                         text=rpt_("Requires AMD GPU with RDNA architecture"),
                         icon='BLANK1',
                         translate=False)
-                    col.label(text=rpt_("and AMD Adrenalin %s or AMD Radeon Pro %s driver or newer") %
+                    col.label(text=rpt_("and AMD Adrenalin %s newer or AMD Radeon Pro %s driver or newer") %
                               (adrenalin_driver_version, pro_driver_version), icon='BLANK1', translate=False)
                 elif sys.platform.startswith("linux"):
                     driver_version = "23.40"
