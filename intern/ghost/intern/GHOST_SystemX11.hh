@@ -229,7 +229,15 @@ class GHOST_SystemX11 : public GHOST_System {
    */
   void putClipboard(const char *buffer, bool selection) const override;
 
- /**
+  /** Help function to get image data from the clipboard. */
+  void getClipboardImage_xcout(const XEvent *evt, 
+                               Atom sel, 
+                               Atom target, 
+                               unsigned char **img, 
+                               unsigned long *len, 
+                               unsigned int *context) const;
+ 
+   /**
    * Returns GHOST_kSuccess if the clipboard contains an image.
    */
   GHOST_TSuccess hasClipboardImage(void) const override;
@@ -348,6 +356,10 @@ class GHOST_SystemX11 : public GHOST_System {
 
     /* Image Atoms for Selection, copy & paste. */
     Atom IMAGE_PNG;
+    Atom IMAGE_JPEG;
+    Atom IMAGE_BMP;
+    Atom IMAGE_ICON;
+    Atom IMAGE_WEBP;
 #ifdef WITH_X11_XINPUT
     Atom TABLET;
 #endif

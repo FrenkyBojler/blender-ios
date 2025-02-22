@@ -102,7 +102,10 @@ static GHOST_TKey ghost_key_from_keysym_or_keycode(const KeySym key_sym,
 static char *txt_cut_buffer = nullptr;
 static char *txt_select_buffer = nullptr;
 
-// Could be uint8_t instead
+
+// for copy and slect image
+static bool has_clipboard_image = false; 
+
 static char *img_cut_buffer = nullptr;
 static char *img_select_buffer = nullptr;
 static size_t img_cut_buffer_size = 0;
@@ -179,7 +182,10 @@ GHOST_SystemX11::GHOST_SystemX11()
   GHOST_INTERN_ATOM(INCR);
   GHOST_INTERN_ATOM(UTF8_STRING);
 
-  GHOST_INTERN_ATOM_WITH_NAME(IMAGE_PNG, "image/png");
+  GHOST_INTERN_ATOM_WITH_NAME(IMAGE_PNG,  "image/png");
+  GHOST_INTERN_ATOM_WITH_NAME(IMAGE_JPEG, "image/jpeg");
+  GHOST_INTERN_ATOM_WITH_NAME(IMAGE_BMP,  "image/bmp");
+  GHOST_INTERN_ATOM_WITH_NAME(IMAGE_ICON, "image/icon");
 #ifdef WITH_X11_XINPUT
   m_atom.TABLET = XInternAtom(m_display, XI_TABLET, False);
 #endif
@@ -1505,8 +1511,7 @@ void GHOST_SystemX11::processEvent(XEvent *xe)
                   m_atom.COMPOUND_TEXT,
                   m_atom.C_STRING))
           {
-            if (xse->selection == XInternAtom(m_display, "PRIMARY", False) 
-                               && txt_select_buffer ) {
+            if (xse->selection == XInternAtom(m_display, "PRIMARY", False)) {
               XChangeProperty(m_display,
                               xse->requestor,
                               xse->property,
@@ -1516,8 +1521,7 @@ void GHOST_SystemX11::processEvent(XEvent *xe)
                               (uchar *)txt_select_buffer,
                               strlen(txt_select_buffer));
             }
-            else if (xse->selection == XInternAtom(m_display, "CLIPBOARD", False)
-                                    && txt_cut_buffer ) {
+            else if (xse->selection == XInternAtom(m_display, "CLIPBOARD", False)) {
               XChangeProperty(m_display,
                               xse->requestor,
                               xse->property,
@@ -1526,24 +1530,12 @@ void GHOST_SystemX11::processEvent(XEvent *xe)
                               PropModeReplace,
                               (uchar *)txt_cut_buffer,
                               strlen(txt_cut_buffer));
-            } else {
-              nxe.xselection.property = None;
             }
-          }
+          } /* Check to see if the requester is asking for Image */
           else if (ELEM(xse->target,
                         m_atom.IMAGE_PNG))
           {
-            if (xse->selection == XInternAtom(m_display, "PRIMARY", False)) {
-              XChangeProperty(m_display,
-                              xse->requestor,
-                              xse->property,
-                              xse->target,
-                              8,
-                              PropModeReplace,
-                              (uchar *)img_select_buffer,
-                              img_select_buffer_size);
-            }
-              else if (xse->selection == XInternAtom(m_display, "CLIPBOARD", False)) {
+            if (xse->selection == XInternAtom(m_display, "CLIPBOARD", False)) {
                 XChangeProperty(m_display,
                                 xse->requestor,
                                 xse->property,
@@ -1555,12 +1547,24 @@ void GHOST_SystemX11::processEvent(XEvent *xe)
             }
           }
           else if (xse->target == m_atom.TARGETS) {
-            const Atom atom_list[] = {m_atom.TARGETS,
-                                      m_atom.UTF8_STRING,
-                                      m_atom.STRING,
-                                      m_atom.COMPOUND_TEXT,
-                                      m_atom.C_STRING,
-                                      m_atom.IMAGE_PNG };
+            const Atom *atom_list = nullptr;
+            unsigned int atom_list_size = 0;
+
+            if (has_clipboard_image) {
+
+              static const Atom image_atoms[] = {m_atom.TARGETS,
+                                                 m_atom.IMAGE_PNG };
+              atom_list = image_atoms;
+              atom_list_size = ARRAY_SIZE(image_atoms); 
+            } else {
+              static const Atom text_atoms[] = {m_atom.TARGETS,
+                                                m_atom.UTF8_STRING,
+                                                m_atom.STRING,
+                                                m_atom.COMPOUND_TEXT,
+                                                m_atom.C_STRING };
+              atom_list = text_atoms;
+              atom_list_size = ARRAY_SIZE(text_atoms); 
+            }
             XChangeProperty(m_display,
                             xse->requestor,
                             xse->property,
@@ -1568,7 +1572,7 @@ void GHOST_SystemX11::processEvent(XEvent *xe)
                             32,
                             PropModeReplace,
                             reinterpret_cast<const uchar *>(atom_list),
-                            ARRAY_SIZE(atom_list));
+                            atom_list_size);
             XFlush(m_display);
           }
           else {
@@ -2074,6 +2078,12 @@ static GHOST_TKey ghost_key_from_keycode(const XkbDescPtr xkb_descr, const KeyCo
 #define XCLIB_XCOUT_FALLBACK_UTF8 4 /* UTF8 failed, move to compound. */
 #define XCLIB_XCOUT_FALLBACK_COMP 5 /* compound failed, move to text. */
 #define XCLIB_XCOUT_FALLBACK_TEXT 6
+/* Fallbacks for iamges */
+#define XCLIB_XCOUT_FALLBACK_IMAGE  7  /* PNG failed, fallback to another image format */
+#define XCLIB_XCOUT_FALLBACK_JPEG   8  /* Fallback to JPEG */
+#define XCLIB_XCOUT_FALLBACK_BMP    9  /* Fallback to BMP */
+#define XCLIB_XCOUT_FALLBACK_ICON   10  /* Fallback to ICON */
+#define XCLIB_XCOUT_FALLBACK_IMAGE_FAIL   11  /* Fallback to ICON */
 
 /* Retrieves the contents of a selections. */
 void GHOST_SystemX11::getClipboard_xcout(
@@ -2408,6 +2418,8 @@ void GHOST_SystemX11::putClipboard(const char *buffer, bool selection) const
       size_t buffer_size = strlen(buffer) + 1;
       txt_cut_buffer = (char *)malloc(buffer_size);
       memcpy(txt_cut_buffer, buffer, buffer_size);
+
+      has_clipboard_image = false;
     }
     else {
       XSetSelectionOwner(m_display, m_atom.PRIMARY, m_window, CurrentTime);
@@ -2427,16 +2439,398 @@ void GHOST_SystemX11::putClipboard(const char *buffer, bool selection) const
   }
 }
 
+void GHOST_SystemX11::getClipboardImage_xcout(
+    const XEvent *evt, Atom sel, Atom target, unsigned char **img, unsigned long *len, unsigned int *context) const
+{
+  Atom pty_type;
+  int pty_format;
+  unsigned char *buffer = nullptr;
+  unsigned long pty_size, pty_items;
+  unsigned char *limg = *img;  // Pointer to accumulated image data
+
+  // Get our window
+  const std::vector<GHOST_IWindow *> &win_vec = m_windowManager->getWindows();
+  auto win_it = win_vec.begin();
+  GHOST_WindowX11 *window = static_cast<GHOST_WindowX11 *>(*win_it);
+  Window win = window->getXWindow();
+
+  switch (*context) {
+    case XCLIB_XCOUT_NONE:
+      /* Initialize return length to 0. */
+      if (*len > 0) {
+        free(*img);
+        *len = 0;
+      }
+
+      /* Send a selection request (PNG default)*/
+      XConvertSelection(m_display, sel, target, m_atom.XCLIP_OUT, win, CurrentTime);
+      *context = XCLIB_XCOUT_SENTCONVSEL;
+      return;
+
+    case XCLIB_XCOUT_SENTCONVSEL:
+      if (evt->type != SelectionNotify){
+        return;
+      }
+
+      if (target == m_atom.IMAGE_PNG && evt->xselection.property == None) {
+          *context = XCLIB_XCOUT_FALLBACK_IMAGE;
+          return;
+      }
+      if (target == m_atom.IMAGE_JPEG && evt->xselection.property == None) {
+        *context = XCLIB_XCOUT_FALLBACK_JPEG;
+        return;
+      }
+      if (target == m_atom.IMAGE_BMP && evt->xselection.property == None) {
+        *context = XCLIB_XCOUT_FALLBACK_BMP;
+        return;
+      }
+      if (target == m_atom.IMAGE_ICON && evt->xselection.property == None) {
+        *context = XCLIB_XCOUT_FALLBACK_IMAGE_FAIL;
+        return;
+      }
+
+      /* find the size and format of the data in property */
+      XGetWindowProperty(m_display,
+                         win,
+                         m_atom.XCLIP_OUT,
+                         0,
+                         0,
+                         False,
+                         AnyPropertyType,
+                         &pty_type,
+                         &pty_format,
+                         &pty_items,
+                         &pty_size,
+                         &buffer);
+      XFree(buffer);
+
+      /* start INCR mechanism by deleting property */
+      if (pty_type == m_atom.INCR) {
+        XDeleteProperty(m_display, win, m_atom.XCLIP_OUT);
+        XFlush(m_display);
+        *context = XCLIB_XCOUT_INCR;
+        return;
+      }
+
+      /* If it's not INCR, and not `format == 8`, then there's
+       * nothing in the selection (that `xclip` understands, anyway). */
+      if (pty_format != 8) {
+        *context = XCLIB_XCOUT_FALLBACK_IMAGE;
+        return;
+      }
+
+      /* Not using INCR mechanism, just read the property. */
+      XGetWindowProperty(m_display,
+                         win,
+                         m_atom.XCLIP_OUT,
+                         0,
+                         static_cast<long>(pty_size),
+                         False,
+                         AnyPropertyType,
+                         &pty_type,
+                         &pty_format,
+                         &pty_items,
+                         &pty_size,
+                         &buffer);
+
+      /* Remove property after reading it */
+      XDeleteProperty(m_display, win, m_atom.XCLIP_OUT);
+
+      /* copy the buffer to the pointer for returned data */
+      limg = (unsigned char *)malloc(pty_items);
+      if (!limg) {
+        XFree(buffer);
+        *context = XCLIB_XCOUT_NONE;
+        return;
+      }
+      
+      memcpy(limg, buffer, pty_items);
+      
+      /* set the length of the returned data */
+      *len = pty_items;
+      *img = limg;
+      
+      /* free the buffer */
+      XFree(buffer);
+      *context = XCLIB_XCOUT_NONE;
+      return;
+
+    case XCLIB_XCOUT_INCR:
+      /* To use the INCR method, we basically delete the
+       * property with the selection in it, wait for an
+       * event indicating that the property has been created,
+       * then read it, delete it, etc. (same as for txt func)*/
+
+      /* make sure that the event is relevant */
+      if (evt->type != PropertyNotify) {
+        return;
+      }
+
+      /* skip unless the property has a new value */
+      if (evt->xproperty.state != PropertyNewValue) {
+        return;
+      }
+
+      /* Check the size and format of the property (using a zero-length request) */
+      XGetWindowProperty(m_display,
+                         win,
+                         m_atom.XCLIP_OUT,
+                         0,
+                         0,
+                         False,
+                         AnyPropertyType,
+                         &pty_type,
+                         &pty_format,
+                         &pty_items,
+                         &pty_size,
+                         &buffer);
+
+      if (pty_format != 8) {
+        /* The property does not contain image data in the expected 8-bit format.
+        * Free the buffer and delete the property to notify the clipboard owner 
+        * that the current chunk has been processed, prompting the next chunk.
+        */
+
+        XFree(buffer);
+        XDeleteProperty(m_display, win, m_atom.XCLIP_OUT);
+        *context = XCLIB_XCOUT_FALLBACK_IMAGE;
+        return;
+      }
+
+      if (pty_size == 0) {
+        /* No more data; end of INCR transfer */
+        XFree(buffer);
+        XDeleteProperty(m_display, win, m_atom.XCLIP_OUT);
+        *context = XCLIB_XCOUT_NONE;
+        return;
+      }
+      
+      XFree(buffer);
+
+      /* Retrieve the actual chunk */
+      XGetWindowProperty(m_display,
+                         win,
+                         m_atom.XCLIP_OUT,
+                         0,
+                         static_cast<long>(pty_size),
+                         False,
+                         AnyPropertyType,
+                         &pty_type,
+                         &pty_format,
+                         &pty_items,
+                         &pty_size,
+                         &buffer);
+
+      /* allocate memory to accommodate data in *img */
+      if (*len == 0) {
+        *len = pty_items;
+        limg = (unsigned char *)malloc(*len);
+      } else {
+        *len += pty_items;
+        limg = (unsigned char *)realloc(limg, *len);
+      }
+
+      if (!limg) {
+        XFree(buffer);
+        *context = XCLIB_XCOUT_NONE;
+        return;
+      }
+      
+      /* add data to ltxt */
+      memcpy(&limg[*len - pty_items], buffer, pty_items);
+      *img = limg;
+      XFree(buffer);
+
+      /* delete property to get the next item */
+      XDeleteProperty(m_display, win, m_atom.XCLIP_OUT);
+      XFlush(m_display);
+      return;
+  }
+}
 
 GHOST_TSuccess GHOST_SystemX11::hasClipboardImage(void) const
 {
+  Window owner;
+  Atom target = m_atom.TARGETS;
+  Atom sseln = m_atom.CLIPBOARD;
+  
+  const vector<GHOST_IWindow *> &win_vec = m_windowManager->getWindows();
+  vector<GHOST_IWindow *>::const_iterator win_it = win_vec.begin();
+  GHOST_WindowX11 *window = static_cast<GHOST_WindowX11 *>(*win_it);
+  Window win = window->getXWindow();
+  
+  owner = XGetSelectionOwner(m_display, sseln);
+
+  if (owner == win) {
+    if (img_cut_buffer) {
+      return GHOST_kSuccess;
+    }
+  }
+
+  XConvertSelection(m_display, sseln, target, target, win, CurrentTime);
+
+  while (true) {
+    XEvent event;
+    XNextEvent(m_display, &event);
+
+    if (event.type == SelectionNotify && event.xselection.selection == sseln) {
+      /* Retrieve the property containing the list of targets */
+      Atom actualType;
+      int actualFormat;
+      unsigned long numItems, bytesAfter;
+      unsigned char *data = NULL;
+
+      if (XGetWindowProperty(m_display, win, 
+                             target, 
+                             0, 
+                             LONG_MAX, 
+                             False,
+                             XA_ATOM,
+                             &actualType,
+                             &actualFormat,
+                             &numItems,
+                             &bytesAfter,&data) == Success)
+      {
+        if (actualType == XA_ATOM && actualFormat == 32 && data) {
+          Atom *targets = reinterpret_cast<Atom *>(data);
+          for (unsigned long i = 0; i < numItems; ++i) {
+            /* Check list of targets for image MIMEs */
+            if (ELEM(targets[i], 
+                     m_atom.IMAGE_PNG,
+                     m_atom.IMAGE_JPEG,
+                     m_atom.IMAGE_BMP,
+                     m_atom.IMAGE_ICON )) {
+              XFree(data);
+              return GHOST_kSuccess;
+            }
+          }
+        }
+      }
+      if (data) {
+        XFree(data);
+      }
+      break;
+    }
+  }
+  
   return GHOST_kFailure;
 }
 
 uint *GHOST_SystemX11::getClipboardImage(int *r_width, int *r_height) const
 {
-  return nullptr;
+  Atom sel = m_atom.CLIPBOARD;
+  Atom target = m_atom.IMAGE_PNG;
+  Atom property = m_atom.XCLIP_OUT;
+
+  const std::vector<GHOST_IWindow *> &win_vec = m_windowManager->getWindows();
+  if (win_vec.empty()) {
+    return nullptr;
+  }
+  GHOST_WindowX11 *window = static_cast<GHOST_WindowX11 *>(win_vec.front());
+  Window win = window->getXWindow();
+
+  Window owner = XGetSelectionOwner(m_display, sel);
+  if (owner == win) {
+    if (has_clipboard_image) {
+      /* Decode our internally stored image data */
+      const unsigned char *mem = reinterpret_cast<const unsigned char *>(img_cut_buffer);
+      ImBuf *ibuf = IMB_ibImageFromMemory(mem, img_cut_buffer_size, IB_rect, nullptr, "<clipboard>");
+      if (!ibuf) {
+        return nullptr;
+      }
+      *r_width  = ibuf->x;
+      *r_height = ibuf->y;
+      const uint64_t byte_count = uint64_t(ibuf->x) * ibuf->y * 4;
+      uint *rgba = (uint *)malloc(byte_count);
+      if (rgba) {
+        memcpy(rgba, ibuf->byte_buffer.data, byte_count);
+      }
+      IMB_freeImBuf(ibuf);
+      return rgba;
+    }
+  }
+
+  unsigned int context = XCLIB_XCOUT_NONE;
+  unsigned long img_data_len = 0;
+  unsigned char *img_data = nullptr;
+
+  std::vector<XEvent> restore_events;
+  XEvent evt;
+
+  while (true) {
+    bool restore_this_event = false;
+    if (context != XCLIB_XCOUT_NONE) {
+      XNextEvent(m_display, &evt);
+      if (evt.type != SelectionNotify && evt.type != PropertyNotify)
+        restore_this_event = true;
+    }
+
+    getClipboardImage_xcout(&evt, sel, target, &img_data, &img_data_len, &context);
+
+    if (restore_this_event) {
+      restore_events.push_back(evt);
+    }
+
+    /* if the helper signals a fallback, reset context and update target */
+    if (context == XCLIB_XCOUT_FALLBACK_IMAGE) {
+      /* Default png fail, move to jpeg. */
+      context = XCLIB_XCOUT_NONE;
+      target = m_atom.IMAGE_JPEG;
+      continue;
+    }
+    if (context == XCLIB_XCOUT_FALLBACK_JPEG) {
+      /* jpeg fail, move to bmp. */
+      context = XCLIB_XCOUT_NONE;
+      target = m_atom.IMAGE_BMP;
+      continue;
+    }
+    if (context == XCLIB_XCOUT_FALLBACK_BMP) {
+      /* bmp fail, move to icon. */
+      context = XCLIB_XCOUT_NONE;
+      target = m_atom.IMAGE_ICON;
+      continue;
+    }
+    if (context == XCLIB_XCOUT_FALLBACK_IMAGE_FAIL) {
+      /* Image fail, nothing else to try, break. */
+      context = XCLIB_XCOUT_NONE;
+    }
+
+    if (context == XCLIB_XCOUT_NONE) {
+      break;
+    }
+  }
+
+  /* Restore any events that were not handled by the clipboard transfer */
+  while (!restore_events.empty()) {
+    XPutBackEvent(m_display, &restore_events.back());
+    restore_events.pop_back();
+  }
+
+  /* if buffer is empty return nullptr instead of printing it out */
+  if (!img_data || img_data_len == 0) {
+    return nullptr;
+  }
+
+  /* Might need to decode differently depennding on target choosen */
+  ImBuf *ibuf = IMB_ibImageFromMemory(img_data, img_data_len, IB_rect, nullptr, "<clipboard>");
+  free(img_data);
+
+  if (!ibuf) {
+    return nullptr;
+  }
+
+  *r_width  = ibuf->x;
+  *r_height = ibuf->y;
+  const uint64_t byte_count = uint64_t(ibuf->x) * ibuf->y * 4;
+  uint *rgba = (uint *)malloc(byte_count);
+  if (rgba) {
+    memcpy(rgba, ibuf->byte_buffer.data, byte_count);
+  }
+
+  IMB_freeImBuf(ibuf);
+  return rgba;
 }
+
 
 GHOST_TSuccess GHOST_SystemX11::putClipboardImage(uint *rgba, int width, int height) const {
     Window m_window, owner;
@@ -2446,7 +2840,7 @@ GHOST_TSuccess GHOST_SystemX11::putClipboardImage(uint *rgba, int width, int hei
     GHOST_WindowX11 *window = static_cast<GHOST_WindowX11 *>(*win_it);
     m_window = window->getXWindow();
 
-    // Convert the RGBA buffer to PNG using ImBuf.
+    /* Convert the RGBA buffer to PNG using ImBuf. */
     ImBuf *ibuf = IMB_allocFromBuffer(reinterpret_cast<uint8_t *>(rgba), nullptr, width, height, 32);
     if (!ibuf) {
         return GHOST_kFailure;
@@ -2459,23 +2853,14 @@ GHOST_TSuccess GHOST_SystemX11::putClipboardImage(uint *rgba, int width, int hei
         return GHOST_kFailure;
     }
 
-    // Get the encoded PNG data.
+    /* Get the encoded PNG data. */
     char *buffer_data = reinterpret_cast<char *> (ibuf->encoded_buffer.data);
     size_t buffer_size = ibuf->encoded_buffer_size;
-    // Debug: Print out the PNG data pointer and size.
-    printf("PNG data pointer: %p, PNG size: %zu\n", (void *)buffer_data, buffer_size);
-    if (!buffer_data || buffer_size == 0) {
-        fprintf(stderr, "Error: No PNG data was generated.\n");
-        IMB_freeImBuf(ibuf);
-        return GHOST_kFailure;
-    }
     
-    // Set the selection owner to the CLIPBOARD and store the image data.
     XSetSelectionOwner(m_display, m_atom.CLIPBOARD, m_window, CurrentTime);
     owner = XGetSelectionOwner(m_display, m_atom.CLIPBOARD);
-    printf("Selection owner: %lx, m_window: %lx\n", (unsigned long)owner, (unsigned long)m_window);
 
-    // Free any previously allocated buffer.
+    /* Free any previously allocated buffer. */
     if (img_cut_buffer) {
         free((void *) img_cut_buffer);
     }
@@ -2488,8 +2873,7 @@ GHOST_TSuccess GHOST_SystemX11::putClipboardImage(uint *rgba, int width, int hei
       fprintf(stderr, "Failed to own CLIPBOARD.\n");
     }
     */
-    
-    // Cleanup
+    has_clipboard_image = true; 
     IMB_freeImBuf(ibuf);
     return GHOST_kSuccess;
 }
