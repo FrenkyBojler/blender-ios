@@ -102,9 +102,10 @@ static GHOST_TKey ghost_key_from_keysym_or_keycode(const KeySym key_sym,
 static char *txt_cut_buffer = nullptr;
 static char *txt_select_buffer = nullptr;
 
-static uint8_t *img_cut_buffer = nullptr;
+// Could be uint8_t instead
+static char *img_cut_buffer = nullptr;
+static char *img_select_buffer = nullptr;
 static size_t img_cut_buffer_size = 0;
-static uint8_t *img_select_buffer = nullptr;
 static size_t img_select_buffer_size = 0;
 
 #ifdef WITH_XWAYLAND_HACK
@@ -151,6 +152,11 @@ GHOST_SystemX11::GHOST_SystemX11()
     m_atom.atom = XInternAtom(m_display, #atom, False); \
   } \
   (void)0
+#define GHOST_INTERN_ATOM_WITH_NAME(atom, name) \
+  { \
+    m_atom.atom = XInternAtom(m_display, name, False); \
+  } \
+  (void)0
 
   GHOST_INTERN_ATOM_IF_EXISTS(WM_DELETE_WINDOW);
   GHOST_INTERN_ATOM(WM_PROTOCOLS);
@@ -172,6 +178,8 @@ GHOST_SystemX11::GHOST_SystemX11()
   GHOST_INTERN_ATOM(XCLIP_OUT);
   GHOST_INTERN_ATOM(INCR);
   GHOST_INTERN_ATOM(UTF8_STRING);
+
+  GHOST_INTERN_ATOM_WITH_NAME(IMAGE_PNG, "image/png");
 #ifdef WITH_X11_XINPUT
   m_atom.TABLET = XInternAtom(m_display, XI_TABLET, False);
 #endif
@@ -1474,148 +1482,105 @@ void GHOST_SystemX11::processEvent(XEvent *xe)
     case ReparentNotify:
       break;
     case SelectionRequest: {
-        XEvent nxe;
-        Atom target, utf8_string, string, compound_text, c_string, image_png;
-        XSelectionRequestEvent *xse = &xe->xselectionrequest;
+          XEvent nxe;
+          XSelectionRequestEvent *xse = &xe->xselectionrequest;
 
-        target = XInternAtom(m_display, "TARGETS", False);
-        utf8_string = XInternAtom(m_display, "UTF8_STRING", False);
-        string = XInternAtom(m_display, "STRING", False);
-        compound_text = XInternAtom(m_display, "COMPOUND_TEXT", False);
-        c_string = XInternAtom(m_display, "C_STRING", False);
-        image_png = XInternAtom(m_display, "image/png", False);
+          /* support obsolete clients */
+          if (xse->property == None) {
+            xse->property = xse->target;
+          }
 
-      /* support obsolete clients */
-      if (xse->property == None) {
-        xse->property = xse->target;
-      }
+          nxe.xselection.type = SelectionNotify;
+          nxe.xselection.requestor = xse->requestor;
+          nxe.xselection.property = xse->property;
+          nxe.xselection.display = xse->display;
+          nxe.xselection.selection = xse->selection;
+          nxe.xselection.target = xse->target;
+          nxe.xselection.time = xse->time;
 
-      nxe.xselection.type = SelectionNotify;
-      nxe.xselection.requestor = xse->requestor;
-      nxe.xselection.property = xse->property;
-      nxe.xselection.display = xse->display;
-      nxe.xselection.selection = xse->selection;
-      nxe.xselection.target = xse->target;
-      nxe.xselection.time = xse->time;
-
-      /* Check to see if the requester is asking for String */
-      if (ELEM(xse->target,
-               m_atom.UTF8_STRING,
-               m_atom.STRING,
-               m_atom.COMPOUND_TEXT,
-               m_atom.C_STRING))
-      {
-        if (xse->selection == XInternAtom(m_display, "PRIMARY", False)) {
-          XChangeProperty(m_display,
-                          xse->requestor,
-                          xse->property,
-                          xse->target,
-                          8,
-                          PropModeReplace,
-                          (uchar *)txt_select_buffer,
-                          strlen(txt_select_buffer));
-        }
-
-        nxe.xselection.type = SelectionNotify;
-        nxe.xselection.requestor = xse->requestor;
-        nxe.xselection.property = xse->property;
-        nxe.xselection.display = xse->display;
-        nxe.xselection.selection = xse->selection;
-        nxe.xselection.target = xse->target;
-        nxe.xselection.time = xse->time;
-        
-        /* Check to see if the requester is asking for String */
-        if (ELEM(xse->target, utf8_string, string, compound_text, c_string)) {
-            if (xse->selection == XInternAtom(m_display, "PRIMARY", False)) {
-                XChangeProperty(m_display,
-                                xse->requestor,
-                                xse->property,
-                                xse->target,
-                                8,
-                                PropModeReplace,
-                                (uchar *)txt_select_buffer,
-                                strlen(txt_select_buffer));
+          /* Check to see if the requester is asking for String */
+          if (ELEM(xse->target,
+                  m_atom.UTF8_STRING,
+                  m_atom.STRING,
+                  m_atom.COMPOUND_TEXT,
+                  m_atom.C_STRING))
+          {
+            if (xse->selection == XInternAtom(m_display, "PRIMARY", False) 
+                               && txt_select_buffer ) {
+              XChangeProperty(m_display,
+                              xse->requestor,
+                              xse->property,
+                              xse->target,
+                              8,
+                              PropModeReplace,
+                              (uchar *)txt_select_buffer,
+                              strlen(txt_select_buffer));
             }
-            else if (xse->selection == XInternAtom(m_display, "CLIPBOARD", False)) {
-                XChangeProperty(m_display,
-                                xse->requestor,
-                                xse->property,
-                                xse->target,
-                                8,
-                                PropModeReplace,
-                                (uchar *)txt_cut_buffer,
-                                strlen(txt_cut_buffer));
+            else if (xse->selection == XInternAtom(m_display, "CLIPBOARD", False)
+                                    && txt_cut_buffer ) {
+              XChangeProperty(m_display,
+                              xse->requestor,
+                              xse->property,
+                              xse->target,
+                              8,
+                              PropModeReplace,
+                              (uchar *)txt_cut_buffer,
+                              strlen(txt_cut_buffer));
+            } else {
+              nxe.xselection.property = None;
             }
-        } else if (xse->target == image_png) {
+          }
+          else if (ELEM(xse->target,
+                        m_atom.IMAGE_PNG))
+          {
             if (xse->selection == XInternAtom(m_display, "PRIMARY", False)) {
+              XChangeProperty(m_display,
+                              xse->requestor,
+                              xse->property,
+                              xse->target,
+                              8,
+                              PropModeReplace,
+                              (uchar *)img_select_buffer,
+                              img_select_buffer_size);
+            }
+              else if (xse->selection == XInternAtom(m_display, "CLIPBOARD", False)) {
                 XChangeProperty(m_display,
                                 xse->requestor,
                                 xse->property,
                                 xse->target,
                                 8,
                                 PropModeReplace,
-                                (unsigned char *)img_select_buffer,
-                                img_select_buffer_size);
-            } else if (xse->selection == XInternAtom(m_display, "CLIPBOARD", False)) {
-                XChangeProperty(m_display,
-                                xse->requestor,
-                                xse->property,
-                                xse->target,
-                                8,
-                                PropModeReplace,
-                                (unsigned char *)img_cut_buffer,
+                                (uchar *)img_cut_buffer,
                                 img_cut_buffer_size);
             }
-        } 
-        else if (xse->target == target) {
-            Atom alist[6];
-            alist[0] = target;
-            alist[1] = utf8_string;
-            alist[2] = string;
-            alist[3] = compound_text;
-            alist[4] = c_string;
-            alist[5] = image_png;
+          }
+          else if (xse->target == m_atom.TARGETS) {
+            const Atom atom_list[] = {m_atom.TARGETS,
+                                      m_atom.UTF8_STRING,
+                                      m_atom.STRING,
+                                      m_atom.COMPOUND_TEXT,
+                                      m_atom.C_STRING,
+                                      m_atom.IMAGE_PNG };
             XChangeProperty(m_display,
                             xse->requestor,
                             xse->property,
-                            xse->target,
+                            XA_ATOM,
                             32,
                             PropModeReplace,
-                            (uchar *)alist,
-                            6);
+                            reinterpret_cast<const uchar *>(atom_list),
+                            ARRAY_SIZE(atom_list));
             XFlush(m_display);
-        } 
-        else {
-          /* Change property to None because we do not support anything but STRING */
+          }
+          else {
+            /* Change property to None because we do not support the selection request target. */
             nxe.xselection.property = None;
-        }
-      }
-      else if (xse->target == m_atom.TARGETS) {
-        const Atom atom_list[] = {m_atom.TARGETS,
-                                  m_atom.UTF8_STRING,
-                                  m_atom.STRING,
-                                  m_atom.COMPOUND_TEXT,
-                                  m_atom.C_STRING};
-        XChangeProperty(m_display,
-                        xse->requestor,
-                        xse->property,
-                        XA_ATOM,
-                        32,
-                        PropModeReplace,
-                        reinterpret_cast<const uchar *>(atom_list),
-                        ARRAY_SIZE(atom_list));
-        XFlush(m_display);
-      }
-      else {
-        /* Change property to None because we do not support the selection request target. */
-        nxe.xselection.property = None;
-      }
+          }
 
-      /* Send the event to the client 0 0 == False, #SelectionNotify */
-        XSendEvent(m_display, xse->requestor, 0, 0, &nxe);
-        XFlush(m_display);
-        break;
-    }    
+          /* Send the event to the client 0 0 == False, #SelectionNotify */
+          XSendEvent(m_display, xse->requestor, 0, 0, &nxe);
+          XFlush(m_display);
+          break;
+        }
 
     default: {
 #ifdef WITH_X11_XINPUT
@@ -2465,7 +2430,7 @@ void GHOST_SystemX11::putClipboard(const char *buffer, bool selection) const
 
 GHOST_TSuccess GHOST_SystemX11::hasClipboardImage(void) const
 {
-  return GHOST_kSuccess;
+  return GHOST_kFailure;
 }
 
 uint *GHOST_SystemX11::getClipboardImage(int *r_width, int *r_height) const
@@ -2475,17 +2440,13 @@ uint *GHOST_SystemX11::getClipboardImage(int *r_width, int *r_height) const
 
 GHOST_TSuccess GHOST_SystemX11::putClipboardImage(uint *rgba, int width, int height) const {
     Window m_window, owner;
-    Atom selectionAtom = m_atom.PRIMARY;
-    uint8_t **targetBuffer = &img_select_buffer;
-    size_t *targetBufferSize = &img_select_buffer_size;
 
-    // Get the first window
     const vector<GHOST_IWindow *> &win_vec = m_windowManager->getWindows();
     vector<GHOST_IWindow *>::const_iterator win_it = win_vec.begin();
     GHOST_WindowX11 *window = static_cast<GHOST_WindowX11 *>(*win_it);
     m_window = window->getXWindow();
 
-    // Convert the RGBA buffer to PNG using ImBuf
+    // Convert the RGBA buffer to PNG using ImBuf.
     ImBuf *ibuf = IMB_allocFromBuffer(reinterpret_cast<uint8_t *>(rgba), nullptr, width, height, 32);
     if (!ibuf) {
         return GHOST_kFailure;
@@ -2498,25 +2459,36 @@ GHOST_TSuccess GHOST_SystemX11::putClipboardImage(uint *rgba, int width, int hei
         return GHOST_kFailure;
     }
 
-    // Get the encoded PNG data
-    uint8_t *png_data = ibuf->encoded_buffer.data;
-    size_t png_size = ibuf->encoded_buffer_size;
-
-    // Set the selection owner and store the image data
-    XSetSelectionOwner(m_display, selectionAtom, m_window, CurrentTime);
-    owner = XGetSelectionOwner(m_display, selectionAtom);
-
-    if (*targetBuffer) {
-        free((void *)*targetBuffer);
+    // Get the encoded PNG data.
+    char *buffer_data = reinterpret_cast<char *> (ibuf->encoded_buffer.data);
+    size_t buffer_size = ibuf->encoded_buffer_size;
+    // Debug: Print out the PNG data pointer and size.
+    printf("PNG data pointer: %p, PNG size: %zu\n", (void *)buffer_data, buffer_size);
+    if (!buffer_data || buffer_size == 0) {
+        fprintf(stderr, "Error: No PNG data was generated.\n");
+        IMB_freeImBuf(ibuf);
+        return GHOST_kFailure;
     }
-    *targetBuffer = (uint8_t *)malloc(png_size);
-    memcpy(*targetBuffer, png_data, png_size);
-    *targetBufferSize = png_size;
+    
+    // Set the selection owner to the CLIPBOARD and store the image data.
+    XSetSelectionOwner(m_display, m_atom.CLIPBOARD, m_window, CurrentTime);
+    owner = XGetSelectionOwner(m_display, m_atom.CLIPBOARD);
+    printf("Selection owner: %lx, m_window: %lx\n", (unsigned long)owner, (unsigned long)m_window);
 
+    // Free any previously allocated buffer.
+    if (img_cut_buffer) {
+        free((void *) img_cut_buffer);
+    }
+   
+    img_cut_buffer = (char *)malloc(buffer_size);
+    memcpy(img_cut_buffer, buffer_data, buffer_size); 
+  
+    /*
     if (owner != m_window) {
-        fprintf(stderr, "failed to own primary\n");
+      fprintf(stderr, "Failed to own CLIPBOARD.\n");
     }
-
+    */
+    
     // Cleanup
     IMB_freeImBuf(ibuf);
     return GHOST_kSuccess;

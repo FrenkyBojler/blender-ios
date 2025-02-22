@@ -345,6 +345,9 @@ class GHOST_SystemX11 : public GHOST_System {
     Atom XCLIP_OUT;
     Atom INCR;
     Atom UTF8_STRING;
+
+    /* Image Atoms for Selection, copy & paste. */
+    Atom IMAGE_PNG;
 #ifdef WITH_X11_XINPUT
     Atom TABLET;
 #endif
