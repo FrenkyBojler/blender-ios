@@ -29,7 +29,7 @@ struct RealizeInstancesOptions {
    * Keeps approximately same scale for elements affected by radius which is a uniform so cannot be
    * accurately changed by affinity transformation.
    */
-  bool apply_uniform_scale = false;
+  bool apply_uniform_scale = true;
 
   std::reference_wrapper<const bke::AttributeFilter> attribute_filter =
       bke::AttributeFilter::default_filter();

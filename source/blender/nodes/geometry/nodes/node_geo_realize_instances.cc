@@ -10,6 +10,8 @@
 
 #include "FN_multi_function_builder.hh"
 
+#include "NOD_rna_define.hh"
+
 namespace blender::nodes::node_geo_realize_instances_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
