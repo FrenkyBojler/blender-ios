@@ -403,6 +403,7 @@ if(WITH_BLENDER)
       greasepencil_layer_group
       grid
       grip
+      grip_v
       group
       group_bone
       group_uvs
@@ -641,6 +642,7 @@ if(WITH_BLENDER)
       normals_face
       normals_vertex
       normals_vertex_face
+      not_found
       object_data
       object_datamode
       object_hidden

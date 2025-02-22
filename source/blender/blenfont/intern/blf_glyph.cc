@@ -787,8 +787,8 @@ static FT_UInt blf_glyph_index_from_charcode(FontBLF **font, const uint charcode
     return glyph_index;
   }
 
-  /* Only fonts managed by the cache can fallback. */
-  if (!((*font)->flags & BLF_CACHED)) {
+  /* Fonts managed by the cache can fallback. Unless specifically forbidden. */
+  if (!((*font)->flags & BLF_CACHED) || ((*font)->flags & BLF_NO_FALLBACK)) {
     return 0;
   }
 
@@ -811,7 +811,6 @@ static FT_UInt blf_glyph_index_from_charcode(FontBLF **font, const uint charcode
   }
 
   /* Next look in the rest. */
-  FontBLF *last_resort = nullptr;
   for (int i = 0; i < BLF_MAX_FONT; i++) {
     FontBLF *f = global_font[i];
     if (!f || f == *font || !(f->flags & BLF_DEFAULT)) {
@@ -1347,8 +1346,8 @@ GlyphBLF *blf_glyph_ensure(FontBLF *font, GlyphCacheBLF *gc, const uint charcode
   FT_UInt glyph_index = blf_glyph_index_from_charcode(&font_with_glyph, charcode);
 
   if (!glyph_index) {
-    /* 741 = id of ICON_CHAR_NOTDEF */
-    return blf_glyph_ensure_icon(gc, 741, false, nullptr);
+    /* 1 = id of ICON_CHAR_NOTDEF */
+    return blf_glyph_ensure_icon(gc, 1, false, nullptr);
   }
 
   if (!blf_ensure_face(font_with_glyph)) {

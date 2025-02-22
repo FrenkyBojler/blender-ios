@@ -1943,7 +1943,7 @@ static bool mouse_mesh_loop(
 static int edbm_select_loop_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 
-  view3d_operator_needs_opengl(C);
+  view3d_operator_needs_gpu(C);
 
   if (mouse_mesh_loop(C,
                       event->mval,
@@ -3711,7 +3711,7 @@ static int edbm_select_linked_pick_invoke(bContext *C, wmOperator *op, const wmE
   }
 
   /* #unified_findnearest needs OpenGL. */
-  view3d_operator_needs_opengl(C);
+  view3d_operator_needs_gpu(C);
 
   /* Setup view context for argument to callbacks. */
   ViewContext vc = em_setup_viewcontext(C);
@@ -5123,15 +5123,15 @@ static int edbm_select_axis_exec(bContext *C, wmOperator *op)
   float axis_mat[3][3];
 
   /* 3D view variables may be nullptr, (no need to check in poll function). */
-  ED_transform_calc_orientation_from_type_ex(scene,
-                                             view_layer,
-                                             CTX_wm_view3d(C),
-                                             CTX_wm_region_view3d(C),
-                                             obedit,
-                                             obedit,
-                                             orientation,
-                                             V3D_AROUND_ACTIVE,
-                                             axis_mat);
+  blender::ed::transform::calc_orientation_from_type_ex(scene,
+                                                        view_layer,
+                                                        CTX_wm_view3d(C),
+                                                        CTX_wm_region_view3d(C),
+                                                        obedit,
+                                                        obedit,
+                                                        orientation,
+                                                        V3D_AROUND_ACTIVE,
+                                                        axis_mat);
 
   const float *axis_vector = axis_mat[axis];
 

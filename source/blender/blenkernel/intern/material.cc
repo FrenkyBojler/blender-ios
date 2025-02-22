@@ -32,6 +32,7 @@
 #include "DNA_particle_types.h"
 #include "DNA_pointcloud_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_userdef_types.h"
 #include "DNA_volume_types.h"
 
 #include "BLI_array_utils.h"
@@ -565,6 +566,10 @@ void BKE_id_material_resize(Main *bmain, ID *id, short totcol, bool do_id_user)
   if (matar == nullptr) {
     return;
   }
+  if (totcol == *totcolp) {
+    /* Prevent depsgraph update and relations tag when nothing changed. */
+    return;
+  }
 
   if (do_id_user && totcol < (*totcolp)) {
     short i;
@@ -605,7 +610,7 @@ void BKE_id_material_append(Main *bmain, ID *id, Material *ma)
     (*matar)[(*totcol)++] = ma;
 
     id_us_plus((ID *)ma);
-    BKE_objects_materials_test_all(bmain, id);
+    BKE_objects_materials_sync_length_all(bmain, id);
 
     DEG_id_tag_update(id, ID_RECALC_SYNC_TO_EVAL);
     DEG_relations_tag_update(bmain);
@@ -637,7 +642,7 @@ Material *BKE_id_material_pop(Main *bmain, ID *id, int index_i)
 
         (*totcol)--;
         *matar = static_cast<Material **>(MEM_reallocN(*matar, sizeof(void *) * (*totcol)));
-        BKE_objects_materials_test_all(bmain, id);
+        BKE_objects_materials_sync_length_all(bmain, id);
       }
 
       material_data_index_remove_id(id, index);
@@ -665,7 +670,7 @@ void BKE_id_material_clear(Main *bmain, ID *id)
       *matar = nullptr;
     }
 
-    BKE_objects_materials_test_all(bmain, id);
+    BKE_objects_materials_sync_length_all(bmain, id);
     material_data_index_clear_id(id);
 
     DEG_id_tag_update(id, ID_RECALC_SYNC_TO_EVAL);
@@ -936,6 +941,11 @@ MaterialGPencilStyle *BKE_gpencil_material_settings(Object *ob, short act)
 
 void BKE_object_material_resize(Main *bmain, Object *ob, const short totcol, bool do_id_user)
 {
+  if (totcol == ob->totcol) {
+    /* Prevent depsgraph update and relations tag when nothing changed. */
+    return;
+  }
+
   Material **newmatar;
   char *newmatbits;
 
@@ -977,9 +987,8 @@ void BKE_object_material_resize(Main *bmain, Object *ob, const short totcol, boo
   DEG_relations_tag_update(bmain);
 }
 
-void BKE_object_materials_test(Main *bmain, Object *ob, ID *id)
+void BKE_object_materials_sync_length(Main *bmain, Object *ob, ID *id)
 {
-  /* make the ob mat-array same size as 'ob->data' mat-array */
   const short *totcol;
 
   if (id == nullptr || (totcol = BKE_id_material_len_p(id)) == nullptr) {
@@ -999,9 +1008,8 @@ void BKE_object_materials_test(Main *bmain, Object *ob, ID *id)
   }
 }
 
-void BKE_objects_materials_test_all(Main *bmain, ID *id)
+void BKE_objects_materials_sync_length_all(Main *bmain, ID *id)
 {
-  /* make the ob mat-array same size as 'ob->data' mat-array */
   Object *ob;
   const short *totcol;
 
@@ -1068,7 +1076,9 @@ void BKE_id_material_assign(Main *bmain, ID *id, Material *ma, short act)
     id_us_plus(&ma->id);
   }
 
-  BKE_objects_materials_test_all(bmain, id);
+  BKE_objects_materials_sync_length_all(bmain, id);
+  DEG_id_tag_update(id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_GEOMETRY);
+  DEG_relations_tag_update(bmain);
 }
 
 static void object_material_assign(
@@ -1147,7 +1157,7 @@ static void object_material_assign(
       id_us_min(&mao->id);
     }
     ob->mat[act - 1] = ma;
-    BKE_object_materials_test(bmain, ob, static_cast<ID *>(ob->data));
+    BKE_object_materials_sync_length(bmain, ob, static_cast<ID *>(ob->data));
   }
   else { /* in data */
     mao = (*matarar)[act - 1];
@@ -1157,13 +1167,16 @@ static void object_material_assign(
     (*matarar)[act - 1] = ma;
     /* Data may be used by several objects. */
     if (do_test_all) {
-      BKE_objects_materials_test_all(bmain, static_cast<ID *>(ob->data));
+      BKE_objects_materials_sync_length_all(bmain, static_cast<ID *>(ob->data));
     }
   }
 
   if (ma) {
     id_us_plus(&ma->id);
   }
+
+  DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_GEOMETRY);
+  DEG_relations_tag_update(bmain);
 }
 
 void BKE_object_material_assign(Main *bmain, Object *ob, Material *ma, short act, int assign_type)
@@ -1286,7 +1299,7 @@ void BKE_object_material_from_eval_data(Main *bmain, Object *ob_orig, const ID *
       id_us_plus(&material_orig->id);
     }
   }
-  BKE_object_materials_test(bmain, ob_orig, data_orig);
+  BKE_object_materials_sync_length(bmain, ob_orig, data_orig);
 }
 
 void BKE_object_material_array_assign(
@@ -1642,7 +1655,7 @@ void BKE_texpaint_slot_refresh_cache(Scene *scene, Material *ma, const Object *o
       ma->texpaintslot = static_cast<TexPaintSlot *>(
           MEM_callocN(sizeof(TexPaintSlot) * count, "texpaint_slots"));
 
-      bNode *active_node = blender::bke::node_get_active_paint_canvas(ma->nodetree);
+      bNode *active_node = blender::bke::node_get_active_paint_canvas(*ma->nodetree);
 
       fill_texpaint_slots_recursive(ma->nodetree, active_node, ob, ma, count, slot_filter);
 
@@ -2017,24 +2030,24 @@ static void material_default_surface_init(Material *ma)
       nullptr, &ma->id, "Shader Nodetree", ntreeType_Shader->idname);
   ma->use_nodes = true;
 
-  bNode *principled = blender::bke::node_add_static_node(nullptr, ntree, SH_NODE_BSDF_PRINCIPLED);
-  bNodeSocket *base_color = blender::bke::node_find_socket(principled, SOCK_IN, "Base Color");
+  bNode *principled = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_BSDF_PRINCIPLED);
+  bNodeSocket *base_color = blender::bke::node_find_socket(*principled, SOCK_IN, "Base Color");
   copy_v3_v3(((bNodeSocketValueRGBA *)base_color->default_value)->value, &ma->r);
 
-  bNode *output = blender::bke::node_add_static_node(nullptr, ntree, SH_NODE_OUTPUT_MATERIAL);
+  bNode *output = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_MATERIAL);
 
-  blender::bke::node_add_link(ntree,
-                              principled,
-                              blender::bke::node_find_socket(principled, SOCK_OUT, "BSDF"),
-                              output,
-                              blender::bke::node_find_socket(output, SOCK_IN, "Surface"));
+  blender::bke::node_add_link(*ntree,
+                              *principled,
+                              *blender::bke::node_find_socket(*principled, SOCK_OUT, "BSDF"),
+                              *output,
+                              *blender::bke::node_find_socket(*output, SOCK_IN, "Surface"));
 
   principled->location[0] = 10.0f;
   principled->location[1] = 300.0f;
   output->location[0] = 300.0f;
   output->location[1] = 300.0f;
 
-  blender::bke::node_set_active(ntree, output);
+  blender::bke::node_set_active(*ntree, *output);
 }
 
 static void material_default_volume_init(Material *ma)
@@ -2046,21 +2059,21 @@ static void material_default_volume_init(Material *ma)
   ma->use_nodes = true;
 
   bNode *principled = blender::bke::node_add_static_node(
-      nullptr, ntree, SH_NODE_VOLUME_PRINCIPLED);
-  bNode *output = blender::bke::node_add_static_node(nullptr, ntree, SH_NODE_OUTPUT_MATERIAL);
+      nullptr, *ntree, SH_NODE_VOLUME_PRINCIPLED);
+  bNode *output = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_MATERIAL);
 
-  blender::bke::node_add_link(ntree,
-                              principled,
-                              blender::bke::node_find_socket(principled, SOCK_OUT, "Volume"),
-                              output,
-                              blender::bke::node_find_socket(output, SOCK_IN, "Volume"));
+  blender::bke::node_add_link(*ntree,
+                              *principled,
+                              *blender::bke::node_find_socket(*principled, SOCK_OUT, "Volume"),
+                              *output,
+                              *blender::bke::node_find_socket(*output, SOCK_IN, "Volume"));
 
   principled->location[0] = 10.0f;
   principled->location[1] = 300.0f;
   output->location[0] = 300.0f;
   output->location[1] = 300.0f;
 
-  blender::bke::node_set_active(ntree, output);
+  blender::bke::node_set_active(*ntree, *output);
 }
 
 static void material_default_holdout_init(Material *ma)
@@ -2071,21 +2084,21 @@ static void material_default_holdout_init(Material *ma)
       nullptr, &ma->id, "Shader Nodetree", ntreeType_Shader->idname);
   ma->use_nodes = true;
 
-  bNode *holdout = blender::bke::node_add_static_node(nullptr, ntree, SH_NODE_HOLDOUT);
-  bNode *output = blender::bke::node_add_static_node(nullptr, ntree, SH_NODE_OUTPUT_MATERIAL);
+  bNode *holdout = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_HOLDOUT);
+  bNode *output = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_MATERIAL);
 
-  blender::bke::node_add_link(ntree,
-                              holdout,
-                              blender::bke::node_find_socket(holdout, SOCK_OUT, "Holdout"),
-                              output,
-                              blender::bke::node_find_socket(output, SOCK_IN, "Surface"));
+  blender::bke::node_add_link(*ntree,
+                              *holdout,
+                              *blender::bke::node_find_socket(*holdout, SOCK_OUT, "Holdout"),
+                              *output,
+                              *blender::bke::node_find_socket(*output, SOCK_IN, "Surface"));
 
   holdout->location[0] = 10.0f;
   holdout->location[1] = 300.0f;
   output->location[0] = 300.0f;
   output->location[1] = 300.0f;
 
-  blender::bke::node_set_active(ntree, output);
+  blender::bke::node_set_active(*ntree, *output);
 }
 
 Material *BKE_material_default_empty()

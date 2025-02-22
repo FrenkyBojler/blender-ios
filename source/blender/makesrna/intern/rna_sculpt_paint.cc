@@ -142,7 +142,7 @@ static PointerRNA rna_ParticleEdit_brush_get(PointerRNA *ptr)
 
   brush = &pset->brush[pset->brushtype];
 
-  return rna_pointer_inherit_refine(ptr, &RNA_ParticleBrush, brush);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_ParticleBrush, brush);
 }
 
 static PointerRNA rna_ParticleBrush_curve_get(PointerRNA * /*ptr*/)
@@ -1210,6 +1210,18 @@ static void rna_def_image_paint(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Missing Texture", "Image Painting does not have a texture to paint on");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+  prop = RNA_def_property(srna, "clone_alpha", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, nullptr, "clone_alpha");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(prop, "Clone Alpha", "Opacity of clone image display");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+
+  prop = RNA_def_property(srna, "clone_offset", PROP_FLOAT, PROP_XYZ);
+  RNA_def_property_float_sdna(prop, nullptr, "clone_offset");
+  RNA_def_property_ui_text(prop, "Clone Offset", "");
+  RNA_def_property_ui_range(prop, -1.0f, 1.0f, 10.0f, 3);
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
 }
 
 static void rna_def_particle_edit(BlenderRNA *brna)

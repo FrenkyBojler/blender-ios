@@ -40,6 +40,11 @@
 /* ICON_NONE has to be the first item here because it is hard-coded in places as 0. */
 DEF_ICON(NONE)
 
+/* Keep these here, in this order. Their IDs should be static. */
+DEF_ICON(CHAR_NOTDEF)
+DEF_ICON(CHAR_REPLACEMENT)
+DEF_ICON(NOT_FOUND)
+
 /* Blank is no real icon, but used as placeholder or spacers,
  * it takes the space of an icon but is empty. */
 DEF_ICON(BLANK1)
@@ -122,6 +127,7 @@ DEF_ICON(FULLSCREEN_EXIT)
 DEF_ICON(GHOST_DISABLED)
 DEF_ICON(GHOST_ENABLED)
 DEF_ICON(GRIP)
+DEF_ICON(GRIP_V)
 DEF_ICON(HAND)
 DEF_ICON(HELP)
 DEF_ICON(LINKED)
@@ -853,10 +859,6 @@ DEF_ICON(USER)
 /* OTHER */
 DEF_ICON(EXPERIMENTAL)
 DEF_ICON(MEMORY)
-
-/* TEXT CHARACTERS */
-DEF_ICON(CHAR_NOTDEF)
-DEF_ICON(CHAR_REPLACEMENT)
 
 /* The items above are initiated sequentially while the ones that
  * follow are initiated individually. Therefore this item marks

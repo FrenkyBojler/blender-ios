@@ -15,6 +15,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -305,7 +306,7 @@ static void pre_edit_bone_duplicate(ListBase *editbones)
  */
 static bPoseChannel *pchan_duplicate_map(
     const bPose *pose,
-    blender::Map<blender::StringRefNull, blender::StringRefNull> &name_map,
+    const blender::Map<blender::StringRefNull, blender::StringRefNull> &name_map,
     bPoseChannel *pchan_src)
 {
   bPoseChannel *pchan_dst = nullptr;
