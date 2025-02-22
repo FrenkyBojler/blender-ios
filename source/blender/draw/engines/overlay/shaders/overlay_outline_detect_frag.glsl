@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "infos/overlay_outline_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(overlay_outline_detect)
+
 #include "draw_view_lib.glsl"
 #include "overlay_common_lib.glsl"
 
@@ -40,7 +44,7 @@ bvec4 gather_edges(vec2 uv, uint ref)
 #ifdef GPU_ARB_texture_gather
   ids = textureGather(outlineId, uv);
 #else
-  vec3 ofs = vec3(0.5, 0.5, -0.5) * sizeViewportInv.xyy;
+  vec3 ofs = vec3(0.5, 0.5, -0.5) * globalsBlock.size_viewport.zww;
   ids.x = textureLod(outlineId, uv - ofs.xz, 0.0).r;
   ids.y = textureLod(outlineId, uv + ofs.xy, 0.0).r;
   ids.z = textureLod(outlineId, uv + ofs.xz, 0.0).r;
@@ -165,8 +169,8 @@ void main()
   uint ref = textureLod(outlineId, uvcoordsvar.xy, 0.0).r;
   uint ref_col = ref;
 
-  vec2 uvs = gl_FragCoord.xy * sizeViewportInv;
-  vec3 ofs = vec3(sizeViewportInv.xy, 0.0);
+  vec2 uvs = gl_FragCoord.xy * globalsBlock.size_viewport.zw;
+  vec3 ofs = vec3(globalsBlock.size_viewport.zw, 0.0);
 
   vec2 depth_uv = uvs;
 
@@ -277,13 +281,13 @@ void main()
   switch (edge_case) {
       /* Straight lines. */
     case YPOS:
-      extra_edges = gather_edges(uvs + sizeViewportInv * vec2(2.5, 0.5), ref);
-      extra_edges2 = gather_edges(uvs + sizeViewportInv * vec2(-2.5, 0.5), ref);
+      extra_edges = gather_edges(uvs + globalsBlock.size_viewport.zw * vec2(2.5, 0.5), ref);
+      extra_edges2 = gather_edges(uvs + globalsBlock.size_viewport.zw * vec2(-2.5, 0.5), ref);
       straight_line_dir(extra_edges, extra_edges2, line_start, line_end);
       break;
     case YNEG:
-      extra_edges = gather_edges(uvs + sizeViewportInv * vec2(-2.5, -0.5), ref);
-      extra_edges2 = gather_edges(uvs + sizeViewportInv * vec2(2.5, -0.5), ref);
+      extra_edges = gather_edges(uvs + globalsBlock.size_viewport.zw * vec2(-2.5, -0.5), ref);
+      extra_edges2 = gather_edges(uvs + globalsBlock.size_viewport.zw * vec2(2.5, -0.5), ref);
       extra_edges = rotate_180(extra_edges);
       extra_edges2 = rotate_180(extra_edges2);
       straight_line_dir(extra_edges, extra_edges2, line_start, line_end);
@@ -291,8 +295,8 @@ void main()
       line_end = rotate_180(line_end);
       break;
     case XPOS:
-      extra_edges = gather_edges(uvs + sizeViewportInv * vec2(0.5, 2.5), ref);
-      extra_edges2 = gather_edges(uvs + sizeViewportInv * vec2(0.5, -2.5), ref);
+      extra_edges = gather_edges(uvs + globalsBlock.size_viewport.zw * vec2(0.5, 2.5), ref);
+      extra_edges2 = gather_edges(uvs + globalsBlock.size_viewport.zw * vec2(0.5, -2.5), ref);
       extra_edges = rotate_90(extra_edges);
       extra_edges2 = rotate_90(extra_edges2);
       straight_line_dir(extra_edges, extra_edges2, line_start, line_end);
@@ -300,8 +304,8 @@ void main()
       line_end = rotate_90(line_end);
       break;
     case XNEG:
-      extra_edges = gather_edges(uvs + sizeViewportInv * vec2(-0.5, 2.5), ref);
-      extra_edges2 = gather_edges(uvs + sizeViewportInv * vec2(-0.5, -2.5), ref);
+      extra_edges = gather_edges(uvs + globalsBlock.size_viewport.zw * vec2(-0.5, 2.5), ref);
+      extra_edges2 = gather_edges(uvs + globalsBlock.size_viewport.zw * vec2(-0.5, -2.5), ref);
       extra_edges = rotate_270(extra_edges);
       extra_edges2 = rotate_270(extra_edges2);
       straight_line_dir(extra_edges, extra_edges2, line_start, line_end);
