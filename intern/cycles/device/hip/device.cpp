@@ -38,7 +38,14 @@ bool device_hip_init()
 
   initialized = true;
   int hipew_result = hipewInit(HIPEW_INIT_HIP);
+  bool driver_is_supported = false;
+
   if (hipew_result == HIPEW_SUCCESS) {
+    /* Only check if the HIP driver version is supported if HIP intialization succeeded */
+    driver_is_supported = hipSupportsDriver();
+  }
+
+  if ((hipew_result == HIPEW_SUCCESS) && (driver_is_supported)) {
     VLOG_INFO << "HIPEW initialization succeeded";
     if (HIPDevice::have_precompiled_kernels()) {
       VLOG_INFO << "Found precompiled kernels";
@@ -57,7 +64,7 @@ bool device_hip_init()
     if (hipew_result == HIPEW_ERROR_ATEXIT_FAILED) {
       VLOG_WARNING << "HIPEW initialization failed: Error setting up atexit() handler";
     }
-    else if (hipew_result == HIPEW_ERROR_OLD_DRIVER) {
+    else if ((hipew_result == HIPEW_ERROR_OLD_DRIVER) || (!driver_is_supported)) {
       VLOG_WARNING
           << "HIPEW initialization failed: Driver version too old, requires AMD Radeon Pro "
              "24.Q2 driver or newer";
@@ -154,7 +161,7 @@ void device_hip_info(vector<DeviceInfo> &devices)
       continue;
     }
 
-    if (!hipSupportsDevice(num) || !hipSupportsDriver()) {
+    if (!hipSupportsDevice(num)) {
       continue;
     }
 
