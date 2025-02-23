@@ -3,8 +3,11 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_task.hh"
+#include "BLI_math_geom.h"
 
 #include "BKE_curves.hh"
+#include "BKE_mesh.hh"
+#include "BKE_mesh_tangent.hh"
 
 #include "node_geometry_util.hh"
 
@@ -90,18 +93,59 @@ static VArray<float3> construct_curve_tangent_gvarray(const bke::CurvesGeometry 
   return nullptr;
 }
 
-class TangentFieldInput final : public bke::CurvesFieldInput {
+
+static Array<float4> mesh_tangent_corner_domain(const Mesh &mesh) {
+
+  const int tottri = poly_to_tri_count(mesh.faces_num, mesh.corners_num);
+
+  /* calculate normal for each face only once */
+  uint mpoly_prev = UINT_MAX;
+  blender::float3 no;
+
+  const blender::Span<blender::float3> positions = mesh.vert_positions();
+  const blender::OffsetIndices faces = mesh.faces();
+  const blender::Span<int> corner_verts = mesh.corner_verts();
+  const bke::AttributeAccessor attributes = mesh.attributes();
+
+  Array<int3> corner_tris(tottri);
+
+  blender::bke::mesh::corner_tris_calc(positions, faces, corner_verts, corner_tris.as_mutable_span());
+}
+
+static VArray<float3> construct_mesh_tangent_gvarray(const Mesh &mesh,
+                                                      const AttrDomain domain)
+{
+  Array<float4> tangents = mesh_tangent_corner_domain(mesh);
+
+  if (domain == AttrDomain::Point) {
+    return VArray<float3>::ForContainer(std::move(tangents));
+  }
+
+  if (domain == AttrDomain::Curve) {
+    return curves.adapt_domain<float3>(
+        VArray<float3>::ForContainer(std::move(tangents)), AttrDomain::Point, AttrDomain::Curve);
+  }
+
+  return nullptr;
+}
+
+class TangentFieldInput final : public bke::GeometryFieldInput {
  public:
-  TangentFieldInput() : bke::CurvesFieldInput(CPPType::get<float3>(), "Tangent node")
+  TangentFieldInput() : bke::GeometryFieldInput(CPPType::get<float3>(), "Tangent node")
   {
     category_ = Category::Generated;
   }
 
-  GVArray get_varray_for_context(const bke::CurvesGeometry &curves,
-                                 const AttrDomain domain,
-                                 const IndexMask & /*mask*/) const final
+  GVArray get_varray_for_context(const bke::GeometryFieldContext &context,
+                                 const IndexMask &mask) const final
   {
-    return construct_curve_tangent_gvarray(curves, domain);
+    if (const Mesh *mesh = context.mesh()) {
+      return construct_mesh_tangent_gvarray(*mesh, context.domain());
+    }
+    if (const bke::CurvesGeometry *curves = context.curves_or_strokes()) {
+      return construct_curve_tangent_gvarray(*curves, context.domain());
+    }
+    return {};
   }
 
   uint64_t hash() const override
@@ -115,7 +159,7 @@ class TangentFieldInput final : public bke::CurvesFieldInput {
     return dynamic_cast<const TangentFieldInput *>(&other) != nullptr;
   }
 
-  std::optional<AttrDomain> preferred_domain(const bke::CurvesGeometry & /*curves*/) const final
+  std::optional<AttrDomain> preferred_domain(const GeometryComponent & /*component*/) const final
   {
     return AttrDomain::Point;
   }
