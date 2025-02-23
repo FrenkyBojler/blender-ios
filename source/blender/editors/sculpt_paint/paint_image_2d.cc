@@ -150,10 +150,9 @@ static BrushPainter *brush_painter_2d_new(Scene *scene,
   painter->brush = brush;
   painter->scene = scene;
   painter->paint = paint;
-  painter->initial_hsv_jitter =
-      (BKE_brush_color_jitter_get_settings(scene, paint, brush).has_value() ?
-           std::optional(seed_hsv_jitter()) :
-           std::nullopt);
+  if (BKE_brush_color_jitter_get_settings(scene, paint, brush)) {
+    painter->initial_hsv_jitter = seed_hsv_jitter();
+  }
   painter->firsttouch = true;
   painter->cache_invert = invert;
 
@@ -728,12 +727,12 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s,
 
   bool do_random = false;
   bool do_partial_update = false;
-  bool update_color =
-      ((brush->flag & BRUSH_USE_GRADIENT) && (ELEM(brush->gradient_stroke_mode,
-                                                   BRUSH_GRADIENT_SPACING_REPEAT,
-                                                   BRUSH_GRADIENT_SPACING_CLAMP) ||
-                                              (cache->last_pressure != pressure))) ||
-      BKE_brush_color_jitter_get_settings(scene, painter->paint, brush).has_value();
+  bool update_color = ((brush->flag & BRUSH_USE_GRADIENT) &&
+                       (ELEM(brush->gradient_stroke_mode,
+                             BRUSH_GRADIENT_SPACING_REPEAT,
+                             BRUSH_GRADIENT_SPACING_CLAMP) ||
+                        (cache->last_pressure != pressure))) ||
+                      BKE_brush_color_jitter_get_settings(scene, painter->paint, brush);
   float tex_rotation = -brush->mtex.rot;
   float mask_rotation = -brush->mask_mtex.rot;
 

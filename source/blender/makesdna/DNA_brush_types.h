@@ -224,7 +224,7 @@ typedef struct Brush {
   /** Color. */
   float rgb[3];
   int color_jitter_flag;
-  float hsv_jitter_amounts[3];
+  float hsv_jitter[3];
 
   /** Opacity. */
   float alpha;

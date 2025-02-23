@@ -2747,21 +2747,21 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "hue_jitter", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_float_sdna(prop, nullptr, "hsv_jitter_amounts[0]");
+  RNA_def_property_float_sdna(prop, nullptr, "hsv_jitter[0]");
   RNA_def_property_range(prop, 0, 1.0f);
   RNA_def_property_ui_range(prop, 0, 1, 0.05, 2);
   RNA_def_property_ui_text(prop, "Hue Jitter", "Color jitter effect on hue");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "saturation_jitter", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_float_sdna(prop, nullptr, "hsv_jitter_amounts[1]");
+  RNA_def_property_float_sdna(prop, nullptr, "hsv_jitter[1]");
   RNA_def_property_range(prop, 0, 1.0f);
   RNA_def_property_ui_range(prop, 0, 1, 0.05, 2);
   RNA_def_property_ui_text(prop, "Saturation Jitter", "Color jitter effect on saturation");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "value_jitter", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_float_sdna(prop, nullptr, "hsv_jitter_amounts[2]");
+  RNA_def_property_float_sdna(prop, nullptr, "hsv_jitter[2]");
   RNA_def_property_range(prop, 0, 1.0f);
   RNA_def_property_ui_range(prop, 0, 1, 0.05, 2);
   RNA_def_property_ui_text(prop, "Value Jitter", "Color jitter effect on value");

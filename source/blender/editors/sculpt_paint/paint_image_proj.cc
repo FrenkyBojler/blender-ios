@@ -5963,11 +5963,10 @@ void *paint_proj_new_stroke(bContext *C, Object *ob, const float mouse[2], int m
   ps_handle = MEM_new<ProjStrokeHandle>("ProjStrokeHandle");
   ps_handle->scene = scene;
   ps_handle->brush = BKE_paint_brush(&settings->imapaint.paint);
-  ps_handle->initial_hsv_jitter = (BKE_brush_color_jitter_get_settings(
-                                       scene, &settings->imapaint.paint, ps_handle->brush)
-                                           .has_value() ?
-                                       std::optional(seed_hsv_jitter()) :
-                                       std::nullopt);
+
+  if (BKE_brush_color_jitter_get_settings(scene, &settings->imapaint.paint, ps_handle->brush)) {
+    ps_handle->initial_hsv_jitter = seed_hsv_jitter();
+  }
 
   if (mode == BRUSH_STROKE_INVERT) {
     /* Bypass regular stroke logic. */

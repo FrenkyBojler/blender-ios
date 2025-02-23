@@ -1428,7 +1428,7 @@ typedef struct UnifiedPaintSettings {
 
   /** Unified color jitter settings */
   int color_jitter_flag;
-  float hsv_jitter_amounts[3];
+  float hsv_jitter[3];
 
   /** Unified brush stroke input samples. */
   int input_samples;

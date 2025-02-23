@@ -1849,9 +1849,7 @@ void BKE_paint_stroke_get_average(const Scene *scene, const Object *ob, float st
 }
 
 /* TODO: merge this functionality with greasepencil PaintOperationExecutor::randomize_color */
-blender::float3 BKE_paint_randomize_color(const Scene *scene,
-                                          const Paint *paint,
-                                          const Brush *brush,
+blender::float3 BKE_paint_randomize_color(const BrushColorJitterSettings &color_jitter,
                                           const blender::float3 &initial_hsv_jitter,
                                           const float distance,
                                           const float pressure,
@@ -1859,37 +1857,31 @@ blender::float3 BKE_paint_randomize_color(const Scene *scene,
 {
   constexpr float noise_scale = 1 / 20.0f;
 
-  const std::optional<BrushColorJitterSettings> color_jitter = BKE_brush_color_jitter_get_settings(
-      scene, paint, brush);
-  if (!color_jitter.has_value()) {
-    return color;
-  }
-
-  const float random_hue = (color_jitter->flag & BRUSH_COLOR_JITTER_USE_HUE_AT_STROKE) ?
+  const float random_hue = (color_jitter.flag & BRUSH_COLOR_JITTER_USE_HUE_AT_STROKE) ?
                                initial_hsv_jitter[0] :
                                blender::noise::perlin(blender::float2(
                                    distance * noise_scale, initial_hsv_jitter[0] * 100));
 
-  const float random_sat = (color_jitter->flag & BRUSH_COLOR_JITTER_USE_SAT_AT_STROKE) ?
+  const float random_sat = (color_jitter.flag & BRUSH_COLOR_JITTER_USE_SAT_AT_STROKE) ?
                                initial_hsv_jitter[1] :
                                blender::noise::perlin(blender::float2(
                                    distance * noise_scale, initial_hsv_jitter[1] * 100));
 
-  const float random_val = (color_jitter->flag & BRUSH_COLOR_JITTER_USE_VAL_AT_STROKE) ?
+  const float random_val = (color_jitter.flag & BRUSH_COLOR_JITTER_USE_VAL_AT_STROKE) ?
                                initial_hsv_jitter[2] :
                                blender::noise::perlin(blender::float2(
                                    distance * noise_scale, initial_hsv_jitter[2] * 100));
 
-  float hue_jitter_scale = color_jitter->hue;
-  if ((color_jitter->flag & BRUSH_COLOR_JITTER_USE_HUE_RAND_PRESS)) {
+  float hue_jitter_scale = color_jitter.hue;
+  if ((color_jitter.flag & BRUSH_COLOR_JITTER_USE_HUE_RAND_PRESS)) {
     hue_jitter_scale *= BKE_curvemapping_evaluateF(BKE_paint_default_curve(), 0, pressure);
   }
-  float sat_jitter_scale = color_jitter->saturation;
-  if ((color_jitter->flag & BRUSH_COLOR_JITTER_USE_SAT_RAND_PRESS)) {
+  float sat_jitter_scale = color_jitter.saturation;
+  if ((color_jitter.flag & BRUSH_COLOR_JITTER_USE_SAT_RAND_PRESS)) {
     sat_jitter_scale *= BKE_curvemapping_evaluateF(BKE_paint_default_curve(), 0, pressure);
   }
-  float val_jitter_scale = color_jitter->value;
-  if ((color_jitter->flag & BRUSH_COLOR_JITTER_USE_VAL_RAND_PRESS)) {
+  float val_jitter_scale = color_jitter.value;
+  if ((color_jitter.flag & BRUSH_COLOR_JITTER_USE_VAL_RAND_PRESS)) {
     val_jitter_scale *= BKE_curvemapping_evaluateF(BKE_paint_default_curve(), 0, pressure);
   }
 

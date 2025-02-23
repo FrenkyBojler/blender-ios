@@ -361,7 +361,7 @@ bool paint_use_opacity_masking(const Scene *scene, const Paint *paint, const Bru
                        IMAGE_PAINT_BRUSH_TYPE_SOFTEN) ||
                   (brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_FILL) ||
                   (brush->flag & BRUSH_USE_GRADIENT) ||
-                  (BKE_brush_color_jitter_get_settings(scene, paint, brush).has_value()) ||
+                  (BKE_brush_color_jitter_get_settings(scene, paint, brush)) ||
                   (brush->mtex.tex && !ELEM(brush->mtex.brush_map_mode,
                                             MTEX_MAP_MODE_TILED,
                                             MTEX_MAP_MODE_STENCIL,
@@ -385,6 +385,8 @@ void paint_brush_color_get(Scene *scene,
     copy_v3_v3(r_color, BKE_brush_secondary_color_get(scene, paint, br));
   }
   else {
+    const std::optional<BrushColorJitterSettings> color_jitter_settings =
+        BKE_brush_color_jitter_get_settings(scene, paint, br);
     if (br->flag & BRUSH_USE_GRADIENT) {
       float color_gr[4];
       switch (br->gradient_stroke_mode) {
@@ -405,11 +407,9 @@ void paint_brush_color_get(Scene *scene,
        * Brush colors are expected to be in sRGB though. */
       IMB_colormanagement_scene_linear_to_srgb_v3(r_color, color_gr);
     }
-    else if (BKE_brush_color_jitter_get_settings(scene, paint, br).has_value()) {
+    else if (color_jitter_settings) {
       copy_v3_v3(r_color,
-                 BKE_paint_randomize_color(scene,
-                                           paint,
-                                           br,
+                 BKE_paint_randomize_color(*color_jitter_settings,
                                            initial_hsv_jitter,
                                            distance,
                                            pressure,

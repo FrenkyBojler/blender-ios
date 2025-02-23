@@ -31,6 +31,7 @@ struct BMesh;
 struct BlendDataReader;
 struct BlendWriter;
 struct Brush;
+struct BrushColorJitterSettings;
 struct CurveMapping;
 struct Depsgraph;
 struct EnumPropertyItem;
@@ -331,9 +332,7 @@ void paint_update_brush_rake_rotation(UnifiedPaintSettings &ups,
 
 void BKE_paint_stroke_get_average(const Scene *scene, const Object *ob, float stroke[3]);
 
-blender::float3 BKE_paint_randomize_color(const Scene *scene,
-                                          const Paint *paint,
-                                          const Brush *brush,
+blender::float3 BKE_paint_randomize_color(const BrushColorJitterSettings &color_jitter,
                                           const blender::float3 &initial_hsv_jitter,
                                           const float distance,
                                           const float pressure,

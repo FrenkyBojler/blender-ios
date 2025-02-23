@@ -11,6 +11,7 @@
  */
 
 #include "BLI_span.hh"
+#include <optional>
 
 #include "DNA_brush_enums.h"
 #include "DNA_color_types.h"
