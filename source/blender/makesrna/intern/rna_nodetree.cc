@@ -12481,10 +12481,10 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeGridToMesh");
   define("GeometryNode", "GeometryNodeImageInfo");
   define("GeometryNode", "GeometryNodeImageTexture", def_geo_image_texture);
+  define("GeometryNode", "GeometryNodeImportCSV");
   define("GeometryNode", "GeometryNodeImportOBJ");
   define("GeometryNode", "GeometryNodeImportPLY");
   define("GeometryNode", "GeometryNodeImportSTL");
-  define("GeometryNode", "GeometryNodeImportCSV");
   define("GeometryNode", "GeometryNodeIndexOfNearest");
   define("GeometryNode", "GeometryNodeIndexSwitch", def_geo_index_switch);
   define("GeometryNode", "GeometryNodeInputActiveCamera");
@@ -12563,6 +12563,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeResampleCurve");
   define("GeometryNode", "GeometryNodeReverseCurve");
   define("GeometryNode", "GeometryNodeRotateInstances");
+  define("GeometryNode", "GeometryNodeSampleByID");
   define("GeometryNode", "GeometryNodeSampleCurve", def_geo_curve_sample);
   define("GeometryNode", "GeometryNodeSampleGrid");
   define("GeometryNode", "GeometryNodeSampleGridIndex");
