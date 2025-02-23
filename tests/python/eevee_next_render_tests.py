@@ -279,7 +279,6 @@ def main():
         report.set_fail_threshold(0.0275)
     elif test_dir_name.startswith('integrator'):
         # Noise difference in transparent material
-        #report.set_fail_threshold(0.0275)
         report.set_fail_threshold(0.04)
     elif test_dir_name.startswith('pointcloud'):
         # points transparent
