@@ -27,6 +27,7 @@ set(SRC
   intern/merge_layers.cc
   intern/mesh_boolean.cc
   intern/mesh_copy_selection.cc
+  intern/mesh_dissolve.cc
   intern/mesh_merge_by_distance.cc
   intern/mesh_primitive_cuboid.cc
   intern/mesh_primitive_cylinder_cone.cc
@@ -71,6 +72,7 @@ set(SRC
   GEO_merge_layers.hh
   GEO_mesh_boolean.hh
   GEO_mesh_copy_selection.hh
+  GEO_mesh_dissolve.hh
   GEO_mesh_merge_by_distance.hh
   GEO_mesh_primitive_cuboid.hh
   GEO_mesh_primitive_cylinder_cone.hh
@@ -112,6 +114,7 @@ set(LIB
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::fmtlib
+  PRIVATE bf::intern::atomic
 )
 
 if(WITH_UV_SLIM)
