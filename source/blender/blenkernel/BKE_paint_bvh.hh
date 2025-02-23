@@ -128,7 +128,7 @@ class Node {
   }
 };
 
-ENUM_OPERATORS(Node::Flags, Node::Flags::TopologyUpdated);
+ENUM_OPERATORS(Node::Flags, Node::Flags::GPU);
 
 struct MeshNode : public Node {
   /**
