@@ -297,6 +297,33 @@ inline int face_corner_next(const IndexRange face, const int corner)
   return corner + 1;
 }
 
+inline const int2 &corner_vert_edges(const int2 &prev_edge,
+                                     const int2 &next_edge,
+                                     const int vertex_index)
+{
+  BLI_assert(ELEM(vertex_index, prev_edge[0], prev_edge[1]) !=
+             ELEM(vertex_index, next_edge[0], next_edge[1]));
+  if (ELEM(vertex_index, prev_edge[0], prev_edge[1])) {
+    return prev_edge;
+  }
+  return next_edge;
+}
+
+inline int other_corner_edge(const Span<int2> edges,
+                             const Span<int> corner_edges,
+                             const Span<int> corner_vertx,
+                             const int corner_i)
+{
+  BLI_assert(corner_edges.size() == corner_vertx.size());
+  const IndexRange face = corner_edges.index_range();
+  const int vertex = corner_vertx[corner_i];
+  const int prev_corner = face_corner_prev(face, corner_i);
+  const int next_corner = face_corner_next(face, corner_i);
+  const int2 &edge = corner_vert_edges(
+      edges[corner_edges[prev_corner]], edges[corner_edges[next_corner]], vertex);
+  return int(&edge - edges.begin());
+}
+
 /**
  * Find the index of the corner in the face that uses the given vertex.
  * The index is into the entire corners array, not just the face's corners.
