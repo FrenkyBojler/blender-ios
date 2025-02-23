@@ -19,7 +19,7 @@
 #include "BLI_span.hh"
 #include "BLI_task.hh"
 
-#define DEBUG_TIME
+// #define DEBUG_TIME
 #ifdef DEBUG_TIME
 #  include "BLI_timeit.hh"
 #endif
@@ -1373,6 +1373,11 @@ static Mesh *meshgl_to_mesh(const MeshGL &mgl,
 #endif
   BLI_assert(mgl.mergeFromVert.size() == 0);
 
+  if (mgl.vertProperties.size() == 0 || mgl.triVerts.size() == 0) {
+    Mesh *mesh = BKE_mesh_new_nomain_from_template(joined_mesh, 0, 0, 0, 0);
+    return mesh;
+  }
+
   MeshAssembly ma = assemble_mesh_from_meshgl(mgl, mesh_offsets);
   const int tot_positions = ma.num_output_verts;
   const int tot_faces = ma.new_faces.size();
@@ -1549,8 +1554,7 @@ static bke::GeometrySet join_meshes_with_transforms(Span<const Mesh *> meshes,
   Array<bke::GeometrySet> geometries(meshes_num);
   for (const int i : geometries.index_range()) {
     Mesh *mesh_i = transformed_meshes[i] ? transformed_meshes[i] : const_cast<Mesh *>(meshes[i]);
-    geometries[i] = bke::GeometrySet::from_mesh(mesh_i,
-                                                bke::GeometryOwnershipType::ReadOnly);
+    geometries[i] = bke::GeometrySet::from_mesh(mesh_i, bke::GeometryOwnershipType::ReadOnly);
   }
   bke::GeometrySet ans = geometry::join_geometries(geometries, {});
   for (const int i : transformed_meshes.index_range()) {
@@ -1560,7 +1564,6 @@ static bke::GeometrySet join_meshes_with_transforms(Span<const Mesh *> meshes,
   }
   return ans;
 }
-
 
 Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
                             Span<float4x4> transforms,
@@ -1594,6 +1597,9 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
     }
     MeshOffsets mesh_offsets(meshes);
     const Mesh *joined_mesh = joined_meshes_set.get_mesh();
+    if (joined_mesh == nullptr) {
+      return nullptr;
+    }
     BLI_assert(joined_mesh != nullptr);
     get_manifolds(manifolds, joined_mesh, mesh_offsets);
     MeshGL meshgl_result;
