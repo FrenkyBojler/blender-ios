@@ -2,7 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(gpu_shader_math_base_lib.glsl)
+#pragma once
+
+#include "gpu_shader_math_base_lib.glsl"
 
 /* WORKAROUND: to guard against double include in EEVEE. */
 #ifndef GPU_SHADER_MATH_VECTOR_LIB_GLSL
@@ -14,9 +16,12 @@
 /**
  * Return true if all components is equal to zero.
  */
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wredundant-decls"
 bool is_zero(vec2 vec);
 bool is_zero(vec3 vec);
 bool is_zero(vec4 vec);
+#    pragma GCC diagnostic pop * /
 
 /**
  * Return true if any component is equal to zero.
@@ -214,6 +219,16 @@ float reduce_add(vec4 a);
 int reduce_add(ivec2 a);
 int reduce_add(ivec3 a);
 int reduce_add(ivec4 a);
+
+/**
+ * Return the product of the components of a vector.
+ */
+float reduce_mul(vec2 a);
+float reduce_mul(vec3 a);
+float reduce_mul(vec4 a);
+int reduce_mul(ivec2 a);
+int reduce_mul(ivec3 a);
+int reduce_mul(ivec4 a);
 
 /**
  * Return the average of the components of a vector.
@@ -538,17 +553,17 @@ vec4 safe_normalize_and_get_length(vec4 vector, out float out_length)
 
 vec2 safe_normalize(vec2 vector)
 {
-  float unused_length;
+  float unused_length = 0.0;
   return safe_normalize_and_get_length(vector, unused_length);
 }
 vec3 safe_normalize(vec3 vector)
 {
-  float unused_length;
+  float unused_length = 0.0;
   return safe_normalize_and_get_length(vector, unused_length);
 }
 vec4 safe_normalize(vec4 vector)
 {
-  float unused_length;
+  float unused_length = 0.0;
   return safe_normalize_and_get_length(vector, unused_length);
 }
 
@@ -705,6 +720,31 @@ int reduce_add(ivec3 a)
 int reduce_add(ivec4 a)
 {
   return a.x + a.y + a.z + a.w;
+}
+
+float reduce_mul(vec2 a)
+{
+  return a.x * a.y;
+}
+float reduce_mul(vec3 a)
+{
+  return a.x * a.y * a.z;
+}
+float reduce_mul(vec4 a)
+{
+  return a.x * a.y * a.z * a.w;
+}
+int reduce_mul(ivec2 a)
+{
+  return a.x * a.y;
+}
+int reduce_mul(ivec3 a)
+{
+  return a.x * a.y * a.z;
+}
+int reduce_mul(ivec4 a)
+{
+  return a.x * a.y * a.z * a.w;
 }
 
 float average(vec2 a)

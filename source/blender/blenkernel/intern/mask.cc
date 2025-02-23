@@ -14,7 +14,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_endian_switch.h"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
@@ -34,7 +33,7 @@
 #include "BKE_idtype.hh"
 
 #include "BKE_anim_data.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
@@ -959,7 +958,7 @@ Mask *BKE_mask_new(Main *bmain, const char *name)
   Mask *mask;
   char mask_name[MAX_ID_NAME - 2];
 
-  STRNCPY(mask_name, (name && name[0]) ? name : "Mask");
+  STRNCPY(mask_name, (name && name[0]) ? name : DATA_("Mask"));
 
   mask = mask_alloc(bmain, mask_name);
 
@@ -1675,7 +1674,8 @@ int BKE_mask_layer_shape_find_frame_range(MaskLayer *masklay,
     }
   }
 
-  if ((masklay_shape = static_cast<MaskLayerShape *>(masklay->splines_shapes.last))) {
+  masklay_shape = static_cast<MaskLayerShape *>(masklay->splines_shapes.last);
+  if (masklay_shape) {
     *r_masklay_shape_a = masklay_shape;
     *r_masklay_shape_b = nullptr;
     return 1;

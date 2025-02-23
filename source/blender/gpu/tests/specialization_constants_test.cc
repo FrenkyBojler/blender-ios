@@ -10,7 +10,9 @@
 #include "GPU_context.hh"
 #include "GPU_framebuffer.hh"
 #include "GPU_shader.hh"
+#include "GPU_state.hh"
 #include "GPU_storage_buffer.hh"
+#include "GPU_vertex_format.hh"
 
 #include "BLI_math_vector.hh"
 #include "BLI_utility_mixins.hh"
@@ -102,9 +104,9 @@ struct ShaderSpecializationConst {
       /* TODO(fclem): remove this boilerplate. */
       GPUVertFormat format{};
       GPU_vertformat_attr_add(&format, "dummy", GPU_COMP_U32, 1, GPU_FETCH_INT);
-      VertBuf *verts = GPU_vertbuf_create_with_format(&format);
+      VertBuf *verts = GPU_vertbuf_create_with_format(format);
 
-      GPU_vertbuf_data_alloc(verts, 1);
+      GPU_vertbuf_data_alloc(*verts, 1);
       Batch *batch = GPU_batch_create_ex(GPU_PRIM_POINTS, verts, nullptr, GPU_BATCH_OWNS_VBO);
       GPU_batch_set_shader(batch, shader);
       GPU_batch_draw_advanced(batch, 0, 1, 0, 1);

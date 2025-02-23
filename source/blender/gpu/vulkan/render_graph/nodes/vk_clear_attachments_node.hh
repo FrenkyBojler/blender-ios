@@ -37,9 +37,10 @@ class VKClearAttachmentsNode : public VKNodeInfo<VKNodeType::CLEAR_ATTACHMENTS,
    * (`VK*Data`/`VK*CreateInfo`) types can be included in the same header file as the logic. The
    * actual node data (`VKRenderGraphNode` includes all header files.)
    */
-  template<typename Node> static void set_node_data(Node &node, const CreateInfo &create_info)
+  template<typename Node, typename Storage>
+  void set_node_data(Node &node, Storage &storage, const CreateInfo &create_info)
   {
-    node.clear_attachments = create_info;
+    node.storage_index = storage.clear_attachments.append_and_get_index(create_info);
   }
 
   /**
@@ -56,7 +57,7 @@ class VKClearAttachmentsNode : public VKNodeInfo<VKNodeType::CLEAR_ATTACHMENTS,
    * Build the commands and add them to the command_buffer.
    */
   void build_commands(VKCommandBufferInterface &command_buffer,
-                      const Data &data,
+                      Data &data,
                       VKBoundPipelines & /*r_bound_pipelines*/) override
   {
     command_buffer.clear_attachments(

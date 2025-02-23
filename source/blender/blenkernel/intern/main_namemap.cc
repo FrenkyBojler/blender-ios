@@ -8,6 +8,7 @@
 
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_main_namemap.hh"
 
@@ -194,8 +195,7 @@ void BKE_main_namemap_destroy(UniqueName_Map **r_name_map)
   printf(
       "NameMap memory usage: sets %.1fKB, maps %.1fKB\n", size_sets / 1024.0, size_maps / 1024.0);
 #endif
-  MEM_delete<UniqueName_Map>(*r_name_map);
-  *r_name_map = nullptr;
+  MEM_SAFE_DELETE(*r_name_map);
 }
 
 void BKE_main_namemap_clear(Main *bmain)
@@ -211,8 +211,8 @@ void BKE_main_namemap_clear(Main *bmain)
          lib_iter != nullptr;
          lib_iter = static_cast<Library *>(lib_iter->id.next))
     {
-      if (lib_iter->runtime.name_map != nullptr) {
-        BKE_main_namemap_destroy(&lib_iter->runtime.name_map);
+      if (lib_iter->runtime->name_map != nullptr) {
+        BKE_main_namemap_destroy(&lib_iter->runtime->name_map);
       }
     }
   }
@@ -278,11 +278,11 @@ static UniqueName_Map *get_namemap_for(Main *bmain,
   }
 
   if (id->lib != nullptr) {
-    if (ensure_created && id->lib->runtime.name_map == nullptr) {
-      id->lib->runtime.name_map = BKE_main_namemap_create();
-      main_namemap_populate(id->lib->runtime.name_map, bmain, id->lib, id, false);
+    if (ensure_created && id->lib->runtime->name_map == nullptr) {
+      id->lib->runtime->name_map = BKE_main_namemap_create();
+      main_namemap_populate(id->lib->runtime->name_map, bmain, id->lib, id, false);
     }
-    return id->lib->runtime.name_map;
+    return id->lib->runtime->name_map;
   }
   if (ensure_created && bmain->name_map == nullptr) {
     bmain->name_map = BKE_main_namemap_create();
@@ -359,6 +359,11 @@ bool BKE_main_namemap_get_name(Main *bmain, ID *id, char *name, const bool do_un
       return is_name_changed;
     }
 
+    /* At this point, if this is the first iteration, the initially given name is colliding with an
+     * existing ID name, and has to be modified. If this is a later iteration, the given name has
+     * already been modified one way or another. */
+    is_name_changed = true;
+
     /* The base name is already used. But our number suffix might not be used yet. */
     int number_to_use = -1;
     if (val.use_if_unused(number)) {
@@ -395,11 +400,6 @@ bool BKE_main_namemap_get_name(Main *bmain, ID *id, char *name, const bool do_un
       }
       break;
     }
-
-    /* Name had to be truncated, or number too large: mark
-     * the output name as definitely changed, and proceed with the
-     * truncated name again. */
-    is_name_changed = true;
   }
 
   return is_name_changed;
@@ -494,8 +494,12 @@ static bool main_namemap_validate_and_fix(Main *bmain, const bool do_fix)
            * to the validated set if it can now be added to `id_names_libs`, and will prevent
            * further checking (which would fail again, since the new ID name/lib key has already
            * been added to `id_names_libs`). */
-          BKE_id_new_name_validate(
-              bmain, which_libbase(bmain, GS(id_iter->name)), id_iter, nullptr, true);
+          BKE_id_new_name_validate(*bmain,
+                                   *which_libbase(bmain, GS(id_iter->name)),
+                                   *id_iter,
+                                   nullptr,
+                                   IDNewNameMode::RenameExistingNever,
+                                   true);
           STRNCPY(key.name, id_iter->name);
           if (!id_names_libs.add(key)) {
             /* This is a serious error, very likely a bug, keep it as CLOG_ERROR even when doing
@@ -530,9 +534,8 @@ static bool main_namemap_validate_and_fix(Main *bmain, const bool do_fix)
       if (!type_map->full_names.contains(key_namemap)) {
         is_valid = false;
         if (do_fix) {
-          CLOG_INFO(
+          CLOG_WARN(
               &LOG,
-              3,
               "ID name '%s' (from library '%s') exists in current Main, but is not listed in "
               "the namemap",
               id_iter->name,
@@ -569,9 +572,8 @@ static bool main_namemap_validate_and_fix(Main *bmain, const bool do_fix)
             if (!id_names_libs.contains(key)) {
               is_valid = false;
               if (do_fix) {
-                CLOG_INFO(
+                CLOG_WARN(
                     &LOG,
-                    3,
                     "ID name '%s' (from library '%s') is listed in the namemap, but does not "
                     "exists in current Main",
                     key.name,
@@ -591,7 +593,7 @@ static bool main_namemap_validate_and_fix(Main *bmain, const bool do_fix)
       }
     }
     lib = static_cast<Library *>((lib == nullptr) ? bmain->libraries.first : lib->id.next);
-    name_map = (lib != nullptr) ? lib->runtime.name_map : nullptr;
+    name_map = (lib != nullptr) ? lib->runtime->name_map : nullptr;
   } while (lib != nullptr);
 
   if (is_valid || !do_fix) {

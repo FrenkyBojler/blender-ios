@@ -22,7 +22,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
-#include "BKE_nla.h"
+#include "BKE_nla.hh"
 
 #include "UI_view2d.hh"
 
@@ -82,7 +82,6 @@ void get_graph_keyframe_extents(bAnimContext *ac,
 
     /* Go through channels, finding max extents. */
     LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-      AnimData *adt = ANIM_nla_mapping_get(ac, ale);
       FCurve *fcu = (FCurve *)ale->key_data;
       rctf bounds;
       float unitFac, offset;
@@ -92,10 +91,8 @@ void get_graph_keyframe_extents(bAnimContext *ac,
         short mapping_flag = ANIM_get_normalization_flags(ac->sl);
 
         /* Apply NLA scaling. */
-        if (adt) {
-          bounds.xmin = BKE_nla_tweakedit_remap(adt, bounds.xmin, NLATIME_CONVERT_MAP);
-          bounds.xmax = BKE_nla_tweakedit_remap(adt, bounds.xmax, NLATIME_CONVERT_MAP);
-        }
+        bounds.xmin = ANIM_nla_tweakedit_remap(ale, bounds.xmin, NLATIME_CONVERT_MAP);
+        bounds.xmax = ANIM_nla_tweakedit_remap(ale, bounds.xmax, NLATIME_CONVERT_MAP);
 
         /* Apply unit corrections. */
         unitFac = ANIM_unit_mapping_get_factor(ac->scene, ale->id, fcu, mapping_flag, &offset);
@@ -260,7 +257,8 @@ static int graphkeys_viewall(bContext *C,
                              include_handles);
 
   /* Give some more space at the borders. */
-  BLI_rctf_scale(&cur_new, 1.1f);
+  cur_new = ANIM_frame_range_view2d_add_xmargin(ac.region->v2d, cur_new);
+  BLI_rctf_resize_y(&cur_new, 1.1f * BLI_rctf_size_y(&cur_new));
 
   /* Take regions into account, that could block the view.
    * Marker region is supposed to be larger than the scroll-bar, so prioritize it. */
@@ -404,7 +402,6 @@ static void create_ghost_curves(bAnimContext *ac, int start, int end)
   LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
     FCurve *fcu = (FCurve *)ale->key_data;
     FCurve *gcu = BKE_fcurve_create();
-    AnimData *adt = ANIM_nla_mapping_get(ac, ale);
     ChannelDriver *driver = fcu->driver;
     FPoint *fpt;
     float unitFac, offset;
@@ -426,7 +423,7 @@ static void create_ghost_curves(bAnimContext *ac, int start, int end)
 
     /* Use the sampling callback at 1-frame intervals from start to end frames. */
     for (cfra = start; cfra <= end; cfra++, fpt++) {
-      float cfrae = BKE_nla_tweakedit_remap(adt, cfra, NLATIME_CONVERT_UNMAP);
+      const float cfrae = ANIM_nla_tweakedit_remap(ale, cfra, NLATIME_CONVERT_UNMAP);
 
       fpt->vec[0] = cfrae;
       fpt->vec[1] = (fcurve_samplingcb_evalcurve(fcu, nullptr, cfrae) + offset) * unitFac;

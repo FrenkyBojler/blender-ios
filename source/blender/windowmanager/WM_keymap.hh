@@ -11,7 +11,6 @@
 #include <optional>
 #include <string>
 
-#include "BLI_utildefines.h"
 #include "DNA_windowmanager_types.h"
 #include "WM_types.hh"
 
@@ -87,11 +86,21 @@ wmKeyMap *WM_keymap_find_all_spaceid_or_empty(wmWindowManager *wm,
                                               int spaceid,
                                               int regionid);
 wmKeyMap *WM_keymap_active(const wmWindowManager *wm, wmKeyMap *keymap);
-void WM_keymap_remove(wmKeyConfig *keyconfig, wmKeyMap *keymap);
+void WM_keymap_remove(wmKeyConfig *keyconf, wmKeyMap *keymap);
 bool WM_keymap_poll(bContext *C, wmKeyMap *keymap);
 
 wmKeyMapItem *WM_keymap_item_find_id(wmKeyMap *keymap, int id);
 bool WM_keymap_item_compare(const wmKeyMapItem *k1, const wmKeyMapItem *k2);
+
+/**
+ * Return the user key-map item from `km_base` based on `km_match` & `kmi_match`,
+ * currently the supported use case is looking up "User" key-map items from "Add-on" key-maps.
+ * Other lookups may be supported.
+ */
+wmKeyMapItem *WM_keymap_item_find_match(wmKeyMap *km_base,
+                                        wmKeyMap *km_match,
+                                        wmKeyMapItem *kmi_match,
+                                        ReportList *reports);
 
 /* `wm_keymap_utils.cc`. */
 

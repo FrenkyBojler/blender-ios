@@ -22,7 +22,7 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_bitmap.h"
+#include "BLI_listbase.h"
 #include "BLI_memarena.h"
 #include "BLI_ordered_edge.hh"
 #include "BLI_set.hh"
@@ -31,9 +31,9 @@
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
-#include "BKE_ccg.h"
-#include "BKE_cdderivedmesh.h"
+#include "BKE_ccg.hh"
 #include "BKE_customdata.hh"
+#include "BKE_mesh_legacy_derived_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 #include "BKE_multires.hh"
 #include "BKE_scene.hh"
@@ -640,83 +640,6 @@ static int ccgDM_getFaceMapIndex(CCGSubSurf *ss, CCGFace *f)
   return ((int *)ccgSubSurf_getFaceUserData(ss, f))[1];
 }
 
-static void minmax_v3_v3v3(const float vec[3], float min[3], float max[3])
-{
-  if (min[0] > vec[0]) {
-    min[0] = vec[0];
-  }
-  if (min[1] > vec[1]) {
-    min[1] = vec[1];
-  }
-  if (min[2] > vec[2]) {
-    min[2] = vec[2];
-  }
-  if (max[0] < vec[0]) {
-    max[0] = vec[0];
-  }
-  if (max[1] < vec[1]) {
-    max[1] = vec[1];
-  }
-  if (max[2] < vec[2]) {
-    max[2] = vec[2];
-  }
-}
-
-static void UNUSED_FUNCTION(ccgDM_getMinMax)(DerivedMesh *dm, float r_min[3], float r_max[3])
-{
-  CCGDerivedMesh *ccgdm = (CCGDerivedMesh *)dm;
-  CCGSubSurf *ss = ccgdm->ss;
-  CCGVertIterator vi;
-  CCGEdgeIterator ei;
-  CCGFaceIterator fi;
-  CCGKey key;
-  int i, edgeSize = ccgSubSurf_getEdgeSize(ss);
-  int gridSize = ccgSubSurf_getGridSize(ss);
-
-  CCG_key_top_level(&key, ss);
-
-  if (!ccgSubSurf_getNumVerts(ss)) {
-    r_min[0] = r_min[1] = r_min[2] = r_max[0] = r_max[1] = r_max[2] = 0.0;
-  }
-
-  for (ccgSubSurf_initVertIterator(ss, &vi); !ccgVertIterator_isStopped(&vi);
-       ccgVertIterator_next(&vi))
-  {
-    CCGVert *v = ccgVertIterator_getCurrent(&vi);
-    float *co = static_cast<float *>(ccgSubSurf_getVertData(ss, v));
-
-    minmax_v3_v3v3(co, r_min, r_max);
-  }
-
-  for (ccgSubSurf_initEdgeIterator(ss, &ei); !ccgEdgeIterator_isStopped(&ei);
-       ccgEdgeIterator_next(&ei))
-  {
-    CCGEdge *e = ccgEdgeIterator_getCurrent(&ei);
-    CCGElem *edgeData = static_cast<CCGElem *>(ccgSubSurf_getEdgeDataArray(ss, e));
-
-    for (i = 0; i < edgeSize; i++) {
-      minmax_v3_v3v3(CCG_elem_offset_co(&key, edgeData, i), r_min, r_max);
-    }
-  }
-
-  for (ccgSubSurf_initFaceIterator(ss, &fi); !ccgFaceIterator_isStopped(&fi);
-       ccgFaceIterator_next(&fi))
-  {
-    CCGFace *f = ccgFaceIterator_getCurrent(&fi);
-    int S, x, y, numVerts = ccgSubSurf_getFaceNumVerts(f);
-
-    for (S = 0; S < numVerts; S++) {
-      CCGElem *faceGridData = static_cast<CCGElem *>(ccgSubSurf_getFaceGridDataArray(ss, f, S));
-
-      for (y = 0; y < gridSize; y++) {
-        for (x = 0; x < gridSize; x++) {
-          minmax_v3_v3v3(CCG_grid_elem_co(&key, faceGridData, x, y), r_min, r_max);
-        }
-      }
-    }
-  }
-}
-
 static int ccgDM_getNumVerts(DerivedMesh *dm)
 {
   CCGDerivedMesh *ccgdm = (CCGDerivedMesh *)dm;
@@ -749,7 +672,7 @@ static int ccgDM_getNumLoops(DerivedMesh *dm)
 /* utility function */
 BLI_INLINE void ccgDM_to_MVert(float mv[3], const CCGKey *key, CCGElem *elem)
 {
-  copy_v3_v3(mv, CCG_elem_co(key, elem));
+  copy_v3_v3(mv, CCG_elem_co(*key, elem));
 }
 
 static void ccgDM_copyFinalVertArray(DerivedMesh *dm, float (*r_positions)[3])
@@ -1012,30 +935,8 @@ static void ccgDM_release(DerivedMesh *dm)
   CCGDerivedMesh *ccgdm = (CCGDerivedMesh *)dm;
 
   DM_release(dm);
-  /* Before freeing, need to update the displacement map */
-  if (ccgdm->multires.modified_flags) {
-    /* Check that mmd still exists */
-    if (!ccgdm->multires.local_mmd &&
-        BLI_findindex(&ccgdm->multires.ob->modifiers, ccgdm->multires.mmd) == -1)
-    {
-      ccgdm->multires.mmd = nullptr;
-    }
-
-    if (ccgdm->multires.mmd) {
-      if (ccgdm->multires.modified_flags & MULTIRES_COORDS_MODIFIED) {
-        multires_modifier_update_mdisps(dm, nullptr);
-      }
-      if (ccgdm->multires.modified_flags & MULTIRES_HIDDEN_MODIFIED) {
-        multires_modifier_update_hidden(dm);
-      }
-    }
-  }
-
   delete ccgdm->ehash;
 
-  if (ccgdm->reverseFaceMap) {
-    MEM_freeN(ccgdm->reverseFaceMap);
-  }
   if (ccgdm->gridFaces) {
     MEM_freeN(ccgdm->gridFaces);
   }
@@ -1057,12 +958,6 @@ static void ccgDM_release(DerivedMesh *dm)
   }
   if (ccgdm->freeSS) {
     ccgSubSurf_free(ccgdm->ss);
-  }
-  if (ccgdm->pmap) {
-    MEM_freeN(ccgdm->pmap);
-  }
-  if (ccgdm->pmap_mem) {
-    MEM_freeN(ccgdm->pmap_mem);
   }
   MEM_freeN(ccgdm->vertMap);
   MEM_freeN(ccgdm->edgeMap);
@@ -1530,8 +1425,6 @@ static void set_ccgdm_all_geometry(CCGDerivedMesh *ccgdm,
             polyOrigIndex++;
           }
 
-          ccgdm->reverseFaceMap[faceNum] = index;
-
           /* This is a simple one to one mapping, here... */
           if (polyidx) {
             polyidx[faceNum] = faceNum;
@@ -1647,16 +1540,11 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
                    0,
                    ccgSubSurf_getNumFinalFaces(ss) * 4,
                    ccgSubSurf_getNumFinalFaces(ss));
-  CustomData_free_layer_named(&ccgdm->dm.vertData, "position", ccgSubSurf_getNumFinalVerts(ss));
-  CustomData_free_layer_named(&ccgdm->dm.edgeData, ".edge_verts", ccgSubSurf_getNumFinalEdges(ss));
-  CustomData_free_layer_named(
-      &ccgdm->dm.loopData, ".corner_vert", ccgSubSurf_getNumFinalFaces(ss) * 4);
-  CustomData_free_layer_named(
-      &ccgdm->dm.loopData, ".corner_edge", ccgSubSurf_getNumFinalFaces(ss) * 4);
+  CustomData_free_layer_named(&ccgdm->dm.vertData, "position");
+  CustomData_free_layer_named(&ccgdm->dm.edgeData, ".edge_verts");
+  CustomData_free_layer_named(&ccgdm->dm.loopData, ".corner_vert");
+  CustomData_free_layer_named(&ccgdm->dm.loopData, ".corner_edge");
   MEM_SAFE_FREE(ccgdm->dm.face_offsets);
-
-  ccgdm->reverseFaceMap = static_cast<int *>(
-      MEM_callocN(sizeof(int) * ccgSubSurf_getNumFinalFaces(ss), "reverseFaceMap"));
 
   create_ccgdm_maps(ccgdm, ss);
 
@@ -1748,11 +1636,11 @@ DerivedMesh *subsurf_make_derived_from_derived(DerivedMesh *dm,
 
     /* It is quite possible there is a much better place to do this. It
      * depends a bit on how rigorously we expect this function to never
-     * be called in editmode. In semi-theory we could share a single
-     * cache, but the handles used inside and outside editmode are not
+     * be called in edit-mode. In semi-theory we could share a single
+     * cache, but the handles used inside and outside edit-mode are not
      * the same so we would need some way of converting them. Its probably
      * not worth the effort. But then why am I even writing this long
-     * comment that no one will read? Hmmm. - zr
+     * comment that no one will read? Hmm. - zr
      *
      * Addendum: we can't really ensure that this is never called in edit
      * mode, so now we have a parameter to verify it. - brecht

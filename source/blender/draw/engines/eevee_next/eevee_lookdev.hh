@@ -11,12 +11,33 @@
 
 #pragma once
 
+#include <string>
+
+#include "DNA_image_types.h"
+#include "DNA_vec_types.h"
 #include "DNA_world_types.h"
+
+#include "BLI_math_vector_types.hh"
+
+#include "DRW_gpu_wrapper.hh"
+
+#include "draw_manager.hh"
+#include "draw_pass.hh"
+
+struct bNode;
+struct bNodeSocketValueFloat;
+struct View3D;
 
 namespace blender::eevee {
 
 class Instance;
 class LookdevView;
+
+using blender::draw::Framebuffer;
+using blender::draw::PassSimple;
+using blender::draw::ResourceHandle;
+using blender::draw::Texture;
+using blender::draw::View;
 
 /* -------------------------------------------------------------------- */
 /** \name Parameters
@@ -68,14 +89,19 @@ class LookdevWorld {
     return &world;
   }
 
-  float background_opacity_get()
+  float background_opacity_get() const
   {
     return parameters_.background_opacity;
   }
 
-  float background_blur_get()
+  float background_blur_get() const
   {
     return parameters_.blur;
+  }
+
+  float intensity_get() const
+  {
+    return parameters_.intensity;
   }
 };
 
@@ -93,13 +119,23 @@ class LookdevModule {
   bool enabled_;
 
   static constexpr int num_spheres = 2;
+
   /**
-   * The scale of the lookdev spheres.
-   *
-   * The lookdev spheres are resized to a small scale. This would reduce shadow artifacts as they
-   * would most likely be inside or outside shadow.
+   * Shape resolution level of detail.
    */
-  static constexpr float sphere_scale = 0.01f;
+  enum SphereLOD {
+    LOW = 0,
+    MEDIUM = 1,
+    HIGH = 2,
+
+    MAX, /* Max number of level of detail */
+  };
+
+  std::array<gpu::Batch *, MAX> sphere_lod_ = {};
+
+  /* Size and position of the look-dev spheres in world space. */
+  float sphere_radius_;
+  float3 sphere_position_;
 
   rcti visible_rect_;
 
@@ -107,8 +143,6 @@ class LookdevModule {
   Texture dummy_cryptomatte_tx_;
   Texture dummy_aov_color_tx_;
   Texture dummy_aov_value_tx_;
-
-  Texture depth_tx_ = {"Lookdev.Depth"};
 
   struct Sphere {
     Framebuffer framebuffer = {"Lookdev.Framebuffer"};
@@ -135,6 +169,8 @@ class LookdevModule {
   void sync_display();
 
   float calc_viewport_scale();
+  SphereLOD calc_level_of_detail(const float viewport_scale);
+  blender::gpu::Batch *sphere_get(const SphereLOD level_of_detail);
 
   friend class LookdevView;
 };

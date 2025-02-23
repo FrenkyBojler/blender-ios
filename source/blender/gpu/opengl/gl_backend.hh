@@ -17,9 +17,9 @@
 #endif
 
 #include "gl_batch.hh"
+#include "gl_compilation_subprocess.hh"
 #include "gl_compute.hh"
 #include "gl_context.hh"
-#include "gl_drawlist.hh"
 #include "gl_framebuffer.hh"
 #include "gl_index_buffer.hh"
 #include "gl_query.hh"
@@ -38,6 +38,8 @@ class GLBackend : public GPUBackend {
 #ifdef WITH_RENDERDOC
   renderdoc::api::Renderdoc renderdoc_;
 #endif
+
+  GLShaderCompiler compiler_;
 
  public:
   GLBackend()
@@ -64,6 +66,11 @@ class GLBackend : public GPUBackend {
     return static_cast<GLBackend *>(GPUBackend::get());
   }
 
+  GLShaderCompiler *get_compiler()
+  {
+    return &compiler_;
+  }
+
   void samplers_update() override
   {
     GLTexture::samplers_update();
@@ -77,11 +84,6 @@ class GLBackend : public GPUBackend {
   Batch *batch_alloc() override
   {
     return new GLBatch();
-  };
-
-  DrawList *drawlist_alloc(int list_length) override
-  {
-    return new GLDrawList(list_length);
   };
 
   Fence *fence_alloc() override
@@ -99,7 +101,7 @@ class GLBackend : public GPUBackend {
     return new GLIndexBuf();
   };
 
-  PixelBuffer *pixelbuf_alloc(uint size) override
+  PixelBuffer *pixelbuf_alloc(size_t size) override
   {
     return new GLPixelBuffer(size);
   };
@@ -119,12 +121,12 @@ class GLBackend : public GPUBackend {
     return new GLTexture(name);
   };
 
-  UniformBuf *uniformbuf_alloc(int size, const char *name) override
+  UniformBuf *uniformbuf_alloc(size_t size, const char *name) override
   {
     return new GLUniformBuf(size, name);
   };
 
-  StorageBuf *storagebuf_alloc(int size, GPUUsageType usage, const char *name) override
+  StorageBuf *storagebuf_alloc(size_t size, GPUUsageType usage, const char *name) override
   {
     return new GLStorageBuf(size, usage, name);
   };
@@ -158,10 +160,17 @@ class GLBackend : public GPUBackend {
     glBindBuffer(GL_DISPATCH_INDIRECT_BUFFER, 0);
   }
 
+  void shader_cache_dir_clear_old() override
+  {
+#if BLI_SUBPROCESS_SUPPORT
+    GL_shader_cache_dir_clear_old();
+#endif
+  }
+
   /* Render Frame Coordination */
   void render_begin() override{};
   void render_end() override{};
-  void render_step() override{};
+  void render_step(bool /*force_resource_release*/) override{};
 
   bool debug_capture_begin(const char *title);
   void debug_capture_end();

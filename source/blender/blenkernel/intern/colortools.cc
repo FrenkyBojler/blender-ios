@@ -17,9 +17,11 @@
 #include "DNA_color_types.h"
 #include "DNA_curve_types.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_math_base.hh"
+#include "BLI_math_vector.hh"
+#include "BLI_rect.h"
+#include "BLI_string.h"
 #include "BLI_task.h"
-#include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_colortools.hh"
@@ -552,14 +554,10 @@ static void calchandle_curvemap(BezTriple *bezt, const BezTriple *prev, const Be
           }
           else { /* handles should not be beyond y coord of two others */
             if (ydiff1 <= 0.0f) {
-              if (prev->vec[1][1] > bezt->vec[0][1]) {
-                bezt->vec[0][1] = prev->vec[1][1];
-              }
+              bezt->vec[0][1] = std::max(prev->vec[1][1], bezt->vec[0][1]);
             }
             else {
-              if (prev->vec[1][1] < bezt->vec[0][1]) {
-                bezt->vec[0][1] = prev->vec[1][1];
-              }
+              bezt->vec[0][1] = std::min(prev->vec[1][1], bezt->vec[0][1]);
             }
           }
         }
@@ -576,14 +574,10 @@ static void calchandle_curvemap(BezTriple *bezt, const BezTriple *prev, const Be
           }
           else { /* handles should not be beyond y coord of two others */
             if (ydiff1 <= 0.0f) {
-              if (next->vec[1][1] < bezt->vec[2][1]) {
-                bezt->vec[2][1] = next->vec[1][1];
-              }
+              bezt->vec[2][1] = std::min(next->vec[1][1], bezt->vec[2][1]);
             }
             else {
-              if (next->vec[1][1] > bezt->vec[2][1]) {
-                bezt->vec[2][1] = next->vec[1][1];
-              }
+              bezt->vec[2][1] = std::max(next->vec[1][1], bezt->vec[2][1]);
             }
           }
         }
@@ -667,7 +661,6 @@ static void curvemap_make_table(const CurveMapping *cumap, CurveMap *cuma)
   /* default rect also is table range */
   cuma->mintable = clipr->xmin;
   cuma->maxtable = clipr->xmax;
-  float table_range = cuma->maxtable - cuma->mintable;
   const int bezt_totpoint = max_ii(cuma->totpoint, 2);
 
   /* Rely on Blender interpolation for bezier curves, support extra functionality here as well. */
@@ -715,6 +708,7 @@ static void curvemap_make_table(const CurveMapping *cumap, CurveMap *cuma)
 
   BezTriple *bezt_post_ptr;
 
+  float table_range = cuma->maxtable - cuma->mintable;
   if (use_wrapping) {
     /* Handle location of pre and post points for wrapping curves. */
     bezt_pre.h1 = bezt_pre.h2 = bezt[bezt_totpoint - 1].h2;
@@ -736,7 +730,7 @@ static void curvemap_make_table(const CurveMapping *cumap, CurveMap *cuma)
   /* Process middle elements */
   for (int a = 0; a < bezt_totpoint; a++) {
     bezt_next = (a != bezt_totpoint - 1) ? &bezt[a + 1] : bezt_post_ptr;
-    calchandle_curvemap(&bezt[a], (bezt_prev) ? bezt_prev : &bezt[0], bezt_next);
+    calchandle_curvemap(&bezt[a], bezt_prev, bezt_next);
     bezt_prev = &bezt[a];
   }
 
@@ -761,9 +755,7 @@ static void curvemap_make_table(const CurveMapping *cumap, CurveMap *cuma)
       hlen = len_v3v3(bezt[0].vec[1], bezt[0].vec[2]); /* original handle length */
       /* clip handle point */
       copy_v3_v3(vec, bezt[1].vec[0]);
-      if (vec[0] < bezt[0].vec[1][0]) {
-        vec[0] = bezt[0].vec[1][0];
-      }
+      vec[0] = std::max(vec[0], bezt[0].vec[1][0]);
 
       sub_v3_v3(vec, bezt[0].vec[1]);
       nlen = len_v3(vec);
@@ -779,9 +771,7 @@ static void curvemap_make_table(const CurveMapping *cumap, CurveMap *cuma)
       hlen = len_v3v3(bezt[a].vec[1], bezt[a].vec[0]); /* original handle length */
       /* clip handle point */
       copy_v3_v3(vec, bezt[a - 1].vec[2]);
-      if (vec[0] > bezt[a].vec[1][0]) {
-        vec[0] = bezt[a].vec[1][0];
-      }
+      vec[0] = std::min(vec[0], bezt[a].vec[1][0]);
 
       sub_v3_v3(vec, bezt[a].vec[1]);
       nlen = len_v3(vec);
@@ -952,7 +942,7 @@ void BKE_curvemapping_changed(CurveMapping *cumap, const bool rem_doubles)
 {
   CurveMap *cuma = cumap->cm + cumap->cur;
   CurveMapPoint *cmp = cuma->curve;
-  rctf *clipr = &cumap->clipr;
+  const rctf *clipr = &cumap->clipr;
   float thresh = 0.01f * BLI_rctf_size_x(clipr);
   float dx = 0.0f, dy = 0.0f;
   int a;
@@ -1105,22 +1095,63 @@ void BKE_curvemapping_evaluateRGBF(const CurveMapping *cumap,
       cumap, &cumap->cm[2], BKE_curvemap_evaluateF(cumap, &cumap->cm[3], vecin[2]));
 }
 
-static void curvemapping_evaluateRGBF_filmlike(const CurveMapping *cumap,
-                                               float vecout[3],
-                                               const float vecin[3],
-                                               const int channel_offset[3])
+/* Contrary to standard tone curve implementations, the film-like implementation tries to preserve
+ * the hue of the colors as much as possible. To understand why this might be a problem, consider
+ * the violet color (0.5, 0.0, 1.0). If this color was to be evaluated at a power curve x^4, the
+ * color will be blue (0.0625, 0.0, 1.0). So the color changes and not just its luminosity, which
+ * is what film-like tone curves tries to avoid.
+ *
+ * First, the channels with the lowest and highest values are identified and evaluated at the
+ * curve. Then, the third channel---the median---is computed while maintaining the original hue of
+ * the color. To do that, we look at the equation for deriving the hue from RGB values. Assuming
+ * the maximum, minimum, and median channels are known, and ignoring the 1/3 period offset of the
+ * hue, the equation is:
+ *
+ *   hue = (median - min) / (max - min)                                  [1]
+ *
+ * Since we have the new values for the minimum and maximum after evaluating at the curve, we also
+ * have:
+ *
+ *   hue = (new_median - new_min) / (new_max - new_min)                  [2]
+ *
+ * Since we want the hue to be equivalent, by equating [1] and [2] and rearranging:
+ *
+ *   (new_median - new_min) / (new_max - new_min) = (median - min) / (max - min)
+ *   new_median - new_min = (new_max - new_min) * (median - min) / (max - min)
+ *   new_median = new_min + (new_max - new_min) * (median - min) / (max - min)
+ *   new_median = new_min + (median - min) * ((new_max - new_min) / (max - min))  [QED]
+ *
+ * Which gives us the median color that preserves the hue. More intuitively, the median is computed
+ * such that the change in the distance from the median to the minimum is proportional to the
+ * change in the distance from the minimum to the maximum. Finally, each of the new minimum,
+ * maximum, and median values are written to the color channel that they were originally extracted
+ * from. */
+static blender::float3 evaluate_film_like(const CurveMapping *curve_mapping, blender::float3 input)
 {
-  const float v0in = vecin[channel_offset[0]];
-  const float v1in = vecin[channel_offset[1]];
-  const float v2in = vecin[channel_offset[2]];
+  /* Film-like curves are only evaluated on the combined curve, which is the fourth curve map. */
+  const CurveMap *curve_map = curve_mapping->cm + 3;
 
-  const float v0 = BKE_curvemap_evaluateF(cumap, &cumap->cm[channel_offset[0]], v0in);
-  const float v2 = BKE_curvemap_evaluateF(cumap, &cumap->cm[channel_offset[2]], v2in);
-  const float v1 = v2 + ((v0 - v2) * (v1in - v2in) / (v0in - v2in));
+  /* Find the maximum, minimum, and median of the color channels. */
+  const float minimum = blender::math::reduce_min(input);
+  const float maximum = blender::math::reduce_max(input);
+  const float median = blender::math::max(
+      blender::math::min(input.x, input.y),
+      blender::math::min(input.z, blender::math::max(input.x, input.y)));
 
-  vecout[channel_offset[0]] = v0;
-  vecout[channel_offset[1]] = v1;
-  vecout[channel_offset[2]] = v2;
+  const float new_min = BKE_curvemap_evaluateF(curve_mapping, curve_map, minimum);
+  const float new_max = BKE_curvemap_evaluateF(curve_mapping, curve_map, maximum);
+
+  /* Compute the new median using the ratio between the new and the original range. */
+  const float scaling_ratio = (new_max - new_min) / (maximum - minimum);
+  const float new_median = new_min + (median - minimum) * scaling_ratio;
+
+  /* Write each value to its original channel. */
+  const blender::float3 median_or_min = blender::float3(input.x == minimum ? new_min : new_median,
+                                                        input.y == minimum ? new_min : new_median,
+                                                        input.z == minimum ? new_min : new_median);
+  return blender::float3(input.x == maximum ? new_max : median_or_min.x,
+                         input.y == maximum ? new_max : median_or_min.y,
+                         input.z == maximum ? new_max : median_or_min.z);
 }
 
 void BKE_curvemapping_evaluate_premulRGBF_ex(const CurveMapping *cumap,
@@ -1132,6 +1163,7 @@ void BKE_curvemapping_evaluate_premulRGBF_ex(const CurveMapping *cumap,
   const float r = (vecin[0] - black[0]) * bwmul[0];
   const float g = (vecin[1] - black[1]) * bwmul[1];
   const float b = (vecin[2] - black[2]) * bwmul[2];
+  const float balanced_color[3] = {r, g, b};
 
   switch (cumap->tone) {
     default:
@@ -1142,47 +1174,8 @@ void BKE_curvemapping_evaluate_premulRGBF_ex(const CurveMapping *cumap,
       break;
     }
     case CURVE_TONE_FILMLIKE: {
-      if (r >= g) {
-        if (g > b) {
-          /* Case 1: r >= g >  b */
-          const int shuffeled_channels[] = {0, 1, 2};
-          curvemapping_evaluateRGBF_filmlike(cumap, vecout, vecin, shuffeled_channels);
-        }
-        else if (b > r) {
-          /* Case 2: b >  r >= g */
-          const int shuffeled_channels[] = {2, 0, 1};
-          curvemapping_evaluateRGBF_filmlike(cumap, vecout, vecin, shuffeled_channels);
-        }
-        else if (b > g) {
-          /* Case 3: r >= b >  g */
-          const int shuffeled_channels[] = {0, 2, 1};
-          curvemapping_evaluateRGBF_filmlike(cumap, vecout, vecin, shuffeled_channels);
-        }
-        else {
-          /* Case 4: r >= g == b */
-          copy_v2_fl2(vecout,
-                      BKE_curvemap_evaluateF(cumap, &cumap->cm[0], r),
-                      BKE_curvemap_evaluateF(cumap, &cumap->cm[1], g));
-          vecout[2] = vecout[1];
-        }
-      }
-      else {
-        if (r >= b) {
-          /* Case 5: g >  r >= b */
-          const int shuffeled_channels[] = {1, 0, 2};
-          curvemapping_evaluateRGBF_filmlike(cumap, vecout, vecin, shuffeled_channels);
-        }
-        else if (b > g) {
-          /* Case 6: b >  g >  r */
-          const int shuffeled_channels[] = {2, 1, 0};
-          curvemapping_evaluateRGBF_filmlike(cumap, vecout, vecin, shuffeled_channels);
-        }
-        else {
-          /* Case 7: g >= b >  r */
-          const int shuffeled_channels[] = {1, 2, 0};
-          curvemapping_evaluateRGBF_filmlike(cumap, vecout, vecin, shuffeled_channels);
-        }
-      }
+      const blender::float3 output = evaluate_film_like(cumap, balanced_color);
+      copy_v3_v3(vecout, output);
       break;
     }
   }
@@ -1428,8 +1421,8 @@ static void save_sample_line(
 
   /* Vector-scope. */
   rgb_to_yuv(rgb[0], rgb[1], rgb[2], &yuv[0], &yuv[1], &yuv[2], BLI_YUV_ITU_BT709);
-  scopes->vecscope[idx + 0] = yuv[1];
-  scopes->vecscope[idx + 1] = yuv[2];
+  scopes->vecscope[idx + 0] = yuv[1] * SCOPES_VEC_U_SCALE;
+  scopes->vecscope[idx + 1] = yuv[2] * SCOPES_VEC_V_SCALE;
 
   int color_idx = (idx / 2) * 3;
   scopes->vecscope_rgb[color_idx + 0] = rgb[0];
@@ -1697,12 +1690,8 @@ static void scopes_update_reduce(const void *__restrict /*userdata*/,
   }
 
   for (int c = 3; c--;) {
-    if (min[c] < join_chunk->min[c]) {
-      join_chunk->min[c] = min[c];
-    }
-    if (max[c] > join_chunk->max[c]) {
-      join_chunk->max[c] = max[c];
-    }
+    join_chunk->min[c] = std::min(min[c], join_chunk->min[c]);
+    join_chunk->max[c] = std::max(max[c], join_chunk->max[c]);
   }
 }
 
@@ -1830,21 +1819,11 @@ void BKE_scopes_update(Scopes *scopes,
   /* convert hist data to float (proportional to max count) */
   nl = na = nr = nb = ng = 0;
   for (a = 0; a < 256; a++) {
-    if (data_chunk.bin_lum[a] > nl) {
-      nl = data_chunk.bin_lum[a];
-    }
-    if (data_chunk.bin_r[a] > nr) {
-      nr = data_chunk.bin_r[a];
-    }
-    if (data_chunk.bin_g[a] > ng) {
-      ng = data_chunk.bin_g[a];
-    }
-    if (data_chunk.bin_b[a] > nb) {
-      nb = data_chunk.bin_b[a];
-    }
-    if (data_chunk.bin_a[a] > na) {
-      na = data_chunk.bin_a[a];
-    }
+    nl = std::max(data_chunk.bin_lum[a], nl);
+    nr = std::max(data_chunk.bin_r[a], nr);
+    ng = std::max(data_chunk.bin_g[a], ng);
+    nb = std::max(data_chunk.bin_b[a], nb);
+    na = std::max(data_chunk.bin_a[a], na);
   }
   divl = nl ? 1.0 / double(nl) : 1.0;
   diva = na ? 1.0 / double(na) : 1.0;
@@ -1949,6 +1928,8 @@ void BKE_color_managed_view_settings_copy(ColorManagedViewSettings *new_settings
   new_settings->flag = settings->flag;
   new_settings->exposure = settings->exposure;
   new_settings->gamma = settings->gamma;
+  new_settings->temperature = settings->temperature;
+  new_settings->tint = settings->tint;
 
   if (settings->curve_mapping) {
     new_settings->curve_mapping = BKE_curvemapping_copy(settings->curve_mapping);

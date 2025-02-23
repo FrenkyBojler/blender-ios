@@ -5,17 +5,20 @@
 #pragma once
 
 #include "kernel/bvh/bvh.h"
-#include "kernel/geom/geom.h"
+
+#include "kernel/geom/shader_data.h"
+
+#include "kernel/integrator/intersect_closest.h"
 #include "kernel/integrator/volume_stack.h"
 
 CCL_NAMESPACE_BEGIN
 
-#ifdef __VOLUME__
 ccl_device void integrator_volume_stack_update_for_subsurface(KernelGlobals kg,
                                                               IntegratorState state,
                                                               const float3 from_P,
                                                               const float3 to_P)
 {
+#ifdef __VOLUME__
   PROFILING_INIT(kg, PROFILING_INTERSECT_VOLUME_STACK);
 
   ShaderDataTinyStorage stack_sd_storage;
@@ -40,7 +43,8 @@ ccl_device void integrator_volume_stack_update_for_subsurface(KernelGlobals kg,
 
 #  ifdef __VOLUME_RECORD_ALL__
   Intersection hits[2 * MAX_VOLUME_STACK_SIZE + 1];
-  uint num_hits = scene_intersect_volume(kg, &volume_ray, hits, 2 * volume_stack_size, visibility);
+  const uint num_hits = scene_intersect_volume(
+      kg, &volume_ray, hits, 2 * volume_stack_size, visibility);
   if (num_hits > 0) {
     Intersection *isect = hits;
 
@@ -96,7 +100,8 @@ ccl_device void integrator_volume_stack_init(KernelGlobals kg, IntegratorState s
   volume_ray.self.light_prim = PRIM_NONE;
   volume_ray.self.light = LAMP_NONE;
 
-  int stack_index = 0, enclosed_index = 0;
+  int stack_index = 0;
+  int enclosed_index = 0;
 
   const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
   const uint32_t visibility = SHADOW_CATCHER_PATH_VISIBILITY(path_flag, PATH_RAY_CAMERA);
@@ -117,7 +122,8 @@ ccl_device void integrator_volume_stack_init(KernelGlobals kg, IntegratorState s
 
 #  ifdef __VOLUME_RECORD_ALL__
   Intersection hits[2 * MAX_VOLUME_STACK_SIZE + 1];
-  uint num_hits = scene_intersect_volume(kg, &volume_ray, hits, 2 * volume_stack_size, visibility);
+  const uint num_hits = scene_intersect_volume(
+      kg, &volume_ray, hits, 2 * volume_stack_size, visibility);
   if (num_hits > 0) {
     int enclosed_volumes[MAX_VOLUME_STACK_SIZE];
     Intersection *isect = hits;
@@ -138,7 +144,7 @@ ccl_device void integrator_volume_stack_init(KernelGlobals kg, IntegratorState s
         }
         for (int i = 0; i < stack_index && need_add; ++i) {
           /* Don't add intersections twice. */
-          VolumeStack entry = integrator_state_read_volume_stack(state, i);
+          const VolumeStack entry = integrator_state_read_volume_stack(state, i);
           if (entry.object == stack_sd->object) {
             need_add = false;
             break;
@@ -217,10 +223,12 @@ ccl_device void integrator_volume_stack_init(KernelGlobals kg, IntegratorState s
   /* Write terminator. */
   const VolumeStack new_entry = {OBJECT_NONE, SHADER_NONE};
   integrator_state_write_volume_stack(state, stack_index, new_entry);
+#endif
 }
 
 ccl_device void integrator_intersect_volume_stack(KernelGlobals kg, IntegratorState state)
 {
+#ifdef __VOLUME__
   integrator_volume_stack_init(kg, state);
 
 #  ifdef __SHADOW_CATCHER__
@@ -238,7 +246,7 @@ ccl_device void integrator_intersect_volume_stack(KernelGlobals kg, IntegratorSt
                          DEVICE_KERNEL_INTEGRATOR_INTERSECT_VOLUME_STACK,
                          DEVICE_KERNEL_INTEGRATOR_INTERSECT_CLOSEST);
   }
+#endif
 }
-#endif /* __VOLUME__ */
 
 CCL_NAMESPACE_END

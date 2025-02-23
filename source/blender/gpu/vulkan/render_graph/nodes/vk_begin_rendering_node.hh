@@ -21,16 +21,13 @@ struct VKBeginRenderingData {
   VkRenderingAttachmentInfo depth_attachment;
   VkRenderingAttachmentInfo stencil_attachment;
   VkRenderingInfoKHR vk_rendering_info;
+  VkRenderPassBeginInfo vk_render_pass_begin_info;
 };
 
 struct VKBeginRenderingCreateInfo {
-  VKBeginRenderingData node_data;
+  VKBeginRenderingData node_data = {};
   const VKResourceAccessInfo &resources;
-  VKBeginRenderingCreateInfo(const VKResourceAccessInfo &resources) : resources(resources)
-  {
-    /* Using memset as MSVC didn't clear the color_attachments array. */
-    memset(&node_data, 0, sizeof(node_data));
-  }
+  VKBeginRenderingCreateInfo(const VKResourceAccessInfo &resources) : resources(resources) {}
 };
 
 /**
@@ -53,37 +50,34 @@ class VKBeginRenderingNode : public VKNodeInfo<VKNodeType::BEGIN_RENDERING,
    * (`VK*Data`/`VK*CreateInfo`) types can be included in the same header file as the logic. The
    * actual node data (`VKRenderGraphNode` includes all header files.)
    */
-  template<typename Node> void set_node_data(Node &node, const CreateInfo &create_info)
+  template<typename Node, typename Storage>
+  void set_node_data(Node &node, Storage &storage, const CreateInfo &create_info)
   {
-    BLI_assert_msg(ELEM(create_info.node_data.vk_rendering_info.pColorAttachments,
-                        nullptr,
-                        create_info.node_data.color_attachments),
+    const bool use_render_pass = create_info.node_data.vk_render_pass_begin_info.renderPass !=
+                                 VK_NULL_HANDLE;
+    UNUSED_VARS_NDEBUG(use_render_pass);
+    BLI_assert_msg(use_render_pass ||
+                       ELEM(create_info.node_data.vk_rendering_info.pColorAttachments,
+                            nullptr,
+                            create_info.node_data.color_attachments),
                    "When create_info.node_data.vk_rendering_info.pColorAttachments points to "
                    "something, it should point to create_info.node_data.color_attachments.");
-    BLI_assert_msg(ELEM(create_info.node_data.vk_rendering_info.pDepthAttachment,
-                        nullptr,
-                        &create_info.node_data.depth_attachment),
+    BLI_assert_msg(use_render_pass ||
+                       ELEM(create_info.node_data.vk_rendering_info.pDepthAttachment,
+                            nullptr,
+                            &create_info.node_data.depth_attachment),
                    "When create_info.node_data.vk_rendering_info.pDepthAttachment points to "
                    "something, it should point to create_info.node_data.depth_attachment.");
-    BLI_assert_msg(ELEM(create_info.node_data.vk_rendering_info.pStencilAttachment,
-                        nullptr,
-                        &create_info.node_data.stencil_attachment),
+    BLI_assert_msg(use_render_pass ||
+                       ELEM(create_info.node_data.vk_rendering_info.pStencilAttachment,
+                            nullptr,
+                            &create_info.node_data.stencil_attachment),
                    "When create_info.node_data.vk_rendering_info.pStencilAttachment points to "
                    "something, it should point to create_info.node_data.stencil_attachment.");
-    node.begin_rendering = create_info.node_data;
-    /* Localize pointers when set.*/
-    if (node.begin_rendering.vk_rendering_info.pColorAttachments) {
-      node.begin_rendering.vk_rendering_info.pColorAttachments =
-          node.begin_rendering.color_attachments;
-    }
-    if (node.begin_rendering.vk_rendering_info.pDepthAttachment) {
-      node.begin_rendering.vk_rendering_info.pDepthAttachment =
-          &node.begin_rendering.depth_attachment;
-    }
-    if (node.begin_rendering.vk_rendering_info.pStencilAttachment) {
-      node.begin_rendering.vk_rendering_info.pStencilAttachment =
-          &node.begin_rendering.stencil_attachment;
-    }
+    node.storage_index = storage.begin_rendering.append_and_get_index(create_info.node_data);
+    /* NOTE: pointers in vk_rendering_info will be set to the correct location just before sending
+     * to the command buffer. In the meantime these pointers are invalid.
+     * VKRenderingAttachmentInfo's should be used instead. */
   }
 
   /**
@@ -100,10 +94,28 @@ class VKBeginRenderingNode : public VKNodeInfo<VKNodeType::BEGIN_RENDERING,
    * Build the commands and add them to the command_buffer.
    */
   void build_commands(VKCommandBufferInterface &command_buffer,
-                      const Data &data,
+                      Data &data,
                       VKBoundPipelines & /*r_bound_pipelines*/) override
   {
-    command_buffer.begin_rendering(&data.vk_rendering_info);
+    const bool is_dynamic_rendering = data.vk_render_pass_begin_info.renderPass == VK_NULL_HANDLE;
+    if (is_dynamic_rendering) {
+      /* Localize pointers just before sending to the command buffer. Pointer can (and will) change
+       * as they are stored in a union which is stored in a vector. When the vector reallocates,
+       * the pointers will become invalid. */
+      if (data.vk_rendering_info.pColorAttachments) {
+        data.vk_rendering_info.pColorAttachments = data.color_attachments;
+      }
+      if (data.vk_rendering_info.pDepthAttachment) {
+        data.vk_rendering_info.pDepthAttachment = &data.depth_attachment;
+      }
+      if (data.vk_rendering_info.pStencilAttachment) {
+        data.vk_rendering_info.pStencilAttachment = &data.stencil_attachment;
+      }
+      command_buffer.begin_rendering(&data.vk_rendering_info);
+    }
+    else {
+      command_buffer.begin_render_pass(&data.vk_render_pass_begin_info);
+    }
   }
 };
 }  // namespace blender::gpu::render_graph

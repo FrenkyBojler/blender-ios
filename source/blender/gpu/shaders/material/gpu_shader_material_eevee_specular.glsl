@@ -66,7 +66,7 @@ void node_eevee_specular(vec4 diffuse,
     clearcoat_data.roughness = clearcoat_roughness;
   }
 
-  if (use_clearcoat != 0.0f) {
+  if (use_clearcoat != 0.0) {
     result = closure_eval(diffuse_data, reflection_data, clearcoat_data);
   }
   else {
