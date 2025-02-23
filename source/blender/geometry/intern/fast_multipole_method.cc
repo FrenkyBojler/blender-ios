@@ -1,11 +1,11 @@
-/* SPDX-FileCopyrightText: 2023 Blender Authors
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_array_utils.hh"
-#include "BLI_generic_span.hh"
-#include "BLI_math_vector_types.hh"
 #include "BLI_function_ref.hh"
+#include "BLI_generic_span.hh"
+#include "BLI_math_base.hh"
+#include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_task.hh"
 
@@ -110,242 +110,153 @@ static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values(const i
     default:
       return [](const int power_value, MutableSpan<float> values) {
         const float power_factor = float(power_value);
-        std::transform(values.begin(), values.end(), values.begin(), [power_factor](const float value) {
-          return std::expf(std::logf(value) * power_factor);
-        });
+        std::transform(
+            values.begin(), values.end(), values.begin(), [power_factor](const float value) {
+              return std::expf(std::logf(value) * power_factor);
+            });
       };
   }
 }
 
-template<typename LeafFuncT, typename JointPredicateT, typename JointFuncT>
-static void for_each_to_bottom_skip(const OffsetIndices<int> buckets_offsets,
-                                    const int total_depth,
-                                    const IndexRange range,
-                                    const JointPredicateT &joint_predicate,
-                                    const JointFuncT &joint_func,
-                                    const LeafFuncT &leaf_func)
+template<typename T>
+static T accumulate_with_factor(const Span<T> values, const Span<float> factors)
 {
-  Array<int, 0> indices(range.size());
-  array_utils::fill_index_range<int>(indices, range.start());
-
-  Vector<int, 32> depth_stack({0});
-  Vector<int, 32> joint_stack({0});
-  Vector<int, 32> prefix_to_visit_stack({int(indices.size())});
-
-  while (!depth_stack.is_empty()) {
-    const int prefix_to_visit = prefix_to_visit_stack.pop_last();
-    const int depth_i = depth_stack.pop_last();
-    const int joint_i = joint_stack.pop_last();
-    const MutableSpan<int> to_visit = indices.as_mutable_span().take_front(prefix_to_visit);
-    const IndexRange joints_range = akdbh::joints_range_at_depth(depth_i);
-
-    const auto end_of_prefix = std::stable_partition(to_visit.begin(), to_visit.end(), [&](const int i) -> bool {
-      return joint_predicate(int(joints_range[joint_i]), i);
-    });
-
-    const int num_to_visit_next = std::distance(to_visit.begin(), end_of_prefix);
-    const Span<int> finished_indices = to_visit.drop_front(num_to_visit_next);
-    joint_func(int(joints_range[joint_i]), finished_indices);
-
-    const Span<int> next_indices = to_visit.take_front(num_to_visit_next);
-    if (next_indices.is_empty()) {
-      continue;
-    }
-
-    if (depth_i == total_depth - 1) {
-      leaf_func(buckets_offsets[joint_i], next_indices);
-      continue;
-    }
-
-    depth_stack.extend_unchecked({depth_i + 1, depth_i + 1});
-    joint_stack.extend_unchecked({joint_i * 2 + 1, joint_i * 2 + 0});
-    prefix_to_visit_stack.extend_unchecked({num_to_visit_next, num_to_visit_next});
+  BLI_assert(values.size() == factors.size());
+  T accumulator(0);
+  for (const int i : values.index_range()) {
+    accumulator += values[i] * factors[i];
   }
+  return accumulator;
 }
 
-void akdbh_sample_value(OffsetIndices<int> buckets_offsets,
-                        const int total_depth,
-                        const Span<float3> src_joints_centre,
-                        const Span<float3> src_bucket_position,
-                        const Span<float> src_joints_min_distance_reduced,
-                        const GSpan src_joints_value,
-                        const GSpan src_bucket_value,
-                        const int power_value,
-                        const float offset_value,
-                        GMutableSpan dst_buckets_data)
+void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
+                         const int total_depth,
+                         const Span<float> src_joints_min_distance,
+                         const Span<float3> src_joints_centre,
+                         const GSpan src_joints_value,
+                         const Span<float3> src_bucket_position,
+                         const GSpan src_bucket_value,
+                         const int power_value,
+                         const float offset_value,
+                         const Span<float3> sample_position,
+                         GMutableSpan dst_buckets_data,
+                         const std::optional<IndexRange> sampler_to_bucket_range)
 {
-  BLI_assert(src_joints_centre.size() == src_joints_min_distance_reduced.size());
-  BLI_assert(src_joints_centre.size() == src_joints_value.size());
-  BLI_assert(src_bucket_value.size() == dst_buckets_data.size());
-  BLI_assert(src_bucket_value.size() == src_bucket_position.size());
-  BLI_assert(dst_buckets_data.type() == src_joints_value.type());
-  BLI_assert(dst_buckets_data.type() == src_bucket_value.type());
+  BLI_assert(buckets_offsets.total_size() == src_bucket_position.size());
+
+  BLI_assert(src_joints_min_distance.size() == src_joints_centre.size());
+  BLI_assert(src_joints_min_distance.size() == src_joints_value.size());
+
+  BLI_assert(src_bucket_position.size() == src_bucket_value.size());
+
+  BLI_assert(dst_buckets_data.size() == sample_position.size());
+  BLI_assert(!sampler_to_bucket_range.has_value() ||
+             sampler_to_bucket_range->size() == dst_buckets_data.size());
+  BLI_assert(!sampler_to_bucket_range.has_value() ||
+             src_bucket_position.index_range().contains(*sampler_to_bucket_range));
 
   const FunctionRef<void(int, MutableSpan<float>)> distance_invertion = powered_rcp_for_values(
       power_value);
 
-  threading::parallel_for(
-      src_bucket_position.index_range(), 1024 * 8, [&](const IndexRange range) {
-        Vector<std::pair<int, Vector<int, 0>>, 0> joint_to_buckets;
-        Vector<std::pair<IndexRange, Vector<int>>, 0> bucket_to_joints;
+  Vector<std::pair<int, Vector<int, 0>>, 0> joint_to_batch_samples;
+  Vector<std::pair<IndexRange, Vector<int>>, 0> bucket_to_batch_samples;
 
-        for_each_to_bottom_skip(
-            buckets_offsets,
-            total_depth,
-            range,
-            [&](const int joint_index, const int value_i) -> bool {
-              return math::distance(src_joints_centre[joint_index],
-                                    src_bucket_position[value_i]) <=
-                     src_joints_min_distance_reduced[joint_index];
-            },
-            [&](const int joint_index,
-                const Span<int> value_indices) {
-              joint_to_buckets.append_as(joint_index, value_indices);
-            },
-            [&](const IndexRange bucket_range, const Span<int> value_indices) {
-              bucket_to_joints.append_as(bucket_range, value_indices);
-            });
-
-        Vector<float, 0> buffer;
-        buffer.reserve(range.size());
-
-        to_static_type(src_joints_value.type(), [&](auto dummy) {
-          using T = decltype(dummy);
-
-          const Span<T> typed_src_joints_value = src_joints_value.typed<T>();
-          const Span<T> typed_src_bucket_value = src_bucket_value.typed<T>();
-          MutableSpan<T> typed_dst_buckets_data = dst_buckets_data.typed<T>();
-
-          for (const auto &[joint_index, value_indices] : joint_to_buckets) {
-            buffer.resize(value_indices.size());
-            for (const int value_i : value_indices.index_range()) {
-              const int value_index = value_indices[value_i];
-              buffer[value_i] = math::distance(src_joints_centre[joint_index], src_bucket_position[value_index]) + offset_value;
-            }
-
-            distance_invertion(power_value, buffer.as_mutable_span());
-
-            for (const int value_i : value_indices.index_range()) {
-              const int value_index = value_indices[value_i];
-              typed_dst_buckets_data[value_index] += typed_src_joints_value[joint_index] * buffer[value_i];
-            }
-          }
-
-          for (const auto &[bucket_range, value_indices] : bucket_to_joints) {
-            buffer.resize(bucket_range.size());
-            for (const int value_i : value_indices) {
-              const float3 position = src_bucket_position[value_i];
-
-              for (const int index : bucket_range.index_range()) {
-                buffer[index] = math::distance(src_bucket_position[bucket_range[index]], position) + offset_value;
-              }
-
-              distance_invertion(power_value, buffer.as_mutable_span());
-
-              for (const int i : bucket_range.index_range()) {
-                const int index = bucket_range[i];
-                const float relation_factor = buffer[i];
-                const float safe_relation_factor = index == value_i ? 0.0f : relation_factor;
-                typed_dst_buckets_data[value_i] += typed_src_bucket_value[index] * safe_relation_factor;
-              }
-            }
-          }
-        });
+  akdbh::batch_for_each_to_bottom_skip(
+      buckets_offsets,
+      total_depth,
+      sample_position.index_range(),
+      [&](const int joint_index, const int batch_i) -> bool {
+        const float joint_min_distance_squared = math::square(
+            src_joints_min_distance[joint_index] - offset_value);
+        const float sampler_to_joint_distance_squared = math::distance_squared(
+            src_joints_centre[joint_index], sample_position[batch_i]);
+        return sampler_to_joint_distance_squared <= joint_min_distance_squared;
+      },
+      [&](const int joint_index, const Span<int> batch_indices) {
+        joint_to_batch_samples.append_as(joint_index, batch_indices);
+      },
+      [&](const IndexRange bucket_range, const Span<int> batch_indices) {
+        bucket_to_batch_samples.append_as(bucket_range, batch_indices);
       });
-}
 
-/*
-void akdbh_sample_value(OffsetIndices<int> buckets_offsets,
-                        const int total_depth,
-                        const Span<float3> src_joints_centre,
-                        const Span<float3> src_bucket_position,
-                        const Span<float> src_joints_min_distance_reduced,
-                        const GSpan src_joints_value,
-                        const GSpan src_bucket_value,
-                        const int power_value,
-                        const float offset_value,
-                        GMutableSpan dst_buckets_data)
-{
-  BLI_assert(src_joints_centre.size() == src_joints_min_distance_reduced.size());
-  BLI_assert(src_joints_centre.size() == src_joints_value.size());
-  BLI_assert(src_bucket_value.size() == dst_buckets_data.size());
-  BLI_assert(src_bucket_value.size() == src_bucket_position.size());
-  BLI_assert(dst_buckets_data.type() == src_joints_value.type());
-  BLI_assert(dst_buckets_data.type() == src_bucket_value.type());
+  Vector<float, 0> buffer;
+  buffer.reserve(dst_buckets_data.size());
 
-  const FunctionRef<void(int, MutableSpan<float>)> distance_invertion = powered_rcp_for_values(
-      power_value);
+  to_static_type(src_joints_value.type(), [&](auto dummy) {
+    using T = decltype(dummy);
 
-  threading::parallel_for(
-      src_bucket_position.index_range(), 1024 * 8, [&](const IndexRange range) {
-        Vector<std::pair<int, Vector<int, 0>>, 0> joint_to_buckets;
-        Vector<std::pair<IndexRange, Vector<int>>, 0> bucket_to_joints;
+    const Span<T> typed_src_joints_value = src_joints_value.typed<T>();
+    const Span<T> typed_src_bucket_value = src_bucket_value.typed<T>();
+    MutableSpan<T> typed_dst_buckets_data = dst_buckets_data.typed<T>();
 
-        for_each_to_bottom_skip(
-            buckets_offsets,
-            total_depth,
-            range,
-            [&](const int joint_index, const int value_i) -> bool {
-              return math::distance(src_joints_centre[joint_index],
-                                    src_bucket_position[value_i]) <=
-                     src_joints_min_distance_reduced[joint_index];
-            },
-            [&](const int joint_index,
-                const Span<int> value_indices) {
-              joint_to_buckets.append_as(joint_index, value_indices);
-            },
-            [&](const IndexRange bucket_range, const Span<int> value_indices) {
-              bucket_to_joints.append_as(bucket_range, value_indices);
-            });
+    for (const auto &[joint_index, batch_samples] : joint_to_batch_samples) {
+      buffer.resize(batch_samples.size());
+      const float3 jooint_position = src_joints_centre[joint_index];
+      for (const int sample_i : batch_samples.index_range()) {
+        const int sample_index = batch_samples[sample_i];
+        const float sampler_to_joint_distance_squared = math::distance(
+            jooint_position, sample_position[sample_index]);
+        buffer[sample_i] = sampler_to_joint_distance_squared + offset_value;
+      }
 
-        Vector<float, 0> buffer;
-        buffer.reserve(range.size());
+      distance_invertion(power_value, buffer.as_mutable_span());
+      for (const int sample_i : batch_samples.index_range()) {
+        const int sample_index = batch_samples[sample_i];
+        typed_dst_buckets_data[sample_index] += typed_src_joints_value[joint_index] *
+                                                buffer[sample_i];
+      }
+    }
+  });
 
-        to_static_type(src_joints_value.type(), [&](auto dummy) {
-          using T = decltype(dummy);
+  to_static_type(src_joints_value.type(), [&](auto dummy) {
+    using T = decltype(dummy);
 
-          const Span<T> typed_src_joints_value = src_joints_value.typed<T>();
-          const Span<T> typed_src_bucket_value = src_bucket_value.typed<T>();
-          MutableSpan<T> typed_dst_buckets_data = dst_buckets_data.typed<T>();
+    const Span<T> typed_src_joints_value = src_joints_value.typed<T>();
+    const Span<T> typed_src_bucket_value = src_bucket_value.typed<T>();
+    MutableSpan<T> typed_dst_buckets_data = dst_buckets_data.typed<T>();
 
-          for (const auto &[joint_index, value_indices] : joint_to_buckets) {
-            buffer.resize(value_indices.size());
-            for (const int value_i : value_indices.index_range()) {
-              const int value_index = value_indices[value_i];
-              buffer[value_i] = math::distance(src_joints_centre[joint_index], src_bucket_position[value_index]) + offset_value;
-            }
-
-            distance_invertion(power_value, buffer.as_mutable_span());
-
-            for (const int value_i : value_indices.index_range()) {
-              const int value_index = value_indices[value_i];
-              typed_dst_buckets_data[value_index] += typed_src_joints_value[joint_index] * buffer[value_i];
-            }
+    if (!sampler_to_bucket_range.has_value()) {
+      for (const auto &[bucket_range, batch_samples] : bucket_to_batch_samples) {
+        buffer.resize(bucket_range.size());
+        for (const int sample_index : batch_samples) {
+          const float3 position = sample_position[sample_index];
+          for (const int bucket_i : bucket_range.index_range()) {
+            const float sampler_to_point_distance = math::distance(
+                position, src_bucket_position[bucket_range[bucket_i]]);
+            buffer[bucket_i] = sampler_to_point_distance + offset_value;
           }
 
-          for (const auto &[bucket_range, value_indices] : bucket_to_joints) {
-            buffer.resize(bucket_range.size());
-            for (const int value_i : value_indices) {
-              const float3 position = src_bucket_position[value_i];
+          distance_invertion(power_value, buffer.as_mutable_span());
+          typed_dst_buckets_data[sample_index] += accumulate_with_factor<T>(
+              typed_src_bucket_value.slice(bucket_range), buffer);
+        }
+      }
+      return;
+    }
 
-              for (const int index : bucket_range.index_range()) {
-                buffer[index] = math::distance(src_bucket_position[bucket_range[index]], position) + offset_value;
-              }
+    for (const auto &[bucket_range, batch_samples] : bucket_to_batch_samples) {
+      buffer.resize(bucket_range.size());
+      for (const int sample_index : batch_samples) {
+        const float3 position = sample_position[sample_index];
+        for (const int bucket_i : bucket_range.index_range()) {
+          const float sampler_to_point_distance = math::distance(
+              position, src_bucket_position[bucket_range[bucket_i]]);
+          buffer[bucket_i] = sampler_to_point_distance + offset_value;
+        }
 
-              distance_invertion(power_value, buffer.as_mutable_span());
+        distance_invertion(power_value, buffer.as_mutable_span());
 
-              for (const int i : bucket_range.index_range()) {
-                const int index = bucket_range[i];
-                const float relation_factor = buffer[i];
-                const float safe_relation_factor = index == value_i ? 0.0f : relation_factor;
-                typed_dst_buckets_data[value_i] += typed_src_bucket_value[index] * safe_relation_factor;
-                typed_dst_buckets_data[value_i] += typed_src_bucket_value[index] * buffer[i];
-              }
-            }
-          }
-        });
-      });
+        if (bucket_range.contains(sampler_to_bucket_range.value()[sample_index])) {
+          const int sampler_in_bucket_index = sampler_to_bucket_range.value()[sample_index] -
+                                              bucket_range.start();
+          buffer[sampler_in_bucket_index] = 0.0f;
+        }
+
+        typed_dst_buckets_data[sample_index] += accumulate_with_factor<T>(
+            typed_src_bucket_value.slice(bucket_range), buffer);
+      }
+    }
+  });
 }
-*/
 
 }  // namespace blender::geometry::fmm

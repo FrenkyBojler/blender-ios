@@ -4,9 +4,14 @@
 
 #pragma once
 
+#include <optional>
+
 #include "BLI_generic_span.hh"
+#include "BLI_index_range.hh"
+#include "BLI_math_base.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
+#include "BLI_span.hh"
 
 namespace blender::geometry::fmm {
 
@@ -23,13 +28,16 @@ template<typename Func> inline void to_static_type(const CPPType &type, const Fu
   });
 }
 
-inline float minimal_dinstance_to_claster(const float radius, const int degree, const float error_value)
+inline float minimal_dinstance_to_claster(const float radius,
+                                          const int degree,
+                                          const float error_value)
 {
   BLI_assert(error_value > 1.0f);
   /**
-   * Total sum of points function in cluster have to be least than difference between minimal and maximal possible results
-    * of sampling inside of the cluster separately * total number of points - 1. So approximation will always be around actual result.
-   * Centre of the claster bounds with some points too near and far to the sampler location:
+   * Total sum of points function in cluster have to be least than difference between minimal and
+   * maximal possible results of sampling inside of the cluster separately * total number of points
+   * - 1. So approximation will always be around actual result. Centre of the claster bounds with
+   * some points too near and far to the sampler location:
    *
    * 1 / (#distance + #radius) <= 1 / (#distance - #radius).
    *
@@ -50,15 +58,17 @@ inline float minimal_dinstance_to_claster(const float radius, const int degree, 
   return -((1.0f + precision_root) / (1.0f - precision_root) * radius);
 }
 
-void akdbh_sample_value(OffsetIndices<int> buckets_offsets,
-                               int total_depth,
-                               Span<float3> src_joints_centre,
-                               Span<float3> src_bucket_position,
-                               Span<float> src_joints_min_distance_reduced,
-                               GSpan src_joints_value,
-                               GSpan src_bucket_value,
-                               int power_value,
-                               float offset_value,
-                               GMutableSpan dst_buckets_data);
+void akdbh_accumulate_in(OffsetIndices<int> buckets_offsets,
+                         int total_depth,
+                         Span<float> src_joints_min_distance,
+                         Span<float3> src_joints_centre,
+                         GSpan src_joints_value,
+                         Span<float3> src_bucket_position,
+                         GSpan src_bucket_value,
+                         int power_value,
+                         float offset_value,
+                         Span<float3> sample_position,
+                         GMutableSpan dst_buckets_data,
+                         std::optional<IndexRange> sampler_to_bucket_range = std::nullopt);
 
 }  // namespace blender::geometry::fmm

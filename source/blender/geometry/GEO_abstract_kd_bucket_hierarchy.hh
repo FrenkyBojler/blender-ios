@@ -6,6 +6,7 @@
 
 #include "BLI_cpp_type.hh"
 
+#include "BLI_array_utils.hh"
 #include "BLI_generic_span.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
@@ -107,12 +108,62 @@ inline void for_each_leaf(const OffsetIndices<int> buckets_offsets,
 {
   const IndexRange joints_range = joints_range_at_depth(total_depth - 1);
   threading::parallel_for(
-      joints_range.index_range(), grain_size.value, [&](const IndexRange range) {
+      joints_range.index_range(),
+      grain_size.value,
+      [&](const IndexRange range) {
         for (const int joint_i : range) {
           leaf_func(buckets_offsets[joint_i], int(joints_range[joint_i]), total_depth - 1);
         }
       },
       threading::detail::TaskSizeHints_Static(min_bucket_size));
+}
+
+template<typename LeafFuncT, typename JointPredicateT, typename JointFuncT>
+inline void batch_for_each_to_bottom_skip(const OffsetIndices<int> buckets_offsets,
+                                          const int total_depth,
+                                          const IndexRange batch_range,
+                                          const JointPredicateT &joint_predicate,
+                                          const JointFuncT &joint_func,
+                                          const LeafFuncT &leaf_func)
+{
+  Array<int, 0> batch_indices(batch_range.size());
+  array_utils::fill_index_range<int>(batch_indices, batch_range.start());
+
+  Vector<int, 32> depth_stack({0});
+  Vector<int, 32> joint_stack({0});
+  Vector<int, 32> prefix_to_visit_stack({int(batch_indices.size())});
+
+  while (!depth_stack.is_empty()) {
+    const int prefix_to_visit = prefix_to_visit_stack.pop_last();
+    const int depth_i = depth_stack.pop_last();
+    const int joint_i = joint_stack.pop_last();
+    const MutableSpan<int> batch_to_visit = batch_indices.as_mutable_span().take_front(
+        prefix_to_visit);
+    const IndexRange joints_range = akdbh::joints_range_at_depth(depth_i);
+
+    const auto end_of_batch_prefix = std::stable_partition(
+        batch_to_visit.begin(), batch_to_visit.end(), [&](const int batch_i) -> bool {
+          return joint_predicate(int(joints_range[joint_i]), batch_i);
+        });
+
+    const int num_to_visit_next = std::distance(batch_to_visit.begin(), end_of_batch_prefix);
+    const Span<int> finished_batch_indices = batch_to_visit.drop_front(num_to_visit_next);
+    joint_func(int(joints_range[joint_i]), finished_batch_indices);
+
+    const Span<int> next_batch_indices = batch_to_visit.take_front(num_to_visit_next);
+    if (next_batch_indices.is_empty()) {
+      continue;
+    }
+
+    if (depth_i == total_depth - 1) {
+      leaf_func(buckets_offsets[joint_i], next_batch_indices);
+      continue;
+    }
+
+    depth_stack.extend_unchecked({depth_i + 1, depth_i + 1});
+    joint_stack.extend_unchecked({joint_i * 2 + 1, joint_i * 2 + 0});
+    prefix_to_visit_stack.extend_unchecked({num_to_visit_next, num_to_visit_next});
+  }
 }
 
 void from_positions(Span<float3> positions,

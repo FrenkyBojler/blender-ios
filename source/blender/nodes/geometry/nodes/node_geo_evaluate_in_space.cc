@@ -6,16 +6,13 @@
 
 #include "BLI_array.hh"
 #include "BLI_array_utils.hh"
-#include "BLI_function_ref.hh"
 #include "BLI_generic_array.hh"
-#include "BLI_generic_span.hh"
 #include "BLI_generic_virtual_array.hh"
-#include "BLI_index_mask.hh"
-#include "BLI_math_base.hh"
+#include "BLI_task_size_hints.hh"
 
 #include "GEO_abstract_kd_bucket_hierarchy.hh"
-#include "GEO_fast_multipole_method.hh"
 #include "GEO_bounding_sphere.hh"
+#include "GEO_fast_multipole_method.hh"
 
 #include "node_geometry_util.hh"
 
@@ -44,7 +41,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  node->custom1 = CD_PROP_FLOAT;
+  node->custom1 = int16_t(CD_PROP_FLOAT);
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -59,7 +56,8 @@ static void cloud_radii_to_min_distance(const Span<float> src_radii,
 {
   threading::parallel_for(src_radii.index_range(), 1024 * 8, [&](const IndexRange range) {
     for (const int i : range) {
-      dst_radii[i] = geometry::fmm::minimal_dinstance_to_claster(src_radii[i], distance_power, precision);
+      dst_radii[i] = geometry::fmm::minimal_dinstance_to_claster(
+          src_radii[i], distance_power, precision);
     }
   });
 }
@@ -68,7 +66,7 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
  private:
   Field<float3> positions_field_;
   GField value_field_;
-  int distance_power_;
+  int power_value_;
   float precision_;
   float offset_value_;
 
@@ -81,7 +79,7 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
       : bke::GeometryFieldInput(value_field.cpp_type(), "Space Value"),
         positions_field_(std::move(positions_field)),
         value_field_(std::move(value_field)),
-        distance_power_(distance_power),
+        power_value_(distance_power),
         precision_(precision),
         offset_value_(offset_value)
   {
@@ -110,7 +108,8 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
     const int total_joints = akdbh::total_joints_for_depth(total_depth);
 
     Array<int, 0> start_indices(total_buckets + 1);
-    const OffsetIndices<int> base_offsets = akdbh::fill_bucket_offsets_trivial(domain_size, start_indices);
+    const OffsetIndices<int> base_offsets = akdbh::fill_bucket_offsets_trivial(domain_size,
+                                                                               start_indices);
 
     Array<int, 0> indices(domain_size);
     akdbh::from_positions(positions, base_offsets, total_depth, indices);
@@ -118,36 +117,47 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
     Array<float3, 0> bucket_positions(domain_size);
     GArray<> bucket_values(data_type, domain_size);
 
-    array_utils::gather(Span<float3>(positions), indices.as_span(), bucket_positions.as_mutable_span());
+    array_utils::gather(
+        Span<float3>(positions), indices.as_span(), bucket_positions.as_mutable_span());
     bke::attribute_math::gather(src_values, indices.as_span(), bucket_values.as_mutable_span());
 
     GArray<> joints_values(data_type, total_joints);
     akdbh::mean_sums(base_offsets, total_depth, bucket_values, joints_values);
 
     Array<float3, 0> joints_positions(total_joints);
-    Array<float, 0> joints_min_distance_reduced(total_joints);
-    bounding::joints_packing_spheres(base_offsets, total_depth, bucket_positions, joints_positions, joints_min_distance_reduced);
+    Array<float, 0> joints_min_distance(total_joints);
+    bounding::joints_packing_spheres(base_offsets,
+                                     total_depth,
+                                     bucket_positions,
+                                     joints_positions,
+                                     joints_min_distance.as_mutable_span());
 
-    cloud_radii_to_min_distance(joints_min_distance_reduced, distance_power_, precision_, joints_min_distance_reduced);
-
-    threading::parallel_for(IndexRange(total_joints), 1024 * 16, [&](const IndexRange range) {
-      for (const int i : range) {
-        joints_min_distance_reduced[i] -= offset_value_;
-      }
-    });
+    cloud_radii_to_min_distance(joints_min_distance.as_span(),
+                                power_value_,
+                                precision_,
+                                joints_min_distance.as_mutable_span());
 
     GArray<> sampled_bucket_values(data_type, domain_size);
     data_type.value_initialize_n(sampled_bucket_values.data(), sampled_bucket_values.size());
-    fmm::akdbh_sample_value(base_offsets,
-                            total_depth,
-                            joints_positions,
-                            bucket_positions,
-                            joints_min_distance_reduced,
-                            joints_values.as_span(),
-                            bucket_values.as_span(),
-                            distance_power_,
-                            offset_value_,
-                            sampled_bucket_values.as_mutable_span());
+
+    threading::parallel_for(
+        IndexRange(domain_size),
+        1024,
+        [&](const IndexRange range) {
+          fmm::akdbh_accumulate_in(base_offsets,
+                                   total_depth,
+                                   joints_min_distance,
+                                   joints_positions,
+                                   joints_values,
+                                   bucket_positions,
+                                   bucket_values,
+                                   power_value_,
+                                   offset_value_,
+                                   bucket_positions.as_span().slice(range),
+                                   sampled_bucket_values.as_mutable_span().slice(range),
+                                   range);
+        },
+        threading::detail::TaskSizeHints_Static(total_depth));
 
     GArray<> dst_values(data_type, domain_size);
     geometry::akdbh::to_static_type(data_type, [&](auto dummy) {
@@ -215,7 +225,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

@@ -1,43 +1,20 @@
-/* SPDX-FileCopyrightText: 2024 Blender Authors
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-// debug includes
-
-#include <limits>
-#include <type_traits>
-
-#include "DNA_pointcloud_types.h"
-
-#include "BKE_geometry_fields.hh"
-#include "BKE_geometry_set.hh"
-#include "BKE_instances.hh"
-
-#include "GEO_mesh_primitive_uv_sphere.hh"
-#include "GEO_transform.hh"
-
-#include "BLI_math_quaternion_types.hh"
-#include "BLI_rand.hh"
-#include "BLI_timeit.hh"
-
-// debug includes
+#include "BKE_attribute_math.hh"
 
 #include "BLI_array.hh"
 #include "BLI_array_utils.hh"
-#include "BLI_binary_search.hh"
-#include "BLI_function_ref.hh"
+#include "BLI_generic_array.hh"
 #include "BLI_generic_span.hh"
-#include "BLI_index_mask.hh"
-#include "BLI_math_base.hh"
-#include "BLI_math_bits.h"
-#include "BLI_sort.hh"
-#include "BLI_task.hh"
+#include "BLI_generic_virtual_array.hh"
 #include "BLI_task_size_hints.hh"
 #include "BLI_virtual_array.hh"
 
 #include "GEO_abstract_kd_bucket_hierarchy.hh"
-#include "GEO_fast_multipole_method.hh"
 #include "GEO_bounding_sphere.hh"
+#include "GEO_fast_multipole_method.hh"
 
 #include "node_geometry_util.hh"
 
@@ -47,7 +24,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();
 
-  b.add_input<decl::Geometry>("Geometry");
+  b.add_input<decl::Geometry>("Source");
   b.add_input<decl::Vector>("Position").implicit_field_on_all(implicit_field_inputs::position);
 
   if (node != nullptr) {
@@ -71,13 +48,44 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  node->custom1 = CD_PROP_FLOAT;
+  node->custom1 = int16_t(CD_PROP_FLOAT);
+  node->custom2 = int16_t(bke::AttrDomain::Point);
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
   uiItemR(layout, ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+}
+
+static bool component_is_available(const GeometrySet &geometry,
+                                   const GeometryComponent::Type type,
+                                   const AttrDomain domain)
+{
+  if (!geometry.has(type)) {
+    return false;
+  }
+  const GeometryComponent &component = *geometry.get_component(type);
+  return component.attribute_domain_size(domain) != 0;
+}
+
+static const GeometryComponent *find_source_component(const GeometrySet &geometry,
+                                                      const AttrDomain domain)
+{
+  /* Choose the other component based on a consistent order, rather than some more complicated
+   * heuristic. This is the same order visible in the spreadsheet and used in the ray-cast node. */
+  static const Array<GeometryComponent::Type> supported_types = {
+      GeometryComponent::Type::Mesh,
+      GeometryComponent::Type::PointCloud,
+      GeometryComponent::Type::Curve,
+      GeometryComponent::Type::Instance};
+  for (const GeometryComponent::Type src_type : supported_types) {
+    if (component_is_available(geometry, src_type, domain)) {
+      return geometry.get_component(src_type);
+    }
+  }
+
+  return nullptr;
 }
 
 static void cloud_radii_to_min_distance(const Span<float> src_radii,
@@ -87,158 +95,169 @@ static void cloud_radii_to_min_distance(const Span<float> src_radii,
 {
   threading::parallel_for(src_radii.index_range(), 1024 * 8, [&](const IndexRange range) {
     for (const int i : range) {
-      dst_radii[i] = geometry::fmm::minimal_dinstance_to_claster(src_radii[i], distance_power, precision);
+      dst_radii[i] = geometry::fmm::minimal_dinstance_to_claster(
+          src_radii[i], distance_power, precision);
     }
   });
 }
 
 class GradientSumFunction : public mf::MultiFunction {
  private:
+  mf::Signature signature_;
+
   int power_value_;
   float offset_value_;
 
-  mf::Signature signature_;
+  int total_depth_;
 
-  int total_depth;
-  int total_buckets;
-  int total_joints;
+  Array<int, 0> start_indices_;
 
-  Array<int> start_indices;
-  Array<int> indices;
-  Array<float3> bucket_positions;
-  Array<float3> bucket_values;
-  Array<float3> joints_values;
-  Array<float> joints_values_factors;
-  Array<float3> joints_positions;
-  Array<float> joints_min_radii;
-  Array<float> joints_min_distance;
+  Array<float3, 0> bucket_positions_;
+  GArray<> bucket_values_;
+
+  Array<float3, 0> joints_positions_;
+  GArray<> joints_values_;
+
+  Array<float, 0> joints_min_distance_;
 
  public:
   GradientSumFunction(const GeometrySet &geometry_set,
-                      const Field<float3> position_field,
-                      const Field<float3> value_field,
+                      const bke::AttrDomain domain,
                       const float precision,
                       const int power_value,
-                      const float offset_value)
+                      const float offset_value,
+                      Field<float3> position_field,
+                      GField value_field)
       : power_value_(power_value), offset_value_(offset_value)
-  {/*
-    mf::SignatureBuilder builder{"Gradient Sum", signature_};
+  {
+    const CPPType &data_type = value_field.cpp_type();
+    mf::SignatureBuilder builder("Space Value", signature_);
     builder.single_input<float3>("Position");
-    builder.single_output<float3>("Value");
+    builder.single_output("Value", data_type);
     this->set_signature(&signature_);
 
-    const PointCloud *point_cloud = geometry_set.get_pointcloud();
-    if (point_cloud == nullptr) {
-      return;
+    const GeometryComponent *source_component = find_source_component(geometry_set, domain);
+    if (source_component == nullptr) {
+      throw std::runtime_error("no component with choosen domain");
     }
 
-    const int domain_size = point_cloud->totpoint;
-    const bke::PointCloudFieldContext context(*point_cloud);
-    fn::FieldEvaluator evaluator{context, domain_size};
-    evaluator.add(position_field);
-    evaluator.add(value_field);
+    const int domain_size = source_component->attributes()->domain_size(domain);
+    const bke::GeometryFieldContext context(*source_component, domain);
+    fn::FieldEvaluator evaluator(context, domain_size);
+    evaluator.add(std::move(position_field));
+    evaluator.add(std::move(value_field));
     evaluator.evaluate();
     const VArraySpan<float3> positions = evaluator.get_evaluated<float3>(0);
-    const VArraySpan<float3> src_values = evaluator.get_evaluated<float3>(1);
+    const GVArray src_values = evaluator.get_evaluated(1);
 
-    total_depth = akdbt::total_depth_from_total(positions.size());
-    total_buckets = akdbt::total_buckets_for(total_depth);
-    total_joints = akdbt::total_joints_for_depth(total_depth);
+    using namespace blender::geometry;
 
-    start_indices.reinitialize(total_buckets + 1);
-    indices.reinitialize(domain_size);
-    bucket_positions.reinitialize(domain_size);
-    bucket_values.reinitialize(domain_size);
-    joints_values.reinitialize(total_joints);
-    joints_values_factors.reinitialize(total_joints);
-    joints_positions.reinitialize(total_joints);
-    joints_min_radii.reinitialize(total_joints);
-    joints_min_distance.reinitialize(total_joints);
+    total_depth_ = akdbh::total_depth_from_total(domain_size);
+    const int total_buckets = akdbh::total_buckets_for(total_depth_);
+    const int total_joints = akdbh::total_joints_for_depth(total_depth_);
 
-    akdbt::fill_buckets_linear(domain_size, start_indices);
-    const OffsetIndices<int> base_offsets(start_indices);
-    akdbt::from_positions(positions, base_offsets, total_depth, indices);
+    start_indices_.reinitialize(total_buckets + 1);
+    const OffsetIndices<int> base_offsets = akdbh::fill_bucket_offsets_trivial(domain_size,
+                                                                               start_indices_);
+
+    Array<int> indices(domain_size);
+    akdbh::from_positions(positions, base_offsets, total_depth_, indices);
+
+    bucket_positions_.reinitialize(domain_size);
+    bucket_values_ = GArray<>(data_type, domain_size);
+
     array_utils::gather(
-        Span<float3>(positions), indices.as_span(), bucket_positions.as_mutable_span());
-    array_utils::gather(
-        Span<float3>(src_values), indices.as_span(), bucket_values.as_mutable_span());
-    akdbt::mean_sums<float3>(base_offsets, total_depth, bucket_values, joints_values);
-    akdbt::normalize_for_size<float3>(base_offsets, total_depth, joints_values);
-    akdbt::accumulate_size<float>(base_offsets, total_depth, joints_values_factors);
-    packing_spheres(
-        base_offsets, total_depth, bucket_positions, joints_positions, joints_min_radii);
-    cloud_radii_to_min_distance(joints_min_radii, power_value, precision, joints_min_distance);*/
+        Span<float3>(positions), indices.as_span(), bucket_positions_.as_mutable_span());
+    bke::attribute_math::gather(src_values, indices.as_span(), bucket_values_.as_mutable_span());
+
+    joints_values_ = GArray<>(data_type, total_joints);
+    akdbh::mean_sums(base_offsets, total_depth_, bucket_values_, joints_values_);
+
+    joints_positions_.reinitialize(total_joints);
+    joints_min_distance_.reinitialize(total_joints);
+    bounding::joints_packing_spheres(base_offsets,
+                                     total_depth_,
+                                     bucket_positions_,
+                                     joints_positions_,
+                                     joints_min_distance_.as_mutable_span());
+
+    cloud_radii_to_min_distance(joints_min_distance_.as_span(),
+                                power_value_,
+                                precision,
+                                joints_min_distance_.as_mutable_span());
   }
 
   void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
-  {/*
+  {
     const VArraySpan<float3> positions = params.readonly_single_input<float3>(0, "Position");
-    MutableSpan<float3> results = params.uninitialized_single_output<float3>(1, "Value");
-    results.fill(float3(0.0f));
+    GMutableSpan results = params.uninitialized_single_output(1, "Value");
 
-    const FunctionRef<void(int, MutableSpan<float>)> squared_distance_invertion = akdbt::powered_rcp_for_squared(power_value_);
+    Array<float3> task_positions(mask.size());
+    array_utils::gather(positions, mask, task_positions.as_mutable_span());
+    GArray<> task_results(results.type(), mask.size());
 
-    Vector<float> buffer;
-    buffer.reserve(positions.size());
-    akdbt::for_each_to_bottom_skip(OffsetIndices<int>(start_indices), total_depth, positions.index_range(), [&](const int joint_index, const int value_i) -> bool {
-      return (math::distance(joints_positions[joint_index], positions[value_i]) + offset_value_) <= joints_min_distance[joint_index];
-    },
-    [&](const IndexRange buckets_range, const int joint_index, const Span<int> value_indices) {
-      buffer.resize(value_indices.size());
-      for (const int value_i : value_indices.index_range()) {
-        const int value_index = value_indices[value_i];
-        buffer[value_i] = math::distance(joints_positions[joint_index], positions[value_index]) + offset_value_;
-      }
+    results.type().value_initialize_n(task_results.data(), task_results.size());
 
-      squared_distance_invertion(power_value_, buffer.as_mutable_span());
+    using namespace blender::geometry;
+    fmm::akdbh_accumulate_in(OffsetIndices<int>(start_indices_),
+                             total_depth_,
+                             joints_min_distance_,
+                             joints_positions_,
+                             joints_values_,
+                             bucket_positions_,
+                             bucket_values_,
+                             power_value_,
+                             offset_value_,
+                             task_positions,
+                             task_results,
+                             std::nullopt);
 
-      const float total_factor = buckets_range.size();
-      for (const int value_i : value_indices.index_range()) {
-        const int value_index = value_indices[value_i];
-        results[value_index] += math::normalize(joints_positions[joint_index] - positions[value_index]) * joints_values[joint_index] * buffer[value_i] * total_factor;
-      }
-    },
-    [&](const IndexRange bucket_range, const Span<int> value_indices) {
-      buffer.resize(bucket_range.size());
-      for (const int value_i : value_indices) {
-        const float3 position = positions[value_i];
+    geometry::akdbh::to_static_type(results.type(), [&](auto dummy) {
+      using T = decltype(dummy);
+      array_utils::scatter<T>(task_results.as_span().typed<T>(), mask, results.typed<T>());
+    });
+  }
 
-        for (const int index : bucket_range.index_range()) {
-          buffer[index] = math::distance(bucket_positions[bucket_range[index]], position) + offset_value_;
-        }
-
-        squared_distance_invertion(power_value_, buffer.as_mutable_span());
-
-        for (const int i : bucket_range.index_range()) {
-          results[value_i] += math::normalize(bucket_positions[bucket_range[i]] - position) * bucket_values[bucket_range[i]] * buffer[i];
-        }
-      }
-    });*/
+  ExecutionHints get_execution_hints() const override
+  {
+    ExecutionHints hints;
+    hints.min_grain_size = 1024 * 16 / math::max(1, total_depth_);
+    return hints;
   }
 };
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry = params.extract_input<bke::GeometrySet>("Domain");
+  const GeometrySet geometry = params.extract_input<bke::GeometrySet>("Source");
   Field<float3> position_field = params.extract_input<Field<float3>>("Position");
   GField value_field = params.extract_input<GField>("Value");
 
-  Field<float3> sample_position_field = params.extract_input<Field<float3>>("Sample Position");
+  const bke::AttrDomain domain = bke::AttrDomain(params.node().custom2);
 
   const int power_value = params.extract_input<int>("Power");
   const float precision_value = params.extract_input<float>("Error");
   const float offset_value = params.extract_input<float>("Offset");
 
-  std::shared_ptr<FieldOperation> sample_op = FieldOperation::Create(
-      std::make_unique<GradientSumFunction>(geometry,
-                                            std::move(position_field),
-                                            std::move(value_field),
-                                            precision_value,
-                                            power_value,
-                                            offset_value),
-      {std::move(sample_position_field)});
+  std::unique_ptr<GradientSumFunction> space_fn;
+  try {
+    space_fn = std::make_unique<GradientSumFunction>(geometry,
+                                                     domain,
+                                                     precision_value,
+                                                     power_value,
+                                                     offset_value,
+                                                     std::move(position_field),
+                                                     std::move(value_field));
+  }
+  catch (const std::runtime_error &) {
+    params.set_default_remaining_outputs();
+    return;
+  }
 
-  params.set_output("Sample Gradient", GField(sample_op, 0));
+  Field<float3> sample_position_field = params.extract_input<Field<float3>>("Sample Position");
+  std::shared_ptr<FieldOperation> sample_space_op = FieldOperation::Create(
+      std::move(space_fn), {std::move(sample_position_field)});
+
+  params.set_output("Value", GField(sample_space_op, 0));
 }
 
 static void node_rna(StructRNA *srna)
@@ -274,11 +293,11 @@ static void node_register()
   geo_node_type_base(&ntype, "GeometryNodeSampleInSpace");
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.ui_name = "Sample in Space";
-  // ntype.geometry_node_execute = node_geo_exec;
+  ntype.geometry_node_execute = node_geo_exec;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }
