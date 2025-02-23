@@ -12,6 +12,7 @@
 #include "BLI_virtual_array.hh"
 
 #include "BKE_attribute.hh"
+#include "BKE_attribute_filter.hh"
 #include "BKE_mesh.hh"
 
 #include "node_geometry_util.hh"
@@ -66,24 +67,24 @@ static void interpolate_point_values(const VArray<T> &src,
 }
 
 static void interpolate_point_attributes(const AttributeAccessor src_attributes,
-                                         const AnonymousAttributePropagationInfo &propagation_info,
+                                         const bke::AttributeFilter &attribute_filter,
                                          const Span<int2> edges,
                                          const int start_vert,
                                          const OffsetIndices<int> edge_offset,
                                          MutableAttributeAccessor dst_attributes)
 {
-  src_attributes.for_all([&](const AttributeIDRef &id, const AttributeMetaData meta_data) {
-    if (meta_data.domain != AttrDomain::Point) {
-      return true;
+  src_attributes.foreach_attribute([&](const bke::AttributeIter attribute) {
+    if (attribute.domain != AttrDomain::Point) {
+      return;
     }
-    if (id.is_anonymous() && !propagation_info.propagate(id.anonymous_id())) {
-      return true;
+    if (attribute_filter.allow_skip(attribute.name)) {
+      return;
     }
-    const bke::GAttributeReader src = src_attributes.lookup(id, AttrDomain::Point);
+    const bke::GAttributeReader src = src_attributes.lookup(attribute.name, AttrDomain::Point);
     bke::GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
-        id, AttrDomain::Point, meta_data.data_type);
+        attribute.name, AttrDomain::Point, attribute.data_type);
     if (!dst) {
-      return true;
+      return;
     }
     bke::attribute_math::convert_to_static_type(src.varray.type(), [&](auto dummy) {
       using T = decltype(dummy);
@@ -93,7 +94,7 @@ static void interpolate_point_attributes(const AttributeAccessor src_attributes,
       interpolate_point_values<T>(src_typed, edges, edge_offset, dst_typed.drop_front(start_vert));
     });
     dst.finish();
-    return true;
+    return;
   });
 }
 
@@ -108,34 +109,29 @@ static void fill_groups(const VArray<T> src, const OffsetIndices<int> groups, Mu
 }
 
 static void fill_groups_attributes(const AttributeAccessor src_attributes,
-                                   const AnonymousAttributePropagationInfo &propagation_info,
+                                   const bke::AttributeFilter &attribute_filter,
                                    const OffsetIndices<int> groups,
                                    const AttrDomain domain,
-                                   const Set<std::string> &skip,
                                    MutableAttributeAccessor dst_attributes)
 {
-  src_attributes.for_all([&](const AttributeIDRef &id, const AttributeMetaData meta_data) {
-    if (meta_data.domain != domain) {
-      return true;
+  src_attributes.foreach_attribute([&](const bke::AttributeIter attribute) {
+    if (attribute.domain != domain) {
+      return;
     }
-    if (id.is_anonymous() && !propagation_info.propagate(id.anonymous_id())) {
-      return true;
+    if (attribute_filter.allow_skip(attribute.name)) {
+      return;
     }
-    if (skip.contains(id.name())) {
-      return true;
-    }
-    const bke::GAttributeReader src = src_attributes.lookup(id, domain);
-    bke::GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
-        id, domain, meta_data.data_type);
+    const bke::GAttributeReader src = src_attributes.lookup(attribute.name, domain);
+    bke::GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(attribute.name, domain, attribute.data_type);
     if (!dst) {
-      return true;
+      return;
     }
     bke::attribute_math::convert_to_static_type(src.varray.type(), [&](auto dummy) {
       using T = decltype(dummy);
       fill_groups<T>(src.varray.typed<T>(), groups, dst.span.typed<T>());
     });
     dst.finish();
-    return true;
+    return;
   });
 }
 
@@ -244,7 +240,7 @@ static void accumulate_face_offsets(const OffsetIndices<int> src_face_offsets,
 
 static Mesh *resample_edges(const Mesh &src_mesh,
                             const VArray<int> &count_varray,
-                            const AnonymousAttributePropagationInfo &propagation_info)
+                            const bke::AttributeFilter &attribute_filter)
 {
   /* To avoid allocation of array to accumulate new verts, use edge offset[index] - index. */
   Array<int> accumulate_edges(src_mesh.edges_num + 1, 0);
@@ -275,16 +271,15 @@ static Mesh *resample_edges(const Mesh &src_mesh,
   MutableAttributeAccessor dst_attributes = dst_mesh->attributes_for_write();
 
   interpolate_point_attributes(src_attributes,
-                               propagation_info,
+                               attribute_filter,
                                src_mesh.edges(),
                                src_mesh.verts_num,
                                edge_offset,
                                dst_attributes);
   fill_groups_attributes(src_attributes,
-                         propagation_info,
+                         bke::attribute_filter_with_skip_ref(attribute_filter, {".edge_verts"}),
                          edge_offset,
                          AttrDomain::Edge,
-                         {".edge_verts"},
                          dst_attributes);
   build_edges(src_mesh.edges(), edge_offset, src_mesh.verts_num, dst_mesh->edges_for_write());
   accumulate_face_offsets(src_mesh.faces(), corner_offset, dst_mesh->face_offsets_for_write());
@@ -296,12 +291,11 @@ static Mesh *resample_edges(const Mesh &src_mesh,
               edge_offset,
               dst_mesh->corner_verts_for_write(),
               dst_mesh->corner_edges_for_write());
-  bke::copy_attributes(src_attributes, AttrDomain::Face, propagation_info, {}, dst_attributes);
+  bke::copy_attributes(src_attributes, AttrDomain::Face, AttrDomain::Face, attribute_filter, dst_attributes);
   fill_groups_attributes(src_attributes,
-                         propagation_info,
+                         bke::attribute_filter_with_skip_ref(attribute_filter, {".corner_vert", ".corner_edge"}),
                          corner_offset,
                          AttrDomain::Corner,
-                         {".corner_vert", ".corner_edge"},
                          dst_attributes);
   return dst_mesh;
 }
@@ -329,8 +323,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<int> edge_count_field(
       FieldOperation::Create(increment_fn, {std::move(selected_count_field)}));
 
-  const AnonymousAttributePropagationInfo &propagation_info = params.get_output_propagation_info(
-      "Mesh");
+  const bke::AttributeFilter &attribute_filter = params.get_attribute_filter("Mesh");
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
     const Mesh *mesh = geometry_set.get_mesh();
     if (mesh == nullptr) {
@@ -346,7 +339,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (count.has_value() && *count == 1) {
       return;
     }
-    geometry_set.replace_mesh(resample_edges(*mesh, count_varray, propagation_info));
+    geometry_set.replace_mesh(resample_edges(*mesh, count_varray, attribute_filter));
   });
   params.set_output("Mesh", std::move(geometry_set));
 }
