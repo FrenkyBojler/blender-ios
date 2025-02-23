@@ -2728,6 +2728,7 @@ class VIEW3D_MT_image_add(Menu):
         layout.operator("object.empty_image_add", text="Reference", icon='IMAGE_REFERENCE').background = False
         layout.operator("object.empty_image_add", text="Background", icon='IMAGE_BACKGROUND').background = True
         layout.operator("image.import_as_mesh_planes", text="Mesh Plane", icon='MESH_PLANE')
+        layout.operator("object.empty_add", text="Empty", icon="FILE_IMAGE").type = 'IMAGE'
 
 
 class VIEW3D_MT_object_relations(Menu):
