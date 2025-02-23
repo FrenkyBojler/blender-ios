@@ -4,6 +4,7 @@
 
 #include <fmt/format.h>
 
+#include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_multi_value_map.hh"
 #include "BLI_noise.hh"
@@ -572,7 +573,7 @@ class NodeTreeMainUpdater {
   void update_individual_nodes(bNodeTree &ntree)
   {
     for (bNode *node : ntree.all_nodes()) {
-      bke::node_declaration_ensure(&ntree, node);
+      bke::node_declaration_ensure(ntree, *node);
       if (this->should_update_individual_node(ntree, *node)) {
         bke::bNodeType &ntype = *node->typeinfo;
         if (ntype.group_update_func) {
@@ -583,6 +584,18 @@ class NodeTreeMainUpdater {
           BLI_assert(ntype.static_declaration != nullptr);
           if (ntype.static_declaration->is_context_dependent) {
             nodes::update_node_declaration_and_sockets(ntree, *node);
+          }
+        }
+        else if (node->is_undefined()) {
+          /* If a node has become undefined (it generally was unregistered from Python), it does
+           * not have a declaration anymore. */
+          delete node->runtime->declaration;
+          node->runtime->declaration = nullptr;
+          LISTBASE_FOREACH (bNodeSocket *, socket, &node->inputs) {
+            socket->runtime->declaration = nullptr;
+          }
+          LISTBASE_FOREACH (bNodeSocket *, socket, &node->outputs) {
+            socket->runtime->declaration = nullptr;
           }
         }
         if (ntype.updatefunc) {
@@ -1707,6 +1720,11 @@ void BKE_ntree_update_tag_node_property(bNodeTree *ntree, bNode *node)
 }
 
 void BKE_ntree_update_tag_node_new(bNodeTree *ntree, bNode *node)
+{
+  add_node_tag(ntree, node, NTREE_CHANGED_NODE_PROPERTY);
+}
+
+void BKE_ntree_update_tag_node_type(bNodeTree *ntree, bNode *node)
 {
   add_node_tag(ntree, node, NTREE_CHANGED_NODE_PROPERTY);
 }
