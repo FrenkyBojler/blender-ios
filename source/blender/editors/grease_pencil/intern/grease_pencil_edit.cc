@@ -2854,7 +2854,7 @@ IndexRange paste_all_strokes_from_clipboard(Main &bmain,
 /* -------------------------------------------------------------------- */
 /** \name Merge Stroke Operator
  * \{ */
-static int grease_pencil_stroke_simplify_by_distance_exec(bContext *C, wmOperator *op)
+static int grease_pencil_stroke_merge_by_distance_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
@@ -2897,7 +2897,7 @@ static void GREASE_PENCIL_OT_stroke_merge_by_distance(wmOperatorType *ot)
   ot->idname = "GREASE_PENCIL_OT_stroke_merge_by_distance";
   ot->description = "Reduces the number of points in each stroke by merging points closer than a specified threshold.";
 
-  ot->exec = grease_pencil_stroke_simplify_by_distance_exec;
+  ot->exec = grease_pencil_stroke_merge_by_distance_exec;
   ot->poll = editable_grease_pencil_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
