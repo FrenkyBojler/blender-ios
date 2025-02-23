@@ -12562,6 +12562,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeRepeatOutput", def_geo_repeat_output);
   define("GeometryNode", "GeometryNodeReplaceMaterial");
   define("GeometryNode", "GeometryNodeResampleCurve");
+  define("GeometryNode", "GeometryNodeResampleEdges");
   define("GeometryNode", "GeometryNodeReverseCurve");
   define("GeometryNode", "GeometryNodeRotateInstances");
   define("GeometryNode", "GeometryNodeSampleByID");
