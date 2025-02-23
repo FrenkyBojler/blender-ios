@@ -12,6 +12,7 @@
 #include "BLI_virtual_array.hh"
 
 #include "BKE_attribute.hh"
+#include "BKE_attribute_math.hh"
 #include "BKE_attribute_filter.hh"
 #include "BKE_mesh.hh"
 

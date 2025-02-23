@@ -14,6 +14,14 @@
 #include "GEO_bounding_sphere.hh"
 #include "GEO_fast_multipole_method.hh"
 
+#include "NOD_rna_define.hh"
+
+#include "RNA_access.hh"
+#include "RNA_enum_types.hh"
+
+#include "UI_interface.hh"
+#include "UI_resources.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_evaluate_in_space_cc {
