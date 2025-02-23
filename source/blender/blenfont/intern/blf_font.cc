@@ -1983,6 +1983,13 @@ static FontBLF *blf_font_new_impl(const char *filepath,
     }
   }
 
+  /* Detect "Last resort" fonts. They have everything. Usually except last 5 bits. */
+  if (font->unicode_ranges[0] == 0xffffffffU && font->unicode_ranges[1] == 0xffffffffU &&
+      font->unicode_ranges[2] == 0xffffffffU && font->unicode_ranges[3] >= 0x7FFFFFFU)
+  {
+    font->flags |= BLF_LAST_RESORT;
+  }
+
   return font;
 }
 
