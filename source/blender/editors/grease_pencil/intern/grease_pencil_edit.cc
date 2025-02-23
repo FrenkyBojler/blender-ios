@@ -2889,12 +2889,12 @@ static int grease_pencil_stroke_simplify_by_distance_exec(bContext *C, wmOperato
   return OPERATOR_FINISHED;
 }
 
-static void GREASE_PENCIL_OT_(wmOperatorType *ot)
+static void GREASE_PENCIL_OT_stroke_merge_by_distance(wmOperatorType *ot)
 {
   PropertyRNA *prop;
 
   ot->name = "Simplify Strokes by Distance";
-  ot->idname = "GREASE_PENCIL_OT_";
+  ot->idname = "GREASE_PENCIL_OT_stroke_merge_by_distance";
   ot->description = "Reduces the number of points in each stroke by merging points closer than a specified threshold.";
 
   ot->exec = grease_pencil_stroke_simplify_by_distance_exec;
@@ -4104,7 +4104,7 @@ void ED_operatortypes_grease_pencil_edit()
   WM_operatortype_append(GREASE_PENCIL_OT_move_to_layer);
   WM_operatortype_append(GREASE_PENCIL_OT_copy);
   WM_operatortype_append(GREASE_PENCIL_OT_paste);
-  WM_operatortype_append(GREASE_PENCIL_OT_);
+  WM_operatortype_append(GREASE_PENCIL_OT_stroke_merge_by_distance);
   WM_operatortype_append(GREASE_PENCIL_OT_stroke_trim);
   WM_operatortype_append(GREASE_PENCIL_OT_extrude);
   WM_operatortype_append(GREASE_PENCIL_OT_reproject);
