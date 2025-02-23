@@ -2666,6 +2666,6 @@ IndexMask get_GPU_mask_from_leaf_mask(const Tree &pbvh,
       },
       pbvh.nodes_);
 
-  IndexMask::from_indices<int>(Vector<int>(gpu_nodes.begin(), gpu_nodes.end()), memory);
+  return IndexMask::from_indices<int>(Vector<int>(gpu_nodes.begin(), gpu_nodes.end()), memory);
 }
 }  // namespace blender::bke::pbvh
