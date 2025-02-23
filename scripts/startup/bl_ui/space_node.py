@@ -908,14 +908,9 @@ class NODE_MT_node_tree_interface_context_menu(Menu):
         layout = self.layout
 
         layout.operator("node.interface_item_duplicate", icon='DUPLICATE')
-
-
-class NODE_MT_node_tree_panel_interface_item_context_menu(Menu):
-    bl_label = "Panel"
-
-    def draw(self, context):
-        layout = self.layout
-        layout.operator("node.interface_item_panel_add_toggle", icon='ADD')
+        layout.separator()
+        layout.operator("node.interface_item_add_panel_toggle", icon='ADD')
+        layout.operator("node.interface_item_remove_panel_toggle", icon='REMOVE')
 
 
 class NODE_PT_node_tree_interface(Panel):
@@ -1088,7 +1083,6 @@ classes = (
     NODE_PT_node_color_presets,
     NODE_PT_node_tree_properties,
     NODE_MT_node_tree_interface_context_menu,
-    NODE_MT_node_tree_panel_interface_item_context_menu,
     NODE_PT_node_tree_interface,
     NODE_PT_active_node_generic,
     NODE_PT_active_node_color,

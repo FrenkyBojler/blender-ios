@@ -2273,32 +2273,6 @@ static bool interface_panel_affects_output(DrawGroupInputsContext &ctx,
   return false;
 }
 
-static const bNodeTreeInterfaceSocket *has_first_boolean_socket_with_same_name(
-    const bNodeTreeInterfacePanel &interface_panel)
-{
-  const bNodeTreeInterfaceItem *first_item = interface_panel.items().first();
-  if (first_item->item_type != NODE_INTERFACE_SOCKET) {
-    return nullptr;
-  }
-  const auto &first_socket = *reinterpret_cast<const bNodeTreeInterfaceSocket *>(first_item);
-  if (!(first_socket.flag & NODE_INTERFACE_SOCKET_INPUT) ||
-      !(first_socket.flag & NODE_INTERFACE_SOCKET_SINGLE_VALUE_ONLY) ||
-      (first_socket.flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER))
-  {
-    return nullptr;
-  }
-  const bke::bNodeSocketType *typeinfo = first_socket.socket_typeinfo();
-  if (!typeinfo || typeinfo->type != SOCK_BOOLEAN) {
-    return nullptr;
-  }
-  const StringRefNull interface_panel_name(interface_panel.name);
-  const StringRefNull first_socket_name(first_socket.name);
-  if (first_socket_name.is_empty() || first_socket_name != interface_panel_name) {
-    return nullptr;
-  }
-  return &first_socket;
-}
-
 static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
                                          uiLayout *layout,
                                          const bNodeTreeInterfacePanel &interface_panel,
@@ -2316,10 +2290,11 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
           ctx.md_ptr->owner_id, &RNA_NodesModifierPanel, panel);
       PanelLayout panel_layout;
       bool skip_first = false;
-      if (const bNodeTreeInterfaceSocket *boolean_socket = has_first_boolean_socket_with_same_name(
-              sub_interface_panel))
+      /* Check if the panel should have a toggle in the header. */
+      if (const bNodeTreeInterfaceSocket *toggle_socket =
+              sub_interface_panel.get_header_toggle_socket())
       {
-        const StringRefNull identifier = boolean_socket->identifier;
+        const StringRefNull identifier = toggle_socket->identifier;
         /* TODO: Handle edge case where this is not valid. */
         char socket_id_esc[MAX_NAME * 2];
         BLI_str_escape(socket_id_esc, identifier.c_str(), sizeof(socket_id_esc));
@@ -2327,10 +2302,13 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
         char rna_path[sizeof(socket_id_esc) + 4];
         SNPRINTF(rna_path, "[\"%s\"]", socket_id_esc);
 
-        const char *name = IFACE_(boolean_socket->name);
-
-        panel_layout = uiLayoutPanelPropWithBoolHeader(
-            &ctx.C, layout, &panel_ptr, "is_open", ctx.md_ptr, rna_path, name);
+        panel_layout = uiLayoutPanelPropWithBoolHeader(&ctx.C,
+                                                       layout,
+                                                       &panel_ptr,
+                                                       "is_open",
+                                                       ctx.md_ptr,
+                                                       rna_path,
+                                                       IFACE_(sub_interface_panel.name));
         skip_first = true;
       }
       else {

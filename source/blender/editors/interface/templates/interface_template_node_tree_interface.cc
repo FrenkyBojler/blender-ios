@@ -173,6 +173,7 @@ class NodePanelViewItem : public BasicTreeViewItem {
  private:
   bNodeTree &nodetree_;
   bNodeTreeInterfacePanel &panel_;
+  const bNodeTreeInterfaceSocket *toggle_ = nullptr;
 
  public:
   NodePanelViewItem(bNodeTree &nodetree,
@@ -185,23 +186,26 @@ class NodePanelViewItem : public BasicTreeViewItem {
       NodePanelViewItem &self = static_cast<NodePanelViewItem &>(new_active);
       interface.active_item_set(&self.panel_.item);
     });
+    toggle_ = panel.get_header_toggle_socket();
   }
 
   void build_row(uiLayout &row) override
   {
+    uiLayout *toggle_layout = uiLayoutRow(&row, true);
+    if (toggle_ != nullptr) {
+      /* XXX Socket template only draws in embossed layouts (Julian). */
+      uiLayoutSetEmboss(toggle_layout, UI_EMBOSS);
+      /* Context is not used by the template function. */
+      uiTemplateNodeSocket(toggle_layout, /*C*/ nullptr, toggle_->socket_color());
+    }
+    else {
+      uiItemL(toggle_layout, "", ICON_BLANK1);
+    }
+
     this->add_label(row);
 
     uiLayout *sub = uiLayoutRow(&row, true);
     uiLayoutSetPropDecorate(sub, false);
-  }
-
-  void build_context_menu(bContext &C, uiLayout &layout) const override
-  {
-    MenuType *mt = WM_menutype_find("NODE_MT_node_tree_panel_interface_item_context_menu", true);
-    if (!mt) {
-      return;
-    }
-    UI_menutype_draw(&C, mt, &layout);
   }
 
  protected:
@@ -266,9 +270,10 @@ class NodeTreeInterfaceView : public AbstractTreeView {
 
  protected:
   void add_items_for_panel_recursive(bNodeTreeInterfacePanel &parent,
-                                     ui::TreeViewOrItem &parent_item)
+                                     ui::TreeViewOrItem &parent_item,
+                                     const bool skip_first_item = false)
   {
-    for (bNodeTreeInterfaceItem *item : parent.items()) {
+    for (bNodeTreeInterfaceItem *item : parent.items().drop_front(skip_first_item)) {
       switch (item->item_type) {
         case NODE_INTERFACE_SOCKET: {
           bNodeTreeInterfaceSocket *socket = node_interface::get_item_as<bNodeTreeInterfaceSocket>(
@@ -284,7 +289,9 @@ class NodeTreeInterfaceView : public AbstractTreeView {
           NodePanelViewItem &panel_item = parent_item.add_tree_item<NodePanelViewItem>(
               nodetree_, interface_, *panel);
           panel_item.uncollapse_by_default();
-          add_items_for_panel_recursive(*panel, panel_item);
+          /* Skip over sockets which are a panel toggle. */
+          const bool skip_first_item = panel->get_header_toggle_socket() != nullptr;
+          add_items_for_panel_recursive(*panel, panel_item, skip_first_item);
           break;
         }
       }

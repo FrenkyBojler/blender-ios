@@ -65,8 +65,10 @@ typedef enum NodeTreeInterfaceSocketFlag {
   NODE_INTERFACE_SOCKET_LAYER_SELECTION = 1 << 6,
   /* INSPECT is used by Connect to Output operator to ensure socket that exits from node group. */
   NODE_INTERFACE_SOCKET_INSPECT = 1 << 7,
+  /* Socket is used in the panel header as a toggle. */
+  NODE_INTERFACE_SOCKET_PANEL_TOGGLE = 1 << 8,
 } NodeTreeInterfaceSocketFlag;
-ENUM_OPERATORS(NodeTreeInterfaceSocketFlag, NODE_INTERFACE_SOCKET_INSPECT);
+ENUM_OPERATORS(NodeTreeInterfaceSocketFlag, NODE_INTERFACE_SOCKET_PANEL_TOGGLE);
 
 typedef struct bNodeTreeInterfaceSocket {
   bNodeTreeInterfaceItem item;
@@ -222,6 +224,8 @@ typedef struct bNodeTreeInterfacePanel {
   void foreach_item(blender::FunctionRef<bool(const bNodeTreeInterfaceItem &item)> fn,
                     bool include_self = false) const;
 
+  const bNodeTreeInterfaceSocket *get_header_toggle_socket() const;
+  // bNodeTreeInterfaceSocket *get_header_toggle_socket();
  private:
   /** Find a valid position for inserting in the items span. */
   int find_valid_insert_position_for_item(const bNodeTreeInterfaceItem &item,
