@@ -22,26 +22,24 @@
 #ifdef __cplusplus
 namespace blender::bke {
 class bNodeTreeInterfaceRuntime;
-}
+struct bNodeSocketType;
+}  // namespace blender::bke
 using bNodeTreeInterfaceRuntimeHandle = blender::bke::bNodeTreeInterfaceRuntime;
+using bNodeSocketTypeHandle = blender::bke::bNodeSocketType;
 #else
 typedef struct bNodeTreeInterfaceRuntimeHandle bNodeTreeInterfaceRuntimeHandle;
+typedef struct bNodeSocketTypeHandle bNodeSocketTypeHandle;
 #endif
 
-struct bContext;
 struct bNodeSocket;
-struct bNodeSocketType;
 struct bNodeTreeInterfaceItem;
 struct bNodeTreeInterfacePanel;
 struct bNodeTreeInterfaceSocket;
 struct ID;
 struct IDProperty;
 struct LibraryForeachIDData;
-struct PointerRNA;
-struct uiLayout;
 struct BlendWriter;
 struct BlendDataReader;
-struct BlendLibReader;
 
 /** Type of interface item. */
 typedef enum NodeTreeInterfaceItemType {
@@ -65,8 +63,10 @@ typedef enum NodeTreeInterfaceSocketFlag {
   NODE_INTERFACE_SOCKET_COMPACT = 1 << 4,
   NODE_INTERFACE_SOCKET_SINGLE_VALUE_ONLY = 1 << 5,
   NODE_INTERFACE_SOCKET_LAYER_SELECTION = 1 << 6,
+  /* INSPECT is used by Connect to Output operator to ensure socket that exits from node group. */
+  NODE_INTERFACE_SOCKET_INSPECT = 1 << 7,
 } NodeTreeInterfaceSocketFlag;
-ENUM_OPERATORS(NodeTreeInterfaceSocketFlag, NODE_INTERFACE_SOCKET_LAYER_SELECTION);
+ENUM_OPERATORS(NodeTreeInterfaceSocketFlag, NODE_INTERFACE_SOCKET_INSPECT);
 
 typedef struct bNodeTreeInterfaceSocket {
   bNodeTreeInterfaceItem item;
@@ -90,17 +90,17 @@ typedef struct bNodeTreeInterfaceSocket {
   /* Socket default value and associated data, e.g. bNodeSocketValueFloat. */
   void *socket_data;
 
-  IDProperty *properties;
+  struct IDProperty *properties;
 
 #ifdef __cplusplus
-  bNodeSocketType *socket_typeinfo() const;
+  bNodeSocketTypeHandle *socket_typeinfo() const;
   blender::ColorGeometry4f socket_color() const;
 
   /**
    * Set the \a socket_type and replace the \a socket_data.
    * \param new_socket_type: Socket type idname, e.g. "NodeSocketFloat"
    */
-  bool set_socket_type(const char *new_socket_type);
+  bool set_socket_type(blender::StringRef new_socket_type);
 
   /**
    * Use an existing socket to define an interface socket.
@@ -114,8 +114,8 @@ typedef struct bNodeTreeInterfaceSocket {
 typedef enum NodeTreeInterfacePanelFlag {
   /* Panel starts closed on new node instances. */
   NODE_INTERFACE_PANEL_DEFAULT_CLOSED = 1 << 0,
-  /* Allow child panels inside this panel. */
-  NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS = 1 << 1,
+  /* In the past, not all panels allowed child panels. Now all allow them. */
+  NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS_LEGACY = 1 << 1,
   /* Allow adding sockets after panels. */
   NODE_INTERFACE_PANEL_ALLOW_SOCKETS_AFTER_PANELS = 1 << 2,
 } NodeTreeInterfacePanelFlag;
@@ -130,6 +130,7 @@ typedef enum GeometryNodeDefaultInputType {
   GEO_NODE_DEFAULT_FIELD_INPUT_ID_INDEX_FIELD = 2,
   GEO_NODE_DEFAULT_FIELD_INPUT_NORMAL_FIELD = 3,
   GEO_NODE_DEFAULT_FIELD_INPUT_POSITION_FIELD = 4,
+  GEO_NODE_DEFAULT_FIELD_INPUT_INSTANCE_TRANSFORM_FIELD = 5,
 } GeometryNodeDefaultInputType;
 
 typedef struct bNodeTreeInterfacePanel {

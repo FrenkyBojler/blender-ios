@@ -6,10 +6,6 @@
  * \ingroup modifiers
  */
 
-#include <cstdio>
-
-#include "BLI_utildefines.h"
-
 #include "BLT_translation.hh"
 
 #include "DNA_object_force_types.h"
@@ -20,7 +16,7 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"

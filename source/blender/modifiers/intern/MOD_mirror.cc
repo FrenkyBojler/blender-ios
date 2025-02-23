@@ -23,7 +23,7 @@
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -166,7 +166,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiItemS(col);
 
-  uiItemR(col, ptr, "mirror_object", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "mirror_object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   uiItemR(col,
           ptr,

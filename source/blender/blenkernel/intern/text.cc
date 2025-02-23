@@ -17,7 +17,7 @@
 
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_cursor_utf8.h"
 #include "BLI_string_utf8.h"
@@ -25,20 +25,20 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_screen_types.h"
 #include "DNA_text_types.h"
 #include "DNA_userdef_types.h"
 
 #include "BKE_bpath.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_text.h"
 
 #include "BLO_read_write.hh"
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern.h"
+#  include "BPY_extern.hh"
 #endif
 
 /* -------------------------------------------------------------------- */
@@ -155,7 +155,7 @@ static void text_foreach_path(ID *id, BPathForeachPathData *bpath_data)
 {
   Text *text = (Text *)id;
 
-  if (text->filepath != nullptr) {
+  if (text->filepath != nullptr && text->filepath[0] != '\0') {
     BKE_bpath_foreach_path_allocated_process(bpath_data, &text->filepath);
   }
 }
@@ -187,7 +187,7 @@ static void text_blend_write(BlendWriter *writer, ID *id, const void *id_address
     }
 
     LISTBASE_FOREACH (TextLine *, tmp, &text->lines) {
-      BLO_write_raw(writer, tmp->len + 1, tmp->line);
+      BLO_write_string(writer, tmp->line);
     }
   }
 }

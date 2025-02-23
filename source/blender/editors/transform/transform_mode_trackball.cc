@@ -28,6 +28,8 @@
 
 #include "transform_mode.hh"
 
+namespace blender::ed::transform {
+
 /* -------------------------------------------------------------------- */
 /** \name Transform (Rotation - Trackball) Element
  * \{ */
@@ -140,7 +142,7 @@ static void applyTrackball(TransInfo *t)
   if (hasNumInput(&t->num)) {
     char c[NUM_STR_REP_LEN * 2];
 
-    outputNumInput(&(t->num), c, &t->scene->unit);
+    outputNumInput(&(t->num), c, t->scene->unit);
 
     ofs += BLI_snprintf_rlen(str + ofs,
                              sizeof(str) - ofs,
@@ -217,3 +219,5 @@ TransModeInfo TransMode_trackball = {
     /*snap_apply_fn*/ nullptr,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

@@ -353,11 +353,14 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_RESAMPLE_EDGES, "Resample Edges", NODE_CLASS_GEOMETRY);
+  static blender::bke::bNodeType ntype;
+  geo_node_type_base(&ntype, "GeometryNodeResampleEdges");
+  ntype.ui_name = "Resample Edges";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
+
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

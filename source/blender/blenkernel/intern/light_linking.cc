@@ -14,6 +14,7 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_assert.h"
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 
 #include "BKE_collection.hh"
@@ -433,6 +434,9 @@ bool BKE_light_linking_unlink_id_from_collection(Main *bmain,
   }
 
   DEG_id_tag_update(&collection->id, ID_RECALC_HIERARCHY);
+  if (id_type == ID_OB) {
+    DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
+  }
 
   DEG_relations_tag_update(bmain);
 

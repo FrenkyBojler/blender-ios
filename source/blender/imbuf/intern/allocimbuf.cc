@@ -9,6 +9,7 @@
 /* It's become a bit messy... Basically, only the IMB_ prefixed files
  * should remain. */
 
+#include <algorithm>
 #include <cstddef>
 
 #include "IMB_imbuf.hh"
@@ -24,7 +25,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_threads.h"
-#include "BLI_utildefines.h"
 
 #include "GPU_texture.hh"
 
@@ -341,9 +341,7 @@ bool imb_enlargeencodedbufferImBuf(ImBuf *ibuf)
   }
 
   uint newsize = 2 * ibuf->encoded_buffer_size;
-  if (newsize < 10000) {
-    newsize = 10000;
-  }
+  newsize = std::max<uint>(newsize, 10000);
 
   ImBufByteBuffer new_buffer;
   if (!imb_alloc_buffer(new_buffer, newsize, 1, 1, sizeof(uint8_t), true)) {
@@ -635,9 +633,6 @@ ImBuf *IMB_dupImBuf(const ImBuf *ibuf1)
   if (ibuf1->byte_buffer.data) {
     flags |= IB_rect;
   }
-  if (ibuf1->float_buffer.data) {
-    flags |= IB_rectfloat;
-  }
 
   x = ibuf1->x;
   y = ibuf1->y;
@@ -651,10 +646,18 @@ ImBuf *IMB_dupImBuf(const ImBuf *ibuf1)
     memcpy(ibuf2->byte_buffer.data, ibuf1->byte_buffer.data, size_t(x) * y * 4 * sizeof(uint8_t));
   }
 
-  if (flags & IB_rectfloat) {
+  if (ibuf1->float_buffer.data) {
+    /* Ensure the correct number of channels are being allocated for the new #ImBuf. Some
+     * compositing scenarios might end up with >4 channels and we want to duplicate them properly.
+     */
+    if (imb_addrectfloatImBuf(ibuf2, ibuf1->channels, false) == false) {
+      IMB_freeImBuf(ibuf2);
+      return nullptr;
+    }
+
     memcpy(ibuf2->float_buffer.data,
            ibuf1->float_buffer.data,
-           size_t(ibuf1->channels) * x * y * sizeof(float));
+           size_t(ibuf2->channels) * x * y * sizeof(float));
   }
 
   if (ibuf1->encoded_buffer.data) {

@@ -4,6 +4,8 @@
 
 #include "usd_reader_utils.hh"
 
+#include "BKE_idprop.hh"
+
 #include <pxr/usd/usd/attribute.h>
 
 #include "CLG_log.h"
@@ -27,7 +29,7 @@ void set_array_prop(IDProperty *idgroup,
   }
 
   IDPropertyTemplate val = {0};
-  val.array.len = static_cast<int>(vec.dimension);
+  val.array.len = int(vec.dimension);
 
   if (val.array.len <= 0) {
     CLOG_WARN(&LOG, "Invalid array length for prop %s", prop_name);
@@ -79,11 +81,6 @@ bool equivalent(const pxr::SdfValueTypeName &type_name1, const pxr::SdfValueType
 }  // anonymous namespace
 
 namespace blender::io::usd {
-
-/* TfToken objects are not cheap to construct, so we do it once. */
-namespace usdtokens {
-static const pxr::TfToken userProperties("userProperties", pxr::TfToken::Immortal);
-}  // namespace usdtokens
 
 static void set_string_prop(IDProperty *idgroup, const char *prop_name, const char *str_val)
 {

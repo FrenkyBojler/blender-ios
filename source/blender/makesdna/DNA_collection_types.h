@@ -68,6 +68,7 @@ typedef struct CollectionExport {
 
   /** Identifier that matches the #FileHandlerType.idname. */
   char fh_idname[64];
+  char name[64];
 
   IDProperty *export_properties;
   uint32_t flag;
@@ -133,6 +134,9 @@ typedef struct Collection {
   /** CollectionChild. */
   ListBase children;
 
+  char _pad0[4];
+
+  int active_exporter_index;
   ListBase exporters;
 
   struct PreviewImage *preview;
@@ -143,7 +147,7 @@ typedef struct Collection {
   uint8_t flag;
   int8_t color_tag;
 
-  char _pad0[2];
+  char _pad1[2];
 
   uint8_t lineart_usage; /* #eCollectionLineArt_Usage */
   uint8_t lineart_flags; /* #eCollectionLineArt_Flags */
@@ -181,7 +185,7 @@ enum {
   /**
    * That code (#BKE_main_collections_parent_relations_rebuild and the like)
    * is called from very low-level places, like e.g ID remapping...
-   * Using a generic tag like #LIB_TAG_DOIT for this is just impossible, we need our very own.
+   * Using a generic tag like #ID_TAG_DOIT for this is just impossible, we need our very own.
    */
   COLLECTION_TAG_RELATION_REBUILD = (1 << 0),
   /**

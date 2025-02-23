@@ -9,6 +9,7 @@
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
 
+#include <atomic>
 #include <cstring>
 
 #include "CLG_log.h"
@@ -27,10 +28,11 @@
 #include "BKE_idprop.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_object.hh"
-#include "BKE_object_types.hh"
 
 #include "DNA_ID.h"
 #include "DNA_collection_types.h"
@@ -41,7 +43,6 @@
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
 #include "DNA_windowmanager_types.h"
-#include "DNA_workspace_types.h"
 #include "DNA_world_types.h"
 
 #include "DEG_depsgraph.hh"
@@ -265,7 +266,12 @@ void BKE_view_layer_free_ex(ViewLayer *view_layer, const bool do_id_user)
   BLI_freelistN(&view_layer->lightgroups);
   view_layer->active_lightgroup = nullptr;
 
-  MEM_SAFE_FREE(view_layer->stats);
+  /* Cannot use MEM_SAFE_FREE, as #SceneStats type is only forward-declared in `DNA_layer_types.h`
+   */
+  if (view_layer->stats) {
+    MEM_freeN(static_cast<void *>(view_layer->stats));
+    view_layer->stats = nullptr;
+  }
 
   BKE_freestyle_config_free(&view_layer->freestyle_config, do_id_user);
 
@@ -571,7 +577,7 @@ void BKE_view_layer_rename(Main *bmain, Scene *scene, ViewLayer *view_layer, con
     int index = BLI_findindex(&scene->view_layers, view_layer);
 
     LISTBASE_FOREACH (bNode *, node, &scene->nodetree->nodes) {
-      if (node->type == CMP_NODE_R_LAYERS && node->id == nullptr) {
+      if (node->type_legacy == CMP_NODE_R_LAYERS && node->id == nullptr) {
         if (node->custom1 == index) {
           STRNCPY(node->name, view_layer->name);
         }
@@ -777,16 +783,24 @@ int BKE_layer_collection_findindex(ViewLayer *view_layer, const LayerCollection 
  *       See also #73411.
  * \{ */
 
-static bool no_resync = false;
+/* NOTE: This can also be modified from several threads (e.g. during depsgraph evaluation), leading
+ * to transitional big numbers. */
+static std::atomic<int32_t> no_resync = 0;
+/* Maximum allowed levels of re-entrant calls to #BKE_layer_collection_resync_forbid. */
+[[maybe_unused]] static constexpr int no_resync_recurse_max = 16 * 256;
 
 void BKE_layer_collection_resync_forbid()
 {
-  no_resync = true;
+  BLI_assert(no_resync >= 0);
+  BLI_assert(no_resync < no_resync_recurse_max - 1);
+  no_resync++;
 }
 
 void BKE_layer_collection_resync_allow()
 {
-  no_resync = false;
+  BLI_assert(no_resync > 0);
+  BLI_assert(no_resync < no_resync_recurse_max);
+  no_resync--;
 }
 
 struct LayerCollectionResync {
@@ -1220,7 +1234,9 @@ static void layer_collection_sync(ViewLayer *view_layer,
       child_layer->runtime_flag |= LAYER_COLLECTION_VISIBLE_VIEW_LAYER;
     }
 
-    if (!BLI_listbase_is_empty(&child_collection->exporters)) {
+    if (!BLI_listbase_is_empty(&child_collection->exporters) &&
+        !(ID_IS_LINKED(&child_collection->id) || ID_IS_OVERRIDE_LIBRARY(&child_collection->id)))
+    {
       view_layer->flag |= VIEW_LAYER_HAS_EXPORT_COLLECTIONS;
     }
   }
@@ -1307,7 +1323,7 @@ void BKE_layer_collection_doversion_2_80(const Scene *scene, ViewLayer *view_lay
 
 void BKE_layer_collection_sync(const Scene *scene, ViewLayer *view_layer)
 {
-  if (no_resync) {
+  if (no_resync > 0) {
     return;
   }
 
@@ -1418,7 +1434,7 @@ void BKE_layer_collection_sync(const Scene *scene, ViewLayer *view_layer)
 
 void BKE_scene_collection_sync(const Scene *scene)
 {
-  if (no_resync) {
+  if (no_resync > 0) {
     return;
   }
 
@@ -1429,7 +1445,7 @@ void BKE_scene_collection_sync(const Scene *scene)
 
 void BKE_main_collection_sync(const Main *bmain)
 {
-  if (no_resync) {
+  if (no_resync > 0) {
     return;
   }
 
@@ -1449,7 +1465,7 @@ void BKE_main_collection_sync(const Main *bmain)
 
 void BKE_main_collection_sync_remap(const Main *bmain)
 {
-  if (no_resync) {
+  if (no_resync > 0) {
     return;
   }
 
@@ -1778,7 +1794,7 @@ static void layer_collection_local_sync(const Scene *scene,
 
 void BKE_layer_collection_local_sync(const Scene *scene, ViewLayer *view_layer, const View3D *v3d)
 {
-  if (no_resync) {
+  if (no_resync > 0) {
     return;
   }
 
@@ -1797,7 +1813,7 @@ void BKE_layer_collection_local_sync(const Scene *scene, ViewLayer *view_layer, 
 
 void BKE_layer_collection_local_sync_all(const Main *bmain)
 {
-  if (no_resync) {
+  if (no_resync > 0) {
     return;
   }
 
@@ -2689,7 +2705,7 @@ void BKE_view_layer_rename_lightgroup(Scene *scene,
   if (scene != nullptr) {
     /* Update objects in the scene to refer to the new name instead. */
     FOREACH_SCENE_OBJECT_BEGIN (scene, ob) {
-      if (!ID_IS_LINKED(ob) && ob->lightgroup != nullptr) {
+      if (ID_IS_EDITABLE(ob) && ob->lightgroup != nullptr) {
         LightgroupMembership *lgm = ob->lightgroup;
         if (STREQ(lgm->name, old_name)) {
           STRNCPY_UTF8(lgm->name, lightgroup->name);
@@ -2699,7 +2715,7 @@ void BKE_view_layer_rename_lightgroup(Scene *scene,
     FOREACH_SCENE_OBJECT_END;
 
     /* Update the scene's world to refer to the new name instead. */
-    if (scene->world != nullptr && !ID_IS_LINKED(scene->world) &&
+    if (scene->world != nullptr && ID_IS_EDITABLE(scene->world) &&
         scene->world->lightgroup != nullptr)
     {
       LightgroupMembership *lgm = scene->world->lightgroup;

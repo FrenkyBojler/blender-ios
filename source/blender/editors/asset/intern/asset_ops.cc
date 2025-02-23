@@ -17,7 +17,7 @@
 #include "BKE_report.hh"
 
 #include "BLI_fnmatch.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_set.hh"
 
 #include "ED_asset.hh"
@@ -29,7 +29,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 
@@ -361,9 +361,9 @@ static bool asset_clear_poll(bContext *C, const Span<PointerRNA> ids)
 
 static std::string asset_clear_get_description(bContext * /*C*/,
                                                wmOperatorType * /*ot*/,
-                                               PointerRNA *values)
+                                               PointerRNA *ptr)
 {
-  const bool set_fake_user = RNA_boolean_get(values, "set_fake_user");
+  const bool set_fake_user = RNA_boolean_get(ptr, "set_fake_user");
   if (!set_fake_user) {
     return "";
   }
@@ -579,7 +579,11 @@ static asset_system::AssetCatalogService *get_catalog_service(bContext *C)
   }
 
   asset_system::AssetLibrary *asset_lib = ED_fileselect_active_asset_library_get(sfile);
-  return &asset_lib->catalog_service();
+  if (asset_lib) {
+    return &asset_lib->catalog_service();
+  }
+
+  return nullptr;
 }
 
 static int asset_catalog_undo_exec(bContext *C, wmOperator * /*op*/)
@@ -832,7 +836,7 @@ static const EnumPropertyItem *rna_asset_library_reference_itemf(bContext * /*C*
                                                                  PropertyRNA * /*prop*/,
                                                                  bool *r_free)
 {
-  const EnumPropertyItem *items = library_reference_to_rna_enum_itemf(false);
+  const EnumPropertyItem *items = custom_libraries_rna_enum_itemf();
   if (!items) {
     *r_free = false;
     return nullptr;
@@ -947,10 +951,10 @@ static bool has_external_files(Main *bmain, ReportList *reports)
 {
   FileCheckCallbackInfo callback_info = {reports, Set<std::string>()};
 
-  eBPathForeachFlag flag = static_cast<eBPathForeachFlag>(
-      BKE_BPATH_FOREACH_PATH_SKIP_PACKED          /* Packed files are fine. */
-      | BKE_BPATH_FOREACH_PATH_SKIP_MULTIFILE     /* Only report multi-files once, it's enough. */
-      | BKE_BPATH_TRAVERSE_SKIP_WEAK_REFERENCES); /* Only care about actually used files. */
+  eBPathForeachFlag flag =
+      (BKE_BPATH_FOREACH_PATH_SKIP_PACKED          /* Packed files are fine. */
+       | BKE_BPATH_FOREACH_PATH_SKIP_MULTIFILE     /* Only report multi-files once, it's enough. */
+       | BKE_BPATH_TRAVERSE_SKIP_WEAK_REFERENCES); /* Only care about actually used files. */
 
   BPathForeachPathData bpath_data = {
       /*bmain*/ bmain,

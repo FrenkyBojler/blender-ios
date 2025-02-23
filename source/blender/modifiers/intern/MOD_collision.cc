@@ -8,7 +8,7 @@
 
 #include "BLI_utildefines.h"
 
-#include "BLI_kdopbvh.h"
+#include "BLI_kdopbvh.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
@@ -29,7 +29,7 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MOD_ui_common.hh"
 

@@ -24,6 +24,8 @@
 
 #include "transform_mode.hh"
 
+namespace blender::ed::transform {
+
 /* -------------------------------------------------------------------- */
 /** \name Transform (Mirror)
  * \{ */
@@ -55,7 +57,7 @@ static void ElementMirror(TransInfo *t, TransDataContainer *tc, TransData *td, i
 
       mul_v3_v3v3(td->ext->size, td->ext->isize, fsize);
 
-      constraintSizeLim(t, td);
+      constraintSizeLim(t, tc, td);
     }
 
     float rmat[3][3];
@@ -231,3 +233,5 @@ TransModeInfo TransMode_mirror = {
     /*snap_apply_fn*/ nullptr,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

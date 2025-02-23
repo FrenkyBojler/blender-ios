@@ -11,20 +11,21 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_customdata_types.h"
-#include "DNA_image_types.h"
 #include "DNA_material_types.h"
 
 #include "BLI_ghash.h"
 #include "BLI_hash_mm2a.hh"
 #include "BLI_link_utils.h"
 #include "BLI_listbase.h"
+#include "BLI_span.hh"
 #include "BLI_string.h"
 #include "BLI_threads.h"
 #include "BLI_time.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_cryptomatte.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
+
+#include "IMB_colormanagement.hh"
 
 #include "GPU_capabilities.hh"
 #include "GPU_context.hh"
@@ -88,25 +89,31 @@ struct GPUCodegenCreateInfo : ShaderCreateInfo {
 };
 
 struct GPUPass {
-  GPUPass *next;
+  GPUPass *next = nullptr;
 
-  GPUShader *shader;
+  GPUShader *shader = nullptr;
   GPUCodegenCreateInfo *create_info = nullptr;
   /** Orphaned GPUPasses gets freed by the garbage collector. */
-  uint refcount;
+  uint refcount = 0;
   /** The last time the refcount was greater than 0. */
-  int gc_timestamp;
+  int gc_timestamp = 0;
   /** The engine type this pass is compiled for. */
-  eGPUMaterialEngine engine;
+  eGPUMaterialEngine engine = GPU_MAT_EEVEE_LEGACY;
   /** Identity hash generated from all GLSL code. */
-  uint32_t hash;
+  uint32_t hash = 0;
   /** Did we already tried to compile the attached GPUShader. */
-  bool compiled;
+  bool compiled = false;
+  /** If this pass is already being_compiled (A GPUPass can be shared by multiple GPUMaterials). */
+  bool compilation_requested = false;
   /** Hint that an optimized variant of this pass should be created based on a complexity heuristic
    * during pass code generation. */
-  bool should_optimize;
+  bool should_optimize = false;
   /** Whether pass is in the GPUPass cache. */
-  bool cached;
+  bool cached = false;
+  /** Protects pass shader from being created from multiple threads at the same time. */
+  ThreadMutex shader_creation_mutex = {};
+
+  BatchHandle async_compilation_handle = {};
 };
 
 /* -------------------------------------------------------------------- */
@@ -173,7 +180,7 @@ static GPUPass *gpu_pass_cache_resolve_collision(GPUPass *pass,
   return nullptr;
 }
 
-static bool gpu_pass_is_valid(GPUPass *pass)
+static bool gpu_pass_is_valid(const GPUPass *pass)
 {
   /* Shader is not null if compilation is successful. */
   return (pass->compiled == false || pass->shader != nullptr);
@@ -226,25 +233,31 @@ static std::ostream &operator<<(std::ostream &stream, const GPUOutput *output)
   return stream << SRC_NAME("out", output, outputs, "tmp") << output->id;
 }
 
-/* Trick type to change overload and keep a somewhat nice syntax. */
-struct GPUConstant : public GPUInput {};
-
 /* Print data constructor (i.e: vec2(1.0f, 1.0f)). */
-static std::ostream &operator<<(std::ostream &stream, const GPUConstant *input)
+static std::ostream &operator<<(std::ostream &stream, const blender::Span<float> &span)
 {
-  stream << input->type << "(";
-  for (int i = 0; i < input->type; i++) {
+  stream << (eGPUType)span.size() << "(";
+  /* Use uint representation to allow exact same bit pattern even if NaN. This is
+   * because we can pass UINTs as floats for constants. */
+  const blender::Span<uint32_t> uint_span = span.cast<uint32_t>();
+  for (const uint32_t &element : uint_span) {
     char formatted_float[32];
-    /* Use uint representation to allow exact same bit pattern even if NaN. This is because we can
-     * pass UINTs as floats for constants. */
-    const uint32_t *uint_vec = reinterpret_cast<const uint32_t *>(input->vec);
-    SNPRINTF(formatted_float, "uintBitsToFloat(%uu)", uint_vec[i]);
+    SNPRINTF(formatted_float, "uintBitsToFloat(%uu)", element);
     stream << formatted_float;
-    if (i < input->type - 1) {
+    if (&element != &uint_span.last()) {
       stream << ", ";
     }
   }
   stream << ")";
+  return stream;
+}
+
+/* Trick type to change overload and keep a somewhat nice syntax. */
+struct GPUConstant : public GPUInput {};
+
+static std::ostream &operator<<(std::ostream &stream, const GPUConstant *input)
+{
+  stream << blender::Span<float>(input->vec, input->type);
   return stream;
 }
 
@@ -280,10 +293,6 @@ class GPUCodegen {
     create_info = new GPUCodegenCreateInfo("codegen");
     output.create_info = reinterpret_cast<GPUShaderCreateInfo *>(
         static_cast<ShaderCreateInfo *>(create_info));
-
-    if (GPU_material_flag_get(mat_, GPU_MATFLAG_OBJECT_INFO)) {
-      create_info->additional_info("draw_object_infos");
-    }
   }
 
   ~GPUCodegen()
@@ -342,7 +351,7 @@ void GPUCodegen::generate_attribs()
   /* Input declaration, loading / assignment to interface and geometry shader passthrough. */
   std::stringstream load_ss;
 
-  int slot = 15;
+  int slot = GPU_shader_draw_parameters_support() ? 15 : 14;
   LISTBASE_FOREACH (GPUMaterialAttribute *, attr, &graph.attributes) {
     if (slot == -1) {
       BLI_assert_msg(0, "Too many attributes");
@@ -390,24 +399,6 @@ void GPUCodegen::generate_attribs()
 void GPUCodegen::generate_resources()
 {
   GPUCodegenCreateInfo &info = *create_info;
-
-  /* Ref. #98190: Defines are optimizations for old compilers.
-   * Might become unnecessary with EEVEE-Next. */
-  if (GPU_material_flag_get(&mat, GPU_MATFLAG_PRINCIPLED_COAT)) {
-    info.define("PRINCIPLED_COAT");
-  }
-  if (GPU_material_flag_get(&mat, GPU_MATFLAG_PRINCIPLED_METALLIC)) {
-    info.define("PRINCIPLED_METALLIC");
-  }
-  if (GPU_material_flag_get(&mat, GPU_MATFLAG_PRINCIPLED_DIELECTRIC)) {
-    info.define("PRINCIPLED_DIELECTRIC");
-  }
-  if (GPU_material_flag_get(&mat, GPU_MATFLAG_PRINCIPLED_GLASS)) {
-    info.define("PRINCIPLED_GLASS");
-  }
-  if (GPU_material_flag_get(&mat, GPU_MATFLAG_PRINCIPLED_ANY)) {
-    info.define("PRINCIPLED_ANY");
-  }
 
   std::stringstream ss;
 
@@ -548,6 +539,13 @@ void GPUCodegen::node_serialize(std::stringstream &eval_ss, const GPUNode *node)
         }
 
         if (from != to) {
+          /* Special case that needs luminance coefficients as argument. */
+          if (from == GPU_VEC4 && to == GPU_FLOAT) {
+            float coefficients[3];
+            IMB_colormanagement_get_luminance_coefficients(coefficients);
+            eval_ss << ", " << blender::Span<float>(coefficients, 3);
+          }
+
           eval_ss << ")";
         }
         break;
@@ -630,8 +628,8 @@ void GPUCodegen::generate_cryptomatte()
   float material_hash = 0.0f;
   Material *material = GPU_material_get_material(&mat);
   if (material) {
-    blender::bke::cryptomatte::CryptomatteHash hash(material->id.name,
-                                                    BLI_strnlen(material->id.name, MAX_NAME - 2));
+    blender::bke::cryptomatte::CryptomatteHash hash(
+        material->id.name + 2, BLI_strnlen(material->id.name + 2, MAX_NAME - 2));
     material_hash = hash.float_encoded();
   }
   cryptomatte_input_->vec[0] = material_hash;
@@ -798,18 +796,23 @@ GPUPass *GPU_generate_pass(GPUMaterial *material,
   else {
     /* We still create a pass even if shader compilation
      * fails to avoid trying to compile again and again. */
-    pass = (GPUPass *)MEM_callocN(sizeof(GPUPass), "GPUPass");
+    pass = MEM_new<GPUPass>("GPUPass");
     pass->shader = nullptr;
     pass->refcount = 1;
     pass->create_info = codegen.create_info;
+    /* Finalize before adding the pass to the cache, to prevent race conditions. */
+    pass->create_info->finalize();
     pass->engine = engine;
     pass->hash = codegen.hash_get();
     pass->compiled = false;
+    pass->compilation_requested = false;
     pass->cached = false;
     /* Only flag pass optimization hint if this is the first generated pass for a material.
      * Optimized passes cannot be optimized further, even if the heuristic is still not
      * favorable. */
     pass->should_optimize = (!optimize_graph) && codegen.should_optimize_heuristic();
+    pass->async_compilation_handle = -1;
+    BLI_mutex_init(&pass->shader_creation_mutex);
 
     codegen.create_info = nullptr;
 
@@ -881,17 +884,22 @@ static bool gpu_pass_shader_validate(GPUPass *pass, GPUShader *shader)
   return (active_samplers_len * 3 <= GPU_max_textures());
 }
 
-bool GPU_pass_compile(GPUPass *pass, const char *shname)
+GPUShaderCreateInfo *GPU_pass_begin_compilation(GPUPass *pass, const char *shname)
+{
+  if (!pass->compilation_requested) {
+    pass->compilation_requested = true;
+    pass->create_info->name_ = shname;
+    GPUShaderCreateInfo *info = reinterpret_cast<GPUShaderCreateInfo *>(
+        static_cast<ShaderCreateInfo *>(pass->create_info));
+    return info;
+  }
+  return nullptr;
+}
+
+bool GPU_pass_finalize_compilation(GPUPass *pass, GPUShader *shader)
 {
   bool success = true;
   if (!pass->compiled) {
-    GPUShaderCreateInfo *info = reinterpret_cast<GPUShaderCreateInfo *>(
-        static_cast<ShaderCreateInfo *>(pass->create_info));
-
-    pass->create_info->name_ = shname;
-
-    GPUShader *shader = GPU_shader_create_from_info(info);
-
     /* NOTE: Some drivers / gpu allows more active samplers than the opengl limit.
      * We need to make sure to count active samplers to avoid undefined behavior. */
     if (!gpu_pass_shader_validate(pass, shader)) {
@@ -908,6 +916,61 @@ bool GPU_pass_compile(GPUPass *pass, const char *shname)
   return success;
 }
 
+void GPU_pass_begin_async_compilation(GPUPass *pass, const char *shname)
+{
+  BLI_mutex_lock(&pass->shader_creation_mutex);
+
+  if (pass->async_compilation_handle == -1) {
+    if (GPUShaderCreateInfo *info = GPU_pass_begin_compilation(pass, shname)) {
+      pass->async_compilation_handle = GPU_shader_batch_create_from_infos({info});
+    }
+    else {
+      /* The pass has been already compiled synchronously. */
+      BLI_assert(pass->compiled);
+      pass->async_compilation_handle = 0;
+    }
+  }
+
+  BLI_mutex_unlock(&pass->shader_creation_mutex);
+}
+
+bool GPU_pass_async_compilation_try_finalize(GPUPass *pass)
+{
+  BLI_mutex_lock(&pass->shader_creation_mutex);
+
+  BLI_assert(pass->async_compilation_handle != -1);
+  if (pass->async_compilation_handle) {
+    if (GPU_shader_batch_is_ready(pass->async_compilation_handle)) {
+      GPU_pass_finalize_compilation(
+          pass, GPU_shader_batch_finalize(pass->async_compilation_handle).first());
+    }
+  }
+
+  BLI_mutex_unlock(&pass->shader_creation_mutex);
+
+  return pass->async_compilation_handle == 0;
+}
+
+bool GPU_pass_compile(GPUPass *pass, const char *shname)
+{
+  BLI_mutex_lock(&pass->shader_creation_mutex);
+
+  bool success = true;
+  if (pass->async_compilation_handle > 0) {
+    /* We're trying to compile this pass synchronously, but there's a pending asynchronous
+     * compilation already started. */
+    success = GPU_pass_finalize_compilation(
+        pass, GPU_shader_batch_finalize(pass->async_compilation_handle).first());
+  }
+  else if (GPUShaderCreateInfo *info = GPU_pass_begin_compilation(pass, shname)) {
+    GPUShader *shader = GPU_shader_create_from_info(info);
+    success = GPU_pass_finalize_compilation(pass, shader);
+  }
+
+  BLI_mutex_unlock(&pass->shader_creation_mutex);
+  return success;
+}
+
 GPUShader *GPU_pass_shader_get(GPUPass *pass)
 {
   return pass->shader;
@@ -916,11 +979,20 @@ GPUShader *GPU_pass_shader_get(GPUPass *pass)
 static void gpu_pass_free(GPUPass *pass)
 {
   BLI_assert(pass->refcount == 0);
+  BLI_mutex_end(&pass->shader_creation_mutex);
   if (pass->shader) {
     GPU_shader_free(pass->shader);
   }
   delete pass->create_info;
-  MEM_freeN(pass);
+  MEM_delete(pass);
+}
+
+void GPU_pass_acquire(GPUPass *pass)
+{
+  BLI_spin_lock(&pass_cache_spin);
+  BLI_assert(pass->refcount > 0);
+  pass->refcount++;
+  BLI_spin_unlock(&pass_cache_spin);
 }
 
 void GPU_pass_release(GPUPass *pass)

@@ -15,9 +15,13 @@
 
 #include "DNA_text_types.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_fileops.h"
+#include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_math_vector.h"
+#include "BLI_path_utils.hh"
+#include "BLI_rect.h"
+#include "BLI_string.h"
 #include "BLI_string_cursor_utf8.h"
 #include "BLI_string_utf8.h"
 #include "BLI_time.h"
@@ -43,8 +47,8 @@
 #include "RNA_define.hh"
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern.h"
-#  include "BPY_extern_run.h"
+#  include "BPY_extern.hh"
+#  include "BPY_extern_run.hh"
 #endif
 
 #include "text_format.hh"
@@ -384,8 +388,7 @@ void TEXT_OT_new(wmOperatorType *ot)
 
 static void text_open_init(bContext *C, wmOperator *op)
 {
-  PropertyPointerRNA *pprop = static_cast<PropertyPointerRNA *>(
-      MEM_callocN(sizeof(PropertyPointerRNA), "OpenPropertyPointerRNA"));
+  PropertyPointerRNA *pprop = MEM_new<PropertyPointerRNA>(__func__);
 
   op->customdata = pprop;
   UI_context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
@@ -393,7 +396,7 @@ static void text_open_init(bContext *C, wmOperator *op)
 
 static void text_open_cancel(bContext * /*C*/, wmOperator *op)
 {
-  MEM_freeN(op->customdata);
+  MEM_delete(static_cast<PropertyPointerRNA *>(op->customdata));
 }
 
 static int text_open_exec(bContext *C, wmOperator *op)
@@ -439,7 +442,7 @@ static int text_open_exec(bContext *C, wmOperator *op)
   space_text_drawcache_tag_update(st, true);
   WM_event_add_notifier(C, NC_TEXT | NA_ADDED, text);
 
-  MEM_freeN(op->customdata);
+  MEM_delete(pprop);
 
   return OPERATOR_FINISHED;
 }
@@ -861,6 +864,7 @@ static int text_run_script(bContext *C, ReportList *reports)
   /* only for comparison */
   void *curl_prev = text->curl;
   int curc_prev = text->curc;
+  int selc_prev = text->selc;
 
   if (BPY_run_text(C, text, reports, !is_live)) {
     if (is_live) {
@@ -874,7 +878,7 @@ static int text_run_script(bContext *C, ReportList *reports)
   if (!is_live) {
     /* text may have freed itself */
     if (CTX_data_edit_text(C) == text) {
-      if (text->curl != curl_prev || curc_prev != text->curc) {
+      if (text->curl != curl_prev || curc_prev != text->curc || selc_prev != text->selc) {
         space_text_update_cursor_moved(C);
         WM_event_add_notifier(C, NC_TEXT | NA_EDITED, text);
       }
@@ -1481,9 +1485,7 @@ static int text_convert_whitespace_exec(bContext *C, wmOperator *op)
     tmp->line = new_line;
     tmp->len = strlen(new_line);
     tmp->format = nullptr;
-    if (tmp->len > max_len) {
-      max_len = tmp->len;
-    }
+    max_len = std::max<size_t>(tmp->len, max_len);
   }
 
   if (type == TO_TABS) {
@@ -2256,9 +2258,7 @@ static void space_text_cursor_skip(
     }
   }
 
-  if (*charp > (*linep)->len) {
-    *charp = (*linep)->len;
-  }
+  *charp = std::min(*charp, (*linep)->len);
 
   if (!sel) {
     txt_pop_sel(text);
@@ -2684,7 +2684,7 @@ static void space_text_screen_skip(SpaceText *st, ARegion *region, int lines)
   space_text_screen_clamp(st, region);
 }
 
-/* quick enum for tsc->zone (scroller handles) */
+/** Enum for #TextScroll::zone (scroll-bar handles). */
 enum eScrollZone {
   SCROLLHANDLE_INVALID_OUTSIDE = -1,
   SCROLLHANDLE_BAR,
@@ -3268,9 +3268,7 @@ static void text_cursor_set_to_pos(
   y = (region->winy - 2 - y) / TXT_LINE_HEIGHT(st);
 
   x -= TXT_BODY_LEFT(st);
-  if (x < 0) {
-    x = 0;
-  }
+  x = std::max(x, 0);
   x = space_text_pixel_x_to_column(st, x) + st->left;
 
   if (st->wordwrap) {
@@ -3841,7 +3839,7 @@ static int text_find_and_replace(bContext *C, wmOperator *op, short mode)
   }
   else {
     if (!found) {
-      BKE_reportf(op->reports, RPT_WARNING, "Text not found: %s", st->findstr);
+      BKE_reportf(op->reports, RPT_INFO, "Text not found: %s", st->findstr);
     }
   }
 
