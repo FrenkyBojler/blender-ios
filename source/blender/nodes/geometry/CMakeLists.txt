@@ -72,6 +72,7 @@ set(SRC
   nodes/node_geo_edge_split.cc
   nodes/node_geo_edges_to_face_groups.cc
   nodes/node_geo_evaluate_at_index.cc
+  nodes/node_geo_evaluate_in_space.cc
   nodes/node_geo_evaluate_on_domain.cc
   nodes/node_geo_extrude_mesh.cc
   nodes/node_geo_flip_faces.cc
@@ -174,6 +175,7 @@ set(SRC
   nodes/node_geo_rotate_instances.cc
   nodes/node_geo_sample_grid.cc
   nodes/node_geo_sample_grid_index.cc
+  nodes/node_geo_sample_in_space.cc
   nodes/node_geo_sample_index.cc
   nodes/node_geo_sample_nearest.cc
   nodes/node_geo_sample_nearest_surface.cc
