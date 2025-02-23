@@ -389,34 +389,34 @@ class MOFile {
 /* Message lookup key. */
 
 struct MessageKeyRef {
-  StringRef context_;
-  StringRef str_;
+  StringRef context;
+  StringRef str;
 
   uint64_t hash() const
   {
-    return get_default_hash(context_, str_);
+    return get_default_hash(this->context, this->str);
   }
 };
 
 struct MessageKey {
-  std::string context_;
-  std::string str_;
+  std::string context;
+  std::string str;
 
   MessageKey(const StringRef c)
   {
     const size_t pos = c.find(char(4));
     if (pos == StringRef::not_found) {
-      str_ = c;
+      this->str = c;
     }
     else {
-      context_ = c.substr(0, pos);
-      str_ = c.substr(pos + 1);
+      this->context = c.substr(0, pos);
+      this->str = c.substr(pos + 1);
     }
   }
 
   uint64_t hash() const
   {
-    return get_default_hash(context_, str_);
+    return get_default_hash(this->context, this->str);
   }
 
   static uint64_t hash_as(const MessageKeyRef &key)
@@ -427,12 +427,12 @@ struct MessageKey {
 
 inline bool operator==(const MessageKey &a, const MessageKey &b)
 {
-  return a.context_ == b.context_ && a.str_ == b.str_;
+  return a.context == b.context && a.str == b.str;
 }
 
 inline bool operator==(const MessageKeyRef &a, const MessageKey &b)
 {
-  return a.context_ == b.context_ && a.str_ == b.str_;
+  return a.context == b.context && a.str == b.str;
 }
 
 /* Messages translation based on .mo files. */
@@ -461,14 +461,19 @@ class MOMessages {
     }
   }
 
-  const char *translate(const int domain, const StringRef context, const StringRef str) const
+  std::optional<StringRefNull> translate(const int domain,
+                                         const StringRef context,
+                                         const StringRef str) const
   {
     if (domain < 0 || domain >= catalogs_.size()) {
-      return nullptr;
+      return std::nullopt;
     }
     const MessageKeyRef key{context, str};
     const std::string *result = catalogs_[domain].lookup_ptr_as(key);
-    return (result) ? result->c_str() : nullptr;
+    if (!result) {
+      return std::nullopt;
+    }
+    return *result;
   }
 
   const std::string &error()
@@ -598,10 +603,12 @@ void free()
   global_full_name = "";
 }
 
-const char *translate(const int domain, const StringRef context, const StringRef key)
+std::optional<StringRefNull> translate(const int domain,
+                                       const StringRef context,
+                                       const StringRef key)
 {
   if (!global_messages) {
-    return nullptr;
+    return std::nullopt;
   }
 
   return global_messages->translate(domain, context, key);

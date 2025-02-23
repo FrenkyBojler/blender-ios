@@ -68,9 +68,9 @@ void DRW_volume_batch_cache_dirty_tag(Volume *volume, int mode);
 void DRW_volume_batch_cache_validate(Volume *volume);
 void DRW_volume_batch_cache_free(Volume *volume);
 
-void DRW_grease_pencil_batch_cache_dirty_tag(GreasePencil *grase_pencil, int mode);
-void DRW_grease_pencil_batch_cache_validate(GreasePencil *grase_pencil);
-void DRW_grease_pencil_batch_cache_free(GreasePencil *grase_pencil);
+void DRW_grease_pencil_batch_cache_dirty_tag(GreasePencil *grease_pencil, int mode);
+void DRW_grease_pencil_batch_cache_validate(GreasePencil *grease_pencil);
+void DRW_grease_pencil_batch_cache_free(GreasePencil *grease_pencil);
 
 /** \} */
 
@@ -188,7 +188,7 @@ blender::gpu::Batch *DRW_mesh_batch_cache_get_all_edges(Mesh &mesh);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_loose_edges(Mesh &mesh);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_edge_detection(Mesh &mesh, bool *r_is_manifold);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_surface(Mesh &mesh);
-blender::gpu::Batch *DRW_mesh_batch_cache_get_surface_edges(Object &object, Mesh &mesh);
+blender::gpu::Batch *DRW_mesh_batch_cache_get_surface_edges(Mesh &mesh);
 Span<gpu::Batch *> DRW_mesh_batch_cache_get_surface_shaded(Object &object,
                                                            Mesh &mesh,
                                                            Span<const GPUMaterial *> materials);
