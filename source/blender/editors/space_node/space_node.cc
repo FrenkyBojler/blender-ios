@@ -38,6 +38,8 @@
 #include "BKE_node_tree_zones.hh"
 #include "BKE_screen.hh"
 
+#include "BLT_translation.hh"
+
 #include "ED_image.hh"
 #include "ED_node.hh"
 #include "ED_node_preview.hh"
@@ -351,7 +353,7 @@ bool push_compute_context_for_tree_path(const SpaceNode &snode,
   for (const int i : tree_path.index_range().drop_back(1)) {
     bNodeTree *tree = tree_path[i]->nodetree;
     const char *group_node_name = tree_path[i + 1]->node_name;
-    const bNode *group_node = blender::bke::node_find_node_by_name(tree, group_node_name);
+    const bNode *group_node = blender::bke::node_find_node_by_name(*tree, group_node_name);
     if (group_node == nullptr) {
       return false;
     }
@@ -961,6 +963,11 @@ static void node_region_listener(const wmRegionListenerParams *params)
           break;
       }
       break;
+    case NC_ANIMATION:
+      if (wmn->data == ND_NLA_ACTCHANGE) {
+        ED_region_tag_redraw(region);
+      }
+      break;
     case NC_SCREEN:
       if (wmn->data == ND_LAYOUTSET || wmn->action == NA_EDITED) {
         WM_gizmomap_tag_refresh(gzmap);
@@ -1052,7 +1059,7 @@ static int /*eContextResult*/ node_context(const bContext *C,
   }
   if (CTX_data_equals(member, "active_node")) {
     if (snode->edittree) {
-      bNode *node = bke::node_get_active(snode->edittree);
+      bNode *node = bke::node_get_active(*snode->edittree);
       CTX_data_pointer_set(result, &snode->edittree->id, &RNA_Node, node);
     }
 
@@ -1327,6 +1334,9 @@ static blender::StringRefNull node_space_name_get(const ScrArea *area)
 {
   SpaceNode *snode = static_cast<SpaceNode *>(area->spacedata.first);
   bke::bNodeTreeType *tree_type = bke::node_tree_type_find(snode->tree_idname);
+  if (tree_type == nullptr) {
+    return IFACE_("Node Editor");
+  }
   return tree_type->ui_name;
 }
 
@@ -1334,6 +1344,9 @@ static int node_space_icon_get(const ScrArea *area)
 {
   SpaceNode *snode = static_cast<SpaceNode *>(area->spacedata.first);
   bke::bNodeTreeType *tree_type = bke::node_tree_type_find(snode->tree_idname);
+  if (tree_type == nullptr) {
+    return ICON_NODETREE;
+  }
   return tree_type->ui_icon;
 }
 

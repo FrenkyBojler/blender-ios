@@ -16,6 +16,7 @@ set(SRC
   intern/add_curves_on_mesh.cc
   intern/bounding_sphere.cc
   intern/curve_constraints.cc
+  intern/curves_remove_and_split.cc
   intern/extend_curves.cc
   intern/extract_elements.cc
   intern/fast_multipole_method.cc

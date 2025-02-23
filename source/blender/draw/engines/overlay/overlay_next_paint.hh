@@ -64,6 +64,7 @@ class Paints : Overlay {
     {
       auto &pass = paint_region_ps_;
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+      pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
       {
         auto &sub = pass.sub("Face");
         sub.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL |
@@ -94,8 +95,10 @@ class Paints : Overlay {
       /* Support masked transparency in Workbench.
        * EEVEE can't be supported since depth won't match. */
       const eDrawType shading_type = eDrawType(state.v3d->shading.type);
-      const bool masked_transparency_support = (shading_type <= OB_SOLID) ||
-                                               BKE_scene_uses_blender_workbench(state.scene);
+      const bool masked_transparency_support = ((shading_type == OB_SOLID) ||
+                                                (shading_type >= OB_SOLID &&
+                                                 BKE_scene_uses_blender_workbench(state.scene))) &&
+                                               !state.xray_enabled;
       const bool shadeless = shading_type == OB_WIRE;
       const bool draw_contours = state.overlay.wpaint_flag & V3D_OVERLAY_WPAINT_CONTOURS;
 
@@ -108,6 +111,7 @@ class Paints : Overlay {
       pass.shader_set(shadeless ? res.shaders.paint_weight.get() :
                                   res.shaders.paint_weight_fake_shading.get());
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+      pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
       pass.bind_texture("colorramp", &res.weight_ramp_tx);
       pass.push_constant("drawContours", draw_contours);
       pass.push_constant("opacity", state.overlay.weight_paint_mode_opacity);
@@ -132,6 +136,7 @@ class Paints : Overlay {
                        state.clipping_plane_count);
         pass.shader_set(res.shaders.paint_texture.get());
         pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+        pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
         pass.bind_texture("maskImage", mask_texture);
         pass.push_constant("maskPremult", mask_premult);
         pass.push_constant("maskInvertStencil", mask_inverted);

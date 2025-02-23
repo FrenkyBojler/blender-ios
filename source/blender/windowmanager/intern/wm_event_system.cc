@@ -29,6 +29,7 @@
 #include "GHOST_C-api.h"
 
 #include "BLI_ghash.h"
+#include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -6595,6 +6596,10 @@ void WM_window_cursor_keymap_status_refresh(bContext *C, wmWindow *win)
         name = TIP_("Options");
       }
       else if (ot) {
+        /* Skip internal operators. */
+        if (ot->flag & OPTYPE_INTERNAL) {
+          continue;
+        }
         name = WM_operatortype_name(ot, kmi->ptr);
       }
       else {
