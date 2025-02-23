@@ -23,6 +23,7 @@ set(INC_SYS
 )
 
 set(SRC
+  nodes/node_geo_2d_grid_to_curve.cc
   nodes/node_geo_accumulate_field.cc
   nodes/node_geo_attribute_capture.cc
   nodes/node_geo_attribute_domain_size.cc
@@ -365,6 +366,9 @@ if(WITH_TBB AND MSVC_CLANG)
   string(APPEND CMAKE_CXX_FLAGS " /D_LIBCPP_VERSION")
 endif()
 
+if(WITH_POTRACE)
+  add_definitions(-DWITH_POTRACE)
+endif()
 
 blender_add_lib(bf_nodes_geometry "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 target_link_libraries(bf_nodes_geometry_generated bf_nodes_geometry)

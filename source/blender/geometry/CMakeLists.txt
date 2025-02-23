@@ -13,6 +13,7 @@ set(INC_SYS
 
 set(SRC
   intern/abstract_kd_bucket_hierarchy.cc
+  intern/2d_grid_to_curve.cc
   intern/add_curves_on_mesh.cc
   intern/bounding_sphere.cc
   intern/curve_constraints.cc
@@ -59,6 +60,7 @@ set(SRC
   intern/volume_grid_resample.cc
 
   GEO_abstract_kd_bucket_hierarchy.hh
+  GEO_2d_grid_to_curve.hh
   GEO_add_curves_on_mesh.hh
   GEO_bounding_sphere.hh
   GEO_curve_constraints.hh
@@ -148,6 +150,16 @@ if(WITH_GMP)
   list(APPEND LIB
     ${GMP_LIBRARIES}
   )
+endif()
+
+if(WITH_POTRACE)
+  list(APPEND INC
+    ${POTRACE_INCLUDE_DIRS}
+  )
+  list(APPEND LIB
+    ${POTRACE_LIBRARIES}
+  )
+  add_definitions(-DWITH_POTRACE)
 endif()
 
 blender_add_lib(bf_geometry "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
