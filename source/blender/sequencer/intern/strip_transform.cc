@@ -11,7 +11,7 @@
 #include "BLI_bounds.hh"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
-
+#include "BKE_scene.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_math_matrix.hh"
@@ -444,6 +444,7 @@ static void strip_transform_handle_overwrite_trim(Scene *scene,
           scene, strip, SEQ_time_left_handle_frame_get(scene, transformed));
     }
   }
+  update_for_newframe(scene);
 }
 
 static void strip_transform_handle_overwrite(Scene *scene,
@@ -536,6 +537,7 @@ void SEQ_transform_handle_overlap(Scene *scene,
     }
     strip->flag &= ~SEQ_OVERLAP;
   }
+  update_for_newframe(scene);
 }
 
 void SEQ_transform_offset_after_frame(Scene *scene,

@@ -2634,6 +2634,30 @@ void BKE_scene_graph_update_for_newframe(Depsgraph *depsgraph)
 {
   BKE_scene_graph_update_for_newframe_ex(depsgraph, true);
 }
+void update_for_newframe(Scene *scene)
+{
+  if (scene->ed) {
+    scene->r.efra = calculate_dynamic_end_frame(scene);
+  }
+}
+static int calculate_dynamic_end_frame(Scene *scene)
+{
+  Editing *ed = scene->ed;
+  if (!ed) {
+    return scene->r.efra;  // No VSE, keep existing end frame
+  }
+
+  int max_end = 0;  // Track the latest end frame
+
+  LISTBASE_FOREACH (Strip *, seq, &ed->seqbase) {
+    int strip_end = seq->start+seq->len;
+    if (strip_end > max_end) {
+      max_end = strip_end;
+    }
+  }
+
+  return max_end;
+}
 
 void BKE_scene_view_layer_graph_evaluated_ensure(Main *bmain, Scene *scene, ViewLayer *view_layer)
 {

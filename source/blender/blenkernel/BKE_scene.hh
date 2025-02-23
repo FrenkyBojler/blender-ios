@@ -309,3 +309,5 @@ TransformOrientation *BKE_scene_transform_orientation_find(const Scene *scene, i
  */
 int BKE_scene_transform_orientation_get_index(const Scene *scene,
                                               const TransformOrientation *orientation);
+void update_for_newframe(Scene *scene);
+int calculate_dynamic_end_frame(Scene *scene);

@@ -144,6 +144,7 @@ Strip *SEQ_add_movieclip_strip(Scene *scene, ListBase *seqbase, SeqLoadData *loa
   id_us_ensure_real((ID *)load_data->clip);
   strip_add_set_name(scene, strip, load_data);
   strip_add_generic_update(scene, strip);
+  update_for_newframe(scene);
   return strip;
 }
 
@@ -278,7 +279,7 @@ Strip *SEQ_add_image_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqLoad
   strip_add_set_view_transform(scene, strip, load_data);
   strip_add_set_name(scene, strip, load_data);
   strip_add_generic_update(scene, strip);
-
+  update_for_newframe(scene);
   return strip;
 }
 
@@ -370,6 +371,7 @@ Strip *SEQ_add_sound_strip(Main * /*bmain*/,
                            ListBase * /*seqbase*/,
                            SeqLoadData * /*load_data*/)
 {
+  update_for_newframe(scene);
   return nullptr;
 }
 #endif  // WITH_AUDASPACE
@@ -522,6 +524,7 @@ Strip *SEQ_add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqLoad
   strip_add_generic_update(scene, strip);
 
   MEM_freeN(anim_arr);
+  update_for_newframe(scene);
   return strip;
 }
 

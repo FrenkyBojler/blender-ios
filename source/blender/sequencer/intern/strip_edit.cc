@@ -19,7 +19,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_sound.h"
-
+#include "BKE_scene.hh"
 #include "strip_time.hh"
 
 #include "SEQ_add.hh"
@@ -188,6 +188,7 @@ void SEQ_edit_remove_flagged_sequences(Scene *scene, ListBase *seqbase)
       SEQ_strip_lookup_invalidate(scene->ed);
     }
   }
+  update_for_newframe(scene);
 }
 
 bool SEQ_edit_move_strip_to_seqbase(Scene *scene,
@@ -204,6 +205,7 @@ bool SEQ_edit_move_strip_to_seqbase(Scene *scene,
   if (SEQ_transform_test_overlap(scene, dst_seqbase, strip)) {
     SEQ_transform_seqbase_shuffle(dst_seqbase, strip, scene);
   }
+  update_for_newframe(scene);
 
   return true;
 }
@@ -516,6 +518,7 @@ bool SEQ_edit_remove_gaps(Scene *scene,
     SEQ_transform_offset_after_frame(
         scene, seqbase, -gap_info.gap_length, gap_info.gap_start_frame);
   }
+  update_for_newframe(scene);
   return true;
 }
 
