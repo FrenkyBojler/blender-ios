@@ -53,7 +53,7 @@ class MaskByColorTest(unittest.TestCase):
 
     def test_on_circle_masks_red_vertices(self):
         with bpy.context.temp_override(**self.context_override):
-            location = (int(self.context_override['area'].width/2), int(self.context_override['area'].height/2))
+            location = (int(self.context_override['area'].width / 2), int(self.context_override['area'].height / 2))
             ret_val = bpy.ops.sculpt.mask_by_color(location=location)
 
             self.assertEqual({'FINISHED'}, ret_val)
@@ -76,7 +76,8 @@ class MaskByColorTest(unittest.TestCase):
             if color_data[i][1] < 0.4 and color_data[i][2] < 0.4:
                 self.assertTrue(mask_data[i] > 0.0, f"Vertex {i} should be masked! ({color_data[i]}) -> {mask_data[i]}")
             else:
-                self.assertTrue(mask_data[i] < 0.1, f"Vertex {i} should not be masked! ({color_data[i]}) -> {mask_data[i]}")
+                self.assertTrue(mask_data[i] < 0.1,
+                                f"Vertex {i} should not be masked! ({color_data[i]}) -> {mask_data[i]}")
 
 
 def main():
