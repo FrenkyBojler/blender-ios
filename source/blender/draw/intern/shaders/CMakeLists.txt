@@ -45,6 +45,14 @@ if(WITH_GPU_SHADER_CPP_COMPILATION)
   # TODO Remove
   add_definitions(-DUSE_GPU_SHADER_CREATE_INFO)
 
+  if(CMAKE_COMPILER_IS_GNUCC)
+    remove_cc_flag("-Wredundant-decls")
+  endif()
+
+  if(CMAKE_COMPILER_IS_GNUCC)
+    remove_cc_flag("-Wredundant-decls")
+  endif()
+  
   compile_sources_as_cpp(draw_cpp_shaders_vert "${SRC_GLSL_VERT}" "GPU_VERTEX_SHADER")
   compile_sources_as_cpp(draw_cpp_shaders_frag "${SRC_GLSL_FRAG}" "GPU_FRAGMENT_SHADER")
   compile_sources_as_cpp(draw_cpp_shaders_comp "${SRC_GLSL_COMP}" "GPU_COMPUTE_SHADER")
