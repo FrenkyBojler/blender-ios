@@ -448,11 +448,7 @@ static void file_draw_string_mulitline_clipped(int sx,
   rect.ymax = sy;
   rect.ymin = sy - line_height * line_count;
 
-  uiFontStyleDraw_Params font_style_params{};
-  font_style_params.align = align;
-  font_style_params.word_wrap = eFontStyle_Wrapping::Hard;
-
-  UI_fontstyle_draw_multiline_clipped(&fs, &rect, string, col, &font_style_params);
+  UI_fontstyle_draw_multiline_clipped(&fs, &rect, string, col, align);
 }
 
 static void file_draw_string(int sx,

@@ -256,7 +256,7 @@ void UI_fontstyle_draw_multiline_clipped_ex(const uiFontStyle *fs,
                                             const rcti *rect,
                                             const char *str,
                                             const uchar col[4],
-                                            const uiFontStyleDraw_Params *fs_params,
+                                            const eFontStyle_Align align,
                                             int *r_xofs,
                                             int *r_yofs,
                                             ResultBLF *r_info)
@@ -331,10 +331,10 @@ void UI_fontstyle_draw_multiline_clipped_ex(const uiFontStyle *fs,
     /* String wrapping might have trailing/leading whitespace. */
     line.trim();
 
-    if (fs_params->align == UI_STYLE_TEXT_CENTER) {
+    if (align == UI_STYLE_TEXT_CENTER) {
       xofs = floor(0.5f * (max_width - BLF_width(fs->uifont_id, line.data(), line.size())));
     }
-    else if (fs_params->align == UI_STYLE_TEXT_RIGHT) {
+    else if (align == UI_STYLE_TEXT_RIGHT) {
       xofs = max_width - BLF_width(fs->uifont_id, line.data(), line.size());
     }
     xofs = std::max(0, xofs);
@@ -365,9 +365,9 @@ void UI_fontstyle_draw_multiline_clipped(const uiFontStyle *fs,
                                          const rcti *rect,
                                          const char *str,
                                          const uchar col[4],
-                                         const uiFontStyleDraw_Params *fs_params)
+                                         const eFontStyle_Align align)
 {
-  UI_fontstyle_draw_multiline_clipped_ex(fs, rect, str, col, fs_params, nullptr, nullptr, nullptr);
+  UI_fontstyle_draw_multiline_clipped_ex(fs, rect, str, col, align, nullptr, nullptr, nullptr);
 }
 
 void UI_fontstyle_draw_rotated(const uiFontStyle *fs,

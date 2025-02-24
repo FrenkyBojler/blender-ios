@@ -3402,7 +3402,7 @@ void UI_fontstyle_draw_multiline_clipped_ex(const uiFontStyle *fs,
                                             const rcti *rect,
                                             const char *str,
                                             const uchar col[4],
-                                            const uiFontStyleDraw_Params *fs_params,
+                                            eFontStyle_Align align,
                                             int *r_xofs,
                                             int *r_yofs,
                                             ResultBLF *r_info);
@@ -3413,7 +3413,7 @@ void UI_fontstyle_draw_multiline_clipped(const uiFontStyle *fs,
                                          const rcti *rect,
                                          const char *str,
                                          const uchar col[4],
-                                         const uiFontStyleDraw_Params *fs_params);
+                                         eFontStyle_Align align);
 
 /**
  * Drawn same as #UI_fontstyle_draw, but at 90 degree angle.
