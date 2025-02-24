@@ -527,7 +527,7 @@ ENUM_OPERATORS(eAnimFilter_Flags, ANIMFILTER_TMP_IGNORE_ONLYSEL);
  *
  * `animated_id` is used to determine selection/visibility filtering of
  * channels, as long as it really is animated by the given action and slot.
- * Otherwise one of the slots actual users will be chosen instead.
+ * Otherwise one of the slot's actual users will be used instead.
  *
  * \return The number of items added to `anim_data`.
  */
