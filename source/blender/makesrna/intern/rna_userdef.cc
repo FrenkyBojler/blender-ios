@@ -7606,7 +7606,8 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "Write Large Blend File Blocks",
-      "Enables support for writing .blend files that contain buffers larger than 2 GB");
+      "Enables support for writing .blend files that contain buffers larger than 2 GB. If "
+      "enabled, any saved files can not be opened by older Blender versions");
 
   prop = RNA_def_property(srna, "use_all_linked_data_direct", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(
