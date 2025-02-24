@@ -3923,10 +3923,10 @@ std::optional<std::string> RNA_property_string_path_filter(const bContext *C,
 {
   BLI_assert(prop->type == PROP_STRING);
   StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
-  if (sprop->path_filter) {
-    return sprop->path_filter(C, ptr, prop);
+  if (!sprop->path_filter) {
+    return std::nullopt;
   }
-  return std::nullopt;
+  return sprop->path_filter(C, ptr, prop);
 }
 
 int RNA_property_enum_get(PointerRNA *ptr, PropertyRNA *prop)
