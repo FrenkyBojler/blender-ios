@@ -445,10 +445,9 @@ def addons_panel_draw_items(
         enabled_only,  # `bool`
         addon_extension_manifest_map,  # `dict[str, PkgManifest_Normalized]`
         addon_extension_block_map,  # `dict[str, PkgBlock_Normalized]`
-
+        addon_filter_type,  # `str`
         show_development,  # `bool`
         show_developer_ui,  # `bool`
-        window_manager,  # Added window_manager parameter
 ):  # `-> set[str]`
     # NOTE: this duplicates logic from `USERPREF_PT_addons` eventually this logic should be used instead.
     # Don't de-duplicate the logic as this is a temporary state - as long as extensions remains experimental.
@@ -562,14 +561,14 @@ def addons_panel_draw_items(
             addon_type = ADDON_TYPE_LEGACY_OTHER
 
         # Add type filtering
-        if window_manager.addon_filter_type != 'ALL':
+        if addon_filter_type != 'ALL':
             filter_map = {
                 'EXTENSION': ADDON_TYPE_EXTENSION,
                 'CORE': ADDON_TYPE_LEGACY_CORE, 
                 'USER': ADDON_TYPE_LEGACY_USER,
                 'OTHER': ADDON_TYPE_LEGACY_OTHER,
             }
-            if addon_type != filter_map.get(window_manager.addon_filter_type):
+            if addon_type != filter_map.get(addon_filter_type):
                 continue
 
         # Draw header.
@@ -756,8 +755,8 @@ def addons_panel_draw_impl(
         enabled_only=enabled_only,
         addon_extension_manifest_map=addon_extension_manifest_map,
         addon_extension_block_map=addon_extension_block_map,
+        addon_filter_type=context.window_manager.addon_filter_type,
         show_development=show_development,
-        window_manager=context.window_manager,  # Pass window_manager explicitly
         show_developer_ui=show_developer_ui,
     )
 
