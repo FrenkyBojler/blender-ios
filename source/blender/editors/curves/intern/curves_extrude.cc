@@ -95,7 +95,7 @@ static void calc_new_offsets(const Span<int> old_offsets,
                              const Span<int> curves_intervals_offsets,
                              MutableSpan<int> new_offsets)
 {
-  new_offsets[0] = 0;
+  new_offsets.first() = 0;
   const IndexRange range = old_offsets.index_range().drop_back(1).shift(1);
   threading::parallel_for(range, 256, [&](IndexRange index_range) {
     for (const int i : index_range) {
@@ -192,9 +192,10 @@ static void extrude_curves(Curves &curves_id)
     for (const int curve : curves_range) {
       const int first_index = intervals_by_curve[curve].start();
       const int first_value = copy_intervals[first_index].start();
-      bool is_selected = is_first_selected[curve];
+      const bool first_selected = is_first_selected[curve];
 
       for (const int i : intervals_by_curve[curve].drop_back(1)) {
+        const bool is_selected = bool((i - first_index) % 2) != first_selected;
         const IndexRange src = shift_end_by(copy_intervals[i], 1);
         const IndexRange dst = src.shift(new_offsets[curve] - first_value + i - first_index);
 
@@ -209,8 +210,6 @@ static void extrude_curves(Curves &curves_id)
             fill_selection(dst_span, false);
           }
         }
-
-        is_selected = !is_selected;
       }
     }
   });
@@ -228,8 +227,7 @@ static void extrude_curves(Curves &curves_id)
            src_attributes,
            dst_attributes,
            ATTR_DOMAIN_MASK_POINT,
-           bke::attribute_filter_from_skip_ref(
-               {".selection", ".selection_handle_left", ".selection_handle_right"})))
+           bke::attribute_filter_from_skip_ref(selection_attr_names)))
   {
     const CPPType &type = attribute.src.type();
     threading::parallel_for(compact_intervals.index_range(), 512, [&](IndexRange range) {
