@@ -1242,12 +1242,15 @@ static void nlastrips_apply_all_curves_cb(ID *id,
                                           ListBase *strips,
                                           const FunctionRef<void(ID *, FCurve *)> func)
 {
+  /* This function is used (via `BKE_fcurves_id_cb()`) by the versioning system.
+   * As such, legacy Actions should always be expected here. */
+
   LISTBASE_FOREACH (NlaStrip *, strip, strips) {
     /* fix strip's action */
     if (strip->act) {
       fcurves_apply_cb(
           id,
-          blender::animrig::fcurves_for_action_slot(strip->act->wrap(), strip->action_slot_handle),
+          blender::animrig::legacy::fcurves_for_action_slot(strip->act, strip->action_slot_handle),
           func);
     }
 
