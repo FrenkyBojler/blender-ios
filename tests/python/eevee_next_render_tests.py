@@ -38,7 +38,7 @@ BLOCKLIST = [
     "render_passes_thinfilm_color.blend",
     # Blocked due to a significant amount of transparency that has different nosie between devices.
     "light_path_is_shadow_ray.blend",
-    # Blocked as the test seems to alternatate between two different states
+    # Blocked as the test seems to alternate between two different states
     "light_path_is_diffuse_ray.blend",
 ]
 
