@@ -1262,17 +1262,20 @@ static void adt_apply_all_fcurves_cb(ID *id,
                                      AnimData *adt,
                                      const FunctionRef<void(ID *, FCurve *)> func)
 {
+  /* This function is used (via `BKE_fcurves_id_cb()`) by the versioning system.
+   * As such, legacy Actions should always be expected here. */
+
   if (adt->action) {
     fcurves_apply_cb(
         id,
-        blender::animrig::fcurves_for_action_slot(adt->action->wrap(), adt->slot_handle),
+        blender::animrig::legacy::fcurves_for_action_slot(adt->action, adt->slot_handle),
         func);
   }
 
   if (adt->tmpact) {
     fcurves_apply_cb(
         id,
-        blender::animrig::fcurves_for_action_slot(adt->tmpact->wrap(), adt->tmp_slot_handle),
+        blender::animrig::legacy::fcurves_for_action_slot(adt->tmpact, adt->tmp_slot_handle),
         func);
   }
 
