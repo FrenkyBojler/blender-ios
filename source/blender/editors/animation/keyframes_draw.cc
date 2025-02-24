@@ -420,6 +420,7 @@ struct ChannelListElement {
   bDopeSheet *ads;
   Scene *sce;
   Object *ob;
+  ID *animated_id; /* The ID that adt (below) belongs to. */
   AnimData *adt;
   FCurve *fcu;
   bAction *act;
@@ -453,15 +454,21 @@ static void build_channel_keylist(ChannelListElement *elem, blender::float2 rang
       break;
     }
     case ChannelType::ACTION_LAYERED: {
-      action_summary_to_keylist(
-          elem->ac, elem->adt, elem->act, elem->keylist, elem->saction_flag, range);
+      BLI_assert(elem->act);
+      action_summary_to_keylist(elem->ac,
+                                elem->animated_id,
+                                elem->adt,
+                                elem->act,
+                                elem->keylist,
+                                elem->saction_flag,
+                                range);
       break;
     }
     case ChannelType::ACTION_SLOT: {
       BLI_assert(elem->act);
       BLI_assert(elem->action_slot);
       action_slot_summary_to_keylist(elem->ac,
-                                     elem->adt,
+                                     elem->animated_id,
                                      elem->act->wrap(),
                                      elem->action_slot->handle,
                                      elem->keylist,
@@ -718,6 +725,7 @@ void ED_add_fcurve_channel(ChannelDrawList *channel_list,
 
   ChannelListElement *draw_elem = channel_list_add_element(
       channel_list, ChannelType::FCURVE, ypos, yscale_fac, eSAction_Flag(saction_flag));
+  draw_elem->animated_id = ale->id;
   draw_elem->adt = ale->adt;
   draw_elem->fcu = fcu;
   draw_elem->channel_locked = locked;
@@ -737,6 +745,7 @@ void ED_add_action_group_channel(ChannelDrawList *channel_list,
 
   ChannelListElement *draw_elem = channel_list_add_element(
       channel_list, ChannelType::ACTION_GROUP, ypos, yscale_fac, eSAction_Flag(saction_flag));
+  draw_elem->animated_id = ale->id;
   draw_elem->adt = ale->adt;
   draw_elem->agrp = agrp;
   draw_elem->channel_locked = locked;
@@ -759,6 +768,7 @@ void ED_add_action_layered_channel(ChannelDrawList *channel_list,
   ChannelListElement *draw_elem = channel_list_add_element(
       channel_list, ChannelType::ACTION_LAYERED, ypos, yscale_fac, eSAction_Flag(saction_flag));
   draw_elem->ac = ac;
+  draw_elem->animated_id = ale->id;
   draw_elem->adt = ale->adt;
   draw_elem->act = action;
   draw_elem->channel_locked = locked;
@@ -779,6 +789,7 @@ void ED_add_action_slot_channel(ChannelDrawList *channel_list,
   ChannelListElement *draw_elem = channel_list_add_element(
       channel_list, ChannelType::ACTION_SLOT, ypos, yscale_fac, eSAction_Flag(saction_flag));
   draw_elem->ac = ac;
+  draw_elem->animated_id = ale->id;
   draw_elem->adt = ale->adt;
   draw_elem->act = &action;
   draw_elem->action_slot = &slot;
@@ -799,6 +810,7 @@ void ED_add_action_channel(ChannelDrawList *channel_list,
 
   ChannelListElement *draw_elem = channel_list_add_element(
       channel_list, ChannelType::ACTION_LEGACY, ypos, yscale_fac, eSAction_Flag(saction_flag));
+  draw_elem->animated_id = ale->id;
   draw_elem->adt = ale->adt;
   draw_elem->act = act;
   draw_elem->channel_locked = locked;
@@ -819,6 +831,7 @@ void ED_add_grease_pencil_datablock_channel(ChannelDrawList *channel_list,
                                                            eSAction_Flag(saction_flag));
   /* GreasePencil properties can be animated via an Action, so the GP-related
    * animation data is not limited to GP drawings. */
+  draw_elem->animated_id = ale->id;
   draw_elem->adt = ale->adt;
   draw_elem->act = ale->adt ? ale->adt->action : nullptr;
   draw_elem->grease_pencil = grease_pencil;

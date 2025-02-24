@@ -522,11 +522,20 @@ ENUM_OPERATORS(eAnimFilter_Flags, ANIMFILTER_TMP_IGNORE_ONLYSEL);
 /** \name Public API
  * \{ */
 
+/**
+ * Add channels for a slot and its fcurves, filtered according to `filter_mode`.
+ *
+ * `animated_id` is used to determine selection/visibility filtering of
+ * channels, as long as it really is animated by the given action and slot.
+ * Otherwise one of the slots actual users will be chosen instead.
+ *
+ * \return The number of items added to `anim_data`.
+ */
 size_t ANIM_animfilter_action_slot(bAnimContext *ac,
                                    ListBase *anim_data,
                                    blender::animrig::Action &action,
                                    blender::animrig::Slot &slot,
-                                   const eAnimFilter_Flags filter_mode,
+                                   eAnimFilter_Flags filter_mode,
                                    ID *animated_id);
 
 /**

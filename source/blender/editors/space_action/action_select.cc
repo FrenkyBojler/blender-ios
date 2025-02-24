@@ -111,7 +111,7 @@ static void actkeys_list_element_to_keylist(bAnimContext *ac,
       }
       case ALE_ACTION_LAYERED: {
         bAction *action = (bAction *)ale->key_data;
-        action_summary_to_keylist(ac, ale->adt, action, keylist, 0, range);
+        action_summary_to_keylist(ac, ale->id, ale->adt, action, keylist, 0, range);
         break;
       }
       case ALE_ACTION_SLOT: {
@@ -119,7 +119,7 @@ static void actkeys_list_element_to_keylist(bAnimContext *ac,
         animrig::Slot *slot = static_cast<animrig::Slot *>(ale->data);
         BLI_assert(action);
         BLI_assert(slot);
-        action_slot_summary_to_keylist(ac, ale->adt, *action, slot->handle, keylist, 0, range);
+        action_slot_summary_to_keylist(ac, ale->id, *action, slot->handle, keylist, 0, range);
         break;
       }
       case ALE_ACT: {

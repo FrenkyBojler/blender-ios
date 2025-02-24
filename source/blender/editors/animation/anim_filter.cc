@@ -1550,15 +1550,12 @@ static size_t animfilter_act_group(bAnimContext *ac,
   return items;
 }
 
-/**
- * Add a channel for each Slot, with their FCurves when the Slot is expanded.
- */
 size_t ANIM_animfilter_action_slot(bAnimContext *ac,
                                    ListBase *anim_data,
                                    animrig::Action &action,
                                    animrig::Slot &slot,
                                    const eAnimFilter_Flags filter_mode,
-                                   ID *owner_id)
+                                   ID *animated_id)
 {
   /* In some cases (see `ob_to_keylist()` and friends) fake bDopeSheet and fake bAnimContext are
    * created. These are mostly null-initialized, and so do not have a bmain. This means that
@@ -1567,14 +1564,15 @@ size_t ANIM_animfilter_action_slot(bAnimContext *ac,
    * only interested in the key data anyway. So rather than trying to get a reliable `bmain`
    * through the maze, this code just treats it as optional (even though ideally it should always
    * be known). */
-  ID *animated_id = nullptr;
+  ID *slot_user_id = nullptr;
   if (ac->bmain) {
-    animated_id = animrig::action_slot_get_id_best_guess(*ac->bmain, slot, owner_id);
+    slot_user_id = animrig::action_slot_get_id_best_guess(*ac->bmain, slot, animated_id);
   }
-  if (!animated_id) {
+  if (!slot_user_id) {
     /* This is not necessarily correct, but at least it prevents nullptr dereference. */
-    animated_id = owner_id;
+    slot_user_id = animated_id;
   }
+  BLI_assert(slot_user_id);
 
   /* Don't include anything from this animation if it is linked in from another
    * file, and we're getting stuff for editing... */
@@ -1600,7 +1598,7 @@ size_t ANIM_animfilter_action_slot(bAnimContext *ac,
   const bool show_slot_channel = (is_action_mode && selection_ok_for_slot &&
                                   include_summary_channels);
   if (show_slot_channel) {
-    ANIMCHANNEL_NEW_CHANNEL(ac->bmain, &slot, ANIMTYPE_ACTION_SLOT, animated_id, &action.id);
+    ANIMCHANNEL_NEW_CHANNEL(ac->bmain, &slot, ANIMTYPE_ACTION_SLOT, slot_user_id, &action.id);
     items++;
   }
 
@@ -1621,7 +1619,7 @@ size_t ANIM_animfilter_action_slot(bAnimContext *ac,
   /* Add channel groups and their member channels. */
   for (bActionGroup *group : channelbag->channel_groups()) {
     items += animfilter_act_group(
-        ac, anim_data, &action, slot.handle, group, filter_mode, animated_id);
+        ac, anim_data, &action, slot.handle, group, filter_mode, slot_user_id);
   }
 
   /* Add ungrouped channels. */
@@ -1635,7 +1633,7 @@ size_t ANIM_animfilter_action_slot(bAnimContext *ac,
 
     Span<FCurve *> fcurves = channelbag->fcurves().drop_front(first_ungrouped_fcurve_index);
     items += animfilter_fcurves_span(
-        ac, anim_data, fcurves, slot.handle, filter_mode, animated_id, &action.id);
+        ac, anim_data, fcurves, slot.handle, filter_mode, slot_user_id, &action.id);
   }
 
   return items;

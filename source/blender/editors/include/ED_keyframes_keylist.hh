@@ -219,7 +219,7 @@ void summary_to_keylist(bAnimContext *ac,
                         blender::float2 range);
 
 void action_slot_summary_to_keylist(bAnimContext *ac,
-                                    AnimData *adt,
+                                    ID *animated_id,
                                     blender::animrig::Action &action,
                                     blender::animrig::slot_handle_t slot_handle,
                                     AnimKeylist *keylist,
@@ -227,6 +227,7 @@ void action_slot_summary_to_keylist(bAnimContext *ac,
                                     blender::float2 range);
 
 void action_summary_to_keylist(bAnimContext *ac,
+                               ID *animated_id,
                                AnimData *adt,
                                bAction *dna_action,
                                AnimKeylist *keylist,

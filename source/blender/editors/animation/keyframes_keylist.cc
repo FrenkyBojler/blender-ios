@@ -978,9 +978,8 @@ void summary_to_keylist(bAnimContext *ac,
   ANIM_animdata_freelist(&anim_data);
 }
 
-/* TODO: we no longer use the `adt` parameter.  Remove. */
 void action_slot_summary_to_keylist(bAnimContext *ac,
-                                    AnimData *adt,
+                                    ID *animated_id,
                                     animrig::Action &action,
                                     const animrig::slot_handle_t slot_handle,
                                     AnimKeylist *keylist,
@@ -989,10 +988,7 @@ void action_slot_summary_to_keylist(bAnimContext *ac,
 {
   BLI_assert(GS(action.id.name) == ID_AC);
 
-  /* TODO: a null obact might actually be fine, if
-   * `ANIM_animfilter_action_slot()` accepts a null ID.  Check that out and
-   * update appropriately. */
-  if (!ac || !ac->obact) {
+  if (!ac) {
     return;
   }
 
@@ -1003,7 +999,7 @@ void action_slot_summary_to_keylist(bAnimContext *ac,
 
   /* Get F-Curves to take keyframes from. */
   const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE;
-  ANIM_animfilter_action_slot(ac, &anim_data, action, *slot, filter, &ac->obact->id);
+  ANIM_animfilter_action_slot(ac, &anim_data, action, *slot, filter, animated_id);
 
   LISTBASE_FOREACH (const bAnimListElem *, ale, &anim_data) {
     /* As of the writing of this code, Actions ultimately only contain FCurves.
@@ -1023,6 +1019,7 @@ void action_slot_summary_to_keylist(bAnimContext *ac,
 }
 
 void action_summary_to_keylist(bAnimContext *ac,
+                               ID *animated_id,
                                AnimData *adt,
                                bAction *dna_action,
                                AnimKeylist *keylist,
@@ -1041,7 +1038,8 @@ void action_summary_to_keylist(bAnimContext *ac,
    * have things like reference strips, where the strip can reference another slot handle.
    */
   BLI_assert(adt);
-  action_slot_summary_to_keylist(ac, adt, action, adt->slot_handle, keylist, saction_flag, range);
+  action_slot_summary_to_keylist(
+      ac, animated_id, action, adt->slot_handle, keylist, saction_flag, range);
 }
 
 void scene_to_keylist(bDopeSheet *ads,
