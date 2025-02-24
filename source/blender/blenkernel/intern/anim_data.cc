@@ -1272,7 +1272,7 @@ static void adt_apply_all_fcurves_cb(ID *id,
 
   /* NLA Data - Animation Data for Strips */
   LISTBASE_FOREACH (NlaTrack *, nlt, &adt->nla_tracks) {
-    if (nlt->flag & NLATRACK_MUTED) {
+    if (!BKE_nlatrack_is_enabled(*adt, *nlt)) {
       continue;
     }
     nlastrips_apply_all_curves_cb(id, &nlt->strips, func);
@@ -1318,7 +1318,7 @@ void BKE_animdata_main_cb(Main *bmain, const FunctionRef<void(ID *, AnimData *)>
     if (ntp->nodetree) { \
       AnimData *adt2 = BKE_animdata_from_id((ID *)ntp->nodetree); \
       if (adt2) { \
-        func(id, adt2); \
+        func((ID *)ntp->nodetree, adt2); \
       } \
     } \
     if (adt) { \
