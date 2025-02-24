@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2024 Blender Authors
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,12 +8,58 @@
 #include "BKE_node.hh"
 
 #include "BLI_cpp_type.hh"
+#include "BLI_generic_pointer.hh"
 #include "BLI_implicit_sharing_ptr.hh"
 #include "BLI_math_base.h"
 
 #include "DNA_node_types.h"
 
 namespace blender::bke {
+
+class SocketInterfaceKey {
+ private:
+  /** May have multiple keys to improve compatibility between systems that use different keys. */
+  Vector<std::string> identifiers_;
+
+ public:
+  explicit SocketInterfaceKey(std::string identifier);
+
+  bool matches(const SocketInterfaceKey &other) const;
+  Span<std::string> identifiers() const;
+};
+
+class Bundle : public ImplicitSharingMixin {
+ private:
+  struct Item {
+    SocketInterfaceKey key;
+    GMutablePointer value;
+  };
+  Vector<Item> items_;
+  Vector<void *> buffers_;
+
+ public:
+  Bundle();
+  Bundle(const Bundle &other);
+  Bundle(Bundle &&other) noexcept;
+  Bundle &operator=(const Bundle &other);
+  Bundle &operator=(Bundle &&other) noexcept;
+  ~Bundle();
+
+  static BundlePtr create()
+  {
+    return BundlePtr(MEM_new<Bundle>(__func__));
+  }
+
+  void add_new(SocketInterfaceKey key, const CPPType &type, const void *value);
+  bool add(const SocketInterfaceKey &key, const CPPType &type, const void *value);
+  bool add(SocketInterfaceKey &&key, const CPPType &type, const void *value);
+  GPointer lookup(const SocketInterfaceKey &key) const;
+  GMutablePointer lookup_for_write(const SocketInterfaceKey &key);
+  bool remove(const SocketInterfaceKey &key);
+  bool contains(const SocketInterfaceKey &key) const;
+
+  void delete_self() override;
+};
 
 class SocketListSignature {
  public:
@@ -29,67 +75,6 @@ class SocketListSignature {
     static const std::shared_ptr<SocketListSignature> empty_signature =
         std::make_shared<SocketListSignature>();
     return empty_signature;
-  }
-};
-
-class BundleSignature {
- private:
-  std::shared_ptr<SocketListSignature> sockets_;
-  Vector<int64_t> offsets_;
-  int64_t size_in_bytes_ = 0;
-
- public:
-  BundleSignature(std::shared_ptr<SocketListSignature> sockets)
-      : sockets_(sockets), offsets_(sockets->items.size())
-  {
-    size_in_bytes_ = 0;
-    int64_t max_alignment = 0;
-    for (const int64_t i : offsets_.index_range()) {
-      const SocketListSignature::Item &socket_item = sockets_->items[i];
-      const CPPType &cpp_type = *socket_item.socket_type->geometry_nodes_cpp_type;
-      size_in_bytes_ = ceil_to_multiple_ul(size_in_bytes_, cpp_type.alignment());
-      offsets_[i] = size_in_bytes_;
-      size_in_bytes_ += cpp_type.size();
-      max_alignment = std::max(max_alignment, cpp_type.alignment());
-    }
-    size_in_bytes_ = ceil_to_multiple_ul(size_in_bytes_, max_alignment);
-  }
-
-  static const std::shared_ptr<BundleSignature> &empty()
-  {
-    static const std::shared_ptr<BundleSignature> empty_signature =
-        std::make_shared<BundleSignature>(SocketListSignature::empty());
-    return empty_signature;
-  }
-
-  const std::shared_ptr<SocketListSignature> &sockets_ptr() const
-  {
-    return sockets_;
-  }
-
-  const SocketListSignature &sockets() const
-  {
-    return *sockets_;
-  }
-
-  int64_t size_in_bytes() const
-  {
-    return size_in_bytes_;
-  }
-
-  Span<int64_t> offsets() const
-  {
-    return offsets_;
-  }
-
-  int64_t offset(const int64_t index) const
-  {
-    return offsets_[index];
-  }
-
-  const CPPType &cpp_type(const int64_t index) const
-  {
-    return *sockets_->items[index].socket_type->geometry_nodes_cpp_type;
   }
 };
 
@@ -109,48 +94,5 @@ inline void get_socket_list_signature_map(const SocketListSignature &signature_a
     }
   }
 }
-
-class Bundle : public ImplicitSharingInfo {
- private:
-  std::shared_ptr<BundleSignature> signature_;
-  void *data_;
-
- public:
-  Bundle() : signature_(BundleSignature::empty()), data_(nullptr) {}
-
-  explicit Bundle(std::shared_ptr<BundleSignature> signature, void *data)
-      : signature_(std::move(signature)), data_(data)
-  {
-  }
-
-  ~Bundle()
-  {
-    for (const int i : signature_->sockets().items.index_range()) {
-      void *ptr = POINTER_OFFSET(data_, signature_->offset(i));
-      signature_->cpp_type(i).destruct(ptr);
-    }
-    MEM_SAFE_FREE(data_);
-  }
-
-  const void *data() const
-  {
-    return data_;
-  }
-
-  const void *data(const int64_t index) const
-  {
-    return POINTER_OFFSET(data_, signature_->offset(index));
-  }
-
-  const BundleSignature &signature() const
-  {
-    return *signature_;
-  }
-
-  void delete_self_with_data() override
-  {
-    MEM_delete(this);
-  }
-};
 
 }  // namespace blender::bke

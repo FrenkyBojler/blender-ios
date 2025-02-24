@@ -134,6 +134,7 @@ set(SRC
   intern/geometry_component_pointcloud.cc
   intern/geometry_component_volume.cc
   intern/geometry_fields.cc
+  intern/geometry_nodes_bundle.cc
   intern/geometry_set.cc
   intern/geometry_set_instances.cc
   intern/gpencil_geom_legacy.cc

@@ -1889,6 +1889,15 @@ bNodeSocketType *node_socket_type_find(const StringRef idname)
   return *value;
 }
 
+bNodeSocketType *node_socket_type_find_static(const int type, const int subtype)
+{
+  const std::optional<StringRefNull> idname = node_static_socket_type(type, subtype);
+  if (!idname) {
+    return nullptr;
+  }
+  return node_socket_type_find(*idname);
+}
+
 static void node_free_socket_type(void *socktype_v)
 {
   bNodeSocketType *socktype = static_cast<bNodeSocketType *>(socktype_v);

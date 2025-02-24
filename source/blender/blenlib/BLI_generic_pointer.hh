@@ -93,6 +93,11 @@ class GPointer {
 
   template<typename T> GPointer(T *data) : GPointer(&CPPType::get<T>(), data) {}
 
+  operator bool() const
+  {
+    return data_ != nullptr;
+  }
+
   const void *get() const
   {
     return data_;

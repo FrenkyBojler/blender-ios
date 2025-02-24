@@ -98,32 +98,31 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bNode &node = params.node();
   const NodeGeometrySeparateBundle &storage = node_storage(node);
 
-  bke::SocketListSignature socket_list;
-  for (const int i : IndexRange(storage.items_num)) {
-    const NodeGeometrySeparateBundleItem &item = storage.items[i];
-    const StringRefNull idname = *bke::node_static_socket_type(item.socket_type, 0);
-    const bke::bNodeSocketType *stype = bke::node_socket_type_find(idname);
-    socket_list.items.append({stype, item.name ? item.name : ""});
-  }
-
-  Array<std::optional<int>> mapping(storage.items_num);
-  bke::get_socket_list_signature_map(bundle->signature().sockets(), socket_list, mapping);
-
   lf::Params &lf_params = params.lazy_function_params();
 
   for (const int i : IndexRange(storage.items_num)) {
-    const std::optional<int> &src_index_opt = mapping[i];
-    if (!src_index_opt.has_value()) {
-      set_default_value_for_output_socket(lf_params, i, node.output_socket(i));
+    const NodeGeometrySeparateBundleItem &item = storage.items[i];
+    const StringRef name = item.name;
+    if (name.is_empty()) {
       continue;
     }
-    const int src_index = *src_index_opt;
-    const CPPType &type = bundle->signature().cpp_type(src_index);
-    const void *input_ptr = bundle->data(src_index);
+    const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type);
+    if (!stype || !stype->geometry_nodes_cpp_type) {
+      continue;
+    }
+    const GPointer value = bundle->lookup(bke::SocketInterfaceKey(name));
+    if (!value) {
+      continue;
+    }
+    if (value.type() != stype->geometry_nodes_cpp_type) {
+      continue;
+    }
     void *output_ptr = lf_params.get_output_data_ptr(i);
-    type.copy_construct(input_ptr, output_ptr);
+    value.type()->copy_construct(value.get(), output_ptr);
     lf_params.output_set(i);
   }
+
+  params.set_default_remaining_outputs();
 }
 
 static void node_register()
