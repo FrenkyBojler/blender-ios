@@ -33,6 +33,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
@@ -379,7 +380,7 @@ static int visual_geometry_to_objects_exec(bContext *C, wmOperator * /*op*/)
   Main &bmain = *CTX_data_main(C);
   Scene &scene = *CTX_data_scene(C);
   Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(C);
-  ViewLayer &view_layer = *CTX_data_view_layer(C);
+  ViewLayer &active_view_layer = *CTX_data_view_layer(C);
 
   Object *src_ob_orig = CTX_data_active_object(C);
   Object *src_ob_eval = DEG_get_evaluated_object(&depsgraph, src_ob_orig);
@@ -421,29 +422,31 @@ static int visual_geometry_to_objects_exec(bContext *C, wmOperator * /*op*/)
     BKE_collection_child_add(&bmain, scene.master_collection, new_collection);
   }
   /* Ensure that the #Base for objects and #LayerCollection for collections are created. */
-  BKE_view_layer_synced_ensure(&scene, &view_layer);
+  BKE_scene_view_layers_synced_ensure(&scene);
 
   /* Deselect everything so that we can select the new objects. */
-  BKE_view_layer_base_deselect_all(&scene, &view_layer);
+  BKE_view_layer_base_deselect_all(&scene, &active_view_layer);
   /* Select the new objects. */
   for (Object *object : top_level_objects) {
-    Base *base = BKE_view_layer_base_find(&view_layer, object);
+    Base *base = BKE_view_layer_base_find(&active_view_layer, object);
     base->flag |= BASE_SELECTED;
   }
   /* Make one of the new objects active. */
   if (!top_level_objects.is_empty()) {
-    Base *first_base = BKE_view_layer_base_find(&view_layer, top_level_objects[0]);
-    BKE_view_layer_base_select_and_set_active(&view_layer, first_base);
-    base_active_refresh(&bmain, &scene, &view_layer);
+    Base *first_base = BKE_view_layer_base_find(&active_view_layer, top_level_objects[0]);
+    BKE_view_layer_base_select_and_set_active(&active_view_layer, first_base);
+    base_active_refresh(&bmain, &scene, &active_view_layer);
   }
   /* Exclude the new collections. This is done because they are only instanced by other objects but
    * should not be visible by themselves. */
-  for (Collection *new_collection : new_instance_collections) {
-    LayerCollection *new_layer_collection = BKE_layer_collection_first_from_scene_collection(
-        &view_layer, new_collection);
-    BKE_layer_collection_set_flag(new_layer_collection, LAYER_COLLECTION_EXCLUDE, true);
+  LISTBASE_FOREACH (ViewLayer *, view_layer, &scene.view_layers) {
+    for (Collection *new_collection : new_instance_collections) {
+      LayerCollection *new_layer_collection = BKE_layer_collection_first_from_scene_collection(
+          view_layer, new_collection);
+      BKE_layer_collection_set_flag(new_layer_collection, LAYER_COLLECTION_EXCLUDE, true);
+    }
   }
-  BKE_view_layer_need_resync_tag(&view_layer);
+  BKE_view_layer_need_resync_tag(&active_view_layer);
   DEG_id_tag_update(&scene.id, ID_RECALC_BASE_FLAGS);
 
   DEG_relations_tag_update(&bmain);
