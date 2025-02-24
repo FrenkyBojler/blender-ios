@@ -10,7 +10,6 @@
 
 #include "AS_asset_representation.hh"
 
-#include "BLI_string.h"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_collection_types.h"
@@ -20,6 +19,7 @@
 #include "BLI_easing.h"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
+#include "BLI_string.h"
 
 #include "BLT_translation.hh"
 
@@ -1063,7 +1063,7 @@ static int node_add_import_node_exec(bContext *C, wmOperator *op)
     }
 
     if (node) {
-      const bNodeSocket &path_socket = node->input_by_identifier("Path");
+      bNodeSocket &path_socket = node->input_by_identifier("Path");
       BLI_assert(path_socket.type == SOCK_STRING);
       auto *socket_data = static_cast<bNodeSocketValueString *>(path_socket.default_value);
       STRNCPY(socket_data->value, path.c_str());
@@ -1118,7 +1118,7 @@ static bool node_add_import_node_poll(bContext *C)
 void NODE_OT_add_import_node(wmOperatorType *ot)
 {
   ot->name = "Add Import Node";
-  ot->description = "Add an import node to the current node editor";
+  ot->description = "Add an import node to the node tree";
   ot->idname = "NODE_OT_add_import_node";
 
   ot->poll = node_add_import_node_poll;
