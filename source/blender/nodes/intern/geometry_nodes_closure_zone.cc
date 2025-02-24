@@ -219,10 +219,9 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
  private:
   const bNodeTree &btree_;
   const bNode &bnode_;
-
- public:
   EvaluateClosureFunctionIndices indices_;
 
+ public:
   LazyFunctionForEvaluateClosureNode(const bNode &bnode)
       : btree_(bnode.owner_tree()), bnode_(bnode)
   {
@@ -244,6 +243,11 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
           inputs_.append_and_get_index_as("Usage", CPPType::get<bool>()));
     }
     /* TODO: Reference sets. */
+  }
+
+  EvaluateClosureFunctionIndices indices() const
+  {
+    return indices_;
   }
 
   void *init_storage(LinearAllocator<> &allocator) const override
@@ -466,7 +470,7 @@ EvaluateClosureFunction build_evaluate_closure_node_lazy_function(ResourceScope 
   EvaluateClosureFunction info;
   auto &fn = scope.construct<LazyFunctionForEvaluateClosureNode>(bnode);
   info.lazy_function = &fn;
-  info.indices = fn.indices_;
+  info.indices = fn.indices();
   return info;
 }
 
