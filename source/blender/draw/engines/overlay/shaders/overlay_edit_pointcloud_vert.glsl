@@ -8,8 +8,6 @@
 
 void main()
 {
-  gl_PointSize = sizeVertex * 2.0;
-
   finalColor = colorVertexSelect;
 
   vec3 world_pos = drw_point_object_to_world(pos);
@@ -17,6 +15,8 @@ void main()
 
   /* Small offset in Z */
   gl_Position.z -= 3e-4;
+
+  gl_PointSize = sizeVertex * 2.0;
 
   view_clipping_distances(world_pos);
 }
