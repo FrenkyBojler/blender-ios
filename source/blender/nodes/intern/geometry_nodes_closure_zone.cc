@@ -67,21 +67,17 @@ class LazyFunctionForClosureZone : public LazyFunction {
 
     const auto &storage = *static_cast<const NodeGeometryClosureOutput *>(output_bnode_.storage);
 
-    Vector<bke::ClosureSignature::Item> input_list;
-    Vector<bke::ClosureSignature::Item> output_list;
+    closure_signature_ = std::make_shared<bke::ClosureSignature>();
 
     for (const int i : IndexRange(storage.input_items.items_num)) {
       const bNodeSocket &bsocket = zone_.input_node->output_socket(i);
-      input_list.append(
-          {bke::SocketInterfaceKey(bsocket.name), bsocket.typeinfo->geometry_nodes_cpp_type});
+      closure_signature_->inputs.append({bke::SocketInterfaceKey(bsocket.name), bsocket.typeinfo});
     }
     for (const int i : IndexRange(storage.output_items.items_num)) {
       const bNodeSocket &bsocket = zone_.output_node->input_socket(i);
-      output_list.append(
-          {bke::SocketInterfaceKey(bsocket.name), bsocket.typeinfo->geometry_nodes_cpp_type});
+      closure_signature_->outputs.append(
+          {bke::SocketInterfaceKey(bsocket.name), bsocket.typeinfo});
     }
-    closure_signature_ = std::make_shared<bke::ClosureSignature>(std::move(input_list),
-                                                                 std::move(output_list));
   }
 
   void execute_impl(lf::Params &params, const lf::Context & /*context*/) const override
@@ -309,14 +305,13 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
     const bke::ClosureFunctionIndices &closure_indices = closure.indices();
 
     Array<std::optional<int>> inputs_map(node_storage.input_items.items_num);
-    /* TODO: Check socket types. */
     for (const int i : inputs_map.index_range()) {
-      inputs_map[i] = closure_signature.get_input_index(
+      inputs_map[i] = closure_signature.find_input_index(
           bke::SocketInterfaceKey(node_storage.input_items.items[i].name));
     }
     Array<std::optional<int>> outputs_map(node_storage.output_items.items_num);
     for (const int i : outputs_map.index_range()) {
-      outputs_map[i] = closure_signature.get_output_index(
+      outputs_map[i] = closure_signature.find_output_index(
           bke::SocketInterfaceKey(node_storage.output_items.items[i].name));
     }
 
@@ -328,36 +323,88 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
     lf_graph_outputs[indices_.outputs.input_usages[0]]->set_default_value(&static_true);
 
     for (const int input_item_i : IndexRange(node_storage.input_items.items_num)) {
+      lf::GraphOutputSocket &lf_usage_output =
+          *lf_graph_outputs[indices_.outputs.input_usages[input_item_i + 1]];
       if (const std::optional<int> mapped_i = inputs_map[input_item_i]) {
-        lf_graph.add_link(*lf_graph_inputs[indices_.inputs.main[input_item_i + 1]],
-                          lf_closure_node.input(closure_indices.inputs.main[*mapped_i]));
+        const bke::bNodeSocketType &from_type = *bnode_.input_socket(input_item_i + 1).typeinfo;
+        const bke::bNodeSocketType &to_type = *closure_signature.inputs[*mapped_i].type;
+        lf::OutputSocket *lf_from = lf_graph_inputs[indices_.inputs.main[input_item_i + 1]];
+        lf::InputSocket &lf_to = lf_closure_node.input(closure_indices.inputs.main[*mapped_i]);
+        if (&from_type != &to_type) {
+          if (const LazyFunction *conversion_fn = build_implicit_conversion_lazy_function(
+                  from_type, to_type, eval_storage.scope))
+          {
+            /* The provided type when evaluating the closure may be different from what the closure
+             * expects exactly, so do an implicit conversion. */
+            lf::Node &conversion_node = lf_graph.add_function(*conversion_fn);
+            lf_graph.add_link(*lf_from, conversion_node.input(0));
+            lf_from = &conversion_node.output(0);
+          }
+          else {
+            /* Use the default value if the provided input value is not compatible with what the
+             * closure expects. */
+            const void *default_value = closure.default_input_value(*mapped_i);
+            BLI_assert(default_value);
+            lf_to.set_default_value(default_value);
+            lf_usage_output.set_default_value(&static_false);
+            continue;
+          }
+        }
+        lf_graph.add_link(*lf_from, lf_to);
         lf_graph.add_link(lf_closure_node.output(closure_indices.outputs.input_usages[*mapped_i]),
-                          *lf_graph_outputs[indices_.outputs.input_usages[input_item_i + 1]]);
+                          lf_usage_output);
       }
       else {
-        lf_graph_outputs[indices_.outputs.input_usages[input_item_i + 1]]->set_default_value(
-            &static_false);
+        lf_usage_output.set_default_value(&static_false);
       }
     }
 
+    auto get_output_default_value = [&](const bke::bNodeSocketType &type) {
+      const CPPType &cpp_type = *type.geometry_nodes_cpp_type;
+      void *fallback_value = eval_storage.scope.linear_allocator().allocate(cpp_type.size(),
+                                                                            cpp_type.alignment());
+      construct_socket_default_value(type, fallback_value);
+      if (!cpp_type.is_trivially_destructible()) {
+        eval_storage.scope.add_destruct_call(
+            [fallback_value, type = &cpp_type]() { type->destruct(fallback_value); });
+      }
+      return fallback_value;
+    };
+
     for (const int output_item_i : IndexRange(node_storage.output_items.items_num)) {
+      lf::GraphOutputSocket &lf_main_output =
+          *lf_graph_outputs[indices_.outputs.main[output_item_i]];
+      const bke::bNodeSocketType &main_output_type = *bnode_.output_socket(output_item_i).typeinfo;
       if (const std::optional<int> mapped_i = outputs_map[output_item_i]) {
-        lf_graph.add_link(lf_closure_node.output(closure_indices.outputs.main[*mapped_i]),
-                          *lf_graph_outputs[indices_.outputs.main[output_item_i]]);
+        const bke::bNodeSocketType &closure_output_type =
+            *closure_signature.outputs[*mapped_i].type;
+        lf::OutputSocket *lf_from = &lf_closure_node.output(
+            closure_indices.outputs.main[*mapped_i]);
+        if (&closure_output_type != &main_output_type) {
+          if (const LazyFunction *conversion_fn = build_implicit_conversion_lazy_function(
+                  closure_output_type, main_output_type, eval_storage.scope))
+          {
+            /* Convert the type of the value coming out of the closure to the output socket type of
+             * the evaluation. */
+            lf::Node &conversion_node = lf_graph.add_function(*conversion_fn);
+            lf_graph.add_link(*lf_from, conversion_node.input(0));
+            lf_from = &conversion_node.output(0);
+          }
+          else {
+            /* The socket types are not compatible, so use the default value. */
+            void *fallback_value = get_output_default_value(main_output_type);
+            lf_main_output.set_default_value(fallback_value);
+            continue;
+          }
+        }
+        /* Link the output of the closure to the output of the entire evaluation. */
+        lf_graph.add_link(*lf_from, lf_main_output);
         lf_graph.add_link(*lf_graph_inputs[indices_.inputs.output_usages[output_item_i]],
                           lf_closure_node.input(closure_indices.inputs.output_usages[*mapped_i]));
       }
       else {
-        const bke::bNodeSocketType &stype = *bnode_.output_socket(output_item_i).typeinfo;
-        const CPPType &type = *stype.geometry_nodes_cpp_type;
-        void *fallback_value = eval_storage.scope.linear_allocator().allocate(type.size(),
-                                                                              type.alignment());
-        construct_socket_default_value(stype, fallback_value);
-        lf_graph_outputs[indices_.outputs.main[output_item_i]]->set_default_value(fallback_value);
-        if (!type.is_trivially_destructible()) {
-          eval_storage.scope.add_destruct_call(
-              [fallback_value, &type]() { type.destruct(fallback_value); });
-        }
+        void *fallback_value = get_output_default_value(main_output_type);
+        lf_main_output.set_default_value(fallback_value);
       }
     }
 

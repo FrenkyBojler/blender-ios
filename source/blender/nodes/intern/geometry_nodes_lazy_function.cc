@@ -579,6 +579,50 @@ bool implicitly_convert_socket_value(const bke::bNodeSocketType &from_type,
   return false;
 }
 
+class LazyFunctionForImplicitConversion : public LazyFunction {
+ private:
+  const MultiFunction &fn_;
+
+ public:
+  LazyFunctionForImplicitConversion(const MultiFunction &fn) : fn_(fn)
+  {
+    debug_name_ = "Convert";
+    inputs_.append_as("From", CPPType::get<SocketValueVariant>());
+    outputs_.append_as("To", CPPType::get<SocketValueVariant>());
+  }
+
+  void execute_impl(lf::Params &params, const lf::Context & /*context*/) const override
+  {
+    SocketValueVariant *from_value = params.try_get_input_data_ptr<SocketValueVariant>(0);
+    SocketValueVariant *to_value = new (params.get_output_data_ptr(0)) SocketValueVariant();
+    BLI_assert(from_value != nullptr);
+    BLI_assert(to_value != nullptr);
+    execute_multi_function_on_value_variant(fn_, {}, {from_value}, {to_value});
+    params.output_set(0);
+  }
+};
+
+const LazyFunction *build_implicit_conversion_lazy_function(const bke::bNodeSocketType &from_type,
+                                                            const bke::bNodeSocketType &to_type,
+                                                            ResourceScope &scope)
+{
+  if (!from_type.geometry_nodes_cpp_type || !to_type.geometry_nodes_cpp_type) {
+    return nullptr;
+  }
+  if (&from_type == &to_type) {
+    return &scope.construct<LazyFunctionForRerouteNode>(*from_type.geometry_nodes_cpp_type);
+  }
+  const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
+  const CPPType &from_base_type = *from_type.base_cpp_type;
+  const CPPType &to_base_type = *to_type.base_cpp_type;
+  if (conversions.is_convertible(from_base_type, to_base_type)) {
+    const MultiFunction &multi_fn = *conversions.get_conversion_multi_function(
+        mf::DataType::ForSingle(from_base_type), mf::DataType::ForSingle(to_base_type));
+    return &scope.construct<LazyFunctionForImplicitConversion>(multi_fn);
+  }
+  return nullptr;
+}
+
 /**
  * Behavior of muted nodes:
  * - Some inputs are forwarded to outputs without changes.
@@ -651,35 +695,6 @@ class LazyFunctionForMutedNode : public LazyFunction {
       }
       set_default_value_for_output_socket(params, lf_output_index, *output_bsocket);
     }
-  }
-};
-
-/**
- * Type conversions are generally implemented as multi-functions. This node checks if the input is
- * a field or single value and outputs a field or single value respectively.
- */
-class LazyFunctionForMultiFunctionConversion : public LazyFunction {
- private:
-  const MultiFunction &fn_;
-
- public:
-  LazyFunctionForMultiFunctionConversion(const MultiFunction &fn) : fn_(fn)
-  {
-    debug_name_ = "Convert";
-    inputs_.append_as("From", CPPType::get<SocketValueVariant>());
-    outputs_.append_as("To", CPPType::get<SocketValueVariant>());
-  }
-
-  void execute_impl(lf::Params &params, const lf::Context & /*context*/) const override
-  {
-    SocketValueVariant *from_value = params.try_get_input_data_ptr<SocketValueVariant>(0);
-    SocketValueVariant *to_value = new (params.get_output_data_ptr(0)) SocketValueVariant();
-    BLI_assert(from_value != nullptr);
-    BLI_assert(to_value != nullptr);
-
-    execute_multi_function_on_value_variant(fn_, {}, {from_value}, {to_value});
-
-    params.output_set(0);
   }
 };
 
@@ -3776,16 +3791,12 @@ struct GeometryNodesLazyFunctionBuilder {
     if (from_typeinfo.type == to_typeinfo.type) {
       return &from_socket;
     }
-    if (from_typeinfo.base_cpp_type && to_typeinfo.base_cpp_type) {
-      if (conversions_->is_convertible(*from_typeinfo.base_cpp_type, *to_typeinfo.base_cpp_type)) {
-        const MultiFunction &multi_fn = *conversions_->get_conversion_multi_function(
-            mf::DataType::ForSingle(*from_typeinfo.base_cpp_type),
-            mf::DataType::ForSingle(*to_typeinfo.base_cpp_type));
-        auto &fn = scope_.construct<LazyFunctionForMultiFunctionConversion>(multi_fn);
-        lf::Node &conversion_node = lf_graph.add_function(fn);
-        lf_graph.add_link(from_socket, conversion_node.input(0));
-        return &conversion_node.output(0);
-      }
+    if (const LazyFunction *conversion_fn = build_implicit_conversion_lazy_function(
+            from_typeinfo, to_typeinfo, scope_))
+    {
+      lf::Node &conversion_node = lf_graph.add_function(*conversion_fn);
+      lf_graph.add_link(from_socket, conversion_node.input(0));
+      return &conversion_node.output(0);
     }
     return nullptr;
   }

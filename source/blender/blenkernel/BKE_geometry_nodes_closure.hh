@@ -17,18 +17,14 @@ class ClosureSignature {
  public:
   struct Item {
     SocketInterfaceKey key;
-    const CPPType *type = nullptr;
+    const bNodeSocketType *type = nullptr;
   };
 
- private:
-  Vector<Item> inputs_;
-  Vector<Item> outputs_;
+  Vector<Item> inputs;
+  Vector<Item> outputs;
 
- public:
-  ClosureSignature(Vector<Item> inputs, Vector<Item> outputs);
-
-  std::optional<int> get_input_index(const SocketInterfaceKey &key) const;
-  std::optional<int> get_output_index(const SocketInterfaceKey &key) const;
+  std::optional<int> find_input_index(const SocketInterfaceKey &key) const;
+  std::optional<int> find_output_index(const SocketInterfaceKey &key) const;
 };
 
 struct ClosureFunctionIndices {

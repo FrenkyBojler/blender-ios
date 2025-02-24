@@ -642,4 +642,12 @@ std::string zone_wrapper_output_name(const ZoneBuildInfo &zone_info,
                                                    const bke::bNodeSocketType &to_type,
                                                    void *r_to_value);
 
+/**
+ * Builds a lazy-function that can convert between socket types. Returns null if the conversion is
+ * never possible.
+ */
+const LazyFunction *build_implicit_conversion_lazy_function(const bke::bNodeSocketType &from_type,
+                                                            const bke::bNodeSocketType &to_type,
+                                                            ResourceScope &scope);
+
 }  // namespace blender::nodes

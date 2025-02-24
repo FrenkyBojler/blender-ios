@@ -6,15 +6,10 @@
 
 namespace blender::bke {
 
-ClosureSignature::ClosureSignature(Vector<Item> inputs, Vector<Item> outputs)
-    : inputs_(std::move(inputs)), outputs_(std::move(outputs))
+std::optional<int> ClosureSignature::find_input_index(const SocketInterfaceKey &key) const
 {
-}
-
-std::optional<int> ClosureSignature::get_input_index(const SocketInterfaceKey &key) const
-{
-  for (const int i : inputs_.index_range()) {
-    const Item &item = inputs_[i];
+  for (const int i : this->inputs.index_range()) {
+    const Item &item = this->inputs[i];
     if (item.key.matches(key)) {
       return i;
     }
@@ -22,10 +17,10 @@ std::optional<int> ClosureSignature::get_input_index(const SocketInterfaceKey &k
   return std::nullopt;
 }
 
-std::optional<int> ClosureSignature::get_output_index(const SocketInterfaceKey &key) const
+std::optional<int> ClosureSignature::find_output_index(const SocketInterfaceKey &key) const
 {
-  for (const int i : outputs_.index_range()) {
-    const Item &item = outputs_[i];
+  for (const int i : this->outputs.index_range()) {
+    const Item &item = this->outputs[i];
     if (item.key.matches(key)) {
       return i;
     }
