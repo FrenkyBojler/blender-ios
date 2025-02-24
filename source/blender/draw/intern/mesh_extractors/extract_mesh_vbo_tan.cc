@@ -8,7 +8,7 @@
 
 #include "BLI_string.h"
 
-#include "GPU_vertex_format_normals.hh"
+#include "GPU_attribute_convert.hh"
 
 #include "BKE_editmesh_tangent.hh"
 #include "BKE_mesh.hh"

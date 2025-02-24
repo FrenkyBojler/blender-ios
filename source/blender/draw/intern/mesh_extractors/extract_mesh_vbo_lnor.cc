@@ -8,7 +8,7 @@
 
 #include "BLI_array_utils.hh"
 
-#include "GPU_vertex_format_normals.hh"
+#include "GPU_attribute_convert.hh"
 
 #include "extract_mesh.hh"
 

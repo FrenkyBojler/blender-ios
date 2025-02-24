@@ -4,13 +4,13 @@
 
 #include "testing/testing.h"
 
+#include "GPU_attribute_convert.hh"
 #include "GPU_batch.hh"
 #include "GPU_framebuffer.hh"
 #include "GPU_shader.hh"
 #include "GPU_state.hh"
 #include "GPU_vertex_buffer.hh"
 #include "GPU_vertex_format.hh"
-#include "GPU_vertex_format_normals.hh"
 
 #include "BLI_index_range.hh"
 #include "BLI_math_vector_types.hh"

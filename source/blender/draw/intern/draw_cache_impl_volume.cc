@@ -25,10 +25,10 @@
 #include "BKE_volume_grid_fwd.hh"
 #include "BKE_volume_render.hh"
 
+#include "GPU_attribute_convert.hh"
 #include "GPU_batch.hh"
 #include "GPU_capabilities.hh"
 #include "GPU_texture.hh"
-#include "GPU_vertex_format_normals.hh"
 
 #include "DRW_render.hh"
 

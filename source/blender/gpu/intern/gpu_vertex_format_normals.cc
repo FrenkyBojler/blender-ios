@@ -6,7 +6,7 @@
 #include "BLI_span.hh"
 #include "BLI_task.hh"
 
-#include "GPU_vertex_format_normals.hh"
+#include "GPU_attribute_convert.hh"
 
 namespace blender::gpu {
 

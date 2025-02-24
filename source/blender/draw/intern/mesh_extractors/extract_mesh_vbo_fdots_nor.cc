@@ -8,7 +8,7 @@
 
 #include "extract_mesh.hh"
 
-#include "GPU_vertex_format_normals.hh"
+#include "GPU_attribute_convert.hh"
 
 namespace blender::draw {
 

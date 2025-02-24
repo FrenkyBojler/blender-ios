@@ -27,10 +27,10 @@
 #include "BKE_object_types.hh"
 #include "BKE_vfont.hh"
 
+#include "GPU_attribute_convert.hh"
 #include "GPU_batch.hh"
 #include "GPU_capabilities.hh"
 #include "GPU_texture.hh"
-#include "GPU_vertex_format_normals.hh"
 
 #include "UI_resources.hh"
 
