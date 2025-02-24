@@ -89,7 +89,7 @@ static inline bool hipSupportsDriver()
 
   if (hip_driver_version < 60140252) {
     /* Cycles crashes during rendering due to issues in older GPU drivers.
-     * 60140252 corrisponds to Adrenalin 24.6.1 and newer. */
+     * 60140252 corrisponds to Adrenalin 24.6.1. */
     return false;
   }
 #    endif
