@@ -564,7 +564,7 @@ def addons_panel_draw_items(
         if addon_filter_type != 'ALL':
             filter_map = {
                 'EXTENSION': ADDON_TYPE_EXTENSION,
-                'CORE': ADDON_TYPE_LEGACY_CORE, 
+                'CORE': ADDON_TYPE_LEGACY_CORE,
                 'USER': ADDON_TYPE_LEGACY_USER,
                 'OTHER': ADDON_TYPE_LEGACY_OTHER,
             }
@@ -2381,7 +2381,7 @@ def register():
             ('OTHER', addon_type_name[ADDON_TYPE_LEGACY_OTHER], "Show only legacy other add-ons", addon_type_icon[ADDON_TYPE_LEGACY_OTHER], 4),
         ],
         name="Filter by Type",
-        description="Filter add-ons by their type", 
+        description="Filter add-ons by their type",
         default='ALL'
     )
 
