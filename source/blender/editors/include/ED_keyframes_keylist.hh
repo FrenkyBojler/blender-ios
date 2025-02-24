@@ -218,6 +218,30 @@ void summary_to_keylist(bAnimContext *ac,
                         int saction_flag,
                         blender::float2 range);
 
+/**
+ * Generate a summary channel keylist for the specified slot.
+ *
+ * This filters the keys to be consistent with the visible channels in the
+ * editor indicated by `ac`
+ *
+ * \param animated_id: the particular animated ID that the slot summary is being
+ * generated for. This is needed for filtering channels based on bone selection,
+ * etc.
+ *
+ * \param action: the action containing the slot to generate the summary for.
+ *
+ * \param slot_handle: the handle of the slot to generate the summary for.
+ *
+ * \param keylist: the keylist that the generated summary keylist will appended
+ * to.
+ *
+ * \param saction_flag: I (Nathan) have no idea. Copied from
+ * `action_to_keylist()`, which this replaced at some call sites in #134922.
+ * TODO: document what on earth this parameter does.
+ *
+ * \param range: only keys within this time range will be included in the
+ * summary.
+ */
 void action_slot_summary_to_keylist(bAnimContext *ac,
                                     ID *animated_id,
                                     blender::animrig::Action &action,
@@ -225,14 +249,6 @@ void action_slot_summary_to_keylist(bAnimContext *ac,
                                     AnimKeylist *keylist,
                                     const int saction_flag,
                                     blender::float2 range);
-
-void action_summary_to_keylist(bAnimContext *ac,
-                               ID *animated_id,
-                               AnimData *adt,
-                               bAction *dna_action,
-                               AnimKeylist *keylist,
-                               const int saction_flag,
-                               blender::float2 range);
 
 /* Grease Pencil datablock summary (Legacy) */
 void gpencil_to_keylist(bDopeSheet *ads, bGPdata *gpd, AnimKeylist *keylist, bool active);

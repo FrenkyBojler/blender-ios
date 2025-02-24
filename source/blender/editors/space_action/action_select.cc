@@ -110,8 +110,15 @@ static void actkeys_list_element_to_keylist(bAnimContext *ac,
         break;
       }
       case ALE_ACTION_LAYERED: {
-        bAction *action = (bAction *)ale->key_data;
-        action_summary_to_keylist(ac, ale->id, ale->adt, action, keylist, 0, range);
+        /* Despite the name `ALE_ACTION_LAYERED`, this only looks at a single
+         * slot in the action, not the whole action. The distinction between
+         * this and `ALE_ACTION_SLOT` below is purely where it gets the slot
+         * from. In this case, we get it from `ale`'s ADT. */
+        animrig::Action *action = static_cast<animrig::Action *>(ale->key_data);
+        BLI_assert(action);
+        BLI_assert(ale->adt);
+        action_slot_summary_to_keylist(
+            ac, ale->id, *action, ale->adt->slot_handle, keylist, 0, range);
         break;
       }
       case ALE_ACTION_SLOT: {

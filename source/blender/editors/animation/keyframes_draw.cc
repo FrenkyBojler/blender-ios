@@ -454,14 +454,19 @@ static void build_channel_keylist(ChannelListElement *elem, blender::float2 rang
       break;
     }
     case ChannelType::ACTION_LAYERED: {
+      /* Despite the name `ACTION_LAYERED`, this is only used to show a single
+       * slot of the action, not the whole action. The distinction between this
+       * and `ChannelType::ACTION_SLOT` below is purely where it gets the slot
+       * from. In this case, we get it from `elem`'s ADT. */
       BLI_assert(elem->act);
-      action_summary_to_keylist(elem->ac,
-                                elem->animated_id,
-                                elem->adt,
-                                elem->act,
-                                elem->keylist,
-                                elem->saction_flag,
-                                range);
+      BLI_assert(elem->adt);
+      action_slot_summary_to_keylist(elem->ac,
+                                     elem->animated_id,
+                                     elem->act->wrap(),
+                                     elem->adt->slot_handle,
+                                     elem->keylist,
+                                     elem->saction_flag,
+                                     range);
       break;
     }
     case ChannelType::ACTION_SLOT: {
