@@ -1812,7 +1812,8 @@ void DepsgraphNodeBuilder::build_object_data_geometry_datablock(ID *obdata)
                                    NodeType::GEOMETRY,
                                    OperationCode::GEOMETRY_EVAL,
                                    [obdata_cow](::Depsgraph *depsgraph) {
-                                     BKE_grease_pencil_eval_geometry(depsgraph, reinterpret_cast<GreasePencil *>(obdata_cow));
+                                     BKE_grease_pencil_eval_geometry(
+                                         depsgraph, reinterpret_cast<GreasePencil *>(obdata_cow));
                                    });
       op_node->set_as_entry();
       break;
