@@ -57,7 +57,6 @@
 #include "UI_view2d.hh"
 
 #include "io_utils.hh"
-
 #include <fmt/format.h>
 
 #include "node_intern.hh" /* own include */
@@ -1046,15 +1045,8 @@ static int node_add_import_node_exec(bContext *C, wmOperator *op)
   bNodeTree *ntree = snode->edittree;
 
   const Vector<std::string> paths = ed::io::paths_from_operator_properties(op->ptr);
+
   Vector<bNode *> new_nodes;
-
-  const auto set_input_path = [&](bNodeSocket &socket, const StringRefNull path) {
-    BLI_assert(socket.type == SOCK_STRING);
-    bNodeSocketValueString *socket_data = static_cast<bNodeSocketValueString *>(
-        socket.default_value);
-    STRNCPY(socket_data->value, path.c_str());
-  };
-
   for (const StringRefNull path : paths) {
     bNode *node = nullptr;
     if (path.endswith(".csv")) {
@@ -1071,7 +1063,10 @@ static int node_add_import_node_exec(bContext *C, wmOperator *op)
     }
 
     if (node) {
-      set_input_path(node->input_by_identifier("Path"), path);
+      const bNodeSocket &path_socket = node->input_by_identifier("Path");
+      BLI_assert(path_socket.type == SOCK_STRING);
+      auto *socket_data = static_cast<bNodeSocketValueString *>(path_socket.default_value);
+      STRNCPY(socket_data->value, path.c_str());
       new_nodes.append(node);
     }
   }
