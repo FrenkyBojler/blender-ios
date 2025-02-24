@@ -201,7 +201,7 @@ extern size_t (*MEM_get_peak_memory)(void) ATTR_WARN_UNUSED_RESULT;
 #  define MEM_SAFE_FREE(v) \
     do { \
       if (v) { \
-        MEM_freeN<std::remove_pointer_t<std::decay_t<decltype(v)>>>(v); \
+        MEM_freeN(v); \
         (v) = nullptr; \
       } \
     } while (0)
@@ -399,21 +399,20 @@ template<typename T> inline T *MEM_cnew(const char *allocation_name, const T &ot
 
 template<typename T> inline void MEM_freeN(T *ptr)
 {
-  if constexpr (std::is_void_v<T>) {
-    mem_guarded::internal::mem_freeN_ex(const_cast<void *>(ptr),
-                                        mem_guarded::internal::AllocationType::ALLOC_FREE);
-  }
-  else {
-#  ifndef _WIN32
-    /* MSVC seems to consider C-style types using the MEM_CXX_CLASS_ALLOC_FUNCS as non-trivial. GCC
-     * and clang (both on linux and OSX) do not.
-     *
-     * So for now, disable the triviality check on Windows. */
-    static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_delete must be used.");
+#  ifdef _MSC_VER
+  /* MSVC considers C-style types using the DNA_DEFINE_CXX_METHODS as non-trivial (more
+   * specifically, non-trivially copyable, likely because the default copy constructors are
+   * deleted). GCC and clang (both on linux, OSX, and clang-cl on Windows on Arm) do not.
+   *
+   * So for now, use a more restricted check on MSVC, should still catch most of actual invalid
+   * cases. */
+  static_assert(std::is_trivially_destructible_v<T>,
+                "For non-trivial types, MEM_delete must be used.");
+#  else
+  static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_delete must be used.");
 #  endif
-    mem_guarded::internal::mem_freeN_ex(const_cast<void *>(static_cast<const void *>(ptr)),
-                                        mem_guarded::internal::AllocationType::ALLOC_FREE);
-  }
+  mem_guarded::internal::mem_freeN_ex(const_cast<void *>(static_cast<const void *>(ptr)),
+                                      mem_guarded::internal::AllocationType::ALLOC_FREE);
 }
 
 /** Allocation functions (for C++ only). */
