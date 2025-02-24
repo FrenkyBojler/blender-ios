@@ -43,11 +43,16 @@ static Geometry::Type determine_geom_type(BObjectInfo &b_ob_info, bool use_parti
 
 array<Node *> BlenderSync::find_used_shaders(BL::Object &b_ob)
 {
+  array<Node *> used_shaders;
+
+  if (b_ob.type() == BL::Object::type_LIGHT) {
+    find_shader(b_ob.data(), used_shaders, scene->default_light);
+    return used_shaders;
+  }
+
   BL::Material material_override = view_layer.material_override;
   Shader *default_shader = (b_ob.type() == BL::Object::type_VOLUME) ? scene->default_volume :
                                                                       scene->default_surface;
-
-  array<Node *> used_shaders;
 
   for (BL::MaterialSlot &b_slot : b_ob.material_slots) {
     if (material_override) {

@@ -78,11 +78,6 @@ void BlenderSync::sync_light(BL::Depsgraph /*b_depsgraph*/, BObjectInfo &b_ob_in
   const float3 strength = get_float3(b_light.color()) * BL::PointLight(b_light).energy();
   light->set_strength(strength);
 
-  /* shader */
-  array<Node *> used_shaders;
-  find_shader(b_light, used_shaders, scene->default_light);
-  light->set_used_shaders(used_shaders);
-
   /* shadow */
   PointerRNA clight = RNA_pointer_get(&b_light.ptr, "cycles");
   light->set_cast_shadow(b_light.use_shadow());
