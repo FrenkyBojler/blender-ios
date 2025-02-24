@@ -112,6 +112,11 @@ class Node {
   /** \todo Move storage of image painting data to #Tree or elsewhere. */
   pixels::NodeData *pixels_ = nullptr;
 
+  bool is_leaf_node() const
+  {
+    return flag_ & Node::Leaf;
+  }
+
   bool isGPUNode() const
   {
     return flag_ & Node::GPU;

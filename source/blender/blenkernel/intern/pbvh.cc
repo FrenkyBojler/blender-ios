@@ -77,29 +77,41 @@ static int partition_material_indices(const Span<int> material_indices, MutableS
 BLI_NOINLINE static void build_mesh_leaf_nodes(const int verts_num,
                                                const OffsetIndices<int> faces,
                                                const Span<int> corner_verts,
+                                               bke::pbvh::Tree &pbvh,
                                                MutableSpan<MeshNode> nodes)
 {
 #ifdef DEBUG_BUILD_TIME
   SCOPED_TIMER_AVERAGED(__func__);
 #endif
-  Array<Array<int>> verts_per_node(nodes.size(), NoInitialization());
-  threading::parallel_for(nodes.index_range(), 8, [&](const IndexRange range) {
+
+  Array<Array<int>> verts_per_node(nodes.size());
+
+  IndexMaskMemory memory;
+  const IndexMask gpu_nodes = bke::pbvh::all_GPU_nodes(pbvh, memory);
+
+  gpu_nodes.foreach_index(GrainSize(1), [&](const int j) {
+    const MeshNode &gpu_node = nodes[j];
     Set<int> verts;
-    for (const int i : range) {
-      MeshNode &node = nodes[i];
+    int offset = 0;
+
+    for (const int i : gpu_node.leaf_nodes_.index_range()) {
+      const int leaf_index = gpu_node.leaf_nodes_[i];
+      MeshNode &leaf_node = nodes[leaf_index];
 
       verts.clear();
       int corners_count = 0;
-      for (const int face_index : node.face_indices_) {
+      for (const int face_index : leaf_node.face_indices_) {
         const IndexRange face = faces[face_index];
         verts.add_multiple(corner_verts.slice(face));
         corners_count += face.size();
       }
-      nodes[i].corners_num_ = corners_count;
+      leaf_node.corners_num_ = corners_count;
+      leaf_node.leaf_offset_ = offset;
+      offset += corners_count;
 
-      new (&verts_per_node[i]) Array<int>(verts.size());
-      std::copy(verts.begin(), verts.end(), verts_per_node[i].begin());
-      std::sort(verts_per_node[i].begin(), verts_per_node[i].end());
+      new (&verts_per_node[leaf_index]) Array<int>(verts.size());
+      std::copy(verts.begin(), verts.end(), verts_per_node[leaf_index].begin());
+      std::sort(verts_per_node[leaf_index].begin(), verts_per_node[leaf_index].end());
     }
   });
 
@@ -108,6 +120,10 @@ BLI_NOINLINE static void build_mesh_leaf_nodes(const int verts_num,
   BitVector<> vert_used(verts_num);
   for (const int i : nodes.index_range()) {
     MeshNode &node = nodes[i];
+
+    if (!node.is_leaf_node()) {
+      continue;
+    }
 
     owned_verts.clear();
     shared_verts.clear();
@@ -298,7 +314,7 @@ Tree Tree::from_mesh(const Mesh &mesh)
                                nodes);
   }
 
-  build_mesh_leaf_nodes(mesh.verts_num, faces, corner_verts, nodes);
+  build_mesh_leaf_nodes(mesh.verts_num, faces, corner_verts, pbvh, nodes);
 
   pbvh.tag_positions_changed(nodes.index_range());
 
