@@ -225,7 +225,6 @@ typedef struct bNodeTreeInterfacePanel {
                     bool include_self = false) const;
 
   const bNodeTreeInterfaceSocket *get_header_toggle_socket() const;
-  // bNodeTreeInterfaceSocket *get_header_toggle_socket();
  private:
   /** Find a valid position for inserting in the items span. */
   int find_valid_insert_position_for_item(const bNodeTreeInterfaceItem &item,

@@ -586,6 +586,8 @@ struct Separator {
 struct PanelHeader {
   static constexpr Type type = Type::PanelHeader;
   const nodes::PanelDeclaration *decl;
+  /** Optional input that is drawn in the header. */
+  bNodeSocket *input = nullptr;
 };
 struct PanelContentBegin {
   static constexpr Type type = Type::PanelContentBegin;
@@ -747,14 +749,23 @@ static void add_flat_items_for_panel(bNode &node,
   if (!panel_visibility[panel_decl.index]) {
     return;
   }
-  r_items.append({flat_item::PanelHeader{&panel_decl}});
+  const int panel_header_i = r_items.append_and_get_index({flat_item::PanelHeader{&panel_decl}});
+  flat_item::PanelHeader &header_item = std::get<flat_item::PanelHeader>(
+      r_items[panel_header_i].item);
+  const nodes::SocketDeclaration *panel_input_decl = panel_decl.panel_input_decl();
+  bool skip_first = false;
+  if (!header_item.input && panel_input_decl) {
+    header_item.input = &node.socket_by_decl(*panel_input_decl);
+    skip_first = true;
+  }
   const bNodePanelState &panel_state = node.panel_states_array[panel_decl.index];
   if (panel_state.is_collapsed()) {
     return;
   }
   r_items.append({flat_item::PanelContentBegin{&panel_decl}});
   const nodes::SocketDeclaration *prev_socket_decl = nullptr;
-  for (const nodes::ItemDeclaration *item_decl : panel_decl.items) {
+  for (const nodes::ItemDeclaration *item_decl : panel_decl.items.as_span().drop_front(skip_first))
+  {
     if (const auto *socket_decl = dynamic_cast<const nodes::SocketDeclaration *>(item_decl)) {
       add_flat_items_for_socket(node, *socket_decl, &panel_decl, prev_socket_decl, r_items);
       prev_socket_decl = socket_decl;
@@ -1071,6 +1082,7 @@ static void node_update_basis_from_declaration(
   for (bke::bNodePanelRuntime &panel_runtime : node.runtime->panels) {
     panel_runtime.header_center_y.reset();
     panel_runtime.content_extent.reset();
+    panel_runtime.input_socket = nullptr;
   }
   for (bNodeSocket *socket : node.input_sockets()) {
     socket->flag &= ~SOCK_PANEL_COLLAPSED;
@@ -1151,10 +1163,13 @@ static void node_update_basis_from_declaration(
           else if constexpr (std::is_same_v<ItemT, flat_item::PanelHeader>) {
             const nodes::PanelDeclaration &node_decl = *item.decl;
             bke::bNodePanelRuntime &panel_runtime = node.runtime->panels[node_decl.index];
+            bNodeSocket *input_socket = item.input;
+            panel_runtime.input_socket = input_socket;
             const float panel_header_height = NODE_DYS;
             locy -= panel_header_height / 2;
             panel_runtime.header_center_y = locy;
             locy -= panel_header_height / 2;
+            input_socket->runtime->location = float2(locx, *panel_runtime.header_center_y);
           }
           else if constexpr (std::is_same_v<ItemT, flat_item::PanelContentBegin>) {
             const nodes::PanelDeclaration &node_decl = *item.decl;
@@ -2487,6 +2502,7 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
   for (const int panel_i : node_decl.panels.index_range()) {
     const nodes::PanelDeclaration &panel_decl = *node_decl.panels[panel_i];
     const bke::bNodePanelRuntime &panel_runtime = node.runtime->panels[panel_i];
+    bNodeSocket *input_socket = panel_runtime.input_socket;
     const bNodePanelState &panel_state = node.panel_states_array[panel_i];
     if (!panel_runtime.header_center_y.has_value()) {
       continue;
@@ -2496,42 +2512,8 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
                               draw_bounds.xmax,
                               *panel_runtime.header_center_y - NODE_DYS,
                               *panel_runtime.header_center_y + NODE_DYS};
+
     UI_block_emboss_set(&block, UI_EMBOSS_NONE);
-
-    /* Collapse/expand icon. */
-    const int but_size = U.widget_unit * 0.8f;
-    uiDefIconBut(&block,
-                 UI_BTYPE_BUT_TOGGLE,
-                 0,
-                 panel_state.is_collapsed() ? ICON_RIGHTARROW : ICON_DOWNARROW_HLT,
-                 draw_bounds.xmin + (NODE_MARGIN_X / 3),
-                 *panel_runtime.header_center_y - but_size / 2,
-                 but_size,
-                 but_size,
-                 nullptr,
-                 0.0f,
-                 0.0f,
-                 "");
-
-    /* Panel label. */
-    uiBut *label_but = uiDefBut(
-        &block,
-        UI_BTYPE_LABEL,
-        0,
-        IFACE_(panel_decl.name),
-        int(draw_bounds.xmin + NODE_MARGIN_X + 0.4f),
-        int(*panel_runtime.header_center_y - NODE_DYS),
-        short(draw_bounds.xmax - draw_bounds.xmin - (30.0f * UI_SCALE_FAC)),
-        NODE_DY,
-        nullptr,
-        0,
-        0,
-        "");
-
-    const bool only_inactive_inputs = panel_has_only_inactive_inputs(node, panel_decl);
-    if (node.is_muted() || only_inactive_inputs) {
-      UI_but_flag_enable(label_but, UI_BUT_INACTIVE);
-    }
 
     /* Invisible button covering the entire header for collapsing/expanding. */
     const int header_but_margin = NODE_MARGIN_X / 3;
@@ -2555,7 +2537,66 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
                     const_cast<bNodePanelState *>(&panel_state),
                     &ntree);
 
+    /* Collapse/expand icon. */
+    const int but_size = U.widget_unit * 0.8f;
+    const int but_padding = NODE_MARGIN_X / 4;
+    int offsetx = draw_bounds.xmin + (NODE_MARGIN_X / 3);
+    uiDefIconBut(&block,
+                 UI_BTYPE_LABEL,
+                 0,
+                 panel_state.is_collapsed() ? ICON_RIGHTARROW : ICON_DOWNARROW_HLT,
+                 offsetx,
+                 *panel_runtime.header_center_y - but_size / 2,
+                 but_size,
+                 but_size,
+                 nullptr,
+                 0.0f,
+                 0.0f,
+                 "");
+    offsetx += but_size + but_padding;
+
     UI_block_emboss_set(&block, UI_EMBOSS);
+
+    /* Panel toggle. */
+    if (input_socket && !input_socket->is_logically_linked()) {
+      PointerRNA socket_ptr = RNA_pointer_create_discrete(
+          &ntree.id, &RNA_NodeSocket, input_socket);
+      uiDefButR(&block,
+                UI_BTYPE_CHECKBOX,
+                -1,
+                "",
+                offsetx,
+                int(*panel_runtime.header_center_y - NODE_DYS),
+                UI_UNIT_X,
+                NODE_DY,
+                &socket_ptr,
+                "default_value",
+                0,
+                0,
+                0,
+                "");
+      offsetx += UI_UNIT_X;
+    }
+
+    /* Panel label. */
+    uiBut *label_but = uiDefBut(
+        &block,
+        UI_BTYPE_LABEL,
+        0,
+        IFACE_(panel_decl.name),
+        offsetx,
+        int(*panel_runtime.header_center_y - NODE_DYS),
+        short(draw_bounds.xmax - draw_bounds.xmin - (30.0f * UI_SCALE_FAC)),
+        NODE_DY,
+        nullptr,
+        0,
+        0,
+        "");
+
+    const bool only_inactive_inputs = panel_has_only_inactive_inputs(node, panel_decl);
+    if (node.is_muted() || only_inactive_inputs) {
+      UI_but_flag_enable(label_but, UI_BUT_INACTIVE);
+    }
   }
 }
 

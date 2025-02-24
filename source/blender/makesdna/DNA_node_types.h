@@ -328,6 +328,8 @@ typedef enum eNodeSocketFlag {
   SOCK_HIDE_IN_MODIFIER = (1 << 13),
   /** The panel containing the socket is collapsed. */
   SOCK_PANEL_COLLAPSED = (1 << 14),
+  /** This socket is used as a toggle for the panel containing the socket. */
+  SOCK_PANEL_TOGGLE = (1 << 15),
 } eNodeSocketFlag;
 
 typedef enum eNodePanelFlag {

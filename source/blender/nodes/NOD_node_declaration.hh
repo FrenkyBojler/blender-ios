@@ -189,6 +189,8 @@ class SocketDeclaration : public ItemDeclaration {
   /** Puts this socket on the same line as the previous one in the UI. */
   bool align_with_previous_socket = false;
 
+  bool is_panel_toggle = false;
+
   /** Index in the list of inputs or outputs of the node. */
   int index = -1;
 
@@ -454,6 +456,8 @@ class PanelDeclaration : public ItemDeclaration {
   void update_or_build(const bNodePanelState &old_panel, bNodePanelState &new_panel) const;
 
   int depth() const;
+
+  const SocketDeclaration *panel_input_decl() const;
 };
 
 /**

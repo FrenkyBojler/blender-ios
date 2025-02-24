@@ -276,6 +276,7 @@ void SocketDeclaration::set_common_flags(bNodeSocket &socket) const
   SET_FLAG_FROM_TEST(socket.flag, is_multi_input, SOCK_MULTI_INPUT);
   SET_FLAG_FROM_TEST(socket.flag, no_mute_links, SOCK_NO_INTERNAL_LINK);
   SET_FLAG_FROM_TEST(socket.flag, !is_available, SOCK_UNAVAIL);
+  SET_FLAG_FROM_TEST(socket.flag, is_panel_toggle, SOCK_PANEL_TOGGLE);
 }
 
 bool SocketDeclaration::matches_common_data(const bNodeSocket &socket) const
@@ -493,6 +494,21 @@ int PanelDeclaration::depth() const
     count++;
   }
   return count;
+}
+
+const nodes::SocketDeclaration *PanelDeclaration::panel_input_decl() const
+{
+  if (this->items.is_empty()) {
+    return nullptr;
+  }
+  const nodes::ItemDeclaration *item_decl = this->items.first();
+  if (const auto *socket_decl = dynamic_cast<const nodes::SocketDeclaration *>(item_decl)) {
+    if (socket_decl->in_out == SOCK_IN && socket_decl->socket_type == SOCK_BOOLEAN) {
+      /* TODO: Take possibly other conditions into account. */
+      return socket_decl;
+    }
+  }
+  return nullptr;
 }
 
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::supports_field()
