@@ -1202,7 +1202,7 @@ class VIEW3D_MT_editor_menus(Menu):
             elif mode_string in {'EDIT_CURVE', 'EDIT_SURFACE'}:
                 layout.menu("VIEW3D_MT_edit_curve_ctrlpoints")
                 layout.menu("VIEW3D_MT_edit_curve_segments")
-            elif mode_string == 'EDIT_POINT_CLOUD':
+            elif mode_string == 'EDIT_POINTCLOUD':
                 layout.template_node_operator_asset_root_items()
             elif mode_string == 'EDIT_CURVES':
                 layout.menu("VIEW3D_MT_edit_curves_control_points")
@@ -1285,7 +1285,7 @@ class VIEW3D_MT_transform_base:
             'EDIT_CURVES',
             'EDIT_LATTICE',
             'EDIT_METABALL',
-            'EDIT_POINT_CLOUD',
+            'EDIT_POINTCLOUD',
         }:
             layout.operator("transform.vertex_warp", text="Warp")
             layout.operator_context = 'EXEC_REGION_WIN'
@@ -1304,7 +1304,7 @@ class VIEW3D_MT_transform(VIEW3D_MT_transform_base, Menu):
         if context.mode == 'EDIT_MESH':
             layout.operator("transform.shrink_fatten", text="Shrink/Fatten")
             layout.operator("transform.skin_resize")
-        elif context.mode in {'EDIT_CURVE', 'EDIT_GREASE_PENCIL', 'EDIT_CURVES', 'EDIT_POINT_CLOUD'}:
+        elif context.mode in {'EDIT_CURVE', 'EDIT_GREASE_PENCIL', 'EDIT_CURVES', 'EDIT_POINTCLOUD'}:
             layout.operator("transform.transform", text="Radius").mode = 'CURVE_SHRINKFATTEN'
 
         if context.mode != 'EDIT_CURVES' and context.mode != 'EDIT_GREASE_PENCIL':
@@ -2315,15 +2315,19 @@ class VIEW3D_MT_select_paint_mask_vertex(Menu):
         layout.operator("paint.vert_select_ungrouped", text="Ungrouped Vertices")
 
 
-class VIEW3D_MT_select_edit_point_cloud(Menu):
+class VIEW3D_MT_select_edit_pointcloud(Menu):
     bl_label = "Select"
 
     def draw(self, _context):
         layout = self.layout
 
-        layout.operator("point_cloud.select_all", text="All").action = 'SELECT'
-        layout.operator("point_cloud.select_all", text="None").action = 'DESELECT'
-        layout.operator("point_cloud.select_all", text="Invert").action = 'INVERT'
+        layout.operator("pointcloud.select_all", text="All").action = 'SELECT'
+        layout.operator("pointcloud.select_all", text="None").action = 'DESELECT'
+        layout.operator("pointcloud.select_all", text="Invert").action = 'INVERT'
+
+        layout.separator()
+
+        layout.operator("pointcloud.select_random")
 
         layout.template_node_operator_asset_menu_items(catalog_path=self.bl_label)
 
@@ -2657,7 +2661,7 @@ class VIEW3D_MT_add(Menu):
         layout.menu("VIEW3D_MT_surface_add", icon='OUTLINER_OB_SURFACE')
         layout.menu("VIEW3D_MT_metaball_add", text="Metaball", icon='OUTLINER_OB_META')
         layout.operator("object.text_add", text="Text", icon='OUTLINER_OB_FONT')
-        if context.preferences.experimental.use_new_point_cloud_type:
+        if context.preferences.experimental.use_new_pointcloud_type:
             layout.operator("object.pointcloud_add", text="Point Cloud", icon='OUTLINER_OB_POINTCLOUD')
         layout.menu("VIEW3D_MT_volume_add", text="Volume", text_ctxt=i18n_contexts.id_id, icon='OUTLINER_OB_VOLUME')
         layout.menu("VIEW3D_MT_grease_pencil_add", text="Grease Pencil", icon='OUTLINER_OB_GREASEPENCIL')
@@ -5897,6 +5901,10 @@ class VIEW3D_MT_edit_curves_context_menu(Menu):
 
         layout.operator_menu_enum("curves.handle_type_set", "type")
 
+        layout.separator()
+
+        layout.operator("curves.split")
+
 
 class VIEW3D_MT_edit_pointcloud(Menu):
     bl_label = "Point Cloud"
@@ -5905,11 +5913,11 @@ class VIEW3D_MT_edit_pointcloud(Menu):
         layout = self.layout
         layout.menu("VIEW3D_MT_transform")
         layout.separator()
-        layout.operator("point_cloud.duplicate_move")
+        layout.operator("pointcloud.duplicate_move")
         layout.separator()
-        layout.operator("point_cloud.attribute_set")
-        layout.operator("point_cloud.delete")
-        layout.operator("point_cloud.separate")
+        layout.operator("pointcloud.attribute_set")
+        layout.operator("pointcloud.delete")
+        layout.operator("pointcloud.separate")
         layout.template_node_operator_asset_menu_items(catalog_path=self.bl_label)
 
 
@@ -8956,7 +8964,7 @@ classes = (
     VIEW3D_MT_select_edit_grease_pencil,
     VIEW3D_MT_select_paint_mask,
     VIEW3D_MT_select_paint_mask_vertex,
-    VIEW3D_MT_select_edit_point_cloud,
+    VIEW3D_MT_select_edit_pointcloud,
     VIEW3D_MT_edit_curves_select_more_less,
     VIEW3D_MT_select_edit_curves,
     VIEW3D_MT_select_sculpt_curves,

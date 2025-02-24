@@ -176,26 +176,6 @@ IndexMask end_points(const bke::CurvesGeometry &curves,
                      bool inverted,
                      IndexMaskMemory &memory);
 
-/**
- * Return a mask of random points or curves.
- *
- * \param mask: (optional) The elements that should be used in the resulting mask. This mask should
- * be in the same domain as the \a selection_domain. \param random_seed: The seed for the \a
- * RandomNumberGenerator. \param probability: Determines how likely a point/curve will be chosen.
- * If set to 0.0, nothing will be in the mask, if set to 1.0 everything will be in the mask.
- */
-IndexMask random_mask(const bke::CurvesGeometry &curves,
-                      bke::AttrDomain selection_domain,
-                      uint32_t random_seed,
-                      float probability,
-                      IndexMaskMemory &memory);
-IndexMask random_mask(const bke::CurvesGeometry &curves,
-                      const IndexMask &mask,
-                      bke::AttrDomain selection_domain,
-                      uint32_t random_seed,
-                      float probability,
-                      IndexMaskMemory &memory);
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -249,6 +229,12 @@ IndexMask retrieve_selected_points(const bke::CurvesGeometry &curves,
                                    StringRef attribute_name,
                                    IndexMaskMemory &memory);
 IndexMask retrieve_selected_points(const Curves &curves_id, IndexMaskMemory &memory);
+
+/**
+ * Find points that are selected (a selection factor greater than zero) or have
+ * any of their Bezier handle selected.
+ */
+IndexMask retrieve_all_selected_points(const bke::CurvesGeometry &curves, IndexMaskMemory &memory);
 
 /**
  * If the selection_id attribute doesn't exist, create it with the requested type (bool or float).
@@ -438,6 +424,9 @@ bool remove_selection(bke::CurvesGeometry &curves, bke::AttrDomain selection_dom
 
 void duplicate_points(bke::CurvesGeometry &curves, const IndexMask &mask);
 void duplicate_curves(bke::CurvesGeometry &curves, const IndexMask &mask);
+
+bke::CurvesGeometry split_points(const bke::CurvesGeometry &curves,
+                                 const IndexMask &points_to_split);
 
 /**
  * Adds new curves to \a curves.

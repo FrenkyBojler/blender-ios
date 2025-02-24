@@ -5781,6 +5781,7 @@ def km_edit_curves(params):
         ("curves.separate", {"type": 'P', "value": 'PRESS'}, None),
         ("curves.select_more", {"type": 'NUMPAD_PLUS', "value": 'PRESS', "ctrl": True, "repeat": True}, None),
         ("curves.select_less", {"type": 'NUMPAD_MINUS', "value": 'PRESS', "ctrl": True, "repeat": True}, None),
+        ("curves.split", {"type": 'Y', "value": 'PRESS'}, None),
         *_template_items_proportional_editing(
             params, connected=True, toggle_data_path="tool_settings.use_proportional_edit"),
         ("curves.tilt_clear", {"type": 'T', "value": 'PRESS', "alt": True}, None),
@@ -5799,7 +5800,7 @@ def km_edit_curves(params):
 
 
 # Point cloud edit mode.
-def km_edit_point_cloud(params):
+def km_edit_pointcloud(params):
     items = []
     keymap = (
         "Point Cloud",
@@ -5811,11 +5812,11 @@ def km_edit_point_cloud(params):
         # Transform Actions.
         *_template_items_transform_actions(params, use_bend=True, use_mirror=True),
 
-        ("point_cloud.duplicate_move", {"type": 'D', "value": 'PRESS', "shift": True}, None),
-        *_template_items_select_actions(params, "point_cloud.select_all"),
-        ("point_cloud.delete", {"type": 'X', "value": 'PRESS'}, None),
-        ("point_cloud.delete", {"type": 'DEL', "value": 'PRESS'}, None),
-        ("point_cloud.separate", {"type": 'P', "value": 'PRESS'}, None),
+        ("pointcloud.duplicate_move", {"type": 'D', "value": 'PRESS', "shift": True}, None),
+        *_template_items_select_actions(params, "pointcloud.select_all"),
+        ("pointcloud.delete", {"type": 'X', "value": 'PRESS'}, None),
+        ("pointcloud.delete", {"type": 'DEL', "value": 'PRESS'}, None),
+        ("pointcloud.separate", {"type": 'P', "value": 'PRESS'}, None),
         ("transform.transform", {"type": 'S', "value": 'PRESS', "alt": True},
          {"properties": [("mode", 'CURVE_SHRINKFATTEN')]}),
     ])
@@ -8378,7 +8379,7 @@ def generate_keymaps(params=None):
         km_edit_font(params),
         km_edit_curve_legacy(params),
         km_edit_curves(params),
-        km_edit_point_cloud(params),
+        km_edit_pointcloud(params),
 
         # Modal maps.
         km_eyedropper_modal_map(params),
