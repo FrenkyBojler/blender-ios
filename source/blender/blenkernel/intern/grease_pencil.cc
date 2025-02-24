@@ -2221,6 +2221,9 @@ static void grease_pencil_evaluate_layers(GreasePencil &grease_pencil)
   Array<Layer *> layers = grease_pencil.layers_for_write();
 
   for (Layer *layer : layers) {
+    /* When the visibility is animated, the layer should be retained even when it is invisible.
+     * Changing the visibility through the animation system does NOT create another evaluated copy,
+     * and thus the layer has to be kept for this future use. */
     if (layer->is_visible() || layer->runtime->is_visisbility_animated_) {
       continue;
     }
