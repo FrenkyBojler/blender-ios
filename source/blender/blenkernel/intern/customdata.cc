@@ -45,6 +45,7 @@
 
 #include "BKE_anonymous_attribute_id.hh"
 #include "BKE_attribute_math.hh"
+#include "BKE_bpath.hh"
 #include "BKE_customdata.hh"
 #include "BKE_customdata_file.h"
 #include "BKE_deform.hh"
@@ -4597,7 +4598,7 @@ static void customdata_external_filename(char filepath[FILE_MAX],
                                          CustomDataExternal *external)
 {
   BLI_strncpy(filepath, external->filepath, FILE_MAX);
-  BLI_path_apply_variables(filepath, BLI_build_path_variable_dictionary());
+  BLI_path_apply_variables(filepath, BKE_build_path_variables());
   BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(id));
 }
 

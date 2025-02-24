@@ -21,6 +21,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_appdir.hh"
+#include "BKE_bpath.hh"
 #include "BKE_context.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
@@ -203,7 +204,7 @@ static int file_browse_exec(bContext *C, wmOperator *op)
     id = fbo->ptr.owner_id;
 
     STRNCPY(path_buf, path);
-    BLI_path_apply_variables(path_buf, BLI_build_path_variable_dictionary());
+    BLI_path_apply_variables(path_buf, BKE_build_path_variables());
     BLI_path_abs(path_buf, id ? ID_BLEND_PATH(bmain, id) : BKE_main_blendfile_path(bmain));
 
     if (BLI_is_dir(path_buf)) {

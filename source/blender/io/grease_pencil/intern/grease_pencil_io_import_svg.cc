@@ -15,6 +15,7 @@
 #include "BLI_offset_indices.hh"
 #include "BLI_path_utils.hh"
 
+#include "BKE_bpath.hh"
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_report.hh"
@@ -294,7 +295,7 @@ bool SVGImporter::read(StringRefNull filepath)
 
   char abs_filepath[FILE_MAX];
   STRNCPY(abs_filepath, filepath.c_str());
-  BLI_path_apply_variables(abs_filepath, BLI_build_path_variable_dictionary());
+  BLI_path_apply_variables(abs_filepath, BKE_build_path_variables());
   BLI_path_abs(abs_filepath, BKE_main_blendfile_path_from_global());
 
   NSVGimage *svg_data = nullptr;

@@ -23,6 +23,7 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
+#include "BKE_bpath.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_image.hh"
@@ -116,7 +117,7 @@ static int screenshot_exec(bContext *C, wmOperator *op)
       char filepath[FILE_MAX];
 
       RNA_string_get(op->ptr, "filepath", filepath);
-      BLI_path_apply_variables(filepath, BLI_build_path_variable_dictionary());
+      BLI_path_apply_variables(filepath, BKE_build_path_variables());
       BLI_path_abs(filepath, BKE_main_blendfile_path_from_global());
 
       /* operator ensures the extension */

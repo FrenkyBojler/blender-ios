@@ -22,6 +22,7 @@
 #include "DNA_sound_types.h"
 #include "DNA_space_types.h"
 
+#include "BKE_bpath.hh"
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
@@ -356,7 +357,7 @@ static int sound_mixdown_exec(bContext *C, wmOperator *op)
   specs.channels = AUD_Channels(RNA_enum_get(op->ptr, "channels"));
   specs.rate = RNA_int_get(op->ptr, "mixrate");
 
-  BLI_path_apply_variables(filepath, BLI_build_path_variable_dictionary());
+  BLI_path_apply_variables(filepath, BKE_build_path_variables());
   BLI_path_abs(filepath, BKE_main_blendfile_path(bmain));
 
   const double fps = double(scene_eval->r.frs_sec) / double(scene_eval->r.frs_sec_base);

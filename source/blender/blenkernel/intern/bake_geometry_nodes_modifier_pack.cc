@@ -4,6 +4,7 @@
 
 #include "BKE_bake_geometry_nodes_modifier.hh"
 #include "BKE_bake_geometry_nodes_modifier_pack.hh"
+#include "BKE_bpath.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_packedFile.hh"
@@ -174,7 +175,7 @@ UnpackGeometryNodesBakeResult unpack_geometry_nodes_bake(Main &bmain,
     const char *base_path = ID_BLEND_PATH(&bmain, &object.id);
     char absolute_dir[FILE_MAX];
     STRNCPY(absolute_dir, directory.c_str());
-    BLI_path_apply_variables(absolute_dir, BLI_build_path_variable_dictionary());
+    BLI_path_apply_variables(absolute_dir, BKE_build_path_variables());
     BLI_path_abs(absolute_dir, base_path);
     return bake::BakePath::from_single_root(absolute_dir);
   };

@@ -24,6 +24,7 @@
 #include "DNA_userdef_types.h"
 
 #include "BKE_appdir.hh"
+#include "BKE_bpath.hh"
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
 #include "BKE_image_save.hh"
@@ -1023,7 +1024,7 @@ static void render_result_exr_file_cache_path(Scene *sce,
   }
   else {
     STRNCPY(root_buf, root);
-    BLI_path_apply_variables(root_buf, BLI_build_path_variable_dictionary());
+    BLI_path_apply_variables(root_buf, BKE_build_path_variables());
     BLI_path_abs(root_buf, dirname);
     root = root_buf;
   }

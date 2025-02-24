@@ -25,6 +25,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_animsys.h"
+#include "BKE_bpath.hh"
 #include "BKE_image.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
@@ -241,7 +242,7 @@ static void proxy_dir_get(Editing *ed, Strip *strip, size_t str_len, char *r_pro
     else {
       BLI_strncpy(r_proxy_dirpath, strip->data->proxy->dirpath, str_len);
     }
-    BLI_path_apply_variables(r_proxy_dirpath, BLI_build_path_variable_dictionary());
+    BLI_path_apply_variables(r_proxy_dirpath, BKE_build_path_variables());
     BLI_path_abs(r_proxy_dirpath, BKE_main_blendfile_path_from_global());
   }
 }
@@ -309,7 +310,7 @@ void strip_open_anim_file(Scene *scene, Strip *strip, bool openfile)
   char filepath[FILE_MAX];
   BLI_path_join(
       filepath, sizeof(filepath), strip->data->dirpath, strip->data->stripdata->filename);
-  BLI_path_apply_variables(filepath, BLI_build_path_variable_dictionary());
+  BLI_path_apply_variables(filepath, BKE_build_path_variables());
   BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&scene->id));
 
   bool is_multiview = (strip->flag & SEQ_USE_VIEWS) != 0 && (scene->r.scemode & R_MULTIVIEW) != 0;

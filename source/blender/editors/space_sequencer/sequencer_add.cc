@@ -22,6 +22,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_space_types.h"
 
+#include "BKE_bpath.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_main.hh"
@@ -179,7 +180,7 @@ static void sequencer_generic_invoke_path__internal(bContext *C,
       Main *bmain = CTX_data_main(C);
       char dirpath[FILE_MAX];
       STRNCPY(dirpath, last_seq->data->dirpath);
-      BLI_path_apply_variables(dirpath, BLI_build_path_variable_dictionary());
+      BLI_path_apply_variables(dirpath, BKE_build_path_variables());
       BLI_path_abs(dirpath, BKE_main_blendfile_path(bmain));
       RNA_string_set(op->ptr, identifier, dirpath);
     }

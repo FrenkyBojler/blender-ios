@@ -28,6 +28,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_armature.hh"
+#include "BKE_bpath.hh"
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
 #include "BKE_deform.hh"
@@ -745,7 +746,7 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
         BKE_library_filepath_set(bmain, lib, lib->filepath);
 
         STRNCPY(expanded, lib->filepath);
-        BLI_path_apply_variables(expanded, BLI_build_path_variable_dictionary());
+        BLI_path_apply_variables(expanded, BKE_build_path_variables());
         BLI_path_abs(expanded, BKE_main_blendfile_path(bmain));
         if (!BLI_exists(expanded)) {
           BKE_reportf(CTX_wm_reports(C),

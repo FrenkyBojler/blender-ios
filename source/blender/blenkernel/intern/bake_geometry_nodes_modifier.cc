@@ -5,6 +5,7 @@
 #include <sstream>
 
 #include "BKE_bake_geometry_nodes_modifier.hh"
+#include "BKE_bpath.hh"
 #include "BKE_collection.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
@@ -116,7 +117,7 @@ std::optional<std::string> get_modifier_bake_path(const Main &bmain,
   }
   char absolute_bake_dir[FILE_MAX];
   STRNCPY(absolute_bake_dir, nmd.bake_directory);
-  BLI_path_apply_variables(absolute_bake_dir, BLI_build_path_variable_dictionary());
+  BLI_path_apply_variables(absolute_bake_dir, BKE_build_path_variables());
   BLI_path_abs(absolute_bake_dir, base_path);
   return absolute_bake_dir;
 }
@@ -160,7 +161,7 @@ std::optional<bake::BakePath> get_node_bake_path(const Main &bmain,
     }
     char absolute_bake_dir[FILE_MAX];
     STRNCPY(absolute_bake_dir, bake->directory);
-    BLI_path_apply_variables(absolute_bake_dir, BLI_build_path_variable_dictionary());
+    BLI_path_apply_variables(absolute_bake_dir, BKE_build_path_variables());
     BLI_path_abs(absolute_bake_dir, base_path);
     return bake::BakePath::from_single_root(absolute_bake_dir);
   }

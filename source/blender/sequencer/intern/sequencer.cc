@@ -24,6 +24,7 @@
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 
+#include "BKE_bpath.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
@@ -940,7 +941,7 @@ static bool strip_doversion_250_sound_proxy_update_cb(Strip *strip, void *user_d
                   sizeof(filepath_abs),
                   strip->data->dirpath,
                   strip->data->stripdata->filename);
-    BLI_path_apply_variables(filepath_abs, BLI_build_path_variable_dictionary());
+    BLI_path_apply_variables(filepath_abs, BKE_build_path_variables());
     BLI_path_abs(filepath_abs, BKE_main_blendfile_path(bmain));
     strip->sound = BKE_sound_new_file(bmain, filepath_abs);
     strip->type = STRIP_TYPE_SOUND_RAM;

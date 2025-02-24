@@ -20,6 +20,7 @@
 
 #include "MOV_util.hh"
 
+#include "BKE_bpath.hh"
 #include "BKE_colortools.hh"
 #include "BKE_image_format.hh"
 
@@ -615,7 +616,7 @@ static void do_makepicstring(char filepath[FILE_MAX],
     return;
   }
   BLI_strncpy(filepath, base, FILE_MAX - 10); /* weak assumption */
-  BLI_path_apply_variables(filepath, BLI_build_path_variable_dictionary());
+  BLI_path_apply_variables(filepath, BKE_build_path_variables());
   BLI_path_abs(filepath, relbase);
 
   if (use_frames) {

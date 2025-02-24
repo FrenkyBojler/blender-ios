@@ -48,6 +48,7 @@
 
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
+#include "BKE_bpath.hh"
 #include "BKE_brush.hh"
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
@@ -1348,7 +1349,7 @@ static ImBuf *icon_preview_imbuf_from_brush(Brush *brush)
     char filepath[FILE_MAX];
 
     STRNCPY(filepath, brush->icon_filepath);
-    BLI_path_apply_variables(filepath, BLI_build_path_variable_dictionary());
+    BLI_path_apply_variables(filepath, BKE_build_path_variables());
     BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&brush->id));
 
     /* Use default color-spaces for brushes. */

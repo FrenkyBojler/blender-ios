@@ -33,6 +33,7 @@
 
 #include "BLT_translation.hh"
 
+#include "BKE_bpath.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_lib_id.hh"
@@ -277,7 +278,7 @@ static int open_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
   if (clip) {
     STRNCPY(dirpath, clip->filepath);
 
-    BLI_path_apply_variables(dirpath, BLI_build_path_variable_dictionary());
+    BLI_path_apply_variables(dirpath, BKE_build_path_variables());
     BLI_path_abs(dirpath, CTX_data_main(C)->filepath);
     BLI_path_parent_dir(dirpath);
   }

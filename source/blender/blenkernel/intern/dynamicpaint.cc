@@ -39,6 +39,7 @@
 #include "DNA_texture_types.h"
 
 #include "BKE_armature.hh"
+#include "BKE_bpath.hh"
 #include "BKE_bvhutils.hh" /* bvh tree */
 #include "BKE_collision.h"
 #include "BKE_colorband.hh"
@@ -3333,7 +3334,7 @@ void dynamicPaint_outputSurfaceImage(DynamicPaintSurface *surface,
   BKE_image_path_ext_from_imtype_ensure(output_file, sizeof(output_file), format);
 
   /* Validate output file path */
-  BLI_path_apply_variables(output_file, BLI_build_path_variable_dictionary());
+  BLI_path_apply_variables(output_file, BKE_build_path_variables());
   BLI_path_abs(output_file, BKE_main_blendfile_path_from_global());
   BLI_file_ensure_parent_dir_exists(output_file);
 

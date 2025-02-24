@@ -329,19 +329,19 @@ void BKE_fluid_cache_free(FluidDomainSettings *fds, Object *ob, int cache_map)
   if (cache_map & FLUID_DOMAIN_OUTDATED_DATA) {
     flags &= ~(FLUID_DOMAIN_BAKING_DATA | FLUID_DOMAIN_BAKED_DATA | FLUID_DOMAIN_OUTDATED_DATA);
     BLI_path_join(temp_dir, sizeof(temp_dir), fds->cache_directory, FLUID_DOMAIN_DIR_CONFIG);
-    BLI_path_apply_variables(temp_dir, BLI_build_path_variable_dictionary());
+    BLI_path_apply_variables(temp_dir, BKE_build_path_variables());
     BLI_path_abs(temp_dir, relbase);
     if (BLI_exists(temp_dir)) {
       BLI_delete(temp_dir, true, true);
     }
     BLI_path_join(temp_dir, sizeof(temp_dir), fds->cache_directory, FLUID_DOMAIN_DIR_DATA);
-    BLI_path_apply_variables(temp_dir, BLI_build_path_variable_dictionary());
+    BLI_path_apply_variables(temp_dir, BKE_build_path_variables());
     BLI_path_abs(temp_dir, relbase);
     if (BLI_exists(temp_dir)) {
       BLI_delete(temp_dir, true, true);
     }
     BLI_path_join(temp_dir, sizeof(temp_dir), fds->cache_directory, FLUID_DOMAIN_DIR_SCRIPT);
-    BLI_path_apply_variables(temp_dir, BLI_build_path_variable_dictionary());
+    BLI_path_apply_variables(temp_dir, BKE_build_path_variables());
     BLI_path_abs(temp_dir, relbase);
     if (BLI_exists(temp_dir)) {
       BLI_delete(temp_dir, true, true);
@@ -351,7 +351,7 @@ void BKE_fluid_cache_free(FluidDomainSettings *fds, Object *ob, int cache_map)
   if (cache_map & FLUID_DOMAIN_OUTDATED_NOISE) {
     flags &= ~(FLUID_DOMAIN_BAKING_NOISE | FLUID_DOMAIN_BAKED_NOISE | FLUID_DOMAIN_OUTDATED_NOISE);
     BLI_path_join(temp_dir, sizeof(temp_dir), fds->cache_directory, FLUID_DOMAIN_DIR_NOISE);
-    BLI_path_apply_variables(temp_dir, BLI_build_path_variable_dictionary());
+    BLI_path_apply_variables(temp_dir, BKE_build_path_variables());
     BLI_path_abs(temp_dir, relbase);
     if (BLI_exists(temp_dir)) {
       BLI_delete(temp_dir, true, true);
@@ -361,7 +361,7 @@ void BKE_fluid_cache_free(FluidDomainSettings *fds, Object *ob, int cache_map)
   if (cache_map & FLUID_DOMAIN_OUTDATED_MESH) {
     flags &= ~(FLUID_DOMAIN_BAKING_MESH | FLUID_DOMAIN_BAKED_MESH | FLUID_DOMAIN_OUTDATED_MESH);
     BLI_path_join(temp_dir, sizeof(temp_dir), fds->cache_directory, FLUID_DOMAIN_DIR_MESH);
-    BLI_path_apply_variables(temp_dir, BLI_build_path_variable_dictionary());
+    BLI_path_apply_variables(temp_dir, BKE_build_path_variables());
     BLI_path_abs(temp_dir, relbase);
     if (BLI_exists(temp_dir)) {
       BLI_delete(temp_dir, true, true);
@@ -372,7 +372,7 @@ void BKE_fluid_cache_free(FluidDomainSettings *fds, Object *ob, int cache_map)
     flags &= ~(FLUID_DOMAIN_BAKING_PARTICLES | FLUID_DOMAIN_BAKED_PARTICLES |
                FLUID_DOMAIN_OUTDATED_PARTICLES);
     BLI_path_join(temp_dir, sizeof(temp_dir), fds->cache_directory, FLUID_DOMAIN_DIR_PARTICLES);
-    BLI_path_apply_variables(temp_dir, BLI_build_path_variable_dictionary());
+    BLI_path_apply_variables(temp_dir, BKE_build_path_variables());
     BLI_path_abs(temp_dir, relbase);
     if (BLI_exists(temp_dir)) {
       BLI_delete(temp_dir, true, true);
@@ -382,7 +382,7 @@ void BKE_fluid_cache_free(FluidDomainSettings *fds, Object *ob, int cache_map)
   if (cache_map & FLUID_DOMAIN_OUTDATED_GUIDE) {
     flags &= ~(FLUID_DOMAIN_BAKING_GUIDE | FLUID_DOMAIN_BAKED_GUIDE | FLUID_DOMAIN_OUTDATED_GUIDE);
     BLI_path_join(temp_dir, sizeof(temp_dir), fds->cache_directory, FLUID_DOMAIN_DIR_GUIDE);
-    BLI_path_apply_variables(temp_dir, BLI_build_path_variable_dictionary());
+    BLI_path_apply_variables(temp_dir, BKE_build_path_variables());
     BLI_path_abs(temp_dir, relbase);
     if (BLI_exists(temp_dir)) {
       BLI_delete(temp_dir, true, true);
@@ -3679,7 +3679,7 @@ static void fluid_modifier_processDomain(FluidModifierData *fmd,
 
   /* Ensure cache directory is not relative. */
   const char *relbase = BKE_modifier_path_relbase_from_global(ob);
-  BLI_path_apply_variables(fds->cache_directory, BLI_build_path_variable_dictionary());
+  BLI_path_apply_variables(fds->cache_directory, BKE_build_path_variables());
   BLI_path_abs(fds->cache_directory, relbase);
 
   /* If 'outdated', reset the cache here. */

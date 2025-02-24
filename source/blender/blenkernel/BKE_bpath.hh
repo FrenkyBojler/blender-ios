@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "BLI_path_utils.hh"
 #include "BLI_utildefines.h"
 
 struct ID;
@@ -232,5 +233,7 @@ void BKE_bpath_list_restore(Main *bmain, eBPathForeachFlag flag, void *path_list
  * #BKE_bpath_list_restore, and is therefore empty.
  */
 void BKE_bpath_list_free(void *path_list_handle);
+
+PathVariables BKE_build_path_variables(/* const Main *bmain, const *Scene scene, const ID *id */);
 
 /** \} */

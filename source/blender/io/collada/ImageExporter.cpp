@@ -88,7 +88,7 @@ void ImagesExporter::export_UV_Image(Image *image, bool use_copies)
 
     /* make absolute source path */
     STRNCPY(source_path, image->filepath);
-    BLI_path_apply_variables(source_path, BLI_build_path_variable_dictionary());
+    BLI_path_apply_variables(source_path, BKE_build_path_variables());
     BLI_path_abs(source_path, ID_BLEND_PATH_FROM_GLOBAL(&image->id));
     BLI_path_normalize(source_path);
 

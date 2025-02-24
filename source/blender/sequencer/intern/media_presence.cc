@@ -17,6 +17,7 @@
 #include "DNA_sequence_types.h"
 #include "DNA_sound_types.h"
 
+#include "BKE_bpath.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
 
@@ -41,7 +42,7 @@ static bool check_sound_media_missing(const bSound *sound, const Strip *strip)
   char filepath[FILE_MAX];
   STRNCPY(filepath, sound->filepath);
   const char *basepath = get_seq_base_path(strip);
-  BLI_path_apply_variables(filepath, BLI_build_path_variable_dictionary());
+  BLI_path_apply_variables(filepath, BKE_build_path_variables());
   BLI_path_abs(filepath, basepath);
   return !BLI_exists(filepath);
 }
@@ -65,7 +66,7 @@ static bool check_media_missing(const Strip *strip)
       const char *basepath = get_seq_base_path(strip);
       for (int i = 0; i < paths_count; i++, elem++) {
         BLI_path_join(filepath, sizeof(filepath), strip->data->dirpath, elem->filename);
-        BLI_path_apply_variables(filepath, BLI_build_path_variable_dictionary());
+        BLI_path_apply_variables(filepath, BKE_build_path_variables());
         BLI_path_abs(filepath, basepath);
         if (!BLI_exists(filepath)) {
           return true;

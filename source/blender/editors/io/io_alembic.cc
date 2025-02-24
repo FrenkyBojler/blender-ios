@@ -501,7 +501,7 @@ static int get_sequence_len(const char *filepath, int *ofs)
     BLI_path_split_dir_part(BKE_main_blendfile_path_from_global(), dirpath, sizeof(dirpath));
   }
   else {
-    BLI_path_apply_variables(dirpath, BLI_build_path_variable_dictionary());
+    BLI_path_apply_variables(dirpath, BKE_build_path_variables());
     BLI_path_abs(dirpath, BKE_main_blendfile_path_from_global());
   }
 

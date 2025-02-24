@@ -23,6 +23,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
+#include "BKE_bpath.hh"
 #include "BKE_deform.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
@@ -141,7 +142,7 @@ static void meshcache_do(MeshCacheModifierData *mcmd,
 
   /* would be nice if we could avoid doing this _every_ frame */
   STRNCPY(filepath, mcmd->filepath);
-  BLI_path_apply_variables(filepath, BLI_build_path_variable_dictionary());
+  BLI_path_apply_variables(filepath, BKE_build_path_variables());
   BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL((ID *)ob));
 
   switch (mcmd->type) {

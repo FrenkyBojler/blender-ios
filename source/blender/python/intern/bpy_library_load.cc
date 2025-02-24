@@ -22,6 +22,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_blendfile_link_append.hh"
+#include "BKE_bpath.hh"
 #include "BKE_context.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
@@ -257,7 +258,7 @@ static PyObject *bpy_lib_load(BPy_PropertyRNA *self, PyObject *args, PyObject *k
   Py_XDECREF(filepath_data.value_coerce);
 
   STRNCPY(ret->abspath, ret->relpath);
-  BLI_path_apply_variables(ret->abspath, BLI_build_path_variable_dictionary());
+  BLI_path_apply_variables(ret->abspath, BKE_build_path_variables());
   BLI_path_abs(ret->abspath, BKE_main_blendfile_path(bmain));
 
   ret->bmain = bmain;

@@ -28,6 +28,7 @@
 
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
+#include "BKE_bpath.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
 #include "BKE_image.hh"
@@ -962,7 +963,7 @@ static ImBuf *seq_render_image_strip(const SeqRenderData *context,
   }
 
   BLI_path_join(filepath, sizeof(filepath), strip->data->dirpath, s_elem->filename);
-  BLI_path_apply_variables(filepath, BLI_build_path_variable_dictionary());
+  BLI_path_apply_variables(filepath, BKE_build_path_variables());
   BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&context->scene->id));
 
   /* Try to get a proxy image. */

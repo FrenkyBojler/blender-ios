@@ -38,6 +38,7 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_bpath.hh"
 #include "BKE_context.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image.hh"
@@ -1748,7 +1749,7 @@ static void ui_tooltip_from_vfont(const VFont &font, uiTooltipData &data)
 
   char filepath_abs[FILE_MAX];
   STRNCPY(filepath_abs, font.filepath);
-  BLI_path_apply_variables(filepath_abs, BLI_build_path_variable_dictionary());
+  BLI_path_apply_variables(filepath_abs, BKE_build_path_variables());
   BLI_path_abs(filepath_abs, ID_BLEND_PATH_FROM_GLOBAL(&font.id));
 
   if (!BLI_exists(filepath_abs)) {

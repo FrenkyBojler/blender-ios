@@ -28,6 +28,7 @@
 #include "IMB_imbuf_types.hh"
 #include "IMB_openexr.hh"
 
+#include "BKE_bpath.hh"
 #include "BKE_colortools.hh"
 #include "BKE_global.hh"
 #include "BKE_image.hh"
@@ -175,13 +176,13 @@ bool BKE_image_save_options_init(ImageSaveOptions *opts,
         }
         else {
           BLI_path_join(opts->filepath, sizeof(opts->filepath), "//", DATA_("Untitled"));
-          BLI_path_apply_variables(opts->filepath, BLI_build_path_variable_dictionary());
+          BLI_path_apply_variables(opts->filepath, BKE_build_path_variables());
           BLI_path_abs(opts->filepath, BKE_main_blendfile_path(bmain));
         }
       }
       else {
         BLI_path_join(opts->filepath, sizeof(opts->filepath), "//", ima->id.name + 2);
-        BLI_path_apply_variables(opts->filepath, BLI_build_path_variable_dictionary());
+        BLI_path_apply_variables(opts->filepath, BKE_build_path_variables());
         BLI_path_make_safe_filename(opts->filepath + 2);
         BLI_path_abs(opts->filepath,
                      is_prev_save ? G.filepath_last_image : BKE_main_blendfile_path(bmain));

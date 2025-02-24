@@ -31,6 +31,7 @@
 #include "DNA_text_types.h"
 #include "DNA_vfont_types.h"
 
+#include "BKE_bpath.hh"
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
 #include "BKE_global.hh"
@@ -2492,7 +2493,7 @@ static int open_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 
   if (vfont && !BKE_vfont_is_builtin(vfont)) {
     STRNCPY(filepath, vfont->filepath);
-    BLI_path_apply_variables(filepath, BLI_build_path_variable_dictionary());
+    BLI_path_apply_variables(filepath, BKE_build_path_variables());
     BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&vfont->id));
   }
   else {

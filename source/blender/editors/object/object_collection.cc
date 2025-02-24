@@ -17,6 +17,7 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
+#include "BKE_bpath.hh"
 #include "BKE_collection.hh"
 #include "BKE_context.hh"
 #include "BKE_file_handler.hh"
@@ -633,7 +634,7 @@ static int collection_exporter_export(bContext *C,
   }
 
   const Main *bmain = CTX_data_main(C);
-  BLI_path_apply_variables(filepath, BLI_build_path_variable_dictionary());
+  BLI_path_apply_variables(filepath, BKE_build_path_variables());
   BLI_path_abs(filepath, BKE_main_blendfile_path(bmain));
 
   /* Ensure that any properties from when this operator was "last used" are cleared. Save them for

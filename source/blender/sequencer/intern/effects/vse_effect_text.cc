@@ -9,6 +9,7 @@
 #include <cmath>
 #include <mutex>
 
+#include "BKE_bpath.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
@@ -251,7 +252,7 @@ void SEQ_effect_text_font_load(TextVars *data, const bool do_id_user)
     char filepath[FILE_MAX];
     STRNCPY(filepath, vfont->filepath);
 
-    BLI_path_apply_variables(filepath, BLI_build_path_variable_dictionary());
+    BLI_path_apply_variables(filepath, BKE_build_path_variables());
     BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&vfont->id));
     data->text_blf_id = strip_load_font_file(filepath);
   }

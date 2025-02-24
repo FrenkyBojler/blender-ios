@@ -1275,20 +1275,7 @@ static std::optional<std::pair<blender::IndexRange, blender::StringRef>> next_pa
            blender::StringRef(path + start + 2, path + end - 1)}};
 }
 
-blender::Map<std::string, std::string> BLI_build_path_variable_dictionary()
-{
-  blender::Map<std::string, std::string> dict;
-
-  dict.add("foo", "hooray");
-  dict.add("bar", "boooo");
-  dict.add("flub", "what");
-  dict.add("josh", "bob");
-
-  return dict;
-}
-
-bool BLI_path_apply_variables(char path[FILE_MAX],
-                              const blender::Map<std::string, std::string> &variable_dictionary)
+bool BLI_path_apply_variables(char path[FILE_MAX], const PathVariables &variables)
 {
   bool was_modified = false;
 
@@ -1299,7 +1286,7 @@ bool BLI_path_apply_variables(char path[FILE_MAX],
 
     printf("%s\n", std::string(variable_name).c_str());
 
-    const std::string *replacement_string = variable_dictionary.lookup_ptr_as(variable_name);
+    const std::string *replacement_string = variables.strings.lookup_ptr_as(variable_name);
     if (replacement_string != nullptr) {
       BLI_string_replace_range(path + processed,
                                FILE_MAX - processed,

@@ -41,6 +41,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_appdir.hh"
+#include "BKE_bpath.hh"
 #include "BKE_context.hh"
 #include "BKE_idtype.hh"
 #include "BKE_main.hh"
@@ -205,7 +206,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
     }
 
     if (params->dir[0]) {
-      BLI_path_apply_variables(params->dir, BLI_build_path_variable_dictionary());
+      BLI_path_apply_variables(params->dir, BKE_build_path_variables());
       BLI_path_abs(params->dir, blendfile_path);
       BLI_path_normalize_dir(params->dir, sizeof(params->dir));
     }

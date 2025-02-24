@@ -24,6 +24,7 @@
 
 #include "BKE_bake_geometry_nodes_modifier.hh"
 #include "BKE_bake_geometry_nodes_modifier_pack.hh"
+#include "BKE_bpath.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_lib_id.hh"
@@ -793,7 +794,7 @@ static PathUsersMap bake_simulation_get_path_users(bContext *C, const Span<Objec
 
       char absolute_bake_dir[FILE_MAX];
       STRNCPY(absolute_bake_dir, nmd->bake_directory);
-      BLI_path_apply_variables(absolute_bake_dir, BLI_build_path_variable_dictionary());
+      BLI_path_apply_variables(absolute_bake_dir, BKE_build_path_variables());
       BLI_path_abs(absolute_bake_dir, base_path);
       path_users.add_or_modify(
           absolute_bake_dir, [](int *value) { *value = 1; }, [](int *value) { ++(*value); });
