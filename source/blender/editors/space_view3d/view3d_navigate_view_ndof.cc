@@ -101,8 +101,12 @@ static float view3d_ndof_pan_speed_calc_from_dist(RegionView3D *rv3d, const floa
 static float view3d_ndof_pan_speed_calc(RegionView3D *rv3d)
 {
   float tvec[3];
-  const float3& ofs = (U.ndof_flag & NDOF_ORBIT_CENTER_AUTO) ? rv3d->ndof_ofs : rv3d->ofs;
-  negate_v3_v3(tvec, ofs);
+  if(U.ndof_flag & NDOF_ORBIT_CENTER_AUTO && ndof_orbit_center_is_valid(rv3d, rv3d->ndof_ofs)) {
+    negate_v3_v3(tvec, rv3d->ndof_ofs);
+  }
+  else {
+    negate_v3_v3(tvec, rv3d->ofs);
+  }
 
   return view3d_ndof_pan_speed_calc_ex(rv3d, tvec);
 }
