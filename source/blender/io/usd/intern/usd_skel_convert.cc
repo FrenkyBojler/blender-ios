@@ -8,6 +8,7 @@
 #include "usd_blend_shape_utils.hh"
 #include "usd_hash_types.hh"
 
+#include <pxr/base/gf/rotation.h>
 #include <pxr/usd/usdGeom/primvarsAPI.h>
 #include <pxr/usd/usdSkel/animation.h>
 #include <pxr/usd/usdSkel/bindingAPI.h>
@@ -23,6 +24,7 @@
 #include "DNA_meshdata_types.h"
 
 #include "BKE_armature.hh"
+#include "BKE_constraint.h"
 #include "BKE_deform.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_key.hh"
@@ -33,6 +35,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
+#include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
@@ -47,6 +50,8 @@
 #include <algorithm>
 #include <string>
 #include <vector>
+
+#include <fmt/format.h>
 
 #include "CLG_log.h"
 static CLG_LogRef LOG = {"io.usd"};
@@ -683,6 +688,57 @@ void import_blendshapes(Main *bmain,
   std::for_each(curves.begin(), curves.end(), recalc_handles);
 }
 
+static void set_rest_pose(Main *bmain,
+                          Object *arm_obj,
+                          bArmature *arm,
+                          const pxr::VtTokenArray &joint_order,
+                          const pxr::UsdSkelTopology &skel_topology,
+                          const pxr::UsdSkelSkeletonQuery &skel_query)
+{
+  pxr::VtArray<pxr::GfMatrix4d> rest_xforms;
+  if (skel_query.ComputeJointLocalTransforms(&rest_xforms, pxr::UsdTimeCode::Default(), true)) {
+    BKE_pose_ensure(bmain, arm_obj, arm, false);
+
+    /* TODO: Not sure how to apply the incoming rest matrix to the actual pose bone so it's
+     * accessible later on. This array can go away if we figure that out. */
+    Vector<pxr::GfMatrix4d> pose_mats;
+
+    size_t i = 0;
+    for (const pxr::TfToken &joint : joint_order) {
+      const pxr::SdfPath joint_path(joint);
+      const std::string &name = joint_path.GetName();
+      bPoseChannel *pchan = BKE_pose_channel_find_name(arm_obj->pose, name.c_str());
+
+      pxr::GfMatrix4d xf = rest_xforms[i];
+
+      /* Reverse the transform we applied during export. */
+      const int parent_id = skel_topology.GetParent(i);
+      if (parent_id >= 0) {
+        xf = xf * pose_mats[parent_id];
+      }
+
+#if 0
+      if (pchan->parent) {
+        pxr::GfMatrix4d parent_pose(pchan->parent->pose_mat);
+        xf = xf * parent_pose;
+      }
+#endif
+
+      pose_mats.append(xf);
+
+      pxr::GfMatrix4f mat(xf);
+
+      /* TODO: I don't know how to apply the xf matrix to the pose bone it seems. I tried many
+       * different combinations of API calls but none seem to work correctly. */
+      BKE_constraint_mat_convertspace(
+          arm_obj, pchan, nullptr, (float(*)[4])mat.data(), 2, 3, true);
+      BKE_pchan_apply_mat4(pchan, (float(*)[4])mat.data(), false);
+
+      i++;
+    }
+  }
+}
+
 void import_skeleton(Main *bmain,
                      Object *arm_obj,
                      const pxr::UsdSkelSkeleton &skel,
@@ -943,6 +999,8 @@ void import_skeleton(Main *bmain,
   /* Get out of edit mode. */
   ED_armature_from_edit(bmain, arm);
   ED_armature_edit_free(arm);
+
+  set_rest_pose(bmain, arm_obj, arm, joint_order, skel_topology, skel_query);
 
   if (import_anim && valid_skeleton) {
     import_skeleton_curves(bmain, arm_obj, skel_query, joint_to_bone_map, reports);
