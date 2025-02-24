@@ -272,6 +272,12 @@ class GeometryToObjectsBuilder {
   Vector<Object *> create_objects_for_instances(const Object &src_ob_eval,
                                                 const bke::Instances &src_instances)
   {
+    if (std::optional<Vector<Object *>> simple_objects = this->create_objects_for_instances_simple(
+            src_ob_eval, src_instances))
+    {
+      return *simple_objects;
+    }
+
     bke::Instances instances = src_instances;
     instances.remove_unused_references();
 
@@ -308,6 +314,57 @@ class GeometryToObjectsBuilder {
 
       objects.append(instance_object);
     }
+    return objects;
+  }
+
+  /**
+   * Under some circumstances, additional nested collection instances can be avoided and objects
+   * can be instanced directly. This is the case when the instances have the identity transform.
+   * If nullopt is returned, a fallback method has to be used that creates additional collections.
+   */
+  std::optional<Vector<Object *>> create_objects_for_instances_simple(
+      const Object &src_ob_eval, const bke::Instances &src_instances)
+  {
+    const Span<float4x4> transforms = src_instances.transforms();
+    const Span<int> handles = src_instances.reference_handles();
+    const Span<bke::InstanceReference> references = src_instances.references();
+
+    Vector<Object *> objects;
+    for (const int i : IndexRange(src_instances.instances_num())) {
+      const float4x4 &transform = transforms[i];
+      if (transform != float4x4::identity()) {
+        return std::nullopt;
+      }
+      const int handle = handles[i];
+      if (handle < 0 || handle >= references.size()) {
+        return std::nullopt;
+      }
+      const bke::InstanceReference &reference = references[handle];
+      switch (reference.type()) {
+        case bke::InstanceReference::Type::None: {
+          break;
+        }
+        case bke::InstanceReference::Type::Object: {
+          Object &object_eval = reference.object();
+          Object *object_orig = DEG_get_original_object(&object_eval);
+          if (ELEM(object_orig, &src_ob_eval, nullptr)) {
+            return std::nullopt;
+          }
+          objects.append(object_orig);
+          break;
+        }
+        case bke::InstanceReference::Type::Collection: {
+          return std::nullopt;
+        }
+        case bke::InstanceReference::Type::GeometrySet: {
+          const ComponentObjects component_objects = this->get_objects_for_geometry(
+              src_ob_eval, reference.geometry_set());
+          objects.extend(component_objects.all_objects());
+          break;
+        }
+      }
+    }
+
     return objects;
   }
 
