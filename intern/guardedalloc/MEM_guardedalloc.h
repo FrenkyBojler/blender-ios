@@ -97,7 +97,8 @@ extern void *(*MEM_recallocN_id)(void *vmemh,
  * memory is cleared. The name must be static, because only a
  * pointer to it is stored!
  */
-void *MEM_callocN(size_t len, const char *str);
+void *MEM_callocN(size_t len, const char *str) ATTR_WARN_UNUSED_RESULT ATTR_ALLOC_SIZE(1)
+    ATTR_NONNULL(2);
 
 /**
  * Allocate a block of memory of size (len * size), with tag name
@@ -374,9 +375,9 @@ template<typename T> inline T *MEM_callocN(const char *allocation_name)
    * So for now, use a more restricted check on MSVC, should still catch most of actual invalid
    * cases. */
   static_assert(std::is_trivially_constructible_v<T>,
-                "For non-trivial types, MEM_delete must be used.");
+                "For non-trivial types, MEM_new must be used.");
 #  else
-  static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_delete must be used.");
+  static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_new must be used.");
 #  endif
   return static_cast<T *>(MEM_calloc_arrayN_aligned(1, sizeof(T), alignof(T), allocation_name));
 }
@@ -394,9 +395,9 @@ template<typename T> inline T *MEM_calloc_arrayN(const size_t length, const char
    * So for now, use a more restricted check on MSVC, should still catch most of actual invalid
    * cases. */
   static_assert(std::is_trivially_constructible_v<T>,
-                "For non-trivial types, MEM_delete must be used.");
+                "For non-trivial types, MEM_new must be used.");
 #  else
-  static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_delete must be used.");
+  static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_new must be used.");
 #  endif
   return static_cast<T *>(
       MEM_calloc_arrayN_aligned(length, sizeof(T), alignof(T), allocation_name));
@@ -422,9 +423,9 @@ template<typename T> inline T *MEM_dupallocN(const char *allocation_name, const 
    * So for now, use a more restricted check on MSVC, should still catch most of actual invalid
    * cases. */
   static_assert(std::is_trivially_constructible_v<T>,
-                "For non-trivial types, MEM_delete must be used.");
+                "For non-trivial types, MEM_new must be used.");
 #  else
-  static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_delete must be used.");
+  static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_new must be used.");
 #  endif
   T *new_object = static_cast<T *>(MEM_mallocN_aligned(sizeof(T), alignof(T), allocation_name));
   if (new_object) {
