@@ -1,3 +1,4 @@
 Referenced by issue #54862, Multi-Object Properties Editing
 Referenced by issue #44692, Multi-Value Editing on a node can change not related options on others nodes.
 Referenced by pull request #134930, Fix #134821: "Copy To Selected" can act on non-matching nodes
+Referenced by commit 866e3d28c19a08797c7f8419b81c1c04af74945d, Fix #134821: "Copy To Selected" can act on non-matching nodes
