@@ -4,42 +4,16 @@
 
 #include "subdiv_lib.glsl"
 
+COMPUTE_SHADER_CREATE_INFO(subdiv_custom_data_interp_4d_f32)
+
 #if defined(DIMENSIONS_1)
 #  define DIMENSIONS 1
-#  if defined(GPU_COMP_U16)
-COMPUTE_SHADER_CREATE_INFO(subdiv_custom_data_interp_1d_u16)
-#  elif defined(GPU_COMP_i32)
-COMPUTE_SHADER_CREATE_INFO(subdiv_custom_data_interp_1d_i32)
-#  else
-COMPUTE_SHADER_CREATE_INFO(subdiv_custom_data_interp_1d_f32)
-#  endif
 #elif defined(DIMENSIONS_2)
 #  define DIMENSIONS 2
-#  if defined(GPU_COMP_U16)
-COMPUTE_SHADER_CREATE_INFO(subdiv_custom_data_interp_2d_u16)
-#  elif defined(GPU_COMP_i32)
-COMPUTE_SHADER_CREATE_INFO(subdiv_custom_data_interp_2d_i32)
-#  else
-COMPUTE_SHADER_CREATE_INFO(subdiv_custom_data_interp_2d_f32)
-#  endif
 #elif defined(DIMENSIONS_3)
 #  define DIMENSIONS 3
-#  if defined(GPU_COMP_U16)
-COMPUTE_SHADER_CREATE_INFO(subdiv_custom_data_interp_3d_u16)
-#  elif defined(GPU_COMP_i32)
-COMPUTE_SHADER_CREATE_INFO(subdiv_custom_data_interp_3d_i32)
-#  else
-COMPUTE_SHADER_CREATE_INFO(subdiv_custom_data_interp_3d_f32)
-#  endif
 #else  // defined(DIMENSIONS_4)
 #  define DIMENSIONS 4
-#  if defined(GPU_COMP_U16)
-COMPUTE_SHADER_CREATE_INFO(subdiv_custom_data_interp_4d_u16)
-#  elif defined(GPU_COMP_i32)
-COMPUTE_SHADER_CREATE_INFO(subdiv_custom_data_interp_4d_i32)
-#  else
-COMPUTE_SHADER_CREATE_INFO(subdiv_custom_data_interp_4d_f32)
-#  endif
 #endif
 
 struct Vertex {
