@@ -61,7 +61,7 @@ bool device_hip_init()
     if (hipew_result == HIPEW_ERROR_ATEXIT_FAILED) {
       VLOG_WARNING << "HIPEW initialization failed: Error setting up atexit() handler";
     }
-    else if ((hipew_result == HIPEW_ERROR_OLD_DRIVER) || (!driver_is_supported)) {
+    else if (hipew_result == HIPEW_ERROR_OLD_DRIVER) {
       VLOG_WARNING
           << "HIPEW initialization failed: Driver version too old, requires AMD Radeon Pro "
              "24.Q2 driver or newer";
