@@ -554,7 +554,7 @@ class ShaderModule {
   ShaderPtr depth_grease_pencil = shader_selectable("overlay_depth_gpencil");
   ShaderPtr depth_mesh = shader_selectable("overlay_depth_mesh");
   ShaderPtr depth_mesh_conservative = shader_selectable("overlay_depth_mesh_conservative");
-  ShaderPtr depth_point_cloud = shader_selectable("overlay_depth_pointcloud");
+  ShaderPtr depth_pointcloud = shader_selectable("overlay_depth_pointcloud");
   ShaderPtr extra_shape = shader_selectable("overlay_extra");
   ShaderPtr extra_point = shader_selectable("overlay_extra_point");
   ShaderPtr extra_wire = shader_selectable("overlay_extra_wire");
@@ -660,12 +660,9 @@ struct Resources : public select::SelectMap {
   detail::SubPassVector<GreasePencilDepthPlane, 16> depth_planes;
   int64_t depth_planes_count = 0;
 
-  /** TODO(fclem): Copy of G_data.block that should become theme colors only and managed by the
-   * engine. */
-  GlobalsUboStorage theme_settings;
-  /* References, not owned. */
-  GPUUniformBuf *globals_buf;
-  TextureRef weight_ramp_tx;
+  draw::UniformBuffer<GlobalsUboStorage> globals_buf;
+  GlobalsUboStorage &theme_settings = globals_buf;
+  draw::UniformArrayBuffer<float4, 6> clip_planes_buf;
   /* Wrappers around #DefaultTextureList members. */
   TextureRef depth_in_front_tx;
   TextureRef color_overlay_tx;
@@ -686,6 +683,12 @@ struct Resources : public select::SelectMap {
   TextureRef depth_target_tx;
   TextureRef depth_target_in_front_tx;
 
+  /** Copy of the settings the current texture was generated with. Used to detect updates. */
+  bool weight_ramp_custom = false;
+  ColorBand weight_ramp_copy = {};
+  /** Baked color ramp texture from theme and user settings. Maps weight [0..1] to color. */
+  Texture weight_ramp_tx = {"weight_ramp"};
+
   Vector<MovieClip *> bg_movie_clips;
 
   const ShapeCache &shapes;
@@ -699,6 +702,9 @@ struct Resources : public select::SelectMap {
   {
     free_movieclips_textures();
   }
+
+  void update_theme_settings(const State &state);
+  void update_clip_planes(const State &state);
 
   void begin_sync()
   {
@@ -899,6 +905,12 @@ struct Resources : public select::SelectMap {
     for (MovieClip *clip : bg_movie_clips) {
       BKE_movieclip_free_gputexture(clip);
     }
+  }
+
+  static float vertex_size_get()
+  {
+    /* M_SQRT2 to be at least the same size of the old square */
+    return U.pixelsize * max_ff(1.0f, UI_GetThemeValuef(TH_VERTEX_SIZE) * float(M_SQRT2) / 2.0f);
   }
 
   /** Convenience functions. */
