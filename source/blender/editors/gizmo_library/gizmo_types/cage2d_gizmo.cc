@@ -1191,11 +1191,11 @@ static int gizmo_cage2d_modal(bContext *C,
       zero_v2(pivot);
     }
 
-    float test_co[2];
-    copy_v2_v2(test_co, data->orig_mouse);
+    float curr_mouse[2];
+    copy_v2_v2(curr_mouse, data->orig_mouse);
 
+    /* Rotate current and original mouse coordinates around gizmo center. */
     if (transform_flag & ED_GIZMO_CAGE_XFORM_FLAG_ROTATE) {
-      /* Rotate current and original mouse coordinates around gizmo center. */
       float rot[3][3];
       float loc[3];
       float size[3];
@@ -1206,9 +1206,9 @@ static int gizmo_cage2d_modal(bContext *C,
       mul_m3_v2(rot, point_local);
       add_v2_v2(point_local, loc);
 
-      sub_v2_v2(test_co, loc);
-      mul_m3_v2(rot, test_co);
-      add_v2_v2(test_co, loc);
+      sub_v2_v2(curr_mouse, loc);
+      mul_m3_v2(rot, curr_mouse);
+      add_v2_v2(curr_mouse, loc);
     }
 
     bool constrain_axis[2] = {false};
@@ -1220,7 +1220,7 @@ static int gizmo_cage2d_modal(bContext *C,
       size_new[i] = size_orig[i];
       if (constrain_axis[i] == false) {
         /* Original cursor position relative to pivot. */
-        const float delta_orig = test_co[i] - data->orig_matrix_offset[3][i] -
+        const float delta_orig = curr_mouse[i] - data->orig_matrix_offset[3][i] -
                                  pivot[i] * size_orig[i];
         const float delta_curr = point_local[i] - data->orig_matrix_offset[3][i] -
                                  pivot[i] * size_orig[i];

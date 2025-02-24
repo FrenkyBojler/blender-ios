@@ -342,6 +342,8 @@ static void WIDGETGROUP_node_crop_draw_prepare(const bContext *C, wmGizmoGroup *
 static void WIDGETGROUP_node_crop_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
   Main *bmain = CTX_data_main(C);
+  SpaceNode *snode = CTX_wm_space_node(C);
+
   NodeBBoxWidgetGroup *crop_group = (NodeBBoxWidgetGroup *)gzgroup->customdata;
   wmGizmo *gz = crop_group->border;
 
@@ -357,7 +359,6 @@ static void WIDGETGROUP_node_crop_refresh(const bContext *C, wmGizmoGroup *gzgro
     RNA_float_set_array(gz->ptr, "dimensions", crop_group->state.dims);
     WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
 
-    SpaceNode *snode = CTX_wm_space_node(C);
     bNode *node = bke::node_get_active(*snode->edittree);
 
     crop_group->update_data.context = (bContext *)C;
@@ -411,7 +412,7 @@ static void gizmo_node_box_mask_prop_matrix_get(const wmGizmo *gz,
   const float2 offset = mask_group->state.offset;
   const bNode *node = (const bNode *)gz_prop->custom_func.user_data;
   const NodeBoxMask *mask_node = (const NodeBoxMask *)node->storage;
-  float aspect = dims.x / dims.y;
+  const float aspect = dims.x / dims.y;
 
   float loc[3], rot[3][3], size[3];
   mat4_to_loc_rot_size(loc, rot, size, matrix);
@@ -422,7 +423,7 @@ static void gizmo_node_box_mask_prop_matrix_get(const wmGizmo *gz,
   loc[1] = (mask_node->y - 0.5) * dims.y + offset.y;
   loc[2] = 0;
 
-  /* Prevent the matrix to become singular. */
+  /* Prevent the matrix from becoming singular. */
   size[0] = mask_node->width;
   size[1] = mask_node->height * aspect;
   size[2] = 1;
@@ -442,7 +443,7 @@ static void gizmo_node_box_mask_prop_matrix_set(const wmGizmo *gz,
   bNode *node = (bNode *)gz_prop->custom_func.user_data;
   NodeBoxMask *mask_node = (NodeBoxMask *)node->storage;
 
-  float aspect = dims.x / dims.y;
+  const float aspect = dims.x / dims.y;
   rctf rct;
   rct.xmin = mask_node->x - mask_node->width / 2;
   rct.xmax = mask_node->x + mask_node->width / 2;
