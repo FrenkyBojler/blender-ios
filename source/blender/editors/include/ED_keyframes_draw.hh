@@ -75,6 +75,7 @@ void ED_add_action_group_channel(ChannelDrawList *channel_list,
                                  int saction_flag);
 /* Layered Action Summary. */
 void ED_add_action_layered_channel(ChannelDrawList *channel_list,
+                                   bAnimContext *ac,
                                    bAnimListElem *ale,
                                    bAction *action,
                                    const float ypos,
@@ -91,7 +92,6 @@ void ED_add_action_slot_channel(ChannelDrawList *channel_list,
                                 int saction_flag);
 /* Legacy Action Summary */
 void ED_add_action_channel(ChannelDrawList *channel_list,
-                           bAnimContext *ac,
                            bAnimListElem *ale,
                            bAction *act,
                            float ypos,
