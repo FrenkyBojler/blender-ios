@@ -116,21 +116,9 @@ static IndexRange shift_end_by(const IndexRange &range, const int n)
   return IndexRange::from_begin_size(range.start(), range.size() + n);
 }
 
-static void extrude_curves(Curves &curves_id)
+static bke::CurvesGeometry extrude_curves(const bke::CurvesGeometry &curves,
+                                          const IndexMask &extruded_points)
 {
-  const bke::AttrDomain selection_domain = bke::AttrDomain(curves_id.selection_domain);
-  if (selection_domain != bke::AttrDomain::Point) {
-    return;
-  }
-
-  IndexMaskMemory memory;
-  const IndexMask extruded_points = retrieve_selected_points(curves_id, memory);
-  if (extruded_points.is_empty()) {
-    return;
-  }
-
-  const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
-
   bke::CurvesGeometry new_curves = bke::curves::copy_only_curve_domain(curves);
 
   const int curves_num = curves.curves_num();
@@ -240,16 +228,30 @@ static void extrude_curves(Curves &curves_id)
     });
     attribute.dst.finish();
   }
-  curves_id.geometry.wrap() = std::move(new_curves);
-  DEG_id_tag_update(&curves_id.id, ID_RECALC_GEOMETRY);
+  return new_curves;
 }
 
 static int curves_extrude_exec(bContext *C, wmOperator * /*op*/)
 {
+  bool extruded = false;
   for (Curves *curves_id : get_unique_editable_curves(*C)) {
-    extrude_curves(*curves_id);
+    const bke::AttrDomain selection_domain = bke::AttrDomain(curves_id->selection_domain);
+    if (selection_domain != bke::AttrDomain::Point) {
+      continue;
+    }
+
+    const bke::CurvesGeometry &curves = curves_id->geometry.wrap();
+    IndexMaskMemory memory;
+    const IndexMask extruded_points = retrieve_selected_points(curves, memory);
+    if (extruded_points.is_empty()) {
+      continue;
+    }
+
+    curves_id->geometry.wrap() = extrude_curves(curves, extruded_points);
+    DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
+    extruded = true;
   }
-  return OPERATOR_FINISHED;
+  return extruded ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
 void CURVES_OT_extrude(wmOperatorType *ot)
