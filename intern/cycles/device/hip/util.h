@@ -47,7 +47,9 @@ class HIPContextScope {
 const char *hipewErrorString(hipError_t result);
 const char *hipewCompilerPath();
 int hipewCompilerVersion();
-#  endif /* WITH_HIP_DYNLOAD */
+#  endif /* !WITH_HIP_DYNLOAD */
+
+bool hipSupportsDriver();
 
 static std::string hipDeviceArch(const int hipDevId)
 {
@@ -71,31 +73,6 @@ static inline bool hipSupportsDeviceOIDN(const int hipDevId)
   /* Matches HIPDevice::getArch in HIP. */
   const std::string arch = hipDeviceArch(hipDevId);
   return (arch == "gfx1030" || arch == "gfx1100" || arch == "gfx1101" || arch == "gfx1102");
-}
-
-static inline bool hipSupportsDriver()
-{
-#  ifdef _WIN32
-#    ifndef WITH_HIP_SDK_5
-  /* This check is only neccesary if we're using HIP SDK 6 or newer. */
-  int hip_driver_version = 0;
-  hipError_t result = hipDriverGetVersion(&hip_driver_version);
-  if (result != hipSuccess) {
-    VLOG_WARNING << "Error getting driver version: " << hipewErrorString(result);
-    return false;
-  }
-
-  VLOG_DEBUG << "Detected HIP driver version: " << hip_driver_version;
-
-  if (hip_driver_version < 60140252) {
-    /* Cycles crashes during rendering due to issues in older GPU drivers.
-     * 60140252 corrisponds to Adrenalin 24.6.1. */
-    return false;
-  }
-#    endif
-#  endif
-
-  return true;
 }
 
 CCL_NAMESPACE_END
