@@ -219,7 +219,8 @@ void summary_to_keylist(bAnimContext *ac,
                         blender::float2 range);
 
 /**
- * Generate a summary channel keylist for the specified slot.
+ * Generate a summary channel keylist for the specified slot, appending it to
+ * `keylist`.
  *
  * This filters the keys to be consistent with the visible channels in the
  * editor indicated by `ac`
@@ -232,8 +233,7 @@ void summary_to_keylist(bAnimContext *ac,
  *
  * \param slot_handle: the handle of the slot to generate the summary for.
  *
- * \param keylist: the keylist that the generated summary keylist will appended
- * to.
+ * \param keylist: the keylist that the generated summary will be appended to.
  *
  * \param saction_flag: I (Nathan) have no idea. Copied from
  * `action_to_keylist()`, which this replaced at some call sites in #134922.
