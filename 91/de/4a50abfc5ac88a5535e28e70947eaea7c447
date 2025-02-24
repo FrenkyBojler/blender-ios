@@ -1,2 +1,3 @@
 Referenced by issue #134886, Crash with Subdivision modifier and Wireframe shading
 Referenced by pull request #134926, Fix #134886: Crash with Subdivision modifier update
+Referenced by commit a79bc953d37d2dc79e2651e9cda5e1751daced11, Fix #134886: Crash with Subdivision modifier update
