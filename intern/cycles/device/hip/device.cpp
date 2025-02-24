@@ -38,16 +38,13 @@ bool device_hip_init()
 
   initialized = true;
   int hipew_result = hipewInit(HIPEW_INIT_HIP);
-  bool driver_is_supported = false;
 
   if (hipew_result == HIPEW_SUCCESS) {
-    /* Only check if the HIP driver version is supported if HIP intialization succeeded */
-    driver_is_supported = hipSupportsDriver();
-  }
-
-  if ((hipew_result == HIPEW_SUCCESS) && (driver_is_supported)) {
     VLOG_INFO << "HIPEW initialization succeeded";
-    if (HIPDevice::have_precompiled_kernels()) {
+    if (!hipSupportsDriver()) {
+      VLOG_WARNING << "Driver version is too old";
+    }
+    else if (HIPDevice::have_precompiled_kernels()) {
       VLOG_INFO << "Found precompiled kernels";
       result = true;
     }
