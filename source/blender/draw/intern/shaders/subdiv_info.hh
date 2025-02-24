@@ -167,6 +167,7 @@ ADDITIONAL_INFO(subdiv_custom_data_base)
 ADDITIONAL_INFO(subdiv_custom_data_1d_base)
 ADDITIONAL_INFO(subdiv_custom_data_i32_base)
 GPU_SHADER_CREATE_END()
+
 GPU_SHADER_CREATE_INFO(subdiv_custom_data_interp_1d_f32)
 DO_STATIC_COMPILATION()
 ADDITIONAL_INFO(subdiv_custom_data_base)

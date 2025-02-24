@@ -405,7 +405,7 @@ GPUShader *DRW_shader_subdiv_custom_data_get(GPUVertCompType comp_type, int dime
         info_name += "_u16";
         break;
       case GPU_COMP_I32:
-        info_name += "_u16";
+        info_name += "_i32";
         break;
       case GPU_COMP_F32:
         info_name += "_f32";
