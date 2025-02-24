@@ -110,16 +110,14 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (!stype || !stype->geometry_nodes_cpp_type) {
       continue;
     }
-    /* TODO: Check socket types. */
-    const GPointer value = bundle->lookup(bke::SocketInterfaceKey(name));
+    const std::optional<bke::Bundle::Item> value = bundle->lookup(bke::SocketInterfaceKey(name));
     if (!value) {
       continue;
     }
-    if (value.type() != stype->geometry_nodes_cpp_type) {
-      continue;
-    }
     void *output_ptr = lf_params.get_output_data_ptr(i);
-    value.type()->copy_construct(value.get(), output_ptr);
+    if (!implicitly_convert_socket_value(*value->type, value->value, *stype, output_ptr)) {
+      construct_socket_default_value(*stype, output_ptr);
+    }
     lf_params.output_set(i);
   }
 

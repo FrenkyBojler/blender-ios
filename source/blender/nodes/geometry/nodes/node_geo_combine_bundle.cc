@@ -106,7 +106,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
     void *input_ptr = params.lazy_function_params().try_get_input_data_ptr(i);
     BLI_assert(input_ptr);
-    bundle.add(bke::SocketInterfaceKey(name), *stype->geometry_nodes_cpp_type, input_ptr);
+    bundle.add(bke::SocketInterfaceKey(name), *stype, input_ptr);
   }
 
   params.set_output("Bundle", std::move(bundle_ptr));

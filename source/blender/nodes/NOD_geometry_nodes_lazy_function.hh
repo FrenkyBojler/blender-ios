@@ -633,4 +633,13 @@ std::string zone_wrapper_output_name(const ZoneBuildInfo &zone_info,
                                      const Span<lf::Output> outputs,
                                      const int lf_socket_i);
 
+/**
+ * Performs implicit conversion between socket types. Returns false if the conversion is not
+ * possible. In that case, r_to_value is left uninitialized.
+ */
+[[nodiscard]] bool implicitly_convert_socket_value(const bke::bNodeSocketType &from_type,
+                                                   const void *from_value,
+                                                   const bke::bNodeSocketType &to_type,
+                                                   void *r_to_value);
+
 }  // namespace blender::nodes

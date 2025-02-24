@@ -552,6 +552,33 @@ static void execute_multi_function_on_value_variant(const MultiFunction &fn,
   }
 }
 
+bool implicitly_convert_socket_value(const bke::bNodeSocketType &from_type,
+                                     const void *from_value,
+                                     const bke::bNodeSocketType &to_type,
+                                     void *r_to_value)
+{
+  BLI_assert(from_value != r_to_value);
+  if (&from_type == &to_type) {
+    from_type.geometry_nodes_cpp_type->copy_construct(from_value, r_to_value);
+    return true;
+  }
+  const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
+  const CPPType *from_cpp_type = from_type.base_cpp_type;
+  const CPPType *to_cpp_type = to_type.base_cpp_type;
+  if (!from_cpp_type || !to_cpp_type) {
+    return false;
+  }
+  if (conversions.is_convertible(*from_cpp_type, *to_cpp_type)) {
+    const MultiFunction &multi_fn = *conversions.get_conversion_multi_function(
+        mf::DataType::ForSingle(*from_cpp_type), mf::DataType::ForSingle(*to_cpp_type));
+    SocketValueVariant input_variant = *static_cast<const SocketValueVariant *>(from_value);
+    SocketValueVariant *output_variant = new (r_to_value) SocketValueVariant();
+    execute_multi_function_on_value_variant(multi_fn, {}, {&input_variant}, {output_variant});
+    return true;
+  }
+  return false;
+}
+
 /**
  * Behavior of muted nodes:
  * - Some inputs are forwarded to outputs without changes.
@@ -616,21 +643,9 @@ class LazyFunctionForMutedNode : public LazyFunction {
         continue;
       }
       void *output_value = params.get_output_data_ptr(lf_output_index);
-      if (input_bsocket->type == output_bsocket->type) {
-        inputs_[lf_input_index].type->copy_construct(input_value, output_value);
-        params.output_set(lf_output_index);
-        continue;
-      }
-      const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
-      if (conversions.is_convertible(*input_bsocket->typeinfo->base_cpp_type,
-                                     *output_bsocket->typeinfo->base_cpp_type))
+      if (implicitly_convert_socket_value(
+              *input_bsocket->typeinfo, input_value, *output_bsocket->typeinfo, output_value))
       {
-        const MultiFunction &multi_fn = *conversions.get_conversion_multi_function(
-            mf::DataType::ForSingle(*input_bsocket->typeinfo->base_cpp_type),
-            mf::DataType::ForSingle(*output_bsocket->typeinfo->base_cpp_type));
-        SocketValueVariant input_variant = *static_cast<const SocketValueVariant *>(input_value);
-        SocketValueVariant *output_variant = new (output_value) SocketValueVariant();
-        execute_multi_function_on_value_variant(multi_fn, {}, {&input_variant}, {output_variant});
         params.output_set(lf_output_index);
         continue;
       }

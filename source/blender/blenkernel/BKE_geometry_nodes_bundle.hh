@@ -30,14 +30,20 @@ class SocketInterfaceKey {
 
 class Bundle : public ImplicitSharingMixin {
  private:
-  struct Item {
+  struct StoredItem {
     SocketInterfaceKey key;
-    GMutablePointer value;
+    const bNodeSocketType *type;
+    void *value;
   };
-  Vector<Item> items_;
+  Vector<StoredItem> items_;
   Vector<void *> buffers_;
 
  public:
+  struct Item {
+    const bNodeSocketType *type;
+    const void *value;
+  };
+
   Bundle();
   Bundle(const Bundle &other);
   Bundle(Bundle &&other) noexcept;
@@ -50,13 +56,13 @@ class Bundle : public ImplicitSharingMixin {
     return BundlePtr(MEM_new<Bundle>(__func__));
   }
 
-  void add_new(SocketInterfaceKey key, const CPPType &type, const void *value);
-  bool add(const SocketInterfaceKey &key, const CPPType &type, const void *value);
-  bool add(SocketInterfaceKey &&key, const CPPType &type, const void *value);
-  GPointer lookup(const SocketInterfaceKey &key) const;
-  GMutablePointer lookup_for_write(const SocketInterfaceKey &key);
+  void add_new(SocketInterfaceKey key, const bNodeSocketType &type, const void *value);
+  bool add(const SocketInterfaceKey &key, const bNodeSocketType &type, const void *value);
+  bool add(SocketInterfaceKey &&key, const bNodeSocketType &type, const void *value);
   bool remove(const SocketInterfaceKey &key);
   bool contains(const SocketInterfaceKey &key) const;
+
+  std::optional<Item> lookup(const SocketInterfaceKey &key) const;
 
   void delete_self() override;
 };
