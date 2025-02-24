@@ -67,18 +67,18 @@ class LazyFunctionForClosureZone : public LazyFunction {
 
     const auto &storage = *static_cast<const NodeGeometryClosureOutput *>(output_bnode_.storage);
 
-    std::shared_ptr<bke::SocketListSignature> input_list =
-        std::make_shared<bke::SocketListSignature>();
-    std::shared_ptr<bke::SocketListSignature> output_list =
-        std::make_shared<bke::SocketListSignature>();
+    Vector<bke::ClosureSignature::Item> input_list;
+    Vector<bke::ClosureSignature::Item> output_list;
 
     for (const int i : IndexRange(storage.input_items.items_num)) {
       const bNodeSocket &bsocket = zone_.input_node->output_socket(i);
-      input_list->items.append({bsocket.typeinfo, bsocket.name});
+      input_list.append(
+          {bke::SocketInterfaceKey(bsocket.name), bsocket.typeinfo->geometry_nodes_cpp_type});
     }
     for (const int i : IndexRange(storage.output_items.items_num)) {
       const bNodeSocket &bsocket = zone_.output_node->input_socket(i);
-      output_list->items.append({bsocket.typeinfo, bsocket.name});
+      output_list.append(
+          {bke::SocketInterfaceKey(bsocket.name), bsocket.typeinfo->geometry_nodes_cpp_type});
     }
     closure_signature_ = std::make_shared<bke::ClosureSignature>(std::move(input_list),
                                                                  std::move(output_list));
@@ -104,6 +104,7 @@ class LazyFunctionForClosureZone : public LazyFunction {
     lf::Graph &lf_graph = closure_scope->construct<lf::Graph>("Closure Graph");
     lf::FunctionNode &lf_body_node = lf_graph.add_function(*body_fn_.function);
     bke::ClosureFunctionIndices closure_indices;
+    Vector<const void *> default_input_values;
 
     for (const int i : IndexRange(storage.input_items.items_num)) {
       const NodeGeometryClosureInputItem &item = storage.input_items.items[i];
@@ -117,6 +118,10 @@ class LazyFunctionForClosureZone : public LazyFunction {
           CPPType::get<bool>(), "Usage: " + StringRef(item.name));
       lf_graph.add_link(lf_body_node.output(body_fn_.indices.outputs.input_usages[i]),
                         lf_graph_input_usage);
+
+      void *default_value = closure_allocator.allocate(cpp_type.size(), cpp_type.alignment());
+      construct_socket_default_value(*bsocket.typeinfo, default_value);
+      default_input_values.append(default_value);
     }
     closure_indices.inputs.main = lf_graph.graph_inputs().index_range().take_back(
         storage.input_items.items_num);
@@ -198,7 +203,8 @@ class LazyFunctionForClosureZone : public LazyFunction {
                                                   closure_signature_,
                                                   std::move(closure_scope),
                                                   lf_graph_executor,
-                                                  closure_indices)};
+                                                  closure_indices,
+                                                  std::move(default_input_values))};
 
     params.set_output(zone_info_.indices.outputs.main[0],
                       bke::SocketValueVariant(std::move(closure)));
@@ -221,7 +227,6 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
  public:
   EvaluateClosureFunctionIndices indices_;
 
- public:
   LazyFunctionForEvaluateClosureNode(const bNode &bnode)
       : btree_(bnode.owner_tree()), bnode_(bnode)
   {
@@ -303,28 +308,17 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
     const bke::ClosureSignature &closure_signature = closure.signature();
     const bke::ClosureFunctionIndices &closure_indices = closure.indices();
 
-    bke::SocketListSignature eval_inputs;
-    bke::SocketListSignature eval_outputs;
-    for (const int i : IndexRange(node_storage.input_items.items_num)) {
-      const auto &item = node_storage.input_items.items[i];
-      const StringRefNull idname = *bke::node_static_socket_type(item.socket_type, 0);
-      const bke::bNodeSocketType *stype = bke::node_socket_type_find(idname);
-      eval_inputs.items.append({stype, item.name});
-    }
-    for (const int i : IndexRange(node_storage.output_items.items_num)) {
-      const auto &item = node_storage.output_items.items[i];
-      const StringRefNull idname = *bke::node_static_socket_type(item.socket_type, 0);
-      const bke::bNodeSocketType *stype = bke::node_socket_type_find(idname);
-      eval_outputs.items.append({stype, item.name});
-    }
-
     Array<std::optional<int>> inputs_map(node_storage.input_items.items_num);
-    bke::get_socket_list_signature_map(
-        closure_signature.inputs_sockets(), eval_inputs, inputs_map);
-
+    /* TODO: Check socket types. */
+    for (const int i : inputs_map.index_range()) {
+      inputs_map[i] = closure_signature.get_input_index(
+          bke::SocketInterfaceKey(node_storage.input_items.items[i].name));
+    }
     Array<std::optional<int>> outputs_map(node_storage.output_items.items_num);
-    bke::get_socket_list_signature_map(
-        closure_signature.outputs_sockets(), eval_outputs, outputs_map);
+    for (const int i : outputs_map.index_range()) {
+      outputs_map[i] = closure_signature.get_output_index(
+          bke::SocketInterfaceKey(node_storage.output_items.items[i].name));
+    }
 
     lf::FunctionNode &lf_closure_node = lf_graph.add_function(closure.function());
 
@@ -354,7 +348,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
                           lf_closure_node.input(closure_indices.inputs.output_usages[*mapped_i]));
       }
       else {
-        const bke::bNodeSocketType &stype = *eval_outputs.items[output_item_i].socket_type;
+        const bke::bNodeSocketType &stype = *bnode_.output_socket(output_item_i).typeinfo;
         const CPPType &type = *stype.geometry_nodes_cpp_type;
         void *fallback_value = eval_storage.scope.linear_allocator().allocate(type.size(),
                                                                               type.alignment());
@@ -373,16 +367,8 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
         /* Handled already. */
         continue;
       }
-      const bke::bNodeSocketType &stype = *closure_signature.inputs_sockets().items[i].socket_type;
-      const CPPType &type = *stype.geometry_nodes_cpp_type;
-      void *fallback_value = eval_storage.scope.linear_allocator().allocate(type.size(),
-                                                                            type.alignment());
-      construct_socket_default_value(stype, fallback_value);
-      lf_closure_input.set_default_value(fallback_value);
-      if (!type.is_trivially_destructible()) {
-        eval_storage.scope.add_destruct_call(
-            [fallback_value, &type]() { type.destruct(fallback_value); });
-      }
+      const void *default_value = closure.default_input_value(i);
+      lf_closure_input.set_default_value(default_value);
     }
 
     for (const int i : closure_indices.outputs.main.index_range()) {

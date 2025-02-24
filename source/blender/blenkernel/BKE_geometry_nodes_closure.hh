@@ -14,25 +14,21 @@
 namespace blender::bke {
 
 class ClosureSignature {
+ public:
+  struct Item {
+    SocketInterfaceKey key;
+    const CPPType *type = nullptr;
+  };
+
  private:
-  std::shared_ptr<SocketListSignature> inputs_sockets_;
-  std::shared_ptr<SocketListSignature> outputs_sockets_;
+  Vector<Item> inputs_;
+  Vector<Item> outputs_;
 
  public:
-  ClosureSignature(std::shared_ptr<SocketListSignature> input_sockets,
-                   std::shared_ptr<SocketListSignature> output_sockets)
-      : inputs_sockets_(input_sockets), outputs_sockets_(output_sockets)
-  {
-  }
+  ClosureSignature(Vector<Item> inputs, Vector<Item> outputs);
 
-  const SocketListSignature &inputs_sockets() const
-  {
-    return *inputs_sockets_;
-  }
-  const SocketListSignature &outputs_sockets() const
-  {
-    return *outputs_sockets_;
-  }
+  std::optional<int> get_input_index(const SocketInterfaceKey &key) const;
+  std::optional<int> get_output_index(const SocketInterfaceKey &key) const;
 };
 
 struct ClosureFunctionIndices {
@@ -48,19 +44,25 @@ struct ClosureFunctionIndices {
   } outputs;
 };
 
-class Closure : public ImplicitSharingInfo {
+class Closure : public ImplicitSharingMixin {
  private:
   std::shared_ptr<ClosureSignature> signature_;
   std::unique_ptr<ResourceScope> scope_;
   const fn::lazy_function::LazyFunction &function_;
   ClosureFunctionIndices indices_;
+  Vector<const void *> default_input_values_;
 
  public:
   Closure(std::shared_ptr<ClosureSignature> signature,
           std::unique_ptr<ResourceScope> scope,
           const fn::lazy_function::LazyFunction &function,
-          ClosureFunctionIndices indices)
-      : signature_(signature), scope_(std::move(scope)), function_(function), indices_(indices)
+          ClosureFunctionIndices indices,
+          Vector<const void *> default_input_values)
+      : signature_(signature),
+        scope_(std::move(scope)),
+        function_(function),
+        indices_(indices),
+        default_input_values_(std::move(default_input_values))
   {
   }
 
@@ -79,7 +81,12 @@ class Closure : public ImplicitSharingInfo {
     return function_;
   }
 
-  void delete_self_with_data() override
+  const void *default_input_value(const int index) const
+  {
+    return default_input_values_[index];
+  }
+
+  void delete_self() override
   {
     MEM_delete(this);
   }

@@ -110,6 +110,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (!stype || !stype->geometry_nodes_cpp_type) {
       continue;
     }
+    /* TODO: Check socket types. */
     const GPointer value = bundle->lookup(bke::SocketInterfaceKey(name));
     if (!value) {
       continue;
