@@ -1,3 +1,4 @@
 Referenced by issue #134283, Blender 4.4 Crash when disabling plugins creating custom nodes
 Referenced by issue #131258, Regression: Collapsed sockets adds padding to nodes
 Referenced by issue #128886, Nodes: support subpanels in node group interface
+Referenced by issue #135047, Missing arrow to collapse/expand image texture properties in Material/Surface panel
