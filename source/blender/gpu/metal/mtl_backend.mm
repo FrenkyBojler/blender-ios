@@ -131,7 +131,7 @@ void MTLBackend::render_end()
   }
 }
 
-void MTLBackend::render_step()
+void MTLBackend::render_step(bool force_resource_release)
 {
   /* NOTE(Metal): Primarily called from main thread, but below data-structures
    * and operations are thread-safe, and GPUContext rendering coordination
@@ -148,6 +148,11 @@ void MTLBackend::render_step()
       MTLContext::get_global_memory_manager()->get_current_safe_list();
   if (cmd_free_buffer_list->should_flush()) {
     MTLContext::get_global_memory_manager()->begin_new_safe_list();
+  }
+
+  if (force_resource_release && g_autoreleasepool) {
+    [g_autoreleasepool drain];
+    g_autoreleasepool = [[NSAutoreleasePool alloc] init];
   }
 }
 
@@ -443,6 +448,16 @@ void MTLBackend::capabilities_init(MTLContext *ctx)
   }
 #endif
 
+  /** Identify support for tile inputs. */
+  const bool is_tile_based_arch = (GPU_platform_architecture() == GPU_ARCHITECTURE_TBDR);
+  if (is_tile_based_arch) {
+    MTLBackend::capabilities.supports_native_tile_inputs = true;
+  }
+  else {
+    /* NOTE: If emulating tile input reads, we must ensure we also expose position data. */
+    MTLBackend::capabilities.supports_native_tile_inputs = false;
+  }
+
   /* CPU Info */
   MTLBackend::capabilities.num_performance_cores = get_num_performance_cpu_cores(ctx->device);
   MTLBackend::capabilities.num_efficiency_cores = get_num_efficiency_cpu_cores(ctx->device);
@@ -507,7 +522,6 @@ void MTLBackend::capabilities_init(MTLContext *ctx)
   GCaps.max_work_group_size[1] = max_threads_per_threadgroup_per_dim;
   GCaps.max_work_group_size[2] = max_threads_per_threadgroup_per_dim;
 
-  GCaps.transform_feedback_support = true;
   GCaps.stencil_export_support = true;
 
   /* OPENGL Related workarounds -- none needed for Metal. */
@@ -522,6 +536,18 @@ void MTLBackend::capabilities_init(MTLContext *ctx)
   /* Minimum per-vertex stride is 4 bytes in Metal.
    * A bound vertex buffer must contribute at least 4 bytes per vertex. */
   GCaps.minimum_per_vertex_stride = 4;
+
+  /* Force workarounds when starting blender with `--debug-gpu-force-workarounds`.
+   *
+   * Not all workarounds are listed here as some capabilities are currently assumed to be present
+   * on all devices. */
+  if (G.debug & G_DEBUG_GPU_FORCE_WORKAROUNDS) {
+    /* Texture gather is supported on AMD, but results are non consistent with Apple Silicon GPUs
+     * and can be disabled. */
+    MTLBackend::capabilities.supports_texture_gather = false;
+    MTLBackend::capabilities.supports_texture_atomics = false;
+    MTLBackend::capabilities.supports_native_tile_inputs = false;
+  }
 }
 
 /** \} */

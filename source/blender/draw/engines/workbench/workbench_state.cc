@@ -4,19 +4,22 @@
 
 #include "workbench_private.hh"
 
+#include "DNA_userdef_types.h"
+
 #include "BKE_camera.h"
+#include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_mesh_types.hh"
-#include "BKE_modifier.hh"
-#include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
-#include "BKE_particle.h"
 
 #include "DEG_depsgraph_query.hh"
-#include "DNA_fluid_types.h"
+
+#include "DNA_world_types.h"
+
 #include "ED_paint.hh"
 #include "ED_view3d.hh"
+
 #include "GPU_capabilities.hh"
 
 namespace blender::workbench {
@@ -32,7 +35,7 @@ void SceneState::init(Object *camera_ob /*=nullptr*/)
 
   scene = DEG_get_evaluated_scene(context->depsgraph);
 
-  if (assign_if_different(resolution, int2(float2(DRW_viewport_size_get())))) {
+  if (assign_if_different(resolution, int2(DRW_viewport_size_get()))) {
     /* In some cases, the viewport can change resolution without a call to `workbench_view_update`.
      * This is the case when dragging a window between two screen with different DPI settings.
      * (See #128712) */

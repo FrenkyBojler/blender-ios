@@ -14,37 +14,14 @@ if "%BUILD_WITH_SCCACHE%"=="1" (
 )
 
 if "%WITH_CLANG%" == "1" (
-set LLVM_DIR=
-	for /F "usebackq skip=2 tokens=1-2*" %%A IN (`REG QUERY "HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\LLVM\LLVM" /ve 2^>nul`) DO set LLVM_DIR=%%C
-	if DEFINED LLVM_DIR (
-		if NOT "%verbose%" == "" (
-			echo LLVM Detected at "%LLVM_DIR%"
-		)
-	goto DetectionComplete
-	)
+	REM We want to use an external manifest with Clang
+	set BUILD_CMAKE_ARGS=%BUILD_CMAKE_ARGS% -DWITH_WINDOWS_EXTERNAL_MANIFEST=On
 
-	REM Check 32 bits
-	for /F "usebackq skip=2 tokens=1-2*" %%A IN (`REG QUERY "HKEY_LOCAL_MACHINE\SOFTWARE\LLVM\LLVM" /ve 2^>nul`) DO set LLVM_DIR=%%C
-	if DEFINED LLVM_DIR (
-		if NOT "%verbose%" == "" (
-			echo LLVM Detected at "%LLVM_DIR%"
-		)
-		goto DetectionComplete
-	)
-	echo LLVM not found 
-	exit /b 1
-	
-:DetectionComplete	
+	REM We can assume that we have a working copy via find_llvm.cmd
 	set CC=%LLVM_DIR%\bin\clang-cl
 	set CXX=%LLVM_DIR%\bin\clang-cl
-	if "%PROCESSOR_ARCHITECTURE%" == "ARM64" (
-		set CFLAGS=-m64
-		set CXXFLAGS=-m64
-	) else (
-		rem build and tested against 2019 16.2
-		set CFLAGS=-m64 -fmsc-version=1922
-		set CXXFLAGS=-m64 -fmsc-version=1922
-	)
+	set CFLAGS=-m64
+	set CXXFLAGS=-m64
 )
 
 if "%WITH_ASAN%"=="1" (

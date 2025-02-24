@@ -7,15 +7,18 @@
  */
 
 #include "DNA_space_types.h"
+#include "DNA_userdef_types.h"
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_rect.h"
 
 #include "BKE_context.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
@@ -277,10 +280,10 @@ static void special_aftertrans_update__node(bContext *C, TransInfo *t)
     if (ntree) {
       LISTBASE_FOREACH_MUTABLE (bNode *, node, &ntree->nodes) {
         if (node->flag & NODE_SELECT) {
-          bke::node_remove_node(bmain, ntree, node, true);
+          bke::node_remove_node(bmain, *ntree, *node, true);
         }
       }
-      ED_node_tree_propagate_change(C, bmain, ntree);
+      BKE_main_ensure_invariants(*bmain, ntree->id);
     }
   }
 
@@ -304,11 +307,11 @@ static void special_aftertrans_update__node(bContext *C, TransInfo *t)
 
 /** \} */
 
-}  // namespace blender::ed::transform
-
 TransConvertTypeInfo TransConvertType_Node = {
     /*flags*/ (T_POINTS | T_2D_EDIT),
-    /*create_trans_data*/ blender::ed::transform::createTransNodeData,
-    /*recalc_data*/ blender::ed::transform::flushTransNodes,
-    /*special_aftertrans_update*/ blender::ed::transform::special_aftertrans_update__node,
+    /*create_trans_data*/ createTransNodeData,
+    /*recalc_data*/ flushTransNodes,
+    /*special_aftertrans_update*/ special_aftertrans_update__node,
 };
+
+}  // namespace blender::ed::transform

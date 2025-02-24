@@ -65,9 +65,6 @@ GPUShader *GPU_shader_create_from_info_name(const char *info_name);
  */
 const GPUShaderCreateInfo *GPU_shader_create_info_get(const char *info_name);
 
-void GPU_shader_create_info_get_unfinalized_copy(const char *info_name,
-                                                 GPUShaderCreateInfo &r_info);
-
 /**
  * Error checking for user created shaders.
  * \return true is create info is valid.
@@ -271,13 +268,6 @@ bool GPU_shader_batch_specializations_is_ready(SpecializationBatchHandle &handle
  * All of this section is deprecated and should be ported to use the API described above.
  * \{ */
 
-enum eGPUShaderTFBType {
-  GPU_SHADER_TFB_NONE = 0, /* Transform feedback unsupported. */
-  GPU_SHADER_TFB_POINTS = 1,
-  GPU_SHADER_TFB_LINES = 2,
-  GPU_SHADER_TFB_TRIANGLES = 3,
-};
-
 GPUShader *GPU_shader_create(std::optional<blender::StringRefNull> vertcode,
                              std::optional<blender::StringRefNull> fragcode,
                              std::optional<blender::StringRefNull> geomcode,
@@ -300,16 +290,7 @@ GPUShader *GPU_shader_create_ex(std::optional<blender::StringRefNull> vertcode,
                                 std::optional<blender::StringRefNull> computecode,
                                 std::optional<blender::StringRefNull> libcode,
                                 std::optional<blender::StringRefNull> defines,
-                                eGPUShaderTFBType tf_type,
-                                const char **tf_names,
-                                int tf_count,
                                 blender::StringRefNull shname);
-
-/**
- * Returns true if transform feedback was successfully enabled.
- */
-bool GPU_shader_transform_feedback_enable(GPUShader *shader, blender::gpu::VertBuf *vertbuf);
-void GPU_shader_transform_feedback_disable(GPUShader *shader);
 
 /**
  * Shader cache warming.
