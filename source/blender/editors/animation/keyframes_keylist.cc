@@ -1304,19 +1304,6 @@ void action_group_to_keylist(AnimData *adt,
   }
 }
 
-void action_slot_to_keylist(AnimData *adt,
-                            animrig::Action &action,
-                            const animrig::slot_handle_t slot_handle,
-                            AnimKeylist *keylist,
-                            const int saction_flag,
-                            blender::float2 range)
-{
-  BLI_assert(GS(action.id.name) == ID_AC);
-  for (FCurve *fcurve : fcurves_for_action_slot(action, slot_handle)) {
-    fcurve_to_keylist(adt, fcurve, keylist, saction_flag, range, true);
-  }
-}
-
 void action_to_keylist(AnimData *adt,
                        bAction *dna_action,
                        AnimKeylist *keylist,
@@ -1342,7 +1329,9 @@ void action_to_keylist(AnimData *adt,
    * have things like reference strips, where the strip can reference another slot handle.
    */
   BLI_assert(adt);
-  action_slot_to_keylist(adt, action, adt->slot_handle, keylist, saction_flag, range);
+  for (FCurve *fcurve : fcurves_for_action_slot(action, adt->slot_handle)) {
+    fcurve_to_keylist(adt, fcurve, keylist, saction_flag, range, true);
+  }
 }
 
 void gpencil_to_keylist(bDopeSheet *ads, bGPdata *gpd, AnimKeylist *keylist, const bool active)

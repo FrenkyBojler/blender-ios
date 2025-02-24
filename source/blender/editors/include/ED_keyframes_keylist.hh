@@ -180,17 +180,27 @@ void action_group_to_keylist(AnimData *adt,
                              int saction_flag,
                              blender::float2 range);
 /* Action */
+
+/**
+ * Generate a full list of the keys in `dna_action` that are within the frame
+ * range `range`.
+ *
+ * For layered actions, this is also limited to the keys that are for the slot
+ * in `adt`.
+ *
+ * Note: this should only be used in places that need or want the *full* list of
+ * keys, without any filtering by e.g. channel selection/visibility, etc. For
+ * use cases that need such filtering, use `action_summary_to_keylist()`
+ * instead.
+ *
+ * \see action_summary_to_keylist()
+ */
 void action_to_keylist(AnimData *adt,
                        bAction *dna_action,
                        AnimKeylist *keylist,
                        int saction_flag,
                        blender::float2 range);
-void action_slot_to_keylist(AnimData *adt,
-                            blender::animrig::Action &action,
-                            blender::animrig::slot_handle_t slot_handle,
-                            AnimKeylist *keylist,
-                            int saction_flag,
-                            blender::float2 range);
+
 /* Object */
 void ob_to_keylist(
     bDopeSheet *ads, Object *ob, AnimKeylist *keylist, int saction_flag, blender::float2 range);
