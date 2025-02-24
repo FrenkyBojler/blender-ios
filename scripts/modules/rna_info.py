@@ -427,6 +427,9 @@ class InfoPropertyRNA:
 
             if self.type in {"float", "int"}:
                 type_str += " in [{:s}, {:s}]".format(range_str(self.min), range_str(self.max))
+            elif self.type == "string":
+                if self.subtype == "BYTE_STRING":
+                    type_str = "Byte String"
             elif self.type == "enum":
                 enum_descr = enum_descr_override
                 if not enum_descr:
