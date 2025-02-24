@@ -6,6 +6,7 @@
 #include "BLI_math_geom.h"
 #include "BLI_task.hh"
 
+#include "BKE_customdata.hh"
 #include "BKE_curves.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_tangent.hh"
@@ -94,124 +95,106 @@ static VArray<float3> construct_curve_tangent_gvarray(const bke::CurvesGeometry 
   return nullptr;
 }
 
-static void partial_corner_tri_tess(const Mesh &mesh,
-                                    const IndexMask &mask,
-                                    const Span<float2> uv_coords)
+static void compute_tangent_partial_corner_domain(const Mesh &mesh,
+                                                  const IndexMask &faces_mask,
+                                                  const Span<float2> uv_coords,
+                                                  Array<float3> r_tangents,
+                                                  Array<float> r_bitangents)
 {
   const OffsetIndices faces = mesh.faces();
   const Span<int3> corner_tris = mesh.corner_tris();
   const Span<int> corner_verts = mesh.corner_verts();
-  const Span<float3> vert_normals = mesh.corner_normals();
 
   /* Offsets mapping faces to tesselated tris for the partial tesselation (ptess). */
-  Array<int> ptess_face2tri_map_data(mask.size() + 1);
+  Array<int> ptess_face2tri_map_data(faces_mask.size() + 1);
   OffsetIndices<int> ptess_face2tri_map(ptess_face2tri_map_data);
   ptess_face2tri_map_data[0] = 0;
 
-
-  mask.foreach_index([&](const int64_t index_face, const int64_t index_rel) {
+  faces_mask.foreach_index([&](const int64_t index_face, const int64_t index_rel) {
     ptess_face2tri_map_data[index_rel + 1] = ptess_face2tri_map_data[index_rel] +
                                              poly_to_tri_count(1, faces[index_face].size());
   });
 
-  /* Simply the 'faces' offsets for the partial tesselation -> {0, 3, 6, ...} . */
-  Array<int> ptess_tris_data(ptess_face2tri_map.total_size() * 3);
-  OffsetIndices<int> ptess_tris_data(ptess_tris_data);
-  ptess_tris_data[0] = 0;
-
   /* Partial buffers */
   Array<int> ptess_corner_verts(ptess_face2tri_map.total_size() * 3);
-  Array<int> ptess_corner_normals(ptess_face2tri_map.total_size() * 3);
-  Array<int> ptess_corner_uvs(ptess_face2tri_map.total_size() * 3);
+  Array<int> ptess_corner_corners(ptess_corner_verts.size());
+  faces_mask.foreach_index(
+      GrainSize(32768), [&](const int64_t index_face, const int64_t index_rel) {
+        const IndexRange corner_tri_slice(poly_to_tri_count(index_face, faces[index_face].start()),
+                                          poly_to_tri_count(1, faces[index_face].size()));
 
-  mask.foreach_index(GrainSize(32768), [&](const int64_t index_face, const int64_t index_rel) {
-    const IndexRange corner_tri_slice(poly_to_tri_count(index_face, faces[index_face].start()),
-                                      poly_to_tri_count(1, faces[index_face].size()));
+        const int64_t ptess_offset = ptess_face2tri_map[index_rel].start();
+        int *ptess_corner_vert = &ptess_corner_verts[ptess_offset * 3];
+        int *ptess_corner_corner = &ptess_corner_corners[ptess_offset * 3];
 
-    const int64_t ptess_offset = ptess_face2tri_map[index_rel].start();
-    int *ptess_corner_vert = &ptess_corner_verts[ptess_offset * 3];
+        for (const int64_t i : corner_tri_slice.index_range()) {
+          const int3 corner_tri = corner_tris[corner_tri_slice[i]];
+          *ptess_corner_vert++ = corner_verts[corner_tri.x];
+          *ptess_corner_vert++ = corner_verts[corner_tri.y];
+          *ptess_corner_vert++ = corner_verts[corner_tri.z];
 
-    for (const int64_t i : corner_tri_slice.index_range()) {
-      ptess_tris_data[index_rel + i + 1] = (index_rel + i) * 3;
+          *ptess_corner_corner++ = corner_tri.x;
+          *ptess_corner_corner++ = corner_tri.y;
+          *ptess_corner_corner++ = corner_tri.z;
+        }
+      });
 
-      const int3 corner_tri = corner_tris[corner_tri_slice[i]];
-      *ptess_corner_vert++ = corner_verts[corner_tri.x];
-      *ptess_corner_vert++ = corner_verts[corner_tri.y];
-      *ptess_corner_vert++ = corner_verts[corner_tri.z];
+  const int64_t min_buffer_size = faces[faces_mask.last()].one_after_last();
+  r_tangents = Array<float3>(min_buffer_size);
+  r_bitangents = Array<float>(min_buffer_size);
 
-      const float2 *corner_uvs = &uv_coords[corner_tri_slice[i]];
-
-    }
-  });
-
+  BKE_mesh_calc_virtual_loop_tangent_single_ex(ptess_face2tri_map.total_size(),
+                                               ptess_corner_verts,
+                                               ptess_corner_corners,
+                                               mesh.vert_positions(),
+                                               mesh.corner_normals(),
+                                               uv_coords,
+                                               r_tangents.as_mutable_span(),
+                                               r_bitangents.as_mutable_span());
 }
 
 static Array<float4> mesh_tangent_corner_domain(const Mesh &mesh,
                                                 const IndexMask &mask,
-                                                const Span<float2> uv_coords)
+                                                const Span<float2> uv_coords,
+                                                Array<float3> r_tangents,
+                                                Array<float> r_bitangents)
 {
+  const Span<int> corner_to_face_map = mesh.corner_to_face_map();
 
-  const Span<float3> positions = mesh.vert_positions();
-  const OffsetIndices faces = mesh.faces();
-  const Span<float3> vert_normals = mesh.vert_normals();
-  const bke::AttributeAccessor attributes = mesh.attributes();
-
-  const Span<int> corner_verts = mesh.corner_verts();
-
-  Span<int3> corner_tris = mesh.corner_tris();
-  Array<int> tess_faces_data(corner_tris.size() + 1);
-  OffsetIndices<int> tess_faces(tess_faces_data);
-
-  tess_faces_data[0] = 0;
-  threading::parallel_for(
-      tess_faces_data.index_range().drop_front(1), 32768, [&](IndexRange range) {
-        for (const int64_t i : range) {
-          tess_faces_data[i - 1] = i * 3;
-        }
-      });
-
-  int partial_tess_tri_count;
-
-  Array<int> partial_tess_corner_verts(mask.size() + 1);
-
-  mask.foreach_index(GrainSize(32768), [&](const int64_t index_face, const int64_t index_rel) {
-    const int64_t face_start = faces[index_face].start();
-    const int64_t face_size = faces[index_face].size();
-    const IndexRange corner_tri_range(poly_to_tri_count(index_face, face_start),
-                                      poly_to_tri_count(1, face_size));
-
-    for (const int64_t i : corner_tri_range.index_range()) {
-      const int3 corner_tri = corner_tris[corner_tri_range[i]];
-      const int64_t index_part = (index_rel + i) * 3;
-      partial_tess_corner_verts[index_part + 0] = corner_verts[corner_tri.x];
-      partial_tess_corner_verts[index_part + 1] = corner_verts[corner_tri.y];
-      partial_tess_corner_verts[index_part + 2] = corner_verts[corner_tri.z];
-    }
+  Array<bool> affected_faces(mesh.faces_num, false);
+  mask.foreach_index(GrainSize(32768), [&](const int64_t index_corner, const int64_t index_rel) {
+    affected_faces[corner_to_face_map[index_corner]] = true;
   });
 
-  Array<float3> tess_corner_normals(tess_corner_verts.size());
-  array_utils::gather(vert_normals, tess_corner_verts, tess_corner_normals.as_mutable_span());
+  IndexMaskMemory mask_mem;
+  IndexMask faces_mask = IndexMask::from_bools(affected_faces, mask_mem);
 
-  Array<float4> tess_corner_tangents(tess_corner_verts.size());
-  BKE_mesh_calc_loop_tangent_single_ex(tess_faces,
-                                       tess_corner_verts.cast<int>(),
-                                       positions,
-                                       tess_corner_normals,
-                                       uv_coords,
-                                       tess_corner_tangents);
+  compute_tangent_partial_corner_domain(mesh, faces_mask, uv_coords, r_tangents, r_bitangents);
 }
 
-static VArray<float3> construct_mesh_tangent_gvarray(const Mesh &mesh, const AttrDomain domain)
+static VArray<float3> construct_mesh_tangent_gvarray(
+    const Mesh &mesh,
+    const AttrDomain domain,
+    const std::optional<bke::AttributeAccessor> &context_attrs,
+    const IndexMask &mask)
 {
-  Array<float4> tangents = mesh_tangent_corner_domain(mesh);
+  const CustomData *corner_data = &mesh.corner_data;
+  int layer_index = CustomData_get_layer_index(corner_data, CD_PROP_FLOAT2);
+  int active_layer = CustomData_get_active_layer(corner_data, CD_PROP_FLOAT2);
+  const float2* active_uv_data = static_cast<const float2 *>(corner_data->layers[active_layer + layer_index].data);
+  Span<float2> uv_coords(active_uv_data, mesh.corners_num);
 
-  if (domain == AttrDomain::Point) {
+  Array<float3> tangents;
+  Array<float> bitangents;
+
+  if (domain == AttrDomain::Corner) {
+    mesh_tangent_corner_domain(mesh, mask, uv_coords, tangents, bitangents);
     return VArray<float3>::ForContainer(std::move(tangents));
   }
 
-  if (domain == AttrDomain::Curve) {
-    return curves.adapt_domain<float3>(
-        VArray<float3>::ForContainer(std::move(tangents)), AttrDomain::Point, AttrDomain::Curve);
+  if (domain == AttrDomain::Point && context_attrs.has_value()) {
+    context_attrs.value().adapt_domain(
+        VArray<float3>::ForContainer(std::move(tangents)), bke::AttrDomain::Corner, domain);
   }
 
   return nullptr;
@@ -228,7 +211,7 @@ class TangentFieldInput final : public bke::GeometryFieldInput {
                                  const IndexMask &mask) const final
   {
     if (const Mesh *mesh = context.mesh()) {
-      return construct_mesh_tangent_gvarray(*mesh, context.domain());
+      return construct_mesh_tangent_gvarray(*mesh, context.domain(), context.attributes(), mask);
     }
     if (const bke::CurvesGeometry *curves = context.curves_or_strokes()) {
       return construct_curve_tangent_gvarray(*curves, context.domain());

@@ -17,6 +17,26 @@ struct ReportList;
 struct Mesh;
 
 /**
+ * Computes tangent space normals for the given UV coordinates.
+ * Tangent space basis can be formed as [tangent, bitangent * cross(tangent, normal), normal].
+ * Handedness for the tangent space is encoded in the bitangent orientation scalar.
+ *
+ * \note
+ * - Tangent space handedness is flipped when UVs are mirrored over an odd number of axis.
+ * - Corner corners maps corners from the virtual triangulation to corners in a N-gon source mesh.
+ * - Corner normals/uvs are the buffers from the source (N-gon) mesh.
+ */
+void BKE_mesh_calc_virtual_loop_tangent_single_ex(
+    const int num_faces,
+    const blender::Span<int> corner_verts,
+    const blender::Span<int> corner_corners, /* index of the underlying N-gon corner. */
+    const blender::Span<blender::float3> vert_positions,
+    const blender::Span<blender::float3> corner_normals,
+    const blender::Span<blender::float2> corner_uvs,
+    blender::MutableSpan<blender::float3> r_corner_tangent,
+    blender::MutableSpan<float> r_corner_bitangent_orient);
+
+/**
  * Compute simplified tangent space normals, i.e.
  * tangent vector + sign of bi-tangent one, which combined with
  * split normals can be used to recreate the full tangent space.

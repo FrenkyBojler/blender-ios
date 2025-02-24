@@ -35,6 +35,80 @@ using blender::OffsetIndices;
 using blender::Span;
 
 /* -------------------------------------------------------------------- */
+/** \name Tesselated Mesh Tangent Calculations (Single Layer)
+ * \{ */
+
+struct BKETesselatedToTangent {
+  uint GetNumFaces()
+  {
+    return num_faces;
+  }
+
+  uint GetNumVerticesOfFace(const uint face_num)
+  {
+    return 3;
+  }
+
+  mikk::float3 GetPosition(const uint face_num, const uint vert_num)
+  {
+    const uint loop_idx = face_num * 3 + vert_num;
+    return mikk::float3(positions[corner_verts[loop_idx]]);
+  }
+
+  mikk::float3 GetTexCoord(const uint face_num, const uint vert_num)
+  {
+    const uint loop_idx = face_num * 3 + vert_num;
+    const float2 uv = corner_uvs[corner_corners[loop_idx]];
+    return mikk::float3(uv[0], uv[1], 1.0f);
+  }
+
+  mikk::float3 GetNormal(const uint face_num, const uint vert_num)
+  {
+    const uint loop_idx = face_num * 3 + vert_num;
+    return mikk::float3(corner_normals[corner_corners[loop_idx]]);
+  }
+
+  void SetTangentSpace(const uint face_num, const uint vert_num, mikk::float3 T, bool orientation)
+  {
+    const uint loop_idx = face_num * 3 + vert_num;
+    tangents[corner_corners[loop_idx]] = float3(T.x, T.y, T.z);
+    bitangent_orient[corner_corners[loop_idx]] = orientation ? 1.0f : -1.0f;
+  }
+
+  const uint num_faces;
+  const Span<int> corner_verts;        /* faces vertices */
+  const Span<int> corner_corners;      /* faces corners (to 'untesselated' source) */
+  const Span<float3> positions;        /* vertices */
+  const Span<float3> corner_normals;   /* loops' normals */
+  const Span<float2> corner_uvs;       /* texture coordinates */
+  MutableSpan<float3> tangents;        /* output tangents */
+  MutableSpan<float> bitangent_orient; /* output bitangent orientation */
+};
+
+void BKE_mesh_calc_virtual_loop_tangent_single_ex(const int num_faces,
+                                                     const Span<int> corner_verts,
+                                                     const Span<int> corner_corners,
+                                                     const Span<float3> vert_positions,
+                                                     const Span<float3> corner_normals,
+                                                     const Span<float2> corner_uvs,
+                                                     MutableSpan<float3> r_corner_tangent,
+                                                     MutableSpan<float> r_corner_bitangent_orient)
+{
+  /* Compute Mikktspace's tangent normals. */
+  BKETesselatedToTangent mesh_to_tangent{num_faces,
+                                         corner_verts,
+                                         corner_corners,
+                                         vert_positions,
+                                         corner_normals,
+                                         corner_uvs,
+                                         r_corner_tangent,
+                                         r_corner_bitangent_orient};
+
+  mikk::Mikktspace<BKETesselatedToTangent> mikk(mesh_to_tangent);
+  mikk.genTangSpace();
+}
+
+/* -------------------------------------------------------------------- */
 /** \name Mesh Tangent Calculations (Single Layer)
  * \{ */
 
@@ -149,7 +223,7 @@ void BKE_mesh_calc_loop_tangent_single(Mesh *mesh,
       mesh->vert_positions(),
       mesh->corner_normals(),
       uv_map,
-      MutableSpan<float4>{reinterpret_cast<float4*>(r_looptangents), uv_map.size()});
+      MutableSpan<float4>{reinterpret_cast<float4 *>(r_looptangents), uv_map.size()});
 }
 
 /** \} */
