@@ -162,7 +162,7 @@ void main()
 
 #else
   /* Convert to screen position [0..sizeVp]. */
-  edgeStart = ((gl_Position.xy / gl_Position.w) * 0.5 + 0.5) * globalsBlock.size_viewport.xy;
+  edgeStart = ((gl_Position.xy / gl_Position.w) * 0.5 + 0.5) * sizeViewport;
   edgePos = edgeStart;
 
 #  if !defined(SELECT_ENABLE)
