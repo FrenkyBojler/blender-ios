@@ -1148,13 +1148,12 @@ static int grease_pencil_set_uniform_opacity_exec(bContext *C, wmOperator *op)
     MutableSpan<float> opacities = info.drawing.opacities_for_write();
     bke::curves::fill_points<float>(points_by_curve, strokes, opacity_stroke, opacities);
 
-    if (attributes.contains("fill_opacity") || opacity_fill > FLT_EPSILON) {
-      if (SpanAttributeWriter fill_opacities = attributes.lookup_or_add_for_write_span<float>(
-              "fill_opacity", AttrDomain::Curve))
-      {
-        strokes.foreach_index(
-            [&](const int64_t curve) { fill_opacities.span[curve] = opacity_fill; });
-      }
+    if (SpanAttributeWriter fill_opacities = attributes.lookup_or_add_for_write_span<float>(
+            "fill_opacity", AttrDomain::Curve))
+    {
+      strokes.foreach_index(GrainSize(2048), [&](const int64_t curve) {
+        fill_opacities.span[curve] = opacity_fill;
+      });
     }
 
     changed = true;
@@ -1179,6 +1178,8 @@ static void GREASE_PENCIL_OT_set_uniform_opacity(wmOperatorType *ot)
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
+  /* Differentiate default opacities for stroke & fills so shapes with same stroke+fill colors will
+   * be more readable. */
   RNA_def_float(ot->srna, "opacity_stroke", 1.0f, 0.0f, 1.0f, "Stroke Opacity", "", 0.0f, 1.0f);
   RNA_def_float(ot->srna, "opacity_fill", 0.5f, 0.0f, 1.0f, "Fill Opacity", "", 0.0f, 1.0f);
 }
