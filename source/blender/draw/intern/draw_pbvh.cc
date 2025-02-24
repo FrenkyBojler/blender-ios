@@ -1614,10 +1614,12 @@ static gpu::IndexBuf *create_tri_index_mesh(const Span<bke::pbvh::MeshNode> node
                                             const bke::pbvh::MeshNode &gpu_node)
 {
   int tris_num = 0;
+  const Span<int> leaf_nodes = gpu_node.leaf_nodes();
 
-  for (const int i : gpu_node.leaf_nodes().index_range()) {
-    const bke::pbvh::MeshNode &node = nodes[i];
+  for (const int i : leaf_nodes.index_range()) {
+    const bke::pbvh::MeshNode &node = nodes[leaf_nodes[i]];
     const Span<int> face_indices = node.faces();
+
     if (hide_poly.is_empty()) {
       tris_num = poly_to_tri_count(face_indices.size(), node.corners_num());
     }
@@ -1638,8 +1640,8 @@ static gpu::IndexBuf *create_tri_index_mesh(const Span<bke::pbvh::MeshNode> node
   int tri_index = 0;
   int node_corner_offset = 0;
 
-  for (const int i : gpu_node.leaf_nodes().index_range()) {
-    const bke::pbvh::MeshNode &node = nodes[i];
+  for (const int j : leaf_nodes.index_range()) {
+    const bke::pbvh::MeshNode &node = nodes[leaf_nodes[j]];
     const Span<int> face_indices = node.faces();
 
     for (const int face_index : face_indices) {
@@ -1933,7 +1935,7 @@ Span<gpu::VertBuf *> DrawCacheImpl::ensure_attribute_data(const Object &object,
 
 Span<gpu::IndexBuf *> DrawCacheImpl::ensure_tri_indices(const Object &object,
                                                         const OrigMeshData &orig_mesh_data,
-                                                        const IndexMask &node_mask,
+                                                        const IndexMask &gpu_node_mask,
                                                         const bool coarse)
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
@@ -1949,9 +1951,7 @@ Span<gpu::IndexBuf *> DrawCacheImpl::ensure_tri_indices(const Object &object,
        * distribution between threads. */
       IndexMaskMemory memory;
       const IndexMask nodes_to_calculate = IndexMask::from_predicate(
-          node_mask, GrainSize(8196), memory, [&](const int i) {
-            return !ibos[i] && nodes[i].isGPUNode();
-          });
+          gpu_node_mask, GrainSize(8196), memory, [&](const int i) { return !ibos[i]; });
 
       const Mesh &mesh = *static_cast<const Mesh *>(object.data);
       const OffsetIndices<int> faces = mesh.faces();
@@ -1981,7 +1981,7 @@ Span<gpu::IndexBuf *> DrawCacheImpl::ensure_tri_indices(const Object &object,
        * distribution between threads. */
       IndexMaskMemory memory;
       const IndexMask nodes_to_calculate = IndexMask::from_predicate(
-          node_mask, GrainSize(8196), memory, [&](const int i) { return !ibos[i]; });
+          gpu_node_mask, GrainSize(8196), memory, [&](const int i) { return !ibos[i]; });
 
       const SubdivCCG &subdiv_ccg = *object.sculpt->subdiv_ccg;
       const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
