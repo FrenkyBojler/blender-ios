@@ -121,6 +121,13 @@ ccl_device_inline Transform object_get_inverse_transform(KernelGlobals kg,
   return object_fetch_transform(kg, sd->object, OBJECT_INVERSE_TRANSFORM);
 #endif
 }
+
+ccl_device_inline Transform lamp_get_inverse_transform(KernelGlobals kg,
+                                                       const ccl_global KernelLight *klight)
+{
+  return object_fetch_transform(kg, klight->object_id, OBJECT_INVERSE_TRANSFORM);
+}
+
 /* Transform position from object to world space */
 
 ccl_device_inline void object_position_transform(KernelGlobals kg,

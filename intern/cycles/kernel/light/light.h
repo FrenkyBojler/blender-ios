@@ -274,6 +274,7 @@ ccl_device_forceinline int lights_intersect_impl(KernelGlobals kg,
 
   for (int lamp = 0; lamp < kernel_data.integrator.num_lights; lamp++) {
     const ccl_global KernelLight *klight = &kernel_data_fetch(lights, lamp);
+    const int object = klight->object_id;
 
     if (path_flag & PATH_RAY_CAMERA) {
       if (klight->shader_id & SHADER_EXCLUDE_CAMERA) {
@@ -308,15 +309,12 @@ ccl_device_forceinline int lights_intersect_impl(KernelGlobals kg,
     if (kernel_data.kernel_features & KERNEL_FEATURE_SHADOW_LINKING) {
       if (is_main_path) {
         if (is_indirect_ray &&
-            kernel_data_fetch(objects, klight->object_id).shadow_set_membership !=
-                LIGHT_LINK_MASK_ALL)
+            kernel_data_fetch(objects, object).shadow_set_membership != LIGHT_LINK_MASK_ALL)
         {
           continue;
         }
       }
-      else if (kernel_data_fetch(objects, klight->object_id).shadow_set_membership ==
-               LIGHT_LINK_MASK_ALL)
-      {
+      else if (kernel_data_fetch(objects, object).shadow_set_membership == LIGHT_LINK_MASK_ALL) {
         continue;
       }
     }
@@ -324,9 +322,7 @@ ccl_device_forceinline int lights_intersect_impl(KernelGlobals kg,
 
 #ifdef __LIGHT_LINKING__
     /* Light linking. */
-    if (!light_link_light_match(kg, receiver_forward, klight->object_id) &&
-        !(path_flag & PATH_RAY_CAMERA))
-    {
+    if (!light_link_light_match(kg, receiver_forward, object) && !(path_flag & PATH_RAY_CAMERA)) {
       continue;
     }
 #endif
@@ -364,7 +360,7 @@ ccl_device_forceinline int lights_intersect_impl(KernelGlobals kg,
     }
 
     /* Avoid self-intersections. */
-    if (last_prim == lamp && last_object == klight->object_id && last_type == PRIMITIVE_LAMP) {
+    if (last_prim == lamp && last_object == object && last_type == PRIMITIVE_LAMP) {
       continue;
     }
 
@@ -392,7 +388,7 @@ ccl_device_forceinline int lights_intersect_impl(KernelGlobals kg,
     isect->v = v;
     isect->type = PRIMITIVE_LAMP;
     isect->prim = lamp;
-    isect->object = klight->object_id;
+    isect->object = object;
   }
 
   return num_hits;

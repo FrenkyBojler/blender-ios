@@ -25,7 +25,7 @@ ccl_device_inline void distant_light_uv(KernelGlobals kg,
   const float fac = klight->distant.half_inv_sin_half_angle / len(D - klight->co);
 
   /* Get u axis and v axis. */
-  const Transform itfm = kernel_data_fetch(objects, klight->object_id).itfm;
+  const Transform itfm = lamp_get_inverse_transform(kg, klight);
   const float u_ = dot(D, make_float3(itfm.x)) * fac;
   const float v_ = dot(D, make_float3(itfm.y)) * fac;
 

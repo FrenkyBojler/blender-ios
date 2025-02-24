@@ -17,7 +17,7 @@ ccl_device float3 spot_light_to_local(KernelGlobals kg,
                                       const ccl_global KernelLight *klight,
                                       const float3 ray)
 {
-  const Transform itfm = kernel_data_fetch(objects, klight->object_id).itfm;
+  const Transform itfm = lamp_get_inverse_transform(kg, klight);
   float3 transformed_ray = safe_normalize(transform_direction(&itfm, ray));
   transformed_ray.z = -transformed_ray.z;
 
@@ -281,7 +281,7 @@ ccl_device_inline bool spot_light_valid_ray_segment(KernelGlobals kg,
                                                     ccl_private Interval<float> *t_range)
 {
   /* Convert to local space of the spot light. */
-  const Transform itfm = kernel_data_fetch(objects, klight->object_id).itfm;
+  const Transform itfm = lamp_get_inverse_transform(kg, klight);
   float3 local_P = P + klight->spot.dir * klight->spot.ray_segment_dp;
   local_P = transform_point(&itfm, local_P);
   const float3 local_D = transform_direction(&itfm, D);

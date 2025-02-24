@@ -75,7 +75,7 @@ ccl_device_inline bool point_light_sample(KernelGlobals kg,
   }
 
   /* Texture coordinates. */
-  const Transform itfm = kernel_data_fetch(objects, klight->object_id).itfm;
+  const Transform itfm = lamp_get_inverse_transform(kg, klight);
   const float2 uv = map_to_sphere(transform_direction(&itfm, ls->Ng));
   /* NOTE: Return barycentric coordinates in the same notation as Embree and OptiX. */
   ls->u = uv.y;
@@ -126,7 +126,7 @@ ccl_device_forceinline void point_light_mnee_sample_update(KernelGlobals kg,
   }
 
   /* Texture coordinates. */
-  const Transform itfm = kernel_data_fetch(objects, klight->object_id).itfm;
+  const Transform itfm = lamp_get_inverse_transform(kg, klight);
   const float2 uv = map_to_sphere(transform_direction(&itfm, ls->Ng));
   /* NOTE: Return barycentric coordinates in the same notation as Embree and OptiX. */
   ls->u = uv.y;
@@ -184,7 +184,7 @@ ccl_device_inline bool point_light_sample_from_intersection(KernelGlobals kg,
   }
 
   /* Texture coordinates. */
-  const Transform itfm = kernel_data_fetch(objects, klight->object_id).itfm;
+  const Transform itfm = lamp_get_inverse_transform(kg, klight);
   const float2 uv = map_to_sphere(transform_direction(&itfm, ls->Ng));
   /* NOTE: Return barycentric coordinates in the same notation as Embree and OptiX. */
   ls->u = uv.y;

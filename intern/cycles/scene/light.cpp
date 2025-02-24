@@ -1176,13 +1176,16 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
     }
 
     Light *light = static_cast<Light *>(object->get_geometry());
+    const float3 axisu = transform_get_column(&object->get_tfm(), 0);
+    const float3 axisv = transform_get_column(&object->get_tfm(), 1);
+    const float3 dir = -transform_get_column(&object->get_tfm(), 2);
+    const float3 co = transform_get_column(&object->get_tfm(), 3);
+
     /* Consider moving portals update to their own function
      * keeping this one more manageable. */
     if (light->is_portal) {
       assert(light->light_type == LIGHT_AREA);
 
-      const float3 axisu = transform_get_column(&object->get_tfm(), 0);
-      const float3 axisv = transform_get_column(&object->get_tfm(), 1);
       const float3 extentu = axisu * (light->sizeu * light->size);
       const float3 extentv = axisv * (light->sizev * light->size);
 
@@ -1200,15 +1203,13 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
         invarea = -invarea;
       }
 
-      const float3 dir = -safe_normalize(transform_get_column(&object->get_tfm(), 2));
-
-      klights[portal_index].co = transform_get_column(&object->get_tfm(), 3);
+      klights[portal_index].co = co;
       klights[portal_index].area.axis_u = axis_u;
       klights[portal_index].area.len_u = len_u;
       klights[portal_index].area.axis_v = axis_v;
       klights[portal_index].area.len_v = len_v;
       klights[portal_index].area.invarea = invarea;
-      klights[portal_index].area.dir = dir;
+      klights[portal_index].area.dir = safe_normalize(dir);
       klights[portal_index].object_id = object->index;
 
       portal_index++;
@@ -1265,7 +1266,7 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
         shader_id |= SHADER_USE_MIS;
       }
 
-      klights[light_index].co = transform_get_column(&object->get_tfm(), 3);
+      klights[light_index].co = co;
       klights[light_index].spot.radius = radius;
       klights[light_index].spot.eval_fac = eval_fac;
       klights[light_index].spot.is_sphere = light->get_is_sphere() && radius != 0.0f;
@@ -1273,7 +1274,6 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
     else if (light->light_type == LIGHT_DISTANT) {
       shader_id &= ~SHADER_AREA_LIGHT;
 
-      const float3 dir = -safe_normalize(transform_get_column(&object->get_tfm(), 2));
       const float angle = light->angle / 2.0f;
 
       if (light->use_mis && angle > 0.0f) {
@@ -1283,7 +1283,7 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
       const float one_minus_cosangle = 2.0f * sqr(sinf(0.5f * angle));
       const float pdf = (angle > 0.0f) ? (M_1_2PI_F / one_minus_cosangle) : 1.0f;
 
-      klights[light_index].co = dir;
+      klights[light_index].co = safe_normalize(dir);
       klights[light_index].distant.angle = angle;
       klights[light_index].distant.one_minus_cosangle = one_minus_cosangle;
       klights[light_index].distant.pdf = pdf;
@@ -1317,8 +1317,6 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
     }
     else if (light->light_type == LIGHT_AREA) {
       const float light_size = light->size;
-      const float3 axisu = transform_get_column(&object->get_tfm(), 0);
-      const float3 axisv = transform_get_column(&object->get_tfm(), 1);
       const float3 extentu = axisu * (light->sizeu * light_size);
       const float3 extentv = axisv * (light->sizev * light_size);
 
@@ -1348,19 +1346,17 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
                                               3.0f / powf(half_spread, 3.0f)) :
                                          FLT_MAX;
 
-      const float3 dir = -safe_normalize(transform_get_column(&object->get_tfm(), 2));
-
       if (light->use_mis && area != 0.0f && light->spread > 0.0f) {
         shader_id |= SHADER_USE_MIS;
       }
 
-      klights[light_index].co = transform_get_column(&object->get_tfm(), 3);
+      klights[light_index].co = co;
       klights[light_index].area.axis_u = axis_u;
       klights[light_index].area.len_u = len_u;
       klights[light_index].area.axis_v = axis_v;
       klights[light_index].area.len_v = len_v;
       klights[light_index].area.invarea = invarea;
-      klights[light_index].area.dir = dir;
+      klights[light_index].area.dir = safe_normalize(dir);
       klights[light_index].area.tan_half_spread = tan_half_spread;
       klights[light_index].area.normalize_spread = normalize_spread;
     }
@@ -1369,15 +1365,12 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
       const float spot_smooth = 1.0f / ((1.0f - cos_half_spot_angle) * light->spot_smooth);
       const float tan_half_spot_angle = tanf(light->spot_angle * 0.5f);
 
-      const float3 axisu = transform_get_column(&object->get_tfm(), 0);
-      const float3 axisv = transform_get_column(&object->get_tfm(), 1);
-
-      const float len_w_sq = len_squared(-transform_get_column(&object->get_tfm(), 2));
+      const float len_w_sq = len_squared(dir);
       const float len_u_sq = len_squared(axisu);
       const float len_v_sq = len_squared(axisv);
       const float tan_sq = sqr(tan_half_spot_angle);
 
-      klights[light_index].spot.dir = -safe_normalize(transform_get_column(&object->get_tfm(), 2));
+      klights[light_index].spot.dir = safe_normalize(dir);
       klights[light_index].spot.cos_half_spot_angle = cos_half_spot_angle;
       klights[light_index].spot.half_cot_half_spot_angle = 0.5f / tan_half_spot_angle;
       klights[light_index].spot.spot_smooth = spot_smooth;
