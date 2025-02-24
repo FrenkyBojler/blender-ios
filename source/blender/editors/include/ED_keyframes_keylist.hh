@@ -190,10 +190,10 @@ void action_group_to_keylist(AnimData *adt,
  *
  * Note: this should only be used in places that need or want the *full* list of
  * keys, without any filtering by e.g. channel selection/visibility, etc. For
- * use cases that need such filtering, use `action_summary_to_keylist()`
+ * use cases that need such filtering, use `action_slot_summary_to_keylist()`
  * instead.
  *
- * \see action_summary_to_keylist()
+ * \see action_slot_summary_to_keylist()
  */
 void action_to_keylist(AnimData *adt,
                        bAction *dna_action,
