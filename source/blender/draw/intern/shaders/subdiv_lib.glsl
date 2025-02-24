@@ -62,6 +62,14 @@ uint get_global_invocation_index()
   return gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * invocations_per_row;
 }
 
+#ifndef USE_GPU_SHADER_CREATE_INFO
+/* Structure for #CompressedPatchCoord. */
+struct BlenderPatchCoord {
+  int patch_index;
+  uint encoded_uv;
+};
+#endif
+
 vec2 decode_uv(uint encoded_uv)
 {
   float u = float((encoded_uv >> 16) & 0xFFFFu) / 65535.0;

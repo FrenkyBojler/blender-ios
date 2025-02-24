@@ -142,6 +142,9 @@ static blender::StringRefNull get_subdiv_shader_info_name(SubdivShaderType shade
       }
       return "subdiv_edge_fac";
 
+    case SubdivShaderType::COMP_CUSTOM_DATA_INTERP:
+      return "subdiv_custom_data_interp";
+
     case SubdivShaderType::BUFFER_SCULPT_DATA:
       return "subdiv_sculpt_data";
 
@@ -212,17 +215,8 @@ static blender::StringRefNull get_subdiv_shader_name(SubdivShaderType shader_typ
     case SubdivShaderType::PATCH_EVALUATION_ORCO: {
       return "subdiv patch evaluation orco";
     }
-    case SubdivShaderType::COMP_CUSTOM_DATA_INTERP_1D: {
-      return "subdiv custom data interp 1D";
-    }
-    case SubdivShaderType::COMP_CUSTOM_DATA_INTERP_2D: {
-      return "subdiv custom data interp 2D";
-    }
-    case SubdivShaderType::COMP_CUSTOM_DATA_INTERP_3D: {
-      return "subdiv custom data interp 3D";
-    }
-    case SubdivShaderType::COMP_CUSTOM_DATA_INTERP_4D: {
-      return "subdiv custom data interp 4D";
+    case SubdivShaderType::COMP_CUSTOM_DATA_INTERP: {
+      return "subdiv custom data interp";
     }
     case SubdivShaderType::BUFFER_SCULPT_DATA: {
       return "subdiv sculpt data";
@@ -268,10 +262,7 @@ static blender::StringRefNull get_subdiv_shader_code(SubdivShaderType shader_typ
     case SubdivShaderType::PATCH_EVALUATION_ORCO: {
       return datatoc_subdiv_patch_evaluation_comp_glsl;
     }
-    case SubdivShaderType::COMP_CUSTOM_DATA_INTERP_1D:
-    case SubdivShaderType::COMP_CUSTOM_DATA_INTERP_2D:
-    case SubdivShaderType::COMP_CUSTOM_DATA_INTERP_3D:
-    case SubdivShaderType::COMP_CUSTOM_DATA_INTERP_4D: {
+    case SubdivShaderType::COMP_CUSTOM_DATA_INTERP: {
       return datatoc_subdiv_custom_data_interp_comp_glsl;
     }
     case SubdivShaderType::BUFFER_SCULPT_DATA: {
@@ -351,11 +342,7 @@ GPUShader *DRW_shader_subdiv_get(SubdivShaderType shader_type)
     return draw_shader_subdiv_patch_evaluation_get(shader_type);
   }
 
-  BLI_assert(!ELEM(shader_type,
-                   SubdivShaderType::COMP_CUSTOM_DATA_INTERP_1D,
-                   SubdivShaderType::COMP_CUSTOM_DATA_INTERP_2D,
-                   SubdivShaderType::COMP_CUSTOM_DATA_INTERP_3D,
-                   SubdivShaderType::COMP_CUSTOM_DATA_INTERP_4D));
+  BLI_assert(!ELEM(shader_type, SubdivShaderType::COMP_CUSTOM_DATA_INTERP));
 
   if (e_data.subdiv_sh[uint(shader_type)] == nullptr &&
       ELEM(shader_type,
@@ -395,7 +382,7 @@ GPUShader *DRW_shader_subdiv_custom_data_get(GPUVertCompType comp_type, int dime
   GPUShader *&shader = e_data.subdiv_custom_data_sh[dimensions - 1][comp_type];
 
   if (shader == nullptr) {
-    std::string info_name = "subdiv_custom_data_interp";
+    std::string info_name = get_subdiv_shader_info_name(SubdivShaderType::COMP_CUSTOM_DATA_INTERP);
     switch (dimensions) {
       case 1:
         info_name += "_1d";
