@@ -278,7 +278,7 @@ def main():
         # hair close up
         report.set_fail_threshold(0.0275)
     elif test_dir_name.startswith('integrator'):
-        # Noise difference in transparent material
+        # Noise difference in transparent materials
         report.set_fail_threshold(0.05)
     elif test_dir_name.startswith('pointcloud'):
         # points transparent
