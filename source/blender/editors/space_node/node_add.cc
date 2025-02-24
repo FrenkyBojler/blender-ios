@@ -702,7 +702,7 @@ struct NodeStackAnimationData {
   wmTimer *anim_timer;
 };
 
-static int node_add_file_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static int node_add_nodes_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   NodeStackAnimationData *data = static_cast<NodeStackAnimationData *>(op->customdata);
 
@@ -878,7 +878,7 @@ void NODE_OT_add_file(wmOperatorType *ot)
 
   /* callbacks */
   ot->exec = node_add_file_exec;
-  ot->modal = node_add_file_modal;
+  ot->modal = node_add_nodes_modal;
   ot->invoke = node_add_file_invoke;
   ot->poll = node_add_file_poll;
 
@@ -1077,18 +1077,21 @@ static int node_add_import_node_exec(bContext *C, wmOperator *op)
 
   node_deselect_all(*ntree);
 
-  int x = new_nodes[0]->location[0];
   for (const int i : new_nodes.index_range()) {
     bNode *node = new_nodes[i];
-    node->location[0] = x;
-    x += node->width + U.node_margin;
     node->flag |= NODE_SELECT;
   }
-
   bke::node_set_active(*ntree, *new_nodes[0]);
+
+  NodeStackAnimationData *data = MEM_new<NodeStackAnimationData>(__func__);
+  data->nodes = std::move(new_nodes);
+  data->anim_timer = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.02);
+  op->customdata = data;
+  WM_event_add_modal_handler(C, op);
+
   BKE_main_ensure_invariants(*bmain, ntree->id);
 
-  return OPERATOR_FINISHED;
+  return OPERATOR_RUNNING_MODAL;
 }
 
 static int node_add_import_node_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -1124,6 +1127,7 @@ void NODE_OT_add_import_node(wmOperatorType *ot)
   ot->poll = node_add_import_node_poll;
   ot->exec = node_add_import_node_exec;
   ot->invoke = node_add_import_node_invoke;
+  ot->modal = node_add_nodes_modal;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
 
