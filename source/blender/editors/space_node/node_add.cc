@@ -10,6 +10,7 @@
 
 #include "AS_asset_representation.hh"
 
+#include "BLI_string.h"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_collection_types.h"
@@ -1029,6 +1030,109 @@ void NODE_OT_add_material(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
 
   WM_operator_properties_id_lookup(ot, true);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Add Import Node Operator
+ * \{ */
+
+static int node_add_import_node_exec(bContext *C, wmOperator *op)
+{
+  Main *bmain = CTX_data_main(C);
+  SpaceNode *snode = CTX_wm_space_node(C);
+  bNodeTree *ntree = snode->edittree;
+
+  const Vector<std::string> paths = {
+      "/home/jacques/Downloads/airports.csv",
+      "/home/jacques/Downloads/hurricanes.csv",
+  };
+  Vector<bNode *> new_nodes;
+
+  const auto set_input_path = [&](bNodeSocket &socket, const StringRefNull path) {
+    BLI_assert(socket.type == SOCK_STRING);
+    bNodeSocketValueString *socket_data = static_cast<bNodeSocketValueString *>(
+        socket.default_value);
+    STRNCPY(socket_data->value, path.c_str());
+  };
+
+  for (const StringRefNull path : paths) {
+    bNode *node = nullptr;
+    if (path.endswith(".csv")) {
+      node = add_node(*C, "GeometryNodeImportCSV", snode->runtime->cursor);
+    }
+    else if (path.endswith(".obj")) {
+      node = add_node(*C, "GeometryNodeImportOBJ", snode->runtime->cursor);
+    }
+    else if (path.endswith(".ply")) {
+      node = add_node(*C, "GeometryNodeImportPLY", snode->runtime->cursor);
+    }
+    else if (path.endswith(".stl")) {
+      node = add_node(*C, "GeometryNodeImportSTL", snode->runtime->cursor);
+    }
+
+    if (node) {
+      set_input_path(node->input_by_identifier("Path"), path);
+      new_nodes.append(node);
+    }
+  }
+
+  if (new_nodes.is_empty()) {
+    return OPERATOR_CANCELLED;
+  }
+
+  node_deselect_all(*ntree);
+
+  int x = new_nodes[0]->location[0];
+  for (const int i : new_nodes.index_range()) {
+    bNode *node = new_nodes[i];
+    node->location[0] = x;
+    x += node->width + U.node_margin;
+    node->flag |= NODE_SELECT;
+  }
+
+  bke::node_set_active(*ntree, *new_nodes[0]);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
+
+  return OPERATOR_FINISHED;
+}
+
+static int node_add_import_node_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  ARegion *region = CTX_wm_region(C);
+  SpaceNode *snode = CTX_wm_space_node(C);
+
+  /* Convert mouse coordinates to v2d space. */
+  UI_view2d_region_to_view(&region->v2d,
+                           event->mval[0],
+                           event->mval[1],
+                           &snode->runtime->cursor[0],
+                           &snode->runtime->cursor[1]);
+
+  snode->runtime->cursor[0] /= UI_SCALE_FAC;
+  snode->runtime->cursor[1] /= UI_SCALE_FAC;
+
+  return node_add_import_node_exec(C, op);
+}
+
+static bool node_add_import_node_poll(bContext *C)
+{
+  const SpaceNode *snode = CTX_wm_space_node(C);
+  return ED_operator_node_editable(C) && snode->nodetree->type == NTREE_GEOMETRY;
+}
+
+void NODE_OT_add_import_node(wmOperatorType *ot)
+{
+  ot->name = "Add Import Node";
+  ot->description = "Add an import node to the current node editor";
+  ot->idname = "NODE_OT_add_import_node";
+
+  ot->poll = node_add_import_node_poll;
+  ot->exec = node_add_import_node_exec;
+  ot->invoke = node_add_import_node_invoke;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
 }
 
 /** \} */
