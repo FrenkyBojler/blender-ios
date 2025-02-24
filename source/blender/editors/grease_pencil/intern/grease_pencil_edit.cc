@@ -1148,7 +1148,7 @@ static int grease_pencil_set_uniform_opacity_exec(bContext *C, wmOperator *op)
     MutableSpan<float> opacities = info.drawing.opacities_for_write();
     bke::curves::fill_points<float>(points_by_curve, strokes, opacity_stroke, opacities);
 
-    if (SpanAttributeWriter fill_opacities = attributes.lookup_or_add_for_write_span<float>(
+    if (SpanAttributeWriter<float> fill_opacities = attributes.lookup_or_add_for_write_span<float>(
             "fill_opacity", AttrDomain::Curve))
     {
       strokes.foreach_index(GrainSize(2048), [&](const int64_t curve) {
