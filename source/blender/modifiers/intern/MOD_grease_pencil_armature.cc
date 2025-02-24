@@ -165,7 +165,9 @@ static void modify_curves(ModifierData &md,
       edit_hints->deform_mats.emplace(drawing.strokes().points_num(), float3x3::identity());
     }
     deform_mats = edit_hints->deform_mats->as_mutable_span();
-    deform_positions = edit_hints->positions_for_write();
+    if (edit_hints->positions()) {
+      deform_positions = edit_hints->positions_for_write();
+    }
   }
 
   curves_mask.foreach_index(blender::GrainSize(128), [&](const int curve_i) {
