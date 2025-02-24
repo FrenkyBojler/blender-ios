@@ -6,6 +6,7 @@
  * \ingroup edtransform
  */
 
+#include <algorithm>
 #include <cstdlib>
 
 #include "DNA_windowmanager_types.h"
@@ -33,7 +34,7 @@
 #include "transform_mode.hh"
 #include "transform_snap.hh"
 
-using namespace blender;
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Transform (Resize) Element
@@ -128,16 +129,12 @@ static void constrain_scale_to_boundary(const float numerator,
 
   if (denominator < 0.0f) {
     /* Scale origin is outside boundary, only make scale bigger. */
-    if (*scale < correction) {
-      *scale = correction;
-    }
+    *scale = std::max(*scale, correction);
     return;
   }
 
   /* Scale origin is inside boundary, the "regular" case, limit maximum scale. */
-  if (*scale > correction) {
-    *scale = correction;
-  }
+  *scale = std::min(*scale, correction);
 }
 
 static bool clip_uv_transform_resize(TransInfo *t, float vec[2])
@@ -394,3 +391,5 @@ TransModeInfo TransMode_resize = {
     /*snap_apply_fn*/ ApplySnapResize,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

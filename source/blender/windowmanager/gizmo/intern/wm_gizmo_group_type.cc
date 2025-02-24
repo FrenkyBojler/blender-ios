@@ -30,49 +30,27 @@
 
 using blender::StringRef;
 
-struct GizmoGroupTypePointerHash {
-  uint64_t operator()(const wmGizmoGroupType *value) const
-  {
-    return get_default_hash(StringRef(value->idname));
-  }
-  uint64_t operator()(const StringRef name) const
-  {
-    return get_default_hash(name);
-  }
-};
-
-struct GizmoGroupTypePointerNameEqual {
-  bool operator()(const wmGizmoGroupType *a, const wmGizmoGroupType *b) const
-  {
-    return STREQ(a->idname, b->idname);
-  }
-  bool operator()(const StringRef idname, const wmGizmoGroupType *a) const
-  {
-    return a->idname == idname;
-  }
-};
-
 static auto &get_gizmo_group_type_map()
 {
-  static blender::VectorSet<wmGizmoGroupType *,
-                            blender::DefaultProbingStrategy,
-                            GizmoGroupTypePointerHash,
-                            GizmoGroupTypePointerNameEqual>
-      map;
+  struct IDNameGetter {
+    StringRef operator()(const wmGizmoGroupType *value) const
+    {
+      return StringRef(value->idname);
+    }
+  };
+  static blender::CustomIDVectorSet<wmGizmoGroupType *, IDNameGetter> map;
   return map;
 }
 
-wmGizmoGroupType *WM_gizmogrouptype_find(const char *idname, bool quiet)
+wmGizmoGroupType *WM_gizmogrouptype_find(const StringRef idname, bool quiet)
 {
-  if (idname[0]) {
-    if (wmGizmoGroupType *const *gzgt = get_gizmo_group_type_map().lookup_key_ptr_as(
-            StringRef(idname)))
-    {
+  if (!idname.is_empty()) {
+    if (wmGizmoGroupType *const *gzgt = get_gizmo_group_type_map().lookup_key_ptr_as(idname)) {
       return *gzgt;
     }
 
     if (!quiet) {
-      printf("search for unknown gizmo group '%s'\n", idname);
+      printf("search for unknown gizmo group '%s'\n", std::string(idname).c_str());
     }
   }
   else {
@@ -170,9 +148,9 @@ void WM_gizmo_group_type_free_ptr(wmGizmoGroupType *gzgt)
   /* XXX, TODO: update the world! */
 }
 
-bool WM_gizmo_group_type_free(const char *idname)
+bool WM_gizmo_group_type_free(const StringRef idname)
 {
-  wmGizmoGroupType *const *gzgt = get_gizmo_group_type_map().lookup_key_ptr_as(StringRef(idname));
+  wmGizmoGroupType *const *gzgt = get_gizmo_group_type_map().lookup_key_ptr_as(idname);
   if (gzgt == nullptr) {
     return false;
   }

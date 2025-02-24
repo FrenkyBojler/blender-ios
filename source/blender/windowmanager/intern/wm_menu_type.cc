@@ -10,8 +10,6 @@
 
 #include <cstdio>
 
-#include "BLI_sys_types.h"
-
 #include "DNA_windowmanager_types.h"
 
 #include "MEM_guardedalloc.h"
@@ -28,48 +26,28 @@
 
 using blender::StringRef;
 
-struct MenuTypePointerHash {
-  uint64_t operator()(const MenuType *value) const
-  {
-    return get_default_hash(StringRef(value->idname));
-  }
-  uint64_t operator()(const StringRef name) const
-  {
-    return get_default_hash(name);
-  }
-};
-
-struct MenuTypePointerNameEqual {
-  bool operator()(const MenuType *a, const MenuType *b) const
-  {
-    return STREQ(a->idname, b->idname);
-  }
-  bool operator()(const StringRef idname, const MenuType *a) const
-  {
-    return a->idname == idname;
-  }
-};
-
 static auto &get_menu_type_map()
 {
-  static blender::VectorSet<MenuType *,
-                            blender::DefaultProbingStrategy,
-                            MenuTypePointerHash,
-                            MenuTypePointerNameEqual>
-      map;
+  struct IDNameGetter {
+    StringRef operator()(const MenuType *value) const
+    {
+      return StringRef(value->idname);
+    }
+  };
+  static blender::CustomIDVectorSet<MenuType *, IDNameGetter> map;
   return map;
 }
 
-MenuType *WM_menutype_find(const char *idname, bool quiet)
+MenuType *WM_menutype_find(const StringRef idname, bool quiet)
 {
-  if (idname[0]) {
-    if (MenuType *const *mt = get_menu_type_map().lookup_key_ptr_as(StringRef(idname))) {
+  if (!idname.is_empty()) {
+    if (MenuType *const *mt = get_menu_type_map().lookup_key_ptr_as(idname)) {
       return *mt;
     }
   }
 
   if (!quiet) {
-    printf("search for unknown menutype %s\n", idname);
+    printf("search for unknown menutype %s\n", std::string(idname).c_str());
   }
 
   return nullptr;
