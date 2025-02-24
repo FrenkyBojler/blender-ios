@@ -71,11 +71,12 @@ namespace blender::draw {
 
 void DRW_vertbuf_create_wiredata(blender::gpu::VertBuf *vbo, const int vert_len)
 {
-  static GPUVertFormat format = {0};
   static struct {
     uint wd;
   } attr_id;
-  if (format.attr_len == 0) {
+
+  static const GPUVertFormat format = [&]() {
+    GPUVertFormat format{};
     /* initialize vertex format */
     if (!GPU_crappy_amd_driver()) {
       /* Some AMD drivers strangely crash with a vbo with this format. */
@@ -85,7 +86,8 @@ void DRW_vertbuf_create_wiredata(blender::gpu::VertBuf *vbo, const int vert_len)
     else {
       attr_id.wd = GPU_vertformat_attr_add(&format, "wd", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
     }
-  }
+    return format;
+  }();
 
   GPU_vertbuf_init_with_format(*vbo, format);
   GPU_vertbuf_data_alloc(*vbo, vert_len);
@@ -243,7 +245,7 @@ blender::gpu::Batch *DRW_cache_mesh_surface_edges_get(Object *ob)
 {
   using namespace blender::draw;
   BLI_assert(ob->type == OB_MESH);
-  return DRW_mesh_batch_cache_get_surface_edges(*ob, *static_cast<Mesh *>(ob->data));
+  return DRW_mesh_batch_cache_get_surface_edges(*static_cast<Mesh *>(ob->data));
 }
 
 Span<blender::gpu::Batch *> DRW_cache_mesh_surface_shaded_get(
