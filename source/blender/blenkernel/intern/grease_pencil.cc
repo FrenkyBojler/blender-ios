@@ -2214,11 +2214,12 @@ void BKE_grease_pencil_data_update(Depsgraph *depsgraph, Scene *scene, Object *o
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(object->data);
   /* Store the frame that this grease pencil is evaluated on. */
   grease_pencil->runtime->eval_frame = int(DEG_get_ctime(depsgraph));
-  /* This will remove layers that aren't visible. */
-  grease_pencil_evaluate_layers(*grease_pencil);
 
   GeometrySet geometry_set = GeometrySet::from_grease_pencil(grease_pencil,
                                                              GeometryOwnershipType::ReadOnly);
+
+  /* This will remove layers that aren't visible. */
+  grease_pencil_evaluate_layers(*geometry_set.get_grease_pencil_for_write());
   /* The layer adjustments for tinting and radii offsets are applied before modifier evaluation.
    * This ensures that the evaluated geometry contains the modifications. In the future, it would
    * be better to move these into modifiers. For now, these are hardcoded. */
