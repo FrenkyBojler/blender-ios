@@ -1,0 +1,1 @@
+Referenced by issue #135010, Immediate crash if compositor contains denoise nodes that have both denoise normal and denoise albedo sockets populated.
