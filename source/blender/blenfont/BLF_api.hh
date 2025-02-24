@@ -40,10 +40,13 @@ enum class FontShadowType {
 enum class FontWrapType {
   /** Wrap at spaces and newline characters only. Lines can overflow if they don't contain any. */
   Soft,
-  /** Wrap at any character. */
+  /** Wrap at any character to prevent overflow. */
   Hard,
-  /** Wrap at spaces and newline characters, or if a line doesn't contain any and would overflow,
-   * wrap at any character. */
+  /**
+   * Prefer wrapping at spaces and newline characters (soft-wrapping) and fall-back to
+   * hard-wrapping to prevent overflow. This usually gives nicest results if lines may not
+   * overflow.
+   */
   Mixed,
 };
 
@@ -285,9 +288,9 @@ void BLF_boundbox(int fontid,
 float BLF_width(int fontid, const char *str, size_t str_len, ResultBLF *r_info = nullptr)
     ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(2);
 float BLF_width_wrapped(int fontid,
-                            const char *str,
-                            const size_t str_len,
-                            ResultBLF *r_info = nullptr);
+                        const char *str,
+                        const size_t str_len,
+                        ResultBLF *r_info = nullptr);
 float BLF_height(int fontid, const char *str, size_t str_len, ResultBLF *r_info = nullptr)
     ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(2);
 

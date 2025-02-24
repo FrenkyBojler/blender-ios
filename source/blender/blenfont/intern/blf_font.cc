@@ -1322,7 +1322,6 @@ static void blf_font_wrap_apply(FontBLF *font,
   // printf("%s wrapping (%d, %d) `%s`:\n", __func__, str_len, strlen(str), str);
   while ((i < str_len) && str[i]) {
 
-    /* Wrap variables. */
     /* When a line is completed, set this to true to draw or otherwise handle it. */
     bool flush_line = false;
     /* Strip the last character (must be single byte!). Wanted when wrapping at a space or newline,
@@ -1350,56 +1349,57 @@ static void blf_font_wrap_apply(FontBLF *font,
     /* Pen position after this current character is added. */
     pen_x_next = pen_x + g->advance_x;
 
-    if (UNLIKELY(use_softwrap && (pen_x_next >= wrap.wrap_width) && (wrap.start != wrap.end))) {
-      /* Wrap the line at the previous space. */
-      flush_line = true;
-    }
-    /* If this is the last character for soft wrapping, flush it, even if it may overflow (allowed
-     * for soft-wrapping). Hard- or mixed-wrapping is handled below, it may not overflow. */
-    else if (UNLIKELY((font->wrap_type == FontWrapType::Soft) &&
-                      ((i_next < str_len) && str[i_next]) == 0))
-    {
-      /* Need check here for trailing newline, else we draw it. */
-      wrap.end = i_next + ((g->c != '\n') ? 1 : 0);
-      wrap.next = i_next;
-      flush_line = true;
-    }
-    else if (UNLIKELY(use_softwrap && g->c == '\n')) {
-      BLI_assert((i_curr + 1) == i_next);
-      wrap.end = i_curr + 1;
-      wrap.next = i_next;
-      flush_line = true;
-    }
-    else if (UNLIKELY(use_softwrap && g->c != ' ' && (g_prev ? g_prev->c == ' ' : false))) {
-      /* Previous character was a space, current character starts a new word. Make this character a
-       * potential line break.  */
-      wrap.end = i_curr;
-      wrap.next = i_curr;
-    }
-    /* REVIEW NOTE: Noticed lines are sometimes wrapped too early, this should fix it. */
-    else if (UNLIKELY(use_softwrap && g->c == ' ' && (g_prev ? g_prev->c != ' ' : false))) {
-      BLI_assert((i_curr + 1) == i_next);
-      /* Previous character ended a word, this character is a space. Make the next character a
-       * potential line break.  */
-      wrap.end = i_curr + 1;
-      wrap.next = i_curr + 1;
-    }
-    /* If no space or newline character, allow hard wrapping if enabled. */
-    else if (UNLIKELY(use_hardwrap && (pen_x_next >= wrap.wrap_width))) {
-      /* Adding this character would overflow, do a hard break and handle the character again. */
-      wrap.end = i_curr;
-      wrap.next = i_curr;
-      flush_line = true;
-      strip_last_char = false;
+    /* Handle potential overflowing. */
+    if (UNLIKELY(pen_x_next >= wrap.wrap_width)) {
+      if (use_softwrap && wrap.start != wrap.end) {
+        /* Wrap the line at the previous space if any. */
+        flush_line = true;
+      }
+      else if (use_hardwrap) {
+        /* Hard- or mixed-wrapping doesn't permit overflowing. Do a hard line break and handle the
+         * character again. */
+        wrap.end = i_curr;
+        wrap.next = i_curr;
+        flush_line = true;
+        strip_last_char = false;
+      }
     }
 
-    /* Ensure the rest of the string is always flushed when the end is reached. */
+    /* Handle last character. */
     if (UNLIKELY(!flush_line && ((i_next < str_len) && str[i_next]) == 0)) {
-      BLI_assert((i_next - 1) < str_len);
       wrap.end = i_next;
       wrap.next = i_next;
+      if (g->c != '\n') {
+        /* Only strip away a trailing newline, nothing else. */
+        strip_last_char = false;
+      }
       flush_line = true;
-      strip_last_char = false;
+    }
+
+    if (UNLIKELY(flush_line)) {
+      /* Pass. */
+    }
+    else if (use_softwrap) {
+      if (UNLIKELY(g->c == '\n')) {
+        BLI_assert((i_curr + 1) == i_next);
+        wrap.end = i_curr + 1;
+        wrap.next = i_next;
+        flush_line = true;
+      }
+      else if (UNLIKELY(g->c != ' ' && (g_prev ? g_prev->c == ' ' : false))) {
+        /* Previous character was a space, current character starts a new word. Make this character
+         * a potential line break.  */
+        wrap.end = i_curr;
+        wrap.next = i_curr;
+      }
+      /* REVIEW NOTE: Noticed lines are sometimes wrapped too early, this should fix it. */
+      else if (UNLIKELY(g->c == ' ' && (g_prev ? g_prev->c != ' ' : false))) {
+        BLI_assert((i_curr + 1) == i_next);
+        /* Previous character ended a word, this character is a space. Make the next character a
+         * potential line break.  */
+        wrap.end = i_curr + 1;
+        wrap.next = i_curr + 1;
+      }
     }
 
     if (UNLIKELY(flush_line)) {
