@@ -992,7 +992,7 @@ void action_slot_summary_to_keylist(bAnimContext *ac,
   /* TODO: a null obact might actually be fine, if
    * `ANIM_animfilter_action_slot()` accepts a null ID.  Check that out and
    * update appropriately. */
-  if (!ac | !ac->obact) {
+  if (!ac || !ac->obact) {
     return;
   }
 
