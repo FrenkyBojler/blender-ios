@@ -108,11 +108,11 @@ class FileOutputTest(unittest.TestCase):
                 copyfile(out_img, ref_img)
             else:
                 if not self.compare_images(ref_img, out_img, verbose=False):
-                    # An image in the output directory is found to be modified, 
-                    # so update the reference image by overwriting it with the output image. 
+                    # An image in the output directory is found to be modified,
+                    # so update the reference image by overwriting it with the output image.
                     copyfile(out_img, ref_img)
 
-        # Delete reference images that have no corresponding output image. 
+        # Delete reference images that have no corresponding output image.
         for filename in os.listdir(testdir):
             if filename not in os.listdir(outdir):
                 pathlib.Path.unlink(os.path.join(testdir, filename))
