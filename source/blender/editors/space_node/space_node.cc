@@ -60,6 +60,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "io_utils.hh"
+
 #include "node_intern.hh" /* own include */
 
 using blender::float2;
@@ -901,12 +903,7 @@ static void node_id_im_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
 
 static void node_import_file_drop_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *drop)
 {
-  const char *path = WM_drag_get_single_path(drag);
-  if (path) {
-    RNA_string_set(drop->ptr, "filepath", path);
-    RNA_struct_property_unset(drop->ptr, "session_uid");
-    return;
-  }
+  io::paths_to_operator_properties(drop->ptr, WM_drag_get_paths(drag));
 }
 
 /* this region dropbox definition */

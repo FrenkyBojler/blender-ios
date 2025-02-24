@@ -57,6 +57,7 @@
 #include "UI_view2d.hh"
 
 #include "io_utils.hh"
+
 #include <fmt/format.h>
 
 #include "node_intern.hh" /* own include */
@@ -1044,10 +1045,7 @@ static int node_add_import_node_exec(bContext *C, wmOperator *op)
   SpaceNode *snode = CTX_wm_space_node(C);
   bNodeTree *ntree = snode->edittree;
 
-  const Vector<std::string> paths = {
-      "/home/jacques/Downloads/airports.csv",
-      "/home/jacques/Downloads/hurricanes.csv",
-  };
+  const Vector<std::string> paths = ed::io::paths_from_operator_properties(op->ptr);
   Vector<bNode *> new_nodes;
 
   const auto set_input_path = [&](bNodeSocket &socket, const StringRefNull path) {
@@ -1133,6 +1131,15 @@ void NODE_OT_add_import_node(wmOperatorType *ot)
   ot->invoke = node_add_import_node_invoke;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_string_dir_path(
+      ot->srna, "directory", nullptr, FILE_MAX, "Directory", "Directory of the file");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+
+  prop = RNA_def_collection_runtime(ot->srna, "files", &RNA_OperatorFileListElement, "Files", "");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 /** \} */
