@@ -50,6 +50,8 @@ struct OSLShaderInfo {
   bool has_surface_bssrdf = false;
 };
 
+#endif
+
 class OSLManager {
  public:
   OSLManager(Device *device);
@@ -63,6 +65,7 @@ class OSLManager {
   void device_update_post(Device *device, Scene *scene, Progress &progress);
   void device_free(Device *device, DeviceScene *dscene, Scene *scene);
 
+#ifdef WITH_OSL
   /* osl compile and query */
   static bool osl_compile(const string &inputfile, const string &outputfile);
   static bool osl_query(OSL::OSLQuery &query, const string &filepath);
@@ -74,11 +77,13 @@ class OSLManager {
   OSLShaderInfo *shader_loaded_info(const string &hash);
 
   OSL::ShadingSystem *get_shading_system(Device *sub_device);
+#endif
 
   void tag_update();
   bool need_update() const;
 
  private:
+#ifdef WITH_OSL
   void texture_system_init();
   void texture_system_free();
 
@@ -102,7 +107,10 @@ class OSLManager {
   static int ss_shared_users;
 
   bool need_update_;
+#endif
 };
+
+#ifdef WITH_OSL
 
 /* Shader Manage */
 

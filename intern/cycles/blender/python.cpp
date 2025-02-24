@@ -26,9 +26,9 @@
 
 #include "GPU_state.hh"
 
-#ifdef WITH_OSL
-#  include "scene/osl.h"
+#include "scene/osl.h"
 
+#ifdef WITH_OSL
 #  include <OSL/oslconfig.h>
 #  include <OSL/oslquery.h>
 #endif

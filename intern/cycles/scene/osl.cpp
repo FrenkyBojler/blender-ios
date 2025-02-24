@@ -1520,6 +1520,22 @@ void OSLCompiler::parameter_texture_ies(const char *name, const int svm_slot)
 
 #else
 
+OSLManager::OSLManager(Device *device) {}
+OSLManager::~OSLManager() {}
+
+void OSLManager::free_memory() {}
+void OSLManager::reset(Scene *scene) {}
+
+void OSLManager::device_update_pre(Device *device, Scene *scene) {}
+void OSLManager::device_update_post(Device *device, Scene *scene, Progress &progress) {}
+void OSLManager::device_free(Device *device, DeviceScene *dscene, Scene *scene) {}
+
+void OSLManager::tag_update() {}
+bool OSLManager::need_update() const
+{
+  return false;
+}
+
 void OSLCompiler::add(ShaderNode * /*node*/, const char * /*name*/, bool /*isfilepath*/) {}
 
 void OSLCompiler::parameter(ShaderNode * /*node*/, const char * /*name*/) {}
