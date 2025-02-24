@@ -33,7 +33,7 @@ ExternalProject_Add(external_openexr
 
   PATCH_COMMAND ${PATCH_CMD} -p 1 -d
     ${BUILD_DIR}/openexr/src/external_openexr <
-    ${PATCH_DIR}/openexr.diff
+    ${PATCH_DIR}/openexr_1986.diff
 
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/openexr
