@@ -81,8 +81,11 @@ static inline bool hipSupportsDriver()
   int hip_driver_version = 0;
   hipError_t result = hipDriverGetVersion(&hip_driver_version);
   if (result != hipSuccess) {
+    VLOG_WARNING << "Error getting driver version: " << hipewErrorString(result);
     return false;
   }
+
+  VLOG_DEBUG << "Detected HIP driver version: " << hip_driver_version;
 
   if (hip_driver_version < 60140252) {
     /* Cycles crashes during rendering due to issues in older GPU drivers.
