@@ -718,7 +718,8 @@ if(NOT APPLE AND NOT (WIN32 AND CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64"))
   set(CYCLES_HIP_BINARIES_ARCH
     gfx1010 gfx1011 gfx1012
     gfx1030 gfx1031 gfx1032 gfx1034 gfx1035 gfx1036
-    gfx1100 gfx1101 gfx1102 gfx1103 gfx1150 gfx1151
+    gfx1100 gfx1101 gfx1102 gfx1103 gfx1150 gfx1151 gfx1152
+    gfx1200 gfx1201
     CACHE STRING "AMD HIP architectures to build binaries for"
   )
   mark_as_advanced(WITH_CYCLES_DEVICE_HIP)
@@ -830,6 +831,13 @@ Run GPU render tests silently (finished tests will pass). \
 Generated report will show failing tests"
   ON
 )
+option(WITH_GPU_RENDER_TESTS_HEADED "\
+Enable GPU render related unit testing that doesn't work in background mode. \
+These tests require an environment with a display server to run. \
+Requires WITH_GPU_RENDER_TESTS "
+  OFF
+)
+mark_as_advanced(WITH_GPU_RENDER_TESTS_HEADED)
 option(WITH_GPU_BACKEND_TESTS "\
 Enable GPU backend related unit testing"
   OFF
@@ -839,6 +847,7 @@ Enable GPU drawing related unit testing (draw manager)"
   OFF
 )
 option(WITH_GPU_COMPOSITOR_TESTS "Enable regression testing for GPU compositor" OFF)
+option(WITH_GPU_MESH_PAINT_TESTS "Enable visual render-based regression testing for mesh painting" OFF)
 if(UNIX AND NOT (APPLE OR HAIKU))
   option(WITH_UI_TESTS "\
 Enable user-interface tests using a headless display server. \
