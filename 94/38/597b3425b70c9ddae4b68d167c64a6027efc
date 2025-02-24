@@ -1,3 +1,4 @@
 Referenced by issue #134810, Grease Pencil - Keyframing Layer "Hide" option doesn't reliably toggle visibility
 Referenced by issue #134984, Grease Pencil - Applying modifier while layers hidden removes hidden layer content
 Referenced by issue #135004, Grease Pencil: Crash with linked duplicates with animation
+Referenced by pull request #135020, Fix #134984: Grease Pencil: Apply modifier removed hidden layer data
