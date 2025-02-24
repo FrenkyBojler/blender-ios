@@ -1,4 +1,5 @@
 #include "BKE_camera.h"
+#include "BLI_math_matrix.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_camera_types.h"
 #include "node_geometry_util.hh"
@@ -12,6 +13,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
 
+  b.add_output<decl::Matrix>("Inverse Projection");
   b.add_output<decl::Bool>("Is Active Camera");
   b.add_input<decl::Object>("Camera").hide_label();
 
@@ -68,20 +70,17 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   Object *camera_obj = params.get_input<Object *>("Camera");
 
-  // Check if the object is valid and a camera
   if (!camera_obj || camera_obj->type != OB_CAMERA) {
     params.set_default_remaining_outputs();
     return;
   }
 
-  // Get data from the camera object
   Camera *camera = (Camera *)camera_obj->data;
   if (!camera) {
     params.set_default_remaining_outputs();
     return;
   }
 
-  // Get the evaluated scene
   const Scene *scene = DEG_get_evaluated_scene(params.depsgraph());
   if (!scene) {
     params.set_default_remaining_outputs();
@@ -91,15 +90,26 @@ static void node_geo_exec(GeoNodeExecParams params)
   float fovx = scene->r.xsch * scene->r.xasp;
   float fovy = scene->r.ysch * scene->r.yasp;
 
+  CameraParams camera_params;
+  BKE_camera_params_init(&camera_params);
+  BKE_camera_params_from_object(&camera_params, camera_obj);
+  BKE_camera_params_compute_viewplane(
+      &camera_params, scene->r.xsch, scene->r.ysch, scene->r.xasp, scene->r.yasp);
+  BKE_camera_params_compute_matrix(&camera_params);
+
+  float4x4 projection_matrix(camera_params.winmat);
+  float4x4 inverse_projection = math::invert(projection_matrix);
+
+  params.set_output("Inverse Projection", inverse_projection);
   params.set_output("Is Active Camera", scene->camera == camera_obj);
 
-  params.set_output("Focal Length", camera->lens);
-  params.set_output("Sensor Width", camera->sensor_x);
-  params.set_output("Sensor Height", camera->sensor_y);
-  params.set_output("Shift X", camera->shiftx);
-  params.set_output("Shift Y", camera->shifty);
-  params.set_output("Clip Start", camera->clip_start);
-  params.set_output("Clip End", camera->clip_end);
+  params.set_output("Focal Length", camera_params.lens);
+  params.set_output("Sensor Width", camera_params.sensor_x);
+  params.set_output("Sensor Height", camera_params.sensor_y);
+  params.set_output("Shift X", camera_params.shiftx);
+  params.set_output("Shift Y", camera_params.shifty);
+  params.set_output("Clip Start", camera_params.clip_start);
+  params.set_output("Clip End", camera_params.clip_end);
   params.set_output("Resolution X", scene->r.xsch);
   params.set_output("Resolution Y", scene->r.ysch);
   params.set_output("Aspect X", scene->r.xasp);
@@ -115,8 +125,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Aperture Rotation", camera->dof.aperture_rotation);
   params.set_output("Aperture Ratio", camera->dof.aperture_ratio);
 
-  params.set_output("Is Orthographic", camera->type == CAM_ORTHO);
-  params.set_output("Orthographic Scale", camera->ortho_scale);
+  params.set_output("Is Orthographic", camera_params.is_ortho);
+  params.set_output("Orthographic Scale", camera_params.ortho_scale);
 
   params.set_output("Is Panoramic", camera->type == CAM_PANO);
   params.set_output("Fisheye FOV", camera->fisheye_fov);
@@ -147,7 +157,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
