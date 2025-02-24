@@ -1367,10 +1367,10 @@ static void blf_font_wrap_apply(FontBLF *font,
       wrap.last = i_curr;
       wrap.next = i_curr;
     }
-    /* REVIEW NOTE: Noticed lines are sometimes wrapped to early, this should fix it. */
+    /* REVIEW NOTE: Noticed lines are sometimes wrapped too early, this should fix it. */
     else if (UNLIKELY(use_softwrap && g->c == ' ' && (g_prev ? g_prev->c != ' ' : false))) {
-      /* Current character is a space, previous character ended a new word. Make this character a
-       * potential line break.  */
+      /* Current character is a space, previous character ended a new word. Make the next character
+       * a potential line break.  */
       wrap.last = i_curr + 1;
       wrap.next = i_curr + 1;
     }
@@ -1381,7 +1381,8 @@ static void blf_font_wrap_apply(FontBLF *font,
       flush_line = true;
       strip_last_char = false;
     }
-    else if (UNLIKELY(use_hardwrap && ((i < str_len) && str[i]) == 0)) {
+
+    if (UNLIKELY(!flush_line && ((i < str_len) && str[i]) == 0)) {
       /* Need check here for trailing newline, else we draw it. */
       wrap.last = i;
       wrap.next = i;
