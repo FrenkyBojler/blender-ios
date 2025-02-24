@@ -28,7 +28,9 @@
 
 using blender::float2;
 using blender::float3;
+using blender::float4;
 using blender::int3;
+using blender::MutableSpan;
 using blender::OffsetIndices;
 using blender::Span;
 
@@ -79,37 +81,40 @@ struct BKEMeshToTangent {
   int num_faces;                    /* number of polygons */
 };
 
-void BKE_mesh_calc_loop_tangent_single_ex(const float (*vert_positions)[3],
-                                          const int /*numVerts*/,
-                                          const int *corner_verts,
-                                          float (*r_looptangent)[4],
-                                          const float (*corner_normals)[3],
-                                          const float (*loop_uvs)[2],
-                                          const int /*numLoops*/,
-                                          const OffsetIndices<int> faces,
-                                          ReportList *reports)
+static bool verify_triquad_mesh(const OffsetIndices<int> faces, ReportList *reports /* optional */)
+{
+  for (const int64_t i : faces.index_range()) {
+    if (faces[i].size() > 4) {
+      if (reports) {
+        BKE_report(
+            reports, RPT_ERROR, "Tangent space can only be computed for tris/quads, aborting");
+      }
+      return false;
+    }
+  }
+  return true;
+}
+
+void BKE_mesh_calc_loop_tangent_single_ex(const OffsetIndices<int> faces,
+                                          const Span<int> corner_verts,
+                                          const Span<float3> vert_positions,
+                                          const Span<float3> corner_normals,
+                                          const Span<float2> loop_uvs,
+                                          MutableSpan<float4> r_looptangent)
 {
   /* Compute Mikktspace's tangent normals. */
   BKEMeshToTangent mesh_to_tangent;
   mesh_to_tangent.faces = faces;
-  mesh_to_tangent.corner_verts = corner_verts;
-  mesh_to_tangent.positions = vert_positions;
-  mesh_to_tangent.luvs = loop_uvs;
-  mesh_to_tangent.corner_normals = corner_normals;
-  mesh_to_tangent.tangents = r_looptangent;
+  mesh_to_tangent.corner_verts = corner_verts.cast<int>().data();
+  mesh_to_tangent.positions = vert_positions.cast<float[3]>().data();
+  mesh_to_tangent.luvs = loop_uvs.cast<float[2]>().data();
+  mesh_to_tangent.corner_normals = corner_normals.cast<float[3]>().data();
+  mesh_to_tangent.tangents = r_looptangent.cast<float[4]>().data();
   mesh_to_tangent.num_faces = int(faces.size());
 
+  BLI_assert_msg(verify_triquad_mesh(faces, nullptr), "Expected tri/quad only mesh");
+
   mikk::Mikktspace<BKEMeshToTangent> mikk(mesh_to_tangent);
-
-  /* First check we do have a tris/quads only mesh. */
-  for (const int64_t i : faces.index_range()) {
-    if (faces[i].size() > 4) {
-      BKE_report(
-          reports, RPT_ERROR, "Tangent space can only be computed for tris/quads, aborting");
-      return;
-    }
-  }
-
   mikk.genTangSpace();
 }
 
@@ -134,16 +139,17 @@ void BKE_mesh_calc_loop_tangent_single(Mesh *mesh,
     return;
   }
 
+  if (!verify_triquad_mesh(mesh->faces(), reports)) {
+    return;
+  }
+
   BKE_mesh_calc_loop_tangent_single_ex(
-      reinterpret_cast<const float(*)[3]>(mesh->vert_positions().data()),
-      mesh->verts_num,
-      mesh->corner_verts().data(),
-      r_looptangents,
-      reinterpret_cast<const float(*)[3]>(mesh->corner_normals().data()),
-      reinterpret_cast<const float(*)[2]>(uv_map.data()),
-      mesh->corners_num,
       mesh->faces(),
-      reports);
+      mesh->corner_verts(),
+      mesh->vert_positions(),
+      mesh->corner_normals(),
+      uv_map,
+      MutableSpan<float4>{reinterpret_cast<float4*>(r_looptangents), uv_map.size()});
 }
 
 /** \} */

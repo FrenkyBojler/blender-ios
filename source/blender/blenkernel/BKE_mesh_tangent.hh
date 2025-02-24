@@ -23,15 +23,12 @@ struct Mesh;
  *
  * \note The mesh should be made of only triangles and quads!
  */
-void BKE_mesh_calc_loop_tangent_single_ex(const float (*vert_positions)[3],
-                                          int numVerts,
-                                          const int *corner_verts,
-                                          float (*r_looptangent)[4],
-                                          const float (*corner_normals)[3],
-                                          const float (*loop_uvs)[2],
-                                          int numLoops,
-                                          blender::OffsetIndices<int> faces,
-                                          ReportList *reports);
+void BKE_mesh_calc_loop_tangent_single_ex(const blender::OffsetIndices<int> faces,
+                                          const blender::Span<int> corner_verts,
+                                          const blender::Span<blender::float3> vert_positions,
+                                          const blender::Span<blender::float3> corner_normals,
+                                          const blender::Span<blender::float2> loop_uvs,
+                                          blender::MutableSpan<blender::float4> r_looptangent);
 
 /**
  * Wrapper around BKE_mesh_calc_loop_tangent_single_ex, which takes care of most boilerplate code.
