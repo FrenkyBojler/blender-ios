@@ -2,16 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_array_utils.hh"
-#include "BLI_math_geom.h"
-#include "BLI_task.hh"
-#include "BLI_utildefines.h"
-
-#include "BKE_curves.hh"
 #include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_mapping.hh"
-#include "BKE_mesh_tangent.hh"
 #include "BKE_type_conversions.hh"
 
 #include "node_geometry_util.hh"
