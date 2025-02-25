@@ -102,6 +102,7 @@ class ImageInfoOperation : public NodeOperation {
       const Result &texture_coordinates = this->context().cache_manager().texture_coordinates.get(
           this->context(), domain.size);
       texture_coordinates_result.wrap_external(texture_coordinates);
+      texture_coordinates_result.transform(domain.transformation);
     }
 
     Result &pixel_coordinates_result = this->get_result("Pixel Coordinates");
@@ -109,6 +110,7 @@ class ImageInfoOperation : public NodeOperation {
       const Result &pixel_coordinates = this->context().cache_manager().pixel_coordinates.get(
           this->context(), domain.size);
       pixel_coordinates_result.wrap_external(pixel_coordinates);
+      pixel_coordinates_result.transform(domain.transformation);
     }
 
     Result &size_result = this->get_result("Size");
