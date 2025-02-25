@@ -30,8 +30,7 @@ void main()
 #ifdef MAT_SHADOW
   /* Since point clouds always face the view, camera and shadow orientation don't match.
    * Apply a bias to avoid self-shadow issues. */
-  float actual_radius = pointcloud_interp.radius;
-  interp.P -= drw_world_incident_vector(interp.P) * actual_radius;
+  interp.P -= drw_world_incident_vector(interp.P) * pointcloud_interp.radius;
 #endif
 
 #ifdef MAT_VELOCITY
