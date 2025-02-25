@@ -167,8 +167,6 @@ class USDMaterialReader {
   /**
    * This function creates a Blender UV Map node, under the simplifying assumption that
    * UsdPrimvarReader_float2 shaders output UV coordinates.
-   * TODO(makowalski): investigate supporting conversion to other Blender node types
-   * (e.g., Attribute Nodes) if needed.
    */
   void convert_usd_primvar_reader_float2(const pxr::UsdShadeShader &usd_shader,
                                          const pxr::TfToken &usd_source_name,
