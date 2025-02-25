@@ -18,35 +18,30 @@
 
 namespace blender::draw::Shader {
 
-using StaticShader = gpu::StaticShader;
-
 class ShaderCache {
- private:
-  static ShaderCache *static_cache_;
+  static gpu::StaticShaderCache<ShaderCache> &get_static_cache()
+  {
+    static gpu::StaticShaderCache<ShaderCache> static_cache;
+    return static_cache;
+  }
 
  public:
-  static ShaderCache &get();
-  static void release();
+  static ShaderCache &get()
+  {
+    return get_static_cache().get();
+  }
+  static void release()
+  {
+    get_static_cache().release();
+  }
 
-  StaticShader hair_refine = {"draw_hair_refine_compute"};
-  StaticShader debug_draw_display = {"draw_debug_draw_display"};
-  StaticShader draw_visibility_compute = {"draw_visibility_compute"};
-  StaticShader draw_view_finalize = {"draw_view_finalize"};
-  StaticShader draw_resource_finalize = {"draw_resource_finalize"};
-  StaticShader draw_command_generate = {"draw_command_generate"};
+  gpu::StaticShader hair_refine = {"draw_hair_refine_compute"};
+  gpu::StaticShader debug_draw_display = {"draw_debug_draw_display"};
+  gpu::StaticShader draw_visibility_compute = {"draw_visibility_compute"};
+  gpu::StaticShader draw_view_finalize = {"draw_view_finalize"};
+  gpu::StaticShader draw_resource_finalize = {"draw_resource_finalize"};
+  gpu::StaticShader draw_command_generate = {"draw_command_generate"};
 };
-
-ShaderCache *ShaderCache::static_cache_ = new ShaderCache();
-
-ShaderCache &ShaderCache::get()
-{
-  return *ShaderCache::static_cache_;
-}
-
-void ShaderCache::release()
-{
-  delete ShaderCache::static_cache_;
-}
 
 }  // namespace blender::draw::Shader
 

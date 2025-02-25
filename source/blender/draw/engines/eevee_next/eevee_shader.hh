@@ -172,9 +172,12 @@ class ShaderModule {
   BatchHandle compilation_handle_ = 0;
   SpecializationBatchHandle specialization_handle_ = 0;
 
-  /** Shared shader module across all engine instances. */
-  static ShaderModule *g_shader_module;
-  static inline std::mutex g_mutex_;
+  static gpu::StaticShaderCache<ShaderModule> &get_static_cache()
+  {
+    /** Shared shader module across all engine instances. */
+    static gpu::StaticShaderCache<ShaderModule> static_cache;
+    return static_cache;
+  }
 
  public:
   ShaderModule();

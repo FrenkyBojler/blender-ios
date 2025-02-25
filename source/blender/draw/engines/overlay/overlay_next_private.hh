@@ -454,8 +454,18 @@ using StaticShader = gpu::StaticShader;
  */
 class ShaderModule {
  private:
-  /** Shared shader module across all engine instances. */
-  static ShaderModule *g_shader_modules[2 /* Selection Instance. */][2 /* Clipping Enabled. */];
+  /* Allow StaticShaderCache access to the constructor. */
+  friend gpu::StaticShaderCache<ShaderModule>;
+
+  using StaticCache =
+      gpu::StaticShaderCache<ShaderModule>[2 /* Selection Instance. */][2 /* Clipping Enabled. */];
+
+  static StaticCache &get_static_cache()
+  {
+    /** Shared shader module across all engine instances. */
+    static StaticCache static_cache;
+    return static_cache;
+  }
 
   const SelectionType selection_type_;
   /** TODO: Support clipping. This global state should be set by the overlay::Instance and switch

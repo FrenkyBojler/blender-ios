@@ -36,26 +36,24 @@ using StaticShader = gpu::StaticShader;
 
 class ShaderCache {
  private:
-  static ShaderCache *static_cache_;
+  static gpu::StaticShaderCache<ShaderCache> &get_static_cache()
+  {
+    static gpu::StaticShaderCache<ShaderCache> static_cache;
+    return static_cache;
+  }
 
  public:
-  static ShaderCache &get();
-  static void release();
+  static ShaderCache &get()
+  {
+    return get_static_cache().get();
+  }
+  static void release()
+  {
+    get_static_cache().release();
+  }
 
   StaticShader select_debug = {"select_debug_fullscreen"};
 };
-
-ShaderCache *ShaderCache::static_cache_ = new ShaderCache();
-
-ShaderCache &ShaderCache::get()
-{
-  return *ShaderCache::static_cache_;
-}
-
-void ShaderCache::release()
-{
-  delete ShaderCache::static_cache_;
-}
 
 }  // namespace blender::draw::SelectDebug
 

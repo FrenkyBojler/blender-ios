@@ -29,26 +29,14 @@ namespace blender::eevee {
  *
  * \{ */
 
-ShaderModule *ShaderModule::g_shader_module = nullptr;
-
 ShaderModule *ShaderModule::module_get()
 {
-  if (g_shader_module == nullptr) {
-    std::lock_guard lock(g_mutex_);
-    if (g_shader_module == nullptr) {
-      g_shader_module = new ShaderModule();
-    }
-  }
-  return g_shader_module;
+  return &get_static_cache().get();
 }
 
 void ShaderModule::module_free()
 {
-  if (g_shader_module != nullptr) {
-    /* TODO(@fclem) thread-safety. */
-    delete g_shader_module;
-    g_shader_module = nullptr;
-  }
+  get_static_cache().release();
 }
 
 ShaderModule::ShaderModule()
@@ -123,7 +111,7 @@ void ShaderModule::precompile_specializations(int render_buffers_shadow_id,
     }
   }
 
-  std::lock_guard lock(g_mutex_);
+  std::lock_guard lock = get_static_cache().lock_guard();
   /* TODO: This is broken. Different scenes can have different specializations. */
   BLI_assert(specialization_handle_ == 0);
 
@@ -132,7 +120,7 @@ void ShaderModule::precompile_specializations(int render_buffers_shadow_id,
 
 bool ShaderModule::is_ready(bool block)
 {
-  std::lock_guard lock(g_mutex_);
+  std::lock_guard lock = get_static_cache().lock_guard();
 
   if (compilation_handle_) {
     if (GPU_shader_batch_is_ready(compilation_handle_) || block) {

@@ -6,18 +6,6 @@
 
 namespace blender::workbench {
 
-ShaderCache *ShaderCache::static_cache_ = new ShaderCache();
-
-ShaderCache &ShaderCache::get()
-{
-  return *ShaderCache::static_cache_;
-}
-
-void ShaderCache::release()
-{
-  delete ShaderCache::static_cache_;
-}
-
 ShaderCache::ShaderCache()
 {
   const std::string geometries[] = {"_mesh", "_curves", "_ptcloud"};

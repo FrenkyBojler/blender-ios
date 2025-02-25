@@ -17,11 +17,21 @@ using StaticShader = gpu::StaticShader;
 
 class ShaderCache {
  private:
-  static ShaderCache *static_cache_;
+  static gpu::StaticShaderCache<ShaderCache> &get_static_cache()
+  {
+    static gpu::StaticShaderCache<ShaderCache> static_cache;
+    return static_cache;
+  }
 
  public:
-  static ShaderCache &get();
-  static void release();
+  static ShaderCache &get()
+  {
+    return get_static_cache().get();
+  }
+  static void release()
+  {
+    get_static_cache().release();
+  }
 
   /* SMAA antialiasing */
   StaticShader antialiasing[3] = {{"gpencil_antialiasing_stage_0"},
@@ -45,18 +55,6 @@ class ShaderCache {
   StaticShader fx_shadow = {"gpencil_fx_shadow"};
   StaticShader fx_transform = {"gpencil_fx_transform"};
 };
-
-ShaderCache *ShaderCache::static_cache_ = new ShaderCache();
-
-ShaderCache &ShaderCache::get()
-{
-  return *ShaderCache::static_cache_;
-}
-
-void ShaderCache::release()
-{
-  delete ShaderCache::static_cache_;
-}
 
 }  // namespace blender::draw::gpencil
 

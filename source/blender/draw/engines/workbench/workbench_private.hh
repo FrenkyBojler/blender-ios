@@ -25,8 +25,6 @@ using StaticShader = gpu::StaticShader;
 
 class ShaderCache {
  private:
-  static ShaderCache *static_cache_;
-
   StaticShader prepass_[geometry_type_len][pipeline_type_len][lighting_type_len][shader_type_len]
                        [2 /*clip*/];
   StaticShader resolve_[lighting_type_len][2 /*cavity*/][2 /*curvature*/][2 /*shadow*/];
@@ -35,9 +33,21 @@ class ShaderCache {
 
   StaticShader volume_[2 /*smoke*/][3 /*interpolation*/][2 /*coba*/][2 /*slice*/];
 
+  static gpu::StaticShaderCache<ShaderCache> &get_static_cache()
+  {
+    static gpu::StaticShaderCache<ShaderCache> static_cache;
+    return static_cache;
+  }
+
  public:
-  static ShaderCache &get();
-  static void release();
+  static ShaderCache &get()
+  {
+    return get_static_cache().get();
+  }
+  static void release()
+  {
+    get_static_cache().release();
+  }
 
   ShaderCache();
 
