@@ -23,6 +23,7 @@ set(INC_SYS
 )
 
 set(SRC
+  nodes/node_geo_dummy_closure_eval.cc
   nodes/node_geo_accumulate_field.cc
   nodes/node_geo_attribute_capture.cc
   nodes/node_geo_attribute_domain_size.cc
