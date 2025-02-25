@@ -35,8 +35,10 @@ class Paints : Overlay {
   PassSimple::Sub *paint_region_vert_ps_ = nullptr;
 
   PassSimple weight_ps_ = {"weight_ps_"};
-  PassSimple::Sub *weight_masked_ps_ = nullptr;
-  PassSimple::Sub *weight_unmasked_ps_ = nullptr;
+  /* Used when there's not a valid pre-pass (depth <=). */
+  PassSimple::Sub *weight_opaque_ps_ = nullptr;
+  /* Used when there's a valid pre-pass (depth ==). */
+  PassSimple::Sub *weight_masked_transparency_ps_ = nullptr;
   /* Black and white mask overlayed on top of mesh to preview painting influence. */
   PassSimple paint_mask_ps_ = {"paint_mask_ps_"};
 
@@ -120,10 +122,11 @@ class Paints : Overlay {
         }
         return &sub;
       };
-      weight_masked_ps_ = weight_subpass(
-          "Masked", DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_EQUAL | DRW_STATE_BLEND_ALPHA);
-      weight_unmasked_ps_ = weight_subpass(
-          "Unmasked", DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_WRITE_DEPTH);
+      weight_opaque_ps_ = weight_subpass(
+          "Opaque", DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_WRITE_DEPTH);
+      weight_masked_transparency_ps_ = weight_subpass(
+          "Masked Transparency",
+          DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_EQUAL | DRW_STATE_BLEND_ALPHA);
     }
 
     if (state.ctx_mode == CTX_MODE_PAINT_TEXTURE) {
@@ -192,10 +195,10 @@ class Paints : Overlay {
       case CTX_MODE_PAINT_WEIGHT: {
         gpu::Batch *geom = DRW_cache_mesh_surface_weights_get(ob_ref.object);
         if (masked_transparency_support_ && ob_ref.object->dt >= OB_SOLID) {
-          weight_masked_ps_->draw(geom, manager.unique_handle(ob_ref));
+          weight_masked_transparency_ps_->draw(geom, manager.unique_handle(ob_ref));
         }
         else {
-          weight_unmasked_ps_->draw(geom, manager.unique_handle(ob_ref));
+          weight_opaque_ps_->draw(geom, manager.unique_handle(ob_ref));
         }
         break;
       }
