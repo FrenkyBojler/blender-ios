@@ -1265,10 +1265,16 @@ static void nlastrips_apply_all_curves_cb(ID *id,
                                           ListBase *strips,
                                           const FunctionRef<void(ID *, FCurve *)> func)
 {
+  /* This function is used (via `BKE_fcurves_id_cb()`) by the versioning system.
+   * As such, legacy Actions should always be expected here. */
+
   LISTBASE_FOREACH (NlaStrip *, strip, strips) {
     /* fix strip's action */
     if (strip->act) {
-      fcurves_apply_cb(id, blender::animrig::legacy::fcurves_all(strip->act), func);
+      fcurves_apply_cb(
+          id,
+          blender::animrig::legacy::fcurves_for_action_slot(strip->act, strip->action_slot_handle),
+          func);
     }
 
     /* Check sub-strips (if meta-strips). */
@@ -1282,12 +1288,21 @@ static void adt_apply_all_fcurves_cb(ID *id,
                                      AnimData *adt,
                                      const FunctionRef<void(ID *, FCurve *)> func)
 {
+  /* This function is used (via `BKE_fcurves_id_cb()`) by the versioning system.
+   * As such, legacy Actions should always be expected here. */
+
   if (adt->action) {
-    fcurves_apply_cb(id, blender::animrig::legacy::fcurves_all(adt->action), func);
+    fcurves_apply_cb(
+        id,
+        blender::animrig::legacy::fcurves_for_action_slot(adt->action, adt->slot_handle),
+        func);
   }
 
   if (adt->tmpact) {
-    fcurves_apply_cb(id, blender::animrig::legacy::fcurves_all(adt->tmpact), func);
+    fcurves_apply_cb(
+        id,
+        blender::animrig::legacy::fcurves_for_action_slot(adt->tmpact, adt->tmp_slot_handle),
+        func);
   }
 
   /* free drivers - stored as a list of F-Curves */
@@ -1295,7 +1310,7 @@ static void adt_apply_all_fcurves_cb(ID *id,
 
   /* NLA Data - Animation Data for Strips */
   LISTBASE_FOREACH (NlaTrack *, nlt, &adt->nla_tracks) {
-    if (nlt->flag & NLATRACK_MUTED) {
+    if (!BKE_nlatrack_is_enabled(*adt, *nlt)) {
       continue;
     }
     nlastrips_apply_all_curves_cb(id, &nlt->strips, func);
@@ -1341,7 +1356,7 @@ void BKE_animdata_main_cb(Main *bmain, const FunctionRef<void(ID *, AnimData *)>
     if (ntp->nodetree) { \
       AnimData *adt2 = BKE_animdata_from_id((ID *)ntp->nodetree); \
       if (adt2) { \
-        func(id, adt2); \
+        func((ID *)ntp->nodetree, adt2); \
       } \
     } \
     if (adt) { \

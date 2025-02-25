@@ -1237,12 +1237,13 @@ bool UI_context_copy_to_selected_list(bContext *C,
       node = static_cast<bNode *>(ptr->data);
     }
 
-    /* Now filter by type */
+    /* Now filter out non-matching nodes (by idname). */
     if (node) {
+      const blender::StringRef node_idname = node->idname;
       lb = CTX_data_collection_get(C, "selected_nodes");
       lb.remove_if([&](const PointerRNA &link) {
         bNode *node_data = static_cast<bNode *>(link.data);
-        if (node_data->type_legacy != node->type_legacy) {
+        if (node_data->idname != node_idname) {
           return true;
         }
         return false;
@@ -2357,14 +2358,14 @@ static int drop_color_invoke(bContext *C, wmOperator *op, const wmEvent *event)
       if (!gamma) {
         IMB_colormanagement_scene_linear_to_srgb_v3(color, color);
       }
-      RNA_property_float_set_array(&but->rnapoin, but->rnaprop, color);
+      RNA_property_float_set_array_at_most(&but->rnapoin, but->rnaprop, color, ARRAY_SIZE(color));
       RNA_property_update(C, &but->rnapoin, but->rnaprop);
     }
     else if (RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
       if (gamma) {
         IMB_colormanagement_srgb_to_scene_linear_v3(color, color);
       }
-      RNA_property_float_set_array(&but->rnapoin, but->rnaprop, color);
+      RNA_property_float_set_array_at_most(&but->rnapoin, but->rnaprop, color, ARRAY_SIZE(color));
       RNA_property_update(C, &but->rnapoin, but->rnaprop);
     }
 
