@@ -20,7 +20,8 @@ namespace blender::nodes::node_geo_input_mesh_tangent_uv_cc {
 
 /* Socket names. */
 const char INPUT_UV_COORDS[14] = "Source UV Map";
-const char OUTPUT_TANGENT[14] = "Tangents";
+const char OUTPUT_TANGENT[8] = "Tangent";
+const char OUTPUT_BITANGENT[10] = "Bitangent";
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -28,7 +29,12 @@ static void node_declare(NodeDeclarationBuilder &b)
       .hide_value()
       .supports_field()
       .description("Source UV map coordinates defined on the corner domain");
-  b.add_output<decl::Vector>(OUTPUT_TANGENT).field_source();
+  b.add_output<decl::Vector>(OUTPUT_TANGENT)
+      .field_source()
+      .description("Tangent basis vectors defined on the corner domain");
+  b.add_output<decl::Vector>(OUTPUT_BITANGENT)
+      .field_source()
+      .description("Bitangent basis vectors defined on the corner domain");
 }
 
 /**
@@ -92,11 +98,11 @@ static void compute_mesh_corner_tangents_partial_face_domain(const Mesh &mesh,
                                                r_bitangents.as_mutable_span());
 }
 
-static void mesh_tangent_corner_domain(const Mesh &mesh,
-                                       const IndexMask &corner_mask,
-                                       const Span<float2> uv_coords,
-                                       Array<float3> &r_tangents,
-                                       Array<float> &r_bitangents)
+static void compute_mesh_corner_tangents(const Mesh &mesh,
+                                         const IndexMask &corner_mask,
+                                         const Span<float2> uv_coords,
+                                         Array<float3> &r_tangents,
+                                         Array<float> &r_bitangents)
 {
   /* Convert corner -> face domain */
   const Span<int> corner_to_face_map = mesh.corner_to_face_map();
@@ -114,101 +120,39 @@ static void mesh_tangent_corner_domain(const Mesh &mesh,
       mesh, face_selection, uv_coords, r_tangents, r_bitangents);
 }
 
-static void mesh_tangent_point_domain(const Mesh &mesh,
-                                      const IndexMask &vert_mask,
-                                      const Span<float2> uv_coords,
-                                      Array<float3> &r_tangents,
-                                      Array<float> &r_bitangents)
-{
-  const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
-
-  Array<bool> affected_faces(mesh.faces_num, false);
-  vert_mask.foreach_index(GrainSize(32768),
-                          [&](const int64_t index_corner, const int64_t /* index_rel */) {
-                            for (const int64_t i : vert_to_face_map.offsets[index_corner]) {
-                              affected_faces[vert_to_face_map.data[i]] = true;
-                            }
-                          });
-
-  IndexMaskMemory mask_mem;
-  IndexMask faces_mask = IndexMask::from_bools(affected_faces, mask_mem);
-
-  compute_mesh_corner_tangents_partial_face_domain(
-      mesh, faces_mask, uv_coords, r_tangents, r_bitangents);
-}
-
-static void mesh_tangent_edge_domain(const Mesh &mesh,
-                                     const IndexMask &edge_mask,
-                                     const Span<float2> uv_coords,
-                                     Array<float3> &r_tangents,
-                                     Array<float> &r_bitangents)
-{
-  Array<int> edge_to_face_offsets;
-  Array<int> edge_to_face_indices;
-  const GroupedSpan<int> edge_to_corner_map = bke::mesh::build_edge_to_face_map(
-      mesh.faces(),
-      mesh.corner_edges(),
-      mesh.edges_num,
-      edge_to_face_offsets,
-      edge_to_face_indices);
-
-  Array<bool> affected_faces(mesh.faces_num, false);
-  edge_mask.foreach_index(GrainSize(32768),
-                          [&](const int64_t index_corner, const int64_t /* index_rel */) {
-                            for (const int64_t i : edge_to_corner_map.offsets[index_corner]) {
-                              affected_faces[edge_to_corner_map.data[i]] = true;
-                            }
-                          });
-
-  IndexMaskMemory mask_mem;
-  IndexMask faces_mask = IndexMask::from_bools(affected_faces, mask_mem);
-
-  compute_mesh_corner_tangents_partial_face_domain(
-      mesh, faces_mask, uv_coords, r_tangents, r_bitangents);
-}
-
 static VArray<float3> construct_mesh_tangent_gvarray(const Mesh &mesh,
-                                                     const AttrDomain domain,
-                                                     const IndexMask &mask,
-                                                     const Span<float2> uv_coords)
+                                                     const IndexMask &corner_mask,
+                                                     const Span<float2> uv_coords,
+                                                     const bool output_bitangent)
 {
   Array<float3> tangents;
   Array<float> bitangents;
+  compute_mesh_corner_tangents(mesh, corner_mask, uv_coords, tangents, bitangents);
 
-  if (domain == AttrDomain::Corner) {
-    mesh_tangent_corner_domain(mesh, mask, uv_coords, tangents, bitangents);
-    return VArray<float3>::ForContainer(std::move(tangents));
+  if (output_bitangent) {
+    /* Reuse tangent buffer. */
+    const Span<float3> normals = mesh.corner_normals();
+
+    corner_mask.foreach_index(
+        GrainSize(32768), [&](const int64_t index_corner, const int64_t /* index_rel */) {
+          float3 tan = tangents[index_corner];
+          cross_v3_v3v3(tangents[index_corner], normals[index_corner], &tan.x);
+          tangents[index_corner] *= bitangents[index_corner];
+        });
   }
-
-  if (domain == AttrDomain::Point) {
-    mesh_tangent_point_domain(mesh, mask, uv_coords, tangents, bitangents);
-    return mesh.attributes().adapt_domain(
-        VArray<float3>::ForContainer(std::move(tangents)), bke::AttrDomain::Corner, domain);
-  }
-
-  if (domain == AttrDomain::Face) {
-    compute_mesh_corner_tangents_partial_face_domain(mesh, mask, uv_coords, tangents, bitangents);
-    return mesh.attributes().adapt_domain(
-        VArray<float3>::ForContainer(std::move(tangents)), bke::AttrDomain::Corner, domain);
-  }
-
-  if (domain == AttrDomain::Edge) {
-    mesh_tangent_edge_domain(mesh, mask, uv_coords, tangents, bitangents);
-    return mesh.attributes().adapt_domain(
-        VArray<float3>::ForContainer(std::move(tangents)), bke::AttrDomain::Corner, domain);
-  }
-
-  return nullptr;
+  return VArray<float3>::ForContainer(std::move(tangents));
 }
 
-class MeshTangentFieldInput final : public bke::MeshFieldInput {
+class MeshUVTangentFieldInput final : public bke::MeshFieldInput {
  private:
   Field<float2> source_uv_coords_;
+  bool output_bitangent_;
 
  public:
-  MeshTangentFieldInput(Field<float2> source_uv_field)
-      : bke::MeshFieldInput(CPPType::get<float3>(), "Tangent node"),
-        source_uv_coords_(source_uv_field)
+  MeshUVTangentFieldInput(Field<float2> source_uv_field, bool output_bitangent)
+      : bke::MeshFieldInput(CPPType::get<float3>(), "UVMapTangent tangent field"),
+        source_uv_coords_(source_uv_field),
+        output_bitangent_(output_bitangent)
   {
     category_ = Category::Generated;
   }
@@ -239,13 +183,15 @@ class MeshTangentFieldInput final : public bke::MeshFieldInput {
     Span<float2> uv_coords(active_uv_data, mesh.corners_num);
     */
 
-    return construct_mesh_tangent_gvarray(mesh, domain, mask, uv_coords);
+    if (domain == AttrDomain::Corner) {
+      return construct_mesh_tangent_gvarray(mesh, mask, uv_coords, output_bitangent_);
+    }
+    return nullptr;
   }
 
   uint64_t hash() const override
   {
-    /* Some random constant hash. */
-    return 78180125203;
+    return get_default_hash(source_uv_coords_);
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
@@ -255,7 +201,12 @@ class MeshTangentFieldInput final : public bke::MeshFieldInput {
 
   bool is_equal_to(const fn::FieldNode &other) const override
   {
-    return dynamic_cast<const MeshTangentFieldInput *>(&other) != nullptr;
+    if (const MeshUVTangentFieldInput *tother = dynamic_cast<const MeshUVTangentFieldInput *>(
+            &other))
+    {
+      return tother->output_bitangent_ == this->output_bitangent_ && tother->source_uv_coords_ == this->source_uv_coords_;
+    }
+    return false;
   }
 };
 
@@ -266,8 +217,11 @@ static void node_geo_exec(GeoNodeExecParams params)
   Field<float2> source_uv_map = conversions.try_convert(
       params.extract_input<Field<float3>>(INPUT_UV_COORDS), float2_type);
 
-  Field<float3> tangent_field{std::make_shared<MeshTangentFieldInput>(source_uv_map)};
+  Field<float3> tangent_field{std::make_shared<MeshUVTangentFieldInput>(source_uv_map, false)};
   params.set_output(OUTPUT_TANGENT, std::move(tangent_field));
+
+  Field<float3> bitangent_field{std::make_shared<MeshUVTangentFieldInput>(source_uv_map, true)};
+  params.set_output(OUTPUT_BITANGENT, std::move(bitangent_field));
 }
 
 static void node_register()
