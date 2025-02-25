@@ -35,9 +35,9 @@
     .sensor_x = DEFAULT_SENSOR_WIDTH, \
     .sensor_y = DEFAULT_SENSOR_HEIGHT, \
     .clip_start = 0.1f, \
-    .clip_end = 1000.0f, \
+    .clip_end = 100.0f, \
     .drawsize = 1.0f, \
-    .ortho_scale = 6.0, \
+    .ortho_scale = 7.31429, \
     .flag = CAM_SHOWPASSEPARTOUT, \
     .passepartalpha = 0.5f, \
  \
