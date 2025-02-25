@@ -112,6 +112,7 @@ set(SRC
   nodes/node_geo_input_mesh_face_is_planar.cc
   nodes/node_geo_input_mesh_face_neighbors.cc
   nodes/node_geo_input_mesh_island.cc
+  nodes/node_geo_input_mesh_texture_coordinate.cc
   nodes/node_geo_input_mesh_vertex_neighbors.cc
   nodes/node_geo_input_named_attribute.cc
   nodes/node_geo_input_named_layer_selection.cc
