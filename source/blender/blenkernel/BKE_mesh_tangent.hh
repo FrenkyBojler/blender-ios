@@ -24,7 +24,8 @@ struct Mesh;
  * \note
  * - Tangent space handedness is flipped when UVs are mirrored over an odd number of axis.
  * - Corner corners maps corners from the virtual triangulation to corners in a N-gon source mesh.
- * - Corner normals/uvs are the buffers from the source (N-gon) mesh.
+ * - Corner normals/uvs/results are the buffers from the source (N-gon) mesh.
+ * - Result overwrites overlapping corners in triangulation, assumed averaged/continuous?
  */
 void BKE_mesh_calc_virtual_loop_tangent_single_ex(
     const int num_faces,

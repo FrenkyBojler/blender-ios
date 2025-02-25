@@ -86,13 +86,13 @@ struct BKETesselatedToTangent {
 };
 
 void BKE_mesh_calc_virtual_loop_tangent_single_ex(const int num_faces,
-                                                     const Span<int> corner_verts,
-                                                     const Span<int> corner_corners,
-                                                     const Span<float3> vert_positions,
-                                                     const Span<float3> corner_normals,
-                                                     const Span<float2> corner_uvs,
-                                                     MutableSpan<float3> r_corner_tangent,
-                                                     MutableSpan<float> r_corner_bitangent_orient)
+                                                  const Span<int> corner_verts,
+                                                  const Span<int> corner_corners,
+                                                  const Span<float3> vert_positions,
+                                                  const Span<float3> corner_normals,
+                                                  const Span<float2> corner_uvs,
+                                                  MutableSpan<float3> r_corner_tangent,
+                                                  MutableSpan<float> r_corner_bitangent_orient)
 {
   /* Compute Mikktspace's tangent normals. */
   BKETesselatedToTangent mesh_to_tangent{num_faces,
