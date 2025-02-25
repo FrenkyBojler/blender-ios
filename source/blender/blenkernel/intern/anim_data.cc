@@ -1062,6 +1062,47 @@ void BKE_action_fix_paths_rename(ID *owner_id,
   MEM_freeN(newN);
 }
 
+void BKE_animdata_fix_paths_reorder(ID &owner_id,
+                                    const char *prefix,
+                                    const int old_index,
+                                    const int new_index)
+{
+  if (old_index == new_index) {
+    /* Nothing needs reordering in this case. */
+    BLI_assert_unreachable();
+    return;
+  }
+  AnimData *anim_data = BKE_animdata_from_id(&owner_id);
+  if (!anim_data) {
+    return;
+  }
+
+  /* Rename the path for the data that was moved. */
+  BKE_animdata_fix_paths_rename(
+      &owner_id, anim_data, nullptr, prefix, nullptr, nullptr, old_index, new_index, true);
+
+  /* Only the indices in this range need to be modified. */
+  blender::int2 index_bounds{min_ii(old_index, new_index), max_ii(old_index, new_index)};
+  blender::IndexRange range(index_bounds.x, (index_bounds.y - index_bounds.x) + 1);
+  /* All indices but the one moved need to be either shifted up or down 1 index. */
+  const short shift_direction = new_index > old_index ? -1 : 1;
+  for (const int index : range) {
+    if (index == old_index) {
+      /* Already shifted this. */
+      continue;
+    }
+    BKE_animdata_fix_paths_rename(&owner_id,
+                                  anim_data,
+                                  nullptr,
+                                  prefix,
+                                  nullptr,
+                                  nullptr,
+                                  index,
+                                  index + shift_direction,
+                                  true);
+  }
+}
+
 void BKE_animdata_fix_paths_rename(ID *owner_id,
                                    AnimData *adt,
                                    ID *ref_id,

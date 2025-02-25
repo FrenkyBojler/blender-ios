@@ -6,6 +6,7 @@
  * \ingroup edinterface
  */
 
+#include "BKE_animsys.h"
 #include "BKE_context.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_node_tree_interface.hh"
@@ -372,7 +373,8 @@ bool NodeSocketDropTarget::on_drop(bContext *C, const DragInfo &drag_info) const
 
   bNodeTreeInterfacePanel *parent = interface.find_item_parent(socket_.item, true);
   int index = -1;
-
+  const int old_index = parent->item_position(*drag_item);
+  BLI_assert_msg(old_index != -1, "Item should be in the panel");
   /* Insert into same panel as the target. */
   BLI_assert(parent != nullptr);
   switch (drag_info.drop_location) {
@@ -392,6 +394,9 @@ bool NodeSocketDropTarget::on_drop(bContext *C, const DragInfo &drag_info) const
   }
 
   interface.move_item_to_parent(*drag_item, parent, index);
+
+  // TODO this isn't working because we got the wrong ID.
+  // BKE_animdata_fix_paths_reorder(nodetree.id, "nodes[\"Group\"].inputs", old_index, index);
 
   /* General update */
   BKE_main_ensure_invariants(*CTX_data_main(C), nodetree.id);

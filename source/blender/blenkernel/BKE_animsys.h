@@ -143,6 +143,20 @@ void BKE_action_fix_paths_rename(struct ID *owner_id,
                                  bool verify_paths);
 
 /**
+ * Fix RNA-Paths after a reorder of index based data.
+ * For example `nodes["name"].inputs[x]`
+ *
+ * \param prefix the rna path up to but excluding the [] surrounding the index that should be
+ * changed. In case of the previous example `nodes["name"].inputs`
+ *
+ * \param old_index defines where a thing was moved from
+ * \param new_index defines where a thing was moved to
+ */
+void BKE_animdata_fix_paths_reorder(struct ID &owner_id,
+                                    const char *prefix,
+                                    int old_index,
+                                    int new_index);
+/**
  * Fix all the paths for the given ID+AnimData
  *
  * \note it is assumed that the structure we're replacing is `<prefix><["><name><"]>`
