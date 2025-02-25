@@ -454,7 +454,7 @@ Strip *SEQ_add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqLoad
     if (have_fps && (load_data->flags & SEQ_LOAD_MOVIE_SYNC_FPS)) {
       scene->r.frs_sec = fps_num;
       scene->r.frs_sec_base = fps_denom;
-      DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
+      DEG_id_tag_update(&scene->id, ID_RECALC_AUDIO_FPS | ID_RECALC_SEQUENCER_STRIPS);
     }
 
     load_data->r_video_stream_start = MOV_get_start_offset_seconds(anim_arr[0]);

@@ -943,7 +943,6 @@ static void rna_Scene_camera_update(Main *bmain, Scene * /*scene_unused*/, Point
 {
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
   Scene *scene = (Scene *)ptr->data;
-
   WM_windows_scene_data_sync(&wm->windows, scene);
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(bmain);
