@@ -799,6 +799,39 @@ static inline SharedEdge canon_shared_edge(int e1, int e2, int v1, int v2)
   return SharedEdge(e2, e1, v2, v1);
 }
 
+/* Special case of get_shared_edges when there are two faces.
+ * Return the version of SharedEdge where 0 <= e1 < 3 and 3 <= e2 < 6.
+ * If there is no shared edge, return SharedEdge(-1, -1, -1, -1). */
+static SharedEdge get_shared_edge_from_pair(const OutFace &tri1, const OutFace &tri2)
+{
+  /* There should be at most one shared edge between the tri1 and tri2. Find it. */
+  SharedEdge shared_edge(-1, -1, -1, -1);
+  for (const int i1 : IndexRange(3)) {
+    for (const int i2 : IndexRange(3)) {
+      const int v1 = tri1.verts[i1];
+      const int v2 = tri2.verts[i2];
+      if (v1 == v2) {
+        const int v1_next = tri1.verts[(i1 + 1) % 3];
+        const int v2_prev = tri2.verts[(i2 + 2) % 3];
+        if (v1_next == v2_prev) {
+          shared_edge = SharedEdge(i1, 3 + ((i2 + 2) % 3), v1, v1_next);
+          break;
+        }
+        const int v1_prev = tri1.verts[(i1 + 2) % 3];
+        const int v2_next = tri2.verts[(i2 + 1) % 3];
+        if (v1_prev == v2_next) {
+          shared_edge = SharedEdge((i1 + 2) % 3, 3 + i2, v1_prev, v1);
+          break;
+        }
+      }
+    }
+    if (shared_edge.e1 != -1) {
+      break;
+    }
+  }
+  return shared_edge;
+}
+
 /* Given a span of OutFaces, all triangles, find as many SharedEdge's as possible.
  * A SharedEdge is one where it is in two triangles but with the vertices in opposite order.
  * The edge ids are given as indexes into all the edges of \a faces in order.
@@ -919,6 +952,55 @@ static bool try_merge_out_face_pair(OutFace &f1, const OutFace &f2, const Shared
   return true;
 }
 
+/* Special case (for speed) merge_out_faces when faces has two triangles. */
+static void merge_out_face_pair(Vector<OutFace> &faces)
+{
+  constexpr int dbg_level = 0;
+  BLI_assert(faces.size() == 2);
+  OutFace &tri1 = faces[0];
+  OutFace &tri2 = faces[1];
+  if (dbg_level > 0) {
+    std::cout << "\nmerge_out_face_pair for faceid " << faces[0].face_id << "\n";
+    dump_span(tri1.verts.as_span(), "tri1");
+    dump_span(tri2.verts.as_span(), "tri2");
+  }
+  const SharedEdge shared_edge = get_shared_edge_from_pair(tri1, tri2);
+  if (shared_edge.e1 == -1) {
+    /* No shared edge, so no merging possible. */
+    return;
+  }
+  const int va = shared_edge.v1;
+  const int vb = shared_edge.v2;
+  const int e1 = shared_edge.e1;
+  const int e2 = shared_edge.e2;
+  if (dbg_level > 0) {
+    std::cout << "shared_edge = e" << e1 << ", e" << e2
+      << "; " << va << ", " << vb << "\n";
+  }
+  BLI_assert(e1 < 3 && e2 >= 3);
+  /* Say tri1 has verts starting at pos e1 called a, b, c.
+   * Then tri2 has verts starting at pos e2-3 called b, a, d.
+   * So the quad we want is b, c, a, d.
+   */
+  const int vc = tri1.verts[(e1 + 2) % 3];
+  const int vd = tri2.verts[(e2 - 3 + 2) % 3];
+  BLI_assert(tri1.verts[e1] == va && tri1.verts[(e1 + 1) % 3] == vb &&
+             tri2.verts[e2 - 3] == vb && tri2.verts[(e2 - 3 + 1) % 3] == va);
+  if (vc == vd) {
+    /* This can't happen geometrically, but maybe in extreme cases... */
+    return;
+  }
+  tri1.verts.resize(4);
+  tri1.verts[0] = vb;
+  tri1.verts[1] = vc;
+  tri1.verts[2] = va;
+  tri1.verts[3] = vd;
+  if (dbg_level > 0) {
+    dump_span(tri1.verts.as_span(), "merged quad");
+  }
+  faces.resize(1);
+}
+
 /* Give a group of #OutFace's that are all from a same original mesh face,
  * remove as many dissolvable edges as possible while still keeping the faces legal.
  * A face is legal if it has no repeated vertices and has size at least 3.
@@ -927,6 +1009,10 @@ static void merge_out_faces(Vector<OutFace> &faces)
 {
   constexpr int dbg_level = 0;
   if (faces.size() <= 1) {
+    return;
+  }
+  if (faces.size() == 2) {
+    merge_out_face_pair(faces);
     return;
   }
   if (dbg_level > 0) {
