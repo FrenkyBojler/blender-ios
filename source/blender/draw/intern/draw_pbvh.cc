@@ -1621,7 +1621,7 @@ static gpu::IndexBuf *create_tri_index_mesh(const Span<bke::pbvh::MeshNode> node
     const Span<int> face_indices = node.faces();
 
     if (hide_poly.is_empty()) {
-      tris_num = poly_to_tri_count(face_indices.size(), node.corners_num());
+      tris_num += poly_to_tri_count(face_indices.size(), node.corners_num());
     }
     else {
       for (const int face : face_indices) {
@@ -1961,6 +1961,7 @@ Span<gpu::IndexBuf *> DrawCacheImpl::ensure_tri_indices(const Object &object,
       nodes_to_calculate.foreach_index(GrainSize(1), [&](const int i) {
         ibos[i] = create_tri_index_mesh(nodes, faces, corner_tris, hide_poly, nodes[i]);
       });
+
       return ibos;
     }
     case bke::pbvh::Type::Grids: {
