@@ -88,7 +88,8 @@ def command_output_from_json_0(args: Sequence[str]) -> Sequence[tuple[str, Any]]
 
 
 def ensure_script_directory(script_directory_to_add: str) -> None:
-    import bpy  # type: ignore
+    import bpy
+
     script_directories = bpy.context.preferences.filepaths.script_directories
     script_dir_empty = None
     for script_dir in script_directories:

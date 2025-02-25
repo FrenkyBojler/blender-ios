@@ -73,6 +73,7 @@ from typing import (
 from collections.abc import (
     Callable,
     Generator,
+    Iterable,
     Iterator,
     Sequence,
 )
@@ -863,7 +864,7 @@ def python_versions_from_wheels(wheel_files: Sequence[str]) -> set[tuple[int] | 
 # Public Command Pool (non-command-line wrapper)
 #
 
-InfoItemCallable = Callable[[], Generator[InfoItemSeq, bool, None]]
+InfoItemCallable = Callable[[], Iterable[InfoItemSeq, bool, None]]
 
 
 class CommandBatchItem:

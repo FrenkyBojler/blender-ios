@@ -17,6 +17,8 @@ import os
 from functools import partial
 
 from typing import (
+    Any,
+    Callable,
     NamedTuple,
 )
 
@@ -1569,7 +1571,7 @@ class EXTENSIONS_OT_repo_sync(Operator, _ExtCmdMixIn):
     __slots__ = _ExtCmdMixIn.cls_slots
 
     repo_directory: rna_prop_directory
-    repo_index: rna_prop_repo_index
+    repo_index: rna_prop_repo_index  # type: ignore
 
     def exec_command_iter(self, is_modal):
         from . import bl_extension_utils
@@ -1809,7 +1811,7 @@ class EXTENSIONS_OT_repo_enable_from_drop(Operator):
     bl_options = {'INTERNAL'}
 
     # pylint: disable-next=declare-non-slot
-    repo_index: rna_prop_repo_index
+    repo_index: rna_prop_repo_index  # type: ignore
 
     __slots__ = (
         "_repo_name",
@@ -2922,21 +2924,21 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
 
     _drop_variables = None
     # Optional draw & keyword-arguments, return True to terminate drawing.
-    _draw_override = None
+    _draw_override: tuple[Callable[..., bool], dict[Any, Any]] | None = None
 
-    repo_directory: rna_prop_directory
-    repo_index: rna_prop_repo_index
+    repo_directory: rna_prop_directory  # type: ignore
+    repo_index: rna_prop_repo_index  # type: ignore
 
-    pkg_id: rna_prop_pkg_id
+    pkg_id: rna_prop_pkg_id   # type: ignore
 
-    enable_on_install: rna_prop_enable_on_install
+    enable_on_install: rna_prop_enable_on_install  # type: ignore
 
     # Only used for code-path for dropping an extension.
-    url: rna_prop_url
+    url: rna_prop_url  # type: ignore
 
     # NOTE: this can be removed once upgrading from 4.1 is no longer relevant.
     # Only used when moving from  previously built-in add-ons to extensions.
-    do_legacy_replace: BoolProperty(
+    do_legacy_replace: BoolProperty(  # type: ignore
         name="Do Legacy Replace",
         default=False,
         options={'HIDDEN', 'SKIP_SAVE'}
@@ -3277,11 +3279,11 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
     def _draw_override_after_sync(
             self,
             *,
-            context,  # `bpy.types.Context`
-            remote_url,   # `str | None`
-            repo_from_url_name,  # `str`
-            url,  # `str`
-    ):
+            context: bpy.types.Context,
+            remote_url: str | None,
+            repo_from_url_name: str,
+            url: str,
+    ) -> bool:
         from .bl_extension_utils import (
             platform_from_this_system,
         )
@@ -3434,10 +3436,10 @@ class EXTENSIONS_OT_package_uninstall(Operator, _ExtCmdMixIn):
     bl_label = "Ext Package Uninstall"
     __slots__ = _ExtCmdMixIn.cls_slots
 
-    repo_directory: rna_prop_directory
-    repo_index: rna_prop_repo_index
+    repo_directory: rna_prop_directory  # type: ignore
+    repo_index: rna_prop_repo_index  # type: ignore
 
-    pkg_id: rna_prop_pkg_id
+    pkg_id: rna_prop_pkg_id   # type: ignore
 
     def exec_command_iter(self, is_modal):
         from . import bl_extension_utils
@@ -3575,8 +3577,8 @@ class EXTENSIONS_OT_package_theme_enable(Operator):
     bl_idname = "extensions.package_theme_enable"
     bl_label = "Enable theme extension"
 
-    pkg_id: rna_prop_pkg_id
-    repo_index: rna_prop_repo_index
+    pkg_id: rna_prop_pkg_id   # type: ignore
+    repo_index: rna_prop_repo_index  # type: ignore
 
     def execute(self, _context):
         repo_item = extension_repos_read_index(self.repo_index)
@@ -3590,8 +3592,8 @@ class EXTENSIONS_OT_package_theme_disable(Operator):
     bl_idname = "extensions.package_theme_disable"
     bl_label = "Disable theme extension"
 
-    pkg_id: rna_prop_pkg_id
-    repo_index: rna_prop_repo_index
+    pkg_id: rna_prop_pkg_id   # type: ignore
+    repo_index: rna_prop_repo_index  # type: ignore
 
     def execute(self, context):
         repo_item = extension_repos_read_index(self.repo_index)
@@ -3635,8 +3637,8 @@ class EXTENSIONS_OT_package_mark_set(Operator):
     bl_idname = "extensions.package_mark_set"
     bl_label = "Mark Package"
 
-    pkg_id: rna_prop_pkg_id
-    repo_index: rna_prop_repo_index
+    pkg_id: rna_prop_pkg_id   # type: ignore
+    repo_index: rna_prop_repo_index  # type: ignore
 
     def execute(self, _context):
         key = (self.pkg_id, self.repo_index)
@@ -3649,8 +3651,8 @@ class EXTENSIONS_OT_package_mark_clear(Operator):
     bl_idname = "extensions.package_mark_clear"
     bl_label = "Clear Marked Package"
 
-    pkg_id: rna_prop_pkg_id
-    repo_index: rna_prop_repo_index
+    pkg_id: rna_prop_pkg_id  # type: ignore
+    repo_index: rna_prop_repo_index  # type: ignore
 
     def execute(self, _context):
         key = (self.pkg_id, self.repo_index)
@@ -3708,8 +3710,8 @@ class EXTENSIONS_OT_package_show_set(Operator):
     bl_idname = "extensions.package_show_set"
     bl_label = "Show Package Set"
 
-    pkg_id: rna_prop_pkg_id
-    repo_index: rna_prop_repo_index
+    pkg_id: rna_prop_pkg_id  # type: ignore
+    repo_index: rna_prop_repo_index  # type: ignore
 
     def execute(self, _context):
         key = (self.pkg_id, self.repo_index)
@@ -3722,8 +3724,8 @@ class EXTENSIONS_OT_package_show_clear(Operator):
     bl_idname = "extensions.package_show_clear"
     bl_label = "Show Package Clear"
 
-    pkg_id: rna_prop_pkg_id
-    repo_index: rna_prop_repo_index
+    pkg_id: rna_prop_pkg_id  # type: ignore
+    repo_index: rna_prop_repo_index  # type: ignore
 
     def execute(self, _context):
         key = (self.pkg_id, self.repo_index)
@@ -3736,8 +3738,8 @@ class EXTENSIONS_OT_package_show_settings(Operator):
     bl_idname = "extensions.package_show_settings"
     bl_label = "Show Settings"
 
-    pkg_id: rna_prop_pkg_id
-    repo_index: rna_prop_repo_index
+    pkg_id: rna_prop_pkg_id  # type: ignore
+    repo_index: rna_prop_repo_index  # type: ignore
 
     def execute(self, _context):
         repo_item = extension_repos_read_index(self.repo_index)
@@ -3875,12 +3877,12 @@ class EXTENSIONS_OT_userpref_tags_set(Operator):
     bl_label = "Set Extension Tags"
     bl_options = {'INTERNAL'}
 
-    value: BoolProperty(
+    value: BoolProperty(  # type: ignore
         name="Value",
         description="Enable or disable all tags",
         options={'SKIP_SAVE'},
     )
-    data_path: StringProperty(
+    data_path: StringProperty(  # type: ignore
         name="Data Path",
         options={'SKIP_SAVE'},
     )
