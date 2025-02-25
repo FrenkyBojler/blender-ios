@@ -334,7 +334,7 @@ class DATA_PT_grease_pencil_layer_display(LayerDataButtonsPanel, GreasePencil_La
     bl_options = {'DEFAULT_CLOSED'}
 
 
-class DATA_PT_grease_pencil_layergroup_display(Panel):
+class DATA_PT_grease_pencil_layer_group_display(Panel):
     bl_label = "Display"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
@@ -351,9 +351,9 @@ class DATA_PT_grease_pencil_layergroup_display(Panel):
         layout.use_property_split = True
 
         grease_pencil = context.grease_pencil
-        layer = grease_pencil.layer_groups.active
+        group = grease_pencil.layer_groups.active
 
-        layout.prop(layer, "channel_color", text="Channel Color")
+        layout.prop(group, "channel_color", text="Channel Color")
 
 
 class DATA_PT_grease_pencil_onion_skinning(DataButtonsPanel, Panel):
@@ -516,7 +516,7 @@ classes = (
     DATA_PT_grease_pencil_layer_adjustments,
     DATA_PT_grease_pencil_layer_relations,
     DATA_PT_grease_pencil_layer_display,
-    DATA_PT_grease_pencil_layergroup_display,
+    DATA_PT_grease_pencil_layer_group_display,
     DATA_PT_grease_pencil_onion_skinning,
     DATA_PT_grease_pencil_onion_skinning_custom_colors,
     DATA_PT_grease_pencil_onion_skinning_display,
