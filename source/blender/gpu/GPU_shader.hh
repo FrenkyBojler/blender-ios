@@ -417,10 +417,12 @@ int GPU_shader_get_uniform_block(GPUShader *shader, const char *name);
 
 namespace blender::gpu {
 
+/* Thread-safe GPUShader wrapper. The shader compilation is deferred until the first get() call. */
 class StaticShader : NonCopyable {
  private:
   std::string info_name_;
   std::atomic<GPUShader *> shader_ = nullptr;
+  /* TODO: Failed compilation detection should be supported by the GPUShader API. */
   std::atomic_bool failed_ = false;
   std::mutex mutex_;
 
@@ -481,6 +483,8 @@ class StaticShader : NonCopyable {
   }
 };
 
+/* Thread-safe container for StaticShader cache classes.
+ * The class instance creation is deferred until the first get() call. */
 template<typename T> class StaticShaderCache {
   std::atomic<T *> cache_ = nullptr;
   std::mutex mutex_;
