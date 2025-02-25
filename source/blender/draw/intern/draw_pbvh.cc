@@ -373,12 +373,14 @@ void extract_data_vert_mesh(const OffsetIndices<int> faces,
   VBOType *data = vbo.data<VBOType>().data();
 
   threading::parallel_for_each(gpu_node.leaf_nodes().index_range(), [&](const int i) {
-    if (!is_gpu_node_empty && !dirty_leaf_mask.contains(i)) {
+    const int leaf_index = gpu_node.leaf_nodes()[i];
+
+    if (!is_gpu_node_empty && !dirty_leaf_mask.contains(leaf_index)) {
       return;
     }
 
-    const Span<int> face_indices = nodes[i].faces();
-    VBOType *leaf_data = data + nodes[i].leaf_offset_in_GPU_buffer();
+    const Span<int> face_indices = nodes[leaf_index].faces();
+    VBOType *leaf_data = data + nodes[leaf_index].leaf_offset_in_GPU_buffer();
 
     for (const int face : face_indices) {
       for (const int vert : corner_verts.slice(faces[face])) {
@@ -403,12 +405,14 @@ void extract_data_face_mesh(const OffsetIndices<int> faces,
   VBOType *data = vbo.data<VBOType>().data();
 
   threading::parallel_for_each(gpu_node.leaf_nodes().index_range(), [&](const int i) {
-    if (!is_gpu_node_empty && !dirty_leaf_mask.contains(i)) {
+    const int leaf_index = gpu_node.leaf_nodes()[i];
+
+    if (!is_gpu_node_empty && !dirty_leaf_mask.contains(leaf_index)) {
       return;
     }
 
-    const Span<int> face_indices = nodes[i].faces();
-    VBOType *leaf_data = data + nodes[i].leaf_offset_in_GPU_buffer();
+    const Span<int> face_indices = nodes[leaf_index].faces();
+    VBOType *leaf_data = data + nodes[leaf_index].leaf_offset_in_GPU_buffer();
 
     for (const int face : face_indices) {
       const int face_size = faces[face].size();
@@ -432,12 +436,14 @@ void extract_data_corner_mesh(const OffsetIndices<int> faces,
   VBOType *data = vbo.data<VBOType>().data();
 
   threading::parallel_for_each(gpu_node.leaf_nodes().index_range(), [&](const int i) {
+    const int leaf_index = gpu_node.leaf_nodes()[i];
+
     if (!is_gpu_node_empty && !dirty_leaf_mask.contains(i)) {
       return;
     }
 
-    const Span<int> face_indices = nodes[i].faces();
-    VBOType *leaf_data = data + nodes[i].leaf_offset_in_GPU_buffer();
+    const Span<int> face_indices = nodes[leaf_index].faces();
+    VBOType *leaf_data = data + nodes[leaf_index].leaf_offset_in_GPU_buffer();
 
     for (const int face : face_indices) {
       for (const int corner : faces[face]) {
@@ -710,10 +716,12 @@ static void update_normals_mesh(const Object &object,
     const bool is_gpu_node_empty = empty_mask.contains(j);
 
     threading::parallel_for_each(nodes[j].leaf_nodes().index_range(), [&](const int i) {
-      if (is_gpu_node_empty || dirty_leaf_mask.contains(i)) {
-        short4 *leaf_data = data + nodes[i].leaf_offset_in_GPU_buffer();
+      const int leaf_index = nodes[j].leaf_nodes()[i];
 
-        for (const int face : nodes[i].faces()) {
+      if (is_gpu_node_empty || dirty_leaf_mask.contains(leaf_index)) {
+        short4 *leaf_data = data + nodes[leaf_index].leaf_offset_in_GPU_buffer();
+
+        for (const int face : nodes[leaf_index].faces()) {
           if (!sharp_faces.is_empty() && sharp_faces[face]) {
             const int face_size = faces[face].size();
             std::fill_n(leaf_data, face_size, normal_float_to_short(face_normals[face]));
@@ -753,8 +761,10 @@ BLI_NOINLINE static void update_masks_mesh(const Object &object,
       const bool is_gpu_node_empty = empty_mask.contains(j);
 
       for (const int i : nodes[j].leaf_nodes().index_range()) {
-        if (is_gpu_node_empty || dirty_mask.contains(i)) {
-          for (const int face : nodes[i].faces()) {
+        const int leaf_index = nodes[j].leaf_nodes()[i];
+
+        if (is_gpu_node_empty || dirty_mask.contains(leaf_index)) {
+          for (const int face : nodes[leaf_index].faces()) {
             for (const int vert : corner_verts.slice(faces[face])) {
               *data = mask[vert];
               data++;
@@ -762,7 +772,7 @@ BLI_NOINLINE static void update_masks_mesh(const Object &object,
           }
         }
         else {
-          data += nodes[i].corners_num();
+          data += nodes[leaf_index].corners_num();
         }
       }
     });
@@ -795,10 +805,12 @@ BLI_NOINLINE static void update_face_sets_mesh(const Object &object,
       const bool is_gpu_node_empty = empty_mask.contains(j);
 
       threading::parallel_for_each(nodes[j].leaf_nodes().index_range(), [&](const int i) {
-        if (dirty_leaf_mask.contains(i)) {
-          uchar4 *leaf_data = data + nodes[i].leaf_offset_in_GPU_buffer();
+        const int leaf_index = nodes[j].leaf_nodes()[i];
 
-          for (const int face : nodes[i].faces()) {
+        if (dirty_leaf_mask.contains(leaf_index)) {
+          uchar4 *leaf_data = data + nodes[leaf_index].leaf_offset_in_GPU_buffer();
+
+          for (const int face : nodes[leaf_index].faces()) {
             const int id = face_sets[face];
 
             uchar4 fset_color(UCHAR_MAX);
