@@ -409,10 +409,10 @@ class NODE_OT_interface_item_remove(NodeInterfaceOperator, Operator):
         return {'FINISHED'}
 
 
-class NODE_OT_interface_item_add_panel_toggle(NodeInterfaceOperator, Operator):
-    """Add a boolean input socket that will display as a toggle in the modifier menu"""
-    bl_idname = "node.interface_item_add_panel_toggle"
-    bl_label = "Add Panel Toggle"
+class NODE_OT_interface_item_make_panel_toggle(NodeInterfaceOperator, Operator):
+    """Make the active boolean socket a toggle for its parent panel"""
+    bl_idname = "node.interface_item_make_panel_toggle"
+    bl_label = "Make Panel Toggle"
     bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
@@ -424,33 +424,36 @@ class NODE_OT_interface_item_add_panel_toggle(NodeInterfaceOperator, Operator):
         tree = snode.edit_tree
         interface = tree.interface
         active_item = interface.active
-        return active_item and type(active_item) is bpy.types.NodeTreeInterfacePanel
+        if not active_item or not type(active_item) is bpy.types.NodeTreeInterfaceSocketBool:
+            return False
+        parent_panel = active_item.parent
+        if len(parent_panel.interface_items) > 0:
+            first_item = parent_panel.interface_items[0]
+            if first_item.is_panel_toggle:
+                return False
+        return True
 
     def execute(self, context):
         snode = context.space_data
         tree = snode.edit_tree
         interface = tree.interface
-        active_panel = interface.active
+        active_item = interface.active
 
-        if not type(active_panel) is bpy.types.NodeTreeInterfacePanel:
-            return {'FINISHED'}
+        parent_panel = active_item.parent
+        if not parent_panel:
+            return {'CANCELLED'}
 
-        if len(active_panel.interface_items) > 0:
-            first_item = active_panel.interface_items[0]
-            if type(first_item) is bpy.types.NodeTreeInterfaceSocketBool and first_item.is_panel_toggle:
-                return {'FINISHED'}
+        if not type(active_item) is bpy.types.NodeTreeInterfaceSocketBool:
+            return {'CANCELLED'}
 
-        item = interface.new_socket(active_panel.name, socket_type='NodeSocketBool', in_out='INPUT')
-        item.force_non_field = True
-        item.is_panel_toggle = True
-        item.default_value = True
-        interface.move_to_parent(item, active_panel, 0)
+        active_item.is_panel_toggle = True
+        # Use the same name as the panel in the UI for clarity
+        active_item.name = parent_panel.name
 
-        obj = context.active_object
-        
-        # Enable the panel by default
-        if obj and item.identifier in obj.modifiers.active:
-            obj.modifiers.active[item.identifier] = True
+        # Move the socket to the first position
+        interface.move_to_parent(active_item, parent_panel, 0)
+        # Make the panel active
+        interface.active = parent_panel
 
         return {'FINISHED'}
 
@@ -470,22 +473,34 @@ class NODE_OT_interface_item_remove_panel_toggle(NodeInterfaceOperator, Operator
         tree = snode.edit_tree
         interface = tree.interface
         active_item = interface.active
-        return active_item and type(active_item) is bpy.types.NodeTreeInterfacePanel
+        if not active_item or active_item.item_type != 'PANEL':
+            return False
+        if len(active_item.interface_items) == 0:
+            return False
+
+        first_item = active_item.interface_items[0]
+        return first_item.is_panel_toggle
 
     def execute(self, context):
         snode = context.space_data
         tree = snode.edit_tree
         interface = tree.interface
-        active_panel = interface.active
+        active_item = interface.active
 
-        if not type(active_panel) is bpy.types.NodeTreeInterfacePanel:
-            return {'FINISHED'}
+        if not active_item or active_item.item_type != 'PANEL':
+            return {'CANCELLED'}
 
-        if len(active_panel.interface_items) > 0:
-            first_item = active_panel.interface_items[0]
-            if type(first_item) is bpy.types.NodeTreeInterfaceSocketBool and first_item.is_panel_toggle:
-                interface.remove(first_item)
-                return {'FINISHED'}
+        if len(active_item.interface_items) == 0:
+            return {'CANCELLED'}
+
+        first_item = active_item.interface_items[0]
+        if not type(first_item) is bpy.types.NodeTreeInterfaceSocketBool or not first_item.is_panel_toggle:
+            return {'CANCELLED'}
+
+        first_item.is_panel_toggle = False
+
+        # Make the socket active
+        interface.active = first_item
 
         return {'FINISHED'}
 
@@ -632,7 +647,7 @@ classes = (
     NODE_OT_interface_item_new,
     NODE_OT_interface_item_duplicate,
     NODE_OT_interface_item_remove,
-    NODE_OT_interface_item_add_panel_toggle,
+    NODE_OT_interface_item_make_panel_toggle,
     NODE_OT_interface_item_remove_panel_toggle,
     NODE_OT_tree_path_parent,
     NODE_OT_viewer_shortcut_get,

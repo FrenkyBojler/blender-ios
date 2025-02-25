@@ -904,13 +904,18 @@ class NODE_PT_overlay(Panel):
 class NODE_MT_node_tree_interface_context_menu(Menu):
     bl_label = "Node Tree Interface Specials"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
+        snode = context.space_data
+        tree = snode.edit_tree
+        active_item = tree.interface.active
 
         layout.operator("node.interface_item_duplicate", icon='DUPLICATE')
         layout.separator()
-        layout.operator("node.interface_item_add_panel_toggle", icon='ADD')
-        layout.operator("node.interface_item_remove_panel_toggle", icon='REMOVE')
+        if active_item.item_type == 'SOCKET':
+            layout.operator("node.interface_item_make_panel_toggle", icon='CHECKBOX_HLT')
+        elif active_item.item_type == 'PANEL':
+            layout.operator("node.interface_item_remove_panel_toggle", icon='UNLINKED')
 
 
 class NODE_PT_node_tree_interface(Panel):
