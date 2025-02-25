@@ -783,26 +783,37 @@ static void rna_def_maskSplinePoint(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_Mask_update_data");
 
   /* select */
+
+  /* DEPRECATED */
+  prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "bezt.f2", SELECT);
+  RNA_def_property_ui_text(
+      prop,
+      "Select",
+      "Selection status of the control point. (Deprecated: use Select Control Point instead)");
+  RNA_def_property_update(prop, 0, "rna_Mask_update_data");
+
   prop = RNA_def_property(srna, "select_left_handle", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "bezt.f1", SELECT);
-  RNA_def_property_ui_text(prop, "Select", "Selection status of the left handle");
+  RNA_def_property_ui_text(prop, "Select Left Handle", "Selection status of the left handle");
   RNA_def_property_update(prop, 0, "rna_Mask_update_data");
 
   prop = RNA_def_property(srna, "select_control_point", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "bezt.f2", SELECT);
-  RNA_def_property_ui_text(prop, "Select", "Selection status of the control point");
+  RNA_def_property_ui_text(prop, "Select Control Point", "Selection status of the control point");
   RNA_def_property_update(prop, 0, "rna_Mask_update_data");
 
   prop = RNA_def_property(srna, "select_right_handle", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "bezt.f3", SELECT);
-  RNA_def_property_ui_text(prop, "Select", "Selection status of the right handle");
+  RNA_def_property_ui_text(prop, "Select Right Handle", "Selection status of the right handle");
   RNA_def_property_update(prop, 0, "rna_Mask_update_data");
 
   prop = RNA_def_property(srna, "select_single_handle", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_funcs(prop,
                                  "rna_MaskSplinePoint_handle_single_select_get",
                                  "rna_MaskSplinePoint_handle_single_select_set");
-  RNA_def_property_ui_text(prop, "Select", "Selection status of the single handle");
+  RNA_def_property_ui_text(
+      prop, "Select Aligned Single Handle", "Selection status of the Aligned Single handle");
   RNA_def_property_update(prop, 0, "rna_Mask_update_data");
 
   /* parent */
