@@ -35,10 +35,10 @@ using blender::OffsetIndices;
 using blender::Span;
 
 /* -------------------------------------------------------------------- */
-/** \name Tesselated Mesh Tangent Calculations (Single Layer)
+/** \name Virtual Mesh Tangent Calculations (Single Layer)
  * \{ */
 
-struct BKETesselatedToTangent {
+struct BKEVirtualToTangent {
   uint GetNumFaces()
   {
     return num_faces;
@@ -95,7 +95,7 @@ void BKE_mesh_calc_virtual_loop_tangent_single_ex(const int num_faces,
                                                   MutableSpan<float> r_corner_bitangent_orient)
 {
   /* Compute Mikktspace's tangent normals. */
-  BKETesselatedToTangent mesh_to_tangent{num_faces,
+  BKEVirtualToTangent mesh_to_tangent{num_faces,
                                          corner_verts,
                                          corner_corners,
                                          vert_positions,
@@ -104,7 +104,7 @@ void BKE_mesh_calc_virtual_loop_tangent_single_ex(const int num_faces,
                                          r_corner_tangent,
                                          r_corner_bitangent_orient};
 
-  mikk::Mikktspace<BKETesselatedToTangent> mikk(mesh_to_tangent);
+  mikk::Mikktspace<BKEVirtualToTangent> mikk(mesh_to_tangent);
   mikk.genTangSpace();
 }
 
