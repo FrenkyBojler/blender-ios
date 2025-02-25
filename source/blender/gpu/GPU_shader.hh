@@ -481,4 +481,48 @@ class StaticShader : NonCopyable {
   }
 };
 
+template<typename T> class StaticShaderCache {
+  std::atomic<T *> cache_ = nullptr;
+  std::mutex mutex_;
+
+ public:
+  ~StaticShaderCache()
+  {
+    BLI_assert(cache_ == nullptr);
+  }
+
+  template<typename... Args> T &get(Args &&...constructor_args)
+  {
+    if (cache_) {
+      return *cache_;
+    }
+
+    std::lock_guard lock(mutex_);
+
+    if (cache_ == nullptr) {
+      cache_ = new T(std::forward<Args>(constructor_args)...);
+    }
+    return *cache_;
+  }
+
+  void release()
+  {
+    if (!cache_) {
+      return;
+    }
+
+    std::lock_guard lock(mutex_);
+
+    if (cache_) {
+      delete cache_;
+      cache_ = nullptr;
+    }
+  }
+
+  std::lock_guard<std::mutex> lock_guard()
+  {
+    return std::lock_guard(mutex_);
+  }
+};
+
 }  // namespace blender::gpu
