@@ -121,7 +121,7 @@ BLI_NOINLINE static void build_mesh_leaf_nodes(const int verts_num,
   for (const int i : nodes.index_range()) {
     MeshNode &node = nodes[i];
 
-    if (!node.is_leaf_node()) {
+    if (!(node.flag_ & Node::Leaf)) {
       continue;
     }
 
