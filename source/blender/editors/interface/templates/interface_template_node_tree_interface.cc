@@ -192,6 +192,7 @@ class NodePanelViewItem : public BasicTreeViewItem {
   void build_row(uiLayout &row) override
   {
     uiLayout *toggle_layout = uiLayoutRow(&row, true);
+    /* Add boolean socket if panel has a toggle. */
     if (toggle_ != nullptr) {
       /* XXX Socket template only draws in embossed layouts (Julian). */
       uiLayoutSetEmboss(toggle_layout, UI_EMBOSS);
