@@ -1551,12 +1551,14 @@ static size_t animfilter_act_group(bAnimContext *ac,
 }
 
 size_t ANIM_animfilter_action_slot(bAnimContext *ac,
-                                   ListBase *anim_data,
+                                   ListBase * /* bAnimListElem */ anim_data,
                                    animrig::Action &action,
                                    animrig::Slot &slot,
                                    const eAnimFilter_Flags filter_mode,
                                    ID *animated_id)
 {
+  BLI_assert(ac);
+
   /* In some cases (see `ob_to_keylist()` and friends) fake bDopeSheet and fake bAnimContext are
    * created. These are mostly null-initialized, and so do not have a bmain. This means that
    * lookup of the animated ID is not possible, which can result in failure to look up the proper
@@ -1564,13 +1566,18 @@ size_t ANIM_animfilter_action_slot(bAnimContext *ac,
    * only interested in the key data anyway. So rather than trying to get a reliable `bmain`
    * through the maze, this code just treats it as optional (even though ideally it should always
    * be known). */
-  BLI_assert(animated_id);
   ID *slot_user_id = nullptr;
   if (ac->bmain) {
     slot_user_id = animrig::action_slot_get_id_best_guess(*ac->bmain, slot, animated_id);
   }
   if (!slot_user_id) {
-    /* This is not necessarily correct, but at least it prevents nullptr dereference. */
+    BLI_assert(animated_id);
+    /* At the time of writing this (PR #134922), downstream code (see e.g.
+     * `animfilter_fcurves_span()`) assumes this is non-null, so we need to set
+     * it to *something*. If it's not an actual user of the slot then channels
+     * might not resolve to an actual property and thus be displayed oddly in
+     * the channel list, but that's not technically a problem, it's just a
+     * little strange for the end user. */
     slot_user_id = animated_id;
   }
 
