@@ -864,8 +864,12 @@ class NodeTreeMainUpdater {
     }
   }
 
-  static int get_input_socket_shape(const StructureType structure_type)
+  static int get_input_socket_shape(const SocketDeclaration &decl,
+                                    const StructureType structure_type)
   {
+    if (decl.identifier == "__extend__") {
+      return SOCK_DISPLAY_SHAPE_CIRCLE;
+    }
     switch (structure_type) {
       case StructureType::Single:
         return SOCK_DISPLAY_SHAPE_LINE;
@@ -880,9 +884,13 @@ class NodeTreeMainUpdater {
     return SOCK_DISPLAY_SHAPE_CIRCLE;
   }
 
-  static int get_output_socket_shape(const bke::FieldSocketState field_state,
+  static int get_output_socket_shape(const SocketDeclaration &decl,
+                                     const bke::FieldSocketState field_state,
                                      const StructureType structure_type)
   {
+    if (decl.identifier == "__extend__") {
+      return SOCK_DISPLAY_SHAPE_CIRCLE;
+    }
     switch (structure_type) {
       case StructureType::Single: {
         return SOCK_DISPLAY_SHAPE_LINE;
@@ -919,23 +927,28 @@ class NodeTreeMainUpdater {
         const Span<bNodeSocket *> sockets = node->output_sockets();
         for (const int i : interface.inputs.index_range()) {
           sockets[i]->display_shape = get_output_socket_shape(
-              field_states[sockets[i]->index_in_tree()], interface.inputs[i]);
+              *sockets[i]->runtime->declaration,
+              field_states[sockets[i]->index_in_tree()],
+              interface.inputs[i]);
         }
       }
       else if (node->is_group_output()) {
         const Span<bNodeSocket *> sockets = node->input_sockets();
         for (const int i : interface.outputs.index_range()) {
-          sockets[i]->display_shape = get_input_socket_shape(interface.outputs[i]);
+          sockets[i]->display_shape = get_input_socket_shape(*sockets[i]->runtime->declaration,
+                                                             interface.outputs[i]);
         }
       }
       else {
         for (bNodeSocket *socket : node->input_sockets()) {
           socket->display_shape = get_input_socket_shape(
-              socket->runtime->declaration->structure_type);
+              *socket->runtime->declaration, socket->runtime->declaration->structure_type);
         }
         for (bNodeSocket *socket : node->output_sockets()) {
           socket->display_shape = get_output_socket_shape(
-              field_states[socket->index_in_tree()], socket->runtime->declaration->structure_type);
+              *socket->runtime->declaration,
+              field_states[socket->index_in_tree()],
+              socket->runtime->declaration->structure_type);
         }
       }
     }
