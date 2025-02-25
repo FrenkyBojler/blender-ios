@@ -34,7 +34,7 @@ struct SocketStatus {
 static void initialize_usages_from_socket_declarations(const bNodeTree &tree,
                                                        MutableSpan<SocketStatus> socket_usages)
 {
-  // TODO: I'm confusing NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO and
+  // TODO: There needs to be a difference between NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO and
   // NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC
   for (const bNodeSocket *socket : tree.all_sockets()) {
     const nodes::SocketDeclaration *declaration = socket->runtime->declaration;
