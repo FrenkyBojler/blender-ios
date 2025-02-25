@@ -735,7 +735,7 @@ OVERLAY_INFO_CLIP_VARIATION(overlay_edit_particle_point)
  * \{ */
 
 GPU_SHADER_CREATE_INFO(overlay_edit_pointcloud_base)
-VERTEX_IN(0, VEC3, pos)
+VERTEX_IN(0, VEC4, pos_rad)
 VERTEX_OUT(overlay_edit_flat_color_iface)
 DEFINE("LINE_OUTPUT")
 FRAGMENT_OUT(0, VEC4, fragColor)

@@ -267,6 +267,7 @@ static void pointcloud_extract_position_and_radius(const PointCloud &pointcloud,
   static const GPUVertFormat format = [&]() {
     GPUVertFormat format{};
     GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+    GPU_vertformat_alias_add(&format, "pos_rad");
     return format;
   }();
 
