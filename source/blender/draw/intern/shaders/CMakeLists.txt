@@ -39,6 +39,8 @@ set(SRC_GLSL_COMP
   subdiv_vbo_edituv_strech_angle_comp.glsl
   subdiv_vbo_edituv_strech_area_comp.glsl
   subdiv_vbo_lnor_comp.glsl
+  # Fails because of variadic
+  # subdiv_custom_data_interp_comp.glsl
   subdiv_normals_accumulate_comp.glsl
   subdiv_normals_finalize_comp.glsl
 )
