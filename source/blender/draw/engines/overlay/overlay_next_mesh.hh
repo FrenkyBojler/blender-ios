@@ -545,6 +545,7 @@ class MeshUVs : Overlay {
 
     const bool object_mode_is_edit = state.object_mode & OB_MODE_EDIT;
     const bool object_mode_is_paint = state.object_mode & OB_MODE_TEXTURE_PAINT;
+    const bool object_mode_is_sculpt = state.object_mode & OB_MODE_SCULPT;
 
     const bool is_viewer = image && ELEM(image->type, IMA_TYPE_R_RESULT, IMA_TYPE_COMPOSITE);
     const bool is_tiled_image = image && (image->source == IMA_SRC_TILED);
@@ -613,10 +614,12 @@ class MeshUVs : Overlay {
       else if (space_mode_is_uv && object_mode_is_paint) {
         show_wireframe_ = show_wireframe_tex_paint;
       }
-      else if (space_mode_is_paint && (object_mode_is_paint || object_mode_is_edit)) {
+      else if (space_mode_is_paint &&
+               (object_mode_is_paint || object_mode_is_edit || object_mode_is_sculpt))
+      {
         show_wireframe_ = show_wireframe_tex_paint;
       }
-      else if (space_mode_is_view && object_mode_is_paint) {
+      else if (space_mode_is_view && (object_mode_is_paint || object_mode_is_sculpt)) {
         show_wireframe_ = show_wireframe_tex_paint;
       }
       else {
