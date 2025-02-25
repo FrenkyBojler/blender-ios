@@ -502,8 +502,9 @@ const nodes::SocketDeclaration *PanelDeclaration::panel_input_decl() const
   }
   const nodes::ItemDeclaration *item_decl = this->items.first();
   if (const auto *socket_decl = dynamic_cast<const nodes::SocketDeclaration *>(item_decl)) {
-    if (socket_decl->in_out == SOCK_IN && socket_decl->socket_type == SOCK_BOOLEAN) {
-      /* TODO: Take possibly other conditions into account. */
+    if (socket_decl->is_panel_toggle && (socket_decl->in_out & SOCK_IN) &&
+        (socket_decl->socket_type & SOCK_BOOLEAN))
+    {
       return socket_decl;
     }
   }
@@ -756,6 +757,12 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::socket_name_ptr(
                                                            const_cast<StructRNA *>(srna),
                                                            const_cast<void *>(data)),
                                property_name);
+}
+
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::panel_toggle(const bool value)
+{
+  decl_base_->is_panel_toggle = value;
+  return *this;
 }
 
 OutputFieldDependency OutputFieldDependency::ForFieldSource()
