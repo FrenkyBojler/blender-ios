@@ -1,1 +1,1 @@
-Referenced by pull request #134836, Undo: Apply STRUCT_UNDO to ToolSettings and all member structs
+Referenced by pull request #134836, Undo: Avoid inserting empty undo steps from the editor for tool settings
