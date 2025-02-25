@@ -2,7 +2,28 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "gpu_shader_create_info.hh"
+#ifdef GPU_SHADER
+#  pragma once
+#  include "gpu_glsl_cpp_stubs.hh"
+
+#  include "draw_common_shader_shared.hh"
+#  include "draw_fullscreen_info.hh"
+#  include "draw_object_infos_info.hh"
+#  include "draw_view_info.hh"
+
+#  include "gpu_index_load_info.hh"
+#  include "gpu_shader_create_info.hh"
+
+#  define OBINFO_NEW
+
+#  define HAIR_SHADER
+#  define DRW_HAIR_INFO
+
+#  define POINTCLOUD_SHADER
+#  define DRW_POINTCLOUD_INFO
+#endif
+
+#include "overlay_common_info.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Outline Pre-pass
@@ -29,7 +50,7 @@ ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(draw_modelmat_new)
 ADDITIONAL_INFO(draw_resource_handle_new)
 ADDITIONAL_INFO(draw_globals)
-ADDITIONAL_INFO(draw_object_infos_new)
+ADDITIONAL_INFO(draw_object_infos)
 ADDITIONAL_INFO(overlay_outline_prepass)
 GPU_SHADER_CREATE_END()
 
@@ -46,8 +67,8 @@ ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(draw_modelmat_new)
 ADDITIONAL_INFO(draw_resource_handle_new)
 ADDITIONAL_INFO(draw_globals)
-ADDITIONAL_INFO(draw_hair_new)
-ADDITIONAL_INFO(draw_object_infos_new)
+ADDITIONAL_INFO(draw_hair)
+ADDITIONAL_INFO(draw_object_infos)
 ADDITIONAL_INFO(overlay_outline_prepass)
 GPU_SHADER_CREATE_END()
 
@@ -57,8 +78,8 @@ GPU_SHADER_CREATE_INFO(overlay_outline_prepass_wire)
 DO_STATIC_COMPILATION()
 ADDITIONAL_INFO(overlay_outline_prepass)
 ADDITIONAL_INFO(draw_view)
-ADDITIONAL_INFO(draw_mesh_new)
-ADDITIONAL_INFO(draw_object_infos_new)
+ADDITIONAL_INFO(draw_mesh)
+ADDITIONAL_INFO(draw_object_infos)
 ADDITIONAL_INFO(draw_resource_handle_new)
 ADDITIONAL_INFO(gpu_index_buffer_load)
 STORAGE_BUF_FREQ(0, READ, float, pos[], GEOMETRY)
@@ -95,8 +116,8 @@ ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(draw_modelmat_new)
 ADDITIONAL_INFO(draw_resource_handle_new)
 ADDITIONAL_INFO(draw_globals)
-ADDITIONAL_INFO(draw_gpencil_new)
-ADDITIONAL_INFO(draw_object_infos_new)
+ADDITIONAL_INFO(draw_gpencil)
+ADDITIONAL_INFO(draw_object_infos)
 GPU_SHADER_CREATE_END()
 
 OVERLAY_INFO_CLIP_VARIATION(overlay_outline_prepass_gpencil)
@@ -108,8 +129,8 @@ ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(draw_modelmat_new)
 ADDITIONAL_INFO(draw_resource_handle_new)
 ADDITIONAL_INFO(draw_globals)
-ADDITIONAL_INFO(draw_pointcloud_new)
-ADDITIONAL_INFO(draw_object_infos_new)
+ADDITIONAL_INFO(draw_pointcloud)
+ADDITIONAL_INFO(draw_object_infos)
 ADDITIONAL_INFO(overlay_outline_prepass)
 GPU_SHADER_CREATE_END()
 
