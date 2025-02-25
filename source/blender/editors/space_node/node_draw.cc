@@ -1003,20 +1003,13 @@ static void mark_sockets_collapsed_recursive(bNode &node,
 {
   const bke::bNodePanelRuntime &visible_panel_runtime =
       node.runtime->panels[visible_panel_decl.index];
-  const bool panel_has_toggle = panel_decl.panel_input_decl() != nullptr;
   for (const nodes::ItemDeclaration *item_decl : panel_decl.items) {
     if (const auto *socket_decl = dynamic_cast<const nodes::SocketDeclaration *>(item_decl)) {
       bNodeSocket &socket = node.socket_by_decl(*socket_decl);
-      const float center_y = *visible_panel_runtime.header_center_y;
       const int socket_x = socket.in_out == SOCK_IN ? node_left_x : node_left_x + NODE_WIDTH(node);
-      const int socket_y = (socket.in_out == SOCK_IN && !socket_decl->is_panel_toggle &&
-                            panel_has_toggle) ?
-                               int(center_y - NODE_SOCKSIZE) :
-                               int(center_y);
-      socket.runtime->location = math::round(float2(socket_x, socket_y));
-      if (!socket_decl->is_panel_toggle) {
-        socket.flag |= SOCK_PANEL_COLLAPSED;
-      }
+      socket.runtime->location = math::round(
+          float2(socket_x, *visible_panel_runtime.header_center_y));
+      socket.flag |= SOCK_PANEL_COLLAPSED;
     }
     else if (const auto *sub_panel_decl = dynamic_cast<const nodes::PanelDeclaration *>(item_decl))
     {
