@@ -30,7 +30,7 @@
 #include "bmesh.hh"
 #include "tools/bmesh_intersect.hh"
 
-#define BENCHMARK_TIME
+// #define BENCHMARK_TIME
 #ifdef BENCHMARK_TIME
 #  include "BLI_timeit.hh"
 #  include <filesystem>

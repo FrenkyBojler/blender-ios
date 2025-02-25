@@ -19,7 +19,7 @@
 #include "BLI_span.hh"
 #include "BLI_task.hh"
 
-// #define DEBUG_TIME
+#define DEBUG_TIME
 #ifdef DEBUG_TIME
 #  include "BLI_timeit.hh"
 #endif
