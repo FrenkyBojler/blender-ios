@@ -4,8 +4,6 @@
 
 #include "subdiv_lib.glsl"
 
-#include "subdiv_custom_data_info.hh"
-
 COMPUTE_SHADER_CREATE_INFO(subdiv_custom_data_interp_4d_f32)
 
 #if defined(DIMENSIONS_1)
