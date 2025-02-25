@@ -1164,12 +1164,14 @@ static void node_update_basis_from_declaration(
             const nodes::PanelDeclaration &node_decl = *item.decl;
             bke::bNodePanelRuntime &panel_runtime = node.runtime->panels[node_decl.index];
             bNodeSocket *input_socket = item.input;
-            panel_runtime.input_socket = input_socket;
             const float panel_header_height = NODE_DYS;
             locy -= panel_header_height / 2;
             panel_runtime.header_center_y = locy;
             locy -= panel_header_height / 2;
-            input_socket->runtime->location = float2(locx, *panel_runtime.header_center_y);
+            if (input_socket) {
+              panel_runtime.input_socket = input_socket;
+              input_socket->runtime->location = float2(locx, *panel_runtime.header_center_y);
+            }
           }
           else if constexpr (std::is_same_v<ItemT, flat_item::PanelContentBegin>) {
             const nodes::PanelDeclaration &node_decl = *item.decl;
