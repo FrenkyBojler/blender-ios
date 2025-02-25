@@ -269,7 +269,6 @@ static std::unique_ptr<nodes::StructureTypeInterface> calc_structure_type_interf
       std::make_unique<nodes::StructureTypeInterface>();
   derived_interface->inputs.reinitialize(tree.interface_inputs().size());
   derived_interface->outputs.reinitialize(tree.interface_outputs().size());
-  derived_interface->all_sockets.reinitialize(tree.all_sockets().size());
 
   Array<SocketStatus> socket_usages(tree.all_sockets().size());
 
@@ -280,22 +279,6 @@ static std::unique_ptr<nodes::StructureTypeInterface> calc_structure_type_interf
   initialize_usages_from_socket_declarations(tree, socket_usages);
   propagate_right_to_left(tree, relations_by_node, socket_usages, *derived_interface);
   propagate_left_to_right(tree, relations_by_node, socket_usages, *derived_interface);
-
-  const Span<const bNodeSocket *> sockets = tree.all_sockets();
-  for (const int i : sockets.index_range()) {
-    if (socket_usages[i].is_single_value) {
-      derived_interface->all_sockets[i] = StructureType::Single;
-    }
-    if (socket_usages[i].is_grid) {
-      derived_interface->all_sockets[i] = StructureType::Grid;
-    }
-    if (socket_usages[i].is_field) {
-      derived_interface->all_sockets[i] = StructureType::Field;
-    }
-    else {
-      derived_interface->all_sockets[i] = StructureType::Dynamic;
-    }
-  }
 
   /* TODO: Handle zones. */
 

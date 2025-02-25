@@ -864,35 +864,49 @@ class NodeTreeMainUpdater {
     }
   }
 
-  int get_socket_shape(const Span<bke::FieldSocketState> field_states,
-                       const Span<nodes::StructureType> structure_types,
-                       const bNodeSocket &socket)
+  int get_socket_shape(const Span<bke::FieldSocketState> field_states, const bNodeSocket &socket)
   {
-    const int index = socket.index_in_tree();
-    if (socket.runtime->declaration->identifier == "__extend__") {
+    if (!socket.runtime->declaration) {
+      return socket.display_shape;
+    }
+    const SocketDeclaration &decl = *socket.runtime->declaration;
+    if (decl.identifier == "__extend__") {
       return SOCK_DISPLAY_SHAPE_CIRCLE;
     }
+    // TODO: Probably have to handle the group input and output nodes explicitly.
     if (socket.in_out == SOCK_OUT) {
-      if (structure_types[index] == StructureType::Grid) {
-        return SOCK_DISPLAY_SHAPE_VOLUME_GRID;
-      }
-      switch (field_states[socket.index_in_tree()]) {
-        case bke::FieldSocketState::RequiresSingle:
+      switch (decl.structure_type) {
+        case StructureType::Single: {
           return SOCK_DISPLAY_SHAPE_LINE;
-        case bke::FieldSocketState::CanBeField:
+        }
+        case StructureType::Dynamic: {
           return SOCK_DISPLAY_SHAPE_CIRCLE;
-        case bke::FieldSocketState::IsField:
-          return SOCK_DISPLAY_SHAPE_DIAMOND;
+        }
+        case StructureType::Field: {
+          switch (field_states[socket.index_in_tree()]) {
+            case bke::FieldSocketState::RequiresSingle:
+              return SOCK_DISPLAY_SHAPE_LINE;
+            case bke::FieldSocketState::CanBeField:
+              return SOCK_DISPLAY_SHAPE_CIRCLE;
+            case bke::FieldSocketState::IsField:
+              return SOCK_DISPLAY_SHAPE_DIAMOND;
+          }
+          BLI_assert_unreachable();
+          return socket.display_shape;
+        }
+        case StructureType::Grid: {
+          return SOCK_DISPLAY_SHAPE_VOLUME_GRID;
+        }
       }
     }
     else {
-      switch (structure_types[index]) {
+      switch (decl.structure_type) {
         case StructureType::Single:
           return SOCK_DISPLAY_SHAPE_LINE;
         case StructureType::Dynamic:
           return SOCK_DISPLAY_SHAPE_CIRCLE;
         case StructureType::Field:
-          return SOCK_DISPLAY_SHAPE_CIRCLE;
+          return SOCK_DISPLAY_SHAPE_DIAMOND;
         case StructureType::Grid:
           return SOCK_DISPLAY_SHAPE_VOLUME_GRID;
       }
@@ -904,10 +918,8 @@ class NodeTreeMainUpdater {
   {
     ntree.ensure_topology_cache();
     const Span<bke::FieldSocketState> field_states = ntree.runtime->field_states;
-    const Span<nodes::StructureType> structure_types =
-        ntree.runtime->structure_type_interface->all_sockets;
     for (bNodeSocket *socket : ntree.all_sockets()) {
-      socket->display_shape = get_socket_shape(field_states, structure_types, *socket);
+      socket->display_shape = get_socket_shape(field_states, *socket);
     }
   }
 
