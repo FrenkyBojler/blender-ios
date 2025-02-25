@@ -2,9 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_mesh.hh"
+#include "NOD_geometry_nodes_closure_eval.hh"
 
-#include "BLI_math_vector_types.hh"
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_dummy_closure_eval_cc {
@@ -18,7 +17,24 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  params.set_default_remaining_outputs();
+  bke::ClosurePtr closure = params.extract_input<bke::ClosurePtr>("Closure");
+  bke::SocketValueVariant value = params.extract_input<bke::SocketValueVariant>("Value");
+  if (!closure) {
+    params.set_default_remaining_outputs();
+    return;
+  }
+  ResourceScope scope;
+  ClosureEagerEvalParams eval_params;
+  eval_params.user_data = params.user_data();
+  eval_params.inputs.append(
+      {bke::SocketInterfaceKey{"Value"}, bke::node_socket_type_find_static(SOCK_FLOAT), &value});
+  GeometrySet output_geometry;
+  std::destroy_at(&output_geometry);
+  eval_params.outputs.append({bke::SocketInterfaceKey{"Geometry"},
+                              bke::node_socket_type_find_static(SOCK_GEOMETRY),
+                              &output_geometry});
+  evaluate_closure_eagerly(*closure, eval_params);
+  params.set_output("Geometry", std::move(output_geometry));
 }
 
 static void node_register()

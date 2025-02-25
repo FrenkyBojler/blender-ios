@@ -586,9 +586,9 @@ void evaluate_closure_eagerly(const bke::Closure &closure, ClosureEagerEvalParam
       value.destruct();
     }
   }
-  for (GMutablePointer value : lf_output_values) {
-    if (value) {
-      value.destruct();
+  for (const int i : lf_output_values.index_range()) {
+    if (lf_set_outputs[i]) {
+      lf_output_values[i].destruct();
     }
   }
 }
