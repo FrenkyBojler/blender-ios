@@ -174,15 +174,6 @@ class MeshUVTangentFieldInput final : public bke::MeshFieldInput {
           domain);
     }
 
-    /* Active UV layer fetch
-  const CustomData *corner_data = &mesh.corner_data;
-    int layer_index = CustomData_get_layer_index(corner_data, CD_PROP_FLOAT2);
-    int active_layer = CustomData_get_active_layer(corner_data, CD_PROP_FLOAT2);
-    const float2 *active_uv_data = static_cast<const float2 *>(
-        corner_data->layers[active_layer + layer_index].data);
-    Span<float2> uv_coords(active_uv_data, mesh.corners_num);
-    */
-
     if (domain == AttrDomain::Corner) {
       return construct_mesh_tangent_gvarray(mesh, mask, uv_coords, output_bitangent_);
     }
