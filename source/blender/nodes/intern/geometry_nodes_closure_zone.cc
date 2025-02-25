@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "NOD_geometry_nodes_closure_eval.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 
 #include "BKE_compute_contexts.hh"
@@ -12,6 +13,8 @@
 #include "BKE_node_tree_reference_lifetimes.hh"
 
 #include "DEG_depsgraph_query.hh"
+
+#include "FN_lazy_function_execute.hh"
 
 namespace blender::nodes {
 
@@ -454,6 +457,141 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
     }
   }
 };
+
+void evaluate_closure_eagerly(const bke::Closure &closure, ClosureEagerEvalParams &params)
+{
+  const LazyFunction &fn = closure.function();
+  const bke::ClosureFunctionIndices &indices = closure.indices();
+  const bke::ClosureSignature &signature = closure.signature();
+  const int fn_inputs_num = fn.inputs().size();
+  const int fn_outputs_num = fn.outputs().size();
+
+  ResourceScope scope;
+  LinearAllocator<> &allocator = scope.linear_allocator();
+
+  GeoNodesLFLocalUserData local_user_data(*params.user_data);
+  void *storage = fn.init_storage(allocator);
+  lf::Context lf_context{storage, params.user_data, &local_user_data};
+
+  Array<GMutablePointer> lf_input_values(fn_inputs_num);
+  Array<GMutablePointer> lf_output_values(fn_outputs_num);
+  Array<std::optional<lf::ValueUsage>> lf_input_usages(fn_inputs_num);
+  Array<lf::ValueUsage> lf_output_usages(fn_outputs_num, lf::ValueUsage::Unused);
+  Array<bool> lf_set_outputs(fn_outputs_num, false);
+
+  Array<std::optional<int>> inputs_map(params.inputs.size());
+  for (const int i : inputs_map.index_range()) {
+    inputs_map[i] = signature.find_input_index(params.inputs[i].key);
+  }
+  Array<std::optional<int>> outputs_map(params.outputs.size());
+  for (const int i : outputs_map.index_range()) {
+    outputs_map[i] = signature.find_output_index(params.outputs[i].key);
+  }
+
+  for (const int input_item_i : params.inputs.index_range()) {
+    ClosureEagerEvalParams::InputItem &item = params.inputs[input_item_i];
+    if (const std::optional<int> mapped_i = inputs_map[input_item_i]) {
+      const bke::bNodeSocketType &from_type = *item.type;
+      const bke::bNodeSocketType &to_type = *signature.inputs[*mapped_i].type;
+      const CPPType &to_cpp_type = *to_type.geometry_nodes_cpp_type;
+      void *value = allocator.allocate(to_cpp_type.size(), to_cpp_type.alignment());
+      if (&from_type == &to_type) {
+        to_cpp_type.copy_construct(item.value, value);
+      }
+      else {
+        if (!implicitly_convert_socket_value(from_type, item.value, to_type, value)) {
+          const void *default_value = closure.default_input_value(*mapped_i);
+          to_cpp_type.copy_construct(default_value, value);
+        }
+      }
+      lf_input_values[indices.inputs.main[*mapped_i]] = {to_cpp_type, value};
+    }
+    else {
+      /* Provided input value is ignored. */
+    }
+  }
+  for (const int output_item_i : params.outputs.index_range()) {
+    if (const std::optional<int> mapped_i = outputs_map[output_item_i]) {
+      /* Tell the closure that this output is used. */
+      lf_input_values[indices.inputs.output_usages[*mapped_i]] = {
+          CPPType::get<bool>(), allocator.construct<bool>(true).release()};
+      lf_output_usages[indices.outputs.main[*mapped_i]] = lf::ValueUsage::Used;
+    }
+  }
+
+  /* Set remaining main inputs to their default values. */
+  for (const int main_input_i : indices.inputs.main.index_range()) {
+    const int lf_input_i = indices.inputs.main[main_input_i];
+    if (!lf_input_values[lf_input_i]) {
+      const bke::bNodeSocketType &type = *signature.inputs[main_input_i].type;
+      const CPPType &cpp_type = *type.geometry_nodes_cpp_type;
+      const void *default_value = closure.default_input_value(main_input_i);
+      void *value = allocator.allocate(cpp_type.size(), cpp_type.alignment());
+      cpp_type.copy_construct(default_value, value);
+      lf_input_values[lf_input_i] = {cpp_type, value};
+    }
+    lf_output_values[indices.outputs.input_usages[main_input_i]] = allocator.allocate<bool>();
+  }
+  /* Set remaining output usages to false.*/
+  for (const int output_usage_i : indices.inputs.output_usages.index_range()) {
+    const int lf_input_i = indices.inputs.output_usages[output_usage_i];
+    if (!lf_input_values[lf_input_i]) {
+      lf_input_values[lf_input_i] = {CPPType::get<bool>(),
+                                     allocator.construct<bool>(false).release()};
+    }
+  }
+  /** Set output data reference sets. */
+  for (auto &&[main_output_i, lf_input_i] : indices.inputs.output_data_reference_sets.items()) {
+    /* TODO: Propagate all attributes or let the caller decide. */
+    auto *value = &scope.construct<bke::GeometryNodesReferenceSet>();
+    lf_input_values[lf_input_i] = {value};
+  }
+  /** Set main outputs. */
+  for (const int main_output_i : indices.outputs.main.index_range()) {
+    const bke::bNodeSocketType &type = *signature.outputs[main_output_i].type;
+    const CPPType &cpp_type = *type.geometry_nodes_cpp_type;
+    lf_output_values[indices.outputs.main[main_output_i]] = {
+        cpp_type, allocator.allocate(cpp_type.size(), cpp_type.alignment())};
+  }
+
+  lf::BasicParams lf_params{
+      fn, lf_input_values, lf_output_values, lf_input_usages, lf_output_usages, lf_set_outputs};
+  fn.execute(lf_params, lf_context);
+  fn.destruct_storage(storage);
+
+  for (const int output_item_i : params.outputs.index_range()) {
+    ClosureEagerEvalParams::OutputItem &item = params.outputs[output_item_i];
+    if (const std::optional<int> mapped_i = outputs_map[output_item_i]) {
+      const bke::bNodeSocketType &from_type = *signature.outputs[*mapped_i].type;
+      const bke::bNodeSocketType &to_type = *item.type;
+      const CPPType &to_cpp_type = *to_type.geometry_nodes_cpp_type;
+      void *computed_value = lf_output_values[indices.outputs.main[*mapped_i]].get();
+      if (&from_type == &to_type) {
+        to_cpp_type.move_construct(computed_value, item.value);
+      }
+      else {
+        if (!implicitly_convert_socket_value(from_type, computed_value, to_type, item.value)) {
+          construct_socket_default_value(to_type, item.value);
+        }
+      }
+    }
+    else {
+      /* This output item is not computed by the closure, so set it to the default value. */
+      construct_socket_default_value(*item.type, item.value);
+    }
+  }
+
+  for (GMutablePointer value : lf_input_values) {
+    if (value) {
+      value.destruct();
+    }
+  }
+  for (GMutablePointer value : lf_output_values) {
+    if (value) {
+      value.destruct();
+    }
+  }
+}
 
 LazyFunction &build_closure_zone_lazy_function(ResourceScope &scope,
                                                const bNodeTree &btree,

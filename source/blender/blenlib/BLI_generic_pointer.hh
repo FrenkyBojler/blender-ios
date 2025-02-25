@@ -42,6 +42,11 @@ class GMutablePointer {
     return type_;
   }
 
+  operator bool() const
+  {
+    return data_ != nullptr;
+  }
+
   template<typename T> T *get() const
   {
     BLI_assert(this->is_type<T>());
