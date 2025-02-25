@@ -1190,16 +1190,23 @@ BLI_NOINLINE static void update_generic_attribute_bmesh(const Object &object,
   });
 }
 
-static gpu::IndexBuf *create_lines_index_faces(const OffsetIndices<int> faces,
+static gpu::IndexBuf *create_lines_index_faces(const Span<bke::pbvh::MeshNode> nodes,
+                                               const OffsetIndices<int> faces,
                                                const Span<bool> hide_poly,
-                                               const Span<int> face_indices)
+                                               const bke::pbvh::MeshNode &gpu_node)
 {
+  const Span<int> leaf_nodes = gpu_node.leaf_nodes();
   int corners_count = 0;
-  for (const int face : face_indices) {
-    if (!hide_poly.is_empty() && hide_poly[face]) {
-      continue;
+
+  for (const int i : leaf_nodes.index_range()) {
+    const Span<int> face_indices = nodes[leaf_nodes[i]].faces();
+
+    for (const int face : face_indices) {
+      if (!hide_poly.is_empty() && hide_poly[face]) {
+        continue;
+      }
+      corners_count += faces[face].size();
     }
-    corners_count += faces[face].size();
   }
 
   GPUIndexBufBuilder builder;
@@ -1208,19 +1215,24 @@ static gpu::IndexBuf *create_lines_index_faces(const OffsetIndices<int> faces,
 
   int node_corner_offset = 0;
   int line_index = 0;
-  for (const int face_index : face_indices) {
-    const int face_size = faces[face_index].size();
-    if (!hide_poly.is_empty() && hide_poly[face_index]) {
-      node_corner_offset += face_size;
-      continue;
-    }
-    for (const int i : IndexRange(face_size)) {
-      const int next = (i == face_size - 1) ? 0 : i + 1;
-      data[line_index] = uint2(i, next) + node_corner_offset;
-      line_index++;
-    }
 
-    node_corner_offset += face_size;
+  for (const int i : leaf_nodes.index_range()) {
+    const Span<int> face_indices = nodes[leaf_nodes[i]].faces();
+
+    for (const int face_index : face_indices) {
+      const int face_size = faces[face_index].size();
+      if (!hide_poly.is_empty() && hide_poly[face_index]) {
+        node_corner_offset += face_size;
+        continue;
+      }
+      for (const int i : IndexRange(face_size)) {
+        const int next = (i == face_size - 1) ? 0 : i + 1;
+        data[line_index] = uint2(i, next) + node_corner_offset;
+        line_index++;
+      }
+
+      node_corner_offset += face_size;
+    }
   }
 
   gpu::IndexBuf *ibo = GPU_indexbuf_calloc();
@@ -1717,7 +1729,7 @@ Span<gpu::IndexBuf *> DrawCacheImpl::ensure_lines_indices(const Object &object,
       const bke::AttributeAccessor attributes = orig_mesh_data.attributes;
       const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
       nodes_to_calculate.foreach_index(GrainSize(1), [&](const int i) {
-        ibos[i] = create_lines_index_faces(faces, hide_poly, nodes[i].faces());
+        ibos[i] = create_lines_index_faces(nodes, faces, hide_poly, nodes[i]);
       });
       break;
     }
