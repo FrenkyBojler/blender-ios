@@ -1135,14 +1135,8 @@ bool USDMaterialReader::follow_connection(const pxr::UsdShadeInput &usd_input,
       int64_t type_offset = shader_id_name.rfind('_');
       if (type_offset >= 0) {
         StringRef output_type = shader_id_name.drop_prefix(type_offset + 1);
-        convert_usd_primvar_reader_generic(source_shader,
-                                           source_name,
-                                           output_type,
-                                           dest_node,
-                                           dest_socket_name,
-                                           ntree,
-                                           column + 1,
-                                           r_ctx);
+        convert_usd_primvar_reader_generic(
+            source_shader, output_type, dest_node, dest_socket_name, ntree, column + 1, r_ctx);
       }
     }
   }
@@ -1504,15 +1498,13 @@ void USDMaterialReader::convert_usd_primvar_reader_float2(const pxr::UsdShadeSha
   link_nodes(ntree, uv_map, "UV", dest_node, dest_socket_name);
 }
 
-void USDMaterialReader::convert_usd_primvar_reader_generic(
-    const pxr::UsdShadeShader &usd_shader,
-    const pxr::TfToken & /*usd_source_name*/,
-    const StringRef output_type,
-    bNode *dest_node,
-    const char *dest_socket_name,
-    bNodeTree *ntree,
-    const int column,
-    NodePlacementContext *r_ctx) const
+void USDMaterialReader::convert_usd_primvar_reader_generic(const pxr::UsdShadeShader &usd_shader,
+                                                           const StringRef output_type,
+                                                           bNode *dest_node,
+                                                           const char *dest_socket_name,
+                                                           bNodeTree *ntree,
+                                                           const int column,
+                                                           NodePlacementContext *r_ctx) const
 {
   if (!usd_shader || !dest_node || !ntree || !dest_socket_name || !bmain_ || !r_ctx) {
     return;
@@ -1525,9 +1517,8 @@ void USDMaterialReader::convert_usd_primvar_reader_generic(
     float locy = 0.0f;
     compute_node_loc(column, &locx, &locy, r_ctx);
 
-    /* Create the UV Map node. */
+    /* Create the attribute node. */
     attribute = add_node(nullptr, ntree, SH_NODE_ATTRIBUTE, locx, locy);
-
     if (!attribute) {
       CLOG_ERROR(&LOG, "Couldn't create SH_NODE_ATTRIBUTE for node input %s", dest_socket_name);
       return;
@@ -1536,7 +1527,7 @@ void USDMaterialReader::convert_usd_primvar_reader_generic(
     /* Cache newly created node. */
     cache_node(r_ctx->node_cache, usd_shader, attribute);
 
-    /* Set the texmap name. */
+    /* Set the attribute name. */
     pxr::UsdShadeInput varname_input = usd_shader.GetInput(usdtokens::varname);
 
     /* First check if the shader's "varname" input is connected to another source,
