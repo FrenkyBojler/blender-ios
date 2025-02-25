@@ -227,7 +227,7 @@ const CPPType &Result::cpp_type(const ResultType type)
     case ResultType::Float:
       return CPPType::get<float>();
     case ResultType::Int:
-      return CPPType::get<int>();
+      return CPPType::get<int32_t>();
     case ResultType::Color:
       return CPPType::get<float4>();
     case ResultType::Float4:
@@ -384,9 +384,9 @@ void Result::steal_data(Result &source)
 
 /* Returns true if the given GPU texture is compatible with the type and precision of the given
  * result. */
-static bool is_compatible_texture(const GPUTexture *texture, const Result &result)
+[[maybe_unused]] static bool is_compatible_texture(const GPUTexture *texture, const Result &result)
 {
-  /* Float3 types are an except, see the documentation on the get_gpu_texture_format method for
+  /* Float3 types are an exception, see the documentation on the get_gpu_texture_format method for
    * more information. */
   if (result.type() == ResultType::Float3) {
     if (GPU_texture_format(texture) == Result::gpu_texture_format(GPU_RGB32F, result.precision()))
