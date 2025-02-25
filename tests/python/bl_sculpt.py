@@ -74,10 +74,10 @@ class MaskByColorTest(unittest.TestCase):
             # If either of the green or blue components are less than 1 (i.e. the vertex is the red part of the image instead of
             # the white background), then that vertex should also be masked.
             if color_data[i][1] < 0.4 and color_data[i][2] < 0.4:
-                self.assertTrue(mask_data[i] > 0.0, f"Vertex {i} should be masked! ({color_data[i]}) -> {mask_data[i]}")
+                self.assertTrue(mask_data[i] > 0.0, f"Vertex {i} should be masked ({color_data[i]}) -> {mask_data[i]}")
             else:
                 self.assertTrue(mask_data[i] < 0.1,
-                                f"Vertex {i} should not be masked! ({color_data[i]}) -> {mask_data[i]}")
+                                f"Vertex {i} should not be masked ({color_data[i]}) -> {mask_data[i]}")
 
 
 def main():

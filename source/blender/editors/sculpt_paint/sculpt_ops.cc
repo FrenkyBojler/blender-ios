@@ -812,7 +812,7 @@ static void mask_by_color_full_mesh(const Depsgraph &depsgraph,
       });
 }
 
-static int mask_by_color_ex(bContext *C, wmOperator *op, const float2 region_location)
+static int mask_by_color(bContext *C, wmOperator *op, const float2 region_location)
 {
   const Scene &scene = *CTX_data_scene(C);
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
@@ -872,18 +872,14 @@ static int mask_by_color_ex(bContext *C, wmOperator *op, const float2 region_loc
 
 static int mask_by_color_exec(bContext *C, wmOperator *op)
 {
-  if (!RNA_struct_find_property(op->ptr, "location")) {
-    return OPERATOR_CANCELLED;
-  }
-
-  int mval[2];
+  int2 mval;
   RNA_int_get_array(op->ptr, "location", mval);
-  return mask_by_color_ex(C, op, float2(mval[0], mval[1]));
+  return mask_by_color(C, op, float2(mval[0], mval[1]));
 }
 
 static int mask_by_color_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  return mask_by_color_ex(C, op, float2(event->mval[0], event->mval[1]));
+  return mask_by_color(C, op, float2(event->mval[0], event->mval[1]));
 }
 
 static void SCULPT_OT_mask_by_color(wmOperatorType *ot)
