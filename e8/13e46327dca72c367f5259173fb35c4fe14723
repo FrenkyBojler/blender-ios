@@ -1,1 +1,2 @@
 Referenced by issue #135086, Cycles: Object ray visibility is ignored during NEE if the light tree is off
+Referenced by issue #135087, Cycles: Some light properties do not update in the viewport in real time
