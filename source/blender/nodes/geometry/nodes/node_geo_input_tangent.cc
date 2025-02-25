@@ -5,9 +5,10 @@
 #include "BLI_array_utils.hh"
 #include "BLI_math_geom.h"
 #include "BLI_task.hh"
+#include "BLI_utildefines.h"
 
-#include "BKE_customdata.hh"
 #include "BKE_curves.hh"
+#include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_tangent.hh"
 
@@ -98,8 +99,8 @@ static VArray<float3> construct_curve_tangent_gvarray(const bke::CurvesGeometry 
 static void compute_tangent_partial_corner_domain(const Mesh &mesh,
                                                   const IndexMask &faces_mask,
                                                   const Span<float2> uv_coords,
-                                                  Array<float3> r_tangents,
-                                                  Array<float> r_bitangents)
+                                                  Array<float3>& r_tangents,
+                                                  Array<float>& r_bitangents)
 {
   const OffsetIndices faces = mesh.faces();
   const Span<int3> corner_tris = mesh.corner_tris();
@@ -153,18 +154,19 @@ static void compute_tangent_partial_corner_domain(const Mesh &mesh,
                                                r_bitangents.as_mutable_span());
 }
 
-static Array<float4> mesh_tangent_corner_domain(const Mesh &mesh,
-                                                const IndexMask &mask,
-                                                const Span<float2> uv_coords,
-                                                Array<float3> r_tangents,
-                                                Array<float> r_bitangents)
+static void mesh_tangent_corner_domain(const Mesh &mesh,
+                                       const IndexMask &mask,
+                                       const Span<float2> uv_coords,
+                                       Array<float3>& r_tangents,
+                                       Array<float>& r_bitangents)
 {
   const Span<int> corner_to_face_map = mesh.corner_to_face_map();
 
   Array<bool> affected_faces(mesh.faces_num, false);
-  mask.foreach_index(GrainSize(32768), [&](const int64_t index_corner, const int64_t index_rel) {
-    affected_faces[corner_to_face_map[index_corner]] = true;
-  });
+  mask.foreach_index(GrainSize(32768),
+                     [&](const int64_t index_corner, const int64_t index_rel) {
+                       affected_faces[corner_to_face_map[index_corner]] = true;
+                     });
 
   IndexMaskMemory mask_mem;
   IndexMask faces_mask = IndexMask::from_bools(affected_faces, mask_mem);
@@ -172,16 +174,15 @@ static Array<float4> mesh_tangent_corner_domain(const Mesh &mesh,
   compute_tangent_partial_corner_domain(mesh, faces_mask, uv_coords, r_tangents, r_bitangents);
 }
 
-static VArray<float3> construct_mesh_tangent_gvarray(
-    const Mesh &mesh,
-    const AttrDomain domain,
-    const std::optional<bke::AttributeAccessor> &context_attrs,
-    const IndexMask &mask)
+static VArray<float3> construct_mesh_tangent_gvarray(const Mesh &mesh,
+                                                     const AttrDomain domain,
+                                                     const IndexMask &mask)
 {
   const CustomData *corner_data = &mesh.corner_data;
   int layer_index = CustomData_get_layer_index(corner_data, CD_PROP_FLOAT2);
   int active_layer = CustomData_get_active_layer(corner_data, CD_PROP_FLOAT2);
-  const float2* active_uv_data = static_cast<const float2 *>(corner_data->layers[active_layer + layer_index].data);
+  const float2 *active_uv_data = static_cast<const float2 *>(
+      corner_data->layers[active_layer + layer_index].data);
   Span<float2> uv_coords(active_uv_data, mesh.corners_num);
 
   Array<float3> tangents;
@@ -192,8 +193,8 @@ static VArray<float3> construct_mesh_tangent_gvarray(
     return VArray<float3>::ForContainer(std::move(tangents));
   }
 
-  if (domain == AttrDomain::Point && context_attrs.has_value()) {
-    context_attrs.value().adapt_domain(
+  if (domain == AttrDomain::Point) {
+    mesh.attributes().adapt_domain(
         VArray<float3>::ForContainer(std::move(tangents)), bke::AttrDomain::Corner, domain);
   }
 
@@ -211,7 +212,7 @@ class TangentFieldInput final : public bke::GeometryFieldInput {
                                  const IndexMask &mask) const final
   {
     if (const Mesh *mesh = context.mesh()) {
-      return construct_mesh_tangent_gvarray(*mesh, context.domain(), context.attributes(), mask);
+      return construct_mesh_tangent_gvarray(*mesh, context.domain(), mask);
     }
     if (const bke::CurvesGeometry *curves = context.curves_or_strokes()) {
       return construct_curve_tangent_gvarray(*curves, context.domain());
@@ -246,7 +247,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeInputTangent", GEO_NODE_INPUT_TANGENT);
+  geo_node_type_base(&ntype, "GeometryNodeInputMeshTangentUV", GEO_NODE_INPUT_TANGENT);
   ntype.ui_name = "Curve Tangent";
   ntype.ui_description = "Retrieve the direction of curves at each control point";
   ntype.enum_name_legacy = "INPUT_TANGENT";
