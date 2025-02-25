@@ -454,7 +454,6 @@ Strip *SEQ_add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqLoad
     if (have_fps && (load_data->flags & SEQ_LOAD_MOVIE_SYNC_FPS)) {
       scene->r.frs_sec = fps_num;
       scene->r.frs_sec_base = fps_denom;
-      BKE_scene_frames_per_second_sync(bmain, scene);
       DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
     }
 

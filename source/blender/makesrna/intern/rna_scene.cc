@@ -953,8 +953,11 @@ static void rna_Scene_fps_update(Main *bmain, Scene * /*active_scene*/, PointerR
 {
   Scene *scene = (Scene *)ptr->owner_id;
 
-  BKE_scene_frames_per_second_sync(bmain, scene);
-  DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
+  DEG_id_tag_update(&scene->id, ID_RECALC_AUDIO_FPS | ID_RECALC_SEQUENCER_STRIPS);
+  /* NOTE: Tag via dependency graph will take care of all the updates ion the evaluated domain,
+   * however, changes in FPS actually modifies an original skip length,
+   * so this we take care about here. */
+  SEQ_sound_update_length(bmain, scene);
   /* Reset simulation states because new frame interval doesn't apply anymore. */
   blender::bke::bake::scene_simulation_states_reset(*scene);
 }

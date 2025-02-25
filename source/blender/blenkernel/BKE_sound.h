@@ -123,6 +123,8 @@ void BKE_sound_mute_scene(struct Scene *scene, int muted);
 
 void BKE_sound_update_fps(struct Main *bmain, struct Scene *scene);
 
+float BKE_sound_get_fps(struct Scene *scene);
+
 void BKE_sound_update_scene_listener(struct Scene *scene);
 
 void *BKE_sound_scene_add_scene_sound(

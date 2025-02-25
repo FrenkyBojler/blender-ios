@@ -187,6 +187,7 @@ void depsgraph_tag_to_component_opcode(const ID *id,
       *component_type = NodeType::SEQUENCER;
       break;
     case ID_RECALC_FRAME_CHANGE:
+    case ID_RECALC_AUDIO_FPS:
     case ID_RECALC_AUDIO_VOLUME:
     case ID_RECALC_AUDIO_MUTE:
     case ID_RECALC_AUDIO_LISTENER:
@@ -781,6 +782,8 @@ const char *DEG_update_tag_as_string(IDRecalcFlag flag)
       return "SEQUENCER_STRIPS";
     case ID_RECALC_FRAME_CHANGE:
       return "FRAME_CHANGE";
+    case ID_RECALC_AUDIO_FPS:
+      return "AUDIO_FPS";
     case ID_RECALC_AUDIO_VOLUME:
       return "AUDIO_VOLUME";
     case ID_RECALC_AUDIO_MUTE:

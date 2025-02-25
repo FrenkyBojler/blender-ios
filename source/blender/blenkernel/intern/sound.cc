@@ -716,6 +716,15 @@ void BKE_sound_update_fps(Main *bmain, Scene *scene)
   SEQ_sound_update_length(bmain, scene);
 }
 
+float BKE_sound_get_fps(Scene *scene)
+{
+  sound_verify_evaluated_id(&scene->id);
+  if (scene->sound_scene) {
+    return AUD_Sequence_getFPS(scene->sound_scene);
+  }
+  return BKE_scene_frames_per_second_get(scene);
+}
+
 void BKE_sound_update_scene_listener(Scene *scene)
 {
   sound_verify_evaluated_id(&scene->id);
@@ -1400,6 +1409,10 @@ void BKE_sound_update_scene(Depsgraph * /*depsgraph*/, Scene * /*scene*/) {}
 void BKE_sound_update_scene_sound(void * /*handle*/, bSound * /*sound*/) {}
 void BKE_sound_update_scene_listener(Scene * /*scene*/) {}
 void BKE_sound_update_fps(Main * /*bmain*/, Scene * /*scene*/) {}
+float BKE_sound_get_fps(Scene *scene)
+{
+  return BKE_scene_frames_per_second_get(scene);
+}
 void BKE_sound_set_scene_sound_volume_at_frame(void * /*handle*/,
                                                int /*frame*/,
                                                float /*volume*/,
