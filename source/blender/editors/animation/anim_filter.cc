@@ -1564,6 +1564,7 @@ size_t ANIM_animfilter_action_slot(bAnimContext *ac,
    * only interested in the key data anyway. So rather than trying to get a reliable `bmain`
    * through the maze, this code just treats it as optional (even though ideally it should always
    * be known). */
+  BLI_assert(animated_id);
   ID *slot_user_id = nullptr;
   if (ac->bmain) {
     slot_user_id = animrig::action_slot_get_id_best_guess(*ac->bmain, slot, animated_id);
@@ -1572,7 +1573,6 @@ size_t ANIM_animfilter_action_slot(bAnimContext *ac,
     /* This is not necessarily correct, but at least it prevents nullptr dereference. */
     slot_user_id = animated_id;
   }
-  BLI_assert(slot_user_id);
 
   /* Don't include anything from this animation if it is linked in from another
    * file, and we're getting stuff for editing... */

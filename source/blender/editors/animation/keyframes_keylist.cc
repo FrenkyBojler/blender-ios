@@ -986,7 +986,11 @@ void action_slot_summary_to_keylist(bAnimContext *ac,
                                     const int saction_flag,
                                     blender::float2 range)
 {
-  BLI_assert(GS(action.id.name) == ID_AC);
+  /* TODO: downstream code depends on this being non-null (see e.g.
+   * `ANIM_animfilter_action_slot()` and `animfilter_fcurves_span()`). Either
+   * change this parameter to be a reference, or modify the downstream code to
+   * not assume that it's non-null and do something reasonable when it is null. */
+  BLI_assert(animated_id);
 
   if (!ac) {
     return;

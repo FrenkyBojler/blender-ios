@@ -227,7 +227,11 @@ void summary_to_keylist(bAnimContext *ac,
  *
  * \param animated_id: the particular animated ID that the slot summary is being
  * generated for. This is needed for filtering channels based on bone selection,
- * etc.
+ * etc. NOTE: despite being passed as a pointer, this should never be null. It's
+ * currently passed as a pointer to be defensive because I (Nathan) am not 100%
+ * confident at the time of writing (PR #134922) that the callers of this
+ * actually guarantee a non-null pointer (they should, but bugs). This way we
+ * can assert internally to catch if that ever happens.
  *
  * \param action: the action containing the slot to generate the summary for.
  *
@@ -247,7 +251,7 @@ void action_slot_summary_to_keylist(bAnimContext *ac,
                                     blender::animrig::Action &action,
                                     blender::animrig::slot_handle_t slot_handle,
                                     AnimKeylist *keylist,
-                                    const int saction_flag,
+                                    int saction_flag,
                                     blender::float2 range);
 
 /* Grease Pencil datablock summary (Legacy) */
