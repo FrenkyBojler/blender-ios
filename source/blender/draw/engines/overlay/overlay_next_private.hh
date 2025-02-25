@@ -23,7 +23,6 @@
 #include "UI_resources.hh"
 #include "draw_manager.hh"
 #include "draw_pass.hh"
-#include "draw_shader.hh"
 #include "draw_view_data.hh"
 #include "gpu_shader_create_info.hh"
 
@@ -447,6 +446,8 @@ class ShapeCache {
     return vbo;
   }
 };
+
+using StaticShader = gpu::StaticShader;
 
 /**
  * Shader module. Shared between instances.

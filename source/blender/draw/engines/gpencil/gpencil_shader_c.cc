@@ -9,11 +9,11 @@
 
 #include "BLI_string.h"
 
-#include "draw_shader.hh"
-
 #include "gpencil_engine.h"
 
 namespace blender::draw::gpencil {
+
+using StaticShader = gpu::StaticShader;
 
 class ShaderCache {
  private:

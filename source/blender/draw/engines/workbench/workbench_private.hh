@@ -6,9 +6,9 @@
 
 #include "DNA_camera_types.h"
 #include "DRW_render.hh"
+#include "GPU_shader.hh"
 #include "draw_manager.hh"
 #include "draw_pass.hh"
-#include "draw_shader.hh"
 
 #include "workbench_defines.hh"
 #include "workbench_enums.hh"
@@ -21,6 +21,7 @@ extern "C" DrawEngineType draw_engine_workbench;
 namespace blender::workbench {
 
 using namespace draw;
+using StaticShader = gpu::StaticShader;
 
 class ShaderCache {
  private:

@@ -18,6 +18,8 @@
 
 namespace blender::draw::Shader {
 
+using StaticShader = gpu::StaticShader;
+
 class ShaderCache {
  private:
   static ShaderCache *static_cache_;

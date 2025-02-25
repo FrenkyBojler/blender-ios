@@ -17,7 +17,6 @@
 
 #include "draw_manager.hh"
 #include "draw_pass.hh"
-#include "draw_shader.hh"
 
 #include "select_engine.hh"
 
@@ -32,6 +31,8 @@ struct SELECTIDDEBUG_Data {
 };
 
 namespace blender::draw::SelectDebug {
+
+using StaticShader = gpu::StaticShader;
 
 class ShaderCache {
  private:

@@ -18,12 +18,13 @@
 #include "DRW_render.hh"
 #include "GPU_material.hh"
 #include "GPU_shader.hh"
-#include "draw_shader.hh"
 
 #include "eevee_material.hh"
 #include "eevee_sync.hh"
 
 namespace blender::eevee {
+
+using StaticShader = gpu::StaticShader;
 
 /* Keep alphabetical order and clean prefix. */
 enum eShaderType {
