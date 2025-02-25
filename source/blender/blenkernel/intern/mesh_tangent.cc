@@ -95,16 +95,16 @@ void BKE_mesh_calc_virtual_loop_tangent_single_ex(const int num_faces,
                                                   MutableSpan<float> r_corner_bitangent_orient)
 {
   /* Compute Mikktspace's tangent normals. */
-  BKEVirtualToTangent mesh_to_tangent{num_faces,
-                                         corner_verts,
-                                         corner_corners,
-                                         vert_positions,
-                                         corner_normals,
-                                         corner_uvs,
-                                         r_corner_tangent,
-                                         r_corner_bitangent_orient};
+  BKEVirtualToTangent virtual_mesh_to_tangent{num_faces,
+                                              corner_verts,
+                                              corner_corners,
+                                              vert_positions,
+                                              corner_normals,
+                                              corner_uvs,
+                                              r_corner_tangent,
+                                              r_corner_bitangent_orient};
 
-  mikk::Mikktspace<BKEVirtualToTangent> mikk(mesh_to_tangent);
+  mikk::Mikktspace<BKEVirtualToTangent> mikk(virtual_mesh_to_tangent);
   mikk.genTangSpace();
 }
 
