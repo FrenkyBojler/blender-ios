@@ -2436,6 +2436,9 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
       if (use_only_selected && !(ob->base_flag & BASE_SELECTED)) {
         continue;
       }
+      if ((ob->base_flag & BASE_SELECTABLE) == 0) {
+        continue;
+      }
       DST.dupli_parent = data_.dupli_parent;
       DST.dupli_source = data_.dupli_object_current;
       drw_duplidata_load(ob);
