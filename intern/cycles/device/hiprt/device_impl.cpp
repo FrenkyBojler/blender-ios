@@ -479,6 +479,9 @@ hiprtGeometryBuildInput HIPRTDevice::prepare_curve_blas(BVHHIPRT *bvh, Hair *hai
   const size_t num_curves = hair->num_curves();
   const size_t num_segments = hair->num_segments();
   const Attribute *curve_attr_mP = nullptr;
+  if (hair->has_motion_blur()) {
+    curve_attr_mP = hair->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
+  }
 
   if (curve_attr_mP == nullptr || bvh->params.num_motion_curve_steps == 0) {
 
@@ -490,7 +493,6 @@ hiprtGeometryBuildInput HIPRTDevice::prepare_curve_blas(BVHHIPRT *bvh, Hair *hai
     bvh->custom_prim_info.resize(num_boxes);
     bvh->prims_time.resize(num_boxes);
     bvh->custom_primitive_bound.alloc(num_boxes);
-    curve_attr_mP = hair->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
   }
 
   int num_bounds = 0;
@@ -589,8 +591,8 @@ hiprtGeometryBuildInput HIPRTDevice::prepare_curve_blas(BVHHIPRT *bvh, Hair *hai
               bvh->custom_prim_info[num_bounds].x = j;
               bvh->custom_prim_info[num_bounds].y = packed_type;  // k
               bvh->custom_primitive_bound[num_bounds] = bounds;
-              bvh->prims_time[num_bounds].x = curr_time;
-              bvh->prims_time[num_bounds].y = prev_time;
+              bvh->prims_time[num_bounds].x = prev_time;  // curr_time;
+              bvh->prims_time[num_bounds].y = curr_time;  // prev_time;
               num_bounds++;
             }
             prev_bounds = curr_bounds;
