@@ -12,12 +12,19 @@ void main()
   float radius = pos_rad.w;
 
   vec3 world_pos = drw_point_object_to_world(pos_rad.xyz);
+
+  vec3 V = drw_world_incident_vector(world_pos);
+
+  /* Offset the position so the selection point is always
+  drawn in from of the point, regardless of the radius. */
+  world_pos += V * radius * 0.5;
+
   gl_Position = drw_point_world_to_homogenous(world_pos);
 
-  /* Small offset in Z */
+  /* Small offset in Z for depth precision. */
   gl_Position.z -= 3e-4;
 
-  gl_PointSize = sizeVertex * 2.0 * radius;
+  gl_PointSize = sizeVertex * 2.0;
 
   view_clipping_distances(world_pos);
 }
