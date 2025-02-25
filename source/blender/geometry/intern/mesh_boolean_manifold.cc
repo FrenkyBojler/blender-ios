@@ -1721,6 +1721,19 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
 #endif
       Manifold man_result = Manifold::BatchBoolean(manifolds, mop);
       meshgl_result = man_result.GetMeshGL();
+      /* Have to wait until after converting to MeshGL to check status. */
+      if (man_result.Status() != Manifold::Error::NoError) {
+        if (man_result.Status() == Manifold::Error::ResultTooLarge) {
+          *r_error = BooleanError::ResultTooBig;
+        }
+        else {
+          *r_error = BooleanError::UnknownError;
+        }
+        if (dbg_level > 0) {
+          std::cout << "manifold boolean returned with error status\n";
+        }
+        return nullptr;
+      }
     }
     if (dbg_level > 0) {
       std::cout << "boolean result has " << meshgl_result.NumTri() << " tris\n";

@@ -1067,7 +1067,7 @@ functions, as well as a set of standard reductions.
  */
 template <class T, int M>
 struct mat<T, M, 1> {
-  typedef vec<T, M> V;
+  using V = vec<T, M>;
   V x;
   constexpr mat() : x() {}
   constexpr mat(const V &x_) : x(x_) {}
@@ -1088,7 +1088,7 @@ struct mat<T, M, 1> {
 };
 template <class T, int M>
 struct mat<T, M, 2> {
-  typedef vec<T, M> V;
+  using V = vec<T, M>;
   V x, y;
   constexpr mat() : x(), y() {}
   constexpr mat(const V &x_, const V &y_) : x(x_), y(y_) {}
@@ -1111,7 +1111,7 @@ struct mat<T, M, 2> {
 };
 template <class T, int M>
 struct mat<T, M, 3> {
-  typedef vec<T, M> V;
+  using V = vec<T, M>;
   V x, y, z;
   constexpr mat() : x(), y(), z() {}
   constexpr mat(const V &x_, const V &y_, const V &z_) : x(x_), y(y_), z(z_) {}
@@ -1141,7 +1141,7 @@ struct mat<T, M, 3> {
 };
 template <class T, int M>
 struct mat<T, M, 4> {
-  typedef vec<T, M> V;
+  using V = vec<T, M>;
   V x, y, z, w;
   constexpr mat() : x(), y(), z(), w() {}
   constexpr mat(const V &x_, const V &y_, const V &z_, const V &w_)
@@ -1515,10 +1515,10 @@ constexpr auto operator>>=(A &a, const B &b) -> decltype(a = a >> b) {
 }
 /** @} */
 
-/** @addtogroup swizzles
+/** @defgroup swizzles Swizzles
+ * Swizzles and subobjects.
  * @ingroup LinAlg
- * @brief Swizzles and subobjects.
- *  @{
+ * @{
  */
 /**
  * @brief Returns a vector containing the specified ordered indices, e.g.
@@ -1728,9 +1728,9 @@ constexpr apply_t<detail::lerp, A, B, T> lerp(const A &a, const B &b,
 }
 /** @} */
 
-/** @addtogroup vec_algebra
+/** @defgroup vec_algebra Vector Algebra
+ * Support for vector algebra.
  * @ingroup LinAlg
- * @brief Support for vector algebra.
  *  @{
  */
 /**
@@ -1882,10 +1882,10 @@ vec<T, M> slerp(const vec<T, M> &a, const vec<T, M> &b, T t) {
 }
 /** @} */
 
-/** @addtogroup quaternions
+/** @defgroup quaternions Quaternions
+ * Support for quaternion algebra using 4D vectors of
+ * arbitrary length, representing xi + yj + zk + w.
  * @ingroup LinAlg
- * @brief Support for quaternion algebra using 4D vectors of arbitrary length,
- * representing xi + yj + zk + w.
  *  @{
  */
 /**
@@ -1960,9 +1960,9 @@ constexpr vec<T, 4> qmul(const vec<T, 4> &a, R... r) {
 }
 /** @} */
 
-/** @addtogroup quaternion_rotation
+/** @defgroup quaternion_rotation Quaternion Rotations
+ * Support for 3D spatial rotations using normalized quaternions.
  * @ingroup LinAlg
- * @brief Support for 3D spatial rotations using normalized quaternions.
  *  @{
  */
 /**

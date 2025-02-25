@@ -138,6 +138,14 @@ TEST(Boolean, Cubes) {
 #endif
 }
 
+TEST(Boolean, Simplify) {
+  Manifold cube = Manifold::Cube().Refine(10);
+  Manifold result = cube + cube.Translate({1, 0, 0});
+  EXPECT_EQ(result.NumTri(), 1928);
+  result = result.Simplify();
+  EXPECT_EQ(result.NumTri(), 20);
+}
+
 TEST(Boolean, NoRetainedVerts) {
   Manifold cube = Manifold::Cube(vec3(1), true);
   Manifold oct = Manifold::Sphere(1, 4);
@@ -424,12 +432,10 @@ TEST(Boolean, Precision2) {
 
 TEST(Boolean, DISABLED_SimpleCubeRegression) {
   ManifoldParams().intermediateChecks = true;
-  ManifoldParams().processOverlaps = false;
   Manifold result =
       Manifold::Cube().Rotate(-0.10000000000000001, 0.10000000000000001, -1.) +
       Manifold::Cube() -
       Manifold::Cube().Rotate(-0.10000000000000001, -0.10000000000066571, -1.);
   EXPECT_EQ(result.Status(), Manifold::Error::NoError);
   ManifoldParams().intermediateChecks = false;
-  ManifoldParams().processOverlaps = true;
 }

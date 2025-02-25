@@ -359,8 +359,8 @@ void AppendPartialEdges(Manifold::Impl &outR, Vec<char> &wholeHalfedgeP,
     // reference is now to the endVert instead of the startVert, which is one
     // position advanced CCW. This is only valid if this is a retained vert; it
     // will be ignored later if the vert is new.
-    const TriRef forwardRef = {forward ? 0 : 1, -1, faceLeftP};
-    const TriRef backwardRef = {forward ? 0 : 1, -1, faceRightP};
+    const TriRef forwardRef = {forward ? 0 : 1, -1, faceLeftP, -1};
+    const TriRef backwardRef = {forward ? 0 : 1, -1, faceRightP, -1};
 
     for (Halfedge e : edges) {
       const int forwardEdge = facePtrR[faceLeft]++;
@@ -411,8 +411,8 @@ void AppendNewEdges(
     // add halfedges to result
     const int faceLeft = facePQ2R[faceP];
     const int faceRight = facePQ2R[numFaceP + faceQ];
-    const TriRef forwardRef = {0, -1, faceP};
-    const TriRef backwardRef = {1, -1, faceQ};
+    const TriRef forwardRef = {0, -1, faceP, -1};
+    const TriRef backwardRef = {1, -1, faceQ, -1};
     for (Halfedge e : edges) {
       const int forwardEdge = facePtrR[faceLeft]++;
       const int backwardEdge = facePtrR[faceRight]++;
@@ -459,8 +459,8 @@ struct DuplicateHalfedges {
     // Negative inclusion means the halfedges are reversed, which means our
     // reference is now to the endVert instead of the startVert, which is one
     // position advanced CCW.
-    const TriRef forwardRef = {forward ? 0 : 1, -1, faceLeftP};
-    const TriRef backwardRef = {forward ? 0 : 1, -1, faceRightP};
+    const TriRef forwardRef = {forward ? 0 : 1, -1, faceLeftP, -1};
+    const TriRef backwardRef = {forward ? 0 : 1, -1, faceRightP, -1};
 
     for (int i = 0; i < std::abs(inclusion); ++i) {
       int forwardEdge = AtomicAdd(facePtr[newFace], 1);
@@ -697,6 +697,12 @@ Manifold::Impl Boolean3::Result(OpType op) const {
     return inP_;
   }
 
+  if (!valid) {
+    auto impl = Manifold::Impl();
+    impl.status_ = Manifold::Error::ResultTooLarge;
+    return impl;
+  }
+
   const bool invertQ = op == OpType::Subtract;
 
   // Convert winding numbers to inclusion values based on operation type.
@@ -856,7 +862,7 @@ Manifold::Impl Boolean3::Result(OpType op) const {
 
   UpdateReference(outR, inP_, inQ_, invertQ);
 
-  outR.SimplifyTopology();
+  outR.SimplifyTopology(nPv + nQv);
   outR.RemoveUnreferencedVerts();
 
   if (ManifoldParams().intermediateChecks)

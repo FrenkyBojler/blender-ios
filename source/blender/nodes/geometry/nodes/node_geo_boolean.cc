@@ -209,6 +209,10 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.error_message_add(NodeWarningType::Error,
                              TIP_("An input was not manifold"));
   }
+  else if (error == geometry::boolean::BooleanError::ResultTooBig) {
+    params.error_message_add(NodeWarningType::Error,
+                             TIP_("Boolean result is too big for solver to handle"));
+  }
   else if (error == geometry::boolean::BooleanError::UnknownError)
   {
     params.error_message_add(NodeWarningType::Error,

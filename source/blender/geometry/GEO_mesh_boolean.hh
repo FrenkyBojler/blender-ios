@@ -35,7 +35,8 @@ enum class Operation {
 enum class BooleanError {
   NoError = 0,
   NonManifold = 1,
-  UnknownError = 2,
+  ResultTooBig = 2,
+  UnknownError = 3,
 };
 
 /**

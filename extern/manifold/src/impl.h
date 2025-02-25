@@ -188,6 +188,8 @@ struct Manifold::Impl {
 
     Vec<ivec3> triVerts;
     triVerts.reserve(numTri);
+    if (triRef.size() > 0) meshRelation_.triRef.reserve(numTri);
+    if (numProp > 0) meshRelation_.triProperties.reserve(numTri);
     for (size_t i = 0; i < numTri; ++i) {
       ivec3 tri;
       for (const size_t j : {0, 1, 2}) {
@@ -227,6 +229,7 @@ struct Manifold::Impl {
       InitializeOriginal();
     }
 
+    DedupePropVerts();
     CreateFaces();
 
     SimplifyTopology();
@@ -243,7 +246,8 @@ struct Manifold::Impl {
     meshRelation_.originalID = -1;
   }
 
-  inline void ForVert(int halfedge, std::function<void(int halfedge)> func) {
+  template <typename F>
+  inline void ForVert(int halfedge, F func) {
     int current = halfedge;
     do {
       current = NextHalfedge(halfedge_[current].pairedHalfedge);
@@ -267,6 +271,7 @@ struct Manifold::Impl {
   }
 
   void CreateFaces();
+  void DedupePropVerts();
   void RemoveUnreferencedVerts();
   void InitializeOriginal(bool keepFaceID = false);
   void CreateHalfedges(const Vec<ivec3>& triVerts);
@@ -327,9 +332,9 @@ struct Manifold::Impl {
 
   // edge_op.cpp
   void CleanupTopology();
-  void SimplifyTopology();
+  void SimplifyTopology(int firstNewVert = 0);
   void DedupeEdge(int edge);
-  void CollapseEdge(int edge, std::vector<int>& edges);
+  bool CollapseEdge(int edge, std::vector<int>& edges);
   void RecursiveEdgeSwap(int edge, int& tag, std::vector<int>& visited,
                          std::vector<int>& edgeSwapStack,
                          std::vector<int>& edges);
@@ -339,6 +344,7 @@ struct Manifold::Impl {
   void FormLoop(int current, int end);
   void CollapseTri(const ivec3& triEdge);
   void SplitPinchedVerts();
+  void DedupeEdges();
 
   // subdivision.cpp
   int GetNeighbor(int tri) const;

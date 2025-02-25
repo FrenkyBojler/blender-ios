@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <unordered_set>
+
 #include "./impl.h"
 #include "./parallel.h"
 
@@ -48,12 +50,15 @@ struct ShortEdge {
   VecView<const Halfedge> halfedge;
   VecView<const vec3> vertPos;
   const double tolerance;
+  const int firstNewVert;
 
   bool operator()(int edge) const {
-    if (halfedge[edge].pairedHalfedge < 0) return false;
+    const Halfedge& half = halfedge[edge];
+    if (half.pairedHalfedge < 0 ||
+        (half.startVert < firstNewVert && half.endVert < firstNewVert))
+      return false;
     // Flag short edges
-    const vec3 delta =
-        vertPos[halfedge[edge].endVert] - vertPos[halfedge[edge].startVert];
+    const vec3 delta = vertPos[half.endVert] - vertPos[half.startVert];
     return la::dot(delta, delta) < tolerance * tolerance;
   }
 };
@@ -61,13 +66,15 @@ struct ShortEdge {
 struct FlagEdge {
   VecView<const Halfedge> halfedge;
   VecView<const TriRef> triRef;
+  const int firstNewVert;
 
   bool operator()(int edge) const {
-    if (halfedge[edge].pairedHalfedge < 0) return false;
+    const Halfedge& half = halfedge[edge];
+    if (half.pairedHalfedge < 0 || half.startVert < firstNewVert) return false;
     // Flag redundant edges - those where the startVert is surrounded by only
     // two original triangles.
     const TriRef ref0 = triRef[edge / 3];
-    int current = NextHalfedge(halfedge[edge].pairedHalfedge);
+    int current = NextHalfedge(half.pairedHalfedge);
     TriRef ref1 = triRef[current / 3];
     bool ref1Updated = !ref0.SameFace(ref1);
     while (current != edge) {
@@ -92,9 +99,15 @@ struct SwappableEdge {
   VecView<const vec3> vertPos;
   VecView<const vec3> triNormal;
   const double tolerance;
+  const int firstNewVert;
 
   bool operator()(int edge) const {
-    if (halfedge[edge].pairedHalfedge < 0) return false;
+    const Halfedge& half = halfedge[edge];
+    if (half.pairedHalfedge < 0) return false;
+    if (half.startVert < firstNewVert && half.endVert < firstNewVert &&
+        halfedge[NextHalfedge(edge)].endVert < firstNewVert &&
+        halfedge[NextHalfedge(half.pairedHalfedge)].endVert < firstNewVert)
+      return false;
 
     int tri = edge / 3;
     ivec3 triEdge = TriOf(edge);
@@ -106,7 +119,7 @@ struct SwappableEdge {
       return false;
 
     // Switch to neighbor's projection.
-    edge = halfedge[edge].pairedHalfedge;
+    edge = half.pairedHalfedge;
     tri = edge / 3;
     triEdge = TriOf(edge);
     projection = GetAxisAlignedProjection(triNormal[tri]);
@@ -203,77 +216,7 @@ void Manifold::Impl::CleanupTopology() {
   // In the case of a very bad triangulation, it is possible to create pinched
   // verts. They must be removed before edge collapse.
   SplitPinchedVerts();
-
-  Vec<int> entries;
-  FlagStore s;
-  while (1) {
-    ZoneScopedN("DedupeEdge");
-
-    const size_t nbEdges = halfedge_.size();
-    size_t numFlagged = 0;
-
-#if MANIFOLD_PAR == 1
-    if (nbEdges > 1e5) {
-      // Note that this is slightly different from the single thread version
-      // because we store all indices instead of just indices of forward
-      // halfedges. Backward halfedges are placed at the end by modifying the
-      // comparison function.
-      entries.resize_nofill(nbEdges);
-      sequence(entries.begin(), entries.end());
-      stable_sort(entries.begin(), entries.end(), [&](int a, int b) {
-        const auto& self = halfedge_[a];
-        const auto& other = halfedge_[b];
-        // place all backward edges at the end
-        if (!self.IsForward()) return false;
-        if (!other.IsForward()) return true;
-        // dictionary order based on start and end vertices
-        return self.startVert == other.startVert
-                   ? self.endVert < other.endVert
-                   : self.startVert < other.startVert;
-      });
-      entries.resize(nbEdges / 2);
-    } else
-#endif
-    {
-      entries.clear(true);
-      entries.reserve(nbEdges / 2);
-      for (size_t i = 0; i < nbEdges; ++i) {
-        if (halfedge_[i].IsForward()) {
-          entries.push_back(i);
-        }
-      }
-      stable_sort(entries.begin(), entries.end(), [&](int a, int b) {
-        const auto& self = halfedge_[a];
-        const auto& other = halfedge_[b];
-        // dictionary order based on start and end vertices
-        return self.startVert == other.startVert
-                   ? self.endVert < other.endVert
-                   : self.startVert < other.startVert;
-      });
-    }
-
-    s.run(
-        entries.size() - 1,
-        [&](int i) {
-          const int h0 = entries[i];
-          const int h1 = entries[i + 1];
-          return (halfedge_[h0].startVert == halfedge_[h1].startVert &&
-                  halfedge_[h0].endVert == halfedge_[h1].endVert);
-        },
-        [&](int i) {
-          DedupeEdge(entries[i]);
-          numFlagged++;
-        });
-
-    if (numFlagged == 0) break;
-
-#ifdef MANIFOLD_DEBUG
-    if (ManifoldParams().verbose) {
-      std::cout << "found " << numFlagged << " duplicate edges to split"
-                << std::endl;
-    }
-#endif
-  }
+  DedupeEdges();
 }
 
 /**
@@ -295,7 +238,7 @@ void Manifold::Impl::CleanupTopology() {
  * Rather than actually removing the edges, this step merely marks them for
  * removal, by setting vertPos to NaN and halfedge to {-1, -1, -1, -1}.
  */
-void Manifold::Impl::SimplifyTopology() {
+void Manifold::Impl::SimplifyTopology(int firstNewVert) {
   if (!halfedge_.size()) return;
 
   CleanupTopology();
@@ -315,43 +258,43 @@ void Manifold::Impl::SimplifyTopology() {
   {
     ZoneScopedN("CollapseShortEdge");
     numFlagged = 0;
-    ShortEdge se{halfedge_, vertPos_, epsilon_};
+    ShortEdge se{halfedge_, vertPos_, epsilon_, firstNewVert};
     s.run(nbEdges, se, [&](size_t i) {
-      CollapseEdge(i, scratchBuffer);
+      const bool didCollapse = CollapseEdge(i, scratchBuffer);
+      if (didCollapse) numFlagged++;
       scratchBuffer.resize(0);
-      numFlagged++;
     });
-  }
 
 #ifdef MANIFOLD_DEBUG
-  if (ManifoldParams().verbose && numFlagged > 0) {
-    std::cout << "found " << numFlagged << " short edges to collapse"
-              << std::endl;
-  }
+    if (ManifoldParams().verbose && numFlagged > 0) {
+      std::cout << "collapsed " << numFlagged << " short edges" << std::endl;
+    }
 #endif
+  }
 
-  {
+  while (1) {
     ZoneScopedN("CollapseFlaggedEdge");
     numFlagged = 0;
-    FlagEdge se{halfedge_, meshRelation_.triRef};
+    FlagEdge se{halfedge_, meshRelation_.triRef, firstNewVert};
     s.run(nbEdges, se, [&](size_t i) {
-      CollapseEdge(i, scratchBuffer);
+      const bool didCollapse = CollapseEdge(i, scratchBuffer);
+      if (didCollapse) numFlagged++;
       scratchBuffer.resize(0);
-      numFlagged++;
     });
-  }
+    if (numFlagged == 0) break;
 
 #ifdef MANIFOLD_DEBUG
-  if (ManifoldParams().verbose && numFlagged > 0) {
-    std::cout << "found " << numFlagged << " colinear edges to collapse"
-              << std::endl;
-  }
+    if (ManifoldParams().verbose && numFlagged > 0) {
+      std::cout << "collapsed " << numFlagged << " colinear edges" << std::endl;
+    }
 #endif
+  }
 
   {
     ZoneScopedN("RecursiveEdgeSwap");
     numFlagged = 0;
-    SwappableEdge se{halfedge_, vertPos_, faceNormal_, tolerance_};
+    SwappableEdge se{halfedge_, vertPos_, faceNormal_, tolerance_,
+                     firstNewVert};
     std::vector<int> edgeSwapStack;
     std::vector<int> visited(halfedge_.size(), -1);
     int tag = 0;
@@ -365,13 +308,13 @@ void Manifold::Impl::SimplifyTopology() {
         RecursiveEdgeSwap(last, tag, visited, edgeSwapStack, scratchBuffer);
       }
     });
-  }
 
 #ifdef MANIFOLD_DEBUG
-  if (ManifoldParams().verbose && numFlagged > 0) {
-    std::cout << "found " << numFlagged << " edges to swap" << std::endl;
-  }
+    if (ManifoldParams().verbose && numFlagged > 0) {
+      std::cout << "swapped " << numFlagged << " edges" << std::endl;
+    }
 #endif
+  }
 }
 
 // Deduplicate the given 4-manifold edge by duplicating endVert, thus making the
@@ -549,16 +492,17 @@ void Manifold::Impl::RemoveIfFolded(int edge) {
   }
 }
 
-// Collapses the given edge by removing startVert. May split the mesh
-// topologically if the collapse would have resulted in a 4-manifold edge. Do
-// not collapse an edge if startVert is pinched - the vert will be marked NaN,
-// but other edges may still be pointing to it.
-void Manifold::Impl::CollapseEdge(const int edge, std::vector<int>& edges) {
+// Collapses the given edge by removing startVert - returns false if the edge
+// cannot be collapsed. May split the mesh topologically if the collapse would
+// have resulted in a 4-manifold edge. Do not collapse an edge if startVert is
+// pinched - the vert would be marked NaN, but other edges could still be
+// pointing to it.
+bool Manifold::Impl::CollapseEdge(const int edge, std::vector<int>& edges) {
   Vec<TriRef>& triRef = meshRelation_.triRef;
   Vec<ivec3>& triProp = meshRelation_.triProperties;
 
   const Halfedge toRemove = halfedge_[edge];
-  if (toRemove.pairedHalfedge < 0) return;
+  if (toRemove.pairedHalfedge < 0) return false;
 
   const int endVert = toRemove.endVert;
   const ivec3 tri0edge = TriOf(edge);
@@ -567,18 +511,11 @@ void Manifold::Impl::CollapseEdge(const int edge, std::vector<int>& edges) {
   const vec3 pNew = vertPos_[endVert];
   const vec3 pOld = vertPos_[toRemove.startVert];
   const vec3 delta = pNew - pOld;
-  const bool shortEdge = la::dot(delta, delta) < tolerance_ * tolerance_;
-
-  // Orbit endVert
-  int current = halfedge_[tri0edge[1]].pairedHalfedge;
-  while (current != tri1edge[2]) {
-    current = NextHalfedge(current);
-    edges.push_back(current);
-    current = halfedge_[current].pairedHalfedge;
-  }
+  const bool shortEdge = la::dot(delta, delta) < epsilon_ * epsilon_;
 
   // Orbit startVert
   int start = halfedge_[tri1edge[1]].pairedHalfedge;
+  int current = tri1edge[2];
   if (!shortEdge) {
     current = start;
     TriRef refCheck = triRef[toRemove.pairedHalfedge / 3];
@@ -594,22 +531,26 @@ void Manifold::Impl::CollapseEdge(const int edge, std::vector<int>& edges) {
       if (!ref.SameFace(refCheck)) {
         refCheck = triRef[edge / 3];
         if (!ref.SameFace(refCheck)) {
-          return;
-        } else {
-          // Don't collapse if the edges separating the faces are not colinear
-          // (can happen when the two faces are coplanar).
-          if (CCW(projection * pOld, projection * pLast, projection * pNew,
-                  epsilon_) != 0)
-            return;
+          return false;
         }
       }
 
       // Don't collapse edge if it would cause a triangle to invert.
       if (CCW(projection * pNext, projection * pLast, projection * pNew,
               epsilon_) < 0)
-        return;
+        return false;
 
       pLast = pNext;
+      current = halfedge_[current].pairedHalfedge;
+    }
+  }
+
+  // Orbit endVert
+  {
+    int current = halfedge_[tri0edge[1]].pairedHalfedge;
+    while (current != tri1edge[2]) {
+      current = NextHalfedge(current);
+      edges.push_back(current);
       current = halfedge_[current].pairedHalfedge;
     }
   }
@@ -654,6 +595,7 @@ void Manifold::Impl::CollapseEdge(const int edge, std::vector<int>& edges) {
   UpdateVert(endVert, start, tri0edge[2]);
   CollapseTri(tri0edge);
   RemoveIfFolded(start);
+  return true;
 }
 
 void Manifold::Impl::RecursiveEdgeSwap(const int edge, int& tag,
@@ -772,22 +714,194 @@ void Manifold::Impl::RecursiveEdgeSwap(const int edge, int& tag,
 
 void Manifold::Impl::SplitPinchedVerts() {
   ZoneScoped;
-  std::vector<bool> vertProcessed(NumVert(), false);
-  std::vector<bool> halfedgeProcessed(halfedge_.size(), false);
-  for (size_t i = 0; i < halfedge_.size(); ++i) {
-    if (halfedgeProcessed[i]) continue;
-    int vert = halfedge_[i].startVert;
-    if (vertProcessed[vert]) {
-      vertPos_.push_back(vertPos_[vert]);
-      vert = NumVert() - 1;
-    } else {
-      vertProcessed[vert] = true;
+
+  auto nbEdges = halfedge_.size();
+#if MANIFOLD_PAR == 1
+  if (nbEdges > 1e4) {
+    std::mutex mutex;
+    std::vector<size_t> pinched;
+    // This parallelized version is non-trivial so we can't reuse the code
+    //
+    // The idea here is to identify cycles of halfedges that can be iterated
+    // through using ForVert. Pinched verts are vertices where there are
+    // multiple cycles associated with the vertex. Each cycle is identified with
+    // the largest halfedge index within the cycle, and when there are multiple
+    // cycles associated with the same starting vertex but with different ids,
+    // it means we have a pinched vertex. This check is done by using a single
+    // atomic cas operation, the expected case is either invalid id (the vertex
+    // was not processed) or with the same id.
+    //
+    // The local store is to store the processed halfedges, so to avoid
+    // repetitive processing. Note that it only approximates the processed
+    // halfedges because it is thread local. This is why we need a vector to
+    // deduplicate the probematic halfedges we found.
+    std::vector<std::atomic<size_t>> largestEdge(NumVert());
+    for_each(ExecutionPolicy::Par, countAt(0), countAt(NumVert()),
+             [&largestEdge](size_t i) {
+               largestEdge[i].store(std::numeric_limits<size_t>::max());
+             });
+    tbb::combinable<std::vector<bool>> store(
+        [nbEdges]() { return std::vector<bool>(nbEdges, false); });
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, nbEdges),
+        [&store, &mutex, &pinched, &largestEdge, this](const auto& r) {
+          auto& local = store.local();
+          std::vector<size_t> pinchedLocal;
+          for (auto i = r.begin(); i < r.end(); ++i) {
+            if (local[i]) continue;
+            local[i] = true;
+            const int vert = halfedge_[i].startVert;
+            size_t largest = i;
+            ForVert(i, [&local, &largest](int current) {
+              local[current] = true;
+              largest = std::max(largest, static_cast<size_t>(current));
+            });
+            size_t expected = std::numeric_limits<size_t>::max();
+            if (!largestEdge[vert].compare_exchange_strong(expected, largest) &&
+                expected != largest) {
+              // we know that there is another loop...
+              pinchedLocal.push_back(largest);
+            }
+          }
+          if (!pinchedLocal.empty()) {
+            std::lock_guard<std::mutex> lock(mutex);
+            pinched.insert(pinched.end(), pinchedLocal.begin(),
+                           pinchedLocal.end());
+          }
+        });
+
+    std::vector<bool> halfedgeProcessed(nbEdges, false);
+    for (size_t i : pinched) {
+      if (halfedgeProcessed[i]) continue;
+      vertPos_.push_back(vertPos_[halfedge_[i].startVert]);
+      const int vert = NumVert() - 1;
+      ForVert(i, [this, vert, &halfedgeProcessed](int current) {
+        halfedgeProcessed[current] = true;
+        halfedge_[current].startVert = vert;
+        halfedge_[halfedge_[current].pairedHalfedge].endVert = vert;
+      });
     }
-    ForVert(i, [this, &halfedgeProcessed, vert](int current) {
-      halfedgeProcessed[current] = true;
-      halfedge_[current].startVert = vert;
-      halfedge_[halfedge_[current].pairedHalfedge].endVert = vert;
-    });
+  } else
+#endif
+  {
+    std::vector<bool> vertProcessed(NumVert(), false);
+    std::vector<bool> halfedgeProcessed(nbEdges, false);
+    for (size_t i = 0; i < nbEdges; ++i) {
+      if (halfedgeProcessed[i]) continue;
+      int vert = halfedge_[i].startVert;
+      if (vertProcessed[vert]) {
+        vertPos_.push_back(vertPos_[vert]);
+        vert = NumVert() - 1;
+      } else {
+        vertProcessed[vert] = true;
+      }
+      ForVert(i, [this, &halfedgeProcessed, vert](int current) {
+        halfedgeProcessed[current] = true;
+        halfedge_[current].startVert = vert;
+        halfedge_[halfedge_[current].pairedHalfedge].endVert = vert;
+      });
+    }
+  }
+}
+
+void Manifold::Impl::DedupeEdges() {
+  while (1) {
+    ZoneScopedN("DedupeEdge");
+
+    const size_t nbEdges = halfedge_.size();
+    std::vector<size_t> duplicates;
+    auto localLoop = [&](size_t start, size_t end, std::vector<bool>& local,
+                         std::vector<size_t>& results) {
+      // Iterate over all halfedges that start with the same vertex, and check
+      // for halfedges with the same ending vertex.
+      // Note: we use Vec and linear search when the number of neighbor is
+      // small because unordered_set requires allocations and is expensive.
+      // We switch to unordered_set when the number of neighbor is
+      // larger to avoid making things quadratic.
+      //
+      // The local store is to store the processed halfedges, so to avoid
+      // repetitive processing. Note that it only approximates the processed
+      // halfedges because it is thread local. This is why we need a vector to
+      // deduplicate the probematic halfedges we found.
+      Vec<int> endVerts;
+      std::unordered_set<int> endVertSet;
+      for (auto i = start; i < end; ++i) {
+        if (local[i] || halfedge_[i].startVert == -1 ||
+            halfedge_[i].endVert == -1)
+          continue;
+        local[i] = true;
+        // we want to keep the allocation
+        endVerts.clear(false);
+        endVertSet.clear();
+        ForVert(
+            i, [&local, &endVerts, &endVertSet, &results, this](int current) {
+              local[current] = true;
+              if (halfedge_[current].startVert == -1 ||
+                  halfedge_[current].endVert == -1) {
+                return;
+              }
+              if (endVertSet.empty()) {
+                if (std::find(endVerts.begin(), endVerts.end(),
+                              halfedge_[current].endVert) != endVerts.end()) {
+                  results.push_back(current);
+                } else {
+                  endVerts.push_back(halfedge_[current].endVert);
+                  // switch to hashset for vertices with many neighbors
+                  if (endVerts.size() > 32) {
+                    endVertSet.insert(endVerts.begin(), endVerts.end());
+                    endVerts.clear(false);
+                  }
+                }
+              } else {
+                if (!endVertSet.insert(halfedge_[current].endVert).second) {
+                  results.push_back(current);
+                }
+              }
+            });
+      }
+    };
+#if MANIFOLD_PAR == 1
+    if (nbEdges > 1e4) {
+      std::mutex mutex;
+      tbb::combinable<std::vector<bool>> store(
+          [nbEdges]() { return std::vector<bool>(nbEdges, false); });
+      tbb::parallel_for(
+          tbb::blocked_range<size_t>(0, nbEdges),
+          [&store, &mutex, &duplicates, this, &localLoop](const auto& r) {
+            auto& local = store.local();
+            std::vector<size_t> duplicatesLocal;
+            localLoop(r.begin(), r.end(), local, duplicatesLocal);
+            if (!duplicatesLocal.empty()) {
+              std::lock_guard<std::mutex> lock(mutex);
+              duplicates.insert(duplicates.end(), duplicatesLocal.begin(),
+                                duplicatesLocal.end());
+            }
+          });
+    } else
+#endif
+    {
+      std::vector<bool> local(nbEdges, false);
+      localLoop(0, nbEdges, local, duplicates);
+    }
+
+    size_t numFlagged = 0;
+    // there may be duplicates
+    std::vector<bool> handled(nbEdges, false);
+    for (size_t i : duplicates) {
+      if (handled[i]) continue;
+      DedupeEdge(i);
+      numFlagged++;
+      handled[i] = true;
+    }
+
+    if (numFlagged == 0) break;
+
+#ifdef MANIFOLD_DEBUG
+    if (ManifoldParams().verbose) {
+      std::cout << "found " << numFlagged << " duplicate edges to split"
+                << std::endl;
+    }
+#endif
   }
 }
 }  // namespace manifold

@@ -18,8 +18,8 @@
 #include <map>
 #include <set>
 
-#include "./collider.h"
 #include "./parallel.h"
+#include "./tree2d.h"
 #include "./utils.h"
 #include "manifold/optional_assert.h"
 
@@ -124,6 +124,7 @@ void CheckGeometry(const std::vector<ivec3> &triangles,
 }
 
 void Dump(const PolygonsIdx &polys, double epsilon) {
+  std::cout << std::setprecision(16);
   std::cout << "Polygon 0 " << epsilon << " " << polys.size() << std::endl;
   for (auto poly : polys) {
     std::cout << poly.size() << std::endl;
@@ -143,6 +144,7 @@ void Dump(const PolygonsIdx &polys, double epsilon) {
 
 void PrintFailure(const std::exception &e, const PolygonsIdx &polys,
                   std::vector<ivec3> &triangles, double epsilon) {
+  std::cout << std::setprecision(16);
   std::cout << "-----------------------------------" << std::endl;
   std::cout << "Triangulation failed! Precision = " << epsilon << std::endl;
   std::cout << e.what() << std::endl;
@@ -272,8 +274,8 @@ class EarClip {
 
  private:
   struct Vert;
-  typedef std::vector<Vert>::iterator VertItr;
-  typedef std::vector<Vert>::const_iterator VertItrC;
+  using VertItr = std::vector<Vert>::iterator;
+  using VertItrC = std::vector<Vert>::const_iterator;
   struct MaxX {
     bool operator()(const VertItr &a, const VertItr &b) const {
       return a->pos.x > b->pos.x;
@@ -284,7 +286,7 @@ class EarClip {
       return a->cost < b->cost;
     }
   };
-  typedef std::set<VertItr, MinCost>::iterator qItr;
+  using qItr = std::set<VertItr, MinCost>::iterator;
 
   // The flat list where all the Verts are stored. Not used much for traversal.
   std::vector<Vert> polygon_;
@@ -306,9 +308,8 @@ class EarClip {
   double epsilon_;
 
   struct IdxCollider {
-    Collider collider;
+    Vec<PolyVert> points;
     std::vector<VertItr> itr;
-    SparseIndices ind;
   };
 
   // A circularly-linked list representing the polygon(s) that still need to be
@@ -502,32 +503,26 @@ class EarClip {
         return totalCost;
       }
 
-      Box earBox = Box{vec3(center.x - radius, center.y - radius, 0),
-                       vec3(center.x + radius, center.y + radius, 0)};
-      earBox.Union(vec3(pos, 0));
-      collider.collider.Collisions(VecView<const Box>(&earBox, 1),
-                                   collider.ind);
+      Rect earBox = Rect(vec2(center.x - radius, center.y - radius),
+                         vec2(center.x + radius, center.y + radius));
+      earBox.Union(pos);
+      earBox.min -= epsilon;
+      earBox.max += epsilon;
 
       const int lid = left->mesh_idx;
       const int rid = right->mesh_idx;
-
-      totalCost = transform_reduce(
-          countAt(0), countAt(collider.ind.size()), totalCost,
-          [](double a, double b) { return std::max(a, b); },
-          [&](size_t i) {
-            const VertItr test = collider.itr[collider.ind.Get(i, true)];
-            if (!Clipped(test) && test->mesh_idx != mesh_idx &&
-                test->mesh_idx != lid &&
-                test->mesh_idx != rid) {  // Skip duplicated verts
-              double cost = Cost(test, openSide, epsilon);
-              if (cost < -epsilon) {
-                cost = DelaunayCost(test->pos - center, scale, epsilon);
-              }
-              return cost;
-            }
-            return std::numeric_limits<double>::lowest();
-          });
-      collider.ind.Clear();
+      QueryTwoDTree(collider.points, earBox, [&](PolyVert point) {
+        const VertItr test = collider.itr[point.idx];
+        if (!Clipped(test) && test->mesh_idx != mesh_idx &&
+            test->mesh_idx != lid &&
+            test->mesh_idx != rid) {  // Skip duplicated verts
+          double cost = Cost(test, openSide, epsilon);
+          if (cost < -epsilon) {
+            cost = DelaunayCost(test->pos - center, scale, epsilon);
+          }
+          if (cost > totalCost) totalCost = cost;
+        }
+      });
       return totalCost;
     }
 
@@ -625,9 +620,16 @@ class EarClip {
   // Build the circular list polygon structures.
   std::vector<VertItr> Initialize(const PolygonsIdx &polys) {
     std::vector<VertItr> starts;
+    const auto invalidItr = polygon_.begin();
     for (const SimplePolygonIdx &poly : polys) {
       auto vert = poly.begin();
-      polygon_.push_back({vert->idx, 0.0, earsQueue_.end(), vert->pos});
+      polygon_.push_back({vert->idx,
+                          0.0,
+                          earsQueue_.end(),
+                          vert->pos,
+                          {0, 0},
+                          invalidItr,
+                          invalidItr});
       const VertItr first = std::prev(polygon_.end());
 
       bBox_.Union(first->pos);
@@ -639,7 +641,13 @@ class EarClip {
       for (++vert; vert != poly.end(); ++vert) {
         bBox_.Union(vert->pos);
 
-        polygon_.push_back({vert->idx, 0.0, earsQueue_.end(), vert->pos});
+        polygon_.push_back({vert->idx,
+                            0.0,
+                            earsQueue_.end(),
+                            vert->pos,
+                            {0, 0},
+                            invalidItr,
+                            invalidItr});
         VertItr next = std::prev(polygon_.end());
 
         Link(last, next);
@@ -823,35 +831,16 @@ class EarClip {
   // epsilon_. Each ear uses this BVH to quickly find a subset of vertices to
   // check for cost.
   IdxCollider VertCollider(VertItr start) const {
-    Vec<Box> vertBox;
-    Vec<uint32_t> vertMorton;
+    ZoneScoped;
     std::vector<VertItr> itr;
-    const Box box(vec3(bBox_.min, 0), vec3(bBox_.max, 0));
-
-    Loop(start, [&vertBox, &vertMorton, &itr, &box, this](VertItr v) {
+    Vec<PolyVert> points;
+    Loop(start, [&itr, &points, this](VertItr v) {
+      points.push_back({v->pos, static_cast<int>(itr.size())});
       itr.push_back(v);
-      const vec3 pos(v->pos, 0);
-      vertBox.push_back({pos - epsilon_, pos + epsilon_});
-      vertMorton.push_back(Collider::MortonCode(pos, box));
     });
 
-    if (itr.empty()) {
-      return {Collider(), itr};
-    }
-
-    const int numVert = itr.size();
-    Vec<int> vertNew2Old(numVert);
-    sequence(vertNew2Old.begin(), vertNew2Old.end());
-
-    stable_sort(vertNew2Old.begin(), vertNew2Old.end(),
-                [&vertMorton](const int a, const int b) {
-                  return vertMorton[a] < vertMorton[b];
-                });
-    Permute(vertMorton, vertNew2Old);
-    Permute(vertBox, vertNew2Old);
-    Permute(itr, vertNew2Old);
-
-    return {Collider(vertBox, vertMorton), itr};
+    BuildTwoDTree(points);
+    return {std::move(points), std::move(itr)};
   }
 
   // The main ear-clipping loop. This is called once for each simple polygon -

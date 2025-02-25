@@ -263,6 +263,7 @@ class Manifold {
     RunIndexWrongLength,
     FaceIDWrongLength,
     InvalidConstruction,
+    ResultTooLarge,
   };
 
   /** @name Information
@@ -311,6 +312,7 @@ class Manifold {
   Manifold Warp(std::function<void(vec3&)>) const;
   Manifold WarpBatch(std::function<void(VecView<vec3>)>) const;
   Manifold SetTolerance(double) const;
+  Manifold Simplify(double tolerance = 0) const;
   ///@}
 
   /** @name Boolean
@@ -429,6 +431,8 @@ inline std::string ToString(const Manifold::Error& error) {
       return "Face ID Wrong Length";
     case Manifold::Error::InvalidConstruction:
       return "Invalid Construction";
+    case Manifold::Error::ResultTooLarge:
+      return "Result Too Large";
     default:
       return "Unknown Error";
   };
