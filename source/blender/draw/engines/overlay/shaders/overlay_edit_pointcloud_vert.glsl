@@ -21,7 +21,7 @@ void main()
 
   /* Offset the position so the selection point is always
    * drawn in from of the point, regardless of the radius. */
-  world_pos += V * radius * 0.5;
+  world_pos += V * radius;
 
   gl_Position = drw_point_world_to_homogenous(world_pos);
 
