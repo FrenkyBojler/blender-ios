@@ -46,9 +46,8 @@ def _rna_path_prop_search_for_context_impl(context, edit_text, unique_attrs):
                 ".bl_rna", ".rna_type",
         )):
             continue
-        # If we type/paste in complete attributes, intellisense expands with a ".", remove that again
-        attr_stripped = attr.lstrip().rstrip(".")
-        attr_full = prefix + attr_stripped
+        # If we type/paste in complete attributes, intellisense expands with a ".", remove that again (see #134092)
+        attr_full = "".join([prefix, attr.lstrip()]).removesuffix(".")
         if attr_full in unique_attrs:
             continue
         unique_attrs.add(attr_full)
