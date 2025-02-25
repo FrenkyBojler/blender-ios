@@ -8,4 +8,4 @@ Referenced by issue #69760, Undo/Adjust Last Operation: vertex and weightpaint o
 Referenced by issue #61948, Undo steps created for non-paint operations (brush size)
 Referenced by pull request #134548, Undo: Add explicit filtering for IDs and RNA structs marked as skippable
 Referenced by commit 0dd326592a1b0aedd7d5920ecdd4d593e1f23dc6, Undo: Add explicit filtering for IDs and RNA structs marked as skippable
-Referenced by pull request #134836, Undo: Apply STRUCT_UNDO to ToolSettings and all member structs
+Referenced by pull request #134836, Undo: Avoid inserting empty undo steps from the editor for tool settings
