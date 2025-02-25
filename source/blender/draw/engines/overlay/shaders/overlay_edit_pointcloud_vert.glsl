@@ -20,7 +20,7 @@ void main()
   vec3 V = drw_world_incident_vector(world_pos);
 
   /* Offset the position so the selection point is always
-  drawn in from of the point, regardless of the radius. */
+   * drawn in from of the point, regardless of the radius. */
   world_pos += V * radius * 0.5;
 
   gl_Position = drw_point_world_to_homogenous(world_pos);
