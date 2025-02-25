@@ -301,15 +301,31 @@ class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
     bl_label = "New Item"
     bl_options = {'REGISTER', 'UNDO'}
 
-    item_type: EnumProperty(
-        name="Item Type",
-        description="Type of the item to create",
-        items=(
+    def get_items(_self, context):
+        snode = context.space_data
+        tree = snode.edit_tree
+        interface = tree.interface
+
+        active_item = interface.active
+        if active_item.item_type == 'SOCKET':
+            return (
+                ('INPUT', "Input", ""),
+                ('OUTPUT', "Output", ""),
+                ('PANEL', "Panel", ""),
+            )
+        #elif active_item.item_type == 'PANEL':
+        return (
             ('INPUT', "Input", ""),
             ('OUTPUT', "Output", ""),
             ('PANEL', "Panel", ""),
-        ),
-        default='INPUT',
+            ('PANEL_TOGGLE', "Panel Toggle", ""),
+        )
+
+    item_type: EnumProperty(
+        name="Item Type",
+        description="Type of the item to create",
+        items=get_items,
+        default=0,
     )
 
     # Returns a valid socket type for the given tree or None.
@@ -347,6 +363,22 @@ class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
             item = interface.new_socket("Socket", socket_type=self.find_valid_socket_type(tree), in_out='OUTPUT')
         elif self.item_type == 'PANEL':
             item = interface.new_panel("Panel")
+        elif self.item_type == 'PANEL_TOGGLE':
+            active_panel = active_item
+            if len(active_panel.interface_items) > 0:
+                first_item = active_panel.interface_items[0]
+                if type(first_item) is bpy.types.NodeTreeInterfaceSocketBool and first_item.is_panel_toggle:
+                    # Panel already has a toggle.
+                    return {'CANCELLED'}
+            item = interface.new_socket(active_panel.name, socket_type='NodeSocketBool', in_out='INPUT')
+            item.is_panel_toggle = True
+
+            item.force_non_field = True
+            item.default_value = True
+
+            interface.move_to_parent(item, active_panel, 0)
+            # Return in this case because we don't want to move the item.
+            return {'FINISHED'}
         else:
             return {'CANCELLED'}
 
