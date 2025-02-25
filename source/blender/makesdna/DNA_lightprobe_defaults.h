@@ -31,10 +31,10 @@
     .grid_clamp_direct = 0.0f, \
     .grid_clamp_indirect = 10.0f, \
     .grid_surfel_density = 20, \
-    .distinf = 2.5f, \
+    .distinf = 0.1f, \
     .distpar = 2.5f, \
     .falloff = 0.2f, \
-    .clipsta = 0.8f, \
+    .clipsta = 0.001f, \
     .clipend = 20.0f, \
     .vis_bias = 1.0f, \
     .vis_blur = 0.2f, \
