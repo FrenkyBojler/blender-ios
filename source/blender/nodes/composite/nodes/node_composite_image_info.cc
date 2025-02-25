@@ -80,6 +80,21 @@ class ImageInfoOperation : public NodeOperation {
 
   void execute() override
   {
+    if (node_storage(this->bnode()).source == CMP_NODE_IMAGE_INFO_SOURCE_IMAGE) {
+      const Result &input = this->get_input("Image");
+      if (input.is_single_value()) {
+        this->execute_invalid();
+        return;
+      }
+    }
+
+    if (node_storage(this->bnode()).source == CMP_NODE_IMAGE_INFO_SOURCE_RENDER) {
+      if (!this->context().is_valid_compositing_region()) {
+        this->execute_invalid();
+        return;
+      }
+    }
+
     const Domain domain = compute_domain();
 
     Result &texture_coordinates_result = this->get_result("Texture Coordinates");
@@ -125,6 +140,39 @@ class ImageInfoOperation : public NodeOperation {
     }
   }
 
+  void execute_invalid()
+  {
+    Result &texture_coordinates_result = this->get_result("Texture Coordinates");
+    if (texture_coordinates_result.should_compute()) {
+      texture_coordinates_result.allocate_invalid();
+    }
+
+    Result &pixel_coordinates_result = this->get_result("Pixel Coordinates");
+    if (pixel_coordinates_result.should_compute()) {
+      pixel_coordinates_result.allocate_invalid();
+    }
+
+    Result &size_result = this->get_result("Size");
+    if (size_result.should_compute()) {
+      size_result.allocate_invalid();
+    }
+
+    Result &location_result = this->get_result("Location");
+    if (location_result.should_compute()) {
+      location_result.allocate_invalid();
+    }
+
+    Result &rotation_result = this->get_result("Rotation");
+    if (rotation_result.should_compute()) {
+      rotation_result.allocate_invalid();
+    }
+
+    Result &scale_result = this->get_result("Scale");
+    if (scale_result.should_compute()) {
+      scale_result.allocate_invalid();
+    }
+  }
+
   Domain compute_domain() override
   {
     switch (CMPNodeImageInfoSource(node_storage(this->bnode()).source)) {
@@ -133,8 +181,8 @@ class ImageInfoOperation : public NodeOperation {
       case CMP_NODE_IMAGE_INFO_SOURCE_RENDER:
         return Domain(this->context().get_compositing_region_size());
       case CMP_NODE_IMAGE_INFO_SOURCE_SIZE:
-        return Domain(int2(this->get_input("Width").get_single_value_default(512),
-                           this->get_input("Height").get_single_value_default(512)));
+        return Domain(int2(math::max(1, this->get_input("Width").get_single_value_default(512)),
+                           math::max(1, this->get_input("Height").get_single_value_default(512))));
     }
 
     BLI_assert_unreachable();
