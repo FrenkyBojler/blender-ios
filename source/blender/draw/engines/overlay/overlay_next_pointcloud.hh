@@ -22,8 +22,6 @@ class PointClouds : Overlay {
  private:
   PassMain ps_ = {"PointCloud"};
 
-  PassMain::Sub *edit_pointcloud_point_ps_;
-
  public:
   void begin_sync(Resources &res, const State &state) final
   {
@@ -32,19 +30,12 @@ class PointClouds : Overlay {
       return;
     }
 
-    auto create_sub_pass = [&](const char *name, GPUShader *shader) {
-      PassMain::Sub &sub_pass = ps_.sub(name);
-      sub_pass.shader_set(shader);
-      return &sub_pass;
-    };
-
     ps_.init();
     ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL,
                   state.clipping_plane_count);
+    ps_.shader_set(res.shaders.pointcloud_points.get());
     ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
     res.select_bind(ps_);
-    edit_pointcloud_point_ps_ = create_sub_pass("edit_pointcloud_points",
-                                                res.shaders.pointcloud_points.get());
   }
 
   void edit_object_sync(Manager &manager,
@@ -59,7 +50,7 @@ class PointClouds : Overlay {
     ResourceHandle res_handle = manager.unique_handle(ob_ref);
     {
       gpu::Batch *geom = DRW_cache_pointcloud_vert_overlay_get(ob_ref.object);
-      edit_pointcloud_point_ps_->draw(geom, res_handle, res.select_id(ob_ref).get());
+      ps_.draw(geom, res_handle, res.select_id(ob_ref).get());
     }
   }
 
