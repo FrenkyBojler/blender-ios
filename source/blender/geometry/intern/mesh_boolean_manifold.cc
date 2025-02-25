@@ -30,11 +30,13 @@
 #include "BKE_attribute_math.hh"
 #include "BKE_customdata.hh"
 #include "BKE_geometry_set.hh"
+#include "BKE_instances.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 
 #include "GEO_join_geometries.hh"
+#include "GEO_realize_instances.hh"
 #include "GEO_transform.hh"
 
 #include "mesh_boolean_manifold.hh"
@@ -1618,37 +1620,28 @@ static bke::GeometrySet join_meshes(Span<const Mesh *> meshes)
   return geometry::join_geometries(geometries, {});
 }
 
-static bke::GeometrySet join_meshes_with_transforms(Span<const Mesh *> meshes,
-                                                    Span<float4x4> transforms)
+static bke::GeometrySet join_meshes_with_transforms(const Span<const Mesh *> meshes,
+                                                    const Span<float4x4> transforms)
 {
 #ifdef DEBUG_TIME
-  timeit::ScopedTimer jtimer("join meshes with transforms");
+  timeit::ScopedTimer jtimer(__func__);
 #endif
-  const int meshes_num = meshes.size();
-  Array<Mesh *> transformed_meshes(transforms.size(), nullptr);
-  for (const int i : transforms.index_range()) {
-    const float4x4 &transform = transforms[i];
-    if (math::is_identity(transform)) {
-      continue;
-    }
-    Mesh *copy = BKE_mesh_copy_for_eval(*meshes[i]);
-    bke::GeometrySet copy_set = bke::GeometrySet::from_mesh(copy,
-                                                            bke::GeometryOwnershipType::Editable);
-    transform_geometry(copy_set, transform);
-    transformed_meshes[i] = copy;
+  bke::Instances instances;
+  instances.resize(meshes.size());
+  instances.transforms_for_write().copy_from(transforms);
+  MutableSpan<int> handles = instances.reference_handles_for_write();
+
+  Map<const Mesh *, int> handle_by_mesh;
+  for (const int i : meshes.index_range()) {
+    handles[i] = handle_by_mesh.lookup_or_add_cb(meshes[i], [&]() {
+      bke::GeometrySet geometry = bke::GeometrySet::from_mesh(const_cast<Mesh *>(meshes[i]),
+                                                    bke::GeometryOwnershipType::ReadOnly);
+      return instances.add_new_reference(std::move(geometry));
+    });
   }
-  Array<bke::GeometrySet> geometries(meshes_num);
-  for (const int i : geometries.index_range()) {
-    Mesh *mesh_i = transformed_meshes[i] ? transformed_meshes[i] : const_cast<Mesh *>(meshes[i]);
-    geometries[i] = bke::GeometrySet::from_mesh(mesh_i, bke::GeometryOwnershipType::ReadOnly);
-  }
-  bke::GeometrySet ans = geometry::join_geometries(geometries, {});
-  for (const int i : transformed_meshes.index_range()) {
-    if (transformed_meshes[i] != nullptr) {
-      BKE_id_free(nullptr, transformed_meshes[i]);
-    }
-  }
-  return ans;
+  return geometry::realize_instances(
+      bke::GeometrySet::from_instances(&instances, bke::GeometryOwnershipType::Editable),
+      geometry::RealizeInstancesOptions());
 }
 
 Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
