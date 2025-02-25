@@ -219,7 +219,6 @@ static void rna_def_curveprofile(BlenderRNA *brna)
 
   srna = RNA_def_struct(brna, "CurveProfile", nullptr);
   RNA_def_struct_ui_text(srna, "CurveProfile", "Profile Path editor used to build a profile path");
-  RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
 
   prop = RNA_def_property(srna, "preset", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "preset");
