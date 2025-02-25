@@ -412,7 +412,7 @@ class NODE_OT_interface_item_remove(NodeInterfaceOperator, Operator):
 class NODE_OT_interface_item_add_panel_toggle(NodeInterfaceOperator, Operator):
     """Add a boolean input socket that will display as a toggle in the modifier menu"""
     bl_idname = "node.interface_item_add_panel_toggle"
-    bl_label = "Add panel toggle"
+    bl_label = "Add Panel Toggle"
     bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
@@ -458,7 +458,7 @@ class NODE_OT_interface_item_add_panel_toggle(NodeInterfaceOperator, Operator):
 class NODE_OT_interface_item_remove_panel_toggle(NodeInterfaceOperator, Operator):
     """Remove panel toggle"""
     bl_idname = "node.interface_item_remove_panel_toggle"
-    bl_label = "Remove panel toggle"
+    bl_label = "Remove Panel Toggle"
     bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
