@@ -7210,6 +7210,7 @@ static int ui_do_but_HSVCIRCLE(
 
         hsv_to_rgb_v(def_hsv, rgb);
         ui_but_v3_set(but, rgb);
+        ui_apply_but_func(C, but);
 
         RNA_property_update(C, &but->rnapoin, but->rnaprop);
 
