@@ -807,7 +807,7 @@ BLI_NOINLINE static void update_face_sets_mesh(const Object &object,
       threading::parallel_for_each(nodes[j].leaf_nodes().index_range(), [&](const int i) {
         const int leaf_index = nodes[j].leaf_nodes()[i];
 
-        if (dirty_leaf_mask.contains(leaf_index)) {
+        if (is_gpu_node_empty || dirty_leaf_mask.contains(leaf_index)) {
           uchar4 *leaf_data = data + nodes[leaf_index].leaf_offset_in_GPU_buffer();
 
           for (const int face : nodes[leaf_index].faces()) {
