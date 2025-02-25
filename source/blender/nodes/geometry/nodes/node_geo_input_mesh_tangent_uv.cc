@@ -10,6 +10,7 @@
 #include "BKE_curves.hh"
 #include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
+#include "BKE_mesh_mapping.hh"
 #include "BKE_mesh_tangent.hh"
 #include "BKE_type_conversions.hh"
 
@@ -30,22 +31,25 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Vector>(OUTPUT_TANGENT).field_source();
 }
 
-static void compute_tangent_partial_corner_domain(const Mesh &mesh,
-                                                  const IndexMask &faces_mask,
-                                                  const Span<float2> uv_coords,
-                                                  Array<float3> &r_tangents,
-                                                  Array<float> &r_bitangents)
+/**
+ * Compute the tangents on the corner domain for the given face selection.
+ */
+static void compute_mesh_corner_tangents_partial_face_domain(const Mesh &mesh,
+                                                             const IndexMask &face_selection,
+                                                             const Span<float2> uv_coords,
+                                                             Array<float3> &r_tangents,
+                                                             Array<float> &r_bitangents)
 {
   const OffsetIndices faces = mesh.faces();
   const Span<int3> corner_tris = mesh.corner_tris();
   const Span<int> corner_verts = mesh.corner_verts();
 
   /* Offsets mapping faces to tesselated tris for the partial tesselation (ptess). */
-  Array<int> ptess_face2tri_map_data(faces_mask.size() + 1);
+  Array<int> ptess_face2tri_map_data(face_selection.size() + 1);
   OffsetIndices<int> ptess_face2tri_map(ptess_face2tri_map_data);
   ptess_face2tri_map_data[0] = 0;
 
-  faces_mask.foreach_index([&](const int64_t index_face, const int64_t index_rel) {
+  face_selection.foreach_index([&](const int64_t index_face, const int64_t index_rel) {
     ptess_face2tri_map_data[index_rel + 1] = ptess_face2tri_map_data[index_rel] +
                                              poly_to_tri_count(1, faces[index_face].size());
   });
@@ -53,7 +57,7 @@ static void compute_tangent_partial_corner_domain(const Mesh &mesh,
   /* Partial buffers */
   Array<int> ptess_corner_verts(ptess_face2tri_map.total_size() * 3);
   Array<int> ptess_corner_corners(ptess_corner_verts.size());
-  faces_mask.foreach_index(
+  face_selection.foreach_index(
       GrainSize(32768), [&](const int64_t index_face, const int64_t index_rel) {
         const IndexRange corner_tri_slice(poly_to_tri_count(index_face, faces[index_face].start()),
                                           poly_to_tri_count(1, faces[index_face].size()));
@@ -74,7 +78,7 @@ static void compute_tangent_partial_corner_domain(const Mesh &mesh,
         }
       });
 
-  const int64_t min_buffer_size = faces[faces_mask.last()].one_after_last();
+  const int64_t min_buffer_size = faces[face_selection.last()].one_after_last();
   r_tangents = Array<float3>(min_buffer_size);
   r_bitangents = Array<float>(min_buffer_size);
 
@@ -89,23 +93,78 @@ static void compute_tangent_partial_corner_domain(const Mesh &mesh,
 }
 
 static void mesh_tangent_corner_domain(const Mesh &mesh,
-                                       const IndexMask &mask,
+                                       const IndexMask &corner_mask,
                                        const Span<float2> uv_coords,
                                        Array<float3> &r_tangents,
                                        Array<float> &r_bitangents)
 {
+  /* Convert corner -> face domain */
   const Span<int> corner_to_face_map = mesh.corner_to_face_map();
 
   Array<bool> affected_faces(mesh.faces_num, false);
-  mask.foreach_index(GrainSize(32768),
-                     [&](const int64_t index_corner, const int64_t /* index_rel */) {
-    affected_faces[corner_to_face_map[index_corner]] = true;
-  });
+  corner_mask.foreach_index(GrainSize(32768),
+                            [&](const int64_t index_corner, const int64_t /* index_rel */) {
+                              affected_faces[corner_to_face_map[index_corner]] = true;
+                            });
+
+  IndexMaskMemory mask_mem;
+  IndexMask face_selection = IndexMask::from_bools(affected_faces, mask_mem);
+
+  compute_mesh_corner_tangents_partial_face_domain(
+      mesh, face_selection, uv_coords, r_tangents, r_bitangents);
+}
+
+static void mesh_tangent_point_domain(const Mesh &mesh,
+                                      const IndexMask &vert_mask,
+                                      const Span<float2> uv_coords,
+                                      Array<float3> &r_tangents,
+                                      Array<float> &r_bitangents)
+{
+  const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
+
+  Array<bool> affected_faces(mesh.faces_num, false);
+  vert_mask.foreach_index(GrainSize(32768),
+                          [&](const int64_t index_corner, const int64_t /* index_rel */) {
+                            for (const int64_t i : vert_to_face_map.offsets[index_corner]) {
+                              affected_faces[vert_to_face_map.data[i]] = true;
+                            }
+                          });
 
   IndexMaskMemory mask_mem;
   IndexMask faces_mask = IndexMask::from_bools(affected_faces, mask_mem);
 
-  compute_tangent_partial_corner_domain(mesh, faces_mask, uv_coords, r_tangents, r_bitangents);
+  compute_mesh_corner_tangents_partial_face_domain(
+      mesh, faces_mask, uv_coords, r_tangents, r_bitangents);
+}
+
+static void mesh_tangent_edge_domain(const Mesh &mesh,
+                                     const IndexMask &edge_mask,
+                                     const Span<float2> uv_coords,
+                                     Array<float3> &r_tangents,
+                                     Array<float> &r_bitangents)
+{
+  Array<int> edge_to_face_offsets;
+  Array<int> edge_to_face_indices;
+  const GroupedSpan<int> edge_to_corner_map = bke::mesh::build_edge_to_face_map(
+      mesh.faces(),
+      mesh.corner_edges(),
+      mesh.edges_num,
+      edge_to_face_offsets,
+      edge_to_face_indices);
+
+  Array<bool> affected_faces(mesh.faces_num, false);
+  edge_mask.foreach_index(GrainSize(32768),
+                          [&](const int64_t index_corner, const int64_t /* index_rel */) {
+                            for (const int64_t i : edge_to_corner_map.offsets[index_corner]) {
+                              affected_faces[edge_to_corner_map.data[i]] = true;
+                            }
+                          });
+
+  IndexMaskMemory mask_mem;
+  IndexMask faces_mask = IndexMask::from_bools(affected_faces, mask_mem);
+
+  compute_mesh_corner_tangents_partial_face_domain(
+      mesh, faces_mask, uv_coords, r_tangents, r_bitangents);
 }
 
 static VArray<float3> construct_mesh_tangent_gvarray(const Mesh &mesh,
@@ -122,7 +181,20 @@ static VArray<float3> construct_mesh_tangent_gvarray(const Mesh &mesh,
   }
 
   if (domain == AttrDomain::Point) {
-    mesh.attributes().adapt_domain(
+    mesh_tangent_point_domain(mesh, mask, uv_coords, tangents, bitangents);
+    return mesh.attributes().adapt_domain(
+        VArray<float3>::ForContainer(std::move(tangents)), bke::AttrDomain::Corner, domain);
+  }
+
+  if (domain == AttrDomain::Face) {
+    compute_mesh_corner_tangents_partial_face_domain(mesh, mask, uv_coords, tangents, bitangents);
+    return mesh.attributes().adapt_domain(
+        VArray<float3>::ForContainer(std::move(tangents)), bke::AttrDomain::Corner, domain);
+  }
+
+  if (domain == AttrDomain::Edge) {
+    mesh_tangent_edge_domain(mesh, mask, uv_coords, tangents, bitangents);
+    return mesh.attributes().adapt_domain(
         VArray<float3>::ForContainer(std::move(tangents)), bke::AttrDomain::Corner, domain);
   }
 
@@ -173,7 +245,12 @@ class MeshTangentFieldInput final : public bke::MeshFieldInput {
   uint64_t hash() const override
   {
     /* Some random constant hash. */
-    return 91827364589;
+    return 78180125203;
+  }
+
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
+  {
+    return AttrDomain::Corner;
   }
 
   bool is_equal_to(const fn::FieldNode &other) const override
