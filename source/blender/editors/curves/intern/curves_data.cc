@@ -26,8 +26,8 @@ void transverts_from_curves_positions_create(bke::CurvesGeometry &curves,
                                              TransVertStore *tvs,
                                              const bool skip_handles)
 {
-  Span<StringRef> selection_attribute_names = ed::curves::get_curves_selection_attribute_names(
-      curves);
+  const Span<StringRef> selection_attribute_names =
+      ed::curves::get_curves_selection_attribute_names(curves);
   std::array<IndexMask, 3> selection_per_attribute;
 
   IndexMaskMemory memory;
@@ -58,27 +58,13 @@ void transverts_from_curves_positions_create(bke::CurvesGeometry &curves,
   tvs->transverts_tot = totselected;
 
   int offset = 0;
-  MutableSpan<float3> positions;
-  for (const int attribute_i : selection_attribute_names.index_range()) {
-    if (selection_per_attribute[attribute_i].is_empty()) {
-      continue;
-    }
-
-    StringRef attribute_name = selection_attribute_names[attribute_i];
-    if (attribute_name == ".selection") {
-      positions = curves.positions_for_write();
-    }
-    else if (attribute_name == ".selection_handle_left") {
-      positions = curves.handle_positions_left_for_write();
-    }
-    else if (attribute_name == ".selection_handle_right") {
-      positions = curves.handle_positions_right_for_write();
-    }
-
+  const Vector<MutableSpan<float3>> positions_per_selection_attr =
+      ed::curves::get_curves_positions_for_write(curves);
+  for (const int attribute_i : positions_per_selection_attr.index_range()) {
     selection_per_attribute[attribute_i].foreach_index(
         GrainSize(1024), [&](const int64_t i, const int64_t pos) {
           TransVert &tv = tvs->transverts[pos + offset];
-          tv.loc = positions[i];
+          tv.loc = positions_per_selection_attr[attribute_i][i];
           tv.flag = SELECT;
           copy_v3_v3(tv.oldloc, tv.loc);
         });
