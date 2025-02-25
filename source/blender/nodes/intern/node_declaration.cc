@@ -276,7 +276,6 @@ void SocketDeclaration::set_common_flags(bNodeSocket &socket) const
   SET_FLAG_FROM_TEST(socket.flag, is_multi_input, SOCK_MULTI_INPUT);
   SET_FLAG_FROM_TEST(socket.flag, no_mute_links, SOCK_NO_INTERNAL_LINK);
   SET_FLAG_FROM_TEST(socket.flag, !is_available, SOCK_UNAVAIL);
-  SET_FLAG_FROM_TEST(socket.flag, is_panel_toggle, SOCK_PANEL_TOGGLE);
 }
 
 bool SocketDeclaration::matches_common_data(const bNodeSocket &socket) const
