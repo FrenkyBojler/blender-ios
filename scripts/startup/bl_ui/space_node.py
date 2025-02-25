@@ -913,7 +913,7 @@ class NODE_MT_node_tree_interface_context_menu(Menu):
         layout.operator("node.interface_item_duplicate", icon='DUPLICATE')
         layout.separator()
         if active_item.item_type == 'SOCKET':
-            layout.operator("node.interface_item_make_panel_toggle", icon='CHECKBOX_HLT')
+            layout.operator("node.interface_item_make_panel_toggle")
         elif active_item.item_type == 'PANEL':
             layout.operator("node.interface_item_remove_panel_toggle", icon='UNLINKED')
 
