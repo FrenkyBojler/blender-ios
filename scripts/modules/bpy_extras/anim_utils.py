@@ -13,7 +13,7 @@ __all__ = (
 )
 
 import bpy
-from bpy.types import Action, ActionSlot
+from bpy.types import Action, ActionSlot, ChannelBag
 from dataclasses import dataclass
 
 from collections.abc import (
@@ -75,19 +75,18 @@ class BakeOptions:
     """Bake custom properties."""
 
 
-def action_get_channelbag_for_slot(action: Action, slot: ActionSlot):
+def action_get_channelbag_for_slot(action: Action, slot: ActionSlot) -> ChannelBag | None:
     """
     Returns the first channelbag found for the slot.
     In case there are multiple layers or strips they are iterated until a
     channelbag for that slot is found. In case no matching channelbag is found, returns None.
     """
-    # This is on purpose limited to the first layer and strip. To support more
-    # than 1 layer, a rewrite of this operator is needed which ideally would
-    # happen in C++.
     for layer in action.layers:
         for strip in layer.strips:
             channelbag = strip.channelbag(slot)
-            return channelbag
+            if channelbag:
+                return channelbag
+    return None
 
 
 def _ensure_channelbag_exists(action: Action, slot: ActionSlot):

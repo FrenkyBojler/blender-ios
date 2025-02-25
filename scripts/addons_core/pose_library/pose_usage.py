@@ -27,23 +27,20 @@ def _find_best_slot(action: Action, object: Object) -> ActionSlot | None:
     """
     if not action.slots:
         return None
-    anim_data = None
-    # For the selection code, the object doesn't need to be animated yet.
-    if object.animation_data:
-        anim_data = object.animation_data
+    # For the selection code, the object doesn't need to be animated yet, so anim_data may be None.
+    anim_data = object.animation_data
 
     # last_slot_identifier will equal to the current slot identifier if one is assigned.
     if anim_data and anim_data.last_slot_identifier in action.slots:
         return action.slots[anim_data.last_slot_identifier]
 
     for slot in action.slots:
-        if slot.target_id_type == "Object":
+        if slot.target_id_type == 'OBJECT':
             return slot
     return None
 
 
 def select_bones(arm_object: Object, action: Action, *, select: bool, flipped: bool) -> None:
-    pose_bone_re = re.compile(r'pose.bones\["([^"]+)"\]')
     pose = arm_object.pose
     if not pose:
         return
@@ -56,6 +53,8 @@ def select_bones(arm_object: Object, action: Action, *, select: bool, flipped: b
     channelbag = anim_utils.action_get_channelbag_for_slot(action, slot)
     if not channelbag:
         return
+
+    pose_bone_re = re.compile(r'pose.bones\["([^"]+)"\]')
     for fcurve in channelbag.fcurves:
         data_path: str = fcurve.data_path
         regex_match = pose_bone_re.match(data_path)
