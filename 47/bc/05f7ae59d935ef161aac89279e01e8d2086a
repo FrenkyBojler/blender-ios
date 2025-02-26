@@ -1,2 +1,3 @@
 Referenced by issue #134293, heap-use-after-free crash or assert when interacting with compositor after deleting view layer
 Referenced by issue #134784, Regression: Object 'bounds' & 'wire' behavior changed while in cycles render preview
+Referenced by issue #135163, Grease Pencil layer visibility animations don't work in NLA.
