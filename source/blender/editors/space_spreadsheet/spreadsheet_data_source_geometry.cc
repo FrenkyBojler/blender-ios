@@ -75,6 +75,9 @@ static void add_mesh_debug_column_names(
     const bke::AttrDomain domain,
     FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn)
 {
+  static const Set<StringRefNull> whitelisted_attributes(
+      {".sculpt_mask", ".sculpt_face_set", ".hide_vert", ".hide_edge", ".hide_poly"});
+
   switch (domain) {
     case bke::AttrDomain::Point:
       if (CustomData_has_layer(&mesh.vert_data, CD_ORIGINDEX)) {
@@ -102,15 +105,6 @@ static void add_mesh_debug_column_names(
       BLI_assert_unreachable();
       break;
   }
-}
-
-static void add_whitelisted_attribute_column_names(
-    const Mesh &mesh,
-    const bke::AttrDomain domain,
-    FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn)
-{
-  static const Set<StringRefNull> whitelisted_attributes(
-      {".sculpt_mask", ".sculpt_face_set", ".hide_vert", ".hide_poly"});
 
   const bke::AttributeAccessor attributes = mesh.attributes();
   attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
@@ -240,7 +234,6 @@ void GeometryDataSource::foreach_default_column_ids(
     const bke::MeshComponent &component = static_cast<const bke::MeshComponent &>(*component_);
     if (const Mesh *mesh = component.get()) {
       add_mesh_debug_column_names(*mesh, domain_, fn);
-      add_whitelisted_attribute_column_names(*mesh, domain_, fn);
     }
   }
 }
