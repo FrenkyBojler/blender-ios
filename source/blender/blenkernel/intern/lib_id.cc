@@ -28,6 +28,7 @@
 #include "DNA_node_types.h"
 #include "DNA_workspace_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
 #include "BLI_ghash.h"
@@ -1312,12 +1313,12 @@ size_t BKE_libblock_get_alloc_info(short type, const char **r_name)
   return id_type->struct_size;
 }
 
-void *BKE_libblock_alloc_notest(short type)
+ID *BKE_libblock_alloc_notest(short type)
 {
   const char *name;
   size_t size = BKE_libblock_get_alloc_info(type, &name);
   if (size != 0) {
-    return MEM_callocN(size, name);
+    return static_cast<ID *>(MEM_callocN(size, name));
   }
   BLI_assert_msg(0, "Request to allocate unknown data type");
   return nullptr;
@@ -1333,7 +1334,7 @@ void *BKE_libblock_alloc_in_lib(Main *bmain,
   BLI_assert((flag & LIB_ID_CREATE_NO_MAIN) != 0 || bmain != nullptr);
   BLI_assert((flag & LIB_ID_CREATE_NO_MAIN) != 0 || (flag & LIB_ID_CREATE_LOCAL) == 0);
 
-  ID *id = static_cast<ID *>(BKE_libblock_alloc_notest(type));
+  ID *id = BKE_libblock_alloc_notest(type);
 
   if (id) {
     if ((flag & LIB_ID_CREATE_NO_MAIN) != 0) {

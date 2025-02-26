@@ -12,6 +12,8 @@
 
 #include "DNA_windowmanager_types.h"
 
+#include "BLI_listbase.h"
+
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
 
@@ -41,6 +43,7 @@
 #include "ED_object.hh"
 #include "ED_paint.hh"
 #include "ED_physics.hh"
+#include "ED_pointcloud.hh"
 #include "ED_render.hh"
 #include "ED_scene.hh"
 #include "ED_screen.hh"
@@ -103,6 +106,7 @@ void ED_spacetypes_init()
   ED_operatortypes_physics();
   ED_operatortypes_curve();
   curves::operatortypes_curves();
+  pointcloud::operatortypes_pointcloud();
   ED_operatortypes_armature();
   ED_operatortypes_marker();
   ED_operatortypes_metaball();
@@ -160,6 +164,7 @@ void ED_spacemacros_init()
   ED_operatormacros_clip();
   ED_operatormacros_curve();
   curves::operatormacros_curves();
+  pointcloud::operatormacros_pointcloud();
   ED_operatormacros_mask();
   ED_operatormacros_sequencer();
   ED_operatormacros_paint();
@@ -189,6 +194,7 @@ void ED_spacetypes_keymap(wmKeyConfig *keyconf)
   ED_keymap_uvedit(keyconf);
   ED_keymap_curve(keyconf);
   curves::keymap_curves(keyconf);
+  pointcloud::keymap_pointcloud(keyconf);
   ED_keymap_armature(keyconf);
   ED_keymap_physics(keyconf);
   ED_keymap_metaball(keyconf);
@@ -200,7 +206,7 @@ void ED_spacetypes_keymap(wmKeyConfig *keyconf)
   ED_keymap_view2d(keyconf);
   ED_keymap_ui(keyconf);
 
-  ED_keymap_transform(keyconf);
+  transform::keymap_transform(keyconf);
 
   for (const std::unique_ptr<SpaceType> &type : BKE_spacetypes_list()) {
     if (type->keymap) {
