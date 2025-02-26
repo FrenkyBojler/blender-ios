@@ -1512,13 +1512,13 @@ static void wm_start_drag(wmWindowManager *wm,
                           bContext *C,
                           const GHOST_TEventDragnDropData *ddd)
 {
-  WM_drag_free_list(&wm->drags);
-  wm_drags_exit(wm, win);
-
-  /* Currently not all platfoms retrieves drag and drop data on drag enter.*/
+  /* Currently not all platfoms retrieves drag and drop data on drag enter. */
   if (!ddd->data) {
     return;
   }
+
+  WM_drag_free_list(&wm->drags);
+  wm_drags_exit(wm, win);
 
   if (ddd->dataType == GHOST_kDragnDropTypeFilenames) {
     const GHOST_TStringArray *stra = static_cast<const GHOST_TStringArray *>(ddd->data);
@@ -1814,7 +1814,8 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
       wm_update_cursor_position_from_drag_and_drop(wm, win, ddd, event_time_ms);
 
       wm_window_update_eventstate_modifiers_clear(wm, win, event_time_ms);
-
+      /* Buttons are hovered while drag-and-drop, send a #GHOST_kEventWindowDeactivate event so
+       * they can be deactivated on drag exit. */
       wm_event_add_ghostevent(wm, win, GHOST_kEventWindowDeactivate, win, event_time_ms);
       win->active = 0;
       break;
