@@ -199,18 +199,15 @@ void BM_mesh_decimate_unsubdivide_ex(BMesh *bm, const int iterations, const bool
 #ifdef USE_WALKER
 #  define ELE_VERT_TAG 1
 #else
-  BMVert **vert_seek_a = static_cast<BMVert **>(
+  BMVert **collapse_verts = static_cast<BMVert **>(
       MEM_mallocN(sizeof(BMVert *) * bm->totvert, __func__));
-  BMVert **vert_seek_b = static_cast<BMVert **>(
+  BMVert **ignore_verts = static_cast<BMVert **>(
       MEM_mallocN(sizeof(BMVert *) * bm->totvert, __func__));
-  uint vert_seek_a_tot = 0;
-  uint vert_seek_b_tot = 0;
+  uint collapse_vert_count = 0;
+  uint ignore_vert_count = 0;
 #endif
 
   BMIter iter;
-
-  const uint offset = 0;
-  const uint nth = 2;
 
   int iter_step;
 
@@ -225,7 +222,7 @@ void BM_mesh_decimate_unsubdivide_ex(BMesh *bm, const int iterations, const bool
 
   for (iter_step = 0; iter_step < iterations; iter_step++) {
     BMVert *v, *v_next;
-    bool iter_done;
+    bool verts_were_marked_for_dissolve = false;
 
     BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
       if (BM_elem_flag_test(v, BM_ELEM_TAG) && bm_vert_dissolve_fan_test(v)) {
@@ -242,11 +239,6 @@ void BM_mesh_decimate_unsubdivide_ex(BMesh *bm, const int iterations, const bool
 
     /* main loop, keep tagging until we can't tag any more islands */
     BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
-#ifdef USE_WALKER
-      BMWalker walker;
-#else
-      uint depth = 1;
-#endif
       if (!(BM_elem_index_get(v) == VERT_INDEX_INIT)) {
         continue;
       }
@@ -255,6 +247,8 @@ void BM_mesh_decimate_unsubdivide_ex(BMesh *bm, const int iterations, const bool
       if (!BMO_vert_flag_test(bm, v, ELE_VERT_TAG)) {
         continue;
       }
+
+      BMWalker walker;
 
       /* Walk over selected elements starting at active */
       BMW_init(
@@ -283,61 +277,53 @@ void BM_mesh_decimate_unsubdivide_ex(BMesh *bm, const int iterations, const bool
       }
       BMW_end(&walker);
 #else
-
-      BM_elem_index_set(v,
-                        ((offset + depth) % nth) ? VERT_INDEX_IGNORE :
-                                                   VERT_INDEX_DO_COLLAPSE); /* set_dirty! */
-
-      vert_seek_b_tot = 0;
-      vert_seek_b[vert_seek_b_tot++] = v;
+      BM_elem_index_set(v, VERT_INDEX_IGNORE); /* set_dirty! */
+      ignore_verts[0] = v;
+      ignore_vert_count = 1;
 
       while (true) {
-        if ((offset + depth) % nth) {
-          bm_tag_untagged_neighbors(vert_seek_b,
-                                    vert_seek_b_tot,
-                                    VERT_INDEX_DO_COLLAPSE, /* set_dirty! */
-                                    vert_seek_a,
-                                    vert_seek_a_tot);
-          if (vert_seek_a_tot == 0) {
-            break;
-          }
+
+        bm_tag_untagged_neighbors(ignore_verts,
+                                  ignore_vert_count,
+                                  VERT_INDEX_DO_COLLAPSE, /* set_dirty! */
+                                  collapse_verts,
+                                  collapse_vert_count);
+        if (collapse_vert_count == 0) {
+          break;
         }
         else {
-          bm_tag_untagged_neighbors(vert_seek_a,
-                                    vert_seek_a_tot,
-                                    VERT_INDEX_IGNORE, /* set_dirty! */
-                                    vert_seek_b,
-                                    vert_seek_b_tot);
-          if (vert_seek_b_tot == 0) {
-            break;
-          }
+          verts_were_marked_for_dissolve = true;
         }
 
-        depth++;
+        bm_tag_untagged_neighbors(collapse_verts,
+                                  collapse_vert_count,
+                                  VERT_INDEX_IGNORE, /* set_dirty! */
+                                  ignore_verts,
+                                  ignore_vert_count);
+        if (ignore_vert_count == 0) {
+          break;
+        }
       }
 #endif /* USE_WALKER */
     }
 
-    /* now we tagged all verts -1 for removal, lets loop over and rebuild faces */
-    iter_done = false;
-    BM_ITER_MESH_MUTABLE (v, v_next, &iter, bm, BM_VERTS_OF_MESH) {
-      if (BM_elem_index_get(v) == VERT_INDEX_DO_COLLAPSE) {
-        if (bm_vert_dissolve_fan(bm, v)) {
-          iter_done = true;
-        }
-      }
+    if (!verts_were_marked_for_dissolve) {
+      break;
     }
 
-    if (iter_done == false) {
-      break;
+    /* now we tagged all verts -1 for removal, lets loop over and rebuild faces */
+    BM_ITER_MESH_MUTABLE (v, v_next, &iter, bm, BM_VERTS_OF_MESH) {
+      if (BM_elem_index_get(v) == VERT_INDEX_DO_COLLAPSE) {
+        bm_vert_dissolve_fan(bm, v);
+      }
     }
   }
 
   bm->elem_index_dirty |= BM_VERT;
 
 #ifndef USE_WALKER
-  MEM_freeN(vert_seek_a);
-  MEM_freeN(vert_seek_b);
+  MEM_freeN(collapse_verts);
+  MEM_freeN(ignore_verts);
 #endif
 }
 
