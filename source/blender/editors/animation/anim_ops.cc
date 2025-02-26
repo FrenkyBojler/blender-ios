@@ -395,7 +395,7 @@ static int change_frame_modal(bContext *C, wmOperator *op, const wmEvent *event)
 static std::string change_frame_get_name(wmOperatorType * /*ot*/, PointerRNA *ptr)
 {
   if (RNA_boolean_get(ptr, "seq_solo_preview")) {
-    return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Set Frame (Solo Preview)");
+    return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Set Frame (Strip Preview)");
   }
 
   return {};
@@ -426,7 +426,7 @@ static void ANIM_OT_change_frame(wmOperatorType *ot)
   ot->prop = RNA_def_float(
       ot->srna, "frame", 0, MINAFRAME, MAXFRAME, "Frame", "", MINAFRAME, MAXFRAME);
   prop = RNA_def_boolean(ot->srna, "snap", false, "Snap", "");
-  prop = RNA_def_boolean(ot->srna, "seq_solo_preview", false, "Solo Preview", "");
+  prop = RNA_def_boolean(ot->srna, "seq_solo_preview", false, "Strip Preview", "");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
