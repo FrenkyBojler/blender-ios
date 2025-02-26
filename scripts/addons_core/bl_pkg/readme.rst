@@ -64,10 +64,15 @@ Add-on: Other Scripts
 
   It also contains functions to build & validate packages & create a static repository.
 
-  This script typically runs as an external process
-  (called by ``bl_extension_utils.py`` or in some cases ``bl_extension_cli.py``).
+  This script typically runs as an external process using the ``subprocess`` module
+  called from ``bl_extension_utils.py``.
+  In some cases ``bl_extension_cli.py`` forwards sub-commands directly to this script.
 
-  :ref:`Inter process communication (IPC) <IPC>` is used so Blender's UI can show the status of each command.
+  :ref:`Inter process communication (IPC) <IPC>` via Python's ``subprocess`` module
+  which runs this script using Blender's bundled Python executable.
+  Signals are used to interrupt the process, pipes are used to read it's output.
+
+  This is done so Blender's UI can show the status of each command.
 
 - ``extensions_map_from_legacy_addons``
 
