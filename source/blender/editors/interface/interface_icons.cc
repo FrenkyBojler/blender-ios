@@ -1577,8 +1577,12 @@ static void icon_draw_size(float x,
                                             0.0f;
     float color[4];
     if (icon_id == ICON_NOT_FOUND) {
-      UI_GetThemeColorBlend4f(TH_ERROR, TH_TEXT, 0.4f, color);
-      outline_intensity = 0.4f;
+      float hsl[4];
+      UI_GetThemeColor4fv(TH_ERROR, color);
+      rgb_to_hsl_v(color, hsl);
+      hsl[1] *= 1.5;
+      hsl[2] *= 1.5;
+      hsl_to_rgb_v(hsl, color);
     }
     else if (mono_rgba) {
       rgba_uchar_to_float(color, mono_rgba);
