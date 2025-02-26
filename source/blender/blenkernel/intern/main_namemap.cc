@@ -495,10 +495,6 @@ static bool namemap_get_name(Main &bmain,
                              std::string &r_name_full,
                              const bool do_unique_in_bmain)
 {
-#ifndef __GNUC__ /* GCC warns with `nonull-compare`. */
-  BLI_assert(bmain != nullptr);
-  BLI_assert(id != nullptr);
-#endif
   UniqueName_Map *name_map = do_unique_in_bmain ? get_global_namemap_for(bmain, &id, true) :
                                                   get_namemap_for(bmain, id.lib, &id, true);
   UniqueName_Map *name_map_other = do_unique_in_bmain ?
