@@ -189,23 +189,25 @@ static void view2d_masks(View2D *v2d, const rcti *mask_scroll)
       v2d->hor.ymin = v2d->hor.ymax - scroll_height;
     }
 
-    /* adjust vertical scroller if there's a horizontal scroller, to leave corner free */
+    /* Adjust horizontal scroller to avoid interfering with splitter areas. */
+    if (scroll & V2D_SCROLL_HORIZONTAL) {
+      v2d->hor.xmin += UI_AZONESPOTW;
+      v2d->hor.xmax -= UI_AZONESPOTW;
+    }
+
+    /* Adjust vertical scroller to avoid horizontal scrollers or splitter areas. */
     if (scroll & V2D_SCROLL_VERTICAL) {
       if (scroll & V2D_SCROLL_BOTTOM) {
         /* on bottom edge of region */
-        v2d->vert.ymin = v2d->hor.ymax;
+        v2d->vert.ymin = max_ii(v2d->hor.ymax, v2d->vert.ymin + UI_AZONESPOTH);
       }
       else if (scroll & V2D_SCROLL_TOP) {
         /* on upper edge of region */
+        /* Note that top splitter areas are in the header, outside of `mask_scroll`, so we do not
+         * need to consider them.*/
         v2d->vert.ymax = v2d->hor.ymin;
       }
     }
-
-    /* Slider rects need to be smaller than the region and not interfere with splitter areas. */
-    v2d->hor.xmin += UI_HEADER_OFFSET;
-    v2d->hor.xmax -= UI_HEADER_OFFSET;
-    v2d->vert.ymin += UI_HEADER_OFFSET;
-    v2d->vert.ymax -= UI_HEADER_OFFSET;
   }
 }
 
