@@ -1142,6 +1142,26 @@ static MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl, const MeshOffse
 #ifdef DEBUG_TIME
     timeit::ScopedTimer timer("face merging");
 #endif
+#define parallel_face_merge
+#ifdef parallel_face_merge
+    Vector<Vector<OutFace>> new_groups(face_groups.size());
+    const int grain_size = 15000;
+    threading::parallel_for(face_groups.index_range(), grain_size, [&](const IndexRange range) {
+      for (const int gid : range) {
+        Span<int> group = face_groups[gid].as_span();
+        Vector<OutFace> &group_faces = new_groups[gid] = Vector<OutFace, 4>(group.size());
+        for (const int i : group_faces.index_range()) {
+          int tri_index = group[i];
+          group_faces[i] = make_out_face(mgl, tri_index, gid);
+        }
+        merge_out_faces(group_faces);
+      }
+    });
+    timeit::ScopedTimer xtimer("copying groups at end");
+    for (const int i : new_groups.index_range()) {
+      ma.new_faces.extend(new_groups[i].as_span());
+    }
+#else
     for (const int gid : face_groups.index_range()) {
       Span<int> group = face_groups[gid].as_span();
       Vector<OutFace> group_faces(group.size());
@@ -1152,6 +1172,7 @@ static MeshAssembly assemble_mesh_from_meshgl(const MeshGL &mgl, const MeshOffse
       merge_out_faces(group_faces);
       ma.new_faces.extend(group_faces.as_span());
     }
+#endif
   }
   if (dbg_level > 0) {
     std::cout << "mesh_assembly result:\n";
