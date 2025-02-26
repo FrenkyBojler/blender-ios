@@ -1053,7 +1053,7 @@ static const Mesh *bvh_get_mesh(const char *funcname,
       mesh = blender::bke::mesh_create_eval_final(depsgraph, scene, ob, &data_masks);
       if (mesh == nullptr) {
         PyErr_Format(PyExc_ValueError,
-                     "%s(...): Cannot get a mesh from object 1'%s'",
+                     "%s(...): Cannot get a mesh from object '%s'",
                      ob->id.name + 2,
                      funcname);
         return nullptr;
@@ -1071,7 +1071,7 @@ static const Mesh *bvh_get_mesh(const char *funcname,
       }
       if (mesh == nullptr) {
         PyErr_Format(PyExc_ValueError,
-                     "%s(...): Cannot get a mesh from object'%s'",
+                     "%s(...): Cannot get a mesh from object '%s'",
                      ob->id.name + 2,
                      funcname);
         return nullptr;
@@ -1097,7 +1097,7 @@ static const Mesh *bvh_get_mesh(const char *funcname,
     mesh = blender::bke::mesh_create_eval_no_deform_render(depsgraph, scene, ob, &data_masks);
     if (mesh == nullptr) {
       PyErr_Format(PyExc_ValueError,
-                   "%s(...): Cannot get a mesh from object'%s'",
+                   "%s(...): Cannot get a mesh from object '%s'",
                    ob->id.name + 2,
                    funcname);
       return nullptr;
@@ -1117,7 +1117,7 @@ static const Mesh *bvh_get_mesh(const char *funcname,
   mesh = blender::bke::mesh_create_eval_no_deform(depsgraph, scene, ob, &data_masks);
   if (mesh == nullptr) {
     PyErr_Format(PyExc_ValueError,
-                 "%s(...): Cannot get a mesh from object'%s'",
+                 "%s(...): Cannot get a mesh from object '%s'",
                  ob->id.name + 2,
                  funcname);
     return nullptr;
