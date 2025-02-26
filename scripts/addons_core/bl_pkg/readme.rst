@@ -93,7 +93,7 @@ as it relates to how extensions are loaded by Blender.
    This is done so extensions don't pollute the module name-space
    (avoiding naming collisions with ``https://pypi.org``).
 
-   So each extension's add-on ID resembles: ``bl_ext.{repository_id}.{extension_id}``.
+   So each extension's add-on ID follows this format: ``bl_ext.{repository_id}.{extension_id}``.
 
 ``./scripts/modules/_bpy_internal/extensions/wheel_manager.py``
    Extensions may include Python modules as wheels,
