@@ -473,21 +473,21 @@ class NODE_OT_interface_item_make_panel_toggle(NodeInterfaceOperator, Operator):
             return {'CANCELLED'}
 
         active_item.is_panel_toggle = True
-        # Use the same name as the panel in the UI for clarity
+        # Use the same name as the panel in the UI for clarity.
         active_item.name = parent_panel.name
 
-        # Move the socket to the first position
+        # Move the socket to the first position.
         interface.move_to_parent(active_item, parent_panel, 0)
-        # Make the panel active
+        # Make the panel active.
         interface.active = parent_panel
 
         return {'FINISHED'}
 
 
-class NODE_OT_interface_item_remove_panel_toggle(NodeInterfaceOperator, Operator):
-    """Remove panel toggle"""
-    bl_idname = "node.interface_item_remove_panel_toggle"
-    bl_label = "Remove Panel Toggle"
+class NODE_OT_interface_item_unlink_panel_toggle(NodeInterfaceOperator, Operator):
+    """Make the panel toggle a stand-alone socket"""
+    bl_idname = "node.interface_item_unlink_panel_toggle"
+    bl_label = "Unlink Panel Toggle"
     bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
@@ -524,8 +524,9 @@ class NODE_OT_interface_item_remove_panel_toggle(NodeInterfaceOperator, Operator
             return {'CANCELLED'}
 
         first_item.is_panel_toggle = False
+        first_item.name = active_item.name
 
-        # Make the socket active
+        # Make the socket active.
         interface.active = first_item
 
         return {'FINISHED'}
@@ -674,7 +675,7 @@ classes = (
     NODE_OT_interface_item_duplicate,
     NODE_OT_interface_item_remove,
     NODE_OT_interface_item_make_panel_toggle,
-    NODE_OT_interface_item_remove_panel_toggle,
+    NODE_OT_interface_item_unlink_panel_toggle,
     NODE_OT_tree_path_parent,
     NODE_OT_viewer_shortcut_get,
     NODE_OT_viewer_shortcut_set,
