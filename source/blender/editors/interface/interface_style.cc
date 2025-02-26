@@ -325,7 +325,6 @@ void UI_fontstyle_draw_multiline_clipped_ex(const uiFontStyle *fs,
   BLF_disable(fs->uifont_id, BLF_WORD_WRAP);
 
   ResultBLF line_result = {0, 0};
-  int largest_width = -100000;
   /* Draw each line with the given alignment. */
   for (StringRef line : lines) {
     /* String wrapping might have trailing/leading whitespace. */
@@ -342,12 +341,11 @@ void UI_fontstyle_draw_multiline_clipped_ex(const uiFontStyle *fs,
     BLF_position(fs->uifont_id, rect->xmin + xofs, rect->ymin + yofs, 0.0f);
     BLF_draw(fs->uifont_id, line.data(), line.size(), &line_result);
 
-    largest_width = std::max(largest_width, line_result.width);
     yofs -= line_height;
   }
 
   if (r_info) {
-    r_info->width = largest_width;
+    r_info->width = rect->xmin + xofs + line_result.width;
     r_info->lines = lines.size();
   }
 
