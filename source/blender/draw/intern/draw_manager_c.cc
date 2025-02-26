@@ -1167,7 +1167,7 @@ void DRW_notify_view_update(const DRWUpdateContext *update_ctx)
    * Check for recursive lock which can deadlock. This should not
    * happen, but in case there is a bug where depsgraph update is called
    * during drawing we try not to hang Blender. */
-  if (!BLI_ticket_mutex_lock_check_recursive(DST.system_gpu_context_mutex)) {
+  if (!BLI_ticket_mutex_lock_check_recursive(system_gpu_context_mutex)) {
     CLOG_ERROR(&LOG, "GPU context already bound");
     BLI_assert_unreachable();
     return;
