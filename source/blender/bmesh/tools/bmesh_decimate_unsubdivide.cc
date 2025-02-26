@@ -144,10 +144,49 @@ static bool bm_vert_dissolve_fan(BMesh *bm, BMVert *v)
 }
 
 enum {
+  // `bm_tag_untagged_neighbors` demands DO_COLLAPSE and IGNORE are equal magnitude, opposite sign.
   VERT_INDEX_DO_COLLAPSE = -1,
   VERT_INDEX_INIT = 0,
   VERT_INDEX_IGNORE = 1,
 };
+
+/** Given a set of starting verts, find all the currently-untagged neighbors of those verts, tag
+ * them with the specified value, and return an array specifying all the newly-tagged verts.
+ *
+ * By using two arrays and two tag values, repeated alternating calls will expand the selection in
+ * an alternating tagging pattern.  Dissolving one of the two tags will then reduce the density of
+ * the mesh, by half, in a regular diamond pattern.
+ *
+ * \param starting_verts        The array of starting verts whose neighbors should be tagged
+ * \param starting_vert_count   The number of verts in the starting_verts array
+ * \param desired_tag           The value to set as a tag, on any currently-untagged neighbors
+ * \param r_verts_tagged        Returned array of all the verts which were tagged in this call
+ * \param r_verts_tagged_count  Returned number of verts in the r_verts_tagged array
+ */
+static void bm_tag_untagged_neighbors(BMVert *starting_verts[],
+                                      uint &starting_vert_count,
+                                      int desired_tag,
+                                      BMVert *r_verts_tagged[],
+                                      uint &r_verts_tagged_count)
+{
+
+  BMEdge *e;
+  BMIter iter;
+  r_verts_tagged_count = 0;
+
+  for (int i = 0; i < starting_vert_count; i++) {
+    BMVert *v = starting_verts[i];
+    BLI_assert(BM_elem_index_get(v) == (-desired_tag));  // since DO_COLLAPSE and IGNORE are -1 and
+                                                         // +1, inverting the sign finds the other.
+    BM_ITER_ELEM (e, &iter, v, BM_EDGES_OF_VERT) {
+      BMVert *v_other = BM_edge_other_vert(e, v);
+      if (BM_elem_index_get(v_other) == VERT_INDEX_INIT) {
+        BM_elem_index_set(v_other, desired_tag); /* set_dirty! */
+        r_verts_tagged[r_verts_tagged_count++] = v_other;
+      }
+    }
+  }
+}
 
 // #define USE_WALKER  /* gives uneven results, disable for now */
 
@@ -207,7 +246,6 @@ void BM_mesh_decimate_unsubdivide_ex(BMesh *bm, const int iterations, const bool
       BMWalker walker;
 #else
       uint depth = 1;
-      uint i;
 #endif
       BMVert *v_first = nullptr;
 
@@ -267,38 +305,22 @@ void BM_mesh_decimate_unsubdivide_ex(BMesh *bm, const int iterations, const bool
       vert_seek_b[vert_seek_b_tot++] = v_first;
 
       while (true) {
-        BMEdge *e;
-
         if ((offset + depth) % nth) {
-          vert_seek_a_tot = 0;
-          for (i = 0; i < vert_seek_b_tot; i++) {
-            v = vert_seek_b[i];
-            BLI_assert(BM_elem_index_get(v) == VERT_INDEX_IGNORE);
-            BM_ITER_ELEM (e, &iter, v, BM_EDGES_OF_VERT) {
-              BMVert *v_other = BM_edge_other_vert(e, v);
-              if (BM_elem_index_get(v_other) == VERT_INDEX_INIT) {
-                BM_elem_index_set(v_other, VERT_INDEX_DO_COLLAPSE); /* set_dirty! */
-                vert_seek_a[vert_seek_a_tot++] = v_other;
-              }
-            }
-          }
+          bm_tag_untagged_neighbors(vert_seek_b,
+                                    vert_seek_b_tot,
+                                    VERT_INDEX_DO_COLLAPSE, /* set_dirty! */
+                                    vert_seek_a,
+                                    vert_seek_a_tot);
           if (vert_seek_a_tot == 0) {
             break;
           }
         }
         else {
-          vert_seek_b_tot = 0;
-          for (i = 0; i < vert_seek_a_tot; i++) {
-            v = vert_seek_a[i];
-            BLI_assert(BM_elem_index_get(v) == VERT_INDEX_DO_COLLAPSE);
-            BM_ITER_ELEM (e, &iter, v, BM_EDGES_OF_VERT) {
-              BMVert *v_other = BM_edge_other_vert(e, v);
-              if (BM_elem_index_get(v_other) == VERT_INDEX_INIT) {
-                BM_elem_index_set(v_other, VERT_INDEX_IGNORE); /* set_dirty! */
-                vert_seek_b[vert_seek_b_tot++] = v_other;
-              }
-            }
-          }
+          bm_tag_untagged_neighbors(vert_seek_a,
+                                    vert_seek_a_tot,
+                                    VERT_INDEX_IGNORE, /* set_dirty! */
+                                    vert_seek_b,
+                                    vert_seek_b_tot);
           if (vert_seek_b_tot == 0) {
             break;
           }
