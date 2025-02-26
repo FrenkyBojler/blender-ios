@@ -16,20 +16,21 @@ void mapping_mat4(
 
 void mapping_point(vec3 vector, vec3 location, vec3 rotation, vec3 scale, out vec3 result)
 {
-  result = (from_rotation(EulerXYZ(rotation)) * (vector * scale)) + location;
+  result = (from_rotation(as_EulerXYZ(rotation)) * (vector * scale)) + location;
 }
 
 void mapping_texture(vec3 vector, vec3 location, vec3 rotation, vec3 scale, out vec3 result)
 {
-  result = safe_divide(transpose(from_rotation(EulerXYZ(rotation))) * (vector - location), scale);
+  result = safe_divide(transpose(from_rotation(as_EulerXYZ(rotation))) * (vector - location),
+                       scale);
 }
 
 void mapping_vector(vec3 vector, vec3 location, vec3 rotation, vec3 scale, out vec3 result)
 {
-  result = from_rotation(EulerXYZ(rotation)) * (vector * scale);
+  result = from_rotation(as_EulerXYZ(rotation)) * (vector * scale);
 }
 
 void mapping_normal(vec3 vector, vec3 location, vec3 rotation, vec3 scale, out vec3 result)
 {
-  result = normalize(from_rotation(EulerXYZ(rotation)) * safe_divide(vector, scale));
+  result = normalize(from_rotation(as_EulerXYZ(rotation)) * safe_divide(vector, scale));
 }
