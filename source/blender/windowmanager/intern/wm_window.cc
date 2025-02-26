@@ -1474,10 +1474,12 @@ static wmEvent wm_update_cursor_position_from_drag_and_drop(wmWindowManager *wm,
                                                             const GHOST_TEventDragnDropData *ddd,
                                                             const uint64_t event_time_ms)
 {
-  /* Ensure the event state matches modifiers (window was inactive). */
+  /* Ensure the event state matches modifiers (window only receives drag and drop events). */
   wm_window_update_eventstate_modifiers(wm, win, event_time_ms);
-  /* Entering window, update mouse position (without sending an event). */
-  wm_window_update_eventstate(win);
+  /* When entering window, update mouse position (without sending an event). */
+  if (win->active == 0) {
+    wm_window_update_eventstate(win);
+  }
 
   wmEvent event;
   wm_event_init_from_window(win, &event); /* Copy last state, like mouse coords. */
@@ -1512,8 +1514,9 @@ static void wm_start_drag(wmWindowManager *wm,
 {
   WM_drag_free_list(&wm->drags);
   wm_drags_exit(wm, win);
+
   /* Currently not all platfoms retrieves drag and drop data on drag enter.*/
-  if (ddd->data) {
+  if (!ddd->data) {
     return;
   }
 
@@ -1809,6 +1812,11 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
       wm_drags_exit(wm, win);
       const GHOST_TEventDragnDropData *ddd = static_cast<const GHOST_TEventDragnDropData *>(data);
       wm_update_cursor_position_from_drag_and_drop(wm, win, ddd, event_time_ms);
+
+      wm_window_update_eventstate_modifiers_clear(wm, win, event_time_ms);
+
+      wm_event_add_ghostevent(wm, win, GHOST_kEventWindowDeactivate, win, event_time_ms);
+      win->active = 0;
       break;
     }
     case GHOST_kEventNativeResolutionChange: {
