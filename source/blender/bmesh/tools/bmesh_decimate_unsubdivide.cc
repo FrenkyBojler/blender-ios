@@ -247,25 +247,15 @@ void BM_mesh_decimate_unsubdivide_ex(BMesh *bm, const int iterations, const bool
 #else
       uint depth = 1;
 #endif
-      BMVert *v_first = nullptr;
-
-      if (v->e && (BM_elem_index_get(v) == VERT_INDEX_INIT)) {
-#ifdef USE_WALKER
-        if (BMO_vert_flag_test(bm, v, ELE_VERT_TAG))
-#endif
-        {
-          /* Check again in case the topology changed. */
-          if (bm_vert_dissolve_fan_test(v)) {
-            v_first = v;
-          }
-        }
-      }
-
-      if (v_first == nullptr) {
+      if (!(BM_elem_index_get(v) == VERT_INDEX_INIT)) {
         continue;
       }
 
 #ifdef USE_WALKER
+      if (!BMO_vert_flag_test(bm, v, ELE_VERT_TAG)) {
+        continue;
+      }
+
       /* Walk over selected elements starting at active */
       BMW_init(
           &walker,
@@ -294,12 +284,12 @@ void BM_mesh_decimate_unsubdivide_ex(BMesh *bm, const int iterations, const bool
       BMW_end(&walker);
 #else
 
-      BM_elem_index_set(v_first,
+      BM_elem_index_set(v,
                         ((offset + depth) % nth) ? VERT_INDEX_IGNORE :
                                                    VERT_INDEX_DO_COLLAPSE); /* set_dirty! */
 
       vert_seek_b_tot = 0;
-      vert_seek_b[vert_seek_b_tot++] = v_first;
+      vert_seek_b[vert_seek_b_tot++] = v;
 
       while (true) {
         if ((offset + depth) % nth) {
