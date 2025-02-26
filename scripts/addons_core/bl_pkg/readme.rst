@@ -20,7 +20,8 @@ Add-on: Blender Modules
 
   This module defines a mechanism for a modal operator to run commands as sub-processes
   monitoring their progress (via STDOUT).
-  Actions such a as downloading, installing, updating are supported.
+  Actions such a as downloading, installing, updating are supported by calling into lower level functions,
+  ``cli/blender_ext.py`` does the actual work.
 
   There are also some operators for the UI (changing tags, allowing online access).
 
