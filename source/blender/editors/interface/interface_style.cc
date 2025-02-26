@@ -263,7 +263,10 @@ void UI_fontstyle_draw_multiline_clipped_ex(const uiFontStyle *fs,
 {
   int xofs = 0, yofs;
   int font_flag = BLF_CLIPPING | BLF_WORD_WRAP;
-  // int font_flag = BLF_WORD_WRAP;
+
+  /* Recommended for testing: Results should be the same with or without BLF clipping since the
+   * string is wrapped and shortened to fit. Disabling it can help spot issues. */
+  // font_flag &= ~BLF_CLIPPING;
 
   UI_fontstyle_set(fs);
 
@@ -299,27 +302,16 @@ void UI_fontstyle_draw_multiline_clipped_ex(const uiFontStyle *fs,
   /* First, try if mixed-wrapping (soft wrapping plus hard wrapping for overflowing lines) gives a
    * result that fits. */
   BLF_wordwrap(fs->uifont_id, max_width, FontWrapType::Mixed);
-  // BLF_wordwrap(fs->uifont_id, max_width, FontWrapType::Hard);
   blender::Vector<blender::StringRef> lines = BLF_string_wrap(fs->uifont_id, str, max_width);
 
-  char new_drawstr[UI_MAX_DRAW_STR];
-  /* If soft-wrapping doesn't fit, clip the string and apply hard wrapping. */
+  char str_buf[UI_MAX_DRAW_STR];
+  /* If soft-wrapping doesn't fit, apply hard wrapping and clip the string if necessary. */
   if (lines.size() > max_line_count) {
-    STRNCPY(new_drawstr, str);
-    const float new_width = UI_text_clip_middle_ex(
-        fs, new_drawstr, max_width * max_line_count, UI_ICON_SIZE, sizeof(new_drawstr), '\0');
-
-    /* Optimization: We already know the shortened string fits, skip line wrapping calculations. */
-    if (new_width <= max_width) {
-      lines = blender::Vector<blender::StringRef>{new_drawstr};
-    }
-    else {
-      BLF_wordwrap(fs->uifont_id, max_width, FontWrapType::Hard);
-      lines = BLF_string_wrap(fs->uifont_id, new_drawstr, max_width);
-    }
+    lines = UI_text_clip_multiline_middle(
+        fs, str, str_buf, sizeof(str_buf), max_width, max_line_count);
   }
 
-  // BLI_assert(lines.size() <= max_line_count);
+  BLI_assert(lines.size() <= max_line_count);
 
   /* Manually draw lines without BLF wrapping.  */
   BLF_disable(fs->uifont_id, BLF_WORD_WRAP);

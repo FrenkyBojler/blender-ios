@@ -561,6 +561,14 @@ float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
                              size_t max_len,
                              char rpart_sep);
 
+blender::Vector<blender::StringRef> UI_text_clip_multiline_middle(
+    const uiFontStyle *fstyle,
+    const char *str,
+    char *clipped_str_buf,
+    const size_t max_len_clipped_str_buf,
+    const float max_line_width,
+    const int max_lines);
+
 /**
  * Callbacks.
  *
