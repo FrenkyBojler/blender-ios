@@ -370,10 +370,6 @@ class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
                     return {'CANCELLED'}
             item = interface.new_socket(active_panel.name, socket_type='NodeSocketBool', in_out='INPUT')
             item.is_panel_toggle = True
-
-            item.force_non_field = True
-            item.default_value = True
-
             interface.move_to_parent(item, active_panel, 0)
             # Return in this case because we don't want to move the item.
             return {'FINISHED'}
