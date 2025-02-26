@@ -2,3 +2,4 @@ Referenced by issue #120761, Sculpt Hide Tool doesn't hide all adjacent faces wh
 Referenced by issue #116632, Command line rendering render-frame vs render-anim switch not the same output if single frame vs Animated range of frames
 Referenced by issue #116387, start problem
 Referenced by issue #114706, 4.0: Candidates for corrective releases
+Referenced by issue #135175, Curve object bounds don't match geometry nodes output
