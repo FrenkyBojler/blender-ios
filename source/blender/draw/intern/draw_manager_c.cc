@@ -2936,14 +2936,15 @@ void DRW_gpu_context_create()
 {
   BLI_assert(system_gpu_context == nullptr); /* Ensure it's called once */
 
+  /* Setup compilation context. Called first as it changes the active GPUContext. */
+  DRW_shader_init();
+
   system_gpu_context_mutex = BLI_ticket_mutex_alloc();
   /* This changes the active context. */
   system_gpu_context = WM_system_gpu_context_create();
   WM_system_gpu_context_activate(system_gpu_context);
   /* Be sure to create blender_gpu_context too. */
   blender_gpu_context = GPU_context_create(nullptr, system_gpu_context);
-  /* Setup compilation context. */
-  DRW_shader_init();
   /* Activate the window's context afterwards. */
   wm_window_reset_drawable();
 }
