@@ -777,12 +777,12 @@ float BKE_defvert_array_find_weight_safe(const MDeformVert *dvert,
    * does not exist, in that case it is OK to return 1.0
    * (i.e. maximum weight, as if no vgroup was selected).
    * But in case of valid defgroup and nullptr dvert data pointer, it means that vgroup **is**
-   * valid, and just totally empty, so we shall return '0.0' value then! */
+   * valid, and just totally empty, so we shall return '0.0' (or '1.0' if inverted) value then! */
   if (defgroup == -1) {
     return 1.0f;
   }
   if (dvert == nullptr) {
-    return 0.0f;
+    return invert ? 1.0 : 0.0f;
   }
 
   float weight = BKE_defvert_find_weight(dvert + index, defgroup);
