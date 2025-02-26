@@ -1469,6 +1469,76 @@ static void ghost_event_proc_timestamp_warning(GHOST_EventHandle ghost_event)
 }
 #endif /* !NDEBUG */
 
+static wmEvent wm_update_cursor_position_from_drag_and_drop(wmWindowManager *wm,
+                                                            wmWindow *win,
+                                                            const GHOST_TEventDragnDropData *ddd,
+                                                            const uint64_t event_time_ms)
+{
+  /* Ensure the event state matches modifiers (window was inactive). */
+  wm_window_update_eventstate_modifiers(wm, win, event_time_ms);
+  /* Entering window, update mouse position (without sending an event). */
+  wm_window_update_eventstate(win);
+
+  wmEvent event;
+  wm_event_init_from_window(win, &event); /* Copy last state, like mouse coords. */
+
+  /* Activate region. */
+  event.type = MOUSEMOVE;
+  event.val = KM_NOTHING;
+  copy_v2_v2_int(event.prev_xy, event.xy);
+
+  copy_v2_v2_int(event.xy, &ddd->x);
+  wm_cursor_position_from_ghost_screen_coords(win, &event.xy[0], &event.xy[1]);
+
+  /* The values from #wm_window_update_eventstate may not match (under WAYLAND they don't)
+   * Write this into the event state. */
+  copy_v2_v2_int(win->eventstate->xy, event.xy);
+
+  event.flag = eWM_EventFlag(0);
+
+  /* No context change! `C->wm->windrawable` is drawable, or for area queues. */
+  wm->winactive = win;
+  win->active = 1;
+
+  wm_event_add(win, &event);
+
+  return event;
+}
+
+static void wm_start_drag(wmWindowManager *wm,
+                          wmWindow *win,
+                          bContext *C,
+                          const GHOST_TEventDragnDropData *ddd)
+{
+  WM_drag_free_list(&wm->drags);
+  wm_drags_exit(wm, win);
+  /* Currently not all platfoms retrieves drag and drop data on drag enter.*/
+  if (ddd->data) {
+    return;
+  }
+
+  if (ddd->dataType == GHOST_kDragnDropTypeFilenames) {
+    const GHOST_TStringArray *stra = static_cast<const GHOST_TStringArray *>(ddd->data);
+
+    if (stra->count) {
+      CLOG_INFO(WM_LOG_EVENTS, 1, "Drop %d files:", stra->count);
+      for (const char *path : blender::Span((char **)stra->strings, stra->count)) {
+        CLOG_INFO(WM_LOG_EVENTS, 1, "%s", path);
+      }
+      /* Try to get icon type from extension of the first path. */
+      int icon = ED_file_extension_icon((char *)stra->strings[0]);
+      wmDragPath *path_data = WM_drag_create_path_data(
+          blender::Span((char **)stra->strings, stra->count));
+      WM_event_start_drag(C, icon, WM_DRAG_PATH, path_data, WM_DRAG_NOP);
+      /* Void pointer should point to string, it makes a copy. */
+    }
+  }
+  else if (ddd->dataType == GHOST_kDragnDropTypeString) {
+    /* Drop an arbitrary string. */
+    std::string *str = MEM_new<std::string>(__func__, static_cast<const char *>(ddd->data));
+    WM_event_start_drag(C, ICON_NONE, WM_DRAG_STRING, str, WM_DRAG_FREE_DATA);
+  }
+}
 /**
  * Called by ghost, here we handle events for windows themselves or send to event system.
  *
@@ -1703,36 +1773,20 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
       }
       break;
     }
+    case GHOST_kEventDraggingEntered: {
+      const GHOST_TEventDragnDropData *ddd = static_cast<const GHOST_TEventDragnDropData *>(data);
+      wm_update_cursor_position_from_drag_and_drop(wm, win, ddd, event_time_ms);
+      wm_start_drag(wm, win, C, ddd);
+      break;
+    }
+    case GHOST_kEventDraggingUpdated: {
+      const GHOST_TEventDragnDropData *ddd = static_cast<const GHOST_TEventDragnDropData *>(data);
+      wm_update_cursor_position_from_drag_and_drop(wm, win, ddd, event_time_ms);
+      break;
+    }
     case GHOST_kEventDraggingDropDone: {
       const GHOST_TEventDragnDropData *ddd = static_cast<const GHOST_TEventDragnDropData *>(data);
-
-      /* Ensure the event state matches modifiers (window was inactive). */
-      wm_window_update_eventstate_modifiers(wm, win, event_time_ms);
-      /* Entering window, update mouse position (without sending an event). */
-      wm_window_update_eventstate(win);
-
-      wmEvent event;
-      wm_event_init_from_window(win, &event); /* Copy last state, like mouse coords. */
-
-      /* Activate region. */
-      event.type = MOUSEMOVE;
-      event.val = KM_NOTHING;
-      copy_v2_v2_int(event.prev_xy, event.xy);
-
-      copy_v2_v2_int(event.xy, &ddd->x);
-      wm_cursor_position_from_ghost_screen_coords(win, &event.xy[0], &event.xy[1]);
-
-      /* The values from #wm_window_update_eventstate may not match (under WAYLAND they don't)
-       * Write this into the event state. */
-      copy_v2_v2_int(win->eventstate->xy, event.xy);
-
-      event.flag = eWM_EventFlag(0);
-
-      /* No context change! `C->wm->windrawable` is drawable, or for area queues. */
-      wm->winactive = win;
-      win->active = 1;
-
-      wm_event_add(win, &event);
+      wmEvent event = wm_update_cursor_position_from_drag_and_drop(wm, win, ddd, event_time_ms);
 
       /* Make blender drop event with custom data pointing to wm drags. */
       event.type = EVT_DROP;
@@ -1746,29 +1800,15 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
       // printf("Drop detected\n");
 
       /* Add drag data to wm for paths. */
+      wm_start_drag(wm, win, C, ddd);
 
-      if (ddd->dataType == GHOST_kDragnDropTypeFilenames) {
-        const GHOST_TStringArray *stra = static_cast<const GHOST_TStringArray *>(ddd->data);
-
-        if (stra->count) {
-          CLOG_INFO(WM_LOG_EVENTS, 1, "Drop %d files:", stra->count);
-          for (const char *path : blender::Span((char **)stra->strings, stra->count)) {
-            CLOG_INFO(WM_LOG_EVENTS, 1, "%s", path);
-          }
-          /* Try to get icon type from extension of the first path. */
-          int icon = ED_file_extension_icon((char *)stra->strings[0]);
-          wmDragPath *path_data = WM_drag_create_path_data(
-              blender::Span((char **)stra->strings, stra->count));
-          WM_event_start_drag(C, icon, WM_DRAG_PATH, path_data, WM_DRAG_NOP);
-          /* Void pointer should point to string, it makes a copy. */
-        }
-      }
-      else if (ddd->dataType == GHOST_kDragnDropTypeString) {
-        /* Drop an arbitrary string. */
-        std::string *str = MEM_new<std::string>(__func__, static_cast<const char *>(ddd->data));
-        WM_event_start_drag(C, ICON_NONE, WM_DRAG_STRING, str, WM_DRAG_FREE_DATA);
-      }
-
+      break;
+    }
+    case GHOST_kEventDraggingExited: {
+      WM_drag_free_list(&wm->drags);
+      wm_drags_exit(wm, win);
+      const GHOST_TEventDragnDropData *ddd = static_cast<const GHOST_TEventDragnDropData *>(data);
+      wm_update_cursor_position_from_drag_and_drop(wm, win, ddd, event_time_ms);
       break;
     }
     case GHOST_kEventNativeResolutionChange: {
