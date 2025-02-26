@@ -417,7 +417,9 @@ int GPU_shader_get_uniform_block(GPUShader *shader, const char *name);
 
 namespace blender::gpu {
 
-/* Thread-safe GPUShader wrapper. The shader compilation is deferred until the first get() call. */
+/* GPUShader wrapper that makes compilation threadsafe.
+ * The compilation is deferred until the first get() call.
+ * Concurrently using the shader from multiple threads is still unsafe. */
 class StaticShader : NonCopyable {
  private:
   std::string info_name_;
