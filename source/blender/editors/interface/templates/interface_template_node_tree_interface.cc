@@ -272,9 +272,12 @@ class NodeTreeInterfaceView : public AbstractTreeView {
  protected:
   void add_items_for_panel_recursive(bNodeTreeInterfacePanel &parent,
                                      ui::TreeViewOrItem &parent_item,
-                                     const bool skip_first_item = false)
+                                     const bNodeTreeInterfaceItem *skip_item = nullptr)
   {
-    for (bNodeTreeInterfaceItem *item : parent.items().drop_front(skip_first_item)) {
+    for (bNodeTreeInterfaceItem *item : parent.items()) {
+      if (item == skip_item) {
+        continue;
+      }
       switch (item->item_type) {
         case NODE_INTERFACE_SOCKET: {
           bNodeTreeInterfaceSocket *socket = node_interface::get_item_as<bNodeTreeInterfaceSocket>(
@@ -291,8 +294,9 @@ class NodeTreeInterfaceView : public AbstractTreeView {
               nodetree_, interface_, *panel);
           panel_item.uncollapse_by_default();
           /* Skip over sockets which are a panel toggle. */
-          const bool skip_first_item = panel->get_header_toggle_socket() != nullptr;
-          add_items_for_panel_recursive(*panel, panel_item, skip_first_item);
+          const bNodeTreeInterfaceSocket *skip_item = panel->get_header_toggle_socket();
+          add_items_for_panel_recursive(
+              *panel, panel_item, reinterpret_cast<const bNodeTreeInterfaceItem *>(skip_item));
           break;
         }
       }
