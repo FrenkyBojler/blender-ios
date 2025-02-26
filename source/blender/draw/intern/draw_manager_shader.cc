@@ -193,9 +193,6 @@ void DRW_shader_init()
   compiler_data().system_gpu_context = WM_system_gpu_context_create();
   compiler_data().blender_gpu_context = GPU_context_create(nullptr,
                                                            compiler_data().system_gpu_context);
-  GPU_context_active_set(nullptr);
-  WM_system_gpu_context_activate(DST.system_gpu_context);
-  GPU_context_active_set(DST.blender_gpu_context);
 
   BLI_threadpool_init(&compilation_threadpool(), drw_deferred_shader_compilation_exec, 1);
   BLI_threadpool_insert(&compilation_threadpool(), nullptr);
