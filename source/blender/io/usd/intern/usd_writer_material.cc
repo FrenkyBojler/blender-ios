@@ -209,8 +209,10 @@ static void process_inputs(const USDExporterContext &usd_export_context,
       }
     }
 
+    bool processed = false;
+
     /* Check for an upstream Image node. */
-    bNodeLink *input_link = traverse_channel(sock, SH_NODE_TEX_IMAGE);
+    const bNodeLink *input_link = traverse_channel(sock, SH_NODE_TEX_IMAGE);
     if (input_link) {
       /* Convert the texture image node connected to this input. */
       bNode *input_node = input_link->fromnode;
@@ -356,6 +358,10 @@ static void process_inputs(const USDExporterContext &usd_export_context,
         }
       }
 
+      processed = true;
+    }
+
+    if (processed) {
       continue;
     }
 
@@ -365,54 +371,62 @@ static void process_inputs(const USDExporterContext &usd_export_context,
       const bNode *attr_node = input_link->fromnode;
       const NodeShaderAttribute *storage = (NodeShaderAttribute *)attr_node->storage;
 
-      pxr::SdfValueTypeName output_type;
-      pxr::UsdShadeShader usd_shader;
-      if (STREQ(input_link->fromsock->identifier, "Color")) {
-        output_type = pxr::SdfValueTypeNames->Float3;
-        usd_shader = create_primvar_reader_shader(
-            usd_export_context, usd_material, usdtokens::primvar_float3, attr_node);
-      }
-      else if (STREQ(input_link->fromsock->identifier, "Vector")) {
-        output_type = pxr::SdfValueTypeNames->Float3;
-        usd_shader = create_primvar_reader_shader(
-            usd_export_context, usd_material, usdtokens::primvar_vector, attr_node);
-      }
-      else if (STREQ(input_link->fromsock->identifier, "Fac")) {
-        output_type = pxr::SdfValueTypeNames->Float;
-        usd_shader = create_primvar_reader_shader(
-            usd_export_context, usd_material, usdtokens::primvar_float, attr_node);
-      }
+      if (storage->type == SHD_ATTRIBUTE_GEOMETRY) {
+        pxr::SdfValueTypeName output_type;
+        pxr::UsdShadeShader usd_shader;
+        if (STREQ(input_link->fromsock->identifier, "Color")) {
+          output_type = pxr::SdfValueTypeNames->Float3;
+          usd_shader = create_primvar_reader_shader(
+              usd_export_context, usd_material, usdtokens::primvar_float3, attr_node);
+        }
+        else if (STREQ(input_link->fromsock->identifier, "Vector")) {
+          output_type = pxr::SdfValueTypeNames->Float3;
+          usd_shader = create_primvar_reader_shader(
+              usd_export_context, usd_material, usdtokens::primvar_vector, attr_node);
+        }
+        else if (STREQ(input_link->fromsock->identifier, "Fac")) {
+          output_type = pxr::SdfValueTypeNames->Float;
+          usd_shader = create_primvar_reader_shader(
+              usd_export_context, usd_material, usdtokens::primvar_float, attr_node);
+        }
 
-      std::string attr_name = make_safe_name(storage->name,
-                                             usd_export_context.export_params.allow_unicode);
-      usd_shader.CreateInput(usdtokens::varname, pxr::SdfValueTypeNames->String).Set(attr_name);
+        std::string attr_name = make_safe_name(storage->name,
+                                               usd_export_context.export_params.allow_unicode);
+        usd_shader.CreateInput(usdtokens::varname, pxr::SdfValueTypeNames->String).Set(attr_name);
 
-      pxr::UsdShadeConnectionSourceInfo source_info(usd_shader.ConnectableAPI(),
-                                                    usdtokens::result,
-                                                    pxr::UsdShadeAttributeType::Output,
-                                                    output_type);
-      shader.CreateInput(input_spec.input_name, input_spec.input_type)
-          .ConnectToSource(source_info);
+        pxr::UsdShadeConnectionSourceInfo source_info(usd_shader.ConnectableAPI(),
+                                                      usdtokens::result,
+                                                      pxr::UsdShadeAttributeType::Output,
+                                                      output_type);
+        shader.CreateInput(input_spec.input_name, input_spec.input_type)
+            .ConnectToSource(source_info);
 
+        processed = true;
+      }
+    }
+
+    if (processed) {
       continue;
     }
 
-    /* No upstream nodes, just set constant values. */
-    switch (sock->type) {
-      case SOCK_FLOAT: {
-        create_input<bNodeSocketValueFloat, float>(
-            shader, input_spec, sock->default_value, input_scale);
-      } break;
-      case SOCK_VECTOR: {
-        create_input<bNodeSocketValueVector, pxr::GfVec3f>(
-            shader, input_spec, sock->default_value, input_scale);
-      } break;
-      case SOCK_RGBA: {
-        create_input<bNodeSocketValueRGBA, pxr::GfVec3f>(
-            shader, input_spec, sock->default_value, input_scale);
-      } break;
-      default:
-        break;
+    /* No upstream nodes, just set a default constant. */
+    if (input_spec.set_default_value) {
+      switch (sock->type) {
+        case SOCK_FLOAT: {
+          create_input<bNodeSocketValueFloat, float>(
+              shader, input_spec, sock->default_value, input_scale);
+        } break;
+        case SOCK_VECTOR: {
+          create_input<bNodeSocketValueVector, pxr::GfVec3f>(
+              shader, input_spec, sock->default_value, input_scale);
+        } break;
+        case SOCK_RGBA: {
+          create_input<bNodeSocketValueRGBA, pxr::GfVec3f>(
+              shader, input_spec, sock->default_value, input_scale);
+        } break;
+        default:
+          break;
+      }
     }
   }
 }
