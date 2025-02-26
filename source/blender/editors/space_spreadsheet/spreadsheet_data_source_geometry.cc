@@ -104,6 +104,24 @@ static void add_mesh_debug_column_names(
   }
 }
 
+static void add_whitelisted_attribute_column_names(
+    const Mesh &mesh,
+    const bke::AttrDomain domain,
+    FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn)
+{
+  static const Set<StringRefNull> whitelisted_attributes(
+      {".sculpt_mask", ".sculpt_face_set", ".hide_vert", ".hide_poly"});
+
+  const bke::AttributeAccessor attributes = mesh.attributes();
+  attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (iter.domain == domain && whitelisted_attributes.contains(iter.name)) {
+      SpreadsheetColumnID column_id;
+      column_id.name = (char *)iter.name.data();
+      fn(column_id, false);
+    }
+  });
+}
+
 static std::unique_ptr<ColumnValues> build_mesh_debug_columns(const Mesh &mesh,
                                                               const bke::AttrDomain domain,
                                                               const StringRef name)
@@ -222,6 +240,7 @@ void GeometryDataSource::foreach_default_column_ids(
     const bke::MeshComponent &component = static_cast<const bke::MeshComponent &>(*component_);
     if (const Mesh *mesh = component.get()) {
       add_mesh_debug_column_names(*mesh, domain_, fn);
+      add_whitelisted_attribute_column_names(*mesh, domain_, fn);
     }
   }
 }
