@@ -241,7 +241,7 @@ void BM_mesh_decimate_unsubdivide_ex(BMesh *bm, const int iterations, const bool
     /* done with selecting tagged verts */
 
     /* main loop, keep tagging until we can't tag any more islands */
-    while (true) {
+    BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
 #ifdef USE_WALKER
       BMWalker walker;
 #else
@@ -249,23 +249,20 @@ void BM_mesh_decimate_unsubdivide_ex(BMesh *bm, const int iterations, const bool
 #endif
       BMVert *v_first = nullptr;
 
-      /* we could avoid iterating from the start each time */
-      BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
-        if (v->e && (BM_elem_index_get(v) == VERT_INDEX_INIT)) {
+      if (v->e && (BM_elem_index_get(v) == VERT_INDEX_INIT)) {
 #ifdef USE_WALKER
-          if (BMO_vert_flag_test(bm, v, ELE_VERT_TAG))
+        if (BMO_vert_flag_test(bm, v, ELE_VERT_TAG))
 #endif
-          {
-            /* Check again in case the topology changed. */
-            if (bm_vert_dissolve_fan_test(v)) {
-              v_first = v;
-            }
-            break;
+        {
+          /* Check again in case the topology changed. */
+          if (bm_vert_dissolve_fan_test(v)) {
+            v_first = v;
           }
         }
       }
+
       if (v_first == nullptr) {
-        break;
+        continue;
       }
 
 #ifdef USE_WALKER
