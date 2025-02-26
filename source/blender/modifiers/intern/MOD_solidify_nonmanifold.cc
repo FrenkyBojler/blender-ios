@@ -78,10 +78,10 @@ static float clamp_nonzero(const float value, const float epsilon)
 struct NewEdgeRef;
 
 struct NewFaceRef {
-  blender::IndexRange face;
-  uint index;
-  bool reversed;
-  NewEdgeRef **link_edges;
+  blender::IndexRange face = {};
+  uint index = 0;
+  bool reversed = false;
+  NewEdgeRef **link_edges = nullptr;
 };
 
 struct OldEdgeFaceRef {
@@ -2036,7 +2036,7 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
     }
     /* delete all vertex creases in the result if a rim is used. */
     if (do_rim) {
-      CustomData_free_layer_named(&result->vert_data, "crease_vert", result->verts_num);
+      CustomData_free_layer_named(&result->vert_data, "crease_vert");
     }
   }
 
