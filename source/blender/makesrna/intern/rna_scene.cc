@@ -3199,6 +3199,11 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "ToolSettings", nullptr);
   RNA_def_struct_path_func(srna, "rna_ToolSettings_path");
   RNA_def_struct_ui_text(srna, "Tool Settings", "");
+  /*
+   * `STRUCT_UNDO` only applies to the top level attributes and not nested structs, any struct
+   * contained within the `ToolSettings` struct should also clear this flag to avoid pushing empty
+   * undo steps.
+   */
   RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
 
   prop = RNA_def_property(srna, "sculpt", PROP_POINTER, PROP_NONE);
