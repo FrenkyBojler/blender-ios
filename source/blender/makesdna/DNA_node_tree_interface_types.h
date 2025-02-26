@@ -224,6 +224,7 @@ typedef struct bNodeTreeInterfacePanel {
   void foreach_item(blender::FunctionRef<bool(const bNodeTreeInterfaceItem &item)> fn,
                     bool include_self = false) const;
 
+  /** Get the socket that is part of the panel header of available. */
   const bNodeTreeInterfaceSocket *get_header_toggle_socket() const;
 
  private:
