@@ -1,2 +1,3 @@
 Referenced by issue #135164, Crash when deleting nodes from a node tree after appending
 Referenced by issue #135169, Node Editor: Frame label rendering broken when zooming in and out
+Referenced by issue #135175, Curve object bounds don't match geometry nodes output
