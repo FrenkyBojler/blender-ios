@@ -72,10 +72,9 @@ bool IMB_rotate_orthogonal(ImBuf *ibuf, int degrees)
     const int channels = ibuf->channels;
     const float *src_pixels = ibuf->float_buffer.data;
     float *dst_pixels = static_cast<float *>(
-        MEM_mallocN(size_t(size_x) * size_y * channels * sizeof(float), __func__));
+        MEM_malloc_arrayN(size_t(size_x) * size_y, channels * sizeof(float), __func__));
     rotate_pixels<float>(degrees, size_x, size_y, src_pixels, dst_pixels, ibuf->channels);
-    MEM_freeN(ibuf->float_buffer.data);
-    ibuf->float_buffer.data = dst_pixels;
+    IMB_assign_float_buffer(ibuf, dst_pixels, IB_TAKE_OWNERSHIP);
     if (ibuf->byte_buffer.data) {
       IMB_rect_from_float(ibuf);
     }
@@ -83,10 +82,9 @@ bool IMB_rotate_orthogonal(ImBuf *ibuf, int degrees)
   else if (ibuf->byte_buffer.data) {
     const uchar *src_pixels = ibuf->byte_buffer.data;
     uchar *dst_pixels = static_cast<uchar *>(
-        MEM_mallocN(size_t(size_x) * size_y * 4 * sizeof(uchar), __func__));
+        MEM_malloc_arrayN(size_t(size_x) * size_y, sizeof(uchar[4]), __func__));
     rotate_pixels<uchar>(degrees, size_x, size_y, src_pixels, dst_pixels, 4);
-    MEM_freeN(ibuf->byte_buffer.data);
-    ibuf->byte_buffer.data = dst_pixels;
+    IMB_assign_byte_buffer(ibuf, dst_pixels, IB_TAKE_OWNERSHIP);
   }
 
   return true;
