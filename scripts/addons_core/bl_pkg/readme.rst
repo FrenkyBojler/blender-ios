@@ -97,7 +97,7 @@ as it relates to how extensions are loaded by Blender.
 
 ``./scripts/modules/_bpy_internal/extensions/wheel_manager.py``
    Extensions may include Python modules as wheels,
-   these need to be extracted into an extension-local site-packages, e.g.
+   these are extracted into an a site-packages directory that is specific to the extensions for this version of Blender.
    ``~/.config/blender/X.X/extensions/.local/lib/python3.XX/site-packages/``.
 
    Once extensions have been installed a list of wheels is passed in to the main "apply_action" function
