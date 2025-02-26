@@ -101,8 +101,8 @@ void BlenderSync::sync_light(BL::Object &b_parent,
   }
 
   /* strength */
-  const float3 strength = get_float3(b_light.color()) * (BL::PointLight(b_light).energy() *
-                          exp2f(b_light.exposure()));
+  const float3 strength = get_float3(b_light.color()) *
+                          (BL::PointLight(b_light).energy() * exp2f(b_light.exposure()));
   light->set_strength(strength);
 
   /* location and (inverted!) direction */
