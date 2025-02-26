@@ -1134,10 +1134,8 @@ static uiBlock *wm_enum_search_menu(bContext *C, ARegion *region, void *arg)
   wmOperator *op = search_menu->op;
   /* `template_ID` uses `4 * widget_unit` for width,
    * we use a bit more, some items may have a suffix to show. */
-  const int width = search_menu->use_previews ? 5 * U.widget_unit * search_menu->prv_cols :
-                                                UI_searchbox_size_x();
-  const int height = search_menu->use_previews ? 5 * U.widget_unit * search_menu->prv_rows :
-                                                 UI_searchbox_size_y() - UI_SEARCHBOX_BOUNDS;
+  const int width = UI_searchbox_size_x();
+  const int height = UI_searchbox_size_y();
   static char search[256] = "";
 
   uiBlock *block = UI_block_begin(C, region, "_popup", UI_EMBOSS);
