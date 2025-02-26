@@ -1164,11 +1164,11 @@ static void node_update_basis_from_declaration(
           else if constexpr (std::is_same_v<ItemT, flat_item::PanelHeader>) {
             const nodes::PanelDeclaration &node_decl = *item.decl;
             bke::bNodePanelRuntime &panel_runtime = node.runtime->panels[node_decl.index];
-            bNodeSocket *input_socket = item.input;
             const float panel_header_height = NODE_DYS;
             locy -= panel_header_height / 2;
             panel_runtime.header_center_y = locy;
             locy -= panel_header_height / 2;
+            bNodeSocket *input_socket = item.input;
             if (input_socket) {
               panel_runtime.input_socket = input_socket;
               input_socket->runtime->location = float2(locx, *panel_runtime.header_center_y);
@@ -2515,7 +2515,6 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
                               draw_bounds.xmax,
                               *panel_runtime.header_center_y - NODE_DYS,
                               *panel_runtime.header_center_y + NODE_DYS};
-
     UI_block_emboss_set(&block, UI_EMBOSS_NONE);
 
     /* Invisible button covering the entire header for collapsing/expanding. */

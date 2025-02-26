@@ -1038,7 +1038,7 @@ static void rna_def_node_interface_socket(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_INTERFACE_SOCKET_PANEL_TOGGLE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop,
-                           "Is Panel Header",
+                           "Is Panel Toggle",
                            "This socket is meant to be used as the toggle in its panel header");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
 
