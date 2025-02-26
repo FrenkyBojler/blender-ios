@@ -1,0 +1,1 @@
+Referenced by pull request #135170, VSE: speedup RE_render_result_rect_from_ibuf by avoiding memory clear
