@@ -91,7 +91,7 @@ as it relates to how extensions are loaded by Blender.
    from a single *package* independent of their file-system location.
 
    This is done so extensions don't pollute the module name-space
-   (avoiding naming collisions with ``https://pypi.org``).
+   (avoiding naming collisions with packages downloaded from ``https://pypi.org``).
 
    So each extension's add-on ID follows this format: ``bl_ext.{repository_id}.{extension_id}``.
 
