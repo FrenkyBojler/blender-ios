@@ -19,6 +19,7 @@
 #  include "BKE_cloth.hh"
 
 #  include "SIM_mass_spring.h"
+#include <omp.h>
 
 #  ifdef __GNUC__
 #    pragma GCC diagnostic ignored "-Wtype-limits"
@@ -166,12 +167,9 @@ DO_INLINE void submul_lfvectorS(float (*to)[3], float (*fLongVector)[3], float s
 DO_INLINE float dot_lfvector(float (*fLongVectorA)[3], float (*fLongVectorB)[3], uint verts)
 {
   long i = 0;
-  float temp = 0.0;
-  /* XXX brecht, disabled this for now (first schedule line was already disabled),
-   * due to non-commutative nature of floating point ops this makes the sim give
-   * different results each time you run it!
-   * schedule(guided, 2) */
-  // #pragma omp parallel for reduction(+: temp) if (verts > CLOTH_OPENMP_LIMIT)
+  //workaround ：Use double for calculation errors due to addition order difference in parallel
+  double temp = 0.0; 
+#pragma omp parallel for reduction(+: temp) if (verts > CLOTH_OPENMP_LIMIT)
   for (i = 0; i < long(verts); i++) {
     temp += dot_v3v3(fLongVectorA[i], fLongVectorB[i]);
   }
@@ -193,9 +191,8 @@ DO_INLINE void add_lfvector_lfvector(float (*to)[3],
 DO_INLINE void add_lfvector_lfvectorS(
     float (*to)[3], float (*fLongVectorA)[3], float (*fLongVectorB)[3], float bS, uint verts)
 {
-  uint i = 0;
-
-  for (i = 0; i < verts; i++) {
+#pragma omp parallel for if(verts > CLOTH_OPENMP_LIMIT)
+  for (int i = 0; i < verts; i++) {
     VECADDS(to[i], fLongVectorA[i], fLongVectorB[i], bS);
   }
 }
@@ -578,31 +575,34 @@ DO_INLINE void initdiag_bfmatrix(fmatrix3x3 *matrix, float m3[3][3])
 /* STATUS: verified */
 DO_INLINE void mul_bfmatrix_lfvector(float (*to)[3], fmatrix3x3 *from, lfVector *fLongVector)
 {
-  uint vcount = from[0].vcount;
-  lfVector *temp = create_lfvector(vcount);
-
+  const uint vcount = from[0].vcount;
+  const uint scount = from[0].scount;
   zero_lfvector(to, vcount);
-
-#  pragma omp parallel sections if (vcount > CLOTH_OPENMP_LIMIT)
+#pragma omp parallel if (vcount > CLOTH_OPENMP_LIMIT)
   {
-#  pragma omp section
-    {
-      for (uint i = from[0].vcount; i < from[0].vcount + from[0].scount; i++) {
-        /* This is the lower triangle of the sparse matrix,
-         * therefore multiplication occurs with transposed sub-matrices. */
-        muladd_fmatrixT_fvector(to[from[i].c], from[i].m, fLongVector[from[i].r]);
-      }
+    const int N_p = omp_get_num_threads();
+    const int id_p = omp_get_thread_num();
+    const int idx_lb = id_p * vcount / N_p;
+    const int idx_ub = (id_p+1) * vcount / N_p;
+    fmatrix3x3 *f = from;
+
+    for (int i = 0; i < vcount ; i++,f++) {
+      const int r = f->r;
+      if (idx_lb<=r && r<idx_ub )
+        muladd_fmatrix_fvector(to[r], f->m, fLongVector[f->c]);
     }
-#  pragma omp section
-    {
-      for (uint i = 0; i < from[0].vcount + from[0].scount; i++) {
-        muladd_fmatrix_fvector(temp[from[i].r], from[i].m, fLongVector[from[i].c]);
+    for (int i = 0; i <  scount; i++,f++) {
+      const int c = f->c;
+      const int r = f->r;
+      if (idx_lb <= c && c < idx_ub) {
+        /* This is the lower triangle of the sparse matrix,
+-         * therefore multiplication occurs with transposed sub-matrices. */
+        muladd_fmatrixT_fvector(to[c], f->m, fLongVector[r]);
       }
+      if (idx_lb <= r && r < idx_ub)
+        muladd_fmatrix_fvector(to[r], f->m, fLongVector[c]);
     }
   }
-  add_lfvector_lfvector(to, to, temp, from[0].vcount);
-
-  del_lfvector(temp);
 }
 
 /* SPARSE SYMMETRIC sub big matrix with big matrix. */
@@ -823,30 +823,40 @@ static int cg_filtered(lfVector *ldV,
   float conjgrad_epsilon = 0.01f;
 
   uint numverts = lA[0].vcount;
-  lfVector *fB = create_lfvector(numverts);
-  lfVector *AdV = create_lfvector(numverts);
   lfVector *r = create_lfvector(numverts);
   lfVector *c = create_lfvector(numverts);
   lfVector *q = create_lfvector(numverts);
-  lfVector *s = create_lfvector(numverts);
   float bnorm2, delta_new, delta_old, delta_target, alpha;
 
+  std::vector<int> constrainted_idx;
+  for (int i = 0; i < numverts; i++) {
+    if (S[0].m[0][0] < 0.1f)constrainted_idx.push_back(i);
+  }
   cp_lfvector(ldV, z, numverts);
 
   /* d0 = filter(B)^T * P * filter(B) */
-  cp_lfvector(fB, lB, numverts);
-  filter(fB, S);
-  bnorm2 = dot_lfvector(fB, fB, numverts);
+  {
+    lfVector* fB = c;
+    cp_lfvector(fB, lB, numverts);
+    //filter(fB, S); //in case of ndof0 constraint zero_v3 have same effect to filter
+    for (auto& i : constrainted_idx)zero_v3(fB[i]);
+    bnorm2 = dot_lfvector(fB, fB, numverts);
+  }
   delta_target = conjgrad_epsilon * conjgrad_epsilon * bnorm2;
+  {
+    lfVector* AdV = c;
+    /* r = filter(B - A * dV) */
+    mul_bfmatrix_lfvector(AdV, lA, ldV);
+    sub_lfvector_lfvector(r, lB, AdV, numverts);
+  }
+  //filter(r, S);
+  for (auto& i : constrainted_idx)zero_v3(r[i]);
 
-  /* r = filter(B - A * dV) */
-  mul_bfmatrix_lfvector(AdV, lA, ldV);
-  sub_lfvector_lfvector(r, lB, AdV, numverts);
-  filter(r, S);
 
   /* c = filter(P^-1 * r) */
   cp_lfvector(c, r, numverts);
-  filter(c, S);
+  //filter(c, S);
+  
 
   /* delta = r^T * c */
   delta_new = dot_lfvector(r, c, numverts);
@@ -862,23 +872,24 @@ static int cg_filtered(lfVector *ldV,
   print_bfmatrix(S);
 #  endif
 
+
+
   while (delta_new > delta_target && conjgrad_loopcount < conjgrad_looplimit) {
     mul_bfmatrix_lfvector(q, lA, c);
-    filter(q, S);
-
+    //filter(q, S); //in case of ndof0 constraint zero_v3 have same effect to filter
+    for (auto& i : constrainted_idx)zero_v3(q[i]);
     alpha = delta_new / dot_lfvector(c, q, numverts);
 
     add_lfvector_lfvectorS(ldV, ldV, c, alpha, numverts);
 
     add_lfvector_lfvectorS(r, r, q, -alpha, numverts);
 
-    /* s = P^-1 * r */
-    cp_lfvector(s, r, numverts);
     delta_old = delta_new;
-    delta_new = dot_lfvector(r, s, numverts);
+    delta_new = dot_lfvector(r, r, numverts);
 
-    add_lfvector_lfvectorS(c, s, c, delta_new / delta_old, numverts);
-    filter(c, S);
+    add_lfvector_lfvectorS(c, r, c, delta_new / delta_old, numverts);
+    //filter(c, S);
+    for (auto& i : constrainted_idx)zero_v3(c[i]);
 
     conjgrad_loopcount++;
   }
@@ -889,12 +900,9 @@ static int cg_filtered(lfVector *ldV,
   printf("========\n");
 #  endif
 
-  del_lfvector(fB);
-  del_lfvector(AdV);
   del_lfvector(r);
   del_lfvector(c);
   del_lfvector(q);
-  del_lfvector(s);
   // printf("W/O conjgrad_loopcount: %d\n", conjgrad_loopcount);
 
   result->status = conjgrad_loopcount < conjgrad_looplimit ? SIM_SOLVER_SUCCESS :
