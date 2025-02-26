@@ -564,7 +564,7 @@ bool AbstractHierarchyIterator::determine_duplication_references(
           /* The original was not found, so mark this instance as "original". */
           std::string data_path = get_object_data_path(context);
           context->mark_as_not_instanced();
-          duplisource_export_path_.lookup(source_id) = context->export_path;
+          duplisource_export_path_.add_overwrite(source_id, context->export_path);
           duplisource_export_path_.add_new(source_data_id, data_path);
         }
       }
@@ -583,7 +583,7 @@ bool AbstractHierarchyIterator::determine_duplication_references(
       if (context->is_instance()) {
         context->mark_as_not_instanced();
         ID *source_id = &context->object->id;
-        duplisource_export_path_.lookup(source_id) = context->export_path;
+        duplisource_export_path_.add_overwrite(source_id, context->export_path);
       }
       contains_proxy_prototype = true;
     }
@@ -751,12 +751,7 @@ std::string AbstractHierarchyIterator::get_object_data_name(const Object *object
 AbstractHierarchyWriter *AbstractHierarchyIterator::get_writer(
     const std::string &export_path) const
 {
-  AbstractHierarchyWriter *writer = writers_.lookup_default(export_path, nullptr);
-
-  if (!writer) {
-    return nullptr;
-  }
-  return writer;
+  return writers_.lookup_default(export_path, nullptr);
 }
 
 EnsuredWriter AbstractHierarchyIterator::ensure_writer(

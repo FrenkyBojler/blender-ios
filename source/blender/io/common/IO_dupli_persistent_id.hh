@@ -6,6 +6,7 @@
 #include "BKE_duplilist.hh"
 
 #include <array>
+#include <cstdint>
 #include <string>
 
 namespace blender::io {
