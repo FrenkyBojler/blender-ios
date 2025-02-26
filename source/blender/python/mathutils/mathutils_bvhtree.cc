@@ -1146,6 +1146,7 @@ static PyObject *C_BVHTree_FromObject(PyObject * /*cls*/, PyObject *args, PyObje
   mesh = bvh_get_mesh("BVHTree", depsgraph, scene, ob, use_deform, use_cage, &free_mesh);
 
   if (mesh == nullptr) {
+    PyErr_Format(PyExc_ValueError, "FromObject(...): Cannot get a mesh from object '%s'", ob->id.name + 2);
     return nullptr;
   }
 
