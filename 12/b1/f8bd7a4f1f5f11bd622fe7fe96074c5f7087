@@ -1,2 +1,3 @@
 Referenced by issue #135097, Class multiline tooltip displayed in a single line
 Referenced by issue #135134, Very long tooltip in all brush asset properties
+Referenced by pull request #135196, Fix #135097: Wrap Text Lines Without Control Chars in Glyph Cache
