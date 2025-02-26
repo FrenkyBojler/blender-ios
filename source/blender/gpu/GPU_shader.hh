@@ -413,6 +413,7 @@ int GPU_shader_get_uniform_block(GPUShader *shader, const char *name);
   } while (0)
 
 #include "BLI_utility_mixins.hh"
+#include <atomic>
 #include <mutex>
 
 namespace blender::gpu {
