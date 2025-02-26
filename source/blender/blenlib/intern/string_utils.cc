@@ -12,6 +12,8 @@
 
 #include <array>
 
+#include <stdexcept>
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array.hh"
