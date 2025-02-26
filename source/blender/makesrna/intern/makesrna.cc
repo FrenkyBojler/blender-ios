@@ -2228,6 +2228,11 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
         DefRNA.error = true;
       }
 
+      if (dp->dnapointerlevel == 0 && pprop->get == nullptr) {
+        /* Set the flag for generated documentation. */
+        RNA_def_property_flag(prop, PROP_NEVER_NULL);
+      }
+
       pprop->get = reinterpret_cast<PropPointerGetFunc>(
           rna_def_property_get_func(f, srna, prop, dp, (const char *)pprop->get));
       pprop->set = reinterpret_cast<PropPointerSetFunc>(
@@ -4499,7 +4504,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
     case PROP_STRING: {
       StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
       fprintf(f,
-              "\t%s, %s, %s, %s, %s, %s, %s, (eStringPropertySearchFlag)%d, %d, ",
+              "\t%s, %s, %s, %s, %s, %s, %s, (eStringPropertySearchFlag)%d, %s, %d, ",
               rna_function_string(sprop->get),
               rna_function_string(sprop->length),
               rna_function_string(sprop->set),
@@ -4508,6 +4513,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
               rna_function_string(sprop->set_ex),
               rna_function_string(sprop->search),
               int(sprop->search_flag),
+              rna_function_string(sprop->path_filter),
               sprop->maxlength);
       rna_print_c_string(f, sprop->defaultvalue);
       fprintf(f, "\n");
