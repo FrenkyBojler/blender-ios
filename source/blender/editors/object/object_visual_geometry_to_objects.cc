@@ -384,17 +384,22 @@ class GeometryToObjectsBuilder {
         Object &object_eval = reference.object();
         Object *object_orig = DEG_get_original_object(&object_eval);
 
-        instance.collection = BKE_collection_add(&bmain_, nullptr, BKE_id_name(object_orig->id));
-        new_instance_collections_.append(instance.collection);
-        BKE_collection_object_add(&bmain_, instance.collection, object_orig);
+        if (object_orig->type == OB_EMPTY && object_orig->instance_collection) {
+          instance.collection = object_orig->instance_collection;
+        }
+        else {
+          instance.collection = BKE_collection_add(&bmain_, nullptr, BKE_id_name(object_orig->id));
+          new_instance_collections_.append(instance.collection);
+          BKE_collection_object_add(&bmain_, instance.collection, object_orig);
 
-        /* Handle the object transform because it may not be the identity matrix. The location is
-         * handled by setting the collection instance offset to it. The rotation and scale are
-         * handled by offsetting the instance using the collection by the inverse amount. */
-        float4x4 object_transform;
-        BKE_object_to_mat4(object_orig, object_transform.ptr());
-        instance.transform = float4x4(math::invert(float3x3(object_transform)));
-        copy_v3_v3(instance.collection->instance_offset, object_transform.location());
+          /* Handle the object transform because it may not be the identity matrix. The location is
+           * handled by setting the collection instance offset to it. The rotation and scale are
+           * handled by offsetting the instance using the collection by the inverse amount. */
+          float4x4 object_transform;
+          BKE_object_to_mat4(object_orig, object_transform.ptr());
+          instance.transform = float4x4(math::invert(float3x3(object_transform)));
+          copy_v3_v3(instance.collection->instance_offset, object_transform.location());
+        }
         break;
       }
       case bke::InstanceReference::Type::Collection: {
