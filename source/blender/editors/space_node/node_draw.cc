@@ -749,23 +749,24 @@ static void add_flat_items_for_panel(bNode &node,
   if (!panel_visibility[panel_decl.index]) {
     return;
   }
-  const int panel_header_i = r_items.append_and_get_index({flat_item::PanelHeader{&panel_decl}});
-  flat_item::PanelHeader &header_item = std::get<flat_item::PanelHeader>(
-      r_items[panel_header_i].item);
+  flat_item::PanelHeader header_item;
+  header_item.decl = &panel_decl;
   const nodes::SocketDeclaration *panel_input_decl = panel_decl.panel_input_decl();
-  bool skip_first = false;
-  if (!header_item.input && panel_input_decl) {
+  if (panel_input_decl) {
     header_item.input = &node.socket_by_decl(*panel_input_decl);
-    skip_first = true;
   }
+  r_items.append({header_item});
+
   const bNodePanelState &panel_state = node.panel_states_array[panel_decl.index];
   if (panel_state.is_collapsed()) {
     return;
   }
   r_items.append({flat_item::PanelContentBegin{&panel_decl}});
   const nodes::SocketDeclaration *prev_socket_decl = nullptr;
-  for (const nodes::ItemDeclaration *item_decl : panel_decl.items.as_span().drop_front(skip_first))
-  {
+  for (const nodes::ItemDeclaration *item_decl : panel_decl.items) {
+    if (item_decl == panel_input_decl) {
+      continue;
+    }
     if (const auto *socket_decl = dynamic_cast<const nodes::SocketDeclaration *>(item_decl)) {
       add_flat_items_for_socket(node, *socket_decl, &panel_decl, prev_socket_decl, r_items);
       prev_socket_decl = socket_decl;
