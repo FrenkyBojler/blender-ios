@@ -12,6 +12,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_task.h"
@@ -328,8 +329,6 @@ DRWData *DRW_viewport_data_create()
 {
   DRWData *drw_data = static_cast<DRWData *>(MEM_callocN(sizeof(DRWData), "DRWData"));
 
-  drw_data->idatalist = DRW_instance_data_list_create();
-
   drw_data->default_view = new blender::draw::View("DrawDefaultView");
 
   for (int i = 0; i < 2; i++) {
@@ -338,24 +337,19 @@ DRWData *DRW_viewport_data_create()
   return drw_data;
 }
 
-static void drw_viewport_data_reset(DRWData *drw_data)
+static void drw_viewport_data_reset(DRWData * /*drw_data*/)
 {
-  DRW_instance_data_list_free_unused(drw_data->idatalist);
-  DRW_instance_data_list_resize(drw_data->idatalist);
-  DRW_instance_data_list_reset(drw_data->idatalist);
   blender::gpu::TexturePool::get().reset();
 }
 
 void DRW_viewport_data_free(DRWData *drw_data)
 {
-  DRW_instance_data_list_free(drw_data->idatalist);
   for (int i = 0; i < 2; i++) {
     DRW_view_data_free(drw_data->view_data[i]);
   }
   DRW_volume_module_free(drw_data->volume_module);
   DRW_pointcloud_module_free(drw_data->pointcloud_module);
   DRW_curves_module_free(drw_data->curves_module);
-  DRW_subdiv_module_free(drw_data->subdiv_module);
   delete drw_data->default_view;
   MEM_freeN(drw_data);
 }
@@ -468,8 +462,6 @@ static void drw_manager_init(DRWManager *dst, GPUViewport *viewport, const int s
   if (dst->draw_ctx.object_edit && rv3d) {
     ED_view3d_init_mats_rv3d(dst->draw_ctx.object_edit, rv3d);
   }
-
-  memset(dst->object_instance_data, 0x0, sizeof(dst->object_instance_data));
 }
 
 static void drw_manager_exit(DRWManager *dst)
@@ -731,6 +723,9 @@ DrawData *DRW_drawdata_ensure(ID *id,
 {
   BLI_assert(size >= sizeof(DrawData));
   BLI_assert(id_can_have_drawdata(id));
+  BLI_assert_msg(
+      GS(id->name) != ID_OB,
+      "Objects should not use DrawData anymore. Use last_update instead for update detection");
   /* Try to re-use existing data. */
   DrawData *dd = DRW_drawdata_get(id, engine_type);
   if (dd != nullptr) {
@@ -740,21 +735,7 @@ DrawData *DRW_drawdata_ensure(ID *id,
   DrawDataList *drawdata = DRW_drawdatalist_from_id(id);
 
   /* Allocate new data. */
-  if ((GS(id->name) == ID_OB) && (((Object *)id)->base_flag & BASE_FROM_DUPLI) != 0) {
-    /* NOTE: data is not persistent in this case. It is reset each redraw. */
-    BLI_assert(free_cb == nullptr); /* No callback allowed. */
-    /* Round to sizeof(float) for DRW_instance_data_request(). */
-    const size_t t = sizeof(float) - 1;
-    size = (size + t) & ~t;
-    size_t fsize = size / sizeof(float);
-    BLI_assert(fsize < MAX_INSTANCE_DATA_SIZE);
-    if (DST.object_instance_data[fsize] == nullptr) {
-      DST.object_instance_data[fsize] = DRW_instance_data_request(DST.vmempool->idatalist, fsize);
-    }
-    dd = (DrawData *)DRW_instance_data_next(DST.object_instance_data[fsize]);
-    memset(dd, 0, size);
-  }
-  else {
+  {
     dd = static_cast<DrawData *>(MEM_callocN(size, "DrawData"));
   }
   dd->engine_type = engine_type;
@@ -2477,7 +2458,7 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
   if (!viewport) {
     /* Selection engine requires a viewport.
      * TODO(@germano): This should be done internally in the engine. */
-    sel_ctx->index_drawn_len = 1;
+    sel_ctx->max_index_drawn_len = 1;
     return;
   }
 

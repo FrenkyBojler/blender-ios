@@ -528,6 +528,7 @@ class ShaderModule {
   StaticShader paint_weight_fake_shading = shader_clippable("overlay_paint_weight_fake_shading");
   StaticShader particle_edit_vert = shader_clippable("overlay_edit_particle_point");
   StaticShader particle_edit_edge = shader_clippable("overlay_edit_particle_strand");
+  StaticShader pointcloud_points = shader_clippable("overlay_edit_pointcloud");
   StaticShader sculpt_curves = shader_clippable("overlay_sculpt_curves_selection");
   StaticShader sculpt_curves_cage = shader_clippable("overlay_sculpt_curves_cage");
   StaticShader sculpt_mesh = shader_clippable("overlay_sculpt_mask");
