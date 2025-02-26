@@ -1675,7 +1675,7 @@ static void display_buffer_apply_get_linear_buffer(DisplayBufferThread *handle,
     if (!is_data && !is_data_display) {
       /* convert float buffer to scene linear space */
       IMB_colormanagement_transform_float(
-          linear_buffer, width, height, channels, from_colorspace, to_colorspace, false, false);
+          linear_buffer, width, height, channels, from_colorspace, to_colorspace, false);
     }
 
     *is_straight_alpha = true;
@@ -1693,14 +1693,8 @@ static void display_buffer_apply_get_linear_buffer(DisplayBufferThread *handle,
     memcpy(linear_buffer, handle->buffer, buffer_size * sizeof(float));
 
     if (!is_data && !is_data_display) {
-      IMB_colormanagement_transform_float(linear_buffer,
-                                          width,
-                                          height,
-                                          channels,
-                                          from_colorspace,
-                                          to_colorspace,
-                                          predivide,
-                                          false);
+      IMB_colormanagement_transform_float(
+          linear_buffer, width, height, channels, from_colorspace, to_colorspace, predivide);
     }
 
     *is_straight_alpha = false;
@@ -2094,17 +2088,14 @@ static void colormanagement_transform_ex(uchar *byte_buffer,
                                          int channels,
                                          const char *from_colorspace,
                                          const char *to_colorspace,
-                                         bool predivide,
-                                         bool do_threaded)
+                                         bool predivide)
 {
   if (from_colorspace[0] == '\0') {
     return;
   }
 
   if (STREQ(from_colorspace, to_colorspace)) {
-    /* if source and destination color spaces are identical, skip
-     * threading overhead and simply do nothing
-     */
+    /* if source and destination color spaces are identical, do nothing. */
     return;
   }
 
@@ -2115,20 +2106,8 @@ static void colormanagement_transform_ex(uchar *byte_buffer,
     return;
   }
 
-  if (do_threaded) {
-    processor_transform_apply_threaded(
-        byte_buffer, float_buffer, width, height, channels, cm_processor, predivide, false);
-  }
-  else {
-    if (byte_buffer != nullptr) {
-      IMB_colormanagement_processor_apply_byte(cm_processor, byte_buffer, width, height, channels);
-    }
-    if (float_buffer != nullptr) {
-      IMB_colormanagement_processor_apply(
-          cm_processor, float_buffer, width, height, channels, predivide);
-    }
-  }
-
+  processor_transform_apply_threaded(
+      byte_buffer, float_buffer, width, height, channels, cm_processor, predivide, false);
   IMB_colormanagement_processor_free(cm_processor);
 }
 
@@ -2138,18 +2117,10 @@ void IMB_colormanagement_transform_float(float *buffer,
                                          int channels,
                                          const char *from_colorspace,
                                          const char *to_colorspace,
-                                         bool predivide,
-                                         bool threaded)
+                                         bool predivide)
 {
-  colormanagement_transform_ex(nullptr,
-                               buffer,
-                               width,
-                               height,
-                               channels,
-                               from_colorspace,
-                               to_colorspace,
-                               predivide,
-                               threaded);
+  colormanagement_transform_ex(
+      nullptr, buffer, width, height, channels, from_colorspace, to_colorspace, predivide);
 }
 
 void IMB_colormanagement_transform_byte(uchar *buffer,
@@ -2157,11 +2128,10 @@ void IMB_colormanagement_transform_byte(uchar *buffer,
                                         int height,
                                         int channels,
                                         const char *from_colorspace,
-                                        const char *to_colorspace,
-                                        bool threaded)
+                                        const char *to_colorspace)
 {
   colormanagement_transform_ex(
-      buffer, nullptr, width, height, channels, from_colorspace, to_colorspace, false, threaded);
+      buffer, nullptr, width, height, channels, from_colorspace, to_colorspace, false);
 }
 
 void IMB_colormanagement_transform_byte_to_float(float *float_buffer,

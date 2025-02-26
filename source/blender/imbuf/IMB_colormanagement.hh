@@ -105,9 +105,6 @@ bool IMB_colormanagement_set_whitepoint(const float whitepoint[3],
 
 /**
  * Convert a float image buffer from one color space to another.
- *
- * Defaults to multi-threaded conversion; might want to turn it off
- * if the calling code is already threaded across the image.
  */
 void IMB_colormanagement_transform_float(float *buffer,
                                          int width,
@@ -115,21 +112,16 @@ void IMB_colormanagement_transform_float(float *buffer,
                                          int channels,
                                          const char *from_colorspace,
                                          const char *to_colorspace,
-                                         bool predivide,
-                                         bool threaded = true);
+                                         bool predivide);
 /**
  * Convert a byte image buffer from one color space to another.
- *
- * Defaults to multi-threaded conversion; might want to turn it off
- * if the calling code is already threaded across the image.
  */
 void IMB_colormanagement_transform_byte(unsigned char *buffer,
                                         int width,
                                         int height,
                                         int channels,
                                         const char *from_colorspace,
-                                        const char *to_colorspace,
-                                        bool threaded = true);
+                                        const char *to_colorspace);
 
 /**
  * Convert a byte image buffer into a float buffer, changing the color spaces too.
