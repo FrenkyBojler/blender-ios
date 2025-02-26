@@ -307,7 +307,7 @@ class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
         interface = tree.interface
 
         active_item = interface.active
-        if active_item.item_type == 'SOCKET':
+        if not active_item or active_item.item_type == 'SOCKET':
             return (
                 ('INPUT', "Input", ""),
                 ('OUTPUT', "Output", ""),
