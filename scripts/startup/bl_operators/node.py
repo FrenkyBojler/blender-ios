@@ -306,20 +306,18 @@ class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
         tree = snode.edit_tree
         interface = tree.interface
 
-        active_item = interface.active
-        if not active_item or active_item.item_type == 'SOCKET':
-            return (
-                ('INPUT', "Input", ""),
-                ('OUTPUT', "Output", ""),
-                ('PANEL', "Panel", ""),
-            )
-        #elif active_item.item_type == 'PANEL':
-        return (
+        items = [
             ('INPUT', "Input", ""),
             ('OUTPUT', "Output", ""),
             ('PANEL', "Panel", ""),
-            ('PANEL_TOGGLE', "Panel Toggle", ""),
-        )
+        ]
+
+        active_item = interface.active
+        # Panels have the extra option to add a toggle.
+        if active_item and active_item.item_type == 'PANEL':
+            items.append(('PANEL_TOGGLE', "Panel Toggle", ""))
+
+        return items
 
     item_type: EnumProperty(
         name="Item Type",
