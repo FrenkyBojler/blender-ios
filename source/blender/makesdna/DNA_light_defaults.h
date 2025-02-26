@@ -43,7 +43,7 @@
     .shadow_maximum_resolution = 0.001f, \
     .shadow_jitter_overblur = 10.0f, \
     .att_dist = 40.0f, \
-    .sun_angle = DEG2RADF(11.4f), \
+    .sun_angle = DEG2RADF(0.526), \
     .area_spread = DEG2RADF(180.0f), \
   }
 
