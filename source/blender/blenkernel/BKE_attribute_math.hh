@@ -544,6 +544,7 @@ class ColorGeometry4bMixer {
 class float4x4Mixer {
  private:
   MutableSpan<float4x4> buffer_;
+  Array<math::Quaternion> rot_frame_ref_;
   Array<float> total_weights_;
   Array<float3> location_buffer_;
   Array<float3> expmap_buffer_;

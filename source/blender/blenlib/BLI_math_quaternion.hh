@@ -617,7 +617,7 @@ template<typename T>
 namespace blender::math {
 
 /* -------------------------------------------------------------------- */
-/** \name Conversion to Euler
+/** \name Conversion to AxisAngle
  * \{ */
 
 template<typename T, typename AngleT = AngleRadian>
@@ -695,6 +695,22 @@ template<typename T> VecBase<T, 3> QuaternionBase<T>::expmap() const
   BLI_assert(is_unit_scale(*this));
   const AxisAngleT axis_angle = to_axis_angle(*this);
   return axis_angle.axis() * axis_angle.angle().radian();
+}
+
+template<typename T> VecBase<T, 3> QuaternionBase<T>::expmap_wrapped() const
+{
+  using AxisAngleT = AxisAngleBase<T, AngleRadianBase<T>>;
+  BLI_assert(is_unit_scale(*this));
+  const AxisAngleT axis_angle = to_axis_angle(*this);
+
+  /* If the real part for quaternion is < 0 the angle is > π so take the complementary rotation -q!
+   */
+  const T angle = axis_angle.angle().radian();
+  /* Flip using the negative complementary rotation angle: -(2π - θ). */
+  const T signed_compl_angle = math::abs(angle) > T(numbers::pi) ? angle - T(2 * numbers::pi) :
+                                                                   angle;
+
+  return axis_angle.axis() * signed_compl_angle;
 }
 
 /** \} */

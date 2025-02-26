@@ -87,6 +87,11 @@ template<typename T> struct QuaternionBase {
   VecBase<T, 3> expmap() const;
 
   /**
+   * Return the rotation vector representation with an angle in interval [-π, π], (so |θk| < π).
+   */
+  VecBase<T, 3> expmap_wrapped() const;
+
+  /**
    * Returns the full twist angle for a given \a axis direction.
    * The twist is the isolated rotation in the plane whose \a axis is normal to.
    */

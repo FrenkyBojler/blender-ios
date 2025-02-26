@@ -206,6 +206,7 @@ float4x4Mixer::float4x4Mixer(MutableSpan<float4x4> buffer)
 
 float4x4Mixer::float4x4Mixer(MutableSpan<float4x4> buffer, const IndexMask & /*mask*/)
     : buffer_(buffer),
+      rot_frame_ref_(buffer.size()),
       total_weights_(buffer.size(), 0.0f),
       location_buffer_(buffer.size(), float3(0)),
       expmap_buffer_(buffer.size(), float3(0)),
@@ -215,10 +216,15 @@ float4x4Mixer::float4x4Mixer(MutableSpan<float4x4> buffer, const IndexMask & /*m
 
 void float4x4Mixer::float4x4Mixer::set(int64_t index, const float4x4 &value, const float weight)
 {
-  location_buffer_[index] = value.location() * weight;
-  expmap_buffer_[index] = math::to_quaternion(value).expmap() * weight;
-  scale_buffer_[index] = math::to_scale(value) * weight;
+  math::Quaternion rotation;
+  math::to_loc_rot_scale_safe<true>(
+      value, location_buffer_[index], rotation, scale_buffer_[index]);
+  location_buffer_[index] *= weight;
+  scale_buffer_[index] *= weight;
   total_weights_[index] = weight;
+
+  rot_frame_ref_[index] = math::conjugate(rotation);
+  expmap_buffer_[index] = float3(0.0f);
 }
 
 void float4x4Mixer::mix_in(int64_t index, const float4x4 &value, float weight)
@@ -228,8 +234,16 @@ void float4x4Mixer::mix_in(int64_t index, const float4x4 &value, float weight)
   float3 scale;
   math::to_loc_rot_scale_safe<true>(value, location, rotation, scale);
 
+  if (total_weights_[index] <= 0.0f) {
+    /* Use the first non-zero weighted rotation as the reference frame: */
+    rot_frame_ref_[index] = math::conjugate(rotation);
+    /* expmap_buffer_[index] += 0 */
+  }
+  else {
+    expmap_buffer_[index] += (rotation * rot_frame_ref_[index]).expmap_wrapped() * weight;
+  }
+
   location_buffer_[index] += location * weight;
-  expmap_buffer_[index] += rotation.expmap() * weight;
   scale_buffer_[index] += scale * weight;
   total_weights_[index] += weight;
 }
@@ -247,7 +261,8 @@ void float4x4Mixer::finalize(const IndexMask &mask)
       const float weight_inv = math::rcp(weight);
       buffer_[i] = math::from_loc_rot_scale<float4x4>(
           location_buffer_[i] * weight_inv,
-          math::Quaternion::expmap(expmap_buffer_[i] * weight_inv),
+          math::Quaternion::expmap(expmap_buffer_[i] * weight_inv) *
+              math::conjugate(rot_frame_ref_[i]),
           scale_buffer_[i] * weight_inv);
     }
     else {
