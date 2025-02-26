@@ -1267,6 +1267,7 @@ static void blf_font_wrap_apply(FontBLF *font,
   size_t i = 0;
   int lines = 0;
   ft_pix pen_x_next = 0;
+  bool keep_delim = false;
 
   ft_pix line_height = blf_font_height_max_ft_pix(font);
 
@@ -1288,6 +1289,7 @@ static void blf_font_wrap_apply(FontBLF *font,
 
     const ft_pix advance_x = g ? g->advance_x : 0;
     const uint codepoint = g ? g->c : BLI_str_utf8_as_unicode_safe(&str[i_curr]);
+    const uint previous = g_prev ? g_prev->c : 0;
 
     /**
      * Implementation Detail (utf8).
@@ -1301,20 +1303,40 @@ static void blf_font_wrap_apply(FontBLF *font,
     if (UNLIKELY((pen_x_next >= wrap.wrap_width) && (wrap.start != wrap.last[0]))) {
       do_draw = true;
     }
-    else if (UNLIKELY(((i < str_len) && str[i]) == 0)) {
-      /* Need check here for trailing newline, else we draw it. */
-      wrap.last[0] = i + ((codepoint != '\n') ? 1 : 0);
-      wrap.last[1] = i;
-      do_draw = true;
-    }
-    else if (UNLIKELY(codepoint == '\n')) {
-      wrap.last[0] = i_curr + 1;
-      wrap.last[1] = i;
-      do_draw = true;
-    }
-    else if (UNLIKELY(codepoint != ' ' && (g_prev ? g_prev->c == ' ' : false))) {
-      wrap.last[0] = i_curr;
-      wrap.last[1] = i_curr;
+
+    /* TODO: We _could_ add "never break" detection (setting do_draw false), but probably
+     * not needed. Certainly not until enough breaking opportunities are in place. */
+
+    if (!do_draw) {
+      if (UNLIKELY(((i < str_len) && str[i]) == 0)) {
+        /* Need check here for trailing newline, else we draw it. */
+        wrap.last[0] = i + ((codepoint != '\n') ? 1 : 0);
+        wrap.last[1] = i;
+        do_draw = true;
+        keep_delim = false;
+      }
+      else if (UNLIKELY(codepoint == '\n')) {
+        /* Mandatory Break after LF. No need for us to consider 000B (Line Tabulation),
+         * 000C (Form Feed), 2028	(Line Separator), or 2029 (Paragraph Separator). */
+        wrap.last[0] = i_curr + 1;
+        wrap.last[1] = i;
+        do_draw = true;
+        keep_delim = false;
+      }
+      else if (UNLIKELY(!BLI_str_utf32_char_is_breaking_space(codepoint) &&
+                        BLI_str_utf32_char_is_breaking_space(previous)))
+      {
+        /* Optional break after space, removing it. */
+        wrap.last[0] = i_curr;
+        wrap.last[1] = i_curr;
+        keep_delim = false;
+      }
+      else if (UNLIKELY(BLI_str_utf32_char_is_optional_break(codepoint, previous))) {
+        /* Optional break after various characters, keeping it. */
+        wrap.last[0] = i;
+        wrap.last[1] = i_curr;
+        keep_delim = true;
+      }
     }
 
     if (UNLIKELY(do_draw)) {
@@ -1326,7 +1348,12 @@ static void blf_font_wrap_apply(FontBLF *font,
              &str[wrap.start]);
 #endif
 
-      callback(font, gc, &str[wrap.start], (wrap.last[0] - wrap.start) - 1, pen_y, userdata);
+      callback(font,
+               gc,
+               &str[wrap.start],
+               (wrap.last[0] - wrap.start) - (keep_delim ? 0 : 1),
+               pen_y,
+               userdata);
       wrap.start = wrap.last[0];
       i = wrap.last[1];
       pen_x = 0;
