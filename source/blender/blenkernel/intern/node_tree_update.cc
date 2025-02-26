@@ -920,7 +920,7 @@ class NodeTreeMainUpdater {
   void update_socket_shapes(bNodeTree &ntree)
   {
     ntree.ensure_topology_cache();
-    const nodes::StructureTypeInterface &interface = *ntree.runtime->structure_type_interface;
+    const nodes::DerivedStructureTypes &interface = *ntree.runtime->structure_type_interface;
     const Span<bke::FieldSocketState> field_states = ntree.runtime->field_states;
     for (bNode *node : ntree.all_nodes()) {
       if (node->is_group_input()) {

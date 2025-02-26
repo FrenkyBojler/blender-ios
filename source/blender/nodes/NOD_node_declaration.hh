@@ -81,17 +81,21 @@ class OutputFieldDependency {
  * Information about how a node interacts with fields.
  */
 struct FieldInferencingInterface {
-  Vector<InputSocketFieldType> inputs;
-  Vector<OutputFieldDependency> outputs;
+  Array<InputSocketFieldType> inputs;
+  Array<OutputFieldDependency> outputs;
 
   BLI_STRUCT_EQUALITY_OPERATORS_2(FieldInferencingInterface, inputs, outputs)
 };
 
 struct StructureTypeInterface {
+  Vector<std::pair<int, int>> input_output_pairs;
+};
+
+struct DerivedStructureTypes {
   Array<StructureType> inputs;
   Array<StructureType> outputs;
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(StructureTypeInterface, inputs, outputs)
+  BLI_STRUCT_EQUALITY_OPERATORS_2(DerivedStructureTypes, inputs, outputs)
 };
 
 namespace anonymous_attribute_lifetime {

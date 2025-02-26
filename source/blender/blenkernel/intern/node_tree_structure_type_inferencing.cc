@@ -3,18 +3,41 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
-#include "BKE_node_tree_reference_lifetimes.hh"
 
 #include "DNA_node_tree_interface_types.h"
 #include "NOD_node_declaration.hh"
-
-#include "BLI_resource_scope.hh"
 
 namespace blender::bke::node_structure_type_inferencing {
 
 using nodes::StructureType;
 namespace aal = nodes::anonymous_attribute_lifetime;
+
+static nodes::StructureTypeInterface calc_node_interface(const bNode &node)
+{
+  const Span<const bNodeSocket *> output_sockets = node.output_sockets();
+  nodes::StructureTypeInterface interface;
+  VectorSet<std::pair<int, int>> input_output_pairs;
+  for (const int output : output_sockets.index_range()) {
+    const nodes::SocketDeclaration &decl = *output_sockets[output]->runtime->declaration;
+    for (const int input : decl.output_field_dependency.linked_input_indices()) {
+      input_output_pairs.add(std::make_pair(input, output));
+    }
+  }
+  interface.input_output_pairs = input_output_pairs.as_span();
+  return interface;
+}
+
+static Array<nodes::StructureTypeInterface> calc_node_interfaces(const bNodeTree &tree)
+{
+  const Span<const bNode *> nodes = tree.all_nodes();
+  Array<nodes::StructureTypeInterface> interfaces(nodes.size());
+  for (const int i : nodes.index_range()) {
+    interfaces[i] = calc_node_interface(*nodes[i]);
+  }
+  return interfaces;
+}
 
 struct SocketStatus {
   bool is_single_value = false;
@@ -63,7 +86,7 @@ static void initialize_usages_from_socket_declarations(const bNodeTree &tree,
 
 static void update_interface_structure_types(const bNodeTree &tree,
                                              const Span<SocketStatus> socket_usages,
-                                             nodes::StructureTypeInterface &derived_interface)
+                                             nodes::DerivedStructureTypes &derived_interface)
 {
   /* Merge usages from all group input nodes. */
   Array<SocketStatus> group_input_usages(tree.interface_inputs().size());
@@ -122,141 +145,278 @@ static void update_interface_structure_types(const bNodeTree &tree,
   }
 }
 
-static void propagate_right_to_left(
-    const bNodeTree &tree,
-    const Span<const nodes::anonymous_attribute_lifetime::RelationsInNode *> relations_by_node,
-    MutableSpan<SocketStatus> socket_usages,
-    nodes::StructureTypeInterface &derived_interface)
+/** Result of syncing two structure type states. */
+enum class StateSyncResult : int8_t {
+  /* Nothing changed. */
+  NONE = 0,
+  /* State A has been modified. */
+  CHANGED_A = (1 << 0),
+  /* State B has been modified. */
+  CHANGED_B = (1 << 1),
+};
+ENUM_OPERATORS(StateSyncResult, StateSyncResult::CHANGED_B)
+
+/**
+ * Compare both field states and select the most compatible.
+ * Afterwards both field states will be the same.
+ * \return StateSyncResult flags indicating which field states have changed.
+ */
+static StateSyncResult sync_field_states(SocketStatus &a, SocketStatus &b)
 {
-  for (const bNode *node : tree.toposort_right_to_left()) {
-    if (node->is_group_output()) {
-      /* The output is not constrained. */
-      continue;
-    }
+  const bool is_single = a.is_single_value || b.is_single_value;
 
-    /* Constraint outputs based on where they are connected. */
-    for (const bNodeSocket *output_socket : node->output_sockets()) {
-      SocketStatus &output_usage = socket_usages[output_socket->index_in_tree()];
-      for (const bNodeLink *link : output_socket->directly_linked_links()) {
-        if (!link->is_used()) {
-          continue;
+  StateSyncResult res = StateSyncResult::NONE;
+  if (a.is_single_value != is_single) {
+    res |= StateSyncResult::CHANGED_A;
+  }
+  if (b.is_single_value != is_single) {
+    res |= StateSyncResult::CHANGED_B;
+  }
+
+  a.is_single_value = is_single;
+  b.is_single_value = is_single;
+
+  return res;
+}
+
+/**
+ * Compare field states of simulation nodes sockets and select the most compatible.
+ * Afterwards all field states will be the same.
+ * \return StateSyncResult flags indicating which field states have changed.
+ */
+static StateSyncResult simulation_nodes_field_state_sync(
+    const bNode &input_node,
+    const bNode &output_node,
+    const MutableSpan<SocketStatus> state_by_socket_id)
+{
+  StateSyncResult res = StateSyncResult::NONE;
+  for (const int i : output_node.output_sockets().index_range()) {
+    /* First input node output is Delta Time which does not appear in the output node outputs. */
+    const bNodeSocket &input_socket = input_node.output_socket(i + 1);
+    const bNodeSocket &output_socket = output_node.output_socket(i);
+    SocketStatus &input_state = state_by_socket_id[input_socket.index_in_tree()];
+    SocketStatus &output_state = state_by_socket_id[output_socket.index_in_tree()];
+    res |= sync_field_states(input_state, output_state);
+  }
+  return res;
+}
+
+static StateSyncResult repeat_field_state_sync(const bNode &input_node,
+                                               const bNode &output_node,
+                                               const MutableSpan<SocketStatus> state_by_socket_id)
+{
+  StateSyncResult res = StateSyncResult::NONE;
+  const auto &storage = *static_cast<const NodeGeometryRepeatOutput *>(output_node.storage);
+  for (const int i : IndexRange(storage.items_num)) {
+    const bNodeSocket &input_socket = input_node.output_socket(i + 1);
+    const bNodeSocket &output_socket = output_node.output_socket(i);
+    SocketStatus &input_state = state_by_socket_id[input_socket.index_in_tree()];
+    SocketStatus &output_state = state_by_socket_id[output_socket.index_in_tree()];
+    res |= sync_field_states(input_state, output_state);
+  }
+  return res;
+}
+
+static bool propagate_special_data_requirements(const bNodeTree &tree,
+                                                const bNode &node,
+                                                const MutableSpan<SocketStatus> state_by_socket_id)
+{
+  bool need_update = false;
+
+  /* Sync field state between zone nodes and schedule another pass if necessary. */
+  switch (node.type_legacy) {
+    case GEO_NODE_SIMULATION_INPUT: {
+      const auto &data = *static_cast<const NodeGeometrySimulationInput *>(node.storage);
+      if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
+        const StateSyncResult sync_result = simulation_nodes_field_state_sync(
+            node, *output_node, state_by_socket_id);
+        if (bool(sync_result & StateSyncResult::CHANGED_B)) {
+          need_update = true;
         }
-        const bNodeSocket &target_socket = *link->tosock;
-        output_usage.merge(socket_usages[target_socket.index_in_tree()]);
       }
+      break;
     }
-
-    /* Propagate contraints from node outputs to inputs. */
-
-    if (node->is_reroute()) {
-      const int input = node->input_socket(0).index_in_tree();
-      const int output = node->output_socket(0).index_in_tree();
-      socket_usages[input] = socket_usages[output];
-      continue;
+    case GEO_NODE_SIMULATION_OUTPUT: {
+      for (const bNode *input_node : tree.nodes_by_type("GeometryNodeSimulationInput")) {
+        const auto &data = *static_cast<const NodeGeometrySimulationInput *>(input_node->storage);
+        if (node.identifier == data.output_node_id) {
+          const StateSyncResult sync_result = simulation_nodes_field_state_sync(
+              *input_node, node, state_by_socket_id);
+          if (bool(sync_result & StateSyncResult::CHANGED_A)) {
+            need_update = true;
+          }
+        }
+      }
+      break;
     }
-
-    const nodes::aal::RelationsInNode *relations = relations_by_node[node->index()];
-    if (!relations) {
-      continue;
+    case GEO_NODE_REPEAT_INPUT: {
+      const auto &data = *static_cast<const NodeGeometryRepeatInput *>(node.storage);
+      if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
+        const StateSyncResult sync_result = repeat_field_state_sync(
+            node, *output_node, state_by_socket_id);
+        if (bool(sync_result & StateSyncResult::CHANGED_B)) {
+          need_update = true;
+        }
+      }
+      break;
     }
+    case GEO_NODE_REPEAT_OUTPUT: {
+      for (const bNode *input_node : tree.nodes_by_type("GeometryNodeRepeatInput")) {
+        const auto &data = *static_cast<const NodeGeometryRepeatInput *>(input_node->storage);
+        if (node.identifier == data.output_node_id) {
+          const StateSyncResult sync_result = repeat_field_state_sync(
+              *input_node, node, state_by_socket_id);
+          if (bool(sync_result & StateSyncResult::CHANGED_A)) {
+            need_update = true;
+          }
+        }
+      }
+      break;
+    }
+  }
 
-    for (const nodes::aal::ReferenceRelation &relation : relations->reference_relations) {
-      const bNodeSocket &input_socket = node->input_socket(relation.from_field_input);
-      const bNodeSocket &output_socket = node->output_socket(relation.to_field_output);
-      if (!input_socket.is_available() || !output_socket.is_available()) {
+  return need_update;
+}
+
+static void propagate_right_to_left(const bNodeTree &tree,
+                                    const Span<nodes::StructureTypeInterface> node_interfaces,
+                                    MutableSpan<SocketStatus> socket_usages,
+                                    nodes::DerivedStructureTypes &derived_interface)
+{
+  while (true) {
+    bool need_update = false;
+
+    for (const bNode *node : tree.toposort_right_to_left()) {
+      if (node->is_group_output()) {
+        /* The output is not constrained. */
         continue;
       }
-      const int input = input_socket.index_in_tree();
-      const int output = output_socket.index_in_tree();
-      // Maybe ignore grid requirement when merging?
-      socket_usages[input].merge(socket_usages[output]);
+
+      /* Constraint outputs based on where they are connected. */
+      for (const bNodeSocket *output_socket : node->output_sockets()) {
+        SocketStatus &output_usage = socket_usages[output_socket->index_in_tree()];
+        for (const bNodeLink *link : output_socket->directly_linked_links()) {
+          if (!link->is_used()) {
+            continue;
+          }
+          const bNodeSocket &target_socket = *link->tosock;
+          output_usage.merge(socket_usages[target_socket.index_in_tree()]);
+        }
+      }
+
+      /* Propagate contraints from node outputs to inputs. */
+
+      if (node->is_reroute()) {
+        const int input = node->input_socket(0).index_in_tree();
+        const int output = node->output_socket(0).index_in_tree();
+        socket_usages[input] = socket_usages[output];
+        continue;
+      }
+
+      const nodes::StructureTypeInterface &interface = node_interfaces[node->index()];
+
+      for (const std::pair<int, int> &relation : interface.input_output_pairs) {
+        const bNodeSocket &input_socket = node->input_socket(relation.first);
+        const bNodeSocket &output_socket = node->output_socket(relation.second);
+        if (!input_socket.is_available() || !output_socket.is_available()) {
+          continue;
+        }
+        const int input = input_socket.index_in_tree();
+        const int output = output_socket.index_in_tree();
+        socket_usages[input].merge(socket_usages[output]);
+      }
+
+      /* Find reverse dependencies and resolve conflicts, which may require another pass. */
+      if (propagate_special_data_requirements(tree, *node, socket_usages)) {
+        need_update = true;
+      }
+    }
+
+    if (!need_update) {
+      break;
     }
   }
 
   update_interface_structure_types(tree, socket_usages, derived_interface);
 }
 
-static void propagate_left_to_right(
-    const bNodeTree &tree,
-    const Span<const nodes::anonymous_attribute_lifetime::RelationsInNode *> relations_by_node,
-    MutableSpan<SocketStatus> socket_usages,
-    nodes::StructureTypeInterface &derived_interface)
+static void propagate_left_to_right(const bNodeTree &tree,
+                                    const Span<nodes::StructureTypeInterface> node_interfaces,
+                                    MutableSpan<SocketStatus> socket_usages,
+                                    nodes::DerivedStructureTypes &derived_interface)
 {
-  for (const bNode *node : tree.toposort_left_to_right()) {
-
-    for (const bNodeSocket *input_socket : node->input_sockets()) {
-      if (!input_socket->is_available()) {
-        continue;
-      }
-      SocketStatus &socket_structure_type = socket_usages[input_socket->index_in_tree()];
-      if (input_socket->is_directly_linked()) {
-        const bNodeLink &link = *input_socket->directly_linked_links()[0];
-        if (link.is_used()) {
-          socket_structure_type = socket_usages[link.fromsock->index_in_tree()];
+  while (true) {
+    bool need_update = false;
+    for (const bNode *node : tree.toposort_left_to_right()) {
+      for (const bNodeSocket *input_socket : node->input_sockets()) {
+        if (!input_socket->is_available()) {
           continue;
         }
+        SocketStatus &socket_structure_type = socket_usages[input_socket->index_in_tree()];
+        if (input_socket->is_directly_linked()) {
+          const bNodeLink &link = *input_socket->directly_linked_links()[0];
+          if (link.is_used()) {
+            socket_structure_type = socket_usages[link.fromsock->index_in_tree()];
+            continue;
+          }
+        }
+        else if (input_socket->runtime->declaration) {
+          if (input_socket->runtime->declaration->input_field_type ==
+              nodes::InputSocketFieldType::Implicit)
+          {
+            socket_structure_type.is_field = true;
+            continue;
+          }
+        }
       }
-      else if (input_socket->runtime->declaration) {
-        if (input_socket->runtime->declaration->input_field_type ==
-            nodes::InputSocketFieldType::Implicit)
-        {
-          socket_structure_type.is_field = true;
+
+      if (node->is_group_input()) {
+        continue;
+      }
+
+      if (node->is_reroute()) {
+        const int input = node->input_socket(0).index_in_tree();
+        const int output = node->output_socket(0).index_in_tree();
+        socket_usages[output] = socket_usages[input];
+        continue;
+      }
+
+      const nodes::StructureTypeInterface &interface = node_interfaces[node->index()];
+
+      for (const std::pair<int, int> &relation : interface.input_output_pairs) {
+        const bNodeSocket &output_socket = node->output_socket(relation.second);
+        if (!output_socket.is_available()) {
           continue;
         }
-      }
-    }
-
-    if (node->is_group_input()) {
-      continue;
-    }
-
-    if (node->is_reroute()) {
-      const int input = node->input_socket(0).index_in_tree();
-      const int output = node->output_socket(0).index_in_tree();
-      socket_usages[output] = socket_usages[input];
-      continue;
-    }
-
-    const nodes::aal::RelationsInNode *relations = relations_by_node[node->index()];
-    if (!relations) {
-      continue;
-    }
-
-    for (const nodes::aal::ReferenceRelation &relation : relations->reference_relations) {
-      const bNodeSocket &output_socket = node->output_socket(relation.to_field_output);
-      if (!output_socket.is_available()) {
-        continue;
-      }
-      if (output_socket.runtime->declaration) {
-        if (output_socket.runtime->declaration->structure_type != StructureType::Dynamic) {
+        if (output_socket.runtime->declaration) {
+          if (output_socket.runtime->declaration->structure_type != StructureType::Dynamic) {
+            continue;
+          }
+        }
+        const bNodeSocket &input_socket = node->input_socket(relation.first);
+        if (!input_socket.is_available()) {
           continue;
         }
+        const int input = input_socket.index_in_tree();
+        const int output = output_socket.index_in_tree();
+        socket_usages[output].merge(socket_usages[input]);
       }
-      const bNodeSocket &input_socket = node->input_socket(relation.from_field_input);
-      if (!input_socket.is_available()) {
-        continue;
+
+      /* Find reverse dependencies and resolve conflicts, which may require another pass. */
+      if (propagate_special_data_requirements(tree, *node, socket_usages)) {
+        need_update = true;
       }
-      const int input = input_socket.index_in_tree();
-      const int output = output_socket.index_in_tree();
-      socket_usages[output].is_field = socket_usages[input].is_field;
     }
 
-    for (const bNodeSocket *output_socket : node->output_sockets()) {
-      if (!output_socket->is_available()) {
-        continue;
-      }
-      if (output_socket->runtime->declaration) {
-        if (output_socket->runtime->declaration->structure_type == StructureType::Single) {
-          socket_usages[output_socket->index_in_tree()].is_single_value = true;
-        }
-      }
+    if (!need_update) {
+      break;
     }
   }
 
   update_interface_structure_types(tree, socket_usages, derived_interface);
 }
 
-static std::unique_ptr<nodes::StructureTypeInterface> calc_structure_type_interface(
+static std::unique_ptr<nodes::DerivedStructureTypes> calc_structure_type_interface(
     const bNodeTree &tree)
 {
   tree.ensure_topology_cache();
@@ -265,29 +425,25 @@ static std::unique_ptr<nodes::StructureTypeInterface> calc_structure_type_interf
     return {};
   }
 
-  std::unique_ptr<nodes::StructureTypeInterface> derived_interface =
-      std::make_unique<nodes::StructureTypeInterface>();
+  std::unique_ptr<nodes::DerivedStructureTypes> derived_interface =
+      std::make_unique<nodes::DerivedStructureTypes>();
   derived_interface->inputs.reinitialize(tree.interface_inputs().size());
   derived_interface->outputs.reinitialize(tree.interface_outputs().size());
 
   Array<SocketStatus> socket_usages(tree.all_sockets().size());
 
-  ResourceScope scope;
-  Array<const nodes::anonymous_attribute_lifetime::RelationsInNode *> relations_by_node =
-      node_tree_reference_lifetimes::prepare_relations_by_node(tree, scope);
+  Array<nodes::StructureTypeInterface> node_interfaces = calc_node_interfaces(tree);
 
   initialize_usages_from_socket_declarations(tree, socket_usages);
-  propagate_right_to_left(tree, relations_by_node, socket_usages, *derived_interface);
-  propagate_left_to_right(tree, relations_by_node, socket_usages, *derived_interface);
-
-  /* TODO: Handle zones. */
+  propagate_right_to_left(tree, node_interfaces, socket_usages, *derived_interface);
+  propagate_left_to_right(tree, node_interfaces, socket_usages, *derived_interface);
 
   return derived_interface;
 }
 
 bool update_structure_type_interface(bNodeTree &tree)
 {
-  std::unique_ptr<nodes::StructureTypeInterface> new_interface = calc_structure_type_interface(
+  std::unique_ptr<nodes::DerivedStructureTypes> new_interface = calc_structure_type_interface(
       tree);
   if (tree.runtime->structure_type_interface &&
       *tree.runtime->structure_type_interface == *new_interface)

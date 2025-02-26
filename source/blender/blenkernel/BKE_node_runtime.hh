@@ -29,7 +29,7 @@ struct FieldInferencingInterface;
 struct GeometryNodesEvalDependencies;
 class NodeDeclaration;
 struct GeometryNodesLazyFunctionGraphInfo;
-struct StructureTypeInterface;
+struct DerivedStructureTypes;
 namespace anonymous_attribute_lifetime {
 }
 namespace aal = anonymous_attribute_lifetime;
@@ -141,7 +141,8 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   /** Information about usage of anonymous attributes within the group. */
   std::unique_ptr<node_tree_reference_lifetimes::ReferenceLifetimesInfo> reference_lifetimes_info;
   std::unique_ptr<nodes::gizmos::TreeGizmoPropagation> gizmo_propagation;
-  std::unique_ptr<nodes::StructureTypeInterface> structure_type_interface;
+
+  std::unique_ptr<nodes::DerivedStructureTypes> structure_type_interface;
 
   /**
    * A bool for each input socket (indexed by `index_in_all_inputs()`) that indicates whether this

@@ -209,7 +209,7 @@ static void ntree_copy_data(Main * /*bmain*/,
         *ntree_src->runtime->field_inferencing_interface);
   }
   if (ntree_src->runtime->structure_type_interface) {
-    dst_runtime.structure_type_interface = std::make_unique<nodes::StructureTypeInterface>(
+    dst_runtime.structure_type_interface = std::make_unique<nodes::DerivedStructureTypes>(
         *ntree_src->runtime->structure_type_interface);
   }
   if (ntree_src->runtime->reference_lifetimes_info) {

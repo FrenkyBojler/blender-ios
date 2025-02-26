@@ -100,8 +100,8 @@ static const bNodeTreeZone *get_zone_of_node_if_full(const bNodeTreeZones *zones
   return zone;
 }
 
-Array<const aal::RelationsInNode *> prepare_relations_by_node(const bNodeTree &tree,
-                                                              ResourceScope &scope)
+static Array<const aal::RelationsInNode *> prepare_relations_by_node(const bNodeTree &tree,
+                                                                     ResourceScope &scope)
 {
   Array<const aal::RelationsInNode *> relations_by_node(tree.all_nodes().size());
   for (const bNode *node : tree.all_nodes()) {
@@ -823,7 +823,7 @@ static std::unique_ptr<ReferenceLifetimesInfo> make_reference_lifetimes_info(con
   /* Make sure that all required data is also potentially available. */
   required_data_by_socket.all_bits() &= potential_data_by_socket.all_bits();
 
-/* Only useful when debugging th reference lifetimes analysis. */
+/* Only useful when debugging the reference lifetimes analysis. */
 #if 0
   std::cout << "\n\n"
             << node_tree_to_dot(tree,
