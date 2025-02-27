@@ -440,8 +440,8 @@ static void propagate_left_to_right(const bNodeTree &tree,
  */
 static Array<int> find_group_output_dependencies(
     const bNodeSocket &group_output_socket,
-    const Span<const FieldInferencingInterface *> interface_by_node,
-    const Span<SocketFieldState> field_state_by_socket_id)
+    const Span<nodes::StructureTypeInterface> interface_by_node,
+    const Span<SocketStatus> socket_usages)
 {
   if (!is_field_socket_type(group_output_socket)) {
     return OutputFieldDependency::ForDataSource();
@@ -462,7 +462,7 @@ static Array<int> find_group_output_dependencies(
     const bNodeSocket *input_socket = sockets_to_check.pop();
 
     if (!input_socket->is_directly_linked() &&
-        !field_state_by_socket_id[input_socket->index_in_tree()].is_single)
+        !socket_usages[input_socket->index_in_tree()].is_single)
     {
       /* This socket uses a field as input by default. */
       return OutputFieldDependency::ForFieldSource();
@@ -470,8 +470,7 @@ static Array<int> find_group_output_dependencies(
 
     for (const bNodeSocket *origin_socket : input_socket->directly_linked_sockets()) {
       const bNode &origin_node = origin_socket->owner_node();
-      const SocketFieldState &origin_state =
-          field_state_by_socket_id[origin_socket->index_in_tree()];
+      const SocketFieldState &origin_state = socket_usages[origin_socket->index_in_tree()];
 
       if (origin_state.is_field_source) {
         if (origin_node.is_group_input()) {
@@ -496,7 +495,7 @@ static Array<int> find_group_output_dependencies(
           if (!origin_input_socket->is_available()) {
             continue;
           }
-          if (!field_state_by_socket_id[origin_input_socket->index_in_tree()].is_single) {
+          if (!socket_usages[origin_input_socket->index_in_tree()].is_single) {
             if (handled_sockets.add(origin_input_socket)) {
               sockets_to_check.push(origin_input_socket);
             }
@@ -508,6 +507,24 @@ static Array<int> find_group_output_dependencies(
   return OutputFieldDependency::ForPartiallyDependentField(std::move(linked_input_indices));
 }
 
+static void determine_group_output_dependencies(
+    const bNodeTree &tree,
+    const Span<nodes::StructureTypeInterface> interface_by_node,
+    const Span<SocketStatus> socket_usages,
+    nodes::StructureTypeInterface &interface)
+{
+  const bNode *group_output_node = tree.group_output_node();
+  if (!group_output_node) {
+    return;
+  }
+
+  const Span<const bNodeSocket *> sockets = group_output_node->input_sockets().drop_back(1);
+  for (const int i : sockets.index_range()) {
+    interface.output_input_dependencies[i] = find_group_output_dependencies(
+        *sockets[i], interface_by_node, socket_usages);
+  }
+}
+
 static std::unique_ptr<nodes::StructureTypeInterface> calc_structure_type_interface(
     const bNodeTree &tree)
 {
@@ -517,18 +534,18 @@ static std::unique_ptr<nodes::StructureTypeInterface> calc_structure_type_interf
     return {};
   }
 
-  std::unique_ptr<nodes::StructureTypeInterface> derived_interface =
-      std::make_unique<nodes::StructureTypeInterface>();
+  Array<nodes::StructureTypeInterface> node_interfaces = calc_node_interfaces(tree);
+
+  auto derived_interface = std::make_unique<nodes::StructureTypeInterface>();
   derived_interface->inputs.reinitialize(tree.interface_inputs().size());
   derived_interface->outputs.reinitialize(tree.interface_outputs().size());
 
   Array<SocketStatus> socket_usages(tree.all_sockets().size());
 
-  Array<nodes::StructureTypeInterface> node_interfaces = calc_node_interfaces(tree);
-
   initialize_usages_from_socket_declarations(tree, socket_usages);
   propagate_right_to_left(tree, node_interfaces, socket_usages, *derived_interface);
   propagate_left_to_right(tree, node_interfaces, socket_usages, *derived_interface);
+  determine_group_output_dependencies(tree, node_interfaces, socket_usages, *derived_interface);
 
   return derived_interface;
 }
