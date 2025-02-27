@@ -36,11 +36,10 @@ MINLINE uchar ftochar(float value)
   return unit_float_to_uchar_clamp(value);
 }
 
-MINLINE void ushort_to_byte_dither_v4(
-    uchar b[4], const ushort us[4], float dither, float s, float t)
+MINLINE void ushort_to_byte_dither_v4(uchar b[4], const ushort us[4], float dither, int x, int y)
 {
 #define USHORTTOFLOAT(val) (float(val) / 65535.0f)
-  float dither_value = dither_random_value(s, t) * 0.0033f * dither;
+  float dither_value = dither_random_value(x, y) * 0.0033f * dither;
 
   b[0] = ftochar(dither_value + USHORTTOFLOAT(us[0]));
   b[1] = ftochar(dither_value + USHORTTOFLOAT(us[1]));
@@ -50,9 +49,9 @@ MINLINE void ushort_to_byte_dither_v4(
 #undef USHORTTOFLOAT
 }
 
-MINLINE void float_to_byte_dither_v4(uchar b[4], const float f[4], float dither, float s, float t)
+MINLINE void float_to_byte_dither_v4(uchar b[4], const float f[4], float dither, int x, int y)
 {
-  float dither_value = dither_random_value(s, t) * 0.0033f * dither;
+  float dither_value = dither_random_value(x, y) * 0.0033f * dither;
 
   b[0] = ftochar(dither_value + f[0]);
   b[1] = ftochar(dither_value + f[1]);
@@ -75,20 +74,17 @@ void IMB_buffer_byte_from_float(uchar *rect_to,
                                 int width,
                                 int height,
                                 int stride_to,
-                                int stride_from)
+                                int stride_from,
+                                int start_y)
 {
   float tmp[4];
   int x, y;
-  float inv_width = 1.0f / width;
-  float inv_height = 1.0f / height;
 
   /* we need valid profiles */
   BLI_assert(profile_to != IB_PROFILE_NONE);
   BLI_assert(profile_from != IB_PROFILE_NONE);
 
   for (y = 0; y < height; y++) {
-    float t = y * inv_height;
-
     if (channels_from == 1) {
       /* single channel input */
       const float *from = rect_from + size_t(stride_from) * y;
@@ -138,12 +134,12 @@ void IMB_buffer_byte_from_float(uchar *rect_to,
           float straight[4];
           for (x = 0; x < width; x++, from += 4, to += 4) {
             premul_to_straight_v4_v4(straight, from);
-            float_to_byte_dither_v4(to, straight, dither, float(x) * inv_width, t);
+            float_to_byte_dither_v4(to, straight, dither, x, y + start_y);
           }
         }
         else if (dither) {
           for (x = 0; x < width; x++, from += 4, to += 4) {
-            float_to_byte_dither_v4(to, from, dither, float(x) * inv_width, t);
+            float_to_byte_dither_v4(to, from, dither, x, y + start_y);
           }
         }
         else if (predivide) {
@@ -166,13 +162,13 @@ void IMB_buffer_byte_from_float(uchar *rect_to,
           for (x = 0; x < width; x++, from += 4, to += 4) {
             premul_to_straight_v4_v4(straight, from);
             linearrgb_to_srgb_ushort4(us, from);
-            ushort_to_byte_dither_v4(to, us, dither, float(x) * inv_width, t);
+            ushort_to_byte_dither_v4(to, us, dither, x, y + start_y);
           }
         }
         else if (dither) {
           for (x = 0; x < width; x++, from += 4, to += 4) {
             linearrgb_to_srgb_ushort4(us, from);
-            ushort_to_byte_dither_v4(to, us, dither, float(x) * inv_width, t);
+            ushort_to_byte_dither_v4(to, us, dither, x, y + start_y);
           }
         }
         else if (predivide) {
@@ -194,13 +190,13 @@ void IMB_buffer_byte_from_float(uchar *rect_to,
         if (dither && predivide) {
           for (x = 0; x < width; x++, from += 4, to += 4) {
             srgb_to_linearrgb_predivide_v4(tmp, from);
-            float_to_byte_dither_v4(to, tmp, dither, float(x) * inv_width, t);
+            float_to_byte_dither_v4(to, tmp, dither, x, y + start_y);
           }
         }
         else if (dither) {
           for (x = 0; x < width; x++, from += 4, to += 4) {
             srgb_to_linearrgb_v4(tmp, from);
-            float_to_byte_dither_v4(to, tmp, dither, float(x) * inv_width, t);
+            float_to_byte_dither_v4(to, tmp, dither, x, y + start_y);
           }
         }
         else if (predivide) {
@@ -232,11 +228,8 @@ void IMB_buffer_byte_from_float_mask(uchar *rect_to,
                                      char *mask)
 {
   int x, y;
-  float inv_width = 1.0f / width, inv_height = 1.0f / height;
 
   for (y = 0; y < height; y++) {
-    float t = y * inv_height;
-
     if (channels_from == 1) {
       /* single channel input */
       const float *from = rect_from + size_t(stride_from) * y;
@@ -270,14 +263,14 @@ void IMB_buffer_byte_from_float_mask(uchar *rect_to,
         for (x = 0; x < width; x++, from += 4, to += 4) {
           if (*mask++ == FILTER_MASK_USED) {
             premul_to_straight_v4_v4(straight, from);
-            float_to_byte_dither_v4(to, straight, dither, float(x) * inv_width, t);
+            float_to_byte_dither_v4(to, straight, dither, x, y);
           }
         }
       }
       else if (dither) {
         for (x = 0; x < width; x++, from += 4, to += 4) {
           if (*mask++ == FILTER_MASK_USED) {
-            float_to_byte_dither_v4(to, from, dither, float(x) * inv_width, t);
+            float_to_byte_dither_v4(to, from, dither, x, y);
           }
         }
       }
