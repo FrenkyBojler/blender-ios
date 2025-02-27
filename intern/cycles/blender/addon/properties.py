@@ -1770,7 +1770,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                 import sys
                 if sys.platform[:3] == "win":
                     adrenalin_driver_version = "24.6.1"
-                    pro_driver_version = "24.Q2"  # Double check this is correct
+                    pro_driver_version = "24.Q2"
                     col.label(
                         text=rpt_("Requires AMD GPU with RDNA architecture"),
                         icon='BLANK1',
