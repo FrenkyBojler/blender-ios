@@ -103,9 +103,9 @@ vec4 curvemapping_evaluate_premulRGBF(vec4 col)
  * https://jcgt.org/published/0009/03/02/ */
 float hash_iqint3_f(uvec2 x)
 {
-  uvec2 q = 1103515245u * ((x>>1u) ^ (x.yx));
-  uint n = 1103515245u * ((q.x) ^ (q.y>>3u));
-  return float(n) * (1.0/float(0xffffffffu));
+  uvec2 q = 1103515245u * ((x >> 1u) ^ (x.yx));
+  uint n = 1103515245u * ((q.x) ^ (q.y >> 3u));
+  return float(n) * (1.0 / float(0xffffffffu));
 }
 
 /* Returns triangle noise in [-1..+1) range, given integer pixel coordinates.
