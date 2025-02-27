@@ -936,7 +936,7 @@ class NodeTreeMainUpdater {
         const Span<bNodeSocket *> sockets = node->input_sockets();
         for (const int i : interface.outputs.index_range()) {
           sockets[i]->display_shape = get_input_socket_shape(*sockets[i]->runtime->declaration,
-                                                             interface.outputs[i]);
+                                                             interface.outputs[i].type);
         }
       }
       else {

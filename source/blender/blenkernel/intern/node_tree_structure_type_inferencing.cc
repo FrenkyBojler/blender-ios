@@ -398,22 +398,8 @@ static void propagate_left_to_right(const bNodeTree &tree,
  * to figure out if it is always a field or if it depends on any group inputs.
  */
 static Vector<int> find_dynamic_output_linked_inputs(
-    const bNodeSocket &group_output,
-    const Span<nodes::StructureTypeInterface> interface_by_node,
-    const Span<SocketStatus> socket_usages)
+    const bNodeSocket &group_output, const Span<nodes::StructureTypeInterface> interface_by_node)
 {
-  /* Update derived interface output structure types from output node socket usages. */
-  const SocketStatus usage = socket_usages[group_output.index_in_tree()];
-  if (usage.is_grid) {
-    return {StructureType::Grid, {}};
-  }
-  if (usage.is_single) {
-    return {StructureType::Single, {}};
-  }
-  if (usage.is_field) {
-    return {StructureType::Field, {}};
-  }
-
   /* Use a Set instead of an array indexed by socket because we may only look at a few sockets. */
   Set<const bNodeSocket *> handled_sockets;
   Stack<const bNodeSocket *> sockets_to_check;
@@ -472,12 +458,25 @@ static void store_group_output_structure_types(
               NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC))
     {
       interface.outputs[i] = {StructureType(interface_outputs[i]->structure_type), {}};
+      continue;
     }
-    else {
-      const Vector<int> linked_inputs = find_dynamic_output_linked_inputs(
-          *sockets[i], interface_by_node, socket_usages);
-      interface.outputs[i] = {StructureType::Dynamic, linked_inputs.as_span()};
+    /* Update derived interface output structure types from output node socket usages. */
+    const SocketStatus usage = socket_usages[sockets[i]->index_in_tree()];
+    if (usage.is_grid) {
+      interface.outputs[i] = {StructureType::Grid, {}};
+      continue;
     }
+    if (usage.is_single) {
+      interface.outputs[i] = {StructureType::Single, {}};
+      continue;
+    }
+    if (usage.is_field) {
+      interface.outputs[i] = {StructureType::Field, {}};
+      continue;
+    }
+    const Vector<int> linked_inputs = find_dynamic_output_linked_inputs(*sockets[i],
+                                                                        interface_by_node);
+    interface.outputs[i] = {StructureType::Dynamic, linked_inputs.as_span()};
   }
 }
 

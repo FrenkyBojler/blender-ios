@@ -490,10 +490,10 @@ void node_group_declare(NodeDeclarationBuilder &b)
     }
 
     const Span<const bNodeTreeInterfaceSocket *> outputs = group->interface_outputs();
-    const Span<StructureType> output_structure_types =
+    const Span<StructureTypeInterface::OutputDependency> output_structure_types =
         group->runtime->structure_type_interface->outputs;
     for (const int i : outputs.index_range()) {
-      structure_type_by_socket.add(outputs[i], output_structure_types[i]);
+      structure_type_by_socket.add(outputs[i], output_structure_types[i].type);
     }
   }
 
