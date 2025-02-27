@@ -170,7 +170,7 @@ class ShaderModule {
  private:
   std::array<StaticShader, MAX_SHADER_TYPE> shaders_;
   BatchHandle compilation_handle_ = 0;
-  SpecializationBatchHandle specialization_handle_ = 0;
+  Map<std::tuple<int, int, int>, SpecializationBatchHandle> specialization_handles_;
 
   static gpu::StaticShaderCache<ShaderModule> &get_static_cache()
   {
@@ -183,11 +183,11 @@ class ShaderModule {
   ShaderModule();
   ~ShaderModule();
 
-  bool is_ready(bool block = false);
-
-  void precompile_specializations(int render_buffers_shadow_id,
-                                  int shadow_ray_count,
-                                  int shadow_ray_step_count);
+  bool base_shaders_are_ready(bool block);
+  bool specializations_are_ready(bool block,
+                                 int render_buffers_shadow_id,
+                                 int shadow_ray_count,
+                                 int shadow_ray_step_count);
 
   GPUShader *static_shader_get(eShaderType shader_type);
   GPUMaterial *material_default_shader_get(eMaterialPipeline pipeline_type,
