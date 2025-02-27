@@ -13,7 +13,7 @@ __all__ = (
 )
 
 import bpy
-from bpy.types import Action, ActionSlot, ChannelBag
+from bpy.types import Action, ActionSlot, ActionChannelbag
 from dataclasses import dataclass
 
 from collections.abc import (
@@ -75,7 +75,7 @@ class BakeOptions:
     """Bake custom properties."""
 
 
-def action_get_channelbag_for_slot(action: Action, slot: ActionSlot) -> ChannelBag | None:
+def action_get_channelbag_for_slot(action: Action, slot: ActionSlot) -> ActionChannelbag | None:
     """
     Returns the first channelbag found for the slot.
     In case there are multiple layers or strips they are iterated until a
