@@ -58,13 +58,13 @@ static Array<nodes::StructureTypeInterface> calc_node_interfaces(const bNodeTree
 }
 
 struct SocketStatus {
-  bool is_single_value = false;
+  bool is_single = false;
   bool is_grid = false;
   bool is_field = false;
 
   void merge(const SocketStatus &other, const bool do_grid = true)
   {
-    this->is_single_value |= other.is_single_value;
+    this->is_single |= other.is_single;
     if (do_grid) {
       this->is_grid |= other.is_grid;
     }
@@ -87,7 +87,7 @@ static void initialize_usages_from_socket_declarations(const bNodeTree &tree,
         break;
       }
       case StructureType::Single: {
-        socket_usages[socket->index_in_tree()].is_single_value = true;
+        socket_usages[socket->index_in_tree()].is_single = true;
         break;
       }
       case StructureType::Grid: {
@@ -102,9 +102,9 @@ static void initialize_usages_from_socket_declarations(const bNodeTree &tree,
   }
 }
 
-static void update_interface_structure_types(const bNodeTree &tree,
-                                             const Span<SocketStatus> socket_usages,
-                                             nodes::StructureTypeInterface &derived_interface)
+static void update_group_input_structure_types(const bNodeTree &tree,
+                                               const Span<SocketStatus> socket_usages,
+                                               nodes::StructureTypeInterface &derived_interface)
 {
   /* Merge usages from all group input nodes. */
   Array<SocketStatus> group_input_usages(tree.interface_inputs().size());
@@ -123,7 +123,7 @@ static void update_interface_structure_types(const bNodeTree &tree,
     }
 
     const SocketStatus &usage = group_input_usages[input_i];
-    if (usage.is_single_value) {
+    if (usage.is_single) {
       derived_interface.inputs[input_i] = StructureType::Single;
     }
     else if (usage.is_grid) {
@@ -147,7 +147,7 @@ static void update_interface_structure_types(const bNodeTree &tree,
       }
       const SocketStatus &usage =
           socket_usages[output_node->input_socket(output_i).index_in_tree()];
-      if (usage.is_single_value) {
+      if (usage.is_single) {
         derived_interface.outputs[output_i] = StructureType::Single;
       }
       else if (usage.is_grid) {
@@ -181,18 +181,18 @@ ENUM_OPERATORS(StateSyncResult, StateSyncResult::CHANGED_B)
  */
 static StateSyncResult sync_field_states(SocketStatus &a, SocketStatus &b)
 {
-  const bool is_single = a.is_single_value || b.is_single_value;
+  const bool is_single = a.is_single || b.is_single;
 
   StateSyncResult res = StateSyncResult::NONE;
-  if (a.is_single_value != is_single) {
+  if (a.is_single != is_single) {
     res |= StateSyncResult::CHANGED_A;
   }
-  if (b.is_single_value != is_single) {
+  if (b.is_single != is_single) {
     res |= StateSyncResult::CHANGED_B;
   }
 
-  a.is_single_value = is_single;
-  b.is_single_value = is_single;
+  a.is_single = is_single;
+  b.is_single = is_single;
 
   return res;
 }
@@ -357,7 +357,7 @@ static void propagate_right_to_left(const bNodeTree &tree,
     }
   }
 
-  update_interface_structure_types(tree, socket_usages, derived_interface);
+  update_group_input_structure_types(tree, socket_usages, derived_interface);
 }
 
 static void propagate_left_to_right(const bNodeTree &tree,
@@ -430,8 +430,6 @@ static void propagate_left_to_right(const bNodeTree &tree,
       break;
     }
   }
-
-  update_interface_structure_types(tree, socket_usages, derived_interface);
 }
 
 /**
