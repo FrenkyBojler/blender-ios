@@ -1059,24 +1059,8 @@ const bNodeTreeInterfaceSocket *bNodeTreeInterfacePanel::header_toggle_socket() 
 }
 bNodeTreeInterfaceSocket *bNodeTreeInterfacePanel::header_toggle_socket()
 {
-  if (this->items().is_empty()) {
-    return nullptr;
-  }
-  bNodeTreeInterfaceItem *first_item = this->items().first();
-  if (first_item->item_type != NODE_INTERFACE_SOCKET) {
-    return nullptr;
-  }
-  auto &socket = *reinterpret_cast<bNodeTreeInterfaceSocket *>(first_item);
-  if (!(socket.flag & NODE_INTERFACE_SOCKET_INPUT) ||
-      !(socket.flag & NODE_INTERFACE_SOCKET_PANEL_TOGGLE))
-  {
-    return nullptr;
-  }
-  blender::bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
-  if (!typeinfo || typeinfo->type != SOCK_BOOLEAN) {
-    return nullptr;
-  }
-  return &socket;
+  return const_cast<bNodeTreeInterfaceSocket *>(
+      const_cast<const bNodeTreeInterfacePanel *>(this)->header_toggle_socket());
 }
 
 namespace blender::bke::node_interface {
