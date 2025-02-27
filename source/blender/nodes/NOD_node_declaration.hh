@@ -393,7 +393,7 @@ class BaseSocketDeclarationBuilder {
   /**
    * Use the socket as a toggle in its panel.
    */
-  BaseSocketDeclarationBuilder &panel_toggle(bool value = false);
+  BaseSocketDeclarationBuilder &panel_toggle(bool value = true);
 
   /** Index in the list of inputs or outputs. */
   int index() const;
