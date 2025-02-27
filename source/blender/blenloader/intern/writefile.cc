@@ -743,11 +743,13 @@ static void write_bhead(WriteData *wd, const BHead &bhead)
     mywrite(wd, &bh, sizeof(bh));
     return;
   }
+  /* Write new #LargeBHead8 headers if enabled. Older Blender versions can't read those. */
   if (USER_EXPERIMENTAL_TEST(&U, write_large_blend_file_blocks)) {
-    /* Write new #LargeBHead8 headers if enabled. Older Blender versions can't read those. */
-    static_assert(sizeof(BHead) == sizeof(LargeBHead8));
-    mywrite(wd, &bhead, sizeof(bhead));
-    return;
+    if (SYSTEM_SUPPORTS_WRITING_FILE_VERSION_1) {
+      static_assert(sizeof(BHead) == sizeof(LargeBHead8));
+      mywrite(wd, &bhead, sizeof(bhead));
+      return;
+    }
   }
   /* Write older #SmallBHead8 headers so that older Blender versions can read them. */
   SmallBHead8 bh;
@@ -782,7 +784,9 @@ static void writestruct_at_address_nr(WriteData *wd,
   }
 
   const int64_t len_in_bytes = nr * DNA_struct_size(wd->sdna, struct_nr);
-  if (!USER_EXPERIMENTAL_TEST(&U, write_large_blend_file_blocks)) {
+  if (!SYSTEM_SUPPORTS_WRITING_FILE_VERSION_1 ||
+      !USER_EXPERIMENTAL_TEST(&U, write_large_blend_file_blocks))
+  {
     if (len_in_bytes > INT32_MAX) {
       CLOG_ERROR(&LOG, "Cannot write chunks bigger than INT_MAX.");
       return;
@@ -1361,7 +1365,9 @@ static std::string get_blend_file_header()
   const char pointer_size_char = sizeof(void *) == 8 ? '-' : '_';
   const char endian_char = ENDIAN_ORDER == B_ENDIAN ? 'V' : 'v';
 
-  if (USER_EXPERIMENTAL_TEST(&U, write_large_blend_file_blocks)) {
+  if (SYSTEM_SUPPORTS_WRITING_FILE_VERSION_1 &&
+      USER_EXPERIMENTAL_TEST(&U, write_large_blend_file_blocks))
+  {
     const int header_size_in_bytes = MAX_SIZEOFBLENDERHEADER;
 
     /* New blend file header format. */
@@ -1369,7 +1375,7 @@ static std::string get_blend_file_header()
     ss << "BLENDER";
     ss << header_size_in_bytes;
     ss << pointer_size_char;
-    ss << std::setfill('0') << std::setw(2) << BLEND_FILE_VERSION_FORMAT;
+    ss << std::setfill('0') << std::setw(2) << BLEND_FILE_VERSION_FORMAT_1;
     ss << endian_char;
     ss << std::setfill('0') << std::setw(4) << BLENDER_FILE_VERSION;
 

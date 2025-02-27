@@ -67,4 +67,11 @@ enum {
  * 0: Uses #BHead4 or #SmallBHead8 for block headers depending on a .blend file header byte.
  * 1: Uses #LargeBHead8 for block headers.
  */
-#define BLEND_FILE_VERSION_FORMAT 1
+#define BLEND_FILE_VERSION_FORMAT_0 0
+#define BLEND_FILE_VERSION_FORMAT_1 1
+
+/**
+ * Only "modern" systems support writing files with #LargeBHead8 headers. Other systems are
+ * deprecated. The reduces the amount of variation we have to deal with when reading .blend files.
+ */
+#define SYSTEM_SUPPORTS_WRITING_FILE_VERSION_1 (ENDIAN_ORDER == L_ENDIAN && sizeof(void *) == 8)
