@@ -461,6 +461,7 @@ class PanelDeclaration : public ItemDeclaration {
 
   int depth() const;
 
+  /** Get the declaration for a child item that should be drawn as part of the panel header. */
   const SocketDeclaration *panel_input_decl() const;
 };
 
