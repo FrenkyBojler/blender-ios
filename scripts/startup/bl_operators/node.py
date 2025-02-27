@@ -456,6 +456,9 @@ class NODE_OT_interface_item_make_panel_toggle(NodeInterfaceOperator, Operator):
             cls.poll_message_set("Only boolean sockets are supported")
             return False
         parent_panel = active_item.parent
+        if parent_panel.parent is None:
+            cls.poll_message_set("Socket must be in a panel")
+            return False
         if len(parent_panel.interface_items) > 0:
             first_item = parent_panel.interface_items[0]
             if first_item.is_panel_toggle:
