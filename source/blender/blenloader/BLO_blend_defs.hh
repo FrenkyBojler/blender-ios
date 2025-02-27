@@ -61,7 +61,10 @@ enum {
 #define BLEN_THUMB_MEMSIZE_FILE(_x, _y) (sizeof(int) * (2 + (size_t)(_x) * (size_t)(_y)))
 
 /**
- * A low level blend file version number. Currently it is either 0 for the original blend file
- * format (which didn't have this version number yet) or 1.
+ * A low level blend file version number. Also see #decode_blender_header for how the first few
+ * bytes of a .blend file are structured.
+ *
+ * 0: Uses #BHead4 or #SmallBHead8 for block headers depending on a .blend file header byte.
+ * 1: Uses #LargeBHead8 for block headers.
  */
 #define BLEND_FILE_VERSION_FORMAT 1
