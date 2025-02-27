@@ -148,7 +148,6 @@ class NODE_HT_header(Header):
 
             layout.separator_spacer()
             if snode_id:
-                # layout.prop(snode_id, "use_nodes")
                 row = layout.row()
                 if not scene.node_tree:
                     row.scale_x = 1.6
