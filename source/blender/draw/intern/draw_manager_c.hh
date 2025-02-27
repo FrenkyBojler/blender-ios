@@ -21,8 +21,6 @@
 #include "GPU_framebuffer.hh"
 #include "GPU_viewport.hh"
 
-#include "draw_instance_data.hh"
-
 struct DRWDebugModule;
 struct DRWUniformChunk;
 struct DRWViewData;
@@ -32,7 +30,6 @@ struct Object;
 struct Mesh;
 namespace blender::draw {
 struct CurvesModule;
-struct SubdivModule;
 struct VolumeModule;
 struct PointCloudModule;
 struct DRW_Attributes;
@@ -73,7 +70,6 @@ struct DRWData {
   DRWViewData *view_data[2];
   /** Module storage. */
   blender::draw::CurvesModule *curves_module;
-  blender::draw::SubdivModule *subdiv_module;
   blender::draw::VolumeModule *volume_module;
   blender::draw::PointCloudModule *pointcloud_module;
   /** Default view that feeds every engine. */
@@ -109,8 +105,6 @@ struct DRWManager {
   ID *dupli_origin_data;
   /** Hash-map: #DupliKey -> void pointer for each enabled engine. */
   GHash *dupli_ghash;
-  /** TODO(@fclem): try to remove usage of this. */
-  DRWInstanceData *object_instance_data[MAX_INSTANCE_DATA_SIZE];
   /* Dupli data for the current dupli for each enabled engine. */
   void **dupli_datas;
 
@@ -144,14 +138,6 @@ struct DRWManager {
   GSet *delayed_extraction;
 
   /* ---------- Nothing after this point is cleared after use ----------- */
-
-  /* system_gpu_context serves as the offset for clearing only
-   * the top portion of the struct so DO NOT MOVE IT! */
-  /** Unique ghost context used by the draw manager. */
-  void *system_gpu_context;
-  GPUContext *blender_gpu_context;
-  /** Mutex to lock the drw manager and avoid concurrent context usage. */
-  TicketMutex *system_gpu_context_mutex;
 
   DRWDebugModule *debug;
 };
