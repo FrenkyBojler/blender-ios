@@ -753,8 +753,9 @@ static int pose_asset_delete_exec(bContext *C, wmOperator *op)
     asset::clear_id(&action->id);
   }
 
-  const blender::asset_system::AssetRepresentation *asset = CTX_wm_asset(C);
-  asset::refresh_asset_library_from_asset(C, *asset);
+  const AssetLibraryReference &library_ref = *CTX_wm_asset_library_ref(C);
+  asset::refresh_asset_library(C, library_ref);
+
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_REMOVED, nullptr);
 
   return OPERATOR_FINISHED;
