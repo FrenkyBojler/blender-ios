@@ -271,20 +271,4 @@ template<typename T1, typename T2> struct DefaultHash<std::pair<T1, T2>> {
   }
 };
 
-template<typename T1, typename T2, typename T3> struct DefaultHash<std::tuple<T1, T2, T3>> {
-  uint64_t operator()(const std::tuple<T1, T2, T3> &value) const
-  {
-    return get_default_hash(std::get<0>(value), std::get<1>(value), std::get<2>(value));
-  }
-};
-
-template<typename T1, typename T2, typename T3, typename T4>
-struct DefaultHash<std::tuple<T1, T2, T3, T4>> {
-  uint64_t operator()(const std::tuple<T1, T2, T3, T4> &value) const
-  {
-    return get_default_hash(
-        std::get<0>(value), std::get<1>(value), std::get<2>(value), std::get<3>(value));
-  }
-};
-
 }  // namespace blender

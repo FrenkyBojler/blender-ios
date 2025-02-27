@@ -170,7 +170,24 @@ class ShaderModule {
  private:
   std::array<StaticShader, MAX_SHADER_TYPE> shaders_;
   BatchHandle compilation_handle_ = 0;
-  Map<std::tuple<int, int, int>, SpecializationBatchHandle> specialization_handles_;
+  struct SpecializationsKey {
+    int render_buffers_shadow_id;
+    int shadow_ray_count;
+    int shadow_ray_step_count;
+    uint64_t hash() const
+    {
+      return render_buffers_shadow_id | (shadow_ray_count << 8) | (shadow_ray_step_count << 8);
+    }
+    bool operator==(const SpecializationsKey &k) const
+    {
+      return hash() == k.hash();
+    }
+    bool operator<(const SpecializationsKey &k) const
+    {
+      return hash() < k.hash();
+    }
+  };
+  Map<SpecializationsKey, SpecializationBatchHandle> specialization_handles_;
 
   static gpu::StaticShaderCache<ShaderModule> &get_static_cache()
   {

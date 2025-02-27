@@ -128,7 +128,7 @@ bool ShaderModule::specializations_are_ready(bool block,
   std::lock_guard lock = get_static_cache().lock_guard();
 
   SpecializationBatchHandle specialization_handle_ = specialization_handles_.lookup_or_add_cb(
-      std::tuple(render_buffers_shadow_id, shadow_ray_count, shadow_ray_step_count), [&]() {
+      {render_buffers_shadow_id, shadow_ray_count, shadow_ray_step_count}, [&]() {
         Vector<ShaderSpecialization> specializations;
         for (int i = 0; i < 3; i++) {
           GPUShader *sh = static_shader_get(eShaderType(DEFERRED_LIGHT_SINGLE + i));
