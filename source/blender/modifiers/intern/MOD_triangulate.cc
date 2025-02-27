@@ -8,8 +8,6 @@
 
 #include <cstring>
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -36,6 +34,7 @@ static Mesh *triangulate_mesh(Mesh *mesh,
                               const int min_vertices,
                               const int flag)
 {
+  using namespace blender;
   Mesh *result;
   BMesh *bm;
   CustomData_MeshMasks cd_mask_extra{};
@@ -67,10 +66,12 @@ static Mesh *triangulate_mesh(Mesh *mesh,
   BM_mesh_free(bm);
 
   if (keep_clnors) {
-    float(*corner_normals)[3] = static_cast<float(*)[3]>(
-        CustomData_get_layer_for_write(&result->corner_data, CD_NORMAL, result->corners_num));
-    BKE_mesh_set_custom_normals_normalized(result, corner_normals);
-    CustomData_free_layers(&result->corner_data, CD_NORMAL, result->corners_num);
+    bke::mesh_set_custom_normals_normalized(
+        *result,
+        {static_cast<float3 *>(
+             CustomData_get_layer_for_write(&result->corner_data, CD_NORMAL, result->corners_num)),
+         result->corners_num});
+    CustomData_free_layers(&result->corner_data, CD_NORMAL);
   }
 
   return result;
@@ -91,14 +92,9 @@ static void init_data(ModifierData *md)
 static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext * /*ctx*/, Mesh *mesh)
 {
   TriangulateModifierData *tmd = (TriangulateModifierData *)md;
-  Mesh *result;
-  if (!(result = triangulate_mesh(
-            mesh, tmd->quad_method, tmd->ngon_method, tmd->min_vertices, tmd->flag)))
-  {
-    return mesh;
-  }
-
-  return result;
+  Mesh *result = triangulate_mesh(
+      mesh, tmd->quad_method, tmd->ngon_method, tmd->min_vertices, tmd->flag);
+  return (result) ? result : mesh;
 }
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)

@@ -25,8 +25,8 @@
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_node_runtime.hh"
-#include "BKE_node_tree_interface.hh"
 #include "BKE_node_tree_update.hh"
 
 #include "RNA_access.hh"
@@ -34,7 +34,6 @@
 
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
-#include "NOD_socket_declarations.hh"
 
 #include "../interface/interface_intern.hh" /* XXX bad level */
 #include "UI_interface.hh"
@@ -78,7 +77,7 @@ static void node_link_item_init(NodeLinkItem &item)
  */
 static bool node_link_item_compare(bNode *node, NodeLinkItem *item)
 {
-  if (ELEM(node->type, NODE_GROUP, NODE_CUSTOM_GROUP)) {
+  if (node->is_group()) {
     return (node->id == (ID *)item->ngroup);
   }
   return true;
@@ -86,7 +85,7 @@ static bool node_link_item_compare(bNode *node, NodeLinkItem *item)
 
 static void node_link_item_apply(bNodeTree *ntree, bNode *node, NodeLinkItem *item)
 {
-  if (ELEM(node->type, NODE_GROUP, NODE_CUSTOM_GROUP)) {
+  if (node->is_group()) {
     node->id = (ID *)item->ngroup;
     BKE_ntree_update_tag_node_property(ntree, node);
   }
@@ -160,7 +159,7 @@ static void node_remove_linked(Main *bmain, bNodeTree *ntree, bNode *rem_node)
     next = node->next;
 
     if (node->flag & NODE_TEST) {
-      bke::node_remove_node(bmain, ntree, node, true);
+      bke::node_remove_node(bmain, *ntree, *node, true);
     }
   }
 }
@@ -175,11 +174,11 @@ static void node_socket_disconnect(Main *bmain,
     return;
   }
 
-  bke::node_remove_link(ntree, sock_to->link);
+  bke::node_remove_link(ntree, *sock_to->link);
   sock_to->flag |= SOCK_COLLAPSED;
 
   BKE_ntree_update_tag_node_property(ntree, node_to);
-  ED_node_tree_propagate_change(nullptr, bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
 }
 
 /* remove all nodes connected to this socket, if they aren't connected to other nodes */
@@ -193,7 +192,7 @@ static void node_socket_remove(Main *bmain, bNodeTree *ntree, bNode *node_to, bN
   sock_to->flag |= SOCK_COLLAPSED;
 
   BKE_ntree_update_tag_node_property(ntree, node_to);
-  ED_node_tree_propagate_change(nullptr, bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
 }
 
 /* add new node connected to this socket, or replace an existing one */
@@ -212,12 +211,12 @@ static void node_socket_add_replace(const bContext *C,
   /* unlink existing node */
   if (sock_to->link) {
     node_prev = sock_to->link->fromnode;
-    bke::node_remove_link(ntree, sock_to->link);
+    bke::node_remove_link(ntree, *sock_to->link);
   }
 
   /* find existing node that we can use */
   for (node_from = (bNode *)ntree->nodes.first; node_from; node_from = node_from->next) {
-    if (node_from->type == type) {
+    if (node_from->type_legacy == type) {
       break;
     }
   }
@@ -230,12 +229,12 @@ static void node_socket_add_replace(const bContext *C,
     }
   }
 
-  if (node_prev && node_prev->type == type && node_link_item_compare(node_prev, item)) {
+  if (node_prev && node_prev->type_legacy == type && node_link_item_compare(node_prev, item)) {
     /* keep the previous node if it's the same type */
     node_from = node_prev;
   }
   else if (!node_from) {
-    node_from = bke::node_add_static_node(C, ntree, type);
+    node_from = bke::node_add_static_node(C, *ntree, type);
     if (node_prev != nullptr) {
       /* If we're replacing existing node, use its location. */
       node_from->location[0] = node_prev->location[0];
@@ -243,26 +242,26 @@ static void node_socket_add_replace(const bContext *C,
     }
     else {
       sock_from_tmp = (bNodeSocket *)BLI_findlink(&node_from->outputs, item->socket_index);
-      bke::node_position_relative(node_from, node_to, sock_from_tmp, sock_to);
+      bke::node_position_relative(*node_from, *node_to, *sock_from_tmp, *sock_to);
     }
 
     node_link_item_apply(ntree, node_from, item);
-    ED_node_tree_propagate_change(C, bmain, ntree);
+    BKE_main_ensure_invariants(*bmain, ntree->id);
   }
 
-  bke::node_set_active(ntree, node_from);
+  bke::node_set_active(*ntree, *node_from);
 
   /* add link */
   sock_from_tmp = (bNodeSocket *)BLI_findlink(&node_from->outputs, item->socket_index);
-  bke::node_add_link(ntree, node_from, sock_from_tmp, node_to, sock_to);
+  bke::node_add_link(*ntree, *node_from, *sock_from_tmp, *node_to, *sock_to);
   sock_to->flag &= ~SOCK_COLLAPSED;
 
   /* copy input sockets from previous node */
   if (node_prev && node_from != node_prev) {
     LISTBASE_FOREACH (bNodeSocket *, sock_prev, &node_prev->inputs) {
       LISTBASE_FOREACH (bNodeSocket *, sock_from, &node_from->inputs) {
-        if (bke::node_count_socket_links(ntree, sock_from) >=
-            bke::node_socket_link_limit(sock_from))
+        if (bke::node_count_socket_links(*ntree, *sock_from) >=
+            bke::node_socket_link_limit(*sock_from))
         {
           continue;
         }
@@ -273,8 +272,8 @@ static void node_socket_add_replace(const bContext *C,
           bNodeLink *link = sock_prev->link;
 
           if (link && link->fromnode) {
-            bke::node_add_link(ntree, link->fromnode, link->fromsock, node_from, sock_from);
-            bke::node_remove_link(ntree, link);
+            bke::node_add_link(*ntree, *link->fromnode, *link->fromsock, *node_from, *sock_from);
+            bke::node_remove_link(ntree, *link);
           }
 
           node_socket_copy_default_value(sock_from, sock_prev);
@@ -297,7 +296,7 @@ static void node_socket_add_replace(const bContext *C,
 
   BKE_ntree_update_tag_node_property(ntree, node_from);
   BKE_ntree_update_tag_node_property(ntree, node_to);
-  ED_node_tree_propagate_change(nullptr, bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
 }
 
 /****************************** Node Link Menu *******************************/
@@ -325,24 +324,13 @@ static Vector<NodeLinkItem> ui_node_link_items(NodeLinkArg *arg,
 {
   Vector<NodeLinkItem> items;
 
-  /* XXX this should become a callback for node types! */
-  if (arg->node_type->type == NODE_GROUP) {
-    bNodeTree *ngroup;
-
-    for (ngroup = (bNodeTree *)arg->bmain->nodetrees.first; ngroup;
-         ngroup = (bNodeTree *)ngroup->id.next)
-    {
-      const char *disabled_hint;
-      if ((ngroup->type != arg->ntree->type) ||
-          !bke::node_group_poll(arg->ntree, ngroup, &disabled_hint))
-      {
+  if (arg->node_type->type_legacy == NODE_GROUP) {
+    LISTBASE_FOREACH (bNodeTree *, ngroup, &arg->bmain->nodetrees) {
+      if (BKE_id_name(ngroup->id)[0] == '.') {
+        /* Don't display hidden node groups, just like the add menu. */
         continue;
       }
-    }
 
-    for (ngroup = (bNodeTree *)arg->bmain->nodetrees.first; ngroup;
-         ngroup = (bNodeTree *)ngroup->id.next)
-    {
       const char *disabled_hint;
       if ((ngroup->type != arg->ntree->type) ||
           !bke::node_group_poll(arg->ntree, ngroup, &disabled_hint))
@@ -388,7 +376,7 @@ static Vector<NodeLinkItem> ui_node_link_items(NodeLinkArg *arg,
       item.socket_index = index++;
       item.socket_type = socket_decl.socket_type;
       item.socket_name = socket_decl.name.c_str();
-      item.node_name = arg->node_type->ui_name;
+      item.node_name = arg->node_type->ui_name.c_str();
       items.append(item);
     }
   }
@@ -405,7 +393,7 @@ static Vector<NodeLinkItem> ui_node_link_items(NodeLinkArg *arg,
       item.socket_index = i;
       item.socket_type = stemp->type;
       item.socket_name = stemp->name;
-      item.node_name = arg->node_type->ui_name;
+      item.node_name = arg->node_type->ui_name.c_str();
       items.append(item);
     }
   }
@@ -429,7 +417,7 @@ static void ui_node_link(bContext *C, void *arg_p, void *event_p)
     node_socket_remove(bmain, ntree, node_to, sock_to);
   }
   else {
-    node_socket_add_replace(C, ntree, node_to, sock_to, arg->node_type->type, &arg->item);
+    node_socket_add_replace(C, ntree, node_to, sock_to, arg->node_type->type_legacy, &arg->item);
   }
 
   ED_undo_push(C, "Node input modify");
@@ -443,7 +431,7 @@ static void ui_node_sock_name(const bNodeTree *ntree,
     bNode *node = sock->link->fromnode;
     char node_name[UI_MAX_NAME_STR];
 
-    bke::nodeLabel(ntree, node, node_name, sizeof(node_name));
+    bke::nodeLabel(*ntree, *node, node_name, sizeof(node_name));
 
     if (BLI_listbase_is_empty(&node->inputs) && node->outputs.first != node->outputs.last) {
       BLI_snprintf(
@@ -470,12 +458,12 @@ static int ui_node_item_name_compare(const void *a, const void *b)
 {
   const bke::bNodeType *type_a = *(const bke::bNodeType **)a;
   const bke::bNodeType *type_b = *(const bke::bNodeType **)b;
-  return BLI_strcasecmp_natural(type_a->ui_name, type_b->ui_name);
+  return BLI_strcasecmp_natural(type_a->ui_name.c_str(), type_b->ui_name.c_str());
 }
 
 static bool ui_node_item_special_poll(const bNodeTree * /*ntree*/, const bke::bNodeType *ntype)
 {
-  if (STREQ(ntype->idname, "ShaderNodeUVAlongStroke")) {
+  if (ntype->idname == "ShaderNodeUVAlongStroke") {
     /* TODO(sergey): Currently we don't have Freestyle nodes edited from
      * the buttons context, so can ignore its nodes completely.
      *
@@ -500,7 +488,7 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
   /* generate array of node types sorted by UI name */
   blender::Vector<bke::bNodeType *> sorted_ntypes;
 
-  NODE_TYPES_BEGIN (ntype) {
+  for (blender::bke::bNodeType *ntype : blender::bke::node_types_get()) {
     const char *disabled_hint;
     if (!(ntype->poll && ntype->poll(ntype, ntree, &disabled_hint))) {
       continue;
@@ -516,7 +504,6 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
 
     sorted_ntypes.append(ntype);
   }
-  NODE_TYPES_END;
 
   qsort(sorted_ntypes.data(),
         sorted_ntypes.size(),
@@ -552,7 +539,7 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
         UI_block_layout_set_current(block, column);
 
         uiItemL(column, IFACE_(cname), ICON_NODE);
-        but = (uiBut *)block->buttons.last;
+        but = block->buttons.last().get();
 
         first = 0;
       }
@@ -641,7 +628,7 @@ static void ui_template_node_link_menu(bContext *C, uiLayout *layout, void *but_
 
   if (sock->link) {
     uiItemL(column, IFACE_("Link"), ICON_NONE);
-    but = (uiBut *)block->buttons.last;
+    but = block->buttons.last().get();
     but->drawflag = UI_BUT_TEXT_LEFT;
 
     but = uiDefBut(block,
@@ -695,7 +682,7 @@ void uiTemplateNodeLink(
   arg->sock = input;
   node_link_item_init(arg->item);
 
-  PointerRNA node_ptr = RNA_pointer_create(&ntree->id, &RNA_Node, node);
+  PointerRNA node_ptr = RNA_pointer_create_discrete(&ntree->id, &RNA_Node, node);
   node_socket_color_get(*C, *ntree, node_ptr, *input, socket_col);
 
   UI_block_layout_set_current(block, layout);
@@ -747,7 +734,7 @@ static void node_panel_toggle_button_cb(bContext *C, void *panel_state_argv, voi
 
   panel_state->flag ^= NODE_PANEL_COLLAPSED;
 
-  ED_node_tree_propagate_change(C, bmain, ntree);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
 
   /* Make sure panel state updates from the Properties Editor, too. */
   WM_event_add_notifier(C, NC_SPACE | ND_SPACE_NODE_VIEW, nullptr);
@@ -765,10 +752,10 @@ static void ui_node_draw_panel(uiLayout &layout,
   uiBlock *block = uiLayoutGetBlock(row);
   UI_block_emboss_set(block, UI_EMBOSS_NONE);
   uiBut *but = uiDefIconTextBut(block,
-                                UI_BTYPE_BUT,
+                                UI_BTYPE_BUT_TOGGLE,
                                 0,
                                 panel_state.is_collapsed() ? ICON_RIGHTARROW : ICON_DOWNARROW_HLT,
-                                IFACE_(panel_decl.name.c_str()),
+                                IFACE_(panel_decl.name),
                                 0,
                                 0,
                                 UI_UNIT_X * 4,
@@ -811,7 +798,7 @@ static void ui_node_draw_recursive(uiLayout &layout,
       ui_node_draw_recursive(layout, C, ntree, node, *sub_panel_decl, depth + 1);
     }
     else if (const auto *layout_decl = dynamic_cast<const nodes::LayoutDeclaration *>(item_decl)) {
-      PointerRNA nodeptr = RNA_pointer_create(&ntree.id, &RNA_Node, &node);
+      PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
       layout_decl->draw(&layout, &C, &nodeptr);
     }
   }
@@ -820,7 +807,7 @@ static void ui_node_draw_recursive(uiLayout &layout,
 static void ui_node_draw_node(
     uiLayout &layout, bContext &C, bNodeTree &ntree, bNode &node, int depth)
 {
-  PointerRNA nodeptr = RNA_pointer_create(&ntree.id, &RNA_Node, &node);
+  PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
 
   if (node.declaration() && node.declaration()->use_custom_socket_order) {
     const nodes::NodeDeclaration &node_decl = *node.declaration();
@@ -832,14 +819,14 @@ static void ui_node_draw_node(
       {
         if (socket_decl->in_out == SOCK_IN) {
           ui_node_draw_input(
-              layout, C, ntree, node, node.socket_by_decl(*socket_decl), depth, nullptr);
+              layout, C, ntree, node, node.socket_by_decl(*socket_decl), depth + 1, nullptr);
         }
       }
     }
   }
   else {
     if (node.typeinfo->draw_buttons) {
-      if (node.type != NODE_GROUP) {
+      if (node.type_legacy != NODE_GROUP) {
         uiLayoutSetPropSep(&layout, true);
         node.typeinfo->draw_buttons(&layout, &C, &nodeptr);
       }
@@ -877,8 +864,8 @@ static void ui_node_draw_input(uiLayout &layout,
   }
 
   /* socket RNA pointer */
-  PointerRNA inputptr = RNA_pointer_create(&ntree.id, &RNA_NodeSocket, &input);
-  PointerRNA nodeptr = RNA_pointer_create(&ntree.id, &RNA_Node, &node);
+  PointerRNA inputptr = RNA_pointer_create_discrete(&ntree.id, &RNA_NodeSocket, &input);
+  PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
 
   row = uiLayoutRow(&layout, true);
 
@@ -894,8 +881,8 @@ static void ui_node_draw_input(uiLayout &layout,
     if (depth > 0) {
       UI_block_emboss_set(block, UI_EMBOSS_NONE);
 
-      if (lnode &&
-          (lnode->inputs.first || (lnode->typeinfo->draw_buttons && lnode->type != NODE_GROUP)))
+      if (lnode && (lnode->inputs.first ||
+                    (lnode->typeinfo->draw_buttons && lnode->type_legacy != NODE_GROUP)))
       {
         int icon = (input.flag & SOCK_COLLAPSED) ? ICON_RIGHTARROW : ICON_DOWNARROW_HLT;
         uiItemR(sub, &inputptr, "show_expanded", UI_ITEM_R_ICON_ONLY, "", icon);

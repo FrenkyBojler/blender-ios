@@ -10,10 +10,9 @@
  * https://www.ea.com/frostbite/news/physically-based-unified-volumetric-rendering-in-frostbite
  */
 
-#include "DNA_volume_types.h"
 #include "GPU_capabilities.hh"
 
-#include "draw_common.hh"
+#include "GPU_debug.hh"
 
 #include "eevee_instance.hh"
 #include "eevee_pipeline.hh"
@@ -348,7 +347,7 @@ void VolumeModule::draw_prepass(View &main_view)
      * artifacts on lights because of voxels stretched in Z or anisotropy. */
     exponential_frame_count = 8;
   }
-  else if (inst_.sampling.is_reset()) {
+  else if (inst_.is_viewport() && inst_.sampling.is_reset()) {
     /* If we are not falling in any cases above, this usually means there is a scene or object
      * parameter update. Reset accumulation completely. */
     exponential_frame_count = 0;
@@ -415,7 +414,7 @@ void VolumeModule::draw_prepass(View &main_view)
 
   inst_.uniform_data.push_update();
 
-  DRW_stats_group_start("Volumes");
+  GPU_debug_group_begin("Volumes");
   occupancy_fb_.bind();
   inst_.pipelines.world_volume.render(main_view);
 
@@ -427,7 +426,7 @@ void VolumeModule::draw_prepass(View &main_view)
   if (!current_objects_.is_empty()) {
     inst_.pipelines.volume.render(volume_view, occupancy_tx_);
   }
-  DRW_stats_group_end();
+  GPU_debug_group_end();
 }
 
 void VolumeModule::draw_compute(View &main_view, int2 extent)

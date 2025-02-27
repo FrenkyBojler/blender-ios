@@ -20,7 +20,7 @@
 #include "BLF_api.hh"
 
 #include "BLI_listbase.h"
-#include "BLI_math_vector.hh"
+#include "BLI_math_vector.h"
 #include "BLI_rect.h"
 
 #include "BLT_translation.hh"
@@ -165,7 +165,8 @@ void ED_screen_draw_edges(wmWindow *win)
     return;
   }
 
-  if (screen->temp && BLI_listbase_is_single(&screen->areabase)) {
+  if (BLI_listbase_is_single(&screen->areabase) && win->global_areas.areabase.first == nullptr) {
+    /* Do not show edges on windows without global areas and with only one editor. */
     return;
   }
 

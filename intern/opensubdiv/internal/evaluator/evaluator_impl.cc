@@ -5,7 +5,6 @@
  * Author: Sergey Sharybin. */
 
 #include <cassert>
-#include <cstdio>
 
 #ifdef _MSC_VER
 #  include <iso646.h>
@@ -17,8 +16,6 @@
 #include <opensubdiv/osd/mesh.h>
 #include <opensubdiv/osd/types.h>
 #include <opensubdiv/version.h>
-
-#include "MEM_guardedalloc.h"
 
 #include "internal/evaluator/eval_output_cpu.h"
 #include "internal/evaluator/eval_output_gpu.h"
@@ -32,6 +29,7 @@ using OpenSubdiv::Far::PatchTable;
 using OpenSubdiv::Far::PatchTableFactory;
 using OpenSubdiv::Far::StencilTable;
 using OpenSubdiv::Far::StencilTableFactory;
+using OpenSubdiv::Far::StencilTableReal;
 using OpenSubdiv::Far::TopologyRefiner;
 using OpenSubdiv::Osd::PatchArray;
 using OpenSubdiv::Osd::PatchCoord;
@@ -42,7 +40,10 @@ namespace blender::opensubdiv {
 template<typename T, int kNumMaxElementsOnStack> class StackOrHeapArray {
  public:
   StackOrHeapArray()
-      : num_elements_(0), heap_elements_(NULL), num_heap_elements_(0), effective_elements_(NULL)
+      : num_elements_(0),
+        heap_elements_(nullptr),
+        num_heap_elements_(0),
+        effective_elements_(nullptr)
   {
   }
 
@@ -76,7 +77,7 @@ template<typename T, int kNumMaxElementsOnStack> class StackOrHeapArray {
       return;
     }
     // Simple case: no previously allocated buffer, can simply do one allocation.
-    if (effective_elements_ == NULL) {
+    if (effective_elements_ == nullptr) {
       effective_elements_ = allocate(num_elements);
       return;
     }
@@ -119,7 +120,7 @@ template<typename T, int kNumMaxElementsOnStack> class StackOrHeapArray {
 };
 
 // 32 is a number of inner vertices along the patch size at subdivision level 6.
-typedef StackOrHeapArray<PatchCoord, 32 * 32> StackOrHeapPatchCoordArray;
+using StackOrHeapPatchCoordArray = StackOrHeapArray<PatchCoord, 32 * 32>;
 
 static void convertPatchCoordsToArray(const OpenSubdiv_PatchCoord *patch_coords,
                                       const int num_patch_coords,
@@ -258,7 +259,7 @@ void EvalOutputAPI::evaluateLimit(const int ptex_face_index,
   assert(face_v <= 1.0f);
   const PatchTable::PatchHandle *handle = patch_map_->FindPatch(ptex_face_index, face_u, face_v);
   PatchCoord patch_coord(*handle, face_u, face_v);
-  if (dPdu != NULL || dPdv != NULL) {
+  if (dPdu != nullptr || dPdv != nullptr) {
     implementation_->evalPatchesWithDerivatives(&patch_coord, 1, P, dPdu, dPdv);
   }
   else {
@@ -317,7 +318,7 @@ void EvalOutputAPI::evaluatePatchesLimit(const OpenSubdiv_PatchCoord *patch_coor
 {
   StackOrHeapPatchCoordArray patch_coords_array;
   convertPatchCoordsToArray(patch_coords, num_patch_coords, patch_map_, &patch_coords_array);
-  if (dPdu != NULL || dPdv != NULL) {
+  if (dPdu != nullptr || dPdv != nullptr) {
     implementation_->evalPatchesWithDerivatives(
         patch_coords_array.data(), num_patch_coords, P, dPdu, dPdv);
   }
@@ -341,12 +342,12 @@ void EvalOutputAPI::getPatchMap(OpenSubdiv_Buffer *patch_map_handles,
   const std::vector<PatchTable::PatchHandle> &handles = patch_map_->getHandles();
   PatchTable::PatchHandle *buffer_handles = static_cast<PatchTable::PatchHandle *>(
       patch_map_handles->alloc(patch_map_handles, handles.size()));
-  memcpy(buffer_handles, &handles[0], sizeof(PatchTable::PatchHandle) * handles.size());
+  memcpy(buffer_handles, handles.data(), sizeof(PatchTable::PatchHandle) * handles.size());
 
   const std::vector<PatchMap::QuadNode> &quadtree = patch_map_->nodes();
   PatchMap::QuadNode *buffer_nodes = static_cast<PatchMap::QuadNode *>(
       patch_map_quadtree->alloc(patch_map_quadtree, quadtree.size()));
-  memcpy(buffer_nodes, &quadtree[0], sizeof(PatchMap::QuadNode) * quadtree.size());
+  memcpy(buffer_nodes, quadtree.data(), sizeof(PatchMap::QuadNode) * quadtree.size());
 }
 
 void EvalOutputAPI::fillPatchArraysBuffer(OpenSubdiv_Buffer *patch_arrays_buffer)
@@ -406,7 +407,7 @@ bool EvalOutputAPI::hasVertexData() const
 }  // namespace blender::opensubdiv
 
 OpenSubdiv_Evaluator::OpenSubdiv_Evaluator()
-    : eval_output(NULL), patch_map(NULL), patch_table(NULL)
+    : eval_output(nullptr), patch_map(nullptr), patch_table(nullptr)
 {
 }
 
@@ -423,9 +424,9 @@ OpenSubdiv_Evaluator *openSubdiv_createEvaluatorFromTopologyRefiner(
     OpenSubdiv_EvaluatorCache *evaluator_cache_descr)
 {
   TopologyRefiner *refiner = topology_refiner->topology_refiner;
-  if (refiner == NULL) {
+  if (refiner == nullptr) {
     // Happens on bad topology.
-    return NULL;
+    return nullptr;
   }
   // TODO(sergey): Base this on actual topology.
   const bool has_varying_data = false;
@@ -449,6 +450,14 @@ OpenSubdiv_Evaluator *openSubdiv_createEvaluatorFromTopologyRefiner(
     TopologyRefiner::UniformOptions options(level);
     refiner->RefineUniform(options);
   }
+
+  // Work around ASAN warnings, due to OpenSubdiv pretending to have an actual StencilTable
+  // instance while it's really its base class.
+  auto delete_stencil_table = [](const StencilTable *table) {
+    static_assert(std::is_base_of_v<StencilTableReal<float>, StencilTable>);
+    delete reinterpret_cast<const StencilTableReal<float> *>(table);
+  };
+
   // Generate stencil table to update the bi-cubic patches control vertices
   // after they have been re-posed (both for vertex & varying interpolation).
   //
@@ -462,7 +471,7 @@ OpenSubdiv_Evaluator *openSubdiv_createEvaluatorFromTopologyRefiner(
   //
   // TODO(sergey): Seems currently varying stencils are always required in
   // OpenSubdiv itself.
-  const StencilTable *varying_stencils = NULL;
+  const StencilTable *varying_stencils = nullptr;
   if (has_varying_data) {
     StencilTableFactory::Options varying_stencil_options;
     varying_stencil_options.generateOffsets = stencil_generate_offsets;
@@ -494,20 +503,20 @@ OpenSubdiv_Evaluator *openSubdiv_createEvaluatorFromTopologyRefiner(
   // Append local points stencils.
   // Point stencils.
   const StencilTable *local_point_stencil_table = patch_table->GetLocalPointStencilTable();
-  if (local_point_stencil_table != NULL) {
+  if (local_point_stencil_table != nullptr) {
     const StencilTable *table = StencilTableFactory::AppendLocalPointStencilTable(
         *refiner, vertex_stencils, local_point_stencil_table);
-    delete vertex_stencils;
+    delete_stencil_table(vertex_stencils);
     vertex_stencils = table;
   }
   // Varying stencils.
   if (has_varying_data) {
     const StencilTable *local_point_varying_stencil_table =
         patch_table->GetLocalPointVaryingStencilTable();
-    if (local_point_varying_stencil_table != NULL) {
+    if (local_point_varying_stencil_table != nullptr) {
       const StencilTable *table = StencilTableFactory::AppendLocalPointStencilTable(
           *refiner, varying_stencils, local_point_varying_stencil_table);
-      delete varying_stencils;
+      delete_stencil_table(varying_stencils);
       varying_stencils = table;
     }
   }
@@ -519,8 +528,8 @@ OpenSubdiv_Evaluator *openSubdiv_createEvaluatorFromTopologyRefiner(
         all_face_varying_stencils[face_varying_channel],
         patch_table->GetLocalPointFaceVaryingStencilTable(face_varying_channel),
         face_varying_channel);
-    if (table != NULL) {
-      delete all_face_varying_stencils[face_varying_channel];
+    if (table != nullptr) {
+      delete_stencil_table(all_face_varying_stencils[face_varying_channel]);
       all_face_varying_stencils[face_varying_channel] = table;
     }
   }
@@ -556,10 +565,11 @@ OpenSubdiv_Evaluator *openSubdiv_createEvaluatorFromTopologyRefiner(
   evaluator->patch_map = patch_map;
   evaluator->patch_table = patch_table;
   // TODO(sergey): Look into whether we've got duplicated stencils arrays.
-  delete vertex_stencils;
-  delete varying_stencils;
+  delete_stencil_table(vertex_stencils);
+  delete_stencil_table(varying_stencils);
   for (const StencilTable *table : all_face_varying_stencils) {
-    delete table;
+    delete_stencil_table(table);
   }
+
   return evaluator;
 }
