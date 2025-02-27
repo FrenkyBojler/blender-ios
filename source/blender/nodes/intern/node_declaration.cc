@@ -582,6 +582,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::field_on(const Span<
       relations.available_relations.append(relation);
     }
   }
+  this->structure_type(StructureType::Field);
   return *this;
 }
 
