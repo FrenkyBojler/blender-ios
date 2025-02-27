@@ -479,11 +479,48 @@ using MeshRemap_CheckIslandBoundary =
                               int edge_user_count,
                               const blender::Span<int> edge_face_map_elem)>;
 
+static void face_edge_loop_islands_calc_bitflags_exclude_at_border(
+    const int *face_groups,
+    const blender::Span<int> faces_from_item,
+    const int face_group_id,
+    const int face_group_id_overflowed,
+    int &r_bit_face_group_mask)
+{
+  /* Find neighbour faces (either from a border edge, or a border vertex) that already have a
+   * group assigned, and exclude these groups' bits from the available set of groups bits that can
+   * be assigned to the currently processed group. */
+  for (const int face_idx : faces_from_item) {
+    int bit = face_groups[face_idx];
+    if (!ELEM(bit, 0, face_group_id, face_group_id_overflowed) && !(r_bit_face_group_mask & bit)) {
+      r_bit_face_group_mask |= bit;
+    }
+  }
+}
+
+/* ABOUT #use_border_vertices_for_bitflags:
+ *
+ * Also exclude bits used in other groups sharing the same border vertex, i.e. if both edges
+ * around the vertex of the current corner are border edges.
+ *
+ * NOTE: The reason for this requirement is not very clear. Bitflags groups are only handled here
+ * for I/O purposes, Blender itself does not have this feature. Main external apps heavily
+ * relying on these bitflags groups for their smooth shading computation seem to generate invalid
+ * results when two different groups share the same bits, and are connected by a vertex only
+ * (i.e. have no edge in common). See #104434.
+ *
+ * The downside of also considering border vertex-only neighbor faces is that it becomes much
+ * more likely to run out of bits, e.g. in a case of a fan with many faces/edges around a same
+ * vertex, each in their own face group...
+ */
 static void face_edge_loop_islands_calc(const int totedge,
+                                        const int totvert,
                                         const blender::OffsetIndices<int> faces,
                                         const blender::Span<int> corner_edges,
+                                        const blender::Span<int> corner_verts,
                                         blender::GroupedSpan<int> edge_face_map,
+                                        blender::GroupedSpan<int> vert_face_map,
                                         const bool use_bitflags,
+                                        const bool use_border_vertices_for_bitflags,
                                         MeshRemap_CheckIslandBoundary edge_boundary_check,
                                         int **r_face_groups,
                                         int *r_totgroup,
@@ -497,10 +534,11 @@ static void face_edge_loop_islands_calc(const int totedge,
   int num_edgeborders = 0;
 
   int face_prev = 0;
-  const int temp_face_group_id = 3; /* Placeholder value. */
+  constexpr int temp_face_group_id = 3; /* Placeholder value. */
 
-  /* Group we could not find any available bit, will be reset to 0 at end. */
-  const int face_group_id_overflowed = 5;
+  /* For bitflags groups, group we could not find any available bit for, will be reset to 0 at the
+   * end. */
+  constexpr int face_group_id_overflowed = 5;
 
   int tot_group = 0;
   bool group_id_overflow = false;
@@ -525,6 +563,12 @@ static void face_edge_loop_islands_calc(const int totedge,
   if (edge_face_map.is_empty()) {
     edge_face_map = blender::bke::mesh::build_edge_to_face_map(
         faces, corner_edges, totedge, edge_to_face_src_offsets, edge_to_face_src_indices);
+  }
+  blender::Array<int> vert_to_face_src_offsets;
+  blender::Array<int> vert_to_face_src_indices;
+  if (use_bitflags && vert_face_map.is_empty()) {
+    vert_face_map = blender::bke::mesh::build_vert_to_face_map(
+        faces, corner_verts, totvert, vert_to_face_src_offsets, vert_to_face_src_indices);
   }
 
   face_groups = static_cast<int *>(MEM_callocN(sizeof(int) * size_t(faces.size()), __func__));
@@ -559,6 +603,11 @@ static void face_edge_loop_islands_calc(const int totedge,
       face = face_stack[ps_curr_idx++];
       BLI_assert(face_groups[face] == face_group_id);
 
+      /* Only used in case #consider_border_vertices_for_group_bitflags is true. */
+      int edge_prev = -1;
+      bool edge_prev_is_border = false;
+      bool edge_first_is_border = false;
+
       for (const int64_t loop : faces[face]) {
         const int edge = corner_edges[loop];
         /* loop over face users */
@@ -575,6 +624,7 @@ static void face_edge_loop_islands_calc(const int totedge,
               face_stack[ps_end_idx++] = *p;
             }
           }
+          edge_prev_is_border = false;
         }
         else {
           if (edge_borders && !BLI_BITMAP_TEST(edge_borders, edge)) {
@@ -582,17 +632,39 @@ static void face_edge_loop_islands_calc(const int totedge,
             num_edgeborders++;
           }
           if (use_bitflags) {
-            /* Find contiguous smooth groups already assigned,
-             * these are the values we can't reuse! */
-            for (; i--; p++) {
-              int bit = face_groups[*p];
-              if (!ELEM(bit, 0, face_group_id, face_group_id_overflowed) &&
-                  !(bit_face_group_mask & bit))
-              {
-                bit_face_group_mask |= bit;
-              }
+            /* Exclude bits used in other groups sharing the same border edge. */
+            face_edge_loop_islands_calc_bitflags_exclude_at_border(face_groups,
+                                                                   map_ele,
+                                                                   face_group_id,
+                                                                   face_group_id_overflowed,
+                                                                   bit_face_group_mask);
+            if (use_border_vertices_for_bitflags && edge_prev_is_border) {
+              /* Exclude bits used in other groups sharing the same border vertex. */
+              const int vert = corner_verts[loop];
+              face_edge_loop_islands_calc_bitflags_exclude_at_border(face_groups,
+                                                                     vert_face_map[vert],
+                                                                     face_group_id,
+                                                                     face_group_id_overflowed,
+                                                                     bit_face_group_mask);
             }
           }
+          if (edge_prev < 0) {
+            edge_first_is_border = true;
+          }
+          edge_prev_is_border = true;
+        }
+        edge_prev = edge;
+      }
+      /* Finalize 'border vertex' neighbour faces check with the first corner. */
+      if (use_bitflags && use_border_vertices_for_bitflags) {
+        if (edge_first_is_border && edge_prev_is_border) {
+          const int loop = faces[face][0];
+          const int vert = corner_verts[loop];
+          face_edge_loop_islands_calc_bitflags_exclude_at_border(face_groups,
+                                                                 vert_face_map[vert],
+                                                                 face_group_id,
+                                                                 face_group_id_overflowed,
+                                                                 bit_face_group_mask);
         }
       }
     }
@@ -609,10 +681,15 @@ static void face_edge_loop_islands_calc(const int totedge,
         face_group_id <<= 1; /* will 'overflow' on last possible iteration. */
       }
       if (UNLIKELY(gid_bit > 31)) {
-        /* All bits used in contiguous smooth groups, we can't do much!
-         * NOTE: this is *very* unlikely - theoretically, four groups are enough,
-         *       I don't think we can reach this goal with such a simple algorithm,
-         *       but I don't think either we'll never need all 32 groups!
+        /* All bits used in contiguous smooth groups, not much to do.
+         *
+         * NOTE: If only considering border edges, this is *very* unlikely to happen.
+         * Theoretically, four groups are enough, this is probably not achievable with such a
+         * simple algorithm, but 32 groups should always be more than enough.
+         *
+         * When also considering border vertices (which is the case currently, see comment above),
+         * a fairly simple fan case with over 30 faces all belonging to different groups will be
+         * enough to cause an overflow.
          */
         printf(
             "Warning, could not find an available id for current smooth group, faces will me "
@@ -658,13 +735,16 @@ static void face_edge_loop_islands_calc(const int totedge,
   }
 }
 
-int *BKE_mesh_calc_smoothgroups(int edges_num,
-                                const blender::OffsetIndices<int> faces,
-                                const blender::Span<int> corner_edges,
-                                const blender::Span<bool> sharp_edges,
-                                const blender::Span<bool> sharp_faces,
-                                int *r_totgroup,
-                                bool use_bitflags)
+static int *mesh_calc_smoothgroups(const int edges_num,
+                                   const int verts_num,
+                                   const blender::OffsetIndices<int> faces,
+                                   const blender::Span<int> corner_edges,
+                                   const blender::Span<int> corner_verts,
+                                   const blender::Span<bool> sharp_edges,
+                                   const blender::Span<bool> sharp_faces,
+                                   int *r_totgroup,
+                                   const bool use_bitflags,
+                                   const bool use_border_vertices_for_bitflags)
 {
   int *face_groups = nullptr;
 
@@ -689,10 +769,14 @@ int *BKE_mesh_calc_smoothgroups(int edges_num,
   };
 
   face_edge_loop_islands_calc(edges_num,
+                              verts_num,
                               faces,
                               corner_edges,
+                              corner_verts,
+                              {},
                               {},
                               use_bitflags,
+                              use_border_vertices_for_bitflags,
                               face_is_island_boundary_smooth,
                               &face_groups,
                               r_totgroup,
@@ -700,6 +784,39 @@ int *BKE_mesh_calc_smoothgroups(int edges_num,
                               nullptr);
 
   return face_groups;
+}
+
+int *BKE_mesh_calc_smoothgroups(int edges_num,
+                                const blender::OffsetIndices<int> faces,
+                                const blender::Span<int> corner_edges,
+                                const blender::Span<bool> sharp_edges,
+                                const blender::Span<bool> sharp_faces,
+                                int *r_totgroup)
+{
+  return mesh_calc_smoothgroups(
+      edges_num, 0, faces, corner_edges, {}, sharp_edges, sharp_faces, r_totgroup, false, false);
+}
+
+int *BKE_mesh_calc_smoothgroups_bitflags(int edges_num,
+                                         int verts_num,
+                                         const blender::OffsetIndices<int> faces,
+                                         const blender::Span<int> corner_edges,
+                                         const blender::Span<int> corner_verts,
+                                         const blender::Span<bool> sharp_edges,
+                                         const blender::Span<bool> sharp_faces,
+                                         const bool use_border_vertices_for_bitflags,
+                                         int *r_totgroup)
+{
+  return mesh_calc_smoothgroups(edges_num,
+                                verts_num,
+                                faces,
+                                corner_edges,
+                                corner_verts,
+                                sharp_edges,
+                                sharp_faces,
+                                r_totgroup,
+                                true,
+                                use_border_vertices_for_bitflags);
 }
 
 #define MISLAND_DEFAULT_BUFSIZE 64
@@ -908,9 +1025,13 @@ static bool mesh_calc_islands_loop_face_uv(const int totedge,
   };
 
   face_edge_loop_islands_calc(totedge,
+                              0,
                               faces,
                               {corner_edges, corners_num},
+                              {},
                               edge_to_face_map,
+                              {},
+                              false,
                               false,
                               mesh_check_island_boundary_uv,
                               &face_groups,
@@ -937,7 +1058,8 @@ static bool mesh_calc_islands_loop_face_uv(const int totedge,
   loop_indices = static_cast<int *>(
       MEM_mallocN(sizeof(*loop_indices) * size_t(corners_num), __func__));
 
-  /* NOTE: here we ignore '0' invalid group - this should *never* happen in this case anyway? */
+  /* NOTE: here we ignore '0' invalid group - this should *never* happen in this case anyway?
+   */
   for (grp_idx = 1; grp_idx <= num_face_groups; grp_idx++) {
     num_pidx = num_lidx = 0;
     if (num_edge_borders) {
