@@ -86,7 +86,7 @@ struct BMLog {
   blender::Map<BMElem *, uint, 0> elem_to_id;
 
   /** All #BMLogEntrys, ordered from earliest to most recent. */
-  blender::Vector<BMLogEntry, 0> entries;
+  ListBase entries;
 
   /**
    * The current log entry from entries list
@@ -97,7 +97,7 @@ struct BMLog {
    * If equal to the last entry in the entries list, then all log
    * entries have been applied (i.e. there is nothing left to redo.)
    */
-  int current_entry;
+  BMLogEntry *current_entry;
 };
 
 struct BMLogVert {
@@ -195,8 +195,8 @@ static void bm_log_vert_bmvert_copy(BMLogVert *lv, BMVert *v, const int cd_vert_
 /* Allocate and initialize a BMLogVert */
 static BMLogVert *bm_log_vert_alloc(BMLog *log, BMVert *v, const int cd_vert_mask_offset)
 {
-  BMLogEntry &entry = log->entries[log->current_entry];
-  BMLogVert *lv = static_cast<BMLogVert *>(BLI_mempool_alloc(entry.pool_verts));
+  BMLogEntry *entry = log->current_entry;
+  BMLogVert *lv = static_cast<BMLogVert *>(BLI_mempool_alloc(entry->pool_verts));
 
   bm_log_vert_bmvert_copy(lv, v, cd_vert_mask_offset);
 
@@ -206,8 +206,8 @@ static BMLogVert *bm_log_vert_alloc(BMLog *log, BMVert *v, const int cd_vert_mas
 /* Allocate and initialize a BMLogFace */
 static BMLogFace *bm_log_face_alloc(BMLog *log, BMFace *f)
 {
-  BMLogEntry &entry = log->entries[log->current_entry];
-  BMLogFace *lf = static_cast<BMLogFace *>(BLI_mempool_alloc(entry.pool_faces));
+  BMLogEntry *entry = log->current_entry;
+  BMLogFace *lf = static_cast<BMLogFace *>(BLI_mempool_alloc(entry->pool_faces));
   BMVert *v[3];
 
   BLI_assert(f->len == 3);
@@ -392,18 +392,6 @@ static void bm_log_entry_free(BMLogEntry *entry)
   BLI_mempool_destroy(entry->pool_faces);
 }
 
-static void bm_log_id_ghash_retake(RangeTreeUInt *unused_ids, GHash *id_ghash)
-{
-  GHashIterator gh_iter;
-
-  GHASH_ITER (gh_iter, id_ghash) {
-    void *key = BLI_ghashIterator_getKey(&gh_iter);
-    uint id = POINTER_AS_UINT(key);
-
-    range_tree_uint_retake(unused_ids, id);
-  }
-}
-
 static int uint_compare(const void *a_v, const void *b_v)
 {
   const uint *a = static_cast<const uint *>(a_v);
@@ -531,12 +519,24 @@ BMLog *BM_log_from_existing_entries_create(BMesh *bm, BMLogEntry *entry)
     entry->log = log;
 
     /* Take all used IDs */
-    bm_log_id_ghash_retake(log->unused_ids, entry->deleted_verts);
-    bm_log_id_ghash_retake(log->unused_ids, entry->deleted_faces);
-    bm_log_id_ghash_retake(log->unused_ids, entry->added_verts);
-    bm_log_id_ghash_retake(log->unused_ids, entry->added_faces);
-    bm_log_id_ghash_retake(log->unused_ids, entry->modified_verts);
-    bm_log_id_ghash_retake(log->unused_ids, entry->modified_faces);
+    for (const uint id : entry->deleted_verts.keys()) {
+      range_tree_uint_retake(log->unused_ids, id);
+    }
+    for (const uint id : entry->deleted_faces.keys()) {
+      range_tree_uint_retake(log->unused_ids, id);
+    }
+    for (const uint id : entry->added_verts.keys()) {
+      range_tree_uint_retake(log->unused_ids, id);
+    }
+    for (const uint id : entry->added_faces.keys()) {
+      range_tree_uint_retake(log->unused_ids, id);
+    }
+    for (const uint id : entry->modified_verts.keys()) {
+      range_tree_uint_retake(log->unused_ids, id);
+    }
+    for (const uint id : entry->modified_faces.keys()) {
+      range_tree_uint_retake(log->unused_ids, id);
+    }
   }
 
   return log;
@@ -546,14 +546,6 @@ void BM_log_free(BMLog *log)
 {
   if (log->unused_ids) {
     range_tree_uint_free(log->unused_ids);
-  }
-
-  if (log->id_to_elem) {
-    BLI_ghash_free(log->id_to_elem, nullptr, nullptr);
-  }
-
-  if (log->elem_to_id) {
-    BLI_ghash_free(log->elem_to_id, nullptr, nullptr);
   }
 
   /* Clear the BMLog references within each entry, but do not free
@@ -699,8 +691,12 @@ void BM_log_entry_drop(BMLogEntry *entry)
      * the entry is at the end of the undo stack, and it's being
      * deleted, those elements can never be restored. Their IDs
      * can go back into the pool. */
-    bm_log_id_ghash_release(log, entry->added_faces);
-    bm_log_id_ghash_release(log, entry->added_verts);
+    for (const uint id : entry->added_faces.keys()) {
+      range_tree_uint_release(log->unused_ids, id);
+    }
+    for (const uint id : entry->added_verts.keys()) {
+      range_tree_uint_release(log->unused_ids, id);
+    }
   }
   else {
     BLI_assert_msg(0, "Cannot drop BMLogEntry from middle");
