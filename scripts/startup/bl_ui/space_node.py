@@ -152,7 +152,7 @@ class NODE_HT_header(Header):
                 row = layout.row()
                 if not scene.node_tree:
                     row.scale_x = 1.6
-                    row.operator("node.new_compositor_node_tree", icon="ADD", text="New")
+                    row.operator("node.new_compositor_node_tree_assign", icon="ADD", text="New")
                 else:
                     row.scale_x = 1.2
                     row.enabled = False
