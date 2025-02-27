@@ -124,6 +124,33 @@ GPUShader *DRW_shader_draw_command_generate_get()
 static blender::StringRefNull get_subdiv_shader_info_name(SubdivShaderType shader_type)
 {
   switch (shader_type) {
+    case SubdivShaderType::BUFFER_LINES:
+      return "subdiv_lines";
+
+    case SubdivShaderType::BUFFER_LINES_LOOSE:
+      return "subdiv_lines_loose";
+
+    case SubdivShaderType::BUFFER_TRIS:
+      return "subdiv_tris_single_material";
+
+    case SubdivShaderType::BUFFER_TRIS_MULTIPLE_MATERIALS:
+      return "subdiv_tris_multiple_materials";
+
+    case SubdivShaderType::BUFFER_EDGE_FAC:
+      if (GPU_crappy_amd_driver()) {
+        return "subdiv_edge_fac_amd_legacy";
+      }
+      return "subdiv_edge_fac";
+
+    case SubdivShaderType::BUFFER_SCULPT_DATA:
+      return "subdiv_sculpt_data";
+
+    case SubdivShaderType::BUFFER_UV_STRETCH_ANGLE:
+      return "subdiv_edituv_stretch_angle";
+
+    case SubdivShaderType::BUFFER_UV_STRETCH_AREA:
+      return "subdiv_edituv_stretch_area";
+
     case SubdivShaderType::BUFFER_NORMALS_ACCUMULATE:
       return "subdiv_normals_accumulate";
 
@@ -133,12 +160,11 @@ static blender::StringRefNull get_subdiv_shader_info_name(SubdivShaderType shade
     case SubdivShaderType::BUFFER_CUSTOM_NORMALS_FINALIZE:
       return "subdiv_custom_normals_finalize";
 
-    case SubdivShaderType::BUFFER_LINES:
-      return "subdiv_lines";
+    case SubdivShaderType::BUFFER_LNOR:
+      return "subdiv_loop_normals";
 
-    case SubdivShaderType::BUFFER_LINES_LOOSE:
-      return "subdiv_lines_loose";
-
+    case SubdivShaderType::COMP_CUSTOM_DATA_INTERP:
+      break;
     default:
       break;
   }
@@ -188,17 +214,8 @@ static blender::StringRefNull get_subdiv_shader_name(SubdivShaderType shader_typ
     case SubdivShaderType::PATCH_EVALUATION_ORCO: {
       return "subdiv patch evaluation orco";
     }
-    case SubdivShaderType::COMP_CUSTOM_DATA_INTERP_1D: {
-      return "subdiv custom data interp 1D";
-    }
-    case SubdivShaderType::COMP_CUSTOM_DATA_INTERP_2D: {
-      return "subdiv custom data interp 2D";
-    }
-    case SubdivShaderType::COMP_CUSTOM_DATA_INTERP_3D: {
-      return "subdiv custom data interp 3D";
-    }
-    case SubdivShaderType::COMP_CUSTOM_DATA_INTERP_4D: {
-      return "subdiv custom data interp 4D";
+    case SubdivShaderType::COMP_CUSTOM_DATA_INTERP: {
+      return "subdiv custom data interp";
     }
     case SubdivShaderType::BUFFER_SCULPT_DATA: {
       return "subdiv sculpt data";
@@ -244,10 +261,7 @@ static blender::StringRefNull get_subdiv_shader_code(SubdivShaderType shader_typ
     case SubdivShaderType::PATCH_EVALUATION_ORCO: {
       return datatoc_subdiv_patch_evaluation_comp_glsl;
     }
-    case SubdivShaderType::COMP_CUSTOM_DATA_INTERP_1D:
-    case SubdivShaderType::COMP_CUSTOM_DATA_INTERP_2D:
-    case SubdivShaderType::COMP_CUSTOM_DATA_INTERP_3D:
-    case SubdivShaderType::COMP_CUSTOM_DATA_INTERP_4D: {
+    case SubdivShaderType::COMP_CUSTOM_DATA_INTERP: {
       return datatoc_subdiv_custom_data_interp_comp_glsl;
     }
     case SubdivShaderType::BUFFER_SCULPT_DATA: {
@@ -327,19 +341,22 @@ GPUShader *DRW_shader_subdiv_get(SubdivShaderType shader_type)
     return draw_shader_subdiv_patch_evaluation_get(shader_type);
   }
 
-  BLI_assert(!ELEM(shader_type,
-                   SubdivShaderType::COMP_CUSTOM_DATA_INTERP_1D,
-                   SubdivShaderType::COMP_CUSTOM_DATA_INTERP_2D,
-                   SubdivShaderType::COMP_CUSTOM_DATA_INTERP_3D,
-                   SubdivShaderType::COMP_CUSTOM_DATA_INTERP_4D));
+  BLI_assert(!ELEM(shader_type, SubdivShaderType::COMP_CUSTOM_DATA_INTERP));
 
   if (e_data.subdiv_sh[uint(shader_type)] == nullptr &&
       ELEM(shader_type,
            SubdivShaderType::BUFFER_LINES,
            SubdivShaderType::BUFFER_LINES_LOOSE,
+           SubdivShaderType::BUFFER_TRIS,
+           SubdivShaderType::BUFFER_TRIS_MULTIPLE_MATERIALS,
+           SubdivShaderType::BUFFER_EDGE_FAC,
+           SubdivShaderType::BUFFER_SCULPT_DATA,
+           SubdivShaderType::BUFFER_UV_STRETCH_ANGLE,
+           SubdivShaderType::BUFFER_UV_STRETCH_AREA,
            SubdivShaderType::BUFFER_NORMALS_ACCUMULATE,
            SubdivShaderType::BUFFER_NORMALS_FINALIZE,
-           SubdivShaderType::BUFFER_CUSTOM_NORMALS_FINALIZE))
+           SubdivShaderType::BUFFER_CUSTOM_NORMALS_FINALIZE,
+           SubdivShaderType::BUFFER_LNOR))
   {
     blender::StringRefNull create_info_name = get_subdiv_shader_info_name(shader_type);
     e_data.subdiv_sh[uint(shader_type)] = GPU_shader_create_from_info_name(
@@ -348,30 +365,8 @@ GPUShader *DRW_shader_subdiv_get(SubdivShaderType shader_type)
   }
   else if (e_data.subdiv_sh[uint(shader_type)] == nullptr) {
     const blender::StringRefNull compute_code = get_subdiv_shader_code(shader_type);
-    std::optional<blender::StringRefNull> defines;
-
-    if (ELEM(shader_type,
-             SubdivShaderType::BUFFER_LNOR,
-             SubdivShaderType::BUFFER_TRIS_MULTIPLE_MATERIALS,
-             SubdivShaderType::BUFFER_UV_STRETCH_AREA))
-    {
-      defines = "#define SUBDIV_POLYGON_OFFSET\n";
-    }
-    else if (shader_type == SubdivShaderType::BUFFER_TRIS) {
-      defines =
-          "#define SUBDIV_POLYGON_OFFSET\n"
-          "#define SINGLE_MATERIAL\n";
-    }
-    else if (shader_type == SubdivShaderType::BUFFER_EDGE_FAC) {
-      /* No separate shader for the AMD driver case as we assume that the GPU will not change
-       * during the execution of the program. */
-      if (GPU_crappy_amd_driver()) {
-        defines = "#define GPU_AMD_DRIVER_BYTE_BUG\n";
-      }
-    }
-
     e_data.subdiv_sh[uint(shader_type)] = GPU_shader_create_compute(
-        compute_code, datatoc_subdiv_lib_glsl, defines, get_subdiv_shader_name(shader_type));
+        compute_code, datatoc_subdiv_lib_glsl, std::nullopt, get_subdiv_shader_name(shader_type));
   }
   return e_data.subdiv_sh[uint(shader_type)];
 }
@@ -386,29 +381,38 @@ GPUShader *DRW_shader_subdiv_custom_data_get(GPUVertCompType comp_type, int dime
   GPUShader *&shader = e_data.subdiv_custom_data_sh[dimensions - 1][comp_type];
 
   if (shader == nullptr) {
-    SubdivShaderType shader_type = SubdivShaderType(
-        uint(SubdivShaderType::COMP_CUSTOM_DATA_INTERP_1D) + dimensions - 1);
-    const blender::StringRefNull compute_code = get_subdiv_shader_code(shader_type);
-
-    std::string defines = "#define SUBDIV_POLYGON_OFFSET\n";
-    defines += "#define DIMENSIONS " + std::to_string(dimensions) + "\n";
-    switch (comp_type) {
-      case GPU_COMP_U16:
-        defines += "#define GPU_COMP_U16\n";
+    std::string info_name = "subdiv_custom_data_interp";
+    switch (dimensions) {
+      case 1:
+        info_name += "_1d";
         break;
-      case GPU_COMP_I32:
-        defines += "#define GPU_COMP_I32\n";
+      case 2:
+        info_name += "_2d";
         break;
-      case GPU_COMP_F32:
-        /* float is the default */
+      case 3:
+        info_name += "_3d";
+        break;
+      case 4:
+        info_name += "_4d";
         break;
       default:
         BLI_assert_unreachable();
-        break;
     }
 
-    shader = GPU_shader_create_compute(
-        compute_code, datatoc_subdiv_lib_glsl, defines, get_subdiv_shader_name(shader_type));
+    switch (comp_type) {
+      case GPU_COMP_U16:
+        info_name += "_u16";
+        break;
+      case GPU_COMP_I32:
+        info_name += "_i32";
+        break;
+      case GPU_COMP_F32:
+        info_name += "_f32";
+        break;
+      default:
+        BLI_assert_unreachable();
+    }
+    shader = GPU_shader_create_from_info_name(info_name.c_str());
   }
   return shader;
 }

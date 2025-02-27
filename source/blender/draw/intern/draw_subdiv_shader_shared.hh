@@ -55,6 +55,11 @@ struct DRWSubdivUboStorage {
 };
 BLI_STATIC_ASSERT_ALIGN(DRWSubdivUboStorage, 16)
 
+struct SculptData {
+  uint face_set_color;
+  float mask;
+};
+
 /* Duplicate of #PosNorLoop from the mesh extract CPU code.
  * We do not use a vec3 for the position as it will be padded to a vec4 which is incompatible with
  * the format. */
@@ -62,6 +67,14 @@ struct PosNorLoop {
   float x, y, z;
   float nx, ny, nz;
   float flag;
+};
+
+/* Mirror of #UVStretchAngle in the C++ code, but using floats until proper data compression
+ * is implemented for all subdivision data. */
+struct UVStretchAngle {
+  float angle;
+  float uv_angle0;
+  float uv_angle1;
 };
 
 struct LoopNormal {
@@ -75,8 +88,8 @@ struct CustomNormal {
   float z;
 };
 
-/* TODO: after migrating all shaders we should replace these defines with 'shader_data.define'.
- * Currently only added to support both legacy and shader create info. */
-#ifdef GPU_SHADER
-#  define total_dispatch_size shader_data.total_dispatch_size
-#endif
+/* Structure for #CompressedPatchCoord. */
+struct BlenderPatchCoord {
+  int patch_index;
+  uint encoded_uv;
+};
