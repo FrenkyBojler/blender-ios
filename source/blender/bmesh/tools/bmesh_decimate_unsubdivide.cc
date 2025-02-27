@@ -220,10 +220,12 @@ void BM_mesh_decimate_unsubdivide_ex(BMesh *bm, const int iterations, const bool
     }
   }
 
+  /* Perform the number of iteration steps which the user requested. */
   for (iter_step = 0; iter_step < iterations; iter_step++) {
     BMVert *v, *v_next;
     bool verts_were_marked_for_dissolve = false;
 
+    /* Tag all verts which are eligible to be dissolved on this iteration. */
     BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
       if (BM_elem_flag_test(v, BM_ELEM_TAG) && bm_vert_dissolve_fan_test(v)) {
 #ifdef USE_WALKER
@@ -235,10 +237,11 @@ void BM_mesh_decimate_unsubdivide_ex(BMesh *bm, const int iterations, const bool
         BM_elem_index_set(v, VERT_INDEX_IGNORE); /* set_dirty! */
       }
     }
-    /* done with selecting tagged verts */
 
     /* main loop, keep tagging until we can't tag any more islands */
     BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+
+      /* Only process verts which are eligible for dissolve and which have not yet been tagged */
       if (!(BM_elem_index_get(v) == VERT_INDEX_INIT)) {
         continue;
       }
@@ -277,10 +280,14 @@ void BM_mesh_decimate_unsubdivide_ex(BMesh *bm, const int iterations, const bool
       }
       BMW_end(&walker);
 #else
+      /* set the first VERT_INDEX_INIT vert as the first starting vert.  */
       BM_elem_index_set(v, VERT_INDEX_IGNORE); /* set_dirty! */
       ignore_verts[0] = v;
       ignore_vert_count = 1;
 
+      /* Starting at v, expand outwards, tagging any currently untagged neighbors.
+       * verts will be alternately tagged for collapse or ignore.
+       * Stop when there are no neighbors left to expand to */
       while (true) {
 
         bm_tag_untagged_neighbors(ignore_verts,
@@ -307,11 +314,13 @@ void BM_mesh_decimate_unsubdivide_ex(BMesh *bm, const int iterations, const bool
 #endif /* USE_WALKER */
     }
 
+    /* At high iteration levels, later steps can run out of verts that are eligible for dissolve.
+     * If this occurs, stop.  Future iterations won't find any verts that this iteration didn't. */
     if (!verts_were_marked_for_dissolve) {
       break;
     }
 
-    /* now we tagged all verts -1 for removal, lets loop over and rebuild faces */
+    /* Remove all verts tagged for removal. */
     BM_ITER_MESH_MUTABLE (v, v_next, &iter, bm, BM_VERTS_OF_MESH) {
       if (BM_elem_index_get(v) == VERT_INDEX_DO_COLLAPSE) {
         bm_vert_dissolve_fan(bm, v);
@@ -319,6 +328,7 @@ void BM_mesh_decimate_unsubdivide_ex(BMesh *bm, const int iterations, const bool
     }
   }
 
+  /* Ensure the vert index values will be recomputed. */
   bm->elem_index_dirty |= BM_VERT;
 
 #ifndef USE_WALKER
