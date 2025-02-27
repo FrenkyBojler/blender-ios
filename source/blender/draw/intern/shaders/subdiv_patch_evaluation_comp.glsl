@@ -4,21 +4,9 @@
 
 #include "subdiv_lib.glsl"
 
-#if defined(FVAR_EVALUATION)
-COMPUTE_SHADER_CREATE_INFO(subdiv_patch_evaluation_fvar)
-#elif defined(FDOTS_EVALUATION)
-#  if defined(FDOTS_NORMALS)
+#include "osd_patch_basis.glsl"
+
 COMPUTE_SHADER_CREATE_INFO(subdiv_patch_evaluation_fdots_normals)
-#  else
-COMPUTE_SHADER_CREATE_INFO(subdiv_patch_evaluation_fdots)
-#  endif
-#elif defined(VERTS_EVALUATION)
-#  if defined(ORCO_EVALUATION)
-COMPUTE_SHADER_CREATE_INFO(subdiv_patch_evaluation_verts_orco)
-#  else
-COMPUTE_SHADER_CREATE_INFO(subdiv_patch_evaluation_verts)
-#  endif
-#endif
 
 #if defined(VERTS_EVALUATION)
 float get_flag(int vertex)
