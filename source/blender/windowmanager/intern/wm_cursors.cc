@@ -525,9 +525,7 @@ void WM_cursor_time(wmWindow *win, int nr)
 
 void wm_init_cursor_data()
 {
-
   /********************** NW_ARROW Cursor **************************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char nw_bitmap16[] = {
@@ -600,11 +598,9 @@ void wm_init_cursor_data()
   BlenderCursor[WM_CURSOR_DEFAULT] = &NWArrowCursor;
   BlenderCursor[WM_CURSOR_COPY] = &NWArrowCursor;
   BlenderCursor[WM_CURSOR_NW_ARROW] = &NWArrowCursor;
-
   END_CURSOR_BLOCK;
 
   /************************ NS_ARROW Cursor *************************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char ns_bitmap16[] = {
@@ -676,11 +672,9 @@ void wm_init_cursor_data()
 
   BlenderCursor[WM_CURSOR_Y_MOVE] = &NSArrowCursor;
   BlenderCursor[WM_CURSOR_NS_ARROW] = &NSArrowCursor;
-
   END_CURSOR_BLOCK;
 
   /********************** EW_ARROW Cursor *************************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char ew_bitmap16[] = {
@@ -752,11 +746,9 @@ void wm_init_cursor_data()
 
   BlenderCursor[WM_CURSOR_X_MOVE] = &EWArrowCursor;
   BlenderCursor[WM_CURSOR_EW_ARROW] = &EWArrowCursor;
-
   END_CURSOR_BLOCK;
 
   /********************** Wait Cursor *****************************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char wait_bitmap16[] = {
@@ -827,11 +819,9 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_WAIT] = &WaitCursor;
-
   END_CURSOR_BLOCK;
 
   /********************** Mute Cursor ***********************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char mute_bitmap16[] = {
@@ -902,11 +892,9 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_MUTE] = &MuteCursor;
-
   END_CURSOR_BLOCK;
 
   /****************** Normal Cross Cursor ************************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char cross_bitmap16[] = {
@@ -978,11 +966,9 @@ void wm_init_cursor_data()
 
   BlenderCursor[WM_CURSOR_EDIT] = &CrossCursor;
   BlenderCursor[WM_CURSOR_CROSS] = &CrossCursor;
-
   END_CURSOR_BLOCK;
 
   /****************** Painting Cursor ************************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char paint_bitmap16[] = {
@@ -1053,11 +1039,9 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_PAINT] = &PaintCursor;
-
   END_CURSOR_BLOCK;
 
   /********************** Dot Cursor ***********************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char dot_bitmap16[] = {
@@ -1128,11 +1112,9 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_DOT] = &DotCursor;
-
   END_CURSOR_BLOCK;
 
   /************* Minimal Crosshair Cursor ***************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char crossc_bitmap16[] = {
@@ -1203,11 +1185,9 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_CROSSC] = &CrossCursorC;
-
   END_CURSOR_BLOCK;
 
   /********************** Knife Cursor ***********************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char knife_bitmap16[] = {
@@ -1278,11 +1258,9 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_KNIFE] = &KnifeCursor;
-
   END_CURSOR_BLOCK;
 
   /********************** Loop Select Cursor ***********************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char vloop_bitmap16[] = {
@@ -1353,11 +1331,9 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_VERTEX_LOOP] = &VLoopCursor;
-
   END_CURSOR_BLOCK;
 
   /********************** TextEdit Cursor ***********************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char textedit_bitmap16[] = {
@@ -1428,11 +1404,9 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_TEXT_EDIT] = &TextEditCursor;
-
   END_CURSOR_BLOCK;
 
   /********************** Paintbrush Cursor ***********************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char paintbrush_bitmap16[] = {
@@ -1503,11 +1477,9 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_PAINT_BRUSH] = &PaintBrushCursor;
-
   END_CURSOR_BLOCK;
 
   /********************** Eraser Cursor ***********************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char eraser_bitmap16[] = {
@@ -1578,11 +1550,9 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_ERASER] = &EraserCursor;
-
   END_CURSOR_BLOCK;
 
   /********************** Hand Cursor ***********************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char hand_bitmap16[] = {
@@ -1653,11 +1623,9 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_HAND] = &HandCursor;
-
   END_CURSOR_BLOCK;
 
   /********************** NSEW Scroll Cursor ***********************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char nsewscroll_bitmap16[] = {
@@ -1728,11 +1696,9 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_NSEW_SCROLL] = &NSEWScrollCursor;
-
   END_CURSOR_BLOCK;
 
   /********************** NS Scroll Cursor ***********************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char nsscroll_bitmap16[] = {
@@ -1803,11 +1769,9 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_NS_SCROLL] = &NSScrollCursor;
-
   END_CURSOR_BLOCK;
 
   /********************** EW Scroll Cursor ***********************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char ewscroll_bitmap16[] = {
@@ -1878,11 +1842,9 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_EW_SCROLL] = &EWScrollCursor;
-
   END_CURSOR_BLOCK;
 
   /********************** Eyedropper Cursor ***********************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char eyedropper_bitmap16[] = {
@@ -1953,11 +1915,9 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_EYEDROPPER] = &EyedropperCursor;
-
   END_CURSOR_BLOCK;
 
   /********************** Swap Area Cursor ***********************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char swap_bitmap16[] = {
@@ -2028,11 +1988,9 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_SWAP_AREA] = &SwapCursor;
-
   END_CURSOR_BLOCK;
 
   /********************** Vertical Split Cursor ***********************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char vsplit_bitmap16[] = {
@@ -2103,11 +2061,9 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_V_SPLIT] = &VSplitCursor;
-
   END_CURSOR_BLOCK;
 
   /********************** Horizontal Split Cursor ***********************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char hsplit_bitmap16[] = {
@@ -2178,11 +2134,9 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_H_SPLIT] = &HSplitCursor;
-
   END_CURSOR_BLOCK;
 
   /********************** North Arrow Cursor ***********************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char narrow_bitmap16[] = {
@@ -2253,11 +2207,9 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_N_ARROW] = &NArrowCursor;
-
   END_CURSOR_BLOCK;
 
   /********************** South Arrow Cursor ***********************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char sarrow_bitmap16[] = {
@@ -2328,11 +2280,9 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_S_ARROW] = &SArrowCursor;
-
   END_CURSOR_BLOCK;
 
   /********************** East Arrow Cursor ***********************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char earrow_bitmap16[] = {
@@ -2403,11 +2353,9 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_E_ARROW] = &EArrowCursor;
-
   END_CURSOR_BLOCK;
 
   /********************** West Arrow Cursor ***********************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char warrow_bitmap16[] = {
@@ -2478,11 +2426,9 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_W_ARROW] = &WArrowCursor;
-
   END_CURSOR_BLOCK;
 
   /********************** Stop Sign Cursor ***********************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char stop_bitmap16[] = {
@@ -2553,11 +2499,9 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_STOP] = &StopCursor;
-
   END_CURSOR_BLOCK;
 
   /********************** Zoom In Cursor ***********************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char zoomin_bitmap16[] = {
@@ -2628,11 +2572,9 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_ZOOM_IN] = &ZoomInCursor;
-
   END_CURSOR_BLOCK;
 
   /********************** Zoom Out Cursor ***********************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char zoomout_bitmap16[] = {
@@ -2703,11 +2645,9 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_ZOOM_OUT] = &ZoomOutCursor;
-
   END_CURSOR_BLOCK;
 
   /********************** Area Pick Cursor ***********************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char pick_area_bitmap16[] = {
@@ -2778,11 +2718,9 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_PICK_AREA] = &PickAreaCursor;
-
   END_CURSOR_BLOCK;
 
   /********************** Right handle cursor ***********************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char right_handle_bitmap16[] = {
@@ -2853,11 +2791,9 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_RIGHT_HANDLE] = &RightHandleCursor;
-
   END_CURSOR_BLOCK;
 
   /********************** Left handle cursor ***********************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char left_handle_bitmap16[] = {
@@ -2928,11 +2864,9 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_LEFT_HANDLE] = &LeftHandleCursor;
-
   END_CURSOR_BLOCK;
 
   /********************** both handles cursor ***********************/
-
   BEGIN_CURSOR_BLOCK;
 
   static char both_handles_bitmap16[] = {
@@ -3003,7 +2937,6 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_BOTH_HANDLES] = &BothHandlesCursor;
-
   END_CURSOR_BLOCK;
 
   /********************** Put the cursors in the array ***********************/
