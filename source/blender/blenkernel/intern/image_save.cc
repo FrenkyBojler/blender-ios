@@ -975,7 +975,7 @@ bool BKE_image_render_write_exr(ReportList *reports,
         float *gray_scale_output = image_exr_from_rgb_to_bw(
             output_rect, rr->rectx, rr->recty, render_pass->channels, tmp_output_rects);
         IMB_exr_add_channel(
-            exrhandle, "", "V", viewname, 1, rr->rectx, gray_scale_output, pass_half_float);
+            exrhandle, "", "Y", viewname, 1, rr->rectx, gray_scale_output, pass_half_float);
       }
       else if (render_pass->channels == 1) {
         /* In case of a single channel pass, we need to broadcast the same channel for each of the

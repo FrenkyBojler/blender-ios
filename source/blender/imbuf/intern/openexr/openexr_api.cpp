@@ -1903,10 +1903,10 @@ static const char *exr_rgba_channelname(MultiPartInputFile &file, const char *ch
 
 static int exr_has_rgb(MultiPartInputFile &file, const char *rgb_channels[3])
 {
-  /* Common names for RGB-like channels in order. The V channel name is used by convention for BW
+  /* Common names for RGB-like channels in order. The Y channel name is used by convention for BW
    * images, which will be broadcast to RGB channel at the end. */
   static const char *channel_names[] = {
-      "V", "R", "Red", "G", "Green", "B", "Blue", "AR", "RA", "AG", "GA", "AB", "BA", nullptr};
+      "Y", "V", "R", "Red", "G", "Green", "B", "Blue", "AR", "RA", "AG", "GA", "AB", "BA", nullptr};
 
   const Header &header = file.header(0);
   int num_channels = 0;
