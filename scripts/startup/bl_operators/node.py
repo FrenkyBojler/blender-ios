@@ -520,14 +520,16 @@ class NODE_OT_viewer_shortcut_get(Operator):
             nodes.active = old_active
 
         return {'FINISHED'}
-    
+
 # Todo: remove 'use_nodes' and implement operator in C that creates the node tree.
+
+
 class NODE_OT_compositor_create_node_tree(Operator):
     """Create a new compositor node tree if it doesn't exist"""
     bl_idname = "node.new_compositor_node_tree"
     bl_label = "New compositor tree"
     bl_options = {'REGISTER', 'UNDO'}
-    
+
     @classmethod
     def poll(cls, context):
         # Todo
