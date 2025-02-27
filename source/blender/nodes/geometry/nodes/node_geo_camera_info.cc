@@ -13,28 +13,22 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
 
-  b.add_output<decl::Matrix>("Inverse Projection");
+  b.add_output<decl::Matrix>("Projection Matrix");
   b.add_output<decl::Bool>("Is Active Camera");
   b.add_input<decl::Object>("Camera").hide_label();
 
   PanelDeclarationBuilder &foc = b.add_panel("Focal").default_closed(true);
   foc.add_output<decl::Float>("Focal Length");
-  foc.add_output<decl::Float>("Sensor Width");
-  foc.add_output<decl::Float>("Sensor Height");
-  foc.add_output<decl::Float>("Shift X");
-  foc.add_output<decl::Float>("Shift Y");
+  foc.add_output<decl::Vector>("Sensor");
+  foc.add_output<decl::Vector>("Shift");
   foc.add_output<decl::Float>("Clip Start");
   foc.add_output<decl::Float>("Clip End");
   foc.add_output<decl::Int>("Resolution X");
   foc.add_output<decl::Int>("Resolution Y");
-  foc.add_output<decl::Float>("Aspect X");
-  foc.add_output<decl::Float>("Aspect Y");
-  foc.add_output<decl::Float>("Field of View X");
-  foc.add_output<decl::Float>("Field of View Y");
+  foc.add_output<decl::Vector>("Aspect");
 
   PanelDeclarationBuilder &dof = b.add_panel("Depth of Field").default_closed(true);
   dof.add_output<decl::Bool>("Depth of Field Enabled");
-  dof.add_output<decl::Object>("Focus Object");
   dof.add_output<decl::Float>("Focus Distance");
   dof.add_output<decl::Float>("Aperture F-Stop");
   dof.add_output<decl::Int>("Aperture Blades");
@@ -68,6 +62,13 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
+
+  const Scene *scene = DEG_get_evaluated_scene(params.depsgraph());
+  if (!scene) {
+    params.set_default_remaining_outputs();
+    return;
+  }
+
   Object *camera_obj = params.get_input<Object *>("Camera");
 
   if (!camera_obj || camera_obj->type != OB_CAMERA) {
@@ -81,15 +82,6 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  const Scene *scene = DEG_get_evaluated_scene(params.depsgraph());
-  if (!scene) {
-    params.set_default_remaining_outputs();
-    return;
-  }
-
-  float fovx = scene->r.xsch * scene->r.xasp;
-  float fovy = scene->r.ysch * scene->r.yasp;
-
   CameraParams camera_params;
   BKE_camera_params_init(&camera_params);
   BKE_camera_params_from_object(&camera_params, camera_obj);
@@ -98,27 +90,20 @@ static void node_geo_exec(GeoNodeExecParams params)
   BKE_camera_params_compute_matrix(&camera_params);
 
   float4x4 projection_matrix(camera_params.winmat);
-  float4x4 inverse_projection = math::invert(projection_matrix);
 
-  params.set_output("Inverse Projection", inverse_projection);
+  params.set_output("Projection Matrix", projection_matrix);
   params.set_output("Is Active Camera", scene->camera == camera_obj);
 
   params.set_output("Focal Length", camera_params.lens);
-  params.set_output("Sensor Width", camera_params.sensor_x);
-  params.set_output("Sensor Height", camera_params.sensor_y);
-  params.set_output("Shift X", camera_params.shiftx);
-  params.set_output("Shift Y", camera_params.shifty);
+  params.set_output("Sensor", float3{camera_params.sensor_x, camera_params.sensor_y, 0.0f});
+  params.set_output("Shift", float3{camera_params.shiftx, camera_params.shifty, 0.0f});
   params.set_output("Clip Start", camera_params.clip_start);
   params.set_output("Clip End", camera_params.clip_end);
   params.set_output("Resolution X", scene->r.xsch);
   params.set_output("Resolution Y", scene->r.ysch);
-  params.set_output("Aspect X", scene->r.xasp);
-  params.set_output("Aspect Y", scene->r.yasp);
-  params.set_output("Field of View X", (fovx >= fovy) ? 1.0f : fovx / fovy);
-  params.set_output("Field of View Y", (fovx >= fovy) ? fovy / fovx : 1.0f);
+  params.set_output("Aspect", float3{scene->r.xasp, scene->r.yasp, 0.0f});
 
   params.set_output("Depth of Field Enabled", camera->dof.flag == CAM_DOF_ENABLED);
-  params.set_output("Focus Object", camera->dof.focus_object);
   params.set_output("Focus Distance", camera->dof.focus_distance);
   params.set_output("Aperture F-Stop", camera->dof.aperture_fstop);
   params.set_output("Aperture Blades", camera->dof.aperture_blades);
