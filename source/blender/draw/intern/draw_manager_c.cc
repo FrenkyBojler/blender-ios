@@ -2518,7 +2518,7 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
       drw_engines_cache_populate(obj_eval);
     }
 
-    if (RETOPOLOGY_ENABLED(v3d) && !XRAY_ENABLED(v3d)) {
+    if (!XRAY_ENABLED(v3d)) {
       DEGObjectIterSettings deg_iter_settings = {nullptr};
       deg_iter_settings.depsgraph = depsgraph;
       deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;

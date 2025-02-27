@@ -160,7 +160,7 @@ static void select_cache_init(void *vedata)
     state |= DRW_STATE_CLIP_PLANES;
   }
 
-  bool retopology_occlusion = RETOPOLOGY_ENABLED(draw_ctx->v3d) && !XRAY_ENABLED(draw_ctx->v3d);
+  bool occlusion = !XRAY_ENABLED(draw_ctx->v3d);
   float retopology_offset = RETOPOLOGY_OFFSET(draw_ctx->v3d);
 
   /* Note there might be less than 6 planes, but we always compute the 6 of them for simplicity. */
@@ -178,7 +178,7 @@ static void select_cache_init(void *vedata)
       sub.push_constant("select_id", 0);
       inst.depth_only = &sub;
     }
-    if (retopology_occlusion) {
+    if (occlusion) {
       auto &sub = inst.depth_only_ps.sub("Occlusion");
       sub.shader_set(sh->select_id_uniform);
       sub.push_constant("retopologyOffset", 0.0f);
@@ -412,8 +412,8 @@ static void select_cache_populate(void *vedata, Object *ob)
     return;
   }
 
-  /* Only sync selectable object once.
-   * This can happen in retopology mode where there is two sync loop. */
+  /* Only sync selectable objects once.
+   * This can happen because there are two sync loops. */
   sel_ctx.elem_ranges.lookup_or_add_cb(ob, [&]() {
     ResourceHandle res_handle = manager.resource_handle(ob_ref);
     ElemIndexRanges elem_ranges = select_id_object_sync(
