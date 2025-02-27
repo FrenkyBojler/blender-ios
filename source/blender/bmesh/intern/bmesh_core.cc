@@ -1197,8 +1197,10 @@ BMFace *BM_faces_join(BMesh *bm, BMFace **faces, int totface, const bool do_del,
       int rlen = bm_loop_systag_count_radial(l_iter, _FLAG_JF);
 
       if (rlen > 2) {
-        /* Input faces do not form a contiguous manifold region */
-        goto error;
+        /* Input faces do not form a contiguous manifold region.
+         * Clean up flags and fail */
+        bm_elements_systag_disable(faces, totface, _FLAG_JF);
+        return nullptr;
       }
       else if (rlen == 1) {
         edges.append(l_iter->e);
@@ -1258,8 +1260,10 @@ BMFace *BM_faces_join(BMesh *bm, BMFace **faces, int totface, const bool do_del,
                   bm, v1, v2, edges.data(), edges.size(), faces[0], BM_CREATE_NOP) :
               nullptr;
   if (UNLIKELY(f_new == nullptr)) {
-    /* Invalid boundary region to join faces */
-    goto error;
+    /* Invalid boundary region to join faces
+     * Clean up flags and fail */
+    bm_elements_systag_disable(faces, totface, _FLAG_JF);
+    return nullptr;
   }
 
   /* If a new face was created, check whether it is a double of an existing face. */
@@ -1355,11 +1359,6 @@ BMFace *BM_faces_join(BMesh *bm, BMFace **faces, int totface, const bool do_del,
 
   BM_CHECK_ELEMENT(f_new);
   return f_new;
-
-error:
-  bm_elements_systag_disable(faces, totface, _FLAG_JF);
-
-  return nullptr;
 }
 
 static BMFace *bm_face_create__sfme(BMesh *bm, BMFace *f_example)
