@@ -117,7 +117,10 @@ class ShaderCache {
   ShaderCache()
   {
     for (int i : IndexRange(SUBDIVISION_MAX_SHADERS)) {
-      subdiv_sh[i] = {get_subdiv_shader_info_name(SubdivShaderType(i))};
+      if (SubdivShaderType(i) == SubdivShaderType::COMP_CUSTOM_DATA_INTERP) {
+        continue;
+      }
+      subdiv_sh[i] = {get_subdiv_shader_info_name(SubdivShaderType(i)).c_str()};
     }
 
     for (int dimension : IndexRange(SHADER_CUSTOM_DATA_INTERP_MAX_DIMENSIONS)) {
