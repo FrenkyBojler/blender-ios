@@ -1024,7 +1024,6 @@ bool HIPDevice::should_use_graphics_interop()
   }
 
   /* Disable graphics interop for now, because of driver bug in 21.40. See #92972 */
-#  if 0
   HIPContextScope scope(this);
 
   int num_all_devices = 0;
@@ -1043,7 +1042,6 @@ bool HIPDevice::should_use_graphics_interop()
       return true;
     }
   }
-#  endif
 
   return false;
 }
