@@ -1436,7 +1436,7 @@ Slot *generic_slot_for_autoassign(const ID &animated_id,
    * Action was never assigned to anything (and thus had idroot = 0). */
   if (action.slots().size() == 1) {
     Slot *slot = action.slot(0);
-    if (!slot->has_idtype()) {
+    if (slot->is_suitable_for(animated_id)) {
       return slot;
     }
   }
