@@ -12,10 +12,12 @@
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
+#include "BKE_asset_edit.hh"
 #include "BKE_bake_data_block_id.hh"
 #include "BKE_curves.hh"
 #include "BKE_customdata.hh"
 #include "BKE_deform.hh"
+#include "BKE_fcurve.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_grease_pencil.h"
 #include "BKE_grease_pencil.hh"
@@ -65,6 +67,10 @@
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
+
+#include "RNA_access.hh"
+#include "RNA_path.hh"
+#include "RNA_prototypes.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -143,6 +149,25 @@ static void grease_pencil_copy_data(Main * /*bmain*/,
   if (grease_pencil_src->runtime->bake_materials) {
     grease_pencil_dst->runtime->bake_materials = std::make_unique<bke::bake::BakeMaterialsList>(
         *grease_pencil_src->runtime->bake_materials);
+  }
+
+  /* See if the layer visibility is animated. This is determined whenever a copy is made, so that
+   * this happens in the "create evaluation copy" node of the depsgraph. */
+  if (DEG_is_evaluated_id(id_dst) && grease_pencil_dst->adt) {
+    PropertyRNA *hide_prop = RNA_struct_type_find_property(&RNA_GreasePencilLayer, "hide");
+    BLI_assert_msg(hide_prop,
+                   "RNA struct GreasePencilLayer is expected to have a 'hide' property.");
+
+    for (bke::greasepencil::Layer *layer : grease_pencil_dst->layers_for_write()) {
+      PointerRNA layer_ptr = RNA_pointer_create_discrete(id_dst, &RNA_GreasePencilLayer, layer);
+      std::optional<std::string> rna_path = RNA_path_from_ID_to_property(&layer_ptr, hide_prop);
+      BLI_assert_msg(rna_path,
+                     "It should be possible to construct the RNA path of a grease pencil layer.");
+
+      const FCurve *fcurve = BKE_animadata_fcurve_find_by_rna_path(
+          grease_pencil_dst->adt, rna_path->c_str(), 0, nullptr, nullptr);
+      layer->runtime->is_visisbility_animated_ = fcurve != nullptr;
+    }
   }
 }
 
@@ -2197,14 +2222,35 @@ static void grease_pencil_evaluate_layers(GreasePencil &grease_pencil)
   Array<Layer *> layers = grease_pencil.layers_for_write();
 
   for (Layer *layer : layers) {
-    if (!layer->is_visible()) {
-      /* Remove layer from evaluated data. */
-      grease_pencil.remove_layer(*layer);
+    /* When the visibility is animated, the layer should be retained even when it is invisible.
+     * Changing the visibility through the animation system does NOT create another evaluated copy,
+     * and thus the layer has to be kept for this future use. */
+    if (layer->is_visible() || layer->runtime->is_visisbility_animated_) {
+      continue;
     }
+
+    /* Remove layer from evaluated data. */
+    grease_pencil.remove_layer(*layer);
   }
 }
 
-void BKE_grease_pencil_data_update(Depsgraph *depsgraph, Scene *scene, Object *object)
+void BKE_grease_pencil_eval_geometry(Depsgraph *depsgraph, GreasePencil *grease_pencil)
+{
+  using namespace blender;
+  /* Store the frame that this grease pencil is evaluated on. */
+  grease_pencil->runtime->eval_frame = int(DEG_get_ctime(depsgraph));
+  /* This will remove layers that aren't visible. */
+  grease_pencil_evaluate_layers(*grease_pencil);
+  /* The layer adjustments for tinting and radii offsets are applied before modifier evaluation.
+   * This ensures that the evaluated geometry contains the modifications. In the future, it would
+   * be better to move these into modifiers. For now, these are hardcoded. */
+  const bke::AttributeAccessor layer_attributes = grease_pencil->attributes();
+  if (layer_attributes.contains("tint_color") || layer_attributes.contains("radius_offset")) {
+    grease_pencil_do_layer_adjustments(*grease_pencil);
+  }
+}
+
+void BKE_object_eval_grease_pencil(Depsgraph *depsgraph, Scene *scene, Object *object)
 {
   using namespace blender;
   using namespace blender::bke;
@@ -2212,20 +2258,8 @@ void BKE_grease_pencil_data_update(Depsgraph *depsgraph, Scene *scene, Object *o
   BKE_object_free_derived_caches(object);
 
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(object->data);
-  /* Store the frame that this grease pencil is evaluated on. */
-  grease_pencil->runtime->eval_frame = int(DEG_get_ctime(depsgraph));
-  /* This will remove layers that aren't visible. */
-  grease_pencil_evaluate_layers(*grease_pencil);
-
   GeometrySet geometry_set = GeometrySet::from_grease_pencil(grease_pencil,
                                                              GeometryOwnershipType::ReadOnly);
-  /* The layer adjustments for tinting and radii offsets are applied before modifier evaluation.
-   * This ensures that the evaluated geometry contains the modifications. In the future, it would
-   * be better to move these into modifiers. For now, these are hardcoded. */
-  const bke::AttributeAccessor layer_attributes = grease_pencil->attributes();
-  if (layer_attributes.contains("tint_color") || layer_attributes.contains("radius_offset")) {
-    grease_pencil_do_layer_adjustments(*geometry_set.get_grease_pencil_for_write());
-  }
   /* Only add the edit hint component in modes where users can potentially interact with deformed
    * drawings. */
   if (ELEM(object->mode,
@@ -2440,11 +2474,10 @@ Material *BKE_grease_pencil_object_material_new(Main *bmain,
 
 Material *BKE_grease_pencil_object_material_from_brush_get(Object *ob, Brush *brush)
 {
-  if ((brush) && (brush->gpencil_settings) &&
+  if (brush && brush->gpencil_settings &&
       (brush->gpencil_settings->flag & GP_BRUSH_MATERIAL_PINNED))
   {
-    Material *ma = BKE_grease_pencil_brush_material_get(brush);
-    return ma;
+    return brush->gpencil_settings->material;
   }
 
   return BKE_object_material_get(ob, ob->actcol);
@@ -2463,73 +2496,70 @@ Material *BKE_grease_pencil_object_material_ensure_by_name(Main *bmain,
   return BKE_grease_pencil_object_material_new(bmain, ob, name, r_index);
 }
 
-Material *BKE_grease_pencil_brush_material_get(Brush *brush)
+static Material *grease_pencil_object_material_ensure_from_brush_pinned(Main *bmain,
+                                                                        Object *ob,
+                                                                        Brush *brush)
 {
-  if (brush == nullptr) {
-    return nullptr;
+  Material *ma = (brush->gpencil_settings) ? brush->gpencil_settings->material : nullptr;
+
+  if (ma) {
+    /* Ensure we assign a local datablock if this is an editable asset. */
+    ma = reinterpret_cast<Material *>(blender::bke::asset_edit_id_ensure_local(*bmain, ma->id));
   }
-  if (brush->gpencil_settings == nullptr) {
-    return nullptr;
+
+  /* check if the material is already on object material slots and add it if missing */
+  if (ma && BKE_object_material_index_get(ob, ma) < 0) {
+    /* The object's active material is what's used for the unpinned material. Do not touch it
+     * while using a pinned material. */
+    const bool change_active_material = false;
+
+    BKE_object_material_slot_add(bmain, ob, change_active_material);
+    BKE_object_material_assign(bmain, ob, ma, ob->totcol, BKE_MAT_ASSIGN_USERPREF);
   }
-  return brush->gpencil_settings->material;
+
+  return ma;
 }
 
 Material *BKE_grease_pencil_object_material_ensure_from_brush(Main *bmain,
                                                               Object *ob,
                                                               Brush *brush)
 {
-  if (brush->gpencil_settings->flag & GP_BRUSH_MATERIAL_PINNED) {
-    Material *ma = BKE_grease_pencil_brush_material_get(brush);
-
-    /* check if the material is already on object material slots and add it if missing */
-    if (ma && BKE_object_material_index_get(ob, ma) < 0) {
-      /* The object's active material is what's used for the unpinned material. Do not touch it
-       * while using a pinned material. */
-      const bool change_active_material = false;
-
-      BKE_object_material_slot_add(bmain, ob, change_active_material);
-      BKE_object_material_assign(bmain, ob, ma, ob->totcol, BKE_MAT_ASSIGN_USERPREF);
+  /* Use pinned material. */
+  if (brush && brush->gpencil_settings &&
+      (brush->gpencil_settings->flag & GP_BRUSH_MATERIAL_PINNED))
+  {
+    if (Material *ma = grease_pencil_object_material_ensure_from_brush_pinned(bmain, ob, brush)) {
+      return ma;
     }
 
-    return ma;
-  }
-
-  /* Use the active material instead. */
-  return BKE_object_material_get(ob, ob->actcol);
-}
-
-Material *BKE_grease_pencil_object_material_ensure_from_active_input_brush(Main *bmain,
-                                                                           Object *ob,
-                                                                           Brush *brush)
-{
-  if (brush == nullptr) {
-    return BKE_grease_pencil_object_material_ensure_from_active_input_material(ob);
-  }
-  if (Material *ma = BKE_grease_pencil_object_material_ensure_from_brush(bmain, ob, brush)) {
-    return ma;
-  }
-  if (brush->gpencil_settings->flag & GP_BRUSH_MATERIAL_PINNED) {
     /* It is easier to just unpin a null material, instead of setting a new one. */
     brush->gpencil_settings->flag &= ~GP_BRUSH_MATERIAL_PINNED;
   }
-  return BKE_grease_pencil_object_material_ensure_from_active_input_material(ob);
-}
 
-Material *BKE_grease_pencil_object_material_ensure_from_active_input_material(Object *ob)
-{
+  /* Use the active material. */
   if (Material *ma = BKE_object_material_get(ob, ob->actcol)) {
     return ma;
   }
+
+  /* Fall back to default material. */
   return BKE_material_default_gpencil();
 }
 
-Material *BKE_grease_pencil_object_material_ensure_active(Object *ob)
+Material *BKE_grease_pencil_object_material_alt_ensure_from_brush(Main *bmain,
+                                                                  Object *ob,
+                                                                  Brush *brush)
 {
-  Material *ma = BKE_grease_pencil_object_material_ensure_from_active_input_material(ob);
-  if (ma->gp_style == nullptr) {
-    BKE_gpencil_material_attr_init(ma);
+  Material *material_alt = (brush->gpencil_settings) ? brush->gpencil_settings->material_alt :
+                                                       nullptr;
+  if (material_alt) {
+    material_alt = reinterpret_cast<Material *>(
+        blender::bke::asset_edit_id_find_local(*bmain, material_alt->id));
+    if (material_alt && BKE_object_material_slot_find_index(ob, material_alt) != -1) {
+      return material_alt;
+    }
   }
-  return ma;
+
+  return BKE_grease_pencil_object_material_ensure_from_brush(bmain, ob, brush);
 }
 
 void BKE_grease_pencil_material_remap(GreasePencil *grease_pencil, const uint *remap, int totcol)

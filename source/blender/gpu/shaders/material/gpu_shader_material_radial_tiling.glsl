@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#include "gpu_shader_common_math_utils.glsl"
+#include "gpu_shader_math_base_lib.glsl"
 
 /* Define macro flags for code translation. */
 /* No macro flags necessary, as code is translated to GLSL by default. */

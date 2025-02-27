@@ -17,6 +17,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
+#include "BLI_math_vector.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -2541,7 +2542,10 @@ static void widget_state(uiWidgetType *wt, const uiWidgetStateInfo *state, eUIEm
       UI_GetThemeColor3ubv(TH_REDALERT, wt->wcol.inner);
     }
     else {
-      UI_GetThemeColor3ubv(TH_REDALERT, wt->wcol.text);
+      uchar red[4];
+      UI_GetThemeColor3ubv(TH_REDALERT, red);
+      color_mul_hsl_v3(red, 1.0f, 1.5f, 1.5f);
+      color_blend_v3_v3(wt->wcol.text, red, 0.5f);
     }
   }
 
@@ -4351,7 +4355,10 @@ static void widget_state_label(uiWidgetType *wt,
   }
 
   if (state->but_flag & UI_BUT_REDALERT) {
-    UI_GetThemeColor3ubv(TH_REDALERT, wt->wcol.text);
+    uchar red[4];
+    UI_GetThemeColor3ubv(TH_REDALERT, red);
+    color_mul_hsl_v3(red, 1.0f, 1.5f, 1.5f);
+    color_blend_v3_v3(wt->wcol.text, red, 0.5f);
   }
 }
 

@@ -21,8 +21,6 @@
 #include "GPU_framebuffer.hh"
 #include "GPU_viewport.hh"
 
-#include "draw_instance_data.hh"
-
 struct DRWDebugModule;
 struct DRWUniformChunk;
 struct DRWViewData;
@@ -32,6 +30,8 @@ struct Object;
 struct Mesh;
 namespace blender::draw {
 struct CurvesModule;
+struct VolumeModule;
+struct PointCloudModule;
 struct DRW_Attributes;
 struct DRW_MeshCDMask;
 class CurveRefinePass;
@@ -64,14 +64,14 @@ typedef struct DRWRegisteredDrawEngine {
 struct DRWData {
   /** Instance data. */
   DRWInstanceDataList *idatalist;
-  /** Per draw-call volume object data. */
-  void *volume_grids_ubos; /* VolumeUniformBufPool */
   /** List of smoke textures to free after drawing. */
   ListBase smoke_textures;
   /** Per stereo view data. Contains engine data and default frame-buffers. */
   DRWViewData *view_data[2];
   /** Module storage. */
   blender::draw::CurvesModule *curves_module;
+  blender::draw::VolumeModule *volume_module;
+  blender::draw::PointCloudModule *pointcloud_module;
   /** Default view that feeds every engine. */
   blender::draw::View *default_view;
 };
@@ -105,8 +105,6 @@ struct DRWManager {
   ID *dupli_origin_data;
   /** Hash-map: #DupliKey -> void pointer for each enabled engine. */
   GHash *dupli_ghash;
-  /** TODO(@fclem): try to remove usage of this. */
-  DRWInstanceData *object_instance_data[MAX_INSTANCE_DATA_SIZE];
   /* Dupli data for the current dupli for each enabled engine. */
   void **dupli_datas;
 
@@ -140,14 +138,6 @@ struct DRWManager {
   GSet *delayed_extraction;
 
   /* ---------- Nothing after this point is cleared after use ----------- */
-
-  /* system_gpu_context serves as the offset for clearing only
-   * the top portion of the struct so DO NOT MOVE IT! */
-  /** Unique ghost context used by the draw manager. */
-  void *system_gpu_context;
-  GPUContext *blender_gpu_context;
-  /** Mutex to lock the drw manager and avoid concurrent context usage. */
-  TicketMutex *system_gpu_context_mutex;
 
   DRWDebugModule *debug;
 };

@@ -2759,8 +2759,18 @@ def km_nla_editor(params):
          {"properties": [("mode", 'TIME_SCALE')]}),
         ("marker.add", {"type": 'M', "value": 'PRESS'}, None),
         *_template_items_context_menu("NLA_MT_context_menu", params.context_menu_event),
-        *_template_items_change_frame(params),
     ])
+
+    if params.select_mouse == 'LEFTMOUSE' and not params.legacy:
+        items.extend([
+            ("anim.change_frame", {"type": 'RIGHTMOUSE', "value": 'PRESS', "shift": True},
+             {"properties": [("seq_solo_preview", True)]}),
+        ])
+    else:
+        items.extend([
+            ("anim.change_frame", {"type": params.action_mouse, "value": 'PRESS'},
+             {"properties": [("seq_solo_preview", True)]}),
+        ])
 
     return keymap
 
@@ -5778,8 +5788,10 @@ def km_edit_curves(params):
          "shift": True}, {"properties": [("deselect", True)]}),
         ("curves.delete", {"type": 'X', "value": 'PRESS'}, None),
         ("curves.delete", {"type": 'DEL', "value": 'PRESS'}, None),
+        ("curves.separate", {"type": 'P', "value": 'PRESS'}, None),
         ("curves.select_more", {"type": 'NUMPAD_PLUS', "value": 'PRESS', "ctrl": True, "repeat": True}, None),
         ("curves.select_less", {"type": 'NUMPAD_MINUS', "value": 'PRESS', "ctrl": True, "repeat": True}, None),
+        ("curves.split", {"type": 'Y', "value": 'PRESS'}, None),
         *_template_items_proportional_editing(
             params, connected=True, toggle_data_path="tool_settings.use_proportional_edit"),
         ("curves.tilt_clear", {"type": 'T', "value": 'PRESS', "alt": True}, None),
@@ -5798,7 +5810,7 @@ def km_edit_curves(params):
 
 
 # Point cloud edit mode.
-def km_edit_point_cloud(params):
+def km_edit_pointcloud(params):
     items = []
     keymap = (
         "Point Cloud",
@@ -5810,11 +5822,11 @@ def km_edit_point_cloud(params):
         # Transform Actions.
         *_template_items_transform_actions(params, use_bend=True, use_mirror=True),
 
-        ("point_cloud.duplicate_move", {"type": 'D', "value": 'PRESS', "shift": True}, None),
-        *_template_items_select_actions(params, "point_cloud.select_all"),
-        ("point_cloud.delete", {"type": 'X', "value": 'PRESS'}, None),
-        ("point_cloud.delete", {"type": 'DEL', "value": 'PRESS'}, None),
-        ("point_cloud.separate", {"type": 'P', "value": 'PRESS'}, None),
+        ("pointcloud.duplicate_move", {"type": 'D', "value": 'PRESS', "shift": True}, None),
+        *_template_items_select_actions(params, "pointcloud.select_all"),
+        ("pointcloud.delete", {"type": 'X', "value": 'PRESS'}, None),
+        ("pointcloud.delete", {"type": 'DEL', "value": 'PRESS'}, None),
+        ("pointcloud.separate", {"type": 'P', "value": 'PRESS'}, None),
         ("transform.transform", {"type": 'S', "value": 'PRESS', "alt": True},
          {"properties": [("mode", 'CURVE_SHRINKFATTEN')]}),
     ])
@@ -8112,7 +8124,8 @@ def km_sequencer_editor_tool_generic_select_timeline_rcs(params):
         ("sequencer.select_handle", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
         ("sequencer.select_handle", {"type": 'LEFTMOUSE', "value": 'PRESS',
          "alt": True}, {"properties": [("ignore_connections", True)]}),
-        *_template_items_change_frame(params),
+        ("anim.change_frame", {"type": params.action_mouse, "value": 'PRESS'},
+         {"properties": [("seq_solo_preview", True)]}),
         # Change frame takes precedence over the sequence slide operator. If a
         # mouse press happens on a strip handle, it is canceled, and the sequence
         # slide below activates instead.
@@ -8126,7 +8139,8 @@ def km_sequencer_editor_tool_generic_select_timeline_lcs(params):
         ("sequencer.select", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
         ("sequencer.select", {"type": 'LEFTMOUSE', "value": 'PRESS',
          "shift": True}, {"properties": [("toggle", True)]}),
-        *_template_items_change_frame(params),
+        ("anim.change_frame", {"type": 'RIGHTMOUSE', "value": 'PRESS',
+         "shift": True}, {"properties": [("seq_solo_preview", True)]}),
     ]
 
 
@@ -8377,7 +8391,7 @@ def generate_keymaps(params=None):
         km_edit_font(params),
         km_edit_curve_legacy(params),
         km_edit_curves(params),
-        km_edit_point_cloud(params),
+        km_edit_pointcloud(params),
 
         # Modal maps.
         km_eyedropper_modal_map(params),
