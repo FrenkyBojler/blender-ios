@@ -753,7 +753,9 @@ static int view_socket(const bContext &C,
     bNode &target_node = *link->tonode;
     if (is_viewer_socket(target_socket) && ELEM(viewer_node, nullptr, &target_node)) {
       finalize_viewer_link(C, snode, target_node, *link);
-      position_viewer_node(btree, target_node, bnode_to_view, region);
+      if (U.uiflag & USER_NODE_AUTOPOSITION_VIEWER) {
+        position_viewer_node(btree, target_node, bnode_to_view, region);
+      }
       return OPERATOR_FINISHED;
     }
   }
@@ -797,7 +799,9 @@ static int view_socket(const bContext &C,
     BKE_ntree_update_tag_link_changed(&btree);
   }
   finalize_viewer_link(C, snode, *viewer_node, *viewer_link);
-  position_viewer_node(btree, *viewer_node, bnode_to_view, region);
+  if (U.uiflag & USER_NODE_AUTOPOSITION_VIEWER) {
+    position_viewer_node(btree, *viewer_node, bnode_to_view, region);
+  }
   return OPERATOR_CANCELLED;
 }
 

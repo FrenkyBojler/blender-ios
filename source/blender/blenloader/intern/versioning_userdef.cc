@@ -1102,8 +1102,6 @@ void blo_do_versions_userdef(UserDef *userdef)
     if (userdef->pixelsize == 0.0f) {
       userdef->pixelsize = 1.0f;
     }
-    /* Clear old userdef flag for "Camera Parent Lock". */
-    userdef->uiflag &= ~USER_UIFLAG_UNUSED_3;
   }
 
   if (!USER_VERSION_ATLEAST(292, 9)) {
@@ -1413,6 +1411,9 @@ void blo_do_versions_userdef(UserDef *userdef)
     userdef->ndof_flag |= NDOF_SHOW_GUIDE_ORBIT_CENTER | NDOF_ORBIT_CENTER_AUTO;
   }
 
+  if (!USER_VERSION_ATLEAST(405, 4)) {
+    userdef->uiflag |= USER_NODE_AUTOPOSITION_VIEWER;
+  }
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.

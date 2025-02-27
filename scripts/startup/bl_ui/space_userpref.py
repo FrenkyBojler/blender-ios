@@ -532,6 +532,7 @@ class USERPREF_PT_edit_node_editor(EditingPanel, CenterAlignMixIn, Panel):
         subrow.active = edit.node_use_insert_offset
 
         layout.prop(edit, "node_preview_resolution", text="Preview Resolution")
+        layout.prop(edit, "node_use_autoposition_viewer")
 
 
 class USERPREF_PT_edit_sequence_editor(EditingPanel, CenterAlignMixIn, Panel):
