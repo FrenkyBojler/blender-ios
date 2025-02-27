@@ -366,7 +366,7 @@ class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
             if len(active_panel.interface_items) > 0:
                 first_item = active_panel.interface_items[0]
                 if type(first_item) is bpy.types.NodeTreeInterfaceSocketBool and first_item.is_panel_toggle:
-                    # Panel already has a toggle.
+                    self.report({'INFO'}, "Panel already has a toggle")
                     return {'CANCELLED'}
             item = interface.new_socket(active_panel.name, socket_type='NodeSocketBool', in_out='INPUT')
             item.is_panel_toggle = True
@@ -450,12 +450,16 @@ class NODE_OT_interface_item_make_panel_toggle(NodeInterfaceOperator, Operator):
         tree = snode.edit_tree
         interface = tree.interface
         active_item = interface.active
-        if not active_item or not type(active_item) is bpy.types.NodeTreeInterfaceSocketBool:
+        if not active_item:
+            return False
+        if type(active_item) is not bpy.types.NodeTreeInterfaceSocketBool:
+            cls.poll_message_set("Only boolean sockets are supported")
             return False
         parent_panel = active_item.parent
         if len(parent_panel.interface_items) > 0:
             first_item = parent_panel.interface_items[0]
             if first_item.is_panel_toggle:
+                cls.poll_message_set("Panel already has a toggle")
                 return False
         return True
 
