@@ -142,9 +142,6 @@ static blender::StringRefNull get_subdiv_shader_info_name(SubdivShaderType shade
       }
       return "subdiv_edge_fac";
 
-    case SubdivShaderType::COMP_CUSTOM_DATA_INTERP:
-      return "subdiv_custom_data_interp";
-
     case SubdivShaderType::BUFFER_SCULPT_DATA:
       return "subdiv_sculpt_data";
 
@@ -166,6 +163,8 @@ static blender::StringRefNull get_subdiv_shader_info_name(SubdivShaderType shade
     case SubdivShaderType::BUFFER_LNOR:
       return "subdiv_loop_normals";
 
+    case SubdivShaderType::COMP_CUSTOM_DATA_INTERP:
+      break;
     default:
       break;
   }
@@ -382,7 +381,7 @@ GPUShader *DRW_shader_subdiv_custom_data_get(GPUVertCompType comp_type, int dime
   GPUShader *&shader = e_data.subdiv_custom_data_sh[dimensions - 1][comp_type];
 
   if (shader == nullptr) {
-    std::string info_name = get_subdiv_shader_info_name(SubdivShaderType::COMP_CUSTOM_DATA_INTERP);
+    std::string info_name = "subdiv_custom_data_interp";
     switch (dimensions) {
       case 1:
         info_name += "_1d";
