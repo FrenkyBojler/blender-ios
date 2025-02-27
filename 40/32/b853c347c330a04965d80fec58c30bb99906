@@ -1,1 +1,2 @@
 Referenced by issue #135217, The data paths given in the ui for many format settings of the compositor output node are completely wrong
+Referenced by pull request #135238, Fix #135217: ColorManage Settings RNA paths incomplete/wrong
