@@ -2847,7 +2847,7 @@ uchar *IMB_display_buffer_acquire(ImBuf *ibuf,
   }
 
   buffer_size = DISPLAY_BUFFER_CHANNELS * size_t(ibuf->x) * ibuf->y * sizeof(char);
-  display_buffer = static_cast<uchar *>(MEM_callocN(buffer_size, "imbuf display buffer"));
+  display_buffer = static_cast<uchar *>(MEM_mallocN(buffer_size, "imbuf display buffer"));
 
   colormanage_display_buffer_process(
       ibuf, display_buffer, applied_view_settings, display_settings);
@@ -3607,7 +3607,7 @@ static void partial_buffer_update_rect(ImBuf *ibuf,
       channels = 4;
     }
 
-    display_buffer_float = static_cast<float *>(MEM_callocN(
+    display_buffer_float = static_cast<float *>(MEM_mallocN(
         size_t(channels) * width * height * sizeof(float), "display buffer for dither"));
   }
 
