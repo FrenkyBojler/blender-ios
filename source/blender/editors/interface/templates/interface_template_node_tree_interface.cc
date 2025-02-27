@@ -481,7 +481,8 @@ bool NodePanelDropTarget::on_drop(bContext *C, const DragInfo &drag_info) const
     case DropLocation::Into: {
       /* Insert into target */
       parent = &panel_;
-      index = 0;
+      const bool has_toggle_socket = panel_.header_toggle_socket() != nullptr;
+      index = has_toggle_socket ? 1 : 0;
       break;
     }
     case DropLocation::Before: {
