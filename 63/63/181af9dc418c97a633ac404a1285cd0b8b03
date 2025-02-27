@@ -1,2 +1,3 @@
 Referenced by pull request blender/blender-manual#105124, Manual: Update Cycles HIP information with new hardware and GPU driver requirements
 Referenced by issue #134992, HIPRT on Linux always fails to build BLAS if Blender is installed in a directory that contains spaces
+Referenced by commit blender/blender-manual@910d343046bb7112dc5515639f155c84730d0cfa, Manual: Update Cycles HIP information with new hardware and GPU driver requirements
