@@ -151,8 +151,9 @@ typedef struct BHead {
   int SDNAnr;
   /**
    * Identifier the block had when it was written. This is used to remap memory blocks on load.
-   * Typically, this is the pointer the memory had when it was written. This should be unique
-   * within an ID.
+   * Typically, this is the pointer that the memory had when it was written.
+   * This should be unique across the whole blendfile, except for `BLEND_DATA` blocks, which
+   * should be unique within a same ID.
    */
   const void *old;
   /** Number of bytes in the block. */
