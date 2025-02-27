@@ -4,8 +4,6 @@
 
 #include "subdiv_lib.glsl"
 
-#include "osd_patch_basis.glsl"
-
 COMPUTE_SHADER_CREATE_INFO(subdiv_patch_evaluation_fdots_normals)
 
 #if defined(VERTS_EVALUATION)

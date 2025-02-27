@@ -127,6 +127,8 @@ struct QuadNode {
   uint4 child;
 };
 
+/* When not using OSD we need to defined the structs as they subdiv_info still refer to them. */
+#if !defined(USE_GPU_SHADER_CREATE_INFO) || !defined(OSD_PATCH_BASIS_GLSL)
 /* This structure is a carbon copy of OpenSubDiv's Osd::PatchParam. */
 struct OsdPatchParam {
   int field0;
@@ -152,6 +154,8 @@ struct OsdPatchCoord {
   float s;
   float t;
 };
+
+#endif
 
 #ifdef OSD_PATCH_BASIS_GLSL
 
