@@ -75,20 +75,30 @@ static void add_mesh_debug_column_names(
     const bke::AttrDomain domain,
     FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn)
 {
-  static const Set<StringRefNull> whitelisted_attributes(
-      {".sculpt_mask", ".sculpt_face_set", ".hide_vert", ".hide_edge", ".hide_poly"});
+  const bke::AttributeAccessor attributes = mesh.attributes();
+  auto add_attribute = [&](const StringRefNull name) {
+    if (const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(name))
+    {
+      if (meta_data->domain == domain) {
+        fn({(char *)name.c_str()}, false);
+      }
+    }
+  };
 
   switch (domain) {
     case bke::AttrDomain::Point:
       if (CustomData_has_layer(&mesh.vert_data, CD_ORIGINDEX)) {
         fn({(char *)"Original Index"}, false);
       }
+      add_attribute(".sculpt_mask");
+      add_attribute(".hide_vert");
       break;
     case bke::AttrDomain::Edge:
       if (CustomData_has_layer(&mesh.edge_data, CD_ORIGINDEX)) {
         fn({(char *)"Original Index"}, false);
       }
       fn({(char *)"Vertices"}, false);
+      add_attribute(".hide_edge");
       break;
     case bke::AttrDomain::Face:
       if (CustomData_has_layer(&mesh.face_data, CD_ORIGINDEX)) {
@@ -96,6 +106,8 @@ static void add_mesh_debug_column_names(
       }
       fn({(char *)"Corner Start"}, false);
       fn({(char *)"Corner Size"}, false);
+      add_attribute(".sculpt_face_set");
+      add_attribute(".hide_poly");
       break;
     case bke::AttrDomain::Corner:
       fn({(char *)"Vertex"}, false);
@@ -105,15 +117,6 @@ static void add_mesh_debug_column_names(
       BLI_assert_unreachable();
       break;
   }
-
-  const bke::AttributeAccessor attributes = mesh.attributes();
-  attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
-    if (iter.domain == domain && whitelisted_attributes.contains(iter.name)) {
-      SpreadsheetColumnID column_id;
-      column_id.name = (char *)iter.name.data();
-      fn(column_id, false);
-    }
-  });
 }
 
 static std::unique_ptr<ColumnValues> build_mesh_debug_columns(const Mesh &mesh,
