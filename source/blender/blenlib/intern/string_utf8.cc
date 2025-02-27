@@ -799,7 +799,7 @@ bool BLI_str_utf32_char_is_optional_break(char32_t codepoint, char32_t previous)
    * Can be expanded but please no rules that differ by language. */
 
   /* Punctuation. Backslash can be used as path separator */
-  if (codepoint == '\\') {
+  if (ELEM(codepoint, '\\', '_')) {
     return true;
   }
 
@@ -822,6 +822,10 @@ bool BLI_str_utf32_char_is_optional_break(char32_t codepoint, char32_t previous)
       (codepoint >= 0x3130 && codepoint <= 0x318F))   /* Hangul Compatibility Jamo. */
   {
     return true;
+  }
+
+  if (ELEM(codepoint, 0x0F0D, 0x0F0B)) {
+    return true; /* Tibetan shad mark and intersyllabic tsheg. */
   }
 
   return false;
