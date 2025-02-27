@@ -127,6 +127,9 @@ static PointerRNA rna_GreasePencilLayer_frames_get(CollectionPropertyIterator *i
   const FramesMapKeyT frame_key = *static_cast<FramesMapKeyT *>(rna_iterator_array_get(iter));
   const Layer &layer = static_cast<GreasePencilLayer *>(iter->parent.data)->wrap();
   const GreasePencilFrame *frame = layer.frames().lookup_ptr(frame_key);
+  if (!frame) {
+    return PointerRNA_NULL;
+  }
   return rna_pointer_inherit_refine(&iter->parent,
                                     &RNA_GreasePencilFrame,
                                     static_cast<void *>(const_cast<GreasePencilFrame *>(frame)));
@@ -313,6 +316,17 @@ static void rna_iterator_grease_pencil_layers_begin(CollectionPropertyIterator *
 
   rna_iterator_array_begin(
       iter, (void *)layers.data(), sizeof(Layer *), layers.size(), false, nullptr);
+}
+
+static PointerRNA rna_iterator_grease_pencil_layers_get(CollectionPropertyIterator *iter)
+{
+  GreasePencil *grease_pencil = static_cast<GreasePencil *>(iter->parent.data);
+  GreasePencilLayer *layer = static_cast<GreasePencilLayer *>(rna_iterator_array_get(iter));
+  /* Check if the cache changed while iterating. */
+  if (!grease_pencil->layers().contains(&layer->wrap())) {
+    return PointerRNA_NULL;
+  }
+  return rna_pointer_inherit_refine(&iter->parent, &RNA_GreasePencilLayer, layer);
 }
 
 static int rna_iterator_grease_pencil_layers_length(PointerRNA *ptr)
@@ -647,6 +661,17 @@ static void rna_iterator_grease_pencil_layer_groups_begin(CollectionPropertyIter
 
   rna_iterator_array_begin(
       iter, (void *)groups.data(), sizeof(LayerGroup *), groups.size(), false, nullptr);
+}
+
+static PointerRNA rna_iterator_grease_pencil_layer_groups_get(CollectionPropertyIterator *iter)
+{
+  GreasePencil *grease_pencil = static_cast<GreasePencil *>(iter->parent.data);
+  GreasePencilLayerTreeGroup *group = static_cast<GreasePencilLayerTreeGroup *>(rna_iterator_array_get(iter));
+  /* Check if the cache changed while iterating. */
+  if (grease_pencil->layer_groups().contains(&group->wrap())) {
+    return PointerRNA_NULL;
+  }
+  return rna_pointer_inherit_refine(&iter->parent, &RNA_GreasePencilLayerGroup, group);
 }
 
 static int rna_iterator_grease_pencil_layer_groups_length(PointerRNA *ptr)
@@ -1459,7 +1484,7 @@ static void rna_def_grease_pencil_data(BlenderRNA *brna)
                                     "rna_iterator_grease_pencil_layers_begin",
                                     "rna_iterator_array_next",
                                     "rna_iterator_array_end",
-                                    "rna_iterator_array_dereference_get",
+                                    "rna_iterator_grease_pencil_layers_get",
                                     "rna_iterator_grease_pencil_layers_length",
                                     nullptr, /* TODO */
                                     nullptr, /* TODO */
@@ -1474,7 +1499,7 @@ static void rna_def_grease_pencil_data(BlenderRNA *brna)
                                     "rna_iterator_grease_pencil_layer_groups_begin",
                                     "rna_iterator_array_next",
                                     "rna_iterator_array_end",
-                                    "rna_iterator_array_dereference_get",
+                                    "rna_iterator_grease_pencil_layer_groups_get",
                                     "rna_iterator_grease_pencil_layer_groups_length",
                                     nullptr, /* TODO */
                                     nullptr, /* TODO */
