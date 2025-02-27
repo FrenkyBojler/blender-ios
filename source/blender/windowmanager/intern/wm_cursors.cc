@@ -36,7 +36,7 @@ struct BCursor {
   bool can_invert_color;
 };
 
-static BCursor *BlenderCursor[WM_CURSOR_NUM] = {0};
+static BCursor *BlenderCursor[WM_CURSOR_NUM] = {nullptr};
 
 /* Blender cursor to GHOST standard cursor conversion. */
 static GHOST_TStandardCursor convert_to_ghost_standard_cursor(WMCursorType curs)
@@ -178,7 +178,7 @@ void WM_cursor_set(wmWindow *win, int curs)
 
   GHOST_TStandardCursor ghost_cursor = convert_to_ghost_standard_cursor(WMCursorType(curs));
 
-  if ((ghost_cursor != GHOST_kStandardCursorCustom) &&
+  if (ghost_cursor != GHOST_kStandardCursorCustom &&
       GHOST_HasCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin), ghost_cursor))
   {
     /* Use native GHOST cursor when available. */
@@ -186,11 +186,7 @@ void WM_cursor_set(wmWindow *win, int curs)
   }
   else {
     BCursor *bcursor = BlenderCursor[curs];
-    if (bcursor) {
-      /* Use custom bitmap cursor. */
-      window_set_custom_cursor(win, bcursor);
-    }
-    else {
+    if (!bcursor || !window_set_custom_cursor(win, bcursor)) {
       /* Fallback to default cursor if no bitmap found. */
       GHOST_SetCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin),
                            GHOST_kStandardCursorDefault);
