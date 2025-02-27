@@ -29,19 +29,17 @@ static nodes::StructureTypeInterface calc_node_interface(const bNode &node)
 
   const Span<const bNodeSocket *> output_sockets = node.output_sockets();
   interface.outputs.reinitialize(output_sockets.size());
-  interface.output_input_dependencies.reinitialize(output_sockets.size());
   for (const int output : output_sockets.index_range()) {
     const nodes::SocketDeclaration &decl = *output_sockets[output]->runtime->declaration;
-    interface.outputs[output] = decl.structure_type;
-    if (interface.outputs[output] != StructureType::Dynamic) {
+    interface.outputs[output].type = decl.structure_type;
+    if (interface.outputs[output].type != StructureType::Dynamic) {
       continue;
     }
 
     /* Currently the input sockets that influence the field status of an output are the same as the
      * sockets that influence its structure type. Reuse that for the propagation of structure type
      * until there is a more generic format of intra-node dependencies. */
-    const Span<int> dependent_inputs = decl.output_field_dependency.linked_input_indices();
-    interface.output_input_dependencies[output] = dependent_inputs;
+    interface.outputs[output].linked_inputs = decl.output_field_dependency.linked_input_indices();
   }
 
   return interface;
@@ -102,9 +100,9 @@ static void initialize_usages_from_socket_declarations(const bNodeTree &tree,
   }
 }
 
-static void update_group_input_structure_types(const bNodeTree &tree,
-                                               const Span<SocketStatus> socket_usages,
-                                               nodes::StructureTypeInterface &derived_interface)
+static void store_group_input_structure_types(const bNodeTree &tree,
+                                              const Span<SocketStatus> socket_usages,
+                                              nodes::StructureTypeInterface &derived_interface)
 {
   /* Merge usages from all group input nodes. */
   Array<SocketStatus> group_input_usages(tree.interface_inputs().size());
@@ -134,31 +132,6 @@ static void update_group_input_structure_types(const bNodeTree &tree,
     }
     else {
       derived_interface.inputs[input_i] = StructureType::Dynamic;
-    }
-  }
-
-  /* Update derived interface output structure types from output node socket usages. */
-  if (const bNode *output_node = tree.group_output_node()) {
-    for (const int output_i : tree.interface_outputs().index_range()) {
-      const bNodeTreeInterfaceSocket &io_socket = *tree.interface_outputs()[output_i];
-      if (io_socket.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
-        derived_interface.outputs[output_i] = StructureType(io_socket.structure_type);
-        continue;
-      }
-      const SocketStatus &usage =
-          socket_usages[output_node->input_socket(output_i).index_in_tree()];
-      if (usage.is_single) {
-        derived_interface.outputs[output_i] = StructureType::Single;
-      }
-      else if (usage.is_grid) {
-        derived_interface.outputs[output_i] = StructureType::Grid;
-      }
-      else if (usage.is_field) {
-        derived_interface.outputs[output_i] = StructureType::Field;
-      }
-      else {
-        derived_interface.outputs[output_i] = StructureType::Dynamic;
-      }
     }
   }
 }
@@ -332,12 +305,12 @@ static void propagate_right_to_left(const bNodeTree &tree,
       }
 
       const nodes::StructureTypeInterface &interface = node_interfaces[node->index()];
-      for (const int output_index : interface.output_input_dependencies.index_range()) {
+      for (const int output_index : interface.outputs.index_range()) {
         const bNodeSocket &output = node->output_socket(output_index);
         if (!output.is_available()) {
           continue;
         }
-        for (const int input_index : interface.output_input_dependencies[output_index]) {
+        for (const int input_index : interface.outputs[output_index].linked_inputs) {
           const bNodeSocket &input = node->input_socket(input_index);
           if (!input.is_available() || !output.is_available()) {
             continue;
@@ -356,8 +329,6 @@ static void propagate_right_to_left(const bNodeTree &tree,
       break;
     }
   }
-
-  update_group_input_structure_types(tree, socket_usages, derived_interface);
 }
 
 static void propagate_left_to_right(const bNodeTree &tree,
@@ -380,14 +351,6 @@ static void propagate_left_to_right(const bNodeTree &tree,
             continue;
           }
         }
-        else if (input_socket->runtime->declaration) {
-          if (input_socket->runtime->declaration->input_field_type ==
-              nodes::InputSocketFieldType::Implicit)
-          {
-            socket_structure_type.is_field = true;
-            continue;
-          }
-        }
       }
 
       if (node->is_group_input()) {
@@ -403,7 +366,7 @@ static void propagate_left_to_right(const bNodeTree &tree,
 
       const nodes::StructureTypeInterface &interface = node_interfaces[node->index()];
 
-      for (const int output_index : interface.output_input_dependencies.index_range()) {
+      for (const int output_index : interface.outputs.index_range()) {
         const bNodeSocket &output = node->output_socket(output_index);
         if (!output.is_available()) {
           continue;
@@ -411,7 +374,7 @@ static void propagate_left_to_right(const bNodeTree &tree,
         if (output.runtime->declaration->structure_type != StructureType::Dynamic) {
           continue;
         }
-        for (const int input_index : interface.output_input_dependencies[output_index]) {
+        for (const int input_index : interface.outputs[output_index].linked_inputs) {
           const bNodeSocket &input = node->input_socket(input_index);
           if (!input.is_available()) {
             continue;
@@ -436,66 +399,66 @@ static void propagate_left_to_right(const bNodeTree &tree,
  * Check what the group output socket depends on. Potentially traverses the node tree
  * to figure out if it is always a field or if it depends on any group inputs.
  */
-static Array<int> find_group_output_dependencies(
-    const bNodeSocket &group_output_socket,
+static nodes::StructureTypeInterface::OutputDependency find_dynamic_group_output_interface(
+    const bNodeSocket &group_output,
     const Span<nodes::StructureTypeInterface> interface_by_node,
     const Span<SocketStatus> socket_usages)
 {
-  if (!is_field_socket_type(group_output_socket)) {
-    return OutputFieldDependency::ForDataSource();
+  /* Update derived interface output structure types from output node socket usages. */
+  const SocketStatus usage = socket_usages[group_output.index_in_tree()];
+  if (usage.is_grid) {
+    return {StructureType::Grid, {}};
+  }
+  if (usage.is_single) {
+    return {StructureType::Single, {}};
+  }
+  if (usage.is_field) {
+    return {StructureType::Field, {}};
   }
 
-  /* Use a Set here instead of an array indexed by socket id, because we my only need to look at
-   * very few sockets. */
+  /* Use a Set instead of an array indexed by socket because we may only look at a few sockets. */
   Set<const bNodeSocket *> handled_sockets;
   Stack<const bNodeSocket *> sockets_to_check;
 
-  handled_sockets.add(&group_output_socket);
-  sockets_to_check.push(&group_output_socket);
+  handled_sockets.add(&group_output);
+  sockets_to_check.push(&group_output);
 
-  /* Keeps track of group input indices that are (indirectly) connected to the output. */
+  /* Group input indices that are (indirectly) connected to the output. */
   Vector<int> linked_input_indices;
 
   while (!sockets_to_check.is_empty()) {
     const bNodeSocket *input_socket = sockets_to_check.pop();
 
-    if (!input_socket->is_directly_linked() &&
-        !socket_usages[input_socket->index_in_tree()].is_single)
-    {
+    if (!input_socket->is_directly_linked()) {
       /* This socket uses a field as input by default. */
-      return OutputFieldDependency::ForFieldSource();
+      return {StructureType::Dynamic, {}};
     }
 
     for (const bNodeSocket *origin_socket : input_socket->directly_linked_sockets()) {
       const bNode &origin_node = origin_socket->owner_node();
-      const SocketFieldState &origin_state = socket_usages[origin_socket->index_in_tree()];
+      const SocketStatus origin_state = socket_usages[origin_socket->index_in_tree()];
 
-      if (origin_state.is_field_source) {
+      if (origin_state.is_field) {
         if (origin_node.is_group_input()) {
           /* Found a group input that the group output depends on. */
           linked_input_indices.append_non_duplicates(origin_socket->index());
         }
         else {
           /* Found a field source that is not the group input. So the output is always a field. */
-          return OutputFieldDependency::ForFieldSource();
+          return {StructureType::Dynamic, {}};
         }
       }
       else if (!origin_state.is_single) {
-        const nodes::StructureTypeInterface &inferencing_interface =
-            interface_by_node[origin_node.index()];
-        const OutputFieldDependency &field_dependency =
-            inferencing_interface.outputs[origin_socket->index()];
+        const nodes::StructureTypeInterface &interface = interface_by_node[origin_node.index()];
 
-        /* Propagate search further to the left. */
-        for (const bNodeSocket *origin_input_socket :
-             gather_input_socket_dependencies(field_dependency, origin_node))
-        {
-          if (!origin_input_socket->is_available()) {
+        for (const int input_index : interface.outputs[origin_socket->index()].linked_inputs) {
+          const bNodeSocket &origin_input_socket = origin_node.input_socket(input_index);
+          if (!origin_input_socket.is_available()) {
             continue;
           }
-          if (!socket_usages[origin_input_socket->index_in_tree()].is_single) {
-            if (handled_sockets.add(origin_input_socket)) {
-              sockets_to_check.push(origin_input_socket);
+          if (!socket_usages[origin_input_socket.index_in_tree()].is_single) {
+            if (handled_sockets.add(&origin_input_socket)) {
+              sockets_to_check.push(&origin_input_socket);
             }
           }
         }
@@ -505,7 +468,7 @@ static Array<int> find_group_output_dependencies(
   return OutputFieldDependency::ForPartiallyDependentField(std::move(linked_input_indices));
 }
 
-static void determine_group_output_dependencies(
+static void store_group_output_structure_types(
     const bNodeTree &tree,
     const Span<nodes::StructureTypeInterface> interface_by_node,
     const Span<SocketStatus> socket_usages,
@@ -516,10 +479,20 @@ static void determine_group_output_dependencies(
     return;
   }
 
+  const Span<const bNodeTreeInterfaceSocket *> interface_outputs = tree.interface_outputs();
   const Span<const bNodeSocket *> sockets = group_output_node->input_sockets().drop_back(1);
   for (const int i : sockets.index_range()) {
-    interface.output_input_dependencies[i] = find_group_output_dependencies(
-        *sockets[i], interface_by_node, socket_usages);
+    // TODO: I'm not understanding NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO properly here.
+    if (!ELEM(interface_outputs[i]->structure_type,
+              NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO,
+              NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC))
+    {
+      interface.outputs[i] = {StructureType(interface_outputs[i]->structure_type), {}};
+    }
+    else {
+      interface.outputs[i] = find_dynamic_group_output_interface(
+          *sockets[i], interface_by_node, socket_usages);
+    }
   }
 }
 
@@ -542,8 +515,9 @@ static std::unique_ptr<nodes::StructureTypeInterface> calc_structure_type_interf
 
   initialize_usages_from_socket_declarations(tree, socket_usages);
   propagate_right_to_left(tree, node_interfaces, socket_usages, *derived_interface);
+  store_group_input_structure_types(tree, socket_usages, *derived_interface);
   propagate_left_to_right(tree, node_interfaces, socket_usages, *derived_interface);
-  determine_group_output_dependencies(tree, node_interfaces, socket_usages, *derived_interface);
+  store_group_output_structure_types(tree, node_interfaces, socket_usages, *derived_interface);
 
   return derived_interface;
 }

@@ -88,14 +88,17 @@ struct FieldInferencingInterface {
 };
 
 struct StructureTypeInterface {
-  Array<StructureType> inputs;
-  Array<StructureType> outputs;
-  Array<Array<int>> output_input_dependencies;
+  struct OutputDependency {
+    StructureType type;
+    Array<int> linked_inputs;
 
-  BLI_STRUCT_EQUALITY_OPERATORS_3(StructureTypeInterface,
-                                  inputs,
-                                  outputs,
-                                  output_input_dependencies)
+    BLI_STRUCT_EQUALITY_OPERATORS_2(OutputDependency, type, linked_inputs)
+  };
+
+  Array<StructureType> inputs;
+  Array<OutputDependency> outputs;
+
+  BLI_STRUCT_EQUALITY_OPERATORS_2(StructureTypeInterface, inputs, outputs)
 };
 
 namespace anonymous_attribute_lifetime {
