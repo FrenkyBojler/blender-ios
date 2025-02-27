@@ -140,6 +140,7 @@ static const FieldInferencingInterface &get_node_field_inferencing_interface(con
   }
 
   auto &inferencing_interface = scope.construct<FieldInferencingInterface>();
+
   const Span<const bNodeSocket *> input_sockets = node.input_sockets();
   inferencing_interface.inputs.reinitialize(input_sockets.size());
   for (const int i : input_sockets.index_range()) {
