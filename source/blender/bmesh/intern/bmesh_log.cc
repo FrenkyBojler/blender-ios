@@ -29,25 +29,30 @@
 
 #include "bmesh.hh"
 #include "bmesh_log.hh"
+
+#include "BLI_map.hh"
 #include "range_tree.h"
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
+struct BMLogFace;
+struct BMLogVert;
 struct BMLogEntry {
   BMLogEntry *next, *prev;
 
   /* The following #GHash members map from an element ID to one of the log types above. */
 
   /** Elements that were in the previous entry, but have been deleted. */
-  GHash *deleted_verts;
-  GHash *deleted_faces;
+  blender::Map<uint, BMLogVert *, 0> deleted_verts;
+  blender::Map<uint, BMLogFace *, 0> deleted_faces;
+
   /** Elements that were not in the previous entry, but are in the result of this entry. */
-  GHash *added_verts;
-  GHash *added_faces;
+  blender::Map<uint, BMLogVert *, 0> added_verts;
+  blender::Map<uint, BMLogFace *, 0> added_faces;
 
   /** Vertices whose coordinates, mask value, or hflag have changed. */
-  GHash *modified_verts;
-  GHash *modified_faces;
+  blender::Map<uint, BMLogVert *, 0> modified_verts;
+  blender::Map<uint, BMLogFace *, 0> modified_faces;
 
   BLI_mempool *pool_verts;
   BLI_mempool *pool_faces;
@@ -77,11 +82,11 @@ struct BMLog {
    * The ID is needed because element pointers will change as they
    * are created and deleted.
    */
-  GHash *id_to_elem;
-  GHash *elem_to_id;
+  blender::Map<uint, BMElem *, 0> id_to_elem;
+  blender::Map<BMElem *, uint, 0> elem_to_id;
 
   /** All #BMLogEntrys, ordered from earliest to most recent. */
-  ListBase entries;
+  blender::Vector<BMLogEntry, 0> entries;
 
   /**
    * The current log entry from entries list
@@ -92,7 +97,7 @@ struct BMLog {
    * If equal to the last entry in the entries list, then all log
    * entries have been applied (i.e. there is nothing left to redo.)
    */
-  BMLogEntry *current_entry;
+  int current_entry;
 };
 
 struct BMLogVert {
@@ -116,49 +121,43 @@ struct BMLogFace {
 /* Get the vertex's unique ID from the log */
 static uint bm_log_vert_id_get(BMLog *log, BMVert *v)
 {
-  BLI_assert(BLI_ghash_haskey(log->elem_to_id, v));
-  return POINTER_AS_UINT(BLI_ghash_lookup(log->elem_to_id, v));
+  BLI_assert(log->elem_to_id.contains(reinterpret_cast<BMElem *>(v)));
+  return log->elem_to_id.lookup(reinterpret_cast<BMElem *>(v));
 }
 
 /* Set the vertex's unique ID in the log */
 static void bm_log_vert_id_set(BMLog *log, BMVert *v, uint id)
 {
-  void *vid = POINTER_FROM_UINT(id);
-
-  BLI_ghash_reinsert(log->id_to_elem, vid, v, nullptr, nullptr);
-  BLI_ghash_reinsert(log->elem_to_id, v, vid, nullptr, nullptr);
+  log->id_to_elem.add_overwrite(id, reinterpret_cast<BMElem *>(v));
+  log->elem_to_id.add_overwrite(reinterpret_cast<BMElem *>(v), id);
 }
 
 /* Get a vertex from its unique ID */
 static BMVert *bm_log_vert_from_id(BMLog *log, uint id)
 {
-  void *key = POINTER_FROM_UINT(id);
-  BLI_assert(BLI_ghash_haskey(log->id_to_elem, key));
-  return static_cast<BMVert *>(BLI_ghash_lookup(log->id_to_elem, key));
+  BLI_assert(log->id_to_elem.contains(id));
+  return reinterpret_cast<BMVert *>(log->id_to_elem.lookup(id));
 }
 
 /* Get the face's unique ID from the log */
 static uint bm_log_face_id_get(BMLog *log, BMFace *f)
 {
-  BLI_assert(BLI_ghash_haskey(log->elem_to_id, f));
-  return POINTER_AS_UINT(BLI_ghash_lookup(log->elem_to_id, f));
+  BLI_assert(log->elem_to_id.contains(reinterpret_cast<BMElem *>(f)));
+  return log->elem_to_id.lookup(reinterpret_cast<BMElem *>(f));
 }
 
 /* Set the face's unique ID in the log */
 static void bm_log_face_id_set(BMLog *log, BMFace *f, uint id)
 {
-  void *fid = POINTER_FROM_UINT(id);
-
-  BLI_ghash_reinsert(log->id_to_elem, fid, f, nullptr, nullptr);
-  BLI_ghash_reinsert(log->elem_to_id, f, fid, nullptr, nullptr);
+  log->id_to_elem.add_overwrite(id, reinterpret_cast<BMElem *>(f));
+  log->elem_to_id.add_overwrite(reinterpret_cast<BMElem *>(f), id);
 }
 
 /* Get a face from its unique ID */
 static BMFace *bm_log_face_from_id(BMLog *log, uint id)
 {
-  void *key = POINTER_FROM_UINT(id);
-  BLI_assert(BLI_ghash_haskey(log->id_to_elem, key));
-  return static_cast<BMFace *>(BLI_ghash_lookup(log->id_to_elem, key));
+  BLI_assert(log->id_to_elem.contains(id));
+  return reinterpret_cast<BMFace *>(log->id_to_elem.lookup(id));
 }
 
 /************************ BMLogVert / BMLogFace ***********************/
@@ -196,8 +195,8 @@ static void bm_log_vert_bmvert_copy(BMLogVert *lv, BMVert *v, const int cd_vert_
 /* Allocate and initialize a BMLogVert */
 static BMLogVert *bm_log_vert_alloc(BMLog *log, BMVert *v, const int cd_vert_mask_offset)
 {
-  BMLogEntry *entry = log->current_entry;
-  BMLogVert *lv = static_cast<BMLogVert *>(BLI_mempool_alloc(entry->pool_verts));
+  BMLogEntry &entry = log->entries[log->current_entry];
+  BMLogVert *lv = static_cast<BMLogVert *>(BLI_mempool_alloc(entry.pool_verts));
 
   bm_log_vert_bmvert_copy(lv, v, cd_vert_mask_offset);
 
@@ -207,8 +206,8 @@ static BMLogVert *bm_log_vert_alloc(BMLog *log, BMVert *v, const int cd_vert_mas
 /* Allocate and initialize a BMLogFace */
 static BMLogFace *bm_log_face_alloc(BMLog *log, BMFace *f)
 {
-  BMLogEntry *entry = log->current_entry;
-  BMLogFace *lf = static_cast<BMLogFace *>(BLI_mempool_alloc(entry->pool_faces));
+  BMLogEntry &entry = log->entries[log->current_entry];
+  BMLogFace *lf = static_cast<BMLogFace *>(BLI_mempool_alloc(entry.pool_faces));
   BMVert *v[3];
 
   BLI_assert(f->len == 3);
@@ -378,13 +377,6 @@ static BMLogEntry *bm_log_entry_create()
 {
   BMLogEntry *entry = static_cast<BMLogEntry *>(MEM_callocN(sizeof(BMLogEntry), __func__));
 
-  entry->deleted_verts = BLI_ghash_new(logkey_hash, logkey_cmp, __func__);
-  entry->deleted_faces = BLI_ghash_new(logkey_hash, logkey_cmp, __func__);
-  entry->added_verts = BLI_ghash_new(logkey_hash, logkey_cmp, __func__);
-  entry->added_faces = BLI_ghash_new(logkey_hash, logkey_cmp, __func__);
-  entry->modified_verts = BLI_ghash_new(logkey_hash, logkey_cmp, __func__);
-  entry->modified_faces = BLI_ghash_new(logkey_hash, logkey_cmp, __func__);
-
   entry->pool_verts = BLI_mempool_create(sizeof(BMLogVert), 0, 64, BLI_MEMPOOL_NOP);
   entry->pool_faces = BLI_mempool_create(sizeof(BMLogFace), 0, 64, BLI_MEMPOOL_NOP);
 
@@ -396,13 +388,6 @@ static BMLogEntry *bm_log_entry_create()
  * NOTE: does not free the log entry itself. */
 static void bm_log_entry_free(BMLogEntry *entry)
 {
-  BLI_ghash_free(entry->deleted_verts, nullptr, nullptr);
-  BLI_ghash_free(entry->deleted_faces, nullptr, nullptr);
-  BLI_ghash_free(entry->added_verts, nullptr, nullptr);
-  BLI_ghash_free(entry->added_faces, nullptr, nullptr);
-  BLI_ghash_free(entry->modified_verts, nullptr, nullptr);
-  BLI_ghash_free(entry->modified_faces, nullptr, nullptr);
-
   BLI_mempool_destroy(entry->pool_verts);
   BLI_mempool_destroy(entry->pool_faces);
 }
@@ -470,8 +455,8 @@ BMLog *BM_log_create(BMesh *bm)
   const uint reserve_num = uint(bm->totvert + bm->totface);
 
   log->unused_ids = range_tree_uint_alloc(0, uint(-1));
-  log->id_to_elem = BLI_ghash_new_ex(logkey_hash, logkey_cmp, __func__, reserve_num);
-  log->elem_to_id = BLI_ghash_ptr_new_ex(__func__, reserve_num);
+  log->id_to_elem.reserve(reserve_num);
+  log->elem_to_id.reserve(reserve_num);
 
   /* Assign IDs to all existing vertices and faces */
   bm_log_assign_ids(bm, log);
@@ -485,19 +470,34 @@ void BM_log_cleanup_entry(BMLogEntry *entry)
 
   if (log) {
     /* Take all used IDs */
-    bm_log_id_ghash_retake(log->unused_ids, entry->deleted_verts);
-    bm_log_id_ghash_retake(log->unused_ids, entry->deleted_faces);
-    bm_log_id_ghash_retake(log->unused_ids, entry->added_verts);
-    bm_log_id_ghash_retake(log->unused_ids, entry->added_faces);
-    bm_log_id_ghash_retake(log->unused_ids, entry->modified_verts);
-    bm_log_id_ghash_retake(log->unused_ids, entry->modified_faces);
+    for (const uint id : entry->deleted_verts.keys()) {
+      range_tree_uint_retake(log->unused_ids, id);
+    }
+    for (const uint id : entry->deleted_faces.keys()) {
+      range_tree_uint_retake(log->unused_ids, id);
+    }
+    for (const uint id : entry->added_verts.keys()) {
+      range_tree_uint_retake(log->unused_ids, id);
+    }
+    for (const uint id : entry->added_faces.keys()) {
+      range_tree_uint_retake(log->unused_ids, id);
+    }
+    for (const uint id : entry->modified_verts.keys()) {
+      range_tree_uint_retake(log->unused_ids, id);
+    }
+    for (const uint id : entry->modified_faces.keys()) {
+      range_tree_uint_retake(log->unused_ids, id);
+    }
 
     /* delete entries to avoid releasing ids in node cleanup */
-    BLI_ghash_clear(entry->deleted_verts, nullptr, nullptr);
-    BLI_ghash_clear(entry->deleted_faces, nullptr, nullptr);
-    BLI_ghash_clear(entry->added_verts, nullptr, nullptr);
-    BLI_ghash_clear(entry->added_faces, nullptr, nullptr);
-    BLI_ghash_clear(entry->modified_verts, nullptr, nullptr);
+    entry->deleted_verts.clear();
+    entry->deleted_faces.clear();
+    entry->added_verts.clear();
+    entry->added_faces.clear();
+    entry->modified_verts.clear();
+
+    /* Is this last one needed? */
+    entry->modified_faces.clear();
   }
 }
 
