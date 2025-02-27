@@ -1,2 +1,3 @@
 Referenced by issue #134941, Performances regression 4.5 alpha
 Referenced by pull request #135026, Fix #134941: GPU: Performance regression
+Referenced by issue #135215, GPU printf support is pegging the CPU/GPU even while idle
