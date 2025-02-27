@@ -346,6 +346,17 @@ set(OSL_HOMEPAGE https://github.com/AcademySoftwareFoundation/OpenShadingLanguag
 set(OSL_LICENSE SPDX:BSD-3-Clause)
 set(OSL_COPYRIGHT "Copyright Contributors to the Open Shading Language project.")
 
+set(MANIFOLD_VERSION 3.0.1)
+set(MANIFOLD_COMMIT "0451671bd34c1467866d6893e6795859ee74e7c9")
+set(MANIFOLD_NAME "Manifold")
+set(MANIFOLD_URI https://github.com/elalish/manifold/archive/${MANIFOLD_COMMIT}.tar.gz)
+set(MANIFOLD_HASH 2698491899c562d7433fc9c2268ad64d)
+set(MANIFOLD_HASH_TYPE MD5)
+set(MANIFOLD_FILE Manifold-${MANIFOLD_VERSION}.tar.gz)
+set(MANIFOLD_HOMEPAGE https://github.com/elalish/manifold)
+set(MANIFOLD_LICENSE SPDX:Apache-2.0)
+set(MANIFOLD_COPYRIGHT "Copyright 2021 The Manifold Authors.")
+
 # NOTE: When updating the python version, it's required to check the versions of
 # it wants to use in PCbuild/get_externals.bat for the following dependencies:
 # BZIP2, FFI, SQLITE and change the versions in this file as well. For compliance
