@@ -5170,28 +5170,6 @@ static void rna_def_userdef_view(BlenderRNA *brna)
       "Show options for developers (edit source in context menu, geometry indices)");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
-  static const EnumPropertyItem mouse_cursor_types[] = {
-      {USER_MOUSE_CURSOR_PLATFORM,
-       "AUTO",
-       0,
-       "Auto",
-       "Use platform-specific mouse cursors when available"},
-      {USER_MOUSE_CURSOR_LINUX_SMALL, "SMALL", 0, "Small", "Use Linux small 16x16 mouse cursors"},
-      {USER_MOUSE_CURSOR_LINUX_MEDIUM,
-       "MEDIUM",
-       0,
-       "Medium",
-       "Use Linux small 24x24 mouse cursors"},
-      {USER_MOUSE_CURSOR_LINUX_LARGE, "LARGE", 0, "Large", "Use Linux small 32x32 mouse cursors"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
-  prop = RNA_def_property(srna, "mouse_cursor_type", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, mouse_cursor_types);
-  RNA_def_property_ui_text(prop, "Mouse Cursors", "Type and size of mouse cursors");
-  RNA_def_property_update(prop, 0, "rna_userdef_update");
-  RNA_def_property_enum_default(prop, USER_MOUSE_CURSOR_PLATFORM);
-
   prop = RNA_def_property(srna, "show_object_info", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "uiflag", USER_DRAWVIEWINFO);
   RNA_def_property_ui_text(prop,

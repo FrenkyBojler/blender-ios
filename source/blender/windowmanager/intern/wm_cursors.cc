@@ -116,9 +116,14 @@ static GHOST_TStandardCursor convert_to_ghost_standard_cursor(WMCursorType curs)
 
 static bool window_set_custom_cursor(wmWindow *win, BCursor *cursor)
 {
-  CursorSize size = (U.mouse_cursor_type > USER_MOUSE_CURSOR_PLATFORM) ?
-                        CursorSize(U.mouse_cursor_type - 1) :
-                        CURSOR_SMALL;
+  CursorSize size = CURSOR_SMALL;
+  /* Use `U.ui_scale` instead of `UI_SCALE_FAC` here to ignore HiDPI/Retina scaling. */
+  if (U.ui_scale > 1.779f) {
+    size = CURSOR_LARGE;
+  }
+  else if (U.ui_scale > 1.199f) {
+    size = CURSOR_MEDIUM;
+  }
 
   if (size > CURSOR_SMALL &&
       GHOST_SetCustomCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin),
@@ -173,8 +178,7 @@ void WM_cursor_set(wmWindow *win, int curs)
 
   GHOST_TStandardCursor ghost_cursor = convert_to_ghost_standard_cursor(WMCursorType(curs));
 
-  if ((U.mouse_cursor_type == USER_MOUSE_CURSOR_PLATFORM) &&
-      (ghost_cursor != GHOST_kStandardCursorCustom) &&
+  if ((ghost_cursor != GHOST_kStandardCursorCustom) &&
       GHOST_HasCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin), ghost_cursor))
   {
     /* Use native GHOST cursor when available. */
@@ -596,6 +600,7 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_DEFAULT] = &NWArrowCursor;
+  BlenderCursor[WM_CURSOR_MOVE] = &NWArrowCursor;
   BlenderCursor[WM_CURSOR_COPY] = &NWArrowCursor;
   BlenderCursor[WM_CURSOR_NW_ARROW] = &NWArrowCursor;
   END_CURSOR_BLOCK;
@@ -1623,6 +1628,8 @@ void wm_init_cursor_data()
   };
 
   BlenderCursor[WM_CURSOR_HAND] = &HandCursor;
+  BlenderCursor[WM_CURSOR_HAND_CLOSED] = &HandCursor;
+  BlenderCursor[WM_CURSOR_HAND_POINT] = &HandCursor;
   END_CURSOR_BLOCK;
 
   /********************** NSEW Scroll Cursor ***********************/
