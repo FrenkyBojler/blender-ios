@@ -397,7 +397,7 @@ static void propagate_left_to_right(const bNodeTree &tree,
  * Check what the group output socket depends on. Potentially traverses the node tree
  * to figure out if it is always a field or if it depends on any group inputs.
  */
-static nodes::StructureTypeInterface::OutputDependency find_dynamic_group_output_interface(
+static Vector<int> find_dynamic_output_linked_inputs(
     const bNodeSocket &group_output,
     const Span<nodes::StructureTypeInterface> interface_by_node,
     const Span<SocketStatus> socket_usages)
@@ -421,49 +421,35 @@ static nodes::StructureTypeInterface::OutputDependency find_dynamic_group_output
   handled_sockets.add(&group_output);
   sockets_to_check.push(&group_output);
 
-  /* Group input indices that are (indirectly) connected to the output. */
-  Vector<int> linked_input_indices;
+  Vector<int> group_inputs;
 
   while (!sockets_to_check.is_empty()) {
     const bNodeSocket *input_socket = sockets_to_check.pop();
-
     if (!input_socket->is_directly_linked()) {
-      /* This socket uses a field as input by default. */
-      return {StructureType::Dynamic, {}};
+      continue;
     }
 
     for (const bNodeSocket *origin_socket : input_socket->directly_linked_sockets()) {
       const bNode &origin_node = origin_socket->owner_node();
-      const SocketStatus origin_state = socket_usages[origin_socket->index_in_tree()];
-
-      if (origin_state.is_field) {
-        if (origin_node.is_group_input()) {
-          /* Found a group input that the group output depends on. */
-          linked_input_indices.append_non_duplicates(origin_socket->index());
-        }
-        else {
-          /* Found a field source that is not the group input. So the output is always a field. */
-          return {StructureType::Dynamic, {}};
-        }
+      if (origin_node.is_group_input()) {
+        group_inputs.append_non_duplicates(origin_socket->index());
+        continue;
       }
-      else if (!origin_state.is_single) {
-        const nodes::StructureTypeInterface &interface = interface_by_node[origin_node.index()];
 
-        for (const int input_index : interface.outputs[origin_socket->index()].linked_inputs) {
-          const bNodeSocket &origin_input_socket = origin_node.input_socket(input_index);
-          if (!origin_input_socket.is_available()) {
-            continue;
-          }
-          if (!socket_usages[origin_input_socket.index_in_tree()].is_single) {
-            if (handled_sockets.add(&origin_input_socket)) {
-              sockets_to_check.push(&origin_input_socket);
-            }
-          }
+      const nodes::StructureTypeInterface &interface = interface_by_node[origin_node.index()];
+      for (const int input_index : interface.outputs[origin_socket->index()].linked_inputs) {
+        const bNodeSocket &input = origin_node.input_socket(input_index);
+        if (!input.is_available()) {
+          continue;
+        }
+        if (handled_sockets.add(&input)) {
+          sockets_to_check.push(&input);
         }
       }
     }
   }
-  return OutputFieldDependency::ForPartiallyDependentField(std::move(linked_input_indices));
+
+  return group_inputs;
 }
 
 static void store_group_output_structure_types(
@@ -488,8 +474,9 @@ static void store_group_output_structure_types(
       interface.outputs[i] = {StructureType(interface_outputs[i]->structure_type), {}};
     }
     else {
-      interface.outputs[i] = find_dynamic_group_output_interface(
+      const Vector<int> linked_inputs = find_dynamic_output_linked_inputs(
           *sockets[i], interface_by_node, socket_usages);
+      interface.outputs[i] = {StructureType::Dynamic, linked_inputs.as_span()};
     }
   }
 }
