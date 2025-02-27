@@ -102,16 +102,16 @@ static void node_shader_update_radial_tiling(bNodeTree *ntree, bNode *node)
 {
   (void)ntree;
 
-  bNodeSocket *inVectorSock = bke::node_find_socket(node, SOCK_IN, "Vector");
-  bNodeSocket *inR_gonSidesSock = bke::node_find_socket(node, SOCK_IN, "R_gon Sides");
-  bNodeSocket *inR_gonRoundnessSock = bke::node_find_socket(node, SOCK_IN, "R_gon Roundness");
+  bNodeSocket *inVectorSock = bke::node_find_socket(*node, SOCK_IN, "Vector");
+  bNodeSocket *inR_gonSidesSock = bke::node_find_socket(*node, SOCK_IN, "R_gon Sides");
+  bNodeSocket *inR_gonRoundnessSock = bke::node_find_socket(*node, SOCK_IN, "R_gon Roundness");
   bNodeSocket *inIrregularR_gonCornerShapeSock = bke::node_find_socket(
-      node, SOCK_IN, "Irregular R_gon Corner Shape");
+      *node, SOCK_IN, "Irregular R_gon Corner Shape");
 
   bNodeSocket *outMaxUnitParameterSock = bke::node_find_socket(
-      node, SOCK_OUT, "Max Unit Parameter");
+      *node, SOCK_OUT, "Max Unit Parameter");
   bNodeSocket *outX_axisToAngleBisectorAngleSock = bke::node_find_socket(
-      node, SOCK_OUT, "X_axis To Angle Bisector Angle");
+      *node, SOCK_OUT, "X_axis To Angle Bisector Angle");
 
   node_sock_label(inVectorSock, "Vector 2D");
   node_sock_label(inR_gonSidesSock, "Sides");
@@ -233,7 +233,7 @@ void register_node_type_sh_radial_tiling()
 
   static blender::bke::bNodeType ntype;
 
-  sh_fn_node_type_base(&ntype, "ShaderNodeRadialTiling");
+  common_node_type_base(&ntype, "ShaderNodeRadialTiling");
   ntype.ui_name = "Radial Tiling";
   ntype.ui_description = "Transform Coordinate System for Radial Tiling";
   ntype.nclass = NODE_CLASS_OP_VECTOR;
@@ -241,10 +241,10 @@ void register_node_type_sh_radial_tiling()
   ntype.draw_buttons = file_ns::node_shader_buts_radial_tiling;
   ntype.initfunc = file_ns::node_shader_init_radial_tiling;
   blender::bke::node_type_storage(
-      &ntype, "NodeRadialTiling", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeRadialTiling", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_shader_gpu_radial_tiling;
   ntype.updatefunc = file_ns::node_shader_update_radial_tiling;
   ntype.build_multi_function = file_ns::sh_node_radial_tiling_build_multi_function;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
