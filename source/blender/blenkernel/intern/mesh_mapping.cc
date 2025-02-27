@@ -658,7 +658,7 @@ static void face_edge_loop_islands_calc(const int totedge,
       /* Finalize 'border vertex' neighbour faces check with the first corner. */
       if (use_bitflags && use_border_vertices_for_bitflags) {
         if (edge_first_is_border && edge_prev_is_border) {
-          const int loop = faces[face][0];
+          const int loop = int(faces[face][0]);
           const int vert = corner_verts[loop];
           face_edge_loop_islands_calc_bitflags_exclude_at_border(face_groups,
                                                                  vert_face_map[vert],
