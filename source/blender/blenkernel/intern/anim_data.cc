@@ -1494,6 +1494,8 @@ void BKE_animdata_fix_paths_rename_all(ID *ref_id,
   BKE_animdata_fix_paths_rename_all_ex(bmain, ref_id, prefix, oldName, newName, 0, 0, true);
 }
 
+void BKE_animdata_fix_paths_reorder_all() {}
+
 void BKE_animdata_fix_paths_rename_all_ex(Main *bmain,
                                           ID *ref_id,
                                           const char *prefix,
