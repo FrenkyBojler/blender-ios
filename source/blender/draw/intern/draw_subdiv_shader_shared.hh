@@ -157,19 +157,3 @@ struct OsdPatchCoord {
 };
 
 #endif
-
-#ifdef OSD_PATCH_BASIS_GLSL
-
-bool OsdPatchParamIsRegular(OsdPatchParam param);
-int OsdEvaluatePatchBasis(int patchType,
-                          OsdPatchParam param,
-                          float s,
-                          float t,
-                          out float wP[20],
-                          out float wDs[20],
-                          out float wDt[20],
-                          out float wDss[20],
-                          out float wDst[20],
-                          out float wDtt[20]);
-
-#endif
