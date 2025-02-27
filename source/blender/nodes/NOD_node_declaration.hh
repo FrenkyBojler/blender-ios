@@ -88,14 +88,14 @@ struct FieldInferencingInterface {
 };
 
 struct StructureTypeInterface {
-  Vector<std::pair<int, int>> input_output_pairs;
-};
-
-struct DerivedStructureTypes {
   Array<StructureType> inputs;
   Array<StructureType> outputs;
+  Array<Array<int>> output_input_dependencies;
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(DerivedStructureTypes, inputs, outputs)
+  BLI_STRUCT_EQUALITY_OPERATORS_3(StructureTypeInterface,
+                                  inputs,
+                                  outputs,
+                                  output_input_dependencies)
 };
 
 namespace anonymous_attribute_lifetime {
