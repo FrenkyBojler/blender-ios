@@ -520,6 +520,24 @@ class NODE_OT_viewer_shortcut_get(Operator):
             nodes.active = old_active
 
         return {'FINISHED'}
+    
+# Todo: remove 'use_nodes' and implement operator in C that creates the node tree.
+class NODE_OT_compositor_create_node_tree(Operator):
+    """Create a new compositor node tree if it doesn't exist"""
+    bl_idname = "node.new_compositor_node_tree"
+    bl_label = "New compositor tree"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    @classmethod
+    def poll(cls, context):
+        # Todo
+        return True
+
+    def execute(self, context):
+        ntree = context.scene.node_tree
+        if not ntree:
+            context.scene.use_nodes = True
+        return {'FINISHED'}
 
 
 class NODE_FH_image_node(FileHandler):
@@ -554,4 +572,5 @@ classes = (
     NODE_OT_tree_path_parent,
     NODE_OT_viewer_shortcut_get,
     NODE_OT_viewer_shortcut_set,
+    NODE_OT_compositor_create_node_tree,
 )
