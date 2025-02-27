@@ -77,6 +77,7 @@ vec2 decode_uv(uint encoded_uv)
   return vec2(u, v);
 }
 
+#ifndef USE_GPU_SHADER_CREATE_INFO
 /* This structure is a carbon copy of OpenSubDiv's PatchTable::PatchHandle. */
 struct PatchHandle {
   int array_index;
@@ -98,6 +99,7 @@ struct PatchCoord {
 struct QuadNode {
   uvec4 child;
 };
+#endif
 
 bool is_set(uint i)
 {

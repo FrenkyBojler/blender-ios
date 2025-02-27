@@ -12,7 +12,6 @@
 
 #ifndef GPU_SHADER
 #  include "GPU_shader_shared_utils.hh"
-
 #endif
 
 struct DRWSubdivUboStorage {
@@ -105,3 +104,73 @@ struct FDotNor {
   float x, y, z;
   float flag;
 };
+
+/* This structure is a carbon copy of OpenSubDiv's PatchTable::PatchHandle. */
+struct PatchHandle {
+  int array_index;
+  int patch_index;
+  int vertex_index;
+};
+
+/* This structure is a carbon copy of OpenSubDiv's PatchCoord. */
+struct PatchCoord {
+  int array_index;
+  int patch_index;
+  int vertex_index;
+  float u;
+  float v;
+};
+
+/* This structure is a carbon copy of OpenSubDiv's PatchCoord.QuadNode.
+ * Each child is a bit-field. */
+struct QuadNode {
+  uint4 child;
+};
+
+/* This structure is a carbon copy of OpenSubDiv's Osd::PatchParam. */
+struct OsdPatchParam {
+  int field0;
+  int field1;
+  float sharpness;
+};
+
+/* This structure is a carbon copy of OpenSubDiv's Osd::PatchArray. */
+struct OsdPatchArray {
+  int regDesc;
+  int desc;
+  int numPatches;
+  int indexBase;
+  int stride;
+  int primitiveIdBase;
+};
+
+/* This structure is a carbon copy of OpenSubDiv's Osd::PatchCoord. */
+struct OsdPatchCoord {
+  int arrayIndex;
+  int patchIndex;
+  int vertIndex;
+  float s;
+  float t;
+};
+
+#ifdef OSD_PATCH_BASIS_GLSL
+
+bool OsdPatchParamIsRegular(OsdPatchParam param)
+{
+  return true;
+}
+int OsdEvaluatePatchBasis(int patchType,
+                          OsdPatchParam param,
+                          float s,
+                          float t,
+                          out float wP[20],
+                          out float wDs[20],
+                          out float wDt[20],
+                          out float wDss[20],
+                          out float wDst[20],
+                          out float wDtt[20])
+{
+  return 0;
+}
+
+#endif

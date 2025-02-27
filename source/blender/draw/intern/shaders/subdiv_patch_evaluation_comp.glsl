@@ -137,11 +137,11 @@ int transformUVToTriQuadrant(float median, inout float u, inout float v, inout b
 
 PatchHandle find_patch(int face_index, float u, float v)
 {
-  if (face_index < min_patch_face || face_index > max_patch_face) {
+  if (face_index < shader_data.min_patch_face || face_index > shader_data.max_patch_face) {
     return bogus_patch_handle();
   }
 
-  QuadNode node = quad_nodes[face_index - min_patch_face];
+  QuadNode node = quad_nodes[face_index - shader_data.min_patch_face];
 
   if (!is_set(node.child[0])) {
     return bogus_patch_handle();
@@ -150,8 +150,8 @@ PatchHandle find_patch(int face_index, float u, float v)
   float median = 0.5;
   bool tri_rotated = false;
 
-  for (int depth = 0; depth <= max_depth; ++depth, median *= 0.5) {
-    int quadrant = (patches_are_triangular != 0) ?
+  for (int depth = 0; depth <= shader_data.max_depth; ++depth, median *= 0.5) {
+    int quadrant = shader_data.patches_are_triangular ?
                        transformUVToTriQuadrant(median, u, v, tri_rotated) :
                        transformUVToQuadQuadrant(median, u, v);
 
@@ -214,7 +214,7 @@ void evaluate_patches_limits(int patch_index, float u, float v, inout vec2 dst)
 
   for (int cv = 0; cv < nPoints; ++cv) {
     int index = patchIndexBuffer[indexBase + cv];
-    vec2 src_fvar = read_vec2(src_offset + index);
+    vec2 src_fvar = read_vec2(shader_data.src_offset + index);
     dst += src_fvar * wP[cv];
   }
 }
@@ -279,7 +279,7 @@ void main()
 {
   /* We execute for each quad. */
   uint quad_index = get_global_invocation_index();
-  if (quad_index >= total_dispatch_size) {
+  if (quad_index >= shader_data.total_dispatch_size) {
     return;
   }
 
@@ -292,18 +292,18 @@ void main()
     vec2 uv = decode_uv(patch_co.encoded_uv);
 
     evaluate_patches_limits(patch_co.patch_index, uv.x, uv.y, fvar);
-    output_fvar[dst_offset + loop_index] = fvar;
+    output_fvar[shader_data.dst_offset + loop_index] = fvar;
   }
 }
 #elif defined(FDOTS_EVALUATION)
 bool is_face_selected(uint coarse_quad_index)
 {
-  return (extra_coarse_face_data[coarse_quad_index] & coarse_face_select_mask) != 0;
+  return (extra_coarse_face_data[coarse_quad_index] & shader_data.coarse_face_select_mask) != 0;
 }
 
 bool is_face_active(uint coarse_quad_index)
 {
-  return (extra_coarse_face_data[coarse_quad_index] & coarse_face_active_mask) != 0;
+  return (extra_coarse_face_data[coarse_quad_index] & shader_data.coarse_face_active_mask) != 0;
 }
 
 float get_face_flag(uint coarse_quad_index)
@@ -321,14 +321,14 @@ float get_face_flag(uint coarse_quad_index)
 
 bool is_face_hidden(uint coarse_quad_index)
 {
-  return (extra_coarse_face_data[coarse_quad_index] & coarse_face_hidden_mask) != 0;
+  return (extra_coarse_face_data[coarse_quad_index] & shader_data.coarse_face_hidden_mask) != 0;
 }
 
 void main()
 {
   /* We execute for each coarse quad. */
   uint coarse_quad_index = get_global_invocation_index();
-  if (coarse_quad_index >= total_dispatch_size) {
+  if (coarse_quad_index >= shader_data.total_dispatch_size) {
     return;
   }
 
@@ -357,7 +357,7 @@ void main()
   output_nors[coarse_quad_index] = fnor;
 #  endif
 
-  if (use_hide && is_face_hidden(coarse_quad_index)) {
+  if (shader_data.use_hide && is_face_hidden(coarse_quad_index)) {
     output_indices[coarse_quad_index] = 0xffffffff;
   }
   else {
@@ -369,7 +369,7 @@ void main()
 {
   /* We execute for each quad. */
   uint quad_index = get_global_invocation_index();
-  if (quad_index >= total_dispatch_size) {
+  if (quad_index >= shader_data.total_dispatch_size) {
     return;
   }
 
