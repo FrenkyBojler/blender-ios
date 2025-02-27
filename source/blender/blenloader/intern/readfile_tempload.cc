@@ -44,17 +44,18 @@ TempLibraryContext *BLO_library_temp_load_id(Main *real_main,
                                                       idname,
                                                       &temp_lib_ctx->liblink_params);
 
-  return temp_lib_ctx;
-}
-
-void BLO_library_temp_free(TempLibraryContext *temp_lib_ctx)
-{
   /* This moves the temporary ID and any indirectly loaded data into `bmain_base`
    * only to free `bmain_base`, while redundant this is the typical code-path for library linking,
    * it's more convenient to follow this convention rather than create a new code-path for this
    * one-off use case. */
   BLO_library_link_end(
       temp_lib_ctx->bmain_lib, &temp_lib_ctx->blendhandle, &temp_lib_ctx->liblink_params);
+      
+  return temp_lib_ctx;
+}
+
+void BLO_library_temp_free(TempLibraryContext *temp_lib_ctx)
+{
   BLO_blendhandle_close(temp_lib_ctx->blendhandle);
   BKE_main_free(temp_lib_ctx->bmain_base);
   MEM_freeN(temp_lib_ctx);
