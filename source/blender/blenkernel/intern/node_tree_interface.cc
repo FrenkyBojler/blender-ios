@@ -1036,7 +1036,7 @@ void bNodeTreeInterfacePanel::foreach_item(
   }
 }
 
-const bNodeTreeInterfaceSocket *bNodeTreeInterfacePanel::get_header_toggle_socket() const
+const bNodeTreeInterfaceSocket *bNodeTreeInterfacePanel::header_toggle_socket() const
 {
   if (this->items().is_empty()) {
     return nullptr;
@@ -1052,6 +1052,27 @@ const bNodeTreeInterfaceSocket *bNodeTreeInterfacePanel::get_header_toggle_socke
     return nullptr;
   }
   const blender::bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
+  if (!typeinfo || typeinfo->type != SOCK_BOOLEAN) {
+    return nullptr;
+  }
+  return &socket;
+}
+bNodeTreeInterfaceSocket *bNodeTreeInterfacePanel::header_toggle_socket()
+{
+  if (this->items().is_empty()) {
+    return nullptr;
+  }
+  bNodeTreeInterfaceItem *first_item = this->items().first();
+  if (first_item->item_type != NODE_INTERFACE_SOCKET) {
+    return nullptr;
+  }
+  auto &socket = *reinterpret_cast<bNodeTreeInterfaceSocket *>(first_item);
+  if (!(socket.flag & NODE_INTERFACE_SOCKET_INPUT) ||
+      !(socket.flag & NODE_INTERFACE_SOCKET_PANEL_TOGGLE))
+  {
+    return nullptr;
+  }
+  blender::bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
   if (!typeinfo || typeinfo->type != SOCK_BOOLEAN) {
     return nullptr;
   }

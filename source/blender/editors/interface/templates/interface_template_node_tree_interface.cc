@@ -186,7 +186,7 @@ class NodePanelViewItem : public BasicTreeViewItem {
       NodePanelViewItem &self = static_cast<NodePanelViewItem &>(new_active);
       interface.active_item_set(&self.panel_.item);
     });
-    toggle_ = panel.get_header_toggle_socket();
+    toggle_ = panel.header_toggle_socket();
     is_always_collapsible_ = true;
   }
 
@@ -227,11 +227,11 @@ class NodePanelViewItem : public BasicTreeViewItem {
   }
   bool rename(const bContext &C, StringRefNull new_name) override
   {
-    MEM_SAFE_FREE(panel_.name);
-
-    panel_.name = BLI_strdup(new_name.c_str());
-    nodetree_.tree_interface.tag_items_changed();
-    BKE_main_ensure_invariants(*CTX_data_main(&C), nodetree_.id);
+    PointerRNA panel_ptr = RNA_pointer_create_discrete(
+        &nodetree_.id, &RNA_NodeTreeInterfacePanel, &panel_);
+    PropertyRNA *name_prop = RNA_struct_find_property(&panel_ptr, "name");
+    RNA_property_string_set(&panel_ptr, name_prop, new_name.c_str());
+    RNA_property_update(const_cast<bContext *>(&C), &panel_ptr, name_prop);
     return true;
   }
   StringRef get_rename_string() const override
@@ -295,7 +295,7 @@ class NodeTreeInterfaceView : public AbstractTreeView {
               nodetree_, interface_, *panel);
           panel_item.uncollapse_by_default();
           /* Skip over sockets which are a panel toggle. */
-          const bNodeTreeInterfaceSocket *skip_item = panel->get_header_toggle_socket();
+          const bNodeTreeInterfaceSocket *skip_item = panel->header_toggle_socket();
           add_items_for_panel_recursive(
               *panel, panel_item, reinterpret_cast<const bNodeTreeInterfaceItem *>(skip_item));
           break;
