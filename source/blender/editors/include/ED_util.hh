@@ -49,6 +49,19 @@ void ED_spacedata_id_remap(ScrArea *area,
                            SpaceLink *sl,
                            const blender::bke::id::IDRemapper &mappings);
 
+/**
+ * Helper for context sensitive operations: Returns the "id" context member wrapped in a
+ * #PointerRNA vector. Useful when the API uses vectors to also support acting on multiple IDs,
+ * e.g. as returned by #ED_operator_get_ids_from_context_as_vec().
+ */
+blender::Vector<PointerRNA> ED_operator_single_id_from_context_as_vec(const bContext *C);
+/**
+ * Helper for context sensitive operations: Returns the "selected_ids" context member or if none,
+ * the "id" context member as a #PointerRNA vector. Multiple selected IDs are prioritized because
+ * batch operations are generally more desired behavior.
+ */
+blender::Vector<PointerRNA> ED_operator_get_ids_from_context_as_vec(const bContext *C);
+
 void ED_operatortypes_edutils();
 
 /* Drawing */
