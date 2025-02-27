@@ -3510,6 +3510,9 @@ void BKE_boundbox_minmax(const BoundBox &bb, const float4x4 &matrix, float3 &r_m
 
 std::optional<blender::Bounds<blender::float3>> BKE_object_boundbox_get(const Object *ob)
 {
+  if (DEG_is_evaluated_object(ob)) {
+    return BKE_object_evaluated_geometry_bounds(ob);
+  }
   switch (ob->type) {
     case OB_MESH:
       return static_cast<const Mesh *>(ob->data)->bounds_min_max();
