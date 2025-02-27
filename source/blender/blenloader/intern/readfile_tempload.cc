@@ -50,7 +50,7 @@ TempLibraryContext *BLO_library_temp_load_id(Main *real_main,
    * one-off use case. */
   BLO_library_link_end(
       temp_lib_ctx->bmain_lib, &temp_lib_ctx->blendhandle, &temp_lib_ctx->liblink_params);
-      
+
   return temp_lib_ctx;
 }
 
