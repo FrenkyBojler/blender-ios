@@ -7,10 +7,10 @@
 COMPUTE_SHADER_CREATE_INFO(subdiv_patch_evaluation_fdots_normals)
 
 #if defined(VERTS_EVALUATION)
-float get_flag(int vertex)
+float get_flag(int index)
 {
-  int char_4 = flags_buffer[vertex / 4];
-  int flag = (char_4 >> ((vertex % 4) * 8)) & 0xFF;
+  int char_4 = flags_buffer[index / 4];
+  int flag = (char_4 >> ((index % 4) * 8)) & 0xFF;
   if (flag >= 128) {
     flag = -128 + (flag - 128);
   }
