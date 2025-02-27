@@ -271,8 +271,7 @@ static bool propagate_special_data_requirements(const bNodeTree &tree,
 
 static void propagate_right_to_left(const bNodeTree &tree,
                                     const Span<nodes::StructureTypeInterface> node_interfaces,
-                                    MutableSpan<SocketStatus> socket_usages,
-                                    nodes::StructureTypeInterface &derived_interface)
+                                    MutableSpan<SocketStatus> socket_usages)
 {
   while (true) {
     bool need_update = false;
@@ -333,8 +332,7 @@ static void propagate_right_to_left(const bNodeTree &tree,
 
 static void propagate_left_to_right(const bNodeTree &tree,
                                     const Span<nodes::StructureTypeInterface> node_interfaces,
-                                    MutableSpan<SocketStatus> socket_usages,
-                                    nodes::StructureTypeInterface &derived_interface)
+                                    MutableSpan<SocketStatus> socket_usages)
 {
   while (true) {
     bool need_update = false;
@@ -514,9 +512,9 @@ static std::unique_ptr<nodes::StructureTypeInterface> calc_structure_type_interf
   Array<SocketStatus> socket_usages(tree.all_sockets().size());
 
   initialize_usages_from_socket_declarations(tree, socket_usages);
-  propagate_right_to_left(tree, node_interfaces, socket_usages, *derived_interface);
+  propagate_right_to_left(tree, node_interfaces, socket_usages);
   store_group_input_structure_types(tree, socket_usages, *derived_interface);
-  propagate_left_to_right(tree, node_interfaces, socket_usages, *derived_interface);
+  propagate_left_to_right(tree, node_interfaces, socket_usages);
   store_group_output_structure_types(tree, node_interfaces, socket_usages, *derived_interface);
 
   return derived_interface;
