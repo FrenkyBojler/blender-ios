@@ -82,6 +82,10 @@ TEST_F(ObjectIdentifierOrderTest, real_objects)
   ObjectIdentifier id_a = ObjectIdentifier::for_real_object(fake_pointer(1));
   ObjectIdentifier id_b = ObjectIdentifier::for_real_object(fake_pointer(2));
   EXPECT_FALSE(id_a == id_b);
+
+  ObjectIdentifier id_c = ObjectIdentifier::for_real_object(fake_pointer(1));
+  EXPECT_TRUE(id_a == id_c);
+  EXPECT_TRUE(id_a.hash() == id_c.hash());
 }
 
 TEST_F(ObjectIdentifierOrderTest, duplicated_objects)
@@ -89,6 +93,7 @@ TEST_F(ObjectIdentifierOrderTest, duplicated_objects)
   ObjectIdentifier id_real_a = ObjectIdentifier::for_real_object(fake_pointer(1));
   TestObjectIdentifier id_dupli_a(fake_pointer(1), fake_pointer(2), TestPersistentID(0));
   TestObjectIdentifier id_dupli_b(fake_pointer(1), fake_pointer(3), TestPersistentID(0));
+  TestObjectIdentifier id_same_dupli_a(fake_pointer(1), fake_pointer(2), TestPersistentID(0));
   TestObjectIdentifier id_different_dupli_b(fake_pointer(1), fake_pointer(3), TestPersistentID(1));
 
   EXPECT_FALSE(id_real_a == id_dupli_a);
@@ -96,6 +101,9 @@ TEST_F(ObjectIdentifierOrderTest, duplicated_objects)
 
   EXPECT_FALSE(id_dupli_b == id_different_dupli_b);
   EXPECT_FALSE(id_dupli_a == id_different_dupli_b);
+
+  EXPECT_TRUE(id_dupli_a == id_same_dupli_a);
+  EXPECT_TRUE(id_dupli_a.hash() == id_same_dupli_a.hash());
 }
 
 TEST_F(ObjectIdentifierOrderTest, behavior_as_map_keys)
