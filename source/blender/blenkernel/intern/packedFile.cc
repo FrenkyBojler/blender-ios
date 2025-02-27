@@ -19,6 +19,8 @@
 #include "MEM_guardedalloc.h"
 #include <cstring>
 
+#include "AS_essentials_library.hh"
+
 #include "DNA_ID.h"
 #include "DNA_image_types.h"
 #include "DNA_modifier_types.h"
@@ -798,11 +800,37 @@ void BKE_packedfile_pack_all_libraries(Main *bmain, ReportList *reports)
 {
   Library *lib;
 
+  /* Only allow libraries with relative paths (to avoid issues when unpacking, a limitation that we
+   * might want to lift since the "relativeness" does not really ensure sanity significantly more).
+   */
   for (lib = static_cast<Library *>(bmain->libraries.first); lib;
        lib = static_cast<Library *>(lib->id.next))
   {
+    /* Exception to the above: essential assets have an absolute path and should not prevent to
+     * operator from continuing. */
+    if (BLI_path_contains(blender::asset_system::essentials_directory_path().c_str(),
+                          lib->filepath))
+    {
+      continue;
+    }
+
     if (!BLI_path_is_rel(lib->filepath)) {
-      BKE_reportf(reports, RPT_WARNING, "Cannot pack absolute file: '%s'", lib->filepath);
+      break;
+    }
+  }
+
+  if (lib) {
+    BKE_reportf(reports, RPT_ERROR, "Cannot pack absolute file: '%s'", lib->filepath);
+    return;
+  }
+
+  for (lib = static_cast<Library *>(bmain->libraries.first); lib;
+       lib = static_cast<Library *>(lib->id.next))
+  {
+    /* Do not really pack essential assets though (see above). */
+    if (BLI_path_contains(blender::asset_system::essentials_directory_path().c_str(),
+                          lib->filepath))
+    {
       continue;
     }
     if (lib->packedfile == nullptr) {
