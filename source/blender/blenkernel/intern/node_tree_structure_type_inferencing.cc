@@ -481,8 +481,8 @@ static Array<int> find_group_output_dependencies(
         }
       }
       else if (!origin_state.is_single) {
-        const FieldInferencingInterface &inferencing_interface =
-            *interface_by_node[origin_node.index()];
+        const nodes::StructureTypeInterface &inferencing_interface =
+            interface_by_node[origin_node.index()];
         const OutputFieldDependency &field_dependency =
             inferencing_interface.outputs[origin_socket->index()];
 
