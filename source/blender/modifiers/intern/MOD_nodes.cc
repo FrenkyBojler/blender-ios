@@ -2291,9 +2291,9 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
       PanelLayout panel_layout;
       bool skip_first = false;
       /* Check if the panel should have a toggle in the header. */
-      if (const bNodeTreeInterfaceSocket *toggle_socket =
-              sub_interface_panel.get_header_toggle_socket())
-      {
+      const bNodeTreeInterfaceSocket *toggle_socket =
+          sub_interface_panel.get_header_toggle_socket();
+      if (toggle_socket && !(toggle_socket->flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER)) {
         const StringRefNull identifier = toggle_socket->identifier;
         /* TODO: Handle edge case where this is not valid. */
         char socket_id_esc[MAX_NAME * 2];
