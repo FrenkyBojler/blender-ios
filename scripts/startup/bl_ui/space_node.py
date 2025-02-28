@@ -153,9 +153,7 @@ class NODE_HT_header(Header):
                     row.scale_x = 1.6
                     row.operator("node.new_compositor_node_tree_assign", icon="ADD", text="New")
                 else:
-                    row.scale_x = 1.2
-                    row.enabled = False
-                    row.prop(scene.node_tree, "name", text="")
+                    row.prop(snode_id, "use_nodes")
 
         elif snode.tree_type == 'GeometryNodeTree':
             layout.prop(snode, "geometry_nodes_type", text="")
