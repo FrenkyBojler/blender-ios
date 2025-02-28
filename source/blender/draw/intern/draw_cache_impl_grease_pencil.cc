@@ -1259,7 +1259,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
       verts_slice.first().mat = -1;
 
       /* If the stroke has more than 2 points, add the triangle indices to the index buffer. */
-      if (points.size() >= 3 && is_fill[curve_i]) {
+      if (points.size() >= 3) {
         const Span<int3> tris_slice = triangles.slice(tris_start_offset, points.size() - 2);
         for (const int3 tri : tris_slice) {
           GPU_indexbuf_add_tri_verts(&ibo,
@@ -1269,7 +1269,6 @@ static void grease_pencil_geom_batch_ensure(Object &object,
         }
       }
 
-      // if (is_stroke[curve_i]) {
       /* Write all the point attributes to the vertex buffers. Create a quad for each point. */
       const float u_scale = u_scales[curve_i];
       const float u_translation = u_translations[curve_i];
@@ -1303,7 +1302,6 @@ static void grease_pencil_geom_batch_ensure(Object &object,
                        verts_slice[idx],
                        cols_slice[idx]);
       }
-      // }
 
       /* Last vertex is not drawn. */
       verts_slice.last().mat = -1;
