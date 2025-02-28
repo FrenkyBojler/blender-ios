@@ -20,6 +20,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
+#include "BLI_map.hh"
 #include "BLI_math_vector.h"
 #include "BLI_mempool.h"
 #include "BLI_utildefines.h"
@@ -29,7 +30,6 @@
 #include "bmesh.hh"
 #include "bmesh_log.hh"
 
-#include "BLI_map.hh"
 #include "range_tree.h"
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
