@@ -238,6 +238,34 @@ static PyObject *BPy_GeometrySet_get_instance_references(BPy_GeometrySet *self)
   return py_references;
 }
 
+static PyObject *BPy_GeometrySet_get_name(BPy_GeometrySet *self, void * /*closure*/)
+{
+  return PyUnicode_FromString(self->geometry.name.c_str());
+}
+
+static int BPy_GeometrySet_set_name(BPy_GeometrySet *self, PyObject *value, void * /*closure*/)
+{
+  if (!PyUnicode_Check(value)) {
+    PyErr_SetString(PyExc_TypeError, "expected a string");
+    return -1;
+  }
+  const char *name = PyUnicode_AsUTF8(value);
+  self->geometry.name = name ? name : "";
+  return 0;
+}
+
+static PyGetSetDef BPy_GeometrySet_getseters[] = {
+    {
+        "name",
+        reinterpret_cast<getter>(BPy_GeometrySet_get_name),
+        reinterpret_cast<setter>(BPy_GeometrySet_set_name),
+        "The name of the geometry set.",
+        nullptr,
+    },
+    {nullptr},
+
+};
+
 static PyMethodDef BPy_GeometrySet_methods[] = {
     {"from_evaluated_object",
      reinterpret_cast<PyCFunction>(BPy_GeometrySet_static_from_evaluated_object),
@@ -304,7 +332,7 @@ PyTypeObject bpy_geometry_set_Type = {
     /*tp_iternext*/ nullptr,
     /*tp_methods*/ BPy_GeometrySet_methods,
     /*tp_members*/ nullptr,
-    /*tp_getset*/ nullptr,
+    /*tp_getset*/ BPy_GeometrySet_getseters,
     /*tp_base*/ nullptr,
     /*tp_dict*/ nullptr,
     /*tp_descr_get*/ nullptr,
