@@ -607,6 +607,8 @@ class ASSETBROWSER_PT_display(asset_utils.AssetBrowserPanel, Panel):
         layout.use_property_split = True
         layout.use_property_decorate = False  # No animation.
 
+        layout.prop(params, "display_type")
+
         if params.display_type == 'THUMBNAIL':
             layout.prop(params, "display_size", text="Size")
         else:
