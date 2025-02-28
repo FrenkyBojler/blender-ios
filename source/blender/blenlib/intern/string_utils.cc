@@ -164,9 +164,9 @@ size_t BLI_string_replace_range(
 
 /** \} */
 
-std::string BLI_string_split_name_number(const blender::StringRef name_full,
-                                         const char delim,
-                                         int &r_number)
+blender::StringRef BLI_string_split_name_number(const blender::StringRef name_full,
+                                                const char delim,
+                                                int &r_number)
 {
   const int64_t delim_index = name_full.rfind(delim);
   r_number = 0;
@@ -174,7 +174,7 @@ std::string BLI_string_split_name_number(const blender::StringRef name_full,
     return name_full;
   }
 
-  std::string name_base = name_full.substr(0, delim_index);
+  blender::StringRef name_base = name_full.substr(0, delim_index);
 
   if (delim_index < name_full.size() - 1) {
     const blender::StringRef num_str = name_full.substr(delim_index + 1);

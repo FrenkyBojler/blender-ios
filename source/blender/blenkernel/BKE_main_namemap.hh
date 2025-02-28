@@ -39,7 +39,7 @@ void BKE_main_namemap_destroy(UniqueName_Map **r_name_map) ATTR_NONNULL();
 void BKE_main_namemap_clear(Main &bmain);
 
 /**
- * Check is the given name is already in use in the whole Main data-base (local and all linked
+ * Check if the given name is already in use in the whole Main data-base (local and all linked
  * data).
  *
  * \return true if the name is already in use.

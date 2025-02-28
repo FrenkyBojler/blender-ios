@@ -57,6 +57,10 @@ struct UniqueName_Value {
   /* Only created when required. Used to manage cases where the same numeric value is used by
    * several unique full names ('Foo.1' and 'Foo.001' e.g.).
    *
+   * The key is the suffix numeric value.
+   * The value is the number of how many different full names using that same base name and numeric
+   * suffix value are currently registered.
+   *
    * This code will never generate such cases for local maps, but it needs to support users doing
    * so explicitely.
    *
@@ -67,13 +71,13 @@ struct UniqueName_Value {
   void mark_used(const int number)
   {
     BLI_assert(number >= 0);
-    if (number >= 0 && number <= this->max_exact_tracking) {
+    if (number >= 0 && number <= max_exact_tracking) {
       if (this->mask.size() <= number) {
         this->mask.resize(number + 1);
       }
       if (this->mask[number]) {
         if (!this->numbers_multi_usages.has_value()) {
-          this->numbers_multi_usages = {Map<int, int>{}};
+          this->numbers_multi_usages.emplace(Map<int, int>{});
         }
         int &multi_usages_num = this->numbers_multi_usages->lookup_or_add(number, 1);
         BLI_assert(multi_usages_num >= 1);
@@ -91,7 +95,7 @@ struct UniqueName_Value {
   void mark_unused(const int number)
   {
     BLI_assert(number >= 0);
-    if (number >= 0 && number <= this->max_exact_tracking) {
+    if (number >= 0 && number <= max_exact_tracking) {
       BLI_assert_msg(number < this->mask.size(),
                      "Trying to unregister a number suffix higher than current size of the bit "
                      "vector, should never happen.");
@@ -133,8 +137,8 @@ struct UniqueName_Value {
        * unused. */
       return 1;
     }
-    /* never pick the `0` value (e.g. if 'Foo.001' is used and another 'Foo.001' is requested,
-     * return 'Foo.002' and not 'Foo'. So only search on mask[1:] range. */
+    /* Never pick the `0` value (e.g. if 'Foo.001' is used and another 'Foo.001' is requested,
+     * return 'Foo.002' and not 'Foo'). So only search on mask[1:] range. */
     BitSpan search_mask(this->mask.data(), IndexRange(1, this->mask.size() - 1));
     std::optional<int64_t> result = find_first_0_index(search_mask);
     if (result) {
@@ -194,7 +198,7 @@ struct UniqueName_Map {
       if (this->is_global) {
         /* Global namemap is expected to have several IDs using the same name (from different
          * libraries). */
-        int &count = type_map.full_names.lookup_or_add(BKE_id_name(*id), 0);
+        int &count = type_map.full_names.lookup_or_add_as(blender::StringRef{BKE_id_name(*id)}, 0);
         count++;
         if (count > 1) {
           /* Name is already used at least once, just increase usercount. */
@@ -221,7 +225,7 @@ struct UniqueName_Map {
       const std::string name_base = BLI_string_split_name_number(BKE_id_name(*id), '.', number);
 
       /* Get and update the entry for this base name. */
-      UniqueName_Value &val = type_map.base_name_to_num_suffix.lookup_or_add_default(name_base);
+      UniqueName_Value &val = type_map.base_name_to_num_suffix.lookup_or_add_default_as(name_base);
       val.mark_used(number);
     }
     FOREACH_MAIN_ID_END;
@@ -238,9 +242,10 @@ struct UniqueName_Map {
 
     if (this->is_global) {
       /* By definition adding to global map is always sucessful. */
-      int &count = type_map.full_names.lookup_or_add(name_full, 0);
+      int &count = type_map.full_names.lookup_or_add_as(name_full, 0);
       if (!count) {
-        UniqueName_Value &val = type_map.base_name_to_num_suffix.lookup_or_add(name_base, {});
+        UniqueName_Value &val = type_map.base_name_to_num_suffix.lookup_or_add_default_as(
+            name_base);
         val.mark_used(number);
       }
       count++;
@@ -253,7 +258,7 @@ struct UniqueName_Map {
       return;
     }
 
-    UniqueName_Value &val = type_map.base_name_to_num_suffix.lookup_or_add(name_base, {});
+    UniqueName_Value &val = type_map.base_name_to_num_suffix.lookup_or_add_default_as(name_base);
     val.mark_used(number);
   }
   void add_name(const short id_type, StringRef name_full, StringRef name_base, const int number)
@@ -510,7 +515,7 @@ static bool namemap_get_name(Main &bmain,
     /* Get the name and number parts ("name.number"). */
     int number = 0;
     const std::string name_base = BLI_string_split_name_number(r_name_full, '.', number);
-    UniqueName_Value &val = type_map.base_name_to_num_suffix.lookup_or_add_default(name_base);
+    UniqueName_Value &val = type_map.base_name_to_num_suffix.lookup_or_add_default_as(name_base);
 
     /* If the full original name is unused, and its number suffix is unused, or is above the max
      * managed value, the name can be used directly.
@@ -601,9 +606,9 @@ struct Uniqueness_Key {
   {
     return blender::get_default_hash(name, lib);
   }
-  bool operator==(const Uniqueness_Key &o) const
+  friend bool operator==(const Uniqueness_Key &a, const Uniqueness_Key &b)
   {
-    return lib == o.lib && name == o.name;
+    return a.lib == b.lib && a.name == b.name;
   }
 };
 
