@@ -1258,7 +1258,7 @@ static std::optional<std::string> rna_ImageFormatSettings_path(
     case ID_NT: {
       bNodeTree *ntree = (bNodeTree *)id;
 
-      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+      for (const bNode *node : ntree->all_nodes()) {
         if (node->type_legacy == CMP_NODE_OUTPUT_FILE) {
           if (match(&((NodeImageMultiFile *)node->storage)->format)) {
             char node_name_esc[sizeof(node->name) * 2];
@@ -1304,9 +1304,7 @@ std::optional<std::string> rna_ColorManagedDisplaySettings_path(const PointerRNA
   if (path) {
     return *path + ".display_settings";
   }
-  else {
-    return std::nullopt;
-  }
+  return std::nullopt;
 }
 
 std::optional<std::string> rna_ColorManagedViewSettings_path(const PointerRNA *ptr)
@@ -1317,9 +1315,7 @@ std::optional<std::string> rna_ColorManagedViewSettings_path(const PointerRNA *p
   if (path) {
     return *path + ".view_settings";
   }
-  else {
-    return std::nullopt;
-  }
+  return std::nullopt;
 }
 
 std::optional<std::string> rna_ColorManagedInputColorspaceSettings_path(const PointerRNA *ptr)
@@ -1330,9 +1326,7 @@ std::optional<std::string> rna_ColorManagedInputColorspaceSettings_path(const Po
   if (path) {
     return *path + ".linear_colorspace_settings";
   }
-  else {
-    return std::nullopt;
-  }
+  return std::nullopt;
 }
 
 static int rna_RenderSettings_threads_get(PointerRNA *ptr)
