@@ -114,16 +114,10 @@ NODE_DEFINE(Light)
 
   SOCKET_BOOLEAN(cast_shadow, "Cast Shadow", true);
   SOCKET_BOOLEAN(use_mis, "Use Mis", false);
-  SOCKET_BOOLEAN(use_camera, "Use Camera", true);
-  SOCKET_BOOLEAN(use_diffuse, "Use Diffuse", true);
-  SOCKET_BOOLEAN(use_glossy, "Use Glossy", true);
-  SOCKET_BOOLEAN(use_transmission, "Use Transmission", true);
-  SOCKET_BOOLEAN(use_scatter, "Use Scatter", true);
   SOCKET_BOOLEAN(use_caustics, "Shadow Caustics", false);
 
   SOCKET_INT(max_bounces, "Max Bounces", 1024);
 
-  SOCKET_BOOLEAN(is_shadow_catcher, "Shadow Catcher", true);
   SOCKET_BOOLEAN(is_portal, "Is Portal", false);
   SOCKET_BOOLEAN(is_enabled, "Is Enabled", true);
 
@@ -266,6 +260,33 @@ void LightManager::test_enabled_lights(Scene *scene)
   }
 }
 
+static uint light_object_shader_flags(Object *object)
+{
+  const uint visibility = object->get_visibility();
+  uint shader_flag = 0;
+
+  if (!(visibility & PATH_RAY_CAMERA)) {
+    shader_flag |= SHADER_EXCLUDE_CAMERA;
+  }
+  if (!(visibility & PATH_RAY_DIFFUSE)) {
+    shader_flag |= SHADER_EXCLUDE_DIFFUSE;
+  }
+  if (!(visibility & PATH_RAY_GLOSSY)) {
+    shader_flag |= SHADER_EXCLUDE_GLOSSY;
+  }
+  if (!(visibility & PATH_RAY_TRANSMIT)) {
+    shader_flag |= SHADER_EXCLUDE_TRANSMIT;
+  }
+  if (!(visibility & PATH_RAY_VOLUME_SCATTER)) {
+    shader_flag |= SHADER_EXCLUDE_SCATTER;
+  }
+  if (!(object->get_is_shadow_catcher())) {
+    shader_flag |= SHADER_EXCLUDE_SHADOW_CATCHER;
+  }
+
+  return shader_flag;
+}
+
 void LightManager::device_update_distribution(Device * /*unused*/,
                                               DeviceScene *dscene,
                                               Scene *scene,
@@ -342,26 +363,7 @@ void LightManager::device_update_distribution(Device * /*unused*/,
     Mesh *mesh = static_cast<Mesh *>(object->get_geometry());
     const bool transform_applied = mesh->transform_applied;
     const Transform tfm = object->get_tfm();
-    int shader_flag = 0;
-
-    if (!(object->get_visibility() & PATH_RAY_CAMERA)) {
-      shader_flag |= SHADER_EXCLUDE_CAMERA;
-    }
-    if (!(object->get_visibility() & PATH_RAY_DIFFUSE)) {
-      shader_flag |= SHADER_EXCLUDE_DIFFUSE;
-    }
-    if (!(object->get_visibility() & PATH_RAY_GLOSSY)) {
-      shader_flag |= SHADER_EXCLUDE_GLOSSY;
-    }
-    if (!(object->get_visibility() & PATH_RAY_TRANSMIT)) {
-      shader_flag |= SHADER_EXCLUDE_TRANSMIT;
-    }
-    if (!(object->get_visibility() & PATH_RAY_VOLUME_SCATTER)) {
-      shader_flag |= SHADER_EXCLUDE_SCATTER;
-    }
-    if (!(object->get_is_shadow_catcher())) {
-      shader_flag |= SHADER_EXCLUDE_SHADOW_CATCHER;
-    }
+    const int shader_flag = light_object_shader_flags(object);
 
     const size_t mesh_num_triangles = mesh->num_triangles();
     for (size_t i = 0; i < mesh_num_triangles; i++) {
@@ -534,33 +536,13 @@ static void light_tree_leaf_emitters_copy_and_flatten(LightTreeFlatten &flatten,
 
     if (emitter.is_triangle()) {
       /* Triangle. */
-      int shader_flag = 0;
       Object *object = flatten.scene->objects[emitter.object_id];
       Mesh *mesh = static_cast<Mesh *>(object->get_geometry());
       Shader *shader = static_cast<Shader *>(
           mesh->get_used_shaders()[mesh->get_shader()[emitter.prim_id]]);
 
-      if (!(object->get_visibility() & PATH_RAY_CAMERA)) {
-        shader_flag |= SHADER_EXCLUDE_CAMERA;
-      }
-      if (!(object->get_visibility() & PATH_RAY_DIFFUSE)) {
-        shader_flag |= SHADER_EXCLUDE_DIFFUSE;
-      }
-      if (!(object->get_visibility() & PATH_RAY_GLOSSY)) {
-        shader_flag |= SHADER_EXCLUDE_GLOSSY;
-      }
-      if (!(object->get_visibility() & PATH_RAY_TRANSMIT)) {
-        shader_flag |= SHADER_EXCLUDE_TRANSMIT;
-      }
-      if (!(object->get_visibility() & PATH_RAY_VOLUME_SCATTER)) {
-        shader_flag |= SHADER_EXCLUDE_SCATTER;
-      }
-      if (!(object->get_is_shadow_catcher())) {
-        shader_flag |= SHADER_EXCLUDE_SHADOW_CATCHER;
-      }
-
       kemitter.triangle.id = emitter.prim_id + mesh->prim_offset;
-      kemitter.shader_flag = shader_flag;
+      kemitter.shader_flag = light_object_shader_flags(object);
       kemitter.object_id = emitter.object_id;
       kemitter.triangle.emission_sampling = shader->emission_sampling;
       flatten.triangle_array[emitter.prim_id + flatten.object_lookup_offset[emitter.object_id]] =
@@ -682,7 +664,8 @@ static std::pair<int, LightTreeMeasure> light_tree_specialize_nodes_flatten(
     const uint64_t light_link_mask,
     const int depth,
     vector<KernelLightTreeNode> &knodes,
-    int &next_node_index)
+    int &next_node_index,
+    bool can_share = true)
 {
   assert(!node->is_instance());
 
@@ -698,7 +681,7 @@ static std::pair<int, LightTreeMeasure> light_tree_specialize_nodes_flatten(
     node_index = next_node_index++;
     new_node.make_leaf(-1, 0);
   }
-  else if (node->light_link.shareable && node->light_link.shared_node_index != -1) {
+  else if (can_share && node->light_link.shareable && node->light_link.shared_node_index != -1) {
     /* Share subtree already built for another light link set. */
     return std::make_pair(node->light_link.shared_node_index, node->measure);
   }
@@ -750,8 +733,11 @@ static std::pair<int, LightTreeMeasure> light_tree_specialize_nodes_flatten(
       only_node = left_node;
     }
     if (only_node) {
+      /* Can not share the node as its bit_skip will be modified.
+       * Also don't store shareable_index so other branches of the tree that do not skip any nodes
+       * do not share node created here. */
       const auto [only_index, only_measure] = light_tree_specialize_nodes_flatten(
-          flatten, only_node, light_link_mask, depth + 1, knodes, next_node_index);
+          flatten, only_node, light_link_mask, depth + 1, knodes, next_node_index, false);
 
       assert(only_index != -1);
       knodes[only_index].bit_skip++;
@@ -1227,24 +1213,7 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
       shader_id &= ~SHADER_CAST_SHADOW;
     }
 
-    if (!light->use_camera) {
-      shader_id |= SHADER_EXCLUDE_CAMERA;
-    }
-    if (!light->use_diffuse) {
-      shader_id |= SHADER_EXCLUDE_DIFFUSE;
-    }
-    if (!light->use_glossy) {
-      shader_id |= SHADER_EXCLUDE_GLOSSY;
-    }
-    if (!light->use_transmission) {
-      shader_id |= SHADER_EXCLUDE_TRANSMIT;
-    }
-    if (!light->use_scatter) {
-      shader_id |= SHADER_EXCLUDE_SCATTER;
-    }
-    if (!light->is_shadow_catcher) {
-      shader_id |= SHADER_EXCLUDE_SHADOW_CATCHER;
-    }
+    shader_id |= light_object_shader_flags(object);
 
     klights[light_index].type = light->light_type;
     klights[light_index].strength[0] = light->strength.x;
