@@ -92,11 +92,25 @@ static PyObject *BPy_GeometrySet_repr(BPy_GeometrySet *self)
   return PyUnicode_FromString(str.c_str());
 }
 
+static PyObject *BPy_GeometrySet_mesh_for_read(BPy_GeometrySet *self)
+{
+  const Mesh *mesh = self->geometry.get_mesh();
+  return pyrna_id_CreatePyObject(const_cast<ID *>(reinterpret_cast<const ID *>(mesh)));
+}
+
+static PyObject *BPy_GeometrySet_mesh_for_write(BPy_GeometrySet *self)
+{
+  Mesh *mesh = self->geometry.get_mesh_for_write();
+  return pyrna_id_CreatePyObject(reinterpret_cast<ID *>(mesh));
+}
+
 static PyMethodDef BPy_GeometrySet_methods[] = {
     {"from_evaluated_object",
      reinterpret_cast<PyCFunction>(BPy_GeometrySet_static_from_evaluated_object),
      METH_VARARGS | METH_KEYWORDS | METH_STATIC,
      nullptr},
+    {"mesh_for_read", (PyCFunction)BPy_GeometrySet_mesh_for_read, METH_NOARGS, nullptr},
+    {"mesh_for_write", (PyCFunction)BPy_GeometrySet_mesh_for_write, METH_NOARGS, nullptr},
     {nullptr, nullptr, 0, nullptr},
 };
 
