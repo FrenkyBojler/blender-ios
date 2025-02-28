@@ -27,6 +27,7 @@
 #include "DNA_rigidbody_types.h"
 
 #include "BKE_attribute.hh"
+#include "BKE_bpath.hh"
 #include "BKE_effect.h"
 #include "BKE_fluid.h"
 #include "BKE_global.hh"
