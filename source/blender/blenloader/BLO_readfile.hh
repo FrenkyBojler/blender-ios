@@ -465,10 +465,7 @@ struct TempLibraryContext {
   Main *bmain_lib;
   /** Temporary main used to load data into (currently initialized from `real_main`). */
   Main *bmain_base;
-  BlendHandle *blendhandle;
   BlendFileReadReport bf_reports;
-  LibraryLink_Params liblink_params;
-  Library *lib;
 
   /** The ID datablock that was loaded. Is NULL if loading failed. */
   ID *temp_id;

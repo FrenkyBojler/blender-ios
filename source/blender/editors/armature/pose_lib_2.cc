@@ -369,8 +369,7 @@ static bool poselib_blend_init_data(bContext *C, wmOperator *op, const wmEvent *
     return false;
   }
   if (pbd->act->wrap().slots().size() == 0) {
-    BKE_report(
-        op->reports, RPT_ERROR, "The given pose asset has no slots, so no pose data can be found");
+    BKE_report(op->reports, RPT_ERROR, "This pose asset is empty, and thus has no pose");
     return false;
   }
 
