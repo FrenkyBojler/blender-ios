@@ -414,8 +414,7 @@ struct PaintOperationExecutor {
   void process_start_sample(PaintOperation &self,
                             const bContext &C,
                             const InputSample &start_sample,
-                            const int material_index,
-                            const bool use_fill)
+                            const int material_index)
   {
     const float2 start_coords = start_sample.mouse_position;
     const RegionView3D *rv3d = CTX_wm_region_view3d(&C);
@@ -485,7 +484,7 @@ struct PaintOperationExecutor {
       drawing_->vertex_colors_for_write()[last_active_point] = vertex_color_;
       point_attributes_to_skip.add("vertex_color");
     }
-    if (use_fill || attributes.contains("fill_color")) {
+    if (attributes.contains("fill_color")) {
       drawing_->fill_colors_for_write()[active_curve] = fill_color_;
       curve_attributes_to_skip.add("fill_color");
     }
@@ -521,6 +520,18 @@ struct PaintOperationExecutor {
       curve_attributes_to_skip.add("u_scale");
       u_scale.finish();
     }
+
+    bke::SpanAttributeWriter<bool> use_stroke = attributes.lookup_or_add_for_write_span<bool>(
+        "is_stroke",
+        bke::AttrDomain::Curve,
+        bke::AttributeInitVArray(VArray<bool>::ForSingle(true, curves.curves_num())));
+    bke::SpanAttributeWriter<bool> use_fill = attributes.lookup_or_add_for_write_span<bool>(
+        "is_fill", bke::AttrDomain::Curve);
+    use_stroke.span[active_curve] = (settings_->flag2 & GP_BRUSH_USE_STROKE) != 0;
+    use_fill.span[active_curve] = (settings_->flag2 & GP_BRUSH_USE_FILL) != 0;
+    curve_attributes_to_skip.add_multiple({"is_stroke", "is_fill"});
+    use_stroke.finish();
+    use_fill.finish();
 
     if (settings_->uv_random > 0.0f || attributes.contains("rotation")) {
       if (bke::SpanAttributeWriter<float> rotations =
@@ -1247,7 +1258,7 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
   Material *material = BKE_grease_pencil_object_material_ensure_from_brush(
       CTX_data_main(&C), object, brush);
   const int material_index = BKE_object_material_index_get(object, material);
-  const bool use_fill = (material->gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0;
+  // const bool use_fill = (material->gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0;
 
   /* We're now starting to draw. */
   grease_pencil->runtime->is_drawing_stroke = true;
@@ -1258,7 +1269,7 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
   delta_time_ = 0.0f;
 
   PaintOperationExecutor executor{C};
-  executor.process_start_sample(*this, C, start_sample, material_index, use_fill);
+  executor.process_start_sample(*this, C, start_sample, material_index);
 
   DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(&C, NC_GEOM | ND_DATA, grease_pencil);
