@@ -761,6 +761,11 @@ PathVariables BKE_build_path_variables(const char *blend_file_path,
     }
   }
 
+  /* ID name. */
+  if (id) {
+    variables.strings.add("id_name", blender::StringRef(id->name));
+  }
+
   return variables;
 }
 
