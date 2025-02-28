@@ -1036,7 +1036,7 @@ void ED_fileselect_init_layout(SpaceFile *sfile, ARegion *region)
 {
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
   /* Request a slightly more compact layout for asset browsing. */
-  const bool compact = ED_fileselect_is_asset_browser(sfile);
+  const bool is_asset_browser = ED_fileselect_is_asset_browser(sfile);
   FileLayout *layout = nullptr;
   View2D *v2d = &region->v2d;
   int numfiles;
@@ -1056,7 +1056,8 @@ void ED_fileselect_init_layout(SpaceFile *sfile, ARegion *region)
   layout->textheight = textheight;
 
   if (params->display == FILE_IMGDISPLAY) {
-    const float pad_fac = compact ? 0.15f : 0.3f;
+    /* More compact spacing for asset browser. */
+    const float pad_fac = is_asset_browser ? 0.15f : 0.3f;
     /* Matches UI_preview_tile_size_x()/_y() by default. */
     layout->prv_w = (float(params->thumbnail_size) / 20.0f) * UI_UNIT_X;
     layout->prv_h = (float(params->thumbnail_size) / 20.0f) * UI_UNIT_Y;
@@ -1108,12 +1109,15 @@ void ED_fileselect_init_layout(SpaceFile *sfile, ARegion *region)
     layout->flag = FILE_LAYOUT_VER;
   }
   else if (params->display == FILE_HORIZONTALDISPLAY) {
+    /* Higher rows for asset browser. */
+    const float height_fac = is_asset_browser ? 2 : 1;
+
     /* Matches UI_preview_tile_size_x()/_y() by default. */
     layout->prv_w = (float(params->thumbnail_size) / 20.0f) * UI_UNIT_X;
     layout->prv_h = (float(params->thumbnail_size) / 20.0f) * UI_UNIT_Y;
     layout->tile_border_x = 0.4f * UI_UNIT_X;
     layout->tile_border_y = 0.1f * UI_UNIT_Y;
-    layout->tile_h = textheight * 3 / 2;
+    layout->tile_h = (textheight * 3 / 2) * height_fac;
     layout->attribute_column_header_h = 0;
     layout->offset_top = layout->attribute_column_header_h;
     layout->height = int(BLI_rctf_size_y(&v2d->cur) - 2 * layout->tile_border_y);

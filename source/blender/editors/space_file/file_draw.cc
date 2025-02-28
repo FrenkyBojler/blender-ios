@@ -402,7 +402,8 @@ static uiBut *file_add_icon_but(const SpaceFile *sfile,
   uiBut *but;
 
   const int x = tile_draw_rect->xmin;
-  const int y = tile_draw_rect->ymax - sfile->layout->tile_border_y - height;
+  const int y = tile_draw_rect->ymax - sfile->layout->tile_border_y -
+                round_fl_to_int((sfile->layout->tile_h + height) / 2.0f);
 
   but = uiDefIconBut(
       block, UI_BTYPE_LABEL, 0, icon, x, y, width, height, nullptr, 0.0f, 0.0f, std::nullopt);
@@ -1419,7 +1420,9 @@ void file_draw_list(const bContext *C, ARegion *region)
       const int twidth = (params->display == FILE_IMGDISPLAY) ?
                              column_width :
                              column_width - 1 - icon_ofs - padx - layout->tile_border_x;
-      file_draw_string(txpos, typos, file->name, float(twidth), textheight, align, text_col);
+      const int theight = (params->display == FILE_IMGDISPLAY) ? textheight : layout->tile_h;
+
+      file_draw_string(txpos, typos, file->name, float(twidth), theight, align, text_col);
     }
 
     if (params->display != FILE_IMGDISPLAY) {
