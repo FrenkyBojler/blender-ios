@@ -11,7 +11,6 @@
 #include "BLT_translation.hh"
 
 #include "DNA_grease_pencil_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_scene_types.h"
 
 #include "RNA_define.hh"
@@ -27,10 +26,8 @@
 
 #  include "BKE_attribute.hh"
 #  include "BKE_curves.hh"
-#  include "BKE_deform.hh"
 #  include "BKE_global.hh"
 #  include "BKE_grease_pencil.hh"
-#  include "BKE_grease_pencil_vertex_groups.hh"
 
 #  include "BLI_math_matrix.hh"
 #  include "BLI_span.hh"
@@ -112,39 +109,6 @@ static bool rna_GreasePencilDrawing_curve_offset_data_lookup_int(PointerRNA *ptr
   r_ptr->type = &RNA_IntAttributeValue;
   r_ptr->data = &drawing->geometry.wrap().offsets_for_write()[index];
   return true;
-}
-
-static void rna_GreasePencilDrawing_vertex_group_assign(ID *id,
-                                                        GreasePencilDrawing *drawing_ptr,
-                                                        const char *vgroup_name,
-                                                        const int *indices,
-                                                        int index_num,
-                                                        float weight)
-{
-  using namespace blender;
-  GreasePencil &grease_pencil = *reinterpret_cast<GreasePencil *>(id);
-  bke::greasepencil::Drawing &drawing = drawing_ptr->wrap();
-  const int vgroup_index = BKE_defgroup_name_index(&grease_pencil.vertex_group_names, vgroup_name);
-  if (vgroup_index == -1) {
-    return;
-  }
-
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
-  const int def_nr = bke::greasepencil::ensure_vertex_group(vgroup_name,
-                                                            curves.vertex_group_names);
-  const MutableSpan<MDeformVert> dverts = curves.deform_verts_for_write();
-  const int dverts_size = dverts.size();
-
-  for (int i = 0; i < index_num; i++) {
-    if (indices[i] < dverts_size) {
-      MDeformWeight *dw = BKE_defvert_ensure_index(&dverts[i], def_nr);
-      if (dw) {
-        dw->weight = weight;
-      }
-    }
-  }
-  DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_main_add_notifier(NC_GPENCIL | NA_EDITED, &grease_pencil);
 }
 
 static void rna_GreasePencilLayer_frames_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
@@ -753,21 +717,6 @@ static void rna_def_grease_pencil_drawing(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Curve Offsets", "Offset indices of the first point of each curve");
   RNA_def_property_update(prop, 0, "rna_grease_pencil_update");
-
-  FunctionRNA *func;
-  PropertyRNA *parm;
-
-  func = RNA_def_function(
-      srna, "vertex_group_assign", "rna_GreasePencilDrawing_vertex_group_assign");
-  RNA_def_function_ui_description(func, "Assign points to vertex group");
-  RNA_def_function_flag(func, FUNC_USE_SELF_ID);
-  parm = RNA_def_string(
-      func, "vgroup_name", "Group", MAX_NAME, "vgroupname", "Name of the vertex group");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_int_array(func, "indices", 1, nullptr, 0, 0, "", "List of indices", 0, 0);
-  RNA_def_parameter_flags(parm, PROP_DYNAMIC, PARM_REQUIRED);
-  parm = RNA_def_float(func, "weight", 0, 0.0f, 1.0f, "", "Vertex weight", 0.0f, 1.0f);
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   RNA_api_grease_pencil_drawing(srna);
 
