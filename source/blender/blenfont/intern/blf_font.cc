@@ -1268,7 +1268,9 @@ static void blf_font_wrap_apply(FontBLF *font,
   size_t i = 0;
   int lines = 0;
   ft_pix pen_x_next = 0;
-  bool keep_delim = false;
+
+  /* Size of characters not shown at the end of the wrapped line. */
+  size_t clip_bytes = 0;
 
   ft_pix line_height = blf_font_height_max_ft_pix(font);
 
@@ -1309,7 +1311,7 @@ static void blf_font_wrap_apply(FontBLF *font,
       wrap.last[0] = i + ((codepoint != '\n') ? 1 : 0);
       wrap.last[1] = i;
       do_draw = true;
-      keep_delim = false;
+      clip_bytes = 0;
     }
     else if (UNLIKELY(codepoint == '\n')) {
       /* Mandatory Break after LF. No need for us to consider 000B (Line Tabulation),
@@ -1317,7 +1319,7 @@ static void blf_font_wrap_apply(FontBLF *font,
       wrap.last[0] = i_curr + 1;
       wrap.last[1] = i;
       do_draw = true;
-      keep_delim = false;
+      clip_bytes = 1; /* Currently only LF so always 1. */
     }
     else if (UNLIKELY(!BLI_str_utf32_char_is_breaking_space(codepoint) &&
                       BLI_str_utf32_char_is_breaking_space(previous)))
@@ -1325,13 +1327,13 @@ static void blf_font_wrap_apply(FontBLF *font,
       /* Optional break after space, removing it. */
       wrap.last[0] = i_curr;
       wrap.last[1] = i_curr;
-      keep_delim = false;
+      clip_bytes = BLI_str_utf8_from_unicode_len(previous);
     }
     else if (UNLIKELY(BLI_str_utf32_char_is_optional_break(codepoint, previous))) {
       /* Optional break after various characters, keeping it. */
       wrap.last[0] = i;
       wrap.last[1] = i;
-      keep_delim = true;
+      clip_bytes = 0;
     }
 
     if (UNLIKELY(do_draw)) {
@@ -1343,12 +1345,8 @@ static void blf_font_wrap_apply(FontBLF *font,
              &str[wrap.start]);
 #endif
 
-      callback(font,
-               gc,
-               &str[wrap.start],
-               (wrap.last[0] - wrap.start) - (keep_delim ? 0 : 1),
-               pen_y,
-               userdata);
+      callback(
+          font, gc, &str[wrap.start], (wrap.last[0] - wrap.start) - clip_bytes, pen_y, userdata);
       wrap.start = wrap.last[0];
       i = wrap.last[1];
       pen_x = 0;
