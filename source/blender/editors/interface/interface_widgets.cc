@@ -17,6 +17,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
+#include "BLI_math_vector.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -1565,6 +1566,9 @@ float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
         /* -1 to remove trailing '\0'! */
         final_lpart_len = size_t(l_end + sep_len + r_len - 1);
 
+/* Seems like this was only needed because of an error in #BLF_width_to_rstrlen(), not because of
+ * integer imprecision. See PR #135239. */
+#if 0
         while (BLF_width(fstyle->uifont_id, str, max_len) > okwidth) {
           /* This will happen because a lot of string width processing is done in integer pixels,
            * which can introduce a rather high error in the end (about 2 pixels or so).
@@ -1574,6 +1578,7 @@ float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
           char *c = str + l_end + sep_len;
           memmove(c, c + 1, r_len);
         }
+#endif
       }
     }
 
@@ -2541,7 +2546,10 @@ static void widget_state(uiWidgetType *wt, const uiWidgetStateInfo *state, eUIEm
       UI_GetThemeColor3ubv(TH_REDALERT, wt->wcol.inner);
     }
     else {
-      UI_GetThemeColor3ubv(TH_REDALERT, wt->wcol.text);
+      uchar red[4];
+      UI_GetThemeColor3ubv(TH_REDALERT, red);
+      color_mul_hsl_v3(red, 1.0f, 1.5f, 1.5f);
+      color_blend_v3_v3(wt->wcol.text, red, 0.5f);
     }
   }
 
@@ -4351,7 +4359,10 @@ static void widget_state_label(uiWidgetType *wt,
   }
 
   if (state->but_flag & UI_BUT_REDALERT) {
-    UI_GetThemeColor3ubv(TH_REDALERT, wt->wcol.text);
+    uchar red[4];
+    UI_GetThemeColor3ubv(TH_REDALERT, red);
+    color_mul_hsl_v3(red, 1.0f, 1.5f, 1.5f);
+    color_blend_v3_v3(wt->wcol.text, red, 0.5f);
   }
 }
 

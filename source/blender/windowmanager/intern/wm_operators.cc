@@ -42,6 +42,7 @@
 #include "BLI_dial_2d.h"
 #include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
@@ -3208,7 +3209,10 @@ static void radial_control_cancel(bContext *C, wmOperator *op)
   wmWindowManager *wm = CTX_wm_manager(C);
   ScrArea *area = CTX_wm_area(C);
 
-  MEM_SAFE_FREE(rc->dial);
+  if (rc->dial) {
+    BLI_dial_free(rc->dial);
+    rc->dial = nullptr;
+  }
 
   ED_area_status_text(area, nullptr);
 
@@ -3401,7 +3405,10 @@ static int radial_control_modal(bContext *C, wmOperator *op, const wmEvent *even
       if (event->val == KM_RELEASE) {
         rc->slow_mode = false;
         handled = true;
-        MEM_SAFE_FREE(rc->dial);
+        if (rc->dial) {
+          BLI_dial_free(rc->dial);
+          rc->dial = nullptr;
+        }
       }
       break;
     }
@@ -3441,7 +3448,7 @@ static int radial_control_modal(bContext *C, wmOperator *op, const wmEvent *even
     wmWindowManager *wm = CTX_wm_manager(C);
     if (wm->op_undo_depth == 0) {
       ID *id = rc->ptr.owner_id;
-      if (ED_undo_is_legacy_compatible_for_property(C, id)) {
+      if (ED_undo_is_legacy_compatible_for_property(C, id, rc->ptr)) {
         ED_undo_push(C, op->type->name);
       }
     }

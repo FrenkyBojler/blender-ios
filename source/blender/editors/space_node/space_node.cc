@@ -60,6 +60,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "io_utils.hh"
+
 #include "node_intern.hh" /* own include */
 
 using blender::float2;
@@ -353,7 +355,7 @@ bool push_compute_context_for_tree_path(const SpaceNode &snode,
   for (const int i : tree_path.index_range().drop_back(1)) {
     bNodeTree *tree = tree_path[i]->nodetree;
     const char *group_node_name = tree_path[i + 1]->node_name;
-    const bNode *group_node = blender::bke::node_find_node_by_name(tree, group_node_name);
+    const bNode *group_node = blender::bke::node_find_node_by_name(*tree, group_node_name);
     if (group_node == nullptr) {
       return false;
     }
@@ -857,6 +859,25 @@ static bool node_color_drop_poll(bContext *C, wmDrag *drag, const wmEvent * /*ev
   return (drag->type == WM_DRAG_COLOR) && !UI_but_active_drop_color(C);
 }
 
+static bool node_import_file_drop_poll(bContext * /*C*/, wmDrag *drag, const wmEvent * /*event*/)
+{
+  if (!U.experimental.use_new_file_import_nodes) {
+    return false;
+  }
+  if (drag->type != WM_DRAG_PATH) {
+    return false;
+  }
+  const blender::Span<std::string> paths = WM_drag_get_paths(drag);
+  for (const StringRef path : paths) {
+    if (path.endswith(".csv") || path.endswith(".obj") || path.endswith(".ply") ||
+        path.endswith(".stl"))
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
 static void node_group_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
 {
   ID *id = WM_drag_get_local_ID_or_import_from_asset(C, drag, 0);
@@ -881,6 +902,11 @@ static void node_id_im_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
     RNA_struct_property_unset(drop->ptr, "filepath");
     return;
   }
+}
+
+static void node_import_file_drop_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *drop)
+{
+  io::paths_to_operator_properties(drop->ptr, WM_drag_get_paths(drag));
 }
 
 /* this region dropbox definition */
@@ -926,6 +952,12 @@ static void node_dropboxes()
                  nullptr);
   WM_dropbox_add(
       lb, "NODE_OT_add_color", node_color_drop_poll, UI_drop_color_copy, nullptr, nullptr);
+  WM_dropbox_add(lb,
+                 "NODE_OT_add_import_node",
+                 node_import_file_drop_poll,
+                 node_import_file_drop_copy,
+                 nullptr,
+                 nullptr);
 }
 
 /* ************* end drop *********** */
@@ -961,6 +993,11 @@ static void node_region_listener(const wmRegionListenerParams *params)
         case ND_SPACE_NODE_VIEW:
           WM_gizmomap_tag_refresh(gzmap);
           break;
+      }
+      break;
+    case NC_ANIMATION:
+      if (wmn->data == ND_NLA_ACTCHANGE) {
+        ED_region_tag_redraw(region);
       }
       break;
     case NC_SCREEN:
@@ -1054,7 +1091,7 @@ static int /*eContextResult*/ node_context(const bContext *C,
   }
   if (CTX_data_equals(member, "active_node")) {
     if (snode->edittree) {
-      bNode *node = bke::node_get_active(snode->edittree);
+      bNode *node = bke::node_get_active(*snode->edittree);
       CTX_data_pointer_set(result, &snode->edittree->id, &RNA_Node, node);
     }
 
@@ -1312,17 +1349,6 @@ static int node_space_subtype_get(ScrArea *area)
 static void node_space_subtype_set(ScrArea *area, int value)
 {
   SpaceNode *snode = static_cast<SpaceNode *>(area->spacedata.first);
-  int value_prev = node_space_subtype_get(area);
-
-  /* Save the subtype. */
-  blender::bke::bNodeTreeType *typeinfo = rna_node_tree_type_from_enum(value_prev);
-  if (typeinfo) {
-    STRNCPY(snode->tree_idname_prev, typeinfo->idname.c_str());
-  }
-  else {
-    snode->tree_idname_prev[0] = '\0';
-  }
-
   ED_node_set_tree_type(snode, rna_node_tree_type_from_enum(value));
 }
 
@@ -1334,12 +1360,6 @@ static void node_space_subtype_item_extend(bContext *C, EnumPropertyItem **item,
   if (free) {
     MEM_freeN((void *)item_src);
   }
-}
-
-static int node_space_subtype_prev_get(ScrArea *area)
-{
-  SpaceNode *snode = static_cast<SpaceNode *>(area->spacedata.first);
-  return rna_node_tree_idname_to_enum(snode->tree_idname_prev);
 }
 
 static blender::StringRefNull node_space_name_get(const ScrArea *area)
@@ -1415,7 +1435,6 @@ void ED_spacetype_node()
   st->space_subtype_item_extend = node_space_subtype_item_extend;
   st->space_subtype_get = node_space_subtype_get;
   st->space_subtype_set = node_space_subtype_set;
-  st->space_subtype_prev_get = node_space_subtype_prev_get;
   st->space_name_get = node_space_name_get;
   st->space_icon_get = node_space_icon_get;
   st->blend_read_data = node_space_blend_read_data;

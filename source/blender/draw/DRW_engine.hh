@@ -143,13 +143,6 @@ bool DRW_draw_in_progress();
 bool DRW_render_check_grease_pencil(Depsgraph *depsgraph);
 void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph);
 
-/**
- * This is here because #GPUViewport needs it.
- */
-DRWInstanceDataList *DRW_instance_data_list_create();
-void DRW_instance_data_list_free(DRWInstanceDataList *idatalist);
-void DRW_uniform_attrs_pool_free(GHash *table);
-
 void DRW_render_context_enable(Render *render);
 void DRW_render_context_disable(Render *render);
 
@@ -171,10 +164,8 @@ void DRW_cache_free_old_batches(Main *bmain);
 
 namespace blender::draw {
 
+/* Free garbage collected subdivision data. */
 void DRW_cache_free_old_subdiv();
-
-/* For the OpenGL evaluators and garbage collected subdivision data. */
-void DRW_subdiv_free();
 
 }  // namespace blender::draw
 
