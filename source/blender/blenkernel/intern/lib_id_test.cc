@@ -642,8 +642,9 @@ TEST(lib_id_main_unique_name, name_number_suffix_assignment)
   for (int i = total_object_count / 2; i < total_object_count; ++i) {
     ids[i] = static_cast<ID *>(BKE_id_new(ctx.bmain, ID_OB, "Foo"));
   }
-  /* At this point creating "Foo" based objects will always result in names extended with a random
-   * 3 digits numeric suffix, e.g. "Foo_123.001".
+  /* At this point creating "Foo" based objects will always result in names extended with a 3 or
+   * more digits numeric suffix, e.g. "Foo_001.001".
+   *
    * NOTE: The random 3-digits suffix added to the base name is expected to be stable, as the
    * requested base name remains the same. This is why the added numeric suffixes can be predicted
    * here. */

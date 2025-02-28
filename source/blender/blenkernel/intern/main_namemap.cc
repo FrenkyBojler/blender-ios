@@ -467,12 +467,8 @@ static bool id_name_final_build(UniqueName_TypeMap &type_map,
       return false;
     }
   }
-  /* Else, extend the name with randomly-generated three-digits number, as it's better to add
-   * gibberish at the end of a short name, rather than shorten it further.
-   * NOTE: The pseudo-random extension is designed to make the probability of entering a
-   * 'ping-pong' situation between shortening and extending the name close to impossible (even
-   * though this should already be extremely unlikely, outside of crafted cases), e.g. between
-   * `NiceMesh.999999999` and `NiceMesh_.999999999`. */
+  /* Else, extend the name with an increasing three-or-more-digits number, as it's better to add
+   * gibberish at the end of a short name, rather than shorten it further. */
   uint64_t suffix = 1;
   const StringRef new_base_name = r_name_final;
   r_name_final = fmt::format("{}_{:03}", r_name_final, suffix);
