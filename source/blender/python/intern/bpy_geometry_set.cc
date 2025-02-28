@@ -2,13 +2,15 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "bpy_geometry_set.hh"
+#include <sstream>
+
 #include "BKE_geometry_set.hh"
 #include "BKE_geometry_set_instances.hh"
 #include "BKE_idtype.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_ID.h"
 #include "DNA_object_types.h"
+#include "bpy_geometry_set.hh"
 #include "bpy_rna.hh"
 
 using blender::bke::GeometrySet;
@@ -82,6 +84,14 @@ static BPy_GeometrySet *BPy_GeometrySet_static_from_evaluated_object(PyObject * 
   return self;
 }
 
+static PyObject *BPy_GeometrySet_repr(BPy_GeometrySet *self)
+{
+  std::stringstream ss;
+  ss << self->geometry;
+  std::string str = ss.str();
+  return PyUnicode_FromString(str.c_str());
+}
+
 static PyMethodDef BPy_GeometrySet_methods[] = {
     {"from_evaluated_object",
      reinterpret_cast<PyCFunction>(BPy_GeometrySet_static_from_evaluated_object),
@@ -100,7 +110,7 @@ PyTypeObject bpy_geometry_set_Type = {
     /*tp_getattr*/ nullptr,
     /*tp_setattr*/ nullptr,
     /*tp_as_async*/ nullptr,
-    /*tp_repr*/ nullptr,
+    /*tp_repr*/ reinterpret_cast<reprfunc>(BPy_GeometrySet_repr),
     /*tp_as_number*/ nullptr,
     /*tp_as_sequence*/ nullptr,
     /*tp_as_mapping*/ nullptr,
