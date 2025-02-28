@@ -10,6 +10,8 @@
 
 #include "DNA_light_types.h"
 
+#include "IMB_colormanagement.hh"
+
 #include "BLI_math_rotation.h"
 
 #include "hydra_scene_delegate.hh"
@@ -84,12 +86,16 @@ void LightData::init()
     intensity = light->energy / M_PI;
   }
 
+  pxr::GfVec3f color(light->r, light->g, light->b);
+
   data_[pxr::HdLightTokens->intensity] = intensity;
   data_[pxr::HdLightTokens->exposure] = 0.0f;
-  data_[pxr::HdLightTokens->color] = pxr::GfVec3f(light->r, light->g, light->b);
+  data_[pxr::HdLightTokens->color] = color;
   data_[pxr::HdLightTokens->diffuse] = light->diff_fac;
   data_[pxr::HdLightTokens->specular] = light->spec_fac;
   data_[pxr::HdLightTokens->normalize] = true;
+  data_[pxr::HdLightTokens->enableColorTemperature] = !!light->use_temperature;
+  data_[pxr::HdLightTokens->colorTemperature] = light->temperature;
 
   prim_type_ = prim_type(light);
 

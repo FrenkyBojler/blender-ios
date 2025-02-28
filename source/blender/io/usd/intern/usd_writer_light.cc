@@ -14,6 +14,8 @@
 #include "BLI_assert.h"
 #include "BLI_math_rotation.h"
 
+#include "IMB_colormanagement.hh"
+
 #include "DNA_light_types.h"
 
 namespace blender::io::usd {
@@ -138,16 +140,16 @@ void USDLightWriter::do_write(HierarchyContext &context)
     intensity = light->energy / M_PI;
   }
 
+  pxr::GfVec3f color(light->r, light->g, light->b);
+
   set_attribute(usd_light_api.CreateIntensityAttr(pxr::VtValue(), true),
                 intensity,
                 timecode,
                 usd_value_writer_);
   set_attribute(
       usd_light_api.CreateExposureAttr(pxr::VtValue(), true), 0.0f, timecode, usd_value_writer_);
-  set_attribute(usd_light_api.CreateColorAttr(pxr::VtValue(), true),
-                pxr::GfVec3f(light->r, light->g, light->b),
-                timecode,
-                usd_value_writer_);
+  set_attribute(
+      usd_light_api.CreateColorAttr(pxr::VtValue(), true), color, timecode, usd_value_writer_);
   set_attribute(usd_light_api.CreateDiffuseAttr(pxr::VtValue(), true),
                 light->diff_fac,
                 timecode,
@@ -158,6 +160,14 @@ void USDLightWriter::do_write(HierarchyContext &context)
                 usd_value_writer_);
   set_attribute(
       usd_light_api.CreateNormalizeAttr(pxr::VtValue(), true), true, timecode, usd_value_writer_);
+  set_attribute(usd_light_api.CreateEnableColorTemperatureAttr(pxr::VtValue(), true),
+                !!light->use_temperature,
+                timecode,
+                usd_value_writer_);
+  set_attribute(usd_light_api.CreateColorTemperatureAttr(pxr::VtValue(), true),
+                light->temperature,
+                timecode,
+                usd_value_writer_);
 
   pxr::UsdPrim prim = usd_light_api.GetPrim();
   write_id_properties(prim, light->id, timecode);

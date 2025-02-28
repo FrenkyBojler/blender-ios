@@ -116,6 +116,18 @@ static void rna_def_light(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Color", "Light color");
   RNA_def_property_update(prop, 0, "rna_Light_draw_update");
 
+  prop = RNA_def_property(srna, "temperature", PROP_FLOAT, PROP_TEMPERATURE);
+  RNA_def_property_float_sdna(prop, NULL, "temperature");
+  RNA_def_property_range(prop, 800.0f, 12000.0f);
+  RNA_def_property_ui_text(prop, "Temperature", "Light color temperature in Kelvin");
+  RNA_def_property_update(prop, 0, "rna_Light_update");
+
+  prop = RNA_def_property(srna, "use_temperature", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "use_temperature", 0);
+  RNA_def_property_ui_text(
+      prop, "Use Temperature", "Use blackbody temperature to define the light color");
+  RNA_def_property_update(prop, 0, "rna_Light_update");
+
   prop = RNA_def_property(srna, "specular_factor", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, nullptr, "spec_fac");
   RNA_def_property_range(prop, 0.0f, FLT_MAX);

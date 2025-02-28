@@ -167,8 +167,15 @@ class STORM_HYDRA_LIGHT_PT_light(Panel):
         layout.use_property_decorate = False
 
         main_col = layout.column()
-
         main_col.prop(light, "color")
+
+        headrow = main_col.column(heading="Temperature", align=True)
+        mainrow = headrow.row(align=True)
+        mainrow.prop(light, "use_temperature", text="")
+        mainsub = mainrow.row()
+        mainsub.active = light.use_temperature
+        mainsub.prop(light, "temperature", text="")
+            
         main_col.prop(light, "energy")
         main_col.separator()
 

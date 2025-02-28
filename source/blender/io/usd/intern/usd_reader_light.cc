@@ -9,6 +9,8 @@
 #include "BKE_light.h"
 #include "BKE_object.hh"
 
+#include "IMB_colormanagement.hh"
+
 #include "DNA_light_types.h"
 #include "DNA_object_types.h"
 
@@ -172,6 +174,22 @@ void USDLightReader::read_object_data(Main *bmain, const double motionSampleTime
       blight->r = color[0];
       blight->g = color[1];
       blight->b = color[2];
+
+      bool enableColorTemperature = false;
+      float colorTemperature = 6500.0f;
+
+      if (pxr::UsdAttribute enableColorTemperature_attr =
+              light_api.GetEnableColorTemperatureAttr())
+      {
+        enableColorTemperature_attr.Get(&enableColorTemperature, motionSampleTime);
+      }
+
+      if (pxr::UsdAttribute colorTemperature_attr = light_api.GetColorTemperatureAttr()) {
+        colorTemperature_attr.Get(&colorTemperature, motionSampleTime);
+      }
+
+      blight->temperature = colorTemperature;
+      blight->use_temperature = enableColorTemperature;
     }
   }
 
@@ -199,11 +217,6 @@ void USDLightReader::read_object_data(Main *bmain, const double motionSampleTime
   if (!normalize) {
     blight->energy *= light_surface_area;
   }
-
-  /* TODO:
-   * bool GetEnableColorTemperatureAttr
-   * float GetColorTemperatureAttr
-   */
 
   USDXformReader::read_object_data(bmain, motionSampleTime);
 }

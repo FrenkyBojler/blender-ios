@@ -4,6 +4,8 @@
 
 #include "scene/light.h"
 
+#include "IMB_colormanagement.hh"
+
 #include "blender/sync.h"
 #include "blender/util.h"
 #include "scene/object.h"
@@ -75,7 +77,17 @@ void BlenderSync::sync_light(BL::Depsgraph /*b_depsgraph*/, BObjectInfo &b_ob_in
   }
 
   /* strength */
-  const float3 strength = get_float3(b_light.color()) * BL::PointLight(b_light).energy();
+  float3 light_color = get_float3(b_light.color());
+  if (b_light.use_temperature()) {
+    float rgb[3];
+    IMB_colormanagement_blackbody_temperature_to_rgb(rgb, b_light.temperature());
+
+    light_color.x *= rgb[0];
+    light_color.y *= rgb[1];
+    light_color.z *= rgb[2];
+  }
+
+  const float3 strength = light_color * BL::PointLight(b_light).energy();
   light->set_strength(strength);
 
   /* shadow */

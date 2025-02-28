@@ -14,9 +14,11 @@
 
 #include "eevee_light.hh"
 
+#include "IMB_colormanagement.hh"
+
 #include "BLI_math_rotation.h"
 #include "DNA_defaults.h"
-
+#include "DNA_node_types.h"
 namespace blender::eevee {
 
 /* Convert by putting the least significant bits in the first component. */
@@ -66,7 +68,16 @@ void Light::sync(ShadowModule &shadows,
     shadow_discard_safe(shadows);
   }
 
-  this->color = float3(&la->r) * la->energy;
+  /* Appliquer la température si elle est activée */
+  if (la->use_temperature) {
+    float rgb[3];
+    IMB_colormanagement_blackbody_temperature_to_rgb(rgb, la->temperature);
+    float3 temperature = float3(rgb);
+    this->color = float3(&la->r) * temperature * la->energy;
+  }
+  else {
+    this->color = float3(&la->r) * la->energy;
+  }
 
   float3 scale;
   object_to_world.view<3, 3>() = normalize_and_get_size(object_to_world.view<3, 3>(), scale);

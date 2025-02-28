@@ -90,7 +90,16 @@ class DATA_PT_EEVEE_light(DataButtonsPanel, Panel):
 
         col = layout.column()
         col.prop(light, "color")
+
+        headrow = col.column(heading="Temperature", align=True)
+        row = headrow.row(align=True)
+        row.prop(light, "use_temperature", text="")
+        sub = row.row()
+        sub.active = light.use_temperature
+        sub.prop(light, "temperature", text="")
+
         col.prop(light, "energy")
+        col.separator()
 
         col.separator()
 

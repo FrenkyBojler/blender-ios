@@ -84,6 +84,12 @@ typedef struct Light {
   struct Ipo *ipo DNA_DEPRECATED; /* Old animation system. */
   float energy_deprecated DNA_DEPRECATED;
   float _pad2;
+
+  /* Temperature color. */
+  float temperature; /* Value in Kelvin */
+  short use_temperature;
+  short _pad3; /* Memory alignment */
+
 } Light;
 
 /* **************** LIGHT ********************* */
