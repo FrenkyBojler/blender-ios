@@ -323,7 +323,7 @@ void draw_results(const std::string &label,
   const VArray<float2> output_points = *dst_curves.attributes().lookup<float2>(
       "output_positions_2d", bke::AttrDomain::Point);
 
-  // SVG_add_path(f, type + "-C", output_points, dst_points_by_curve, dst_cyclic, mapping);
+  SVG_add_path(f, type + "-C", output_points, dst_points_by_curve, dst_cyclic, mapping);
 
   f << "</svg>\n";
   f << "<h2>" << label << "</h2>\n";

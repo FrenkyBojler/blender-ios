@@ -755,6 +755,8 @@ bke::CurvesGeometry curve_boolean(const Operation boolean_mode,
   bke::CurvesGeometry dst_curves(dst_points_by_curve.total_size(), dst_points_by_curve.size());
   bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
 
+  dst_curves.offsets_for_write().copy_from(dst_points_by_curve.data());
+
   Array<int> old_by_new_map(dst_points_by_curve.size());
 
   for (const int i : dst_points_by_curve.index_range()) {
