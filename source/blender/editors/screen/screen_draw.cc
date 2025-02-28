@@ -334,7 +334,8 @@ static void screen_draw_area_drag_tip(
   const float height = margin + lheight + line_gap + lheight + margin;
 
   /* Position of this hint relative to the mouse position. */
-  const int left = std::min(x + int(5.0f * UI_SCALE_FAC), win->sizex - int(width));
+  const int left = std::min(x + int(5.0f * UI_SCALE_FAC),
+                            WM_window_native_pixel_x(win) - int(width));
   const int top = std::max(y - int(7.0f * UI_SCALE_FAC), int(height));
 
   rctf rect;
