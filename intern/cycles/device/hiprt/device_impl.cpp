@@ -919,7 +919,7 @@ hiprtScene HIPRTDevice::build_tlas(BVHHIPRT *bvh,
       hiprtTransformHeader current_header = {0};
       current_header.frameCount = 1;
       current_header.frameIndex = transform_matrix.size();
-      if (ob->get_motion().size()) {
+      if (use_motion_blur && ob->get_motion().size()) {
         int motion_size = ob->get_motion().size();
         assert(motion_size != 1);
 
