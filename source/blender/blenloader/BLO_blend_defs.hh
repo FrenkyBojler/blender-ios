@@ -67,7 +67,26 @@ enum {
  * 0: Uses #BHead4 or #SmallBHead8 for block headers depending on a .blend file header byte.
  * 1: Uses #LargeBHead8 for block headers.
  */
+
+/**
+ * The header is 12 bytes long:
+ * 0-6:  "BLENDER"
+ * 7:    '-' for 8 byte pointers (#SmallBHead8) or '_' for 4 byte pointers (#BHead4)
+ * 8:    'v' for little endian or 'V' for big endian
+ * 9-11: 3 digits encoding #BLENDER_FILE_VERSION (e.g. 305 for Blender 3.5)
+ */
 #define BLEND_FILE_VERSION_FORMAT_0 0
+/**
+ * The header is 17 bytes long:
+ * 0-6:   "BLENDER"
+ * 7-8:   size of the header in bytes (always 17 currently)
+ * 9:     always '-'
+ * 10-11: File version format (always '01' currently)
+ * 12:    always 'v'
+ * 13-16: 4 digits encoding #BLENDER_FILE_VERSION (e.g. 405 for Blender 4.5)
+ *
+ * With this header, #LargeBHead8 is always used.
+ */
 #define BLEND_FILE_VERSION_FORMAT_1 1
 
 /**
