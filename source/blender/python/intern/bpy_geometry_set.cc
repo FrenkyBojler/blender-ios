@@ -92,64 +92,83 @@ static PyObject *BPy_GeometrySet_repr(BPy_GeometrySet *self)
   return PyUnicode_FromString(str.c_str());
 }
 
-static PyObject *BPy_GeometrySet_mesh_for_read(BPy_GeometrySet *self)
+static PyObject *BPy_GeometrySet_get_mesh(BPy_GeometrySet *self, PyObject *args, PyObject *kwds)
 {
-  const Mesh *mesh = self->geometry.get_mesh();
-  return pyrna_id_CreatePyObject(const_cast<ID *>(reinterpret_cast<const ID *>(mesh)));
-}
-
-static PyObject *BPy_GeometrySet_mesh_for_write(BPy_GeometrySet *self)
-{
+  static const char *kwlist[] = {"readonly", nullptr};
+  bool readonly = false;
+  if (!PyArg_ParseTupleAndKeywords(args, kwds, "|$p", const_cast<char **>(kwlist), &readonly)) {
+    return nullptr;
+  }
+  if (readonly) {
+    const Mesh *mesh = self->geometry.get_mesh();
+    return pyrna_id_CreatePyObject(const_cast<ID *>(reinterpret_cast<const ID *>(mesh)));
+  }
   Mesh *mesh = self->geometry.get_mesh_for_write();
   return pyrna_id_CreatePyObject(reinterpret_cast<ID *>(mesh));
 }
 
-static PyObject *BPy_GeometrySet_pointcloud_for_read(BPy_GeometrySet *self)
+static PyObject *BPy_GeometrySet_get_curves(BPy_GeometrySet *self, PyObject *args, PyObject *kwds)
 {
-  const PointCloud *pointcloud = self->geometry.get_pointcloud();
-  return pyrna_id_CreatePyObject(const_cast<ID *>(reinterpret_cast<const ID *>(pointcloud)));
-}
-
-static PyObject *BPy_GeometrySet_pointcloud_for_write(BPy_GeometrySet *self)
-{
-  PointCloud *pointcloud = self->geometry.get_pointcloud_for_write();
-  return pyrna_id_CreatePyObject(reinterpret_cast<ID *>(pointcloud));
-}
-
-static PyObject *BPy_GeometrySet_volume_for_read(BPy_GeometrySet *self)
-{
-  const Volume *volume = self->geometry.get_volume();
-  return pyrna_id_CreatePyObject(const_cast<ID *>(reinterpret_cast<const ID *>(volume)));
-}
-
-static PyObject *BPy_GeometrySet_volume_for_write(BPy_GeometrySet *self)
-{
-  Volume *volume = self->geometry.get_volume_for_write();
-  return pyrna_id_CreatePyObject(reinterpret_cast<ID *>(volume));
-}
-
-static PyObject *BPy_GeometrySet_curves_for_read(BPy_GeometrySet *self)
-{
-  const Curves *curves = self->geometry.get_curves();
-  return pyrna_id_CreatePyObject(const_cast<ID *>(reinterpret_cast<const ID *>(curves)));
-}
-
-static PyObject *BPy_GeometrySet_curves_for_write(BPy_GeometrySet *self)
-{
+  static const char *kwlist[] = {"readonly", nullptr};
+  bool readonly = false;
+  if (!PyArg_ParseTupleAndKeywords(args, kwds, "|$p", const_cast<char **>(kwlist), &readonly)) {
+    return nullptr;
+  }
+  if (readonly) {
+    const Curves *curves = self->geometry.get_curves();
+    return pyrna_id_CreatePyObject(const_cast<ID *>(reinterpret_cast<const ID *>(curves)));
+  }
   Curves *curves = self->geometry.get_curves_for_write();
   return pyrna_id_CreatePyObject(reinterpret_cast<ID *>(curves));
 }
 
-static PyObject *BPy_GeometrySet_grease_pencil_for_read(BPy_GeometrySet *self)
+static PyObject *BPy_GeometrySet_get_volume(BPy_GeometrySet *self, PyObject *args, PyObject *kwds)
 {
-  const GreasePencil *grease_pencil = self->geometry.get_grease_pencil();
-  return pyrna_id_CreatePyObject(const_cast<ID *>(reinterpret_cast<const ID *>(grease_pencil)));
+  static const char *kwlist[] = {"readonly", nullptr};
+  bool readonly = false;
+  if (!PyArg_ParseTupleAndKeywords(args, kwds, "|$p", const_cast<char **>(kwlist), &readonly)) {
+    return nullptr;
+  }
+  if (readonly) {
+    const Volume *volume = self->geometry.get_volume();
+    return pyrna_id_CreatePyObject(const_cast<ID *>(reinterpret_cast<const ID *>(volume)));
+  }
+  Volume *volume = self->geometry.get_volume_for_write();
+  return pyrna_id_CreatePyObject(reinterpret_cast<ID *>(volume));
 }
 
-static PyObject *BPy_GeometrySet_grease_pencil_for_write(BPy_GeometrySet *self)
+static PyObject *BPy_GeometrySet_get_grease_pencil(BPy_GeometrySet *self,
+                                                   PyObject *args,
+                                                   PyObject *kwds)
 {
+  static const char *kwlist[] = {"readonly", nullptr};
+  bool readonly = false;
+  if (!PyArg_ParseTupleAndKeywords(args, kwds, "|$p", const_cast<char **>(kwlist), &readonly)) {
+    return nullptr;
+  }
+  if (readonly) {
+    const GreasePencil *grease_pencil = self->geometry.get_grease_pencil();
+    return pyrna_id_CreatePyObject(const_cast<ID *>(reinterpret_cast<const ID *>(grease_pencil)));
+  }
   GreasePencil *grease_pencil = self->geometry.get_grease_pencil_for_write();
   return pyrna_id_CreatePyObject(reinterpret_cast<ID *>(grease_pencil));
+}
+
+static PyObject *BPy_GeometrySet_get_pointcloud(BPy_GeometrySet *self,
+                                                PyObject *args,
+                                                PyObject *kwds)
+{
+  static const char *kwlist[] = {"readonly", nullptr};
+  bool readonly = false;
+  if (!PyArg_ParseTupleAndKeywords(args, kwds, "|$p", const_cast<char **>(kwlist), &readonly)) {
+    return nullptr;
+  }
+  if (readonly) {
+    const PointCloud *pointcloud = self->geometry.get_pointcloud();
+    return pyrna_id_CreatePyObject(const_cast<ID *>(reinterpret_cast<const ID *>(pointcloud)));
+  }
+  PointCloud *pointcloud = self->geometry.get_pointcloud_for_write();
+  return pyrna_id_CreatePyObject(reinterpret_cast<ID *>(pointcloud));
 }
 
 static PyMethodDef BPy_GeometrySet_methods[] = {
@@ -157,27 +176,25 @@ static PyMethodDef BPy_GeometrySet_methods[] = {
      reinterpret_cast<PyCFunction>(BPy_GeometrySet_static_from_evaluated_object),
      METH_VARARGS | METH_KEYWORDS | METH_STATIC,
      nullptr},
-    {"mesh_for_read", (PyCFunction)BPy_GeometrySet_mesh_for_read, METH_NOARGS, nullptr},
-    {"mesh_for_write", (PyCFunction)BPy_GeometrySet_mesh_for_write, METH_NOARGS, nullptr},
-    {"pointcloud_for_read",
-     (PyCFunction)BPy_GeometrySet_pointcloud_for_read,
-     METH_NOARGS,
+    {"get_mesh",
+     reinterpret_cast<PyCFunction>(BPy_GeometrySet_get_mesh),
+     METH_VARARGS | METH_KEYWORDS,
      nullptr},
-    {"pointcloud_for_write",
-     (PyCFunction)BPy_GeometrySet_pointcloud_for_write,
-     METH_NOARGS,
+    {"get_curves",
+     reinterpret_cast<PyCFunction>(BPy_GeometrySet_get_curves),
+     METH_VARARGS | METH_KEYWORDS,
      nullptr},
-    {"volume_for_read", (PyCFunction)BPy_GeometrySet_volume_for_read, METH_NOARGS, nullptr},
-    {"volume_for_write", (PyCFunction)BPy_GeometrySet_volume_for_write, METH_NOARGS, nullptr},
-    {"curves_for_read", (PyCFunction)BPy_GeometrySet_curves_for_read, METH_NOARGS, nullptr},
-    {"curves_for_write", (PyCFunction)BPy_GeometrySet_curves_for_write, METH_NOARGS, nullptr},
-    {"grease_pencil_for_read",
-     (PyCFunction)BPy_GeometrySet_grease_pencil_for_read,
-     METH_NOARGS,
+    {"get_volume",
+     reinterpret_cast<PyCFunction>(BPy_GeometrySet_get_volume),
+     METH_VARARGS | METH_KEYWORDS,
      nullptr},
-    {"grease_pencil_for_write",
-     (PyCFunction)BPy_GeometrySet_grease_pencil_for_write,
-     METH_NOARGS,
+    {"get_grease_pencil",
+     reinterpret_cast<PyCFunction>(BPy_GeometrySet_get_grease_pencil),
+     METH_VARARGS | METH_KEYWORDS,
+     nullptr},
+    {"get_pointcloud",
+     reinterpret_cast<PyCFunction>(BPy_GeometrySet_get_pointcloud),
+     METH_VARARGS | METH_KEYWORDS,
      nullptr},
     {nullptr, nullptr, 0, nullptr},
 };
