@@ -3267,7 +3267,7 @@ static void do_brush_action(const Depsgraph &depsgraph,
       radius_scale = 2.0f;
     }
     node_mask = pbvh_gather_generic(ob, brush, use_original, radius_scale, memory);
-    normal_node_mask = pbvh_gather_generic(ob, brush, use_original, radius_scale * 1.05f, memory);
+    normal_node_mask = pbvh_gather_generic(ob, brush, use_original, radius_scale * 1.03f, memory);
   }
 
   /* Draw Face Sets in draw mode makes a single undo push, in alt-smooth mode deforms the
