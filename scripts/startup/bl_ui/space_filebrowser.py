@@ -611,10 +611,6 @@ class ASSETBROWSER_PT_display(asset_utils.AssetBrowserPanel, Panel):
 
         if params.display_type == 'THUMBNAIL':
             layout.prop(params, "display_size", text="Size")
-        else:
-            col = layout.column(heading="Columns", align=True)
-            col.prop(params, "show_details_size", text="Size")
-            col.prop(params, "show_details_datetime", text="Date")
 
         layout.column().prop(params, "sort_method", text="Sort By", expand=True)
 
