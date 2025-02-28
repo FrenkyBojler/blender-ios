@@ -3946,8 +3946,8 @@ static void *layer_setting_ptr(bAnimListElem *ale,
 static bool layer_channel_color(const bAnimListElem *ale, uint8_t r_color[3])
 {
   using namespace bke::greasepencil;
-  GreasePencilLayerTreeNode &layer = *static_cast<GreasePencilLayerTreeNode *>(ale->data);
-  rgb_float_to_uchar(r_color, layer.color);
+  GreasePencilLayerTreeNode &node = *static_cast<GreasePencilLayerTreeNode *>(ale->data);
+  rgb_float_to_uchar(r_color, node.color);
   return true;
 }
 
@@ -4055,7 +4055,7 @@ static bAnimChannelType ACF_GPLGROUP = {
     /*channel_role*/ ACHANNEL_ROLE_EXPANDER,
 
     /*get_backdrop_color*/ greasepencil::layer_group_color,
-    /*get_channel_color*/ nullptr,
+    /*get_channel_color*/ greasepencil::layer_channel_color,
     /*draw_backdrop*/ acf_group_backdrop,
     /*get_indent_level*/ acf_generic_indentation_0,
     /*get_offset*/ greasepencil::layer_offset,
@@ -4690,12 +4690,12 @@ const bAnimChannelType *ANIM_channel_get_typeinfo(const bAnimListElem *ale)
   /* init the typeinfo if not available yet... */
   ANIM_init_channel_typeinfo_data();
 
-  /* check if type is in bounds... */
-  if ((ale->type >= 0) && (ale->type < ANIMTYPE_NUM_TYPES)) {
-    return animchannelTypeInfo[ale->type];
+  BLI_assert(ale->type < ANIMTYPE_NUM_TYPES);
+  if (ale->type >= ANIMTYPE_NUM_TYPES) {
+    return nullptr;
   }
 
-  return nullptr;
+  return animchannelTypeInfo[ale->type];
 }
 
 /* --------------------------- */

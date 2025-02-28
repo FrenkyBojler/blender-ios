@@ -590,6 +590,12 @@ class NodeTreeMainUpdater {
            * not have a declaration anymore. */
           delete node->runtime->declaration;
           node->runtime->declaration = nullptr;
+          LISTBASE_FOREACH (bNodeSocket *, socket, &node->inputs) {
+            socket->runtime->declaration = nullptr;
+          }
+          LISTBASE_FOREACH (bNodeSocket *, socket, &node->outputs) {
+            socket->runtime->declaration = nullptr;
+          }
         }
         if (ntype.updatefunc) {
           ntype.updatefunc(&ntree, node);
@@ -1088,6 +1094,12 @@ class NodeTreeMainUpdater {
           /* Items are moved, no need to change user count. */
           dst.enum_items = src.enum_items;
           SET_FLAG_FROM_TEST(dst.runtime_flag, src.has_conflict(), NODE_MENU_ITEMS_CONFLICT);
+        }
+        else {
+          /* If the item isn't move make sure it gets released again. */
+          if (src.enum_items) {
+            src.enum_items->remove_user_and_delete_if_last();
+          }
         }
       }
     }
