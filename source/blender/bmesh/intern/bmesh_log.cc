@@ -681,7 +681,8 @@ void BM_log_entry_drop(BMLogEntry *entry)
   }
 
   bm_log_entry_free(entry);
-  BLI_freelinkN(&log->entries, entry);
+  BLI_remlink(&log->entries, entry);
+  MEM_delete(entry);
 }
 
 void BM_log_undo(BMesh *bm, BMLog *log)
