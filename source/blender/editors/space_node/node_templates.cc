@@ -743,85 +743,30 @@ static void node_panel_toggle_button_cb(bContext *C, void *panel_state_argv, voi
 static void ui_node_draw_panel(uiLayout &layout,
                                bNodeTree &ntree,
                                const nodes::PanelDeclaration &panel_decl,
-                               const bke::bNodePanelRuntime &panel_runtime,
                                bNodePanelState &panel_state)
 {
-  uiBlock *block = uiLayoutGetBlock(&layout);
-  uiLayoutOverlap(&layout);
-
-  UI_block_emboss_set(block, UI_EMBOSS_NONE);
-  /* Invisible button covering the entire header for collapsing/expanding. */
-  uiBut *toggle_action_but = uiDefIconBut(block,
-                                          UI_BTYPE_BUT_TOGGLE,
-                                          0,
-                                          ICON_NONE,
-                                          0,
-                                          0,
-                                          UI_UNIT_X,
-                                          UI_UNIT_Y,
-                                          nullptr,
-                                          0.0f,
-                                          0.0f,
-                                          panel_decl.description.c_str());
-  UI_but_func_pushed_state_set(
-      toggle_action_but, [&panel_state](const uiBut &) { return panel_state.is_collapsed(); });
-  UI_but_func_set(toggle_action_but,
-                  node_panel_toggle_button_cb,
-                  const_cast<bNodePanelState *>(&panel_state),
-                  &ntree);
-
   uiLayout *row = uiLayoutRow(&layout, true);
   uiLayoutSetPropDecorate(row, false);
 
-  /* Collapse/expand icon. */
-  uiDefIconBut(block,
-               UI_BTYPE_LABEL,
-               0,
-               panel_state.is_collapsed() ? ICON_RIGHTARROW : ICON_DOWNARROW_HLT,
-               0,
-               0,
-               UI_UNIT_X,
-               UI_UNIT_Y,
-               nullptr,
-               0.0f,
-               0.0f,
-               "");
-
+  /* Panel header with collapse icon */
+  uiBlock *block = uiLayoutGetBlock(row);
+  UI_block_emboss_set(block, UI_EMBOSS_NONE);
+  uiBut *but = uiDefIconTextBut(block,
+                                UI_BTYPE_BUT_TOGGLE,
+                                0,
+                                panel_state.is_collapsed() ? ICON_RIGHTARROW : ICON_DOWNARROW_HLT,
+                                IFACE_(panel_decl.name),
+                                0,
+                                0,
+                                UI_UNIT_X * 4,
+                                UI_UNIT_Y,
+                                nullptr,
+                                0.0,
+                                0.0,
+                                "");
+  UI_but_drawflag_enable(but, UI_BUT_TEXT_LEFT | UI_BUT_NO_TOOLTIP);
+  UI_but_func_set(but, node_panel_toggle_button_cb, &panel_state, &ntree);
   UI_block_emboss_set(block, UI_EMBOSS);
-
-  /* Panel toggle. */
-  bNodeSocket *input_socket = panel_runtime.input_socket;
-  if (input_socket && !input_socket->is_logically_linked()) {
-    PointerRNA socket_ptr = RNA_pointer_create_discrete(&ntree.id, &RNA_NodeSocket, input_socket);
-    uiDefButR(block,
-              UI_BTYPE_CHECKBOX,
-              -1,
-              "",
-              0,
-              0,
-              UI_UNIT_X,
-              NODE_DY,
-              &socket_ptr,
-              "default_value",
-              0,
-              0,
-              0,
-              "");
-  }
-
-  /* Panel label. */
-  uiDefBut(block,
-           UI_BTYPE_LABEL,
-           0,
-           IFACE_(panel_decl.name),
-           0,
-           0,
-           UI_UNIT_X,
-           NODE_DY,
-           nullptr,
-           0,
-           0,
-           "");
 }
 
 static void ui_node_draw_recursive(uiLayout &layout,
@@ -832,14 +777,11 @@ static void ui_node_draw_recursive(uiLayout &layout,
                                    const int depth)
 {
   bNodePanelState &panel_state = node.panel_states_array[panel_decl.index];
-  const bke::bNodePanelRuntime &panel_runtime = node.runtime->panels[panel_decl.index];
-  ui_node_draw_panel(layout, ntree, panel_decl, panel_runtime, panel_state);
-  const bool skip_first = panel_decl.panel_input_decl() != nullptr;
+  ui_node_draw_panel(layout, ntree, panel_decl, panel_state);
   if (panel_state.is_collapsed()) {
     return;
   }
-  for (const nodes::ItemDeclaration *item_decl : panel_decl.items.as_span().drop_front(skip_first))
-  {
+  for (const nodes::ItemDeclaration *item_decl : panel_decl.items) {
     if (const auto *socket_decl = dynamic_cast<const nodes::SocketDeclaration *>(item_decl)) {
       if (socket_decl->in_out == SOCK_IN) {
         ui_node_draw_input(layout,
