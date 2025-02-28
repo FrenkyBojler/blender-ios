@@ -7,8 +7,8 @@
  */
 
 #include "DNA_curves_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_scene_types.h"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
@@ -28,10 +28,10 @@ const EnumPropertyItem rna_enum_tree_node_move_type_items[] = {
 #  include "BKE_attribute.hh"
 #  include "BKE_context.hh"
 #  include "BKE_curves.hh"
-#  include "BKE_grease_pencil.hh"
-#  include "BKE_report.hh"
-#  include "BKE_grease_pencil_vertex_groups.hh"
 #  include "BKE_deform.hh"
+#  include "BKE_grease_pencil.hh"
+#  include "BKE_grease_pencil_vertex_groups.hh"
+#  include "BKE_report.hh"
 
 #  include "DEG_depsgraph.hh"
 
@@ -161,37 +161,37 @@ static void rna_GreasePencilDrawing_tag_positions_changed(GreasePencilDrawing *d
 }
 
 static void rna_GreasePencilDrawing_vertex_group_assign(ID *id,
-  GreasePencilDrawing *drawing_ptr,
-  const char *vgroup_name,
-  const int *indices_ptr,
-  int indices_num,
-  float weight)
+                                                        GreasePencilDrawing *drawing_ptr,
+                                                        const char *vgroup_name,
+                                                        const int *indices_ptr,
+                                                        int indices_num,
+                                                        float weight)
 {
-using namespace blender;
-GreasePencil &grease_pencil = *reinterpret_cast<GreasePencil *>(id);
-bke::greasepencil::Drawing &drawing = drawing_ptr->wrap();
-const int vgroup_index = BKE_defgroup_name_index(&grease_pencil.vertex_group_names, vgroup_name);
-if (vgroup_index == -1) {
-return;
-}
+  using namespace blender;
+  GreasePencil &grease_pencil = *reinterpret_cast<GreasePencil *>(id);
+  bke::greasepencil::Drawing &drawing = drawing_ptr->wrap();
+  const int vgroup_index = BKE_defgroup_name_index(&grease_pencil.vertex_group_names, vgroup_name);
+  if (vgroup_index == -1) {
+    return;
+  }
 
-bke::CurvesGeometry &curves = drawing.strokes_for_write();
-const int def_nr = bke::greasepencil::ensure_vertex_group(vgroup_name,
-      curves.vertex_group_names);
-const MutableSpan<MDeformVert> dverts = curves.deform_verts_for_write();
-const int dverts_size = dverts.size();
-const Span<int> indices(indices_ptr, indices_num);
+  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  const int def_nr = bke::greasepencil::ensure_vertex_group(vgroup_name,
+                                                            curves.vertex_group_names);
+  const MutableSpan<MDeformVert> dverts = curves.deform_verts_for_write();
+  const int dverts_size = dverts.size();
+  const Span<int> indices(indices_ptr, indices_num);
 
-for (int i : indices) {
-if (indices[i] < dverts_size) {
-MDeformWeight *dw = BKE_defvert_ensure_index(&dverts[i], def_nr);
-if (dw) {
-dw->weight = weight;
-}
-}
-}
-DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-WM_main_add_notifier(NC_GPENCIL | NA_EDITED, &grease_pencil);
+  for (int i : indices) {
+    if (indices[i] < dverts_size) {
+      MDeformWeight *dw = BKE_defvert_ensure_index(&dverts[i], def_nr);
+      if (dw) {
+        dw->weight = weight;
+      }
+    }
+  }
+  DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
+  WM_main_add_notifier(NC_GPENCIL | NA_EDITED, &grease_pencil);
 }
 
 static GreasePencilFrame *rna_Frames_frame_new(ID *id,
@@ -615,7 +615,6 @@ void RNA_api_grease_pencil_drawing(StructRNA *srna)
       srna, "tag_positions_changed", "rna_GreasePencilDrawing_tag_positions_changed");
   RNA_def_function_ui_description(
       func, "Indicate that the positions of points in the drawing have changed");
-
 
   func = RNA_def_function(
       srna, "vertex_group_assign", "rna_GreasePencilDrawing_vertex_group_assign");
