@@ -452,38 +452,6 @@ static void calculate_offsets_from_segments(const Span<Segment> segments,
   offsets.last() = offset;
 }
 
-static void calculate_positions(const Span<float2> points,
-                                const BooleanResult &result,
-                                MutableSpan<float2> dst_pos)
-{
-  const OffsetIndices<int> segments_by_polygon = OffsetIndices<int>(result.segment_offsets);
-  int i = 0;
-
-  for (const int curve_i : segments_by_polygon.index_range()) {
-    const IndexRange segment_range = segments_by_polygon[curve_i];
-    for (const int seg_i : segment_range) {
-      const Segment &segment = result.segments[seg_i];
-
-      if (segment.has_start_intersection()) {
-        dst_pos[i++] = math::interpolate(
-            points[segment.start_edge().x], points[segment.start_edge().y], segment.start_alpha());
-      }
-
-      segment.foreach_point(
-          [&](const int index, const int pos) { dst_pos[pos + i] = points[index]; });
-
-      i += segment.points_num();
-
-      if (seg_i == segment_range.last() && segment.has_end_intersection() &&
-          !result.cyclic[curve_i])
-      {
-        dst_pos[i++] = math::interpolate(
-            points[segment.end_edge().x], points[segment.end_edge().y], segment.end_alpha());
-      }
-    }
-  }
-}
-
 static BooleanResult execute_boolean(const Operation boolean_mode,
                                      const Span<float2> points,
                                      const OffsetIndices<int> points_by_curve,
