@@ -3,24 +3,39 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "bpy_geometry_set.hh"
-
 #include "BKE_geometry_set.hh"
+#include "BKE_geometry_set_instances.hh"
+#include "BKE_idtype.hh"
+#include "DEG_depsgraph_query.hh"
+#include "DNA_ID.h"
+#include "DNA_object_types.h"
+#include "bpy_rna.hh"
 
 using blender::bke::GeometrySet;
+
+extern PyTypeObject bpy_geometry_set_Type;
 
 struct BPy_GeometrySet {
   PyObject_HEAD
   GeometrySet geometry;
 };
 
-static PyObject *BPy_GeometrySet_new(PyTypeObject *type, PyObject * /*args*/, PyObject * /*kwds*/)
+static BPy_GeometrySet *new_empty_BPy_GeometrySet()
 {
-  BPy_GeometrySet *self = reinterpret_cast<BPy_GeometrySet *>(type->tp_alloc(type, 0));
+  BPy_GeometrySet *self = reinterpret_cast<BPy_GeometrySet *>(
+      bpy_geometry_set_Type.tp_alloc(&bpy_geometry_set_Type, 0));
   if (self == nullptr) {
     return nullptr;
   }
   new (&self->geometry) GeometrySet();
-  return reinterpret_cast<PyObject *>(self);
+  return self;
+}
+
+static BPy_GeometrySet *BPy_GeometrySet_new(PyTypeObject * /*type*/,
+                                            PyObject * /*args*/,
+                                            PyObject * /*kwds*/)
+{
+  return new_empty_BPy_GeometrySet();
 }
 
 static void BPy_GeometrySet_dealloc(BPy_GeometrySet *self)
@@ -29,7 +44,49 @@ static void BPy_GeometrySet_dealloc(BPy_GeometrySet *self)
   Py_TYPE(self)->tp_free(reinterpret_cast<PyObject *>(self));
 }
 
+static BPy_GeometrySet *BPy_GeometrySet_static_from_evaluated_object(PyObject * /*self*/,
+                                                                     PyObject *args,
+                                                                     PyObject *kwds)
+{
+  static const char *kwlist[] = {"evaluated_object", nullptr};
+  PyObject *py_evaluated_object;
+  if (!PyArg_ParseTupleAndKeywords(
+          args, kwds, "O", const_cast<char **>(kwlist), &py_evaluated_object))
+  {
+    return nullptr;
+  }
+  ID *evaluated_object_id = nullptr;
+  if (!pyrna_id_FromPyObject(py_evaluated_object, &evaluated_object_id)) {
+    PyErr_Format(
+        PyExc_TypeError, "Expected an Object, not %.200s", Py_TYPE(py_evaluated_object)->tp_name);
+    return nullptr;
+  }
+  if (GS(evaluated_object_id->name) != ID_OB) {
+    PyErr_Format(PyExc_TypeError,
+                 "Expected an Object, not %.200s",
+                 BKE_idtype_idcode_to_name(GS(evaluated_object_id->name)));
+    return nullptr;
+  }
+  Object *evaluated_object = reinterpret_cast<Object *>(evaluated_object_id);
+  if (!DEG_is_evaluated_object(evaluated_object)) {
+    PyErr_SetString(PyExc_TypeError, "Expected an evaluated object");
+    return nullptr;
+  }
+  if (!DEG_object_geometry_is_evaluated(*evaluated_object)) {
+    PyErr_SetString(PyExc_TypeError,
+                    "Object geometry is not yet evaluated, is the depsgraph evaluated?");
+    return nullptr;
+  }
+  BPy_GeometrySet *self = new_empty_BPy_GeometrySet();
+  self->geometry = blender::bke::object_get_evaluated_geometry_set(*evaluated_object);
+  return self;
+}
+
 static PyMethodDef BPy_GeometrySet_methods[] = {
+    {"from_evaluated_object",
+     reinterpret_cast<PyCFunction>(BPy_GeometrySet_static_from_evaluated_object),
+     METH_VARARGS | METH_KEYWORDS | METH_STATIC,
+     nullptr},
     {nullptr, nullptr, 0, nullptr},
 };
 
@@ -71,7 +128,7 @@ PyTypeObject bpy_geometry_set_Type = {
     /*tp_dictoffset*/ 0,
     /*tp_init*/ nullptr,
     /*tp_alloc*/ nullptr,
-    /*tp_new*/ BPy_GeometrySet_new,
+    /*tp_new*/ reinterpret_cast<newfunc>(BPy_GeometrySet_new),
 };
 
 static PyModuleDef _bpy_geometry_set_module_def = {
