@@ -13,7 +13,7 @@ struct BPy_GeometrySet {
   GeometrySet geometry;
 };
 
-static PyObject *BPy_GeometrySet_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+static PyObject *BPy_GeometrySet_new(PyTypeObject *type, PyObject * /*args*/, PyObject * /*kwds*/)
 {
   BPy_GeometrySet *self = reinterpret_cast<BPy_GeometrySet *>(type->tp_alloc(type, 0));
   if (self == nullptr) {
