@@ -597,8 +597,8 @@ hiprtGeometryBuildInput HIPRTDevice::prepare_curve_blas(BVHHIPRT *bvh, Hair *hai
               bvh->custom_prim_info[num_bounds].x = j;
               bvh->custom_prim_info[num_bounds].y = packed_type;  // k
               bvh->custom_primitive_bound[num_bounds] = bounds;
-              bvh->prims_time[num_bounds].x = prev_time;  // curr_time;
-              bvh->prims_time[num_bounds].y = curr_time;  // prev_time;
+              bvh->prims_time[num_bounds].x = prev_time;
+              bvh->prims_time[num_bounds].y = curr_time;
               num_bounds++;
             }
             prev_bounds = curr_bounds;
