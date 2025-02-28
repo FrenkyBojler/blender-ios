@@ -29,6 +29,7 @@
 #include "GHOST_C-api.h"
 
 #include "BLI_ghash.h"
+#include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -2919,12 +2920,14 @@ static eHandlerActionFlag wm_handler_fileselect_do(bContext *C,
         }
 
         /* XXX check this carefully, `CTX_wm_manager(C) == wm` is a bit hackish. */
-        if (CTX_wm_manager(C) == wm && wm->op_undo_depth == 0) {
-          if (handler->op->type->flag & OPTYPE_UNDO) {
-            ED_undo_push_op(C, handler->op);
-          }
-          else if (handler->op->type->flag & OPTYPE_UNDO_GROUPED) {
-            ED_undo_grouped_push_op(C, handler->op);
+        if (retval & OPERATOR_FINISHED) {
+          if (CTX_wm_manager(C) == wm && wm->op_undo_depth == 0) {
+            if (handler->op->type->flag & OPTYPE_UNDO) {
+              ED_undo_push_op(C, handler->op);
+            }
+            else if (handler->op->type->flag & OPTYPE_UNDO_GROUPED) {
+              ED_undo_grouped_push_op(C, handler->op);
+            }
           }
         }
 
@@ -6595,6 +6598,10 @@ void WM_window_cursor_keymap_status_refresh(bContext *C, wmWindow *win)
         name = TIP_("Options");
       }
       else if (ot) {
+        /* Skip internal operators. */
+        if (ot->flag & OPTYPE_INTERNAL) {
+          continue;
+        }
         name = WM_operatortype_name(ot, kmi->ptr);
       }
       else {

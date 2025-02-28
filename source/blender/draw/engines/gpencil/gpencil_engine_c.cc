@@ -47,7 +47,7 @@
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
 
-#include "draw_manager_profiling.hh"
+#include "GPU_debug.hh"
 
 /* *********** FUNCTIONS *********** */
 
@@ -241,7 +241,7 @@ void GPENCIL_cache_init(void *ved)
 
   if (inst->do_fast_drawing) {
     inst->snapshot_buffer_dirty = !inst->snapshot_depth_tx.is_valid();
-    const float *size = DRW_viewport_size_get();
+    const float2 size = DRW_viewport_size_get();
 
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_ATTACHMENT;
     inst->snapshot_depth_tx.ensure_2d(GPU_DEPTH24_STENCIL8, int2(size), usage);
@@ -282,7 +282,7 @@ void GPENCIL_cache_init(void *ved)
 
   /* Pseudo DOF setup. */
   if (cam && (cam->dof.flag & CAM_DOF_ENABLED)) {
-    const float *vp_size = DRW_viewport_size_get();
+    const float2 vp_size = DRW_viewport_size_get();
     float fstop = cam->dof.aperture_fstop;
     float sensor = BKE_camera_sensor_size(cam->sensor_fit, cam->sensor_x, cam->sensor_y);
     float focus_dist = BKE_camera_object_dof_distance(inst->camera);
@@ -645,8 +645,7 @@ void GPENCIL_Instance::acquire_resources()
     return;
   }
 
-  const float *size_f = DRW_viewport_size_get();
-  const int2 size(size_f[0], size_f[1]);
+  const int2 size = int2(DRW_viewport_size_get());
 
   eGPUTextureFormat format = this->use_signed_fb ? GPU_RGBA16F : GPU_R11F_G11F_B10F;
 
@@ -722,7 +721,7 @@ static void gpencil_draw_mask(GPENCIL_Data *vedata,
    * the masks already rendered in the buffer, and drawing only the layers not already drawn. */
   bool cleared = false;
 
-  DRW_stats_group_start("GPencil Mask");
+  GPU_debug_group_begin("GPencil Mask");
 
   GPU_framebuffer_bind(inst->mask_fb);
 
@@ -757,7 +756,7 @@ static void gpencil_draw_mask(GPENCIL_Data *vedata,
     manager->submit(inst->mask_invert_ps);
   }
 
-  DRW_stats_group_end();
+  GPU_debug_group_end();
 }
 
 static void GPENCIL_draw_object(GPENCIL_Data *vedata,
@@ -769,7 +768,7 @@ static void GPENCIL_draw_object(GPENCIL_Data *vedata,
 
   const float clear_cols[2][4] = {{0.0f, 0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f, 1.0f}};
 
-  DRW_stats_group_start("GPencil Object");
+  GPU_debug_group_begin("GPencil Object");
 
   GPUFrameBuffer *fb_object = (ob->vfx.first) ? inst->object_fb : inst->gpencil_fb;
 
@@ -814,7 +813,7 @@ static void GPENCIL_draw_object(GPENCIL_Data *vedata,
     manager->submit(inst->merge_depth_ps, view);
   }
 
-  DRW_stats_group_end();
+  GPU_debug_group_end();
 }
 
 static void GPENCIL_fast_draw_start(GPENCIL_Data *vedata)

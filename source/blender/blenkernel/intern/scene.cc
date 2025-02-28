@@ -36,11 +36,13 @@
 #include "DNA_sound_types.h"
 #include "DNA_space_types.h"
 #include "DNA_text_types.h"
+#include "DNA_userdef_types.h"
 #include "DNA_vfont_types.h"
 #include "DNA_view3d_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_world_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
@@ -1449,11 +1451,6 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
       }
     }
     else {
-      /* must nullify the reference to physics sim object, since it no-longer exist
-       * (and will need to be recalculated)
-       */
-      rbw->shared->physics_world = nullptr;
-
       /* link caches */
       BKE_ptcache_blend_read_data(reader, &rbw->shared->ptcaches, &rbw->shared->pointcache, false);
 
@@ -1462,6 +1459,8 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
         rbw->ltime = float(rbw->shared->pointcache->startframe);
       }
     }
+
+    BKE_rigidbody_world_init_runtime(rbw);
     rbw->objects = nullptr;
     rbw->numbodies = 0;
 

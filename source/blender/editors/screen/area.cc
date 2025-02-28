@@ -15,6 +15,7 @@
 #include "DNA_userdef_types.h"
 
 #include "BLI_linklist.h"
+#include "BLI_listbase.h"
 #include "BLI_rand.hh"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
@@ -879,12 +880,14 @@ WorkspaceStatus::WorkspaceStatus(bContext *C)
 /** \name Private helper functions to help ensure consistent spacing
  * \{ */
 
-static constexpr float STATUS_AFTER_TEXT = 0.7f;
-static constexpr float STATUS_MOUSE_ICON_PAD = -0.5f;
+static constexpr float STATUS_BEFORE_TEXT = 0.17f;
+static constexpr float STATUS_AFTER_TEXT = 0.90f;
+static constexpr float STATUS_MOUSE_ICON_PAD = -0.68f;
 
 static void ed_workspace_status_text_item(WorkSpace *workspace, std::string text)
 {
   if (!text.empty()) {
+    ed_workspace_status_space(workspace, STATUS_BEFORE_TEXT);
     ed_workspace_status_item(workspace, std::move(text), ICON_NONE);
     ed_workspace_status_space(workspace, STATUS_AFTER_TEXT);
   }
@@ -1261,12 +1264,10 @@ static void region_azones_scrollbars_init(ScrArea *area, ARegion *region)
 {
   const View2D *v2d = &region->v2d;
 
-  if ((v2d->scroll & V2D_SCROLL_VERTICAL) && ((v2d->scroll & V2D_SCROLL_VERTICAL_HANDLES) == 0)) {
+  if (v2d->scroll & V2D_SCROLL_VERTICAL) {
     region_azone_scrollbar_init(area, region, AZ_SCROLL_VERT);
   }
-  if ((v2d->scroll & V2D_SCROLL_HORIZONTAL) &&
-      ((v2d->scroll & V2D_SCROLL_HORIZONTAL_HANDLES) == 0))
-  {
+  if (v2d->scroll & V2D_SCROLL_HORIZONTAL) {
     region_azone_scrollbar_init(area, region, AZ_SCROLL_HOR);
   }
 }
@@ -2601,6 +2602,9 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
   wmWindow *win = CTX_wm_window(C);
   SpaceType *st = BKE_spacetype_from_id(type);
 
+  /* Are we reusing a space already stored in this area? */
+  bool is_restored_space = false;
+
   if (area->spacetype != type) {
     SpaceLink *slold = static_cast<SpaceLink *>(area->spacedata.first);
     /* store area->type->exit callback */
@@ -2664,6 +2668,7 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
 
     if (sl) {
       /* swap regions */
+      is_restored_space = true;
       slold->regionbase = area->regionbase;
       area->regionbase = sl->regionbase;
       BLI_listbase_clear(&sl->regionbase);
@@ -2709,11 +2714,10 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
     ED_area_tag_refresh(area);
   }
 
-  /* Set area space subtype if applicable. */
-  if (st->space_subtype_item_extend != nullptr) {
+  /* Set area space subtype if applicable and newly created. */
+  if (!is_restored_space && st && st->space_subtype_item_extend != nullptr) {
     st->space_subtype_set(area, area->butspacetype_subtype);
   }
-  area->butspacetype_subtype = 0;
 
   if (BLI_listbase_is_single(&CTX_wm_screen(C)->areabase)) {
     /* If there is only one area update the window title. */

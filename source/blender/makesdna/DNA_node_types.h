@@ -1028,7 +1028,7 @@ typedef enum GeometryNodeAssetTraitFlag {
   GEO_NODE_ASSET_SCULPT = (1 << 2),
   GEO_NODE_ASSET_MESH = (1 << 3),
   GEO_NODE_ASSET_CURVE = (1 << 4),
-  GEO_NODE_ASSET_POINT_CLOUD = (1 << 5),
+  GEO_NODE_ASSET_POINTCLOUD = (1 << 5),
   GEO_NODE_ASSET_MODIFIER = (1 << 6),
   GEO_NODE_ASSET_OBJECT = (1 << 7),
   GEO_NODE_ASSET_WAIT_FOR_CURSOR = (1 << 8),
@@ -1833,6 +1833,11 @@ typedef struct NodeGeometryCurvePrimitiveQuad {
 typedef struct NodeGeometryCurveResample {
   /** #GeometryNodeCurveResampleMode. */
   uint8_t mode;
+  /**
+   * If false, curves may be collapsed to a single point. This is unexpected and is only supported
+   * for compatibility reasons (#102598).
+   */
+  uint8_t keep_last_segment;
 } NodeGeometryCurveResample;
 
 typedef struct NodeGeometryCurveFillet {
