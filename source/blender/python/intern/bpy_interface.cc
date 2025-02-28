@@ -30,6 +30,7 @@
 
 #include "bpy.hh"
 #include "bpy_capi_utils.hh"
+#include "bpy_geometry_set.hh"
 #include "bpy_intern_string.hh"
 #include "bpy_path.hh"
 #include "bpy_props.hh"
@@ -277,6 +278,7 @@ static _inittab bpy_internal_modules[] = {
     {"bl_math", BPyInit_bl_math},
     {"imbuf", BPyInit_imbuf},
     {"bmesh", BPyInit_bmesh},
+    {"_bpy_geometry_set", BPyInit_geometry_set},
 #if 0
     {"bmesh.types", BPyInit_bmesh_types},
     {"bmesh.utils", BPyInit_bmesh_utils},
