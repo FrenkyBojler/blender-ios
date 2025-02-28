@@ -361,7 +361,7 @@ static void bm_log_assign_ids(BMesh *bm, BMLog *log)
 /* Allocate an empty log entry */
 static BMLogEntry *bm_log_entry_create()
 {
-  BMLogEntry *entry = static_cast<BMLogEntry *>(MEM_callocN(sizeof(BMLogEntry), __func__));
+  BMLogEntry *entry = MEM_new<BMLogEntry>(__func__);
 
   entry->pool_verts = BLI_mempool_create(sizeof(BMLogVert), 0, 64, BLI_MEMPOOL_NOP);
   entry->pool_faces = BLI_mempool_create(sizeof(BMLogFace), 0, 64, BLI_MEMPOOL_NOP);
@@ -413,7 +413,7 @@ static GHash *bm_log_compress_ids_to_indices(uint *ids, uint totid)
 
 BMLog *BM_log_create(BMesh *bm)
 {
-  BMLog *log = static_cast<BMLog *>(MEM_callocN(sizeof(*log), __func__));
+  BMLog *log = MEM_new<BMLog>(__func__);
   const uint reserve_num = uint(bm->totvert + bm->totface);
 
   log->unused_ids = range_tree_uint_alloc(0, uint(-1));
@@ -749,9 +749,9 @@ void BM_log_vert_before_modified(BMLog *log, BMVert *v, const int cd_vert_mask_o
   if (entry->added_verts.contains(v_id)) {
     bm_log_vert_bmvert_copy(entry->added_verts.lookup(v_id), v, cd_vert_mask_offset);
   }
-  else {
+  else if (!entry->modified_verts.contains(v_id)){
     lv = bm_log_vert_alloc(log, v, cd_vert_mask_offset);
-    entry->added_verts.add(v_id, lv);
+    entry->modified_verts.add(v_id, lv);
   }
 }
 
