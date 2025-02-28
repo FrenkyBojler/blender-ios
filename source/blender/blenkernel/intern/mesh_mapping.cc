@@ -499,8 +499,8 @@ static void face_edge_loop_islands_calc_bitflags_exclude_at_border(
 
 /* ABOUT #use_border_vertices_for_bitflags:
  *
- * Also exclude bits used in other groups sharing the same border vertex, i.e. if both edges
- * around the vertex of the current corner are border edges.
+ * Also exclude bits used in other groups sharing the same border vertex, i.e. if one edge
+ * around the vertex of the current corner is a border edge.
  *
  * NOTE: The reason for this requirement is not very clear. Bitflags groups are only handled here
  * for I/O purposes, Blender itself does not have this feature. Main external apps heavily
@@ -603,11 +603,6 @@ static void face_edge_loop_islands_calc(const int totedge,
       face = face_stack[ps_curr_idx++];
       BLI_assert(face_groups[face] == face_group_id);
 
-      /* Only used in case #consider_border_vertices_for_group_bitflags is true. */
-      int edge_prev = -1;
-      bool edge_prev_is_border = false;
-      bool edge_first_is_border = false;
-
       for (const int64_t loop : faces[face]) {
         const int edge = corner_edges[loop];
         /* loop over face users */
@@ -624,7 +619,6 @@ static void face_edge_loop_islands_calc(const int totedge,
               face_stack[ps_end_idx++] = *p;
             }
           }
-          edge_prev_is_border = false;
         }
         else {
           if (edge_borders && !BLI_BITMAP_TEST(edge_borders, edge)) {
@@ -638,8 +632,19 @@ static void face_edge_loop_islands_calc(const int totedge,
                                                                    face_group_id,
                                                                    face_group_id_overflowed,
                                                                    bit_face_group_mask);
-            if (use_border_vertices_for_bitflags && edge_prev_is_border) {
+            if (use_border_vertices_for_bitflags) {
               /* Exclude bits used in other groups sharing the same border vertex. */
+              /* NOTE: Checking one vertex for each edge (the corner vertex) should be enough:
+               *   - Thanks to winding, a fully border vertex (i.e. a vertex for which at least two
+               *     of the adjacent edges in the same group are border ones) will be processed by
+               *     at least one of the edges/corners. If not when processing the first face's
+               *     corner, then when processing the other face's corner in the same group.
+               *   - Isolated border edges (i.e. border edges only connected to faces of the same
+               *     group) cannot be represented by bitflags groups, at least not with current
+               *     algorithm (they cannot define more than one group).
+               *   - Inverions of winding (aka flipped faces) always generate border edges in
+               *     current use-case (smooth groups), i.e. two faces with opposed winding cannot
+               *     belong to the same group. */
               const int vert = corner_verts[loop];
               face_edge_loop_islands_calc_bitflags_exclude_at_border(face_groups,
                                                                      vert_face_map[vert],
@@ -648,23 +653,6 @@ static void face_edge_loop_islands_calc(const int totedge,
                                                                      bit_face_group_mask);
             }
           }
-          if (edge_prev < 0) {
-            edge_first_is_border = true;
-          }
-          edge_prev_is_border = true;
-        }
-        edge_prev = edge;
-      }
-      /* Finalize 'border vertex' neighbour faces check with the first corner. */
-      if (use_bitflags && use_border_vertices_for_bitflags) {
-        if (edge_first_is_border && edge_prev_is_border) {
-          const int loop = int(faces[face][0]);
-          const int vert = corner_verts[loop];
-          face_edge_loop_islands_calc_bitflags_exclude_at_border(face_groups,
-                                                                 vert_face_map[vert],
-                                                                 face_group_id,
-                                                                 face_group_id_overflowed,
-                                                                 bit_face_group_mask);
         }
       }
     }
