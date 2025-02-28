@@ -7,8 +7,10 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_geometry_set_instances.hh"
 #include "BKE_idtype.hh"
+#include "BKE_instances.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_ID.h"
+#include "DNA_collection_types.h"
 #include "DNA_object_types.h"
 #include "bpy_geometry_set.hh"
 #include "bpy_rna.hh"
@@ -22,14 +24,14 @@ struct BPy_GeometrySet {
   GeometrySet geometry;
 };
 
-static BPy_GeometrySet *new_empty_BPy_GeometrySet()
+static BPy_GeometrySet *new_empty_BPy_GeometrySet(GeometrySet geometry = {})
 {
   BPy_GeometrySet *self = reinterpret_cast<BPy_GeometrySet *>(
       bpy_geometry_set_Type.tp_alloc(&bpy_geometry_set_Type, 0));
   if (self == nullptr) {
     return nullptr;
   }
-  new (&self->geometry) GeometrySet();
+  new (&self->geometry) GeometrySet(std::move(geometry));
   return self;
 }
 
@@ -171,6 +173,42 @@ static PyObject *BPy_GeometrySet_get_pointcloud(BPy_GeometrySet *self,
   return pyrna_id_CreatePyObject(reinterpret_cast<ID *>(pointcloud));
 }
 
+static PyObject *BPy_GeometrySet_instance_references(BPy_GeometrySet *self)
+{
+  using namespace blender;
+  const bke::Instances *instances = self->geometry.get_instances();
+  if (!instances) {
+    return PyList_New(0);
+  }
+  const Span<bke::InstanceReference> references = instances->references();
+  PyObject *py_references = PyList_New(references.size());
+  for (const int i : references.index_range()) {
+    const bke::InstanceReference &reference = references[i];
+    switch (reference.type()) {
+      case bke::InstanceReference::Type::None: {
+        PyList_SET_ITEM(py_references, i, Py_NewRef(Py_None));
+        break;
+      }
+      case bke::InstanceReference::Type::Object: {
+        Object &object = reference.object();
+        PyList_SET_ITEM(py_references, i, pyrna_id_CreatePyObject(&object.id));
+        break;
+      }
+      case bke::InstanceReference::Type::Collection: {
+        Collection &collection = reference.collection();
+        PyList_SET_ITEM(py_references, i, pyrna_id_CreatePyObject(&collection.id));
+        break;
+      }
+      case bke::InstanceReference::Type::GeometrySet: {
+        const bke::GeometrySet &geometry_set = reference.geometry_set();
+        PyList_SET_ITEM(py_references, i, new_empty_BPy_GeometrySet(geometry_set));
+        break;
+      }
+    }
+  }
+  return py_references;
+}
+
 static PyMethodDef BPy_GeometrySet_methods[] = {
     {"from_evaluated_object",
      reinterpret_cast<PyCFunction>(BPy_GeometrySet_static_from_evaluated_object),
@@ -195,6 +233,10 @@ static PyMethodDef BPy_GeometrySet_methods[] = {
     {"get_pointcloud",
      reinterpret_cast<PyCFunction>(BPy_GeometrySet_get_pointcloud),
      METH_VARARGS | METH_KEYWORDS,
+     nullptr},
+    {"instance_references",
+     reinterpret_cast<PyCFunction>(BPy_GeometrySet_instance_references),
+     METH_NOARGS,
      nullptr},
     {nullptr, nullptr, 0, nullptr},
 };
