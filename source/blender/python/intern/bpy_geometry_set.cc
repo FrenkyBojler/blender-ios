@@ -89,8 +89,8 @@ static BPy_GeometrySet *BPy_GeometrySet_static_from_evaluated_object(PyObject * 
                     "Object geometry is not yet evaluated, is the depsgraph evaluated?");
     return nullptr;
   }
-  BPy_GeometrySet *self = python_object_from_geometry_set();
-  self->geometry = blender::bke::object_get_evaluated_geometry_set(*evaluated_object);
+  GeometrySet geometry = blender::bke::object_get_evaluated_geometry_set(*evaluated_object);
+  BPy_GeometrySet *self = python_object_from_geometry_set(std::move(geometry));
   return self;
 }
 
