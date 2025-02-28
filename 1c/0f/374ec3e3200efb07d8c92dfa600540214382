@@ -14,3 +14,4 @@ Referenced by issue #119250, Regression: Python: World matrix for newly created 
 Referenced by issue #118694, Incorrect asset scaling values loaded from Asset Brower
 Referenced by issue #118549, Fix #118524: Loopcut crashes when not near an edge
 Referenced by issue #118524, Loop cut    Ctrl+r ---> crash
+Referenced by commit f92898721659a6464a58697007f0ac15df8de986, Fix #130890: Toggle the offset option after snap fails
