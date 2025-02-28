@@ -8,10 +8,13 @@
 #include "BKE_geometry_set_instances.hh"
 #include "BKE_idtype.hh"
 #include "BKE_instances.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_pointcloud.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_ID.h"
 #include "DNA_collection_types.h"
 #include "DNA_object_types.h"
+#include "DNA_pointcloud_types.h"
 #include "bpy_geometry_set.hh"
 #include "bpy_rna.hh"
 
@@ -22,9 +25,10 @@ extern PyTypeObject bpy_geometry_set_Type;
 struct BPy_GeometrySet {
   PyObject_HEAD
   GeometrySet geometry;
+  PointCloud *instances_pointcloud;
 };
 
-static BPy_GeometrySet *new_empty_BPy_GeometrySet(GeometrySet geometry = {})
+static BPy_GeometrySet *python_object_from_geometry_set(GeometrySet geometry = {})
 {
   BPy_GeometrySet *self = reinterpret_cast<BPy_GeometrySet *>(
       bpy_geometry_set_Type.tp_alloc(&bpy_geometry_set_Type, 0));
@@ -32,6 +36,7 @@ static BPy_GeometrySet *new_empty_BPy_GeometrySet(GeometrySet geometry = {})
     return nullptr;
   }
   new (&self->geometry) GeometrySet(std::move(geometry));
+  self->instances_pointcloud = nullptr;
   return self;
 }
 
@@ -39,12 +44,15 @@ static BPy_GeometrySet *BPy_GeometrySet_new(PyTypeObject * /*type*/,
                                             PyObject * /*args*/,
                                             PyObject * /*kwds*/)
 {
-  return new_empty_BPy_GeometrySet();
+  return python_object_from_geometry_set();
 }
 
 static void BPy_GeometrySet_dealloc(BPy_GeometrySet *self)
 {
   std::destroy_at(&self->geometry);
+  if (self->instances_pointcloud) {
+    BKE_id_free(nullptr, self->instances_pointcloud);
+  }
   Py_TYPE(self)->tp_free(reinterpret_cast<PyObject *>(self));
 }
 
@@ -81,7 +89,7 @@ static BPy_GeometrySet *BPy_GeometrySet_static_from_evaluated_object(PyObject * 
                     "Object geometry is not yet evaluated, is the depsgraph evaluated?");
     return nullptr;
   }
-  BPy_GeometrySet *self = new_empty_BPy_GeometrySet();
+  BPy_GeometrySet *self = python_object_from_geometry_set();
   self->geometry = blender::bke::object_get_evaluated_geometry_set(*evaluated_object);
   return self;
 }
@@ -173,6 +181,27 @@ static PyObject *BPy_GeometrySet_get_pointcloud(BPy_GeometrySet *self,
   return pyrna_id_CreatePyObject(reinterpret_cast<ID *>(pointcloud));
 }
 
+static PyObject *BPy_GeometrySet_get_instances_pointcloud(BPy_GeometrySet *self)
+{
+  using namespace blender;
+  const bke::Instances *instances = self->geometry.get_instances();
+  if (!instances) {
+    Py_RETURN_NONE;
+  }
+  if (self->instances_pointcloud == nullptr) {
+    const int instances_num = instances->instances_num();
+    PointCloud *pointcloud = BKE_pointcloud_new_nomain(instances_num);
+    bke::gather_attributes(instances->attributes(),
+                           bke::AttrDomain::Instance,
+                           bke::AttrDomain::Point,
+                           {},
+                           IndexMask(instances_num),
+                           pointcloud->attributes_for_write());
+    self->instances_pointcloud = pointcloud;
+  }
+  return pyrna_id_CreatePyObject(&self->instances_pointcloud->id);
+}
+
 static PyObject *BPy_GeometrySet_instance_references(BPy_GeometrySet *self)
 {
   using namespace blender;
@@ -201,7 +230,7 @@ static PyObject *BPy_GeometrySet_instance_references(BPy_GeometrySet *self)
       }
       case bke::InstanceReference::Type::GeometrySet: {
         const bke::GeometrySet &geometry_set = reference.geometry_set();
-        PyList_SET_ITEM(py_references, i, new_empty_BPy_GeometrySet(geometry_set));
+        PyList_SET_ITEM(py_references, i, python_object_from_geometry_set(geometry_set));
         break;
       }
     }
@@ -233,6 +262,10 @@ static PyMethodDef BPy_GeometrySet_methods[] = {
     {"get_pointcloud",
      reinterpret_cast<PyCFunction>(BPy_GeometrySet_get_pointcloud),
      METH_VARARGS | METH_KEYWORDS,
+     nullptr},
+    {"get_instances_pointcloud",
+     reinterpret_cast<PyCFunction>(BPy_GeometrySet_get_instances_pointcloud),
+     METH_NOARGS,
      nullptr},
     {"instance_references",
      reinterpret_cast<PyCFunction>(BPy_GeometrySet_instance_references),
