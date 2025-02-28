@@ -202,7 +202,9 @@ static void lib_id_batch_edit_previews(bContext *C, blender::FunctionRef<void(ID
 
 /**
  * Helper for batch editing previews. Check if at least one of the selected or active IDs supports
- * previews, setting a disabled hint if not.
+ * previews, setting a disabled hint if not. Note that only one disabled hint can be set, this
+ * simply uses the first one set while polling individual IDs. That's more useful than a generic
+ * message still.
  *
  * \param additional_condition: When set, IDs need to additionally pass this check (return true) to
  * be considered as supporting this operation.
