@@ -479,9 +479,6 @@ hiprtGeometryBuildInput HIPRTDevice::prepare_curve_blas(BVHHIPRT *bvh, Hair *hai
   const size_t num_curves = hair->num_curves();
   const size_t num_segments = hair->num_segments();
   const Attribute *curve_attr_mP = nullptr;
-  if (hair->has_motion_blur()) {
-    curve_attr_mP = hair->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
-  }
 
   if (use_motion_blur && hair->has_motion_blur()) {
     curve_attr_mP = hair->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
