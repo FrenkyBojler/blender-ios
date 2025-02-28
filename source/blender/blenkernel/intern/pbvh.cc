@@ -534,15 +534,20 @@ Tree::~Tree()
   pixels_free(this);
 }
 
-void Tree::tag_positions_changed(const IndexMask &node_mask)
+void Tree::tag_positions_changed(const IndexMask &node_mask, const IndexMask &normal_node_mask)
 {
   bounds_dirty_.resize(std::max(bounds_dirty_.size(), node_mask.min_array_size()), false);
-  normals_dirty_.resize(std::max(normals_dirty_.size(), node_mask.min_array_size()), false);
+  normals_dirty_.resize(std::max(normals_dirty_.size(), normal_node_mask.min_array_size()), false);
   node_mask.set_bits(bounds_dirty_);
-  node_mask.set_bits(normals_dirty_);
+  normal_node_mask.set_bits(normals_dirty_);
   if (this->draw_data) {
     this->draw_data->tag_positions_changed(node_mask);
   }
+}
+
+void Tree::tag_positions_changed(const IndexMask &node_mask)
+{
+  tag_positions_changed(node_mask, node_mask);
 }
 
 void Tree::tag_visibility_changed(const IndexMask &node_mask)

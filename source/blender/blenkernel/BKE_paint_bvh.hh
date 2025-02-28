@@ -281,6 +281,7 @@ class Tree {
    * and GPU data buffers. That data is recomputed later on in functions like #update_bounds.
    * \warning Must not be called from multiple threads in parallel.
    */
+  void tag_positions_changed(const IndexMask &node_mask, const IndexMask &normal_node_mask);
   void tag_positions_changed(const IndexMask &node_mask);
 
   /** Tag nodes where face or vertex visibility has changed.  */

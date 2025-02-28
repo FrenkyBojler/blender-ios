@@ -60,7 +60,8 @@ void do_draw_face_sets_brush(const Depsgraph &depsgraph,
 void do_draw_brush(const Depsgraph &depsgraph,
                    const Sculpt &sd,
                    Object &object,
-                   const IndexMask &node_mask);
+                   const IndexMask &node_mask,
+                   const IndexMask &normal_node_mask);
 /** A simple normal-direction displacement based on image texture RGB/XYZ values. */
 void do_draw_vector_displacement_brush(const Depsgraph &depsgraph,
                                        const Sculpt &sd,
@@ -99,7 +100,8 @@ void do_grab_brush(const Depsgraph &depsgraph,
 void do_gravity_brush(const Depsgraph &depsgraph,
                       const Sculpt &sd,
                       Object &ob,
-                      const IndexMask &node_mask);
+                      const IndexMask &node_mask,
+                      const IndexMask &normal_node_mask);
 void do_inflate_brush(const Depsgraph &depsgraph,
                       const Sculpt &sd,
                       Object &ob,
@@ -124,7 +126,8 @@ void do_pinch_brush(const Depsgraph &depsgraph,
 void do_nudge_brush(const Depsgraph &depsgraph,
                     const Sculpt &sd,
                     Object &object,
-                    const IndexMask &node_mask);
+                    const IndexMask &node_mask,
+                    const IndexMask &normal_node_mask);
 void do_relax_face_sets_brush(const Depsgraph &depsgraph,
                               const Sculpt &sd,
                               Object &object,

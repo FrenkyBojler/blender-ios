@@ -121,7 +121,8 @@ static void offset_positions(const Depsgraph &depsgraph,
                              const Sculpt &sd,
                              Object &object,
                              const float3 &offset,
-                             const IndexMask &node_mask)
+                             const IndexMask &node_mask,
+                             const IndexMask &normal_node_mask)
 {
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
@@ -171,14 +172,15 @@ static void offset_positions(const Depsgraph &depsgraph,
       break;
     }
   }
-  pbvh.tag_positions_changed(node_mask);
+  pbvh.tag_positions_changed(node_mask, normal_node_mask);
   pbvh.flush_bounds_to_parents();
 }
 
 void do_draw_brush(const Depsgraph &depsgraph,
                    const Sculpt &sd,
                    Object &object,
-                   const IndexMask &node_mask)
+                   const IndexMask &node_mask,
+                   const IndexMask &normal_node_mask)
 {
   const SculptSession &ss = *object.sculpt;
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
@@ -189,13 +191,14 @@ void do_draw_brush(const Depsgraph &depsgraph,
   const float3 offset = effective_normal * ss.cache->radius * ss.cache->scale *
                         ss.cache->bstrength;
 
-  offset_positions(depsgraph, sd, object, offset, node_mask);
+  offset_positions(depsgraph, sd, object, offset, node_mask, normal_node_mask);
 }
 
 void do_nudge_brush(const Depsgraph &depsgraph,
                     const Sculpt &sd,
                     Object &object,
-                    const IndexMask &node_mask)
+                    const IndexMask &node_mask,
+                    const IndexMask &normal_node_mask)
 {
   const SculptSession &ss = *object.sculpt;
 
@@ -203,20 +206,22 @@ void do_nudge_brush(const Depsgraph &depsgraph,
       math::cross(ss.cache->sculpt_normal_symm, ss.cache->grab_delta_symm),
       ss.cache->sculpt_normal_symm);
 
-  offset_positions(depsgraph, sd, object, offset * ss.cache->bstrength, node_mask);
+  offset_positions(
+      depsgraph, sd, object, offset * ss.cache->bstrength, node_mask, normal_node_mask);
 }
 
 void do_gravity_brush(const Depsgraph &depsgraph,
                       const Sculpt &sd,
                       Object &object,
-                      const IndexMask &node_mask)
+                      const IndexMask &node_mask,
+                      const IndexMask &normal_node_mask)
 {
   const SculptSession &ss = *object.sculpt;
 
   const float3 offset = ss.cache->gravity_direction_symm * -ss.cache->radius_squared *
                         ss.cache->scale * sd.gravity_factor;
 
-  offset_positions(depsgraph, sd, object, offset, node_mask);
+  offset_positions(depsgraph, sd, object, offset, node_mask, normal_node_mask);
 }
 
 }  // namespace blender::ed::sculpt_paint

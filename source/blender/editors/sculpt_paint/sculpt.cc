@@ -3221,6 +3221,7 @@ static void do_brush_action(const Depsgraph &depsgraph,
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   IndexMaskMemory memory;
   IndexMask node_mask, texnode_mask;
+  IndexMask normal_node_mask;
 
   const bool use_original = brush_type_needs_original(brush.sculpt_brush_type) ? true :
                                                                                  !ss.cache->accum;
@@ -3266,6 +3267,7 @@ static void do_brush_action(const Depsgraph &depsgraph,
       radius_scale = 2.0f;
     }
     node_mask = pbvh_gather_generic(ob, brush, use_original, radius_scale, memory);
+    normal_node_mask = pbvh_gather_generic(ob, brush, use_original, radius_scale * 1.05f, memory);
   }
 
   /* Draw Face Sets in draw mode makes a single undo push, in alt-smooth mode deforms the
@@ -3359,7 +3361,7 @@ static void do_brush_action(const Depsgraph &depsgraph,
         do_draw_vector_displacement_brush(depsgraph, sd, ob, node_mask);
       }
       else {
-        do_draw_brush(depsgraph, sd, ob, node_mask);
+        do_draw_brush(depsgraph, sd, ob, node_mask, normal_node_mask);
       }
       break;
     }
@@ -3404,7 +3406,7 @@ static void do_brush_action(const Depsgraph &depsgraph,
       do_snake_hook_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_NUDGE:
-      do_nudge_brush(depsgraph, sd, ob, node_mask);
+      do_nudge_brush(depsgraph, sd, ob, node_mask, normal_node_mask);
       break;
     case SCULPT_BRUSH_TYPE_THUMB:
       do_thumb_brush(depsgraph, sd, ob, node_mask);
@@ -3524,7 +3526,7 @@ static void do_brush_action(const Depsgraph &depsgraph,
                                           SCULPT_BRUSH_TYPE_DRAW_FACE_SETS,
                                           SCULPT_BRUSH_TYPE_BOUNDARY))
   {
-    do_gravity_brush(depsgraph, sd, ob, node_mask);
+    do_gravity_brush(depsgraph, sd, ob, node_mask, normal_node_mask);
   }
 
   if (brush.deform_target == BRUSH_DEFORM_TARGET_CLOTH_SIM) {
