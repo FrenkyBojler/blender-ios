@@ -658,6 +658,9 @@ class _draw_tool_settings_context_mode:
                 brush_basic__draw_color_selector,
             )
             brush_basic__draw_color_selector(context, layout, brush, brush.gpencil_settings)
+            
+            row = layout.row(align=True)
+            row.prop(brush.gpencil_settings, "stroke_mode", expand=True, icon_only=True)
 
         if grease_pencil_tool == 'TINT':
             row.separator(factor=0.4)
