@@ -130,11 +130,11 @@ static void rna_GreasePencilDrawing_vertex_group_assign(ID *id,
   }
 
   bke::CurvesGeometry &curves = drawing.strokes_for_write();
-  ListBase &vertex_group_names = curves.vertex_group_names;
   const int def_nr = bke::greasepencil::ensure_vertex_group(vgroup_name,
                                                             curves.vertex_group_names);
   const MutableSpan<MDeformVert> dverts = curves.deform_verts_for_write();
   const int dverts_size = dverts.size();
+
   for (int i = 0; i < index_num; i++) {
     if (indices[i] < dverts_size) {
       MDeformWeight *dw = BKE_defvert_ensure_index(&dverts[i], def_nr);
