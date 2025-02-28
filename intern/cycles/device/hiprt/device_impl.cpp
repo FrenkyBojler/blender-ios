@@ -269,6 +269,12 @@ bool HIPRTDevice::load_kernels(const uint kernel_features)
     return false;
   }
 
+  /* Keep track of whether motion blur is enabled, so to enable/disable motion in BVH builds
+   * This is necessary since objects may be reported to have motion if the Vector pass is
+   * active, but may still need to be rendered without motion blur if that isn't active as well.
+   */
+  use_motion_blur |= kernel_features & KERNEL_FEATURE_OBJECT_MOTION;
+
   /* get kernel */
   const char *kernel_name = "kernel";
   string fatbin = compile_kernel(kernel_features, kernel_name);
