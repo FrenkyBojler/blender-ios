@@ -77,7 +77,7 @@ struct UniqueName_Value {
       }
       if (this->mask[number]) {
         if (!this->numbers_multi_usages.has_value()) {
-          this->numbers_multi_usages.emplace(Map<int, int>{});
+          this->numbers_multi_usages.emplace();
         }
         int &multi_usages_num = this->numbers_multi_usages->lookup_or_add(number, 1);
         BLI_assert(multi_usages_num >= 1);
