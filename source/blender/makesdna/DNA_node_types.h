@@ -1183,11 +1183,6 @@ typedef struct NodeAntiAliasingData {
   float corner_rounding;
 } NodeAntiAliasingData;
 
-typedef struct NodeImageInfoData {
-  char source;
-  char _pad[3];
-} NodeImageInfoData;
-
 /** \note Only for do-version code. */
 typedef struct NodeHueSat {
   float hue, sat, val;
@@ -2836,13 +2831,6 @@ typedef enum CMPNodeInterpolation {
   CMP_NODE_INTERPOLATION_BILINEAR = 1,
   CMP_NODE_INTERPOLATION_BICUBIC = 2,
 } CMPNodeInterpolation;
-
-/* Image info node. Stored in NodeImageInfoData.source. */
-typedef enum CMPNodeImageInfoSource {
-  CMP_NODE_IMAGE_INFO_SOURCE_IMAGE = 0,
-  CMP_NODE_IMAGE_INFO_SOURCE_RENDER = 1,
-  CMP_NODE_IMAGE_INFO_SOURCE_SIZE = 2,
-} CMPNodeImageInfoSource;
 
 /* Stabilize 2D node. Stored in custom2. */
 typedef enum CMPNodeStabilizeInverse {

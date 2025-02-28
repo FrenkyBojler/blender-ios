@@ -15,22 +15,10 @@
 
 namespace blender::nodes::node_composite_image_info_cc {
 
-NODE_STORAGE_FUNCS(NodeImageInfoData)
-
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Image").compositor_domain_priority(0).compositor_realization_mode(
       CompositorInputRealizationMode::None);
-  b.add_input<decl::Int>("Width")
-      .default_value(512)
-      .min(1)
-      .max(4096)
-      .compositor_expects_single_value();
-  b.add_input<decl::Int>("Height")
-      .default_value(512)
-      .min(1)
-      .max(4096)
-      .compositor_expects_single_value();
 
   b.add_output<decl::Vector>("Texture Coordinates");
   b.add_output<decl::Vector>("Pixel Coordinates");
@@ -38,34 +26,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Vector>("Location");
   b.add_output<decl::Float>("Rotation");
   b.add_output<decl::Vector>("Scale");
-}
-
-static void node_init(bNodeTree * /*ntree*/, bNode *node)
-{
-  NodeImageInfoData *data = MEM_cnew<NodeImageInfoData>(__func__);
-  data->source = CMP_NODE_IMAGE_INFO_SOURCE_IMAGE;
-  node->storage = data;
-}
-
-static void node_draw_buttons(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  uiItemR(layout, ptr, "source", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-}
-
-static void node_update(bNodeTree *node_tree, bNode *node)
-{
-  const NodeImageInfoData &storage = node_storage(*node);
-
-  bNodeSocket *input_image = bke::node_find_socket(*node, SOCK_IN, "Image");
-  bke::node_set_socket_availability(
-      *node_tree, *input_image, storage.source == CMP_NODE_IMAGE_INFO_SOURCE_IMAGE);
-
-  bNodeSocket *input_width = bke::node_find_socket(*node, SOCK_IN, "Width");
-  bNodeSocket *input_height = bke::node_find_socket(*node, SOCK_IN, "Height");
-  bke::node_set_socket_availability(
-      *node_tree, *input_width, storage.source == CMP_NODE_IMAGE_INFO_SOURCE_SIZE);
-  bke::node_set_socket_availability(
-      *node_tree, *input_height, storage.source == CMP_NODE_IMAGE_INFO_SOURCE_SIZE);
 }
 
 using namespace blender::compositor;
@@ -80,22 +40,13 @@ class ImageInfoOperation : public NodeOperation {
 
   void execute() override
   {
-    if (node_storage(this->bnode()).source == CMP_NODE_IMAGE_INFO_SOURCE_IMAGE) {
-      const Result &input = this->get_input("Image");
-      if (input.is_single_value()) {
-        this->execute_invalid();
-        return;
-      }
+    const Result &input = this->get_input("Image");
+    if (input.is_single_value()) {
+      this->execute_invalid();
+      return;
     }
 
-    if (node_storage(this->bnode()).source == CMP_NODE_IMAGE_INFO_SOURCE_RENDER) {
-      if (!this->context().is_valid_compositing_region()) {
-        this->execute_invalid();
-        return;
-      }
-    }
-
-    const Domain domain = compute_domain();
+    const Domain domain = input.domain();
 
     Result &texture_coordinates_result = this->get_result("Texture Coordinates");
     if (texture_coordinates_result.should_compute()) {
@@ -174,22 +125,6 @@ class ImageInfoOperation : public NodeOperation {
       scale_result.allocate_invalid();
     }
   }
-
-  Domain compute_domain() override
-  {
-    switch (CMPNodeImageInfoSource(node_storage(this->bnode()).source)) {
-      case CMP_NODE_IMAGE_INFO_SOURCE_IMAGE:
-        return this->get_input("Image").domain();
-      case CMP_NODE_IMAGE_INFO_SOURCE_RENDER:
-        return Domain(this->context().get_compositing_region_size());
-      case CMP_NODE_IMAGE_INFO_SOURCE_SIZE:
-        return Domain(int2(math::max(1, this->get_input("Width").get_single_value_default(512)),
-                           math::max(1, this->get_input("Height").get_single_value_default(512))));
-    }
-
-    BLI_assert_unreachable();
-    return Domain(int2(512));
-  }
 };
 
 static NodeOperation *get_compositor_operation(Context &context, DNode node)
@@ -210,11 +145,6 @@ void register_node_type_cmp_image_info()
   ntype.ui_description = "Returns information about an image";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = file_ns::node_declare;
-  ntype.draw_buttons = file_ns::node_draw_buttons;
-  ntype.initfunc = file_ns::node_init;
-  ntype.updatefunc = file_ns::node_update;
-  blender::bke::node_type_storage(
-      ntype, "NodeImageInfoData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
   blender::bke::node_register_type(ntype);

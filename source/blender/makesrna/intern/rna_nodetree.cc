@@ -7055,36 +7055,6 @@ static void def_cmp_set_alpha(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
-static void def_cmp_image_info(BlenderRNA * /*brna*/, StructRNA *srna)
-{
-  static const EnumPropertyItem source_items[] = {
-      {CMP_NODE_IMAGE_INFO_SOURCE_IMAGE,
-       "IMAGE",
-       0,
-       "Image",
-       "Returns information about the input image"},
-      {CMP_NODE_IMAGE_INFO_SOURCE_RENDER,
-       "RENDER",
-       0,
-       "Render",
-       "Returns information about the render"},
-      {CMP_NODE_IMAGE_INFO_SOURCE_SIZE,
-       "SIZE",
-       0,
-       "Size",
-       "Returns information about an image with given size"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
-  RNA_def_struct_sdna_from(srna, "NodeImageInfoData", "storage");
-
-  PropertyRNA *prop = RNA_def_property(srna, "source", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "source");
-  RNA_def_property_enum_items(prop, source_items);
-  RNA_def_property_ui_text(prop, "Source", "Source of the image to return its information");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
-}
-
 static void def_cmp_levels(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   PropertyRNA *prop;
@@ -12323,7 +12293,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("CompositorNode", "CompositorNodeKeyingScreen", def_cmp_keyingscreen);
   define("CompositorNode", "CompositorNodeKuwahara", def_cmp_kuwahara);
   define("CompositorNode", "CompositorNodeLensdist", def_cmp_lensdist);
-  define("CompositorNode", "CompositorNodeImageInfo", def_cmp_image_info);
+  define("CompositorNode", "CompositorNodeImageInfo");
   define("CompositorNode", "CompositorNodeLevels", def_cmp_levels);
   define("CompositorNode", "CompositorNodeLumaMatte", def_cmp_luma_matte);
   define("CompositorNode", "CompositorNodeMapRange", def_cmp_map_range);
