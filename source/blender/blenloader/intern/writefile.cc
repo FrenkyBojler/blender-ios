@@ -1362,8 +1362,6 @@ static int write_id_direct_linked_data_process_cb(LibraryIDLinkCallbackData *cb_
 
 static std::string get_blend_file_header()
 {
-  const char pointer_size_char = sizeof(void *) == 8 ? '-' : '_';
-  const char endian_char = ENDIAN_ORDER == B_ENDIAN ? 'V' : 'v';
 
   if (SYSTEM_SUPPORTS_WRITING_FILE_VERSION_1 &&
       USER_EXPERIMENTAL_TEST(&U, write_large_blend_file_blocks))
@@ -1374,15 +1372,18 @@ static std::string get_blend_file_header()
     std::stringstream ss;
     ss << "BLENDER";
     ss << header_size_in_bytes;
-    ss << pointer_size_char;
+    ss << '-';
     ss << std::setfill('0') << std::setw(2) << BLEND_FILE_VERSION_FORMAT_1;
-    ss << endian_char;
+    ss << 'v';
     ss << std::setfill('0') << std::setw(4) << BLENDER_FILE_VERSION;
 
     const std::string header = ss.str();
     BLI_assert(header.size() == header_size_in_bytes);
     return header;
   }
+
+  const char pointer_size_char = sizeof(void *) == 8 ? '-' : '_';
+  const char endian_char = ENDIAN_ORDER == B_ENDIAN ? 'V' : 'v';
 
   /* Legacy blend file header format. */
   std::stringstream ss;

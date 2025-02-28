@@ -1049,17 +1049,10 @@ static BlenderHeaderVariant decode_blender_header(FileData *fd)
   if (readsize != remaining_bytes_to_read) {
     return UnknownBlenderHeader{};
   }
-
-  switch (header_bytes[9]) {
-    case '_':
-      header.pointer_size = 4;
-      break;
-    case '-':
-      header.pointer_size = 8;
-      break;
-    default:
-      return UnknownBlenderHeader{};
+  if (header_bytes[9] != '-') {
+    return UnknownBlenderHeader{};
   }
+  header.pointer_size = 8;
   if (!isdigit(header_bytes[10]) || !isdigit(header_bytes[11])) {
     return UnknownBlenderHeader{};
   }
@@ -1070,16 +1063,10 @@ static BlenderHeaderVariant decode_blender_header(FileData *fd)
   if (header.blend_file_version_format != 1) {
     return UnknownBlenderHeader{};
   }
-  switch (header_bytes[12]) {
-    case 'v':
-      header.endian = L_ENDIAN;
-      break;
-    case 'V':
-      header.endian = B_ENDIAN;
-      break;
-    default:
-      return UnknownBlenderHeader{};
+  if (header_bytes[12] != 'v') {
+    return UnknownBlenderHeader{};
   }
+  header.endian = L_ENDIAN;
   if (!isdigit(header_bytes[13]) || !isdigit(header_bytes[14]) || !isdigit(header_bytes[15]) ||
       !isdigit(header_bytes[16]))
   {
