@@ -2294,7 +2294,12 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
       const bNodeTreeInterfaceSocket *toggle_socket = sub_interface_panel.header_toggle_socket();
       if (toggle_socket && !(toggle_socket->flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER)) {
         const StringRefNull identifier = toggle_socket->identifier;
-        /* TODO: Handle edge case where this is not valid. */
+        IDProperty *property = IDP_GetPropertyFromGroup(ctx.nmd.settings.properties, identifier);
+        /* IDProperties can be removed with python, so there could be a situation where
+         * there isn't a property for a socket or it doesn't have the correct type. */
+        if (property == nullptr || !nodes::id_property_type_matches_socket(*toggle_socket, *property)) {
+          continue;
+        }
         char socket_id_esc[MAX_NAME * 2];
         BLI_str_escape(socket_id_esc, identifier.c_str(), sizeof(socket_id_esc));
 
