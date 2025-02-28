@@ -945,18 +945,6 @@ static void update_normals_mesh(Object &object_orig,
                                 const Span<MeshNode> nodes,
                                 const IndexMask &nodes_to_update)
 {
-  /* Position changes are tracked on a per-node level, so all the vertex and face normals for every
-   * affected node are recalculated. However, the additional complexity comes from the fact that
-   * changing vertex normals also changes surrounding face normals. Those changed face normals then
-   * change the normals of all connected vertices, which can be in other nodes. So the set of
-   * vertices that need recalculated normals can propagate into unchanged/untagged Tree nodes.
-   *
-   * Currently we have no good way of finding neighboring Tree nodes, so we use the vertex to
-   * face topology map to find the neighboring vertices that need normal recalculation.
-   *
-   * Those boundary face and vertex indices are deduplicated with #VectorSet in order to avoid
-   * duplicate work recalculation for the same vertex, and to make parallel storage for vertices
-   * during recalculation thread-safe. */
   Mesh &mesh = *static_cast<Mesh *>(object_orig.data);
   const Span<float3> positions = bke::pbvh::vert_positions_eval_from_eval(object_eval);
   const OffsetIndices faces = mesh.faces();
@@ -968,38 +956,17 @@ static void update_normals_mesh(Object &object_orig,
   SharedCache<Vector<float3>> &face_normals_cache = face_normals_cache_eval_for_write(object_orig,
                                                                                       object_eval);
 
-  VectorSet<int> boundary_faces;
-  nodes_to_update.foreach_index([&](const int i) {
-    const MeshNode &node = nodes[i];
-    for (const int vert : node.vert_indices_.as_span().drop_front(node.unique_verts_num_)) {
-      boundary_faces.add_multiple(vert_to_face_map[vert]);
-    }
-  });
-
-  VectorSet<int> boundary_verts;
-
-  threading::parallel_invoke(
-      [&]() {
-        if (face_normals_cache.is_dirty()) {
-          face_normals_cache.ensure([&](Vector<float3> &r_data) {
-            r_data.resize(faces.size());
-            bke::mesh::normals_calc_faces(positions, faces, corner_verts, r_data);
-          });
-        }
-        else {
-          face_normals_cache.update([&](Vector<float3> &r_data) {
-            calc_node_face_normals(positions, faces, corner_verts, nodes, nodes_to_update, r_data);
-            calc_boundary_face_normals(positions, faces, corner_verts, boundary_faces, r_data);
-          });
-        }
-      },
-      [&]() {
-        /* Update all normals connected to affected faces, even if not explicitly tagged. */
-        boundary_verts.reserve(boundary_faces.size());
-        for (const int face : boundary_faces) {
-          boundary_verts.add_multiple(corner_verts.slice(faces[face]));
-        }
-      });
+  if (face_normals_cache.is_dirty()) {
+    face_normals_cache.ensure([&](Vector<float3> &r_data) {
+      r_data.resize(faces.size());
+      bke::mesh::normals_calc_faces(positions, faces, corner_verts, r_data);
+    });
+  }
+  else {
+    face_normals_cache.update([&](Vector<float3> &r_data) {
+      calc_node_face_normals(positions, faces, corner_verts, nodes, nodes_to_update, r_data);
+    });
+  }
   const Span<float3> face_normals = face_normals_cache.data();
 
   if (vert_normals_cache.is_dirty()) {
@@ -1012,7 +979,6 @@ static void update_normals_mesh(Object &object_orig,
   else {
     vert_normals_cache.update([&](Vector<float3> &r_data) {
       calc_node_vert_normals(vert_to_face_map, face_normals, nodes, nodes_to_update, r_data);
-      calc_boundary_vert_normals(vert_to_face_map, face_normals, boundary_verts, r_data);
     });
   }
 }
