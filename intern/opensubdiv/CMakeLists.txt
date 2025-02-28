@@ -4,6 +4,8 @@
 
 set(INC
   .
+  ../../source/blender/gpu/
+  ../../source/blender/gpu/intern
 )
 
 set(INC_SYS
@@ -56,8 +58,10 @@ if(WITH_OPENSUBDIV)
     internal/evaluator/evaluator_cache_impl.h
     internal/evaluator/evaluator_capi.cc
     internal/evaluator/evaluator_impl.cc
-    internal/evaluator/gl_compute_evaluator.cc
-    internal/evaluator/gl_compute_evaluator.h
+    internal/evaluator/gpu_compute_evaluator.cc
+    internal/evaluator/gpu_compute_evaluator.h
+    internal/evaluator/gpu_eval_types.cc
+    internal/evaluator/gpu_eval_types.hh
     internal/evaluator/patch_map.cc
     internal/evaluator/patch_map.h
 

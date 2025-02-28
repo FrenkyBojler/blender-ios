@@ -18,7 +18,7 @@
 #  define __gl3_h_
 #endif
 
-#include "gl_compute_evaluator.h"
+#include "gpu_compute_evaluator.h"
 
 #include <opensubdiv/far/error.h>
 #include <opensubdiv/far/patchDescriptor.h>
@@ -76,7 +76,7 @@ template<class T> GPUStorageBuf *createSSBO(std::vector<T> const &src, const cha
   return storage_buffer;
 }
 
-GLStencilTableSSBO::GLStencilTableSSBO(StencilTable const *stencilTable)
+GPUStencilTableSSBO::GPUStencilTableSSBO(StencilTable const *stencilTable)
 {
   _numStencils = stencilTable->GetNumStencils();
   if (_numStencils > 0) {
@@ -87,7 +87,7 @@ GLStencilTableSSBO::GLStencilTableSSBO(StencilTable const *stencilTable)
   }
 }
 
-GLStencilTableSSBO::GLStencilTableSSBO(LimitStencilTable const *limitStencilTable)
+GPUStencilTableSSBO::GPUStencilTableSSBO(LimitStencilTable const *limitStencilTable)
 {
   _numStencils = limitStencilTable->GetNumStencils();
   if (_numStencils > 0) {
@@ -103,7 +103,7 @@ GLStencilTableSSBO::GLStencilTableSSBO(LimitStencilTable const *limitStencilTabl
   }
 }
 
-GLStencilTableSSBO::~GLStencilTableSSBO()
+GPUStencilTableSSBO::~GPUStencilTableSSBO()
 {
 #define SAFE_FREE_SSBO(buffer) \
   if (buffer) { \
@@ -124,13 +124,13 @@ GLStencilTableSSBO::~GLStencilTableSSBO()
 
 // ---------------------------------------------------------------------------
 
-GLComputeEvaluator::GLComputeEvaluator() : _workGroupSize(64), _patchArraysSSBO(0)
+GPUComputeEvaluator::GPUComputeEvaluator() : _workGroupSize(64), _patchArraysSSBO(0)
 {
   memset((void *)&_stencilKernel, 0, sizeof(_stencilKernel));
   memset((void *)&_patchKernel, 0, sizeof(_patchKernel));
 }
 
-GLComputeEvaluator::~GLComputeEvaluator()
+GPUComputeEvaluator::~GPUComputeEvaluator()
 {
   if (_patchArraysSSBO) {
     GPU_storagebuf_free(_patchArraysSSBO);
@@ -146,7 +146,6 @@ static GPUShader *compileKernel(BufferDescriptor const &srcDesc,
                                 BufferDescriptor const &duvDesc,
                                 BufferDescriptor const &dvvDesc,
                                 bool use_eval_stencil_kernel,
-                                const char *kernelDefine,
                                 int workGroupSize)
 {
   ShaderCreateInfo info;
@@ -236,13 +235,13 @@ static GPUShader *compileKernel(BufferDescriptor const &srcDesc,
   return shader;
 }
 
-bool GLComputeEvaluator::Compile(BufferDescriptor const &srcDesc,
-                                 BufferDescriptor const &dstDesc,
-                                 BufferDescriptor const &duDesc,
-                                 BufferDescriptor const &dvDesc,
-                                 BufferDescriptor const &duuDesc,
-                                 BufferDescriptor const &duvDesc,
-                                 BufferDescriptor const &dvvDesc)
+bool GPUComputeEvaluator::Compile(BufferDescriptor const &srcDesc,
+                                  BufferDescriptor const &dstDesc,
+                                  BufferDescriptor const &duDesc,
+                                  BufferDescriptor const &dvDesc,
+                                  BufferDescriptor const &duuDesc,
+                                  BufferDescriptor const &duvDesc,
+                                  BufferDescriptor const &dvvDesc)
 {
 
   // create a stencil kernel
@@ -271,19 +270,19 @@ bool GLComputeEvaluator::Compile(BufferDescriptor const &srcDesc,
 }
 
 /* static */
-void GLComputeEvaluator::Synchronize(void * /*kernel*/)
+void GPUComputeEvaluator::Synchronize(void * /*kernel*/)
 {
   // XXX: this is currently just for the performance measuring purpose.
   // need to be reimplemented by fence and sync.
   GPU_finish();
 }
 
-int GLComputeEvaluator::GetDispatchSize(int count) const
+int GPUComputeEvaluator::GetDispatchSize(int count) const
 {
   return (count + _workGroupSize - 1) / _workGroupSize;
 }
 
-void GLComputeEvaluator::DispatchCompute(GPUShader *shader, int totalDispatchSize) const
+void GPUComputeEvaluator::DispatchCompute(GPUShader *shader, int totalDispatchSize) const
 {
   const int dispatchSize = GetDispatchSize(totalDispatchSize);
   int dispatchRX = dispatchSize;
@@ -310,22 +309,22 @@ void GLComputeEvaluator::DispatchCompute(GPUShader *shader, int totalDispatchSiz
   GPU_compute_dispatch(shader, dispatchRX, dispatchRY, 1);
 }
 
-bool GLComputeEvaluator::EvalStencils(GPUStorageBuf *srcBuffer,
-                                      BufferDescriptor const &srcDesc,
-                                      GPUStorageBuf *dstBuffer,
-                                      BufferDescriptor const &dstDesc,
-                                      GPUStorageBuf *duBuffer,
-                                      BufferDescriptor const &duDesc,
-                                      GPUStorageBuf *dvBuffer,
-                                      BufferDescriptor const &dvDesc,
-                                      GPUStorageBuf *sizesBuffer,
-                                      GPUStorageBuf *offsetsBuffer,
-                                      GPUStorageBuf *indicesBuffer,
-                                      GPUStorageBuf *weightsBuffer,
-                                      GPUStorageBuf *duWeightsBuffer,
-                                      GPUStorageBuf *dvWeightsBuffer,
-                                      int start,
-                                      int end) const
+bool GPUComputeEvaluator::EvalStencils(GPUStorageBuf *srcBuffer,
+                                       BufferDescriptor const &srcDesc,
+                                       GPUStorageBuf *dstBuffer,
+                                       BufferDescriptor const &dstDesc,
+                                       GPUStorageBuf *duBuffer,
+                                       BufferDescriptor const &duDesc,
+                                       GPUStorageBuf *dvBuffer,
+                                       BufferDescriptor const &dvDesc,
+                                       GPUStorageBuf *sizesBuffer,
+                                       GPUStorageBuf *offsetsBuffer,
+                                       GPUStorageBuf *indicesBuffer,
+                                       GPUStorageBuf *weightsBuffer,
+                                       GPUStorageBuf *duWeightsBuffer,
+                                       GPUStorageBuf *dvWeightsBuffer,
+                                       int start,
+                                       int end) const
 {
 
   return EvalStencils(srcBuffer,
@@ -355,31 +354,31 @@ bool GLComputeEvaluator::EvalStencils(GPUStorageBuf *srcBuffer,
                       end);
 }
 
-bool GLComputeEvaluator::EvalStencils(GPUStorageBuf *srcBuffer,
-                                      BufferDescriptor const &srcDesc,
-                                      GPUStorageBuf *dstBuffer,
-                                      BufferDescriptor const &dstDesc,
-                                      GPUStorageBuf *duBuffer,
-                                      BufferDescriptor const &duDesc,
-                                      GPUStorageBuf *dvBuffer,
-                                      BufferDescriptor const &dvDesc,
-                                      GPUStorageBuf *duuBuffer,
-                                      BufferDescriptor const &duuDesc,
-                                      GPUStorageBuf *duvBuffer,
-                                      BufferDescriptor const &duvDesc,
-                                      GPUStorageBuf *dvvBuffer,
-                                      BufferDescriptor const &dvvDesc,
-                                      GPUStorageBuf *sizesBuffer,
-                                      GPUStorageBuf *offsetsBuffer,
-                                      GPUStorageBuf *indicesBuffer,
-                                      GPUStorageBuf *weightsBuffer,
-                                      GPUStorageBuf *duWeightsBuffer,
-                                      GPUStorageBuf *dvWeightsBuffer,
-                                      GPUStorageBuf *duuWeightsBuffer,
-                                      GPUStorageBuf *duvWeightsBuffer,
-                                      GPUStorageBuf *dvvWeightsBuffer,
-                                      int start,
-                                      int end) const
+bool GPUComputeEvaluator::EvalStencils(GPUStorageBuf *srcBuffer,
+                                       BufferDescriptor const &srcDesc,
+                                       GPUStorageBuf *dstBuffer,
+                                       BufferDescriptor const &dstDesc,
+                                       GPUStorageBuf *duBuffer,
+                                       BufferDescriptor const &duDesc,
+                                       GPUStorageBuf *dvBuffer,
+                                       BufferDescriptor const &dvDesc,
+                                       GPUStorageBuf *duuBuffer,
+                                       BufferDescriptor const &duuDesc,
+                                       GPUStorageBuf *duvBuffer,
+                                       BufferDescriptor const &duvDesc,
+                                       GPUStorageBuf *dvvBuffer,
+                                       BufferDescriptor const &dvvDesc,
+                                       GPUStorageBuf *sizesBuffer,
+                                       GPUStorageBuf *offsetsBuffer,
+                                       GPUStorageBuf *indicesBuffer,
+                                       GPUStorageBuf *weightsBuffer,
+                                       GPUStorageBuf *duWeightsBuffer,
+                                       GPUStorageBuf *dvWeightsBuffer,
+                                       GPUStorageBuf *duuWeightsBuffer,
+                                       GPUStorageBuf *duvWeightsBuffer,
+                                       GPUStorageBuf *dvvWeightsBuffer,
+                                       int start,
+                                       int end) const
 {
 
   if (_stencilKernel.shader == nullptr) {
@@ -448,19 +447,19 @@ bool GLComputeEvaluator::EvalStencils(GPUStorageBuf *srcBuffer,
   return true;
 }
 
-bool GLComputeEvaluator::EvalPatches(GPUStorageBuf *srcBuffer,
-                                     BufferDescriptor const &srcDesc,
-                                     GPUStorageBuf *dstBuffer,
-                                     BufferDescriptor const &dstDesc,
-                                     GPUStorageBuf *duBuffer,
-                                     BufferDescriptor const &duDesc,
-                                     GPUStorageBuf *dvBuffer,
-                                     BufferDescriptor const &dvDesc,
-                                     int numPatchCoords,
-                                     GPUStorageBuf *patchCoordsBuffer,
-                                     const PatchArrayVector &patchArrays,
-                                     GPUStorageBuf *patchIndexBuffer,
-                                     GPUStorageBuf *patchParamsBuffer) const
+bool GPUComputeEvaluator::EvalPatches(GPUStorageBuf *srcBuffer,
+                                      BufferDescriptor const &srcDesc,
+                                      GPUStorageBuf *dstBuffer,
+                                      BufferDescriptor const &dstDesc,
+                                      GPUStorageBuf *duBuffer,
+                                      BufferDescriptor const &duDesc,
+                                      GPUStorageBuf *dvBuffer,
+                                      BufferDescriptor const &dvDesc,
+                                      int numPatchCoords,
+                                      GPUStorageBuf *patchCoordsBuffer,
+                                      const PatchArrayVector &patchArrays,
+                                      GPUStorageBuf *patchIndexBuffer,
+                                      GPUStorageBuf *patchParamsBuffer) const
 {
 
   return EvalPatches(srcBuffer,
@@ -484,25 +483,25 @@ bool GLComputeEvaluator::EvalPatches(GPUStorageBuf *srcBuffer,
                      patchParamsBuffer);
 }
 
-bool GLComputeEvaluator::EvalPatches(GPUStorageBuf *srcBuffer,
-                                     BufferDescriptor const &srcDesc,
-                                     GPUStorageBuf *dstBuffer,
-                                     BufferDescriptor const &dstDesc,
-                                     GPUStorageBuf *duBuffer,
-                                     BufferDescriptor const &duDesc,
-                                     GPUStorageBuf *dvBuffer,
-                                     BufferDescriptor const &dvDesc,
-                                     GPUStorageBuf *duuBuffer,
-                                     BufferDescriptor const &duuDesc,
-                                     GPUStorageBuf *duvBuffer,
-                                     BufferDescriptor const &duvDesc,
-                                     GPUStorageBuf *dvvBuffer,
-                                     BufferDescriptor const &dvvDesc,
-                                     int numPatchCoords,
-                                     GPUStorageBuf *patchCoordsBuffer,
-                                     const PatchArrayVector &patchArrays,
-                                     GPUStorageBuf *patchIndexBuffer,
-                                     GPUStorageBuf *patchParamsBuffer) const
+bool GPUComputeEvaluator::EvalPatches(GPUStorageBuf *srcBuffer,
+                                      BufferDescriptor const &srcDesc,
+                                      GPUStorageBuf *dstBuffer,
+                                      BufferDescriptor const &dstDesc,
+                                      GPUStorageBuf *duBuffer,
+                                      BufferDescriptor const &duDesc,
+                                      GPUStorageBuf *dvBuffer,
+                                      BufferDescriptor const &dvDesc,
+                                      GPUStorageBuf *duuBuffer,
+                                      BufferDescriptor const &duuDesc,
+                                      GPUStorageBuf *duvBuffer,
+                                      BufferDescriptor const &duvDesc,
+                                      GPUStorageBuf *dvvBuffer,
+                                      BufferDescriptor const &dvvDesc,
+                                      int numPatchCoords,
+                                      GPUStorageBuf *patchCoordsBuffer,
+                                      const PatchArrayVector &patchArrays,
+                                      GPUStorageBuf *patchIndexBuffer,
+                                      GPUStorageBuf *patchParamsBuffer) const
 {
 
   if (_patchKernel.shader == nullptr) {
@@ -563,8 +562,8 @@ bool GLComputeEvaluator::EvalPatches(GPUStorageBuf *srcBuffer,
 }
 // ---------------------------------------------------------------------------
 
-GLComputeEvaluator::_StencilKernel::_StencilKernel() {}
-GLComputeEvaluator::_StencilKernel::~_StencilKernel()
+GPUComputeEvaluator::_StencilKernel::_StencilKernel() {}
+GPUComputeEvaluator::_StencilKernel::~_StencilKernel()
 {
   if (shader) {
     GPU_shader_free(shader);
@@ -572,14 +571,14 @@ GLComputeEvaluator::_StencilKernel::~_StencilKernel()
   }
 }
 
-bool GLComputeEvaluator::_StencilKernel::Compile(BufferDescriptor const &srcDesc,
-                                                 BufferDescriptor const &dstDesc,
-                                                 BufferDescriptor const &duDesc,
-                                                 BufferDescriptor const &dvDesc,
-                                                 BufferDescriptor const &duuDesc,
-                                                 BufferDescriptor const &duvDesc,
-                                                 BufferDescriptor const &dvvDesc,
-                                                 int workGroupSize)
+bool GPUComputeEvaluator::_StencilKernel::Compile(BufferDescriptor const &srcDesc,
+                                                  BufferDescriptor const &dstDesc,
+                                                  BufferDescriptor const &duDesc,
+                                                  BufferDescriptor const &dvDesc,
+                                                  BufferDescriptor const &duuDesc,
+                                                  BufferDescriptor const &duvDesc,
+                                                  BufferDescriptor const &dvvDesc,
+                                                  int workGroupSize)
 {
   // create stencil kernel
   if (shader) {
@@ -609,8 +608,8 @@ bool GLComputeEvaluator::_StencilKernel::Compile(BufferDescriptor const &srcDesc
 
 // ---------------------------------------------------------------------------
 
-GLComputeEvaluator::_PatchKernel::_PatchKernel() {}
-GLComputeEvaluator::_PatchKernel::~_PatchKernel()
+GPUComputeEvaluator::_PatchKernel::_PatchKernel() {}
+GPUComputeEvaluator::_PatchKernel::~_PatchKernel()
 {
   if (shader) {
     GPU_shader_free(shader);
@@ -618,18 +617,19 @@ GLComputeEvaluator::_PatchKernel::~_PatchKernel()
   }
 }
 
-bool GLComputeEvaluator::_PatchKernel::Compile(BufferDescriptor const &srcDesc,
-                                               BufferDescriptor const &dstDesc,
-                                               BufferDescriptor const &duDesc,
-                                               BufferDescriptor const &dvDesc,
-                                               BufferDescriptor const &duuDesc,
-                                               BufferDescriptor const &duvDesc,
-                                               BufferDescriptor const &dvvDesc,
-                                               int workGroupSize)
+bool GPUComputeEvaluator::_PatchKernel::Compile(BufferDescriptor const &srcDesc,
+                                                BufferDescriptor const &dstDesc,
+                                                BufferDescriptor const &duDesc,
+                                                BufferDescriptor const &dvDesc,
+                                                BufferDescriptor const &duuDesc,
+                                                BufferDescriptor const &duvDesc,
+                                                BufferDescriptor const &dvvDesc,
+                                                int workGroupSize)
 {
   // create stencil kernel
   if (shader) {
-    glDeleteProgram(shader);
+    GPU_shader_free(shader);
+    shader = nullptr;
   }
 
   shader = compileKernel(

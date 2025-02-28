@@ -8,6 +8,8 @@
 
 #include "opensubdiv_evaluator.hh"
 
+#include "gpu_eval_types.hh"
+
 using OpenSubdiv::Osd::PatchArray;
 using OpenSubdiv::Osd::PatchArrayVector;
 
@@ -29,22 +31,22 @@ GpuEvalOutput::GpuEvalOutput(const StencilTable *vertex_stencils,
                              const int face_varying_width,
                              const PatchTable *patch_table,
                              VolatileEvalOutput::EvaluatorCache *evaluator_cache)
-    : VolatileEvalOutput<GLVertexBuffer,
-                         GLVertexBuffer,
-                         GLStencilTableSSBO,
-                         GLPatchTable,
-                         GLComputeEvaluator>(vertex_stencils,
-                                             varying_stencils,
-                                             all_face_varying_stencils,
-                                             face_varying_width,
-                                             patch_table,
-                                             evaluator_cache)
+    : VolatileEvalOutput<GPUVertexBuffer,
+                         GPUVertexBuffer,
+                         GPUStencilTableSSBO,
+                         GPUPatchTable,
+                         GPUComputeEvaluator>(vertex_stencils,
+                                              varying_stencils,
+                                              all_face_varying_stencils,
+                                              face_varying_width,
+                                              patch_table,
+                                              evaluator_cache)
 {
 }
 
 void GpuEvalOutput::fillPatchArraysBuffer(blender::gpu::VertBuf *patch_arrays_buffer)
 {
-  GLPatchTable *patch_table = getPatchTable();
+  GPUPatchTable *patch_table = getPatchTable();
   buildPatchArraysBufferFromVector(patch_table->GetPatchArrays(), patch_arrays_buffer);
 }
 

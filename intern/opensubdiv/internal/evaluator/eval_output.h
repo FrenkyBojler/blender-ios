@@ -8,18 +8,18 @@
 #define OPENSUBDIV_EVAL_OUTPUT_H_
 
 #include <opensubdiv/osd/cpuPatchTable.h>
-#include <opensubdiv/osd/glPatchTable.h>
 #include <opensubdiv/osd/mesh.h>
 #include <opensubdiv/osd/types.h>
 
 #include "opensubdiv_evaluator.hh"
 #include "opensubdiv_evaluator_capi.hh"
 
+#include "gpu_eval_types.hh"
+
 using OpenSubdiv::Far::PatchTable;
 using OpenSubdiv::Far::StencilTable;
 using OpenSubdiv::Osd::BufferDescriptor;
 using OpenSubdiv::Osd::CpuPatchTable;
-using OpenSubdiv::Osd::GLPatchTable;
 using OpenSubdiv::Osd::PatchCoord;
 
 namespace blender::opensubdiv {
@@ -163,7 +163,7 @@ class ConstPatchCoordWrapperBuffer : public RawDataWrapperVertexBuffer<const Pat
 // Discriminators used in FaceVaryingVolatileEval in order to detect whether we are using adaptive
 // patches as the CPU and OpenGL PatchTable have different APIs.
 bool is_adaptive(const CpuPatchTable *patch_table);
-bool is_adaptive(const GLPatchTable *patch_table);
+bool is_adaptive(const GPUPatchTable *patch_table);
 
 template<typename EVAL_VERTEX_BUFFER,
          typename STENCIL_TABLE,

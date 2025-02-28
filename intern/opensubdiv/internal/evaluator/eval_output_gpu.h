@@ -8,20 +8,19 @@
 #define OPENSUBDIV_EVAL_OUTPUT_GPU_H_
 
 #include "internal/evaluator/eval_output.h"
-#include "internal/evaluator/gl_compute_evaluator.h"
+#include "internal/evaluator/gpu_compute_evaluator.h"
+#include "internal/evaluator/gpu_eval_types.hh"
 
 #include <opensubdiv/osd/glPatchTable.h>
 #include <opensubdiv/osd/glVertexBuffer.h>
 
-using OpenSubdiv::Osd::GLVertexBuffer;
-
 namespace blender::opensubdiv {
 
-class GpuEvalOutput : public VolatileEvalOutput<GLVertexBuffer,
-                                                GLVertexBuffer,
-                                                GLStencilTableSSBO,
-                                                GLPatchTable,
-                                                GLComputeEvaluator> {
+class GpuEvalOutput : public VolatileEvalOutput<GPUVertexBuffer,
+                                                GPUVertexBuffer,
+                                                GPUStencilTableSSBO,
+                                                GPUPatchTable,
+                                                GPUComputeEvaluator> {
  public:
   GpuEvalOutput(const StencilTable *vertex_stencils,
                 const StencilTable *varying_stencils,

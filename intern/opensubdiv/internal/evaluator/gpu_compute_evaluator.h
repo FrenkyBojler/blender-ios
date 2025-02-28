@@ -2,8 +2,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#ifndef OPENSUBDIV_GL_COMPUTE_EVALUATOR_H_
-#define OPENSUBDIV_GL_COMPUTE_EVALUATOR_H_
+#ifndef OPENSUBDIV_GPU_COMPUTE_EVALUATOR_H_
+#define OPENSUBDIV_GPU_COMPUTE_EVALUATOR_H_
 
 #include <opensubdiv/osd/bufferDescriptor.h>
 #include <opensubdiv/osd/opengl.h>
@@ -26,24 +26,24 @@ namespace blender::opensubdiv {
 ///
 /// GLSLComputeKernel consumes this table to apply stencils
 ///
-class GLStencilTableSSBO {
+class GPUStencilTableSSBO {
  public:
-  static GLStencilTableSSBO *Create(OpenSubdiv::Far::StencilTable const *stencilTable,
-                                    void *deviceContext = nullptr)
+  static GPUStencilTableSSBO *Create(OpenSubdiv::Far::StencilTable const *stencilTable,
+                                     void *deviceContext = nullptr)
   {
     (void)deviceContext;  // unused
-    return new GLStencilTableSSBO(stencilTable);
+    return new GPUStencilTableSSBO(stencilTable);
   }
-  static GLStencilTableSSBO *Create(OpenSubdiv::Far::LimitStencilTable const *limitStencilTable,
-                                    void *deviceContext = nullptr)
+  static GPUStencilTableSSBO *Create(OpenSubdiv::Far::LimitStencilTable const *limitStencilTable,
+                                     void *deviceContext = nullptr)
   {
     (void)deviceContext;  // unused
-    return new GLStencilTableSSBO(limitStencilTable);
+    return new GPUStencilTableSSBO(limitStencilTable);
   }
 
-  explicit GLStencilTableSSBO(OpenSubdiv::Far::StencilTable const *stencilTable);
-  explicit GLStencilTableSSBO(OpenSubdiv::Far::LimitStencilTable const *limitStencilTable);
-  ~GLStencilTableSSBO();
+  explicit GPUStencilTableSSBO(OpenSubdiv::Far::StencilTable const *stencilTable);
+  explicit GPUStencilTableSSBO(OpenSubdiv::Far::LimitStencilTable const *limitStencilTable);
+  ~GPUStencilTableSSBO();
 
   // interfaces needed for GLSLComputeKernel
   GPUStorageBuf *GetSizesBuffer() const
@@ -102,14 +102,14 @@ class GLStencilTableSSBO {
 
 // ---------------------------------------------------------------------------
 
-class GLComputeEvaluator {
+class GPUComputeEvaluator {
  public:
   using Instantiatable = bool;
-  static GLComputeEvaluator *Create(OpenSubdiv::Osd::BufferDescriptor const &srcDesc,
-                                    OpenSubdiv::Osd::BufferDescriptor const &dstDesc,
-                                    OpenSubdiv::Osd::BufferDescriptor const &duDesc,
-                                    OpenSubdiv::Osd::BufferDescriptor const &dvDesc,
-                                    void *deviceContext = nullptr)
+  static GPUComputeEvaluator *Create(OpenSubdiv::Osd::BufferDescriptor const &srcDesc,
+                                     OpenSubdiv::Osd::BufferDescriptor const &dstDesc,
+                                     OpenSubdiv::Osd::BufferDescriptor const &duDesc,
+                                     OpenSubdiv::Osd::BufferDescriptor const &dvDesc,
+                                     void *deviceContext = nullptr)
   {
     return Create(srcDesc,
                   dstDesc,
@@ -121,17 +121,17 @@ class GLComputeEvaluator {
                   deviceContext);
   }
 
-  static GLComputeEvaluator *Create(OpenSubdiv::Osd::BufferDescriptor const &srcDesc,
-                                    OpenSubdiv::Osd::BufferDescriptor const &dstDesc,
-                                    OpenSubdiv::Osd::BufferDescriptor const &duDesc,
-                                    OpenSubdiv::Osd::BufferDescriptor const &dvDesc,
-                                    OpenSubdiv::Osd::BufferDescriptor const &duuDesc,
-                                    OpenSubdiv::Osd::BufferDescriptor const &duvDesc,
-                                    OpenSubdiv::Osd::BufferDescriptor const &dvvDesc,
-                                    void *deviceContext = nullptr)
+  static GPUComputeEvaluator *Create(OpenSubdiv::Osd::BufferDescriptor const &srcDesc,
+                                     OpenSubdiv::Osd::BufferDescriptor const &dstDesc,
+                                     OpenSubdiv::Osd::BufferDescriptor const &duDesc,
+                                     OpenSubdiv::Osd::BufferDescriptor const &dvDesc,
+                                     OpenSubdiv::Osd::BufferDescriptor const &duuDesc,
+                                     OpenSubdiv::Osd::BufferDescriptor const &duvDesc,
+                                     OpenSubdiv::Osd::BufferDescriptor const &dvvDesc,
+                                     void *deviceContext = nullptr)
   {
     (void)deviceContext;  // not used
-    GLComputeEvaluator *instance = new GLComputeEvaluator();
+    GPUComputeEvaluator *instance = new GPUComputeEvaluator();
     if (instance->Compile(srcDesc, dstDesc, duDesc, dvDesc, duuDesc, duvDesc, dvvDesc)) {
       return instance;
     }
@@ -140,10 +140,10 @@ class GLComputeEvaluator {
   }
 
   /// Constructor.
-  GLComputeEvaluator();
+  GPUComputeEvaluator();
 
   /// Destructor. note that the GL context must be made current.
-  ~GLComputeEvaluator();
+  ~GPUComputeEvaluator();
 
   /// ----------------------------------------------------------------------
   ///
@@ -184,7 +184,7 @@ class GLComputeEvaluator {
                            DST_BUFFER *dstBuffer,
                            OpenSubdiv::Osd::BufferDescriptor const &dstDesc,
                            STENCIL_TABLE const *stencilTable,
-                           GLComputeEvaluator const *instance,
+                           GPUComputeEvaluator const *instance,
                            void *deviceContext = nullptr)
   {
 
@@ -255,7 +255,7 @@ class GLComputeEvaluator {
                            DST_BUFFER *dvBuffer,
                            OpenSubdiv::Osd::BufferDescriptor const &dvDesc,
                            STENCIL_TABLE const *stencilTable,
-                           GLComputeEvaluator const *instance,
+                           GPUComputeEvaluator const *instance,
                            void *deviceContext = nullptr)
   {
 
@@ -363,7 +363,7 @@ class GLComputeEvaluator {
                            DST_BUFFER *dvvBuffer,
                            OpenSubdiv::Osd::BufferDescriptor const &dvvDesc,
                            STENCIL_TABLE const *stencilTable,
-                           GLComputeEvaluator const *instance,
+                           GPUComputeEvaluator const *instance,
                            void *deviceContext = nullptr)
   {
 
@@ -434,9 +434,9 @@ class GLComputeEvaluator {
                     OpenSubdiv::Osd::BufferDescriptor const &dstDesc,
                     STENCIL_TABLE const *stencilTable) const
   {
-    return EvalStencils(srcBuffer->BindVBO(),
+    return EvalStencils(srcBuffer,
                         srcDesc,
-                        dstBuffer->BindVBO(),
+                        dstBuffer,
                         dstDesc,
                         0,
                         OpenSubdiv::Osd::BufferDescriptor(),
@@ -636,20 +636,20 @@ class GLComputeEvaluator {
   ///
   /// @param end              end index of stencil table
   ///
-  bool EvalStencils(GLuint srcBuffer,
+  bool EvalStencils(GPUStorageBuf *srcBuffer,
                     OpenSubdiv::Osd::BufferDescriptor const &srcDesc,
-                    GLuint dstBuffer,
+                    GPUStorageBuf *dstBuffer,
                     OpenSubdiv::Osd::BufferDescriptor const &dstDesc,
-                    GLuint duBuffer,
+                    GPUStorageBuf *duBuffer,
                     OpenSubdiv::Osd::BufferDescriptor const &duDesc,
-                    GLuint dvBuffer,
+                    GPUStorageBuf *dvBuffer,
                     OpenSubdiv::Osd::BufferDescriptor const &dvDesc,
-                    GLuint sizesBuffer,
-                    GLuint offsetsBuffer,
-                    GLuint indicesBuffer,
-                    GLuint weightsBuffer,
-                    GLuint duWeightsBuffer,
-                    GLuint dvWeightsBuffer,
+                    GPUStorageBuf *sizesBuffer,
+                    GPUStorageBuf *offsetsBuffer,
+                    GPUStorageBuf *indicesBuffer,
+                    GPUStorageBuf *weightsBuffer,
+                    GPUStorageBuf *duWeightsBuffer,
+                    GPUStorageBuf *dvWeightsBuffer,
                     int start,
                     int end) const;
 
@@ -706,29 +706,29 @@ class GLComputeEvaluator {
   ///
   /// @param end              end index of stencil table
   ///
-  bool EvalStencils(GLuint srcBuffer,
+  bool EvalStencils(GPUStorageBuf *srcBuffer,
                     OpenSubdiv::Osd::BufferDescriptor const &srcDesc,
-                    GLuint dstBuffer,
+                    GPUStorageBuf *dstBuffer,
                     OpenSubdiv::Osd::BufferDescriptor const &dstDesc,
-                    GLuint duBuffer,
+                    GPUStorageBuf *duBuffer,
                     OpenSubdiv::Osd::BufferDescriptor const &duDesc,
-                    GLuint dvBuffer,
+                    GPUStorageBuf *dvBuffer,
                     OpenSubdiv::Osd::BufferDescriptor const &dvDesc,
-                    GLuint duuBuffer,
+                    GPUStorageBuf *duuBuffer,
                     OpenSubdiv::Osd::BufferDescriptor const &duuDesc,
-                    GLuint duvBuffer,
+                    GPUStorageBuf *duvBuffer,
                     OpenSubdiv::Osd::BufferDescriptor const &duvDesc,
-                    GLuint dvvBuffer,
+                    GPUStorageBuf *dvvBuffer,
                     OpenSubdiv::Osd::BufferDescriptor const &dvvDesc,
-                    GLuint sizesBuffer,
-                    GLuint offsetsBuffer,
-                    GLuint indicesBuffer,
-                    GLuint weightsBuffer,
-                    GLuint duWeightsBuffer,
-                    GLuint dvWeightsBuffer,
-                    GLuint duuWeightsBuffer,
-                    GLuint duvWeightsBuffer,
-                    GLuint dvvWeightsBuffer,
+                    GPUStorageBuf *sizesBuffer,
+                    GPUStorageBuf *offsetsBuffer,
+                    GPUStorageBuf *indicesBuffer,
+                    GPUStorageBuf *weightsBuffer,
+                    GPUStorageBuf *duWeightsBuffer,
+                    GPUStorageBuf *dvWeightsBuffer,
+                    GPUStorageBuf *duuWeightsBuffer,
+                    GPUStorageBuf *duvWeightsBuffer,
+                    GPUStorageBuf *dvvWeightsBuffer,
                     int start,
                     int end) const;
 
@@ -781,7 +781,7 @@ class GLComputeEvaluator {
                           int numPatchCoords,
                           PATCHCOORD_BUFFER *patchCoords,
                           PATCH_TABLE *patchTable,
-                          GLComputeEvaluator const *instance,
+                          GPUComputeEvaluator const *instance,
                           void *deviceContext = nullptr)
   {
 
@@ -863,7 +863,7 @@ class GLComputeEvaluator {
                           int numPatchCoords,
                           PATCHCOORD_BUFFER *patchCoords,
                           PATCH_TABLE *patchTable,
-                          GLComputeEvaluator const *instance,
+                          GPUComputeEvaluator const *instance,
                           void *deviceContext = nullptr)
   {
     if (instance) {
@@ -984,7 +984,7 @@ class GLComputeEvaluator {
                           int numPatchCoords,
                           PATCHCOORD_BUFFER *patchCoords,
                           PATCH_TABLE *patchTable,
-                          GLComputeEvaluator const *instance,
+                          GPUComputeEvaluator const *instance,
                           void *deviceContext = nullptr)
   {
     if (instance) {
@@ -1325,7 +1325,7 @@ class GLComputeEvaluator {
                                  int numPatchCoords,
                                  PATCHCOORD_BUFFER *patchCoords,
                                  PATCH_TABLE *patchTable,
-                                 GLComputeEvaluator const *instance,
+                                 GPUComputeEvaluator const *instance,
                                  void *deviceContext = nullptr)
   {
     if (instance) {
@@ -1459,7 +1459,7 @@ class GLComputeEvaluator {
                                  int numPatchCoords,
                                  PATCHCOORD_BUFFER *patchCoords,
                                  PATCH_TABLE *patchTable,
-                                 GLComputeEvaluator const *instance,
+                                 GPUComputeEvaluator const *instance,
                                  void *deviceContext = nullptr)
   {
     if (instance) {
@@ -1648,7 +1648,7 @@ class GLComputeEvaluator {
                                  int numPatchCoords,
                                  PATCHCOORD_BUFFER *patchCoords,
                                  PATCH_TABLE *patchTable,
-                                 GLComputeEvaluator const *instance,
+                                 GPUComputeEvaluator const *instance,
                                  void *deviceContext = nullptr)
   {
     if (instance) {
@@ -1842,7 +1842,7 @@ class GLComputeEvaluator {
                                      PATCHCOORD_BUFFER *patchCoords,
                                      PATCH_TABLE *patchTable,
                                      int fvarChannel,
-                                     GLComputeEvaluator const *instance,
+                                     GPUComputeEvaluator const *instance,
                                      void *deviceContext = nullptr)
   {
     if (instance) {
@@ -1994,7 +1994,7 @@ class GLComputeEvaluator {
                                      PATCHCOORD_BUFFER *patchCoords,
                                      PATCH_TABLE *patchTable,
                                      int fvarChannel,
-                                     GLComputeEvaluator const *instance,
+                                     GPUComputeEvaluator const *instance,
                                      void *deviceContext = nullptr)
   {
     if (instance) {
@@ -2191,7 +2191,7 @@ class GLComputeEvaluator {
                                      PATCHCOORD_BUFFER *patchCoords,
                                      PATCH_TABLE *patchTable,
                                      int fvarChannel,
-                                     GLComputeEvaluator const *instance,
+                                     GPUComputeEvaluator const *instance,
                                      void *deviceContext = nullptr)
   {
     if (instance) {
@@ -2420,4 +2420,4 @@ class GLComputeEvaluator {
 
 }  // namespace blender::opensubdiv
 
-#endif  // OPENSUBDIV_GL_COMPUTE_EVALUATOR_H_
+#endif  // OPENSUBDIV_GPU_COMPUTE_EVALUATOR_H_
