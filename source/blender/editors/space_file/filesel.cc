@@ -67,7 +67,7 @@
 #include "file_intern.hh"
 #include "filelist.hh"
 
-#define VERTLIST_MAJORCOLUMN_WIDTH (25 * UI_UNIT_X)
+#define VERTLIST_MAJORCOLUMN_WIDTH(show_details) (((show_details) ? 25 : 15) * UI_UNIT_X)
 
 static void fileselect_initialize_params_common(SpaceFile *sfile, FileSelectParams *params)
 {
@@ -122,6 +122,8 @@ static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
   base_params->filter_id = FILTER_ID_ALL;
   base_params->display = FILE_IMGDISPLAY;
   base_params->sort = FILE_SORT_ASSET_CATALOG;
+  /* No details columns supported for assets (wouldn't contain anything), disable them all. */
+  base_params->details_flags = 0;
   /* Asset libraries include all sub-directories, so enable maximal recursion. */
   base_params->recursion_level = FILE_SELECT_MAX_RECURSIONS;
   /* 'SMALL' size by default. More reasonable since this is typically used as regular editor,
@@ -989,9 +991,15 @@ static void file_attribute_columns_widths(const FileSelectParams *params, FileLa
   }
 
   /* Biggest possible reasonable values... */
-  columns[COLUMN_DATETIME].width = file_string_width(compact ? "23/08/89" : "23 Dec 6789, 23:59") +
-                                   pad;
-  columns[COLUMN_SIZE].width = file_string_width(compact ? "369G" : "098.7 MiB") + pad;
+  if (file_attribute_column_type_enabled(params, COLUMN_DATETIME, layout)) {
+    columns[COLUMN_DATETIME].width = file_string_width(compact ? "23/08/89" :
+                                                                 "23 Dec 6789, 23:59") +
+                                     pad;
+  }
+  if (file_attribute_column_type_enabled(params, COLUMN_SIZE, layout)) {
+    columns[COLUMN_SIZE].width = file_string_width(compact ? "369G" : "098.7 MiB") + pad;
+  }
+
   if (params->display == FILE_IMGDISPLAY) {
     columns[COLUMN_NAME].width = (float(params->thumbnail_size) / 8.0f) * UI_UNIT_X;
   }
@@ -1124,7 +1132,9 @@ void ED_fileselect_init_layout(SpaceFile *sfile, ARegion *region)
     /* Padding by full scroll-bar H is too much, can overlap tile border Y. */
     layout->rows = (layout->height - V2D_SCROLL_HEIGHT + layout->tile_border_y) /
                    (layout->tile_h + 2 * layout->tile_border_y);
-    layout->tile_w = VERTLIST_MAJORCOLUMN_WIDTH;
+
+    const bool show_details_columns = !is_asset_browser;
+    layout->tile_w = VERTLIST_MAJORCOLUMN_WIDTH(show_details_columns);
     file_attribute_columns_init(params, layout);
 
     if (layout->rows > 0) {

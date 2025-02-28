@@ -1378,7 +1378,8 @@ void file_draw_list(const bContext *C, ARegion *region)
                             1,
                             "",
                             tile_draw_rect.xmin + icon_ofs,
-                            tile_draw_rect.ymin + layout->tile_border_y - 0.15f * UI_UNIT_X,
+                            tile_draw_rect.ymin + layout->tile_border_y +
+                                ((layout->tile_h - textheight) / 2.0f) - 0.15f * UI_UNIT_X,
                             width - icon_ofs,
                             textheight,
                             params->renamefile,
