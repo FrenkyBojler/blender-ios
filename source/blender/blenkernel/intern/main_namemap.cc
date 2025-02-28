@@ -172,7 +172,7 @@ struct UniqueName_TypeMap {
   Map<std::string, int> full_names;
   /* For each base name (i.e. without numeric suffix), track the
    * numeric suffixes that are in use. */
-  Map<std::string, UniqueName_Value> base_name_to_num_suffix;
+  Map<std::string, std::unique_ptr<UniqueName_Value>> base_name_to_num_suffix;
 };
 
 struct UniqueName_Map {
@@ -233,8 +233,9 @@ struct UniqueName_Map {
       const std::string name_base = BLI_string_split_name_number(BKE_id_name(*id), '.', number);
 
       /* Get and update the entry for this base name. */
-      UniqueName_Value &val = type_map.base_name_to_num_suffix.lookup_or_add_default_as(name_base);
-      val.mark_used(number);
+      std::unique_ptr<UniqueName_Value> &val = type_map.base_name_to_num_suffix.lookup_or_add_as(
+          name_base, std::make_unique<UniqueName_Value>(UniqueName_Value{}));
+      val->mark_used(number);
     }
     FOREACH_MAIN_ID_END;
   }
@@ -252,9 +253,9 @@ struct UniqueName_Map {
       /* By definition adding to global map is always sucessful. */
       int &count = type_map.full_names.lookup_or_add_as(name_full, 0);
       if (!count) {
-        UniqueName_Value &val = type_map.base_name_to_num_suffix.lookup_or_add_default_as(
-            name_base);
-        val.mark_used(number);
+        std::unique_ptr<UniqueName_Value> &val = type_map.base_name_to_num_suffix.lookup_or_add_as(
+            name_base, std::make_unique<UniqueName_Value>(UniqueName_Value{}));
+        val->mark_used(number);
       }
       count++;
       return;
@@ -266,8 +267,9 @@ struct UniqueName_Map {
       return;
     }
 
-    UniqueName_Value &val = type_map.base_name_to_num_suffix.lookup_or_add_default_as(name_base);
-    val.mark_used(number);
+    std::unique_ptr<UniqueName_Value> &val = type_map.base_name_to_num_suffix.lookup_or_add_as(
+        name_base, std::make_unique<UniqueName_Value>(UniqueName_Value{}));
+    val->mark_used(number);
   }
   void add_name(const short id_type, StringRef name_full, StringRef name_base, const int number)
   {
@@ -304,13 +306,14 @@ struct UniqueName_Map {
 
     int number = 0;
     const std::string name_base = BLI_string_split_name_number(name_full, '.', number);
-    UniqueName_Value *val = type_map.base_name_to_num_suffix.lookup_ptr(name_base);
+    std::unique_ptr<UniqueName_Value> *val = type_map.base_name_to_num_suffix.lookup_ptr(
+        name_base);
     if (val == nullptr) {
       BLI_assert_unreachable();
       return;
     }
-    val->mark_unused(number);
-    if (!val->max_value_in_use) {
+    val->get()->mark_unused(number);
+    if (!val->get()->max_value_in_use) {
       /* This was the only base name usage, remove the whole key. */
       type_map.base_name_to_num_suffix.remove(name_base);
     }
@@ -458,8 +461,9 @@ static bool id_name_final_build(UniqueName_TypeMap &type_map,
     BLI_str_utf8_invalid_strip(base_name_modified, r_name_final.size() - 1);
 
     r_name_final = base_name_modified;
-    UniqueName_Value *val = type_map.base_name_to_num_suffix.lookup_ptr(r_name_final);
-    if (!val || val->max_value_in_use.value_or(0) < MAX_NUMBER) {
+    std::unique_ptr<UniqueName_Value> *val = type_map.base_name_to_num_suffix.lookup_ptr(
+        r_name_final);
+    if (!val || val->get()->max_value_in_use.value_or(0) < MAX_NUMBER) {
       return false;
     }
   }
@@ -473,8 +477,9 @@ static bool id_name_final_build(UniqueName_TypeMap &type_map,
   const StringRef new_base_name = r_name_final;
   r_name_final = fmt::format("{}_{:03}", r_name_final, suffix);
   while (r_name_final.size() < MAX_NAME - 12) {
-    UniqueName_Value *val = type_map.base_name_to_num_suffix.lookup_ptr(r_name_final);
-    if (!val || val->max_value_in_use.value_or(0) < MAX_NUMBER) {
+    std::unique_ptr<UniqueName_Value> *val = type_map.base_name_to_num_suffix.lookup_ptr(
+        r_name_final);
+    if (!val || val->get()->max_value_in_use.value_or(0) < MAX_NUMBER) {
       return false;
     }
     suffix++;
@@ -493,8 +498,9 @@ static bool id_name_final_build(UniqueName_TypeMap &type_map,
   BLI_assert(new_base_name.size() <= 8);
   while (true) {
     r_name_final = fmt::format("{}_{}", new_base_name, uint32_t(get_default_hash(r_name_final)));
-    UniqueName_Value *val = type_map.base_name_to_num_suffix.lookup_ptr(r_name_final);
-    if (!val || val->max_value_in_use.value_or(0) < MAX_NUMBER) {
+    std::unique_ptr<UniqueName_Value> *val = type_map.base_name_to_num_suffix.lookup_ptr(
+        r_name_final);
+    if (!val || val->get()->max_value_in_use.value_or(0) < MAX_NUMBER) {
       return false;
     }
   }
@@ -520,7 +526,8 @@ static bool namemap_get_name(Main &bmain,
     /* Get the name and number parts ("name.number"). */
     int number = 0;
     const std::string name_base = BLI_string_split_name_number(r_name_full, '.', number);
-    UniqueName_Value &val = type_map.base_name_to_num_suffix.lookup_or_add_default_as(name_base);
+    std::unique_ptr<UniqueName_Value> &val = type_map.base_name_to_num_suffix.lookup_or_add_as(
+        name_base, std::make_unique<UniqueName_Value>(UniqueName_Value{}));
 
     /* If the full original name is unused, and its number suffix is unused, or is above the max
      * managed value, the name can be used directly.
@@ -545,7 +552,7 @@ static bool namemap_get_name(Main &bmain,
     /* The base name and current number suffix are already used.
      * Request the lowest available valid number suffix (will return #NO_AVAILABLE_NUMBER if none
      * are available for the current base name). */
-    const int number_to_use = val.get_smallest_unused();
+    const int number_to_use = val->get_smallest_unused();
 
     /* Try to build final name from the current base name and the number.
      * Note that this will fail if the suffix number is #NO_AVAILABLE_NUMBER, or if the base name
