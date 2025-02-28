@@ -491,7 +491,6 @@ hiprtGeometryBuildInput HIPRTDevice::prepare_curve_blas(BVHHIPRT *bvh, Hair *hai
   }
 
   if (curve_attr_mP == nullptr || bvh->params.num_motion_curve_steps == 0) {
-    curve_attr_mP = nullptr;
     bvh->custom_prim_info.resize(num_segments);
     bvh->custom_primitive_bound.alloc(num_segments);
   }
