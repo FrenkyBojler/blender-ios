@@ -1464,9 +1464,9 @@ class VIEW3D_MT_view(Menu):
         layout.separator()
 
         if context.mode in {'PAINT_TEXTURE', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'SCULPT'}:
-            layout.operator("view3d.view_selected", text="Frame Last Stroke").use_all_regions = False
+            layout.operator("view3d.view_selected", text="Frame Last Stroke")
         else:
-            layout.operator("view3d.view_selected", text="Frame Selected").use_all_regions = False
+            layout.operator("view3d.view_selected", text="Frame Selected")
         if view.region_quadviews:
             layout.operator("view3d.view_selected", text="Frame Selected (Quad View)").use_all_regions = True
 
@@ -3195,6 +3195,7 @@ class VIEW3D_MT_object_apply(Menu):
             text="Visual Geometry to Mesh",
             text_ctxt=i18n_contexts.default,
         ).target = 'MESH'
+        layout.operator("object.visual_geometry_to_objects")
         layout.operator("object.duplicates_make_real")
         layout.operator("object.parent_inverse_apply", text="Parent Inverse", text_ctxt=i18n_contexts.default)
 
