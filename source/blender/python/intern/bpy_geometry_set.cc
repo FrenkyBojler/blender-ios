@@ -202,7 +202,7 @@ static PyObject *BPy_GeometrySet_get_instances_pointcloud(BPy_GeometrySet *self)
   return pyrna_id_CreatePyObject(&self->instances_pointcloud->id);
 }
 
-static PyObject *BPy_GeometrySet_instance_references(BPy_GeometrySet *self)
+static PyObject *BPy_GeometrySet_get_instance_references(BPy_GeometrySet *self)
 {
   using namespace blender;
   const bke::Instances *instances = self->geometry.get_instances();
@@ -267,8 +267,8 @@ static PyMethodDef BPy_GeometrySet_methods[] = {
      reinterpret_cast<PyCFunction>(BPy_GeometrySet_get_instances_pointcloud),
      METH_NOARGS,
      nullptr},
-    {"instance_references",
-     reinterpret_cast<PyCFunction>(BPy_GeometrySet_instance_references),
+    {"get_instance_references",
+     reinterpret_cast<PyCFunction>(BPy_GeometrySet_get_instance_references),
      METH_NOARGS,
      nullptr},
     {nullptr, nullptr, 0, nullptr},
