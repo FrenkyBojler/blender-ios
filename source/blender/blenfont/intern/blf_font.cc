@@ -1330,7 +1330,7 @@ static void blf_font_wrap_apply(FontBLF *font,
     else if (UNLIKELY(BLI_str_utf32_char_is_optional_break(codepoint, previous))) {
       /* Optional break after various characters, keeping it. */
       wrap.last[0] = i;
-      wrap.last[1] = i_curr;
+      wrap.last[1] = i;
       keep_delim = true;
     }
 
