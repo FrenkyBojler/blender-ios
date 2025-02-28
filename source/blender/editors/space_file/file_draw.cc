@@ -1321,7 +1321,17 @@ void file_draw_list(const bContext *C, ARegion *region)
       }
     }
     else {
-      const int icon = filelist_geticon_file_type(files, i, true);
+      const BIFIconID icon = [&]() {
+        if (file->asset) {
+          file->asset->ensure_previewable();
+
+          if (!filelist_is_ready(files)) {
+            return BIFIconID(ICON_TEMP);
+          }
+          return blender::ed::asset::asset_preview_or_icon(*file->asset);
+        }
+        return filelist_geticon_file_type(files, i, true);
+      }();
 
       icon_ofs += ICON_DEFAULT_WIDTH_SCALE + 0.2f * UI_UNIT_X;
 
