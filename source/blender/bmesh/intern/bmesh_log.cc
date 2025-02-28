@@ -19,7 +19,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_mempool.h"
@@ -40,7 +39,7 @@ struct BMLogVert;
 struct BMLogEntry {
   BMLogEntry *next, *prev;
 
-  /* The following #GHash members map from an element ID to one of the log types above. */
+  /* The following members map from an element ID to one of the log types above. */
 
   /** Elements that were in the previous entry, but have been deleted. */
   blender::Map<uint, BMLogVert *, 0> deleted_verts;
@@ -113,10 +112,6 @@ struct BMLogFace {
 };
 
 /************************* Get/set element IDs ************************/
-
-/* bypass actual hashing, the keys don't overlap */
-#define logkey_hash BLI_ghashutil_inthash_p_simple
-#define logkey_cmp BLI_ghashutil_intcmp
 
 /* Get the vertex's unique ID from the log */
 static uint bm_log_vert_id_get(BMLog *log, BMVert *v)
@@ -393,20 +388,16 @@ static int uint_compare(const void *a_v, const void *b_v)
  *   10 -> 3
  *    3 -> 1
  */
-static GHash *bm_log_compress_ids_to_indices(uint *ids, uint totid)
+static blender::Map<uint, uint> bm_log_compress_ids_to_indices(uint *ids, uint totid)
 {
-  GHash *map = BLI_ghash_int_new_ex(__func__, totid);
-  uint i;
-
+  blender::Map<uint, uint> result;
   qsort(ids, totid, sizeof(*ids), uint_compare);
 
-  for (i = 0; i < totid; i++) {
-    void *key = POINTER_FROM_UINT(ids[i]);
-    void *val = POINTER_FROM_UINT(i);
-    BLI_ghash_insert(map, key, val);
+  for (uint i = 0; i < totid; i++) {
+    result.add(ids[i], i);
   }
 
-  return map;
+  return result;
 }
 
 /***************************** Public API *****************************/
@@ -541,8 +532,6 @@ void BM_log_mesh_elems_reorder(BMesh *bm, BMLog *log)
   uint *varr;
   uint *farr;
 
-  GHash *id_to_idx;
-
   BMIter bm_iter;
   BMVert *v;
   BMFace *f;
@@ -562,24 +551,18 @@ void BM_log_mesh_elems_reorder(BMesh *bm, BMLog *log)
   }
 
   /* Create BMVert index remap array */
-  id_to_idx = bm_log_compress_ids_to_indices(varr, uint(bm->totvert));
+  blender::Map<uint, uint> vert_compression_map = bm_log_compress_ids_to_indices(varr, uint(bm->totvert));
   BM_ITER_MESH_INDEX (v, &bm_iter, bm, BM_VERTS_OF_MESH, i) {
     const uint id = bm_log_vert_id_get(log, v);
-    const void *key = POINTER_FROM_UINT(id);
-    const void *val = BLI_ghash_lookup(id_to_idx, key);
-    varr[i] = POINTER_AS_UINT(val);
+    varr[i] = vert_compression_map.lookup(id);
   }
-  BLI_ghash_free(id_to_idx, nullptr, nullptr);
 
   /* Create BMFace index remap array */
-  id_to_idx = bm_log_compress_ids_to_indices(farr, uint(bm->totface));
+  blender::Map<uint, uint> face_compression_map = bm_log_compress_ids_to_indices(farr, uint(bm->totface));
   BM_ITER_MESH_INDEX (f, &bm_iter, bm, BM_FACES_OF_MESH, i) {
     const uint id = bm_log_face_id_get(log, f);
-    const void *key = POINTER_FROM_UINT(id);
-    const void *val = BLI_ghash_lookup(id_to_idx, key);
-    farr[i] = POINTER_AS_UINT(val);
+    farr[i] = face_compression_map.lookup(id);
   }
-  BLI_ghash_free(id_to_idx, nullptr, nullptr);
 
   BM_mesh_remap(bm, varr, nullptr, farr);
 
