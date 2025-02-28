@@ -746,6 +746,10 @@ static int pose_asset_delete_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  const blender::asset_system::AssetRepresentation *asset = CTX_wm_asset(C);
+  std::optional<AssetLibraryReference> library_ref =
+      asset->owner_asset_library().library_reference();
+
   if (ID_IS_LINKED(action)) {
     bke::asset_edit_id_delete(*CTX_data_main(C), action->id, *op->reports);
   }
@@ -753,8 +757,7 @@ static int pose_asset_delete_exec(bContext *C, wmOperator *op)
     asset::clear_id(&action->id);
   }
 
-  const AssetLibraryReference &library_ref = *CTX_wm_asset_library_ref(C);
-  asset::refresh_asset_library(C, library_ref);
+  asset::refresh_asset_library(C, library_ref.value());
 
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_REMOVED, nullptr);
 
