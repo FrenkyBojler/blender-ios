@@ -1326,68 +1326,74 @@ static bool all_scenes_use(Main *bmain, const blender::Span<const char *> engine
 }
 
 static void convert_grease_pencil_drawing_material_stroke_fill_toggle_to_attributes(
-  Object *object, blender::bke::greasepencil::Drawing &drawing)
+    Object *object, blender::bke::greasepencil::Drawing &drawing)
 {
-using namespace blender;
-bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  using namespace blender;
+  bke::CurvesGeometry &curves = drawing.strokes_for_write();
 
-Array<bool> material_uses_stroke(curves.curves_num(), false);
-Array<bool> material_uses_fill(curves.curves_num(), false);
-const VArray<int> materials = *curves.attributes().lookup_or_default<int>(
-    "material_index", bke::AttrDomain::Curve, 0);
-threading::parallel_for(curves.curves_range(), 1024, [&](const IndexRange range) {
-  for (const int curve_i : range) {
-    const int material_index = materials[curve_i];
-    const Material *material = BKE_object_material_get(object, material_index + 1);
-    if (!material) {
-      continue;
+  Array<bool> material_uses_stroke(curves.curves_num(), false);
+  Array<bool> material_uses_fill(curves.curves_num(), false);
+  const VArray<int> materials = *curves.attributes().lookup_or_default<int>(
+      "material_index", bke::AttrDomain::Curve, 0);
+  threading::parallel_for(curves.curves_range(), 1024, [&](const IndexRange range) {
+    for (const int curve_i : range) {
+      const int material_index = materials[curve_i];
+      const Material *material = BKE_object_material_get(object, material_index + 1);
+      if (!material) {
+        continue;
+      }
+      BLI_assert(material->gp_style != nullptr);
+      material_uses_stroke[curve_i] = (material->gp_style->flag & GP_MATERIAL_STROKE_SHOW) != 0;
+      material_uses_fill[curve_i] = (material->gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0;
     }
-    BLI_assert(material->gp_style != nullptr);
-    material_uses_stroke[curve_i] = (material->gp_style->flag & GP_MATERIAL_STROKE_SHOW) != 0;
-    material_uses_fill[curve_i] = (material->gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0;
+  });
+
+  bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+  /* TODO: Handle the case where the attribute already exists? */
+  if (!attributes.contains("is_stroke")) {
+    bke::SpanAttributeWriter<bool> is_stroke = attributes.lookup_or_add_for_write_only_span<bool>(
+        "is_stroke", bke::AttrDomain::Curve);
+
+    is_stroke.span.copy_from(material_uses_stroke);
+    is_stroke.finish();
   }
-});
 
-bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-/* TODO: Handle the case where the attribute already exists? */
-if (!attributes.contains("is_stroke")) {
-  bke::SpanAttributeWriter<bool> is_stroke = attributes.lookup_or_add_for_write_only_span<bool>(
-      "is_stroke", bke::AttrDomain::Curve);
+  /* TODO: Handle the case where the attribute already exists? */
+  if (!attributes.contains("is_fill")) {
+    bke::SpanAttributeWriter<bool> is_fill = attributes.lookup_or_add_for_write_only_span<bool>(
+        "is_fill", bke::AttrDomain::Curve);
 
-  is_stroke.span.copy_from(material_uses_stroke);
-  is_stroke.finish();
-}
-
-/* TODO: Handle the case where the attribute already exists? */
-if (!attributes.contains("is_fill")) {
-  bke::SpanAttributeWriter<bool> is_fill = attributes.lookup_or_add_for_write_only_span<bool>(
-      "is_fill", bke::AttrDomain::Curve);
-
-  is_fill.span.copy_from(material_uses_fill);
-  is_fill.finish();
-}
+    is_fill.span.copy_from(material_uses_fill);
+    is_fill.finish();
+  }
 }
 
 static void convert_grease_pencil_material_stroke_fill_toggle_to_attributes(Main &bmain)
 {
-using namespace blender;
-using namespace bke::greasepencil;
-/* TODO: We ignore cases where Grease Pencil data is reused in different objects. Handle the case
- * properly where different objects overwrite the material (at object level!) for a specific
- * Grease Pencil data-block. */
-LISTBASE_FOREACH (Object *, object, &bmain.objects) {
-  if (object->type != OB_GREASE_PENCIL) {
-    continue;
+  using namespace blender;
+  using namespace bke::greasepencil;
+  LISTBASE_FOREACH (Material *, material, &bmain.materials) {
+    if (material->gp_style) {
+      material->gp_style->flag |= GP_MATERIAL_STROKE_SHOW;
+      material->gp_style->flag |= GP_MATERIAL_FILL_SHOW;
+    }
   }
-  GreasePencil *grease_pencil = static_cast<GreasePencil *>(object->data);
-  for (GreasePencilDrawingBase *base : grease_pencil->drawings()) {
-    if (base->type != GP_DRAWING) {
+  /* TODO: We ignore cases where Grease Pencil data is reused in different objects. Handle the case
+   * properly where different objects overwrite the material (at object level!) for a specific
+   * Grease Pencil data-block. */
+  LISTBASE_FOREACH (Object *, object, &bmain.objects) {
+    if (object->type != OB_GREASE_PENCIL) {
       continue;
     }
-    Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
-    convert_grease_pencil_drawing_material_stroke_fill_toggle_to_attributes(object, drawing);
+    GreasePencil *grease_pencil = static_cast<GreasePencil *>(object->data);
+    for (GreasePencilDrawingBase *base : grease_pencil->drawings()) {
+      if (base->type != GP_DRAWING) {
+        continue;
+      }
+      Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
+      convert_grease_pencil_drawing_material_stroke_fill_toggle_to_attributes(object, drawing);
+    }
   }
-}
 }
 
 void do_versions_after_linking_400(FileData *fd, Main *bmain)
