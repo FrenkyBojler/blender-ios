@@ -52,7 +52,7 @@ constexpr int NO_AVAILABLE_NUMBER = -1;
  */
 struct UniqueName_Value {
   static constexpr int max_exact_tracking = 1023;
-  int max_value_in_use = NO_AVAILABLE_NUMBER;
+  std::optional<int> max_value_in_use = {};
   BitVector<> mask = {};
   /* Only created when required. Used to manage cases where the same numeric value is used by
    * several unique full names ('Foo.1' and 'Foo.001' e.g.).
@@ -88,7 +88,12 @@ struct UniqueName_Value {
       }
     }
     if (number <= MAX_NUMBER) {
-      math::max_inplace(this->max_value_in_use, number);
+      if (this->max_value_in_use) {
+        math::max_inplace(this->max_value_in_use.value(), number);
+      }
+      else {
+        this->max_value_in_use = number;
+      }
     }
   }
 
@@ -114,12 +119,12 @@ struct UniqueName_Value {
 
       this->mask[number].set(false);
     }
-    if (number == this->max_value_in_use) {
+    if (number == this->max_value_in_use.value_or(NO_AVAILABLE_NUMBER)) {
       if (number > 0) {
-        this->max_value_in_use--;
+        this->max_value_in_use.value()--;
       }
       else {
-        this->max_value_in_use = NO_AVAILABLE_NUMBER;
+        this->max_value_in_use.reset();
       }
     }
   }
@@ -149,10 +154,13 @@ struct UniqueName_Value {
        * the final name with its final number has been defined. */
       return int(this->mask.size());
     }
-    if (this->max_value_in_use + 1 <= MAX_NUMBER) {
-      return (this->max_value_in_use == NO_AVAILABLE_NUMBER) ? 1 : this->max_value_in_use + 1;
+    if (this->max_value_in_use) {
+      if (this->max_value_in_use.value() + 1 <= MAX_NUMBER) {
+        return this->max_value_in_use.value() + 1;
+      }
+      return NO_AVAILABLE_NUMBER;
     }
-    return NO_AVAILABLE_NUMBER;
+    return 1;
   }
 };
 
@@ -302,7 +310,7 @@ struct UniqueName_Map {
       return;
     }
     val->mark_unused(number);
-    if (val->max_value_in_use == NO_AVAILABLE_NUMBER) {
+    if (!val->max_value_in_use) {
       /* This was the only base name usage, remove the whole key. */
       type_map.base_name_to_num_suffix.remove(name_base);
     }
@@ -450,9 +458,8 @@ static bool id_name_final_build(UniqueName_TypeMap &type_map,
     BLI_str_utf8_invalid_strip(base_name_modified, r_name_final.size() - 1);
 
     r_name_final = base_name_modified;
-    if (type_map.base_name_to_num_suffix.lookup_default(r_name_final, {}).max_value_in_use <
-        MAX_NUMBER)
-    {
+    UniqueName_Value *val = type_map.base_name_to_num_suffix.lookup_ptr(r_name_final);
+    if (!val || val->max_value_in_use.value_or(0) < MAX_NUMBER) {
       return false;
     }
   }
@@ -466,9 +473,8 @@ static bool id_name_final_build(UniqueName_TypeMap &type_map,
   const StringRef new_base_name = r_name_final;
   r_name_final = fmt::format("{}_{:03}", r_name_final, suffix);
   while (r_name_final.size() < MAX_NAME - 12) {
-    if (type_map.base_name_to_num_suffix.lookup_default(r_name_final, {}).max_value_in_use <
-        MAX_NUMBER)
-    {
+    UniqueName_Value *val = type_map.base_name_to_num_suffix.lookup_ptr(r_name_final);
+    if (!val || val->max_value_in_use.value_or(0) < MAX_NUMBER) {
       return false;
     }
     suffix++;
@@ -487,9 +493,8 @@ static bool id_name_final_build(UniqueName_TypeMap &type_map,
   BLI_assert(new_base_name.size() <= 8);
   while (true) {
     r_name_final = fmt::format("{}_{}", new_base_name, uint32_t(get_default_hash(r_name_final)));
-    if (type_map.base_name_to_num_suffix.lookup_default(r_name_final, {}).max_value_in_use <
-        MAX_NUMBER)
-    {
+    UniqueName_Value *val = type_map.base_name_to_num_suffix.lookup_ptr(r_name_final);
+    if (!val || val->max_value_in_use.value_or(0) < MAX_NUMBER) {
       return false;
     }
   }
