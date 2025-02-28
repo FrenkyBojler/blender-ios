@@ -279,10 +279,14 @@ def bake_action_iter(
             if isinstance(obj[key], idprop.types.IDPropertyGroup):
                 continue
             obj[key] = value
-            if key in obj.bl_rna.properties:
+            if key in obj:
+                rna_path = "[\"{:s}\"]".format(bpy.utils.escape_identifier(key))
+            elif key in obj.bpy_rna.properties:
+                # For addon defined custom properties.
                 rna_path = key
             else:
-                rna_path = "[\"{:s}\"]".format(bpy.utils.escape_identifier(key))
+                # This shouldn't be reached as this only deals with custom properties.
+                continue
             try:
                 obj.keyframe_insert(rna_path, frame=frame, group=group_name)
             except TypeError:
