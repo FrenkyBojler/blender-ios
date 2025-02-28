@@ -265,7 +265,6 @@ void BKE_bpath_list_free(void *path_list_handle);
  *
  * \see BLI_path_abs()
  */
-PathVariables BKE_build_path_variables(const char *blend_file_path,
-                                       const ID *id /* , const *Scene scene */);
+PathVariables BKE_build_path_variables(const char *blend_file_path);
 
 /** \} */

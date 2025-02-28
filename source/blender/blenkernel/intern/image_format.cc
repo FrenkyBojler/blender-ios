@@ -616,7 +616,7 @@ static void do_makepicstring(char filepath[FILE_MAX],
     return;
   }
   BLI_strncpy(filepath, base, FILE_MAX - 10); /* weak assumption */
-  BLI_path_apply_variables(filepath, BKE_build_path_variables(relbase, nullptr));
+  BLI_path_apply_variables(filepath, BKE_build_path_variables(relbase));
   BLI_path_abs(filepath, relbase);
 
   if (use_frames) {

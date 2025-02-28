@@ -112,8 +112,7 @@ ArchiveReader::ArchiveReader(const Main *bmain, const char *filename)
 {
   char abs_filepath[FILE_MAX];
   STRNCPY(abs_filepath, filename);
-  BLI_path_apply_variables(abs_filepath,
-                           BKE_build_path_variables(BKE_main_blendfile_path(bmain), nullptr));
+  BLI_path_apply_variables(abs_filepath, {});
   BLI_path_abs(abs_filepath, BKE_main_blendfile_path(bmain));
 
 #ifdef WIN32

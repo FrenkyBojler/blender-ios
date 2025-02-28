@@ -142,8 +142,7 @@ static void meshcache_do(MeshCacheModifierData *mcmd,
 
   /* would be nice if we could avoid doing this _every_ frame */
   STRNCPY(filepath, mcmd->filepath);
-  BLI_path_apply_variables(filepath,
-                           BKE_build_path_variables(ID_BLEND_PATH_FROM_GLOBAL(&ob->id), &ob->id));
+  BLI_path_apply_variables(filepath, {});
   BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&ob->id));
 
   switch (mcmd->type) {

@@ -350,10 +350,7 @@ static void get_drag_path(const bContext *C, wmDrag *drag, char r_path[FILE_MAX]
       bSound *sound = (bSound *)id;
       BLI_strncpy(r_path, sound->filepath, FILE_MAX);
     }
-    /* TODO: does it actually make sense to pass the ID to the path variables
-     * here? */
-    BLI_path_apply_variables(r_path,
-                             BKE_build_path_variables(BKE_main_blendfile_path_from_global(), id));
+    BLI_path_apply_variables(r_path, {});
     BLI_path_abs(r_path, BKE_main_blendfile_path_from_global());
   }
   else {

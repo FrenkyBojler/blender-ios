@@ -944,11 +944,7 @@ static ImBuf *seq_render_image_strip(const SeqRenderData *context,
   }
 
   BLI_path_join(filepath, sizeof(filepath), strip->data->dirpath, s_elem->filename);
-  /* TODO: when adding scene to path variables, note that it's available in
-   * `strip`. Check if it actually makes sense to add that when you get to it.
-   * Or maybe the scene should actually be passed as the ID...? */
-  BLI_path_apply_variables(
-      filepath, BKE_build_path_variables(ID_BLEND_PATH_FROM_GLOBAL(&context->scene->id), nullptr));
+  BLI_path_apply_variables(filepath, {});
   BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&context->scene->id));
 
   /* Try to get a proxy image. */

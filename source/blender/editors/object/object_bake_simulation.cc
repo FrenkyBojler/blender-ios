@@ -794,8 +794,7 @@ static PathUsersMap bake_simulation_get_path_users(bContext *C, const Span<Objec
 
       char absolute_bake_dir[FILE_MAX];
       STRNCPY(absolute_bake_dir, nmd->bake_directory);
-      BLI_path_apply_variables(absolute_bake_dir,
-                               BKE_build_path_variables(base_path, &object->id));
+      BLI_path_apply_variables(absolute_bake_dir, {});
       BLI_path_abs(absolute_bake_dir, base_path);
       path_users.add_or_modify(
           absolute_bake_dir, [](int *value) { *value = 1; }, [](int *value) { ++(*value); });

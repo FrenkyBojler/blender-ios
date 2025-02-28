@@ -527,7 +527,7 @@ static Main *blo_find_main(FileData *fd, const char *filepath, const char *relab
 
   STRNCPY(filepath_abs, filepath);
   /* TODO: should we even be applying variables here? */
-  BLI_path_apply_variables(filepath_abs, BKE_build_path_variables(relabase, nullptr));
+  BLI_path_apply_variables(filepath_abs, {});
   BLI_path_abs(filepath_abs, relabase);
   BLI_path_normalize(filepath_abs);
 
@@ -2403,8 +2403,7 @@ static void direct_link_library(FileData *fd, Library *lib, Main *main)
   /* TODO: May be worth checking whether comparison below could use `lib->filepath` instead? */
   STRNCPY(lib->runtime->filepath_abs, lib->filepath);
   /* TODO: should we even be applying variables here? */
-  BLI_path_apply_variables(lib->runtime->filepath_abs,
-                           BKE_build_path_variables(fd->relabase, nullptr));
+  BLI_path_apply_variables(lib->runtime->filepath_abs, {});
   BLI_path_abs(lib->runtime->filepath_abs, fd->relabase);
   BLI_path_normalize(lib->runtime->filepath_abs);
 
