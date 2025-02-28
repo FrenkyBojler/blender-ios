@@ -17,7 +17,6 @@ from bpy.props import (
     FloatVectorProperty,
     StringProperty,
     IntProperty,
-    PointerProperty
 )
 from mathutils import (
     Vector,

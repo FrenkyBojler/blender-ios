@@ -2149,6 +2149,7 @@ static void WM_OT_search_single_menu(wmOperatorType *ot)
                  0,
                  "Initial Query",
                  "Query to insert into the search box");
+  RNA_def_boolean(ot->srna, "is_swap", false, "Is the node swap operator?", "");
 }
 
 static int wm_call_menu_exec(bContext *C, wmOperator *op)

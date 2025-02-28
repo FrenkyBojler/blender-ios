@@ -11,18 +11,57 @@ from bpy.app.translations import (
 )
 
 
-def add_node_type(layout, node_type, *, label=None, poll=None, search_weight=0.0):
+def add_node_type(layout, node_type, *, label=None, poll=None, search_weight=0.0, context=None):
     """Add a node type to a menu."""
     bl_rna = bpy.types.Node.bl_rna_get_subclass(node_type)
     if not label:
         label = bl_rna.name if bl_rna else iface_("Unknown")
-
+    
+    # is_swap_node = False
+    # if context is not None:
+    #     op = context.active_operator
+    #     if op.bl_idname == "WM_OT_search_single_menu" and op.is_swap:
+    #         is_swap_node = True
+    is_swap_node = False
+    if context:
+        op = context.active_operator
+        if op:
+            print(f"{op.bl_idname=}")
+            if hasattr(context.active_operator, "is_swap"):
+                op = context.active_operator
+                
+                print(f"{op.is_swap=}")
+                if op.bl_idname == "WM_OT_search_single_menu" and op.is_swap:
+                    is_swap_node = True
+    
+    
     if poll is True or poll is None:
-        translation_context = bl_rna.translation_context if bl_rna else i18n_contexts.default
-        props = layout.operator("node.add_node", text=label, text_ctxt=translation_context, search_weight=search_weight)
-        props.type = node_type
-        props.use_transform = True
-        return props
+        if is_swap_node:
+            props = layout.operator(
+                "node.swap_node",
+                text=label,
+                text_ctxt=translation_context,
+                search_weight=search_weight
+            )
+            props.type = node_type
+            props.use_transform = False
+            return props
+        else:
+            translation_context = bl_rna.translation_context if bl_rna else i18n_contexts.default
+            props = layout.operator(
+                "node.add_node",
+                text=label,
+                text_ctxt=translation_context,
+                search_weight=search_weight
+            )
+            props.type = node_type
+            props.use_transform = True
+            return props
+        # translation_context = bl_rna.translation_context if bl_rna else i18n_contexts.default
+        # props = layout.operator("node.add_node", text=label, text_ctxt=translation_context, search_weight=search_weight)
+        # props.type = node_type
+        # props.use_transform = True
+        # return props
 
 
 def draw_node_group_add_menu(context, layout):

@@ -630,7 +630,10 @@ class NODE_MT_context_menu(Menu):
 
         layout.separator()
 
-        layout.operator("WM_OT_search_single_menu", text="Swap Node...", icon='VIEWZOOM').menu_idname = "NODE_MT_dummy_geometry_node_add_all"
+        op = layout.operator("WM_OT_search_single_menu", text="Swap Node...", icon='VIEWZOOM')
+        op.menu_idname = "NODE_MT_geometry_node_add_all"
+        op.is_swap = True
+        
         layout.operator("node.delete", icon="X")
         layout.operator_context = "EXEC_REGION_WIN"
         layout.operator("node.delete_reconnect", text="Dissolve")
