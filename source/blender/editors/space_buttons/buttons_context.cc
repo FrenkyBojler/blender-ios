@@ -347,6 +347,8 @@ static bool buttons_context_path_material(ButsContextPath *path)
 
       const int slot = blender::math::max(ob->actcol - 1, 0);
       if (ob->matbits && ob->matbits[slot] == 0) {
+        /* When material from active slot is stored in object data, include it in context path, see
+         * !134968. */
         buttons_context_path_data(path, -1);
       }
       if (ma != nullptr) {
