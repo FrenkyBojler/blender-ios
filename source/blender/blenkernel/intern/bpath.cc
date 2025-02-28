@@ -128,18 +128,16 @@ bool BKE_bpath_foreach_path_fixed_process(BPathForeachPathData *bpath_data,
 {
   const char *absolute_base_path = bpath_data->absolute_base_path;
 
-  char path_src_buf[FILE_MAX];
-  const char *path_src;
+  char path_src[FILE_MAX];
   char path_dst[FILE_MAX];
 
+  STRNCPY(path_src, path);
+  BLI_path_apply_variables(
+      path_src,
+      BKE_build_path_variables(ID_BLEND_PATH(bpath_data->bmain, bpath_data->owner_id),
+                               bpath_data->owner_id));
   if (absolute_base_path) {
-    STRNCPY(path_src_buf, path);
-    BLI_path_apply_variables(path_src_buf, BKE_build_path_variables());
-    BLI_path_abs(path_src_buf, absolute_base_path);
-    path_src = path_src_buf;
-  }
-  else {
-    path_src = path;
+    BLI_path_abs(path_src, absolute_base_path);
   }
 
   /* so functions can check old value */
@@ -170,8 +168,11 @@ bool BKE_bpath_foreach_path_dirfile_fixed_process(BPathForeachPathData *bpath_da
   /* So that functions can access the old value. */
   STRNCPY(path_dst, path_src);
 
+  BLI_path_apply_variables(
+      path_src,
+      BKE_build_path_variables(ID_BLEND_PATH(bpath_data->bmain, bpath_data->owner_id),
+                               bpath_data->owner_id));
   if (absolute_base_path) {
-    BLI_path_apply_variables(path_src, BKE_build_path_variables());
     BLI_path_abs(path_src, absolute_base_path);
   }
 
@@ -190,18 +191,16 @@ bool BKE_bpath_foreach_path_allocated_process(BPathForeachPathData *bpath_data, 
 {
   const char *absolute_base_path = bpath_data->absolute_base_path;
 
-  char path_src_buf[FILE_MAX];
-  const char *path_src;
+  char path_src[FILE_MAX];
   char path_dst[FILE_MAX];
 
+  STRNCPY(path_src, *path);
+  BLI_path_apply_variables(
+      path_src,
+      BKE_build_path_variables(ID_BLEND_PATH(bpath_data->bmain, bpath_data->owner_id),
+                               bpath_data->owner_id));
   if (absolute_base_path) {
-    STRNCPY(path_src_buf, *path);
-    BLI_path_apply_variables(path_src_buf, BKE_build_path_variables());
-    BLI_path_abs(path_src_buf, absolute_base_path);
-    path_src = path_src_buf;
-  }
-  else {
-    path_src = *path;
+    BLI_path_abs(path_src, absolute_base_path);
   }
 
   if (bpath_data->callback_function(bpath_data, path_dst, sizeof(path_dst), path_src)) {
@@ -461,7 +460,10 @@ static bool relative_rebase_foreach_path_cb(BPathForeachPathData *bpath_data,
 
   char filepath[(FILE_MAXDIR * 2) + FILE_MAXFILE];
   BLI_strncpy(filepath, path_src, FILE_MAX);
-  BLI_path_apply_variables(filepath, BKE_build_path_variables());
+  BLI_path_apply_variables(
+      filepath,
+      BKE_build_path_variables(ID_BLEND_PATH(bpath_data->bmain, bpath_data->owner_id),
+                               bpath_data->owner_id));
   if (!BLI_path_abs(filepath, data->basedir_src)) {
     BKE_reportf(data->reports, RPT_WARNING, "Path '%s' cannot be made absolute", path_src);
     data->summary.count_failed++;
@@ -569,7 +571,10 @@ static bool absolute_convert_foreach_path_cb(BPathForeachPathData *bpath_data,
 
   char path_test[FILE_MAX];
   STRNCPY(path_test, path_src);
-  BLI_path_apply_variables(path_test, BKE_build_path_variables());
+  BLI_path_apply_variables(
+      path_test,
+      BKE_build_path_variables(ID_BLEND_PATH(bpath_data->bmain, bpath_data->owner_id),
+                               bpath_data->owner_id));
   BLI_path_abs(path_test, data->basedir);
   if (BLI_path_is_rel(path_test)) {
     const char *type_name = BKE_idtype_get_info_from_id(bpath_data->owner_id)->name;
@@ -730,7 +735,8 @@ void BKE_bpath_list_free(void *path_list_handle)
   MEM_freeN(path_list);
 }
 
-PathVariables BKE_build_path_variables(/* const Main *bmain, const *Scene scene, const ID *id */)
+PathVariables BKE_build_path_variables(const char *blend_file_path,
+                                       const ID *id /* , const *Scene scene */)
 {
   PathVariables variables;
 
@@ -738,6 +744,22 @@ PathVariables BKE_build_path_variables(/* const Main *bmain, const *Scene scene,
   variables.strings.add("bar", "boooo");
   variables.strings.add("flub", "what");
   variables.strings.add("josh", "bob");
+
+  /* Blend file name. */
+  if (blend_file_path) {
+    const char *file_name = BLI_path_basename(blend_file_path);
+    if (file_name[0] != '\0') {
+      const char *file_name_end = BLI_path_extension_or_end(file_name);
+      if (file_name_end == file_name) {
+        /* When the filename has no extension, but starts with a period. */
+        variables.strings.add("file_name", blender::StringRef(file_name));
+      }
+      else {
+        /* Normal case. */
+        variables.strings.add("file_name", blender::StringRef(file_name, file_name_end));
+      }
+    }
+  }
 
   return variables;
 }

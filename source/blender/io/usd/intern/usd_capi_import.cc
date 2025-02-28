@@ -154,7 +154,8 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
         data->view_layer, import_collection);
   }
 
-  BLI_path_apply_variables(data->filepath, BKE_build_path_variables());
+  BLI_path_apply_variables(
+      data->filepath, BKE_build_path_variables(BKE_main_blendfile_path_from_global(), nullptr));
   BLI_path_abs(data->filepath, BKE_main_blendfile_path_from_global());
 
   *data->do_update = true;

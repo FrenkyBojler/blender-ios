@@ -1322,8 +1322,7 @@ static int ptcache_path(PTCacheID *pid, char dirname[MAX_PTCACHE_PATH])
 
   if (pid->cache->flag & PTCACHE_EXTERNAL) {
     BLI_strncpy(dirname, pid->cache->path, MAX_PTCACHE_PATH);
-
-    BLI_path_apply_variables(dirname, BKE_build_path_variables());
+    BLI_path_apply_variables(dirname, BKE_build_path_variables(blendfile_path_lib, pid->owner_id));
     if (BLI_path_is_rel(dirname)) {
       BLI_path_abs(dirname, blendfile_path_lib);
     }
@@ -1340,7 +1339,7 @@ static int ptcache_path(PTCacheID *pid, char dirname[MAX_PTCACHE_PATH])
     /* Add blend file name to pointcache dir. */
     BLI_snprintf(dirname, MAX_PTCACHE_PATH, "//" PTCACHE_PATH "%s", file);
 
-    BLI_path_apply_variables(dirname, BKE_build_path_variables());
+    BLI_path_apply_variables(dirname, BKE_build_path_variables(blendfile_path_lib, pid->owner_id));
     BLI_path_abs(dirname, blendfile_path_lib);
     return BLI_path_slash_ensure(dirname, MAX_PTCACHE_PATH); /* new strlen() */
   }

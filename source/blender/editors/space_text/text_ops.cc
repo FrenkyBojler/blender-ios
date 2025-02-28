@@ -686,7 +686,10 @@ static void txt_write_file(Main *bmain, Text *text, ReportList *reports)
   }
 
   STRNCPY(filepath, text->filepath);
-  BLI_path_apply_variables(filepath, BKE_build_path_variables());
+  /* TODO: does it actually make sense to pass the ID to the path variables
+   * here? */
+  BLI_path_apply_variables(filepath,
+                           BKE_build_path_variables(BKE_main_blendfile_path(bmain), &text->id));
   BLI_path_abs(filepath, BKE_main_blendfile_path(bmain));
 
   /* Check if file write permission is ok. */

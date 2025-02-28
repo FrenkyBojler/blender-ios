@@ -201,12 +201,14 @@ static FileSelect file_select_do(bContext *C, int selected_idx, bool do_diropen)
         }
         else if (file->redirection_path) {
           STRNCPY(params->dir, file->redirection_path);
-          BLI_path_apply_variables(params->dir, BKE_build_path_variables());
+          BLI_path_apply_variables(
+              params->dir, BKE_build_path_variables(BKE_main_blendfile_path(bmain), nullptr));
           BLI_path_abs(params->dir, BKE_main_blendfile_path(bmain));
           BLI_path_normalize_dir(params->dir, sizeof(params->dir));
         }
         else {
-          BLI_path_apply_variables(params->dir, BKE_build_path_variables());
+          BLI_path_apply_variables(
+              params->dir, BKE_build_path_variables(BKE_main_blendfile_path(bmain), nullptr));
           BLI_path_abs(params->dir, BKE_main_blendfile_path(bmain));
           BLI_path_normalize_dir(params->dir, sizeof(params->dir));
           BLI_path_append_dir(params->dir, sizeof(params->dir), file->relpath);
@@ -1111,7 +1113,8 @@ static int bookmark_select_exec(bContext *C, wmOperator *op)
 
   RNA_property_string_get(op->ptr, prop, entry);
   STRNCPY(params->dir, entry);
-  BLI_path_apply_variables(params->dir, BKE_build_path_variables());
+  BLI_path_apply_variables(params->dir,
+                           BKE_build_path_variables(BKE_main_blendfile_path(bmain), nullptr));
   BLI_path_abs(params->dir, BKE_main_blendfile_path(bmain));
   BLI_path_normalize_dir(params->dir, sizeof(params->dir));
   ED_file_change_dir(C);
@@ -1712,7 +1715,8 @@ void file_operator_to_sfile(Main *bmain, SpaceFile *sfile, wmOperator *op)
 
   /* we could check for relative_path property which is used when converting
    * in the other direction but doesn't hurt to do this every time */
-  BLI_path_apply_variables(params->dir, BKE_build_path_variables());
+  BLI_path_apply_variables(params->dir,
+                           BKE_build_path_variables(BKE_main_blendfile_path(bmain), nullptr));
   BLI_path_abs(params->dir, BKE_main_blendfile_path(bmain));
 
   /* XXX, files and dirs updates missing, not really so important though */
@@ -2088,7 +2092,8 @@ static bool file_execute(bContext *C, SpaceFile *sfile)
       BLI_path_parent_dir(params->dir);
     }
     else {
-      BLI_path_apply_variables(params->dir, BKE_build_path_variables());
+      BLI_path_apply_variables(params->dir,
+                               BKE_build_path_variables(BKE_main_blendfile_path(bmain), nullptr));
       BLI_path_abs(params->dir, BKE_main_blendfile_path(bmain));
       BLI_path_normalize_native(params->dir);
       BLI_path_append_dir(params->dir, sizeof(params->dir), file->relpath);
@@ -2269,7 +2274,8 @@ static int file_parent_exec(bContext *C, wmOperator * /*unused*/)
 
   if (params) {
     if (BLI_path_parent_dir(params->dir)) {
-      BLI_path_apply_variables(params->dir, BKE_build_path_variables());
+      BLI_path_apply_variables(params->dir,
+                               BKE_build_path_variables(BKE_main_blendfile_path(bmain), nullptr));
       BLI_path_abs(params->dir, BKE_main_blendfile_path(bmain));
       BLI_path_normalize_dir(params->dir, sizeof(params->dir));
       ED_file_change_dir(C);
@@ -2787,7 +2793,7 @@ static void file_expand_directory(const Main *bmain, FileSelectParams *params)
   else if (BLI_path_is_rel(params->dir)) { /* `//` literal. */
     const char *blendfile_path = BKE_main_blendfile_path(bmain);
     if (blendfile_path[0] != '\0') {
-      BLI_path_apply_variables(params->dir, BKE_build_path_variables());
+      BLI_path_apply_variables(params->dir, BKE_build_path_variables(blendfile_path, nullptr));
       BLI_path_abs(params->dir, blendfile_path);
     }
     else {
@@ -3015,7 +3021,8 @@ void file_filename_enter_handle(bContext *C, void * /*arg_unused*/, void *arg_bu
 
       /* If directory, open it and empty filename field. */
       if (filelist_is_dir(sfile->files, filepath)) {
-        BLI_path_apply_variables(filepath, BKE_build_path_variables());
+        BLI_path_apply_variables(
+            filepath, BKE_build_path_variables(BKE_main_blendfile_path(bmain), nullptr));
         BLI_path_abs(filepath, BKE_main_blendfile_path(bmain));
         BLI_path_normalize_dir(filepath, sizeof(filepath));
         STRNCPY(params->dir, filepath);

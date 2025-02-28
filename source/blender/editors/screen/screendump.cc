@@ -117,7 +117,8 @@ static int screenshot_exec(bContext *C, wmOperator *op)
       char filepath[FILE_MAX];
 
       RNA_string_get(op->ptr, "filepath", filepath);
-      BLI_path_apply_variables(filepath, BKE_build_path_variables());
+      BLI_path_apply_variables(
+          filepath, BKE_build_path_variables(BKE_main_blendfile_path_from_global(), nullptr));
       BLI_path_abs(filepath, BKE_main_blendfile_path_from_global());
 
       /* operator ensures the extension */

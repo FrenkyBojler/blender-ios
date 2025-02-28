@@ -179,7 +179,7 @@ static bool fluid_validatepaths(FluidJob *job, ReportList *reports)
   }
 
   BLI_strncpy(temp_dir, fds->cache_directory, FILE_MAXDIR);
-  BLI_path_apply_variables(temp_dir, BKE_build_path_variables());
+  BLI_path_apply_variables(temp_dir, BKE_build_path_variables(relbase, &job->ob->id));
   is_relative = BLI_path_abs(temp_dir, relbase);
 
   /* Ensure whole path exists */
@@ -371,7 +371,7 @@ static void fluid_bake_startjob(void *customdata, wmJobWorkerStatus *worker_stat
 
   if (fluid_is_bake_noise(job) || fluid_is_bake_all(job)) {
     BLI_path_join(temp_dir, sizeof(temp_dir), fds->cache_directory, FLUID_DOMAIN_DIR_NOISE);
-    BLI_path_apply_variables(temp_dir, BKE_build_path_variables());
+    BLI_path_apply_variables(temp_dir, BKE_build_path_variables(relbase, &job->ob->id));
     BLI_path_abs(temp_dir, relbase);
     BLI_dir_create_recursive(temp_dir); /* Create 'noise' subdir if it does not exist already */
     fds->cache_flag &= ~(FLUID_DOMAIN_BAKED_NOISE | FLUID_DOMAIN_OUTDATED_NOISE);
@@ -380,7 +380,7 @@ static void fluid_bake_startjob(void *customdata, wmJobWorkerStatus *worker_stat
   }
   if (fluid_is_bake_mesh(job) || fluid_is_bake_all(job)) {
     BLI_path_join(temp_dir, sizeof(temp_dir), fds->cache_directory, FLUID_DOMAIN_DIR_MESH);
-    BLI_path_apply_variables(temp_dir, BKE_build_path_variables());
+    BLI_path_apply_variables(temp_dir, BKE_build_path_variables(relbase, &job->ob->id));
     BLI_path_abs(temp_dir, relbase);
     BLI_dir_create_recursive(temp_dir); /* Create 'mesh' subdir if it does not exist already */
     fds->cache_flag &= ~(FLUID_DOMAIN_BAKED_MESH | FLUID_DOMAIN_OUTDATED_MESH);
@@ -389,7 +389,7 @@ static void fluid_bake_startjob(void *customdata, wmJobWorkerStatus *worker_stat
   }
   if (fluid_is_bake_particle(job) || fluid_is_bake_all(job)) {
     BLI_path_join(temp_dir, sizeof(temp_dir), fds->cache_directory, FLUID_DOMAIN_DIR_PARTICLES);
-    BLI_path_apply_variables(temp_dir, BKE_build_path_variables());
+    BLI_path_apply_variables(temp_dir, BKE_build_path_variables(relbase, &job->ob->id));
     BLI_path_abs(temp_dir, relbase);
 
     /* Create 'particles' subdir if it does not exist already */
@@ -401,7 +401,7 @@ static void fluid_bake_startjob(void *customdata, wmJobWorkerStatus *worker_stat
   }
   if (fluid_is_bake_guiding(job) || fluid_is_bake_all(job)) {
     BLI_path_join(temp_dir, sizeof(temp_dir), fds->cache_directory, FLUID_DOMAIN_DIR_GUIDE);
-    BLI_path_apply_variables(temp_dir, BKE_build_path_variables());
+    BLI_path_apply_variables(temp_dir, BKE_build_path_variables(relbase, &job->ob->id));
     BLI_path_abs(temp_dir, relbase);
     BLI_dir_create_recursive(temp_dir); /* Create 'guiding' subdir if it does not exist already */
     fds->cache_flag &= ~(FLUID_DOMAIN_BAKED_GUIDE | FLUID_DOMAIN_OUTDATED_GUIDE);
@@ -410,12 +410,12 @@ static void fluid_bake_startjob(void *customdata, wmJobWorkerStatus *worker_stat
   }
   if (fluid_is_bake_data(job) || fluid_is_bake_all(job)) {
     BLI_path_join(temp_dir, sizeof(temp_dir), fds->cache_directory, FLUID_DOMAIN_DIR_CONFIG);
-    BLI_path_apply_variables(temp_dir, BKE_build_path_variables());
+    BLI_path_apply_variables(temp_dir, BKE_build_path_variables(relbase, &job->ob->id));
     BLI_path_abs(temp_dir, relbase);
     BLI_dir_create_recursive(temp_dir); /* Create 'config' subdir if it does not exist already */
 
     BLI_path_join(temp_dir, sizeof(temp_dir), fds->cache_directory, FLUID_DOMAIN_DIR_DATA);
-    BLI_path_apply_variables(temp_dir, BKE_build_path_variables());
+    BLI_path_apply_variables(temp_dir, BKE_build_path_variables(relbase, &job->ob->id));
     BLI_path_abs(temp_dir, relbase);
     BLI_dir_create_recursive(temp_dir); /* Create 'data' subdir if it does not exist already */
     fds->cache_flag &= ~(FLUID_DOMAIN_BAKED_DATA | FLUID_DOMAIN_OUTDATED_DATA);
@@ -424,7 +424,7 @@ static void fluid_bake_startjob(void *customdata, wmJobWorkerStatus *worker_stat
 
     if (fds->flags & FLUID_DOMAIN_EXPORT_MANTA_SCRIPT) {
       BLI_path_join(temp_dir, sizeof(temp_dir), fds->cache_directory, FLUID_DOMAIN_DIR_SCRIPT);
-      BLI_path_apply_variables(temp_dir, BKE_build_path_variables());
+      BLI_path_apply_variables(temp_dir, BKE_build_path_variables(relbase, &job->ob->id));
       BLI_path_abs(temp_dir, relbase);
       BLI_dir_create_recursive(temp_dir); /* Create 'script' subdir if it does not exist already */
     }

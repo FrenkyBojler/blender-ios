@@ -236,7 +236,7 @@ PackedFile *BKE_packedfile_new(ReportList *reports, const char *filepath_rel, co
   /* convert relative filenames to absolute filenames */
 
   STRNCPY(filepath, filepath_rel);
-  BLI_path_apply_variables(filepath, BKE_build_path_variables());
+  BLI_path_apply_variables(filepath, BKE_build_path_variables(basepath, nullptr));
   BLI_path_abs(filepath, basepath);
 
   /* open the file
@@ -367,7 +367,7 @@ int BKE_packedfile_write_to_file(ReportList *reports,
   // void *data;
 
   STRNCPY(filepath, filepath_rel);
-  BLI_path_apply_variables(filepath, BKE_build_path_variables());
+  BLI_path_apply_variables(filepath, BKE_build_path_variables(ref_file_name, nullptr));
   BLI_path_abs(filepath, ref_file_name);
 
   if (BLI_exists(filepath)) {
@@ -431,7 +431,7 @@ enum ePF_FileCompare BKE_packedfile_compare_to_file(const char *ref_file_name,
   char filepath[FILE_MAX];
 
   STRNCPY(filepath, filepath_rel);
-  BLI_path_apply_variables(filepath, BKE_build_path_variables());
+  BLI_path_apply_variables(filepath, BKE_build_path_variables(ref_file_name, nullptr));
   BLI_path_abs(filepath, ref_file_name);
 
   if (BLI_stat(filepath, &st) == -1) {
@@ -494,7 +494,7 @@ char *BKE_packedfile_unpack_to_file(ReportList *reports,
         char temp_abs[FILE_MAX];
 
         STRNCPY(temp_abs, local_name);
-        BLI_path_apply_variables(temp_abs, BKE_build_path_variables());
+        BLI_path_apply_variables(temp_abs, BKE_build_path_variables(ref_file_name, nullptr));
         BLI_path_abs(temp_abs, ref_file_name);
 
         /* if file exists use it */
@@ -514,7 +514,7 @@ char *BKE_packedfile_unpack_to_file(ReportList *reports,
         char temp_abs[FILE_MAX];
 
         STRNCPY(temp_abs, abs_name);
-        BLI_path_apply_variables(temp_abs, BKE_build_path_variables());
+        BLI_path_apply_variables(temp_abs, BKE_build_path_variables(ref_file_name, nullptr));
         BLI_path_abs(temp_abs, ref_file_name);
 
         /* if file exists use it */

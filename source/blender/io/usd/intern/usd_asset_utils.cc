@@ -290,9 +290,11 @@ std::string import_asset(const char *src,
 
   char dest_dir_path[FILE_MAXDIR];
   STRNCPY(dest_dir_path, import_dir);
+  const char *basepath = BKE_main_blendfile_path_from_global();
+
+  BLI_path_apply_variables(path_temp, BKE_build_path_variables(basepath, nullptr));
 
   if (BLI_path_is_rel(import_dir)) {
-    const char *basepath = BKE_main_blendfile_path_from_global();
     if (basepath[0] == '\0') {
       BKE_reportf(reports,
                   RPT_ERROR,
@@ -307,7 +309,6 @@ std::string import_asset(const char *src,
     }
     char path_temp[FILE_MAX];
     STRNCPY(path_temp, dest_dir_path);
-    BLI_path_apply_variables(path_temp, BKE_build_path_variables());
     BLI_path_abs(path_temp, basepath);
     STRNCPY(dest_dir_path, path_temp);
   }
@@ -652,7 +653,7 @@ void USD_path_abs(char *path, const char *basepath, bool for_import)
 
   /* If we got here, the path couldn't be resolved by the ArResolver, so we
    * fall back on the standard Blender absolute path resolution. */
-  BLI_path_apply_variables(path, BKE_build_path_variables());
+  BLI_path_apply_variables(path, BKE_build_path_variables(basepath, nullptr));
   BLI_path_abs(path, basepath);
 }
 

@@ -278,7 +278,8 @@ static int open_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
   if (clip) {
     STRNCPY(dirpath, clip->filepath);
 
-    BLI_path_apply_variables(dirpath, BKE_build_path_variables());
+    BLI_path_apply_variables(dirpath,
+                             BKE_build_path_variables(CTX_data_main(C)->filepath, nullptr));
     BLI_path_abs(dirpath, CTX_data_main(C)->filepath);
     BLI_path_parent_dir(dirpath);
   }

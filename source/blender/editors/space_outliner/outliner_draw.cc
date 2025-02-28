@@ -747,7 +747,8 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
         BKE_library_filepath_set(bmain, lib, lib->filepath);
 
         STRNCPY(expanded, lib->filepath);
-        BLI_path_apply_variables(expanded, BKE_build_path_variables());
+        BLI_path_apply_variables(
+            expanded, BKE_build_path_variables(BKE_main_blendfile_path(bmain), nullptr));
         BLI_path_abs(expanded, BKE_main_blendfile_path(bmain));
         if (!BLI_exists(expanded)) {
           BKE_reportf(CTX_wm_reports(C),

@@ -897,7 +897,8 @@ static void get_absolute_path(const Image *ima, char *r_path)
 {
   /* Make absolute source path. */
   BLI_strncpy(r_path, ima->filepath, FILE_MAX);
-  BLI_path_apply_variables(r_path, BKE_build_path_variables());
+  BLI_path_apply_variables(
+      r_path, BKE_build_path_variables(ID_BLEND_PATH_FROM_GLOBAL(&ima->id), &ima->id));
   BLI_path_abs(r_path, ID_BLEND_PATH_FROM_GLOBAL(&ima->id));
   BLI_path_normalize(r_path);
 }

@@ -1601,7 +1601,11 @@ static int image_file_browse_exec(bContext *C, wmOperator *op)
 
   char filepath[FILE_MAX];
   RNA_string_get(op->ptr, "filepath", filepath);
-  BLI_path_apply_variables(filepath, BKE_build_path_variables());
+  const char *relbase = ID_IS_LINKED(&ima->id) ? ima->id.lib->runtime->filepath_abs :
+                                                 BKE_main_blendfile_path(CTX_data_main(C));
+  /* TODO: does it actually make sense to pass the image ID to the path
+   * variables here? */
+  BLI_path_apply_variables(filepath, BKE_build_path_variables(relbase, &ima->id));
   if (BLI_path_is_rel(filepath)) {
     /* Relative path created by the file-browser are always relative to the current blendfile, need
      * to be made relative to the library blendfile path in case image is an editable linked data.
@@ -1609,9 +1613,7 @@ static int image_file_browse_exec(bContext *C, wmOperator *op)
     BLI_path_abs(filepath, BKE_main_blendfile_path(CTX_data_main(C)));
     /* TODO: make this a BKE_lib_id helper (already a static function in BKE_image too), we likely
      * need this in more places in the future. ~~mont29 */
-    BLI_path_rel(filepath,
-                 ID_IS_LINKED(&ima->id) ? ima->id.lib->runtime->filepath_abs :
-                                          BKE_main_blendfile_path(CTX_data_main(C)));
+    BLI_path_rel(filepath, relbase);
   }
 
   /* If loading into a tiled texture, ensure that the filename is tokenized. */
@@ -1638,10 +1640,12 @@ static int image_file_browse_invoke(bContext *C, wmOperator *op, const wmEvent *
 
   char filepath[FILE_MAX];
   STRNCPY(filepath, ima->filepath);
-  BLI_path_apply_variables(filepath, BKE_build_path_variables());
-  BLI_path_abs(filepath,
-               ID_IS_LINKED(&ima->id) ? ima->id.lib->runtime->filepath_abs :
-                                        BKE_main_blendfile_path(CTX_data_main(C)));
+  const char *relbase = ID_IS_LINKED(&ima->id) ? ima->id.lib->runtime->filepath_abs :
+                                                 BKE_main_blendfile_path(CTX_data_main(C));
+  /* TODO: does it actually make sense to pass the image ID to the path
+   * variables here? */
+  BLI_path_apply_variables(filepath, BKE_build_path_variables(relbase, &ima->id));
+  BLI_path_abs(filepath, relbase);
 
   /* Shift+Click to open the file, Alt+Click to browse a folder in the OS's browser. */
   if (event->modifier & (KM_SHIFT | KM_ALT)) {
@@ -1866,7 +1870,8 @@ static void image_save_options_from_op(Main *bmain, ImageSaveOptions *opts, wmOp
 {
   if (RNA_struct_property_is_set(op->ptr, "filepath")) {
     RNA_string_get(op->ptr, "filepath", opts->filepath);
-    BLI_path_apply_variables(opts->filepath, BKE_build_path_variables());
+    BLI_path_apply_variables(opts->filepath,
+                             BKE_build_path_variables(BKE_main_blendfile_path(bmain), nullptr));
     BLI_path_abs(opts->filepath, BKE_main_blendfile_path(bmain));
   }
 

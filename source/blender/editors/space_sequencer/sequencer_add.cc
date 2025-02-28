@@ -180,7 +180,8 @@ static void sequencer_generic_invoke_path__internal(bContext *C,
       Main *bmain = CTX_data_main(C);
       char dirpath[FILE_MAX];
       STRNCPY(dirpath, last_seq->data->dirpath);
-      BLI_path_apply_variables(dirpath, BKE_build_path_variables());
+      BLI_path_apply_variables(dirpath,
+                               BKE_build_path_variables(BKE_main_blendfile_path(bmain), nullptr));
       BLI_path_abs(dirpath, BKE_main_blendfile_path(bmain));
       RNA_string_set(op->ptr, identifier, dirpath);
     }

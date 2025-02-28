@@ -234,6 +234,38 @@ void BKE_bpath_list_restore(Main *bmain, eBPathForeachFlag flag, void *path_list
  */
 void BKE_bpath_list_free(void *path_list_handle);
 
-PathVariables BKE_build_path_variables(/* const Main *bmain, const *Scene scene, const ID *id */);
+/**
+ * Build path variables based on available information.
+ *
+ * All parameters are allowed to be null, in which case the variables derived
+ * from those parameters will simply not be included.
+ *
+ * This is generally used to create the variables passed to
+ * `BLI_path_apply_variables()`.
+ *
+ * Note: this does not and *shouldn't* include adding a variable for the
+ * absolute path to the current blend file. That is handled by `BLI_path_abs()`
+ * (with the special "//" syntax), which is called in specific ways for e.g.
+ * cache paths such that corner cases are handled properly. We specifically
+ * avoid that here, since the use-case is already addressed and it would be easy
+ * to mess up the specifics.
+ *
+ *
+ * \param blend_file_path: full path to the blend file, including the file name
+ * (a directory-only path--ending with a slash--will also be accepted, but then
+ * no "file_name" variable will be created). Typically you should fetch this
+ * with `ID_BLEND_PATH()`, but there are plenty of exceptions. Note that this
+ * should be the blend file that the path you're going to generate with the
+ * variables "belongs" to.
+ *
+ * \param id: the id that the given path belongs to.
+ *
+ *
+ * \see BLI_path_apply_variables()
+ *
+ * \see BLI_path_abs()
+ */
+PathVariables BKE_build_path_variables(const char *blend_file_path,
+                                       const ID *id /* , const *Scene scene */);
 
 /** \} */

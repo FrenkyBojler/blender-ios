@@ -127,7 +127,8 @@ static PyObject *bpy_lib_write(BPy_PropertyRNA *self, PyObject *args, PyObject *
   STRNCPY(filepath_abs, filepath_data.value);
   Py_XDECREF(filepath_data.value_coerce);
 
-  BLI_path_apply_variables(filepath_abs, BKE_build_path_variables());
+  BLI_path_apply_variables(
+      filepath_abs, BKE_build_path_variables(BKE_main_blendfile_path_from_global(), nullptr));
   BLI_path_abs(filepath_abs, BKE_main_blendfile_path_from_global());
 
   PartialWriteContext partial_write_ctx{bmain_src->filepath};

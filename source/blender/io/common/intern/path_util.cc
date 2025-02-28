@@ -23,7 +23,7 @@ std::string path_reference(StringRefNull filepath,
   const bool is_relative = BLI_path_is_rel(filepath.c_str());
   char filepath_abs[PATH_MAX];
   STRNCPY(filepath_abs, filepath.c_str());
-  BLI_path_apply_variables(filepath_abs, BKE_build_path_variables());
+  BLI_path_apply_variables(filepath_abs, BKE_build_path_variables(base_src.c_str(), nullptr));
   BLI_path_abs(filepath_abs, base_src.c_str());
   BLI_path_normalize(filepath_abs);
 

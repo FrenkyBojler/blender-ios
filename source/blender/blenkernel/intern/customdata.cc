@@ -4598,7 +4598,7 @@ static void customdata_external_filename(char filepath[FILE_MAX],
                                          CustomDataExternal *external)
 {
   BLI_strncpy(filepath, external->filepath, FILE_MAX);
-  BLI_path_apply_variables(filepath, BKE_build_path_variables());
+  BLI_path_apply_variables(filepath, BKE_build_path_variables(ID_BLEND_PATH_FROM_GLOBAL(id), id));
   BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(id));
 }
 

@@ -107,7 +107,11 @@ bool seq_proxy_get_custom_file_filepath(Strip *strip, char *filepath, const int 
   }
 
   BLI_path_join(filepath_temp, sizeof(filepath_temp), proxy->dirpath, proxy->filename);
-  BLI_path_apply_variables(filepath_temp, BKE_build_path_variables());
+  /* TODO: when adding scene to path variables, note that it's available in
+   * `strip`. Check if it actually makes sense to add that when you get to it.
+   * Or maybe the scene should actually be passed as the ID...? */
+  BLI_path_apply_variables(
+      filepath_temp, BKE_build_path_variables(BKE_main_blendfile_path_from_global(), nullptr));
   BLI_path_abs(filepath_temp, BKE_main_blendfile_path_from_global());
 
   if (view_id > 0) {
@@ -162,7 +166,8 @@ static bool seq_proxy_get_filepath(Scene *scene,
     else { /* Per project with custom dirpath. */
       STRNCPY(dirpath, ed->proxy_dir);
     }
-    BLI_path_apply_variables(filepath, BKE_build_path_variables());
+    BLI_path_apply_variables(
+        filepath, BKE_build_path_variables(BKE_main_blendfile_path_from_global(), nullptr));
     BLI_path_abs(filepath, BKE_main_blendfile_path_from_global());
   }
   else {
@@ -185,7 +190,8 @@ static bool seq_proxy_get_filepath(Scene *scene,
                proxy_size_number,
                SEQ_render_give_stripelem(scene, strip, timeline_frame)->filename,
                suffix);
-  BLI_path_apply_variables(filepath, BKE_build_path_variables());
+  BLI_path_apply_variables(
+      filepath, BKE_build_path_variables(BKE_main_blendfile_path_from_global(), nullptr));
   BLI_path_abs(filepath, BKE_main_blendfile_path_from_global());
   return true;
 }
@@ -357,7 +363,8 @@ static bool seq_proxy_multiview_context_invalid(Strip *strip,
       char filepath[FILE_MAX];
       BLI_path_join(
           filepath, sizeof(filepath), strip->data->dirpath, strip->data->stripdata->filename);
-      BLI_path_apply_variables(filepath, BKE_build_path_variables());
+      BLI_path_apply_variables(
+          filepath, BKE_build_path_variables(BKE_main_blendfile_path_from_global(), nullptr));
       BLI_path_abs(filepath, BKE_main_blendfile_path_from_global());
       BKE_scene_multiview_view_prefix_get(scene, filepath, prefix_vars->prefix, &prefix_vars->ext);
     }
