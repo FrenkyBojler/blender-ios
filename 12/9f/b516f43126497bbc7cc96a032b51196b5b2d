@@ -1,2 +1,3 @@
 Referenced by issue #134665, Broken "File -> External Data -> Pack Linked Libraries"
 Referenced by pull request #134839, Fix: Broken "File -> External Data -> Pack Linked Libraries"
+Referenced by commit 412cefe9bb5028dc302119eb7b246ae44825eebd, Fix: Broken "File -> External Data -> Pack Linked Libraries"
