@@ -389,6 +389,17 @@ static void file_but_enable_drag(uiBut *but,
   }
 }
 
+static void file_but_tooltip_func_set(const SpaceFile *sfile, const FileDirEntry *file, uiBut *but)
+{
+  if (file->asset) {
+    UI_but_func_tooltip_set(but, file_draw_asset_tooltip_func, file->asset, nullptr);
+  }
+  else {
+    UI_but_func_tooltip_custom_set(
+        but, file_draw_tooltip_custom_func, file_tooltip_data_create(sfile, file), MEM_freeN);
+  }
+}
+
 static uiBut *file_add_icon_but(const SpaceFile *sfile,
                                 uiBlock *block,
                                 const char * /*path*/,
@@ -408,13 +419,7 @@ static uiBut *file_add_icon_but(const SpaceFile *sfile,
   but = uiDefIconBut(
       block, UI_BTYPE_LABEL, 0, icon, x, y, width, height, nullptr, 0.0f, 0.0f, std::nullopt);
   UI_but_label_alpha_factor_set(but, dimmed ? 0.3f : 1.0f);
-  if (file->asset) {
-    UI_but_func_tooltip_set(but, file_draw_asset_tooltip_func, file->asset, nullptr);
-  }
-  else {
-    UI_but_func_tooltip_custom_set(
-        but, file_draw_tooltip_custom_func, file_tooltip_data_create(sfile, file), MEM_freeN);
-  }
+  file_but_tooltip_func_set(sfile, file, but);
 
   return but;
 }
@@ -583,14 +588,7 @@ static void file_add_preview_drag_but(const SpaceFile *sfile,
   const auto [scaled_width, scaled_height, scale] = preview_image_scaled_dimensions_get(
       drag_image->x, drag_image->y, *layout);
   file_but_enable_drag(but, sfile, file, path, drag_image, file_type_icon, scale);
-
-  if (file->asset) {
-    UI_but_func_tooltip_set(but, file_draw_asset_tooltip_func, file->asset, nullptr);
-  }
-  else {
-    UI_but_func_tooltip_custom_set(
-        but, file_draw_tooltip_custom_func, file_tooltip_data_create(sfile, file), MEM_freeN);
-  }
+  file_but_tooltip_func_set(sfile, file, but);
 }
 
 static void file_draw_preview(const FileDirEntry *file,
@@ -1348,10 +1346,7 @@ void file_draw_list(const bContext *C, ARegion *region)
                                      std::nullopt);
           UI_but_dragflag_enable(drag_but, UI_BUT_DRAG_FULL_BUT);
           file_but_enable_drag(drag_but, sfile, file, path, nullptr, icon, UI_SCALE_FAC);
-          UI_but_func_tooltip_custom_set(drag_but,
-                                         file_draw_tooltip_custom_func,
-                                         file_tooltip_data_create(sfile, file),
-                                         MEM_freeN);
+          file_but_tooltip_func_set(sfile, file, drag_but);
         }
       }
 
