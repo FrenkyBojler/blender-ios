@@ -1729,10 +1729,10 @@ class NodeTreeMainUpdater {
         continue;
       }
       bNodeTreeInterfacePanel *panel = reinterpret_cast<bNodeTreeInterfacePanel *>(item);
-      if (bNodeTreeInterfaceSocket *toggel_socket = panel->header_toggle_socket()) {
-        if (!STREQ(panel->name, toggel_socket->name)) {
-          MEM_SAFE_FREE(toggel_socket->name);
-          toggel_socket->name = BLI_strdup_null(panel->name);
+      if (bNodeTreeInterfaceSocket *toggle_socket = panel->header_toggle_socket()) {
+        if (!STREQ(panel->name, toggle_socket->name)) {
+          MEM_SAFE_FREE(toggle_socket->name);
+          toggle_socket->name = BLI_strdup_null(panel->name);
           changed = true;
         }
       }
