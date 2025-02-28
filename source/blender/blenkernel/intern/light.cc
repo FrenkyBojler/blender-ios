@@ -29,8 +29,6 @@
 #include "BKE_node.hh"
 #include "BKE_preview_image.hh"
 
-#include "IMB_colormanagement.hh"
-
 #include "BLT_translation.hh"
 
 #include "DEG_depsgraph.hh"
