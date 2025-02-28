@@ -224,8 +224,8 @@ static bool lib_id_batch_editing_preview_poll(
     const ID *id = static_cast<const ID *>(idptr.data);
 
     const char *iter_disabled_hint = nullptr;
-    if (lib_id_preview_editing_poll_ex(id, &disabled_hint) &&
-        (!additional_condition || additional_condition(id, &disabled_hint)))
+    if (lib_id_preview_editing_poll_ex(id, &iter_disabled_hint) &&
+        (!additional_condition || additional_condition(id, &iter_disabled_hint)))
     {
       /* Operator can run if there's at least one ID supporting previews. */
       return true;
