@@ -3,3 +3,4 @@ Referenced by issue #135087, Cycles: Some light properties do not update in the 
 Referenced by commit 655ccf1d7a4d2027fa794b145f69f6d057fb9ce0, Fix #135086: Light ray visibility not taken into account without light tree
 Referenced by commit 10482f5fba7b80e5861b2c23c8f97b8e0fbc7ae7, Fix #135087: Cycles light properties not updating in viewport
 Referenced by pull request #135309, Fix: Cycles performance regression after refactor for light objects
+Referenced by commit 5caeac4474f75e616caca3384c5bd2fde8a3d559, Fix: Cycles performance regression after refactor for light objects
