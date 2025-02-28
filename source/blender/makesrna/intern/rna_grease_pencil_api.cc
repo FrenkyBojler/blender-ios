@@ -182,8 +182,8 @@ static void rna_GreasePencilDrawing_vertex_group_assign(ID *id,
   const int dverts_size = dverts.size();
   const Span<int> indices(indices_ptr, indices_num);
 
-  for (int i : indices) {
-    if (indices[i] < dverts_size) {
+  for (const int i : indices) {
+    if (i < dverts_size) {
       MDeformWeight *dw = BKE_defvert_ensure_index(&dverts[i], def_nr);
       if (dw) {
         dw->weight = weight;
@@ -623,7 +623,7 @@ void RNA_api_grease_pencil_drawing(StructRNA *srna)
   parm = RNA_def_string(
       func, "vgroup_name", "Group", MAX_NAME, "vgroupname", "Name of the vertex group");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_int_array(func, "indices_ptr", 1, nullptr, 0, 0, "", "List of indices", 0, 0);
+  parm = RNA_def_int_array(func, "indices_ptr", 1, nullptr, 0, 0, "Indices", "The point indices to assign the weight to", 0, 0);
   RNA_def_parameter_flags(parm, PROP_DYNAMIC, PARM_REQUIRED);
   parm = RNA_def_float(func, "weight", 0, 0.0f, 1.0f, "", "Vertex weight", 0.0f, 1.0f);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
