@@ -10,6 +10,8 @@
 #include <opensubdiv/osd/types.h>
 #include <opensubdiv/version.h>
 
+#include "GPU_storage_buffer.hh"
+
 namespace OpenSubdiv::OPENSUBDIV_VERSION::Far {
 class LimitStencilTable;
 class StencilTable;
@@ -44,39 +46,39 @@ class GLStencilTableSSBO {
   ~GLStencilTableSSBO();
 
   // interfaces needed for GLSLComputeKernel
-  GLuint GetSizesBuffer() const
+  GPUStorageBuf *GetSizesBuffer() const
   {
     return _sizes;
   }
-  GLuint GetOffsetsBuffer() const
+  GPUStorageBuf *GetOffsetsBuffer() const
   {
     return _offsets;
   }
-  GLuint GetIndicesBuffer() const
+  GPUStorageBuf *GetIndicesBuffer() const
   {
     return _indices;
   }
-  GLuint GetWeightsBuffer() const
+  GPUStorageBuf *GetWeightsBuffer() const
   {
     return _weights;
   }
-  GLuint GetDuWeightsBuffer() const
+  GPUStorageBuf *GetDuWeightsBuffer() const
   {
     return _duWeights;
   }
-  GLuint GetDvWeightsBuffer() const
+  GPUStorageBuf *GetDvWeightsBuffer() const
   {
     return _dvWeights;
   }
-  GLuint GetDuuWeightsBuffer() const
+  GPUStorageBuf *GetDuuWeightsBuffer() const
   {
     return _duuWeights;
   }
-  GLuint GetDuvWeightsBuffer() const
+  GPUStorageBuf *GetDuvWeightsBuffer() const
   {
     return _duvWeights;
   }
-  GLuint GetDvvWeightsBuffer() const
+  GPUStorageBuf *GetDvvWeightsBuffer() const
   {
     return _dvvWeights;
   }
@@ -86,15 +88,15 @@ class GLStencilTableSSBO {
   }
 
  private:
-  GLuint _sizes;
-  GLuint _offsets;
-  GLuint _indices;
-  GLuint _weights;
-  GLuint _duWeights;
-  GLuint _dvWeights;
-  GLuint _duuWeights;
-  GLuint _duvWeights;
-  GLuint _dvvWeights;
+  GPUStorageBuf *_sizes = nullptr;
+  GPUStorageBuf *_offsets = nullptr;
+  GPUStorageBuf *_indices = nullptr;
+  GPUStorageBuf *_weights = nullptr;
+  GPUStorageBuf *_duWeights = nullptr;
+  GPUStorageBuf *_dvWeights = nullptr;
+  GPUStorageBuf *_duuWeights = nullptr;
+  GPUStorageBuf *_duvWeights = nullptr;
+  GPUStorageBuf *_dvvWeights = nullptr;
   int _numStencils;
 };
 
@@ -2374,16 +2376,16 @@ class GLComputeEvaluator {
                  OpenSubdiv::Osd::BufferDescriptor const &duvDesc,
                  OpenSubdiv::Osd::BufferDescriptor const &dvvDesc,
                  int workGroupSize);
-    GLuint program;
-    GLuint uniformStart;
-    GLuint uniformEnd;
-    GLuint uniformSrcOffset;
-    GLuint uniformDstOffset;
-    GLuint uniformDuDesc;
-    GLuint uniformDvDesc;
-    GLuint uniformDuuDesc;
-    GLuint uniformDuvDesc;
-    GLuint uniformDvvDesc;
+    GPUShader *shader = nullptr;
+    int uniformStart = 0;
+    int uniformEnd = 0;
+    int uniformSrcOffset = 0;
+    int uniformDstOffset = 0;
+    int uniformDuDesc = 0;
+    int uniformDvDesc = 0;
+    int uniformDuuDesc = 0;
+    int uniformDuvDesc = 0;
+    int uniformDvvDesc = 0;
   } _stencilKernel;
 
   struct _PatchKernel {
@@ -2397,19 +2399,19 @@ class GLComputeEvaluator {
                  OpenSubdiv::Osd::BufferDescriptor const &duvDesc,
                  OpenSubdiv::Osd::BufferDescriptor const &dvvDesc,
                  int workGroupSize);
-    GLuint program;
-    GLuint uniformSrcOffset;
-    GLuint uniformDstOffset;
-    GLuint uniformPatchArray;
-    GLuint uniformDuDesc;
-    GLuint uniformDvDesc;
-    GLuint uniformDuuDesc;
-    GLuint uniformDuvDesc;
-    GLuint uniformDvvDesc;
+    GPUShader *shader = nullptr;
+    int uniformSrcOffset = 0;
+    int uniformDstOffset = 0;
+    int uniformPatchArray = 0;
+    int uniformDuDesc = 0;
+    int uniformDvDesc = 0;
+    int uniformDuuDesc = 0;
+    int uniformDuvDesc = 0;
+    int uniformDvvDesc = 0;
   } _patchKernel;
 
   int _workGroupSize;
-  GLuint _patchArraysSSBO;
+  GPUStorageBuf *_patchArraysSSBO = nullptr;
 
   int GetDispatchSize(int count) const;
 

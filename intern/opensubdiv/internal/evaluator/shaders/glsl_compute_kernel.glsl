@@ -24,6 +24,7 @@
 
 //------------------------------------------------------------------------------
 
+#ifndef USE_GPU_SHADER_CREATE_INFO
 layout(local_size_x = WORK_GROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 layout(std430) buffer;
 
@@ -39,10 +40,9 @@ layout(binding = 1) buffer dst_buffer
 {
   float dstVertexBuffer[];
 };
-
 // derivative buffers (if needed)
 
-#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_1ST_DERIVATIVES)
+#  if defined(OPENSUBDIV_GLSL_COMPUTE_USE_1ST_DERIVATIVES)
 uniform ivec3 duDesc;
 uniform ivec3 dvDesc;
 layout(binding = 2) buffer du_buffer
@@ -53,9 +53,9 @@ layout(binding = 3) buffer dv_buffer
 {
   float dvBuffer[];
 };
-#endif
+#  endif
 
-#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_2ND_DERIVATIVES)
+#  if defined(OPENSUBDIV_GLSL_COMPUTE_USE_2ND_DERIVATIVES)
 uniform ivec3 duuDesc;
 uniform ivec3 duvDesc;
 uniform ivec3 dvvDesc;
@@ -71,11 +71,13 @@ layout(binding = 12) buffer dvv_buffer
 {
   float dvvBuffer[];
 };
+#  endif
 #endif
 
 // stencil buffers
 
 #if defined(OPENSUBDIV_GLSL_COMPUTE_KERNEL_EVAL_STENCILS)
+#  ifndef USE_GPU_SHADER_CREATE_INFO
 
 uniform int batchStart = 0;
 uniform int batchEnd = 0;
@@ -96,7 +98,7 @@ layout(binding = 7) buffer stencilWeights
   float _weights[];
 };
 
-#  if defined(OPENSUBDIV_GLSL_COMPUTE_USE_1ST_DERIVATIVES)
+#    if defined(OPENSUBDIV_GLSL_COMPUTE_USE_1ST_DERIVATIVES)
 layout(binding = 8) buffer stencilDuWeights
 {
   float _duWeights[];
@@ -105,9 +107,9 @@ layout(binding = 9) buffer stencilDvWeights
 {
   float _dvWeights[];
 };
-#  endif
+#    endif
 
-#  if defined(OPENSUBDIV_GLSL_COMPUTE_USE_2ND_DERIVATIVES)
+#    if defined(OPENSUBDIV_GLSL_COMPUTE_USE_2ND_DERIVATIVES)
 layout(binding = 13) buffer stencilDuuWeights
 {
   float _duuWeights[];
@@ -120,8 +122,8 @@ layout(binding = 15) buffer stencilDvvWeights
 {
   float _dvvWeights[];
 };
+#    endif
 #  endif
-
 uint getGlobalInvocationIndex()
 {
   uint invocations_per_row = gl_WorkGroupSize.x * gl_NumWorkGroups.x;
@@ -133,6 +135,7 @@ uint getGlobalInvocationIndex()
 // patch buffers
 
 #if defined(OPENSUBDIV_GLSL_COMPUTE_KERNEL_EVAL_PATCHES)
+#  ifndef USE_GPU_SHADER_CREATE_INFO
 
 layout(binding = 4) buffer patchArray_buffer
 {
@@ -150,6 +153,7 @@ layout(binding = 7) buffer patchParam_buffer
 {
   OsdPatchParam patchParamBuffer[];
 };
+#  endif
 
 OsdPatchCoord GetPatchCoord(int coordIndex)
 {
@@ -165,7 +169,6 @@ OsdPatchParam GetPatchParam(int patchIndex)
 {
   return patchParamBuffer[patchIndex];
 }
-
 #endif
 
 //------------------------------------------------------------------------------
