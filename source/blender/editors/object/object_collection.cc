@@ -466,11 +466,6 @@ static bool collection_exporter_remove_poll(bContext *C)
          !BLI_listbase_is_empty(&collection->exporters);
 }
 
-static bool collection_export_all_poll(bContext *C)
-{
-  return CTX_data_view_layer(C) != nullptr;
-}
-
 static int collection_exporter_add_exec(bContext *C, wmOperator *op)
 {
   using namespace blender;
@@ -781,14 +776,21 @@ static int collection_export_recursive(bContext *C,
 
 static int wm_collection_export_all_exec(bContext *C, wmOperator *op)
 {
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene_orig = CTX_data_scene(C);
 
   CollectionExportStats stats;
-  LISTBASE_FOREACH (LayerCollection *, layer_collection, &view_layer->layer_collections) {
-    if (collection_export_recursive(C, op, layer_collection, stats) != OPERATOR_FINISHED) {
-      return OPERATOR_CANCELLED;
+  LISTBASE_FOREACH (Scene *, scene, &CTX_data_main(C)->scenes) {
+    WM_window_set_active_scene(CTX_data_main(C), C, CTX_wm_window(C), scene);
+    LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
+      LISTBASE_FOREACH (LayerCollection *, layer_collection, &view_layer->layer_collections) {
+        if (collection_export_recursive(C, op, layer_collection, stats) != OPERATOR_FINISHED) {
+          return OPERATOR_CANCELLED;
+        }
+      }
     }
   }
+
+  WM_window_set_active_scene(CTX_data_main(C), C, CTX_wm_window(C), scene_orig);
 
   /* Only report if nothing was cancelled along the way. We don't want this UI report to happen
    * over-top any reports from the actual failures. */
@@ -812,7 +814,6 @@ static void WM_OT_collection_export_all(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = wm_collection_export_all_exec;
-  ot->poll = collection_export_all_poll;
 
   /* flags */
   ot->flag = 0;
