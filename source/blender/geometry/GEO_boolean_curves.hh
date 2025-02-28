@@ -185,13 +185,6 @@ class Segment {
   }
 };
 
-struct BooleanResult {
-  Vector<Segment> segments;
-  Vector<int> segment_offsets;
-  Vector<bool> cyclic;
-  Vector<int> point_offsets;
-};
-
 bke::CurvesGeometry curve_boolean(const Operation boolean_mode,
                                   const bke::CurvesGeometry &curves,
                                   const Span<float2> positions_2d,

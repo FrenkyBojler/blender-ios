@@ -452,6 +452,13 @@ static void calculate_offsets_from_segments(const Span<Segment> segments,
   offsets.last() = offset;
 }
 
+struct BooleanResult {
+  Vector<Segment> segments;
+  Vector<int> segment_offsets;
+  Vector<bool> cyclic;
+  Vector<int> point_offsets;
+};
+
 static BooleanResult execute_boolean(const Operation boolean_mode,
                                      const Span<float2> points,
                                      const OffsetIndices<int> points_by_curve,
