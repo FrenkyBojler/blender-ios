@@ -799,12 +799,6 @@ bke::CurvesGeometry curve_boolean(const Operation boolean_mode,
     attribute.dst.finish();
   }
 
-  bke::SpanAttributeWriter<float2> pos_writer =
-      dst_attributes.lookup_or_add_for_write_span<float2>("output_positions_2d",
-                                                          bke::AttrDomain::Point);
-  calculate_positions(positions_2d, result, pos_writer.span);
-  pos_writer.finish();
-
   return dst_curves;
 }
 
