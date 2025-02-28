@@ -192,15 +192,6 @@ struct BooleanResult {
   Vector<int> point_offsets;
 };
 
-void calculate_positions(Span<float2> points,
-                         const BooleanResult &result,
-                         MutableSpan<float2> dst_pos);
-
-BooleanResult curve_boolean_calc(const Operation boolean_mode,
-                                 const bke::CurvesGeometry &curves,
-                                 const Span<float2> positions_2d,
-                                 const IndexRange clipping_shapes);
-
 bke::CurvesGeometry curve_boolean(const Operation boolean_mode,
                                   const bke::CurvesGeometry &curves,
                                   const Span<float2> positions_2d,

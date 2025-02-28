@@ -452,9 +452,9 @@ static void calculate_offsets_from_segments(const Span<Segment> segments,
   offsets.last() = offset;
 }
 
-void calculate_positions(const Span<float2> points,
-                         const BooleanResult &result,
-                         MutableSpan<float2> dst_pos)
+static void calculate_positions(const Span<float2> points,
+                                const BooleanResult &result,
+                                MutableSpan<float2> dst_pos)
 {
   const OffsetIndices<int> segments_by_polygon = OffsetIndices<int>(result.segment_offsets);
   int i = 0;
@@ -484,12 +484,12 @@ void calculate_positions(const Span<float2> points,
   }
 }
 
-BooleanResult execute_boolean(const Operation boolean_mode,
-                              const Span<float2> points,
-                              const OffsetIndices<int> points_by_curve,
-                              const IndexRange clipping_shapes,
-                              const VArray<bool> &is_fill,
-                              const VArray<bool> &is_cyclic)
+static BooleanResult execute_boolean(const Operation boolean_mode,
+                                     const Span<float2> points,
+                                     const OffsetIndices<int> points_by_curve,
+                                     const IndexRange clipping_shapes,
+                                     const VArray<bool> &is_fill,
+                                     const VArray<bool> &is_cyclic)
 {
   Vector<ExtendedIntersectionPoint> intersections;
   Array<Vector<int>> inters_per_curves(points_by_curve.size());
@@ -716,22 +716,6 @@ BooleanResult execute_boolean(const Operation boolean_mode,
                                   result.point_offsets.as_mutable_span());
 
   return result;
-}
-
-BooleanResult curve_boolean_calc(const Operation boolean_mode,
-                                 const bke::CurvesGeometry &curves,
-                                 const Span<float2> positions_2d,
-                                 const IndexRange clipping_shapes)
-{
-  const bke::AttributeAccessor attributes = curves.attributes();
-
-  const VArray<bool> is_fills = *attributes.lookup<bool>("is_fill", bke::AttrDomain::Curve);
-  return execute_boolean(boolean_mode,
-                         positions_2d,
-                         curves.points_by_curve(),
-                         clipping_shapes,
-                         is_fills,
-                         curves.cyclic());
 }
 
 bke::CurvesGeometry curve_boolean(const Operation boolean_mode,
