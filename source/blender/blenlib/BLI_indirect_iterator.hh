@@ -33,6 +33,7 @@
 #include <type_traits>
 
 #include "BLI_index_range.hh"
+#include "BLI_random_access_iterator_mixin.hh"
 #include "BLI_span.hh"
 
 namespace blender {
@@ -66,42 +67,27 @@ class IndirectIterator {
   static_assert(std::is_reference_v<Reference>);
 
  public:
-  class Iterator {
+  class Iterator : public iterator::RandomAccessIteratorMixin<Iterator> {
    private:
     const T *itr_;
 
    public:
+    using reference = Reference;
+
     constexpr Iterator() : itr_{} {}
 
     constexpr Iterator(const Iterator &other) : itr_{other.itr_} {}
 
     constexpr Iterator(const T *itr) : itr_{itr} {}
 
-    constexpr bool operator!=(const Iterator &other) const
+    const T *const &iter_prop() const
     {
-      return itr_ != other.itr_;
-    }
-
-    constexpr bool operator==(const Iterator &other) const
-    {
-      return itr_ == other.itr_;
-    }
-
-    constexpr Iterator &operator++()
-    {
-      ++itr_;
-      return *this;
-    }
-
-    constexpr Iterator operator++(int)
-    {
-      Iterator copy = this;
-      itr_++;
-      return copy;
+      return itr_;
     }
 
     constexpr Reference operator*()
     {
+      BLI_assert(itr_ && *itr_);
       return **itr_;
     };
   };
