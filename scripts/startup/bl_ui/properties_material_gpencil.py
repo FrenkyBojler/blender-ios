@@ -32,7 +32,8 @@ class GPENCIL_MT_material_context_menu(Menu):
 
         layout.operator(
             "grease_pencil.material_copy_to_object",
-            text="Copy Material to Selected").only_active = True
+            text="Copy Material to Selected",
+        ).only_active = True
         layout.operator(
             "grease_pencil.material_copy_to_object",
             text="Copy All Materials to Selected",
@@ -45,30 +46,34 @@ class GPENCIL_UL_matslots(UIList):
     def draw_item(self, _context, layout, _data, item, icon, _active_data, _active_propname, _index):
         slot = item
         ma = slot.material
-        if (ma is not None) and (ma.grease_pencil is not None):
-            gpcolor = ma.grease_pencil
 
-            if self.layout_type in {'DEFAULT', 'COMPACT'}:
-                if gpcolor.lock:
-                    layout.active = False
+        if ma is None:
+            return
 
-                row = layout.row(align=True)
-                row.enabled = not gpcolor.lock
-                row.prop(ma, "name", text="", emboss=False, icon_value=icon)
+        if (gpcolor := ma.grease_pencil) is None:
+            return
 
-                row = layout.row(align=True)
+        if self.layout_type in {'DEFAULT', 'COMPACT'}:
+            row = layout.row(align=True)
+            row.label(text="", icon_value=icon)
 
-                if gpcolor.ghost is True:
-                    icon = 'ONIONSKIN_OFF'
-                else:
-                    icon = 'ONIONSKIN_ON'
-                row.prop(gpcolor, "ghost", text="", icon=icon, emboss=False)
-                row.prop(gpcolor, "hide", text="", emboss=False)
-                row.prop(gpcolor, "lock", text="", emboss=False)
+            row = layout.row(align=True)
+            row.enabled = not gpcolor.lock
+            row.prop(ma, "name", text="", emboss=False, icon='NONE')
 
-            elif self.layout_type == 'GRID':
-                layout.alignment = 'CENTER'
-                layout.label(text="", icon_value=icon)
+            row = layout.row(align=True)
+
+            if gpcolor.ghost is True:
+                icon = 'ONIONSKIN_OFF'
+            else:
+                icon = 'ONIONSKIN_ON'
+            row.prop(gpcolor, "ghost", text="", icon=icon, emboss=False)
+            row.prop(gpcolor, "hide", text="", emboss=False)
+            row.prop(gpcolor, "lock", text="", emboss=False)
+
+        elif self.layout_type == 'GRID':
+            layout.alignment = 'CENTER'
+            layout.label(text="", icon_value=icon)
 
 
 class GPMaterialButtonsPanel:
@@ -91,10 +96,10 @@ class MATERIAL_PT_gpencil_slots(GreasePencilMaterialsPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        ob = context.object
         ma = context.material
-
-        return (ma and ma.grease_pencil) or (ob and ob.type == 'GPENCIL')
+        found_material = ma and ma.grease_pencil
+        found_object = context.object and context.object.type == 'GREASEPENCIL'
+        return found_material or found_object
 
 
 # Used as parent for "Stroke" and "Fill" panels
@@ -128,7 +133,6 @@ class MATERIAL_PT_gpencil_strokecolor(GPMaterialButtonsPanel, Panel):
             gpcolor = ma.grease_pencil
 
             col = layout.column()
-            col.enabled = not gpcolor.lock
 
             col.prop(gpcolor, "mode")
 
@@ -139,7 +143,6 @@ class MATERIAL_PT_gpencil_strokecolor(GPMaterialButtonsPanel, Panel):
 
             if gpcolor.stroke_style == 'TEXTURE':
                 row = col.row()
-                row.enabled = not gpcolor.lock
                 col = row.column(align=True)
                 col.template_ID(gpcolor, "stroke_image", open="image.open")
 
@@ -175,7 +178,6 @@ class MATERIAL_PT_gpencil_fillcolor(GPMaterialButtonsPanel, Panel):
 
         # color settings
         col = layout.column()
-        col.enabled = not gpcolor.lock
         col.prop(gpcolor, "fill_style", text="Style")
 
         if gpcolor.fill_style == 'SOLID':
@@ -217,6 +219,15 @@ class MATERIAL_PT_gpencil_animation(GPMaterialButtonsPanel, PropertiesAnimationM
     _animated_id_context_property = "material"
 
 
+class MATERIAL_PT_gpencil_preview(GPMaterialButtonsPanel, Panel):
+    bl_label = "Preview"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        ma = context.material
+        self.layout.template_preview(ma)
+
+
 class MATERIAL_PT_gpencil_custom_props(GPMaterialButtonsPanel, PropertyPanel, Panel):
     COMPAT_ENGINES = {'BLENDER_WORKBENCH'}
     _context_path = "object.active_material"
@@ -248,6 +259,7 @@ classes = (
     GPENCIL_UL_matslots,
     GPENCIL_MT_material_context_menu,
     MATERIAL_PT_gpencil_slots,
+    MATERIAL_PT_gpencil_preview,
     MATERIAL_PT_gpencil_material_presets,
     MATERIAL_PT_gpencil_surface,
     MATERIAL_PT_gpencil_strokecolor,

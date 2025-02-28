@@ -29,7 +29,6 @@
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
-#include "DNA_brush_types.h"
 #include "DNA_cachefile_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_curves_types.h"
@@ -63,6 +62,7 @@
 
 #include "BLI_alloca.h"
 #include "BLI_ghash.h"
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -76,11 +76,13 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_key.hh"
 #include "BKE_layer.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_mask.h"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
 
 #include "ED_anim_api.hh"
 #include "ED_markers.hh"
@@ -183,9 +185,9 @@ static bool actedit_get_context(bAnimContext *ac, SpaceAction *saction)
     {
       /* TODO: other methods to get the mask. */
 #if 0
-      Sequence *seq = SEQ_select_active_get(ac->scene);
+      Strip *strip = SEQ_select_active_get(ac->scene);
       MovieClip *clip = ac->scene->clip;
-      struct Mask *mask = seq ? seq->mask : nullptr;
+      struct Mask *mask = strip ? strip->mask : nullptr;
 #endif
 
       /* update scene-pointer (no need to check for pinning yet, as not implemented) */
@@ -452,9 +454,7 @@ bool ANIM_animdata_can_have_greasepencil(const eAnimCont_Types type)
 #define ANIMDATA_HAS_DRIVERS(id) ((id)->adt && (id)->adt->drivers.first)
 
 /* quick macro to test if AnimData is usable for NLA */
-#define ANIMDATA_HAS_NLA(id) \
-  ((id)->adt && (id)->adt->nla_tracks.first && \
-   (!(id)->adt->action || (id)->adt->action->wrap().is_action_legacy()))
+#define ANIMDATA_HAS_NLA(id) ((id)->adt && (id)->adt->nla_tracks.first)
 
 /**
  * Quick macro to test for all three above usability tests, performing the appropriate provided
@@ -507,7 +507,8 @@ bool ANIM_animdata_can_have_greasepencil(const eAnimCont_Types type)
             nlaOk \
           } \
           else if (!(ac->ads->filterflag & ADS_FILTER_NLA_NOACT) || \
-                   ANIMDATA_HAS_ACTION_LEGACY(id)) { \
+                   ANIMDATA_HAS_ACTION_LAYERED(id)) \
+          { \
             nlaOk \
           } \
         } \
@@ -1009,23 +1010,23 @@ static bool skip_fcurve_selected_data(bAnimContext *ac,
   }
   else if (GS(owner_id->name) == ID_SCE) {
     Scene *scene = (Scene *)owner_id;
-    Sequence *seq = nullptr;
-    char seq_name[sizeof(seq->name)];
+    Strip *strip = nullptr;
+    char strip_name[sizeof(strip->name)];
 
-    /* Only consider if F-Curve involves `sequence_editor.sequences`. */
+    /* Only consider if F-Curve involves `sequence_editor.strips`. */
     if (fcu->rna_path &&
-        BLI_str_quoted_substr(fcu->rna_path, "sequences_all[", seq_name, sizeof(seq_name)))
+        BLI_str_quoted_substr(fcu->rna_path, "strips_all[", strip_name, sizeof(strip_name)))
     {
       /* Get strip name, and check if this strip is selected. */
       Editing *ed = SEQ_editing_get(scene);
       if (ed) {
-        seq = SEQ_get_sequence_by_name(ed->seqbasep, seq_name, false);
+        strip = SEQ_get_sequence_by_name(ed->seqbasep, strip_name, false);
       }
 
       /* Can only add this F-Curve if it is selected. */
       if (ac->ads->filterflag & ADS_FILTER_ONLYSEL) {
 
-        /* NOTE(@ideasman42): The `seq == nullptr` check doesn't look right
+        /* NOTE(@ideasman42): The `strip == nullptr` check doesn't look right
          * (compared to other checks in this function which skip data that can't be found).
          *
          * This is done since the search for sequence strips doesn't use a global lookup:
@@ -1040,11 +1041,11 @@ static bool skip_fcurve_selected_data(bAnimContext *ac,
          * If this is an important difference, the nullptr case could perform a global lookup,
          * only returning `true` if the sequence strip exists elsewhere
          * (ignoring its selection state). */
-        if (seq == nullptr) {
+        if (strip == nullptr) {
           return true;
         }
 
-        if ((seq->flag & SELECT) == 0) {
+        if ((strip->flag & SELECT) == 0) {
           return true;
         }
       }
@@ -1060,7 +1061,7 @@ static bool skip_fcurve_selected_data(bAnimContext *ac,
         BLI_str_quoted_substr(fcu->rna_path, "nodes[", node_name, sizeof(node_name)))
     {
       /* Get strip name, and check if this strip is selected. */
-      node = bke::node_find_node_by_name(ntree, node_name);
+      node = bke::node_find_node_by_name(*ntree, node_name);
 
       /* Can only add this F-Curve if it is selected. */
       if (node) {
@@ -2261,7 +2262,7 @@ static size_t animdata_filter_grease_pencil(bAnimContext *ac,
 {
   size_t items = 0;
   Scene *scene = ac->scene;
-  ViewLayer *view_layer = (ViewLayer *)ac->view_layer;
+  ViewLayer *view_layer = ac->view_layer;
   bDopeSheet *ads = ac->ads;
 
   BKE_view_layer_synced_ensure(scene, view_layer);
@@ -2517,7 +2518,7 @@ static size_t animdata_filter_ds_nodetree(bAnimContext *ac,
   items += animdata_filter_ds_nodetree_group(ac, anim_data, owner_id, ntree, filter_mode);
 
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (node->type == NODE_GROUP) {
+    if (node->is_group()) {
       if (node->id) {
         if ((ac->ads->filterflag & ADS_FILTER_ONLYSEL) && (node->flag & NODE_SELECT) == 0) {
           continue;
@@ -2770,7 +2771,10 @@ struct tAnimFilterModifiersContext {
 };
 
 /* dependency walker callback for modifier dependencies */
-static void animfilter_modifier_idpoin_cb(void *afm_ptr, Object *ob, ID **idpoin, int /*cb_flag*/)
+static void animfilter_modifier_idpoin_cb(void *afm_ptr,
+                                          Object *ob,
+                                          ID **idpoin,
+                                          LibraryForeachIDCallbackFlag /*cb_flag*/)
 {
   tAnimFilterModifiersContext *afm = (tAnimFilterModifiersContext *)afm_ptr;
   ID *owner_id = &ob->id;
@@ -3390,7 +3394,6 @@ static size_t animdata_filter_dopesheet_scene(bAnimContext *ac,
   /* filter data contained under object first */
   BEGIN_ANIMFILTER_SUBCHANNELS (EXPANDED_SCEC(sce)) {
     bNodeTree *ntree = sce->nodetree;
-    bGPdata *gpd = sce->gpd;
     World *wo = sce->world;
 
     /* Action, Drivers, or NLA for Scene */
@@ -3411,11 +3414,6 @@ static size_t animdata_filter_dopesheet_scene(bAnimContext *ac,
     /* line styles */
     if ((ac->ads->filterflag & ADS_FILTER_NOLINESTYLE) == 0) {
       tmp_items += animdata_filter_ds_linestyle(ac, &tmp_data, sce, filter_mode);
-    }
-
-    /* grease pencil */
-    if ((gpd) && !(ac->ads->filterflag & ADS_FILTER_NOGPENCIL)) {
-      tmp_items += animdata_filter_ds_gpencil(ac, &tmp_data, gpd, filter_mode);
     }
 
     /* TODO: one day, when sequencer becomes its own datatype,
@@ -3632,7 +3630,7 @@ static size_t animdata_filter_dopesheet(bAnimContext *ac,
 {
   bDopeSheet *ads = ac->ads;
   Scene *scene = (Scene *)ads->source;
-  ViewLayer *view_layer = (ViewLayer *)ac->view_layer;
+  ViewLayer *view_layer = ac->view_layer;
   size_t items = 0;
 
   /* check that we do indeed have a scene */
@@ -3660,6 +3658,15 @@ static size_t animdata_filter_dopesheet(bAnimContext *ac,
   {
     LISTBASE_FOREACH (CacheFile *, cache_file, &ac->bmain->cachefiles) {
       items += animdata_filter_ds_cachefile(ac, anim_data, cache_file, filter_mode);
+    }
+  }
+
+  /* Annotations are always shown if "Only Show Selected" is disabled. This works in the Timeline
+   * as well as in the Dope Sheet.*/
+  if (!(ac->ads->filterflag & ADS_FILTER_ONLYSEL) && !(ac->ads->filterflag & ADS_FILTER_NOGPENCIL))
+  {
+    LISTBASE_FOREACH (bGPdata *, gp_data, &ac->bmain->gpencils) {
+      items += animdata_filter_ds_gpencil(ac, anim_data, gp_data, filter_mode);
     }
   }
 

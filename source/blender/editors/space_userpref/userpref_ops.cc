@@ -379,7 +379,8 @@ static int preferences_extension_repo_add_exec(bContext *C, wmOperator *op)
   U.runtime.is_dirty = true;
 
   {
-    PointerRNA new_repo_ptr = RNA_pointer_create(nullptr, &RNA_UserExtensionRepo, new_repo);
+    PointerRNA new_repo_ptr = RNA_pointer_create_discrete(
+        nullptr, &RNA_UserExtensionRepo, new_repo);
     PointerRNA *pointers[] = {&new_repo_ptr};
 
     BKE_callback_exec_null(bmain, BKE_CB_EVT_EXTENSION_REPOS_UPDATE_POST);
@@ -430,8 +431,8 @@ static void preferences_extension_repo_add_ui(bContext * /*C*/, wmOperator *op)
 
   switch (repo_type) {
     case bUserExtensionRepoAddType::Remote: {
-      uiItemR(layout, op->ptr, "remote_url", UI_ITEM_R_IMMEDIATE, nullptr, ICON_NONE);
-      uiItemR(layout, op->ptr, "use_sync_on_startup", UI_ITEM_NONE, nullptr, ICON_NONE);
+      uiItemR(layout, op->ptr, "remote_url", UI_ITEM_R_IMMEDIATE, std::nullopt, ICON_NONE);
+      uiItemR(layout, op->ptr, "use_sync_on_startup", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
       uiItemS_ex(layout, 0.2f, LayoutSeparatorType::Line);
 
@@ -441,26 +442,26 @@ static void preferences_extension_repo_add_ui(bContext * /*C*/, wmOperator *op)
                                  ICON_UNLOCKED;
 
       uiLayout *row = uiLayoutRowWithHeading(layout, true, IFACE_("Authentication"));
-      uiItemR(row, op->ptr, "use_access_token", UI_ITEM_NONE, nullptr, ICON_NONE);
+      uiItemR(row, op->ptr, "use_access_token", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       uiLayout *col = uiLayoutRow(layout, false);
       uiLayoutSetActive(col, use_access_token);
       /* Use "immediate" flag to refresh the icon. */
-      uiItemR(col, op->ptr, "access_token", UI_ITEM_R_IMMEDIATE, nullptr, token_icon);
+      uiItemR(col, op->ptr, "access_token", UI_ITEM_R_IMMEDIATE, std::nullopt, token_icon);
 
       uiItemS_ex(layout, 0.2f, LayoutSeparatorType::Line);
 
       break;
     }
     case bUserExtensionRepoAddType::Local: {
-      uiItemR(layout, op->ptr, "name", UI_ITEM_R_IMMEDIATE, nullptr, ICON_NONE);
+      uiItemR(layout, op->ptr, "name", UI_ITEM_R_IMMEDIATE, std::nullopt, ICON_NONE);
       break;
     }
   }
 
-  uiItemR(layout, op->ptr, "use_custom_directory", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, op->ptr, "use_custom_directory", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   uiLayout *col = uiLayoutRow(layout, false);
   uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_custom_directory"));
-  uiItemR(col, op->ptr, "custom_directory", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, op->ptr, "custom_directory", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void PREFERENCES_OT_extension_repo_add(wmOperatorType *ot)

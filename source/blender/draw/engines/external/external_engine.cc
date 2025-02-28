@@ -12,26 +12,26 @@
 #include "DRW_engine.hh"
 #include "DRW_render.hh"
 
-#include "DNA_modifier_types.h"
+#include "BLI_string.h"
+
+#include "BLT_translation.hh"
+
 #include "DNA_screen_types.h"
 #include "DNA_view3d_types.h"
-
-#include "BKE_object.hh"
-#include "BKE_particle.h"
-#include "BKE_screen.hh"
 
 #include "ED_image.hh"
 #include "ED_screen.hh"
 
-#include "GPU_batch.hh"
 #include "GPU_debug.hh"
 #include "GPU_matrix.hh"
-#include "GPU_shader.hh"
 #include "GPU_state.hh"
-#include "GPU_viewport.hh"
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
+
+#include "draw_command.hh"
+#include "draw_view.hh"
+#include "draw_view_data.hh"
 
 #include "external_engine.h" /* own include */
 
@@ -41,10 +41,6 @@
 
 struct EXTERNAL_Data {
   void *engine_type;
-  DRWViewportEmptyList *fbl;
-  DRWViewportEmptyList *txl;
-  DRWViewportEmptyList *psl;
-  DRWViewportEmptyList *stl;
   void *instance_data;
 
   char info[GPU_INFO_SIZE];
@@ -58,7 +54,7 @@ static void external_draw_scene_do_v3d(void *vedata)
   RegionView3D *rv3d = draw_ctx->rv3d;
   ARegion *region = draw_ctx->region;
 
-  DRW_state_reset_ex(DRW_STATE_WRITE_COLOR);
+  blender::draw::command::StateSet::set(DRW_STATE_WRITE_COLOR);
 
   /* The external engine can use the OpenGL rendering API directly, so make sure the state is
    * already applied. */
@@ -115,20 +111,16 @@ static void external_image_space_matrix_set(const RenderEngine *engine)
   BLI_assert(engine != nullptr);
 
   const DRWContextState *draw_ctx = DRW_context_state_get();
-  const DRWView *view = DRW_view_default_get();
   SpaceImage *space_image = (SpaceImage *)draw_ctx->space_data;
 
   /* Apply current view as transformation matrix.
    * This will configure drawing for normalized space with current zoom and pan applied. */
 
-  float view_matrix[4][4];
-  DRW_view_viewmat_get(view, view_matrix, false);
+  float4x4 view_matrix = blender::draw::View::default_get().viewmat();
+  float4x4 projection_matrix = blender::draw::View::default_get().winmat();
 
-  float projection_matrix[4][4];
-  DRW_view_winmat_get(view, projection_matrix, false);
-
-  GPU_matrix_projection_set(projection_matrix);
-  GPU_matrix_set(view_matrix);
+  GPU_matrix_projection_set(projection_matrix.ptr());
+  GPU_matrix_set(view_matrix.ptr());
 
   /* Switch from normalized space to pixel space. */
   {
@@ -162,7 +154,7 @@ static void external_draw_scene_do_image(void * /*vedata*/)
   BLI_assert(re != nullptr);
   BLI_assert(engine != nullptr);
 
-  DRW_state_reset_ex(DRW_STATE_WRITE_COLOR);
+  blender::draw::command::StateSet::set(DRW_STATE_WRITE_COLOR);
 
   /* The external engine can use the OpenGL rendering API directly, so make sure the state is
    * already applied. */
@@ -195,7 +187,7 @@ static void external_draw_scene_do_image(void * /*vedata*/)
   GPU_matrix_pop();
   GPU_matrix_pop_projection();
 
-  DRW_state_reset();
+  blender::draw::command::StateSet::set();
   GPU_bgl_end();
 
   RE_engine_draw_release(re);
@@ -240,13 +232,10 @@ static void external_draw_scene(void *vedata)
   }
 }
 
-static const DrawEngineDataSize external_data_size = DRW_VIEWPORT_DATA_SIZE(EXTERNAL_Data);
-
 DrawEngineType draw_engine_external_type = {
     /*next*/ nullptr,
     /*prev*/ nullptr,
     /*idname*/ N_("External"),
-    /*vedata_size*/ &external_data_size,
     /*engine_init*/ nullptr,
     /*engine_free*/ nullptr,
     /*instance_free*/ nullptr,

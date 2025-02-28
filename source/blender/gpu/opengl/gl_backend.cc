@@ -6,12 +6,17 @@
  * \ingroup gpu
  */
 
+#include <string>
+
 #include "BKE_global.hh"
 #if defined(WIN32)
 #  include "BLI_winstuff.h"
 #endif
+#include "BLI_string_ref.hh"
 #include "BLI_subprocess.hh"
 #include "BLI_threads.h"
+#include "BLI_vector.hh"
+
 #include "DNA_userdef_types.h"
 
 #include "gpu_capabilities_private.hh"
@@ -309,7 +314,6 @@ static void detect_workarounds()
     /* Turn off Blender features. */
     GCaps.hdr_viewport_support = false;
     /* Turn off OpenGL 4.4 features. */
-    GLContext::clear_texture_support = false;
     GLContext::multi_bind_support = false;
     GLContext::multi_bind_image_support = false;
     /* Turn off OpenGL 4.5 features. */
@@ -522,7 +526,6 @@ GLint GLContext::max_ssbo_binds = 0;
 
 /** Extensions. */
 
-bool GLContext::clear_texture_support = false;
 bool GLContext::debug_layer_support = false;
 bool GLContext::direct_state_access_support = false;
 bool GLContext::explicit_location_support = false;
@@ -587,7 +590,6 @@ void GLBackend::capabilities_init()
   glGetIntegerv(GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT, &ssbo_alignment);
   GCaps.storage_buffer_alignment = size_t(ssbo_alignment);
 
-  GCaps.transform_feedback_support = true;
   GCaps.texture_view_support = epoxy_gl_version() >= 43 ||
                                epoxy_has_gl_extension("GL_ARB_texture_view");
   GCaps.stencil_export_support = epoxy_has_gl_extension("GL_ARB_shader_stencil_export");
@@ -605,7 +607,6 @@ void GLBackend::capabilities_init()
   GLContext::max_ssbo_binds = min_ii(GLContext::max_ssbo_binds, max_ssbo_binds);
   glGetIntegerv(GL_MAX_COMPUTE_SHADER_STORAGE_BLOCKS, &max_ssbo_binds);
   GLContext::max_ssbo_binds = min_ii(GLContext::max_ssbo_binds, max_ssbo_binds);
-  GLContext::clear_texture_support = epoxy_has_gl_extension("GL_ARB_clear_texture");
   GLContext::debug_layer_support = epoxy_gl_version() >= 43 ||
                                    epoxy_has_gl_extension("GL_KHR_debug") ||
                                    epoxy_has_gl_extension("GL_ARB_debug_output");

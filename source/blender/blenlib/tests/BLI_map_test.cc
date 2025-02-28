@@ -14,7 +14,7 @@
 #include "BLI_timeit.hh"
 #include "BLI_vector.hh"
 
-#include "BLI_strict_flags.h" /* Keep last. */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 namespace blender::tests {
 
@@ -392,6 +392,16 @@ TEST(map, LookupOrAdd)
   EXPECT_EQ(map.lookup_or_add(6, 5), 4);
   map.lookup_or_add(6, 4) += 10;
   EXPECT_EQ(map.lookup(6), 14);
+}
+
+TEST(map, LookupTry)
+{
+  Map<int, int> map;
+  map.add(1, 10);
+  map.add(2, 20);
+  EXPECT_EQ(map.lookup_try(1), 10);
+  EXPECT_EQ(map.lookup_try(2), 20);
+  EXPECT_EQ(map.lookup_try(3), std::nullopt);
 }
 
 TEST(map, MoveConstructorSmall)

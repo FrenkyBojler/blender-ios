@@ -10,9 +10,9 @@
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
-#include "DNA_scene_types.h"
 
 #include "BLI_color.hh"
+#include "BLI_listbase.h"
 
 #include "BKE_attribute.hh"
 #include "BKE_context.hh"
@@ -24,8 +24,6 @@
 #include "BKE_object_deform.h"
 #include "BKE_paint.hh"
 #include "BKE_report.hh"
-
-#include "BLI_string.h"
 
 #include "BLT_translation.hh"
 
@@ -419,7 +417,7 @@ static int geometry_color_attribute_add_exec(bContext *C, wmOperator *op)
 
   BKE_id_attributes_active_color_set(id, layer->name);
 
-  if (!BKE_id_attributes_color_find(id, BKE_id_attributes_default_color_name(id))) {
+  if (!BKE_id_attributes_color_find(id, BKE_id_attributes_default_color_name(id).value_or(""))) {
     BKE_id_attributes_default_color_set(id, layer->name);
   }
 
@@ -538,10 +536,10 @@ static void geometry_color_attribute_add_ui(bContext * /*C*/, wmOperator *op)
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  uiItemR(layout, op->ptr, "name", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, op->ptr, "domain", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
-  uiItemR(layout, op->ptr, "data_type", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
-  uiItemR(layout, op->ptr, "color", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, op->ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, op->ptr, "domain", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  uiItemR(layout, op->ptr, "data_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  uiItemR(layout, op->ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 void GEOMETRY_OT_color_attribute_add(wmOperatorType *ot)
@@ -637,12 +635,12 @@ static int geometry_color_attribute_remove_exec(bContext *C, wmOperator *op)
 {
   Object *ob = object::context_object(C);
   ID *id = static_cast<ID *>(ob->data);
-  const std::string active_name = StringRef(BKE_id_attributes_active_color_name(id));
+  const std::string active_name = BKE_id_attributes_active_color_name(id).value_or("");
   if (active_name.empty()) {
     return OPERATOR_CANCELLED;
   }
   AttributeOwner owner = AttributeOwner::from_id(id);
-  if (!BKE_attribute_remove(owner, active_name.c_str(), op->reports)) {
+  if (!BKE_attribute_remove(owner, active_name, op->reports)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -661,7 +659,7 @@ static bool geometry_color_attributes_remove_poll(bContext *C)
   const Object *ob = object::context_object(C);
   const ID *data = static_cast<ID *>(ob->data);
 
-  if (BKE_id_attributes_color_find(data, BKE_id_attributes_active_color_name(data))) {
+  if (BKE_id_attributes_color_find(data, BKE_id_attributes_active_color_name(data).value_or(""))) {
     return true;
   }
 
@@ -687,13 +685,13 @@ static int geometry_color_attribute_duplicate_exec(bContext *C, wmOperator *op)
 {
   Object *ob = object::context_object(C);
   ID *id = static_cast<ID *>(ob->data);
-  const char *active_name = BKE_id_attributes_active_color_name(id);
-  if (active_name == nullptr) {
+  const std::optional<StringRef> active_name = BKE_id_attributes_active_color_name(id);
+  if (!active_name) {
     return OPERATOR_CANCELLED;
   }
 
   AttributeOwner owner = AttributeOwner::from_id(id);
-  CustomDataLayer *new_layer = BKE_attribute_duplicate(owner, active_name, op->reports);
+  CustomDataLayer *new_layer = BKE_attribute_duplicate(owner, *active_name, op->reports);
   if (new_layer == nullptr) {
     return OPERATOR_CANCELLED;
   }
@@ -719,7 +717,7 @@ static bool geometry_color_attributes_duplicate_poll(bContext *C)
   const Object *ob = object::context_object(C);
   const ID *data = static_cast<ID *>(ob->data);
 
-  if (BKE_id_attributes_color_find(data, BKE_id_attributes_active_color_name(data))) {
+  if (BKE_id_attributes_color_find(data, BKE_id_attributes_active_color_name(data).value_or(""))) {
     return true;
   }
 
@@ -771,14 +769,14 @@ static void geometry_attribute_convert_ui(bContext * /*C*/, wmOperator *op)
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  uiItemR(layout, op->ptr, "mode", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, op->ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   const ConvertAttributeMode mode = static_cast<ConvertAttributeMode>(
       RNA_enum_get(op->ptr, "mode"));
 
   if (mode == ConvertAttributeMode::Generic) {
-    uiItemR(layout, op->ptr, "domain", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(layout, op->ptr, "data_type", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(layout, op->ptr, "domain", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(layout, op->ptr, "data_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 
@@ -857,8 +855,8 @@ static void geometry_color_attribute_convert_ui(bContext * /*C*/, wmOperator *op
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  uiItemR(layout, op->ptr, "domain", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
-  uiItemR(layout, op->ptr, "data_type", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  uiItemR(layout, op->ptr, "domain", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  uiItemR(layout, op->ptr, "data_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 
 void GEOMETRY_OT_color_attribute_convert(wmOperatorType *ot)

@@ -6,9 +6,7 @@
  * \ingroup nodes
  */
 
-#include "BLI_math_color.hh"
 #include "BLI_math_euler.hh"
-#include "BLI_math_quaternion.hh"
 #include "BLI_string.h"
 
 #include "NOD_geometry.hh"
@@ -17,7 +15,6 @@
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
 
-#include "BKE_compute_contexts.hh"
 #include "BKE_geometry_fields.hh"
 #include "BKE_geometry_nodes_reference_set.hh"
 #include "BKE_geometry_set.hh"
@@ -26,7 +23,6 @@
 #include "BKE_node_enum.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_socket_value.hh"
-#include "BKE_type_conversions.hh"
 
 #include "FN_lazy_function_execute.hh"
 
@@ -36,113 +32,6 @@ namespace lf = blender::fn::lazy_function;
 namespace geo_log = blender::nodes::geo_eval_log;
 
 namespace blender::nodes {
-
-static void add_used_ids_from_sockets(const ListBase &sockets, Set<ID *> &ids)
-{
-  LISTBASE_FOREACH (const bNodeSocket *, socket, &sockets) {
-    switch (socket->type) {
-      case SOCK_OBJECT: {
-        if (Object *object = ((bNodeSocketValueObject *)socket->default_value)->value) {
-          ids.add(reinterpret_cast<ID *>(object));
-        }
-        break;
-      }
-      case SOCK_COLLECTION: {
-        if (Collection *collection = ((bNodeSocketValueCollection *)socket->default_value)->value)
-        {
-          ids.add(reinterpret_cast<ID *>(collection));
-        }
-        break;
-      }
-      case SOCK_MATERIAL: {
-        if (Material *material = ((bNodeSocketValueMaterial *)socket->default_value)->value) {
-          ids.add(reinterpret_cast<ID *>(material));
-        }
-        break;
-      }
-      case SOCK_TEXTURE: {
-        if (Tex *texture = ((bNodeSocketValueTexture *)socket->default_value)->value) {
-          ids.add(reinterpret_cast<ID *>(texture));
-        }
-        break;
-      }
-      case SOCK_IMAGE: {
-        if (Image *image = ((bNodeSocketValueImage *)socket->default_value)->value) {
-          ids.add(reinterpret_cast<ID *>(image));
-        }
-        break;
-      }
-    }
-  }
-}
-
-/**
- * \note We can only check properties here that cause the dependency graph to update relations when
- * they are changed, otherwise there may be a missing relation after editing. So this could check
- * more properties like whether the node is muted, but we would have to accept the cost of updating
- * relations when those properties are changed.
- */
-static bool node_needs_own_transform_relation(const bNode &node)
-{
-  if (node.type == GEO_NODE_COLLECTION_INFO) {
-    const NodeGeometryCollectionInfo &storage = *static_cast<const NodeGeometryCollectionInfo *>(
-        node.storage);
-    return storage.transform_space == GEO_NODE_TRANSFORM_SPACE_RELATIVE;
-  }
-
-  if (node.type == GEO_NODE_OBJECT_INFO) {
-    const NodeGeometryObjectInfo &storage = *static_cast<const NodeGeometryObjectInfo *>(
-        node.storage);
-    return storage.transform_space == GEO_NODE_TRANSFORM_SPACE_RELATIVE;
-  }
-  if (node.type == GEO_NODE_SELF_OBJECT) {
-    return true;
-  }
-  if (node.type == GEO_NODE_DEFORM_CURVES_ON_SURFACE) {
-    return true;
-  }
-
-  return false;
-}
-
-static void process_nodes_for_depsgraph(const bNodeTree &tree,
-                                        Set<ID *> &ids,
-                                        bool &r_needs_own_transform_relation,
-                                        bool &r_needs_scene_camera_relation,
-                                        Set<const bNodeTree *> &checked_groups)
-{
-  if (!checked_groups.add(&tree)) {
-    return;
-  }
-
-  tree.ensure_topology_cache();
-  for (const bNode *node : tree.all_nodes()) {
-    add_used_ids_from_sockets(node->inputs, ids);
-    add_used_ids_from_sockets(node->outputs, ids);
-    r_needs_own_transform_relation |= node_needs_own_transform_relation(*node);
-    r_needs_scene_camera_relation |= (node->type == GEO_NODE_INPUT_ACTIVE_CAMERA);
-  }
-
-  for (const bNode *node : tree.group_nodes()) {
-    if (const bNodeTree *sub_tree = reinterpret_cast<const bNodeTree *>(node->id)) {
-      process_nodes_for_depsgraph(*sub_tree,
-                                  ids,
-                                  r_needs_own_transform_relation,
-                                  r_needs_scene_camera_relation,
-                                  checked_groups);
-    }
-  }
-}
-
-void find_node_tree_dependencies(const bNodeTree &tree,
-                                 Set<ID *> &r_ids,
-                                 bool &r_needs_own_transform_relation,
-                                 bool &r_needs_scene_camera_relation)
-{
-  Set<const bNodeTree *> checked_groups;
-  process_nodes_for_depsgraph(
-      tree, r_ids, r_needs_own_transform_relation, r_needs_scene_camera_relation, checked_groups);
-}
 
 bool socket_type_has_attribute_toggle(const eNodeSocketDatatype type)
 {
@@ -326,6 +215,7 @@ std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_property_create_f
       auto property = bke::idprop::create(identifier, value->value);
       IDPropertyUIDataInt *ui_data = (IDPropertyUIDataInt *)IDP_ui_data_ensure(property.get());
       id_property_int_update_enum_items(value, ui_data);
+      ui_data->default_value = value->value;
       return property;
     }
     case SOCK_OBJECT: {
@@ -1071,9 +961,11 @@ void update_input_properties_from_node_tree(const bNodeTree &tree,
       const std::string attribute_name_id = socket_identifier + input_attribute_name_suffix;
 
       IDProperty *use_attribute_prop = bke::idprop::create_bool(use_attribute_id, false).release();
+      use_attribute_prop->flag |= IDP_FLAG_OVERRIDABLE_LIBRARY | IDP_FLAG_STATIC_TYPE;
       IDP_AddToGroup(&properties, use_attribute_prop);
 
       IDProperty *attribute_prop = bke::idprop::create(attribute_name_id, "").release();
+      attribute_prop->flag |= IDP_FLAG_OVERRIDABLE_LIBRARY | IDP_FLAG_STATIC_TYPE;
       IDP_AddToGroup(&properties, attribute_prop);
 
       if (old_properties == nullptr) {
@@ -1141,6 +1033,71 @@ void update_output_properties_from_node_tree(const bNodeTree &tree,
         }
         new_prop->ui_data = ui_data;
       }
+    }
+  }
+}
+
+void get_geometry_nodes_input_base_values(const bNodeTree &btree,
+                                          const IDProperty *properties,
+                                          ResourceScope &scope,
+                                          MutableSpan<GPointer> r_values)
+{
+  if (!properties) {
+    return;
+  }
+
+  /* Assume that all inputs have unknown values by default. */
+  r_values.fill(nullptr);
+
+  btree.ensure_interface_cache();
+  for (const int input_i : btree.interface_inputs().index_range()) {
+    const bNodeTreeInterfaceSocket &io_input = *btree.interface_inputs()[input_i];
+    const bke::bNodeSocketType *stype = io_input.socket_typeinfo();
+    if (!stype) {
+      continue;
+    }
+    const eNodeSocketDatatype socket_type = eNodeSocketDatatype(stype->type);
+    if (!stype->base_cpp_type || !stype->geometry_nodes_cpp_type) {
+      continue;
+    }
+    const IDProperty *property = IDP_GetPropertyFromGroup(properties, io_input.identifier);
+    if (!property) {
+      continue;
+    }
+    if (!id_property_type_matches_socket(io_input, *property)) {
+      continue;
+    }
+    if (input_attribute_name_get(*properties, io_input).has_value()) {
+      /* Attributes don't have a single base value, so ignore them here.*/
+      continue;
+    }
+    if (is_layer_selection_field(io_input)) {
+      /* Can't get a single value for layer selections. */
+      continue;
+    }
+
+    void *value_buffer = scope.linear_allocator().allocate(
+        stype->geometry_nodes_cpp_type->size(), stype->geometry_nodes_cpp_type->alignment());
+    init_socket_cpp_value_from_property(*property, socket_type, value_buffer);
+    if (!stype->geometry_nodes_cpp_type->is_trivially_destructible()) {
+      scope.add_destruct_call([type = stype->geometry_nodes_cpp_type, value_buffer]() {
+        type->destruct(value_buffer);
+      });
+    }
+    if (stype->geometry_nodes_cpp_type == stype->base_cpp_type) {
+      r_values[input_i] = {stype->base_cpp_type, value_buffer};
+      continue;
+    }
+    if (stype->geometry_nodes_cpp_type == &CPPType::get<bke::SocketValueVariant>()) {
+      const bke::SocketValueVariant &socket_value = *static_cast<const bke::SocketValueVariant *>(
+          value_buffer);
+      if (!socket_value.is_single()) {
+        continue;
+      }
+      const GPointer single_value = socket_value.get_single_ptr();
+      BLI_assert(single_value.type() == stype->base_cpp_type);
+      r_values[input_i] = single_value;
+      continue;
     }
   }
 }
