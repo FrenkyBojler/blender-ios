@@ -13,6 +13,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
+#include "BLI_math_vector.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
@@ -462,7 +463,7 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
     mpt->keylist = ED_keylist_create();
 
     ListBase *fcurve_list = nullptr;
-    if (adt) {
+    if (adt && adt->action) {
       /* Get pointer to animviz settings for each target. */
       bAnimVizSettings *avs = animviz_target_settings_get(mpt);
 

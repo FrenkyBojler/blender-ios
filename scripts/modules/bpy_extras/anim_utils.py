@@ -13,7 +13,7 @@ __all__ = (
 )
 
 import bpy
-from bpy.types import Action, ActionSlot
+from bpy.types import Action, ActionSlot, ActionChannelbag
 from dataclasses import dataclass
 
 from collections.abc import (
@@ -75,24 +75,25 @@ class BakeOptions:
     """Bake custom properties."""
 
 
-def _get_channelbag_for_slot(action: Action, slot: ActionSlot):
-    # This is on purpose limited to the first layer and strip. To support more
-    # than 1 layer, a rewrite of this operator is needed which ideally would
-    # happen in C++.
+def action_get_channelbag_for_slot(action: Action, slot: ActionSlot) -> ActionChannelbag | None:
+    """
+    Returns the first channelbag found for the slot.
+    In case there are multiple layers or strips they are iterated until a
+    channelbag for that slot is found. In case no matching channelbag is found, returns None.
+    """
     for layer in action.layers:
         for strip in layer.strips:
-            channelbag = strip.channels(slot.handle)
-            return channelbag
+            channelbag = strip.channelbag(slot)
+            if channelbag:
+                return channelbag
+    return None
 
 
 def _ensure_channelbag_exists(action: Action, slot: ActionSlot):
-    channelbag = _get_channelbag_for_slot(action, slot)
-    if channelbag:
-        return channelbag
-
     for layer in action.layers:
         for strip in layer.strips:
-            return strip.channelbags.new(slot)
+            channelbag = strip.channelbag(slot, ensure=True)
+            return channelbag
 
 
 def bake_action(
@@ -412,7 +413,7 @@ def bake_action_iter(
     # pose
     lookup_fcurves = {}
     assert action.is_action_layered
-    channelbag = _get_channelbag_for_slot(action, atd.action_slot)
+    channelbag = action_get_channelbag_for_slot(action, atd.action_slot)
     if channelbag:
         # channelbag can be None if no layers or strips exist in the action.
         lookup_fcurves = {(fcurve.data_path, fcurve.array_index): fcurve for fcurve in channelbag.fcurves}

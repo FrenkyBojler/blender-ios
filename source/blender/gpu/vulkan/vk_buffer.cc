@@ -90,7 +90,7 @@ void VKBuffer::update_render_graph(VKContext &context, void *data) const
   update_buffer.dst_buffer = vk_buffer_;
   update_buffer.data_size = size_in_bytes_;
   update_buffer.data = data;
-  context.render_graph.add_node(update_buffer);
+  context.render_graph().add_node(update_buffer);
 }
 
 void VKBuffer::flush() const
@@ -106,15 +106,40 @@ void VKBuffer::clear(VKContext &context, uint32_t clear_value)
   fill_buffer.vk_buffer = vk_buffer_;
   fill_buffer.data = clear_value;
   fill_buffer.size = size_in_bytes_;
-  context.render_graph.add_node(fill_buffer);
+  context.render_graph().add_node(fill_buffer);
+}
+
+void VKBuffer::async_flush_to_host(VKContext &context)
+{
+  BLI_assert(async_timeline_ == 0);
+  context.rendering_end();
+  context.descriptor_set_get().upload_descriptor_sets();
+  async_timeline_ = context.flush_render_graph(RenderGraphFlushFlags::SUBMIT |
+                                               RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+}
+
+void VKBuffer::read_async(VKContext &context, void *data)
+{
+  BLI_assert_msg(is_mapped(), "Cannot read a non-mapped buffer.");
+  if (async_timeline_ == 0) {
+    async_flush_to_host(context);
+  }
+  VKDevice &device = VKBackend::get().device;
+  device.wait_for_timeline(async_timeline_);
+  async_timeline_ = 0;
+  memcpy(data, mapped_memory_, size_in_bytes_);
 }
 
 void VKBuffer::read(VKContext &context, void *data) const
 {
+
   BLI_assert_msg(is_mapped(), "Cannot read a non-mapped buffer.");
+  BLI_assert(async_timeline_ == 0);
   context.rendering_end();
   context.descriptor_set_get().upload_descriptor_sets();
-  context.render_graph.submit_for_read();
+  context.flush_render_graph(RenderGraphFlushFlags::SUBMIT |
+                             RenderGraphFlushFlags::WAIT_FOR_COMPLETION |
+                             RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
   memcpy(data, mapped_memory_, size_in_bytes_);
 }
 
@@ -153,8 +178,7 @@ bool VKBuffer::free()
     unmap();
   }
 
-  VKDevice &device = VKBackend::get().device;
-  device.discard_pool_for_current_thread().discard_buffer(vk_buffer_, allocation_);
+  VKDiscardPool::discard_pool_get().discard_buffer(vk_buffer_, allocation_);
 
   allocation_ = VK_NULL_HANDLE;
   vk_buffer_ = VK_NULL_HANDLE;
