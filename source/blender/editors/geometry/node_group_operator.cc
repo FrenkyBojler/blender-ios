@@ -210,8 +210,7 @@ class MeshState {
  * sharing lets us avoid copying attribute data though.
  */
 static bke::GeometrySet get_original_geometry_eval_copy(Object &object,
-                                                        nodes::GeoNodesOperatorData &operator_data,
-                                                        Vector<MeshState> &orig_mesh_states)
+                                                        nodes::GeoNodesOperatorData &operator_data)
 {
   switch (object.type) {
     case OB_CURVES: {
@@ -236,7 +235,6 @@ static bke::GeometrySet get_original_geometry_eval_copy(Object &object,
         return bke::GeometrySet::from_mesh(final_copy);
       }
       Mesh *mesh_copy = BKE_mesh_copy_for_eval(*mesh);
-      orig_mesh_states.append_as(*mesh_copy);
       return bke::GeometrySet::from_mesh(mesh_copy);
     }
     default:
@@ -582,7 +580,6 @@ static int run_node_group_exec(bContext *C, wmOperator *op)
 
   /* May be null if operator called from outside 3D view context. */
   const RegionView3D *rv3d = CTX_wm_region_view3d(C);
-  Vector<MeshState> orig_mesh_states;
 
   for (Object *object : objects) {
     nodes::GeoNodesOperatorData operator_eval_data{};
@@ -609,8 +606,7 @@ static int run_node_group_exec(bContext *C, wmOperator *op)
       call_data.socket_log_contexts = &socket_log_contexts;
     }
 
-    bke::GeometrySet geometry_orig = get_original_geometry_eval_copy(
-        *object, operator_eval_data, orig_mesh_states);
+    bke::GeometrySet geometry_orig = get_original_geometry_eval_copy(*object, operator_eval_data);
 
     bke::GeometrySet new_geometry = nodes::execute_geometry_nodes_on_geometry(
         *node_tree, properties, compute_context, call_data, std::move(geometry_orig));
