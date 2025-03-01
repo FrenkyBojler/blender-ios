@@ -2,12 +2,14 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_span.hh"
-#include "BLI_math_vector_types.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
+#include "BLI_span.hh"
 
 #include "GEO_abstract_kd_bucket_hierarchy.hh"
+
+#include "GEO_bounding_sphere.hh"
 
 namespace blender::geometry::bounding {
 
@@ -44,7 +46,10 @@ std::pair<float3, float> min_packing_sphere(const Span<float3> points)
   return std::pair<float3, float>(centre, radius);
 }
 
-std::pair<float3, float> concatenate_spheres(const float3 a_centre, const float a_radius, const float3 b_centre, const float b_radius)
+std::pair<float3, float> concatenate_spheres(const float3 a_centre,
+                                             const float a_radius,
+                                             const float3 b_centre,
+                                             const float b_radius)
 {
   const float3 segment = math::normalize(a_centre - b_centre);
   const float3 a_extremum = a_centre + segment * a_radius;
@@ -53,10 +58,10 @@ std::pair<float3, float> concatenate_spheres(const float3 a_centre, const float 
 }
 
 void joints_packing_spheres(const OffsetIndices<int> buckets_offsets,
-                                  const int total_depth,
-                                  const Span<float3> src_bucket_points,
-                                  MutableSpan<float3> dst_joints_centre,
-                                  MutableSpan<float> dst_joints_radii)
+                            const int total_depth,
+                            const Span<float3> src_bucket_points,
+                            MutableSpan<float3> dst_joints_centre,
+                            MutableSpan<float> dst_joints_radii)
 {
   geometry::akdbh::for_each_leaf(
       buckets_offsets,
@@ -83,10 +88,10 @@ void joints_packing_spheres(const OffsetIndices<int> buckets_offsets,
 }
 
 void joints_packing_spheres_fast(const OffsetIndices<int> buckets_offsets,
-                            const int total_depth,
-                            const Span<float3> src_bucket_points,
-                            MutableSpan<float3> dst_joints_centre,
-                            MutableSpan<float> dst_joints_radii)
+                                 const int total_depth,
+                                 const Span<float3> src_bucket_points,
+                                 MutableSpan<float3> dst_joints_centre,
+                                 MutableSpan<float> dst_joints_radii)
 {
   geometry::akdbh::for_each_leaf(
       buckets_offsets,

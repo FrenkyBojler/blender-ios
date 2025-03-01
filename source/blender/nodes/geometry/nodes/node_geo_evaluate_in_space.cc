@@ -14,10 +14,10 @@
 #include "GEO_bounding_sphere.hh"
 #include "GEO_fast_multipole_method.hh"
 
-#include "NOD_rna_define.hh"
-
 #include "RNA_access.hh"
 #include "RNA_enum_types.hh"
+
+#include "NOD_rna_define.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
