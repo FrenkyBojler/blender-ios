@@ -1,10 +1,11 @@
-/* SPDX-FileCopyrightText: 2024 Blender Authors
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
+#include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
 
 #include "RNA_access.hh"
