@@ -15,6 +15,7 @@ set(SRC
   intern/2d_grid_to_curve.cc
   intern/add_curves_on_mesh.cc
   intern/curve_constraints.cc
+  intern/curves_remove_and_split.cc
   intern/extend_curves.cc
   intern/extract_elements.cc
   intern/fillet_curves.cc

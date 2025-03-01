@@ -192,7 +192,6 @@ void normals_calc_corners(Span<float3> vert_positions,
                           Span<int> corner_verts,
                           Span<int> corner_edges,
                           Span<int> corner_to_face_map,
-                          Span<float3> vert_normals,
                           Span<float3> face_normals,
                           Span<bool> sharp_edges,
                           Span<bool> sharp_faces,
@@ -410,6 +409,9 @@ void mesh_data_update(Depsgraph &depsgraph,
                       const Scene &scene,
                       Object &ob,
                       const CustomData_MeshMasks &dataMask);
+
+/** Remove strings referring to attributes if they no longer exist. */
+void mesh_remove_invalid_attribute_strings(Mesh &mesh);
 
 const AttributeAccessorFunctions &mesh_attribute_accessor_functions();
 

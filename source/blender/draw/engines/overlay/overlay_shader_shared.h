@@ -9,16 +9,6 @@
 
 #  include "DNA_action_types.h"
 #  include "DNA_view3d_types.h"
-
-#  ifdef __cplusplus
-extern "C" {
-#  else
-typedef enum OVERLAY_GridBits OVERLAY_GridBits;
-#  endif
-typedef struct OVERLAY_GridData OVERLAY_GridData;
-typedef struct ThemeColorData ThemeColorData;
-typedef struct ExtraInstanceData ExtraInstanceData;
-typedef struct VertexData VertexData;
 #endif
 
 /* TODO(fclem): Should eventually become OVERLAY_BackgroundType.
@@ -215,7 +205,7 @@ struct ExtraInstanceData {
   float4 color_;
   float4x4 object_to_world;
 
-#if !defined(GPU_SHADER) && defined(__cplusplus)
+#if !defined(GPU_SHADER)
   ExtraInstanceData(const float4x4 &object_to_world, const float4 &color, float draw_size)
   {
     this->color_ = color;
@@ -292,9 +282,9 @@ struct BoneEnvelopeData {
                    float3 &x_axis)
       : head_sphere(head_sphere),
         tail_sphere(tail_sphere),
-        bone_color_and_wire_width(bone_color),
-        state_color(state_color),
-        x_axis(x_axis){};
+        bone_color_and_wire_width(bone_color, 0.0f),
+        state_color(state_color, 0.0f),
+        x_axis(x_axis, 0.0f){};
 
   /* For bone outlines. */
   BoneEnvelopeData(float4 &head_sphere,
@@ -304,11 +294,11 @@ struct BoneEnvelopeData {
       : head_sphere(head_sphere),
         tail_sphere(tail_sphere),
         bone_color_and_wire_width(color_and_wire_width),
-        x_axis(x_axis){};
+        x_axis(x_axis, 0.0f){};
 
   /* For bone distance volumes. */
   BoneEnvelopeData(float4 &head_sphere, float4 &tail_sphere, float3 &x_axis)
-      : head_sphere(head_sphere), tail_sphere(tail_sphere), x_axis(x_axis){};
+      : head_sphere(head_sphere), tail_sphere(tail_sphere), x_axis(x_axis, 0.0f){};
 #endif
 };
 BLI_STATIC_ASSERT_ALIGN(BoneEnvelopeData, 16)
@@ -351,9 +341,3 @@ struct BoneStickData {
 #endif
 };
 BLI_STATIC_ASSERT_ALIGN(BoneStickData, 16)
-
-#ifndef GPU_SHADER
-#  ifdef __cplusplus
-}
-#  endif
-#endif

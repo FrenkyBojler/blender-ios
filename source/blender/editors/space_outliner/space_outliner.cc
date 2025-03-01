@@ -9,13 +9,13 @@
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
 
-#include <cstdio>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_mempool.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -31,7 +31,6 @@
 #include "WM_message.hh"
 #include "WM_types.hh"
 
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #include "UI_resources.hh"
@@ -564,7 +563,7 @@ static void outliner_space_blend_read_data(BlendDataReader *reader, SpaceLink *s
     /* we only saved what was used */
     space_outliner->storeflag |= SO_TREESTORE_CLEANUP; /* at first draw */
   }
-  space_outliner->tree.first = space_outliner->tree.last = nullptr;
+  BLI_listbase_clear(&space_outliner->tree);
   space_outliner->runtime = nullptr;
 }
 
