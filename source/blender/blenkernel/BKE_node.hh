@@ -887,7 +887,6 @@ bNodeTree *node_tree_add_tree_embedded(Main *bmain,
                                        StringRefNull name,
                                        StringRefNull idname);
 
-
 /* Copy/free functions, need to manage ID users. */
 
 /**
