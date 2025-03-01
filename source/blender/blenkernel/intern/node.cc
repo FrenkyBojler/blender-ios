@@ -3299,7 +3299,7 @@ bNodePreview *node_preview_verify(bNodeInstanceHash *previews,
   if (!preview) {
     if (create) {
       preview = MEM_cnew<bNodePreview>("node preview");
-      preview->ibuf = IMB_allocImBuf(xsize, ysize, 32, IB_rect);
+      preview->ibuf = IMB_allocImBuf(xsize, ysize, 32, IB_byte_data);
       node_instance_hash_insert(previews, key, preview);
     }
     else {
@@ -3316,7 +3316,7 @@ bNodePreview *node_preview_verify(bNodeInstanceHash *previews,
   const uint size[2] = {uint(xsize), uint(ysize)};
   IMB_rect_size_set(preview->ibuf, size);
   if (preview->ibuf->byte_buffer.data == nullptr) {
-    imb_addrectImBuf(preview->ibuf);
+    IMB_alloc_byte_pixels(preview->ibuf);
   }
   /* no clear, makes nicer previews */
 
