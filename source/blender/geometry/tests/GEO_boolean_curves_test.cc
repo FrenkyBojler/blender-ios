@@ -152,26 +152,28 @@ class SVGMapping {
 static void SVG_add_path(std::ofstream &f,
                          const std::string &class_name,
                          const VArraySpan<float2> &points,
+                         const IndexMask &polygons,
                          const OffsetIndices<int> points_by_polygon,
                          const VArraySpan<bool> &cyclic,
                          const SVGMapping &mapping)
 {
-  f << "<path class = \"" << class_name << "\" d = \"";
-  for (const int polygon_id : points_by_polygon.index_range()) {
+  polygons.foreach_index([&](const int64_t polygon_id) {
+    f << "<path class = \"" << class_name << "\" d = \"";
+
     const IndexRange vert_ids = points_by_polygon[polygon_id];
-    if (polygon_id != 0) {
-      f << " ";
-    }
+    /* TODO. */
+    // if (polygon_id != 0) {
+    //   f << " ";
+    // }
 
     f << "M ";
-    for (const int i : vert_ids) {
-      const float2 &point = points[i];
-      const int j = i - vert_ids.first();
+    for (const int i : vert_ids.index_range()) {
+      const float2 &point = points[vert_ids[i]];
 
-      if (j == 1) {
+      if (i == 1) {
         f << " L ";
       }
-      else if (j != 0) {
+      else if (i != 0) {
         f << ", ";
       }
       f << mapping.SX(point[0]) << "," << mapping.SY(point[1]);
@@ -179,13 +181,11 @@ static void SVG_add_path(std::ofstream &f,
     if (cyclic[polygon_id]) {
       f << " Z";
     }
-  }
 
-  f << "\"";
-
-  f << " fill-rule=\"evenodd\"";
-
-  f << "/>\n";
+    f << "\"";
+    f << " fill-rule=\"evenodd\"";
+    f << "/>\n";
+  });
 }
 
 static bool draw_append = false; /* Will be set to true after first call. */
@@ -261,7 +261,7 @@ void draw_results(const std::string &label,
                   const Span<float2> input_points,
                   const bke::CurvesGeometry &src_curves,
                   const bke::CurvesGeometry &dst_curves,
-                  const IndexRange clipping_shapes)
+                  const IndexMask &clipping_shapes)
 {
   if (!DO_DRAW) {
     return;
@@ -277,31 +277,10 @@ void draw_results(const std::string &label,
   const VArraySpan<bool> src_cyclic = src_curves.cyclic();
   const VArraySpan<bool> dst_cyclic = dst_curves.cyclic();
 
-  const IndexRange subject_shapes = IndexRange::from_begin_end(0, clipping_shapes.first());
-  Array<int> offset_a(subject_shapes.size() + 1);
-  Array<int> offset_b(clipping_shapes.size() + 1);
-  int offset = 0;
-
-  for (const int i : subject_shapes.index_range()) {
-    offset_a[i] = offset;
-    offset += src_points_by_curve[subject_shapes[i]].size();
-  }
-  offset_a.last() = offset;
-
-  offset = 0; /* Reuse. */
-
-  for (const int i : clipping_shapes.index_range()) {
-    offset_b[i] = offset;
-    offset += src_points_by_curve[clipping_shapes[i]].size();
-  }
-  offset_b.last() = offset;
-
-  const Span<float2> a_points = input_points.slice(
-      IndexRange::from_begin_end_inclusive(src_points_by_curve[subject_shapes.first()].first(),
-                                           src_points_by_curve[subject_shapes.last()].last()));
-  const Span<float2> b_points = input_points.slice(
-      IndexRange::from_begin_end_inclusive(src_points_by_curve[clipping_shapes.first()].first(),
-                                           src_points_by_curve[clipping_shapes.last()].last()));
+  /* TODO. */
+  IndexMaskMemory memory;
+  const IndexMask subject_shapes = clipping_shapes.complement(src_points_by_curve.index_range(),
+                                                              memory);
 
   const SVGMapping mapping = SVGMapping(*bounds::min_max(input_points));
 
@@ -310,20 +289,28 @@ void draw_results(const std::string &label,
 
   SVG_add_path(f,
                type + "-A",
-               VArray<float2>::ForSpan(a_points),
-               OffsetIndices<int>(offset_a),
-               VArraySpan<bool>(VArray<bool>::ForSpan(src_cyclic.slice(subject_shapes))),
+               VArray<float2>::ForSpan(input_points),
+               subject_shapes,
+               src_points_by_curve,
+               src_cyclic,
                mapping);
   SVG_add_path(f,
                type + "-B",
-               VArray<float2>::ForSpan(b_points),
-               OffsetIndices<int>(offset_b),
-               VArraySpan<bool>(VArray<bool>::ForSpan(src_cyclic.slice(clipping_shapes))),
+               VArray<float2>::ForSpan(input_points),
+               clipping_shapes,
+               src_points_by_curve,
+               src_cyclic,
                mapping);
   const VArray<float2> output_points = *dst_curves.attributes().lookup<float2>(
       ".positions_2d", bke::AttrDomain::Point);
 
-  SVG_add_path(f, type + "-C", output_points, dst_points_by_curve, dst_cyclic, mapping);
+  SVG_add_path(f,
+               type + "-C",
+               output_points,
+               dst_points_by_curve.index_range(),
+               dst_points_by_curve,
+               dst_cyclic,
+               mapping);
 
   f << "</svg>\n";
   f << "<h2>" << label << "</h2>\n";
@@ -887,7 +874,8 @@ TEST(boolean_curves, Separate_Shapes)
 {
   draw_divider_start("Separate Shapes");
 
-  /* *
+  /**
+   * Separate but intersecting subject shapes.
    * The two subject shapes should be affected by the clipping shape, but not join into one.
    */
   const Array<float2> points = {{0, 2},
@@ -904,7 +892,7 @@ TEST(boolean_curves, Separate_Shapes)
                                 {3, 8},
                                 {8, 8},
                                 {8, 3}};
-  const Array<int> points_by_curve = {0, 4, 8};
+  const Array<int> points_by_curve = {0, 4, 8, 12};
   const IndexRange clipping_shapes = IndexRange::from_begin_end(2, 3);
   const Array<bool> is_fill = {true, true, true};
   const Array<bool> is_cyclic = {true, true, true};
