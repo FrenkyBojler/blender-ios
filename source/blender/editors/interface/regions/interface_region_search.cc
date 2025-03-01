@@ -558,19 +558,13 @@ int ui_searchbox_autocomplete(bContext *C, ARegion *region, uiBut *but, char *st
  */
 static void ui_searchbox_draw_clip_tri_down(rcti *rect, const float zoom)
 {
-  const float x = BLI_rcti_cent_x(rect) - 0.5f * zoom * UI_ICON_SIZE;
+  const float x = BLI_rcti_cent_x(rect) - (0.5f * zoom * UI_ICON_SIZE);
   const float y = rect->ymin - (0.5f * zoom * (UI_SEARCHBOX_TRIA_H - UI_ICON_SIZE) - U.pixelsize) -
                   zoom * UI_ICON_SIZE;
+  const float aspect = U.inv_scale_factor / zoom;
+
   GPU_blend(GPU_BLEND_ALPHA);
-  UI_icon_draw_ex(x,
-                  y,
-                  ICON_TRIA_DOWN,
-                  U.inv_scale_factor / zoom,
-                  1.0f,
-                  0.0f,
-                  NULL,
-                  false,
-                  UI_NO_ICON_OVERLAY_TEXT);
+  UI_icon_draw_ex(x, y, ICON_TRIA_DOWN, aspect, 1.0f, 0.0f, NULL, false, UI_NO_ICON_OVERLAY_TEXT);
   GPU_blend(GPU_BLEND_NONE);
 }
 
@@ -581,18 +575,12 @@ static void ui_searchbox_draw_clip_tri_down(rcti *rect, const float zoom)
  */
 static void ui_searchbox_draw_clip_tri_up(rcti *rect, const float zoom)
 {
-  const float x = BLI_rcti_cent_x(rect) - 0.5f * zoom * UI_ICON_SIZE;
+  const float x = BLI_rcti_cent_x(rect) - (0.5f * zoom * UI_ICON_SIZE);
   const float y = rect->ymax + (0.5f * zoom * (UI_SEARCHBOX_TRIA_H - UI_ICON_SIZE) - U.pixelsize);
+  const float aspect = U.inv_scale_factor / zoom;
+
   GPU_blend(GPU_BLEND_ALPHA);
-  UI_icon_draw_ex(x,
-                  y,
-                  ICON_TRIA_UP,
-                  U.inv_scale_factor / zoom,
-                  1.0f,
-                  0.0f,
-                  NULL,
-                  false,
-                  UI_NO_ICON_OVERLAY_TEXT);
+  UI_icon_draw_ex(x, y, ICON_TRIA_UP, aspect, 1.0f, 0.0f, NULL, false, UI_NO_ICON_OVERLAY_TEXT);
   GPU_blend(GPU_BLEND_NONE);
 }
 

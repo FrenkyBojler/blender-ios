@@ -5637,16 +5637,11 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
     const int xs = rect->xmin + 0.2f * UI_UNIT_X * zoom;
     const int ys = rect->ymin + 0.5f * (BLI_rcti_size_y(rect) - UI_ICON_SIZE * zoom);
 
+    const float aspect = U.inv_scale_factor / zoom;
+
     GPU_blend(GPU_BLEND_ALPHA);
-    UI_icon_draw_ex(xs,
-                    ys,
-                    iconid,
-                    U.inv_scale_factor / zoom,
-                    1.0f,
-                    0.0f,
-                    wt->wcol.text,
-                    false,
-                    UI_NO_ICON_OVERLAY_TEXT);
+    UI_icon_draw_ex(
+        xs, ys, iconid, aspect, 1.0f, 0.0f, wt->wcol.text, false, UI_NO_ICON_OVERLAY_TEXT);
     GPU_blend(GPU_BLEND_NONE);
   }
 
