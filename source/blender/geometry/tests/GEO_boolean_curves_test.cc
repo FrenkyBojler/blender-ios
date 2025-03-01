@@ -252,7 +252,9 @@ void draw_divider_end()
     return;
   }
 
+  /* Exit `ui-list` */
   f << "</div>\n";
+  /* Exit `ui-group` */
   f << "</div>\n";
 }
 
