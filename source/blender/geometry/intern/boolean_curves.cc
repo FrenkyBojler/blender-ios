@@ -270,8 +270,8 @@ class WindingState {
   }
 
   bool is_contributing(const Operation boolean_mode,
-                       const IndexRange subject_shapes,
-                       const IndexRange clipping_shapes) const
+                       const IndexMask &subject_shapes,
+                       const IndexMask &clipping_shapes) const
   {
     const bool subj = this->is_in_shapes(subject_shapes);
     const bool clip = this->is_in_shapes(clipping_shapes);
@@ -462,7 +462,7 @@ struct BooleanResult {
 static BooleanResult execute_boolean(const Operation boolean_mode,
                                      const Span<float2> points,
                                      const OffsetIndices<int> points_by_curve,
-                                     const IndexRange clipping_shapes,
+                                     const IndexMask &clipping_shapes,
                                      const VArray<bool> &is_fill,
                                      const VArray<bool> &is_cyclic)
 {
@@ -586,7 +586,9 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
   /* -------------------- */
 
   /* TODO. */
-  const IndexRange subject_shapes = IndexRange::from_begin_end(0, clipping_shapes.first());
+  IndexMaskMemory memory;
+  const IndexMask subject_shapes = clipping_shapes.complement(points_by_curve.index_range(),
+                                                              memory);
 
   const OffsetIndices<int> all_segments_by_curve = OffsetIndices<int>(all_segment_offsets);
   Vector<Segment> unsorted_segments;
@@ -695,7 +697,7 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
 
 bke::CurvesGeometry curve_boolean(const Operation boolean_mode,
                                   const bke::CurvesGeometry &curves,
-                                  const IndexRange clipping_shapes)
+                                  const IndexMask clipping_shapes)
 {
   const bke::AttributeAccessor src_attributes = curves.attributes();
 
