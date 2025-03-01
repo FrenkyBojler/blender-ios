@@ -724,16 +724,15 @@ void BM_log_redo(BMesh *bm, BMLog *log)
 void BM_log_vert_before_modified(BMLog *log, BMVert *v, const int cd_vert_mask_offset)
 {
   BMLogEntry *entry = log->current_entry;
-  BMLogVert *lv;
   uint v_id = bm_log_vert_id_get(log, v);
 
   /* Find or create the BMLogVert entry */
   if (entry->added_verts.contains(v_id)) {
     bm_log_vert_bmvert_copy(entry->added_verts.lookup(v_id), v, cd_vert_mask_offset);
   }
-  else if (!entry->modified_verts.contains(v_id)) {
-    lv = bm_log_vert_alloc(log, v, cd_vert_mask_offset);
-    entry->modified_verts.add(v_id, lv);
+  else {
+    entry->modified_verts.lookup_or_add_cb(
+        v_id, [&] { return bm_log_vert_alloc(log, v, cd_vert_mask_offset); });
   }
 }
 
