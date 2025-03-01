@@ -5,6 +5,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 
+#include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 
 #include "BLI_array_utils.hh"
@@ -315,7 +316,7 @@ static void node_register()
   ntype.ui_name = "Edge Rings";
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
