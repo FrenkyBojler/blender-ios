@@ -821,7 +821,7 @@ static void ui_searchbox_region_layout_fn(const bContext *C, ARegion *region)
     const int padding = zoom * UI_SEARCHBOX_BOUNDS - (data->preview ? 0 : U.pixelsize);
     const int search_but_h = BLI_rctf_size_y(&but->rect) + zoom * UI_SEARCHBOX_BOUNDS;
 
-    /* In this case the search menu is inside another menu, so we copy region size. */
+    /* In this case, the search menu is inside another menu, so we copy the region size. */
     region->winrct = butregion->winrct;
 
     /* Widget rect, in region coordinates. */
