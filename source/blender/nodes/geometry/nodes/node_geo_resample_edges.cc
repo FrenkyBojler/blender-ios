@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Authors
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -14,6 +14,7 @@
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_attribute_filter.hh"
+#include "BKE_attribute_math.hh"
 #include "BKE_mesh.hh"
 
 #include "node_geometry_util.hh"
@@ -123,7 +124,8 @@ static void fill_groups_attributes(const AttributeAccessor src_attributes,
       return;
     }
     const bke::GAttributeReader src = src_attributes.lookup(attribute.name, domain);
-    bke::GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(attribute.name, domain, attribute.data_type);
+    bke::GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
+        attribute.name, domain, attribute.data_type);
     if (!dst) {
       return;
     }
@@ -292,12 +294,14 @@ static Mesh *resample_edges(const Mesh &src_mesh,
               edge_offset,
               dst_mesh->corner_verts_for_write(),
               dst_mesh->corner_edges_for_write());
-  bke::copy_attributes(src_attributes, AttrDomain::Face, AttrDomain::Face, attribute_filter, dst_attributes);
-  fill_groups_attributes(src_attributes,
-                         bke::attribute_filter_with_skip_ref(attribute_filter, {".corner_vert", ".corner_edge"}),
-                         corner_offset,
-                         AttrDomain::Corner,
-                         dst_attributes);
+  bke::copy_attributes(
+      src_attributes, AttrDomain::Face, AttrDomain::Face, attribute_filter, dst_attributes);
+  fill_groups_attributes(
+      src_attributes,
+      bke::attribute_filter_with_skip_ref(attribute_filter, {".corner_vert", ".corner_edge"}),
+      corner_offset,
+      AttrDomain::Corner,
+      dst_attributes);
   return dst_mesh;
 }
 
