@@ -116,7 +116,6 @@ struct BMLogFace {
 /* Get the vertex's unique ID from the log */
 static uint bm_log_vert_id_get(BMLog *log, BMVert *v)
 {
-  BLI_assert(log->elem_to_id.contains(reinterpret_cast<BMElem *>(v)));
   return log->elem_to_id.lookup(reinterpret_cast<BMElem *>(v));
 }
 
@@ -130,14 +129,12 @@ static void bm_log_vert_id_set(BMLog *log, BMVert *v, uint id)
 /* Get a vertex from its unique ID */
 static BMVert *bm_log_vert_from_id(BMLog *log, uint id)
 {
-  BLI_assert(log->id_to_elem.contains(id));
   return reinterpret_cast<BMVert *>(log->id_to_elem.lookup(id));
 }
 
 /* Get the face's unique ID from the log */
 static uint bm_log_face_id_get(BMLog *log, BMFace *f)
 {
-  BLI_assert(log->elem_to_id.contains(reinterpret_cast<BMElem *>(f)));
   return log->elem_to_id.lookup(reinterpret_cast<BMElem *>(f));
 }
 
@@ -151,7 +148,6 @@ static void bm_log_face_id_set(BMLog *log, BMFace *f, uint id)
 /* Get a face from its unique ID */
 static BMFace *bm_log_face_from_id(BMLog *log, uint id)
 {
-  BLI_assert(log->id_to_elem.contains(id));
   return reinterpret_cast<BMFace *>(log->id_to_elem.lookup(id));
 }
 
@@ -890,7 +886,6 @@ const float *BM_log_original_vert_co(BMLog *log, BMVert *v)
 
   BLI_assert(entry);
 
-  BLI_assert(entry->modified_verts.contains(v_id));
   return entry->modified_verts.lookup(v_id)->co;
 }
 
@@ -901,7 +896,6 @@ const float *BM_log_original_vert_no(BMLog *log, BMVert *v)
 
   BLI_assert(entry);
 
-  BLI_assert(entry->modified_verts.contains(v_id));
   return entry->modified_verts.lookup(v_id)->no;
 }
 
@@ -912,7 +906,6 @@ float BM_log_original_mask(BMLog *log, BMVert *v)
 
   BLI_assert(entry);
 
-  BLI_assert(entry->modified_verts.contains(v_id));
   return entry->modified_verts.lookup(v_id)->mask;
 }
 
@@ -922,8 +915,6 @@ void BM_log_original_vert_data(BMLog *log, BMVert *v, const float **r_co, const 
   uint v_id = bm_log_vert_id_get(log, v);
 
   BLI_assert(entry);
-
-  BLI_assert(entry->modified_verts.contains(v_id));
 
   const BMLogVert *lv = entry->modified_verts.lookup(v_id);
   *r_co = lv->co;
