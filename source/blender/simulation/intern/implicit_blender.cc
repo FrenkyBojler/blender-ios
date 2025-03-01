@@ -20,6 +20,10 @@
 
 #  include "SIM_mass_spring.h"
 #include <omp.h>
+#include <tbb/parallel_for.h>
+#include <tbb/parallel_reduce.h>
+#include <tbb/blocked_range.h>
+#include <tbb/task_arena.h>
 
 #  ifdef __GNUC__
 #    pragma GCC diagnostic ignored "-Wtype-limits"
@@ -28,6 +32,7 @@
 #  ifdef _OPENMP
 #    define CLOTH_OPENMP_LIMIT 512
 #  endif
+# define CLOTH_PARALLELIZE_LIMIT 512
 
 // #define DEBUG_TIME
 
@@ -166,14 +171,26 @@ DO_INLINE void submul_lfvectorS(float (*to)[3], float (*fLongVector)[3], float s
 /* dot product for big vector */
 DO_INLINE float dot_lfvector(float (*fLongVectorA)[3], float (*fLongVectorB)[3], uint verts)
 {
-  long i = 0;
-  //workaround ：Use double for calculation errors due to addition order difference in parallel
-  double temp = 0.0; 
-#pragma omp parallel for reduction(+: temp) if (verts > CLOTH_OPENMP_LIMIT)
-  for (i = 0; i < long(verts); i++) {
-    temp += dot_v3v3(fLongVectorA[i], fLongVectorB[i]);
+  if (verts < CLOTH_PARALLELIZE_LIMIT) {
+    double temp = 0;
+    for (int i = 0; i < verts; i++) {
+      temp += dot_v3v3(fLongVectorA[i], fLongVectorB[i]);
+    }
+    return temp;
   }
-  return temp;
+  else {
+    return tbb::parallel_deterministic_reduce(
+      tbb::blocked_range<int>(0, (int)verts,verts/ tbb::this_task_arena::max_concurrency()),
+      0.0,
+      [=](const tbb::blocked_range<int>& range,double value) {
+        double temp=value;
+        for (int i = range.begin(); i < range.end(); i++) {
+          temp+=dot_v3v3(fLongVectorA[i], fLongVectorB[i]);
+        }
+        return temp;
+      }
+      , std::plus<double>());
+  }
 }
 /* `A = B + C` -> for big vector. */
 DO_INLINE void add_lfvector_lfvector(float (*to)[3],
@@ -191,9 +208,19 @@ DO_INLINE void add_lfvector_lfvector(float (*to)[3],
 DO_INLINE void add_lfvector_lfvectorS(
     float (*to)[3], float (*fLongVectorA)[3], float (*fLongVectorB)[3], float bS, uint verts)
 {
-#pragma omp parallel for if(verts > CLOTH_OPENMP_LIMIT)
-  for (int i = 0; i < verts; i++) {
-    VECADDS(to[i], fLongVectorA[i], fLongVectorB[i], bS);
+  if (verts < CLOTH_PARALLELIZE_LIMIT) {
+    for (int i = 0; i < verts; i++) {
+      VECADDS(to[i], fLongVectorA[i], fLongVectorB[i], bS);
+    }
+  }
+  else {
+    tbb::parallel_for(tbb::blocked_range<int>(0, verts,verts / tbb::this_task_arena::max_concurrency()),
+      [=](const tbb::blocked_range<int>& range) {
+        for (int i = range.begin(); i < range.end(); i++) {
+          VECADDS(to[i], fLongVectorA[i], fLongVectorB[i], bS);
+        }
+      }
+      , tbb::static_partitioner());
   }
 }
 /* `A = B * float + C * float` -> for big vector */
@@ -575,33 +602,43 @@ DO_INLINE void initdiag_bfmatrix(fmatrix3x3 *matrix, float m3[3][3])
 /* STATUS: verified */
 DO_INLINE void mul_bfmatrix_lfvector(float (*to)[3], fmatrix3x3 *from, lfVector *fLongVector)
 {
-  const uint vcount = from[0].vcount;
-  const uint scount = from[0].scount;
+  const int vcount = from[0].vcount;
+  const int scount = from[0].scount;
   zero_lfvector(to, vcount);
-#pragma omp parallel if (vcount > CLOTH_OPENMP_LIMIT)
-  {
-    const int N_p = omp_get_num_threads();
-    const int id_p = omp_get_thread_num();
-    const int idx_lb = id_p * vcount / N_p;
-    const int idx_ub = (id_p+1) * vcount / N_p;
-    fmatrix3x3 *f = from;
 
-    for (int i = 0; i < vcount ; i++,f++) {
-      const int r = f->r;
-      if (idx_lb<=r && r<idx_ub )
-        muladd_fmatrix_fvector(to[r], f->m, fLongVector[f->c]);
+  if (vcount < CLOTH_PARALLELIZE_LIMIT) {
+    fmatrix3x3* f = from;
+    for (int i = 0; i < vcount; i++, f++) {
+      muladd_fmatrix_fvector(to[f->r], f->m, fLongVector[f->c]);
     }
-    for (int i = 0; i <  scount; i++,f++) {
+    for (int i = 0; i < scount; i++, f++) {
       const int c = f->c;
       const int r = f->r;
-      if (idx_lb <= c && c < idx_ub) {
-        /* This is the lower triangle of the sparse matrix,
--         * therefore multiplication occurs with transposed sub-matrices. */
-        muladd_fmatrixT_fvector(to[c], f->m, fLongVector[r]);
-      }
-      if (idx_lb <= r && r < idx_ub)
-        muladd_fmatrix_fvector(to[r], f->m, fLongVector[c]);
+      muladd_fmatrixT_fvector(to[c], f->m, fLongVector[r]);
+      muladd_fmatrix_fvector(to[r], f->m, fLongVector[c]);
     }
+  }
+  else {
+    tbb::parallel_for(tbb::blocked_range<int>(0, vcount, vcount / tbb::this_task_arena::max_concurrency()),
+      [=](const tbb::blocked_range<int>& range) {
+        const int idx_lb = range.begin();
+        const int idx_ub = range.end();
+        fmatrix3x3* f = from;
+        for (int i = 0; i < vcount; i++, f++) {
+          const int r = f->r;
+          if (r >= idx_lb && r < idx_ub)
+            muladd_fmatrix_fvector(to[r], f->m, fLongVector[f->c]);
+        }
+        for (int i = 0; i < scount; i++, f++) {
+          const int c = f->c;
+          const int r = f->r;
+          if (c >= idx_lb && c < idx_ub)
+            muladd_fmatrixT_fvector(to[c], f->m, fLongVector[r]);
+          if (r >= idx_lb && r < idx_ub)
+            muladd_fmatrix_fvector(to[r], f->m, fLongVector[c]);
+        }
+      }
+    , tbb::static_partitioner());
   }
 }
 
