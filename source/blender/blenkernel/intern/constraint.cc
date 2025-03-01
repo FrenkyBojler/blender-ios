@@ -18,13 +18,13 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_kdopbvh.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
+#include "BLI_string.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 #include "BLT_translation.hh"
@@ -62,7 +62,7 @@
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
-#include "BKE_mesh.hh"
+#include "BKE_library.hh"
 #include "BKE_mesh_runtime.hh"
 #include "BKE_movieclip.h"
 #include "BKE_object.hh"
@@ -73,12 +73,12 @@
 
 #include "BIK_api.h"
 
+#include "RNA_prototypes.hh"
+
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
 #include "BLO_read_write.hh"
-
-#include "ANIM_action.hh"
 
 #include "CLG_log.h"
 
@@ -1652,34 +1652,22 @@ static void loclimit_evaluate(bConstraint *con, bConstraintOb *cob, ListBase * /
   bLocLimitConstraint *data = static_cast<bLocLimitConstraint *>(con->data);
 
   if (data->flag & LIMIT_XMIN) {
-    if (cob->matrix[3][0] < data->xmin) {
-      cob->matrix[3][0] = data->xmin;
-    }
+    cob->matrix[3][0] = std::max(cob->matrix[3][0], data->xmin);
   }
   if (data->flag & LIMIT_XMAX) {
-    if (cob->matrix[3][0] > data->xmax) {
-      cob->matrix[3][0] = data->xmax;
-    }
+    cob->matrix[3][0] = std::min(cob->matrix[3][0], data->xmax);
   }
   if (data->flag & LIMIT_YMIN) {
-    if (cob->matrix[3][1] < data->ymin) {
-      cob->matrix[3][1] = data->ymin;
-    }
+    cob->matrix[3][1] = std::max(cob->matrix[3][1], data->ymin);
   }
   if (data->flag & LIMIT_YMAX) {
-    if (cob->matrix[3][1] > data->ymax) {
-      cob->matrix[3][1] = data->ymax;
-    }
+    cob->matrix[3][1] = std::min(cob->matrix[3][1], data->ymax);
   }
   if (data->flag & LIMIT_ZMIN) {
-    if (cob->matrix[3][2] < data->zmin) {
-      cob->matrix[3][2] = data->zmin;
-    }
+    cob->matrix[3][2] = std::max(cob->matrix[3][2], data->zmin);
   }
   if (data->flag & LIMIT_ZMAX) {
-    if (cob->matrix[3][2] > data->zmax) {
-      cob->matrix[3][2] = data->zmax;
-    }
+    cob->matrix[3][2] = std::min(cob->matrix[3][2], data->zmax);
   }
 }
 
@@ -1857,34 +1845,22 @@ static void sizelimit_evaluate(bConstraint *con, bConstraintOb *cob, ListBase * 
   copy_v3_v3(obsize, size);
 
   if (data->flag & LIMIT_XMIN) {
-    if (size[0] < data->xmin) {
-      size[0] = data->xmin;
-    }
+    size[0] = std::max(size[0], data->xmin);
   }
   if (data->flag & LIMIT_XMAX) {
-    if (size[0] > data->xmax) {
-      size[0] = data->xmax;
-    }
+    size[0] = std::min(size[0], data->xmax);
   }
   if (data->flag & LIMIT_YMIN) {
-    if (size[1] < data->ymin) {
-      size[1] = data->ymin;
-    }
+    size[1] = std::max(size[1], data->ymin);
   }
   if (data->flag & LIMIT_YMAX) {
-    if (size[1] > data->ymax) {
-      size[1] = data->ymax;
-    }
+    size[1] = std::min(size[1], data->ymax);
   }
   if (data->flag & LIMIT_ZMIN) {
-    if (size[2] < data->zmin) {
-      size[2] = data->zmin;
-    }
+    size[2] = std::max(size[2], data->zmin);
   }
   if (data->flag & LIMIT_ZMAX) {
-    if (size[2] > data->zmax) {
-      size[2] = data->zmax;
-    }
+    size[2] = std::min(size[2], data->zmax);
   }
 
   if (obsize[0]) {
@@ -3537,7 +3513,7 @@ static void distlimit_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
       else if (data->flag & LIMITDIST_USESOFT) {
         /* FIXME: there's a problem with "jumping" when this kicks in */
         if (dist >= (data->dist - data->soft)) {
-          sfac = float(data->soft * (1.0f - expf(-(dist - data->dist) / data->soft)) + data->dist);
+          sfac = (data->soft * (1.0f - expf(-(dist - data->dist) / data->soft)) + data->dist);
           if (dist != 0.0f) {
             sfac /= dist;
           }
@@ -5755,7 +5731,7 @@ void BKE_constraints_free(ListBase *list)
   BKE_constraints_free_ex(list, true);
 }
 
-bool BKE_constraint_remove(ListBase *list, bConstraint *con)
+static bool constraint_remove(ListBase *list, bConstraint *con)
 {
   if (con) {
     BKE_constraint_free_data(con);
@@ -5768,8 +5744,10 @@ bool BKE_constraint_remove(ListBase *list, bConstraint *con)
 
 bool BKE_constraint_remove_ex(ListBase *list, Object *ob, bConstraint *con)
 {
+  BKE_animdata_drivers_remove_for_rna_struct(ob->id, RNA_Constraint, con);
+
   const short type = con->type;
-  if (BKE_constraint_remove(list, con)) {
+  if (constraint_remove(list, con)) {
     /* ITASC needs to be rebuilt once a constraint is removed #26920. */
     if (ELEM(type, CONSTRAINT_TYPE_KINEMATIC, CONSTRAINT_TYPE_SPLINEIK)) {
       BIK_clear_data(ob->pose);

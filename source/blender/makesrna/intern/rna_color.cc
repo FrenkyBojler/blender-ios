@@ -6,18 +6,12 @@
  * \ingroup RNA
  */
 
-#include <cstdio>
 #include <cstdlib>
 
 #include "DNA_color_types.h"
 #include "DNA_texture_types.h"
 
-#include "BLI_utildefines.h"
-
 #include "BLT_translation.hh"
-
-#include "BKE_main_invariants.hh"
-#include "BKE_node_tree_update.hh"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
@@ -57,9 +51,11 @@ const EnumPropertyItem rna_enum_color_space_convert_default_items[] = {
 #  include "BKE_colortools.hh"
 #  include "BKE_image.hh"
 #  include "BKE_linestyle.h"
+#  include "BKE_main_invariants.hh"
 #  include "BKE_movieclip.h"
 #  include "BKE_node.hh"
 #  include "BKE_node_legacy_types.hh"
+#  include "BKE_node_tree_update.hh"
 
 #  include "DEG_depsgraph.hh"
 
@@ -125,7 +121,7 @@ static void rna_CurveMapping_curves_begin(CollectionPropertyIterator *iter, Poin
   CurveMapping *cumap = (CurveMapping *)ptr->data;
 
   rna_iterator_array_begin(
-      iter, cumap->cm, sizeof(CurveMap), rna_CurveMapping_curves_length(ptr), 0, nullptr);
+      iter, ptr, cumap->cm, sizeof(CurveMap), rna_CurveMapping_curves_length(ptr), 0, nullptr);
 }
 
 static void rna_CurveMapping_clip_set(PointerRNA *ptr, bool value)
@@ -419,7 +415,7 @@ static void rna_ColorRampElement_remove(ColorBand *coba,
     return;
   }
 
-  RNA_POINTER_INVALIDATE(element_ptr);
+  element_ptr->invalidate();
 }
 
 static void rna_CurveMap_remove_point(CurveMap *cuma, ReportList *reports, PointerRNA *point_ptr)
@@ -430,7 +426,7 @@ static void rna_CurveMap_remove_point(CurveMap *cuma, ReportList *reports, Point
     return;
   }
 
-  RNA_POINTER_INVALIDATE(point_ptr);
+  point_ptr->invalidate();
 }
 
 static void rna_Scopes_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
@@ -495,11 +491,6 @@ static void rna_ColorManagedDisplaySettings_display_device_update(Main *bmain,
       DEG_id_tag_update(&ma->id, ID_RECALC_SYNC_TO_EVAL);
     }
   }
-}
-
-static std::optional<std::string> rna_ColorManagedDisplaySettings_path(const PointerRNA * /*ptr*/)
-{
-  return "display_settings";
 }
 
 static int rna_ColorManagedViewSettings_view_transform_get(PointerRNA *ptr)
@@ -589,11 +580,6 @@ static void rna_ColorManagedViewSettings_use_curves_set(PointerRNA *ptr, bool va
   else {
     view_settings->flag &= ~COLORMANAGE_VIEW_USE_CURVES;
   }
-}
-
-static std::optional<std::string> rna_ColorManagedViewSettings_path(const PointerRNA * /*ptr*/)
-{
-  return "view_settings";
 }
 
 static void rna_ColorManagedViewSettings_whitepoint_get(PointerRNA *ptr, float value[3])
@@ -746,12 +732,6 @@ static std::optional<std::string> rna_ColorManagedSequencerColorspaceSettings_pa
     const PointerRNA * /*ptr*/)
 {
   return "sequencer_colorspace_settings";
-}
-
-static std::optional<std::string> rna_ColorManagedInputColorspaceSettings_path(
-    const PointerRNA * /*ptr*/)
-{
-  return "colorspace_settings";
 }
 
 static void rna_ColorManagement_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)

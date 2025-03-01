@@ -6,6 +6,7 @@ set(INC
   .
   algorithms
   cached_resources
+  derived_resources
   utilities
   ../gpu/intern
   ../makesrna
@@ -21,6 +22,7 @@ set(SRC
   COM_compositor.hh
   COM_context.hh
   COM_conversion_operation.hh
+  COM_derived_resources.hh
   COM_domain.hh
   COM_evaluator.hh
   COM_input_descriptor.hh
@@ -40,7 +42,6 @@ set(SRC
   COM_shader_operation.hh
   COM_simple_operation.hh
   COM_static_cache_manager.hh
-  COM_texture_pool.hh
   COM_utilities.hh
 
   intern/COM_compositor.cc
@@ -65,7 +66,6 @@ set(SRC
   intern/shader_operation.cc
   intern/simple_operation.cc
   intern/static_cache_manager.cc
-  intern/texture_pool.cc
   intern/utilities.cc
 
   algorithms/intern/compute_preview.cc
@@ -133,7 +133,14 @@ set(SRC
   cached_resources/COM_symmetric_separable_blur_weights.hh
   cached_resources/COM_van_vliet_gaussian_coefficients.hh
 
+  derived_resources/intern/denoised_auxiliary_pass.cc
+
+  derived_resources/COM_denoised_auxiliary_pass.hh
+
+  utilities/intern/gpu_material.cc
+
   utilities/COM_utilities_diagonals.hh
+  utilities/COM_utilities_gpu_material.hh
   utilities/COM_utilities_type_conversion.hh
 )
 

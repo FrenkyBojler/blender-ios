@@ -54,7 +54,7 @@ class Origins : Overlay {
     const Object *ob = ob_ref.object;
     const bool is_library = ID_REAL_USERS(&ob->id) > 1 || ID_IS_LINKED(ob);
     BKE_view_layer_synced_ensure(state.scene, (ViewLayer *)state.view_layer);
-    const float4 location = float4(ob->object_to_world().location());
+    const float4 location = float4(ob->object_to_world().location(), 0.0f);
 
     if (ob == BKE_view_layer_active_object_get(state.view_layer)) {
       select_buf_.select_append(res.select_id(ob_ref));
@@ -84,6 +84,7 @@ class Origins : Overlay {
     res.select_bind(ps_);
     ps_.shader_set(res.shaders.extra_point.get());
     ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+    ps_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
     select_buf_.select_bind(ps_);
     point_buf_.push_update();
     ps_.bind_ssbo("data_buf", &point_buf_);
