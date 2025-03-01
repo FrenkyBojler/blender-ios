@@ -36,6 +36,7 @@
 
 struct BMLogFace;
 struct BMLogVert;
+
 struct BMLogEntry {
   BMLogEntry *next, *prev;
 
