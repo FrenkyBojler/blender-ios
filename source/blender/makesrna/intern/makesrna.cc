@@ -2228,7 +2228,7 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
         DefRNA.error = true;
       }
 
-      if (dp->dnapointerlevel == 0 && pprop->get == nullptr) {
+      if (dp->dnapointerlevel == 0 && pprop->get == nullptr && !(prop->flag & PROP_IDPROPERTY)) {
         /* Set the flag for generated documentation. */
         RNA_def_property_flag(prop, PROP_NEVER_NULL);
       }

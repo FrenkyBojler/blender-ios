@@ -229,25 +229,25 @@ std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_property_create_f
       const bNodeSocketValueCollection *value = static_cast<const bNodeSocketValueCollection *>(
           socket.socket_data);
       ID *id = reinterpret_cast<ID *>(value->value);
-      return id_name_or_value_prop(identifier, id, std::nullopt, use_name_for_ids);
+      return id_name_or_value_prop(identifier, id, ID_GR, use_name_for_ids);
     }
     case SOCK_TEXTURE: {
       const bNodeSocketValueTexture *value = static_cast<const bNodeSocketValueTexture *>(
           socket.socket_data);
       ID *id = reinterpret_cast<ID *>(value->value);
-      return id_name_or_value_prop(identifier, id, std::nullopt, use_name_for_ids);
+      return id_name_or_value_prop(identifier, id, ID_TE, use_name_for_ids);
     }
     case SOCK_IMAGE: {
       const bNodeSocketValueImage *value = static_cast<const bNodeSocketValueImage *>(
           socket.socket_data);
       ID *id = reinterpret_cast<ID *>(value->value);
-      return id_name_or_value_prop(identifier, id, std::nullopt, use_name_for_ids);
+      return id_name_or_value_prop(identifier, id, ID_IM, use_name_for_ids);
     }
     case SOCK_MATERIAL: {
       const bNodeSocketValueMaterial *value = static_cast<const bNodeSocketValueMaterial *>(
           socket.socket_data);
       ID *id = reinterpret_cast<ID *>(value->value);
-      return id_name_or_value_prop(identifier, id, std::nullopt, use_name_for_ids);
+      return id_name_or_value_prop(identifier, id, ID_MA, use_name_for_ids);
     }
     case SOCK_MATRIX:
     case SOCK_CUSTOM:
