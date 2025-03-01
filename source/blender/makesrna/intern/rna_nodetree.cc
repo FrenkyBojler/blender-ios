@@ -12428,6 +12428,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeBake", rna_def_geo_bake);
   define("GeometryNode", "GeometryNodeBlurAttribute");
   define("GeometryNode", "GeometryNodeBoundBox");
+  define("GeometryNode", "GeometryNodeCameraInfo");
   define("GeometryNode", "GeometryNodeCaptureAttribute", rna_def_geo_capture_attribute);
   define("GeometryNode", "GeometryNodeCollectionInfo");
   define("GeometryNode", "GeometryNodeConvexHull");
@@ -12624,7 +12625,6 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeVolumeCube");
   define("GeometryNode", "GeometryNodeVolumeToMesh");
   define("GeometryNode", "GeometryNodeWarning");
-  define("GeometryNode", "GeometryNodeCameraInfo");
 
   /* Node group types are currently defined for each tree type individually. */
   define("ShaderNode", "ShaderNodeGroup", def_group);

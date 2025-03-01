@@ -1,8 +1,10 @@
 #include "BKE_camera.h"
-#include "BLI_math_matrix.hh"
+
 #include "DEG_depsgraph_query.hh"
+
 #include "UI_interface.hh"
 #include "UI_resources.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_camera_info_cc {
@@ -30,21 +32,20 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-
   const Scene *scene = DEG_get_evaluated_scene(params.depsgraph());
   if (!scene) {
     params.set_default_remaining_outputs();
     return;
   }
 
-  Object *camera_obj = params.get_input<Object *>("Camera");
+  const Object *camera_obj = params.get_input<Object *>("Camera");
 
   if (!camera_obj || camera_obj->type != OB_CAMERA) {
     params.set_default_remaining_outputs();
     return;
   }
 
-  Camera *camera = (Camera *)camera_obj->data;
+  Camera *camera = static_cast<Camera *>(camera_obj->data);
   if (!camera) {
     params.set_default_remaining_outputs();
     return;
@@ -57,7 +58,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       &camera_params, scene->r.xsch, scene->r.ysch, scene->r.xasp, scene->r.yasp);
   BKE_camera_params_compute_matrix(&camera_params);
 
-  float4x4 projection_matrix(camera_params.winmat);
+  const float4x4 projection_matrix(camera_params.winmat);
   float focus_distance = BKE_camera_object_dof_distance(camera_obj);
 
   params.set_output("Is Active Camera", scene->camera == camera_obj);
