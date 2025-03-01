@@ -788,9 +788,8 @@ void BM_log_vert_removed(BMLog *log, BMVert *v, const int cd_vert_mask_offset)
 
     /* If the vertex was modified before deletion, ensure that the
      * original vertex values are stored */
-    if (entry->modified_verts.contains(v_id)) {
-      BMLogVert *lv_mod = entry->modified_verts.lookup(v_id);
-      (*lv) = (*lv_mod);
+    if (std::optional<BMLogVert *> lv_mod = entry->modified_verts.lookup_try(v_id)) {
+      (*lv) = (*lv_mod.value());
       entry->modified_verts.remove(v_id);
     }
   }
@@ -865,8 +864,8 @@ const float *BM_log_find_original_vert_co(BMLog *log, BMVert *v)
   BMLogEntry *entry = log->current_entry;
   uint v_id = bm_log_vert_id_get(log, v);
 
-  if (entry->modified_verts.contains(v_id)) {
-    return entry->modified_verts.lookup(v_id)->co;
+  if (std::optional<BMLogVert*> log_vert = entry->modified_verts.lookup_try(v_id)) {
+    return log_vert.value()->co;
   }
   return nullptr;
 }
@@ -876,8 +875,8 @@ const float *BM_log_find_original_vert_mask(BMLog *log, BMVert *v)
   BMLogEntry *entry = log->current_entry;
   uint v_id = bm_log_vert_id_get(log, v);
 
-  if (entry->modified_verts.contains(v_id)) {
-    return &entry->modified_verts.lookup(v_id)->mask;
+  if (std::optional<BMLogVert*> log_vert = entry->modified_verts.lookup_try(v_id)) {
+    return &log_vert.value()->mask;
   }
   return nullptr;
 }
