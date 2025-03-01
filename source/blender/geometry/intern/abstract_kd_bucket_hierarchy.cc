@@ -212,11 +212,11 @@ uint32_t stack_from_highest_diff(const uint32_t stack_a, const uint32_t stack_b)
   const uint32_t stack_diff = stack_a ^ stack_b;
 
   constexpr uint32_t never_empty_diff = 1;
-  const uint32_t x_axis_diff_mask = highest_order_bit_uint(stack_diff & x_axis_stack_mask |
+  const uint32_t x_axis_diff_mask = highest_order_bit_uint((stack_diff & x_axis_stack_mask) |
                                                            never_empty_diff);
-  const uint32_t y_axis_diff_mask = highest_order_bit_uint(stack_diff & y_axis_stack_mask |
+  const uint32_t y_axis_diff_mask = highest_order_bit_uint((stack_diff & y_axis_stack_mask) |
                                                            never_empty_diff);
-  const uint32_t z_axis_diff_mask = highest_order_bit_uint(stack_diff & z_axis_stack_mask |
+  const uint32_t z_axis_diff_mask = highest_order_bit_uint((stack_diff & z_axis_stack_mask) |
                                                            never_empty_diff);
 
   const bool x_axis_dirrection = bool(stack_a & x_axis_diff_mask);

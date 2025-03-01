@@ -9,6 +9,8 @@
 
 #include "GEO_abstract_kd_bucket_hierarchy.hh"
 
+#include "GEO_bounding_sphere.hh"
+
 namespace blender::geometry::bounding {
 
 std::pair<float3, float> min_packing_sphere(const Span<float3> points)
