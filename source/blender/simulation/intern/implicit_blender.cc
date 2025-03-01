@@ -19,11 +19,14 @@
 #  include "BKE_cloth.hh"
 
 #  include "SIM_mass_spring.h"
-#include <omp.h>
+#if WITH_TBB
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_reduce.h>
 #include <tbb/blocked_range.h>
 #include <tbb/task_arena.h>
+#include <BLI_task.hh>
+# define CLOTH_PARALLELIZE_LIMIT 512
+#endif
 
 #  ifdef __GNUC__
 #    pragma GCC diagnostic ignored "-Wtype-limits"
@@ -32,7 +35,6 @@
 #  ifdef _OPENMP
 #    define CLOTH_OPENMP_LIMIT 512
 #  endif
-# define CLOTH_PARALLELIZE_LIMIT 512
 
 // #define DEBUG_TIME
 
@@ -171,6 +173,8 @@ DO_INLINE void submul_lfvectorS(float (*to)[3], float (*fLongVector)[3], float s
 /* dot product for big vector */
 DO_INLINE float dot_lfvector(float (*fLongVectorA)[3], float (*fLongVectorB)[3], uint verts)
 {
+#if WITH_TBB
+  //parallel_deterministic_reduce is not supported in BLI_task.hh yet.
   if (verts < CLOTH_PARALLELIZE_LIMIT) {
     double temp = 0;
     for (int i = 0; i < verts; i++) {
@@ -191,6 +195,13 @@ DO_INLINE float dot_lfvector(float (*fLongVectorA)[3], float (*fLongVectorB)[3],
       }
       , std::plus<double>());
   }
+#else
+  double temp = value;
+  for (int i = 0; i < verts; i++) {
+    temp += dot_v3v3(fLongVectorA[i], fLongVectorB[i]);
+  }
+  return temp;
+#endif
 }
 /* `A = B + C` -> for big vector. */
 DO_INLINE void add_lfvector_lfvector(float (*to)[3],
@@ -208,20 +219,13 @@ DO_INLINE void add_lfvector_lfvector(float (*to)[3],
 DO_INLINE void add_lfvector_lfvectorS(
     float (*to)[3], float (*fLongVectorA)[3], float (*fLongVectorB)[3], float bS, uint verts)
 {
-  if (verts < CLOTH_PARALLELIZE_LIMIT) {
-    for (int i = 0; i < verts; i++) {
-      VECADDS(to[i], fLongVectorA[i], fLongVectorB[i], bS);
-    }
-  }
-  else {
-    tbb::parallel_for(tbb::blocked_range<int>(0, verts,verts / tbb::this_task_arena::max_concurrency()),
-      [=](const tbb::blocked_range<int>& range) {
-        for (int i = range.begin(); i < range.end(); i++) {
-          VECADDS(to[i], fLongVectorA[i], fLongVectorB[i], bS);
-        }
-      }
-      , tbb::static_partitioner());
-  }
+  blender::threading::parallel_for(
+    blender::IndexRange(0, verts),
+    CLOTH_PARALLELIZE_LIMIT,
+    [=](const blender::IndexRange& range) {
+      for(const int i: range)
+        VECADDS(to[i], fLongVectorA[i], fLongVectorB[i], bS);
+    });
 }
 /* `A = B * float + C * float` -> for big vector */
 DO_INLINE void add_lfvectorS_lfvectorS(float (*to)[3],
@@ -606,6 +610,9 @@ DO_INLINE void mul_bfmatrix_lfvector(float (*to)[3], fmatrix3x3 *from, lfVector 
   const int scount = from[0].scount;
   zero_lfvector(to, vcount);
 
+#if WITH_TBB
+//To achieve sufficient performance, static_partitioner is needed,
+//but blender::threading::parallel_for does not support it yet.
   if (vcount < CLOTH_PARALLELIZE_LIMIT) {
     fmatrix3x3* f = from;
     for (int i = 0; i < vcount; i++, f++) {
@@ -640,6 +647,18 @@ DO_INLINE void mul_bfmatrix_lfvector(float (*to)[3], fmatrix3x3 *from, lfVector 
       }
     , tbb::static_partitioner());
   }
+#else
+  fmatrix3x3* f = from;
+  for (int i = 0; i < vcount; i++, f++) {
+    muladd_fmatrix_fvector(to[f->r], f->m, fLongVector[f->c]);
+  }
+  for (int i = 0; i < scount; i++, f++) {
+    const int c = f->c;
+    const int r = f->r;
+    muladd_fmatrixT_fvector(to[c], f->m, fLongVector[r]);
+    muladd_fmatrix_fvector(to[r], f->m, fLongVector[c]);
+  }
+#endif
 }
 
 /* SPARSE SYMMETRIC sub big matrix with big matrix. */
