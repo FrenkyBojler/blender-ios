@@ -321,7 +321,7 @@ void draw_results(const std::string &label,
                VArraySpan<bool>(VArray<bool>::ForSpan(src_cyclic.slice(clipping_shapes))),
                mapping);
   const VArray<float2> output_points = *dst_curves.attributes().lookup<float2>(
-      "output_positions_2d", bke::AttrDomain::Point);
+      ".positions_2d", bke::AttrDomain::Point);
 
   SVG_add_path(f, type + "-C", output_points, dst_points_by_curve, dst_cyclic, mapping);
 
@@ -348,7 +348,7 @@ static bke::CurvesGeometry create_test_curves(Span<int> offsets,
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
   bke::SpanAttributeWriter<float2> pos_writer = attributes.lookup_or_add_for_write_span<float2>(
-      "output_positions_2d", bke::AttrDomain::Point);
+      ".positions_2d", bke::AttrDomain::Point);
   pos_writer.span.copy_from(points);
   pos_writer.finish();
 
