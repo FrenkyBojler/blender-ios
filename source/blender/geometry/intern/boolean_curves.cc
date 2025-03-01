@@ -695,10 +695,15 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
 
 bke::CurvesGeometry curve_boolean(const Operation boolean_mode,
                                   const bke::CurvesGeometry &curves,
-                                  const Span<float2> positions_2d,
                                   const IndexRange clipping_shapes)
 {
   const bke::AttributeAccessor src_attributes = curves.attributes();
+
+  const VArray<float2> positions_2d_attribute = *src_attributes.lookup<float2>(
+      ".positions_2d", bke::AttrDomain::Point);
+
+  BLI_assert(positions_2d_attribute.is_span());
+  const Span<float2> positions_2d = positions_2d_attribute.get_internal_span();
 
   const VArray<bool> is_fills = *src_attributes.lookup<bool>("is_fill", bke::AttrDomain::Curve);
   const BooleanResult result = execute_boolean(boolean_mode,

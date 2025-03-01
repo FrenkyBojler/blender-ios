@@ -187,7 +187,6 @@ class Segment {
 
 bke::CurvesGeometry curve_boolean(const Operation boolean_mode,
                                   const bke::CurvesGeometry &curves,
-                                  const Span<float2> positions_2d,
                                   const IndexRange clipping_shapes);
 
 }  // namespace blender::geometry::boolean
