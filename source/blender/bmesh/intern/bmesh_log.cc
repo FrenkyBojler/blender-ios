@@ -551,14 +551,16 @@ void BM_log_mesh_elems_reorder(BMesh *bm, BMLog *log)
   }
 
   /* Create BMVert index remap array */
-  blender::Map<uint, uint> vert_compression_map = bm_log_compress_ids_to_indices(varr, uint(bm->totvert));
+  blender::Map<uint, uint> vert_compression_map = bm_log_compress_ids_to_indices(
+      varr, uint(bm->totvert));
   BM_ITER_MESH_INDEX (v, &bm_iter, bm, BM_VERTS_OF_MESH, i) {
     const uint id = bm_log_vert_id_get(log, v);
     varr[i] = vert_compression_map.lookup(id);
   }
 
   /* Create BMFace index remap array */
-  blender::Map<uint, uint> face_compression_map = bm_log_compress_ids_to_indices(farr, uint(bm->totface));
+  blender::Map<uint, uint> face_compression_map = bm_log_compress_ids_to_indices(
+      farr, uint(bm->totface));
   BM_ITER_MESH_INDEX (f, &bm_iter, bm, BM_FACES_OF_MESH, i) {
     const uint id = bm_log_face_id_get(log, f);
     farr[i] = face_compression_map.lookup(id);
@@ -733,7 +735,7 @@ void BM_log_vert_before_modified(BMLog *log, BMVert *v, const int cd_vert_mask_o
   if (entry->added_verts.contains(v_id)) {
     bm_log_vert_bmvert_copy(entry->added_verts.lookup(v_id), v, cd_vert_mask_offset);
   }
-  else if (!entry->modified_verts.contains(v_id)){
+  else if (!entry->modified_verts.contains(v_id)) {
     lv = bm_log_vert_alloc(log, v, cd_vert_mask_offset);
     entry->modified_verts.add(v_id, lv);
   }
@@ -864,7 +866,7 @@ const float *BM_log_find_original_vert_co(BMLog *log, BMVert *v)
   BMLogEntry *entry = log->current_entry;
   uint v_id = bm_log_vert_id_get(log, v);
 
-  if (std::optional<BMLogVert*> log_vert = entry->modified_verts.lookup_try(v_id)) {
+  if (std::optional<BMLogVert *> log_vert = entry->modified_verts.lookup_try(v_id)) {
     return log_vert.value()->co;
   }
   return nullptr;
@@ -875,7 +877,7 @@ const float *BM_log_find_original_vert_mask(BMLog *log, BMVert *v)
   BMLogEntry *entry = log->current_entry;
   uint v_id = bm_log_vert_id_get(log, v);
 
-  if (std::optional<BMLogVert*> log_vert = entry->modified_verts.lookup_try(v_id)) {
+  if (std::optional<BMLogVert *> log_vert = entry->modified_verts.lookup_try(v_id)) {
     return &log_vert.value()->mask;
   }
   return nullptr;
