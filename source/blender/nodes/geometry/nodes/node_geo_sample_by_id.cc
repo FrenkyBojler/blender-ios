@@ -6,6 +6,10 @@
 #include "UI_resources.hh"
 
 #include "NOD_socket_search_link.hh"
+#include "NOD_rna_define.hh"
+
+#include "RNA_access.hh"
+#include "RNA_enum_types.hh"
 
 #include "node_geometry_util.hh"
 
@@ -187,7 +191,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }
