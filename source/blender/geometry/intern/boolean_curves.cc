@@ -728,8 +728,13 @@ bke::CurvesGeometry curve_boolean(const Operation boolean_mode,
   for (const int i : dst_points_by_curve.index_range()) {
     const IndexRange segment_range = dst_segments_by_curve[i];
 
-    /* TODO. */
-    old_by_new_map[i] = result.segments[segment_range.first()].curve;
+    /* Find the first segment that is not clipping. */
+    for (const int segment_i : segment_range) {
+      if (!clipping_shapes.contains(segment_i)) {
+        old_by_new_map[i] = result.segments[segment_i].curve;
+        continue;
+      }
+    }
   }
 
   bke::gather_attributes(src_attributes,
