@@ -5,6 +5,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 
+#include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 
 #include "BLI_array_utils.hh"
