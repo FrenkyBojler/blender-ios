@@ -5559,7 +5559,8 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
   state.but_flag = but_flag;
 
   wt->state(wt, &state, UI_EMBOSS_UNDEFINED);
-  if (back_rect != nullptr) {
+
+  if (back_rect) {
     wt->draw(&wt->wcol, back_rect, &STATE_INFO_NULL, 0, zoom);
   }
 
