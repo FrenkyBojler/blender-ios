@@ -765,6 +765,42 @@ if(WITH_CYCLES OR WITH_GPU_RENDER_TESTS)
         endforeach()
       endif()
 
+      # Overlay
+      if(WITH_GPU_RENDER_TESTS_HEADED)
+        if(WITH_OPENGL_BACKEND)
+          add_render_test(
+            overlay_opengl
+            ${CMAKE_CURRENT_LIST_DIR}/overlay_render_tests.py
+            --testdir "${TEST_SRC_DIR}/overlay"
+            --outdir "${TEST_OUT_DIR}/overlay"
+            --gpu-backend opengl
+            ${_gpu_render_tests_arguments}
+          )
+        endif()
+
+        if(WITH_METAL_BACKEND)
+          add_render_test(
+            overlay_metal
+            ${CMAKE_CURRENT_LIST_DIR}/overlay_render_tests.py
+            --testdir "${TEST_SRC_DIR}/overlay"
+            --outdir "${TEST_OUT_DIR}/overlay"
+            --gpu-backend metal
+            ${_gpu_render_tests_arguments}
+          )
+        endif()
+
+        if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
+          add_render_test(
+            overlay_vulkan
+            ${CMAKE_CURRENT_LIST_DIR}/overlay_render_tests.py
+            --testdir "${TEST_SRC_DIR}/overlay"
+            --outdir "${TEST_OUT_DIR}/overlay"
+            --gpu-backend vulkan
+            ${_gpu_render_tests_arguments}
+          )
+        endif()
+      endif()
+      
       if(WITH_HYDRA)
         # Hydra Storm
         foreach(render_test ${gpu_render_tests})
@@ -824,7 +860,7 @@ else()
 
   add_blender_test(
     compositor_cpu_file_output
-    --python ${CMAKE_CURRENT_LIST_DIR}/compositor_file_output_tests.py 
+    --python ${CMAKE_CURRENT_LIST_DIR}/compositor_file_output_tests.py
     --
     --testdir "${TEST_SRC_DIR}/compositor/file_output/"
     --outdir "${TEST_OUT_DIR}/compositor_cpu/file_output"
@@ -864,7 +900,7 @@ if(WITH_GPU_COMPOSITOR_TESTS)
       endforeach()
       add_blender_test(
         compositor_opengl_file_output
-        --python ${CMAKE_CURRENT_LIST_DIR}/compositor_file_output_tests.py 
+        --python ${CMAKE_CURRENT_LIST_DIR}/compositor_file_output_tests.py
         --
         --testdir "${TEST_SRC_DIR}/compositor/file_output/"
         --outdir "${TEST_OUT_DIR}/compositor_opengl/file_output"
@@ -883,7 +919,7 @@ if(WITH_GPU_COMPOSITOR_TESTS)
       endforeach()
       add_blender_test(
         compositor_metal_file_output
-        --python ${CMAKE_CURRENT_LIST_DIR}/compositor_file_output_tests.py 
+        --python ${CMAKE_CURRENT_LIST_DIR}/compositor_file_output_tests.py
         --
         --testdir "${TEST_SRC_DIR}/compositor/file_output/"
         --outdir "${TEST_OUT_DIR}/compositor_metal/file_output"
@@ -902,7 +938,7 @@ if(WITH_GPU_COMPOSITOR_TESTS)
       endforeach()
       add_blender_test(
         compositor_vulkan_file_output
-        --python ${CMAKE_CURRENT_LIST_DIR}/compositor_file_output_tests.py 
+        --python ${CMAKE_CURRENT_LIST_DIR}/compositor_file_output_tests.py
         --
         --testdir "${TEST_SRC_DIR}/compositor/file_output/"
         --outdir "${TEST_OUT_DIR}/compositor_vulkan/file_output"
@@ -1154,9 +1190,16 @@ else()
 endif()
 
 # ------------------------------------------------------------------------------
-# SCULPTING RENDER TESTS
+# SCULPTING TESTS
 
-if(WITH_GPU_RENDER_TESTS)
+add_blender_test(
+  bl_sculpt_operators
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_sculpt.py
+  --
+  --testdir "${TEST_SRC_DIR}/sculpting"
+)
+
+if(WITH_GPU_MESH_PAINT_TESTS)
   if(NOT OPENIMAGEIO_TOOL)
     message(STATUS "Disabling sculpting render tests because OIIO oiiotool does not exist")
   else()

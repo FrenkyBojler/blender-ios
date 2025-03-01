@@ -256,7 +256,7 @@ static bool write_internal_bake_pixels(Image *image,
     }
 
     if (from_colorspace != to_colorspace) {
-      IMB_colormanagement_transform(
+      IMB_colormanagement_transform_float(
           buffer, ibuf->x, ibuf->y, ibuf->channels, from_colorspace, to_colorspace, false);
     }
   }
@@ -404,7 +404,7 @@ static bool write_external_bake_pixels(const char *filepath,
       const char *from_colorspace = IMB_colormanagement_role_colorspace_name_get(
           COLOR_ROLE_SCENE_LINEAR);
       const char *to_colorspace = IMB_colormanagement_get_rect_colorspace(ibuf);
-      IMB_colormanagement_transform(
+      IMB_colormanagement_transform_float(
           buffer, ibuf->x, ibuf->y, ibuf->channels, from_colorspace, to_colorspace, false);
     }
     else if (is_tangent_normal) {
@@ -522,7 +522,7 @@ static bool bake_object_check(const Scene *scene,
       if (image) {
 
         if (node) {
-          if (bke::node_is_connected_to_output(ntree, node)) {
+          if (bke::node_is_connected_to_output(*ntree, *node)) {
             /* we don't return false since this may be a false positive
              * this can't be RPT_ERROR though, otherwise it prevents
              * multiple highpoly objects to be baked at once */

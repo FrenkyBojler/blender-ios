@@ -234,7 +234,7 @@ struct uiBut {
   uiButHandleHoldFunc hold_func = nullptr;
   void *hold_argN = nullptr;
 
-  const char *tip = nullptr;
+  blender::StringRef tip;
   uiButToolTipFunc tip_func = nullptr;
   void *tip_arg = nullptr;
   uiFreeArgFunc tip_arg_free = nullptr;
@@ -1059,7 +1059,7 @@ uiPopupBlockHandle *ui_popover_panel_create(bContext *C,
  */
 void ui_pie_menu_level_create(uiBlock *block,
                               wmOperatorType *ot,
-                              const blender::StringRefNull propname,
+                              blender::StringRefNull propname,
                               IDProperty *properties,
                               const EnumPropertyItem *items,
                               int totitem,
@@ -1177,6 +1177,8 @@ void ui_textedit_undo_push(uiUndoStack_Text *stack, const char *text, int cursor
 const char *ui_textedit_undo(uiUndoStack_Text *stack, int direction, int *r_cursor_index);
 
 /* interface_handlers.cc */
+
+void ui_but_handle_data_free(uiHandleButtonData **data);
 
 void ui_handle_afterfunc_add_operator(wmOperatorType *ot, wmOperatorCallContext opcontext);
 /**

@@ -16,6 +16,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
+#include "BLI_math_vector.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
@@ -3947,8 +3948,8 @@ static void *layer_setting_ptr(bAnimListElem *ale,
 static bool layer_channel_color(const bAnimListElem *ale, uint8_t r_color[3])
 {
   using namespace bke::greasepencil;
-  GreasePencilLayerTreeNode &layer = *static_cast<GreasePencilLayerTreeNode *>(ale->data);
-  rgb_float_to_uchar(r_color, layer.color);
+  GreasePencilLayerTreeNode &node = *static_cast<GreasePencilLayerTreeNode *>(ale->data);
+  rgb_float_to_uchar(r_color, node.color);
   return true;
 }
 
@@ -4056,7 +4057,7 @@ static bAnimChannelType ACF_GPLGROUP = {
     /*channel_role*/ ACHANNEL_ROLE_EXPANDER,
 
     /*get_backdrop_color*/ greasepencil::layer_group_color,
-    /*get_channel_color*/ nullptr,
+    /*get_channel_color*/ greasepencil::layer_channel_color,
     /*draw_backdrop*/ acf_group_backdrop,
     /*get_indent_level*/ acf_generic_indentation_0,
     /*get_offset*/ greasepencil::layer_offset,
@@ -4691,12 +4692,12 @@ const bAnimChannelType *ANIM_channel_get_typeinfo(const bAnimListElem *ale)
   /* init the typeinfo if not available yet... */
   ANIM_init_channel_typeinfo_data();
 
-  /* check if type is in bounds... */
-  if ((ale->type >= 0) && (ale->type < ANIMTYPE_NUM_TYPES)) {
-    return animchannelTypeInfo[ale->type];
+  BLI_assert(ale->type < ANIMTYPE_NUM_TYPES);
+  if (ale->type >= ANIMTYPE_NUM_TYPES) {
+    return nullptr;
   }
 
-  return nullptr;
+  return animchannelTypeInfo[ale->type];
 }
 
 /* --------------------------- */
@@ -5604,7 +5605,7 @@ static void draw_setting_widget(bAnimContext *ac,
 {
   bool usetoggle = true;
   int icon;
-  const char *tooltip;
+  std::optional<StringRef> tooltip;
 
   /* get the flag and the pointer to that flag */
   bool negflag;
@@ -5705,12 +5706,12 @@ static void draw_setting_widget(bAnimContext *ac,
       }
       else {
         /* TODO: there are no other tools which require the 'pinning' concept yet */
-        tooltip = nullptr;
+        tooltip = std::nullopt;
       }
       break;
 
     default:
-      tooltip = nullptr;
+      tooltip = std::nullopt;
       icon = 0;
       break;
   }
@@ -6030,7 +6031,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
                       -1,
                       0,
                       0,
-                      nullptr);
+                      std::nullopt);
 
       /* copy what outliner does here, see outliner_buttons */
       if (UI_but_active_only(C, ac->region, block, but) == false) {
@@ -6177,7 +6178,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
                             ymid,
                             UI_UNIT_X,
                             UI_UNIT_X,
-                            nullptr);
+                            std::nullopt);
 
         opptr_b = UI_but_operator_ptr_ensure(but);
         RNA_int_set(opptr_b, "track_index", channel_index);
