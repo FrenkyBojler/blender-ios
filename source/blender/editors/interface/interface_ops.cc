@@ -1239,12 +1239,13 @@ bool UI_context_copy_to_selected_list(bContext *C,
       node = static_cast<bNode *>(ptr->data);
     }
 
-    /* Now filter by type */
+    /* Now filter out non-matching nodes (by idname). */
     if (node) {
+      const blender::StringRef node_idname = node->idname;
       lb = CTX_data_collection_get(C, "selected_nodes");
       lb.remove_if([&](const PointerRNA &link) {
         bNode *node_data = static_cast<bNode *>(link.data);
-        if (node_data->type_legacy != node->type_legacy) {
+        if (node_data->idname != node_idname) {
           return true;
         }
         return false;
@@ -2772,7 +2773,7 @@ static int ui_drop_material_exec(bContext *C, wmOperator *op)
   const int target_slot = RNA_int_get(&mat_slot, "slot_index") + 1;
 
   /* only drop grease pencil material on grease pencil objects */
-  if ((ma->gp_style != nullptr) && (ob->type != OB_GPENCIL_LEGACY)) {
+  if ((ma->gp_style != nullptr) && (ob->type != OB_GREASE_PENCIL)) {
     return OPERATOR_CANCELLED;
   }
 
