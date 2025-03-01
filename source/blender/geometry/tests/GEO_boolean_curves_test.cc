@@ -258,7 +258,6 @@ void draw_divider_end()
 
 void draw_results(const std::string &label,
                   const std::string &type,
-                  const Span<float2> input_points,
                   const bke::CurvesGeometry &src_curves,
                   const bke::CurvesGeometry &dst_curves,
                   const IndexMask &clipping_shapes)
@@ -276,37 +275,30 @@ void draw_results(const std::string &label,
   const OffsetIndices<int> dst_points_by_curve = dst_curves.points_by_curve();
   const VArraySpan<bool> src_cyclic = src_curves.cyclic();
   const VArraySpan<bool> dst_cyclic = dst_curves.cyclic();
+  const VArray<float2> src_points = *src_curves.attributes().lookup<float2>(
+      ".positions_2d", bke::AttrDomain::Point);
+  const VArray<float2> dst_points = *dst_curves.attributes().lookup<float2>(
+      ".positions_2d", bke::AttrDomain::Point);
 
   /* TODO. */
   IndexMaskMemory memory;
   const IndexMask subject_shapes = clipping_shapes.complement(src_points_by_curve.index_range(),
                                                               memory);
 
-  const SVGMapping mapping = SVGMapping(*bounds::min_max(input_points));
+  BLI_assert(src_points.is_span());
+  const SVGMapping mapping = SVGMapping(*bounds::min_max(src_points.get_internal_span()));
 
   f << "<div>\n";
   f << "<svg width=\"" << mapping.view_width << "\" height=\"" << mapping.view_height << "\">\n";
 
-  SVG_add_path(f,
-               type + "-A",
-               VArray<float2>::ForSpan(input_points),
-               subject_shapes,
-               src_points_by_curve,
-               src_cyclic,
-               mapping);
-  SVG_add_path(f,
-               type + "-B",
-               VArray<float2>::ForSpan(input_points),
-               clipping_shapes,
-               src_points_by_curve,
-               src_cyclic,
-               mapping);
-  const VArray<float2> output_points = *dst_curves.attributes().lookup<float2>(
-      ".positions_2d", bke::AttrDomain::Point);
+  SVG_add_path(
+      f, type + "-A", src_points, subject_shapes, src_points_by_curve, src_cyclic, mapping);
+  SVG_add_path(
+      f, type + "-B", src_points, clipping_shapes, src_points_by_curve, src_cyclic, mapping);
 
   SVG_add_path(f,
                type + "-C",
-               output_points,
+               dst_points,
                dst_points_by_curve.index_range(),
                dst_points_by_curve,
                dst_cyclic,
@@ -406,7 +398,7 @@ TEST(boolean_curves, Squares)
     const Array<Vector<float2>> expected_points = {{{2, 2}, {1, 2}, {1, 1}, {2, 1}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Intersection", "polygon", points, src_curves, dst_curves, clipping_shapes);
+    draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
     const bke::CurvesGeometry dst_curves = curve_boolean(
@@ -416,7 +408,7 @@ TEST(boolean_curves, Squares)
         {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 3}, {3, 3}, {3, 1}, {2, 1}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Union", "polygon", points, src_curves, dst_curves, clipping_shapes);
+    draw_results("Union", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
     const bke::CurvesGeometry dst_curves = curve_boolean(
@@ -426,7 +418,7 @@ TEST(boolean_curves, Squares)
         {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Difference", "polygon", points, src_curves, dst_curves, clipping_shapes);
+    draw_results("Difference", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   draw_divider_end();
 }
@@ -458,7 +450,7 @@ TEST(boolean_curves, Simple)
                                                    {{2, 3}, {2, 4}, {3, 3}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Intersection", "polygon", points, src_curves, dst_curves, clipping_shapes);
+    draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
     const bke::CurvesGeometry dst_curves = curve_boolean(
@@ -469,7 +461,7 @@ TEST(boolean_curves, Simple)
         {{3, 3}, {4, 2}, {5, 3}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Union", "polygon", points, src_curves, dst_curves, clipping_shapes);
+    draw_results("Union", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
     const bke::CurvesGeometry dst_curves = curve_boolean(
@@ -481,7 +473,7 @@ TEST(boolean_curves, Simple)
     //     {{3, 3}, {4, 2}, {5, 3}}};
     // expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Difference", "polygon", points, src_curves, dst_curves, clipping_shapes);
+    draw_results("Difference", "polygon", src_curves, dst_curves, clipping_shapes);
   }
 
   draw_divider_end();
@@ -519,7 +511,7 @@ TEST(boolean_curves, Complex)
         {{7.38462, 6}, {7.21053, 5.24561}, {7.76923, 5.30769}, {8, 6}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Intersection", "polygon", points, src_curves, dst_curves, clipping_shapes);
+    draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
     const bke::CurvesGeometry dst_curves = curve_boolean(
@@ -550,7 +542,7 @@ TEST(boolean_curves, Complex)
         {{5, 5}, {6.95349, 4.13178}, {7.21053, 5.24561}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Union", "polygon", points, src_curves, dst_curves, clipping_shapes);
+    draw_results("Union", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
     const bke::CurvesGeometry dst_curves = curve_boolean(
@@ -574,7 +566,7 @@ TEST(boolean_curves, Complex)
         {{8, 6}, {7.76923, 5.30769}, {10.5059, 5.61176}, {10.3333, 6}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Difference", "polygon", points, src_curves, dst_curves, clipping_shapes);
+    draw_results("Difference", "polygon", src_curves, dst_curves, clipping_shapes);
   }
 
   draw_divider_end();
@@ -621,7 +613,7 @@ TEST(boolean_curves, Last_Edge_Loop)
     //                                                 {1, 5}}};
     // expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Intersection", "polygon", points, src_curves, dst_curves, clipping_shapes);
+    draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
     const bke::CurvesGeometry dst_curves = curve_boolean(
@@ -643,7 +635,7 @@ TEST(boolean_curves, Last_Edge_Loop)
     //                                                 {1, 5}}};
     // expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Union", "polygon", points, src_curves, dst_curves, clipping_shapes);
+    draw_results("Union", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
     const bke::CurvesGeometry dst_curves = curve_boolean(
@@ -664,7 +656,7 @@ TEST(boolean_curves, Last_Edge_Loop)
                                                     {1, 5}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Difference", "polygon", points, src_curves, dst_curves, clipping_shapes);
+    draw_results("Difference", "polygon", src_curves, dst_curves, clipping_shapes);
   }
 
   draw_divider_end();
@@ -693,7 +685,7 @@ TEST(boolean_curves, Simple_Cuts)
                                                    {{0.857143, 3.14286}, {0, 2}, {0, 0}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Simple Cut 1", "cut", points, src_curves, dst_curves, clipping_shapes);
+    draw_results("Simple Cut 1", "cut", src_curves, dst_curves, clipping_shapes);
   }
   {
     const Array<float2> points = {{5, 5}, {3, 5}, {1, 3}, {1, 1}, {5, 6}, {6, 5}, {1, 0}, {0, 1}};
@@ -711,7 +703,7 @@ TEST(boolean_curves, Simple_Cuts)
     const Array<Vector<float2>> expected_points = {{{4, 5}, {3, 5}, {1, 3}, {1, 2}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Simple Cut 2", "cut", points, src_curves, dst_curves, clipping_shapes);
+    draw_results("Simple Cut 2", "cut", src_curves, dst_curves, clipping_shapes);
   }
   {
     const Array<float2> points = {{6, 8},
@@ -744,7 +736,7 @@ TEST(boolean_curves, Simple_Cuts)
                                                    {{1.6, 3.8}, {1.27273, 3.36364}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Simple Cut 3", "cut", points, src_curves, dst_curves, clipping_shapes);
+    draw_results("Simple Cut 3", "cut", src_curves, dst_curves, clipping_shapes);
   }
   {
     const Array<float2> points = {{6, 7},
@@ -777,7 +769,7 @@ TEST(boolean_curves, Simple_Cuts)
                                                    {{1.42857, 2.57143}, {1, 2}, {1, 0}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Simple Cut 4", "cut", points, src_curves, dst_curves, clipping_shapes);
+    draw_results("Simple Cut 4", "cut", src_curves, dst_curves, clipping_shapes);
   }
   {
     const Array<float2> points = {
@@ -798,7 +790,7 @@ TEST(boolean_curves, Simple_Cuts)
                                                    {{1.8, 2.8}, {1, 2}, {1, 0}, {2.6, 1.6}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Cyclical Cut", "cut", points, src_curves, dst_curves, clipping_shapes);
+    draw_results("Cyclical Cut", "cut", src_curves, dst_curves, clipping_shapes);
   }
   draw_divider_end();
 }
@@ -843,7 +835,7 @@ TEST(boolean_curves, Squares_With_Holes)
     //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
     // expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Intersection", "polygon", points, src_curves, dst_curves, clipping_shapes);
+    draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
     const bke::CurvesGeometry dst_curves = curve_boolean(
@@ -854,7 +846,7 @@ TEST(boolean_curves, Squares_With_Holes)
     //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
     // expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Union", "polygon", points, src_curves, dst_curves, clipping_shapes);
+    draw_results("Union", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
     const bke::CurvesGeometry dst_curves = curve_boolean(
@@ -865,7 +857,7 @@ TEST(boolean_curves, Squares_With_Holes)
     //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
     // expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Difference", "polygon", points, src_curves, dst_curves, clipping_shapes);
+    draw_results("Difference", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   draw_divider_end();
 }
@@ -909,7 +901,7 @@ TEST(boolean_curves, Separate_Shapes)
     //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
     // expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Intersection", "polygon", points, src_curves, dst_curves, clipping_shapes);
+    draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
     const bke::CurvesGeometry dst_curves = curve_boolean(
@@ -920,7 +912,7 @@ TEST(boolean_curves, Separate_Shapes)
     //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
     // expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Difference", "polygon", points, src_curves, dst_curves, clipping_shapes);
+    draw_results("Difference", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   draw_divider_end();
 }
