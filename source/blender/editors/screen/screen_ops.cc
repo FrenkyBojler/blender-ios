@@ -5306,6 +5306,12 @@ static bool match_region_with_redraws(const ScrArea *area,
       return saction->mode == SACTCONT_TIMELINE;
     }
   }
+  else if (regiontype == RGN_TYPE_FOOTER) {
+    /* The footer region is used for playback controls in the following editors. */
+    if (ELEM(spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_SEQ, SPACE_NLA)) {
+      return true;
+    }
+  }
   else if (regiontype == RGN_TYPE_PREVIEW) {
     switch (spacetype) {
       case SPACE_SEQ:

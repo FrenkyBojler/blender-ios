@@ -8,6 +8,7 @@ from bl_ui.space_dopesheet import (
     DopesheetFilterPopoverBase,
     dopesheet_filter,
 )
+from bl_ui.space_time import playback_controls
 
 
 class GRAPH_HT_header(Header):
@@ -69,6 +70,16 @@ class GRAPH_HT_header(Header):
             icon_only=True,
             panel="GRAPH_PT_proportional_edit",
         )
+
+
+class GRAPH_HT_playback_controls(Header):
+    bl_space_type = 'GRAPH_EDITOR'
+    bl_region_type = 'FOOTER'
+
+    def draw(self, context):
+        layout = self.layout
+
+        playback_controls(layout, context)
 
 
 class GRAPH_PT_proportional_edit(Panel):
@@ -150,6 +161,7 @@ class GRAPH_MT_view(Menu):
         layout.prop(st, "show_region_ui")
         layout.prop(st, "show_region_hud")
         layout.prop(st, "show_region_channels")
+        layout.prop(st, "show_region_footer", text="Playback Controls")
         layout.separator()
 
         layout.operator("graph.view_selected")
@@ -521,6 +533,7 @@ class GRAPH_MT_snap_pie(Menu):
 
 classes = (
     GRAPH_HT_header,
+    GRAPH_HT_playback_controls,
     GRAPH_PT_proportional_edit,
     GRAPH_MT_editor_menus,
     GRAPH_MT_view,
