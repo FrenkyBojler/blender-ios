@@ -2914,6 +2914,10 @@ static void region_scale_validate_size(RegionMoveData *rmd)
 
 static void region_scale_toggle_hidden(bContext *C, RegionMoveData *rmd)
 {
+  if (rmd->region->regiontype == RGN_TYPE_NAV_BAR) {
+    return;
+  }
+  
   /* hidden areas may have bad 'View2D.cur' value,
    * correct before displaying. see #45156 */
   if (rmd->region->flag & RGN_FLAG_HIDDEN) {
@@ -5064,7 +5068,7 @@ static void SCREEN_OT_region_toggle_visibility(wmOperatorType *ot)
 
   RNA_def_int(ot->srna,
               "region_type",
-              RGN_TYPE_NAV_BAR,  // Default to navigation bar
+              RGN_TYPE_NAV_BAR,  
               0,
               INT_MAX,
               "Region Type",
