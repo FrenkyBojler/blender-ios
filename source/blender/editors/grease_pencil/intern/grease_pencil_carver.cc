@@ -13,11 +13,12 @@
 #include "BLI_rect.h"
 #include "BLI_task.hh"
 
+#include "BKE_attribute_math.hh"
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
 #include "BKE_crazyspace.hh"
 #include "BKE_curves.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_paint.hh"
 #include "BKE_report.hh"
 
@@ -30,9 +31,12 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
+#include "DNA_brush_types.h"
 #include "DNA_material_types.h"
 
 #include "WM_api.hh"
+
+#include "GEO_boolean_curves.hh"
 
 namespace blender::ed::greasepencil {
 
@@ -74,48 +78,78 @@ static bool execute_carver_on_drawing(const int layer_index,
     }
   });
 
-  const Span<float3> normals = drawing.curve_plane_normals();
+  // const Span<float3> normals = drawing.curve_plane_normals();
 
-  Array<float4> normal_planes(src.points_num());
-  threading::parallel_for(src.curves_range(), 4096, [&](const IndexRange src_curves) {
-    for (const int src_curve : src_curves) {
-      const float3 &normal = normals[src_curve];
-      for (const int src_point : src_points_by_curve[src_curves]) {
-        normal_planes[src_point] = float4(normal,
-                                          -math::dot(deformation.positions[src_point], normal));
+  // Array<float4> normal_planes(src.points_num());
+  // threading::parallel_for(src.curves_range(), 4096, [&](const IndexRange src_curves) {
+  //   for (const int src_curve : src_curves) {
+  //     const float3 &normal = normals[src_curve];
+  //     for (const int src_point : src_points_by_curve[src_curves]) {
+  //       normal_planes[src_point] = float4(normal,
+  //                                         -math::dot(deformation.positions[src_point], normal));
+  //     }
+  //   }
+  // });
+
+  // bke::CurvesGeometry carved_strokes = ed::curves::clipping::curves_geometry_cut(
+  //     src,
+  //     use_fill,
+  //     keep_caps,
+  //     region,
+  //     layer_to_world,
+  //     normal_planes,
+  //     screen_space_positions,
+  //     cut_pos2d);
+
+  bke::CurvesGeometry input_curves = bke::CurvesGeometry(src);
+  input_curves.resize(src.points_num() + mcoords.size(), src.curves_num() + 1);
+  input_curves.offsets_for_write().last() = src.points_num() + mcoords.size();
+
+  bke::MutableAttributeAccessor attributes = input_curves.attributes_for_write();
+
+  bke::SpanAttributeWriter<float2> pos_writer = attributes.lookup_or_add_for_write_span<float2>(
+      ".positions_2d", bke::AttrDomain::Point);
+
+  pos_writer.span.slice(src.points_range()).copy_from(screen_space_positions);
+  pos_writer.span.take_back(mcoords.size()).copy_from(cut_pos2d);
+  pos_writer.finish();
+
+  /* TODO(@filedescriptor): This can be remove when the material fill rework is done. */
+  {
+    const VArray<int> materials = *attributes.lookup_or_default<int>(
+        "material_index", bke::AttrDomain::Curve, -1);
+
+    VectorSet<int> fill_material_indices;
+    for (const int mat_i : IndexRange(obact.totcol)) {
+      Material *material = BKE_object_material_get(&obact, mat_i + 1);
+      if (material != nullptr && material->gp_style != nullptr &&
+          (material->gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0)
+      {
+        fill_material_indices.add_new(mat_i);
       }
     }
-  });
 
-  const bke::AttributeAccessor attributes = src.attributes();
-  const VArray<int> materials = *attributes.lookup_or_default<int>(
-      "material_index", bke::AttrDomain::Curve, -1);
-
-  VectorSet<int> fill_material_indices;
-  for (const int mat_i : IndexRange(obact.totcol)) {
-    Material *material = BKE_object_material_get(&obact, mat_i + 1);
-    if (material != nullptr && material->gp_style != nullptr &&
-        (material->gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0)
-    {
-      fill_material_indices.add_new(mat_i);
+    Array<bool> use_fill(src.curves_num());
+    for (const int i : src.curves_range()) {
+      const int mat_index = materials[i];
+      use_fill[i] = fill_material_indices.contains(mat_index);
     }
+
+    bke::SpanAttributeWriter<bool> fill_writer = attributes.lookup_or_add_for_write_span<bool>(
+        "is_fill", bke::AttrDomain::Curve);
+    fill_writer.span.drop_back(1).copy_from(use_fill);
+    fill_writer.finish();
   }
 
-  Array<bool> use_fill(src.curves_num());
-  for (const int i : src.curves_range()) {
-    const int mat_index = materials[i];
-    use_fill[i] = fill_material_indices.contains(mat_index);
-  }
+  bke::SpanAttributeWriter<bool> fill_writer = attributes.lookup_or_add_for_write_span<bool>(
+      "is_fill", bke::AttrDomain::Curve);
+  fill_writer.span.last() = true;
+  fill_writer.finish();
 
-  bke::CurvesGeometry carved_strokes = ed::curves::clipping::curves_geometry_cut(
-      src,
-      use_fill,
-      keep_caps,
-      region,
-      layer_to_world,
-      normal_planes,
-      screen_space_positions,
-      cut_pos2d);
+  const bke::CurvesGeometry carved_strokes = geometry::boolean::curve_boolean(
+      geometry::boolean::Operation::Difference,
+      input_curves,
+      IndexRange::from_single(src.curves_num()));
 
   /* Set the new geometry. */
   drawing.strokes_for_write() = std::move(carved_strokes);
@@ -178,7 +212,7 @@ static int stroke_carver_execute(const bContext *C, const Span<int2> mcoords)
     const Vector<ed::greasepencil::MutableDrawingInfo> drawings =
         ed::greasepencil::retrieve_editable_drawings(*scene, grease_pencil);
     threading::parallel_for_each(drawings, [&](const ed::greasepencil::MutableDrawingInfo &info) {
-      const bke::greasepencil::Layer &layer = *grease_pencil.layer(info.layer_index);
+      const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
       const float4x4 layer_to_world = layer.to_world_space(*ob_eval);
       const float4x4 projection = ED_view3d_ob_project_mat_get_from_obmat(rv3d, layer_to_world);
       if (execute_carver_on_drawing(info.layer_index,
