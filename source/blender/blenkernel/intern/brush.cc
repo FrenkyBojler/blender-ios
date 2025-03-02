@@ -1088,25 +1088,29 @@ const std::optional<BrushColorJitterSettings> BKE_brush_color_jitter_get_setting
     const Scene *scene, const Paint *paint, const Brush *brush)
 {
   if (BKE_paint_use_unified_color(scene->toolsettings, paint)) {
-    const bool use_color_jitter = (scene->toolsettings->unified_paint_settings.flag &
-                                   UNIFIED_PAINT_COLOR_JITTER) != 0;
+    if ((scene->toolsettings->unified_paint_settings.flag & UNIFIED_PAINT_COLOR_JITTER) == 0) {
+      return std::nullopt;
+    }
+
     const UnifiedPaintSettings settings = scene->toolsettings->unified_paint_settings;
-    return use_color_jitter ? std::make_optional(BrushColorJitterSettings{
-                                  .flag = settings.color_jitter_flag,
-                                  .hue = settings.hsv_jitter[0],
-                                  .saturation = settings.hsv_jitter[1],
-                                  .value = settings.hsv_jitter[2],
-                              }) :
-                              std::nullopt;
+    return BrushColorJitterSettings{
+        .flag = settings.color_jitter_flag,
+        .hue = settings.hsv_jitter[0],
+        .saturation = settings.hsv_jitter[1],
+        .value = settings.hsv_jitter[2],
+    };
   }
 
-  return (brush->flag2 & BRUSH_JITTER_COLOR) ? std::make_optional(BrushColorJitterSettings{
-                                                   .flag = brush->color_jitter_flag,
-                                                   .hue = brush->hsv_jitter[0],
-                                                   .saturation = brush->hsv_jitter[1],
-                                                   .value = brush->hsv_jitter[2],
-                                               }) :
-                                               std::nullopt;
+  if ((brush->flag2 & BRUSH_JITTER_COLOR) == 0) {
+    return std::nullopt;
+  }
+
+  return BrushColorJitterSettings{
+      .flag = brush->color_jitter_flag,
+      .hue = brush->hsv_jitter[0],
+      .saturation = brush->hsv_jitter[1],
+      .value = brush->hsv_jitter[2],
+  };
 }
 
 const float *BKE_brush_secondary_color_get(const Scene *scene,
