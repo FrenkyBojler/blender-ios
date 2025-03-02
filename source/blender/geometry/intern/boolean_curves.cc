@@ -783,7 +783,7 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
 
 bke::CurvesGeometry curve_boolean(const Operation boolean_mode,
                                   const bke::CurvesGeometry &curves,
-                                  const IndexMask clipping_shapes)
+                                  const IndexMask &clipping_shapes)
 {
   const bke::AttributeAccessor src_attributes = curves.attributes();
 
