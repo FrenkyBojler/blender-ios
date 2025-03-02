@@ -519,17 +519,14 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
   Vector<Segment> unsorted_segments;
 
   /* Calculate all intersections. */
-  for (const int curve_i : points_by_curve.index_range()) {
-    const IndexRange points_i = points_by_curve[curve_i];
-    const bool is_cyclic_i = is_cyclic[curve_i];
+  subject_shapes.foreach_index([&](const int subj_shape_id) {
+    clipping_shapes.foreach_index([&](const int clip_shape_id) {
+      /* TODO. */
+      const int curve_i = subj_shape_id;
+      const int curve_j = clip_shape_id;
 
-    for (const int curve_j : points_by_curve.index_range()) {
-      if (curve_i == curve_j) {
-        continue;
-      }
-      if (curve_i > curve_j) {
-        continue;
-      }
+      const IndexRange points_i = points_by_curve[curve_i];
+      const bool is_cyclic_i = is_cyclic[curve_i];
 
       Vector<int> inters_per_curves_i;
       Vector<int> inters_per_curves_j;
@@ -708,8 +705,8 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
           }
         }
       }
-    }
-  }
+    });
+  });
 
   /* -------------------- */
 
