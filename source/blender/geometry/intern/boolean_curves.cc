@@ -534,8 +534,8 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
 
       const IndexRange points_i = points_by_curve[curve_i];
       const IndexRange points_j = points_by_curve[curve_j];
-      const bool is_cyclic_i = is_cyclic[curve_i];
-      const bool is_cyclic_j = is_cyclic[curve_j];
+      const bool is_cyclic_i = is_cyclic[curve_i] || is_fill[curve_i];
+      const bool is_cyclic_j = is_cyclic[curve_j] || is_fill[curve_j];
 
       const int intersection_num_start = intersections.size();
 
@@ -568,7 +568,7 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
         Vector<Segment> segments_i;
 
         if (new_inters.is_empty()) {
-          if (is_cyclic[curve_k]) {
+          if (is_cyclic[curve_k] || is_fill[curve_k]) {
             segments_i.append(Segment::from_points_cyclical(curve_k, points_i));
           }
           else {
@@ -585,7 +585,7 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
             return inter1.parameter_for_curve(curve_k) < inter2.parameter_for_curve(curve_k);
           });
 
-          if (is_cyclic[curve_k]) {
+          if (is_cyclic[curve_k] || is_fill[curve_k]) {
             const int int_p_1 = new_inters[inter_sorted_ids.first()];
             const int int_p_2 = new_inters[inter_sorted_ids.last()];
 
@@ -657,7 +657,7 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
                                                           int_p_2));
           }
 
-          if (!is_cyclic[curve_k]) {
+          if (!(is_cyclic[curve_k] || is_fill[curve_k])) {
             const int int_p_2 = new_inters[inter_sorted_ids.last()];
             IntersectionPoint &inter_last = intersections[int_p_2];
 
