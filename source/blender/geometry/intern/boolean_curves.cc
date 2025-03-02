@@ -270,10 +270,10 @@ class WindingState {
   }
 
   bool is_contributing(const Operation boolean_mode,
-                       const IndexMask &subject_shapes,
+                       const int subject_shape,
                        const IndexMask &clipping_shapes) const
   {
-    const bool subj = this->is_in_shapes(subject_shapes);
+    const bool subj = this->is_in_shape(subject_shape);
     const bool clip = this->is_in_shapes(clipping_shapes);
 
     switch (boolean_mode) {
@@ -679,8 +679,8 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
 
         for (const int seg_i : segments) {
           const Segment &this_segment = segments_i[seg_i];
-          if (state_L.is_contributing(boolean_mode, subject_shapes, clipping_shapes) ^
-              state_R.is_contributing(boolean_mode, subject_shapes, clipping_shapes))
+          if (state_L.is_contributing(boolean_mode, subj_shape_id, clipping_shapes) ^
+              state_R.is_contributing(boolean_mode, subj_shape_id, clipping_shapes))
           {
             unsorted_segments.append(this_segment);
           }
