@@ -27,7 +27,6 @@ struct rcti;
 struct TransVertStore;
 struct wmKeyConfig;
 struct wmOperator;
-struct ARegion;
 namespace blender::bke {
 enum class AttrDomain : int8_t;
 struct GSpanAttributeWriter;
@@ -455,18 +454,5 @@ void reorder_curves(bke::CurvesGeometry &curves, Span<int> old_by_new_indices_ma
 int join_objects(bContext *C, wmOperator *op);
 
 /** \} */
-
-namespace clipping {
-
-bke::CurvesGeometry curves_geometry_cut(const bke::CurvesGeometry &src,
-                                        const Span<bool> use_fill,
-                                        const bool keep_caps,
-                                        const ARegion &region,
-                                        const float4x4 &layer_to_world,
-                                        const Span<float4> normal_planes,
-                                        const Span<float2> src_pos2d,
-                                        const Span<float2> cut_pos2d);
-
-}  // namespace clipping
 
 }  // namespace blender::ed::curves
