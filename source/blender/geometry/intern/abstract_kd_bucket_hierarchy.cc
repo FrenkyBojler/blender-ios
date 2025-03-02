@@ -19,20 +19,6 @@
 
 namespace blender::geometry::akdbh {
 
-template<typename InT, typename OutT, typename FuncT>
-static void parallel_transform(const Span<InT> src,
-                               const int grain_size,
-                               MutableSpan<OutT> dst,
-                               const FuncT func)
-{
-  BLI_assert(src.size() == dst.size());
-  threading::parallel_for(src.index_range(), grain_size, [&](const IndexRange range) {
-    const Span<InT> src_slice = src.slice(range);
-    MutableSpan<OutT> dst_slice = dst.slice(range);
-    std::transform(src_slice.begin(), src_slice.end(), dst_slice.begin(), func);
-  });
-}
-
 int total_depth_from_total(const int total_elements)
 {
   int levels = 1;
@@ -121,7 +107,7 @@ void from_positions(const Span<float3> positions,
       [&](const IndexRange bucket_range, const int /*joint_index*/, const int depth_i) {
         const int axis_index = math::mod_periodic(depth_i, 3);
         MutableSpan<int> segment = indices.slice(bucket_range);
-        std::sort(segment.begin(), segment.end(), [&](const int a, const int b) {
+        parallel_sort(segment.begin(), segment.end(), [&](const int a, const int b) {
           if (UNLIKELY(positions[a][axis_index] == positions[b][axis_index])) {
             return a < b;
           }
