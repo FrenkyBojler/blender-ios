@@ -2,22 +2,36 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_rect.h"
+
+#include "DNA_fluid_types.h"
+
 #include "BKE_editmesh.hh"
+#include "BKE_material.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_particle.h"
-#include "BKE_report.hh"
+
 #include "DEG_depsgraph_query.hh"
-#include "DNA_fluid_types.h"
+
+#include "DNA_windowmanager_types.h"
 #include "ED_paint.hh"
 #include "ED_view3d.hh"
-#include "GPU_capabilities.hh"
+
+#include "BLT_translation.hh"
+
+#include "GPU_context.hh"
 #include "IMB_imbuf_types.hh"
 
+#include "RE_engine.h"
+#include "RE_pipeline.h"
+
+#include "draw_cache.hh"
 #include "draw_common.hh"
 #include "draw_sculpt.hh"
+#include "draw_view_data.hh"
 
 #include "workbench_private.hh"
 
@@ -50,12 +64,12 @@ class Instance {
   Vector<GPUMaterial *> dummy_gpu_materials_ = {1, nullptr, {}};
 
  public:
-  GPUMaterial **get_dummy_gpu_materials(int material_count)
+  Span<const GPUMaterial *> get_dummy_gpu_materials(int material_count)
   {
     if (material_count > dummy_gpu_materials_.size()) {
       dummy_gpu_materials_.resize(material_count, nullptr);
     }
-    return dummy_gpu_materials_.begin();
+    return dummy_gpu_materials_.as_span().slice(IndexRange(material_count));
   };
 
   void init(Object *camera_ob = nullptr)
@@ -162,7 +176,7 @@ class Instance {
         emitter_handle = handle;
       }
       else if (ob->type == OB_POINTCLOUD) {
-        this->point_cloud_sync(manager, ob_ref, object_state);
+        this->pointcloud_sync(manager, ob_ref, object_state);
       }
       else if (ob->type == OB_CURVES) {
         this->curves_sync(manager, ob_ref, object_state);
@@ -246,18 +260,18 @@ class Instance {
     bool has_transparent_material = false;
 
     if (object_state.use_per_material_batches) {
-      const int material_count = DRW_cache_object_material_count_get(ob_ref.object);
+      const int material_count = BKE_object_material_used_with_fallback_eval(*ob_ref.object);
 
-      gpu::Batch **batches;
+      Span<gpu::Batch *> batches;
       if (object_state.color_type == V3D_SHADING_TEXTURE_COLOR) {
         batches = DRW_cache_mesh_surface_texpaint_get(ob_ref.object);
       }
       else {
         batches = DRW_cache_object_surface_material_get(
-            ob_ref.object, this->get_dummy_gpu_materials(material_count), material_count);
+            ob_ref.object, this->get_dummy_gpu_materials(material_count));
       }
 
-      if (batches) {
+      if (!batches.is_empty()) {
         for (auto i : IndexRange(material_count)) {
           if (batches[i] == nullptr) {
             continue;
@@ -345,7 +359,7 @@ class Instance {
     }
   }
 
-  void point_cloud_sync(Manager &manager, ObjectRef &ob_ref, const ObjectState &object_state)
+  void pointcloud_sync(Manager &manager, ObjectRef &ob_ref, const ObjectState &object_state)
   {
     ResourceHandle handle = manager.resource_handle(ob_ref);
 
@@ -356,7 +370,7 @@ class Instance {
     this->draw_to_mesh_pass(ob_ref, mat.is_transparent(), [&](MeshPass &mesh_pass) {
       PassMain::Sub &pass =
           mesh_pass.get_subpass(eGeometryType::POINTCLOUD).sub("Point Cloud SubPass");
-      gpu::Batch *batch = point_cloud_sub_pass_setup(pass, ob_ref.object);
+      gpu::Batch *batch = pointcloud_sub_pass_setup(pass, ob_ref.object);
       pass.draw(batch, handle, material_index);
     });
   }
@@ -409,8 +423,6 @@ class Instance {
             GPUTexture *depth_in_front_tx,
             GPUTexture *color_tx)
   {
-    view_.sync(DRW_view_default_get());
-
     int2 resolution = scene_state_.resolution;
 
     /** Always setup in-front depth, since Overlays can be updated without causing a Workbench
@@ -430,7 +442,8 @@ class Instance {
 
     if (scene_state_.render_finished) {
       /* Just copy back the already rendered result */
-      anti_aliasing_ps_.draw(manager, view_, scene_state_, resources_, depth_in_front_tx);
+      anti_aliasing_ps_.draw(
+          manager, View::default_get(), scene_state_, resources_, depth_in_front_tx);
       return;
     }
 
@@ -519,10 +532,6 @@ using namespace blender;
 
 struct WORKBENCH_Data {
   DrawEngineType *engine_type;
-  DRWViewportEmptyList *fbl;
-  DRWViewportEmptyList *txl;
-  DRWViewportEmptyList *psl;
-  DRWViewportEmptyList *stl;
   workbench::Instance *instance;
 
   char info[GPU_INFO_SIZE];
@@ -681,7 +690,7 @@ static void write_render_z_output(RenderLayer *layer,
     int pix_num = BLI_rcti_size_x(rect) * BLI_rcti_size_y(rect);
 
     /* Convert GPU depth [0..1] to view Z [near..far] */
-    if (DRW_view_is_persp_get(nullptr)) {
+    if (blender::draw::View::default_get().is_persp()) {
       for (float &z : MutableSpan(rp->ibuf->float_buffer.data, pix_num)) {
         if (z == 1.0f) {
           z = 1e10f; /* Background */
@@ -694,8 +703,8 @@ static void write_render_z_output(RenderLayer *layer,
     }
     else {
       /* Keep in mind, near and far distance are negatives. */
-      float near = DRW_view_near_distance_get(nullptr);
-      float far = DRW_view_far_distance_get(nullptr);
+      float near = blender::draw::View::default_get().near_clip();
+      float far = blender::draw::View::default_get().far_clip();
       float range = fabsf(far - near);
 
       for (float &z : MutableSpan(rp->ibuf->float_buffer.data, pix_num)) {
@@ -743,9 +752,7 @@ static void workbench_render_to_image(void *vedata,
   /* Render */
   /* TODO: Remove old draw manager calls. */
   DRW_cache_restart();
-  DRWView *view = DRW_view_create(viewmat.ptr(), winmat.ptr(), nullptr, nullptr, nullptr);
-  DRW_view_default_set(view);
-  DRW_view_set_active(view);
+  blender::draw::View::default_set(float4x4(viewmat), float4x4(winmat));
 
   ved->instance->init(camera_ob);
 
@@ -763,8 +770,7 @@ static void workbench_render_to_image(void *vedata,
   manager.end_sync();
 
   /* TODO: Remove old draw manager calls. */
-  DRW_render_instance_buffer_finish();
-  DRW_curves_update();
+  DRW_curves_update(manager);
 
   DefaultTextureList &dtxl = *DRW_viewport_texture_list_get();
   ved->instance->draw_image_render(manager, dtxl.depth, dtxl.depth_in_front, dtxl.color, engine);
@@ -787,15 +793,10 @@ static void workbench_render_update_passes(RenderEngine *engine,
   }
 }
 
-extern "C" {
-
-static const DrawEngineDataSize workbench_data_size = DRW_VIEWPORT_DATA_SIZE(WORKBENCH_Data);
-
 DrawEngineType draw_engine_workbench = {
     /*next*/ nullptr,
     /*prev*/ nullptr,
     /*idname*/ N_("Workbench"),
-    /*vedata_size*/ &workbench_data_size,
     /*engine_init*/ &workbench_engine_init,
     /*engine_free*/ &workbench_engine_free,
     /*instance_free*/ &workbench_instance_free,
@@ -832,6 +833,5 @@ RenderEngineType DRW_engine_viewport_workbench_type = {
         /*call*/ nullptr,
     },
 };
-}
 
 /** \} */

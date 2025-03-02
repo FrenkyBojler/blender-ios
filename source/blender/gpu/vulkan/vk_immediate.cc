@@ -9,6 +9,7 @@
  */
 
 #include "GPU_capabilities.hh"
+#include "GPU_matrix.hh"
 
 #include "vk_backend.hh"
 #include "vk_context.hh"
@@ -103,6 +104,7 @@ void VKImmediate::end()
     this->polyline_draw_workaround(0);
   }
   else {
+    GPU_matrix_bind(wrap(context.shader));
     render_graph::VKResourceAccessInfo &resource_access_info = context.reset_and_get_access_info();
     vertex_attributes_.update_bindings(*this);
     context.active_framebuffer_get()->rendering_ensure(context);
@@ -115,7 +117,7 @@ void VKImmediate::end()
     vertex_attributes_.bind(draw.node_data.vertex_buffers);
     context.update_pipeline_data(prim_type, vertex_attributes_, draw.node_data.pipeline_data);
 
-    context.render_graph.add_node(draw);
+    context.render_graph().add_node(draw);
   }
 
   buffer_offset_ += current_subbuffer_len_;
@@ -165,9 +167,12 @@ VKBuffer &VKImmediate::ensure_space(VkDeviceSize bytes_needed, VkDeviceSize offs
   active_buffers_.append(std::make_unique<VKBuffer>());
   VKBuffer &result = *active_buffers_.last();
   result.create(alloc_size,
-                GPU_USAGE_DYNAMIC,
                 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
-                    VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+                    VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                VMA_ALLOCATION_CREATE_MAPPED_BIT |
+                    VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
   debug::object_label(result.vk_handle(), "Immediate");
 
   return result;

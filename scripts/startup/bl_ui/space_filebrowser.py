@@ -241,8 +241,10 @@ class FILEBROWSER_PT_bookmarks_volumes(Panel):
 
         if space.system_folders:
             row = layout.row()
-            row.template_list("FILEBROWSER_UL_dir", "system_folders", space, "system_folders",
-                              space, "system_folders_active", item_dyntip_propname="path", rows=1, maxrows=10)
+            row.template_list(
+                "FILEBROWSER_UL_dir", "system_folders", space, "system_folders",
+                space, "system_folders_active", item_dyntip_propname="path", rows=1, maxrows=10,
+            )
 
 
 class FILEBROWSER_PT_bookmarks_system(Panel):
@@ -265,8 +267,10 @@ class FILEBROWSER_PT_bookmarks_system(Panel):
 
         if space.system_bookmarks:
             row = layout.row()
-            row.template_list("FILEBROWSER_UL_dir", "system_bookmarks", space, "system_bookmarks",
-                              space, "system_bookmarks_active", item_dyntip_propname="path", rows=1, maxrows=10)
+            row.template_list(
+                "FILEBROWSER_UL_dir", "system_bookmarks", space, "system_bookmarks",
+                space, "system_bookmarks_active", item_dyntip_propname="path", rows=1, maxrows=10,
+            )
 
 
 class FILEBROWSER_MT_bookmarks_context_menu(Menu):
@@ -301,9 +305,11 @@ class FILEBROWSER_PT_bookmarks_favorites(FileBrowserPanel, Panel):
         if space.bookmarks:
             row = layout.row()
             num_rows = len(space.bookmarks)
-            row.template_list("FILEBROWSER_UL_dir", "bookmarks", space, "bookmarks",
-                              space, "bookmarks_active", item_dyntip_propname="path",
-                              rows=(2 if num_rows < 2 else 4), maxrows=10)
+            row.template_list(
+                "FILEBROWSER_UL_dir", "bookmarks", space, "bookmarks",
+                space, "bookmarks_active", item_dyntip_propname="path",
+                rows=(2 if num_rows < 2 else 4), maxrows=10,
+            )
 
             col = row.column(align=True)
             col.operator("file.bookmark_add", icon='ADD', text="")
@@ -347,8 +353,10 @@ class FILEBROWSER_PT_bookmarks_recents(Panel):
 
         if space.recent_folders:
             row = layout.row()
-            row.template_list("FILEBROWSER_UL_dir", "recent_folders", space, "recent_folders",
-                              space, "recent_folders_active", item_dyntip_propname="path", rows=1, maxrows=10)
+            row.template_list(
+                "FILEBROWSER_UL_dir", "recent_folders", space, "recent_folders",
+                space, "recent_folders_active", item_dyntip_propname="path", rows=1, maxrows=10,
+            )
 
             col = row.column(align=True)
             col.menu("FILEBROWSER_MT_bookmarks_recents_specials_menu", icon='DOWNARROW_HLT', text="")
@@ -521,7 +529,7 @@ class FILEBROWSER_MT_select(FileBrowserMenu, Menu):
 
         layout.operator("file.select_all", text="All").action = 'SELECT'
         layout.operator("file.select_all", text="None").action = 'DESELECT'
-        layout.operator("file.select_all", text="Inverse").action = 'INVERT'
+        layout.operator("file.select_all", text="Invert").action = 'INVERT'
 
         layout.separator()
 
@@ -781,12 +789,14 @@ class ASSETBROWSER_PT_metadata_preview(asset_utils.AssetMetaDataPanel, Panel):
         col.menu("ASSETBROWSER_MT_metadata_preview_menu", icon='DOWNARROW_HLT', text="")
 
 
-class ASSETBROWSER_MT_metadata_preview_menu(bpy.types.Menu):
+class ASSETBROWSER_MT_metadata_preview_menu(Menu):
     bl_label = "Preview"
 
     def draw(self, _context):
         layout = self.layout
         layout.operator("ed.lib_id_generate_preview_from_object", text="Render Active Object")
+        layout.separator()
+        layout.operator("ed.lib_id_remove_preview")
 
 
 class ASSETBROWSER_PT_metadata_tags(asset_utils.AssetMetaDataPanel, Panel):

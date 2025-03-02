@@ -14,7 +14,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_ghash.h"
-#include "BLI_kdopbvh.h"
+#include "BLI_kdopbvh.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
@@ -47,7 +47,7 @@
 #  include "../bmesh/bmesh_py_types.hh"
 #endif /* MATH_STANDALONE */
 
-#include "BLI_strict_flags.h" /* Keep last. */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 /* -------------------------------------------------------------------- */
 /** \name Documentation String (snippets)
@@ -269,10 +269,11 @@ static void py_bvhtree_raycast_cb(void *userdata,
   float dist;
 
   if (self->epsilon == 0.0f) {
-    dist = bvhtree_ray_tri_intersection(ray, hit->dist, UNPACK3(tri_co));
+    dist = blender::bke::bvhtree_ray_tri_intersection(ray, hit->dist, UNPACK3(tri_co));
   }
   else {
-    dist = bvhtree_sphereray_tri_intersection(ray, self->epsilon, hit->dist, UNPACK3(tri_co));
+    dist = blender::bke::bvhtree_sphereray_tri_intersection(
+        ray, self->epsilon, hit->dist, UNPACK3(tri_co));
   }
 
   if (dist >= 0 && dist < hit->dist) {
@@ -789,7 +790,7 @@ static PyObject *C_BVHTree_FromPolygons(PyObject * /*cls*/, PyObject *args, PyOb
       plink = static_cast<PolyLink *>(BLI_memarena_alloc(
           poly_arena, sizeof(*plink) + (sizeof(int) * size_t(py_tricoords_len))));
 
-      plink->len = uint(py_tricoords_len);
+      plink->len = py_tricoords_len;
       *p_plink_prev = plink;
       p_plink_prev = &plink->next;
 
@@ -1036,6 +1037,7 @@ static const Mesh *bvh_get_mesh(const char *funcname,
   const CustomData_MeshMasks data_masks = CD_MASK_BAREMESH;
   const bool use_render = DEG_get_mode(depsgraph) == DAG_EVAL_RENDER;
   *r_free_mesh = false;
+  Mesh *mesh;
 
   /* Write the display mesh into the dummy mesh */
   if (use_deform) {
@@ -1048,15 +1050,33 @@ static const Mesh *bvh_get_mesh(const char *funcname,
         return nullptr;
       }
 
+      mesh = blender::bke::mesh_create_eval_final(depsgraph, scene, ob, &data_masks);
+      if (mesh == nullptr) {
+        PyErr_Format(PyExc_ValueError,
+                     "%s(...): Cannot get a mesh from object '%s'",
+                     ob->id.name + 2,
+                     funcname);
+        return nullptr;
+      }
+
       *r_free_mesh = true;
-      return blender::bke::mesh_create_eval_final(depsgraph, scene, ob, &data_masks);
+      return mesh;
     }
     if (ob_eval != nullptr) {
       if (use_cage) {
-        return blender::bke::mesh_get_eval_deform(depsgraph, scene, ob_eval, &data_masks);
+        mesh = blender::bke::mesh_get_eval_deform(depsgraph, scene, ob_eval, &data_masks);
       }
-
-      return BKE_object_get_evaluated_mesh(ob_eval);
+      else {
+        mesh = BKE_object_get_evaluated_mesh(ob_eval);
+      }
+      if (mesh == nullptr) {
+        PyErr_Format(PyExc_ValueError,
+                     "%s(...): Cannot get a mesh from object '%s'",
+                     ob->id.name + 2,
+                     funcname);
+        return nullptr;
+      }
+      return mesh;
     }
 
     PyErr_Format(PyExc_ValueError,
@@ -1074,9 +1094,16 @@ static const Mesh *bvh_get_mesh(const char *funcname,
           funcname);
       return nullptr;
     }
-
+    mesh = blender::bke::mesh_create_eval_no_deform_render(depsgraph, scene, ob, &data_masks);
+    if (mesh == nullptr) {
+      PyErr_Format(PyExc_ValueError,
+                   "%s(...): Cannot get a mesh from object '%s'",
+                   ob->id.name + 2,
+                   funcname);
+      return nullptr;
+    }
     *r_free_mesh = true;
-    return blender::bke::mesh_create_eval_no_deform_render(depsgraph, scene, ob, &data_masks);
+    return mesh;
   }
 
   if (use_cage) {
@@ -1087,8 +1114,16 @@ static const Mesh *bvh_get_mesh(const char *funcname,
     return nullptr;
   }
 
+  mesh = blender::bke::mesh_create_eval_no_deform(depsgraph, scene, ob, &data_masks);
+  if (mesh == nullptr) {
+    PyErr_Format(PyExc_ValueError,
+                 "%s(...): Cannot get a mesh from object '%s'",
+                 ob->id.name + 2,
+                 funcname);
+    return nullptr;
+  }
   *r_free_mesh = true;
-  return blender::bke::mesh_create_eval_no_deform(depsgraph, scene, ob, &data_masks);
+  return mesh;
 }
 
 PyDoc_STRVAR(

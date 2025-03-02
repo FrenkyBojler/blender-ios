@@ -14,7 +14,7 @@
 #include "BKE_key.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_node.hh"
 
 #include "BLT_translation.hh"
@@ -28,11 +28,9 @@
 #include "DNA_anim_types.h"
 #include "DNA_key_types.h"
 #include "DNA_material_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_particle_types.h"
 
 #include "RNA_access.hh"
-#include "RNA_path.hh"
 
 namespace blender::animrig {
 
@@ -95,7 +93,7 @@ Vector<ID *> find_related_ids(Main &bmain, ID &id)
           related_ids.append_non_duplicates(data);
         }
         LISTBASE_FOREACH (ParticleSystem *, particle_system, &ob->particlesystem) {
-          if (!particle_system) {
+          if (!particle_system->part) {
             continue;
           }
           if (ID_REAL_USERS(&particle_system->part->id) != 1) {
@@ -135,7 +133,7 @@ Vector<ID *> find_related_ids(Main &bmain, ID &id)
           ob = (Object *)object_id;
           bool object_uses_particle_settings = false;
           LISTBASE_FOREACH (ParticleSystem *, particle_system, &ob->particlesystem) {
-            if (!particle_system) {
+            if (!particle_system->part) {
               continue;
             }
             if (&particle_system->part->id != related_id) {
@@ -358,7 +356,7 @@ const FCurve *fcurve_find_by_rna_path(const AnimData &adt,
       switch (strip->type()) {
         case Strip::Type::Keyframe: {
           const StripKeyframeData &strip_data = strip->data<StripKeyframeData>(action);
-          const ChannelBag *channelbag_for_slot = strip_data.channelbag_for_slot(*slot);
+          const Channelbag *channelbag_for_slot = strip_data.channelbag_for_slot(*slot);
           if (!channelbag_for_slot) {
             continue;
           }

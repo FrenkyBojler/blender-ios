@@ -28,6 +28,8 @@
 
 #include "transform_mode.hh"
 
+namespace blender::ed::transform {
+
 /* -------------------------------------------------------------------- */
 /** \name Transform (Shrink-Fatten) Element
  * \{ */
@@ -95,7 +97,7 @@ static void applyShrinkFatten(TransInfo *t)
   float distance;
   int i;
   fmt::memory_buffer str;
-  UnitSettings *unit = &t->scene->unit;
+  const UnitSettings &unit = t->scene->unit;
 
   distance = t->values[0] + t->values_modal_offset[0];
 
@@ -114,10 +116,10 @@ static void applyShrinkFatten(TransInfo *t)
   }
   else {
     /* Default header print. */
-    if (unit != nullptr) {
+    if (unit.system != USER_UNIT_NONE) {
       char unit_str[64];
-      BKE_unit_value_as_string(
-          unit_str, sizeof(unit_str), distance * unit->scale_length, 4, B_UNIT_LENGTH, unit, true);
+      BKE_unit_value_as_string_scaled(
+          unit_str, sizeof(unit_str), distance, 4, B_UNIT_LENGTH, unit, true);
       fmt::format_to(fmt::appender(str), "{}", unit_str);
     }
     else {
@@ -204,3 +206,5 @@ TransModeInfo TransMode_shrinkfatten = {
     /*snap_apply_fn*/ nullptr,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

@@ -6,11 +6,9 @@
  * \ingroup bke
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_bounds.hh"
-#include "BLI_ghash.h"
 #include "BLI_heap_simple.h"
+#include "BLI_map.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
@@ -19,7 +17,6 @@
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_ccg.hh"
 #include "BKE_paint_bvh.hh"
 
 #include "bmesh.hh"
@@ -182,10 +179,10 @@ static BMFace *bm_face_exists_tri_from_loop_vert(BMLoop *l_radial_first, BMVert 
  * Uses a map of vertices to lookup the final target.
  * References can't point to previous items (would cause infinite loop).
  */
-static BMVert *bm_vert_hash_lookup_chain(GHash *deleted_verts, BMVert *v)
+static BMVert *bm_vert_hash_lookup_chain(Map<BMVert *, BMVert *> &deleted_verts, BMVert *v)
 {
   while (true) {
-    BMVert **v_next_p = (BMVert **)BLI_ghash_lookup_p(deleted_verts, v);
+    BMVert **v_next_p = deleted_verts.lookup_ptr(v);
     if (v_next_p == nullptr) {
       /* Not remapped. */
       return v;
@@ -335,7 +332,7 @@ static void pbvh_bmesh_node_split(Vector<BMeshNode> &nodes,
   for (BMFace *f : n->bm_faces_) {
     BM_ELEM_CD_SET_INT(f, cd_face_node_offset, DYNTOPO_NODE_NONE);
   }
-  n->bm_faces_.clear_and_shrink();
+  n->bm_faces_.clear();
 
   n->flag_ &= ~Node::Leaf;
   node_changed[node_index] = true;
@@ -658,7 +655,7 @@ static Array<BMLoop *> pbvh_bmesh_edge_loops(BMEdge *e)
 {
   /* Fast-path for most common case where an edge has 2 faces no need to iterate twice. */
   std::array<BMLoop *, 2> manifold_loops;
-  if (LIKELY(BM_edge_loop_pair(e, &manifold_loops[0], &manifold_loops[1]))) {
+  if (LIKELY(BM_edge_loop_pair(e, manifold_loops.data(), manifold_loops.data() + 1))) {
     return Array<BMLoop *>(Span(manifold_loops));
   }
   Array<BMLoop *> loops(BM_edge_face_count(e));
@@ -1591,7 +1588,7 @@ static void pbvh_bmesh_collapse_edge(BMesh &bm,
                                      BMEdge *e,
                                      BMVert *v1,
                                      BMVert *v2,
-                                     GHash *deleted_verts,
+                                     Map<BMVert *, BMVert *> &deleted_verts,
                                      EdgeQueueContext *eq_ctx)
 {
   const bool v1_on_boundary = is_boundary_vert(*v1);
@@ -1740,7 +1737,7 @@ static void pbvh_bmesh_collapse_edge(BMesh &bm,
         if (v_tri[j] == v_conn) {
           v_conn = nullptr;
         }
-        BLI_ghash_insert(deleted_verts, v_tri[j], nullptr);
+        deleted_verts.add_new(v_tri[j], nullptr);
         BM_vert_kill(&bm, v_tri[j]);
       }
     }
@@ -1772,7 +1769,7 @@ static void pbvh_bmesh_collapse_edge(BMesh &bm,
   BLI_assert(!BM_vert_face_check(v_del));
   BM_log_vert_removed(&bm_log, v_del, eq_ctx->cd_vert_mask_offset);
   /* v_conn == nullptr is OK */
-  BLI_ghash_insert(deleted_verts, v_del, v_conn);
+  deleted_verts.add_new(v_del, v_conn);
   BM_vert_kill(&bm, v_del);
 }
 
@@ -1790,7 +1787,7 @@ static bool pbvh_bmesh_collapse_short_edges(EdgeQueueContext *eq_ctx,
   const float min_len_squared = min_edge_len * min_edge_len;
   bool any_collapsed = false;
   /* Deleted verts point to vertices they were merged into, or nullptr when removed. */
-  GHash *deleted_verts = BLI_ghash_ptr_new("deleted_verts");
+  Map<BMVert *, BMVert *> deleted_verts;
 
   while (!BLI_heapsimple_is_empty(eq_ctx->q->heap)) {
     BMVert **pair = static_cast<BMVert **>(BLI_heapsimple_pop_min(eq_ctx->q->heap));
@@ -1842,8 +1839,6 @@ static bool pbvh_bmesh_collapse_short_edges(EdgeQueueContext *eq_ctx,
                              deleted_verts,
                              eq_ctx);
   }
-
-  BLI_ghash_free(deleted_verts, nullptr, nullptr);
 
   CLOG_INFO(&LOG, 2, "Short edge collapse took %f seconds.", BLI_time_now_seconds() - start_time);
 
@@ -2265,7 +2260,7 @@ Tree Tree::from_bmesh(BMesh &bm)
       nodes, cd_vert_node_offset, cd_face_node_offset, nodeinfo, face_bounds, &rootnode, 0);
 
   pbvh.tag_positions_changed(nodes.index_range());
-  update_bounds_bmesh(bm, pbvh);
+  pbvh.update_bounds_bmesh(bm);
   store_bounds_orig(pbvh);
 
   threading::parallel_for(nodes.index_range(), 8, [&](const IndexRange range) {

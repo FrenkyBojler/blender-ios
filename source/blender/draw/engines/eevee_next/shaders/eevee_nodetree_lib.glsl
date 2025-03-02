@@ -4,6 +4,11 @@
 
 #pragma once
 
+#include "infos/eevee_common_info.hh"
+
+SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
+SHADER_LIBRARY_CREATE_INFO(eevee_utility_texture)
+
 #include "draw_model_lib.glsl"
 #include "draw_view_lib.glsl"
 #include "eevee_renderpass_lib.glsl"
@@ -632,7 +637,9 @@ vec3 displacement_bump()
   vec3 surfgrad = dHd.x * Rx + dHd.y * Ry;
 
   float facing = FrontFacing ? 1.0 : -1.0;
-  return normalize(abs(det) * g_data.N - facing * sign(det) * surfgrad);
+  /* NOTE: keep the same as defined `BUMP_DX`. */
+  const float bump_dx = 0.1;
+  return normalize(bump_dx * abs(det) * g_data.N - facing * sign(det) * surfgrad);
 #  else
   return g_data.N;
 #  endif
@@ -729,14 +736,14 @@ float texture_lod_bias_get()
 /* -------------------------------------------------------------------- */
 /** \name Volume Attribute post
  *
- * TODO(@fclem): These implementation details should concern the DRWManager and not be a fix on
+ * TODO(@fclem): These implementation details should concern the DRWContext and not be a fix on
  * the engine side. But as of now, the engines are responsible for loading the attributes.
  *
  * \{ */
 
 /* Point clouds and curves are not compatible with volume grids.
  * They will fallback to their own attributes loading. */
-#if defined(MAT_VOLUME) && !defined(MAT_GEOM_CURVES) && !defined(MAT_GEOM_POINT_CLOUD)
+#if defined(MAT_VOLUME) && !defined(MAT_GEOM_CURVES) && !defined(MAT_GEOM_POINTCLOUD)
 #  if defined(VOLUME_INFO_LIB) && !defined(MAT_GEOM_WORLD)
 /* We could just check for GRID_ATTRIBUTES but this avoids for header dependency. */
 #    define GRID_ATTRIBUTES_LOAD_POST
@@ -769,7 +776,7 @@ vec4 attr_load_color_post(vec4 attr)
 /* -------------------------------------------------------------------- */
 /** \name Uniform Attributes
  *
- * TODO(@fclem): These implementation details should concern the DRWManager and not be a fix on
+ * TODO(@fclem): These implementation details should concern the DRWContext and not be a fix on
  * the engine side. But as of now, the engines are responsible for loading the attributes.
  *
  * \{ */
