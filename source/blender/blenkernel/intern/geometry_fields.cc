@@ -691,7 +691,6 @@ GVArray EvaluateOnDomainInput::get_varray_for_context(const bke::GeometryFieldCo
   fn::FieldEvaluator value_evaluator{other_domain_context, src_domain_size};
   value_evaluator.add_with_destination(src_field_, values.as_mutable_span());
   value_evaluator.evaluate();
-
   return attributes.adapt_domain(GVArray::ForGArray(std::move(values)), src_domain_, dst_domain);
 }
 
