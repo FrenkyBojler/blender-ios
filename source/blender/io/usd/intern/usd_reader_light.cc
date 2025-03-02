@@ -171,6 +171,7 @@ void USDLightReader::read_object_data(Main *bmain, const double motionSampleTime
   if (pxr::UsdAttribute color_attr = light_api.GetColorAttr()) {
     pxr::GfVec3f color;
     if (color_attr.Get(&color, motionSampleTime)) {
+      blight->color_mode = LA_COLOR;
       blight->r = color[0];
       blight->g = color[1];
       blight->b = color[2];
@@ -178,19 +179,37 @@ void USDLightReader::read_object_data(Main *bmain, const double motionSampleTime
       bool enableColorTemperature = false;
       float colorTemperature = 6500.0f;
 
-      if (pxr::UsdAttribute enableColorTemperature_attr =
-              light_api.GetEnableColorTemperatureAttr())
-      {
-        enableColorTemperature_attr.Get(&enableColorTemperature, motionSampleTime);
-      }
-
-      if (pxr::UsdAttribute colorTemperature_attr = light_api.GetColorTemperatureAttr()) {
-        colorTemperature_attr.Get(&colorTemperature, motionSampleTime);
-      }
-
       blight->temperature = colorTemperature;
       blight->use_temperature = enableColorTemperature;
     }
+  }
+
+  else if (pxr::UsdAttribute enableColorTemperature_attr = light_api.GetEnableColorTemperatureAttr()) {
+    bool enableColorTemperature = false;
+    float colorTemperature = 6500.0f;
+    pxr::GfVec3f color;
+    pxr::GfVec3f fake_color(1.0f, 1.0f, 1.0f);
+    enableColorTemperature_attr.Get(&enableColorTemperature, motionSampleTime);
+
+    if (pxr::UsdAttribute colorTemperature_attr = light_api.GetColorTemperatureAttr()) {
+      blight->color_mode = LA_TEMPERATURE;
+      color_attr.Get(&fake_color, motionSampleTime);
+      colorTemperature_attr.Get(&colorTemperature, motionSampleTime);
+    }
+
+    else if (pxr::UsdAttribute color_attr = light_api.GetColorAttr()) {
+      if (pxr::UsdAttribute colorTemperature_attr = light_api.GetColorTemperatureAttr()) {
+        blight->color_mode = LA_BOTH;
+        color_attr.Get(&color, motionSampleTime);
+        blight->r = color[0];
+        blight->g = color[1];
+        blight->b = color[2];
+        colorTemperature_attr.Get(&colorTemperature, motionSampleTime);  
+      }
+    }
+
+    blight->temperature = colorTemperature;
+    blight->use_temperature = enableColorTemperature;
   }
 
   /* Diffuse and Specular. */
