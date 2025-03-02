@@ -69,7 +69,7 @@ inline void for_each_to_bottom(const OffsetIndices<int> buckets_offsets,
             func(buckets_offsets[joint_buckets], joints_range[joint_i], depth_i);
           }
         },
-        threading::detail::TaskSizeHints_Static(joint_size_at_depth(total_depth, depth_i)));
+        threading::detail::TaskSizeHints_Static(joint_size_at_depth(total_depth, depth_i) * min_bucket_size));
   }
 }
 
@@ -96,7 +96,7 @@ inline void for_each_to_top(const OffsetIndices<int> buckets_offsets,
             func(buckets_offsets[joint_buckets], joints_range[joint_i], sub_joints, depth_i);
           }
         },
-        threading::detail::TaskSizeHints_Static(joint_size_at_depth(total_depth, depth_i)));
+        threading::detail::TaskSizeHints_Static(joint_size_at_depth(total_depth, depth_i) * min_bucket_size));
   }
 }
 
