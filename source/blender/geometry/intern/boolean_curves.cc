@@ -808,6 +808,7 @@ bke::CurvesGeometry curve_boolean(const Operation boolean_mode,
   bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
 
   dst_curves.offsets_for_write().copy_from(dst_points_by_curve.data());
+  dst_curves.cyclic_for_write().copy_from(result.cyclic);
 
   Array<int> old_by_new_map(dst_points_by_curve.size());
 
@@ -826,7 +827,7 @@ bke::CurvesGeometry curve_boolean(const Operation boolean_mode,
   bke::gather_attributes(src_attributes,
                          bke::AttrDomain::Curve,
                          bke::AttrDomain::Curve,
-                         {},
+                         bke::attribute_filter_from_skip_ref({"cyclic"}),
                          old_by_new_map,
                          dst_attributes);
 
