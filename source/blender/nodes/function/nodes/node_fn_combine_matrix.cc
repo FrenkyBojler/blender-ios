@@ -58,96 +58,52 @@ static void copy_with_stride(const IndexMask &mask,
   });
 }
 
-class CombineMatrixFunction : public mf::MultiFunction {
- public:
-  CombineMatrixFunction()
-  {
-    static const mf::Signature signature = []() {
-      mf::Signature signature;
-      mf::SignatureBuilder builder{"Combine Matrix", signature};
-      builder.single_input<float>("Column 1 Row 1");
-      builder.single_input<float>("Column 1 Row 2");
-      builder.single_input<float>("Column 1 Row 3");
-      builder.single_input<float>("Column 1 Row 4");
-
-      builder.single_input<float>("Column 2 Row 1");
-      builder.single_input<float>("Column 2 Row 2");
-      builder.single_input<float>("Column 2 Row 3");
-      builder.single_input<float>("Column 2 Row 4");
-
-      builder.single_input<float>("Column 3 Row 1");
-      builder.single_input<float>("Column 3 Row 2");
-      builder.single_input<float>("Column 3 Row 3");
-      builder.single_input<float>("Column 3 Row 4");
-
-      builder.single_input<float>("Column 4 Row 1");
-      builder.single_input<float>("Column 4 Row 2");
-      builder.single_input<float>("Column 4 Row 3");
-      builder.single_input<float>("Column 4 Row 4");
-
-      builder.single_output<float4x4>("Matrix");
-      return signature;
-    }();
-    this->set_signature(&signature);
-  }
-
-  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
-  {
-    const VArray<float> &column_1_row_1 = params.readonly_single_input<float>(0, "Column 1 Row 1");
-    const VArray<float> &column_1_row_2 = params.readonly_single_input<float>(1, "Column 1 Row 2");
-    const VArray<float> &column_1_row_3 = params.readonly_single_input<float>(2, "Column 1 Row 3");
-    const VArray<float> &column_1_row_4 = params.readonly_single_input<float>(3, "Column 1 Row 4");
-
-    const VArray<float> &column_2_row_1 = params.readonly_single_input<float>(4, "Column 2 Row 1");
-    const VArray<float> &column_2_row_2 = params.readonly_single_input<float>(5, "Column 2 Row 2");
-    const VArray<float> &column_2_row_3 = params.readonly_single_input<float>(6, "Column 2 Row 3");
-    const VArray<float> &column_2_row_4 = params.readonly_single_input<float>(7, "Column 2 Row 4");
-
-    const VArray<float> &column_3_row_1 = params.readonly_single_input<float>(8, "Column 3 Row 1");
-    const VArray<float> &column_3_row_2 = params.readonly_single_input<float>(9, "Column 3 Row 2");
-    const VArray<float> &column_3_row_3 = params.readonly_single_input<float>(10,
-                                                                              "Column 3 Row 3");
-    const VArray<float> &column_3_row_4 = params.readonly_single_input<float>(11,
-                                                                              "Column 3 Row 4");
-
-    const VArray<float> &column_4_row_1 = params.readonly_single_input<float>(12,
-                                                                              "Column 4 Row 1");
-    const VArray<float> &column_4_row_2 = params.readonly_single_input<float>(13,
-                                                                              "Column 4 Row 2");
-    const VArray<float> &column_4_row_3 = params.readonly_single_input<float>(14,
-                                                                              "Column 4 Row 3");
-    const VArray<float> &column_4_row_4 = params.readonly_single_input<float>(15,
-                                                                              "Column 4 Row 4");
-
-    MutableSpan<float4x4> matrices = params.uninitialized_single_output<float4x4>(16, "Matrix");
-    MutableSpan<float> components = matrices.cast<float>();
-
-    copy_with_stride(mask, column_1_row_1, 1, 0, 16, 0, components);
-    copy_with_stride(mask, column_1_row_2, 1, 0, 16, 1, components);
-    copy_with_stride(mask, column_1_row_3, 1, 0, 16, 2, components);
-    copy_with_stride(mask, column_1_row_4, 1, 0, 16, 3, components);
-
-    copy_with_stride(mask, column_2_row_1, 1, 0, 16, 4, components);
-    copy_with_stride(mask, column_2_row_2, 1, 0, 16, 5, components);
-    copy_with_stride(mask, column_2_row_3, 1, 0, 16, 6, components);
-    copy_with_stride(mask, column_2_row_4, 1, 0, 16, 7, components);
-
-    copy_with_stride(mask, column_3_row_1, 1, 0, 16, 8, components);
-    copy_with_stride(mask, column_3_row_2, 1, 0, 16, 9, components);
-    copy_with_stride(mask, column_3_row_3, 1, 0, 16, 10, components);
-    copy_with_stride(mask, column_3_row_4, 1, 0, 16, 11, components);
-
-    copy_with_stride(mask, column_4_row_1, 1, 0, 16, 12, components);
-    copy_with_stride(mask, column_4_row_2, 1, 0, 16, 13, components);
-    copy_with_stride(mask, column_4_row_3, 1, 0, 16, 14, components);
-    copy_with_stride(mask, column_4_row_4, 1, 0, 16, 15, components);
-  }
-};
-
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
-  const static CombineMatrixFunction fn;
-  builder.set_matching_fn(fn);
+  using namespace blender::fn::multi_function;
+  constexpr auto param_tags = TypeSequence<float,
+                                           float,
+                                           float,
+                                           float,
+                                           float,
+                                           float,
+                                           float,
+                                           float,
+                                           float,
+                                           float,
+                                           float,
+                                           float,
+                                           float,
+                                           float,
+                                           float,
+                                           float>();
+  static auto element_fn = [](float M11,
+                              float M21,
+                              float M31,
+                              float M41,
+                              float M12,
+                              float M22,
+                              float M32,
+                              float M42,
+                              float M13,
+                              float M23,
+                              float M33,
+                              float M43,
+                              float M14,
+                              float M24,
+                              float M34,
+                              float M44) {
+    float4x4 mat;
+    mat[0] = float4(M11, M21, M31, M41);
+    mat[1] = float4(M12, M22, M32, M42);
+    mat[2] = float4(M13, M23, M33, M43);
+    mat[3] = float4(M14, M24, M34, M44);
+    return mat;
+  };
+  static auto call_fn = build::detail::build_multi_function_with_n_inputs_one_output<
+                 float4x4>(
+      "Combine Matrix", element_fn, mf::build::exec_presets::Materialized(), param_tags);
+  builder.set_matching_fn(call_fn);
 }
 
 static void node_eval_elem(value_elem::ElemEvalParams &params)
