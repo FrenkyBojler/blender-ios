@@ -135,6 +135,10 @@ IndexRange Segment::point_range() const
     return IndexRange::from_begin_end_inclusive(points.first(), point_2);
   }
 
+  if (!this->has_start_intersection() && !this->has_end_intersection()) {
+    return points;
+  }
+
   /* If both intersection points are on the same edge, there's ether no points between or
    * all of the points are. */
   if (point_1 == point_2) {
