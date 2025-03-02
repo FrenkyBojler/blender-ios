@@ -50,6 +50,7 @@ static bool execute_carver_on_drawing(const int layer_index,
                                       const ARegion &region,
                                       const float4x4 &projection,
                                       const float4x4 &layer_to_world,
+                                      const DrawingPlacement &placement,
                                       const Span<int2> mcoords,
                                       const bool keep_caps,
                                       bke::greasepencil::Drawing &drawing)
@@ -114,6 +115,8 @@ static bool execute_carver_on_drawing(const int layer_index,
   pos_writer.span.take_back(mcoords.size()).copy_from(cut_pos2d);
   pos_writer.finish();
 
+  placement.project(cut_pos2d, input_curves.positions_for_write().take_back(mcoords.size()));
+
   /* TODO(@filedescriptor): This can be remove when the material fill rework is done. */
   {
     const VArray<int> materials = *attributes.lookup_or_default<int>(
@@ -146,10 +149,13 @@ static bool execute_carver_on_drawing(const int layer_index,
   fill_writer.span.last() = true;
   fill_writer.finish();
 
-  const bke::CurvesGeometry carved_strokes = geometry::boolean::curve_boolean(
+  bke::CurvesGeometry carved_strokes = geometry::boolean::curve_boolean(
       geometry::boolean::Operation::Difference,
       input_curves,
       IndexRange::from_single(src.curves_num()));
+
+  /* TODO. */
+  placement.reproject(carved_strokes.positions(), carved_strokes.positions_for_write());
 
   /* Set the new geometry. */
   drawing.strokes_for_write() = std::move(carved_strokes);
@@ -167,6 +173,7 @@ static int stroke_carver_execute(const bContext *C, const Span<int2> mcoords)
   const ARegion *region = CTX_wm_region(C);
   const RegionView3D *rv3d = CTX_wm_region_view3d(C);
   const Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  View3D *view3d = CTX_wm_view3d(C);
   Object *obact = CTX_data_active_object(C);
   Object *ob_eval = DEG_get_evaluated_object(depsgraph, obact);
 
@@ -191,6 +198,11 @@ static int stroke_carver_execute(const bContext *C, const Span<int2> mcoords)
     const float4x4 projection = ED_view3d_ob_project_mat_get_from_obmat(rv3d, layer_to_world);
     const Vector<ed::greasepencil::MutableDrawingInfo> drawings =
         ed::greasepencil::retrieve_editable_drawings_from_layer(*scene, grease_pencil, layer);
+
+    /* Initialize helper class for projecting screen space coordinates. */
+    DrawingPlacement placement = ed::greasepencil::DrawingPlacement(
+        *scene, *region, *view3d, *ob_eval, &layer);
+
     threading::parallel_for_each(drawings, [&](const ed::greasepencil::MutableDrawingInfo &info) {
       if (execute_carver_on_drawing(info.layer_index,
                                     info.frame_number,
@@ -199,6 +211,7 @@ static int stroke_carver_execute(const bContext *C, const Span<int2> mcoords)
                                     *region,
                                     projection,
                                     layer_to_world,
+                                    placement,
                                     mcoords,
                                     keep_caps,
                                     info.drawing))
@@ -215,6 +228,11 @@ static int stroke_carver_execute(const bContext *C, const Span<int2> mcoords)
       const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
       const float4x4 layer_to_world = layer.to_world_space(*ob_eval);
       const float4x4 projection = ED_view3d_ob_project_mat_get_from_obmat(rv3d, layer_to_world);
+
+      /* Initialize helper class for projecting screen space coordinates. */
+      DrawingPlacement placement = ed::greasepencil::DrawingPlacement(
+          *scene, *region, *view3d, *ob_eval, &layer);
+
       if (execute_carver_on_drawing(info.layer_index,
                                     info.frame_number,
                                     *ob_eval,
@@ -222,6 +240,7 @@ static int stroke_carver_execute(const bContext *C, const Span<int2> mcoords)
                                     *region,
                                     projection,
                                     layer_to_world,
+                                    placement,
                                     mcoords,
                                     keep_caps,
                                     info.drawing))
