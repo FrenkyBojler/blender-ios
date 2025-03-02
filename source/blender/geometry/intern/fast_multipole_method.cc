@@ -111,10 +111,10 @@ static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values(const i
       };
     default:
       return [](const int power_value, MutableSpan<float> values) {
-        const float power_factor = float(power_value);
+        const float power_factor = float(-power_value);
         std::transform(
             values.begin(), values.end(), values.begin(), [power_factor](const float value) {
-              return math::exp(std::log(value) * power_factor);
+              return math::pow(value, power_factor);
             });
       };
   }
