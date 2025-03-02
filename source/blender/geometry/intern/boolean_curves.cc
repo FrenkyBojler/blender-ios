@@ -658,7 +658,7 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
           }
 
           if (!is_cyclic[curve_k]) {
-            const int int_p_2 = inter_sorted_ids[new_inters.last()];
+            const int int_p_2 = new_inters[inter_sorted_ids.last()];
             IntersectionPoint &inter_last = intersections[int_p_2];
 
             if (curve_k == inter_last.curve_a) {
