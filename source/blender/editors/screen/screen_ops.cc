@@ -5034,6 +5034,48 @@ static void SCREEN_OT_header_toggle_menus(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Navigation-bar Toggle Menu Operator
+ * \{ */
+static int screen_region_toggle_visibility_exec(bContext *C, wmOperator *op)
+{
+  const int region_type = RNA_int_get(op->ptr, "region_type");
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = BKE_area_find_region_type(area, region_type);
+
+  if (region) {
+    region->flag ^= RGN_FLAG_HIDDEN;  // Toggle visibility
+    ED_region_visibility_change_update(C, area, region);
+    WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);  // Notify UI to update
+    return OPERATOR_FINISHED;
+  }
+
+  BKE_report(op->reports, RPT_ERROR, "Region not found");
+  return OPERATOR_CANCELLED;
+}
+
+static void SCREEN_OT_region_toggle_visibility(wmOperatorType *ot)
+{
+  ot->name = "Toggle Region Visibility";
+  ot->idname = "SCREEN_OT_region_toggle_visibility";
+  ot->description = "Toggle the visibility of a region";
+
+  ot->exec = screen_region_toggle_visibility_exec;
+  ot->poll = ED_operator_areaactive;
+
+  RNA_def_int(ot->srna,
+              "region_type",
+              RGN_TYPE_NAV_BAR,  // Default to navigation bar
+              0,
+              INT_MAX,
+              "Region Type",
+              "Type of the region to toggle",
+              0,
+              INT_MAX);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Region Context Menu Operator (Header/Footer/Navigation-Bar)
  * \{ */
 
@@ -5105,13 +5147,33 @@ void ED_screens_header_tools_menu_create(bContext *C, uiLayout *layout, void * /
             IFACE_("Show Menus"),
             (area->flag & HEADER_NO_PULLDOWN) ? ICON_CHECKBOX_DEHLT : ICON_CHECKBOX_HLT,
             "SCREEN_OT_header_toggle_menus");
-  }
 
-  if (!ELEM(area->spacetype, SPACE_TOPBAR)) {
-    uiItemS(layout);
-    ED_screens_region_flip_menu_create(C, layout, nullptr);
-    uiItemS(layout);
-    screen_area_menu_items(area, layout);
+    /* "Show Navigation Bar" option */
+    ARegion *region_nav_bar = BKE_area_find_region_type(area, RGN_TYPE_NAV_BAR);
+    if (region_nav_bar) {
+      PointerRNA *op_ptr = nullptr;
+      uiItemFullO(col,
+                  "SCREEN_OT_region_toggle_visibility",
+                  IFACE_("Show Navigation Bar"),
+                  (region_nav_bar->flag & RGN_FLAG_HIDDEN) ? ICON_CHECKBOX_DEHLT :
+                                                             ICON_CHECKBOX_HLT,
+                  nullptr,
+                  WM_OP_INVOKE_DEFAULT,
+                  UI_ITEM_NONE,
+                  op_ptr);
+
+      /* If we have a valid operator pointer, set the region_type property */
+      if (op_ptr) {
+        RNA_int_set(op_ptr, "region_type", RGN_TYPE_NAV_BAR);
+      }
+    }
+
+    if (!ELEM(area->spacetype, SPACE_TOPBAR)) {
+      uiItemS(layout);
+      ED_screens_region_flip_menu_create(C, layout, nullptr);
+      uiItemS(layout);
+      screen_area_menu_items(area, layout);
+    }
   }
 }
 
@@ -6642,6 +6704,8 @@ void ED_operatortypes_screen()
   /* New/delete. */
   WM_operatortype_append(SCREEN_OT_new);
   WM_operatortype_append(SCREEN_OT_delete);
+
+  WM_operatortype_append(SCREEN_OT_region_toggle_visibility);
 }
 
 /** \} */
