@@ -2,8 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <cmath>
-
 #include "BLI_function_ref.hh"
 #include "BLI_generic_span.hh"
 #include "BLI_math_base.hh"
