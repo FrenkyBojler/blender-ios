@@ -750,6 +750,7 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
 
       if (next_segment == -1) {
         PolygonDone = true;
+        PolygonClosed = unsorted_segments[current_segment].is_loop();
         break;
       }
 
