@@ -32,23 +32,28 @@ class ScopedTimer {
 };
 
 class ScopedTimerAveraged {
+ public:
+  struct ScopedTimerSamples {
+   public:
+    int64_t total_count;
+    blender::timeit::Nanoseconds total_time;
+    blender::timeit::Nanoseconds min_time;
+
+    ScopedTimerSamples()
+        : total_count(0), total_time(), min_time(blender::timeit::Nanoseconds::max())
+    {
+    }
+  };
+
  private:
   std::string name_;
   TimePoint start_;
 
-  int64_t &total_count_;
-  Nanoseconds &total_time_;
-  Nanoseconds &min_time_;
+  ScopedTimerSamples &sample_counter_;
 
  public:
-  ScopedTimerAveraged(std::string name,
-                      int64_t &total_count,
-                      Nanoseconds &total_time,
-                      Nanoseconds &min_time)
-      : name_(std::move(name)),
-        total_count_(total_count),
-        total_time_(total_time),
-        min_time_(min_time)
+  ScopedTimerAveraged(std::string name, ScopedTimerSamples &sample_counter)
+      : name_(std::move(name)), sample_counter_(sample_counter)
   {
     start_ = Clock::now();
   }
@@ -65,7 +70,16 @@ class ScopedTimerAveraged {
  * \warning This uses static variables, so it is not thread-safe.
  */
 #define SCOPED_TIMER_AVERAGED(name) \
-  static int64_t total_count_; \
-  static blender::timeit::Nanoseconds total_time_; \
-  static blender::timeit::Nanoseconds min_time_ = blender::timeit::Nanoseconds::max(); \
-  blender::timeit::ScopedTimerAveraged scoped_timer(name, total_count_, total_time_, min_time_)
+  static blender::timeit::ScopedTimerAveraged::ScopedTimerSamples sample_counter_; \
+  blender::timeit::ScopedTimerAveraged scoped_timer(name, sample_counter_)
+
+/**
+ * Same as `SCOPED_TIMER_AVERAGED` above but keeps a separate record for each unique sample name.
+ * \warning Records are not shared/visible across compilation units.
+ */
+#define SCOPED_TIMER_AVERAGED_TABLE(name) \
+  static std::unordered_map<std::string, \
+                            blender::timeit::ScopedTimerAveraged::ScopedTimerSamples> \
+      sample_counter_map; \
+  blender::timeit::ScopedTimerAveraged::ScopedTimerSamples &sample = sample_counter_map[name]; \
+  blender::timeit::ScopedTimerAveraged scoped_timer(name, sample);

@@ -62,18 +62,18 @@ ScopedTimerAveraged::~ScopedTimerAveraged()
   const TimePoint end = Clock::now();
   const Nanoseconds duration = end - start_;
 
-  total_count_++;
-  total_time_ += duration;
-  min_time_ = std::min(duration, min_time_);
+  sample_counter_.total_count++;
+  sample_counter_.total_time += duration;
+  sample_counter_.min_time = std::min(duration, sample_counter_.min_time);
 
   fmt::memory_buffer buf;
   fmt::format_to(fmt::appender(buf), FMT_STRING("Timer '{}': (Average: "), name_);
-  format_duration(total_time_ / total_count_, buf);
+  format_duration(sample_counter_.total_time / sample_counter_.total_count, buf);
   buf.append(StringRef(", Min: "));
-  format_duration(min_time_, buf);
+  format_duration(sample_counter_.min_time, buf);
   buf.append(StringRef(", Last: "));
   format_duration(duration, buf);
-  fmt::format_to(fmt::appender(buf), ", Samples: {})\n", total_count_);
+  fmt::format_to(fmt::appender(buf), ", Samples: {})\n", sample_counter_.total_count);
   std::cout << StringRef(buf.data(), buf.size());
 }
 
