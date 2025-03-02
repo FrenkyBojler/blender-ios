@@ -14,15 +14,14 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_alloca.h"
 #include "BLI_bit_vector.hh"
-#include "BLI_blenlib.h"
-#include "BLI_dynstr.h"
 #include "BLI_listbase.h"
 #include "BLI_listbase_wrapper.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
+#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
@@ -31,7 +30,6 @@
 #include "DNA_anim_types.h"
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
@@ -47,13 +45,13 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_nla.hh"
 #include "BKE_node.hh"
-#include "BKE_report.hh"
 #include "BKE_texture.h"
 
 #include "ANIM_action.hh"
+#include "ANIM_action_legacy.hh"
 #include "ANIM_evaluation.hh"
 
 #include "DEG_depsgraph.hh"
@@ -66,8 +64,6 @@
 #include "BLO_read_write.hh"
 
 #include "nla_private.h"
-
-#include "atomic_ops.h"
 
 #include "CLG_log.h"
 
@@ -795,8 +791,7 @@ static void action_idcode_patch_check(ID *id, bAction *act)
     return;
   }
 
-#ifdef WITH_ANIM_BAKLAVA
-  if (act->wrap().is_action_layered()) {
+  if (!blender::animrig::legacy::action_treat_as_legacy(*act)) {
     /* Layered Actions can always be assigned to any ID. It's actually the Slot that is limited
      * to an ID type (similar to legacy Actions). Layered Actions are evaluated differently,
      * though, and their evaluation shouldn't end up here. At the moment of writing it can still
@@ -804,7 +799,6 @@ static void action_idcode_patch_check(ID *id, bAction *act)
     /* TODO: when possible, add a BLI_assert_unreachable() here. */
     return;
   }
-#endif
 
   idcode = GS(id->name);
 
@@ -853,7 +847,7 @@ void animsys_evaluate_action_group(PointerRNA *ptr,
 
   const auto visit_fcurve = [&](FCurve *fcu) {
     /* check if this curve should be skipped */
-    if ((fcu->flag & (FCURVE_MUTED | FCURVE_DISABLED)) == 0 && !BKE_fcurve_is_empty(fcu)) {
+    if ((fcu->flag & FCURVE_MUTED) == 0 && !BKE_fcurve_is_empty(fcu)) {
       PathResolvedRNA anim_rna;
       if (BKE_animsys_rna_path_resolve(ptr, fcu->rna_path, fcu->array_index, &anim_rna)) {
         const float curval = calculate_fcurve(&anim_rna, fcu, anim_eval_context);
@@ -862,24 +856,20 @@ void animsys_evaluate_action_group(PointerRNA *ptr,
     }
   };
 
-#ifdef WITH_ANIM_BAKLAVA
   blender::animrig::ChannelGroup channel_group = agrp->wrap();
   if (channel_group.is_legacy()) {
-#endif
     /* calculate then execute each curve */
     for (fcu = static_cast<FCurve *>(agrp->channels.first); (fcu) && (fcu->grp == agrp);
          fcu = fcu->next)
     {
       visit_fcurve(fcu);
     }
-#ifdef WITH_ANIM_BAKLAVA
     return;
   }
 
   for (FCurve *fcurve : channel_group.fcurves()) {
     visit_fcurve(fcurve);
   }
-#endif
 }
 
 void animsys_evaluate_action(PointerRNA *ptr,
@@ -898,7 +888,7 @@ void animsys_evaluate_action(PointerRNA *ptr,
   if (action.is_action_legacy()) {
     action_idcode_patch_check(ptr->owner_id, act);
 
-    Vector<FCurve *> fcurves = animrig::fcurves_all(action);
+    Vector<FCurve *> fcurves = animrig::legacy::fcurves_all(act);
     animsys_evaluate_fcurves(ptr, fcurves, anim_eval_context, flush_to_original);
     return;
   }
@@ -922,13 +912,9 @@ void animsys_blend_in_action(PointerRNA *ptr,
 
   if (action.is_action_legacy()) {
     action_idcode_patch_check(ptr->owner_id, act);
-
-    Vector<FCurve *> fcurves = animrig::fcurves_all(action);
-    animsys_blend_in_fcurves(ptr, fcurves, anim_eval_context, blend_factor);
-    return;
   }
 
-  Span<FCurve *> fcurves = animrig::fcurves_for_action_slot(action, action_slot_handle);
+  Vector<FCurve *> fcurves = animrig::legacy::fcurves_for_action_slot(act, action_slot_handle);
   animsys_blend_in_fcurves(ptr, fcurves, anim_eval_context, blend_factor);
 }
 
@@ -965,7 +951,7 @@ static void nlastrip_evaluate_controls(NlaStrip *strip,
   if (strip->fcurves.first) {
 
     /* create RNA-pointer needed to set values */
-    PointerRNA strip_ptr = RNA_pointer_create(nullptr, &RNA_NlaStrip, strip);
+    PointerRNA strip_ptr = RNA_pointer_create_discrete(nullptr, &RNA_NlaStrip, strip);
 
     /* execute these settings as per normal */
     Vector<FCurve *> strip_fcurves = listbase_to_vector<FCurve>(strip->fcurves);
@@ -2665,29 +2651,7 @@ static void nlasnapshot_from_action(PointerRNA *ptr,
   const float modified_evaltime = evaluate_time_fmodifiers(
       &storage, modifiers, nullptr, 0.0f, evaltime);
 
-#ifdef WITH_ANIM_BAKLAVA
-  /* NOTE: This whole block of ugly code will disappear when the slotted Actions feature goes out
-   * of Experimental.
-   *
-   * This code only exists because at the moment Blender needs to be able to handle a mixture of
-   * legacy & slotted Actions. Legacy Actions will get automatically versioned at some point,
-   * and then this all goes away and collapses into just the fcurves_for_action_slot() call. */
-  Span<FCurve *> fcurves;
-  Vector<FCurve *> legacy_fcurves;
-
-  animrig::Action &action_wrapper = action->wrap();
-  if (action_wrapper.is_action_legacy()) {
-    legacy_fcurves = animrig::fcurves_all(action_wrapper);
-    fcurves = legacy_fcurves;
-  }
-  else {
-    fcurves = animrig::fcurves_for_action_slot(action_wrapper, slot_handle);
-  }
-
-  for (const FCurve *fcu : fcurves) {
-#else
-  LISTBASE_FOREACH (const FCurve *, fcu, &action->curves) {
-#endif
+  for (const FCurve *fcu : animrig::legacy::fcurves_for_action_slot(action, slot_handle)) {
     if (!is_fcurve_evaluatable(fcu)) {
       continue;
     }
@@ -3175,29 +3139,7 @@ static void nla_eval_domain_action(PointerRNA *ptr,
     return;
   }
 
-#ifdef WITH_ANIM_BAKLAVA
-  /* NOTE: This whole block of ugly code will disappear when the slotted Actions feature goes out
-   * of Experimental.
-   *
-   * This code only exists because at the moment Blender needs to be able to handle a mixture of
-   * legacy & slotted Actions. Legacy Actions will get automatically versioned at some point,
-   * and then this all goes away and collapses into just the fcurves_for_action_slot() call. */
-  Span<FCurve *> fcurves;
-  Vector<FCurve *> legacy_fcurves;
-
-  animrig::Action &action = act->wrap();
-  if (action.is_action_legacy()) {
-    legacy_fcurves = animrig::fcurves_all(action);
-    fcurves = legacy_fcurves;
-  }
-  else {
-    fcurves = animrig::fcurves_for_action_slot(action, slot_handle);
-  }
-
-  for (const FCurve *fcu : fcurves) {
-#else
-  LISTBASE_FOREACH (const FCurve *, fcu, &act->curves) {
-#endif
+  for (const FCurve *fcu : animrig::legacy::fcurves_for_action_slot(act, slot_handle)) {
     /* check if this curve should be skipped */
     if (!is_fcurve_evaluatable(fcu)) {
       continue;
@@ -3258,21 +3200,9 @@ static void animsys_evaluate_nla_domain(PointerRNA *ptr, NlaEvalData *channels, 
 
   /* NLA Data - Animation Data for Strips */
   LISTBASE_FOREACH (NlaTrack *, nlt, &adt->nla_tracks) {
-    /* solo and muting are mutually exclusive... */
-    if (adt->flag & ADT_NLA_SOLO_TRACK) {
-      /* skip if there is a solo track, but this isn't it */
-      if ((nlt->flag & NLATRACK_SOLO) == 0) {
-        continue;
-      }
-      /* else - mute doesn't matter */
+    if (!BKE_nlatrack_is_enabled(*adt, *nlt)) {
+      continue;
     }
-    else {
-      /* no solo tracks - skip track if muted */
-      if (nlt->flag & NLATRACK_MUTED) {
-        continue;
-      }
-    }
-
     nla_eval_domain_strips(ptr, channels, &nlt->strips, touched_actions);
   }
 
@@ -3383,21 +3313,7 @@ static bool is_nlatrack_evaluatable(const AnimData *adt, const NlaTrack *nlt)
     return false;
   }
 
-  /* Solo and muting are mutually exclusive. */
-  if (adt->flag & ADT_NLA_SOLO_TRACK) {
-    /* Skip if there is a solo track, but this isn't it. */
-    if ((nlt->flag & NLATRACK_SOLO) == 0) {
-      return false;
-    }
-  }
-  else {
-    /* Skip track if muted. */
-    if (nlt->flag & NLATRACK_MUTED) {
-      return false;
-    }
-  }
-
-  return true;
+  return BKE_nlatrack_is_enabled(*adt, *nlt);
 }
 
 /**

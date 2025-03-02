@@ -11,12 +11,13 @@
  */
 
 #include "BLI_bounds.hh"
+#include "GPU_capabilities.hh"
 
 #include "eevee_instance.hh"
 #include "eevee_pipeline.hh"
 #include "eevee_shadow.hh"
 
-#include <iostream>
+#include "GPU_debug.hh"
 
 #include "draw_common.hh"
 
@@ -77,8 +78,9 @@ void BackgroundPipeline::clear(View &view)
   inst_.manager->submit(clear_ps_, view);
 }
 
-void BackgroundPipeline::render(View &view)
+void BackgroundPipeline::render(View &view, Framebuffer &combined_fb)
 {
+  GPU_framebuffer_bind(combined_fb);
   inst_.manager->submit(world_ps_, view);
 }
 
@@ -435,7 +437,7 @@ void ForwardPipeline::render(View &view,
     return;
   }
 
-  DRW_stats_group_start("Forward.Opaque");
+  GPU_debug_group_begin("Forward.Opaque");
 
   prepass_fb.bind();
   inst_.manager->submit(prepass_ps_, view);
@@ -451,7 +453,7 @@ void ForwardPipeline::render(View &view,
     inst_.manager->submit(opaque_ps_, view);
   }
 
-  DRW_stats_group_end();
+  GPU_debug_group_end();
 
   inst_.volume.draw_resolve(view);
 
@@ -555,9 +557,14 @@ void DeferredLayer::begin_sync()
   this->gbuffer_pass_sync(inst_);
 }
 
-void DeferredLayer::end_sync(bool is_first_pass, bool is_last_pass)
+void DeferredLayer::end_sync(bool is_first_pass,
+                             bool is_last_pass,
+                             bool next_layer_has_transmission)
 {
   const SceneEEVEE &sce_eevee = inst_.scene->eevee;
+  const bool has_any_closure = closure_bits_ != 0;
+  /* We need the feedback output in case of refraction in the next pass (see #126455). */
+  const bool is_layer_refracted = (next_layer_has_transmission && has_any_closure);
   const bool has_transmit_closure = (closure_bits_ & (CLOSURE_REFRACTION | CLOSURE_TRANSLUCENT));
   const bool has_reflect_closure = (closure_bits_ & (CLOSURE_REFLECTION | CLOSURE_DIFFUSE));
   use_raytracing_ = (has_transmit_closure || has_reflect_closure) &&
@@ -572,7 +579,8 @@ void DeferredLayer::end_sync(bool is_first_pass, bool is_last_pass)
   use_screen_reflection_ = use_raytracing_ && has_reflect_closure;
 
   use_split_radiance_ = use_raytracing_ || (use_clamp_direct_ || use_clamp_indirect_);
-  use_feedback_output_ = use_raytracing_ && (!is_last_pass || use_screen_reflection_);
+  use_feedback_output_ = (use_raytracing_ || is_layer_refracted) &&
+                         (!is_last_pass || use_screen_reflection_);
 
   {
     RenderBuffersInfoData &rbuf_data = inst_.render_buffers.data;
@@ -588,6 +596,10 @@ void DeferredLayer::end_sync(bool is_first_pass, bool is_last_pass)
                               GPU_ATTACHMENT_IGNORE,
                               GPU_ATTACHMENT_IGNORE});
       sub.shader_set(sh);
+      if (GPU_stencil_clasify_buffer_workaround()) {
+        /* Binding any buffer to satisfy the binding. The buffer is not actually used. */
+        sub.bind_ssbo("dummy_workaround_buf", &inst_.film.aovs_info);
+      }
       sub.state_set(DRW_STATE_WRITE_STENCIL | DRW_STATE_STENCIL_ALWAYS);
       if (GPU_stencil_export_support()) {
         /* The shader sets the stencil directly in one full-screen pass. */
@@ -890,8 +902,8 @@ void DeferredPipeline::begin_sync()
 
 void DeferredPipeline::end_sync()
 {
-  opaque_layer_.end_sync(true, refraction_layer_.is_empty());
-  refraction_layer_.end_sync(opaque_layer_.is_empty(), true);
+  opaque_layer_.end_sync(true, refraction_layer_.is_empty(), refraction_layer_.has_transmission());
+  refraction_layer_.end_sync(opaque_layer_.is_empty(), true, false);
 
   debug_pass_sync();
 }
@@ -948,9 +960,7 @@ PassMain::Sub *DeferredPipeline::prepass_add(::Material *blender_mat,
   if (!use_combined_lightprobe_eval && (blender_mat->blend_flag & MA_BL_SS_REFRACTION)) {
     return refraction_layer_.prepass_add(blender_mat, gpumat, has_motion);
   }
-  else {
-    return opaque_layer_.prepass_add(blender_mat, gpumat, has_motion);
-  }
+  return opaque_layer_.prepass_add(blender_mat, gpumat, has_motion);
 }
 
 PassMain::Sub *DeferredPipeline::material_add(::Material *blender_mat, GPUMaterial *gpumat)
@@ -958,9 +968,7 @@ PassMain::Sub *DeferredPipeline::material_add(::Material *blender_mat, GPUMateri
   if (!use_combined_lightprobe_eval && (blender_mat->blend_flag & MA_BL_SS_REFRACTION)) {
     return refraction_layer_.material_add(blender_mat, gpumat);
   }
-  else {
-    return opaque_layer_.material_add(blender_mat, gpumat);
-  }
+  return opaque_layer_.material_add(blender_mat, gpumat);
 }
 
 void DeferredPipeline::render(View &main_view,
@@ -974,7 +982,7 @@ void DeferredPipeline::render(View &main_view,
 {
   GPUTexture *feedback_tx = nullptr;
 
-  DRW_stats_group_start("Deferred.Opaque");
+  GPU_debug_group_begin("Deferred.Opaque");
   feedback_tx = opaque_layer_.render(main_view,
                                      render_view,
                                      prepass_fb,
@@ -983,9 +991,9 @@ void DeferredPipeline::render(View &main_view,
                                      extent,
                                      rt_buffer_opaque_layer,
                                      feedback_tx);
-  DRW_stats_group_end();
+  GPU_debug_group_end();
 
-  DRW_stats_group_start("Deferred.Refract");
+  GPU_debug_group_begin("Deferred.Refract");
   feedback_tx = refraction_layer_.render(main_view,
                                          render_view,
                                          prepass_fb,
@@ -994,7 +1002,7 @@ void DeferredPipeline::render(View &main_view,
                                          extent,
                                          rt_buffer_refract_layer,
                                          feedback_tx);
-  DRW_stats_group_end();
+  GPU_debug_group_end();
 }
 
 /** \} */
@@ -1176,7 +1184,14 @@ VolumeObjectBounds::VolumeObjectBounds(const Camera &camera, Object *ob)
 
 VolumeLayer *VolumePipeline::register_and_get_layer(Object *ob)
 {
+  /* TODO(fclem): This is against design. Sync shouldn't depend on view properties (camera). */
   VolumeObjectBounds object_bounds(inst_.camera, ob);
+  if (math::reduce_max(object_bounds.screen_bounds->size()) < 1e-5) {
+    /* WORKAROUND(fclem): Fixes an issue with 0 scaled object (see #132889).
+     * Is likely to be an issue somewhere else in the pipeline but it is hard to find. */
+    return nullptr;
+  }
+
   object_integration_range_ = bounds::merge(object_integration_range_, object_bounds.z_range);
 
   /* Do linear search in all layers in order. This can be optimized. */
@@ -1199,7 +1214,7 @@ std::optional<Bounds<float>> VolumePipeline::object_integration_range() const
 
 bool VolumePipeline::use_hit_list() const
 {
-  for (auto &layer : layers_) {
+  for (const auto &layer : layers_) {
     if (layer->use_hit_list) {
       return true;
     }

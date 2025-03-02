@@ -2,13 +2,21 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(common_view_clipping_lib.glsl)
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_math_base_lib.glsl)
+#include "infos/overlay_edit_mode_info.hh"
+
+VERTEX_SHADER_CREATE_INFO(overlay_edit_mesh_skin_root)
+#ifdef GLSL_CPP_STUBS
+#  define VERTEX_PULL
+#endif
+
+#include "draw_model_lib.glsl"
+#include "draw_view_clipping_lib.glsl"
+#include "draw_view_lib.glsl"
+#include "gpu_shader_math_base_lib.glsl"
 
 void main()
 {
-  mat3 imat = mat3(ModelMatrixInverse);
+  mat3 imat = to_float3x3(ModelMatrixInverse);
   vec3 right = normalize(imat * ViewMatrixInverse[0].xyz);
   vec3 up = normalize(imat * ViewMatrixInverse[1].xyz);
 #ifdef VERTEX_PULL

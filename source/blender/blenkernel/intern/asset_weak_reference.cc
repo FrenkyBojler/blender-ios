@@ -8,7 +8,8 @@
 
 #include <memory>
 
-#include "BLI_path_util.h"
+#include "BLI_listbase.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
 #include "AS_asset_library.hh"

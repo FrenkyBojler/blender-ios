@@ -6,12 +6,8 @@
  * \ingroup edobj
  */
 
-#include <cmath>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
-
-#include "MEM_guardedalloc.h"
 
 #include "DNA_grease_pencil_types.h"
 #include "DNA_object_types.h"
@@ -61,7 +57,7 @@ ShaderFxData *shaderfx_add(
   ShaderFxData *new_fx = nullptr;
   const ShaderFxTypeInfo *fxi = BKE_shaderfx_get_info(ShaderFxType(type));
 
-  if (!ELEM(ob->type, OB_GPENCIL_LEGACY, OB_GREASE_PENCIL)) {
+  if (!ELEM(ob->type, OB_GREASE_PENCIL)) {
     BKE_reportf(reports, RPT_WARNING, "Effect cannot be added to object '%s'", ob->id.name + 2);
     return nullptr;
   }
@@ -511,7 +507,7 @@ static int shaderfx_remove_invoke(bContext *C, wmOperator *op, const wmEvent *ev
 void OBJECT_OT_shaderfx_remove(wmOperatorType *ot)
 {
   ot->name = "Remove Grease Pencil Effect";
-  ot->description = "Remove a effect from the active grease pencil object";
+  ot->description = "Remove a effect from the active Grease Pencil object";
   ot->idname = "OBJECT_OT_shaderfx_remove";
 
   ot->invoke = shaderfx_remove_invoke;

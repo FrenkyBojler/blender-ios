@@ -6,12 +6,12 @@
  * \ingroup spview3d
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "DNA_armature_types.h"
 #include "DNA_object_types.h"
+#include "DNA_pointcloud_types.h"
 
 #include "BLI_bounds.hh"
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
@@ -43,14 +43,17 @@
 
 #include "ED_anim_api.hh"
 #include "ED_curves.hh"
+#include "ED_grease_pencil.hh"
 #include "ED_keyframing.hh"
 #include "ED_object.hh"
+#include "ED_pointcloud.hh"
 #include "ED_screen.hh"
 #include "ED_transverts.hh"
 
 #include "ANIM_action.hh"
 #include "ANIM_bone_collections.hh"
 #include "ANIM_keyframing.hh"
+#include "ANIM_keyingsets.hh"
 
 #include "view3d_intern.hh"
 
@@ -124,7 +127,7 @@ static int snap_sel_to_grid_exec(bContext *C, wmOperator *op)
     }
   }
   else if (OBPOSE_FROM_OBACT(obact)) {
-    KeyingSet *ks = ANIM_get_keyingset_for_autokeying(scene, ANIM_KS_LOCATION_ID);
+    KeyingSet *ks = blender::animrig::get_keyingset_for_autokeying(scene, ANIM_KS_LOCATION_ID);
     Vector<Object *> objects_eval = BKE_object_pose_array_get(scene, view_layer_eval, v3d);
     for (Object *ob_eval : objects_eval) {
       Object *ob = DEG_get_original_object(ob_eval);
@@ -181,7 +184,7 @@ static int snap_sel_to_grid_exec(bContext *C, wmOperator *op)
     /* Object mode. */
     Main *bmain = CTX_data_main(C);
 
-    KeyingSet *ks = ANIM_get_keyingset_for_autokeying(scene, ANIM_KS_LOCATION_ID);
+    KeyingSet *ks = blender::animrig::get_keyingset_for_autokeying(scene, ANIM_KS_LOCATION_ID);
 
     const bool use_transform_skip_children = (scene->toolsettings->transform_flag &
                                               SCE_XFORM_SKIP_CHILDREN);
@@ -386,7 +389,7 @@ static bool snap_selected_to_location(bContext *C,
     }
   }
   else if (OBPOSE_FROM_OBACT(obact)) {
-    KeyingSet *ks = ANIM_get_keyingset_for_autokeying(scene, ANIM_KS_LOCATION_ID);
+    KeyingSet *ks = blender::animrig::get_keyingset_for_autokeying(scene, ANIM_KS_LOCATION_ID);
     ViewLayer *view_layer = CTX_data_view_layer(C);
     Vector<Object *> objects = BKE_object_pose_array_get(scene, view_layer, v3d);
 
@@ -462,9 +465,10 @@ static bool snap_selected_to_location(bContext *C,
     }
   }
   else {
-    KeyingSet *ks = ANIM_get_keyingset_for_autokeying(scene, ANIM_KS_LOCATION_ID);
+    KeyingSet *ks = blender::animrig::get_keyingset_for_autokeying(scene, ANIM_KS_LOCATION_ID);
     Main *bmain = CTX_data_main(C);
     Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+    BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
 
     /* Reset flags. */
     for (Object *ob = static_cast<Object *>(bmain->objects.first); ob;
@@ -494,13 +498,11 @@ static bool snap_selected_to_location(bContext *C,
     object::XFormObjectData_Container *xds = nullptr;
 
     if (use_transform_skip_children) {
-      BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
       xcs = object::xform_skip_child_container_create();
       object::xform_skip_child_container_item_ensure_from_array(
           xcs, scene, view_layer, objects.data(), objects.size());
     }
     if (use_transform_data_origin) {
-      BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
       xds = object::data_xform_container_create();
 
       /* Initialize the transform data in a separate loop because the depsgraph
@@ -712,7 +714,7 @@ void VIEW3D_OT_snap_cursor_to_grid(wmOperatorType *ot)
   ot->poll = ED_operator_region_view3d_active;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = OPTYPE_REGISTER;
 }
 
 /** \} */
@@ -903,7 +905,7 @@ void VIEW3D_OT_snap_cursor_to_selected(wmOperatorType *ot)
   ot->poll = ED_operator_view3d_active;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = OPTYPE_REGISTER;
 }
 
 /** \} */
@@ -952,7 +954,7 @@ void VIEW3D_OT_snap_cursor_to_active(wmOperatorType *ot)
   ot->poll = ED_operator_view3d_active;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = OPTYPE_REGISTER;
 }
 
 /** \} */
@@ -986,7 +988,7 @@ void VIEW3D_OT_snap_cursor_to_center(wmOperatorType *ot)
   ot->poll = ED_operator_view3d_active;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = OPTYPE_REGISTER;
 }
 
 /** \} */
@@ -1007,7 +1009,7 @@ static std::optional<blender::Bounds<blender::float3>> bounds_min_max_with_trans
   return threading::parallel_reduce(
       mask.index_range(),
       1024,
-      Bounds<float3>(math::transform_point(transform, positions.first())),
+      Bounds<float3>(math::transform_point(transform, positions[mask.first()])),
       [&](const IndexRange range, Bounds<float3> init) {
         mask.slice(range).foreach_index([&](const int i) {
           math::min_max(math::transform_point(transform, positions[i]), init.min, init.max);
@@ -1017,7 +1019,7 @@ static std::optional<blender::Bounds<blender::float3>> bounds_min_max_with_trans
       [](const Bounds<float3> &a, const Bounds<float3> &b) { return bounds::merge(a, b); });
 }
 
-bool ED_view3d_minmax_verts(Object *obedit, float r_min[3], float r_max[3])
+bool ED_view3d_minmax_verts(const Scene *scene, Object *obedit, float r_min[3], float r_max[3])
 {
   using namespace blender;
   using namespace blender::ed;
@@ -1025,7 +1027,7 @@ bool ED_view3d_minmax_verts(Object *obedit, float r_min[3], float r_max[3])
   TransVert *tv;
   float centroid[3], vec[3], bmat[3][3];
 
-  /* Metaballs are an exception. */
+  /* Meta-balls are an exception. */
   if (obedit->type == OB_MBALL) {
     float ob_min[3], ob_max[3];
     bool changed;
@@ -1041,6 +1043,23 @@ bool ED_view3d_minmax_verts(Object *obedit, float r_min[3], float r_max[3])
     }
     return changed;
   }
+  if (obedit->type == OB_POINTCLOUD) {
+    const Object &ob_orig = *DEG_get_original_object(obedit);
+    const PointCloud &pointcloud = *static_cast<const PointCloud *>(ob_orig.data);
+
+    IndexMaskMemory memory;
+    const IndexMask mask = pointcloud::retrieve_selected_points(pointcloud, memory);
+
+    const std::optional<Bounds<float3>> bounds = bounds_min_max_with_transform(
+        obedit->object_to_world(), pointcloud.positions(), mask);
+
+    if (bounds) {
+      minmax_v3v3_v3(r_min, r_max, bounds->min);
+      minmax_v3v3_v3(r_min, r_max, bounds->max);
+      return true;
+    }
+    return false;
+  }
   if (obedit->type == OB_CURVES) {
     const Object &ob_orig = *DEG_get_original_object(obedit);
     const Curves &curves_id = *static_cast<const Curves *>(ob_orig.data);
@@ -1052,12 +1071,51 @@ bool ED_view3d_minmax_verts(Object *obedit, float r_min[3], float r_max[3])
     const bke::crazyspace::GeometryDeformation deformation =
         bke::crazyspace::get_evaluated_curves_deformation(obedit, ob_orig);
 
-    const std::optional<Bounds<float3>> curves_bounds = bounds_min_max_with_transform(
+    const std::optional<Bounds<float3>> bounds = bounds_min_max_with_transform(
         obedit->object_to_world(), deformation.positions, mask);
 
-    if (curves_bounds) {
-      minmax_v3v3_v3(r_min, r_max, curves_bounds->min);
-      minmax_v3v3_v3(r_min, r_max, curves_bounds->max);
+    if (bounds) {
+      minmax_v3v3_v3(r_min, r_max, bounds->min);
+      minmax_v3v3_v3(r_min, r_max, bounds->max);
+      return true;
+    }
+    return false;
+  }
+  if (obedit->type == OB_GREASE_PENCIL) {
+    Object &ob_orig = *DEG_get_original_object(obedit);
+    GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob_orig.data);
+
+    std::optional<Bounds<float3>> bounds = std::nullopt;
+
+    const Vector<greasepencil::MutableDrawingInfo> drawings =
+        greasepencil::retrieve_editable_drawings(*scene, grease_pencil);
+    for (const greasepencil::MutableDrawingInfo info : drawings) {
+      const bke::CurvesGeometry &curves = info.drawing.strokes();
+      if (curves.is_empty()) {
+        continue;
+      }
+
+      IndexMaskMemory memory;
+      const IndexMask points = greasepencil::retrieve_editable_and_selected_points(
+          ob_orig, info.drawing, info.layer_index, memory);
+      if (points.is_empty()) {
+        continue;
+      }
+
+      const bke::crazyspace::GeometryDeformation deformation =
+          bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
+              obedit, ob_orig, info.layer_index, info.frame_number);
+
+      const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
+      const float4x4 layer_to_world = layer.to_world_space(*obedit);
+
+      bounds = bounds::merge(
+          bounds, bounds_min_max_with_transform(layer_to_world, deformation.positions, points));
+    }
+
+    if (bounds) {
+      minmax_v3v3_v3(r_min, r_max, bounds->min);
+      minmax_v3v3_v3(r_min, r_max, bounds->max);
       return true;
     }
     return false;

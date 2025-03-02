@@ -10,7 +10,7 @@
 
 #include "BLI_utildefines.h"
 
-#include "bpy_app_build_options.h"
+#include "bpy_app_build_options.hh"
 
 static PyTypeObject BlenderAppBuildOptionsType;
 
@@ -103,11 +103,8 @@ static PyObject *make_builtopts_info()
   SetObjIncref(Py_False);
 #endif
 
-#ifdef WITH_COMPOSITOR_CPU
+  /* Compositor. */
   SetObjIncref(Py_True);
-#else
-  SetObjIncref(Py_False);
-#endif
 
 #ifdef WITH_CYCLES
   SetObjIncref(Py_True);

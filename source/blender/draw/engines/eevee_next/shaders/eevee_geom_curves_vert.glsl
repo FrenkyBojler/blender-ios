@@ -2,12 +2,17 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(draw_model_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_attributes_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_nodetree_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_surf_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_velocity_lib.glsl)
-#pragma BLENDER_REQUIRE(common_hair_lib.glsl) /* TODO rename to curve. */
+#include "infos/eevee_material_info.hh"
+
+VERTEX_SHADER_CREATE_INFO(eevee_clip_plane)
+VERTEX_SHADER_CREATE_INFO(eevee_geom_curves)
+
+#include "common_hair_lib.glsl" /* TODO rename to curve. */
+#include "draw_model_lib.glsl"
+#include "eevee_attributes_curves_lib.glsl"
+#include "eevee_nodetree_lib.glsl"
+#include "eevee_surf_lib.glsl"
+#include "eevee_velocity_lib.glsl"
 
 void main()
 {
@@ -38,7 +43,7 @@ void main()
    * strand, not its cylinder. Otherwise we would add the rotation velocity. */
   int vert_idx = hair_get_base_id();
   vec3 prv, nxt;
-  vec3 pos = texelFetch(hairPointBuffer, vert_idx).point_position;
+  vec3 pos = hair_get_point(vert_idx).position;
   velocity_local_pos_get(pos, vert_idx, prv, nxt);
   /* FIXME(fclem): Evaluating before displacement avoid displacement being treated as motion but
    * ignores motion from animated displacement. Supporting animated displacement motion vectors

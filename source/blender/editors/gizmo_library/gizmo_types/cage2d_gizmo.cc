@@ -18,6 +18,7 @@
 #include "BLI_dial_2d.h"
 #include "BLI_math_base_safe.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_rect.h"
 
@@ -27,7 +28,6 @@
 #include "GPU_immediate_util.hh"
 #include "GPU_matrix.hh"
 #include "GPU_select.hh"
-#include "GPU_shader.hh"
 #include "GPU_state.hh"
 
 #include "RNA_access.hh"
@@ -558,12 +558,14 @@ static void cage2d_draw_circle_wire(const float color[3],
 {
   uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
 
-  immBindBuiltinProgram(is_zero_v2(margin) ? GPU_SHADER_3D_UNIFORM_COLOR :
-                                             GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
+  const bool use_points = is_zero_v2(margin);
+  immBindBuiltinProgram(use_points ? GPU_SHADER_3D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_AA :
+                                     GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
   immUniformColor3fv(color);
 
-  if (is_zero_v2(margin)) {
+  if (use_points) {
     /* Draw a central point. */
+    immUniform1f("size", 1.0 * U.pixelsize);
     immBegin(GPU_PRIM_POINTS, 1);
     immVertex3f(pos, 0.0f, 0.0f, 0.0f);
     immEnd();
@@ -1289,7 +1291,10 @@ static void gizmo_cage2d_exit(bContext *C, wmGizmo *gz, const bool cancel)
 {
   RectTransformInteraction *data = static_cast<RectTransformInteraction *>(gz->interaction_data);
 
-  MEM_SAFE_FREE(data->dial);
+  if (data->dial) {
+    BLI_dial_free(data->dial);
+    data->dial = nullptr;
+  }
 
   if (!cancel) {
     return;

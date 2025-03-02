@@ -7,23 +7,14 @@
  */
 
 #include <algorithm>
-#include <limits>
 
-#include "BLI_array_utils.hh"
-#include "BLI_enumerable_thread_specific.hh"
-#include "BLI_kdtree.h"
 #include "BLI_listbase.h"
-#include "BLI_math_vector.hh"
-#include "BLI_offset_indices.hh"
-#include "BLI_rect.h"
-#include "BLI_stack.hh"
-#include "BLI_task.hh"
 
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_global.hh"
 #include "BKE_grease_pencil.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_modifier.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -40,7 +31,7 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
-#include "MOD_lineart.h"
+#include "MOD_lineart.hh"
 
 namespace blender::ed::greasepencil {
 
@@ -66,10 +57,10 @@ void get_lineart_modifier_limits(const Object &ob,
 
 void set_lineart_modifier_limits(GreasePencilLineartModifierData &lmd,
                                  const blender::ed::greasepencil::LineartLimitInfo &info,
-                                 const bool is_first_lineart)
+                                 const bool cache_is_ready)
 {
   BLI_assert(lmd.modifier.type == eModifierType_GreasePencilLineart);
-  if (is_first_lineart || lmd.flags & MOD_LINEART_USE_CACHE) {
+  if ((!cache_is_ready) || (lmd.flags & MOD_LINEART_USE_CACHE)) {
     lmd.level_start_override = info.min_level;
     lmd.level_end_override = info.max_level;
     lmd.edge_types_override = info.edge_types;
@@ -87,6 +78,8 @@ void set_lineart_modifier_limits(GreasePencilLineartModifierData &lmd,
 
 GreasePencilLineartModifierData *get_first_lineart_modifier(const Object &ob)
 {
+  /* This function always gets the first line art modifier regardless of their visibility, because
+   * cached line art configuration are always inside the first line art modifier. */
   LISTBASE_FOREACH (ModifierData *, i_md, &ob.modifiers) {
     if (i_md->type == eModifierType_GreasePencilLineart) {
       return reinterpret_cast<GreasePencilLineartModifierData *>(i_md);
@@ -161,16 +154,15 @@ static bool lineart_mod_is_disabled(Scene *scene, GreasePencilLineartModifierDat
 static bool bake_strokes(Object *ob,
                          Depsgraph *dg,
                          LineartCache **lc,
-                         GreasePencilLineartModifierData *md,
+                         GreasePencilLineartModifierData *lmd,
                          int frame,
                          bool is_first)
 {
   /* Modifier data sanity check. */
-  if (lineart_mod_is_disabled(DEG_get_evaluated_scene(dg), md)) {
+  if (lineart_mod_is_disabled(DEG_get_evaluated_scene(dg), lmd)) {
     return false;
   }
 
-  GreasePencilLineartModifierData *lmd = reinterpret_cast<GreasePencilLineartModifierData *>(md);
   GreasePencil *grease_pencil = reinterpret_cast<GreasePencil *>(ob->data);
 
   blender::bke::greasepencil::TreeNode *node = grease_pencil->find_node_by_name(lmd->target_layer);
@@ -206,7 +198,7 @@ static bool bake_strokes(Object *ob,
 
   MOD_lineart_gpencil_generate_v3(
       lmd->cache,
-      ob->object_to_world(),
+      ob->world_to_object(),
       dg,
       *drawing,
       lmd->source_type,
@@ -509,7 +501,7 @@ static void OBJECT_OT_lineart_bake_strokes(wmOperatorType *ot)
   ot->exec = lineart_bake_strokes_exec;
   ot->modal = lineart_bake_strokes_common_modal;
 
-  RNA_def_boolean(ot->srna, "bake_all", false, "Bake All", "Bake all line art modifiers");
+  RNA_def_boolean(ot->srna, "bake_all", false, "Bake All", "Bake all Line Art modifiers");
 }
 
 static void OBJECT_OT_lineart_clear(wmOperatorType *ot)
@@ -521,7 +513,7 @@ static void OBJECT_OT_lineart_clear(wmOperatorType *ot)
   ot->poll = blender::ed::greasepencil::active_grease_pencil_poll;
   ot->exec = lineart_gpencil_clear_strokes_exec;
 
-  RNA_def_boolean(ot->srna, "clear_all", false, "Clear All", "Clear all line art modifier bakes");
+  RNA_def_boolean(ot->srna, "clear_all", false, "Clear All", "Clear all Line Art modifier bakes");
 }
 
 void ED_operatortypes_grease_pencil_lineart()
