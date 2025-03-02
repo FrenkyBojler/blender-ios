@@ -6,6 +6,8 @@
 
 #include <atomic>
 
+#include "device/device.h"
+
 #include "util/array.h"
 #include "util/set.h"
 #include "util/string.h"
@@ -90,21 +92,16 @@ class OSLManager {
   void shading_system_init();
   void shading_system_free();
 
+  void foreach_shading_system(const std::function<void(OSL::ShadingSystem *)> &callback);
+  void foreach_render_services(const std::function<void(OSLRenderServices *)> &callback);
+
+  OSL::TextureSystem *get_texture_system();
+
   Device *device_;
   map<string, OSLShaderInfo> loaded_shaders;
 
-#  if OIIO_VERSION_MAJOR >= 3
-  static std::shared_ptr<OSL::TextureSystem> ts_shared;
-#  else
-  static OSL::TextureSystem *ts_shared;
-#  endif
-  static thread_mutex ts_shared_mutex;
-  static int ts_shared_users;
-
-  static OSL::ErrorHandler errhandler;
-  static map<int, unique_ptr<OSL::ShadingSystem>> ss_shared;
-  static thread_mutex ss_shared_mutex;
-  static int ss_shared_users;
+  std::shared_ptr<OSL::TextureSystem> ts;
+  map<DeviceType, std::shared_ptr<OSL::ShadingSystem>> ss_map;
 
   bool need_update_;
 #endif

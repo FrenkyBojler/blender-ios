@@ -35,28 +35,18 @@ CCL_NAMESPACE_BEGIN
 
 /* Shared Texture and Shading System */
 
-#  if OIIO_VERSION_MAJOR >= 3
-std::shared_ptr<OSL::TextureSystem> OSLManager::ts_shared;
-#  else
-OSL::TextureSystem *OSLManager::ts_shared = nullptr;
-#  endif
-int OSLManager::ts_shared_users = 0;
-thread_mutex OSLManager::ts_shared_mutex;
+std::shared_ptr<OSL::TextureSystem> ts_shared;
+thread_mutex ts_shared_mutex;
 
-OSL::ErrorHandler OSLManager::errhandler;
-map<int, unique_ptr<OSL::ShadingSystem>> OSLManager::ss_shared;
-int OSLManager::ss_shared_users = 0;
-thread_mutex OSLManager::ss_shared_mutex;
+map<DeviceType, std::shared_ptr<OSL::ShadingSystem>> ss_shared;
+thread_mutex ss_shared_mutex;
+OSL::ErrorHandler errhandler;
 
 std::atomic<int> OSLCompiler::texture_shared_unique_id = 0;
 
 /* Shader Manager */
 
-OSLManager::OSLManager(Device *device) : device_(device), need_update_(true)
-{
-  texture_system_init();
-  shading_system_init();
-}
+OSLManager::OSLManager(Device *device) : device_(device), need_update_(true) {}
 
 OSLManager::~OSLManager()
 {
@@ -79,13 +69,43 @@ void OSLManager::free_memory()
 void OSLManager::reset(Scene * /*scene*/)
 {
   shading_system_free();
-  shading_system_init();
   tag_update();
+}
+
+OSL::TextureSystem *OSLManager::get_texture_system()
+{
+  if (!ts) {
+    texture_system_init();
+  }
+  return ts.get();
 }
 
 OSL::ShadingSystem *OSLManager::get_shading_system(Device *sub_device)
 {
-  return ss_shared[sub_device->info.type].get();
+  if (ss_map.empty()) {
+    shading_system_init();
+  }
+  return ss_map[sub_device->info.type].get();
+}
+
+void OSLManager::foreach_shading_system(const std::function<void(OSL::ShadingSystem *)> &callback)
+{
+  if (ss_map.empty()) {
+    shading_system_init();
+  }
+  for (const auto &[device_type, ss] : ss_map) {
+    callback(ss.get());
+  }
+}
+
+void OSLManager::foreach_render_services(const std::function<void(OSLRenderServices *)> &callback)
+{
+  if (ss_map.empty()) {
+    shading_system_init();
+  }
+  for (const auto &[device_type, ss] : ss_map) {
+    callback(static_cast<OSLRenderServices *>(ss->renderer()));
+  }
 }
 
 void OSLManager::tag_update()
@@ -107,20 +127,14 @@ void OSLManager::device_update_pre(Device *device, Scene *scene)
   /* set texture system (only on CPU devices, since GPU devices cannot use OIIO) */
   if (scene->shader_manager->use_osl()) {
     /* add special builtin texture types */
-    for (const auto &[device_type, ss] : ss_shared) {
-      OSLRenderServices *services = static_cast<OSLRenderServices *>(ss->renderer());
-
+    foreach_render_services([](OSLRenderServices *services) {
       services->textures.insert(OSLUStringHash("@ao"), OSLTextureHandle(OSLTextureHandle::AO));
       services->textures.insert(OSLUStringHash("@bevel"),
                                 OSLTextureHandle(OSLTextureHandle::BEVEL));
-    }
+    });
 
     if (device->info.type == DEVICE_CPU) {
-#  if OIIO_VERSION_MAJOR >= 3
-      scene->image_manager->set_osl_texture_system((void *)ts_shared.get());
-#  else
-      scene->image_manager->set_osl_texture_system((void *)ts_shared);
-#  endif
+      scene->image_manager->set_osl_texture_system((void *)get_texture_system());
     }
   }
 }
@@ -137,11 +151,7 @@ void OSLManager::device_update_post(Device *device, Scene *scene, Progress &prog
       OSL::ShadingSystem *ss = get_shading_system(sub_device);
 
       og->ss = ss;
-#  if OIIO_VERSION_MAJOR >= 3
-      og->ts = ts_shared.get();
-#  else
-      og->ts = ts_shared;
-#  endif
+      og->ts = get_texture_system();
       og->services = static_cast<OSLRenderServices *>(ss->renderer());
 
       /* load kernels */
@@ -178,9 +188,7 @@ void OSLManager::device_update_post(Device *device, Scene *scene, Progress &prog
      * load images for the GPU. */
     OSLRenderServices::image_manager = scene->image_manager.get();
 
-    for (const auto &[device_type, ss] : ss_shared) {
-      ss->optimize_all_groups();
-    }
+    foreach_shading_system([](OSL::ShadingSystem *ss) { ss->optimize_all_groups(); });
 
     OSLRenderServices::image_manager = nullptr;
   }
@@ -201,9 +209,7 @@ void OSLManager::device_free(Device *device, DeviceScene * /*dscene*/, Scene *sc
 
   /* Remove any textures specific to an image manager from shared render services textures, since
    * the image manager may get destroyed next. */
-  for (const auto &[device_type, ss] : ss_shared) {
-    OSLRenderServices *services = static_cast<OSLRenderServices *>(ss->renderer());
-
+  foreach_render_services([scene](OSLRenderServices *services) {
     for (auto it = services->textures.begin(); it != services->textures.end(); ++it) {
       if (it->second.handle.get_manager() == scene->image_manager.get()) {
         /* Don't lock again, since the iterator already did so. */
@@ -213,7 +219,7 @@ void OSLManager::device_free(Device *device, DeviceScene * /*dscene*/, Scene *sc
         it = services->textures.begin();
       }
     }
-  }
+  });
 }
 
 void OSLManager::texture_system_init()
@@ -221,8 +227,12 @@ void OSLManager::texture_system_init()
   /* create texture system, shared between different renders to reduce memory usage */
   const thread_scoped_lock lock(ts_shared_mutex);
 
-  if (ts_shared_users++ == 0) {
+  if (!ts_shared) {
+#  if OIIO_VERSION_MAJOR >= 3
     ts_shared = OSL::TextureSystem::create(true);
+#  else
+    ts_shared = shared_ptr(OSL::TextureSystem::create(true), OSL::TextureSystem::destroy);
+#  endif
 
     ts_shared->attribute("automip", 1);
     ts_shared->attribute("autotile", 64);
@@ -231,22 +241,20 @@ void OSLManager::texture_system_init()
     /* effectively unlimited for now, until we support proper mipmap lookups */
     ts_shared->attribute("max_memory_MB", 16384);
   }
+
+  /* make local copy to increase use count */
+  ts = ts_shared;
 }
 
 void OSLManager::texture_system_free()
 {
-  /* shared texture system decrease users and destroy if no longer used */
-  const thread_scoped_lock lock(ts_shared_mutex);
+  ts.reset();
 
-  if (--ts_shared_users == 0) {
-    ts_shared->invalidate_all(true);
-#  if OIIO_VERSION_MAJOR >= 3
-    OSL::TextureSystem::destroy(ts_shared);
+  /* if ts_shared is the only reference to the underlying texture system,
+   * no users remain, so free it. */
+  const thread_scoped_lock lock(ts_shared_mutex);
+  if (ts_shared.use_count() == 1) {
     ts_shared.reset();
-#  else
-    OSL::TextureSystem::destroy(ts_shared);
-    ts_shared = nullptr;
-#  endif
   }
 }
 
@@ -255,18 +263,12 @@ void OSLManager::shading_system_init()
   /* create shading system, shared between different renders to reduce memory usage */
   const thread_scoped_lock lock(ss_shared_mutex);
 
-  device_->foreach_device([](Device *sub_device) {
+  device_->foreach_device([this](Device *sub_device) {
     const DeviceType device_type = sub_device->info.type;
 
-    if (ss_shared_users++ == 0 || ss_shared.find(device_type) == ss_shared.end()) {
-      /* Must use aligned new due to concurrent hash map. */
-#  if OIIO_VERSION_MAJOR >= 3
-      OSLRenderServices *services = util_aligned_new<OSLRenderServices>(ts_shared.get(),
+    if (!ss_shared[device_type]) {
+      OSLRenderServices *services = util_aligned_new<OSLRenderServices>(get_texture_system(),
                                                                         device_type);
-#  else
-      OSLRenderServices *services = util_aligned_new<OSLRenderServices>(ts_shared, device_type);
-#  endif
-
 #  ifdef _WIN32
       /* Annoying thing, Cycles stores paths in UTF-8 codepage, so it can
        * operate with file paths with any character. This requires to use wide
@@ -281,13 +283,9 @@ void OSLManager::shading_system_init()
       const string shader_path = path_get("shader");
 #  endif
 
-#  if OIIO_VERSION_MAJOR >= 3
-      unique_ptr<OSL::ShadingSystem> ss = make_unique<OSL::ShadingSystem>(
-          services, ts_shared.get(), &errhandler);
-#  else
-      unique_ptr<OSL::ShadingSystem> ss = make_unique<OSL::ShadingSystem>(
-          services, ts_shared, &errhandler);
-#  endif
+      auto ss = std::shared_ptr<OSL::ShadingSystem>(
+          new OSL::ShadingSystem(services, get_texture_system(), &errhandler),
+          [](auto *ss) { util_aligned_delete(static_cast<OSLRenderServices *>(ss->renderer())); });
       ss->attribute("lockgeom", 1);
       ss->attribute("commonspace", "world");
       ss->attribute("searchpath:shader", shader_path);
@@ -348,30 +346,26 @@ void OSLManager::shading_system_init()
       ss->attribute("raytypes", TypeDesc(TypeDesc::STRING, nraytypes), (const void *)raytypes);
 
       OSLRenderServices::register_closures(ss.get());
-
       ss_shared[device_type] = std::move(ss);
     }
+    ss_map[device_type] = ss_shared[device_type];
   });
-
-  loaded_shaders.clear();
 }
 
 void OSLManager::shading_system_free()
 {
-  /* shared shading system decrease users and destroy if no longer used */
+  ss_map.clear();
+
+  /* if ss_shared is the only reference to the underlying shading system,
+   * no users remain, so free it. */
   const thread_scoped_lock lock(ss_shared_mutex);
-
-  device_->foreach_device([](Device * /*sub_device*/) {
-    if (--ss_shared_users == 0) {
-      for (auto &[device_type, ss] : ss_shared) {
-        OSLRenderServices *services = static_cast<OSLRenderServices *>(ss->renderer());
-        ss.reset();
-        util_aligned_delete(services);
-      }
-
-      ss_shared.clear();
+  for (auto &[device_type, ss] : ss_shared) {
+    if (ss.use_count() == 1) {
+      ss.reset();
     }
-  });
+  }
+
+  loaded_shaders.clear();
 }
 
 bool OSLManager::osl_compile(const string &inputfile, const string &outputfile)
@@ -498,9 +492,8 @@ const char *OSLManager::shader_load_filepath(string filepath)
 
 const char *OSLManager::shader_load_bytecode(const string &hash, const string &bytecode)
 {
-  for (const auto &[device_type, ss] : ss_shared) {
-    ss->LoadMemoryCompiledShader(hash, bytecode);
-  }
+  foreach_shading_system(
+      [hash, bytecode](OSL::ShadingSystem *ss) { ss->LoadMemoryCompiledShader(hash, bytecode); });
 
   tag_update();
 
