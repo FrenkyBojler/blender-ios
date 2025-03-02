@@ -354,13 +354,57 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
 //   return 1;
 // }
 
-struct IntersectionPoint {
+class SegmentEndPoint {
+ private:
+  int index_ = 0;
+
+ public:
+  constexpr SegmentEndPoint() = default;
+
+  constexpr explicit SegmentEndPoint(int segment_i, bool is_end)
+  {
+    BLI_assert(segment_i >= 0);
+    if (is_end) {
+      index_ = -(segment_i + 1);
+    }
+    else {
+      index_ = segment_i + 1;
+    }
+  }
+
+  bool is_start() const
+  {
+    return index_ > 0;
+  }
+  bool is_end() const
+  {
+    return index_ < 0;
+  }
+  bool is_null() const
+  {
+    return index_ == 0;
+  }
+
+  int segment_index() const
+  {
+    return math::abs(index_) - 1;
+  }
+};
+
+class IntersectionPoint {
+ public:
   int point_a;
   int point_b;
   float alpha_a;
   float alpha_b;
   int curve_a;
   int curve_b;
+  SegmentEndPoint start_a;
+  SegmentEndPoint end_a;
+  SegmentEndPoint start_b;
+  SegmentEndPoint end_b;
+
+  constexpr IntersectionPoint() = default;
 
   float parameter_for_curve(const int curve) const
   {
@@ -540,8 +584,22 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
       const int int_p_1 = inters_per_curve[inter_sorted_ids.first()];
       const int int_p_2 = inters_per_curve[inter_sorted_ids.last()];
 
-      const IntersectionPoint &inter_first = intersections[int_p_1];
-      const IntersectionPoint &inter_last = intersections[int_p_2];
+      IntersectionPoint &inter_first = intersections[int_p_1];
+      IntersectionPoint &inter_last = intersections[int_p_2];
+
+      if (curve_i == inter_first.curve_a) {
+        inter_first.start_a = SegmentEndPoint(all_segments.size(), true);
+      }
+      else {
+        inter_first.start_b = SegmentEndPoint(all_segments.size(), true);
+      }
+
+      if (curve_i == inter_last.curve_a) {
+        inter_last.end_a = SegmentEndPoint(all_segments.size(), false);
+      }
+      else {
+        inter_last.end_b = SegmentEndPoint(all_segments.size(), false);
+      }
 
       all_segments.append(Segment::from_intersections(curve_i,
                                                       points_i,
@@ -552,7 +610,14 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
     }
     else {
       const int int_p_1 = inters_per_curve[inter_sorted_ids.first()];
-      const IntersectionPoint &inter_first = intersections[int_p_1];
+      IntersectionPoint &inter_first = intersections[int_p_1];
+
+      if (curve_i == inter_first.curve_a) {
+        inter_first.start_a = SegmentEndPoint(all_segments.size(), false);
+      }
+      else {
+        inter_first.start_b = SegmentEndPoint(all_segments.size(), false);
+      }
 
       all_segments.append(Segment::from_start_to_intersection(
           curve_i, points_i, inter_first.parameter_for_curve(curve_i), int_p_1));
@@ -562,8 +627,22 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
       const int int_p_1 = inters_per_curve[inter_sorted_ids[inter_id]];
       const int int_p_2 = inters_per_curve[inter_sorted_ids[inter_id + 1]];
 
-      const IntersectionPoint &inter_first = intersections[int_p_1];
-      const IntersectionPoint &inter_last = intersections[int_p_2];
+      IntersectionPoint &inter_first = intersections[int_p_1];
+      IntersectionPoint &inter_last = intersections[int_p_2];
+
+      if (curve_i == inter_first.curve_a) {
+        inter_first.start_a = SegmentEndPoint(all_segments.size(), false);
+      }
+      else {
+        inter_first.start_b = SegmentEndPoint(all_segments.size(), false);
+      }
+
+      if (curve_i == inter_last.curve_a) {
+        inter_last.end_a = SegmentEndPoint(all_segments.size(), true);
+      }
+      else {
+        inter_last.end_b = SegmentEndPoint(all_segments.size(), true);
+      }
 
       all_segments.append(Segment::from_intersections(curve_i,
                                                       points_i,
@@ -575,7 +654,14 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
 
     if (!is_cyclic[curve_i]) {
       const int int_p_2 = inter_sorted_ids[inters_per_curve.last()];
-      const IntersectionPoint &inter_last = intersections[int_p_2];
+      IntersectionPoint &inter_last = intersections[int_p_2];
+
+      if (curve_i == inter_last.curve_a) {
+        inter_last.end_a = SegmentEndPoint(all_segments.size(), true);
+      }
+      else {
+        inter_last.end_b = SegmentEndPoint(all_segments.size(), true);
+      }
 
       all_segments.append(Segment::from_intersection_to_end(
           curve_i, points_i, inter_last.parameter_for_curve(curve_i), int_p_2));
