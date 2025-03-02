@@ -354,7 +354,7 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
 //   return 1;
 // }
 
-struct ExtendedIntersectionPoint {
+struct IntersectionPoint {
   int point_a;
   int point_b;
   float alpha_a;
@@ -375,14 +375,14 @@ struct ExtendedIntersectionPoint {
   }
 };
 
-static ExtendedIntersectionPoint create_intersection(const int point_a,
-                                                     const int point_b,
-                                                     const float alpha_a,
-                                                     const float alpha_b,
-                                                     const int curve_a,
-                                                     const int curve_b)
+static IntersectionPoint create_intersection(const int point_a,
+                                             const int point_b,
+                                             const float alpha_a,
+                                             const float alpha_b,
+                                             const int curve_a,
+                                             const int curve_b)
 {
-  ExtendedIntersectionPoint inter_point;
+  IntersectionPoint inter_point;
   inter_point.point_a = point_a;
   inter_point.point_b = point_b;
   inter_point.alpha_a = alpha_a;
@@ -466,7 +466,7 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
                                      const VArray<bool> &is_fill,
                                      const VArray<bool> &is_cyclic)
 {
-  Vector<ExtendedIntersectionPoint> intersections;
+  Vector<IntersectionPoint> intersections;
   Array<Vector<int>> inters_per_curves(points_by_curve.size());
 
   /* Calculate all intersections. */
@@ -531,8 +531,8 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
     array_utils::fill_index_range<int>(inter_sorted_ids);
 
     parallel_sort(inter_sorted_ids.begin(), inter_sorted_ids.end(), [&](int i1, int i2) {
-      const ExtendedIntersectionPoint &inter1 = intersections[inters_per_curve[i1]];
-      const ExtendedIntersectionPoint &inter2 = intersections[inters_per_curve[i2]];
+      const IntersectionPoint &inter1 = intersections[inters_per_curve[i1]];
+      const IntersectionPoint &inter2 = intersections[inters_per_curve[i2]];
       return inter1.parameter_for_curve(curve_i) < inter2.parameter_for_curve(curve_i);
     });
 
@@ -540,8 +540,8 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
       const int int_p_1 = inters_per_curve[inter_sorted_ids.first()];
       const int int_p_2 = inters_per_curve[inter_sorted_ids.last()];
 
-      const ExtendedIntersectionPoint &inter_first = intersections[int_p_1];
-      const ExtendedIntersectionPoint &inter_last = intersections[int_p_2];
+      const IntersectionPoint &inter_first = intersections[int_p_1];
+      const IntersectionPoint &inter_last = intersections[int_p_2];
 
       all_segments.append(Segment::from_intersections(curve_i,
                                                       points_i,
@@ -552,7 +552,7 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
     }
     else {
       const int int_p_1 = inters_per_curve[inter_sorted_ids.first()];
-      const ExtendedIntersectionPoint &inter_first = intersections[int_p_1];
+      const IntersectionPoint &inter_first = intersections[int_p_1];
 
       all_segments.append(Segment::from_start_to_intersection(
           curve_i, points_i, inter_first.parameter_for_curve(curve_i), int_p_1));
@@ -562,8 +562,8 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
       const int int_p_1 = inters_per_curve[inter_sorted_ids[inter_id]];
       const int int_p_2 = inters_per_curve[inter_sorted_ids[inter_id + 1]];
 
-      const ExtendedIntersectionPoint &inter_first = intersections[int_p_1];
-      const ExtendedIntersectionPoint &inter_last = intersections[int_p_2];
+      const IntersectionPoint &inter_first = intersections[int_p_1];
+      const IntersectionPoint &inter_last = intersections[int_p_2];
 
       all_segments.append(Segment::from_intersections(curve_i,
                                                       points_i,
@@ -575,7 +575,7 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
 
     if (!is_cyclic[curve_i]) {
       const int int_p_2 = inter_sorted_ids[inters_per_curve.last()];
-      const ExtendedIntersectionPoint &inter_last = intersections[int_p_2];
+      const IntersectionPoint &inter_last = intersections[int_p_2];
 
       all_segments.append(Segment::from_intersection_to_end(
           curve_i, points_i, inter_last.parameter_for_curve(curve_i), int_p_2));
@@ -613,7 +613,7 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
         continue;
       }
       const int int_p_end = this_segment.end_intersection();
-      const ExtendedIntersectionPoint &inter_end = intersections[int_p_end];
+      const IntersectionPoint &inter_end = intersections[int_p_end];
 
       const int other_curve_i = inter_end.other_curve(curve_i);
       const int other_shape = other_curve_i; /* TODO. */
