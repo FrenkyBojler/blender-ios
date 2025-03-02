@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Beta (b'aad0bd21487d')\n"
+"Project-Id-Version: Blender 4.4.0 Beta (b'63c460d93d55')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-10 15:22+0000\n"
+"POT-Creation-Date: 2025-02-24 09:56+0000\n"
 "PO-Revision-Date: 2024-09-26 13:56+0000\n"
 "Last-Translator: Sarfaraz Baig <iamsarfarazbaig@gmail.com>\n"
 "Language-Team: Urdu <https://translate.blender.org/projects/blender-ui/ui/ur/>\n"
@@ -69,10 +69,6 @@ msgstr "ﭦﻼ﻿ﺳ"
 
 msgid "Action F-Curves"
 msgstr "ﮟﯿﻤﺧ-ﻑ ﻡﺍﺪﻗﺍ"
-
-
-msgid "Collection of action F-Curves"
-msgstr "ﮧﻋﻮﻤﺠﻣ ﺎﮐ ﮟﯿﻤﺧ-ﻒﯾﺍ ﻡﺍﺪﻗﺍ"
 
 
 msgid "Action Group"
@@ -17438,10 +17434,6 @@ msgid "The combined frame range of all F-Curves within this action"
 msgstr "ﺞﻨﯾﺭ ﻢﯾﺮﻓ ﮧﮐﺮﺘﺸﻣ ﯽﮐ ﮟﯿﻤﺧ-ﻑ ﻡﺎﻤﺗ ﺭﺪﻧﺍ ﮯﮐ ﻡﺍﺪﻗﺍ ﺱﺍ"
 
 
-msgid "The individual F-Curves that make up the action"
-msgstr "ﮟﯿﮨ ﮯﺗﺎﻨﺑ ﻞﻤﻋ ﻮﺟ ﮟﯿﻤﺧ-ﻑ ﯼﺩﺍﺮﻔﻧﺍ"
-
-
 msgid "The end frame of the manually set intended playback range"
 msgstr "ﻢﯾﺮﻓ ﯼﺮﺧﺁ ﺎﮐ ﺞﻨﯾﺭ ﮏﯿﺑ ﮯﻠﭘ ﮧﺑﻮﻠﻄﻣ ﮦﺪﺷ ﮯﻃ ﺮﭘ ﺭﻮﻃ ﯽﺘﺳﺩ"
 
@@ -17462,17 +17454,9 @@ msgid "Groups"
 msgstr "ﮦﻭﺮﮔ"
 
 
-msgid "Convenient groupings of F-Curves"
-msgstr "ﯼﺪﻨﺑ ﮦﻭﺮﮔ ﻥﺎﺳﺁ ﯽﮐ ﮟﯿﻤﺧ-ﻑ"
-
-
 msgctxt "ID"
 msgid "ID Root Type"
 msgstr "ID ﻢﺴﻗ ﯽﮐ ﭦﻭﺭ"
-
-
-msgid "Type of ID block that action can be used on - DO NOT CHANGE UNLESS YOU KNOW WHAT YOU ARE DOING"
-msgstr "ID ﮟﯿﮨ ﮯﮨﺭ ﺮﮐ ﺎﯿﮐ ﭖﺁ ﮧﮐ ﮞﻮﮨ ﮯﺘﻧﺎﺟ ﮧﻧ ﮧﯾ ﭖﺁ ﮧﮐ ﮏﺗ ﺐﺟ ﮟﯾﺮﮐ ﮧﻧ ﻞﯾﺪﺒﺗ - ﮯﮨ ﺎﺘﮑﺳ ﺎﺟ ﺎﯿﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﯽﺋﺍﻭﺭﺭﺎﮐ ﺮﭘ ﺲﺟ ﻢﺴﻗ ﯽﮐ ﮎﻼ﻿ﺑ"
 
 
 msgid "Layers"
@@ -18115,26 +18099,6 @@ msgstr "ﭧﯿﺴﻓﺁ ﺎﮐ ﻞﺻﺍ ﯼﺭﮉﻧﺅﺎﺑ ﮟﯿﻣ ﮯﻠ�
 
 msgid "Brush's capabilities"
 msgstr "ﮟﯿﺘﯿﺣﻼ﻿ﺻ ﯽﮐ ﺵﺮﺑ"
-
-
-msgid "Clone Alpha"
-msgstr "ﺎﻔﻟﺍ ﻥﻮﻠﮐ"
-
-
-msgid "Opacity of clone image display"
-msgstr "ﻦﭘﻻ﻿ﺪﻨﮬﺩ ﯽﮐ ﮯﻧﺎﮭﮐﺩ ﺞﯿﻣﺍ ﻥﻮﻠﮐ"
-
-
-msgid "Clone Image"
-msgstr "ﺞﯿﻣﺍ ﻥﻮﻠﮐ"
-
-
-msgid "Image for clone brushes"
-msgstr "ﺮﯾﻮﺼﺗ ﮯﯿﻟ ﮯﮐ ﺵﺮﺑ ﻥﻮﻠﮐ"
-
-
-msgid "Clone Offset"
-msgstr "ﭧﯿﺴﻓﺁ ﻥﻮﻠﮐ"
 
 
 msgid "Soft Body Plasticity"
@@ -33210,68 +33174,12 @@ msgid "Editor menu containing buttons"
 msgstr "ﻮﻨﯿﻣ ﺮﭩﯾﮉﯾﺍ ﻞﻤﺘﺸﻣ ﺮﭘ ﮞﻮﻨﭩﺑ"
 
 
-msgid "Show/Hide"
-msgstr "ﮟﯿﺋﺎﭙﮭﭼ/ﮟﯿﺋﺎﮭﮐﺩ"
-
-
-msgid "Clean Up"
-msgstr "ﯽﺋﺎﻔﺻ"
-
-
-msgid "Special Characters"
-msgstr "ﺭﺍﺩﺮﮐ ﯽﺻﻮﺼﺧ"
-
-
-msgid "Kerning"
-msgstr "ﮓﻨﻧﺮﮐ"
-
-
-msgid "Text"
-msgstr "ﻦﺘﻣ"
-
-
-msgid "Metaball"
-msgstr "ﻝﺎﺑ ﺎﭩﯿﻣ"
-
-
-msgid "Names"
-msgstr "ﻡﺎﻧ"
-
-
-msgid "Bone Roll"
-msgstr "ﻝﻭﺭ ﻥﻮﺑ"
-
-
-msgid "Pivot Point"
-msgstr "ﭧﻨﺋﺍﻮﭘ ﭦﻮﯿﭘ"
+msgid "Mirror"
+msgstr "ﮧﻨﯿﺋﺁ"
 
 
 msgid "Snap"
 msgstr "ﭗﯿﻨﺳ"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "ﻑﺁ ﻝﺎﻓ ﺮﺋﺎﻔﯾﮈﻮﻣ ﺐﺳﺎﻨﺘﻣ"
-
-
-msgid "Mask Edit"
-msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﮏﺳﺎﻣ"
-
-
-msgid "Automasking"
-msgstr "ﮓﻨﮑﺳﺎﻣﻮﭨﺁ"
-
-
-msgid "Face Sets Edit"
-msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ"
-
-
-msgid "Vertex Group Locks"
-msgstr "ﮎﻻ﻿ ﮦﻭﺮﮔ ﺲﮑﯿﭨﺭﻭ"
-
-
-msgid "Mirror"
-msgstr "ﮧﻨﯿﺋﺁ"
 
 
 msgid "UV Mapping"
@@ -33326,6 +33234,10 @@ msgid "Assign Material"
 msgstr "ﮟﯾﺮﮐ ﺾﯾﻮﻔﺗ ﺩﺍﻮﻣ"
 
 
+msgid "Metaball"
+msgstr "ﻝﺎﺑ ﺎﭩﯿﻣ"
+
+
 msgid "Light"
 msgstr "ﯽﻨﺷﻭﺭ"
 
@@ -33358,6 +33270,14 @@ msgid "Quick Effects"
 msgstr "ﺕﺍﺮﺛﺍ ﯼﺭﻮﻓ"
 
 
+msgid "Show/Hide"
+msgstr "ﮟﯿﺋﺎﭙﮭﭼ/ﮟﯿﺋﺎﮭﮐﺩ"
+
+
+msgid "Clean Up"
+msgstr "ﯽﺋﺎﻔﺻ"
+
+
 msgid "Asset"
 msgstr "ﮧﺛﺎﺛﺍ"
 
@@ -33376,6 +33296,10 @@ msgstr "ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ/ﮏﻨﻟ ﻮﮐ ﺎﭩﯾﮈ"
 
 msgid "Hooks"
 msgstr "ﮯﭩﻧﺎﮐ"
+
+
+msgid "Vertex Group Locks"
+msgstr "ﮎﻻ﻿ ﮦﻭﺮﮔ ﺲﮑﯿﭨﺭﻭ"
 
 
 msgid "Trim/Add"
@@ -33410,6 +33334,10 @@ msgid "Bone Collections"
 msgstr "ﮧﻋﻮﻤﺠﻣ ﺎﮐ ﮞﻮﯾﮉﮨ"
 
 
+msgid "Names"
+msgstr "ﻡﺎﻧ"
+
+
 msgid "Toggle Bone Options"
 msgstr "ﮟﯾﺮﮐ ﻞﮔﻮﭨ ﻮﮐ ﺕﺍﺭﺎﯿﺘﺧﺍ ﮯﮐ ﯼﮉﮨ"
 
@@ -33440,6 +33368,42 @@ msgstr "ﮟﯾﺮﮐ ﻦﯿﻌﺗ ﺎﮐ ﺖﻗﺎﻃ ﯽﮐ ﮮﺮﮩﭼ"
 
 msgid "Merge"
 msgstr "ﺎﻧﺮﮐ ﻢﺿ"
+
+
+msgid "Special Characters"
+msgstr "ﺭﺍﺩﺮﮐ ﯽﺻﻮﺼﺧ"
+
+
+msgid "Kerning"
+msgstr "ﮓﻨﻧﺮﮐ"
+
+
+msgid "Text"
+msgstr "ﻦﺘﻣ"
+
+
+msgid "Bone Roll"
+msgstr "ﻝﻭﺭ ﻥﻮﺑ"
+
+
+msgid "Pivot Point"
+msgstr "ﭧﻨﺋﺍﻮﭘ ﭦﻮﯿﭘ"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "ﻑﺁ ﻝﺎﻓ ﺮﺋﺎﻔﯾﮈﻮﻣ ﺐﺳﺎﻨﺘﻣ"
+
+
+msgid "Mask Edit"
+msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﮏﺳﺎﻣ"
+
+
+msgid "Automasking"
+msgstr "ﮓﻨﮑﺳﺎﻣﻮﭨﺁ"
+
+
+msgid "Face Sets Edit"
+msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ"
 
 
 msgid "Keyframe Insert Pie"
@@ -87441,8 +87405,24 @@ msgid "Image used as canvas"
 msgstr "ﺮﯾﻮﺼﺗ ﯽﻟﺍﻭ ﮯﻧﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﺮﭘ ﺭﻮﻃ ﮯﮐ ﺱﻮﻨﯿﮐ"
 
 
+msgid "Clone Alpha"
+msgstr "ﺎﻔﻟﺍ ﻥﻮﻠﮐ"
+
+
+msgid "Opacity of clone image display"
+msgstr "ﻦﭘﻻ﻿ﺪﻨﮬﺩ ﯽﮐ ﮯﻧﺎﮭﮐﺩ ﺞﯿﻣﺍ ﻥﻮﻠﮐ"
+
+
+msgid "Clone Image"
+msgstr "ﺞﯿﻣﺍ ﻥﻮﻠﮐ"
+
+
 msgid "Image used as clone source"
 msgstr "ﺮﯾﻮﺼﺗ ﯽﻟﺍﻭ ﮯﻧﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﺮﭘ ﺭﻮﻃ ﮯﮐ ﺬﺧﺎﻣ ﻥﻮﻠﮐ"
+
+
+msgid "Clone Offset"
+msgstr "ﭧﯿﺴﻓﺁ ﻥﻮﻠﮐ"
 
 
 msgid "Dither"
@@ -87849,10 +87829,6 @@ msgid "Transform Orientations"
 msgstr "ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﻮﮐ ﺖﯿﻔﻗﺍﻭ"
 
 
-msgid "glTF Material Variants"
-msgstr "glTF ﮟﯿﺘﻟﺎﺣ ﻒﻠﺘﺨﻣ ﯽﮐ ﺩﺍﻮﻣ"
-
-
 msgid "Stroke Placement"
 msgstr "ﭧﻨﻤﺴﯿﻠﭘ ﮎﻭﺮﭩﺳﺍ"
 
@@ -87877,8 +87853,8 @@ msgid "Multi Frame"
 msgstr "ﻢﯾﺮﻓ ﯽﭩﻠﻣ"
 
 
-msgid "glTF Animations"
-msgstr "glTF ﺮﯾﻭﺎﺼﺗ ﮎﺮﺤﺘﻣ"
+msgid "glTF Material Variants"
+msgstr "glTF ﮟﯿﺘﻟﺎﺣ ﻒﻠﺘﺨﻣ ﯽﮐ ﺩﺍﻮﻣ"
 
 
 msgid "Auto-Masking"
@@ -87899,6 +87875,10 @@ msgstr "ﺎﻧﮍﮑﺳ/ﺎﻨﮬﮍﺑ  ﮟﯿﻤﺧ"
 
 msgid "Viewport Debug"
 msgstr "ﮓﺒﯾﮈ ﭦﺭﻮﭘ ﻮﯾﻭ"
+
+
+msgid "glTF Animations"
+msgstr "glTF ﺮﯾﻭﺎﺼﺗ ﮎﺮﺤﺘﻣ"
 
 
 msgid "VR"

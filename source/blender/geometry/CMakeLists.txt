@@ -15,6 +15,7 @@ set(SRC
   intern/add_curves_on_mesh.cc
   intern/boolean_curves.cc
   intern/curve_constraints.cc
+  intern/curves_remove_and_split.cc
   intern/extend_curves.cc
   intern/extract_elements.cc
   intern/fillet_curves.cc

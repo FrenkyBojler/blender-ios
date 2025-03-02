@@ -29,6 +29,8 @@
 
 #include "transform_mode.hh"
 
+namespace blender::ed::transform {
+
 /* -------------------------------------------------------------------- */
 /** \name Transform (Rotation) Matrix Cache
  * \{ */
@@ -411,14 +413,10 @@ static void initRotation(TransInfo *t, wmOperator * /*op*/)
 
   t->mode = TFM_ROTATION;
 
-  const bool only_location = (t->flag & T_V3D_ALIGN) && (t->options & CTX_OBJECT) &&
-                             (t->settings->transform_pivot_point != V3D_AROUND_CURSOR) &&
-                             t->context &&
-                             (CTX_DATA_COUNT(t->context, selected_editable_objects) == 1);
-  if (only_location) {
+  if (transform_mode_affect_only_locations(t)) {
     WorkspaceStatus status(t->context);
     status.item(TIP_("Transform is set to only affect location"), ICON_ERROR);
-    initMouseInputMode(t, &t->mouse, INPUT_ERROR);
+    initMouseInputMode(t, &t->mouse, INPUT_ERROR_DASH);
   }
   else {
     initMouseInputMode(t, &t->mouse, INPUT_ANGLE);
@@ -452,3 +450,5 @@ TransModeInfo TransMode_rotate = {
     /*snap_apply_fn*/ ApplySnapRotation,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform
