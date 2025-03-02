@@ -74,10 +74,10 @@ class ScopedTimerAveraged {
   blender::timeit::ScopedTimerAveraged scoped_timer(name, sample_counter_)
 
 /**
- * Same as `SCOPED_TIMER_AVERAGED` above but keeps a separate record for each unique sample name.
+ * Same as `SCOPED_TIMER_AVERAGED` but keeps a separate record for each unique sample name.
  * \warning Records are not shared/visible across compilation units.
  */
-#define SCOPED_TIMER_AVERAGED_TABLE(name) \
+#define SCOPED_TIMER_TABLE_AVERAGED(name) \
   static std::unordered_map<std::string, \
                             blender::timeit::ScopedTimerAveraged::ScopedTimerSamples> \
       sample_counter_map; \
