@@ -1,1 +1,2 @@
 Referenced by pull request #135369, Fix: USD: Incorrect call to Map::add_new during dupli-vert export
+Referenced by commit ae1a5aa2a19bc3640e735a73a857a9ff44cfd623, Fix: USD: Incorrect call to Map::add_new during dupli-vert export
