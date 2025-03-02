@@ -68,15 +68,24 @@ void Light::sync(ShadowModule &shadows,
     shadow_discard_safe(shadows);
   }
 
-  /* Appliquer la température si elle est activée */
-  if (la->use_temperature) {
-    float rgb[3];
-    IMB_colormanagement_blackbody_temperature_to_rgb(rgb, la->temperature);
-    float3 temperature = float3(rgb);
-    this->color = float3(&la->r) * temperature * la->energy;
-  }
-  else {
-    this->color = float3(&la->r) * la->energy;
+  /* Apply temperature is it's active */
+  float rgb[3];
+  IMB_colormanagement_blackbody_temperature_to_rgb(rgb, la->temperature);
+  float3 temperature = float3(rgb);
+  float3 base_color = float3(&la->r);
+
+  switch (la->color_mode) {
+    case LA_COLOR:
+      this->color = base_color * la->energy;  // Only use RGB Color
+      break;
+
+    case LA_TEMPERATURE:
+      this->color = temperature * la->energy;  // Only use Temperature Color
+      break;
+
+    case LA_BOTH:
+      this->color = base_color * temperature * la->energy;  // Multiply Color and Temperature
+      break;
   }
 
   float3 scale;

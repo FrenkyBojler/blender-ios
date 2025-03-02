@@ -4,6 +4,8 @@
 
 #include "scene/light.h"
 
+#include "DNA_light_types.h"
+
 #include "IMB_colormanagement.hh"
 
 #include "blender/sync.h"
@@ -77,7 +79,7 @@ void BlenderSync::sync_light(BL::Depsgraph /*b_depsgraph*/, BObjectInfo &b_ob_in
   }
 
   /* strength */
-  float3 light_color = get_float3(b_light.color());
+  /*float3 light_color = get_float3(b_light.color());
   if (b_light.use_temperature()) {
     float rgb[3];
     IMB_colormanagement_blackbody_temperature_to_rgb(rgb, b_light.temperature());
@@ -85,8 +87,33 @@ void BlenderSync::sync_light(BL::Depsgraph /*b_depsgraph*/, BObjectInfo &b_ob_in
     light_color.x *= rgb[0];
     light_color.y *= rgb[1];
     light_color.z *= rgb[2];
+  } */
+
+  /* strength */
+  float3 light_color;
+  float rgb[3];
+  /* Convert Temperature Color in RGB */
+  IMB_colormanagement_blackbody_temperature_to_rgb(rgb, b_light.temperature());
+  float3 temperature = make_float3(rgb[0], rgb[1], rgb[2]);
+
+  switch (b_light.color_mode()) {
+    case LA_COLOR:
+      // Only use RGB Color
+      light_color = get_float3(b_light.color());
+      break;
+
+    case LA_TEMPERATURE:
+      // Only use Temperature Color
+      light_color = temperature;
+      break;
+
+    case LA_BOTH:
+      // Multiply Color and Temperature
+      light_color = get_float3(b_light.color()) * temperature;
+      break;
   }
 
+  /* Apply Intensity */
   const float3 strength = light_color * BL::PointLight(b_light).energy();
   light->set_strength(strength);
 

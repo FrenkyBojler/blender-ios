@@ -87,8 +87,10 @@ typedef struct Light {
 
   /* Temperature color. */
   float temperature; /* Value in Kelvin */
+  float temperature_color; /* Read-Only property to read the corresponding color or the temperature */
+  float _pad3;
   short use_temperature;
-  short _pad3; /* Memory alignment */
+  short color_mode; /* Memory alignment */
 
 } Light;
 
@@ -111,6 +113,13 @@ enum {
   LA_SPOT = 2,
   // LA_HEMI = 3, /* Deprecated. */
   LA_AREA = 4,
+};
+
+/** #Light::color_mode */
+enum {
+  LA_COLOR = 0,
+  LA_TEMPERATURE = 1,
+  LA_BOTH = 2,
 };
 
 /** #Light::mode */

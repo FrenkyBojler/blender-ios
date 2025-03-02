@@ -167,15 +167,21 @@ class STORM_HYDRA_LIGHT_PT_light(Panel):
         layout.use_property_decorate = False
 
         main_col = layout.column()
-        main_col.prop(light, "color")
+        main_col.prop(light, "color_mode")
 
-        headrow = main_col.column(heading="Temperature", align=True)
-        mainrow = headrow.row(align=True)
-        mainrow.prop(light, "use_temperature", text="")
-        mainsub = mainrow.row()
-        mainsub.active = light.use_temperature
-        mainsub.prop(light, "temperature", text="")
-            
+        if light.color_mode == "COLOR":
+            main_col.prop(light, "color")
+        elif light.color_mode == "TEMPERATURE":
+            row = layout.row(align=True)
+            row.prop(light, "temperature", text="Temperature")
+            row.prop(light, "temperature_color", text="")
+        else:
+            main_col.prop(light, "color")
+            row = layout.row(align=True)
+            row.prop(light, "temperature", text="Temperature")
+            row.prop(light, "temperature_color", text="")
+
+        main_col = layout.column()
         main_col.prop(light, "energy")
         main_col.separator()
 
