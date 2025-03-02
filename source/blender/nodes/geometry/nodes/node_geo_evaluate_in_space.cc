@@ -2,6 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <iostream>
+#include "BLI_timeit.hh"
+
 #include "BKE_attribute_math.hh"
 
 #include "BLI_array.hh"
@@ -96,6 +99,7 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
   GVArray get_varray_for_context(const bke::GeometryFieldContext &context,
                                  const IndexMask & /*mask*/) const final
   {
+    // std::cout << "\n";
     if (!context.attributes()) {
       return {};
     }
@@ -120,60 +124,77 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
                                                                                start_indices);
 
     Array<int, 0> indices(domain_size);
-    akdbh::from_positions(positions, base_offsets, total_depth, indices);
+    {
+      // SCOPED_TIMER_AVERAGED("from_positions");
+      akdbh::from_positions(positions, base_offsets, total_depth, indices);
+    }
 
     Array<float3, 0> bucket_positions(domain_size);
     GArray<> bucket_values(data_type, domain_size);
 
-    array_utils::gather(
-        Span<float3>(positions), indices.as_span(), bucket_positions.as_mutable_span());
-    bke::attribute_math::gather(src_values, indices.as_span(), bucket_values.as_mutable_span());
+    {
+      // SCOPED_TIMER_AVERAGED("gather");
+      array_utils::gather(
+          Span<float3>(positions), indices.as_span(), bucket_positions.as_mutable_span());
+      bke::attribute_math::gather(src_values, indices.as_span(), bucket_values.as_mutable_span());
+    }
 
     GArray<> joints_values(data_type, total_joints);
     akdbh::mean_sums(base_offsets, total_depth, bucket_values, joints_values);
 
     Array<float3, 0> joints_positions(total_joints);
     Array<float, 0> joints_min_distance(total_joints);
-    bounding::joints_packing_spheres(base_offsets,
-                                     total_depth,
-                                     bucket_positions,
-                                     joints_positions,
-                                     joints_min_distance.as_mutable_span());
-
-    cloud_radii_to_min_distance(joints_min_distance.as_span(),
-                                power_value_,
-                                precision_,
-                                joints_min_distance.as_mutable_span());
+    {
+      // SCOPED_TIMER_AVERAGED("joints_packing_spheres");
+      bounding::joints_packing_spheres(base_offsets,
+                                       total_depth,
+                                       bucket_positions,
+                                       joints_positions,
+                                       joints_min_distance.as_mutable_span());
+    }
+    {
+      // SCOPED_TIMER_AVERAGED("cloud_radii_to_min_distance");
+      cloud_radii_to_min_distance(joints_min_distance.as_span(),
+                                  power_value_,
+                                  precision_,
+                                  joints_min_distance.as_mutable_span());
+    }
 
     GArray<> sampled_bucket_values(data_type, domain_size);
     data_type.value_initialize_n(sampled_bucket_values.data(), sampled_bucket_values.size());
-
-    threading::parallel_for(
-        IndexRange(domain_size),
-        1024,
-        [&](const IndexRange range) {
-          fmm::akdbh_accumulate_in(base_offsets,
-                                   total_depth,
-                                   joints_min_distance,
-                                   joints_positions,
-                                   joints_values,
-                                   bucket_positions,
-                                   bucket_values,
-                                   power_value_,
-                                   offset_value_,
-                                   bucket_positions.as_span().slice(range),
-                                   sampled_bucket_values.as_mutable_span().slice(range),
-                                   range);
-        },
-        threading::detail::TaskSizeHints_Static(total_depth));
+    
+    {
+      // SCOPED_TIMER_AVERAGED("akdbh_accumulate_in");
+      threading::parallel_for(
+          IndexRange(domain_size),
+          1024,
+          [&](const IndexRange range) {
+            fmm::akdbh_accumulate_in(base_offsets,
+                                     total_depth,
+                                     joints_min_distance,
+                                     joints_positions,
+                                     joints_values,
+                                     bucket_positions,
+                                     bucket_values,
+                                     power_value_,
+                                     offset_value_,
+                                     bucket_positions.as_span().slice(range),
+                                     sampled_bucket_values.as_mutable_span().slice(range),
+                                     range);
+          },
+          threading::detail::TaskSizeHints_Static(total_depth));
+    }
 
     GArray<> dst_values(data_type, domain_size);
-    geometry::akdbh::to_static_type(data_type, [&](auto dummy) {
-      using T = decltype(dummy);
-      array_utils::scatter<T>(sampled_bucket_values.as_span().typed<T>(),
-                              indices.as_span(),
-                              dst_values.as_mutable_span().typed<T>());
-    });
+    {
+      // SCOPED_TIMER_AVERAGED("scatter");
+      geometry::akdbh::to_static_type(data_type, [&](auto dummy) {
+        using T = decltype(dummy);
+        array_utils::scatter<T>(sampled_bucket_values.as_span().typed<T>(),
+                                indices.as_span(),
+                                dst_values.as_mutable_span().typed<T>());
+      });
+    }
 
     return GVArray::ForGArray(std::move(dst_values));
   }
