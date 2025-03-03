@@ -29,6 +29,8 @@
 
 #include "transform_mode.hh"
 
+namespace blender::ed::transform {
+
 /* -------------------------------------------------------------------- */
 /** \name Transform (Rotation) Matrix Cache
  * \{ */
@@ -448,3 +450,5 @@ TransModeInfo TransMode_rotate = {
     /*snap_apply_fn*/ ApplySnapRotation,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

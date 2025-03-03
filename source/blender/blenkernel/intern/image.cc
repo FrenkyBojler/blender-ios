@@ -25,6 +25,7 @@
 
 #include "BLI_array.hh"
 #include "BLI_fileops.h"
+#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
@@ -56,6 +57,7 @@
 #include "DNA_packedFile_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_userdef_types.h"
 #include "DNA_world_types.h"
 
 #include "BLI_math_vector.h"
@@ -77,6 +79,7 @@
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
@@ -1056,7 +1059,7 @@ static void image_abs_path(Main *bmain,
 {
   BLI_strncpy(r_filepath_abs, filepath, FILE_MAX);
   if (owner_library) {
-    BLI_path_abs(r_filepath_abs, owner_library->runtime.filepath_abs);
+    BLI_path_abs(r_filepath_abs, owner_library->runtime->filepath_abs);
   }
   else {
     BLI_path_abs(r_filepath_abs, BKE_main_blendfile_path(bmain));

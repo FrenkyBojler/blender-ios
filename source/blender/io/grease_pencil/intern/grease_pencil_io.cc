@@ -4,6 +4,7 @@
 
 #include "BLI_bounds.hh"
 #include "BLI_color.hh"
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
@@ -179,6 +180,11 @@ static IndexMask get_visible_strokes(const Object &object,
     /* Check if the material is visible. */
     const Material *material = BKE_object_material_get(const_cast<Object *>(&object),
                                                        materials[curve_i] + 1);
+
+    if (material == nullptr) {
+      return false;
+    }
+
     const MaterialGPencilStyle *gp_style = material ? material->gp_style : nullptr;
     const bool is_hidden_material = (gp_style->flag & GP_MATERIAL_HIDE);
     const bool is_stroke_material = (gp_style->flag & GP_MATERIAL_STROKE_SHOW);
@@ -461,12 +467,18 @@ void GreasePencilExporter::foreach_stroke_in_layer(const Object &object,
     const int material_index = material_indices[i_curve];
     const Material *material = BKE_object_material_get(const_cast<Object *>(&object),
                                                        material_index + 1);
-    BLI_assert(material->gp_style != nullptr);
-    if (material->gp_style->flag & GP_MATERIAL_HIDE) {
-      continue;
+
+    if (material != nullptr) {
+      BLI_assert(material->gp_style != nullptr);
+      if (material->gp_style->flag & GP_MATERIAL_HIDE) {
+        continue;
+      }
     }
-    const bool is_stroke_material = material->gp_style->flag & GP_MATERIAL_STROKE_SHOW;
-    const bool is_fill_material = material->gp_style->flag & GP_MATERIAL_FILL_SHOW;
+    const bool is_stroke_material = material ?
+                                        (material->gp_style->flag & GP_MATERIAL_STROKE_SHOW) :
+                                        true;
+    const bool is_fill_material = material ? (material->gp_style->flag & GP_MATERIAL_FILL_SHOW) :
+                                             false;
 
     /* Fill. */
     if (is_fill_material && params_.export_fill_materials) {
@@ -484,8 +496,9 @@ void GreasePencilExporter::foreach_stroke_in_layer(const Object &object,
 
     /* Stroke. */
     if (is_stroke_material && params_.export_stroke_materials) {
-      const ColorGeometry4f stroke_color = compute_average_stroke_color(
-          *material, vertex_colors.slice(points));
+      const ColorGeometry4f stroke_color = material ? compute_average_stroke_color(
+                                                          *material, vertex_colors.slice(points)) :
+                                                      ColorGeometry4f(0.0f, 0.0f, 0.0f, 1.0f);
       const float stroke_opacity = compute_average_stroke_opacity(opacities.slice(points)) *
                                    layer.opacity;
       const std::optional<float> uniform_width = params_.use_uniform_width ?

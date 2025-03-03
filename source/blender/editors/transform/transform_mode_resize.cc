@@ -34,7 +34,7 @@
 #include "transform_mode.hh"
 #include "transform_snap.hh"
 
-using namespace blender;
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Transform (Resize) Element
@@ -388,3 +388,5 @@ TransModeInfo TransMode_resize = {
     /*snap_apply_fn*/ ApplySnapResize,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

@@ -589,14 +589,14 @@ class Layer : public ::GreasePencilLayer {
    * armature.
    */
   StringRefNull parent_bone_name() const;
-  void set_parent_bone_name(const StringRef new_name);
+  void set_parent_bone_name(StringRef new_name);
 
   /**
    * Returns the view layer name that this layer should be rendered in or an empty
    * `StringRefNull` if no such name is set.
    */
   StringRefNull view_layer_name() const;
-  void set_view_layer_name(const StringRef new_name);
+  void set_view_layer_name(StringRef new_name);
 
  private:
   /**
@@ -1065,7 +1065,8 @@ inline bool GreasePencil::has_active_group() const
   return (this->active_node != nullptr) && (this->active_node->wrap().is_group());
 }
 
-bool BKE_grease_pencil_drawing_attribute_required(const GreasePencilDrawing *, const char *name);
+bool BKE_grease_pencil_drawing_attribute_required(const GreasePencilDrawing *,
+                                                  blender::StringRef name);
 
 GreasePencil *BKE_grease_pencil_add(Main *bmain, const char *name);
 GreasePencil *BKE_grease_pencil_new_nomain();
@@ -1091,13 +1092,6 @@ void BKE_object_eval_grease_pencil(Depsgraph *depsgraph, Scene *scene, Object *o
 void BKE_grease_pencil_duplicate_drawing_array(const GreasePencil *grease_pencil_src,
                                                GreasePencil *grease_pencil_dst);
 
-struct GreasePencilPointCoordinates {
-  /* This is used when doing "move only origin" in object_data_transform.cc.
-   * radius is needs to be stored here as it is tied to object scale. */
-  float co[3];
-  float radius;
-};
-
 /**
  * \note Used for "move only origins" in object_data_transform.cc.
  */
@@ -1106,17 +1100,20 @@ int BKE_grease_pencil_stroke_point_count(const GreasePencil &grease_pencil);
  * \note Used for "move only origins" in object_data_transform.cc.
  */
 void BKE_grease_pencil_point_coords_get(const GreasePencil &grease_pencil,
-                                        GreasePencilPointCoordinates *elem_data);
+                                        blender::MutableSpan<blender::float3> all_positions,
+                                        blender::MutableSpan<float> all_radii);
 /**
  * \note Used for "move only origins" in object_data_transform.cc.
  */
 void BKE_grease_pencil_point_coords_apply(GreasePencil &grease_pencil,
-                                          GreasePencilPointCoordinates *elem_data);
+                                          blender::Span<blender::float3> all_positions,
+                                          blender::Span<float> all_radii);
 /**
  * \note Used for "move only origins" in object_data_transform.cc.
  */
 void BKE_grease_pencil_point_coords_apply_with_mat4(GreasePencil &grease_pencil,
-                                                    GreasePencilPointCoordinates *elem_data,
+                                                    blender::Span<blender::float3> all_positions,
+                                                    blender::Span<float> all_radii,
                                                     const blender::float4x4 &mat);
 
 int BKE_grease_pencil_object_material_index_get_by_name(Object *ob, const char *name);

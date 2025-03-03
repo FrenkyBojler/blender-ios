@@ -69,6 +69,7 @@ class Paints : Overlay {
     {
       auto &pass = paint_region_ps_;
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+      pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
       {
         auto &sub = pass.sub("Face");
         sub.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL |
@@ -108,6 +109,7 @@ class Paints : Overlay {
 
       auto &pass = weight_ps_;
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+      pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
       auto weight_subpass = [&](const char *name, DRWState drw_state) {
         auto &sub = pass.sub(name);
         sub.state_set(drw_state, state.clipping_plane_count);
@@ -144,6 +146,7 @@ class Paints : Overlay {
                        state.clipping_plane_count);
         pass.shader_set(res.shaders.paint_texture.get());
         pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+        pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
         pass.bind_texture("maskImage", mask_texture);
         pass.push_constant("maskPremult", mask_premult);
         pass.push_constant("maskInvertStencil", mask_inverted);

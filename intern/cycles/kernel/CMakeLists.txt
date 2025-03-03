@@ -942,8 +942,6 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
     -fsycl
     -fsycl-unnamed-lambda
     -fdelayed-template-parsing
-    -mllvm -inlinedefault-threshold=250
-    -mllvm -inlinehint-threshold=350
     -fsycl-device-code-split=per_kernel
     -fsycl-max-parallel-link-jobs=${SYCL_OFFLINE_COMPILER_PARALLEL_JOBS}
     --offload-compress
@@ -1295,9 +1293,9 @@ source_group("util" FILES ${SRC_KERNEL_UTIL_HEADERS})
 
 set(_cycles_prev_gpu_kernel_target)
 macro(cycles_add_gpu_kernel_dependencies GPU_KERNEL_TARGET)
-  if (TARGET ${GPU_KERNEL_TARGET})
+  if(TARGET ${GPU_KERNEL_TARGET})
     add_dependencies(cycles_kernel ${GPU_KERNEL_TARGET})
-    if (_cycles_prev_gpu_kernel_target)
+    if(_cycles_prev_gpu_kernel_target)
       add_dependencies(${GPU_KERNEL_TARGET} ${_cycles_prev_gpu_kernel_target})
     endif()
     set(_cycles_prev_gpu_kernel_target ${GPU_KERNEL_TARGET})

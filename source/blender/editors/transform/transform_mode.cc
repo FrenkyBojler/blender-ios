@@ -34,6 +34,8 @@
 /* Own include. */
 #include "transform_mode.hh"
 
+namespace blender::ed::transform {
+
 eTfmMode transform_mode_really_used(bContext *C, eTfmMode mode)
 {
   if (mode == TFM_BONESIZE) {
@@ -1075,8 +1077,7 @@ void ElementResize(const TransInfo *t,
 
       float ratio = values_final_evil[0];
       float transformed_value = td->ival * fabs(ratio);
-      *td->val = blender::math::max(
-          blender::math::interpolate(td->ival, transformed_value, gp_falloff), 0.001f);
+      *td->val = math::max(math::interpolate(td->ival, transformed_value, gp_falloff), 0.001f);
     }
   }
   else {
@@ -1231,16 +1232,15 @@ void transform_mode_default_modal_orientation_set(TransInfo *t, int type)
     rv3d = static_cast<RegionView3D *>(t->region->regiondata);
   }
 
-  t->orient[O_DEFAULT].type = ED_transform_calc_orientation_from_type_ex(
-      t->scene,
-      t->view_layer,
-      v3d,
-      rv3d,
-      nullptr,
-      nullptr,
-      type,
-      V3D_AROUND_CENTER_BOUNDS,
-      t->orient[O_DEFAULT].matrix);
+  t->orient[O_DEFAULT].type = calc_orientation_from_type_ex(t->scene,
+                                                            t->view_layer,
+                                                            v3d,
+                                                            rv3d,
+                                                            nullptr,
+                                                            nullptr,
+                                                            type,
+                                                            V3D_AROUND_CENTER_BOUNDS,
+                                                            t->orient[O_DEFAULT].matrix);
 
   if (t->orient_curr == O_DEFAULT) {
     /* Update Orientation. */
@@ -1249,3 +1249,5 @@ void transform_mode_default_modal_orientation_set(TransInfo *t, int type)
 }
 
 /** \} */
+
+}  // namespace blender::ed::transform

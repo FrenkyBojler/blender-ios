@@ -14,7 +14,9 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_color.h"
+#include "BLI_math_vector.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
@@ -5603,7 +5605,7 @@ static void draw_setting_widget(bAnimContext *ac,
 {
   bool usetoggle = true;
   int icon;
-  const char *tooltip;
+  std::optional<StringRef> tooltip;
 
   /* get the flag and the pointer to that flag */
   bool negflag;
@@ -5704,12 +5706,12 @@ static void draw_setting_widget(bAnimContext *ac,
       }
       else {
         /* TODO: there are no other tools which require the 'pinning' concept yet */
-        tooltip = nullptr;
+        tooltip = std::nullopt;
       }
       break;
 
     default:
-      tooltip = nullptr;
+      tooltip = std::nullopt;
       icon = 0;
       break;
   }
@@ -6029,7 +6031,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
                       -1,
                       0,
                       0,
-                      nullptr);
+                      std::nullopt);
 
       /* copy what outliner does here, see outliner_buttons */
       if (UI_but_active_only(C, ac->region, block, but) == false) {
@@ -6176,7 +6178,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
                             ymid,
                             UI_UNIT_X,
                             UI_UNIT_X,
-                            nullptr);
+                            std::nullopt);
 
         opptr_b = UI_but_operator_ptr_ensure(but);
         RNA_int_set(opptr_b, "track_index", channel_index);

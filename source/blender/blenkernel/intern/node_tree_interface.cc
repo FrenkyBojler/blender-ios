@@ -50,7 +50,7 @@ static std::optional<StringRef> try_get_supported_socket_type(const StringRef so
     return std::nullopt;
   }
   /* For builtin socket types only the base type is supported. */
-  if (node_is_static_socket_type(typeinfo)) {
+  if (node_is_static_socket_type(*typeinfo)) {
     if (const std::optional<StringRefNull> type_name = bke::node_static_socket_type(typeinfo->type,
                                                                                     PROP_NONE))
     {
@@ -1034,6 +1034,33 @@ void bNodeTreeInterfacePanel::foreach_item(
       }
     }
   }
+}
+
+const bNodeTreeInterfaceSocket *bNodeTreeInterfacePanel::header_toggle_socket() const
+{
+  if (this->items().is_empty()) {
+    return nullptr;
+  }
+  const bNodeTreeInterfaceItem *first_item = this->items().first();
+  if (first_item->item_type != NODE_INTERFACE_SOCKET) {
+    return nullptr;
+  }
+  const auto &socket = *reinterpret_cast<const bNodeTreeInterfaceSocket *>(first_item);
+  if (!(socket.flag & NODE_INTERFACE_SOCKET_INPUT) ||
+      !(socket.flag & NODE_INTERFACE_SOCKET_PANEL_TOGGLE))
+  {
+    return nullptr;
+  }
+  const blender::bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
+  if (!typeinfo || typeinfo->type != SOCK_BOOLEAN) {
+    return nullptr;
+  }
+  return &socket;
+}
+bNodeTreeInterfaceSocket *bNodeTreeInterfacePanel::header_toggle_socket()
+{
+  return const_cast<bNodeTreeInterfaceSocket *>(
+      const_cast<const bNodeTreeInterfacePanel *>(this)->header_toggle_socket());
 }
 
 namespace blender::bke::node_interface {

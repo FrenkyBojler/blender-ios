@@ -22,7 +22,7 @@
 #include "transform.hh"
 #include "transform_draw_cursors.hh" /* Own include. */
 
-using namespace blender;
+namespace blender::ed::transform {
 
 enum eArrowDirection {
   UP,
@@ -260,3 +260,5 @@ void transform_draw_cursor_draw(bContext *C, int x, int y, void *customdata)
   GPU_line_smooth(false);
   GPU_blend(GPU_BLEND_NONE);
 }
+
+}  // namespace blender::ed::transform

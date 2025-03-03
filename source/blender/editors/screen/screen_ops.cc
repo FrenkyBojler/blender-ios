@@ -13,6 +13,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_build_config.h"
+#include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
@@ -37,6 +38,7 @@
 #include "BKE_global.hh"
 #include "BKE_icons.h"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_mask.h"
 #include "BKE_object.hh"
@@ -5574,8 +5576,9 @@ static int screen_animation_step_invoke(bContext *C, wmOperator * /*op*/, const 
         if (redraw) {
           screen_animation_region_tag_redraw(
               C, area, region, scene, eScreen_Redraws_Flag(sad->redraws));
-          /* Doesn't trigger a full redraw of the screeen but makes sure at least overlay drawing
-           * (#ARegionType.draw_overlay()) is triggered, which is how the playhead is drawn. */
+          /* Doesn't trigger a full redraw of the screen but makes sure at least overlay drawing
+           * (#ARegionType.draw_overlay()) is triggered, which is how the current-frame is drawn.
+           */
           win_screen->do_draw = true;
         }
       }
