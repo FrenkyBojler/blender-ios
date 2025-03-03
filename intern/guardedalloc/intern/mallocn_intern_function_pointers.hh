@@ -22,14 +22,14 @@ extern void (*mem_freeN_ex)(void *vmemh, AllocationType allocation_type);
 
 /**
  * Internal implementation of #MEM_callocN, exposed because public #MEM_callocN cannot be a
- * function pointer anymore, to allow its overload by C++ template version.
+ * function pointer, to allow its overload by C++ template version.
  */
 extern void *(*mem_callocN)(size_t len, const char *str) /* ATTR_MALLOC */ ATTR_WARN_UNUSED_RESULT
     ATTR_ALLOC_SIZE(1) ATTR_NONNULL(2);
 
 /**
  * Internal implementation of #MEM_calloc_arrayN, exposed because public #MEM_calloc_arrayN cannot
- * be a function pointer anymore, to allow its overload by C++ template version.
+ * be a function pointer, to allow its overload by C++ template version.
  */
 extern void *(*mem_calloc_arrayN)(size_t len,
                                   size_t size,
@@ -45,7 +45,7 @@ extern void *(*mem_mallocN_aligned_ex)(size_t len,
 
 /**
  * Internal implementation of #MEM_dupallocN, exposed because public #MEM_dupallocN cannot be a
- * function pointer anymore, to allow its overload by C++ template version.
+ * function pointer, to allow its overload by C++ template version.
  */
 extern void *(*mem_dupallocN)(const void *vmemh) /* ATTR_MALLOC */ ATTR_WARN_UNUSED_RESULT;
 
