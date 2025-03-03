@@ -21,12 +21,6 @@ struct OpenSubdiv_EvaluatorSettings {
   int num_vertex_data;
 };
 
-// Callback type for doing input/output operations on buffers.
-// Useful to abstract GPU buffers.
-struct OpenSubdiv_Buffer {
-  blender::gpu::VertBuf *data;
-};
-
 struct OpenSubdiv_EvaluatorCache {
   // Implementation of the evaluator cache.
   OpenSubdiv_EvaluatorCacheImpl *impl;
