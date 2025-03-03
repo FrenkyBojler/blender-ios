@@ -99,7 +99,7 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
   GVArray get_varray_for_context(const bke::GeometryFieldContext &context,
                                  const IndexMask & /*mask*/) const final
   {
-    std::cout << "\n";
+    // std::cout << "\n";
     if (!context.attributes()) {
       return {};
     }
@@ -125,7 +125,7 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
 
     Array<int, 0> indices(domain_size);
     {
-      SCOPED_TIMER_AVERAGED("from_positions");
+      // SCOPED_TIMER_AVERAGED("from_positions");
       akdbh::from_positions(positions, base_offsets, total_depth, indices);
     }
 
@@ -133,7 +133,7 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
     GArray<> bucket_values(data_type, domain_size);
 
     {
-      SCOPED_TIMER_AVERAGED("gather");
+      // SCOPED_TIMER_AVERAGED("gather");
       array_utils::gather(
           Span<float3>(positions), indices.as_span(), bucket_positions.as_mutable_span());
       bke::attribute_math::gather(src_values, indices.as_span(), bucket_values.as_mutable_span());
@@ -145,7 +145,7 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
     Array<float3, 0> joints_positions(total_joints);
     Array<float, 0> joints_min_distance(total_joints);
     {
-      SCOPED_TIMER_AVERAGED("joints_packing_spheres");
+      // SCOPED_TIMER_AVERAGED("joints_packing_spheres");
       bounding::joints_packing_spheres(base_offsets,
                                        total_depth,
                                        bucket_positions,
@@ -153,7 +153,7 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
                                        joints_min_distance.as_mutable_span());
     }
     {
-      SCOPED_TIMER_AVERAGED("cloud_radii_to_min_distance");
+      // SCOPED_TIMER_AVERAGED("cloud_radii_to_min_distance");
       cloud_radii_to_min_distance(joints_min_distance.as_span(),
                                   power_value_,
                                   precision_,
@@ -164,7 +164,7 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
     data_type.value_initialize_n(sampled_bucket_values.data(), sampled_bucket_values.size());
     
     {
-      SCOPED_TIMER_AVERAGED("akdbh_accumulate_in");
+      // SCOPED_TIMER_AVERAGED("akdbh_accumulate_in");
       threading::parallel_for(
           IndexRange(domain_size),
           1024,
@@ -187,7 +187,7 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
 
     GArray<> dst_values(data_type, domain_size);
     {
-      SCOPED_TIMER_AVERAGED("scatter");
+      // SCOPED_TIMER_AVERAGED("scatter");
       geometry::akdbh::to_static_type(data_type, [&](auto dummy) {
         using T = decltype(dummy);
         array_utils::scatter<T>(sampled_bucket_values.as_span().typed<T>(),
