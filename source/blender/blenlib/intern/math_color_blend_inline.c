@@ -335,7 +335,7 @@ MINLINE void blend_color_softlight_byte(uchar dst[4], const uchar src1[4], const
 {
   const float fac = src2[3] / 255.0f;
   if (fac != 0) {
-    const int mfac = (255 - fac) / 255.0f;
+    const float mfac = 1.0f - fac;
     int i = 3;
 
     while (i--) {
@@ -343,7 +343,7 @@ MINLINE void blend_color_softlight_byte(uchar dst[4], const uchar src1[4], const
       const float src2val = (float)(src2[i]) / 255.0f;
       float screen = 1.0f - (1.0f - src1val) * (1.0f - src2val);
       float soft_light = ((1.0f - src1val) * src2val + screen) * src1val;
-      dst[i] = (uchar)((src1val * mfac + soft_light * fac) * 255.0f);
+      dst[i] = round_fl_to_uchar_clamp((src1val * mfac + soft_light * fac) * 255.0f);
     }
   }
   else {
