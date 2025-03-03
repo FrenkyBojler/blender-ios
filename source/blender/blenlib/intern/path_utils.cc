@@ -1239,10 +1239,42 @@ bool BLI_path_abs_from_cwd(char *path, const size_t path_maxncpy)
   return false;
 }
 
-static std::optional<std::pair<blender::IndexRange, blender::StringRef>> next_path_variable(
-    char *path, const int path_allocation_size)
+struct VariableFormat {
+  std::optional<uint8_t> fixed_integer_digits;
+  std::optional<uint8_t> fixed_fractional_digits;
+};
+
+static std::optional<VariableFormat> parse_path_variable_format(
+    const blender::StringRef format_specifier)
+{
+  VariableFormat format = {};
+
+  if (format_specifier.is_empty() || format_specifier.size() > 5) {
+    return std::nullopt;
+  }
+
+  /* If it's all digits. */
+  if (format_specifier.find_first_not_of("0123456789") == std::string::npos) {
+    format.fixed_integer_digits = std::stoi(format_specifier);
+    return format;
+  }
+
+  return std::nullopt;
+}
+
+struct ParsedPathVariable {
+  blender::IndexRange replacement_range;
+  blender::StringRef name;
+
+  /* Simply the empty string when there is no format specifier. */
+  VariableFormat format;
+};
+
+static std::optional<ParsedPathVariable> next_path_variable(char *path,
+                                                            const int path_allocation_size)
 {
   int start = -1;
+  int format_specifier_split = -1;
   int end = -1;
   for (int i = 0; i < path_allocation_size && path[i] != '\0'; i++) {
     /* Check if we've found a starting "${". */
@@ -1258,12 +1290,26 @@ static std::optional<std::pair<blender::IndexRange, blender::StringRef>> next_pa
      *
      * TODO: is this the right thing to do when we encounter this? */
     if (path[i] == '$' || path[i] == '{') {
-      break;
+      return std::nullopt;
+    }
+
+    /* Check if we've found a format splitter. */
+    if (path[i] == ':') {
+      if (format_specifier_split != -1) {
+        /* Found a second format specifier split. Invalid! Bail.
+         *
+         * TODO: is this the right thing to do when we encounter this? */
+        return std::nullopt;
+      }
+      format_specifier_split = i;
+      i++;
+      continue;
     }
 
     /* Check if we've found the closing "}". */
     if (path[i] == '}') {
       end = i + 1; /* Exclusive end. */
+      break;
     }
   }
 
@@ -1271,18 +1317,53 @@ static std::optional<std::pair<blender::IndexRange, blender::StringRef>> next_pa
     return std::nullopt;
   }
 
-  return {{blender::IndexRange::from_begin_end(start, end),
-           blender::StringRef(path + start + 2, path + end - 1)}};
+  /* TODO: syntax checks. */
+
+  ParsedPathVariable variable;
+  variable.replacement_range = blender::IndexRange::from_begin_end(start, end);
+  if (format_specifier_split == -1) {
+    /* No format specifier. */
+    variable.name = blender::StringRef(path + start + 2, path + end - 1);
+  }
+  else {
+    /* Found format specifier. */
+    variable.name = blender::StringRef(path + start + 2, path + format_specifier_split);
+
+    if (std::optional<VariableFormat> format = parse_path_variable_format(
+            blender::StringRef(path + format_specifier_split + 1, path + end - 1)))
+    {
+      variable.format = *format;
+    }
+    else {
+      /* Invalid format specifier. Bail!
+       *
+       * TODO: is this the right thing to do when we encounter this? */
+      return std::nullopt;
+    }
+  }
+
+  return variable;
 }
 
 bool BLI_path_apply_variables(char path[FILE_MAX], const PathVariables &variables)
 {
   bool was_modified = false;
 
+  const int length = strlen(path);
   int processed = 0;
-  while (auto path_variable = next_path_variable(path + processed, FILE_MAX - processed)) {
-    blender::IndexRange replacement_range = path_variable->first;
-    blender::StringRef variable_name = path_variable->second;
+  while (processed < length) {
+    const auto parsed_variable = next_path_variable(path + processed, FILE_MAX - processed);
+
+    /* Check for parse error.
+     *
+     * TODO: right now we're stupid and just keep on trying to parse at the next
+     * byte, which is O(N^2) in pathological cases! We should return useful
+     * information about the parse error from `next_path_variable() that lets us
+     * do smarter things, and report issues to the user. */
+    if (!parsed_variable.has_value()) {
+      processed++;
+      continue;
+    }
 
     /* For computing strings for integer and float variables. */
     char string_buffer[128];
@@ -1292,16 +1373,28 @@ bool BLI_path_apply_variables(char path[FILE_MAX], const PathVariables &variable
     const char *replacement_string = nullptr;
 
     /* Try to find a matching variable, and construct a string for it. */
-    if (const std::string *string_value = variables.strings.lookup_ptr_as(variable_name)) {
+    if (const std::string *string_value = variables.strings.lookup_ptr_as(parsed_variable->name)) {
       /* String variable found. */
       replacement_string = string_value->c_str();
     }
-    else if (const int64_t *integer_value = variables.integers.lookup_ptr_as(variable_name)) {
+    else if (const int64_t *integer_value = variables.integers.lookup_ptr_as(
+                 parsed_variable->name))
+    {
       /* Integer variable found. */
       sprintf(string_buffer, "%ld", *integer_value);
+      if (parsed_variable->format.fixed_integer_digits) {
+        const int length = strlen(string_buffer);
+        if (length < parsed_variable->format.fixed_integer_digits) {
+          const int diff = *parsed_variable->format.fixed_integer_digits - length;
+          for (int i = 0; i < diff; i++) {
+            string_buffer[i] = '0';
+          }
+          sprintf(string_buffer + diff, "%ld", *integer_value);
+        }
+      }
       replacement_string = string_buffer;
     }
-    else if (const double *float_value = variables.floats.lookup_ptr_as(variable_name)) {
+    else if (const double *float_value = variables.floats.lookup_ptr_as(parsed_variable->name)) {
       /* Float variable found. */
       sprintf(string_buffer, "%f", *float_value);
       replacement_string = string_buffer;
@@ -1311,19 +1404,19 @@ bool BLI_path_apply_variables(char path[FILE_MAX], const PathVariables &variable
     if (replacement_string != nullptr) {
       BLI_string_replace_range(path + processed,
                                FILE_MAX - processed,
-                               replacement_range.start(),
-                               replacement_range.one_after_last(),
+                               parsed_variable->replacement_range.start(),
+                               parsed_variable->replacement_range.one_after_last(),
                                replacement_string);
 
-      processed += replacement_range.one_after_last();
-      processed -= replacement_range.size();
+      processed += parsed_variable->replacement_range.one_after_last();
+      processed -= parsed_variable->replacement_range.size();
       processed += strlen(replacement_string);
 
       was_modified = true;
     }
     else {
       /* No matching variable, so skip. */
-      processed += replacement_range.one_after_last();
+      processed += parsed_variable->replacement_range.one_after_last();
     }
   }
 
