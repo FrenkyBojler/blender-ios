@@ -54,6 +54,11 @@ set(SRC
   intern/uv_parametrizer.cc
   intern/volume_grid_resample.cc
 
+<<<<<<< HEAD
+=======
+  GEO_abstract_kd_bucket_hierarchy.hh
+  GEO_2d_grid_to_curve.hh
+>>>>>>> parent of 35a9c57c758 (expements)
   GEO_add_curves_on_mesh.hh
   GEO_curve_constraints.hh
   GEO_extend_curves.hh
@@ -141,6 +146,19 @@ if(WITH_GMP)
   )
 endif()
 
+<<<<<<< HEAD
+=======
+if(WITH_POTRACE)
+  list(APPEND INC
+    ${POTRACE_INCLUDE_DIRS}
+  )
+  list(APPEND LIB
+    ${POTRACE_LIBRARIES}
+  )
+  add_definitions(-DWITH_POTRACE)
+endif()
+
+>>>>>>> parent of 35a9c57c758 (expements)
 blender_add_lib(bf_geometry "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 add_library(bf::geometry ALIAS bf_geometry)
 
