@@ -209,7 +209,7 @@ namespace blender::bke::animdata {
 void action_slots_user_cache_invalidate(Main &bmain);
 
 /**
- * Returns whether there is any animation on the given property.
+ * Return whether there is any animation on the given property.
  *
  * This covers animation by direct Action assignment, the NLA, and drivers.
  *
