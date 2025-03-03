@@ -82,7 +82,7 @@ enum eImBufFlags {
   IB_byte_data = 1 << 0,
   IB_test = 1 << 1,
   IB_mem = 1 << 4,
-  /** Image has float data (1..4 channels, 32 bit float per channel). */
+  /** Image has float data (usually 1..4 channels, 32 bit float per channel). */
   IB_float_data = 1 << 5,
   IB_multilayer = 1 << 7,
   IB_metadata = 1 << 8,

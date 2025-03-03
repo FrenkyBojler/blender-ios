@@ -3271,17 +3271,15 @@ bNodePreview *node_preview_verify(Map<bNodeInstanceKey, bNodePreview> &previews,
                                   const int ysize,
                                   const bool create)
 {
-  bNodePreview *preview = create ? &previews.lookup_or_add_cb(key,
-                                                              [&]() {
-                                                                bNodePreview preview;
-                                                                preview.ibuf = IMB_allocImBuf(
-                                                                    xsize,
-                                                                    ysize,
-                                                                    32,
-                                                                    IB_byte_data);
-                                                                return preview;
-                                                              }) :
-                                   previews.lookup_ptr(key);
+  bNodePreview *preview = create ?
+                              &previews.lookup_or_add_cb(key,
+                                                         [&]() {
+                                                           bNodePreview preview;
+                                                           preview.ibuf = IMB_allocImBuf(
+                                                               xsize, ysize, 32, IB_byte_data);
+                                                           return preview;
+                                                         }) :
+                              previews.lookup_ptr(key);
   if (!preview) {
     return nullptr;
   }
