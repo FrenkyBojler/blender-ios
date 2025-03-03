@@ -22,6 +22,8 @@
  * over other previous ones.
  */
 
+#include "BLI_listbase.h"
+
 #include "BKE_node_runtime.hh"
 
 #include "NOD_texture.h"
@@ -45,7 +47,7 @@ void tex_node_type_base(blender::bke::bNodeType *ntype,
                         std::string idname,
                         const std::optional<int16_t> legacy_type)
 {
-  blender::bke::node_type_base(ntype, idname, legacy_type);
+  blender::bke::node_type_base(*ntype, idname, legacy_type);
 
   ntype->poll = tex_node_poll_default;
   ntype->insert_link = node_insert_link_default;
@@ -112,7 +114,7 @@ void params_from_cdata(TexParams *out, TexCallData *in)
 }
 
 void tex_output(bNode *node,
-                bNodeExecData *execdata,
+                bNodeExecData * /*execdata*/,
                 bNodeStack **in,
                 bNodeStack *out,
                 TexFn texfn,
@@ -137,7 +139,6 @@ void tex_output(bNode *node,
   dg->cdata = cdata;
   dg->fn = texfn;
   dg->node = node;
-  dg->preview = execdata->preview;
   memcpy(dg->in, in, MAX_SOCKET * sizeof(bNodeStack *));
   dg->type = out->sockettype;
 }

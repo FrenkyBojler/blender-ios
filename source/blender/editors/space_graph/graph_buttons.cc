@@ -17,6 +17,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -436,7 +437,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
                       0,
                       0,
                       0,
-                      nullptr);
+                      std::nullopt);
       UI_but_func_set(but, graphedit_activekey_update_cb, fcu, bezt);
 
       uiItemL_respect_property_split(col, IFACE_("Value"), ICON_NONE);
@@ -453,7 +454,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
                       1,
                       0,
                       0,
-                      nullptr);
+                      std::nullopt);
       UI_but_func_set(but, graphedit_activekey_update_cb, fcu, bezt);
       UI_but_unit_type_set(but, unit);
     }
@@ -493,7 +494,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
                       0,
                       0,
                       0,
-                      nullptr);
+                      std::nullopt);
       UI_but_func_set(but, graphedit_activekey_left_handle_coord_cb, fcu, bezt);
 
       uiItemL_respect_property_split(col, IFACE_("Value"), ICON_NONE);
@@ -510,7 +511,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
                       1,
                       0,
                       0,
-                      nullptr);
+                      std::nullopt);
       UI_but_func_set(but, graphedit_activekey_left_handle_coord_cb, fcu, bezt);
       UI_but_unit_type_set(but, unit);
     }
@@ -551,7 +552,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
                       0,
                       0,
                       0,
-                      nullptr);
+                      std::nullopt);
       UI_but_func_set(but, graphedit_activekey_right_handle_coord_cb, fcu, bezt);
 
       uiItemL_respect_property_split(col, IFACE_("Value"), ICON_NONE);
@@ -568,7 +569,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
                       1,
                       0,
                       0,
-                      nullptr);
+                      std::nullopt);
       UI_but_func_set(but, graphedit_activekey_right_handle_coord_cb, fcu, bezt);
       UI_but_unit_type_set(but, unit);
     }
@@ -707,8 +708,6 @@ static void driver_dvar_invalid_name_query_cb(bContext *C, void *dvar_v, void * 
 /* callback to reset the driver's flags */
 static void driver_update_flags_cb(bContext * /*C*/, void *fcu_v, void * /*arg*/)
 {
-  return;
-
   FCurve *fcu = (FCurve *)fcu_v;
   ChannelDriver *driver = fcu->driver;
 

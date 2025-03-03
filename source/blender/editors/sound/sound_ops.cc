@@ -12,6 +12,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -25,6 +26,7 @@
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_packedFile.hh"
 #include "BKE_report.hh"
@@ -56,7 +58,7 @@
 
 static void sound_open_cancel(bContext * /*C*/, wmOperator *op)
 {
-  MEM_freeN(op->customdata);
+  MEM_delete(static_cast<PropertyPointerRNA *>(op->customdata));
   op->customdata = nullptr;
 }
 
@@ -64,8 +66,7 @@ static void sound_open_init(bContext *C, wmOperator *op)
 {
   PropertyPointerRNA *pprop;
 
-  op->customdata = pprop = static_cast<PropertyPointerRNA *>(
-      MEM_callocN(sizeof(PropertyPointerRNA), "OpenPropertyPointerRNA"));
+  op->customdata = pprop = MEM_new<PropertyPointerRNA>(__func__);
   UI_context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
 }
 
@@ -107,7 +108,7 @@ static int sound_open_exec(bContext *C, wmOperator *op)
 
   DEG_relations_tag_update(bmain);
 
-  MEM_freeN(op->customdata);
+  MEM_delete(pprop);
   return OPERATOR_FINISHED;
 }
 
@@ -432,6 +433,7 @@ static const char *snd_ext_sound[] = {
     ".mp3",
     ".ogg",
     ".wav",
+    ".aac",
     nullptr,
 };
 
@@ -446,7 +448,7 @@ static bool sound_mixdown_check(bContext * /*C*/, wmOperator *op)
     if (item->value == container) {
       const char **ext = snd_ext_sound;
       while (*ext != nullptr) {
-        if (STREQ(*ext + 1, item->name)) {
+        if (STRCASEEQ(*ext + 1, item->name)) {
           extension = *ext;
           break;
         }

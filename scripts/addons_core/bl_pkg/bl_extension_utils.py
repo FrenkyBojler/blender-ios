@@ -21,8 +21,6 @@ __all__ = (
 
     "pkg_make_obsolete_for_testing",
 
-    "dummy_progress",
-
     # Public Stand-Alone Utilities.
     "pkg_theme_file_list",
     "pkg_manifest_params_compatible_or_error",
@@ -232,7 +230,13 @@ def command_output_from_json_0(
     # Note that the context-manager isn't used to wait until the process is finished as
     # the function only finishes when `poll()` is not none, it's just use to ensure file-handles
     # are closed before this function exits, this only seems to be a problem on WIN32.
-    with subprocess.Popen(cmd, stdout=subprocess.PIPE) as ps:
+
+    # WIN32 needs to use a separate process-group else Blender will recieve the "break", see #131947.
+    creationflags = 0
+    if sys.platform == "win32":
+        creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
+
+    with subprocess.Popen(cmd, stdout=subprocess.PIPE, creationflags=creationflags) as ps:
         stdout = ps.stdout
         assert stdout is not None
 
@@ -291,7 +295,11 @@ def command_output_from_json_0(
             # It also means a request to exit might not be responded to soon enough.
             request_exit = yield json_messages
             if request_exit and not request_exit_signal_sent:
-                ps.send_signal(signal.SIGINT)
+                if sys.platform == "win32":
+                    # Caught by the `signal.SIGBREAK` signal handler.
+                    ps.send_signal(signal.CTRL_BREAK_EVENT)
+                else:
+                    ps.send_signal(signal.SIGINT)
                 request_exit_signal_sent = True
 
 
@@ -693,26 +701,6 @@ def pkg_uninstall(
         "--local-dir", directory,
         "--user-dir", user_directory,
         "--temp-prefix-and-suffix", "/".join(PKG_TEMP_PREFIX_AND_SUFFIX),
-    ], use_idle=use_idle, python_args=python_args)
-    yield [COMPLETE_ITEM]
-
-
-# -----------------------------------------------------------------------------
-# Public Demo Actions
-#
-
-def dummy_progress(
-        *,
-        use_idle: bool,
-        python_args: Sequence[str],
-) -> Generator[InfoItemSeq, bool, None]:
-    """
-    Implementation:
-    ``bpy.ops.extensions.dummy_progress()``.
-    """
-    yield from command_output_from_json_0([
-        "dummy-progress",
-        "--time-duration=1.0",
     ], use_idle=use_idle, python_args=python_args)
     yield [COMPLETE_ITEM]
 
@@ -1392,7 +1380,7 @@ def pkg_manifest_params_compatible_or_error(
         blender_version_max: str,
         platforms: list[str],
         python_versions: list[str],
-        this_platform: tuple[int, int, int],
+        this_platform: str,
         this_blender_version: tuple[int, int, int],
         this_python_version: tuple[int, int, int],
         error_fn: Callable[[Exception], None],

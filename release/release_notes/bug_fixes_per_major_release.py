@@ -29,8 +29,11 @@ some missing commits), but it's significantly better than nothing.
   - --previous-release-tag (-pt)
   - --backport-tasks (-bpt) (Optional but highly recommended)
 - Here is an example if you wish to collect the list for Blender 4.4 during
-the alpha stage of development for 4.4:
-  - `python bug_fixes_per_major_release.py -cv 4.4 -pv 4.3 -ct main -pt v4.3.2 -bpt 109399 124452 130221`
+the Beta and onwards stage of development:
+  - `python bug_fixes_per_major_release.py -cv 4.4 -pv 4.3 -ct blender-v4.4-release -pt v4.3.2 -bpt 109399 124452 130221`
+- Here is an example if you wish to collect the list for Blender 4.5 during
+the Alpha stage of development.
+  - `python bug_fixes_per_major_release.py -cv 4.5 -pv 4.4 -ct main -pt blender-v4.4-release -bpt 109399 124452`
 - Wait for the script to finish (This can take upwards of 20 minutes).
 - Follow the guide printed to terminal.
 
@@ -183,6 +186,9 @@ FIXED_OLD_ISSUE = "FIXED OLD"
 FIXED_PR = "FIXED PR"
 REVERT = "REVERT"
 
+SORTED_CLASSIFICATIONS = [FIXED_NEW_ISSUE, FIXED_OLD_ISSUE]
+VALID_CLASSIFICATIONS = [FIXED_NEW_ISSUE, NEEDS_MANUAL_SORTING, FIXED_OLD_ISSUE, FIXED_PR, REVERT]
+
 OLDER_VERION = "OLDER"
 NEWER_VERION = "NEWER"
 SAME_VERION = "SAME"
@@ -221,7 +227,7 @@ LIST_OF_OFFICIAL_BLENDER_VERSIONS = (
     # 3.x.
     '3.0', '3.1', '3.2', '3.3', '3.4', '3.5', '3.6', '4.0',
     # 4.x.
-    '4.1', '4.2', '4.3', '4.4',
+    '4.1', '4.2', '4.3', '4.4', '4.5'
 )
 
 # Catch duplicates
@@ -262,7 +268,7 @@ def url_json_get(url: str) -> Any:
 # -----------------------------------------------------------------------------
 # Commit Info Class
 
-class CommitInfo():
+class CommitInfo:
     __slots__ = (
         "hash",
         "commit_title",
@@ -326,13 +332,13 @@ class CommitInfo():
             # If the fix was back-ported to a old release, then it fixed a old issue.
             self.classification = FIXED_OLD_ISSUE
 
-    def override_report_info(self, new_classification: str, new_title: str, new_module: str) -> None:
-        if new_classification in (FIXED_NEW_ISSUE, FIXED_OLD_ISSUE):
+    def override_report_info(self, new_classification: str, new_title: str, new_module: str) -> bool:
+        if new_classification in SORTED_CLASSIFICATIONS:
             # Clear classifications are more important then any other. So always override in this case.
             self.classification = new_classification
             self.report_title = new_title
             self.module = new_module
-            return
+            return True
 
         if new_classification in (NEEDS_MANUAL_SORTING, FIXED_PR):
             if (self.classification == UNKNOWN) or ((new_classification ==
@@ -343,7 +349,8 @@ class CommitInfo():
                 self.classification = new_classification
                 self.report_title = new_title
                 self.module = new_module
-            return
+
+        return False
 
     def get_module(self, labels: list[dict[Any, Any]]) -> str:
         # Figures out what module the report that was fixed belongs too.
@@ -370,8 +377,6 @@ class CommitInfo():
             self.report_title = self.commit_title
             return
 
-        sorted_classes = (FIXED_NEW_ISSUE, FIXED_OLD_ISSUE)
-
         for report_number in self.fixed_reports:
             report_information = url_json_get(
                 f"https://projects.blender.org/api/v1/repos/blender/blender/issues/{report_number}")
@@ -389,11 +394,9 @@ class CommitInfo():
                     current_version=current_version,
                     previous_version=previous_version,
                 )
-                self.override_report_info(classification, report_title, module)
-
-            if self.classification in sorted_classes:
-                # The commit has been sorted. No need to process more reports.
-                break
+                if self.override_report_info(classification, report_title, module):
+                    # The commit has been sorted. No need to process more reports.
+                    break
 
     def generate_release_note_ready_string(self) -> str:
         # Breakup report_title based on words, and remove `:` if it's at the end of the first word.
@@ -705,19 +708,12 @@ def prepare_for_print(list_of_commits: list[CommitInfo]) -> dict[str, dict[str, 
     # This function takes in a list of commits, and sorts them based on their classification and module.
 
     dict_of_sorted_commits: dict[str, dict[str, list[CommitInfo]]] = {}
-    valid_classifications = [
-        FIXED_OLD_ISSUE,
-        NEEDS_MANUAL_SORTING,
-        REVERT,
-        FIXED_PR,
-        FIXED_NEW_ISSUE,
-    ]
-    for item in valid_classifications:
+    for item in VALID_CLASSIFICATIONS:
         dict_of_sorted_commits[item] = {}
 
     for commit in list_of_commits:
         commit_classification = commit.classification
-        if commit_classification in valid_classifications:
+        if commit_classification in VALID_CLASSIFICATIONS:
             commit_module = commit.module
             try:
                 # Try to append to a list. If it fails (The list doesn't exist), create the list.
@@ -725,7 +721,7 @@ def prepare_for_print(list_of_commits: list[CommitInfo]) -> dict[str, dict[str, 
             except KeyError:
                 dict_of_sorted_commits[commit_classification][commit_module] = [commit]
 
-    for item in valid_classifications:
+    for item in VALID_CLASSIFICATIONS:
         # Sort modules alphabetically
         dict_of_sorted_commits[item] = dict(sorted(dict_of_sorted_commits[item].items()))
 

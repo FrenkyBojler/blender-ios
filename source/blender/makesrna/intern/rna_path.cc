@@ -13,6 +13,7 @@
 
 #include "BLI_alloca.h"
 #include "BLI_dynstr.h"
+#include "BLI_hash.hh"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
@@ -33,6 +34,14 @@
 
 #include "rna_access_internal.hh"
 #include "rna_internal.hh"
+
+int64_t RNAPath::hash() const
+{
+  if (key.has_value()) {
+    return blender::get_default_hash(path, key.value());
+  }
+  return blender::get_default_hash(path, index.value_or(0));
+};
 
 bool operator==(const RNAPath &left, const RNAPath &right)
 {
@@ -385,7 +394,7 @@ static bool rna_path_parse(const PointerRNA *ptr,
   const bool do_item_ptr = r_item_ptr != nullptr && !eval_pointer;
 
   if (do_item_ptr) {
-    RNA_POINTER_INVALIDATE(&nextptr);
+    nextptr.invalidate();
   }
 
   prop = nullptr;
@@ -397,7 +406,7 @@ static bool rna_path_parse(const PointerRNA *ptr,
 
   while (*path) {
     if (do_item_ptr) {
-      RNA_POINTER_INVALIDATE(&nextptr);
+      nextptr.invalidate();
     }
 
     const bool use_id_prop = (*path == '[');

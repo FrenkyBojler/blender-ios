@@ -289,7 +289,6 @@ FCurve *id_data_find_fcurve(
  * Find an F-Curve from its rna path and index.
  *
  * The search order is as follows. The first match will be returned:
- *   - Animation
  *   - Action
  *   - Drivers
  *
@@ -352,13 +351,15 @@ int BKE_fcurve_bezt_binarysearch_index(const BezTriple array[],
  */
 FCurvePathCache *BKE_fcurve_pathcache_create(blender::Span<FCurve *> fcurves);
 void BKE_fcurve_pathcache_destroy(FCurvePathCache *fcache);
-FCurve *BKE_fcurve_pathcache_find(FCurvePathCache *fcache, const char rna_path[], int array_index);
+FCurve *BKE_fcurve_pathcache_find(const FCurvePathCache *fcache,
+                                  const char rna_path[],
+                                  int array_index);
 /**
  * Fill in an array of F-Curve, leave NULL when not found.
  *
  * \return The number of F-Curves found.
  */
-int BKE_fcurve_pathcache_find_array(FCurvePathCache *fcache,
+int BKE_fcurve_pathcache_find_array(const FCurvePathCache *fcache,
                                     const char *rna_path,
                                     FCurve **fcurve_result,
                                     int fcurve_result_len);
@@ -476,10 +477,15 @@ bool BKE_fcurve_bezt_subdivide_handles(BezTriple *bezt,
 /**
  * Resize the FCurve 'bezt' array to fit the given length.
  *
+ * This potentially moves the entire array, and thus pointers from before this call should be
+ * considered invalid / dangling.
+ *
  * \param new_totvert: new number of elements in the FCurve's `bezt` array.
- * Constraint: `0 <= new_totvert <= fcu->totvert`
+ *
+ * \note When increasing the size of the array, newly added elements are not initialized. That is
+ * left to the caller.
  */
-void BKE_fcurve_bezt_shrink(FCurve *fcu, int new_totvert);
+void BKE_fcurve_bezt_resize(FCurve *fcu, int new_totvert);
 
 /**
  * Merge the two given BezTriple arrays `a` and `b` into a newly allocated BezTriple array of size

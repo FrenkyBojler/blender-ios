@@ -33,6 +33,7 @@
 #include "BKE_image.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_mask.h"
 #include "BKE_movieclip.h"
@@ -122,36 +123,17 @@ void seq_imbuf_to_sequencer_space(const Scene *scene, ImBuf *ibuf, bool make_flo
     if (!make_float && STREQ(from_colorspace, to_colorspace)) {
       return;
     }
-    if (false) {
-      /* The idea here is to provide as fast playback as possible and
-       * enforcing float buffer here (a) uses more cache memory (b) might
-       * make some other effects slower to apply.
-       *
-       * However, this might also have negative effect by adding weird
-       * artifacts which will then not happen in final render.
-       */
-      IMB_colormanagement_transform_byte_threaded(ibuf->byte_buffer.data,
-                                                  ibuf->x,
-                                                  ibuf->y,
-                                                  ibuf->channels,
-                                                  from_colorspace,
-                                                  to_colorspace);
-    }
-    else {
-      /* We perform conversion to a float buffer so we don't worry about
-       * precision loss.
-       */
-      imb_addrectfloatImBuf(ibuf, 4, false);
-      IMB_colormanagement_transform_from_byte_threaded(ibuf->float_buffer.data,
-                                                       ibuf->byte_buffer.data,
-                                                       ibuf->x,
-                                                       ibuf->y,
-                                                       ibuf->channels,
-                                                       from_colorspace,
-                                                       to_colorspace);
-      /* We don't need byte buffer anymore. */
-      imb_freerectImBuf(ibuf);
-    }
+
+    imb_addrectfloatImBuf(ibuf, 4, false);
+    IMB_colormanagement_transform_byte_to_float(ibuf->float_buffer.data,
+                                                ibuf->byte_buffer.data,
+                                                ibuf->x,
+                                                ibuf->y,
+                                                ibuf->channels,
+                                                from_colorspace,
+                                                to_colorspace);
+    /* We don't need byte buffer anymore. */
+    imb_freerectImBuf(ibuf);
   }
   else {
     const char *from_colorspace = IMB_colormanagement_get_float_colorspace(ibuf);
@@ -165,13 +147,13 @@ void seq_imbuf_to_sequencer_space(const Scene *scene, ImBuf *ibuf, bool make_flo
     if (ibuf->byte_buffer.data != nullptr) {
       imb_freerectImBuf(ibuf);
     }
-    IMB_colormanagement_transform_threaded(ibuf->float_buffer.data,
-                                           ibuf->x,
-                                           ibuf->y,
-                                           ibuf->channels,
-                                           from_colorspace,
-                                           to_colorspace,
-                                           true);
+    IMB_colormanagement_transform_float(ibuf->float_buffer.data,
+                                        ibuf->x,
+                                        ibuf->y,
+                                        ibuf->channels,
+                                        from_colorspace,
+                                        to_colorspace,
+                                        true);
   }
   seq_imbuf_assign_spaces(scene, ibuf);
 }
@@ -187,13 +169,13 @@ void SEQ_render_imbuf_from_sequencer_space(const Scene *scene, ImBuf *ibuf)
   }
 
   if (to_colorspace && to_colorspace[0] != '\0') {
-    IMB_colormanagement_transform_threaded(ibuf->float_buffer.data,
-                                           ibuf->x,
-                                           ibuf->y,
-                                           ibuf->channels,
-                                           from_colorspace,
-                                           to_colorspace,
-                                           true);
+    IMB_colormanagement_transform_float(ibuf->float_buffer.data,
+                                        ibuf->x,
+                                        ibuf->y,
+                                        ibuf->channels,
+                                        from_colorspace,
+                                        to_colorspace,
+                                        true);
     IMB_colormanagement_assign_float_colorspace(ibuf, to_colorspace);
   }
 }
@@ -295,14 +277,14 @@ StripScreenQuad get_strip_screen_quad(const SeqRenderData *context, const Strip 
   Scene *scene = context->scene;
   const int x = context->rectx;
   const int y = context->recty;
-  float2 offset{x * 0.5f, y * 0.5f};
+  const float2 offset{x * 0.5f, y * 0.5f};
 
   Array<float2> quad = SEQ_image_transform_final_quad_get(scene, strip);
   const float scale = SEQ_rendersize_to_scale_factor(context->preview_render_size);
-  return StripScreenQuad{quad[0] * scale + offset,
-                         quad[1] * scale + offset,
-                         quad[2] * scale + offset,
-                         quad[3] * scale + offset};
+  return StripScreenQuad{float2(quad[0] * scale + offset),
+                         float2(quad[1] * scale + offset),
+                         float2(quad[2] * scale + offset),
+                         float2(quad[3] * scale + offset)};
 }
 
 /* Is quad `a` fully contained (i.e. covered by) quad `b`? For that to happen,
@@ -458,7 +440,7 @@ static bool seq_need_scale_to_render_size(const Strip *strip, bool is_proxy_imag
   return false;
 }
 
-static float4x4 sequencer_image_crop_transform_matrix(const Strip *strip,
+static float3x3 sequencer_image_crop_transform_matrix(const Strip *strip,
                                                       const ImBuf *in,
                                                       const ImBuf *out,
                                                       const float image_scale_factor,
@@ -471,16 +453,16 @@ static float4x4 sequencer_image_crop_transform_matrix(const Strip *strip,
    * interpolated. Interpolation with 0 user defined translation is unwanted behavior. */
   const int3 image_center_offs((out->x - in->x) / 2, (out->y - in->y) / 2, 0);
 
-  const float3 translation(
-      transform->xofs * preview_scale_factor, transform->yofs * preview_scale_factor, 0.0f);
-  const float3 rotation(0.0f, 0.0f, transform->rotation);
+  const float2 translation(transform->xofs * preview_scale_factor,
+                           transform->yofs * preview_scale_factor);
+  const float rotation = transform->rotation;
   const float2 scale(transform->scale_x * image_scale_factor,
                      transform->scale_y * image_scale_factor);
-  const float3 pivot(in->x * transform->origin[0], in->y * transform->origin[1], 0.0f);
+  const float2 pivot(in->x * transform->origin[0], in->y * transform->origin[1]);
 
-  const float4x4 matrix = math::from_loc_rot_scale<float4x4>(
-      translation + float3(image_center_offs), rotation, scale);
-  const float4x4 mat_pivot = math::from_origin_transform(matrix, pivot);
+  const float3x3 matrix = math::from_loc_rot_scale<float3x3>(
+      translation + float2(image_center_offs), rotation, scale);
+  const float3x3 mat_pivot = math::from_origin_transform(matrix, pivot);
   return math::invert(mat_pivot);
 }
 
@@ -557,7 +539,7 @@ static void sequencer_preprocess_transform_crop(
   const bool do_scale_to_render_size = seq_need_scale_to_render_size(strip, is_proxy_image);
   const float image_scale_factor = do_scale_to_render_size ? 1.0f : preview_scale_factor;
 
-  float4x4 matrix = sequencer_image_crop_transform_matrix(
+  float3x3 matrix = sequencer_image_crop_transform_matrix(
       strip, in, out, image_scale_factor, preview_scale_factor);
 
   /* Proxy image is smaller, so crop values must be corrected by proxy scale factor.
@@ -589,12 +571,7 @@ static void sequencer_preprocess_transform_crop(
       break;
   }
 
-  IMB_transform(in,
-                out,
-                IMB_TRANSFORM_MODE_CROP_SRC,
-                filter,
-                (float(*)[4])(matrix.base_ptr()),
-                &source_crop);
+  IMB_transform(in, out, IMB_TRANSFORM_MODE_CROP_SRC, filter, matrix, &source_crop);
 
   if (is_strip_covering_screen(context, strip)) {
     out->planes = in->planes;
@@ -1486,7 +1463,7 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context,
   is_frame_update = (orig_data.timeline_frame != scene->r.cfra) ||
                     (orig_data.subframe != scene->r.subframe);
 
-  if (sequencer_view3d_fn && is_preview && camera && BLI_thread_is_main()) {
+  if (sequencer_view3d_fn && is_preview && camera) {
     char err_out[256] = "unknown";
     int width, height;
     BKE_render_resolution(&scene->r, false, &width, &height);
@@ -1810,16 +1787,7 @@ ImBuf *seq_render_strip(const SeqRenderData *context,
 
 static bool seq_must_swap_input_in_blend_mode(Strip *strip)
 {
-  bool swap_input = false;
-
-  /* bad hack, to fix crazy input ordering of
-   * those two effects */
-
-  if (ELEM(strip->blend_mode, STRIP_TYPE_ALPHAOVER, STRIP_TYPE_ALPHAUNDER, STRIP_TYPE_OVERDROP)) {
-    swap_input = true;
-  }
-
-  return swap_input;
+  return ELEM(strip->blend_mode, STRIP_TYPE_ALPHAOVER, STRIP_TYPE_ALPHAUNDER);
 }
 
 static StripEarlyOut strip_get_early_out_for_blend_mode(Strip *strip)
@@ -1848,6 +1816,7 @@ static ImBuf *seq_render_strip_stack_apply_effect(
 {
   ImBuf *out;
   SeqEffectHandle sh = strip_effect_get_sequence_blend(strip);
+  BLI_assert(sh.execute != nullptr);
   float fac = strip->blend_opacity / 100.0f;
   int swap_input = seq_must_swap_input_in_blend_mode(strip);
 

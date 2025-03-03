@@ -63,6 +63,7 @@
 #include "NOD_composite.hh"
 
 #include "COM_compositor.hh"
+#include "COM_context.hh"
 #include "COM_render_context.hh"
 
 #include "DEG_depsgraph.hh"
@@ -1375,7 +1376,9 @@ static void do_render_compositor(Render *re)
                       ntree,
                       rv->name,
                       &compositor_render_context,
-                      nullptr);
+                      nullptr,
+                      blender::compositor::OutputTypes::Composite |
+                          blender::compositor::OutputTypes::FileOutput);
         }
         compositor_render_context.save_file_outputs(re->pipeline_scene_eval);
 
@@ -1473,13 +1476,13 @@ static ImBuf *seq_process_render_image(ImBuf *src,
     const char *from_colorspace = IMB_colormanagement_get_rect_colorspace(src);
     const char *to_colorspace = IMB_colormanagement_role_colorspace_name_get(
         COLOR_ROLE_SCENE_LINEAR);
-    IMB_colormanagement_transform_from_byte_threaded(dst->float_buffer.data,
-                                                     src->byte_buffer.data,
-                                                     src->x,
-                                                     src->y,
-                                                     src->channels,
-                                                     from_colorspace,
-                                                     to_colorspace);
+    IMB_colormanagement_transform_byte_to_float(dst->float_buffer.data,
+                                                src->byte_buffer.data,
+                                                src->x,
+                                                src->y,
+                                                src->channels,
+                                                from_colorspace,
+                                                to_colorspace);
   }
   else {
     /* Duplicate sequencer output and ensure it is in needed color space. */
