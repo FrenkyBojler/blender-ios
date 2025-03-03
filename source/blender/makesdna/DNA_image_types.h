@@ -134,14 +134,14 @@ typedef struct Image_Runtime {
   /** \brief Partial update user for GPUTextures stored inside the Image. */
   struct PartialUpdateUser *partial_update_user;
 
+  void *_pad;
+
+  /* The image's current update count. See deg::set_id_update_count for more information. */
+  uint64_t update_count;
+
   /* Compositor viewer might be translated, and that translation will be stored in this runtime
    * vector by the compositor so that the editor draw code can draw the image translated. */
   float backdrop_offset[2];
-
-  void *_pad;
-  /* An initially zero value that is incremented every time the image is changed. This can be used
-   * to identify if the image was changed since the last time it was cached. */
-  uint64_t last_update;
 } Image_Runtime;
 
 typedef struct Image {
