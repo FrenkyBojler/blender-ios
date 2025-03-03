@@ -20,7 +20,7 @@ struct OpenSubdiv_EvaluatorCache;
 struct OpenSubdiv_EvaluatorSettings;
 struct OpenSubdiv_PatchCoord;
 namespace blender::gpu {
-struct VertBuf;
+class VertBuf;
 }
 namespace blender::opensubdiv {
 

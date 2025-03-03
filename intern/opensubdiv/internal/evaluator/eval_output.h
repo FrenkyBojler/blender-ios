@@ -611,7 +611,7 @@ class VolatileEvalOutput : public EvalOutputAPI::EvalOutput {
     return face_varying_evaluators_[face_varying_channel]->getSrcBuffer();
   }
 
-  int getFVarSrcBufferOffset(const int face_varying_channel) const
+  int getFVarSrcBufferOffset(const int face_varying_channel) const override
   {
     return face_varying_evaluators_[face_varying_channel]->getFVarSrcBufferOffset();
   }
