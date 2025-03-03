@@ -9,18 +9,25 @@
 #pragma once
 
 #include "BLI_array.hh"
+#include "BLI_function_ref.hh"
+#include "BLI_generic_key.hh"
+#include "BLI_map.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_utildefines.h"
 
 #include "DNA_view3d_enums.h"
 
+#include "GPU_index_buffer.hh"
 #include "GPU_shader.hh"
 
+#include "GPU_vertex_buffer.hh"
 #include "draw_attributes.hh"
+#include <memory>
 
 namespace blender::gpu {
 class Batch;
 class IndexBuf;
+class VertBuf;
 }  // namespace blender::gpu
 struct Mesh;
 struct Object;
@@ -29,6 +36,9 @@ struct TaskGraph;
 struct ToolSettings;
 
 namespace blender::draw {
+
+gpu::VertBuf &vertex_buffer_cache_ensure(const GenericKey &generic_key,
+                                         FunctionRef<gpu::VertBuf()> compute_fn);
 
 struct MeshRenderData;
 struct DRWSubdivCache;
@@ -57,61 +67,81 @@ enum {
   DRW_MESH_WEIGHT_STATE_LOCK_RELATIVE = (1 << 2),
 };
 
+enum class VBOType : int8_t {
+  Position,
+  CornerNormal,
+  EdgeFactor,
+  VertexGroupWeight,
+  UVs,
+  Tangents,
+  SculptData,
+  Orco,
+  EditData,
+  EditUVData,
+  EditUVStretchArea,
+  EditUVStretchAngle,
+  MeshAnalysis,
+  FaceDotPosition,
+  FaceDotNormal,
+  FaceDotUV,
+  FaceDotEditUVData,
+  SkinRoots,
+  IndexVert,
+  IndexEdge,
+  IndexFace,
+  IndexFaceDot,
+  Attr0,
+  Attr1,
+  Attr2,
+  Attr3,
+  Attr5,
+  Attr6,
+  Attr7,
+  Attr8,
+  Attr9,
+  Attr10,
+  Attr11,
+  Attr12,
+  Attr13,
+  Attr14,
+  Attr15,
+  AttrViewer,
+  VertexNormal,
+};
+
+enum class IBOType : int8_t {
+  Tris,
+  Lines,
+  LinesLoose,
+  Points,
+  FaceDots,
+  LinesPaintMask,
+  LinesAdjacency,
+  EditUVTris,
+  EditUVLines,
+  EditUVPoints,
+  EditUVFaceDots,
+};
+
+class VertBufDeleter {
+ public:
+  void operator()(gpu::VertBuf *vbo)
+  {
+    GPU_vertbuf_discard(vbo);
+  }
+};
+
+class IndexBufDeleter {
+ public:
+  void operator()(gpu::IndexBuf *ibo)
+  {
+    GPU_indexbuf_discard(ibo);
+  }
+};
+
 struct MeshBufferList {
-  /* Every VBO below contains at least enough data for every loop in the mesh
-   * (except fdots and skin roots). For some VBOs, it extends to (in this exact order) :
-   * loops + loose_edges * 2 + loose_verts */
-  struct {
-    gpu::VertBuf *pos;      /* extend */
-    gpu::VertBuf *nor;      /* extend */
-    gpu::VertBuf *edge_fac; /* extend */
-    gpu::VertBuf *weights;  /* extend */
-    gpu::VertBuf *uv;
-    gpu::VertBuf *tan;
-    gpu::VertBuf *sculpt_data;
-    gpu::VertBuf *orco;
-    /* Only for edit mode. */
-    gpu::VertBuf *edit_data; /* extend */
-    gpu::VertBuf *edituv_data;
-    gpu::VertBuf *edituv_stretch_area;
-    gpu::VertBuf *edituv_stretch_angle;
-    gpu::VertBuf *mesh_analysis;
-    gpu::VertBuf *fdots_pos;
-    gpu::VertBuf *fdots_nor;
-    gpu::VertBuf *fdots_uv;
-    // gpu::VertBuf *fdots_edit_data; /* inside fdots_nor for now. */
-    gpu::VertBuf *fdots_edituv_data;
-    gpu::VertBuf *skin_roots;
-    /* Selection */
-    gpu::VertBuf *vert_idx; /* extend */
-    gpu::VertBuf *edge_idx; /* extend */
-    gpu::VertBuf *face_idx;
-    gpu::VertBuf *fdot_idx;
-    gpu::VertBuf *attr[GPU_MAX_ATTR];
-    gpu::VertBuf *attr_viewer;
-    gpu::VertBuf *vnor;
-  } vbo;
-  /* Index Buffers:
-   * Only need to be updated when topology changes. */
-  struct {
-    /* Indices to vloops. Ordered per material. */
-    gpu::IndexBuf *tris;
-    /* Loose edges last. */
-    gpu::IndexBuf *lines;
-    /* Potentially a sub buffer of `lines` only containing the loose edges. */
-    gpu::IndexBuf *lines_loose;
-    gpu::IndexBuf *points;
-    gpu::IndexBuf *fdots;
-    /* 3D overlays. */
-    /* no loose edges. */
-    gpu::IndexBuf *lines_paint_mask;
-    gpu::IndexBuf *lines_adjacency;
-    /** UV overlays. (visibility can differ from 3D view). */
-    gpu::IndexBuf *edituv_tris;
-    gpu::IndexBuf *edituv_lines;
-    gpu::IndexBuf *edituv_points;
-    gpu::IndexBuf *edituv_fdots;
-  } ibo;
+  Map<VBOType, std::unique_ptr<gpu::VertBuf, VertBufDeleter>> vbos;
+  Map<IBOType, std::unique_ptr<gpu::IndexBuf, IndexBufDeleter>> ibos;
 };
 
 struct MeshBatchList {
@@ -298,6 +328,19 @@ void mesh_buffer_cache_create_requested(TaskGraph &task_graph,
                                         bool do_uvedit,
                                         const Scene &scene,
                                         const ToolSettings *ts,
+                                        bool use_hide);
+
+void mesh_buffer_cache_create_requested(const Scene &scene,
+                                        MeshBatchCache &cache,
+                                        MeshBufferCache &mbc,
+                                        Span<IBOType> ibo_requests,
+                                        Span<VBOType> vbo_requests,
+                                        Object &object,
+                                        Mesh &mesh,
+                                        bool is_editmode,
+                                        bool is_paint_mode,
+                                        bool do_final,
+                                        bool do_uvedit,
                                         bool use_hide);
 
 void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,

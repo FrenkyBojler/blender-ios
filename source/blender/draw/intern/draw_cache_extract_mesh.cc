@@ -8,6 +8,7 @@
  * \brief Extraction of Mesh data into VBO to feed to GPU.
  */
 
+#include "BLI_task.hh"
 #include "DNA_mesh_types.h"
 #include "DNA_scene_types.h"
 
@@ -88,9 +89,12 @@ static bool any_attr_requested(const MeshBufferList &buffers)
   return false;
 }
 
-void mesh_buffer_cache_create_requested(TaskGraph &task_graph,
+void mesh_buffer_cache_create_requested(const Scene &scene,
+                                        TaskGraph &task_graph,
                                         MeshBatchCache &cache,
                                         MeshBufferCache &mbc,
+                                        Span<IBOType> ibo_requests,
+                                        Span<VBOType> vbo_requests,
                                         Object &object,
                                         Mesh &mesh,
                                         const bool is_editmode,
@@ -98,74 +102,16 @@ void mesh_buffer_cache_create_requested(TaskGraph &task_graph,
                                         const float4x4 &object_to_world,
                                         const bool do_final,
                                         const bool do_uvedit,
-                                        const Scene &scene,
-                                        const ToolSettings *ts,
                                         const bool use_hide)
 {
-  /* For each mesh where batches needs to be updated a sub-graph will be added to the task_graph.
-   * This sub-graph starts with an extract_render_data_node. This fills/converts the required
-   * data from Mesh.
-   *
-   * Small extractions and extractions that can't be multi-threaded are grouped in a single
-   * `extract_single_threaded_task_node`.
-   *
-   * Other extractions will create a node for each loop exceeding 8192 items. these nodes are
-   * linked to the `user_data_init_task_node`. the `user_data_init_task_node` prepares the
-   * user_data needed for the extraction based on the data extracted from the mesh.
-   * counters are used to check if the finalize of a task has to be called.
-   *
-   *                           Mesh extraction sub graph
-   *
-   *                                                       +----------------------+
-   *                                               +-----> | extract_task1_loop_1 |
-   *                                               |       +----------------------+
-   * +------------------+     +----------------------+     +----------------------+
-   * | mesh_render_data | --> |                      | --> | extract_task1_loop_2 |
-   * +------------------+     |                      |     +----------------------+
-   *   |                      |                      |     +----------------------+
-   *   |                      |    user_data_init    | --> | extract_task2_loop_1 |
-   *   v                      |                      |     +----------------------+
-   * +------------------+     |                      |     +----------------------+
-   * | single_threaded  |     |                      | --> | extract_task2_loop_2 |
-   * +------------------+     +----------------------+     +----------------------+
-   *                                               |       +----------------------+
-   *                                               +-----> | extract_task2_loop_3 |
-   *                                                       +----------------------+
-   */
+  if (ibo_requests.is_empty() && vbo_requests.is_empty()) {
+    return;
+  }
+  const ToolSettings *ts = scene.toolsettings;
   const bool do_hq_normals = (scene.r.perf_flag & SCE_PERF_HQ_NORMALS) != 0 ||
                              GPU_use_hq_normals_workaround();
 
   MeshBufferList &buffers = mbc.buff;
-  const bool attrs_requested = any_attr_requested(buffers);
-  if (!DRW_ibo_requested(buffers.ibo.lines) && !DRW_ibo_requested(buffers.ibo.lines_loose) &&
-      !DRW_ibo_requested(buffers.ibo.tris) && !DRW_ibo_requested(buffers.ibo.points) &&
-      !DRW_ibo_requested(buffers.ibo.fdots) && !DRW_vbo_requested(buffers.vbo.pos) &&
-      !DRW_vbo_requested(buffers.vbo.fdots_pos) && !DRW_vbo_requested(buffers.vbo.nor) &&
-      !DRW_vbo_requested(buffers.vbo.vnor) && !DRW_vbo_requested(buffers.vbo.fdots_nor) &&
-      !DRW_vbo_requested(buffers.vbo.edge_fac) && !DRW_vbo_requested(buffers.vbo.tan) &&
-      !DRW_vbo_requested(buffers.vbo.edit_data) && !DRW_vbo_requested(buffers.vbo.face_idx) &&
-      !DRW_vbo_requested(buffers.vbo.edge_idx) && !DRW_vbo_requested(buffers.vbo.vert_idx) &&
-      !DRW_vbo_requested(buffers.vbo.fdot_idx) && !DRW_vbo_requested(buffers.vbo.weights) &&
-      !DRW_vbo_requested(buffers.vbo.fdots_uv) &&
-      !DRW_vbo_requested(buffers.vbo.fdots_edituv_data) && !DRW_vbo_requested(buffers.vbo.uv) &&
-      !DRW_vbo_requested(buffers.vbo.edituv_stretch_area) &&
-      !DRW_vbo_requested(buffers.vbo.edituv_stretch_angle) &&
-      !DRW_vbo_requested(buffers.vbo.edituv_data) && !DRW_ibo_requested(buffers.ibo.edituv_tris) &&
-      !DRW_ibo_requested(buffers.ibo.edituv_lines) &&
-      !DRW_ibo_requested(buffers.ibo.edituv_points) &&
-      !DRW_ibo_requested(buffers.ibo.edituv_fdots) &&
-      !DRW_ibo_requested(buffers.ibo.lines_paint_mask) &&
-      !DRW_ibo_requested(buffers.ibo.lines_adjacency) &&
-      !DRW_vbo_requested(buffers.vbo.skin_roots) && !DRW_vbo_requested(buffers.vbo.sculpt_data) &&
-      !DRW_vbo_requested(buffers.vbo.orco) && !DRW_vbo_requested(buffers.vbo.mesh_analysis) &&
-      !DRW_vbo_requested(buffers.vbo.attr_viewer) && !attrs_requested)
-  {
-    return;
-  }
-
-#ifdef DEBUG_TIME
-  double rdata_start = BLI_time_now_seconds();
-#endif
 
   std::unique_ptr<MeshRenderData> mr_ptr = mesh_render_data_create(object,
                                                                    mesh,
@@ -180,6 +126,174 @@ void mesh_buffer_cache_create_requested(TaskGraph &task_graph,
   mr->use_subsurf_fdots = mr->mesh && !mr->mesh->runtime->subsurf_face_dot_tags.is_empty();
   mr->use_final_mesh = do_final;
   mr->use_simplify_normals = (scene.r.mode & R_SIMPLIFY) && (scene.r.mode & R_SIMPLIFY_NORMALS);
+
+  threading::parallel_for_each(ibo_requests, [&](const IBOType ibo_request) {
+    switch (ibo_request) {
+      case IBOType::Tris: {
+        const SortedFaceData &face_sorted = mesh_render_data_faces_sorted_ensure(data.mr,
+                                                                                 data.mbc);
+        extract_tris(data.mr, face_sorted, data.cache, *buffers.ibo.tris);
+        break;
+      }
+      case IBOType::Lines: {
+        break;
+      }
+      case IBOType::LinesLoose: {
+        break;
+      }
+      case IBOType::Points: {
+        break;
+      }
+      case IBOType::FaceDots: {
+        break;
+      }
+      case IBOType::LinesPaintMask: {
+        break;
+      }
+      case IBOType::LinesAdjacency: {
+        break;
+      }
+      case IBOType::EditUVTris: {
+        break;
+      }
+      case IBOType::EditUVLines: {
+        break;
+      }
+      case IBOType::EditUVPoints: {
+        break;
+      }
+      case IBOType::EditUVFaceDots: {
+        break;
+      }
+    }
+  });
+
+  threading::parallel_for_each(vbo_requests, [&](const VBOType vbo_request) {
+    switch (vbo_request) {
+
+      case VBOType::Position: {
+        break;
+      }
+      case VBOType::CornerNormal: {
+        break;
+      }
+      case VBOType::EdgeFactor: {
+        break;
+      }
+      case VBOType::VertexGroupWeight: {
+        break;
+      }
+      case VBOType::UVs: {
+        break;
+      }
+      case VBOType::Tangents: {
+        break;
+      }
+      case VBOType::SculptData: {
+        break;
+      }
+      case VBOType::Orco: {
+        break;
+      }
+      case VBOType::EditData: {
+        break;
+      }
+      case VBOType::EditUVData: {
+        break;
+      }
+      case VBOType::EditUVStretchArea: {
+        break;
+      }
+      case VBOType::EditUVStretchAngle: {
+        break;
+      }
+      case VBOType::MeshAnalysis: {
+        break;
+      }
+      case VBOType::FaceDotPosition: {
+        break;
+      }
+      case VBOType::FaceDotNormal: {
+        break;
+      }
+      case VBOType::FaceDotUV: {
+        break;
+      }
+      case VBOType::FaceDotEditUVData: {
+        break;
+      }
+      case VBOType::SkinRoots: {
+        break;
+      }
+      case VBOType::IndexVert: {
+        break;
+      }
+      case VBOType::IndexEdge: {
+        break;
+      }
+      case VBOType::IndexFace: {
+        break;
+      }
+      case VBOType::IndexFaceDot: {
+        break;
+      }
+      case VBOType::Attr0: {
+        break;
+      }
+      case VBOType::Attr1: {
+        break;
+      }
+      case VBOType::Attr2: {
+        break;
+      }
+      case VBOType::Attr3: {
+        break;
+      }
+      case VBOType::Attr5: {
+        break;
+      }
+      case VBOType::Attr6: {
+        break;
+      }
+      case VBOType::Attr7: {
+        break;
+      }
+      case VBOType::Attr8: {
+        break;
+      }
+      case VBOType::Attr9: {
+        break;
+      }
+      case VBOType::Attr10: {
+        break;
+      }
+      case VBOType::Attr11: {
+        break;
+      }
+      case VBOType::Attr12: {
+        break;
+      }
+      case VBOType::Attr13: {
+        break;
+      }
+      case VBOType::Attr14: {
+        break;
+      }
+      case VBOType::Attr15: {
+        break;
+      }
+      case VBOType::AttrViewer: {
+        break;
+      }
+      case VBOType::VertexNormal: {
+        break;
+      }
+    }
+  });
+
+#ifdef DEBUG_TIME
+  double rdata_start = BLI_time_now_seconds();
+#endif
 
 #ifdef DEBUG_TIME
   double rdata_end = BLI_time_now_seconds();
