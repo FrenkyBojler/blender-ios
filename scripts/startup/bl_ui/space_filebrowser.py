@@ -613,7 +613,9 @@ class ASSETBROWSER_PT_display(asset_utils.AssetBrowserPanel, Panel):
         if params.display_type == 'THUMBNAIL':
             col.prop(params, "display_size", text="Size")
         else:
-            col.prop(params, "list_display_size", text="Size")
+            col.prop(params, "list_display_size", text="Preview Size")
+        if params.display_type == 'LIST_HORIZONTAL':
+            col.prop(params, "list_column_size", text="Column Size")
 
         col.separator()
 

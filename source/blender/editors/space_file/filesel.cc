@@ -67,8 +67,6 @@
 #include "file_intern.hh"
 #include "filelist.hh"
 
-#define VERTLIST_MAJORCOLUMN_WIDTH(show_details) (((show_details) ? 25 : 15) * UI_UNIT_X)
-
 static void fileselect_initialize_params_common(SpaceFile *sfile, FileSelectParams *params)
 {
   const char *blendfile_path = BKE_main_blendfile_path_from_global();
@@ -130,6 +128,7 @@ static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
    * space is more of an issue here. */
   base_params->thumbnail_size = 96;
   base_params->list_thumbnail_size = 32;
+  base_params->list_column_size = 300;
 
   fileselect_initialize_params_common(sfile, base_params);
 }
@@ -162,6 +161,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
     sfile->params->details_flags = U_default.file_space_data.details_flags;
     sfile->params->filter_id = U_default.file_space_data.filter_id;
     sfile->params->list_thumbnail_size = 16;
+    sfile->params->list_column_size = 500;
   }
 
   params = sfile->params;
@@ -1043,8 +1043,6 @@ static void file_attribute_columns_init(const FileSelectParams *params, FileLayo
 void ED_fileselect_init_layout(SpaceFile *sfile, ARegion *region)
 {
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
-  /* Request a slightly more compact layout for asset browsing. */
-  const bool is_asset_browser = ED_fileselect_is_asset_browser(sfile);
   FileLayout *layout = nullptr;
   View2D *v2d = &region->v2d;
   int numfiles;
@@ -1065,7 +1063,7 @@ void ED_fileselect_init_layout(SpaceFile *sfile, ARegion *region)
 
   if (params->display == FILE_IMGDISPLAY) {
     /* More compact spacing for asset browser. */
-    const float pad_fac = is_asset_browser ? 0.15f : 0.3f;
+    const float pad_fac = ED_fileselect_is_asset_browser(sfile) ? 0.15f : 0.3f;
     /* Matches UI_preview_tile_size_x()/_y() by default. */
     layout->prv_w = (float(params->thumbnail_size) / 20.0f) * UI_UNIT_X;
     layout->prv_h = (float(params->thumbnail_size) / 20.0f) * UI_UNIT_Y;
@@ -1128,8 +1126,7 @@ void ED_fileselect_init_layout(SpaceFile *sfile, ARegion *region)
     layout->rows = (layout->height - V2D_SCROLL_HEIGHT + layout->tile_border_y) /
                    (layout->tile_h + 2 * layout->tile_border_y);
 
-    const bool show_details_columns = !is_asset_browser;
-    layout->tile_w = VERTLIST_MAJORCOLUMN_WIDTH(show_details_columns);
+    layout->tile_w = params->list_column_size * UI_SCALE_FAC;
     file_attribute_columns_init(params, layout);
 
     if (layout->rows > 0) {

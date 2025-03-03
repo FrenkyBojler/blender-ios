@@ -5893,11 +5893,21 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
             continue;
           }
           SpaceFile *sfile = reinterpret_cast<SpaceFile *>(sl);
-          if (sfile->params && (sfile->params->list_thumbnail_size == 0)) {
-            sfile->params->list_thumbnail_size = 16;
+          if (sfile->params) {
+            if (sfile->params->list_thumbnail_size == 0) {
+              sfile->params->list_thumbnail_size = 16;
+            }
+            if (sfile->params->list_column_size == 0) {
+              sfile->params->list_thumbnail_size = 500;
+            }
           }
-          if (sfile->asset_params && (sfile->asset_params->base_params.list_thumbnail_size == 0)) {
-            sfile->asset_params->base_params.list_thumbnail_size = 32;
+          if (sfile->asset_params) {
+            if (sfile->asset_params->base_params.list_thumbnail_size == 0) {
+              sfile->asset_params->base_params.list_thumbnail_size = 32;
+            }
+            if (sfile->asset_params->base_params.list_column_size == 0) {
+              sfile->asset_params->base_params.list_column_size = 300;
+            }
           }
         }
       }
