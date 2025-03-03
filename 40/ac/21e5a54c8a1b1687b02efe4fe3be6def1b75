@@ -1,1 +1,2 @@
 Referenced by issue #135355, Running bpy.ops.render.opengl() through the Python console doesn't return {'FINISHED'}
+Referenced by pull request #135394, Fix #135355: ops.render.opengl() in the console wont return {'FINISHED'}
