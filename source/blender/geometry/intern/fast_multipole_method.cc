@@ -13,9 +13,11 @@
 #include "GEO_bounding_sphere.hh"
 #include "GEO_fast_multipole_method.hh"
 
+#include "fast_math.h"
+
 namespace blender::geometry::fmm {
 
-static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values(const int power_value)
+static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values_old(const int power_value)
 {
   switch (power_value) {
     case 0:
@@ -118,8 +120,48 @@ static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values(const i
   }
 }
 
+static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values(const int power_value)
+{
+  switch (power_value) {
+    case 0:
+      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_pow_0_n(values.begin(), values.size()); };
+    case 1:
+      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_pow_1_n(values.begin(), values.size()); };
+    case 2:
+      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_pow_2_n(values.begin(), values.size()); };
+    case 3:
+      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_pow_3_n(values.begin(), values.size()); };
+    case 4:
+      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_pow_4_n(values.begin(), values.size()); };
+    case 5:
+      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_pow_5_n(values.begin(), values.size()); };
+    case 6:
+      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_pow_6_n(values.begin(), values.size()); };
+    case 7:
+      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_pow_7_n(values.begin(), values.size()); };
+    case 8:
+      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_pow_8_n(values.begin(), values.size()); };
+    case 9:
+      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_pow_9_n(values.begin(), values.size()); };
+    case 10:
+      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_pow_10_n(values.begin(), values.size()); };
+    case 11:
+      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_pow_11_n(values.begin(), values.size()); };
+    case 12:
+      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_pow_12_n(values.begin(), values.size()); };
+    default:
+      return [](const int power_value, MutableSpan<float> values) {
+        const float power_factor = float(-power_value);
+        std::transform(
+            values.begin(), values.end(), values.begin(), [power_factor](const float value) {
+              return math::pow(value, power_factor);
+            });
+      };
+  }
+}
+
 template<typename T>
-static T accumulate_with_factor(const Span<T> values, const Span<float> factors)
+static T dot_product(const Span<T> values, const Span<float> factors)
 {
   BLI_assert(values.size() == factors.size());
   T accumulator(0);
@@ -127,6 +169,43 @@ static T accumulate_with_factor(const Span<T> values, const Span<float> factors)
     accumulator += values[i] * factors[i];
   }
   return accumulator;
+}
+
+template<>
+static float dot_product(const Span<float> values, const Span<float> factors)
+{
+  BLI_assert(values.size() == factors.size());
+  return ispc::float_dot_product(values.data(), factors.data(), values.size());
+}
+
+/*
+template<>
+static float3 dot_product(const Span<float3> values, const Span<float> factors)
+{
+  BLI_assert(values.size() == factors.size());
+  BLI_assert(!values.is_empty());
+  float3 total(0);
+  ispc::float3_dot_product(values.cast<float [3]>().data(), factors.data(), values.size(), total);
+  return total;
+}
+*/
+
+template<typename T>
+static void scatter_mul_add(const Span<float> factors, const T value, const Span<int> indices, MutableSpan<T> data)
+{
+  BLI_assert(factors.size() == indices.size());
+
+  for (const int i : indices.index_range()) {
+    data[indices[i]] += value * factors[i];
+  }
+}
+
+template<>
+static void scatter_mul_add(const Span<float> factors, const float value, const Span<int> indices, MutableSpan<float> data)
+{
+  BLI_assert(factors.size() == indices.size());
+
+  ispc::float_scatter_mul_add(factors.data(), value, indices.data(), data.data(), factors.size());
 }
 
 void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
@@ -161,6 +240,8 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
   Vector<std::pair<int, Vector<int, 0>>, 0> joint_to_batch_samples;
   Vector<std::pair<IndexRange, Vector<int>>, 0> bucket_to_batch_samples;
 
+  Array<Vector<int, 0>, 0> batch_to_joints(sample_position.size());
+
   akdbh::batch_for_each_to_bottom_skip(
       buckets_offsets,
       total_depth,
@@ -173,7 +254,10 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
         return sampler_to_joint_distance_squared <= joint_min_distance_squared;
       },
       [&](const int joint_index, const Span<int> batch_indices) {
-        joint_to_batch_samples.append_as(joint_index, batch_indices);
+        // joint_to_batch_samples.append_as(joint_index, batch_indices);
+        for (const int batch_i : batch_indices) {
+          batch_to_joints[batch_i].append(joint_index);
+        }
       },
       [&](const IndexRange bucket_range, const Span<int> batch_indices) {
         bucket_to_batch_samples.append_as(bucket_range, batch_indices);
@@ -189,23 +273,49 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
     const Span<T> typed_src_bucket_value = src_bucket_value.typed<T>();
     MutableSpan<T> typed_dst_buckets_data = dst_buckets_data.typed<T>();
 
-    for (const auto &[joint_index, batch_samples] : joint_to_batch_samples) {
-      buffer.resize(batch_samples.size());
-      const float3 jooint_position = src_joints_centre[joint_index];
-      for (const int sample_i : batch_samples.index_range()) {
-        const int sample_index = batch_samples[sample_i];
-        const float sampler_to_joint_distance_squared = math::distance(
-            jooint_position, sample_position[sample_index]);
-        buffer[sample_i] = sampler_to_joint_distance_squared + offset_value;
+    Vector<T, 0> joints_buffer;
+
+    for (const int batch_i : batch_to_joints.index_range()) {
+      const Span<int> batch_joints = batch_to_joints[batch_i];
+      buffer.resize(batch_joints.size());
+      joints_buffer.resize(batch_joints.size());
+      
+      const float3 batch_position = sample_position[batch_i];
+      for (const int i : batch_joints.index_range()) {
+        const int joint_index = batch_joints[i];
+        const float3 jooint_position = src_joints_centre[joint_index];
+        const float sampler_to_joint_distance_squared = math::distance(batch_position, jooint_position);
+        buffer[i] = sampler_to_joint_distance_squared + offset_value;
       }
 
       distance_invertion(power_value, buffer.as_mutable_span());
-      for (const int sample_i : batch_samples.index_range()) {
-        const int sample_index = batch_samples[sample_i];
-        typed_dst_buckets_data[sample_index] += typed_src_joints_value[joint_index] *
-                                                buffer[sample_i];
+
+      for (const int i : batch_joints.index_range()) {
+        const int joint_index = batch_joints[i];
+        joints_buffer[i] = typed_src_joints_value[joint_index];
       }
+
+      typed_dst_buckets_data[batch_i] += dot_product<T>(joints_buffer.as_span(), buffer.as_span());
     }
+
+    // for (const auto &[joint_index, batch_samples] : joint_to_batch_samples) {
+    //   buffer.resize(batch_samples.size());
+    //   const float3 jooint_position = src_joints_centre[joint_index];
+    //   for (const int sample_i : batch_samples.index_range()) {
+    //     const int sample_index = batch_samples[sample_i];
+    //     const float sampler_to_joint_distance_squared = math::distance(
+    //         jooint_position, sample_position[sample_index]);
+    //     buffer[sample_i] = sampler_to_joint_distance_squared + offset_value;
+    //   }
+    // 
+    //   distance_invertion(power_value, buffer.as_mutable_span());
+    //   // scatter_mul_add(buffer.as_span(), typed_src_joints_value[joint_index], batch_samples.as_span(), typed_dst_buckets_data);
+    //   for (const int sample_i : batch_samples.index_range()) {
+    //     const int sample_index = batch_samples[sample_i];
+    //     typed_dst_buckets_data[sample_index] += typed_src_joints_value[joint_index] *
+    //                                             buffer[sample_i];
+    //   }
+    // }
   });
 
   to_static_type(src_joints_value.type(), [&](auto dummy) {
@@ -227,7 +337,7 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
           }
 
           distance_invertion(power_value, buffer.as_mutable_span());
-          typed_dst_buckets_data[sample_index] += accumulate_with_factor<T>(
+          typed_dst_buckets_data[sample_index] += dot_product<T>(
               typed_src_bucket_value.slice(bucket_range), buffer);
         }
       }
@@ -247,12 +357,13 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
         distance_invertion(power_value, buffer.as_mutable_span());
 
         if (bucket_range.contains(sampler_to_bucket_range.value()[sample_index])) {
+          
           const int sampler_in_bucket_index = sampler_to_bucket_range.value()[sample_index] -
                                               bucket_range.start();
           buffer[sampler_in_bucket_index] = 0.0f;
         }
 
-        typed_dst_buckets_data[sample_index] += accumulate_with_factor<T>(
+        typed_dst_buckets_data[sample_index] += dot_product<T>(
             typed_src_bucket_value.slice(bucket_range), buffer);
       }
     }

@@ -57,6 +57,8 @@ set(SRC
   intern/uv_parametrizer.cc
   intern/volume_grid_resample.cc
 
+  intern/fast_math.h
+
   GEO_abstract_kd_bucket_hierarchy.hh
   GEO_add_curves_on_mesh.hh
   GEO_bounding_sphere.hh
@@ -146,6 +148,25 @@ if(WITH_GMP)
     ${GMP_LIBRARIES}
   )
 endif()
+
+if(WITH_POTRACE)
+  list(APPEND INC
+    ${POTRACE_INCLUDE_DIRS}
+  )
+  list(APPEND LIB
+    ${POTRACE_LIBRARIES}
+  )
+  add_definitions(-DWITH_POTRACE)
+endif()
+
+
+
+# add_custom_command(OUTPUT fast_math_ispc.obj
+#                    COMMAND ispc --target=sse4.2-i32x8
+#                                 T:/blender/source/blender/geometry/intern/fmm_math.ispc
+#                                 -o C:/Users/rfnei/Downloads/fast_math_ispc.obj)
+
+list(APPEND LIB C:/Users/rfnei/Downloads/fast_math_ispc.obj)
 
 blender_add_lib(bf_geometry "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 add_library(bf::geometry ALIAS bf_geometry)
