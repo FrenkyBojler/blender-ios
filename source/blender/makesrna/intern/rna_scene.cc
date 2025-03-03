@@ -1964,45 +1964,6 @@ static std::optional<std::string> rna_SceneRenderView_path(const PointerRNA *ptr
   return fmt::format("render.views[\"{}\"]", srv_name_esc);
 }
 
-static void RNA_Scene_use_compositing_set(PointerRNA *ptr, bool value)
-{
-  RenderData *rd = (RenderData *)ptr->data;
-  Scene *scene = (Scene *)ptr->owner_id;
-
-  if (value) {
-    scene->use_nodes = true;
-    rd->scemode |= R_DOCOMP;
-  }
-  else {
-    rd->scemode &= ~R_DOCOMP;
-    scene->use_nodes = false;
-  }
-}
-
-static void rna_Scene_use_compositing_update(bContext *C, PointerRNA *ptr)
-{
-  Scene *scene = (Scene *)ptr->owner_id;
-  RenderData *rd = (RenderData *)ptr->data;
-  if ((rd->scemode & R_DOCOMP) && scene->nodetree == nullptr) {
-    ED_node_composit_default(C, scene);
-  }
-  DEG_relations_tag_update(CTX_data_main(C));
-}
-
-static void RNA_Scene_use_nodes_set(PointerRNA *ptr, bool value)
-{
-  Scene *scene = (Scene *)ptr->data;
-
-  if (value) {
-    scene->use_nodes = true;
-    scene->r.scemode |= R_DOCOMP;
-  }
-  else {
-    scene->use_nodes = false;
-    scene->r.scemode &= ~R_DOCOMP;
-  }
-}
-
 static void rna_Scene_use_nodes_update(bContext *C, PointerRNA *ptr)
 {
   Scene *scene = (Scene *)ptr->data;
@@ -7116,9 +7077,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
                            "Compositing",
                            "Process the render result through the compositing pipeline, "
                            "if compositing nodes are enabled");
-  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
-  RNA_def_property_boolean_funcs(prop, nullptr, "RNA_Scene_use_compositing_set");
-  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_use_compositing_update");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
   prop = RNA_def_property(srna, "use_sequencer", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "scemode", R_DOSEQ);
@@ -8801,13 +8760,9 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Node Tree", "Compositing node tree");
 
-  /* "use_nodes" will be removed in the future and users should be using "use_compositing" instead.
-   * Currently, these two properties are always synchronized in order to facilitate the removal of
-   * "use_nodes". See also RNA_Scene_use_nodes_set() and RNA_Scene_use_compositing_set(). */
   prop = RNA_def_property(srna, "use_nodes", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "use_nodes", 1);
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
-  RNA_def_property_boolean_funcs(prop, nullptr, "RNA_Scene_use_nodes_set");
   RNA_def_property_ui_text(prop, "Use Nodes", "Enable the compositing node tree");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_use_nodes_update");
 
