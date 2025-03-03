@@ -297,7 +297,7 @@ struct PropertyRNAIdentifierGetter {
 struct ContainerRNA {
   void *next, *prev;
 
-  blender::CustomIDVectorSet<PropertyRNA *, PropertyRNAIdentifierGetter> *prop_set;
+  blender::CustomIDVectorSet<PropertyRNA *, PropertyRNAIdentifierGetter> *prop_lookup_set;
   ListBase properties;
 };
 

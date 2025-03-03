@@ -188,7 +188,7 @@ static void rna_brna_structs_remove_and_free(BlenderRNA *brna, StructRNA *srna)
   RNA_def_struct_free_pointers(nullptr, srna);
 
   if (srna->flag & STRUCT_RUNTIME) {
-    MEM_SAFE_DELETE(srna->cont.prop_set);
+    MEM_SAFE_DELETE(srna->cont.prop_lookup_set);
     rna_freelinkN(&brna->structs, srna);
   }
   brna->structs_len -= 1;
@@ -815,7 +815,7 @@ void RNA_struct_free(BlenderRNA *brna, StructRNA *srna)
               srna_identifier);
     }
   }
-  MEM_SAFE_DELETE(srna->cont.prop_set);
+  MEM_SAFE_DELETE(srna->cont.prop_lookup_set);
   for (prop = static_cast<PropertyRNA *>(srna->cont.properties.first); prop; prop = nextprop) {
     nextprop = prop->next;
 
@@ -866,7 +866,7 @@ void RNA_free(BlenderRNA *brna)
     for (srna = static_cast<StructRNA *>(brna->structs.first); srna;
          srna = static_cast<StructRNA *>(srna->cont.next))
     {
-      MEM_SAFE_DELETE(srna->cont.prop_set);
+      MEM_SAFE_DELETE(srna->cont.prop_lookup_set);
       for (func = static_cast<FunctionRNA *>(srna->functions.first); func;
            func = static_cast<FunctionRNA *>(func->cont.next))
       {
@@ -953,7 +953,7 @@ StructRNA *RNA_def_struct_ptr(BlenderRNA *brna, const char *identifier, StructRN
     /* Copy from struct to derive stuff, a bit clumsy since we can't
      * use #MEM_dupallocN, data structs may not be allocated but builtin. */
     memcpy(srna, srnafrom, sizeof(StructRNA));
-    srna->cont.prop_set =
+    srna->cont.prop_lookup_set =
         MEM_new<blender::CustomIDVectorSet<PropertyRNA *, PropertyRNAIdentifierGetter>>(__func__);
     BLI_listbase_clear(&srna->cont.properties);
     BLI_listbase_clear(&srna->functions);
@@ -1493,8 +1493,8 @@ PropertyRNA *RNA_def_property(StructOrFunctionRNA *cont_,
     RNA_def_property_flag(prop, PROP_IDPROPERTY);
     prop->flag_internal |= PROP_INTERN_RUNTIME;
 #ifdef RNA_RUNTIME
-    if (cont->prop_set) {
-      cont->prop_set->add(prop);
+    if (cont->prop_lookup_set) {
+      cont->prop_lookup_set->add(prop);
     }
 #endif
   }
@@ -4874,9 +4874,9 @@ void RNA_def_property_duplicate_pointers(StructOrFunctionRNA *cont_, PropertyRNA
   /* annoying since we just added this to a hash, could make this add the correct key to the hash
    * in the first place */
   if (prop->identifier) {
-    if (cont->prop_set) {
+    if (cont->prop_lookup_set) {
       prop->identifier = BLI_strdup(prop->identifier);
-      cont->prop_set->add(prop);
+      cont->prop_lookup_set->add(prop);
     }
     else {
       prop->identifier = BLI_strdup(prop->identifier);
@@ -5056,8 +5056,8 @@ static void rna_def_property_free(StructOrFunctionRNA *cont_, PropertyRNA *prop)
   ContainerRNA *cont = static_cast<ContainerRNA *>(cont_);
 
   if (prop->flag_internal & PROP_INTERN_RUNTIME) {
-    if (cont->prop_set) {
-      cont->prop_set->remove_as(prop->identifier);
+    if (cont->prop_lookup_set) {
+      cont->prop_lookup_set->remove_as(prop->identifier);
     }
 
     RNA_def_property_free_pointers(prop);
