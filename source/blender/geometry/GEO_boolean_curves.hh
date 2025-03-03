@@ -44,15 +44,15 @@ enum class Operation : int8_t {
 
 class Segment {
  private:
-  static const int NULL_INTERSECTION_ID = -1;
-  static const int LOOPING_INTERSECTION_ID = -2;
+  static constexpr int NULL_INTERSECTION_ID = -1;
+  static constexpr int LOOPING_INTERSECTION_ID = -2;
 
  public:
-  int curve;
+  int curve = -1;
   IndexRange points;
 
-  int point_1;
-  int point_2;
+  int point_1 = -1;
+  int point_2 = -1;
 
   float alpha_1 = 0.0;
   float alpha_2 = 0.0;
@@ -61,6 +61,8 @@ class Segment {
   int inter_index_2 = NULL_INTERSECTION_ID;
 
   bool reversed = false;
+
+  constexpr Segment() = default;
 
  public:
   bool is_loop() const;

@@ -400,12 +400,12 @@ class SegmentEndPoint {
 
 class IntersectionPoint {
  public:
-  int point_a;
-  int point_b;
-  float alpha_a;
-  float alpha_b;
-  int curve_a;
-  int curve_b;
+  int point_a = -1;
+  int point_b = -1;
+  float alpha_a = -1.0f;
+  float alpha_b = -1.0f;
+  int curve_a = -1;
+  int curve_b = -1;
   SegmentEndPoint start_a;
   SegmentEndPoint end_a;
   SegmentEndPoint start_b;
