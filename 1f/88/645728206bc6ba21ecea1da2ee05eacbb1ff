@@ -1,2 +1,3 @@
 Referenced by commit 0225c4635da, Cleanup: Remove redundant asset loading icon handling
 Referenced by issue #134225, Datablock selector icon drawn too big
+Referenced by pull request #135411, Fix #135324: Data-block selector icon drawn too big
