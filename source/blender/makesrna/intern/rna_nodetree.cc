@@ -11405,7 +11405,7 @@ static void rna_def_node(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, nullptr, "typeinfo->ui_icon");
   RNA_def_property_enum_items(prop, rna_enum_icon_items);
   RNA_def_property_enum_default(prop, ICON_NODE);
-  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
+  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL | PROP_ENUM_DEFAULT_NOT_ERROR);
   RNA_def_property_ui_text(prop, "Icon", "The node icon");
 
   prop = RNA_def_property(srna, "bl_static_type", PROP_STRING, PROP_NONE);
@@ -11858,7 +11858,7 @@ static void rna_def_nodetree(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, nullptr, "typeinfo->ui_icon");
   RNA_def_property_enum_items(prop, rna_enum_icon_items);
   RNA_def_property_enum_default(prop, ICON_NODETREE);
-  RNA_def_property_flag(prop, PROP_REGISTER);
+  RNA_def_property_flag(prop, PROP_REGISTER | PROP_ENUM_DEFAULT_NOT_ERROR);
   RNA_def_property_ui_text(prop, "Icon", "The node tree icon");
 
   prop = RNA_def_property(srna, "bl_use_group_interface", PROP_BOOLEAN, PROP_NONE);

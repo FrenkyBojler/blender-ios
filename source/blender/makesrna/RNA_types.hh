@@ -268,7 +268,7 @@ enum PropertySubType {
 
 /* Make sure enums are updated with these */
 /* HIGHEST FLAG IN USE: 1u << 31
- * FREE FLAGS: 13, 14, 15. */
+ * FREE FLAGS: 14, 15. */
 enum PropertyFlag {
   /**
    * Editable means the property is editable in the user
@@ -412,6 +412,9 @@ enum PropertyFlag {
 
   /** Do not write in presets (#PROP_HIDDEN and #PROP_SKIP_SAVE won't either). */
   PROP_SKIP_PRESET = (1 << 11),
+
+  /** Use default value if not found, without error (possibly with warning). */
+  PROP_ENUM_DEFAULT_NOT_ERROR = (1 << 13),
 };
 ENUM_OPERATORS(PropertyFlag, PROP_TEXTEDIT_UPDATE)
 

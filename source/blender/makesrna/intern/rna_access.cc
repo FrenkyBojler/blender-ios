@@ -1854,6 +1854,15 @@ bool RNA_property_enum_value(
       *r_value = item[i].value;
       found = true;
     }
+    else if (prop->flag & PROP_ENUM_DEFAULT_NOT_ERROR) {
+      *r_value = RNA_property_enum_get_default(ptr, prop);
+      printf("%s: value \"%s\" not found in %s.%s, using default.\n",
+             __func__,
+             identifier,
+             ptr->type->identifier,
+             prop->identifier);
+      found = true;
+    }
     else {
       found = false;
     }
