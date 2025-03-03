@@ -87,14 +87,14 @@ void RNA_init()
   for (srna = static_cast<StructRNA *>(BLENDER_RNA.structs.first); srna;
        srna = static_cast<StructRNA *>(srna->cont.next))
   {
-    if (!srna->cont.prop_map) {
-      srna->cont.prop_map =
+    if (!srna->cont.prop_set) {
+      srna->cont.prop_set =
           MEM_new<blender::CustomIDVectorSet<PropertyRNA *, PropertyRNAIdentifierGetter>>(
               __func__);
 
       LISTBASE_FOREACH (PropertyRNA *, prop, &srna->cont.properties) {
         if (!(prop->flag_internal & PROP_INTERN_BUILTIN)) {
-          srna->cont.prop_map->add(prop);
+          srna->cont.prop_set->add(prop);
         }
       }
     }
@@ -126,7 +126,7 @@ void RNA_exit()
   for (srna = static_cast<StructRNA *>(BLENDER_RNA.structs.first); srna;
        srna = static_cast<StructRNA *>(srna->cont.next))
   {
-    MEM_SAFE_DELETE(srna->cont.prop_map);
+    MEM_SAFE_DELETE(srna->cont.prop_set);
   }
 
   RNA_free(&BLENDER_RNA);
