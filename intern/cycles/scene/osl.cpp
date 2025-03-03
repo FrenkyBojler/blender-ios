@@ -82,17 +82,11 @@ OSL::TextureSystem *OSLManager::get_texture_system()
 
 OSL::ShadingSystem *OSLManager::get_shading_system(Device *sub_device)
 {
-  if (ss_map.empty()) {
-    shading_system_init();
-  }
   return ss_map[sub_device->info.type].get();
 }
 
 void OSLManager::foreach_shading_system(const std::function<void(OSL::ShadingSystem *)> &callback)
 {
-  if (ss_map.empty()) {
-    shading_system_init();
-  }
   for (const auto &[device_type, ss] : ss_map) {
     callback(ss.get());
   }
@@ -100,9 +94,6 @@ void OSLManager::foreach_shading_system(const std::function<void(OSL::ShadingSys
 
 void OSLManager::foreach_render_services(const std::function<void(OSLRenderServices *)> &callback)
 {
-  if (ss_map.empty()) {
-    shading_system_init();
-  }
   for (const auto &[device_type, ss] : ss_map) {
     callback(static_cast<OSLRenderServices *>(ss->renderer()));
   }
@@ -126,6 +117,8 @@ void OSLManager::device_update_pre(Device *device, Scene *scene)
 
   /* set texture system (only on CPU devices, since GPU devices cannot use OIIO) */
   if (scene->shader_manager->use_osl()) {
+    shading_system_init();
+
     /* add special builtin texture types */
     foreach_render_services([](OSLRenderServices *services) {
       services->textures.insert(OSLUStringHash("@ao"), OSLTextureHandle(OSLTextureHandle::AO));
@@ -229,9 +222,9 @@ void OSLManager::texture_system_init()
 
   if (!ts_shared) {
 #  if OIIO_VERSION_MAJOR >= 3
-    ts_shared = OSL::TextureSystem::create(true);
+    ts_shared = OSL::TextureSystem::create(false);
 #  else
-    ts_shared = shared_ptr(OSL::TextureSystem::create(true), OSL::TextureSystem::destroy);
+    ts_shared = shared_ptr(OSL::TextureSystem::create(false), OSL::TextureSystem::destroy);
 #  endif
 
     ts_shared->attribute("automip", 1);
@@ -260,6 +253,11 @@ void OSLManager::texture_system_free()
 
 void OSLManager::shading_system_init()
 {
+  /* No need to do anything if we already have shading systems. */
+  if (!ss_map.empty()) {
+    return;
+  }
+
   /* create shading system, shared between different renders to reduce memory usage */
   const thread_scoped_lock lock(ss_shared_mutex);
 
@@ -492,6 +490,8 @@ const char *OSLManager::shader_load_filepath(string filepath)
 
 const char *OSLManager::shader_load_bytecode(const string &hash, const string &bytecode)
 {
+  shading_system_init();
+
   foreach_shading_system(
       [hash, bytecode](OSL::ShadingSystem *ss) { ss->LoadMemoryCompiledShader(hash, bytecode); });
 
