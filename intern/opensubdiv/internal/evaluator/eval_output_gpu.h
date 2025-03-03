@@ -49,7 +49,8 @@ class GpuEvalOutput : public VolatileEvalOutput<GLVertexBuffer,
   void wrapFVarPatchParamBuffer(const int face_varying_channel,
                                 blender::gpu::VertBuf *patch_param_buffer) override;
 
-  void wrapFVarSrcBuffer(const int face_varying_channel, blender::gpu::VertBuf *src_buffer) override;
+  void wrapFVarSrcBuffer(const int face_varying_channel,
+                         blender::gpu::VertBuf *src_buffer) override;
 };
 
 }  // namespace blender::opensubdiv
