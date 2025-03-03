@@ -356,7 +356,7 @@ template<typename T> inline void MEM_delete(const T *ptr)
 
 /**
  * Allocate zero-initialized memory for an object of type #T. The constructor of #T is not called,
- * therefore this should only be used with trivial types (like all C types).
+ * therefore this must only be used with trivial types (like all C types).
  *
  * When allocating an enforced specific amount of bytes, the C version of this function should be
  * used instead. While this should be avoided in C++ code, it is still required in some cases, e.g.
@@ -411,7 +411,8 @@ template<typename T> inline T *MEM_calloc_arrayN(const size_t length, const char
  * deprecated fields: some compilers will generate access deprecated field warnings in implicitly
  * defined copy constructors.
  *
- * This is a better alternative to #MEM_dupallocN, unless the source is an array.
+ * This is a better alternative to the C-style implementation of #MEM_dupallocN, unless the source
+ * is an array or of a non-fully-defined type.
  */
 template<typename T> inline T *MEM_dupallocN(const char *allocation_name, const T &other)
 {
