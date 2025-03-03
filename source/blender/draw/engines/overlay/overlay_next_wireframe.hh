@@ -163,9 +163,33 @@ class Wireframe : Overlay {
       case OB_MESH: {
         /* Force display in edit mode when overlay is off in wireframe mode (see #78484). */
         const bool wireframe_no_overlay = state.hide_overlays && state.is_wireframe_mode;
-        /* Display only if there is an edit cage. Otherwise we get Z fighting with edit wires. */
-        const bool has_edit_cage = Meshes::mesh_has_edit_cage(ob_ref.object);
-        const bool bypass_mode_check = wireframe_no_overlay || has_edit_cage;
+
+        /* In some cases, the edit mode wireframe overlay is drawn separately for the same edges.
+         * We want to avoid this to avoid redundant work and to avoid Z-fighting. Detecting this
+         * case is relatively complicated though, because whether edit mode draws the edges depends
+         * on whether there is a separate cage and whether there is a valid mapping between the
+         * evaluated and original edit mesh. */
+        const bool edit_wires_drawn = [&]() {
+          if (!in_edit_mode) {
+            return false;
+          }
+          const Mesh &mesh = *static_cast<const Mesh *>(ob_ref.object->data);
+          const Mesh *orig_edit_mesh = BKE_object_get_pre_modified_mesh(ob_ref.object);
+          const bool edit_mapping_valid = BKE_editmesh_eval_orig_map_available(mesh,
+                                                                               orig_edit_mesh);
+          if (!edit_mapping_valid) {
+            /* Mesh edit mode batch cache extraction avoids creating wireframe batches when the
+             * evaluated mesh doesn't correspond with the original edit mesh. */
+            return false;
+          }
+          if (Meshes::mesh_has_edit_cage(ob_ref.object)) {
+            /* A cage means the edit mode wireframe overlay is drawn separately. */
+            return false;
+          }
+          return true;
+        }();
+
+        const bool bypass_mode_check = wireframe_no_overlay || !edit_wires_drawn;
 
         if (show_surface_wire) {
           if (BKE_sculptsession_use_pbvh_draw(ob_ref.object, state.rv3d)) {
