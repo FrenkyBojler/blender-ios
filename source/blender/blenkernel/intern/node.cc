@@ -4090,13 +4090,13 @@ void node_tree_update_all_users(Main *main, ID *id)
 std::string node_label(const bNodeTree &ntree, const bNode &node)
 {
   if (node.label[0] != '\0') {
-    return StringRef(node.label);
+    return node.label;
   }
 
   if (node.typeinfo->labelfunc) {
     char label_buffer[MAX_NAME];
     node.typeinfo->labelfunc(&ntree, &node, label_buffer, MAX_NAME);
-    return StringRef(label_buffer);
+    return label_buffer;
   }
 
   return node.typeinfo->ui_name;
