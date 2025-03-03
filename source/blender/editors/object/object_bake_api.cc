@@ -1521,7 +1521,7 @@ static int bake(const BakeAPIRender *bkr,
     if (!CustomData_has_layer(&me_low_eval->corner_data, CD_PROP_FLOAT2)) {
       BKE_reportf(reports,
                   RPT_ERROR,
-                  "No UV layer found in the evaluated object \"%s\"",
+                  "No UV Map found in the evaluated object \"%s\"",
                   ob_low->id.name + 2);
       goto cleanup;
     }
@@ -1580,7 +1580,7 @@ static int bake(const BakeAPIRender *bkr,
       if (!CustomData_has_layer(&me_cage_eval->corner_data, CD_PROP_FLOAT2)) {
         BKE_reportf(reports,
                     RPT_ERROR,
-                    "No UV layer found in the evaluated object \"%s\"",
+                    "No UV Map found in the evaluated object \"%s\"",
                     ob_low->id.name + 2);
         goto cleanup;
       }
@@ -1769,7 +1769,7 @@ static int bake(const BakeAPIRender *bkr,
             if (!CustomData_has_layer(&me_nores->corner_data, CD_PROP_FLOAT2)) {
               BKE_reportf(reports,
                           RPT_ERROR,
-                          "No UV layer found in the evaluated object \"%s\"",
+                          "No UV Map found in the evaluated object \"%s\"",
                           ob_low->id.name + 2);
               BKE_id_free(nullptr, &me_nores->id);
               goto cleanup;
