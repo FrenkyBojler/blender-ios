@@ -17,6 +17,7 @@ struct ImbFormatOptions;
 struct ImageFormatData;
 struct ImBuf;
 struct Scene;
+struct RenderData;
 
 /* Init/Copy/Free */
 
@@ -43,7 +44,8 @@ void BKE_image_path_from_imformat(char *filepath,
                                   const ImageFormatData *im_format,
                                   bool use_ext,
                                   bool use_frames,
-                                  const char *suffix);
+                                  const char *suffix,
+                                  const RenderData *render_data);
 void BKE_image_path_from_imtype(char *filepath,
                                 const char *base,
                                 const char *relbase,
@@ -51,7 +53,8 @@ void BKE_image_path_from_imtype(char *filepath,
                                 char imtype,
                                 bool use_ext,
                                 bool use_frames,
-                                const char *suffix);
+                                const char *suffix,
+                                const RenderData *render_data);
 
 /**
  * The number of extensions an image may have (`.jpg`, `.jpeg` for example).

@@ -610,13 +610,14 @@ static void do_makepicstring(char filepath[FILE_MAX],
                              const ImageFormatData *im_format,
                              const bool use_ext,
                              const bool use_frames,
-                             const char *suffix)
+                             const char *suffix,
+                             const RenderData *render_data)
 {
   if (filepath == nullptr) {
     return;
   }
   BLI_strncpy(filepath, base, FILE_MAX - 10); /* weak assumption */
-  BLI_path_apply_variables(filepath, BKE_build_path_variables(relbase));
+  BLI_path_apply_variables(filepath, BKE_build_path_variables(relbase, frame, render_data));
   BLI_path_abs(filepath, relbase);
 
   if (use_frames) {
@@ -639,10 +640,19 @@ void BKE_image_path_from_imformat(char *filepath,
                                   const ImageFormatData *im_format,
                                   const bool use_ext,
                                   const bool use_frames,
-                                  const char *suffix)
+                                  const char *suffix,
+                                  const RenderData *render_data)
 {
-  do_makepicstring(
-      filepath, base, relbase, frame, im_format->imtype, im_format, use_ext, use_frames, suffix);
+  do_makepicstring(filepath,
+                   base,
+                   relbase,
+                   frame,
+                   im_format->imtype,
+                   im_format,
+                   use_ext,
+                   use_frames,
+                   suffix,
+                   render_data);
 }
 
 void BKE_image_path_from_imtype(char *filepath,
@@ -652,9 +662,11 @@ void BKE_image_path_from_imtype(char *filepath,
                                 const char imtype,
                                 const bool use_ext,
                                 const bool use_frames,
-                                const char *suffix)
+                                const char *suffix,
+                                const RenderData *render_data)
 {
-  do_makepicstring(filepath, base, relbase, frame, imtype, nullptr, use_ext, use_frames, suffix);
+  do_makepicstring(
+      filepath, base, relbase, frame, imtype, nullptr, use_ext, use_frames, suffix, render_data);
 }
 
 /* ImBuf Conversion */

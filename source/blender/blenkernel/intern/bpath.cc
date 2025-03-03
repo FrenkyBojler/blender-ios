@@ -44,6 +44,8 @@
 
 #include "BKE_bpath.hh" /* own include */
 
+#include "DNA_scene_types.h"
+
 #include "CLG_log.h"
 
 #ifndef _MSC_VER
@@ -720,7 +722,9 @@ void BKE_bpath_list_free(void *path_list_handle)
   MEM_freeN(path_list);
 }
 
-PathVariables BKE_build_path_variables(const char *blend_file_path)
+PathVariables BKE_build_path_variables(const char *blend_file_path,
+                                       std::optional<uint64_t> frame_number,
+                                       const RenderData *render_data)
 {
   PathVariables variables;
 
@@ -743,6 +747,34 @@ PathVariables BKE_build_path_variables(const char *blend_file_path)
         variables.strings.add("file_name", blender::StringRef(file_name, file_name_end));
       }
     }
+  }
+
+  /* Frame number. */
+  if (frame_number.has_value()) {
+    variables.integers.add("frame_number", *frame_number);
+  }
+
+  /* Start/end frame, render resolution, and fps. */
+  if (render_data) {
+    variables.integers.add("start_frame", render_data->sfra);
+    variables.integers.add("end_frame", render_data->efra);
+
+    /* Resolution eval code copied from `sequencer_ibuf_get()`.
+     *
+     * TODO: it might make sense to make a function for this to ensure that all
+     * uses of these render variables produce a consistent output resolution? */
+    const double render_size = render_data->size / 100.0;
+    const int res_x = roundf(render_size * render_data->xsch);
+    const int res_y = roundf(render_size * render_data->ysch);
+    variables.integers.add("res_x", res_x);
+    variables.integers.add("res_y", res_y);
+
+    /* FPS eval code copied from `BKE_cachefile_filepath_get()`.
+     *
+     * TODO: it might make sense to make a function for this to ensure that all
+     * uses of these render variables produce a consistent fps? */
+    const double fps = double(render_data->frs_sec) / double(render_data->frs_sec_base);
+    variables.floats.add("fps", fps);
   }
 
   return variables;

@@ -927,6 +927,7 @@ static bool bake_targets_output_external(const BakeAPIRender *bkr,
                                bake->im_format.imtype,
                                true,
                                false,
+                               nullptr,
                                nullptr);
 
     if (bkr->is_automatic_name) {

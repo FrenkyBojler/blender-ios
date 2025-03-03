@@ -1143,7 +1143,7 @@ static void cache_filepath(
   BLI_path_join(cachepath, sizeof(cachepath), dirname, filename);
 
   BKE_image_path_from_imtype(
-      filepath, cachepath, relbase, frame, R_IMF_IMTYPE_OPENEXR, true, true, "");
+      filepath, cachepath, relbase, frame, R_IMF_IMTYPE_OPENEXR, true, true, "", nullptr);
 }
 
 /* silly functions but useful to inline when the args do a lot of indirections */

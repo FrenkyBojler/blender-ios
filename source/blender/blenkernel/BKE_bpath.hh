@@ -20,6 +20,7 @@
 struct ID;
 struct Main;
 struct ReportList;
+struct RenderData;
 
 /** \name Core `foreach_path` API.
  * \{ */
@@ -258,13 +259,19 @@ void BKE_bpath_list_free(void *path_list_handle);
  * should be the blend file that the path you're going to generate with the
  * variables "belongs" to.
  *
- * \param id: the id that the given path belongs to.
+ * \param frame_number: the current frame.
+ *
+ * \param render_data: start/end frame, output resolution, and fps. Note: the
+ * current frame in this is *not* used. Use the `frame_number` parameter for
+ * that.
  *
  *
  * \see BLI_path_apply_variables()
  *
  * \see BLI_path_abs()
  */
-PathVariables BKE_build_path_variables(const char *blend_file_path);
+PathVariables BKE_build_path_variables(const char *blend_file_path,
+                                       std::optional<uint64_t> frame_number,
+                                       const RenderData *render_data);
 
 /** \} */

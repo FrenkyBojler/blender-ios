@@ -422,7 +422,8 @@ static void screen_opengl_render_write(OGLRender *oglrender)
                                &scene->r.im_format,
                                (scene->r.scemode & R_EXTENSION) != 0,
                                false,
-                               nullptr);
+                               nullptr,
+                               &scene->r);
 
   /* write images as individual images or stereo */
   BKE_render_result_stamp_info(scene, scene->camera, rr, false);
@@ -1034,7 +1035,8 @@ static void write_result(TaskPool *__restrict pool, WriteTaskData *task_data)
                                  &scene->r.im_format,
                                  (scene->r.scemode & R_EXTENSION) != 0,
                                  true,
-                                 nullptr);
+                                 nullptr,
+                                 &scene->r);
 
     BKE_render_result_stamp_info(scene, scene->camera, rr, false);
     ok = BKE_image_render_write(nullptr, rr, scene, true, filepath);
@@ -1123,7 +1125,8 @@ static bool screen_opengl_render_anim_step(OGLRender *oglrender)
                                  &scene->r.im_format,
                                  (scene->r.scemode & R_EXTENSION) != 0,
                                  true,
-                                 nullptr);
+                                 nullptr,
+                                 &scene->r);
 
     if ((scene->r.mode & R_NO_OVERWRITE) && BLI_exists(filepath)) {
       {

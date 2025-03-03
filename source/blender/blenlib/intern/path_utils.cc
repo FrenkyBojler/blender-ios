@@ -1284,19 +1284,40 @@ bool BLI_path_apply_variables(char path[FILE_MAX], const PathVariables &variable
     blender::IndexRange replacement_range = path_variable->first;
     blender::StringRef variable_name = path_variable->second;
 
-    printf("%s\n", std::string(variable_name).c_str());
+    /* For computing strings for integer and float variables. */
+    char string_buffer[128];
 
-    const std::string *replacement_string = variables.strings.lookup_ptr_as(variable_name);
+    /* Will point to the string to substitute the variable with in `path`. If no
+     * corresponding variable is found, is left null. */
+    const char *replacement_string = nullptr;
+
+    /* Try to find a matching variable, and construct a string for it. */
+    if (const std::string *string_value = variables.strings.lookup_ptr_as(variable_name)) {
+      /* String variable found. */
+      replacement_string = string_value->c_str();
+    }
+    else if (const int64_t *integer_value = variables.integers.lookup_ptr_as(variable_name)) {
+      /* Integer variable found. */
+      sprintf(string_buffer, "%ld", *integer_value);
+      replacement_string = string_buffer;
+    }
+    else if (const double *float_value = variables.floats.lookup_ptr_as(variable_name)) {
+      /* Float variable found. */
+      sprintf(string_buffer, "%f", *float_value);
+      replacement_string = string_buffer;
+    }
+
+    /* Perform the replacement if we found a matching variable, otherwise skip. */
     if (replacement_string != nullptr) {
       BLI_string_replace_range(path + processed,
                                FILE_MAX - processed,
                                replacement_range.start(),
                                replacement_range.one_after_last(),
-                               replacement_string->c_str());
+                               replacement_string);
 
       processed += replacement_range.one_after_last();
       processed -= replacement_range.size();
-      processed += replacement_string->size();
+      processed += strlen(replacement_string);
 
       was_modified = true;
     }

@@ -118,7 +118,8 @@ static void rna_SceneRender_get_frame_path(
                                  &rd->im_format,
                                  (rd->scemode & R_EXTENSION) != 0,
                                  true,
-                                 suffix);
+                                 suffix,
+                                 rd);
   }
 }
 

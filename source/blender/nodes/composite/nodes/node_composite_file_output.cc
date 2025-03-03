@@ -880,7 +880,8 @@ class FileOutputOperation : public NodeOperation {
                                  &format,
                                  use_file_extension(),
                                  true,
-                                 nullptr);
+                                 nullptr,
+                                 &context().get_render_data());
   }
 
   /* Get the path of the EXR image to be saved. If the given view is not empty, its corresponding
@@ -895,7 +896,8 @@ class FileOutputOperation : public NodeOperation {
                                R_IMF_IMTYPE_MULTILAYER,
                                use_file_extension(),
                                true,
-                               suffix);
+                               suffix,
+                               &context().get_render_data());
   }
 
   bool is_multi_layer()
