@@ -240,16 +240,16 @@ TEST_F(KeylistSummaryTest, slot_summary_simple)
   ASSERT_EQ(ActionSlotAssignmentResult::OK, assign_action_and_slot(action, &slot_cube, cube->id));
   Channelbag &channelbag = action_channelbag_ensure(*action, cube->id);
 
-  FCurve &loc_x = channelbag.fcurve_ensure(bmain, {"location", 0, std::nullopt, std::nullopt});
-  FCurve &loc_y = channelbag.fcurve_ensure(bmain, {"location", 1, std::nullopt, std::nullopt});
-  FCurve &loc_z = channelbag.fcurve_ensure(bmain, {"location", 2, std::nullopt, std::nullopt});
+  FCurve &loc_x = channelbag.fcurve_ensure(bmain, {"location", 0});
+  FCurve &loc_y = channelbag.fcurve_ensure(bmain, {"location", 1});
+  FCurve &loc_z = channelbag.fcurve_ensure(bmain, {"location", 2});
 
-  ASSERT_EQ(SingleKeyingResult::SUCCESS, insert_vert_fcurve(&loc_x, {1.0, 0.0}, {{}, {}, {}}, {}));
-  ASSERT_EQ(SingleKeyingResult::SUCCESS, insert_vert_fcurve(&loc_x, {2.0, 1.0}, {{}, {}, {}}, {}));
-  ASSERT_EQ(SingleKeyingResult::SUCCESS, insert_vert_fcurve(&loc_y, {2.0, 2.0}, {{}, {}, {}}, {}));
-  ASSERT_EQ(SingleKeyingResult::SUCCESS, insert_vert_fcurve(&loc_y, {3.0, 3.0}, {{}, {}, {}}, {}));
-  ASSERT_EQ(SingleKeyingResult::SUCCESS, insert_vert_fcurve(&loc_z, {2.0, 4.0}, {{}, {}, {}}, {}));
-  ASSERT_EQ(SingleKeyingResult::SUCCESS, insert_vert_fcurve(&loc_z, {5.0, 5.0}, {{}, {}, {}}, {}));
+  ASSERT_EQ(SingleKeyingResult::SUCCESS, insert_vert_fcurve(&loc_x, {1.0, 0.0}, {}, {}));
+  ASSERT_EQ(SingleKeyingResult::SUCCESS, insert_vert_fcurve(&loc_x, {2.0, 1.0}, {}, {}));
+  ASSERT_EQ(SingleKeyingResult::SUCCESS, insert_vert_fcurve(&loc_y, {2.0, 2.0}, {}, {}));
+  ASSERT_EQ(SingleKeyingResult::SUCCESS, insert_vert_fcurve(&loc_y, {3.0, 3.0}, {}, {}));
+  ASSERT_EQ(SingleKeyingResult::SUCCESS, insert_vert_fcurve(&loc_z, {2.0, 4.0}, {}, {}));
+  ASSERT_EQ(SingleKeyingResult::SUCCESS, insert_vert_fcurve(&loc_z, {5.0, 5.0}, {}, {}));
 
   /* Generate slot summary keylist. */
   AnimKeylist *keylist = ED_keylist_create();
@@ -302,14 +302,10 @@ TEST_F(KeylistSummaryTest, slot_summary_bone_selection)
   FCurve &bone2_loc_x = channelbag.fcurve_ensure(
       bmain, {"pose.bones[\"Bone.002\"].location", 0, std::nullopt, "Bone.002"});
 
-  ASSERT_EQ(SingleKeyingResult::SUCCESS,
-            insert_vert_fcurve(&bone1_loc_x, {1.0, 0.0}, {{}, {}, {}}, {}));
-  ASSERT_EQ(SingleKeyingResult::SUCCESS,
-            insert_vert_fcurve(&bone1_loc_x, {2.0, 1.0}, {{}, {}, {}}, {}));
-  ASSERT_EQ(SingleKeyingResult::SUCCESS,
-            insert_vert_fcurve(&bone2_loc_x, {2.0, 2.0}, {{}, {}, {}}, {}));
-  ASSERT_EQ(SingleKeyingResult::SUCCESS,
-            insert_vert_fcurve(&bone2_loc_x, {3.0, 3.0}, {{}, {}, {}}, {}));
+  ASSERT_EQ(SingleKeyingResult::SUCCESS, insert_vert_fcurve(&bone1_loc_x, {1.0, 0.0}, {}, {}));
+  ASSERT_EQ(SingleKeyingResult::SUCCESS, insert_vert_fcurve(&bone1_loc_x, {2.0, 1.0}, {}, {}));
+  ASSERT_EQ(SingleKeyingResult::SUCCESS, insert_vert_fcurve(&bone2_loc_x, {2.0, 2.0}, {}, {}));
+  ASSERT_EQ(SingleKeyingResult::SUCCESS, insert_vert_fcurve(&bone2_loc_x, {3.0, 3.0}, {}, {}));
 
   /* Select only Bone.001. */
   bone1->flag |= BONE_SELECTED;
