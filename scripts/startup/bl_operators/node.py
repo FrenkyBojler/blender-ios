@@ -655,7 +655,7 @@ class NODE_OT_viewer_shortcut_get(Operator):
 class NODE_OT_Compositor_new_nodetree_assign(Operator):
     """Create a new compositor node tree if it doesn't exist"""
     bl_idname = "node.new_compositor_node_tree_assign"
-    bl_label = "New compositor tree"
+    bl_label = "New Compositor Tree"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
