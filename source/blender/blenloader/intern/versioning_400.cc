@@ -5885,6 +5885,25 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     rename_mesh_uv_seam_attribute(*mesh);
   }
 
+  {
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (sl->spacetype != SPACE_FILE) {
+            continue;
+          }
+          SpaceFile *sfile = reinterpret_cast<SpaceFile *>(sl);
+          if (sfile->params && (sfile->params->list_thumbnail_size == 0)) {
+            sfile->params->list_thumbnail_size = 16;
+          }
+          if (sfile->asset_params && (sfile->asset_params->base_params.list_thumbnail_size == 0)) {
+            sfile->asset_params->base_params.list_thumbnail_size = 32;
+          }
+        }
+      }
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.

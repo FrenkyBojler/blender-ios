@@ -129,6 +129,7 @@ static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
   /* 'SMALL' size by default. More reasonable since this is typically used as regular editor,
    * space is more of an issue here. */
   base_params->thumbnail_size = 96;
+  base_params->list_thumbnail_size = 32;
 
   fileselect_initialize_params_common(sfile, base_params);
 }
@@ -160,6 +161,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
     sfile->params->thumbnail_size = U_default.file_space_data.thumbnail_size;
     sfile->params->details_flags = U_default.file_space_data.details_flags;
     sfile->params->filter_id = U_default.file_space_data.filter_id;
+    sfile->params->list_thumbnail_size = 16;
   }
 
   params = sfile->params;
@@ -1114,14 +1116,11 @@ void ED_fileselect_init_layout(SpaceFile *sfile, ARegion *region)
     layout->flag = FILE_LAYOUT_VER;
   }
   else if (params->display == FILE_HORIZONTALDISPLAY) {
-    /* Higher rows for asset browser. */
-    const int height_fac = is_asset_browser ? 2 : 1;
-
-    layout->prv_w = ICON_DEFAULT_WIDTH_SCALE * height_fac;
-    layout->prv_h = ICON_DEFAULT_HEIGHT_SCALE * height_fac;
+    layout->prv_w = params->list_thumbnail_size * UI_SCALE_FAC;
+    layout->prv_h = params->list_thumbnail_size * UI_SCALE_FAC;
     layout->tile_border_x = 0.4f * UI_UNIT_X;
     layout->tile_border_y = 0.1f * UI_UNIT_Y;
-    layout->tile_h = (textheight * 3 / 2) * height_fac;
+    layout->tile_h = std::max(textheight * 3 / 2, layout->prv_h);
     layout->attribute_column_header_h = 0;
     layout->offset_top = layout->attribute_column_header_h;
     layout->height = int(BLI_rctf_size_y(&v2d->cur) - 2 * layout->tile_border_y);

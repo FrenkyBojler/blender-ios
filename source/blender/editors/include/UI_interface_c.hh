@@ -338,6 +338,8 @@ enum {
   UI_BUT_HAS_TOOLTIP_LABEL = 1 << 5,
   /** Do not add the usual horizontal padding for text drawing. */
   UI_BUT_NO_TEXT_PADDING = 1 << 6,
+  /** Do not add the usual padding around preview image drawing, use the size of the button. */
+  UI_BUT_NO_PREVIEW_PADDING = 1 << 7,
 
   /* Button align flag, for drawing groups together.
    * Used in 'uiBlock.flag', take care! */

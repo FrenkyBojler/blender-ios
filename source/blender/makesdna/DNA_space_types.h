@@ -831,7 +831,7 @@ typedef struct FileSelectParams {
   int sel_first;
   int sel_last;
   unsigned short thumbnail_size;
-  char _pad1[2];
+  unsigned short list_thumbnail_size;
 
   /* short */
   /** XXX: for now store type here, should be moved to the operator. */

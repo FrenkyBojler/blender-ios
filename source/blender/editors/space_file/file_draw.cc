@@ -416,8 +416,26 @@ static uiBut *file_add_icon_but(const SpaceFile *sfile,
   const int y = tile_draw_rect->ymax - sfile->layout->tile_border_y -
                 round_fl_to_int((sfile->layout->tile_h + height) / 2.0f);
 
-  but = uiDefIconPreviewBut(
-      block, UI_BTYPE_LABEL, 0, icon, x, y, width, height, nullptr, 0.0f, 0.0f, std::nullopt);
+  if (icon < BIFICONID_LAST_STATIC) {
+    /* Small built-in icon. */
+    but = uiDefIconBut(block,
+                       UI_BTYPE_LABEL,
+                       0,
+                       icon,
+                       x + (width - ICON_DEFAULT_WIDTH_SCALE) / 2,
+                       y,
+                       width,
+                       height,
+                       nullptr,
+                       0.0f,
+                       0.0f,
+                       std::nullopt);
+  }
+  else {
+    /* Larger preview icon. */
+    but = uiDefIconPreviewBut(
+        block, UI_BTYPE_LABEL, 0, icon, x, y, width, height, nullptr, 0.0f, 0.0f, std::nullopt);
+  }
   UI_but_label_alpha_factor_set(but, dimmed ? 0.3f : 1.0f);
   file_but_tooltip_func_set(sfile, file, but);
 

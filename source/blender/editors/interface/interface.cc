@@ -5548,6 +5548,10 @@ uiBut *uiDefIconPreviewBut(uiBlock *block,
   uiBut *but = ui_def_but(block, type, retval, "", x, y, width, height, poin, min, max, tip);
   if (icon) {
     ui_def_but_icon(but, icon, UI_HAS_ICON | UI_BUT_ICON_PREVIEW);
+
+    /* Use the exact button size for the preview. Or do we need to let the caller control this? */
+    but->drawflag |= UI_BUT_NO_PREVIEW_PADDING;
+    but->drawflag &= ~UI_BUT_ICON_LEFT;
   }
 
   ui_but_update(but);
