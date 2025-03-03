@@ -340,14 +340,17 @@ void EvalOutputAPI::getPatchMap(OpenSubdiv_Buffer *patch_map_handles,
   *patches_are_triangular = patch_map_->getPatchesAreTriangular();
 
   const std::vector<PatchTable::PatchHandle> &handles = patch_map_->getHandles();
-  PatchTable::PatchHandle *buffer_handles = static_cast<PatchTable::PatchHandle *>(
-      patch_map_handles->alloc(patch_map_handles, handles.size()));
-  memcpy(buffer_handles, handles.data(), sizeof(PatchTable::PatchHandle) * handles.size());
+  // TODO(jbakker): should these be SSBO's they are never bound as vertex buffers.
+  GPU_vertbuf_data_alloc(*patch_map_handles->data, handles.size());
+  MutableSpan<PatchTable::PatchHandle> buffer_handles =
+      patch_map_handles->data->data<PatchTable::PatchHandle>();
+  memcpy(buffer_handles.data(), handles.data(), sizeof(PatchTable::PatchHandle) * handles.size());
 
   const std::vector<PatchMap::QuadNode> &quadtree = patch_map_->nodes();
-  PatchMap::QuadNode *buffer_nodes = static_cast<PatchMap::QuadNode *>(
-      patch_map_quadtree->alloc(patch_map_quadtree, quadtree.size()));
-  memcpy(buffer_nodes, quadtree.data(), sizeof(PatchMap::QuadNode) * quadtree.size());
+  GPU_vertbuf_data_alloc(*patch_map_quadtree->data, quadtree.size());
+  MutableSpan<PatchMap::QuadNode> buffer_nodes =
+      patch_map_quadtree->data->data<PatchMap::QuadNode>();
+  memcpy(buffer_nodes.data(), quadtree.data(), sizeof(PatchMap::QuadNode) * quadtree.size());
 }
 
 void EvalOutputAPI::fillPatchArraysBuffer(OpenSubdiv_Buffer *patch_arrays_buffer)

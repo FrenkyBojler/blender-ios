@@ -167,6 +167,7 @@ class EvalOutputAPI {
 
   // Wrap thebuffer used by OpenSubDiv for the face varying channel with the given buffer.
   void wrapFVarSrcBuffer(const int face_varying_channel, OpenSubdiv_Buffer *src_buffer);
+  int getFVarSrcBufferOffset(const int face_varying_channel);
 
   // Return true if source vertex data has been set.
   bool hasVertexData() const;

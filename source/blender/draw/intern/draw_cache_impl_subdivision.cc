@@ -205,51 +205,9 @@ const GPUVertFormat &draw_subdiv_get_pos_nor_format()
 
 #ifdef WITH_OPENSUBDIV
 
-static void vertbuf_bind_gpu(const OpenSubdiv_Buffer *buffer)
-{
-  gpu::VertBuf *verts = (gpu::VertBuf *)(buffer->data);
-  GPU_vertbuf_use(verts);
-}
-
-static void *vertbuf_alloc(const OpenSubdiv_Buffer *interface, const uint len)
-{
-  gpu::VertBuf *verts = (gpu::VertBuf *)(interface->data);
-  GPU_vertbuf_data_alloc(*verts, len);
-  return verts->data<char>().data();
-}
-
-static void vertbuf_device_alloc(const OpenSubdiv_Buffer *interface, const uint len)
-{
-  gpu::VertBuf *verts = (gpu::VertBuf *)(interface->data);
-  /* This assumes that GPU_USAGE_DEVICE_ONLY was used, which won't allocate host memory. */
-  // BLI_assert(GPU_vertbuf_get_usage(verts) == GPU_USAGE_DEVICE_ONLY);
-  GPU_vertbuf_data_alloc(*verts, len);
-}
-
-static void vertbuf_wrap_device_handle(const OpenSubdiv_Buffer *interface, uint64_t handle)
-{
-  gpu::VertBuf *verts = (gpu::VertBuf *)(interface->data);
-  GPU_vertbuf_wrap_handle(verts, handle);
-}
-
-static void vertbuf_update_data(const OpenSubdiv_Buffer *interface,
-                                uint start,
-                                uint len,
-                                const void *data)
-{
-  gpu::VertBuf *verts = (gpu::VertBuf *)(interface->data);
-  GPU_vertbuf_update_sub(verts, start, len, data);
-}
-
 static void opensubdiv_gpu_buffer_init(OpenSubdiv_Buffer *buffer_interface, gpu::VertBuf *vertbuf)
 {
   buffer_interface->data = vertbuf;
-  buffer_interface->bind_gpu = vertbuf_bind_gpu;
-  buffer_interface->buffer_offset = 0;
-  buffer_interface->wrap_device_handle = vertbuf_wrap_device_handle;
-  buffer_interface->alloc = vertbuf_alloc;
-  buffer_interface->device_alloc = vertbuf_device_alloc;
-  buffer_interface->device_update = vertbuf_update_data;
 }
 
 static gpu::VertBuf *create_buffer_and_interface(OpenSubdiv_Buffer *interface,
@@ -1216,6 +1174,7 @@ void draw_subdiv_extract_uvs(const DRWSubdivCache &cache,
   OpenSubdiv_Buffer src_buffer_interface;
   gpu::VertBuf *src_buffer = create_buffer_and_interface(&src_buffer_interface, get_uvs_format());
   evaluator->eval_output->wrapFVarSrcBuffer(face_varying_channel, &src_buffer_interface);
+  int src_buffer_offset = evaluator->eval_output->getFVarSrcBufferOffset(face_varying_channel);
 
   OpenSubdiv_Buffer patch_arrays_buffer_interface;
   gpu::VertBuf *patch_arrays_buffer = create_buffer_and_interface(&patch_arrays_buffer_interface,
@@ -1253,8 +1212,8 @@ void draw_subdiv_extract_uvs(const DRWSubdivCache &cache,
 
   /* The buffer offset has the stride baked in (which is 2 as we have UVs) so remove the stride by
    * dividing by 2 */
-  const int src_offset = src_buffer_interface.buffer_offset / 2;
-  drw_subdiv_compute_dispatch(cache, shader, src_offset, dst_offset, cache.num_subdiv_quads);
+  drw_subdiv_compute_dispatch(
+      cache, shader, src_buffer_offset / 2, dst_offset, cache.num_subdiv_quads);
 
   /* This generates a vertex buffer, so we need to put a barrier on the vertex attribute array.
    * Since it may also be used for computing UV stretches, we also need a barrier on the shader
