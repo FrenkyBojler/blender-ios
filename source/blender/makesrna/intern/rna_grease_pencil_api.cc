@@ -169,13 +169,12 @@ static void rna_GreasePencilDrawing_vertex_group_assign(ID *id,
 {
   using namespace blender;
   GreasePencil &grease_pencil = *reinterpret_cast<GreasePencil *>(id);
-  bke::greasepencil::Drawing &drawing = drawing_ptr->wrap();
   const int vgroup_index = BKE_defgroup_name_index(&grease_pencil.vertex_group_names, vgroup_name);
   if (vgroup_index == -1) {
     return;
   }
 
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing_ptr->wrap().strokes_for_write();
   const int def_nr = bke::greasepencil::ensure_vertex_group(vgroup_name,
                                                             curves.vertex_group_names);
   const MutableSpan<MDeformVert> dverts = curves.deform_verts_for_write();
@@ -184,8 +183,7 @@ static void rna_GreasePencilDrawing_vertex_group_assign(ID *id,
 
   for (const int i : indices) {
     if (i < dverts_size) {
-      MDeformWeight *dw = BKE_defvert_ensure_index(&dverts[i], def_nr);
-      if (dw) {
+      if (MDeformWeight *dw = BKE_defvert_ensure_index(&dverts[i], def_nr)) {
         dw->weight = weight;
       }
     }
@@ -209,9 +207,12 @@ static void rna_GreasePencilDrawing_vertex_group_remove(ID *id,
 
   bke::CurvesGeometry &curves = drawing_ptr->wrap().strokes_for_write();
   const int def_nr = BKE_defgroup_name_index(&curves.vertex_group_names, vgroup_name);
+  if (def_nr == -1) {
+    return;
+  }
+
   const MutableSpan<MDeformVert> dverts = curves.deform_verts_for_write();
   const int dverts_size = dverts.size();
-
   const Span<int> indices(indices_ptr, indices_num);
   for (const int i : indices) {
     if (i < dverts_size) {
