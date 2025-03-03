@@ -279,7 +279,7 @@ void do_basic_brush(const Depsgraph &depsgraph,
     }
   }
   pbvh.tag_positions_changed(final_node_mask);
-  bke::pbvh::flush_bounds_to_parents(pbvh);
+  pbvh.flush_bounds_to_parents();
 }
 
 }  // namespace blender::ed::sculpt_paint

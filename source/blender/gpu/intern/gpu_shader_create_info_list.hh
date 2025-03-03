@@ -118,6 +118,9 @@
 #include "draw_hair_refine_info.hh"
 #include "draw_object_infos_info.hh"
 #include "draw_view_info.hh"
+#ifdef WITH_OPENSUBDIV
+#  include "subdiv_info.hh"
+#endif
 
 /* EEVEE engine. */
 #include "eevee_ambient_occlusion_info.hh"
@@ -150,6 +153,7 @@
 #include "overlay_antialiasing_info.hh"
 #include "overlay_armature_info.hh"
 #include "overlay_background_info.hh"
+#include "overlay_common_info.hh"
 #include "overlay_edit_mode_info.hh"
 #include "overlay_extra_info.hh"
 #include "overlay_facing_info.hh"

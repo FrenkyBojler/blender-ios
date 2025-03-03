@@ -65,6 +65,7 @@ class LightProbes : Overlay {
     ps_dots_.state_set(DRW_STATE_WRITE_COLOR, state.clipping_plane_count);
     ps_dots_.shader_set(res.shaders.extra_grid.get());
     ps_dots_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+    ps_dots_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
     ps_dots_.bind_texture("depthBuffer", &res.depth_tx);
     ps_dots_.push_constant("isTransform", (G.moving & G_TRANSFORM_OBJ) != 0);
     res.select_bind(ps_dots_);
@@ -100,7 +101,7 @@ class LightProbes : Overlay {
         clip_end = show_clipping ? prb->clipend : -1.0;
         call_buffers_.probe_cube_buf.append(data, select_id);
 
-        call_buffers_.ground_line_buf.append(float4(matrix.location()), select_id);
+        call_buffers_.ground_line_buf.append(float4(matrix.location(), 0.0f), select_id);
 
         if (show_influence) {
           LightProbeInstanceBuf &attenuation = (prb->attenuation_type == LIGHTPROBE_SHAPE_BOX) ?
@@ -193,6 +194,7 @@ class LightProbes : Overlay {
 
     ps_.init();
     ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+    ps_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
     res.select_bind(ps_);
 
     DRWState pass_state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH |

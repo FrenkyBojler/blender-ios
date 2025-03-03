@@ -256,7 +256,7 @@ static bool write_internal_bake_pixels(Image *image,
     }
 
     if (from_colorspace != to_colorspace) {
-      IMB_colormanagement_transform(
+      IMB_colormanagement_transform_float(
           buffer, ibuf->x, ibuf->y, ibuf->channels, from_colorspace, to_colorspace, false);
     }
   }
@@ -404,7 +404,7 @@ static bool write_external_bake_pixels(const char *filepath,
       const char *from_colorspace = IMB_colormanagement_role_colorspace_name_get(
           COLOR_ROLE_SCENE_LINEAR);
       const char *to_colorspace = IMB_colormanagement_get_rect_colorspace(ibuf);
-      IMB_colormanagement_transform(
+      IMB_colormanagement_transform_float(
           buffer, ibuf->x, ibuf->y, ibuf->channels, from_colorspace, to_colorspace, false);
     }
     else if (is_tangent_normal) {
@@ -522,7 +522,7 @@ static bool bake_object_check(const Scene *scene,
       if (image) {
 
         if (node) {
-          if (bke::node_is_connected_to_output(ntree, node)) {
+          if (bke::node_is_connected_to_output(*ntree, *node)) {
             /* we don't return false since this may be a false positive
              * this can't be RPT_ERROR though, otherwise it prevents
              * multiple highpoly objects to be baked at once */
@@ -1476,6 +1476,13 @@ static int bake(const BakeAPIRender *bkr,
       }
       else {
         ob_cage_eval = DEG_get_evaluated_object(depsgraph, ob_cage);
+        if (ob_cage_eval->id.orig_id != &ob_cage->id) {
+          BKE_reportf(reports,
+                      RPT_ERROR,
+                      "Cage object \"%s\" not found in evaluated scene, it may be hidden",
+                      ob_cage->id.name + 2);
+          goto cleanup;
+        }
         ob_cage_eval->visibility_flag |= OB_HIDE_RENDER;
         ob_cage_eval->base_flag &= ~(BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
                                      BASE_ENABLED_RENDER);
@@ -1578,6 +1585,14 @@ static int bake(const BakeAPIRender *bkr,
       }
 
       Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob_iter);
+      if (ob_eval->id.orig_id != &ob_iter->id) {
+        BKE_reportf(reports,
+                    RPT_ERROR,
+                    "Object \"%s\" not found in evaluated scene, it may be hidden",
+                    ob_iter->id.name + 2);
+        goto cleanup;
+      }
+
       ob_eval->visibility_flag &= ~OB_HIDE_RENDER;
       ob_eval->base_flag |= (BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT | BASE_ENABLED_RENDER);
 

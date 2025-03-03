@@ -20,6 +20,7 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_texture_types.h"
 
 #include "BKE_action.hh" /* BKE_pose_channel_find_name */
 #include "BKE_colortools.hh"
@@ -129,7 +130,7 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 
 static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, void *user_data)
 {
-  PointerRNA ptr = RNA_pointer_create(&ob->id, &RNA_Modifier, md);
+  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Modifier, md);
   PropertyRNA *prop = RNA_struct_find_property(&ptr, "texture");
   walk(user_data, ob, md, &ptr, prop);
 }

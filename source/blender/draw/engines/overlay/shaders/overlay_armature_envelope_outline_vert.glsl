@@ -2,14 +2,18 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "common_view_clipping_lib.glsl"
-#include "common_view_lib.glsl"
+#include "infos/overlay_armature_info.hh"
+
+VERTEX_SHADER_CREATE_INFO(overlay_armature_envelope_outline)
+
+#include "draw_view_clipping_lib.glsl"
+#include "draw_view_lib.glsl"
 #include "select_lib.glsl"
 
 /* project to screen space */
 vec2 proj(vec4 pos)
 {
-  return (0.5 * (pos.xy / pos.w) + 0.5) * sizeViewport.xy;
+  return (0.5 * (pos.xy / pos.w) + 0.5) * sizeViewport;
 }
 
 vec2 compute_dir(vec2 v0, vec2 v1, vec2 v2)
@@ -129,9 +133,9 @@ void main()
 
   view_clipping_distances(wpos1);
 
-  vec4 p0 = point_world_to_ndc(wpos0);
-  vec4 p1 = point_world_to_ndc(wpos1);
-  vec4 p2 = point_world_to_ndc(wpos2);
+  vec4 p0 = drw_point_world_to_homogenous(wpos0);
+  vec4 p1 = drw_point_world_to_homogenous(wpos1);
+  vec4 p2 = drw_point_world_to_homogenous(wpos2);
 
   gl_Position = p1;
 

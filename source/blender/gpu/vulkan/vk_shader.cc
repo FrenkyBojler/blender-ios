@@ -519,8 +519,7 @@ void VKShader::init(const shader::ShaderCreateInfo &info, bool is_batch_compilat
 
 VKShader::~VKShader()
 {
-  VKDevice &device = VKBackend::get().device;
-  VKDiscardPool &discard_pool = device.discard_pool_for_current_thread();
+  VKDiscardPool &discard_pool = VKDiscardPool::discard_pool_get();
 
   if (vk_pipeline_layout != VK_NULL_HANDLE) {
     discard_pool.discard_pipeline_layout(vk_pipeline_layout);
@@ -714,31 +713,6 @@ bool VKShader::finalize_descriptor_set_layouts(VKDevice &vk_device,
   }
   return vk_descriptor_set_layout_ != VK_NULL_HANDLE;
 }
-
-/* -------------------------------------------------------------------- */
-/** \name Transform feedback
- *
- * Not supported in the vulkan backend.
- *
- * \{ */
-
-void VKShader::transform_feedback_names_set(Span<const char *> /*name_list*/,
-                                            eGPUShaderTFBType /*geom_type*/)
-{
-  BLI_assert_unreachable();
-}
-
-bool VKShader::transform_feedback_enable(VertBuf *)
-{
-  return false;
-}
-
-void VKShader::transform_feedback_disable()
-{
-  BLI_assert_unreachable();
-}
-
-/** \} */
 
 void VKShader::bind()
 {

@@ -2,13 +2,19 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "common_view_clipping_lib.glsl"
-#include "common_view_lib.glsl"
+#include "infos/overlay_extra_info.hh"
+
+VERTEX_SHADER_CREATE_INFO(overlay_extra_wire_object_base)
+VERTEX_SHADER_CREATE_INFO(draw_modelmat)
+
+#include "draw_model_lib.glsl"
+#include "draw_view_clipping_lib.glsl"
+#include "draw_view_lib.glsl"
 #include "select_lib.glsl"
 
 vec2 screen_position(vec4 p)
 {
-  return ((p.xy / p.w) * 0.5 + 0.5) * sizeViewport.xy;
+  return ((p.xy / p.w) * 0.5 + 0.5) * sizeViewport;
 }
 
 void main()
@@ -19,8 +25,8 @@ void main()
   select_id_set(in_select_buf[gl_InstanceID]);
 #endif
 
-  vec3 world_pos = point_object_to_world(pos);
-  gl_Position = point_world_to_ndc(world_pos);
+  vec3 world_pos = drw_point_object_to_world(pos);
+  gl_Position = drw_point_world_to_homogenous(world_pos);
 
 #if defined(SELECT_ENABLE)
   /* HACK: to avoid losing sub-pixel object in selections, we add a bit of randomness to the

@@ -36,7 +36,6 @@
 #include "DNA_lightprobe_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_movieclip_types.h"
 #include "DNA_nla_types.h"
@@ -45,21 +44,16 @@
 #include "DNA_pointcloud_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_sequence_types.h"
 #include "DNA_shader_fx_types.h"
-#include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
-#include "DNA_world_types.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_bounds.hh"
 #include "BLI_kdtree.h"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector_types.hh"
+#include "BLI_string.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
@@ -86,7 +80,6 @@
 #include "BKE_editmesh_cache.hh"
 #include "BKE_effect.h"
 #include "BKE_fcurve.hh"
-#include "BKE_fcurve_driver.h"
 #include "BKE_geometry_set.hh"
 #include "BKE_geometry_set_instances.hh"
 #include "BKE_global.hh"
@@ -103,6 +96,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
+#include "BKE_library.hh"
 #include "BKE_light.h"
 #include "BKE_lightprobe.h"
 #include "BKE_linestyle.h"
@@ -110,7 +104,6 @@
 #include "BKE_material.hh"
 #include "BKE_mball.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_legacy_derived_mesh.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_modifier.hh"
 #include "BKE_multires.hh"
@@ -145,12 +138,11 @@
 
 #include "ANIM_action_legacy.hh"
 
+#include "RNA_prototypes.hh"
+
 #ifdef WITH_PYTHON
 #  include "BPY_extern.hh"
 #endif
-
-#include "CCGSubSurf.h"
-#include "atomic_ops.h"
 
 using blender::Bounds;
 using blender::float3;
@@ -954,7 +946,7 @@ static void object_blend_read_after_liblink(BlendLibReader *reader, ID *id)
   /* When the object is local and the data is library its possible
    * the material list size gets out of sync. #22663. */
   if (ob->data && ob->id.lib != static_cast<ID *>(ob->data)->lib) {
-    BKE_object_materials_test(bmain, ob, static_cast<ID *>(ob->data));
+    BKE_object_materials_sync_length(bmain, ob, static_cast<ID *>(ob->data));
   }
 
   /* Performs quite extensive rebuilding & validation of object-level Pose data from the Armature
@@ -1507,7 +1499,7 @@ static void copy_ccg_data(Mesh *mesh_destination,
     return;
   }
   const int layer_index = CustomData_get_layer_index(data_destination, layer_type);
-  CustomData_free_layer(data_destination, layer_type, num_elements, layer_index);
+  CustomData_free_layer(data_destination, layer_type, layer_index);
   BLI_assert(!CustomData_has_layer(data_destination, layer_type));
   CustomData_add_layer(
       data_destination, eCustomDataType(layer_type), CD_SET_DEFAULT, num_elements);
@@ -2388,7 +2380,7 @@ Object *BKE_object_pose_armature_get_with_wpaint_check(Object *ob)
         }
         break;
       }
-      case OB_GPENCIL_LEGACY: {
+      case OB_GREASE_PENCIL: {
         if ((ob->mode & OB_MODE_WEIGHT_GREASE_PENCIL) == 0) {
           return nullptr;
         }
@@ -4469,6 +4461,8 @@ bool BKE_object_shapekey_remove(Main *bmain, Object *ob, KeyBlock *kb)
   if (key == nullptr) {
     return false;
   }
+
+  BKE_animdata_drivers_remove_for_rna_struct(key->id, RNA_ShapeKey, kb);
 
   kb_index = BLI_findindex(&key->block, kb);
   BLI_assert(kb_index != -1);

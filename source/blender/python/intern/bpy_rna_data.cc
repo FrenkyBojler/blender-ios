@@ -169,7 +169,7 @@ static PyObject *bpy_rna_data_temp_data(PyObject * /*self*/, PyObject *args, PyO
 static PyObject *bpy_rna_data_context_enter(BPy_DataContext *self)
 {
   Main *bmain_temp = BKE_main_new();
-  PointerRNA ptr = RNA_pointer_create(nullptr, &RNA_BlendData, bmain_temp);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_BlendData, bmain_temp);
 
   self->data_rna = (BPy_StructRNA *)pyrna_struct_CreatePyObject(&ptr);
 
@@ -182,7 +182,7 @@ static PyObject *bpy_rna_data_context_enter(BPy_DataContext *self)
 static PyObject *bpy_rna_data_context_exit(BPy_DataContext *self, PyObject * /*args*/)
 {
   BKE_main_free(static_cast<Main *>(self->data_rna->ptr->data));
-  RNA_POINTER_INVALIDATE(&self->data_rna->ptr.value());
+  self->data_rna->ptr->invalidate();
   Py_RETURN_NONE;
 }
 

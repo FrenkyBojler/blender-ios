@@ -6,6 +6,7 @@
  * \ingroup edsculpt
  */
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 
@@ -25,6 +26,7 @@
 #include "BKE_context.hh"
 #include "BKE_image.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
 #include "BKE_node_tree_update.hh"
@@ -91,9 +93,7 @@ static int brush_scale_size_exec(bContext *C, wmOperator *op)
                                                BKE_brush_unprojected_radius_get(scene, brush) :
                                                brush->unprojected_radius);
 
-      if (unprojected_radius < 0.001f) { /* XXX magic number */
-        unprojected_radius = 0.001f;
-      }
+      unprojected_radius = std::max(unprojected_radius, 0.001f);
 
       if (use_unified_size) {
         BKE_brush_unprojected_radius_set(scene, brush, unprojected_radius);
@@ -972,7 +972,7 @@ static bNodeTree *node_group_add_for_brush(Main *bmain,
         DATA_("Vector"), "", "NodeSocketVector", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
   }
 
-  bke::node_add_node(nullptr, node_group, "NodeGroupOutput");
+  bke::node_add_node(nullptr, *node_group, "NodeGroupOutput");
   BKE_ntree_update_after_single_tree_change(*bmain, *node_group);
   return node_group;
 }

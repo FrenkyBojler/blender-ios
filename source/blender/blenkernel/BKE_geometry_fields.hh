@@ -10,6 +10,7 @@
  * Common field utilities and field definitions for geometry components.
  */
 
+#include "BKE_anonymous_attribute_id.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_subdiv_ccg.hh"
 
@@ -130,7 +131,7 @@ class GreasePencilLayerFieldContext : public fn::FieldContext {
 
   GVArray get_varray_for_input(const fn::FieldInput &field_input,
                                const IndexMask &mask,
-                               ResourceScope &scope) const;
+                               ResourceScope &scope) const override;
 };
 
 class InstancesFieldContext : public fn::FieldContext {

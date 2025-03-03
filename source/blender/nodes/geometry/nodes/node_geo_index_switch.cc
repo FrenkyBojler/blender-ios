@@ -70,7 +70,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
   bNode &node = *static_cast<bNode *>(ptr->data);
   NodeIndexSwitch &storage = node_storage(node);
-  if (uiLayout *panel = uiLayoutPanel(C, layout, "index_switch_items", false, TIP_("Items"))) {
+  if (uiLayout *panel = uiLayoutPanel(C, layout, "index_switch_items", false, IFACE_("Items"))) {
     uiItemO(panel, IFACE_("Add Item"), ICON_ADD, "node.index_switch_item_add");
     uiLayout *col = uiLayoutColumn(panel, false);
     for (const int i : IndexRange(storage.items_num)) {
@@ -378,12 +378,12 @@ static void register_node()
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.insert_link = node_insert_link;
-  blender::bke::node_type_storage(&ntype, "NodeIndexSwitch", node_free_storage, node_copy_storage);
+  blender::bke::node_type_storage(ntype, "NodeIndexSwitch", node_free_storage, node_copy_storage);
   ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.draw_buttons = node_layout;
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.register_operators = node_operators;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

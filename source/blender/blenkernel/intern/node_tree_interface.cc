@@ -15,7 +15,6 @@
 #include "BLI_math_vector.h"
 #include "BLI_stack.hh"
 #include "BLI_string.h"
-#include "BLI_vector.hh"
 
 #include "BLO_read_write.hh"
 
@@ -51,7 +50,7 @@ static std::optional<StringRef> try_get_supported_socket_type(const StringRef so
     return std::nullopt;
   }
   /* For builtin socket types only the base type is supported. */
-  if (node_is_static_socket_type(typeinfo)) {
+  if (node_is_static_socket_type(*typeinfo)) {
     if (const std::optional<StringRefNull> type_name = bke::node_static_socket_type(typeinfo->type,
                                                                                     PROP_NONE))
     {
@@ -677,9 +676,7 @@ blender::ColorGeometry4f bNodeTreeInterfaceSocket::socket_color() const
     typeinfo->draw_color_simple(typeinfo, color);
     return blender::ColorGeometry4f(color);
   }
-  else {
-    return blender::ColorGeometry4f(1.0f, 0.0f, 1.0f, 1.0f);
-  }
+  return blender::ColorGeometry4f(1.0f, 0.0f, 1.0f, 1.0f);
 }
 
 bool bNodeTreeInterfaceSocket::set_socket_type(const StringRef new_socket_type)
@@ -1379,6 +1376,14 @@ bool bNodeTreeInterface::move_item_to_parent(bNodeTreeInterfaceItem &item,
   if (new_parent == nullptr) {
     new_parent = &this->root_panel;
   }
+
+  if (item.item_type == NODE_INTERFACE_PANEL) {
+    bNodeTreeInterfacePanel &src_item = reinterpret_cast<bNodeTreeInterfacePanel &>(item);
+    if (src_item.contains_recursive(new_parent->item)) {
+      return false;
+    }
+  }
+
   bNodeTreeInterfacePanel *parent = this->find_item_parent(item, true);
   if (parent == nullptr) {
     return false;

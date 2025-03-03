@@ -46,10 +46,6 @@
 #include "BKE_colortools.hh" /* BKE_curvemapping_evaluateF() */
 #include "BKE_material.hh"   /* ramp_blend() */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------ MODULE FUNCTIONS ----------------------------------
@@ -71,7 +67,7 @@ static PyObject *Freestyle_getCurrentScene(PyObject * /*self*/)
     PyErr_SetString(PyExc_TypeError, "current scene not available");
     return nullptr;
   }
-  PointerRNA ptr_scene = RNA_pointer_create(&scene->id, &RNA_Scene, scene);
+  PointerRNA ptr_scene = RNA_pointer_create_discrete(&scene->id, &RNA_Scene, scene);
   return pyrna_struct_CreatePyObject(&ptr_scene);
 }
 
@@ -599,7 +595,3 @@ PyObject *Freestyle_Init()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

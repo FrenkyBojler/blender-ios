@@ -7,24 +7,31 @@
 #include "DNA_fluid_types.h"
 
 #include "BKE_editmesh.hh"
+#include "BKE_material.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_particle.h"
-#include "BKE_report.hh"
 
 #include "DEG_depsgraph_query.hh"
 
+#include "DNA_windowmanager_types.h"
 #include "ED_paint.hh"
 #include "ED_view3d.hh"
 
-#include "GPU_capabilities.hh"
+#include "BLT_translation.hh"
 
+#include "GPU_context.hh"
 #include "IMB_imbuf_types.hh"
 
+#include "RE_engine.h"
+#include "RE_pipeline.h"
+
+#include "draw_cache.hh"
 #include "draw_common.hh"
 #include "draw_sculpt.hh"
+#include "draw_view_data.hh"
 
 #include "workbench_private.hh"
 
@@ -169,7 +176,7 @@ class Instance {
         emitter_handle = handle;
       }
       else if (ob->type == OB_POINTCLOUD) {
-        this->point_cloud_sync(manager, ob_ref, object_state);
+        this->pointcloud_sync(manager, ob_ref, object_state);
       }
       else if (ob->type == OB_CURVES) {
         this->curves_sync(manager, ob_ref, object_state);
@@ -253,7 +260,7 @@ class Instance {
     bool has_transparent_material = false;
 
     if (object_state.use_per_material_batches) {
-      const int material_count = DRW_cache_object_material_count_get(ob_ref.object);
+      const int material_count = BKE_object_material_used_with_fallback_eval(*ob_ref.object);
 
       Span<gpu::Batch *> batches;
       if (object_state.color_type == V3D_SHADING_TEXTURE_COLOR) {
@@ -352,7 +359,7 @@ class Instance {
     }
   }
 
-  void point_cloud_sync(Manager &manager, ObjectRef &ob_ref, const ObjectState &object_state)
+  void pointcloud_sync(Manager &manager, ObjectRef &ob_ref, const ObjectState &object_state)
   {
     ResourceHandle handle = manager.resource_handle(ob_ref);
 
@@ -363,7 +370,7 @@ class Instance {
     this->draw_to_mesh_pass(ob_ref, mat.is_transparent(), [&](MeshPass &mesh_pass) {
       PassMain::Sub &pass =
           mesh_pass.get_subpass(eGeometryType::POINTCLOUD).sub("Point Cloud SubPass");
-      gpu::Batch *batch = point_cloud_sub_pass_setup(pass, ob_ref.object);
+      gpu::Batch *batch = pointcloud_sub_pass_setup(pass, ob_ref.object);
       pass.draw(batch, handle, material_index);
     });
   }
@@ -525,10 +532,6 @@ using namespace blender;
 
 struct WORKBENCH_Data {
   DrawEngineType *engine_type;
-  DRWViewportEmptyList *fbl;
-  DRWViewportEmptyList *txl;
-  DRWViewportEmptyList *psl;
-  DRWViewportEmptyList *stl;
   workbench::Instance *instance;
 
   char info[GPU_INFO_SIZE];
@@ -790,15 +793,10 @@ static void workbench_render_update_passes(RenderEngine *engine,
   }
 }
 
-extern "C" {
-
-static const DrawEngineDataSize workbench_data_size = DRW_VIEWPORT_DATA_SIZE(WORKBENCH_Data);
-
 DrawEngineType draw_engine_workbench = {
     /*next*/ nullptr,
     /*prev*/ nullptr,
     /*idname*/ N_("Workbench"),
-    /*vedata_size*/ &workbench_data_size,
     /*engine_init*/ &workbench_engine_init,
     /*engine_free*/ &workbench_engine_free,
     /*instance_free*/ &workbench_instance_free,
@@ -835,6 +833,5 @@ RenderEngineType DRW_engine_viewport_workbench_type = {
         /*call*/ nullptr,
     },
 };
-}
 
 /** \} */

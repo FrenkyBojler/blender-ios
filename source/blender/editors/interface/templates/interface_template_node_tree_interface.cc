@@ -49,11 +49,11 @@ class NodeTreeInterfaceDragController : public AbstractViewItemDragController {
  public:
   explicit NodeTreeInterfaceDragController(NodeTreeInterfaceView &view,
                                            bNodeTreeInterfaceItem &item);
-  virtual ~NodeTreeInterfaceDragController() = default;
+  ~NodeTreeInterfaceDragController() override = default;
 
-  eWM_DragDataType get_drag_type() const;
+  eWM_DragDataType get_drag_type() const override;
 
-  void *create_drag_data() const;
+  void *create_drag_data() const override;
 };
 
 class NodeSocketDropTarget : public TreeViewItemDropTarget {
@@ -185,6 +185,7 @@ class NodePanelViewItem : public BasicTreeViewItem {
       NodePanelViewItem &self = static_cast<NodePanelViewItem &>(new_active);
       interface.active_item_set(&self.panel_.item);
     });
+    is_always_collapsible_ = true;
   }
 
   void build_row(uiLayout &row) override
