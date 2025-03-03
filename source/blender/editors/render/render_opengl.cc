@@ -94,6 +94,9 @@ struct OGLRender : public RenderJobBase {
   RegionView3D *rv3d = nullptr;
   ARegion *region = nullptr;
 
+  ScrArea *prev_area;
+  ARegion *prev_region;
+
   int views_len = 0; /* multi-view views */
 
   bool is_sequencer = false;
@@ -693,6 +696,8 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   WorkSpace *workspace = CTX_wm_workspace(C);
 
   Scene *scene = CTX_data_scene(C);
+  ScrArea *prev_area = CTX_wm_area(C);
+  ARegion *prev_region = CTX_wm_region(C);
   GPUOffScreen *ofs;
   OGLRender *oglrender;
   int sizex, sizey;
@@ -769,6 +774,8 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   oglrender->viewport = GPU_viewport_create();
   oglrender->bmain = CTX_data_main(C);
   oglrender->scene = scene;
+  oglrender->prev_area = prev_area;
+  oglrender->prev_region = prev_region;
   oglrender->current_scene = scene;
   oglrender->workspace = workspace;
   oglrender->view_layer = CTX_data_view_layer(C);
@@ -853,7 +860,7 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   return true;
 }
 
-static void screen_opengl_render_end(OGLRender *oglrender)
+static void screen_opengl_render_end(bContext *C, OGLRender *oglrender)
 {
   /* Ensure we don't call this both from the job and operator callbacks. */
   if (oglrender->ended) {
@@ -915,6 +922,11 @@ static void screen_opengl_render_end(OGLRender *oglrender)
     BKE_scene_graph_update_for_newframe(depsgraph);
   }
 
+  if (C != nullptr) {
+    CTX_wm_area_set(C, oglrender->prev_area);
+    CTX_wm_region_set(C, oglrender->prev_region);
+  }
+
   WM_main_add_notifier(NC_SCENE | ND_RENDER_RESULT, oglrender->scene);
   G.is_rendering = false;
   oglrender->ended = true;
@@ -929,12 +941,12 @@ static void screen_opengl_render_cancel(bContext *C, wmOperator *op)
     WM_jobs_kill_type(wm, oglrender->scene, WM_JOB_TYPE_RENDER);
   }
 
-  screen_opengl_render_end(oglrender);
+  screen_opengl_render_end(C, oglrender);
   MEM_delete(oglrender);
 }
 
 /* share between invoke and exec */
-static bool screen_opengl_render_anim_init(wmOperator *op)
+static bool screen_opengl_render_anim_init(bContext *C, wmOperator *op)
 {
   /* initialize animation */
   OGLRender *oglrender = static_cast<OGLRender *>(op->customdata);
@@ -964,7 +976,7 @@ static bool screen_opengl_render_anim_init(wmOperator *op)
                                             suffix);
       if (writer == nullptr) {
         BKE_report(oglrender->reports, RPT_ERROR, "Movie format unsupported");
-        screen_opengl_render_end(oglrender);
+        screen_opengl_render_end(C, oglrender);
         MEM_delete(oglrender);
         return false;
       }
@@ -1188,14 +1200,14 @@ static int screen_opengl_render_modal(bContext *C, wmOperator *op, const wmEvent
    * in case render initialization takes a while. */
   if (!oglrender->is_animation) {
     screen_opengl_render_apply(oglrender);
-    screen_opengl_render_end(oglrender);
+    screen_opengl_render_end(C, oglrender);
     MEM_delete(oglrender);
     return OPERATOR_FINISHED;
   }
 
   /* no running blender, remove handler and pass through */
   if (0 == WM_jobs_test(CTX_wm_manager(C), oglrender->scene, WM_JOB_TYPE_RENDER)) {
-    screen_opengl_render_end(oglrender);
+    screen_opengl_render_end(C, oglrender);
     MEM_delete(oglrender);
     return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
   }
@@ -1242,7 +1254,7 @@ static void opengl_render_freejob(void *customdata)
 {
   /* End the render here, as the modal handler might be called with the window out of focus. */
   OGLRender *oglrender = static_cast<OGLRender *>(customdata);
-  screen_opengl_render_end(oglrender);
+  screen_opengl_render_end(nullptr, oglrender);
 }
 
 static int screen_opengl_render_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -1254,7 +1266,7 @@ static int screen_opengl_render_invoke(bContext *C, wmOperator *op, const wmEven
   }
 
   if (anim) {
-    if (!screen_opengl_render_anim_init(op)) {
+    if (!screen_opengl_render_anim_init(C, op)) {
       return OPERATOR_CANCELLED;
     }
   }
@@ -1299,7 +1311,7 @@ static int screen_opengl_render_exec(bContext *C, wmOperator *op)
 
   if (!oglrender->is_animation) { /* same as invoke */
     screen_opengl_render_apply(oglrender);
-    screen_opengl_render_end(oglrender);
+    screen_opengl_render_end(C, oglrender);
     MEM_delete(oglrender);
 
     return OPERATOR_FINISHED;
@@ -1307,7 +1319,7 @@ static int screen_opengl_render_exec(bContext *C, wmOperator *op)
 
   bool ret = true;
 
-  if (!screen_opengl_render_anim_init(op)) {
+  if (!screen_opengl_render_anim_init(C, op)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1315,7 +1327,7 @@ static int screen_opengl_render_exec(bContext *C, wmOperator *op)
     ret = screen_opengl_render_anim_step(oglrender);
   }
 
-  screen_opengl_render_end(oglrender);
+  screen_opengl_render_end(C, oglrender);
   MEM_delete(oglrender);
 
   return OPERATOR_FINISHED;
