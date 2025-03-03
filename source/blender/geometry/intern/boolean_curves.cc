@@ -884,7 +884,7 @@ bke::CurvesGeometry curve_boolean(const Operation boolean_mode,
 
     /* Find the first segment that is not clipping. */
     for (const int segment_i : segment_range) {
-      if (!clipping_shapes.contains(segment_i)) {
+      if (!clipping_shapes.contains(result.segments[segment_i].curve)) {
         old_by_new_map[i] = result.segments[segment_i].curve;
         continue;
       }
