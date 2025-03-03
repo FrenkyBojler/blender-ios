@@ -188,8 +188,7 @@ static void rna_brna_structs_remove_and_free(BlenderRNA *brna, StructRNA *srna)
   RNA_def_struct_free_pointers(nullptr, srna);
 
   if (srna->flag & STRUCT_RUNTIME) {
-    MEM_delete(srna->cont.prop_map);
-    srna->cont.prop_map = nullptr;
+    MEM_SAFE_DELETE(srna->cont.prop_map);
     rna_freelinkN(&brna->structs, srna);
   }
   brna->structs_len -= 1;
@@ -816,8 +815,7 @@ void RNA_struct_free(BlenderRNA *brna, StructRNA *srna)
               srna_identifier);
     }
   }
-  MEM_delete(srna->cont.prop_map);
-  srna->cont.prop_map = nullptr;
+  MEM_SAFE_DELETE(srna->cont.prop_map);
   for (prop = static_cast<PropertyRNA *>(srna->cont.properties.first); prop; prop = nextprop) {
     nextprop = prop->next;
 
@@ -868,10 +866,7 @@ void RNA_free(BlenderRNA *brna)
     for (srna = static_cast<StructRNA *>(brna->structs.first); srna;
          srna = static_cast<StructRNA *>(srna->cont.next))
     {
-      if (srna->cont.prop_map) {
-        MEM_delete(srna->cont.prop_map);
-        srna->cont.prop_map = nullptr;
-      }
+      MEM_SAFE_DELETE(srna->cont.prop_map);
       for (func = static_cast<FunctionRNA *>(srna->functions.first); func;
            func = static_cast<FunctionRNA *>(func->cont.next))
       {

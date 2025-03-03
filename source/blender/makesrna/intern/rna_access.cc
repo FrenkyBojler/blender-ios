@@ -126,10 +126,7 @@ void RNA_exit()
   for (srna = static_cast<StructRNA *>(BLENDER_RNA.structs.first); srna;
        srna = static_cast<StructRNA *>(srna->cont.next))
   {
-    if (srna->cont.prop_map) {
-      MEM_delete(srna->cont.prop_map);
-      srna->cont.prop_map = nullptr;
-    }
+    MEM_SAFE_DELETE(srna->cont.prop_map);
   }
 
   RNA_free(&BLENDER_RNA);
