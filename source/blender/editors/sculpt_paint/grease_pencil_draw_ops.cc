@@ -232,6 +232,9 @@ static bool grease_pencil_brush_stroke_poll(bContext *C)
   if (!WM_toolsystem_active_tool_is_brush(C)) {
     return false;
   }
+  if (ED_screen_animation_playing(CTX_wm_manager(C)) != nullptr) {
+    return false;
+  }
   return true;
 }
 
@@ -327,6 +330,9 @@ static bool grease_pencil_sculpt_paint_poll(bContext *C)
     return false;
   }
   if (!WM_toolsystem_active_tool_is_brush(C)) {
+    return false;
+  }
+  if (ED_screen_animation_playing(CTX_wm_manager(C)) != nullptr) {
     return false;
   }
   return true;
@@ -435,6 +441,9 @@ static bool grease_pencil_weight_brush_stroke_poll(bContext *C)
   if (!WM_toolsystem_active_tool_is_brush(C)) {
     return false;
   }
+  if (ED_screen_animation_playing(CTX_wm_manager(C)) != nullptr) {
+    return false;
+  }
   return true;
 }
 
@@ -526,6 +535,9 @@ static bool grease_pencil_vertex_brush_stroke_poll(bContext *C)
     return false;
   }
   if (!WM_toolsystem_active_tool_is_brush(C)) {
+    return false;
+  }
+  if (ED_screen_animation_playing(CTX_wm_manager(C)) != nullptr) {
     return false;
   }
   return true;
