@@ -164,10 +164,10 @@ class Wireframe : Overlay {
         /* Force display in edit mode when overlay is off in wireframe mode (see #78484). */
         const bool wireframe_no_overlay = state.hide_overlays && state.is_wireframe_mode;
 
-        /* In some cases, the edit mode wireframe overlay is drawn separately for the same edges.
-         * We want to avoid this to avoid redundant work and to avoid Z-fighting. Detecting this
-         * case is relatively complicated though, because whether edit mode draws the edges depends
-         * on whether there is a separate cage and whether there is a valid mapping between the
+        /* In some cases the edit mode wireframe overlay is already drawn for the same edges.
+         * We want to avoid this redundant work and avoid Z-fighting, but detecting this case is
+         * relatively complicated. Whether edit mode draws edges on the evaluated mesh depends on
+         * whether there is a separate cage and whether there is a valid mapping between the
          * evaluated and original edit mesh. */
         const bool edit_wires_drawn = [&]() {
           if (!in_edit_mode) {
@@ -178,12 +178,12 @@ class Wireframe : Overlay {
           const bool edit_mapping_valid = BKE_editmesh_eval_orig_map_available(mesh,
                                                                                orig_edit_mesh);
           if (!edit_mapping_valid) {
-            /* Mesh edit mode batch cache extraction avoids creating wireframe batches when the
-             * evaluated mesh doesn't correspond with the original edit mesh. */
+            /* Mesh edit mode wireframe overlays aren't drawn when the evaluated mesh doesn't
+             * correspond with the original edit mesh. So the */
             return false;
           }
           if (Meshes::mesh_has_edit_cage(ob_ref.object)) {
-            /* A cage means the edit mode wireframe overlay is drawn separately. */
+            /* If a cage exists, the edit overlay might not display every edge. */
             return false;
           }
           return true;
