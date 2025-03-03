@@ -30,6 +30,7 @@
 #include "bmesh.hh"
 #include "bmesh_log.hh"
 
+#include "BLI_color.hh"
 #include "range_tree.h"
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
@@ -103,6 +104,7 @@ struct BMLog {
 struct BMLogVert {
   blender::float3 position;
   blender::float3 normal;
+  blender::ColorGeometry4f color;
   char hflag;
   float mask;
 };
@@ -175,22 +177,37 @@ static void vert_mask_set(BMVert *v, const float new_mask, const int cd_vert_mas
   }
 }
 
+static blender::ColorGeometry4f vert_color_get(BMVert *v, const int cd_color_offset)
+{
+  if (cd_color_offset != -1) {
+    return *static_cast<blender::ColorGeometry4f *>(BM_ELEM_CD_GET_VOID_P(v, cd_color_offset));
+  }
+  return blender::ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f);
+}
+
 /* Update a BMLogVert with data from a BMVert */
-static void bm_log_vert_bmvert_copy(BMLogVert *lv, BMVert *v, const int cd_vert_mask_offset)
+static void bm_log_vert_bmvert_copy(BMLogVert *lv,
+                                    BMVert *v,
+                                    const int cd_vert_mask_offset,
+                                    const int cd_color_offset)
 {
   copy_v3_v3(lv->position, v->co);
   copy_v3_v3(lv->normal, v->no);
   lv->mask = vert_mask_get(v, cd_vert_mask_offset);
+  lv->color = vert_color_get(v, cd_color_offset);
   lv->hflag = v->head.hflag;
 }
 
 /* Allocate and initialize a BMLogVert */
-static BMLogVert *bm_log_vert_alloc(BMLog *log, BMVert *v, const int cd_vert_mask_offset)
+static BMLogVert *bm_log_vert_alloc(BMLog *log,
+                                    BMVert *v,
+                                    const int cd_vert_mask_offset,
+                                    const int cd_color_offset)
 {
   BMLogEntry *entry = log->current_entry;
   BMLogVert *lv = static_cast<BMLogVert *>(BLI_mempool_alloc(entry->pool_verts));
 
-  bm_log_vert_bmvert_copy(lv, v, cd_vert_mask_offset);
+  bm_log_vert_bmvert_copy(lv, v, cd_vert_mask_offset, cd_color_offset);
 
   return lv;
 }
@@ -224,12 +241,15 @@ static void bm_log_verts_unmake(BMesh *bm,
   const int cd_vert_mask_offset = CustomData_get_offset_named(
       &bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
 
+  // TODO: Wire up color attribute through here...
+  const int cd_color_offset = -1;
+
   for (const auto item : verts.items()) {
     BMVert *v = bm_log_vert_from_id(log, item.key);
 
     /* Ensure the log has the final values of the vertex before
      * deleting it */
-    bm_log_vert_bmvert_copy(item.value, v, cd_vert_mask_offset);
+    bm_log_vert_bmvert_copy(item.value, v, cd_vert_mask_offset, cd_color_offset);
 
     BM_vert_kill(bm, v);
   }
@@ -655,6 +675,7 @@ void BM_log_entry_drop(BMLogEntry *entry)
   MEM_delete(entry);
 }
 
+// TODO: Change this to take in the current vertex color attribute
 void BM_log_undo(BMesh *bm, BMLog *log)
 {
   BMLogEntry *entry = log->current_entry;
@@ -676,6 +697,7 @@ void BM_log_undo(BMesh *bm, BMLog *log)
   }
 }
 
+// TODO: Change this to take in the current vertex color attribute
 void BM_log_redo(BMesh *bm, BMLog *log)
 {
   BMLogEntry *entry = log->current_entry;
@@ -710,27 +732,34 @@ void BM_log_redo(BMesh *bm, BMLog *log)
   }
 }
 
-void BM_log_vert_before_modified(BMLog *log, BMVert *v, const int cd_vert_mask_offset)
+void BM_log_vert_before_modified(BMLog *log,
+                                 BMVert *v,
+                                 const int cd_vert_mask_offset,
+                                 const int cd_color_offset)
 {
   BMLogEntry *entry = log->current_entry;
   const uint v_id = bm_log_vert_id_get(log, v);
 
   /* Find or create the BMLogVert entry */
   if (entry->added_verts.contains(v_id)) {
-    bm_log_vert_bmvert_copy(entry->added_verts.lookup(v_id), v, cd_vert_mask_offset);
+    bm_log_vert_bmvert_copy(
+        entry->added_verts.lookup(v_id), v, cd_vert_mask_offset, cd_color_offset);
   }
   else {
     entry->modified_verts.lookup_or_add_cb(
-        v_id, [&] { return bm_log_vert_alloc(log, v, cd_vert_mask_offset); });
+        v_id, [&] { return bm_log_vert_alloc(log, v, cd_vert_mask_offset, cd_color_offset); });
   }
 }
 
-void BM_log_vert_added(BMLog *log, BMVert *v, const int cd_vert_mask_offset)
+void BM_log_vert_added(BMLog *log,
+                       BMVert *v,
+                       const int cd_vert_mask_offset,
+                       const int cd_color_offset)
 {
   const uint v_id = range_tree_uint_take_any(log->unused_ids);
 
   bm_log_vert_id_set(log, v, v_id);
-  BMLogVert *lv = bm_log_vert_alloc(log, v, cd_vert_mask_offset);
+  BMLogVert *lv = bm_log_vert_alloc(log, v, cd_vert_mask_offset, cd_color_offset);
   log->current_entry->added_verts.add(v_id, lv);
 }
 
@@ -754,7 +783,10 @@ void BM_log_face_added(BMLog *log, BMFace *f)
   log->current_entry->added_faces.add(f_id, lf);
 }
 
-void BM_log_vert_removed(BMLog *log, BMVert *v, const int cd_vert_mask_offset)
+void BM_log_vert_removed(BMLog *log,
+                         BMVert *v,
+                         const int cd_vert_mask_offset,
+                         const int cd_color_offset)
 {
   BMLogEntry *entry = log->current_entry;
   const uint v_id = bm_log_vert_id_get(log, v);
@@ -766,7 +798,7 @@ void BM_log_vert_removed(BMLog *log, BMVert *v, const int cd_vert_mask_offset)
     range_tree_uint_release(log->unused_ids, v_id);
   }
   else {
-    BMLogVert *lv = bm_log_vert_alloc(log, v, cd_vert_mask_offset);
+    BMLogVert *lv = bm_log_vert_alloc(log, v, cd_vert_mask_offset, cd_color_offset);
     entry->deleted_verts.add(v_id, lv);
 
     /* If the vertex was modified before deletion, ensure that the
@@ -799,6 +831,8 @@ void BM_log_all_added(BMesh *bm, BMLog *log)
 {
   const int cd_vert_mask_offset = CustomData_get_offset_named(
       &bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
+  // TODO: FIX THIS
+  const int cd_color_offset = -1;
 
   /* avoid unnecessary resizing on initialization */
   if (log->current_entry->added_verts.is_empty()) {
@@ -813,7 +847,7 @@ void BM_log_all_added(BMesh *bm, BMLog *log)
   BMVert *v;
   /* Log all vertices as newly created */
   BM_ITER_MESH (v, &bm_iter, bm, BM_VERTS_OF_MESH) {
-    BM_log_vert_added(log, v, cd_vert_mask_offset);
+    BM_log_vert_added(log, v, cd_vert_mask_offset, cd_color_offset);
   }
 
   BMFace *f;
@@ -827,6 +861,8 @@ void BM_log_before_all_removed(BMesh *bm, BMLog *log)
 {
   const int cd_vert_mask_offset = CustomData_get_offset_named(
       &bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
+  // TODO: actually fix this...
+  const int cd_color_offset = -1;
 
   BMIter bm_iter;
   BMFace *f;
@@ -838,7 +874,7 @@ void BM_log_before_all_removed(BMesh *bm, BMLog *log)
   BMVert *v;
   /* Log deletion of all vertices */
   BM_ITER_MESH (v, &bm_iter, bm, BM_VERTS_OF_MESH) {
-    BM_log_vert_removed(log, v, cd_vert_mask_offset);
+    BM_log_vert_removed(log, v, cd_vert_mask_offset, cd_color_offset);
   }
 }
 

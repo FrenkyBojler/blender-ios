@@ -106,7 +106,10 @@ void BM_log_redo(BMesh *bm, BMLog *log);
  * state so that a subsequent redo operation will restore the newer
  * vertex state.
  */
-void BM_log_vert_before_modified(BMLog *log, BMVert *v, int cd_vert_mask_offset);
+void BM_log_vert_before_modified(BMLog *log,
+                                 BMVert *v,
+                                 int cd_vert_mask_offset,
+                                 int cd_color_offset);
 
 /**
  * Log a new vertex as added to the #BMesh.
@@ -115,7 +118,7 @@ void BM_log_vert_before_modified(BMLog *log, BMVert *v, int cd_vert_mask_offset)
  * of added vertices, with the key being its ID and the value
  * containing everything needed to reconstruct that vertex.
  */
-void BM_log_vert_added(BMLog *log, BMVert *v, int cd_vert_mask_offset);
+void BM_log_vert_added(BMLog *log, BMVert *v, int cd_vert_mask_offset, int cd_color_offset);
 
 /**
  * Log a face before it is modified.
@@ -151,7 +154,7 @@ void BM_log_face_added(BMLog *log, BMFace *f);
  * If there's a move record for the vertex, that's used as the
  * vertices original location, then the move record is deleted.
  */
-void BM_log_vert_removed(BMLog *log, BMVert *v, int cd_vert_mask_offset);
+void BM_log_vert_removed(BMLog *log, BMVert *v, int cd_vert_mask_offset, int cd_color_offset);
 
 /**
  * Log a face as removed from the #BMesh.
