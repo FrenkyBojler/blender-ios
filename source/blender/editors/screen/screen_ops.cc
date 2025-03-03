@@ -3629,7 +3629,7 @@ static void area_join_draw_cb(const wmWindow *win, void *userdata)
   }
 }
 
-static void area_join_dock_cb(const wmWindow * /*win*/, void *userdata)
+static void area_join_dock_cb(const wmWindow *win, void *userdata)
 {
   const wmOperator *op = static_cast<wmOperator *>(userdata);
   sAreaJoinData *jd = static_cast<sAreaJoinData *>(op->customdata);
@@ -3637,7 +3637,7 @@ static void area_join_dock_cb(const wmWindow * /*win*/, void *userdata)
     return;
   }
   screen_draw_dock_preview(
-      jd->sa1, jd->sa2, jd->dock_target, jd->factor, jd->current_x, jd->current_y);
+      win, jd->sa1, jd->sa2, jd->dock_target, jd->factor, jd->current_x, jd->current_y);
 }
 
 static void area_join_dock_cb_window(sAreaJoinData *jd, wmOperator *op)
@@ -4182,9 +4182,10 @@ static void area_join_update_data(bContext *C, sAreaJoinData *jd, const wmEvent 
   jd->dock_target = area_docking_target(jd, event);
 
   if (jd->sa1 == area) {
+    const int drag_threshold = 30 * UI_SCALE_FAC;
     jd->sa2 = area;
-    if (!(abs(jd->start_x - event->xy[0]) > (30 * U.pixelsize) ||
-          abs(jd->start_y - event->xy[1]) > (30 * U.pixelsize)))
+    if (!(abs(jd->start_x - event->xy[0]) > drag_threshold ||
+          abs(jd->start_y - event->xy[1]) > drag_threshold))
     {
       /* We haven't moved enough to start a split. */
       jd->dir = SCREEN_DIR_NONE;
@@ -5575,8 +5576,9 @@ static int screen_animation_step_invoke(bContext *C, wmOperator * /*op*/, const 
         if (redraw) {
           screen_animation_region_tag_redraw(
               C, area, region, scene, eScreen_Redraws_Flag(sad->redraws));
-          /* Doesn't trigger a full redraw of the screeen but makes sure at least overlay drawing
-           * (#ARegionType.draw_overlay()) is triggered, which is how the playhead is drawn. */
+          /* Doesn't trigger a full redraw of the screen but makes sure at least overlay drawing
+           * (#ARegionType.draw_overlay()) is triggered, which is how the current-frame is drawn.
+           */
           win_screen->do_draw = true;
         }
       }
@@ -6394,6 +6396,8 @@ static int space_type_set_or_cycle_exec(bContext *C, wmOperator *op)
   if (area->spacetype != space_type) {
     /* Set the type. */
     RNA_property_enum_set(&ptr, prop_type, space_type);
+    /* Specify that we want last-used if there are subtypes. */
+    area->butspacetype_subtype = -1;
     RNA_property_update(C, &ptr, prop_type);
   }
   else {
