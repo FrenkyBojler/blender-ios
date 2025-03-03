@@ -169,7 +169,7 @@ class Wireframe : Overlay {
          * relatively complicated. Whether edit mode draws edges on the evaluated mesh depends on
          * whether there is a separate cage and whether there is a valid mapping between the
          * evaluated and original edit mesh. */
-        const bool edit_wires_drawn = [&]() {
+        const bool edit_wires_overlap_all = [&]() {
           if (!in_edit_mode) {
             return false;
           }
@@ -189,7 +189,7 @@ class Wireframe : Overlay {
           return true;
         }();
 
-        const bool bypass_mode_check = wireframe_no_overlay || !edit_wires_drawn;
+        const bool bypass_mode_check = wireframe_no_overlay || !edit_wires_overlap_all;
 
         if (show_surface_wire) {
           if (BKE_sculptsession_use_pbvh_draw(ob_ref.object, state.rv3d)) {
