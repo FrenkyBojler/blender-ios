@@ -1360,6 +1360,18 @@ uiBut *uiDefIconButO_ptr(uiBlock *block,
                          short width,
                          short height,
                          std::optional<blender::StringRef> tip);
+uiBut *uiDefIconPreviewBut(uiBlock *block,
+                           int type,
+                           int retval,
+                           int icon,
+                           int x,
+                           int y,
+                           short width,
+                           short height,
+                           void *poin,
+                           float min,
+                           float max,
+                           std::optional<blender::StringRef> tip);
 uiBut *uiDefButImage(
     uiBlock *block, void *imbuf, int x, int y, short width, short height, const uchar color[4]);
 uiBut *uiDefButAlert(uiBlock *block, int icon, int x, int y, short width, short height);

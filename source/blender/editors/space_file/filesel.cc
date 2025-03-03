@@ -1091,9 +1091,8 @@ void ED_fileselect_init_layout(SpaceFile *sfile, ARegion *region)
   else if (params->display == FILE_VERTICALDISPLAY) {
     int rowcount;
 
-    /* Matches UI_preview_tile_size_x()/_y() by default. */
-    layout->prv_w = (float(params->thumbnail_size) / 20.0f) * UI_UNIT_X;
-    layout->prv_h = (float(params->thumbnail_size) / 20.0f) * UI_UNIT_Y;
+    layout->prv_w = ICON_DEFAULT_WIDTH_SCALE;
+    layout->prv_h = ICON_DEFAULT_HEIGHT_SCALE;
     layout->tile_border_x = 0.4f * UI_UNIT_X;
     layout->tile_border_y = 0.1f * UI_UNIT_Y;
     layout->tile_h = textheight * 3 / 2;
@@ -1116,11 +1115,10 @@ void ED_fileselect_init_layout(SpaceFile *sfile, ARegion *region)
   }
   else if (params->display == FILE_HORIZONTALDISPLAY) {
     /* Higher rows for asset browser. */
-    const float height_fac = is_asset_browser ? 2 : 1;
+    const int height_fac = is_asset_browser ? 2 : 1;
 
-    /* Matches UI_preview_tile_size_x()/_y() by default. */
-    layout->prv_w = (float(params->thumbnail_size) / 20.0f) * UI_UNIT_X;
-    layout->prv_h = (float(params->thumbnail_size) / 20.0f) * UI_UNIT_Y;
+    layout->prv_w = ICON_DEFAULT_WIDTH_SCALE * height_fac;
+    layout->prv_h = ICON_DEFAULT_HEIGHT_SCALE * height_fac;
     layout->tile_border_x = 0.4f * UI_UNIT_X;
     layout->tile_border_y = 0.1f * UI_UNIT_Y;
     layout->tile_h = (textheight * 3 / 2) * height_fac;

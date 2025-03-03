@@ -5532,6 +5532,27 @@ uiBut *uiDefIconBut(uiBlock *block,
   ui_but_update_and_icon_set(but, icon);
   return but;
 }
+uiBut *uiDefIconPreviewBut(uiBlock *block,
+                           int type,
+                           int retval,
+                           int icon,
+                           int x,
+                           int y,
+                           short width,
+                           short height,
+                           void *poin,
+                           float min,
+                           float max,
+                           const std::optional<StringRef> tip)
+{
+  uiBut *but = ui_def_but(block, type, retval, "", x, y, width, height, poin, min, max, tip);
+  if (icon) {
+    ui_def_but_icon(but, icon, UI_HAS_ICON | UI_BUT_ICON_PREVIEW);
+  }
+
+  ui_but_update(but);
+  return but;
+}
 static uiBut *uiDefIconButBit(uiBlock *block,
                               int type,
                               int bit,
