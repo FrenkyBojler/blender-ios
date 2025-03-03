@@ -536,8 +536,8 @@ ENUM_OPERATORS(eAnimFilter_Flags, ANIMFILTER_TMP_IGNORE_ONLYSEL);
  * \param animated_id: the particular animated ID that the slot channels are
  * being generated for. This is needed for filtering channels based on bone
  * selection, and also for resolving the names of animated properties. This
- * should never be null, but it's okay if it's an ID not actually animated by
- * the slot, in which case it will act as a fallback in case an ID actually
+ * should never be null, but it's okay(ish) if it's an ID not actually animated
+ * by the slot, in which case it will act as a fallback in case an ID actually
  * animated by the slot can't be found.
  *
  * \return The number of items added to `anim_data`.

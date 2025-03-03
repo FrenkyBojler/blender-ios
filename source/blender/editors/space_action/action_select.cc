@@ -110,10 +110,14 @@ static void actkeys_list_element_to_keylist(bAnimContext *ac,
         break;
       }
       case ALE_ACTION_LAYERED: {
-        /* Despite the name `ALE_ACTION_LAYERED`, this only looks at a single
-         * slot in the action, not the whole action. The distinction between
-         * this and `ALE_ACTION_SLOT` below is purely where it gets the slot
-         * from. In this case, we get it from `ale`'s ADT. */
+        /* This is only called for action summaries in the Dopesheet, *not* the
+         * Action Editor. Therefore despite the name `ALE_ACTION_LAYERED`, this
+         * is only used to show a *single slot* of the action: the slot used by
+         * the ID the action is listed under.
+         *
+         * Thus we use the same function as the `ALE_ACTION_SLOT` case below
+         * because in practice the only distinction between these cases is where
+         * they get the slot from. In this case, we get it from `elem`'s ADT. */
         animrig::Action *action = static_cast<animrig::Action *>(ale->key_data);
         BLI_assert(action);
         BLI_assert(ale->adt);

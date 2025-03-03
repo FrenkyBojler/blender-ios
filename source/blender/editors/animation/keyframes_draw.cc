@@ -454,10 +454,15 @@ static void build_channel_keylist(ChannelListElement *elem, blender::float2 rang
       break;
     }
     case ChannelType::ACTION_LAYERED: {
-      /* Despite the name `ACTION_LAYERED`, this is only used to show a single
-       * slot of the action, not the whole action. The distinction between this
-       * and `ChannelType::ACTION_SLOT` below is purely where it gets the slot
-       * from. In this case, we get it from `elem`'s ADT. */
+      /* This is only called for action summaries in the Dopesheet, *not* the
+       * Action Editor. Therefore despite the name `ACTION_LAYERED`, this is
+       * only used to show a *single slot* of the action: the slot used by the
+       * ID the action is listed under.
+       *
+       * Thus we use the same function as the `ChannelType::ACTION_SLOT` case
+       * below because in practice the only distinction between these cases is
+       * where they get the slot from. In this case, we get it from `elem`'s
+       * ADT. */
       BLI_assert(elem->act);
       BLI_assert(elem->adt);
       action_slot_summary_to_keylist(elem->ac,
