@@ -192,7 +192,7 @@ static void lib_id_batch_edit_previews(bContext *C, blender::FunctionRef<void(ID
 {
   blender::Vector<PointerRNA> id_pointers = ED_operator_get_ids_from_context_as_vec(C);
   for (PointerRNA &idptr : id_pointers) {
-    ID *id = (ID *)idptr.data;
+    ID *id = static_cast<ID *>(idptr.data);
 
     if (lib_id_preview_editing_poll_ex(id, nullptr)) {
       foreach_id(id);
