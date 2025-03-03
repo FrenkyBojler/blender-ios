@@ -348,23 +348,23 @@ void expect_boolean_result_coord(const bke::CurvesGeometry &dst_curves,
 
   // const OffsetIndices<int> points_by_polygon = OffsetIndices<int>((*result).point_offsets);
 
-  // EXPECT_EQ(points_by_polygon.size(), expected_points.size());
-  // if (points_by_polygon.size() != expected_points.size()) {
-  //   return;
-  // }
+  EXPECT_EQ(dst_curves.curves_num(), expected_points.size());
+  if (dst_curves.curves_num() != expected_points.size()) {
+    return;
+  }
 
-  // int total_size = 0;
-  // for (const int i : expected_points.index_range()) {
-  //   total_size += expected_points[i].size();
-  // }
+  int total_size = 0;
+  for (const int i : expected_points.index_range()) {
+    total_size += expected_points[i].size();
+  }
 
-  // Array<float2> points((*result).segment_offsets.last());
-  // calculate_positions(curve_subj, curve_clip, (*result), points.as_mutable_span());
+  const VArray<float2> points = *dst_curves.attributes().lookup<float2>(".positions_2d",
+                                                                        bke::AttrDomain::Point);
 
-  // EXPECT_EQ(points.size(), total_size);
-  // if (points.size() != total_size) {
-  //   return;
-  // }
+  EXPECT_EQ(points.size(), total_size);
+  if (points.size() != total_size) {
+    return;
+  }
 
   // for (const int polygon_id : points_by_polygon.index_range()) {
   //   const IndexRange vert_ids = points_by_polygon[polygon_id];
