@@ -983,7 +983,7 @@ void action_slot_summary_to_keylist(bAnimContext *ac,
                                     animrig::Action &action,
                                     const animrig::slot_handle_t slot_handle,
                                     AnimKeylist *keylist,
-                                    const int saction_flag,
+                                    const int /* eSAction_Flag */ saction_flag,
                                     blender::float2 range)
 {
   /* TODO: downstream code depends on this being non-null (see e.g.

@@ -239,9 +239,9 @@ void summary_to_keylist(bAnimContext *ac,
  *
  * \param keylist: the keylist that the generated summary will be merged into.
  *
- * \param saction_flag: I (Nathan) have no idea. Copied from
- * `action_to_keylist()`, which this replaced at some call sites in #134922.
- * TODO: document what on earth this parameter does.
+ * \param saction_flag: needed for the `SACTION_SHOW_EXTREMES` flag, to
+ * determine whether to compute and store the data needed to determine which
+ * keys are "extremes" (local maxima/minima).
  *
  * \param range: only keys within this time range will be included in the
  * summary.
@@ -251,7 +251,7 @@ void action_slot_summary_to_keylist(bAnimContext *ac,
                                     blender::animrig::Action &action,
                                     blender::animrig::slot_handle_t slot_handle,
                                     AnimKeylist *keylist,
-                                    int saction_flag,
+                                    int /* eSAction_Flag */ saction_flag,
                                     blender::float2 range);
 
 /* Grease Pencil datablock summary (Legacy) */
