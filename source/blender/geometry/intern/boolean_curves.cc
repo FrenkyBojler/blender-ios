@@ -448,6 +448,7 @@ static IntersectionPoint create_intersection(const int point_a,
 /* Will return -1 if there is no next segment. */
 static int get_next_segment(const Span<Segment> unsorted_segments,
                             const int current_segment,
+                            const int start_segment,
                             const Span<bool> processed_segments,
                             bool *r_reverse_next)
 {
@@ -470,6 +471,17 @@ static int get_next_segment(const Span<Segment> unsorted_segments,
     if (unsorted_segments[segment].end_intersection() == current_end_index) {
       *r_reverse_next = !unsorted_segments[segment].reversed;
       return segment;
+    }
+  }
+
+  if (current_segment != start_segment) {
+    if (unsorted_segments[start_segment].start_intersection() == current_end_index) {
+      *r_reverse_next = unsorted_segments[start_segment].reversed;
+      return start_segment;
+    }
+    if (unsorted_segments[start_segment].end_intersection() == current_end_index) {
+      *r_reverse_next = !unsorted_segments[start_segment].reversed;
+      return start_segment;
     }
   }
 
@@ -746,7 +758,7 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
 
       bool next_reversed;
       const int next_segment = get_next_segment(
-          unsorted_segments, current_segment, processed_segments, &next_reversed);
+          unsorted_segments, current_segment, start_segment, processed_segments, &next_reversed);
 
       if (next_segment == -1) {
         PolygonDone = true;
