@@ -339,15 +339,9 @@ MINLINE void blend_color_softlight_byte(uchar dst[4], const uchar src1[4], const
     int i = 3;
 
     while (i--) {
-      int temp;
-
-      if (src1[i] < 127) {
-        temp = ((2 * ((src2[i] / 2) + 64)) * src1[i]) / 255;
-      }
-      else {
-        temp = 255 - (2 * (255 - ((src2[i] / 2) + 64)) * (255 - src1[i]) / 255);
-      }
-      dst[i] = (uchar)((temp * fac + src1[i] * mfac) / 255);
+      float screen = 1.0f - (255 - src1[i]) * (255 - src2[i]);
+      float soft_light = ((1.0f - src1[i]) * src2[i] + screen) * src1[i];
+      dst[i] = (uchar)((src1[i] * mfac + soft_light * fac) / 255);
     }
   }
   else {
