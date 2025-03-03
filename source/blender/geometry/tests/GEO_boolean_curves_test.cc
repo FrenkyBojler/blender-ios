@@ -864,14 +864,10 @@ TEST(boolean_curves, Squares_With_Holes)
   draw_divider_end();
 }
 
-TEST(boolean_curves, Separate_Shapes)
+TEST(boolean_curves, Multiple_Shapes)
 {
-  draw_divider_start("Separate Shapes");
+  draw_divider_start("Multiple Shapes");
 
-  /**
-   * Separate but intersecting subject shapes.
-   * The two subject shapes should be affected by the clipping shape, but not join into one.
-   */
   const Array<float2> points = {{0, 2},
                                 {0, 7},
                                 {5, 7},
@@ -887,14 +883,18 @@ TEST(boolean_curves, Separate_Shapes)
                                 {8, 8},
                                 {8, 3}};
   const Array<int> points_by_curve = {0, 4, 8, 12};
-  const IndexRange clipping_shapes = IndexRange::from_begin_end(2, 3);
   const Array<bool> is_fill = {true, true, true};
   const Array<bool> is_cyclic = {true, true, true};
 
   const bke::CurvesGeometry src_curves = create_test_curves(
       points_by_curve, points, is_cyclic, is_fill);
 
+  /**
+   * Multiple separate but intersecting subject shapes.
+   * The two subject shapes should be affected by the clipping shape, but not join into one.
+   */
   {
+    const IndexRange clipping_shapes = IndexRange::from_begin_end(2, 3);
     const bke::CurvesGeometry dst_curves = curve_boolean(
         Operation::Intersect, src_curves, clipping_shapes);
 
@@ -903,9 +903,10 @@ TEST(boolean_curves, Separate_Shapes)
     //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
     // expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_shapes);
+    draw_results("2 Subjects Intersection", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
+    const IndexRange clipping_shapes = IndexRange::from_begin_end(2, 3);
     const bke::CurvesGeometry dst_curves = curve_boolean(
         Operation::Difference, src_curves, clipping_shapes);
 
@@ -914,7 +915,36 @@ TEST(boolean_curves, Separate_Shapes)
     //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
     // expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Difference", "polygon", src_curves, dst_curves, clipping_shapes);
+    draw_results("2 Subjects Difference", "polygon", src_curves, dst_curves, clipping_shapes);
+  }
+
+  /**
+   * Multiple separate but intersecting clipping shapes.
+   * The subject shape should be affected as if the two clipping shapes were union.
+   */
+  {
+    const IndexRange clipping_shapes = IndexRange::from_begin_end(0, 2);
+    const bke::CurvesGeometry dst_curves = curve_boolean(
+        Operation::Intersect, src_curves, clipping_shapes);
+
+    /* TODO. */
+    // const Array<Vector<float2>> expected_points = {
+    //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
+    // expect_boolean_result_coord(dst_curves, expected_points);
+
+    draw_results("2 Clipping Intersection", "polygon", src_curves, dst_curves, clipping_shapes);
+  }
+  {
+    const IndexRange clipping_shapes = IndexRange::from_begin_end(0, 2);
+    const bke::CurvesGeometry dst_curves = curve_boolean(
+        Operation::Difference, src_curves, clipping_shapes);
+
+    /* TODO. */
+    // const Array<Vector<float2>> expected_points = {
+    //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
+    // expect_boolean_result_coord(dst_curves, expected_points);
+
+    draw_results("2 Clipping Difference", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   draw_divider_end();
 }
