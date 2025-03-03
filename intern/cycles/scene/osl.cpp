@@ -137,23 +137,6 @@ void OSLManager::device_update_post(Device *device, Scene *scene, Progress &prog
   if (!need_update())
     return;
 
-  /* setup shader engine */
-  device->foreach_device([this, &progress](Device *sub_device) {
-    OSLGlobals *og = sub_device->get_cpu_osl_memory();
-    if (og->use) {
-      OSL::ShadingSystem *ss = get_shading_system(sub_device);
-
-      og->ss = ss;
-      og->ts = get_texture_system();
-      og->services = static_cast<OSLRenderServices *>(ss->renderer());
-
-      /* load kernels */
-      if (!sub_device->load_osl_kernels()) {
-        progress.set_error(sub_device->error_message());
-      }
-    }
-  });
-
   {
     scoped_callback_timer timer([scene](double time) {
       if (scene->update_stats) {
@@ -185,6 +168,23 @@ void OSLManager::device_update_post(Device *device, Scene *scene, Progress &prog
 
     OSLRenderServices::image_manager = nullptr;
   }
+
+  /* setup shader engine */
+  device->foreach_device([this, &progress](Device *sub_device) {
+    OSLGlobals *og = sub_device->get_cpu_osl_memory();
+    if (og->use) {
+      OSL::ShadingSystem *ss = get_shading_system(sub_device);
+
+      og->ss = ss;
+      og->ts = get_texture_system();
+      og->services = static_cast<OSLRenderServices *>(ss->renderer());
+
+      /* load kernels */
+      if (!sub_device->load_osl_kernels()) {
+        progress.set_error(sub_device->error_message());
+      }
+    }
+  });
 
   need_update_ = false;
 }
