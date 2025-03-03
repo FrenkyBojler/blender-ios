@@ -1,1 +1,2 @@
 Referenced by pull request #135362, Fix assert in BKE_main_namemap when reusing brush assets on fileload.
+Referenced by commit 666267ef404f40070b2c4ea9c035f38951c7827e, Fix assert in BKE_main_namemap when reusing brush assets on fileload.
