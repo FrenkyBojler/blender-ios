@@ -5906,7 +5906,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
               sfile->asset_params->base_params.list_thumbnail_size = 32;
             }
             if (sfile->asset_params->base_params.list_column_size == 0) {
-              sfile->asset_params->base_params.list_column_size = 300;
+              sfile->asset_params->base_params.list_column_size = 220;
             }
           }
         }
