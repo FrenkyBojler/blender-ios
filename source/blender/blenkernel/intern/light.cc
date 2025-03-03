@@ -130,7 +130,7 @@ static void light_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   /* Forward compatibility for energy. */
   la->energy_deprecated = la->energy * exp2f(la->exposure);
   if (la->type == LA_AREA) {
-    (la->energy_deprecated /= M_PI_4);
+    la->energy_deprecated /= M_PI_4;
   }
 
   /* write LibData */
