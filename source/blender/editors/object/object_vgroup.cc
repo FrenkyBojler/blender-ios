@@ -2720,6 +2720,8 @@ static wmOperatorStatus vertex_group_assign_exec(bContext *C, wmOperator * /*op*
   Object *ob = context_object(C);
   Scene &scene = *CTX_data_scene(C);
 
+  // TODO: Access the boolean from auto_normalize and either pass it into vgroup_assign_verts
+  // or conditionally run the normalization after
   vgroup_assign_verts(ob, scene, ts->vgroup_weight);
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
@@ -2817,6 +2819,8 @@ static wmOperatorStatus vertex_group_remove_from_exec(bContext *C, wmOperator *o
       return OPERATOR_CANCELLED;
     }
   }
+
+  // TODO: after a group is removed, if we are auto-normalizing, do the normalization here
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);

@@ -272,7 +272,10 @@ class DATA_PT_vertex_groups(MeshButtonsPanel, Panel):
 
             layout.prop(context.tool_settings, "vertex_group_weight", text="Weight")
 
-        draw_attribute_warnings(context, layout, None)
+            # TODO: this does not visually display, why?
+            layout.prop(ob, "auto_normalize_attribute")
+
+        draw_attribute_warnings(context, layout)
 
 
 class DATA_PT_shape_keys(MeshButtonsPanel, Panel):

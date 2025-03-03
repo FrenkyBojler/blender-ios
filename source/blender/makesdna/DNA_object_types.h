@@ -767,4 +767,5 @@ enum {
 
 typedef enum ObjectModifierFlag {
   OB_MODIFIER_FLAG_ADD_REST_POSITION = 1 << 0,
+  OB_MODIFIER_FLAG_AUTO_NORMALIZE = 1 << 1, // TODO: this is almost certainly the wrong place for this
 } ObjectModifierFlag;
