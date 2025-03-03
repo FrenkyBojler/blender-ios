@@ -135,6 +135,10 @@ IndexRange Segment::point_range() const
     return IndexRange::from_begin_end_inclusive(points.first(), point_2);
   }
 
+  if (!this->has_start_intersection() && !this->has_end_intersection()) {
+    return points;
+  }
+
   /* If both intersection points are on the same edge, there's ether no points between or
    * all of the points are. */
   if (point_1 == point_2) {
@@ -444,6 +448,7 @@ static IntersectionPoint create_intersection(const int point_a,
 /* Will return -1 if there is no next segment. */
 static int get_next_segment(const Span<Segment> unsorted_segments,
                             const int current_segment,
+                            const int start_segment,
                             const Span<bool> processed_segments,
                             bool *r_reverse_next)
 {
@@ -466,6 +471,17 @@ static int get_next_segment(const Span<Segment> unsorted_segments,
     if (unsorted_segments[segment].end_intersection() == current_end_index) {
       *r_reverse_next = !unsorted_segments[segment].reversed;
       return segment;
+    }
+  }
+
+  if (current_segment != start_segment) {
+    if (unsorted_segments[start_segment].start_intersection() == current_end_index) {
+      *r_reverse_next = unsorted_segments[start_segment].reversed;
+      return start_segment;
+    }
+    if (unsorted_segments[start_segment].end_intersection() == current_end_index) {
+      *r_reverse_next = !unsorted_segments[start_segment].reversed;
+      return start_segment;
     }
   }
 
@@ -530,8 +546,8 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
 
       const IndexRange points_i = points_by_curve[curve_i];
       const IndexRange points_j = points_by_curve[curve_j];
-      const bool is_cyclic_i = is_cyclic[curve_i];
-      const bool is_cyclic_j = is_cyclic[curve_j];
+      const bool is_cyclic_i = is_cyclic[curve_i] || is_fill[curve_i];
+      const bool is_cyclic_j = is_cyclic[curve_j] || is_fill[curve_j];
 
       const int intersection_num_start = intersections.size();
 
@@ -564,7 +580,7 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
         Vector<Segment> segments_i;
 
         if (new_inters.is_empty()) {
-          if (is_cyclic[curve_k]) {
+          if (is_cyclic[curve_k] || is_fill[curve_k]) {
             segments_i.append(Segment::from_points_cyclical(curve_k, points_i));
           }
           else {
@@ -581,7 +597,7 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
             return inter1.parameter_for_curve(curve_k) < inter2.parameter_for_curve(curve_k);
           });
 
-          if (is_cyclic[curve_k]) {
+          if (is_cyclic[curve_k] || is_fill[curve_k]) {
             const int int_p_1 = new_inters[inter_sorted_ids.first()];
             const int int_p_2 = new_inters[inter_sorted_ids.last()];
 
@@ -653,8 +669,8 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
                                                           int_p_2));
           }
 
-          if (!is_cyclic[curve_k]) {
-            const int int_p_2 = inter_sorted_ids[new_inters.last()];
+          if (!(is_cyclic[curve_k] || is_fill[curve_k])) {
+            const int int_p_2 = new_inters[inter_sorted_ids.last()];
             IntersectionPoint &inter_last = intersections[int_p_2];
 
             if (curve_k == inter_last.curve_a) {
@@ -742,10 +758,11 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
 
       bool next_reversed;
       const int next_segment = get_next_segment(
-          unsorted_segments, current_segment, processed_segments, &next_reversed);
+          unsorted_segments, current_segment, start_segment, processed_segments, &next_reversed);
 
       if (next_segment == -1) {
         PolygonDone = true;
+        PolygonClosed = unsorted_segments[current_segment].is_loop();
         break;
       }
 
@@ -806,6 +823,7 @@ bke::CurvesGeometry curve_boolean(const Operation boolean_mode,
 
   for (const int i : dst_points_by_curve.index_range()) {
     const IndexRange segment_range = dst_segments_by_curve[i];
+    old_by_new_map[i] = result.segments[segment_range.first()].curve;
 
     /* Find the first segment that is not clipping. */
     for (const int segment_i : segment_range) {
