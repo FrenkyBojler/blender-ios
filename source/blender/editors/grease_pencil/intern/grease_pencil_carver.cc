@@ -149,13 +149,30 @@ static bool execute_carver_on_drawing(const int layer_index,
   fill_writer.span.last() = true;
   fill_writer.finish();
 
+  const IndexRange clipping_points = IndexRange::from_begin_size(src.points_num(), mcoords.size());
+  const IndexRange clipping_curves = IndexRange::from_single(src.curves_num());
+
+  input_curves.fill_curve_types(clipping_curves, CURVE_TYPE_POLY);
+
+  /* Initialize the rest of the attributes with default values. */
+  bke::fill_attribute_range_default(
+      attributes,
+      bke::AttrDomain::Point,
+      bke::attribute_filter_from_skip_ref({"position", ".positions_2d"}),
+      clipping_points);
+  bke::fill_attribute_range_default(
+      attributes,
+      bke::AttrDomain::Curve,
+      bke::attribute_filter_from_skip_ref({"is_fill", "cyclic", "curve_type"}),
+      clipping_curves);
+
   bke::CurvesGeometry carved_strokes = geometry::boolean::curve_boolean(
-      geometry::boolean::Operation::Difference,
-      input_curves,
-      IndexRange::from_single(src.curves_num()));
+      geometry::boolean::Operation::Difference, input_curves, clipping_curves);
 
   /* TODO. */
-  placement.reproject(carved_strokes.positions(), carved_strokes.positions_for_write());
+  // placement.reproject(carved_strokes.positions(), carved_strokes.positions_for_write());
+
+  carved_strokes.attributes_for_write().remove(".positions_2d");
 
   /* Set the new geometry. */
   drawing.strokes_for_write() = std::move(carved_strokes);
