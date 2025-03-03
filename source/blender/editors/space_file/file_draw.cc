@@ -752,8 +752,6 @@ static void file_draw_loading_icon(const rcti *tile_draw_rect,
                                    const float preview_icon_aspect,
                                    const FileLayout *layout)
 {
-  const float opacity = 0.4f;
-
   uchar icon_color[4] = {0, 0, 0, 255};
   /* Contrast with background since we are not showing the large document image. */
   UI_GetThemeColor4ubv(TH_TEXT, icon_color);
@@ -766,7 +764,7 @@ static void file_draw_loading_icon(const rcti *tile_draw_rect,
                   cent_y - (ICON_DEFAULT_HEIGHT / aspect / 2.0f),
                   ICON_TEMP,
                   aspect,
-                  opacity,
+                  1.0f,
                   0.0f,
                   icon_color,
                   false,
