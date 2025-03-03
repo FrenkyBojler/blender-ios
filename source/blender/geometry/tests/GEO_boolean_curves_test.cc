@@ -949,4 +949,63 @@ TEST(boolean_curves, Multiple_Shapes)
   draw_divider_end();
 }
 
+TEST(boolean_curves, Four_Shapes)
+{
+  draw_divider_start("Four Shapes");
+
+  const Array<float2> points = {
+      {0, 2},
+      {0, 7},
+      {5, 7},
+      {5, 2},
+
+      {2, 0},
+      {2, 5},
+      {7, 5},
+      {7, 0},
+
+      {1, 3},
+      {1, 8},
+      {6, 8},
+      {6, 3},
+
+      {3, 1},
+      {3, 6},
+      {8, 6},
+      {8, 1},
+  };
+  const Array<int> points_by_curve = {0, 4, 8, 12, 16};
+  const Array<bool> is_fill = {true, true, true, true};
+  const Array<bool> is_cyclic = {true, true, true, true};
+  const IndexRange clipping_shapes = IndexRange::from_begin_end(2, 4);
+
+  const bke::CurvesGeometry src_curves = create_test_curves(
+      points_by_curve, points, is_cyclic, is_fill);
+
+  {
+    const bke::CurvesGeometry dst_curves = curve_boolean(
+        Operation::Intersect, src_curves, clipping_shapes);
+
+    /* TODO. */
+    // const Array<Vector<float2>> expected_points = {
+    //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
+    // expect_boolean_result_coord(dst_curves, expected_points);
+
+    draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_shapes);
+  }
+  {
+    const bke::CurvesGeometry dst_curves = curve_boolean(
+        Operation::Difference, src_curves, clipping_shapes);
+
+    /* TODO. */
+    // const Array<Vector<float2>> expected_points = {
+    //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
+    // expect_boolean_result_coord(dst_curves, expected_points);
+
+    draw_results("Difference", "polygon", src_curves, dst_curves, clipping_shapes);
+  }
+
+  draw_divider_end();
+}
+
 }  // namespace blender::geometry::tests
