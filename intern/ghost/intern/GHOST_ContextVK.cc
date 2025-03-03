@@ -811,6 +811,8 @@ GHOST_TSuccess GHOST_ContextVK::createSwapchain()
   if (!selectSurfaceFormat(physical_device, m_surface, m_surface_format)) {
     return GHOST_kFailure;
   }
+  std::cout << __func__ << " format=" << m_surface_format.format
+            << ", color_space=" << m_surface_format.colorSpace << "\n";
 
   VkPresentModeKHR present_mode;
   if (!selectPresentMode(physical_device, m_surface, &present_mode)) {

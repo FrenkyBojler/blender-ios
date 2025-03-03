@@ -117,6 +117,7 @@ VkImageAspectFlags to_vk_image_aspect_flag_bits(const eGPUFrameBufferBits buffer
 
 eGPUTextureFormat to_gpu_format(const VkFormat format)
 {
+  std::cout << __func__ << " format=" << format << "\n";
   switch (format) {
     case VK_FORMAT_R8G8B8A8_UNORM:
     case VK_FORMAT_B8G8R8A8_UNORM:
