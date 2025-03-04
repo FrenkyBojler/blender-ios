@@ -42,6 +42,8 @@ class MaskByColorTest(unittest.TestCase):
         bpy.ops.ed.undo_push()
 
     def test_off_grid_returns_cancelled(self):
+        """Test that operator does not run when the cursor is not on the mesh."""
+
         with bpy.context.temp_override(**self.context_override):
             location = (0, 0)
             ret_val = bpy.ops.sculpt.mask_by_color(location=location)
@@ -52,6 +54,8 @@ class MaskByColorTest(unittest.TestCase):
         self.assertFalse('.sculpt_mask' in mesh.attributes.keys(), "Mesh should not have the .sculpt_mask attribute!")
 
     def test_on_circle_masks_red_vertices(self):
+        """Test that the operator only masks red vertices on the mesh."""
+
         with bpy.context.temp_override(**self.context_override):
             location = (int(self.context_override['area'].width / 2), int(self.context_override['area'].height / 2))
             ret_val = bpy.ops.sculpt.mask_by_color(location=location)
@@ -78,6 +82,41 @@ class MaskByColorTest(unittest.TestCase):
             else:
                 self.assertTrue(mask_data[i] < 0.1,
                                 f"Vertex {i} should not be masked ({color_data[i]}) -> {mask_data[i]}")
+
+
+class MaskFromCavityTest(unittest.TestCase):
+    def setUp(self):
+        bpy.ops.wm.open_mainfile(filepath=str(args.testdir / "plane_with_valley.blend"), load_ui=False)
+        bpy.ops.ed.undo_push()
+
+    def test_operator_masks_low_vertices(self):
+        """Test that the operator applies a full mask value to any elements that are part of the cavity."""
+
+        ret_val = bpy.ops.sculpt.mask_from_cavity()
+
+        self.assertEqual({'FINISHED'}, ret_val)
+
+        mesh = bpy.context.object.data
+        position_attr = mesh.attributes['position']
+        mask_attr = mesh.attributes['.sculpt_mask']
+
+        num_vertices = mesh.attributes.domain_size('POINT')
+
+        position_data = np.zeros((num_vertices, 3), dtype=np.float32)
+        position_attr.data.foreach_get('vector', np.ravel(position_data))
+
+        mask_data = np.zeros(num_vertices, dtype=np.float32)
+        mask_attr.data.foreach_get('value', mask_data)
+
+        for i in range(num_vertices):
+            if position_data[i][2] < 0.0:
+                self.assertEqual(
+                    mask_data[i],
+                    1.0,
+                    f"Vertex {i} should be fully masked ({position_data[i]}) -> {mask_data[i]}")
+            else:
+                self.assertNotEqual(mask_data[i], 1.0,
+                                    f"Vertex {i} should not be fully masked ({position_data[i]}) -> {mask_data[i]}")
 
 
 def main():
