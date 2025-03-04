@@ -212,18 +212,18 @@ static const char *ufbx_map_to_node_socket[UFBX_MATERIAL_FBX_MAP_COUNT] = {
     nullptr,              /* UFBX_MATERIAL_FBX_DIFFUSE_FACTOR */
     "Base Color",         /* UFBX_MATERIAL_FBX_DIFFUSE_COLOR */
     "Specular IOR Level", /* UFBX_MATERIAL_FBX_SPECULAR_FACTOR */
-    nullptr,              /* UFBX_MATERIAL_FBX_SPECULAR_COLOR */
+    "Specular IOR Level", /* UFBX_MATERIAL_FBX_SPECULAR_COLOR */
     "Roughness",          /* UFBX_MATERIAL_FBX_SPECULAR_EXPONENT */
     "Metallic",           /* UFBX_MATERIAL_FBX_REFLECTION_FACTOR */
-    nullptr,              /* UFBX_MATERIAL_FBX_REFLECTION_COLOR */
+    "Metallic",           /* UFBX_MATERIAL_FBX_REFLECTION_COLOR */
     "Alpha",              /* UFBX_MATERIAL_FBX_TRANSPARENCY_FACTOR */
-    nullptr,              /* UFBX_MATERIAL_FBX_TRANSPARENCY_COLOR */
+    "Alpha",              /* UFBX_MATERIAL_FBX_TRANSPARENCY_COLOR */
     "Emission Strength",  /* UFBX_MATERIAL_FBX_EMISSION_FACTOR */
     "Emission Color",     /* UFBX_MATERIAL_FBX_EMISSION_COLOR */
     nullptr,              /* UFBX_MATERIAL_FBX_AMBIENT_FACTOR */
     nullptr,              /* UFBX_MATERIAL_FBX_AMBIENT_COLOR */
     "Normal",             /* UFBX_MATERIAL_FBX_NORMAL_MAP */
-    nullptr,              /* UFBX_MATERIAL_FBX_BUMP */
+    "Normal",             /* UFBX_MATERIAL_FBX_BUMP */
     nullptr,              /* UFBX_MATERIAL_FBX_BUMP_FACTOR */
     nullptr,              /* UFBX_MATERIAL_FBX_DISPLACEMENT_FACTOR */
     nullptr,              /* UFBX_MATERIAL_FBX_DISPLACEMENT */

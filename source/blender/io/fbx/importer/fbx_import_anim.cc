@@ -32,30 +32,29 @@ namespace blender::io::fbx {
  */
 static bAction *ensure_action_and_slot_for_id(Main &bmain, ID &id, StringRefNull action_name)
 {
-  bAction *baction = animrig::id_action_ensure(&bmain, &id);
-  BLI_assert(baction != nullptr);
-  BKE_id_rename(bmain, baction->id, action_name);
+  bAction *act = animrig::id_action_ensure(&bmain, &id);
+  BLI_assert(act != nullptr);
+  BKE_id_rename(bmain, act->id, action_name);
 
-  animrig::Action &action = baction->wrap();
-  BLI_assert(action.is_action_layered());
+  animrig::action_channelbag_ensure(*act, id);
+
+  animrig::Action &action = act->wrap();
   animrig::Slot *slot = animrig::assign_action_ensure_slot_for_keying(action, id);
   BLI_assert(slot != nullptr);
-
   const std::string slot_name = slot->idtype_string() + action_name;
   action.slot_identifier_define(*slot, slot_name);
 
-  return baction;
+  return act;
 }
 
-static FCurve *create_fcurve(const std::string &rna_path, int array_index, int64_t key_count)
+static FCurve *create_fcurve(animrig::Channelbag &channelbag,
+                             const animrig::FCurveDescriptor &descriptor,
+                             int64_t key_count)
 {
-  FCurve *cu = BKE_fcurve_create();
-  cu->flag = FCURVE_VISIBLE | FCURVE_SELECTED;
-  cu->auto_smoothing = U.auto_smoothing_new;
-  cu->rna_path = BLI_strdup(rna_path.c_str());
-  cu->array_index = array_index;
-  cu->bezt = MEM_cnew_array<BezTriple>(key_count, "beztriple");
-  cu->totvert = key_count;
+  FCurve *cu = channelbag.fcurve_create_unique(nullptr, descriptor);
+  BLI_assert_msg(cu, "The same F-Curve is being created twice, this is unexpected.");
+  BKE_fcurve_bezt_resize(cu, key_count);
+  memset(cu->bezt, 0, key_count * sizeof(cu->bezt[0])); /* @TODO: remove once #135448 lands */
   return cu;
 }
 
@@ -185,25 +184,24 @@ static void finalize_curve(bAction *action, const ElementAnimations &anim, FCurv
 {
   if (cu != nullptr) {
     BKE_fcurve_handles_recalc(cu);
-    blender::animrig::action_fcurve_attach(
-        action->wrap(), BKE_animdata_from_id(anim.target_id)->slot_handle, *cu, std::nullopt);
   }
 }
 
 static void create_transform_curves(const ElementAnimations &anim,
                                     bAction *action,
+                                    animrig::Channelbag &channelbag,
                                     const double fps,
                                     const float anim_offset)
 {
   /* For animated bones, prepend bone path to animation curve path. */
-  std::string rna_prefix = "";
+  std::string rna_prefix;
   bool is_bone = false;
-  const char *bone_name = nullptr;
+  const char *group_name = get_fbx_name(anim.fbx_elem->name);
   const ufbx_node *fnode = ufbx_as_node(anim.fbx_elem);
   if (fnode != nullptr && fnode->bone != nullptr) {
     is_bone = true;
-    bone_name = get_fbx_name(fnode->name, "Bone");
-    rna_prefix = std::string("pose.bones[\"") + bone_name + "\"].";
+    group_name = get_fbx_name(fnode->name, "Bone");
+    rna_prefix = std::string("pose.bones[\"") + group_name + "\"].";
   }
 
   std::string rna_position = rna_prefix + "location";
@@ -274,15 +272,18 @@ static void create_transform_curves(const ElementAnimations &anim,
   /* Create all the f-curves. */
   FCurve *curves_pos[3] = {};
   for (int i = 0; i < 3; i++) {
-    curves_pos[i] = create_fcurve(rna_position, i, sorted_key_times.size());
+    curves_pos[i] = create_fcurve(
+        channelbag, {rna_position, i, {}, group_name}, sorted_key_times.size());
   }
   FCurve *curves_rot[4] = {};
   for (int i = 0; i < rot_channels; i++) {
-    curves_rot[i] = create_fcurve(rna_rotation, i, sorted_key_times.size());
+    curves_rot[i] = create_fcurve(
+        channelbag, {rna_rotation, i, {}, group_name}, sorted_key_times.size());
   }
   FCurve *curves_scale[3] = {};
   for (int i = 0; i < 3; i++) {
-    curves_scale[i] = create_fcurve(rna_scale, i, sorted_key_times.size());
+    curves_scale[i] = create_fcurve(
+        channelbag, {rna_scale, i, {}, group_name}, sorted_key_times.size());
   }
 
   /* Evaluate transforms at all the key times. */
@@ -322,7 +323,7 @@ static void create_transform_curves(const ElementAnimations &anim,
     set_curve_sample(curves_scale[2], i, tf, float(xform.scale.z));
   }
 
-  /* Finalize and attach the curves. */
+  /* Finalize the curves. */
   for (FCurve *cu : curves_pos) {
     finalize_curve(action, anim, cu);
   }
@@ -336,6 +337,7 @@ static void create_transform_curves(const ElementAnimations &anim,
 
 static void create_blend_shape_curves(const ElementAnimations &anim,
                                       bAction *action,
+                                      animrig::Channelbag &channelbag,
                                       const double fps,
                                       const float anim_offset)
 {
@@ -344,7 +346,7 @@ static void create_blend_shape_curves(const ElementAnimations &anim,
   std::string rna_path = std::string("key_blocks[\"") + fchan->target_shape->name.data +
                          "\"].value";
   const ufbx_anim_curve *input_curve = anim.prop_blend_shape->anim_value->curves[0];
-  FCurve *curve = create_fcurve(rna_path, 0, input_curve->keyframes.count);
+  FCurve *curve = create_fcurve(channelbag, {rna_path, 0}, input_curve->keyframes.count);
   for (int i = 0; i < input_curve->keyframes.count; i++) {
     const ufbx_keyframe &fkey = input_curve->keyframes[i];
     double t = fkey.time;
@@ -353,7 +355,7 @@ static void create_blend_shape_curves(const ElementAnimations &anim,
     set_curve_sample(curve, i, tf, val);
   }
 
-  /* Finalize and attach the curves. */
+  /* Finalize the curves. */
   finalize_curve(action, anim, curve);
 }
 
@@ -371,12 +373,13 @@ void import_animations(Main &bmain,
   Map<std::string, bAction *> action_name_map;
   for (const ElementAnimations &anim : animations) {
     bAction *action = create_action(bmain, anim, action_name_map);
+    animrig::Channelbag &channelbag = animrig::action_channelbag_ensure(*action, *anim.target_id);
 
     if (anim.prop_position || anim.prop_rotation || anim.prop_scale) {
-      create_transform_curves(anim, action, fps, anim_offset);
+      create_transform_curves(anim, action, channelbag, fps, anim_offset);
     }
     if (anim.prop_blend_shape) {
-      create_blend_shape_curves(anim, action, fps, anim_offset);
+      create_blend_shape_curves(anim, action, channelbag, fps, anim_offset);
     }
   }
 }
