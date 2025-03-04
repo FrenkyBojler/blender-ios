@@ -9,6 +9,7 @@
 
 #include <algorithm> /* For `min/max`. */
 #include <cctype>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <optional>
@@ -1239,7 +1240,15 @@ bool BLI_path_abs_from_cwd(char *path, const size_t path_maxncpy)
   return false;
 }
 
+enum class VariableFormatType {
+  NONE = 0,
+  INTEGER,
+  FLOAT,
+};
+
 struct VariableFormat {
+  VariableFormatType type;
+
   std::optional<uint8_t> fixed_integer_digits;
   std::optional<uint8_t> fixed_fractional_digits;
 };
@@ -1255,7 +1264,31 @@ static std::optional<VariableFormat> parse_path_variable_format(
 
   /* If it's all digits. */
   if (format_specifier.find_first_not_of("0123456789") == std::string::npos) {
+    format.type = VariableFormatType::INTEGER;
     format.fixed_integer_digits = std::stoi(format_specifier);
+    return format;
+  }
+
+  /* If it's digits and a dot. */
+  const int64_t dot_index = format_specifier.find_first_of('.');
+  const int64_t dot_index_last = format_specifier.find_last_of('.');
+  const bool found_dot = dot_index != std::string::npos;
+  const bool only_one_dot = dot_index == dot_index_last;
+  const bool not_just_dot = format_specifier.size() > 1;
+  if (format_specifier.find_first_not_of(".0123456789") == std::string::npos && found_dot &&
+      only_one_dot && not_just_dot)
+  {
+    format.type = VariableFormatType::FLOAT;
+    const blender::StringRef left = format_specifier.substr(0, dot_index);
+    if (!left.is_empty()) {
+      format.fixed_integer_digits = std::stoi(left);
+    }
+
+    const blender::StringRef right = format_specifier.substr(dot_index + 1);
+    if (!right.is_empty()) {
+      format.fixed_fractional_digits = std::stoi(right);
+    }
+
     return format;
   }
 
@@ -1345,6 +1378,94 @@ static std::optional<ParsedPathVariable> next_path_variable(char *path,
   return variable;
 }
 
+/**
+ * \return length of the produced string.
+ */
+static int format_int_to_string(const VariableFormat &format,
+                                char *output_string,
+                                int64_t integer_value)
+{
+  sprintf(output_string, "%ld", integer_value);
+  int length = strlen(output_string);
+
+  /* Ensure the length of the string is at least the minimum specified digits,
+   * if that was specified. */
+  if (format.fixed_integer_digits && length < *format.fixed_integer_digits) {
+    const int diff = *format.fixed_integer_digits - length;
+    for (int i = 0; i < diff; i++) {
+      output_string[i] = '0';
+    }
+    sprintf(output_string + diff, "%ld", integer_value);
+    length = *format.fixed_integer_digits;
+  }
+
+  return length;
+}
+
+/**
+ * \return length of the produced string.
+ */
+static int format_float_to_string(const VariableFormat &format,
+                                  char *output_string,
+                                  double float_value)
+{
+  /* If an integer format was specified, defer to the integer formatter with a
+   * rounded value. */
+  if (format.type == VariableFormatType::INTEGER) {
+    const int int_length = format_int_to_string(format, output_string, std::round(float_value));
+    return int_length;
+  }
+
+  /* Round to the desired number of fractional decimal digits. Note that this
+   * needs to be done *before* we take the integer part, because rounding can
+   * propagate from the fractional part to the integer part.
+   *
+   * TODO: this isn't 100% correct due to floating point rounding error, but
+   * since we're using doubles here it shouldn't cause any practical problems.
+   * Nevertheless, doing something actually correct to format floats would be
+   * nice! */
+  if (format.fixed_fractional_digits) {
+    uint64_t factor = 1;
+    for (int i = 0; i < *format.fixed_fractional_digits; i++) {
+      factor *= 10;
+    }
+    float_value = std::round(float_value * factor) / factor;
+  }
+
+  const int64_t integer_part = float_value;
+  const int int_length = format_int_to_string(format, output_string, integer_part);
+
+  double tmp; /* Just needed for the call to `modf()`. We don't actually use it. */
+  const double fractional_part = std::abs(std::modf(float_value, &tmp));
+  char frac_string_buffer[128];
+  sprintf(frac_string_buffer, "%f", fractional_part);
+  int frac_length = strlen(frac_string_buffer);
+
+  if (frac_length < 3 || frac_string_buffer[0] != '0' || frac_string_buffer[1] != '.') {
+    /* Fractional component is weird! Just return the int part.
+     *
+     * TODO: is this really the right thing to do here? */
+    return int_length;
+  }
+
+  /* Ensure the number of fractional digits exactly matches digit count
+   * specified, if it was specified. */
+  const int offset = 2; /* For the leading "0.". */
+  if (format.fixed_fractional_digits && (frac_length - offset) != *format.fixed_fractional_digits)
+  {
+    const int diff = *format.fixed_fractional_digits - (frac_length - offset);
+    for (int i = 0; i < diff; i++) {
+      frac_string_buffer[frac_length + i + offset] = '0';
+    }
+    frac_string_buffer[*format.fixed_fractional_digits + offset] = '\0';
+    frac_length = *format.fixed_integer_digits + offset;
+  }
+
+  BLI_strncpy(output_string + int_length, frac_string_buffer + 1, 64);
+
+  return int_length + frac_length - 1;
+}
+
 bool BLI_path_apply_variables(char path[FILE_MAX], const PathVariables &variables)
 {
   bool was_modified = false;
@@ -1381,22 +1502,12 @@ bool BLI_path_apply_variables(char path[FILE_MAX], const PathVariables &variable
                  parsed_variable->name))
     {
       /* Integer variable found. */
-      sprintf(string_buffer, "%ld", *integer_value);
-      if (parsed_variable->format.fixed_integer_digits) {
-        const int length = strlen(string_buffer);
-        if (length < parsed_variable->format.fixed_integer_digits) {
-          const int diff = *parsed_variable->format.fixed_integer_digits - length;
-          for (int i = 0; i < diff; i++) {
-            string_buffer[i] = '0';
-          }
-          sprintf(string_buffer + diff, "%ld", *integer_value);
-        }
-      }
+      format_int_to_string(parsed_variable->format, string_buffer, *integer_value);
       replacement_string = string_buffer;
     }
     else if (const double *float_value = variables.floats.lookup_ptr_as(parsed_variable->name)) {
       /* Float variable found. */
-      sprintf(string_buffer, "%f", *float_value);
+      format_float_to_string(parsed_variable->format, string_buffer, *float_value);
       replacement_string = string_buffer;
     }
 
