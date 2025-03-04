@@ -227,8 +227,8 @@ Unfortunately chaining popups together (setup wizard) or merging popups together
 Causing some fairly bad worst-case scenarios when dropping a URL which isn't part of a known repository.
 
 
-Internal Details
-================
+Implementation Details
+======================
 
 Extension Format
 ----------------
