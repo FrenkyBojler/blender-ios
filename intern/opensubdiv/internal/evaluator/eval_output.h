@@ -461,7 +461,7 @@ class VolatileEvalOutput : public EvalOutputAPI::EvalOutput {
     // Evaluate vertex positions.
     BufferDescriptor dst_desc = src_desc_;
     dst_desc.offset += num_coarse_vertices_ * src_desc_.stride;
-    const EVALUATOR *eval_instance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
+    EVALUATOR *eval_instance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
         evaluator_cache_, src_desc_, dst_desc, device_context_);
     EVALUATOR::EvalStencils(src_data_,
                             src_desc_,
@@ -475,7 +475,7 @@ class VolatileEvalOutput : public EvalOutputAPI::EvalOutput {
     if (src_vertex_data_) {
       BufferDescriptor dst_vertex_data_desc = src_vertex_data_desc_;
       dst_vertex_data_desc.offset += num_coarse_vertices_ * src_vertex_data_desc_.stride;
-      const EVALUATOR *eval_instance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
+      EVALUATOR *eval_instance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
           evaluator_cache_, src_vertex_data_desc_, dst_vertex_data_desc, device_context_);
       EVALUATOR::EvalStencils(src_vertex_data_,
                               src_vertex_data_desc_,
@@ -515,7 +515,7 @@ class VolatileEvalOutput : public EvalOutputAPI::EvalOutput {
     // TODO(sergey): Support interleaved vertex-varying data.
     BufferDescriptor P_desc(0, 3, 3);
     ConstPatchCoordWrapperBuffer patch_coord_buffer(patch_coord, num_patch_coords);
-    const EVALUATOR *eval_instance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
+    EVALUATOR *eval_instance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
         evaluator_cache_, src_desc_, P_desc, device_context_);
     EVALUATOR::EvalPatches(src_data_,
                            src_desc_,
@@ -543,7 +543,7 @@ class VolatileEvalOutput : public EvalOutputAPI::EvalOutput {
     BufferDescriptor P_desc(0, 3, 3);
     BufferDescriptor dpDu_desc(0, 3, 3), pPdv_desc(0, 3, 3);
     ConstPatchCoordWrapperBuffer patch_coord_buffer(patch_coord, num_patch_coords);
-    const EVALUATOR *eval_instance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
+    EVALUATOR *eval_instance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
         evaluator_cache_, src_desc_, P_desc, dpDu_desc, pPdv_desc, device_context_);
     EVALUATOR::EvalPatches(src_data_,
                            src_desc_,
@@ -568,7 +568,7 @@ class VolatileEvalOutput : public EvalOutputAPI::EvalOutput {
     RawDataWrapperBuffer<float> varying_data(varying);
     BufferDescriptor varying_desc(3, 3, 6);
     ConstPatchCoordWrapperBuffer patch_coord_buffer(patch_coord, num_patch_coords);
-    const EVALUATOR *eval_instance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
+    EVALUATOR *eval_instance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
         evaluator_cache_, src_varying_desc_, varying_desc, device_context_);
     EVALUATOR::EvalPatchesVarying(src_varying_data_,
                                   src_varying_desc_,
@@ -589,7 +589,7 @@ class VolatileEvalOutput : public EvalOutputAPI::EvalOutput {
     RawDataWrapperBuffer<float> vertex_data(data);
     BufferDescriptor vertex_desc(0, src_vertex_data_desc_.length, src_vertex_data_desc_.length);
     ConstPatchCoordWrapperBuffer patch_coord_buffer(patch_coord, num_patch_coords);
-    const EVALUATOR *eval_instance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
+    EVALUATOR *eval_instance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
         evaluator_cache_, src_vertex_data_desc_, vertex_desc, device_context_);
     EVALUATOR::EvalPatches(src_vertex_data_,
                            src_vertex_data_desc_,

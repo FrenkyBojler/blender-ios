@@ -184,7 +184,7 @@ class GPUComputeEvaluator {
                            DST_BUFFER *dstBuffer,
                            OpenSubdiv::Osd::BufferDescriptor const &dstDesc,
                            STENCIL_TABLE const *stencilTable,
-                           GPUComputeEvaluator const *instance,
+                           GPUComputeEvaluator *instance,
                            void *deviceContext = nullptr)
   {
 
@@ -255,7 +255,7 @@ class GPUComputeEvaluator {
                            DST_BUFFER *dvBuffer,
                            OpenSubdiv::Osd::BufferDescriptor const &dvDesc,
                            STENCIL_TABLE const *stencilTable,
-                           GPUComputeEvaluator const *instance,
+                           GPUComputeEvaluator *instance,
                            void *deviceContext = nullptr)
   {
 
@@ -363,7 +363,7 @@ class GPUComputeEvaluator {
                            DST_BUFFER *dvvBuffer,
                            OpenSubdiv::Osd::BufferDescriptor const &dvvDesc,
                            STENCIL_TABLE const *stencilTable,
-                           GPUComputeEvaluator const *instance,
+                           GPUComputeEvaluator *instance,
                            void *deviceContext = nullptr)
   {
 
@@ -781,7 +781,7 @@ class GPUComputeEvaluator {
                           int numPatchCoords,
                           PATCHCOORD_BUFFER *patchCoords,
                           PATCH_TABLE *patchTable,
-                          GPUComputeEvaluator const *instance,
+                          GPUComputeEvaluator *instance,
                           void *deviceContext = nullptr)
   {
 
@@ -863,7 +863,7 @@ class GPUComputeEvaluator {
                           int numPatchCoords,
                           PATCHCOORD_BUFFER *patchCoords,
                           PATCH_TABLE *patchTable,
-                          GPUComputeEvaluator const *instance,
+                          GPUComputeEvaluator *instance,
                           void *deviceContext = nullptr)
   {
     if (instance) {
@@ -984,7 +984,7 @@ class GPUComputeEvaluator {
                           int numPatchCoords,
                           PATCHCOORD_BUFFER *patchCoords,
                           PATCH_TABLE *patchTable,
-                          GPUComputeEvaluator const *instance,
+                          GPUComputeEvaluator *instance,
                           void *deviceContext = nullptr)
   {
     if (instance) {
@@ -1068,7 +1068,7 @@ class GPUComputeEvaluator {
                    OpenSubdiv::Osd::BufferDescriptor const &dstDesc,
                    int numPatchCoords,
                    PATCHCOORD_BUFFER *patchCoords,
-                   PATCH_TABLE *patchTable) const
+                   PATCH_TABLE *patchTable)
   {
 
     return EvalPatches(srcBuffer->get_vertex_buffer(),
@@ -1134,7 +1134,7 @@ class GPUComputeEvaluator {
                    OpenSubdiv::Osd::BufferDescriptor const &dvDesc,
                    int numPatchCoords,
                    PATCHCOORD_BUFFER *patchCoords,
-                   PATCH_TABLE *patchTable) const
+                   PATCH_TABLE *patchTable)
   {
 
     return EvalPatches(srcBuffer->get_vertex_buffer(),
@@ -1224,7 +1224,7 @@ class GPUComputeEvaluator {
                    OpenSubdiv::Osd::BufferDescriptor const &dvvDesc,
                    int numPatchCoords,
                    PATCHCOORD_BUFFER *patchCoords,
-                   PATCH_TABLE *patchTable) const
+                   PATCH_TABLE *patchTable)
   {
 
     return EvalPatches(srcBuffer->get_vertex_buffer(),
@@ -1260,7 +1260,7 @@ class GPUComputeEvaluator {
                    gpu::VertBuf *patchCoordsBuffer,
                    const OpenSubdiv::Osd::PatchArrayVector &patchArrays,
                    gpu::VertBuf *patchIndexBuffer,
-                   gpu::VertBuf *patchParamsBuffer) const;
+                   gpu::VertBuf *patchParamsBuffer);
 
   bool EvalPatches(gpu::VertBuf *srcBuffer,
                    OpenSubdiv::Osd::BufferDescriptor const &srcDesc,
@@ -1280,7 +1280,7 @@ class GPUComputeEvaluator {
                    gpu::VertBuf *patchCoordsBuffer,
                    const OpenSubdiv::Osd::PatchArrayVector &patchArrays,
                    gpu::VertBuf *patchIndexBuffer,
-                   gpu::VertBuf *patchParamsBuffer) const;
+                   gpu::VertBuf *patchParamsBuffer);
 
   /// \brief Generic limit eval function. This function has a same
   ///        signature as other device kernels have so that it can be called
@@ -1325,7 +1325,7 @@ class GPUComputeEvaluator {
                                  int numPatchCoords,
                                  PATCHCOORD_BUFFER *patchCoords,
                                  PATCH_TABLE *patchTable,
-                                 GPUComputeEvaluator const *instance,
+                                 GPUComputeEvaluator *instance,
                                  void *deviceContext = nullptr)
   {
     if (instance) {
@@ -1459,7 +1459,7 @@ class GPUComputeEvaluator {
                                  int numPatchCoords,
                                  PATCHCOORD_BUFFER *patchCoords,
                                  PATCH_TABLE *patchTable,
-                                 GPUComputeEvaluator const *instance,
+                                 GPUComputeEvaluator *instance,
                                  void *deviceContext = nullptr)
   {
     if (instance) {
@@ -1648,7 +1648,7 @@ class GPUComputeEvaluator {
                                  int numPatchCoords,
                                  PATCHCOORD_BUFFER *patchCoords,
                                  PATCH_TABLE *patchTable,
-                                 GPUComputeEvaluator const *instance,
+                                 GPUComputeEvaluator *instance,
                                  void *deviceContext = nullptr)
   {
     if (instance) {
@@ -1842,7 +1842,7 @@ class GPUComputeEvaluator {
                                      PATCHCOORD_BUFFER *patchCoords,
                                      PATCH_TABLE *patchTable,
                                      int fvarChannel,
-                                     GPUComputeEvaluator const *instance,
+                                     GPUComputeEvaluator *instance,
                                      void *deviceContext = nullptr)
   {
     if (instance) {
@@ -1994,7 +1994,7 @@ class GPUComputeEvaluator {
                                      PATCHCOORD_BUFFER *patchCoords,
                                      PATCH_TABLE *patchTable,
                                      int fvarChannel,
-                                     GPUComputeEvaluator const *instance,
+                                     GPUComputeEvaluator *instance,
                                      void *deviceContext = nullptr)
   {
     if (instance) {
@@ -2191,7 +2191,7 @@ class GPUComputeEvaluator {
                                      PATCHCOORD_BUFFER *patchCoords,
                                      PATCH_TABLE *patchTable,
                                      int fvarChannel,
-                                     GPUComputeEvaluator const *instance,
+                                     GPUComputeEvaluator *instance,
                                      void *deviceContext = nullptr)
   {
     if (instance) {
@@ -2411,11 +2411,11 @@ class GPUComputeEvaluator {
   } _patchKernel;
 
   int _workGroupSize;
-  gpu::VertBuf *_patchArraysSSBO = nullptr;
+  GPUStorageBuf *_patchArraysSSBO = nullptr;
 
   int GetDispatchSize(int count) const;
 
-  void DispatchCompute(int totalDispatchSize) const;
+  void DispatchCompute(GPUShader *shader, int totalDispatchSize) const;
 };
 
 }  // namespace blender::opensubdiv
