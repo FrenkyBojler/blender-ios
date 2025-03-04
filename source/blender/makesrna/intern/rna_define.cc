@@ -4876,7 +4876,6 @@ void RNA_def_property_duplicate_pointers(StructOrFunctionRNA *cont_, PropertyRNA
   if (prop->identifier) {
     if (cont->prop_lookup_set) {
       prop->identifier = BLI_strdup(prop->identifier);
-      cont->prop_lookup_set->add(prop);
     }
     else {
       prop->identifier = BLI_strdup(prop->identifier);
