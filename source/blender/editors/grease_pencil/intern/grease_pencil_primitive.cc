@@ -40,6 +40,7 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_math_matrix.hh"
+#include "BLI_rand.hh"
 #include "BLI_vector.hh"
 
 #include "BLT_translation.hh"
@@ -143,6 +144,14 @@ struct PrimitiveToolOperation {
   float fill_opacity;
   float4x2 texture_space;
   float4x4 local_transform;
+
+  RandomNumberGenerator rng;
+  float stroke_random_radius_factor;
+  float stroke_random_opacity_factor;
+  float stroke_random_rotation_factor;
+  float stroke_random_hue_factor;
+  float stroke_random_sat_factor;
+  float stroke_random_val_factor;
 
   OperatorMode mode;
   float2 start_position_2d;
@@ -469,9 +478,14 @@ static void grease_pencil_primitive_update_curves(PrimitiveToolOperation &ptd)
 
   MutableSpan<float> new_radii = ptd.drawing->radii_for_write().slice(curve_points);
   MutableSpan<float> new_opacities = ptd.drawing->opacities_for_write().slice(curve_points);
+  MutableSpan<ColorGeometry4f> new_vertex_colors = ptd.drawing->vertex_colors_for_write().slice(
+      curve_points);
 
   const ToolSettings *ts = ptd.vc.scene->toolsettings;
   const GP_Sculpt_Settings *gset = &ts->gp_sculpt;
+
+  /* Screen-space length along curve used as randomization parameter. */
+  Array<float> lengths(new_points_num);
 
   for (const int point : curve_points.index_range()) {
     float pressure = 1.0f;
@@ -491,13 +505,31 @@ static void grease_pencil_primitive_update_curves(PrimitiveToolOperation &ptd)
     const float opacity = ed::greasepencil::opacity_from_input_sample(
         pressure, ptd.brush, ptd.settings);
 
-    new_radii[point] = radius;
-    new_opacities[point] = opacity;
-  }
-  point_attributes_to_skip.add_multiple({"position", "radius", "opacity"});
+    if (point == 0) {
+      lengths[point] = 0.0f;
+    }
+    else {
+      const float distance_2d = math::distance(positions_2d[point - 1], positions_2d[point]);
+      lengths[point] = lengths[point - 1] + distance_2d;
+    }
 
+    new_radii[point] = ed::greasepencil::randomize_radius(
+        *ptd.settings, ptd.stroke_random_radius_factor, lengths[point], radius, pressure);
+    new_opacities[point] = ed::greasepencil::randomize_opacity(
+        *ptd.settings, ptd.stroke_random_opacity_factor, lengths[point], opacity, pressure);
+    if (ptd.vertex_color) {
+      new_vertex_colors[point] = ed::greasepencil::randomize_color(*ptd.settings,
+                                                                   ptd.stroke_random_hue_factor,
+                                                                   ptd.stroke_random_sat_factor,
+                                                                   ptd.stroke_random_val_factor,
+                                                                   lengths[point],
+                                                                   *ptd.vertex_color,
+                                                                   pressure);
+    }
+  }
+
+  point_attributes_to_skip.add_multiple({"position", "radius", "opacity"});
   if (ptd.vertex_color) {
-    ptd.drawing->vertex_colors_for_write().slice(curve_points).fill(*ptd.vertex_color);
     point_attributes_to_skip.add("vertex_color");
   }
 
@@ -763,6 +795,14 @@ static int grease_pencil_primitive_invoke(bContext *C, wmOperator *op, const wmE
 
   ptd.texture_space = ed::greasepencil::calculate_texture_space(
       vc.scene, ptd.region, ptd.start_position_2d, ptd.placement);
+
+  ptd.rng = RandomNumberGenerator::from_random_seed();
+  ptd.stroke_random_radius_factor = ptd.rng.get_float() * 2.0f - 1.0f;
+  ptd.stroke_random_opacity_factor = ptd.rng.get_float() * 2.0f - 1.0f;
+  ptd.stroke_random_rotation_factor = ptd.rng.get_float() * 2.0f - 1.0f;
+  ptd.stroke_random_hue_factor = ptd.rng.get_float() * 2.0f - 1.0f;
+  ptd.stroke_random_sat_factor = ptd.rng.get_float() * 2.0f - 1.0f;
+  ptd.stroke_random_val_factor = ptd.rng.get_float() * 2.0f - 1.0f;
 
   BLI_assert(grease_pencil->has_active_layer());
   ptd.local_transform = grease_pencil->get_active_layer()->local_transform();
