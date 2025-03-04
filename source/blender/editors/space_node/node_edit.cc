@@ -1804,59 +1804,59 @@ void NODE_OT_preview_toggle(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int node_activate_viewer_exec(bContext *C, wmOperator *op)
+static int node_activate_viewer_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
+  PointerRNA ptr = CTX_data_pointer_get(C, "node");
   Main *bmain = CTX_data_main(C);
-  bool found = false;
+  bNodeTree *ntree = nullptr;
+  bNode *node = nullptr;
 
-  for (bNode *node : snode->edittree->all_nodes()) {
-    if (!(node->flag & NODE_ACTIVE)) {
-      continue;
-    }
-
-    if (node->is_type("CompositorNodeViewer")) {
-      for (bNode *other_node : snode->edittree->all_nodes()) {
-        if (other_node->type_legacy == node->type_legacy) {
-          other_node->flag &= ~NODE_DO_OUTPUT;
-        }
-        node->flag |= NODE_DO_OUTPUT;
-
-        WM_main_add_notifier(NC_NODE | NA_EDITED, &snode->edittree->id);
-        WM_main_add_notifier(NC_SCENE | ND_NODES, &snode->edittree->id);
-
-        found = true;
-      }
-    }
-    else if (node->is_type("GeometryNodeViewer")) {
-      /* Geometry nodes viewers don't rely on NODE_DO_OUTPUT flag alone. */
-      viewer_path::activate_geometry_node(*bmain, *snode, *node);
-      found = true;
-    }
-
-    if (found) {
-      /* There can be only one active node in a node tree, so return early. */
-      BKE_main_ensure_invariants(*bmain, snode->edittree->id);
-      return OPERATOR_FINISHED;
-    }
+  if (ptr.data) {
+    node = (bNode *)ptr.data;
+    ntree = (bNodeTree *)ptr.owner_id;
+  }
+  else if (snode && snode->edittree) {
+    ntree = snode->edittree;
+    node = bke::node_get_active(*ntree);
   }
 
-  BKE_report(op->reports, RPT_INFO, "No active viewer node found");
-  return OPERATOR_CANCELLED;
+  if (!node) {
+    return OPERATOR_CANCELLED;
+  }
+
+  if (node->is_type("CompositorNodeViewer")) {
+    for (bNode *other_node : ntree->all_nodes()) {
+      if (other_node->type_legacy == node->type_legacy) {
+        other_node->flag &= ~NODE_DO_OUTPUT;
+      }
+      node->flag |= NODE_DO_OUTPUT;
+
+      WM_main_add_notifier(NC_NODE | NA_EDITED, &ntree->id);
+      WM_main_add_notifier(NC_SCENE | ND_NODES, &ntree->id);
+    }
+  }
+  else if (node->is_type("GeometryNodeViewer")) {
+    /* Geometry nodes viewers don't rely on NODE_DO_OUTPUT flag alone. */
+    viewer_path::activate_geometry_node(*bmain, *snode, *node);
+  }
+  else {
+    return OPERATOR_CANCELLED;
+  }
+
+  BKE_main_ensure_invariants(*bmain, snode->edittree->id);
+  return OPERATOR_FINISHED;
 }
 
 void NODE_OT_activate_viewer(wmOperatorType *ot)
 {
-  /* identifiers */
-  ot->name = "ActivateViewer Node";
+  ot->name = "Activate Viewer Node";
   ot->description = "Activate selected viewer node in compositor and geometry nodes";
   ot->idname = "NODE_OT_activate_viewer";
 
-  /* callbacks */
   ot->exec = node_activate_viewer_exec;
   ot->poll = ED_operator_node_active;
 
-  /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
