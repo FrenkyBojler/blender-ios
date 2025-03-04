@@ -2,3 +2,4 @@ Referenced by issue #134591, Sculpt: Crash with node tool.
 Referenced by pull request #134597, Fix #134591: Node tool crashes when modifying mesh topology
 Referenced by commit 03a2d675a7e22915345568e80791223ab5fc3517, Fix #134591: Node tool crashes when modifying mesh topology
 Referenced by issue #135333, Node tool removes mesh if first input is not geometry, second consecutive use crashes blender
+Referenced by issue #135413, [Sculpting] [Geometry nodes] Inconsistent results when chanigng input values into a geometry node tool in sculpt mode
