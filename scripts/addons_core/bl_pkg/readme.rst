@@ -269,7 +269,9 @@ Once extensions have been installed their TOML files are compared with the repos
 Inter Process Communication (IPC)
 ---------------------------------
 
-- Most long running operations are performed by the stand-alone script ``cli/blender_ext.py``.
+- Commands that manipulate extensions (such as updating/installing/removing)
+  are performed by the stand-alone script ``cli/blender_ext.py``.
+- Using IPC means these commands can run in the background without blocking Blender's GUI.
 - The state of the extensions repository (repository location, blender-version, API tokens etc)
   are passed in via command line arguments.
 - This can be configured to only output JSON messages to the STDOUT which Blender parses and uses
