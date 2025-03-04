@@ -23,9 +23,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("Focus Distance");
   b.add_output<decl::Bool>("Is Orthographic");
   b.add_output<decl::Float>("Orthographic Scale");
-  b.add_output<decl::Int>("Resolution X");
-  b.add_output<decl::Int>("Resolution Y");
-  b.add_output<decl::Vector>("Aspect");
 
   b.add_input<decl::Object>("Camera").hide_label();
 }
@@ -71,9 +68,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Focus Distance", focus_distance);
   params.set_output("Is Orthographic", camera_params.is_ortho);
   params.set_output("Orthographic Scale", camera_params.ortho_scale);
-  params.set_output("Resolution X", scene->r.xsch);
-  params.set_output("Resolution Y", scene->r.ysch);
-  params.set_output("Aspect", float3{scene->r.xasp, scene->r.yasp, 0.0f});
 }
 
 static void node_register()
