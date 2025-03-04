@@ -461,6 +461,7 @@ static void grease_pencil_primitive_update_curves(PrimitiveToolOperation &ptd)
 {
   const bool on_back = ptd.on_back;
   const int new_points_num = grease_pencil_primitive_curve_points_number(ptd);
+  const bool use_random = (ptd.settings->flag & GP_BRUSH_GROUP_RANDOM) != 0;
 
   bke::CurvesGeometry &curves = ptd.drawing->strokes_for_write();
   const int target_curve_index = on_back ? 0 : curves.curves_range().last();
@@ -480,6 +481,13 @@ static void grease_pencil_primitive_update_curves(PrimitiveToolOperation &ptd)
   MutableSpan<float> new_opacities = ptd.drawing->opacities_for_write().slice(curve_points);
   MutableSpan<ColorGeometry4f> new_vertex_colors = ptd.drawing->vertex_colors_for_write().slice(
       curve_points);
+  bke::SpanAttributeWriter<float> rotations;
+  MutableSpan<float> new_rotations;
+  if (use_random && ptd.settings->uv_random > 0.0f) {
+    rotations = curves.attributes_for_write().lookup_or_add_for_write_span<float>(
+        "rotation", bke::AttrDomain::Point);
+    new_rotations = rotations.span.slice(curve_points);
+  }
 
   const ToolSettings *ts = ptd.vc.scene->toolsettings;
   const GP_Sculpt_Settings *gset = &ts->gp_sculpt;
@@ -526,11 +534,19 @@ static void grease_pencil_primitive_update_curves(PrimitiveToolOperation &ptd)
                                                                    *ptd.vertex_color,
                                                                    pressure);
     }
+    if (rotations) {
+      new_rotations[point] = ed::greasepencil::randomize_rotation(
+          *ptd.settings, ptd.rng, ptd.stroke_random_rotation_factor, pressure);
+    }
   }
 
   point_attributes_to_skip.add_multiple({"position", "radius", "opacity"});
   if (ptd.vertex_color) {
     point_attributes_to_skip.add("vertex_color");
+  }
+  if (rotations) {
+    point_attributes_to_skip.add("rotation");
+    rotations.finish();
   }
 
   /* Initialize the rest of the attributes with default values. */
@@ -796,13 +812,16 @@ static int grease_pencil_primitive_invoke(bContext *C, wmOperator *op, const wmE
   ptd.texture_space = ed::greasepencil::calculate_texture_space(
       vc.scene, ptd.region, ptd.start_position_2d, ptd.placement);
 
-  ptd.rng = RandomNumberGenerator::from_random_seed();
-  ptd.stroke_random_radius_factor = ptd.rng.get_float() * 2.0f - 1.0f;
-  ptd.stroke_random_opacity_factor = ptd.rng.get_float() * 2.0f - 1.0f;
-  ptd.stroke_random_rotation_factor = ptd.rng.get_float() * 2.0f - 1.0f;
-  ptd.stroke_random_hue_factor = ptd.rng.get_float() * 2.0f - 1.0f;
-  ptd.stroke_random_sat_factor = ptd.rng.get_float() * 2.0f - 1.0f;
-  ptd.stroke_random_val_factor = ptd.rng.get_float() * 2.0f - 1.0f;
+  const bool use_random = (ptd.settings->flag & GP_BRUSH_GROUP_RANDOM) != 0;
+  if (use_random) {
+    ptd.rng = RandomNumberGenerator::from_random_seed();
+    ptd.stroke_random_radius_factor = ptd.rng.get_float() * 2.0f - 1.0f;
+    ptd.stroke_random_opacity_factor = ptd.rng.get_float() * 2.0f - 1.0f;
+    ptd.stroke_random_rotation_factor = ptd.rng.get_float() * 2.0f - 1.0f;
+    ptd.stroke_random_hue_factor = ptd.rng.get_float() * 2.0f - 1.0f;
+    ptd.stroke_random_sat_factor = ptd.rng.get_float() * 2.0f - 1.0f;
+    ptd.stroke_random_val_factor = ptd.rng.get_float() * 2.0f - 1.0f;
+  }
 
   BLI_assert(grease_pencil->has_active_layer());
   ptd.local_transform = grease_pencil->get_active_layer()->local_transform();

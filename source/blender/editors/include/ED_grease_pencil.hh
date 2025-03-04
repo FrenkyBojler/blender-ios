@@ -39,14 +39,14 @@ struct ViewContext;
 struct BVHTree;
 struct GreasePencilLineartModifierData;
 struct RV3DMatrixStore;
-struct RandomNumberGenerator;
 
-namespace blender::bke {
+namespace blender {
+struct RandomNumberGenerator;
+namespace bke {
 enum class AttrDomain : int8_t;
 class CurvesGeometry;
-namespace crazyspace {
-}
-}  // namespace blender::bke
+}  // namespace bke
+}  // namespace blender
 
 enum {
   LAYER_REORDER_ABOVE,
@@ -968,7 +968,7 @@ float randomize_opacity(const BrushGpencilSettings &settings,
  * \param pressure Pressure factor.
  */
 float randomize_rotation(const BrushGpencilSettings &settings,
-                         RandomNumberGenerator &rng,
+                         blender::RandomNumberGenerator &rng,
                          float stroke_factor,
                          float pressure);
 /**
