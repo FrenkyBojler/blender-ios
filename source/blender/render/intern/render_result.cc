@@ -728,13 +728,13 @@ RenderResult *render_result_new_from_exr(
       rpass->recty = recty;
 
       if (RE_RenderPassIsColor(rpass)) {
-        IMB_colormanagement_transform(rpass->ibuf->float_buffer.data,
-                                      rpass->rectx,
-                                      rpass->recty,
-                                      rpass->channels,
-                                      colorspace,
-                                      to_colorspace,
-                                      predivide);
+        IMB_colormanagement_transform_float(rpass->ibuf->float_buffer.data,
+                                            rpass->rectx,
+                                            rpass->recty,
+                                            rpass->channels,
+                                            colorspace,
+                                            to_colorspace,
+                                            predivide);
       }
       else {
         IMB_colormanagement_assign_float_colorspace(rpass->ibuf, data_colorspace);
@@ -1116,7 +1116,7 @@ ImBuf *RE_render_result_rect_to_ibuf(RenderResult *rr,
         IMB_assign_float_buffer(ibuf, nullptr, IB_DO_NOT_TAKE_OWNERSHIP);
       }
       else {
-        IMB_float_from_rect(ibuf);
+        IMB_float_from_byte(ibuf);
       }
     }
     else {
@@ -1149,7 +1149,8 @@ void RE_render_result_rect_from_ibuf(RenderResult *rr, const ImBuf *ibuf, const 
     rr->have_combined = true;
 
     if (!rv_ibuf->float_buffer.data) {
-      float *data = MEM_cnew_array<float>(4 * rr->rectx * rr->recty, "render_seq rectf");
+      float *data = static_cast<float *>(
+          MEM_malloc_arrayN(rr->rectx * rr->recty, sizeof(float[4]), "render_seq float"));
       IMB_assign_float_buffer(rv_ibuf, data, IB_TAKE_OWNERSHIP);
     }
 
@@ -1159,20 +1160,21 @@ void RE_render_result_rect_from_ibuf(RenderResult *rr, const ImBuf *ibuf, const 
 
     /* TSK! Since sequence render doesn't free the *rr render result, the old rect32
      * can hang around when sequence render has rendered a 32 bits one before */
-    imb_freerectImBuf(rv_ibuf);
+    IMB_free_byte_pixels(rv_ibuf);
   }
   else if (ibuf->byte_buffer.data) {
     rr->have_combined = true;
 
     if (!rv_ibuf->byte_buffer.data) {
-      uint8_t *data = MEM_cnew_array<uint8_t>(4 * rr->rectx * rr->recty, "render_seq rect");
+      uint8_t *data = static_cast<uint8_t *>(
+          MEM_malloc_arrayN(rr->rectx * rr->recty, sizeof(uint8_t[4]), "render_seq byte"));
       IMB_assign_byte_buffer(rv_ibuf, data, IB_TAKE_OWNERSHIP);
     }
 
     memcpy(rv_ibuf->byte_buffer.data, ibuf->byte_buffer.data, sizeof(int) * rr->rectx * rr->recty);
 
     /* Same things as above, old rectf can hang around from previous render. */
-    imb_freerectfloatImBuf(rv_ibuf);
+    IMB_free_float_pixels(rv_ibuf);
   }
 }
 
