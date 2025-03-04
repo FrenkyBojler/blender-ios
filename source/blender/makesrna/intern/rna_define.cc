@@ -188,7 +188,6 @@ static void rna_brna_structs_remove_and_free(BlenderRNA *brna, StructRNA *srna)
   RNA_def_struct_free_pointers(nullptr, srna);
 
   if (srna->flag & STRUCT_RUNTIME) {
-    MEM_SAFE_DELETE(srna->cont.prop_lookup_set);
     rna_freelinkN(&brna->structs, srna);
   }
   brna->structs_len -= 1;
@@ -4866,9 +4865,8 @@ void RNA_def_func_free_pointers(FunctionRNA *func)
   }
 }
 
-void RNA_def_property_duplicate_pointers(StructOrFunctionRNA *cont_, PropertyRNA *prop)
+void RNA_def_property_duplicate_pointers(StructOrFunctionRNA * /*cont_*/, PropertyRNA *prop)
 {
-  ContainerRNA *cont = static_cast<ContainerRNA *>(cont_);
   int a;
 
   if (prop->identifier) {
