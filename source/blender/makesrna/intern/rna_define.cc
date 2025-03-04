@@ -4871,8 +4871,6 @@ void RNA_def_property_duplicate_pointers(StructOrFunctionRNA *cont_, PropertyRNA
   ContainerRNA *cont = static_cast<ContainerRNA *>(cont_);
   int a;
 
-  /* annoying since we just added this to a hash, could make this add the correct key to the hash
-   * in the first place */
   if (prop->identifier) {
     prop->identifier = BLI_strdup(prop->identifier);
   }
