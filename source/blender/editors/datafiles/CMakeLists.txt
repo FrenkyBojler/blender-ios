@@ -921,6 +921,7 @@ if(WITH_BLENDER)
       wpaint_hlt
       x
       xray
+      xray_bone
       zoom_all
       zoom_in
       zoom_out
