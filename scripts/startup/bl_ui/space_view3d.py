@@ -1464,9 +1464,9 @@ class VIEW3D_MT_view(Menu):
         layout.separator()
 
         if context.mode in {'PAINT_TEXTURE', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'SCULPT'}:
-            layout.operator("view3d.view_selected", text="Frame Last Stroke").use_all_regions = False
+            layout.operator("view3d.view_selected", text="Frame Last Stroke")
         else:
-            layout.operator("view3d.view_selected", text="Frame Selected").use_all_regions = False
+            layout.operator("view3d.view_selected", text="Frame Selected")
         if view.region_quadviews:
             layout.operator("view3d.view_selected", text="Frame Selected (Quad View)").use_all_regions = True
 
@@ -5858,14 +5858,25 @@ class VIEW3D_MT_edit_curves(Menu):
         layout = self.layout
 
         layout.menu("VIEW3D_MT_transform")
+        layout.menu("VIEW3D_MT_mirror")
+        layout.menu("VIEW3D_MT_snap")
+
         layout.separator()
+
         layout.operator("curves.duplicate_move")
+        layout.operator("curves.extrude_move")
+
         layout.separator()
+
         layout.operator("curves.attribute_set")
-        layout.operator("curves.delete")
-        layout.operator("curves.cyclic_toggle")
         layout.operator_menu_enum("curves.curve_type_set", "type")
+        layout.operator("curves.cyclic_toggle")
         layout.template_node_operator_asset_menu_items(catalog_path=self.bl_label)
+
+        layout.separator()
+
+        layout.operator("curves.separate")
+        layout.operator("curves.delete")
 
 
 class VIEW3D_MT_edit_curves_control_points(Menu):
@@ -5896,12 +5907,32 @@ class VIEW3D_MT_edit_curves_context_menu(Menu):
 
         layout.operator_context = 'INVOKE_DEFAULT'
 
+        # Additive Operators
         layout.operator("curves.subdivide")
+
+        layout.separator()
+
         layout.operator("curves.extrude_move")
 
         layout.separator()
 
+        # Deform Operators
+        layout.menu("VIEW3D_MT_mirror")
+        layout.menu("VIEW3D_MT_snap")
+
+        layout.separator()
+
+        # Modify Flags
+        layout.operator_menu_enum("curves.curve_type_set", "type")
         layout.operator_menu_enum("curves.handle_type_set", "type")
+        layout.operator("curves.cyclic_toggle")
+        layout.operator("curves.switch_direction")
+
+        layout.separator()
+
+        # Removal Operators
+        layout.operator("curves.separate")
+        layout.operator("curves.delete")
 
         layout.separator()
 

@@ -448,36 +448,6 @@ void IMB_buffer_float_from_float(float *rect_to,
   }
 }
 
-struct FloatToFloatThreadData {
-  float *rect_to;
-  const float *rect_from;
-  int channels_from;
-  int profile_to;
-  int profile_from;
-  bool predivide;
-  int width;
-  int stride_to;
-  int stride_from;
-};
-
-static void imb_buffer_float_from_float_thread_do(void *data_v, int scanline)
-{
-  const int num_scanlines = 1;
-  FloatToFloatThreadData *data = (FloatToFloatThreadData *)data_v;
-  size_t offset_from = size_t(scanline) * data->stride_from * data->channels_from;
-  size_t offset_to = size_t(scanline) * data->stride_to * 4;
-  IMB_buffer_float_from_float(data->rect_to + offset_to,
-                              data->rect_from + offset_from,
-                              data->channels_from,
-                              data->profile_to,
-                              data->profile_from,
-                              data->predivide,
-                              data->width,
-                              num_scanlines,
-                              data->stride_to,
-                              data->stride_from);
-}
-
 void IMB_buffer_float_from_float_threaded(float *rect_to,
                                           const float *rect_from,
                                           int channels_from,
@@ -489,31 +459,21 @@ void IMB_buffer_float_from_float_threaded(float *rect_to,
                                           int stride_to,
                                           int stride_from)
 {
-  if (size_t(width) * height < 64 * 64) {
-    IMB_buffer_float_from_float(rect_to,
-                                rect_from,
+  using namespace blender;
+  threading::parallel_for(IndexRange(height), 64, [&](const IndexRange y_range) {
+    int64_t offset_from = y_range.first() * stride_from * channels_from;
+    int64_t offset_to = y_range.first() * stride_to * 4;
+    IMB_buffer_float_from_float(rect_to + offset_to,
+                                rect_from + offset_from,
                                 channels_from,
                                 profile_to,
                                 profile_from,
                                 predivide,
                                 width,
-                                height,
+                                y_range.size(),
                                 stride_to,
                                 stride_from);
-  }
-  else {
-    FloatToFloatThreadData data;
-    data.rect_to = rect_to;
-    data.rect_from = rect_from;
-    data.channels_from = channels_from;
-    data.profile_to = profile_to;
-    data.profile_from = profile_from;
-    data.predivide = predivide;
-    data.width = width;
-    data.stride_to = stride_to;
-    data.stride_from = stride_from;
-    IMB_processor_apply_threaded_scanlines(height, imb_buffer_float_from_float_thread_do, &data);
-  }
+  });
 }
 
 void IMB_buffer_float_from_float_mask(float *rect_to,
@@ -638,7 +598,7 @@ void IMB_buffer_byte_from_byte(uchar *rect_to,
 /** \name ImBuf Conversion
  * \{ */
 
-void IMB_rect_from_float(ImBuf *ibuf)
+void IMB_byte_from_float(ImBuf *ibuf)
 {
   /* verify we have a float buffer */
   if (ibuf->float_buffer.data == nullptr) {
@@ -647,7 +607,7 @@ void IMB_rect_from_float(ImBuf *ibuf)
 
   /* create byte rect if it didn't exist yet */
   if (ibuf->byte_buffer.data == nullptr) {
-    if (imb_addrectImBuf(ibuf, false) == 0) {
+    if (IMB_alloc_byte_pixels(ibuf, false) == 0) {
       return;
     }
   }
@@ -692,7 +652,7 @@ void IMB_rect_from_float(ImBuf *ibuf)
   ibuf->userflags &= ~IB_RECT_INVALID;
 }
 
-void IMB_float_from_rect_ex(ImBuf *dst, const ImBuf *src, const rcti *region_to_update)
+void IMB_float_from_byte_ex(ImBuf *dst, const ImBuf *src, const rcti *region_to_update)
 {
   BLI_assert_msg(dst->float_buffer.data != nullptr,
                  "Destination buffer should have a float buffer assigned.");
@@ -746,7 +706,7 @@ void IMB_float_from_rect_ex(ImBuf *dst, const ImBuf *src, const rcti *region_to_
   }
 }
 
-void IMB_float_from_rect(ImBuf *ibuf)
+void IMB_float_from_byte(ImBuf *ibuf)
 {
   /* verify if we byte and float buffers */
   if (ibuf->byte_buffer.data == nullptr) {
@@ -759,8 +719,8 @@ void IMB_float_from_rect(ImBuf *ibuf)
    */
   float *rect_float = ibuf->float_buffer.data;
   if (rect_float == nullptr) {
-    const size_t size = IMB_get_rect_len(ibuf) * sizeof(float[4]);
-    rect_float = static_cast<float *>(MEM_callocN(size, "IMB_float_from_rect"));
+    const size_t size = IMB_get_pixel_count(ibuf) * sizeof(float[4]);
+    rect_float = static_cast<float *>(MEM_callocN(size, "IMB_float_from_byte"));
 
     if (rect_float == nullptr) {
       return;
@@ -773,7 +733,7 @@ void IMB_float_from_rect(ImBuf *ibuf)
 
   rcti region_to_update;
   BLI_rcti_init(&region_to_update, 0, ibuf->x, 0, ibuf->y);
-  IMB_float_from_rect_ex(ibuf, ibuf, &region_to_update);
+  IMB_float_from_byte_ex(ibuf, ibuf, &region_to_update);
 }
 
 /** \} */
@@ -790,14 +750,14 @@ void IMB_color_to_bw(ImBuf *ibuf)
 
   if (rct_fl) {
     if (ibuf->channels >= 3) {
-      for (i = IMB_get_rect_len(ibuf); i > 0; i--, rct_fl += ibuf->channels) {
+      for (i = IMB_get_pixel_count(ibuf); i > 0; i--, rct_fl += ibuf->channels) {
         rct_fl[0] = rct_fl[1] = rct_fl[2] = IMB_colormanagement_get_luminance(rct_fl);
       }
     }
   }
 
   if (rct) {
-    for (i = IMB_get_rect_len(ibuf); i > 0; i--, rct += 4) {
+    for (i = IMB_get_pixel_count(ibuf); i > 0; i--, rct += 4) {
       rct[0] = rct[1] = rct[2] = IMB_colormanagement_get_luminance_byte(rct);
     }
   }
@@ -813,7 +773,7 @@ void IMB_saturation(ImBuf *ibuf, float sat)
 {
   using namespace blender;
 
-  const size_t pixel_count = IMB_get_rect_len(ibuf);
+  const size_t pixel_count = IMB_get_pixel_count(ibuf);
   if (ibuf->byte_buffer.data != nullptr) {
     threading::parallel_for(IndexRange(pixel_count), 64 * 1024, [&](IndexRange range) {
       uchar *ptr = ibuf->byte_buffer.data + range.first() * 4;
