@@ -297,7 +297,8 @@ class Wireframe : Overlay {
     const bool edit_mapping_valid = BKE_editmesh_eval_orig_map_available(mesh, orig_edit_mesh);
     if (!edit_mapping_valid) {
       /* Mesh edit mode wireframe overlays aren't drawn when the evaluated mesh doesn't
-       * correspond with the original edit mesh. So the */
+       * correspond with the original edit mesh. So the main wireframe overlay should draw them
+       * instead. */
       return false;
     }
     if (Meshes::mesh_has_edit_cage(ob_ref.object)) {
