@@ -520,6 +520,7 @@ struct BooleanResult {
   Vector<int> segment_offsets;
   Vector<bool> cyclic;
   Vector<int> point_offsets;
+  Vector<int> shape_ids;
 };
 
 static BooleanResult execute_boolean(const Operation boolean_mode,
@@ -833,6 +834,8 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
     }
     result.segment_offsets.append(result.segments.size());
     result.cyclic.append(PolygonClosed);
+    /* TODO. */
+    result.shape_ids.append(0);
 
     /* Get the next unprocessed segment. */
     start_segment = processed_segments.as_span().first_index_try(false);
@@ -875,6 +878,11 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
 
   dst_curves.offsets_for_write().copy_from(dst_points_by_curve.data());
   dst_curves.cyclic_for_write().copy_from(result.cyclic);
+
+  bke::SpanAttributeWriter<int> shape_id_writer = dst_attributes.lookup_or_add_for_write_span<int>(
+      "shape_id", bke::AttrDomain::Curve);
+  shape_id_writer.span.copy_from(result.shape_ids);
+  shape_id_writer.finish();
 
   Array<int> old_by_new_map(dst_points_by_curve.size());
 
