@@ -853,15 +853,15 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
 {
   const bke::AttributeAccessor src_attributes = curves.attributes();
 
-  const VArray<float2> positions_2d_attribute = *src_attributes.lookup<float2>(
+  const VArray<float2> src_positions_2d_attribute = *src_attributes.lookup<float2>(
       ".positions_2d", bke::AttrDomain::Point);
 
-  BLI_assert(positions_2d_attribute.is_span());
-  const Span<float2> positions_2d = positions_2d_attribute.get_internal_span();
+  BLI_assert(src_positions_2d_attribute.is_span());
+  const Span<float2> src_positions_2d = src_positions_2d_attribute.get_internal_span();
 
   const VArray<bool> is_fills = *src_attributes.lookup<bool>("is_fill", bke::AttrDomain::Curve);
   const BooleanResult result = execute_boolean(op_params.boolean_mode,
-                                               positions_2d,
+                                               src_positions_2d,
                                                curves.points_by_curve(),
                                                clipping_shapes,
                                                is_fills,
@@ -938,6 +938,26 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
     });
 
     attribute.dst.finish();
+  }
+
+  if (op_params.output_rule == FillRule::NoHoles) {
+    /* TODO. */
+    const IndexMask mask = IndexRange::from_single(0);
+
+    // const VArray<float2> dst_positions_2d_attribute = *src_attributes.lookup<float2>(
+    //     ".positions_2d", bke::AttrDomain::Point);
+
+    // BLI_assert(dst_positions_2d_attribute.is_span());
+    // const Span<float2> dst_positions_2d = dst_positions_2d_attribute.get_internal_span();
+
+    // // dst_points_by_curve
+    // // dst_positions_2d
+
+    // curve_i =
+    // bool in = inside(dst_positions_2d.first(), );
+
+    // dst_curves.remove_curves(mask, {});
+    dst_curves = curves_copy_curve_selection(dst_curves, mask, {});
   }
 
   return dst_curves;
