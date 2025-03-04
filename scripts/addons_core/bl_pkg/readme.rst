@@ -29,10 +29,13 @@ Add-on: Blender Modules
 
 - ``bl_extension_notify.py``
 
-  This is a module that checks for updates,
-  unlike the operator (which can also check for updates),
-  this is intended to run in the background without using an operator,
-  the status bar is refreshed if/when updates are found.
+  This module checks for updates and is intended to run in the background.
+
+  Checking for updates uses ``bl_extension_utils.CommandBatch`` from a timer.
+  Checking for updates from a modal-operator is avoided since Blender may cancel
+  modal operators when loading a file for example.
+
+  The status bar is refreshed if/when updates are found.
 
 - ``bl_extension_cli.py``
 
