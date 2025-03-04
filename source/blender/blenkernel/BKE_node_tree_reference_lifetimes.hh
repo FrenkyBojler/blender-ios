@@ -83,7 +83,7 @@ struct ReferenceSetInfo {
                     ReferenceSetType::ClosureOutputData));
   }
 
-  friend std::ostream &operator<<(std::ostream &stream, const ReferenceSetInfo &source);
+  friend std::ostream &operator<<(std::ostream &stream, const ReferenceSetInfo &info);
 };
 
 struct ReferenceLifetimesInfo {
