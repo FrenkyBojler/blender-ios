@@ -2214,7 +2214,7 @@ class _defs_grease_pencil_paint:
             row.prop(brush.gpencil_settings, "stroke_mode", expand=True, icon_only=True)
         else:
             layout.prop(brush.gpencil_settings, "stroke_mode", expand=True)
-        
+
         brush_basic_grease_pencil_paint_settings(layout, context, brush, props, compact=True)
         return True
 
