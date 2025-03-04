@@ -171,14 +171,13 @@ static void grease_pencil_copy_data(Main * /*bmain*/,
           rna_path,
           "It should be possible to construct the RNA path of a grease pencil layer group.");
 
-      const FCurve *fcurve = BKE_animadata_fcurve_find_by_rna_path(
-          grease_pencil_dst->adt, rna_path->c_str(), 0, nullptr, nullptr);
-      layer_group->runtime->is_visisbility_animated_ = fcurve != nullptr;
+      layer_group->runtime->is_visibility_animated_ = bke::animdata::prop_is_animated(
+          grease_pencil_dst->adt, rna_path->c_str(), 0);
     }
 
     std::function<bool(bke::greasepencil::LayerGroup &)> parent_group_visibility_animated =
         [&](bke::greasepencil::LayerGroup &parent) {
-          if (parent.runtime->is_visisbility_animated_) {
+          if (parent.runtime->is_visibility_animated_) {
             return true;
           }
           bke::greasepencil::LayerGroup *parent_group = parent.as_node().parent_group();
@@ -194,7 +193,7 @@ static void grease_pencil_copy_data(Main * /*bmain*/,
                                                                          layer_hide_prop);
       BLI_assert_msg(rna_path,
                      "It should be possible to construct the RNA path of a grease pencil layer.");
-      layer->runtime->is_visisbility_animated_ =
+      layer->runtime->is_visibility_animated_ =
           parent_group_visibility_animated(layer->parent_group()) ||
           bke::animdata::prop_is_animated(grease_pencil_dst->adt, rna_path.value(), 0);
     }
@@ -2255,7 +2254,7 @@ static void grease_pencil_evaluate_layers(GreasePencil &grease_pencil)
     /* When the visibility is animated, the layer should be retained even when it is invisible.
      * Changing the visibility through the animation system does NOT create another evaluated copy,
      * and thus the layer has to be kept for this future use. */
-    if (layer->is_visible() || layer->runtime->is_visisbility_animated_) {
+    if (layer->is_visible() || layer->runtime->is_visibility_animated_) {
       continue;
     }
 
