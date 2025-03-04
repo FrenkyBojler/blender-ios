@@ -1278,7 +1278,7 @@ static std::string toggle_xray_get_description(bContext *C,
     case XRayMode::Wireframe:
       return TIP_("Transparent wireframe display. Allow selecting through items");
     case XRayMode::Bone:
-      return TIP_("Transparent mesh display. Display bones in front");
+      return TIP_("Display bones in front of everything");
     default:
       return {}; /* Default operator description. */
   }
