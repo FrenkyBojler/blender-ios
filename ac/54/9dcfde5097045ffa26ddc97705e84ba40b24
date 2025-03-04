@@ -1,1 +1,2 @@
 Referenced by issue #135260, Blender acts as if the control key is held on timeline in certain cases
+Referenced by pull request #135433, Fix #135260: Snap stuck when dragging time cursor
