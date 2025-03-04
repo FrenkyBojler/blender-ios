@@ -8,7 +8,7 @@
 
 #include "opensubdiv_evaluator.hh"
 
-#include "gpu_eval_types.hh"
+#include "gpu_patch_table.hh"
 
 using OpenSubdiv::Osd::PatchArray;
 using OpenSubdiv::Osd::PatchArrayVector;

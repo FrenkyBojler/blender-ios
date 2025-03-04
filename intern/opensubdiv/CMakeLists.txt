@@ -60,8 +60,8 @@ if(WITH_OPENSUBDIV)
     internal/evaluator/evaluator_impl.cc
     internal/evaluator/gpu_compute_evaluator.cc
     internal/evaluator/gpu_compute_evaluator.h
-    internal/evaluator/gpu_eval_types.cc
-    internal/evaluator/gpu_eval_types.hh
+    internal/evaluator/gpu_patch_table.cc
+    internal/evaluator/gpu_patch_table.hh
     internal/evaluator/patch_map.cc
     internal/evaluator/patch_map.h
 

@@ -14,7 +14,7 @@
 #include "opensubdiv_evaluator.hh"
 #include "opensubdiv_evaluator_capi.hh"
 
-#include "gpu_eval_types.hh"
+#include "gpu_patch_table.hh"
 
 using OpenSubdiv::Far::PatchTable;
 using OpenSubdiv::Far::StencilTable;

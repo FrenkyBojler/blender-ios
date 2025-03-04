@@ -9,7 +9,7 @@
 
 #include "internal/evaluator/eval_output.h"
 #include "internal/evaluator/gpu_compute_evaluator.h"
-#include "internal/evaluator/gpu_eval_types.hh"
+#include "internal/evaluator/gpu_patch_table.hh"
 
 #include <opensubdiv/osd/glPatchTable.h>
 #include <opensubdiv/osd/glVertexBuffer.h>
