@@ -99,6 +99,17 @@ void OSLManager::foreach_render_services(const std::function<void(OSLRenderServi
   }
 }
 
+void OSLManager::foreach_osl_device(Device *device,
+                                    const std::function<void(Device *, OSLGlobals *)> &callback)
+{
+  device->foreach_device([callback](Device *sub_device) {
+    OSLGlobals *og = sub_device->get_cpu_osl_memory();
+    if (og != nullptr) {
+      callback(sub_device, og);
+    }
+  });
+}
+
 void OSLManager::tag_update()
 {
   need_update_ = true;
@@ -170,8 +181,7 @@ void OSLManager::device_update_post(Device *device, Scene *scene, Progress &prog
   }
 
   /* setup shader engine */
-  device->foreach_device([this, &progress](Device *sub_device) {
-    OSLGlobals *og = sub_device->get_cpu_osl_memory();
+  foreach_osl_device(device, [this, &progress](Device *sub_device, OSLGlobals *og) {
     if (og->use) {
       OSL::ShadingSystem *ss = get_shading_system(sub_device);
 
@@ -192,9 +202,7 @@ void OSLManager::device_update_post(Device *device, Scene *scene, Progress &prog
 void OSLManager::device_free(Device *device, DeviceScene * /*dscene*/, Scene *scene)
 {
   /* clear shader engine */
-  device->foreach_device([](Device *sub_device) {
-    OSLGlobals *og = sub_device->get_cpu_osl_memory();
-
+  foreach_osl_device(device, [](Device *, OSLGlobals *og) {
     og->use = false;
     og->ss = nullptr;
     og->ts = nullptr;
@@ -261,7 +269,7 @@ void OSLManager::shading_system_init()
   /* create shading system, shared between different renders to reduce memory usage */
   const thread_scoped_lock lock(ss_shared_mutex);
 
-  device_->foreach_device([this](Device *sub_device) {
+  foreach_osl_device(device_, [this](Device *sub_device, OSLGlobals *) {
     const DeviceType device_type = sub_device->info.type;
 
     if (!ss_shared[device_type]) {
@@ -542,9 +550,7 @@ void OSLShaderManager::device_update_specific(Device *device,
   VLOG_INFO << "Total " << scene->shaders.size() << " shaders.";
 
   /* setup shader engine */
-  device->foreach_device([](Device *sub_device) {
-    OSLGlobals *og = (OSLGlobals *)sub_device->get_cpu_osl_memory();
-
+  OSLManager::foreach_osl_device(device, [](Device *, OSLGlobals *og) {
     og->use = true;
 
     og->surface_state.clear();
@@ -562,7 +568,7 @@ void OSLShaderManager::device_update_specific(Device *device,
   for (Shader *shader : scene->shaders) {
     assert(shader->graph);
 
-    auto compile = [this, scene, shader, background_shader](Device *sub_device) {
+    auto compile = [this, scene, shader, background_shader](Device *sub_device, OSLGlobals *) {
       OSL::ShadingSystem *ss = scene->osl_manager->get_shading_system(sub_device);
 
       OSLCompiler compiler(this, ss, scene);
@@ -570,7 +576,7 @@ void OSLShaderManager::device_update_specific(Device *device,
       compiler.compile(shader);
     };
 
-    task_pool.push([device, compile] { device->foreach_device(compile); });
+    task_pool.push([device, compile] { OSLManager::foreach_osl_device(device, compile); });
   }
   task_pool.wait_work();
 
@@ -580,19 +586,18 @@ void OSLShaderManager::device_update_specific(Device *device,
 
   /* collect shader groups from all shaders */
   for (Shader *shader : scene->shaders) {
-    device->foreach_device([shader, background_shader](Device *sub_device) {
-      OSLGlobals *og = sub_device->get_cpu_osl_memory();
+    OSLManager::OSLManager::foreach_osl_device(
+        device, [shader, background_shader](Device *, OSLGlobals *og) {
+          /* push state to array for lookup */
+          og->surface_state.push_back(shader->osl_surface_ref);
+          og->volume_state.push_back(shader->osl_volume_ref);
+          og->displacement_state.push_back(shader->osl_displacement_ref);
+          og->bump_state.push_back(shader->osl_surface_bump_ref);
 
-      /* push state to array for lookup */
-      og->surface_state.push_back(shader->osl_surface_ref);
-      og->volume_state.push_back(shader->osl_volume_ref);
-      og->displacement_state.push_back(shader->osl_displacement_ref);
-      og->bump_state.push_back(shader->osl_surface_bump_ref);
-
-      if (shader == background_shader) {
-        og->background_state = shader->osl_surface_ref;
-      }
-    });
+          if (shader == background_shader) {
+            og->background_state = shader->osl_surface_ref;
+          }
+        });
 
     if (shader->emission_sampling != EMISSION_SAMPLING_NONE) {
       scene->light_manager->tag_update(scene, LightManager::SHADER_COMPILED);
@@ -604,8 +609,7 @@ void OSLShaderManager::device_update_specific(Device *device,
   /* set background shader */
   int background_id = scene->shader_manager->get_shader_id(background_shader);
 
-  device->foreach_device([background_id](Device *sub_device) {
-    OSLGlobals *og = (OSLGlobals *)sub_device->get_cpu_osl_memory();
+  OSLManager::foreach_osl_device(device, [background_id](Device *, OSLGlobals *og) {
     og->background_state = og->surface_state[background_id & SHADER_MASK];
   });
 
@@ -623,9 +627,7 @@ void OSLShaderManager::device_free(Device *device, DeviceScene *dscene, Scene *s
   device_free_common(device, dscene, scene);
 
   /* clear shader engine */
-  device->foreach_device([](Device *sub_device) {
-    OSLGlobals *og = (OSLGlobals *)sub_device->get_cpu_osl_memory();
-
+  OSLManager::foreach_osl_device(device, [](Device *, OSLGlobals *og) {
     og->use = false;
 
     og->surface_state.clear();
