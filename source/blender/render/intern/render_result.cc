@@ -1024,7 +1024,6 @@ static void render_result_exr_file_cache_path(Scene *sce,
   }
   else {
     STRNCPY(root_buf, root);
-    BLI_path_apply_variables(root_buf, {});
     BLI_path_abs(root_buf, dirname);
     root = root_buf;
   }

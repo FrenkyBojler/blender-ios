@@ -634,7 +634,6 @@ static int collection_exporter_export(bContext *C,
   }
 
   const Main *bmain = CTX_data_main(C);
-  BLI_path_apply_variables(filepath, {});
   BLI_path_abs(filepath, BKE_main_blendfile_path(bmain));
 
   /* Ensure that any properties from when this operator was "last used" are cleared. Save them for

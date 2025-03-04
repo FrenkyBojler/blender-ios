@@ -411,7 +411,6 @@ static void get_sequence_filepath(const MovieClip *clip,
     BLI_strncpy(filepath, clip->filepath, sizeof(clip->filepath));
   }
 
-  BLI_path_apply_variables(filepath, {});
   BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&clip->id));
 }
 
@@ -454,7 +453,6 @@ static void get_proxy_filepath(const MovieClip *clip,
                  proxynr);
   }
 
-  BLI_path_apply_variables(filepath, {});
   BLI_path_abs(filepath, BKE_main_blendfile_path_from_global());
   BLI_path_frame(filepath, FILE_MAX, 1, 0);
   BLI_strncat(filepath, ".jpg", FILE_MAX);
@@ -581,7 +579,6 @@ static void movieclip_open_anim_file(MovieClip *clip)
 
   if (!clip->anim) {
     STRNCPY(filepath_abs, clip->filepath);
-    BLI_path_apply_variables(filepath_abs, {});
     BLI_path_abs(filepath_abs, ID_BLEND_PATH_FROM_GLOBAL(&clip->id));
 
     /* FIXME: make several stream accessible in image editor, too */
@@ -591,7 +588,6 @@ static void movieclip_open_anim_file(MovieClip *clip)
       if (clip->flag & MCLIP_USE_PROXY_CUSTOM_DIR) {
         char dir[FILE_MAX];
         STRNCPY(dir, clip->proxy.dir);
-        BLI_path_apply_variables(dir, {});
         BLI_path_abs(dir, BKE_main_blendfile_path_from_global());
         MOV_set_custom_proxy_dir(clip->anim, dir);
       }
@@ -935,7 +931,6 @@ static void detect_clip_source(Main *bmain, MovieClip *clip)
   char filepath[FILE_MAX];
 
   STRNCPY(filepath, clip->filepath);
-  BLI_path_apply_variables(filepath, {});
   BLI_path_abs(filepath, BKE_main_blendfile_path(bmain));
 
   ibuf = IMB_testiffname(filepath, IB_byte_data | IB_multilayer);
@@ -955,7 +950,6 @@ MovieClip *BKE_movieclip_file_add(Main *bmain, const char *filepath)
   char filepath_abs[FILE_MAX];
 
   STRNCPY(filepath_abs, filepath);
-  BLI_path_apply_variables(filepath_abs, {});
   BLI_path_abs(filepath_abs, BKE_main_blendfile_path(bmain));
 
   /* exists? */
@@ -991,7 +985,6 @@ MovieClip *BKE_movieclip_file_add_exists_ex(Main *bmain, const char *filepath, b
   char filepath_abs[FILE_MAX], filepath_test[FILE_MAX];
 
   STRNCPY(filepath_abs, filepath);
-  BLI_path_apply_variables(filepath_abs, {});
   BLI_path_abs(filepath_abs, BKE_main_blendfile_path(bmain));
 
   /* first search an identical filepath */
@@ -1000,7 +993,6 @@ MovieClip *BKE_movieclip_file_add_exists_ex(Main *bmain, const char *filepath, b
   {
     STRNCPY(filepath_test, clip->filepath);
     /* Same TODO here as above. */
-    BLI_path_apply_variables(filepath_test, {});
     BLI_path_abs(filepath_test, ID_BLEND_PATH(bmain, &clip->id));
 
     if (BLI_path_cmp(filepath_test, filepath_abs) == 0) {
@@ -1912,7 +1904,6 @@ void BKE_movieclip_filepath_for_frame(MovieClip *clip, const MovieClipUser *user
   }
   else {
     BLI_strncpy(filepath, clip->filepath, FILE_MAX);
-    BLI_path_apply_variables(filepath, {});
     BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&clip->id));
   }
 }

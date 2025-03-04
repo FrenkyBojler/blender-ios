@@ -2493,7 +2493,6 @@ static int open_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 
   if (vfont && !BKE_vfont_is_builtin(vfont)) {
     STRNCPY(filepath, vfont->filepath);
-    BLI_path_apply_variables(filepath, {});
     BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&vfont->id));
   }
   else {

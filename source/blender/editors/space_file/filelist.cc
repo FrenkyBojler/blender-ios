@@ -2063,7 +2063,6 @@ void filelist_setdir(FileList *filelist, char dirpath[FILE_MAX_LIBEXTRA])
   const bool allow_invalid = filelist->asset_library_ref != nullptr;
   BLI_assert(strlen(dirpath) < FILE_MAX_LIBEXTRA);
 
-  BLI_path_apply_variables(dirpath, {});
   BLI_path_abs(dirpath, BKE_main_blendfile_path_from_global());
   BLI_path_normalize_dir(dirpath, FILE_MAX_LIBEXTRA);
   const bool is_valid_path = filelist->check_dir_fn(filelist, dirpath, !allow_invalid);
@@ -3709,7 +3708,6 @@ static void filelist_readjob_recursive_dir_add_items(const bool do_lib,
   STRNCPY(dir, filelist->filelist.root);
   STRNCPY(filter_glob, filelist->filter_data.filter_glob);
 
-  BLI_path_apply_variables(dir, {});
   BLI_path_abs(dir, job_params->main_filepath);
   BLI_path_normalize_dir(dir, sizeof(dir));
   td_dir->dir = BLI_strdup(dir);
@@ -3742,7 +3740,6 @@ static void filelist_readjob_recursive_dir_add_items(const bool do_lib,
      * Note that in the end, this means we 'cache' valid relative subdir once here,
      * this is actually better. */
     STRNCPY(rel_subdir, subdir);
-    BLI_path_apply_variables(rel_subdir, {});
     BLI_path_abs(rel_subdir, root);
     BLI_path_normalize_dir(rel_subdir, sizeof(rel_subdir));
     BLI_path_rel(rel_subdir, root);
@@ -3796,7 +3793,6 @@ static void filelist_readjob_recursive_dir_add_items(const bool do_lib,
         /* We have a directory we want to list, add it to todo list!
          * Using #BLI_path_join works but isn't needed as `root` has a trailing slash. */
         BLI_string_join(dir, sizeof(dir), root, entry->relpath);
-        BLI_path_apply_variables(dir, {});
         BLI_path_abs(dir, job_params->main_filepath);
         BLI_path_normalize_dir(dir, sizeof(dir));
         td_dir = static_cast<TodoDir *>(BLI_stack_push_r(todo_dirs));

@@ -386,7 +386,6 @@ bool BKE_cachefile_filepath_get(const Main *bmain,
                                 char r_filepath[FILE_MAX])
 {
   BLI_strncpy(r_filepath, cache_file->filepath, FILE_MAX);
-  BLI_path_apply_variables(r_filepath, {});
   BLI_path_abs(r_filepath, ID_BLEND_PATH(bmain, &cache_file->id));
 
   int fframe;
