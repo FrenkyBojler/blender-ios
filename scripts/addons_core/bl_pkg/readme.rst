@@ -18,8 +18,10 @@ Add-on: Blender Modules
 - ``bl_extension_ops.py``
   Defines extension operators, this is the main entry point for extension logic (except notifications, see below).
 
-  This module defines a mechanism for a modal operator to run commands as sub-processes
-  monitoring their progress (via STDOUT).
+  This module defines a mechanism for a modal operator to run commands
+  defined in ``cli/blender_ext.py`` as sub-processes, monitoring their progress
+  (via STDOUT, see :ref:`Inter process communication (IPC) <IPC>`),
+  see the ``_ExtCmdMixIn`` class.
   Actions such a as downloading, installing, updating are supported by calling into lower level functions,
   ``cli/blender_ext.py`` does the actual work.
 
@@ -263,6 +265,8 @@ Inter Process Communication (IPC)
   are passed in via command line arguments.
 - This can be configured to only output JSON messages to the STDOUT which Blender parses and uses
   to send feedback to the user.
+- Progress (such as percentage of a file downloaded) is sent to the STDOUT
+  so the GUI and command-line interface can show progress.
 - Input is limited to the request to cancel
   (if the user cancels the operator or presses Control-C on the command line).
 - Internally functions are responsible for checking if the user has requested to exit.
