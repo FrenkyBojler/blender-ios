@@ -23,6 +23,8 @@ struct bContext;
 struct wmJob;
 struct wmJobWorkerStatus;
 
+namespace blender::seq {
+
 bool SEQ_proxy_rebuild_context(Main *bmain,
                                Depsgraph *depsgraph,
                                Scene *scene,
@@ -47,3 +49,5 @@ struct ProxyJob {
 
 wmJob *ED_seq_proxy_wm_job_get(const bContext *C);
 ProxyJob *ED_seq_proxy_job_get(const bContext *C, wmJob *wm_job);
+
+}  // namespace blender::seq

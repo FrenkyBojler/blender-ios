@@ -20,6 +20,8 @@ struct BlendDataReader;
 struct ListBase;
 struct SoundEqualizerModifierData;
 
+namespace blender::seq {
+
 #define SOUND_EQUALIZER_DEFAULT_MIN_FREQ 30.0
 #define SOUND_EQUALIZER_DEFAULT_MAX_FREQ 20000.0
 #define SOUND_EQUALIZER_DEFAULT_MAX_DB 35.0
@@ -56,3 +58,5 @@ struct SoundModifierWorkerInfo {
   int type;
   void *(*recreator)(Strip *strip, SequenceModifierData *smd, void *sound);
 };
+
+}  // namespace blender::seq

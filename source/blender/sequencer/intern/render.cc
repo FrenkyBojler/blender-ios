@@ -77,7 +77,7 @@
 
 #include <algorithm>
 
-using namespace blender;
+namespace blender::seq {
 
 static ImBuf *seq_render_strip_stack(const SeqRenderData *context,
                                      SeqRenderState *state,
@@ -2058,3 +2058,5 @@ bool SEQ_render_is_muted(const ListBase *channels, const Strip *strip)
 }
 
 /** \} */
+
+}  // namespace blender::seq

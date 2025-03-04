@@ -19,6 +19,8 @@ struct SeqCacheKey;
 struct SeqDiskCache;
 struct Strip;
 
+namespace blender::seq {
+
 SeqDiskCache *seq_disk_cache_create(Main *bmain, Scene *scene);
 void seq_disk_cache_free(SeqDiskCache *disk_cache);
 bool seq_disk_cache_is_enabled(Main *bmain);
@@ -30,3 +32,5 @@ void seq_disk_cache_invalidate(SeqDiskCache *disk_cache,
                                Strip *strip,
                                Strip *strip_changed,
                                int invalidate_types);
+
+}  // namespace blender::seq

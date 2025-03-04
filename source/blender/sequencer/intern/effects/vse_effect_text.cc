@@ -43,7 +43,7 @@
 
 #include "effects.hh"
 
-using namespace blender;
+namespace blender::seq {
 
 /* -------------------------------------------------------------------- */
 /* Sequencer font access.
@@ -1081,3 +1081,5 @@ void text_effect_get_handle(SeqEffectHandle &rval)
 }
 
 /** \} */
+
+}  // namespace blender::seq

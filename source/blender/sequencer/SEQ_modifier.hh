@@ -17,6 +17,8 @@ struct Strip;
 struct SequenceModifierData;
 struct StripScreenQuad;
 
+namespace blender::seq {
+
 struct SequenceModifierTypeInfo {
   /* default name for the modifier */
   char name[64]; /* MAX_NAME */
@@ -60,3 +62,5 @@ int SEQ_sequence_supports_modifiers(Strip *strip);
 
 void SEQ_modifier_blend_write(BlendWriter *writer, ListBase *modbase);
 void SEQ_modifier_blend_read_data(BlendDataReader *reader, ListBase *lb);
+
+}  // namespace blender::seq

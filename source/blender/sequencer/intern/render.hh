@@ -20,6 +20,8 @@ struct SeqEffectHandle;
 struct SeqRenderData;
 struct Strip;
 
+namespace blender::seq {
+
 /* mutable state for sequencer */
 struct SeqRenderState {
   LinkNode *scene_parents = nullptr;
@@ -58,3 +60,5 @@ ImBuf *seq_render_mask(const SeqRenderData *context,
 void seq_imbuf_assign_spaces(const Scene *scene, ImBuf *ibuf);
 
 StripScreenQuad get_strip_screen_quad(const SeqRenderData *context, const Strip *strip);
+
+}  // namespace blender::seq

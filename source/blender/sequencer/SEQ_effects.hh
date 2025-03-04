@@ -19,6 +19,8 @@ struct SeqRenderData;
 struct Strip;
 struct TextVars;
 
+namespace blender::seq {
+
 enum class StripEarlyOut {
   NoInput = -1,  /* No input needed. */
   DoEffect = 0,  /* No early out (do the effect). */
@@ -77,8 +79,6 @@ int SEQ_effect_get_num_inputs(int strip_type);
 void SEQ_effect_text_font_unload(TextVars *data, bool do_id_user);
 void SEQ_effect_text_font_load(TextVars *data, bool do_id_user);
 bool SEQ_effects_can_render_text(const Strip *strip);
-
-namespace blender::seq {
 
 struct CharInfo {
   int index = 0;
