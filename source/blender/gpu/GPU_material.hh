@@ -222,9 +222,9 @@ char *GPU_material_split_sub_function(GPUMaterial *material,
  */
 
 enum eGPUMaterialEngine {
-  GPU_MAT_EEVEE_LEGACY = 0,
   GPU_MAT_EEVEE,
   GPU_MAT_COMPOSITOR,
+  GPU_MAT_ENGINE_MAX,
 };
 
 GPUMaterial *GPU_material_from_nodetree(
@@ -324,7 +324,7 @@ bool GPU_material_recalc_flag_get(GPUMaterial *mat);
 uint64_t GPU_material_uuid_get(GPUMaterial *mat);
 
 void GPU_pass_cache_init();
-void GPU_pass_cache_garbage_collect();
+void GPU_pass_cache_update();
 void GPU_pass_cache_free();
 
 /* Requested Material Attributes and Textures */
