@@ -148,35 +148,17 @@ def copy_rigify_params(from_bone: bpy.types.PoseBone, to_bone: bpy.types.PoseBon
         param_dict = property_to_python(from_params)
 
         if x_mirror:
-            # The song and dance here with the bare access of
-            # `.rigify_parameters` followed by the
-            # `['rigify_parameters'].update()` call here is admittedly weird,
-            # but is currently necessary given some weirdness in how the APIs
-            # work:
-            #
-            # - `to_bone.rigify_parameters` (via dot notation) is read-only, so
-            #   we're forced to use `['rigify_parameters']` notation to modify
-            #   it.
-            # - `['rigify_parameters']` is only guaranteed to exist once it's
-            #   already been accessed via dot notation (`.rigify_parameters`).
-            # - Directly assigning to `['rigify_parameters']` with a Python
-            #   dictionary only works if `['rigify_parameters']` *does not*
-            #   already exist, failing if it does.
-            # - Conversely, calling `['rigify_parameters'].update(your_dict)` of
-            #   course only works when `['rigify_parameters']` *does* already
-            #   exist.
-            #
-            # The combination of these things forces us into *some* kind of
-            # weird song and dance. What we have here is the simplest song and
-            # dance I (Nathan) could figure out:
-            #
-            # The bare access of `.rigify_parameters` ensures that
-            # `['rigify_parameters']` exists, and then we use
-            # ``['rigify_parameters'].update()` to modify the property.
+            # `update()` of course only works when 'rigify_parameters' already
+            # exists. Conversely, direct assignment only works when
+            # 'rigify_parameters' *doesn't* already exist (at the time of
+            # writing, a type mismatch exception is thrown otherwise). Hence the
+            # weird song and dance here.
             #
             # Context: PR #135233
-            to_bone.rigify_parameters
-            to_bone['rigify_parameters'].update(recursive_mirror(param_dict))
+            if 'rigify_parameters' in to_bone:
+                to_bone['rigify_parameters'].update(recursive_mirror(param_dict))
+            else:
+                to_bone['rigify_parameters'] = recursive_mirror(param_dict)
 
             # Bone collection references must be mirrored specially
             from_params_typed = get_rigify_params(from_bone)
@@ -188,11 +170,17 @@ def copy_rigify_params(from_bone: bpy.types.PoseBone, to_bone: bpy.types.PoseBon
                     if is_collection_ref_list_prop(ref_list):
                         copy_ref_list(getattr(to_params_typed, prop_name), ref_list, mirror=True)
         else:
-            # See large comment just above here about the `.rigify_parameters` +
-            # `['rigify_parameters'].update()` song and dance, which explains
-            # why the bare `.rigify_parameters` access is here.
-            to_bone.rigify_parameters
-            to_bone['rigify_parameters'].update(param_dict)
+            # `update()` of course only works when 'rigify_parameters' already
+            # exists. Conversely, direct assignment only works when
+            # 'rigify_parameters' *doesn't* already exist (at the time of
+            # writing, a type mismatch exception is thrown otherwise). Hence the
+            # weird song and dance here.
+            #
+            # Context: PR #135233
+            if 'rigify_parameters' in to_bone:
+                to_bone['rigify_parameters'].update(param_dict)
+            else:
+                to_bone['rigify_parameters'] = param_dict
     else:
         try:
             del to_bone['rigify_parameters']
