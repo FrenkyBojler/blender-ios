@@ -1669,10 +1669,12 @@ static size_t unit_as_string(char *str,
 
   /* Adjust precision to expected number of significant digits.
    * Note that here, we shall not have to worry about very big/small numbers, units are expected
-   * to replace 'scientific notation' in those cases. */
+   * to replace 'scientific notation' in those cases.
+   * If the requested precision is greater than 6 (UI_PRECISION_FLOAT_MAX), assume we want to
+   * preserve as much precision as possible. */
+  int prec_max = prec > 6 ? 14 : 6;
   prec -= integer_digits_d(value_conv);
-
-  CLAMP(prec, 0, 6);
+  CLAMP(prec, 0, prec_max);
 
   /* Convert to a string. */
   size_t len = BLI_snprintf_rlen(str, str_maxncpy, "%.*f", prec, value_conv);

@@ -770,8 +770,11 @@ void ui_hsvcube_pos_from_vals(
 /**
  * \param float_precision: For number buttons the precision
  * to use or -1 to fallback to the button default.
+ * If greater than UI_PRECISION_FLOAT_MAX, try to use as many
+ * digits as necessary to not lose precision when converting
+ * back to float.
  * \param use_exp_float: Use exponent representation of floats
- * when out of reasonable range (outside of 1e3/1e-3).
+ * when out of reasonable range (outside of 1e12/1e-6).
  */
 void ui_but_string_get_ex(uiBut *but,
                           char *str,

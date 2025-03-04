@@ -3091,6 +3091,13 @@ void ui_but_string_get_ex(uiBut *but,
       else if (!use_exp_float && ui_but_hide_fraction(but, value)) {
         prec = 0;
       }
+      else if (float_precision > UI_PRECISION_FLOAT_MAX) {
+        // Try to use as many digits as necessary to not lose precision.
+        // 9 digits are guaranteed to round trip to and from decimals,
+        // but in practice 8 are often enough.
+        // See https://en.wikipedia.org/wiki/Single-precision_floating-point_format
+        prec = 8;
+      }
 
       if (ui_but_is_unit(but)) {
         ui_get_but_string_unit(but, str, str_maxncpy, value, false, prec);
@@ -3114,7 +3121,8 @@ void ui_but_string_get_ex(uiBut *but,
           }
           else {
             prec -= int_digits_num;
-            CLAMP(prec, 0, UI_PRECISION_FLOAT_MAX);
+            // up to 14 digits are possible for 8 significant digits + 6 leading zeros
+            CLAMP(prec, 0, 14);
             BLI_snprintf(str, str_maxncpy, "%.*f", prec, value);
           }
         }

@@ -2620,8 +2620,12 @@ static void ui_but_copy_numeric_value(uiBut *but, char *output, int output_maxnc
 {
   /* Get many decimal places, then strip trailing zeros.
    * NOTE: too high values start to give strange results. */
-  ui_but_string_get_ex(but, output, output_maxncpy, UI_PRECISION_FLOAT_MAX, false, nullptr);
-  BLI_str_rstrip_float_zero(output, '\0');
+  bool no_zero_strip = false;
+  ui_but_string_get_ex(
+      but, output, output_maxncpy, UI_PRECISION_FLOAT_MAX + 1, true, &no_zero_strip);
+  if (!no_zero_strip) {
+    BLI_str_rstrip_float_zero(output, '\0');
+  }
 }
 
 static void ui_but_paste_numeric_value(bContext *C,
@@ -3543,7 +3547,7 @@ static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
     ui_but_string_get_ex(but,
                          text_edit.edit_string,
                          text_edit.max_string_size,
-                         UI_PRECISION_FLOAT_MAX,
+                         UI_PRECISION_FLOAT_MAX + 1,
                          true,
                          &no_zero_strip);
   }
