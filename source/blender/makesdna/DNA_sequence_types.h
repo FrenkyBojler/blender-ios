@@ -24,7 +24,6 @@
 struct Ipo;
 struct MovieClip;
 struct Scene;
-struct StripLookup;
 struct VFont;
 struct bSound;
 
@@ -33,14 +32,20 @@ namespace blender::seq {
 struct MediaPresence;
 struct ThumbnailCache;
 struct TextVarsRuntime;
+struct PrefetchJob;
+struct StripLookup;
 }  // namespace blender::seq
 using MediaPresence = blender::seq::MediaPresence;
 using ThumbnailCache = blender::seq::ThumbnailCache;
 using TextVarsRuntime = blender::seq::TextVarsRuntime;
+using PrefetchJob = blender::seq::PrefetchJob;
+using StripLookup = blender::seq::StripLookup;
 #else
 typedef struct MediaPresence MediaPresence;
 typedef struct ThumbnailCache ThumbnailCache;
 typedef struct TextVarsRuntime TextVarsRuntime;
+typedef struct PrefetchJob PrefetchJob;
+typedef struct StripLookup StripLookup;
 #endif
 
 /* -------------------------------------------------------------------- */
@@ -323,7 +328,7 @@ typedef struct StripConnection {
 } StripConnection;
 
 typedef struct EditingRuntime {
-  struct StripLookup *strip_lookup;
+  StripLookup *strip_lookup;
   MediaPresence *media_presence;
   ThumbnailCache *thumbnail_cache;
   void *_pad;
@@ -363,7 +368,7 @@ typedef struct Editing {
   float recycle_max_cost; /* UNUSED only for versioning. */
   int cache_flag;
 
-  struct PrefetchJob *prefetch_job;
+  PrefetchJob *prefetch_job;
 
   /* Must be initialized only by seq_cache_create() */
   int64_t disk_cache_timestamp;

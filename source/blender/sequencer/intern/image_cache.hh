@@ -16,23 +16,23 @@ struct SeqCache;
 struct SeqRenderData;
 struct Strip;
 
-namespace blender::seq {
-
 struct SeqCacheKey {
   SeqCache *cache_owner;
   void *userkey;
   SeqCacheKey *link_prev; /* Used for linking intermediate items to final frame. */
   SeqCacheKey *link_next; /* Used for linking intermediate items to final frame. */
   Strip *strip;
-  SeqRenderData context;
+  blender::seq::SeqRenderData context;
   float frame_index;    /* Usually same as timeline_frame. Mapped to media for RAW entries. */
   float timeline_frame; /* Only for reference - used for freeing when cache is full. */
   float cost;           /* In short: render time(s) divided by playback frame duration(s) */
   bool is_temp_cache;   /* this cache entry will be freed before rendering next frame */
   /* ID of task for assigning temp cache entries to particular task(thread, etc.) */
-  eSeqTaskId task_id;
+  blender::seq::eSeqTaskId task_id;
   int type;
 };
+
+namespace blender::seq {
 
 ImBuf *seq_cache_get(const SeqRenderData *context, Strip *strip, float timeline_frame, int type);
 void seq_cache_put(

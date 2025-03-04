@@ -12,14 +12,24 @@
  * \ingroup sequencer
  */
 
+#include "BLI_listbase.h"
+#include "BLI_threads.h"
+
 struct ImBuf;
 struct Main;
 struct Scene;
 struct SeqCacheKey;
-struct SeqDiskCache;
 struct Strip;
 
 namespace blender::seq {
+
+struct SeqDiskCache {
+  Main *bmain;
+  int64_t timestamp;
+  ListBase files;
+  ThreadMutex read_write_mutex;
+  size_t size_total;
+};
 
 SeqDiskCache *seq_disk_cache_create(Main *bmain, Scene *scene);
 void seq_disk_cache_free(SeqDiskCache *disk_cache);

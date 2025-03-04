@@ -22,11 +22,12 @@
 
 #include "ED_sequencer.hh"
 
+#include "sequencer_quads_batch.hh"
 #include "sequencer_scopes.hh"
+#include "sequencer_strips_batch.hh"
 
 /* Internal exports only. */
 
-class SeqQuadsBatch;
 struct ARegion;
 struct ARegionType;
 struct Scene;
@@ -44,23 +45,19 @@ struct ScrArea;
 struct Editing;
 struct ListBase;
 
+namespace blender::ed::vse {
+
 #define DEFAULT_IMG_STRIP_LENGTH 25 /* XXX arbitrary but ok for now. */
-
-namespace blender::ed::seq {
-
-class StripsDrawBatch;
 
 struct SpaceSeq_Runtime : public NonCopyable {
   int rename_channel_index = 0;
   float timeline_clamp_custom_range = 0;
 
-  blender::ed::seq::SeqScopes scopes;
+  SeqScopes scopes;
 
   SpaceSeq_Runtime() = default;
   ~SpaceSeq_Runtime();
 };
-
-}  // namespace blender::ed::seq
 
 struct SeqChannelDrawContext {
   const bContext *C;
@@ -161,7 +158,7 @@ ImBuf *sequencer_ibuf_get(const bContext *C,
 /* `sequencer_thumbnails.cc` */
 
 void draw_strip_thumbnails(TimelineDrawContext *ctx,
-                           blender::ed::seq::StripsDrawBatch &strips_batch,
+                           StripsDrawBatch &strips_batch,
                            const blender::Vector<StripDrawContext> &strips);
 
 /* sequencer_draw_channels.c */
@@ -400,3 +397,5 @@ blender::Vector<Strip *> sequencer_visible_strips_get(const Scene *scene, const 
 /* `sequencer_clipboard.cc` */
 int sequencer_clipboard_copy_exec(bContext *C, wmOperator *op);
 int sequencer_clipboard_paste_exec(bContext *C, wmOperator *op);
+
+}  // namespace blender::ed::vse

@@ -24,10 +24,8 @@
 #include "BLI_endian_switch.h"
 #include "BLI_fileops.h"
 #include "BLI_fileops_types.h"
-#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
-#include "BLI_threads.h"
 
 #include "BKE_main.hh"
 
@@ -74,14 +72,6 @@ struct DiskCacheHeaderEntry {
 
 struct DiskCacheHeader {
   DiskCacheHeaderEntry entry[DCACHE_IMAGES_PER_FILE];
-};
-
-struct SeqDiskCache {
-  Main *bmain;
-  int64_t timestamp;
-  ListBase files;
-  ThreadMutex read_write_mutex;
-  size_t size_total;
 };
 
 struct DiskCacheFile {

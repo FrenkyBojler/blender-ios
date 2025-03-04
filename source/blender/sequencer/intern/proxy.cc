@@ -52,22 +52,6 @@
 
 namespace blender::seq {
 
-struct SeqIndexBuildContext {
-  MovieProxyBuilder *proxy_builder;
-
-  int tc_flags;
-  int size_flags;
-  int quality;
-  bool overwrite;
-  int view_id;
-
-  Main *bmain;
-  Depsgraph *depsgraph;
-  Scene *scene;
-  Strip *strip, *orig_seq;
-  SessionUID orig_seq_uid;
-};
-
 int SEQ_rendersize_to_proxysize(int render_size)
 {
   switch (render_size) {

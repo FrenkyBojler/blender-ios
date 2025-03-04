@@ -8,14 +8,14 @@
  * \ingroup sequencer
  */
 
+#include "DNA_sequence_types.h"
+#include "SEQ_render.hh"
+
 struct BlendDataReader;
 struct BlendWriter;
 struct ImBuf;
 struct ListBase;
-struct SeqRenderData;
 struct Strip;
-struct SequenceModifierData;
-struct StripScreenQuad;
 
 namespace blender::seq {
 

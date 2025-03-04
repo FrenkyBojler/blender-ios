@@ -8,6 +8,7 @@
 
 #include "BLI_math_vector_types.hh"
 #include "BLI_vector.hh"
+#include "SEQ_render.hh"
 
 /** \file
  * \ingroup sequencer
@@ -15,7 +16,6 @@
 
 struct ImBuf;
 struct Scene;
-struct SeqRenderData;
 struct Strip;
 struct TextVars;
 

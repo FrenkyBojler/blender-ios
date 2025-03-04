@@ -14,13 +14,17 @@ struct Scene;
 struct Strip;
 struct bSound;
 struct SequenceModifierData;
-struct SoundModifierWorkerInfo;
 struct BlendWriter;
 struct BlendDataReader;
 struct ListBase;
 struct SoundEqualizerModifierData;
 
 namespace blender::seq {
+
+struct SoundModifierWorkerInfo {
+  int type;
+  void *(*recreator)(Strip *strip, SequenceModifierData *smd, void *sound);
+};
 
 #define SOUND_EQUALIZER_DEFAULT_MIN_FREQ 30.0
 #define SOUND_EQUALIZER_DEFAULT_MAX_FREQ 20000.0
@@ -53,10 +57,5 @@ EQCurveMappingData *SEQ_sound_equalizermodifier_add_graph(SoundEqualizerModifier
                                                           float max_freq);
 void SEQ_sound_equalizermodifier_remove_graph(SoundEqualizerModifierData *semd,
                                               EQCurveMappingData *eqcmd);
-
-struct SoundModifierWorkerInfo {
-  int type;
-  void *(*recreator)(Strip *strip, SequenceModifierData *smd, void *sound);
-};
 
 }  // namespace blender::seq

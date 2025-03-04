@@ -61,8 +61,7 @@
  * User can exclude caching of some images. Such entries will have is_temp_cache set.
  */
 
-namespace blender::seq {
-
+// XXX
 struct SeqCache {
   Main *bmain;
   GHash *hash;
@@ -70,8 +69,10 @@ struct SeqCache {
   BLI_mempool *keys_pool;
   BLI_mempool *items_pool;
   SeqCacheKey *last_key;
-  SeqDiskCache *disk_cache;
+  blender::seq::SeqDiskCache *disk_cache;
 };
+
+namespace blender::seq {
 
 struct SeqCacheItem {
   SeqCache *cache_owner;

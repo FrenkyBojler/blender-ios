@@ -8,6 +8,8 @@
  * \ingroup sequencer
  */
 
+#include "BLI_math_vector_types.hh"
+
 struct Depsgraph;
 struct GPUOffScreen;
 struct GPUViewport;
@@ -19,6 +21,17 @@ struct Strip;
 struct StripElem;
 
 namespace blender::seq {
+
+/* Strip corner coordinates in screen pixel space. Note that they might not be
+ * axis aligned when rotation is present. */
+struct StripScreenQuad {
+  float2 v0, v1, v2, v3;
+
+  bool is_empty() const
+  {
+    return v0 == v1 && v2 == v3 && v0 == v2;
+  }
+};
 
 enum eSeqTaskId {
   SEQ_TASK_MAIN_RENDER,
