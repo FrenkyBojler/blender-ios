@@ -2,9 +2,14 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "infos/overlay_wireframe_info.hh"
+
+VERTEX_SHADER_CREATE_INFO(overlay_wireframe)
+
 #include "draw_model_lib.glsl"
 #include "draw_view_clipping_lib.glsl"
 #include "draw_view_lib.glsl"
+#include "gpu_shader_math_vector_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 #include "overlay_common_lib.glsl"
 #include "select_lib.glsl"
@@ -106,7 +111,7 @@ void main()
 #elif defined(CURVES)
   float facing = no_nor_facing;
 #else
-  vec3 wnor = normalize(drw_normal_object_to_world(nor));
+  vec3 wnor = safe_normalize(drw_normal_object_to_world(nor));
 
   if (isHair) {
     mat4 obmat = hairDupliMatrix;
@@ -122,15 +127,6 @@ void main()
 #endif
 
   gl_Position = drw_point_world_to_homogenous(wpos);
-
-#ifndef CUSTOM_DEPTH_BIAS_CONST
-/* TODO(fclem): Cleanup after overlay next. */
-#  ifndef CUSTOM_DEPTH_BIAS
-  const bool use_custom_depth_bias = false;
-#  else
-  const bool use_custom_depth_bias = true;
-#  endif
-#endif
 
 #if !defined(POINTS) && !defined(CURVES)
   if (!use_custom_depth_bias) {
@@ -167,7 +163,7 @@ void main()
 
 #else
   /* Convert to screen position [0..sizeVp]. */
-  edgeStart = ((gl_Position.xy / gl_Position.w) * 0.5 + 0.5) * sizeViewport.xy;
+  edgeStart = ((gl_Position.xy / gl_Position.w) * 0.5 + 0.5) * sizeViewport;
   edgePos = edgeStart;
 
 #  if !defined(SELECT_ENABLE)
