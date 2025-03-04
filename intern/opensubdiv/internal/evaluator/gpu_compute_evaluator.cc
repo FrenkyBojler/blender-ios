@@ -245,7 +245,8 @@ static GPUShader *compileKernel(BufferDescriptor const &srcDesc,
                      "OsdPatchParam",
                      "patchParamBuffer[]");
   }
-  info.compute_source(datatoc_glsl_compute_kernel_glsl);
+  // TODO: add glsl_compute_kernel.glsl as preprocessed GLSL. similar to intern/opencolorio
+  info.compute_source_generated += std::string(datatoc_glsl_compute_kernel_glsl);
   GPUShader *shader = GPU_shader_create_from_info(
       reinterpret_cast<const GPUShaderCreateInfo *>(&info));
   return shader;
@@ -478,7 +479,7 @@ bool GPUComputeEvaluator::EvalPatches(gpu::VertBuf *srcBuffer,
                                       gpu::VertBuf *patchCoordsBuffer,
                                       const PatchArrayVector &patchArrays,
                                       gpu::VertBuf *patchIndexBuffer,
-                                      gpu::VertBuf *patchParamsBuffer) 
+                                      gpu::VertBuf *patchParamsBuffer)
 {
 
   return EvalPatches(srcBuffer,
