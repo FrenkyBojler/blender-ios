@@ -305,6 +305,8 @@ class Wireframe : Overlay {
       /* If a cage exists, the edit overlay might not display every edge. */
       return false;
     }
+    /* The edit mode overlay displays all of the edges of the evaluated mesh; drawing the edges
+     * again would be redundant. */
     return true;
   }
 };
