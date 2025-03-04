@@ -8,10 +8,12 @@
 
 #pragma once
 
-#include "BLI_ghash.h"
-#include "BLI_sys_types.h"
-#include "DNA_ID.h"
 #include "intern/node/deg_node.hh"
+
+#include "DNA_ID.h"
+
+#include "BLI_map.hh"
+#include "BLI_sys_types.h"
 
 namespace blender::deg {
 
@@ -43,25 +45,25 @@ struct IDNode : public Node {
   };
 
   /** Initialize 'id' node - from pointer data given. */
-  virtual void init(const ID *id, const char *subdata) override;
-  void init_copy_on_write(ID *id_cow_hint = nullptr);
-  ~IDNode();
+  void init(const ID *id, const char *subdata) override;
+  void init_copy_on_write(Depsgraph &depsgraph, ID *id_cow_hint = nullptr);
+  ~IDNode() override;
   void destroy();
 
-  virtual string identifier() const override;
+  std::string identifier() const override;
 
   ComponentNode *find_component(NodeType type, const char *name = "") const;
   ComponentNode *add_component(NodeType type, const char *name = "");
 
-  virtual void tag_update(Depsgraph *graph, eUpdateSource source) override;
+  void tag_update(Depsgraph *graph, eUpdateSource source) override;
 
   void finalize_build(Depsgraph *graph);
 
   IDComponentsMask get_visible_components_mask() const;
 
-  /* Type of the ID stored separately, so it's possible to perform check whether CoW is needed
-   * without de-referencing the id_cow (which is not safe when ID is NOT covered by CoW and has
-   * been deleted from the main database.) */
+  /* Type of the ID stored separately, so it's possible to perform check whether evaluated copy is
+   * needed without de-referencing the id_cow (which is not safe when ID is NOT covered by
+   * copy-on-evaluation and has been deleted from the main database.) */
   ID_Type id_type;
 
   /* ID Block referenced. */
@@ -74,7 +76,7 @@ struct IDNode : public Node {
   uint id_orig_session_uid;
 
   /* Evaluated data-block.
-   * Will be covered by the copy-on-write system if the ID Type needs it. */
+   * Will be covered by the copy-on-evaluation system if the ID Type needs it. */
   ID *id_cow;
 
   /* Hash to make it faster to look up components. */

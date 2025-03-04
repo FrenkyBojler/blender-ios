@@ -18,6 +18,8 @@ class FloatBuilder;
 
 class Float : public SocketDeclaration {
  public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_FLOAT;
+
   float default_value = 0.0f;
   float soft_min_value = -FLT_MAX;
   float soft_max_value = FLT_MAX;
@@ -45,6 +47,8 @@ class IntBuilder;
 
 class Int : public SocketDeclaration {
  public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_INT;
+
   int default_value = 0;
   int soft_min_value = INT32_MIN;
   int soft_max_value = INT32_MAX;
@@ -72,6 +76,8 @@ class VectorBuilder;
 
 class Vector : public SocketDeclaration {
  public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_VECTOR;
+
   float3 default_value = {0, 0, 0};
   float soft_min_value = -FLT_MAX;
   float soft_max_value = FLT_MAX;
@@ -100,6 +106,8 @@ class BoolBuilder;
 
 class Bool : public SocketDeclaration {
  public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_BOOLEAN;
+
   bool default_value = false;
   friend BoolBuilder;
 
@@ -120,6 +128,8 @@ class ColorBuilder;
 
 class Color : public SocketDeclaration {
  public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_RGBA;
+
   ColorGeometry4f default_value{0.8f, 0.8f, 0.8f, 1.0f};
 
   friend ColorBuilder;
@@ -141,6 +151,8 @@ class RotationBuilder;
 
 class Rotation : public SocketDeclaration {
  public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_ROTATION;
+
   math::EulerXYZ default_value;
 
   friend RotationBuilder;
@@ -162,6 +174,8 @@ class MatrixBuilder;
 
 class Matrix : public SocketDeclaration {
  public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_MATRIX;
+
   friend MatrixBuilder;
 
   using Builder = MatrixBuilder;
@@ -178,7 +192,11 @@ class StringBuilder;
 
 class String : public SocketDeclaration {
  public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_STRING;
+
   std::string default_value;
+  PropertySubType subtype = PROP_NONE;
+  std::optional<std::string> path_filter;
 
   friend StringBuilder;
 
@@ -193,12 +211,16 @@ class String : public SocketDeclaration {
 class StringBuilder : public SocketDeclarationBuilder<String> {
  public:
   StringBuilder &default_value(const std::string value);
+  StringBuilder &subtype(PropertySubType subtype);
+  StringBuilder &path_filter(std::optional<std::string> filter);
 };
 
 class MenuBuilder;
 
 class Menu : public SocketDeclaration {
  public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_MENU;
+
   int32_t default_value;
 
   friend MenuBuilder;
@@ -226,7 +248,6 @@ class IDSocketDeclaration : public SocketDeclaration {
    */
   std::function<ID *(const bNode &node)> default_value_fn;
 
- public:
   IDSocketDeclaration(const char *idname);
 
   bNodeSocket &build(bNodeTree &ntree, bNode &node) const override;
@@ -235,37 +256,56 @@ class IDSocketDeclaration : public SocketDeclaration {
   bool can_connect(const bNodeSocket &socket) const override;
 };
 
+template<typename T> class IDSocketDeclarationBuilder : public SocketDeclarationBuilder<T> {
+ public:
+  IDSocketDeclarationBuilder &default_value_fn(std::function<ID *(const bNode &node)> fn)
+  {
+    this->decl_->default_value_fn = std::move(fn);
+    return *this;
+  }
+};
+
 class Object : public IDSocketDeclaration {
  public:
-  using Builder = SocketDeclarationBuilder<Object>;
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_OBJECT;
+
+  using Builder = IDSocketDeclarationBuilder<Object>;
 
   Object();
 };
 
 class Material : public IDSocketDeclaration {
  public:
-  using Builder = SocketDeclarationBuilder<Material>;
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_MATERIAL;
+
+  using Builder = IDSocketDeclarationBuilder<Material>;
 
   Material();
 };
 
 class Collection : public IDSocketDeclaration {
  public:
-  using Builder = SocketDeclarationBuilder<Collection>;
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_COLLECTION;
+
+  using Builder = IDSocketDeclarationBuilder<Collection>;
 
   Collection();
 };
 
 class Texture : public IDSocketDeclaration {
  public:
-  using Builder = SocketDeclarationBuilder<Texture>;
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_TEXTURE;
+
+  using Builder = IDSocketDeclarationBuilder<Texture>;
 
   Texture();
 };
 
 class Image : public IDSocketDeclaration {
  public:
-  using Builder = SocketDeclarationBuilder<Image>;
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_IMAGE;
+
+  using Builder = IDSocketDeclarationBuilder<Image>;
 
   Image();
 };
@@ -274,6 +314,8 @@ class ShaderBuilder;
 
 class Shader : public SocketDeclaration {
  public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_SHADER;
+
   friend ShaderBuilder;
 
   using Builder = ShaderBuilder;
@@ -292,6 +334,8 @@ class Extend : public SocketDeclaration {
   friend ExtendBuilder;
 
  public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_CUSTOM;
+
   using Builder = ExtendBuilder;
 
   bNodeSocket &build(bNodeTree &ntree, bNode &node) const override;
@@ -302,8 +346,16 @@ class Extend : public SocketDeclaration {
 
 class ExtendBuilder : public SocketDeclarationBuilder<Extend> {};
 
+class CustomTypeBuilder;
+
 class Custom : public SocketDeclaration {
  public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_CUSTOM;
+
+  friend CustomTypeBuilder;
+
+  using Builder = CustomTypeBuilder;
+
   const char *idname_;
   std::function<void(bNode &node, bNodeSocket &socket, const char *data_path)> init_socket_fn;
 
@@ -313,51 +365,43 @@ class Custom : public SocketDeclaration {
   bool can_connect(const bNodeSocket &socket) const override;
 };
 
+class CustomTypeBuilder : public SocketDeclarationBuilder<Custom> {
+ public:
+  CustomTypeBuilder &idname(const char *idname);
+
+  CustomTypeBuilder &init_socket_fn(
+      std::function<void(bNode &node, bNodeSocket &socket, const char *data_path)> fn)
+  {
+    decl_->init_socket_fn = std::move(fn);
+    return *this;
+  }
+};
+
 /* -------------------------------------------------------------------- */
 /** \name #FloatBuilder Inline Methods
  * \{ */
 
 inline FloatBuilder &FloatBuilder::min(const float value)
 {
-  if (decl_in_) {
-    decl_in_->soft_min_value = value;
-  }
-  if (decl_out_) {
-    decl_out_->soft_min_value = value;
-  }
+  decl_->soft_min_value = value;
   return *this;
 }
 
 inline FloatBuilder &FloatBuilder::max(const float value)
 {
-  if (decl_in_) {
-    decl_in_->soft_max_value = value;
-  }
-  if (decl_out_) {
-    decl_out_->soft_max_value = value;
-  }
+  decl_->soft_max_value = value;
   return *this;
 }
 
 inline FloatBuilder &FloatBuilder::default_value(const float value)
 {
-  if (decl_in_) {
-    decl_in_->default_value = value;
-  }
-  if (decl_out_) {
-    decl_out_->default_value = value;
-  }
+  decl_->default_value = value;
   return *this;
 }
 
 inline FloatBuilder &FloatBuilder::subtype(PropertySubType subtype)
 {
-  if (decl_in_) {
-    decl_in_->subtype = subtype;
-  }
-  if (decl_out_) {
-    decl_out_->subtype = subtype;
-  }
+  decl_->subtype = subtype;
   return *this;
 }
 
@@ -369,45 +413,25 @@ inline FloatBuilder &FloatBuilder::subtype(PropertySubType subtype)
 
 inline IntBuilder &IntBuilder::min(const int value)
 {
-  if (decl_in_) {
-    decl_in_->soft_min_value = value;
-  }
-  if (decl_out_) {
-    decl_out_->soft_min_value = value;
-  }
+  decl_->soft_min_value = value;
   return *this;
 }
 
 inline IntBuilder &IntBuilder::max(const int value)
 {
-  if (decl_in_) {
-    decl_in_->soft_max_value = value;
-  }
-  if (decl_out_) {
-    decl_out_->soft_max_value = value;
-  }
+  decl_->soft_max_value = value;
   return *this;
 }
 
 inline IntBuilder &IntBuilder::default_value(const int value)
 {
-  if (decl_in_) {
-    decl_in_->default_value = value;
-  }
-  if (decl_out_) {
-    decl_out_->default_value = value;
-  }
+  decl_->default_value = value;
   return *this;
 }
 
 inline IntBuilder &IntBuilder::subtype(PropertySubType subtype)
 {
-  if (decl_in_) {
-    decl_in_->subtype = subtype;
-  }
-  if (decl_out_) {
-    decl_out_->subtype = subtype;
-  }
+  decl_->subtype = subtype;
   return *this;
 }
 
@@ -419,56 +443,31 @@ inline IntBuilder &IntBuilder::subtype(PropertySubType subtype)
 
 inline VectorBuilder &VectorBuilder::default_value(const float3 value)
 {
-  if (decl_in_) {
-    decl_in_->default_value = value;
-  }
-  if (decl_out_) {
-    decl_out_->default_value = value;
-  }
+  decl_->default_value = value;
   return *this;
 }
 
 inline VectorBuilder &VectorBuilder::subtype(PropertySubType subtype)
 {
-  if (decl_in_) {
-    decl_in_->subtype = subtype;
-  }
-  if (decl_out_) {
-    decl_out_->subtype = subtype;
-  }
+  decl_->subtype = subtype;
   return *this;
 }
 
 inline VectorBuilder &VectorBuilder::min(const float min)
 {
-  if (decl_in_) {
-    decl_in_->soft_min_value = min;
-  }
-  if (decl_out_) {
-    decl_out_->soft_min_value = min;
-  }
+  decl_->soft_min_value = min;
   return *this;
 }
 
 inline VectorBuilder &VectorBuilder::max(const float max)
 {
-  if (decl_in_) {
-    decl_in_->soft_max_value = max;
-  }
-  if (decl_out_) {
-    decl_out_->soft_max_value = max;
-  }
+  decl_->soft_max_value = max;
   return *this;
 }
 
 inline VectorBuilder &VectorBuilder::compact()
 {
-  if (decl_in_) {
-    decl_in_->compact = true;
-  }
-  if (decl_out_) {
-    decl_out_->compact = true;
-  }
+  decl_->compact = true;
   return *this;
 }
 
@@ -480,12 +479,7 @@ inline VectorBuilder &VectorBuilder::compact()
 
 inline BoolBuilder &BoolBuilder::default_value(const bool value)
 {
-  if (decl_in_) {
-    decl_in_->default_value = value;
-  }
-  if (decl_out_) {
-    decl_out_->default_value = value;
-  }
+  decl_->default_value = value;
   return *this;
 }
 
@@ -497,12 +491,7 @@ inline BoolBuilder &BoolBuilder::default_value(const bool value)
 
 inline ColorBuilder &ColorBuilder::default_value(const ColorGeometry4f value)
 {
-  if (decl_in_) {
-    decl_in_->default_value = value;
-  }
-  if (decl_out_) {
-    decl_out_->default_value = value;
-  }
+  decl_->default_value = value;
   return *this;
 }
 
@@ -514,12 +503,13 @@ inline ColorBuilder &ColorBuilder::default_value(const ColorGeometry4f value)
 
 inline StringBuilder &StringBuilder::default_value(std::string value)
 {
-  if (decl_in_) {
-    decl_in_->default_value = std::move(value);
-  }
-  if (decl_out_) {
-    decl_out_->default_value = std::move(value);
-  }
+  decl_->default_value = std::move(value);
+  return *this;
+}
+
+inline StringBuilder &StringBuilder::subtype(PropertySubType subtype)
+{
+  decl_->subtype = subtype;
   return *this;
 }
 
@@ -531,12 +521,7 @@ inline StringBuilder &StringBuilder::default_value(std::string value)
 
 inline MenuBuilder &MenuBuilder::default_value(const int32_t value)
 {
-  if (decl_in_) {
-    decl_in_->default_value = value;
-  }
-  if (decl_out_) {
-    decl_out_->default_value = value;
-  }
+  decl_->default_value = value;
   return *this;
 }
 
@@ -548,12 +533,7 @@ inline MenuBuilder &MenuBuilder::default_value(const int32_t value)
 
 inline RotationBuilder &RotationBuilder::default_value(const math::EulerXYZ &value)
 {
-  if (decl_in_) {
-    decl_in_->default_value = value;
-  }
-  if (decl_out_) {
-    decl_out_->default_value = value;
-  }
+  decl_->default_value = value;
   return *this;
 }
 
@@ -577,6 +557,16 @@ inline Image::Image() : IDSocketDeclaration("NodeSocketImage") {}
 
 /** \} */
 
-SocketDeclarationPtr create_extend_declaration(const eNodeSocketInOut in_out);
+/* -------------------------------------------------------------------- */
+/** \name #CustomTypeBuilder Inline Methods
+ * \{ */
+
+inline CustomTypeBuilder &CustomTypeBuilder::idname(const char *idname)
+{
+  decl_->idname_ = idname;
+  return *this;
+}
+
+/** \} */
 
 }  // namespace blender::nodes::decl

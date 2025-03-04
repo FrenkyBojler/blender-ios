@@ -13,7 +13,7 @@
 
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_listBase.h"
-#include "DNA_object_types.h"
+#include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 
 #include "BLI_listbase.h"
@@ -29,7 +29,7 @@
 
 #include "DEG_depsgraph.hh"
 
-#include "gpencil_intern.h"
+#include "gpencil_intern.hh"
 
 struct bGPundonode {
   bGPundonode *next, *prev;

@@ -6,16 +6,14 @@
  * \ingroup spview3d
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
 
-#include "DEG_depsgraph_query.hh"
+#include "DEG_depsgraph.hh"
 
 #include "WM_api.hh"
 
-#include "view3d_intern.h"
+#include "view3d_intern.hh"
 
 #include "view3d_navigate.hh" /* own include */
 
@@ -80,7 +78,7 @@ static int view_camera_exec(bContext *C, wmOperator *op)
       /* important these don't get out of sync for locked scenes */
       if (v3d->scenelock && scene->camera != v3d->camera) {
         scene->camera = v3d->camera;
-        DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
+        DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
       }
 
       /* finally do snazzy view zooming */

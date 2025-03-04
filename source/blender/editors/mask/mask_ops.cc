@@ -6,6 +6,8 @@
  * \ingroup edmask
  */
 
+#include <algorithm>
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
@@ -14,6 +16,8 @@
 
 #include "BKE_context.hh"
 #include "BKE_mask.h"
+
+#include "BLT_translation.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -32,10 +36,12 @@
 
 #include "ANIM_keyframing.hh"
 
+#include "UI_interface_icons.hh"
+
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "mask_intern.h" /* own include */
+#include "mask_intern.hh" /* own include */
 
 /******************** create new mask *********************/
 
@@ -133,7 +139,7 @@ static int mask_layer_new_exec(bContext *C, wmOperator *op)
   mask->masklay_act = mask->masklay_tot - 1;
 
   WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
-  DEG_id_tag_update(&mask->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&mask->id, ID_RECALC_SYNC_TO_EVAL);
 
   return OPERATOR_FINISHED;
 }
@@ -167,7 +173,7 @@ static int mask_layer_remove_exec(bContext *C, wmOperator * /*op*/)
     BKE_mask_layer_remove(mask, mask_layer);
 
     WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
-    DEG_id_tag_update(&mask->id, ID_RECALC_COPY_ON_WRITE);
+    DEG_id_tag_update(&mask->id, ID_RECALC_SYNC_TO_EVAL);
   }
 
   return OPERATOR_FINISHED;
@@ -586,9 +592,7 @@ static void slide_point_delta_all_feather(SlidePointData *data, float delta)
     MaskSplinePoint *orig_point = &data->orig_spline->points[i];
 
     point->bezt.weight = orig_point->bezt.weight + delta;
-    if (point->bezt.weight < 0.0f) {
-      point->bezt.weight = 0.0f;
-    }
+    point->bezt.weight = std::max(point->bezt.weight, 0.0f);
   }
 }
 
@@ -667,7 +671,7 @@ static int slide_point_modal(bContext *C, wmOperator *op, const wmEvent *event)
     case MOUSEMOVE: {
       ScrArea *area = CTX_wm_area(C);
       ARegion *region = CTX_wm_region(C);
-      float delta[2];
+      blender::float2 delta;
 
       ED_mask_mouse_pos(area, region, event->mval, co);
       sub_v2_v2v2(delta, co, data->prev_mouse_coord);
@@ -704,7 +708,7 @@ static int slide_point_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
             /* flip last point */
             if (data->point != &data->spline->points[0]) {
-              negate_v2(delta);
+              delta *= -1.0f;
             }
           }
         }
@@ -1427,14 +1431,20 @@ static int delete_exec(bContext *C, wmOperator * /*op*/)
       }
 
       if (count == 0) {
+
+        /* Update active. */
+        if (mask_layer->act_point) {
+          if (ARRAY_HAS_ITEM(mask_layer->act_point, spline->points, spline->tot_point)) {
+            mask_layer->act_point = nullptr;
+          }
+        }
+        if (spline == mask_layer->act_spline) {
+          mask_layer->act_spline = nullptr;
+        }
+
         /* delete the whole spline */
         BLI_remlink(&mask_layer->splines, spline);
         BKE_mask_spline_free(spline);
-
-        if (spline == mask_layer->act_spline) {
-          mask_layer->act_spline = nullptr;
-          mask_layer->act_point = nullptr;
-        }
 
         BKE_mask_layer_shape_changed_remove(mask_layer, mask_layer_shape_ofs, tot_point_orig);
       }
@@ -1498,6 +1508,20 @@ static int delete_exec(bContext *C, wmOperator * /*op*/)
   return OPERATOR_FINISHED;
 }
 
+static int delete_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+{
+  if (RNA_boolean_get(op->ptr, "confirm")) {
+    return WM_operator_confirm_ex(C,
+                                  op,
+                                  IFACE_("Delete selected control points and splines?"),
+                                  nullptr,
+                                  IFACE_("Delete"),
+                                  ALERT_ICON_NONE,
+                                  false);
+  }
+  return delete_exec(C, op);
+}
+
 void MASK_OT_delete(wmOperatorType *ot)
 {
   /* identifiers */
@@ -1506,7 +1530,7 @@ void MASK_OT_delete(wmOperatorType *ot)
   ot->idname = "MASK_OT_delete";
 
   /* api callbacks */
-  ot->invoke = WM_operator_confirm_or_exec;
+  ot->invoke = delete_invoke;
   ot->exec = delete_exec;
   ot->poll = ED_maskedit_mask_visible_splines_poll;
 
@@ -1920,7 +1944,7 @@ static int mask_layer_move_exec(bContext *C, wmOperator *op)
   }
 
   WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
-  DEG_id_tag_update(&mask->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&mask->id, ID_RECALC_SYNC_TO_EVAL);
 
   return OPERATOR_FINISHED;
 }
@@ -1962,6 +1986,12 @@ static int mask_duplicate_exec(bContext *C, wmOperator * /*op*/)
 
   LISTBASE_FOREACH (MaskLayer *, mask_layer, &mask->masklayers) {
     LISTBASE_FOREACH_BACKWARD (MaskSpline *, spline, &mask_layer->splines) {
+      const bool act_point_in_spline = mask_layer->act_point &&
+                                       ARRAY_HAS_ITEM(mask_layer->act_point,
+                                                      spline->points,
+                                                      spline->tot_point);
+      const void *act_point_prev = mask_layer->act_point;
+
       MaskSplinePoint *point = spline->points;
       int i = 0;
       while (i < spline->tot_point) {
@@ -2006,6 +2036,19 @@ static int mask_duplicate_exec(bContext *C, wmOperator * /*op*/)
 
           tot_point = new_spline->tot_point;
 
+          /* Update the active. */
+          if (mask_layer->act_point) {
+            ptrdiff_t act_index = mask_layer->act_point - &spline->points[start];
+            if (size_t(act_index) < new_spline->tot_point) {
+              mask_layer->act_point = &new_spline->points[act_index];
+            }
+          }
+          if (mask_layer->act_spline) {
+            if (mask_layer->act_spline == spline) {
+              mask_layer->act_spline = new_spline;
+            }
+          }
+
           /* animation requires points added one by one */
           if (mask_layer->splines_shapes.first) {
             new_spline->tot_point = 0;
@@ -2035,11 +2078,15 @@ static int mask_duplicate_exec(bContext *C, wmOperator * /*op*/)
           /* Flush selection to splines. */
           new_spline->flag |= SELECT;
           spline->flag &= ~SELECT;
-
-          mask_layer->act_spline = new_spline;
         }
         i++;
         point++;
+      }
+
+      if (act_point_in_spline && (mask_layer->act_point == act_point_prev)) {
+        /* The active point was part of this spline but not copied,
+         * clear it to avoid confusion with the active spline & point getting out of sync. */
+        mask_layer->act_point = nullptr;
       }
     }
   }

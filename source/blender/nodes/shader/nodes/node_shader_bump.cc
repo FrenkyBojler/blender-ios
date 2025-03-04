@@ -21,8 +21,17 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(1.0f)
       .min(0.0f)
       .max(1.0f)
-      .subtype(PROP_FACTOR);
-  b.add_input<decl::Float>("Distance").default_value(1.0f).min(0.0f).max(1000.0f);
+      .subtype(PROP_FACTOR)
+      .description(
+          "Strength of the bump mapping effect, interpolating between "
+          "no bump mapping and full bump mapping")
+      .translation_context(BLT_I18NCONTEXT_AMOUNT);
+  b.add_input<decl::Float>("Distance")
+      .default_value(1.0f)
+      .min(0.0f)
+      .max(1000.0f)
+      .description(
+          "Multiplier for the height value to control the overall distance for bump mapping");
   b.add_input<decl::Float>("Height").default_value(1.0f).min(-1000.0f).max(1000.0f).hide_value();
   b.add_input<decl::Vector>("Normal").min(-1.0f).max(1.0f).hide_value();
   b.add_output<decl::Vector>("Normal");
@@ -30,7 +39,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_shader_buts_bump(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "invert", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "invert", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 static int gpu_shader_bump(GPUMaterial *mat,
@@ -44,10 +53,8 @@ static int gpu_shader_bump(GPUMaterial *mat,
     if (!in[3].link) {
       return GPU_link(mat, "world_normals_get", &out[0].link);
     }
-    else {
-      /* Actually running the bump code would normalize, but Cycles handles it as total no-op. */
-      return GPU_link(mat, "vector_copy", in[3].link, &out[0].link);
-    }
+    /* Actually running the bump code would normalize, but Cycles handles it as total no-op. */
+    return GPU_link(mat, "vector_copy", in[3].link, &out[0].link);
   }
 
   if (!in[3].link) {
@@ -106,13 +113,19 @@ void register_node_type_sh_bump()
 {
   namespace file_ns = blender::nodes::node_shader_bump_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_BUMP, "Bump", NODE_CLASS_OP_VECTOR);
+  sh_node_type_base(&ntype, "ShaderNodeBump", SH_NODE_BUMP);
+  ntype.ui_name = "Bump";
+  ntype.ui_description =
+      "Generate a perturbed normal from a height texture for bump mapping. Typically used for "
+      "faking highly detailed surfaces";
+  ntype.enum_name_legacy = "BUMP";
+  ntype.nclass = NODE_CLASS_OP_VECTOR;
   ntype.declare = file_ns::node_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_bump;
   ntype.gpu_fn = file_ns::gpu_shader_bump;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }

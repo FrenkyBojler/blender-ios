@@ -21,7 +21,9 @@
  */
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_function_ref.hh"
 #include "BLI_map.hh"
+#include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_utildefines.h"
 
@@ -48,12 +50,13 @@ enum {
    */
   ID_REMAP_SKIP_NEVER_NULL_USAGE = 1 << 1,
   /**
-   * This tells the callback func to flag with #LIB_DOIT all IDs
-   * using target one with a 'never NULL' pointer (like e.g. #Object.data).
+   * Store in the #IDRemapper all IDs using target one with a 'never NULL' pointer (like e.g.
+   * #Object.data), when such ID usage has (or should have) been remapped to `nullptr`. See also
+   * #ID_REMAP_FORCE_NEVER_NULL_USAGE and #ID_REMAP_SKIP_NEVER_NULL_USAGE.
    */
-  ID_REMAP_FLAG_NEVER_NULL_USAGE = 1 << 2,
+  ID_REMAP_STORE_NEVER_NULL_USAGE = 1 << 2,
   /**
-   * This tells the callback func to force setting IDs
+   * This tells the callback function to force setting IDs
    * using target one with a 'never NULL' pointer to NULL.
    * \warning Use with extreme care, this will leave database in broken state
    * and can cause crashes very easily!
@@ -83,6 +86,13 @@ enum {
    * the calling code takes care of the rest of the required changes (ID tags & flags updates,
    * etc.). */
   ID_REMAP_DO_LIBRARY_POINTERS = 1 << 8,
+
+  /**
+   * Allow remapping of an ID pointer of a certain to another one of a different type.
+   *
+   * WARNING: Use with caution. Should only be needed in a very small amount of cases, e.g. when
+   * converting an ID type to another. */
+  ID_REMAP_ALLOW_IDTYPE_MISMATCH = 1 << 9,
 
   /**
    * Don't touch the special user counts (use when the 'old' remapped ID remains in use):
@@ -163,12 +173,8 @@ void BKE_libblock_remap(Main *bmain, void *old_idv, void *new_idv, int remap_fla
 /**
  * Unlink given \a id from given \a bmain
  * (does not touch to indirect, i.e. library, usages of the ID).
- *
- * \param do_flag_never_null: If true, all IDs using \a idv in a 'non-NULL' way are flagged by
- * #LIB_TAG_DOIT flag (quite obviously, 'non-NULL' usages can never be unlinked by this function).
  */
-void BKE_libblock_unlink(Main *bmain, void *idv, bool do_flag_never_null, bool do_skip_indirect)
-    ATTR_NONNULL();
+void BKE_libblock_unlink(Main *bmain, void *idv, bool do_skip_indirect) ATTR_NONNULL();
 
 /**
  * Similar to libblock_remap, but only affects IDs used by given \a idv ID.
@@ -193,9 +199,9 @@ void BKE_libblock_relink_multiple(Main *bmain,
 
 /**
  * Remaps ID usages of given ID to their `id->newid` pointer if not None, and proceeds recursively
- * in the dependency tree of IDs for all data-blocks tagged with `LIB_TAG_NEW`.
+ * in the dependency tree of IDs for all data-blocks tagged with `ID_TAG_NEW`.
  *
- * \note `LIB_TAG_NEW` is cleared.
+ * \note `ID_TAG_NEW` is cleared.
  *
  * Very specific usage, not sure we'll keep it on the long run,
  * currently only used in Object/Collection duplication code.
@@ -260,17 +266,30 @@ using IDTypeFilter = uint64_t;
 namespace blender::bke::id {
 
 class IDRemapper {
-  blender::Map<ID *, ID *> mappings_;
+  Map<ID *, ID *> mappings_;
   IDTypeFilter source_types_ = 0;
 
+  /**
+   * Store all IDs using another ID with the 'NEVER_NULL' flag, which have (or
+   * should have been) remapped to `nullptr`.
+   */
+  Set<ID *> never_null_users_;
+
  public:
-  void clear(void)
+  /**
+   * In almost all cases, the original pointer and its new replacement should be of the same type.
+   * however, there are some rare exceptions, e.g. when converting from one ID type to another.
+   */
+  bool allow_idtype_mismatch = false;
+
+  void clear()
   {
     mappings_.clear();
+    never_null_users_.clear();
     source_types_ = 0;
   }
 
-  bool is_empty(void) const
+  bool is_empty() const
   {
     return mappings_.is_empty();
   }
@@ -302,19 +321,29 @@ class IDRemapper {
                               IDRemapperApplyOptions options,
                               ID *id_self = nullptr) const;
 
+  void never_null_users_add(ID *id)
+  {
+    never_null_users_.add(id);
+  }
+
+  const Set<ID *> &never_null_users() const
+  {
+    return never_null_users_;
+  }
+
   /** Iterate over all remapping pairs in the remapper, and call the callback function on them. */
-  void iter(IDRemapperIterFunction func, void *user_data) const
+  void iter(FunctionRef<void(ID *old_id, ID *new_id)> func) const
   {
     for (auto item : mappings_.items()) {
-      func(item.key, item.value, user_data);
+      func(item.key, item.value);
     }
   }
 
   /** Return a readable string for the given result. Can be used for debugging purposes. */
-  static const blender::StringRefNull result_to_string(const IDRemapperApplyResult result);
+  static StringRefNull result_to_string(const IDRemapperApplyResult result);
 
   /** Print out the rules inside the given id_remapper. Can be used for debugging purposes. */
-  void print(void) const;
+  void print() const;
 };
 
 }  // namespace blender::bke::id

@@ -11,7 +11,7 @@
  */
 
 #include "BKE_global.hh"
-#include "BKE_idprop.h"
+#include "BKE_idprop.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 
@@ -23,7 +23,7 @@
 #include "GHOST_C-api.h"
 
 #ifdef WIN32
-#  include "GPU_platform.h"
+#  include "GPU_platform.hh"
 #endif
 
 #include "MEM_guardedalloc.h"
@@ -44,7 +44,7 @@ static void wm_xr_error_handler(const GHOST_XrError *error)
   wmWindowManager *wm = handler_data->wm;
   wmWindow *root_win = wm->xr.runtime ? wm->xr.runtime->session_root_win : nullptr;
 
-  BKE_reports_clear(&wm->reports);
+  BKE_reports_clear(&wm->runtime->reports);
   WM_report(RPT_ERROR, error->user_message);
   /* Rely on the fallback when `root_win` is nullptr. */
   WM_report_banner_show(wm, root_win);
@@ -62,7 +62,7 @@ bool wm_xr_init(wmWindowManager *wm)
   }
   static wmXrErrorHandlerData error_customdata;
 
-  /* Set up error handling */
+  /* Set up error handling. */
   error_customdata.wm = wm;
   GHOST_XrErrorHandler(wm_xr_error_handler, &error_customdata);
 
@@ -95,11 +95,13 @@ bool wm_xr_init(wmWindowManager *wm)
       return false;
     }
 
-    /* Set up context callbacks */
+    /* Set up context callbacks. */
     GHOST_XrGraphicsContextBindFuncs(context,
                                      wm_xr_session_gpu_binding_context_create,
                                      wm_xr_session_gpu_binding_context_destroy);
     GHOST_XrDrawViewFunc(context, wm_xr_draw_view);
+    GHOST_XrPassthroughEnabledFunc(context, wm_xr_passthrough_enabled);
+    GHOST_XrDisablePassthroughFunc(context, wm_xr_disable_passthrough);
 
     if (!wm->xr.runtime) {
       wm->xr.runtime = wm_xr_runtime_data_create();
@@ -132,7 +134,7 @@ bool wm_xr_events_handle(wmWindowManager *wm)
       wm_xr_session_actions_update(wm);
     }
 
-    /* wm_window_events_process() uses the return value to determine if it can put the main thread
+    /* #wm_window_events_process() uses the return value to determine if it can put the main thread
      * to sleep for some milliseconds. We never want that to happen while the VR session runs on
      * the main thread. So always return true. */
     return true;
@@ -179,4 +181,4 @@ void wm_xr_runtime_data_free(wmXrRuntimeData **runtime)
   MEM_SAFE_FREE(*runtime);
 }
 
-/** \} */ /* XR Runtime Data */
+/** \} */ /* XR Runtime Data. */

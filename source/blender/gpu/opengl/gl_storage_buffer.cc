@@ -8,7 +8,7 @@
 
 #include "BLI_string.h"
 
-#include "GPU_capabilities.h"
+#include "GPU_capabilities.hh"
 #include "gpu_backend.hh"
 #include "gpu_context_private.hh"
 
@@ -115,8 +115,7 @@ void GLStorageBuf::bind(int slot)
 
 #ifndef NDEBUG
   BLI_assert(slot < 16);
-  /* TODO */
-  // GLContext::get()->bound_ssbo_slots |= 1 << slot;
+  GLContext::get()->bound_ssbo_slots |= 1 << slot;
 #endif
 }
 
@@ -133,8 +132,7 @@ void GLStorageBuf::unbind()
   /* NOTE: This only unbinds the last bound slot. */
   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, slot_, 0);
   /* Hope that the context did not change. */
-  /* TODO */
-  // GLContext::get()->bound_ssbo_slots &= ~(1 << slot_);
+  GLContext::get()->bound_ssbo_slots &= ~(1 << slot_);
 #endif
   slot_ = 0;
 }
@@ -198,6 +196,7 @@ void GLStorageBuf::async_flush_to_host()
         GL_SHADER_STORAGE_BUFFER, 0, size_in_bytes_, GL_MAP_PERSISTENT_BIT | GL_MAP_READ_BIT);
     BLI_assert(persistent_ptr_);
     debug::object_label(GL_SHADER_STORAGE_BUFFER, read_ssbo_id_, name_);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
   }
 
   if (GLContext::direct_state_access_support) {
@@ -206,7 +205,7 @@ void GLStorageBuf::async_flush_to_host()
   else {
     glBindBuffer(GL_COPY_READ_BUFFER, ssbo_id_);
     glBindBuffer(GL_COPY_WRITE_BUFFER, read_ssbo_id_);
-    glCopyBufferSubData(GL_SHADER_STORAGE_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, size_in_bytes_);
+    glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, size_in_bytes_);
     glBindBuffer(GL_COPY_READ_BUFFER, 0);
     glBindBuffer(GL_COPY_WRITE_BUFFER, 0);
   }
@@ -230,10 +229,10 @@ void GLStorageBuf::read(void *data)
   }
 
   while (glClientWaitSync(read_fence_, GL_SYNC_FLUSH_COMMANDS_BIT, 1000) == GL_TIMEOUT_EXPIRED) {
-    /* Repeat until the data is ready.*/
+    /* Repeat until the data is ready. */
   }
   glDeleteSync(read_fence_);
-  read_fence_ = 0;
+  read_fence_ = nullptr;
 
   memcpy(data, persistent_ptr_, size_in_bytes_);
 }

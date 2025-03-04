@@ -8,7 +8,6 @@
  * \note The logic in this file closely follows `editmesh_path.cc`.
  */
 
-#include <cmath>
 #include <cstdlib>
 #include <cstring>
 
@@ -16,16 +15,12 @@
 #include "DNA_windowmanager_types.h"
 #include "MEM_guardedalloc.h"
 
-#include "BLI_ghash.h"
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
-#include "DNA_image_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_space_types.h"
 
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
@@ -672,7 +667,8 @@ static int uv_shortest_path_pick_invoke(bContext *C, wmOperator *op, const wmEve
         index = BM_elem_index_get(ele_dst);
       }
 
-      const int object_index = ED_object_in_mode_to_index(scene, view_layer, OB_MODE_EDIT, obedit);
+      const int object_index = blender::ed::object::object_in_mode_to_index(
+          scene, view_layer, OB_MODE_EDIT, obedit);
       BLI_assert(object_index != -1);
       RNA_int_set(op->ptr, "object_index", object_index);
       RNA_int_set(op->ptr, "index", index);
@@ -696,7 +692,8 @@ static int uv_shortest_path_pick_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  Object *obedit = ED_object_in_mode_from_index(scene, view_layer, OB_MODE_EDIT, object_index);
+  Object *obedit = blender::ed::object::object_in_mode_from_index(
+      scene, view_layer, OB_MODE_EDIT, object_index);
   if (obedit == nullptr) {
     return OPERATOR_CANCELLED;
   }

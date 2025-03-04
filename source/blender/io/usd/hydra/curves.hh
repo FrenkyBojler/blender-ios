@@ -9,9 +9,6 @@
 
 #include "BLI_set.hh"
 
-#include "BKE_duplilist.h"
-
-#include "DNA_curves_types.h"
 #include "DNA_particle_types.h"
 
 #include "material.hh"

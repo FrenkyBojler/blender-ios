@@ -14,6 +14,7 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_assert.h"
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 
 #include "BKE_collection.hh"
@@ -129,7 +130,7 @@ void BKE_light_linking_collection_assign(Main *bmain,
 {
   BKE_light_linking_collection_assign_only(object, new_collection, link_type);
 
-  DEG_id_tag_update(&object->id, ID_RECALC_COPY_ON_WRITE | ID_RECALC_SHADING);
+  DEG_id_tag_update(&object->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_SHADING);
   DEG_relations_tag_update(bmain);
 }
 
@@ -433,6 +434,9 @@ bool BKE_light_linking_unlink_id_from_collection(Main *bmain,
   }
 
   DEG_id_tag_update(&collection->id, ID_RECALC_HIERARCHY);
+  if (id_type == ID_OB) {
+    DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
+  }
 
   DEG_relations_tag_update(bmain);
 

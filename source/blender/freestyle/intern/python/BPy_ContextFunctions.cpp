@@ -15,10 +15,6 @@
 
 using namespace Freestyle;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------ MODULE FUNCTIONS ----------------------------------
@@ -76,7 +72,7 @@ PyDoc_STRVAR(
     "   Returns the border.\n"
     "\n"
     "   :return: A tuple of 4 numbers (xmin, ymin, xmax, ymax).\n"
-    "   :rtype: tuple\n");
+    "   :rtype: tuple[int, int, int, int]\n");
 
 static PyObject *ContextFunctions_get_border(PyObject * /*self*/)
 {
@@ -330,14 +326,9 @@ int ContextFunctions_Init(PyObject *module)
   if (m == nullptr) {
     return -1;
   }
-  Py_INCREF(m);
-  PyModule_AddObject(module, "ContextFunctions", m);
+  PyModule_AddObjectRef(module, "ContextFunctions", m);
 
   return 0;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

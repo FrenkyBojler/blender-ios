@@ -8,8 +8,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_utildefines.h"
-
 #include "ED_gizmo_utils.hh"
 #include "ED_screen.hh"
 
@@ -17,7 +15,7 @@
 
 #include "WM_types.hh"
 
-#include "view3d_intern.h" /* own include */
+#include "view3d_intern.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
 /** \name Mesh Pre-Select Element Gizmo

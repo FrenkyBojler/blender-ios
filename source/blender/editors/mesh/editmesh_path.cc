@@ -6,8 +6,6 @@
  * \ingroup edmesh
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -24,6 +22,7 @@
 #include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
+#include "BKE_mesh_types.hh"
 #include "BKE_report.hh"
 
 #include "ED_mesh.hh"
@@ -356,7 +355,7 @@ static void edgetag_set_cb(BMEdge *e, bool val, void *user_data_v)
 
 static void edgetag_ensure_cd_flag(Mesh *mesh, const char edge_mode)
 {
-  BMesh *bm = mesh->edit_mesh->bm;
+  BMesh *bm = mesh->runtime->edit_mesh->bm;
 
   switch (edge_mode) {
     case EDGE_MODE_TAG_CREASE:
@@ -626,6 +625,12 @@ static void mouse_mesh_shortest_path_face(Scene * /*scene*/,
       BM_select_history_store(bm, f_dst_last);
     }
     BM_mesh_active_face_set(bm, f_dst_last);
+
+    if (f_dst_last->mat_nr != obedit->actcol - 1) {
+      obedit->actcol = f_dst_last->mat_nr + 1;
+      em->mat_nr = f_dst_last->mat_nr;
+      WM_main_add_notifier(NC_MATERIAL | ND_SHADING_LINKS, nullptr);
+    }
   }
 
   EDBMUpdate_Params params{};
@@ -722,7 +727,7 @@ static int edbm_shortest_path_pick_invoke(bContext *C, wmOperator *op, const wmE
   Base *basact = BKE_view_layer_active_base_get(vc.view_layer);
   BMEditMesh *em = vc.em;
 
-  view3d_operator_needs_opengl(C);
+  view3d_operator_needs_gpu(C);
 
   {
     int base_index = -1;
@@ -774,7 +779,7 @@ static int edbm_shortest_path_pick_invoke(bContext *C, wmOperator *op, const wmE
 
   BKE_view_layer_synced_ensure(vc.scene, vc.view_layer);
   if (BKE_view_layer_active_base_get(vc.view_layer) != basact) {
-    ED_object_base_activate(C, basact);
+    blender::ed::object::base_activate(C, basact);
   }
 
   /* to support redo */

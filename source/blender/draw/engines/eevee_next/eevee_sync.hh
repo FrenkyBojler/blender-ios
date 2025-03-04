@@ -11,7 +11,7 @@
 
 #pragma once
 
-#include "BKE_duplilist.h"
+#include "BKE_duplilist.hh"
 #include "BLI_ghash.h"
 #include "BLI_map.hh"
 #include "DEG_depsgraph_query.hh"
@@ -47,13 +47,13 @@ class ObjectKey {
  public:
   ObjectKey() = default;
 
-  ObjectKey(Object *ob, int sub_key = 0)
+  ObjectKey(const ObjectRef &ob_ref, int sub_key = 0)
   {
-    ob_ = DEG_get_original_object(ob);
+    ob_ = DEG_get_original_object(ob_ref.object);
     hash_value_ = BLI_ghashutil_ptrhash(ob_);
 
-    if (DupliObject *dupli = DRW_object_get_dupli(ob)) {
-      parent_ = DRW_object_get_dupli_parent(ob);
+    if (DupliObject *dupli = ob_ref.dupli_object) {
+      parent_ = ob_ref.dupli_parent;
       hash_value_ = BLI_ghashutil_combine_hash(hash_value_, BLI_ghashutil_ptrhash(parent_));
       for (int i : IndexRange(MAX_DUPLI_RECUR)) {
         id_[i] = dupli->persistent_id[i];
@@ -155,35 +155,21 @@ class SyncModule {
 
   Map<ObjectKey, ObjectHandle> ob_handles = {};
 
-  bool world_updated_;
-
  public:
   SyncModule(Instance &inst) : inst_(inst){};
   ~SyncModule(){};
 
-  void view_update();
-
   ObjectHandle &sync_object(const ObjectRef &ob_ref);
-  WorldHandle sync_world();
+  WorldHandle sync_world(const ::World &world);
 
-  void sync_mesh(Object *ob,
-                 ObjectHandle &ob_handle,
-                 ResourceHandle res_handle,
-                 const ObjectRef &ob_ref);
-  bool sync_sculpt(Object *ob,
-                   ObjectHandle &ob_handle,
-                   ResourceHandle res_handle,
-                   const ObjectRef &ob_ref);
-  void sync_point_cloud(Object *ob,
-                        ObjectHandle &ob_handle,
-                        ResourceHandle res_handle,
-                        const ObjectRef &ob_ref);
-  void sync_volume(Object *ob, ObjectHandle &ob_handle, ResourceHandle res_handle);
-  void sync_gpencil(Object *ob, ObjectHandle &ob_handle, ResourceHandle res_handle);
+  void sync_mesh(Object *ob, ObjectHandle &ob_handle, const ObjectRef &ob_ref);
+  bool sync_sculpt(Object *ob, ObjectHandle &ob_handle, const ObjectRef &ob_ref);
+  void sync_pointcloud(Object *ob, ObjectHandle &ob_handle, const ObjectRef &ob_ref);
+  void sync_volume(Object *ob, ObjectHandle &ob_handle, const ObjectRef &ob_ref);
   void sync_curves(Object *ob,
                    ObjectHandle &ob_handle,
-                   ResourceHandle res_handle,
                    const ObjectRef &ob_ref,
+                   ResourceHandle res_handle = 0,
                    ModifierData *modifier_data = nullptr,
                    ParticleSystem *particle_sys = nullptr);
 };

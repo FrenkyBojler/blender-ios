@@ -6,11 +6,9 @@
  * \ingroup spscript
  */
 
-#include <cstdio>
 #include <cstring>
 
 #include "BLI_listbase.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
 #include "BKE_report.hh"
@@ -26,10 +24,10 @@
 
 #include "ED_screen.hh"
 
-#include "script_intern.h" /* own include */
+#include "script_intern.hh" /* own include */
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern_run.h"
+#  include "BPY_extern_run.hh"
 #endif
 
 static int run_pyfile_exec(bContext *C, wmOperator *op)

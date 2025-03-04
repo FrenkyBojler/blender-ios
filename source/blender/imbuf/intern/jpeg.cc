@@ -18,7 +18,7 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_idprop.h"
+#include "BKE_idprop.hh"
 
 #include "DNA_ID.h" /* ID property definitions. */
 
@@ -292,7 +292,9 @@ static ImBuf *ibJpegImageFromCinfo(
       jpeg_abort_decompress(cinfo);
       ibuf = IMB_allocImBuf(x, y, 8 * depth, 0);
     }
-    else if ((ibuf = IMB_allocImBuf(x, y, 8 * depth, IB_rect)) == nullptr) {
+    else if ((ibuf = IMB_allocImBuf(x, y, 8 * depth, IB_byte_data | IB_uninitialized_pixels)) ==
+             nullptr)
+    {
       jpeg_abort_decompress(cinfo);
     }
     else {
@@ -302,7 +304,7 @@ static ImBuf *ibJpegImageFromCinfo(
 
       for (y = ibuf->y - 1; y >= 0; y--) {
         jpeg_read_scanlines(cinfo, row_pointer, 1);
-        rect = ibuf->byte_buffer.data + 4 * y * ibuf->x;
+        rect = ibuf->byte_buffer.data + 4 * y * size_t(ibuf->x);
         buffer = row_pointer[0];
 
         switch (depth) {
@@ -618,7 +620,7 @@ static void write_jpeg(jpeg_compress_struct *cinfo, ImBuf *ibuf)
       sizeof(JSAMPLE) * cinfo->input_components * cinfo->image_width, "jpeg row_pointer"));
 
   for (y = ibuf->y - 1; y >= 0; y--) {
-    rect = ibuf->byte_buffer.data + 4 * y * ibuf->x;
+    rect = ibuf->byte_buffer.data + 4 * y * size_t(ibuf->x);
     buffer = row_pointer[0];
 
     switch (cinfo->in_color_space) {
@@ -660,9 +662,7 @@ static int init_jpeg(FILE *outfile, jpeg_compress_struct *cinfo, ImBuf *ibuf)
   if (quality <= 0) {
     quality = jpeg_default_quality;
   }
-  if (quality > 100) {
-    quality = 100;
-  }
+  quality = std::min(quality, 100);
 
   jpeg_create_compress(cinfo);
   jpeg_stdio_dest(cinfo, outfile);

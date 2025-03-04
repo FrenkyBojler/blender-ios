@@ -12,7 +12,6 @@
 
 #include "BLI_array.hh"
 #include "BLI_string.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
 #include "BKE_global.hh"
@@ -129,7 +128,7 @@ static bool interactive_value_update(ValueInteraction *inter,
                       value_scale;
   if (event->modifier & KM_CTRL) {
     const double snap = 0.1;
-    value_delta = float(roundf(double(value_delta) / snap)) * snap;
+    value_delta = roundf(double(value_delta) / snap) * snap;
   }
   if (event->modifier & KM_SHIFT) {
     value_delta *= 0.1f;
@@ -138,7 +137,7 @@ static bool interactive_value_update(ValueInteraction *inter,
 
   const bool changed = value_final != inter->prev.prop_value;
   if (changed) {
-    /* set the property for the operator and call its modal function */
+    /* Set the property for the operator and call its modal function. */
     char str[64];
     SNPRINTF(str, "%.4f", value_final);
     ED_area_status_text(inter->context_vars.area, str);
@@ -169,7 +168,7 @@ struct ObCustomData_ForEditMode {
   ValueInteraction inter;
 
   /** This could be split into a sub-type if we support different kinds of data. */
-  blender::Array<XFormObjectData *> objects_xform;
+  blender::Array<std::unique_ptr<blender::ed::object::XFormObjectData>> objects_xform;
 };
 
 /* Internal callback to free. */
@@ -178,12 +177,6 @@ static void op_generic_value_exit(wmOperator *op)
   ObCustomData_ForEditMode *cd = static_cast<ObCustomData_ForEditMode *>(op->customdata);
   if (cd) {
     interactive_value_exit(&cd->inter);
-
-    for (XFormObjectData *xod : cd->objects_xform) {
-      if (xod != nullptr) {
-        ED_object_data_xform_destroy(xod);
-      }
-    }
     MEM_delete(cd);
   }
 
@@ -193,9 +186,9 @@ static void op_generic_value_exit(wmOperator *op)
 static void op_generic_value_restore(wmOperator *op)
 {
   ObCustomData_ForEditMode *cd = static_cast<ObCustomData_ForEditMode *>(op->customdata);
-  for (XFormObjectData *xod : cd->objects_xform) {
-    ED_object_data_xform_restore(xod);
-    ED_object_data_xform_tag_update(xod);
+  for (std::unique_ptr<blender::ed::object::XFormObjectData> &xod : cd->objects_xform) {
+    blender::ed::object::data_xform_restore(*xod);
+    blender::ed::object::data_xform_tag_update(*xod);
   }
 }
 
@@ -231,7 +224,7 @@ static int op_generic_value_invoke(bContext *C, wmOperator *op, const wmEvent *e
   cd->objects_xform.reinitialize(objects.size());
   for (const int i : objects.index_range()) {
     Object *obedit = objects[i];
-    cd->objects_xform[i] = ED_object_data_xform_create_from_edit_mode(
+    cd->objects_xform[i] = blender::ed::object::data_xform_create_from_edit_mode(
         static_cast<ID *>(obedit->data));
   }
 

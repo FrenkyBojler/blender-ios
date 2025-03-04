@@ -6,15 +6,14 @@
  * \ingroup eevee
  */
 
-// #include "BLI_map.hh"
 #include "BKE_colortools.hh"
-#include "DEG_depsgraph_query.hh"
+
+#include "RE_engine.h"
+
+#include "GPU_debug.hh"
 
 #include "eevee_instance.hh"
 #include "eevee_motion_blur.hh"
-// #include "eevee_sampling.hh"
-// #include "eevee_shader_shared.hh"
-// #include "eevee_velocity.hh"
 
 namespace blender::eevee {
 
@@ -28,7 +27,9 @@ void MotionBlurModule::init()
   const Scene *scene = inst_.scene;
   const ViewLayer *view_layer = inst_.view_layer;
 
-  enabled_ = (scene->r.mode & R_MBLUR) != 0;
+  /* Disable on viewport outside of animation playback,
+   * since it can get distracting while editing the scene. */
+  enabled_ = (scene->r.mode & R_MBLUR) != 0 && (inst_.is_image_render() || inst_.is_playback());
   if (enabled_) {
     enabled_ = (view_layer->layflag & SCE_LAY_MOTION_BLUR) != 0;
   }
@@ -118,7 +119,7 @@ float MotionBlurModule::shutter_time_to_scene_time(float time)
       time -= 1.0;
       break;
     default:
-      BLI_assert(!"Invalid motion blur position enum!");
+      BLI_assert_msg(false, "Invalid motion blur position enum!");
       break;
   }
   time *= shutter_time_;
@@ -131,7 +132,7 @@ void MotionBlurModule::sync()
   /* Disable motion blur in viewport when changing camera projection type.
    * Avoids really high velocities. */
   if (inst_.velocity.camera_changed_projection() ||
-      (inst_.is_viewport() && inst_.camera.overscan_changed()))
+      (inst_.is_viewport() && (inst_.camera.overscan_changed() || inst_.camera.camera_changed())))
   {
     motion_blur_fx_enabled_ = false;
   }
@@ -200,7 +201,7 @@ void MotionBlurModule::render(View &view, GPUTexture **input_tx, GPUTexture **ou
   if (inst_.is_viewport()) {
     float frame_delta = fabsf(inst_.velocity.step_time_delta_get(STEP_PREVIOUS, STEP_CURRENT));
     /* Avoid highly disturbing blurs, during navigation with high shutter time. */
-    if (frame_delta > 0.0f && !DRW_state_is_navigating()) {
+    if (frame_delta > 0.0f && !inst_.is_navigating()) {
       /* Rescale motion blur intensity to be shutter time relative and avoid long streak when we
        * have frame skipping. Always try to stick to what the render frame would look like. */
       data_.motion_scale = float2(shutter_time_ / frame_delta);
@@ -210,15 +211,15 @@ void MotionBlurModule::render(View &view, GPUTexture **input_tx, GPUTexture **ou
        * Apply motion blur as smoothing and only blur towards last frame. */
       data_.motion_scale = float2(1.0f, 0.0f);
 
-      if (was_navigating_ != DRW_state_is_navigating()) {
+      if (was_navigating_ != inst_.is_navigating()) {
         /* Special case for navigation events that only last for one frame (for instance mouse
          * scroll for zooming). For this case we have to wait for the next frame before enabling
          * the navigation motion blur. */
-        was_navigating_ = DRW_state_is_navigating();
+        was_navigating_ = inst_.is_navigating();
         return;
       }
     }
-    was_navigating_ = DRW_state_is_navigating();
+    was_navigating_ = inst_.is_navigating();
   }
   else {
     data_.motion_scale = float2(1.0f);
@@ -235,28 +236,17 @@ void MotionBlurModule::render(View &view, GPUTexture **input_tx, GPUTexture **ou
   dispatch_dilate_size_ = int3(math::divide_ceil(tiles_extent, int2(MOTION_BLUR_GROUP_SIZE)), 1);
   dispatch_gather_size_ = int3(math::divide_ceil(extent, int2(MOTION_BLUR_GROUP_SIZE)), 1);
 
-  DRW_stats_group_start("Motion Blur");
+  GPU_debug_group_begin("Motion Blur");
 
   tiles_tx_.acquire(tiles_extent, GPU_RGBA16F);
 
   tile_indirection_buf_.clear_to_zero();
 
-  const bool do_motion_vectors_swizzle = inst_.render_buffers.vector_tx_format() == GPU_RG16F;
-  if (do_motion_vectors_swizzle) {
-    /* Change texture swizzling to avoid complexity in gather pass shader. */
-    GPU_texture_swizzle_set(inst_.render_buffers.vector_tx, "rgrg");
-  }
-
   inst_.manager->submit(motion_blur_ps_, view);
-
-  if (do_motion_vectors_swizzle) {
-    /* Reset swizzle since this texture might be reused in other places. */
-    GPU_texture_swizzle_set(inst_.render_buffers.vector_tx, "rgba");
-  }
 
   tiles_tx_.release();
 
-  DRW_stats_group_end();
+  GPU_debug_group_end();
 
   /* Swap buffers so that next effect has the right input. */
   *input_tx = output_color_tx_;

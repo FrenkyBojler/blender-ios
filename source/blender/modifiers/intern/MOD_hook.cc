@@ -20,13 +20,14 @@
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_colortools.hh"
 #include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
+#include "BKE_object_types.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -34,7 +35,7 @@
 #include "BLO_read_write.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -113,7 +114,7 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
     }
     DEG_add_object_relation(ctx->node, hmd->object, DEG_OB_COMP_TRANSFORM, "Hook Modifier");
   }
-  /* We need own transformation as well. */
+  /* We need our own transformation as well. */
   DEG_add_depends_on_transform_relation(ctx->node, "Hook Modifier");
 }
 
@@ -265,7 +266,7 @@ static void deformVerts_do(HookModifierData *hmd,
                            const ModifierEvalContext * /*ctx*/,
                            Object *ob,
                            Mesh *mesh,
-                           BMEditMesh *em,
+                           const BMEditMesh *em,
                            blender::MutableSpan<blender::float3> positions)
 {
   Object *ob_target = hmd->object;
@@ -331,14 +332,14 @@ static void deformVerts_do(HookModifierData *hmd,
   /* get world-space matrix of target, corrected for the space the verts are in */
   if (hmd->subtarget[0] && pchan) {
     /* bone target if there's a matching pose-channel */
-    mul_m4_m4m4(dmat, ob_target->object_to_world, pchan->pose_mat);
+    mul_m4_m4m4(dmat, ob_target->object_to_world().ptr(), pchan->pose_mat);
   }
   else {
     /* just object target */
-    copy_m4_m4(dmat, ob_target->object_to_world);
+    copy_m4_m4(dmat, ob_target->object_to_world().ptr());
   }
-  invert_m4_m4(ob->world_to_object, ob->object_to_world);
-  mul_m4_series(hd.mat, ob->world_to_object, dmat, hmd->parentinv);
+  invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
+  mul_m4_series(hd.mat, ob->world_to_object().ptr(), dmat, hmd->parentinv);
   /* --- done with 'hd' init --- */
 
   /* Regarding index range checking below.
@@ -429,7 +430,7 @@ static void deform_verts(ModifierData *md,
 
 static void deform_verts_EM(ModifierData *md,
                             const ModifierEvalContext *ctx,
-                            BMEditMesh *em,
+                            const BMEditMesh *em,
                             Mesh *mesh,
                             blender::MutableSpan<blender::float3> positions)
 {
@@ -456,7 +457,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetPropSep(layout, true);
 
   col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "object", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (!RNA_pointer_is_null(&hook_object_ptr) &&
       RNA_enum_get(&hook_object_ptr, "type") == OB_ARMATURE)
   {
@@ -464,9 +465,9 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
     uiItemPointerR(
         col, ptr, "subtarget", &hook_object_data_ptr, "bones", IFACE_("Bone"), ICON_NONE);
   }
-  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", nullptr);
+  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
-  uiItemR(layout, ptr, "strength", UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "strength", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 
   if (RNA_enum_get(&ob_ptr, "mode") == OB_MODE_EDIT) {
     row = uiLayoutRow(layout, true);
@@ -495,9 +496,9 @@ static void falloff_panel_draw(const bContext * /*C*/, Panel *panel)
 
   row = uiLayoutRow(layout, false);
   uiLayoutSetActive(row, use_falloff);
-  uiItemR(row, ptr, "falloff_radius", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(row, ptr, "falloff_radius", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemR(layout, ptr, "use_falloff_uniform", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "use_falloff_uniform", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (RNA_enum_get(ptr, "falloff_type") == eWarp_Falloff_Curve) {
     uiTemplateCurveMapping(layout, ptr, "falloff_curve", 0, false, false, false, false);
@@ -528,7 +529,7 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
 {
   HookModifierData *hmd = (HookModifierData *)md;
 
-  BLO_read_data_address(reader, &hmd->curfalloff);
+  BLO_read_struct(reader, CurveMapping, &hmd->curfalloff);
   if (hmd->curfalloff) {
     BKE_curvemapping_blend_read(reader, hmd->curfalloff);
   }

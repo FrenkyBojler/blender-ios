@@ -8,7 +8,9 @@
 
 #pragma once
 
-#include "gpu_vertex_buffer_private.hh"
+#include "BLI_sys_types.h"
+
+#include "GPU_vertex_buffer.hh"
 
 namespace blender::gpu {
 
@@ -25,13 +27,13 @@ class DummyVertexBuffer : public VertBuf {
  protected:
   void acquire_data() override
   {
-    MEM_SAFE_FREE(data);
-    data = (uchar *)MEM_mallocN(sizeof(uchar) * this->size_alloc_get(), __func__);
+    MEM_SAFE_FREE(data_);
+    data_ = (uchar *)MEM_mallocN(sizeof(uchar) * this->size_alloc_get(), __func__);
   }
   void resize_data() override {}
   void release_data() override
   {
-    MEM_SAFE_FREE(data);
+    MEM_SAFE_FREE(data_);
   }
   void upload_data() override {}
   void duplicate_data(VertBuf * /*dst*/) override {}

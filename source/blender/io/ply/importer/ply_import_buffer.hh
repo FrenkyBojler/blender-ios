@@ -8,8 +8,7 @@
 
 #pragma once
 
-#include <stddef.h>
-#include <stdio.h>
+#include <cstdio>
 
 #include "BLI_array.hh"
 #include "BLI_span.hh"
@@ -42,7 +41,6 @@ class PlyReadBuffer {
  private:
   bool refill_buffer();
 
- private:
   FILE *file_ = nullptr;
   Array<char> buffer_;
   int pos_ = 0;

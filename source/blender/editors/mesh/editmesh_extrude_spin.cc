@@ -26,8 +26,6 @@
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
 
-#include "MEM_guardedalloc.h"
-
 #include "mesh_intern.hh" /* own include */
 
 using blender::Vector;
@@ -79,7 +77,7 @@ static int edbm_spin_exec(bContext *C, wmOperator *op)
                       d,
                       steps,
                       -angle,
-                      obedit->object_to_world,
+                      obedit->object_to_world().ptr(),
                       use_normal_flip,
                       dupli,
                       use_auto_merge))

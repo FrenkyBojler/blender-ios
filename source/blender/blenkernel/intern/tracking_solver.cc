@@ -18,15 +18,14 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
-#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
-#include "BKE_fcurve.h"
+#include "BKE_fcurve.hh"
 #include "BKE_movieclip.h"
 #include "BKE_tracking.h"
 
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "libmv-capi.h"
 #include "tracking_private.h"
@@ -71,7 +70,7 @@ static libmv_Tracks *libmv_tracks_new(MovieClip *clip, ListBase *tracksbase, int
 
   track = static_cast<MovieTrackingTrack *>(tracksbase->first);
   while (track) {
-    FCurve *weight_fcurve = id_data_find_fcurve(
+    const FCurve *weight_fcurve = id_data_find_fcurve(
         &clip->id, track, &RNA_MovieTrackingTrack, "weight", 0, nullptr);
 
     for (int a = 0; a < track->markersnr; a++) {

@@ -23,18 +23,25 @@
 
 #include "BLI_string_ref.hh"
 
-struct bScreen;
+struct AssetWeakReference;
+struct Main;
+
+namespace blender::asset_system {
+class AssetLibrary;
+}
 
 namespace blender::ed::asset {
 
 void catalogs_save_from_main_path(asset_system::AssetLibrary *library, const Main *bmain);
+void catalogs_save_from_asset_reference(asset_system::AssetLibrary &library,
+                                        const AssetWeakReference &reference);
 
 /**
  * Saving catalog edits when the file is saved is a global option shared for each asset library,
  * and as such ignores the per asset library #catalogs_read_only().
  */
 void catalogs_set_save_catalogs_when_file_is_saved(bool should_save);
-bool catalogs_get_save_catalogs_when_file_is_saved(void);
+bool catalogs_get_save_catalogs_when_file_is_saved();
 
 /**
  * Returns if the catalogs of \a library are allowed to be editable, or if the UI should forbid

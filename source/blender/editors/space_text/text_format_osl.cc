@@ -4,11 +4,14 @@
 
 /** \file
  * \ingroup sptext
+ *
+ * Note that this formatter shares core logic with `text_format_glsl.cc`,
+ * improvements here may apply there too.
  */
 
 #include <cstring>
 
-#include "BLI_blenlib.h"
+#include "BLI_string_utf8.h"
 
 #include "DNA_space_types.h"
 #include "DNA_text_types.h"

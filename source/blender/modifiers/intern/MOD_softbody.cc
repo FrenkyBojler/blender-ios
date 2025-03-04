@@ -6,10 +6,6 @@
  * \ingroup modifiers
  */
 
-#include <cstdio>
-
-#include "BLI_utildefines.h"
-
 #include "BLT_translation.hh"
 
 #include "DNA_object_force_types.h"
@@ -20,7 +16,7 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -62,7 +58,7 @@ static void update_depsgraph(ModifierData * /*md*/, const ModifierUpdateDepsgrap
     DEG_add_forcefield_relations(
         ctx->node, ctx->object, ctx->object->soft->effector_weights, true, 0, "Softbody Field");
   }
-  /* We need own transformation as well. */
+  /* We need our own transformation as well. */
   DEG_add_depends_on_transform_relation(ctx->node, "SoftBody Modifier");
 }
 

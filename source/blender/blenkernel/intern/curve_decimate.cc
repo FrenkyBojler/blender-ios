@@ -18,9 +18,9 @@ extern "C" {
 #include "curve_fit_nd.h"
 }
 
-#include "BLI_strict_flags.h"
-
 #include <cstring>
+
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 struct Knot {
   Knot *next, *prev;

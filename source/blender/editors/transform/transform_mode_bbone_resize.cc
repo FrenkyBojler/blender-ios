@@ -27,6 +27,8 @@
 
 #include "transform_mode.hh"
 
+namespace blender::ed::transform {
+
 /* -------------------------------------------------------------------- */
 /** \name Transform (EditBone B-Bone width scaling)
  * \{ */
@@ -35,7 +37,7 @@ static void headerBoneSize(TransInfo *t, const float vec[3], char str[UI_MAX_DRA
 {
   char tvec[NUM_STR_REP_LEN * 3];
   if (hasNumInput(&t->num)) {
-    outputNumInput(&(t->num), tvec, &t->scene->unit);
+    outputNumInput(&(t->num), tvec, t->scene->unit);
   }
   else {
     BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, "%.4f", vec[0]);
@@ -43,7 +45,7 @@ static void headerBoneSize(TransInfo *t, const float vec[3], char str[UI_MAX_DRA
     BLI_snprintf(&tvec[NUM_STR_REP_LEN * 2], NUM_STR_REP_LEN, "%.4f", vec[2]);
   }
 
-  /* hmm... perhaps the y-axis values don't need to be shown? */
+  /* Hmm... perhaps the y-axis values don't need to be shown? */
   if (t->con.mode & CON_APPLY) {
     if (t->num.idx_max == 0) {
       BLI_snprintf(
@@ -87,7 +89,7 @@ static void ElementBoneSize(TransInfo *t,
     t->con.applySize(t, tc, td, tmat);
   }
 
-  /* we've tucked the scale in loc */
+  /* We've tucked the scale in loc. */
   oldy = td->iloc[1];
   size_to_mat3(sizemat, td->iloc);
   mul_m3_m3m3(tmat, tmat, sizemat);
@@ -128,7 +130,7 @@ static void applyBoneSize(TransInfo *t)
     }
   }
 
-  copy_m3_m3(t->mat, mat); /* used in gizmo */
+  copy_m3_m3(t->mat, mat); /* Used in gizmo. */
 
   headerBoneSize(t, t->values_final, str);
 
@@ -182,3 +184,5 @@ TransModeInfo TransMode_bboneresize = {
     /*snap_apply_fn*/ nullptr,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

@@ -5,9 +5,8 @@
 
 #include "usd_reader_xform.hh"
 
-#include <pxr/usd/usdGeom/xform.h>
-
 struct Collection;
+struct Main;
 
 namespace blender::io::usd {
 
@@ -19,9 +18,15 @@ class USDInstanceReader : public USDXformReader {
  public:
   USDInstanceReader(const pxr::UsdPrim &prim,
                     const USDImportParams &import_params,
-                    const ImportSettings &settings);
+                    const ImportSettings &settings)
+      : USDXformReader(prim, import_params, settings)
+  {
+  }
 
-  bool valid() const override;
+  bool valid() const override
+  {
+    return prim_.IsValid() && prim_.IsInstance();
+  }
 
   /**
    * Create an object that instances a collection.

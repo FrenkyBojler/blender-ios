@@ -11,11 +11,7 @@
 #include <cstdlib>
 
 #include "DNA_gpencil_legacy_types.h"
-#include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_shader_fx_types.h"
-
-#include "MEM_guardedalloc.h"
 
 #include "BLI_math_rotation.h"
 
@@ -23,7 +19,6 @@
 
 #include "BKE_animsys.h"
 
-#include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
@@ -282,7 +277,7 @@ static void rna_def_shader_fx_wave(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
-  static EnumPropertyItem prop_shaderfx_wave_type_items[] = {
+  static const EnumPropertyItem prop_shaderfx_wave_type_items[] = {
       {0, "HORIZONTAL", 0, "Horizontal", ""},
       {1, "VERTICAL", 0, "Vertical", ""},
       {0, nullptr, 0, nullptr, nullptr}};
@@ -406,7 +401,7 @@ static void rna_def_shader_fx_rim(BlenderRNA *brna)
 
 static void rna_def_shader_fx_shadow(BlenderRNA *brna)
 {
-  static EnumPropertyItem prop_shaderfx_shadow_type_items[] = {
+  static const EnumPropertyItem prop_shaderfx_shadow_type_items[] = {
       {0, "HORIZONTAL", 0, "Horizontal", ""},
       {1, "VERTICAL", 0, "Vertical", ""},
       {0, nullptr, 0, nullptr, nullptr}};
@@ -659,7 +654,7 @@ void RNA_def_shader_fx(BlenderRNA *brna)
 
   /* data */
   srna = RNA_def_struct(brna, "ShaderFx", nullptr);
-  RNA_def_struct_ui_text(srna, "ShaderFx", "Effect affecting the grease pencil object");
+  RNA_def_struct_ui_text(srna, "ShaderFx", "Effect affecting the Grease Pencil object");
   RNA_def_struct_refine_func(srna, "rna_ShaderFx_refine");
   RNA_def_struct_path_func(srna, "rna_ShaderFx_path");
   RNA_def_struct_sdna(srna, "ShaderFxData");

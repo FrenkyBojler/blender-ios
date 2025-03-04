@@ -3,22 +3,23 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
 
-struct Main;
-
-#include "WM_types.hh"
-
+#include "BLI_map.hh"
 #include "BLI_set.hh"
+#include "BLI_vector.hh"
 
 #include "usd.hh"
 #include "usd_hash_types.hh"
 #include "usd_reader_prim.hh"
 
-#include <pxr/usd/usd/stage.h>
 #include <pxr/usd/usdGeom/imageable.h>
+#include <pxr/usd/usdLux/domeLight.h>
 
 #include <string>
 
+struct Collection;
 struct ImportSettings;
+struct Main;
+struct ReportList;
 
 namespace blender::io::usd {
 
@@ -41,9 +42,13 @@ class USDStageReader {
 
   blender::Vector<USDPrimReader *> readers_;
 
+  /* USD dome lights are converted to a world material,
+   * rather than light objects, so are handled differently */
+  blender::Vector<pxr::UsdLuxDomeLight> dome_lights_;
+
   /* USD material prim paths encountered during stage
    * traversal, for importing unused materials. */
-  blender::Vector<std::string> material_paths_;
+  blender::Vector<pxr::SdfPath> material_paths_;
 
   /* Readers for scene-graph instance prototypes. */
   ProtoReaderMap proto_readers_;
@@ -54,7 +59,7 @@ class USDStageReader {
  public:
   USDStageReader(pxr::UsdStageRefPtr stage,
                  const USDImportParams &params,
-                 const ImportSettings &settings);
+                 const std::function<CacheFile *()> &get_cache_file_fn = {});
 
   ~USDStageReader();
 
@@ -81,6 +86,19 @@ class USDStageReader {
    * users. This is typically required when importing all
    * materials. */
   void fake_users_for_unused_materials();
+
+  /**
+   * Discover the USD materials that can be converted
+   * by material import hook add-ons.
+   */
+  void find_material_import_hook_sources();
+
+  /**
+   * Invoke USD hook add-ons to convert materials.  This function
+   * should be called from the main thread and not from a
+   * background job.
+   */
+  void call_material_import_hooks(struct Main *bmain) const;
 
   bool valid() const;
 
@@ -112,6 +130,11 @@ class USDStageReader {
     return readers_;
   };
 
+  const blender::Vector<pxr::UsdLuxDomeLight> &dome_lights() const
+  {
+    return dome_lights_;
+  };
+
   void sort_readers();
 
   /**
@@ -134,8 +157,8 @@ class USDStageReader {
    *                            be set to false when converting point instancer
    *                            prototype prims, which can be declared as overs.
    * \param r_readers: Readers created for the prims in the converted subtree.
-   * \return: A pointer to the reader created for the given prim or null if
-   *          the prim cannot be converted.
+   * \return A pointer to the reader created for the given prim or null if
+   *         the prim cannot be converted.
    */
   USDPrimReader *collect_readers(const pxr::UsdPrim &prim,
                                  const UsdPathSet &pruned_prims,
@@ -161,6 +184,13 @@ class USDStageReader {
   bool include_by_purpose(const pxr::UsdGeomImageable &imageable) const;
 
   /**
+   * Returns true if the given reader can use the parent of the encapsulated USD prim
+   * to compute the Blender object's transform. If so, the reader is appropriately
+   * flagged and the function returns true. Otherwise, the function returns false.
+   */
+  bool merge_with_parent(USDPrimReader *reader) const;
+
+  /**
    * Returns true if the specified UsdPrim is a UsdGeom primitive,
    * procedural shape, such as UsdGeomCube.
    */
@@ -170,10 +200,11 @@ class USDStageReader {
    * Iterate over the stage and return the paths of all prototype
    * primitives references by point instancers.
    *
-   * \return: The prototype paths, or an empty path set if the scene
-   *          does not contain any point instancers.
+   * \return The prototype paths, or an empty path set if the scene
+   *         does not contain any point instancers.
    */
   UsdPathSet collect_point_instancer_proto_paths() const;
+  void collect_point_instancer_proto_paths(const pxr::UsdPrim &prim, UsdPathSet &r_paths) const;
 
   /**
    * Populate the instancer_proto_readers_ map for the prototype prims

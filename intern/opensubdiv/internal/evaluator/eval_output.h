@@ -12,9 +12,7 @@
 #include <opensubdiv/osd/mesh.h>
 #include <opensubdiv/osd/types.h>
 
-#include "internal/base/type.h"
-#include "internal/evaluator/evaluator_impl.h"
-
+#include "opensubdiv_evaluator.hh"
 #include "opensubdiv_evaluator_capi.hh"
 
 using OpenSubdiv::Far::PatchTable;
@@ -24,8 +22,7 @@ using OpenSubdiv::Osd::CpuPatchTable;
 using OpenSubdiv::Osd::GLPatchTable;
 using OpenSubdiv::Osd::PatchCoord;
 
-namespace blender {
-namespace opensubdiv {
+namespace blender::opensubdiv {
 
 // Base class for the implementation of the evaluators.
 class EvalOutputAPI::EvalOutput {
@@ -79,43 +76,43 @@ class EvalOutputAPI::EvalOutput {
   // data structure. They need to be overridden in the specific instances of the EvalOutput derived
   // classes if needed, while the interfaces above are overridden through VolatileEvalOutput.
 
-  virtual void fillPatchArraysBuffer(OpenSubdiv_Buffer * /*patch_arrays_buffer*/) {}
+  virtual void fillPatchArraysBuffer(blender::gpu::VertBuf * /*patch_arrays_buffer*/) {}
 
-  virtual void wrapPatchIndexBuffer(OpenSubdiv_Buffer * /*patch_index_buffer*/) {}
+  virtual void wrapPatchIndexBuffer(blender::gpu::VertBuf * /*patch_index_buffer*/) {}
 
-  virtual void wrapPatchParamBuffer(OpenSubdiv_Buffer * /*patch_param_buffer*/) {}
+  virtual void wrapPatchParamBuffer(blender::gpu::VertBuf * /*patch_param_buffer*/) {}
 
-  virtual void wrapSrcBuffer(OpenSubdiv_Buffer * /*src_buffer*/) {}
+  virtual void wrapSrcBuffer(blender::gpu::VertBuf * /*src_buffer*/) {}
 
-  virtual void wrapSrcVertexDataBuffer(OpenSubdiv_Buffer * /*src_buffer*/) {}
+  virtual void wrapSrcVertexDataBuffer(blender::gpu::VertBuf * /*src_buffer*/) {}
 
   virtual void fillFVarPatchArraysBuffer(const int /*face_varying_channel*/,
-                                         OpenSubdiv_Buffer * /*patch_arrays_buffer*/)
+                                         blender::gpu::VertBuf * /*patch_arrays_buffer*/)
   {
   }
 
   virtual void wrapFVarPatchIndexBuffer(const int /*face_varying_channel*/,
-                                        OpenSubdiv_Buffer * /*patch_index_buffer*/)
+                                        blender::gpu::VertBuf * /*patch_index_buffer*/)
   {
   }
 
   virtual void wrapFVarPatchParamBuffer(const int /*face_varying_channel*/,
-                                        OpenSubdiv_Buffer * /*patch_param_buffer*/)
+                                        blender::gpu::VertBuf * /*patch_param_buffer*/)
   {
   }
 
   virtual void wrapFVarSrcBuffer(const int /*face_varying_channel*/,
-                                 OpenSubdiv_Buffer * /*src_buffer*/)
+                                 blender::gpu::VertBuf * /*src_buffer*/)
   {
   }
+
+  virtual int getFVarSrcBufferOffset(const int face_varying_channel) const = 0;
 
   virtual bool hasVertexData() const
   {
     return false;
   }
 };
-
-namespace {
 
 // Buffer which implements API required by OpenSubdiv and uses an existing memory as an underlying
 // storage.
@@ -162,12 +159,11 @@ class ConstPatchCoordWrapperBuffer : public RawDataWrapperVertexBuffer<const Pat
   {
   }
 };
-}  // namespace
 
 // Discriminators used in FaceVaryingVolatileEval in order to detect whether we are using adaptive
 // patches as the CPU and OpenGL PatchTable have different APIs.
-bool is_adaptive(CpuPatchTable *patch_table);
-bool is_adaptive(GLPatchTable *patch_table);
+bool is_adaptive(const CpuPatchTable *patch_table);
+bool is_adaptive(const GLPatchTable *patch_table);
 
 template<typename EVAL_VERTEX_BUFFER,
          typename STENCIL_TABLE,
@@ -176,7 +172,7 @@ template<typename EVAL_VERTEX_BUFFER,
          typename DEVICE_CONTEXT = void>
 class FaceVaryingVolatileEval {
  public:
-  typedef OpenSubdiv::Osd::EvaluatorCacheT<EVALUATOR> EvaluatorCache;
+  using EvaluatorCache = OpenSubdiv::Osd::EvaluatorCacheT<EVALUATOR>;
 
   FaceVaryingVolatileEval(int face_varying_channel,
                           const StencilTable *face_varying_stencils,
@@ -315,17 +311,16 @@ template<typename SRC_VERTEX_BUFFER,
          typename DEVICE_CONTEXT = void>
 class VolatileEvalOutput : public EvalOutputAPI::EvalOutput {
  public:
-  typedef OpenSubdiv::Osd::EvaluatorCacheT<EVALUATOR> EvaluatorCache;
-  typedef FaceVaryingVolatileEval<EVAL_VERTEX_BUFFER,
-                                  STENCIL_TABLE,
-                                  PATCH_TABLE,
-                                  EVALUATOR,
-                                  DEVICE_CONTEXT>
-      FaceVaryingEval;
+  using EvaluatorCache = OpenSubdiv::Osd::EvaluatorCacheT<EVALUATOR>;
+  using FaceVaryingEval = FaceVaryingVolatileEval<EVAL_VERTEX_BUFFER,
+                                                  STENCIL_TABLE,
+                                                  PATCH_TABLE,
+                                                  EVALUATOR,
+                                                  DEVICE_CONTEXT>;
 
   VolatileEvalOutput(const StencilTable *vertex_stencils,
                      const StencilTable *varying_stencils,
-                     const vector<const StencilTable *> &all_face_varying_stencils,
+                     const std::vector<const StencilTable *> &all_face_varying_stencils,
                      const int face_varying_width,
                      const PatchTable *patch_table,
                      EvaluatorCache *evaluator_cache = NULL,
@@ -616,7 +611,7 @@ class VolatileEvalOutput : public EvalOutputAPI::EvalOutput {
     return face_varying_evaluators_[face_varying_channel]->getSrcBuffer();
   }
 
-  int getFVarSrcBufferOffset(const int face_varying_channel) const
+  int getFVarSrcBufferOffset(const int face_varying_channel) const override
   {
     return face_varying_evaluators_[face_varying_channel]->getFVarSrcBufferOffset();
   }
@@ -641,13 +636,12 @@ class VolatileEvalOutput : public EvalOutputAPI::EvalOutput {
   const STENCIL_TABLE *varying_stencils_;
 
   int face_varying_width_;
-  vector<FaceVaryingEval *> face_varying_evaluators_;
+  std::vector<FaceVaryingEval *> face_varying_evaluators_;
 
   EvaluatorCache *evaluator_cache_;
   DEVICE_CONTEXT *device_context_;
 };
 
-}  // namespace opensubdiv
-}  // namespace blender
+}  // namespace blender::opensubdiv
 
 #endif  // OPENSUBDIV_EVAL_OUTPUT_H_

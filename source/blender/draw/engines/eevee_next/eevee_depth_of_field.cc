@@ -22,9 +22,10 @@
 #include "BKE_camera.h"
 #include "DNA_camera_types.h"
 
-#include "GPU_platform.h"
-#include "GPU_texture.h"
-#include "GPU_uniform_buffer.h"
+#include "GPU_platform.hh"
+#include "GPU_texture.hh"
+
+#include "GPU_debug.hh"
 
 #include "eevee_camera.hh"
 #include "eevee_instance.hh"
@@ -70,6 +71,17 @@ void DepthOfField::sync()
                                     reinterpret_cast<const ::Camera *>(camera_object_eval->data) :
                                     nullptr;
 
+  if (inst_.debug_mode == DEBUG_DOF_PLANES) {
+    /* Set debug message even if DOF is not enabled. */
+    inst_.info_append(
+        "Debug Mode: Depth Of Field Buffers\n"
+        " - Purple: Gap Fill\n"
+        " - Blue: Background\n"
+        " - Red: Slight Out Of Focus\n"
+        " - Yellow: In Focus\n"
+        " - Green: Foreground\n");
+  }
+
   if (camera_data == nullptr || (camera_data->dof.flag & CAM_DOF_ENABLED) == 0) {
     jitter_radius_ = 0.0f;
     fx_radius_ = 0.0f;
@@ -93,8 +105,6 @@ void DepthOfField::sync()
   if (camera.is_orthographic()) {
     /* FIXME: Why is this needed? Some kind of implicit unit conversion? */
     aperture *= 0.04f;
-    /* Really strange behavior from Cycles but replicating. */
-    focus_distance_ += camera.data_get().clip_near;
   }
 
   if (camera.is_panoramic()) {
@@ -400,6 +410,7 @@ void DepthOfField::scatter_pass_sync()
     drw_pass.init();
     drw_pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ADD_FULL);
     drw_pass.shader_set(inst_.shaders.static_shader_get(DOF_SCATTER));
+    drw_pass.bind_ubo("dof_buf", data_);
     drw_pass.push_constant("use_bokeh_lut", use_bokeh_lut_);
     drw_pass.bind_texture("bokeh_lut_tx", &bokeh_scatter_lut_tx_);
     drw_pass.bind_texture("occlusion_tx", &occlusion_tx_);
@@ -441,11 +452,11 @@ void DepthOfField::resolve_pass_sync()
 {
   GPUSamplerState with_filter = {GPU_SAMPLER_FILTERING_LINEAR};
   RenderBuffers &render_buffers = inst_.render_buffers;
-  eShaderType sh_type = use_bokeh_lut_ ? DOF_RESOLVE_LUT : DOF_RESOLVE;
+  GPUShader *sh = inst_.shaders.static_shader_get(use_bokeh_lut_ ? DOF_RESOLVE_LUT : DOF_RESOLVE);
 
   resolve_ps_.init();
-  resolve_ps_.bind_resources(inst_.sampling);
-  resolve_ps_.shader_set(inst_.shaders.static_shader_get(sh_type));
+  resolve_ps_.specialize_constant(sh, "do_debug_color", inst_.debug_mode == DEBUG_DOF_PLANES);
+  resolve_ps_.shader_set(sh);
   resolve_ps_.bind_ubo("dof_buf", data_);
   resolve_ps_.bind_texture("depth_tx", &render_buffers.depth_tx, no_filter);
   resolve_ps_.bind_texture("color_tx", &input_color_tx_, no_filter);
@@ -460,6 +471,7 @@ void DepthOfField::resolve_pass_sync()
   resolve_ps_.bind_texture("weight_hole_fill_tx", &hole_fill_weight_tx_);
   resolve_ps_.bind_texture("bokeh_lut_tx", &bokeh_resolve_lut_tx_);
   resolve_ps_.bind_image("out_color_img", &output_color_tx_);
+  resolve_ps_.bind_resources(inst_.sampling);
   resolve_ps_.barrier(GPU_BARRIER_TEXTURE_FETCH);
   resolve_ps_.dispatch(&dispatch_resolve_size_);
   resolve_ps_.barrier(GPU_BARRIER_TEXTURE_FETCH);
@@ -561,14 +573,16 @@ void DepthOfField::render(View &view,
     GPU_flush();
   }
 
-  DRW_stats_group_start("Depth of Field");
+  GPU_debug_group_begin("Depth of Field");
 
   Manager &drw = *inst_.manager;
 
-  eGPUTextureUsage usage_readwrite = GPU_TEXTURE_USAGE_SHADER_READ |
-                                     GPU_TEXTURE_USAGE_SHADER_WRITE;
+  constexpr eGPUTextureUsage usage_readwrite = GPU_TEXTURE_USAGE_SHADER_READ |
+                                               GPU_TEXTURE_USAGE_SHADER_WRITE;
+  constexpr eGPUTextureUsage usage_readwrite_attach = usage_readwrite |
+                                                      GPU_TEXTURE_USAGE_ATTACHMENT;
   {
-    DRW_stats_group_start("Setup");
+    GPU_debug_group_begin("Setup");
     {
       bokeh_gather_lut_tx_.acquire(int2(DOF_BOKEH_LUT_SIZE), GPU_RG16F);
       bokeh_scatter_lut_tx_.acquire(int2(DOF_BOKEH_LUT_SIZE), GPU_R16F);
@@ -607,7 +621,7 @@ void DepthOfField::render(View &view,
       setup_color_tx_.release();
     }
     {
-      DRW_stats_group_start("Tile Prepare");
+      GPU_debug_group_begin("Tile Prepare");
 
       /* WARNING: If format changes, make sure dof_tile_* GLSL constants are properly encoded. */
       tiles_fg_tx_.previous().acquire(tile_res, GPU_R11F_G11F_B10F, usage_readwrite);
@@ -651,7 +665,7 @@ void DepthOfField::render(View &view,
       tiles_fg_tx_.previous().release();
       tiles_bg_tx_.previous().release();
 
-      DRW_stats_group_end();
+      GPU_debug_group_end();
     }
 
     downsample_tx_.acquire(quarter_res, GPU_RGBA16F, usage_readwrite);
@@ -666,11 +680,11 @@ void DepthOfField::render(View &view,
     /* Used by reduce pass. */
     downsample_tx_.release();
 
-    DRW_stats_group_end();
+    GPU_debug_group_end();
   }
 
   for (int is_background = 0; is_background < 2; is_background++) {
-    DRW_stats_group_start(is_background ? "Background Convolution" : "Foreground Convolution");
+    GPU_debug_group_begin(is_background ? "Background Convolution" : "Foreground Convolution");
 
     SwapChain<TextureFromPool, 2> &color_tx = is_background ? color_bg_tx_ : color_fg_tx_;
     SwapChain<TextureFromPool, 2> &weight_tx = is_background ? weight_bg_tx_ : weight_fg_tx_;
@@ -679,7 +693,7 @@ void DepthOfField::render(View &view,
     PassSimple &filter_ps = is_background ? filter_bg_ps_ : filter_fg_ps_;
     PassSimple &scatter_ps = is_background ? scatter_bg_ps_ : scatter_fg_ps_;
 
-    color_tx.current().acquire(half_res, GPU_RGBA16F, usage_readwrite);
+    color_tx.current().acquire(half_res, GPU_RGBA16F, usage_readwrite_attach);
     weight_tx.current().acquire(half_res, GPU_R16F, usage_readwrite);
     occlusion_tx_.acquire(half_res, GPU_RG16F);
 
@@ -690,7 +704,7 @@ void DepthOfField::render(View &view,
       color_tx.swap();
       weight_tx.swap();
 
-      color_tx.current().acquire(half_res, GPU_RGBA16F, usage_readwrite);
+      color_tx.current().acquire(half_res, GPU_RGBA16F, usage_readwrite_attach);
       weight_tx.current().acquire(half_res, GPU_R16F, usage_readwrite);
 
       drw.submit(filter_ps, view);
@@ -709,10 +723,10 @@ void DepthOfField::render(View &view,
     /* Used by scatter pass. */
     occlusion_tx_.release();
 
-    DRW_stats_group_end();
+    GPU_debug_group_end();
   }
   {
-    DRW_stats_group_start("Hole Fill");
+    GPU_debug_group_begin("Hole Fill");
 
     bokeh_gather_lut_tx_.release();
     bokeh_scatter_lut_tx_.release();
@@ -724,10 +738,10 @@ void DepthOfField::render(View &view,
 
     /* NOTE: We do not filter the hole-fill pass as effect is likely to not be noticeable. */
 
-    DRW_stats_group_end();
+    GPU_debug_group_end();
   }
   {
-    DRW_stats_group_start("Resolve");
+    GPU_debug_group_begin("Resolve");
 
     resolve_stable_color_tx_ = dof_buffer.stabilize_history_tx_;
 
@@ -743,10 +757,10 @@ void DepthOfField::render(View &view,
     hole_fill_weight_tx_.release();
     bokeh_resolve_lut_tx_.release();
 
-    DRW_stats_group_end();
+    GPU_debug_group_end();
   }
 
-  DRW_stats_group_end();
+  GPU_debug_group_end();
 
   /* Swap buffers so that next effect has the right input. */
   std::swap(*input_tx, *output_tx);

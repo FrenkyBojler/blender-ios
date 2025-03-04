@@ -19,7 +19,12 @@
 #include "BLI_convexhull_2d.h"
 #include "BLI_math_angle_types.hh"
 #include "BLI_math_geom.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_matrix_types.hh"
+#include "BLI_math_rotation.h"
+#include "BLI_math_rotation.hh"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_rand.hh"
 
@@ -31,6 +36,9 @@ using namespace blender;
  */
 #define DEFAULT_TEST_ITER 8
 
+/** The size of a polygon when generating data.  */
+#define DEFAULT_TEST_POLY_NUM 12
+
 #define DEFAULT_TEST_RANDOM_SEED 123
 
 /** The epsilon to use when comparing floating point rotations (as radians). */
@@ -39,46 +47,6 @@ using namespace blender;
 /* -------------------------------------------------------------------- */
 /** \name Internal Utilities
  * \{ */
-
-/* Brute force test. */
-static float convexhull_aabb_fit_hull_2d_for_comparison(blender::Span<float2> points_hull)
-{
-  float area_best = FLT_MAX;
-  float dvec_best[2]; /* best angle, delay atan2 */
-
-  for (int i = 0, i_prev = points_hull.size() - 1; i < points_hull.size(); i_prev = i++) {
-    float2 dvec = points_hull[i] - points_hull[i_prev]; /* 2d rotation matrix */
-    if (UNLIKELY(normalize_v2(&dvec[0]) == 0.0f)) {
-      continue;
-    }
-    /* rotation matrix */
-    float min[2] = {FLT_MAX, FLT_MAX}, max[2] = {-FLT_MAX, -FLT_MAX};
-    float area_test;
-
-    for (int j = 0; j < points_hull.size(); j++) {
-      float tvec[2];
-      mul_v2_v2_cw(tvec, dvec, points_hull[j]);
-
-      min[0] = std::min(min[0], tvec[0]);
-      min[1] = std::min(min[1], tvec[1]);
-
-      max[0] = std::max(max[0], tvec[0]);
-      max[1] = std::max(max[1], tvec[1]);
-
-      area_test = (max[0] - min[0]) * (max[1] - min[1]);
-      if (area_test > area_best) {
-        break;
-      }
-    }
-
-    if (area_test < area_best) {
-      area_best = area_test;
-      copy_v2_v2(dvec_best, dvec);
-    }
-  }
-
-  return (area_best != FLT_MAX) ? (float)atan2(dvec_best[0], dvec_best[1]) : 0.0f;
-}
 
 static blender::Array<float2> convexhull_points_from_map(blender::Span<float2> points,
                                                          blender::Span<int> points_map)
@@ -107,12 +75,6 @@ static blender::Array<float2> convexhull_2d_as_array(blender::Span<float2> point
 /** \name Wrap Public API's
  * \{ */
 
-static float convexhull_aabb_fit_hull_2d(blender::Span<float2> points_hull)
-{
-  return BLI_convexhull_aabb_fit_hull_2d(reinterpret_cast<const float(*)[2]>(points_hull.data()),
-                                         points_hull.size());
-}
-
 static float convexhull_2d_aabb_fit_points_2d(blender::Span<float2> points)
 {
   return BLI_convexhull_aabb_fit_points_2d(reinterpret_cast<const float(*)[2]>(points.data()),
@@ -127,7 +89,7 @@ static float convexhull_2d_aabb_fit_points_2d(blender::Span<float2> points)
 
 TEST(convexhull_2d, IsConvex)
 {
-  blender::Array<float2> points(12);
+  blender::Array<float2> points(DEFAULT_TEST_POLY_NUM);
   RandomNumberGenerator rng = RandomNumberGenerator(DEFAULT_TEST_RANDOM_SEED);
   for (int iter = 0; iter < DEFAULT_TEST_ITER; iter++) {
     for (float2 &p : points) {
@@ -148,7 +110,7 @@ TEST(convexhull_2d, IsConvex)
 
 TEST(convexhull_2d, IsCCW)
 {
-  blender::Array<float2> points(12);
+  blender::Array<float2> points(DEFAULT_TEST_POLY_NUM);
   RandomNumberGenerator rng = RandomNumberGenerator(DEFAULT_TEST_RANDOM_SEED);
   for (int iter = 0; iter < DEFAULT_TEST_ITER; iter++) {
     for (float2 &p : points) {
@@ -185,7 +147,7 @@ TEST(convexhull_2d, Lines_AxisAligned)
     for (int sign_x = -1; sign_x <= 2; sign_x += 2) {
       blender::Array<float2> points = {{0.0f, 0.0f}, {1.0f * sign_x, 0.0}};
       EXPECT_NEAR(convexhull_2d_aabb_fit_points_2d(points),
-                  float(math::AngleRadian::from_degree(-90.0f)),
+                  float(math::AngleRadian::from_degree(90.0f)),
                   ROTATION_EPS);
     }
   }
@@ -193,7 +155,7 @@ TEST(convexhull_2d, Lines_AxisAligned)
     for (int sign_x = -1; sign_x <= 2; sign_x += 2) {
       blender::Array<float2> points = {{0.0f, 0.0f}, {1.0f * sign_x, 0.0}, {2.0f * sign_x, 0.0}};
       EXPECT_NEAR(convexhull_2d_aabb_fit_points_2d(points),
-                  float(math::AngleRadian::from_degree(-90.0f)),
+                  float(math::AngleRadian::from_degree(90.0f)),
                   ROTATION_EPS);
     }
   }
@@ -202,7 +164,7 @@ TEST(convexhull_2d, Lines_AxisAligned)
     for (int sign_y = -1; sign_y <= 2; sign_y += 2) {
       blender::Array<float2> points = {{0.0f, 0.0f}, {0.0f, 1.0f * sign_y}};
       EXPECT_NEAR(convexhull_2d_aabb_fit_points_2d(points),
-                  float(math::AngleRadian::from_degree(180.0f)),
+                  float(math::AngleRadian::from_degree(0.0f)),
                   ROTATION_EPS);
     }
   }
@@ -210,7 +172,7 @@ TEST(convexhull_2d, Lines_AxisAligned)
     for (int sign_y = -1; sign_y <= 2; sign_y += 2) {
       blender::Array<float2> points = {{0.0f, 0.0f}, {0.0f, 1.0f * sign_y}, {0.0f, 2.0f * sign_y}};
       EXPECT_NEAR(convexhull_2d_aabb_fit_points_2d(points),
-                  float(math::AngleRadian::from_degree(180.0f)),
+                  float(math::AngleRadian::from_degree(0.0f)),
                   ROTATION_EPS);
     }
   }
@@ -225,8 +187,7 @@ TEST(convexhull_2d, Lines_AxisAligned)
         p[0] = 0.0;
       }
 
-      blender::Array<float2> points_hull = convexhull_2d_as_array(points);
-      EXPECT_NEAR(convexhull_aabb_fit_hull_2d(points_hull), M_PI, ROTATION_EPS);
+      EXPECT_NEAR(convexhull_2d_aabb_fit_points_2d(points), 0.0f, ROTATION_EPS);
     }
   }
 
@@ -241,7 +202,7 @@ TEST(convexhull_2d, Lines_AxisAligned)
       }
 
       blender::Array<float2> points_hull = convexhull_2d_as_array(points);
-      EXPECT_NEAR(convexhull_aabb_fit_hull_2d(points_hull), M_PI, ROTATION_EPS);
+      EXPECT_NEAR(convexhull_2d_aabb_fit_points_2d(points_hull), 0.0f, ROTATION_EPS);
     }
   }
 }
@@ -249,7 +210,7 @@ TEST(convexhull_2d, Lines_AxisAligned)
 TEST(convexhull_2d, Lines_Diagonal)
 {
   { /* Diagonal line (2 points). */
-    const float expected[4] = {-135, 135, 135, -135};
+    const float expected[4] = {45, -45, -45, 45};
     int index = 0;
     for (int sign_x = -1; sign_x <= 2; sign_x += 2) {
       for (int sign_y = -1; sign_y <= 2; sign_y += 2) {
@@ -263,7 +224,7 @@ TEST(convexhull_2d, Lines_Diagonal)
   }
 
   { /* Diagonal line (3 points). */
-    const float expected[4] = {-135, 135, 135, -135};
+    const float expected[4] = {45, -45, -45, 45};
     int index = 0;
     for (int sign_x = -1; sign_x <= 2; sign_x += 2) {
       for (int sign_y = -1; sign_y <= 2; sign_y += 2) {
@@ -291,7 +252,7 @@ TEST(convexhull_2d, Simple)
         {1.0f, 0.0f},
     };
     EXPECT_NEAR(convexhull_2d_aabb_fit_points_2d(points),
-                float(math::AngleRadian::from_degree(135.0f)),
+                float(math::AngleRadian::from_degree(45.0f)),
                 ROTATION_EPS);
   }
 
@@ -303,65 +264,182 @@ TEST(convexhull_2d, Simple)
         {1.0f, -1.0f},
     };
     EXPECT_NEAR(convexhull_2d_aabb_fit_points_2d(points),
-                float(math::AngleRadian::from_degree(180.0f)),
+                float(math::AngleRadian::from_degree(90.0f)),
                 ROTATION_EPS);
   }
 }
 
-TEST(convexhull_2d, AABB_Fit)
+TEST(convexhull_2d, Octagon)
 {
-  blender::Array<float2> points(32);
+  auto shape_octagon_fn = [](RandomNumberGenerator &rng,
+                             const int points_num) -> blender::Array<float2> {
+    /* Avoid zero area boxes. */
+    blender::Array<float2> points(points_num);
+    for (int i = 0; i < points_num; i++) {
+      sin_cos_from_fraction(i, points_num, &points[i][0], &points[i][1]);
+    }
+    rng.shuffle<float2>(points);
+    return points;
+  };
+
   RandomNumberGenerator rng = RandomNumberGenerator(DEFAULT_TEST_RANDOM_SEED);
   for (int iter = 0; iter < DEFAULT_TEST_ITER; iter++) {
-    for (float2 &p : points) {
-      p = float2(rng.get_float(), rng.get_float());
-    }
-    blender::Array<float2> points_hull = convexhull_2d_as_array(points);
-
-    EXPECT_NEAR(convexhull_aabb_fit_hull_2d(points_hull),
-                convexhull_aabb_fit_hull_2d_for_comparison(points_hull),
+    blender::Array<float2> points = shape_octagon_fn(rng, 8);
+    EXPECT_NEAR(convexhull_2d_aabb_fit_points_2d(points),
+                float(math::AngleRadian::from_degree(67.5f)),
                 ROTATION_EPS);
   }
 }
 
-TEST(convexhull_2d, AABB_Fit_Circular)
+TEST(convexhull_2d, OctagonAxisAligned)
 {
-  /* Use random unit vectors for a shape that's close to a circle.
-   * This test is useful as there will be many more rotations which are close fits.
-   * The probability increases as the number of points increases. */
-  blender::Array<float2> points(32);
+  auto shape_octagon_fn = [](RandomNumberGenerator &rng,
+                             const int points_num) -> blender::Array<float2> {
+    /* Avoid zero area boxes. */
+    blender::Array<float2> points(points_num);
+    for (int i = 0; i < points_num; i++) {
+      sin_cos_from_fraction((i * 2) + 1, points_num * 2, &points[i][0], &points[i][1]);
+    }
+    rng.shuffle<float2>(points);
+    return points;
+  };
+
   RandomNumberGenerator rng = RandomNumberGenerator(DEFAULT_TEST_RANDOM_SEED);
   for (int iter = 0; iter < DEFAULT_TEST_ITER; iter++) {
-    for (float2 &p : points) {
-      p = rng.get_unit_float2();
-    }
-    blender::Array<float2> points_hull = convexhull_2d_as_array(points);
-
-    EXPECT_NEAR(convexhull_aabb_fit_hull_2d(points_hull),
-                convexhull_aabb_fit_hull_2d_for_comparison(points_hull),
+    blender::Array<float2> points = shape_octagon_fn(rng, 8);
+    EXPECT_NEAR(convexhull_2d_aabb_fit_points_2d(points),
+                float(math::AngleRadian::from_degree(90.0f)),
                 ROTATION_EPS);
   }
 }
 
-TEST(convexhull_2d, AABB_Fit_LopSided)
+/**
+ * Generate complex rotated/translated shapes with a known size.
+ * Check the rotation returned by #BLI_convexhull_aabb_fit_points_2d
+ * rotates the points into a bounding box with an area no larger than generated size.
+ */
+TEST(convexhull_2d, Complex)
 {
-  blender::Array<float2> points(32);
+  auto shape_generate_fn = [](RandomNumberGenerator &rng,
+                              const float2 &size,
+                              const int points_num) -> blender::Array<float2> {
+    /* Avoid zero area boxes. */
+    blender::Array<float2> points(points_num);
+    const int points_num_reserved = 4;
+    BLI_assert(points_num_reserved >= 4);
+
+    /* Ensure there are always points at the bounds. */
+    points[0] = {0.0f, rng.get_float()}; /* Left. */
+    points[1] = {1.0f, rng.get_float()}; /* Right. */
+    points[2] = {rng.get_float(), 0.0f}; /* Bottom. */
+    points[3] = {rng.get_float(), 1.0f}; /* Top. */
+
+    for (int i = points_num_reserved; i < points_num; i++) {
+      points[i] = {rng.get_float(), rng.get_float()};
+    }
+
+    /* Shuffle to ensure the solution is valid no matter the order of the input,
+     * Only the first `points_num_reserved` matter as remaining points are random. */
+    for (int i = 0; i < points_num_reserved; i++) {
+      std::swap(points[i], points[rng.get_int32(points_num)]);
+    }
+
+    /* Map from 0-1 to a random transformation. */
+    const float2 translation = {
+        (rng.get_float() * 2.0f) - 1.0f,
+        (rng.get_float() * 2.0f) - 1.0f,
+    };
+
+    const float2x2 rot_mat = math::from_rotation<float2x2>(
+        math::AngleRadian(rng.get_float() * M_PI));
+    for (float2 &p : points) {
+      BLI_assert(p[0] >= 0.0 && p[0] <= 1.0f);
+      BLI_assert(p[1] >= 0.0 && p[1] <= 1.0f);
+      /* Center from [-0.5..0.5], apply size, rotate & translate.  */
+      p = (((p - float2(0.5f, 0.5f)) * size) * rot_mat) + translation;
+    }
+
+    return points;
+  };
+
+  RandomNumberGenerator rng = RandomNumberGenerator(DEFAULT_TEST_RANDOM_SEED);
+  for (int i = 0; i < DEFAULT_TEST_ITER; i++) {
+    constexpr float size_margin = 0.1;
+    /* Random size from `[size_margin..2]`. */
+    float2 size = {
+        math::min((rng.get_float() * 2.0f) + size_margin, 2.0f),
+        math::min((rng.get_float() * 2.0f) + size_margin, 2.0f),
+    };
+
+    blender::Array<float2> points = shape_generate_fn(rng, size, DEFAULT_TEST_POLY_NUM);
+    const float angle = convexhull_2d_aabb_fit_points_2d(points);
+
+    const float2x2 rot_mat = math::from_rotation<float2x2>(-angle);
+    float2 tempmin, tempmax;
+    INIT_MINMAX2(tempmin, tempmax);
+    for (const float2 &p : points) {
+      math::min_max(p * rot_mat, tempmin, tempmax);
+    }
+
+    const float2 size_result = tempmax - tempmin;
+    float area_input = size[0] * size[1];
+    float area_result = size_result[0] * size_result[1];
+    EXPECT_LE(area_result, area_input + 1e-6f);
+  }
+}
+
+/* Keep these as they're handy for generating a lot of random data.
+ * To brute force check results are as expected:
+ * - Increase #DEFAULT_TEST_ITER to a large number (100k or so).
+ * - Uncomment #USE_BRUTE_FORCE_ASSERT define in `convexhull_2d.cc` to ensure results
+ *   match a reference implementation.
+ */
+#if 0
+TEST(convexhull_2d, Circle)
+{
+  auto shape_circle_fn = [](RandomNumberGenerator &rng,
+                            const int points_num) -> blender::Array<float2> {
+    /* Avoid zero area boxes. */
+    blender::Array<float2> points(points_num);
+
+    /* Going this way ends up with normal(s) upward */
+    for (int i = 0; i < points_num; i++) {
+      sin_cos_from_fraction(i, points_num, &points[i][0], &points[i][1]);
+    }
+    rng.shuffle<float2>(points);
+    return points;
+  };
+
   RandomNumberGenerator rng = RandomNumberGenerator(DEFAULT_TEST_RANDOM_SEED);
   for (int iter = 0; iter < DEFAULT_TEST_ITER; iter++) {
-    /* Add points, Y is always positive. */
-    for (float2 &p : points) {
-      p = rng.get_unit_float2();
-      p[1] = std::abs(p[1]);
-    }
-    /* A single point negative Y point. */
-    points[points.size() / 2] = float2(0.0f, -2.0f);
-
-    blender::Array<float2> points_hull = convexhull_2d_as_array(points);
-
-    EXPECT_NEAR(convexhull_aabb_fit_hull_2d(points_hull),
-                convexhull_aabb_fit_hull_2d_for_comparison(points_hull),
-                ROTATION_EPS);
+    blender::Array<float2> points = shape_circle_fn(rng, DEFAULT_TEST_POLY_NUM);
+    const float angle = convexhull_2d_aabb_fit_points_2d(points);
+    (void)angle;
   }
 }
+
+TEST(convexhull_2d, Random)
+{
+  auto shape_random_unit_fn = [](RandomNumberGenerator &rng,
+                                 const int points_num) -> blender::Array<float2> {
+    /* Avoid zero area boxes. */
+    blender::Array<float2> points(points_num);
+
+    /* Going this way ends up with normal(s) upward */
+    for (int i = 0; i < points_num; i++) {
+      points[i] = rng.get_unit_float2();
+    }
+    return points;
+  };
+
+  RandomNumberGenerator rng = RandomNumberGenerator(DEFAULT_TEST_RANDOM_SEED);
+
+  for (int iter = 0; iter < DEFAULT_TEST_ITER; iter++) {
+    blender::Array<float2> points = shape_random_unit_fn(rng, DEFAULT_TEST_POLY_NUM);
+    const float angle = convexhull_2d_aabb_fit_points_2d(points);
+    (void)angle;
+  }
+}
+#endif
 
 /** \} */

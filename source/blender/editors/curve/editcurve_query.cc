@@ -6,22 +6,19 @@
  * \ingroup edcurve
  */
 
+#include "DNA_curve_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
-
-#include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 
 #include "BKE_curve.hh"
-#include "BKE_fcurve.h"
 #include "BKE_layer.hh"
 
 #include "ED_curve.hh"
 #include "ED_view3d.hh"
 
-#include "curve_intern.h"
+#include "curve_intern.hh"
 
 using blender::Vector;
 

@@ -6,13 +6,19 @@
  * Depth shader that can stochastically discard transparent pixel.
  */
 
-#pragma BLENDER_REQUIRE(draw_view_lib.glsl)
-#pragma BLENDER_REQUIRE(common_hair_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_sampling_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_nodetree_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_surf_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_velocity_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_transparency_lib.glsl)
+#include "infos/eevee_material_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(eevee_clip_plane)
+FRAGMENT_SHADER_CREATE_INFO(eevee_geom_mesh)
+FRAGMENT_SHADER_CREATE_INFO(eevee_surf_depth)
+
+#include "common_hair_lib.glsl"
+#include "draw_view_lib.glsl"
+#include "eevee_nodetree_lib.glsl"
+#include "eevee_sampling_lib.glsl"
+#include "eevee_surf_lib.glsl"
+#include "eevee_transparency_lib.glsl"
+#include "eevee_velocity_lib.glsl"
 
 vec4 closure_to_rgba(Closure cl)
 {
@@ -21,7 +27,7 @@ vec4 closure_to_rgba(Closure cl)
   out_color.a = saturate(1.0 - average(g_transmittance));
 
   /* Reset for the next closure tree. */
-  closure_weights_reset();
+  closure_weights_reset(0.0);
 
   return out_color;
 }
@@ -31,7 +37,7 @@ void main()
 #ifdef MAT_TRANSPARENT
   init_globals();
 
-  nodetree_surface();
+  nodetree_surface(0.0);
 
 #  ifdef MAT_FORWARD
   /* Pre-pass only allows fully opaque areas to cut through all transparent layers. */

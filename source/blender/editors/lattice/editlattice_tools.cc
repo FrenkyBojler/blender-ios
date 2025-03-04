@@ -6,10 +6,7 @@
  * \ingroup edlattice
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_math_vector.h"
-#include "BLI_utildefines.h"
 
 #include "DNA_curve_types.h"
 #include "DNA_lattice_types.h"
@@ -31,7 +28,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "lattice_intern.h"
+#include "lattice_intern.hh"
 
 using blender::Vector;
 
@@ -68,7 +65,7 @@ static int make_regular_exec(bContext *C, wmOperator *op)
         continue;
       }
 
-      if (ED_object_edit_report_if_shape_key_is_locked(ob, op->reports)) {
+      if (blender::ed::object::shape_key_report_if_locked(ob, op->reports)) {
         continue;
       }
 
@@ -125,7 +122,7 @@ enum eLattice_FlipAxes {
 
 /**
  * Flip midpoint value so that relative distances between midpoint and neighbor-pair is maintained.
- * Assumes that uvw <=> xyz (i.e. axis-aligned index-axes with coordinate-axes).
+ * Assumes that UVW <=> XYZ (i.e. axis-aligned index-axes with coordinate-axes).
  * - Helper for #lattice_flip_exec()
  */
 static void lattice_flip_point_value(
@@ -221,7 +218,7 @@ static int lattice_flip_exec(bContext *C, wmOperator *op)
     lt = (Lattice *)obedit->data;
     lt = lt->editlatt->latt;
 
-    if (ED_object_edit_report_if_shape_key_is_locked(obedit, op->reports)) {
+    if (blender::ed::object::shape_key_report_if_locked(obedit, op->reports)) {
       continue;
     }
 

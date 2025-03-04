@@ -26,9 +26,17 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometrySet meshes;
   GeometrySet curves;
   GeometrySet grease_pencil;
-  GeometrySet point_clouds;
+  GeometrySet pointclouds;
   GeometrySet volumes;
   GeometrySet instances;
+
+  const std::string &name = geometry_set.name;
+  meshes.name = name;
+  curves.name = name;
+  grease_pencil.name = name;
+  pointclouds.name = name;
+  volumes.name = name;
+  instances.name = name;
 
   if (geometry_set.has<MeshComponent>()) {
     meshes.add(*geometry_set.get_component<MeshComponent>());
@@ -40,7 +48,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     grease_pencil.add(*geometry_set.get_component<GreasePencilComponent>());
   }
   if (geometry_set.has<PointCloudComponent>()) {
-    point_clouds.add(*geometry_set.get_component<PointCloudComponent>());
+    pointclouds.add(*geometry_set.get_component<PointCloudComponent>());
   }
   if (geometry_set.has<VolumeComponent>()) {
     volumes.add(*geometry_set.get_component<VolumeComponent>());
@@ -52,20 +60,24 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Mesh", meshes);
   params.set_output("Curve", curves);
   params.set_output("Grease Pencil", grease_pencil);
-  params.set_output("Point Cloud", point_clouds);
+  params.set_output("Point Cloud", pointclouds);
   params.set_output("Volume", volumes);
   params.set_output("Instances", instances);
 }
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(
-      &ntype, GEO_NODE_SEPARATE_COMPONENTS, "Separate Components", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeSeparateComponents", GEO_NODE_SEPARATE_COMPONENTS);
+  ntype.ui_name = "Separate Components";
+  ntype.ui_description =
+      "Split a geometry into a separate output for each type of data in the geometry";
+  ntype.enum_name_legacy = "SEPARATE_COMPONENTS";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

@@ -14,11 +14,14 @@ set(SRC
   opensubdiv_capi_type.hh
   opensubdiv_converter_capi.hh
   opensubdiv_evaluator_capi.hh
-  opensubdiv_topology_refiner_capi.hh
+  opensubdiv_evaluator.hh
+  opensubdiv_topology_refiner.hh
 )
 
 set(LIB
+  PRIVATE bf::blenlib
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::gpu
 )
 
 if(WITH_OPENSUBDIV)
@@ -37,7 +40,6 @@ if(WITH_OPENSUBDIV)
     # Base.
     internal/base/memory.h
     internal/base/opensubdiv_capi.cc
-    internal/base/type.h
     internal/base/type_convert.cc
     internal/base/type_convert.h
     internal/base/util.cc
@@ -54,7 +56,6 @@ if(WITH_OPENSUBDIV)
     internal/evaluator/evaluator_cache_impl.h
     internal/evaluator/evaluator_capi.cc
     internal/evaluator/evaluator_impl.cc
-    internal/evaluator/evaluator_impl.h
     internal/evaluator/gl_compute_evaluator.cc
     internal/evaluator/gl_compute_evaluator.h
     internal/evaluator/patch_map.cc
@@ -65,15 +66,14 @@ if(WITH_OPENSUBDIV)
     internal/topology/mesh_topology.cc
     internal/topology/mesh_topology_compare.cc
     internal/topology/mesh_topology.h
-    internal/topology/topology_refiner_capi.cc
     internal/topology/topology_refiner_factory.cc
     internal/topology/topology_refiner_impl.cc
     internal/topology/topology_refiner_impl_compare.cc
-    internal/topology/topology_refiner_impl.h
   )
 
   list(APPEND LIB
     ${OPENSUBDIV_LIBRARIES}
+    ${Epoxy_LIBRARIES}
   )
 
   if(WITH_OPENMP AND WITH_OPENMP_STATIC)
@@ -90,13 +90,11 @@ if(WITH_OPENSUBDIV)
   data_to_c_simple(
     internal/evaluator/shaders/glsl_compute_kernel.glsl
     SRC
-    STRIP_LEADING_C_COMMENTS
   )
 else()
   list(APPEND SRC
     stub/opensubdiv_stub.cc
     stub/opensubdiv_evaluator_stub.cc
-    stub/opensubdiv_topology_refiner_stub.cc
   )
 endif()
 
@@ -108,5 +106,9 @@ if(WITH_GTESTS AND WITH_OPENSUBDIV)
   add_definitions(${GFLAGS_DEFINES})
   add_definitions(${GLOG_DEFINES})
 
-  blender_add_test_executable(opensubdiv_mesh_topology "internal/topology/mesh_topology_test.cc" "${INC}" "${INC_SYS}" "${LIB};bf_intern_opensubdiv")
+  set(TEST_SRC
+    internal/topology/mesh_topology_test.cc
+  )
+
+  blender_add_test_suite_lib(intern_opensubdiv "${TEST_SRC}" "${INC}" "${INC_SYS}" "${LIB};bf_intern_opensubdiv")
 endif()

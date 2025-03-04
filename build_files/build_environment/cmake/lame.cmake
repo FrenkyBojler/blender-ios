@@ -4,7 +4,11 @@
 
 set(LAME_EXTRA_ARGS)
 if(MSVC)
-  set(LAME_ARCH Win64)
+  if(BLENDER_PLATFORM_ARM)
+    set(LAME_ARCH ARM64)
+  else()
+    set(LAME_ARCH Win64)
+  endif()
   set(LAME_CONFIGURE echo .)
   set(LAME_BUILD
     cd ${BUILD_DIR}/lame/src/external_lame/ &&
@@ -61,3 +65,7 @@ ExternalProject_Add(external_lame
   INSTALL_COMMAND ${LAME_INSTALL}
   INSTALL_DIR ${LIBDIR}/lame
 )
+
+if(NOT WIN32)
+  harvest(external_lame lame/lib ffmpeg/lib "*.a")
+endif()

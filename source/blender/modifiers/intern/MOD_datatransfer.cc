@@ -6,6 +6,8 @@
  * \ingroup modifiers
  */
 
+#include <cfloat>
+
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -20,7 +22,6 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_mapping.hh"
 #include "BKE_mesh_remap.hh"
 #include "BKE_modifier.hh"
 #include "BKE_report.hh"
@@ -29,7 +30,7 @@
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -76,27 +77,6 @@ static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_
   }
 
   BKE_object_data_transfer_dttypes_to_cdmask(dtmd->data_types, r_cddata_masks);
-}
-
-static bool depends_on_normals(ModifierData *md)
-{
-  DataTransferModifierData *dtmd = (DataTransferModifierData *)md;
-  int item_types = BKE_object_data_transfer_get_dttypes_item_types(dtmd->data_types);
-
-  if ((item_types & ME_VERT) && (dtmd->vmap_mode & (MREMAP_USE_NORPROJ | MREMAP_USE_NORMAL))) {
-    return true;
-  }
-  if ((item_types & ME_EDGE) && (dtmd->emap_mode & (MREMAP_USE_NORPROJ | MREMAP_USE_NORMAL))) {
-    return true;
-  }
-  if ((item_types & ME_LOOP) && (dtmd->lmap_mode & (MREMAP_USE_NORPROJ | MREMAP_USE_NORMAL))) {
-    return true;
-  }
-  if ((item_types & ME_POLY) && (dtmd->pmap_mode & (MREMAP_USE_NORPROJ | MREMAP_USE_NORMAL))) {
-    return true;
-  }
-
-  return false;
 }
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
@@ -236,7 +216,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetPropDecorate(sub, false);
   uiItemR(sub, ptr, "use_object_transform", UI_ITEM_NONE, "", ICON_ORIENTATION_GLOBAL);
 
-  uiItemR(layout, ptr, "mix_mode", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "mix_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   row = uiLayoutRow(layout, false);
   uiLayoutSetActive(row,
@@ -244,9 +224,9 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
                           CDT_MIX_NOMIX,
                           CDT_MIX_REPLACE_ABOVE_THRESHOLD,
                           CDT_MIX_REPLACE_BELOW_THRESHOLD));
-  uiItemR(row, ptr, "mix_factor", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(row, ptr, "mix_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", nullptr);
+  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
   uiItemO(layout, IFACE_("Generate Data Layers"), ICON_NONE, "OBJECT_OT_datalayout_transfer");
 
@@ -258,7 +238,7 @@ static void vertex_panel_draw_header(const bContext * /*C*/, Panel *panel)
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
   uiLayout *layout = panel->layout;
 
-  uiItemR(layout, ptr, "use_vert_data", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "use_vert_data", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void vertex_panel_draw(const bContext * /*C*/, Panel *panel)
@@ -270,7 +250,7 @@ static void vertex_panel_draw(const bContext * /*C*/, Panel *panel)
   bool use_vert_data = RNA_boolean_get(ptr, "use_vert_data");
   uiLayoutSetActive(layout, use_vert_data);
 
-  uiItemR(layout, ptr, "data_types_verts", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "data_types_verts", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   uiLayoutSetPropSep(layout, true);
 
@@ -299,7 +279,7 @@ static void edge_panel_draw_header(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiItemR(layout, ptr, "use_edge_data", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "use_edge_data", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void edge_panel_draw(const bContext * /*C*/, Panel *panel)
@@ -310,7 +290,7 @@ static void edge_panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetActive(layout, RNA_boolean_get(ptr, "use_edge_data"));
 
-  uiItemR(layout, ptr, "data_types_edges", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "data_types_edges", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   uiLayoutSetPropSep(layout, true);
 
@@ -323,7 +303,7 @@ static void face_corner_panel_draw_header(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiItemR(layout, ptr, "use_loop_data", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "use_loop_data", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void face_corner_panel_draw(const bContext * /*C*/, Panel *panel)
@@ -334,7 +314,7 @@ static void face_corner_panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetActive(layout, RNA_boolean_get(ptr, "use_loop_data"));
 
-  uiItemR(layout, ptr, "data_types_loops", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "data_types_loops", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   uiLayoutSetPropSep(layout, true);
 
@@ -405,7 +385,7 @@ static void face_corner_uv_panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiItemR(layout, ptr, "layers_uv_select_src", UI_ITEM_NONE, IFACE_("Layer Selection"), ICON_NONE);
   uiItemR(layout, ptr, "layers_uv_select_dst", UI_ITEM_NONE, IFACE_("Layer Mapping"), ICON_NONE);
-  uiItemR(layout, ptr, "islands_precision", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "islands_precision", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void face_panel_draw_header(const bContext * /*C*/, Panel *panel)
@@ -414,7 +394,7 @@ static void face_panel_draw_header(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiItemR(layout, ptr, "use_poly_data", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "use_poly_data", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void face_panel_draw(const bContext * /*C*/, Panel *panel)
@@ -425,7 +405,7 @@ static void face_panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetActive(layout, RNA_boolean_get(ptr, "use_poly_data"));
 
-  uiItemR(layout, ptr, "data_types_polys", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "data_types_polys", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   uiLayoutSetPropSep(layout, true);
 
@@ -447,7 +427,7 @@ static void advanced_panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_max_distance"));
   uiItemR(sub, ptr, "max_distance", UI_ITEM_NONE, "", ICON_NONE);
 
-  uiItemR(layout, ptr, "ray_radius", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "ray_radius", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -518,7 +498,7 @@ ModifierTypeInfo modifierType_DataTransfer = {
     /*is_disabled*/ is_disabled,
     /*update_depsgraph*/ update_depsgraph,
     /*depends_on_time*/ nullptr,
-    /*depends_on_normals*/ depends_on_normals,
+    /*depends_on_normals*/ nullptr,
     /*foreach_ID_link*/ foreach_ID_link,
     /*foreach_tex_link*/ nullptr,
     /*free_runtime_data*/ nullptr,

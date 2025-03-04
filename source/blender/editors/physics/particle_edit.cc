@@ -21,13 +21,15 @@
 #include "DNA_view3d_types.h"
 
 #include "BLI_kdtree.h"
-#include "BLI_lasso_2d.h"
+#include "BLI_lasso_2d.hh"
 #include "BLI_listbase.h"
+#include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_vector.hh"
 #include "BLI_rand.h"
 #include "BLI_rect.h"
 #include "BLI_task.h"
-#include "BLI_time_utildefines.h"
+#include "BLI_time.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_bvhutils.hh"
@@ -35,6 +37,7 @@
 #include "BKE_customdata.hh"
 #include "BKE_global.hh"
 #include "BKE_layer.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
@@ -56,11 +59,9 @@
 #include "ED_select_utils.hh"
 #include "ED_view3d.hh"
 
-#include "GPU_immediate.h"
-#include "GPU_immediate_util.h"
-#include "GPU_state.h"
-
-#include "UI_resources.hh"
+#include "GPU_immediate.hh"
+#include "GPU_immediate_util.hh"
+#include "GPU_state.hh"
 
 #include "WM_api.hh"
 #include "WM_message.hh"
@@ -72,7 +73,7 @@
 
 #include "DEG_depsgraph_query.hh"
 
-#include "physics_intern.h"
+#include "physics_intern.hh"
 
 #include "particle_edit_utildefines.h"
 
@@ -467,7 +468,7 @@ struct PEData {
   Object *ob;
   Mesh *mesh;
   PTCacheEdit *edit;
-  BVHTreeFromMesh shape_bvh;
+  blender::bke::BVHTreeFromMesh *shape_bvh;
   Depsgraph *depsgraph;
 
   RNG *rng;
@@ -524,6 +525,7 @@ static void PE_set_view3d_data(bContext *C, PEData *data)
                              data->vc.v3d,
                              data->vc.obact,
                              V3D_DEPTH_OBJECT_ONLY,
+                             false,
                              &data->depths);
   }
 }
@@ -533,24 +535,22 @@ static bool PE_create_shape_tree(PEData *data, Object *shapeob)
   Object *shapeob_eval = DEG_get_evaluated_object(data->depsgraph, shapeob);
   const Mesh *mesh = BKE_object_get_evaluated_mesh(shapeob_eval);
 
-  data->shape_bvh = {};
-
   if (!mesh) {
     return false;
   }
 
-  return (BKE_bvhtree_from_mesh_get(&data->shape_bvh, mesh, BVHTREE_FROM_CORNER_TRIS, 4) !=
-          nullptr);
+  data->shape_bvh = MEM_new<blender::bke::BVHTreeFromMesh>(__func__, mesh->bvh_corner_tris());
+  return data->shape_bvh->tree != nullptr;
 }
 
 static void PE_free_shape_tree(PEData *data)
 {
-  free_bvhtree_from_mesh(&data->shape_bvh);
+  MEM_delete(data->shape_bvh);
 }
 
 static void PE_create_random_generator(PEData *data)
 {
-  uint rng_seed = uint(BLI_check_seconds_timer_i() & UINT_MAX);
+  uint rng_seed = uint(BLI_time_now_seconds_i() & UINT_MAX);
   rng_seed ^= POINTER_AS_UINT(data->ob);
   rng_seed ^= POINTER_AS_UINT(data->edit);
   data->rng = BLI_rng_new(rng_seed);
@@ -2447,7 +2447,10 @@ int PE_lasso_select(bContext *C, const int mcoords[][2], const int mcoords_len, 
             ((ED_view3d_project_int_global(region, co, screen_co, V3D_PROJ_TEST_CLIP_WIN) ==
               V3D_PROJ_RET_OK) &&
              BLI_lasso_is_point_inside(
-                 mcoords, mcoords_len, screen_co[0], screen_co[1], IS_CLIPPED) &&
+                 {reinterpret_cast<const blender::int2 *>(mcoords), mcoords_len},
+                 screen_co[0],
+                 screen_co[1],
+                 IS_CLIPPED) &&
              key_test_depth(&data, co, screen_co));
         const int sel_op_result = ED_select_op_action_deselected(
             eSelectOp(sel_op), is_select, is_inside);
@@ -2468,7 +2471,10 @@ int PE_lasso_select(bContext *C, const int mcoords[][2], const int mcoords_len, 
             ((ED_view3d_project_int_global(region, co, screen_co, V3D_PROJ_TEST_CLIP_WIN) ==
               V3D_PROJ_RET_OK) &&
              BLI_lasso_is_point_inside(
-                 mcoords, mcoords_len, screen_co[0], screen_co[1], IS_CLIPPED) &&
+                 {reinterpret_cast<const blender::int2 *>(mcoords), mcoords_len},
+                 screen_co[0],
+                 screen_co[1],
+                 IS_CLIPPED) &&
              key_test_depth(&data, co, screen_co));
         const int sel_op_result = ED_select_op_action_deselected(
             eSelectOp(sel_op), is_select, is_inside);
@@ -3742,7 +3748,7 @@ void PARTICLE_OT_mirror(wmOperatorType *ot)
  * \{ */
 
 static void brush_comb(PEData *data,
-                       float[4][4] /*mat*/,
+                       float /*mat*/[4][4],
                        float imat[4][4],
                        int point_index,
                        int key_index,
@@ -3940,7 +3946,7 @@ static void brush_puff(PEData *data, int point_index, float mouse_distance)
 
       /* Use `kco` as the object space version of world-space `co`,
        * `ob->world_to_object` is set before calling. */
-      mul_v3_m4v3(kco, data->ob->world_to_object, co);
+      mul_v3_m4v3(kco, data->ob->world_to_object().ptr(), co);
 
       point_index = BLI_kdtree_3d_find_nearest(edit->emitter_field, kco, nullptr);
       if (point_index == -1) {
@@ -3949,7 +3955,7 @@ static void brush_puff(PEData *data, int point_index, float mouse_distance)
 
       copy_v3_v3(co_root, co);
       copy_v3_v3(no_root, &edit->emitter_cosnos[point_index * 6 + 3]);
-      mul_mat3_m4_v3(data->ob->object_to_world, no_root); /* normal into global-space */
+      mul_mat3_m4_v3(data->ob->object_to_world().ptr(), no_root); /* normal into global-space */
       normalize_v3(no_root);
 
       if (puff_volume) {
@@ -4030,12 +4036,13 @@ static void brush_puff(PEData *data, int point_index, float mouse_distance)
 
             /* Use `kco` as the object space version of world-space `co`,
              * `ob->world_to_object` is set before calling. */
-            mul_v3_m4v3(kco, data->ob->world_to_object, oco);
+            mul_v3_m4v3(kco, data->ob->world_to_object().ptr(), oco);
 
             point_index = BLI_kdtree_3d_find_nearest(edit->emitter_field, kco, nullptr);
             if (point_index != -1) {
               copy_v3_v3(onor, &edit->emitter_cosnos[point_index * 6 + 3]);
-              mul_mat3_m4_v3(data->ob->object_to_world, onor); /* Normal into world-space. */
+              mul_mat3_m4_v3(data->ob->object_to_world().ptr(),
+                             onor);       /* Normal into world-space. */
               mul_mat3_m4_v3(imat, onor); /* World-space into particle-space. */
               normalize_v3(onor);
             }
@@ -4064,8 +4071,8 @@ static void brush_puff(PEData *data, int point_index, float mouse_distance)
 }
 
 static void BKE_brush_weight_get(PEData *data,
-                                 float[4][4] /*mat*/,
-                                 float[4][4] /*imat*/,
+                                 float /*mat*/[4][4],
+                                 float /*imat*/[4][4],
                                  int point_index,
                                  int key_index,
                                  PTCacheEditKey * /*key*/,
@@ -4085,7 +4092,7 @@ static void BKE_brush_weight_get(PEData *data,
 
 static void brush_smooth_get(PEData *data,
                              float mat[4][4],
-                             float[4][4] /*imat*/,
+                             float /*imat*/[4][4],
                              int /*point_index*/,
                              int key_index,
                              PTCacheEditKey *key,
@@ -4102,7 +4109,7 @@ static void brush_smooth_get(PEData *data,
 }
 
 static void brush_smooth_do(PEData *data,
-                            float[4][4] /*mat*/,
+                            float /*mat*/[4][4],
                             float imat[4][4],
                             int point_index,
                             int key_index,
@@ -4171,7 +4178,7 @@ static int particle_intersect_mesh(Depsgraph *depsgraph,
     psys_disable_all(ob);
 
     Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
-    mesh = (Mesh *)BKE_object_get_evaluated_mesh(ob_eval);
+    mesh = BKE_object_get_evaluated_mesh(ob_eval);
     if (mesh == nullptr) {
       return 0;
     }
@@ -4431,7 +4438,7 @@ static int brush_add(const bContext *C, PEData *data, short number)
   short size = pset->brush[PE_BRUSH_ADD].size;
   RNG *rng;
 
-  invert_m4_m4(imat, ob->object_to_world);
+  invert_m4_m4(imat, ob->object_to_world().ptr());
 
   if (psys->flag & PSYS_GLOBAL_HAIR) {
     return 0;
@@ -4630,7 +4637,7 @@ static int brush_add(const bContext *C, PEData *data, short number)
         ppa = psys->particles + ptn[0].index;
 
         for (k = 0; k < pset->totaddkey; k++) {
-          thkey = (HairKey *)pa->hair + k;
+          thkey = pa->hair + k;
           thkey->time = pa->time + k * framestep;
 
           key3[0].time = thkey->time / 100.0f;
@@ -4767,7 +4774,7 @@ static void brush_edit_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
   RNA_float_get_array(itemptr, "mouse", mousef);
   mouse[0] = mousef[0];
   mouse[1] = mousef[1];
-  flip = RNA_boolean_get(itemptr, "pen_flip");
+  flip = RNA_boolean_get(op->ptr, "pen_flip");
 
   if (bedit->first) {
     bedit->lastmouse[0] = mouse[0];
@@ -4793,7 +4800,7 @@ static void brush_edit_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
     PEData data = bedit->data;
     data.context = C; /* TODO(mai): why isn't this set in bedit->data? */
 
-    view3d_operator_needs_opengl(C);
+    view3d_operator_needs_gpu(C);
     selected = short(count_selected_keys(scene, edit));
 
     dmax = max_ff(fabsf(dx), fabsf(dy));
@@ -4820,7 +4827,7 @@ static void brush_edit_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
             data.combfac = 1.0f - data.combfac;
           }
 
-          invert_m4_m4(ob->world_to_object, ob->object_to_world);
+          invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
 
           ED_view3d_win_to_delta(region, xy_delta, bedit->zfac, vec);
           data.dvec = vec;
@@ -4888,7 +4895,7 @@ static void brush_edit_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
             }
 
             data.invert = (brush->invert ^ flip);
-            invert_m4_m4(ob->world_to_object, ob->object_to_world);
+            invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
 
             foreach_mouse_hit_point(&data, brush_puff, selected);
           }
@@ -4918,7 +4925,7 @@ static void brush_edit_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 
           data.smoothfac = brush->strength;
 
-          invert_m4_m4(ob->world_to_object, ob->object_to_world);
+          invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
 
           foreach_mouse_hit_key(&data, brush_smooth_get, selected);
 
@@ -5014,7 +5021,6 @@ static void brush_edit_apply_event(bContext *C, wmOperator *op, const wmEvent *e
   RNA_collection_add(op->ptr, "stroke", &itemptr);
 
   RNA_float_set_array(&itemptr, "mouse", mouse);
-  RNA_boolean_set(&itemptr, "pen_flip", event->modifier & KM_SHIFT); /* XXX hardcoded */
 
   /* apply */
   brush_edit_apply(C, op, &itemptr);
@@ -5025,6 +5031,8 @@ static int brush_edit_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   if (!brush_edit_init(C, op)) {
     return OPERATOR_CANCELLED;
   }
+
+  RNA_boolean_set(op->ptr, "pen_flip", event->modifier & KM_SHIFT); /* XXX hardcoded */
 
   brush_edit_apply_event(C, op, event);
 
@@ -5083,6 +5091,9 @@ void PARTICLE_OT_brush_edit(wmOperatorType *ot)
   PropertyRNA *prop;
   prop = RNA_def_collection_runtime(ot->srna, "stroke", &RNA_OperatorStrokeElement, "Stroke", "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+  prop = RNA_def_boolean(
+      ot->srna, "pen_flip", false, "Pen Flip", "Whether a tablet's eraser mode is being used");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 /** \} */
@@ -5106,7 +5117,7 @@ static bool shape_cut_poll(bContext *C)
 }
 
 struct PointInsideBVH {
-  BVHTreeFromMesh bvhdata;
+  blender::bke::BVHTreeFromMesh *bvhdata;
   int num_hits;
 };
 
@@ -5117,7 +5128,7 @@ static void point_inside_bvh_cb(void *userdata,
 {
   PointInsideBVH *data = static_cast<PointInsideBVH *>(userdata);
 
-  data->bvhdata.raycast_callback(&data->bvhdata, index, ray, hit);
+  data->bvhdata->raycast_callback(&data->bvhdata, index, ray, hit);
 
   if (hit->index != -1) {
     ++data->num_hits;
@@ -5127,7 +5138,7 @@ static void point_inside_bvh_cb(void *userdata,
 /* true if the point is inside the shape mesh */
 static bool shape_cut_test_point(PEData *data, ParticleEditSettings *pset, ParticleCacheKey *key)
 {
-  BVHTreeFromMesh *shape_bvh = &data->shape_bvh;
+  blender::bke::BVHTreeFromMesh *shape_bvh = data->shape_bvh;
   const float dir[3] = {1.0f, 0.0f, 0.0f};
   PointInsideBVH userdata;
 
@@ -5135,7 +5146,7 @@ static bool shape_cut_test_point(PEData *data, ParticleEditSettings *pset, Parti
   userdata.num_hits = 0;
 
   float co_shape[3];
-  mul_v3_m4v3(co_shape, pset->shape_object->world_to_object, key->co);
+  mul_v3_m4v3(co_shape, pset->shape_object->world_to_object().ptr(), key->co);
 
   BLI_bvhtree_ray_cast_all(
       shape_bvh->tree, co_shape, dir, 0.0f, BVH_RAYCAST_DIST_MAX, point_inside_bvh_cb, &userdata);
@@ -5176,8 +5187,8 @@ static void shape_cut(PEData *data, int pa_index)
       float dir_shape[3];
       float len_shape;
 
-      mul_v3_m4v3(co_curr_shape, pset->shape_object->world_to_object, key->co);
-      mul_v3_m4v3(co_next_shape, pset->shape_object->world_to_object, (key + 1)->co);
+      mul_v3_m4v3(co_curr_shape, pset->shape_object->world_to_object().ptr(), key->co);
+      mul_v3_m4v3(co_next_shape, pset->shape_object->world_to_object().ptr(), (key + 1)->co);
 
       sub_v3_v3v3(dir_shape, co_next_shape, co_curr_shape);
       len_shape = normalize_v3(dir_shape);
@@ -5185,12 +5196,12 @@ static void shape_cut(PEData *data, int pa_index)
       memset(&hit, 0, sizeof(hit));
       hit.index = -1;
       hit.dist = len_shape;
-      BLI_bvhtree_ray_cast(data->shape_bvh.tree,
+      BLI_bvhtree_ray_cast(data->shape_bvh->tree,
                            co_curr_shape,
                            dir_shape,
                            0.0f,
                            &hit,
-                           data->shape_bvh.raycast_callback,
+                           data->shape_bvh->raycast_callback,
                            &data->shape_bvh);
       if (hit.index >= 0) {
         if (hit.dist < len_shape) {
@@ -5439,7 +5450,7 @@ static bool particle_edit_toggle_poll(bContext *C)
   if (ob == nullptr || ob->type != OB_MESH) {
     return false;
   }
-  if (!ob->data || ID_IS_LINKED(ob->data) || ID_IS_OVERRIDE_LIBRARY(ob->data)) {
+  if (!ob->data || !ID_IS_EDITABLE(ob->data) || ID_IS_OVERRIDE_LIBRARY(ob->data)) {
     return false;
   }
 
@@ -5492,7 +5503,7 @@ void ED_object_particle_edit_mode_enter_ex(Depsgraph *depsgraph, Scene *scene, O
   }
 
   toggle_particle_cursor(scene, true);
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_SYNC_TO_EVAL);
   WM_main_add_notifier(NC_SCENE | ND_MODE | NS_MODE_PARTICLE, nullptr);
 }
 
@@ -5510,7 +5521,7 @@ void ED_object_particle_edit_mode_exit_ex(Scene *scene, Object *ob)
   toggle_particle_cursor(scene, false);
   free_all_psys_edit(ob);
 
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_SYNC_TO_EVAL);
   WM_main_add_notifier(NC_SCENE | ND_MODE | NS_MODE_OBJECT, nullptr);
 }
 
@@ -5530,7 +5541,7 @@ static int particle_edit_toggle_exec(bContext *C, wmOperator *op)
   const bool is_mode_set = (ob->mode & mode_flag) != 0;
 
   if (!is_mode_set) {
-    if (!ED_object_mode_compat_set(C, ob, eObjectMode(mode_flag), op->reports)) {
+    if (!blender::ed::object::mode_compat_set(C, ob, eObjectMode(mode_flag), op->reports)) {
       return OPERATOR_CANCELLED;
     }
   }

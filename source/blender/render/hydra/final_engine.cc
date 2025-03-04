@@ -10,6 +10,7 @@
 
 #include "DNA_scene_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_time.h"
 #include "BLI_timecode.h"
 
@@ -69,20 +70,21 @@ void FinalEngine::render()
   render_task_delegate_->bind();
 
   auto t = tasks();
-  engine_->Execute(render_index_.get(), &t);
 
   char elapsed_time[32];
-  double time_begin = BLI_check_seconds_timer();
+  double time_begin = BLI_time_now_seconds();
   float percent_done = 0.0;
 
   while (true) {
+    engine_->Execute(render_index_.get(), &t);
+
     if (RE_engine_test_break(bl_engine_)) {
       break;
     }
 
     percent_done = renderer_percent_done();
     BLI_timecode_string_from_time_simple(
-        elapsed_time, sizeof(elapsed_time), BLI_check_seconds_timer() - time_begin);
+        elapsed_time, sizeof(elapsed_time), BLI_time_now_seconds() - time_begin);
     notify_status(percent_done / 100.0,
                   std::string(scene_name) + ": " + view_layer->name,
                   std::string("Render Time: ") + elapsed_time +

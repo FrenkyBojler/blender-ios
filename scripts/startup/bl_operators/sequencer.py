@@ -3,7 +3,10 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import bpy
-from bpy.types import Operator
+from bpy.types import (
+    FileHandler,
+    Operator,
+)
 
 from bpy.props import (
     EnumProperty,
@@ -11,6 +14,15 @@ from bpy.props import (
     IntProperty,
 )
 from bpy.app.translations import pgettext_rpt as rpt_
+
+
+def _animated_properties_get(sequence):
+    animated_properties = []
+    if hasattr(sequence, "volume"):
+        animated_properties.append("volume")
+    if hasattr(sequence, "blend_alpha"):
+        animated_properties.append("blend_alpha")
+    return animated_properties
 
 
 class SequencerCrossfadeSounds(Operator):
@@ -22,14 +34,14 @@ class SequencerCrossfadeSounds(Operator):
 
     @classmethod
     def poll(cls, context):
-        strip = context.active_sequence_strip
+        strip = context.active_strip
         return strip and (strip.type == 'SOUND')
 
     def execute(self, context):
         scene = context.scene
         seq1 = None
         seq2 = None
-        for strip in scene.sequence_editor.sequences_all:
+        for strip in scene.sequence_editor.strips_all:
             if strip.select and strip.type == 'SOUND':
                 if seq1 is None:
                     seq1 = strip
@@ -77,14 +89,14 @@ class SequencerSplitMulticam(Operator):
 
     @classmethod
     def poll(cls, context):
-        strip = context.active_sequence_strip
+        strip = context.active_strip
         return strip and (strip.type == 'MULTICAM')
 
     def execute(self, context):
         scene = context.scene
         camera = self.camera
 
-        strip = context.active_sequence_strip
+        strip = context.active_strip
 
         if strip.multicam_source == camera or camera >= strip.channel:
             return {'FINISHED'}
@@ -97,7 +109,7 @@ class SequencerSplitMulticam(Operator):
             right_strip.select = True
             scene.sequence_editor.active_strip = right_strip
 
-        context.active_sequence_strip.multicam_source = camera
+        context.active_strip.multicam_source = camera
         return {'FINISHED'}
 
 
@@ -114,7 +126,7 @@ class SequencerDeinterlaceSelectedMovies(Operator):
         return (scene and scene.sequence_editor)
 
     def execute(self, context):
-        for strip in context.scene.sequence_editor.sequences_all:
+        for strip in context.scene.sequence_editor.strips_all:
             if strip.select and strip.type == 'MOVIE':
                 strip.use_deinterlace = True
 
@@ -129,7 +141,7 @@ class SequencerFadesClear(Operator):
 
     @classmethod
     def poll(cls, context):
-        strip = context.active_sequence_strip
+        strip = context.active_strip
         return strip is not None
 
     def execute(self, context):
@@ -144,15 +156,15 @@ class SequencerFadesClear(Operator):
         fcurve_map = {
             curve.data_path: curve
             for curve in fcurves
-            if curve.data_path.startswith("sequence_editor.sequences_all")
+            if curve.data_path.startswith("sequence_editor.strips_all")
         }
-        for sequence in context.selected_sequences:
-            animated_property = "volume" if hasattr(sequence, "volume") else "blend_alpha"
-            data_path = sequence.path_from_id() + "." + animated_property
-            curve = fcurve_map.get(data_path)
-            if curve:
-                fcurves.remove(curve)
-            setattr(sequence, animated_property, 1.0)
+        for sequence in context.selected_strips:
+            for animated_property in _animated_properties_get(sequence):
+                data_path = sequence.path_from_id() + "." + animated_property
+                curve = fcurve_map.get(data_path)
+                if curve:
+                    fcurves.remove(curve)
+                setattr(sequence, animated_property, 1.0)
             sequence.invalidate_cache('COMPOSITE')
 
         return {'FINISHED'}
@@ -187,8 +199,8 @@ class SequencerFadesAdd(Operator):
 
     @classmethod
     def poll(cls, context):
-        # Can't use context.selected_sequences as it can have an impact on performances
-        strip = context.active_sequence_strip
+        # Can't use context.selected_strips as it can have an impact on performances
+        strip = context.active_strip
         return strip is not None
 
     def execute(self, context):
@@ -202,7 +214,7 @@ class SequencerFadesAdd(Operator):
             action = bpy.data.actions.new(scene.name + "Action")
             scene.animation_data.action = action
 
-        sequences = context.selected_sequences
+        sequences = context.selected_strips
 
         if not sequences:
             self.report({'ERROR'}, "No sequences selected")
@@ -227,16 +239,16 @@ class SequencerFadesAdd(Operator):
             if not self.is_long_enough(sequence, duration):
                 continue
 
-            animated_property = "volume" if hasattr(sequence, "volume") else "blend_alpha"
-            fade_fcurve = self.fade_find_or_create_fcurve(context, sequence, animated_property)
-            fades = self.calculate_fades(sequence, fade_fcurve, animated_property, duration)
-            self.fade_animation_clear(fade_fcurve, fades)
-            self.fade_animation_create(fade_fcurve, fades)
+            for animated_property in _animated_properties_get(sequence):
+                fade_fcurve = self.fade_find_or_create_fcurve(context, sequence, animated_property)
+                fades = self.calculate_fades(sequence, fade_fcurve, animated_property, duration)
+                self.fade_animation_clear(fade_fcurve, fades)
+                self.fade_animation_create(fade_fcurve, fades)
             faded_sequences.append(sequence)
             sequence.invalidate_cache('COMPOSITE')
 
         sequence_string = "sequence" if len(faded_sequences) == 1 else "sequences"
-        self.report({'INFO'}, rpt_("Added fade animation to %d %s") % (len(faded_sequences), sequence_string))
+        self.report({'INFO'}, rpt_("Added fade animation to {:d} {:s}").format(len(faded_sequences), sequence_string))
         return {'FINISHED'}
 
     def calculate_fade_duration(self, context, sequence):
@@ -275,16 +287,9 @@ class SequencerFadesAdd(Operator):
         Returns the matching FCurve or creates a new one if the function can't find a match.
         """
         scene = context.scene
-        fade_fcurve = None
-        fcurves = scene.animation_data.action.fcurves
+        action = scene.animation_data.action
         searched_data_path = sequence.path_from_id(animated_property)
-        for fcurve in fcurves:
-            if fcurve.data_path == searched_data_path:
-                fade_fcurve = fcurve
-                break
-        if not fade_fcurve:
-            fade_fcurve = fcurves.new(data_path=searched_data_path)
-        return fade_fcurve
+        return action.fcurve_ensure_for_datablock(scene, searched_data_path)
 
     def fade_animation_clear(self, fade_fcurve, fades):
         """
@@ -299,7 +304,7 @@ class SequencerFadesAdd(Operator):
                 try:
                     if fade.start.x < keyframe.co[0] <= fade.end.x:
                         keyframe_points.remove(keyframe, fast=True)
-                except BaseException:
+                except Exception:
                     pass
             fade_fcurve.update()
 
@@ -366,11 +371,43 @@ class Fade:
         return max_value if max_value > 0.0 else 1.0
 
     def __repr__(self):
-        return "Fade %r: %r to %r" % (self.type, self.start, self.end)
+        return "Fade {!r}: {!r} to {!r}".format(self.type, self.start, self.end)
 
 
 def calculate_duration_frames(scene, duration_seconds):
     return round(duration_seconds * scene.render.fps / scene.render.fps_base)
+
+
+class SequencerFileHandlerBase:
+    @classmethod
+    def poll_drop(cls, context):
+        return (
+            (context.region is not None) and
+            (context.region.type == 'WINDOW') and
+            (context.area is not None) and
+            (context.area.ui_type == 'SEQUENCE_EDITOR')
+        )
+
+
+class SEQUENCER_FH_image_strip(FileHandler, SequencerFileHandlerBase):
+    bl_idname = "SEQUENCER_FH_image_strip"
+    bl_label = "Image strip"
+    bl_import_operator = "SEQUENCER_OT_image_strip_add"
+    bl_file_extensions = ";".join(bpy.path.extensions_image)
+
+
+class SEQUENCER_FH_movie_strip(FileHandler, SequencerFileHandlerBase):
+    bl_idname = "SEQUENCER_FH_movie_strip"
+    bl_label = "Movie strip"
+    bl_import_operator = "SEQUENCER_OT_movie_strip_add"
+    bl_file_extensions = ";".join(bpy.path.extensions_movie)
+
+
+class SEQUENCER_FH_sound_strip(FileHandler, SequencerFileHandlerBase):
+    bl_idname = "SEQUENCER_FH_sound_strip"
+    bl_label = "Sound strip"
+    bl_import_operator = "SEQUENCER_OT_sound_strip_add"
+    bl_file_extensions = ";".join(bpy.path.extensions_audio)
 
 
 classes = (
@@ -379,4 +416,8 @@ classes = (
     SequencerDeinterlaceSelectedMovies,
     SequencerFadesClear,
     SequencerFadesAdd,
+
+    SEQUENCER_FH_image_strip,
+    SEQUENCER_FH_movie_strip,
+    SEQUENCER_FH_sound_strip,
 )

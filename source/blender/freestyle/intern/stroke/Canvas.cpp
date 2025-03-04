@@ -355,7 +355,7 @@ void Canvas::loadMap(const char *iFileName, const char *iMapName, uint iNbLevels
   ImBuf *scaledImg;
   if ((qimg->x != width()) || (qimg->y != height())) {
     scaledImg = IMB_dupImBuf(qimg);
-    IMB_scaleImBuf(scaledImg, width(), height());
+    IMB_scale(scaledImg, width(), height(), IMBScaleFilter::Box, false);
   }
 
   // deal with color image
@@ -414,7 +414,7 @@ void Canvas::loadMap(const char *iFileName, const char *iMapName, uint iNbLevels
 #endif
 
     // soc  QImage qtmp(ow, oh, QImage::Format_RGB32);
-    ImBuf *qtmp = IMB_allocImBuf(ow, oh, 32, IB_rect);
+    ImBuf *qtmp = IMB_allocImBuf(ow, oh, 32, IB_byte_data);
 
     // int k = (1 << i);
     for (y = 0; y < oh; ++y) {

@@ -8,12 +8,6 @@
  * \ingroup bke
  */
 
-#include "DNA_curve_types.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct AnimationEvalContext;
 struct ChannelDriver;
 struct DriverTarget;
@@ -181,13 +175,9 @@ void BKE_driver_invalidate_expression(struct ChannelDriver *driver,
  *
  * - `anim_eval_context->eval_time` is the frame at which F-Curve is being evaluated.
  * - Has to return a float value.
- * - \a driver_orig is where we cache Python expressions, in case of COW
+ * - \a driver_orig is where we cache Python expressions, in case of copy-on-eval
  */
 float evaluate_driver(struct PathResolvedRNA *anim_rna,
                       struct ChannelDriver *driver,
                       struct ChannelDriver *driver_orig,
                       const struct AnimationEvalContext *anim_eval_context);
-
-#ifdef __cplusplus
-}
-#endif

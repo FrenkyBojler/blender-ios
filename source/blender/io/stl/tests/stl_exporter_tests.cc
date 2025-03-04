@@ -5,14 +5,13 @@
 #include "tests/blendfile_loading_base_test.h"
 
 #include "BKE_appdir.hh"
-#include "BKE_main.hh"
 
 #include "BLI_fileops.h"
 #include "BLI_string.h"
 
-#include "BLO_readfile.hh"
-
 #include "DEG_depsgraph.hh"
+
+#include "MEM_guardedalloc.h"
 
 #include "IO_stl.hh"
 #include "stl_export.hh"
@@ -48,17 +47,12 @@ class STLExportTest : public BlendfileLoadingBaseTest {
  protected:
   STLExportTest()
   {
-    _params = {};
-    _params.forward_axis = IO_AXIS_Y;
-    _params.up_axis = IO_AXIS_Z;
-    _params.global_scale = 1.0f;
-    _params.apply_modifiers = true;
     _params.ascii_format = true;
   }
   void SetUp() override
   {
     BlendfileLoadingBaseTest::SetUp();
-    BKE_tempdir_init("");
+    BKE_tempdir_init(nullptr);
   }
 
   void TearDown() override

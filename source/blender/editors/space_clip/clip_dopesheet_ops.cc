@@ -6,10 +6,8 @@
  * \ingroup spclip
  */
 
-#include "DNA_scene_types.h"
-
+#include "BLI_listbase.h"
 #include "BLI_rect.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
 #include "BKE_tracking.h"
@@ -25,7 +23,7 @@
 
 #include "UI_view2d.hh"
 
-#include "clip_intern.h" /* own include */
+#include "clip_intern.hh" /* own include */
 
 static bool space_clip_dopesheet_poll(bContext *C)
 {
@@ -159,8 +157,10 @@ static int dopesheet_view_all_exec(bContext *C, wmOperator * /*op*/)
   int frame_min = INT_MAX, frame_max = INT_MIN;
 
   LISTBASE_FOREACH (MovieTrackingDopesheetChannel *, channel, &dopesheet->channels) {
-    frame_min = min_ii(frame_min, channel->segments[0]);
-    frame_max = max_ii(frame_max, channel->segments[channel->tot_segment]);
+    if (channel->segments) {
+      frame_min = min_ii(frame_min, channel->segments[0]);
+      frame_max = max_ii(frame_max, channel->segments[channel->tot_segment]);
+    }
   }
 
   if (frame_min < frame_max) {

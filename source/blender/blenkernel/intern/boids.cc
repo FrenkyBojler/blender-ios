@@ -14,19 +14,21 @@
 #include "DNA_object_force_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_kdtree.h"
+#include "BLI_listbase.h"
 #include "BLI_math_base_safe.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_rand.h"
+#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_boids.h"
 #include "BKE_collision.h"
 #include "BKE_effect.h"
 #include "BKE_particle.h"
-#include "BLI_kdopbvh.h"
+#include "BLI_kdopbvh.hh"
 
 #include "BLT_translation.hh"
 
@@ -282,7 +284,7 @@ static bool rule_avoid_collision(BoidRule *rule,
     }
   }
 
-  /* Check boids in own system. */
+  /* Check boids in their own system. */
   if (acbr->options & BRULE_ACOLL_WITH_BOIDS) {
     neighbors = BLI_kdtree_3d_range_search_with_len_squared_cb(bbd->sim->psys->tree,
                                                                pa->prev_state.co,
@@ -690,7 +692,7 @@ static bool rule_fight(BoidRule *rule, BoidBrainData *bbd, BoidValues *val, Part
   int n;
   bool ret = false;
 
-  /* calculate own group strength */
+  /* calculate its own group strength */
   int neighbors = BLI_kdtree_3d_range_search(
       bbd->sim->psys->tree, pa->prev_state.co, &ptn, fbr->distance);
   for (n = 0; n < neighbors; n++) {
@@ -705,7 +707,7 @@ static bool rule_fight(BoidRule *rule, BoidBrainData *bbd, BoidValues *val, Part
   /* add other friendlies and calculate enemy strength and find closest enemy */
   LISTBASE_FOREACH (ParticleTarget *, pt, &bbd->sim->psys->targets) {
     ParticleSystem *epsys = psys_get_target_system(bbd->sim->ob, pt);
-    if (epsys) {
+    if (epsys && epsys->part->boids) {
       epars = epsys->particles;
 
       neighbors = BLI_kdtree_3d_range_search(epsys->tree, pa->prev_state.co, &ptn, fbr->distance);
@@ -962,7 +964,7 @@ void boids_precalc_rules(ParticleSettings *part, float cfra)
         if (flbr->ob && flbr->cfra != cfra) {
           /* save object locations for velocity calculations */
           copy_v3_v3(flbr->oloc, flbr->loc);
-          copy_v3_v3(flbr->loc, flbr->ob->object_to_world[3]);
+          copy_v3_v3(flbr->loc, flbr->ob->object_to_world().location());
           flbr->cfra = cfra;
         }
       }

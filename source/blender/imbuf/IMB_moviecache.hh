@@ -9,7 +9,6 @@
  */
 
 #include "BLI_ghash.h"
-#include "BLI_utildefines.h"
 
 /* Cache system for movie data - now supports storing ImBufs only
  * Supposed to provide unified cache system for movie clips, sequencer and
@@ -27,8 +26,8 @@ using MovieCacheGetPriorityDataFP = void *(*)(void *userkey);
 using MovieCacheGetItemPriorityFP = int (*)(void *last_userkey, void *priority_data);
 using MovieCachePriorityDeleterFP = void (*)(void *priority_data);
 
-void IMB_moviecache_init(void);
-void IMB_moviecache_destruct(void);
+void IMB_moviecache_init();
+void IMB_moviecache_destruct();
 
 MovieCache *IMB_moviecache_create(const char *name,
                                   int keysize,

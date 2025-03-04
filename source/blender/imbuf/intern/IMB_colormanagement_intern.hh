@@ -8,12 +8,11 @@
 
 #pragma once
 
-#include "BLI_sys_types.h"
 #include "DNA_listBase.h"
 
 struct ImBuf;
 struct OCIO_ConstCPUProcessorRc;
-typedef struct OCIO_ConstCPUProcessorRc *OCIO_ConstCPUProcessorRcPtr;
+using OCIO_ConstCPUProcessorRcPtr = struct OCIO_ConstCPUProcessorRc *;
 
 extern float imbuf_luma_coefficients[3];
 extern float imbuf_scene_linear_to_xyz[3][3];
@@ -77,13 +76,13 @@ struct ColorManagedLook {
 
 /* ** Initialization / De-initialization ** */
 
-void colormanagement_init(void);
-void colormanagement_exit(void);
+void colormanagement_init();
+void colormanagement_exit();
 
 void colormanage_cache_free(ImBuf *ibuf);
 
-const char *colormanage_display_get_default_name(void);
-ColorManagedDisplay *colormanage_display_get_default(void);
+const char *colormanage_display_get_default_name();
+ColorManagedDisplay *colormanage_display_get_default();
 ColorManagedDisplay *colormanage_display_add(const char *name);
 ColorManagedDisplay *colormanage_display_get_named(const char *name);
 ColorManagedDisplay *colormanage_display_get_indexed(int index);

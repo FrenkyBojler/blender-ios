@@ -14,8 +14,6 @@
 OIIO_NAMESPACE_USING
 using namespace blender::imbuf;
 
-extern "C" {
-
 bool imb_is_a_hdr(const uchar *mem, size_t size)
 {
   return imb_oiio_check(mem, size, "hdr");
@@ -35,8 +33,8 @@ ImBuf *imb_load_hdr(const uchar *mem, size_t size, int flags, char colorspace[IM
     if (flags & IB_alphamode_detect) {
       ibuf->flags |= IB_alphamode_premul;
     }
-    if (flags & IB_rect) {
-      IMB_rect_from_float(ibuf);
+    if (flags & IB_byte_data) {
+      IMB_byte_from_float(ibuf);
     }
   }
 
@@ -52,5 +50,4 @@ bool imb_save_hdr(ImBuf *ibuf, const char *filepath, int flags)
   ImageSpec file_spec = imb_create_write_spec(ctx, file_channels, data_format);
 
   return imb_oiio_write(ctx, filepath, file_spec);
-}
 }

@@ -6,16 +6,13 @@
  * \ingroup edphys
  */
 
-#include <cmath>
-#include <cstdio>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_time.h"
-#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
@@ -50,12 +47,12 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "physics_intern.h" /* own include */
+#include "physics_intern.hh" /* own include */
 
 static int surface_slot_add_exec(bContext *C, wmOperator * /*op*/)
 {
   DynamicPaintModifierData *pmd = nullptr;
-  Object *cObject = ED_object_context(C);
+  Object *cObject = blender::ed::object::context_object(C);
   DynamicPaintCanvasSettings *canvas;
   DynamicPaintSurface *surface;
 
@@ -98,7 +95,7 @@ void DPAINT_OT_surface_slot_add(wmOperatorType *ot)
 static int surface_slot_remove_exec(bContext *C, wmOperator * /*op*/)
 {
   DynamicPaintModifierData *pmd = nullptr;
-  Object *obj_ctx = ED_object_context(C);
+  Object *obj_ctx = blender::ed::object::context_object(C);
   DynamicPaintCanvasSettings *canvas;
   DynamicPaintSurface *surface;
   int id = 0;
@@ -146,7 +143,7 @@ void DPAINT_OT_surface_slot_remove(wmOperatorType *ot)
 static int type_toggle_exec(bContext *C, wmOperator *op)
 {
 
-  Object *cObject = ED_object_context(C);
+  Object *cObject = blender::ed::object::context_object(C);
   Scene *scene = CTX_data_scene(C);
   DynamicPaintModifierData *pmd = (DynamicPaintModifierData *)BKE_modifiers_findby_type(
       cObject, eModifierType_DynamicPaint);
@@ -207,7 +204,7 @@ void DPAINT_OT_type_toggle(wmOperatorType *ot)
 
 static int output_toggle_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = ED_object_context(C);
+  Object *ob = blender::ed::object::context_object(C);
   DynamicPaintSurface *surface;
   DynamicPaintModifierData *pmd = (DynamicPaintModifierData *)BKE_modifiers_findby_type(
       ob, eModifierType_DynamicPaint);
@@ -236,7 +233,8 @@ static int output_toggle_exec(bContext *C, wmOperator *op)
         ED_mesh_color_add(static_cast<Mesh *>(ob->data), name, true, true, op->reports);
       }
       else {
-        BKE_id_attribute_remove(static_cast<ID *>(ob->data), name, nullptr);
+        AttributeOwner owner = AttributeOwner::from_id(static_cast<ID *>(ob->data));
+        BKE_attribute_remove(owner, name, nullptr);
       }
     }
     /* Vertex Weight Layer */
@@ -327,7 +325,7 @@ static void dpaint_bake_endjob(void *customdata)
   if (job->success) {
     /* Show bake info */
     WM_reportf(
-        RPT_INFO, "DynamicPaint: Bake complete! (%.2f)", BLI_check_seconds_timer() - job->start);
+        RPT_INFO, "DynamicPaint: Bake complete! (%.2f)", BLI_time_now_seconds() - job->start);
   }
   else {
     if (strlen(canvas->error)) { /* If an error occurred */
@@ -365,7 +363,7 @@ static void dynamicPaint_bakeImageSequence(DynamicPaintBakeJob *job)
   /* Set frame to start point (also initializes modifier data). */
   frame = surface->start_frame;
   orig_frame = input_scene->r.cfra;
-  input_scene->r.cfra = int(frame);
+  input_scene->r.cfra = frame;
   ED_update_for_newframe(job->bmain, job->depsgraph);
 
   /* Init surface */
@@ -391,7 +389,7 @@ static void dynamicPaint_bakeImageSequence(DynamicPaintBakeJob *job)
     *(job->progress) = progress;
 
     /* calculate a frame */
-    input_scene->r.cfra = int(frame);
+    input_scene->r.cfra = frame;
     ED_update_for_newframe(job->bmain, job->depsgraph);
     if (!dynamicPaint_calculateFrame(surface, job->depsgraph, scene, cObject, frame)) {
       job->success = 0;
@@ -438,7 +436,7 @@ static void dpaint_bake_startjob(void *customdata, wmJobWorkerStatus *worker_sta
   job->stop = &worker_status->stop;
   job->do_update = &worker_status->do_update;
   job->progress = &worker_status->progress;
-  job->start = BLI_check_seconds_timer();
+  job->start = BLI_time_now_seconds();
   job->success = 1;
 
   G.is_break = false;
@@ -461,7 +459,7 @@ static void dpaint_bake_startjob(void *customdata, wmJobWorkerStatus *worker_sta
 static int dynamicpaint_bake_exec(bContext *C, wmOperator *op)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Object *ob_ = ED_object_context(C);
+  Object *ob_ = blender::ed::object::context_object(C);
   Object *object_eval = DEG_get_evaluated_object(depsgraph, ob_);
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
 

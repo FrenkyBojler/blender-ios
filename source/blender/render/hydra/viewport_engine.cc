@@ -21,7 +21,9 @@
 #include "BKE_camera.h"
 #include "BKE_context.hh"
 
-#include "GPU_matrix.h"
+#include "GPU_matrix.hh"
+
+#include "DEG_depsgraph_query.hh"
 
 #include "RE_engine.h"
 
@@ -44,20 +46,19 @@ ViewSettings::ViewSettings(bContext *context)
   View3D *view3d = CTX_wm_view3d(context);
   RegionView3D *region_data = static_cast<RegionView3D *>(CTX_wm_region_data(context));
   ARegion *region = CTX_wm_region(context);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(context);
+  Scene *scene = DEG_get_evaluated_scene(depsgraph);
 
   screen_width = region->winx;
   screen_height = region->winy;
-
-  Scene *scene = CTX_data_scene(context);
 
   /* Getting render border. */
   int x1 = 0, y1 = 0;
   int x2 = screen_width, y2 = screen_height;
 
   if (region_data->persp == RV3D_CAMOB) {
-    if (scene->r.mode & R_BORDER) {
-      Object *camera_obj = scene->camera;
-
+    Object *camera_obj = scene->camera;
+    if ((scene->r.mode & R_BORDER) && camera_obj && camera_obj->type == OB_CAMERA) {
       float camera_points[4][3];
       BKE_camera_view_frame(scene, static_cast<Camera *>(camera_obj->data), camera_points);
 
@@ -65,7 +66,7 @@ ViewSettings::ViewSettings(bContext *context)
       for (int i = 0; i < 4; i++) {
         float world_location[] = {
             camera_points[i][0], camera_points[i][1], camera_points[i][2], 1.0f};
-        mul_m4_v4(camera_obj->object_to_world, world_location);
+        mul_m4_v4(camera_obj->object_to_world().ptr(), world_location);
         mul_m4_v4(region_data->persmat, world_location);
 
         if (world_location[3] > 0.0) {
@@ -113,7 +114,7 @@ ViewSettings::ViewSettings(bContext *context)
 
   border = pxr::GfVec4i(x1, y1, x2, y2);
 
-  camera = gf_camera(CTX_data_ensure_evaluated_depsgraph(context),
+  camera = gf_camera(depsgraph,
                      view3d,
                      region,
                      pxr::GfVec4f(float(border[0]) / screen_width,
@@ -139,8 +140,8 @@ DrawTexture::DrawTexture()
   GPUVertFormat format = {0};
   GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   GPU_vertformat_attr_add(&format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  GPUVertBuf *vbo = GPU_vertbuf_create_with_format(&format);
-  GPU_vertbuf_data_alloc(vbo, 4);
+  gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
+  GPU_vertbuf_data_alloc(*vbo, 4);
   GPU_vertbuf_attr_fill(vbo, 0, coords);
   GPU_vertbuf_attr_fill(vbo, 1, coords);
 
@@ -247,13 +248,13 @@ void ViewportEngine::render()
   GPU_shader_unbind();
 
   if (renderer_percent_done() == 0.0f) {
-    time_begin_ = BLI_check_seconds_timer();
+    time_begin_ = BLI_time_now_seconds();
   }
 
   char elapsed_time[32];
 
   BLI_timecode_string_from_time_simple(
-      elapsed_time, sizeof(elapsed_time), BLI_check_seconds_timer() - time_begin_);
+      elapsed_time, sizeof(elapsed_time), BLI_time_now_seconds() - time_begin_);
 
   float percent_done = renderer_percent_done();
   if (!render_task_delegate_->is_converged()) {

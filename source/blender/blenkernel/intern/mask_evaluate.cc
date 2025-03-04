@@ -9,7 +9,6 @@
  */
 
 #include <algorithm> /* For `min/max`. */
-#include <cstddef>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
@@ -21,7 +20,6 @@
 #include "BLI_utildefines.h"
 
 #include "DNA_mask_types.h"
-#include "DNA_object_types.h"
 
 #include "BKE_curve.hh"
 #include "BKE_mask.h"
@@ -359,14 +357,10 @@ void BKE_mask_spline_feather_collapse_inner_loops(MaskSpline *spline,
     }
 
     delta = fabsf(feather_points[i][0] - feather_points[next][0]);
-    if (delta > max_delta_x) {
-      max_delta_x = delta;
-    }
+    max_delta_x = std::max(delta, max_delta_x);
 
     delta = fabsf(feather_points[i][1] - feather_points[next][1]);
-    if (delta > max_delta_y) {
-      max_delta_y = delta;
-    }
+    max_delta_y = std::max(delta, max_delta_y);
   }
 
   /* Prevent divisions by zero by ensuring bounding box is not collapsed. */
@@ -643,13 +637,13 @@ static float (*mask_spline_feather_differentiated_points_with_resolution__double
     /* before we transform verts */
     len_base = len_v2v2(bezt_prev->vec[1], bezt_curr->vec[1]);
 
-    // add_v2_v2(bezt_prev->vec[0], point_prev_n);  // not needed
+    // add_v2_v2(bezt_prev->vec[0], point_prev_n);  /* Not needed. */
     add_v2_v2(bezt_prev->vec[1], point_prev_n);
     add_v2_v2(bezt_prev->vec[2], point_prev_n);
 
     add_v2_v2(bezt_curr->vec[0], point_curr_n);
     add_v2_v2(bezt_curr->vec[1], point_curr_n);
-    // add_v2_v2(bezt_curr->vec[2], point_curr_n); // not needed
+    // add_v2_v2(bezt_curr->vec[2], point_curr_n); /* Not needed. */
 
     len_feather = len_v2v2(bezt_prev->vec[1], bezt_curr->vec[1]);
 
@@ -846,10 +840,9 @@ void BKE_mask_layer_evaluate_animation(MaskLayer *masklay, const float ctime)
   /* animation if available */
   MaskLayerShape *masklay_shape_a;
   MaskLayerShape *masklay_shape_b;
-  int found;
-  if ((found = BKE_mask_layer_shape_find_frame_range(
-           masklay, ctime, &masklay_shape_a, &masklay_shape_b)))
-  {
+  int found = BKE_mask_layer_shape_find_frame_range(
+      masklay, ctime, &masklay_shape_a, &masklay_shape_b);
+  if (found) {
     if (found == 1) {
 #if 0
       printf("%s: exact %d %d (%d)\n",

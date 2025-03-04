@@ -38,7 +38,7 @@
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -973,7 +973,7 @@ static Mesh *explodeMesh(ExplodeModifierData *emd,
       &explode->fdata_legacy, CD_MTFACE, emd->uvname, explode->totface_legacy));
 
   /* getting back to object space */
-  invert_m4_m4(imat, ctx->object->object_to_world);
+  invert_m4_m4(imat, ctx->object->object_to_world().ptr());
 
   psys_sim_data_init(&sim);
 
@@ -1001,7 +1001,7 @@ static Mesh *explodeMesh(ExplodeModifierData *emd,
       psys_get_particle_state(&sim, ed_v2, &state, true);
 
       vertco = explode_positions[v];
-      mul_m4_v3(ctx->object->object_to_world, vertco);
+      mul_m4_v3(ctx->object->object_to_world().ptr(), vertco);
 
       sub_v3_v3(vertco, birth.co);
 
@@ -1173,24 +1173,25 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemPointerR(layout, ptr, "particle_uv", &obj_data_ptr, "uv_layers", nullptr, ICON_GROUP_UVS);
+  uiItemPointerR(
+      layout, ptr, "particle_uv", &obj_data_ptr, "uv_layers", std::nullopt, ICON_GROUP_UVS);
 
   row = uiLayoutRowWithHeading(layout, true, IFACE_("Show"));
-  uiItemR(row, ptr, "show_alive", toggles_flag, nullptr, ICON_NONE);
-  uiItemR(row, ptr, "show_dead", toggles_flag, nullptr, ICON_NONE);
-  uiItemR(row, ptr, "show_unborn", toggles_flag, nullptr, ICON_NONE);
+  uiItemR(row, ptr, "show_alive", toggles_flag, std::nullopt, ICON_NONE);
+  uiItemR(row, ptr, "show_dead", toggles_flag, std::nullopt, ICON_NONE);
+  uiItemR(row, ptr, "show_unborn", toggles_flag, std::nullopt, ICON_NONE);
 
   uiLayoutSetPropSep(layout, true);
 
   col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "use_edge_cut", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "use_size", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "use_edge_cut", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, ptr, "use_size", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", nullptr);
+  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
   row = uiLayoutRow(layout, false);
   uiLayoutSetActive(row, has_vertex_group);
-  uiItemR(row, ptr, "protect", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(row, ptr, "protect", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   uiItemO(layout, IFACE_("Refresh"), ICON_NONE, "OBJECT_OT_explode_refresh");
 

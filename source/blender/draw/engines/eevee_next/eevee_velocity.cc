@@ -11,7 +11,7 @@
  * It is the module that tracks the objects between frames updates.
  */
 
-#include "BKE_duplilist.h"
+#include "BKE_duplilist.hh"
 #include "BKE_object.hh"
 #include "BLI_map.hh"
 #include "DEG_depsgraph_query.hh"
@@ -19,6 +19,7 @@
 #include "DNA_particle_types.h"
 #include "DNA_rigidbody_types.h"
 
+#include "draw_cache.hh"
 #include "draw_cache_impl.hh"
 
 #include "eevee_instance.hh"
@@ -38,7 +39,8 @@ namespace blender::eevee {
 
 void VelocityModule::init()
 {
-  if (!inst_.is_viewport() && (inst_.film.enabled_passes_get() & EEVEE_RENDER_PASS_VECTOR) &&
+  if (!inst_.is_viewport() && !inst_.is_baking() &&
+      (inst_.film.enabled_passes_get() & EEVEE_RENDER_PASS_VECTOR) &&
       !inst_.motion_blur.postfx_enabled())
   {
     /* No motion blur and the vector pass was requested. Do the steps sync here. */
@@ -53,16 +55,18 @@ void VelocityModule::init()
 
   /* For viewport, only previous motion is supported.
    * Still bind previous step to avoid undefined behavior. */
-  next_step_ = inst_.is_viewport() ? STEP_PREVIOUS : STEP_NEXT;
+  next_step_ = (inst_.is_viewport() || inst_.is_baking()) ? STEP_PREVIOUS : STEP_NEXT;
 }
 
 /* Similar to Instance::object_sync, but only syncs velocity. */
 static void step_object_sync_render(void *instance,
-                                    Object *ob,
+                                    ObjectRef &ob_ref,
                                     RenderEngine * /*engine*/,
                                     Depsgraph * /*depsgraph*/)
 {
   Instance &inst = *reinterpret_cast<Instance *>(instance);
+
+  Object *ob = ob_ref.object;
 
   const bool is_velocity_type = ELEM(ob->type, OB_CURVES, OB_MESH, OB_POINTCLOUD);
   const int ob_visibility = DRW_object_visibility_in_active_context(ob);
@@ -77,20 +81,21 @@ static void step_object_sync_render(void *instance,
 
   /* NOTE: Dummy resource handle since this won't be used for drawing. */
   ResourceHandle resource_handle(0);
-  ObjectRef ob_ref = DRW_object_ref_get(ob);
   ObjectHandle &ob_handle = inst.sync.sync_object(ob_ref);
 
   if (partsys_is_visible) {
-    auto sync_hair =
-        [&](ObjectHandle hair_handle, ModifierData &md, ParticleSystem &particle_sys) {
-          inst.velocity.step_object_sync(
-              ob, hair_handle.object_key, resource_handle, hair_handle.recalc, &md, &particle_sys);
-        };
-    foreach_hair_particle_handle(ob, ob_handle, sync_hair);
+    auto sync_hair = [&](ObjectHandle hair_handle,
+                         ModifierData &md,
+                         ParticleSystem &particle_sys) {
+      inst.velocity.step_object_sync(
+          hair_handle.object_key, ob_ref, hair_handle.recalc, resource_handle, &md, &particle_sys);
+    };
+    foreach_hair_particle_handle(ob_ref.object, ob_handle, sync_hair);
   };
 
   if (object_is_visible) {
-    inst.velocity.step_object_sync(ob, ob_handle.object_key, resource_handle, ob_handle.recalc);
+    inst.velocity.step_object_sync(
+        ob_handle.object_key, ob_ref, ob_handle.recalc, resource_handle);
   }
 }
 
@@ -101,15 +106,11 @@ void VelocityModule::step_sync(eVelocityStep step, float time)
   object_steps_usage[step_] = 0;
   step_camera_sync();
 
-  draw::hair_init();
-  draw::curves_init();
+  DRW_curves_init();
 
   DRW_render_object_iter(&inst_, inst_.render, inst_.depsgraph, step_object_sync_render);
 
-  draw::hair_update(*inst_.manager);
-  draw::curves_update(*inst_.manager);
-  draw::hair_free();
-  draw::curves_free();
+  DRW_curves_update(*inst_.manager);
 
   geometry_steps_fill();
 }
@@ -127,13 +128,14 @@ void VelocityModule::step_camera_sync()
   }
 }
 
-bool VelocityModule::step_object_sync(Object *ob,
-                                      ObjectKey &object_key,
-                                      ResourceHandle resource_handle,
+bool VelocityModule::step_object_sync(ObjectKey &object_key,
+                                      const ObjectRef &object_ref,
                                       int /*IDRecalcFlag*/ recalc,
+                                      ResourceHandle resource_handle,
                                       ModifierData *modifier_data /*=nullptr*/,
                                       ParticleSystem *particle_sys /*=nullptr*/)
 {
+  Object *ob = object_ref.object;
   bool has_motion = object_has_velocity(ob) || (recalc & ID_RECALC_TRANSFORM);
   /* NOTE: Fragile. This will only work with 1 frame of lag since we can't record every geometry
    * just in case there might be an update the next frame. */
@@ -152,19 +154,26 @@ bool VelocityModule::step_object_sync(Object *ob,
   VelocityObjectData &vel = velocity_map.lookup_or_add_default(object_key);
   vel.obj.ofs[step_] = object_steps_usage[step_]++;
   vel.obj.resource_id = resource_handle.resource_index();
-  vel.id = object_key.hash();
-  object_steps[step_]->get_or_resize(vel.obj.ofs[step_]) = float4x4_view(ob->object_to_world);
+  /* While VelocityObjectData is unique for each object/instance, multiple VelocityObjectDatas can
+   * point to the same offset in VelocityGeometryData, since geometry is stored local space. */
+  vel.id = particle_sys ? uint64_t(particle_sys) : uint64_t(ob->data);
+  object_steps[step_]->get_or_resize(vel.obj.ofs[step_]) = ob->object_to_world();
   if (step_ == STEP_CURRENT) {
     /* Replace invalid steps. Can happen if object was hidden in one of those steps. */
     if (vel.obj.ofs[STEP_PREVIOUS] == -1) {
       vel.obj.ofs[STEP_PREVIOUS] = object_steps_usage[STEP_PREVIOUS]++;
-      object_steps[STEP_PREVIOUS]->get_or_resize(vel.obj.ofs[STEP_PREVIOUS]) = float4x4_view(
-          ob->object_to_world);
+      object_steps[STEP_PREVIOUS]->get_or_resize(
+          vel.obj.ofs[STEP_PREVIOUS]) = ob->object_to_world();
     }
     if (vel.obj.ofs[STEP_NEXT] == -1) {
-      vel.obj.ofs[STEP_NEXT] = object_steps_usage[STEP_NEXT]++;
-      object_steps[STEP_NEXT]->get_or_resize(vel.obj.ofs[STEP_NEXT]) = float4x4_view(
-          ob->object_to_world);
+      if (inst_.is_viewport()) {
+        /* Just set it to 0. motion.next is not meant to be valid in the viewport. */
+        vel.obj.ofs[STEP_NEXT] = 0;
+      }
+      else {
+        vel.obj.ofs[STEP_NEXT] = object_steps_usage[STEP_NEXT]++;
+        object_steps[STEP_NEXT]->get_or_resize(vel.obj.ofs[STEP_NEXT]) = ob->object_to_world();
+      }
     }
   }
 
@@ -209,13 +218,13 @@ bool VelocityModule::step_object_sync(Object *ob,
 
   /* Avoid drawing object that has no motions but were tagged as such. */
   if (step_ == STEP_CURRENT && has_motion == true && has_deform == false) {
-    float4x4 &obmat_curr = (*object_steps[STEP_CURRENT])[vel.obj.ofs[STEP_CURRENT]];
-    float4x4 &obmat_prev = (*object_steps[STEP_PREVIOUS])[vel.obj.ofs[STEP_PREVIOUS]];
-    float4x4 &obmat_next = (*object_steps[STEP_NEXT])[vel.obj.ofs[STEP_NEXT]];
+    const float4x4 &obmat_curr = (*object_steps[STEP_CURRENT])[vel.obj.ofs[STEP_CURRENT]];
+    const float4x4 &obmat_prev = (*object_steps[STEP_PREVIOUS])[vel.obj.ofs[STEP_PREVIOUS]];
     if (inst_.is_viewport()) {
       has_motion = (obmat_curr != obmat_prev);
     }
     else {
+      const float4x4 &obmat_next = (*object_steps[STEP_NEXT])[vel.obj.ofs[STEP_NEXT]];
       has_motion = (obmat_curr != obmat_prev || obmat_curr != obmat_next);
     }
   }
@@ -262,7 +271,7 @@ void VelocityModule::geometry_steps_fill()
   copy_ps.bind_ssbo("out_buf", *geometry_steps[step_]);
 
   for (VelocityGeometryData &geom : geometry_map.values()) {
-    if (!geom.pos_buf) {
+    if (!geom.pos_buf || geom.len == 0) {
       continue;
     }
     const GPUVertFormat *format = GPU_vertbuf_get_format(geom.pos_buf);
@@ -279,7 +288,9 @@ void VelocityModule::geometry_steps_fill()
       copy_ps.push_constant("start_offset", geom.ofs);
       copy_ps.push_constant("vertex_stride", int(format->stride / 4));
       copy_ps.push_constant("vertex_count", geom.len);
-      copy_ps.dispatch(int3(divide_ceil_u(geom.len, VERTEX_COPY_GROUP_SIZE), 1, 1));
+      uint group_len_x = divide_ceil_u(geom.len, VERTEX_COPY_GROUP_SIZE);
+      uint verts_per_thread = divide_ceil_u(group_len_x, GPU_max_work_group_count(0));
+      copy_ps.dispatch(int3(group_len_x / verts_per_thread, 1, 1));
     }
   }
 
@@ -299,10 +310,6 @@ void VelocityModule::geometry_steps_fill()
   geometry_map.clear();
 }
 
-/**
- * In Render, moves the next frame data to previous frame data. Nullify next frame data.
- * In Viewport, the current frame data will be used as previous frame data in the next frame.
- */
 void VelocityModule::step_swap()
 {
   auto swap_steps = [&](eVelocityStep step_a, eVelocityStep step_b) {
@@ -310,6 +317,7 @@ void VelocityModule::step_swap()
     std::swap(geometry_steps[step_a], geometry_steps[step_b]);
     std::swap(camera_steps[step_a], camera_steps[step_b]);
     std::swap(step_time[step_a], step_time[step_b]);
+    std::swap(object_steps_usage[step_a], object_steps_usage[step_b]);
 
     for (VelocityObjectData &vel : velocity_map.values()) {
       vel.obj.ofs[step_a] = vel.obj.ofs[step_b];
@@ -340,9 +348,11 @@ void VelocityModule::begin_sync()
   step_ = STEP_CURRENT;
   step_camera_sync();
   object_steps_usage[step_] = 0;
+
+  /* STEP_NEXT is not used for viewport. (See #131134) */
+  BLI_assert(!inst_.is_viewport() || object_steps_usage[STEP_NEXT] == 0);
 }
 
-/* This is the end of the current frame sync. Not the step_sync. */
 void VelocityModule::end_sync()
 {
   Vector<ObjectKey, 0> deleted_obj;
@@ -372,7 +382,7 @@ void VelocityModule::end_sync()
       /* Current geometry step will be copied at the end of the frame.
        * Thus vel.geo.len[STEP_CURRENT] is not yet valid and the current length is manually
        * retrieved. */
-      GPUVertBuf *pos_buf = geometry_map.lookup_default(vel.id, VelocityGeometryData()).pos_buf;
+      gpu::VertBuf *pos_buf = geometry_map.lookup_default(vel.id, VelocityGeometryData()).pos_buf;
       vel.geo.do_deform = pos_buf != nullptr &&
                           (vel.geo.len[STEP_PREVIOUS] == GPU_vertbuf_get_vertex_len(pos_buf));
     }
@@ -421,21 +431,6 @@ bool VelocityModule::object_is_deform(const Object *ob)
                          (has_rigidbody && (rbo->flag & RBO_FLAG_USE_DEFORM) != 0);
 
   return is_deform;
-}
-
-void VelocityModule::bind_resources(DRWShadingGroup *grp)
-{
-  /* For viewport, only previous motion is supported.
-   * Still bind previous step to avoid undefined behavior. */
-  eVelocityStep next = inst_.is_viewport() ? STEP_PREVIOUS : STEP_NEXT;
-  DRW_shgroup_storage_block_ref(grp, "velocity_obj_prev_buf", &(*object_steps[STEP_PREVIOUS]));
-  DRW_shgroup_storage_block_ref(grp, "velocity_obj_next_buf", &(*object_steps[next]));
-  DRW_shgroup_storage_block_ref(grp, "velocity_geo_prev_buf", &(*geometry_steps[STEP_PREVIOUS]));
-  DRW_shgroup_storage_block_ref(grp, "velocity_geo_next_buf", &(*geometry_steps[next]));
-  DRW_shgroup_uniform_block_ref(grp, "camera_prev", &(*camera_steps[STEP_PREVIOUS]));
-  DRW_shgroup_uniform_block_ref(grp, "camera_curr", &(*camera_steps[STEP_CURRENT]));
-  DRW_shgroup_uniform_block_ref(grp, "camera_next", &(*camera_steps[next]));
-  DRW_shgroup_storage_block_ref(grp, "velocity_indirection_buf", &indirection_buf);
 }
 
 bool VelocityModule::camera_has_motion() const

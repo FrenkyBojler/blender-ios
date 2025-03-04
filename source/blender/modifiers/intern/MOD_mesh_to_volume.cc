@@ -11,6 +11,7 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
+#include "BKE_mesh.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_modifier.hh"
 #include "BKE_volume.hh"
@@ -26,15 +27,11 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "MEM_guardedalloc.h"
-
 #include "MOD_ui_common.hh"
 
-#include "BLI_index_range.hh"
 #include "BLI_math_matrix_types.hh"
-#include "BLI_span.hh"
 
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 static void init_data(ModifierData *md)
 {
@@ -74,21 +71,21 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "object", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "density", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "density", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   {
     uiLayout *col = uiLayoutColumn(layout, false);
-    uiItemR(col, ptr, "interior_band_width", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(col, ptr, "interior_band_width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   {
     uiLayout *col = uiLayoutColumn(layout, false);
-    uiItemR(col, ptr, "resolution_mode", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiItemR(col, ptr, "resolution_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     if (mvmd->resolution_mode == MESH_TO_VOLUME_RESOLUTION_MODE_VOXEL_AMOUNT) {
-      uiItemR(col, ptr, "voxel_amount", UI_ITEM_NONE, nullptr, ICON_NONE);
+      uiItemR(col, ptr, "voxel_amount", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
     else {
-      uiItemR(col, ptr, "voxel_size", UI_ITEM_NONE, nullptr, ICON_NONE);
+      uiItemR(col, ptr, "voxel_size", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
   }
 
@@ -122,8 +119,8 @@ static Volume *mesh_to_volume(ModifierData *md,
     return input_volume;
   }
 
-  const float4x4 mesh_to_own_object_space_transform = float4x4(ctx->object->world_to_object) *
-                                                      float4x4(object_to_convert->object_to_world);
+  const float4x4 mesh_to_own_object_space_transform = ctx->object->world_to_object() *
+                                                      object_to_convert->object_to_world();
   geometry::MeshToVolumeResolution resolution;
   resolution.mode = (MeshToVolumeModifierResolutionMode)mvmd->resolution_mode;
   if (resolution.mode == MESH_TO_VOLUME_RESOLUTION_MODE_VOXEL_AMOUNT) {
@@ -158,7 +155,9 @@ static Volume *mesh_to_volume(ModifierData *md,
   /* Convert mesh to grid and add to volume. */
   geometry::fog_volume_grid_add_from_mesh(volume,
                                           "density",
-                                          mesh,
+                                          mesh->vert_positions(),
+                                          mesh->corner_verts(),
+                                          mesh->corner_tris(),
                                           mesh_to_own_object_space_transform,
                                           voxel_size,
                                           mvmd->interior_band_width,

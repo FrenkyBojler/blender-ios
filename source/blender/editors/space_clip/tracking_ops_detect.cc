@@ -10,6 +10,8 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
+#include "BLI_listbase.h"
+
 #include "BKE_context.hh"
 #include "BKE_movieclip.h"
 #include "BKE_report.hh"
@@ -26,8 +28,8 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "clip_intern.h"
-#include "tracking_ops_intern.h"
+#include "clip_intern.hh"
+#include "tracking_ops_intern.hh"
 
 /********************** detect features operator *********************/
 

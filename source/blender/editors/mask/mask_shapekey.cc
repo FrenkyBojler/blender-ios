@@ -9,13 +9,11 @@
 #include <cstdlib>
 
 #include "BLI_listbase.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
 #include "BKE_mask.h"
 
 #include "DNA_mask_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #include "DEG_depsgraph.hh"
@@ -28,7 +26,7 @@
 
 #include "ED_mask.hh" /* own include */
 
-#include "mask_intern.h" /* own include */
+#include "mask_intern.hh" /* own include */
 
 static int mask_shape_key_insert_exec(bContext *C, wmOperator * /*op*/)
 {

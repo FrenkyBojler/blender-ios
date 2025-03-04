@@ -47,7 +47,7 @@
 
 #include "UI_view2d.hh"
 
-#include "clip_intern.h" /* own include */
+#include "clip_intern.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
 /** \name Operator Poll Functions
@@ -508,14 +508,16 @@ void ED_clip_point_stable_pos(
 
   if (sc->user.render_flag & MCLIP_PROXY_RENDER_UNDISTORT) {
     MovieClip *clip = ED_space_clip_get_clip(sc);
-    MovieTracking *tracking = &clip->tracking;
-    float aspy = 1.0f / tracking->camera.pixel_aspect;
-    float tmp[2] = {*xr * width, *yr * height * aspy};
+    if (clip != nullptr) {
+      MovieTracking *tracking = &clip->tracking;
+      float aspy = 1.0f / tracking->camera.pixel_aspect;
+      float tmp[2] = {*xr * width, *yr * height * aspy};
 
-    BKE_tracking_distort_v2(tracking, width, height, tmp, tmp);
+      BKE_tracking_distort_v2(tracking, width, height, tmp, tmp);
 
-    *xr = tmp[0] / width;
-    *yr = tmp[1] / (height * aspy);
+      *xr = tmp[0] / width;
+      *yr = tmp[1] / (height * aspy);
+    }
   }
 }
 
@@ -845,7 +847,7 @@ static void prefetch_task_func(TaskPool *__restrict pool, void *task_data)
   while ((mem = prefetch_thread_next_frame(queue, clip, &size, &current_frame))) {
     ImBuf *ibuf;
     MovieClipUser user = *DNA_struct_default_get(MovieClipUser);
-    int flag = IB_rect | IB_multilayer | IB_alphamode_detect | IB_metadata;
+    int flag = IB_byte_data | IB_multilayer | IB_alphamode_detect | IB_metadata;
     int result;
     char *colorspace_name = nullptr;
     const bool use_proxy = (clip->flag & MCLIP_USE_PROXY) &&
@@ -1135,7 +1137,7 @@ void clip_start_prefetch_job(const bContext *C)
   /* Create a local copy of the clip, so that video file (clip->anim) access can happen without
    * acquiring the lock which will interfere with the main thread. */
   if (pj->clip->source == MCLIP_SRC_MOVIE) {
-    BKE_id_copy_ex(nullptr, (ID *)&pj->clip->id, (ID **)&pj->clip_local, LIB_ID_COPY_LOCALIZE);
+    BKE_id_copy_ex(nullptr, (&pj->clip->id), (ID **)&pj->clip_local, LIB_ID_COPY_LOCALIZE);
   }
 
   WM_jobs_customdata_set(wm_job, pj, prefetch_freejob);

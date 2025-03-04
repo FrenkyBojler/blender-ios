@@ -17,7 +17,7 @@
 
 #include "UI_resources.hh"
 
-#include "UI_interface_c.hh"
+#include "UI_interface_c.hh"  // IWYU pragma: export
 
 namespace blender::nodes::geo_eval_log {
 struct GeometryAttributeInfo;
@@ -32,13 +32,33 @@ struct uiBut;
 struct uiLayout;
 struct uiList;
 struct uiSearchItems;
-struct uiViewHandle;
-struct uiViewItemHandle;
 struct wmDrag;
 struct wmEvent;
+namespace blender::ui {
+class AbstractView;
+class AbstractViewItem;
+}  // namespace blender::ui
 
 void UI_but_func_set(uiBut *but, std::function<void(bContext &)> func);
 void UI_but_func_pushed_state_set(uiBut *but, std::function<bool(const uiBut &)> func);
+
+/**
+ * Template generating a freeing callback matching the #uiButArgNFree signature, for data created
+ * with #MEM_new.
+ */
+template<typename T> void but_func_argN_free(void *argN)
+{
+  MEM_delete(static_cast<T *>(argN));
+}
+
+/**
+ * Template generating a copying callback matching the #uiButArgNCopy signature, for data created
+ * with #MEM_new.
+ */
+template<typename T> void *but_func_argN_copy(const void *argN)
+{
+  return MEM_new<T>(__func__, *static_cast<const T *>(argN));
+}
 
 namespace blender::ui {
 
@@ -65,12 +85,15 @@ void context_path_add_generic(Vector<ContextPathItem> &path,
 
 void template_breadcrumbs(uiLayout &layout, Span<ContextPathItem> context_path);
 
-void attribute_search_add_items(StringRefNull str,
+void attribute_search_add_items(StringRef str,
                                 bool can_create_attribute,
                                 Span<const nodes::geo_eval_log::GeometryAttributeInfo *> infos,
                                 uiSearchItems *items,
                                 bool is_first);
 
+bool asset_shelf_popover_invoke(bContext &C,
+                                blender::StringRef asset_shelf_idname,
+                                ReportList &reports);
 /**
  * Some drop targets simply allow dropping onto/into them, others support dragging in-between them.
  * Classes implementing the drop-target interface can use this type to control the behavior by
@@ -184,8 +207,6 @@ std::string drop_target_tooltip(const ARegion &region,
                                 const wmDrag &drag,
                                 const wmEvent &event);
 
-std::unique_ptr<DropTargetInterface> view_drop_target(uiViewHandle *view_handle);
-std::unique_ptr<DropTargetInterface> view_item_drop_target(uiViewItemHandle *item_handle);
 /**
  * Try to find a view item with a drop target under the mouse cursor, or if not found, a view
  * with a drop target.
@@ -252,6 +273,8 @@ void UI_list_filter_and_sort_items(uiList *ui_list,
 
 /**
  * Override this for all available view types.
+ * \param idname: Used for restoring persistent state of this view, potentially written to files.
+ * Must not be longer than #BKE_ST_MAXNAME (including 0 terminator).
  */
 blender::ui::AbstractGridView *UI_block_add_view(
     uiBlock &block,

@@ -8,7 +8,7 @@
 
 #include "BLI_utildefines.h"
 
-#include "BLI_kdopbvh.h"
+#include "BLI_kdopbvh.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
@@ -29,7 +29,7 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MOD_ui_common.hh"
 
@@ -131,7 +131,7 @@ static void deform_verts(ModifierData *md,
 
       for (uint i = 0; i < mvert_num; i++) {
         /* we save global positions */
-        mul_m4_v3(ob->object_to_world, collmd->x[i]);
+        mul_m4_v3(ob->object_to_world().ptr(), collmd->x[i]);
       }
 
       collmd->xnew = static_cast<float(*)[3]>(MEM_dupallocN(collmd->x)); /* Frame end position. */
@@ -176,7 +176,7 @@ static void deform_verts(ModifierData *md,
 
       for (uint i = 0; i < mvert_num; i++) {
         /* we save global positions */
-        mul_m4_v3(ob->object_to_world, collmd->xnew[i]);
+        mul_m4_v3(ob->object_to_world().ptr(), collmd->xnew[i]);
 
         /* detect motion */
         is_static = is_static && equals_v3v3(collmd->x[i], collmd->xnew[i]);

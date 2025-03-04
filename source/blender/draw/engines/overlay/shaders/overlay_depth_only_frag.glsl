@@ -2,7 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(select_lib.glsl)
+#include "infos/overlay_edit_mode_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(overlay_depth_mesh_base)
+
+#include "select_lib.glsl"
 
 void main()
 {

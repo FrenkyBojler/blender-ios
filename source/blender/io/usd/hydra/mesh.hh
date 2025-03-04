@@ -9,8 +9,6 @@
 
 #include "BLI_set.hh"
 
-#include "BKE_duplilist.h"
-
 #include "material.hh"
 #include "object.hh"
 

@@ -13,11 +13,9 @@
 
 #ifndef NDEBUG
 
-#  include <stdio.h>
+#  include <cstdio>
 
 #  include "MEM_guardedalloc.h"
-
-#  include "BLI_utildefines.h"
 
 #  include "BKE_customdata.hh"
 

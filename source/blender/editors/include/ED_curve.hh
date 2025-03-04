@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "BLI_span.hh"
+
 struct BPoint;
 struct Base;
 struct BezTriple;
@@ -80,7 +82,7 @@ bool ED_curve_select_all(EditNurb *editnurb);
 bool ED_curve_select_swap(EditNurb *editnurb, bool hide_handles);
 int ED_curve_select_count(const View3D *v3d, const EditNurb *editnurb);
 
-/* editcurve_undo.cc */
+/* `editcurve_undo.cc` */
 
 /** Export for ED_undo_sys */
 void ED_curve_undosys_type(UndoType *ut);

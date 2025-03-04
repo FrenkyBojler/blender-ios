@@ -37,25 +37,24 @@
 
 struct DriverDropper {
   /* Destination property (i.e. where we'll add a driver) */
-  PointerRNA ptr;
-  PropertyRNA *prop;
-  int index;
-  bool is_undo;
+  PointerRNA ptr = {};
+  PropertyRNA *prop = nullptr;
+  int index = 0;
+  bool is_undo = false;
 
   /* TODO: new target? */
 };
 
 static bool driverdropper_init(bContext *C, wmOperator *op)
 {
-  DriverDropper *ddr = MEM_cnew<DriverDropper>(__func__);
+  DriverDropper *ddr = MEM_new<DriverDropper>(__func__);
 
   uiBut *but = UI_context_active_but_prop_get(C, &ddr->ptr, &ddr->prop, &ddr->index);
 
   if ((ddr->ptr.data == nullptr) || (ddr->prop == nullptr) ||
-      (RNA_property_editable(&ddr->ptr, ddr->prop) == false) ||
-      (RNA_property_animateable(&ddr->ptr, ddr->prop) == false) || (but->flag & UI_BUT_DRIVEN))
+      (RNA_property_driver_editable(&ddr->ptr, ddr->prop) == false) || (but->flag & UI_BUT_DRIVEN))
   {
-    MEM_freeN(ddr);
+    MEM_delete(ddr);
     return false;
   }
   op->customdata = ddr;
@@ -69,7 +68,11 @@ static void driverdropper_exit(bContext *C, wmOperator *op)
 {
   WM_cursor_modal_restore(CTX_wm_window(C));
 
-  MEM_SAFE_FREE(op->customdata);
+  if (op->customdata) {
+    DriverDropper *ddr = static_cast<DriverDropper *>(op->customdata);
+    op->customdata = nullptr;
+    MEM_delete(ddr);
+  }
 }
 
 static void driverdropper_sample(bContext *C, wmOperator *op, const wmEvent *event)

@@ -5,7 +5,7 @@
 # Libraries configuration for Apple.
 
 macro(find_package_wrapper)
-# do nothing, just satisfy the macro
+  # do nothing, just satisfy the macro
 endmacro()
 
 function(print_found_status
@@ -49,17 +49,16 @@ endif()
 
 if(NOT DEFINED LIBDIR)
   if("${CMAKE_OSX_ARCHITECTURES}" STREQUAL "x86_64")
-    set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/darwin)
+    set(LIBDIR ${CMAKE_SOURCE_DIR}/lib/macos_x64)
   else()
-    set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/darwin_${CMAKE_OSX_ARCHITECTURES})
-  endif()
-else()
-  if(FIRST_RUN)
-    message(STATUS "Using pre-compiled LIBDIR: ${LIBDIR}")
+    set(LIBDIR ${CMAKE_SOURCE_DIR}/lib/macos_${CMAKE_OSX_ARCHITECTURES})
   endif()
 endif()
-if(NOT EXISTS "${LIBDIR}/")
+if(NOT EXISTS "${LIBDIR}/.git")
   message(FATAL_ERROR "Mac OSX requires pre-compiled libs at: '${LIBDIR}'")
+endif()
+if(FIRST_RUN)
+  message(STATUS "Using pre-compiled LIBDIR: ${LIBDIR}")
 endif()
 
 # Avoid searching for headers since this would otherwise override our lib
@@ -108,6 +107,12 @@ if(WITH_OPENSUBDIV)
   find_package(OpenSubdiv)
 endif()
 add_bundled_libraries(opensubdiv/lib)
+
+if(WITH_VULKAN_BACKEND)
+  find_package(MoltenVK REQUIRED)
+  find_package(ShaderC REQUIRED)
+  find_package(Vulkan REQUIRED)
+endif()
 
 if(WITH_CODEC_SNDFILE)
   find_package(SndFile)
@@ -169,6 +174,9 @@ if(WITH_CODEC_FFMPEG)
   if(EXISTS ${LIBDIR}/ffmpeg/lib/libaom.a)
     list(APPEND FFMPEG_FIND_COMPONENTS aom)
   endif()
+  if(EXISTS ${LIBDIR}/ffmpeg/lib/libx265.a)
+    list(APPEND FFMPEG_FIND_COMPONENTS x265)
+  endif()
   if(EXISTS ${LIBDIR}/ffmpeg/lib/libxvidcore.a)
     list(APPEND FFMPEG_FIND_COMPONENTS xvidcore)
   endif()
@@ -208,9 +216,7 @@ endif()
 
 if(WITH_OPENCOLLADA)
   find_package(OpenCOLLADA)
-  find_library(PCRE_LIBRARIES NAMES pcre HINTS ${LIBDIR}/opencollada/lib)
   find_library(XML2_LIBRARIES NAMES xml2 HINTS ${LIBDIR}/opencollada/lib)
-  print_found_status("PCRE" "${PCRE_LIBRARIES}")
   print_found_status("XML2" "${XML2_LIBRARIES}")
 endif()
 
@@ -243,28 +249,31 @@ if(WITH_IMAGE_WEBP)
   find_package(WebP REQUIRED)
 endif()
 
+# With Blender 4.4 libraries there is no more Boost. This code is only
+# here until we can reasonably assume everyone has upgraded to them.
+if(WITH_BOOST)
+  if(DEFINED LIBDIR AND NOT EXISTS "${LIBDIR}/boost")
+    set(WITH_BOOST OFF)
+    set(BOOST_LIBRARIES)
+    set(BOOST_PYTHON_LIBRARIES)
+    set(BOOST_INCLUDE_DIR)
+  endif()
+endif()
+
 if(WITH_BOOST)
   set(Boost_NO_BOOST_CMAKE ON)
   set(Boost_ROOT ${LIBDIR}/boost)
   set(Boost_NO_SYSTEM_PATHS ON)
-  set(_boost_FIND_COMPONENTS date_time filesystem regex system thread wave)
-  if(WITH_INTERNATIONAL)
-    list(APPEND _boost_FIND_COMPONENTS locale)
-  endif()
-  if(WITH_OPENVDB)
-    list(APPEND _boost_FIND_COMPONENTS iostreams)
-  endif()
+  set(_boost_FIND_COMPONENTS)
   if(WITH_USD AND USD_PYTHON_SUPPORT)
     list(APPEND _boost_FIND_COMPONENTS python${PYTHON_VERSION_NO_DOTS})
   endif()
   set(Boost_NO_WARN_NEW_VERSIONS ON)
   find_package(Boost COMPONENTS ${_boost_FIND_COMPONENTS})
 
-  # Boost Python is separate to avoid linking Python into tests that don't need it.
-  set(BOOST_LIBRARIES ${Boost_LIBRARIES})
+  # Boost Python is the only library Blender directly depends on, though USD headers.
   if(WITH_USD AND USD_PYTHON_SUPPORT)
     set(BOOST_PYTHON_LIBRARIES ${Boost_PYTHON${PYTHON_VERSION_NO_DOTS}_LIBRARY})
-    list(REMOVE_ITEM BOOST_LIBRARIES ${BOOST_PYTHON_LIBRARIES})
   endif()
   set(BOOST_INCLUDE_DIR ${Boost_INCLUDE_DIRS})
   set(BOOST_DEFINITIONS)
@@ -275,8 +284,8 @@ if(WITH_BOOST)
 endif()
 add_bundled_libraries(boost/lib)
 
-if(WITH_INTERNATIONAL OR WITH_CODEC_FFMPEG)
-  string(APPEND PLATFORM_LINKFLAGS " -liconv") # boost_locale and ffmpeg needs it !
+if(WITH_CODEC_FFMPEG)
+  string(APPEND PLATFORM_LINKFLAGS " -liconv") # ffmpeg needs it !
 endif()
 
 if(WITH_PUGIXML)
@@ -326,7 +335,7 @@ if(WITH_LLVM)
 endif()
 
 if(WITH_CYCLES AND WITH_CYCLES_OSL)
-  find_package(OSL REQUIRED)
+  find_package(OSL 1.13.4 REQUIRED)
 endif()
 add_bundled_libraries(osl/lib)
 
@@ -477,31 +486,6 @@ if(WITH_COMPILER_CCACHE)
   endif()
 endif()
 
-unset(_custom_LINKER_FUSE_FLAG)
-if(WITH_LINKER_LLD)
-  find_program(LLD_PROGRAM ld.lld)
-  if(LLD_PROGRAM)
-    set(_custom_LINKER_FUSE_FLAG "-fuse-ld=lld")
-  else()
-    message(WARNING "LLD linker NOT found, disabling WITH_LINKER_LLD")
-    set(WITH_LINKER_LLD OFF)
-  endif()
-endif()
-if(WITH_LINKER_MOLD)
-  find_program(MOLD_PROGRAM mold)
-  if(MOLD_PROGRAM)
-    set(_custom_LINKER_FUSE_FLAG "-fuse-ld=mold")
-  else()
-    message(WARNING "Mold linker NOT found, disabling WITH_LINKER_MOLD")
-    set(WITH_LINKER_MOLD OFF)
-  endif()
-endif()
-
-if(_custom_LINKER_FUSE_FLAG)
-  add_link_options(${_custom_LINKER_FUSE_FLAG})
-endif()
-
-
 if(WITH_COMPILER_ASAN)
   list(APPEND PLATFORM_BUNDLED_LIBRARIES ${COMPILER_ASAN_LIBRARY})
 endif()
@@ -525,8 +509,9 @@ if(PLATFORM_BUNDLED_LIBRARIES)
 
   # Environment variables to run precompiled executables that needed libraries.
   list(JOIN PLATFORM_BUNDLED_LIBRARY_DIRS ":" _library_paths)
-  set(PLATFORM_ENV_BUILD "DYLD_LIBRARY_PATH=\"${_library_paths};$DYLD_LIBRARY_PATH\"")
-  set(PLATFORM_ENV_INSTALL "DYLD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX_WITH_CONFIG}/Blender.app/Contents/Resources/lib/;$DYLD_LIBRARY_PATH")
+  # Intentionally double "$$" which expands into "$" when instantiated.
+  set(PLATFORM_ENV_BUILD "DYLD_LIBRARY_PATH=\"${_library_paths};$$DYLD_LIBRARY_PATH\"")
+  set(PLATFORM_ENV_INSTALL "DYLD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX_WITH_CONFIG}/Blender.app/Contents/Resources/lib/;$$DYLD_LIBRARY_PATH")
   unset(_library_paths)
 endif()
 

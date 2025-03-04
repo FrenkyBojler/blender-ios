@@ -9,6 +9,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_bitmap.h"
+#include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
 
@@ -180,7 +181,7 @@ static int weight_sample_invoke(bContext *C, wmOperator *op, const wmEvent *even
     int v_idx_best = -1;
     uint index;
 
-    view3d_operator_needs_opengl(C);
+    view3d_operator_needs_gpu(C);
     ED_view3d_init_mats_rv3d(vc.obact, vc.rv3d);
 
     if (use_vert_sel) {
@@ -330,7 +331,7 @@ static int weight_sample_group_invoke(bContext *C, wmOperator *op, const wmEvent
 
   bool found = false;
 
-  view3d_operator_needs_opengl(C);
+  view3d_operator_needs_gpu(C);
   ED_view3d_init_mats_rv3d(vc.obact, vc.rv3d);
 
   if (use_vert_sel) {
@@ -826,17 +827,17 @@ static int paint_weight_gradient_exec(bContext *C, wmOperator *op)
   ED_view3d_init_mats_rv3d(ob, static_cast<RegionView3D *>(region->regiondata));
 
   const Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
-  const Mesh *me_eval = BKE_object_get_evaluated_mesh(ob_eval);
+  const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
   if (data.is_init) {
     data.vert_visit = BLI_BITMAP_NEW(mesh->verts_num, __func__);
 
-    BKE_mesh_foreach_mapped_vert(me_eval, gradientVertInit__mapFunc, &data, MESH_FOREACH_NOP);
+    BKE_mesh_foreach_mapped_vert(mesh_eval, gradientVertInit__mapFunc, &data, MESH_FOREACH_NOP);
 
     MEM_freeN(data.vert_visit);
     data.vert_visit = nullptr;
   }
   else {
-    BKE_mesh_foreach_mapped_vert(me_eval, gradientVertUpdate__mapFunc, &data, MESH_FOREACH_NOP);
+    BKE_mesh_foreach_mapped_vert(mesh_eval, gradientVertUpdate__mapFunc, &data, MESH_FOREACH_NOP);
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);

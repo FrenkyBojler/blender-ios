@@ -54,7 +54,7 @@ class CyclesXMLSettings(bpy.types.PropertyGroup):
 # User Interface Drawing Code.
 
 
-class RenderButtonsPanel():
+class RenderButtonsPanel:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "render"
@@ -72,7 +72,7 @@ class PHYSICS_PT_fluid_export(RenderButtonsPanel, bpy.types.Panel):
 
         cycles = context.scene.cycles_xml
 
-        #layout.prop(cycles, "filepath")
+        # layout.prop(cycles, "filepath")
         layout.operator("export_mesh.cycles_xml")
 
 

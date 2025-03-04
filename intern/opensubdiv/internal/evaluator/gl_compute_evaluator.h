@@ -10,17 +10,13 @@
 #include <opensubdiv/osd/types.h>
 #include <opensubdiv/version.h>
 
-namespace OpenSubdiv {
-namespace OPENSUBDIV_VERSION {
-namespace Far {
+namespace OpenSubdiv::OPENSUBDIV_VERSION::Far {
 class LimitStencilTable;
 class StencilTable;
-}  // namespace Far
-}  // namespace OPENSUBDIV_VERSION
-}  // namespace OpenSubdiv
+}  // namespace OpenSubdiv::OPENSUBDIV_VERSION::Far
+   // namespace OPENSUBDIV_VERSION
 
-namespace blender {
-namespace opensubdiv {
+namespace blender::opensubdiv {
 
 /// \brief GL stencil table (Shader Storage buffer)
 ///
@@ -31,13 +27,13 @@ namespace opensubdiv {
 class GLStencilTableSSBO {
  public:
   static GLStencilTableSSBO *Create(OpenSubdiv::Far::StencilTable const *stencilTable,
-                                    void *deviceContext = NULL)
+                                    void *deviceContext = nullptr)
   {
     (void)deviceContext;  // unused
     return new GLStencilTableSSBO(stencilTable);
   }
   static GLStencilTableSSBO *Create(OpenSubdiv::Far::LimitStencilTable const *limitStencilTable,
-                                    void *deviceContext = NULL)
+                                    void *deviceContext = nullptr)
   {
     (void)deviceContext;  // unused
     return new GLStencilTableSSBO(limitStencilTable);
@@ -106,12 +102,12 @@ class GLStencilTableSSBO {
 
 class GLComputeEvaluator {
  public:
-  typedef bool Instantiatable;
+  using Instantiatable = bool;
   static GLComputeEvaluator *Create(OpenSubdiv::Osd::BufferDescriptor const &srcDesc,
                                     OpenSubdiv::Osd::BufferDescriptor const &dstDesc,
                                     OpenSubdiv::Osd::BufferDescriptor const &duDesc,
                                     OpenSubdiv::Osd::BufferDescriptor const &dvDesc,
-                                    void *deviceContext = NULL)
+                                    void *deviceContext = nullptr)
   {
     return Create(srcDesc,
                   dstDesc,
@@ -130,7 +126,7 @@ class GLComputeEvaluator {
                                     OpenSubdiv::Osd::BufferDescriptor const &duuDesc,
                                     OpenSubdiv::Osd::BufferDescriptor const &duvDesc,
                                     OpenSubdiv::Osd::BufferDescriptor const &dvvDesc,
-                                    void *deviceContext = NULL)
+                                    void *deviceContext = nullptr)
   {
     (void)deviceContext;  // not used
     GLComputeEvaluator *instance = new GLComputeEvaluator();
@@ -138,7 +134,7 @@ class GLComputeEvaluator {
       return instance;
     }
     delete instance;
-    return NULL;
+    return nullptr;
   }
 
   /// Constructor.
@@ -187,26 +183,25 @@ class GLComputeEvaluator {
                            OpenSubdiv::Osd::BufferDescriptor const &dstDesc,
                            STENCIL_TABLE const *stencilTable,
                            GLComputeEvaluator const *instance,
-                           void *deviceContext = NULL)
+                           void *deviceContext = nullptr)
   {
 
     if (instance) {
       return instance->EvalStencils(srcBuffer, srcDesc, dstBuffer, dstDesc, stencilTable);
     }
-    else {
-      // Create an instance on demand (slow)
-      (void)deviceContext;  // unused
-      instance = Create(srcDesc,
-                        dstDesc,
-                        OpenSubdiv::Osd::BufferDescriptor(),
-                        OpenSubdiv::Osd::BufferDescriptor());
-      if (instance) {
-        bool r = instance->EvalStencils(srcBuffer, srcDesc, dstBuffer, dstDesc, stencilTable);
-        delete instance;
-        return r;
-      }
-      return false;
+
+    // Create an instance on demand (slow)
+    (void)deviceContext;  // unused
+    instance = Create(srcDesc,
+                      dstDesc,
+                      OpenSubdiv::Osd::BufferDescriptor(),
+                      OpenSubdiv::Osd::BufferDescriptor());
+    if (instance) {
+      bool r = instance->EvalStencils(srcBuffer, srcDesc, dstBuffer, dstDesc, stencilTable);
+      delete instance;
+      return r;
     }
+    return false;
   }
 
   /// \brief Generic static stencil function. This function has a same
@@ -259,7 +254,7 @@ class GLComputeEvaluator {
                            OpenSubdiv::Osd::BufferDescriptor const &dvDesc,
                            STENCIL_TABLE const *stencilTable,
                            GLComputeEvaluator const *instance,
-                           void *deviceContext = NULL)
+                           void *deviceContext = nullptr)
   {
 
     if (instance) {
@@ -273,25 +268,24 @@ class GLComputeEvaluator {
                                     dvDesc,
                                     stencilTable);
     }
-    else {
-      // Create an instance on demand (slow)
-      (void)deviceContext;  // unused
-      instance = Create(srcDesc, dstDesc, duDesc, dvDesc);
-      if (instance) {
-        bool r = instance->EvalStencils(srcBuffer,
-                                        srcDesc,
-                                        dstBuffer,
-                                        dstDesc,
-                                        duBuffer,
-                                        duDesc,
-                                        dvBuffer,
-                                        dvDesc,
-                                        stencilTable);
-        delete instance;
-        return r;
-      }
-      return false;
+
+    // Create an instance on demand (slow)
+    (void)deviceContext;  // unused
+    instance = Create(srcDesc, dstDesc, duDesc, dvDesc);
+    if (instance) {
+      bool r = instance->EvalStencils(srcBuffer,
+                                      srcDesc,
+                                      dstBuffer,
+                                      dstDesc,
+                                      duBuffer,
+                                      duDesc,
+                                      dvBuffer,
+                                      dvDesc,
+                                      stencilTable);
+      delete instance;
+      return r;
     }
+    return false;
   }
 
   /// \brief Generic static stencil function. This function has a same
@@ -368,7 +362,7 @@ class GLComputeEvaluator {
                            OpenSubdiv::Osd::BufferDescriptor const &dvvDesc,
                            STENCIL_TABLE const *stencilTable,
                            GLComputeEvaluator const *instance,
-                           void *deviceContext = NULL)
+                           void *deviceContext = nullptr)
   {
 
     if (instance) {
@@ -388,31 +382,30 @@ class GLComputeEvaluator {
                                     dvvDesc,
                                     stencilTable);
     }
-    else {
-      // Create an instance on demand (slow)
-      (void)deviceContext;  // unused
-      instance = Create(srcDesc, dstDesc, duDesc, dvDesc, duuDesc, duvDesc, dvvDesc);
-      if (instance) {
-        bool r = instance->EvalStencils(srcBuffer,
-                                        srcDesc,
-                                        dstBuffer,
-                                        dstDesc,
-                                        duBuffer,
-                                        duDesc,
-                                        dvBuffer,
-                                        dvDesc,
-                                        duuBuffer,
-                                        duuDesc,
-                                        duvBuffer,
-                                        duvDesc,
-                                        dvvBuffer,
-                                        dvvDesc,
-                                        stencilTable);
-        delete instance;
-        return r;
-      }
-      return false;
+
+    // Create an instance on demand (slow)
+    (void)deviceContext;  // unused
+    instance = Create(srcDesc, dstDesc, duDesc, dvDesc, duuDesc, duvDesc, dvvDesc);
+    if (instance) {
+      bool r = instance->EvalStencils(srcBuffer,
+                                      srcDesc,
+                                      dstBuffer,
+                                      dstDesc,
+                                      duBuffer,
+                                      duDesc,
+                                      dvBuffer,
+                                      dvDesc,
+                                      duuBuffer,
+                                      duuDesc,
+                                      duvBuffer,
+                                      duvDesc,
+                                      dvvBuffer,
+                                      dvvDesc,
+                                      stencilTable);
+      delete instance;
+      return r;
     }
+    return false;
   }
 
   /// \brief Generic stencil function.
@@ -787,28 +780,26 @@ class GLComputeEvaluator {
                           PATCHCOORD_BUFFER *patchCoords,
                           PATCH_TABLE *patchTable,
                           GLComputeEvaluator const *instance,
-                          void *deviceContext = NULL)
+                          void *deviceContext = nullptr)
   {
 
     if (instance) {
       return instance->EvalPatches(
           srcBuffer, srcDesc, dstBuffer, dstDesc, numPatchCoords, patchCoords, patchTable);
     }
-    else {
-      // Create an instance on demand (slow)
-      (void)deviceContext;  // unused
-      instance = Create(srcDesc,
-                        dstDesc,
-                        OpenSubdiv::Osd::BufferDescriptor(),
-                        OpenSubdiv::Osd::BufferDescriptor());
-      if (instance) {
-        bool r = instance->EvalPatches(
-            srcBuffer, srcDesc, dstBuffer, dstDesc, numPatchCoords, patchCoords, patchTable);
-        delete instance;
-        return r;
-      }
-      return false;
+    // Create an instance on demand (slow)
+    (void)deviceContext;  // unused
+    instance = Create(srcDesc,
+                      dstDesc,
+                      OpenSubdiv::Osd::BufferDescriptor(),
+                      OpenSubdiv::Osd::BufferDescriptor());
+    if (instance) {
+      bool r = instance->EvalPatches(
+          srcBuffer, srcDesc, dstBuffer, dstDesc, numPatchCoords, patchCoords, patchTable);
+      delete instance;
+      return r;
     }
+    return false;
   }
 
   /// \brief Generic limit eval function. This function has a same
@@ -871,9 +862,8 @@ class GLComputeEvaluator {
                           PATCHCOORD_BUFFER *patchCoords,
                           PATCH_TABLE *patchTable,
                           GLComputeEvaluator const *instance,
-                          void *deviceContext = NULL)
+                          void *deviceContext = nullptr)
   {
-
     if (instance) {
       return instance->EvalPatches(srcBuffer,
                                    srcDesc,
@@ -887,27 +877,26 @@ class GLComputeEvaluator {
                                    patchCoords,
                                    patchTable);
     }
-    else {
-      // Create an instance on demand (slow)
-      (void)deviceContext;  // unused
-      instance = Create(srcDesc, dstDesc, duDesc, dvDesc);
-      if (instance) {
-        bool r = instance->EvalPatches(srcBuffer,
-                                       srcDesc,
-                                       dstBuffer,
-                                       dstDesc,
-                                       duBuffer,
-                                       duDesc,
-                                       dvBuffer,
-                                       dvDesc,
-                                       numPatchCoords,
-                                       patchCoords,
-                                       patchTable);
-        delete instance;
-        return r;
-      }
-      return false;
+
+    // Create an instance on demand (slow)
+    (void)deviceContext;  // unused
+    instance = Create(srcDesc, dstDesc, duDesc, dvDesc);
+    if (instance) {
+      bool r = instance->EvalPatches(srcBuffer,
+                                     srcDesc,
+                                     dstBuffer,
+                                     dstDesc,
+                                     duBuffer,
+                                     duDesc,
+                                     dvBuffer,
+                                     dvDesc,
+                                     numPatchCoords,
+                                     patchCoords,
+                                     patchTable);
+      delete instance;
+      return r;
     }
+    return false;
   }
 
   /// \brief Generic limit eval function. This function has a same
@@ -994,9 +983,8 @@ class GLComputeEvaluator {
                           PATCHCOORD_BUFFER *patchCoords,
                           PATCH_TABLE *patchTable,
                           GLComputeEvaluator const *instance,
-                          void *deviceContext = NULL)
+                          void *deviceContext = nullptr)
   {
-
     if (instance) {
       return instance->EvalPatches(srcBuffer,
                                    srcDesc,
@@ -1016,33 +1004,32 @@ class GLComputeEvaluator {
                                    patchCoords,
                                    patchTable);
     }
-    else {
-      // Create an instance on demand (slow)
-      (void)deviceContext;  // unused
-      instance = Create(srcDesc, dstDesc, duDesc, dvDesc, duuDesc, duvDesc, dvvDesc);
-      if (instance) {
-        bool r = instance->EvalPatches(srcBuffer,
-                                       srcDesc,
-                                       dstBuffer,
-                                       dstDesc,
-                                       duBuffer,
-                                       duDesc,
-                                       dvBuffer,
-                                       dvDesc,
-                                       duuBuffer,
-                                       duuDesc,
-                                       duvBuffer,
-                                       duvDesc,
-                                       dvvBuffer,
-                                       dvvDesc,
-                                       numPatchCoords,
-                                       patchCoords,
-                                       patchTable);
-        delete instance;
-        return r;
-      }
-      return false;
+
+    // Create an instance on demand (slow)
+    (void)deviceContext;  // unused
+    instance = Create(srcDesc, dstDesc, duDesc, dvDesc, duuDesc, duvDesc, dvvDesc);
+    if (instance) {
+      bool r = instance->EvalPatches(srcBuffer,
+                                     srcDesc,
+                                     dstBuffer,
+                                     dstDesc,
+                                     duBuffer,
+                                     duDesc,
+                                     dvBuffer,
+                                     dvDesc,
+                                     duuBuffer,
+                                     duuDesc,
+                                     duvBuffer,
+                                     duvDesc,
+                                     dvvBuffer,
+                                     dvvDesc,
+                                     numPatchCoords,
+                                     patchCoords,
+                                     patchTable);
+      delete instance;
+      return r;
     }
+    return false;
   }
 
   /// \brief Generic limit eval function. This function has a same
@@ -1337,28 +1324,26 @@ class GLComputeEvaluator {
                                  PATCHCOORD_BUFFER *patchCoords,
                                  PATCH_TABLE *patchTable,
                                  GLComputeEvaluator const *instance,
-                                 void *deviceContext = NULL)
+                                 void *deviceContext = nullptr)
   {
-
     if (instance) {
       return instance->EvalPatchesVarying(
           srcBuffer, srcDesc, dstBuffer, dstDesc, numPatchCoords, patchCoords, patchTable);
     }
-    else {
-      // Create an instance on demand (slow)
-      (void)deviceContext;  // unused
-      instance = Create(srcDesc,
-                        dstDesc,
-                        OpenSubdiv::Osd::BufferDescriptor(),
-                        OpenSubdiv::Osd::BufferDescriptor());
-      if (instance) {
-        bool r = instance->EvalPatchesVarying(
-            srcBuffer, srcDesc, dstBuffer, dstDesc, numPatchCoords, patchCoords, patchTable);
-        delete instance;
-        return r;
-      }
-      return false;
+
+    // Create an instance on demand (slow)
+    (void)deviceContext;  // unused
+    instance = Create(srcDesc,
+                      dstDesc,
+                      OpenSubdiv::Osd::BufferDescriptor(),
+                      OpenSubdiv::Osd::BufferDescriptor());
+    if (instance) {
+      bool r = instance->EvalPatchesVarying(
+          srcBuffer, srcDesc, dstBuffer, dstDesc, numPatchCoords, patchCoords, patchTable);
+      delete instance;
+      return r;
     }
+    return false;
   }
 
   /// \brief Generic limit eval function. This function has a same
@@ -1473,9 +1458,8 @@ class GLComputeEvaluator {
                                  PATCHCOORD_BUFFER *patchCoords,
                                  PATCH_TABLE *patchTable,
                                  GLComputeEvaluator const *instance,
-                                 void *deviceContext = NULL)
+                                 void *deviceContext = nullptr)
   {
-
     if (instance) {
       return instance->EvalPatchesVarying(srcBuffer,
                                           srcDesc,
@@ -1489,27 +1473,26 @@ class GLComputeEvaluator {
                                           patchCoords,
                                           patchTable);
     }
-    else {
-      // Create an instance on demand (slow)
-      (void)deviceContext;  // unused
-      instance = Create(srcDesc, dstDesc, duDesc, dvDesc);
-      if (instance) {
-        bool r = instance->EvalPatchesVarying(srcBuffer,
-                                              srcDesc,
-                                              dstBuffer,
-                                              dstDesc,
-                                              duBuffer,
-                                              duDesc,
-                                              dvBuffer,
-                                              dvDesc,
-                                              numPatchCoords,
-                                              patchCoords,
-                                              patchTable);
-        delete instance;
-        return r;
-      }
-      return false;
+
+    // Create an instance on demand (slow)
+    (void)deviceContext;  // unused
+    instance = Create(srcDesc, dstDesc, duDesc, dvDesc);
+    if (instance) {
+      bool r = instance->EvalPatchesVarying(srcBuffer,
+                                            srcDesc,
+                                            dstBuffer,
+                                            dstDesc,
+                                            duBuffer,
+                                            duDesc,
+                                            dvBuffer,
+                                            dvDesc,
+                                            numPatchCoords,
+                                            patchCoords,
+                                            patchTable);
+      delete instance;
+      return r;
     }
+    return false;
   }
 
   /// \brief Generic limit eval function. This function has a same
@@ -1664,9 +1647,8 @@ class GLComputeEvaluator {
                                  PATCHCOORD_BUFFER *patchCoords,
                                  PATCH_TABLE *patchTable,
                                  GLComputeEvaluator const *instance,
-                                 void *deviceContext = NULL)
+                                 void *deviceContext = nullptr)
   {
-
     if (instance) {
       return instance->EvalPatchesVarying(srcBuffer,
                                           srcDesc,
@@ -1686,33 +1668,32 @@ class GLComputeEvaluator {
                                           patchCoords,
                                           patchTable);
     }
-    else {
-      // Create an instance on demand (slow)
-      (void)deviceContext;  // unused
-      instance = Create(srcDesc, dstDesc, duDesc, dvDesc, duuDesc, duvDesc, dvvDesc);
-      if (instance) {
-        bool r = instance->EvalPatchesVarying(srcBuffer,
-                                              srcDesc,
-                                              dstBuffer,
-                                              dstDesc,
-                                              duBuffer,
-                                              duDesc,
-                                              dvBuffer,
-                                              dvDesc,
-                                              duuBuffer,
-                                              duuDesc,
-                                              duvBuffer,
-                                              duvDesc,
-                                              dvvBuffer,
-                                              dvvDesc,
-                                              numPatchCoords,
-                                              patchCoords,
-                                              patchTable);
-        delete instance;
-        return r;
-      }
-      return false;
+
+    // Create an instance on demand (slow)
+    (void)deviceContext;  // unused
+    instance = Create(srcDesc, dstDesc, duDesc, dvDesc, duuDesc, duvDesc, dvvDesc);
+    if (instance) {
+      bool r = instance->EvalPatchesVarying(srcBuffer,
+                                            srcDesc,
+                                            dstBuffer,
+                                            dstDesc,
+                                            duBuffer,
+                                            duDesc,
+                                            dvBuffer,
+                                            dvDesc,
+                                            duuBuffer,
+                                            duuDesc,
+                                            duvBuffer,
+                                            duvDesc,
+                                            dvvBuffer,
+                                            dvvDesc,
+                                            numPatchCoords,
+                                            patchCoords,
+                                            patchTable);
+      delete instance;
+      return r;
     }
+    return false;
   }
 
   /// \brief Generic limit eval function. This function has a same
@@ -1860,9 +1841,8 @@ class GLComputeEvaluator {
                                      PATCH_TABLE *patchTable,
                                      int fvarChannel,
                                      GLComputeEvaluator const *instance,
-                                     void *deviceContext = NULL)
+                                     void *deviceContext = nullptr)
   {
-
     if (instance) {
       return instance->EvalPatchesFaceVarying(srcBuffer,
                                               srcDesc,
@@ -1873,27 +1853,26 @@ class GLComputeEvaluator {
                                               patchTable,
                                               fvarChannel);
     }
-    else {
-      // Create an instance on demand (slow)
-      (void)deviceContext;  // unused
-      instance = Create(srcDesc,
-                        dstDesc,
-                        OpenSubdiv::Osd::BufferDescriptor(),
-                        OpenSubdiv::Osd::BufferDescriptor());
-      if (instance) {
-        bool r = instance->EvalPatchesFaceVarying(srcBuffer,
-                                                  srcDesc,
-                                                  dstBuffer,
-                                                  dstDesc,
-                                                  numPatchCoords,
-                                                  patchCoords,
-                                                  patchTable,
-                                                  fvarChannel);
-        delete instance;
-        return r;
-      }
-      return false;
+
+    // Create an instance on demand (slow)
+    (void)deviceContext;  // unused
+    instance = Create(srcDesc,
+                      dstDesc,
+                      OpenSubdiv::Osd::BufferDescriptor(),
+                      OpenSubdiv::Osd::BufferDescriptor());
+    if (instance) {
+      bool r = instance->EvalPatchesFaceVarying(srcBuffer,
+                                                srcDesc,
+                                                dstBuffer,
+                                                dstDesc,
+                                                numPatchCoords,
+                                                patchCoords,
+                                                patchTable,
+                                                fvarChannel);
+      delete instance;
+      return r;
     }
+    return false;
   }
 
   /// \brief Generic limit eval function. This function has a same
@@ -2014,9 +1993,8 @@ class GLComputeEvaluator {
                                      PATCH_TABLE *patchTable,
                                      int fvarChannel,
                                      GLComputeEvaluator const *instance,
-                                     void *deviceContext = NULL)
+                                     void *deviceContext = nullptr)
   {
-
     if (instance) {
       return instance->EvalPatchesFaceVarying(srcBuffer,
                                               srcDesc,
@@ -2031,28 +2009,27 @@ class GLComputeEvaluator {
                                               patchTable,
                                               fvarChannel);
     }
-    else {
-      // Create an instance on demand (slow)
-      (void)deviceContext;  // unused
-      instance = Create(srcDesc, dstDesc, duDesc, dvDesc);
-      if (instance) {
-        bool r = instance->EvalPatchesFaceVarying(srcBuffer,
-                                                  srcDesc,
-                                                  dstBuffer,
-                                                  dstDesc,
-                                                  duBuffer,
-                                                  duDesc,
-                                                  dvBuffer,
-                                                  dvDesc,
-                                                  numPatchCoords,
-                                                  patchCoords,
-                                                  patchTable,
-                                                  fvarChannel);
-        delete instance;
-        return r;
-      }
-      return false;
+
+    // Create an instance on demand (slow)
+    (void)deviceContext;  // unused
+    instance = Create(srcDesc, dstDesc, duDesc, dvDesc);
+    if (instance) {
+      bool r = instance->EvalPatchesFaceVarying(srcBuffer,
+                                                srcDesc,
+                                                dstBuffer,
+                                                dstDesc,
+                                                duBuffer,
+                                                duDesc,
+                                                dvBuffer,
+                                                dvDesc,
+                                                numPatchCoords,
+                                                patchCoords,
+                                                patchTable,
+                                                fvarChannel);
+      delete instance;
+      return r;
     }
+    return false;
   }
 
   /// \brief Generic limit eval function. This function has a same
@@ -2213,9 +2190,8 @@ class GLComputeEvaluator {
                                      PATCH_TABLE *patchTable,
                                      int fvarChannel,
                                      GLComputeEvaluator const *instance,
-                                     void *deviceContext = NULL)
+                                     void *deviceContext = nullptr)
   {
-
     if (instance) {
       return instance->EvalPatchesFaceVarying(srcBuffer,
                                               srcDesc,
@@ -2236,34 +2212,33 @@ class GLComputeEvaluator {
                                               patchTable,
                                               fvarChannel);
     }
-    else {
-      // Create an instance on demand (slow)
-      (void)deviceContext;  // unused
-      instance = Create(srcDesc, dstDesc, duDesc, dvDesc, duuDesc, duvDesc, dvvDesc);
-      if (instance) {
-        bool r = instance->EvalPatchesFaceVarying(srcBuffer,
-                                                  srcDesc,
-                                                  dstBuffer,
-                                                  dstDesc,
-                                                  duBuffer,
-                                                  duDesc,
-                                                  dvBuffer,
-                                                  dvDesc,
-                                                  duuBuffer,
-                                                  duuDesc,
-                                                  duvBuffer,
-                                                  duvDesc,
-                                                  dvvBuffer,
-                                                  dvvDesc,
-                                                  numPatchCoords,
-                                                  patchCoords,
-                                                  patchTable,
-                                                  fvarChannel);
-        delete instance;
-        return r;
-      }
-      return false;
+
+    // Create an instance on demand (slow)
+    (void)deviceContext;  // unused
+    instance = Create(srcDesc, dstDesc, duDesc, dvDesc, duuDesc, duvDesc, dvvDesc);
+    if (instance) {
+      bool r = instance->EvalPatchesFaceVarying(srcBuffer,
+                                                srcDesc,
+                                                dstBuffer,
+                                                dstDesc,
+                                                duBuffer,
+                                                duDesc,
+                                                dvBuffer,
+                                                dvDesc,
+                                                duuBuffer,
+                                                duuDesc,
+                                                duvBuffer,
+                                                duvDesc,
+                                                dvvBuffer,
+                                                dvvDesc,
+                                                numPatchCoords,
+                                                patchCoords,
+                                                patchTable,
+                                                fvarChannel);
+      delete instance;
+      return r;
     }
+    return false;
   }
 
   /// \brief Generic limit eval function. This function has a same
@@ -2440,7 +2415,7 @@ class GLComputeEvaluator {
 
   void DispatchCompute(int totalDispatchSize) const;
 };
-}  // namespace opensubdiv
-}  // namespace blender
+
+}  // namespace blender::opensubdiv
 
 #endif  // OPENSUBDIV_GL_COMPUTE_EVALUATOR_H_

@@ -9,14 +9,11 @@
  */
 
 #include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
 
 #include "BKE_mesh_mapping.hh"
 
-struct CustomData;
-struct CustomData_MeshMasks;
 struct MemArena;
 struct Mesh;
 
