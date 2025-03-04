@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_fileops.h"
+#include "BLI_string_utf8.h"
 
 #include "node_geometry_util.hh"
 
@@ -39,6 +40,12 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
   BLI_SCOPED_DEFER([&]() { MEM_freeN(buffer); });
+  if (BLI_str_utf8_invalid_byte(static_cast<const char *>(buffer), buffer_len) != -1) {
+    params.error_message_add(NodeWarningType::Error,
+                             TIP_("String contains invalid UTF-8 characters"));
+    params.set_default_remaining_outputs();
+    return;
+  }
 
   params.set_output("String", std::string(static_cast<char *>(buffer), buffer_len));
 }
