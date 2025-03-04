@@ -96,19 +96,14 @@ static void id_property_int_update_enum_items(const bNodeSocketValueMenu *value,
 }
 
 static std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_name_or_value_prop(
-    const StringRefNull identifier,
-    ID *id,
-    const std::optional<ID_Type> id_type,
-    const bool use_name_for_ids)
+    const StringRefNull identifier, ID *id, const ID_Type id_type, const bool use_name_for_ids)
 {
   if (use_name_for_ids) {
     return bke::idprop::create(identifier, id ? id->name + 2 : "");
   }
   auto prop = bke::idprop::create(identifier, id);
-  if (id_type) {
-    IDPropertyUIDataID *ui_data = (IDPropertyUIDataID *)IDP_ui_data_ensure(prop.get());
-    ui_data->id_type = *id_type;
-  }
+  IDPropertyUIDataID *ui_data = (IDPropertyUIDataID *)IDP_ui_data_ensure(prop.get());
+  ui_data->id_type = id_type;
   return prop;
 }
 
