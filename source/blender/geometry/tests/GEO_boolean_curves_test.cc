@@ -127,8 +127,8 @@ class SVGMapping {
 
   SVGMapping(const Bounds<float2> &bounds)
   {
-    constexpr int max_draw_width = 600;
-    constexpr int max_draw_height = 400;
+    constexpr int max_draw_width = 500;
+    constexpr int max_draw_height = 350;
 
     const float draw_margin = (bounds.size().x + bounds.size().y) * 0.05;
 
