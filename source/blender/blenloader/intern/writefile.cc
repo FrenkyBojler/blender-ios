@@ -751,7 +751,8 @@ static void write_bhead(WriteData *wd, const BHead &bhead)
       return;
     }
   }
-  /* Write older #SmallBHead8 headers so that older Blender versions can read them. */
+  /* Write older #SmallBHead8 headers so that Blender versions that don't support #LargeBHead8 can
+   * read the file. */
   SmallBHead8 bh;
   bh.code = bhead.code;
   bh.old = uint64_t(bhead.old);
