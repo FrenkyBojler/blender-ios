@@ -406,8 +406,12 @@ bool GPUComputeEvaluator::EvalStencils(gpu::VertBuf *srcBuffer,
   GPU_shader_bind(_stencilKernel.shader);
   GPU_vertbuf_bind_as_ssbo(srcBuffer, SHADER_SRC_VERTEX_BUFFER_BUF_SLOT);
   GPU_vertbuf_bind_as_ssbo(dstBuffer, SHADER_DST_VERTEX_BUFFER_BUF_SLOT);
-  GPU_vertbuf_bind_as_ssbo(duBuffer, SHADER_DU_BUFFER_BUF_SLOT);
-  GPU_vertbuf_bind_as_ssbo(dvBuffer, SHADER_DV_BUFFER_BUF_SLOT);
+  if (duBuffer) {
+    GPU_vertbuf_bind_as_ssbo(duBuffer, SHADER_DU_BUFFER_BUF_SLOT);
+  }
+  if (dvBuffer) {
+    GPU_vertbuf_bind_as_ssbo(dvBuffer, SHADER_DV_BUFFER_BUF_SLOT);
+  }
   if (duuBuffer) {
     GPU_vertbuf_bind_as_ssbo(duuBuffer, SHADER_DUU_BUFFER_BUF_SLOT);
   }
