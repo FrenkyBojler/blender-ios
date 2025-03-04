@@ -15,7 +15,7 @@ export void float3_dot_product(const uniform float values[][3],
                                const uniform int count,
                                float uniform result[3])
 {
-  float accumulator[3] = {0.0f, 0.0f, 0.0f};
+  float<3> accumulator = {0.0f, 0.0f, 0.0f};
   foreach (index = 0 ... count, axis = 0 ... 3) {
     accumulator[axis] += values[index][axis] * factors[index];
   }
@@ -24,20 +24,21 @@ export void float3_dot_product(const uniform float values[][3],
   result[2] = reduce_add(accumulator[2]);
 }
 
-export void float_scatter_mul_add(const uniform float factors[],
-                                  const uniform float value,
-                                  const uniform int indices[],
-                                  uniform float data[],
-                                  const uniform int count)
-{
-  foreach (i = 0 ... count) {
-    data[indices[i]] += value * factors[i];
-  }
-}
+// export void float_scatter_mul_add(const uniform float factors[],
+//                                   const uniform float value,
+//                                   const uniform int indices[],
+//                                   uniform float data[],
+//                                   const uniform int count)
+// {
+//   foreach (i = 0 ... count) {
+//     data[indices[i]] += value * factors[i];
+//     prefetchw_l1(&data[indices[min(i + 32, count - 1)]]);
+//   }
+// }
 
 float safe_rcp(const float a)
 {
-  return a ? 1.0f / a : 0.0f;
+  return a ? rcp_fast(a) : 0.0f;
 }
 
 export uniform float fixed_pow_0_n(uniform float values[],

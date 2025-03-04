@@ -171,25 +171,24 @@ static T dot_product(const Span<T> values, const Span<float> factors)
   return accumulator;
 }
 
-template<>
-static float dot_product(const Span<float> values, const Span<float> factors)
-{
-  BLI_assert(values.size() == factors.size());
-  return ispc::float_dot_product(values.data(), factors.data(), values.size());
-}
+// template<>
+// static float dot_product(const Span<float> values, const Span<float> factors)
+// {
+//   BLI_assert(values.size() == factors.size());
+//   return ispc::float_dot_product(values.data(), factors.data(), values.size());
+// }
+// 
+// template<>
+// static float3 dot_product(const Span<float3> values, const Span<float> factors)
+// {
+//   BLI_assert(values.size() == factors.size());
+//   BLI_assert(!values.is_empty());
+//   float3 total(0);
+//   ispc::float3_dot_product(values.cast<float [3]>().data(), factors.data(), values.size(), total);
+//   return total;
+// }
 
 /*
-template<>
-static float3 dot_product(const Span<float3> values, const Span<float> factors)
-{
-  BLI_assert(values.size() == factors.size());
-  BLI_assert(!values.is_empty());
-  float3 total(0);
-  ispc::float3_dot_product(values.cast<float [3]>().data(), factors.data(), values.size(), total);
-  return total;
-}
-*/
-
 template<typename T>
 static void scatter_mul_add(const Span<float> factors, const T value, const Span<int> indices, MutableSpan<T> data)
 {
@@ -207,6 +206,7 @@ static void scatter_mul_add(const Span<float> factors, const float value, const 
 
   ispc::float_scatter_mul_add(factors.data(), value, indices.data(), data.data(), factors.size());
 }
+*/
 
 void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
                          const int total_depth,
@@ -274,7 +274,7 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
     MutableSpan<T> typed_dst_buckets_data = dst_buckets_data.typed<T>();
 
     Vector<T, 0> joints_buffer;
-
+    
     for (const int batch_i : batch_to_joints.index_range()) {
       const Span<int> batch_joints = batch_to_joints[batch_i];
       buffer.resize(batch_joints.size());
@@ -287,14 +287,14 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
         const float sampler_to_joint_distance_squared = math::distance(batch_position, jooint_position);
         buffer[i] = sampler_to_joint_distance_squared + offset_value;
       }
-
+    
       distance_invertion(power_value, buffer.as_mutable_span());
-
+    
       for (const int i : batch_joints.index_range()) {
         const int joint_index = batch_joints[i];
         joints_buffer[i] = typed_src_joints_value[joint_index];
       }
-
+    
       typed_dst_buckets_data[batch_i] += dot_product<T>(joints_buffer.as_span(), buffer.as_span());
     }
 
@@ -309,12 +309,12 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
     //   }
     // 
     //   distance_invertion(power_value, buffer.as_mutable_span());
-    //   // scatter_mul_add(buffer.as_span(), typed_src_joints_value[joint_index], batch_samples.as_span(), typed_dst_buckets_data);
-    //   for (const int sample_i : batch_samples.index_range()) {
-    //     const int sample_index = batch_samples[sample_i];
-    //     typed_dst_buckets_data[sample_index] += typed_src_joints_value[joint_index] *
-    //                                             buffer[sample_i];
-    //   }
+    //   scatter_mul_add(buffer.as_span(), typed_src_joints_value[joint_index], batch_samples.as_span(), typed_dst_buckets_data);
+    //   // for (const int sample_i : batch_samples.index_range()) {
+    //   //   const int sample_index = batch_samples[sample_i];
+    //   //   typed_dst_buckets_data[sample_index] += typed_src_joints_value[joint_index] *
+    //   //                                           buffer[sample_i];
+    //   // }
     // }
   });
 

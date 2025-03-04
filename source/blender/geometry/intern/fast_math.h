@@ -55,7 +55,6 @@ extern "C" {
     extern float fixed_pow_9_n(float * values, const int32_t count);
     extern void float3_dot_product(const float values[][3], const float * factors, const int32_t count, float * result);
     extern float float_dot_product(const float * values, const float * factors, const int32_t count);
-    extern void float_scatter_mul_add(const float * factors, const float value, const int32_t * indices, float * data, const int32_t count);
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
 } /* end extern C */
 #endif // __cplusplus

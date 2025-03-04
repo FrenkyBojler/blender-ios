@@ -10,7 +10,6 @@
 #include "BLI_index_mask.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_bits.h"
-#include "BLI_sort.hh"
 #include "BLI_task.hh"
 #include "BLI_task_size_hints.hh"
 #include "BLI_virtual_array.hh"
@@ -107,7 +106,7 @@ void from_positions(const Span<float3> positions,
       [&](const IndexRange bucket_range, const int /*joint_index*/, const int depth_i) {
         const int axis_index = math::mod_periodic(depth_i, 3);
         MutableSpan<int> segment = indices.slice(bucket_range);
-        parallel_sort(segment.begin(), segment.end(), [&](const int a, const int b) {
+        std::nth_element(segment.begin(), segment.begin() + segment.size() / 2, segment.end(), [&](const int a, const int b) {
           if (UNLIKELY(positions[a][axis_index] == positions[b][axis_index])) {
             return a < b;
           }
