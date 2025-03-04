@@ -1015,6 +1015,10 @@ StructRNA *RNA_def_struct_ptr(BlenderRNA *brna, const char *identifier, StructRN
     /* define some builtin properties */
     prop = RNA_def_property(&srna->cont, "rna_properties", PROP_COLLECTION, PROP_NONE);
     prop->flag_internal |= PROP_INTERN_BUILTIN;
+    /* Properties with internal flag #PROP_INTERN_BUILTIN are not included for lookup. */
+    if (srna->cont.prop_lookup_set) {
+      srna->cont.prop_lookup_set->remove_as(prop->identifier);
+    }
     RNA_def_property_ui_text(prop, "Properties", "RNA property collection");
 
     if (DefRNA.preprocess) {
