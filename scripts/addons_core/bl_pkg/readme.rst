@@ -54,7 +54,7 @@ Add-on: Other Scripts
   - Generic shared utility functions.
 
   - Command line sub-process supervisor (``CommandBatch``)
-    used by Blender operators.
+    used by Blender operators to call ``cli/blender_ext.py`` and its sub-commands (see doc-string for details).
 
   - A view on the repositories JSON/TOML data what abstracts the file IO (``RepoCacheStore``).
 
@@ -192,7 +192,7 @@ Dragging & Dropping a URL
 Extensions drag & drop is handled with Blender's drop-boxes.
 This works in much the same way as dropping images in the 3D viewport or blend files.
 
-There are two drop-boxes used one for file-paths another for URL's.
+There are two drop-boxes used, one for file-paths another for URL's.
 Both check the path contains a ``.zip`` extension,
 where the URL logic needs to strips the query string and the fragment from the URL.
 
