@@ -174,6 +174,9 @@ void CustomData_init_layout_from(const CustomData *source,
                                  eCDAllocType alloctype,
                                  int totelem);
 
+/* Recalculate offset for all layers. */
+void CustomData_update_offsets(CustomData *data);
+
 /* BMESH_TODO, not really a public function but `readfile.cc` needs it. */
 void CustomData_update_typemap(CustomData *data);
 
