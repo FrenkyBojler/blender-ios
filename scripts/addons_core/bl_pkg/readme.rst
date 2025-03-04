@@ -105,8 +105,8 @@ as it relates to how extensions are loaded by Blender.
    these are extracted into an a site-packages directory that is specific to the extensions for this version of Blender.
    ``~/.config/blender/X.X/extensions/.local/lib/python3.XX/site-packages/``.
 
-   Once extensions have been installed a list of wheels is passed in to the main "apply_action" function
-   which will install/uninstall wheels as needed.
+   Once extensions have been installed the list of wheels from each extensions ``blender_manifest.toml``
+   is combined and passed in to the main "apply_action" function which will install/uninstall wheels as needed.
 
    Unfortunately there is no special handling for version conflicts.
    When different versions of the same wheel are found, the latest version is installed.
