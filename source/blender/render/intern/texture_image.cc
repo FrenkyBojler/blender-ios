@@ -49,7 +49,7 @@ static void boxsample(ImBuf *ibuf,
 /* x and y have to be checked for image size */
 static void ibuf_get_color(float col[4], ImBuf *ibuf, int x, int y)
 {
-  int ofs = y * ibuf->x + x;
+  const size_t ofs = size_t(y) * ibuf->x + x;
 
   if (ibuf->float_buffer.data) {
     if (ibuf->channels == 4) {
