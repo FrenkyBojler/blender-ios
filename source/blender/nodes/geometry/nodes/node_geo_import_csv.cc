@@ -40,6 +40,12 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.set_default_remaining_outputs();
     return;
   }
+  if (ELEM(delimiter[0], '\n', '\r', '"', '\\')) {
+    params.error_message_add(NodeWarningType::Error,
+                             TIP_("Delimiter must not be \\n, \\r, \" or \\"));
+    params.set_default_remaining_outputs();
+    return;
+  }
 
   blender::io::csv::CSVImportParams import_params{};
   import_params.delimiter = delimiter[0];
