@@ -400,9 +400,14 @@ TEST(boolean_curves, Squares)
   const bke::CurvesGeometry src_curves = create_test_curves(
       points_by_curve, points, shape_ids, is_cyclic, is_fill);
 
+  geometry::boolean::CurveBooleanOpParameters op_params;
+  op_params.subject_rule = FillRule::EvenOdd;
+  op_params.clipping_rule = FillRule::EvenOdd;
+  op_params.output_rule = FillRule::EvenOdd;
+
   {
-    const bke::CurvesGeometry dst_curves = curve_boolean(
-        Operation::Intersect, src_curves, clipping_shapes);
+    op_params.boolean_mode = Operation::Intersect;
+    const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {{{2, 2}, {1, 2}, {1, 1}, {2, 1}}};
     expect_boolean_result_coord(dst_curves, expected_points);
@@ -410,8 +415,8 @@ TEST(boolean_curves, Squares)
     draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
-    const bke::CurvesGeometry dst_curves = curve_boolean(
-        Operation::Union, src_curves, clipping_shapes);
+    op_params.boolean_mode = Operation::Union;
+    const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {
         {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 3}, {3, 3}, {3, 1}, {2, 1}}};
@@ -420,8 +425,8 @@ TEST(boolean_curves, Squares)
     draw_results("Union", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
-    const bke::CurvesGeometry dst_curves = curve_boolean(
-        Operation::Difference, src_curves, clipping_shapes);
+    op_params.boolean_mode = Operation::Difference;
+    const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {
         {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
@@ -452,9 +457,14 @@ TEST(boolean_curves, Simple)
   const bke::CurvesGeometry src_curves = create_test_curves(
       points_by_curve, points, shape_ids, is_cyclic, is_fill);
 
+  geometry::boolean::CurveBooleanOpParameters op_params;
+  op_params.subject_rule = FillRule::EvenOdd;
+  op_params.clipping_rule = FillRule::EvenOdd;
+  op_params.output_rule = FillRule::EvenOdd;
+
   {
-    const bke::CurvesGeometry dst_curves = curve_boolean(
-        Operation::Intersect, src_curves, clipping_shapes);
+    op_params.boolean_mode = Operation::Intersect;
+    const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {{{5, 3}, {6, 4}, {6, 3}},
                                                    {{2, 3}, {2, 4}, {3, 3}}};
@@ -463,8 +473,8 @@ TEST(boolean_curves, Simple)
     draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
-    const bke::CurvesGeometry dst_curves = curve_boolean(
-        Operation::Union, src_curves, clipping_shapes);
+    op_params.boolean_mode = Operation::Union;
+    const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {
         {{8, 3}, {8, 6}, {0, 6}, {0, 3}, {2, 3}, {2, 0}, {6, 0}, {6, 3}},
@@ -474,8 +484,8 @@ TEST(boolean_curves, Simple)
     draw_results("Union", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
-    const bke::CurvesGeometry dst_curves = curve_boolean(
-        Operation::Difference, src_curves, clipping_shapes);
+    op_params.boolean_mode = Operation::Difference;
+    const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
     /* TODO. */
     // const Array<Vector<float2>> expected_points = {
@@ -509,9 +519,14 @@ TEST(boolean_curves, Complex)
   const bke::CurvesGeometry src_curves = create_test_curves(
       points_by_curve, points, shape_ids, is_cyclic, is_fill);
 
+  geometry::boolean::CurveBooleanOpParameters op_params;
+  op_params.subject_rule = FillRule::EvenOdd;
+  op_params.clipping_rule = FillRule::EvenOdd;
+  op_params.output_rule = FillRule::EvenOdd;
+
   {
-    const bke::CurvesGeometry dst_curves = curve_boolean(
-        Operation::Intersect, src_curves, clipping_shapes);
+    op_params.boolean_mode = Operation::Intersect;
+    const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {
         {{12.3455, 1.47273}, {12.2, 1.8}, {12.4851, 1.67327}, {12.5663, 1.40964}},
@@ -525,8 +540,8 @@ TEST(boolean_curves, Complex)
     draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
-    const bke::CurvesGeometry dst_curves = curve_boolean(
-        Operation::Union, src_curves, clipping_shapes);
+    op_params.boolean_mode = Operation::Union;
+    const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {
         {{14, 1},
@@ -556,8 +571,8 @@ TEST(boolean_curves, Complex)
     draw_results("Union", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
-    const bke::CurvesGeometry dst_curves = curve_boolean(
-        Operation::Difference, src_curves, clipping_shapes);
+    op_params.boolean_mode = Operation::Difference;
+    const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {
         {{14, 1}, {12.4851, 1.67327}, {12.5663, 1.40964}},
@@ -605,9 +620,14 @@ TEST(boolean_curves, Last_Edge_Loop)
   const bke::CurvesGeometry src_curves = create_test_curves(
       points_by_curve, points, shape_ids, is_cyclic, is_fill);
 
+  geometry::boolean::CurveBooleanOpParameters op_params;
+  op_params.subject_rule = FillRule::EvenOdd;
+  op_params.clipping_rule = FillRule::EvenOdd;
+  op_params.output_rule = FillRule::EvenOdd;
+
   {
-    const bke::CurvesGeometry dst_curves = curve_boolean(
-        Operation::Intersect, src_curves, clipping_shapes);
+    op_params.boolean_mode = Operation::Intersect;
+    const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
     /* TODO. */
     // const Array<Vector<float2>> expected_points = {{{0, 5},
@@ -628,8 +648,8 @@ TEST(boolean_curves, Last_Edge_Loop)
     draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
-    const bke::CurvesGeometry dst_curves = curve_boolean(
-        Operation::Union, src_curves, clipping_shapes);
+    op_params.boolean_mode = Operation::Union;
+    const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
     /* TODO. */
     // const Array<Vector<float2>> expected_points = {{{0, 5},
@@ -650,8 +670,8 @@ TEST(boolean_curves, Last_Edge_Loop)
     draw_results("Union", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
-    const bke::CurvesGeometry dst_curves = curve_boolean(
-        Operation::Difference, src_curves, clipping_shapes);
+    op_params.boolean_mode = Operation::Difference;
+    const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
     // const Array<Vector<float2>> expected_points = {{{0, 5},
     //                                                 {0, 0},
@@ -678,6 +698,12 @@ TEST(boolean_curves, Simple_Cuts)
 {
   draw_divider_start("Cuts");
 
+  geometry::boolean::CurveBooleanOpParameters op_params;
+  op_params.subject_rule = FillRule::EvenOdd;
+  op_params.clipping_rule = FillRule::EvenOdd;
+  op_params.output_rule = FillRule::EvenOdd;
+  op_params.boolean_mode = Operation::Difference;
+
   {
     const Array<float2> points = {
         {5, 7}, {3, 6}, {0, 2}, {0, 0}, {1, 6}, {3, 4}, {3, 1}, {0, 4}, {2, 3}};
@@ -690,8 +716,7 @@ TEST(boolean_curves, Simple_Cuts)
     const bke::CurvesGeometry src_curves = create_test_curves(
         points_by_curve, points, shape_ids, is_cyclic, is_fill);
 
-    const bke::CurvesGeometry dst_curves = curve_boolean(
-        Operation::Difference, src_curves, clipping_shapes);
+    const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {{{5, 7}, {3, 6}, {2.14286, 4.85714}},
                                                    {{1.61538, 4.15385}, {1.09091, 3.45455}},
@@ -711,8 +736,7 @@ TEST(boolean_curves, Simple_Cuts)
     const bke::CurvesGeometry src_curves = create_test_curves(
         points_by_curve, points, shape_ids, is_cyclic, is_fill);
 
-    const bke::CurvesGeometry dst_curves = curve_boolean(
-        Operation::Difference, src_curves, clipping_shapes);
+    const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {{{4, 5}, {3, 5}, {1, 3}, {1, 2}}};
     expect_boolean_result_coord(dst_curves, expected_points);
@@ -742,8 +766,7 @@ TEST(boolean_curves, Simple_Cuts)
     const bke::CurvesGeometry src_curves = create_test_curves(
         points_by_curve, points, shape_ids, is_cyclic, is_fill);
 
-    const bke::CurvesGeometry dst_curves = curve_boolean(
-        Operation::Difference, src_curves, clipping_shapes);
+    const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {{{6, 8}, {4, 7}, {3.57143, 6.42857}},
                                                    {{3.4, 6.2}, {2.90909, 5.54545}},
@@ -776,8 +799,7 @@ TEST(boolean_curves, Simple_Cuts)
     const bke::CurvesGeometry src_curves = create_test_curves(
         points_by_curve, points, shape_ids, is_cyclic, is_fill);
 
-    const bke::CurvesGeometry dst_curves = curve_boolean(
-        Operation::Difference, src_curves, clipping_shapes);
+    const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {{{3.7, 5.6}, {3.45455, 5.27273}},
                                                    {{2.8, 4.4}, {2.63636, 4.18182}},
@@ -799,8 +821,7 @@ TEST(boolean_curves, Simple_Cuts)
     const bke::CurvesGeometry src_curves = create_test_curves(
         points_by_curve, points, shape_ids, is_cyclic, is_fill);
 
-    const bke::CurvesGeometry dst_curves = curve_boolean(
-        Operation::Difference, src_curves, clipping_shapes);
+    const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {{{4.4, 3.4}, {6, 5}, {4, 5}, {3.2, 4.2}},
                                                    {{2.66667, 3.66667}, {2.33333, 3.33333}},
@@ -844,9 +865,14 @@ TEST(boolean_curves, Squares_With_Holes)
   const bke::CurvesGeometry src_curves = create_test_curves(
       points_by_curve, points, shape_ids, is_cyclic, is_fill);
 
+  geometry::boolean::CurveBooleanOpParameters op_params;
+  op_params.subject_rule = FillRule::EvenOdd;
+  op_params.clipping_rule = FillRule::EvenOdd;
+  op_params.output_rule = FillRule::EvenOdd;
+
   {
-    const bke::CurvesGeometry dst_curves = curve_boolean(
-        Operation::Intersect, src_curves, clipping_shapes);
+    op_params.boolean_mode = Operation::Intersect;
+    const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
     /* TODO. */
     // const Array<Vector<float2>> expected_points = {
@@ -856,8 +882,8 @@ TEST(boolean_curves, Squares_With_Holes)
     draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
-    const bke::CurvesGeometry dst_curves = curve_boolean(
-        Operation::Union, src_curves, clipping_shapes);
+    op_params.boolean_mode = Operation::Union;
+    const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
     /* TODO. */
     // const Array<Vector<float2>> expected_points = {
@@ -867,8 +893,8 @@ TEST(boolean_curves, Squares_With_Holes)
     draw_results("Union", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
-    const bke::CurvesGeometry dst_curves = curve_boolean(
-        Operation::Difference, src_curves, clipping_shapes);
+    op_params.boolean_mode = Operation::Difference;
+    const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
     /* TODO. */
     // const Array<Vector<float2>> expected_points = {
@@ -906,14 +932,19 @@ TEST(boolean_curves, Multiple_Shapes)
   const bke::CurvesGeometry src_curves = create_test_curves(
       points_by_curve, points, shape_ids, is_cyclic, is_fill);
 
+  geometry::boolean::CurveBooleanOpParameters op_params;
+  op_params.subject_rule = FillRule::EvenOdd;
+  op_params.clipping_rule = FillRule::EvenOdd;
+  op_params.output_rule = FillRule::EvenOdd;
+
   /**
    * Multiple separate but intersecting subject shapes.
    * The two subject shapes should be affected by the clipping shape, but not join into one.
    */
   {
+    op_params.boolean_mode = Operation::Intersect;
     const IndexRange clipping_shapes = IndexRange::from_begin_end(2, 3);
-    const bke::CurvesGeometry dst_curves = curve_boolean(
-        Operation::Intersect, src_curves, clipping_shapes);
+    const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
     /* TODO. */
     // const Array<Vector<float2>> expected_points = {
@@ -923,9 +954,9 @@ TEST(boolean_curves, Multiple_Shapes)
     draw_results("2 Subjects Intersection", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
+    op_params.boolean_mode = Operation::Difference;
     const IndexRange clipping_shapes = IndexRange::from_begin_end(2, 3);
-    const bke::CurvesGeometry dst_curves = curve_boolean(
-        Operation::Difference, src_curves, clipping_shapes);
+    const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
     /* TODO. */
     // const Array<Vector<float2>> expected_points = {
@@ -940,9 +971,9 @@ TEST(boolean_curves, Multiple_Shapes)
    * The subject shape should be affected as if the two clipping shapes were union.
    */
   {
+    op_params.boolean_mode = Operation::Intersect;
     const IndexRange clipping_shapes = IndexRange::from_begin_end(0, 2);
-    const bke::CurvesGeometry dst_curves = curve_boolean(
-        Operation::Intersect, src_curves, clipping_shapes);
+    const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
     /* TODO. */
     // const Array<Vector<float2>> expected_points = {
@@ -952,9 +983,9 @@ TEST(boolean_curves, Multiple_Shapes)
     draw_results("2 Clipping Intersection", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
+    op_params.boolean_mode = Operation::Difference;
     const IndexRange clipping_shapes = IndexRange::from_begin_end(0, 2);
-    const bke::CurvesGeometry dst_curves = curve_boolean(
-        Operation::Difference, src_curves, clipping_shapes);
+    const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
     /* TODO. */
     // const Array<Vector<float2>> expected_points = {
@@ -1000,9 +1031,14 @@ TEST(boolean_curves, Four_Shapes)
   const bke::CurvesGeometry src_curves = create_test_curves(
       points_by_curve, points, shape_ids, is_cyclic, is_fill);
 
+  geometry::boolean::CurveBooleanOpParameters op_params;
+  op_params.subject_rule = FillRule::EvenOdd;
+  op_params.clipping_rule = FillRule::EvenOdd;
+  op_params.output_rule = FillRule::EvenOdd;
+
   {
-    const bke::CurvesGeometry dst_curves = curve_boolean(
-        Operation::Intersect, src_curves, clipping_shapes);
+    op_params.boolean_mode = Operation::Intersect;
+    const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
     /* TODO. */
     // const Array<Vector<float2>> expected_points = {
@@ -1012,8 +1048,8 @@ TEST(boolean_curves, Four_Shapes)
     draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
-    const bke::CurvesGeometry dst_curves = curve_boolean(
-        Operation::Difference, src_curves, clipping_shapes);
+    op_params.boolean_mode = Operation::Difference;
+    const bke::CurvesGeometry dst_curves = curve_boolean(op_params, src_curves, clipping_shapes);
 
     /* TODO. */
     // const Array<Vector<float2>> expected_points = {

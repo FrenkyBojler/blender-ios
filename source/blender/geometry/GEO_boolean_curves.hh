@@ -42,6 +42,25 @@ enum class Operation : int8_t {
   Difference,
 };
 
+enum class FillRule : int8_t {
+  /* Treat odd winding order as fill. */
+  EvenOdd,
+  /* Treat non zero winding order as fill. */
+  NonZero,
+  /* Treat non zero winding order as fill but without holes. */
+  NoHoles,
+};
+
+struct CurveBooleanOpParameters {
+  Operation boolean_mode;
+
+  FillRule subject_rule;
+  FillRule clipping_rule;
+  FillRule output_rule;
+
+  // bool self_intersect; TODO.
+};
+
 class Segment {
  private:
   static constexpr int NULL_INTERSECTION_ID = -1;
@@ -187,7 +206,7 @@ class Segment {
   }
 };
 
-bke::CurvesGeometry curve_boolean(const Operation boolean_mode,
+bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
                                   const bke::CurvesGeometry &curves,
                                   const IndexMask &clipping_shapes);
 
