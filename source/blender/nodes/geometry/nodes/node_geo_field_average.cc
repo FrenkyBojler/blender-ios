@@ -224,17 +224,19 @@ class FieldAverageInput final : public bke::GeometryFieldInput {
             g_outputs = VArray<T>::ForSingle(median, domain_size);
           }
           else {
-            std::map<int, Vector<T>> groups;
+            Map<int, Vector<T>> groups;
             for (const int i : values.index_range()) {
-              groups[group_indices[i]].append(values[i]);
+              groups.lookup_or_add(group_indices[i], Vector<T>()).append(values[i]);
             }
-            std::map<int, T> medians;
-            for (auto &group : groups) {
-              medians[group.first] = calculate_median(group.second);
+
+            Map<int, T> medians;
+            for (MutableMapItem<int, Vector<T>> group : groups.items()) {
+              medians.add(group.key, calculate_median(group.value));
             }
+
             Array<T> outputs(domain_size);
             for (const int i : values.index_range()) {
-              outputs[i] = medians[group_indices[i]];
+              outputs[i] = medians.lookup(group_indices[i]);
             }
             g_outputs = VArray<T>::ForContainer(std::move(outputs));
           }
