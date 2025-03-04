@@ -2803,6 +2803,8 @@ void action_fcurve_move(Action &action_dst,
                         Action &action_src,
                         FCurve &fcurve)
 {
+  BLI_assert(action_slot_dst != Slot::unassigned);
+
   /* Store the group name locally, as the group will be removed if this was its
    * last F-Curve. */
   std::optional<std::string> group_name;
