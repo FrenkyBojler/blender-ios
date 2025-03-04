@@ -260,7 +260,7 @@ Strip *SEQ_add_image_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqLoad
   BLI_path_apply_variables(file_path, {});
   BLI_path_abs(file_path, BKE_main_blendfile_path(bmain));
   ImBuf *ibuf = IMB_loadiffname(
-      file_path, IB_rect | IB_multilayer, strip->data->colorspace_settings.name);
+      file_path, IB_byte_data | IB_multilayer, strip->data->colorspace_settings.name);
   if (ibuf != nullptr) {
     /* Set image resolution. Assume that all images in sequence are same size. This fields are only
      * informative. */
@@ -423,7 +423,7 @@ Strip *SEQ_add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqLoad
         char filepath_view[FILE_MAX];
 
         seq_multiview_name(scene, i, prefix, ext, filepath_view, sizeof(filepath_view));
-        anim_arr[j] = openanim(filepath_view, IB_rect, 0, colorspace);
+        anim_arr[j] = openanim(filepath_view, IB_byte_data, 0, colorspace);
 
         if (anim_arr[j]) {
           seq_anim_add_suffix(scene, anim_arr[j], i);
@@ -435,7 +435,7 @@ Strip *SEQ_add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqLoad
   }
 
   if (is_multiview_loaded == false) {
-    anim_arr[0] = openanim(filepath, IB_rect, 0, colorspace);
+    anim_arr[0] = openanim(filepath, IB_byte_data, 0, colorspace);
   }
 
   if (anim_arr[0] == nullptr && !load_data->allow_invalid_file) {
@@ -592,7 +592,7 @@ void SEQ_add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool
 
             seq_multiview_name(scene, i, prefix, ext, filepath_view, sizeof(filepath_view));
             anim = openanim(filepath_view,
-                            IB_rect | ((strip->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
+                            IB_byte_data | ((strip->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
                             strip->streamindex,
                             strip->data->colorspace_settings.name);
 
@@ -610,7 +610,7 @@ void SEQ_add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool
       if (is_multiview_loaded == false) {
         MovieReader *anim;
         anim = openanim(filepath,
-                        IB_rect | ((strip->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
+                        IB_byte_data | ((strip->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
                         strip->streamindex,
                         strip->data->colorspace_settings.name);
         if (anim) {

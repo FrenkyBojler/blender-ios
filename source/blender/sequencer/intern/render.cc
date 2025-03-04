@@ -125,7 +125,7 @@ void seq_imbuf_to_sequencer_space(const Scene *scene, ImBuf *ibuf, bool make_flo
       return;
     }
 
-    imb_addrectfloatImBuf(ibuf, 4, false);
+    IMB_alloc_float_pixels(ibuf, 4, false);
     IMB_colormanagement_transform_byte_to_float(ibuf->float_buffer.data,
                                                 ibuf->byte_buffer.data,
                                                 ibuf->x,
@@ -134,7 +134,7 @@ void seq_imbuf_to_sequencer_space(const Scene *scene, ImBuf *ibuf, bool make_flo
                                                 from_colorspace,
                                                 to_colorspace);
     /* We don't need byte buffer anymore. */
-    imb_freerectImBuf(ibuf);
+    IMB_free_byte_pixels(ibuf);
   }
   else {
     const char *from_colorspace = IMB_colormanagement_get_float_colorspace(ibuf);
@@ -146,7 +146,7 @@ void seq_imbuf_to_sequencer_space(const Scene *scene, ImBuf *ibuf, bool make_flo
      * out of sync or conversion of byte buffer will lose precision in there.
      */
     if (ibuf->byte_buffer.data != nullptr) {
-      imb_freerectImBuf(ibuf);
+      IMB_free_byte_pixels(ibuf);
     }
     IMB_colormanagement_transform_float(ibuf->float_buffer.data,
                                         ibuf->x,
@@ -588,7 +588,7 @@ static void multiply_ibuf(ImBuf *ibuf, const float fmul, const bool multiply_alp
 {
   BLI_assert_msg(ibuf->channels == 0 || ibuf->channels == 4,
                  "Sequencer only supports 4 channel images");
-  const size_t pixel_count = IMB_get_rect_len(ibuf);
+  const size_t pixel_count = IMB_get_pixel_count(ibuf);
   if (ibuf->byte_buffer.data != nullptr) {
     threading::parallel_for(IndexRange(pixel_count), 64 * 1024, [&](IndexRange range) {
       uchar *ptr = ibuf->byte_buffer.data + range.first() * 4;
@@ -644,7 +644,8 @@ static ImBuf *input_preprocess(const SeqRenderData *context,
   {
     const int x = context->rectx;
     const int y = context->recty;
-    preprocessed_ibuf = IMB_allocImBuf(x, y, 32, ibuf->float_buffer.data ? IB_rectfloat : IB_rect);
+    preprocessed_ibuf = IMB_allocImBuf(
+        x, y, 32, ibuf->float_buffer.data ? IB_float_data : IB_byte_data);
 
     sequencer_preprocess_transform_crop(ibuf, preprocessed_ibuf, context, strip, is_proxy_image);
 
@@ -676,7 +677,7 @@ static ImBuf *input_preprocess(const SeqRenderData *context,
     }
 
     if (preprocessed_ibuf->byte_buffer.data) {
-      imb_freerectImBuf(preprocessed_ibuf);
+      IMB_free_byte_pixels(preprocessed_ibuf);
     }
   }
 
@@ -746,7 +747,7 @@ static ImBuf *seq_render_effect_strip_impl(const SeqRenderData *context,
 
   if (!sh.execute) {
     /* effect not supported in this version... */
-    out = IMB_allocImBuf(context->rectx, context->recty, 32, IB_rect);
+    out = IMB_allocImBuf(context->rectx, context->recty, 32, IB_byte_data);
     return out;
   }
 
@@ -812,7 +813,7 @@ static ImBuf *seq_render_effect_strip_impl(const SeqRenderData *context,
   }
 
   if (out == nullptr) {
-    out = IMB_allocImBuf(context->rectx, context->recty, 32, IB_rect);
+    out = IMB_allocImBuf(context->rectx, context->recty, 32, IB_byte_data);
   }
 
   return out;
@@ -860,7 +861,7 @@ static ImBuf *seq_render_image_strip_view(const SeqRenderData *context,
 {
   ImBuf *ibuf = nullptr;
 
-  int flag = IB_rect | IB_metadata | IB_multilayer;
+  int flag = IB_byte_data | IB_metadata | IB_multilayer;
   if (strip->alpha_mode == SEQ_ALPHA_PREMUL) {
     flag |= IB_alphamode_premul;
   }
@@ -882,7 +883,7 @@ static ImBuf *seq_render_image_strip_view(const SeqRenderData *context,
 
   /* We don't need both (speed reasons)! */
   if (ibuf->float_buffer.data != nullptr && ibuf->byte_buffer.data != nullptr) {
-    imb_freerectImBuf(ibuf);
+    IMB_free_byte_pixels(ibuf);
   }
 
   /* All sequencer color is done in SRGB space, linear gives odd cross-fades. */
@@ -922,7 +923,7 @@ static ImBuf *create_missing_media_image(const SeqRenderData *context, int width
     return nullptr;
   }
 
-  ImBuf *ibuf = IMB_allocImBuf(max_ii(width, 1), max_ii(height, 1), 32, IB_rect);
+  ImBuf *ibuf = IMB_allocImBuf(max_ii(width, 1), max_ii(height, 1), 32, IB_byte_data);
   float col[4] = {0.85f, 0.0f, 0.75f, 1.0f};
   IMB_rectfill(ibuf, col);
   return ibuf;
@@ -1023,7 +1024,7 @@ static ImBuf *seq_render_movie_strip_custom_file_proxy(const SeqRenderData *cont
 
   if (proxy->anim == nullptr) {
     if (seq_proxy_get_custom_file_filepath(strip, filepath, context->view_id)) {
-      proxy->anim = openanim(filepath, IB_rect, 0, strip->data->colorspace_settings.name);
+      proxy->anim = openanim(filepath, IB_byte_data, 0, strip->data->colorspace_settings.name);
     }
     if (proxy->anim == nullptr) {
       return nullptr;
@@ -1094,7 +1095,7 @@ static ImBuf *seq_render_movie_strip_view(const SeqRenderData *context,
 
   /* We don't need both (speed reasons)! */
   if (ibuf->float_buffer.data != nullptr && ibuf->byte_buffer.data != nullptr) {
-    imb_freerectImBuf(ibuf);
+    IMB_free_byte_pixels(ibuf);
   }
 
   return ibuf;
@@ -1303,7 +1304,7 @@ ImBuf *seq_render_mask(const SeqRenderData *context,
     float *fp_dst;
 
     ibuf = IMB_allocImBuf(
-        context->rectx, context->recty, 32, IB_rectfloat | IB_uninitialized_pixels);
+        context->rectx, context->recty, 32, IB_float_data | IB_uninitialized_pixels);
 
     fp_src = maskbuf;
     fp_dst = ibuf->float_buffer.data;
@@ -1321,7 +1322,8 @@ ImBuf *seq_render_mask(const SeqRenderData *context,
     const float *fp_src;
     uchar *ub_dst;
 
-    ibuf = IMB_allocImBuf(context->rectx, context->recty, 32, IB_rect | IB_uninitialized_pixels);
+    ibuf = IMB_allocImBuf(
+        context->rectx, context->recty, 32, IB_byte_data | IB_uninitialized_pixels);
 
     fp_src = maskbuf;
     ub_dst = ibuf->byte_buffer.data;
@@ -1496,7 +1498,7 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context,
         camera_eval,
         width,
         height,
-        IB_rect,
+        IB_byte_data,
         eV3DOffscreenDrawFlag(draw_flags),
         scene->r.alphamode,
         viewname,
@@ -1558,7 +1560,7 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context,
       /* TODO: Share the pixel data with the original image buffer from the render result using
        * implicit sharing. */
       if (rres.ibuf && rres.ibuf->float_buffer.data) {
-        ibufs_arr[view_id] = IMB_allocImBuf(rres.rectx, rres.recty, 32, IB_rectfloat);
+        ibufs_arr[view_id] = IMB_allocImBuf(rres.rectx, rres.recty, 32, IB_float_data);
         memcpy(ibufs_arr[view_id]->float_buffer.data,
                rres.ibuf->float_buffer.data,
                sizeof(float[4]) * rres.rectx * rres.recty);
@@ -1567,13 +1569,13 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context,
         seq_imbuf_to_sequencer_space(context->scene, ibufs_arr[view_id], false);
       }
       else if (rres.ibuf && rres.ibuf->byte_buffer.data) {
-        ibufs_arr[view_id] = IMB_allocImBuf(rres.rectx, rres.recty, 32, IB_rect);
+        ibufs_arr[view_id] = IMB_allocImBuf(rres.rectx, rres.recty, 32, IB_byte_data);
         memcpy(ibufs_arr[view_id]->byte_buffer.data,
                rres.ibuf->byte_buffer.data,
                4 * rres.rectx * rres.recty);
       }
       else {
-        ibufs_arr[view_id] = IMB_allocImBuf(rres.rectx, rres.recty, 32, IB_rect);
+        ibufs_arr[view_id] = IMB_allocImBuf(rres.rectx, rres.recty, 32, IB_byte_data);
       }
 
       if (view_id != context->view_id) {
@@ -1780,7 +1782,7 @@ ImBuf *seq_render_strip(const SeqRenderData *context,
   }
 
   if (ibuf == nullptr) {
-    ibuf = IMB_allocImBuf(context->rectx, context->recty, 32, IB_rect);
+    ibuf = IMB_allocImBuf(context->rectx, context->recty, 32, IB_byte_data);
     seq_imbuf_assign_spaces(context->scene, ibuf);
   }
 
@@ -1922,7 +1924,7 @@ static ImBuf *seq_render_strip_stack(const SeqRenderData *context,
         break;
       case StripEarlyOut::UseInput1:
         if (i == 0) {
-          out = IMB_allocImBuf(context->rectx, context->recty, 32, IB_rect);
+          out = IMB_allocImBuf(context->rectx, context->recty, 32, IB_byte_data);
           seq_imbuf_assign_spaces(context->scene, out);
         }
         break;
@@ -1934,7 +1936,7 @@ static ImBuf *seq_render_strip_stack(const SeqRenderData *context,
           ImBuf *ibuf2 = seq_render_strip(context, state, strip, timeline_frame);
           const bool use_float = ibuf2 && ibuf2->float_buffer.data;
           ImBuf *ibuf1 = IMB_allocImBuf(
-              context->rectx, context->recty, 32, use_float ? IB_rectfloat : IB_rect);
+              context->rectx, context->recty, 32, use_float ? IB_float_data : IB_byte_data);
           seq_imbuf_assign_spaces(context->scene, ibuf1);
 
           out = seq_render_strip_stack_apply_effect(context, strip, timeline_frame, ibuf1, ibuf2);
