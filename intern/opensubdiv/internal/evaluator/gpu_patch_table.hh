@@ -39,18 +39,6 @@ class GPUPatchTable : private NonCopyable<GPUPatchTable> {
     return _patchParamBuffer;
   }
 
-  /// Returns the GL texture buffer containing the patch control vertices
-  gpu::VertBuf *GetPatchIndexTextureBuffer() const
-  {
-    return _patchIndexTexture;
-  }
-
-  /// Returns the GL texture buffer containing the patch parameter
-  gpu::VertBuf *GetPatchParamTextureBuffer() const
-  {
-    return _patchParamTexture;
-  }
-
   /// Returns the patch arrays for varying index buffer data
   PatchArrayVector const &GetVaryingPatchArrays() const
   {
@@ -61,12 +49,6 @@ class GPUPatchTable : private NonCopyable<GPUPatchTable> {
   gpu::VertBuf *GetVaryingPatchIndexBuffer() const
   {
     return _varyingIndexBuffer;
-  }
-
-  /// Returns the GL texture buffer containing the varying control vertices
-  gpu::VertBuf *GetVaryingPatchIndexTextureBuffer() const
-  {
-    return _varyingIndexTexture;
   }
 
   /// Returns the number of face-varying channel buffers
@@ -106,7 +88,7 @@ class GPUPatchTable : private NonCopyable<GPUPatchTable> {
   }
 
  protected:
-  GPUPatchTable();
+  GPUPatchTable() {}
 
   // allocate buffers from patchTable
   bool allocate(PatchTable const *farPatchTable);
@@ -116,12 +98,8 @@ class GPUPatchTable : private NonCopyable<GPUPatchTable> {
   gpu::VertBuf *_patchIndexBuffer = nullptr;
   gpu::VertBuf *_patchParamBuffer = nullptr;
 
-  gpu::VertBuf *_patchIndexTexture = nullptr;
-  gpu::VertBuf *_patchParamTexture = nullptr;
-
   PatchArrayVector _varyingPatchArrays;
   gpu::VertBuf *_varyingIndexBuffer = nullptr;
-  gpu::VertBuf *_varyingIndexTexture = nullptr;
 
   std::vector<PatchArrayVector> _fvarPatchArrays;
   std::vector<gpu::VertBuf *> _fvarIndexBuffers;
