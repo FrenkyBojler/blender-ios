@@ -4182,9 +4182,10 @@ static void area_join_update_data(bContext *C, sAreaJoinData *jd, const wmEvent 
   jd->dock_target = area_docking_target(jd, event);
 
   if (jd->sa1 == area) {
+    const int drag_threshold = 30 * UI_SCALE_FAC;
     jd->sa2 = area;
-    if (!(abs(jd->start_x - event->xy[0]) > (30 * U.pixelsize) ||
-          abs(jd->start_y - event->xy[1]) > (30 * U.pixelsize)))
+    if (!(abs(jd->start_x - event->xy[0]) > drag_threshold ||
+          abs(jd->start_y - event->xy[1]) > drag_threshold))
     {
       /* We haven't moved enough to start a split. */
       jd->dir = SCREEN_DIR_NONE;
@@ -6395,6 +6396,8 @@ static int space_type_set_or_cycle_exec(bContext *C, wmOperator *op)
   if (area->spacetype != space_type) {
     /* Set the type. */
     RNA_property_enum_set(&ptr, prop_type, space_type);
+    /* Specify that we want last-used if there are subtypes. */
+    area->butspacetype_subtype = -1;
     RNA_property_update(C, &ptr, prop_type);
   }
   else {

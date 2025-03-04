@@ -959,7 +959,7 @@ float ED_view3d_grid_view_scale(const Scene *scene,
 
 static void draw_view_axis(RegionView3D *rv3d, const rcti *rect)
 {
-  const float k = U.rvisize * U.pixelsize; /* axis size */
+  const float k = U.rvisize * UI_SCALE_FAC; /* axis size */
   /* axis alpha offset (rvibright has range 0-10) */
   const int bright = -20 * (10 - U.rvibright);
 
@@ -2003,7 +2003,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Depsgraph *depsgraph,
   float winmat[4][4];
 
   /* Guess format based on output buffer. */
-  eGPUTextureFormat desired_format = (imbuf_flag & IB_rectfloat) ? GPU_RGBA16F : GPU_RGBA8;
+  eGPUTextureFormat desired_format = (imbuf_flag & IB_float_data) ? GPU_RGBA16F : GPU_RGBA8;
 
   if (ofs && ((GPU_offscreen_width(ofs) != sizex) || (GPU_offscreen_height(ofs) != sizey))) {
     /* If offscreen has already been created, recreate with the same format. */
@@ -2133,7 +2133,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Depsgraph *depsgraph,
   }
 
   if (ibuf->float_buffer.data && ibuf->byte_buffer.data) {
-    IMB_rect_from_float(ibuf);
+    IMB_byte_from_float(ibuf);
   }
 
   return ibuf;
