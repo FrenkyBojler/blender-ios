@@ -535,6 +535,18 @@ static void grease_pencil_primitive_init_curves(PrimitiveToolOperation &ptd)
   const bool is_cyclic = ELEM(ptd.type, PrimitiveType::Box, PrimitiveType::Circle);
   cyclic.span[target_curve_index] = is_cyclic;
 
+  bke::SpanAttributeWriter<bool> use_stroke = attributes.lookup_or_add_for_write_span<bool>(
+      "is_stroke",
+      bke::AttrDomain::Curve,
+      bke::AttributeInitVArray(VArray<bool>::ForSingle(true, curves.curves_num())));
+  bke::SpanAttributeWriter<bool> use_fill = attributes.lookup_or_add_for_write_span<bool>(
+      "is_fill", bke::AttrDomain::Curve);
+  use_stroke.span[target_curve_index] = (ptd.settings->flag2 & GP_BRUSH_USE_STROKE) != 0;
+  use_fill.span[target_curve_index] = (ptd.settings->flag2 & GP_BRUSH_USE_FILL) != 0;
+  curve_attributes_to_skip.add_multiple({"is_stroke", "is_fill"});
+  use_stroke.finish();
+  use_fill.finish();
+
   if (bke::SpanAttributeWriter<float> softness = attributes.lookup_or_add_for_write_span<float>(
           "softness", bke::AttrDomain::Curve))
   {
