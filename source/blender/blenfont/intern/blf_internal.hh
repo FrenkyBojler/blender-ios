@@ -120,7 +120,8 @@ blender::Array<uchar> blf_svg_icon_bitmap(
 
 blender::Vector<blender::StringRef> blf_font_string_wrap(FontBLF *font,
                                                          blender::StringRef str,
-                                                         int max_pixel_width);
+                                                         int soft_max,
+                                                         int hard_max = -1);
 
 /**
  * Use fixed column width, but an utf8 character may occupy multiple columns.

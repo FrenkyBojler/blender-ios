@@ -309,11 +309,12 @@ int BLF_glyph_advance(int fontid, const char *str);
  */
 void BLF_rotation(int fontid, float angle);
 void BLF_clipping(int fontid, int xmin, int ymin, int xmax, int ymax);
-void BLF_wordwrap(int fontid, int wrap_width);
+void BLF_wordwrap(int fontid, int soft_max, int hard_max = -1);
 
 blender::Vector<blender::StringRef> BLF_string_wrap(int fontid,
                                                     blender::StringRef str,
-                                                    const int max_pixel_width);
+                                                    const int soft_max,
+                                                    const int hard_max = -1);
 
 void BLF_enable(int fontid, int option);
 void BLF_disable(int fontid, int option);
