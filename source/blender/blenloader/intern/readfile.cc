@@ -722,7 +722,7 @@ static BHeadN *get_bhead(FileData *fd)
 
       /* First read the bhead structure.
        * Depending on the platform the file was written on this can
-       * be a big or little endian BHead4, SmallBHead8 or LargeBHead8 structure.
+       * be a big/little endian BHead4 or SmallBHead8, or little endian LargeBHead8 structure.
        *
        * As usual 'ENDB' (the last *partial* bhead of the file)
        * needs some special handling. We don't want to EOF just yet.
