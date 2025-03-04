@@ -1,1 +1,2 @@
 Referenced by issue #135009, Python: Can't Set PointerProperty to None
+Referenced by commit c7cde524fbb33b5e95d069516c15c8c3524aa61e, Revert "PyAPI: document never none pointer/collection properties"
