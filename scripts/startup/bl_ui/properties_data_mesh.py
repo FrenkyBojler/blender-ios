@@ -81,6 +81,16 @@ class MESH_MT_shape_key_context_menu(Menu):
         layout.operator("object.shape_key_move", icon='TRIA_DOWN_BAR', text="Move to Bottom").type = 'BOTTOM'
 
 
+class MESH_MT_uv_texture_context_menu(Menu):
+    bl_label = "UV Maps Specials"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator("mesh.uv_texture_move", icon='TRIA_UP_BAR', text="Move to Top").direction = 'TOP'
+        layout.operator("mesh.uv_texture_move", icon='TRIA_DOWN_BAR', text="Move to Bottom").direction = 'BOTTOM'
+
+
 class MESH_MT_color_attribute_context_menu(Menu):
     bl_label = "Color Attribute Specials"
 
@@ -393,11 +403,24 @@ class DATA_PT_uv_texture(MeshButtonsPanel, Panel):
         row = layout.row()
         col = row.column()
 
-        col.template_list("MESH_UL_uvmaps", "uvmaps", me, "uv_layers", me.uv_layers, "active_index", rows=2)
+        rows = 3
+
+        if len(me.uv_layers) > 1:
+            rows = 5
+
+        col.template_list("MESH_UL_uvmaps", "uvmaps", me, "uv_layers", me.uv_layers, "active_index", rows=rows)
 
         col = row.column(align=True)
         col.operator("mesh.uv_texture_add", icon='ADD', text="")
         col.operator("mesh.uv_texture_remove", icon='REMOVE', text="")
+
+        col.separator()
+        col.menu("MESH_MT_uv_texture_context_menu", icon='DOWNARROW_HLT', text="")
+
+        if len(me.uv_layers) > 1:
+            col.separator()
+            col.operator("mesh.uv_texture_move", icon='TRIA_UP', text="").direction = 'UP'
+            col.operator("mesh.uv_texture_move", icon='TRIA_DOWN', text="").direction = 'DOWN'
 
         draw_attribute_warnings(context, layout)
 
@@ -719,6 +742,7 @@ class DATA_PT_vertex_colors(MeshButtonsPanel, Panel):
 classes = (
     MESH_MT_vertex_group_context_menu,
     MESH_MT_shape_key_context_menu,
+    MESH_MT_uv_texture_context_menu,
     MESH_MT_color_attribute_context_menu,
     MESH_MT_attribute_context_menu,
     MESH_UL_vgroups,
