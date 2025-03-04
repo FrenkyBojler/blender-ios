@@ -177,6 +177,10 @@ static bool screen_temp_region_exists(const ARegion *region)
 /** \name Event Management
  * \{ */
 
+/**
+ * Internal function that doesn't aquire the event_queue_mutex lock. Is intended to only be used
+ * when the lock is already held.
+ */
 static wmEvent *wm_event_add_intern(wmWindow *win, const wmEvent *event_to_add)
 {
   wmEvent *event = MEM_callocN<wmEvent>(__func__);
@@ -189,6 +193,7 @@ static wmEvent *wm_event_add_intern(wmWindow *win, const wmEvent *event_to_add)
 
 wmEvent *WM_event_add(wmWindow *win, const wmEvent *event_to_add)
 {
+  const std::lock_guard<std::recursive_mutex> event_lock(win->runtime->event_queue_mutex);
   return wm_event_add_intern(win, event_to_add);
 }
 
@@ -304,6 +309,7 @@ static void wm_event_free_last(wmWindow *win)
 
 void wm_event_free_all(wmWindow *win)
 {
+  const std::lock_guard<std::recursive_mutex> event_lock(win->runtime->event_queue_mutex);
   while (wmEvent *event = static_cast<wmEvent *>(BLI_pophead(&win->runtime->event_queue))) {
     wm_event_free(event);
   }
@@ -4058,6 +4064,7 @@ void wm_event_do_handlers(bContext *C)
     }
 
     wmEvent *event;
+    const std::lock_guard<std::recursive_mutex> event_lock(win->runtime->event_queue_mutex);
     while ((event = static_cast<wmEvent *>(win->runtime->event_queue.first))) {
       eHandlerActionFlag action = WM_HANDLER_CONTINUE;
 
@@ -5757,6 +5764,8 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
   if (UNLIKELY(G.f & G_FLAG_EVENT_SIMULATE)) {
     return;
   }
+  /* This function calls helper functions that modifies the event queue, so lock the mutex here. */
+  const std::lock_guard<std::recursive_mutex> event_lock(win->runtime->event_queue_mutex);
 
   /**
    * Having both, \a event and \a event_state, can be highly confusing to work with,

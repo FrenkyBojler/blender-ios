@@ -40,6 +40,12 @@ struct WindowManagerRuntime {
 struct WindowRuntime {
   /** All events #wmEvent (ghost level events were handled). */
   ListBase event_queue = {nullptr, nullptr};
+  /** The mutex lock used to make sure that the event queue access is thread safe.
+   * This is a recursive lock as the event queue processing will call "wm_handlers_do"
+   * which in turn can call any function. It turned out that there were quite a few
+   * events that has handlers that touches the event queue itself.
+   */
+  std::recursive_mutex event_queue_mutex;
 
   WindowRuntime() = default;
   ~WindowRuntime();
