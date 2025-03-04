@@ -1,1 +1,2 @@
 Referenced by commit 623c81c7ec3, Fix: GPU: Broken gizmo color
+Referenced by commit fb6c68aaef104651e4ed771a706ab1f80e0227e1, Fix: GPU: Shader source log flooding the console on error
