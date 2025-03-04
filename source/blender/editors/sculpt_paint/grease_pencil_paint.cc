@@ -257,44 +257,6 @@ struct PaintOperationExecutor {
     BLI_assert(drawing_ != nullptr);
   }
 
-  float randomize_radius(PaintOperation &self,
-                         const float distance,
-                         const float radius,
-                         const float pressure)
-  {
-    return ed::greasepencil::randomize_radius(
-        *settings_, self.stroke_random_radius_factor_, distance, radius, pressure);
-  }
-
-  float randomize_opacity(PaintOperation &self,
-                          const float distance,
-                          const float opacity,
-                          const float pressure)
-  {
-    return ed::greasepencil::randomize_opacity(
-        *settings_, self.stroke_random_opacity_factor_, distance, opacity, pressure);
-  }
-
-  float randomize_rotation(PaintOperation &self, const float pressure)
-  {
-    return ed::greasepencil::randomize_rotation(
-        *settings_, self.rng_, self.stroke_random_rotation_factor_, pressure);
-  }
-
-  ColorGeometry4f randomize_color(PaintOperation &self,
-                                  const float distance,
-                                  const ColorGeometry4f color,
-                                  const float pressure)
-  {
-    return ed::greasepencil::randomize_color(*settings_,
-                                             self.stroke_random_hue_factor_,
-                                             self.stroke_random_sat_factor_,
-                                             self.stroke_random_val_factor_,
-                                             distance,
-                                             color,
-                                             pressure);
-  }
-
   void process_start_sample(PaintOperation &self,
                             const bContext &C,
                             const InputSample &start_sample,
@@ -326,18 +288,30 @@ struct PaintOperationExecutor {
         start_location,
         self.placement_.to_world_space(),
         settings_);
-    start_radius = randomize_radius(self, 0.0f, start_radius, start_sample.pressure);
+    start_radius = ed::greasepencil::randomize_radius(
+        *settings_, self.stroke_random_radius_factor_, 0.0f, start_radius, start_sample.pressure);
 
     float start_opacity = ed::greasepencil::opacity_from_input_sample(
         start_sample.pressure, brush_, settings_);
-    start_opacity = randomize_opacity(self, 0.0f, start_opacity, start_sample.pressure);
+    start_opacity = ed::greasepencil::randomize_opacity(*settings_,
+                                                        self.stroke_random_opacity_factor_,
+                                                        0.0f,
+                                                        start_opacity,
+                                                        start_sample.pressure);
 
     /* Do not allow pressure opacity when drawing tool was invoked temporarily. */
     const float fill_opacity = (!self.temp_draw_) ? start_opacity : 1.0f;
 
-    const float start_rotation = randomize_rotation(self, start_sample.pressure);
+    const float start_rotation = ed::greasepencil::randomize_rotation(
+        *settings_, self.rng_, self.stroke_random_rotation_factor_, start_sample.pressure);
     if (use_vertex_color_) {
-      vertex_color_ = randomize_color(self, 0.0f, vertex_color_, start_sample.pressure);
+      vertex_color_ = ed::greasepencil::randomize_color(*settings_,
+                                                        self.stroke_random_hue_factor_,
+                                                        self.stroke_random_sat_factor_,
+                                                        self.stroke_random_val_factor_,
+                                                        0.0f,
+                                                        vertex_color_,
+                                                        start_sample.pressure);
     }
 
     Scene *scene = CTX_data_scene(&C);
@@ -709,11 +683,18 @@ struct PaintOperationExecutor {
         curves.positions_for_write()[last_active_point] = position;
       }
       if (use_settings_random_ && settings_->draw_random_press > 0.0f) {
-        radius = randomize_radius(self, self.accum_distance_, radius, extension_sample.pressure);
+        radius = ed::greasepencil::randomize_radius(*settings_,
+                                                    self.stroke_random_radius_factor_,
+                                                    self.accum_distance_,
+                                                    radius,
+                                                    extension_sample.pressure);
       }
       if (use_settings_random_ && settings_->draw_random_strength > 0.0f) {
-        opacity = randomize_opacity(
-            self, self.accum_distance_, opacity, extension_sample.pressure);
+        opacity = ed::greasepencil::randomize_opacity(*settings_,
+                                                      self.stroke_random_opacity_factor_,
+                                                      self.accum_distance_,
+                                                      opacity,
+                                                      extension_sample.pressure);
       }
       drawing_->radii_for_write()[last_active_point] = math::max(radius, prev_radius);
       drawing_->opacities_for_write()[last_active_point] = math::max(opacity, prev_opacity);
@@ -756,8 +737,12 @@ struct PaintOperationExecutor {
     /* Randomize radii. */
     if (use_settings_random_ && settings_->draw_random_press > 0.0f) {
       for (const int i : IndexRange(new_points_num)) {
-        new_radii[i] = randomize_radius(
-            self, self.accum_distance_ + max_spacing_px * i, radius, extension_sample.pressure);
+        new_radii[i] = ed::greasepencil::randomize_radius(*settings_,
+                                                          self.stroke_random_radius_factor_,
+                                                          self.accum_distance_ +
+                                                              max_spacing_px * i,
+                                                          radius,
+                                                          extension_sample.pressure);
       }
     }
     else {
@@ -767,8 +752,12 @@ struct PaintOperationExecutor {
     /* Randomize opacities. */
     if (use_settings_random_ && settings_->draw_random_strength > 0.0f) {
       for (const int i : IndexRange(new_points_num)) {
-        new_opacities[i] = randomize_opacity(
-            self, self.accum_distance_ + max_spacing_px * i, opacity, extension_sample.pressure);
+        new_opacities[i] = ed::greasepencil::randomize_opacity(*settings_,
+                                                               self.stroke_random_opacity_factor_,
+                                                               self.accum_distance_ +
+                                                                   max_spacing_px * i,
+                                                               opacity,
+                                                               extension_sample.pressure);
       }
     }
     else {
@@ -782,7 +771,11 @@ struct PaintOperationExecutor {
       {
         const MutableSpan<float> new_rotations = rotations.span.slice(new_points);
         for (const int i : IndexRange(new_points_num)) {
-          new_rotations[i] = randomize_rotation(self, extension_sample.pressure);
+          new_rotations[i] = ed::greasepencil::randomize_rotation(
+              *settings_,
+              self.rng_,
+              self.stroke_random_rotation_factor_,
+              extension_sample.pressure);
         }
         point_attributes_to_skip.add("rotation");
         rotations.finish();
@@ -795,10 +788,14 @@ struct PaintOperationExecutor {
           new_points);
       if (use_settings_random_ || attributes.contains("vertex_color")) {
         for (const int i : IndexRange(new_points_num)) {
-          new_vertex_colors[i] = randomize_color(self,
-                                                 self.accum_distance_ + max_spacing_px * i,
-                                                 vertex_color_,
-                                                 extension_sample.pressure);
+          new_vertex_colors[i] = ed::greasepencil::randomize_color(*settings_,
+                                                                   self.stroke_random_hue_factor_,
+                                                                   self.stroke_random_sat_factor_,
+                                                                   self.stroke_random_val_factor_,
+                                                                   self.accum_distance_ +
+                                                                       max_spacing_px * i,
+                                                                   vertex_color_,
+                                                                   extension_sample.pressure);
         }
       }
       else {
