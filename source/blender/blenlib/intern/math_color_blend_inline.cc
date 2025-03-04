@@ -335,6 +335,8 @@ MINLINE void blend_color_softlight_byte(uchar dst[4], const uchar src1[4], const
     int i = 3;
 
     while (i--) {
+      /* Using "Pegtop" formula: dst = (1 - 2b) * a^2 + 2ab where a=bottom and b=top color.
+       * See https://en.wikipedia.org/wiki/Blend_modes */
       const float src1val = (float)(src1[i]) / 255.0f;
       const float src2val = (float)(src2[i]) / 255.0f;
       float screen = 1.0f - (1.0f - src1val) * (1.0f - src2val);
