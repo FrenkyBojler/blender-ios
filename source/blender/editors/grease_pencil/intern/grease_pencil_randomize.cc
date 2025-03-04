@@ -76,6 +76,33 @@ float randomize_opacity(const BrushGpencilSettings &settings,
 }
 
 float randomize_rotation(const BrushGpencilSettings &settings,
+                         const float stroke_factor,
+                         const float distance,
+                         const float pressure)
+{
+  const bool use_random = (settings.flag & GP_BRUSH_GROUP_RANDOM) != 0;
+  if (!use_random || !(settings.uv_random > 0.0f)) {
+    return 0.0f;
+  }
+  float random_factor = 0.0f;
+  if ((settings.flag2 & GP_BRUSH_USE_UV_AT_STROKE) == 0) {
+    /* TODO: This should be exposed as a setting to scale the noise along the stroke. */
+    constexpr float noise_scale = 1 / 20.0f;
+    random_factor = noise::perlin_signed(float2(distance * noise_scale, stroke_factor));
+  }
+  else {
+    random_factor = stroke_factor;
+  }
+
+  if ((settings.flag2 & GP_BRUSH_USE_UV_RAND_PRESS) != 0) {
+    random_factor *= BKE_curvemapping_evaluateF(settings.curve_rand_uv, 0, pressure);
+  }
+
+  const float random_rotation = random_factor * math::numbers::pi;
+  return math::interpolate(0.0f, random_rotation, settings.uv_random);
+}
+
+float randomize_rotation(const BrushGpencilSettings &settings,
                          RandomNumberGenerator &rng,
                          const float stroke_factor,
                          const float pressure)

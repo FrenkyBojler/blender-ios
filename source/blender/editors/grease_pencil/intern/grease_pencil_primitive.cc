@@ -536,7 +536,7 @@ static void grease_pencil_primitive_update_curves(PrimitiveToolOperation &ptd)
     }
     if (rotations) {
       new_rotations[point] = ed::greasepencil::randomize_rotation(
-          *ptd.settings, ptd.rng, ptd.stroke_random_rotation_factor, pressure);
+          *ptd.settings, ptd.stroke_random_rotation_factor, lengths[point], pressure);
     }
   }
 

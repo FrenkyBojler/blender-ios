@@ -963,6 +963,16 @@ float randomize_opacity(const BrushGpencilSettings &settings,
                         float pressure);
 /**
  * Calculate a randomized rotation for a point.
+ * \param stroke_factor Random seed value in [-1, 1] per stroke.
+ * \param distance Screen-space length in pixels along the curve.
+ * \param pressure Pressure factor.
+ */
+float randomize_rotation(const BrushGpencilSettings &settings,
+                         float stroke_factor,
+                         float distance,
+                         float pressure);
+/**
+ * Calculate a randomized rotation for a point.
  * \param rng Random number generator instance.
  * \param stroke_factor Random seed value in [-1, 1] per stroke.
  * \param pressure Pressure factor.
