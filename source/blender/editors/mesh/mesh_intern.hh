@@ -316,6 +316,7 @@ void MESH_OT_mark_freestyle_face(wmOperatorType *ot);
 
 void MESH_OT_uv_texture_add(wmOperatorType *ot);
 void MESH_OT_uv_texture_remove(wmOperatorType *ot);
+void MESH_OT_uv_texture_move(wmOperatorType *ot);
 void MESH_OT_customdata_mask_clear(wmOperatorType *ot);
 void MESH_OT_customdata_skin_add(wmOperatorType *ot);
 void MESH_OT_customdata_skin_clear(wmOperatorType *ot);

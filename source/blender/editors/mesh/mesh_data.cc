@@ -12,6 +12,7 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_array.hh"
+#include "BLI_string.h"
 
 #include "BKE_attribute.hh"
 #include "BKE_context.hh"
@@ -25,6 +26,8 @@
 
 #include "DEG_depsgraph.hh"
 
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 #include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
@@ -546,6 +549,145 @@ void MESH_OT_uv_texture_remove(wmOperatorType *ot)
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+static bool uv_texture_move_poll(bContext *C)
+{
+  if (!layers_poll(C)) {
+    return false;
+  }
+
+  Object *ob = blender::ed::object::context_object(C);
+  Mesh *mesh = static_cast<Mesh *>(ob->data);
+  CustomData *ldata = mesh_customdata_get_type(mesh, BM_LOOP, nullptr);
+
+  if (CustomData_number_of_layers(ldata, CD_PROP_FLOAT2) < 2) {
+    return false;
+  }
+
+  return true;
+}
+
+static void mesh_uv_swap(CustomData *ldata, int act_index, int new_index)
+{
+  bool rev = ((new_index - act_index) < 0) ? true : false;
+
+  /* Start from the active index and swap with prev/next based on the direction
+   * until we reach the new index. */
+  for (int i = act_index; i != new_index; (rev ? i-- : i++)) {
+    int j = (rev ? i - 1 : i + 1);
+
+    CustomDataLayer tmp = ldata->layers[i];
+    ldata->layers[i] = ldata->layers[j];
+    ldata->layers[j] = tmp;
+  }
+}
+
+static void mesh_uv_reorder(CustomData *ldata, int act_index, int new_index)
+{
+  eCustomDataType uv = CD_PROP_FLOAT2;
+
+  /* Store the indices for these so can we their names with a generic function. */
+  int act_clone = CustomData_get_clone_layer(ldata, uv);
+  int act_mask = CustomData_get_stencil_layer(ldata, uv);
+
+  /* Copy the names because they'll change after swapping. */
+  char *render_name = BLI_strdup(CustomData_get_render_layer_name(ldata, uv));
+  char *clone_name = BLI_strdup(CustomData_get_layer_name(ldata, uv, act_clone));
+  char *mask_name = BLI_strdup(CustomData_get_layer_name(ldata, uv, act_mask));
+
+  mesh_uv_swap(ldata, act_index, new_index);
+
+  /* Use the names to get the new indices. */
+  int rnd_index = CustomData_get_named_layer(ldata, uv, render_name);
+  int clone_index = CustomData_get_named_layer(ldata, uv, clone_name);
+  int mask_index = CustomData_get_named_layer(ldata, uv, mask_name);
+
+  /* Set active with the new indices. */
+  CustomData_set_layer_active_index(ldata, uv, new_index);
+  CustomData_set_layer_render(ldata, uv, rnd_index);
+  CustomData_set_layer_clone(ldata, uv, clone_index);
+  CustomData_set_layer_stencil(ldata, uv, mask_index);
+
+  CustomData_update_offsets(ldata);
+}
+
+enum {
+  UV_MOVE_TOP = -2,
+  UV_MOVE_UP = -1,
+  UV_MOVE_DOWN = 1,
+  UV_MOVE_BOTTOM = 2,
+};
+
+static int uv_texture_move_exec(bContext *C, wmOperator *op)
+{
+  Object *ob = blender::ed::object::context_object(C);
+  Mesh *mesh = static_cast<Mesh *>(ob->data);
+  CustomData *ldata = mesh_customdata_get_type(mesh, BM_LOOP, nullptr);
+
+  int dir = RNA_enum_get(op->ptr, "direction");
+  int start_index = CustomData_get_layer_index(ldata, CD_PROP_FLOAT2);
+  int total = CustomData_number_of_layers(ldata, CD_PROP_FLOAT2);
+  int act_index = CustomData_get_active_layer_index(ldata, CD_PROP_FLOAT2);
+  int new_index;
+
+  switch (dir) {
+    case UV_MOVE_TOP:
+      new_index = start_index;
+      break;
+    case UV_MOVE_UP:
+      new_index = act_index - 1;
+      break;
+    case UV_MOVE_DOWN:
+      new_index = act_index + 1;
+      break;
+    case UV_MOVE_BOTTOM:
+      new_index = start_index + total - 1;
+      break;
+    default:
+      new_index = act_index;
+      break;
+  }
+
+  CLAMP(new_index, start_index, start_index + total - 1);
+
+  if (new_index == act_index) {
+    return OPERATOR_CANCELLED;
+  }
+
+  mesh_uv_reorder(ldata, act_index, new_index);
+
+  if (ob->mode & OB_MODE_TEXTURE_PAINT) {
+    Scene *scene = CTX_data_scene(C);
+    ED_paint_proj_mesh_data_check(*scene, *ob, nullptr, nullptr, nullptr, nullptr);
+    WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+void MESH_OT_uv_texture_move(wmOperatorType *ot)
+{
+  static const EnumPropertyItem slot_move[] = {
+      {UV_MOVE_TOP, "TOP", 0, "Top", "Top of the list"},
+      {UV_MOVE_UP, "UP", 0, "Up", ""},
+      {UV_MOVE_DOWN, "DOWN", 0, "Down", ""},
+      {UV_MOVE_BOTTOM, "BOTTOM", 0, "Bottom", "Bottom of the list"},
+      {0, nullptr, 0, nullptr, nullptr}};
+
+  /* identifiers */
+  ot->name = "Move UV Layer";
+  ot->idname = "MESH_OT_uv_texture_move";
+  ot->description = "Move the active uv map up/down in the list";
+
+  /* api callbacks */
+  ot->poll = uv_texture_move_poll;
+  ot->exec = uv_texture_move_exec;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_enum(ot->srna, "direction", slot_move, 0, "Direction", "");
 }
 
 /* *** CustomData clear functions, we need an operator for each *** */
