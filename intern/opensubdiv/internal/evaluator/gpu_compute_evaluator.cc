@@ -44,8 +44,6 @@ using OpenSubdiv::Osd::BufferDescriptor;
 using OpenSubdiv::Osd::PatchArray;
 using OpenSubdiv::Osd::PatchArrayVector;
 
-extern "C" char datatoc_glsl_compute_kernel_glsl[];
-
 #define SHADER_SRC_VERTEX_BUFFER_BUF_SLOT 0
 #define SHADER_DST_VERTEX_BUFFER_BUF_SLOT 1
 #define SHADER_DU_BUFFER_BUF_SLOT 2
@@ -237,7 +235,7 @@ static GPUShader *compileKernel(BufferDescriptor const &srcDesc,
                      "OsdPatchArray",
                      "patchArrayBuffer[]");
     info.storage_buf(
-        SHADER_PATCH_COORDS_BUF_SLOT, Qualifier::READ, "OsdPatchCoord", "patchIndexBuffer[]");
+        SHADER_PATCH_COORDS_BUF_SLOT, Qualifier::READ, "OsdPatchCoord", "patchCoords[]");
     info.storage_buf(
         SHADER_PATCH_INDEX_BUFFER_BUF_SLOT, Qualifier::READ, "int", "patchIndexBuffer[]");
     info.storage_buf(SHADER_PATCH_PARAM_BUFFER_BUF_SLOT,
@@ -245,8 +243,7 @@ static GPUShader *compileKernel(BufferDescriptor const &srcDesc,
                      "OsdPatchParam",
                      "patchParamBuffer[]");
   }
-  // TODO: add glsl_compute_kernel.glsl as preprocessed GLSL. similar to intern/opencolorio
-  info.compute_source_generated += std::string(datatoc_glsl_compute_kernel_glsl);
+  info.compute_source("osd_kernel_comp.glsl");
   GPUShader *shader = GPU_shader_create_from_info(
       reinterpret_cast<const GPUShaderCreateInfo *>(&info));
   return shader;
