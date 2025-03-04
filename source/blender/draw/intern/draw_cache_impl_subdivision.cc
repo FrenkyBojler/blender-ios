@@ -58,7 +58,7 @@ namespace blender::draw {
  * \{ */
 
 #ifdef WITH_OPENSUBDIV
-
+#  if 0
 static const GPUVertFormat &get_uvs_format()
 {
   static const GPUVertFormat format = [&]() {
@@ -68,6 +68,7 @@ static const GPUVertFormat &get_uvs_format()
   }();
   return format;
 }
+#  endif
 
 /* Vertex format for `OpenSubdiv::Osd::PatchArray`. */
 static const GPUVertFormat &get_patch_array_format()
@@ -108,7 +109,7 @@ static const GPUVertFormat &get_quadtree_format()
   }();
   return format;
 }
-
+#  if 0
 /* Vertex format for `OpenSubdiv::Osd::PatchParam`, not really used, it is only for making sure
  * that the #gpu::VertBuf used to wrap the OpenSubdiv patch param buffer is valid. */
 static const GPUVertFormat &get_patch_param_format()
@@ -144,6 +145,7 @@ static const GPUVertFormat &get_subdiv_vertex_format()
   }();
   return format;
 }
+#  endif
 
 struct CompressedPatchCoord {
   int ptex_face_index;
@@ -1054,28 +1056,18 @@ void draw_subdiv_extract_pos_nor(const DRWSubdivCache &cache,
   bke::subdiv::Subdiv *subdiv = cache.subdiv;
   OpenSubdiv_Evaluator *evaluator = subdiv->evaluator;
 
-  gpu::VertBuf *src_buffer = GPU_vertbuf_create_with_format_ex(get_subdiv_vertex_format(),
-                                                               GPU_USAGE_DEVICE_ONLY);
-  evaluator->eval_output->wrapSrcBuffer(src_buffer);
-
+  gpu::VertBuf *src_buffer = evaluator->eval_output->wrapSrcBuffer();
   gpu::VertBuf *src_extra_buffer = nullptr;
   if (orco) {
-    src_extra_buffer = GPU_vertbuf_create_with_format_ex(get_subdiv_vertex_format(),
-                                                         GPU_USAGE_DEVICE_ONLY);
-    evaluator->eval_output->wrapSrcVertexDataBuffer(src_extra_buffer);
+    src_extra_buffer = evaluator->eval_output->wrapSrcVertexDataBuffer();
   }
 
   gpu::VertBuf *patch_arrays_buffer = GPU_vertbuf_create_with_format_ex(get_patch_array_format(),
                                                                         GPU_USAGE_DEVICE_ONLY);
   evaluator->eval_output->fillPatchArraysBuffer(patch_arrays_buffer);
 
-  gpu::VertBuf *patch_index_buffer = GPU_vertbuf_create_with_format_ex(get_patch_index_format(),
-                                                                       GPU_USAGE_DEVICE_ONLY);
-  evaluator->eval_output->wrapPatchIndexBuffer(patch_index_buffer);
-
-  gpu::VertBuf *patch_param_buffer = GPU_vertbuf_create_with_format_ex(get_patch_param_format(),
-                                                                       GPU_USAGE_DEVICE_ONLY);
-  evaluator->eval_output->wrapPatchParamBuffer(patch_param_buffer);
+  gpu::VertBuf *patch_index_buffer = evaluator->eval_output->wrapPatchIndexBuffer();
+  gpu::VertBuf *patch_param_buffer = evaluator->eval_output->wrapPatchParamBuffer();
 
   GPUShader *shader = DRW_shader_subdiv_get(orco ? SubdivShaderType::PATCH_EVALUATION_ORCO :
                                                    SubdivShaderType::PATCH_EVALUATION);
@@ -1136,22 +1128,18 @@ void draw_subdiv_extract_uvs(const DRWSubdivCache &cache,
   bke::subdiv::Subdiv *subdiv = cache.subdiv;
   OpenSubdiv_Evaluator *evaluator = subdiv->evaluator;
 
-  gpu::VertBuf *src_buffer = GPU_vertbuf_create_with_format_ex(get_uvs_format(),
-                                                               GPU_USAGE_DEVICE_ONLY);
-  evaluator->eval_output->wrapFVarSrcBuffer(face_varying_channel, src_buffer);
+  gpu::VertBuf *src_buffer = evaluator->eval_output->wrapFVarSrcBuffer(face_varying_channel);
   int src_buffer_offset = evaluator->eval_output->getFVarSrcBufferOffset(face_varying_channel);
 
   gpu::VertBuf *patch_arrays_buffer = GPU_vertbuf_create_with_format_ex(get_patch_array_format(),
                                                                         GPU_USAGE_DEVICE_ONLY);
   evaluator->eval_output->fillFVarPatchArraysBuffer(face_varying_channel, patch_arrays_buffer);
 
-  gpu::VertBuf *patch_index_buffer = GPU_vertbuf_create_with_format_ex(get_patch_index_format(),
-                                                                       GPU_USAGE_DEVICE_ONLY);
-  evaluator->eval_output->wrapFVarPatchIndexBuffer(face_varying_channel, patch_index_buffer);
+  gpu::VertBuf *patch_index_buffer = evaluator->eval_output->wrapFVarPatchIndexBuffer(
+      face_varying_channel);
 
-  gpu::VertBuf *patch_param_buffer = GPU_vertbuf_create_with_format_ex(get_patch_param_format(),
-                                                                       GPU_USAGE_DEVICE_ONLY);
-  evaluator->eval_output->wrapFVarPatchParamBuffer(face_varying_channel, patch_param_buffer);
+  gpu::VertBuf *patch_param_buffer = evaluator->eval_output->wrapFVarPatchParamBuffer(
+      face_varying_channel);
 
   GPUShader *shader = DRW_shader_subdiv_get(SubdivShaderType::PATCH_EVALUATION_FVAR);
   GPU_shader_bind(shader);
@@ -1375,21 +1363,13 @@ void draw_subdiv_build_fdots_buffers(const DRWSubdivCache &cache,
   bke::subdiv::Subdiv *subdiv = cache.subdiv;
   OpenSubdiv_Evaluator *evaluator = subdiv->evaluator;
 
-  gpu::VertBuf *src_buffer = GPU_vertbuf_create_with_format_ex(get_subdiv_vertex_format(),
-                                                               GPU_USAGE_DEVICE_ONLY);
-  evaluator->eval_output->wrapSrcBuffer(src_buffer);
-
+  gpu::VertBuf *src_buffer = evaluator->eval_output->wrapSrcBuffer();
   gpu::VertBuf *patch_arrays_buffer = GPU_vertbuf_create_with_format_ex(get_patch_array_format(),
                                                                         GPU_USAGE_DEVICE_ONLY);
   evaluator->eval_output->fillPatchArraysBuffer(patch_arrays_buffer);
 
-  gpu::VertBuf *patch_index_buffer = GPU_vertbuf_create_with_format_ex(get_patch_index_format(),
-                                                                       GPU_USAGE_DEVICE_ONLY);
-  evaluator->eval_output->wrapPatchIndexBuffer(patch_index_buffer);
-
-  gpu::VertBuf *patch_param_buffer = GPU_vertbuf_create_with_format_ex(get_patch_param_format(),
-                                                                       GPU_USAGE_DEVICE_ONLY);
-  evaluator->eval_output->wrapPatchParamBuffer(patch_param_buffer);
+  gpu::VertBuf *patch_index_buffer = evaluator->eval_output->wrapPatchIndexBuffer();
+  gpu::VertBuf *patch_param_buffer = evaluator->eval_output->wrapPatchParamBuffer();
 
   GPUShader *shader = DRW_shader_subdiv_get(
       fdots_nor ? SubdivShaderType::PATCH_EVALUATION_FACE_DOTS_WITH_NORMALS :
