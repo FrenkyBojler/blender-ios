@@ -2425,7 +2425,7 @@ static int sculpt_mesh_filter_start(bContext *C, wmOperator *op)
     /* Update the active face set manually as the paint cursor is not enabled when using the
      * Mesh Filter Tool. */
     SculptCursorGeometryInfo sgi;
-    SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false);
+    SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false, false);
   }
 
   SCULPT_vertex_random_access_ensure(ob);

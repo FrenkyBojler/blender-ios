@@ -1641,23 +1641,42 @@ void raycast(Tree &pbvh,
       pbvh, [&](Node &node) { return ray_aabb_intersect(node, rcd); }, hit_fn);
 }
 
+bool ray_update_depth_and_hit_count(const float depth_test,
+                                    float *r_depth,
+                                    float *r_back_depth,
+                                    int *hit_count)
+{
+
+  (*hit_count)++;
+  if (depth_test < *r_depth) {
+    *r_back_depth = *r_depth;
+    *r_depth = depth_test;
+    return true;
+  }
+  else if (depth_test > *r_depth && depth_test <= *r_back_depth) {
+    *r_back_depth = depth_test;
+    return false;
+  }
+
+  return false;
+}
+
 bool ray_face_intersection_quad(const float3 &ray_start,
                                 const IsectRayPrecalc *isect_precalc,
                                 const float3 &t0,
                                 const float3 &t1,
                                 const float3 &t2,
                                 const float3 &t3,
-                                float *depth)
+                                float *depth,
+                                float *back_depth,
+                                int *hit_count)
 {
   float depth_test;
 
-  if ((isect_ray_tri_watertight_v3(ray_start, isect_precalc, t0, t1, t2, &depth_test, nullptr) &&
-       (depth_test < *depth)) ||
-      (isect_ray_tri_watertight_v3(ray_start, isect_precalc, t0, t2, t3, &depth_test, nullptr) &&
-       (depth_test < *depth)))
+  if ((isect_ray_tri_watertight_v3(ray_start, isect_precalc, t0, t1, t2, &depth_test, nullptr)) ||
+      (isect_ray_tri_watertight_v3(ray_start, isect_precalc, t0, t2, t3, &depth_test, nullptr)))
   {
-    *depth = depth_test;
-    return true;
+    return ray_update_depth_and_hit_count(depth_test, depth, back_depth, hit_count);
   }
 
   return false;
@@ -1668,14 +1687,13 @@ bool ray_face_intersection_tri(const float3 &ray_start,
                                const float3 &t0,
                                const float3 &t1,
                                const float3 &t2,
-                               float *depth)
+                               float *depth,
+                               float *back_depth,
+                               int *hit_count)
 {
   float depth_test;
-  if (isect_ray_tri_watertight_v3(ray_start, isect_precalc, t0, t1, t2, &depth_test, nullptr) &&
-      (depth_test < *depth))
-  {
-    *depth = depth_test;
-    return true;
+  if (isect_ray_tri_watertight_v3(ray_start, isect_precalc, t0, t1, t2, &depth_test, nullptr)) {
+    return ray_update_depth_and_hit_count(depth_test, depth, back_depth, hit_count);
   }
 
   return false;
@@ -1802,6 +1820,8 @@ bool node_raycast_mesh(const MeshNode &node,
                        const float3 &ray_normal,
                        IsectRayPrecalc *isect_precalc,
                        float *depth,
+                       float *back_depth,
+                       int *hit_count,
                        int &r_active_vertex,
                        int &r_active_face_index,
                        float3 &r_face_normal)
@@ -1821,7 +1841,9 @@ bool node_raycast_mesh(const MeshNode &node,
         const std::array<const float *, 3> co{{vert_positions[corner_verts[tri[0]]],
                                                vert_positions[corner_verts[tri[1]]],
                                                vert_positions[corner_verts[tri[2]]]}};
-        if (ray_face_intersection_tri(ray_start, isect_precalc, co[0], co[1], co[2], depth)) {
+        if (ray_face_intersection_tri(
+                ray_start, isect_precalc, co[0], co[1], co[2], depth, back_depth, hit_count))
+        {
           hit = true;
           calc_mesh_intersect_data(corner_verts,
                                    corner_tris,
@@ -1852,7 +1874,9 @@ bool node_raycast_mesh(const MeshNode &node,
             {node_positions[vert_map.index_of(corner_verts[tri[0]])],
              node_positions[vert_map.index_of(corner_verts[tri[1]])],
              node_positions[vert_map.index_of(corner_verts[tri[2]])]}};
-        if (ray_face_intersection_tri(ray_start, isect_precalc, co[0], co[1], co[2], depth)) {
+        if (ray_face_intersection_tri(
+                ray_start, isect_precalc, co[0], co[1], co[2], depth, back_depth, hit_count))
+        {
           hit = true;
           calc_mesh_intersect_data(corner_verts,
                                    corner_tris,
@@ -1914,6 +1938,8 @@ bool node_raycast_grids(const SubdivCCG &subdiv_ccg,
                         const float3 &ray_normal,
                         const IsectRayPrecalc *isect_precalc,
                         float *depth,
+                        float *back_depth,
+                        int *hit_count,
                         SubdivCCGCoord &r_active_vertex,
                         int &r_active_grid_index,
                         float3 &r_face_normal)
@@ -1940,21 +1966,31 @@ bool node_raycast_grids(const SubdivCCG &subdiv_ccg,
                grid_positions[CCG_grid_xy_to_index(grid_size, x + 1, y + 1)],
                grid_positions[CCG_grid_xy_to_index(grid_size, x + 1, y)],
                grid_positions[CCG_grid_xy_to_index(grid_size, x, y)]}};
-          if (ray_face_intersection_quad(
-                  ray_start, isect_precalc, co[0], co[1], co[2], co[3], depth))
+
+          if (ray_face_intersection_quad(ray_start,
+                                         isect_precalc,
+                                         co[0],
+                                         co[1],
+                                         co[2],
+                                         co[3],
+                                         depth,
+                                         back_depth,
+                                         hit_count))
           {
-            hit = true;
-            calc_grids_intersect_data(ray_start,
-                                      ray_normal,
-                                      grid,
-                                      x,
-                                      y,
-                                      co,
-                                      *depth,
-                                      r_active_vertex,
-                                      r_active_grid_index,
-                                      r_face_normal);
+            continue;
           }
+
+          hit = true;
+          calc_grids_intersect_data(ray_start,
+                                    ray_normal,
+                                    grid,
+                                    x,
+                                    y,
+                                    co,
+                                    *depth,
+                                    r_active_vertex,
+                                    r_active_grid_index,
+                                    r_face_normal);
         }
       }
     }
@@ -1974,8 +2010,15 @@ bool node_raycast_grids(const SubdivCCG &subdiv_ccg,
                                                 grid_positions[(y + 1) * grid_size + x + 1],
                                                 grid_positions[y * grid_size + x + 1],
                                                 grid_positions[y * grid_size + x]};
-          if (ray_face_intersection_quad(
-                  ray_start, isect_precalc, co[0], co[1], co[2], co[3], depth))
+          if (ray_face_intersection_quad(ray_start,
+                                         isect_precalc,
+                                         co[0],
+                                         co[1],
+                                         co[2],
+                                         co[3],
+                                         depth,
+                                         back_depth,
+                                         hit_count))
           {
             hit = true;
             calc_grids_intersect_data(ray_start,

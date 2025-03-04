@@ -142,7 +142,7 @@ int active_update_and_get(bContext *C, Object &ob, const float mval[2])
   }
 
   SculptCursorGeometryInfo gi;
-  if (!SCULPT_cursor_geometry_info_update(C, &gi, mval, false)) {
+  if (!SCULPT_cursor_geometry_info_update(C, &gi, mval, false, false)) {
     return SCULPT_FACE_SET_NONE;
   }
 
@@ -1103,7 +1103,7 @@ static int change_visibility_invoke(bContext *C, wmOperator *op, const wmEvent *
   SculptCursorGeometryInfo sgi;
   const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
   SCULPT_vertex_random_access_ensure(ob);
-  SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false);
+  SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false, false);
 
   return change_visibility_exec(C, op);
 }
@@ -1567,7 +1567,7 @@ static int edit_op_invoke(bContext *C, wmOperator *op, const wmEvent *event)
    * tool without brush cursor. */
   SculptCursorGeometryInfo sgi;
   const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
-  if (!SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false)) {
+  if (!SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false, false)) {
     /* The cursor is not over the mesh. Cancel to avoid editing the last updated Face Set ID. */
     return OPERATOR_CANCELLED;
   }

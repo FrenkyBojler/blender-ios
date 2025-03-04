@@ -127,6 +127,7 @@ enum class UpdateType {
 
 struct SculptCursorGeometryInfo {
   blender::float3 location;
+  blender::float3 back_location;
   blender::float3 normal;
   blender::float3 active_vertex_co;
 };
@@ -481,7 +482,8 @@ bool SCULPT_stroke_get_location(bContext *C,
 bool SCULPT_cursor_geometry_info_update(bContext *C,
                                         SculptCursorGeometryInfo *out,
                                         const float mval[2],
-                                        bool use_sampled_normal);
+                                        bool use_sampled_normal,
+                                        bool use_back_depth);
 
 namespace blender::ed::sculpt_paint {
 

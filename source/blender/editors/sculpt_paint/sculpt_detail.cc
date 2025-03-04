@@ -218,7 +218,7 @@ static bool sample_detail_voxel(bContext *C, ViewContext *vc, const int mval[2])
 
   /* Update the active vertex. */
   const float mval_fl[2] = {float(mval[0]), float(mval[1])};
-  if (!SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false)) {
+  if (!SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false, false)) {
     return false;
   }
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);

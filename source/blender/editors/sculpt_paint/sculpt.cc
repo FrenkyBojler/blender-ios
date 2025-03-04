@@ -2792,7 +2792,11 @@ struct SculptRaycastData {
   const float *ray_normal;
   bool hit;
   float depth;
+  float back_depth;
+  int hit_count;
   bool original;
+  bool back_hit;
+  bool use_back_depth;
   Span<blender::float3> vert_positions;
   blender::OffsetIndices<int> faces;
   Span<int> corner_verts;
@@ -4637,6 +4641,8 @@ static void sculpt_raycast_cb(blender::bke::pbvh::Node &node, SculptRaycastData 
                                          srd.ray_normal,
                                          &srd.isect_precalc,
                                          &srd.depth,
+                                         &srd.back_depth,
+                                         &srd.hit_count,
                                          mesh_active_vert,
                                          srd.active_face_grid_index,
                                          srd.face_normal);
@@ -4654,6 +4660,8 @@ static void sculpt_raycast_cb(blender::bke::pbvh::Node &node, SculptRaycastData 
                                           srd.ray_normal,
                                           &srd.isect_precalc,
                                           &srd.depth,
+                                          &srd.back_depth,
+                                          &srd.hit_count,
                                           grids_active_vert,
                                           srd.active_face_grid_index,
                                           srd.face_normal);
@@ -4683,6 +4691,10 @@ static void sculpt_raycast_cb(blender::bke::pbvh::Node &node, SculptRaycastData 
   if (hit) {
     srd.hit = true;
     *tmin = srd.depth;
+  }
+
+  if (srd.hit_count > 2) {
+    srd.back_hit = true;
   }
 }
 
@@ -4791,14 +4803,15 @@ float SCULPT_raycast_init(ViewContext *vc,
 bool SCULPT_cursor_geometry_info_update(bContext *C,
                                         SculptCursorGeometryInfo *out,
                                         const float mval[2],
-                                        bool use_sampled_normal)
+                                        bool use_sampled_normal,
+                                        bool use_back_depth)
 {
   using namespace blender;
   using namespace blender::ed::sculpt_paint;
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   Scene *scene = CTX_data_scene(C);
   const Brush &brush = *BKE_paint_brush_for_read(BKE_paint_get_active_from_context(C));
-  float ray_start[3], ray_end[3], ray_normal[3], depth, mat[3][3];
+  float ray_start[3], ray_end[3], ray_normal[3], depth, back_depth, mat[3][3];
   float viewDir[3] = {0.0f, 0.0f, 1.0f};
   bool original = false;
 
@@ -4823,12 +4836,17 @@ bool SCULPT_cursor_geometry_info_update(bContext *C,
   /* bke::pbvh::Tree raycast to get active vertex and face normal. */
   depth = SCULPT_raycast_init(&vc, mval, ray_start, ray_end, ray_normal, original);
   SCULPT_stroke_modifiers_check(C, ob, brush);
+  back_depth = depth;
 
   SculptRaycastData srd{};
   srd.original = original;
   srd.object = &ob;
   srd.ss = ob.sculpt;
   srd.hit = false;
+  srd.back_hit = false;
+  srd.hit_count = 0;
+  srd.back_depth = back_depth;
+  srd.use_back_depth = use_back_depth;
   if (pbvh->type() == bke::pbvh::Type::Mesh) {
     const Mesh &mesh = *static_cast<const Mesh *>(ob.data);
     srd.vert_positions = bke::pbvh::vert_positions_eval(*depsgraph, ob);
@@ -4885,6 +4903,17 @@ bool SCULPT_cursor_geometry_info_update(bContext *C,
   copy_v3_v3(out->location, ray_normal);
   mul_v3_fl(out->location, srd.depth);
   add_v3_v3(out->location, ray_start);
+
+  if (use_back_depth) {
+    copy_v3_v3(out->back_location, ray_normal);
+    if (srd.back_hit) {
+      mul_v3_fl(out->back_location, srd.back_depth);
+    }
+    else {
+      mul_v3_fl(out->back_location, srd.depth);
+    }
+    add_v3_v3(out->back_location, ray_start);
+  }
 
   /* Option to return the face normal directly for performance o accuracy reasons. */
   if (!use_sampled_normal) {
@@ -5124,9 +5153,9 @@ static void restore_from_undo_step_if_necessary(const Depsgraph &depsgraph,
   SculptSession &ss = *ob.sculpt;
   const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
 
-  /* Brushes that use original coordinates and need a "restore" step. This has to happen separately
-   * rather than in the brush deformation calculation because that is called once for each symmetry
-   * pass, potentially within the same BVH node.
+  /* Brushes that use original coordinates and need a "restore" step. This has to happen
+   * separately rather than in the brush deformation calculation because that is called once
+   * for each symmetry pass, potentially within the same BVH node.
    *
    * NOTE: Despite the Cloth and Boundary brush using original coordinates, the brushes do not
    * expect this restoration to happen on every stroke step. Performing this restoration causes
@@ -5159,8 +5188,8 @@ static void restore_from_undo_step_if_necessary(const Depsgraph &depsgraph,
 
     if (ss.cache) {
       /* Temporary data within the StrokeCache that is usually cleared at the end of the stroke
-       * needs to be invalidated here so that the brushes do not accumulate and apply extra data.
-       * See #129069. */
+       * needs to be invalidated here so that the brushes do not accumulate and apply extra
+       * data. See #129069. */
       ss.cache->layer_displacement_factor = {};
       ss.cache->paint_brush.mix_colors = {};
     }
@@ -5235,8 +5264,8 @@ void flush_update_step(const bContext *C, const UpdateType update_type)
   if (update_type == UpdateType::Image) {
     ED_region_tag_redraw(&region);
     if (update_type == UpdateType::Image) {
-      /* Early exit when only need to update the images. We don't want to tag any geometry updates
-       * that would rebuild the bke::pbvh::Tree. */
+      /* Early exit when only need to update the images. We don't want to tag any geometry
+       * updates that would rebuild the bke::pbvh::Tree. */
       return;
     }
   }
@@ -5455,8 +5484,9 @@ void store_mesh_from_eval(const wmOperator &op,
       }
     });
 
-    /* Try to use the few specialized sculpt undo types that result in better performance, mainly
-     * because redo avoids clearing the BVH, but also because some other updates can be skipped. */
+    /* Try to use the few specialized sculpt undo types that result in better performance,
+     * mainly because redo avoids clearing the BVH, but also because some other updates can be
+     * skipped. */
     bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
     IndexMaskMemory memory;
     const IndexMask leaf_nodes = bke::pbvh::all_leaf_nodes(pbvh, memory);
@@ -5469,8 +5499,8 @@ void store_mesh_from_eval(const wmOperator &op,
       const bke::AttributeReader position = new_mesh->attributes().lookup<float3>("position");
       if (position.sharing_info) {
         /* Use lower level API to add the position attribute to avoid copying the array and to
-         * allow using #tag_positions_changed_no_normals instead of #tag_positions_changed (which
-         * would be called by the attribute API). */
+         * allow using #tag_positions_changed_no_normals instead of #tag_positions_changed
+         * (which would be called by the attribute API). */
         CustomData_add_layer_named_with_data(
             &mesh.vert_data,
             CD_PROP_FLOAT3,
@@ -5517,8 +5547,8 @@ void store_mesh_from_eval(const wmOperator &op,
     }
     else {
       /* Non-geometry-type sculpt undo steps can only handle a single change at a time. When
-       * multiple attributes or attributes that don't have their own undo type are changed, we're
-       * forced to fall back to the slower geometry undo type. */
+       * multiple attributes or attributes that don't have their own undo type are changed,
+       * we're forced to fall back to the slower geometry undo type. */
       store_sculpt_entire_mesh(op, scene, object, new_mesh);
       entire_mesh_changed = true;
     }
@@ -5610,8 +5640,8 @@ static bool stroke_test_start(bContext *C, wmOperator *op, const float mval[2])
     Brush *brush = BKE_paint_brush(&sd.paint);
     ToolSettings *tool_settings = CTX_data_tool_settings(C);
 
-    /* NOTE: This should be removed when paint mode is available. Paint mode can force based on the
-     * canvas it is painting on. (ref. use_sculpt_texture_paint). */
+    /* NOTE: This should be removed when paint mode is available. Paint mode can force based on
+     * the canvas it is painting on. (ref. use_sculpt_texture_paint). */
     if (brush && brush_type_is_paint(brush->sculpt_brush_type) &&
         !SCULPT_use_image_paint_brush(tool_settings->paint_mode, ob))
     {
@@ -5626,7 +5656,7 @@ static bool stroke_test_start(bContext *C, wmOperator *op, const float mval[2])
     sculpt_update_cache_invariants(C, sd, ss, op, mval);
 
     SculptCursorGeometryInfo sgi;
-    SCULPT_cursor_geometry_info_update(C, &sgi, mval, false);
+    SCULPT_cursor_geometry_info_update(C, &sgi, mval, false, false);
 
     stroke_undo_begin(C, op);
 
@@ -6036,8 +6066,8 @@ static void fake_neighbor_search(const Depsgraph &depsgraph,
                                  const float max_distance_sq,
                                  MutableSpan<int> fake_neighbors)
 {
-  /* NOTE: This algorithm is extremely slow, it has O(n^2) runtime for the entire mesh. This looks
-   * like the "closest pair of points" problem which should have far better solutions. */
+  /* NOTE: This algorithm is extremely slow, it has O(n^2) runtime for the entire mesh. This
+   * looks like the "closest pair of points" problem which should have far better solutions. */
   SculptSession &ss = *ob.sculpt;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
 
@@ -7477,7 +7507,8 @@ void clip_and_lock_translations(const Sculpt &sd,
     for (const int i : verts.index_range()) {
       const int vert = verts[i];
 
-      /* Transform into the space of the mirror plane, check translations, then transform back. */
+      /* Transform into the space of the mirror plane, check translations, then transform back.
+       */
       float3 co_mirror = math::transform_point(mirror, positions[vert]);
       if (math::abs(co_mirror[axis]) > cache->mirror_modifier_clip.tolerance[axis]) {
         continue;
@@ -7516,7 +7547,8 @@ void clip_and_lock_translations(const Sculpt &sd,
     const float4x4 mirror(cache->mirror_modifier_clip.mat);
     const float4x4 mirror_inverse(cache->mirror_modifier_clip.mat_inv);
     for (const int i : positions.index_range()) {
-      /* Transform into the space of the mirror plane, check translations, then transform back. */
+      /* Transform into the space of the mirror plane, check translations, then transform back.
+       */
       float3 co_mirror = math::transform_point(mirror, positions[i]);
       if (math::abs(co_mirror[axis]) > cache->mirror_modifier_clip.tolerance[axis]) {
         continue;
@@ -7585,8 +7617,8 @@ void PositionDeformData::deform(MutableSpan<float3> translations, const Span<int
   }
 
   if (deform_imats_) {
-    /* Apply the reverse procedural deformation, since subsequent translation happens to the state
-     * from "before" deforming modifiers. */
+    /* Apply the reverse procedural deformation, since subsequent translation happens to the
+     * state from "before" deforming modifiers. */
     apply_crazyspace_to_translations(*deform_imats_, verts, translations);
   }
 

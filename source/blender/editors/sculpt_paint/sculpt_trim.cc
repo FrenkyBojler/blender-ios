@@ -106,6 +106,25 @@ static EnumPropertyItem extrude_modes[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+enum class LocationType {
+  SCULPT_GESTURE_TRIM_LOCATION_DEPTH_SURFACE,
+  SCULPT_GESTURE_TRIM_LOCATION_DEPTH_VOLUME,
+};
+
+static EnumPropertyItem location_types[] = {
+    {int(LocationType::SCULPT_GESTURE_TRIM_LOCATION_DEPTH_SURFACE),
+     "SURFACE",
+     0,
+     "Surface",
+     "Use the surface of the mesh to calculate the depth of the trimming shape"},
+    {int(LocationType::SCULPT_GESTURE_TRIM_LOCATION_DEPTH_VOLUME),
+     "VOLUME",
+     0,
+     "Volume",
+     "Use the volume of the mesh to calculate the depth of the trimming shape"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 enum class SolverMode {
   Exact = 0,
   Fast = 1,
@@ -128,13 +147,16 @@ struct TrimOperation {
   bool use_cursor_depth;
 
   bool initial_hit;
+  bool back_hit;
   blender::float3 initial_location;
   blender::float3 initial_normal;
+  blender::float3 back_location;
 
   OperationType mode;
   SolverMode solver_mode;
   OrientationType orientation;
   ExtrudeMode extrude_mode;
+  LocationType location_type;
 };
 
 /* Recalculate the mesh normals for the generated trim mesh. */
@@ -235,9 +257,19 @@ static void calculate_depth(gesture::GestureData &gesture_data,
 
   if (trim_operation->use_cursor_depth) {
     float world_space_gesture_initial_location[3];
-    mul_v3_m4v3(world_space_gesture_initial_location,
-                object_to_world.ptr(),
-                trim_operation->initial_location);
+
+    switch (trim_operation->location_type) {
+      case LocationType::SCULPT_GESTURE_TRIM_LOCATION_DEPTH_SURFACE:
+        mul_v3_m4v3(world_space_gesture_initial_location,
+                    object_to_world.ptr(),
+                    trim_operation->initial_location);
+        break;
+      case LocationType::SCULPT_GESTURE_TRIM_LOCATION_DEPTH_VOLUME:
+        float center_co[3];
+        mid_v3_v3v3(center_co, trim_operation->initial_location, trim_operation->back_location);
+        mul_v3_m4v3(world_space_gesture_initial_location, object_to_world.ptr(), center_co);
+        break;
+    }
 
     float mid_point_depth;
     if (trim_operation->orientation == OrientationType::View) {
@@ -677,6 +709,7 @@ static void init_operation(gesture::GestureData &gesture_data, wmOperator &op)
   trim_operation->orientation = OrientationType(RNA_enum_get(op.ptr, "trim_orientation"));
   trim_operation->extrude_mode = ExtrudeMode(RNA_enum_get(op.ptr, "trim_extrude_mode"));
   trim_operation->solver_mode = SolverMode(RNA_enum_get(op.ptr, "trim_solver"));
+  trim_operation->location_type = LocationType(RNA_enum_get(op.ptr, "trim_location"));
 
   /* If the cursor was not over the mesh, force the orientation to view. */
   if (!trim_operation->initial_hit) {
@@ -728,6 +761,13 @@ static void operator_properties(wmOperatorType *ot)
                extrude_modes,
                int(ExtrudeMode::Fixed),
                "Extrude Mode",
+               nullptr);
+
+  RNA_def_enum(ot->srna,
+               "trim_location",
+               location_types,
+               int(LocationType::SCULPT_GESTURE_TRIM_LOCATION_DEPTH_SURFACE),
+               "Depth Calculation",
                nullptr);
 
   RNA_def_enum(ot->srna, "trim_solver", solver_modes, int(SolverMode::Fast), "Solver", nullptr);
@@ -790,10 +830,14 @@ static void initialize_cursor_info(bContext &C,
   const float mval_fl[2] = {float(mval[0]), float(mval[1])};
 
   TrimOperation *trim_operation = (TrimOperation *)gesture_data.operation;
-  trim_operation->initial_hit = SCULPT_cursor_geometry_info_update(&C, &sgi, mval_fl, false);
+  trim_operation->initial_hit = SCULPT_cursor_geometry_info_update(&C, &sgi, mval_fl, false, true);
   if (trim_operation->initial_hit) {
     copy_v3_v3(trim_operation->initial_location, sgi.location);
     copy_v3_v3(trim_operation->initial_normal, sgi.normal);
+  }
+  if (sgi.back_location) {
+    trim_operation->back_hit = true;
+    copy_v3_v3(trim_operation->back_location, sgi.back_location);
   }
 }
 
