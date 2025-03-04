@@ -539,13 +539,10 @@ class MeshUVs : Overlay {
     const SpaceImage *space_image = reinterpret_cast<const SpaceImage *>(state.space_data);
     ::Image *image = space_image->image;
     const bool space_mode_is_paint = space_image->mode == SI_MODE_PAINT;
-    const bool space_mode_is_view = space_image->mode == SI_MODE_VIEW;
     const bool space_mode_is_mask = space_image->mode == SI_MODE_MASK;
     const bool space_mode_is_uv = space_image->mode == SI_MODE_UV;
 
     const bool object_mode_is_edit = state.object_mode & OB_MODE_EDIT;
-    const bool object_mode_is_paint = state.object_mode & OB_MODE_TEXTURE_PAINT;
-    const bool object_mode_is_sculpt = state.object_mode & OB_MODE_SCULPT;
 
     const bool is_viewer = image && ELEM(image->type, IMA_TYPE_R_RESULT, IMA_TYPE_COMPOSITE);
     const bool is_tiled_image = image && (image->source == IMA_SRC_TILED);
@@ -605,26 +602,8 @@ class MeshUVs : Overlay {
     }
     {
       /* Wireframe UV Overlay. */
-      const bool show_wireframe_uv_edit = space_image->flag & SI_DRAWSHADOW;
-      const bool show_wireframe_tex_paint = !(space_image->flag & SI_NO_DRAW_TEXPAINT);
-
-      if (space_mode_is_uv && object_mode_is_edit) {
-        show_wireframe_ = show_wireframe_uv_edit;
-      }
-      else if (space_mode_is_uv && object_mode_is_paint) {
-        show_wireframe_ = show_wireframe_tex_paint;
-      }
-      else if (space_mode_is_paint &&
-               (object_mode_is_paint || object_mode_is_edit || object_mode_is_sculpt))
-      {
-        show_wireframe_ = show_wireframe_tex_paint;
-      }
-      else if (space_mode_is_view && (object_mode_is_paint || object_mode_is_sculpt)) {
-        show_wireframe_ = show_wireframe_tex_paint;
-      }
-      else {
-        show_wireframe_ = false;
-      }
+      show_wireframe_ = (!(space_image->flag & SI_NO_DRAW_TEXPAINT) ||
+                         space_mode_is_uv && (space_image->flag & SI_DRAWSHADOW));
     }
     {
       /* Brush Stencil Overlay. */
