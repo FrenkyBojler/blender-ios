@@ -4,8 +4,20 @@ export uniform float float_dot_product(const uniform float values[],
                                        const uniform int count)
 {
   float accumulator = 0.0f;
-  foreach (i = 0 ... count) {
-    accumulator += values[i] * factors[i];
+  foreach (index = 0 ... count) {
+    accumulator += values[index] * factors[index];
+  }
+  return reduce_add(accumulator);
+}
+
+export uniform float float_gather_dot_product(const uniform int indices[],
+                                              const uniform float values[],
+                                              const uniform float factors[],
+                                              const uniform int count)
+{
+  float accumulator = 0.0f;
+  foreach (index = 0 ... count) {
+    accumulator += values[indices[index]] * factors[index];
   }
   return reduce_add(accumulator);
 }
@@ -19,9 +31,39 @@ export void float3_dot_product(const uniform float values[][3],
   foreach (index = 0 ... count, axis = 0 ... 3) {
     accumulator[axis] += values[index][axis] * factors[index];
   }
+  for (uniform int axis = 0; axis < 3; axis++) {
+    result[axis] = reduce_add(accumulator[axis]);
+  }
+}
+
+export void float3_gather_dot_product_(const uniform int indices[],
+                                       const uniform float values[][3],
+                                       const uniform float factors[],
+                                       const uniform int count,
+                                       float uniform result[3])
+{
+  float accumulator[3] = {0.0f, 0.0f, 0.0f};
+  foreach (index = 0 ... count, axis = 0 ... 3) {
+    accumulator[axis] += values[indices[index]][axis] * factors[index];
+  }
   result[0] = reduce_add(accumulator[0]);
   result[1] = reduce_add(accumulator[1]);
   result[2] = reduce_add(accumulator[2]);
+}
+
+export void float3_gather_dot_product(const uniform int indices[],
+                                      const uniform float values[][3],
+                                      const uniform float factors[],
+                                      const uniform int count,
+                                      float uniform result[3])
+{
+  float<3> accumulator = {0.0f, 0.0f, 0.0f};
+  foreach (index = 0 ... count, axis = 0 ... 3) {
+    accumulator[axis] += values[indices[index]][axis] * factors[index];
+  }
+  for (uniform int axis = 0; axis < 3; axis++) {
+    result[axis] = reduce_add(accumulator[axis]);
+  }
 }
 
 // export void float_scatter_mul_add(const uniform float factors[],
@@ -36,12 +78,46 @@ export void float3_dot_product(const uniform float values[][3],
 //   }
 // }
 
+float square(const float value)
+{
+    return value * value;
+}
+
+export void gather_distances(const uniform int indices[],
+                             const uniform float positions[][3],
+                             const uniform float target[3],
+                             const uniform int count,
+                             float uniform distances[],
+                             const uniform float offset)
+{
+  for (uniform int index = 0; index < count; index++) {
+    foreach (axis = 0 ... 3) {
+        const float segment = positions[indices[index]][axis] - target[axis];
+        distances[index] = sqrt(reduce_add(square(segment))) + offset;
+    }
+  }
+}
+
+export void distances(const uniform float positions[][3],
+                      const uniform float target[3],
+                      const uniform int count,
+                      float uniform distances[],
+                      const uniform float offset)
+{
+  for (uniform int index = 0; index < count; index++) {
+    foreach (axis = 0 ... 3) {
+        const float segment = positions[index][axis] - target[axis];
+        distances[index] = sqrt(reduce_add(square(segment))) + offset;
+    }
+  }
+}
+
 float safe_rcp(const float a)
 {
   return a ? rcp_fast(a) : 0.0f;
 }
 
-export uniform float fixed_pow_0_n(uniform float values[],
+export uniform float fixed_safe_0_rpow_n(uniform float values[],
                                    const uniform int count)
 {
   foreach (i = 0 ... count) {
@@ -49,7 +125,7 @@ export uniform float fixed_pow_0_n(uniform float values[],
   }
 }
 
-export uniform float fixed_pow_1_n(uniform float values[],
+export uniform float fixed_safe_1_rpow_n(uniform float values[],
                                    const uniform int count)
 {
   foreach (i = 0 ... count) {
@@ -57,104 +133,95 @@ export uniform float fixed_pow_1_n(uniform float values[],
   }
 }
 
-export uniform float fixed_pow_2_n(uniform float values[],
+export uniform float fixed_safe_2_rpow_n(uniform float values[],
                                    const uniform int count)
 {
   foreach (i = 0 ... count) {
-    values[i] = safe_rcp(values[i] * values[i]);
+    values[i] = safe_rcp(square(values[i]));
   }
 }
 
-export uniform float fixed_pow_3_n(uniform float values[],
+export uniform float fixed_safe_3_rpow_n(uniform float values[],
                                    const uniform int count)
 {
   foreach (i = 0 ... count) {
-    values[i] = safe_rcp(values[i] * values[i] * values[i]);
+    values[i] = safe_rcp(square(values[i]) * values[i]);
   }
 }
 
-export uniform float fixed_pow_4_n(uniform float values[],
+export uniform float fixed_safe_4_rpow_n(uniform float values[],
                                    const uniform int count)
 {
   foreach (i = 0 ... count) {
-    const float squared = values[i] * values[i];
-    values[i] = safe_rcp(squared * squared);
+    values[i] = safe_rcp(square(square(values[i])));
   }
 }
 
-export uniform float fixed_pow_5_n(uniform float values[],
+export uniform float fixed_safe_5_rpow_n(uniform float values[],
                                    const uniform int count)
 {
   foreach (i = 0 ... count) {
-    const float squared = values[i] * values[i];
-    values[i] = safe_rcp(squared * squared * values[i]);
+    values[i] = safe_rcp(square(square(values[i])) * values[i]);
   }
 }
 
-export uniform float fixed_pow_6_n(uniform float values[],
+export uniform float fixed_safe_6_rpow_n(uniform float values[],
                                    const uniform int count)
 {
   foreach (i = 0 ... count) {
-    const float squared = values[i] * values[i];
-    values[i] = safe_rcp(squared * squared * squared);
+    const float squared = square(values[i]);
+    values[i] = safe_rcp(square(squared) * squared);
   }
 }
 
-export uniform float fixed_pow_7_n(uniform float values[],
+export uniform float fixed_safe_7_rpow_n(uniform float values[],
                                    const uniform int count)
 {
   foreach (i = 0 ... count) {
-    const float squared = values[i] * values[i];
-    values[i] = safe_rcp(squared * squared * squared * values[i]);
+    const float squared = square(values[i]);
+    values[i] = safe_rcp(square(squared) * squared * values[i]);
   }
 }
 
-export uniform float fixed_pow_8_n(uniform float values[],
+export uniform float fixed_safe_8_rpow_n(uniform float values[],
                                    const uniform int count)
 {
   foreach (i = 0 ... count) {
-    const float squared = values[i] * values[i];
-    const float fourth_degree = squared * squared;
-    values[i] = safe_rcp(fourth_degree * fourth_degree);
+    values[i] = safe_rcp(square(square(square(values[i]))));
   }
 }
 
-export uniform float fixed_pow_9_n(uniform float values[],
+export uniform float fixed_safe_9_rpow_n(uniform float values[],
                                    const uniform int count)
 {
   foreach (i = 0 ... count) {
-    const float squared = values[i] * values[i];
-    const float fourth_degree = squared * squared;
-    values[i] = safe_rcp(fourth_degree * fourth_degree * values[i]);
+    values[i] = safe_rcp(square(square(square(values[i]))) * values[i]);
   }
 }
 
-export uniform float fixed_pow_10_n(uniform float values[],
+export uniform float fixed_safe_10_rpow_n(uniform float values[],
                                    const uniform int count)
 {
   foreach (i = 0 ... count) {
-    const float squared = values[i] * values[i];
-    const float fourth_degree = squared * squared;
-    values[i] = safe_rcp(fourth_degree * fourth_degree * squared);
+    const float squared = square(values[i]);
+    values[i] = safe_rcp(square(square(squared)) * squared);
   }
 }
 
-export uniform float fixed_pow_11_n(uniform float values[],
+export uniform float fixed_safe_11_rpow_n(uniform float values[],
                                    const uniform int count)
 {
   foreach (i = 0 ... count) {
-    const float squared = values[i] * values[i];
-    const float fourth_degree = squared * squared;
-    values[i] = safe_rcp(fourth_degree * fourth_degree * squared * values[i]);
+    const float squared = square(values[i]);
+    values[i] = safe_rcp(square(square(squared)) * squared * values[i]);
   }
 }
 
-export uniform float fixed_pow_12_n(uniform float values[],
+export uniform float fixed_safe_12_rpow_n(uniform float values[],
                                    const uniform int count)
 {
   foreach (i = 0 ... count) {
-    const float squared = values[i] * values[i];
-    const float fourth_degree = squared * squared;
-    values[i] = safe_rcp(fourth_degree * fourth_degree * fourth_degree);
+    const float fourth_degree = square(square(values[i]));
+    values[i] = safe_rcp(square(fourth_degree) * fourth_degree);
   }
 }

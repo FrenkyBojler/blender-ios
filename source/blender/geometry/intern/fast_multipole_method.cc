@@ -2,6 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <iostream>
+#include <sstream>
+
+#include "BLI_timeit.hh"
+
 #include "BLI_function_ref.hh"
 #include "BLI_generic_span.hh"
 #include "BLI_math_base.hh"
@@ -124,37 +129,37 @@ static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values(const i
 {
   switch (power_value) {
     case 0:
-      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_pow_0_n(values.begin(), values.size()); };
+      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_safe_0_rpow_n(values.begin(), values.size()); };
     case 1:
-      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_pow_1_n(values.begin(), values.size()); };
+      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_safe_1_rpow_n(values.begin(), values.size()); };
     case 2:
-      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_pow_2_n(values.begin(), values.size()); };
+      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_safe_2_rpow_n(values.begin(), values.size()); };
     case 3:
-      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_pow_3_n(values.begin(), values.size()); };
+      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_safe_3_rpow_n(values.begin(), values.size()); };
     case 4:
-      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_pow_4_n(values.begin(), values.size()); };
+      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_safe_4_rpow_n(values.begin(), values.size()); };
     case 5:
-      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_pow_5_n(values.begin(), values.size()); };
+      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_safe_5_rpow_n(values.begin(), values.size()); };
     case 6:
-      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_pow_6_n(values.begin(), values.size()); };
+      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_safe_6_rpow_n(values.begin(), values.size()); };
     case 7:
-      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_pow_7_n(values.begin(), values.size()); };
+      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_safe_7_rpow_n(values.begin(), values.size()); };
     case 8:
-      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_pow_8_n(values.begin(), values.size()); };
+      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_safe_8_rpow_n(values.begin(), values.size()); };
     case 9:
-      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_pow_9_n(values.begin(), values.size()); };
+      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_safe_9_rpow_n(values.begin(), values.size()); };
     case 10:
-      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_pow_10_n(values.begin(), values.size()); };
+      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_safe_10_rpow_n(values.begin(), values.size()); };
     case 11:
-      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_pow_11_n(values.begin(), values.size()); };
+      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_safe_11_rpow_n(values.begin(), values.size()); };
     case 12:
-      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_pow_12_n(values.begin(), values.size()); };
+      return [](int /*power_value*/, MutableSpan<float> values) { ispc::fixed_safe_12_rpow_n(values.begin(), values.size()); };
     default:
       return [](const int power_value, MutableSpan<float> values) {
-        const float power_factor = float(-power_value);
+        const float power_factor = float(power_value);
         std::transform(
             values.begin(), values.end(), values.begin(), [power_factor](const float value) {
-              return math::pow(value, power_factor);
+              return math::safe_rcp(math::pow(value, power_factor));
             });
       };
   }
@@ -208,6 +213,33 @@ static void scatter_mul_add(const Span<float> factors, const float value, const 
 }
 */
 
+template<typename T>
+static T gather_dot_product(const Span<T> values, const Span<int> indices, const Span<float> factors)
+{
+  BLI_assert(indices.size() == factors.size());
+  T accumulator(0);
+  for (const int i : indices.index_range()) {
+    accumulator += values[indices[i]] * factors[i];
+  }
+  return accumulator;
+}
+
+template<>
+static float gather_dot_product(const Span<float> values, const Span<int> indices, const Span<float> factors)
+{
+  BLI_assert(indices.size() == factors.size());
+  return ispc::float_gather_dot_product(indices.data(), values.data(), factors.data(), factors.size());
+}
+
+template<>
+static float3 gather_dot_product(const Span<float3> values, const Span<int> indices, const Span<float> factors)
+{
+  BLI_assert(indices.size() == factors.size());
+  float3 total(0);
+  ispc::float3_gather_dot_product(indices.data(), values.cast<float [3]>().data(), factors.data(), factors.size(), total);
+  return total;
+}
+
 void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
                          const int total_depth,
                          const Span<float> src_joints_min_distance,
@@ -242,60 +274,104 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
 
   Array<Vector<int, 0>, 0> batch_to_joints(sample_position.size());
 
-  akdbh::batch_for_each_to_bottom_skip(
-      buckets_offsets,
-      total_depth,
-      sample_position.index_range(),
-      [&](const int joint_index, const int batch_i) -> bool {
-        const float joint_min_distance_squared = math::square(
-            src_joints_min_distance[joint_index] - offset_value);
-        const float sampler_to_joint_distance_squared = math::distance_squared(
-            src_joints_centre[joint_index], sample_position[batch_i]);
-        return sampler_to_joint_distance_squared <= joint_min_distance_squared;
-      },
-      [&](const int joint_index, const Span<int> batch_indices) {
-        // joint_to_batch_samples.append_as(joint_index, batch_indices);
-        for (const int batch_i : batch_indices) {
-          batch_to_joints[batch_i].append(joint_index);
-        }
-      },
-      [&](const IndexRange bucket_range, const Span<int> batch_indices) {
-        bucket_to_batch_samples.append_as(bucket_range, batch_indices);
-      });
+  Array<Vector<int, 0>, 0> batch_to_buckets(sample_position.size());
+
+  std::stringstream log_stream;
+
+  {
+    // SCOPED_TIMER_AVERAGED("  batch_for_each_to_bottom_skip");
+    akdbh::batch_for_each_to_bottom_skip(
+        buckets_offsets,
+        total_depth,
+        sample_position.index_range(),
+        [&](const int joint_index, const int batch_i) -> bool {
+          const float joint_min_distance_squared = math::square(
+              src_joints_min_distance[joint_index] - offset_value);
+          const float sampler_to_joint_distance_squared = math::distance_squared(
+              src_joints_centre[joint_index], sample_position[batch_i]);
+          return sampler_to_joint_distance_squared <= joint_min_distance_squared;
+        },
+        [&](const int joint_index, const Span<int> batch_indices) {
+          // joint_to_batch_samples.append_as(joint_index, batch_indices);
+          for (const int batch_i : batch_indices) {
+            batch_to_joints[batch_i].append(joint_index);
+          }
+        },
+        [&](const IndexRange bucket_range, const Span<int> batch_indices) {
+          // bucket_to_batch_samples.append_as(bucket_range, batch_indices);
+          for (const int batch_i : batch_indices) {
+            batch_to_buckets[batch_i].extend(bucket_range.begin(), bucket_range.end());
+          }
+        });
+  }
+
+  // log_stream << "batch_to_joints.size: " << batch_to_joints.size() << ";\n";
+  // int64_t total = 0;
+  // for (const auto &item : batch_to_joints) {
+  //   total += item.size();
+  // }
+  // 
+  // log_stream << "total in batch_to_joints:" << total << ";\n";
+  // 
+  // log_stream << "bucket_to_batch_samples.size: " << bucket_to_batch_samples.size() << ";\n";
+  // 
+  // int64_t total_ranges = 0;
+  // int64_t total_indices = 0;
+  // for (const auto &item : bucket_to_batch_samples) {
+  //   total_ranges += item.first.size();
+  //   total_indices += item.second.size();
+  // }
+  // 
+  // log_stream << "total_ranges in bucket_to_batch_samples:" << total_ranges << ";\n";
+  // log_stream << "total_indices in bucket_to_batch_samples:" << total_indices << ";\n";
+  // 
+  // std::cout << log_stream.str() << ";\n";
+  
 
   Vector<float, 0> buffer;
   buffer.reserve(dst_buckets_data.size());
 
   to_static_type(src_joints_value.type(), [&](auto dummy) {
+    // SCOPED_TIMER_AVERAGED("  batch_to_joints");
     using T = decltype(dummy);
 
     const Span<T> typed_src_joints_value = src_joints_value.typed<T>();
     const Span<T> typed_src_bucket_value = src_bucket_value.typed<T>();
     MutableSpan<T> typed_dst_buckets_data = dst_buckets_data.typed<T>();
 
-    Vector<T, 0> joints_buffer;
+    // Vector<T, 0> joints_buffer;
     
     for (const int batch_i : batch_to_joints.index_range()) {
       const Span<int> batch_joints = batch_to_joints[batch_i];
       buffer.resize(batch_joints.size());
-      joints_buffer.resize(batch_joints.size());
+      // joints_buffer.resize(batch_joints.size());
       
       const float3 batch_position = sample_position[batch_i];
-      for (const int i : batch_joints.index_range()) {
-        const int joint_index = batch_joints[i];
-        const float3 jooint_position = src_joints_centre[joint_index];
-        const float sampler_to_joint_distance_squared = math::distance(batch_position, jooint_position);
-        buffer[i] = sampler_to_joint_distance_squared + offset_value;
-      }
+
+      ispc::gather_distances(batch_joints.data(),
+                             src_joints_centre.cast<float [3]>().data(),
+                             batch_position,
+                             buffer.size(),
+                             buffer.data(),
+                             offset_value);
+      
+      // for (const int i : batch_joints.index_range()) {
+      //   const int joint_index = batch_joints[i];
+      //   const float3 jooint_position = src_joints_centre[joint_index];
+      //   const float sampler_to_joint_distance_squared = math::distance(batch_position, jooint_position);
+      //   buffer[i] = sampler_to_joint_distance_squared + offset_value;
+      // }
     
       distance_invertion(power_value, buffer.as_mutable_span());
     
-      for (const int i : batch_joints.index_range()) {
-        const int joint_index = batch_joints[i];
-        joints_buffer[i] = typed_src_joints_value[joint_index];
-      }
+      // for (const int i : batch_joints.index_range()) {
+      //   const int joint_index = batch_joints[i];
+      //   joints_buffer[i] = typed_src_joints_value[joint_index];
+      // }
     
-      typed_dst_buckets_data[batch_i] += dot_product<T>(joints_buffer.as_span(), buffer.as_span());
+      typed_dst_buckets_data[batch_i] += gather_dot_product<T>(typed_src_joints_value, batch_joints, buffer.as_span());
+    
+      // typed_dst_buckets_data[batch_i] += dot_product<T>(joints_buffer.as_span(), buffer.as_span());
     }
 
     // for (const auto &[joint_index, batch_samples] : joint_to_batch_samples) {
@@ -319,6 +395,7 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
   });
 
   to_static_type(src_joints_value.type(), [&](auto dummy) {
+    // SCOPED_TIMER_AVERAGED("  bucket_to_batch_samples");
     using T = decltype(dummy);
 
     const Span<T> typed_src_joints_value = src_joints_value.typed<T>();
@@ -330,11 +407,17 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
         buffer.resize(bucket_range.size());
         for (const int sample_index : batch_samples) {
           const float3 position = sample_position[sample_index];
-          for (const int bucket_i : bucket_range.index_range()) {
-            const float sampler_to_point_distance = math::distance(
-                position, src_bucket_position[bucket_range[bucket_i]]);
-            buffer[bucket_i] = sampler_to_point_distance + offset_value;
-          }
+
+          ispc::distances(src_bucket_position.slice(bucket_range).cast<float [3]>().data(),
+                          position,
+                          buffer.size(),
+                          buffer.data(),
+                          offset_value);
+
+          // for (const int bucket_i : bucket_range.index_range()) {
+          //   const float sampler_to_point_distance = math::distance(position, src_bucket_position[bucket_range[bucket_i]]);
+          //   buffer[bucket_i] = sampler_to_point_distance + offset_value;
+          // }
 
           distance_invertion(power_value, buffer.as_mutable_span());
           typed_dst_buckets_data[sample_index] += dot_product<T>(
@@ -344,29 +427,61 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
       return;
     }
 
-    for (const auto &[bucket_range, batch_samples] : bucket_to_batch_samples) {
-      buffer.resize(bucket_range.size());
-      for (const int sample_index : batch_samples) {
-        const float3 position = sample_position[sample_index];
-        for (const int bucket_i : bucket_range.index_range()) {
-          const float sampler_to_point_distance = math::distance(
-              position, src_bucket_position[bucket_range[bucket_i]]);
-          buffer[bucket_i] = sampler_to_point_distance + offset_value;
-        }
+    Vector<T, 0> joints_buffer;
+    for (const int batch_i : batch_to_buckets.index_range()) {
+      const Span<int> buckets_indices = batch_to_buckets[batch_i];
+      buffer.resize(buckets_indices.size());
+      joints_buffer.resize(buckets_indices.size());
+      
+      const float3 batch_position = sample_position[batch_i];
 
-        distance_invertion(power_value, buffer.as_mutable_span());
+      ispc::gather_distances(buckets_indices.data(),
+                             src_bucket_position.cast<float [3]>().data(),
+                             batch_position,
+                             buffer.size(),
+                             buffer.data(),
+                             offset_value);
+      
+      // for (const int bucket_i : bucket_range.index_range()) {
+      //   const float sampler_to_point_distance = math::distance(
+      //       position, src_bucket_position[bucket_range[bucket_i]]);
+      //   buffer[bucket_i] = sampler_to_point_distance + offset_value;
+      // }
 
-        if (bucket_range.contains(sampler_to_bucket_range.value()[sample_index])) {
-          
-          const int sampler_in_bucket_index = sampler_to_bucket_range.value()[sample_index] -
-                                              bucket_range.start();
-          buffer[sampler_in_bucket_index] = 0.0f;
-        }
+      distance_invertion(power_value, buffer.as_mutable_span());
+      
+      // for (const int i : buckets_indices.index_range()) {
+      //   const int bucket_index = buckets_indices[i];
+      //   joints_buffer[i] = typed_src_bucket_value[bucket_index];
+      // }
 
-        typed_dst_buckets_data[sample_index] += dot_product<T>(
-            typed_src_bucket_value.slice(bucket_range), buffer);
-      }
+      typed_dst_buckets_data[batch_i] += gather_dot_product<T>(typed_src_bucket_value, buckets_indices, buffer.as_span());
+      //typed_dst_buckets_data[batch_i] += dot_product<T>(joints_buffer.as_span(), buffer.as_span());
     }
+
+    // for (const auto &[bucket_range, batch_samples] : bucket_to_batch_samples) {
+    //   buffer.resize(bucket_range.size());
+    //   for (const int sample_index : batch_samples) {
+    //     const float3 position = sample_position[sample_index];
+    // 
+    //     ispc::distances(src_bucket_position.slice(bucket_range).cast<float [3]>().data(),
+    //                     position,
+    //                     buffer.size(),
+    //                     buffer.data(),
+    //                     offset_value);
+    // 
+    //     for (const int bucket_i : bucket_range.index_range()) {
+    //       const float sampler_to_point_distance = math::distance(
+    //           position, src_bucket_position[bucket_range[bucket_i]]);
+    //       buffer[bucket_i] = sampler_to_point_distance + offset_value;
+    //     }
+    // 
+    //     distance_invertion(power_value, buffer.as_mutable_span());
+    // 
+    //     typed_dst_buckets_data[sample_index] += dot_product<T>(
+    //         typed_src_bucket_value.slice(bucket_range), buffer);
+    //   }
+    // }
   });
 }
 

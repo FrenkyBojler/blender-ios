@@ -40,21 +40,26 @@ namespace ispc { /* namespace */
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
 extern "C" {
 #endif // __cplusplus
-    extern float fixed_pow_0_n(float * values, const int32_t count);
-    extern float fixed_pow_10_n(float * values, const int32_t count);
-    extern float fixed_pow_11_n(float * values, const int32_t count);
-    extern float fixed_pow_12_n(float * values, const int32_t count);
-    extern float fixed_pow_1_n(float * values, const int32_t count);
-    extern float fixed_pow_2_n(float * values, const int32_t count);
-    extern float fixed_pow_3_n(float * values, const int32_t count);
-    extern float fixed_pow_4_n(float * values, const int32_t count);
-    extern float fixed_pow_5_n(float * values, const int32_t count);
-    extern float fixed_pow_6_n(float * values, const int32_t count);
-    extern float fixed_pow_7_n(float * values, const int32_t count);
-    extern float fixed_pow_8_n(float * values, const int32_t count);
-    extern float fixed_pow_9_n(float * values, const int32_t count);
+    extern void distances(const float positions[][3], const float * target, const int32_t count, float * distances, const float offset);
+    extern float fixed_safe_0_rpow_n(float * values, const int32_t count);
+    extern float fixed_safe_10_rpow_n(float * values, const int32_t count);
+    extern float fixed_safe_11_rpow_n(float * values, const int32_t count);
+    extern float fixed_safe_12_rpow_n(float * values, const int32_t count);
+    extern float fixed_safe_1_rpow_n(float * values, const int32_t count);
+    extern float fixed_safe_2_rpow_n(float * values, const int32_t count);
+    extern float fixed_safe_3_rpow_n(float * values, const int32_t count);
+    extern float fixed_safe_4_rpow_n(float * values, const int32_t count);
+    extern float fixed_safe_5_rpow_n(float * values, const int32_t count);
+    extern float fixed_safe_6_rpow_n(float * values, const int32_t count);
+    extern float fixed_safe_7_rpow_n(float * values, const int32_t count);
+    extern float fixed_safe_8_rpow_n(float * values, const int32_t count);
+    extern float fixed_safe_9_rpow_n(float * values, const int32_t count);
     extern void float3_dot_product(const float values[][3], const float * factors, const int32_t count, float * result);
+    extern void float3_gather_dot_product(const int32_t * indices, const float values[][3], const float * factors, const int32_t count, float * result);
+    extern void float3_gather_dot_product_(const int32_t * indices, const float values[][3], const float * factors, const int32_t count, float * result);
     extern float float_dot_product(const float * values, const float * factors, const int32_t count);
+    extern float float_gather_dot_product(const int32_t * indices, const float * values, const float * factors, const int32_t count);
+    extern void gather_distances(const int32_t * indices, const float positions[][3], const float * target, const int32_t count, float * distances, const float offset);
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
 } /* end extern C */
 #endif // __cplusplus
