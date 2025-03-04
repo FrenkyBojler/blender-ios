@@ -33,6 +33,11 @@ struct WindowManagerRuntime {
   /** The current notifier in the `notifier_queue` being handled (clear instead of freeing). */
   const wmNotifier *notifier_current = nullptr;
 
+  /** The mutex lock used to make sure that the notifier queue and notifier_current access is
+   * thread safe.
+   */
+  std::mutex notifier_mutex;
+
   WindowManagerRuntime();
   ~WindowManagerRuntime();
 };

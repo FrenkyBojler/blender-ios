@@ -389,6 +389,7 @@ void WM_event_add_notifier_ex(wmWindowManager *wm, const wmWindow *win, uint typ
      * another main than G_MAIN currently. */
     return;
   }
+  const std::lock_guard<std::mutex> notifier_lock(wm->runtime->notifier_mutex);
   wm_event_add_notifier_intern(wm, win, type, reference);
 }
 
@@ -413,6 +414,7 @@ void WM_main_remove_notifier_reference(const void *reference)
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
 
   if (wm) {
+    const std::lock_guard<std::mutex> notifier_lock(wm->runtime->notifier_mutex);
     LISTBASE_FOREACH_MUTABLE (wmNotifier *, note, &wm->runtime->notifier_queue) {
       if (note->reference == reference) {
         const bool removed = BLI_gset_remove(wm->runtime->notifier_queue_set, note, nullptr);
@@ -578,6 +580,7 @@ void wm_event_do_notifiers(bContext *C)
     GPU_render_end();
     return;
   }
+  const std::lock_guard<std::mutex> notifier_lock(wm->runtime->notifier_mutex);
 
   /* Disable? - Keep for now since its used for window level notifiers. */
 #if 1

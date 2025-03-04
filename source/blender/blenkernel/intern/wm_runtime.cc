@@ -23,6 +23,7 @@ WindowManagerRuntime::~WindowManagerRuntime()
 {
   BKE_reports_free(&this->reports);
 
+  const std::lock_guard<std::mutex> lock(this->notifier_mutex);
   BLI_freelistN(&this->notifier_queue);
   if (this->notifier_queue_set) {
     BLI_gset_free(this->notifier_queue_set, nullptr);
