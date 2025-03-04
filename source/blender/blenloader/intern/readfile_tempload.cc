@@ -34,13 +34,12 @@ TempLibraryContext *BLO_library_temp_load_id(Main *real_main,
   LibraryLink_Params lib_link_params;
   BLO_library_link_params_init(&lib_link_params, temp_lib_ctx->bmain_base, 0, ID_TAG_TEMP_MAIN);
 
-  temp_lib_ctx->bmain_lib = BLO_library_link_begin(
-      &blendhandle, blend_file_path, &lib_link_params);
+  Main *bmain_lib = BLO_library_link_begin(&blendhandle, blend_file_path, &lib_link_params);
 
   temp_lib_ctx->temp_id = BLO_library_link_named_part(
-      temp_lib_ctx->bmain_lib, &blendhandle, idcode, idname, &lib_link_params);
+      bmain_lib, &blendhandle, idcode, idname, &lib_link_params);
 
-  BLO_library_link_end(temp_lib_ctx->bmain_lib, &blendhandle, &lib_link_params);
+  BLO_library_link_end(bmain_lib, &blendhandle, &lib_link_params);
   BLO_blendhandle_close(blendhandle);
 
   return temp_lib_ctx;
