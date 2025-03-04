@@ -130,12 +130,17 @@ bool BKE_bpath_foreach_path_fixed_process(BPathForeachPathData *bpath_data,
 {
   const char *absolute_base_path = bpath_data->absolute_base_path;
 
-  char path_src[FILE_MAX];
+  char path_src_buf[FILE_MAX];
+  const char *path_src;
   char path_dst[FILE_MAX];
 
-  STRNCPY(path_src, path);
   if (absolute_base_path) {
-    BLI_path_abs(path_src, absolute_base_path);
+    STRNCPY(path_src_buf, path);
+    BLI_path_abs(path_src_buf, absolute_base_path);
+    path_src = path_src_buf;
+  }
+  else {
+    path_src = path;
   }
 
   /* so functions can check old value */
@@ -185,12 +190,17 @@ bool BKE_bpath_foreach_path_allocated_process(BPathForeachPathData *bpath_data, 
 {
   const char *absolute_base_path = bpath_data->absolute_base_path;
 
-  char path_src[FILE_MAX];
+  char path_src_buf[FILE_MAX];
+  const char *path_src;
   char path_dst[FILE_MAX];
 
-  STRNCPY(path_src, *path);
   if (absolute_base_path) {
-    BLI_path_abs(path_src, absolute_base_path);
+    STRNCPY(path_src_buf, *path);
+    BLI_path_abs(path_src_buf, absolute_base_path);
+    path_src = path_src_buf;
+  }
+  else {
+    path_src = *path;
   }
 
   if (bpath_data->callback_function(bpath_data, path_dst, sizeof(path_dst), path_src)) {
