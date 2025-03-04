@@ -1484,9 +1484,6 @@ BLI_NOINLINE static void bmesh_push(const Object &object,
   }
 
   if (node) {
-    const int cd_vert_mask_offset = CustomData_get_offset_named(
-        &ss.bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
-
     /* The vertices and node aren't changed, though pointers to them are stored in the log. */
     bke::pbvh::BMeshNode *node_mut = const_cast<bke::pbvh::BMeshNode *>(node);
 
@@ -1499,24 +1496,26 @@ BLI_NOINLINE static void bmesh_push(const Object &object,
         /* Before any vertex values get modified, ensure their
          * original positions are logged. */
         for (BMVert *vert : BKE_pbvh_bmesh_node_unique_verts(node_mut)) {
-          BM_log_vert_before_modified(ss.bm_log, vert, cd_vert_mask_offset);
+          BM_log_vert_before_modified(ss.bm_log, vert, ss.bm->vdata);
         }
         for (BMVert *vert : BKE_pbvh_bmesh_node_other_verts(node_mut)) {
-          BM_log_vert_before_modified(ss.bm_log, vert, cd_vert_mask_offset);
+          BM_log_vert_before_modified(ss.bm_log, vert, ss.bm->vdata);
         }
+
+        // TODO: log the face before modified here?
         break;
 
       case Type::HideFace:
       case Type::HideVert: {
         for (BMVert *vert : BKE_pbvh_bmesh_node_unique_verts(node_mut)) {
-          BM_log_vert_before_modified(ss.bm_log, vert, cd_vert_mask_offset);
+          BM_log_vert_before_modified(ss.bm_log, vert, ss.bm->vdata);
         }
         for (BMVert *vert : BKE_pbvh_bmesh_node_other_verts(node_mut)) {
-          BM_log_vert_before_modified(ss.bm_log, vert, cd_vert_mask_offset);
+          BM_log_vert_before_modified(ss.bm_log, vert, ss.bm->vdata);
         }
 
         for (BMFace *f : BKE_pbvh_bmesh_node_faces(node_mut)) {
-          BM_log_face_modified(ss.bm_log, f);
+          BM_log_face_modified(ss.bm_log, f, ss.bm->pdata);
         }
         break;
       }

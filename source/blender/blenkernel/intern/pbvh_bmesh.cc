@@ -445,7 +445,7 @@ static BMVert *pbvh_bmesh_vert_create(BMesh &bm,
   node_changed[node_index] = true;
 
   /* Log the new vertex. */
-  BM_log_vert_added(&bm_log, v, cd_vert_mask_offset);
+  BM_log_vert_added(&bm_log, v, bm.vdata);
 
   return v;
 }
@@ -479,7 +479,7 @@ static BMFace *pbvh_bmesh_face_create(BMesh &bm,
   node->flag_ &= ~Node::FullyHidden;
 
   /* Log the new face. */
-  BM_log_face_added(&bm_log, f);
+  BM_log_face_added(&bm_log, f, bm.pdata);
 
   return f;
 }
@@ -594,7 +594,8 @@ static void pbvh_bmesh_vert_remove(MutableSpan<BMeshNode> nodes,
   BM_FACES_OF_VERT_ITER_END;
 }
 
-static void pbvh_bmesh_face_remove(MutableSpan<BMeshNode> nodes,
+static void pbvh_bmesh_face_remove(BMesh& bm,
+                                   MutableSpan<BMeshNode> nodes,
                                    MutableSpan<bool> node_changed,
                                    const int cd_vert_node_offset,
                                    const int cd_face_node_offset,
@@ -634,7 +635,7 @@ static void pbvh_bmesh_face_remove(MutableSpan<BMeshNode> nodes,
   BM_ELEM_CD_SET_INT(f, cd_face_node_offset, DYNTOPO_NODE_NONE);
 
   /* Log removed face. */
-  BM_log_face_removed(&bm_log, f);
+  BM_log_face_removed(&bm_log, f, bm.pdata);
 
   /* Mark node for update. */
   f_node->flag_ |= Node::TopologyUpdated;
@@ -1203,7 +1204,7 @@ static void pbvh_bmesh_split_edge(EdgeQueueContext *eq_ctx,
 
     /* Delete original */
     pbvh_bmesh_face_remove(
-        nodes, node_changed, cd_vert_node_offset, cd_face_node_offset, bm_log, f_adj);
+        bm, nodes, node_changed, cd_vert_node_offset, cd_face_node_offset, bm_log, f_adj);
     BM_face_kill(&bm, f_adj);
 
     /* Ensure new vertex is in the node */
@@ -1607,7 +1608,7 @@ static void pbvh_bmesh_collapse_edge(BMesh &bm,
     BMFace *f_adj = l_adj->f;
 
     pbvh_bmesh_face_remove(
-        nodes, node_changed, cd_vert_node_offset, cd_face_node_offset, bm_log, f_adj);
+        bm, nodes, node_changed, cd_vert_node_offset, cd_face_node_offset, bm_log, f_adj);
     BM_face_kill(&bm, f_adj);
   }
 
@@ -1657,7 +1658,7 @@ static void pbvh_bmesh_collapse_edge(BMesh &bm,
 
     /* Remove the face */
     pbvh_bmesh_face_remove(
-        nodes, node_changed, cd_vert_node_offset, cd_face_node_offset, bm_log, f_del);
+        bm, nodes, node_changed, cd_vert_node_offset, cd_face_node_offset, bm_log, f_del);
     BM_face_kill(&bm, f_del);
 
     /* Check if any of the face's edges are now unused by any
@@ -1675,7 +1676,7 @@ static void pbvh_bmesh_collapse_edge(BMesh &bm,
         pbvh_bmesh_vert_remove(
             nodes, node_changed, cd_vert_node_offset, cd_face_node_offset, v_tri[j]);
 
-        BM_log_vert_removed(&bm_log, v_tri[j], eq_ctx->cd_vert_mask_offset);
+        BM_log_vert_removed(&bm_log, v_tri[j], bm.vdata);
 
         if (v_tri[j] == v_conn) {
           v_conn = nullptr;
@@ -1692,7 +1693,7 @@ static void pbvh_bmesh_collapse_edge(BMesh &bm,
    * However, if the vertex is on a boundary, do not move it to preserve the shape of the
    * boundary. */
   if (v_conn != nullptr && !is_boundary_vert(*v_conn)) {
-    BM_log_vert_before_modified(&bm_log, v_conn, eq_ctx->cd_vert_mask_offset);
+    BM_log_vert_before_modified(&bm_log, v_conn, bm.vdata);
     mid_v3_v3v3(v_conn->co, v_conn->co, v_del->co);
     add_v3_v3(v_conn->no, v_del->no);
     normalize_v3(v_conn->no);
@@ -1710,7 +1711,7 @@ static void pbvh_bmesh_collapse_edge(BMesh &bm,
 
   /* Delete v_del */
   BLI_assert(!BM_vert_face_check(v_del));
-  BM_log_vert_removed(&bm_log, v_del, eq_ctx->cd_vert_mask_offset);
+  BM_log_vert_removed(&bm_log, v_del, bm.vdata);
   /* v_conn == nullptr is OK */
   deleted_verts.add_new(v_del, v_conn);
   BM_vert_kill(&bm, v_del);

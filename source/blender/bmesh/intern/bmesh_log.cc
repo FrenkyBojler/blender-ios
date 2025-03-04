@@ -37,6 +37,7 @@
 struct BMLogFace;
 struct BMLogVert;
 
+/* TODO: Does this need to store the layer information at the time of the entry being made? */
 struct BMLogEntry {
   BMLogEntry *next, *prev;
 
@@ -108,12 +109,53 @@ struct BMLogVert {
   blender::float3 normal;
   char hflag;
   float mask;
+  void *data;
+
+  BMLogVert() = default;
+  ~BMLogVert();
+  BMLogVert(const BMLogVert& other);
+  BMLogVert& operator=(const BMLogVert& other);
 };
+
+BMLogVert::~BMLogVert()
+{
+  BLI_assert_msg(this->data == nullptr, "BMLogVert must be cleaned up prior to the destructor...");
+}
+BMLogVert::BMLogVert(const BMLogVert &other)
+{
+  // TODO: Figure out how to get a CustomData reference when doing this copy...
+  BLI_assert_unreachable();
+}
+BMLogVert &BMLogVert::operator=(const BMLogVert &other)
+{
+  // TODO: Figure out how to get a CustomData reference when doing this copy...
+  BLI_assert_unreachable();
+  return *this;
+}
 
 struct BMLogFace {
   std::array<uint, 3> v_ids;
   char hflag;
+  void *data;
+
+  BMLogFace() = default;
+  ~BMLogFace();
+  BMLogFace(const BMLogFace &other);
+  BMLogFace &operator=(const BMLogFace &other);
 };
+BMLogFace::~BMLogFace()
+{
+  BLI_assert_msg(this->data == nullptr, "BMLogFace must be cleaned up prior to the destructor...");
+}
+BMLogFace::BMLogFace(const BMLogFace &other)
+{
+  BLI_assert_unreachable();
+}
+BMLogFace &BMLogFace::operator=(const BMLogFace &other)
+{
+  BLI_assert_unreachable();
+  return *this;
+}
 
 /************************* Get/set element IDs ************************/
 
@@ -157,48 +199,29 @@ static BMFace *bm_log_face_from_id(BMLog *log, const uint id)
 
 /************************ BMLogVert / BMLogFace ***********************/
 
-/* Get a vertex's paint-mask value
- *
- * Returns zero if no paint-mask layer is present */
-static float vert_mask_get(BMVert *v, const int cd_vert_mask_offset)
-{
-  if (cd_vert_mask_offset != -1) {
-    return BM_ELEM_CD_GET_FLOAT(v, cd_vert_mask_offset);
-  }
-  return 0.0f;
-}
-
-/* Set a vertex's paint-mask value
- *
- * Has no effect is no paint-mask layer is present */
-static void vert_mask_set(BMVert *v, const float new_mask, const int cd_vert_mask_offset)
-{
-  if (cd_vert_mask_offset != -1) {
-    BM_ELEM_CD_SET_FLOAT(v, cd_vert_mask_offset, new_mask);
-  }
-}
-
 /* Update a BMLogVert with data from a BMVert */
-static void bm_log_vert_bmvert_copy(BMLogVert *lv, BMVert *v, const int cd_vert_mask_offset)
+static void bm_log_vert_bmvert_copy(BMLogVert *lv, BMVert *v, CustomData& vdata)
 {
   copy_v3_v3(lv->position, v->co);
   copy_v3_v3(lv->normal, v->no);
-  lv->mask = vert_mask_get(v, cd_vert_mask_offset);
+  CustomData_bmesh_copy_block(vdata, v->head.data, &lv->data);
+  lv->mask = -1.0f;
   lv->hflag = v->head.hflag;
 }
 
 /* Allocate and initialize a BMLogVert */
-static BMLogVert *bm_log_vert_alloc(BMLog *log, BMVert *v, const int cd_vert_mask_offset)
+static BMLogVert *bm_log_vert_alloc(BMLog *log, BMVert *v, CustomData& vdata)
 {
   BMLogEntry *entry = log->current_entry;
   BMLogVert *lv = &entry->vert_pool.construct();
   entry->allocated_verts.append(lv);
 
-  bm_log_vert_bmvert_copy(lv, v, cd_vert_mask_offset);
+  bm_log_vert_bmvert_copy(lv, v, vdata);
 
   return lv;
 }
 
+/* TODO Setup alloc for this... */
 /* Allocate and initialize a BMLogFace */
 static BMLogFace *bm_log_face_alloc(BMLog *log, BMFace *f)
 {
@@ -226,15 +249,12 @@ static void bm_log_verts_unmake(BMesh *bm,
                                 BMLog *log,
                                 const blender::Map<uint, BMLogVert *, 0> &verts)
 {
-  const int cd_vert_mask_offset = CustomData_get_offset_named(
-      &bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
-
   for (const auto item : verts.items()) {
     BMVert *v = bm_log_vert_from_id(log, item.key);
 
     /* Ensure the log has the final values of the vertex before
      * deleting it */
-    bm_log_vert_bmvert_copy(item.value, v, cd_vert_mask_offset);
+    bm_log_vert_bmvert_copy(item.value, v, bm->vdata);
 
     BM_vert_kill(bm, v);
   }
@@ -267,13 +287,10 @@ static void bm_log_verts_restore(BMesh *bm,
                                  BMLog *log,
                                  const blender::Map<uint, BMLogVert *, 0> &verts)
 {
-  const int cd_vert_mask_offset = CustomData_get_offset_named(
-      &bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
-
   for (const auto item : verts.items()) {
     BMLogVert *lv = item.value;
     BMVert *v = BM_vert_create(bm, lv->position, nullptr, BM_CREATE_NOP);
-    vert_mask_set(v, lv->mask, cd_vert_mask_offset);
+    CustomData_bmesh_copy_block(bm->vdata, lv->data, &v->head.data);
     v->head.hflag = lv->hflag;
     copy_v3_v3(v->no, lv->normal);
     bm_log_vert_id_set(log, v, item.key);
@@ -284,9 +301,9 @@ static void bm_log_faces_restore(BMesh *bm,
                                  BMLog *log,
                                  const blender::Map<uint, BMLogFace *, 0> &faces)
 {
-  const int cd_face_sets = CustomData_get_offset_named(
-      &bm->pdata, CD_PROP_INT32, ".sculpt_face_set");
-
+  /* Probably not needed...
+   * const int cd_face_sets = CustomData_get_offset_named(&bm->pdata, CD_PROP_INT32, ".sculpt_face_set");
+  */
   for (const auto item : faces.items()) {
     BMLogFace *lf = item.value;
     BMVert *v[3] = {
@@ -297,12 +314,16 @@ static void bm_log_faces_restore(BMesh *bm,
 
     BMFace *f = BM_face_create_verts(bm, v, 3, nullptr, BM_CREATE_NOP, true);
     f->head.hflag = lf->hflag;
+    CustomData_bmesh_copy_block(bm->pdata, lf->data, &f->head.data);
     bm_log_face_id_set(log, f, item.key);
 
     /* Ensure face sets have valid values.  Fixes #80174. */
+    /* TODO: PROBABLY NOT NEEDED?
+
     if (cd_face_sets != -1) {
       BM_ELEM_CD_SET_INT(f, cd_face_sets, 1);
     }
+    */
   }
 }
 
@@ -310,9 +331,6 @@ static void bm_log_vert_values_swap(BMesh *bm,
                                     BMLog *log,
                                     const blender::Map<uint, BMLogVert *, 0> &verts)
 {
-  const int cd_vert_mask_offset = CustomData_get_offset_named(
-      &bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
-
   for (const auto item : verts.items()) {
     BMLogVert *lv = item.value;
     BMVert *v = bm_log_vert_from_id(log, item.key);
@@ -320,20 +338,26 @@ static void bm_log_vert_values_swap(BMesh *bm,
     swap_v3_v3(v->co, lv->position);
     swap_v3_v3(v->no, lv->normal);
     std::swap(v->head.hflag, lv->hflag);
-    float mask = lv->mask;
-    lv->mask = vert_mask_get(v, cd_vert_mask_offset);
-    vert_mask_set(v, mask, cd_vert_mask_offset);
+
+    void* scratch;
+    CustomData_bmesh_copy_block(bm->vdata, lv->data, &scratch);
+    CustomData_bmesh_copy_block(bm->vdata, v->head.data, &lv->data);
+    CustomData_bmesh_copy_block(bm->vdata, scratch, &v->head.data);
   }
 }
 
-static void bm_log_face_values_swap(BMLog *log, const blender::Map<uint, BMLogFace *, 0> &faces)
+static void bm_log_face_values_swap(BMesh *bm, BMLog *log, const blender::Map<uint, BMLogFace *, 0> &faces)
 {
-
   for (const auto item : faces.items()) {
     BMLogFace *lf = item.value;
     BMFace *f = bm_log_face_from_id(log, item.key);
 
     std::swap(f->head.hflag, lf->hflag);
+
+    void* scratch;
+    CustomData_bmesh_copy_block(bm->pdata, lf->data, &scratch);
+    CustomData_bmesh_copy_block(bm->pdata, f->head.data, &lf->data);
+    CustomData_bmesh_copy_block(bm->pdata, scratch, &f->head.data);
   }
 }
 
@@ -685,7 +709,7 @@ void BM_log_undo(BMesh *bm, BMLog *log)
 
     /* Restore vertex coordinates, mask, and hflag */
     bm_log_vert_values_swap(bm, log, entry->modified_verts);
-    bm_log_face_values_swap(log, entry->modified_faces);
+    bm_log_face_values_swap(bm, log, entry->modified_faces);
   }
 }
 
@@ -719,35 +743,35 @@ void BM_log_redo(BMesh *bm, BMLog *log)
 
     /* Restore vertex coordinates, mask, and hflag */
     bm_log_vert_values_swap(bm, log, entry->modified_verts);
-    bm_log_face_values_swap(log, entry->modified_faces);
+    bm_log_face_values_swap(bm, log, entry->modified_faces);
   }
 }
 
-void BM_log_vert_before_modified(BMLog *log, BMVert *v, const int cd_vert_mask_offset)
+void BM_log_vert_before_modified(BMLog *log, BMVert *v, CustomData& vdata)
 {
   BMLogEntry *entry = log->current_entry;
   const uint v_id = bm_log_vert_id_get(log, v);
 
   /* Find or create the BMLogVert entry */
   if (entry->added_verts.contains(v_id)) {
-    bm_log_vert_bmvert_copy(entry->added_verts.lookup(v_id), v, cd_vert_mask_offset);
+    bm_log_vert_bmvert_copy(entry->added_verts.lookup(v_id), v, vdata);
   }
   else {
     entry->modified_verts.lookup_or_add_cb(
-        v_id, [&] { return bm_log_vert_alloc(log, v, cd_vert_mask_offset); });
+        v_id, [&] { return bm_log_vert_alloc(log, v, vdata); });
   }
 }
 
-void BM_log_vert_added(BMLog *log, BMVert *v, const int cd_vert_mask_offset)
+void BM_log_vert_added(BMLog *log, BMVert *v, CustomData& vdata)
 {
   const uint v_id = range_tree_uint_take_any(log->unused_ids);
 
   bm_log_vert_id_set(log, v, v_id);
-  BMLogVert *lv = bm_log_vert_alloc(log, v, cd_vert_mask_offset);
+  BMLogVert *lv = bm_log_vert_alloc(log, v, vdata);
   log->current_entry->added_verts.add(v_id, lv);
 }
 
-void BM_log_face_modified(BMLog *log, BMFace *f)
+void BM_log_face_modified(BMLog *log, BMFace *f, CustomData& pdata)
 {
   const uint f_id = bm_log_face_id_get(log, f);
 
@@ -755,7 +779,7 @@ void BM_log_face_modified(BMLog *log, BMFace *f)
   log->current_entry->modified_faces.add(f_id, lf);
 }
 
-void BM_log_face_added(BMLog *log, BMFace *f)
+void BM_log_face_added(BMLog *log, BMFace *f, CustomData& pdata)
 {
   const uint f_id = range_tree_uint_take_any(log->unused_ids);
 
@@ -767,7 +791,7 @@ void BM_log_face_added(BMLog *log, BMFace *f)
   log->current_entry->added_faces.add(f_id, lf);
 }
 
-void BM_log_vert_removed(BMLog *log, BMVert *v, const int cd_vert_mask_offset)
+void BM_log_vert_removed(BMLog *log, BMVert *v, CustomData& vdata)
 {
   BMLogEntry *entry = log->current_entry;
   const uint v_id = bm_log_vert_id_get(log, v);
@@ -779,7 +803,7 @@ void BM_log_vert_removed(BMLog *log, BMVert *v, const int cd_vert_mask_offset)
     range_tree_uint_release(log->unused_ids, v_id);
   }
   else {
-    BMLogVert *lv = bm_log_vert_alloc(log, v, cd_vert_mask_offset);
+    BMLogVert *lv = bm_log_vert_alloc(log, v, vdata);
     entry->deleted_verts.add(v_id, lv);
 
     /* If the vertex was modified before deletion, ensure that the
@@ -791,7 +815,7 @@ void BM_log_vert_removed(BMLog *log, BMVert *v, const int cd_vert_mask_offset)
   }
 }
 
-void BM_log_face_removed(BMLog *log, BMFace *f)
+void BM_log_face_removed(BMLog *log, BMFace *f, CustomData& pdata)
 {
   BMLogEntry *entry = log->current_entry;
   const uint f_id = bm_log_face_id_get(log, f);
@@ -810,9 +834,6 @@ void BM_log_face_removed(BMLog *log, BMFace *f)
 
 void BM_log_all_added(BMesh *bm, BMLog *log)
 {
-  const int cd_vert_mask_offset = CustomData_get_offset_named(
-      &bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
-
   /* avoid unnecessary resizing on initialization */
   if (log->current_entry->added_verts.is_empty()) {
     log->current_entry->added_verts.reserve(bm->totvert);
@@ -826,32 +847,29 @@ void BM_log_all_added(BMesh *bm, BMLog *log)
   BMVert *v;
   /* Log all vertices as newly created */
   BM_ITER_MESH (v, &bm_iter, bm, BM_VERTS_OF_MESH) {
-    BM_log_vert_added(log, v, cd_vert_mask_offset);
+    BM_log_vert_added(log, v, bm->vdata);
   }
 
   BMFace *f;
   /* Log all faces as newly created */
   BM_ITER_MESH (f, &bm_iter, bm, BM_FACES_OF_MESH) {
-    BM_log_face_added(log, f);
+    BM_log_face_added(log, f, bm->pdata);
   }
 }
 
 void BM_log_before_all_removed(BMesh *bm, BMLog *log)
 {
-  const int cd_vert_mask_offset = CustomData_get_offset_named(
-      &bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
-
   BMIter bm_iter;
   BMFace *f;
   /* Log deletion of all faces */
   BM_ITER_MESH (f, &bm_iter, bm, BM_FACES_OF_MESH) {
-    BM_log_face_removed(log, f);
+    BM_log_face_removed(log, f, bm->pdata);
   }
 
   BMVert *v;
   /* Log deletion of all vertices */
   BM_ITER_MESH (v, &bm_iter, bm, BM_VERTS_OF_MESH) {
-    BM_log_vert_removed(log, v, cd_vert_mask_offset);
+    BM_log_vert_removed(log, v, bm->vdata);
   }
 }
 
@@ -866,6 +884,7 @@ const float *BM_log_find_original_vert_co(BMLog *log, BMVert *v)
   return nullptr;
 }
 
+// TODO: How does this work with the new system...?
 const float *BM_log_find_original_vert_mask(BMLog *log, BMVert *v)
 {
   BMLogEntry *entry = log->current_entry;
