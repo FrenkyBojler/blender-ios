@@ -953,8 +953,7 @@ StructRNA *RNA_def_struct_ptr(BlenderRNA *brna, const char *identifier, StructRN
     /* Copy from struct to derive stuff, a bit clumsy since we can't
      * use #MEM_dupallocN, data structs may not be allocated but builtin. */
     memcpy(srna, srnafrom, sizeof(StructRNA));
-    srna->cont.prop_lookup_set =
-        MEM_new<blender::CustomIDVectorSet<PropertyRNA *, PropertyRNAIdentifierGetter>>(__func__);
+    srna->cont.prop_lookup_set = nullptr;
     BLI_listbase_clear(&srna->cont.properties);
     BLI_listbase_clear(&srna->functions);
     srna->py_type = nullptr;
@@ -1006,6 +1005,8 @@ StructRNA *RNA_def_struct_ptr(BlenderRNA *brna, const char *identifier, StructRN
   }
   else {
     RNA_def_struct_flag(srna, STRUCT_RUNTIME);
+    srna->cont.prop_lookup_set =
+        MEM_new<blender::CustomIDVectorSet<PropertyRNA *, PropertyRNAIdentifierGetter>>(__func__);
   }
 
   if (srnafrom) {
