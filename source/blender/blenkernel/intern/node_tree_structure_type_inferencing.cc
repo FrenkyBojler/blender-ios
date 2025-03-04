@@ -18,17 +18,25 @@ namespace aal = nodes::anonymous_attribute_lifetime;
 
 static nodes::StructureTypeInterface calc_node_interface(const bNode &node)
 {
-  nodes::StructureTypeInterface interface;
-
   const Span<const bNodeSocket *> input_sockets = node.input_sockets();
+  const Span<const bNodeSocket *> output_sockets = node.output_sockets();
+
+  nodes::StructureTypeInterface interface;
   interface.inputs.reinitialize(input_sockets.size());
+  interface.outputs.reinitialize(output_sockets.size());
+
+  if (node.is_undefined()) {
+    interface.inputs.fill(StructureType::Dynamic);
+    interface.outputs.fill(
+        nodes::StructureTypeInterface::OutputDependency{StructureType::Dynamic});
+    return interface;
+  }
+
   for (const int i : input_sockets.index_range()) {
     const nodes::SocketDeclaration &decl = *input_sockets[i]->runtime->declaration;
     interface.inputs[i] = decl.structure_type;
   }
 
-  const Span<const bNodeSocket *> output_sockets = node.output_sockets();
-  interface.outputs.reinitialize(output_sockets.size());
   for (const int output : output_sockets.index_range()) {
     const nodes::SocketDeclaration &decl = *output_sockets[output]->runtime->declaration;
     interface.outputs[output].type = decl.structure_type;
@@ -352,6 +360,10 @@ static void propagate_left_to_right(const bNodeTree &tree,
       }
 
       if (node->is_group_input()) {
+        continue;
+      }
+
+      if (node->is_undefined()) {
         continue;
       }
 

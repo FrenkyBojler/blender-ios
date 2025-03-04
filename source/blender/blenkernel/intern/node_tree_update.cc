@@ -928,6 +928,9 @@ class NodeTreeMainUpdater {
     const nodes::StructureTypeInterface &interface = *ntree.runtime->structure_type_interface;
     const Span<bke::FieldSocketState> field_states = ntree.runtime->field_states;
     for (bNode *node : ntree.all_nodes()) {
+      if (node->is_undefined()) {
+        continue;
+      }
       if (node->is_group_input()) {
         const Span<bNodeSocket *> sockets = node->output_sockets();
         for (const int i : interface.inputs.index_range()) {
