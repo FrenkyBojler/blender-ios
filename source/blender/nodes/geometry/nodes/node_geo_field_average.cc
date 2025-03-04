@@ -135,26 +135,20 @@ template<typename T> T calculate_median(Vector<T> &values)
       z_vals.append(v.z);
     }
 
-    std::sort(x_vals.begin(), x_vals.end());
-    std::sort(y_vals.begin(), y_vals.end());
-    std::sort(z_vals.begin(), z_vals.end());
-
-    size_t n = x_vals.size();
-    float median_x = (n % 2 == 0) ? (x_vals[n / 2 - 1] + x_vals[n / 2]) / 2.0f : x_vals[n / 2];
-    float median_y = (n % 2 == 0) ? (y_vals[n / 2 - 1] + y_vals[n / 2]) / 2.0f : y_vals[n / 2];
-    float median_z = (n % 2 == 0) ? (z_vals[n / 2 - 1] + z_vals[n / 2]) / 2.0f : z_vals[n / 2];
-
-    return float3(median_x, median_y, median_z);
+    return float3(calculate_median<float>(x_vals),
+                  calculate_median<float>(y_vals),
+                  calculate_median<float>(z_vals));
   }
   else {
-    std::sort(values.begin(), values.end());
-
-    size_t n = values.size();
-    if (n % 2 == 0) {
-      return (values[n / 2 - 1] + values[n / 2]) / 2.0f;
+    const auto middle_itr = values.begin() + values.size() / 2;
+    std::nth_element(values.begin(), middle_itr, values.end());
+    if (values.size() % 2 == 0) {
+      const auto left_middle_itr = std::max_element(values.begin(), middle_itr);
+      return (*left_middle_itr + *middle_itr) / 2;
     }
-
-    return values[n / 2];
+    else {
+      return *middle_itr;
+    }
   }
 }
 
