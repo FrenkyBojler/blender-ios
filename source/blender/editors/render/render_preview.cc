@@ -48,7 +48,6 @@
 
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
-#include "BKE_bpath.hh"
 #include "BKE_brush.hh"
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"

@@ -16,7 +16,6 @@
 #include "BLI_string_ref.hh"
 #include "BLI_string_utils.hh"
 
-#include "BKE_bpath.hh"
 #include "BKE_context.hh"
 #include "BKE_file_handler.hh"
 #include "BKE_image.hh"

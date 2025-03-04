@@ -13,7 +13,6 @@
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
 
-#include "BKE_bpath.hh"
 #include "BKE_context.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"

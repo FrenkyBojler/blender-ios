@@ -16,7 +16,6 @@
 #include "BLI_string.h"
 
 #include "BKE_blendfile.hh"
-#include "BKE_bpath.hh"
 #include "BKE_global.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"

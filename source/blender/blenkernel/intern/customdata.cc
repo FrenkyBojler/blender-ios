@@ -45,7 +45,6 @@
 
 #include "BKE_anonymous_attribute_id.hh"
 #include "BKE_attribute_math.hh"
-#include "BKE_bpath.hh"
 #include "BKE_customdata.hh"
 #include "BKE_customdata_file.h"
 #include "BKE_deform.hh"

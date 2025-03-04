@@ -7,8 +7,6 @@
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
-#include "BKE_bpath.hh"
-
 #include "CLG_log.h"
 static CLG_LogRef LOG = {"io.common"};
 

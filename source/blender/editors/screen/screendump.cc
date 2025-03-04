@@ -23,7 +23,6 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
-#include "BKE_bpath.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_image.hh"

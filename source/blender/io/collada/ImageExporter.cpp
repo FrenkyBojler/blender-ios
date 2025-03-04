@@ -11,7 +11,6 @@
 
 #include "DNA_image_types.h"
 
-#include "BKE_bpath.hh"
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
 #include "BKE_library.hh"

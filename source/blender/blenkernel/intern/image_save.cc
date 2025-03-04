@@ -28,7 +28,6 @@
 #include "IMB_imbuf_types.hh"
 #include "IMB_openexr.hh"
 
-#include "BKE_bpath.hh"
 #include "BKE_colortools.hh"
 #include "BKE_global.hh"
 #include "BKE_image.hh"

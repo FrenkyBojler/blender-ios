@@ -23,7 +23,6 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_bpath.hh"
 #include "BKE_deform.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"

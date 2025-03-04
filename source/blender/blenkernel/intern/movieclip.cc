@@ -992,7 +992,6 @@ MovieClip *BKE_movieclip_file_add_exists_ex(Main *bmain, const char *filepath, b
        clip = static_cast<MovieClip *>(clip->id.next))
   {
     STRNCPY(filepath_test, clip->filepath);
-    /* Same TODO here as above. */
     BLI_path_abs(filepath_test, ID_BLEND_PATH(bmain, &clip->id));
 
     if (BLI_path_cmp(filepath_test, filepath_abs) == 0) {

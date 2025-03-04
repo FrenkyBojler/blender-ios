@@ -29,7 +29,6 @@
 #include "BLT_translation.hh"
 
 #include "BKE_armature.hh"
-#include "BKE_bpath.hh"
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
 #include "BKE_deform.hh"

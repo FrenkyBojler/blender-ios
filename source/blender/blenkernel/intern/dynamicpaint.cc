@@ -39,7 +39,6 @@
 #include "DNA_texture_types.h"
 
 #include "BKE_armature.hh"
-#include "BKE_bpath.hh"
 #include "BKE_bvhutils.hh" /* bvh tree */
 #include "BKE_collision.h"
 #include "BKE_colorband.hh"

@@ -24,7 +24,6 @@
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 
-#include "BKE_bpath.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"

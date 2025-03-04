@@ -22,7 +22,6 @@
 
 #include "BLT_translation.hh"
 
-#include "BKE_bpath.hh"
 #include "BKE_studiolight.h"
 
 #include "RNA_define.hh"

@@ -15,7 +15,6 @@
 #include "BLI_offset_indices.hh"
 #include "BLI_path_utils.hh"
 
-#include "BKE_bpath.hh"
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_report.hh"

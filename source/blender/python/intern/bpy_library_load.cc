@@ -22,7 +22,6 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_blendfile_link_append.hh"
-#include "BKE_bpath.hh"
 #include "BKE_context.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"

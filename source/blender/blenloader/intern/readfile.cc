@@ -62,7 +62,6 @@
 #include "BKE_animsys.h"
 #include "BKE_asset.hh"
 #include "BKE_blender_version.h"
-#include "BKE_bpath.hh"
 #include "BKE_collection.hh"
 #include "BKE_global.hh" /* for G */
 #include "BKE_idprop.hh"

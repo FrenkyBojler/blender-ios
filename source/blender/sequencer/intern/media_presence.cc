@@ -17,7 +17,6 @@
 #include "DNA_sequence_types.h"
 #include "DNA_sound_types.h"
 
-#include "BKE_bpath.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
 

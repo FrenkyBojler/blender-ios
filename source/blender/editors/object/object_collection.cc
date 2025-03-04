@@ -17,7 +17,6 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_bpath.hh"
 #include "BKE_collection.hh"
 #include "BKE_context.hh"
 #include "BKE_file_handler.hh"

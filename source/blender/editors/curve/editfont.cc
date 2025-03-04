@@ -31,7 +31,6 @@
 #include "DNA_text_types.h"
 #include "DNA_vfont_types.h"
 
-#include "BKE_bpath.hh"
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
 #include "BKE_global.hh"
