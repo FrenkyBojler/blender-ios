@@ -1,1 +1,2 @@
 Referenced by issue #134980, Crash when enter in Draw Mode in Grease Pencil
+Referenced by pull request #135448, Anim: Fix issue where F-Curves were half-initialized when importing USD
