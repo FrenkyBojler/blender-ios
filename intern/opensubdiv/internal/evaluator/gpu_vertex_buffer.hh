@@ -76,9 +76,9 @@ class GPUVertexBuffer {
     return 0;
   }
 
-  gpu::VertBuf &get_vertex_buffer()
+  gpu::VertBuf *get_vertex_buffer()
   {
-    return gpu_vertex_buffer_;
+    return &gpu_vertex_buffer_;
   }
 };
 

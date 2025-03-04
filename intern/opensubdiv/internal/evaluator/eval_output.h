@@ -140,9 +140,16 @@ template<typename T> class RawDataWrapperBuffer {
     return data_;
   }
 
+  /*
   int BindVBO()
   {
     return 0;
+  }
+  */
+
+  gpu::VertBuf *get_vertex_buffer()
+  {
+    return nullptr;
   }
 
   // TODO(sergey): Support UpdateData().

@@ -45,12 +45,12 @@ class GpuEvalOutput : public VolatileEvalOutput<GPUVertexBuffer,
 
   gpu::VertBuf *wrapSrcBuffer() override
   {
-    return &getSrcBuffer()->get_vertex_buffer();
+    return getSrcBuffer()->get_vertex_buffer();
   }
 
   gpu::VertBuf *wrapSrcVertexDataBuffer() override
   {
-    return &getSrcVertexDataBuffer()->get_vertex_buffer();
+    return getSrcVertexDataBuffer()->get_vertex_buffer();
   }
 
   void fillFVarPatchArraysBuffer(const int face_varying_channel,
@@ -71,7 +71,7 @@ class GpuEvalOutput : public VolatileEvalOutput<GPUVertexBuffer,
   gpu::VertBuf *wrapFVarSrcBuffer(const int face_varying_channel) override
   {
     GPUVertexBuffer *vertex_buffer = getFVarSrcBuffer(face_varying_channel);
-    return &vertex_buffer->get_vertex_buffer();
+    return vertex_buffer->get_vertex_buffer();
   }
 };
 
