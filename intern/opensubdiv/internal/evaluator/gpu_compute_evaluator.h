@@ -1382,16 +1382,16 @@ class GPUComputeEvaluator {
                           OpenSubdiv::Osd::BufferDescriptor const &dstDesc,
                           int numPatchCoords,
                           PATCHCOORD_BUFFER *patchCoords,
-                          PATCH_TABLE *patchTable) const
+                          PATCH_TABLE *patchTable)
   {
 
     return EvalPatches(srcBuffer->get_vertex_buffer(),
                        srcDesc,
                        dstBuffer->get_vertex_buffer(),
                        dstDesc,
-                       0,
+                       nullptr,
                        OpenSubdiv::Osd::BufferDescriptor(),
-                       0,
+                       nullptr,
                        OpenSubdiv::Osd::BufferDescriptor(),
                        numPatchCoords,
                        patchCoords->get_vertex_buffer(),
@@ -1547,7 +1547,7 @@ class GPUComputeEvaluator {
                           OpenSubdiv::Osd::BufferDescriptor const &dvDesc,
                           int numPatchCoords,
                           PATCHCOORD_BUFFER *patchCoords,
-                          PATCH_TABLE *patchTable) const
+                          PATCH_TABLE *patchTable)
   {
 
     return EvalPatches(srcBuffer->get_vertex_buffer(),
@@ -1772,7 +1772,7 @@ class GPUComputeEvaluator {
                           OpenSubdiv::Osd::BufferDescriptor const &dvvDesc,
                           int numPatchCoords,
                           PATCHCOORD_BUFFER *patchCoords,
-                          PATCH_TABLE *patchTable) const
+                          PATCH_TABLE *patchTable)
   {
 
     return EvalPatches(srcBuffer->get_vertex_buffer(),
@@ -1914,7 +1914,7 @@ class GPUComputeEvaluator {
                               int numPatchCoords,
                               PATCHCOORD_BUFFER *patchCoords,
                               PATCH_TABLE *patchTable,
-                              int fvarChannel = 0) const
+                              int fvarChannel = 0)
   {
 
     return EvalPatches(srcBuffer->get_vertex_buffer(),
@@ -2087,7 +2087,7 @@ class GPUComputeEvaluator {
                               int numPatchCoords,
                               PATCHCOORD_BUFFER *patchCoords,
                               PATCH_TABLE *patchTable,
-                              int fvarChannel = 0) const
+                              int fvarChannel = 0)
   {
 
     return EvalPatches(srcBuffer->get_vertex_buffer(),
@@ -2320,7 +2320,7 @@ class GPUComputeEvaluator {
                               int numPatchCoords,
                               PATCHCOORD_BUFFER *patchCoords,
                               PATCH_TABLE *patchTable,
-                              int fvarChannel = 0) const
+                              int fvarChannel = 0)
   {
 
     return EvalPatches(srcBuffer->get_vertex_buffer(),

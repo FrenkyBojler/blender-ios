@@ -478,7 +478,7 @@ bool GPUComputeEvaluator::EvalPatches(gpu::VertBuf *srcBuffer,
                                       gpu::VertBuf *patchCoordsBuffer,
                                       const PatchArrayVector &patchArrays,
                                       gpu::VertBuf *patchIndexBuffer,
-                                      gpu::VertBuf *patchParamsBuffer) const
+                                      gpu::VertBuf *patchParamsBuffer) 
 {
 
   return EvalPatches(srcBuffer,

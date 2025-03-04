@@ -234,7 +234,7 @@ class FaceVaryingVolatileEval {
     BufferDescriptor dst_face_varying_desc = src_face_varying_desc_;
     dst_face_varying_desc.offset += num_coarse_face_varying_vertices_ *
                                     src_face_varying_desc_.stride;
-    const EVALUATOR *eval_instance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
+    EVALUATOR *eval_instance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
         evaluator_cache_, src_face_varying_desc_, dst_face_varying_desc, device_context_);
     // in and out points to same buffer so output is put directly after coarse vertices, needed in
     // adaptive mode
@@ -253,7 +253,7 @@ class FaceVaryingVolatileEval {
     RawDataWrapperBuffer<float> face_varying_data(face_varying);
     BufferDescriptor face_varying_desc(0, 2, 2);
     ConstPatchCoordWrapperBuffer patch_coord_buffer(patch_coord, num_patch_coords);
-    const EVALUATOR *eval_instance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
+    EVALUATOR *eval_instance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
         evaluator_cache_, src_face_varying_desc_, face_varying_desc, device_context_);
 
     BufferDescriptor src_desc = get_src_varying_desc();
