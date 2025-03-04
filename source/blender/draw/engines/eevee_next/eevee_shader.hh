@@ -180,6 +180,7 @@ class ShaderModule {
                        int shadow_ray_count,
                        int shadow_ray_step_count)
     {
+      BLI_assert(render_buffers_shadow_id >= 0);
       BLI_assert(shadow_ray_count >= 1 || shadow_ray_count <= 4);
       BLI_assert(shadow_ray_step_count >= 1 || shadow_ray_step_count <= 16);
       hash_value_ = render_buffers_shadow_id;
