@@ -776,28 +776,39 @@ static bool selectSurfaceFormat(const VkPhysicalDevice physical_device,
                                 VkSurfaceFormatKHR &r_surfaceFormat)
 {
   uint32_t format_count;
-  vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &format_count, nullptr);
+  std::cout << __func__ << " physical_device=" << physical_device << " surface=" << surface
+            << "\n";
+  VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &format_count, nullptr));
+  std::cout << __func__ << " format_count=" << format_count << "\n";
   vector<VkSurfaceFormatKHR> formats(format_count);
-  vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &format_count, formats.data());
+  VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(
+      physical_device, surface, &format_count, formats.data()));
 
   for (const VkSurfaceFormatKHR &format : formats) {
+    std::cout << __func__ << " format=" << format.format << " color_space=" << format.colorSpace
+              << "\n";
     if (format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR &&
         format.format == VK_FORMAT_R8G8B8A8_UNORM)
     {
+      std::cout << __func__ << " selected!\n";
       r_surfaceFormat = format;
       return true;
     }
   }
 
   for (const VkSurfaceFormatKHR &format : formats) {
+    std::cout << __func__ << " format=" << format.format << " color_space=" << format.colorSpace
+              << "\n";
     if (format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR &&
         format.format == VK_FORMAT_B8G8R8A8_UNORM)
     {
+      std::cout << __func__ << " selected!\n";
       r_surfaceFormat = format;
       return true;
     }
   }
 
+  std::cout << __func__ << " No format selected\n";
   return false;
 }
 
@@ -886,9 +897,9 @@ GHOST_TSuccess GHOST_ContextVK::createSwapchain()
   VK_CHECK(vkCreateSwapchainKHR(device, &create_info, nullptr, &m_swapchain));
 
   /* image_count may not be what we requested! Getter for final value. */
-  vkGetSwapchainImagesKHR(device, m_swapchain, &image_count, nullptr);
+  VK_CHECK(vkGetSwapchainImagesKHR(device, m_swapchain, &image_count, nullptr));
   m_swapchain_images.resize(image_count);
-  vkGetSwapchainImagesKHR(device, m_swapchain, &image_count, m_swapchain_images.data());
+  VK_CHECK(vkGetSwapchainImagesKHR(device, m_swapchain, &image_count, m_swapchain_images.data()));
 
   VkFenceCreateInfo fence_info = {};
   fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
