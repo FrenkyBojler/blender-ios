@@ -75,7 +75,7 @@ enum {
  * 8:    'v' for little endian or 'V' for big endian
  * 9-11: 3 ASCII digits encoding #BLENDER_FILE_VERSION (e.g. '305' for Blender 3.5)
  */
-#define BLEND_FILE_VERSION_FORMAT_0 0
+#define BLEND_FILE_FORMAT_VERSION_0 0
 /**
  * Lower level version 1: the header is 17 bytes long.
  * 0-6:   'BLENDER'
@@ -87,7 +87,7 @@ enum {
  *
  * With this header, #LargeBHead8 is always used.
  */
-#define BLEND_FILE_VERSION_FORMAT_1 1
+#define BLEND_FILE_FORMAT_VERSION_1 1
 
 /**
  * Only "modern" systems support writing files with #LargeBHead8 headers. Other systems are

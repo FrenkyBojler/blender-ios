@@ -1373,7 +1373,7 @@ static std::string get_blend_file_header()
     ss << "BLENDER";
     ss << header_size_in_bytes;
     ss << '-';
-    ss << std::setfill('0') << std::setw(2) << BLEND_FILE_VERSION_FORMAT_1;
+    ss << std::setfill('0') << std::setw(2) << BLEND_FILE_FORMAT_VERSION_1;
     ss << 'v';
     ss << std::setfill('0') << std::setw(4) << BLENDER_FILE_VERSION;
 

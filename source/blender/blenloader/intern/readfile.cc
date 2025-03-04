@@ -966,8 +966,8 @@ struct BlenderHeader {
   int endian;
   /** #BLENDER_FILE_VERSION. */
   int file_version;
-  /** #BLEND_FILE_VERSION_FORMAT. */
-  int blend_file_version_format;
+  /** #BLEND_FILE_FORMAT_VERSION. */
+  int file_format_version;
 };
 
 /** The file is detected to be a Blender file, but it could not be decoded successfully. */
@@ -1000,7 +1000,7 @@ static BlenderHeaderVariant decode_blender_header(FileData *fd)
   const bool is_legacy_header = ELEM(header_bytes[7], '_', '-');
 
   if (is_legacy_header) {
-    header.blend_file_version_format = 0;
+    header.file_format_version = 0;
     switch (header_bytes[7]) {
       case '_':
         header.pointer_size = 4;
@@ -1059,8 +1059,8 @@ static BlenderHeaderVariant decode_blender_header(FileData *fd)
   char blend_file_version_format_str[3];
   memcpy(blend_file_version_format_str, header_bytes + 10, 2);
   blend_file_version_format_str[2] = '\0';
-  header.blend_file_version_format = atoi(blend_file_version_format_str);
-  if (header.blend_file_version_format != 1) {
+  header.file_format_version = atoi(blend_file_version_format_str);
+  if (header.file_format_version != 1) {
     return UnknownBlenderHeader{};
   }
   if (header_bytes[12] != 'v') {
@@ -1100,7 +1100,7 @@ static void read_blender_header(FileData *fd)
   if (header.endian != ENDIAN_ORDER) {
     fd->flags |= FD_FLAGS_SWITCH_ENDIAN;
   }
-  if (header.blend_file_version_format == 0) {
+  if (header.file_format_version == 0) {
     fd->flags |= FD_FLAGS_IS_SMALL_BHEAD;
   }
   fd->fileversion = header.file_version;
