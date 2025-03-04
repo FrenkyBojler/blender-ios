@@ -249,12 +249,18 @@ Repositories
 Information about repositories is stored in user preferences.
 The main values are a unique name, module path & optionally a remote URL.
 
-When the URL is set this is used for synchronizing updates.
+There are 2 kinds of repositories:
 
-Synchronizing the repository is simply downloading the JSON listing.
+- **Remote** which can be synchronized for updates.
+- **Local** where the repository is a file-system location.
 
-Repositories may also be system repositories (assumed to be read-only) or local
-where the user manages the files.
+  Local repositories may define a source:
+
+  - **User** the user may add/remove extensions to this location.
+  - **System** this treated as read-only and may be used when extensions
+    are shared on a network file-system for example.
+
+Synchronizing a **Remote** repository simply downloads the JSON listing from the remote URL.
 
 Once extensions have been installed their TOML files are compared with the repository to check for updates.
 
