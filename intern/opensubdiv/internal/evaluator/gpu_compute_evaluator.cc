@@ -65,13 +65,15 @@ extern "C" char datatoc_glsl_compute_kernel_glsl[];
 
 namespace blender::opensubdiv {
 
-template<class T> GPUStorageBuf *createSSBO(std::vector<T> const &src, const char *name)
+template<class T> gpu::VertBuf *createSSBO(std::vector<T> const &src, const char *name)
 {
   if (src.empty()) {
     return nullptr;
   }
 
-  GPUStorageBuf *storage_buffer = GPU_storagebuf_create_ex(
+  GPU_vertbuf_create_with_format
+
+  gpu::VertBuf *storage_buffer = GPU_storagebuf_create_ex(
       src.size() * sizeof(T), &src.at(0), GPU_USAGE_STATIC, name);
   return storage_buffer;
 }
@@ -309,20 +311,20 @@ void GPUComputeEvaluator::DispatchCompute(GPUShader *shader, int totalDispatchSi
   GPU_compute_dispatch(shader, dispatchRX, dispatchRY, 1);
 }
 
-bool GPUComputeEvaluator::EvalStencils(GPUStorageBuf *srcBuffer,
+bool GPUComputeEvaluator::EvalStencils(gpu::VertBuf *srcBuffer,
                                        BufferDescriptor const &srcDesc,
-                                       GPUStorageBuf *dstBuffer,
+                                       gpu::VertBuf *dstBuffer,
                                        BufferDescriptor const &dstDesc,
-                                       GPUStorageBuf *duBuffer,
+                                       gpu::VertBuf *duBuffer,
                                        BufferDescriptor const &duDesc,
-                                       GPUStorageBuf *dvBuffer,
+                                       gpu::VertBuf *dvBuffer,
                                        BufferDescriptor const &dvDesc,
-                                       GPUStorageBuf *sizesBuffer,
-                                       GPUStorageBuf *offsetsBuffer,
-                                       GPUStorageBuf *indicesBuffer,
-                                       GPUStorageBuf *weightsBuffer,
-                                       GPUStorageBuf *duWeightsBuffer,
-                                       GPUStorageBuf *dvWeightsBuffer,
+                                       gpu::VertBuf *sizesBuffer,
+                                       gpu::VertBuf *offsetsBuffer,
+                                       gpu::VertBuf *indicesBuffer,
+                                       gpu::VertBuf *weightsBuffer,
+                                       gpu::VertBuf *duWeightsBuffer,
+                                       gpu::VertBuf *dvWeightsBuffer,
                                        int start,
                                        int end) const
 {
@@ -354,29 +356,29 @@ bool GPUComputeEvaluator::EvalStencils(GPUStorageBuf *srcBuffer,
                       end);
 }
 
-bool GPUComputeEvaluator::EvalStencils(GPUStorageBuf *srcBuffer,
+bool GPUComputeEvaluator::EvalStencils(gpu::VertBuf *srcBuffer,
                                        BufferDescriptor const &srcDesc,
-                                       GPUStorageBuf *dstBuffer,
+                                       gpu::VertBuf *dstBuffer,
                                        BufferDescriptor const &dstDesc,
-                                       GPUStorageBuf *duBuffer,
+                                       gpu::VertBuf *duBuffer,
                                        BufferDescriptor const &duDesc,
-                                       GPUStorageBuf *dvBuffer,
+                                       gpu::VertBuf *dvBuffer,
                                        BufferDescriptor const &dvDesc,
-                                       GPUStorageBuf *duuBuffer,
+                                       gpu::VertBuf *duuBuffer,
                                        BufferDescriptor const &duuDesc,
-                                       GPUStorageBuf *duvBuffer,
+                                       gpu::VertBuf *duvBuffer,
                                        BufferDescriptor const &duvDesc,
-                                       GPUStorageBuf *dvvBuffer,
+                                       gpu::VertBuf *dvvBuffer,
                                        BufferDescriptor const &dvvDesc,
-                                       GPUStorageBuf *sizesBuffer,
-                                       GPUStorageBuf *offsetsBuffer,
-                                       GPUStorageBuf *indicesBuffer,
-                                       GPUStorageBuf *weightsBuffer,
-                                       GPUStorageBuf *duWeightsBuffer,
-                                       GPUStorageBuf *dvWeightsBuffer,
-                                       GPUStorageBuf *duuWeightsBuffer,
-                                       GPUStorageBuf *duvWeightsBuffer,
-                                       GPUStorageBuf *dvvWeightsBuffer,
+                                       gpu::VertBuf *sizesBuffer,
+                                       gpu::VertBuf *offsetsBuffer,
+                                       gpu::VertBuf *indicesBuffer,
+                                       gpu::VertBuf *weightsBuffer,
+                                       gpu::VertBuf *duWeightsBuffer,
+                                       gpu::VertBuf *dvWeightsBuffer,
+                                       gpu::VertBuf *duuWeightsBuffer,
+                                       gpu::VertBuf *duvWeightsBuffer,
+                                       gpu::VertBuf *dvvWeightsBuffer,
                                        int start,
                                        int end) const
 {
@@ -447,19 +449,19 @@ bool GPUComputeEvaluator::EvalStencils(GPUStorageBuf *srcBuffer,
   return true;
 }
 
-bool GPUComputeEvaluator::EvalPatches(GPUStorageBuf *srcBuffer,
+bool GPUComputeEvaluator::EvalPatches(gpu::VertBuf *srcBuffer,
                                       BufferDescriptor const &srcDesc,
-                                      GPUStorageBuf *dstBuffer,
+                                      gpu::VertBuf *dstBuffer,
                                       BufferDescriptor const &dstDesc,
-                                      GPUStorageBuf *duBuffer,
+                                      gpu::VertBuf *duBuffer,
                                       BufferDescriptor const &duDesc,
-                                      GPUStorageBuf *dvBuffer,
+                                      gpu::VertBuf *dvBuffer,
                                       BufferDescriptor const &dvDesc,
                                       int numPatchCoords,
-                                      GPUStorageBuf *patchCoordsBuffer,
+                                      gpu::VertBuf *patchCoordsBuffer,
                                       const PatchArrayVector &patchArrays,
-                                      GPUStorageBuf *patchIndexBuffer,
-                                      GPUStorageBuf *patchParamsBuffer) const
+                                      gpu::VertBuf *patchIndexBuffer,
+                                      gpu::VertBuf *patchParamsBuffer) const
 {
 
   return EvalPatches(srcBuffer,
@@ -483,25 +485,25 @@ bool GPUComputeEvaluator::EvalPatches(GPUStorageBuf *srcBuffer,
                      patchParamsBuffer);
 }
 
-bool GPUComputeEvaluator::EvalPatches(GPUStorageBuf *srcBuffer,
+bool GPUComputeEvaluator::EvalPatches(gpu::VertBuf *srcBuffer,
                                       BufferDescriptor const &srcDesc,
-                                      GPUStorageBuf *dstBuffer,
+                                      gpu::VertBuf *dstBuffer,
                                       BufferDescriptor const &dstDesc,
-                                      GPUStorageBuf *duBuffer,
+                                      gpu::VertBuf *duBuffer,
                                       BufferDescriptor const &duDesc,
-                                      GPUStorageBuf *dvBuffer,
+                                      gpu::VertBuf *dvBuffer,
                                       BufferDescriptor const &dvDesc,
-                                      GPUStorageBuf *duuBuffer,
+                                      gpu::VertBuf *duuBuffer,
                                       BufferDescriptor const &duuDesc,
-                                      GPUStorageBuf *duvBuffer,
+                                      gpu::VertBuf *duvBuffer,
                                       BufferDescriptor const &duvDesc,
-                                      GPUStorageBuf *dvvBuffer,
+                                      gpu::VertBuf *dvvBuffer,
                                       BufferDescriptor const &dvvDesc,
                                       int numPatchCoords,
-                                      GPUStorageBuf *patchCoordsBuffer,
+                                      gpu::VertBuf *patchCoordsBuffer,
                                       const PatchArrayVector &patchArrays,
-                                      GPUStorageBuf *patchIndexBuffer,
-                                      GPUStorageBuf *patchParamsBuffer) const
+                                      gpu::VertBuf *patchIndexBuffer,
+                                      gpu::VertBuf *patchParamsBuffer) const
 {
 
   if (_patchKernel.shader == nullptr) {

@@ -50,59 +50,12 @@ void GpuEvalOutput::fillPatchArraysBuffer(blender::gpu::VertBuf *patch_arrays_bu
   buildPatchArraysBufferFromVector(patch_table->GetPatchArrays(), patch_arrays_buffer);
 }
 
-void GpuEvalOutput::wrapPatchIndexBuffer(blender::gpu::VertBuf *patch_index_buffer)
-{
-  GLPatchTable *patch_table = getPatchTable();
-  GPU_vertbuf_wrap_handle(patch_index_buffer, patch_table->GetPatchIndexBuffer());
-}
-
-void GpuEvalOutput::wrapPatchParamBuffer(blender::gpu::VertBuf *patch_param_buffer)
-{
-  GLPatchTable *patch_table = getPatchTable();
-  GPU_vertbuf_wrap_handle(patch_param_buffer, patch_table->GetPatchParamBuffer());
-}
-
-void GpuEvalOutput::wrapSrcBuffer(blender::gpu::VertBuf *src_buffer)
-{
-  GLVertexBuffer *vertex_buffer = getSrcBuffer();
-  GPU_vertbuf_wrap_handle(src_buffer, vertex_buffer->BindVBO());
-}
-
-void GpuEvalOutput::wrapSrcVertexDataBuffer(blender::gpu::VertBuf *src_buffer)
-{
-  GLVertexBuffer *vertex_buffer = getSrcVertexDataBuffer();
-  GPU_vertbuf_wrap_handle(src_buffer, vertex_buffer->BindVBO());
-}
-
 void GpuEvalOutput::fillFVarPatchArraysBuffer(const int face_varying_channel,
                                               blender::gpu::VertBuf *patch_arrays_buffer)
 {
-  GLPatchTable *patch_table = getFVarPatchTable(face_varying_channel);
+  GPUPatchTable *patch_table = getFVarPatchTable(face_varying_channel);
   buildPatchArraysBufferFromVector(patch_table->GetFVarPatchArrays(face_varying_channel),
                                    patch_arrays_buffer);
-}
-
-void GpuEvalOutput::wrapFVarPatchIndexBuffer(const int face_varying_channel,
-                                             blender::gpu::VertBuf *patch_index_buffer)
-{
-  GLPatchTable *patch_table = getFVarPatchTable(face_varying_channel);
-  GPU_vertbuf_wrap_handle(patch_index_buffer,
-                          patch_table->GetFVarPatchIndexBuffer(face_varying_channel));
-}
-
-void GpuEvalOutput::wrapFVarPatchParamBuffer(const int face_varying_channel,
-                                             blender::gpu::VertBuf *patch_param_buffer)
-{
-  GLPatchTable *patch_table = getFVarPatchTable(face_varying_channel);
-  GPU_vertbuf_wrap_handle(patch_param_buffer,
-                          patch_table->GetFVarPatchParamBuffer(face_varying_channel));
-}
-
-void GpuEvalOutput::wrapFVarSrcBuffer(const int face_varying_channel,
-                                      blender::gpu::VertBuf *src_buffer)
-{
-  GLVertexBuffer *vertex_buffer = getFVarSrcBuffer(face_varying_channel);
-  GPU_vertbuf_wrap_handle(src_buffer, vertex_buffer->BindVBO());
 }
 
 }  // namespace blender::opensubdiv

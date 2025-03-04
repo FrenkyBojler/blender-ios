@@ -78,35 +78,50 @@ class EvalOutputAPI::EvalOutput {
 
   virtual void fillPatchArraysBuffer(blender::gpu::VertBuf * /*patch_arrays_buffer*/) {}
 
-  virtual void wrapPatchIndexBuffer(blender::gpu::VertBuf * /*patch_index_buffer*/) {}
+  virtual gpu::VertBuf *wrapPatchIndexBuffer()
+  {
+    return nullptr;
+  }
 
-  virtual void wrapPatchParamBuffer(blender::gpu::VertBuf * /*patch_param_buffer*/) {}
+  virtual gpu::VertBuf *wrapPatchParamBuffer()
+  {
+    return nullptr;
+  }
 
-  virtual void wrapSrcBuffer(blender::gpu::VertBuf * /*src_buffer*/) {}
+  virtual gpu::VertBuf *wrapSrcBuffer()
+  {
+    return nullptr;
+  }
 
-  virtual void wrapSrcVertexDataBuffer(blender::gpu::VertBuf * /*src_buffer*/) {}
+  virtual gpu::VertBuf *wrapSrcVertexDataBuffer()
+  {
+    return nullptr;
+  }
 
   virtual void fillFVarPatchArraysBuffer(const int /*face_varying_channel*/,
                                          blender::gpu::VertBuf * /*patch_arrays_buffer*/)
   {
+    return;
   }
 
-  virtual void wrapFVarPatchIndexBuffer(const int /*face_varying_channel*/,
-                                        blender::gpu::VertBuf * /*patch_index_buffer*/)
+  virtual gpu::VertBuf *wrapFVarPatchIndexBuffer(const int /*face_varying_channel*/)
   {
+    return nullptr;
   }
 
-  virtual void wrapFVarPatchParamBuffer(const int /*face_varying_channel*/,
-                                        blender::gpu::VertBuf * /*patch_param_buffer*/)
+  virtual gpu::VertBuf *wrapFVarPatchParamBuffer(const int /*face_varying_channel*/)
   {
+    return nullptr;
   }
-
-  virtual void wrapFVarSrcBuffer(const int /*face_varying_channel*/,
-                                 blender::gpu::VertBuf * /*src_buffer*/)
+  virtual gpu::VertBuf *wrapFVarSrcBuffer(const int /*face_varying_channel*/)
   {
+    return nullptr;
   }
 
-  virtual int getFVarSrcBufferOffset(const int face_varying_channel) const = 0;
+  virtual int getFVarSrcBufferOffset(const int /*face_varying_channel*/) const
+  {
+    return 0;
+  }
 
   virtual bool hasVertexData() const
   {

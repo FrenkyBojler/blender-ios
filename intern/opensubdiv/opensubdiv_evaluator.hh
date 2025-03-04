@@ -16,6 +16,8 @@
 
 #include "opensubdiv_capi_type.hh"
 
+#include "GPU_storage_buffer.hh"
+
 struct OpenSubdiv_EvaluatorCache;
 struct OpenSubdiv_EvaluatorSettings;
 struct OpenSubdiv_PatchCoord;
@@ -140,16 +142,16 @@ class EvalOutputAPI {
   void fillPatchArraysBuffer(blender::gpu::VertBuf *patch_arrays_buffer);
 
   // Wrap the patch index buffer used by OpenSubDiv for the source data with the given buffer.
-  void wrapPatchIndexBuffer(blender::gpu::VertBuf *patch_index_buffer);
+  gpu::VertBuf *wrapPatchIndexBuffer();
 
   // Wrap the patch param buffer used by OpenSubDiv for the source data with the given buffer.
-  void wrapPatchParamBuffer(blender::gpu::VertBuf *patch_param_buffer);
+  gpu::VertBuf *wrapPatchParamBuffer();
 
   // Wrap the buffer used by OpenSubDiv for the source data with the given buffer.
-  void wrapSrcBuffer(blender::gpu::VertBuf *src_buffer);
+  gpu::VertBuf *wrapSrcBuffer();
 
   // Wrap the buffer used by OpenSubDiv for the extra source data with the given buffer.
-  void wrapSrcVertexDataBuffer(blender::gpu::VertBuf *src_buffer);
+  gpu::VertBuf *wrapSrcVertexDataBuffer();
 
   // Copy the patch arrays buffer used by OpenSubDiv for the face varying channel with the given
   // buffer.
@@ -158,16 +160,14 @@ class EvalOutputAPI {
 
   // Wrap the patch index buffer used by OpenSubDiv for the face varying channel with the given
   // buffer.
-  void wrapFVarPatchIndexBuffer(const int face_varying_channel,
-                                blender::gpu::VertBuf *patch_index_buffer);
+  gpu::VertBuf *wrapFVarPatchIndexBuffer(const int face_varying_channel);
 
   // Wrap the patch param buffer used by OpenSubDiv for the face varying channel with the given
   // buffer.
-  void wrapFVarPatchParamBuffer(const int face_varying_channel,
-                                blender::gpu::VertBuf *patch_param_buffer);
+  gpu::VertBuf *wrapFVarPatchParamBuffer(const int face_varying_channel);
 
   // Wrap thebuffer used by OpenSubDiv for the face varying channel with the given buffer.
-  void wrapFVarSrcBuffer(const int face_varying_channel, blender::gpu::VertBuf *src_buffer);
+  gpu::VertBuf *wrapFVarSrcBuffer(const int face_varying_channel);
   /** Get the source buffer offset for the given channel. */
   int getFVarSrcBufferOffset(const int face_varying_channel) const;
 

@@ -14,6 +14,8 @@
 #include <opensubdiv/osd/glPatchTable.h>
 #include <opensubdiv/osd/glVertexBuffer.h>
 
+#include "gpu_vertex_buffer.hh"
+
 namespace blender::opensubdiv {
 
 class GpuEvalOutput : public VolatileEvalOutput<GPUVertexBuffer,
@@ -31,25 +33,46 @@ class GpuEvalOutput : public VolatileEvalOutput<GPUVertexBuffer,
 
   void fillPatchArraysBuffer(blender::gpu::VertBuf *patch_arrays_buffer) override;
 
-  void wrapPatchIndexBuffer(blender::gpu::VertBuf *patch_index_buffer) override;
+  gpu::VertBuf *wrapPatchIndexBuffer() override
+  {
+    return getPatchTable()->GetPatchIndexBuffer();
+  }
 
-  void wrapPatchParamBuffer(blender::gpu::VertBuf *patch_param_buffer) override;
+  gpu::VertBuf *wrapPatchParamBuffer() override
+  {
+    return getPatchTable()->GetPatchParamBuffer();
+  }
 
-  void wrapSrcBuffer(blender::gpu::VertBuf *src_buffer) override;
+  gpu::VertBuf *wrapSrcBuffer() override
+  {
+    return &getSrcBuffer()->get_vertex_buffer();
+  }
 
-  void wrapSrcVertexDataBuffer(blender::gpu::VertBuf *src_buffer) override;
+  gpu::VertBuf *wrapSrcVertexDataBuffer() override
+  {
+    return &getSrcVertexDataBuffer()->get_vertex_buffer();
+  }
 
   void fillFVarPatchArraysBuffer(const int face_varying_channel,
                                  blender::gpu::VertBuf *patch_arrays_buffer) override;
 
-  void wrapFVarPatchIndexBuffer(const int face_varying_channel,
-                                blender::gpu::VertBuf *patch_index_buffer) override;
+  gpu::VertBuf *wrapFVarPatchIndexBuffer(const int face_varying_channel) override
+  {
+    GPUPatchTable *patch_table = getFVarPatchTable(face_varying_channel);
+    return patch_table->GetFVarPatchIndexBuffer(face_varying_channel);
+  }
 
-  void wrapFVarPatchParamBuffer(const int face_varying_channel,
-                                blender::gpu::VertBuf *patch_param_buffer) override;
+  gpu::VertBuf *wrapFVarPatchParamBuffer(const int face_varying_channel) override
+  {
+    GPUPatchTable *patch_table = getFVarPatchTable(face_varying_channel);
+    return patch_table->GetFVarPatchParamBuffer(face_varying_channel);
+  }
 
-  void wrapFVarSrcBuffer(const int face_varying_channel,
-                         blender::gpu::VertBuf *src_buffer) override;
+  gpu::VertBuf *wrapFVarSrcBuffer(const int face_varying_channel) override
+  {
+    GPUVertexBuffer *vertex_buffer = getFVarSrcBuffer(face_varying_channel);
+    return &vertex_buffer->get_vertex_buffer();
+  }
 };
 
 }  // namespace blender::opensubdiv

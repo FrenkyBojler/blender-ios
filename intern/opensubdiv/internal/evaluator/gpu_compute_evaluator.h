@@ -46,39 +46,39 @@ class GPUStencilTableSSBO {
   ~GPUStencilTableSSBO();
 
   // interfaces needed for GLSLComputeKernel
-  GPUStorageBuf *GetSizesBuffer() const
+  gpu::VertBuf *GetSizesBuffer() const
   {
     return _sizes;
   }
-  GPUStorageBuf *GetOffsetsBuffer() const
+  gpu::VertBuf *GetOffsetsBuffer() const
   {
     return _offsets;
   }
-  GPUStorageBuf *GetIndicesBuffer() const
+  gpu::VertBuf *GetIndicesBuffer() const
   {
     return _indices;
   }
-  GPUStorageBuf *GetWeightsBuffer() const
+  gpu::VertBuf *GetWeightsBuffer() const
   {
     return _weights;
   }
-  GPUStorageBuf *GetDuWeightsBuffer() const
+  gpu::VertBuf *GetDuWeightsBuffer() const
   {
     return _duWeights;
   }
-  GPUStorageBuf *GetDvWeightsBuffer() const
+  gpu::VertBuf *GetDvWeightsBuffer() const
   {
     return _dvWeights;
   }
-  GPUStorageBuf *GetDuuWeightsBuffer() const
+  gpu::VertBuf *GetDuuWeightsBuffer() const
   {
     return _duuWeights;
   }
-  GPUStorageBuf *GetDuvWeightsBuffer() const
+  gpu::VertBuf *GetDuvWeightsBuffer() const
   {
     return _duvWeights;
   }
-  GPUStorageBuf *GetDvvWeightsBuffer() const
+  gpu::VertBuf *GetDvvWeightsBuffer() const
   {
     return _dvvWeights;
   }
@@ -88,15 +88,15 @@ class GPUStencilTableSSBO {
   }
 
  private:
-  GPUStorageBuf *_sizes = nullptr;
-  GPUStorageBuf *_offsets = nullptr;
-  GPUStorageBuf *_indices = nullptr;
-  GPUStorageBuf *_weights = nullptr;
-  GPUStorageBuf *_duWeights = nullptr;
-  GPUStorageBuf *_dvWeights = nullptr;
-  GPUStorageBuf *_duuWeights = nullptr;
-  GPUStorageBuf *_duvWeights = nullptr;
-  GPUStorageBuf *_dvvWeights = nullptr;
+  gpu::VertBuf *_sizes = nullptr;
+  gpu::VertBuf *_offsets = nullptr;
+  gpu::VertBuf *_indices = nullptr;
+  gpu::VertBuf *_weights = nullptr;
+  gpu::VertBuf *_duWeights = nullptr;
+  gpu::VertBuf *_dvWeights = nullptr;
+  gpu::VertBuf *_duuWeights = nullptr;
+  gpu::VertBuf *_duvWeights = nullptr;
+  gpu::VertBuf *_dvvWeights = nullptr;
   int _numStencils;
 };
 
@@ -636,20 +636,20 @@ class GPUComputeEvaluator {
   ///
   /// @param end              end index of stencil table
   ///
-  bool EvalStencils(GPUStorageBuf *srcBuffer,
+  bool EvalStencils(gpu::VertBuf *srcBuffer,
                     OpenSubdiv::Osd::BufferDescriptor const &srcDesc,
-                    GPUStorageBuf *dstBuffer,
+                    gpu::VertBuf *dstBuffer,
                     OpenSubdiv::Osd::BufferDescriptor const &dstDesc,
-                    GPUStorageBuf *duBuffer,
+                    gpu::VertBuf *duBuffer,
                     OpenSubdiv::Osd::BufferDescriptor const &duDesc,
-                    GPUStorageBuf *dvBuffer,
+                    gpu::VertBuf *dvBuffer,
                     OpenSubdiv::Osd::BufferDescriptor const &dvDesc,
-                    GPUStorageBuf *sizesBuffer,
-                    GPUStorageBuf *offsetsBuffer,
-                    GPUStorageBuf *indicesBuffer,
-                    GPUStorageBuf *weightsBuffer,
-                    GPUStorageBuf *duWeightsBuffer,
-                    GPUStorageBuf *dvWeightsBuffer,
+                    gpu::VertBuf *sizesBuffer,
+                    gpu::VertBuf *offsetsBuffer,
+                    gpu::VertBuf *indicesBuffer,
+                    gpu::VertBuf *weightsBuffer,
+                    gpu::VertBuf *duWeightsBuffer,
+                    gpu::VertBuf *dvWeightsBuffer,
                     int start,
                     int end) const;
 
@@ -706,29 +706,29 @@ class GPUComputeEvaluator {
   ///
   /// @param end              end index of stencil table
   ///
-  bool EvalStencils(GPUStorageBuf *srcBuffer,
+  bool EvalStencils(gpu::VertBuf *srcBuffer,
                     OpenSubdiv::Osd::BufferDescriptor const &srcDesc,
-                    GPUStorageBuf *dstBuffer,
+                    gpu::VertBuf *dstBuffer,
                     OpenSubdiv::Osd::BufferDescriptor const &dstDesc,
-                    GPUStorageBuf *duBuffer,
+                    gpu::VertBuf *duBuffer,
                     OpenSubdiv::Osd::BufferDescriptor const &duDesc,
-                    GPUStorageBuf *dvBuffer,
+                    gpu::VertBuf *dvBuffer,
                     OpenSubdiv::Osd::BufferDescriptor const &dvDesc,
-                    GPUStorageBuf *duuBuffer,
+                    gpu::VertBuf *duuBuffer,
                     OpenSubdiv::Osd::BufferDescriptor const &duuDesc,
-                    GPUStorageBuf *duvBuffer,
+                    gpu::VertBuf *duvBuffer,
                     OpenSubdiv::Osd::BufferDescriptor const &duvDesc,
-                    GPUStorageBuf *dvvBuffer,
+                    gpu::VertBuf *dvvBuffer,
                     OpenSubdiv::Osd::BufferDescriptor const &dvvDesc,
-                    GPUStorageBuf *sizesBuffer,
-                    GPUStorageBuf *offsetsBuffer,
-                    GPUStorageBuf *indicesBuffer,
-                    GPUStorageBuf *weightsBuffer,
-                    GPUStorageBuf *duWeightsBuffer,
-                    GPUStorageBuf *dvWeightsBuffer,
-                    GPUStorageBuf *duuWeightsBuffer,
-                    GPUStorageBuf *duvWeightsBuffer,
-                    GPUStorageBuf *dvvWeightsBuffer,
+                    gpu::VertBuf *sizesBuffer,
+                    gpu::VertBuf *offsetsBuffer,
+                    gpu::VertBuf *indicesBuffer,
+                    gpu::VertBuf *weightsBuffer,
+                    gpu::VertBuf *duWeightsBuffer,
+                    gpu::VertBuf *dvWeightsBuffer,
+                    gpu::VertBuf *duuWeightsBuffer,
+                    gpu::VertBuf *duvWeightsBuffer,
+                    gpu::VertBuf *dvvWeightsBuffer,
                     int start,
                     int end) const;
 
@@ -2411,7 +2411,7 @@ class GPUComputeEvaluator {
   } _patchKernel;
 
   int _workGroupSize;
-  GPUStorageBuf *_patchArraysSSBO = nullptr;
+  gpu::VertBuf *_patchArraysSSBO = nullptr;
 
   int GetDispatchSize(int count) const;
 
