@@ -1873,7 +1873,7 @@ static bool draw_subdiv_create_requested_buffers(Object &ob,
     draw_subdiv_cache_ensure_mat_offsets(draw_cache, mesh_eval, batch_cache.mat_len);
   }
 
-  std::unique_ptr<MeshRenderData> mr = mesh_render_data_create(
+  MeshRenderData mr = mesh_render_data_create(
       ob, mesh, is_editmode, is_paint_mode, object_to_world, do_final, do_uvedit, use_hide, ts);
   draw_cache.use_hide = use_hide;
 
