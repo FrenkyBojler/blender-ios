@@ -866,7 +866,6 @@ void RNA_free(BlenderRNA *brna)
     for (srna = static_cast<StructRNA *>(brna->structs.first); srna;
          srna = static_cast<StructRNA *>(srna->cont.next))
     {
-      MEM_SAFE_DELETE(srna->cont.prop_lookup_set);
       for (func = static_cast<FunctionRNA *>(srna->functions.first); func;
            func = static_cast<FunctionRNA *>(func->cont.next))
       {
