@@ -4104,6 +4104,104 @@ static void GREASE_PENCIL_OT_reset_uvs(wmOperatorType *ot)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name Set Stroke Mode Operator
+ * \{ */
+
+enum class StrokeModeAction : int8_t { Toggle = 0, Set = 1, Unset = 2 };
+
+static int grease_pencil_set_stroke_mode_exec(bContext *C, wmOperator *op)
+{
+  const Scene *scene = CTX_data_scene(C);
+  Object *object = CTX_data_active_object(C);
+  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+
+  const StrokeModeAction action = StrokeModeAction(RNA_enum_get(op->ptr, "action"));
+
+  const bool do_stroke = RNA_boolean_get(op->ptr, "stroke");
+  const bool do_fill = RNA_boolean_get(op->ptr, "fill");
+
+  std::atomic<bool> changed = false;
+  const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
+  threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
+    IndexMaskMemory memory;
+    const IndexMask strokes = ed::greasepencil::retrieve_editable_and_selected_strokes(
+        *object, info.drawing, info.layer_index, memory);
+    if (strokes.is_empty()) {
+      return;
+    }
+
+    if (do_stroke) {
+      MutableSpan<bool> is_stroke = info.drawing.is_stroke_for_write();
+      switch (action) {
+        case StrokeModeAction::Set:
+          index_mask::masked_fill(is_stroke, true, strokes);
+          break;
+        case StrokeModeAction::Unset:
+          index_mask::masked_fill(is_stroke, false, strokes);
+          break;
+        case StrokeModeAction::Toggle:
+          array_utils::invert_booleans(is_stroke, strokes);
+          break;
+      }
+      changed.store(true, std::memory_order_relaxed);
+      info.drawing.tag_topology_changed();
+    }
+    if (do_fill) {
+      MutableSpan<bool> is_fill = info.drawing.is_fill_for_write();
+      switch (action) {
+        case StrokeModeAction::Set:
+          index_mask::masked_fill(is_fill, true, strokes);
+          break;
+        case StrokeModeAction::Unset:
+          index_mask::masked_fill(is_fill, false, strokes);
+          break;
+        case StrokeModeAction::Toggle:
+          array_utils::invert_booleans(is_fill, strokes);
+          break;
+      }
+      changed.store(true, std::memory_order_relaxed);
+      info.drawing.tag_topology_changed();
+    }
+  });
+
+  if (changed) {
+    DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+static void GREASE_PENCIL_OT_set_stroke_mode(wmOperatorType *ot)
+{
+  static const EnumPropertyItem prop_action_types[] = {
+      {int(StrokeModeAction::Toggle), "TOGGLE", 0, "Toggle", "Toggle the stroke mode"},
+      {int(StrokeModeAction::Set), "SET", 0, "Set", "Set the stroke mode"},
+      {int(StrokeModeAction::Unset), "UNSET", 0, "Unset", "Unset the stroke mode"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  /* Identifiers. */
+  ot->name = "Set Stroke Mode";
+  ot->idname = "GREASE_PENCIL_OT_set_stroke_mode";
+  ot->description = "Set the stroke mode (stroke/fill) of the selected strokes";
+
+  /* Callbacks. */
+  ot->exec = grease_pencil_set_stroke_mode_exec;
+  ot->poll = editable_grease_pencil_poll;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  ot->prop = RNA_def_enum(
+      ot->srna, "action", prop_action_types, int(StrokeModeAction::Toggle), "Action", "");
+
+  RNA_def_boolean(ot->srna, "stroke", false, "Stroke", "");
+  RNA_def_boolean(ot->srna, "fill", false, "Fill", "");
+}
+
+/** \} */
+
 }  // namespace blender::ed::greasepencil
 
 void ED_operatortypes_grease_pencil_edit()
@@ -4143,6 +4241,7 @@ void ED_operatortypes_grease_pencil_edit()
   WM_operatortype_append(GREASE_PENCIL_OT_set_handle_type);
   WM_operatortype_append(GREASE_PENCIL_OT_reset_uvs);
   WM_operatortype_append(GREASE_PENCIL_OT_texture_gradient);
+  WM_operatortype_append(GREASE_PENCIL_OT_set_stroke_mode);
 }
 
 /* -------------------------------------------------------------------- */

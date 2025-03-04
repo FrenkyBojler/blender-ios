@@ -5820,6 +5820,18 @@ class VIEW3D_MT_edit_greasepencil_stroke(Menu):
 
         layout.separator()
 
+        # Set stroke mode
+        props = layout.operator("grease_pencil.set_stroke_mode", text="Toggle Stroke")
+        props.action = 'TOGGLE'
+        props.stroke = True
+        props.fill = False
+        props = layout.operator("grease_pencil.set_stroke_mode", text="Toggle Fill")
+        props.action = 'TOGGLE'
+        props.stroke = False
+        props.fill = True
+
+        layout.separator()
+
         layout.operator("grease_pencil.reset_uvs")
 
 
@@ -8167,6 +8179,18 @@ class VIEW3D_MT_greasepencil_edit_context_menu(Menu):
             col.operator("grease_pencil.stroke_subdivide", text="Subdivide")
             col.operator("grease_pencil.stroke_subdivide_smooth", text="Subdivide and Smooth")
             col.operator("grease_pencil.stroke_simplify", text="Simplify")
+
+            col.separator()
+
+            # Set stroke mode
+            props = col.operator("grease_pencil.set_stroke_mode", text="Toggle Stroke")
+            props.action = 'TOGGLE'
+            props.stroke = True
+            props.fill = False
+            props = col.operator("grease_pencil.set_stroke_mode", text="Toggle Fill")
+            props.action = 'TOGGLE'
+            props.stroke = False
+            props.fill = True
 
             col.separator()
 
