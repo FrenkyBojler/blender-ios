@@ -902,7 +902,9 @@ static void rna_Userdef_memcache_update(Main * /*bmain*/, Scene * /*scene*/, Poi
   USERDEF_TAG_DIRTY;
 }
 
-static void rna_Userdef_disk_cache_dir_update(Main *bmain, Scene * /*scene*/, PointerRNA * /*ptr*/)
+static void rna_Userdef_disk_cache_dir_update(Main * /*bmain*/,
+                                              Scene * /*scene*/,
+                                              PointerRNA * /*ptr*/)
 {
   if (U.sequencer_disk_cache_dir[0] != '\0') {
     BLI_path_abs(U.sequencer_disk_cache_dir, BKE_main_blendfile_path_from_global());

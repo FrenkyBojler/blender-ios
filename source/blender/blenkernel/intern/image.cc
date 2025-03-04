@@ -1058,11 +1058,12 @@ static void image_abs_path(Main *bmain,
                            char *r_filepath_abs)
 {
   BLI_strncpy(r_filepath_abs, filepath, FILE_MAX);
-
-  const char *relbase = owner_library ? owner_library->runtime->filepath_abs :
-                                        BKE_main_blendfile_path(bmain);
-
-  BLI_path_abs(r_filepath_abs, relbase);
+  if (owner_library) {
+    BLI_path_abs(r_filepath_abs, owner_library->runtime->filepath_abs);
+  }
+  else {
+    BLI_path_abs(r_filepath_abs, BKE_main_blendfile_path(bmain));
+  }
 }
 
 Image *BKE_image_load(Main *bmain, const char *filepath)

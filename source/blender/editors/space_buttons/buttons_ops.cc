@@ -204,8 +204,7 @@ static int file_browse_exec(bContext *C, wmOperator *op)
     id = fbo->ptr.owner_id;
 
     STRNCPY(path_buf, path);
-    const char *relbase = id ? ID_BLEND_PATH(bmain, id) : BKE_main_blendfile_path(bmain);
-    BLI_path_abs(path_buf, relbase);
+    BLI_path_abs(path_buf, id ? ID_BLEND_PATH(bmain, id) : BKE_main_blendfile_path(bmain));
 
     if (BLI_is_dir(path_buf)) {
       /* Do this first so '//' isn't converted to '//\' on windows. */

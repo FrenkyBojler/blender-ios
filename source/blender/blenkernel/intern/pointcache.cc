@@ -1321,6 +1321,7 @@ static int ptcache_path(PTCacheID *pid, char dirname[MAX_PTCACHE_PATH])
 
   if (pid->cache->flag & PTCACHE_EXTERNAL) {
     BLI_strncpy(dirname, pid->cache->path, MAX_PTCACHE_PATH);
+
     if (BLI_path_is_rel(dirname)) {
       BLI_path_abs(dirname, blendfile_path_lib);
     }
