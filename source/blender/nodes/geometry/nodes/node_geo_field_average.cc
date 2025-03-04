@@ -153,7 +153,7 @@ template<typename T> T calculate_median(Vector<T> &values)
     if (n % 2 == 0) {
       return (values[n / 2 - 1] + values[n / 2]) / 2.0f;
     }
-    
+
     return values[n / 2];
   }
 }
@@ -171,8 +171,8 @@ class FieldAverageInput final : public bke::GeometryFieldInput {
                     Field<int> group_index,
                     Operation operation)
       : bke::GeometryFieldInput(input.cpp_type(), "Calculation"),
-        input_(input),
-        group_index_(group_index),
+        input_(std::move(input)),
+        group_index_(std::move(group_index)),
         source_domain_(source_domain),
         operation_(operation)
   {

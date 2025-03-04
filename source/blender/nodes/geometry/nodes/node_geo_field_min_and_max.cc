@@ -150,8 +150,8 @@ class FieldMinMaxInput final : public bke::GeometryFieldInput {
                    Field<int> group_index,
                    Operation operation)
       : bke::GeometryFieldInput(input.cpp_type(), "Calculation"),
-        input_(input),
-        group_index_(group_index),
+        input_(std::move(input)),
+        group_index_(std::move(group_index)),
         source_domain_(source_domain),
         operation_(operation)
   {
