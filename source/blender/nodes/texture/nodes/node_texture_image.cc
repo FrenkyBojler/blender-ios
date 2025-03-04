@@ -48,7 +48,7 @@ static void colorfn(float *out, TexParams *p, bNode *node, bNodeStack ** /*in*/,
       if (!ibuf->float_buffer.data) {
         BLI_thread_lock(LOCK_IMAGE);
         if (!ibuf->float_buffer.data) {
-          IMB_float_from_rect(ibuf);
+          IMB_float_from_byte(ibuf);
         }
         BLI_thread_unlock(LOCK_IMAGE);
       }
@@ -103,10 +103,10 @@ void register_node_type_tex_image()
   blender::bke::node_type_socket_templates(&ntype, nullptr, outputs);
   ntype.initfunc = init;
   blender::bke::node_type_storage(
-      &ntype, "ImageUser", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "ImageUser", node_free_standard_storage, node_copy_standard_storage);
   ntype.exec_fn = exec;
   ntype.labelfunc = node_image_label;
   ntype.flag |= NODE_PREVIEW;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

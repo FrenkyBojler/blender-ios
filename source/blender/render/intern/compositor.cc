@@ -259,10 +259,8 @@ class Context : public compositor::Context {
       return compositor::Result(*this);
     }
 
-    const eGPUTextureFormat format = (render_pass->channels == 1) ? GPU_R32F :
-                                     (render_pass->channels == 3) ? GPU_RGB32F :
-                                                                    GPU_RGBA32F;
-    compositor::Result pass = compositor::Result(*this, format);
+    compositor::Result pass = compositor::Result(
+        *this, this->result_type_from_pass(render_pass), compositor::ResultPrecision::Full);
 
     if (this->use_gpu()) {
       GPUTexture *pass_texture = RE_pass_ensure_gpu_texture_cache(render, render_pass);
@@ -281,6 +279,30 @@ class Context : public compositor::Context {
 
     RE_ReleaseResult(render);
     return pass;
+  }
+
+  compositor::ResultType result_type_from_pass(const RenderPass *pass)
+  {
+    switch (pass->channels) {
+      case 1:
+        return compositor::ResultType::Float;
+      case 2:
+        return compositor::ResultType::Float2;
+      case 3:
+        return compositor::ResultType::Float3;
+      case 4:
+        if (StringRef(pass->chan_id) == "XYZW") {
+          return compositor::ResultType::Float4;
+        }
+        else {
+          return compositor::ResultType::Color;
+        }
+      default:
+        break;
+    }
+
+    BLI_assert_unreachable();
+    return compositor::ResultType::Float;
   }
 
   StringRef get_view_name() const override
@@ -390,23 +412,6 @@ class Context : public compositor::Context {
         },
         false);
 
-    RenderLayer *render_layer = RE_GetRenderLayer(render_result, view_layer->name);
-    if (!render_layer) {
-      RE_ReleaseResult(render);
-      return;
-    }
-
-    RenderPass *render_pass = RE_pass_find_by_name(
-        render_layer, pass_name, this->get_view_name().data());
-    if (!render_pass) {
-      RE_ReleaseResult(render);
-      return;
-    }
-
-    if (StringRef(render_pass->chan_id) == "XYZW") {
-      meta_data.is_4d_vector = true;
-    }
-
     RE_ReleaseResult(render);
   }
 
@@ -486,11 +491,11 @@ class Context : public compositor::Context {
 
     const int2 size = viewer_output_result_.domain().size;
     if (image_buffer->x != size.x || image_buffer->y != size.y) {
-      imb_freerectImBuf(image_buffer);
-      imb_freerectfloatImBuf(image_buffer);
+      IMB_free_byte_pixels(image_buffer);
+      IMB_free_float_pixels(image_buffer);
       image_buffer->x = size.x;
       image_buffer->y = size.y;
-      imb_addrectfloatImBuf(image_buffer, 4);
+      IMB_alloc_float_pixels(image_buffer, 4);
       image_buffer->userflags |= IB_DISPLAY_BUFFER_INVALID;
     }
 

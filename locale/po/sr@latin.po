@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Beta (b'aad0bd21487d')\n"
+"Project-Id-Version: Blender 4.4.0 Beta (b'1a72a0f22cde')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-10 15:22+0000\n"
+"POT-Creation-Date: 2025-03-03 09:33+0000\n"
 "PO-Revision-Date: 2012-09-07 22:32+0100\n"
 "Last-Translator: Nikola Radovanovic <cobisimo@gmail.com>\n"
 "Language-Team: Nikola Radovanovic\n"
@@ -4980,14 +4980,6 @@ msgid "Loop"
 msgstr "Petlje"
 
 
-msgid "Clone Alpha"
-msgstr "X alfa"
-
-
-msgid "Clone Image"
-msgstr "Kloniraj sloj"
-
-
 msgid "Local"
 msgstr "Lokalno"
 
@@ -7858,11 +7850,6 @@ msgstr "Dodaj šum na prstenje"
 
 msgid "Vector Font"
 msgstr "Vektorski font"
-
-
-msgctxt "Sequence"
-msgid "Clip"
-msgstr "Isečak"
 
 
 msgid "Window Manager"
@@ -14601,6 +14588,10 @@ msgid "Select Mode"
 msgstr "Mod izabora"
 
 
+msgid "Fill Opacity"
+msgstr "Providnost ispune"
+
+
 msgctxt "Operator"
 msgid "Snap Selection to Cursor"
 msgstr "Izabor za kursor"
@@ -19012,10 +19003,6 @@ msgid "PNG Image (.png)"
 msgstr "PNG slika (.png)"
 
 
-msgid "Fill Opacity"
-msgstr "Providnost ispune"
-
-
 msgid "Edge Length Mode"
 msgstr "Režim dužine ivica"
 
@@ -19794,6 +19781,14 @@ msgstr "Simetrično Z"
 
 msgid "Canvas"
 msgstr "Platno"
+
+
+msgid "Clone Alpha"
+msgstr "X alfa"
+
+
+msgid "Clone Image"
+msgstr "Kloniraj sloj"
 
 
 msgid "Dither"
@@ -22266,6 +22261,11 @@ msgstr "Scena"
 msgctxt "Sequence"
 msgid "Movie"
 msgstr "Film"
+
+
+msgctxt "Sequence"
+msgid "Clip"
+msgstr "Isečak"
 
 
 msgctxt "Sequence"

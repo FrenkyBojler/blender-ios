@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Beta (b'aad0bd21487d')\n"
+"Project-Id-Version: Blender 4.4.0 Beta (b'1a72a0f22cde')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-10 15:22+0000\n"
+"POT-Creation-Date: 2025-03-03 09:33+0000\n"
 "PO-Revision-Date: 2012-09-07 22:32+0100\n"
 "Last-Translator: Nikola Radovanovic <cobisimo@gmail.com>\n"
 "Language-Team: Nikola Radovanovic\n"
@@ -4980,14 +4980,6 @@ msgid "Loop"
 msgstr "Петље"
 
 
-msgid "Clone Alpha"
-msgstr "X алфа"
-
-
-msgid "Clone Image"
-msgstr "Клонирај слој"
-
-
 msgid "Local"
 msgstr "Локално"
 
@@ -7858,11 +7850,6 @@ msgstr "Додај шум на прстење"
 
 msgid "Vector Font"
 msgstr "Векторски фонт"
-
-
-msgctxt "Sequence"
-msgid "Clip"
-msgstr "Исечак"
 
 
 msgid "Window Manager"
@@ -14601,6 +14588,10 @@ msgid "Select Mode"
 msgstr "Мод изабора"
 
 
+msgid "Fill Opacity"
+msgstr "Провидност испуне"
+
+
 msgctxt "Operator"
 msgid "Snap Selection to Cursor"
 msgstr "Изабор за курсор"
@@ -19012,10 +19003,6 @@ msgid "PNG Image (.png)"
 msgstr "PNG слика (.png)"
 
 
-msgid "Fill Opacity"
-msgstr "Провидност испуне"
-
-
 msgid "Edge Length Mode"
 msgstr "Режим дужине ивица"
 
@@ -19794,6 +19781,14 @@ msgstr "Симетрично Z"
 
 msgid "Canvas"
 msgstr "Платно"
+
+
+msgid "Clone Alpha"
+msgstr "X алфа"
+
+
+msgid "Clone Image"
+msgstr "Клонирај слој"
 
 
 msgid "Dither"
@@ -22266,6 +22261,11 @@ msgstr "Сцена"
 msgctxt "Sequence"
 msgid "Movie"
 msgstr "Филм"
+
+
+msgctxt "Sequence"
+msgid "Clip"
+msgstr "Исечак"
 
 
 msgctxt "Sequence"

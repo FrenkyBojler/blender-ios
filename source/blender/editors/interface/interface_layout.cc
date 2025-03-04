@@ -519,13 +519,12 @@ static void ui_layer_but_cb(bContext *C, void *arg_but, void *arg_index)
   const int len = RNA_property_array_length(ptr, prop);
 
   if (!shift) {
-    RNA_property_boolean_set_index(ptr, prop, index, true);
+    BLI_assert(index < len);
+    blender::Array<bool, RNA_STACK_ARRAY> value_array(len);
+    value_array.fill(false);
+    value_array[index] = true;
 
-    for (int i = 0; i < len; i++) {
-      if (i != index) {
-        RNA_property_boolean_set_index(ptr, prop, i, false);
-      }
-    }
+    RNA_property_boolean_set_array(ptr, prop, value_array.data());
 
     RNA_property_update(C, ptr, prop);
 
@@ -5009,6 +5008,23 @@ PanelLayout uiLayoutPanelProp(const bContext *C,
   return panel_layout;
 }
 
+PanelLayout uiLayoutPanelPropWithBoolHeader(const bContext *C,
+                                            uiLayout *layout,
+                                            PointerRNA *open_prop_owner,
+                                            const StringRefNull open_prop_name,
+                                            PointerRNA *bool_prop_owner,
+                                            const StringRefNull bool_prop_name,
+                                            const std::optional<StringRefNull> label)
+{
+  PanelLayout panel = uiLayoutPanelProp(C, layout, open_prop_owner, open_prop_name.c_str());
+
+  uiLayout *panel_header = panel.header;
+  panel_header->flag &= ~(UI_ITEM_PROP_SEP | UI_ITEM_PROP_DECORATE | UI_ITEM_INSIDE_PROP_SEP);
+  uiItemR(panel_header, bool_prop_owner, bool_prop_name, UI_ITEM_NONE, label, ICON_NONE);
+
+  return panel;
+}
+
 uiLayout *uiLayoutPanelProp(const bContext *C,
                             uiLayout *layout,
                             PointerRNA *open_prop_owner,
@@ -5017,22 +5033,6 @@ uiLayout *uiLayoutPanelProp(const bContext *C,
 {
   PanelLayout panel = uiLayoutPanelProp(C, layout, open_prop_owner, open_prop_name);
   uiItemL(panel.header, label, ICON_NONE);
-
-  return panel.body;
-}
-
-uiLayout *uiLayoutPanelPropWithBoolHeader(const bContext *C,
-                                          uiLayout *layout,
-                                          PointerRNA *open_prop_owner,
-                                          const StringRefNull open_prop_name,
-                                          const StringRefNull bool_prop_name,
-                                          const std::optional<StringRefNull> label)
-{
-  PanelLayout panel = uiLayoutPanelProp(C, layout, open_prop_owner, open_prop_name.c_str());
-
-  uiLayout *panel_header = panel.header;
-  panel_header->flag &= ~(UI_ITEM_PROP_SEP | UI_ITEM_PROP_DECORATE | UI_ITEM_INSIDE_PROP_SEP);
-  uiItemR(panel_header, open_prop_owner, bool_prop_name, UI_ITEM_NONE, label, ICON_NONE);
 
   return panel.body;
 }
