@@ -216,11 +216,11 @@ class ShaderModule {
   ShaderModule();
   ~ShaderModule();
 
-  bool base_shaders_are_ready(bool block);
-  bool specializations_are_ready(bool block,
-                                 int render_buffers_shadow_id,
-                                 int shadow_ray_count,
-                                 int shadow_ray_step_count);
+  bool static_shaders_are_ready(bool block_until_ready);
+  bool request_specializations(bool block_until_ready,
+                               int render_buffers_shadow_id,
+                               int shadow_ray_count,
+                               int shadow_ray_step_count);
 
   GPUShader *static_shader_get(eShaderType shader_type);
   GPUMaterial *material_default_shader_get(eMaterialPipeline pipeline_type,

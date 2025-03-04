@@ -74,7 +74,7 @@ void Instance::init(const int2 &output_res,
 
   info_ = "";
 
-  shaders_are_ready_ = shaders.base_shaders_are_ready(is_image_render());
+  shaders_are_ready_ = shaders.static_shaders_are_ready(is_image_render());
   if (!shaders_are_ready_) {
     skip_render_ = true;
     return;
@@ -124,11 +124,11 @@ void Instance::init(const int2 &output_res,
   volume.init();
   lookdev.init(visible_rect);
 
-  shaders_are_ready_ = shaders.base_shaders_are_ready(is_image_render()) &&
-                       shaders.specializations_are_ready(is_image_render(),
-                                                         render_buffers.data.shadow_id,
-                                                         shadows.get_data().ray_count,
-                                                         shadows.get_data().step_count);
+  shaders_are_ready_ = shaders.static_shaders_are_ready(is_image_render()) &&
+                       shaders.request_specializations(is_image_render(),
+                                                       render_buffers.data.shadow_id,
+                                                       shadows.get_data().ray_count,
+                                                       shadows.get_data().step_count);
   skip_render_ = !shaders_are_ready_ || !film.is_valid_render_extent();
 }
 
@@ -148,7 +148,7 @@ void Instance::init_light_bake(Depsgraph *depsgraph, draw::Manager *manager)
   debug_mode = (eDebugMode)G.debug_value;
   info_ = "";
 
-  shaders.base_shaders_are_ready(true);
+  shaders.static_shaders_are_ready(true);
 
   sampling.init(scene);
   camera.init();
@@ -168,10 +168,10 @@ void Instance::init_light_bake(Depsgraph *depsgraph, draw::Manager *manager)
   volume.init();
   lookdev.init(&empty_rect);
 
-  shaders.specializations_are_ready(true,
-                                    render_buffers.data.shadow_id,
-                                    shadows.get_data().ray_count,
-                                    shadows.get_data().step_count);
+  shaders.request_specializations(true,
+                                  render_buffers.data.shadow_id,
+                                  shadows.get_data().ray_count,
+                                  shadows.get_data().step_count);
 }
 
 void Instance::set_time(float time)

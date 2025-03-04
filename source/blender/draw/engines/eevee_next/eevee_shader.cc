@@ -75,7 +75,7 @@ ShaderModule::~ShaderModule()
   /* Finish compilation to avoid asserts on exit at GLShaderCompiler destructor. */
 
   if (compilation_handle_) {
-    base_shaders_are_ready(true);
+    static_shaders_are_ready(true);
   }
 
   for (SpecializationBatchHandle &handle : specialization_handles_.values()) {
@@ -94,7 +94,7 @@ ShaderModule::~ShaderModule()
  *
  * \{ */
 
-bool ShaderModule::base_shaders_are_ready(bool block)
+bool ShaderModule::static_shaders_are_ready(bool block_until_ready)
 {
   if (!GPU_use_parallel_compilation()) {
     return true;
@@ -103,7 +103,7 @@ bool ShaderModule::base_shaders_are_ready(bool block)
   std::lock_guard lock = get_static_cache().lock_guard();
 
   if (compilation_handle_) {
-    if (GPU_shader_batch_is_ready(compilation_handle_) || block) {
+    if (GPU_shader_batch_is_ready(compilation_handle_) || block_until_ready) {
       Vector<GPUShader *> shaders = GPU_shader_batch_finalize(compilation_handle_);
       for (int i : IndexRange(MAX_SHADER_TYPE)) {
         shaders_[i].set(shaders[i]);
@@ -114,20 +114,20 @@ bool ShaderModule::base_shaders_are_ready(bool block)
   return compilation_handle_ == 0;
 }
 
-bool ShaderModule::specializations_are_ready(bool block,
-                                             int render_buffers_shadow_id,
-                                             int shadow_ray_count,
-                                             int shadow_ray_step_count)
+bool ShaderModule::request_specializations(bool block_until_ready,
+                                           int render_buffers_shadow_id,
+                                           int shadow_ray_count,
+                                           int shadow_ray_step_count)
 {
   if (!GPU_use_parallel_compilation()) {
     return true;
   }
 
-  BLI_assert(base_shaders_are_ready(false));
+  BLI_assert(static_shaders_are_ready(false));
 
   std::lock_guard lock = get_static_cache().lock_guard();
 
-  SpecializationBatchHandle specialization_handle_ = specialization_handles_.lookup_or_add_cb(
+  SpecializationBatchHandle specialization_handle = specialization_handles_.lookup_or_add_cb(
       {render_buffers_shadow_id, shadow_ray_count, shadow_ray_step_count}, [&]() {
         Vector<ShaderSpecialization> specializations;
         for (int i = 0; i < 3; i++) {
@@ -150,13 +150,14 @@ bool ShaderModule::specializations_are_ready(bool block,
         return GPU_shader_batch_specializations(specializations);
       });
 
-  if (specialization_handle_) {
-    while (!GPU_shader_batch_specializations_is_ready(specialization_handle_) && block) {
+  if (specialization_handle) {
+    while (!GPU_shader_batch_specializations_is_ready(specialization_handle) && block_until_ready)
+    {
       /* Block until ready. */
     }
   }
 
-  return specialization_handle_ == 0;
+  return specialization_handle == 0;
 }
 
 const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_type)
