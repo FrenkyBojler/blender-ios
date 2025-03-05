@@ -22,9 +22,7 @@
 
 #include "ED_sequencer.hh"
 
-#include "sequencer_quads_batch.hh"
 #include "sequencer_scopes.hh"
-#include "sequencer_strips_batch.hh"
 
 /* Internal exports only. */
 
@@ -46,6 +44,9 @@ struct Editing;
 struct ListBase;
 
 namespace blender::ed::vse {
+
+struct SeqQuadsBatch;
+struct StripsDrawBatch;
 
 #define DEFAULT_IMG_STRIP_LENGTH 25 /* XXX arbitrary but ok for now. */
 

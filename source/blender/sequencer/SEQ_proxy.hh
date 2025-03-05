@@ -8,18 +8,13 @@
  * \ingroup sequencer
  */
 
-#include "DNA_listBase.h"
-#include "DNA_sequence_types.h"
-
-#include "MOV_read.hh"
-
 #include "BLI_set.hh"
 
 struct Depsgraph;
-struct ListBase;
 struct Main;
 struct Scene;
 struct SeqRenderData;
+struct ListBase;
 struct Strip;
 struct bContext;
 struct wmJob;
@@ -27,21 +22,7 @@ struct wmJobWorkerStatus;
 
 namespace blender::seq {
 
-struct SeqIndexBuildContext {
-  MovieProxyBuilder *proxy_builder;
-
-  int tc_flags;
-  int size_flags;
-  int quality;
-  bool overwrite;
-  int view_id;
-
-  Main *bmain;
-  Depsgraph *depsgraph;
-  Scene *scene;
-  Strip *strip, *orig_seq;
-  SessionUID orig_seq_uid;
-};
+struct SeqIndexBuildContext;
 
 bool SEQ_proxy_rebuild_context(Main *bmain,
                                Depsgraph *depsgraph,

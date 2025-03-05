@@ -8,7 +8,6 @@
 
 #include "BLI_math_vector_types.hh"
 #include "BLI_vector.hh"
-#include "SEQ_render.hh"
 
 /** \file
  * \ingroup sequencer
@@ -20,6 +19,8 @@ struct Strip;
 struct TextVars;
 
 namespace blender::seq {
+
+struct SeqRenderData;
 
 enum class StripEarlyOut {
   NoInput = -1,  /* No input needed. */

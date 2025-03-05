@@ -8,6 +8,7 @@
  * \ingroup sequencer
  */
 
+#include "BLI_math_vector_types.hh"
 #include "BLI_vector.hh"
 
 struct ImBuf;
@@ -24,6 +25,17 @@ namespace blender::seq {
 /* mutable state for sequencer */
 struct SeqRenderState {
   LinkNode *scene_parents = nullptr;
+};
+
+/* Strip corner coordinates in screen pixel space. Note that they might not be
+ * axis aligned when rotation is present. */
+struct StripScreenQuad {
+  float2 v0, v1, v2, v3;
+
+  bool is_empty() const
+  {
+    return v0 == v1 && v2 == v3 && v0 == v2;
+  }
 };
 
 ImBuf *seq_render_give_ibuf_seqbase(const SeqRenderData *context,

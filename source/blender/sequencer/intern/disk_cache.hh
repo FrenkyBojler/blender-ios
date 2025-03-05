@@ -22,14 +22,7 @@ struct Strip;
 
 namespace blender::seq {
 struct SeqCacheKey;
-
-struct SeqDiskCache {
-  Main *bmain;
-  int64_t timestamp;
-  ListBase files;
-  ThreadMutex read_write_mutex;
-  size_t size_total;
-};
+struct SeqDiskCache;
 
 SeqDiskCache *seq_disk_cache_create(Main *bmain, Scene *scene);
 void seq_disk_cache_free(SeqDiskCache *disk_cache);
