@@ -18,10 +18,10 @@
 struct ImBuf;
 struct Main;
 struct Scene;
-struct SeqCacheKey;
 struct Strip;
 
 namespace blender::seq {
+struct SeqCacheKey;
 
 struct SeqDiskCache {
   Main *bmain;

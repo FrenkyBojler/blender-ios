@@ -34,18 +34,21 @@ struct ThumbnailCache;
 struct TextVarsRuntime;
 struct PrefetchJob;
 struct StripLookup;
+struct SeqCache;
 }  // namespace blender::seq
 using MediaPresence = blender::seq::MediaPresence;
 using ThumbnailCache = blender::seq::ThumbnailCache;
 using TextVarsRuntime = blender::seq::TextVarsRuntime;
 using PrefetchJob = blender::seq::PrefetchJob;
 using StripLookup = blender::seq::StripLookup;
+using SeqCache = blender::seq::SeqCache;
 #else
 typedef struct MediaPresence MediaPresence;
 typedef struct ThumbnailCache ThumbnailCache;
 typedef struct TextVarsRuntime TextVarsRuntime;
 typedef struct PrefetchJob PrefetchJob;
 typedef struct StripLookup StripLookup;
+typedef struct SeqCache SeqCache;
 #endif
 
 /* -------------------------------------------------------------------- */
@@ -362,7 +365,7 @@ typedef struct Editing {
   int show_missing_media_flag;
   int _pad1;
 
-  struct SeqCache *cache;
+  SeqCache *cache;
 
   /* Cache control */
   float recycle_max_cost; /* UNUSED only for versioning. */
