@@ -31,7 +31,6 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_ghash.h"
-#include "BLI_hash.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix_types.hh"
