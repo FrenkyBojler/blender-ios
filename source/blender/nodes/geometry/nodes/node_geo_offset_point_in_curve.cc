@@ -41,18 +41,23 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "The index of the control point plus the offset within the entire "
           "curves data-block");
+  b.add_input<decl::Bool>("Clamp")
+      .default_value(false)
+      .description("If true, the index is clamped to a valid index in the current curve");
 }
 
 class ControlPointNeighborFieldInput final : public bke::GeometryFieldInput {
  private:
   const Field<int> index_;
   const Field<int> offset_;
+  const Field<bool> use_clamp_;
 
  public:
-  ControlPointNeighborFieldInput(Field<int> index, Field<int> offset)
+  ControlPointNeighborFieldInput(Field<int> index, Field<int> offset, Field<bool> use_clamp)
       : GeometryFieldInput(CPPType::get<int>(), "Offset Point in Curve"),
         index_(std::move(index)),
-        offset_(std::move(offset))
+        offset_(std::move(offset)),
+        use_clamp_(std::move(use_clamp))
   {
     category_ = Category::Generated;
   }
@@ -73,9 +78,11 @@ class ControlPointNeighborFieldInput final : public bke::GeometryFieldInput {
     fn::FieldEvaluator evaluator{context, &mask};
     evaluator.add(index_);
     evaluator.add(offset_);
+    evaluator.add(use_clamp_);
     evaluator.evaluate();
     const VArray<int> indices = evaluator.get_evaluated<int>(0);
     const VArray<int> offsets = evaluator.get_evaluated<int>(1);
+    const VArray<bool> clamps = evaluator.get_evaluated<bool>(2);
 
     Array<int> output(mask.min_array_size());
     mask.foreach_index([&](const int i_selection) {
@@ -89,7 +96,13 @@ class ControlPointNeighborFieldInput final : public bke::GeometryFieldInput {
             curve_points, i_point, offsets[i_selection]);
         return;
       }
-      output[i_selection] = std::clamp(offset_point, 0, curves.points_num() - 1);
+      if (clamps[i_selection]) {
+        output[i_selection] = std::clamp(
+            offset_point, (int)curve_points.first(), (int)curve_points.last());
+      }
+      else {
+        output[i_selection] = std::clamp(offset_point, 0, curves.points_num() - 1);
+      }
     });
 
     return VArray<int>::ForContainer(std::move(output));
@@ -106,12 +119,14 @@ class OffsetValidFieldInput final : public bke::GeometryFieldInput {
  private:
   const Field<int> index_;
   const Field<int> offset_;
+  const Field<bool> use_clamp_;
 
  public:
-  OffsetValidFieldInput(Field<int> index, Field<int> offset)
+  OffsetValidFieldInput(Field<int> index, Field<int> offset, Field<bool> use_clamp)
       : GeometryFieldInput(CPPType::get<bool>(), "Offset Valid"),
         index_(std::move(index)),
-        offset_(std::move(offset))
+        offset_(std::move(offset)),
+        use_clamp_(std::move(use_clamp))
   {
     category_ = Category::Generated;
   }
@@ -132,12 +147,19 @@ class OffsetValidFieldInput final : public bke::GeometryFieldInput {
     fn::FieldEvaluator evaluator{context, &mask};
     evaluator.add(index_);
     evaluator.add(offset_);
+    evaluator.add(use_clamp_);
     evaluator.evaluate();
     const VArray<int> indices = evaluator.get_evaluated<int>(0);
     const VArray<int> offsets = evaluator.get_evaluated<int>(1);
+    const VArray<bool> clamps = evaluator.get_evaluated<bool>(2);
 
     Array<bool> output(mask.min_array_size());
     mask.foreach_index([&](const int i_selection) {
+      if (clamps[i_selection]) {
+        output[i_selection] = true;
+        return;
+      }
+
       const int i_point = indices[i_selection];
       if (!curves.points_range().contains(i_point)) {
         output[i_selection] = false;
@@ -166,13 +188,15 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   Field<int> index = params.extract_input<Field<int>>("Point Index");
   Field<int> offset = params.extract_input<Field<int>>("Offset");
+  Field<bool> use_clamp = params.extract_input<Field<bool>>("Clamp to valid");
 
   if (params.output_is_required("Point Index")) {
-    Field<int> curve_point_field{std::make_shared<ControlPointNeighborFieldInput>(index, offset)};
+    Field<int> curve_point_field{
+        std::make_shared<ControlPointNeighborFieldInput>(index, offset, use_clamp)};
     params.set_output("Point Index", std::move(curve_point_field));
   }
   if (params.output_is_required("Is Valid Offset")) {
-    Field<bool> valid_field{std::make_shared<OffsetValidFieldInput>(index, offset)};
+    Field<bool> valid_field{std::make_shared<OffsetValidFieldInput>(index, offset, use_clamp)};
     params.set_output("Is Valid Offset", std::move(valid_field));
   }
 }
