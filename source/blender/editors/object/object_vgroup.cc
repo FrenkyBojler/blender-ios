@@ -2299,8 +2299,10 @@ static void vgroup_delete_active(Object *ob)
 }
 
 /* only in editmode */
-static void vgroup_assign_verts(Object *ob, Scene &scene, const float weight, const int def_nr)
+static void vgroup_assign_verts(Object *ob, Scene &scene, const float weight)
 {
+  const int def_nr = BKE_object_defgroup_active_index_get(ob) - 1;
+
   const ListBase *defbase = BKE_object_defgroup_list(ob);
   if (!BLI_findlink(defbase, def_nr)) {
     return;
@@ -2718,8 +2720,7 @@ static int vertex_group_assign_exec(bContext *C, wmOperator *op)
   Object *ob = context_object(C);
   Scene &scene = *CTX_data_scene(C);
 
-  const int def_nr = BKE_object_defgroup_active_index_get(ob) - 1;
-  vgroup_assign_verts(ob, scene, ts->vgroup_weight, def_nr);
+  vgroup_assign_verts(ob, scene, ts->vgroup_weight);
 
   if (ts->auto_normalize) {
     int subset_count, vgroup_tot;
