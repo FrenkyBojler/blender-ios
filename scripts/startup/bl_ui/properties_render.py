@@ -935,8 +935,6 @@ class RENDER_PT_opengl_options(RenderButtonsPanel, Panel):
         return (context.engine in cls.COMPAT_ENGINES)
 
     def draw(self, context):
-        layout = self.layout
-
         VIEW3D_PT_shading_options.draw(self, context)
 
         # Cavity properties.
