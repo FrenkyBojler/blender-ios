@@ -312,6 +312,7 @@ class NODE_MT_category_compositor_vector(Menu):
 
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
+
 class NODE_MT_category_compositor_legacy(Menu):
     bl_idname = "NODE_MT_category_compositor_legacy"
     bl_label = "Legacy"
