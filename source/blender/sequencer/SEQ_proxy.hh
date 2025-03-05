@@ -8,13 +8,15 @@
  * \ingroup sequencer
  */
 
+#include "DNA_listBase.h"
+
 #include "BLI_set.hh"
 
 struct Depsgraph;
+struct ListBase;
 struct Main;
 struct Scene;
 struct SeqRenderData;
-struct ListBase;
 struct Strip;
 struct bContext;
 struct wmJob;

@@ -12,9 +12,6 @@
  * \ingroup sequencer
  */
 
-#include "BLI_listbase.h"
-#include "BLI_threads.h"
-
 struct ImBuf;
 struct Main;
 struct Scene;
