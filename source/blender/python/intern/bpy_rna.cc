@@ -9674,9 +9674,6 @@ static void bpy_class_free(void *pyob_ptr)
    * Apparently this happens with AUDASPACE on macOS. Ideally this would be resolved
    * by correcting the order classes are freed (before Python exits). */
   if (!Py_IsInitialized()) {
-#  if !(defined(__APPLE__) || defined(_WIN32))
-    BLI_assert_msg(false, "This should never happen, please report a bug!");
-#  endif
     return;
   }
 #endif
