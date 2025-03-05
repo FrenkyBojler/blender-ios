@@ -256,15 +256,27 @@ void ED_armature_bone_rename(Main *bmain,
 
       if (BKE_modifiers_uses_armature(ob, arm) && BKE_object_supports_vertex_groups(ob)) {
         bDeformGroup *dg = BKE_object_defgroup_find_name(ob, oldname);
-        if (dg) {
-          STRNCPY(dg->name, newname);
+        bDeformGroup *existing_dg = BKE_object_defgroup_find_name(ob, newname);
+        if (existing_dg) {
+          WM_reportf(
+              eReportType::RPT_WARNING,
+              "%s (%s::%s)",
+              RPT_("New bone name collides with an existing vertex group name, vertex group "
+                   "names are unchanged."),
+              &ob->id.name[2],
+              newname);
+        }
+        else {
+          if (dg) {
+            STRNCPY(dg->name, newname);
 
-          if (ob->type == OB_GREASE_PENCIL) {
-            /* Update vgroup names stored in CurvesGeometry */
-            BKE_grease_pencil_vgroup_name_update(ob, oldname, dg->name);
+            if (ob->type == OB_GREASE_PENCIL) {
+              /* Update vgroup names stored in CurvesGeometry */
+              BKE_grease_pencil_vgroup_name_update(ob, oldname, dg->name);
+            }
+
+            DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
           }
-
-          DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
         }
       }
 
