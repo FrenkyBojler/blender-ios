@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_memory_utils.hh"
+
 #include "DNA_node_types.h"
 
 #include "NOD_derived_node_tree.hh"
@@ -27,6 +29,12 @@ Evaluator::Evaluator(Context &context) : context_(context) {}
 void Evaluator::evaluate()
 {
   context_.reset();
+
+  BLI_SCOPED_DEFER([&]() {
+    if (context_.profiler()) {
+      context_.profiler()->finalize(context_.get_node_tree());
+    }
+  });
 
   derived_node_tree_ = std::make_unique<DerivedNodeTree>(context_.get_node_tree());
 
@@ -59,10 +67,6 @@ void Evaluator::evaluate()
     else {
       this->evaluate_node(node, compile_state);
     }
-  }
-
-  if (context_.profiler()) {
-    context_.profiler()->finalize(context_.get_node_tree());
   }
 }
 
