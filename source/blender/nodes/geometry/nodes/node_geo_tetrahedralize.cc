@@ -15,6 +15,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_pointcloud_types.h"
+#include "DNA_node_types.h"
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
@@ -35,26 +36,28 @@
 
 #include "node_geometry_util.hh"
 
-/* Pour activer les messages de débogage */
-// #define DEBUG_TETRAHEDRALIZE
-
-#ifdef DEBUG_TETRAHEDRALIZE
-#  define DEBUG_PRINT(fmt, ...) printf(fmt "\n", ##__VA_ARGS__)
-#else
-#  define DEBUG_PRINT(fmt, ...)
-#endif
-
 using namespace blender;
 using namespace blender::bke;
 
 namespace blender::nodes::node_geo_tetrahedralize_cc {
 
-// Définir l'identifiant du type de nœud
-#define GEO_NODE_TETRAHEDRALIZE 800
+// Macros pour gérer le stockage du nœud
+// Déplacé à l'intérieur du namespace
+static void node_free_storage(bNode *node)
+{
+  if (node->storage) {
+    MEM_freeN(node->storage);
+  }
+}
+
+static void node_copy_storage(bNodeTree * /*dst_ntree*/, bNode *dst_node, const bNode *src_node)
+{
+  dst_node->storage = MEM_dupallocN(src_node->storage);
+}
 
 /* 
- * Classe utilitaire pour générer des nombres aléatoires.
- * Remplace l'utilisation de l'API BLI_rng.
+ * Utility class for generating random numbers.
+ * Replaces use of BLI_rng API.
  */
 class RandomNumberGenerator {
  private:
@@ -63,7 +66,7 @@ class RandomNumberGenerator {
  public:
   RandomNumberGenerator() : m_seed(static_cast<uint32_t>(time(nullptr))) {}
 
-  /* Génère un nombre entier aléatoire. */
+  /* Generate a random integer */
   int get_int()
   {
     // Simple Linear Congruential Generator
@@ -71,7 +74,7 @@ class RandomNumberGenerator {
     return static_cast<int>(m_seed);
   }
 
-  /* Génère un nombre flottant aléatoire entre 0 et 1. */
+  /* Generate a random float between 0 and 1 */
   float get_float()
   {
     // Convert integer to float in range [0, 1]
@@ -99,16 +102,6 @@ static const EnumPropertyItem scaling_mode_items[] = {
      "Point Attribute",
      "Scale tetrahedra based on point attribute"},
     {0, nullptr, 0, nullptr, nullptr},
-};
-
-// Structure pour stocker les données du nœud
-struct NodeGeoTetrahedralize {
-  float base_size;
-  float max_tet_scale;
-  float min_triangle_scale;
-  float local_feature_scale;
-  bool use_manual_base_size;
-  char scale_attribute_name[64];
 };
 
 /* Structure d'un tétraèdre, contient les indices des 4 sommets. */
@@ -172,9 +165,6 @@ struct TriFace {
   TriFace() : v1(0), v2(0), v3(0) {}
   TriFace(int a, int b, int c) : v1(a), v2(b), v3(c) {}
 };
-
-// Macros d'accès au stockage du nœud
-NODE_STORAGE_FUNCS(NodeGeoTetrahedralize)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -244,21 +234,21 @@ static Array<float> calculate_local_feature_sizes(const Mesh *mesh)
     return feature_sizes;
   }
   
-  // Pour chaque face
+  // For each face
   for (const int face_index : faces.index_range()) {
     const IndexRange face = faces[face_index];
     
-    // Pour chaque arête dans la face
+    // For each edge in the face
     for (int i = 0; i < face.size(); i++) {
       const int v1 = corner_verts[face[i]];
       const int v2 = corner_verts[face[(i + 1) % face.size()]];
       
-      // Calculer la longueur de l'arête
+      // Calculate edge length
       const float3 &p1 = positions[v1];
       const float3 &p2 = positions[v2];
       const float edge_length = len_v3v3(p1, p2);
       
-      // Accumuler la longueur pour les deux sommets
+      // Accumulate length for both vertices
       feature_sizes[v1] += edge_length;
       feature_sizes[v2] += edge_length;
       vertex_counts[v1]++;
@@ -266,13 +256,13 @@ static Array<float> calculate_local_feature_sizes(const Mesh *mesh)
     }
   }
   
-  // Calculer la moyenne pour chaque sommet
+  // Calculate average for each vertex
   for (int i = 0; i < positions.size(); i++) {
     if (vertex_counts[i] > 0) {
       feature_sizes[i] /= static_cast<float>(vertex_counts[i]);
     }
     else {
-      // Si le sommet n'est connecté à aucune arête, utiliser une valeur par défaut
+      // If vertex has no connected edges, use default value
       feature_sizes[i] = 0.1f;
     }
   }
@@ -479,11 +469,9 @@ static void generate_tetrahedralization(const Mesh *mesh,
   
   float mesh_volume = fabsf((max.x - min.x) * (max.y - min.y) * (max.z - min.z));
   
-  // Calculer le nombre de points en fonction du volume et de l'échelle
+  // Calculate number of points based on volume and scale
   int num_additional_points = static_cast<int>(mesh_volume / (base_size * base_size * base_size) * 0.1f);
-  num_additional_points = std::min(std::max(num_additional_points, 10), 100); // Limiter entre 10 et 100
-  
-  DEBUG_PRINT("Ajout de %zd points intérieurs supplémentaires", static_cast<int64_t>(num_additional_points));
+  num_additional_points = std::min(std::max(num_additional_points, 10), 100); // Limit between 10 and 100
   
   for (int i = 0; i < num_additional_points; i++) {
     // Créer un nouveau point en combinant des sommets existants et en ajoutant de l'aléatoire
@@ -551,7 +539,7 @@ static void generate_tetrahedralization(const Mesh *mesh,
     }
   }
   
-  // Filtrer les tétraèdres de mauvaise qualité
+  // Filter low quality tetrahedra
   Vector<Tetrahedron> filtered_tetrahedra;
   for (const Tetrahedron &tet : out_tetrahedra) {
     // Récupérer les points du tétraèdre
@@ -593,11 +581,11 @@ static void generate_tetrahedralization(const Mesh *mesh,
                              len_v3v3(v2, v3) + len_v3v3(v2, v4) + len_v3v3(v3, v4)) / 6.0f;
     float quality = (avg_edge_length > 1e-6f) ? (volume / powf(avg_edge_length, 3)) : 0.0f;
     
-    // Critères plus stricts pour éviter les tétraèdres problématiques:
-    // 1. Volume significativement positif
-    // 2. Ratio d'aspect raisonnable (pas trop déformé)
-    // 3. Qualité minimale
-    // 4. Arête minimale non nulle
+    // Strict criteria to avoid problematic tetrahedra:
+    // 1. Significant positive volume
+    // 2. Reasonable aspect ratio
+    // 3. Minimum quality
+    // 4. Non-zero minimum edge
     if (volume > min_volume_threshold && 
         edge_ratio < 50.0f && 
         quality > 0.001f && 
@@ -630,15 +618,8 @@ static void generate_tetrahedralization(const Mesh *mesh,
     }
   }
   
-  DEBUG_PRINT("Filtrage des tétraèdres: %zd -> %zd",
-             static_cast<int64_t>(out_tetrahedra.size()),
-             static_cast<int64_t>(filtered_tetrahedra.size()));
-  
-  // Remplacer les tétraèdres par les tétraèdres filtrés
+  // Replace tetrahedra with filtered ones
   out_tetrahedra = filtered_tetrahedra;
-  
-  DEBUG_PRINT("Tétraédrisation terminée avec %zd sommets et %zd tétraèdres", 
-             static_cast<int64_t>(out_vertices.size()), static_cast<int64_t>(out_tetrahedra.size()));
 }
 
 /* Create a mesh from tetrahedra using Blender's mesh creation API */
@@ -795,18 +776,10 @@ static Mesh *create_tetrahedralized_mesh(const Mesh &input_mesh,
     return nullptr;
   }
   
-  // Calculer ou utiliser la taille de base fournie
+  // Calculate or use provided base size
   float base_size = use_manual_base_size ? manual_base_size : calculate_base_size(&input_mesh);
   
-  DEBUG_PRINT("Tétraédrisation avec les paramètres suivants:");
-  DEBUG_PRINT("  Taille de base: %f", base_size);
-  DEBUG_PRINT("  Échelle maximale des tétraèdres: %f", max_tet_scale);
-  DEBUG_PRINT("  Échelle minimale des triangles: %f", min_triangle_scale);
-  DEBUG_PRINT("  Méthode d'échelle locale: %d", local_scaling_method);
-  DEBUG_PRINT("  Attribut d'échelle: %s", scale_attribute.c_str());
-  DEBUG_PRINT("  Échelle des caractéristiques locales: %f", local_feature_scale);
-  
-  // Générer des tétraèdres en utilisant la tétraédrisation
+  // Generate tetrahedra using tetrahedralization
   Vector<float3> vertices;
   Vector<Tetrahedron> tetrahedra;
   Mesh *result = nullptr;
@@ -822,20 +795,19 @@ static Mesh *create_tetrahedralized_mesh(const Mesh &input_mesh,
                               vertices,
                               tetrahedra);
     
-    // Vérifier explicitement que des tétraèdres valides ont été générés
+    // Explicitly check if valid tetrahedra were generated
     if (vertices.is_empty() || tetrahedra.is_empty()) {
-      DEBUG_PRINT("Aucun tétraèdre n'a été généré");
       return nullptr;
     }
     
-    // Filtrer les tétraèdres invalides une dernière fois
+    // Final filter of invalid tetrahedra
     Vector<Tetrahedron> valid_tetrahedra;
     for (const Tetrahedron &tet : tetrahedra) {
-      // Vérifier que les indices sont valides
+      // Check indices are valid
       if (tet.v1 < vertices.size() && tet.v2 < vertices.size() && 
           tet.v3 < vertices.size() && tet.v4 < vertices.size() &&
           tet.v1 >= 0 && tet.v2 >= 0 && tet.v3 >= 0 && tet.v4 >= 0) {
-        // Vérifier que le tétraèdre a un volume significatif
+        // Check tetrahedron has significant volume
         float volume = tet.volume(vertices);
         if (volume > 1e-6f) {
           valid_tetrahedra.append(tet);
@@ -843,42 +815,19 @@ static Mesh *create_tetrahedralized_mesh(const Mesh &input_mesh,
       }
     }
     
-    // Si aucun tétraèdre valide n'est trouvé, retourner nullptr
     if (valid_tetrahedra.is_empty()) {
-      DEBUG_PRINT("Aucun tétraèdre valide après filtrage");
       return nullptr;
     }
     
-    // Créer un maillage à partir des tétraèdres valides
     result = create_mesh_from_tetrahedra(vertices, valid_tetrahedra);
     
-    // Vérifier que le maillage a été créé correctement
     if (!result) {
-      DEBUG_PRINT("Le maillage créé est invalide");
       return nullptr;
     }
     
     return result;
   }
-#ifdef DEBUG_TETRAHEDRALIZE
-  catch (const std::exception &_e) {
-    DEBUG_PRINT("Exception lors de la tétraédrisation: %s", _e.what());
-    if (result) {
-      BKE_id_free(nullptr, result);
-    }
-    return nullptr;
-  }
-#else
-  catch (const std::exception &) {
-    DEBUG_PRINT("Exception lors de la tétraédrisation");
-    if (result) {
-      BKE_id_free(nullptr, result);
-    }
-    return nullptr;
-  }
-#endif
   catch (...) {
-    DEBUG_PRINT("Exception inconnue lors de la tétraédrisation");
     if (result) {
       BKE_id_free(nullptr, result);
     }
@@ -952,7 +901,6 @@ static void node_geo_exec(GeoNodeExecParams params)
         }
       }
       catch (const std::exception &) {
-        DEBUG_PRINT("Exception lors de la tétraédrisation");
         params.error_message_add(NodeWarningType::Error, "Exception in tetrahedralization");
       }
     }
@@ -965,14 +913,19 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   node->custom1 = SCALING_NONE;  // Par défaut, pas d'échelle locale
   
-  NodeGeoTetrahedralize *storage = (NodeGeoTetrahedralize *)MEM_callocN(
-      sizeof(NodeGeoTetrahedralize), "NodeGeoTetrahedralize");
+  NodeGeometryTetrahedralize *storage = (NodeGeometryTetrahedralize *)MEM_callocN(
+      sizeof(NodeGeometryTetrahedralize), "NodeGeometryTetrahedralize");
       
   storage->base_size = 1.0f;
   storage->max_tet_scale = 1.0f;
   storage->min_triangle_scale = 0.1f;
   storage->local_feature_scale = 1.0f;
   storage->use_manual_base_size = false;
+  
+  // Initialiser le padding
+  memset(storage->_pad, 0, sizeof(storage->_pad));
+  
+  // Initialiser le nom de l'attribut
   strcpy(storage->scale_attribute_name, "scale");
   
   node->storage = storage;
@@ -982,7 +935,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeTetrahedralize", GEO_NODE_TETRAHEDRALIZE);
+  geo_node_type_base(&ntype, "GeometryNodeTetrahedralize");
   ntype.ui_name = "Tetrahedralize";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.enum_name_legacy = "TETRAHEDRALIZE";
@@ -991,7 +944,7 @@ static void node_register()
   ntype.ui_description = "Create a tetrahedral mesh from a surface mesh";
   ntype.draw_buttons = node_layout;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(ntype, "NodeGeoTetrahedralize", node_free_standard_storage, node_copy_standard_storage);
+  blender::bke::node_type_storage(ntype, "NodeGeometryTetrahedralize", node_free_storage, node_copy_storage);
   
   // Register RNA properties
   static const EnumPropertyItem local_scaling_items[] = {

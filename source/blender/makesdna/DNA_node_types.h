@@ -2220,6 +2220,23 @@ typedef struct NodeGeometryBake {
   char _pad[4];
 } NodeGeometryBake;
 
+typedef struct NodeGeometryTetrahedralize {
+  /* Base size of tetrahedra */
+  float base_size;
+  /* Maximum scale factor for tetrahedra */
+  float max_tet_scale;
+  /* Minimum scale factor for triangles */
+  float min_triangle_scale;
+  /* Scale factor for local features */
+  float local_feature_scale;
+  /* Use manual base size instead of automatic calculation */
+  char use_manual_base_size;
+  /* Padding to ensure proper alignment */
+  char _pad[7];
+  /* Name of the attribute to use for scaling */
+  char scale_attribute_name[64];
+} NodeGeometryTetrahedralize;
+
 /* script node mode */
 enum {
   NODE_SCRIPT_INTERNAL = 0,
