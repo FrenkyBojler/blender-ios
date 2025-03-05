@@ -265,12 +265,16 @@ class Instance {
 
   bool is_image_render() const
   {
-    return DRW_state_is_image_render();
+    /* WORKAROUND: The global access might happens before a DRWContext is bound.
+     * This only happens during light baking. */
+    return !is_light_bake && DRW_state_is_image_render();
   }
 
   bool is_viewport_image_render() const
   {
-    return DRW_state_is_viewport_image_render();
+    /* WORKAROUND: The global access might happens before a DRWContext is bound.
+     * This only happens during light baking. */
+    return !is_light_bake && DRW_state_is_viewport_image_render();
   }
 
   bool is_baking() const
@@ -291,7 +295,9 @@ class Instance {
 
   bool is_playback() const
   {
-    return DRW_state_is_playback();
+    /* WORKAROUND: The global access might happens before a DRWContext is bound.
+     * This only happens during light baking. */
+    return !is_light_bake && DRW_state_is_playback();
   }
 
   bool is_transforming() const
@@ -302,12 +308,23 @@ class Instance {
 
   bool is_navigating() const
   {
-    return DRW_state_is_navigating();
+    /* WORKAROUND: The global access might happens before a DRWContext is bound.
+     * This only happens during light baking. */
+    return !is_light_bake && DRW_state_is_navigating();
   }
 
   bool is_painting() const
   {
-    return DRW_state_is_painting();
+    /* WORKAROUND: The global access might happens before a DRWContext is bound.
+     * This only happens during light baking. */
+    return !is_light_bake && DRW_state_is_painting();
+  }
+
+  bool do_display_support() const
+  {
+    /* WORKAROUND: The global access might happens before a DRWContext is bound.
+     * This only happens during light baking. */
+    return !is_light_bake && DRW_state_draw_support();
   }
 
   bool use_scene_lights() const
