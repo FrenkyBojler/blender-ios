@@ -21,6 +21,8 @@
 
 #include <fmt/format.h>
 
+#include "BLI_timeit.hh"
+
 namespace blender::nodes::node_geo_store_named_attribute_cc {
 
 NODE_STORAGE_FUNCS(NodeGeometryStoreNamedAttribute)
@@ -141,6 +143,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
   else {
     geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+      SCOPED_TIMER_AVERAGED("4x4Field");
       for (const GeometryComponent::Type type : {GeometryComponent::Type::Mesh,
                                                  GeometryComponent::Type::PointCloud,
                                                  GeometryComponent::Type::Curve,

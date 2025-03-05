@@ -36,15 +36,15 @@ class ScopedTimerAveraged {
   std::string name_;
   TimePoint start_;
 
-  int64_t &total_count_;
-  Nanoseconds &total_time_;
-  Nanoseconds &min_time_;
+  std::atomic<int64_t> &total_count_;
+  std::atomic<int64_t> &total_time_;
+  std::atomic<int64_t> &min_time_;
 
  public:
   ScopedTimerAveraged(std::string name,
-                      int64_t &total_count,
-                      Nanoseconds &total_time,
-                      Nanoseconds &min_time)
+                      std::atomic<int64_t> &total_count,
+                      std::atomic<int64_t> &total_time,
+                      std::atomic<int64_t> &min_time)
       : name_(std::move(name)),
         total_count_(total_count),
         total_time_(total_time),
@@ -65,7 +65,7 @@ class ScopedTimerAveraged {
  * \warning This uses static variables, so it is not thread-safe.
  */
 #define SCOPED_TIMER_AVERAGED(name) \
-  static int64_t total_count_; \
-  static blender::timeit::Nanoseconds total_time_; \
-  static blender::timeit::Nanoseconds min_time_ = blender::timeit::Nanoseconds::max(); \
+  static std::atomic<int64_t> total_count_ = 0; \
+  static std::atomic<int64_t> total_time_ = 0; \
+  static std::atomic<int64_t> min_time_ = INT64_MAX; \
   blender::timeit::ScopedTimerAveraged scoped_timer(name, total_count_, total_time_, min_time_)

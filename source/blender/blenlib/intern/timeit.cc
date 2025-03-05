@@ -12,7 +12,7 @@
 
 namespace blender::timeit {
 
-static void format_duration(Nanoseconds duration, fmt::memory_buffer &buf)
+static void format_duration(const Nanoseconds duration, fmt::memory_buffer &buf)
 {
   using namespace std::chrono;
   if (duration < microseconds(100)) {
@@ -38,6 +38,12 @@ static void format_duration(Nanoseconds duration, fmt::memory_buffer &buf)
   }
 }
 
+static void format_duration(const int64_t duration, fmt::memory_buffer &buf)
+{
+  std::chrono::high_resolution_clock::duration chrono_duration{duration};
+  format_duration(chrono_duration, buf);
+}
+
 void print_duration(Nanoseconds duration)
 {
   fmt::memory_buffer buf;
@@ -60,20 +66,20 @@ ScopedTimer::~ScopedTimer()
 ScopedTimerAveraged::~ScopedTimerAveraged()
 {
   const TimePoint end = Clock::now();
-  const Nanoseconds duration = end - start_;
+  const int64_t duration = (end - start_).count();
 
   total_count_++;
   total_time_ += duration;
-  min_time_ = std::min(duration, min_time_);
+  min_time_ = std::min(duration, min_time_.load());
 
   fmt::memory_buffer buf;
   fmt::format_to(fmt::appender(buf), FMT_STRING("Timer '{}': (Average: "), name_);
-  format_duration(total_time_ / total_count_, buf);
+  format_duration(total_time_.load() / total_count_.load(), buf);
   buf.append(StringRef(", Min: "));
-  format_duration(min_time_, buf);
+  format_duration(min_time_.load(), buf);
   buf.append(StringRef(", Last: "));
   format_duration(duration, buf);
-  fmt::format_to(fmt::appender(buf), ", Samples: {})\n", total_count_);
+  fmt::format_to(fmt::appender(buf), ", Samples: {})\n", total_count_.load());
   std::cout << StringRef(buf.data(), buf.size());
 }
 

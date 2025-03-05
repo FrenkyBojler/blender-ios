@@ -41,21 +41,55 @@ static void node_declare(NodeDeclarationBuilder &b)
   column_d.add_input<decl::Float>("Column 4 Row 4").default_value(1.0f);
 }
 
+template<typename T, typename Func>
+inline void devirtualize_varray4(const VArray<T> &varray1,
+                                 const VArray<T> &varray2,
+                                 const VArray<T> &varray3,
+                                 const VArray<T> &varray4,
+                                 const Func &func,
+                                 bool enable = true)
+{
+  if (enable) {
+    if (call_with_devirtualized_parameters(
+            std::make_tuple(VArrayDevirtualizer<T, true, true>{varray1},
+                            VArrayDevirtualizer<T, true, true>{varray2},
+                            VArrayDevirtualizer<T, true, true>{varray3},
+                            VArrayDevirtualizer<T, true, true>{varray4}),
+            func))
+    {
+      return;
+    }
+  }
+  func(VArrayRef<T>(varray1), VArrayRef<T>(varray2), VArrayRef<T>(varray3), VArrayRef<T>(varray4));
+}
+
 static void copy_with_stride(const IndexMask &mask,
-                             const VArray<float> &src,
+                             const VArray<float> &src1,
+                             const VArray<float> &src2,
+                             const VArray<float> &src3,
+                             const VArray<float> &src4,
                              const int64_t src_step,
                              const int64_t src_begin,
                              const int64_t dst_step,
                              const int64_t dst_begin,
-                             MutableSpan<float> dst)
+                             MutableSpan<float4> dst)
 {
   BLI_assert(src_begin < src_step);
   BLI_assert(dst_begin < dst_step);
-  devirtualize_varray(src, [&](const auto src) {
-    mask.foreach_index_optimized<int>([&](const int64_t index) {
-      dst[dst_begin + dst_step * index] = src[src_begin + src_step * index];
-    });
-  });
+  devirtualize_varray4(src1,
+                       src2,
+                       src3,
+                       src4,
+                       [&](const auto src1, const auto src2, const auto src3, const auto src4) {
+                         mask.foreach_index_optimized<int>([&](const int64_t index) {
+                           float4 &dst_vec = dst[dst_begin + dst_step * index];
+                           const int64_t src_index = src_begin + src_step * index;
+                           dst_vec.x = src1[src_index];
+                           dst_vec.y = src2[src_index];
+                           dst_vec.z = src3[src_index];
+                           dst_vec.w = src4[src_index];
+                         });
+                       });
 }
 
 class CombineMatrixFunction : public mf::MultiFunction {
@@ -120,27 +154,19 @@ class CombineMatrixFunction : public mf::MultiFunction {
                                                                               "Column 4 Row 4");
 
     MutableSpan<float4x4> matrices = params.uninitialized_single_output<float4x4>(16, "Matrix");
-    MutableSpan<float> components = matrices.cast<float>();
+    MutableSpan<float4> dst = matrices.cast<float4>();
 
-    copy_with_stride(mask, column_1_row_1, 1, 0, 16, 0, components);
-    copy_with_stride(mask, column_1_row_2, 1, 0, 16, 1, components);
-    copy_with_stride(mask, column_1_row_3, 1, 0, 16, 2, components);
-    copy_with_stride(mask, column_1_row_4, 1, 0, 16, 3, components);
+    copy_with_stride(
+        mask, column_1_row_1, column_1_row_2, column_1_row_3, column_1_row_4, 1, 0, 4, 0, dst);
 
-    copy_with_stride(mask, column_2_row_1, 1, 0, 16, 4, components);
-    copy_with_stride(mask, column_2_row_2, 1, 0, 16, 5, components);
-    copy_with_stride(mask, column_2_row_3, 1, 0, 16, 6, components);
-    copy_with_stride(mask, column_2_row_4, 1, 0, 16, 7, components);
+    copy_with_stride(
+        mask, column_2_row_1, column_2_row_2, column_2_row_3, column_2_row_4, 1, 0, 4, 1, dst);
 
-    copy_with_stride(mask, column_3_row_1, 1, 0, 16, 8, components);
-    copy_with_stride(mask, column_3_row_2, 1, 0, 16, 9, components);
-    copy_with_stride(mask, column_3_row_3, 1, 0, 16, 10, components);
-    copy_with_stride(mask, column_3_row_4, 1, 0, 16, 11, components);
+    copy_with_stride(
+        mask, column_3_row_1, column_3_row_2, column_3_row_3, column_3_row_4, 1, 0, 4, 2, dst);
 
-    copy_with_stride(mask, column_4_row_1, 1, 0, 16, 12, components);
-    copy_with_stride(mask, column_4_row_2, 1, 0, 16, 13, components);
-    copy_with_stride(mask, column_4_row_3, 1, 0, 16, 14, components);
-    copy_with_stride(mask, column_4_row_4, 1, 0, 16, 15, components);
+    copy_with_stride(
+        mask, column_4_row_1, column_4_row_2, column_4_row_3, column_4_row_4, 1, 0, 4, 3, dst);
   }
 };
 
