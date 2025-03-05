@@ -12,6 +12,11 @@ SocketInterfaceKey::SocketInterfaceKey(std::string identifier)
   identifiers_.append(std::move(identifier));
 }
 
+SocketInterfaceKey::SocketInterfaceKey(Vector<std::string> identifiers)
+    : identifiers_(std::move(identifiers))
+{
+}
+
 Span<std::string> SocketInterfaceKey::identifiers() const
 {
   return identifiers_;

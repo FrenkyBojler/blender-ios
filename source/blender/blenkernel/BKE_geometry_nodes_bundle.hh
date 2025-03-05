@@ -22,6 +22,7 @@ class SocketInterfaceKey {
   Vector<std::string> identifiers_;
 
  public:
+  explicit SocketInterfaceKey(Vector<std::string> identifiers);
   explicit SocketInterfaceKey(std::string identifier);
 
   bool matches(const SocketInterfaceKey &other) const;
