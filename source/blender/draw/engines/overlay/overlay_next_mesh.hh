@@ -61,6 +61,7 @@ class Meshes : Overlay {
   PassSimple edit_mesh_prepass_ps_ = {"Prepass"};
 
   bool xray_enabled_ = false;
+  bool xray_flag_enabled_ = false;
 
   bool show_retopology_ = false;
   bool show_mesh_analysis_ = false;
@@ -95,7 +96,8 @@ class Meshes : Overlay {
     }
 
     offset_data_ = state.offset_data_get();
-    xray_enabled_ = state.xray_flag_enabled;
+    xray_enabled_ = state.xray_enabled;
+    xray_flag_enabled_ = state.xray_flag_enabled;
 
     ToolSettings *tsettings = state.scene->toolsettings;
     select_edge_ = (tsettings->selectmode & SCE_SELECT_EDGE);
@@ -377,13 +379,16 @@ class Meshes : Overlay {
     manager.submit(edit_mesh_analysis_ps_, view);
     manager.submit(edit_mesh_weight_ps_, view);
 
-    if (xray_enabled_) {
+    if (!xray_enabled_) {
+      manager.submit(edit_mesh_faces_ps_, view);
+    }
+
+    if (xray_flag_enabled_) {
       GPU_debug_group_end();
       return;
     }
 
     manager.submit(edit_mesh_normals_ps_, view);
-    manager.submit(edit_mesh_faces_ps_, view);
     manager.submit(edit_mesh_cages_ps_, view);
     manager.submit(edit_mesh_edges_ps_, view);
     manager.submit(edit_mesh_verts_ps_, view);
@@ -399,7 +404,12 @@ class Meshes : Overlay {
       return;
     }
 
-    if (!xray_enabled_) {
+    if (xray_enabled_) {
+      GPU_framebuffer_bind(framebuffer);
+      manager.submit(edit_mesh_faces_ps_, view);
+    }
+
+    if (!xray_flag_enabled_) {
       return;
     }
 
@@ -407,7 +417,6 @@ class Meshes : Overlay {
 
     GPU_framebuffer_bind(framebuffer);
     manager.submit(edit_mesh_normals_ps_, view);
-    manager.submit(edit_mesh_faces_ps_, view);
     manager.submit(edit_mesh_cages_ps_, view);
     manager.submit(edit_mesh_edges_ps_, view);
     manager.submit(edit_mesh_verts_ps_, view);
