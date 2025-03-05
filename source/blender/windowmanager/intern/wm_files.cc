@@ -1163,7 +1163,7 @@ bool WM_file_read(bContext *C, const char *filepath, ReportList *reports)
 
   wm_read_callback_post_wrapper(C, filepath, success);
 
-  BLI_assert(BKE_main_namemap_validate(CTX_data_main(C)));
+  BLI_assert(BKE_main_namemap_validate(*CTX_data_main(C)));
 
   return success;
 }
@@ -1983,7 +1983,7 @@ static ImBuf *blend_file_thumb_from_camera(const bContext *C,
                                                  scene->camera,
                                                  PREVIEW_RENDER_LARGE_HEIGHT * 2,
                                                  PREVIEW_RENDER_LARGE_HEIGHT * 2,
-                                                 IB_rect,
+                                                 IB_byte_data,
                                                  (v3d) ? V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS :
                                                          V3D_OFSDRAW_NONE,
                                                  R_ALPHAPREMUL,
@@ -2000,7 +2000,7 @@ static ImBuf *blend_file_thumb_from_camera(const bContext *C,
                                           region,
                                           PREVIEW_RENDER_LARGE_HEIGHT * 2,
                                           PREVIEW_RENDER_LARGE_HEIGHT * 2,
-                                          IB_rect,
+                                          IB_byte_data,
                                           R_ALPHAPREMUL,
                                           nullptr,
                                           true,
