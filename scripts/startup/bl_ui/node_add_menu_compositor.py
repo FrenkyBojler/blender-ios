@@ -43,7 +43,7 @@ class NODE_MT_category_compositor_input_constant(Menu):
     def draw(self, _context):
         layout = self.layout
         node_add_menu.add_node_type(layout, "CompositorNodeRGB")
-        node_add_menu.add_node_type(layout, "ShaderNodeValue")
+        node_add_menu.add_node_type(layout, "ShaderNodeValue", search_weight=1.0)
 
         node_add_menu.draw_assets_for_catalog(layout, "Input/Constant")
 
@@ -93,7 +93,7 @@ class NODE_MT_category_compositor_color(Menu):
         layout.menu("NODE_MT_category_compositor_color_mix")
         layout.separator()
         node_add_menu.add_node_type(layout, "CompositorNodePremulKey")
-        node_add_menu.add_node_type(layout, "ShaderNodeValToRGB")
+        node_add_menu.add_node_type(layout, "ShaderNodeValToRGB", search_weight=2.0)
         node_add_menu.add_node_type(layout, "CompositorNodeConvertColorSpace")
         node_add_menu.add_node_type(layout, "CompositorNodeSetAlpha")
         node_add_menu.add_node_type(layout, "ShaderNodeBlackbody")
@@ -134,7 +134,7 @@ class NODE_MT_category_compositor_color_mix(Menu):
         node_add_menu.add_node_type(layout, "CompositorNodeCombineColor")
         node_add_menu.add_node_type(layout, "CompositorNodeSeparateColor")
         layout.separator()
-        props = node_add_menu.add_node_type(layout, "ShaderNodeMix", label=iface_("Mix Color"))
+        props = node_add_menu.add_node_type(layout, "ShaderNodeMix", label=iface_("Mix Color"), search_weight=2.0)
         ops = props.settings.add()
         ops.name = "data_type"
         ops.value = "'RGBA'"
@@ -274,8 +274,8 @@ class NODE_MT_category_compositor_utilities(Menu):
 
     def draw(self, _context):
         layout = self.layout
-        node_add_menu.add_node_type(layout, "ShaderNodeMapRange")
-        node_add_menu.add_node_type(layout, "ShaderNodeMath")
+        node_add_menu.add_node_type(layout, "ShaderNodeMapRange", search_weight=2.0)
+        node_add_menu.add_node_type(layout, "ShaderNodeMath", search_weight=2.0)
         node_add_menu.add_node_type(layout, "ShaderNodeMix")
         node_add_menu.add_node_type(layout, "ShaderNodeClamp")
         node_add_menu.add_node_type(layout, "ShaderNodeFloatCurve")
@@ -298,8 +298,8 @@ class NODE_MT_category_compositor_vector(Menu):
 
     def draw(self, _context):
         layout = self.layout
-        node_add_menu.add_node_type(layout, "ShaderNodeCombineXYZ")
-        node_add_menu.add_node_type(layout, "ShaderNodeSeparateXYZ")
+        node_add_menu.add_node_type(layout, "ShaderNodeCombineXYZ", search_weight=2.0)
+        node_add_menu.add_node_type(layout, "ShaderNodeSeparateXYZ", search_weight=2.0)
         layout.separator()
         node_add_menu.add_node_type(layout, "ShaderNodeVectorMath")
         node_add_menu.add_node_type(layout, "ShaderNodeVectorRotate")
@@ -308,7 +308,27 @@ class NODE_MT_category_compositor_vector(Menu):
         ops.name = "data_type"
         ops.value = "'VECTOR'"
         node_add_menu.add_node_type(layout, "CompositorNodeNormal")
-        node_add_menu.add_node_type(layout, "ShaderNodeVectorCurve")
+        node_add_menu.add_node_type(layout, "ShaderNodeVectorCurve", search_weight=2.0)
+
+        node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+
+class NODE_MT_category_compositor_legacy(Menu):
+    bl_idname = "NODE_MT_category_compositor_legacy"
+    bl_label = "Legacy"
+
+    def draw(self, _context):
+        layout = self.layout
+        node_add_menu.add_node_type(layout, "CompositorNodeValue")
+        node_add_menu.add_node_type(layout, "CompositorNodeValToRGB")
+        node_add_menu.add_node_type(
+            layout, "CompositorNodeMixRGB",
+            label=iface_("Mix Color"))
+        node_add_menu.add_node_type(layout, "CompositorNodeMapRange")
+        node_add_menu.add_node_type(layout, "CompositorNodeMapValue")
+        node_add_menu.add_node_type(layout, "CompositorNodeMath")
+        node_add_menu.add_node_type(layout, "CompositorNodeCombineXYZ")
+        node_add_menu.add_node_type(layout, "CompositorNodeSeparateXYZ")
+        node_add_menu.add_node_type(layout, "CompositorNodeCurveVec")
 
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
@@ -334,6 +354,8 @@ class NODE_MT_compositor_node_add_all(Menu):
         layout.menu("NODE_MT_category_compositor_utilities")
         layout.menu("NODE_MT_category_compositor_vector")
         layout.separator()
+        layout.menu("NODE_MT_category_compositor_legacy")
+        layout.separator()
         layout.menu("NODE_MT_category_compositor_group")
         layout.menu("NODE_MT_category_layout")
 
@@ -357,6 +379,7 @@ classes = (
     NODE_MT_category_compositor_transform,
     NODE_MT_category_compositor_utilities,
     NODE_MT_category_compositor_vector,
+    NODE_MT_category_compositor_legacy,
     NODE_MT_category_compositor_group,
 )
 
