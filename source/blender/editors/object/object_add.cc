@@ -31,6 +31,7 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_ghash.h"
+#include "BLI_hash.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix_types.hh"
@@ -3136,6 +3137,30 @@ class FillColorRecord {
   }
 };
 
+class EdgeRecord {
+ public:
+  float3 pos1, pos2;
+  float3 direction;
+  int v1, v2;
+  bool operator==(const EdgeRecord &other) const
+  {
+    return (other.v1 == this->v1 && other.v2 == this->v2);
+  }
+  uint64_t hash() const
+  {
+    double a = pos1[0];
+    return *reinterpret_cast<uint64_t *>(&a);
+  }
+};
+struct LoopRecord {
+  Vector<int> points;
+  bool is_cyclic;
+};
+struct LoopInfo {
+  Vector<LoopRecord> record;
+  int tot_points;
+};
+
 static VectorSet<FillColorRecord> mesh_to_grease_pencil_get_material_list(
     Object &ob_mesh, const Mesh &mesh, Array<int> &material_remap)
 {
@@ -3171,6 +3196,121 @@ static VectorSet<FillColorRecord> mesh_to_grease_pencil_get_material_list(
 
   return fill_colors;
 }
+
+static std::optional<EdgeRecord> mesh_to_grease_pencil_search_next(
+    VectorSet<EdgeRecord> &remaining_edges,
+    float3 from_position,
+    float3 reference_direction,
+    bool &swap_direction)
+{
+  std::optional<EdgeRecord> best_edge = std::nullopt;
+  bool edge_should_swap = false;
+  float best_dot = -FLT_MAX;
+
+  for (const EdgeRecord edge : remaining_edges) {
+    if (compare_ff(edge.pos1[0], from_position[0], FLT_EPSILON) &&
+        compare_ff(edge.pos1[1], from_position[1], FLT_EPSILON) &&
+        compare_ff(edge.pos1[2], from_position[2], FLT_EPSILON))
+    {
+      float this_dot = math::dot(edge.direction, reference_direction);
+      if (this_dot > best_dot) {
+        best_edge.emplace(edge);
+        edge_should_swap = false;
+      }
+    }
+    if (compare_ff(edge.pos2[0], from_position[0], FLT_EPSILON) &&
+        compare_ff(edge.pos2[1], from_position[1], FLT_EPSILON) &&
+        compare_ff(edge.pos2[2], from_position[2], FLT_EPSILON))
+    {
+      float this_dot = math::dot(-edge.direction, reference_direction);
+      if (this_dot > best_dot) {
+        best_edge.emplace(edge);
+        edge_should_swap = true;
+      }
+    }
+  }
+  if (best_edge.has_value()) {
+    remaining_edges.remove(*best_edge);
+  }
+  swap_direction = edge_should_swap;
+  return best_edge;
+}
+static LoopInfo mesh_to_grease_pencil_build_edge_record(const Mesh &mesh)
+{
+  const Span<float3> positions = mesh.vert_positions();
+  const Span<int2> edges = mesh.edges();
+  VectorSet<EdgeRecord> edge_record;
+  for (const int i : edges.index_range()) {
+    EdgeRecord rec;
+    rec.pos1 = positions[edges[i][0]];
+    rec.pos2 = positions[edges[i][1]];
+    rec.v1 = edges[i][0];
+    rec.v2 = edges[i][1];
+    rec.direction = rec.pos2 - rec.pos1;
+    edge_record.add(rec);
+  }
+  LoopInfo done_loops_info;
+  done_loops_info.tot_points = 0;
+
+  while (!edge_record.is_empty()) {
+    LoopRecord loop;
+    EdgeRecord starting_edge = edge_record.pop();
+    loop.points.append(starting_edge.v1);
+    loop.points.append(starting_edge.v2);
+
+    bool swap_direction;
+    float3 next_point = starting_edge.pos2;
+    float3 next_direction = starting_edge.direction;
+    std::optional<EdgeRecord> search_edge;
+
+    while ((search_edge = mesh_to_grease_pencil_search_next(
+                edge_record, next_point, next_direction, swap_direction))
+               .has_value())
+    {
+      EdgeRecord found_edge = *search_edge;
+      if (swap_direction) {
+        next_point = found_edge.pos1;
+        loop.points.append(found_edge.v1);
+        next_direction = found_edge.pos1 - found_edge.pos2;
+      }
+      else {
+        next_point = found_edge.pos2;
+        loop.points.append(found_edge.v2);
+        next_direction = found_edge.pos2 - found_edge.pos1;
+      }
+    }
+
+    next_point = starting_edge.pos1;
+    next_direction = -starting_edge.direction;
+    while ((search_edge = mesh_to_grease_pencil_search_next(
+                edge_record, next_point, next_direction, swap_direction))
+               .has_value())
+    {
+      EdgeRecord found_edge = *search_edge;
+      if (swap_direction) {
+        next_point = found_edge.pos1;
+        loop.points.prepend(found_edge.v1);
+        next_direction = found_edge.pos1 - found_edge.pos2;
+      }
+      else {
+        next_point = found_edge.pos2;
+        loop.points.prepend(found_edge.v2);
+        next_direction = found_edge.pos2 - found_edge.pos1;
+      }
+    }
+
+    if (loop.points.last() == loop.points.first()) {
+      loop.points.remove_last();
+      loop.is_cyclic = true;
+    }
+
+    done_loops_info.record.append(loop);
+    done_loops_info.tot_points += loop.points.size();
+  }
+
+  return done_loops_info;
+}
+
 static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
                                        GreasePencil &grease_pencil,
                                        const int current_frame,
@@ -3190,7 +3330,7 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
 
   const Span<float3> mesh_positions = mesh_eval.vert_positions();
   const Span<float3> vert_normals = mesh_eval.vert_normals();
-  const Span<int2> edges = mesh_eval.edges();
+
   const OffsetIndices<int> faces = mesh_eval.faces();
   Span<int> faces_span = faces.data();
   const Span<int> corner_verts = mesh_eval.corner_verts();
@@ -3227,26 +3367,33 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
     stroke_materials_fill.finish();
   }
 
-  const int edges_num = edges.size();
-  const int points_num = edges_num * 2;
+  /* Not using geometry::mesh_to_curve_convert to convert edges because that way we can't do stroke
+   * offsets. */
+
+  LoopInfo loop_info = mesh_to_grease_pencil_build_edge_record(mesh_eval);
+
+  const int loops_num = loop_info.record.size();
+  const int points_num = loop_info.tot_points;
 
   bke::CurvesGeometry &curves = drawing_line->strokes_for_write();
-  curves.resize(points_num, edges_num);
+  curves.resize(points_num, loops_num);
   MutableSpan<float3> positions = curves.positions_for_write();
   MutableSpan<int> offsets = curves.offsets_for_write();
   MutableSpan<float> radii = curves.radius_for_write();
   curves.fill_curve_types(CURVE_TYPE_POLY);
 
-  for (const int edge_i : edges.index_range()) {
-    const int2 edge = edges[edge_i];
-    const int point_i = edge_i * 2;
-    positions[point_i] = mesh_positions[edge[0]] + offset * vert_normals[edge[0]];
-    positions[point_i + 1] = mesh_positions[edge[1]] + offset * vert_normals[edge[1]];
-    radii[point_i] = radii[point_i + 1] = stroke_radius;
+  int start_offset = 0;
+  for (const int loop_i : loop_info.record.index_range()) {
+    LoopRecord &rec = loop_info.record[loop_i];
+    for (const int point_i : rec.points.index_range()) {
+      const int mesh_point = rec.points[point_i];
+      positions[start_offset + point_i] = mesh_positions[mesh_point] +
+                                          offset * vert_normals[mesh_point];
+    }
+    start_offset += rec.points.size();
+    offsets[loop_i + 1] = start_offset;
   }
   radii.fill(stroke_radius);
-
-  offset_indices::fill_constant_group_size(2, 0, offsets);
 }
 
 static Object *convert_mesh_to_grease_pencil(Base &base,
