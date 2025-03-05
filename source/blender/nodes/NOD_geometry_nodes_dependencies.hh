@@ -41,6 +41,7 @@ struct GeometryNodesEvalDependencies {
 
   bool needs_own_transform = false;
   bool needs_active_camera = false;
+  bool needs_camera_info = false;
   bool time_dependent = false;
 
   /**

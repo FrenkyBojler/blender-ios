@@ -221,6 +221,9 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
     /* Active camera is a scene parameter that can change, so we need a relation for that, too. */
     DEG_add_scene_relation(ctx->node, ctx->scene, DEG_SCENE_COMP_PARAMETERS, "Nodes Modifier");
   }
+  if (eval_deps.needs_camera_info) {
+    DEG_add_scene_camera_relation(ctx->node, ctx->scene, DEG_OB_COMP_PARAMETERS, "Nodes Modifier");
+  }
 }
 
 static bool depends_on_time(Scene * /*scene*/, ModifierData *md)

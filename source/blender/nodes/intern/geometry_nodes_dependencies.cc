@@ -175,6 +175,7 @@ static void gather_geometry_nodes_eval_dependencies(
     add_eval_dependencies_from_socket(*socket, deps);
   }
   deps.needs_active_camera |= has_enabled_nodes_of_type(ntree, "GeometryNodeInputActiveCamera");
+  deps.needs_camera_info |= has_enabled_nodes_of_type(ntree, "GeometryNodeCameraInfo");
   deps.time_dependent |= has_enabled_nodes_of_type(ntree, "GeometryNodeSimulationInput") ||
                          has_enabled_nodes_of_type(ntree, "GeometryNodeInputSceneTime");
 
