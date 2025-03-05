@@ -256,7 +256,7 @@ static bool write_internal_bake_pixels(Image *image,
     }
 
     if (from_colorspace != to_colorspace) {
-      IMB_colormanagement_transform(
+      IMB_colormanagement_transform_float(
           buffer, ibuf->x, ibuf->y, ibuf->channels, from_colorspace, to_colorspace, false);
     }
   }
@@ -333,7 +333,7 @@ static bool write_internal_bake_pixels(Image *image,
   /* force mipmap recalc */
   if (ibuf->mipmap[0]) {
     ibuf->userflags |= IB_MIPMAP_INVALID;
-    imb_freemipmapImBuf(ibuf);
+    IMB_free_mipmaps(ibuf);
   }
 
   BKE_image_release_ibuf(image, ibuf, nullptr);
@@ -380,7 +380,8 @@ static bool write_external_bake_pixels(const char *filepath,
   is_float = im_format->depth > 8;
 
   /* create a new ImBuf */
-  ibuf = IMB_allocImBuf(width, height, im_format->planes, (is_float ? IB_rectfloat : IB_rect));
+  ibuf = IMB_allocImBuf(
+      width, height, im_format->planes, (is_float ? IB_float_data : IB_byte_data));
 
   if (!ibuf) {
     return false;
@@ -404,7 +405,7 @@ static bool write_external_bake_pixels(const char *filepath,
       const char *from_colorspace = IMB_colormanagement_role_colorspace_name_get(
           COLOR_ROLE_SCENE_LINEAR);
       const char *to_colorspace = IMB_colormanagement_get_rect_colorspace(ibuf);
-      IMB_colormanagement_transform(
+      IMB_colormanagement_transform_float(
           buffer, ibuf->x, ibuf->y, ibuf->channels, from_colorspace, to_colorspace, false);
     }
     else if (is_tangent_normal) {
@@ -522,7 +523,7 @@ static bool bake_object_check(const Scene *scene,
       if (image) {
 
         if (node) {
-          if (bke::node_is_connected_to_output(ntree, node)) {
+          if (bke::node_is_connected_to_output(*ntree, *node)) {
             /* we don't return false since this may be a false positive
              * this can't be RPT_ERROR though, otherwise it prevents
              * multiple highpoly objects to be baked at once */
@@ -1008,7 +1009,7 @@ static bool bake_targets_init_vertex_colors(Main *bmain,
   /* Ensure mesh and editmesh topology are in sync. */
   editmode_load(bmain, ob);
 
-  targets->images = MEM_cnew<BakeImage>(__func__);
+  targets->images = MEM_callocN<BakeImage>(__func__);
   targets->images_num = 1;
 
   targets->material_to_image = static_cast<Image **>(
@@ -1405,6 +1406,10 @@ static int bake(const BakeAPIRender *bkr,
   /* We build a depsgraph for the baking,
    * so we don't need to change the original data to adjust visibility and modifiers. */
   Depsgraph *depsgraph = DEG_graph_new(bmain, scene, view_layer, DAG_EVAL_RENDER);
+
+  /* Ensure meshes are generated even for objects with animated visibility, see: #107426. */
+  DEG_disable_visibility_optimization(depsgraph);
+
   DEG_graph_build_from_view_layer(depsgraph);
 
   int op_result = OPERATOR_CANCELLED;
@@ -1472,6 +1477,13 @@ static int bake(const BakeAPIRender *bkr,
       }
       else {
         ob_cage_eval = DEG_get_evaluated_object(depsgraph, ob_cage);
+        if (ob_cage_eval->id.orig_id != &ob_cage->id) {
+          BKE_reportf(reports,
+                      RPT_ERROR,
+                      "Cage object \"%s\" not found in evaluated scene, it may be hidden",
+                      ob_cage->id.name + 2);
+          goto cleanup;
+        }
         ob_cage_eval->visibility_flag |= OB_HIDE_RENDER;
         ob_cage_eval->base_flag &= ~(BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
                                      BASE_ENABLED_RENDER);
@@ -1507,6 +1519,13 @@ static int bake(const BakeAPIRender *bkr,
   pixel_array_low = static_cast<BakePixel *>(
       MEM_mallocN(sizeof(BakePixel) * targets.pixels_num, "bake pixels low poly"));
   if ((bkr->is_selected_to_active && (ob_cage == nullptr) && bkr->is_cage) == false) {
+    if (!CustomData_has_layer(&me_low_eval->corner_data, CD_PROP_FLOAT2)) {
+      BKE_reportf(reports,
+                  RPT_ERROR,
+                  "No UV map found in the evaluated object \"%s\"",
+                  ob_low->id.name + 2);
+      goto cleanup;
+    }
     bake_targets_populate_pixels(bkr, &targets, ob_low, me_low_eval, pixel_array_low);
   }
 
@@ -1559,6 +1578,13 @@ static int bake(const BakeAPIRender *bkr,
       }
 
       me_cage_eval = BKE_mesh_new_from_object(nullptr, ob_low_eval, false, preserve_origindex);
+      if (!CustomData_has_layer(&me_cage_eval->corner_data, CD_PROP_FLOAT2)) {
+        BKE_reportf(reports,
+                    RPT_ERROR,
+                    "No UV map found in the evaluated object \"%s\"",
+                    ob_low->id.name + 2);
+        goto cleanup;
+      }
       bake_targets_populate_pixels(bkr, &targets, ob_low, me_cage_eval, pixel_array_low);
     }
 
@@ -1573,13 +1599,31 @@ static int bake(const BakeAPIRender *bkr,
         continue;
       }
 
-      /* initialize highpoly_data */
+      Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob_iter);
+      if (ob_eval->id.orig_id != &ob_iter->id) {
+        BKE_reportf(reports,
+                    RPT_ERROR,
+                    "Object \"%s\" not found in evaluated scene, it may be hidden",
+                    ob_iter->id.name + 2);
+        goto cleanup;
+      }
+
+      ob_eval->visibility_flag &= ~OB_HIDE_RENDER;
+      ob_eval->base_flag |= (BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT | BASE_ENABLED_RENDER);
+
+      Mesh *mesh_eval = BKE_mesh_new_from_object(nullptr, ob_eval, false, false);
+
+      /* Initialize `highpoly` data. */
       highpoly[i].ob = ob_iter;
-      highpoly[i].ob_eval = DEG_get_evaluated_object(depsgraph, ob_iter);
-      highpoly[i].ob_eval->visibility_flag &= ~OB_HIDE_RENDER;
-      highpoly[i].ob_eval->base_flag |= (BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
-                                         BASE_ENABLED_RENDER);
-      highpoly[i].mesh = BKE_mesh_new_from_object(nullptr, highpoly[i].ob_eval, false, false);
+      highpoly[i].ob_eval = ob_eval;
+      highpoly[i].mesh = mesh_eval;
+
+      /* Low-poly to high-poly transformation matrix. */
+      copy_m4_m4(highpoly[i].obmat, highpoly[i].ob->object_to_world().ptr());
+      invert_m4_m4(highpoly[i].imat, highpoly[i].obmat);
+
+      highpoly[i].is_flip_object = is_negative_m4(highpoly[i].ob->object_to_world().ptr());
+      i++;
 
       /* NOTE(@ideasman42): While ideally this should never happen,
        * it's possible the `visibility_flag` assignment in this function
@@ -1590,7 +1634,7 @@ static int bake(const BakeAPIRender *bkr,
        * Use an error here instead of a warning so users don't accidentally perform
        * a bake which seems to succeed with invalid results.
        * If visibility could be forced/overridden - it would help avoid the problem. */
-      if (UNLIKELY(highpoly[i].mesh == nullptr)) {
+      if (UNLIKELY(mesh_eval == nullptr)) {
         BKE_reportf(
             reports,
             RPT_ERROR,
@@ -1598,14 +1642,6 @@ static int bake(const BakeAPIRender *bkr,
             ob_iter->id.name + 2);
         goto cleanup;
       }
-
-      /* Low-poly to high-poly transformation matrix. */
-      copy_m4_m4(highpoly[i].obmat, highpoly[i].ob->object_to_world().ptr());
-      invert_m4_m4(highpoly[i].imat, highpoly[i].obmat);
-
-      highpoly[i].is_flip_object = is_negative_m4(highpoly[i].ob->object_to_world().ptr());
-
-      i++;
     }
 
     BLI_assert(i == highpoly_num);
@@ -1731,6 +1767,14 @@ static int bake(const BakeAPIRender *bkr,
 
             /* Evaluate modifiers again. */
             me_nores = BKE_mesh_new_from_object(nullptr, ob_low_eval, false, false);
+            if (!CustomData_has_layer(&me_nores->corner_data, CD_PROP_FLOAT2)) {
+              BKE_reportf(reports,
+                          RPT_ERROR,
+                          "No UV map found in the evaluated object \"%s\"",
+                          ob_low->id.name + 2);
+              BKE_id_free(nullptr, &me_nores->id);
+              goto cleanup;
+            }
             bake_targets_populate_pixels(bkr, &targets, ob_low, me_nores, pixel_array_low);
           }
 

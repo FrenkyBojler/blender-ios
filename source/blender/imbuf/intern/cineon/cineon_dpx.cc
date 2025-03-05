@@ -7,7 +7,6 @@
  */
 
 #include "logImageCore.h"
-#include <cmath>
 #include <cstdio>
 #include <cstring>
 
@@ -40,7 +39,7 @@ static ImBuf *imb_load_dpx_cineon(
 
   logImageGetSize(image, &width, &height, &depth);
 
-  ibuf = IMB_allocImBuf(width, height, 32, IB_rectfloat | flags);
+  ibuf = IMB_allocImBuf(width, height, 32, IB_float_data | flags);
   if (ibuf == nullptr) {
     logImageClose(image);
     return nullptr;
@@ -136,7 +135,7 @@ static int imb_save_dpx_cineon(ImBuf *ibuf, const char *filepath, int use_cineon
   }
   else {
     if (ibuf->byte_buffer.data == nullptr) {
-      IMB_rect_from_float(ibuf);
+      IMB_byte_from_float(ibuf);
     }
 
     fbuf = (float *)MEM_mallocN(sizeof(float[4]) * ibuf->x * ibuf->y,
@@ -169,9 +168,9 @@ bool imb_save_cineon(ImBuf *buf, const char *filepath, int flags)
   return imb_save_dpx_cineon(buf, filepath, 1, flags);
 }
 
-bool imb_is_a_cineon(const uchar *buf, size_t size)
+bool imb_is_a_cineon(const uchar *mem, size_t size)
 {
-  return logImageIsCineon(buf, size);
+  return logImageIsCineon(mem, size);
 }
 
 ImBuf *imb_load_cineon(const uchar *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])

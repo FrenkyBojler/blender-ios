@@ -27,16 +27,14 @@
 #include "MEM_guardedalloc.h"
 
 #include "BIK_api.h"
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_constraint.h"
-#include "BKE_global.hh"
 #include "DNA_action_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
@@ -272,7 +270,7 @@ static int initialize_chain(Object * /*ob*/, bPoseChannel *pchan_tip, bConstrain
 
   /* setup the chain data */
   /* create a target */
-  target = MEM_cnew<PoseTarget>("posetarget");
+  target = MEM_callocN<PoseTarget>("posetarget");
   target->con = con;
   /* by construction there can be only one tree per channel
    * and each channel can be part of at most one tree. */
@@ -280,7 +278,7 @@ static int initialize_chain(Object * /*ob*/, bPoseChannel *pchan_tip, bConstrain
 
   if (tree == nullptr) {
     /* make new tree */
-    tree = MEM_cnew<PoseTree>("posetree");
+    tree = MEM_callocN<PoseTree>("posetree");
 
     tree->iterations = data->iterations;
     tree->totchannel = segcount;
@@ -564,7 +562,7 @@ static bool target_callback(const iTaSC::Timestamp & /*timestamp*/,
   IK_Target *target = (IK_Target *)param;
   /* compute next target position
    * get target matrix from constraint. */
-  bConstraint *constraint = (bConstraint *)target->blenderConstraint;
+  bConstraint *constraint = target->blenderConstraint;
   float tarmat[4][4];
 
   BKE_constraint_target_matrix_get(target->bldepsgraph,
@@ -1435,7 +1433,7 @@ static IK_Scene *convert_tree(
   /* for each target, we need to add an end effector in the armature */
   for (numtarget = 0, polarcon = nullptr, ret = true, target = (PoseTarget *)tree->targets.first;
        target;
-       target = (PoseTarget *)target->next)
+       target = target->next)
   {
     condata = (bKinematicConstraint *)target->con->data;
     pchan = tree->pchan[target->tip];

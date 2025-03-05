@@ -76,9 +76,9 @@ static void strip_add_generic_update(Scene *scene, Strip *strip)
 {
   SEQ_sequence_base_unique_name_recursive(scene, &scene->ed->seqbase, strip);
   SEQ_relations_invalidate_cache_composite(scene, strip);
-  SEQ_strip_lookup_invalidate(scene);
+  SEQ_strip_lookup_invalidate(scene->ed);
   strip_time_effect_range_set(scene, strip);
-  SEQ_time_update_meta_strip_range(scene, SEQ_lookup_meta_by_strip(scene, strip));
+  SEQ_time_update_meta_strip_range(scene, SEQ_lookup_meta_by_strip(scene->ed, strip));
 }
 
 static void strip_add_set_name(Scene *scene, Strip *strip, SeqLoadData *load_data)
@@ -257,7 +257,7 @@ Strip *SEQ_add_image_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqLoad
   STRNCPY(file_path, load_data->path);
   BLI_path_abs(file_path, BKE_main_blendfile_path(bmain));
   ImBuf *ibuf = IMB_loadiffname(
-      file_path, IB_rect | IB_multilayer, strip->data->colorspace_settings.name);
+      file_path, IB_byte_data | IB_multilayer, strip->data->colorspace_settings.name);
   if (ibuf != nullptr) {
     /* Set image resolution. Assume that all images in sequence are same size. This fields are only
      * informative. */
@@ -419,7 +419,7 @@ Strip *SEQ_add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqLoad
         char filepath_view[FILE_MAX];
 
         seq_multiview_name(scene, i, prefix, ext, filepath_view, sizeof(filepath_view));
-        anim_arr[j] = openanim(filepath_view, IB_rect, 0, colorspace);
+        anim_arr[j] = openanim(filepath_view, IB_byte_data, 0, colorspace);
 
         if (anim_arr[j]) {
           seq_anim_add_suffix(scene, anim_arr[j], i);
@@ -431,7 +431,7 @@ Strip *SEQ_add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqLoad
   }
 
   if (is_multiview_loaded == false) {
-    anim_arr[0] = openanim(filepath, IB_rect, 0, colorspace);
+    anim_arr[0] = openanim(filepath, IB_byte_data, 0, colorspace);
   }
 
   if (anim_arr[0] == nullptr && !load_data->allow_invalid_file) {
@@ -556,9 +556,7 @@ void SEQ_add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool
       strip->len = olen;
       strip->len -= strip->anim_startofs;
       strip->len -= strip->anim_endofs;
-      if (strip->len < 0) {
-        strip->len = 0;
-      }
+      strip->len = std::max(strip->len, 0);
       break;
     }
     case STRIP_TYPE_MOVIE: {
@@ -589,7 +587,7 @@ void SEQ_add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool
 
             seq_multiview_name(scene, i, prefix, ext, filepath_view, sizeof(filepath_view));
             anim = openanim(filepath_view,
-                            IB_rect | ((strip->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
+                            IB_byte_data | ((strip->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
                             strip->streamindex,
                             strip->data->colorspace_settings.name);
 
@@ -607,7 +605,7 @@ void SEQ_add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool
       if (is_multiview_loaded == false) {
         MovieReader *anim;
         anim = openanim(filepath,
-                        IB_rect | ((strip->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
+                        IB_byte_data | ((strip->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
                         strip->streamindex,
                         strip->data->colorspace_settings.name);
         if (anim) {
@@ -633,9 +631,7 @@ void SEQ_add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool
 
       strip->len -= strip->anim_startofs;
       strip->len -= strip->anim_endofs;
-      if (strip->len < 0) {
-        strip->len = 0;
-      }
+      strip->len = std::max(strip->len, 0);
       break;
     }
     case STRIP_TYPE_MOVIECLIP:
@@ -647,9 +643,7 @@ void SEQ_add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool
 
       strip->len -= strip->anim_startofs;
       strip->len -= strip->anim_endofs;
-      if (strip->len < 0) {
-        strip->len = 0;
-      }
+      strip->len = std::max(strip->len, 0);
       break;
     case STRIP_TYPE_MASK:
       if (strip->mask == nullptr) {
@@ -658,9 +652,7 @@ void SEQ_add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool
       strip->len = BKE_mask_get_duration(strip->mask);
       strip->len -= strip->anim_startofs;
       strip->len -= strip->anim_endofs;
-      if (strip->len < 0) {
-        strip->len = 0;
-      }
+      strip->len = std::max(strip->len, 0);
       break;
     case STRIP_TYPE_SOUND_RAM:
 #ifdef WITH_AUDASPACE
@@ -670,9 +662,7 @@ void SEQ_add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool
       strip->len = ceil(double(BKE_sound_get_length(bmain, strip->sound)) * FPS);
       strip->len -= strip->anim_startofs;
       strip->len -= strip->anim_endofs;
-      if (strip->len < 0) {
-        strip->len = 0;
-      }
+      strip->len = std::max(strip->len, 0);
 #else
       UNUSED_VARS(bmain);
       return;
@@ -682,9 +672,7 @@ void SEQ_add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool
       strip->len = (strip->scene) ? strip->scene->r.efra - strip->scene->r.sfra + 1 : 0;
       strip->len -= strip->anim_startofs;
       strip->len -= strip->anim_endofs;
-      if (strip->len < 0) {
-        strip->len = 0;
-      }
+      strip->len = std::max(strip->len, 0);
       break;
     }
   }

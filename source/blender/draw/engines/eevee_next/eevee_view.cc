@@ -15,8 +15,9 @@
  * its type. Passes are shared between views.
  */
 
-#include "BKE_global.hh"
 #include "DRW_render.hh"
+
+#include "GPU_debug.hh"
 
 #include "eevee_instance.hh"
 
@@ -80,7 +81,7 @@ void ShadingView::render()
 
   update_view();
 
-  DRW_stats_group_start(name_);
+  GPU_debug_group_begin(name_);
 
   /* Needs to be before planar_probes because it needs correct crypto-matte & render-pass buffers
    * to reuse the same deferred shaders. */
@@ -161,7 +162,7 @@ void ShadingView::render()
   rbufs.release();
   postfx_tx_.release();
 
-  DRW_stats_group_end();
+  GPU_debug_group_end();
 }
 
 void ShadingView::render_transparent_pass(RenderBuffers &rbufs)

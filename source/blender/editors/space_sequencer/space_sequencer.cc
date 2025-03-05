@@ -6,18 +6,21 @@
  * \ingroup spseq
  */
 
+#include <algorithm>
 #include <cmath>
-#include <cstdio>
 #include <cstring>
 
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_mask_types.h"
 #include "DNA_scene_types.h"
 
+#include "GPU_immediate.hh"
+#include "GPU_matrix.hh"
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_math_base.h"
+#include "BLI_string.h"
 
 #include "BLF_api.hh"
 
@@ -66,7 +69,7 @@ static void sequencer_scopes_tag_refresh(ScrArea *area)
   sseq->runtime->scopes.reference_ibuf = nullptr;
 }
 
-blender::ed::seq::SpaceSeq_Runtime::~SpaceSeq_Runtime() {}
+blender::ed::seq::SpaceSeq_Runtime::~SpaceSeq_Runtime() = default;
 
 /* ******************** manage regions ********************* */
 
@@ -88,7 +91,7 @@ static SpaceLink *sequencer_create(const ScrArea * /*area*/, const Scene *scene)
   ARegion *region;
   SpaceSeq *sseq;
 
-  sseq = MEM_cnew<SpaceSeq>("initsequencer");
+  sseq = MEM_callocN<SpaceSeq>("initsequencer");
   sseq->spacetype = SPACE_SEQ;
   sseq->chanshown = 0;
   sseq->view = SEQ_VIEW_SEQUENCE;
@@ -220,8 +223,7 @@ static void sequencer_init(wmWindowManager * /*wm*/, ScrArea *area)
 
 static void sequencer_refresh(const bContext *C, ScrArea *area)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *window = CTX_wm_window(C);
+  const wmWindow *window = CTX_wm_window(C);
   SpaceSeq *sseq = (SpaceSeq *)area->spacedata.first;
   ARegion *region_main = sequencer_find_region(area, RGN_TYPE_WINDOW);
   ARegion *region_preview = sequencer_find_region(area, RGN_TYPE_PREVIEW);
@@ -272,7 +274,7 @@ static void sequencer_refresh(const bContext *C, ScrArea *area)
   }
 
   if (view_changed) {
-    ED_area_init(wm, window, area);
+    ED_area_init(const_cast<bContext *>(C), window, area);
     ED_area_tag_redraw(area);
   }
 }
@@ -359,7 +361,7 @@ static void SEQUENCER_GGT_gizmo2d(wmGizmoGroupType *gzgt)
   gzgt->gzmap_params.spaceid = SPACE_SEQ;
   gzgt->gzmap_params.regionid = RGN_TYPE_PREVIEW;
 
-  ED_widgetgroup_gizmo2d_xform_callbacks_set(gzgt);
+  blender::ed::transform::ED_widgetgroup_gizmo2d_xform_callbacks_set(gzgt);
 }
 
 static void SEQUENCER_GGT_gizmo2d_translate(wmGizmoGroupType *gzgt)
@@ -373,7 +375,7 @@ static void SEQUENCER_GGT_gizmo2d_translate(wmGizmoGroupType *gzgt)
   gzgt->gzmap_params.spaceid = SPACE_SEQ;
   gzgt->gzmap_params.regionid = RGN_TYPE_PREVIEW;
 
-  ED_widgetgroup_gizmo2d_xform_no_cage_callbacks_set(gzgt);
+  blender::ed::transform::ED_widgetgroup_gizmo2d_xform_no_cage_callbacks_set(gzgt);
 }
 
 static void SEQUENCER_GGT_gizmo2d_resize(wmGizmoGroupType *gzgt)
@@ -387,7 +389,7 @@ static void SEQUENCER_GGT_gizmo2d_resize(wmGizmoGroupType *gzgt)
   gzgt->gzmap_params.spaceid = SPACE_SEQ;
   gzgt->gzmap_params.regionid = RGN_TYPE_PREVIEW;
 
-  ED_widgetgroup_gizmo2d_resize_callbacks_set(gzgt);
+  blender::ed::transform::ED_widgetgroup_gizmo2d_resize_callbacks_set(gzgt);
 }
 
 static void SEQUENCER_GGT_gizmo2d_rotate(wmGizmoGroupType *gzgt)
@@ -401,7 +403,7 @@ static void SEQUENCER_GGT_gizmo2d_rotate(wmGizmoGroupType *gzgt)
   gzgt->gzmap_params.spaceid = SPACE_SEQ;
   gzgt->gzmap_params.regionid = RGN_TYPE_PREVIEW;
 
-  ED_widgetgroup_gizmo2d_rotate_callbacks_set(gzgt);
+  blender::ed::transform::ED_widgetgroup_gizmo2d_rotate_callbacks_set(gzgt);
 }
 
 static void sequencer_gizmos()
@@ -497,10 +499,7 @@ static void sequencer_main_clamp_view(const bContext *C, ARegion *region)
   /* Add padding to be able to scroll the view so that the collapsed redo panel doesn't occlude any
    * strips. */
   float bottom_channel_padding = UI_MARKER_MARGIN_Y * pixel_view_size_y;
-  if (bottom_channel_padding < 1.0f) {
-    /* Make sure that we can always scroll off at least by one channel. */
-    bottom_channel_padding = 1.0f;
-  }
+  bottom_channel_padding = std::max(bottom_channel_padding, 1.0f);
   /* Add the padding and make sure we have a margin of one channel in each direction. */
   strip_boundbox.ymax += 1.0f + pad_top * pixel_view_size_y;
   strip_boundbox.ymin -= bottom_channel_padding;
@@ -678,6 +677,12 @@ static void sequencer_main_cursor(wmWindow *win, ScrArea *area, ARegion *region)
     return;
   }
 
+  const View2D *v2d = &region->v2d;
+  if (UI_view2d_mouse_in_scrollers(region, v2d, win->eventstate->xy)) {
+    WM_cursor_set(win, wmcursor);
+    return;
+  }
+
   float mouse_co_region[2] = {float(win->eventstate->xy[0] - region->winrct.xmin),
                               float(win->eventstate->xy[1] - region->winrct.ymin)};
   float mouse_co_view[2];
@@ -705,10 +710,7 @@ static void sequencer_main_cursor(wmWindow *win, ScrArea *area, ARegion *region)
     return;
   }
 
-  const View2D *v2d = &region->v2d;
-  const float scale_y = UI_view2d_scale_get_y(v2d);
-
-  if (!ED_sequencer_can_select_handle(scene, selection.seq1, v2d) || scale_y < 16 * U.pixelsize) {
+  if (!ED_sequencer_can_select_handle(scene, selection.seq1, v2d)) {
     WM_cursor_set(win, wmcursor);
     return;
   }
@@ -838,6 +840,90 @@ static bool is_cursor_visible(const SpaceSeq *sseq)
   return false;
 }
 
+/**
+ * We may want to move this into a more general location.
+ */
+static void draw_cursor_2d(const ARegion *region, const blender::float2 &cursor)
+{
+  int co[2];
+  UI_view2d_view_to_region(&region->v2d, cursor[0], cursor[1], &co[0], &co[1]);
+
+  /* Draw nice Anti Aliased cursor. */
+  GPU_blend(GPU_BLEND_ALPHA);
+
+  /* Draw lines */
+  float original_proj[4][4];
+  GPU_matrix_projection_get(original_proj);
+  GPU_matrix_push();
+  ED_region_pixelspace(region);
+  GPU_matrix_translate_2f(co[0] + 0.5f, co[1] + 0.5f);
+  GPU_matrix_scale_2f(U.widget_unit, U.widget_unit);
+
+  float viewport[4];
+  GPU_viewport_size_get_f(viewport);
+
+  GPUVertFormat *format = immVertexFormat();
+  struct {
+    uint pos, col;
+  } attr_id{};
+  attr_id.pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  attr_id.col = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_FLAT_COLOR);
+  immUniform2fv("viewportSize", &viewport[2]);
+  immUniform1f("lineWidth", U.pixelsize);
+
+  const float f5 = 0.25f;
+  const float f10 = 0.5f;
+  const float f20 = 1.0f;
+
+  const float red[3] = {1.0f, 0.0f, 0.0f};
+  const float white[3] = {1.0f, 1.0f, 1.0f};
+
+  const int segments = 16;
+  immBegin(GPU_PRIM_LINE_STRIP, segments + 1);
+  for (int i = 0; i < segments + 1; i++) {
+    float angle = float(2 * M_PI) * (float(i) / float(segments));
+    float x = f10 * cosf(angle);
+    float y = f10 * sinf(angle);
+
+    immAttr3fv(attr_id.col, (i % 2 == 0) ? red : white);
+    immVertex2f(attr_id.pos, x, y);
+  }
+  immEnd();
+
+  float crosshair_color[3];
+  UI_GetThemeColor3fv(TH_VIEW_OVERLAY, crosshair_color);
+
+  immBegin(GPU_PRIM_LINES, 8);
+  immAttr3fv(attr_id.col, crosshair_color);
+  immVertex2f(attr_id.pos, -f20, 0);
+  immAttr3fv(attr_id.col, crosshair_color);
+  immVertex2f(attr_id.pos, -f5, 0);
+
+  immAttr3fv(attr_id.col, crosshair_color);
+  immVertex2f(attr_id.pos, +f20, 0);
+  immAttr3fv(attr_id.col, crosshair_color);
+  immVertex2f(attr_id.pos, +f5, 0);
+
+  immAttr3fv(attr_id.col, crosshair_color);
+  immVertex2f(attr_id.pos, 0, -f20);
+  immAttr3fv(attr_id.col, crosshair_color);
+  immVertex2f(attr_id.pos, 0, -f5);
+
+  immAttr3fv(attr_id.col, crosshair_color);
+  immVertex2f(attr_id.pos, 0, +f20);
+  immAttr3fv(attr_id.col, crosshair_color);
+  immVertex2f(attr_id.pos, 0, +f5);
+  immEnd();
+
+  immUnbindProgram();
+
+  GPU_blend(GPU_BLEND_NONE);
+
+  GPU_matrix_pop();
+  GPU_matrix_projection_set(original_proj);
+}
+
 static void sequencer_preview_region_draw(const bContext *C, ARegion *region)
 {
   ScrArea *area = CTX_wm_area(C);
@@ -877,10 +963,8 @@ static void sequencer_preview_region_draw(const bContext *C, ARegion *region)
     GPU_depth_mask(false);
     GPU_depth_test(GPU_DEPTH_NONE);
 
-    float cursor_pixel[2];
-    SEQ_image_preview_unit_to_px(scene, sseq->cursor, cursor_pixel);
-
-    DRW_draw_cursor_2d_ex(region, cursor_pixel);
+    const blender::float2 cursor_pixel = SEQ_image_preview_unit_to_px(scene, sseq->cursor);
+    draw_cursor_2d(region, cursor_pixel);
   }
 
   if ((is_playing == false) && (sseq->gizmo_flag & SEQ_GIZMO_HIDE) == 0) {
@@ -1105,7 +1189,7 @@ void ED_spacetype_sequencer()
 
   /* Create regions: */
   /* Main window. */
-  art = MEM_cnew<ARegionType>("spacetype sequencer region");
+  art = MEM_callocN<ARegionType>("spacetype sequencer region");
   art->regionid = RGN_TYPE_WINDOW;
   art->poll = sequencer_main_region_poll;
   art->init = sequencer_main_region_init;
@@ -1123,7 +1207,7 @@ void ED_spacetype_sequencer()
   BLI_addhead(&st->regiontypes, art);
 
   /* Preview. */
-  art = MEM_cnew<ARegionType>("spacetype sequencer region");
+  art = MEM_callocN<ARegionType>("spacetype sequencer region");
   art->regionid = RGN_TYPE_PREVIEW;
   art->poll = sequencer_preview_region_poll;
   art->init = sequencer_preview_region_init;
@@ -1135,7 +1219,7 @@ void ED_spacetype_sequencer()
   BLI_addhead(&st->regiontypes, art);
 
   /* List-view/buttons. */
-  art = MEM_cnew<ARegionType>("spacetype sequencer region");
+  art = MEM_callocN<ARegionType>("spacetype sequencer region");
   art->regionid = RGN_TYPE_UI;
   art->prefsizex = UI_SIDEBAR_PANEL_WIDTH * 1.3f;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
@@ -1147,7 +1231,7 @@ void ED_spacetype_sequencer()
 
   sequencer_buttons_register(art);
   /* Toolbar. */
-  art = MEM_cnew<ARegionType>("spacetype sequencer tools region");
+  art = MEM_callocN<ARegionType>("spacetype sequencer tools region");
   art->regionid = RGN_TYPE_TOOLS;
   art->prefsizex = int(UI_TOOLBAR_WIDTH);
   art->prefsizey = 50; /* XXX */
@@ -1160,7 +1244,7 @@ void ED_spacetype_sequencer()
   BLI_addhead(&st->regiontypes, art);
 
   /* Channels. */
-  art = MEM_cnew<ARegionType>("spacetype sequencer channels");
+  art = MEM_callocN<ARegionType>("spacetype sequencer channels");
   art->regionid = RGN_TYPE_CHANNELS;
   art->prefsizex = UI_COMPACT_PANEL_WIDTH;
   art->keymapflag = ED_KEYMAP_UI;
@@ -1171,7 +1255,7 @@ void ED_spacetype_sequencer()
   BLI_addhead(&st->regiontypes, art);
 
   /* Tool header. */
-  art = MEM_cnew<ARegionType>("spacetype sequencer tool header region");
+  art = MEM_callocN<ARegionType>("spacetype sequencer tool header region");
   art->regionid = RGN_TYPE_TOOL_HEADER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES | ED_KEYMAP_HEADER;
@@ -1182,7 +1266,7 @@ void ED_spacetype_sequencer()
   BLI_addhead(&st->regiontypes, art);
 
   /* Header. */
-  art = MEM_cnew<ARegionType>("spacetype sequencer region");
+  art = MEM_callocN<ARegionType>("spacetype sequencer region");
   art->regionid = RGN_TYPE_HEADER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES | ED_KEYMAP_HEADER;

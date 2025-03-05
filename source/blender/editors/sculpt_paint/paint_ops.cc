@@ -6,6 +6,7 @@
  * \ingroup edsculpt
  */
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 
@@ -25,6 +26,7 @@
 #include "BKE_context.hh"
 #include "BKE_image.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_paint.hh"
 #include "BKE_report.hh"
@@ -87,9 +89,7 @@ static int brush_scale_size_exec(bContext *C, wmOperator *op)
                                                BKE_brush_unprojected_radius_get(scene, brush) :
                                                brush->unprojected_radius);
 
-      if (unprojected_radius < 0.001f) { /* XXX magic number */
-        unprojected_radius = 0.001f;
-      }
+      unprojected_radius = std::max(unprojected_radius, 0.001f);
 
       if (use_unified_size) {
         BKE_brush_unprojected_radius_set(scene, brush, unprojected_radius);
@@ -340,7 +340,7 @@ static int palette_sort_exec(bContext *C, wmOperator *op)
   const int totcol = BLI_listbase_count(&palette->colors);
 
   if (totcol > 0) {
-    color_array = MEM_cnew_array<tPaletteColorHSV>(totcol, __func__);
+    color_array = MEM_calloc_arrayN<tPaletteColorHSV>(totcol, __func__);
     /* Put all colors in an array. */
     int t = 0;
     LISTBASE_FOREACH (PaletteColor *, color, &palette->colors) {

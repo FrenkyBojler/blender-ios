@@ -17,7 +17,6 @@
 #include "UI_resources.hh"
 
 #include "GPU_shader.hh"
-#include "GPU_texture.hh"
 
 #include "COM_algorithm_gamma_correct.hh"
 #include "COM_algorithm_recursive_gaussian_blur.hh"
@@ -49,7 +48,7 @@ static void cmp_node_blur_declare(NodeDeclarationBuilder &b)
 
 static void node_composit_init_blur(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeBlurData *data = MEM_cnew<NodeBlurData>(__func__);
+  NodeBlurData *data = MEM_callocN<NodeBlurData>(__func__);
   data->filtertype = R_FILTER_GAUSS;
   node->storage = data;
 }
@@ -533,8 +532,8 @@ void register_node_type_cmp_blur()
   ntype.flag |= NODE_PREVIEW;
   ntype.initfunc = file_ns::node_composit_init_blur;
   blender::bke::node_type_storage(
-      &ntype, "NodeBlurData", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeBlurData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

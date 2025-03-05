@@ -11,8 +11,6 @@
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 
-#include "BLI_utildefines.h"
-
 #include "BKE_subdiv_modifier.hh"
 
 #include "MEM_guardedalloc.h"
@@ -116,7 +114,7 @@ Subdiv *new_from_converter(const Settings *settings, OpenSubdiv_Converter *conve
      * The thing here is: OpenSubdiv can only deal with faces, but our
      * side of subdiv also deals with loose vertices and edges. */
   }
-  Subdiv *subdiv = MEM_cnew<Subdiv>(__func__);
+  Subdiv *subdiv = MEM_callocN<Subdiv>(__func__);
   subdiv->settings = *settings;
   subdiv->topology_refiner = osd_topology_refiner;
   subdiv->evaluator = nullptr;

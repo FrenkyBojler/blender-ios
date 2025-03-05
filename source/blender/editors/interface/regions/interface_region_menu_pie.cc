@@ -16,6 +16,7 @@
 
 #include "DNA_userdef_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
@@ -95,7 +96,7 @@ uiPieMenu *UI_pie_menu_begin(bContext *C, const char *title, int icon, const wmE
 
   wmWindow *win = CTX_wm_window(C);
 
-  uiPieMenu *pie = MEM_cnew<uiPieMenu>(__func__);
+  uiPieMenu *pie = MEM_callocN<uiPieMenu>(__func__);
 
   pie->pie_block = UI_block_begin(C, nullptr, __func__, UI_EMBOSS);
   /* may be useful later to allow spawning pies
@@ -249,7 +250,7 @@ int UI_pie_menu_invoke_from_rna_enum(bContext *C,
   uiPieMenu *pie;
   uiLayout *layout;
 
-  PointerRNA ctx_ptr = RNA_pointer_create(nullptr, &RNA_Context, C);
+  PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Context, C);
 
   if (!RNA_path_resolve(&ctx_ptr, path, &r_ptr, &r_prop)) {
     return OPERATOR_CANCELLED;

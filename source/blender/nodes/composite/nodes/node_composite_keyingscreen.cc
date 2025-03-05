@@ -19,8 +19,6 @@
 #include "BKE_movieclip.h"
 #include "BKE_tracking.h"
 
-#include "GPU_texture.hh"
-
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
@@ -47,7 +45,7 @@ static void node_composit_init_keyingscreen(const bContext *C, PointerRNA *ptr)
 {
   bNode *node = (bNode *)ptr->data;
 
-  NodeKeyingScreenData *data = MEM_cnew<NodeKeyingScreenData>(__func__);
+  NodeKeyingScreenData *data = MEM_callocN<NodeKeyingScreenData>(__func__);
   data->smoothness = 0.0f;
   node->storage = data;
 
@@ -72,7 +70,8 @@ static void node_composit_buts_keyingscreen(uiLayout *layout, bContext *C, Point
   if (node->id) {
     MovieClip *clip = (MovieClip *)node->id;
     uiLayout *col;
-    PointerRNA tracking_ptr = RNA_pointer_create(&clip->id, &RNA_MovieTracking, &clip->tracking);
+    PointerRNA tracking_ptr = RNA_pointer_create_discrete(
+        &clip->id, &RNA_MovieTracking, &clip->tracking);
 
     col = uiLayoutColumn(layout, true);
     uiItemPointerR(col, ptr, "tracking_object", &tracking_ptr, "objects", "", ICON_OBJECT_DATA);
@@ -178,8 +177,8 @@ void register_node_type_cmp_keyingscreen()
   ntype.draw_buttons = file_ns::node_composit_buts_keyingscreen;
   ntype.initfunc_api = file_ns::node_composit_init_keyingscreen;
   blender::bke::node_type_storage(
-      &ntype, "NodeKeyingScreenData", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeKeyingScreenData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

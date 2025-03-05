@@ -7,7 +7,7 @@
 #include "draw_object_infos_info.hh"
 
 #ifdef GPU_LIBRARY_SHADER
-SHADER_LIBRARY_CREATE_INFO(draw_modelmat_new)
+SHADER_LIBRARY_CREATE_INFO(draw_modelmat)
 #endif
 
 #include "draw_model_lib.glsl"
@@ -28,7 +28,7 @@ packed_float4 g_color;
 #ifdef OBINFO_LIB
 vec3 attr_load_orco(vec4 orco)
 {
-  vec3 lP = point_world_to_object(interp.P);
+  vec3 lP = drw_point_world_to_object(interp.P);
   return OrcoTexCoFactors[0].xyz + lP * OrcoTexCoFactors[1].xyz;
 }
 #endif

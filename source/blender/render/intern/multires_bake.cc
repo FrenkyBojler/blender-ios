@@ -10,6 +10,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_modifier_types.h"
 #include "DNA_scene_types.h"
 
 #include "BLI_listbase.h"
@@ -27,7 +28,6 @@
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_derived_mesh.hh"
 #include "BKE_mesh_tangent.hh"
-#include "BKE_modifier.hh"
 #include "BKE_multires.hh"
 #include "BKE_subsurf.hh"
 
@@ -526,14 +526,14 @@ static void do_multires_bake(MultiresBakeRender *bkr,
 
       /* Copy sharp faces and edges, for corner normals domain and tangents
        * to be computed correctly. */
-      if (sharp_edges) {
+      if (sharp_edges != nullptr) {
         bke::MutableAttributeAccessor attributes = temp_mesh->attributes_for_write();
         attributes.add<bool>("sharp_edge",
                              bke::AttrDomain::Edge,
                              bke::AttributeInitVArray(VArray<bool>::ForSpan(
                                  Span<bool>(sharp_edges, temp_mesh->edges_num))));
       }
-      if (sharp_faces) {
+      if (sharp_faces != nullptr) {
         bke::MutableAttributeAccessor attributes = temp_mesh->attributes_for_write();
         attributes.add<bool>("sharp_face",
                              bke::AttrDomain::Face,
@@ -633,7 +633,7 @@ static void do_multires_bake(MultiresBakeRender *bkr,
     BLI_threadpool_end(&threads);
   }
   else {
-    do_multires_bake_thread(&handles[0]);
+    do_multires_bake_thread(handles.data());
   }
 
   for (i = 0; i < tot_thread; i++) {
@@ -817,11 +817,11 @@ static void *init_heights_data(MultiresBakeRender *bkr, ImBuf *ibuf)
   BakeImBufuserData *userdata = static_cast<BakeImBufuserData *>(ibuf->userdata);
 
   if (userdata->displacement_buffer == nullptr) {
-    userdata->displacement_buffer = MEM_cnew_array<float>(ibuf->x * ibuf->y,
-                                                          "MultiresBake heights");
+    userdata->displacement_buffer = MEM_calloc_arrayN<float>(ibuf->x * ibuf->y,
+                                                             "MultiresBake heights");
   }
 
-  height_data = MEM_cnew<MHeightBakeData>("MultiresBake heightData");
+  height_data = MEM_callocN<MHeightBakeData>("MultiresBake heightData");
 
   height_data->heights = userdata->displacement_buffer;
 
@@ -965,7 +965,7 @@ static void *init_normal_data(MultiresBakeRender *bkr, ImBuf * /*ibuf*/)
   MNormalBakeData *normal_data;
   DerivedMesh *lodm = bkr->lores_dm;
 
-  normal_data = MEM_cnew<MNormalBakeData>("MultiresBake normalData");
+  normal_data = MEM_callocN<MNormalBakeData>("MultiresBake normalData");
 
   normal_data->orig_index_mp_to_orig = static_cast<const int *>(
       lodm->getPolyDataArray(lodm, CD_ORIGINDEX));
@@ -1508,8 +1508,9 @@ static void bake_images(MultiresBakeRender *bkr, MultiresBakeResult *result)
       ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
 
       if (ibuf->x > 0 && ibuf->y > 0) {
-        BakeImBufuserData *userdata = MEM_cnew<BakeImBufuserData>("MultiresBake userdata");
-        userdata->mask_buffer = MEM_cnew_array<char>(ibuf->y * ibuf->x, "MultiresBake imbuf mask");
+        BakeImBufuserData *userdata = MEM_callocN<BakeImBufuserData>("MultiresBake userdata");
+        userdata->mask_buffer = MEM_calloc_arrayN<char>(ibuf->y * ibuf->x,
+                                                        "MultiresBake imbuf mask");
         ibuf->userdata = userdata;
 
         switch (bkr->mode) {
@@ -1605,7 +1606,7 @@ static void finish_images(MultiresBakeRender *bkr, MultiresBakeResult *result)
 
       if (ibuf->mipmap[0]) {
         ibuf->userflags |= IB_MIPMAP_INVALID;
-        imb_freemipmapImBuf(ibuf);
+        IMB_free_mipmaps(ibuf);
       }
 
       if (ibuf->userdata) {

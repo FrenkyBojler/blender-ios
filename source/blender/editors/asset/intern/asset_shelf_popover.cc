@@ -12,6 +12,7 @@
 
 #include "BKE_screen.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 
 #include "BLT_translation.hh"
@@ -235,7 +236,7 @@ static void popover_panel_draw(const bContext *C, Panel *panel)
   }
 
   bScreen *screen = CTX_wm_screen(C);
-  PointerRNA library_ref_ptr = RNA_pointer_create(
+  PointerRNA library_ref_ptr = RNA_pointer_create_discrete(
       &screen->id, &RNA_AssetLibraryReference, &shelf->settings.asset_library_reference);
   uiLayoutSetContextPointer(layout, "asset_library_reference", &library_ref_ptr);
 
@@ -249,7 +250,7 @@ static void popover_panel_draw(const bContext *C, Panel *panel)
   uiLayout *right_col = uiLayoutColumn(row, false);
   uiLayout *sub = uiLayoutRow(right_col, false);
   /* Same as file/asset browser header. */
-  PointerRNA shelf_ptr = RNA_pointer_create(&screen->id, &RNA_AssetShelf, shelf);
+  PointerRNA shelf_ptr = RNA_pointer_create_discrete(&screen->id, &RNA_AssetShelf, shelf);
   uiItemR(sub,
           &shelf_ptr,
           "search_filter",
@@ -284,7 +285,7 @@ void popover_panel_register(ARegionType *region_type)
     return;
   }
 
-  PanelType *pt = MEM_cnew<PanelType>(__func__);
+  PanelType *pt = MEM_callocN<PanelType>(__func__);
   STRNCPY(pt->idname, "ASSETSHELF_PT_popover_panel");
   STRNCPY(pt->label, N_("Asset Shelf Panel"));
   STRNCPY(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);

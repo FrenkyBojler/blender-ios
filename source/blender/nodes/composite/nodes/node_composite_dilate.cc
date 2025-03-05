@@ -20,8 +20,6 @@
 #include "UI_resources.hh"
 
 #include "GPU_shader.hh"
-#include "GPU_state.hh"
-#include "GPU_texture.hh"
 
 #include "COM_algorithm_morphological_distance.hh"
 #include "COM_algorithm_morphological_distance_feather.hh"
@@ -45,7 +43,7 @@ static void cmp_node_dilate_declare(NodeDeclarationBuilder &b)
 
 static void node_composit_init_dilateerode(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeDilateErode *data = MEM_cnew<NodeDilateErode>(__func__);
+  NodeDilateErode *data = MEM_callocN<NodeDilateErode>(__func__);
   data->falloff = PROP_SMOOTH;
   node->storage = data;
 }
@@ -567,8 +565,8 @@ void register_node_type_cmp_dilateerode()
   ntype.declare = file_ns::cmp_node_dilate_declare;
   ntype.initfunc = file_ns::node_composit_init_dilateerode;
   blender::bke::node_type_storage(
-      &ntype, "NodeDilateErode", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeDilateErode", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

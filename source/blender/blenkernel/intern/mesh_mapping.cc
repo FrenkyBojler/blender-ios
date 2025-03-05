@@ -9,6 +9,8 @@
  * eg: faces connected to verts, UVs connected to verts.
  */
 
+#include <algorithm>
+
 #include "MEM_guardedalloc.h"
 
 #include "atomic_ops.h"
@@ -27,7 +29,7 @@
 #include "BKE_mesh_mapping.hh"
 #include "BLI_memarena.h"
 
-#include "BLI_strict_flags.h" /* Keep last. */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 /* -------------------------------------------------------------------- */
 /** \name Mesh Connectivity Mapping
@@ -194,7 +196,7 @@ void BKE_mesh_vert_corner_tri_map_create(MeshElemMap **r_map,
                                          const int *corner_verts,
                                          const int /*corners_num*/)
 {
-  MeshElemMap *map = MEM_cnew_array<MeshElemMap>(size_t(totvert), __func__);
+  MeshElemMap *map = MEM_calloc_arrayN<MeshElemMap>(size_t(totvert), __func__);
   int *indices = static_cast<int *>(MEM_mallocN(sizeof(int) * size_t(tris_num) * 3, __func__));
   int *index_step;
   int i;
@@ -234,7 +236,7 @@ void BKE_mesh_origindex_map_create(MeshElemMap **r_map,
                                    const int *final_origindex,
                                    const int totfinal)
 {
-  MeshElemMap *map = MEM_cnew_array<MeshElemMap>(size_t(totsource), __func__);
+  MeshElemMap *map = MEM_calloc_arrayN<MeshElemMap>(size_t(totsource), __func__);
   int *indices = static_cast<int *>(MEM_mallocN(sizeof(int) * size_t(totfinal), __func__));
   int *index_step;
   int i;
@@ -275,7 +277,7 @@ void BKE_mesh_origindex_map_create_corner_tri(MeshElemMap **r_map,
                                               const int *corner_tri_faces,
                                               const int corner_tris_num)
 {
-  MeshElemMap *map = MEM_cnew_array<MeshElemMap>(size_t(faces.size()), __func__);
+  MeshElemMap *map = MEM_calloc_arrayN<MeshElemMap>(size_t(faces.size()), __func__);
   int *indices = static_cast<int *>(MEM_mallocN(sizeof(int) * size_t(corner_tris_num), __func__));
   int *index_step;
 
@@ -330,7 +332,7 @@ static Array<int> reverse_indices_in_groups(const Span<int> group_indices,
    * atomically by many threads in parallel. `calloc` can be measurably faster than a parallel fill
    * of zero. Alternatively the offsets could be copied and incremented directly, but the cost of
    * the copy is slightly higher than the cost of `calloc`. */
-  int *counts = MEM_cnew_array<int>(size_t(offsets.size()), __func__);
+  int *counts = MEM_calloc_arrayN<int>(size_t(offsets.size()), __func__);
   BLI_SCOPED_DEFER([&]() { MEM_freeN(counts); })
   Array<int> results(group_indices.size());
   threading::parallel_for(group_indices.index_range(), 1024, [&](const IndexRange range) {
@@ -350,7 +352,7 @@ static void reverse_group_indices_in_groups(const OffsetIndices<int> groups,
                                             const OffsetIndices<int> offsets,
                                             MutableSpan<int> results)
 {
-  int *counts = MEM_cnew_array<int>(size_t(offsets.size()), __func__);
+  int *counts = MEM_calloc_arrayN<int>(size_t(offsets.size()), __func__);
   BLI_SCOPED_DEFER([&]() { MEM_freeN(counts); })
   threading::parallel_for(groups.index_range(), 1024, [&](const IndexRange range) {
     for (const int64_t face : range) {
@@ -390,7 +392,7 @@ GroupedSpan<int> build_vert_to_edge_map(const Span<int2> edges,
   r_indices.reinitialize(offsets.total_size());
 
   /* Version of #reverse_indices_in_groups that accounts for storing two indices for each edge. */
-  int *counts = MEM_cnew_array<int>(size_t(offsets.size()), __func__);
+  int *counts = MEM_calloc_arrayN<int>(size_t(offsets.size()), __func__);
   BLI_SCOPED_DEFER([&]() { MEM_freeN(counts); })
   threading::parallel_for(edges.index_range(), 1024, [&](const IndexRange range) {
     for (const int64_t edge : range) {
@@ -622,9 +624,7 @@ static void face_edge_loop_islands_calc(const int totedge,
 
         group_id_overflow = true;
       }
-      if (gid_bit > tot_group) {
-        tot_group = gid_bit;
-      }
+      tot_group = std::max(gid_bit, tot_group);
       /* And assign the final smooth group id to that face group! */
       for (i = ps_end_idx, p = face_stack; i--; p++) {
         face_groups[*p] = face_group_id;

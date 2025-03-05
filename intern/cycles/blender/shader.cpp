@@ -30,7 +30,9 @@ using ProxyMap = map<string, ConvertNode *>;
 
 /* Find */
 
-void BlenderSync::find_shader(BL::ID &id, array<Node *> &used_shaders, Shader *default_shader)
+void BlenderSync::find_shader(const BL::ID &id,
+                              array<Node *> &used_shaders,
+                              Shader *default_shader)
 {
   Shader *synced_shader = (id) ? shader_map.find(id) : nullptr;
   Shader *shader = (synced_shader) ? synced_shader : default_shader;
@@ -803,17 +805,15 @@ static ShaderNode *add_node(Scene *scene,
       /* create script node */
       BL::ShaderNodeScript b_script_node(b_node);
 
-      ShaderManager *manager = scene->shader_manager.get();
       const string bytecode_hash = b_script_node.bytecode_hash();
-
       if (!bytecode_hash.empty()) {
         node = OSLShaderManager::osl_node(
-            graph, manager, "", bytecode_hash, b_script_node.bytecode());
+            graph, scene, "", bytecode_hash, b_script_node.bytecode());
       }
       else {
         const string absolute_filepath = blender_absolute_path(
             b_data, b_ntree, b_script_node.filepath());
-        node = OSLShaderManager::osl_node(graph, manager, absolute_filepath, "");
+        node = OSLShaderManager::osl_node(graph, scene, absolute_filepath, "");
       }
     }
 #else
@@ -842,11 +842,13 @@ static ShaderNode *add_node(Scene *scene,
       image->set_animated(is_image_animated(b_image_source, b_image_user));
       image->set_alpha_type(get_image_alpha_type(b_image));
 
-      array<int> tiles;
-      for (BL::UDIMTile &b_tile : b_image.tiles) {
-        tiles.push_back_slow(b_tile.number());
+      if (b_image_source == BL::Image::source_TILED) {
+        array<int> tiles;
+        for (BL::UDIMTile &b_tile : b_image.tiles) {
+          tiles.push_back_slow(b_tile.number());
+        }
+        image->set_tiles(tiles);
       }
-      image->set_tiles(tiles);
 
       /* builtin images will use callback-based reading because
        * they could only be loaded correct from blender side

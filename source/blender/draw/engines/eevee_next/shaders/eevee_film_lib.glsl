@@ -147,7 +147,7 @@ void film_sample_accum_mist(FilmSample samp, inout float accum)
   float depth = texelFetch(depth_tx, samp.texel, 0).x;
   vec2 uv = (vec2(samp.texel) + 0.5) / vec2(textureSize(depth_tx, 0).xy);
   vec3 vP = drw_point_screen_to_view(vec3(uv, depth));
-  bool is_persp = ProjectionMatrix[3][3] == 0.0;
+  bool is_persp = drw_view().winmat[3][3] == 0.0;
   float mist = (is_persp) ? length(vP) : abs(vP.z);
   /* Remap to 0..1 range. */
   mist = saturate(mist * uniform_buf.film.mist_scale + uniform_buf.film.mist_bias);
@@ -623,11 +623,6 @@ void film_store_weight(ivec2 texel, float value)
 
 float film_display_depth_amend(ivec2 texel, float depth)
 {
-  if (scaling_factor > 1) {
-    /* The workaround below creates ugly artifacts for overlays relying on depth equal tests.
-     * In this case, it is better to rely on overlay engine to do a depth pass (see #124013). */
-    return 1.0;
-  }
   /* This effectively offsets the depth of the whole 2x2 region to the lowest value of the region
    * twice. One for X and one for Y direction. */
   /* TODO(fclem): This could be improved as it gives flickering result at depth discontinuity.
