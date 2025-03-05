@@ -1823,6 +1823,23 @@ static void create_inspection_string_for_geometry_socket(fmt::memory_buffer &buf
   }
 }
 
+static void create_inspection_string_for_bundle(const geo_log::BundleValueLog &value_log,
+                                                fmt::memory_buffer &buf)
+{
+  if (value_log.keys.is_empty()) {
+    fmt::format_to(fmt::appender(buf), "{}", TIP_("Empty Bundle"));
+    return;
+  }
+  fmt::format_to(fmt::appender(buf), "{}", TIP_("Bundle values: "));
+  for (const int i : value_log.keys.index_range()) {
+    const bke::SocketInterfaceKey &key = value_log.keys[i];
+    fmt::format_to(fmt::appender(buf), "\"{}\"", key.identifiers().first());
+    if (i < value_log.keys.size() - 1) {
+      fmt::format_to(fmt::appender(buf), ", ");
+    }
+  }
+}
+
 static void create_inspection_string_for_default_socket_value(const bNodeSocket &socket,
                                                               fmt::memory_buffer &buf)
 {
@@ -1899,6 +1916,11 @@ static std::optional<std::string> create_log_inspection_string(geo_log::GeoTreeL
                dynamic_cast<const geo_log::GeometryInfoLog *>(value_log))
   {
     create_inspection_string_for_geometry_info(*geo_value_log, buf);
+  }
+  else if (const geo_log::BundleValueLog *bundle_value_log =
+               dynamic_cast<const geo_log::BundleValueLog *>(value_log))
+  {
+    create_inspection_string_for_bundle(*bundle_value_log, buf);
   }
 
   std::string str = fmt::to_string(buf);

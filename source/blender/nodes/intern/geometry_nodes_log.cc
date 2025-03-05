@@ -198,6 +198,8 @@ GeometryInfoLog::GeometryInfoLog(const bke::GVolumeGrid &grid)
 #endif
 }
 
+BundleValueLog::BundleValueLog(Vector<bke::SocketInterfaceKey> keys) : keys(std::move(keys)) {}
+
 /* Avoid generating these in every translation unit. */
 GeoModifierLog::GeoModifierLog() = default;
 GeoModifierLog::~GeoModifierLog() = default;
@@ -253,6 +255,14 @@ void GeoTreeLogger::log_value(const bNode &node, const bNodeSocket &socket, cons
       store_logged_value(this->allocator->construct<GeometryInfoLog>(grid));
     }
 #endif
+    else if (value_variant.valid_for_socket(SOCK_BUNDLE)) {
+      const bke::BundlePtr bundle = value_variant.extract<bke::BundlePtr>();
+      Vector<bke::SocketInterfaceKey> keys;
+      for (const bke::Bundle::StoredItem &item : bundle->items()) {
+        keys.append(item.key);
+      }
+      store_logged_value(this->allocator->construct<BundleValueLog>(std::move(keys)));
+    }
     else {
       value_variant.convert_to_single();
       const GPointer value = value_variant.get_single_ptr();

@@ -15,6 +15,7 @@ SocketInterfaceKey::SocketInterfaceKey(std::string identifier)
 SocketInterfaceKey::SocketInterfaceKey(Vector<std::string> identifiers)
     : identifiers_(std::move(identifiers))
 {
+  BLI_assert(!identifiers_.is_empty());
 }
 
 Span<std::string> SocketInterfaceKey::identifiers() const

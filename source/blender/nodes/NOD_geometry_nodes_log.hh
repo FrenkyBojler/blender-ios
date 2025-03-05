@@ -35,6 +35,7 @@
 #include "BLI_generic_pointer.hh"
 #include "BLI_linear_allocator_chunked_list.hh"
 
+#include "BKE_geometry_nodes_bundle.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_node.hh"
 #include "BKE_node_tree_zones.hh"
@@ -176,6 +177,13 @@ class GeometryInfoLog : public ValueLog {
 
   GeometryInfoLog(const bke::GeometrySet &geometry_set);
   GeometryInfoLog(const bke::GVolumeGrid &grid);
+};
+
+class BundleValueLog : public ValueLog {
+ public:
+  Vector<bke::SocketInterfaceKey> keys;
+
+  BundleValueLog(Vector<bke::SocketInterfaceKey> keys);
 };
 
 /**
