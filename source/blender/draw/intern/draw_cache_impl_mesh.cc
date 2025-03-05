@@ -1383,8 +1383,6 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
 
   enum class BufferList { Final, Cage, UVCage };
 
-  MeshBufferList *mbuflist = &cache.final.buff;
-
   struct BatchCreateData {
     gpu::Batch &batch;
     GPUPrimType prim_type;
