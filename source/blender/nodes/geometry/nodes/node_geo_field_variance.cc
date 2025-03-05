@@ -173,19 +173,18 @@ class FieldVarianceInput final : public bke::GeometryFieldInput {
                                              domain_size);
           }
           else {
-            Map<int, T> results;
-            Map<int, int> counts;
+            Map<int, std::pair<T, int>> sum_and_counts;
             Map<int, T> deviations;
 
             for (const int i : values.index_range()) {
-              T &sum = results.lookup_or_add(group_indices[i], T());
-              int &count = counts.lookup_or_add(group_indices[i], 0);
-              sum = sum + values[i];
-              count = count + 1;
+              auto &pair = sum_and_counts.lookup_or_add(group_indices[i], std::make_pair(T(), 0));
+              pair.first = pair.first + values[i];
+              pair.second = pair.second + 1;
             }
 
             for (const int i : values.index_range()) {
-              T mean = results.lookup(group_indices[i]) / counts.lookup(group_indices[i]);
+              const auto &pair = sum_and_counts.lookup(group_indices[i]);
+              T mean = pair.first / pair.second;
               T deviation = (mean - values[i]);
               deviation = deviation * deviation;
 
@@ -195,8 +194,8 @@ class FieldVarianceInput final : public bke::GeometryFieldInput {
 
             Array<T> outputs(domain_size);
             for (const int i : values.index_range()) {
-              outputs[i] = math::sqrt(deviations.lookup(group_indices[i]) /
-                                      counts.lookup(group_indices[i]));
+              const auto &pair = sum_and_counts.lookup(group_indices[i]);
+              outputs[i] = math::sqrt(deviations.lookup(group_indices[i]) / pair.second);
             }
             g_outputs = VArray<T>::ForContainer(std::move(outputs));
           }
@@ -212,19 +211,18 @@ class FieldVarianceInput final : public bke::GeometryFieldInput {
             g_outputs = VArray<T>::ForSingle(sum_of_squared_diffs / domain_size, domain_size);
           }
           else {
-            Map<int, T> results;
-            Map<int, int> counts;
+            Map<int, std::pair<T, int>> sum_and_counts;
             Map<int, T> deviations;
 
             for (const int i : values.index_range()) {
-              T &sum = results.lookup_or_add(group_indices[i], T());
-              int &count = counts.lookup_or_add(group_indices[i], 0);
-              sum = sum + values[i];
-              count = count + 1;
+              auto &pair = sum_and_counts.lookup_or_add(group_indices[i], std::make_pair(T(), 0));
+              pair.first = pair.first + values[i];
+              pair.second = pair.second + 1;
             }
 
             for (const int i : values.index_range()) {
-              T mean = results.lookup(group_indices[i]) / counts.lookup(group_indices[i]);
+              const auto &pair = sum_and_counts.lookup(group_indices[i]);
+              T mean = pair.first / pair.second;
               T deviation = (mean - values[i]);
               deviation = deviation * deviation;
 
@@ -234,7 +232,8 @@ class FieldVarianceInput final : public bke::GeometryFieldInput {
 
             Array<T> outputs(domain_size);
             for (const int i : values.index_range()) {
-              outputs[i] = deviations.lookup(group_indices[i]) / counts.lookup(group_indices[i]);
+              const auto &pair = sum_and_counts.lookup(group_indices[i]);
+              outputs[i] = deviations.lookup(group_indices[i]) / pair.second;
             }
             g_outputs = VArray<T>::ForContainer(std::move(outputs));
           }

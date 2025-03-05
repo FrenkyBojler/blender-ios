@@ -203,17 +203,17 @@ class FieldAverageInput final : public bke::GeometryFieldInput {
             g_outputs = VArray<T>::ForSingle(mean, domain_size);
           }
           else {
-            Map<int, T> results;
-            Map<int, int> counts;
+            Map<int, std::pair<T, int>> sum_and_counts;
             for (const int i : values.index_range()) {
-              T &sum = results.lookup_or_add(group_indices[i], T());
-              int &count = counts.lookup_or_add(group_indices[i], 0);
-              sum = sum + values[i];
-              count = count + 1;
+              auto &pair = sum_and_counts.lookup_or_add(group_indices[i], std::make_pair(T(), 0));
+              pair.first = pair.first + values[i];
+              pair.second = pair.second + 1;
             }
+
             Array<T> outputs(domain_size);
             for (const int i : values.index_range()) {
-              outputs[i] = results.lookup(group_indices[i]) / counts.lookup(group_indices[i]);
+              const auto &pair = sum_and_counts.lookup(group_indices[i]);
+              outputs[i] = pair.first / pair.second;
             }
             g_outputs = VArray<T>::ForContainer(std::move(outputs));
           }
