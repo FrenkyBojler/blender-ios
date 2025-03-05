@@ -39,7 +39,7 @@ static void position_goal__eval_positions(const ConstraintEvalParams &params,
                                           const ConstraintVariables &variables,
                                           const IndexMask &group_mask,
                                           bke::GeometrySet &constraints,
-                                          VArray<bool> r_active,
+                                          VArray<bool> &r_active,
                                           Vector<VArray<float3>> &r_delta_positions,
                                           Vector<VArray<float4>> &r_delta_rotations)
 {
@@ -137,7 +137,7 @@ static void rotation_goal__eval_positions(const ConstraintEvalParams &params,
                                           const ConstraintVariables &variables,
                                           const IndexMask &group_mask,
                                           bke::GeometrySet &constraints,
-                                          VArray<bool> r_active,
+                                          VArray<bool> &r_active,
                                           Vector<VArray<float3>> &r_delta_positions,
                                           Vector<VArray<float4>> &r_delta_rotations)
 {
@@ -266,7 +266,7 @@ static void stretch_shear__eval_positions(const ConstraintEvalParams &params,
                                           const ConstraintVariables &variables,
                                           const IndexMask &group_mask,
                                           bke::GeometrySet &constraints,
-                                          VArray<bool> r_active,
+                                          VArray<bool> &r_active,
                                           Vector<VArray<float3>> &r_delta_positions,
                                           Vector<VArray<float4>> &r_delta_rotations)
 {
@@ -418,7 +418,7 @@ static void bend_twist__eval_positions(const ConstraintEvalParams &params,
                                        const ConstraintVariables &variables,
                                        const IndexMask &group_mask,
                                        bke::GeometrySet &constraints,
-                                       VArray<bool> r_active,
+                                       VArray<bool> &r_active,
                                        Vector<VArray<float3>> &r_delta_positions,
                                        Vector<VArray<float4>> &r_delta_rotations)
 {
