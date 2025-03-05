@@ -1977,6 +1977,11 @@ static int node_delete_exec(bContext *C, wmOperator * /*op*/)
   Main *bmain = CTX_data_main(C);
   SpaceNode *snode = CTX_wm_space_node(C);
 
+  if (WM_operator_filebrowser_active(C)) {
+    WM_report(RPT_ERROR, "Cannot delete while File Browser is active");
+    return OPERATOR_CANCELLED;
+  }
+
   ED_preview_kill_jobs(CTX_wm_manager(C), bmain);
 
   /* Delete paired nodes as well. */

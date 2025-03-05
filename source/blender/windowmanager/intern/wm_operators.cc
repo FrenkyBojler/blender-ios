@@ -34,6 +34,7 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 
@@ -1287,6 +1288,23 @@ bool WM_operator_check_ui_enabled(const bContext *C, const char *idname)
   Scene *scene = CTX_data_scene(C);
 
   return !((ED_undo_is_valid(C, idname) == false) || WM_jobs_test(wm, scene, WM_JOB_TYPE_ANY));
+}
+
+bool WM_operator_filebrowser_active(const bContext *C)
+{
+  wmWindowManager *wm = CTX_wm_manager(C);
+  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
+    const bScreen *screen = WM_window_get_active_screen(win);
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      if (area->spacetype == SPACE_FILE) {
+        SpaceFile *sfile = static_cast<SpaceFile *>(area->spacedata.first);
+        if (sfile && sfile->browse_mode == FILE_BROWSE_MODE_FILES && sfile->op) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
 }
 
 wmOperator *WM_operator_last_redo(const bContext *C)

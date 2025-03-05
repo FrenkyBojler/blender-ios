@@ -811,6 +811,9 @@ int WM_operator_confirm_ex(bContext *C,
  */
 int WM_operator_filesel(bContext *C, wmOperator *op, const wmEvent *event);
 bool WM_operator_filesel_ensure_ext_imtype(wmOperator *op, const ImageFormatData *im_format);
+
+bool WM_operator_filebrowser_active(const bContext *C);
+
 /** Callback for #wmOperatorType.poll. */
 bool WM_operator_winactive(bContext *C);
 /**
