@@ -718,7 +718,8 @@ static void rna_ColorManagedColorspaceSettings_reload_update(Main *bmain,
       }
       else {
         /* Strip colorspace was likely changed. */
-        blender::seq::SEQ_for_each_callback(&scene->ed->seqbase, strip_find_colorspace_settings_cb, &cb_data);
+        blender::seq::SEQ_for_each_callback(
+            &scene->ed->seqbase, strip_find_colorspace_settings_cb, &cb_data);
         Strip *strip = cb_data.r_seq;
 
         if (strip) {

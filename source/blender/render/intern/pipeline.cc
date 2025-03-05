@@ -1446,7 +1446,9 @@ bool RE_seq_render_active(Scene *scene, RenderData *rd)
   }
 
   LISTBASE_FOREACH (Strip *, seq, &ed->seqbase) {
-    if (seq->type != STRIP_TYPE_SOUND_RAM && !blender::seq::SEQ_render_is_muted(&ed->channels, seq)) {
+    if (seq->type != STRIP_TYPE_SOUND_RAM &&
+        !blender::seq::SEQ_render_is_muted(&ed->channels, seq))
+    {
       return true;
     }
   }
