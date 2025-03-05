@@ -107,7 +107,7 @@ static void grease_pencil_init_data(ID *id)
 
 /* See if the layer visibility is animated. This is determined whenever a copy is made, so that
  * this happens in the "create evaluation copy" node of the depsgraph. */
-static void grease_pencil_check_runtime_visibilities(ID &id_dst, GreasePencil &grease_pencil)
+static void grease_pencil_set_runtime_visibilities(ID &id_dst, GreasePencil &grease_pencil)
 {
   using namespace blender::bke;
 
@@ -206,7 +206,7 @@ static void grease_pencil_copy_data(Main * /*bmain*/,
         *grease_pencil_src->runtime->bake_materials);
   }
 
-  grease_pencil_check_runtime_visibilities(*id_dst, *grease_pencil_dst);
+  grease_pencil_set_runtime_visibilities(*id_dst, *grease_pencil_dst);
 }
 
 static void grease_pencil_free_data(ID *id)
