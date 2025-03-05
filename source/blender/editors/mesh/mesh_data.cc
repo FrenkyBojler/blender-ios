@@ -580,6 +580,11 @@ static void mesh_uv_swap(CustomData *ldata, int act_index, int new_index)
     CustomDataLayer tmp = ldata->layers[i];
     ldata->layers[i] = ldata->layers[j];
     ldata->layers[j] = tmp;
+
+    /* Instead of recalculating the offset data, we instead just swap it back.
+     * We can do this because the layers are of same type and size. */
+    ldata->layers[j].offset = ldata->layers[i].offset;
+    ldata->layers[i].offset = tmp.offset;
   }
 }
 
@@ -592,9 +597,9 @@ static void mesh_uv_reorder(CustomData *ldata, int act_index, int new_index)
   int act_mask = CustomData_get_stencil_layer(ldata, uv);
 
   /* Copy the names because they'll change after swapping. */
-  char *render_name = BLI_strdup(CustomData_get_render_layer_name(ldata, uv));
-  char *clone_name = BLI_strdup(CustomData_get_layer_name(ldata, uv, act_clone));
-  char *mask_name = BLI_strdup(CustomData_get_layer_name(ldata, uv, act_mask));
+  std::string render_name = CustomData_get_render_layer_name(ldata, uv);
+  std::string clone_name = CustomData_get_layer_name(ldata, uv, act_clone);
+  std::string mask_name = CustomData_get_layer_name(ldata, uv, act_mask);
 
   mesh_uv_swap(ldata, act_index, new_index);
 
@@ -608,15 +613,11 @@ static void mesh_uv_reorder(CustomData *ldata, int act_index, int new_index)
   CustomData_set_layer_render(ldata, uv, rnd_index);
   CustomData_set_layer_clone(ldata, uv, clone_index);
   CustomData_set_layer_stencil(ldata, uv, mask_index);
-
-  CustomData_update_offsets(ldata);
 }
 
 enum {
-  UV_MOVE_TOP = -2,
   UV_MOVE_UP = -1,
   UV_MOVE_DOWN = 1,
-  UV_MOVE_BOTTOM = 2,
 };
 
 static int uv_texture_move_exec(bContext *C, wmOperator *op)
@@ -632,17 +633,11 @@ static int uv_texture_move_exec(bContext *C, wmOperator *op)
   int new_index;
 
   switch (dir) {
-    case UV_MOVE_TOP:
-      new_index = start_index;
-      break;
     case UV_MOVE_UP:
       new_index = act_index - 1;
       break;
     case UV_MOVE_DOWN:
       new_index = act_index + 1;
-      break;
-    case UV_MOVE_BOTTOM:
-      new_index = start_index + total - 1;
       break;
     default:
       new_index = act_index;
@@ -668,15 +663,12 @@ static int uv_texture_move_exec(bContext *C, wmOperator *op)
 
 void MESH_OT_uv_texture_move(wmOperatorType *ot)
 {
-  static const EnumPropertyItem slot_move[] = {
-      {UV_MOVE_TOP, "TOP", 0, "Top", "Top of the list"},
-      {UV_MOVE_UP, "UP", 0, "Up", ""},
-      {UV_MOVE_DOWN, "DOWN", 0, "Down", ""},
-      {UV_MOVE_BOTTOM, "BOTTOM", 0, "Bottom", "Bottom of the list"},
-      {0, nullptr, 0, nullptr, nullptr}};
+  static const EnumPropertyItem slot_move[] = {{UV_MOVE_UP, "UP", 0, "Up", ""},
+                                               {UV_MOVE_DOWN, "DOWN", 0, "Down", ""},
+                                               {0, nullptr, 0, nullptr, nullptr}};
 
   /* identifiers */
-  ot->name = "Move UV Layer";
+  ot->name = "Move UV Map";
   ot->idname = "MESH_OT_uv_texture_move";
   ot->description = "Move the active uv map up/down in the list";
 
