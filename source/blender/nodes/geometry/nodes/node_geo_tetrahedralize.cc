@@ -857,17 +857,23 @@ static Mesh *create_tetrahedralized_mesh(const Mesh &input_mesh,
     
     return result;
   }
-  catch (const std::exception &_e) {
 #ifdef DEBUG_TETRAHEDRALIZE
+  catch (const std::exception &_e) {
     DEBUG_PRINT("Exception lors de la tétraédrisation: %s", _e.what());
-#else
-    DEBUG_PRINT("Exception lors de la tétraédrisation");
-#endif
     if (result) {
       BKE_id_free(nullptr, result);
     }
     return nullptr;
   }
+#else
+  catch (const std::exception &) {
+    DEBUG_PRINT("Exception lors de la tétraédrisation");
+    if (result) {
+      BKE_id_free(nullptr, result);
+    }
+    return nullptr;
+  }
+#endif
   catch (...) {
     DEBUG_PRINT("Exception inconnue lors de la tétraédrisation");
     if (result) {
