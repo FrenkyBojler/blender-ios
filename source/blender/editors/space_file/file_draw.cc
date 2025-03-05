@@ -6,8 +6,8 @@
  * \ingroup spfile
  */
 
+#include <algorithm>
 #include <cerrno>
-#include <cmath>
 #include <cstring>
 #include <string>
 
@@ -17,9 +17,13 @@
 
 #include "AS_asset_representation.hh"
 
-#include "BLI_blenlib.h"
+#include "BLI_fileops.h"
 #include "BLI_fileops_types.h"
+#include "BLI_listbase.h"
 #include "BLI_math_color.h"
+#include "BLI_math_vector.h"
+#include "BLI_path_utils.hh"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #ifdef WIN32
@@ -79,7 +83,8 @@ void ED_file_path_button(bScreen *screen,
   BLI_assert_msg(params != nullptr,
                  "File select parameters not set. The caller is expected to check this.");
 
-  PointerRNA params_rna_ptr = RNA_pointer_create(&screen->id, &RNA_FileSelectParams, params);
+  PointerRNA params_rna_ptr = RNA_pointer_create_discrete(
+      &screen->id, &RNA_FileSelectParams, params);
 
   /* callbacks for operator check functions */
   UI_block_func_set(block, file_draw_check_cb, nullptr, nullptr);
@@ -273,7 +278,7 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/, uiTooltipData &tip, 
 
     char date_str[FILELIST_DIRENTRY_DATE_LEN], time_str[FILELIST_DIRENTRY_TIME_LEN];
     bool is_today, is_yesterday;
-    std::string day_string = ("");
+    std::string day_string;
     BLI_filelist_entry_datetime_to_string(
         nullptr, file->time, false, time_str, date_str, &is_today, &is_yesterday);
     if (is_today || is_yesterday) {
@@ -332,7 +337,9 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/, uiTooltipData &tip, 
   }
 }
 
-static std::string file_draw_asset_tooltip_func(bContext * /*C*/, void *argN, const char * /*tip*/)
+static std::string file_draw_asset_tooltip_func(bContext * /*C*/,
+                                                void *argN,
+                                                const blender::StringRef /*tip*/)
 {
   const auto *asset = static_cast<blender::asset_system::AssetRepresentation *>(argN);
   return blender::ed::asset::asset_tooltip(*asset);
@@ -371,7 +378,7 @@ static void file_but_enable_drag(uiBut *but,
     const int import_method = ED_fileselect_asset_import_method_get(sfile, file);
     BLI_assert(import_method > -1);
 
-    UI_but_drag_set_asset(but, file->asset, import_method, icon, preview_image, scale);
+    UI_but_drag_set_asset(but, file->asset, import_method, icon, file->preview_icon_id);
   }
   else if (preview_image) {
     UI_but_drag_set_image(but, path, icon, preview_image, scale);
@@ -398,7 +405,7 @@ static uiBut *file_add_icon_but(const SpaceFile *sfile,
   const int y = tile_draw_rect->ymax - sfile->layout->tile_border_y - height;
 
   but = uiDefIconBut(
-      block, UI_BTYPE_LABEL, 0, icon, x, y, width, height, nullptr, 0.0f, 0.0f, nullptr);
+      block, UI_BTYPE_LABEL, 0, icon, x, y, width, height, nullptr, 0.0f, 0.0f, std::nullopt);
   UI_but_label_alpha_factor_set(but, dimmed ? 0.3f : 1.0f);
   if (file->asset) {
     UI_but_func_tooltip_set(but, file_draw_asset_tooltip_func, file->asset, nullptr);
@@ -567,7 +574,7 @@ static void file_add_preview_drag_but(const SpaceFile *sfile,
                         nullptr,
                         0.0,
                         0.0,
-                        nullptr);
+                        std::nullopt);
 
   const ImBuf *drag_image = preview_image ? preview_image :
                                             /* Larger directory or document icon. */
@@ -651,7 +658,7 @@ static void file_draw_preview(const FileDirEntry *file,
     float border_color[4] = {1.0f, 1.0f, 1.0f, 0.15f};
     float bgcolor[4];
     UI_GetThemeColor4fv(TH_BACK, bgcolor);
-    if (rgb_to_grayscale(bgcolor) > 0.5f) {
+    if (srgb_to_grayscale(bgcolor) > 0.5f) {
       border_color[0] = 0.0f;
       border_color[1] = 0.0f;
       border_color[2] = 0.0f;
@@ -719,7 +726,7 @@ static void file_draw_special_image(const FileDirEntry *file,
     /* Small icon in the middle of large image, scaled to fit container and UI scale */
     float icon_opacity = 0.4f;
     uchar icon_color[4] = {0, 0, 0, 255};
-    if (rgb_to_grayscale(document_img_col) < 0.5f) {
+    if (srgb_to_grayscale(document_img_col) < 0.5f) {
       icon_color[0] = 255;
       icon_color[1] = 255;
       icon_color[2] = 255;
@@ -746,8 +753,6 @@ static void file_draw_loading_icon(const rcti *tile_draw_rect,
                                    const float preview_icon_aspect,
                                    const FileLayout *layout)
 {
-  const float opacity = 0.4f;
-
   uchar icon_color[4] = {0, 0, 0, 255};
   /* Contrast with background since we are not showing the large document image. */
   UI_GetThemeColor4ubv(TH_TEXT, icon_color);
@@ -758,9 +763,9 @@ static void file_draw_loading_icon(const rcti *tile_draw_rect,
 
   UI_icon_draw_ex(cent_x - (ICON_DEFAULT_WIDTH / aspect / 2.0f),
                   cent_y - (ICON_DEFAULT_HEIGHT / aspect / 2.0f),
-                  ICON_TEMP,
+                  ICON_PREVIEW_LOADING,
                   aspect,
-                  opacity,
+                  1.0f,
                   0.0f,
                   icon_color,
                   false,
@@ -1198,9 +1203,7 @@ void file_draw_list(const bContext *C, ARegion *region)
 
   offset = ED_fileselect_layout_offset(
       layout, int(region->v2d.cur.xmin), int(-region->v2d.cur.ymax));
-  if (offset < 0) {
-    offset = 0;
-  }
+  offset = std::max(offset, 0);
 
   numfiles_layout = ED_fileselect_layout_numfiles(layout, region);
 
@@ -1339,7 +1342,7 @@ void file_draw_list(const bContext *C, ARegion *region)
                                      nullptr,
                                      0,
                                      0,
-                                     nullptr);
+                                     std::nullopt);
           UI_but_dragflag_enable(drag_but, UI_BUT_DRAG_FULL_BUT);
           file_but_enable_drag(drag_but, sfile, file, path, nullptr, icon, UI_SCALE_FAC);
           UI_but_func_tooltip_custom_set(drag_but,
@@ -1520,7 +1523,7 @@ static void file_draw_invalid_asset_library_hint(const bContext *C,
                                        sy - line_height - UI_UNIT_Y * 1.2f,
                                        UI_UNIT_X * 8,
                                        UI_UNIT_Y,
-                                       nullptr);
+                                       std::nullopt);
     PointerRNA *but_opptr = UI_but_operator_ptr_ensure(but);
     RNA_enum_set(but_opptr, "section", USER_SECTION_FILE_PATHS);
 

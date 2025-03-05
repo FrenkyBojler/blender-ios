@@ -6,6 +6,7 @@
  * \ingroup bke
  */
 
+#include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstdio>
@@ -23,6 +24,11 @@
 #include <string>
 
 #include "BLI_array.hh"
+#include "BLI_fileops.h"
+#include "BLI_listbase.h"
+#include "BLI_path_utils.hh"
+#include "BLI_rect.h"
+#include "BLI_string.h"
 #include "BLI_string_utils.hh"
 
 #include "CLG_log.h"
@@ -44,16 +50,16 @@
 #include "DNA_brush_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_defaults.h"
+#include "DNA_image_types.h"
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_packedFile_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_userdef_types.h"
 #include "DNA_world_types.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_math_vector.h"
 #include "BLI_mempool.h"
 #include "BLI_system.h"
@@ -73,6 +79,7 @@
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
@@ -106,7 +113,6 @@
 #include "DNA_node_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
-#include "DNA_view3d_types.h"
 
 using blender::Array;
 
@@ -126,6 +132,7 @@ static void image_runtime_reset(Image *image)
   memset(&image->runtime, 0, sizeof(image->runtime));
   image->runtime.cache_mutex = MEM_mallocN(sizeof(ThreadMutex), "image runtime cache_mutex");
   BLI_mutex_init(static_cast<ThreadMutex *>(image->runtime.cache_mutex));
+  image->runtime.update_count = 0;
 }
 
 /** Reset runtime image fields when data-block is being copied. */
@@ -152,6 +159,16 @@ static void image_runtime_free_data(Image *image)
     image->runtime.partial_update_user = nullptr;
   }
   BKE_image_partial_update_register_free(image);
+}
+
+static void image_gpu_runtime_reset(Image *ima)
+{
+  ima->lastused = 0;
+  ima->gpuflag = 0;
+  ima->gpuframenr = IMAGE_GPU_FRAME_NONE;
+  ima->gpu_pass = IMAGE_GPU_PASS_NONE;
+  ima->gpu_layer = IMAGE_GPU_LAYER_NONE;
+  ima->gpu_view = IMAGE_GPU_VIEW_NONE;
 }
 
 static void image_init_data(ID *id)
@@ -251,9 +268,9 @@ static void image_foreach_cache(ID *id,
   function_callback(id, &key, (void **)&image->cache, 0, user_data);
 
   key.identifier = offsetof(Image, anims.first);
-  function_callback(id, &key, (void **)&image->anims.first, 0, user_data);
+  function_callback(id, &key, &image->anims.first, 0, user_data);
   key.identifier = offsetof(Image, anims.last);
-  function_callback(id, &key, (void **)&image->anims.last, 0, user_data);
+  function_callback(id, &key, &image->anims.last, 0, user_data);
 
   auto gputexture_offset = [image](int target, int eye) {
     constexpr size_t base_offset = offsetof(Image, gputexture);
@@ -346,9 +363,8 @@ static void image_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
   /* Clear all data that isn't read to reduce false detection of changed image during memfile undo.
    */
-  ima->lastused = 0;
   ima->cache = nullptr;
-  ima->gpuflag = 0;
+  image_gpu_runtime_reset(ima);
   BLI_listbase_clear(&ima->anims);
   ima->runtime.partial_update_register = nullptr;
   ima->runtime.partial_update_user = nullptr;
@@ -431,9 +447,7 @@ static void image_blend_read_data(BlendDataReader *reader, ID *id)
   BKE_previewimg_blend_read(reader, ima->preview);
   BLO_read_struct(reader, Stereo3dFormat, &ima->stereo3d_format);
 
-  ima->lastused = 0;
-  ima->gpuflag = 0;
-
+  image_gpu_runtime_reset(ima);
   image_runtime_reset(ima);
 }
 
@@ -657,7 +671,7 @@ void BKE_image_free_data(Image *ima)
 
 static ImageTile *imagetile_alloc(int tile_number)
 {
-  ImageTile *tile = MEM_cnew<ImageTile>("Image Tile");
+  ImageTile *tile = MEM_callocN<ImageTile>("Image Tile");
   tile->tile_number = tile_number;
   tile->gen_x = 1024;
   tile->gen_y = 1024;
@@ -691,7 +705,7 @@ static void image_init(Image *ima, short source, short type)
   image_runtime_reset(ima);
 
   BKE_color_managed_colorspace_settings_init(&ima->colorspace_settings);
-  ima->stereo3d_format = MEM_cnew<Stereo3dFormat>("Image Stereo Format");
+  ima->stereo3d_format = MEM_callocN<Stereo3dFormat>("Image Stereo Format");
 }
 
 static Image *image_alloc(Main *bmain,
@@ -1046,7 +1060,7 @@ static void image_abs_path(Main *bmain,
 {
   BLI_strncpy(r_filepath_abs, filepath, FILE_MAX);
   if (owner_library) {
-    BLI_path_abs(r_filepath_abs, owner_library->runtime.filepath_abs);
+    BLI_path_abs(r_filepath_abs, owner_library->runtime->filepath_abs);
   }
   else {
     BLI_path_abs(r_filepath_abs, BKE_main_blendfile_path(bmain));
@@ -1189,7 +1203,7 @@ static ImBuf *add_ibuf_for_tile(Image *ima, ImageTile *tile)
 
   const bool floatbuf = (tile->gen_flag & IMA_GEN_FLOAT) != 0;
   if (floatbuf) {
-    ibuf = IMB_allocImBuf(tile->gen_x, tile->gen_y, tile->gen_depth, IB_rectfloat);
+    ibuf = IMB_allocImBuf(tile->gen_x, tile->gen_y, tile->gen_depth, IB_float_data);
 
     if (ima->colorspace_settings.name[0] == '\0') {
       const char *colorspace = IMB_colormanagement_role_colorspace_name_get(
@@ -1213,7 +1227,7 @@ static ImBuf *add_ibuf_for_tile(Image *ima, ImageTile *tile)
     }
   }
   else {
-    ibuf = IMB_allocImBuf(tile->gen_x, tile->gen_y, tile->gen_depth, IB_rect);
+    ibuf = IMB_allocImBuf(tile->gen_x, tile->gen_y, tile->gen_depth, IB_byte_data);
 
     if (ima->colorspace_settings.name[0] == '\0') {
       const char *colorspace = IMB_colormanagement_role_colorspace_name_get(
@@ -1401,7 +1415,7 @@ static bool image_memorypack_imbuf(
 {
   ibuf->ftype = (ibuf->float_buffer.data) ? IMB_FTYPE_OPENEXR : IMB_FTYPE_PNG;
 
-  IMB_saveiff(ibuf, filepath, IB_rect | IB_mem);
+  IMB_saveiff(ibuf, filepath, IB_byte_data | IB_mem);
 
   if (ibuf->encoded_buffer.data == nullptr) {
     CLOG_STR_ERROR(&LOG, "memory save for pack error");
@@ -2424,7 +2438,7 @@ void BKE_render_result_stamp_info(Scene *scene,
   }
 
   if (!rr->stamp_data) {
-    stamp_data = MEM_cnew<StampData>("RenderResult.stamp_data");
+    stamp_data = MEM_callocN<StampData>("RenderResult.stamp_data");
   }
   else {
     stamp_data = rr->stamp_data;
@@ -2449,7 +2463,7 @@ StampData *BKE_stamp_info_from_scene_static(const Scene *scene)
 
   /* Memory is allocated here (instead of by the caller) so that the caller
    * doesn't have to know the size of the StampData struct. */
-  stamp_data = MEM_cnew<StampData>(__func__);
+  stamp_data = MEM_callocN<StampData>(__func__);
   stampdata(scene, nullptr, stamp_data, 0, false);
 
   return stamp_data;
@@ -2547,7 +2561,7 @@ void BKE_render_result_stamp_data(RenderResult *rr, const char *key, const char 
 {
   StampData *stamp_data;
   if (rr->stamp_data == nullptr) {
-    rr->stamp_data = MEM_cnew<StampData>("RenderResult.stamp_data");
+    rr->stamp_data = MEM_callocN<StampData>("RenderResult.stamp_data");
   }
   stamp_data = rr->stamp_data;
   StampDataCustomField *field = static_cast<StampDataCustomField *>(
@@ -2625,7 +2639,7 @@ static void metadata_copy_custom_fields(const char *field, const char *value, vo
 void BKE_stamp_info_from_imbuf(RenderResult *rr, ImBuf *ibuf)
 {
   if (rr->stamp_data == nullptr) {
-    rr->stamp_data = MEM_cnew<StampData>("RenderResult.stamp_data");
+    rr->stamp_data = MEM_callocN<StampData>("RenderResult.stamp_data");
   }
   StampData *stamp_data = rr->stamp_data;
   IMB_metadata_ensure(&ibuf->metadata);
@@ -2663,7 +2677,7 @@ bool BKE_imbuf_write(ImBuf *ibuf, const char *filepath, const ImageFormatData *i
 
   BLI_file_ensure_parent_dir_exists(filepath);
 
-  const bool ok = IMB_saveiff(ibuf, filepath, IB_rect);
+  const bool ok = IMB_saveiff(ibuf, filepath, IB_byte_data);
   if (ok == 0) {
     perror(filepath);
   }
@@ -3895,7 +3909,7 @@ static void image_init_multilayer_multiview(Image *ima, RenderResult *rr)
 
   if (rr) {
     LISTBASE_FOREACH (RenderView *, rv, &rr->views) {
-      ImageView *iv = MEM_cnew<ImageView>("Viewer Image View");
+      ImageView *iv = MEM_callocN<ImageView>("Viewer Image View");
       STRNCPY(iv->name, rv->name);
       BLI_addtail(&ima->views, iv);
     }
@@ -4168,7 +4182,7 @@ static ImBuf *load_movie_single(Image *ima, ImageUser *iuser, int frame, const i
 
   if (ia->anim == nullptr) {
     char filepath[FILE_MAX];
-    int flags = IB_rect;
+    int flags = IB_byte_data;
     ImageUser iuser_t{};
 
     if (ima->flag & IMA_DEINTERLACE) {
@@ -4196,12 +4210,8 @@ static ImBuf *load_movie_single(Image *ima, ImageUser *iuser, int frame, const i
     int dur = MOV_get_duration_frames(ia->anim, IMB_TC_RECORD_RUN);
     int fra = frame - 1;
 
-    if (fra < 0) {
-      fra = 0;
-    }
-    if (fra > (dur - 1)) {
-      fra = dur - 1;
-    }
+    fra = std::max(fra, 0);
+    fra = std::min(fra, dur - 1);
     ibuf = IMB_makeSingleUser(MOV_decode_frame(ia->anim, fra, IMB_TC_RECORD_RUN, IMB_PROXY_NONE));
 
     if (ibuf) {
@@ -4224,7 +4234,7 @@ static ImBuf *image_load_movie_file(Image *ima, ImageUser *iuser, int frame)
 
     for (int i = 0; i < tot_viewfiles; i++) {
       /* allocate the ImageAnim */
-      ImageAnim *ia = MEM_cnew<ImageAnim>("Image Anim");
+      ImageAnim *ia = MEM_callocN<ImageAnim>("Image Anim");
       BLI_addtail(&ima->anims, ia);
     }
   }
@@ -4273,7 +4283,7 @@ static ImBuf *load_image_single(Image *ima,
 {
   char filepath[FILE_MAX];
   ImBuf *ibuf = nullptr;
-  int flag = IB_rect | IB_multilayer | IB_metadata | imbuf_alpha_flags_for_image(ima);
+  int flag = IB_byte_data | IB_multilayer | IB_metadata | imbuf_alpha_flags_for_image(ima);
 
   *r_cache_ibuf = true;
   const int tile_number = image_get_tile_number_from_iuser(ima, iuser);
@@ -4828,7 +4838,7 @@ static ImBuf *image_acquire_ibuf(Image *ima, ImageUser *iuser, void **r_lock)
           if (!ibuf) {
             /* Composite Viewer, all handled in compositor */
             /* fake ibuf, will be filled in compositor */
-            ibuf = IMB_allocImBuf(256, 256, 32, IB_rect | IB_rectfloat);
+            ibuf = IMB_allocImBuf(256, 256, 32, IB_byte_data | IB_float_data);
             image_assign_ibuf(ima, ibuf, index, entry);
           }
         }
@@ -5001,7 +5011,7 @@ ImBuf *BKE_image_preview(Image *ima, const short max_size, short *r_width, short
 
   /* Resize. */
   IMB_scale(preview, scale * image_ibuf->x, scale * image_ibuf->y, IMBScaleFilter::Box, false);
-  IMB_rect_from_float(preview);
+  IMB_byte_from_float(preview);
 
   return preview;
 }
@@ -5028,7 +5038,7 @@ struct ImagePool {
 
 ImagePool *BKE_image_pool_new()
 {
-  ImagePool *pool = MEM_cnew<ImagePool>("Image Pool");
+  ImagePool *pool = MEM_callocN<ImagePool>("Image Pool");
   pool->memory_pool = BLI_mempool_create(sizeof(ImagePoolItem), 0, 128, BLI_MEMPOOL_NOP);
 
   BLI_mutex_init(&pool->mutex);
@@ -5181,9 +5191,7 @@ int BKE_image_user_frame_get(const ImageUser *iuser, int cfra, bool *r_is_in_ran
 
   /* transform to images space */
   framenr = cfra;
-  if (framenr > iuser->frames) {
-    framenr = iuser->frames;
-  }
+  framenr = std::min(framenr, iuser->frames);
 
   if (iuser->cycl) {
     framenr = ((framenr) % len);
@@ -5228,7 +5236,9 @@ void BKE_image_user_frame_calc(Image *ima, ImageUser *iuser, int cfra)
       /* NOTE: a single texture and refresh doesn't really work when
        * multiple image users may use different frames, this is to
        * be improved with perhaps a GPU texture cache. */
-      BKE_image_partial_update_mark_full_update(ima);
+      if (ima->gpuframenr != IMAGE_GPU_FRAME_NONE) {
+        BKE_image_partial_update_mark_full_update(ima);
+      }
       ima->gpuframenr = iuser->framenr;
     }
 
@@ -5729,7 +5739,7 @@ static void image_update_views_format(Image *ima, ImageUser *iuser)
 
 RenderSlot *BKE_image_add_renderslot(Image *ima, const char *name)
 {
-  RenderSlot *slot = MEM_cnew<RenderSlot>("Image new Render Slot");
+  RenderSlot *slot = MEM_callocN<RenderSlot>("Image new Render Slot");
   if (name && name[0]) {
     STRNCPY(slot->name, name);
   }

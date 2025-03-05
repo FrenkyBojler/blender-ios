@@ -14,6 +14,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
@@ -27,6 +28,7 @@
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mirror.hh"
@@ -436,7 +438,7 @@ static int voxel_size_edit_invoke(bContext *C, wmOperator *op, const wmEvent *ev
   Object *active_object = CTX_data_active_object(C);
   Mesh *mesh = (Mesh *)active_object->data;
 
-  VoxelSizeEditCustomData *cd = MEM_cnew<VoxelSizeEditCustomData>(
+  VoxelSizeEditCustomData *cd = MEM_callocN<VoxelSizeEditCustomData>(
       "Voxel Size Edit OP Custom Data");
 
   /* Initial operator Custom Data setup. */
@@ -978,7 +980,7 @@ static int quadriflow_remesh_exec(bContext *C, wmOperator *op)
     job->symmetry_axes = (eSymmetryAxes)0;
   }
 
-  if (op->flag == 0) {
+  if ((op->flag & OP_IS_INVOKE) == 0) {
     /* This is called directly from the exec operator, this operation is now blocking */
     job->is_nonblocking_job = false;
     wmJobWorkerStatus worker_status = {};
@@ -1202,7 +1204,7 @@ void OBJECT_OT_quadriflow_remesh(wmOperatorType *ot)
       "This property is only used to cache the object area for later calculations",
       0.0f,
       FLT_MAX);
-  RNA_def_property_flag(prop, static_cast<PropertyFlag>(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, (PROP_HIDDEN | PROP_SKIP_SAVE));
 
   RNA_def_int(ot->srna,
               "seed",

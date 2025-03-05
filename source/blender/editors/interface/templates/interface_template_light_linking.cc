@@ -11,6 +11,8 @@
 
 #include <fmt/format.h>
 
+#include "BLI_listbase.h"
+
 #include "BLT_translation.hh"
 
 #include "DNA_collection_types.h"
@@ -290,7 +292,7 @@ class CollectionViewItem : public BasicTreeViewItem {
     uiBlock *block = uiLayoutGetBlock(&row);
     const int icon = get_state_icon();
 
-    PointerRNA collection_light_linking_ptr = RNA_pointer_create(
+    PointerRNA collection_light_linking_ptr = RNA_pointer_create_discrete(
         &collection_.id, &RNA_CollectionLightLinking, &collection_light_linking_);
 
     uiBut *button = uiDefIconButR(block,
@@ -306,7 +308,7 @@ class CollectionViewItem : public BasicTreeViewItem {
                                   0,
                                   0.0f,
                                   0.0f,
-                                  nullptr);
+                                  std::nullopt);
 
     UI_but_func_set(button, [&collection_light_linking = collection_light_linking_](bContext &) {
       link_state_toggle(collection_light_linking);

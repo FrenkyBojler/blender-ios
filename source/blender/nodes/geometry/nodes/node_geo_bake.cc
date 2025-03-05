@@ -6,7 +6,6 @@
 
 #include "NOD_geo_bake.hh"
 #include "NOD_node_extra_info.hh"
-#include "NOD_rna_define.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
 #include "NOD_socket_search_link.hh"
@@ -22,6 +21,7 @@
 #include "BKE_bake_items_socket.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_screen.hh"
 
@@ -85,9 +85,9 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryBake *data = MEM_cnew<NodeGeometryBake>(__func__);
+  NodeGeometryBake *data = MEM_callocN<NodeGeometryBake>(__func__);
 
-  data->items = MEM_cnew_array<NodeGeometryBakeItem>(1, __func__);
+  data->items = MEM_calloc_arrayN<NodeGeometryBakeItem>(1, __func__);
   data->items_num = 1;
 
   NodeGeometryBakeItem &item = data->items[0];
@@ -108,7 +108,7 @@ static void node_free_storage(bNode *node)
 static void node_copy_storage(bNodeTree * /*tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeGeometryBake &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_cnew<NodeGeometryBake>(__func__, src_storage);
+  auto *dst_storage = MEM_dupallocN<NodeGeometryBake>(__func__, src_storage);
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<BakeItemsAccessor>(*src_node, *dst_node);
@@ -135,7 +135,7 @@ static void draw_bake_items(const bContext *C, uiLayout *layout, PointerRNA node
   bNode &node = *static_cast<bNode *>(node_ptr.data);
   NodeGeometryBake &storage = node_storage(node);
 
-  if (uiLayout *panel = uiLayoutPanel(C, layout, "bake_items", false, TIP_("Bake Items"))) {
+  if (uiLayout *panel = uiLayoutPanel(C, layout, "bake_items", false, IFACE_("Bake Items"))) {
     socket_items::ui::draw_items_list_with_operators<BakeItemsAccessor>(C, panel, tree, node);
     socket_items::ui::draw_active_item_props<BakeItemsAccessor>(
         tree, node, [&](PointerRNA *item_ptr) {
@@ -581,9 +581,8 @@ static void node_register()
   ntype.get_extra_info = node_extra_info;
   ntype.register_operators = node_operators;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_type_storage(
-      &ntype, "NodeGeometryBake", node_free_storage, node_copy_storage);
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_type_storage(ntype, "NodeGeometryBake", node_free_storage, node_copy_storage);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
@@ -622,7 +621,7 @@ bool get_bake_draw_context(const bContext *C, const bNode &node, BakeDrawContext
     return false;
   }
 
-  r_ctx.bake_rna = RNA_pointer_create(
+  r_ctx.bake_rna = RNA_pointer_create_discrete(
       const_cast<ID *>(&r_ctx.object->id), &RNA_NodesModifierBake, (void *)r_ctx.bake);
   if (r_ctx.nmd->runtime->cache) {
     const bke::bake::ModifierCache &cache = *r_ctx.nmd->runtime->cache;
@@ -868,18 +867,18 @@ static void draw_bake_data_block_list_item(uiList * /*ui_list*/,
 void draw_data_blocks(const bContext *C, uiLayout *layout, PointerRNA &bake_rna)
 {
   static const uiListType *data_block_list = []() {
-    uiListType *list = MEM_cnew<uiListType>(__func__);
+    uiListType *list = MEM_callocN<uiListType>(__func__);
     STRNCPY(list->idname, "DATA_UL_nodes_modifier_data_blocks");
     list->draw_item = draw_bake_data_block_list_item;
     WM_uilisttype_add(list);
     return list;
   }();
 
-  PointerRNA data_blocks_ptr = RNA_pointer_create(
+  PointerRNA data_blocks_ptr = RNA_pointer_create_discrete(
       bake_rna.owner_id, &RNA_NodesModifierBakeDataBlocks, bake_rna.data);
 
   if (uiLayout *panel = uiLayoutPanel(
-          C, layout, "data_block_references", true, TIP_("Data-Block References")))
+          C, layout, "data_block_references", true, IFACE_("Data-Block References")))
   {
     uiTemplateList(panel,
                    C,

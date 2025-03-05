@@ -17,7 +17,11 @@
 
 #include "BLI_math_vector_types.hh"
 #include "BLI_vector.hh"
+
 #include "DNA_object_types.h"
+
+#include "draw_shader_shared.hh"
+
 #include "DRW_gpu_wrapper.hh"
 
 namespace blender::draw {
@@ -106,7 +110,7 @@ class DebugDraw {
 
 /**
  * Ease of use function to get the debug module.
- * TODO(fclem): Should be removed once DRWManager is no longer global.
+ * TODO(fclem): Should be removed once DRWContext is no longer global.
  * IMPORTANT: Can return nullptr if storage buffer is not supported.
  */
 blender::draw::DebugDraw *DRW_debug_get();

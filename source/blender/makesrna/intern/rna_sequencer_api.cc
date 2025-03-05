@@ -6,16 +6,12 @@
  * \ingroup RNA
  */
 
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
-#include "BLI_utildefines.h"
-
-#include "RNA_access.hh"
 #include "RNA_define.hh"
 
 #include "SEQ_edit.hh"
@@ -86,7 +82,7 @@ static void rna_Strips_move_strip_to_meta(
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
 
-  SEQ_strip_lookup_invalidate(scene);
+  SEQ_strip_lookup_invalidate(scene->ed);
 
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, scene);
 }
@@ -541,7 +537,7 @@ static void rna_Strips_remove(
 
   SEQ_edit_flag_for_removal(scene, seqbase, strip);
   SEQ_edit_remove_flagged_sequences(scene, seqbase);
-  RNA_POINTER_INVALIDATE(strip_ptr);
+  strip_ptr->invalidate();
 
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
@@ -781,9 +777,8 @@ void RNA_api_strip_retiming_keys(BlenderRNA *brna)
   RNA_def_function_ui_description(func, "Remove all retiming keys");
 }
 
-void RNA_api_strips(BlenderRNA *brna, PropertyRNA *cprop, const bool metastrip)
+void RNA_api_strips(StructRNA *srna, const bool metastrip)
 {
-  StructRNA *srna;
   PropertyRNA *parm;
   FunctionRNA *func;
 
@@ -795,7 +790,6 @@ void RNA_api_strips(BlenderRNA *brna, PropertyRNA *cprop, const bool metastrip)
       {STRIP_TYPE_ALPHAUNDER, "ALPHA_UNDER", 0, "Alpha Under", ""},
       {STRIP_TYPE_GAMCROSS, "GAMMA_CROSS", 0, "Gamma Cross", ""},
       {STRIP_TYPE_MUL, "MULTIPLY", 0, "Multiply", ""},
-      {STRIP_TYPE_OVERDROP, "OVER_DROP", 0, "Over Drop", ""},
       {STRIP_TYPE_WIPE, "WIPE", 0, "Wipe", ""},
       {STRIP_TYPE_GLOW, "GLOW", 0, "Glow", ""},
       {STRIP_TYPE_TRANSFORM, "TRANSFORM", 0, "Transform", ""},
@@ -832,10 +826,6 @@ void RNA_api_strips(BlenderRNA *brna, PropertyRNA *cprop, const bool metastrip)
   const char *remove_func_name = "rna_Strips_editing_remove";
 
   if (metastrip) {
-    RNA_def_property_srna(cprop, "StripsMeta");
-    srna = RNA_def_struct(brna, "StripsMeta", nullptr);
-    RNA_def_struct_sdna(srna, "Strip");
-
     new_clip_func_name = "rna_Strips_meta_new_clip";
     new_mask_func_name = "rna_Strips_meta_new_mask";
     new_scene_func_name = "rna_Strips_meta_new_scene";
@@ -846,13 +836,6 @@ void RNA_api_strips(BlenderRNA *brna, PropertyRNA *cprop, const bool metastrip)
     new_effect_func_name = "rna_Strips_meta_new_effect";
     remove_func_name = "rna_Strips_meta_remove";
   }
-  else {
-    RNA_def_property_srna(cprop, "StripsTopLevel");
-    srna = RNA_def_struct(brna, "StripsTopLevel", nullptr);
-    RNA_def_struct_sdna(srna, "Editing");
-  }
-
-  RNA_def_struct_ui_text(srna, "Strips", "Collection of Strips");
 
   func = RNA_def_function(srna, "new_clip", new_clip_func_name);
   RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_MAIN);
@@ -976,7 +959,6 @@ void RNA_api_strips(BlenderRNA *brna, PropertyRNA *cprop, const bool metastrip)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_enum(
       func, "fit_method", scale_fit_methods, SEQ_USE_ORIGINAL_SIZE, "Image Fit Method", nullptr);
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_PYFUNC_OPTIONAL);
   /* return type */
   parm = RNA_def_pointer(func, "sequence", "Strip", "", "New Strip");
   RNA_def_function_return(func, parm);
@@ -1010,7 +992,6 @@ void RNA_api_strips(BlenderRNA *brna, PropertyRNA *cprop, const bool metastrip)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_enum(
       func, "fit_method", scale_fit_methods, SEQ_USE_ORIGINAL_SIZE, "Image Fit Method", nullptr);
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_PYFUNC_OPTIONAL);
   /* return type */
   parm = RNA_def_pointer(func, "sequence", "Strip", "", "New Strip");
   RNA_def_function_return(func, parm);

@@ -260,6 +260,12 @@ struct SelectMap {
     }
 
     GPU_memory_barrier(GPU_BARRIER_BUFFER_UPDATE);
+    /* This flush call should not be required. Still, on non-unified memory architecture
+     * Apple devices this is needed for the result to be host visible.
+     * This is likely to be a bug in the GPU backend.
+     * So it should eventually be transformed into a backend
+     * workaround instead of being fixed in user code. */
+    select_output_buf.async_flush_to_host();
     select_output_buf.read();
 
     Vector<GPUSelectResult> hit_results;
@@ -278,11 +284,8 @@ struct SelectMap {
         break;
 
       case SelectType::SELECT_PICK_ALL:
-      case SelectType::SELECT_PICK_NEAREST:
         for (auto i : IndexRange(select_id_map.size())) {
           if (select_output_buf[i] != 0xFFFFFFFFu) {
-            /* NOTE: For `SELECT_PICK_NEAREST`, `select_output_buf` also contains the screen
-             * distance to cursor in the lowest bits. */
             GPUSelectResult hit_result{};
             hit_result.id = select_id_map[i];
             hit_result.depth = select_output_buf[i];
@@ -294,6 +297,28 @@ struct SelectMap {
               hit_result.depth = *reinterpret_cast<uint32_t *>(&offset_depth);
             }
             hit_results.append(hit_result);
+          }
+        }
+        break;
+
+      case SelectType::SELECT_PICK_NEAREST:
+        for (auto i : IndexRange(select_id_map.size())) {
+          if (select_output_buf[i] != 0xFFFFFFFFu) {
+            /* NOTE: For `SELECT_PICK_NEAREST`, `select_output_buf` also contains the screen
+             * distance to cursor in the lowest bits. */
+            GPUSelectResult hit_result{};
+            hit_result.id = select_id_map[i];
+            hit_result.depth = select_output_buf[i];
+            if (in_front_map[i]) {
+              /* Divide "In Front" objects depth so they go first. */
+              const uint32_t depth_mask = 0x00FFFFFFu;
+              uint32_t offset_depth = (hit_result.depth & depth_mask) / 100;
+              hit_result.depth &= ~depth_mask;
+              hit_result.depth |= offset_depth;
+            }
+            if (hit_results.is_empty() || hit_result.depth < hit_results[0].depth) {
+              hit_results = {hit_result};
+            }
           }
         }
         break;

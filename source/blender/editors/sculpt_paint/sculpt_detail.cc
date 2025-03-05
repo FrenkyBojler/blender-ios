@@ -10,6 +10,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_index_mask.hh"
+#include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.hh"
@@ -55,7 +56,6 @@
 
 #include "CLG_log.h"
 
-#include <cmath>
 #include <cstdlib>
 
 #include "bmesh.hh"
@@ -690,7 +690,7 @@ static void dyntopo_detail_size_update_header(bContext *C,
   Scene *scene = CTX_data_scene(C);
 
   Sculpt *sd = scene->toolsettings->sculpt;
-  PointerRNA sculpt_ptr = RNA_pointer_create(&scene->id, &RNA_Sculpt, sd);
+  PointerRNA sculpt_ptr = RNA_pointer_create_discrete(&scene->id, &RNA_Sculpt, sd);
 
   char msg[UI_MAX_DRAW_STR];
   const char *format_string;
@@ -794,12 +794,10 @@ static float dyntopo_detail_size_initial_value(const Sculpt *sd, const eDyntopoD
   if (mode == DETAILING_MODE_RESOLUTION) {
     return sd->constant_detail;
   }
-  else if (mode == DETAILING_MODE_BRUSH_PERCENT) {
+  if (mode == DETAILING_MODE_BRUSH_PERCENT) {
     return sd->detail_percent;
   }
-  else {
-    return sd->detail_size;
-  }
+  return sd->detail_size;
 }
 
 static int dyntopo_detail_size_edit_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -811,7 +809,7 @@ static int dyntopo_detail_size_edit_invoke(bContext *C, wmOperator *op, const wm
   Object &active_object = *CTX_data_active_object(C);
   Brush *brush = BKE_paint_brush(&sd->paint);
 
-  DyntopoDetailSizeEditCustomData *cd = MEM_cnew<DyntopoDetailSizeEditCustomData>(__func__);
+  DyntopoDetailSizeEditCustomData *cd = MEM_callocN<DyntopoDetailSizeEditCustomData>(__func__);
 
   /* Initial operator Custom Data setup. */
   cd->draw_handle = ED_region_draw_cb_activate(

@@ -21,8 +21,10 @@
 
 #include "BLT_translation.hh"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_math_color.h"
+#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BIF_glutil.hh"
 
@@ -32,19 +34,21 @@
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
+#include "BKE_preview_image.hh"
 #include "BKE_screen.hh"
-
-#include "GHOST_C-api.h"
 
 #include "BLO_readfile.hh"
 
 #include "ED_fileselect.hh"
 #include "ED_screen.hh"
 
-#include "GPU_shader.hh"
+#include "GPU_shader_builtin.hh"
 #include "GPU_state.hh"
 
+#include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
+
+#include "GHOST_Types.h"
 
 #include "UI_interface.hh"
 #include "UI_interface_icons.hh"
@@ -93,7 +97,7 @@ ListBase *WM_dropboxmap_find(const char *idname, int spaceid, int regionid)
     }
   }
 
-  wmDropBoxMap *dm = MEM_cnew<wmDropBoxMap>(__func__);
+  wmDropBoxMap *dm = MEM_callocN<wmDropBoxMap>(__func__);
   STRNCPY_UTF8(dm->idname, idname);
   dm->spaceid = spaceid;
   dm->regionid = regionid;
@@ -115,7 +119,7 @@ wmDropBox *WM_dropbox_add(ListBase *lb,
     return nullptr;
   }
 
-  wmDropBox *drop = MEM_cnew<wmDropBox>(__func__);
+  wmDropBox *drop = MEM_callocN<wmDropBox>(__func__);
   drop->poll = poll;
   drop->copy = copy;
   drop->cancel = cancel;
@@ -354,6 +358,12 @@ void WM_event_drag_image(wmDrag *drag, const ImBuf *imb, float scale)
 {
   drag->imb = imb;
   drag->imbuf_scale = scale;
+}
+
+void WM_event_drag_preview_icon(wmDrag *drag, int icon_id)
+{
+  BLI_assert_msg(!drag->imb, "Drag image and preview are mutually exclusive");
+  drag->preview_icon_id = icon_id;
 }
 
 void WM_drag_data_free(eWM_DragDataType dragtype, void *poin)
@@ -607,7 +617,7 @@ void WM_drag_add_local_ID(wmDrag *drag, ID *id, ID *from_parent)
   }
 
   /* Add to list. */
-  wmDragID *drag_id = MEM_cnew<wmDragID>(__func__);
+  wmDragID *drag_id = MEM_callocN<wmDragID>(__func__);
   drag_id->id = id;
   drag_id->from_parent = from_parent;
   BLI_addtail(&drag->ids, drag_id);
@@ -816,7 +826,7 @@ void WM_drag_add_asset_list_item(wmDrag *drag,
   /* No guarantee that the same asset isn't added twice. */
 
   /* Add to list. */
-  wmDragAssetListItem *drag_asset = MEM_cnew<wmDragAssetListItem>(__func__);
+  wmDragAssetListItem *drag_asset = MEM_callocN<wmDragAssetListItem>(__func__);
   ID *local_id = asset->local_id();
   if (local_id) {
     drag_asset->is_external = false;
@@ -845,8 +855,9 @@ wmDragPath *WM_drag_create_path_data(blender::Span<const char *> paths)
 
   for (const char *path : paths) {
     path_data->paths.append(path);
-    path_data->file_types_bit_flag |= ED_path_extension_type(path);
-    path_data->file_types.append(ED_path_extension_type(path));
+    const int type_flag = ED_path_extension_type(path);
+    path_data->file_types_bit_flag |= type_flag;
+    path_data->file_types.append(type_flag);
   }
 
   path_data->tooltip = path_data->paths[0];
@@ -1013,6 +1024,11 @@ static int wm_drag_imbuf_icon_height_get(const wmDrag *drag)
   return round_fl_to_int(drag->imb->y * drag->imbuf_scale);
 }
 
+static int wm_drag_preview_icon_size_get()
+{
+  return UI_preview_tile_size_x();
+}
+
 static void wm_drag_draw_icon(bContext * /*C*/, wmWindow * /*win*/, wmDrag *drag, const int xy[2])
 {
   int x, y;
@@ -1041,6 +1057,13 @@ static void wm_drag_draw_icon(bContext * /*C*/, wmWindow * /*win*/, wmDrag *drag
                                   1.0f,
                                   1.0f,
                                   col);
+  }
+  else if (drag->preview_icon_id) {
+    const int size = wm_drag_preview_icon_size_get();
+    x = xy[0] - (size / 2);
+    y = xy[1] - (size / 2);
+
+    UI_icon_draw_preview(x, y, drag->preview_icon_id, UI_INV_SCALE_FAC, 0.8, size);
   }
   else {
     int padding = 4 * UI_SCALE_FAC;
@@ -1100,6 +1123,18 @@ static void wm_drag_draw_tooltip(bContext *C, wmWindow *win, wmDrag *drag, const
       y = xy[1] - (icon_height / 2) - padding - iconsize - padding - iconsize;
     }
   }
+  if (drag->preview_icon_id) {
+    const int size = wm_drag_preview_icon_size_get();
+
+    x = xy[0] - (size / 2);
+
+    if (xy[1] + (size / 2) + padding + iconsize < winsize_y) {
+      y = xy[1] + (size / 2) + padding;
+    }
+    else {
+      y = xy[1] - (size / 2) - padding - iconsize - padding - iconsize;
+    }
+  }
   else {
     x = xy[0] - 2 * padding;
 
@@ -1131,6 +1166,12 @@ static void wm_drag_draw_default(bContext *C, wmWindow *win, wmDrag *drag, const
     int iconsize = UI_ICON_SIZE;
     xy_tmp[0] = xy[0] - (wm_drag_imbuf_icon_width_get(drag) / 2);
     xy_tmp[1] = xy[1] - (wm_drag_imbuf_icon_height_get(drag) / 2) - iconsize;
+  }
+  else if (drag->preview_icon_id) {
+    const int icon_size = UI_ICON_SIZE;
+    const int preview_size = wm_drag_preview_icon_size_get();
+    xy_tmp[0] = xy[0] - (preview_size / 2);
+    xy_tmp[1] = xy[1] - (preview_size / 2) - icon_size;
   }
   else {
     xy_tmp[0] = xy[0] + 10 * UI_SCALE_FAC;

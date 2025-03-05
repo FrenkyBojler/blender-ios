@@ -6,6 +6,8 @@
  * \ingroup bke
  */
 
+#include <algorithm>
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_cloth_types.h"
@@ -20,7 +22,6 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_rand.h"
-#include "BLI_utildefines.h"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -352,9 +353,7 @@ void clothModifier_do(ClothModifierData *clmd,
     BKE_ptcache_invalidate(cache);
     return;
   }
-  if (framenr > endframe) {
-    framenr = endframe;
-  }
+  framenr = std::min(framenr, endframe);
 
   /* initialize simulation data if it didn't exist already */
   if (!do_init_cloth(ob, clmd, mesh, framenr)) {
@@ -833,7 +832,8 @@ static void cloth_from_mesh(ClothModifierData *clmd, const Object *ob, Mesh *mes
 
   /* Allocate our vertices. */
   clmd->clothObject->mvert_num = mvert_num;
-  clmd->clothObject->verts = MEM_cnew_array<ClothVertex>(clmd->clothObject->mvert_num, __func__);
+  clmd->clothObject->verts = MEM_calloc_arrayN<ClothVertex>(clmd->clothObject->mvert_num,
+                                                            __func__);
   if (clmd->clothObject->verts == nullptr) {
     cloth_free_modifier(clmd);
     BKE_modifier_set_error(ob, &(clmd->modifier), "Out of memory on allocating vertices");

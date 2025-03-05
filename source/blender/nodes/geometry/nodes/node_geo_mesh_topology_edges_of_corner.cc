@@ -4,8 +4,6 @@
 
 #include "BKE_mesh.hh"
 
-#include "BLI_task.hh"
-
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_mesh_topology_edges_of_corner_cc {
@@ -126,7 +124,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

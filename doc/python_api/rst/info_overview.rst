@@ -202,19 +202,36 @@ otherwise Blender's internal initialization won't happen properly:
    class AwesomeRaytracer(bpy.types.RenderEngine):
       def __init__(self, *args, **kwargs):
          super().__init__(*args, **kwargs)
+         self.my_var = 42
          ...
 
-.. note::
+.. warning::
+
+   The Blender-defined parent constructor must be called before any data access to the object, including
+   from other potential parent types ``__init__()`` functions.
+
+.. warning::
 
    Calling the parent's ``__init__()`` function is a hard requirement since Blender 4.4.
    The 'generic' signature is the recommended one here, as Blender internal BPY code is typically
    the only caller of these functions. The actual arguments passed to the constructor are fully
    internal data, and may change depending on the implementation.
 
+   Unfortunately, the error message, generated in case the expected constructor is not called, can
+   be fairly cryptic and unhelping. Generally they should be about failure to create a (python)
+   object:
+
+      MemoryError: couldn't create bpy_struct object\_
+
+   With Operators, it might be something like that:
+
+      RuntimeError: could not create instance of <OPERATOR_OT_identifier> to call callback function execute
+
 .. note::
 
-   In case you are using complex/multi-inheritance, ``super()`` may not work. It is best then to
-   explicitly invoke the Blender-defined parent class constructor. For example:
+   In case you are using complex/multi-inheritance, ``super()`` may not work (as the Blender-defined parent
+   may not be the first type in the MRO). It is best then to first explicitly invoke the Blender-defined
+   parent class constructor, before any other. For example:
 
    .. code-block:: python
 
@@ -222,6 +239,8 @@ otherwise Blender's internal initialization won't happen properly:
       class FancyRaytracer(AwesomeRaytracer, bpy.types.RenderEngine):
          def __init__(self, *args, **kwargs):
             bpy.types.RenderEngine.__init__(self, *args, **kwargs)
+            AwesomeRaytracer.__init__(self, *args, **kwargs)
+            self.my_var = 42
             ...
 
 .. note::

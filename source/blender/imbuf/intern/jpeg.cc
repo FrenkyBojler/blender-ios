@@ -292,7 +292,7 @@ static ImBuf *ibJpegImageFromCinfo(
       jpeg_abort_decompress(cinfo);
       ibuf = IMB_allocImBuf(x, y, 8 * depth, 0);
     }
-    else if ((ibuf = IMB_allocImBuf(x, y, 8 * depth, IB_rect | IB_uninitialized_pixels)) ==
+    else if ((ibuf = IMB_allocImBuf(x, y, 8 * depth, IB_byte_data | IB_uninitialized_pixels)) ==
              nullptr)
     {
       jpeg_abort_decompress(cinfo);
@@ -662,9 +662,7 @@ static int init_jpeg(FILE *outfile, jpeg_compress_struct *cinfo, ImBuf *ibuf)
   if (quality <= 0) {
     quality = jpeg_default_quality;
   }
-  if (quality > 100) {
-    quality = 100;
-  }
+  quality = std::min(quality, 100);
 
   jpeg_create_compress(cinfo);
   jpeg_stdio_dest(cinfo, outfile);
