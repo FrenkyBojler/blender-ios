@@ -41,7 +41,7 @@ using namespace blender::bke;
 
 namespace blender::nodes::node_geo_tetrahedralize_cc {
 
-// Macros pour gérer le stockage du nœud
+
 static void node_free_storage(bNode *node)
 {
   /* Node storage management macros */
