@@ -31,7 +31,7 @@
 
 #include "eigen_capi.h"
 
-struct LaplacianSystem {
+struct LaplacianSystem_Smooth {
   float *eweights = nullptr;      /* Length weights per Edge */
   float (*fweights)[3] = nullptr; /* Cotangent weights per face */
   float *ring_areas = nullptr;    /* Total area per ring. */
@@ -53,6 +53,9 @@ struct LaplacianSystem {
   float min_area = 0.0f;
   float vert_centroid[3] = {};
 };
+/* Prevent naming collision: #135490. */
+using LaplacianSystem = LaplacianSystem_Smooth;
+
 
 static void delete_laplacian_system(LaplacianSystem *sys)
 {
