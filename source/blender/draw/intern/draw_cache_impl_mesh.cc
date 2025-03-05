@@ -69,7 +69,7 @@ static void mesh_batch_cache_discard_batch(MeshBatchCache &cache, const DRWBatch
   for (int i = 0; i < MBC_BATCH_LEN; i++) {
     DRWBatchFlag batch_requested = (DRWBatchFlag)(1u << i);
     if (batch_map & batch_requested) {
-      GPU_BATCH_DISCARD_SAFE(((gpu::Batch **)*cache.batch)[i]);
+      GPU_BATCH_DISCARD_SAFE(((gpu::Batch **)&cache.batch)[i]);
       cache.batch_ready &= ~batch_requested;
     }
   }
@@ -496,7 +496,7 @@ static void mesh_batch_cache_check_vertex_group(MeshBatchCache &cache,
 static void mesh_batch_cache_request_surface_batches(MeshBatchCache &cache)
 {
   mesh_batch_cache_add_request(cache, MBC_SURFACE);
-  DRW_batch_request(*cache.batch.surface);
+  DRW_batch_request(&cache.batch.surface);
   for (int i = 0; i < cache.mat_len; i++) {
     DRW_batch_request(&cache.surface_per_mat[i]);
   }
@@ -1128,16 +1128,6 @@ void DRW_mesh_batch_cache_free_old(Mesh *mesh, int ctime)
   drw_attributes_clear(&cache->attr_used_over_time);
 }
 
-static void drw_add_attributes_vbo(gpu::Batch *batch,
-                                   MeshBufferList *mbuflist,
-                                   DRW_Attributes *attr_used)
-{
-  for (int i = 0; i < attr_used->num_requests; i++) {
-    GPU_batch_vertbuf_add(
-        batch, mbuflist->vbos.lookup(VBOType(int8_t(VBOType::Attr0) + i)).get(), false);
-  }
-}
-
 #ifndef NDEBUG
 /* Sanity check function to test if all requested batches are available. */
 static void drw_mesh_batch_cache_check_available(TaskGraph &task_graph, Mesh &mesh)
@@ -1171,20 +1161,6 @@ static void drw_mesh_batch_cache_check_available(TaskGraph &task_graph, Mesh &me
   }
 }
 #endif
-
-static void init_empty_dummy_batch(gpu::Batch &batch)
-{
-  /* The dummy batch is only used in cases with invalid edit mode mapping, so the overhead of
-   * creating a vertex buffer shouldn't matter. */
-  GPUVertFormat format{};
-  GPU_vertformat_attr_add(&format, "dummy", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
-  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
-  GPU_vertbuf_data_alloc(*vbo, 1);
-  /* Avoid the batch being rendered at all. */
-  GPU_vertbuf_data_len_set(*vbo, 0);
-
-  GPU_batch_vertbuf_add(&batch, vbo, true);
-}
 
 static gpu::Batch *create_empty_batch()
 {
