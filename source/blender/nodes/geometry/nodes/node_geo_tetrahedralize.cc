@@ -26,7 +26,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_customdata.hh"
 #include "BKE_bvhutils.hh"
-#include "BKE_mesh_remesh_voxel.hh" // Pour accéder aux structures de données de voxélisation
+#include "BKE_mesh_remesh_voxel.hh" // To access voxel data structures
 #include "BKE_material.hh"
 
 #include "UI_interface.hh"
@@ -42,9 +42,9 @@ using namespace blender::bke;
 namespace blender::nodes::node_geo_tetrahedralize_cc {
 
 // Macros pour gérer le stockage du nœud
-// Déplacé à l'intérieur du namespace
 static void node_free_storage(bNode *node)
 {
+  /* Node storage management macros */
   if (node->storage) {
     MEM_freeN(node->storage);
   }
@@ -52,6 +52,7 @@ static void node_free_storage(bNode *node)
 
 static void node_copy_storage(bNodeTree * /*dst_ntree*/, bNode *dst_node, const bNode *src_node)
 {
+  /* Copy node storage */
   dst_node->storage = MEM_dupallocN(src_node->storage);
 }
 
@@ -82,7 +83,7 @@ class RandomNumberGenerator {
   }
 };
 
-/* Définition des méthodes d'échelle locale. */
+/* Definition of local scaling methods */
 enum LocalScalingMethod {
   SCALING_NONE = 0,
   SCALING_FEATURE_SIZE = 1,
@@ -104,27 +105,27 @@ static const EnumPropertyItem scaling_mode_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-/* Structure d'un tétraèdre, contient les indices des 4 sommets. */
+/* Structure of a tetrahedron containing indices of 4 vertices */
 struct Tetrahedron {
   int v1, v2, v3, v4;
 
   Tetrahedron() : v1(0), v2(0), v3(0), v4(0) {}
   Tetrahedron(int a, int b, int c, int d) : v1(a), v2(b), v3(c), v4(d) {}
 
-  /* Calcule le volume du tétraèdre. */
+  /* Calculate tetrahedron volume */
   float volume(const Span<float3> &vertices) const
   {
     return volume_tetrahedron_signed_v3(
         vertices[v1], vertices[v2], vertices[v3], vertices[v4]);
   }
 
-  /* Vérifie si le tétraèdre a un volume positif (orientation correcte). */
+  /* Check if tetrahedron has positive volume (correct orientation) */
   bool has_positive_volume(const Span<float3> &vertices) const
   {
     return volume(vertices) > 0.0f;
   }
 
-  /* Inverse l'orientation du tétraèdre si nécessaire. */
+  /* Reverse orientation if needed */
   void ensure_positive_volume(const Span<float3> &vertices)
   {
     if (!has_positive_volume(vertices)) {
@@ -132,33 +133,32 @@ struct Tetrahedron {
     }
   }
   
-  /* Obtient les faces orientées du tétraèdre pour la création du maillage.
-     Retourne les indices dans l'ordre approprié pour chaque face triangulaire. */
+  /* Get oriented faces for mesh creation */
   void get_oriented_faces(MutableSpan<int> corner_verts, int &corner_index) const
   {
-    // Face 1: v1, v3, v2 (orientation dans le sens anti-horaire vu de l'extérieur)
+    // Face 1: v1-v3-v2 (counter-clockwise from outside)
     corner_verts[corner_index++] = v1;
     corner_verts[corner_index++] = v3;
     corner_verts[corner_index++] = v2;
     
-    // Face 2: v1, v2, v4 (orientation dans le sens anti-horaire vu de l'extérieur)
+    // Face 2: v1-v2-v4 (counter-clockwise from outside)
     corner_verts[corner_index++] = v1;
     corner_verts[corner_index++] = v2;
     corner_verts[corner_index++] = v4;
     
-    // Face 3: v2, v3, v4 (orientation dans le sens anti-horaire vu de l'extérieur)
+    // Face 3: v2-v3-v4 (counter-clockwise from outside)
     corner_verts[corner_index++] = v2;
     corner_verts[corner_index++] = v3;
     corner_verts[corner_index++] = v4;
     
-    // Face 4: v3, v1, v4 (orientation dans le sens anti-horaire vu de l'extérieur)
+    // Face 4: v3-v1-v4 (counter-clockwise from outside)
     corner_verts[corner_index++] = v3;
     corner_verts[corner_index++] = v1;
     corner_verts[corner_index++] = v4;
   }
 };
 
-/* Structure pour une face triangulaire, utilisée pour la construction des tétraèdres. */
+/* Structure for triangular face used in tetrahedron construction */
 struct TriFace {
   int v1, v2, v3;
 
@@ -179,16 +179,15 @@ static void node_declare(NodeDeclarationBuilder &b)
 }
 
 /*
- * Calcule la taille de base du maillage.
- * Utilise les dimensions de la boîte englobante pour estimer une taille appropriée.
+ * Calculate mesh base size using bounding box dimensions
  */
 static float calculate_base_size(const Mesh *mesh)
 {
   if (!mesh || mesh->verts_num == 0) {
-    return 1.0f;  // Valeur par défaut pour un maillage vide
+    return 1.0f;  // Default value for empty mesh
   }
 
-  // Calcul manuel de la boîte englobante
+  // Manual bounding box calculation
   const Span<float3> positions = mesh->vert_positions();
   
   if (positions.is_empty()) {
@@ -208,18 +207,17 @@ static float calculate_base_size(const Mesh *mesh)
     max.z = std::max(max.z, pos.z);
   }
 
-  // Calculer la diagonale de la boîte englobante
+  // Calculate bounding box diagonal
   float diagonal = sqrt(square_f(max.x - min.x) + 
                          square_f(max.y - min.y) + 
                          square_f(max.z - min.z));
   
-  // Retourner 5% de la diagonale comme taille de base
+  // Return 5% of diagonal as base size
   return diagonal * 0.05f;
 }
 
 /*
- * Calcule les tailles de caractéristiques locales pour chaque sommet.
- * Utilise la longueur moyenne des arêtes adjacentes à chaque sommet.
+ * Calculate local feature sizes per vertex using average adjacent edge lengths
  */
 static Array<float> calculate_local_feature_sizes(const Mesh *mesh)
 {
@@ -243,12 +241,12 @@ static Array<float> calculate_local_feature_sizes(const Mesh *mesh)
       const int v1 = corner_verts[face[i]];
       const int v2 = corner_verts[face[(i + 1) % face.size()]];
       
-      // Calculate edge length
+      // Edge length calculation
       const float3 &p1 = positions[v1];
       const float3 &p2 = positions[v2];
       const float edge_length = len_v3v3(p1, p2);
       
-      // Accumulate length for both vertices
+      // Accumulate lengths for both vertices
       feature_sizes[v1] += edge_length;
       feature_sizes[v2] += edge_length;
       vertex_counts[v1]++;
@@ -271,35 +269,23 @@ static Array<float> calculate_local_feature_sizes(const Mesh *mesh)
 }
 
 /*
- * Récupère les valeurs d'attribut de point pour l'échelle.
- * Si l'attribut n'existe pas, retourne des valeurs par défaut.
+ * Retrieve point attribute values for scaling.
+ * If the attribute does not exist, return default values.
  */
 static Array<float> get_point_attribute_values(const Mesh *mesh, [[maybe_unused]] const std::string &attribute_name)
 {
   const Span<float3> positions = mesh->vert_positions();
   Array<float> values(positions.size(), 1.0f);
   
-  // Essayer de récupérer l'attribut, s'il n'existe pas, utiliser des valeurs par défaut
+  // Try to retrieve the attribute, use default values if it doesn't exist
   
   return values;
 }
 
-/* 
- * Find a point inside the mesh for starting the tetrahedralization.
- * Uses a simple approach of using the center of the bounding box.
- */
+/* Find interior point for tetrahedralization using bounding box center */
 static int find_interior_point(const Mesh *mesh, Vector<float3> &vertices)
 {
-  // Cette fonction trouve un point à l'intérieur du maillage pour démarrer la tétraédralisation
-  // en utilisant une méthode simplifiée (centre de la boîte englobante)
-  
-  if (!mesh || mesh->verts_num == 0) {
-    // Retourner un point par défaut si le maillage est vide
-    vertices.append(float3(0, 0, 0));
-    return vertices.size() - 1;
-  }
-
-  // Calcul manuel de la boîte englobante
+  // Manual bounding box calculation
   const Span<float3> positions = mesh->vert_positions();
   
   if (positions.is_empty()) {
@@ -324,9 +310,9 @@ static int find_interior_point(const Mesh *mesh, Vector<float3> &vertices)
                         (min.y + max.y) * 0.5f, 
                         (min.z + max.z) * 0.5f);
 
-  // Utiliser simplement le centre comme point intérieur
-  // Cette approche simplifiée fonctionne pour la plupart des maillages convexes
-  // Pour les maillages complexes ou concaves, une meilleure méthode serait nécessaire
+  // Use center as interior point
+  // This simplified approach works for most convex meshes
+  // For complex/concave meshes, a better method would be needed
   vertices.append(center);
   return vertices.size() - 1;
 }
@@ -353,13 +339,13 @@ static void generate_tetrahedralization(const Mesh *mesh,
     return;
   }
   
-  // Sauvegarder tous les sommets d'origine
+  /* Save all original vertices */
   out_vertices.resize(positions.size());
   for (const int i : positions.index_range()) {
     out_vertices[i] = positions[i];
   }
   
-  // Obtenir les informations d'échelle basées sur la méthode sélectionnée
+  /* Get scaling information based on selected method */
   Array<float> vertex_scales(positions.size(), 1.0f);
   
   switch (local_scaling_method) {
@@ -378,30 +364,30 @@ static void generate_tetrahedralization(const Mesh *mesh,
       break;
     }
     default:
-      // Pas d'échelle spéciale, utiliser une échelle uniforme basée sur max_tet_scale
+      // No special scaling - use uniform scale based on max_tet_scale
       for (float &scale : vertex_scales) {
         scale = base_size * max_tet_scale;
       }
       break;
   }
   
-  // Collecter les triangles de surface
+  // Collect surface triangles
   Vector<TriFace> surface_triangles;
   
-  // Collecter les triangles de surface
+  // Process all faces
   for (const int face_index : faces.index_range()) {
     const IndexRange face = faces[face_index];
     
-    // Trianguler les faces non triangulaires
+    // Triangulate non-triangular faces
     if (face.size() == 3) {
-      // Face triangulaire - ajouter directement
+      // Directly add triangular faces
       const int v1 = corner_verts[face[0]];
       const int v2 = corner_verts[face[1]];
       const int v3 = corner_verts[face[2]];
       surface_triangles.append(TriFace(v1, v2, v3));
     }
     else if (face.size() > 3) {
-      // Face n-gone - trianguler en utilisant la fonction de triangulation de Blender
+      // Triangulate n-gons using Blender's triangulation
       const int v0 = corner_verts[face[0]];
       for (int i = 2; i < face.size(); i++) {
         const int v1 = corner_verts[face[i - 1]];
@@ -411,44 +397,44 @@ static void generate_tetrahedralization(const Mesh *mesh,
     }
   }
   
-  // Trouver un point intérieur pour commencer la tétraédrisation
+  // Find starting interior point
   int interior_point_index = find_interior_point(mesh, out_vertices);
   
-  // Créer les tétraèdres initiaux en connectant le point intérieur à tous les triangles de surface
+  // Create initial tetrahedra connecting interior point to surface triangles
   for (const TriFace &face : surface_triangles) {
-    // Vérifier que les sommets du triangle ne sont pas coïncidents
+    // Check for valid triangle vertices
     float3 v1 = out_vertices[face.v1];
     float3 v2 = out_vertices[face.v2];
     float3 v3 = out_vertices[face.v3];
     float3 v4 = out_vertices[interior_point_index];
     
-    // Calculer l'aire du triangle
+    // Calculate triangle area
     float3 normal = math::cross(v2 - v1, v3 - v1);
     float area = len_v3(normal) * 0.5f;
     
-    // Calculer le volume du tétraèdre potentiel
+    // Calculate potential tetrahedron volume
     float volume = volume_tetrahedron_signed_v3(v1, v2, v3, v4);
     
-    // Ignorer les triangles d'aire trop petite et les tétraèdres de volume trop petit
+    // Skip small areas and invalid volumes
     if (area > 1e-6f && fabsf(volume) > 1e-6f) {
       Tetrahedron tet(face.v1, face.v2, face.v3, interior_point_index);
       
-      // S'assurer que le tétraèdre a un volume positif
+      // Ensure proper orientation
       tet.ensure_positive_volume(out_vertices);
       
-      // Vérifier une dernière fois que le volume est positif
+      // Final volume validation
       if (tet.has_positive_volume(out_vertices)) {
         out_tetrahedra.append(tet);
       }
     }
   }
   
-  // Améliorer la qualité des tétraèdres en ajoutant des points intérieurs supplémentaires
+  // Improve tetrahedron quality by adding interior points
   RandomNumberGenerator rng;
   
-  // Le nombre de points supplémentaires dépend de la taille maximale des tétraèdres
-  // et de la taille du maillage
-  // Calcul manuel de la boîte englobante
+  // Number of additional points depends on max tetrahedron size
+  // and mesh dimensions
+  // Manual bounding box calculation
   float3 min, max;
   
   if (!positions.is_empty()) {
@@ -474,10 +460,10 @@ static void generate_tetrahedralization(const Mesh *mesh,
   num_additional_points = std::min(std::max(num_additional_points, 10), 100); // Limit between 10 and 100
   
   for (int i = 0; i < num_additional_points; i++) {
-    // Créer un nouveau point en combinant des sommets existants et en ajoutant de l'aléatoire
+    // Create new point by combining existing vertices with random offset
     float3 new_point(0, 0, 0);
     
-    // Échantillonner quelques points au hasard
+    // Sample random vertices
     int num_samples = std::min(5, static_cast<int>(positions.size()));
     float total_weight = 0.0f;
     
@@ -492,46 +478,46 @@ static void generate_tetrahedralization(const Mesh *mesh,
       new_point /= total_weight;
     }
     else {
-      // Fallback si les poids sont tous nuls
+      // Fallback if all weights are zero
       new_point = positions.is_empty() ? float3(0, 0, 0) : positions[0];
     }
     
-    // Ajouter un décalage aléatoire proportionnel à la taille de base
+    // Add random offset proportional to base size
     new_point += float3(
         (rng.get_float() - 0.5f) * 2.0f,
         (rng.get_float() - 0.5f) * 2.0f,
         (rng.get_float() - 0.5f) * 2.0f) * base_size * 0.2f;
     
-    // Ajouter le nouveau point
+    // Add new point
     const int new_point_index = out_vertices.size();
     out_vertices.append(new_point);
     
-    // Connecter à certains triangles de surface
+    // Connect to surface triangles
     int num_connections = std::min(10, static_cast<int>(surface_triangles.size()));
     for (int j = 0; j < num_connections; j++) {
       int face_idx = rng.get_int() % surface_triangles.size();
       const TriFace &face = surface_triangles[face_idx];
       
-      // Vérifier que les sommets du triangle ne sont pas confondus
+      // Check for coincident vertices
       float3 v1 = out_vertices[face.v1];
       float3 v2 = out_vertices[face.v2];
       float3 v3 = out_vertices[face.v3];
       float3 v4 = out_vertices[new_point_index];
       
-      // Calculer l'aire du triangle
+      // Calculate triangle area
       float3 normal = math::cross(v2 - v1, v3 - v1);
       float area = len_v3(normal) * 0.5f;
       
-      // Calculer le volume du tétraèdre potentiel
+      // Calculate potential tetrahedron volume
       float volume = volume_tetrahedron_signed_v3(v1, v2, v3, v4);
       
-      // Ignorer les triangles d'aire trop petite et les tétraèdres de volume trop petit
+      // Skip small areas and volumes
       if (area > 1e-6f && fabsf(volume) > 1e-6f) {
         Tetrahedron tet(face.v1, face.v2, face.v3, new_point_index);
-        // S'assurer que le tétraèdre a un volume positif
+        // Ensure positive volume orientation
         tet.ensure_positive_volume(out_vertices);
         
-        // Vérifier une dernière fois que le volume est positif
+        // Final volume validation
         if (tet.has_positive_volume(out_vertices)) {
           out_tetrahedra.append(tet);
         }
@@ -539,19 +525,19 @@ static void generate_tetrahedralization(const Mesh *mesh,
     }
   }
   
-  // Filter low quality tetrahedra
+  // Filter tetrahedra based on quality metrics
   Vector<Tetrahedron> filtered_tetrahedra;
   for (const Tetrahedron &tet : out_tetrahedra) {
-    // Récupérer les points du tétraèdre
+    // Get tetrahedron vertices
     const float3 &v1 = out_vertices[tet.v1];
     const float3 &v2 = out_vertices[tet.v2];
     const float3 &v3 = out_vertices[tet.v3];
     const float3 &v4 = out_vertices[tet.v4];
     
-    // Calculer le volume
+    // Calculate volume
     float volume = volume_tetrahedron_signed_v3(v1, v2, v3, v4);
     
-    // Calculer la qualité (mesure basée sur le ratio volume/longueur d'arête)
+    // Calculate edge length metrics
     float max_edge_length = 0.0f;
     max_edge_length = std::max(max_edge_length, len_v3v3(v1, v2));
     max_edge_length = std::max(max_edge_length, len_v3v3(v1, v3));
@@ -560,7 +546,7 @@ static void generate_tetrahedralization(const Mesh *mesh,
     max_edge_length = std::max(max_edge_length, len_v3v3(v2, v4));
     max_edge_length = std::max(max_edge_length, len_v3v3(v3, v4));
     
-    // Calculer aussi la plus petite arête pour éviter les tétraèdres très plats
+    // Calculate minimum edge length
     float min_edge_length = max_edge_length;
     min_edge_length = std::min(min_edge_length, len_v3v3(v1, v2));
     min_edge_length = std::min(min_edge_length, len_v3v3(v1, v3));
@@ -569,32 +555,23 @@ static void generate_tetrahedralization(const Mesh *mesh,
     min_edge_length = std::min(min_edge_length, len_v3v3(v2, v4));
     min_edge_length = std::min(min_edge_length, len_v3v3(v3, v4));
     
-    // Calculer un seuil minimum de volume basé sur la taille des arêtes
+    // Calculate quality thresholds
     float min_volume_threshold = powf(max_edge_length, 3) * 0.001f;
-    
-    // Calculer le ratio d'aspect (edge ratio)
     float edge_ratio = (min_edge_length > 1e-6f) ? (max_edge_length / min_edge_length) : FLT_MAX;
     
-    // Calculer la qualité en fonction du volume et des arêtes
-    // La formule est basée sur le ratio entre le volume et le cube de la longueur d'arête moyenne
+    // Calculate quality metric
     float avg_edge_length = (len_v3v3(v1, v2) + len_v3v3(v1, v3) + len_v3v3(v1, v4) + 
-                             len_v3v3(v2, v3) + len_v3v3(v2, v4) + len_v3v3(v3, v4)) / 6.0f;
+                            len_v3v3(v2, v3) + len_v3v3(v2, v4) + len_v3v3(v3, v4)) / 6.0f;
     float quality = (avg_edge_length > 1e-6f) ? (volume / powf(avg_edge_length, 3)) : 0.0f;
     
-    // Strict criteria to avoid problematic tetrahedra:
-    // 1. Significant positive volume
-    // 2. Reasonable aspect ratio
-    // 3. Minimum quality
-    // 4. Non-zero minimum edge
+    // Apply quality filters
     if (volume > min_volume_threshold && 
         edge_ratio < 50.0f && 
         quality > 0.001f && 
         min_edge_length > 1e-5f) {
       
-      // Vérifier également que les faces ne sont pas dégénérées
+      // Check face areas
       bool valid_faces = true;
-      
-      // Vérifier l'aire des 4 faces triangulaires
       float3 n1 = math::cross(v2 - v1, v3 - v1);
       float3 n2 = math::cross(v2 - v1, v4 - v1);
       float3 n3 = math::cross(v3 - v1, v4 - v1);
@@ -605,7 +582,7 @@ static void generate_tetrahedralization(const Mesh *mesh,
       float area3 = len_v3(n3) * 0.5f;
       float area4 = len_v3(n4) * 0.5f;
       
-      // Si une face a une aire trop petite, rejeter le tétraèdre
+      // Minimum area threshold
       float min_area_threshold = powf(min_edge_length, 2) * 0.01f;
       if (area1 < min_area_threshold || area2 < min_area_threshold ||
           area3 < min_area_threshold || area4 < min_area_threshold) {
@@ -630,24 +607,24 @@ static Mesh *create_mesh_from_tetrahedra(const Vector<float3> &vertices,
     return nullptr;
   }
   
-  // Filtrer les tétraèdres valides avec des vérifications supplémentaires
+  // Filter valid tetrahedra with additional checks
   Vector<Tetrahedron> valid_tetrahedra;
   for (const Tetrahedron &tet : tetrahedra) {
-    // Vérifier les indices des sommets pour s'assurer qu'ils sont valides
+    // Validate vertex indices
     if (tet.v1 < vertices.size() && tet.v2 < vertices.size() && 
         tet.v3 < vertices.size() && tet.v4 < vertices.size() &&
         tet.v1 >= 0 && tet.v2 >= 0 && tet.v3 >= 0 && tet.v4 >= 0) {
       
-      // Vérifier que les sommets ne sont pas colinéaires ou coplanaires
+      // Check for non-degenerate tetrahedron
       const float3 &p1 = vertices[tet.v1];
       const float3 &p2 = vertices[tet.v2];
       const float3 &p3 = vertices[tet.v3];
       const float3 &p4 = vertices[tet.v4];
       
-      // Calculer le volume du tétraèdre pour vérifier qu'il n'est pas dégénéré
+      // Volume check
       float volume = volume_tetrahedron_signed_v3(p1, p2, p3, p4);
       
-      // Vérifier aussi que les arêtes ont une longueur minimale
+      // Minimum edge length check
       float min_edge_len = FLT_MAX;
       min_edge_len = std::min(min_edge_len, len_v3v3(p1, p2));
       min_edge_len = std::min(min_edge_len, len_v3v3(p1, p3));
@@ -656,14 +633,9 @@ static Mesh *create_mesh_from_tetrahedra(const Vector<float3> &vertices,
       min_edge_len = std::min(min_edge_len, len_v3v3(p2, p4));
       min_edge_len = std::min(min_edge_len, len_v3v3(p3, p4));
       
-      // N'ajouter que les tétraèdres avec un volume significatif et des arêtes non nulles
+      // Keep only tetrahedra with significant volume and valid edges
       if (fabsf(volume) > 1e-6f && min_edge_len > 1e-5f) {
-        // S'assurer que le tétraèdre a un volume positif (bon ordre des sommets)
-        Tetrahedron new_tet = tet;
-        if (volume < 0) {
-          std::swap(new_tet.v3, new_tet.v4); // Inverser l'orientation si nécessaire
-        }
-        valid_tetrahedra.append(new_tet);
+        valid_tetrahedra.append(tet);
       }
     }
   }
@@ -672,36 +644,36 @@ static Mesh *create_mesh_from_tetrahedra(const Vector<float3> &vertices,
     return nullptr;
   }
   
-  // Calculer le nombre de faces (4 par tétraèdre)
+  // Calculate number of faces (4 per tetrahedron)
   int num_tets = valid_tetrahedra.size();
   int num_faces = num_tets * 4;
-  int num_loops = num_faces * 3;  // 3 sommets par face triangulaire
+  int num_loops = num_faces * 3;  // 3 vertices per triangular face
   
-  // Créer un nouveau maillage avec des sommets, des arêtes, des faces et des coins
+  /* Create new mesh with vertices, edges, faces and corners */
   Mesh *mesh = BKE_mesh_new_nomain(vertices.size(), 0, num_faces, num_loops);
   
-  // Copier les sommets
+  // Copy vertices
   MutableSpan<float3> mesh_verts = mesh->vert_positions_for_write();
   for (size_t i = 0; i < vertices.size(); i++) {
     mesh_verts[i] = vertices[i];
   }
   
-  // Créer les faces
+  // Create faces
   MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
   MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
   
   int corner_index = 0;
   int face_index = 0;
   
-  // Pour chaque tétraèdre, créer les quatre faces triangulaires avec soin
+  /* For each tetrahedron, carefully create four triangular faces */
   for (int i = 0; i < num_tets; i++) {
     const Tetrahedron &tet = valid_tetrahedra[i];
     
-    // Définir les offsets de face (où commence chaque face dans le tableau de coins)
+    // Define face offsets (where each face starts in the corner vertices array)
     for (int j = 0; j < 4; j++) {
       face_offsets[face_index++] = corner_index;
       
-      // Ajouter les sommets de la face selon l'orientation appropriée
+      // Add vertices of the face according to the appropriate orientation
       int v1, v2, v3;
       switch (j) {
         case 0: // Face 1: triangle v1-v3-v2
@@ -726,14 +698,14 @@ static Mesh *create_mesh_from_tetrahedra(const Vector<float3> &vertices,
           break;
       }
       
-      // Ajouter les trois sommets de la face
+      // Add three vertices of the face
       corner_verts[corner_index++] = v1;
       corner_verts[corner_index++] = v2;
       corner_verts[corner_index++] = v3;
     }
   }
   
-  // Définir le dernier offset de face
+  // Set last face offset
   face_offsets[num_faces] = num_loops;
   
   // Generate edges and other mesh information needed for proper rendering
@@ -745,13 +717,13 @@ static Mesh *create_mesh_from_tetrahedra(const Vector<float3> &vertices,
   // Tag the mesh for deferred normal calculation - this is safer than direct calculation
   mesh->tag_positions_changed();
   
-  // Créer un attribut pour stocker l'ID du tétraèdre
+  // Create tetrahedron ID attribute
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::SpanAttributeWriter<int> tet_id = attributes.lookup_or_add_for_write_span<int>(
       "tetrahedron_id", bke::AttrDomain::Face);
   
   for (int i = 0; i < num_faces; i++) {
-    tet_id.span[i] = i / 4;  // Division entière pour obtenir l'ID du tétraèdre
+    tet_id.span[i] = i / 4;  // Integer division to get tetrahedron ID
   }
   
   tet_id.finish();
@@ -760,8 +732,8 @@ static Mesh *create_mesh_from_tetrahedra(const Vector<float3> &vertices,
 }
 
 /*
- * Implémentation principale de la tétraédrisation.
- * Crée un maillage tétraédrique en utilisant l'API Blender.
+ * Main tetrahedralization implementation
+ * Creates tetrahedral mesh using Blender's API
  */
 static Mesh *create_tetrahedralized_mesh(const Mesh &input_mesh,
                                        const bool use_manual_base_size,
@@ -775,15 +747,15 @@ static Mesh *create_tetrahedralized_mesh(const Mesh &input_mesh,
   if (input_mesh.verts_num == 0) {
     return nullptr;
   }
-  
+
   // Calculate or use provided base size
   float base_size = use_manual_base_size ? manual_base_size : calculate_base_size(&input_mesh);
-  
+
   // Generate tetrahedra using tetrahedralization
   Vector<float3> vertices;
   Vector<Tetrahedron> tetrahedra;
   Mesh *result = nullptr;
-  
+
   try {
     generate_tetrahedralization(&input_mesh,
                               base_size,
@@ -794,37 +766,37 @@ static Mesh *create_tetrahedralized_mesh(const Mesh &input_mesh,
                               local_feature_scale,
                               vertices,
                               tetrahedra);
-    
-    // Explicitly check if valid tetrahedra were generated
+
+    // Explicit check for valid generated tetrahedra
     if (vertices.is_empty() || tetrahedra.is_empty()) {
       return nullptr;
     }
-    
+
     // Final filter of invalid tetrahedra
     Vector<Tetrahedron> valid_tetrahedra;
     for (const Tetrahedron &tet : tetrahedra) {
-      // Check indices are valid
+      // Check valid vertex indices
       if (tet.v1 < vertices.size() && tet.v2 < vertices.size() && 
           tet.v3 < vertices.size() && tet.v4 < vertices.size() &&
           tet.v1 >= 0 && tet.v2 >= 0 && tet.v3 >= 0 && tet.v4 >= 0) {
-        // Check tetrahedron has significant volume
+        // Check significant volume
         float volume = tet.volume(vertices);
         if (volume > 1e-6f) {
           valid_tetrahedra.append(tet);
         }
       }
     }
-    
+
     if (valid_tetrahedra.is_empty()) {
       return nullptr;
     }
-    
+
     result = create_mesh_from_tetrahedra(vertices, valid_tetrahedra);
-    
+
     if (!result) {
       return nullptr;
     }
-    
+
     return result;
   }
   catch (...) {
@@ -840,22 +812,13 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  // Afficher uniquement les propriétés qui ne sont pas déjà exposées comme sockets
+  // Only show properties not exposed as sockets
   uiItemR(layout, ptr, "local_scaling", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   
-  // Get the current scaling mode from the property
   const int scaling_mode = RNA_enum_get(ptr, "local_scaling");
-
   if (scaling_mode == SCALING_POINT_ATTRIBUTE) {
-    // Cette propriété est déjà disponible comme socket, ne pas l'afficher ici
-    // uiItemR(layout, ptr, "scale_attribute_name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    // Property already available as socket, not shown here
   }
-
-  // Ces propriétés sont déjà disponibles comme sockets, ne pas les afficher ici
-  // uiItemR(layout, ptr, "use_manual_base_size", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  // uiItemR(layout, ptr, "base_size", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  // uiItemR(layout, ptr, "max_tet_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  // uiItemR(layout, ptr, "min_triangle_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -867,13 +830,13 @@ static void node_geo_exec(GeoNodeExecParams params)
       try {
         const Mesh *mesh_in = geometry_set.get_mesh();
 
-        // Extraire les valeurs directement à partir des entrées du nœud
+        /* Extract values directly from node inputs */
         const bool use_manual_base_size = params.extract_input<bool>("Manual Base Size");
         const float base_size = params.extract_input<float>("Base Size");
         const float max_tet_scale = params.extract_input<float>("Max Tet Scale");
         const float min_triangle_scale = params.extract_input<float>("Min Triangle Scale");
         
-        // Pour le scaling_method, on doit toujours utiliser custom1 car il n'y a pas d'entrée socket
+        /* For scaling_method, always use custom1 since there's no socket input */
         const LocalScalingMethod local_scaling_method = static_cast<LocalScalingMethod>(
             params.node().custom1);
             
@@ -911,7 +874,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  node->custom1 = SCALING_NONE;  // Par défaut, pas d'échelle locale
+  node->custom1 = SCALING_NONE;  // Default: no local scaling
   
   NodeGeometryTetrahedralize *storage = (NodeGeometryTetrahedralize *)MEM_callocN(
       sizeof(NodeGeometryTetrahedralize), "NodeGeometryTetrahedralize");
@@ -922,10 +885,10 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   storage->local_feature_scale = 1.0f;
   storage->use_manual_base_size = false;
   
-  // Initialiser le padding
+  // Initialize padding
   memset(storage->_pad, 0, sizeof(storage->_pad));
   
-  // Initialiser le nom de l'attribut
+  // Initialize attribute name
   strcpy(storage->scale_attribute_name, "scale");
   
   node->storage = storage;
