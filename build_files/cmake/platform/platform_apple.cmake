@@ -438,16 +438,21 @@ string(APPEND PLATFORM_LINKFLAGS
 )
 
 if(${XCODE_VERSION} VERSION_GREATER_EQUAL 15.0)
-  # Silence "ld: warning: ignoring duplicate libraries".
-  #
-  # The warning is introduced with Xcode 15 and is triggered when the same library
-  # is passed to the linker ultiple times. This situation could happen with either
-  # cyclic libraries, or some transitive dependencies where CMake might decide to
-  # pass library to the linker multiple times to force it re-scan symbols. It is
-  # not neeed for Xcode linker to ensure all symbols from library are used and it
-  # is corrected in CMake 3.29:
-  #    https://gitlab.kitware.com/cmake/cmake/-/issues/25297
-  string(APPEND PLATFORM_LINKFLAGS " -Xlinker -no_warn_duplicate_libraries")
+  if("${CMAKE_OSX_ARCHITECTURES}" STREQUAL "x86_64" AND WITH_FORCE_OLD_LINKER)
+    # Silence "no platform load command found in <static library>, assuming: macOS".
+    string(APPEND PLATFORM_LINKFLAGS " -Wl,-ld_classic")
+  else()
+    # Silence "ld: warning: ignoring duplicate libraries".
+    #
+    # The warning is introduced with Xcode 15 and is triggered when the same library
+    # is passed to the linker ultiple times. This situation could happen with either
+    # cyclic libraries, or some transitive dependencies where CMake might decide to
+    # pass library to the linker multiple times to force it re-scan symbols. It is
+    # not neeed for Xcode linker to ensure all symbols from library are used and it
+    # is corrected in CMake 3.29:
+    #    https://gitlab.kitware.com/cmake/cmake/-/issues/25297
+    string(APPEND PLATFORM_LINKFLAGS " -Xlinker -no_warn_duplicate_libraries")
+  endif()
 endif()
 
 # Make stack size more similar to Embree, required for Embree.

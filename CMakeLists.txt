@@ -1197,6 +1197,12 @@ Run given CMake script as the last step of CMake configuration"
 )
 mark_as_advanced(POSTCONFIGURE_SCRIPT)
 
+if(APPLE AND XCODE AND "${CMAKE_OSX_ARCHITECTURES}" STREQUAL "x86_64")
+  # Ref: https://projects.blender.org/blender/blender/pulls/134639#issuecomment-1513274
+  option(WITH_FORCE_OLD_LINKER "Force using the old (slow) linker on macOS" OFF)
+  mark_as_advanced(WITH_FORCE_OLD_LINKER)
+endif()
+
 # end option(...)
 
 
@@ -2709,7 +2715,7 @@ if(FIRST_RUN)
 
   set(_config_msg "\nBlender Configuration\n=====================")
 
-  function(info_cfg_option
+  function(info_cfg_(option)
     _setting
     )
 
