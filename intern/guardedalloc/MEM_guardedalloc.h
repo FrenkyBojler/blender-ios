@@ -9,7 +9,7 @@
  *
  * \page MEMPage Guarded memory(de)allocation
  *
- * \section aboutmem c-style guarded memory allocation
+ * \section aboutmem c-style & C++-style guarded memory allocation
  *
  * \subsection memabout About the MEM module
  *
@@ -18,10 +18,14 @@
  * linked list, so they remain reachable at all times. There is no
  * back-up in case the linked-list related data is lost.
  *
+ * It also provides C++ template versions of [cm]alloc and related API,
+ * which prodives improved type safety, ensures that the allocated types
+ * are trivial, and reduces the casting verbosity by directly returning
+ * a pointer of the expected type.
+ *
  * \subsection memissues Known issues with MEM
  *
- * There are currently no known issues with MEM. Note that there is a
- * second intern/ module with MEM_ prefix, for use in c++.
+ * There are currently no known issues with MEM.
  *
  * \subsection memdependencies Dependencies
  * - `stdlib`
@@ -43,6 +47,19 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* -------------------------------------------------------------------- */
+/**
+ * \name Untyped Allocation API.
+ *
+ * Defines the 'C-style' part of the API, where memory management is fully untyped (i.e. done with
+ * void pointers and explicit size values).
+ *
+ * This API should usually not be used anymore in C++ code, unless some form of raw memory
+ * mamangement is necessary (e.g. for allocation of various ID types based on their
+ * #IDTypeInfo::struct_size data).
+ *
+ * \{ */
 
 /**
  * Returns the length of the allocated memory segment pointed at
@@ -156,6 +173,36 @@ extern void *(*MEM_calloc_arrayN_aligned)(
     const char *str) /* ATTR_MALLOC */ ATTR_WARN_UNUSED_RESULT ATTR_ALLOC_SIZE(1, 2)
     ATTR_NONNULL(4);
 
+#ifdef __cplusplus
+/* Implicitely uses the templated, type-safe version of #MEM_freeN<T>, unless `v` is `void *`. */
+#  define MEM_SAFE_FREE(v) \
+    do { \
+      if (v) { \
+        MEM_freeN(v); \
+        (v) = nullptr; \
+      } \
+    } while (0)
+#else
+#  define MEM_SAFE_FREE(v) \
+    do { \
+      void **_v = (void **)&(v); \
+      if (*_v) { \
+        MEM_freeN(*_v); \
+        *_v = NULL; \
+      } \
+    } while (0)
+#endif
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/**
+ * \name Various Helpers.
+ *
+ * These functions allow to control the behavior of the guarded allocator, and to retrieve (debug)
+ * information on allocated memory.
+ */
+
 /**
  * Print a list of the names and sizes of all allocated memory
  * blocks. as a python dict for easy investigation.
@@ -196,25 +243,6 @@ extern void (*MEM_reset_peak_memory)(void);
 
 /** Get the peak memory usage in bytes, including `mmap` allocations. */
 extern size_t (*MEM_get_peak_memory)(void) ATTR_WARN_UNUSED_RESULT;
-
-#ifdef __cplusplus
-#  define MEM_SAFE_FREE(v) \
-    do { \
-      if (v) { \
-        MEM_freeN(v); \
-        (v) = nullptr; \
-      } \
-    } while (0)
-#else
-#  define MEM_SAFE_FREE(v) \
-    do { \
-      void **_v = (void **)&(v); \
-      if (*_v) { \
-        MEM_freeN(*_v); \
-        *_v = NULL; \
-      } \
-    } while (0)
-#endif
 
 /** Overhead for lockfree allocator (use to avoid slop-space). */
 #define MEM_SIZE_OVERHEAD sizeof(size_t)
@@ -274,6 +302,8 @@ void MEM_use_lockfree_allocator(void);
  */
 void MEM_use_guarded_allocator(void);
 
+/** \} */
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
@@ -296,6 +326,23 @@ void MEM_use_guarded_allocator(void);
 #  define MEM_MIN_CPP_ALIGNMENT \
     (__STDCPP_DEFAULT_NEW_ALIGNMENT__ < alignof(void *) ? __STDCPP_DEFAULT_NEW_ALIGNMENT__ : \
                                                           alignof(void *))
+
+/* -------------------------------------------------------------------- */
+/**
+ * \name Type-aware allocation & construction API.
+ *
+ * Defines some `new`/`delete`-like helpers, which allocate/free memory using `MEM_guardedalloc`,
+ * and construct/destruct the objects.
+ *
+ * When possible, it is prefferred to use these, even on trivial types, as it makes potential
+ * future changes to these types less disruptive, and is overall closer to standard C++ data
+ * creation and destruction.
+ *
+ * However, if the type is trivial, `MEM_[cm]allocN<T>` and related functions can be used to
+ * allocate an object that will be managed by external historic code still using C-style
+ * allocation/duplication/freeing.
+ *
+ * \{ */
 
 /**
  * Allocate new memory for an object of type #T, and construct it.
@@ -353,6 +400,81 @@ template<typename T> inline void MEM_delete(const T *ptr)
         (v) = nullptr; \
       } \
     } while (0)
+
+/** Define overloaded new/delete operators for C++ types. */
+#  define MEM_CXX_CLASS_ALLOC_FUNCS(_id) \
+   public: \
+    void *operator new(size_t num_bytes) \
+    { \
+      return mem_guarded::internal::mem_mallocN_aligned_ex( \
+          num_bytes, \
+          __STDCPP_DEFAULT_NEW_ALIGNMENT__, \
+          _id, \
+          mem_guarded::internal::AllocationType::NEW_DELETE); \
+    } \
+    void *operator new(size_t num_bytes, std::align_val_t alignment) \
+    { \
+      return mem_guarded::internal::mem_mallocN_aligned_ex( \
+          num_bytes, size_t(alignment), _id, mem_guarded::internal::AllocationType::NEW_DELETE); \
+    } \
+    void operator delete(void *mem) \
+    { \
+      if (mem) { \
+        mem_guarded::internal::mem_freeN_ex(mem, \
+                                            mem_guarded::internal::AllocationType::NEW_DELETE); \
+      } \
+    } \
+    void *operator new[](size_t num_bytes) \
+    { \
+      return mem_guarded::internal::mem_mallocN_aligned_ex( \
+          num_bytes, \
+          __STDCPP_DEFAULT_NEW_ALIGNMENT__, \
+          _id "[]", \
+          mem_guarded::internal::AllocationType::NEW_DELETE); \
+    } \
+    void *operator new[](size_t num_bytes, std::align_val_t alignment) \
+    { \
+      return mem_guarded::internal::mem_mallocN_aligned_ex( \
+          num_bytes, \
+          size_t(alignment), \
+          _id "[]", \
+          mem_guarded::internal::AllocationType::NEW_DELETE); \
+    } \
+    void operator delete[](void *mem) \
+    { \
+      if (mem) { \
+        mem_guarded::internal::mem_freeN_ex(mem, \
+                                            mem_guarded::internal::AllocationType::NEW_DELETE); \
+      } \
+    } \
+    void *operator new(size_t /*count*/, void *ptr) \
+    { \
+      return ptr; \
+    } \
+    /** \
+     * This is the matching delete operator to the placement-new operator above. \
+     * Both parameters \
+     * will have the same value. Without this, we get the warning C4291 on windows. \
+     */ \
+    void operator delete(void * /*ptr_to_free*/, void * /*ptr*/) {}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/**
+ * \name Type-aware allocation API.
+ *
+ * Templated, type-safe versions of C-style allocation & freeing API.
+ *
+ * These functions only allocate or free memory, without any call to constructors or destructors.
+ *
+ * \note MSVC considers C-style types using the #DNA_DEFINE_CXX_METHODS as non-trivial (more
+ * specifically, non-trivially copyable, likely because the default copy constructors are
+ * deleted by this macro). GCC and clang (both on linux, OSX, and clang-cl on Windows on Arm) do
+ * not. So for now, `MEM_[cm]allocN<T>` and related tempaltes use more restricted checks on MSVC.
+ * These should still catch most of the real-life invalid cases.
+ *
+ * \{ */
 
 /**
  * Allocate zero-initialized memory for an object of type #T. The constructor of #T is not called,
@@ -437,12 +559,6 @@ template<typename T> inline T *MEM_mallocN(const char *allocation_name)
 template<typename T> inline T *MEM_malloc_arrayN(const size_t length, const char *allocation_name)
 {
 #  ifdef _MSC_VER
-  /* MSVC considers C-style types using the DNA_DEFINE_CXX_METHODS as non-trivial (more
-   * specifically, non-trivially copyable, likely because the default copy constructors are
-   * deleted). GCC and clang (both on linux, OSX, and clang-cl on Windows on Arm) do not.
-   *
-   * So for now, use a more restricted check on MSVC, should still catch most of actual invalid
-   * cases. */
   static_assert(std::is_trivially_constructible_v<T>,
                 "For non-trivial types, MEM_new must be used.");
 #  else
@@ -502,62 +618,7 @@ template<typename T> inline void MEM_freeN(T *ptr)
                                       mem_guarded::internal::AllocationType::ALLOC_FREE);
 }
 
-/** Allocation functions (for C++ only). */
-#  define MEM_CXX_CLASS_ALLOC_FUNCS(_id) \
-   public: \
-    void *operator new(size_t num_bytes) \
-    { \
-      return mem_guarded::internal::mem_mallocN_aligned_ex( \
-          num_bytes, \
-          __STDCPP_DEFAULT_NEW_ALIGNMENT__, \
-          _id, \
-          mem_guarded::internal::AllocationType::NEW_DELETE); \
-    } \
-    void *operator new(size_t num_bytes, std::align_val_t alignment) \
-    { \
-      return mem_guarded::internal::mem_mallocN_aligned_ex( \
-          num_bytes, size_t(alignment), _id, mem_guarded::internal::AllocationType::NEW_DELETE); \
-    } \
-    void operator delete(void *mem) \
-    { \
-      if (mem) { \
-        mem_guarded::internal::mem_freeN_ex(mem, \
-                                            mem_guarded::internal::AllocationType::NEW_DELETE); \
-      } \
-    } \
-    void *operator new[](size_t num_bytes) \
-    { \
-      return mem_guarded::internal::mem_mallocN_aligned_ex( \
-          num_bytes, \
-          __STDCPP_DEFAULT_NEW_ALIGNMENT__, \
-          _id "[]", \
-          mem_guarded::internal::AllocationType::NEW_DELETE); \
-    } \
-    void *operator new[](size_t num_bytes, std::align_val_t alignment) \
-    { \
-      return mem_guarded::internal::mem_mallocN_aligned_ex( \
-          num_bytes, \
-          size_t(alignment), \
-          _id "[]", \
-          mem_guarded::internal::AllocationType::NEW_DELETE); \
-    } \
-    void operator delete[](void *mem) \
-    { \
-      if (mem) { \
-        mem_guarded::internal::mem_freeN_ex(mem, \
-                                            mem_guarded::internal::AllocationType::NEW_DELETE); \
-      } \
-    } \
-    void *operator new(size_t /*count*/, void *ptr) \
-    { \
-      return ptr; \
-    } \
-    /** \
-     * This is the matching delete operator to the placement-new operator above. \
-     * Both parameters \
-     * will have the same value. Without this, we get the warning C4291 on windows. \
-     */ \
-    void operator delete(void * /*ptr_to_free*/, void * /*ptr*/) {}
+/** \} */
 
 /**
  * Construct a T that will only be destructed after leak detection is run.
