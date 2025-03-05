@@ -28,30 +28,42 @@ void Evaluator::evaluate()
 {
   context_.reset();
 
-  if (!is_compiled_) {
-    compile_and_evaluate();
+  derived_node_tree_ = std::make_unique<DerivedNodeTree>(context_.get_node_tree());
+
+  if (!this->validate_node_tree()) {
+    return;
   }
-  else {
-    for (const std::unique_ptr<Operation> &operation : operations_stream_) {
-      if (context_.is_canceled()) {
-        this->cancel_evaluation();
-        break;
-      }
-      operation->evaluate();
+
+  if (context_.is_canceled()) {
+    this->cancel_evaluation();
+    return;
+  }
+
+  const Schedule schedule = compute_schedule(context_, *derived_node_tree_);
+
+  CompileState compile_state(schedule);
+
+  for (const DNode &node : schedule) {
+    if (context_.is_canceled()) {
+      this->cancel_evaluation();
+      return;
+    }
+
+    if (compile_state.should_compile_pixel_compile_unit(node)) {
+      this->evaluate_pixel_compile_unit(compile_state);
+    }
+
+    if (is_pixel_node(node)) {
+      compile_state.add_node_to_pixel_compile_unit(node);
+    }
+    else {
+      this->evaluate_node(node, compile_state);
     }
   }
 
   if (context_.profiler()) {
     context_.profiler()->finalize(context_.get_node_tree());
   }
-}
-
-void Evaluator::reset()
-{
-  operations_stream_.clear();
-  derived_node_tree_.reset();
-
-  is_compiled_ = false;
 }
 
 bool Evaluator::validate_node_tree()
@@ -69,47 +81,7 @@ bool Evaluator::validate_node_tree()
   return true;
 }
 
-void Evaluator::compile_and_evaluate()
-{
-  derived_node_tree_ = std::make_unique<DerivedNodeTree>(context_.get_node_tree());
-
-  if (!validate_node_tree()) {
-    return;
-  }
-
-  if (context_.is_canceled()) {
-    this->cancel_evaluation();
-    reset();
-    return;
-  }
-
-  const Schedule schedule = compute_schedule(context_, *derived_node_tree_);
-
-  CompileState compile_state(schedule);
-
-  for (const DNode &node : schedule) {
-    if (context_.is_canceled()) {
-      this->cancel_evaluation();
-      reset();
-      return;
-    }
-
-    if (compile_state.should_compile_pixel_compile_unit(node)) {
-      compile_and_evaluate_pixel_compile_unit(compile_state);
-    }
-
-    if (is_pixel_node(node)) {
-      compile_state.add_node_to_pixel_compile_unit(node);
-    }
-    else {
-      compile_and_evaluate_node(node, compile_state);
-    }
-  }
-
-  is_compiled_ = true;
-}
-
-void Evaluator::compile_and_evaluate_node(DNode node, CompileState &compile_state)
+void Evaluator::evaluate_node(DNode node, CompileState &compile_state)
 {
   NodeOperation *operation = node->typeinfo->get_compositor_operation(context_, node);
 
@@ -174,7 +146,7 @@ static PixelOperation *create_pixel_operation(Context &context, CompileState &co
   return new ShaderOperation(context, compile_unit, schedule);
 }
 
-void Evaluator::compile_and_evaluate_pixel_compile_unit(CompileState &compile_state)
+void Evaluator::evaluate_pixel_compile_unit(CompileState &compile_state)
 {
   PixelCompileUnit &compile_unit = compile_state.get_pixel_compile_unit();
 
@@ -204,10 +176,10 @@ void Evaluator::compile_and_evaluate_pixel_compile_unit(CompileState &compile_st
     const PixelCompileUnit end_compile_unit(compile_unit.as_span().drop_front(split_index));
 
     compile_state.get_pixel_compile_unit() = start_compile_unit;
-    this->compile_and_evaluate_pixel_compile_unit(compile_state);
+    this->evaluate_pixel_compile_unit(compile_state);
 
     compile_state.get_pixel_compile_unit() = end_compile_unit;
-    this->compile_and_evaluate_pixel_compile_unit(compile_state);
+    this->evaluate_pixel_compile_unit(compile_state);
 
     /* No need to continue, the above recursive calls will eventually exist the loop and do the
      * actual compilation. */
