@@ -256,8 +256,7 @@ void ED_armature_bone_rename(Main *bmain,
 
       if (BKE_modifiers_uses_armature(ob, arm) && BKE_object_supports_vertex_groups(ob)) {
         bDeformGroup *dg = BKE_object_defgroup_find_name(ob, oldname);
-        bDeformGroup *existing_dg = BKE_object_defgroup_find_name(ob, newname);
-        if (existing_dg) {
+        if (bDeformGroup *existing_dg = BKE_object_defgroup_find_name(ob, newname)) {
           WM_reportf(
               eReportType::RPT_WARNING,
               "%s (%s::%s)",
