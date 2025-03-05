@@ -4,3 +4,4 @@ Referenced by issue #131989, Vertex / Weight Paint: Vertex / Face Selection does
 Referenced by issue #130869, Crash when enabling "Modified Edges" in UV overlays
 Referenced by issue #130842, Adding Curve To Mesh Node Then Switching To Edit Mode Crash Blender
 Referenced by issue #130811, Crash entering Edit Mode in Grease Pencil Geometry Nodes setup
+Referenced by commit 23a97dd965ecbc30ec331aa5c8dec8afd82964b6, Fix #135520: Mesh edit mode "Frame Selected" crash in some cases
