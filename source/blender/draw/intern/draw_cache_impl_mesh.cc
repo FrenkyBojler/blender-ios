@@ -1128,41 +1128,7 @@ void DRW_mesh_batch_cache_free_old(Mesh *mesh, int ctime)
   drw_attributes_clear(&cache->attr_used_over_time);
 }
 
-#ifndef NDEBUG
-/* Sanity check function to test if all requested batches are available. */
-static void drw_mesh_batch_cache_check_available(TaskGraph &task_graph, Mesh &mesh)
-{
-  MeshBatchCache *cache = mesh_batch_cache_get(mesh);
-  /* Make sure all requested batches have been setup. */
-  /* NOTE: The next line creates a different scheduling than during release builds what can lead to
-   * some issues (See #77867 where we needed to disable this function in order to debug what was
-   * happening in release builds). */
-  BLI_task_graph_work_and_wait(&task_graph);
-  for (int i = 0; i < MBC_BATCH_LEN; i++) {
-    BLI_assert(!DRW_batch_requested(((gpu::Batch **)&cache->batch)[i], (GPUPrimType)0));
-  }
-  for (int i = 0; i < MBC_VBO_LEN; i++) {
-    BLI_assert(!DRW_vbo_requested(((gpu::VertBuf **)&cache->final.buff.vbo)[i]));
-  }
-  for (int i = 0; i < MBC_IBO_LEN; i++) {
-    BLI_assert(!DRW_ibo_requested(((gpu::IndexBuf **)&cache->final.buff.ibo)[i]));
-  }
-  for (int i = 0; i < MBC_VBO_LEN; i++) {
-    BLI_assert(!DRW_vbo_requested(((gpu::VertBuf **)&cache->cage.buff.vbo)[i]));
-  }
-  for (int i = 0; i < MBC_IBO_LEN; i++) {
-    BLI_assert(!DRW_ibo_requested(((gpu::IndexBuf **)&cache->cage.buff.ibo)[i]));
-  }
-  for (int i = 0; i < MBC_VBO_LEN; i++) {
-    BLI_assert(!DRW_vbo_requested(((gpu::VertBuf **)&cache->uv_cage.buff.vbo)[i]));
-  }
-  for (int i = 0; i < MBC_IBO_LEN; i++) {
-    BLI_assert(!DRW_ibo_requested(((gpu::IndexBuf **)&cache->uv_cage.buff.ibo)[i]));
-  }
-}
-#endif
-
-static gpu::Batch *create_empty_batch()
+static void init_empty_dummy_batch(gpu::Batch &batch)
 {
   /* The dummy batch is only used in cases with invalid edit mode mapping, so the overhead of
    * creating a vertex buffer shouldn't matter. */
@@ -1173,15 +1139,11 @@ static gpu::Batch *create_empty_batch()
   /* Avoid the batch being rendered at all. */
   GPU_vertbuf_data_len_set(*vbo, 0);
 
-  return GPU_batch_create_ex(GPU_PRIM_POINTS, vbo, nullptr, GPU_BATCH_OWNS_VBO);
+  GPU_batch_vertbuf_add(&batch, vbo, true);
 }
 
-void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
-                                           Object &ob,
-                                           Mesh &mesh,
-                                           const Scene &scene,
-                                           const bool is_paint_mode,
-                                           const bool use_hide)
+void DRW_mesh_batch_cache_create_requested(
+    Object &ob, Mesh &mesh, const Scene &scene, const bool is_paint_mode, const bool use_hide)
 {
   const ToolSettings *ts = scene.toolsettings;
 
@@ -1190,9 +1152,6 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
 
   /* Early out */
   if (cache.batch_requested == 0) {
-#ifndef NDEBUG
-    drw_mesh_batch_cache_check_available(task_graph, mesh);
-#endif
     return;
   }
 
@@ -1496,7 +1455,23 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                                   {VBOType::Position, VBOType::EditData}});
       }
       else {
-        cache.batch.edit_triangles = create_empty_batch();
+        init_empty_dummy_batch(*cache.batch.edit_triangles);
+      }
+    }
+    if (batch_requested & MBC_EDIT_VERTICES) {
+      if (edit_mapping_valid) {
+        BatchCreateData batch{*cache.batch.edit_edges,
+                              GPU_PRIM_POINTS,
+                              list,
+                              IBOType::Points,
+                              {VBOType::Position, VBOType::EditData}};
+        if (!do_subdivision || do_cage) {
+          batch.vbos.append(VBOType::CornerNormal);
+        }
+        batches_to_create.append(std::move(batch));
+      }
+      else {
+        init_empty_dummy_batch(*cache.batch.edit_vertices);
       }
     }
     if (batch_requested & MBC_EDIT_EDGES) {
@@ -1512,7 +1487,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
         batches_to_create.append(std::move(batch));
       }
       else {
-        cache.batch.edit_edges = create_empty_batch();
+        init_empty_dummy_batch(*cache.batch.edit_edges);
       }
     }
     if (batch_requested & MBC_EDIT_VNOR) {
@@ -1524,7 +1499,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                                   {VBOType::Position, VBOType::VertexNormal}});
       }
       else {
-        cache.batch.edit_vnor = create_empty_batch();
+        init_empty_dummy_batch(*cache.batch.edit_vnor);
       }
     }
     if (batch_requested & MBC_EDIT_LNOR) {
@@ -1536,7 +1511,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                                   {VBOType::Position, VBOType::CornerNormal}});
       }
       else {
-        cache.batch.edit_lnor = create_empty_batch();
+        init_empty_dummy_batch(*cache.batch.edit_lnor);
       }
     }
     if (batch_requested & MBC_EDIT_FACEDOTS) {
@@ -1548,7 +1523,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                                   {VBOType::FaceDotPosition, VBOType::FaceDotNormal}});
       }
       else {
-        cache.batch.edit_fdots = create_empty_batch();
+        init_empty_dummy_batch(*cache.batch.edit_fdots);
       }
     }
     if (batch_requested & MBC_SKIN_ROOTS) {
@@ -1560,12 +1535,12 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                                   {VBOType::SkinRoots}});
       }
       else {
-        cache.batch.edit_skin_roots = create_empty_batch();
+        init_empty_dummy_batch(*cache.batch.edit_skin_roots);
       }
     }
     if (batch_requested & MBC_EDIT_SELECTION_VERTS) {
       if (is_editmode && !edit_mapping_valid) {
-        cache.batch.edit_selection_verts = create_empty_batch();
+        init_empty_dummy_batch(*cache.batch.edit_selection_verts);
       }
       else {
         batches_to_create.append({*cache.batch.edit_selection_verts,
@@ -1577,7 +1552,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
     }
     if (batch_requested & MBC_EDIT_SELECTION_EDGES) {
       if (is_editmode && !edit_mapping_valid) {
-        cache.batch.edit_selection_edges = create_empty_batch();
+        init_empty_dummy_batch(*cache.batch.edit_selection_edges);
       }
       else {
         batches_to_create.append({*cache.batch.edit_selection_edges,
@@ -1589,7 +1564,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
     }
     if (batch_requested & MBC_EDIT_SELECTION_FACES) {
       if (is_editmode && !edit_mapping_valid) {
-        cache.batch.edit_selection_faces = create_empty_batch();
+        init_empty_dummy_batch(*cache.batch.edit_selection_faces);
       }
       else {
         batches_to_create.append({*cache.batch.edit_selection_faces,
@@ -1601,7 +1576,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
     }
     if (batch_requested & MBC_EDIT_SELECTION_FACEDOTS) {
       if (is_editmode && !edit_mapping_valid) {
-        cache.batch.edit_selection_fdots = create_empty_batch();
+        init_empty_dummy_batch(*cache.batch.edit_selection_fdots);
       }
       else {
         batches_to_create.append({*cache.batch.edit_selection_fdots,
@@ -1630,7 +1605,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                                   {VBOType::UVs, VBOType::EditUVData}});
       }
       else {
-        cache.batch.edituv_faces = create_empty_batch();
+        init_empty_dummy_batch(*cache.batch.edituv_faces);
       }
     }
     if (batch_requested & MBC_EDITUV_FACES_STRETCH_AREA) {
@@ -1643,7 +1618,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
              {VBOType::UVs, VBOType::EditUVData, VBOType::EditUVStretchArea}});
       }
       else {
-        cache.batch.edituv_faces_stretch_area = create_empty_batch();
+        init_empty_dummy_batch(*cache.batch.edituv_faces_stretch_area);
       }
     }
     if (batch_requested & MBC_EDITUV_FACES_STRETCH_ANGLE) {
@@ -1656,7 +1631,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
              {VBOType::UVs, VBOType::EditUVData, VBOType::EditUVStretchAngle}});
       }
       else {
-        cache.batch.edituv_faces_stretch_angle = create_empty_batch();
+        init_empty_dummy_batch(*cache.batch.edituv_faces_stretch_angle);
       }
     }
     if (batch_requested & MBC_EDITUV_EDGES) {
@@ -1668,7 +1643,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                                   {VBOType::UVs, VBOType::EditUVData}});
       }
       else {
-        cache.batch.edituv_edges = create_empty_batch();
+        init_empty_dummy_batch(*cache.batch.edituv_edges);
       }
     }
     if (batch_requested & MBC_EDITUV_VERTS) {
@@ -1680,7 +1655,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                                   {VBOType::UVs, VBOType::EditUVData}});
       }
       else {
-        cache.batch.edituv_verts = create_empty_batch();
+        init_empty_dummy_batch(*cache.batch.edituv_verts);
       }
     }
     if (batch_requested & MBC_EDITUV_FACEDOTS) {
@@ -1692,49 +1667,47 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                                   {VBOType::FaceDotUV, VBOType::FaceDotEditUVData}});
       }
       else {
-        cache.batch.edituv_fdots = create_empty_batch();
+        init_empty_dummy_batch(*cache.batch.edituv_fdots);
       }
     }
   }
 
-  std::array<Vector<IBOType>, 3> ibo_requests;
-  std::array<Vector<VBOType>, 3> vbo_requests;
+  std::array<VectorSet<IBOType>, 3> ibo_requests;
+  std::array<VectorSet<VBOType>, 3> vbo_requests;
   for (const BatchCreateData &batch : batches_to_create) {
     if (batch.ibo) {
-      ibo_requests[int(batch.list)].append(*batch.ibo);
+      ibo_requests[int(batch.list)].add(*batch.ibo);
     }
-    vbo_requests[int(batch.list)].extend(batch.vbos);
+    vbo_requests[int(batch.list)].add_multiple(batch.vbos);
   }
 
   if (do_uvcage) {
-    mesh_buffer_cache_create_requested(task_graph,
+    mesh_buffer_cache_create_requested(scene,
                                        cache,
                                        cache.uv_cage,
+                                       ibo_requests[int(BufferList::UVCage)],
+                                       vbo_requests[int(BufferList::UVCage)],
                                        ob,
                                        mesh,
                                        is_editmode,
                                        is_paint_mode,
-                                       ob.object_to_world(),
                                        false,
                                        true,
-                                       scene,
-                                       ts,
                                        true);
   }
 
   if (do_cage) {
-    mesh_buffer_cache_create_requested(task_graph,
+    mesh_buffer_cache_create_requested(scene,
                                        cache,
                                        cache.cage,
+                                       ibo_requests[int(BufferList::Cage)],
+                                       vbo_requests[int(BufferList::Cage)],
                                        ob,
                                        mesh,
                                        is_editmode,
                                        is_paint_mode,
-                                       ob.object_to_world(),
                                        false,
                                        false,
-                                       scene,
-                                       ts,
                                        true);
   }
 
@@ -1758,18 +1731,17 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
     mesh_batch_cache_free_subdiv_cache(cache);
   }
 
-  mesh_buffer_cache_create_requested(task_graph,
+  mesh_buffer_cache_create_requested(scene,
                                      cache,
                                      cache.final,
+                                     ibo_requests[int(BufferList::Final)],
+                                     vbo_requests[int(BufferList::Final)],
                                      ob,
                                      mesh,
                                      is_editmode,
                                      is_paint_mode,
-                                     ob.object_to_world(),
                                      true,
                                      false,
-                                     scene,
-                                     ts,
                                      use_hide);
 
   std::array<MeshBufferCache *, 3> caches{&cache.final, &cache.cage, &cache.uv_cage};

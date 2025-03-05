@@ -316,20 +316,6 @@ struct MeshBatchCache {
   (MBC_EDITUV_FACES_STRETCH_AREA | MBC_EDITUV_FACES_STRETCH_ANGLE | MBC_EDITUV_FACES | \
    MBC_EDITUV_EDGES | MBC_EDITUV_VERTS | MBC_EDITUV_FACEDOTS | MBC_WIRE_LOOPS_UVS)
 
-void mesh_buffer_cache_create_requested(TaskGraph &task_graph,
-                                        MeshBatchCache &cache,
-                                        MeshBufferCache &mbc,
-                                        Object &object,
-                                        Mesh &mesh,
-                                        bool is_editmode,
-                                        bool is_paint_mode,
-                                        const float4x4 &object_to_world,
-                                        bool do_final,
-                                        bool do_uvedit,
-                                        const Scene &scene,
-                                        const ToolSettings *ts,
-                                        bool use_hide);
-
 void mesh_buffer_cache_create_requested(const Scene &scene,
                                         MeshBatchCache &cache,
                                         MeshBufferCache &mbc,
