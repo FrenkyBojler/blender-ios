@@ -14,6 +14,8 @@
 
 #include "UI_interface.hh"
 
+#include <fmt/format.h>
+
 namespace blender::nodes::node_geo_separate_bundle_cc {
 
 NODE_STORAGE_FUNCS(NodeGeometrySeparateBundle);
@@ -112,6 +114,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
     const std::optional<bke::Bundle::Item> value = bundle->lookup(bke::SocketInterfaceKey(name));
     if (!value) {
+      params.error_message_add(NodeWarningType::Error,
+                               fmt::format(fmt::runtime(TIP_("Value not found: \"{}\"")), name));
       continue;
     }
     void *output_ptr = lf_params.get_output_data_ptr(i);
