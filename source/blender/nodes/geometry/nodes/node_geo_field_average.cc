@@ -78,7 +78,7 @@ static std::optional<eCustomDataType> node_type_from_other_socket(const bNodeSoc
     case SOCK_RGBA:
       return CD_PROP_FLOAT3;
     default:
-      return {};
+      return std::nullopt;
   }
 }
 
@@ -125,14 +125,15 @@ template<typename T> T calculate_median(Vector<T> &values)
 {
   if constexpr (std::is_same<T, float3>::value) {
     Vector<float> x_vals, y_vals, z_vals;
-    x_vals.reserve(values.size());
-    y_vals.reserve(values.size());
-    z_vals.reserve(values.size());
+    x_vals.resize(values.size());
+    y_vals.resize(values.size());
+    z_vals.resize(values.size());
 
-    for (const auto &v : values) {
-      x_vals.append(v.x);
-      y_vals.append(v.y);
-      z_vals.append(v.z);
+    for (const int i : values.index_range()) {
+      float3 value = values[i];
+      x_vals[i] = value.x;
+      y_vals[i] = value.y;
+      z_vals[i] = value.z;
     }
 
     return float3(calculate_median<float>(x_vals),

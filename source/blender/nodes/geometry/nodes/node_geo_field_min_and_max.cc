@@ -74,7 +74,7 @@ static std::optional<eCustomDataType> node_type_from_other_socket(const bNodeSoc
     case SOCK_ROTATION:
       return CD_PROP_FLOAT3;
     default:
-      return {};
+      return std::nullopt;
   }
 }
 
