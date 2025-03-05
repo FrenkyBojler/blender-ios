@@ -812,6 +812,10 @@ int WM_operator_confirm_ex(bContext *C,
 int WM_operator_filesel(bContext *C, wmOperator *op, const wmEvent *event);
 bool WM_operator_filesel_ensure_ext_imtype(wmOperator *op, const ImageFormatData *im_format);
 
+/**
+ * True if there is a File Browser in any window and browsing files, that was
+ * invoked with an operator set to be called by pressing the "Load" button.
+ */
 bool WM_operator_filebrowser_active(const bContext *C);
 
 /** Callback for #wmOperatorType.poll. */
