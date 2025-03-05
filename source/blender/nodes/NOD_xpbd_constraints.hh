@@ -96,6 +96,7 @@ using ConstraintEvalPositionFunc = std::function<void(const ConstraintEvalParams
                                                       const ConstraintVariables &variables,
                                                       const IndexMask &group_mask,
                                                       bke::GeometrySet &constraints,
+                                                      VArray<bool> &r_active,
                                                       Vector<VArray<float3>> &r_delta_positions,
                                                       Vector<VArray<float4>> &r_delta_rotations)>;
 /**
@@ -108,6 +109,7 @@ using ConstraintEvalVelocityFunc =
                        const ConstraintVariables &variables,
                        const IndexMask &group_mask,
                        bke::GeometrySet &constraints,
+                       VArray<bool> &r_active,
                        Vector<VArray<float3>> &r_delta_velocities,
                        Vector<VArray<float3>> &r_delta_angular_velocities)>;
 

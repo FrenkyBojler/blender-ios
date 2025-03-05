@@ -39,6 +39,7 @@ static void position_goal__eval_positions(const ConstraintEvalParams &params,
                                           const ConstraintVariables &variables,
                                           const IndexMask &group_mask,
                                           bke::GeometrySet &constraints,
+                                          VArray<bool> r_active,
                                           Vector<VArray<float3>> &r_delta_positions,
                                           Vector<VArray<float4>> &r_delta_rotations)
 {
@@ -106,6 +107,7 @@ static void position_goal__eval_positions(const ConstraintEvalParams &params,
   lambda_writer.finish();
   delta_position_writer.finish();
 
+  r_active = VArray<bool>::ForSingle(true, attributes->domain_size(AttrDomain::Point));
   r_delta_positions = {*attributes->lookup<float3>("delta_position", AttrDomain::Point)};
   r_delta_rotations = {{}};
 }
@@ -135,6 +137,7 @@ static void rotation_goal__eval_positions(const ConstraintEvalParams &params,
                                           const ConstraintVariables &variables,
                                           const IndexMask &group_mask,
                                           bke::GeometrySet &constraints,
+                                          VArray<bool> r_active,
                                           Vector<VArray<float3>> &r_delta_positions,
                                           Vector<VArray<float4>> &r_delta_rotations)
 {
@@ -221,6 +224,7 @@ static void rotation_goal__eval_positions(const ConstraintEvalParams &params,
   delta_rotation_w_writer.finish();
   delta_rotation_xyz_writer.finish();
 
+  r_active = VArray<bool>::ForSingle(true, attributes->domain_size(AttrDomain::Point));
   r_delta_positions = {{}};
   /* Attributes have to be stored separately as w/xyz, combine into a single VArray. */
   auto delta_rotation_fn =
@@ -262,6 +266,7 @@ static void stretch_shear__eval_positions(const ConstraintEvalParams &params,
                                           const ConstraintVariables &variables,
                                           const IndexMask &group_mask,
                                           bke::GeometrySet &constraints,
+                                          VArray<bool> r_active,
                                           Vector<VArray<float3>> &r_delta_positions,
                                           Vector<VArray<float4>> &r_delta_rotations)
 {
@@ -373,6 +378,7 @@ static void stretch_shear__eval_positions(const ConstraintEvalParams &params,
   delta_rotation1_w_writer.finish();
   delta_rotation1_xyz_writer.finish();
 
+  r_active = VArray<bool>::ForSingle(true, attributes->domain_size(AttrDomain::Point));
   r_delta_positions = {*attributes->lookup<float3>("delta_position1", AttrDomain::Point),
                        *attributes->lookup<float3>("delta_position2", AttrDomain::Point)};
   /* Attributes have to be stored separately as w/xyz, combine into a single VArray. */
@@ -412,6 +418,7 @@ static void bend_twist__eval_positions(const ConstraintEvalParams &params,
                                        const ConstraintVariables &variables,
                                        const IndexMask &group_mask,
                                        bke::GeometrySet &constraints,
+                                       VArray<bool> r_active,
                                        Vector<VArray<float3>> &r_delta_positions,
                                        Vector<VArray<float4>> &r_delta_rotations)
 {
@@ -523,6 +530,7 @@ static void bend_twist__eval_positions(const ConstraintEvalParams &params,
   delta_rotation2_w_writer.finish();
   delta_rotation2_xyz_writer.finish();
 
+  r_active = VArray<bool>::ForSingle(true, attributes->domain_size(AttrDomain::Point));
   r_delta_positions = {{}, {}};
   /* Attributes have to be stored separately as w/xyz, combine into a single VArray. */
   auto delta_rotation1_fn =
@@ -572,6 +580,7 @@ static void contact__eval_positions(const ConstraintEvalParams &params,
                                     const ConstraintVariables &variables,
                                     const IndexMask &group_mask,
                                     bke::GeometrySet &constraints,
+                                    VArray<bool> &r_active,
                                     Vector<VArray<float3>> &r_delta_positions,
                                     Vector<VArray<float4>> &r_delta_rotations)
 {
@@ -672,13 +681,6 @@ static void contact__eval_positions(const ConstraintEvalParams &params,
       delta_rot1_w = delta_rot1.x;
       delta_rot1_xyz = delta_rot1.yzw();
     }
-    else {
-      /* TODO could instead filter the mask by the `last_active` attribute and remove inactive
-       * constraints from the summation that way. */
-      delta_pos1 = float3(0.0f);
-      delta_rot1_w = 0.0f;
-      delta_rot1_xyz = float3(0.0f);
-    }
   });
 
   position_lambda_writer.finish();
@@ -688,6 +690,7 @@ static void contact__eval_positions(const ConstraintEvalParams &params,
   active_writer.finish();
   last_active_writer.finish();
 
+  r_active = *attributes->lookup<bool>(ATTR_LAST_ACTIVE, AttrDomain::Point);
   r_delta_positions = {*attributes->lookup<float3>("delta_position1", AttrDomain::Point)};
   /* Attributes have to be stored separately as w/xyz, combine into a single VArray. */
   auto delta_rotation1_fn =
@@ -704,6 +707,7 @@ static void contact__eval_velocities(const ConstraintEvalParams &params,
                                      const ConstraintVariables &variables,
                                      const IndexMask &group_mask,
                                      bke::GeometrySet &constraints,
+                                     VArray<bool> &r_active,
                                      Vector<VArray<float3>> &r_delta_velocities,
                                      Vector<VArray<float3>> &r_delta_angular_velocities)
 {
@@ -835,6 +839,9 @@ static void contact__eval_velocities(const ConstraintEvalParams &params,
   delta_velocity1_writer.finish();
   delta_angular_velocity1_writer.finish();
 
+  /* Note: velocity constraints are active if the position constraint has been active at any time
+   * during the time step. */
+  r_active = *attributes->lookup_or_default<bool>(ATTR_ACTIVE, AttrDomain::Point, false);
   r_delta_velocities = {*attributes->lookup<float3>("delta_velocity1", AttrDomain::Point)};
   r_delta_angular_velocities = {
       *attributes->lookup<float3>("delta_angular_velocity1", AttrDomain::Point)};

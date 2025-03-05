@@ -152,6 +152,7 @@ static void node_declare_positions(NodeDeclarationBuilder &b)
 
   b.add_input<decl::Float>("Delta Time").default_value(default_fps).min(0.0f).hide_value();
   b.add_input<decl::Int>("Gauss-Seidel Steps").default_value(1).min(0);
+  b.add_input<decl::Int>("Jacobi Steps").default_value(0).min(0);
   b.add_input<decl::Bool>("Warm Start")
       .default_value(false)
       .description("Use previous lambda value when initializing instead of starting from zero");
@@ -206,6 +207,7 @@ static void node_declare_velocities(NodeDeclarationBuilder &b)
 
   b.add_input<decl::Float>("Delta Time").default_value(default_fps).min(0.0f).hide_value();
   b.add_input<decl::Int>("Gauss-Seidel Steps").default_value(1).min(0);
+  b.add_input<decl::Int>("Jacobi Steps").default_value(0).min(0);
   b.add_input<decl::Bool>("Warm Start")
       .default_value(true)
       .description("Use previous lambda value when initializing instead of starting from zero");
@@ -259,7 +261,8 @@ static void apply_gauss_seidel_positions_group(const ConstraintEvalParams &eval_
                                                const ConstraintTypeInfo &constraint_info,
                                                GeometrySet &constraints,
                                                const IndexMask &group_mask,
-                                               ConstraintVariables &variables)
+                                               ConstraintVariables &variables,
+                                               IndexMaskMemory &memory)
 {
   constexpr bool linearized_quaternion = true;
 
@@ -267,10 +270,13 @@ static void apply_gauss_seidel_positions_group(const ConstraintEvalParams &eval_
     return;
   }
 
+  VArray<bool> active;
   Vector<VArray<float3>> delta_positions;
   Vector<VArray<float4>> delta_rotations;
   constraint_info.evaluate_position(
-      eval_params, variables, group_mask, constraints, delta_positions, delta_rotations);
+      eval_params, variables, group_mask, constraints, active, delta_positions, delta_rotations);
+  IndexMask group_and_active_mask = IndexMask::from_intersection(
+      group_mask, IndexMask::from_bools(group_mask, active, memory), memory);
 
   Vector<VArray<int>> mapping = constraint_info.get_mapping(constraints);
   BLI_assert(delta_positions.size() == mapping.size());
@@ -284,7 +290,7 @@ static void apply_gauss_seidel_positions_group(const ConstraintEvalParams &eval_
     /* Gauss-Seidel solver has a unique source for each point and can just write to it. */
     if (delta_positions[map_i]) {
       const VArraySpan<float3> delta_pos = delta_positions[map_i];
-      group_mask.foreach_index(GrainSize(4096), [&](const int index) {
+      group_and_active_mask.foreach_index(GrainSize(4096), [&](const int index) {
         const int point = map[index];
         if (points_range.contains(point)) {
           xpbd_constraints::apply_position_impulse(delta_pos[index], variables.positions[point]);
@@ -293,7 +299,7 @@ static void apply_gauss_seidel_positions_group(const ConstraintEvalParams &eval_
     }
     if (delta_rotations[map_i]) {
       const VArraySpan<float4> delta_rot = delta_rotations[map_i];
-      group_mask.foreach_index(GrainSize(4096), [&](const int index) {
+      group_and_active_mask.foreach_index(GrainSize(4096), [&](const int index) {
         const int point = map[index];
         if (points_range.contains(point)) {
           xpbd_constraints::apply_rotation_impulse<linearized_quaternion>(
@@ -306,7 +312,7 @@ static void apply_gauss_seidel_positions_group(const ConstraintEvalParams &eval_
   if (eval_params.debug_recorder) {
     const std::string label = fmt::format("Evaluate: {}", constraint_info.ui_name);
     eval_params.debug_recorder->record_step(
-        label, &constraints, constraint_info.type_code, group_mask, variables);
+        label, &constraints, constraint_info.type_code, group_and_active_mask, variables);
   }
 }
 
@@ -314,16 +320,25 @@ static void apply_gauss_seidel_velocities_group(const ConstraintEvalParams &eval
                                                 const ConstraintTypeInfo &constraint_info,
                                                 GeometrySet &constraints,
                                                 const IndexMask &group_mask,
-                                                ConstraintVariables &variables)
+                                                ConstraintVariables &variables,
+                                                IndexMaskMemory &memory)
 {
   if (!constraint_info.evaluate_velocity) {
     return;
   }
 
+  VArray<bool> active;
   Vector<VArray<float3>> delta_velocities;
   Vector<VArray<float3>> delta_angular_velocities;
-  constraint_info.evaluate_velocity(
-      eval_params, variables, group_mask, constraints, delta_velocities, delta_angular_velocities);
+  constraint_info.evaluate_velocity(eval_params,
+                                    variables,
+                                    group_mask,
+                                    constraints,
+                                    active,
+                                    delta_velocities,
+                                    delta_angular_velocities);
+  IndexMask group_and_active_mask = IndexMask::from_intersection(
+      group_mask, IndexMask::from_bools(group_mask, active, memory), memory);
 
   Vector<VArray<int>> mapping = constraint_info.get_mapping(constraints);
   BLI_assert(mapping.size() == delta_velocities.size());
@@ -337,7 +352,7 @@ static void apply_gauss_seidel_velocities_group(const ConstraintEvalParams &eval
     /* Gauss-Seidel solver has a unique source for each point and can just write to it. */
     if (delta_velocities[map_i]) {
       const VArraySpan<float3> delta_vel = delta_velocities[map_i];
-      group_mask.foreach_index(GrainSize(4096), [&](const int index) {
+      group_and_active_mask.foreach_index(GrainSize(4096), [&](const int index) {
         const int point = map[index];
         if (points_range.contains(point)) {
           xpbd_constraints::apply_velocity_impulse(delta_vel[index], variables.velocities[point]);
@@ -346,7 +361,7 @@ static void apply_gauss_seidel_velocities_group(const ConstraintEvalParams &eval
     }
     if (delta_angular_velocities[map_i]) {
       const VArraySpan<float3> delta_angvel = delta_angular_velocities[map_i];
-      group_mask.foreach_index(GrainSize(4096), [&](const int index) {
+      group_and_active_mask.foreach_index(GrainSize(4096), [&](const int index) {
         const int point = map[index];
         if (points_range.contains(point)) {
           xpbd_constraints::apply_angular_velocity_impulse(delta_angvel[index],
@@ -359,7 +374,7 @@ static void apply_gauss_seidel_velocities_group(const ConstraintEvalParams &eval
   if (eval_params.debug_recorder) {
     const std::string label = fmt::format("Evaluate: {}", constraint_info.ui_name);
     eval_params.debug_recorder->record_step(
-        label, &constraints, constraint_info.type_code, group_mask, variables);
+        label, &constraints, constraint_info.type_code, group_and_active_mask, variables);
   }
 }
 
@@ -368,61 +383,55 @@ static void do_gauss_seidel_passes(const EvaluationTarget target,
                                    const ConstraintTypeInfo &constraint_info,
                                    GeometrySet &constraints,
                                    const Span<IndexMask> group_masks,
-                                   ConstraintVariables &variables)
+                                   ConstraintVariables &variables,
+                                   IndexMaskMemory &memory)
 {
   /* Solve in consistent order by using the sorted index set. */
   for (const IndexMask &group_mask : group_masks) {
     switch (target) {
       case EvaluationTarget::Positions: {
         apply_gauss_seidel_positions_group(
-            eval_params, constraint_info, constraints, group_mask, variables);
+            eval_params, constraint_info, constraints, group_mask, variables, memory);
         break;
       }
       case EvaluationTarget::Velocities: {
         apply_gauss_seidel_velocities_group(
-            eval_params, constraint_info, constraints, group_mask, variables);
+            eval_params, constraint_info, constraints, group_mask, variables, memory);
         break;
       }
     }
   }
 }
 
-static Vector<IndexMask> build_group_masks(const VArray<int> &solver_groups,
-                                           IndexMaskMemory &memory)
+static void compute_jacobi_deltas(const EvaluationTarget target,
+                                  const ConstraintEvalParams &eval_params,
+                                  const ConstraintTypeInfo &constraint_info,
+                                  GeometrySet &constraints,
+                                  ConstraintVariables &variables)
 {
-  if (solver_groups.is_empty()) {
-    return {};
-  }
+  // constexpr bool linearized_quaternion = true;
 
-  const IndexRange constraints = solver_groups.index_range();
-  VectorSet<int> unique_group_ids;
-  Vector<IndexMask> group_index_masks = IndexMask::from_group_ids(
-      constraints, solver_groups, memory, unique_group_ids);
+  // if (!constraint_info.evaluate_position) {
+  //   return;
+  // }
 
-  /* Sort group indices to ensure solver groups are executed in consistent order.
-   * IndexMask::from_group_ids creates masks in the order they appear in the data:
-   * whichever element comes first creates a mask and index, regardless of the actual group ID
-   * values and their relative ordering.
-   */
-  Array<int> sorted_group_indices(unique_group_ids.size());
-  array_utils::fill_index_range(sorted_group_indices.as_mutable_span());
-  std::sort(sorted_group_indices.begin(),
-            sorted_group_indices.end(),
-            [&](const int index_a, const int index_b) {
-              const int group_id_a = unique_group_ids[index_a];
-              const int group_id_b = unique_group_ids[index_b];
-              return group_id_a < group_id_b;
-            });
+  // Vector<VArray<float3>> delta_positions;
+  // Vector<VArray<float4>> delta_rotations;
+  // constraint_info.evaluate_position(
+  //     eval_params, variables, group_mask, constraints, delta_positions, delta_rotations);
 
-  Vector<IndexMask> group_masks;
-  group_masks.resize(sorted_group_indices.size());
-  for (const int i : sorted_group_indices.index_range()) {
-    /* Group ID is not really relevant at this point. */
-    /* const int group_id = unique_group_ids[i_group]; */
-
-    group_masks[i] = std::move(group_index_masks[sorted_group_indices[i]]);
-  }
-  return group_masks;
+  // switch (target) {
+  //   case EvaluationTarget::Positions: {
+  //     apply_jacobi_positions_average(
+  //         eval_params, constraint_info, constraints, group_mask, variables);
+  //     break;
+  //   }
+  //   case EvaluationTarget::Velocities: {
+  //     apply_gauss_seidel_velocities_group(
+  //         eval_params, constraint_info, constraints, group_mask, variables);
+  //     break;
+  //   }
+  // }
 }
 
 /* A closure and associated solver group masks. */
@@ -437,21 +446,26 @@ static void do_gauss_seidel_step(const EvaluationTarget target,
                                  MutableSpan<ConstraintEvalData> constraint_data,
                                  ConstraintVariables &variables)
 {
+  IndexMaskMemory memory;
 
   for (ConstraintEvalData &data : constraint_data) {
     if (data.geometry) {
       do_gauss_seidel_passes(
-          target, eval_params, *data.type, *data.geometry, data.group_masks, variables);
+          target, eval_params, *data.type, *data.geometry, data.group_masks, variables, memory);
     }
   }
 }
 
-static void do_jacobi_step(const EvaluationTarget /*target*/,
-                           const ConstraintEvalParams & /*eval_params*/,
-                           MutableSpan<ConstraintEvalData> /*constraint_data*/,
-                           ConstraintVariables & /*variables*/)
+static void do_jacobi_step(const EvaluationTarget target,
+                           const ConstraintEvalParams &eval_params,
+                           MutableSpan<ConstraintEvalData> constraint_data,
+                           ConstraintVariables &variables)
 {
-  /* TODO */
+  for (ConstraintEvalData &data : constraint_data) {
+    if (data.geometry) {
+      compute_jacobi_deltas(target, eval_params, *data.type, *data.geometry, variables);
+    }
+  }
 }
 
 static void zero_init_solver(const EvaluationTarget target,
@@ -577,6 +591,44 @@ static ConstraintEvalParams extract_eval_params(GeoNodeExecParams params)
   return eval_params;
 }
 
+static Vector<IndexMask> build_group_masks(const VArray<int> &solver_groups,
+                                           IndexMaskMemory &memory)
+{
+  if (solver_groups.is_empty()) {
+    return {};
+  }
+
+  const IndexRange constraints = solver_groups.index_range();
+  VectorSet<int> unique_group_ids;
+  Vector<IndexMask> group_index_masks = IndexMask::from_group_ids(
+      constraints, solver_groups, memory, unique_group_ids);
+
+  /* Sort group indices to ensure solver groups are executed in consistent order.
+   * IndexMask::from_group_ids creates masks in the order they appear in the data:
+   * whichever element comes first creates a mask and index, regardless of the actual group ID
+   * values and their relative ordering.
+   */
+  Array<int> sorted_group_indices(unique_group_ids.size());
+  array_utils::fill_index_range(sorted_group_indices.as_mutable_span());
+  std::sort(sorted_group_indices.begin(),
+            sorted_group_indices.end(),
+            [&](const int index_a, const int index_b) {
+              const int group_id_a = unique_group_ids[index_a];
+              const int group_id_b = unique_group_ids[index_b];
+              return group_id_a < group_id_b;
+            });
+
+  Vector<IndexMask> group_masks;
+  group_masks.resize(sorted_group_indices.size());
+  for (const int i : sorted_group_indices.index_range()) {
+    /* Group ID is not really relevant at this point. */
+    /* const int group_id = unique_group_ids[i_group]; */
+
+    group_masks[i] = std::move(group_index_masks[sorted_group_indices[i]]);
+  }
+  return group_masks;
+}
+
 static void get_constraint_data(GeoNodeExecParams params,
                                 Vector<ConstraintEvalData> &constraint_data,
                                 IndexMaskMemory &memory)
@@ -624,6 +676,7 @@ static void node_geo_exec_positions(GeoNodeExecParams params)
   ConstraintInit init_mode = params.extract_input<bool>("Warm Start") ? ConstraintInit::WarmStart :
                                                                         ConstraintInit::ZeroInit;
   const int gauss_seidel_steps = std::max(params.extract_input<int>("Gauss-Seidel Steps"), 0);
+  const int jacobi_steps = std::max(params.extract_input<int>("Jacobi Steps"), 0);
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
   Field<float3> position_field = params.extract_input<Field<float3>>("Position");
   Field<math::Quaternion> rotation_field = params.extract_input<Field<math::Quaternion>>(
@@ -698,6 +751,13 @@ static void node_geo_exec_positions(GeoNodeExecParams params)
                         eval_params,
                         constraint_data,
                         vars);
+        do_solver_steps(SolverMethod::Jacobi,
+                        jacobi_steps,
+                        EvaluationTarget::Positions,
+                        init_mode,
+                        eval_params,
+                        constraint_data,
+                        vars);
 
         if (position_output_id) {
           AttributeWriter<float3> positions_writer = attributes->lookup_or_add_for_write<float3>(
@@ -731,6 +791,7 @@ static void node_geo_exec_velocities(GeoNodeExecParams params)
                                        ConstraintInit::WarmStart :
                                        ConstraintInit::ZeroInit;
   const int gauss_seidel_steps = std::max(params.extract_input<int>("Gauss-Seidel Steps"), 0);
+  const int jacobi_steps = std::max(params.extract_input<int>("Jacobi Steps"), 0);
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
   Field<float3> position_field = params.extract_input<Field<float3>>("Position");
   Field<math::Quaternion> rotation_field = params.extract_input<Field<math::Quaternion>>(
@@ -807,6 +868,13 @@ static void node_geo_exec_velocities(GeoNodeExecParams params)
 
         do_solver_steps(SolverMethod::GaussSeidel,
                         gauss_seidel_steps,
+                        EvaluationTarget::Velocities,
+                        init_mode,
+                        eval_params,
+                        constraint_data,
+                        vars);
+        do_solver_steps(SolverMethod::Jacobi,
+                        jacobi_steps,
                         EvaluationTarget::Velocities,
                         init_mode,
                         eval_params,
