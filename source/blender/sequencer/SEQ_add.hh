@@ -57,6 +57,7 @@ struct SeqLoadData {
   bool allow_invalid_file;     /* Used by RNA API to create placeholder strips. */
   double r_video_stream_start; /* For AV synchronization. Set by `SEQ_add_movie_strip`. */
   bool adjust_playback_rate;
+  struct ReportList *reports; /* For one-time operations (set FPS / view transform). */
 };
 
 /**

@@ -28,6 +28,7 @@
 #include "BKE_main.hh"
 #include "BKE_mask.h"
 #include "BKE_movieclip.h"
+#include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_sound.h"
 
@@ -118,6 +119,13 @@ static void strip_add_set_view_transform(Scene *scene, Strip *strip, SeqLoadData
           scene->display_settings.display_device);
       const char *default_view_transform =
           IMB_colormanagement_display_get_default_view_transform_name(display);
+      if (!STREQ(scene->view_settings.view_transform, default_view_transform)) {
+        BKE_reportf(load_data->reports,
+                    RPT_WARNING,
+                    "View transform was automatically converted from %s to %s",
+                    scene->view_settings.view_transform,
+                    default_view_transform);
+      }
       STRNCPY(scene->view_settings.view_transform, default_view_transform);
     }
   }
@@ -452,6 +460,11 @@ Strip *SEQ_add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, SeqLoad
 
     /* Adjust scene's frame rate settings to match. */
     if (have_fps && (load_data->flags & SEQ_LOAD_MOVIE_SYNC_FPS)) {
+      BKE_reportf(load_data->reports,
+                  RPT_WARNING,
+                  "Scene frame rate was automatically converted from %.4g to %.4g",
+                  (float)scene->r.frs_sec / scene->r.frs_sec_base,
+                  (float)fps_num / fps_denom);
       scene->r.frs_sec = fps_num;
       scene->r.frs_sec_base = fps_denom;
       DEG_id_tag_update(&scene->id, ID_RECALC_AUDIO_FPS | ID_RECALC_SEQUENCER_STRIPS);
