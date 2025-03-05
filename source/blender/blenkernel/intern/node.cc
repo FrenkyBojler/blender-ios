@@ -4094,9 +4094,11 @@ std::string node_label(const bNodeTree &ntree, const bNode &node)
   }
 
   if (node.typeinfo->labelfunc) {
-    char label_buffer[MAX_NAME];
+    char label_buffer[MAX_NAME] = {'\0'};
     node.typeinfo->labelfunc(&ntree, &node, label_buffer, MAX_NAME);
-    return label_buffer;
+    if (label_buffer[0] != '\0') {
+      return label_buffer;
+    }
   }
 
   return node.typeinfo->ui_name;
