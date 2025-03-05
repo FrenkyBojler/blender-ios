@@ -380,6 +380,8 @@ class Meshes : Overlay {
     manager.submit(edit_mesh_weight_ps_, view);
 
     if (!xray_enabled_) {
+      /* Still use depth-testing for selected faces when X-Ray flag is enabled but transparency is
+       * off (X-Ray Opacity == 1.0 or in Preview/Render mode) (See #135325). */
       manager.submit(edit_mesh_faces_ps_, view);
       manager.submit(edit_mesh_cages_ps_, view);
     }
@@ -405,6 +407,8 @@ class Meshes : Overlay {
     }
 
     if (xray_enabled_) {
+      /* Still use depth-testing for selected faces when X-Ray flag is enabled but transparency is
+       * off (X-Ray Opacity == 1.0 or in Preview/Render mode) (See #135325). */
       GPU_framebuffer_bind(framebuffer);
       manager.submit(edit_mesh_faces_ps_, view);
       manager.submit(edit_mesh_cages_ps_, view);
