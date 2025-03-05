@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Beta (b'aad0bd21487d')\n"
+"Project-Id-Version: Blender 4.4.0 Beta (b'1a72a0f22cde')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-10 15:22+0000\n"
+"POT-Creation-Date: 2025-03-03 09:33+0000\n"
 "PO-Revision-Date: 2024-04-29 13:36+0000\n"
 "Last-Translator: Zdeněk Doležal <Griperis@outlook.cz>\n"
 "Language-Team: Czech <https://translate.blender.org/projects/blender-ui/ui/cs/>\n"
@@ -69,10 +69,6 @@ msgstr "Slot"
 
 msgid "Action F-Curves"
 msgstr "Akce F-křivek"
-
-
-msgid "Collection of action F-Curves"
-msgstr "Kolekce akcí F-křivek"
 
 
 msgid "Action Group"
@@ -561,10 +557,6 @@ msgstr "Udělejte více místa pro velké scény tím, že rozložíte paměť m
 
 msgid "HIP RT (Experimental)"
 msgstr "HIP RT (Experimentální)"
-
-
-msgid "HIP RT enables AMD hardware ray tracing on RDNA2 and above, with shader fallback on older cards. This feature is experimental and some scenes may render incorrectly"
-msgstr "HIP RT povoluje AMD hardwarový ray tracing na RDNA2 a vyšší. Tato funkcionalita je experimentální a některé scény mohou být špatně vyrenderovány"
 
 
 msgid "Embree on GPU"
@@ -8005,10 +7997,6 @@ msgid "Groups"
 msgstr "Skupiny"
 
 
-msgid "Convenient groupings of F-Curves"
-msgstr "Skupiny F-křivek"
-
-
 msgid "Layers"
 msgstr "Vrstvy"
 
@@ -8135,18 +8123,6 @@ msgstr "Smyčka"
 
 msgid "Brush's capabilities"
 msgstr "Schopnosti štetce"
-
-
-msgid "Clone Alpha"
-msgstr "Barva a alfa"
-
-
-msgid "Clone Image"
-msgstr "Vyberte renderovanou vrstvu"
-
-
-msgid "Clone Offset"
-msgstr "Odsazení klonování"
 
 
 msgid "Soft Body Plasticity"
@@ -13645,10 +13621,6 @@ msgid "Show/Hide"
 msgstr "Zobrazit/skrýt"
 
 
-msgid "Clean Up"
-msgstr "Vyčistit"
-
-
 msgid "Special Characters"
 msgstr "Speciální Znaky"
 
@@ -13667,6 +13639,10 @@ msgstr "Názvy"
 
 msgid "Bone Roll"
 msgstr "Kost"
+
+
+msgid "Clean Up"
+msgstr "Vyčistit"
 
 
 msgid "Pivot Point"
@@ -22706,6 +22682,10 @@ msgid "Select Mode"
 msgstr "Seskupený objekt"
 
 
+msgid "Fill Opacity"
+msgstr "Neprůsvitnost výplně"
+
+
 msgctxt "Operator"
 msgid "Snap Selection to Cursor"
 msgstr "Přichytit výběr ke kurzoru"
@@ -29632,10 +29612,6 @@ msgid "Export the UV layout to a bitmap image"
 msgstr "Vybrat"
 
 
-msgid "Fill Opacity"
-msgstr "Neprůsvitnost výplně"
-
-
 msgid "Dimensions of the exported file"
 msgstr "Určuje délku životnosti vlny"
 
@@ -31116,6 +31092,18 @@ msgstr "Textový editor"
 
 msgid "Canvas"
 msgstr "Plátno"
+
+
+msgid "Clone Alpha"
+msgstr "Barva a alfa"
+
+
+msgid "Clone Image"
+msgstr "Vyberte renderovanou vrstvu"
+
+
+msgid "Clone Offset"
+msgstr "Odsazení klonování"
 
 
 msgid "Invert the stencil layer"
@@ -42007,10 +41995,6 @@ msgid "Online Python Reference"
 msgstr "Reference pythonu pro API"
 
 
-msgid "Home"
-msgstr "Domů"
-
-
 msgid "Animate property"
 msgstr "Animovat vlastnost"
 
@@ -43315,6 +43299,10 @@ msgstr "Název souboru, přepíše stávající"
 
 msgid "File name"
 msgstr "Název souboru"
+
+
+msgid "Home"
+msgstr "Domů"
 
 
 msgid "Desktop"

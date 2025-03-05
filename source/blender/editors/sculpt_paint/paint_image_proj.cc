@@ -20,6 +20,7 @@
 #endif
 
 #include "BLI_linklist.h"
+#include "BLI_listbase.h"
 #include "BLI_math_base_safe.h"
 #include "BLI_math_bits.h"
 #include "BLI_math_color_blend.h"
@@ -4624,10 +4625,10 @@ static void project_paint_end(ProjPaintState *ps)
   }
 
   if (ps->reproject_ibuf_free_float) {
-    imb_freerectfloatImBuf(ps->reproject_ibuf);
+    IMB_free_float_pixels(ps->reproject_ibuf);
   }
   if (ps->reproject_ibuf_free_uchar) {
-    imb_freerectImBuf(ps->reproject_ibuf);
+    IMB_free_byte_pixels(ps->reproject_ibuf);
   }
   BKE_image_release_ibuf(ps->reproject_image, ps->reproject_ibuf, nullptr);
 
@@ -5063,8 +5064,8 @@ static void do_projectpaint_draw(ProjPaintState *ps,
                                  const float texrgb[3],
                                  float mask,
                                  float dither,
-                                 float u,
-                                 float v)
+                                 int u,
+                                 int v)
 {
   float rgb[3];
   uchar rgba_ub[4];
@@ -5643,11 +5644,11 @@ static bool project_paint_op(void *state, const float lastpos[2], const float po
 
     /* Generate missing data if needed. */
     if (float_dest && ps->reproject_ibuf->float_buffer.data == nullptr) {
-      IMB_float_from_rect(ps->reproject_ibuf);
+      IMB_float_from_byte(ps->reproject_ibuf);
       ps->reproject_ibuf_free_float = true;
     }
     if (uchar_dest && ps->reproject_ibuf->byte_buffer.data == nullptr) {
-      IMB_rect_from_float(ps->reproject_ibuf);
+      IMB_byte_from_float(ps->reproject_ibuf);
       ps->reproject_ibuf_free_uchar = true;
     }
   }
@@ -6306,7 +6307,7 @@ static int texture_paint_image_from_view_exec(bContext *C, wmOperator *op)
                                         region,
                                         w,
                                         h,
-                                        IB_rect,
+                                        IB_byte_data,
                                         R_ALPHAPREMUL,
                                         nullptr,
                                         false,
@@ -6616,10 +6617,10 @@ static void default_paint_slot_color_get(int layer_type, Material *ma, float col
          * Copy default color values from a default Principled BSDF instead. */
         ntree = blender::bke::node_tree_add_tree(
             nullptr, "Temporary Shader Nodetree", ntreeType_Shader->idname);
-        in_node = blender::bke::node_add_static_node(nullptr, ntree, SH_NODE_BSDF_PRINCIPLED);
+        in_node = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_BSDF_PRINCIPLED);
       }
       bNodeSocket *in_sock = blender::bke::node_find_socket(
-          in_node, SOCK_IN, layer_type_items[layer_type].name);
+          *in_node, SOCK_IN, layer_type_items[layer_type].name);
       switch (in_sock->type) {
         case SOCK_FLOAT: {
           bNodeSocketValueFloat *socket_data = static_cast<bNodeSocketValueFloat *>(
@@ -6643,7 +6644,7 @@ static void default_paint_slot_color_get(int layer_type, Material *ma, float col
       }
       /* Cleanup */
       if (ntree) {
-        blender::bke::node_tree_free_tree(ntree);
+        blender::bke::node_tree_free_tree(*ntree);
         MEM_freeN(ntree);
       }
       return;
@@ -6697,13 +6698,13 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
     /* Create a new node. */
     switch (slot_type) {
       case PAINT_CANVAS_SOURCE_IMAGE: {
-        new_node = blender::bke::node_add_static_node(C, ntree, SH_NODE_TEX_IMAGE);
+        new_node = blender::bke::node_add_static_node(C, *ntree, SH_NODE_TEX_IMAGE);
         ima = proj_paint_image_create(op, bmain, is_data);
         new_node->id = &ima->id;
         break;
       }
       case PAINT_CANVAS_SOURCE_COLOR_ATTRIBUTE: {
-        new_node = blender::bke::node_add_static_node(C, ntree, SH_NODE_ATTRIBUTE);
+        new_node = blender::bke::node_add_static_node(C, *ntree, SH_NODE_ATTRIBUTE);
         if (const char *name = proj_paint_color_attribute_create(op, *ob)) {
           STRNCPY_UTF8(((NodeShaderAttribute *)new_node->storage)->name, name);
         }
@@ -6713,7 +6714,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
         BLI_assert_unreachable();
         return false;
     }
-    blender::bke::node_set_active(ntree, new_node);
+    blender::bke::node_set_active(*ntree, *new_node);
 
     /* Connect to first available principled BSDF node. */
     ntree->ensure_topology_cache();
@@ -6722,33 +6723,33 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
     bNode *out_node = new_node;
 
     if (in_node != nullptr) {
-      bNodeSocket *out_sock = blender::bke::node_find_socket(out_node, SOCK_OUT, "Color");
+      bNodeSocket *out_sock = blender::bke::node_find_socket(*out_node, SOCK_OUT, "Color");
       bNodeSocket *in_sock = nullptr;
 
       if (type >= LAYER_BASE_COLOR && type < LAYER_NORMAL) {
-        in_sock = blender::bke::node_find_socket(in_node, SOCK_IN, layer_type_items[type].name);
+        in_sock = blender::bke::node_find_socket(*in_node, SOCK_IN, layer_type_items[type].name);
       }
       else if (type == LAYER_NORMAL) {
         bNode *nor_node;
-        nor_node = blender::bke::node_add_static_node(C, ntree, SH_NODE_NORMAL_MAP);
+        nor_node = blender::bke::node_add_static_node(C, *ntree, SH_NODE_NORMAL_MAP);
 
-        in_sock = blender::bke::node_find_socket(nor_node, SOCK_IN, "Color");
-        blender::bke::node_add_link(ntree, out_node, out_sock, nor_node, in_sock);
+        in_sock = blender::bke::node_find_socket(*nor_node, SOCK_IN, "Color");
+        blender::bke::node_add_link(*ntree, *out_node, *out_sock, *nor_node, *in_sock);
 
-        in_sock = blender::bke::node_find_socket(in_node, SOCK_IN, "Normal");
-        out_sock = blender::bke::node_find_socket(nor_node, SOCK_OUT, "Normal");
+        in_sock = blender::bke::node_find_socket(*in_node, SOCK_IN, "Normal");
+        out_sock = blender::bke::node_find_socket(*nor_node, SOCK_OUT, "Normal");
 
         out_node = nor_node;
       }
       else if (type == LAYER_BUMP) {
         bNode *bump_node;
-        bump_node = blender::bke::node_add_static_node(C, ntree, SH_NODE_BUMP);
+        bump_node = blender::bke::node_add_static_node(C, *ntree, SH_NODE_BUMP);
 
-        in_sock = blender::bke::node_find_socket(bump_node, SOCK_IN, "Height");
-        blender::bke::node_add_link(ntree, out_node, out_sock, bump_node, in_sock);
+        in_sock = blender::bke::node_find_socket(*bump_node, SOCK_IN, "Height");
+        blender::bke::node_add_link(*ntree, *out_node, *out_sock, *bump_node, *in_sock);
 
-        in_sock = blender::bke::node_find_socket(in_node, SOCK_IN, "Normal");
-        out_sock = blender::bke::node_find_socket(bump_node, SOCK_OUT, "Normal");
+        in_sock = blender::bke::node_find_socket(*in_node, SOCK_IN, "Normal");
+        out_sock = blender::bke::node_find_socket(*bump_node, SOCK_OUT, "Normal");
 
         out_node = bump_node;
       }
@@ -6759,7 +6760,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
         in_node = output_nodes.is_empty() ? nullptr : output_nodes.first();
 
         if (in_node != nullptr) {
-          in_sock = blender::bke::node_find_socket(in_node, SOCK_IN, layer_type_items[type].name);
+          in_sock = blender::bke::node_find_socket(*in_node, SOCK_IN, layer_type_items[type].name);
         }
         else {
           in_sock = nullptr;
@@ -6769,15 +6770,15 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
       /* Check if the socket in already connected to something */
       bNodeLink *link = in_sock ? in_sock->link : nullptr;
       if (in_sock != nullptr && link == nullptr) {
-        blender::bke::node_add_link(ntree, out_node, out_sock, in_node, in_sock);
+        blender::bke::node_add_link(*ntree, *out_node, *out_sock, *in_node, *in_sock);
 
-        blender::bke::node_position_relative(out_node, in_node, out_sock, in_sock);
+        blender::bke::node_position_relative(*out_node, *in_node, *out_sock, *in_sock);
       }
     }
 
     BKE_main_ensure_invariants(*bmain);
     /* In case we added more than one node, position them too. */
-    blender::bke::node_position_propagate(out_node);
+    blender::bke::node_position_propagate(*out_node);
 
     if (ima) {
       BKE_texpaint_slot_refresh_cache(scene, ma, ob);

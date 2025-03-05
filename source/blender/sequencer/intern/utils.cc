@@ -17,6 +17,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -207,13 +208,14 @@ static void open_anim_filepath(Strip *strip, StripAnim *sanim, const char *filep
 {
   if (openfile) {
     sanim->anim = openanim(filepath,
-                           IB_rect | ((strip->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
+                           IB_byte_data | ((strip->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
                            strip->streamindex,
                            strip->data->colorspace_settings.name);
   }
   else {
     sanim->anim = openanim_noload(filepath,
-                                  IB_rect | ((strip->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
+                                  IB_byte_data |
+                                      ((strip->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
                                   strip->streamindex,
                                   strip->data->colorspace_settings.name);
   }
@@ -365,7 +367,7 @@ ListBase *SEQ_get_seqbase_by_seq(const Scene *scene, Strip *strip)
 {
   Editing *ed = SEQ_editing_get(scene);
   ListBase *main_seqbase = &ed->seqbase;
-  Strip *strip_meta = SEQ_lookup_meta_by_strip(scene, strip);
+  Strip *strip_meta = SEQ_lookup_meta_by_strip(ed, strip);
 
   if (strip_meta != nullptr) {
     return &strip_meta->seqbase;

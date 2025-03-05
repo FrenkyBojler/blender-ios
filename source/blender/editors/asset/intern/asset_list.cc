@@ -22,6 +22,7 @@
 #include "BKE_main.hh"
 #include "BKE_screen.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_string.h"
 #include "BLI_utility_mixins.hh"
@@ -56,7 +57,6 @@ class FileListWrapper {
   static void filelist_free_fn(FileList *list)
   {
     filelist_free(list);
-    MEM_freeN(list);
   }
 
   std::unique_ptr<FileList, decltype(&filelist_free_fn)> file_list_;

@@ -36,6 +36,7 @@
 #include "BLI_fileops.h"
 #include "BLI_filereader.h"
 #include "BLI_linklist.h"
+#include "BLI_listbase.h"
 #include "BLI_math_time.h"
 #include "BLI_memory_cache.hh"
 #include "BLI_string.h"
@@ -1162,7 +1163,7 @@ bool WM_file_read(bContext *C, const char *filepath, ReportList *reports)
 
   wm_read_callback_post_wrapper(C, filepath, success);
 
-  BLI_assert(BKE_main_namemap_validate(CTX_data_main(C)));
+  BLI_assert(BKE_main_namemap_validate(*CTX_data_main(C)));
 
   return success;
 }
@@ -1982,7 +1983,7 @@ static ImBuf *blend_file_thumb_from_camera(const bContext *C,
                                                  scene->camera,
                                                  PREVIEW_RENDER_LARGE_HEIGHT * 2,
                                                  PREVIEW_RENDER_LARGE_HEIGHT * 2,
-                                                 IB_rect,
+                                                 IB_byte_data,
                                                  (v3d) ? V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS :
                                                          V3D_OFSDRAW_NONE,
                                                  R_ALPHAPREMUL,
@@ -1999,7 +2000,7 @@ static ImBuf *blend_file_thumb_from_camera(const bContext *C,
                                           region,
                                           PREVIEW_RENDER_LARGE_HEIGHT * 2,
                                           PREVIEW_RENDER_LARGE_HEIGHT * 2,
-                                          IB_rect,
+                                          IB_byte_data,
                                           R_ALPHAPREMUL,
                                           nullptr,
                                           true,
@@ -4077,7 +4078,7 @@ static uiBlock *block_create_autorun_warning(bContext *C, ARegion *region, void 
 
   const int dialog_width = std::max(int(400.0f * UI_SCALE_FAC),
                                     text_width + int(style->columnspace * 2.5));
-  const short icon_size = 64 * UI_SCALE_FAC;
+  const short icon_size = 40 * UI_SCALE_FAC;
   uiLayout *layout = uiItemsAlertBox(
       block, style, dialog_width + icon_size, ALERT_ICON_ERROR, icon_size);
 
@@ -4092,7 +4093,7 @@ static uiBlock *block_create_autorun_warning(bContext *C, ARegion *region, void 
   PointerRNA pref_ptr = RNA_pointer_create_discrete(nullptr, &RNA_PreferencesFilePaths, &U);
   uiItemR(layout, &pref_ptr, "use_scripts_auto_execute", UI_ITEM_NONE, checkbox_text, ICON_NONE);
 
-  uiItemS_ex(layout, 3.0f);
+  uiItemS_ex(layout, 2.0f);
 
   /* Buttons. */
   uiBut *but;
@@ -4752,7 +4753,7 @@ static uiBlock *block_create__close_file_dialog(bContext *C, ARegion *region, vo
 
   BKE_reports_free(&reports);
 
-  uiItemS_ex(layout, has_extra_checkboxes ? 2.0f : 4.0f);
+  uiItemS_ex(layout, 2.0f);
 
   /* Buttons. */
 #ifdef _WIN32

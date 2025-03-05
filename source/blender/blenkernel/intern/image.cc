@@ -25,6 +25,7 @@
 
 #include "BLI_array.hh"
 #include "BLI_fileops.h"
+#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
@@ -56,6 +57,7 @@
 #include "DNA_packedFile_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_userdef_types.h"
 #include "DNA_world_types.h"
 
 #include "BLI_math_vector.h"
@@ -130,6 +132,7 @@ static void image_runtime_reset(Image *image)
   memset(&image->runtime, 0, sizeof(image->runtime));
   image->runtime.cache_mutex = MEM_mallocN(sizeof(ThreadMutex), "image runtime cache_mutex");
   BLI_mutex_init(static_cast<ThreadMutex *>(image->runtime.cache_mutex));
+  image->runtime.update_count = 0;
 }
 
 /** Reset runtime image fields when data-block is being copied. */
@@ -1200,7 +1203,7 @@ static ImBuf *add_ibuf_for_tile(Image *ima, ImageTile *tile)
 
   const bool floatbuf = (tile->gen_flag & IMA_GEN_FLOAT) != 0;
   if (floatbuf) {
-    ibuf = IMB_allocImBuf(tile->gen_x, tile->gen_y, tile->gen_depth, IB_rectfloat);
+    ibuf = IMB_allocImBuf(tile->gen_x, tile->gen_y, tile->gen_depth, IB_float_data);
 
     if (ima->colorspace_settings.name[0] == '\0') {
       const char *colorspace = IMB_colormanagement_role_colorspace_name_get(
@@ -1224,7 +1227,7 @@ static ImBuf *add_ibuf_for_tile(Image *ima, ImageTile *tile)
     }
   }
   else {
-    ibuf = IMB_allocImBuf(tile->gen_x, tile->gen_y, tile->gen_depth, IB_rect);
+    ibuf = IMB_allocImBuf(tile->gen_x, tile->gen_y, tile->gen_depth, IB_byte_data);
 
     if (ima->colorspace_settings.name[0] == '\0') {
       const char *colorspace = IMB_colormanagement_role_colorspace_name_get(
@@ -1412,7 +1415,7 @@ static bool image_memorypack_imbuf(
 {
   ibuf->ftype = (ibuf->float_buffer.data) ? IMB_FTYPE_OPENEXR : IMB_FTYPE_PNG;
 
-  IMB_saveiff(ibuf, filepath, IB_rect | IB_mem);
+  IMB_saveiff(ibuf, filepath, IB_byte_data | IB_mem);
 
   if (ibuf->encoded_buffer.data == nullptr) {
     CLOG_STR_ERROR(&LOG, "memory save for pack error");
@@ -2674,7 +2677,7 @@ bool BKE_imbuf_write(ImBuf *ibuf, const char *filepath, const ImageFormatData *i
 
   BLI_file_ensure_parent_dir_exists(filepath);
 
-  const bool ok = IMB_saveiff(ibuf, filepath, IB_rect);
+  const bool ok = IMB_saveiff(ibuf, filepath, IB_byte_data);
   if (ok == 0) {
     perror(filepath);
   }
@@ -4179,7 +4182,7 @@ static ImBuf *load_movie_single(Image *ima, ImageUser *iuser, int frame, const i
 
   if (ia->anim == nullptr) {
     char filepath[FILE_MAX];
-    int flags = IB_rect;
+    int flags = IB_byte_data;
     ImageUser iuser_t{};
 
     if (ima->flag & IMA_DEINTERLACE) {
@@ -4280,7 +4283,7 @@ static ImBuf *load_image_single(Image *ima,
 {
   char filepath[FILE_MAX];
   ImBuf *ibuf = nullptr;
-  int flag = IB_rect | IB_multilayer | IB_metadata | imbuf_alpha_flags_for_image(ima);
+  int flag = IB_byte_data | IB_multilayer | IB_metadata | imbuf_alpha_flags_for_image(ima);
 
   *r_cache_ibuf = true;
   const int tile_number = image_get_tile_number_from_iuser(ima, iuser);
@@ -4835,7 +4838,7 @@ static ImBuf *image_acquire_ibuf(Image *ima, ImageUser *iuser, void **r_lock)
           if (!ibuf) {
             /* Composite Viewer, all handled in compositor */
             /* fake ibuf, will be filled in compositor */
-            ibuf = IMB_allocImBuf(256, 256, 32, IB_rect | IB_rectfloat);
+            ibuf = IMB_allocImBuf(256, 256, 32, IB_byte_data | IB_float_data);
             image_assign_ibuf(ima, ibuf, index, entry);
           }
         }
@@ -5008,7 +5011,7 @@ ImBuf *BKE_image_preview(Image *ima, const short max_size, short *r_width, short
 
   /* Resize. */
   IMB_scale(preview, scale * image_ibuf->x, scale * image_ibuf->y, IMBScaleFilter::Box, false);
-  IMB_rect_from_float(preview);
+  IMB_byte_from_float(preview);
 
   return preview;
 }

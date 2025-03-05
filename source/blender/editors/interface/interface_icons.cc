@@ -13,6 +13,7 @@
 
 #include "BLF_api.hh"
 
+#include "BLI_math_vector.h"
 #include "BLI_string.h"
 
 #include "DNA_collection_types.h"
@@ -796,7 +797,7 @@ static void icon_verify_datatoc(IconImage *iimg)
 
   if (iimg->datatoc_rect) {
     ImBuf *bbuf = IMB_ibImageFromMemory(
-        iimg->datatoc_rect, iimg->datatoc_size, IB_rect, nullptr, "<matcap icon>");
+        iimg->datatoc_rect, iimg->datatoc_size, IB_byte_data, nullptr, "<matcap icon>");
     /* w and h were set on initialize */
     if (bbuf->x != iimg->h && bbuf->y != iimg->w) {
       IMB_scale(bbuf, iimg->w, iimg->h, IMBScaleFilter::Box, false);
@@ -1229,7 +1230,7 @@ PreviewImage *UI_icon_to_preview(int icon_id)
 
     bbuf = IMB_ibImageFromMemory(di->data.buffer.image->datatoc_rect,
                                  di->data.buffer.image->datatoc_size,
-                                 IB_rect,
+                                 IB_byte_data,
                                  nullptr,
                                  __func__);
     if (bbuf) {
@@ -1360,10 +1361,10 @@ static void svg_replace_color_attributes(std::string &svg,
       {"blender_back", nullptr, TH_BACK},
       {"blender_text", nullptr, TH_TEXT},
       {"blender_text_hi", nullptr, TH_TEXT_HI},
-      {"blender_red_alert", nullptr, TH_REDALERT},
-      {"blender_error", nullptr, TH_INFO_ERROR, SPACE_INFO},
-      {"blender_warning", nullptr, TH_INFO_WARNING, SPACE_INFO},
-      {"blender_info", nullptr, TH_INFO_INFO, SPACE_INFO},
+      {"blender_red_alert", nullptr, TH_ERROR},
+      {"blender_error", nullptr, TH_ERROR},
+      {"blender_warning", nullptr, TH_WARNING},
+      {"blender_info", nullptr, TH_INFO},
       {"blender_scene", nullptr, TH_ICON_SCENE},
       {"blender_collection", nullptr, TH_ICON_COLLECTION},
       {"blender_object", nullptr, TH_ICON_OBJECT},
@@ -1501,7 +1502,8 @@ static void icon_draw_size(float x,
     if (G.debug & G_DEBUG) {
       printf("%s: Internal error, no icon for icon ID: %d\n", __func__, icon_id);
     }
-    return;
+    icon_id = ICON_NOT_FOUND;
+    icon = BKE_icon_get(icon_id);
   }
 
   if (icon->obj_type != ICON_DATA_STUDIOLIGHT) {
@@ -1574,7 +1576,10 @@ static void icon_draw_size(float x,
                                                  0.3f) :
                                             0.0f;
     float color[4];
-    if (mono_rgba) {
+    if (icon_id == ICON_NOT_FOUND) {
+      UI_GetThemeColor4fv(TH_ERROR, color);
+    }
+    else if (mono_rgba) {
       rgba_uchar_to_float(color, mono_rgba);
     }
     else {

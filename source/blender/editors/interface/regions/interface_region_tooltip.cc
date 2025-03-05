@@ -208,9 +208,7 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
   color_blend_f3_f3(active_color, main_color, 0.3f);
 
   /* `alert_color` is red, push a bit toward text color. */
-  alert_color[0] = 0.7f;
-  alert_color[1] = 0.0f;
-  alert_color[2] = 0.0f;
+  UI_GetThemeColor3fv(TH_REDALERT, alert_color);
   color_blend_f3_f3(alert_color, main_color, 0.3f);
 
   /* Draw text. */
@@ -1102,7 +1100,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
 
     if (but->rnaprop) {
       BLI_assert(but->rnaindex == -1);
-      has_alpha = RNA_property_array_length(&but->rnapoin, but->rnaprop) == 4;
+      has_alpha = RNA_property_array_length(&but->rnapoin, but->rnaprop) >= 4;
       if (has_alpha) {
         color[3] = RNA_property_float_get_index(&but->rnapoin, but->rnaprop, 3);
       }
@@ -1130,7 +1128,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
     uiTooltipImage image_data;
     image_data.width = int(w);
     image_data.height = int(w / (has_alpha ? 4.0f : 3.0f));
-    image_data.ibuf = IMB_allocImBuf(image_data.width, image_data.height, 32, IB_rect);
+    image_data.ibuf = IMB_allocImBuf(image_data.width, image_data.height, 32, IB_byte_data);
     image_data.border = true;
     image_data.premultiplied = false;
 
@@ -1719,7 +1717,7 @@ static void ui_tooltip_from_clip(MovieClip &clip, uiTooltipData &data)
       /* Resize. */
       float scale = (200.0f * UI_SCALE_FAC) / float(std::max(ibuf->x, ibuf->y));
       IMB_scale(ibuf, scale * ibuf->x, scale * ibuf->y, IMBScaleFilter::Box, false);
-      IMB_rect_from_float(ibuf);
+      IMB_byte_from_float(ibuf);
 
       uiTooltipImage image_data;
       image_data.width = ibuf->x;

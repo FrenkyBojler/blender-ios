@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Beta (b'aad0bd21487d')\n"
+"Project-Id-Version: Blender 4.4.0 Beta (b'1a72a0f22cde')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-10 15:22+0000\n"
+"POT-Creation-Date: 2025-03-03 09:33+0000\n"
 "PO-Revision-Date: 2024-05-03 12:13+0000\n"
 "Last-Translator: Nooby Noober <iamanoobynoober@gmail.com>\n"
 "Language-Team: Persian <https://translate.blender.org/projects/blender-ui/ui/fa/>\n"
@@ -64,10 +64,6 @@ msgstr "ﺎﻫAOV ﻪﻋﻮﻤﺠﻣ"
 
 msgid "Action F-Curves"
 msgstr "ﻞﻤﻋ ﻊﺑﺎﺗ ﯽﻨﺤﻨﻣ"
-
-
-msgid "Collection of action F-Curves"
-msgstr "ﻞﻤﻋ ﻊﺑﺎﺗ ﯼﺎﻫ‌ﯽﻨﺤﻨﻣ ﻪﻋﻮﻤﺠﻣ"
 
 
 msgid "Action Group"
@@ -381,10 +377,6 @@ msgstr "ﺪﯿﻨﮐ ﺩﺎﺠﯾﺍ ﮒﺭﺰﺑ ﯼﺎﻫ ﻪﻨﺤﺻ ﻥﺩ�
 
 msgid "HIP RT (Experimental)"
 msgstr "HIP RT (ﯽﺸﯾﺎﻣﺯﺁ)"
-
-
-msgid "HIP RT enables AMD hardware ray tracing on RDNA2 and above, with shader fallback on older cards. This feature is experimental and some scenes may render incorrectly"
-msgstr "HIP RT ﯼﺭﺍﺰﻓﺍ‌ﺖﺨﺳ ﻮﺗﺮﭘ ﯼﺮﯿﮕﻫﺭ AMD ﺭﺩ ﺍﺭ RDNA2 ﺪﻧﻮﺷ ﺭﺪﻧﺭ ﺖﺳﺭﺩﺎﻧ ﺎﻫ ﻪﻨﺤﺻ ﺯﺍ ﯽﺧﺮﺑ ﺖﺳﺍ ﻦﮑﻤﻣ ﻭ ﺖﺳﺍ ﯽﺸﯾﺎﻣﺯﺁ ﯽﮔﮋﯾﻭ ﻦﯾﺍ .ﺪﻨﮐ‌ﯽﻣ ﻝﺎﻌﻓ ،ﺮﺗ‌ﯽﻤﯾﺪﻗ ﯼﺎﻫ‌ﮏﯿﻓﺍﺮﮔ ‌ﺕﺭﺎﮐ ﺭﺩ ﯽﺘﺸﮔﺯﺎﺑ ﻥﺯ‌ﻪﯾﺎﺳ ﺎﺑ ،ﺮﺗﻻ﻿ﺎﺑ ﻭ"
 
 
 msgid "Embree on GPU"
@@ -4897,10 +4889,6 @@ msgid "Reset Single to Default Value"
 msgstr "ﺽﺮﻓ ﺶﯿﭘ ﺭﺍﺪﻘﻣ ﻪﺑ ﯽﮑﺗ ﺩﺪﺠﻣ ﻢﯿﻈﻨﺗ"
 
 
-msgid "Home"
-msgstr "Home"
-
-
 msgid "Esc"
 msgstr "Esc"
 
@@ -5132,6 +5120,10 @@ msgstr "ﺩﻮﺟﻮﻣ ﯽﺴﯾﻮﻧﺯﺎﺑ ٬ﻞﯾﺎﻓ ﻡﺎﻧ"
 
 msgid "File name"
 msgstr "ﻞﯾﺎﻓ ﻡﺎﻧ"
+
+
+msgid "Home"
+msgstr "Home"
 
 
 msgid "Update Dependencies"

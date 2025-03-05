@@ -241,7 +241,7 @@ void GPENCIL_cache_init(void *ved)
 
   if (inst->do_fast_drawing) {
     inst->snapshot_buffer_dirty = !inst->snapshot_depth_tx.is_valid();
-    const float *size = DRW_viewport_size_get();
+    const float2 size = DRW_viewport_size_get();
 
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_ATTACHMENT;
     inst->snapshot_depth_tx.ensure_2d(GPU_DEPTH24_STENCIL8, int2(size), usage);
@@ -282,7 +282,7 @@ void GPENCIL_cache_init(void *ved)
 
   /* Pseudo DOF setup. */
   if (cam && (cam->dof.flag & CAM_DOF_ENABLED)) {
-    const float *vp_size = DRW_viewport_size_get();
+    const float2 vp_size = DRW_viewport_size_get();
     float fstop = cam->dof.aperture_fstop;
     float sensor = BKE_camera_sensor_size(cam->sensor_fit, cam->sensor_x, cam->sensor_y);
     float focus_dist = BKE_camera_object_dof_distance(inst->camera);
@@ -590,10 +590,11 @@ static GPENCIL_tObject *grease_pencil_object_cache_populate(
   return tgp_ob;
 }
 
-void GPENCIL_cache_populate(void *ved, Object *ob)
+void GPENCIL_cache_populate(void *ved, blender::draw::ObjectRef &ob_ref)
 {
   GPENCIL_Data *vedata = (GPENCIL_Data *)ved;
   GPENCIL_Instance *inst = vedata->instance;
+  Object *ob = ob_ref.object;
 
   /* object must be visible */
   if (!(DRW_object_visibility_in_active_context(ob) & OB_VISIBLE_SELF)) {
@@ -602,7 +603,6 @@ void GPENCIL_cache_populate(void *ved, Object *ob)
 
   if (ob->data && (ob->type == OB_GREASE_PENCIL) && (ob->dt >= OB_SOLID)) {
     blender::draw::Manager *manager = DRW_manager_get();
-    blender::draw::ObjectRef ob_ref = DRW_object_ref_get(ob);
     blender::draw::ResourceHandle res_handle = manager->unique_handle(ob_ref);
 
     GPENCIL_tObject *tgp_ob = grease_pencil_object_cache_populate(inst, ob, res_handle);
@@ -645,8 +645,7 @@ void GPENCIL_Instance::acquire_resources()
     return;
   }
 
-  const float *size_f = DRW_viewport_size_get();
-  const int2 size(size_f[0], size_f[1]);
+  const int2 size = int2(DRW_viewport_size_get());
 
   eGPUTextureFormat format = this->use_signed_fb ? GPU_RGBA16F : GPU_R11F_G11F_B10F;
 

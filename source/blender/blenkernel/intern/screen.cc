@@ -25,6 +25,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
+#include "DNA_userdef_types.h"
 #include "DNA_view3d_types.h"
 
 #include "BLI_listbase.h"
@@ -53,7 +54,10 @@
 #  include "BPY_extern.hh"
 #endif
 
+#include "WM_types.hh"
+
 using blender::Span;
+using blender::StringRef;
 using blender::Vector;
 
 /* -------------------------------------------------------------------- */
@@ -77,7 +81,12 @@ static void screen_free_data(ID *id)
   BKE_previewimg_free(&screen->preview);
 
   /* Region and timer are freed by the window manager. */
-  MEM_SAFE_FREE(screen->tool_tip);
+  /* Cannot use MEM_SAFE_FREE, as #wmTooltipState type is only defined in `WM_types.hh`, which is
+   * currently not included here. */
+  if (screen->tool_tip) {
+    MEM_freeN(static_cast<void *>(screen->tool_tip));
+    screen->tool_tip = nullptr;
+  }
 }
 
 void BKE_screen_foreach_id_screen_area(LibraryForeachIDData *data, ScrArea *area)
@@ -502,16 +511,16 @@ void BKE_region_callback_free_gizmomap_set(void (*callback)(wmGizmoMap *))
 }
 
 LayoutPanelState *BKE_panel_layout_panel_state_ensure(Panel *panel,
-                                                      const char *idname,
+                                                      const StringRef idname,
                                                       const bool default_closed)
 {
   LISTBASE_FOREACH (LayoutPanelState *, state, &panel->layout_panel_states) {
-    if (STREQ(state->idname, idname)) {
+    if (state->idname == idname) {
       return state;
     }
   }
   LayoutPanelState *state = MEM_cnew<LayoutPanelState>(__func__);
-  state->idname = BLI_strdup(idname);
+  state->idname = BLI_strdupn(idname.data(), idname.size());
   SET_FLAG_FROM_TEST(state->flag, !default_closed, LAYOUT_PANEL_STATE_FLAG_OPEN);
   BLI_addtail(&panel->layout_panel_states, state);
   return state;

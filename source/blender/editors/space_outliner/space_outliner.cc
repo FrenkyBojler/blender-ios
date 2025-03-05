@@ -13,6 +13,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_mempool.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -562,7 +563,7 @@ static void outliner_space_blend_read_data(BlendDataReader *reader, SpaceLink *s
     /* we only saved what was used */
     space_outliner->storeflag |= SO_TREESTORE_CLEANUP; /* at first draw */
   }
-  space_outliner->tree.first = space_outliner->tree.last = nullptr;
+  BLI_listbase_clear(&space_outliner->tree);
   space_outliner->runtime = nullptr;
 }
 

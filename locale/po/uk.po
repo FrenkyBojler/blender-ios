@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Beta (b'aad0bd21487d')\n"
+"Project-Id-Version: Blender 4.4.0 Beta (b'1a72a0f22cde')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-10 15:22+0000\n"
+"POT-Creation-Date: 2025-03-03 09:33+0000\n"
 "PO-Revision-Date: 2024-03-13 11:04+0000\n"
 "Last-Translator: Bartosz <gang65@poczta.onet.pl>\n"
 "Language-Team: Ukrainian <https://translate.blender.org/projects/blender-ui/ui/uk/>\n"
@@ -69,10 +69,6 @@ msgstr "Гніздо"
 
 msgid "Action F-Curves"
 msgstr "Ф-криві дій"
-
-
-msgid "Collection of action F-Curves"
-msgstr "Колекція Ф-кривих дій"
 
 
 msgid "Action Group"
@@ -14365,10 +14361,6 @@ msgid "A collection of F-Curves for animation"
 msgstr "Колекція Ф-Кривих для анімації"
 
 
-msgid "The individual F-Curves that make up the action"
-msgstr "Окремі Ф-Криві, які створюють дію"
-
-
 msgid "Frame Range"
 msgstr "Діапазон кадрів"
 
@@ -14377,17 +14369,9 @@ msgid "Groups"
 msgstr "Групи"
 
 
-msgid "Convenient groupings of F-Curves"
-msgstr "Зручне групування Ф-Кривих"
-
-
 msgctxt "ID"
 msgid "ID Root Type"
 msgstr "Тип кореневого ID"
-
-
-msgid "Type of ID block that action can be used on - DO NOT CHANGE UNLESS YOU KNOW WHAT YOU ARE DOING"
-msgstr "Тип ID-блока, до якого може бути застосована дія. НЕ ЗМІНЮЙТЕ, ЯКЩО НЕ РОЗУМІЄТЕ, ЩО РОБИТЕ"
 
 
 msgid "Layers"
@@ -14756,22 +14740,6 @@ msgstr "Зсув початку рубежу відносно радіуса п�
 
 msgid "Brush's capabilities"
 msgstr "Можливості пензля"
-
-
-msgid "Clone Alpha"
-msgstr "Клонувати прозорість"
-
-
-msgid "Opacity of clone image display"
-msgstr "Непрозорість при показі клону зображення"
-
-
-msgid "Clone Image"
-msgstr "Клонувати зображення"
-
-
-msgid "Clone Offset"
-msgstr "Клонувати зсув"
 
 
 msgid "Soft Body Plasticity"
@@ -22735,11 +22703,6 @@ msgid "Sequence playback mode"
 msgstr "Режим програвання послідовності"
 
 
-msgctxt "Sequence"
-msgid "Clip"
-msgstr "Кліп"
-
-
 msgid "Hide frames outside the specified frame range"
 msgstr "Сховати кадри поза вказаним діапазоном кадрів"
 
@@ -26668,10 +26631,6 @@ msgid "Show/Hide"
 msgstr "Показати/приховати"
 
 
-msgid "Clean Up"
-msgstr "Вичищення"
-
-
 msgid "Special Characters"
 msgstr "Спеціальні символи"
 
@@ -26694,6 +26653,10 @@ msgstr "Назви"
 
 msgid "Bone Roll"
 msgstr "Прокручення Кістки"
+
+
+msgid "Clean Up"
+msgstr "Вичищення"
 
 
 msgid "Pivot Point"
@@ -46071,6 +46034,10 @@ msgid "Select all stroke points between other strokes"
 msgstr "Вибрати усі точки штрихів між іншими штрихами"
 
 
+msgid "Fill Opacity"
+msgstr "Безпрозорість Заповнення"
+
+
 msgctxt "Operator"
 msgid "Snap Cursor to Selected Points"
 msgstr "Підхопити курсор до виділених точок"
@@ -60072,10 +60039,6 @@ msgid "Exports UVs from the modified mesh"
 msgstr "Експортувати UV зі зміненої сіті"
 
 
-msgid "Fill Opacity"
-msgstr "Безпрозорість Заповнення"
-
-
 msgid "Set amount of opacity for exported UV layout"
 msgstr "Рівень непрозорості для експортованої UV-розстави"
 
@@ -63189,8 +63152,24 @@ msgid "Image used as canvas"
 msgstr "Зображення, використане як канва"
 
 
+msgid "Clone Alpha"
+msgstr "Клонувати прозорість"
+
+
+msgid "Opacity of clone image display"
+msgstr "Непрозорість при показі клону зображення"
+
+
+msgid "Clone Image"
+msgstr "Клонувати зображення"
+
+
 msgid "Image used as clone source"
 msgstr "Зображення, що використовується як джерело клонування"
+
+
+msgid "Clone Offset"
+msgstr "Клонувати зсув"
 
 
 msgid "Dither"
@@ -74261,6 +74240,11 @@ msgstr "Фільм"
 
 
 msgctxt "Sequence"
+msgid "Clip"
+msgstr "Кліп"
+
+
+msgctxt "Sequence"
 msgid "Mask"
 msgstr "Маска"
 
@@ -80117,10 +80101,6 @@ msgstr "Устави тут можуть мати означення"
 
 msgid "performance impact!"
 msgstr "вплив продуктивності!"
-
-
-msgid "Built without VR/OpenXR features"
-msgstr "Побудовано без функціональностей VR/OpenXR"
 
 
 msgid "API Defined"
@@ -87022,10 +87002,6 @@ msgid "OS"
 msgstr "ОС"
 
 
-msgid "Home"
-msgstr "Домівка"
-
-
 msgid "Esc"
 msgstr "Esc"
 
@@ -89596,6 +89572,10 @@ msgstr "Назва файлу"
 
 msgid "Date Modified"
 msgstr "Дату Модифіковано"
+
+
+msgid "Home"
+msgstr "Домівка"
 
 
 msgid "Desktop"

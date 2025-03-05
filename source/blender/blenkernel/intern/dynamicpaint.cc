@@ -14,6 +14,7 @@
 
 #include "BLI_fileops.h"
 #include "BLI_kdtree.h"
+#include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
@@ -3336,7 +3337,7 @@ void dynamicPaint_outputSurfaceImage(DynamicPaintSurface *surface,
   BLI_file_ensure_parent_dir_exists(output_file);
 
   /* Init image buffer */
-  ibuf = IMB_allocImBuf(surface->image_resolution, surface->image_resolution, 32, IB_rectfloat);
+  ibuf = IMB_allocImBuf(surface->image_resolution, surface->image_resolution, 32, IB_float_data);
   if (ibuf == nullptr) {
     setError(surface->canvas, N_("Image save failed: not enough free memory"));
     return;
@@ -3435,7 +3436,7 @@ void dynamicPaint_outputSurfaceImage(DynamicPaintSurface *surface,
   }
 
   /* Save image */
-  IMB_saveiff(ibuf, output_file, IB_rectfloat);
+  IMB_saveiff(ibuf, output_file, IB_float_data);
   IMB_freeImBuf(ibuf);
 }
 
@@ -4338,6 +4339,8 @@ static bool dynamicPaint_paintMesh(Depsgraph *depsgraph,
         add_v3_v3(avg_brushNor, nor);
       }
     }
+
+    mesh->tag_positions_changed();
 
     if (brush->flags & MOD_DPAINT_PROX_PROJECT && brush->collision != MOD_DPAINT_COL_VOLUME) {
       mul_v3_fl(avg_brushNor, 1.0f / float(numOfVerts));
