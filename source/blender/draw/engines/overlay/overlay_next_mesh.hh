@@ -381,6 +381,7 @@ class Meshes : Overlay {
 
     if (!xray_enabled_) {
       manager.submit(edit_mesh_faces_ps_, view);
+      manager.submit(edit_mesh_cages_ps_, view);
     }
 
     if (xray_flag_enabled_) {
@@ -389,7 +390,6 @@ class Meshes : Overlay {
     }
 
     manager.submit(edit_mesh_normals_ps_, view);
-    manager.submit(edit_mesh_cages_ps_, view);
     manager.submit(edit_mesh_edges_ps_, view);
     manager.submit(edit_mesh_verts_ps_, view);
     manager.submit(edit_mesh_skin_roots_ps_, view);
@@ -407,6 +407,7 @@ class Meshes : Overlay {
     if (xray_enabled_) {
       GPU_framebuffer_bind(framebuffer);
       manager.submit(edit_mesh_faces_ps_, view);
+      manager.submit(edit_mesh_cages_ps_, view);
     }
 
     if (!xray_flag_enabled_) {
@@ -417,7 +418,6 @@ class Meshes : Overlay {
 
     GPU_framebuffer_bind(framebuffer);
     manager.submit(edit_mesh_normals_ps_, view);
-    manager.submit(edit_mesh_cages_ps_, view);
     manager.submit(edit_mesh_edges_ps_, view);
     manager.submit(edit_mesh_verts_ps_, view);
     manager.submit(edit_mesh_skin_roots_ps_, view);
