@@ -48,7 +48,7 @@ static void pbvh_bmesh_verify(Tree *pbvh);
 /* TODO: choose leaf limit better. */
 constexpr int leaf_limit = 400;
 
-static constexpr int DYNTOPO_NODE_NONE = -1;
+static constexpr int dyntopo_node_none = -1;
 
 /* -------------------------------------------------------------------- */
 /** \name BMesh Utility API
@@ -215,7 +215,7 @@ static void pbvh_bmesh_node_finalize(BMeshNode &n,
     do {
       BMVert *v = l_iter->v;
       if (!n.bm_unique_verts_.contains(v)) {
-        if (BM_ELEM_CD_GET_INT(v, cd_vert_node_offset) != DYNTOPO_NODE_NONE) {
+        if (BM_ELEM_CD_GET_INT(v, cd_vert_node_offset) != dyntopo_node_none) {
           n.bm_other_verts_.add(v);
         }
         else {
@@ -318,12 +318,12 @@ static void pbvh_bmesh_node_split(Vector<BMeshNode> &nodes,
 
   /* Mark this node's unique verts as unclaimed. */
   for (BMVert *v : node.bm_unique_verts_) {
-    BM_ELEM_CD_SET_INT(v, cd_vert_node_offset, DYNTOPO_NODE_NONE);
+    BM_ELEM_CD_SET_INT(v, cd_vert_node_offset, dyntopo_node_none);
   }
 
   /* Unclaim faces. */
   for (BMFace *f : node.bm_faces_) {
-    BM_ELEM_CD_SET_INT(f, cd_face_node_offset, DYNTOPO_NODE_NONE);
+    BM_ELEM_CD_SET_INT(f, cd_face_node_offset, dyntopo_node_none);
   }
   node.bm_faces_.clear();
 
@@ -393,7 +393,7 @@ BLI_INLINE int pbvh_bmesh_node_index_from_vert(const int cd_vert_node_offset, co
 {
   const int node_index = BM_ELEM_CD_GET_INT(reinterpret_cast<const BMElem *>(key),
                                             cd_vert_node_offset);
-  BLI_assert(node_index != DYNTOPO_NODE_NONE);
+  BLI_assert(node_index != dyntopo_node_none);
   return node_index;
 }
 
@@ -401,7 +401,7 @@ BLI_INLINE int pbvh_bmesh_node_index_from_face(const int cd_face_node_offset, co
 {
   const int node_index = BM_ELEM_CD_GET_INT(reinterpret_cast<const BMElem *>(key),
                                             cd_face_node_offset);
-  BLI_assert(node_index != DYNTOPO_NODE_NONE);
+  BLI_assert(node_index != dyntopo_node_none);
   return node_index;
 }
 
@@ -570,11 +570,11 @@ static void pbvh_bmesh_vert_remove(MutableSpan<BMeshNode> nodes,
                                    BMVert *v)
 {
   /* Never match for first time. */
-  int f_node_index_prev = DYNTOPO_NODE_NONE;
+  int f_node_index_prev = dyntopo_node_none;
 
   BMeshNode *v_node = pbvh_bmesh_node_from_vert(nodes, cd_vert_node_offset, v);
   v_node->bm_unique_verts_.remove(v);
-  BM_ELEM_CD_SET_INT(v, cd_vert_node_offset, DYNTOPO_NODE_NONE);
+  BM_ELEM_CD_SET_INT(v, cd_vert_node_offset, dyntopo_node_none);
 
   /* Have to check each neighboring face's node. */
   BMFace *f;
@@ -636,7 +636,7 @@ static void pbvh_bmesh_face_remove(MutableSpan<BMeshNode> nodes,
 
   /* Remove face from node and top level. */
   f_node->bm_faces_.remove(f);
-  BM_ELEM_CD_SET_INT(f, cd_face_node_offset, DYNTOPO_NODE_NONE);
+  BM_ELEM_CD_SET_INT(f, cd_face_node_offset, dyntopo_node_none);
 
   /* Log removed face. */
   BM_log_face_removed(&bm_log, f);
@@ -679,7 +679,7 @@ struct EdgeQueue {
 
   bool (*edge_queue_tri_in_range)(const EdgeQueue *q, BMFace *f);
 
-  float3 view_normal;
+  std::optional<float3> view_normal;
   bool use_front_face;
 };
 
@@ -749,12 +749,12 @@ static bool edge_queue_tri_in_circle(const EdgeQueue *queue, BMFace *f)
   std::array<BMVert *, 3> v_tri;
 
   /* Get closest point in triangle to sphere center. */
-  BM_face_as_array_vert_tri(f, v_tri.data);
+  BM_face_as_array_vert_tri(f, v_tri.data());
 
   std::array<float3, 3> tri_proj;
-  project_plane_normalized_v3_v3v3(tri_proj[0], v_tri[0]->co, queue->view_normal);
-  project_plane_normalized_v3_v3v3(tri_proj[1], v_tri[1]->co, queue->view_normal);
-  project_plane_normalized_v3_v3v3(tri_proj[2], v_tri[2]->co, queue->view_normal);
+  project_plane_normalized_v3_v3v3(tri_proj[0], v_tri[0]->co, *queue->view_normal);
+  project_plane_normalized_v3_v3v3(tri_proj[1], v_tri[1]->co, *queue->view_normal);
+  project_plane_normalized_v3_v3v3(tri_proj[2], v_tri[2]->co, *queue->view_normal);
 
   float3 c;
   closest_on_tri_to_point_v3(c, queue->center_proj, tri_proj[0], tri_proj[1], tri_proj[2]);
@@ -889,7 +889,7 @@ static void long_edge_queue_edge_add_recursive(const EdgeQueueContext *eq_ctx,
   BLI_assert(len_sq > square_f(limit_len));
 
   if (eq_ctx->queue->use_front_face) {
-    if (dot_v3v3(l_edge->f->no, eq_ctx->queue->view_normal) < 0.0f) {
+    if (dot_v3v3(l_edge->f->no, *eq_ctx->queue->view_normal) < 0.0f) {
       return;
     }
   }
@@ -943,7 +943,7 @@ static void short_edge_queue_edge_add(const EdgeQueueContext *eq_ctx, BMEdge *e)
 static void long_edge_queue_face_add(const EdgeQueueContext *eq_ctx, BMFace *f)
 {
   if (eq_ctx->queue->use_front_face) {
-    if (dot_v3v3(f->no, eq_ctx->queue->view_normal) < 0.0f) {
+    if (dot_v3v3(f->no, *eq_ctx->queue->view_normal) < 0.0f) {
       return;
     }
   }
@@ -965,7 +965,7 @@ static void long_edge_queue_face_add(const EdgeQueueContext *eq_ctx, BMFace *f)
 static void short_edge_queue_face_add(const EdgeQueueContext *eq_ctx, BMFace *f)
 {
   if (eq_ctx->queue->use_front_face) {
-    if (dot_v3v3(f->no, eq_ctx->queue->view_normal) < 0.0f) {
+    if (dot_v3v3(f->no, *eq_ctx->queue->view_normal) < 0.0f) {
       return;
     }
   }
@@ -994,7 +994,7 @@ static void long_edge_queue_create(const EdgeQueueContext *eq_ctx,
                                    const float max_edge_len,
                                    MutableSpan<BMeshNode> nodes,
                                    const float3 &center,
-                                   const float3 &view_normal,
+                                   const std::optional<float3> view_normal,
                                    const float radius,
                                    const bool use_frontface,
                                    const bool use_projected)
@@ -1009,9 +1009,9 @@ static void long_edge_queue_create(const EdgeQueueContext *eq_ctx,
 
   eq_ctx->queue->use_front_face = use_frontface;
 
-  if (use_projected) {
+  if (use_projected && view_normal) {
     eq_ctx->queue->edge_queue_tri_in_range = edge_queue_tri_in_circle;
-    project_plane_normalized_v3_v3v3(eq_ctx->queue->center_proj, center, view_normal);
+    project_plane_normalized_v3_v3v3(eq_ctx->queue->center_proj, center, *view_normal);
   }
   else {
     eq_ctx->queue->edge_queue_tri_in_range = edge_queue_tri_in_sphere;
@@ -1047,7 +1047,7 @@ static void short_edge_queue_create(const EdgeQueueContext *eq_ctx,
                                     const float min_edge_len,
                                     MutableSpan<BMeshNode> nodes,
                                     const float3 &center,
-                                    const float3 &view_normal,
+                                    const std::optional<float3> view_normal,
                                     const float radius,
                                     const bool use_frontface,
                                     const bool use_projected)
@@ -1062,9 +1062,9 @@ static void short_edge_queue_create(const EdgeQueueContext *eq_ctx,
 
   eq_ctx->queue->use_front_face = use_frontface;
 
-  if (use_projected) {
+  if (use_projected && view_normal) {
     eq_ctx->queue->edge_queue_tri_in_range = edge_queue_tri_in_circle;
-    project_plane_normalized_v3_v3v3(eq_ctx->queue->center_proj, center, view_normal);
+    project_plane_normalized_v3_v3v3(eq_ctx->queue->center_proj, center, *view_normal);
   }
   else {
     eq_ctx->queue->edge_queue_tri_in_range = edge_queue_tri_in_sphere;
@@ -1260,8 +1260,8 @@ static bool pbvh_bmesh_subdivide_long_edges(const EdgeQueueContext *eq_ctx,
      * possible that an edge collapse has deleted adjacent faces
      * and the node has been split, thus leaving wire edges and
      * associated vertices. */
-    if ((BM_ELEM_CD_GET_INT(e->v1, eq_ctx->cd_vert_node_offset) == DYNTOPO_NODE_NONE) ||
-        (BM_ELEM_CD_GET_INT(e->v2, eq_ctx->cd_vert_node_offset) == DYNTOPO_NODE_NONE))
+    if ((BM_ELEM_CD_GET_INT(e->v1, eq_ctx->cd_vert_node_offset) == dyntopo_node_none) ||
+        (BM_ELEM_CD_GET_INT(e->v2, eq_ctx->cd_vert_node_offset) == dyntopo_node_none))
     {
       continue;
     }
@@ -1536,7 +1536,7 @@ static void pbvh_bmesh_collapse_edge(BMesh &bm,
                                      BMVert *v1,
                                      BMVert *v2,
                                      Map<BMVert *, BMVert *> &deleted_verts,
-                                     EdgeQueueContext *eq_ctx)
+                                     const EdgeQueueContext *eq_ctx)
 {
   const bool v1_on_boundary = is_boundary_vert(*v1);
   const bool v2_on_boundary = is_boundary_vert(*v2);
@@ -1720,7 +1720,7 @@ static void pbvh_bmesh_collapse_edge(BMesh &bm,
   BM_vert_kill(&bm, v_del);
 }
 
-static bool pbvh_bmesh_collapse_short_edges(EdgeQueueContext *eq_ctx,
+static bool pbvh_bmesh_collapse_short_edges(const EdgeQueueContext *eq_ctx,
                                             const float min_edge_len,
                                             BMesh &bm,
                                             MutableSpan<BMeshNode> nodes,
@@ -1764,8 +1764,8 @@ static bool pbvh_bmesh_collapse_short_edges(EdgeQueueContext *eq_ctx,
     /* Check that the edge's vertices are still in the Tree. It's possible that
      * an edge collapse has deleted adjacent faces and the node has been split, thus leaving wire
      * edges and associated vertices. */
-    if ((BM_ELEM_CD_GET_INT(e->v1, eq_ctx->cd_vert_node_offset) == DYNTOPO_NODE_NONE) ||
-        (BM_ELEM_CD_GET_INT(e->v2, eq_ctx->cd_vert_node_offset) == DYNTOPO_NODE_NONE))
+    if ((BM_ELEM_CD_GET_INT(e->v1, eq_ctx->cd_vert_node_offset) == dyntopo_node_none) ||
+        (BM_ELEM_CD_GET_INT(e->v2, eq_ctx->cd_vert_node_offset) == dyntopo_node_none))
     {
       continue;
     }
@@ -2132,7 +2132,7 @@ static void pbvh_bmesh_create_nodes_fast_recursive(Vector<BMeshNode> &nodes,
       do {
         BMVert *v = l_iter->v;
         if (!bvh_node.bm_unique_verts_.contains(v)) {
-          if (BM_ELEM_CD_GET_INT(v, cd_vert_node_offset) != DYNTOPO_NODE_NONE) {
+          if (BM_ELEM_CD_GET_INT(v, cd_vert_node_offset) != dyntopo_node_none) {
             bvh_node.bm_other_verts_.add(v);
           }
           else {
@@ -2179,14 +2179,14 @@ Tree Tree::from_bmesh(BMesh &bm)
     /* so we can do direct lookups on 'face_bounds' */
     BM_elem_index_set(f, i); /* set_dirty! */
     nodeinfo[i] = f;
-    BM_ELEM_CD_SET_INT(f, cd_face_node_offset, DYNTOPO_NODE_NONE);
+    BM_ELEM_CD_SET_INT(f, cd_face_node_offset, dyntopo_node_none);
   }
   /* Likely this is already dirty. */
   bm.elem_index_dirty |= BM_FACE;
 
   BMVert *v;
   BM_ITER_MESH (v, &iter, &bm, BM_VERTS_OF_MESH) {
-    BM_ELEM_CD_SET_INT(v, cd_vert_node_offset, DYNTOPO_NODE_NONE);
+    BM_ELEM_CD_SET_INT(v, cd_vert_node_offset, dyntopo_node_none);
   }
 
   /* Set up root node. */
