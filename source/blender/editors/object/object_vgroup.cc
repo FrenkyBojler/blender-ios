@@ -2712,7 +2712,7 @@ void OBJECT_OT_vertex_group_remove(wmOperatorType *ot)
 /** \name Vertex Group Assign Operator
  * \{ */
 
-static wmOperatorStatus vertex_group_assign_exec(bContext *C, wmOperator * /*op*/)
+static int vertex_group_assign_exec(bContext *C, wmOperator *op)
 {
   ToolSettings *ts = CTX_data_tool_settings(C);
   Object *ob = context_object(C);
@@ -2722,18 +2722,11 @@ static wmOperatorStatus vertex_group_assign_exec(bContext *C, wmOperator * /*op*
   vgroup_assign_verts(ob, scene, ts->vgroup_weight, def_nr);
 
   if (ts->auto_normalize) {
-    BMVert *eve_act;
-    MDeformVert *dvert_act = ED_mesh_active_dvert_get_em(ob, &eve_act);
-
-    if (dvert_act == nullptr) {
-      return OPERATOR_FINISHED;
-    }
-
     int subset_count, vgroup_tot;
     const bool *vgroup_validmap = BKE_object_defgroup_subset_from_select_type(
         ob, WT_VGROUP_ALL, &vgroup_tot, &subset_count);
 
-    BKE_defvert_normalize_lock_single(dvert_act, vgroup_validmap, vgroup_tot, def_nr);
+    vgroup_normalize_all(ob, vgroup_validmap, vgroup_tot, subset_count, true, op->reports);
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);

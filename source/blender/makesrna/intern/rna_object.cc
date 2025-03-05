@@ -2633,13 +2633,6 @@ static void rna_def_object_vertex_groups(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_function_ui_description(func, "Delete all vertex groups from object");
 
 
-  prop = RNA_def_property(srna, "auto_normalize_attribute", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(
-      prop, nullptr, "modifier_flag", OB_MODIFIER_FLAG_AUTO_NORMALIZE);
-  RNA_def_property_ui_text(prop,
-                           "Auto Normalize",
-                           "My great auto normalization description here"); // TODO: update with a real description
-  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_internal_update_data");
 }
 
 static void rna_def_object_display(BlenderRNA *brna)
