@@ -187,7 +187,8 @@ static void finalize_curve(bAction *action, const ElementAnimations &anim, FCurv
   }
 }
 
-static void create_transform_curves(const ElementAnimations &anim,
+static void create_transform_curves(const FbxElementMapping &mapping,
+                                    const ElementAnimations &anim,
                                     bAction *action,
                                     animrig::Channelbag &channelbag,
                                     const double fps,
@@ -198,10 +199,29 @@ static void create_transform_curves(const ElementAnimations &anim,
   bool is_bone = false;
   const char *group_name = get_fbx_name(anim.fbx_elem->name);
   const ufbx_node *fnode = ufbx_as_node(anim.fbx_elem);
+  ufbx_matrix bone_xform = ufbx_identity_matrix;
   if (fnode != nullptr && fnode->bone != nullptr) {
     is_bone = true;
     group_name = get_fbx_name(fnode->name, "Bone");
     rna_prefix = std::string("pose.bones[\"") + group_name + "\"].";
+
+    /* Bone transform curves need to be transformed to the bind transform
+     * in joint-local space:
+     * - Calculate local space bind matrix: inv(parent_bind) * bind
+     * - Invert the result; this will be used to transform loc/rot/scale curves. */
+    const ufbx_matrix *bind_mtx = mapping.bone_to_bind_matrix.lookup_ptr(fnode);
+    BLI_assert_msg(bind_mtx != nullptr, "fbx: did not find bind matrix for bone");
+    if (bind_mtx) {
+      bone_xform = *bind_mtx;
+      if (fnode->parent != nullptr) {
+        const ufbx_matrix *parent_bind_mtx = mapping.bone_to_bind_matrix.lookup_ptr(fnode->parent);
+        if (parent_bind_mtx) {
+          ufbx_matrix parent_inv_bind_mtx = ufbx_matrix_invert(parent_bind_mtx);
+          bone_xform = ufbx_matrix_mul(&parent_inv_bind_mtx, bind_mtx);
+        }
+      }
+      bone_xform = ufbx_matrix_invert(&bone_xform);
+    }
   }
 
   std::string rna_position = rna_prefix + "location";
@@ -291,6 +311,15 @@ static void create_transform_curves(const ElementAnimations &anim,
     double t = sorted_key_times[i];
     float tf = float(t * fps + anim_offset);
     ufbx_transform xform = ufbx_evaluate_transform(anim.fbx_layer->anim, fnode, t);
+
+    if (is_bone) {
+      /* Bone transform curves need to be transformed to the bind transform
+       * in joint-local space. */
+      ufbx_matrix xform_mtx = ufbx_transform_to_matrix(&xform);
+      xform_mtx = ufbx_matrix_mul(&bone_xform, &xform_mtx);
+      xform = ufbx_matrix_to_transform(&xform_mtx);
+    }
+
     set_curve_sample(curves_pos[0], i, tf, float(xform.translation.x));
     set_curve_sample(curves_pos[1], i, tf, float(xform.translation.y));
     set_curve_sample(curves_pos[2], i, tf, float(xform.translation.z));
@@ -376,7 +405,7 @@ void import_animations(Main &bmain,
     animrig::Channelbag &channelbag = animrig::action_channelbag_ensure(*action, *anim.target_id);
 
     if (anim.prop_position || anim.prop_rotation || anim.prop_scale) {
-      create_transform_curves(anim, action, channelbag, fps, anim_offset);
+      create_transform_curves(mapping, anim, action, channelbag, fps, anim_offset);
     }
     if (anim.prop_blend_shape) {
       create_blend_shape_curves(anim, action, channelbag, fps, anim_offset);

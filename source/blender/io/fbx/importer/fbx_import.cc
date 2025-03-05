@@ -640,7 +640,9 @@ Object *FbxImportContext::create_armature_for_deformer(const ufbx_skin_deformer 
       });
   /* Figure out "most root" parent of all the bones. */
   const ufbx_node *armature_parent = nullptr;
+  const ufbx_node *armature_root = nullptr;
   if (!fbones.is_empty()) {
+    armature_root = fbones[0]->bone_node;
     armature_parent = fbones[0]->bone_node->parent;
   }
 
@@ -654,6 +656,26 @@ Object *FbxImportContext::create_armature_for_deformer(const ufbx_skin_deformer 
     read_custom_properties(fskin.props, arm->id);
   }
   obj->data = arm;
+
+  /* Set armature object transform. */
+  const ufbx_node *armature_xform_node = nullptr;
+  if (armature_parent != nullptr && armature_parent->attrib_type == UFBX_ELEMENT_EMPTY) {
+    /* If the root-most parent of the bones is an empty, use that as the armature object transform,
+     * and mark that empty as processed. */
+    armature_xform_node = armature_parent;
+    node_matrix_to_obj(armature_parent, obj);
+    this->mapping.el_to_object.add(&armature_parent->element, obj);
+  }
+  else if (armature_root != nullptr) {
+    /* Otherwise use root bone node transform as armature transform. */
+    armature_xform_node = armature_root;
+    node_matrix_to_obj(armature_root, obj);
+  }
+
+  ufbx_matrix world_to_arm = ufbx_identity_matrix;
+  if (armature_xform_node != nullptr) {
+    world_to_arm = ufbx_matrix_invert(&armature_xform_node->node_to_world);
+  }
 
   /* Create bones. */
   ED_armature_to_edit(arm);
@@ -694,8 +716,15 @@ Object *FbxImportContext::create_armature_for_deformer(const ufbx_skin_deformer 
 
     /* Set bind matrix. */
     float bind_matrix[4][4];
-    matrix_to_m44(fbone->bind_to_world, bind_matrix);
+    ufbx_matrix bone_to_arm = ufbx_matrix_mul(&world_to_arm, &fbone->bind_to_world);
+    matrix_to_m44(bone_to_arm, bind_matrix);
+    normalize_m4(bind_matrix);
     ED_armature_ebone_from_mat4(bone, bind_matrix);
+
+    bool added = this->mapping.bone_to_bind_matrix.add(fbone->bone_node,
+                                                       /*fbone->bind_to_world*/ bone_to_arm);
+    BLI_assert_msg(added, "fbx: same bone node used more than once?");
+    UNUSED_VARS(added);
 
     /* Set bone parent. */
     const ufbx_node *parent = fbone->bone_node->parent;
@@ -709,13 +738,6 @@ Object *FbxImportContext::create_armature_for_deformer(const ufbx_skin_deformer 
 
   ED_armature_from_edit(this->bmain, arm);
   ED_armature_edit_free(arm);
-
-  /* If the root-most parent of the bones is an empty, use that as the armature object transform,
-   * and mark that empty as processed. */
-  if (armature_parent != nullptr && armature_parent->attrib_type == UFBX_ELEMENT_EMPTY) {
-    node_matrix_to_obj(armature_parent, obj);
-    this->mapping.el_to_object.add(&armature_parent->element, obj);
-  }
 
   this->mapping.el_to_object.add(&fskin.element, obj);
   return obj;
@@ -782,6 +804,9 @@ void FbxImportContext::import_animation(double fps)
 void FbxImportContext::setup_hierarchy()
 {
   for (const auto &item : this->mapping.el_to_object.items()) {
+    if (item.value->parent != nullptr) {
+      continue; /* Parent is already set up (e.g. armature). */
+    }
     const ufbx_node *node = ufbx_as_node(item.key);
     if (node == nullptr) {
       continue;

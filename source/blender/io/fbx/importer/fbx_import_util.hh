@@ -24,6 +24,7 @@ struct FbxElementMapping {
   Map<const ufbx_element *, Object *> el_to_object;
   Map<const ufbx_element *, Key *> el_to_shape_key;
   Map<const ufbx_material *, Material *> mat_to_material;
+  Map<const ufbx_node *, ufbx_matrix> bone_to_bind_matrix;
 };
 
 }  // namespace blender::io::fbx
