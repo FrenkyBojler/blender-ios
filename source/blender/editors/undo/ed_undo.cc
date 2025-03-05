@@ -240,16 +240,6 @@ static int ed_undo_step_direction(bContext *C, enum eUndoStepDir step, ReportLis
 
   CLOG_INFO(&LOG, 1, "direction=%s", (step == STEP_UNDO) ? "STEP_UNDO" : "STEP_REDO");
 
-  /* TODO(@ideasman42): undo_system: use undo system */
-  /* grease pencil can be can be used in plenty of spaces, so check it first */
-  /* FIXME: This gpencil undo effectively only supports the one step undo/redo, undo based on name
-   * or index is fully not implemented.
-   * FIXME: However, it seems to never be used in current code (`ED_gpencil_session_active` seems
-   * to always return false). */
-  if (ED_gpencil_session_active()) {
-    return ED_undo_gpencil_step(C, step);
-  }
-
   wmWindowManager *wm = CTX_wm_manager(C);
 
   ed_undo_step_pre(C, wm, step, reports);
