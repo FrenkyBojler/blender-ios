@@ -233,19 +233,9 @@ class UnifiedPaintPanel:
         # 2D paint settings
         elif mode == 'PAINT_2D':
             return tool_settings.image_paint
-        # Grease Pencil settings
-        elif mode == 'PAINT_GPENCIL':
-            return tool_settings.gpencil_paint
-        elif mode == 'SCULPT_GPENCIL':
-            return tool_settings.gpencil_sculpt_paint
-        elif mode == 'WEIGHT_GPENCIL':
-            return tool_settings.gpencil_weight_paint
-        elif mode == 'VERTEX_GPENCIL':
-            return tool_settings.gpencil_vertex_paint
-        elif mode == 'PAINT_GREASE_PENCIL':
-            return tool_settings.gpencil_paint
         elif mode == 'SCULPT_CURVES':
             return tool_settings.curves_sculpt
+        # Grease Pencil settings
         elif mode == 'PAINT_GREASE_PENCIL':
             return tool_settings.gpencil_paint
         elif mode == 'SCULPT_GREASE_PENCIL':
@@ -1827,19 +1817,6 @@ def brush_basic_gpencil_sculpt_settings(layout, _context, brush, *, compact=Fals
         if tool in {'THICKNESS', 'STRENGTH', 'PINCH', 'TWIST'}:
             layout.row().prop(brush, "direction", expand=True)
         layout.use_property_split = use_property_split_prev
-
-
-def brush_basic_gpencil_weight_settings(layout, _context, brush, *, compact=False):
-    layout.prop(brush, "size", slider=True)
-
-    row = layout.row(align=True)
-    row.prop(brush, "strength", slider=True)
-    row.prop(brush, "use_pressure_strength", text="")
-
-    if brush.gpencil_weight_tool in {'WEIGHT'}:
-        layout.prop(brush, "weight", slider=True)
-
-        layout.prop(brush, "direction", expand=True, text="" if compact else "Direction")
 
 
 def brush_basic_gpencil_vertex_settings(layout, _context, brush, *, compact=False):
