@@ -468,7 +468,7 @@ static BMFace *pbvh_bmesh_face_create(BMesh &bm,
                                       const Span<BMEdge *> e_tri,
                                       const BMFace *f_example)
 {
-  BMeshNode node = nodes[node_index];
+  BMeshNode& node = nodes[node_index];
 
   /* Ensure we never add existing face. */
   BLI_assert(!BM_face_exists(v_tri.data(), 3));
