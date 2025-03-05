@@ -77,7 +77,7 @@ ccl_device_inline float bump_shadowing_term(const int shader_flag,
     return 0.0f;
   }
 
-  /* Get shading values for final smoothing. */
+  /* Get GGX shading values for final smoothing. */
   const float tan2_d = 1.0f / sqr(cos_d) - 1.0f;
   const float bump_alpha2 = saturatef(0.125f * tan2_d);
 
