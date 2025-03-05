@@ -2060,8 +2060,10 @@ static void pbvh_bmesh_node_limit_ensure_fast(const MutableSpan<BMFace *> nodein
   BLI_assert((num_child1 + num_child2) == node->totface);
 
   /* Initialize the children. */
-  FastNodeBuildInfo *child1 = static_cast<FastNodeBuildInfo *>(BLI_memarena_alloc(arena, sizeof(FastNodeBuildInfo)));
-  FastNodeBuildInfo *child2 = static_cast<FastNodeBuildInfo *>(BLI_memarena_alloc(arena, sizeof(FastNodeBuildInfo)));
+  FastNodeBuildInfo *child1 = static_cast<FastNodeBuildInfo *>(
+      BLI_memarena_alloc(arena, sizeof(FastNodeBuildInfo)));
+  FastNodeBuildInfo *child2 = static_cast<FastNodeBuildInfo *>(
+      BLI_memarena_alloc(arena, sizeof(FastNodeBuildInfo)));
 
   node->child1 = child1;
   node->child2 = child2;
@@ -2088,7 +2090,7 @@ static void pbvh_bmesh_create_nodes_fast_recursive(Vector<BMeshNode> &nodes,
                                                    const FastNodeBuildInfo *node,
                                                    const int node_index)
 {
-  BMeshNode& bvh_node = nodes[node_index];
+  BMeshNode &bvh_node = nodes[node_index];
   /* Two cases, node does not have children or does have children. */
   if (node->child1) {
     int children_offset_ = nodes.size();
@@ -2234,7 +2236,7 @@ bool bmesh_update_topology(BMesh &bm,
                            PBVHTopologyUpdateMode mode,
                            const float min_edge_len,
                            const float max_edge_len,
-                           const float3& center,
+                           const float3 &center,
                            const std::optional<float3> view_normal,
                            float radius,
                            const bool use_frontface,
