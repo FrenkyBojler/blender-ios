@@ -265,11 +265,6 @@ static int ed_undo_step_by_name(bContext *C, const char *undo_name, ReportList *
 {
   BLI_assert(undo_name != nullptr);
 
-  /* FIXME: See comments in `ed_undo_step_direction`. */
-  if (ED_gpencil_session_active()) {
-    BLI_assert_msg(0, "Not implemented currently.");
-  }
-
   wmWindowManager *wm = CTX_wm_manager(C);
   UndoStep *undo_step_from_name = BKE_undosys_step_find_by_name(wm->undo_stack, undo_name);
   if (undo_step_from_name == nullptr) {
@@ -313,11 +308,6 @@ static int ed_undo_step_by_name(bContext *C, const char *undo_name, ReportList *
 static int ed_undo_step_by_index(bContext *C, const int undo_index, ReportList *reports)
 {
   BLI_assert(undo_index >= 0);
-
-  /* FIXME: See comments in `ed_undo_step_direction`. */
-  if (ED_gpencil_session_active()) {
-    BLI_assert_msg(0, "Not implemented currently.");
-  }
 
   wmWindowManager *wm = CTX_wm_manager(C);
   const int active_step_index = BLI_findindex(&wm->undo_stack->steps, wm->undo_stack->step_active);

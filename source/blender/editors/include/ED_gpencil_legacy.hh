@@ -230,9 +230,6 @@ bool ED_gpencil_anim_copybuf_copy(bAnimContext *ac);
  */
 bool ED_gpencil_anim_copybuf_paste(bAnimContext *ac, short offset_mode);
 
-/* ------------ Grease-Pencil Undo System ------------------ */
-int ED_gpencil_session_active();
-
 /* ----------- Add Primitive Utilities -------------- */
 
 /* texture coordinate utilities */
