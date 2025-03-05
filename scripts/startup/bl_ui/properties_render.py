@@ -940,7 +940,6 @@ class RENDER_PT_opengl_options(RenderButtonsPanel, Panel):
         VIEW3D_PT_shading_options.draw(self, context)
 
         # Cavity properties.
-        layout.separator()
         VIEW3D_PT_shading_cavity.draw_header(self, context)
         VIEW3D_PT_shading_cavity.draw(self, context)
 
