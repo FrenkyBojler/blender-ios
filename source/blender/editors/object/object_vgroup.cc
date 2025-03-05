@@ -2299,10 +2299,8 @@ static void vgroup_delete_active(Object *ob)
 }
 
 /* only in editmode */
-static void vgroup_assign_verts(Object *ob, Scene &scene, const float weight)
+static void vgroup_assign_verts(Object *ob, Scene &scene, const float weight, const int def_nr)
 {
-  const int def_nr = BKE_object_defgroup_active_index_get(ob) - 1;
-
   const ListBase *defbase = BKE_object_defgroup_list(ob);
   if (!BLI_findlink(defbase, def_nr)) {
     return;
@@ -2720,9 +2718,24 @@ static wmOperatorStatus vertex_group_assign_exec(bContext *C, wmOperator * /*op*
   Object *ob = context_object(C);
   Scene &scene = *CTX_data_scene(C);
 
-  // TODO: Access the boolean from auto_normalize and either pass it into vgroup_assign_verts
-  // or conditionally run the normalization after
-  vgroup_assign_verts(ob, scene, ts->vgroup_weight);
+  const int def_nr = BKE_object_defgroup_active_index_get(ob) - 1;
+  vgroup_assign_verts(ob, scene, ts->vgroup_weight, def_nr);
+
+  if (ts->auto_normalize) {
+    BMVert *eve_act;
+    MDeformVert *dvert_act = ED_mesh_active_dvert_get_em(ob, &eve_act);
+
+    if (dvert_act == nullptr) {
+      return OPERATOR_FINISHED;
+    }
+
+    int subset_count, vgroup_tot;
+    const bool *vgroup_validmap = BKE_object_defgroup_subset_from_select_type(
+        ob, WT_VGROUP_ALL, &vgroup_tot, &subset_count);
+
+    BKE_defvert_normalize_lock_single(dvert_act, vgroup_validmap, vgroup_tot, def_nr);
+  }
+
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 

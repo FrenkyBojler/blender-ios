@@ -271,9 +271,9 @@ class DATA_PT_vertex_groups(MeshButtonsPanel, Panel):
             sub.operator("object.vertex_group_deselect", text="Deselect")
 
             layout.prop(context.tool_settings, "vertex_group_weight", text="Weight")
+            tool_settings = context.tool_settings
 
-            # TODO: this does not visually display, why?
-            layout.prop(ob, "auto_normalize_attribute")
+            layout.prop(tool_settings, "use_auto_normalize", text="Auto Normalize")
 
         draw_attribute_warnings(context, layout)
 
