@@ -2631,8 +2631,6 @@ static void rna_def_object_vertex_groups(BlenderRNA *brna, PropertyRNA *cprop)
   func = RNA_def_function(srna, "clear", "rna_Object_vgroup_clear");
   RNA_def_function_flag(func, FUNC_USE_MAIN | FUNC_USE_REPORTS);
   RNA_def_function_ui_description(func, "Delete all vertex groups from object");
-
-
 }
 
 static void rna_def_object_display(BlenderRNA *brna)

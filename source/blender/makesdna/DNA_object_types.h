@@ -766,5 +766,5 @@ enum {
 };
 
 typedef enum ObjectModifierFlag {
-  OB_MODIFIER_FLAG_ADD_REST_POSITION = 1 << 0
+  OB_MODIFIER_FLAG_ADD_REST_POSITION = 1 << 0,
 } ObjectModifierFlag;
