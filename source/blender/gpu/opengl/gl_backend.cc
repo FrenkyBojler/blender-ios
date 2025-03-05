@@ -497,7 +497,7 @@ static void detect_workarounds()
   /* #134509 Intel ARC GPU have a driver bug that break the display of batched nodelinks.
    * Disabling batching fixes the issue. */
   if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
-    if (strstr(renderer, "ARC")) {
+    if (strstr(renderer, "Arc")) {
       GCaps.node_link_instancing_workaround = true;
     }
   }
