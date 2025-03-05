@@ -272,7 +272,7 @@ class DATA_PT_vertex_groups(MeshButtonsPanel, Panel):
 
             layout.prop(context.tool_settings, "vertex_group_weight", text="Weight")
 
-        draw_attribute_warnings(context, layout)
+        draw_attribute_warnings(context, layout, context.mesh.attributes)
 
 
 class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
@@ -399,7 +399,7 @@ class DATA_PT_uv_texture(MeshButtonsPanel, Panel):
         col.operator("mesh.uv_texture_add", icon='ADD', text="")
         col.operator("mesh.uv_texture_remove", icon='REMOVE', text="")
 
-        draw_attribute_warnings(context, layout)
+        draw_attribute_warnings(context, layout, me.uv_layers)
 
 
 class DATA_PT_remesh(MeshButtonsPanel, Panel):
@@ -577,14 +577,13 @@ class DATA_PT_mesh_attributes(MeshButtonsPanel, Panel):
 
         col.menu("MESH_MT_attribute_context_menu", icon='DOWNARROW_HLT', text="")
 
-        draw_attribute_warnings(context, layout)
+        draw_attribute_warnings(context, layout, mesh.attributes)
 
 
-def draw_attribute_warnings(context, layout):
+def draw_attribute_warnings(context, layout, attributes):
     ob = context.object
-    mesh = context.mesh
 
-    if not mesh:
+    if not context.mesh:
         return
 
     unique_names = set()
@@ -592,7 +591,7 @@ def draw_attribute_warnings(context, layout):
     for collection in (
             # Built-in names.
             {"crease": None},
-            mesh.attributes,
+            attributes,
             None if ob is None else ob.vertex_groups,
     ):
         if collection is None:
@@ -713,7 +712,7 @@ class DATA_PT_vertex_colors(MeshButtonsPanel, Panel):
 
         col.menu("MESH_MT_color_attribute_context_menu", icon='DOWNARROW_HLT', text="")
 
-        draw_attribute_warnings(context, layout)
+        draw_attribute_warnings(context, layout, mesh.color_attributes)
 
 
 classes = (
