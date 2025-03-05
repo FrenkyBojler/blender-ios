@@ -1094,10 +1094,10 @@ const std::optional<BrushColorJitterSettings> BKE_brush_color_jitter_get_setting
 
     const UnifiedPaintSettings settings = scene->toolsettings->unified_paint_settings;
     return BrushColorJitterSettings{
-        .flag = settings.color_jitter_flag,
-        .hue = settings.hsv_jitter[0],
-        .saturation = settings.hsv_jitter[1],
-        .value = settings.hsv_jitter[2],
+        settings.color_jitter_flag,
+        settings.hsv_jitter[0],
+        settings.hsv_jitter[1],
+        settings.hsv_jitter[2],
     };
   }
 
@@ -1106,10 +1106,10 @@ const std::optional<BrushColorJitterSettings> BKE_brush_color_jitter_get_setting
   }
 
   return BrushColorJitterSettings{
-      .flag = brush->color_jitter_flag,
-      .hue = brush->hsv_jitter[0],
-      .saturation = brush->hsv_jitter[1],
-      .value = brush->hsv_jitter[2],
+      brush->color_jitter_flag,
+      brush->hsv_jitter[0],
+      brush->hsv_jitter[1],
+      brush->hsv_jitter[2],
   };
 }
 
