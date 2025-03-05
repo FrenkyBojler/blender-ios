@@ -231,16 +231,16 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(tui.wcol_state.success);
   }
 
+  if (!USER_VERSION_ATLEAST(405, 4)) {
+    FROM_DEFAULT_V4_UCHAR(space_node.node_zone_closure);
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.
    *
    * \note Keep this message at the bottom of the function.
    */
-
-  if (!USER_VERSION_ATLEAST(405, 3)) {
-    FROM_DEFAULT_V4_UCHAR(space_node.node_zone_closure);
-  }
 
 #undef FROM_DEFAULT_V4_UCHAR
 
