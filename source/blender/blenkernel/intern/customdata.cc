@@ -2311,6 +2311,8 @@ void customData_mask_layers__print(const CustomData_MeshMasks *mask)
 /** \name CustomData Functions
  * \{ */
 
+static void customData_update_offsets(CustomData *data);
+
 static CustomDataLayer *customData_add_layer__internal(
     CustomData *data,
     eCustomDataType type,
@@ -2713,7 +2715,7 @@ void CustomData_free(CustomData *data)
   CustomData_reset(data);
 }
 
-void CustomData_update_offsets(CustomData *data)
+static void customData_update_offsets(CustomData *data)
 {
   const LayerTypeInfo *typeInfo;
   int offset = 0;
@@ -3114,7 +3116,7 @@ static CustomDataLayer *customData_add_layer__internal(
     new_layer.active_mask = 0;
   }
 
-  CustomData_update_offsets(data);
+  customData_update_offsets(data);
 
   return &data->layers[index];
 }
@@ -3236,7 +3238,7 @@ bool CustomData_free_layer(CustomData *data, const eCustomDataType type, const i
     customData_resize(data, -CUSTOMDATA_GROW);
   }
 
-  CustomData_update_offsets(data);
+  customData_update_offsets(data);
 
   return true;
 }
