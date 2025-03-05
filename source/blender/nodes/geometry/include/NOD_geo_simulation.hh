@@ -77,7 +77,8 @@ struct SimulationItemsAccessor {
                 SOCK_MATRIX,
                 SOCK_INT,
                 SOCK_STRING,
-                SOCK_GEOMETRY);
+                SOCK_GEOMETRY,
+                SOCK_BUNDLE);
   }
 
   static void init_with_socket_type_and_name(bNode &node,

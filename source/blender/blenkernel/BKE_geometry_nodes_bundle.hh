@@ -29,12 +29,14 @@ class SocketInterfaceKey {
 };
 
 class Bundle : public ImplicitSharingMixin {
- private:
+ public:
   struct StoredItem {
     SocketInterfaceKey key;
     const bNodeSocketType *type;
     void *value;
   };
+
+ private:
   Vector<StoredItem> items_;
   Vector<void *> buffers_;
 
@@ -63,6 +65,8 @@ class Bundle : public ImplicitSharingMixin {
   bool contains(const SocketInterfaceKey &key) const;
 
   std::optional<Item> lookup(const SocketInterfaceKey &key) const;
+
+  Span<StoredItem> items() const;
 
   void delete_self() override;
 };

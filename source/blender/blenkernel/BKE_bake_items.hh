@@ -7,6 +7,7 @@
 #include "BLI_memory_counter_fwd.hh"
 
 #include "BKE_bake_data_block_map.hh"
+#include "BKE_geometry_nodes_bundle.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_volume_grid_fwd.hh"
 
@@ -137,6 +138,17 @@ class StringBakeItem : public BakeItem {
   }
 
   void count_memory(MemoryCounter &memory) const override;
+};
+
+class BundleBakeItem : public BakeItem {
+ public:
+  struct Item {
+    SocketInterfaceKey key;
+    std::string socket_idname;
+    std::unique_ptr<BakeItem> value;
+  };
+
+  Vector<Item> items;
 };
 
 }  // namespace blender::bke::bake

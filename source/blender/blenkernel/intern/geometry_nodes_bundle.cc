@@ -137,4 +137,9 @@ void Bundle::delete_self()
   MEM_delete(this);
 }
 
+Span<Bundle::StoredItem> Bundle::items() const
+{
+  return items_;
+}
+
 }  // namespace blender::bke
