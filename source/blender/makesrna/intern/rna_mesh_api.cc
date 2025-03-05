@@ -86,7 +86,7 @@ static void rna_Mesh_calc_corner_tri(Mesh *mesh)
 
 static void rna_Mesh_calc_smooth_groups(Mesh *mesh,
                                         bool use_bitflags,
-                                        bool use_border_vertices_for_bitflags,
+                                        bool use_boundary_vertices_for_bitflags,
                                         int **r_poly_group,
                                         int *r_poly_group_num,
                                         int *r_group_total)
@@ -104,7 +104,7 @@ static void rna_Mesh_calc_smooth_groups(Mesh *mesh,
                                                         mesh->corner_verts(),
                                                         sharp_edges,
                                                         sharp_faces,
-                                                        use_border_vertices_for_bitflags,
+                                                        use_boundary_vertices_for_bitflags,
                                                         r_group_total);
   }
   else {
@@ -287,12 +287,12 @@ void RNA_api_mesh(StructRNA *srna)
       func, "use_bitflags", false, "", "Produce bitflags groups instead of simple numeric values");
   RNA_def_boolean(
       func,
-      "use_border_vertices_for_bitflags",
+      "use_boundary_vertices_for_bitflags",
       false,
       "",
       "Also consider different smoothgroups sharing only vertices (but without any common edge) "
-      "as neighbors, preventing them from getting the same bitflag value. Only effective when "
-      "`use_bitflags` is set. WARNING: Will overflow (get out of available bits) easily with some "
+      "as neighbors, preventing them from sharing the same bitflag value. Only effective when "
+      "`use_bitflags` is set. WARNING: Will overflow (run out of available bits) easily with some "
       "types of topology, e.g. large fans of sharp edges");
   /* return values */
   parm = RNA_def_int_array(func, "poly_groups", 1, nullptr, 0, 0, "", "Smooth Groups", 0, 0);

@@ -479,14 +479,14 @@ using MeshRemap_CheckIslandBoundary =
                               int edge_user_count,
                               const blender::Span<int> edge_face_map_elem)>;
 
-static void face_edge_loop_islands_calc_bitflags_exclude_at_border(
+static void face_edge_loop_islands_calc_bitflags_exclude_at_boundary(
     const int *face_groups,
     const blender::Span<int> faces_from_item,
     const int face_group_id,
     const int face_group_id_overflowed,
     int &r_bit_face_group_mask)
 {
-  /* Find neighbour faces (either from a border edge, or a border vertex) that already have a
+  /* Find neighbour faces (either from a boundary edge, or a boundary vertex) that already have a
    * group assigned, and exclude these groups' bits from the available set of groups bits that can
    * be assigned to the currently processed group. */
   for (const int face_idx : faces_from_item) {
@@ -497,10 +497,10 @@ static void face_edge_loop_islands_calc_bitflags_exclude_at_border(
   }
 }
 
-/* ABOUT #use_border_vertices_for_bitflags:
+/* ABOUT #use_boundary_vertices_for_bitflags:
  *
- * Also exclude bits used in other groups sharing the same border vertex, i.e. if one edge
- * around the vertex of the current corner is a border edge.
+ * Also exclude bits used in other groups sharing the same boundary vertex, i.e. if one edge
+ * around the vertex of the current corner is a boundary edge.
  *
  * NOTE: The reason for this requirement is not very clear. Bitflags groups are only handled here
  * for I/O purposes, Blender itself does not have this feature. Main external apps heavily
@@ -508,7 +508,7 @@ static void face_edge_loop_islands_calc_bitflags_exclude_at_border(
  * results when two different groups share the same bits, and are connected by a vertex only
  * (i.e. have no edge in common). See #104434.
  *
- * The downside of also considering border vertex-only neighbor faces is that it becomes much
+ * The downside of also considering boundary vertex-only neighbor faces is that it becomes much
  * more likely to run out of bits, e.g. in a case of a fan with many faces/edges around a same
  * vertex, each in their own face group...
  */
@@ -520,18 +520,18 @@ static void face_edge_loop_islands_calc(const int totedge,
                                         blender::GroupedSpan<int> edge_face_map,
                                         blender::GroupedSpan<int> vert_face_map,
                                         const bool use_bitflags,
-                                        const bool use_border_vertices_for_bitflags,
+                                        const bool use_boundary_vertices_for_bitflags,
                                         MeshRemap_CheckIslandBoundary edge_boundary_check,
                                         int **r_face_groups,
                                         int *r_totgroup,
-                                        BLI_bitmap **r_edge_borders,
-                                        int *r_totedgeborder)
+                                        BLI_bitmap **r_edge_boundaries,
+                                        int *r_totedgeboundaries)
 {
   int *face_groups;
   int *face_stack;
 
-  BLI_bitmap *edge_borders = nullptr;
-  int num_edgeborders = 0;
+  BLI_bitmap *edge_boundaries = nullptr;
+  int num_edgeboundaries = 0;
 
   int face_prev = 0;
   constexpr int temp_face_group_id = 3; /* Placeholder value. */
@@ -546,16 +546,16 @@ static void face_edge_loop_islands_calc(const int totedge,
   if (faces.is_empty()) {
     *r_totgroup = 0;
     *r_face_groups = nullptr;
-    if (r_edge_borders) {
-      *r_edge_borders = nullptr;
-      *r_totedgeborder = 0;
+    if (r_edge_boundaries) {
+      *r_edge_boundaries = nullptr;
+      *r_totedgeboundaries = 0;
     }
     return;
   }
 
-  if (r_edge_borders) {
-    edge_borders = BLI_BITMAP_NEW(totedge, __func__);
-    *r_totedgeborder = 0;
+  if (r_edge_boundaries) {
+    edge_boundaries = BLI_BITMAP_NEW(totedge, __func__);
+    *r_totedgeboundaries = 0;
   }
 
   blender::Array<int> edge_to_face_src_offsets;
@@ -621,36 +621,37 @@ static void face_edge_loop_islands_calc(const int totedge,
           }
         }
         else {
-          if (edge_borders && !BLI_BITMAP_TEST(edge_borders, edge)) {
-            BLI_BITMAP_ENABLE(edge_borders, edge);
-            num_edgeborders++;
+          if (edge_boundaries && !BLI_BITMAP_TEST(edge_boundaries, edge)) {
+            BLI_BITMAP_ENABLE(edge_boundaries, edge);
+            num_edgeboundaries++;
           }
           if (use_bitflags) {
-            /* Exclude bits used in other groups sharing the same border edge. */
-            face_edge_loop_islands_calc_bitflags_exclude_at_border(face_groups,
-                                                                   map_ele,
-                                                                   face_group_id,
-                                                                   face_group_id_overflowed,
-                                                                   bit_face_group_mask);
-            if (use_border_vertices_for_bitflags) {
-              /* Exclude bits used in other groups sharing the same border vertex. */
-              /* NOTE: Checking one vertex for each edge (the corner vertex) should be enough:
-               *   - Thanks to winding, a fully border vertex (i.e. a vertex for which at least two
-               *     of the adjacent edges in the same group are border ones) will be processed by
-               *     at least one of the edges/corners. If not when processing the first face's
-               *     corner, then when processing the other face's corner in the same group.
-               *   - Isolated border edges (i.e. border edges only connected to faces of the same
-               *     group) cannot be represented by bitflags groups, at least not with current
-               *     algorithm (they cannot define more than one group).
-               *   - Inverions of winding (aka flipped faces) always generate border edges in
-               *     current use-case (smooth groups), i.e. two faces with opposed winding cannot
-               *     belong to the same group. */
-              const int vert = corner_verts[loop];
-              face_edge_loop_islands_calc_bitflags_exclude_at_border(face_groups,
-                                                                     vert_face_map[vert],
+            /* Exclude bits used in other groups sharing the same boundary edge. */
+            face_edge_loop_islands_calc_bitflags_exclude_at_boundary(face_groups,
+                                                                     map_ele,
                                                                      face_group_id,
                                                                      face_group_id_overflowed,
                                                                      bit_face_group_mask);
+            if (use_boundary_vertices_for_bitflags) {
+              /* Exclude bits used in other groups sharing the same boundary vertex. */
+              /* NOTE: Checking one vertex for each edge (the corner vertex) should be enough:
+               *   - Thanks to winding, a fully boundary vertex (i.e. a vertex for which at least
+               *     two of the adjacent edges in the same group are boundary ones) will be
+               *     processed by at least one of the edges/corners. If not when processing the
+               *     first face's corner, then when processing the other face's corner in the same
+               *     group.
+               *   - Isolated boundary edges (i.e. boundary edges only connected to faces of the
+               *     same group) cannot be represented by bitflags groups, at least not with
+               *     current algorithm (they cannot define more than one group).
+               *   - Inverions of winding (aka flipped faces) always generate boundary edges in
+               *     current use-case (smooth groups), i.e. two faces with opposed winding cannot
+               *     belong to the same group. */
+              const int vert = corner_verts[loop];
+              face_edge_loop_islands_calc_bitflags_exclude_at_boundary(face_groups,
+                                                                       vert_face_map[vert],
+                                                                       face_group_id,
+                                                                       face_group_id_overflowed,
+                                                                       bit_face_group_mask);
             }
           }
         }
@@ -671,13 +672,13 @@ static void face_edge_loop_islands_calc(const int totedge,
       if (UNLIKELY(gid_bit > 31)) {
         /* All bits used in contiguous smooth groups, not much to do.
          *
-         * NOTE: If only considering border edges, this is *very* unlikely to happen.
+         * NOTE: If only considering boundary edges, this is *very* unlikely to happen.
          * Theoretically, four groups are enough, this is probably not achievable with such a
          * simple algorithm, but 32 groups should always be more than enough.
          *
-         * When also considering border vertices (which is the case currently, see comment above),
-         * a fairly simple fan case with over 30 faces all belonging to different groups will be
-         * enough to cause an overflow.
+         * When also considering boundary vertices (which is the case currently, see comment
+         * above), a fairly simple fan case with over 30 faces all belonging to different groups
+         * will be enough to cause an overflow.
          */
         printf(
             "Warning, could not find an available id for current smooth group, faces will me "
@@ -717,9 +718,9 @@ static void face_edge_loop_islands_calc(const int totedge,
 
   *r_totgroup = tot_group;
   *r_face_groups = face_groups;
-  if (r_edge_borders) {
-    *r_edge_borders = edge_borders;
-    *r_totedgeborder = num_edgeborders;
+  if (r_edge_boundaries) {
+    *r_edge_boundaries = edge_boundaries;
+    *r_totedgeboundaries = num_edgeboundaries;
   }
 }
 
@@ -732,7 +733,7 @@ static int *mesh_calc_smoothgroups(const int edges_num,
                                    const blender::Span<bool> sharp_faces,
                                    int *r_totgroup,
                                    const bool use_bitflags,
-                                   const bool use_border_vertices_for_bitflags)
+                                   const bool use_boundary_vertices_for_bitflags)
 {
   int *face_groups = nullptr;
 
@@ -764,7 +765,7 @@ static int *mesh_calc_smoothgroups(const int edges_num,
                               {},
                               {},
                               use_bitflags,
-                              use_border_vertices_for_bitflags,
+                              use_boundary_vertices_for_bitflags,
                               face_is_island_boundary_smooth,
                               &face_groups,
                               r_totgroup,
@@ -792,7 +793,7 @@ int *BKE_mesh_calc_smoothgroups_bitflags(int edges_num,
                                          const blender::Span<int> corner_verts,
                                          const blender::Span<bool> sharp_edges,
                                          const blender::Span<bool> sharp_faces,
-                                         const bool use_border_vertices_for_bitflags,
+                                         const bool use_boundary_vertices_for_bitflags,
                                          int *r_totgroup)
 {
   return mesh_calc_smoothgroups(edges_num,
@@ -804,7 +805,7 @@ int *BKE_mesh_calc_smoothgroups_bitflags(int edges_num,
                                 sharp_faces,
                                 r_totgroup,
                                 true,
-                                use_border_vertices_for_bitflags);
+                                use_boundary_vertices_for_bitflags);
 }
 
 #define MISLAND_DEFAULT_BUFSIZE 64
@@ -939,12 +940,12 @@ static bool mesh_calc_islands_loop_face_uv(const int totedge,
   int *loop_indices;
   int num_pidx, num_lidx;
 
-  /* Those are used to detect 'inner cuts', i.e. edges that are borders,
+  /* Those are used to detect 'inner cuts', i.e. edges that are boundaries,
    * and yet have two or more faces of a same group using them
    * (typical case: seam used to unwrap properly a cylinder). */
-  BLI_bitmap *edge_borders = nullptr;
-  int num_edge_borders = 0;
-  char *edge_border_count = nullptr;
+  BLI_bitmap *edge_boundaries = nullptr;
+  int num_edge_boundaries = 0;
+  char *edge_boundary_count = nullptr;
   int *edge_innercut_indices = nullptr;
   int num_einnercuts = 0;
 
@@ -1024,21 +1025,21 @@ static bool mesh_calc_islands_loop_face_uv(const int totedge,
                               mesh_check_island_boundary_uv,
                               &face_groups,
                               &num_face_groups,
-                              &edge_borders,
-                              &num_edge_borders);
+                              &edge_boundaries,
+                              &num_edge_boundaries);
 
   if (!num_face_groups) {
-    if (edge_borders) {
-      MEM_freeN(edge_borders);
+    if (num_edge_boundaries) {
+      MEM_freeN(edge_boundaries);
     }
     return false;
   }
 
-  if (num_edge_borders) {
-    edge_border_count = static_cast<char *>(
-        MEM_mallocN(sizeof(*edge_border_count) * size_t(totedge), __func__));
+  if (num_edge_boundaries) {
+    edge_boundary_count = static_cast<char *>(
+        MEM_mallocN(sizeof(*edge_boundary_count) * size_t(totedge), __func__));
     edge_innercut_indices = static_cast<int *>(
-        MEM_mallocN(sizeof(*edge_innercut_indices) * size_t(num_edge_borders), __func__));
+        MEM_mallocN(sizeof(*edge_innercut_indices) * size_t(num_edge_boundaries), __func__));
   }
 
   face_indices = static_cast<int *>(
@@ -1046,13 +1047,12 @@ static bool mesh_calc_islands_loop_face_uv(const int totedge,
   loop_indices = static_cast<int *>(
       MEM_mallocN(sizeof(*loop_indices) * size_t(corners_num), __func__));
 
-  /* NOTE: here we ignore '0' invalid group - this should *never* happen in this case anyway?
-   */
+  /* NOTE: here we ignore '0' invalid group - this should *never* happen in this case anyway? */
   for (grp_idx = 1; grp_idx <= num_face_groups; grp_idx++) {
     num_pidx = num_lidx = 0;
-    if (num_edge_borders) {
+    if (num_edge_boundaries) {
       num_einnercuts = 0;
-      memset(edge_border_count, 0, sizeof(*edge_border_count) * size_t(totedge));
+      memset(edge_boundary_count, 0, sizeof(*edge_boundary_count) * size_t(totedge));
     }
 
     for (const int64_t p_idx : faces.index_range()) {
@@ -1063,11 +1063,11 @@ static bool mesh_calc_islands_loop_face_uv(const int totedge,
       for (const int64_t corner : faces[p_idx]) {
         const int edge_i = corner_edges[corner];
         loop_indices[num_lidx++] = int(corner);
-        if (num_edge_borders && BLI_BITMAP_TEST(edge_borders, edge_i) &&
-            (edge_border_count[edge_i] < 2))
+        if (num_edge_boundaries && BLI_BITMAP_TEST(edge_boundaries, edge_i) &&
+            (edge_boundary_count[edge_i] < 2))
         {
-          edge_border_count[edge_i]++;
-          if (edge_border_count[edge_i] == 2) {
+          edge_boundary_count[edge_i]++;
+          if (edge_boundary_count[edge_i] == 2) {
             edge_innercut_indices[num_einnercuts++] = edge_i;
           }
         }
@@ -1087,12 +1087,12 @@ static bool mesh_calc_islands_loop_face_uv(const int totedge,
   MEM_freeN(loop_indices);
   MEM_freeN(face_groups);
 
-  if (edge_borders) {
-    MEM_freeN(edge_borders);
+  if (num_edge_boundaries) {
+    MEM_freeN(edge_boundaries);
   }
 
-  if (num_edge_borders) {
-    MEM_freeN(edge_border_count);
+  if (num_edge_boundaries) {
+    MEM_freeN(edge_boundary_count);
     MEM_freeN(edge_innercut_indices);
   }
   return true;
