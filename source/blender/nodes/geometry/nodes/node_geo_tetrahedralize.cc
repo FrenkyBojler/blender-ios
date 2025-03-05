@@ -104,8 +104,11 @@ static const EnumPropertyItem scaling_mode_items[] = {
 // Structure pour stocker les données du nœud
 struct NodeGeoTetrahedralize {
   float base_size;
-  int tetrahedra_count;
-  bool use_attribute;
+  float max_tet_scale;
+  float min_triangle_scale;
+  float local_feature_scale;
+  bool use_manual_base_size;
+  char scale_attribute_name[64];
 };
 
 /* Structure d'un tétraèdre, contient les indices des 4 sommets. */
@@ -888,24 +891,22 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
+  // Afficher uniquement les propriétés qui ne sont pas déjà exposées comme sockets
   uiItemR(layout, ptr, "local_scaling", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  
   // Get the current scaling mode from the property
   const int scaling_mode = RNA_enum_get(ptr, "local_scaling");
 
   if (scaling_mode == SCALING_POINT_ATTRIBUTE) {
-    uiItemR(layout, ptr, "scale_attribute_name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    // Cette propriété est déjà disponible comme socket, ne pas l'afficher ici
+    // uiItemR(layout, ptr, "scale_attribute_name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  uiItemR(layout, ptr, "use_manual_base_size", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  // Get the current use_manual value from the property
-  const bool use_manual = RNA_boolean_get(ptr, "use_manual_base_size");
-
-  if (use_manual) {
-    uiItemR(layout, ptr, "base_size", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  }
-  
-  uiItemR(layout, ptr, "max_tet_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "min_triangle_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  // Ces propriétés sont déjà disponibles comme sockets, ne pas les afficher ici
+  // uiItemR(layout, ptr, "use_manual_base_size", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  // uiItemR(layout, ptr, "base_size", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  // uiItemR(layout, ptr, "max_tet_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  // uiItemR(layout, ptr, "min_triangle_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -917,13 +918,13 @@ static void node_geo_exec(GeoNodeExecParams params)
       try {
         const Mesh *mesh_in = geometry_set.get_mesh();
 
-        // Extract input parameters
+        // Extraire les valeurs directement à partir des entrées du nœud
         const bool use_manual_base_size = params.extract_input<bool>("Manual Base Size");
         const float base_size = params.extract_input<float>("Base Size");
         const float max_tet_scale = params.extract_input<float>("Max Tet Scale");
         const float min_triangle_scale = params.extract_input<float>("Min Triangle Scale");
         
-        // Get local scaling method from node's custom1 field where it is stored
+        // Pour le scaling_method, on doit toujours utiliser custom1 car il n'y a pas d'entrée socket
         const LocalScalingMethod local_scaling_method = static_cast<LocalScalingMethod>(
             params.node().custom1);
             
@@ -950,8 +951,9 @@ static void node_geo_exec(GeoNodeExecParams params)
           geometry_set.replace_mesh(result);
         }
       }
-      catch (const std::exception &ex) {
-        params.error_message_add(NodeWarningType::Error, ex.what());
+      catch (const std::exception &) {
+        DEBUG_PRINT("Exception lors de la tétraédrisation");
+        params.error_message_add(NodeWarningType::Error, "Exception in tetrahedralization");
       }
     }
   });
@@ -967,8 +969,11 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
       sizeof(NodeGeoTetrahedralize), "NodeGeoTetrahedralize");
       
   storage->base_size = 1.0f;
-  storage->tetrahedra_count = 0;
-  storage->use_attribute = false;
+  storage->max_tet_scale = 1.0f;
+  storage->min_triangle_scale = 0.1f;
+  storage->local_feature_scale = 1.0f;
+  storage->use_manual_base_size = false;
+  strcpy(storage->scale_attribute_name, "scale");
   
   node->storage = storage;
 }
