@@ -1860,6 +1860,8 @@ blender::bke::Instances object_duplistlist_legacy_instances(Depsgraph &depsgraph
     ctx.duplilist = duplilist;
     ctx.gen->make_duplis(&ctx);
   }
+  /* Particle instances are on the second level, because the first level is the particle system
+   * itself. */
   const int level_to_use = ctx.gen == &gen_dupli_particles ? 1 : 0;
 
   Vector<DupliObject *> top_level_duplis;
