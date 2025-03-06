@@ -78,10 +78,17 @@ struct FbxImportContext {
   void import_cameras();
   void import_lights();
   void import_empties();
+  void import_armatures();
   void import_animation(double fps);
 
   void setup_hierarchy();
-  Object *create_armature_for_deformer(const ufbx_skin_deformer &fskin);
+  Object *create_armature_for_node(const ufbx_node *node);
+  void find_armatures(const ufbx_node *node);
+  void create_armature_bones(const ufbx_node *node,
+                             Object *arm_obj,
+                             EditBone *parent_bone,
+                             const ufbx_matrix &parent_bind_mtx,
+                             const ufbx_matrix &world_to_arm);
 };
 
 static void matrix_to_m44(const ufbx_matrix &src, float dst[4][4])
@@ -490,28 +497,32 @@ void FbxImportContext::import_meshes()
         obj->shapenr = 1;
       }
 
-      /* Add vertex groups to object. */
+      /* Skinned mesh. */
       if (fmesh->skin_deformers.count > 0) {
         const ufbx_skin_deformer *skin = fmesh->skin_deformers[0];
-        if (skin != nullptr) {
+        if (skin != nullptr && skin->clusters.count > 0) {
+          /* Add vertex groups to the object. */
+          Object *arm_obj = nullptr;
           for (const ufbx_skin_cluster *fcluster : skin->clusters) {
+            if (arm_obj == nullptr) {
+              arm_obj = this->mapping.bone_to_armature.lookup_default(fcluster->bone_node,
+                                                                      nullptr);
+            }
             const char *bone_name = get_fbx_name(fcluster->bone_node->name, "Bone");
             BKE_object_defgroup_add_name(obj, bone_name);
           }
+
+          /* Add armature modifier. */
+          if (arm_obj) {
+            ModifierData *md = BKE_modifier_new(eModifierType_Armature);
+            STRNCPY(md->name, get_fbx_name(skin->name, "Armature"));
+            BLI_addtail(&obj->modifiers, md);
+            BKE_modifiers_persistent_uid_init(*obj, *md);
+            ArmatureModifierData *ad = reinterpret_cast<ArmatureModifierData *>(md);
+            ad->object = arm_obj;
+            obj->parent = arm_obj;
+          }
         }
-
-        /* Add armature modifier, and create the armature object. */
-        Object *arm_obj = this->create_armature_for_deformer(*skin);
-        BLI_assert(arm_obj == this->mapping.el_to_object.lookup_default(&skin->element, nullptr));
-        ModifierData *md = BKE_modifier_new(eModifierType_Armature);
-        STRNCPY(md->name, get_fbx_name(skin->name, "Armature"));
-        BLI_addtail(&obj->modifiers, md);
-        BKE_modifiers_persistent_uid_init(*obj, *md);
-
-        ArmatureModifierData *ad = reinterpret_cast<ArmatureModifierData *>(md);
-        ad->object = arm_obj;
-
-        obj->parent = arm_obj;
       }
 
       /* Assign materials. */
@@ -661,156 +672,186 @@ void FbxImportContext::import_lights()
   }
 }
 
-Object *FbxImportContext::create_armature_for_deformer(const ufbx_skin_deformer &fskin)
+Object *FbxImportContext::create_armature_for_node(const ufbx_node *node)
 {
-  Object *obj = this->mapping.el_to_object.lookup_default(&fskin.element, nullptr);
-  if (obj != nullptr && obj->type == OB_ARMATURE) {
-    return obj;
+  Object *obj = nullptr;
+  if (node != nullptr) {
+    obj = this->mapping.el_to_object.lookup_default(&node->element, nullptr);
+    if (obj != nullptr && obj->type == OB_ARMATURE) {
+      return obj;
+    }
   }
 
-  /* Get list of bones sorted in a way so that parents are before children. */
-  Vector<const ufbx_skin_cluster *> fbones(fskin.clusters.begin(), fskin.clusters.end());
-  std::sort(
-      fbones.begin(), fbones.end(), [](const ufbx_skin_cluster *a, const ufbx_skin_cluster *b) {
-        return a->bone_node->node_depth < b->bone_node->node_depth;
-      });
-  /* Figure out "most root" parent of all the bones. */
-  const ufbx_node *armature_parent = nullptr;
-  const ufbx_node *armature_root = nullptr;
-  if (!fbones.is_empty()) {
-    armature_root = fbones[0]->bone_node;
-    armature_parent = fbones[0]->bone_node->parent;
-  }
+  const char *arm_name = node ? get_fbx_name(node->name, "Armature") : "Armature";
+  const char *obj_name = node ? get_fbx_name(node->name, "Armature") : "Armature";
 
-  /* Create armature. */
-  bArmature *arm = BKE_armature_add(bmain, get_fbx_name(fskin.name, "Armature"));
-  obj = BKE_object_add_only_object(
-      this->bmain,
-      OB_ARMATURE,
-      get_fbx_name(armature_parent ? armature_parent->name : fskin.name, "Armature"));
-  if (this->params.use_custom_props) {
-    read_custom_properties(fskin.props, arm->id);
-  }
+  bArmature *arm = BKE_armature_add(this->bmain, arm_name);
+  obj = BKE_object_add_only_object(this->bmain, OB_ARMATURE, obj_name);
   obj->data = arm;
-
-  /* Set armature object transform. */
-  const ufbx_node *armature_xform_node = nullptr;
-  if (armature_parent != nullptr && armature_parent->attrib_type == UFBX_ELEMENT_EMPTY) {
-    /* If the root-most parent of the bones is an empty, use that as the armature object transform,
-     * and mark that empty as processed. */
-    armature_xform_node = armature_parent;
-    node_matrix_to_obj(armature_parent, obj);
-    this->mapping.el_to_object.add(&armature_parent->element, obj);
-  }
-  else if (armature_root != nullptr) {
-    /* Otherwise use root bone node transform as armature transform. */
-    armature_xform_node = armature_root;
-    node_matrix_to_obj(armature_root, obj);
-  }
-
-  ufbx_matrix world_to_arm = ufbx_identity_matrix;
-  if (armature_xform_node != nullptr) {
-    world_to_arm = ufbx_matrix_invert(&armature_xform_node->node_to_world);
-  }
-
-  /* Create bones. */
-  ED_armature_to_edit(arm);
-
-  Map<const ufbx_node *, EditBone *> node_to_bone;
-  node_to_bone.reserve(fbones.size());
-
-  for (const ufbx_skin_cluster *fbone : fbones) {
-
-    EditBone *bone = ED_armature_ebone_add(arm, get_fbx_name(fbone->bone_node->name, "Bone"));
-    node_to_bone.add(fbone->bone_node, bone);
-    /* For all bones, record the whole armature as the owning object. */
-    this->mapping.el_to_object.add(&fbone->bone_node->element, obj);
-
-    //@TODO: custom props
-    bone->flag |= BONE_SELECTED;
-
-    /* Get average distance to children. */
-    float bone_size = 0.0f;
-    int child_bone_count = 0;
-    for (const ufbx_node *child : fbone->bone_node->children) {
-      if (child->bone) {
-        ufbx_vec3 pos = child->local_transform.translation;
-        bone_size += math::length(float3(pos.x, pos.y, pos.z));
-        child_bone_count++;
-      }
+  if (node != nullptr) {
+    this->mapping.el_to_object.add(&node->element, obj);
+    if (this->params.use_custom_props) {
+      read_custom_properties(node->props, arm->id);
     }
-    if (child_bone_count > 0) {
-      bone_size /= child_bone_count;
-    }
-
-    /* Zero length bones are automatically collapsed into their parent when you leave edit mode,
-     * so enforce a minimum length. */
-    bone_size = math::max(bone_size, 0.01f);
-    bone->tail[0] = 0.0f;
-    bone->tail[1] = bone_size;
-    bone->tail[2] = 0.0f;
-
-    /* Set bind matrix. */
-    float bind_matrix[4][4];
-    ufbx_matrix bone_to_arm = ufbx_matrix_mul(&world_to_arm, &fbone->bind_to_world);
-    matrix_to_m44(bone_to_arm, bind_matrix);
-    normalize_m4(bind_matrix);
-    ED_armature_ebone_from_mat4(bone, bind_matrix);
-
-    bool added = this->mapping.bone_to_bind_matrix.add(fbone->bone_node,
-                                                       /*fbone->bind_to_world*/ bone_to_arm);
-    BLI_assert_msg(added, "fbx: same bone node used more than once?");
-    UNUSED_VARS(added);
-
-    /* Set bone parent. */
-    const ufbx_node *parent = fbone->bone_node->parent;
-    if (parent != nullptr) {
-      EditBone *parent_bone = node_to_bone.lookup_default(parent, nullptr);
-      if (parent_bone != nullptr) {
-        bone->parent = parent_bone;
-      }
-    }
+    node_matrix_to_obj(node, obj);
   }
-
-  /* There might be child "bone endpoints" that are not skinned,
-   * but we want to import them. */
-  if (!this->params.ignore_leaf_bones) {
-    for (const ufbx_node *bone_node : node_to_bone.keys()) {
-      for (const ufbx_node *child_node : bone_node->children) {
-        if (child_node->bone == nullptr || node_to_bone.contains(child_node)) {
-          continue;
-        }
-
-        /* This is a leaf bone that we have not created yet. */
-        EditBone *bone = ED_armature_ebone_add(arm, get_fbx_name(child_node->name, "Bone"));
-        // node_to_bone.add(fbone->bone_node, bone);
-        this->mapping.el_to_object.add(&child_node->element, obj);
-        //@TODO: custom props
-        bone->flag |= BONE_SELECTED;
-
-        bone->tail[0] = 0.0f;
-        bone->tail[1] = 0.1f;
-        bone->tail[2] = 0.0f;
-
-        /* Set bind matrix. @TODO: can we get it from ufbx_pose objects? */
-        float bind_matrix[4][4];
-        matrix_to_m44(ufbx_identity_matrix, bind_matrix);
-        ED_armature_ebone_from_mat4(bone, bind_matrix);
-        bool added = this->mapping.bone_to_bind_matrix.add(child_node, ufbx_identity_matrix);
-        BLI_assert_msg(added, "fbx: same bone node used more than once?");
-        UNUSED_VARS(added);
-
-        /* Set bone parent. */
-        bone->parent = node_to_bone.lookup_default(bone_node, nullptr);
-      }
-    }
-  }
-
-  ED_armature_from_edit(this->bmain, arm);
-  ED_armature_edit_free(arm);
-
-  this->mapping.el_to_object.add(&fskin.element, obj);
   return obj;
+}
+
+void FbxImportContext::create_armature_bones(const ufbx_node *node,
+                                             Object *arm_obj,
+                                             EditBone *parent_bone,
+                                             const ufbx_matrix &parent_bind_mtx,
+                                             const ufbx_matrix &world_to_arm)
+{
+  bArmature *arm = static_cast<bArmature *>(arm_obj->data);
+
+  EditBone *bone = ED_armature_ebone_add(arm, get_fbx_name(node->name, "Bone"));
+  /* For all bone nodes, record the whole armature as the owning object. */
+  this->mapping.el_to_object.add(&node->element, arm_obj);  //@TODO: is this needed?
+  //@TODO: custom props
+  bone->flag |= BONE_SELECTED;
+  bone->parent = parent_bone;
+
+  this->mapping.bone_to_armature.add(node, arm_obj);
+
+  ufbx_matrix bind_mtx = parent_bind_mtx;
+  const ufbx_matrix *bone_bind_mtx = this->mapping.bone_to_bind_matrix.lookup_ptr(node);
+  if (bone_bind_mtx) {
+    bind_mtx = *bone_bind_mtx;
+  }
+  else {
+    /* We might not have a bind matrix for leaf bones, or ones that are not skinned to any
+     * vertices. Derive it from parent, offseting by bone tail. */
+    if (parent_bone) {
+      ufbx_matrix offset_mat = ufbx_identity_matrix;
+      offset_mat.cols[3].x = parent_bone->tail[0];
+      offset_mat.cols[3].y = parent_bone->tail[1];
+      offset_mat.cols[3].z = parent_bone->tail[2];
+      bind_mtx = ufbx_matrix_mul(&offset_mat, &bind_mtx);
+    }
+    this->mapping.bone_to_bind_matrix.add(node, bind_mtx);
+  }
+  ufbx_matrix bone_mtx = ufbx_matrix_mul(&world_to_arm, &bind_mtx);
+
+  /* Calculate bone tail position. */
+  float bone_size = 0.0f;
+  int child_bone_count = 0;
+  for (const ufbx_node *fchild : node->children) {
+    if (fchild->attrib_type != UFBX_ELEMENT_BONE) {
+      continue;
+    }
+    ufbx_vec3 pos = fchild->local_transform.translation;
+    bone_size += math::length(float3(pos.x, pos.y, pos.z));
+    child_bone_count++;
+  }
+  if (child_bone_count > 0) {
+    bone_size /= child_bone_count;
+  }
+  /* Zero length bones are automatically collapsed into their parent when you leave edit mode,
+   * so enforce a minimum length. */
+  bone_size = math::max(bone_size, 0.01f);
+  bone->tail[0] = 0.0f;
+  bone->tail[1] = bone_size;
+  bone->tail[2] = 0.0f;
+
+  /* Set bone matrix. */
+  float bone_matrix[4][4];
+  matrix_to_m44(bone_mtx, bone_matrix);
+  normalize_m4(bone_matrix);
+  ED_armature_ebone_from_mat4(bone, bone_matrix);
+
+  /* Recurse into child bones. */
+  for (const ufbx_node *fchild : node->children) {
+    if (fchild->attrib_type != UFBX_ELEMENT_BONE) {
+      continue;
+    }
+    bool skip_child = false;
+    if (this->params.ignore_leaf_bones) {
+      if (node->children.count == 1 && fchild->children.count == 0) {
+        skip_child = true;
+      }
+    }
+    if (!skip_child) {
+      create_armature_bones(fchild, arm_obj, bone, bind_mtx, world_to_arm);
+    }
+  }
+}
+
+void FbxImportContext::find_armatures(const ufbx_node *node)
+{
+  /* Need to create armature if we are root bone, or any child is bone. */
+  bool needs_arm = false;
+  for (const ufbx_node *fchild : node->children) {
+    if (fchild->attrib_type == UFBX_ELEMENT_BONE) {
+      needs_arm = true;
+      break;
+    }
+  }
+  if (node->bone && node->bone->is_root) {
+    needs_arm = true;
+  }
+
+  /* Create armature if needed. */
+  if (needs_arm) {
+    Object *arm_obj = nullptr;
+    if (node->bone && node->bone->is_root || node->attrib_type == UFBX_ELEMENT_EMPTY) {
+      arm_obj = this->create_armature_for_node(node);
+    }
+    else {
+      arm_obj = this->create_armature_for_node(nullptr);
+    }
+
+    /* Create bones. */
+    ufbx_matrix world_to_arm = ufbx_matrix_invert(&node->node_to_world);
+
+    bArmature *arm = static_cast<bArmature *>(arm_obj->data);
+    ED_armature_to_edit(arm);
+    for (const ufbx_node *fchild : node->children) {
+      if (fchild->attrib_type == UFBX_ELEMENT_BONE) {
+        create_armature_bones(fchild, arm_obj, nullptr, ufbx_identity_matrix, world_to_arm);
+      }
+    }
+    ED_armature_from_edit(this->bmain, arm);
+    ED_armature_edit_free(arm);
+  }
+
+  /* Recurse into non-bone children. */
+  for (const ufbx_node *fchild : node->children) {
+    if (fchild->attrib_type != UFBX_ELEMENT_BONE) {
+      find_armatures(fchild);
+    }
+  }
+}
+
+void FbxImportContext::import_armatures()
+{
+/* Figure out bind matrices for bone nodes:
+ * - From "pose" objects in FBX that are marked as "bind pose",
+ * - From all "skin deformer" objects in FBX; matrix from them overrides data from poses. */
+#if 0
+  for (const ufbx_pose *fpose : this->fbx.poses) {
+    if (!fpose->is_bind_pose) {
+      continue;
+    }
+    for (const ufbx_bone_pose &bone_pose : fpose->bone_poses) {
+      const ufbx_matrix &bind_matrix = bone_pose.bone_to_world;
+      this->mapping.bone_to_bind_matrix.add_overwrite(bone_pose.bone_node, bind_matrix);
+    }
+  }
+#endif
+  for (const ufbx_skin_deformer *fskin : this->fbx.skin_deformers) {
+    for (const ufbx_skin_cluster *fbone : fskin->clusters) {
+      const ufbx_matrix &bind_matrix = fbone->bind_to_world;
+      this->mapping.bone_to_bind_matrix.add_overwrite(fbone->bone_node, bind_matrix);
+    }
+  }
+
+  /* Create blender armatures at:
+   * - "Root" bones,
+   * - Bones with an empty parent,
+   * - For bones without a parent or a non-empty parent, create an armature above them. */
+  find_armatures(this->fbx.root_node);
 }
 
 void FbxImportContext::import_empties()
@@ -951,6 +992,7 @@ void importer_main(Main *bmain, Scene *scene, ViewLayer *view_layer, const FBXIm
   FbxImportContext ctx(bmain, fbx, params);
   ctx.import_globals(scene);
   ctx.import_materials();
+  ctx.import_armatures();
   ctx.import_meshes();
   ctx.import_cameras();
   ctx.import_lights();
