@@ -4472,7 +4472,6 @@ static int click_select_channel_nlacontrols(bAnimListElem *ale)
   return (ND_ANIMCHAN | NA_EDITED);
 }
 
-
 static int click_select_channel_gplayer(bContext *C,
                                         bAnimContext *ac,
                                         bAnimListElem *ale,
