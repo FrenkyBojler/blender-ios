@@ -722,6 +722,7 @@ static const EnumPropertyItem eevee_resolution_scale_items[] = {
 #  include "BKE_mesh.hh"
 #  include "BKE_node.hh"
 #  include "BKE_node_legacy_types.hh"
+#  include "BKE_node_runtime.hh"
 #  include "BKE_pointcache.h"
 #  include "BKE_scene.hh"
 #  include "BKE_screen.hh"
@@ -956,7 +957,7 @@ static void rna_Scene_fps_update(Main *bmain, Scene * /*active_scene*/, PointerR
   /* NOTE: Tag via dependency graph will take care of all the updates ion the evaluated domain,
    * however, changes in FPS actually modifies an original skip length,
    * so this we take care about here. */
-  SEQ_sound_update_length(bmain, scene);
+  blender::seq::SEQ_sound_update_length(bmain, scene);
   /* Reset simulation states because new frame interval doesn't apply anymore. */
   blender::bke::bake::scene_simulation_states_reset(*scene);
 }
@@ -1238,41 +1239,38 @@ static std::optional<std::string> rna_BakeSettings_path(const PointerRNA * /*ptr
   return "render.bake";
 }
 
-static std::optional<std::string> rna_ImageFormatSettings_path(const PointerRNA *ptr)
+static std::optional<std::string> rna_ImageFormatSettings_path(
+    const PointerRNA *ptr, blender::FunctionRef<bool(ImageFormatData *)> match)
 {
-  ImageFormatData *imf = (ImageFormatData *)ptr->data;
   ID *id = ptr->owner_id;
 
   switch (GS(id->name)) {
     case ID_SCE: {
       Scene *scene = (Scene *)id;
 
-      if (&scene->r.im_format == imf) {
+      if (match(&scene->r.im_format)) {
         return "render.image_settings";
       }
-      else if (&scene->r.bake.im_format == imf) {
+      else if (match(&scene->r.bake.im_format)) {
         return "render.bake.image_settings";
       }
-      return "..";
+      return std::nullopt;
     }
     case ID_NT: {
       bNodeTree *ntree = (bNodeTree *)id;
-      bNode *node;
 
-      for (node = static_cast<bNode *>(ntree->nodes.first); node; node = node->next) {
+      for (bNode *node : ntree->all_nodes()) {
         if (node->type_legacy == CMP_NODE_OUTPUT_FILE) {
-          if (&((NodeImageMultiFile *)node->storage)->format == imf) {
+          if (match(&((NodeImageMultiFile *)node->storage)->format)) {
             char node_name_esc[sizeof(node->name) * 2];
             BLI_str_escape(node_name_esc, node->name, sizeof(node_name_esc));
             return fmt::format("nodes[\"{}\"].format", node_name_esc);
           }
           else {
-            bNodeSocket *sock;
-
-            for (sock = static_cast<bNodeSocket *>(node->inputs.first); sock; sock = sock->next) {
+            LISTBASE_FOREACH (bNodeSocket *, socket, &node->inputs) {
               NodeImageMultiFileSocket *sockdata = static_cast<NodeImageMultiFileSocket *>(
-                  sock->storage);
-              if (&sockdata->format == imf) {
+                  socket->storage);
+              if (match(&sockdata->format)) {
                 char node_name_esc[sizeof(node->name) * 2];
                 BLI_str_escape(node_name_esc, node->name, sizeof(node_name_esc));
 
@@ -1286,11 +1284,50 @@ static std::optional<std::string> rna_ImageFormatSettings_path(const PointerRNA 
           }
         }
       }
-      return "..";
+      return std::nullopt;
     }
     default:
-      return "..";
+      return std::nullopt;
   }
+}
+
+static std::optional<std::string> rna_ImageFormatSettings_path(const PointerRNA *ptr)
+{
+  ImageFormatData *data = static_cast<ImageFormatData *>(ptr->data);
+  return rna_ImageFormatSettings_path(ptr, [&](ImageFormatData *imf) { return imf == data; });
+}
+
+std::optional<std::string> rna_ColorManagedDisplaySettings_path(const PointerRNA *ptr)
+{
+  ColorManagedDisplaySettings *data = static_cast<ColorManagedDisplaySettings *>(ptr->data);
+  std::optional<std::string> path = rna_ImageFormatSettings_path(
+      ptr, [&](ImageFormatData *imf) { return &imf->display_settings == data; });
+  if (path) {
+    return *path + ".display_settings";
+  }
+  return std::nullopt;
+}
+
+std::optional<std::string> rna_ColorManagedViewSettings_path(const PointerRNA *ptr)
+{
+  ColorManagedViewSettings *data = static_cast<ColorManagedViewSettings *>(ptr->data);
+  std::optional<std::string> path = rna_ImageFormatSettings_path(
+      ptr, [&](ImageFormatData *imf) { return &imf->view_settings == data; });
+  if (path) {
+    return *path + ".view_settings";
+  }
+  return std::nullopt;
+}
+
+std::optional<std::string> rna_ColorManagedInputColorspaceSettings_path(const PointerRNA *ptr)
+{
+  ColorManagedColorspaceSettings *data = static_cast<ColorManagedColorspaceSettings *>(ptr->data);
+  std::optional<std::string> path = rna_ImageFormatSettings_path(
+      ptr, [&](ImageFormatData *imf) { return &imf->linear_colorspace_settings == data; });
+  if (path) {
+    return *path + ".linear_colorspace_settings";
+  }
+  return std::nullopt;
 }
 
 static int rna_RenderSettings_threads_get(PointerRNA *ptr)
@@ -2272,7 +2309,7 @@ static std::optional<std::string> rna_View3DCursor_path(const PointerRNA * /*ptr
 
 static TimeMarker *rna_TimeLine_add(Scene *scene, const char name[], int frame)
 {
-  TimeMarker *marker = MEM_cnew<TimeMarker>("TimeMarker");
+  TimeMarker *marker = MEM_callocN<TimeMarker>("TimeMarker");
   marker->flag = SELECT;
   marker->frame = frame;
   STRNCPY_UTF8(marker->name, name);
@@ -2429,7 +2466,7 @@ static void rna_SceneCamera_update(Main * /*bmain*/, Scene * /*scene*/, PointerR
   Scene *scene = (Scene *)ptr->owner_id;
   Object *camera = scene->camera;
 
-  SEQ_cache_cleanup(scene);
+  blender::seq::SEQ_cache_cleanup(scene);
 
   if (camera && (camera->type == OB_CAMERA)) {
     DEG_id_tag_update(&camera->id, ID_RECALC_GEOMETRY);
@@ -2438,7 +2475,7 @@ static void rna_SceneCamera_update(Main * /*bmain*/, Scene * /*scene*/, PointerR
 
 static void rna_SceneSequencer_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  SEQ_cache_cleanup((Scene *)ptr->owner_id);
+  blender::seq::SEQ_cache_cleanup((Scene *)ptr->owner_id);
 }
 
 static std::optional<std::string> rna_ToolSettings_path(const PointerRNA * /*ptr*/)
