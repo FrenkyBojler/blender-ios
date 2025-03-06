@@ -1259,8 +1259,8 @@ class GPUComputeEvaluator {
                    int numPatchCoords,
                    gpu::VertBuf *patchCoordsBuffer,
                    const OpenSubdiv::Osd::PatchArrayVector &patchArrays,
-                   gpu::VertBuf *patchIndexBuffer,
-                   gpu::VertBuf *patchParamsBuffer);
+                   GPUStorageBuf *patchIndexBuffer,
+                   GPUStorageBuf *patchParamsBuffer);
 
   bool EvalPatches(gpu::VertBuf *srcBuffer,
                    OpenSubdiv::Osd::BufferDescriptor const &srcDesc,
@@ -1279,8 +1279,8 @@ class GPUComputeEvaluator {
                    int numPatchCoords,
                    gpu::VertBuf *patchCoordsBuffer,
                    const OpenSubdiv::Osd::PatchArrayVector &patchArrays,
-                   gpu::VertBuf *patchIndexBuffer,
-                   gpu::VertBuf *patchParamsBuffer);
+                   GPUStorageBuf *patchIndexBuffer,
+                   GPUStorageBuf *patchParamsBuffer);
 
   /// \brief Generic limit eval function. This function has a same
   ///        signature as other device kernels have so that it can be called

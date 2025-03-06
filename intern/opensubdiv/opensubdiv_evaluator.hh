@@ -142,10 +142,10 @@ class EvalOutputAPI {
   void fillPatchArraysBuffer(blender::gpu::VertBuf *patch_arrays_buffer);
 
   // Wrap the patch index buffer used by OpenSubDiv for the source data with the given buffer.
-  gpu::VertBuf *wrapPatchIndexBuffer();
+  GPUStorageBuf *wrapPatchIndexBuffer();
 
   // Wrap the patch param buffer used by OpenSubDiv for the source data with the given buffer.
-  gpu::VertBuf *wrapPatchParamBuffer();
+  GPUStorageBuf *wrapPatchParamBuffer();
 
   // Wrap the buffer used by OpenSubDiv for the source data with the given buffer.
   gpu::VertBuf *wrapSrcBuffer();
@@ -160,11 +160,11 @@ class EvalOutputAPI {
 
   // Wrap the patch index buffer used by OpenSubDiv for the face varying channel with the given
   // buffer.
-  gpu::VertBuf *wrapFVarPatchIndexBuffer(const int face_varying_channel);
+  GPUStorageBuf *wrapFVarPatchIndexBuffer(const int face_varying_channel);
 
   // Wrap the patch param buffer used by OpenSubDiv for the face varying channel with the given
   // buffer.
-  gpu::VertBuf *wrapFVarPatchParamBuffer(const int face_varying_channel);
+  GPUStorageBuf *wrapFVarPatchParamBuffer(const int face_varying_channel);
 
   // Wrap thebuffer used by OpenSubDiv for the face varying channel with the given buffer.
   gpu::VertBuf *wrapFVarSrcBuffer(const int face_varying_channel);

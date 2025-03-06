@@ -28,13 +28,13 @@ class GPUPatchTable : private NonCopyable<GPUPatchTable> {
   }
 
   /// Returns the GL index buffer containing the patch control vertices
-  gpu::VertBuf *GetPatchIndexBuffer() const
+  GPUStorageBuf *GetPatchIndexBuffer() const
   {
     return _patchIndexBuffer;
   }
 
   /// Returns the GL index buffer containing the patch parameter
-  gpu::VertBuf *GetPatchParamBuffer() const
+  GPUStorageBuf *GetPatchParamBuffer() const
   {
     return _patchParamBuffer;
   }
@@ -46,7 +46,7 @@ class GPUPatchTable : private NonCopyable<GPUPatchTable> {
   }
 
   /// Returns the GL index buffer containing the varying control vertices
-  gpu::VertBuf *GetVaryingPatchIndexBuffer() const
+  GPUStorageBuf *GetVaryingPatchIndexBuffer() const
   {
     return _varyingIndexBuffer;
   }
@@ -64,27 +64,15 @@ class GPUPatchTable : private NonCopyable<GPUPatchTable> {
   }
 
   /// Returns the GL index buffer containing face-varying control vertices
-  gpu::VertBuf *GetFVarPatchIndexBuffer(int fvarChannel = 0) const
+  GPUStorageBuf *GetFVarPatchIndexBuffer(int fvarChannel = 0) const
   {
     return _fvarIndexBuffers[fvarChannel];
   }
 
-  /// Returns the GL texture buffer containing face-varying control vertices
-  gpu::VertBuf *GetFVarPatchIndexTextureBuffer(int fvarChannel = 0) const
-  {
-    return _fvarIndexTextures[fvarChannel];
-  }
-
   /// Returns the GL index buffer containing face-varying patch params
-  gpu::VertBuf *GetFVarPatchParamBuffer(int fvarChannel = 0) const
+  GPUStorageBuf *GetFVarPatchParamBuffer(int fvarChannel = 0) const
   {
     return _fvarParamBuffers[fvarChannel];
-  }
-
-  /// Returns the GL texture buffer containing face-varying patch params
-  gpu::VertBuf *GetFVarPatchParamTextureBuffer(int fvarChannel = 0) const
-  {
-    return _fvarParamTextures[fvarChannel];
   }
 
  protected:
@@ -95,18 +83,15 @@ class GPUPatchTable : private NonCopyable<GPUPatchTable> {
 
   PatchArrayVector _patchArrays;
 
-  gpu::VertBuf *_patchIndexBuffer = nullptr;
-  gpu::VertBuf *_patchParamBuffer = nullptr;
+  GPUStorageBuf *_patchIndexBuffer = nullptr;
+  GPUStorageBuf *_patchParamBuffer = nullptr;
 
   PatchArrayVector _varyingPatchArrays;
-  gpu::VertBuf *_varyingIndexBuffer = nullptr;
+  GPUStorageBuf *_varyingIndexBuffer = nullptr;
 
   std::vector<PatchArrayVector> _fvarPatchArrays;
-  std::vector<gpu::VertBuf *> _fvarIndexBuffers;
-  std::vector<gpu::VertBuf *> _fvarIndexTextures;
-
-  std::vector<gpu::VertBuf *> _fvarParamBuffers;
-  std::vector<gpu::VertBuf *> _fvarParamTextures;
+  std::vector<GPUStorageBuf *> _fvarIndexBuffers;
+  std::vector<GPUStorageBuf *> _fvarParamBuffers;
 };
 
 }  // namespace blender::opensubdiv

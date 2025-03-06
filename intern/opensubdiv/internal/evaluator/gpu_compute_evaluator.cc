@@ -479,8 +479,8 @@ bool GPUComputeEvaluator::EvalPatches(gpu::VertBuf *srcBuffer,
                                       int numPatchCoords,
                                       gpu::VertBuf *patchCoordsBuffer,
                                       const PatchArrayVector &patchArrays,
-                                      gpu::VertBuf *patchIndexBuffer,
-                                      gpu::VertBuf *patchParamsBuffer)
+                                      GPUStorageBuf *patchIndexBuffer,
+                                      GPUStorageBuf *patchParamsBuffer)
 {
 
   return EvalPatches(srcBuffer,
@@ -521,8 +521,8 @@ bool GPUComputeEvaluator::EvalPatches(gpu::VertBuf *srcBuffer,
                                       int numPatchCoords,
                                       gpu::VertBuf *patchCoordsBuffer,
                                       const PatchArrayVector &patchArrays,
-                                      gpu::VertBuf *patchIndexBuffer,
-                                      gpu::VertBuf *patchParamsBuffer)
+                                      GPUStorageBuf *patchIndexBuffer,
+                                      GPUStorageBuf *patchParamsBuffer)
 {
 
   if (_patchKernel.shader == nullptr) {
@@ -544,8 +544,8 @@ bool GPUComputeEvaluator::EvalPatches(gpu::VertBuf *srcBuffer,
     GPU_vertbuf_bind_as_ssbo(dvvBuffer, SHADER_DVV_BUFFER_BUF_SLOT);
   }
   GPU_vertbuf_bind_as_ssbo(patchCoordsBuffer, SHADER_PATCH_COORDS_BUF_SLOT);
-  GPU_vertbuf_bind_as_ssbo(patchIndexBuffer, SHADER_PATCH_INDEX_BUFFER_BUF_SLOT);
-  GPU_vertbuf_bind_as_ssbo(patchParamsBuffer, SHADER_PATCH_PARAM_BUFFER_BUF_SLOT);
+  GPU_storagebuf_bind(patchIndexBuffer, SHADER_PATCH_INDEX_BUFFER_BUF_SLOT);
+  GPU_storagebuf_bind(patchParamsBuffer, SHADER_PATCH_PARAM_BUFFER_BUF_SLOT);
   int patchArraySize = sizeof(PatchArray);
   if (_patchArraysSSBO) {
     GPU_storagebuf_free(_patchArraysSSBO);

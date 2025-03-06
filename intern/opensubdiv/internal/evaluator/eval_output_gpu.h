@@ -33,12 +33,12 @@ class GpuEvalOutput : public VolatileEvalOutput<GPUVertexBuffer,
 
   void fillPatchArraysBuffer(blender::gpu::VertBuf *patch_arrays_buffer) override;
 
-  gpu::VertBuf *wrapPatchIndexBuffer() override
+  GPUStorageBuf *wrapPatchIndexBuffer() override
   {
     return getPatchTable()->GetPatchIndexBuffer();
   }
 
-  gpu::VertBuf *wrapPatchParamBuffer() override
+  GPUStorageBuf *wrapPatchParamBuffer() override
   {
     return getPatchTable()->GetPatchParamBuffer();
   }
@@ -56,13 +56,13 @@ class GpuEvalOutput : public VolatileEvalOutput<GPUVertexBuffer,
   void fillFVarPatchArraysBuffer(const int face_varying_channel,
                                  blender::gpu::VertBuf *patch_arrays_buffer) override;
 
-  gpu::VertBuf *wrapFVarPatchIndexBuffer(const int face_varying_channel) override
+  GPUStorageBuf *wrapFVarPatchIndexBuffer(const int face_varying_channel) override
   {
     GPUPatchTable *patch_table = getFVarPatchTable(face_varying_channel);
     return patch_table->GetFVarPatchIndexBuffer(face_varying_channel);
   }
 
-  gpu::VertBuf *wrapFVarPatchParamBuffer(const int face_varying_channel) override
+  GPUStorageBuf *wrapFVarPatchParamBuffer(const int face_varying_channel) override
   {
     GPUPatchTable *patch_table = getFVarPatchTable(face_varying_channel);
     return patch_table->GetFVarPatchParamBuffer(face_varying_channel);

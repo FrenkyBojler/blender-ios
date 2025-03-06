@@ -357,12 +357,12 @@ void EvalOutputAPI::fillPatchArraysBuffer(blender::gpu::VertBuf *patch_arrays_bu
   implementation_->fillPatchArraysBuffer(patch_arrays_buffer);
 }
 
-gpu::VertBuf *EvalOutputAPI::wrapPatchIndexBuffer()
+GPUStorageBuf *EvalOutputAPI::wrapPatchIndexBuffer()
 {
   return implementation_->wrapPatchIndexBuffer();
 }
 
-gpu::VertBuf *EvalOutputAPI::wrapPatchParamBuffer()
+GPUStorageBuf *EvalOutputAPI::wrapPatchParamBuffer()
 {
   return implementation_->wrapPatchParamBuffer();
 }
@@ -383,12 +383,12 @@ void EvalOutputAPI::fillFVarPatchArraysBuffer(const int face_varying_channel,
   implementation_->fillFVarPatchArraysBuffer(face_varying_channel, patch_arrays_buffer);
 }
 
-gpu::VertBuf *EvalOutputAPI::wrapFVarPatchIndexBuffer(const int face_varying_channel)
+GPUStorageBuf *EvalOutputAPI::wrapFVarPatchIndexBuffer(const int face_varying_channel)
 {
   return implementation_->wrapFVarPatchIndexBuffer(face_varying_channel);
 }
 
-gpu::VertBuf *EvalOutputAPI::wrapFVarPatchParamBuffer(const int face_varying_channel)
+GPUStorageBuf *EvalOutputAPI::wrapFVarPatchParamBuffer(const int face_varying_channel)
 {
   return implementation_->wrapFVarPatchParamBuffer(face_varying_channel);
 }

@@ -78,12 +78,12 @@ class EvalOutputAPI::EvalOutput {
 
   virtual void fillPatchArraysBuffer(blender::gpu::VertBuf * /*patch_arrays_buffer*/) {}
 
-  virtual gpu::VertBuf *wrapPatchIndexBuffer()
+  virtual GPUStorageBuf *wrapPatchIndexBuffer()
   {
     return nullptr;
   }
 
-  virtual gpu::VertBuf *wrapPatchParamBuffer()
+  virtual GPUStorageBuf *wrapPatchParamBuffer()
   {
     return nullptr;
   }
@@ -104,12 +104,12 @@ class EvalOutputAPI::EvalOutput {
     return;
   }
 
-  virtual gpu::VertBuf *wrapFVarPatchIndexBuffer(const int /*face_varying_channel*/)
+  virtual GPUStorageBuf *wrapFVarPatchIndexBuffer(const int /*face_varying_channel*/)
   {
     return nullptr;
   }
 
-  virtual gpu::VertBuf *wrapFVarPatchParamBuffer(const int /*face_varying_channel*/)
+  virtual GPUStorageBuf *wrapFVarPatchParamBuffer(const int /*face_varying_channel*/)
   {
     return nullptr;
   }
