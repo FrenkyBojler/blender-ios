@@ -405,6 +405,11 @@ static PyMethodDef BPy_GeometrySet_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_geometry_set_doc,
+    "Stores potentially multiple geometry components of different types.\n"
+    "For example, it might contain a mesh, curves and nested instances.\n");
 PyTypeObject bpy_geometry_set_Type = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "GeometrySet",
@@ -426,7 +431,7 @@ PyTypeObject bpy_geometry_set_Type = {
     /*tp_setattro*/ nullptr,
     /*tp_as_buffer*/ nullptr,
     /*tp_flags*/ Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-    /*tp_doc*/ nullptr,
+    /*tp_doc*/ bpy_geometry_set_doc,
     /*tp_traverse*/ nullptr,
     /*tp_clear*/ nullptr,
     /*tp_richcompare*/ nullptr,
