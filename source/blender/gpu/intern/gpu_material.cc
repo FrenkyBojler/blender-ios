@@ -40,6 +40,9 @@
 
 #include "atomic_ops.h"
 
+void gpu_material_ramp_texture_build(GPUMaterial *mat);
+void gpu_material_sky_texture_build(GPUMaterial *mat);
+
 /* Structs */
 #define MAX_COLOR_BAND 128
 #define MAX_GPU_SKIES 8
@@ -128,14 +131,13 @@ void GPU_material_free_single(GPUMaterial *material)
   if (material->sky_tex != nullptr) {
     GPU_texture_free(material->sky_tex);
   }
-  MEM_freeN(material);
+  MEM_delete(material);
 }
 
 void GPU_material_free(ListBase *gpumaterial)
 {
   LISTBASE_FOREACH (LinkData *, link, gpumaterial) {
     GPUMaterial *material = static_cast<GPUMaterial *>(link->data);
-    DRW_deferred_shader_remove(material);
     GPU_material_free_single(material);
   }
   BLI_freelistN(gpumaterial);
@@ -244,6 +246,7 @@ eGPUMaterialOptimizationStatus GPU_material_optimization_status(GPUMaterial *mat
       return GPU_MAT_OPTIMIZATION_QUEUED;
     default:
       BLI_assert_unreachable();
+      return GPU_MAT_OPTIMIZATION_SKIP;
   }
 }
 
@@ -331,7 +334,7 @@ GPUMaterial *GPU_material_from_nodetree(Material *ma,
     }
   }
 
-  GPUMaterial *mat = static_cast<GPUMaterial *>(MEM_callocN(sizeof(GPUMaterial), "GPUMaterial"));
+  GPUMaterial *mat = MEM_new<GPUMaterial>(__func__);
   mat->ma = ma;
   mat->engine = engine;
   mat->uuid = shader_uuid;
@@ -397,8 +400,7 @@ GPUMaterial *GPU_material_from_callbacks(eGPUMaterialEngine engine,
                                          void *thunk)
 {
   /* Allocate a new material and its material graph, and initialize its reference count. */
-  GPUMaterial *material = static_cast<GPUMaterial *>(
-      MEM_callocN(sizeof(GPUMaterial), "GPUMaterial"));
+  GPUMaterial *material = MEM_new<GPUMaterial>(__func__);
   material->graph.used_libraries = BLI_gset_new(
       BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "GPUNodeGraph.used_libraries");
   material->refcount = 1;

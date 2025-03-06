@@ -40,7 +40,3 @@ void GPU_pass_release(GPUPass *pass);
 
 void gpu_codegen_init();
 void gpu_codegen_exit();
-
-void GPU_pass_cache_init();
-void GPU_pass_cache_update();
-void GPU_pass_cache_free();

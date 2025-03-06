@@ -162,9 +162,6 @@ void DRW_system_gpu_render_context_disable(void *re_system_gpu_context);
 void DRW_blender_gpu_render_context_enable(void *re_gpu_context);
 void DRW_blender_gpu_render_context_disable(void *re_gpu_context);
 
-void DRW_deferred_shader_remove(GPUMaterial *mat);
-void DRW_deferred_shader_optimize_remove(GPUMaterial *mat);
-
 /**
  * Get DrawData from the given ID-block. In order for this to work, we assume that
  * the DrawData pointer is stored in the  in the same fashion as in #IdDdtTemplate.

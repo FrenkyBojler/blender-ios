@@ -17,6 +17,11 @@
 #include "GPU_shader.hh"  /* for GPUShaderCreateInfo */
 #include "GPU_texture.hh" /* for GPUSamplerState */
 
+// TODO: Move to a GPU_pass.hh
+void GPU_pass_cache_init();
+void GPU_pass_cache_update();
+void GPU_pass_cache_free();
+
 struct GHash;
 struct GPUMaterial;
 struct GPUNodeLink;
@@ -57,6 +62,45 @@ enum eGPUMaterialOptimizationStatus {
   GPU_MAT_OPTIMIZATION_QUEUED,
   GPU_MAT_OPTIMIZATION_SUCCESS,
 };
+
+enum eGPUMaterialFlag {
+  GPU_MATFLAG_DIFFUSE = (1 << 0),
+  GPU_MATFLAG_SUBSURFACE = (1 << 1),
+  GPU_MATFLAG_GLOSSY = (1 << 2),
+  GPU_MATFLAG_REFRACT = (1 << 3),
+  GPU_MATFLAG_EMISSION = (1 << 4),
+  GPU_MATFLAG_TRANSPARENT = (1 << 5),
+  GPU_MATFLAG_HOLDOUT = (1 << 6),
+  GPU_MATFLAG_SHADER_TO_RGBA = (1 << 7),
+  GPU_MATFLAG_AO = (1 << 8),
+  /* Signals the presence of multiple reflection closures. */
+  GPU_MATFLAG_COAT = (1 << 9),
+  GPU_MATFLAG_TRANSLUCENT = (1 << 10),
+
+  GPU_MATFLAG_VOLUME_SCATTER = (1 << 16),
+  GPU_MATFLAG_VOLUME_ABSORPTION = (1 << 17),
+
+  GPU_MATFLAG_OBJECT_INFO = (1 << 18),
+  GPU_MATFLAG_AOV = (1 << 19),
+
+  GPU_MATFLAG_BARYCENTRIC = (1 << 20),
+
+  /* Tells the render engine the material was just compiled or updated. */
+  GPU_MATFLAG_UPDATED = (1 << 29),
+
+  /* HACK(fclem) Tells the environment texture node to not bail out if empty. */
+  GPU_MATFLAG_LOOKDEV_HACK = (1 << 30),
+};
+ENUM_OPERATORS(eGPUMaterialFlag, GPU_MATFLAG_LOOKDEV_HACK);
+
+using GPUCodegenCallbackFn = void (*)(void *thunk,
+                                      GPUMaterial *mat,
+                                      struct GPUCodegenOutput *codegen);
+/**
+ * Should return an already compiled pass if it's functionally equivalent to the one being
+ * compiled.
+ */
+using GPUMaterialPassReplacementCallbackFn = GPUPass *(*)(void *thunk, GPUMaterial *mat);
 
 GPUMaterial *GPU_material_from_nodetree(
     Material *ma,
@@ -148,6 +192,36 @@ const ListBase *GPU_material_layer_attributes(const GPUMaterial *material);
 
 /* Requested Material Attributes and Textures */
 
+enum eGPUType {
+  /* Keep in sync with GPU_DATATYPE_STR */
+  /* The value indicates the number of elements in each type */
+  GPU_NONE = 0,
+  GPU_FLOAT = 1,
+  GPU_VEC2 = 2,
+  GPU_VEC3 = 3,
+  GPU_VEC4 = 4,
+  GPU_MAT3 = 9,
+  GPU_MAT4 = 16,
+  GPU_MAX_CONSTANT_DATA = GPU_MAT4,
+
+  /* Values not in GPU_DATATYPE_STR */
+  GPU_TEX1D_ARRAY = 1001,
+  GPU_TEX2D = 1002,
+  GPU_TEX2D_ARRAY = 1003,
+  GPU_TEX3D = 1004,
+
+  /* GLSL Struct types */
+  GPU_CLOSURE = 1007,
+
+  /* Opengl Attributes */
+  GPU_ATTR = 3001,
+};
+
+enum eGPUDefaultValue {
+  GPU_DEFAULT_0 = 0,
+  GPU_DEFAULT_1,
+};
+
 struct GPUMaterialAttribute {
   GPUMaterialAttribute *next, *prev;
   int type;                /* eCustomDataType */
@@ -211,62 +285,6 @@ const GPUUniformAttrList *GPU_material_uniform_attributes(const GPUMaterial *mat
 /* Functions to create GPU Materials nodes. */
 // TODO: Move somewhere else.
 
-enum eGPUType {
-  /* Keep in sync with GPU_DATATYPE_STR */
-  /* The value indicates the number of elements in each type */
-  GPU_NONE = 0,
-  GPU_FLOAT = 1,
-  GPU_VEC2 = 2,
-  GPU_VEC3 = 3,
-  GPU_VEC4 = 4,
-  GPU_MAT3 = 9,
-  GPU_MAT4 = 16,
-  GPU_MAX_CONSTANT_DATA = GPU_MAT4,
-
-  /* Values not in GPU_DATATYPE_STR */
-  GPU_TEX1D_ARRAY = 1001,
-  GPU_TEX2D = 1002,
-  GPU_TEX2D_ARRAY = 1003,
-  GPU_TEX3D = 1004,
-
-  /* GLSL Struct types */
-  GPU_CLOSURE = 1007,
-
-  /* Opengl Attributes */
-  GPU_ATTR = 3001,
-};
-
-enum eGPUMaterialFlag {
-  GPU_MATFLAG_DIFFUSE = (1 << 0),
-  GPU_MATFLAG_SUBSURFACE = (1 << 1),
-  GPU_MATFLAG_GLOSSY = (1 << 2),
-  GPU_MATFLAG_REFRACT = (1 << 3),
-  GPU_MATFLAG_EMISSION = (1 << 4),
-  GPU_MATFLAG_TRANSPARENT = (1 << 5),
-  GPU_MATFLAG_HOLDOUT = (1 << 6),
-  GPU_MATFLAG_SHADER_TO_RGBA = (1 << 7),
-  GPU_MATFLAG_AO = (1 << 8),
-  /* Signals the presence of multiple reflection closures. */
-  GPU_MATFLAG_COAT = (1 << 9),
-  GPU_MATFLAG_TRANSLUCENT = (1 << 10),
-
-  GPU_MATFLAG_VOLUME_SCATTER = (1 << 16),
-  GPU_MATFLAG_VOLUME_ABSORPTION = (1 << 17),
-
-  GPU_MATFLAG_OBJECT_INFO = (1 << 18),
-  GPU_MATFLAG_AOV = (1 << 19),
-
-  GPU_MATFLAG_BARYCENTRIC = (1 << 20),
-
-  /* Tells the render engine the material was just compiled or updated. */
-  GPU_MATFLAG_UPDATED = (1 << 29),
-
-  /* HACK(fclem) Tells the environment texture node to not bail out if empty. */
-  GPU_MATFLAG_LOOKDEV_HACK = (1 << 30),
-};
-
-ENUM_OPERATORS(eGPUMaterialFlag, GPU_MATFLAG_LOOKDEV_HACK);
-
 struct GPUNodeStack {
   eGPUType type;
   float vec[4];
@@ -275,11 +293,6 @@ struct GPUNodeStack {
   bool hasoutput;
   short sockettype;
   bool end;
-};
-
-enum eGPUDefaultValue {
-  GPU_DEFAULT_0 = 0,
-  GPU_DEFAULT_1,
 };
 
 struct GPUCodegenOutput {
@@ -294,13 +307,6 @@ struct GPUCodegenOutput {
 
   GPUShaderCreateInfo *create_info;
 };
-
-using GPUCodegenCallbackFn = void (*)(void *thunk, GPUMaterial *mat, GPUCodegenOutput *codegen);
-/**
- * Should return an already compiled pass if it's functionally equivalent to the one being
- * compiled.
- */
-using GPUMaterialPassReplacementCallbackFn = GPUPass *(*)(void *thunk, GPUMaterial *mat);
 
 GPUNodeLink *GPU_constant(const float *num);
 GPUNodeLink *GPU_uniform(const float *num);

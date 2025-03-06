@@ -52,6 +52,8 @@
 using namespace blender;
 using namespace blender::gpu::shader;
 
+bool gpu_pass_shader_validate(struct GPUCodegenCreateInfo *create_info, GPUShader *shader);
+
 /**
  * IMPORTANT: Never add external reference. The GPUMaterial used to create the GPUPass (and its
  * GPUCodegenCreateInfo) can be free before actually compiling. This happens if there is an update
@@ -254,8 +256,7 @@ class GPUPassCache {
       }
 
       // TODO: Lower rate for optimization passes.
-      engine_passes.remove_if(
-          [&](std::unique_ptr<GPUPass> &pass) { return pass->should_gc(gc_collect_rate); });
+      engine_passes.remove_if([&](auto item) { return item.value->should_gc(gc_collect_rate); });
     }
   }
 };

@@ -950,8 +950,6 @@ GPUMaterial *ShaderModule::material_shader_get(::Material *blender_mat,
                                                eMaterialGeometry geometry_type,
                                                bool deferred_compilation)
 {
-  bool is_volume = ELEM(pipeline_type, MAT_PIPE_VOLUME_MATERIAL, MAT_PIPE_VOLUME_OCCUPANCY);
-
   eMaterialDisplacement displacement_type = to_displacement_type(blender_mat->displacement_method);
   eMaterialThickness thickness_type = to_thickness_type(blender_mat->thickness_mode);
 
@@ -965,7 +963,6 @@ GPUMaterial *ShaderModule::material_shader_get(::Material *blender_mat,
                                               nodetree,
                                               GPU_MAT_EEVEE,
                                               shader_uuid,
-                                              is_volume,
                                               deferred_compilation,
                                               codegen_callback,
                                               this,
@@ -978,8 +975,7 @@ GPUMaterial *ShaderModule::world_shader_get(::World *blender_world,
                                             bNodeTree *nodetree,
                                             eMaterialPipeline pipeline_type)
 {
-  bool is_volume = (pipeline_type == MAT_PIPE_VOLUME_MATERIAL);
-  bool defer_compilation = is_volume;
+  bool defer_compilation = pipeline_type == MAT_PIPE_VOLUME_MATERIAL;
 
   uint64_t shader_uuid = shader_uuid_from_material_type(pipeline_type, MAT_GEOM_WORLD);
 
@@ -987,7 +983,6 @@ GPUMaterial *ShaderModule::world_shader_get(::World *blender_world,
                                nodetree,
                                GPU_MAT_EEVEE,
                                shader_uuid,
-                               is_volume,
                                defer_compilation,
                                codegen_callback,
                                this);
