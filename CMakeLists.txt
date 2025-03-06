@@ -1198,7 +1198,8 @@ Run given CMake script as the last step of CMake configuration"
 mark_as_advanced(POSTCONFIGURE_SCRIPT)
 
 if(APPLE AND XCODE AND "${CMAKE_OSX_ARCHITECTURES}" STREQUAL "x86_64")
-  # Ref: https://projects.blender.org/blender/blender/pulls/134639#issuecomment-1513274
+  # The legacy linker (ld_classic) emits fewer warnings when linking, but is
+  # almost 20x slower thane the default linker. Both produce working binaries.
   option(WITH_LINKER_LEGACY "Use the legacy (slow) linker on macOS" OFF)
   mark_as_advanced(WITH_LINKER_LEGACY)
 endif()
