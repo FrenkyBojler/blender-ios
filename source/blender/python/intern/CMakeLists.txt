@@ -68,54 +68,6 @@ set(SRC
   bpy_utils_units.cc
   stubs.cc
 
-<<<<<<< HEAD
-  bpy.h
-  bpy_app.h
-  bpy_app_alembic.h
-  bpy_app_build_options.h
-  bpy_app_ffmpeg.h
-  bpy_app_handlers.h
-  bpy_app_icons.h
-  bpy_app_ocio.h
-  bpy_app_oiio.h
-  bpy_app_opensubdiv.h
-  bpy_app_openvdb.h
-  bpy_app_sdl.h
-  bpy_app_timers.h
-  bpy_app_translations.h
-  bpy_app_usd.h
-  bpy_app_tornavis.h
-  bpy_capi_utils.h
-  bpy_cli_command.h
-  bpy_driver.h
-  bpy_gizmo_wrap.h
-  bpy_intern_string.h
-  bpy_library.h
-  bpy_msgbus.h
-  bpy_operator.h
-  bpy_operator_wrap.h
-  bpy_path.h
-  bpy_props.h
-  bpy_rna.h
-  bpy_rna_anim.h
-  bpy_rna_callback.h
-  bpy_rna_context.h
-  bpy_rna_data.h
-  bpy_rna_driver.h
-  bpy_rna_gizmo.h
-  bpy_rna_id_collection.h
-  bpy_rna_operator.h
-  bpy_rna_text.h
-  bpy_rna_types_capi.h
-  bpy_rna_ui.h
-  bpy_traceback.h
-  bpy_utils_previews.h
-  bpy_utils_units.h
-  ../BPY_extern.h
-  ../BPY_extern_clog.h
-  ../BPY_extern_python.h
-  ../BPY_extern_run.h
-=======
   bpy.hh
   bpy_app.hh
   bpy_app_alembic.hh
@@ -131,6 +83,7 @@ set(SRC
   bpy_app_timers.hh
   bpy_app_translations.hh
   bpy_app_usd.hh
+  bpy_app_tornavis.h
   bpy_capi_utils.hh
   bpy_cli_command.hh
   bpy_driver.hh
@@ -161,7 +114,6 @@ set(SRC
   ../BPY_extern_clog.hh
   ../BPY_extern_python.hh
   ../BPY_extern_run.hh
->>>>>>> bf-blender
 )
 
 set(LIB

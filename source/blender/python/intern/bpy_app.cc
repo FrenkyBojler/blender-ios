@@ -14,18 +14,6 @@
 
 #include "bpy_app.hh"
 
-<<<<<<< HEAD
-#include "bpy_app_alembic.h"
-#include "bpy_app_build_options.h"
-#include "bpy_app_ffmpeg.h"
-#include "bpy_app_ocio.h"
-#include "bpy_app_oiio.h"
-#include "bpy_app_opensubdiv.h"
-#include "bpy_app_openvdb.h"
-#include "bpy_app_sdl.h"
-#include "bpy_app_usd.h"
-#include "bpy_app_tornavis.h"
-=======
 #include "bpy_app_alembic.hh"
 #include "bpy_app_build_options.hh"
 #include "bpy_app_ffmpeg.hh"
@@ -35,7 +23,7 @@
 #include "bpy_app_openvdb.hh"
 #include "bpy_app_sdl.hh"
 #include "bpy_app_usd.hh"
->>>>>>> bf-blender
+#include "bpy_app_tornavis.h"
 
 #include "bpy_app_translations.hh"
 
