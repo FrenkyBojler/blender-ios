@@ -649,7 +649,6 @@ bGPDstroke *BKE_gpencil_stroke_duplicate(bGPDstroke *gps_src,
   if (dup_points) {
     gps_dst->points = static_cast<bGPDspoint *>(MEM_dupallocN(gps_src->points));
     gps_dst->dvert = nullptr;
-    
   }
   else {
     gps_dst->points = nullptr;
