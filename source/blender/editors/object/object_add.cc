@@ -3226,23 +3226,20 @@ static void mesh_data_to_grease_pencil(Mesh &mesh_eval,
     stroke_materials_fill.finish();
   }
 
-  Span<float3> normals = mesh_eval.vert_normals();
+  const Span<float3> normals = mesh_eval.vert_normals();
 
-  mesh_eval.attributes_for_write().add("__vertex_normal_for_conversion__",
+  mesh_eval.attributes_for_write().add(".a_vertex_normal_for_conversion",
                                        bke::AttrDomain::Point,
                                        eCustomDataType::CD_PROP_FLOAT3,
                                        bke::AttributeInitVArray(VArray<float3>::ForSpan(normals)));
 
   const int edges_num = mesh_eval.edges_num;
-  IndexMaskMemory memory;
   bke::CurvesGeometry curves = geometry::mesh_to_curve_convert(
-      mesh_eval,
-      IndexMask::from_bools(VArray<bool>::ForSingle(true, edges_num), memory),
-      bke::AttributeFilter::default_filter());
+      mesh_eval, IndexRange(edges_num), {});
 
   MutableSpan<float3> curve_positions = curves.positions_for_write();
-  VArray<float3> point_normals =
-      curves.attributes().lookup<float3>("__vertex_normal_for_conversion__").varray;
+  const VArray<float3> point_normals = *curves.attributes().lookup<float3>(
+      ".a_vertex_normal_for_conversion");
 
   threading::parallel_for(curve_positions.index_range(), 8192, [&](const IndexRange range) {
     for (const int point_i : range) {
@@ -3250,7 +3247,10 @@ static void mesh_data_to_grease_pencil(Mesh &mesh_eval,
     }
   });
 
-  drawing_line->strokes_for_write() = std::move(curves);
+  mesh_eval.attributes_for_write()
+      .remove_anonymous();
+
+          drawing_line->strokes_for_write() = std::move(curves);
   drawing_line->radii_for_write().fill(stroke_radius);
   drawing_line->tag_topology_changed();
 }
