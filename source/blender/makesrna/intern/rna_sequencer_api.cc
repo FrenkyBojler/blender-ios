@@ -94,13 +94,8 @@ static Strip *rna_Strip_split(
   ListBase *seqbase = blender::seq::get_seqbase_by_seq(scene, strip);
 
   const char *error_msg = nullptr;
-  Strip *r_seq = blender::seq::edit_strip_split(bmain,
-                                                scene,
-                                                seqbase,
-                                                strip,
-                                                frame,
-                                                blender::seq::eSplitMethod(split_method),
-                                                &error_msg);
+  Strip *r_seq = blender::seq::edit_strip_split(
+      bmain, scene, seqbase, strip, frame, blender::seq::eSplitMethod(split_method), &error_msg);
   if (error_msg != nullptr) {
     BKE_report(reports, RPT_ERROR, error_msg);
   }

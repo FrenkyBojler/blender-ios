@@ -738,9 +738,7 @@ static void draw_handle_transform_text(const TimelineDrawContext *timeline_ctx,
     return;
   }
 
-  if (handle_is_selected(strip_ctx->strip, handle) == 0 &&
-      (G.moving & G_TRANSFORM_SEQ) == 0)
-  {
+  if (handle_is_selected(strip_ctx->strip, handle) == 0 && (G.moving & G_TRANSFORM_SEQ) == 0) {
     return;
   }
 
@@ -1461,10 +1459,8 @@ static void strip_data_handle_flags_set(const StripDrawContext &strip,
   if (!seq::transform_is_locked(timeline_ctx->channels, strip.strip) &&
       can_select_handle(scene, strip.strip, timeline_ctx->v2d))
   {
-    const bool selected_l = selected &&
-                            handle_is_selected(strip.strip, SEQ_HANDLE_LEFT);
-    const bool selected_r = selected &&
-                            handle_is_selected(strip.strip, SEQ_HANDLE_RIGHT);
+    const bool selected_l = selected && handle_is_selected(strip.strip, SEQ_HANDLE_LEFT);
+    const bool selected_r = selected && handle_is_selected(strip.strip, SEQ_HANDLE_RIGHT);
     const bool show_l = show_handles || selected_l;
     const bool show_r = show_handles || selected_r;
     if (show_l) {

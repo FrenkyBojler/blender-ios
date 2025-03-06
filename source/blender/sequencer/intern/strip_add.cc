@@ -58,10 +58,10 @@
 namespace blender::seq {
 
 void add_load_data_init(LoadData *load_data,
-                            const char *name,
-                            const char *path,
-                            const int start_frame,
-                            const int channel)
+                        const char *name,
+                        const char *path,
+                        const int start_frame,
+                        const int channel)
 {
   memset(load_data, 0, sizeof(LoadData));
   if (name != nullptr) {
@@ -359,16 +359,16 @@ Strip *add_sound_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
 #else   // WITH_AUDASPACE
 
 void add_sound_av_sync(Main * /*bmain*/,
-                           Scene * /*scene*/,
-                           Strip * /*strip*/,
-                           SeqLoadData * /*load_data*/)
+                       Scene * /*scene*/,
+                       Strip * /*strip*/,
+                       SeqLoadData * /*load_data*/)
 {
 }
 
 Strip *add_sound_strip(Main * /*bmain*/,
-                           Scene * /*scene*/,
-                           ListBase * /*seqbase*/,
-                           SeqLoadData * /*load_data*/)
+                       Scene * /*scene*/,
+                       ListBase * /*seqbase*/,
+                       SeqLoadData * /*load_data*/)
 {
   return nullptr;
 }

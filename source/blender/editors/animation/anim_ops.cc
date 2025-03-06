@@ -210,9 +210,7 @@ static void change_frame_seq_preview_begin(bContext *C, const wmEvent *event, Sp
 {
   BLI_assert(sseq != nullptr);
   ARegion *region = CTX_wm_region(C);
-  if (blender::ed::vse::check_show_strip(sseq) &&
-      !ED_time_scrub_event_in_region(region, event))
-  {
+  if (blender::ed::vse::check_show_strip(sseq) && !ED_time_scrub_event_in_region(region, event)) {
     blender::ed::vse::special_preview_set(C, event->mval);
   }
 }
@@ -254,8 +252,8 @@ static bool sequencer_skip_for_handle_tweak(const bContext *C, const wmEvent *ev
   float mouse_co[2];
   UI_view2d_region_to_view(v2d, event->mval[0], event->mval[1], &mouse_co[0], &mouse_co[1]);
 
-  blender::ed::vse::StripSelection selection =
-      blender::ed::vse::pick_strip_and_handle(scene, v2d, mouse_co);
+  blender::ed::vse::StripSelection selection = blender::ed::vse::pick_strip_and_handle(
+      scene, v2d, mouse_co);
 
   return selection.handle != blender::ed::vse::SEQ_HANDLE_NONE;
 }

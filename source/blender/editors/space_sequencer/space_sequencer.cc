@@ -699,8 +699,7 @@ static void sequencer_main_cursor(wmWindow *win, ScrArea *area, ARegion *region)
     return;
   }
 
-  StripSelection selection = pick_strip_and_handle(
-      scene, &region->v2d, mouse_co_view);
+  StripSelection selection = pick_strip_and_handle(scene, &region->v2d, mouse_co_view);
 
   if (selection.seq1 == nullptr) {
     WM_cursor_set(win, wmcursor);
