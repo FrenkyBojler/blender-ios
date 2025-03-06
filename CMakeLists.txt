@@ -2715,7 +2715,7 @@ if(FIRST_RUN)
 
   set(_config_msg "\nBlender Configuration\n=====================")
 
-  function(info_cfg_(option)
+  function(info_cfg_option
     _setting
     )
 
