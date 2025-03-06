@@ -42,18 +42,18 @@ class ObjectBakeTest(unittest.TestCase):
         )
         anim_utils.bake_action_objects(((self.obj, None),), frames=range(0, 10), bake_options=bake_options)
         action = self.obj.animation_data.action
-        self.assertTrue(action != None, "Baking without an existing action should create an action")
+        self.assertTrue(action is not None, "Baking without an existing action should create an action")
         self.assertEqual(len(action.slots), 1, "Baking should have created a slot")
         self.assertEqual(action.slots[0], self.obj.animation_data.action_slot)
         channelbag = anim_utils.action_get_channelbag_for_slot(action, action.slots[0])
-        self.assertTrue(channelbag != None)
+        self.assertTrue(channelbag is not None)
         self.assertEqual(len(channelbag.fcurves), 9)
         for fcurve in channelbag.fcurves:
             self.assertEqual(len(fcurve.keyframe_points), 10)
             self.assertEqual(fcurve.keyframe_points[0].co.x, 0)
             self.assertEqual(fcurve.keyframe_points[-1].co.x, 9, "Baking range is exclusive for the end")
-        
-    
+
+
 def main():
     global args
     import argparse
