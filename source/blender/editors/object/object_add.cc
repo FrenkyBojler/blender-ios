@@ -3226,7 +3226,6 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
     stroke_materials_fill.finish();
   }
 
-  /* Avoid modifying original evaulated mesh */
   Mesh *mesh_copied = BKE_mesh_copy_for_eval(mesh_eval);
   const Span<float3> normals = mesh_copied->vert_normals();
 
@@ -3244,7 +3243,8 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
       *mesh_copied, IndexRange(edges_num), {});
 
   MutableSpan<float3> curve_positions = curves.positions_for_write();
-  const VArray<float3> point_normals = *curves.attributes().lookup<float3>(unique_attribute_id);
+  const VArraySpan<float3> point_normals = *curves.attributes().lookup<float3>(
+      unique_attribute_id);
 
   threading::parallel_for(curve_positions.index_range(), 8192, [&](const IndexRange range) {
     for (const int point_i : range) {
@@ -3277,7 +3277,7 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
                               bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
 
   Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
-  Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
+  const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
 
   VectorSet<FillColorRecord> fill_colors;
   Array<int> material_remap;
