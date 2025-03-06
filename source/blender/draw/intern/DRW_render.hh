@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include "BLI_math_vector_types.hh"
 #include "DNA_object_enums.h"
 
 #include "GPU_material.hh"
@@ -39,9 +40,11 @@ struct SpaceLink;
 struct TaskGraph;
 struct View3D;
 struct ViewLayer;
+struct DRWContext;
 struct World;
 namespace blender::draw {
 class TextureFromPool;
+struct ObjectRef;
 }  // namespace blender::draw
 
 typedef struct DRWPass DRWPass;
@@ -64,12 +67,13 @@ struct DrawEngineType {
   void (*instance_free)(void *instance_data);
 
   void (*cache_init)(void *vedata);
-  void (*cache_populate)(void *vedata, Object *ob);
+  void (*cache_populate)(void *vedata, blender::draw::ObjectRef &ob_ref);
   void (*cache_finish)(void *vedata);
 
   void (*draw_scene)(void *vedata);
 
   void (*view_update)(void *vedata);
+  /* TODO(fclem): Remove. */
   void (*id_update)(void *vedata, ID *id);
 
   void (*render_to_image)(void *vedata,
@@ -80,6 +84,7 @@ struct DrawEngineType {
 };
 
 /* Shaders */
+/** IMPORTANT: Modify the currently bound context. */
 void DRW_shader_init();
 void DRW_shader_exit();
 
@@ -105,8 +110,7 @@ void DRW_shader_queue_optimize_material(GPUMaterial *mat);
 
 /* Viewport. */
 
-const float *DRW_viewport_size_get();
-const float *DRW_viewport_invert_size_get();
+blender::float2 DRW_viewport_size_get();
 
 DefaultFramebufferList *DRW_viewport_framebuffer_list_get();
 DefaultTextureList *DRW_viewport_texture_list_get();
@@ -117,11 +121,13 @@ blender::draw::TextureFromPool &DRW_viewport_pass_texture_get(const char *pass_n
 void DRW_viewport_request_redraw();
 
 void DRW_render_to_image(RenderEngine *engine, Depsgraph *depsgraph);
-void DRW_render_object_iter(
-    void *vedata,
-    RenderEngine *engine,
-    Depsgraph *depsgraph,
-    void (*callback)(void *vedata, Object *ob, RenderEngine *engine, Depsgraph *depsgraph));
+void DRW_render_object_iter(void *vedata,
+                            RenderEngine *engine,
+                            Depsgraph *depsgraph,
+                            void (*callback)(void *vedata,
+                                             blender::draw::ObjectRef &ob_ref,
+                                             RenderEngine *engine,
+                                             Depsgraph *depsgraph));
 
 /**
  * \warning Changing frame might free the #ViewLayerEngineData.
@@ -133,18 +139,14 @@ void DRW_render_set_time(RenderEngine *engine, Depsgraph *depsgraph, int frame, 
  * This function only setup DST and execute the given function.
  * \warning similar to DRW_render_to_image you cannot use default lists (`dfbl` & `dtxl`).
  */
-void DRW_custom_pipeline(DrawEngineType *draw_engine_type,
-                         Depsgraph *depsgraph,
-                         void (*callback)(void *vedata, void *user_data),
-                         void *user_data);
-/**
- * Same as `DRW_custom_pipeline` but allow better code-flow than a callback.
- */
-void DRW_custom_pipeline_begin(DrawEngineType *draw_engine_type, Depsgraph *depsgraph);
-void DRW_custom_pipeline_end();
+void DRW_custom_pipeline_begin(DRWContext &draw_ctx,
+                               DrawEngineType *draw_engine_type,
+                               Depsgraph *depsgraph);
+void DRW_custom_pipeline_end(DRWContext &draw_ctx);
 
 /**
  * Used when the render engine want to redo another cache populate inside the same render frame.
+ * Assumes it is called between `DRW_custom_pipeline_begin/end()`.
  */
 void DRW_cache_restart();
 
@@ -165,10 +167,6 @@ DrawData *DRW_drawdata_ensure(ID *id,
                               size_t size,
                               DrawDataInitCb init_cb,
                               DrawDataFreeCb free_cb);
-/**
- * Return nullptr if not a dupli or a pointer of pointer to the engine data.
- */
-void **DRW_duplidata_get(void *vedata);
 
 /* Settings. */
 

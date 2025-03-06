@@ -57,7 +57,7 @@ static void IMAGE_cache_init(void *vedata)
   ved->instance->image_sync();
 }
 
-static void IMAGE_cache_populate(void * /*vedata*/, Object * /*ob*/)
+static void IMAGE_cache_populate(void * /*vedata*/, blender::draw::ObjectRef & /*ob_ref*/)
 {
   /* Function intentional left empty. `cache_populate` is required to be implemented. */
 }
@@ -83,8 +83,6 @@ static void IMAGE_instance_free(void *instance)
 
 }  // namespace blender::image_engine
 
-extern "C" {
-
 using namespace blender::image_engine;
 
 DrawEngineType draw_engine_image_type = {
@@ -103,4 +101,3 @@ DrawEngineType draw_engine_image_type = {
     /*render_to_image*/ nullptr,
     /*store_metadata*/ nullptr,
 };
-}

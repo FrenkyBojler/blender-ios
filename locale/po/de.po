@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Beta (b'aad0bd21487d')\n"
+"Project-Id-Version: Blender 4.4.0 Beta (b'1a72a0f22cde')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-10 15:22+0000\n"
+"POT-Creation-Date: 2025-03-03 09:33+0000\n"
 "PO-Revision-Date: 2024-12-08 20:56+0000\n"
 "Last-Translator: Thomas Radeke <rahdick@gmx.de>\n"
 "Language-Team: German <https://translate.blender.org/projects/blender-ui/ui/de/>\n"
@@ -69,10 +69,6 @@ msgstr "Position"
 
 msgid "Action F-Curves"
 msgstr "Aktion F-Kurve"
-
-
-msgid "Collection of action F-Curves"
-msgstr "Gruppe von aktions F-Kurven"
 
 
 msgid "Action Group"
@@ -11402,17 +11398,9 @@ msgid "Groups"
 msgstr "Gruppen"
 
 
-msgid "Convenient groupings of F-Curves"
-msgstr "Beschränkung"
-
-
 msgctxt "ID"
 msgid "ID Root Type"
 msgstr "ID-Stammtyp"
-
-
-msgid "Type of ID block that action can be used on - DO NOT CHANGE UNLESS YOU KNOW WHAT YOU ARE DOING"
-msgstr "Typ des ID-Blocks, für den die Aktion verwendet werden kann - NICHT ÄNDERN, ES SEI DENN, SIE WISSEN, WAS SIE TUN"
 
 
 msgid "Layers"
@@ -11673,18 +11661,6 @@ msgstr "Schleife"
 
 msgid "Boundary Origin Offset"
 msgstr "Grenzursprungs-Versatz"
-
-
-msgid "Clone Alpha"
-msgstr "Alpha klonen"
-
-
-msgid "Clone Image"
-msgstr "Bild klonen"
-
-
-msgid "Clone Offset"
-msgstr "Versatz klonen"
 
 
 msgid "How much the cloth preserves the original shape, acting as a soft body"
@@ -16317,11 +16293,6 @@ msgid "Grids"
 msgstr "Raster"
 
 
-msgctxt "Sequence"
-msgid "Clip"
-msgstr "Clip"
-
-
 msgid "Velocity X Grid"
 msgstr "Velocity X-Raster"
 
@@ -18904,10 +18875,6 @@ msgid "Show/Hide"
 msgstr "Zeigen/Verbergen"
 
 
-msgid "Clean Up"
-msgstr "Aufräumen"
-
-
 msgid "Special Characters"
 msgstr "Sonderzeichen"
 
@@ -18926,6 +18893,10 @@ msgstr "Metaball"
 
 msgid "Names"
 msgstr "Namen"
+
+
+msgid "Clean Up"
+msgstr "Aufräumen"
 
 
 msgid "Pivot Point"
@@ -40090,6 +40061,18 @@ msgid "Canvas"
 msgstr "Leinwand"
 
 
+msgid "Clone Alpha"
+msgstr "Alpha klonen"
+
+
+msgid "Clone Image"
+msgstr "Bild klonen"
+
+
+msgid "Clone Offset"
+msgstr "Versatz klonen"
+
+
 msgid "Texture filtering type"
 msgstr "Textur Filtertyp"
 
@@ -47162,6 +47145,11 @@ msgstr "Film"
 
 
 msgctxt "Sequence"
+msgid "Clip"
+msgstr "Clip"
+
+
+msgctxt "Sequence"
 msgid "Mask"
 msgstr "Maske"
 
@@ -50724,10 +50712,6 @@ msgstr "Diese Einstellungen haben einen signifikanten"
 
 msgid "performance impact!"
 msgstr "Performancebeeinflussung!"
-
-
-msgid "Built without VR/OpenXR features"
-msgstr "Baue ohne VR/OpenXR Eigenschaften"
 
 
 msgctxt "Operator"
@@ -56332,10 +56316,6 @@ msgid "OS"
 msgstr "OS"
 
 
-msgid "Home"
-msgstr "Home"
-
-
 msgid "Esc"
 msgstr "Esc"
 
@@ -57984,6 +57964,10 @@ msgstr "Asset Kataloge"
 
 msgid "Date Modified"
 msgstr "Datum Modifiziert"
+
+
+msgid "Home"
+msgstr "Home"
 
 
 msgid "Desktop"

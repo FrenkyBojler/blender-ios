@@ -27,7 +27,6 @@
 #include "COM_domain.hh"
 #include "COM_evaluator.hh"
 #include "COM_result.hh"
-#include "COM_texture_pool.hh"
 
 #include "GPU_context.hh"
 #include "GPU_state.hh"
@@ -39,16 +38,6 @@
 
 namespace blender::draw::compositor_engine {
 
-class TexturePool : public compositor::TexturePool {
- public:
-  GPUTexture *allocate_texture(int2 size, eGPUTextureFormat format) override
-  {
-    DrawEngineType *owner = (DrawEngineType *)this;
-    return DRW_texture_pool_query(
-        DST.vmempool->texture_pool, size.x, size.y, format, GPU_TEXTURE_USAGE_GENERAL, owner);
-  }
-};
-
 class Context : public compositor::Context {
  private:
   /* A pointer to the info message of the compositor engine. This is a char array of size
@@ -56,10 +45,7 @@ class Context : public compositor::Context {
   char *info_message_;
 
  public:
-  Context(compositor::TexturePool &texture_pool, char *info_message)
-      : compositor::Context(texture_pool), info_message_(info_message)
-  {
-  }
+  Context(char *info_message) : compositor::Context(), info_message_(info_message) {}
 
   const Scene &get_scene() const override
   {
@@ -101,7 +87,7 @@ class Context : public compositor::Context {
 
   int2 get_render_size() const override
   {
-    return int2(float2(DRW_viewport_size_get()));
+    return int2(DRW_viewport_size_get());
   }
 
   /* We limit the compositing region to the camera region if in camera view, while we use the
@@ -109,7 +95,7 @@ class Context : public compositor::Context {
    * the viewport is already the camera region in that case. */
   rcti get_compositing_region() const override
   {
-    const int2 viewport_size = int2(float2(DRW_viewport_size_get()));
+    const int2 viewport_size = int2(DRW_viewport_size_get());
     const rcti render_region = rcti{0, viewport_size.x, 0, viewport_size.y};
 
     if (DRW_context_state_get()->rv3d->persp != RV3D_CAMOB || DRW_state_is_viewport_image_render())
@@ -222,53 +208,15 @@ class Context : public compositor::Context {
 
 class Engine {
  private:
-  TexturePool texture_pool_;
   Context context_;
-  compositor::Evaluator evaluator_;
-  /* Stores the compositing region size at the time the last compositor evaluation happened. See
-   * the update_compositing_region_size method for more information. */
-  int2 last_compositing_region_size_;
 
  public:
-  Engine(char *info_message)
-      : context_(texture_pool_, info_message),
-        evaluator_(context_),
-        last_compositing_region_size_(context_.get_compositing_region_size())
-  {
-  }
+  Engine(char *info_message) : context_(info_message) {}
 
-  /* Update the compositing region size and evaluate the compositor. */
   void draw()
   {
-    update_compositing_region_size();
-    /* We temporally disable caching of node tree compilation by always resting the evaluator for
-     * now. See pull request #134394 for more information. TODO: This should be cleaned up in the
-     * future. */
-    evaluator_.reset();
-    evaluator_.evaluate();
-  }
-
-  /* If the size of the compositing region changed from the last time the compositor was evaluated,
-   * update the last compositor region size and reset the evaluator. That's because the evaluator
-   * compiles the node tree in a manner that is specifically optimized for the size of the
-   * compositing region. This should be called before evaluating the compositor. */
-  void update_compositing_region_size()
-  {
-    if (last_compositing_region_size_ == context_.get_compositing_region_size()) {
-      return;
-    }
-
-    last_compositing_region_size_ = context_.get_compositing_region_size();
-
-    evaluator_.reset();
-  }
-
-  /* If the compositor node tree changed, reset the evaluator. */
-  void update(const Depsgraph *depsgraph)
-  {
-    if (DEG_id_type_updated(depsgraph, ID_NT)) {
-      evaluator_.reset();
-    }
+    compositor::Evaluator evaluator(context_);
+    evaluator.evaluate();
   }
 };
 
@@ -328,20 +276,6 @@ static void compositor_engine_draw(void *data)
 #endif
 }
 
-static void compositor_engine_update(void *data)
-{
-  COMPOSITOR_Data *compositor_data = static_cast<COMPOSITOR_Data *>(data);
-
-  /* Clear any info message that was set in a previous update. */
-  compositor_data->info[0] = '\0';
-
-  if (compositor_data->instance_data) {
-    compositor_data->instance_data->update(DRW_context_state_get()->depsgraph);
-  }
-}
-
-extern "C" {
-
 DrawEngineType draw_engine_compositor_type = {
     /*next*/ nullptr,
     /*prev*/ nullptr,
@@ -353,9 +287,8 @@ DrawEngineType draw_engine_compositor_type = {
     /*cache_populate*/ nullptr,
     /*cache_finish*/ nullptr,
     /*draw_scene*/ &compositor_engine_draw,
-    /*view_update*/ &compositor_engine_update,
+    /*view_update*/ nullptr,
     /*id_update*/ nullptr,
     /*render_to_image*/ nullptr,
     /*store_metadata*/ nullptr,
 };
-}

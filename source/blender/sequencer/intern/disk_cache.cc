@@ -14,6 +14,7 @@
 
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_userdef_types.h"
 
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
@@ -52,6 +53,8 @@
  * To distinguish 2 blend files with same name, scene->ed->disk_cache_timestamp
  * is used as UID. Blend file can still be copied manually which may cause conflict.
  */
+
+namespace blender::seq {
 
 /* Format string:
  * `<cache type>-<resolution X>x<resolution Y>-<rendersize>%(<view_id>)-<frame no>.dcf`. */
@@ -405,8 +408,8 @@ void seq_disk_cache_invalidate(SeqDiskCache *disk_cache,
 
   BLI_mutex_lock(&disk_cache->read_write_mutex);
 
-  start = SEQ_time_left_handle_frame_get(scene, strip_changed) - DCACHE_IMAGES_PER_FILE;
-  end = SEQ_time_right_handle_frame_get(scene, strip_changed);
+  start = time_left_handle_frame_get(scene, strip_changed) - DCACHE_IMAGES_PER_FILE;
+  end = time_right_handle_frame_get(scene, strip_changed);
 
   seq_disk_cache_delete_invalid_files(disk_cache, scene, strip, invalidate_types, start, end);
 
@@ -632,13 +635,13 @@ ImBuf *seq_disk_cache_read_file(SeqDiskCache *disk_cache, SeqCacheKey *key)
   if (header.entry[entry_index].size_raw == size_char) {
     expected_size = size_char;
     ibuf = IMB_allocImBuf(
-        key->context.rectx, key->context.recty, 32, IB_rect | IB_uninitialized_pixels);
+        key->context.rectx, key->context.recty, 32, IB_byte_data | IB_uninitialized_pixels);
     IMB_colormanagement_assign_byte_colorspace(ibuf, header.entry[entry_index].colorspace_name);
   }
   else if (header.entry[entry_index].size_raw == size_float) {
     expected_size = size_float;
     ibuf = IMB_allocImBuf(
-        key->context.rectx, key->context.recty, 32, IB_rectfloat | IB_uninitialized_pixels);
+        key->context.rectx, key->context.recty, 32, IB_float_data | IB_uninitialized_pixels);
     IMB_colormanagement_assign_float_colorspace(ibuf, header.entry[entry_index].colorspace_name);
   }
   else {
@@ -683,3 +686,5 @@ void seq_disk_cache_free(SeqDiskCache *disk_cache)
   BLI_mutex_end(&disk_cache->read_write_mutex);
   MEM_freeN(disk_cache);
 }
+
+}  // namespace blender::seq

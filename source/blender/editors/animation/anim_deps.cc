@@ -21,6 +21,7 @@
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -191,8 +192,8 @@ static void animchan_sync_fcurve_scene(bAnimListElem *ale)
   }
 
   /* Check if this strip is selected. */
-  Editing *ed = SEQ_editing_get(scene);
-  strip = SEQ_get_sequence_by_name(ed->seqbasep, strip_name, false);
+  Editing *ed = blender::seq::editing_get(scene);
+  strip = blender::seq::get_sequence_by_name(ed->seqbasep, strip_name, false);
   if (strip == nullptr) {
     return;
   }
