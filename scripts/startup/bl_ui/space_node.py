@@ -1111,6 +1111,22 @@ def node_panel(cls):
     return node_cls
 
 
+class NODE_AST_compositor(bpy.types.AssetShelf):
+    bl_space_type = 'NODE_EDITOR'
+    bl_idname = "NODE_EDITOR_AST_compositor"
+    bl_region_type = 'UI'
+    bl_options = {'DEFAULT_VISIBLE'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.space_data.tree_type == 'CompositorNodeTree'
+
+    @classmethod
+    def asset_poll(cls, asset):
+
+        return asset.id_type == 'NODETREE' and asset.metadata.get("type") == 1
+
+
 classes = (
     NODE_HT_header,
     NODE_MT_editor_menus,
