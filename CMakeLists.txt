@@ -1199,8 +1199,8 @@ mark_as_advanced(POSTCONFIGURE_SCRIPT)
 
 if(APPLE AND XCODE AND "${CMAKE_OSX_ARCHITECTURES}" STREQUAL "x86_64")
   # Ref: https://projects.blender.org/blender/blender/pulls/134639#issuecomment-1513274
-  option(WITH_FORCE_OLD_LINKER "Force using the old (slow) linker on macOS" OFF)
-  mark_as_advanced(WITH_FORCE_OLD_LINKER)
+  option(WITH_LINKER_LEGACY "Use the legacy (slow) linker on macOS" OFF)
+  mark_as_advanced(WITH_LINKER_LEGACY)
 endif()
 
 # end option(...)
