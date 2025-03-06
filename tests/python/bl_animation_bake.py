@@ -203,9 +203,6 @@ class ObjectBakeTest(unittest.TestCase):
                 self.assertEqual(len(fcurve.keyframe_points), 10)
 
 
-
-
-
 def main():
     global args
     import argparse
