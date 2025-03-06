@@ -299,25 +299,6 @@ class WindingState {
   }
 };
 
-static WindingState state_from_point(const float2 point,
-                                     const Span<float2> points,
-                                     const OffsetIndices<int> points_by_curve,
-                                     const Span<bool> is_fill)
-{
-  WindingState state;
-
-  for (const int curve_i : points_by_curve.index_range()) {
-    const int shape_id = curve_i; /* TODO. */
-
-    if (is_fill[curve_i]) {
-      const Span<float2> poly_i = points.slice(points_by_curve[curve_i]);
-      state.add_to_shape(shape_id, point_in_polygon_winding_order(point, poly_i));
-    }
-  }
-
-  return state;
-}
-
 static std::pair<WindingState, WindingState> LR_states_from_segment(
     const Segment &segment,
     const int curve_i,
