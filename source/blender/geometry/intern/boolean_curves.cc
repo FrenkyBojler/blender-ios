@@ -301,14 +301,16 @@ class WindingState {
 
 static std::pair<WindingState, WindingState> LR_states_from_segment(
     const Segment &segment,
-    const int curve_i,
     const Span<float2> points,
     const OffsetIndices<int> points_by_curve,
+    const Vector<IndexMask> &shapes,
     const IndexMask &mask_shapes,
     const VArray<bool> &is_fill)
 {
   WindingState state_L;
   WindingState state_R;
+
+  const int curve_i = segment.curve;
 
   state_L.add_to_shape(curve_i, 1); /* TODO. */
 
@@ -316,19 +318,19 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
   const int first_point = segment.start_point();
 
   mask_shapes.foreach_index([&](const int shape_id) {
-    /* TODO. */
-    const int curve_j = shape_id;
+    const IndexMask &curves_j = shapes[shape_id];
+    curves_j.foreach_index([&](const int curve_j) {
+      if (curve_j == curve_i) {
+        return;
+      }
 
-    if (curve_j == curve_i) {
-      return;
-    }
-
-    if (is_fill[curve_j]) {
-      const Span<float2> poly_j = points.slice(points_by_curve[curve_j]);
-      int winding_j = point_in_polygon_winding_order(points[first_point], poly_j);
-      state_L.add_to_shape(shape_id, winding_j);
-      state_R.add_to_shape(shape_id, winding_j);
-    }
+      if (is_fill[curve_j]) {
+        const Span<float2> poly_j = points.slice(points_by_curve[curve_j]);
+        int winding_j = point_in_polygon_winding_order(points[first_point], poly_j);
+        state_L.add_to_shape(shape_id, winding_j);
+        state_R.add_to_shape(shape_id, winding_j);
+      }
+    });
   });
 
   return {state_L, state_R};
@@ -731,7 +733,7 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
       const Segment &first_segment = segments_k[segments.first()];
       const IndexMask &mask_shapes = is_subj ? clipping_shapes : subject_shapes;
       auto [state_L, state_R] = LR_states_from_segment(
-          first_segment, curve_k, points, points_by_curve, mask_shapes, is_fill);
+          first_segment, points, points_by_curve, shapes, mask_shapes, is_fill);
 
       for (const int seg_i : segments) {
         const Segment &this_segment = segments_k[seg_i];
