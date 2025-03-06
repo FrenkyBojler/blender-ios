@@ -107,12 +107,13 @@ GPUStencilTableSSBO::GPUStencilTableSSBO(LimitStencilTable const *limitStencilTa
   if (_numStencils > 0) {
     sizes_buf = create_buffer(limitStencilTable->GetSizes(), GPU_COMP_I32, GPU_FETCH_INT);
     offsets_buf = create_buffer(limitStencilTable->GetOffsets(), GPU_COMP_I32, GPU_FETCH_INT);
-    indices_buf = create_buffer(limitStencilTable->GetControlIndices(), GPU_COMP_I32, GPU_FETCH_INT);
+    indices_buf = create_buffer(
+        limitStencilTable->GetControlIndices(), GPU_COMP_I32, GPU_FETCH_INT);
     weights_buf = create_buffer(limitStencilTable->GetWeights(), GPU_COMP_F32, GPU_FETCH_FLOAT);
     du_weights_buf = create_buffer(
         limitStencilTable->GetDuWeights(), GPU_COMP_F32, GPU_FETCH_FLOAT);
-    du_weights_buf = create_buffer(
-        limitStencilTable->GetDuWeights(), GPU_COMP_F32, GPU_FETCH_FLOAT);
+    dv_weights_buf = create_buffer(
+        limitStencilTable->GetDvWeights(), GPU_COMP_F32, GPU_FETCH_FLOAT);
     duu_weights_buf = create_buffer(
         limitStencilTable->GetDuuWeights(), GPU_COMP_F32, GPU_FETCH_FLOAT);
     duv_weights_buf = create_buffer(
@@ -669,7 +670,6 @@ bool GPUComputeEvaluator::_PatchKernel::Compile(BufferDescriptor const &srcDesc,
   // cache uniform locations
   uniformSrcOffset = GPU_shader_get_uniform(shader, "srcOffset");
   uniformDstOffset = GPU_shader_get_uniform(shader, "dstOffset");
-  uniformPatchArray = GPU_shader_get_uniform(shader, "patchArray");
   uniformDuDesc = GPU_shader_get_uniform(shader, "duDesc");
   uniformDvDesc = GPU_shader_get_uniform(shader, "dvDesc");
   uniformDuuDesc = GPU_shader_get_uniform(shader, "duuDesc");

@@ -2402,7 +2402,6 @@ class GPUComputeEvaluator {
     GPUShader *shader = nullptr;
     int uniformSrcOffset = 0;
     int uniformDstOffset = 0;
-    int uniformPatchArray = 0;
     int uniformDuDesc = 0;
     int uniformDvDesc = 0;
     int uniformDuuDesc = 0;
