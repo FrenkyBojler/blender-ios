@@ -35,6 +35,7 @@
 #include "BKE_main.hh"
 #include "BKE_main_namemap.hh"
 #include "BKE_packedFile.hh"
+#include "BKE_report.hh"
 
 struct BlendDataReader;
 
@@ -93,6 +94,7 @@ static void library_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   Library *lib = (Library *)id;
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, lib->runtime->parent, IDWALK_CB_NEVER_SELF);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, lib->archive_parent_library, IDWALK_CB_NEVER_SELF);
 }
 
 static void library_foreach_path(ID *id, BPathForeachPathData *bpath_data)
@@ -138,6 +140,15 @@ static void library_blend_read_data(BlendDataReader * /*reader*/, ID *id)
   lib->runtime = MEM_new<LibraryRuntime>(__func__);
 }
 
+static void library_blend_read_after_liblink(BlendLibReader * /*reader*/, ID *id)
+{
+  Library *lib = reinterpret_cast<Library *>(id);
+  if (lib->flag & LIBRARY_FLAG_IS_ARCHIVE) {
+    BLI_assert(lib->archive_parent_library);
+    lib->archive_parent_library->runtime->archived_libraries.append(lib);
+  }
+}
+
 IDTypeInfo IDType_ID_LI = {
     /*id_code*/ ID_LI,
     /*id_filter*/ FILTER_ID_LI,
@@ -161,7 +172,7 @@ IDTypeInfo IDType_ID_LI = {
 
     /*blend_write*/ library_blend_write_data,
     /*blend_read_data*/ library_blend_read_data,
-    /*blend_read_after_liblink*/ nullptr,
+    /*blend_read_after_liblink*/ library_blend_read_after_liblink,
 
     /*blend_read_undo_preserve*/ nullptr,
 
@@ -365,4 +376,125 @@ Library *blender::bke::library::search_filepath_abs(ListBase *libraries,
     }
   }
   return nullptr;
+}
+
+Library *blender::bke::library::add_archive_library(Main &bmain, Library &reference_library)
+{
+  BLI_assert((reference_library.flag & LIBRARY_FLAG_IS_ARCHIVE) == 0);
+  /* Cannot copy libraries using generic ID copying functions, so create the copy manually. */
+  Library *archive_library = static_cast<Library *>(
+      BKE_id_new(&bmain, ID_LI, BKE_id_name(reference_library.id)));
+
+  archive_library->archive_parent_library = &reference_library;
+  archive_library->flag = LIBRARY_FLAG_IS_ARCHIVE; /* Could OR with reference_library->flag too? */
+  BKE_library_filepath_set(&bmain, archive_library, reference_library.filepath);
+
+  archive_library->runtime->parent = reference_library.runtime->parent;
+  /* Only copy a subset of the reference library tags. E.g. an archive library should never be
+   * considered as writable, so never copy #LIBRARY_ASSET_FILE_WRITABLE. This may need further
+   * tweaking still. */
+  archive_library->runtime->tag = reference_library.runtime->tag &
+                                  (LIBRARY_TAG_RESYNC_REQUIRED | LIBRARY_ASSET_EDITABLE |
+                                   LIBRARY_IS_ASSET_EDIT_FILE);
+  /* By definition, the file version of an archive library containing only embedded linked data is
+   * the same as the one of its Main container. */
+  archive_library->runtime->versionfile = bmain.versionfile;
+  archive_library->runtime->subversionfile = bmain.subversionfile;
+
+  return archive_library;
+}
+
+void blender::bke::library::embed_linked_ids(Main &bmain, const blender::Set<ID *> &ids_to_embed)
+{
+  for (ID *id : ids_to_embed) {
+    BLI_assert(ID_IS_LINKED(id));
+    if (ID_IS_LINKED_EMBEDDED(id)) {
+      /* Should not happen, but also not critical issue. */
+      CLOG_ERROR(&LOG,
+                 "Trying to make embedded again an already linked embedded ID '%s' (from '%s')",
+                 id->name,
+                 id->lib->runtime->filepath_abs);
+      /* Already embedded. */
+      continue;
+    }
+    /* Find an existing archive Library ID not containing a 'version' of this ID yet. */
+    Library *reference_lib = id->lib;
+    Library *archive_lib = nullptr;
+    LISTBASE_FOREACH (Library *, lib_iter, &bmain.libraries) {
+      if ((lib_iter->flag & LIBRARY_FLAG_IS_ARCHIVE) == 0) {
+        continue;
+      }
+      BLI_assert(lib_iter->archive_parent_library != nullptr);
+      if (lib_iter->archive_parent_library != reference_lib) {
+        continue;
+      }
+      /* Check if current archive library already contains an ID of same type and name. */
+      if (BKE_main_namemap_contain_name(bmain, lib_iter, GS(id->name), BKE_id_name(*id))) {
+        continue;
+      }
+      archive_lib = lib_iter;
+      break;
+    }
+    if (!archive_lib) {
+      archive_lib = add_archive_library(bmain, *reference_lib);
+      reference_lib->runtime->archived_libraries.append(archive_lib);
+    }
+    BLI_assert(reference_lib->runtime->archived_libraries.contains(archive_lib));
+
+    /* Move the ID into its new archive library and mark it as embedded. */
+    BKE_main_namemap_remove_id(bmain, *id);
+    id->lib = archive_lib;
+    id->flag |= ID_FLAG_LINKED_AND_EMBEDDED;
+    ListBase &lb = *which_libbase(&bmain, GS(id->name));
+    BKE_id_new_name_validate(
+        bmain, lb, *id, BKE_id_name(*id), IDNewNameMode::RenameExistingNever, true);
+    id->newid = id;
+  }
+}
+
+void blender::bke::library::embed_linked_id_hierarchy(Main &bmain, ID &root_id)
+{
+  BLI_assert(ID_IS_LINKED(&root_id));
+  BLI_assert(!ID_IS_LINKED_EMBEDDED(&root_id));
+
+  /* TODO: This code also needs to check upward in the hierarchy to ensure no other linked data
+   * uses the root_id (or some of its dependency). Otherwise, these IDs should be duplicated before
+   * being embedded. This is likely similar process as liboverride 'make override hierarcy' code,
+   * hopefully we can deduplicate some of this logic into its own utils BKE API. */
+  blender::Set<ID *> ids_to_embed;
+  ids_to_embed.add(&root_id);
+  BKE_library_foreach_ID_link(
+      &bmain,
+      &root_id,
+
+      [&](LibraryIDLinkCallbackData *cb_data) -> int {
+        ID *referenced_id = *cb_data->id_pointer;
+        if (!referenced_id) {
+          return IDWALK_RET_NOP;
+        }
+        if (!ID_IS_LINKED(referenced_id)) {
+          CLOG_ERROR(&LOG, "Linked data-block references non-linked data-block");
+          return IDWALK_RET_NOP;
+        }
+        if (ID_IS_LINKED_EMBEDDED(referenced_id)) {
+          /* FIXME This is not correct, another linked data can use embedded linked data.
+           *
+           * Essentially, until actual lib data changes, the embedded linked ID replaces a regular
+           * linked ID (this is done at link time by checking deep hashes).
+           *
+           * Once real lib data diverges, then new usages (including current non-embedded linked
+           * IDs) will switch to the 'current' version from the real library, while existing local
+           * and embedded usages will stay on the archived embedded version.
+           */
+          CLOG_ERROR(
+              &LOG, "Non-embedded data-block references embedded data-block which is not allowed");
+          return IDWALK_RET_NOP;
+        }
+        ids_to_embed.add(referenced_id);
+        return IDWALK_RET_NOP;
+      },
+      nullptr,
+      IDWALK_READONLY | IDWALK_RECURSE);
+
+  blender::bke::library::embed_linked_ids(bmain, ids_to_embed);
 }

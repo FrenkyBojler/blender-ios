@@ -507,6 +507,14 @@ typedef struct Library {
   /** Path name used for reading, can be relative and edited in the outliner. */
   char filepath[1024];
 
+  /** Flags defining specific caracteristics of a library. See #LibraryFlag. */
+  uint16_t flag;
+  char _pad[6];
+
+  /** For archive library only (#LIBRARY_FLAG_IS_ARCHIVE): The main library owning it. */
+  struct Library *archive_parent_library;
+
+  /** Packed blendfile of the library, nullptr if not packed. */
   struct PackedFile *packedfile;
 
   /**
@@ -516,6 +524,18 @@ typedef struct Library {
    */
   LibraryRuntimeHandle *runtime;
 } Library;
+
+/**
+ * #Library.flag
+ *
+ * Some of these flags define a 'virtual' library, which may not be an actual blendfile, store
+ * 'archived' embedded data, etc. IDs contained in these virtual libraries are _not_ managed by
+ * regular linking code.
+ */
+enum LibraryFlag {
+  /** The library is an 'archive' that only contains embedded linked data. */
+  LIBRARY_FLAG_IS_ARCHIVE = 1 << 0,
+};
 
 /**
  * A weak library/ID reference for local data that has been appended, to allow re-using that local

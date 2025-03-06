@@ -2405,6 +2405,11 @@ static void direct_link_library(FileData *fd, Library *lib, Main *main)
   /* check if the library was already read */
   LISTBASE_FOREACH (Main *, newmain, fd->mainlist) {
     if (newmain->curlib) {
+      if (newmain->curlib->flag & LIBRARY_FLAG_IS_ARCHIVE || lib->flag & LIBRARY_FLAG_IS_ARCHIVE) {
+        /* Archive library should never be used to link new data, and there can be many such
+         * archive libraries for a same 'real' blendfile one. */
+        continue;
+      }
       if (BLI_path_cmp(newmain->curlib->runtime->filepath_abs, lib->runtime->filepath_abs) == 0) {
         BLO_reportf_wrap(fd->reports,
                          RPT_WARNING,
@@ -2442,10 +2447,15 @@ static void direct_link_library(FileData *fd, Library *lib, Main *main)
   Main *newmain = BKE_main_new();
   BLI_addtail(fd->mainlist, newmain);
   newmain->curlib = lib;
-  /* Temporary until we have multi-library support. Currently, we don't know the library version
-   * otherwise, because we are not actually reading the library .blend file. */
-  newmain->versionfile = static_cast<Main *>(fd->mainlist->first)->versionfile;
-  newmain->subversionfile = static_cast<Main *>(fd->mainlist->first)->subversionfile;
+
+  if (lib->flag & LIBRARY_FLAG_IS_ARCHIVE) {
+    /* Archive libraries contains only embedded linked IDs, which by definition have the same
+     * fileversion as the blendfile that contains them. */
+    lib->runtime->versionfile = newmain->versionfile =
+        static_cast<Main *>(fd->mainlist->first)->versionfile;
+    lib->runtime->subversionfile = newmain->subversionfile =
+        static_cast<Main *>(fd->mainlist->first)->subversionfile;
+  }
 
   lib->runtime->parent = nullptr;
 
@@ -3097,12 +3107,6 @@ static BHead *read_libblock(FileData *fd,
     }
 
     return blo_bhead_next(fd, bhead);
-  }
-
-  if (main->curlib) {
-    /* Temporary until we get dedicated Library IDs for embedded data-blocks. */
-    main->curlib->runtime->versionfile = main->versionfile;
-    main->curlib->runtime->subversionfile = main->subversionfile;
   }
 
   /* Read datablock contents.
@@ -3929,8 +3933,12 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
        *    placeholders IDs created will reference the library ID, and the library ID will have a
        *    valid version number as the file was read to search for the linked IDs.
        *  - In case the library blendfile does not exist, its local Library ID will get the version
-       *    of the current local Main (i.e. the loaded blendfile). */
-      else if (lib->runtime->versionfile == 0) {
+       *    of the current local Main (i.e. the loaded blendfile).
+       *  - In case it is a reference library for archived ones, its runtime #archived_libraries
+       *    vector will not be empty, and it must be kept, even if no data is directly linked from
+       *    it anymore.
+       */
+      else if (lib->runtime->versionfile == 0 && lib->runtime->archived_libraries.is_empty()) {
 #ifndef NDEBUG
         ID *id_iter;
         FOREACH_MAIN_ID_BEGIN (bfd->main, id_iter) {

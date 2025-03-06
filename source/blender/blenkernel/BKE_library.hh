@@ -9,9 +9,11 @@
  * API to manage `Library` data-blocks.
  */
 
+#include "BLI_set.hh"
 #include "BLI_string_ref.hh"
 
 struct FileData;
+struct ID;
 struct Library;
 struct ListBase;
 struct Main;
@@ -38,6 +40,12 @@ struct LibraryRuntime {
   /** Set for indirectly linked libraries, used in the outliner and while reading. */
   Library *parent = nullptr;
 
+  /**
+   * Helper listing all archived libraries 'versions' of this library.
+   * Should only contain something if this library is a regular 'real' blendfile library.
+   */
+  blender::Vector<Library *> archived_libraries = {};
+
   /** #eLibrary_Tag. */
   ushort tag = 0;
 
@@ -53,6 +61,28 @@ struct LibraryRuntime {
  * Search for given absolute filepath in all libraries in given #ListBase.
  */
 Library *search_filepath_abs(ListBase *libraries, blender::StringRef filepath_abs);
+
+/**
+ * Add a new 'archive' copy of the given reference library. It will be used to store linked
+ * embedded IDs.
+ */
+Library *add_archive_library(Main &bmain, Library &reference_library);
+
+/**
+ * Embed given linked IDs. Low-level code, assumes all given IDs are valid and safe to embed.
+ *
+ * Will set final embedded ID into each ID::newid pointers.
+ */
+void embed_linked_ids(Main &bmain, const blender::Set<ID *> &ids_to_embed);
+
+/**
+ * Embed given linked ID, and all the related hierarchy.
+ *
+ * Will set final embedded ID into each ID::newid pointers.
+ *
+ * TODO: WIP, does not cover all possible cases yet - by far. See note in code.
+ */
+void embed_linked_id_hierarchy(Main &bmain, ID &root_id);
 
 };  // namespace blender::bke::library
 

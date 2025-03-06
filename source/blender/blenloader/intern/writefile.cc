@@ -1111,6 +1111,7 @@ static void write_libraries(WriteData *wd, Main *bmain)
         continue;
       }
       if (ID_IS_LINKED_EMBEDDED(id)) {
+        BLI_assert(library.flag & LIBRARY_FLAG_IS_ARCHIVE);
         ids_used_from_library.append(id);
         continue;
       }
@@ -1126,6 +1127,15 @@ static void write_libraries(WriteData *wd, Main *bmain)
 
     bool should_write_library = false;
     if (library.packedfile) {
+      should_write_library = true;
+    }
+    else if (!library.runtime->archived_libraries.is_empty()) {
+      /* Reference 'real' blendfile library of archived 'copies' of it containing embedded linked
+       * IDs should always be written. */
+      /* FIXME: A bit weak, as it could be that all archive libs are now empty (if all related
+       * embedded linked IDs have been deleted e.g.)...
+       * Could be fixed by either adding more checks here, or ensuring empty archive libs are
+       * deleted when no ID uses them anymore? */
       should_write_library = true;
     }
     else if (wd->use_memfile) {

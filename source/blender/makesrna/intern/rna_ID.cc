@@ -1537,6 +1537,52 @@ static void rna_Library_version_get(PointerRNA *ptr, int *value)
   value[2] = lib->runtime->subversionfile;
 }
 
+static void rna_Library_archive_libraries_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+  iter->parent = *ptr;
+  Library *lib = static_cast<Library *>(ptr->data);
+
+  Library **archive_libraries_iter = lib->runtime->archived_libraries.begin();
+  iter->internal.custom = archive_libraries_iter;
+
+  iter->valid = archive_libraries_iter != lib->runtime->archived_libraries.end();
+}
+
+static void rna_Library_archive_libraries_next(CollectionPropertyIterator *iter)
+{
+  Library *lib = static_cast<Library *>(iter->parent.data);
+  Library **archive_libraries_iter = static_cast<Library **>(iter->internal.custom);
+
+  archive_libraries_iter++;
+  iter->internal.custom = archive_libraries_iter;
+
+  iter->valid = archive_libraries_iter != lib->runtime->archived_libraries.end();
+}
+
+static PointerRNA rna_Library_archive_libraries_get(CollectionPropertyIterator *iter)
+{
+  Library **archive_libraries_iter = static_cast<Library **>(iter->internal.custom);
+  return RNA_pointer_create_with_parent(iter->parent, &RNA_Library, *archive_libraries_iter);
+}
+
+static int rna_Library_archive_libraries_length(PointerRNA *ptr)
+{
+  Library *lib = static_cast<Library *>(ptr->data);
+  return int(lib->runtime->archived_libraries.size());
+}
+
+static bool rna_Library_archive_libraries_lookupint(PointerRNA *ptr, int key, PointerRNA *r_ptr)
+{
+  Library *lib = static_cast<Library *>(ptr->data);
+  if (key < 0 || key >= lib->runtime->archived_libraries.size()) {
+    return false;
+  }
+
+  Library *archive_library = lib->runtime->archived_libraries[key];
+  rna_pointer_create_with_ancestors(*ptr, &RNA_Library, archive_library, *r_ptr);
+  return true;
+}
+
 static void rna_Library_reload(Library *lib, bContext *C, ReportList *reports)
 {
 #  ifdef WITH_PYTHON
@@ -2659,6 +2705,38 @@ static void rna_def_library(BlenderRNA *brna)
                            "Editable",
                            "Datablocks in this library are editable despite being linked. Used by "
                            "brush assets and their dependencies.");
+
+  prop = RNA_def_property(srna, "is_archive", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", LIBRARY_FLAG_IS_ARCHIVE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop,
+                           "Is Archive",
+                           "This library is an 'archive' storage for embedded linked IDs "
+                           "originally linked from its 'archive parent' library.");
+
+  prop = RNA_def_property(srna, "archive_parent_library", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "archive_parent_library");
+  RNA_def_property_struct_type(prop, "Library");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
+  RNA_def_property_ui_text(prop,
+                           "Parent Archive Library",
+                           "Source library from which this archive of embedded IDs was generated");
+
+  prop = RNA_def_property(srna, "archive_libraries", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_struct_type(prop, "Library");
+  RNA_def_property_collection_funcs(prop,
+                                    "rna_Library_archive_libraries_begin",
+                                    "rna_Library_archive_libraries_next",
+                                    nullptr,
+                                    "rna_Library_archive_libraries_get",
+                                    "rna_Library_archive_libraries_length",
+                                    "rna_Library_archive_libraries_lookupint",
+                                    nullptr,
+                                    nullptr);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
+  RNA_def_property_ui_text(prop,
+                           "Parent Archive Library",
+                           "Source library from which this archive of embedded IDs was generated");
 
   func = RNA_def_function(srna, "reload", "rna_Library_reload");
   RNA_def_function_flag(func, FUNC_USE_REPORTS | FUNC_USE_CONTEXT);

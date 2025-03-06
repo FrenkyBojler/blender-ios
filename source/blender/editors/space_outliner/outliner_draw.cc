@@ -2546,6 +2546,9 @@ static BIFIconID tree_element_get_icon_from_id(const ID *id)
       if (id->tag & ID_TAG_MISSING) {
         return ICON_LIBRARY_DATA_BROKEN;
       }
+      else if (reinterpret_cast<const Library *>(id)->flag & LIBRARY_FLAG_IS_ARCHIVE) {
+        return ICON_LIBRARY_DATA_EMBEDDED;
+      }
       else if (((Library *)id)->runtime->parent) {
         return ICON_LIBRARY_DATA_INDIRECT;
       }
