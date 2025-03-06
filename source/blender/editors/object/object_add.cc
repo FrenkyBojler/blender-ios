@@ -3172,7 +3172,7 @@ static VectorSet<FillColorRecord> mesh_to_grease_pencil_get_material_list(
 
   return fill_colors;
 }
-static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
+static void mesh_data_to_grease_pencil(Mesh &mesh_eval,
                                        GreasePencil &grease_pencil,
                                        const int current_frame,
                                        const bool generate_faces,
@@ -3190,7 +3190,6 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
   bke::greasepencil::Drawing *drawing_line = grease_pencil.insert_frame(layer_line, current_frame);
 
   const Span<float3> mesh_positions = mesh_eval.vert_positions();
-  const Span<int2> edges = mesh_eval.edges();
   const OffsetIndices<int> faces = mesh_eval.faces();
   Span<int> faces_span = faces.data();
   const Span<int> corner_verts = mesh_eval.corner_verts();
@@ -3227,27 +3226,32 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
     stroke_materials_fill.finish();
   }
 
-  /* Because we need to move vertices along their normals, so we duplicate one, do the offsets,
-   * then convert to curves. */
-  Mesh *mesh_copied = BKE_mesh_copy_for_eval(mesh_eval);
-  MutableSpan<float3> positions = mesh_copied->vert_positions_for_write();
-  Span<float3> normals = mesh_copied->vert_normals();
-  threading::parallel_for(positions.index_range(), 8192, [&](const IndexRange range) {
-    for (const int point_i : range) {
-      positions[point_i] += offset * normals[point_i];
-    }
-  });
+  Span<float3> normals = mesh_eval.vert_normals();
 
-  const int edges_num = mesh_copied->edges_num;
+  mesh_eval.attributes_for_write().add("__vertex_normal_for_conversion__",
+                                       bke::AttrDomain::Point,
+                                       eCustomDataType::CD_PROP_FLOAT3,
+                                       bke::AttributeInitVArray(VArray<float3>::ForSpan(normals)));
+
+  const int edges_num = mesh_eval.edges_num;
   IndexMaskMemory memory;
   bke::CurvesGeometry curves = geometry::mesh_to_curve_convert(
-      *mesh_copied,
+      mesh_eval,
       IndexMask::from_bools(VArray<bool>::ForSingle(true, edges_num), memory),
       bke::AttributeFilter::default_filter());
 
-  BKE_id_free(nullptr, mesh_copied);
+  MutableSpan<float3> curve_positions = curves.positions_for_write();
+  VArray<float3> point_normals =
+      curves.attributes().lookup<float3>("__vertex_normal_for_conversion__").varray;
+
+  threading::parallel_for(curve_positions.index_range(), 8192, [&](const IndexRange range) {
+    for (const int point_i : range) {
+      curve_positions[point_i] += offset * point_normals[point_i];
+    }
+  });
 
   drawing_line->strokes_for_write() = std::move(curves);
+  drawing_line->radii_for_write().fill(stroke_radius);
   drawing_line->tag_topology_changed();
 }
 
@@ -3268,7 +3272,7 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
                               bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
 
   Object *ob_eval = DEG_get_evaluated_object(info.depsgraph, ob);
-  const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
+  Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
 
   VectorSet<FillColorRecord> fill_colors;
   Array<int> material_remap;
