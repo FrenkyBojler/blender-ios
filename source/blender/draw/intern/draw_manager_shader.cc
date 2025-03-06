@@ -339,18 +339,8 @@ GPUMaterial *DRW_shader_from_world(World *wo,
                                    GPUCodegenCallbackFn callback,
                                    void *thunk)
 {
-  Scene *scene = (Scene *)DEG_get_original_id(&drw_get().draw_ctx.scene->id);
-  GPUMaterial *mat = GPU_material_from_nodetree(scene,
-                                                nullptr,
-                                                ntree,
-                                                &wo->gpumaterial,
-                                                wo->id.name,
-                                                engine,
-                                                shader_id,
-                                                is_volume_shader,
-                                                false,
-                                                callback,
-                                                thunk);
+  GPUMaterial *mat = GPU_material_from_nodetree(
+      nullptr, ntree, &wo->gpumaterial, wo->id.name, engine, shader_id, false, callback, thunk);
 
   if (DRW_state_is_image_render()) {
     /* Do not deferred if doing render. */
@@ -373,14 +363,12 @@ GPUMaterial *DRW_shader_from_material(Material *ma,
                                       GPUMaterialPassReplacementCallbackFn pass_replacement_cb)
 {
   Scene *scene = (Scene *)DEG_get_original_id(&drw_get().draw_ctx.scene->id);
-  GPUMaterial *mat = GPU_material_from_nodetree(scene,
-                                                ma,
+  GPUMaterial *mat = GPU_material_from_nodetree(ma,
                                                 ntree,
                                                 &ma->gpumaterial,
                                                 ma->id.name,
                                                 engine,
                                                 shader_id,
-                                                is_volume_shader,
                                                 false,
                                                 callback,
                                                 thunk,

@@ -199,9 +199,16 @@ GPUShader *GPU_pass_shader_get(GPUPass *pass)
   return pass->shader;
 }
 
+void GPU_pass_acquire(GPUPass *pass)
+{
+  int previous_refcount = pass->refcount++;
+  BLI_assert(previous_refcount > 0);
+}
+
 void GPU_pass_release(GPUPass *pass)
 {
-  pass->refcount--;
+  int previous_refcount = pass->refcount--;
+  BLI_assert(previous_refcount > 0);
 }
 
 /** \} */
