@@ -43,7 +43,7 @@
 
 #include "effects.hh"
 
-using namespace blender;
+namespace blender::seq {
 
 /* -------------------------------------------------------------------- */
 /* Sequencer font access.
@@ -549,16 +549,24 @@ static void jump_flooding_pass(Span<JFACoord> input,
     }
   });
 }
-namespace blender::seq {
 
 static void text_draw(const TextVarsRuntime *runtime, float color[4])
 {
+  const bool use_fallback = BLF_is_builtin(runtime->font);
+  if (!use_fallback) {
+    BLF_enable(runtime->font, BLF_NO_FALLBACK);
+  }
+
   for (const LineInfo &line : runtime->lines) {
     for (const CharInfo &character : line.characters) {
       BLF_position(runtime->font, character.position.x, character.position.y, 0.0f);
       BLF_buffer_col(runtime->font, color);
       BLF_draw_buffer(runtime->font, character.str_ptr, character.byte_length);
     }
+  }
+
+  if (!use_fallback) {
+    BLF_disable(runtime->font, BLF_NO_FALLBACK);
   }
 }
 
@@ -799,12 +807,18 @@ static int text_effect_font_init(const SeqRenderData *context, const Strip *stri
   return font;
 }
 
-static blender::Vector<CharInfo> build_character_info(const TextVars *data, int font)
+static Vector<CharInfo> build_character_info(const TextVars *data, int font)
 {
-  blender::Vector<CharInfo> characters;
+  Vector<CharInfo> characters;
   const size_t len_max = BLI_strnlen(data->text, sizeof(data->text));
   int byte_offset = 0;
   int char_index = 0;
+
+  const bool use_fallback = BLF_is_builtin(font);
+  if (!use_fallback) {
+    BLF_enable(font, BLF_NO_FALLBACK);
+  }
+
   while (byte_offset <= len_max) {
     const char *str = data->text + byte_offset;
     const int char_length = BLI_str_utf8_size_safe(str);
@@ -819,6 +833,11 @@ static blender::Vector<CharInfo> build_character_info(const TextVars *data, int 
     byte_offset += char_length;
     char_index++;
   }
+
+  if (!use_fallback) {
+    BLF_disable(font, BLF_NO_FALLBACK);
+  }
+
   return characters;
 }
 
@@ -834,7 +853,7 @@ static int wrap_width_get(const TextVars *data, const int2 image_size)
 static void apply_word_wrapping(const TextVars *data,
                                 TextVarsRuntime *runtime,
                                 const int2 image_size,
-                                blender::Vector<CharInfo> &characters)
+                                Vector<CharInfo> &characters)
 {
   const int wrap_width = wrap_width_get(data, image_size);
 
@@ -876,7 +895,7 @@ static void apply_word_wrapping(const TextVars *data,
   }
 }
 
-static int text_box_width_get(const blender::Vector<LineInfo> &lines)
+static int text_box_width_get(const Vector<LineInfo> &lines)
 {
   int width_max = 0;
 
@@ -989,7 +1008,7 @@ static void calc_text_runtime(const Strip *strip, int font, const int2 image_siz
   runtime->font_descender = BLF_descender(font);
   runtime->character_count = BLI_strlen_utf8(data->text);
 
-  blender::Vector<CharInfo> characters_temp = build_character_info(data, font);
+  Vector<CharInfo> characters_temp = build_character_info(data, font);
   apply_word_wrapping(data, runtime, image_size, characters_temp);
   apply_text_alignment(data, runtime, image_size);
   calc_boundbox(data, runtime, image_size);
@@ -1047,8 +1066,6 @@ static ImBuf *do_text_effect(const SeqRenderData *context,
   return out;
 }
 
-}  // namespace blender::seq
-
 void text_effect_get_handle(SeqEffectHandle &rval)
 {
   rval.num_inputs = num_inputs_text;
@@ -1057,7 +1074,9 @@ void text_effect_get_handle(SeqEffectHandle &rval)
   rval.load = load_text_effect;
   rval.copy = copy_text_effect;
   rval.early_out = early_out_text;
-  rval.execute = blender::seq::do_text_effect;
+  rval.execute = do_text_effect;
 }
 
 /** \} */
+
+}  // namespace blender::seq

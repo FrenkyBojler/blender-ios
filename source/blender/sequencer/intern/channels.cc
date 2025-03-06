@@ -13,12 +13,15 @@
 #include "DNA_listBase.h"
 #include "DNA_sequence_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 
 #include "BLT_translation.hh"
 
 #include "SEQ_channels.hh"
 #include "SEQ_sequencer.hh"
+
+namespace blender::seq {
 
 ListBase *SEQ_channels_displayed_get(Editing *ed)
 {
@@ -99,3 +102,5 @@ ListBase *SEQ_get_channels_by_seq(ListBase *seqbase, ListBase *channels, const S
 
   return nullptr;
 }
+
+}  // namespace blender::seq

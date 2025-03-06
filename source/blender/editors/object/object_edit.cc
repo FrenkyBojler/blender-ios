@@ -14,6 +14,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -896,7 +897,7 @@ bool editmode_enter_ex(Main *bmain, Scene *scene, Object *ob, int flag)
   }
   else if (ob->type == OB_POINTCLOUD) {
     ok = true;
-    WM_main_add_notifier(NC_SCENE | ND_MODE | NS_EDITMODE_POINT_CLOUD, scene);
+    WM_main_add_notifier(NC_SCENE | ND_MODE | NS_EDITMODE_POINTCLOUD, scene);
   }
 
   if (ok) {
@@ -1770,7 +1771,7 @@ void OBJECT_OT_shade_smooth_by_angle(wmOperatorType *ot)
  * \{ */
 
 /**
- * Does a shallow check for whether the node group could be the the Smooth by Angle node group.
+ * Does a shallow check for whether the node group could be the Smooth by Angle node group.
  * This should become unnecessary once we asset embedding (#132167).
  */
 static bool is_valid_smooth_by_angle_group(const bNodeTree &ntree)
@@ -1825,7 +1826,7 @@ static int shade_auto_smooth_exec(bContext *C, wmOperator *op)
         break;
       }
       /* Remove the weak library reference, since the already loaded group is not valid anymore. */
-      MEM_SAFE_FREE((node_group_id->library_weak_reference));
+      MEM_SAFE_FREE(node_group_id->library_weak_reference);
       /* Stay in the loop and load the asset again. */
       node_group = nullptr;
     }

@@ -11,6 +11,7 @@
 #include <cstring>
 
 #include "BLI_array.hh"
+#include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.hh"
 #include "BLI_string.h"
@@ -38,7 +39,7 @@
 
 #include "render.hh"
 
-using namespace blender;
+namespace blender::seq {
 
 /* -------------------------------------------------------------------- */
 
@@ -1433,3 +1434,5 @@ void SEQ_modifier_blend_read_data(BlendDataReader *reader, ListBase *lb)
 }
 
 /** \} */
+
+}  // namespace blender::seq

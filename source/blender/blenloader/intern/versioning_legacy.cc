@@ -46,6 +46,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
@@ -1220,7 +1221,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
     while (sce) {
       ed = sce->ed;
       if (ed) {
-        SEQ_for_each_callback(&sce->ed->seqbase, strip_set_alpha_mode_cb, nullptr);
+        blender::seq::SEQ_for_each_callback(&sce->ed->seqbase, strip_set_alpha_mode_cb, nullptr);
       }
 
       sce = static_cast<Scene *>(sce->id.next);
@@ -2449,7 +2450,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
          sce = static_cast<Scene *>(sce->id.next))
     {
       if (sce->ed) {
-        SEQ_for_each_callback(&sce->ed->seqbase, strip_set_blend_mode_cb, nullptr);
+        blender::seq::SEQ_for_each_callback(&sce->ed->seqbase, strip_set_blend_mode_cb, nullptr);
       }
     }
   }
@@ -2605,7 +2606,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
     while (sce) {
       ed = sce->ed;
       if (ed) {
-        LISTBASE_FOREACH (Strip *, seq, SEQ_active_seqbase_get(ed)) {
+        LISTBASE_FOREACH (Strip *, seq, blender::seq::SEQ_active_seqbase_get(ed)) {
           if (seq->data && seq->data->proxy) {
             seq->data->proxy->quality = 90;
           }

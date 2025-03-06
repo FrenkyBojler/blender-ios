@@ -43,14 +43,14 @@
  *
  * LLDB/ Xcode etc., debuggers can be used to get extra logs than CLI invocation but breakpoints
  * still are a pain point. /usr/bin/qlmanage is the target executable. Other args to qlmanage
- * follow.
+ * follow. lldb qlmanage --  -t -x a.blend
  *
  * # Troubleshooting
  * - The appex shouldn't have any quarantine flag.
      xattr -rl bin/Blender.app/Contents/Plugins/blender-thumbnailer.appex
  * - Is it registered with lsregister and there isn't a conflict with another plugin taking
  *   precedence? lsregister -dump | grep blender-thumbnailer.appex
- * - For RBSLaunchRequest error: is the executable executable? chmod u+x
+ * - For RBSLaunchRequest error: is the executable flag set? chmod u+x
   bin/Blender.app/Contents/PlugIns/blender-thumbnailer.appex/Contents/MacOS/blender-thumbnailer
  * - Is it codesigned and sandboxed?
  *   codesign --display --verbose --entitlements - --xml \
@@ -62,7 +62,7 @@
  * - The code cannot attempt to do anything outside sandbox like writing to blend.
  *
  * # Triggering a thumbnail
- * - qlmanage -t -s 512 -o /tmp/ /path/to/file.blend
+ * - qlmanage -t -x /path/to/file.blend
  *
  * # External resources
  * https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/Quicklook_Programming_Guide/Introduction/Introduction.html#//apple_ref/doc/uid/TP40005020-CH1-SW1

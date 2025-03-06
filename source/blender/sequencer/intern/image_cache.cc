@@ -14,6 +14,7 @@
 
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_userdef_types.h"
 
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
@@ -59,6 +60,8 @@
  *
  * User can exclude caching of some images. Such entries will have is_temp_cache set.
  */
+
+namespace blender::seq {
 
 struct SeqCache {
   Main *bmain;
@@ -874,3 +877,5 @@ bool seq_cache_is_full()
 {
   return seq_cache_get_mem_total() < MEM_get_memory_in_use();
 }
+
+}  // namespace blender::seq

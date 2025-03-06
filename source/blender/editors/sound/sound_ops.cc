@@ -12,6 +12,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -242,7 +243,8 @@ static void sound_update_animation_flags(Scene *scene)
   scene->id.tag |= ID_TAG_DOIT;
 
   if (scene->ed != nullptr) {
-    SEQ_for_each_callback(&scene->ed->seqbase, sound_update_animation_flags_fn, scene);
+    blender::seq::SEQ_for_each_callback(
+        &scene->ed->seqbase, sound_update_animation_flags_fn, scene);
   }
 
   fcu = id_data_find_fcurve(&scene->id, scene, &RNA_Scene, "audio_volume", 0, &driven);
@@ -432,6 +434,7 @@ static const char *snd_ext_sound[] = {
     ".mp3",
     ".ogg",
     ".wav",
+    ".aac",
     nullptr,
 };
 
@@ -446,7 +449,7 @@ static bool sound_mixdown_check(bContext * /*C*/, wmOperator *op)
     if (item->value == container) {
       const char **ext = snd_ext_sound;
       while (*ext != nullptr) {
-        if (STREQ(*ext + 1, item->name)) {
+        if (STRCASEEQ(*ext + 1, item->name)) {
           extension = *ext;
           break;
         }

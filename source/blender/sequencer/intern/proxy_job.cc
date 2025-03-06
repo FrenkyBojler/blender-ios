@@ -13,6 +13,8 @@
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
+#include "BLI_listbase.h"
+
 #include "BKE_context.hh"
 
 #include "SEQ_proxy.hh"
@@ -21,6 +23,8 @@
 
 #include "WM_api.hh"
 #include "WM_types.hh"
+
+namespace blender::seq {
 
 static void proxy_freejob(void *pjv)
 {
@@ -91,3 +95,5 @@ wmJob *ED_seq_proxy_wm_job_get(const bContext *C)
                               WM_JOB_TYPE_SEQ_BUILD_PROXY);
   return wm_job;
 }
+
+}  // namespace blender::seq

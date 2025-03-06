@@ -11,8 +11,12 @@
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
+#include "BLI_listbase.h"
+
 #include "SEQ_select.hh"
 #include "SEQ_sequencer.hh"
+
+namespace blender::seq {
 
 Strip *SEQ_select_active_get(const Scene *scene)
 {
@@ -60,3 +64,5 @@ bool SEQ_select_active_get_pair(Scene *scene, Strip **r_seq_act, Strip **r_seq_o
 
   return (*r_seq_other != nullptr);
 }
+
+}  // namespace blender::seq

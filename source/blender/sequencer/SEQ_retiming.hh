@@ -16,6 +16,8 @@ struct Scene;
 struct Strip;
 struct SeqRetimingKey;
 
+namespace blender::seq {
+
 blender::MutableSpan<SeqRetimingKey> SEQ_retiming_keys_get(const Strip *strip);
 blender::Map<SeqRetimingKey *, Strip *> SEQ_retiming_selection_get(const Editing *ed);
 int SEQ_retiming_keys_count(const Strip *strip);
@@ -30,7 +32,10 @@ bool SEQ_retiming_is_allowed(const Strip *strip);
  * become invalid.
  */
 SeqRetimingKey *SEQ_retiming_add_key(const Scene *scene, Strip *strip, int timeline_frame);
-SeqRetimingKey *SEQ_retiming_add_transition(Strip *strip, SeqRetimingKey *key, float offset);
+SeqRetimingKey *SEQ_retiming_add_transition(const Scene *scene,
+                                            Strip *strip,
+                                            SeqRetimingKey *key,
+                                            float offset);
 SeqRetimingKey *SEQ_retiming_add_freeze_frame(const Scene *scene,
                                               Strip *strip,
                                               SeqRetimingKey *key,
@@ -71,3 +76,5 @@ void SEQ_retiming_remove_multiple_keys(Strip *strip,
 bool SEQ_retiming_selection_contains(const Editing *ed, const SeqRetimingKey *key);
 bool SEQ_retiming_selection_has_whole_transition(const Editing *ed, SeqRetimingKey *key);
 bool SEQ_retiming_data_is_editable(const Strip *strip);
+
+}  // namespace blender::seq
