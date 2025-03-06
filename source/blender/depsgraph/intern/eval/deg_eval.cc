@@ -387,12 +387,12 @@ void deg_evaluate_on_refresh(Depsgraph *graph)
 
   /* The update counts can be used to check if the Depsgraph was changed since the last time it was
    * cached by comparing its current update count with the one stored at the moment the Depsgraph
-   * was cached.
+   * was last read.
    *
    * A global atomic is used as opposed to incrementing the update count per Depsgraph to protect
-   * against the case where the Depsgraph is destroyed and a new one is created taking its same
-   * pointer location, which could be perceived as no update even though the Depsgraph was
-   * recreated entirely. */
+   * against the case where the same viewport can be used with different Depsgraph. In this case,
+   * having unique update count per Depsgraph allows to check if a new Depsgraph is used without
+   * relying on storing the Depsgraph pointer. */
   static std::atomic<uint64_t> global_update_count = 0;
   graph->update_count = global_update_count.fetch_add(1) + 1;
 
