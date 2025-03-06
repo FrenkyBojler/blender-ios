@@ -256,7 +256,7 @@ class Object(_types.ID):
 
     def evaluated_geometry(self, depsgraph):
         """
-        Get the :class:`GeometrySet` that this object is evaluated to in the given depsgraph.
+        Get the geometry set that this object is evaluated to in the given depsgraph.
         This only works for objects that contain geometry data like meshes and curves but not
         e.g. cameras or empties.
 
