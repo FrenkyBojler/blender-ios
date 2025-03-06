@@ -3236,7 +3236,7 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
   mesh_copied->attributes_for_write().add(
       unique_attribute_id,
       bke::AttrDomain::Point,
-      eCustomDataType::CD_PROP_FLOAT3,
+      CD_PROP_FLOAT3,
       bke::AttributeInitVArray(VArray<float3>::ForSpan(normals)));
 
   const int edges_num = mesh_copied->edges_num;
