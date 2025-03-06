@@ -27,7 +27,7 @@ export void float3_dot_product(const uniform float values[][3],
                                const uniform int count,
                                float uniform result[3])
 {
-  float<3> accumulator = {0.0f, 0.0f, 0.0f};
+  float<3> accumulator = 0.0f;
   foreach (index = 0 ... count, axis = 0 ... 3) {
     accumulator[axis] += values[index][axis] * factors[index];
   }
@@ -42,13 +42,13 @@ export void float3_gather_dot_product_(const uniform int indices[],
                                        const uniform int count,
                                        float uniform result[3])
 {
-  float accumulator[3] = {0.0f, 0.0f, 0.0f};
+  float<3> accumulator = 0.0f;
   foreach (index = 0 ... count, axis = 0 ... 3) {
     accumulator[axis] += values[indices[index]][axis] * factors[index];
   }
-  result[0] = reduce_add(accumulator[0]);
-  result[1] = reduce_add(accumulator[1]);
-  result[2] = reduce_add(accumulator[2]);
+  for (uniform int axis = 0; axis < 3; axis++) {
+    result[axis] = reduce_add(accumulator[axis]);
+  }
 }
 
 export void float3_gather_dot_product(const uniform int indices[],
@@ -92,8 +92,8 @@ export void gather_distances(const uniform int indices[],
 {
   for (uniform int index = 0; index < count; index++) {
     foreach (axis = 0 ... 3) {
-        const float segment = positions[indices[index]][axis] - target[axis];
-        distances[index] = sqrt(reduce_add(square(segment))) + offset;
+      const float segment = positions[indices[index]][axis] - target[axis];
+      distances[index] = sqrt(reduce_add(square(segment))) + offset;
     }
   }
 }
