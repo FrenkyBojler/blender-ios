@@ -31,43 +31,43 @@ class GpuEvalOutput : public VolatileEvalOutput<GPUVertexBuffer,
                 const PatchTable *patch_table,
                 EvaluatorCache *evaluator_cache = nullptr);
 
-  GPUStorageBuf *fillPatchArraysBuffer() override;
+  GPUStorageBuf *create_patch_arrays_buf() override;
 
-  GPUStorageBuf *wrapPatchIndexBuffer() override
+  GPUStorageBuf *get_patch_index_buf() override
   {
     return getPatchTable()->GetPatchIndexBuffer();
   }
 
-  GPUStorageBuf *wrapPatchParamBuffer() override
+  GPUStorageBuf *get_patch_param_buf() override
   {
     return getPatchTable()->GetPatchParamBuffer();
   }
 
-  gpu::VertBuf *wrapSrcBuffer() override
+  gpu::VertBuf *get_source_buf() override
   {
     return getSrcBuffer()->get_vertex_buffer();
   }
 
-  gpu::VertBuf *wrapSrcVertexDataBuffer() override
+  gpu::VertBuf *get_source_data_buf() override
   {
     return getSrcVertexDataBuffer()->get_vertex_buffer();
   }
 
-  GPUStorageBuf *buildFVarPatchArraysBuffer(const int face_varying_channel) override;
+  GPUStorageBuf *create_face_varying_patch_array_buf(const int face_varying_channel) override;
 
-  GPUStorageBuf *wrapFVarPatchIndexBuffer(const int face_varying_channel) override
+  GPUStorageBuf *get_face_varying_patch_index_buf(const int face_varying_channel) override
   {
     GPUPatchTable *patch_table = getFVarPatchTable(face_varying_channel);
     return patch_table->GetFVarPatchIndexBuffer(face_varying_channel);
   }
 
-  GPUStorageBuf *wrapFVarPatchParamBuffer(const int face_varying_channel) override
+  GPUStorageBuf *get_face_varying_patch_param_buf(const int face_varying_channel) override
   {
     GPUPatchTable *patch_table = getFVarPatchTable(face_varying_channel);
     return patch_table->GetFVarPatchParamBuffer(face_varying_channel);
   }
 
-  gpu::VertBuf *wrapFVarSrcBuffer(const int face_varying_channel) override
+  gpu::VertBuf *get_face_varying_source_buf(const int face_varying_channel) override
   {
     GPUVertexBuffer *vertex_buffer = getFVarSrcBuffer(face_varying_channel);
     return vertex_buffer->get_vertex_buffer();

@@ -352,54 +352,54 @@ void EvalOutputAPI::getPatchMap(blender::gpu::VertBuf *patch_map_handles,
   memcpy(buffer_nodes.data(), quadtree.data(), sizeof(PatchMap::QuadNode) * quadtree.size());
 }
 
-GPUStorageBuf *EvalOutputAPI::fillPatchArraysBuffer()
+GPUStorageBuf *EvalOutputAPI::create_patch_arrays_buf()
 {
-  return implementation_->fillPatchArraysBuffer();
+  return implementation_->create_patch_arrays_buf();
 }
 
-GPUStorageBuf *EvalOutputAPI::wrapPatchIndexBuffer()
+GPUStorageBuf *EvalOutputAPI::get_patch_index_buf()
 {
-  return implementation_->wrapPatchIndexBuffer();
+  return implementation_->get_patch_index_buf();
 }
 
-GPUStorageBuf *EvalOutputAPI::wrapPatchParamBuffer()
+GPUStorageBuf *EvalOutputAPI::get_patch_param_buf()
 {
-  return implementation_->wrapPatchParamBuffer();
+  return implementation_->get_patch_param_buf();
 }
 
-gpu::VertBuf *EvalOutputAPI::wrapSrcBuffer()
+gpu::VertBuf *EvalOutputAPI::get_source_buf()
 {
-  return implementation_->wrapSrcBuffer();
+  return implementation_->get_source_buf();
 }
 
-gpu::VertBuf *EvalOutputAPI::wrapSrcVertexDataBuffer()
+gpu::VertBuf *EvalOutputAPI::get_source_data_buf()
 {
-  return implementation_->wrapSrcVertexDataBuffer();
+  return implementation_->get_source_data_buf();
 }
 
-GPUStorageBuf *EvalOutputAPI::buildFVarPatchArraysBuffer(const int face_varying_channel)
+GPUStorageBuf *EvalOutputAPI::create_face_varying_patch_array_buf(const int face_varying_channel)
 {
-  return implementation_->buildFVarPatchArraysBuffer(face_varying_channel);
+  return implementation_->create_face_varying_patch_array_buf(face_varying_channel);
 }
 
-GPUStorageBuf *EvalOutputAPI::wrapFVarPatchIndexBuffer(const int face_varying_channel)
+GPUStorageBuf *EvalOutputAPI::get_face_varying_patch_index_buf(const int face_varying_channel)
 {
-  return implementation_->wrapFVarPatchIndexBuffer(face_varying_channel);
+  return implementation_->get_face_varying_patch_index_buf(face_varying_channel);
 }
 
-GPUStorageBuf *EvalOutputAPI::wrapFVarPatchParamBuffer(const int face_varying_channel)
+GPUStorageBuf *EvalOutputAPI::get_face_varying_patch_param_buf(const int face_varying_channel)
 {
-  return implementation_->wrapFVarPatchParamBuffer(face_varying_channel);
+  return implementation_->get_face_varying_patch_param_buf(face_varying_channel);
 }
 
-gpu::VertBuf *EvalOutputAPI::wrapFVarSrcBuffer(const int face_varying_channel)
+gpu::VertBuf *EvalOutputAPI::get_face_varying_source_buf(const int face_varying_channel)
 {
-  return implementation_->wrapFVarSrcBuffer(face_varying_channel);
+  return implementation_->get_face_varying_source_buf(face_varying_channel);
 }
 
-int EvalOutputAPI::getFVarSrcBufferOffset(const int face_varying_channel) const
+int EvalOutputAPI::get_face_varying_source_offset(const int face_varying_channel) const
 {
-  return implementation_->getFVarSrcBufferOffset(face_varying_channel);
+  return implementation_->get_face_varying_source_offset(face_varying_channel);
 }
 
 bool EvalOutputAPI::hasVertexData() const

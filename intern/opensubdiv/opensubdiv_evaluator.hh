@@ -139,36 +139,36 @@ class EvalOutputAPI {
                    int *patches_are_triangular);
 
   // Copy the patch arrays buffer used by OpenSubDiv for the source data to the given buffer.
-  GPUStorageBuf *fillPatchArraysBuffer();
+  GPUStorageBuf *create_patch_arrays_buf();
 
   // Wrap the patch index buffer used by OpenSubDiv for the source data with the given buffer.
-  GPUStorageBuf *wrapPatchIndexBuffer();
+  GPUStorageBuf *get_patch_index_buf();
 
   // Wrap the patch param buffer used by OpenSubDiv for the source data with the given buffer.
-  GPUStorageBuf *wrapPatchParamBuffer();
+  GPUStorageBuf *get_patch_param_buf();
 
   // Wrap the buffer used by OpenSubDiv for the source data with the given buffer.
-  gpu::VertBuf *wrapSrcBuffer();
+  gpu::VertBuf *get_source_buf();
 
   // Wrap the buffer used by OpenSubDiv for the extra source data with the given buffer.
-  gpu::VertBuf *wrapSrcVertexDataBuffer();
+  gpu::VertBuf *get_source_data_buf();
 
   // Copy the patch arrays buffer used by OpenSubDiv for the face varying channel with the given
   // buffer.
-  GPUStorageBuf *buildFVarPatchArraysBuffer(const int face_varying_channel);
+  GPUStorageBuf *create_face_varying_patch_array_buf(const int face_varying_channel);
 
   // Wrap the patch index buffer used by OpenSubDiv for the face varying channel with the given
   // buffer.
-  GPUStorageBuf *wrapFVarPatchIndexBuffer(const int face_varying_channel);
+  GPUStorageBuf *get_face_varying_patch_index_buf(const int face_varying_channel);
 
   // Wrap the patch param buffer used by OpenSubDiv for the face varying channel with the given
   // buffer.
-  GPUStorageBuf *wrapFVarPatchParamBuffer(const int face_varying_channel);
+  GPUStorageBuf *get_face_varying_patch_param_buf(const int face_varying_channel);
 
   // Wrap thebuffer used by OpenSubDiv for the face varying channel with the given buffer.
-  gpu::VertBuf *wrapFVarSrcBuffer(const int face_varying_channel);
+  gpu::VertBuf *get_face_varying_source_buf(const int face_varying_channel);
   /** Get the source buffer offset for the given channel. */
-  int getFVarSrcBufferOffset(const int face_varying_channel) const;
+  int get_face_varying_source_offset(const int face_varying_channel) const;
 
   // Return true if source vertex data has been set.
   bool hasVertexData() const;

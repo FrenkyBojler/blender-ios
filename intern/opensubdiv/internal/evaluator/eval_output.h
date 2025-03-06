@@ -76,51 +76,51 @@ class EvalOutputAPI::EvalOutput {
   // data structure. They need to be overridden in the specific instances of the EvalOutput derived
   // classes if needed, while the interfaces above are overridden through VolatileEvalOutput.
 
-  virtual GPUStorageBuf *fillPatchArraysBuffer()
+  virtual GPUStorageBuf *create_patch_arrays_buf()
   {
     return nullptr;
   }
 
-  virtual GPUStorageBuf *wrapPatchIndexBuffer()
+  virtual GPUStorageBuf *get_patch_index_buf()
   {
     return nullptr;
   }
 
-  virtual GPUStorageBuf *wrapPatchParamBuffer()
+  virtual GPUStorageBuf *get_patch_param_buf()
   {
     return nullptr;
   }
 
-  virtual gpu::VertBuf *wrapSrcBuffer()
+  virtual gpu::VertBuf *get_source_buf()
   {
     return nullptr;
   }
 
-  virtual gpu::VertBuf *wrapSrcVertexDataBuffer()
+  virtual gpu::VertBuf *get_source_data_buf()
   {
     return nullptr;
   }
 
-  virtual GPUStorageBuf *buildFVarPatchArraysBuffer(const int /*face_varying_channel*/)
+  virtual GPUStorageBuf *create_face_varying_patch_array_buf(const int /*face_varying_channel*/)
   {
     return nullptr;
   }
 
-  virtual GPUStorageBuf *wrapFVarPatchIndexBuffer(const int /*face_varying_channel*/)
+  virtual GPUStorageBuf *get_face_varying_patch_index_buf(const int /*face_varying_channel*/)
   {
     return nullptr;
   }
 
-  virtual GPUStorageBuf *wrapFVarPatchParamBuffer(const int /*face_varying_channel*/)
+  virtual GPUStorageBuf *get_face_varying_patch_param_buf(const int /*face_varying_channel*/)
   {
     return nullptr;
   }
-  virtual gpu::VertBuf *wrapFVarSrcBuffer(const int /*face_varying_channel*/)
+  virtual gpu::VertBuf *get_face_varying_source_buf(const int /*face_varying_channel*/)
   {
     return nullptr;
   }
 
-  virtual int getFVarSrcBufferOffset(const int /*face_varying_channel*/) const
+  virtual int get_face_varying_source_offset(const int /*face_varying_channel*/) const
   {
     return 0;
   }
@@ -277,7 +277,7 @@ class FaceVaryingVolatileEval {
     return src_face_varying_data_;
   }
 
-  int getFVarSrcBufferOffset() const
+  int get_face_varying_source_offset() const
   {
     BufferDescriptor src_desc = get_src_varying_desc();
     return src_desc.offset;
@@ -635,9 +635,9 @@ class VolatileEvalOutput : public EvalOutputAPI::EvalOutput {
     return face_varying_evaluators_[face_varying_channel]->getSrcBuffer();
   }
 
-  int getFVarSrcBufferOffset(const int face_varying_channel) const override
+  int get_face_varying_source_offset(const int face_varying_channel) const override
   {
-    return face_varying_evaluators_[face_varying_channel]->getFVarSrcBufferOffset();
+    return face_varying_evaluators_[face_varying_channel]->get_face_varying_source_offset();
   }
 
   PATCH_TABLE *getFVarPatchTable(const int face_varying_channel) const

@@ -45,13 +45,13 @@ GpuEvalOutput::GpuEvalOutput(const StencilTable *vertex_stencils,
 {
 }
 
-GPUStorageBuf *GpuEvalOutput::fillPatchArraysBuffer()
+GPUStorageBuf *GpuEvalOutput::create_patch_arrays_buf()
 {
   GPUPatchTable *patch_table = getPatchTable();
   return buildPatchArraysBufferFromVector(patch_table->GetPatchArrays());
 }
 
-GPUStorageBuf *GpuEvalOutput::buildFVarPatchArraysBuffer(const int face_varying_channel)
+GPUStorageBuf *GpuEvalOutput::create_face_varying_patch_array_buf(const int face_varying_channel)
 {
   GPUPatchTable *patch_table = getFVarPatchTable(face_varying_channel);
   return buildPatchArraysBufferFromVector(patch_table->GetFVarPatchArrays(face_varying_channel));
