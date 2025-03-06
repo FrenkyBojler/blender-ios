@@ -906,7 +906,7 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
   bke::gather_attributes(src_attributes,
                          bke::AttrDomain::Curve,
                          bke::AttrDomain::Curve,
-                         bke::attribute_filter_from_skip_ref({"cyclic"}),
+                         bke::attribute_filter_from_skip_ref({"cyclic", "shape_id"}),
                          old_by_new_map,
                          dst_attributes);
 
