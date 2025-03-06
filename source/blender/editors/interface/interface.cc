@@ -4930,6 +4930,10 @@ static uiBut *ui_def_but_rna(uiBlock *block,
     UI_but_disable(but, info);
   }
 
+  if (but->rnapoin.data && !uiLayoutGetActive(static_cast<uiLayout *>(but->rnapoin.data))) {
+    UI_but_inactive(but, uiLayoutGetInactiveMessage(static_cast<uiLayout *>(but->rnapoin.data)));
+  }
+
   if (proptype == PROP_POINTER) {
     /* If the button shows an ID, automatically set it as focused in context so operators can
      * access it. */
@@ -5991,6 +5995,16 @@ void UI_but_dragflag_enable(uiBut *but, int flag)
 void UI_but_dragflag_disable(uiBut *but, int flag)
 {
   but->dragflag &= ~flag;
+}
+
+void UI_but_inactive(uiBut *but, const char *inactive_hint)
+{
+  /* Only one inactive hint at a time currently. Don't override the previous one here. */
+  if (but->disabled_info && but->disabled_info[0]) {
+    return;
+  }
+
+  but->disabled_info = inactive_hint;
 }
 
 void UI_but_disable(uiBut *but, const char *disabled_hint)

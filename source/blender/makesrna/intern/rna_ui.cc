@@ -1369,6 +1369,28 @@ static void rna_UILayout_active_set(PointerRNA *ptr, bool value)
   uiLayoutSetActive(static_cast<uiLayout *>(ptr->data), value);
 }
 
+static void rna_UILayout_inactive_message_get(PointerRNA *ptr, char *value)
+{
+  uiLayout *layout = static_cast<uiLayout *>(ptr->data);
+  const char *inactive_message = uiLayoutGetInactiveMessage(layout);
+
+  strcpy(value, inactive_message);
+}
+
+static int rna_UILayout_inactive_message_length(PointerRNA *ptr)
+{
+  uiLayout *layout = static_cast<uiLayout *>(ptr->data);
+
+  return uiLayoutInactiveMessageLength(layout);
+}
+
+static void rna_UILayout_inactive_message_set(PointerRNA *ptr, const char *value)
+{
+  uiLayout *layout = static_cast<uiLayout *>(ptr->data);
+
+  uiLayoutInactiveMessageSet(layout, value);
+}
+
 static bool rna_UILayout_active_default_get(PointerRNA *ptr)
 {
   return uiLayoutGetActiveDefault(static_cast<uiLayout *>(ptr->data));
@@ -1695,6 +1717,12 @@ static void rna_def_ui_layout(BlenderRNA *brna)
       "Active Default",
       "When true, an operator button defined after this will be activated when pressing return"
       "(use with popup dialogs)");
+
+  prop = RNA_def_property(srna, "inactive_message", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_funcs(prop,
+                                "rna_UILayout_inactive_message_get",
+                                "rna_UILayout_inactive_message_length",
+                                "rna_UILayout_inactive_message_set");
 
   prop = RNA_def_property(srna, "activate_init", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_funcs(

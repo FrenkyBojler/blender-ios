@@ -168,12 +168,34 @@ struct uiLayout : uiItem {
   /** For layouts inside grid-flow, they and their items shall never have a fixed maximal size. */
   bool variable_size;
   char alignment;
+  /** Message when layout is set to inactive */
+  char *inactive_message;
   eUIEmbossType emboss;
   /** for fixed width or height to avoid UI size changes */
   float units[2];
   /** Is copied to uiButs created in this layout. */
   float search_weight;
 };
+
+const char* uiLayoutGetInactiveMessage(uiLayout *layout) {
+  return (layout) ? layout->inactive_message : "";
+}
+
+int uiLayoutInactiveMessageLength(uiLayout *layout)
+{
+  return (layout) ?
+             BLI_strnlen(layout->inactive_message, sizeof(layout->inactive_message)) :
+             0;
+}
+
+void uiLayoutInactiveMessageSet(uiLayout *layout, const char *value)
+{
+  if (layout) {
+    strcpy(layout->inactive_message, value);
+  }
+}
+
+
 
 struct uiLayoutItemFlow : uiLayout {
   int number;

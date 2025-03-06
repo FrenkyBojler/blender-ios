@@ -1038,6 +1038,7 @@ void UI_but_drawflag_disable(uiBut *but, int flag);
 void UI_but_dragflag_enable(uiBut *but, int flag);
 void UI_but_dragflag_disable(uiBut *but, int flag);
 
+void UI_but_inactive(uiBut *but, const char *inactive_hint);
 void UI_but_disable(uiBut *but, const char *disabled_hint);
 
 void UI_but_type_set_menu_from_pulldown(uiBut *but);
@@ -2360,6 +2361,9 @@ wmOperatorCallContext uiLayoutGetOperatorContext(uiLayout *layout);
 bool uiLayoutGetActive(uiLayout *layout);
 bool uiLayoutGetActiveDefault(uiLayout *layout);
 bool uiLayoutGetActivateInit(uiLayout *layout);
+const char* uiLayoutGetInactiveMessage(uiLayout *layout);
+int uiLayoutInactiveMessageLength(uiLayout *layout);
+void uiLayoutInactiveMessageSet(uiLayout *layout, const char *value);
 bool uiLayoutGetEnabled(uiLayout *layout);
 bool uiLayoutGetRedAlert(uiLayout *layout);
 int uiLayoutGetAlignment(uiLayout *layout);
