@@ -70,8 +70,9 @@ typedef enum eReportType {
   RPT_ERROR_INVALID_INPUT = (1 << 6),
   RPT_ERROR_INVALID_CONTEXT = (1 << 7),
   RPT_ERROR_OUT_OF_MEMORY = (1 << 8),
+  RPT_ERROR_DEPENDENCY_CYCLE = (1 << 9),
 } eReportType;
-ENUM_OPERATORS(eReportType, RPT_ERROR_OUT_OF_MEMORY)
+ENUM_OPERATORS(eReportType, RPT_ERROR_DEPENDENCY_CYCLE)
 
 #define RPT_DEBUG_ALL (RPT_DEBUG)
 #define RPT_INFO_ALL (RPT_INFO)
@@ -79,7 +80,7 @@ ENUM_OPERATORS(eReportType, RPT_ERROR_OUT_OF_MEMORY)
 #define RPT_PROPERTY_ALL (RPT_PROPERTY)
 #define RPT_WARNING_ALL (RPT_WARNING)
 #define RPT_ERROR_ALL \
-  (RPT_ERROR | RPT_ERROR_INVALID_INPUT | RPT_ERROR_INVALID_CONTEXT | RPT_ERROR_OUT_OF_MEMORY)
+  (RPT_ERROR | RPT_ERROR_INVALID_INPUT | RPT_ERROR_INVALID_CONTEXT | RPT_ERROR_OUT_OF_MEMORY | RPT_ERROR_DEPENDENCY_CYCLE)
 
 enum ReportListFlags {
   RPT_PRINT = (1 << 0),
@@ -88,6 +89,8 @@ enum ReportListFlags {
   RPT_OP_HOLD = (1 << 3), /* don't move them into the operator global list (caller will use) */
   /** Don't print (the owner of the #ReportList will handle printing to the `stdout`). */
   RPT_PRINT_HANDLED_BY_OWNER = (1 << 4),
+  /** For displaying detailed diagnositcs strings. */
+  RPT_DISPLAY_EXPANDED = (1 << 5),
 };
 
 /* These two lines with # tell `makesdna` this struct can be excluded. */

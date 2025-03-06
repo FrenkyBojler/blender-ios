@@ -13,6 +13,9 @@
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
+#include "BLI_string_ref.hh"
+
+#include "BLT_translation.hh"
 
 #include "BKE_context.hh"
 #include "BKE_report.hh"
@@ -26,8 +29,12 @@
 #include "WM_message.hh"
 #include "WM_types.hh"
 
+#include "UI_interface.hh"
+#include "UI_interface_c.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
+
+#include "RNA_access.hh"
 
 #include "BLO_read_write.hh"
 
@@ -104,7 +111,7 @@ static void info_main_region_init(wmWindowManager *wm, ARegion *region)
   /* force it on init, for old files, until it becomes config */
   region->v2d.scroll = (V2D_SCROLL_RIGHT);
 
-  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
+  //UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
 
   /* own keymap */
   keymap = WM_keymap_ensure(wm->defaultconf, "Info", SPACE_INFO, RGN_TYPE_WINDOW);
@@ -122,36 +129,56 @@ static void info_textview_update_rect(const bContext *C, ARegion *region)
   UI_view2d_totRect_set(v2d, region->winx - 1, info_textview_height(sinfo, region, use_reports));
 }
 
+static void info_main_region_layout(const bContext *C, ARegion *region)
+{
+  ED_region_panels_layout_ex(
+      C, region, &region->runtime->type->paneltypes, WM_OP_INVOKE_REGION_WIN, 0, nullptr);
+}
+
 static void info_main_region_draw(const bContext *C, ARegion *region)
 {
   /* draw entirely, view changes should be handled here */
   SpaceInfo *sinfo = CTX_wm_space_info(C);
-  View2D *v2d = &region->v2d;
+  const bool is_report_page = (sinfo->page == eSpaceInfo_Page::INFO_PAGE_REPORTS);
 
-  /* clear and setup matrix */
-  UI_ThemeClearColor(TH_BACK);
+  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_PANELS_UI, region->winx, region->winy);
+  ED_region_panels_draw(C, region);
 
-  /* quick way to avoid drawing if not bug enough */
-  if (region->winy < 16) {
-    return;
+  return;
+
+  if (is_report_page) {
+    UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
+
+
+     View2D *v2d = &region->v2d;
+
+    /* clear and setup matrix */
+     UI_ThemeClearColor(TH_BACK);
+
+    /* quick way to avoid drawing if not bug enough */
+     if (region->winy < 16) {
+       return;
+     }
+
+     info_textview_update_rect(C, region);
+
+    /* Works best with no view2d matrix set. */
+     UI_view2d_view_ortho(v2d);
+
+     const ReportList *use_reports = sinfo->page == eSpaceInfo_Page::INFO_PAGE_REPORTS ?
+                                         CTX_wm_reports(C) :
+                                         &sinfo->runtime->Diagnostics;
+
+     info_textview_main(sinfo, region, use_reports);
+
+    /* reset view matrix */
+     UI_view2d_view_restore(C);
+
+    /* scrollers */
+     UI_view2d_scrollers_draw(v2d, nullptr);
   }
-
-  info_textview_update_rect(C, region);
-
-  /* Works best with no view2d matrix set. */
-  UI_view2d_view_ortho(v2d);
-
-  const ReportList *use_reports = sinfo->page == eSpaceInfo_Page::INFO_PAGE_REPORTS ?
-                                      CTX_wm_reports(C) :
-                                      &sinfo->runtime->Diagnostics;
-
-  info_textview_main(sinfo, region, use_reports);
-
-  /* reset view matrix */
-  UI_view2d_view_restore(C);
-
-  /* scrollers */
-  UI_view2d_scrollers_draw(v2d, nullptr);
+  else {
+  }
 }
 
 static void info_operatortypes()
@@ -275,6 +302,43 @@ static void info_space_blend_write(BlendWriter *writer, SpaceLink *sl)
   BLO_write_struct(writer, SpaceInfo, sl);
 }
 
+static bool buttons_panel_context_poll(const bContext *C, PanelType * /*pt*/)
+{
+  return true;
+}
+
+static void buttons_panel_context_draw(const bContext *C, Panel *panel)
+{
+  SpaceInfo *sinfo = CTX_wm_space_info(C);
+  const bool is_diagnostics_page = (sinfo->page == eSpaceInfo_Page::INFO_PAGE_DIAGNOSTICS);
+  if (!is_diagnostics_page) {
+    return;
+  }
+
+  const ReportList *use_reports = &sinfo->runtime->Diagnostics;
+  LISTBASE_FOREACH (Report *, report, &use_reports->list) {
+    PointerRNA ptr = RNA_pointer_create_discrete(0, &RNA_Report, report);
+    PanelLayout panel_layout = uiLayoutPanelProp(C, panel->layout, &ptr, "details_open");
+    uiLayout *header = panel_layout.header;
+    uiLayout *sub = panel_layout.body;
+
+    char buf[2048];
+    RNA_string_get(&ptr, "title", buf);
+    uiItemL(header, buf, ICON_NONE);
+    if (sub) {
+      RNA_string_get(&ptr, "details", buf);
+      blender::StringRefNull details = blender::StringRefNull(buf);
+      int newline_pos;
+      while((newline_pos=details.find("\n"))>0){
+        blender::StringRefNull this_line = blender::StringRefNull(details.substr(0,newline_pos));
+        details = blender::StringRefNull(details.substr(newline_pos+1));
+        uiItemL(sub, this_line.c_str(), ICON_NONE);
+      }
+    }
+  }
+  uiItemL(panel->layout, "here!", 0);
+}
+
 void ED_spacetype_info()
 {
   std::unique_ptr<SpaceType> st = std::make_unique<SpaceType>();
@@ -298,8 +362,19 @@ void ED_spacetype_info()
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES;
 
   art->init = info_main_region_init;
+  art->layout = info_main_region_layout;
   art->draw = info_main_region_draw;
   art->listener = info_main_region_listener;
+
+  PanelType *pt = static_cast<PanelType *>(
+      MEM_callocN(sizeof(PanelType), "spacetype buttons panel context"));
+  STRNCPY(pt->idname, "PROPERTIES_PT_diagnostics");
+  STRNCPY(pt->label, N_("Diagnostics")); /* XXX C panels unavailable through RNA bpy.types! */
+  STRNCPY(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  pt->poll = buttons_panel_context_poll;
+  pt->draw = buttons_panel_context_draw;
+  pt->flag = PANEL_TYPE_NO_HEADER | PANEL_TYPE_NO_SEARCH;
+  BLI_addtail(&art->paneltypes, pt);
 
   BLI_addhead(&st->regiontypes, art);
 

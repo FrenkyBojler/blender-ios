@@ -875,5 +875,4 @@ void ED_info_refresh_dependency_cycles(
   DEG_graph_build_for_all_objects(depsgraph);
   DEG_move_reports_to(depsgraph, reports);
   DEG_graph_free(depsgraph);
-  BKE_report(reports, RPT_INFO, "------[ Done ]------");
 }

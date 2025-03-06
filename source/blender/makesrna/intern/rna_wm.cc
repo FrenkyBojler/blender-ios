@@ -607,6 +607,7 @@ const EnumPropertyItem rna_enum_wm_report_items[] = {
     {RPT_ERROR_INVALID_INPUT, "ERROR_INVALID_INPUT", 0, "Invalid Input", ""},
     {RPT_ERROR_INVALID_CONTEXT, "ERROR_INVALID_CONTEXT", 0, "Invalid Context", ""},
     {RPT_ERROR_OUT_OF_MEMORY, "ERROR_OUT_OF_MEMORY", 0, "Out of Memory", ""},
+    {RPT_ERROR_DEPENDENCY_CYCLE, "ERROR_DEPENDENCY_CYCLE", 0, "Dependency cycle", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -2005,7 +2006,62 @@ static void rna_KeyMapItem_update(Main * /*bmain*/, Scene * /*scene*/, PointerRN
   WM_keyconfig_update_tag(nullptr, kmi);
 }
 
+static void rna_Report_title_get(PointerRNA *ptr, char *value)
+{
+  using blender::StringRefNull;
+  const Report *report = static_cast<const Report *>(ptr->data);
+  StringRefNull msg=StringRefNull(report->message);
+  int64_t line_end = msg.find("\n");
+  if(line_end>0){ msg.substr(0,line_end).copy_unsafe(value); return; }
+  msg.copy_unsafe(value);
+}
+
+static int rna_Report_title_length(PointerRNA *ptr)
+{ 
+  using blender::StringRefNull;
+  const Report *report = static_cast<const Report *>(ptr->data);
+  StringRefNull msg=StringRefNull(report->message);
+  int64_t line_end = msg.find("\n");
+  if(line_end>0){ return line_end; }
+  return report->len;
+}
+
+static void rna_Report_message_get(PointerRNA *ptr, char *value)
+{
+  using blender::StringRefNull;
+  const Report *report = static_cast<const Report *>(ptr->data);
+  strcpy(value, report->message);
+}
+
+static int rna_Report_message_length(PointerRNA *ptr)
+{ 
+  const Report *report = static_cast<const Report *>(ptr->data);
+  return report->len;
+}
+
+static void rna_Report_details_get(PointerRNA *ptr, char *value)
+{
+  using blender::StringRefNull;
+  const Report *report = static_cast<const Report *>(ptr->data);
+  StringRefNull msg=StringRefNull(report->message);
+  int64_t line_end = msg.find("\n");
+  if(line_end>0){ msg.substr(line_end+1).copy_unsafe(value); return; }
+  msg.copy_unsafe(value);
+}
+
+static int rna_Report_details_length(PointerRNA *ptr)
+{ 
+  using blender::StringRefNull;
+  const Report *report = static_cast<const Report *>(ptr->data);
+  StringRefNull msg=StringRefNull(report->message);
+  int64_t line_end = msg.find("\n");
+  if(line_end>0){ return report->len - line_end - 1; }
+  return report->len;
+}
+
+
 #else /* RNA_RUNTIME */
+
 
 /**
  * expose `Operator.options` as its own type so we can control each flags use
@@ -3077,6 +3133,43 @@ static void rna_def_keyconfig(BlenderRNA *brna)
   RNA_api_keymapitem(srna);
 }
 
+static void rna_def_report(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "Report", nullptr);
+  RNA_def_struct_ui_text(srna, "Report", "Window Manager Report");
+  RNA_def_struct_sdna(srna, "Report");
+
+  RNA_define_verify_sdna(false); /* not in sdna */
+
+  prop = RNA_def_property(srna, "title", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_funcs(prop, "rna_Report_title_get", "rna_Report_title_length", nullptr);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_flag(prop, PROP_REGISTER);
+  RNA_def_struct_name_property(srna, prop);
+
+  prop = RNA_def_property(srna, "message", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_funcs(prop, "rna_Report_message_get", "rna_Report_message_length", nullptr);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_flag(prop, PROP_REGISTER);
+
+  prop = RNA_def_property(srna, "details", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_funcs(prop, "rna_Report_details_get", "rna_Report_details_length", nullptr);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_flag(prop, PROP_REGISTER);
+
+  prop = RNA_def_property(srna, "details_open", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "flag", RPT_DISPLAY_EXPANDED);
+  RNA_def_property_update(prop, NC_WM, nullptr);
+
+  RNA_define_verify_sdna(true); /* not in sdna */
+}
+
+
 void RNA_def_wm(BlenderRNA *brna)
 {
   rna_def_operator(brna);
@@ -3094,6 +3187,7 @@ void RNA_def_wm(BlenderRNA *brna)
   rna_def_windowmanager(brna);
   rna_def_keyconfig_prefs(brna);
   rna_def_keyconfig(brna);
+  rna_def_report(brna);
 }
 
 #endif /* RNA_RUNTIME */

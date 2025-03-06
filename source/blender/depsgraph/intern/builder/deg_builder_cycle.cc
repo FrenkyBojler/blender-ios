@@ -182,8 +182,8 @@ void solve_cycles(CyclesSolverState *state)
 
           {
             std::string this_name = to->owner->owner->name;
-            std::string formatted = "Dependency cycle:\n  " + this_name + " [" + rel->name + "] " +
-                                    node->owner->owner->name + "\n";
+            std::string formatted = "Dependency cycle with " + this_name + "\n  " + this_name + " [" +
+                                    rel->name + "] " + node->owner->owner->name + "\n";
             this_name = node->owner->owner->name;
             StackEntry *current = entry;
             while (current->node != to) {
@@ -196,7 +196,7 @@ void solve_cycles(CyclesSolverState *state)
               }
               current = current->from;
             }
-            BKE_report(&state->graph->reports, RPT_WARNING, formatted.c_str());
+            BKE_report(&state->graph->reports, RPT_ERROR_DEPENDENCY_CYCLE, formatted.c_str());
           }
 
           Relation *sacrificial_relation = select_relation_to_murder(rel, entry);
