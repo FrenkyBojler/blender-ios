@@ -111,7 +111,7 @@
 #include "DRW_select_buffer.hh"
 
 /* -------------------------------------------------------------------- */
-/** \name Settings
+/** \name GPU & System Context
  *
  * A global GPUContext is used for rendering every viewports (even on different windows).
  * This is because some resources cannot be shared between contexts (GPUFramebuffers, GPUBatch).
@@ -127,6 +127,11 @@ static GPUContext *blender_gpu_context = nullptr;
  * was also locking so this is a bit of a preventive measure. Could eventually be removed.
  */
 static TicketMutex *system_gpu_context_mutex = nullptr;
+/**
+ * The usage of GPUShader objects is currently not thread safe. Since they are shared resources
+ * between render engine instances, we cannot allow pass submissions in a concurent manner.
+ */
+static TicketMutex *submission_mutex = nullptr;
 
 /** \} */
 
@@ -1473,20 +1478,27 @@ static void DRW_draw_render_loop_3d(Depsgraph *depsgraph,
   GPU_framebuffer_bind(drw_get().default_framebuffer());
   GPU_framebuffer_clear_depth_stencil(drw_get().default_framebuffer(), 1.0f, 0xFF);
 
-  DRW_curves_update(*DRW_manager_get());
+  {
+    /* Critical section. Can be removed when we have threadsafe GPUShader class. */
+    BLI_ticket_mutex_lock(submission_mutex);
 
-  DRW_draw_callbacks_pre_scene();
+    DRW_curves_update(*DRW_manager_get());
 
-  drw_engines_draw_scene();
+    DRW_draw_callbacks_pre_scene();
 
-  /* Fix 3D view "lagging" on APPLE and WIN32+NVIDIA. (See #56996, #61474) */
-  if (GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL)) {
-    GPU_flush();
+    drw_engines_draw_scene();
+
+    /* Fix 3D view "lagging" on APPLE and WIN32+NVIDIA. (See #56996, #61474) */
+    if (GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL)) {
+      GPU_flush();
+    }
+
+    drw_get().data->modules_exit();
+
+    DRW_draw_callbacks_post_scene();
+
+    BLI_ticket_mutex_unlock(submission_mutex);
   }
-
-  drw_get().data->modules_exit();
-
-  DRW_draw_callbacks_post_scene();
 
   if (WM_draw_region_get_bound_viewport(region)) {
     /* Don't unbind the frame-buffer yet in this case and let
@@ -1929,64 +1941,71 @@ static void DRW_draw_render_loop_2d(Depsgraph *depsgraph,
   /* Start Drawing */
   blender::draw::command::StateSet::set();
 
-  if (drw_get().draw_ctx.evil_C) {
-    ED_region_draw_cb_draw(
-        drw_get().draw_ctx.evil_C, drw_get().draw_ctx.region, REGION_DRAW_PRE_VIEW);
-  }
+  {
+    /* Critical section. Can be removed when we have threadsafe GPUShader class. */
+    BLI_ticket_mutex_lock(submission_mutex);
 
-  drw_engines_draw_scene();
-
-  /* Fix 3D view being "laggy" on MACOS and MS-Windows+NVIDIA. (See #56996, #61474) */
-  if (GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL)) {
-    GPU_flush();
-  }
-
-  if (drw_get().draw_ctx.evil_C) {
-    DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
-    blender::draw::command::StateSet::set();
-
-    GPU_framebuffer_bind(dfbl->overlay_fb);
-
-    GPU_depth_test(GPU_DEPTH_NONE);
-    GPU_matrix_push_projection();
-    wmOrtho2(
-        region->v2d.cur.xmin, region->v2d.cur.xmax, region->v2d.cur.ymin, region->v2d.cur.ymax);
-    if (do_annotations) {
-      ED_annotation_draw_view2d(drw_get().draw_ctx.evil_C, true);
+    if (drw_get().draw_ctx.evil_C) {
+      ED_region_draw_cb_draw(
+          drw_get().draw_ctx.evil_C, drw_get().draw_ctx.region, REGION_DRAW_PRE_VIEW);
     }
-    GPU_depth_test(GPU_DEPTH_NONE);
-    ED_region_draw_cb_draw(
-        drw_get().draw_ctx.evil_C, drw_get().draw_ctx.region, REGION_DRAW_POST_VIEW);
-    GPU_matrix_pop_projection();
-    /* Callback can be nasty and do whatever they want with the state.
-     * Don't trust them! */
-    blender::draw::command::StateSet::set();
 
-    GPU_depth_test(GPU_DEPTH_NONE);
-    drw_engines_draw_text();
+    drw_engines_draw_scene();
 
-    if (do_annotations) {
+    /* Fix 3D view being "laggy" on MACOS and MS-Windows+NVIDIA. (See #56996, #61474) */
+    if (GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL)) {
+      GPU_flush();
+    }
+
+    if (drw_get().draw_ctx.evil_C) {
+      DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
+      blender::draw::command::StateSet::set();
+
+      GPU_framebuffer_bind(dfbl->overlay_fb);
+
       GPU_depth_test(GPU_DEPTH_NONE);
-      ED_annotation_draw_view2d(drw_get().draw_ctx.evil_C, false);
+      GPU_matrix_push_projection();
+      wmOrtho2(
+          region->v2d.cur.xmin, region->v2d.cur.xmax, region->v2d.cur.ymin, region->v2d.cur.ymax);
+      if (do_annotations) {
+        ED_annotation_draw_view2d(drw_get().draw_ctx.evil_C, true);
+      }
+      GPU_depth_test(GPU_DEPTH_NONE);
+      ED_region_draw_cb_draw(
+          drw_get().draw_ctx.evil_C, drw_get().draw_ctx.region, REGION_DRAW_POST_VIEW);
+      GPU_matrix_pop_projection();
+      /* Callback can be nasty and do whatever they want with the state.
+       * Don't trust them! */
+      blender::draw::command::StateSet::set();
+
+      GPU_depth_test(GPU_DEPTH_NONE);
+      drw_engines_draw_text();
+
+      if (do_annotations) {
+        GPU_depth_test(GPU_DEPTH_NONE);
+        ED_annotation_draw_view2d(drw_get().draw_ctx.evil_C, false);
+      }
     }
-  }
 
-  ED_region_pixelspace(drw_get().draw_ctx.region);
+    ED_region_pixelspace(drw_get().draw_ctx.region);
 
-  if (do_draw_gizmos) {
-    GPU_depth_test(GPU_DEPTH_NONE);
-    DRW_draw_gizmo_2d();
-  }
+    if (do_draw_gizmos) {
+      GPU_depth_test(GPU_DEPTH_NONE);
+      DRW_draw_gizmo_2d();
+    }
 
-  GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
+    GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
 
-  if (WM_draw_region_get_bound_viewport(region)) {
-    /* Don't unbind the frame-buffer yet in this case and let
-     * GPU_viewport_unbind do it, so that we can still do further
-     * drawing of action zones on top. */
-  }
-  else {
-    GPU_framebuffer_restore();
+    if (WM_draw_region_get_bound_viewport(region)) {
+      /* Don't unbind the frame-buffer yet in this case and let
+       * GPU_viewport_unbind do it, so that we can still do further
+       * drawing of action zones on top. */
+    }
+    else {
+      GPU_framebuffer_restore();
+    }
+
+    BLI_ticket_mutex_unlock(submission_mutex);
   }
 
   blender::draw::command::StateSet::set();
@@ -2242,23 +2261,30 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   BLI_assert(DRW_viewport_texture_list_get()->depth == nullptr);
   DRW_viewport_texture_list_get()->depth = g_select_buffer.texture_depth;
 
-  /* Start Drawing */
-  blender::draw::command::StateSet::set();
-  DRW_draw_callbacks_pre_scene();
+  {
+    /* Critical section. Can be removed when we have threadsafe GPUShader class. */
+    BLI_ticket_mutex_lock(submission_mutex);
 
-  DRW_curves_update(*DRW_manager_get());
+    /* Start Drawing */
+    blender::draw::command::StateSet::set();
+    DRW_draw_callbacks_pre_scene();
 
-  /* Only 1-2 passes. */
-  while (true) {
-    if (!select_pass_fn(DRW_SELECT_PASS_PRE, select_pass_user_data)) {
-      break;
+    DRW_curves_update(*DRW_manager_get());
+
+    /* Only 1-2 passes. */
+    while (true) {
+      if (!select_pass_fn(DRW_SELECT_PASS_PRE, select_pass_user_data)) {
+        break;
+      }
+
+      drw_engines_draw_scene();
+
+      if (!select_pass_fn(DRW_SELECT_PASS_POST, select_pass_user_data)) {
+        break;
+      }
     }
 
-    drw_engines_draw_scene();
-
-    if (!select_pass_fn(DRW_SELECT_PASS_POST, select_pass_user_data)) {
-      break;
-    }
+    BLI_ticket_mutex_unlock(submission_mutex);
   }
 
   drw_get().data->modules_exit();
@@ -2371,9 +2397,16 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
   /* Start Drawing */
   blender::draw::command::StateSet::set();
 
-  DRW_curves_update(*DRW_manager_get());
+  {
+    /* Critical section. Can be removed when we have threadsafe GPUShader class. */
+    BLI_ticket_mutex_lock(submission_mutex);
 
-  drw_engines_draw_scene();
+    DRW_curves_update(*DRW_manager_get());
+
+    drw_engines_draw_scene();
+
+    BLI_ticket_mutex_unlock(submission_mutex);
+  }
 
   drw_get().data->modules_exit();
 
@@ -2467,7 +2500,12 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
 
   /* Start Drawing */
   blender::draw::command::StateSet::set();
-  drw_engines_draw_scene();
+  {
+    /* Critical section. Can be removed when we have threadsafe GPUShader class. */
+    BLI_ticket_mutex_lock(submission_mutex);
+    drw_engines_draw_scene();
+    BLI_ticket_mutex_unlock(submission_mutex);
+  }
   blender::draw::command::StateSet::set();
 
   drw_engines_disable();
@@ -2802,6 +2840,7 @@ void DRW_gpu_context_create()
   DRW_shader_init();
 
   system_gpu_context_mutex = BLI_ticket_mutex_alloc();
+  submission_mutex = BLI_ticket_mutex_alloc();
   /* This changes the active context. */
   system_gpu_context = WM_system_gpu_context_create();
   WM_system_gpu_context_activate(system_gpu_context);
@@ -2823,6 +2862,7 @@ void DRW_gpu_context_destroy()
     GPU_context_active_set(blender_gpu_context);
     GPU_context_discard(blender_gpu_context);
     WM_system_gpu_context_dispose(system_gpu_context);
+    BLI_ticket_mutex_free(submission_mutex);
     BLI_ticket_mutex_free(system_gpu_context_mutex);
   }
 }
@@ -2882,14 +2922,12 @@ void DRW_system_gpu_render_context_enable(void *re_system_gpu_context)
   /* If thread is main you should use DRW_gpu_context_enable(). */
   BLI_assert(!BLI_thread_is_main());
 
-  BLI_ticket_mutex_lock(system_gpu_context_mutex);
   WM_system_gpu_context_activate(re_system_gpu_context);
 }
 
 void DRW_system_gpu_render_context_disable(void *re_system_gpu_context)
 {
   WM_system_gpu_context_release(re_system_gpu_context);
-  BLI_ticket_mutex_unlock(system_gpu_context_mutex);
 }
 
 void DRW_blender_gpu_render_context_enable(void *re_gpu_context)
