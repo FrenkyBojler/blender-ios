@@ -2710,10 +2710,17 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
   }
 
   /* Set area space subtype if applicable. */
-  if (st->space_subtype_item_extend != nullptr) {
+  if (st && st->space_subtype_item_extend != nullptr) {
+    if (area->butspacetype_subtype == -1) {
+      /* Indication (probably from space_type_set_or_cycle) to ignore the
+       * area's current subtype and use last-used, as saved in the space. */
+      area->butspacetype_subtype = st->space_subtype_get(area);
+    }
     st->space_subtype_set(area, area->butspacetype_subtype);
   }
-  area->butspacetype_subtype = 0;
+  else {
+    area->butspacetype_subtype = 0;
+  }
 
   if (BLI_listbase_is_single(&CTX_wm_screen(C)->areabase)) {
     /* If there is only one area update the window title. */

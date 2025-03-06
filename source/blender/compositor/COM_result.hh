@@ -325,10 +325,13 @@ class Result {
    * result, the reference count of the master result is incremented instead. */
   void increment_reference_count(int count = 1);
 
-  /* Decrement the reference count of the result by the given count and free its data if it reaches
-   * zero. The given count should not be more than the current reference count. If this result have
-   * a master result, the master result is released instead. */
-  void release(const int count = 1);
+  /* Decrement the reference count of the result by the given count. If this result have a master
+   * result, the reference count of the master result is decremented instead. */
+  void decrement_reference_count(int count = 1);
+
+  /* Decrement the reference count of the result and free its data if it reaches zero. If this
+   * result have a master result, the master result is released instead. */
+  void release();
 
   /* Frees the result data. If the result is not allocated or wraps external data, then this does
    * nothing. If this result have a master result, the master result is freed instead. */
@@ -510,12 +513,12 @@ class Result {
 /* Inline Methods.
  */
 
-inline const Domain &Result::domain() const
+BLI_INLINE_METHOD const Domain &Result::domain() const
 {
   return domain_;
 }
 
-inline int64_t Result::channels_count() const
+BLI_INLINE_METHOD int64_t Result::channels_count() const
 {
   switch (type_) {
     case ResultType::Float:
@@ -533,19 +536,19 @@ inline int64_t Result::channels_count() const
   return 4;
 }
 
-inline float *Result::float_texture() const
+BLI_INLINE_METHOD float *Result::float_texture() const
 {
   BLI_assert(storage_type_ == ResultStorageType::FloatCPU);
   return float_texture_;
 }
 
-inline int *Result::integer_texture() const
+BLI_INLINE_METHOD int *Result::integer_texture() const
 {
   BLI_assert(storage_type_ == ResultStorageType::IntegerCPU);
   return integer_texture_;
 }
 
-inline void *Result::data() const
+BLI_INLINE_METHOD void *Result::data() const
 {
   switch (storage_type_) {
     case ResultStorageType::FloatCPU:
@@ -560,7 +563,7 @@ inline void *Result::data() const
   return nullptr;
 }
 
-template<typename T> inline const T &Result::get_single_value() const
+template<typename T> BLI_INLINE_METHOD const T &Result::get_single_value() const
 {
   BLI_assert(this->is_single_value());
   static_assert(Result::is_supported_type<T>());
@@ -594,12 +597,13 @@ template<typename T> inline const T &Result::get_single_value() const
   }
 }
 
-template<typename T> inline T &Result::get_single_value()
+template<typename T> BLI_INLINE_METHOD T &Result::get_single_value()
 {
   return const_cast<T &>(std::as_const(*this).get_single_value<T>());
 }
 
-template<typename T> inline T Result::get_single_value_default(const T &default_value) const
+template<typename T>
+BLI_INLINE_METHOD T Result::get_single_value_default(const T &default_value) const
 {
   if (this->is_single_value()) {
     return this->get_single_value<T>();
@@ -607,7 +611,7 @@ template<typename T> inline T Result::get_single_value_default(const T &default_
   return default_value;
 }
 
-template<typename T> inline void Result::set_single_value(const T &value)
+template<typename T> BLI_INLINE_METHOD void Result::set_single_value(const T &value)
 {
   BLI_assert(this->is_allocated());
   BLI_assert(this->is_single_value());
@@ -657,7 +661,8 @@ template<typename T> inline void Result::set_single_value(const T &value)
   }
 }
 
-template<typename T, bool CouldBeSingleValue> inline T Result::load_pixel(const int2 &texel) const
+template<typename T, bool CouldBeSingleValue>
+BLI_INLINE_METHOD T Result::load_pixel(const int2 &texel) const
 {
   if constexpr (CouldBeSingleValue) {
     if (is_single_value_) {
@@ -677,7 +682,7 @@ template<typename T, bool CouldBeSingleValue> inline T Result::load_pixel(const 
 }
 
 template<typename T, bool CouldBeSingleValue>
-inline T Result::load_pixel_extended(const int2 &texel) const
+BLI_INLINE_METHOD T Result::load_pixel_extended(const int2 &texel) const
 {
   if constexpr (CouldBeSingleValue) {
     if (is_single_value_) {
@@ -698,7 +703,7 @@ inline T Result::load_pixel_extended(const int2 &texel) const
 }
 
 template<typename T, bool CouldBeSingleValue>
-inline T Result::load_pixel_fallback(const int2 &texel, const T &fallback) const
+BLI_INLINE_METHOD T Result::load_pixel_fallback(const int2 &texel, const T &fallback) const
 {
   if constexpr (CouldBeSingleValue) {
     if (is_single_value_) {
@@ -722,12 +727,12 @@ inline T Result::load_pixel_fallback(const int2 &texel, const T &fallback) const
 }
 
 template<typename T, bool CouldBeSingleValue>
-inline T Result::load_pixel_zero(const int2 &texel) const
+BLI_INLINE_METHOD T Result::load_pixel_zero(const int2 &texel) const
 {
   return this->load_pixel_fallback<T, CouldBeSingleValue>(texel, T(0));
 }
 
-inline float4 Result::load_pixel_generic_type(const int2 &texel) const
+BLI_INLINE_METHOD float4 Result::load_pixel_generic_type(const int2 &texel) const
 {
   float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
   if (is_single_value_) {
@@ -739,7 +744,8 @@ inline float4 Result::load_pixel_generic_type(const int2 &texel) const
   return pixel_value;
 }
 
-template<typename T> inline void Result::store_pixel(const int2 &texel, const T &pixel_value)
+template<typename T>
+BLI_INLINE_METHOD void Result::store_pixel(const int2 &texel, const T &pixel_value)
 {
   if constexpr (std::is_scalar_v<T>) {
     *this->get_pixel<T>(texel) = pixel_value;
@@ -750,12 +756,13 @@ template<typename T> inline void Result::store_pixel(const int2 &texel, const T 
   }
 }
 
-inline void Result::store_pixel_generic_type(const int2 &texel, const float4 &pixel_value)
+BLI_INLINE_METHOD void Result::store_pixel_generic_type(const int2 &texel,
+                                                        const float4 &pixel_value)
 {
   this->copy_pixel(this->get_float_pixel(texel), pixel_value);
 }
 
-inline float4 Result::sample_nearest_zero(const float2 &coordinates) const
+BLI_INLINE_METHOD float4 Result::sample_nearest_zero(const float2 &coordinates) const
 {
   float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
   if (is_single_value_) {
@@ -776,9 +783,9 @@ inline float4 Result::sample_nearest_zero(const float2 &coordinates) const
   return pixel_value;
 }
 
-inline float4 Result::sample_nearest_wrap(const float2 &coordinates,
-                                          bool wrap_x,
-                                          bool wrap_y) const
+BLI_INLINE_METHOD float4 Result::sample_nearest_wrap(const float2 &coordinates,
+                                                     bool wrap_x,
+                                                     bool wrap_y) const
 {
   float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
   if (is_single_value_) {
@@ -802,9 +809,9 @@ inline float4 Result::sample_nearest_wrap(const float2 &coordinates,
   return pixel_value;
 }
 
-inline float4 Result::sample_bilinear_wrap(const float2 &coordinates,
-                                           bool wrap_x,
-                                           bool wrap_y) const
+BLI_INLINE_METHOD float4 Result::sample_bilinear_wrap(const float2 &coordinates,
+                                                      bool wrap_x,
+                                                      bool wrap_y) const
 {
   float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
   if (is_single_value_) {
@@ -828,7 +835,9 @@ inline float4 Result::sample_bilinear_wrap(const float2 &coordinates,
   return pixel_value;
 }
 
-inline float4 Result::sample_cubic_wrap(const float2 &coordinates, bool wrap_x, bool wrap_y) const
+BLI_INLINE_METHOD float4 Result::sample_cubic_wrap(const float2 &coordinates,
+                                                   bool wrap_x,
+                                                   bool wrap_y) const
 {
   float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
   if (is_single_value_) {
@@ -852,7 +861,7 @@ inline float4 Result::sample_cubic_wrap(const float2 &coordinates, bool wrap_x, 
   return pixel_value;
 }
 
-inline float4 Result::sample_bilinear_zero(const float2 &coordinates) const
+BLI_INLINE_METHOD float4 Result::sample_bilinear_zero(const float2 &coordinates) const
 {
   float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
   if (is_single_value_) {
@@ -873,7 +882,7 @@ inline float4 Result::sample_bilinear_zero(const float2 &coordinates) const
   return pixel_value;
 }
 
-inline float4 Result::sample_nearest_extended(const float2 &coordinates) const
+BLI_INLINE_METHOD float4 Result::sample_nearest_extended(const float2 &coordinates) const
 {
   float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
   if (is_single_value_) {
@@ -894,7 +903,7 @@ inline float4 Result::sample_nearest_extended(const float2 &coordinates) const
   return pixel_value;
 }
 
-inline float4 Result::sample_bilinear_extended(const float2 &coordinates) const
+BLI_INLINE_METHOD float4 Result::sample_bilinear_extended(const float2 &coordinates) const
 {
   float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
   if (is_single_value_) {
@@ -926,9 +935,9 @@ static void sample_ewa_extended_read_callback(void *userdata, int x, int y, floa
   copy_v4_v4(result, sampled_result);
 }
 
-inline float4 Result::sample_ewa_extended(const float2 &coordinates,
-                                          const float2 &x_gradient,
-                                          const float2 &y_gradient) const
+BLI_INLINE_METHOD float4 Result::sample_ewa_extended(const float2 &coordinates,
+                                                     const float2 &x_gradient,
+                                                     const float2 &y_gradient) const
 {
   BLI_assert(type_ == ResultType::Color);
 
@@ -963,9 +972,9 @@ static void sample_ewa_zero_read_callback(void *userdata, int x, int y, float re
   copy_v4_v4(result, sampled_result);
 }
 
-inline float4 Result::sample_ewa_zero(const float2 &coordinates,
-                                      const float2 &x_gradient,
-                                      const float2 &y_gradient) const
+BLI_INLINE_METHOD float4 Result::sample_ewa_zero(const float2 &coordinates,
+                                                 const float2 &x_gradient,
+                                                 const float2 &y_gradient) const
 {
   BLI_assert(type_ == ResultType::Color);
 
@@ -1014,7 +1023,7 @@ template<typename T> constexpr bool Result::is_supported_type()
   return is_same_any_v<T, float, int, float2, float3, float4, int2>;
 }
 
-template<typename T> inline int64_t Result::get_pixel_index(const int2 &texel) const
+template<typename T> BLI_INLINE_METHOD int64_t Result::get_pixel_index(const int2 &texel) const
 {
   BLI_assert(!is_single_value_);
   BLI_assert(this->is_allocated());
@@ -1027,7 +1036,7 @@ template<typename T> inline int64_t Result::get_pixel_index(const int2 &texel) c
   return (int64_t(texel.y) * domain_.size.x + texel.x) * channels_count;
 }
 
-inline int64_t Result::get_pixel_index(const int2 &texel) const
+BLI_INLINE_METHOD int64_t Result::get_pixel_index(const int2 &texel) const
 {
   BLI_assert(!is_single_value_);
   BLI_assert(this->is_allocated());
@@ -1036,7 +1045,7 @@ inline int64_t Result::get_pixel_index(const int2 &texel) const
 }
 
 template<typename T>
-inline std::conditional_t<Result::is_int_type<T>(), int, float> *Result::get_pixel(
+BLI_INLINE_METHOD std::conditional_t<Result::is_int_type<T>(), int, float> *Result::get_pixel(
     const int2 &texel) const
 {
   if constexpr (Result::is_int_type<T>()) {
@@ -1047,19 +1056,21 @@ inline std::conditional_t<Result::is_int_type<T>(), int, float> *Result::get_pix
   }
 }
 
-inline float *Result::get_float_pixel(const int2 &texel) const
+BLI_INLINE_METHOD float *Result::get_float_pixel(const int2 &texel) const
 {
   BLI_assert(storage_type_ == ResultStorageType::FloatCPU);
   return float_texture_ + this->get_pixel_index(texel);
 }
 
-inline int *Result::get_integer_pixel(const int2 &texel) const
+BLI_INLINE_METHOD int *Result::get_integer_pixel(const int2 &texel) const
 {
   BLI_assert(storage_type_ == ResultStorageType::IntegerCPU);
   return integer_texture_ + this->get_pixel_index(texel);
 }
 
-inline void Result::copy_pixel(float *target, const float *source, const int channels_count)
+BLI_INLINE_METHOD void Result::copy_pixel(float *target,
+                                          const float *source,
+                                          const int channels_count)
 {
   switch (channels_count) {
     case 1:
@@ -1080,7 +1091,7 @@ inline void Result::copy_pixel(float *target, const float *source, const int cha
   }
 }
 
-inline void Result::copy_pixel(int *target, const int *source, const int channels_count)
+BLI_INLINE_METHOD void Result::copy_pixel(int *target, const int *source, const int channels_count)
 {
   switch (channels_count) {
     case 1:
@@ -1095,7 +1106,7 @@ inline void Result::copy_pixel(int *target, const int *source, const int channel
   }
 }
 
-inline void Result::copy_pixel(float *target, const float *source) const
+BLI_INLINE_METHOD void Result::copy_pixel(float *target, const float *source) const
 {
   switch (type_) {
     case ResultType::Float:

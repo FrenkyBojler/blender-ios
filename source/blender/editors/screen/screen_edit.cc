@@ -1835,26 +1835,17 @@ void ED_screen_animation_timer(bContext *C, int redraws, int sync, int enable)
     screen->animtimer = WM_event_timer_add(wm, win, TIMER0, (1.0 / FPS));
 
     sad->region = CTX_wm_region(C);
-    /* If start-frame is larger than current frame, we put current-frame on start-frame.
-     * NOTE(ton): first frame then is not drawn! */
-    if (PRVRANGEON) {
-      if (scene->r.psfra > scene->r.cfra) {
-        sad->sfra = scene->r.cfra;
-        scene->r.cfra = scene->r.psfra;
-      }
-      else {
-        sad->sfra = scene->r.cfra;
-      }
+    sad->sfra = scene->r.cfra;
+    /* Make sure that were are inside the scene or preview frame range. */
+    CLAMP(scene->r.cfra, PSFRA, PEFRA);
+    if (scene->r.cfra != sad->sfra) {
+      sad->flag |= ANIMPLAY_FLAG_JUMPED;
     }
-    else {
-      if (scene->r.sfra > scene->r.cfra) {
-        sad->sfra = scene->r.cfra;
-        scene->r.cfra = scene->r.sfra;
-      }
-      else {
-        sad->sfra = scene->r.cfra;
-      }
+
+    if (sad->flag & ANIMPLAY_FLAG_JUMPED) {
+      DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
     }
+
     sad->redraws = redraws;
     sad->flag |= (enable < 0) ? ANIMPLAY_FLAG_REVERSE : 0;
     sad->flag |= (sync == 0) ? ANIMPLAY_FLAG_NO_SYNC : (sync == 1) ? ANIMPLAY_FLAG_SYNC : 0;
@@ -1910,27 +1901,6 @@ void ED_screen_animation_timer_update(bScreen *screen, int redraws)
       sad->region = time_top_left_3dwindow(screen);
     }
   }
-}
-
-void ED_screen_animation_timer_reset(bScreen *screen, wmWindowManager *wm)
-{
-  BLI_assert(screen);
-  BLI_assert(screen->animtimer);
-  wmTimer *old_timer = screen->animtimer;
-  /* Simply recreate the timer as we will otherwise run into race condition issues as other
-   * timer functions will write to most of the timer variables.
-   */
-  wmWindow *win = old_timer->win;
-  const double time_step = old_timer->time_step;
-  const int event_type = old_timer->event_type;
-  ScreenAnimData *sad = static_cast<ScreenAnimData *>(
-      MEM_callocN(sizeof(ScreenAnimData), "ScreenAnimData"));
-  memcpy(sad, old_timer->customdata, sizeof(ScreenAnimData));
-
-  WM_event_timer_remove(wm, win, old_timer);
-
-  screen->animtimer = WM_event_timer_add(wm, win, event_type, time_step);
-  screen->animtimer->customdata = sad;
 }
 
 void ED_update_for_newframe(Main *bmain, Depsgraph *depsgraph)

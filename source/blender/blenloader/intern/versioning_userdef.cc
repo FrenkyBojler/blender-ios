@@ -211,7 +211,12 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
   }
 
   if (!USER_VERSION_ATLEAST(404, 7)) {
-    FROM_DEFAULT_V4_UCHAR(space_view3d.face_front);
+    if (btheme->space_view3d.face_front[0] == 0 && btheme->space_view3d.face_front[1] == 0 &&
+        btheme->space_view3d.face_front[2] == 0xFF && btheme->space_view3d.face_front[3] == 0xB3)
+    {
+      /* Use new default value only if currently set to the old default value. */
+      FROM_DEFAULT_V4_UCHAR(space_view3d.face_front);
+    }
   }
 
   if (!USER_VERSION_ATLEAST(404, 12)) {
@@ -1394,6 +1399,10 @@ void blo_do_versions_userdef(UserDef *userdef)
         keymap_update_mesh_texture_paint_brushes(keymap);
       }
     }
+  }
+
+  if (!USER_VERSION_ATLEAST(404, 28)) {
+    userdef->ndof_flag |= NDOF_SHOW_GUIDE_ORBIT_CENTER | NDOF_ORBIT_CENTER_AUTO;
   }
 
   /**

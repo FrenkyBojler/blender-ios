@@ -564,6 +564,18 @@ static bool but_copypaste_profile_alive = false;
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Struct allocation & freeing
+ * \{ */
+
+void ui_but_handle_data_free(uiHandleButtonData **data)
+{
+  MEM_delete(*data);
+  *data = nullptr;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name UI Queries
  * \{ */
 
@@ -940,6 +952,12 @@ static void ui_apply_but_func(bContext *C, uiBut *but)
 static void ui_apply_but_undo(uiBut *but)
 {
   if (!(but->flag & UI_BUT_UNDO)) {
+    return;
+  }
+
+  /* Skip undo push for buttons in redo panel, see: #134505. */
+  const ARegion *region = CTX_wm_region(static_cast<bContext *>(but->block->evil_C));
+  if (region->regiontype == RGN_TYPE_HUD) {
     return;
   }
 
@@ -2642,7 +2660,7 @@ static void ui_but_copy_color(uiBut *but, char *output, int output_maxncpy)
 {
   float rgba[4];
 
-  if (but->rnaprop && get_but_property_array_length(but) == 4) {
+  if (but->rnaprop && get_but_property_array_length(but) >= 4) {
     rgba[3] = RNA_property_float_get_index(&but->rnapoin, but->rnaprop, 3);
   }
   else {
@@ -2671,8 +2689,7 @@ static void ui_but_paste_color(bContext *C, uiBut *but, char *buf_paste)
 
       /* Some color properties are RGB, not RGBA. */
       const int array_len = get_but_property_array_length(but);
-      BLI_assert(ELEM(array_len, 3, 4));
-      ui_but_set_float_array(C, but, nullptr, rgba, array_len);
+      ui_but_set_float_array(C, but, nullptr, rgba, std::min(array_len, int(ARRAY_SIZE(rgba))));
     }
   }
   else {
@@ -3101,6 +3118,13 @@ static bool ui_textedit_delete_selection(uiBut *but, uiTextEdit &text_edit)
   if (but->selsta != but->selend && len) {
     memmove(str + but->selsta, str + but->selend, (len - but->selend) + 1);
     changed = true;
+  }
+
+  if (but->ofs > but->selsta) {
+    /* Decrease the ofset by the amount of the selection that is hidden. Without
+     * this adjustment, pasting text that doesn't fit in the text field would leave
+     * the pasted text scrolled out of the view (to the left), see: #134491. */
+    but->ofs -= (but->ofs - but->selsta);
   }
 
   but->pos = but->selend = but->selsta;
@@ -6514,11 +6538,11 @@ static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, co
               float *target = &brush->gradient->data[brush->gradient->cur].r;
 
               if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
-                RNA_property_float_get_array(&but->rnapoin, but->rnaprop, target);
+                RNA_property_float_get_array_at_most(&but->rnapoin, but->rnaprop, target, 3);
                 IMB_colormanagement_srgb_to_scene_linear_v3(target, target);
               }
               else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
-                RNA_property_float_get_array(&but->rnapoin, but->rnaprop, target);
+                RNA_property_float_get_array_at_most(&but->rnapoin, but->rnaprop, target, 3);
               }
               BKE_brush_tag_unsaved_changes(brush);
             }
@@ -6527,12 +6551,14 @@ static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, co
               bool updated = false;
 
               if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
-                RNA_property_float_get_array(&but->rnapoin, but->rnaprop, color);
+                RNA_property_float_get_array_at_most(
+                    &but->rnapoin, but->rnaprop, color, ARRAY_SIZE(color));
                 BKE_brush_color_set(scene, paint, brush, color);
                 updated = true;
               }
               else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
-                RNA_property_float_get_array(&but->rnapoin, but->rnaprop, color);
+                RNA_property_float_get_array_at_most(
+                    &but->rnapoin, but->rnaprop, color, ARRAY_SIZE(color));
                 IMB_colormanagement_scene_linear_to_srgb_v3(color, color);
                 BKE_brush_color_set(scene, paint, brush, color);
                 updated = true;
@@ -6914,6 +6940,7 @@ static int ui_do_but_HSVCUBE(
 
           ui_color_picker_to_rgb_HSVCUBE_v(hsv_but, def_hsv, rgb);
           ui_but_v3_set(but, rgb);
+          ui_apply_but_func(C, but);
 
           RNA_property_update(C, &but->rnapoin, but->rnaprop);
           return WM_UI_HANDLER_BREAK;
@@ -7184,6 +7211,7 @@ static int ui_do_but_HSVCIRCLE(
 
         hsv_to_rgb_v(def_hsv, rgb);
         ui_but_v3_set(but, rgb);
+        ui_apply_but_func(C, but);
 
         RNA_property_update(C, &but->rnapoin, but->rnaprop);
 
@@ -8947,7 +8975,7 @@ static void button_activate_exit(
   BLI_assert(!but->semi_modal_state || but->semi_modal_state == but->active);
   but->semi_modal_state = nullptr;
   /* clean up button */
-  MEM_SAFE_FREE(but->active);
+  ui_but_handle_data_free(&but->active);
 
   but->flag &= ~(UI_HOVER | UI_SELECT);
   but->flag |= UI_BUT_LAST_ACTIVE;
@@ -11606,6 +11634,16 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, uiPopupBlockHandle 
             }
           }
           break;
+
+        case WINDEACTIVATE: {
+          /* Prevent waiting for the pie key release if it was released outside of focus. */
+          wmWindow *win = CTX_wm_window(C);
+          if (win) {
+            win->pie_event_type_lock = EVENT_NONE;
+          }
+          menu->menuretval = UI_RETURN_CANCEL;
+          break;
+        }
 
         case EVT_ESCKEY:
         case RIGHTMOUSE:

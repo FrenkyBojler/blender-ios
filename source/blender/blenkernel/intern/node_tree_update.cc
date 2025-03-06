@@ -585,6 +585,18 @@ class NodeTreeMainUpdater {
             nodes::update_node_declaration_and_sockets(ntree, *node);
           }
         }
+        else if (node->is_undefined()) {
+          /* If a node has become undefined (it generally was unregistered from Python), it does
+           * not have a declaration anymore. */
+          delete node->runtime->declaration;
+          node->runtime->declaration = nullptr;
+          LISTBASE_FOREACH (bNodeSocket *, socket, &node->inputs) {
+            socket->runtime->declaration = nullptr;
+          }
+          LISTBASE_FOREACH (bNodeSocket *, socket, &node->outputs) {
+            socket->runtime->declaration = nullptr;
+          }
+        }
         if (ntype.updatefunc) {
           ntype.updatefunc(&ntree, node);
         }
@@ -1082,6 +1094,12 @@ class NodeTreeMainUpdater {
           /* Items are moved, no need to change user count. */
           dst.enum_items = src.enum_items;
           SET_FLAG_FROM_TEST(dst.runtime_flag, src.has_conflict(), NODE_MENU_ITEMS_CONFLICT);
+        }
+        else {
+          /* If the item isn't move make sure it gets released again. */
+          if (src.enum_items) {
+            src.enum_items->remove_user_and_delete_if_last();
+          }
         }
       }
     }
@@ -1707,6 +1725,11 @@ void BKE_ntree_update_tag_node_property(bNodeTree *ntree, bNode *node)
 }
 
 void BKE_ntree_update_tag_node_new(bNodeTree *ntree, bNode *node)
+{
+  add_node_tag(ntree, node, NTREE_CHANGED_NODE_PROPERTY);
+}
+
+void BKE_ntree_update_tag_node_type(bNodeTree *ntree, bNode *node)
 {
   add_node_tag(ntree, node, NTREE_CHANGED_NODE_PROPERTY);
 }
