@@ -462,11 +462,11 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
   if (oglrender->is_sequencer) {
     Scene *scene = oglrender->scene;
 
-    blender::seq::SeqRenderData context;
+    blender::seq::RenderData context;
     SpaceSeq *sseq = oglrender->sseq;
     int chanshown = sseq ? sseq->chanshown : 0;
 
-    blender::seq::SEQ_render_new_render_data(oglrender->bmain,
+    blender::seq::render_new_render_data(oglrender->bmain,
                                              oglrender->depsgraph,
                                              scene,
                                              oglrender->sizex,
@@ -479,7 +479,7 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
       context.view_id = view_id;
       context.gpu_offscreen = oglrender->ofs;
       context.gpu_viewport = oglrender->viewport;
-      oglrender->seq_data.ibufs_arr[view_id] = blender::seq::SEQ_render_give_ibuf(
+      oglrender->seq_data.ibufs_arr[view_id] = blender::seq::render_give_ibuf(
           &context, scene->r.cfra, chanshown);
     }
   }
