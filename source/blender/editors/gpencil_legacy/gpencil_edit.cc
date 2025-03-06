@@ -87,10 +87,6 @@ void ED_gpencil_strokes_copybuf_free()
     if (gps->points) {
       MEM_freeN(gps->points);
     }
-    if (gps->dvert) {
-      BKE_gpencil_free_stroke_weights(gps);
-      MEM_freeN(gps->dvert);
-    }
 
     MEM_SAFE_FREE(gps->triangles);
 
