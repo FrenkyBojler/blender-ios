@@ -156,8 +156,8 @@ Vector<RNAPath> get_keyable_id_property_paths(const PointerRNA &ptr)
     bool is_resolved = RNA_path_resolve_property(
         &ptr, path.c_str(), &resolved_ptr, &resolved_prop);
     /* ID properties can be named the same as internal properties, for example `scale`. In that
-     * case they would resolve, it wouldn't be correct property. `RNA_property_is_runtime` catches
-     * that case. */
+     * case they would resolve, but it wouldn't be the correct property. `RNA_property_is_runtime`
+     * catches that case. */
     if (!is_resolved || !RNA_property_is_runtime(resolved_prop)) {
       char name_escaped[MAX_IDPROP_NAME * 2];
       BLI_str_escape(name_escaped, id_prop->name, sizeof(name_escaped));
