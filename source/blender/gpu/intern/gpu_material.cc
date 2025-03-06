@@ -44,18 +44,6 @@
 #define MAX_COLOR_BAND 128
 #define MAX_GPU_SKIES 8
 
-/**
- * Whether the optimized variant of the GPUPass should be created asynchronously.
- * Usage of this depends on whether there are possible threading challenges of doing so.
- * Currently, the overhead of GPU_generate_pass is relatively small in comparison to shader
- * compilation, though this option exists in case any potential scenarios for material graph
- * optimization cause a slow down on the main thread.
- *
- * NOTE: The actual shader program for the optimized pass will always be compiled asynchronously,
- * this flag controls whether shader node graph source serialization happens on the compilation
- * worker thread as well. */
-#define ASYNC_OPTIMIZED_PASS_CREATION 0
-
 struct GPUColorBandBuilder {
   float pixels[MAX_COLOR_BAND][CM_TABLE + 1][4];
   int current_layer;
@@ -68,33 +56,17 @@ struct GPUSkyBuilder {
 
 struct GPUMaterial {
   /* Contains #GPUShader and source code for deferred compilation.
-   * Can be shared between similar material (i.e: sharing same node-tree topology). */
+   * Can be shared between materials sharing same node-tree topology. */
   GPUPass *pass;
   /* Optimized GPUPass, situationally compiled after initial pass for optimal realtime performance.
    * This shader variant bakes dynamic uniform data as constant. This variant will not use
    * the ubo, and instead bake constants directly into the shader source. */
   GPUPass *optimized_pass;
-  /* Optimization status.
-   * We also use this status to determine whether this material should be considered for
-   * optimization. Only sufficiently complex shaders benefit from constant-folding optimizations.
-   *   `GPU_MAT_OPTIMIZATION_READY` -> shader should be optimized and is ready for optimization.
-   *   `GPU_MAT_OPTIMIZATION_SKIP` -> Shader should not be optimized as it would not benefit
-   * performance to do so, based on the heuristic.
-   */
-  eGPUMaterialOptimizationStatus optimization_status;
+
   double creation_time;
-#if ASYNC_OPTIMIZED_PASS_CREATION == 1
-  struct DeferredOptimizePass {
-    GPUCodegenCallbackFn callback;
-    void *thunk;
-  } DeferredOptimizePass;
-  struct DeferredOptimizePass optimize_pass_info;
-#endif
 
   /** UBOs for this material parameters. */
   GPUUniformBuf *ubo;
-  /** Compilation status. Do not use if shader is not GPU_MAT_SUCCESS. */
-  eGPUMaterialStatus status;
   /** Some flags about the nodetree & the needed resources. */
   eGPUMaterialFlag flag;
   /** The engine type this material is compiled for. */
@@ -103,11 +75,7 @@ struct GPUMaterial {
   uint64_t uuid;
   /* Number of generated function. */
   int generated_function_len;
-  /** Object type for attribute fetching. */
-  bool is_volume_shader;
 
-  /** DEPRECATED Currently only used for deferred compilation. */
-  Scene *scene;
   /** Source material, might be null. */
   Material *ma;
   /** 1D Texture array containing all color bands. */
@@ -121,20 +89,12 @@ struct GPUMaterial {
   /* Low level node graph(s). Also contains resources needed by the material. */
   GPUNodeGraph graph;
 
-  /** Default material reference used for PSO cache warming. Default materials may perform
-   * different operations, but the permutation will frequently share the same input PSO
-   * descriptors. This enables asynchronous PSO compilation as part of the deferred compilation
-   * pass, reducing runtime stuttering and responsiveness while compiling materials. */
-  GPUMaterial *default_mat;
-
-  /** DEPRECATED: To remove. */
   bool has_surface_output;
   bool has_volume_output;
   bool has_displacement_output;
 
+  // TODO: Remove?
   uint32_t refcount;
-
-  bool do_batch_compilation;
 
 #ifndef NDEBUG
   char name[64];
@@ -285,11 +245,6 @@ void GPU_material_free(ListBase *gpumaterial)
   BLI_freelistN(gpumaterial);
 }
 
-Scene *GPU_material_scene(GPUMaterial *material)
-{
-  return material->scene;
-}
-
 GPUPass *GPU_material_get_pass(GPUMaterial *material)
 {
   /* If an optimized pass variant is available, and optimization is
@@ -310,11 +265,6 @@ GPUShader *GPU_material_get_shader(GPUMaterial *material)
                           GPU_pass_shader_get(material->optimized_pass) :
                           nullptr;
   return (shader) ? shader : ((material->pass) ? GPU_pass_shader_get(material->pass) : nullptr);
-}
-
-GPUShader *GPU_material_get_shader_base(GPUMaterial *material)
-{
-  return (material->pass) ? GPU_pass_shader_get(material->pass) : nullptr;
 }
 
 const char *GPU_material_get_name(GPUMaterial *material)
@@ -446,23 +396,9 @@ eGPUMaterialStatus GPU_material_status(GPUMaterial *mat)
   return mat->status;
 }
 
-void GPU_material_status_set(GPUMaterial *mat, eGPUMaterialStatus status)
-{
-  mat->status = status;
-}
-
 eGPUMaterialOptimizationStatus GPU_material_optimization_status(GPUMaterial *mat)
 {
   return mat->optimization_status;
-}
-
-void GPU_material_optimization_status_set(GPUMaterial *mat, eGPUMaterialOptimizationStatus status)
-{
-  mat->optimization_status = status;
-  if (mat->optimization_status == GPU_MAT_OPTIMIZATION_READY) {
-    /* Reset creation timer to delay optimization pass. */
-    mat->creation_time = BLI_time_now_seconds();
-  }
 }
 
 bool GPU_material_optimization_ready(GPUMaterial *mat)
@@ -476,13 +412,6 @@ bool GPU_material_optimization_ready(GPUMaterial *mat)
    * The threshold just prevents compilations being queued frame after frame. */
   const double optimization_time_threshold_s = 1.2;
   return ((BLI_time_now_seconds() - mat->creation_time) >= optimization_time_threshold_s);
-}
-
-void GPU_material_set_default(GPUMaterial *material, GPUMaterial *default_material)
-{
-  if (material != default_material) {
-    material->default_mat = default_material;
-  }
 }
 
 /* Code generation */
@@ -535,14 +464,12 @@ uint64_t GPU_material_uuid_get(GPUMaterial *mat)
   return mat->uuid;
 }
 
-GPUMaterial *GPU_material_from_nodetree(Scene *scene,
-                                        Material *ma,
+GPUMaterial *GPU_material_from_nodetree(Material *ma,
                                         bNodeTree *ntree,
                                         ListBase *gpumaterials,
                                         const char *name,
                                         eGPUMaterialEngine engine,
                                         uint64_t shader_uuid,
-                                        bool is_volume_shader,
                                         bool is_lookdev,
                                         GPUCodegenCallbackFn callback,
                                         void *thunk,
@@ -558,13 +485,9 @@ GPUMaterial *GPU_material_from_nodetree(Scene *scene,
 
   GPUMaterial *mat = static_cast<GPUMaterial *>(MEM_callocN(sizeof(GPUMaterial), "GPUMaterial"));
   mat->ma = ma;
-  mat->scene = scene;
   mat->engine = engine;
   mat->uuid = shader_uuid;
   mat->flag = GPU_MATFLAG_UPDATED;
-  mat->status = GPU_MAT_CREATED;
-  mat->default_mat = nullptr;
-  mat->is_volume_shader = is_volume_shader;
   mat->graph.used_libraries = BLI_gset_new(
       BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "GPUNodeGraph.used_libraries");
   mat->refcount = 1;
@@ -620,11 +543,6 @@ GPUMaterial *GPU_material_from_nodetree(Scene *scene,
 
     /* Generate optimized pass. */
     if (mat->optimization_status == GPU_MAT_OPTIMIZATION_READY) {
-#if ASYNC_OPTIMIZED_PASS_CREATION == 1
-      mat->optimized_pass = nullptr;
-      mat->optimize_pass_info.callback = callback;
-      mat->optimize_pass_info.thunk = thunk;
-#else
       mat->optimized_pass = GPU_generate_pass(mat, &mat->graph, engine, callback, thunk, true);
       if (mat->optimized_pass == nullptr) {
         /* Failed to create optimized pass. */
@@ -658,16 +576,6 @@ GPUMaterial *GPU_material_from_nodetree(Scene *scene,
   return mat;
 }
 
-void GPU_material_acquire(GPUMaterial *mat)
-{
-  atomic_add_and_fetch_uint32(&mat->refcount, 1);
-}
-
-void GPU_material_release(GPUMaterial *mat)
-{
-  GPU_material_free_single(mat);
-}
-
 static void gpu_material_finalize(GPUMaterial *mat, bool success)
 {
   mat->flag |= GPU_MATFLAG_UPDATED;
@@ -675,33 +583,6 @@ static void gpu_material_finalize(GPUMaterial *mat, bool success)
   if (success) {
     GPUShader *sh = GPU_pass_shader_get(mat->pass);
     if (sh != nullptr) {
-
-      /** Perform asynchronous Render Pipeline State Object (PSO) compilation.
-       *
-       * Warm PSO cache within asynchronous compilation thread using default material as source.
-       * GPU_shader_warm_cache(..) performs the API-specific PSO compilation using the assigned
-       * parent shader's cached PSO descriptors as an input.
-       *
-       * This is only applied if the given material has a specified default reference
-       * material available, and the default material is already compiled.
-       *
-       * As PSOs do not always match for default shaders, we limit warming for PSO
-       * configurations to ensure compile time remains fast, as these first
-       * entries will be the most commonly used PSOs. As not all PSOs are necessarily
-       * required immediately, this limit should remain low (1-3 at most). */
-      if (!ELEM(mat->default_mat, nullptr, mat)) {
-        if (mat->default_mat->pass != nullptr) {
-          GPUShader *parent_sh = GPU_pass_shader_get(mat->default_mat->pass);
-          if (parent_sh) {
-            /* Skip warming if cached pass is identical to the default material. */
-            if (mat->default_mat->pass != mat->pass && parent_sh != sh) {
-              GPU_shader_set_parent(sh, parent_sh);
-              GPU_shader_warm_cache(sh, 1);
-            }
-          }
-        }
-      }
-
       /* Flag success. */
       mat->status = GPU_MAT_SUCCESS;
       if (mat->optimization_status == GPU_MAT_OPTIMIZATION_SKIP) {
@@ -738,28 +619,6 @@ void GPU_material_compile(GPUMaterial *mat)
   gpu_material_finalize(mat, success);
 }
 
-void GPU_material_async_compile(GPUMaterial *mat)
-{
-  BLI_assert(ELEM(mat->status, GPU_MAT_QUEUED, GPU_MAT_CREATED));
-  BLI_assert(mat->pass);
-#ifndef NDEBUG
-  const char *name = mat->name;
-#else
-  const char *name = __func__;
-#endif
-  GPU_pass_begin_async_compilation(mat->pass, name);
-}
-
-bool GPU_material_async_try_finalize(GPUMaterial *mat)
-{
-  BLI_assert(ELEM(mat->status, GPU_MAT_QUEUED, GPU_MAT_CREATED));
-  if (GPU_pass_async_compilation_try_finalize(mat->pass)) {
-    gpu_material_finalize(mat, GPU_pass_shader_get(mat->pass) != nullptr);
-    return true;
-  }
-  return false;
-}
-
 void GPU_material_optimize(GPUMaterial *mat)
 {
   /* If shader is flagged for skipping optimization or has already been successfully
@@ -776,28 +635,11 @@ void GPU_material_optimize(GPUMaterial *mat)
     return;
   }
 
-#if ASYNC_OPTIMIZED_PASS_CREATION == 1
-  /* If the optimized pass is not valid, first generate optimized pass.
-   * NOTE(Threading): Need to verify if GPU_generate_pass can cause side-effects, especially when
-   * used with "thunk". So far, this appears to work, and deferring optimized pass creation is more
-   * optimal, as these do not benefit from caching, due to baked constants. However, this could
-   * possibly be cause for concern for certain cases. */
-  if (!mat->optimized_pass) {
-    mat->optimized_pass = GPU_generate_pass(mat,
-                                            &mat->graph,
-                                            mat->engine,
-                                            mat->optimize_pass_info.callback,
-                                            mat->optimize_pass_info.thunk,
-                                            true);
-    BLI_assert(mat->optimized_pass);
-  }
-#else
   if (!mat->optimized_pass) {
     /* Optimized pass has not been created, skip future optimization attempts. */
     GPU_material_optimization_status_set(mat, GPU_MAT_OPTIMIZATION_SKIP);
     return;
   }
-#endif
 
   bool success;
 /* NOTE: The shader may have already been compiled here since we are
@@ -873,7 +715,6 @@ GPUMaterial *GPU_material_from_callbacks(eGPUMaterialEngine engine,
   material->refcount = 1;
   material->optimization_status = GPU_MAT_OPTIMIZATION_SKIP;
   material->optimized_pass = nullptr;
-  material->default_mat = nullptr;
   material->engine = engine;
 
   /* Construct the material graph by adding and linking the necessary GPU material nodes. */
