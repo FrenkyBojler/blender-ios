@@ -126,13 +126,6 @@ void ED_keymap_gpencil_legacy(wmKeyConfig *keyconf);
 
 void ED_operatortypes_gpencil_legacy();
 
-/* ------------- Copy-Paste Buffers -------------------- */
-
-/**
- * Free copy/paste buffer data.
- */
-void ED_gpencil_strokes_copybuf_free();
-
 /* ------------ Grease-Pencil Drawing API ------------------ */
 /* `drawgpencil.cc` */
 
@@ -255,14 +248,6 @@ int ED_undo_gpencil_step(bContext *C, int step); /* eUndoStepDir. */
 /* ----------- Add Primitive Utilities -------------- */
 
 /* texture coordinate utilities */
-
-/**
- * Convert 2d #tGPspoint to 3d #bGPDspoint.
- */
-void ED_gpencil_tpoint_to_point(ARegion *region,
-                                float origin[3],
-                                const tGPspoint *tpt,
-                                bGPDspoint *pt);
 
 /**
  * Ensure the #tGPspoint buffer (while drawing stroke)
