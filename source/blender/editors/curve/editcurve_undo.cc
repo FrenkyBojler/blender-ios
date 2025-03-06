@@ -49,7 +49,7 @@ struct UndoCurve {
   ListBase nubase;
   int actvert;
   GHash *undoIndex;
-  ListBase fcurves, drivers;
+  ListBase drivers;
   int actnu;
   int flag;
 
@@ -76,11 +76,6 @@ static void undocurve_to_editcurve(Main *bmain, UndoCurve *ucu, Curve *cu, short
   }
 
   if (ad) {
-    if (ad->action) {
-      BKE_fcurves_free(&ad->action->curves);
-      BKE_fcurves_copy(&ad->action->curves, &ucu->fcurves);
-    }
-
     BKE_fcurves_free(&ad->drivers);
     BKE_fcurves_copy(&ad->drivers, &ucu->drivers);
   }
@@ -110,7 +105,7 @@ static void undocurve_from_editcurve(UndoCurve *ucu, Curve *cu, const short shap
   EditNurb *editnurb = cu->editnurb, tmpEditnurb;
   AnimData *ad = BKE_animdata_from_id(&cu->id);
 
-  /* TODO: include size of fcurve & undoIndex */
+  /* TODO: include size of drivers & undoIndex */
   // ucu->undo_size = 0;
 
   if (editnurb->keyindex) {
@@ -119,10 +114,6 @@ static void undocurve_from_editcurve(UndoCurve *ucu, Curve *cu, const short shap
   }
 
   if (ad) {
-    if (ad->action) {
-      BKE_fcurves_copy(&ucu->fcurves, &ad->action->curves);
-    }
-
     BKE_fcurves_copy(&ucu->drivers, &ad->drivers);
   }
 
@@ -155,7 +146,6 @@ static void undocurve_free_data(UndoCurve *uc)
 
   BKE_curve_editNurb_keyIndex_free(&uc->undoIndex);
 
-  BKE_fcurves_free(&uc->fcurves);
   BKE_fcurves_free(&uc->drivers);
 }
 
