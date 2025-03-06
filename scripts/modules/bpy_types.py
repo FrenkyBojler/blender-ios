@@ -254,6 +254,14 @@ class Object(_types.ID):
         return tuple(scene for scene in bpy.data.scenes
                      if self in scene.objects[:])
 
+    def evaluated_geometry(self, depsgraph):
+        """
+        TODO
+        """
+        from bpy.geometry_set import GeometrySet
+        ob_eval = depsgraph.id_eval_get(self)
+        return GeometrySet.from_evaluated_object(ob_eval, depsgraph)
+
 
 class WindowManager(_types.ID):
     __slots__ = ()
