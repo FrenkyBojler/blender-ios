@@ -3172,7 +3172,7 @@ static VectorSet<FillColorRecord> mesh_to_grease_pencil_get_material_list(
 
   return fill_colors;
 }
-static void mesh_data_to_grease_pencil(Mesh &mesh_eval,
+static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
                                        GreasePencil &grease_pencil,
                                        const int current_frame,
                                        const bool generate_faces,
@@ -3226,20 +3226,25 @@ static void mesh_data_to_grease_pencil(Mesh &mesh_eval,
     stroke_materials_fill.finish();
   }
 
-  const Span<float3> normals = mesh_eval.vert_normals();
+  /* Avoid modifying original evaulated mesh */
+  Mesh *mesh_copied = BKE_mesh_copy_for_eval(mesh_eval);
+  const Span<float3> normals = mesh_copied->vert_normals();
 
-  mesh_eval.attributes_for_write().add(".a_vertex_normal_for_conversion",
-                                       bke::AttrDomain::Point,
-                                       eCustomDataType::CD_PROP_FLOAT3,
-                                       bke::AttributeInitVArray(VArray<float3>::ForSpan(normals)));
+  std::string unique_attribute_id = BKE_attribute_calc_unique_name(
+      AttributeOwner::from_id(&mesh_copied->id), "vertex_normal_for_conversion");
 
-  const int edges_num = mesh_eval.edges_num;
+  mesh_copied->attributes_for_write().add(
+      unique_attribute_id,
+      bke::AttrDomain::Point,
+      eCustomDataType::CD_PROP_FLOAT3,
+      bke::AttributeInitVArray(VArray<float3>::ForSpan(normals)));
+
+  const int edges_num = mesh_copied->edges_num;
   bke::CurvesGeometry curves = geometry::mesh_to_curve_convert(
-      mesh_eval, IndexRange(edges_num), {});
+      *mesh_copied, IndexRange(edges_num), {});
 
   MutableSpan<float3> curve_positions = curves.positions_for_write();
-  const VArray<float3> point_normals = *curves.attributes().lookup<float3>(
-      ".a_vertex_normal_for_conversion");
+  const VArray<float3> point_normals = *curves.attributes().lookup<float3>(unique_attribute_id);
 
   threading::parallel_for(curve_positions.index_range(), 8192, [&](const IndexRange range) {
     for (const int point_i : range) {
@@ -3247,11 +3252,11 @@ static void mesh_data_to_grease_pencil(Mesh &mesh_eval,
     }
   });
 
-  mesh_eval.attributes_for_write()
-      .remove_anonymous();
+  BKE_id_free(nullptr, mesh_copied);
 
-          drawing_line->strokes_for_write() = std::move(curves);
-  drawing_line->radii_for_write().fill(stroke_radius);
+  curves.radius_for_write().fill(stroke_radius);
+
+  drawing_line->strokes_for_write() = std::move(curves);
   drawing_line->tag_topology_changed();
 }
 
