@@ -265,15 +265,13 @@ class Instance {
 
   bool is_image_render() const
   {
-    /* WORKAROUND: The global access might happens before a DRWContext is bound.
-     * This only happens during light baking. */
+    /* WORKAROUND: During light baking, this may be called before a DRWContext is bound. */
     return !is_light_bake && DRW_state_is_image_render();
   }
 
   bool is_viewport_image_render() const
   {
-    /* WORKAROUND: The global access might happens before a DRWContext is bound.
-     * This only happens during light baking. */
+    /* WORKAROUND: During light baking, this may be called before a DRWContext is bound. */
     return !is_light_bake && DRW_state_is_viewport_image_render();
   }
 
@@ -295,8 +293,7 @@ class Instance {
 
   bool is_playback() const
   {
-    /* WORKAROUND: The global access might happens before a DRWContext is bound.
-     * This only happens during light baking. */
+    /* WORKAROUND: During light baking, this may be called before a DRWContext is bound. */
     return !is_light_bake && DRW_state_is_playback();
   }
 
@@ -308,22 +305,19 @@ class Instance {
 
   bool is_navigating() const
   {
-    /* WORKAROUND: The global access might happens before a DRWContext is bound.
-     * This only happens during light baking. */
+    /* WORKAROUND: During light baking, this may be called before a DRWContext is bound. */
     return !is_light_bake && DRW_state_is_navigating();
   }
 
   bool is_painting() const
   {
-    /* WORKAROUND: The global access might happens before a DRWContext is bound.
-     * This only happens during light baking. */
+    /* WORKAROUND: During light baking, this may be called before a DRWContext is bound. */
     return !is_light_bake && DRW_state_is_painting();
   }
 
   bool do_display_support() const
   {
-    /* WORKAROUND: The global access might happens before a DRWContext is bound.
-     * This only happens during light baking. */
+    /* WORKAROUND: During light baking, this may be called before a DRWContext is bound. */
     return !is_light_bake && DRW_state_draw_support();
   }
 

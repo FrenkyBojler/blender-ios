@@ -282,6 +282,8 @@ void DebugDraw::display_to_view()
 
 blender::draw::DebugDraw *DRW_debug_get()
 {
+  /* This module is currently not in working state. Some refactor is needed (see #135521). */
+  BLI_assert_unreachable();
 #ifdef WITH_DRAW_DEBUG
   return reinterpret_cast<blender::draw::DebugDraw *>(drw_get().debug);
 #endif

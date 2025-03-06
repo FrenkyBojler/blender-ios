@@ -717,7 +717,7 @@ void Instance::light_bake_irradiance(
     context_enable();
     DRW_custom_pipeline_begin(draw_ctx, &draw_engine_eevee_next_type, depsgraph);
     callback();
-    DRW_custom_pipeline_end();
+    DRW_custom_pipeline_end(draw_ctx);
     context_disable();
   };
 

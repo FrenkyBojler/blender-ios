@@ -142,7 +142,7 @@ void DRW_render_set_time(RenderEngine *engine, Depsgraph *depsgraph, int frame, 
 void DRW_custom_pipeline_begin(DRWContext &draw_ctx,
                                DrawEngineType *draw_engine_type,
                                Depsgraph *depsgraph);
-void DRW_custom_pipeline_end();
+void DRW_custom_pipeline_end(DRWContext &draw_ctx);
 
 /**
  * Used when the render engine want to redo another cache populate inside the same render frame.

@@ -127,9 +127,10 @@ bool DRW_draw_in_progress();
  */
 bool DRW_render_check_grease_pencil(Depsgraph *depsgraph);
 /**
- * Render grease pencil on top of other render engine output which (but only for non-draw-engine).
- * Workbench and EEVEE renders apply grease pencil using `DRW_render_gpencil_to_image` as they
- * already have a DRWContext setup.
+ * Render grease pencil on top of other render engine output (but only for non-draw-engine).
+ * This function creates a DRWContext.
+ * `DRW_render_to_image()` applies grease pencil using `DRW_render_gpencil_to_image` as it
+ * already has a DRWContext setup.
  */
 void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph);
 
