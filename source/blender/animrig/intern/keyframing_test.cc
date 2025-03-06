@@ -79,7 +79,7 @@ class KeyframingTest : public testing::Test {
     object = BKE_object_add_only_object(bmain, OB_EMPTY, "Empty");
     object_rna_pointer = RNA_id_pointer_create(&object->id);
 
-    Bone *bone = MEM_cnew<Bone>("BONE");
+    Bone *bone = MEM_mallocN<Bone>("BONE");
     STRNCPY(bone->name, "Bone");
 
     armature = BKE_armature_add(bmain, "Armature");
@@ -159,7 +159,7 @@ class KeyframingTest : public testing::Test {
    */
   void ensure_action_is_legacy(bAction &action)
   {
-    bActionGroup *new_group = MEM_cnew<bActionGroup>(__func__);
+    bActionGroup *new_group = MEM_callocN<bActionGroup>(__func__);
     STRNCPY(new_group->name, "Legacy Forcer");
     BLI_addtail(&action.groups, new_group);
   }
