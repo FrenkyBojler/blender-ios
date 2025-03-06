@@ -13,13 +13,10 @@ set(LIB
 )
 
 
-if(WITH_BOOST)
-  list(APPEND INC_SYS
-    ${BOOST_INCLUDE_DIR}
-  )
-else()
-	message (FATAL_ERROR "tornavis requires WITH_BOOST")
-endif()
+list(APPEND INC_SYS
+    # Not sure if needed
+   ${BOOST_INCLUDE_DIR}
+)
 
 # Auto fill source files, so patches will not touch that file
 file(GLOB sources "MB_*")
