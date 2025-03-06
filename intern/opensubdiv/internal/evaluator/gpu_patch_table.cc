@@ -57,7 +57,7 @@ static size_t storage_buffer_size(size_t size)
 
 /**
  * Function to create a storage buffer and upload it with data.
- * 
+ *
  * - Ensures that allocated size is aligned to 16 byte
  * - WARNING: Can read from not allocated data after `data`.
  */

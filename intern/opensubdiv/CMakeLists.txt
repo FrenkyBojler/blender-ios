@@ -4,7 +4,6 @@
 
 set(INC
   .
-  ../../source/blender/gpu/
   ../../source/blender/gpu/intern
 )
 

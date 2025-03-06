@@ -156,13 +156,13 @@ class GPUComputeEvaluator {
   ///        transparently from OsdMesh template interface.
   ///
   /// @param srcBuffer      Input primvar buffer.
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of source data
   ///
   /// @param srcDesc        vertex buffer descriptor for the input buffer
   ///
   /// @param dstBuffer      Output primvar buffer
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dstDesc        vertex buffer descriptor for the output buffer
@@ -211,25 +211,25 @@ class GPUComputeEvaluator {
   ///        transparently from OsdMesh template interface.
   ///
   /// @param srcBuffer      Input primvar buffer.
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of source data
   ///
   /// @param srcDesc        vertex buffer descriptor for the input buffer
   ///
   /// @param dstBuffer      Output primvar buffer
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dstDesc        vertex buffer descriptor for the dstBuffer
   ///
   /// @param duBuffer       Output buffer derivative wrt u
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param duDesc         vertex buffer descriptor for the duBuffer
   ///
   /// @param dvBuffer       Output buffer derivative wrt v
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dvDesc         vertex buffer descriptor for the dvBuffer
@@ -295,43 +295,43 @@ class GPUComputeEvaluator {
   ///        transparently from OsdMesh template interface.
   ///
   /// @param srcBuffer      Input primvar buffer.
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of source data
   ///
   /// @param srcDesc        vertex buffer descriptor for the input buffer
   ///
   /// @param dstBuffer      Output primvar buffer
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dstDesc        vertex buffer descriptor for the dstBuffer
   ///
   /// @param duBuffer       Output buffer derivative wrt u
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param duDesc         vertex buffer descriptor for the duBuffer
   ///
   /// @param dvBuffer       Output buffer derivative wrt v
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dvDesc         vertex buffer descriptor for the dvBuffer
   ///
   /// @param duuBuffer      Output buffer 2nd derivative wrt u
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param duuDesc        vertex buffer descriptor for the duuBuffer
   ///
   /// @param duvBuffer      Output buffer 2nd derivative wrt u and v
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param duvDesc        vertex buffer descriptor for the duvBuffer
   ///
   /// @param dvvBuffer      Output buffer 2nd derivative wrt v
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dvvDesc        vertex buffer descriptor for the dvvBuffer
@@ -413,13 +413,13 @@ class GPUComputeEvaluator {
   /// \brief Generic stencil function.
   ///
   /// @param srcBuffer      Input primvar buffer.
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of source data
   ///
   /// @param srcDesc        vertex buffer descriptor for the input buffer
   ///
   /// @param dstBuffer      Output primvar buffer
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dstDesc        vertex buffer descriptor for the output buffer
@@ -455,25 +455,25 @@ class GPUComputeEvaluator {
   /// \brief Generic stencil function.
   ///
   /// @param srcBuffer      Input primvar buffer.
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of source data
   ///
   /// @param srcDesc        vertex buffer descriptor for the input buffer
   ///
   /// @param dstBuffer      Output primvar buffer
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dstDesc        vertex buffer descriptor for the dstBuffer
   ///
   /// @param duBuffer       Output buffer derivative wrt u
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param duDesc         vertex buffer descriptor for the duBuffer
   ///
   /// @param dvBuffer       Output buffer derivative wrt v
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dvDesc         vertex buffer descriptor for the dvBuffer
@@ -513,43 +513,43 @@ class GPUComputeEvaluator {
   /// \brief Generic stencil function.
   ///
   /// @param srcBuffer      Input primvar buffer.
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of source data
   ///
   /// @param srcDesc        vertex buffer descriptor for the input buffer
   ///
   /// @param dstBuffer      Output primvar buffer
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dstDesc        vertex buffer descriptor for the dstBuffer
   ///
   /// @param duBuffer       Output buffer derivative wrt u
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param duDesc         vertex buffer descriptor for the duBuffer
   ///
   /// @param dvBuffer       Output buffer derivative wrt v
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dvDesc         vertex buffer descriptor for the dvBuffer
   ///
   /// @param duuBuffer      Output buffer 2nd derivative wrt u
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param duuDesc        vertex buffer descriptor for the duuBuffer
   ///
   /// @param duvBuffer      Output buffer 2nd derivative wrt u and v
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param duvDesc        vertex buffer descriptor for the duvBuffer
   ///
   /// @param dvvBuffer      Output buffer 2nd derivative wrt v
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dvvDesc        vertex buffer descriptor for the dvvBuffer
@@ -743,13 +743,13 @@ class GPUComputeEvaluator {
   ///        in the same way.
   ///
   /// @param srcBuffer      Input primvar buffer.
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of source data
   ///
   /// @param srcDesc        vertex buffer descriptor for the input buffer
   ///
   /// @param dstBuffer      Output primvar buffer
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dstDesc        vertex buffer descriptor for the output buffer
@@ -809,25 +809,25 @@ class GPUComputeEvaluator {
   ///        in the same way.
   ///
   /// @param srcBuffer      Input primvar buffer.
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of source data
   ///
   /// @param srcDesc        vertex buffer descriptor for the input buffer
   ///
   /// @param dstBuffer      Output primvar buffer
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dstDesc        vertex buffer descriptor for the output buffer
   ///
   /// @param duBuffer       Output buffer derivative wrt u
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param duDesc         vertex buffer descriptor for the duBuffer
   ///
   /// @param dvBuffer       Output buffer derivative wrt v
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dvDesc         vertex buffer descriptor for the dvBuffer
@@ -906,43 +906,43 @@ class GPUComputeEvaluator {
   ///        in the same way.
   ///
   /// @param srcBuffer      Input primvar buffer.
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of source data
   ///
   /// @param srcDesc        vertex buffer descriptor for the input buffer
   ///
   /// @param dstBuffer      Output primvar buffer
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dstDesc        vertex buffer descriptor for the output buffer
   ///
   /// @param duBuffer       Output buffer derivative wrt u
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param duDesc         vertex buffer descriptor for the duBuffer
   ///
   /// @param dvBuffer       Output buffer derivative wrt v
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dvDesc         vertex buffer descriptor for the dvBuffer
   ///
   /// @param duuBuffer      Output buffer 2nd derivative wrt u
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param duuDesc        vertex buffer descriptor for the duuBuffer
   ///
   /// @param duvBuffer      Output buffer 2nd derivative wrt u and v
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param duvDesc        vertex buffer descriptor for the duvBuffer
   ///
   /// @param dvvBuffer      Output buffer 2nd derivative wrt v
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dvvDesc        vertex buffer descriptor for the dvvBuffer
@@ -1039,13 +1039,13 @@ class GPUComputeEvaluator {
   ///        in the same way.
   ///
   /// @param srcBuffer      Input primvar buffer.
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of source data
   ///
   /// @param srcDesc        vertex buffer descriptor for the input buffer
   ///
   /// @param dstBuffer      Output primvar buffer
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dstDesc        vertex buffer descriptor for the output buffer
@@ -1091,25 +1091,25 @@ class GPUComputeEvaluator {
   ///        called in the same way.
   ///
   /// @param srcBuffer        Input primvar buffer.
-  ///                         must have BindVBO() method returning a GL
+  ///                         Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                         buffer object of source data
   ///
   /// @param srcDesc          vertex buffer descriptor for the input buffer
   ///
   /// @param dstBuffer        Output primvar buffer
-  ///                         must have BindVBO() method returning a GL
+  ///                         Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                         buffer object of destination data
   ///
   /// @param dstDesc          vertex buffer descriptor for the output buffer
   ///
   /// @param duBuffer         Output buffer derivative wrt u
-  ///                         must have BindVBO() method returning a GL
+  ///                         Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                         buffer object of destination data
   ///
   /// @param duDesc           vertex buffer descriptor for the duBuffer
   ///
   /// @param dvBuffer         Output buffer derivative wrt v
-  ///                         must have BindVBO() method returning a GL
+  ///                         Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                         buffer object of destination data
   ///
   /// @param dvDesc           vertex buffer descriptor for the dvBuffer
@@ -1157,43 +1157,43 @@ class GPUComputeEvaluator {
   ///        called in the same way.
   ///
   /// @param srcBuffer        Input primvar buffer.
-  ///                         must have BindVBO() method returning a GL
+  ///                         Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                         buffer object of source data
   ///
   /// @param srcDesc          vertex buffer descriptor for the input buffer
   ///
   /// @param dstBuffer        Output primvar buffer
-  ///                         must have BindVBO() method returning a GL
+  ///                         Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                         buffer object of destination data
   ///
   /// @param dstDesc          vertex buffer descriptor for the output buffer
   ///
   /// @param duBuffer         Output buffer derivative wrt u
-  ///                         must have BindVBO() method returning a GL
+  ///                         Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                         buffer object of destination data
   ///
   /// @param duDesc           vertex buffer descriptor for the duBuffer
   ///
   /// @param dvBuffer         Output buffer derivative wrt v
-  ///                         must have BindVBO() method returning a GL
+  ///                         Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                         buffer object of destination data
   ///
   /// @param dvDesc           vertex buffer descriptor for the dvBuffer
   ///
   /// @param duuBuffer        Output buffer 2nd derivative wrt u
-  ///                         must have BindVBO() method returning a GL
+  ///                         Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                         buffer object of destination data
   ///
   /// @param duuDesc          vertex buffer descriptor for the duuBuffer
   ///
   /// @param duvBuffer        Output buffer 2nd derivative wrt u and v
-  ///                         must have BindVBO() method returning a GL
+  ///                         Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                         buffer object of destination data
   ///
   /// @param duvDesc          vertex buffer descriptor for the duvBuffer
   ///
   /// @param dvvBuffer        Output buffer 2nd derivative wrt v
-  ///                         must have BindVBO() method returning a GL
+  ///                         Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                         buffer object of destination data
   ///
   /// @param dvvDesc          vertex buffer descriptor for the dvvBuffer
@@ -1287,13 +1287,13 @@ class GPUComputeEvaluator {
   ///        in the same way.
   ///
   /// @param srcBuffer      Input primvar buffer.
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of source data
   ///
   /// @param srcDesc        vertex buffer descriptor for the input buffer
   ///
   /// @param dstBuffer      Output primvar buffer
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dstDesc        vertex buffer descriptor for the output buffer
@@ -1353,13 +1353,13 @@ class GPUComputeEvaluator {
   ///        in the same way.
   ///
   /// @param srcBuffer      Input primvar buffer.
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of source data
   ///
   /// @param srcDesc        vertex buffer descriptor for the input buffer
   ///
   /// @param dstBuffer      Output primvar buffer
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dstDesc        vertex buffer descriptor for the output buffer
@@ -1405,25 +1405,25 @@ class GPUComputeEvaluator {
   ///        in the same way.
   ///
   /// @param srcBuffer      Input primvar buffer.
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of source data
   ///
   /// @param srcDesc        vertex buffer descriptor for the input buffer
   ///
   /// @param dstBuffer      Output primvar buffer
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dstDesc        vertex buffer descriptor for the output buffer
   ///
   /// @param duBuffer       Output buffer derivative wrt u
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param duDesc         vertex buffer descriptor for the duBuffer
   ///
   /// @param dvBuffer       Output buffer derivative wrt v
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dvDesc         vertex buffer descriptor for the dvBuffer
@@ -1502,25 +1502,25 @@ class GPUComputeEvaluator {
   ///        in the same way.
   ///
   /// @param srcBuffer      Input primvar buffer.
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of source data
   ///
   /// @param srcDesc        vertex buffer descriptor for the input buffer
   ///
   /// @param dstBuffer      Output primvar buffer
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dstDesc        vertex buffer descriptor for the output buffer
   ///
   /// @param duBuffer       Output buffer derivative wrt u
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param duDesc         vertex buffer descriptor for the duBuffer
   ///
   /// @param dvBuffer       Output buffer derivative wrt v
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dvDesc         vertex buffer descriptor for the dvBuffer
@@ -1570,43 +1570,43 @@ class GPUComputeEvaluator {
   ///        in the same way.
   ///
   /// @param srcBuffer      Input primvar buffer.
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of source data
   ///
   /// @param srcDesc        vertex buffer descriptor for the input buffer
   ///
   /// @param dstBuffer      Output primvar buffer
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dstDesc        vertex buffer descriptor for the output buffer
   ///
   /// @param duBuffer       Output buffer derivative wrt u
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param duDesc         vertex buffer descriptor for the duBuffer
   ///
   /// @param dvBuffer       Output buffer derivative wrt v
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dvDesc         vertex buffer descriptor for the dvBuffer
   ///
   /// @param duuBuffer      Output buffer 2nd derivative wrt u
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param duuDesc        vertex buffer descriptor for the duuBuffer
   ///
   /// @param duvBuffer      Output buffer 2nd derivative wrt u and v
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param duvDesc        vertex buffer descriptor for the duvBuffer
   ///
   /// @param dvvBuffer      Output buffer 2nd derivative wrt v
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dvvDesc        vertex buffer descriptor for the dvvBuffer
@@ -1703,43 +1703,43 @@ class GPUComputeEvaluator {
   ///        in the same way.
   ///
   /// @param srcBuffer      Input primvar buffer.
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of source data
   ///
   /// @param srcDesc        vertex buffer descriptor for the input buffer
   ///
   /// @param dstBuffer      Output primvar buffer
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dstDesc        vertex buffer descriptor for the output buffer
   ///
   /// @param duBuffer       Output buffer derivative wrt u
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param duDesc         vertex buffer descriptor for the duBuffer
   ///
   /// @param dvBuffer       Output buffer derivative wrt v
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dvDesc         vertex buffer descriptor for the dvBuffer
   ///
   /// @param duuBuffer      Output buffer 2nd derivative wrt u
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param duuDesc        vertex buffer descriptor for the duuBuffer
   ///
   /// @param duvBuffer      Output buffer 2nd derivative wrt u and v
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param duvDesc        vertex buffer descriptor for the duvBuffer
   ///
   /// @param dvvBuffer      Output buffer 2nd derivative wrt v
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dvvDesc        vertex buffer descriptor for the dvvBuffer
@@ -1801,13 +1801,13 @@ class GPUComputeEvaluator {
   ///        in the same way.
   ///
   /// @param srcBuffer      Input primvar buffer.
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of source data
   ///
   /// @param srcDesc        vertex buffer descriptor for the input buffer
   ///
   /// @param dstBuffer      Output primvar buffer
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dstDesc        vertex buffer descriptor for the output buffer
@@ -1882,13 +1882,13 @@ class GPUComputeEvaluator {
   ///        in the same way.
   ///
   /// @param srcBuffer      Input primvar buffer.
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of source data
   ///
   /// @param srcDesc        vertex buffer descriptor for the input buffer
   ///
   /// @param dstBuffer      Output primvar buffer
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dstDesc        vertex buffer descriptor for the output buffer
@@ -1937,25 +1937,25 @@ class GPUComputeEvaluator {
   ///        in the same way.
   ///
   /// @param srcBuffer      Input primvar buffer.
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of source data
   ///
   /// @param srcDesc        vertex buffer descriptor for the input buffer
   ///
   /// @param dstBuffer      Output primvar buffer
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dstDesc        vertex buffer descriptor for the output buffer
   ///
   /// @param duBuffer       Output buffer derivative wrt u
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param duDesc         vertex buffer descriptor for the duBuffer
   ///
   /// @param dvBuffer       Output buffer derivative wrt v
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dvDesc         vertex buffer descriptor for the dvBuffer
@@ -2039,25 +2039,25 @@ class GPUComputeEvaluator {
   ///        in the same way.
   ///
   /// @param srcBuffer      Input primvar buffer.
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of source data
   ///
   /// @param srcDesc        vertex buffer descriptor for the input buffer
   ///
   /// @param dstBuffer      Output primvar buffer
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dstDesc        vertex buffer descriptor for the output buffer
   ///
   /// @param duBuffer       Output buffer derivative wrt u
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       object of destination data
   ///
   /// @param duDesc         vertex buffer descriptor for the duBuffer
   ///
   /// @param dvBuffer       Output buffer derivative wrt v
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dvDesc         vertex buffer descriptor for the dvBuffer
@@ -2110,43 +2110,43 @@ class GPUComputeEvaluator {
   ///        in the same way.
   ///
   /// @param srcBuffer      Input primvar buffer.
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of source data
   ///
   /// @param srcDesc        vertex buffer descriptor for the input buffer
   ///
   /// @param dstBuffer      Output primvar buffer
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dstDesc        vertex buffer descriptor for the output buffer
   ///
   /// @param duBuffer       Output buffer derivative wrt u
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param duDesc         vertex buffer descriptor for the duBuffer
   ///
   /// @param dvBuffer       Output buffer derivative wrt v
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dvDesc         vertex buffer descriptor for the dvBuffer
   ///
   /// @param duuBuffer      Output buffer 2nd derivative wrt u
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param duuDesc        vertex buffer descriptor for the duuBuffer
   ///
   /// @param duvBuffer      Output buffer 2nd derivative wrt u and v
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param duvDesc        vertex buffer descriptor for the duvBuffer
   ///
   /// @param dvvBuffer      Output buffer 2nd derivative wrt v
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dvvDesc        vertex buffer descriptor for the dvvBuffer
@@ -2248,43 +2248,43 @@ class GPUComputeEvaluator {
   ///        in the same way.
   ///
   /// @param srcBuffer      Input primvar buffer.
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of source data
   ///
   /// @param srcDesc        vertex buffer descriptor for the input buffer
   ///
   /// @param dstBuffer      Output primvar buffer
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dstDesc        vertex buffer descriptor for the output buffer
   ///
   /// @param duBuffer       Output buffer derivative wrt u
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param duDesc         vertex buffer descriptor for the duBuffer
   ///
   /// @param dvBuffer       Output buffer derivative wrt v
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dvDesc         vertex buffer descriptor for the dvBuffer
   ///
   /// @param duuBuffer      Output buffer 2nd derivative wrt u
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param duuDesc        vertex buffer descriptor for the duuBuffer
   ///
   /// @param duvBuffer      Output buffer 2nd derivative wrt u and v
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param duvDesc        vertex buffer descriptor for the duvBuffer
   ///
   /// @param dvvBuffer      Output buffer 2nd derivative wrt v
-  ///                       must have BindVBO() method returning a GL
+  ///                       Must have `get_vertex_buffer()` returning a `gpu::VertBuf`
   ///                       buffer object of destination data
   ///
   /// @param dvvDesc        vertex buffer descriptor for the dvvBuffer
