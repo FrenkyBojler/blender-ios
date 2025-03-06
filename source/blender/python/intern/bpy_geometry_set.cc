@@ -4,17 +4,23 @@
 
 #include <sstream>
 
+#include "BKE_duplilist.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_geometry_set_instances.hh"
 #include "BKE_idtype.hh"
 #include "BKE_instances.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_pointcloud.hh"
+
 #include "DEG_depsgraph_query.hh"
+
 #include "DNA_ID.h"
 #include "DNA_collection_types.h"
 #include "DNA_object_types.h"
 #include "DNA_pointcloud_types.h"
+
+#include "RNA_prototypes.hh"
+
 #include "bpy_geometry_set.hh"
 #include "bpy_rna.hh"
 
@@ -60,10 +66,11 @@ static BPy_GeometrySet *BPy_GeometrySet_static_from_evaluated_object(PyObject * 
                                                                      PyObject *args,
                                                                      PyObject *kwds)
 {
-  static const char *kwlist[] = {"evaluated_object", nullptr};
+  static const char *kwlist[] = {"evaluated_object", "depsgraph", nullptr};
   PyObject *py_evaluated_object;
+  PyObject *py_depsgraph;
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwds, "O", const_cast<char **>(kwlist), &py_evaluated_object))
+          args, kwds, "OO", const_cast<char **>(kwlist), &py_evaluated_object, &py_depsgraph))
   {
     return nullptr;
   }
@@ -73,6 +80,7 @@ static BPy_GeometrySet *BPy_GeometrySet_static_from_evaluated_object(PyObject * 
         PyExc_TypeError, "Expected an Object, not %.200s", Py_TYPE(py_evaluated_object)->tp_name);
     return nullptr;
   }
+
   if (GS(evaluated_object_id->name) != ID_OB) {
     PyErr_Format(PyExc_TypeError,
                  "Expected an Object, not %.200s",
@@ -89,7 +97,24 @@ static BPy_GeometrySet *BPy_GeometrySet_static_from_evaluated_object(PyObject * 
                     "Object geometry is not yet evaluated, is the depsgraph evaluated?");
     return nullptr;
   }
+  if (!BPy_StructRNA_Check(py_depsgraph)) {
+    PyErr_SetString(PyExc_TypeError, "Expected a depsgraph");
+    return nullptr;
+  }
+  BPy_StructRNA *rna_depsgraph = reinterpret_cast<BPy_StructRNA *>(py_depsgraph);
+  if (!rna_depsgraph->ptr || !RNA_struct_is_a(rna_depsgraph->ptr->type, &RNA_Depsgraph)) {
+    PyErr_SetString(PyExc_TypeError, "Expected a depsgraph");
+    return nullptr;
+  }
+  Depsgraph *depsgraph = static_cast<Depsgraph *>(rna_depsgraph->ptr->data);
+  Scene *scene = DEG_get_input_scene(depsgraph);
+
+  blender::bke::Instances instances = object_duplistlist_legacy_instances(
+      *depsgraph, *scene, *evaluated_object);
   GeometrySet geometry = blender::bke::object_get_evaluated_geometry_set(*evaluated_object);
+  if (instances.instances_num() > 0) {
+    geometry.replace_instances(new blender::bke::Instances(std::move(instances)));
+  }
   BPy_GeometrySet *self = python_object_from_geometry_set(std::move(geometry));
   return self;
 }

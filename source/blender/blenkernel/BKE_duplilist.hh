@@ -8,6 +8,9 @@
  * \ingroup bke
  */
 
+#include "BKE_geometry_set.hh"
+#include "BKE_instances.hh"
+
 struct Depsgraph;
 struct ID;
 struct ListBase;
@@ -16,9 +19,6 @@ struct ParticleSystem;
 struct Scene;
 struct ViewLayer;
 struct ViewerPath;
-namespace blender::bke {
-struct GeometrySet;
-}
 
 /* ---------------------------------------------------- */
 /* Dupli-Geometry */
@@ -36,6 +36,10 @@ ListBase *object_duplilist_preview(Depsgraph *depsgraph,
                                    const ViewerPath *viewer_path);
 void free_object_duplilist(ListBase *lb);
 
+blender::bke::Instances object_duplistlist_legacy_instances(Depsgraph &depsgraph,
+                                                            Scene &scene,
+                                                            Object &ob);
+
 constexpr int MAX_DUPLI_RECUR = 8;
 
 struct DupliObject {
@@ -49,6 +53,7 @@ struct DupliObject {
 
   short type; /* From #Object::transflag. */
   char no_draw;
+  int8_t level;
   /* If this dupli object is belongs to a preview, this is non-null. */
   const blender::bke::GeometrySet *preview_base_geometry;
   /* Index of the top-level instance this dupli is part of or -1 when unused. */
