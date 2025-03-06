@@ -182,18 +182,26 @@ ColorGeometry4f randomize_color(const BrushGpencilSettings &settings,
   float3 hsv;
   rgb_to_hsv_v(color, hsv);
 
-  hsv += float3(random_hue * settings.random_hue,
-                random_saturation * settings.random_saturation,
-                random_value * settings.random_value);
-
-  /* Wrap hue. */
-  if (hsv[0] > 1.0f) {
-    hsv[0] -= 1.0f;
+  hsv[0] += random_hue * settings.random_hue;
+  hsv[1] += random_saturation * settings.random_saturation;
+  if ((settings.flag2 & GP_BRUSH_MATCH_BRIGHTNESS_RAND) != 0) {
+    /*
+     * To match relative brightness we want the ratio of the original to modified Value to not
+     * depend on the brightness of the input Value, Exp is used because we need a function that
+     * is positive for all 'x' and has the property that 'f(-x) = 1/f(x)' this is so that
+     * we make the Value on average growth and shrink by the same amount. To detriment the rate
+     * of the Exponential we set slope to match addition for small random values at an arbitrary
+     * Base Value.
+     */
+    constexpr float base_value = 0.5f;
+    hsv[2] *= math::exp(random_value * settings.random_value / base_value);
   }
-  else if (hsv[0] < 0.0f) {
-    hsv[0] += 1.0f;
+  else {
+    hsv[2] += random_value * settings.random_value;
   }
 
+  /* Wrap hue, clamp saturation and value. */
+  hsv[0] = math::fract(hsv[0]);
   hsv[1] = math::clamp(hsv[1], 0.0f, 1.0f);
   hsv[2] = math::clamp(hsv[2], 0.0f, 1.0f);
 
