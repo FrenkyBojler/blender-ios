@@ -74,18 +74,17 @@ vec2 gpencil_project_to_screenspace(vec4 v, vec4 viewport_size)
 
 float gpencil_stroke_thickness_modulate(float thickness, vec4 ndc_pos, vec4 viewport_size)
 {
-  /* Modify stroke thickness by object and layer factors. */
-  thickness = max(1.0, thickness * gpThicknessScale + gpThicknessOffset);
+  const float LEGACY_RADIUS_CONVERSION_FACTOR = 1.0 / 2000.0;
+  thickness /= LEGACY_RADIUS_CONVERSION_FACTOR;
 
-  if (gpThicknessIsScreenSpace) {
-    /* Multiply offset by view Z so that offset is constant in screen-space.
-     * (e.i: does not change with the distance to camera) */
-    thickness *= ndc_pos.w;
-  }
-  else {
-    /* World space point size. */
-    thickness *= gpThicknessWorldScale * drw_view().winmat[1][1] * viewport_size.y;
-  }
+  float object_scale = length(to_float3x3(drw_modelmat()) * vec3(M_SQRT1_3));
+  /* Modify stroke thickness by object and layer factors. */
+  thickness = max(1.0, thickness * object_scale);
+
+  /* World space point size. */
+  thickness *= LEGACY_RADIUS_CONVERSION_FACTOR;
+  thickness *= drw_view().winmat[1][1] * viewport_size.y;
+
   return thickness;
 }
 
