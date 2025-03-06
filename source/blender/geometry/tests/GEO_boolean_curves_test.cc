@@ -152,36 +152,39 @@ class SVGMapping {
 static void SVG_add_path(std::ofstream &f,
                          const std::string &class_name,
                          const VArraySpan<float2> &points,
-                         const IndexMask &polygons,
-                         const OffsetIndices<int> points_by_polygon,
+                         const Vector<IndexMask> &shapes,
+                         const IndexMask &shapes_mask,
+                         const OffsetIndices<int> points_by_curve,
                          const VArraySpan<bool> &cyclic,
                          const FillRule fill_rule,
                          const SVGMapping &mapping)
 {
-  polygons.foreach_index([&](const int64_t polygon_id) {
+  shapes_mask.foreach_index([&](const int64_t shape_id) {
     f << "<path class = \"" << class_name << "\" d = \"";
 
-    const IndexRange vert_ids = points_by_polygon[polygon_id];
-    /* TODO. */
-    // if (polygon_id != 0) {
-    //   f << " ";
-    // }
-
-    f << "M ";
-    for (const int i : vert_ids.index_range()) {
-      const float2 &point = points[vert_ids[i]];
-
-      if (i == 1) {
-        f << " L ";
+    const IndexMask &shape = shapes[shape_id];
+    shape.foreach_index([&](const int64_t curve_i, const int64_t pos) {
+      if (pos != 0) {
+        f << " ";
       }
-      else if (i != 0) {
-        f << ", ";
+
+      const IndexRange points_ids = points_by_curve[curve_i];
+      f << "M ";
+      for (const int i : points_ids.index_range()) {
+        const float2 &point = points[points_ids[i]];
+
+        if (i == 1) {
+          f << " L ";
+        }
+        else if (i != 0) {
+          f << ", ";
+        }
+        f << mapping.SX(point[0]) << "," << mapping.SY(point[1]);
       }
-      f << mapping.SX(point[0]) << "," << mapping.SY(point[1]);
-    }
-    if (cyclic[polygon_id]) {
-      f << " Z";
-    }
+      if (cyclic[curve_i]) {
+        f << " Z";
+      }
+    });
 
     f << "\"";
     if (fill_rule == FillRule::EvenOdd) {
@@ -288,11 +291,19 @@ void draw_results(const std::string &label,
       ".positions_2d", bke::AttrDomain::Point);
   const VArray<float2> dst_points = *dst_curves.attributes().lookup<float2>(
       ".positions_2d", bke::AttrDomain::Point);
+  const VArray<int> src_shape_ids = *src_curves.attributes().lookup<int>("shape_id",
+                                                                         bke::AttrDomain::Curve);
+  const VArray<int> dst_shape_ids = *dst_curves.attributes().lookup<int>("shape_id",
+                                                                         bke::AttrDomain::Curve);
 
-  /* TODO. */
   IndexMaskMemory memory;
-  const IndexMask subject_shapes = clipping_shapes.complement(src_points_by_curve.index_range(),
-                                                              memory);
+  VectorSet<int> src_shape_indexing;
+  VectorSet<int> dst_shape_indexing;
+  const Vector<IndexMask> src_shapes = IndexMask::from_group_ids(
+      src_shape_ids, memory, src_shape_indexing);
+  const Vector<IndexMask> dst_shapes = IndexMask::from_group_ids(
+      dst_shape_ids, memory, dst_shape_indexing);
+  const IndexMask subject_shapes = clipping_shapes.complement(src_shapes.index_range(), memory);
 
   BLI_assert(src_points.is_span());
   const SVGMapping mapping = SVGMapping(*bounds::min_max(src_points.get_internal_span()));
@@ -303,6 +314,7 @@ void draw_results(const std::string &label,
   SVG_add_path(f,
                type + "-A",
                src_points,
+               src_shapes,
                subject_shapes,
                src_points_by_curve,
                src_cyclic,
@@ -311,6 +323,7 @@ void draw_results(const std::string &label,
   SVG_add_path(f,
                type + "-B",
                src_points,
+               src_shapes,
                clipping_shapes,
                src_points_by_curve,
                src_cyclic,
@@ -319,7 +332,8 @@ void draw_results(const std::string &label,
   SVG_add_path(f,
                type + "-C",
                dst_points,
-               dst_points_by_curve.index_range(),
+               dst_shapes,
+               dst_shapes.index_range(),
                dst_points_by_curve,
                dst_cyclic,
                op_params.output_rule,
