@@ -6,12 +6,7 @@ set(INC
   ../blender/editors/include
   ../blender/io/usd
   ../blender/makesrna
-<<<<<<< HEAD
-  ../blender/render
-  ../blender/windowmanager
   ../blender/tornavis
-=======
->>>>>>> bf-blender
 )
 
 set(LIB
@@ -25,13 +20,9 @@ set(LIB
   PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
-<<<<<<< HEAD
-  bf_windowmanager
-  tornavis
-=======
   PRIVATE bf::render
   PRIVATE bf::windowmanager
->>>>>>> bf-blender
+  tornavis
 )
 
 if(HAVE_FEENABLEEXCEPT)
