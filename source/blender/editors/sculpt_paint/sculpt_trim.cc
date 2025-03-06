@@ -272,7 +272,7 @@ static void calculate_depth(gesture::GestureData &gesture_data,
     }
 
     float mid_point_depth;
-    if (trim_operation->orientation == OrientationType::View) {
+    if (trim_operation->orientation == OrientationType::View || trim_operation->back_hit) {
       mid_point_depth = trim_operation->initial_hit ?
                             dist_signed_to_plane_v3(world_space_gesture_initial_location,
                                                     shape_plane) :
