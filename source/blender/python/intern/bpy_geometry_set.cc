@@ -116,7 +116,7 @@ static BPy_GeometrySet *BPy_GeometrySet_static_from_evaluated_object(PyObject * 
   Depsgraph *depsgraph = static_cast<Depsgraph *>(rna_depsgraph->ptr->data);
   Scene *scene = DEG_get_input_scene(depsgraph);
 
-  blender::bke::Instances instances = object_duplistlist_legacy_instances(
+  blender::bke::Instances instances = object_duplilist_legacy_instances(
       *depsgraph, *scene, *evaluated_object);
   GeometrySet geometry = blender::bke::object_get_evaluated_geometry_set(*evaluated_object);
   if (instances.instances_num() > 0) {

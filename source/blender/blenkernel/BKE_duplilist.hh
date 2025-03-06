@@ -36,9 +36,16 @@ ListBase *object_duplilist_preview(Depsgraph *depsgraph,
                                    const ViewerPath *viewer_path);
 void free_object_duplilist(ListBase *lb);
 
-blender::bke::Instances object_duplistlist_legacy_instances(Depsgraph &depsgraph,
-                                                            Scene &scene,
-                                                            Object &ob);
+/**
+ * Get the legacy instances of this object. That includes instances coming from these sources:
+ * - Particles
+ * - Dupli Verts
+ * - Dupli Faces
+ * - "Objects as Font"
+ */
+blender::bke::Instances object_duplilist_legacy_instances(Depsgraph &depsgraph,
+                                                          Scene &scene,
+                                                          Object &ob);
 
 constexpr int MAX_DUPLI_RECUR = 8;
 
