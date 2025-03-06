@@ -15,14 +15,15 @@ using OpenSubdiv::Osd::PatchArrayVector;
 
 namespace blender::opensubdiv {
 
-static void buildPatchArraysBufferFromVector(const PatchArrayVector &patch_arrays,
-                                             blender::gpu::VertBuf *patch_arrays_buffer)
+static GPUStorageBuf *buildPatchArraysBufferFromVector(const PatchArrayVector &patch_arrays)
 {
   const size_t patch_array_size = sizeof(PatchArray);
   const size_t patch_array_byte_site = patch_array_size * patch_arrays.size();
-  GPU_vertbuf_data_alloc(*patch_arrays_buffer, patch_arrays.size());
-  GPU_vertbuf_use(patch_arrays_buffer);
-  GPU_vertbuf_update_sub(patch_arrays_buffer, 0, patch_array_byte_site, patch_arrays.data());
+  const size_t patch_array_alloc_size = (patch_array_byte_site + 15) & ~0b1111;
+  // TODO: potential read out of bounds.
+  GPUStorageBuf *storage_buf = GPU_storagebuf_create_ex(
+      patch_array_alloc_size, patch_arrays.data(), GPU_USAGE_STATIC, "osd_patch_array");
+  return storage_buf;
 }
 
 GpuEvalOutput::GpuEvalOutput(const StencilTable *vertex_stencils,
@@ -44,18 +45,16 @@ GpuEvalOutput::GpuEvalOutput(const StencilTable *vertex_stencils,
 {
 }
 
-void GpuEvalOutput::fillPatchArraysBuffer(blender::gpu::VertBuf *patch_arrays_buffer)
+GPUStorageBuf *GpuEvalOutput::fillPatchArraysBuffer()
 {
   GPUPatchTable *patch_table = getPatchTable();
-  buildPatchArraysBufferFromVector(patch_table->GetPatchArrays(), patch_arrays_buffer);
+  return buildPatchArraysBufferFromVector(patch_table->GetPatchArrays());
 }
 
-void GpuEvalOutput::fillFVarPatchArraysBuffer(const int face_varying_channel,
-                                              blender::gpu::VertBuf *patch_arrays_buffer)
+GPUStorageBuf *GpuEvalOutput::buildFVarPatchArraysBuffer(const int face_varying_channel)
 {
   GPUPatchTable *patch_table = getFVarPatchTable(face_varying_channel);
-  buildPatchArraysBufferFromVector(patch_table->GetFVarPatchArrays(face_varying_channel),
-                                   patch_arrays_buffer);
+  return buildPatchArraysBufferFromVector(patch_table->GetFVarPatchArrays(face_varying_channel));
 }
 
 }  // namespace blender::opensubdiv

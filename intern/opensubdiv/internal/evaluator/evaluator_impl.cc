@@ -352,9 +352,9 @@ void EvalOutputAPI::getPatchMap(blender::gpu::VertBuf *patch_map_handles,
   memcpy(buffer_nodes.data(), quadtree.data(), sizeof(PatchMap::QuadNode) * quadtree.size());
 }
 
-void EvalOutputAPI::fillPatchArraysBuffer(blender::gpu::VertBuf *patch_arrays_buffer)
+GPUStorageBuf *EvalOutputAPI::fillPatchArraysBuffer()
 {
-  implementation_->fillPatchArraysBuffer(patch_arrays_buffer);
+  return implementation_->fillPatchArraysBuffer();
 }
 
 GPUStorageBuf *EvalOutputAPI::wrapPatchIndexBuffer()
@@ -377,10 +377,9 @@ gpu::VertBuf *EvalOutputAPI::wrapSrcVertexDataBuffer()
   return implementation_->wrapSrcVertexDataBuffer();
 }
 
-void EvalOutputAPI::fillFVarPatchArraysBuffer(const int face_varying_channel,
-                                              blender::gpu::VertBuf *patch_arrays_buffer)
+GPUStorageBuf *EvalOutputAPI::buildFVarPatchArraysBuffer(const int face_varying_channel)
 {
-  implementation_->fillFVarPatchArraysBuffer(face_varying_channel, patch_arrays_buffer);
+  return implementation_->buildFVarPatchArraysBuffer(face_varying_channel);
 }
 
 GPUStorageBuf *EvalOutputAPI::wrapFVarPatchIndexBuffer(const int face_varying_channel)

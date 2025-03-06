@@ -139,7 +139,7 @@ class EvalOutputAPI {
                    int *patches_are_triangular);
 
   // Copy the patch arrays buffer used by OpenSubDiv for the source data to the given buffer.
-  void fillPatchArraysBuffer(blender::gpu::VertBuf *patch_arrays_buffer);
+  GPUStorageBuf *fillPatchArraysBuffer();
 
   // Wrap the patch index buffer used by OpenSubDiv for the source data with the given buffer.
   GPUStorageBuf *wrapPatchIndexBuffer();
@@ -155,8 +155,7 @@ class EvalOutputAPI {
 
   // Copy the patch arrays buffer used by OpenSubDiv for the face varying channel with the given
   // buffer.
-  void fillFVarPatchArraysBuffer(const int face_varying_channel,
-                                 blender::gpu::VertBuf *patch_arrays_buffer);
+  GPUStorageBuf *buildFVarPatchArraysBuffer(const int face_varying_channel);
 
   // Wrap the patch index buffer used by OpenSubDiv for the face varying channel with the given
   // buffer.

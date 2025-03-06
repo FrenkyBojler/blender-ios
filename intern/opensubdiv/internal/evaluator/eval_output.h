@@ -76,7 +76,10 @@ class EvalOutputAPI::EvalOutput {
   // data structure. They need to be overridden in the specific instances of the EvalOutput derived
   // classes if needed, while the interfaces above are overridden through VolatileEvalOutput.
 
-  virtual void fillPatchArraysBuffer(blender::gpu::VertBuf * /*patch_arrays_buffer*/) {}
+  virtual GPUStorageBuf *fillPatchArraysBuffer()
+  {
+    return nullptr;
+  }
 
   virtual GPUStorageBuf *wrapPatchIndexBuffer()
   {
@@ -98,10 +101,9 @@ class EvalOutputAPI::EvalOutput {
     return nullptr;
   }
 
-  virtual void fillFVarPatchArraysBuffer(const int /*face_varying_channel*/,
-                                         blender::gpu::VertBuf * /*patch_arrays_buffer*/)
+  virtual GPUStorageBuf *buildFVarPatchArraysBuffer(const int /*face_varying_channel*/)
   {
-    return;
+    return nullptr;
   }
 
   virtual GPUStorageBuf *wrapFVarPatchIndexBuffer(const int /*face_varying_channel*/)

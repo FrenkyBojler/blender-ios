@@ -31,7 +31,7 @@ class GpuEvalOutput : public VolatileEvalOutput<GPUVertexBuffer,
                 const PatchTable *patch_table,
                 EvaluatorCache *evaluator_cache = nullptr);
 
-  void fillPatchArraysBuffer(blender::gpu::VertBuf *patch_arrays_buffer) override;
+  GPUStorageBuf *fillPatchArraysBuffer() override;
 
   GPUStorageBuf *wrapPatchIndexBuffer() override
   {
@@ -53,8 +53,7 @@ class GpuEvalOutput : public VolatileEvalOutput<GPUVertexBuffer,
     return getSrcVertexDataBuffer()->get_vertex_buffer();
   }
 
-  void fillFVarPatchArraysBuffer(const int face_varying_channel,
-                                 blender::gpu::VertBuf *patch_arrays_buffer) override;
+  GPUStorageBuf *buildFVarPatchArraysBuffer(const int face_varying_channel) override;
 
   GPUStorageBuf *wrapFVarPatchIndexBuffer(const int face_varying_channel) override
   {

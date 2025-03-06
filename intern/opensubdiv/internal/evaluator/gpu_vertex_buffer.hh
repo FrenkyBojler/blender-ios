@@ -35,7 +35,7 @@ class GPUVertexBuffer {
     GPU_vertformat_clear(&format);
     GPU_vertformat_attr_add(&format, "elements", GPU_COMP_F32, element_count, GPU_FETCH_FLOAT);
     gpu::VertBuf *vertex_buffer = GPU_vertbuf_create_with_format_ex(format, GPU_USAGE_STATIC);
-    GPU_vertbuf_data_alloc(*vertex_buffer, vertex_len);
+    GPU_vertbuf_init_build_on_device(*vertex_buffer, format, vertex_len);
     return new GPUVertexBuffer(*vertex_buffer);
   }
 
@@ -44,6 +44,7 @@ class GPUVertexBuffer {
   {
     GPU_vertbuf_discard(&gpu_vertex_buffer_);
   }
+
   /// This method is meant to be used in client code in order to provide coarse
   /// vertices data to Osd.
   void UpdateData(const float *src,

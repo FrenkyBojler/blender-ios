@@ -70,22 +70,6 @@ static const GPUVertFormat &get_uvs_format()
 }
 #  endif
 
-/* Vertex format for `OpenSubdiv::Osd::PatchArray`. */
-static const GPUVertFormat &get_patch_array_format()
-{
-  static const GPUVertFormat format = [&]() {
-    GPUVertFormat format{};
-    GPU_vertformat_attr_add(&format, "regDesc", GPU_COMP_I32, 1, GPU_FETCH_INT);
-    GPU_vertformat_attr_add(&format, "desc", GPU_COMP_I32, 1, GPU_FETCH_INT);
-    GPU_vertformat_attr_add(&format, "numPatches", GPU_COMP_I32, 1, GPU_FETCH_INT);
-    GPU_vertformat_attr_add(&format, "indexBase", GPU_COMP_I32, 1, GPU_FETCH_INT);
-    GPU_vertformat_attr_add(&format, "stride", GPU_COMP_I32, 1, GPU_FETCH_INT);
-    GPU_vertformat_attr_add(&format, "primitiveIdBase", GPU_COMP_I32, 1, GPU_FETCH_INT);
-    return format;
-  }();
-  return format;
-}
-
 /* Vertex format used for the `PatchTable::PatchHandle`. */
 static const GPUVertFormat &get_patch_handle_format()
 {
@@ -1062,9 +1046,7 @@ void draw_subdiv_extract_pos_nor(const DRWSubdivCache &cache,
     src_extra_buffer = evaluator->eval_output->wrapSrcVertexDataBuffer();
   }
 
-  gpu::VertBuf *patch_arrays_buffer = GPU_vertbuf_create_with_format_ex(get_patch_array_format(),
-                                                                        GPU_USAGE_DEVICE_ONLY);
-  evaluator->eval_output->fillPatchArraysBuffer(patch_arrays_buffer);
+  GPUStorageBuf *patch_arrays_buffer = evaluator->eval_output->fillPatchArraysBuffer();
 
   GPUStorageBuf *patch_index_buffer = evaluator->eval_output->wrapPatchIndexBuffer();
   GPUStorageBuf *patch_param_buffer = evaluator->eval_output->wrapPatchParamBuffer();
@@ -1081,7 +1063,7 @@ void draw_subdiv_extract_pos_nor(const DRWSubdivCache &cache,
   GPU_vertbuf_bind_as_ssbo(cache.patch_coords, PATCH_EVALUATION_PATCH_COORDS_BUF_SLOT);
   GPU_vertbuf_bind_as_ssbo(cache.verts_orig_index,
                            PATCH_EVALUATION_INPUT_VERTEX_ORIG_INDEX_BUF_SLOT);
-  GPU_vertbuf_bind_as_ssbo(patch_arrays_buffer, PATCH_EVALUATION_PATCH_ARRAY_BUFFER_BUF_SLOT);
+  GPU_storagebuf_bind(patch_arrays_buffer, PATCH_EVALUATION_PATCH_ARRAY_BUFFER_BUF_SLOT);
   GPU_storagebuf_bind(patch_index_buffer, PATCH_EVALUATION_PATCH_INDEX_BUFFER_BUF_SLOT);
   GPU_storagebuf_bind(patch_param_buffer, PATCH_EVALUATION_PATCH_PARAM_BUFFER_BUF_SLOT);
   if (flags_buffer) {
@@ -1104,7 +1086,7 @@ void draw_subdiv_extract_pos_nor(const DRWSubdivCache &cache,
   /* Cleanup. */
   GPU_shader_unbind();
 
-  GPU_vertbuf_discard(patch_arrays_buffer);
+  GPU_storagebuf_free(patch_arrays_buffer);
 #else
   UNUSED_VARS(cache, flags_buffer, pos_nor, orco);
 #endif
@@ -1127,9 +1109,8 @@ void draw_subdiv_extract_uvs(const DRWSubdivCache &cache,
   gpu::VertBuf *src_buffer = evaluator->eval_output->wrapFVarSrcBuffer(face_varying_channel);
   int src_buffer_offset = evaluator->eval_output->getFVarSrcBufferOffset(face_varying_channel);
 
-  gpu::VertBuf *patch_arrays_buffer = GPU_vertbuf_create_with_format_ex(get_patch_array_format(),
-                                                                        GPU_USAGE_DEVICE_ONLY);
-  evaluator->eval_output->fillFVarPatchArraysBuffer(face_varying_channel, patch_arrays_buffer);
+  GPUStorageBuf *patch_arrays_buffer = evaluator->eval_output->buildFVarPatchArraysBuffer(
+      face_varying_channel);
 
   GPUStorageBuf *patch_index_buffer = evaluator->eval_output->wrapFVarPatchIndexBuffer(
       face_varying_channel);
@@ -1148,7 +1129,7 @@ void draw_subdiv_extract_uvs(const DRWSubdivCache &cache,
   GPU_vertbuf_bind_as_ssbo(cache.corner_patch_coords, PATCH_EVALUATION_PATCH_COORDS_BUF_SLOT);
   GPU_vertbuf_bind_as_ssbo(cache.verts_orig_index,
                            PATCH_EVALUATION_INPUT_VERTEX_ORIG_INDEX_BUF_SLOT);
-  GPU_vertbuf_bind_as_ssbo(patch_arrays_buffer, PATCH_EVALUATION_PATCH_ARRAY_BUFFER_BUF_SLOT);
+  GPU_storagebuf_bind(patch_arrays_buffer, PATCH_EVALUATION_PATCH_ARRAY_BUFFER_BUF_SLOT);
   GPU_storagebuf_bind(patch_index_buffer, PATCH_EVALUATION_PATCH_INDEX_BUFFER_BUF_SLOT);
   GPU_storagebuf_bind(patch_param_buffer, PATCH_EVALUATION_PATCH_PARAM_BUFFER_BUF_SLOT);
   GPU_vertbuf_bind_as_ssbo(uvs, PATCH_EVALUATION_OUTPUT_FVAR_BUF_SLOT);
@@ -1166,7 +1147,7 @@ void draw_subdiv_extract_uvs(const DRWSubdivCache &cache,
   /* Cleanup. */
   GPU_shader_unbind();
 
-  GPU_vertbuf_discard(patch_arrays_buffer);
+  GPU_storagebuf_free(patch_arrays_buffer);
 #else
   UNUSED_VARS(cache, uvs, face_varying_channel, dst_offset);
 #endif
@@ -1357,10 +1338,7 @@ void draw_subdiv_build_fdots_buffers(const DRWSubdivCache &cache,
   OpenSubdiv_Evaluator *evaluator = subdiv->evaluator;
 
   gpu::VertBuf *src_buffer = evaluator->eval_output->wrapSrcBuffer();
-  gpu::VertBuf *patch_arrays_buffer = GPU_vertbuf_create_with_format_ex(get_patch_array_format(),
-                                                                        GPU_USAGE_DEVICE_ONLY);
-  evaluator->eval_output->fillPatchArraysBuffer(patch_arrays_buffer);
-
+  GPUStorageBuf *patch_arrays_buffer = evaluator->eval_output->fillPatchArraysBuffer();
   GPUStorageBuf *patch_index_buffer = evaluator->eval_output->wrapPatchIndexBuffer();
   GPUStorageBuf *patch_param_buffer = evaluator->eval_output->wrapPatchParamBuffer();
 
@@ -1377,7 +1355,7 @@ void draw_subdiv_build_fdots_buffers(const DRWSubdivCache &cache,
   GPU_vertbuf_bind_as_ssbo(cache.fdots_patch_coords, PATCH_EVALUATION_PATCH_COORDS_BUF_SLOT);
   GPU_vertbuf_bind_as_ssbo(cache.verts_orig_index,
                            PATCH_EVALUATION_INPUT_VERTEX_ORIG_INDEX_BUF_SLOT);
-  GPU_vertbuf_bind_as_ssbo(patch_arrays_buffer, PATCH_EVALUATION_PATCH_ARRAY_BUFFER_BUF_SLOT);
+  GPU_storagebuf_bind(patch_arrays_buffer, PATCH_EVALUATION_PATCH_ARRAY_BUFFER_BUF_SLOT);
   GPU_storagebuf_bind(patch_index_buffer, PATCH_EVALUATION_PATCH_INDEX_BUFFER_BUF_SLOT);
   GPU_storagebuf_bind(patch_param_buffer, PATCH_EVALUATION_PATCH_PARAM_BUFFER_BUF_SLOT);
   GPU_vertbuf_bind_as_ssbo(fdots_pos, PATCH_EVALUATION_OUTPUT_FDOTS_VERTEX_BUFFER_BUF_SLOT);
@@ -1398,7 +1376,7 @@ void draw_subdiv_build_fdots_buffers(const DRWSubdivCache &cache,
   /* Cleanup. */
   GPU_shader_unbind();
 
-  GPU_vertbuf_discard(patch_arrays_buffer);
+  GPU_storagebuf_free(patch_arrays_buffer);
 #else
   UNUSED_VARS(cache, fdots_pos, fdots_nor, fdots_indices);
 #endif
