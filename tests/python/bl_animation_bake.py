@@ -74,7 +74,7 @@ class ObjectBakeTest(unittest.TestCase):
         self.assertNotEqual(action, self.obj.animation_data.action, "Expected baking to result in a new action")
         baked_action = self.obj.animation_data.action
         self.assertEqual(len(baked_action.slots), 1)
-        channelbag = anim_utils.action_get_channelbag_for_slot(baked_action, baked_action.slots[0])
+        channelbag = anim_utils.action_get_channelbag_for_slot(baked_action, self.obj.animation_data.action_slot)
 
         self.assertTrue(channelbag is not None)
         self.assertEqual(len(channelbag.fcurves), 9)
@@ -98,9 +98,8 @@ class ObjectBakeTest(unittest.TestCase):
         anim_utils.bake_action_objects(((self.obj, action),), frames=range(0, 10), bake_options=OBJECT_BAKE_OPTIONS)
 
         self.assertEqual(self.obj.animation_data.action, action)
-        baked_action = self.obj.animation_data.action
-        self.assertEqual(len(baked_action.slots), 1)
-        channelbag = anim_utils.action_get_channelbag_for_slot(baked_action, baked_action.slots[0])
+        self.assertEqual(len(action.slots), 1)
+        channelbag = anim_utils.action_get_channelbag_for_slot(action, self.obj.animation_data.action_slot)
 
         self.assertTrue(channelbag is not None)
         self.assertEqual(len(channelbag.fcurves), 9)
@@ -153,6 +152,58 @@ class ObjectBakeTest(unittest.TestCase):
             elif fcurve.array_index == 1:
                 self.assertAlmostEqual(fcurve.keyframe_points[0].co.y, 1, 6)
                 self.assertAlmostEqual(fcurve.keyframe_points[-1].co.y, 1, 6)
+
+    def test_bake_object_multi_slot_to_existing_action(self):
+        obj2 = bpy.data.objects.new("obj2", None)
+        bpy.context.scene.collection.objects.link(obj2)
+        action = bpy.data.actions.new("test_action")
+        self.obj.animation_data.action = action
+        obj2.animation_data_create().action = action
+
+        bpy.context.scene.frame_set(0)
+        self.obj.location = (0, 0, 0)
+        self.obj.keyframe_insert("location")
+        obj2.location = (0, 1, 0)
+        obj2.keyframe_insert("location")
+
+        bpy.context.scene.frame_set(15)
+        self.obj.location = (2, 0, 0)
+        self.obj.keyframe_insert("location")
+        obj2.location = (2, 1, 0)
+        obj2.keyframe_insert("location")
+
+        self.assertEqual(len(action.slots), 2)
+
+        self.assertTrue(self.obj.animation_data.action_slot is not None)
+        self.assertTrue(obj2.animation_data.action_slot is not None)
+
+        anim_utils.bake_action_objects(((obj2, action),), frames=range(0, 10), bake_options=OBJECT_BAKE_OPTIONS)
+
+        self.assertEqual(action, obj2.animation_data.action)
+        self.assertEqual(len(action.slots), 2, "Didn't expect baking to create a new slot")
+        self.assertNotEqual(obj2.animation_data.action_slot, self.obj.animation_data.action_slot)
+
+        channelbag = anim_utils.action_get_channelbag_for_slot(action, obj2.animation_data.action_slot)
+
+        self.assertTrue(channelbag is not None)
+        self.assertEqual(len(channelbag.fcurves), 9)
+
+        for fcurve in channelbag.fcurves:
+            # The keyframes should match the animation of obj2, not self.obj.
+            if fcurve.data_path == "location":
+                self.assertAlmostEqual(fcurve.keyframe_points[-1].co.x, 15,
+                                       6, "Baking over an existing action preserves all keys even those out of range")
+                self.assertEqual(len(fcurve.keyframe_points), 11)
+                if fcurve.array_index == 0:
+                    self.assertAlmostEqual(fcurve.keyframe_points[-1].co.y, 2, 6)
+                elif fcurve.array_index == 1:
+                    self.assertAlmostEqual(fcurve.keyframe_points[-1].co.y, 1, 6)
+            else:
+                self.assertAlmostEqual(fcurve.keyframe_points[-1].co.x, 9, 6)
+                self.assertEqual(len(fcurve.keyframe_points), 10)
+
+
+
 
 
 def main():
