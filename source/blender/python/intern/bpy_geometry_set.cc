@@ -67,9 +67,10 @@ PyDoc_STRVAR(
     /* Wrap. */
     bpy_geometry_set_from_evaluated_object_doc,
     ".. staticmethod:: from_evaluated_object(evaluated_object, depsgraph)\n"
-    "   :arg: evaluated_object: The evaluated object to create a geometry set from.\n"
+    "\n"
+    "   :arg evaluated_object: The evaluated object to create a geometry set from.\n"
     "   :type: bpy.types.Object\n"
-    "   :arg: depsgraph: The depsgraph the evaluated object is in.\n"
+    "   :arg depsgraph: The depsgraph the evaluated object is in.\n"
     "   :type: bpy.types.Depsgraph\n");
 static BPy_GeometrySet *BPy_GeometrySet_static_from_evaluated_object(PyObject * /*self*/,
                                                                      PyObject *args,
@@ -145,8 +146,9 @@ static PyObject *BPy_GeometrySet_repr(BPy_GeometrySet *self)
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_geometry_set_get_mesh_doc,
-    ".. staticmethod:: mesh(*, readonly)\n"
-    "   :arg: readonly: If the returned geometry will be modified or not. If false, this method\n"
+    ".. method:: mesh(*, readonly)\n"
+    "\n"
+    "   :arg readonly: If the returned geometry will be modified or not. If false, this method\n"
     "       might have to create a copy of the geometry to avoid sharing it with other places.\n"
     "   :type: bool\n"
     "   :rtype: bpy.types.Mesh\n");
@@ -168,8 +170,9 @@ static PyObject *BPy_GeometrySet_get_mesh(BPy_GeometrySet *self, PyObject *args,
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_geometry_set_get_curves_doc,
-    ".. staticmethod:: curves(*, readonly)\n"
-    "   :arg: readonly: If the returned geometry will be modified or not. If false, this method\n"
+    ".. method:: curves(*, readonly)\n"
+    "\n"
+    "   :arg readonly: If the returned geometry will be modified or not. If false, this method\n"
     "       might have to create a copy of the geometry to avoid sharing it with other places.\n"
     "   :type: bool\n"
     "   :rtype: bpy.types.Curves\n");
@@ -191,8 +194,9 @@ static PyObject *BPy_GeometrySet_get_curves(BPy_GeometrySet *self, PyObject *arg
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_geometry_set_get_volume_doc,
-    ".. staticmethod:: volume(*, readonly)\n"
-    "   :arg: readonly: If the returned geometry will be modified or not. If false, this method\n"
+    ".. method:: volume(*, readonly)\n"
+    "\n"
+    "   :arg readonly: If the returned geometry will be modified or not. If false, this method\n"
     "       might have to create a copy of the geometry to avoid sharing it with other places.\n"
     "   :type: bool\n"
     "   :rtype: bpy.types.Volume\n");
@@ -214,8 +218,9 @@ static PyObject *BPy_GeometrySet_get_volume(BPy_GeometrySet *self, PyObject *arg
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_geometry_set_get_grease_pencil_doc,
-    ".. staticmethod:: grease_pencil(*, readonly)\n"
-    "   :arg: readonly: If the returned geometry will be modified or not. If false, this method\n"
+    ".. method:: grease_pencil(*, readonly)\n"
+    "\n"
+    "   :arg readonly: If the returned geometry will be modified or not. If false, this method\n"
     "       might have to create a copy of the geometry to avoid sharing it with other places.\n"
     "   :type: bool\n"
     "   :rtype: bpy.types.GreasePencilv3\n");
@@ -239,8 +244,9 @@ static PyObject *BPy_GeometrySet_get_grease_pencil(BPy_GeometrySet *self,
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_geometry_set_get_pointcloud_doc,
-    ".. staticmethod:: pointcloud(*, readonly)\n"
-    "   :arg: readonly: If the returned geometry will be modified or not. If false, this method\n"
+    ".. method:: pointcloud(*, readonly)\n"
+    "\n"
+    "   :arg readonly: If the returned geometry will be modified or not. If false, this method\n"
     "       might have to create a copy of the geometry to avoid sharing it with other places.\n"
     "   :type: bool\n"
     "   :rtype: bpy.types.PointCloud\n");
@@ -264,7 +270,7 @@ static PyObject *BPy_GeometrySet_get_pointcloud(BPy_GeometrySet *self,
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_geometry_set_get_instances_pointcloud_doc,
-    ".. staticmethod:: instances_pointcloud()\n"
+    ".. method:: instances_pointcloud()\n"
     "\n"
     "   Get a pointcloud that encodes information about the instances of the geometry.\n"
     "   The returned pointcloud should not be modified.\n"
@@ -298,7 +304,7 @@ static PyObject *BPy_GeometrySet_get_instances_pointcloud(BPy_GeometrySet *self)
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_geometry_set_get_instance_references_doc,
-    ".. staticmethod:: instance_references()\n"
+    ".. method:: instance_references()\n"
     "\n"
     "   This returns a list of geometries that is indexed by the `.reference_index`\n"
     "   attribute of the pointcloud returned by `geometry_set.instances_pointcloud()`.\n"
