@@ -537,7 +537,6 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
   const IndexMask subject_shapes = clipping_shapes.complement(shapes.index_range(), memory);
 
   Vector<IntersectionPoint> intersections;
-  Vector<Segment> unsorted_segments;
 
   Array<Vector<int>> self_clipping_inters_per_curves(points_by_curve.size());
 
@@ -583,6 +582,9 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
     });
   });
 
+  BooleanResult result;
+  result.segment_offsets.append(0);
+
   /* Calculate all intersections. */
   subject_shapes.foreach_index([&](const int subj_shape_id) {
     const IndexMask &curves_i = shapes[subj_shape_id];
@@ -623,6 +625,8 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
         });
       });
     });
+
+    Vector<Segment> unsorted_segments;
 
     auto add_segments = [&](const int curve_k, const bool is_subj) {
       const IndexRange points_k = points_by_curve[curve_k];
@@ -783,65 +787,61 @@ static BooleanResult execute_boolean(const Operation boolean_mode,
       const IndexMask &curves_j = shapes[clip_shape_id];
       curves_j.foreach_index([&](const int curve_j) { add_segments(curve_j, false); });
     });
-  });
 
-  /* -------------------- */
+    /* -------------------- */
 
-  if (unsorted_segments.is_empty()) {
-    BooleanResult result;
-    return result;
-  }
-
-  /* Follow each segment until it loops or ends. */
-  Array<bool> processed_segments(unsorted_segments.size(), false);
-  BooleanResult result;
-  result.segment_offsets.append(0);
-
-  int start_segment = processed_segments.first();
-
-  while (start_segment != -1) {
-    int current_segment = start_segment;
-
-    bool PolygonDone = false;
-    bool PolygonClosed = false;
-    bool last_reversed = false;
-    while (!PolygonDone) {
-      if (processed_segments[current_segment] == true) {
-        BLI_assert_unreachable();
-        break;
-      }
-
-      unsorted_segments[current_segment].reversed = last_reversed;
-      result.segments.append(unsorted_segments[current_segment]);
-      processed_segments[current_segment] = true;
-      result.segments.last().reversed = last_reversed;
-
-      bool next_reversed;
-      const int next_segment = get_next_segment(
-          unsorted_segments, current_segment, start_segment, processed_segments, &next_reversed);
-
-      if (next_segment == -1) {
-        PolygonDone = true;
-        PolygonClosed = unsorted_segments[current_segment].is_loop();
-        break;
-      }
-
-      if (next_segment == start_segment) {
-        PolygonDone = true;
-        PolygonClosed = true;
-      }
-
-      last_reversed = next_reversed;
-      current_segment = next_segment;
+    if (unsorted_segments.is_empty()) {
+      return;
     }
-    result.segment_offsets.append(result.segments.size());
-    result.cyclic.append(PolygonClosed);
-    /* TODO. */
-    result.shape_ids.append(0);
 
-    /* Get the next unprocessed segment. */
-    start_segment = processed_segments.as_span().first_index_try(false);
-  }
+    /* Follow each segment until it loops or ends. */
+    Array<bool> processed_segments(unsorted_segments.size(), false);
+
+    int start_segment = processed_segments.first();
+
+    while (start_segment != -1) {
+      int current_segment = start_segment;
+
+      bool PolygonDone = false;
+      bool PolygonClosed = false;
+      bool last_reversed = false;
+      while (!PolygonDone) {
+        if (processed_segments[current_segment] == true) {
+          BLI_assert_unreachable();
+          break;
+        }
+
+        unsorted_segments[current_segment].reversed = last_reversed;
+        result.segments.append(unsorted_segments[current_segment]);
+        processed_segments[current_segment] = true;
+        result.segments.last().reversed = last_reversed;
+
+        bool next_reversed;
+        const int next_segment = get_next_segment(
+            unsorted_segments, current_segment, start_segment, processed_segments, &next_reversed);
+
+        if (next_segment == -1) {
+          PolygonDone = true;
+          PolygonClosed = unsorted_segments[current_segment].is_loop();
+          break;
+        }
+
+        if (next_segment == start_segment) {
+          PolygonDone = true;
+          PolygonClosed = true;
+        }
+
+        last_reversed = next_reversed;
+        current_segment = next_segment;
+      }
+      result.segment_offsets.append(result.segments.size());
+      result.cyclic.append(PolygonClosed);
+      result.shape_ids.append(subj_shape_id);
+
+      /* Get the next unprocessed segment. */
+      start_segment = processed_segments.as_span().first_index_try(false);
+    }
+  });
 
   result.point_offsets.resize(result.segment_offsets.size());
   calculate_offsets_from_segments(result.segments,
