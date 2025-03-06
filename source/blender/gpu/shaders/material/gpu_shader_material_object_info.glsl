@@ -14,7 +14,7 @@ void node_object_info(float mat_index,
   ObjectInfos info = drw_object_infos();
   color = info.ob_color;
   alpha = info.ob_color.a;
-  object_index = info.flag;
+  object_index = info.index;
   /* TODO(fclem): Put that inside the Material UBO. */
   material_index = mat_index;
   random = info.random;
