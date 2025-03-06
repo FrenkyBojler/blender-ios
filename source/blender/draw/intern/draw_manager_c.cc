@@ -548,7 +548,7 @@ void DRW_viewport_request_redraw()
 /* The Dupli systems generate a lot of transient objects that share the batch caches.
  * So we ensure to only clear and generate the cache once per source instance type using this
  * set. */
-/* TODO(fclem): This should be reconsidered as this has some uneeded overhead and complexity.
+/* TODO(fclem): This should be reconsidered as this has some unneeded overhead and complexity.
  * Maybe it isn't needed at all. */
 struct DupliCacheManager {
  private:
@@ -591,7 +591,7 @@ void DupliCacheManager::try_add(blender::draw::ObjectRef &ob_ref)
     return;
   }
   if (last_key_ == ob_ref.dupli_object) {
-    /* Same data as previous iter. No need to poll ghash for this. */
+    /* Same data as previous iteration. No need to perform the check again. */
     return;
   }
 
@@ -623,20 +623,25 @@ void DupliCacheManager::extract_all()
     return;
   }
 
+  /* Note these can referenced by the temporary object pointer `Object *ob` and needs to have at
+   * least the same lifetime. */
+  blender::bke::ObjectRuntime tmp_runtime;
+  Object tmp_object;
+
   using Iter = blender::Set<DupliKey>::Iterator;
   Iter begin = dupli_set_->begin();
   Iter end = dupli_set_->end();
   for (Iter iter = begin; iter != end; ++iter) {
     const DupliKey &key = *iter;
     Object *ob = iter->ob;
-    Object tmp_object;
 
     if (key.ob_data != ob->data) {
-      blender::bke::ObjectRuntime runtime = *ob->runtime;
+      /* Copy both object data and runtime. */
+      tmp_runtime = *ob->runtime;
       tmp_object = blender::dna::shallow_copy(*ob);
+      tmp_object.runtime = &tmp_runtime;
       /* Geometry instances shouldn't be rendered with edit mode overlays. */
       tmp_object.mode = OB_MODE_OBJECT;
-      tmp_object.runtime = &runtime;
       /* Do not modify the original bound-box. */
       BKE_object_replace_data_on_shallow_copy(&tmp_object, key.ob_data);
 
