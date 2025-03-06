@@ -393,12 +393,34 @@ GPUNodeGraph *gpu_material_node_graph(GPUMaterial *material)
 
 eGPUMaterialStatus GPU_material_status(GPUMaterial *mat)
 {
-  return mat->status;
+  switch (GPU_pass_status(mat->pass)) {
+    case GPU_PASS_SUCCESS:
+      return GPU_MAT_SUCCESS;
+    case GPU_PASS_QUEUED:
+      return GPU_MAT_QUEUED;
+    default:
+      return GPU_MAT_FAILED;
+  }
 }
 
 eGPUMaterialOptimizationStatus GPU_material_optimization_status(GPUMaterial *mat)
 {
-  return mat->optimization_status;
+  if (!GPU_pass_should_optimize(mat->pass)) {
+    return GPU_MAT_OPTIMIZATION_SKIP;
+  }
+
+  if (!mat->optimized_pass) {
+    return GPU_MAT_OPTIMIZATION_READY;
+  }
+
+  switch (GPU_pass_status(mat->optimized_pass)) {
+    case GPU_PASS_SUCCESS:
+      return GPU_MAT_OPTIMIZATION_SUCCESS;
+    case GPU_PASS_QUEUED:
+      return GPU_MAT_OPTIMIZATION_QUEUED;
+    default:
+      BLI_assert_unreachable();
+  }
 }
 
 bool GPU_material_optimization_ready(GPUMaterial *mat)

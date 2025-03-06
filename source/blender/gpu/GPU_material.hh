@@ -45,7 +45,6 @@ enum eGPUMaterialEngine {
 
 enum eGPUMaterialStatus {
   GPU_MAT_FAILED = 0,
-  GPU_MAT_CREATED,
   GPU_MAT_QUEUED,
   GPU_MAT_SUCCESS,
 };

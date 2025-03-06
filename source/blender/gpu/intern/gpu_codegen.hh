@@ -19,15 +19,23 @@ struct GPUPass;
 
 /* Pass */
 
+enum eGPUPassStatus {
+  GPU_PASS_FAILED = 0,
+  GPU_PASS_QUEUED,
+  GPU_PASS_SUCCESS,
+};
+
 GPUPass *GPU_generate_pass(GPUMaterial *material,
                            GPUNodeGraph *graph,
                            eGPUMaterialEngine engine,
                            GPUCodegenCallbackFn finalize_source_cb,
                            void *thunk,
                            bool optimize_graph);
+
+eGPUPassStatus GPU_pass_status(GPUPass *pass);
+bool GPU_pass_should_optimize(GPUPass *pass);
 GPUShader *GPU_pass_shader_get(GPUPass *pass);
 void GPU_pass_release(GPUPass *pass);
-bool GPU_pass_should_optimize(GPUPass *pass);
 
 void gpu_codegen_init();
 void gpu_codegen_exit();

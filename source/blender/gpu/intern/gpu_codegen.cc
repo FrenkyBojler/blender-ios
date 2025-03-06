@@ -157,25 +157,29 @@ struct GPUPass {
     }
   }
 
-  bool compilation_failed()
+  eGPUPassStatus status()
   {
-    return !compilation_handle && !shader;
+    // TODO: This should lock!
+    if (shader) {
+      return GPU_PASS_SUCCESS;
+    }
+    else if (!compilation_handle) {
+      return GPU_PASS_FAILED;
+    }
+    else {
+      return GPU_PASS_QUEUED;
+    }
   }
 
   bool should_gc(int gc_collect_rate)
   {
-    return !compilation_handle && !compilation_failed() && gc_timestamp >= gc_collect_rate;
+    return !compilation_handle && status() != GPU_PASS_FAILED && gc_timestamp >= gc_collect_rate;
   }
 };
 
-GPUShader *GPU_pass_shader_get(GPUPass *pass)
+eGPUPassStatus GPU_pass_status(GPUPass *pass)
 {
-  return pass->shader;
-}
-
-void GPU_pass_release(GPUPass *pass)
-{
-  pass->refcount--;
+  return pass->status();
 }
 
 bool GPU_pass_should_optimize(GPUPass *pass)
@@ -188,6 +192,16 @@ bool GPU_pass_should_optimize(GPUPass *pass)
   // TODO: No longer true ^
 
   return pass->should_optimize && GPU_backend_get_type() != GPU_BACKEND_METAL;
+}
+
+GPUShader *GPU_pass_shader_get(GPUPass *pass)
+{
+  return pass->shader;
+}
+
+void GPU_pass_release(GPUPass *pass)
+{
+  pass->refcount--;
 }
 
 /** \} */
