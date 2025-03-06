@@ -1264,12 +1264,10 @@ static void region_azones_scrollbars_init(ScrArea *area, ARegion *region)
 {
   const View2D *v2d = &region->v2d;
 
-  if ((v2d->scroll & V2D_SCROLL_VERTICAL) && ((v2d->scroll & V2D_SCROLL_VERTICAL_HANDLES) == 0)) {
+  if (v2d->scroll & V2D_SCROLL_VERTICAL) {
     region_azone_scrollbar_init(area, region, AZ_SCROLL_VERT);
   }
-  if ((v2d->scroll & V2D_SCROLL_HORIZONTAL) &&
-      ((v2d->scroll & V2D_SCROLL_HORIZONTAL_HANDLES) == 0))
-  {
+  if (v2d->scroll & V2D_SCROLL_HORIZONTAL) {
     region_azone_scrollbar_init(area, region, AZ_SCROLL_HOR);
   }
 }
@@ -2604,9 +2602,7 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
   wmWindow *win = CTX_wm_window(C);
   SpaceType *st = BKE_spacetype_from_id(type);
 
-  const bool change_spacetype = area->spacetype != type;
-
-  if (change_spacetype) {
+  if (area->spacetype != type) {
     SpaceLink *slold = static_cast<SpaceLink *>(area->spacedata.first);
     /* store area->type->exit callback */
     void (*area_exit)(wmWindowManager *, ScrArea *) = area->type ? area->type->exit : nullptr;
@@ -2716,11 +2712,15 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
 
   /* Set area space subtype if applicable. */
   if (st && st->space_subtype_item_extend != nullptr) {
-    BLI_assert(st->space_subtype_prev_get != nullptr);
-    st->space_subtype_set(area, area->butspacetype_subtype);
-    if (change_spacetype) {
-      st->space_subtype_set(area, st->space_subtype_prev_get(area));
+    if (area->butspacetype_subtype == -1) {
+      /* Indication (probably from space_type_set_or_cycle) to ignore the
+       * area's current subtype and use last-used, as saved in the space. */
+      area->butspacetype_subtype = st->space_subtype_get(area);
     }
+    st->space_subtype_set(area, area->butspacetype_subtype);
+  }
+  else {
+    area->butspacetype_subtype = 0;
   }
 
   if (BLI_listbase_is_single(&CTX_wm_screen(C)->areabase)) {
