@@ -148,17 +148,9 @@ def copy_rigify_params(from_bone: bpy.types.PoseBone, to_bone: bpy.types.PoseBon
         param_dict = property_to_python(from_params)
 
         if x_mirror:
-            # `update()` of course only works when 'rigify_parameters' already
-            # exists. Conversely, direct assignment only works when
-            # 'rigify_parameters' *doesn't* already exist (at the time of
-            # writing, a type mismatch exception is thrown otherwise). Hence the
-            # weird song and dance here.
-            #
-            # Context: PR #135233
             if 'rigify_parameters' in to_bone:
-                to_bone['rigify_parameters'].update(recursive_mirror(param_dict))
-            else:
-                to_bone['rigify_parameters'] = recursive_mirror(param_dict)
+                del to_bone['rigify_parameters']
+            to_bone['rigify_parameters'] = recursive_mirror(param_dict)
 
             # Bone collection references must be mirrored specially
             from_params_typed = get_rigify_params(from_bone)
@@ -170,17 +162,9 @@ def copy_rigify_params(from_bone: bpy.types.PoseBone, to_bone: bpy.types.PoseBon
                     if is_collection_ref_list_prop(ref_list):
                         copy_ref_list(getattr(to_params_typed, prop_name), ref_list, mirror=True)
         else:
-            # `update()` of course only works when 'rigify_parameters' already
-            # exists. Conversely, direct assignment only works when
-            # 'rigify_parameters' *doesn't* already exist (at the time of
-            # writing, a type mismatch exception is thrown otherwise). Hence the
-            # weird song and dance here.
-            #
-            # Context: PR #135233
             if 'rigify_parameters' in to_bone:
-                to_bone['rigify_parameters'].update(param_dict)
-            else:
-                to_bone['rigify_parameters'] = param_dict
+                del to_bone['rigify_parameters']
+            to_bone['rigify_parameters'] = param_dict
     else:
         try:
             del to_bone['rigify_parameters']
