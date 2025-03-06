@@ -9599,7 +9599,9 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
           data->cancel = true;
           button_activate_state(C, but, BUTTON_STATE_EXIT);
         }
-        else if (event->xy[0] != event->prev_xy[0] || event->xy[1] != event->prev_xy[1]) {
+        else if (abs(event->xy[0] - event->prev_xy[0]) > UI_TOOLTIP_RESET_DIST ||
+                 abs(event->xy[1] - event->prev_xy[1]) > UI_TOOLTIP_RESET_DIST)
+        {
           /* Re-enable tool-tip on mouse move. */
           ui_blocks_set_tooltips(region, true);
           button_tooltip_timer_reset(C, but);
