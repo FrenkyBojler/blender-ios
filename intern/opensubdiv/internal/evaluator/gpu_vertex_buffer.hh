@@ -42,7 +42,6 @@ class GPUVertexBuffer {
     GPU_vertformat_clear(&format);
     GPU_vertformat_attr_add(&format, "elements", GPU_COMP_F32, element_count, GPU_FETCH_FLOAT);
     gpu::VertBuf *vertex_buffer = GPU_vertbuf_create_with_format_ex(format, GPU_USAGE_STATIC);
-    GPU_vertbuf_data_alloc(*vertex_buffer, vertex_len);
     return new GPUVertexBuffer(*vertex_buffer, vertex_len, element_count);
   }
 
@@ -60,9 +59,15 @@ class GPUVertexBuffer {
                   void *device_context = NULL)
   {
     (void)device_context;
+    // TODO: We are assuming to much... But requires API changes.
+    if (start_vertex == 0) {
+      GPU_vertbuf_data_alloc(gpu_vertex_buffer_, vertex_len_);
+    }
+
     MutableSpan<float> buffer_nodes = gpu_vertex_buffer_.data<float>();
     buffer_nodes = buffer_nodes.drop_front(start_vertex * element_count_);
     memcpy(buffer_nodes.data(), src, sizeof(float) * element_count_ * num_vertices);
+    GPU_vertbuf_tag_dirty(&gpu_vertex_buffer_);
   }
   /*
 
