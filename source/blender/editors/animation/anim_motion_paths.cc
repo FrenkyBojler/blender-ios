@@ -363,9 +363,13 @@ void animviz_motionpath_compute_range(Object *ob, Scene *scene)
   }
 
   const bool has_action = ob->adt && ob->adt->action;
-  if (avs->path_range == MOTIONPATH_RANGE_SCENE || !has_action ||
-      BLI_listbase_is_empty(&ob->adt->action->curves))
-  {
+
+  blender::Vector<FCurve *> fcurves = {};
+  if (has_action) {
+    fcurves = blender::animrig::legacy::fcurves_for_assigned_action(ob->adt);
+  }
+
+  if (avs->path_range == MOTIONPATH_RANGE_SCENE || !has_action || fcurves.is_empty()) {
     /* Default to the scene (preview) range if there is no animation data to
      * find selected keys in. */
     avs->path_sf = PSFRA;
@@ -374,8 +378,8 @@ void animviz_motionpath_compute_range(Object *ob, Scene *scene)
   }
 
   AnimKeylist *keylist = ED_keylist_create();
-  for (FCurve *fcu : blender::animrig::legacy::fcurves_for_assigned_action(ob->adt)) {
-    fcurve_to_keylist(ob->adt, fcu, keylist, 0, {-FLT_MAX, FLT_MAX}, true);
+  for (FCurve *fcurve : fcurves) {
+    fcurve_to_keylist(ob->adt, fcurve, keylist, 0, {-FLT_MAX, FLT_MAX}, true);
   }
 
   blender::Bounds<float> frame_range;
