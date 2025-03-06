@@ -1,2 +1,3 @@
 Referenced by issue #134034, Baking Action with 'only selected bones' disabled, results in an error.
 Referenced by pull request #135297, Fix #134034: Baking a custom property with a name existing in Blender failed
+Referenced by commit a485bf65564f5445e121fbda7efdbd0571f5280b, Fix #134034: Baking a custom property with a name existing in Blender failed
