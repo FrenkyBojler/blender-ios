@@ -440,7 +440,7 @@ void VKBackend::detect_workarounds(VKDevice &device)
         /* NOTE: `W6700` was never released, so it's not in this list. */
         strstr(renderer, "W6800") || strstr(renderer, "W6900"))
     {
-      workarounds.shader_output_viewport_index = false;
+      workarounds.shader_output_viewport_index = true;
     }
   }
 
