@@ -248,17 +248,15 @@ static void pbvh_bmesh_node_split(Vector<BMeshNode> &nodes,
                                   const Span<Bounds<float3>> face_bounds,
                                   const int node_index)
 {
-  BMeshNode &node = nodes[node_index];
-
-  if (node.bm_faces_.size() <= leaf_limit) {
+  if (nodes[node_index].bm_faces_.size() <= leaf_limit) {
     /* Node limit not exceeded. */
-    pbvh_bmesh_node_finalize(node, node_index, cd_vert_node_offset, cd_face_node_offset);
+    pbvh_bmesh_node_finalize(nodes[node_index], node_index, cd_vert_node_offset, cd_face_node_offset);
     return;
   }
 
   /* Calculate bounding box around primitive centroids. */
   Bounds<float3> cb = negative_bounds();
-  for (const BMFace *f : node.bm_faces_) {
+  for (const BMFace *f : nodes[node_index].bm_faces_) {
     const int i = BM_elem_index_get(f);
     const float3 center = math::midpoint(face_bounds[i].min, face_bounds[i].max);
     math::min_max(center, cb.min, cb.max);
@@ -270,22 +268,19 @@ static void pbvh_bmesh_node_split(Vector<BMeshNode> &nodes,
 
   /* Add two new child nodes. */
   const int children = nodes.size();
-  node.children_offset_ = children;
+  nodes[node_index].children_offset_ = children;
   nodes.resize(nodes.size() + 2);
   node_changed.resize(node_changed.size() + 2, true);
-
-  /* Array reallocated, update current node pointer. */
-  node = nodes[node_index];
 
   /* Initialize children */
   BMeshNode *c1 = &nodes[children], *c2 = &nodes[children + 1];
   c1->flag_ |= Node::Leaf;
   c2->flag_ |= Node::Leaf;
-  c1->bm_faces_.reserve(node.bm_faces_.size() / 2);
-  c2->bm_faces_.reserve(node.bm_faces_.size() / 2);
+  c1->bm_faces_.reserve(nodes[node_index].bm_faces_.size() / 2);
+  c2->bm_faces_.reserve(nodes[node_index].bm_faces_.size() / 2);
 
   /* Partition the parent node's faces between the two children. */
-  for (BMFace *f : node.bm_faces_) {
+  for (BMFace *f : nodes[node_index].bm_faces_) {
     const int i = BM_elem_index_get(f);
     if (math::midpoint(face_bounds[i].min[axis], face_bounds[i].max[axis]) < mid) {
       c1->bm_faces_.add(f);
@@ -317,17 +312,17 @@ static void pbvh_bmesh_node_split(Vector<BMeshNode> &nodes,
   /* Clear this node */
 
   /* Mark this node's unique verts as unclaimed. */
-  for (BMVert *v : node.bm_unique_verts_) {
+  for (BMVert *v : nodes[node_index].bm_unique_verts_) {
     BM_ELEM_CD_SET_INT(v, cd_vert_node_offset, dyntopo_node_none);
   }
 
   /* Unclaim faces. */
-  for (BMFace *f : node.bm_faces_) {
+  for (BMFace *f : nodes[node_index].bm_faces_) {
     BM_ELEM_CD_SET_INT(f, cd_face_node_offset, dyntopo_node_none);
   }
-  node.bm_faces_.clear();
+  nodes[node_index].bm_faces_.clear();
 
-  node.flag_ &= ~Node::Leaf;
+  nodes[node_index].flag_ &= ~Node::Leaf;
   node_changed[node_index] = true;
 
   /* Recurse. */
@@ -336,13 +331,10 @@ static void pbvh_bmesh_node_split(Vector<BMeshNode> &nodes,
   pbvh_bmesh_node_split(
       nodes, node_changed, cd_vert_node_offset, cd_face_node_offset, face_bounds, children + 1);
 
-  /* Array maybe reallocated, update current node pointer */
-  node = nodes[node_index];
-
   /* Update bounding box. */
-  node.bounds_ = bounds::merge(nodes[node.children_offset_].bounds_,
-                               nodes[node.children_offset_ + 1].bounds_);
-  node.bounds_orig_ = node.bounds_;
+  nodes[node_index].bounds_ = bounds::merge(nodes[nodes[node_index].children_offset_].bounds_,
+                               nodes[nodes[node_index].children_offset_ + 1].bounds_);
+  nodes[node_index].bounds_orig_ = nodes[node_index].bounds_;
 }
 
 /** Recursively split the node if it exceeds the leaf_limit. */
@@ -353,8 +345,7 @@ static bool pbvh_bmesh_node_limit_ensure(BMesh &bm,
                                          const int cd_face_node_offset,
                                          const int node_index)
 {
-  const BMeshNode &node = nodes[node_index];
-  const int faces_num = node.bm_faces_.size();
+  const int faces_num = nodes[node_index].bm_faces_.size();
   if (faces_num <= leaf_limit) {
     /* Node limit not exceeded */
     return false;
@@ -364,7 +355,7 @@ static bool pbvh_bmesh_node_limit_ensure(BMesh &bm,
   Array<Bounds<float3>> face_bounds(faces_num);
 
   int i = 0;
-  for (BMFace *f : node.bm_faces_) {
+  for (BMFace *f : nodes[node_index].bm_faces_) {
     face_bounds[i] = negative_bounds();
 
     BMLoop *l_first = BM_FACE_FIRST_LOOP(f);
@@ -2090,12 +2081,11 @@ static void pbvh_bmesh_create_nodes_fast_recursive(Vector<BMeshNode> &nodes,
                                                    const FastNodeBuildInfo *node,
                                                    const int node_index)
 {
-  BMeshNode &bvh_node = nodes[node_index];
   /* Two cases, node does not have children or does have children. */
   if (node->child1) {
     int children_offset_ = nodes.size();
 
-    bvh_node.children_offset_ = children_offset_;
+    nodes[node_index].children_offset_ = children_offset_;
     nodes.resize(nodes.size() + 2);
     pbvh_bmesh_create_nodes_fast_recursive(nodes,
                                            cd_vert_node_offset,
@@ -2116,8 +2106,8 @@ static void pbvh_bmesh_create_nodes_fast_recursive(Vector<BMeshNode> &nodes,
     /* Node does not have children so it's a leaf node, populate with faces and tag accordingly
      * this is an expensive part but it's not so easily thread-able due to vertex node indices. */
 
-    bvh_node.flag_ |= Node::Leaf;
-    bvh_node.bm_faces_.reserve(node->totface);
+    nodes[node_index].flag_ |= Node::Leaf;
+    nodes[node_index].bm_faces_.reserve(node->totface);
 
     const int end = node->start + node->totface;
 
@@ -2125,7 +2115,7 @@ static void pbvh_bmesh_create_nodes_fast_recursive(Vector<BMeshNode> &nodes,
       BMFace *f = nodeinfo[i];
 
       /* Update ownership of faces. */
-      bvh_node.bm_faces_.add_new(f);
+      nodes[node_index].bm_faces_.add_new(f);
       BM_ELEM_CD_SET_INT(f, cd_face_node_offset, node_index);
 
       /* Update vertices. */
@@ -2133,12 +2123,12 @@ static void pbvh_bmesh_create_nodes_fast_recursive(Vector<BMeshNode> &nodes,
       const BMLoop *l_iter = l_first;
       do {
         BMVert *v = l_iter->v;
-        if (!bvh_node.bm_unique_verts_.contains(v)) {
+        if (!nodes[node_index].bm_unique_verts_.contains(v)) {
           if (BM_ELEM_CD_GET_INT(v, cd_vert_node_offset) != dyntopo_node_none) {
-            bvh_node.bm_other_verts_.add(v);
+            nodes[node_index].bm_other_verts_.add(v);
           }
           else {
-            bvh_node.bm_unique_verts_.add(v);
+            nodes[node_index].bm_unique_verts_.add(v);
             BM_ELEM_CD_SET_INT(v, cd_vert_node_offset, node_index);
           }
         }
