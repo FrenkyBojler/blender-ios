@@ -27,6 +27,8 @@
 
 #include "sequencer_intern.hh"
 
+namespace blender::ed::vse {
+
 /* **************************** buttons ********************************* */
 
 #if 0
@@ -90,7 +92,7 @@ void sequencer_buttons_register(ARegionType *art)
   BLI_addtail(&art->paneltypes, pt);
 #endif
 
-  pt = MEM_cnew<PanelType>("spacetype sequencer panel metadata");
+  pt = MEM_callocN<PanelType>("spacetype sequencer panel metadata");
   STRNCPY(pt->idname, "SEQUENCER_PT_metadata");
   STRNCPY(pt->label, N_("Metadata"));
   STRNCPY(pt->category, "Metadata");
@@ -100,3 +102,5 @@ void sequencer_buttons_register(ARegionType *art)
   pt->order = 10;
   BLI_addtail(&art->paneltypes, pt);
 }
+
+}  // namespace blender::ed::vse
