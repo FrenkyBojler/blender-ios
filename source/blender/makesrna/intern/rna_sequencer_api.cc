@@ -51,7 +51,7 @@
 static StripElem *rna_Strip_elem_from_frame(ID *id, Strip *self, int timeline_frame)
 {
   Scene *scene = (Scene *)id;
-  return blender::seq::SEQ_render_give_stripelem(scene, self, timeline_frame);
+  return blender::seq::render_give_stripelem(scene, self, timeline_frame);
 }
 
 static void rna_Strip_swap_internal(ID *id,
@@ -62,7 +62,7 @@ static void rna_Strip_swap_internal(ID *id,
   const char *error_msg;
   Scene *scene = (Scene *)id;
 
-  if (blender::seq::SEQ_edit_sequence_swap(scene, strip_self, strip_other, &error_msg) == false) {
+  if (blender::seq::edit_sequence_swap(scene, strip_self, strip_other, &error_msg) == false) {
     BKE_report(reports, RPT_ERROR, error_msg);
   }
 }
@@ -74,7 +74,7 @@ static void rna_Strips_move_strip_to_meta(
   const char *error_msg;
 
   /* Move strip to meta. */
-  if (!blender::seq::SEQ_edit_move_strip_to_meta(scene, strip_self, meta_dst, &error_msg)) {
+  if (!blender::seq::edit_move_strip_to_meta(scene, strip_self, meta_dst, &error_msg)) {
     BKE_report(reports, RPT_ERROR, error_msg);
   }
 
@@ -82,7 +82,7 @@ static void rna_Strips_move_strip_to_meta(
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
 
-  blender::seq::SEQ_strip_lookup_invalidate(scene->ed);
+  blender::seq::strip_lookup_invalidate(scene->ed);
 
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, scene);
 }
@@ -91,16 +91,11 @@ static Strip *rna_Strip_split(
     ID *id, Strip *strip, Main *bmain, ReportList *reports, int frame, int split_method)
 {
   Scene *scene = (Scene *)id;
-  ListBase *seqbase = blender::seq::SEQ_get_seqbase_by_seq(scene, strip);
+  ListBase *seqbase = blender::seq::get_seqbase_by_seq(scene, strip);
 
   const char *error_msg = nullptr;
-  Strip *r_seq = blender::seq::SEQ_edit_strip_split(bmain,
-                                                    scene,
-                                                    seqbase,
-                                                    strip,
-                                                    frame,
-                                                    blender::seq::eSeqSplitMethod(split_method),
-                                                    &error_msg);
+  Strip *r_seq = blender::seq::edit_strip_split(
+      bmain, scene, seqbase, strip, frame, blender::seq::eSplitMethod(split_method), &error_msg);
   if (error_msg != nullptr) {
     BKE_report(reports, RPT_ERROR, error_msg);
   }
@@ -117,9 +112,9 @@ static Strip *rna_Strip_split(
 static Strip *rna_Strip_parent_meta(ID *id, Strip *strip_self)
 {
   Scene *scene = (Scene *)id;
-  Editing *ed = blender::seq::SEQ_editing_get(scene);
+  Editing *ed = blender::seq::editing_get(scene);
 
-  return blender::seq::SEQ_find_metastrip_by_sequence(&ed->seqbase, nullptr, strip_self);
+  return blender::seq::find_metastrip_by_sequence(&ed->seqbase, nullptr, strip_self);
 }
 
 static Strip *rna_Strips_new_clip(ID *id,
@@ -131,10 +126,10 @@ static Strip *rna_Strips_new_clip(ID *id,
                                   int frame_start)
 {
   Scene *scene = (Scene *)id;
-  blender::seq::SeqLoadData load_data;
-  blender::seq::SEQ_add_load_data_init(&load_data, name, nullptr, frame_start, channel);
+  blender::seq::LoadData load_data;
+  blender::seq::add_load_data_init(&load_data, name, nullptr, frame_start, channel);
   load_data.clip = clip;
-  Strip *strip = blender::seq::SEQ_add_movieclip_strip(scene, seqbase, &load_data);
+  Strip *strip = blender::seq::add_movieclip_strip(scene, seqbase, &load_data);
 
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
@@ -174,10 +169,10 @@ static Strip *rna_Strips_new_mask(ID *id,
                                   int frame_start)
 {
   Scene *scene = (Scene *)id;
-  blender::seq::SeqLoadData load_data;
-  blender::seq::SEQ_add_load_data_init(&load_data, name, nullptr, frame_start, channel);
+  blender::seq::LoadData load_data;
+  blender::seq::add_load_data_init(&load_data, name, nullptr, frame_start, channel);
   load_data.mask = mask;
-  Strip *strip = blender::seq::SEQ_add_mask_strip(scene, seqbase, &load_data);
+  Strip *strip = blender::seq::add_mask_strip(scene, seqbase, &load_data);
 
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
@@ -206,10 +201,10 @@ static Strip *rna_Strips_new_scene(ID *id,
                                    int frame_start)
 {
   Scene *scene = (Scene *)id;
-  blender::seq::SeqLoadData load_data;
-  blender::seq::SEQ_add_load_data_init(&load_data, name, nullptr, frame_start, channel);
+  blender::seq::LoadData load_data;
+  blender::seq::add_load_data_init(&load_data, name, nullptr, frame_start, channel);
   load_data.scene = sce_seq;
-  Strip *strip = blender::seq::SEQ_add_scene_strip(scene, seqbase, &load_data);
+  Strip *strip = blender::seq::add_scene_strip(scene, seqbase, &load_data);
 
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
@@ -252,15 +247,15 @@ static Strip *rna_Strips_new_image(ID *id,
 {
   Scene *scene = (Scene *)id;
 
-  blender::seq::SeqLoadData load_data;
-  blender::seq::SEQ_add_load_data_init(&load_data, name, file, frame_start, channel);
+  blender::seq::LoadData load_data;
+  blender::seq::add_load_data_init(&load_data, name, file, frame_start, channel);
   load_data.image.len = 1;
   load_data.fit_method = eSeqImageFitMethod(fit_method);
 
   char vt_old[64];
   STRNCPY(vt_old, scene->view_settings.view_transform);
 
-  Strip *strip = blender::seq::SEQ_add_image_strip(bmain, scene, seqbase, &load_data);
+  Strip *strip = blender::seq::add_image_strip(bmain, scene, seqbase, &load_data);
 
   if (!STREQ(vt_old, scene->view_settings.view_transform)) {
     BKE_reportf(reports,
@@ -272,9 +267,9 @@ static Strip *rna_Strips_new_image(ID *id,
 
   char dirpath[FILE_MAX], filename[FILE_MAXFILE];
   BLI_path_split_dir_file(file, dirpath, sizeof(dirpath), filename, sizeof(filename));
-  blender::seq::SEQ_add_image_set_directory(strip, dirpath);
-  blender::seq::SEQ_add_image_load_file(scene, strip, 0, filename);
-  blender::seq::SEQ_add_image_init_alpha_mode(strip);
+  blender::seq::add_image_set_directory(strip, dirpath);
+  blender::seq::add_image_load_file(scene, strip, 0, filename);
+  blender::seq::add_image_init_alpha_mode(strip);
 
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
@@ -322,8 +317,8 @@ static Strip *rna_Strips_new_movie(ID *id,
                                    int fit_method)
 {
   Scene *scene = (Scene *)id;
-  blender::seq::SeqLoadData load_data;
-  blender::seq::SEQ_add_load_data_init(&load_data, name, file, frame_start, channel);
+  blender::seq::LoadData load_data;
+  blender::seq::add_load_data_init(&load_data, name, file, frame_start, channel);
   load_data.fit_method = eSeqImageFitMethod(fit_method);
   load_data.allow_invalid_file = true;
 
@@ -331,7 +326,7 @@ static Strip *rna_Strips_new_movie(ID *id,
   STRNCPY(vt_old, scene->view_settings.view_transform);
   float fps_old = scene->r.frs_sec / scene->r.frs_sec_base;
 
-  Strip *strip = blender::seq::SEQ_add_movie_strip(bmain, scene, seqbase, &load_data);
+  Strip *strip = blender::seq::add_movie_strip(bmain, scene, seqbase, &load_data);
 
   if (!STREQ(vt_old, scene->view_settings.view_transform)) {
     BKE_reportf(reports,
@@ -395,10 +390,10 @@ static Strip *rna_Strips_new_sound(ID *id,
                                    int frame_start)
 {
   Scene *scene = (Scene *)id;
-  blender::seq::SeqLoadData load_data;
-  blender::seq::SEQ_add_load_data_init(&load_data, name, file, frame_start, channel);
+  blender::seq::LoadData load_data;
+  blender::seq::add_load_data_init(&load_data, name, file, frame_start, channel);
   load_data.allow_invalid_file = true;
-  Strip *strip = blender::seq::SEQ_add_sound_strip(bmain, scene, seqbase, &load_data);
+  Strip *strip = blender::seq::add_sound_strip(bmain, scene, seqbase, &load_data);
 
   if (strip == nullptr) {
     BKE_report(reports, RPT_ERROR, "Strips.new_sound: unable to open sound file");
@@ -458,9 +453,9 @@ static Strip *rna_Strips_new_meta(
     ID *id, ListBase *seqbase, const char *name, int channel, int frame_start)
 {
   Scene *scene = (Scene *)id;
-  blender::seq::SeqLoadData load_data;
-  blender::seq::SEQ_add_load_data_init(&load_data, name, nullptr, frame_start, channel);
-  Strip *seqm = blender::seq::SEQ_add_meta_strip(scene, seqbase, &load_data);
+  blender::seq::LoadData load_data;
+  blender::seq::add_load_data_init(&load_data, name, nullptr, frame_start, channel);
+  Strip *seqm = blender::seq::add_meta_strip(scene, seqbase, &load_data);
 
   return seqm;
 }
@@ -490,7 +485,7 @@ static Strip *rna_Strips_new_effect(ID *id,
 {
   Scene *scene = (Scene *)id;
   Strip *strip;
-  const int num_inputs = blender::seq::SEQ_effect_get_num_inputs(type);
+  const int num_inputs = blender::seq::effect_get_num_inputs(type);
 
   switch (num_inputs) {
     case 0:
@@ -520,13 +515,13 @@ static Strip *rna_Strips_new_effect(ID *id,
       return nullptr;
   }
 
-  blender::seq::SeqLoadData load_data;
-  blender::seq::SEQ_add_load_data_init(&load_data, name, nullptr, frame_start, channel);
+  blender::seq::LoadData load_data;
+  blender::seq::add_load_data_init(&load_data, name, nullptr, frame_start, channel);
   load_data.effect.end_frame = frame_end;
   load_data.effect.type = type;
   load_data.effect.seq1 = seq1;
   load_data.effect.seq2 = seq2;
-  strip = blender::seq::SEQ_add_effect_strip(scene, seqbase, &load_data);
+  strip = blender::seq::add_effect_strip(scene, seqbase, &load_data);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, scene);
@@ -576,8 +571,8 @@ static void rna_Strips_remove(
     return;
   }
 
-  blender::seq::SEQ_edit_flag_for_removal(scene, seqbase, strip);
-  blender::seq::SEQ_edit_remove_flagged_sequences(scene, seqbase);
+  blender::seq::edit_flag_for_removal(scene, seqbase, strip);
+  blender::seq::edit_remove_flagged_sequences(scene, seqbase);
   strip_ptr->invalidate();
 
   DEG_relations_tag_update(bmain);
@@ -662,13 +657,13 @@ static void rna_Strip_invalidate_cache_rnafunc(ID *id, Strip *self, int type)
 {
   switch (type) {
     case SEQ_CACHE_STORE_RAW:
-      blender::seq::SEQ_relations_invalidate_cache_raw((Scene *)id, self);
+      blender::seq::relations_invalidate_cache_raw((Scene *)id, self);
       break;
     case SEQ_CACHE_STORE_PREPROCESSED:
-      blender::seq::SEQ_relations_invalidate_cache_preprocessed((Scene *)id, self);
+      blender::seq::relations_invalidate_cache_preprocessed((Scene *)id, self);
       break;
     case SEQ_CACHE_STORE_COMPOSITE:
-      blender::seq::SEQ_relations_invalidate_cache_composite((Scene *)id, self);
+      blender::seq::relations_invalidate_cache_composite((Scene *)id, self);
       break;
   }
 }
@@ -677,9 +672,9 @@ static SeqRetimingKey *rna_Strip_retiming_keys_add(ID *id, Strip *strip, int tim
 {
   Scene *scene = (Scene *)id;
 
-  SeqRetimingKey *key = blender::seq::SEQ_retiming_add_key(scene, strip, timeline_frame);
+  SeqRetimingKey *key = blender::seq::retiming_add_key(scene, strip, timeline_frame);
 
-  blender::seq::SEQ_relations_invalidate_cache_raw(scene, strip);
+  blender::seq::relations_invalidate_cache_raw(scene, strip);
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, nullptr);
   return key;
 }
@@ -688,9 +683,9 @@ static void rna_Strip_retiming_keys_reset(ID *id, Strip *strip)
 {
   Scene *scene = (Scene *)id;
 
-  blender::seq::SEQ_retiming_data_clear(strip);
+  blender::seq::retiming_data_clear(strip);
 
-  blender::seq::SEQ_relations_invalidate_cache_raw(scene, strip);
+  blender::seq::relations_invalidate_cache_raw(scene, strip);
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, nullptr);
 }
 
@@ -709,8 +704,8 @@ void RNA_api_strip(StructRNA *srna)
   };
 
   static const EnumPropertyItem strip_split_method_items[] = {
-      {blender::seq::SEQ_SPLIT_SOFT, "SOFT", 0, "Soft", ""},
-      {blender::seq::SEQ_SPLIT_HARD, "HARD", 0, "Hard", ""},
+      {blender::seq::SPLIT_SOFT, "SOFT", 0, "Soft", ""},
+      {blender::seq::SPLIT_HARD, "HARD", 0, "Hard", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -889,11 +884,11 @@ void RNA_api_strips(StructRNA *srna, const bool metastrip)
                      "channel",
                      0,
                      1,
-                     blender::seq::SEQ_MAX_CHANNELS,
+                     blender::seq::MAX_CHANNELS,
                      "Channel",
                      "The channel for the new strip",
                      1,
-                     blender::seq::SEQ_MAX_CHANNELS);
+                     blender::seq::MAX_CHANNELS);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_int(func,
                      "frame_start",
@@ -920,11 +915,11 @@ void RNA_api_strips(StructRNA *srna, const bool metastrip)
                      "channel",
                      0,
                      1,
-                     blender::seq::SEQ_MAX_CHANNELS,
+                     blender::seq::MAX_CHANNELS,
                      "Channel",
                      "The channel for the new strip",
                      1,
-                     blender::seq::SEQ_MAX_CHANNELS);
+                     blender::seq::MAX_CHANNELS);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_int(func,
                      "frame_start",
@@ -951,11 +946,11 @@ void RNA_api_strips(StructRNA *srna, const bool metastrip)
                      "channel",
                      0,
                      1,
-                     blender::seq::SEQ_MAX_CHANNELS,
+                     blender::seq::MAX_CHANNELS,
                      "Channel",
                      "The channel for the new strip",
                      1,
-                     blender::seq::SEQ_MAX_CHANNELS);
+                     blender::seq::MAX_CHANNELS);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_int(func,
                      "frame_start",
@@ -982,11 +977,11 @@ void RNA_api_strips(StructRNA *srna, const bool metastrip)
                      "channel",
                      0,
                      1,
-                     blender::seq::SEQ_MAX_CHANNELS,
+                     blender::seq::MAX_CHANNELS,
                      "Channel",
                      "The channel for the new strip",
                      1,
-                     blender::seq::SEQ_MAX_CHANNELS);
+                     blender::seq::MAX_CHANNELS);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_int(func,
                      "frame_start",
@@ -1015,11 +1010,11 @@ void RNA_api_strips(StructRNA *srna, const bool metastrip)
                      "channel",
                      0,
                      1,
-                     blender::seq::SEQ_MAX_CHANNELS,
+                     blender::seq::MAX_CHANNELS,
                      "Channel",
                      "The channel for the new strip",
                      1,
-                     blender::seq::SEQ_MAX_CHANNELS);
+                     blender::seq::MAX_CHANNELS);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_int(func,
                      "frame_start",
@@ -1048,11 +1043,11 @@ void RNA_api_strips(StructRNA *srna, const bool metastrip)
                      "channel",
                      0,
                      1,
-                     blender::seq::SEQ_MAX_CHANNELS,
+                     blender::seq::MAX_CHANNELS,
                      "Channel",
                      "The channel for the new strip",
                      1,
-                     blender::seq::SEQ_MAX_CHANNELS);
+                     blender::seq::MAX_CHANNELS);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_int(func,
                      "frame_start",
@@ -1077,11 +1072,11 @@ void RNA_api_strips(StructRNA *srna, const bool metastrip)
                      "channel",
                      0,
                      1,
-                     blender::seq::SEQ_MAX_CHANNELS,
+                     blender::seq::MAX_CHANNELS,
                      "Channel",
                      "The channel for the new strip",
                      1,
-                     blender::seq::SEQ_MAX_CHANNELS);
+                     blender::seq::MAX_CHANNELS);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_int(func,
                      "frame_start",
@@ -1108,11 +1103,11 @@ void RNA_api_strips(StructRNA *srna, const bool metastrip)
                      "channel",
                      0,
                      1,
-                     blender::seq::SEQ_MAX_CHANNELS,
+                     blender::seq::MAX_CHANNELS,
                      "Channel",
                      "The channel for the new strip",
                      1,
-                     blender::seq::SEQ_MAX_CHANNELS);
+                     blender::seq::MAX_CHANNELS);
   /* don't use MAXFRAME since it makes importer scripts fail */
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_int(func,
