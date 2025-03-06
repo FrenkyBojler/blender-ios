@@ -600,10 +600,9 @@ class NODE_OT_viewer_shortcut_set(Operator):
             )
             return {'CANCELLED'}
 
-        # activate_viewer() operator acts on the active node. So set the viewer node to active first.
-        # Note: the compositor already activates the viewer if the node is set to active.
-        nodes.active = viewer_node
-        bpy.ops.node.activate_viewer()
+        with bpy.context.temp_override(node=viewer_node):
+            bpy.ops.node.activate_viewer()
+
         if old_active.type != 'VIEWER':
             nodes.active = old_active
 
@@ -647,13 +646,8 @@ class NODE_OT_viewer_shortcut_get(Operator):
             self.report({'INFO'}, "Shortcut {:d} is not assigned to a Viewer node yet".format(self.viewer_index))
             return {'CANCELLED'}
 
-        # activate_viewer() operator acts on the active node. So set the viewer node to active first.
-        # Note: the compositor already activates the viewer if the node is set to active.
-        old_active = nodes.active
-        nodes.active = viewer_node
-        bpy.ops.node.activate_viewer()
-        if old_active.type != "VIEWER":
-            nodes.active = old_active
+        with bpy.context.temp_override(node=viewer_node):
+            bpy.ops.node.activate_viewer()
 
         return {'FINISHED'}
 
