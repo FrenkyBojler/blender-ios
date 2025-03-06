@@ -3252,12 +3252,12 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
     }
   });
 
-  BKE_id_free(nullptr, mesh_copied);
-
   curves.radius_for_write().fill(stroke_radius);
 
   drawing_line->strokes_for_write() = std::move(curves);
   drawing_line->tag_topology_changed();
+
+  BKE_id_free(nullptr, mesh_copied);
 }
 
 static Object *convert_mesh_to_grease_pencil(Base &base,
