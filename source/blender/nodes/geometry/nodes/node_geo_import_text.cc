@@ -42,7 +42,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   BLI_SCOPED_DEFER([&]() { MEM_freeN(buffer); });
   if (BLI_str_utf8_invalid_byte(static_cast<const char *>(buffer), buffer_len) != -1) {
     params.error_message_add(NodeWarningType::Error,
-                             TIP_("String contains invalid UTF-8 characters"));
+                             TIP_("File contains invalid UTF-8 characters"));
     params.set_default_remaining_outputs();
     return;
   }
@@ -56,7 +56,7 @@ static void node_register()
 
   geo_node_type_base(&ntype, "GeometryNodeImportText");
   ntype.ui_name = "Import Text";
-  ntype.ui_description = "Import geometry from an text file";
+  ntype.ui_description = "Import a string from a text file";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
