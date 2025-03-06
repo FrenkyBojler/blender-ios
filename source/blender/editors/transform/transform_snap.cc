@@ -420,6 +420,8 @@ static bool applyFaceProject(TransInfo *t, TransDataContainer *tc, TransData *td
 
   mul_m3_v3(td->smtx, tvec);
 
+  protectedTransBits(td->protectflag, tvec);
+
   add_v3_v3(td->loc, tvec);
 
   if ((t->tsnap.flag & SCE_SNAP_ROTATE) && (t->options & CTX_OBJECT)) {
@@ -486,6 +488,7 @@ static void applyFaceNearest(TransInfo *t, TransDataContainer *tc, TransData *td
   float tvec[3];
   sub_v3_v3v3(tvec, snap_loc, prev_loc);
   mul_m3_v3(td->smtx, tvec);
+  protectedTransBits(td->protectflag, tvec);
   add_v3_v3(td->loc, tvec);
 
   /* TODO: support snap alignment similar to #SCE_SNAP_INDIVIDUAL_PROJECT? */
