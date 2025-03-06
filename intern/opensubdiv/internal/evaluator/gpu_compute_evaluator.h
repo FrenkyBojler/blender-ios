@@ -48,39 +48,39 @@ class GPUStencilTableSSBO {
   // interfaces needed for GLSLComputeKernel
   gpu::VertBuf *GetSizesBuffer() const
   {
-    return _sizes;
+    return sizes_buf;
   }
   gpu::VertBuf *GetOffsetsBuffer() const
   {
-    return _offsets;
+    return offsets_buf;
   }
   gpu::VertBuf *GetIndicesBuffer() const
   {
-    return _indices;
+    return indices_buf;
   }
   gpu::VertBuf *GetWeightsBuffer() const
   {
-    return _weights;
+    return weights_buf;
   }
   gpu::VertBuf *GetDuWeightsBuffer() const
   {
-    return _duWeights;
+    return du_weights_buf;
   }
   gpu::VertBuf *GetDvWeightsBuffer() const
   {
-    return _dvWeights;
+    return dv_weights_buf;
   }
   gpu::VertBuf *GetDuuWeightsBuffer() const
   {
-    return _duuWeights;
+    return duu_weights_buf;
   }
   gpu::VertBuf *GetDuvWeightsBuffer() const
   {
-    return _duvWeights;
+    return duv_weights_buf;
   }
   gpu::VertBuf *GetDvvWeightsBuffer() const
   {
-    return _dvvWeights;
+    return dvv_weights_buf;
   }
   int GetNumStencils() const
   {
@@ -88,15 +88,15 @@ class GPUStencilTableSSBO {
   }
 
  private:
-  gpu::VertBuf *_sizes = nullptr;
-  gpu::VertBuf *_offsets = nullptr;
-  gpu::VertBuf *_indices = nullptr;
-  gpu::VertBuf *_weights = nullptr;
-  gpu::VertBuf *_duWeights = nullptr;
-  gpu::VertBuf *_dvWeights = nullptr;
-  gpu::VertBuf *_duuWeights = nullptr;
-  gpu::VertBuf *_duvWeights = nullptr;
-  gpu::VertBuf *_dvvWeights = nullptr;
+  gpu::VertBuf *sizes_buf = nullptr;
+  gpu::VertBuf *offsets_buf = nullptr;
+  gpu::VertBuf *indices_buf = nullptr;
+  gpu::VertBuf *weights_buf = nullptr;
+  gpu::VertBuf *du_weights_buf = nullptr;
+  gpu::VertBuf *dv_weights_buf = nullptr;
+  gpu::VertBuf *duu_weights_buf = nullptr;
+  gpu::VertBuf *duv_weights_buf = nullptr;
+  gpu::VertBuf *dvv_weights_buf = nullptr;
   int _numStencils;
 };
 

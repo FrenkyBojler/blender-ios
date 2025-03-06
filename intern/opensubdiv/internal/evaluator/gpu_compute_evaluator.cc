@@ -34,6 +34,7 @@
 #include "GPU_capabilities.hh"
 #include "GPU_compute.hh"
 #include "GPU_context.hh"
+#include "GPU_debug.hh"
 #include "GPU_state.hh"
 #include "GPU_vertex_buffer.hh"
 #include "gpu_shader_create_info.hh"
@@ -93,10 +94,10 @@ GPUStencilTableSSBO::GPUStencilTableSSBO(StencilTable const *stencilTable)
 {
   _numStencils = stencilTable->GetNumStencils();
   if (_numStencils > 0) {
-    _sizes = create_buffer(stencilTable->GetSizes(), GPU_COMP_I32, GPU_FETCH_INT);
-    _offsets = create_buffer(stencilTable->GetOffsets(), GPU_COMP_I32, GPU_FETCH_INT);
-    _indices = create_buffer(stencilTable->GetControlIndices(), GPU_COMP_I32, GPU_FETCH_INT);
-    _weights = create_buffer(stencilTable->GetWeights(), GPU_COMP_F32, GPU_FETCH_FLOAT);
+    sizes_buf = create_buffer(stencilTable->GetSizes(), GPU_COMP_I32, GPU_FETCH_INT);
+    offsets_buf = create_buffer(stencilTable->GetOffsets(), GPU_COMP_I32, GPU_FETCH_INT);
+    indices_buf = create_buffer(stencilTable->GetControlIndices(), GPU_COMP_I32, GPU_FETCH_INT);
+    weights_buf = create_buffer(stencilTable->GetWeights(), GPU_COMP_F32, GPU_FETCH_FLOAT);
   }
 }
 
@@ -104,15 +105,20 @@ GPUStencilTableSSBO::GPUStencilTableSSBO(LimitStencilTable const *limitStencilTa
 {
   _numStencils = limitStencilTable->GetNumStencils();
   if (_numStencils > 0) {
-    _sizes = create_buffer(limitStencilTable->GetSizes(), GPU_COMP_I32, GPU_FETCH_INT);
-    _offsets = create_buffer(limitStencilTable->GetOffsets(), GPU_COMP_I32, GPU_FETCH_INT);
-    _indices = create_buffer(limitStencilTable->GetControlIndices(), GPU_COMP_I32, GPU_FETCH_INT);
-    _weights = create_buffer(limitStencilTable->GetWeights(), GPU_COMP_F32, GPU_FETCH_FLOAT);
-    _duWeights = create_buffer(limitStencilTable->GetDuWeights(), GPU_COMP_F32, GPU_FETCH_FLOAT);
-    _duWeights = create_buffer(limitStencilTable->GetDuWeights(), GPU_COMP_F32, GPU_FETCH_FLOAT);
-    _duuWeights = create_buffer(limitStencilTable->GetDuuWeights(), GPU_COMP_F32, GPU_FETCH_FLOAT);
-    _duvWeights = create_buffer(limitStencilTable->GetDuvWeights(), GPU_COMP_F32, GPU_FETCH_FLOAT);
-    _dvvWeights = create_buffer(limitStencilTable->GetDvvWeights(), GPU_COMP_F32, GPU_FETCH_FLOAT);
+    sizes_buf = create_buffer(limitStencilTable->GetSizes(), GPU_COMP_I32, GPU_FETCH_INT);
+    offsets_buf = create_buffer(limitStencilTable->GetOffsets(), GPU_COMP_I32, GPU_FETCH_INT);
+    indices_buf = create_buffer(limitStencilTable->GetControlIndices(), GPU_COMP_I32, GPU_FETCH_INT);
+    weights_buf = create_buffer(limitStencilTable->GetWeights(), GPU_COMP_F32, GPU_FETCH_FLOAT);
+    du_weights_buf = create_buffer(
+        limitStencilTable->GetDuWeights(), GPU_COMP_F32, GPU_FETCH_FLOAT);
+    du_weights_buf = create_buffer(
+        limitStencilTable->GetDuWeights(), GPU_COMP_F32, GPU_FETCH_FLOAT);
+    duu_weights_buf = create_buffer(
+        limitStencilTable->GetDuuWeights(), GPU_COMP_F32, GPU_FETCH_FLOAT);
+    duv_weights_buf = create_buffer(
+        limitStencilTable->GetDuvWeights(), GPU_COMP_F32, GPU_FETCH_FLOAT);
+    dvv_weights_buf = create_buffer(
+        limitStencilTable->GetDvvWeights(), GPU_COMP_F32, GPU_FETCH_FLOAT);
   }
 }
 
@@ -123,15 +129,15 @@ GPUStencilTableSSBO::~GPUStencilTableSSBO()
     GPU_vertbuf_discard(buffer); \
     buffer = nullptr; \
   }
-  SAFE_FREE_VERTEX_BUFFER(_sizes)
-  SAFE_FREE_VERTEX_BUFFER(_offsets)
-  SAFE_FREE_VERTEX_BUFFER(_indices)
-  SAFE_FREE_VERTEX_BUFFER(_weights)
-  SAFE_FREE_VERTEX_BUFFER(_duWeights)
-  SAFE_FREE_VERTEX_BUFFER(_dvWeights)
-  SAFE_FREE_VERTEX_BUFFER(_duuWeights)
-  SAFE_FREE_VERTEX_BUFFER(_duvWeights)
-  SAFE_FREE_VERTEX_BUFFER(_dvvWeights)
+  SAFE_FREE_VERTEX_BUFFER(sizes_buf)
+  SAFE_FREE_VERTEX_BUFFER(offsets_buf)
+  SAFE_FREE_VERTEX_BUFFER(indices_buf)
+  SAFE_FREE_VERTEX_BUFFER(weights_buf)
+  SAFE_FREE_VERTEX_BUFFER(du_weights_buf)
+  SAFE_FREE_VERTEX_BUFFER(dv_weights_buf)
+  SAFE_FREE_VERTEX_BUFFER(duu_weights_buf)
+  SAFE_FREE_VERTEX_BUFFER(duv_weights_buf)
+  SAFE_FREE_VERTEX_BUFFER(dvv_weights_buf)
 #undef SAFE_FREE_SSBO
 }
 
@@ -213,18 +219,18 @@ static GPUShader *compileKernel(BufferDescriptor const &srcDesc,
   }
 
   if (use_eval_stencil_kernel) {
-    info.storage_buf(SHADER_SIZES_BUF_SLOT, Qualifier::READ, "int", "_sizes[]");
-    info.storage_buf(SHADER_OFFSETS_BUF_SLOT, Qualifier::READ, "int", "_offsets[]");
-    info.storage_buf(SHADER_INDICES_BUF_SLOT, Qualifier::READ, "int", "_indices[]");
-    info.storage_buf(SHADER_WEIGHTS_BUF_SLOT, Qualifier::READ, "float", "_weights[]");
+    info.storage_buf(SHADER_SIZES_BUF_SLOT, Qualifier::READ, "int", "sizes_buf[]");
+    info.storage_buf(SHADER_OFFSETS_BUF_SLOT, Qualifier::READ, "int", "offsets_buf[]");
+    info.storage_buf(SHADER_INDICES_BUF_SLOT, Qualifier::READ, "int", "indices_buf[]");
+    info.storage_buf(SHADER_WEIGHTS_BUF_SLOT, Qualifier::READ, "float", "weights_buf[]");
     if (deriv1) {
-      info.storage_buf(SHADER_DU_WEIGHTS_BUF_SLOT, Qualifier::READ, "float", "_duWeights[]");
-      info.storage_buf(SHADER_DV_WEIGHTS_BUF_SLOT, Qualifier::READ, "float", "_dvWeights[]");
+      info.storage_buf(SHADER_DU_WEIGHTS_BUF_SLOT, Qualifier::READ, "float", "du_weights_buf[]");
+      info.storage_buf(SHADER_DV_WEIGHTS_BUF_SLOT, Qualifier::READ, "float", "dv_weights_buf[]");
     }
     if (deriv2) {
-      info.storage_buf(SHADER_DUU_WEIGHTS_BUF_SLOT, Qualifier::READ, "float", "_duuWeights[]");
-      info.storage_buf(SHADER_DUV_WEIGHTS_BUF_SLOT, Qualifier::READ, "float", "_duvWeights[]");
-      info.storage_buf(SHADER_DVV_WEIGHTS_BUF_SLOT, Qualifier::READ, "float", "_dvvWeights[]");
+      info.storage_buf(SHADER_DUU_WEIGHTS_BUF_SLOT, Qualifier::READ, "float", "duu_weights_buf[]");
+      info.storage_buf(SHADER_DUV_WEIGHTS_BUF_SLOT, Qualifier::READ, "float", "duv_weights_buf[]");
+      info.storage_buf(SHADER_DVV_WEIGHTS_BUF_SLOT, Qualifier::READ, "float", "dvv_weights_buf[]");
     }
     info.push_constant(Type::INT, "batchStart");
     info.push_constant(Type::INT, "batchEnd");
@@ -298,6 +304,7 @@ int GPUComputeEvaluator::GetDispatchSize(int count) const
 
 void GPUComputeEvaluator::DispatchCompute(GPUShader *shader, int totalDispatchSize) const
 {
+  GPU_debug_capture_begin(__func__);
   const int dispatchSize = GetDispatchSize(totalDispatchSize);
   int dispatchRX = dispatchSize;
   int dispatchRY = 1u;
@@ -321,6 +328,7 @@ void GPUComputeEvaluator::DispatchCompute(GPUShader *shader, int totalDispatchSi
    * we presume it all fits. */
   assert(dispatchRY < GPU_max_work_group_count(1));
   GPU_compute_dispatch(shader, dispatchRX, dispatchRY, 1);
+  GPU_debug_capture_end();
 }
 
 bool GPUComputeEvaluator::EvalStencils(gpu::VertBuf *srcBuffer,
