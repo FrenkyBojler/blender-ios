@@ -124,7 +124,7 @@ AttributeStorage attribute_legacy_convert_customdata_to_storage(
         kept_layers.append(layer);
       }
     }
-    CustomData_free(&custom_data, domain_size);
+    CustomData_free(&custom_data);
     VectorData<CustomDataLayer, GuardedAllocator> kept_layers_data = kept_layers.release();
     custom_data.layers = kept_layers_data.data;
     custom_data.totlayer = kept_layers_data.size;
@@ -132,26 +132,14 @@ AttributeStorage attribute_legacy_convert_customdata_to_storage(
     CustomData_update_typemap(&custom_data);
   }
 
-  storage.attributes_array = static_cast<::Attribute **>(
-      MEM_malloc_arrayN(attributes_to_add.size(), sizeof(::Attribute *), __func__));
-  storage.attributes_num = attributes_to_add.size();
-  storage.attributes_capacity = attributes_to_add.size();
-
-  for (const int i : attributes_to_add.index_range()) {
-    AttributeToAdd &src = attributes_to_add[i];
-    Attribute *dst = MEM_cnew<Attribute>(__func__);
-    storage.attributes_array[i] = dst;
-
-    dst->name = BLI_strdupn(src.name.data(), src.name.size());
-    dst->domain = int16_t(src.domain);
-    dst->data_type = int16_t(src.type);
-    dst->storage_type = int8_t(AttrStorageType::Array);
-    AttributeDataArray *data = MEM_cnew<AttributeDataArray>(__func__);
-    dst->data = data;
-    data->data = src.array_data;
-    data->sharing_info = src.sharing_info;
-    data->elements_num = src.array_size;
+  for (AttributeToAdd &attribute : attributes_to_add) {
+    bke::Attribute::ArrayData array_data;
+    array_data.data = attribute.array_data;
+    array_data.elements_num = attribute.array_size;
+    array_data.sharing_info = ImplicitSharingPtr<>(attribute.sharing_info);
+    storage.add(attribute.name, attribute.domain, attribute.type, std::move(array_data));
   }
+
   return storage;
 }
 
@@ -192,34 +180,26 @@ void attribute_legacy_convert_storage_to_customdata(
     AttributeStorage &storage,
     const Map<AttrDomain, std::pair<CustomData *, int>> &custom_data_domains)
 {
-  for (::Attribute *attribute : Span(storage.attributes_array, storage.attributes_num)) {
-    if (AttrStorageType(attribute->storage_type) != AttrStorageType::Array) {
-      continue;
+  storage.foreach ([&](const Attribute &attribute) {
+    if (AttrStorageType(attribute.storage_type()) != AttrStorageType::Array) {
+      return;
     }
     const std::optional<eCustomDataType> data_type = attribute_to_to_custom_data_type(
-        AttrType(attribute->data_type));
+        attribute.data_type());
     if (!data_type) {
-      continue;
+      return;
     }
-    auto *array_data = static_cast<AttributeDataArray *>(attribute->data);
-    BLI_assert(array_data->elements_num ==
-               custom_data_domains.lookup(AttrDomain(attribute->domain)).second);
-    CustomData_add_layer_named_with_data(
-        custom_data_domains.lookup(AttrDomain(attribute->domain)).first,
-        *data_type,
-        array_data->data,
-        array_data->elements_num,
-        attribute->name,
-        array_data->sharing_info);
-    array_data->sharing_info->remove_user_and_delete_if_last();
-    MEM_freeN(array_data);
-    MEM_freeN(attribute->name);
-    MEM_freeN(attribute);
-  }
-  MEM_SAFE_FREE(storage.attributes_array);
-  storage.attributes_num = 0;
-  storage.attributes_capacity = 0;
-  storage.runtime->name_map.clear();
+    const auto &array_data = std::get<bke::Attribute::ArrayData>(attribute.data());
+    BLI_assert(array_data.elements_num ==
+               custom_data_domains.lookup(AttrDomain(attribute.domain())).second);
+    CustomData_add_layer_named_with_data(custom_data_domains.lookup(attribute.domain()).first,
+                                         *data_type,
+                                         array_data.data,
+                                         array_data.elements_num,
+                                         attribute.name(),
+                                         array_data.sharing_info.get());
+  });
+  storage = AttributeStorage();
 }
 
 static auto mesh_domains(Mesh &mesh)

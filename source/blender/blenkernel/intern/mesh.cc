@@ -332,6 +332,7 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
   Vector<CustomDataLayer, 16> edge_layers;
   Vector<CustomDataLayer, 16> loop_layers;
   Vector<CustomDataLayer, 16> face_layers;
+  bke::AttributeStorage::BlendWriteData attribute_data;
 
   /* Cache only - don't write. */
   mesh->mface = nullptr;
@@ -358,6 +359,7 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
     CustomData_blend_write_prepare(mesh->edge_data, edge_layers, {});
     CustomData_blend_write_prepare(mesh->corner_data, loop_layers, {});
     CustomData_blend_write_prepare(mesh->face_data, face_layers, {});
+    mesh->attribute_storage.wrap().blend_write_prepare(attribute_data);
     if (!is_undo) {
       /* Write forward compatible format. To be removed in 5.0. */
       rename_seam_layer_to_old_name(
@@ -370,7 +372,7 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
     }
   }
 
-  mesh->attribute_storage.wrap().blend_write(*writer);
+  mesh->attribute_storage.wrap().blend_write(*writer, attribute_data);
 
   const blender::bke::MeshRuntime *mesh_runtime = mesh->runtime;
   mesh->runtime = nullptr;

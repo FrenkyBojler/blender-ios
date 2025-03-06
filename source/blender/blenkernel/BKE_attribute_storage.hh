@@ -7,6 +7,7 @@
 #include <variant>
 
 #include "BLI_function_ref.hh"
+#include "BLI_implicit_sharing_ptr.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector_set.hh"
 
@@ -18,36 +19,35 @@ struct BlendWriter;
 namespace blender::bke {
 
 class Attribute {
-  friend AttributeStorage;
-  /** Attribute name. Cannot be changed without adding and removing attribute. */
-  std::string name_;
-  AttrDomain domain_;
-  AttrType data_type_;
-
+ public:
   struct ArrayData {
     void *data;
     int elements_num;
-    const ImplicitSharingInfo *sharing_info;
-    ~ArrayData();
+    ImplicitSharingPtr<> sharing_info;
   };
   struct SingleData {
     void *value;
-    const ImplicitSharingInfo *sharing_info;
+    ImplicitSharingPtr<> sharing_info;
   };
+  friend AttributeStorage;
 
  private:
+  /** The name be changed without adding and removing attribute. */
+  std::string name_;
+  AttrStorageType storage_type_;
+  AttrDomain domain_;
+  AttrType data_type_;
+
   std::variant<ArrayData, SingleData> data_;
 
  public:
-  Attribute() = default;
-  Attribute(const Attribute &other);
-  Attribute(Attribute &&other);
-  Attribute &operator=(const Attribute &other);
-  Attribute &operator=(Attribute &&other);
-  ~Attribute();
-
   StringRefNull name() const;
-  void ensure_mutable();
+  AttrDomain domain() const;
+  AttrStorageType storage_type() const;
+  AttrType data_type() const;
+
+  const std::variant<ArrayData, SingleData> &data() const;
+  std::variant<ArrayData, SingleData> &data_for_write();
 };
 
 class AttributeStorageRuntime {
@@ -78,7 +78,7 @@ class AttributeStorage : public ::AttributeStorage {
   Attribute &add(StringRef name,
                  bke::AttrDomain domain,
                  bke::AttrType data_type,
-                 const Attribute::ArrayData &data);
+                 Attribute::ArrayData data);
 
   void blend_read(BlendDataReader &reader);
   struct BlendWriteData {
@@ -96,7 +96,27 @@ class AttributeStorage : public ::AttributeStorage {
 inline StringRefNull Attribute::name() const
 {
   return name_;
-};
+}
+
+inline AttrDomain Attribute::domain() const
+{
+  return domain_;
+}
+
+inline AttrStorageType Attribute::storage_type() const
+{
+  return storage_type_;
+}
+
+inline AttrType Attribute::data_type() const
+{
+  return data_type_;
+}
+
+inline const std::variant<Attribute::ArrayData, Attribute::SingleData> &Attribute::data() const
+{
+  return data_;
+}
 
 }  // namespace blender::bke
 

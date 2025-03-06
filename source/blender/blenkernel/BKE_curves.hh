@@ -22,6 +22,7 @@
 #include "BLI_virtual_array_fwd.hh"
 
 #include "BKE_attribute_math.hh"
+#include "BKE_attribute_storage.hh"
 #include "BKE_curves.h"
 
 struct BlendDataReader;
@@ -453,6 +454,7 @@ class CurvesGeometry : public ::CurvesGeometry {
     Vector<CustomDataLayer, 16> point_layers;
     /* The curve custom data layers to be written. */
     Vector<CustomDataLayer, 16> curve_layers;
+    AttributeStorage::BlendWriteData attribute_data;
   };
   /**
    * This function needs to be called before `blend_write` and before the `CurvesGeometry` struct

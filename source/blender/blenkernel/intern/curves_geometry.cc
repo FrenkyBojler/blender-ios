@@ -1650,6 +1650,7 @@ CurvesGeometry::BlendWriteData CurvesGeometry::blend_write_prepare()
   CurvesGeometry::BlendWriteData write_data;
   CustomData_blend_write_prepare(this->point_data, write_data.point_layers);
   CustomData_blend_write_prepare(this->curve_data, write_data.curve_layers);
+  this->attribute_storage.wrap().blend_write_prepare(write_data.attribute_data);
   return write_data;
 }
 
@@ -1661,7 +1662,7 @@ void CurvesGeometry::blend_write(BlendWriter &writer,
       &writer, &this->point_data, write_data.point_layers, this->point_num, CD_MASK_ALL, &id);
   CustomData_blend_write(
       &writer, &this->curve_data, write_data.curve_layers, this->curve_num, CD_MASK_ALL, &id);
-  this->attribute_storage.wrap().blend_write(writer);
+  this->attribute_storage.wrap().blend_write(writer, write_data.attribute_data);
 
   if (this->curve_offsets) {
     BLO_write_shared(

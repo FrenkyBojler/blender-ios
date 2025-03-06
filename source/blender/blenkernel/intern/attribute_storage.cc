@@ -66,25 +66,25 @@ static ImplicitSharingInfo *create_sharing_info_for_array(void *data,
   return MEM_new<ArrayDataImplicitSharing>(__func__, data, elements_num, type);
 }
 
-void Attribute::ensure_mutable()
+std::variant<Attribute::ArrayData, Attribute::SingleData> &Attribute::data_for_write()
 {
   if (auto *data = std::get_if<Attribute::ArrayData>(&data_)) {
     if (data->sharing_info->is_mutable()) {
       data->sharing_info->tag_ensured_mutable();
-      return;
     }
 
     const CPPType &cpp_type = attribute_type_to_cpp_type(data_type_);
     void *new_data = MEM_mallocN_aligned(data->elements_num, cpp_type.alignment(), __func__);
     cpp_type.copy_construct_n(data->data, new_data, data->elements_num);
-    data->data = new_data;
 
-    data->sharing_info->remove_user_and_delete_if_last();
-    data->sharing_info = create_sharing_info_for_array(data->data, data->elements_num, cpp_type);
+    data->sharing_info = ImplicitSharingPtr<>(
+        create_sharing_info_for_array(data->data, data->elements_num, cpp_type));
+    data->data = new_data;
   }
   else if (std::get_if<Attribute::SingleData>(&data_)) {
     BLI_assert_unreachable();
   }
+  return data_;
 }
 
 AttributeStorage::AttributeStorage()
@@ -163,26 +163,16 @@ Attribute *AttributeStorage::lookup(const StringRef name)
 
 bool AttributeStorage::remove(const StringRef name)
 {
-  const Attribute *attribute = this->lookup(name);
-  if (!attribute) {
-    return false;
-  }
-  this->runtime->attributes.remove_as(name);
-  ::Attribute **result = std::remove(
-      this->attributes_array, this->attributes_array + this->attributes_num, attribute);
-  BLI_assert(std::distance(this->attributes_array, result) == this->attributes_num - 1);
-  this->attributes_num = std::distance(this->attributes_array, result);
-  return true;
+  return this->runtime->attributes.remove_as(name);
 }
 
 Attribute &AttributeStorage::add(const StringRef name,
                                  const AttrDomain domain,
                                  const AttrType data_type,
-                                 const Attribute::ArrayData &data)
+                                 Attribute::ArrayData data)
 {
   Attribute &attribute = this->add_without_data(name, domain, data_type);
-  data.sharing_info->add_user();
-  attribute.data_ = data;
+  attribute.data_ = std::move(data);
   return attribute;
 }
 
@@ -190,7 +180,7 @@ Attribute &AttributeStorage::add_without_data(const StringRef name,
                                               const AttrDomain domain,
                                               const AttrType data_type)
 {
-  BLI_assert(!this->lookup_as(name));
+  BLI_assert(!this->lookup(name));
   std::unique_ptr<Attribute> ptr = std::make_unique<Attribute>();
   Attribute &attribute = *ptr;
   attribute.name_ = name;
@@ -287,7 +277,8 @@ void AttributeStorage::blend_read(BlendDataReader &reader)
         BLO_read_struct(&reader, AttributeDataArray, &dna_attr.data);
         auto &data = *static_cast<AttributeDataArray *>(dna_attr.data);
         read_attribute_data_array(reader, AttrType(dna_attr.data_type), data);
-        attribute->data_ = Attribute::ArrayData{data.data, data.elements_num, data.sharing_info};
+        attribute->data_ = Attribute::ArrayData{
+            data.data, data.elements_num, ImplicitSharingPtr<>(data.sharing_info)};
         break;
       }
       case AttrStorageType::Single: {
@@ -403,7 +394,7 @@ void AttributeStorage::blend_write_prepare(AttributeStorage::BlendWriteData &wri
       write_data.attibutes[i].data = &write_data.array_data[i];
       write_data.array_data[i].data = data->data;
       write_data.array_data[i].elements_num = data->elements_num;
-      write_data.array_data[i].sharing_info = data->sharing_info;
+      write_data.array_data[i].sharing_info = data->sharing_info.get();
     }
   }
 
@@ -416,7 +407,7 @@ void AttributeStorage::blend_write(BlendWriter &writer,
 {
   BLO_write_pointer_array(&writer, this->attributes_num, this->attributes_array);
   for (const ::Attribute *attribute : Span(this->attributes_array, this->attributes_num)) {
-    BLO_write_struct(&writer, ::Attribute, attribute);
+    BLO_write_struct(&writer, Attribute, attribute);
     BLO_write_string(&writer, attribute->name);
     switch (AttrStorageType(attribute->storage_type)) {
       case AttrStorageType::Array: {
