@@ -12,6 +12,7 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_utildefines.h"
 
+#include "DNA_gpencil_legacy_types.h"
 #include "DNA_scene_types.h"
 
 /* ********* exports for space_view3d/ module ********** */
@@ -1347,6 +1348,13 @@ void ED_view3d_gizmo_mesh_preselect_get_active(const bContext *C,
                                                Base **r_base,
                                                BMElem **r_ele);
 void ED_view3d_gizmo_mesh_preselect_clear(wmGizmo *gz);
+
+/* view3d_gizmo_ruler.cc */
+
+/**
+ * Remove all rulers when Annotation layer is removed.
+ */
+void ED_view3d_gizmo_ruler_remove_all(struct bContext *C, bGPDlayer *gpl);
 
 /* `space_view3d.cc` */
 
