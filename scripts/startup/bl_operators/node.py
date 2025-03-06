@@ -580,7 +580,6 @@ class NODE_OT_viewer_shortcut_set(Operator):
 
         # Only viewer nodes can be set to favorites. However, the user can
         # create a new favorite viewer by selecting any node and pressing ctrl+1.
-        old_active = nodes.active
         if fav_node.type == 'VIEWER':
             viewer_node = fav_node
         else:
@@ -602,9 +601,6 @@ class NODE_OT_viewer_shortcut_set(Operator):
 
         with bpy.context.temp_override(node=viewer_node):
             bpy.ops.node.activate_viewer()
-
-        if old_active.type != 'VIEWER':
-            nodes.active = old_active
 
         viewer_node.ui_shortcut = self.viewer_index
         self.report({'INFO'}, "Assigned shortcut {:d} to {:s}".format(self.viewer_index, viewer_node.name))
