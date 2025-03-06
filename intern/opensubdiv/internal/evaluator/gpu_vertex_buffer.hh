@@ -16,9 +16,16 @@ namespace blender::opensubdiv {
  */
 class GPUVertexBuffer {
   gpu::VertBuf &gpu_vertex_buffer_;
+  int vertex_len_;
+  int element_count_;
 
  public:
-  GPUVertexBuffer(gpu::VertBuf &gpu_vertex_buffer) : gpu_vertex_buffer_(gpu_vertex_buffer) {}
+  GPUVertexBuffer(gpu::VertBuf &gpu_vertex_buffer, int vertex_len, int element_count)
+      : gpu_vertex_buffer_(gpu_vertex_buffer),
+        vertex_len_(vertex_len),
+        element_count_(element_count)
+  {
+  }
 
   /**
    * Create a new gpu::VertBuf wrapped in a GPUVertexBuffer.
@@ -35,8 +42,8 @@ class GPUVertexBuffer {
     GPU_vertformat_clear(&format);
     GPU_vertformat_attr_add(&format, "elements", GPU_COMP_F32, element_count, GPU_FETCH_FLOAT);
     gpu::VertBuf *vertex_buffer = GPU_vertbuf_create_with_format_ex(format, GPU_USAGE_STATIC);
-    GPU_vertbuf_init_build_on_device(*vertex_buffer, format, vertex_len);
-    return new GPUVertexBuffer(*vertex_buffer);
+    GPU_vertbuf_data_alloc(*vertex_buffer, vertex_len);
+    return new GPUVertexBuffer(*vertex_buffer, vertex_len, element_count);
   }
 
   /// Destructor.
@@ -53,8 +60,9 @@ class GPUVertexBuffer {
                   void *device_context = NULL)
   {
     (void)device_context;
-    GPU_vertbuf_use(&gpu_vertex_buffer_);
-    GPU_vertbuf_update_sub(&gpu_vertex_buffer_, start_vertex, num_vertices, src);
+    MutableSpan<float> buffer_nodes = gpu_vertex_buffer_.data<float>();
+    buffer_nodes = buffer_nodes.drop_front(start_vertex * element_count_);
+    memcpy(buffer_nodes.data(), src, sizeof(float) * element_count_ * num_vertices);
   }
   /*
 
@@ -67,7 +75,7 @@ class GPUVertexBuffer {
   /// Returns how many vertices allocated in this vertex buffer.
   int GetNumVertices() const
   {
-    return GPU_vertbuf_get_vertex_len(&gpu_vertex_buffer_);
+    return vertex_len_;
   }
 
   /// Returns the GL buffer object.
