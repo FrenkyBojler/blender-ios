@@ -140,10 +140,46 @@ static void read_custom_properties(const ufbx_props &props, ID &id)
         idprop = IDP_New(IDP_DOUBLE, &val, name);
         break;
       case UFBX_PROP_STRING:
-        val.string.str = prop.value_str.data;
-        val.string.len = prop.value_str.length + 1; /* Length includes null terminator. */
-        val.string.subtype = IDP_STRING_SUB_UTF8;
-        idprop = IDP_New(IDP_STRING, &val, name);
+        if (STREQ(name, "UDP3DSMAX")) {
+          /* 3dsmax user properties are coming with UDP3DSMAX name, and a multi-line
+           * string split by '=' character. */
+          const char *line = prop.value_str.data;
+          while (true) {
+            const char *line_start = line;
+            line = BLI_strchr_or_end(line_start, '\n');
+            if (line == line_start) {
+              break;
+            }
+
+            /* We have a line, split it by '=' and trim name/value. */
+            const char *eq_pos = line_start;
+            while (eq_pos != line && eq_pos[0] != '=') {
+              eq_pos++;
+            }
+            if (eq_pos[0] == '=') {
+              std::string str_name = StringRef(line_start, eq_pos).trim();
+              std::string str_val = StringRef(eq_pos + 1, line).trim();
+              //@TODO validate_blend_names on str_name
+              if (!str_name.empty() && !str_val.empty()) {
+                val.string.str = str_val.c_str();
+                val.string.len = str_val.size() + 1; /* .len needs to include null terminator. */
+                val.string.subtype = IDP_STRING_SUB_UTF8;
+                IDProperty *str_prop = IDP_New(IDP_STRING, &val, str_name.c_str());
+                IDP_AddToGroup(idgroup, str_prop);
+              }
+            }
+
+            if (line[0] == 0) {
+              break;
+            }
+          }
+        }
+        else {
+          val.string.str = prop.value_str.data;
+          val.string.len = prop.value_str.length + 1; /* .len needs to include null terminator. */
+          val.string.subtype = IDP_STRING_SUB_UTF8;
+          idprop = IDP_New(IDP_STRING, &val, name);
+        }
         break;
       //@TODO: vector, color, color_with_alpha, translation, rotation, ...
       default:
