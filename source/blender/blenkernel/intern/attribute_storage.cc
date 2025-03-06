@@ -96,6 +96,8 @@ AttributeStorage::AttributeStorage()
 
 AttributeStorage::AttributeStorage(const AttributeStorage &other)
 {
+  this->attributes_array = nullptr;
+  this->attributes_num = 0;
   this->runtime = MEM_new<AttributeStorageRuntime>(__func__);
   this->runtime->attributes.reserve(other.runtime->attributes.size());
   other.foreach ([&](const Attribute &attribute) {
@@ -115,9 +117,8 @@ AttributeStorage &AttributeStorage::operator=(const AttributeStorage &other)
 
 AttributeStorage::AttributeStorage(AttributeStorage &&other)
 {
-  this->attributes_array = other.attributes_array;
-  other.attributes_array = nullptr;
-
+  this->attributes_array = nullptr;
+  this->attributes_num = 0;
   this->runtime = other.runtime;
   other.runtime = nullptr;
 }

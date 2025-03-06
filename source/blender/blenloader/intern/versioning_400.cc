@@ -5899,7 +5899,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     blender::bke::mesh_convert_customdata_to_storage(*mesh);
     blender::bke::mesh_convert_storage_to_customdata(*mesh);
   }
-  LISTBASE_FOREACH (Curves *, curves_id, &bmain->curves) {
+  LISTBASE_FOREACH (Curves *, curves_id, &bmain->hair_curves) {
     blender::bke::CurvesGeometry &curves = curves_id->geometry.wrap();
     blender::bke::curves_convert_customdata_to_storage(curves);
     blender::bke::curves_convert_storage_to_customdata(curves);
