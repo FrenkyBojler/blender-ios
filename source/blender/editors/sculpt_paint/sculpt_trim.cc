@@ -767,7 +767,7 @@ static void operator_properties(wmOperatorType *ot)
                "trim_location",
                location_types,
                int(LocationType::SCULPT_GESTURE_TRIM_LOCATION_DEPTH_SURFACE),
-               "Depth Calculation",
+               "Shape Location",
                nullptr);
 
   RNA_def_enum(ot->srna, "trim_solver", solver_modes, int(SolverMode::Fast), "Solver", nullptr);

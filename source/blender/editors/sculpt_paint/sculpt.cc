@@ -4642,7 +4642,7 @@ static void sculpt_raycast_cb(blender::bke::pbvh::Node &node, SculptRaycastData 
                                          &srd.isect_precalc,
                                          &srd.depth,
                                          &srd.back_depth,
-                                         &srd.hit_count,
+                                         &srd.back_hit,
                                          mesh_active_vert,
                                          srd.active_face_grid_index,
                                          srd.face_normal);
@@ -4661,7 +4661,7 @@ static void sculpt_raycast_cb(blender::bke::pbvh::Node &node, SculptRaycastData 
                                           &srd.isect_precalc,
                                           &srd.depth,
                                           &srd.back_depth,
-                                          &srd.hit_count,
+                                          &srd.back_hit,
                                           grids_active_vert,
                                           srd.active_face_grid_index,
                                           srd.face_normal);
@@ -4691,10 +4691,6 @@ static void sculpt_raycast_cb(blender::bke::pbvh::Node &node, SculptRaycastData 
   if (hit) {
     srd.hit = true;
     *tmin = srd.depth;
-  }
-
-  if (srd.hit_count > 2) {
-    srd.back_hit = true;
   }
 }
 
@@ -4844,7 +4840,6 @@ bool SCULPT_cursor_geometry_info_update(bContext *C,
   srd.ss = ob.sculpt;
   srd.hit = false;
   srd.back_hit = false;
-  srd.hit_count = 0;
   srd.back_depth = back_depth;
   srd.use_back_depth = use_back_depth;
   if (pbvh->type() == bke::pbvh::Type::Mesh) {
