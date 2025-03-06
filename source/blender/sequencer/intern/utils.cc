@@ -49,6 +49,8 @@
 #include "sequencer.hh"
 #include "utils.hh"
 
+namespace blender::seq {
+
 struct SeqUniqueInfo {
   Strip *strip;
   char name_src[STRIP_NAME_MAXSTR];
@@ -208,13 +210,14 @@ static void open_anim_filepath(Strip *strip, StripAnim *sanim, const char *filep
 {
   if (openfile) {
     sanim->anim = openanim(filepath,
-                           IB_rect | ((strip->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
+                           IB_byte_data | ((strip->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
                            strip->streamindex,
                            strip->data->colorspace_settings.name);
   }
   else {
     sanim->anim = openanim_noload(filepath,
-                                  IB_rect | ((strip->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
+                                  IB_byte_data |
+                                      ((strip->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
                                   strip->streamindex,
                                   strip->data->colorspace_settings.name);
   }
@@ -517,3 +520,5 @@ void SEQ_ensure_unique_name(Strip *strip, Scene *scene)
     }
   }
 }
+
+}  // namespace blender::seq

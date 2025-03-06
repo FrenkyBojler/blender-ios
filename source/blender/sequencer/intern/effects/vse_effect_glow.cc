@@ -19,7 +19,7 @@
 
 #include "effects.hh"
 
-using namespace blender;
+namespace blender::seq {
 
 static void glow_blur_bitmap(
     const float4 *src, float4 *map, int width, int height, float blur, int quality)
@@ -172,7 +172,7 @@ static void do_glow_effect_byte(Strip *strip,
   Array<float4> outbuf(x * y);
 
   using namespace blender;
-  IMB_colormanagement_transform_from_byte_threaded(*inbuf.data(), rect1, x, y, 4, "sRGB", "sRGB");
+  IMB_colormanagement_transform_byte_to_float(*inbuf.data(), rect1, x, y, 4, "sRGB", "sRGB");
 
   blur_isolate_highlights(
       inbuf.data(), outbuf.data(), x, y, glow->fMini * 3.0f, glow->fBoost * fac, glow->fClamp);
@@ -266,3 +266,5 @@ void glow_effect_get_handle(SeqEffectHandle &rval)
   rval.copy = copy_glow_effect;
   rval.execute = do_glow_effect;
 }
+
+}  // namespace blender::seq

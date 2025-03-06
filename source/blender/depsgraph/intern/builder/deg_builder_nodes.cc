@@ -1809,7 +1809,13 @@ void DepsgraphNodeBuilder::build_object_data_geometry_datablock(ID *obdata)
       break;
     }
     case ID_GP: {
-      op_node = add_operation_node(obdata, NodeType::GEOMETRY, OperationCode::GEOMETRY_EVAL);
+      op_node = add_operation_node(obdata,
+                                   NodeType::GEOMETRY,
+                                   OperationCode::GEOMETRY_EVAL,
+                                   [obdata_cow](::Depsgraph *depsgraph) {
+                                     BKE_grease_pencil_eval_geometry(
+                                         depsgraph, reinterpret_cast<GreasePencil *>(obdata_cow));
+                                   });
       op_node->set_as_entry();
       break;
     }
@@ -2272,10 +2278,10 @@ void DepsgraphNodeBuilder::build_scene_sequencer(Scene *scene)
                      NodeType::SEQUENCER,
                      OperationCode::SEQUENCES_EVAL,
                      [scene_cow](::Depsgraph *depsgraph) {
-                       SEQ_eval_sequences(depsgraph, scene_cow, &scene_cow->ed->seqbase);
+                       seq::SEQ_eval_sequences(depsgraph, scene_cow, &scene_cow->ed->seqbase);
                      });
   /* Make sure data for sequences is in the graph. */
-  SEQ_for_each_callback(&scene->ed->seqbase, strip_node_build_cb, this);
+  seq::SEQ_for_each_callback(&scene->ed->seqbase, strip_node_build_cb, this);
 }
 
 void DepsgraphNodeBuilder::build_scene_audio(Scene *scene)

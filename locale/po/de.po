@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Beta (b'ed5b077f929a')\n"
+"Project-Id-Version: Blender 4.4.0 Beta (b'1a72a0f22cde')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-17 14:06+0000\n"
+"POT-Creation-Date: 2025-03-03 09:33+0000\n"
 "PO-Revision-Date: 2024-12-08 20:56+0000\n"
 "Last-Translator: Thomas Radeke <rahdick@gmx.de>\n"
 "Language-Team: German <https://translate.blender.org/projects/blender-ui/ui/de/>\n"
@@ -69,10 +69,6 @@ msgstr "Position"
 
 msgid "Action F-Curves"
 msgstr "Aktion F-Kurve"
-
-
-msgid "Collection of action F-Curves"
-msgstr "Gruppe von aktions F-Kurven"
 
 
 msgid "Action Group"
@@ -11402,17 +11398,9 @@ msgid "Groups"
 msgstr "Gruppen"
 
 
-msgid "Convenient groupings of F-Curves"
-msgstr "Beschränkung"
-
-
 msgctxt "ID"
 msgid "ID Root Type"
 msgstr "ID-Stammtyp"
-
-
-msgid "Type of ID block that action can be used on - DO NOT CHANGE UNLESS YOU KNOW WHAT YOU ARE DOING"
-msgstr "Typ des ID-Blocks, für den die Aktion verwendet werden kann - NICHT ÄNDERN, ES SEI DENN, SIE WISSEN, WAS SIE TUN"
 
 
 msgid "Layers"
@@ -11673,18 +11661,6 @@ msgstr "Schleife"
 
 msgid "Boundary Origin Offset"
 msgstr "Grenzursprungs-Versatz"
-
-
-msgid "Clone Alpha"
-msgstr "Alpha klonen"
-
-
-msgid "Clone Image"
-msgstr "Bild klonen"
-
-
-msgid "Clone Offset"
-msgstr "Versatz klonen"
 
 
 msgid "How much the cloth preserves the original shape, acting as a soft body"
@@ -16317,11 +16293,6 @@ msgid "Grids"
 msgstr "Raster"
 
 
-msgctxt "Sequence"
-msgid "Clip"
-msgstr "Clip"
-
-
 msgid "Velocity X Grid"
 msgstr "Velocity X-Raster"
 
@@ -18900,12 +18871,56 @@ msgid "Material slot name"
 msgstr "Materialsteckplatzname"
 
 
-msgid "Mirror"
-msgstr "Spiegeln"
+msgid "Show/Hide"
+msgstr "Zeigen/Verbergen"
+
+
+msgid "Special Characters"
+msgstr "Sonderzeichen"
+
+
+msgid "Kerning"
+msgstr "Kerning"
+
+
+msgid "Text"
+msgstr "Text"
+
+
+msgid "Metaball"
+msgstr "Metaball"
+
+
+msgid "Names"
+msgstr "Namen"
+
+
+msgid "Clean Up"
+msgstr "Aufräumen"
+
+
+msgid "Pivot Point"
+msgstr "Drehpunkt"
 
 
 msgid "Snap"
 msgstr "Einrasten"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Proportionaler Bearbeitungsabfall"
+
+
+msgid "Mask Edit"
+msgstr "Maskenbearbeitung"
+
+
+msgid "Vertex Group Locks"
+msgstr "Punktgruppen sperren"
+
+
+msgid "Mirror"
+msgstr "Spiegeln"
 
 
 msgid "Local View"
@@ -18956,10 +18971,6 @@ msgid "Assign Material"
 msgstr "Material zuweisen"
 
 
-msgid "Metaball"
-msgstr "Metaball"
-
-
 msgid "Light"
 msgstr "Licht"
 
@@ -18992,14 +19003,6 @@ msgid "Quick Effects"
 msgstr "Schnelle Effekte"
 
 
-msgid "Show/Hide"
-msgstr "Zeigen/Verbergen"
-
-
-msgid "Clean Up"
-msgstr "Aufräumen"
-
-
 msgid "Asset"
 msgstr "Asset"
 
@@ -19016,10 +19019,6 @@ msgid "Hooks"
 msgstr "Haken"
 
 
-msgid "Vertex Group Locks"
-msgstr "Punktgruppen sperren"
-
-
 msgid "Random Mask"
 msgstr "Zufällige Maske"
 
@@ -19030,10 +19029,6 @@ msgstr "Transformation löschen"
 
 msgid "In-Betweens"
 msgstr "Dazwischen"
-
-
-msgid "Names"
-msgstr "Namen"
 
 
 msgid "Toggle Bone Options"
@@ -19058,30 +19053,6 @@ msgstr "Flächendaten"
 
 msgid "Merge"
 msgstr "Zusammenführen"
-
-
-msgid "Special Characters"
-msgstr "Sonderzeichen"
-
-
-msgid "Kerning"
-msgstr "Kerning"
-
-
-msgid "Text"
-msgstr "Text"
-
-
-msgid "Pivot Point"
-msgstr "Drehpunkt"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Proportionaler Bearbeitungsabfall"
-
-
-msgid "Mask Edit"
-msgstr "Maskenbearbeitung"
 
 
 msgid "Assets"
@@ -40090,6 +40061,18 @@ msgid "Canvas"
 msgstr "Leinwand"
 
 
+msgid "Clone Alpha"
+msgstr "Alpha klonen"
+
+
+msgid "Clone Image"
+msgstr "Bild klonen"
+
+
+msgid "Clone Offset"
+msgstr "Versatz klonen"
+
+
 msgid "Texture filtering type"
 msgstr "Textur Filtertyp"
 
@@ -40222,6 +40205,10 @@ msgid "Active Palette Color"
 msgstr "Aktive Farbpalette"
 
 
+msgid "Active Tool"
+msgstr "Aktives Werkzeug"
+
+
 msgid "View Lock"
 msgstr "Ansicht sperren"
 
@@ -40300,10 +40287,6 @@ msgstr "Automatisches Maskieren"
 
 msgid "VR"
 msgstr "VR"
-
-
-msgid "Active Tool"
-msgstr "Aktives Werkzeug"
 
 
 msgid "Chain Scaling"
@@ -47162,6 +47145,11 @@ msgstr "Film"
 
 
 msgctxt "Sequence"
+msgid "Clip"
+msgstr "Clip"
+
+
+msgctxt "Sequence"
 msgid "Mask"
 msgstr "Maske"
 
@@ -50724,10 +50712,6 @@ msgstr "Diese Einstellungen haben einen signifikanten"
 
 msgid "performance impact!"
 msgstr "Performancebeeinflussung!"
-
-
-msgid "Built without VR/OpenXR features"
-msgstr "Baue ohne VR/OpenXR Eigenschaften"
 
 
 msgctxt "Operator"
@@ -56332,10 +56316,6 @@ msgid "OS"
 msgstr "OS"
 
 
-msgid "Home"
-msgstr "Home"
-
-
 msgid "Esc"
 msgstr "Esc"
 
@@ -57984,6 +57964,10 @@ msgstr "Asset Kataloge"
 
 msgid "Date Modified"
 msgstr "Datum Modifiziert"
+
+
+msgid "Home"
+msgstr "Home"
 
 
 msgid "Desktop"

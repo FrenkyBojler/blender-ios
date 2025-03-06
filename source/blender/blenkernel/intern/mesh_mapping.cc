@@ -196,7 +196,7 @@ void BKE_mesh_vert_corner_tri_map_create(MeshElemMap **r_map,
                                          const int *corner_verts,
                                          const int /*corners_num*/)
 {
-  MeshElemMap *map = MEM_cnew_array<MeshElemMap>(size_t(totvert), __func__);
+  MeshElemMap *map = MEM_calloc_arrayN<MeshElemMap>(size_t(totvert), __func__);
   int *indices = static_cast<int *>(MEM_mallocN(sizeof(int) * size_t(tris_num) * 3, __func__));
   int *index_step;
   int i;
@@ -236,7 +236,7 @@ void BKE_mesh_origindex_map_create(MeshElemMap **r_map,
                                    const int *final_origindex,
                                    const int totfinal)
 {
-  MeshElemMap *map = MEM_cnew_array<MeshElemMap>(size_t(totsource), __func__);
+  MeshElemMap *map = MEM_calloc_arrayN<MeshElemMap>(size_t(totsource), __func__);
   int *indices = static_cast<int *>(MEM_mallocN(sizeof(int) * size_t(totfinal), __func__));
   int *index_step;
   int i;
@@ -277,7 +277,7 @@ void BKE_mesh_origindex_map_create_corner_tri(MeshElemMap **r_map,
                                               const int *corner_tri_faces,
                                               const int corner_tris_num)
 {
-  MeshElemMap *map = MEM_cnew_array<MeshElemMap>(size_t(faces.size()), __func__);
+  MeshElemMap *map = MEM_calloc_arrayN<MeshElemMap>(size_t(faces.size()), __func__);
   int *indices = static_cast<int *>(MEM_mallocN(sizeof(int) * size_t(corner_tris_num), __func__));
   int *index_step;
 
@@ -332,7 +332,7 @@ static Array<int> reverse_indices_in_groups(const Span<int> group_indices,
    * atomically by many threads in parallel. `calloc` can be measurably faster than a parallel fill
    * of zero. Alternatively the offsets could be copied and incremented directly, but the cost of
    * the copy is slightly higher than the cost of `calloc`. */
-  int *counts = MEM_cnew_array<int>(size_t(offsets.size()), __func__);
+  int *counts = MEM_calloc_arrayN<int>(size_t(offsets.size()), __func__);
   BLI_SCOPED_DEFER([&]() { MEM_freeN(counts); })
   Array<int> results(group_indices.size());
   threading::parallel_for(group_indices.index_range(), 1024, [&](const IndexRange range) {
@@ -352,7 +352,7 @@ static void reverse_group_indices_in_groups(const OffsetIndices<int> groups,
                                             const OffsetIndices<int> offsets,
                                             MutableSpan<int> results)
 {
-  int *counts = MEM_cnew_array<int>(size_t(offsets.size()), __func__);
+  int *counts = MEM_calloc_arrayN<int>(size_t(offsets.size()), __func__);
   BLI_SCOPED_DEFER([&]() { MEM_freeN(counts); })
   threading::parallel_for(groups.index_range(), 1024, [&](const IndexRange range) {
     for (const int64_t face : range) {
@@ -392,7 +392,7 @@ GroupedSpan<int> build_vert_to_edge_map(const Span<int2> edges,
   r_indices.reinitialize(offsets.total_size());
 
   /* Version of #reverse_indices_in_groups that accounts for storing two indices for each edge. */
-  int *counts = MEM_cnew_array<int>(size_t(offsets.size()), __func__);
+  int *counts = MEM_calloc_arrayN<int>(size_t(offsets.size()), __func__);
   BLI_SCOPED_DEFER([&]() { MEM_freeN(counts); })
   threading::parallel_for(edges.index_range(), 1024, [&](const IndexRange range) {
     for (const int64_t edge : range) {
@@ -474,7 +474,7 @@ GroupedSpan<int> build_edge_to_face_map(const OffsetIndices<int> faces,
  */
 using MeshRemap_CheckIslandBoundary =
     blender::FunctionRef<bool(int face_index,
-                              int loop_index,
+                              int corner,
                               int edge_index,
                               int edge_user_count,
                               const blender::Span<int> edge_face_map_elem)>;
@@ -671,7 +671,7 @@ int *BKE_mesh_calc_smoothgroups(int edges_num,
   auto face_is_smooth = [&](const int i) { return sharp_faces.is_empty() || !sharp_faces[i]; };
 
   auto face_is_island_boundary_smooth = [&](const int face_index,
-                                            const int /*loop_index*/,
+                                            const int /*corner*/,
                                             const int edge_index,
                                             const int edge_user_count,
                                             const blender::Span<int> edge_face_map_elem) {
@@ -854,12 +854,12 @@ static bool mesh_calc_islands_loop_face_uv(const int totedge,
   const GroupedSpan<int> edge_to_face_map = bke::mesh::build_edge_to_face_map(
       faces, {corner_edges, corners_num}, totedge, edge_to_face_offsets, edge_to_face_indices);
 
-  Array<int> edge_to_loop_offsets;
-  Array<int> edge_to_loop_indices;
-  GroupedSpan<int> edge_to_loop_map;
+  Array<int> edge_to_corner_offsets;
+  Array<int> edge_to_corner_indices;
+  GroupedSpan<int> edge_to_corner_map;
   if (luvs) {
-    edge_to_loop_map = bke::mesh::build_edge_to_corner_map(
-        {corner_edges, corners_num}, totedge, edge_to_loop_offsets, edge_to_loop_indices);
+    edge_to_corner_map = bke::mesh::build_edge_to_corner_map(
+        {corner_edges, corners_num}, totedge, edge_to_corner_offsets, edge_to_corner_indices);
   }
 
   /* TODO: I'm not sure edge seam flag is enough to define UV islands?
@@ -869,32 +869,32 @@ static bool mesh_calc_islands_loop_face_uv(const int totedge,
    *       and each UVMap would then need its own mesh mapping, not sure we want that at all!
    */
   auto mesh_check_island_boundary_uv = [&](const int /*face_index*/,
-                                           const int loop_index,
+                                           const int corner,
                                            const int edge_index,
                                            const int /*edge_user_count*/,
                                            const Span<int> /*edge_face_map_elem*/) -> bool {
     if (luvs) {
-      const Span<int> edge_to_loops = edge_to_loop_map[corner_edges[loop_index]];
+      const Span<int> edge_to_corners = edge_to_corner_map[corner_edges[corner]];
 
-      BLI_assert(edge_to_loops.size() >= 2 && (edge_to_loops.size() % 2) == 0);
+      BLI_assert(edge_to_corners.size() >= 2 && (edge_to_corners.size() % 2) == 0);
 
-      const int v1 = corner_verts[edge_to_loops[0]];
-      const int v2 = corner_verts[edge_to_loops[1]];
-      const float *uvco_v1 = luvs[edge_to_loops[0]];
-      const float *uvco_v2 = luvs[edge_to_loops[1]];
-      for (int i = 2; i < edge_to_loops.size(); i += 2) {
-        if (corner_verts[edge_to_loops[i]] == v1) {
-          if (!equals_v2v2(uvco_v1, luvs[edge_to_loops[i]]) ||
-              !equals_v2v2(uvco_v2, luvs[edge_to_loops[i + 1]]))
+      const int v1 = corner_verts[edge_to_corners[0]];
+      const int v2 = corner_verts[edge_to_corners[1]];
+      const float *uvco_v1 = luvs[edge_to_corners[0]];
+      const float *uvco_v2 = luvs[edge_to_corners[1]];
+      for (int i = 2; i < edge_to_corners.size(); i += 2) {
+        if (corner_verts[edge_to_corners[i]] == v1) {
+          if (!equals_v2v2(uvco_v1, luvs[edge_to_corners[i]]) ||
+              !equals_v2v2(uvco_v2, luvs[edge_to_corners[i + 1]]))
           {
             return true;
           }
         }
         else {
-          BLI_assert(corner_verts[edge_to_loops[i]] == v2);
+          BLI_assert(corner_verts[edge_to_corners[i]] == v2);
           UNUSED_VARS_NDEBUG(v2);
-          if (!equals_v2v2(uvco_v2, luvs[edge_to_loops[i]]) ||
-              !equals_v2v2(uvco_v1, luvs[edge_to_loops[i + 1]]))
+          if (!equals_v2v2(uvco_v2, luvs[edge_to_corners[i]]) ||
+              !equals_v2v2(uvco_v1, luvs[edge_to_corners[i + 1]]))
           {
             return true;
           }
