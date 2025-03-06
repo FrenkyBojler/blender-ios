@@ -259,7 +259,7 @@ class Object(_types.ID):
         TODO
         """
         from bpy.geometry_set import GeometrySet
-        ob_eval = depsgraph.id_eval_get(self)
+        ob_eval = self if self.is_evaluated else depsgraph.id_eval_get(self)
         return GeometrySet.from_evaluated_object(ob_eval, depsgraph)
 
 

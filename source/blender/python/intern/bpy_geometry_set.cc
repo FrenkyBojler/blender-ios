@@ -19,6 +19,7 @@
 #include "DNA_object_types.h"
 #include "DNA_pointcloud_types.h"
 
+#include "RNA_enum_types.hh"
 #include "RNA_prototypes.hh"
 
 #include "bpy_geometry_set.hh"
@@ -90,6 +91,12 @@ static BPy_GeometrySet *BPy_GeometrySet_static_from_evaluated_object(PyObject * 
   Object *evaluated_object = reinterpret_cast<Object *>(evaluated_object_id);
   if (!DEG_is_evaluated_object(evaluated_object)) {
     PyErr_SetString(PyExc_TypeError, "Expected an evaluated object");
+    return nullptr;
+  }
+  if (!OB_TYPE_IS_GEOMETRY(evaluated_object->type)) {
+    const char *ob_type_name = "<unknown>";
+    RNA_enum_name_from_value(rna_enum_object_type_items, evaluated_object->type, &ob_type_name);
+    PyErr_Format(PyExc_TypeError, "Expected a geometry object, not %.200s", ob_type_name);
     return nullptr;
   }
   if (!DEG_object_geometry_is_evaluated(*evaluated_object)) {
