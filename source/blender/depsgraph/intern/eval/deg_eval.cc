@@ -10,9 +10,6 @@
 
 #include "intern/eval/deg_eval.h"
 
-#include <atomic>
-#include <cstdint>
-
 #include "BLI_function_ref.hh"
 #include "BLI_gsqueue.h"
 #include "BLI_task.h"
@@ -385,16 +382,7 @@ void deg_evaluate_on_refresh(Depsgraph *graph)
     return;
   }
 
-  /* The update counts can be used to check if the Depsgraph was changed since the last time it was
-   * cached by comparing its current update count with the one stored at the moment the Depsgraph
-   * was last read.
-   *
-   * A global atomic is used as opposed to incrementing the update count per Depsgraph to protect
-   * against the case where the same viewport can be used with different Depsgraph. In this case,
-   * having unique update count per Depsgraph allows to check if a new Depsgraph is used without
-   * relying on storing the Depsgraph pointer. */
-  static std::atomic<uint64_t> global_update_count = 0;
-  graph->update_count = global_update_count.fetch_add(1) + 1;
+  graph->update_count++;
 
   graph->debug.begin_graph_evaluation();
 

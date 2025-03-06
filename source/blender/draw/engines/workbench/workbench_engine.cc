@@ -77,10 +77,10 @@ class Instance {
 
   void init(Depsgraph *depsgraph, Object *camera_ob = nullptr)
   {
-    scene_state_.reset_taa_next_sample |= assign_if_different(depsgraph_last_update_,
-                                                              DEG_get_update_count(depsgraph));
+    bool scene_updated = assign_if_different(depsgraph_last_update_,
+                                             DEG_get_update_count(depsgraph));
 
-    scene_state_.init(camera_ob);
+    scene_state_.init(scene_updated, camera_ob);
     shadow_ps_.init(scene_state_, resources_);
     resources_.init(scene_state_);
 
