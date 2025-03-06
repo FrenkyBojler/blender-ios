@@ -53,6 +53,7 @@ static int wm_fbx_import_exec(bContext *C, wmOperator *op)
   params.global_scale = RNA_float_get(op->ptr, "global_scale");
   params.use_custom_normals = RNA_boolean_get(op->ptr, "use_custom_normals");
   params.use_custom_props = RNA_boolean_get(op->ptr, "use_custom_props");
+  params.ignore_leaf_bones = RNA_boolean_get(op->ptr, "ignore_leaf_bones");
   params.use_subsurf = RNA_boolean_get(op->ptr, "use_subsurf");
   params.validate_meshes = RNA_boolean_get(op->ptr, "validate_meshes");
   params.use_anim = RNA_boolean_get(op->ptr, "use_anim");
@@ -116,7 +117,7 @@ static void ui_fbx_import_settings(const bContext *C, uiLayout *layout, PointerR
   }
 
   {
-    PanelLayout panel = uiLayoutPanel(C, layout, "USD_export_materials", true);
+    PanelLayout panel = uiLayoutPanel(C, layout, "FBX_import_anim", true);
     uiLayoutSetPropSep(panel.header, false);
     uiItemR(panel.header, ptr, "use_anim", UI_ITEM_NONE, "", ICON_NONE);
     uiItemL(panel.header, IFACE_("Animation"), ICON_NONE);
@@ -124,6 +125,12 @@ static void ui_fbx_import_settings(const bContext *C, uiLayout *layout, PointerR
       uiLayout *col = uiLayoutColumn(panel.body, false);
       uiItemR(col, ptr, "anim_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
+  }
+
+  if (uiLayout *panel = uiLayoutPanel(C, layout, "FBX_import_armature", false, IFACE_("Armature")))
+  {
+    uiLayout *col = uiLayoutColumn(panel, false);
+    uiItemR(col, ptr, "ignore_leaf_bones", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   if (uiLayout *panel = uiLayoutPanel(C, layout, "FBX_import_options", false, IFACE_("Options"))) {
@@ -186,6 +193,12 @@ void WM_OT_fbx_import(wmOperatorType *ot)
                   false,
                   "Subdivision Data",
                   "Import FBX subdivision information as subdivision surface modifiers");
+  RNA_def_boolean(ot->srna,
+                  "ignore_leaf_bones",
+                  false,
+                  "Ignore Leaf Bones",
+                  "Ignore the last bone at the end of each chain (used to mark the length of the "
+                  "previous bone)");
   RNA_def_boolean(
       ot->srna,
       "validate_meshes",

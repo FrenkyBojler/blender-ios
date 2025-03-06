@@ -772,6 +772,40 @@ Object *FbxImportContext::create_armature_for_deformer(const ufbx_skin_deformer 
     }
   }
 
+  /* There might be child "bone endpoints" that are not skinned,
+   * but we want to import them. */
+  if (!this->params.ignore_leaf_bones) {
+    for (const ufbx_node *bone_node : node_to_bone.keys()) {
+      for (const ufbx_node *child_node : bone_node->children) {
+        if (child_node->bone == nullptr || node_to_bone.contains(child_node)) {
+          continue;
+        }
+
+        /* This is a leaf bone that we have not created yet. */
+        EditBone *bone = ED_armature_ebone_add(arm, get_fbx_name(child_node->name, "Bone"));
+        // node_to_bone.add(fbone->bone_node, bone);
+        this->mapping.el_to_object.add(&child_node->element, obj);
+        //@TODO: custom props
+        bone->flag |= BONE_SELECTED;
+
+        bone->tail[0] = 0.0f;
+        bone->tail[1] = 0.1f;
+        bone->tail[2] = 0.0f;
+
+        /* Set bind matrix. @TODO: can we get it from ufbx_pose objects? */
+        float bind_matrix[4][4];
+        matrix_to_m44(ufbx_identity_matrix, bind_matrix);
+        ED_armature_ebone_from_mat4(bone, bind_matrix);
+        bool added = this->mapping.bone_to_bind_matrix.add(child_node, ufbx_identity_matrix);
+        BLI_assert_msg(added, "fbx: same bone node used more than once?");
+        UNUSED_VARS(added);
+
+        /* Set bone parent. */
+        bone->parent = node_to_bone.lookup_default(bone_node, nullptr);
+      }
+    }
+  }
+
   ED_armature_from_edit(this->bmain, arm);
   ED_armature_edit_free(arm);
 
