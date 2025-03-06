@@ -1850,28 +1850,31 @@ blender::bke::Instances object_duplilist_legacy_instances(Depsgraph &depsgraph,
   Vector<short> dupli_gen_type_stack({0});
   instance_stack.append(&ob);
 
-  bke::Instances top_level_instances;
   init_context(&ctx, &depsgraph, &scene, &ob, nullptr, instance_stack, dupli_gen_type_stack);
   if (ctx.gen == &gen_dupli_geometry_set) {
     /* These are not legacy instances. */
-    return top_level_instances;
+    return {};
   }
   if (ctx.gen) {
     ctx.duplilist = duplilist;
     ctx.gen->make_duplis(&ctx);
   }
+  const bool is_particle_duplis = ctx.gen == &gen_dupli_particles;
   /* Particle instances are on the second level, because the first level is the particle system
    * itself. */
-  const int level_to_use = ctx.gen == &gen_dupli_particles ? 1 : 0;
+  const int level_to_use = is_particle_duplis ? 1 : 0;
 
   Vector<DupliObject *> top_level_duplis;
   LISTBASE_FOREACH (DupliObject *, dob, duplilist) {
     BLI_assert(dob->ob != &ob);
+    /* We only need the top level instances in the end, because when #Instances references an
+     * object, it implicitly also references all instances of that object. */
     if (dob->level == level_to_use) {
       top_level_duplis.append(dob);
     }
   }
 
+  bke::Instances top_level_instances;
   const float4x4 &world_to_object = ob.world_to_object();
 
   VectorSet<Object *> referenced_objects;
@@ -1891,7 +1894,14 @@ blender::bke::Instances object_duplilist_legacy_instances(Depsgraph &depsgraph,
     const int handle = referenced_objects.index_of(&instanced_object);
     instances_transforms[i] = world_to_object * float4x4(dob.mat);
     instances_reference_handles[i] = handle;
-    instances_ids.span[i] = dob.persistent_id[0];
+
+    int id = dob.persistent_id[0];
+    if (is_particle_duplis) {
+      const int particle_system_i = dob.persistent_id[0];
+      const int particle_i = dob.persistent_id[1];
+      id = (particle_system_i << 26) + particle_i;
+    }
+    instances_ids.span[i] = id;
   }
   instances_ids.finish();
 
