@@ -1233,7 +1233,7 @@ static void direct_link_panel_list(BlendDataReader *reader, ListBase *lb)
      * arbitrarily large over time. Ideally this could be done more eagerly and not only when
      * loading the file. However, it's hard to make sure that no other code is currently
      * referencing the panel states in other cases. */
-    remove_least_recently_used_panel_states(*panel, 1000);
+    remove_least_recently_used_panel_states(*panel, 200);
     direct_link_panel_list(reader, &panel->children);
   }
 }
