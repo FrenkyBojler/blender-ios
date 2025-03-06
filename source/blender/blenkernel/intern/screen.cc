@@ -57,6 +57,7 @@
 #include "WM_types.hh"
 
 using blender::Span;
+using blender::StringRef;
 using blender::Vector;
 
 /* -------------------------------------------------------------------- */
@@ -329,7 +330,7 @@ static void panel_list_copy(ListBase *newlb, const ListBase *lb)
 
     BLI_listbase_clear(&new_panel->layout_panel_states);
     LISTBASE_FOREACH (LayoutPanelState *, src_state, &old_panel->layout_panel_states) {
-      LayoutPanelState *new_state = MEM_cnew<LayoutPanelState>(__func__, *src_state);
+      LayoutPanelState *new_state = MEM_dupallocN<LayoutPanelState>(__func__, *src_state);
       new_state->idname = BLI_strdup(src_state->idname);
       BLI_addtail(&new_panel->layout_panel_states, new_state);
     }
@@ -378,7 +379,7 @@ ARegion *BKE_area_region_copy(const SpaceType *st, const ARegion *region)
 
 ARegion *BKE_area_region_new()
 {
-  ARegion *region = MEM_cnew<ARegion>(__func__);
+  ARegion *region = MEM_callocN<ARegion>(__func__);
   region->runtime = MEM_new<blender::bke::ARegionRuntime>(__func__);
   return region;
 }
@@ -510,16 +511,16 @@ void BKE_region_callback_free_gizmomap_set(void (*callback)(wmGizmoMap *))
 }
 
 LayoutPanelState *BKE_panel_layout_panel_state_ensure(Panel *panel,
-                                                      const char *idname,
+                                                      const StringRef idname,
                                                       const bool default_closed)
 {
   LISTBASE_FOREACH (LayoutPanelState *, state, &panel->layout_panel_states) {
-    if (STREQ(state->idname, idname)) {
+    if (state->idname == idname) {
       return state;
     }
   }
-  LayoutPanelState *state = MEM_cnew<LayoutPanelState>(__func__);
-  state->idname = BLI_strdup(idname);
+  LayoutPanelState *state = MEM_callocN<LayoutPanelState>(__func__);
+  state->idname = BLI_strdupn(idname.data(), idname.size());
   SET_FLAG_FROM_TEST(state->flag, !default_closed, LAYOUT_PANEL_STATE_FLAG_OPEN);
   BLI_addtail(&panel->layout_panel_states, state);
   return state;
@@ -527,7 +528,7 @@ LayoutPanelState *BKE_panel_layout_panel_state_ensure(Panel *panel,
 
 Panel *BKE_panel_new(PanelType *panel_type)
 {
-  Panel *panel = MEM_cnew<Panel>(__func__);
+  Panel *panel = MEM_callocN<Panel>(__func__);
   panel->runtime = MEM_new<Panel_Runtime>(__func__);
   panel->type = panel_type;
   if (panel_type) {
@@ -1236,7 +1237,7 @@ static void direct_link_region(BlendDataReader *reader, ARegion *region, int spa
 
         if (region->regiondata == nullptr) {
           /* To avoid crashing on some old files. */
-          region->regiondata = MEM_cnew<RegionView3D>("region view3d");
+          region->regiondata = MEM_callocN<RegionView3D>("region view3d");
         }
 
         RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);

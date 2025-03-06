@@ -181,7 +181,7 @@ static void screen_opengl_views_setup(OGLRender *oglrender)
     rv = static_cast<RenderView *>(rr->views.first);
 
     if (rv == nullptr) {
-      rv = MEM_cnew<RenderView>("new opengl render view");
+      rv = MEM_callocN<RenderView>("new opengl render view");
       BLI_addtail(&rr->views, rv);
     }
 
@@ -229,7 +229,7 @@ static void screen_opengl_views_setup(OGLRender *oglrender)
           BLI_findstring(&rr->views, srv->name, offsetof(SceneRenderView, name)));
 
       if (rv == nullptr) {
-        rv = MEM_cnew<RenderView>("new opengl render view");
+        rv = MEM_callocN<RenderView>("new opengl render view");
         STRNCPY(rv->name, srv->name);
         BLI_addtail(&rr->views, rv);
       }
@@ -694,6 +694,8 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   WorkSpace *workspace = CTX_wm_workspace(C);
 
   Scene *scene = CTX_data_scene(C);
+  ScrArea *prev_area = CTX_wm_area(C);
+  ARegion *prev_region = CTX_wm_region(C);
   GPUOffScreen *ofs;
   OGLRender *oglrender;
   int sizex, sizey;
@@ -717,6 +719,12 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
     return false;
   }
 
+  if (!is_animation && is_write_still && BKE_imtype_is_movie(scene->r.im_format.imtype)) {
+    BKE_report(
+        op->reports, RPT_ERROR, "Cannot write a single file with an animation format selected");
+    return false;
+  }
+
   if (is_sequencer) {
     is_view_context = false;
   }
@@ -731,12 +739,6 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
       BKE_report(op->reports, RPT_ERROR, "Scene has no camera");
       return false;
     }
-  }
-
-  if (!is_animation && is_write_still && BKE_imtype_is_movie(scene->r.im_format.imtype)) {
-    BKE_report(
-        op->reports, RPT_ERROR, "Cannot write a single file with an animation format selected");
-    return false;
   }
 
   /* stop all running jobs, except screen one. currently previews frustrate Render */
@@ -757,6 +759,8 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
 
   if (!ofs) {
     BKE_reportf(op->reports, RPT_ERROR, "Failed to create OpenGL off-screen buffer, %s", err_out);
+    CTX_wm_area_set(C, prev_area);
+    CTX_wm_region_set(C, prev_region);
     return false;
   }
 
@@ -850,6 +854,9 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
       oglrender->task_pool = BLI_task_pool_create(oglrender, TASK_PRIORITY_HIGH);
     }
   }
+
+  CTX_wm_area_set(C, prev_area);
+  CTX_wm_region_set(C, prev_region);
 
   return true;
 }
@@ -1083,7 +1090,7 @@ static bool schedule_write_result(OGLRender *oglrender, RenderResult *rr)
     return false;
   }
   Scene *scene = oglrender->scene;
-  WriteTaskData *task_data = MEM_cnew<WriteTaskData>("write task data");
+  WriteTaskData *task_data = MEM_callocN<WriteTaskData>("write task data");
   task_data->rr = rr;
   memcpy(&task_data->tmp_scene, scene, sizeof(task_data->tmp_scene));
   {

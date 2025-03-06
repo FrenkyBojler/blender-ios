@@ -98,7 +98,7 @@ void ED_spacetypes_init()
   object::operatortypes_object();
   ED_operatortypes_lattice();
   ED_operatortypes_mesh();
-  ED_operatortypes_geometry();
+  geometry::operatortypes_geometry();
   sculpt_paint::operatortypes_sculpt();
   ED_operatortypes_sculpt_curves();
   ED_operatortypes_uvedit();
@@ -236,7 +236,7 @@ void *ED_region_draw_cb_activate(ARegionType *art,
                                  void *customdata,
                                  int type)
 {
-  RegionDrawCB *rdc = MEM_cnew<RegionDrawCB>(__func__);
+  RegionDrawCB *rdc = MEM_callocN<RegionDrawCB>(__func__);
 
   BLI_addtail(&art->drawcalls, rdc);
   rdc->draw = draw;
