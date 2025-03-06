@@ -7,4 +7,4 @@ Referenced by commit 5caeac4474f75e616caca3384c5bd2fde8a3d559, Fix: Cycles perfo
 Referenced by pull request #135440, Fix #135432: Cycles world light and shadow catcher bug after recent changes
 Referenced by commit 65889672e20ee1220a707a3d2a31cdc37e36b914, Fix #135432: Cycles world light and shadow catcher bug after recent changes
 Referenced by issue #135572, Cycles shadow linking through transparency is broken on GPU
-Referenced by pull request #135575, Cycles: Adjust shadow_link_transparency so it shows a recent failure
+Referenced by pull request #135575, Tests: Adjust shadow_link_transparency so it shows a recent Cycles regression
