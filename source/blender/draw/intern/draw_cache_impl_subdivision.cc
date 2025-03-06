@@ -1793,11 +1793,11 @@ static bool draw_subdiv_create_requested_buffers(Object &ob,
   /* Used for setting loop normals flags. Mapped extraction is only used during edit mode.
    * See comments in #extract_lnor_iter_face_mesh.
    */
-  draw_cache.is_edit_mode = mr->edit_bmesh != nullptr;
+  draw_cache.is_edit_mode = mr.edit_bmesh != nullptr;
 
-  draw_subdiv_cache_update_extra_coarse_face_data(draw_cache, mesh_eval, *mr);
+  draw_subdiv_cache_update_extra_coarse_face_data(draw_cache, mesh_eval, mr);
 
-  mesh_buffer_cache_create_requested_subdiv(batch_cache, mbc, draw_cache, *mr);
+  mesh_buffer_cache_create_requested_subdiv(batch_cache, mbc, draw_cache, mr);
 
   maybe_increment_cache_ref(subdiv);
   return true;
