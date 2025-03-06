@@ -1018,9 +1018,9 @@ static bool skip_fcurve_selected_data(bAnimContext *ac,
         BLI_str_quoted_substr(fcu->rna_path, "strips_all[", strip_name, sizeof(strip_name)))
     {
       /* Get strip name, and check if this strip is selected. */
-      Editing *ed = SEQ_editing_get(scene);
+      Editing *ed = blender::seq::editing_get(scene);
       if (ed) {
-        strip = SEQ_get_sequence_by_name(ed->seqbasep, strip_name, false);
+        strip = blender::seq::get_sequence_by_name(ed->seqbasep, strip_name, false);
       }
 
       /* Can only add this F-Curve if it is selected. */
@@ -3612,7 +3612,7 @@ static Base **animdata_filter_ds_sorted_bases(bAnimContext *ac,
   size_t tot_bases = BLI_listbase_count(object_bases);
   size_t num_bases = 0;
 
-  Base **sorted_bases = MEM_cnew_array<Base *>(tot_bases, "Dopesheet Usable Sorted Bases");
+  Base **sorted_bases = MEM_calloc_arrayN<Base *>(tot_bases, "Dopesheet Usable Sorted Bases");
   LISTBASE_FOREACH (Base *, base, object_bases) {
     if (animdata_filter_base_is_ok(ac, base, OB_MODE_OBJECT, filter_mode)) {
       sorted_bases[num_bases++] = base;
