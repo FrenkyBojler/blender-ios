@@ -100,12 +100,21 @@ ccl_device_forceinline void integrator_state_write_shadow_ray_self(
 {
   /* Save memory by storing the light and object indices in the shadow_isect. */
   /* TODO(sergey): This optimization does not work on GPU where multiple iterations of intersection
-   * is needed if there are more than 4 transparent intersections. The indices starts to conflict
-   * with each other. */
+   * is needed if there are more than INTEGRATOR_SHADOW_ISECT_SIZE transparent intersections.
+   * The indices starts to conflict with each other.
+   *
+   * For shadow linking it is important to ensure self.light_object is preserved in all cases,
+   * otherwise ray's shadow set membership could get wrong when the number of intersections
+   * exceeds INTEGRATOR_SHADOW_ISECT_SIZE. Use dedicated storage for it. */
   INTEGRATOR_STATE_ARRAY_WRITE(state, shadow_isect, 0, object) = ray->self.object;
   INTEGRATOR_STATE_ARRAY_WRITE(state, shadow_isect, 0, prim) = ray->self.prim;
-  INTEGRATOR_STATE_ARRAY_WRITE(state, shadow_isect, 1, object) = ray->self.light_object;
   INTEGRATOR_STATE_ARRAY_WRITE(state, shadow_isect, 1, prim) = ray->self.light_prim;
+  if (kernel_data.kernel_features & KERNEL_FEATURE_SHADOW_LINKING) {
+    INTEGRATOR_STATE_WRITE(state, shadow_ray, self_light_object) = ray->self.light_object;
+  }
+  else {
+    INTEGRATOR_STATE_ARRAY_WRITE(state, shadow_isect, 1, object) = ray->self.light_object;
+  }
 }
 
 ccl_device_forceinline void integrator_state_read_shadow_ray_self(
@@ -113,8 +122,13 @@ ccl_device_forceinline void integrator_state_read_shadow_ray_self(
 {
   ray->self.object = INTEGRATOR_STATE_ARRAY(state, shadow_isect, 0, object);
   ray->self.prim = INTEGRATOR_STATE_ARRAY(state, shadow_isect, 0, prim);
-  ray->self.light_object = INTEGRATOR_STATE_ARRAY(state, shadow_isect, 1, object);
   ray->self.light_prim = INTEGRATOR_STATE_ARRAY(state, shadow_isect, 1, prim);
+  if (kernel_data.kernel_features & KERNEL_FEATURE_SHADOW_LINKING) {
+    ray->self.light_object = INTEGRATOR_STATE(state, shadow_ray, self_light_object);
+  }
+  else {
+    ray->self.light_object = INTEGRATOR_STATE_ARRAY(state, shadow_isect, 1, object);
+  }
 }
 
 /* Intersection */
