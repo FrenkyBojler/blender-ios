@@ -786,10 +786,10 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
         /* TODO(fclem): Should use `to_scale` but the gpu_shader_math_matrix_lib.glsl isn't
          * included everywhere yet. */
         frag_gen << "vec3 ob_scale;\n";
-        frag_gen << "ob_scale.x = length(ModelMatrix[0].xyz);\n";
-        frag_gen << "ob_scale.y = length(ModelMatrix[1].xyz);\n";
-        frag_gen << "ob_scale.z = length(ModelMatrix[2].xyz);\n";
-        frag_gen << "vec3 ls_dimensions = safe_rcp(abs(OrcoTexCoFactors[1].xyz));\n";
+        frag_gen << "ob_scale.x = length(drw_modelmat()[0].xyz);\n";
+        frag_gen << "ob_scale.y = length(drw_modelmat()[1].xyz);\n";
+        frag_gen << "ob_scale.z = length(drw_modelmat()[2].xyz);\n";
+        frag_gen << "vec3 ls_dimensions = safe_rcp(abs(drw_object_infos().orco_mul.xyz));\n";
         frag_gen << "vec3 ws_dimensions = ob_scale * ls_dimensions;\n";
         /* Choose the minimum axis so that cuboids are better represented. */
         frag_gen << "return reduce_min(ws_dimensions);\n";
