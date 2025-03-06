@@ -1198,7 +1198,7 @@ static bool region_azone_edge_poll(const ARegion *region, const bool is_fullscre
   if (is_hidden && is_fullscreen) {
     return false;
   }
-  if (!is_hidden && ELEM(region->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER)) {
+  if (!is_hidden && ELEM(region->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER, RGN_TYPE_NAV_BAR)) {
     return false;
   }
 

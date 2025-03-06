@@ -2917,7 +2917,7 @@ static void region_scale_toggle_hidden(bContext *C, RegionMoveData *rmd)
   if (rmd->region->regiontype == RGN_TYPE_NAV_BAR) {
     return;
   }
-  
+
   /* hidden areas may have bad 'View2D.cur' value,
    * correct before displaying. see #45156 */
   if (rmd->region->flag & RGN_FLAG_HIDDEN) {
@@ -5044,12 +5044,11 @@ static int screen_region_toggle_visibility_exec(bContext *C, wmOperator *op)
 {
   const int region_type = RNA_int_get(op->ptr, "region_type");
   ScrArea *area = CTX_wm_area(C);
-  ARegion *region = BKE_area_find_region_type(area, region_type);
 
-  if (region) {
-    region->flag ^= RGN_FLAG_HIDDEN;  // Toggle visibility
+  if (ARegion *region = BKE_area_find_region_type(area, region_type)) {
+    region->flag ^= RGN_FLAG_HIDDEN;
     ED_region_visibility_change_update(C, area, region);
-    WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);  // Notify UI to update
+    WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
     return OPERATOR_FINISHED;
   }
 
@@ -5068,7 +5067,7 @@ static void SCREEN_OT_region_toggle_visibility(wmOperatorType *ot)
 
   RNA_def_int(ot->srna,
               "region_type",
-              RGN_TYPE_NAV_BAR,  
+              RGN_TYPE_NAV_BAR,
               0,
               INT_MAX,
               "Region Type",
@@ -5153,8 +5152,8 @@ void ED_screens_header_tools_menu_create(bContext *C, uiLayout *layout, void * /
             "SCREEN_OT_header_toggle_menus");
 
     /* "Show Navigation Bar" option */
-    ARegion *region_nav_bar = BKE_area_find_region_type(area, RGN_TYPE_NAV_BAR);
-    if (region_nav_bar) {
+
+    if (ARegion *region_nav_bar = BKE_area_find_region_type(area, RGN_TYPE_NAV_BAR)) {
       PointerRNA *op_ptr = nullptr;
       uiItemFullO(col,
                   "SCREEN_OT_region_toggle_visibility",
