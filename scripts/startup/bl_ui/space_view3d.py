@@ -8588,54 +8588,88 @@ class VIEW3D_PT_sculpt_automasking(Panel):
 
         tool_settings = context.tool_settings
         sculpt = tool_settings.sculpt
+        brush = tool_settings.sculpt.brush
         layout.label(text="Auto-Masking")
 
         col = layout.column(align=True)
-        col.prop(sculpt, "use_automasking_topology", text="Topology")
-        col.prop(sculpt, "use_automasking_face_sets", text="Face Sets")
+        sub = col.column()
+        sub.active = not brush.use_automasking_topology
+        sub.inactive_message = "The active brush already has the same auto-masking enabled."
+        sub.prop(sculpt, "use_automasking_topology", text="Topology")
+
+        sub = col.column()
+        sub.active = not brush.use_automasking_face_sets
+        #sub.inactive_message = "The active brush already has the same auto-masking enabled."
+        sub.prop(sculpt, "use_automasking_face_sets", text="Face Sets")
 
         col.separator()
 
         col = layout.column(align=True)
         row = col.row()
+        row.active = not brush.use_automasking_boundary_edges
+        #row.inactive_message = "The active brush already has the same auto-masking enabled."
         row.prop(sculpt, "use_automasking_boundary_edges", text="Mesh Boundary")
 
         if sculpt.use_automasking_boundary_edges:
-            props = row.operator("sculpt.mask_from_boundary", text="Create Mask")
+            subrow = row.column(align=True)
+            subrow.active = not brush.use_automasking_boundary_edges
+            #subrow.inactive_message = "The active brush already has the same auto-masking enabled."
+            props = subrow.operator("sculpt.mask_from_boundary", text="Create Mask")
             props.settings_source = 'SCENE'
             props.boundary_mode = 'MESH'
 
         row = col.row()
+        row.active = not brush.use_automasking_boundary_face_sets
+        #row.inactive_message = "The active brush already has the same auto-masking enabled."
         row.prop(sculpt, "use_automasking_boundary_face_sets", text="Face Sets Boundary")
 
         if sculpt.use_automasking_boundary_face_sets:
+            subrow = row.column(align=True)
+            subrow.active = not brush.use_automasking_boundary_face_sets
+            #subrow.inactive_message = "The active brush already has the same auto-masking enabled."
             props = row.operator("sculpt.mask_from_boundary", text="Create Mask")
             props.settings_source = 'SCENE'
             props.boundary_mode = 'FACE_SETS'
 
         if sculpt.use_automasking_boundary_edges or sculpt.use_automasking_boundary_face_sets:
-            col.prop(sculpt, "automasking_boundary_edges_propagation_steps")
+            sub = col.column()
+            sub.active = not brush.use_automasking_boundary_edges or not brush.use_automasking_boundary_face_sets
+            #sub.inactive_message = "The active brush already has the same auto-masking enabled."
+            sub.prop(sculpt, "automasking_boundary_edges_propagation_steps")
 
         col.separator()
 
         col = layout.column(align=True)
         row = col.row()
-        row.prop(sculpt, "use_automasking_cavity", text="Cavity")
+        subrow = row.column(align=True)
+        subrow.active = not brush.use_automasking_cavity and not brush.use_automasking_cavity_inverted
+        #subrow.inactive_message = "The active brush already has the same auto-masking enabled."
+        subrow.prop(sculpt, "use_automasking_cavity", text="Cavity")
 
         is_cavity_active = sculpt.use_automasking_cavity or sculpt.use_automasking_cavity_inverted
 
         if is_cavity_active:
-            props = row.operator("sculpt.mask_from_cavity", text="Create Mask")
+            subrow = row.column(align=True)
+            subrow.active = not brush.use_automasking_cavity and not brush.use_automasking_cavity_inverted
+            #subrow.inactive_message = "The active brush already has the same auto-masking enabled."
+            props = subrow.operator("sculpt.mask_from_cavity", text="Create Mask")
             props.settings_source = 'SCENE'
 
-        col.prop(sculpt, "use_automasking_cavity_inverted", text="Cavity (inverted)")
+        subcol = col.column(align=True)
+        subcol.active = not brush.use_automasking_cavity_inverted and not brush.use_automasking_cavity
+        #subcol.inactive_message = "The active brush already has the same auto-masking enabled."
+        subcol.prop(sculpt, "use_automasking_cavity_inverted", text="Cavity (inverted)")
 
         if is_cavity_active:
             col = layout.column(align=True)
+            col.active = not brush.use_automasking_cavity_inverted and not brush.use_automasking_cavity
+            #col.inactive_message = "The active brush already has the same auto-masking enabled."
             col.prop(sculpt, "automasking_cavity_factor", text="Factor")
             col.prop(sculpt, "automasking_cavity_blur_steps", text="Blur")
 
             col = layout.column()
+            col.active = not brush.use_automasking_cavity_inverted and not brush.use_automasking_cavity
+            #col.inactive_message = "The active brush already has the same auto-masking enabled."
             col.prop(sculpt, "use_automasking_custom_cavity_curve", text="Custom Curve")
 
             if sculpt.use_automasking_custom_cavity_curve:
@@ -8644,20 +8678,27 @@ class VIEW3D_PT_sculpt_automasking(Panel):
         col.separator()
 
         col = layout.column(align=True)
+        col.active = not brush.use_automasking_view_normal
+        #col.inactive_message = "The active brush already has the same auto-masking enabled."
         col.prop(sculpt, "use_automasking_view_normal", text="View Normal")
 
         if sculpt.use_automasking_view_normal:
             col.prop(sculpt, "use_automasking_view_occlusion", text="Occlusion")
             subcol = col.column(align=True)
             subcol.active = not sculpt.use_automasking_view_occlusion
+            #subcol.inactive_message = "The active brush already has the same auto-masking enabled."
             subcol.prop(sculpt, "automasking_view_normal_limit", text="Limit")
             subcol.prop(sculpt, "automasking_view_normal_falloff", text="Falloff")
 
         col = layout.column()
+        col.active = not brush.use_automasking_start_normal
+        #col.inactive_message = "The active brush already has the same auto-masking enabled."
         col.prop(sculpt, "use_automasking_start_normal", text="Area Normal")
 
         if sculpt.use_automasking_start_normal:
             col = layout.column(align=True)
+            col.active = not brush.use_automasking_start_normal
+            #col.inactive_message = "The active brush already has the same auto-masking enabled."
             col.prop(sculpt, "automasking_start_normal_limit", text="Limit")
             col.prop(sculpt, "automasking_start_normal_falloff", text="Falloff")
 
