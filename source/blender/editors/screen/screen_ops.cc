@@ -410,6 +410,12 @@ static bool ed_object_hidden(const Object *ob)
   return ((ob->visibility_flag & OB_HIDE_VIEWPORT) && !(ob->mode & OB_MODE_EDIT));
 }
 
+bool ED_operator_object_active_only(bContext *C)
+{
+  Object *ob = blender::ed::object::context_active_object(C);
+  return (ob != nullptr);
+}
+
 bool ED_operator_object_active(bContext *C)
 {
   Object *ob = blender::ed::object::context_active_object(C);
@@ -5452,7 +5458,7 @@ static void screen_animation_region_tag_redraw(
 
     if (area->spacetype == SPACE_SEQ) {
       const SpaceSeq *sseq = static_cast<const SpaceSeq *>(area->spacedata.first);
-      if (!ED_space_sequencer_has_playback_animation(sseq, scene)) {
+      if (!blender::ed::vse::ED_space_sequencer_has_playback_animation(sseq, scene)) {
         return;
       }
     }
@@ -6461,6 +6467,8 @@ static int space_type_set_or_cycle_exec(bContext *C, wmOperator *op)
   if (area->spacetype != space_type) {
     /* Set the type. */
     RNA_property_enum_set(&ptr, prop_type, space_type);
+    /* Specify that we want last-used if there are subtypes. */
+    area->butspacetype_subtype = -1;
     RNA_property_update(C, &ptr, prop_type);
   }
   else {

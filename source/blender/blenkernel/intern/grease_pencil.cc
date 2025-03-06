@@ -164,9 +164,8 @@ static void grease_pencil_copy_data(Main * /*bmain*/,
       BLI_assert_msg(rna_path,
                      "It should be possible to construct the RNA path of a grease pencil layer.");
 
-      const FCurve *fcurve = BKE_animadata_fcurve_find_by_rna_path(
-          grease_pencil_dst->adt, rna_path->c_str(), 0, nullptr, nullptr);
-      layer->runtime->is_visisbility_animated_ = fcurve != nullptr;
+      layer->runtime->is_visisbility_animated_ = bke::animdata::prop_is_animated(
+          grease_pencil_dst->adt, rna_path.value(), 0);
     }
   }
 }
@@ -1433,8 +1432,8 @@ void Layer::prepare_for_dna_write()
 
   const size_t frames_num = size_t(frames().size());
   frames_storage.num = int(frames_num);
-  frames_storage.keys = MEM_cnew_array<int>(frames_num, __func__);
-  frames_storage.values = MEM_cnew_array<GreasePencilFrame>(frames_num, __func__);
+  frames_storage.keys = MEM_calloc_arrayN<int>(frames_num, __func__);
+  frames_storage.values = MEM_calloc_arrayN<GreasePencilFrame>(frames_num, __func__);
   const Span<int> sorted_keys_data = sorted_keys();
   for (const int64_t i : sorted_keys_data.index_range()) {
     frames_storage.keys[i] = sorted_keys_data[i];
@@ -2241,13 +2240,6 @@ void BKE_grease_pencil_eval_geometry(Depsgraph *depsgraph, GreasePencil *grease_
   grease_pencil->runtime->eval_frame = int(DEG_get_ctime(depsgraph));
   /* This will remove layers that aren't visible. */
   grease_pencil_evaluate_layers(*grease_pencil);
-  /* The layer adjustments for tinting and radii offsets are applied before modifier evaluation.
-   * This ensures that the evaluated geometry contains the modifications. In the future, it would
-   * be better to move these into modifiers. For now, these are hardcoded. */
-  const bke::AttributeAccessor layer_attributes = grease_pencil->attributes();
-  if (layer_attributes.contains("tint_color") || layer_attributes.contains("radius_offset")) {
-    grease_pencil_do_layer_adjustments(*grease_pencil);
-  }
 }
 
 void BKE_object_eval_grease_pencil(Depsgraph *depsgraph, Scene *scene, Object *object)
@@ -2260,6 +2252,13 @@ void BKE_object_eval_grease_pencil(Depsgraph *depsgraph, Scene *scene, Object *o
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(object->data);
   GeometrySet geometry_set = GeometrySet::from_grease_pencil(grease_pencil,
                                                              GeometryOwnershipType::ReadOnly);
+  /* The layer adjustments for tinting and radii offsets are applied before modifier evaluation.
+   * This ensures that the evaluated geometry contains the modifications. In the future, it would
+   * be better to move these into modifiers. For now, these are hardcoded. */
+  const bke::AttributeAccessor layer_attributes = grease_pencil->attributes();
+  if (layer_attributes.contains("tint_color") || layer_attributes.contains("radius_offset")) {
+    grease_pencil_do_layer_adjustments(*geometry_set.get_grease_pencil_for_write());
+  }
   /* Only add the edit hint component in modes where users can potentially interact with deformed
    * drawings. */
   if (ELEM(object->mode,
@@ -2301,7 +2300,7 @@ void BKE_grease_pencil_duplicate_drawing_array(const GreasePencil *grease_pencil
   using namespace blender;
   grease_pencil_dst->drawing_array_num = grease_pencil_src->drawing_array_num;
   if (grease_pencil_dst->drawing_array_num > 0) {
-    grease_pencil_dst->drawing_array = MEM_cnew_array<GreasePencilDrawingBase *>(
+    grease_pencil_dst->drawing_array = MEM_calloc_arrayN<GreasePencilDrawingBase *>(
         grease_pencil_src->drawing_array_num, __func__);
     bke::greasepencil::copy_drawing_array(grease_pencil_src->drawings(),
                                           grease_pencil_dst->drawings());
@@ -2698,7 +2697,7 @@ template<typename T> static void grow_array(T **array, int *num, const int add_n
 {
   BLI_assert(add_num > 0);
   const int new_array_num = *num + add_num;
-  T *new_array = MEM_cnew_array<T>(new_array_num, __func__);
+  T *new_array = MEM_calloc_arrayN<T>(new_array_num, __func__);
 
   blender::uninitialized_relocate_n(*array, *num, new_array);
   if (*array != nullptr) {
@@ -2719,7 +2718,7 @@ template<typename T> static void shrink_array(T **array, int *num, const int shr
     return;
   }
 
-  T *new_array = MEM_cnew_array<T>(new_array_num, __func__);
+  T *new_array = MEM_calloc_arrayN<T>(new_array_num, __func__);
 
   blender::uninitialized_move_n(*array, new_array_num, new_array);
   MEM_freeN(*array);
