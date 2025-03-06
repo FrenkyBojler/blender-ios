@@ -1,3 +1,3 @@
 Referenced by commit eb434778511, Fix T89393: crash when selecting edges when geometry nodes has "on cage" turned on
 Referenced by issue #132803, Fix #119932: Weight paint loop selection fails when bones are rotated
-Referenced by pull request #135335, WIP: Fix for #135071 - Give Vertex Parenting Option Access to Final Geometry
+Referenced by pull request #135335, Fix #135071: Give Vertex Parenting Option Access to Final Geometry
