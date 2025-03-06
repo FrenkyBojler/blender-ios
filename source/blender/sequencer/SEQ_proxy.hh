@@ -16,7 +16,6 @@ struct Depsgraph;
 struct ListBase;
 struct Main;
 struct Scene;
-struct SeqRenderData;
 struct Strip;
 struct bContext;
 struct wmJob;
