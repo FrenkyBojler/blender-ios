@@ -602,8 +602,8 @@ class MeshUVs : Overlay {
     }
     {
       /* Wireframe UV Overlay. */
-      show_wireframe_ = (!(space_image->flag & SI_NO_DRAW_TEXPAINT) ||
-                         space_mode_is_uv && (space_image->flag & SI_DRAWSHADOW));
+      show_wireframe_ = (!(space_image->flag & SI_NO_DRAW_UV_GUIDE) ||
+                         (space_mode_is_uv && (space_image->flag & SI_DRAWSHADOW)));
     }
     {
       /* Brush Stencil Overlay. */

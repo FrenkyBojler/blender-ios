@@ -109,7 +109,6 @@ class IMAGE_MT_view(Menu):
             layout.separator()
 
         if paint.brush and (context.image_paint_object or sima.mode == 'PAINT'):
-            layout.prop(uv, "show_texpaint")
             layout.prop(tool_settings, "show_uv_local_view", text="Show Same Material")
 
         layout.menu("INFO_MT_area")
@@ -1691,7 +1690,7 @@ class IMAGE_PT_overlay_texture_paint(Panel):
     @classmethod
     def poll(cls, context):
         sima = context.space_data
-        return (sima and (sima.show_paint))
+        return (sima)
 
     def draw(self, context):
         layout = self.layout
@@ -1701,7 +1700,9 @@ class IMAGE_PT_overlay_texture_paint(Panel):
         overlay = sima.overlay
 
         layout.active = overlay.show_overlays
-        layout.prop(uvedit, "show_texpaint")
+        layout.prop(uvedit, "show_uv")
+        if sima and sima.show_paint:
+            layout.prop(uvedit, "show_texpaint") # deprecated, use show_uv instead
 
 
 class IMAGE_PT_overlay_image(Panel):
