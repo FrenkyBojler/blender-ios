@@ -100,7 +100,12 @@ HIPRTDevice::HIPRTDevice(const DeviceInfo &info,
     return;
   }
 
-  hiprtSetLogLevel(hiprtLogLevelNone);
+  if (VLOG_DEBUG_IS_ON) {
+    hiprtSetLogLevel(hiprtLogLevelInfo | hiprtLogLevelWarn | hiprtLogLevelError);
+  }
+  else {
+    hiprtSetLogLevel(hiprtLogLevelNone);
+  }
 }
 
 HIPRTDevice::~HIPRTDevice()
@@ -760,6 +765,9 @@ void HIPRTDevice::build_blas(BVHHIPRT *bvh, Geometry *geom, hiprtBuildOptions op
       geom_input = prepare_point_blas(bvh, pointcloud);
       break;
     }
+
+    case Geometry::LIGHT:
+      return;
 
     default:
       assert(geom_input.geomType != hiprtInvalidValue);
