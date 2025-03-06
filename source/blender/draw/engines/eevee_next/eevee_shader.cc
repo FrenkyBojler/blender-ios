@@ -993,34 +993,6 @@ GPUMaterial *ShaderModule::world_shader_get(::World *blender_world,
                                this);
 }
 
-GPUMaterial *ShaderModule::material_shader_get(const char *name,
-                                               ListBase &materials,
-                                               bNodeTree *nodetree,
-                                               eMaterialPipeline pipeline_type,
-                                               eMaterialGeometry geometry_type)
-{
-  uint64_t shader_uuid = shader_uuid_from_material_type(pipeline_type, geometry_type);
-
-  bool is_volume = ELEM(pipeline_type, MAT_PIPE_VOLUME_MATERIAL, MAT_PIPE_VOLUME_OCCUPANCY);
-
-  GPUMaterial *gpumat = GPU_material_from_nodetree(nullptr,
-                                                   nullptr,
-                                                   nodetree,
-                                                   &materials,
-                                                   name,
-                                                   GPU_MAT_EEVEE,
-                                                   shader_uuid,
-                                                   is_volume,
-                                                   false,
-                                                   codegen_callback,
-                                                   this);
-  GPU_material_status_set(gpumat, GPU_MAT_CREATED);
-  GPU_material_compile(gpumat);
-  /* Queue deferred material optimization. */
-  DRW_shader_queue_optimize_material(gpumat);
-  return gpumat;
-}
-
 /** \} */
 
 }  // namespace blender::eevee

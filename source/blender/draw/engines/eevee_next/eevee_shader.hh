@@ -201,16 +201,6 @@ class ShaderModule {
                                 bNodeTree *nodetree,
                                 eMaterialPipeline pipeline_type);
 
-  /**
-   * Variation to compile a material only with a `nodetree`. Caller needs to maintain the list of
-   * materials and call GPU_material_free on it to update the material.
-   */
-  GPUMaterial *material_shader_get(const char *name,
-                                   ListBase &materials,
-                                   bNodeTree *nodetree,
-                                   eMaterialPipeline pipeline_type,
-                                   eMaterialGeometry geometry_type);
-
   void material_create_info_amend(GPUMaterial *mat, GPUCodegenOutput *codegen);
 
   /** Only to be used by Instance constructor. */
