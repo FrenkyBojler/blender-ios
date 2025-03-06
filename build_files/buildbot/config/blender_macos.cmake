@@ -15,5 +15,4 @@ if("${CMAKE_OSX_ARCHITECTURES}" STREQUAL "x86_64")
   # It is also a lot slower, but in CI the warnings amount is more important
   # than the extra minutes it takes to link.
   set(WITH_LINKER_LEGACY ON CACHE BOOL "" FORCE)
-  mark_as_advanced(WITH_LINKER_LEGACY)
 endif()
