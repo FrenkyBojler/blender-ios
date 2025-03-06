@@ -761,6 +761,9 @@ void HIPRTDevice::build_blas(BVHHIPRT *bvh, Geometry *geom, hiprtBuildOptions op
       break;
     }
 
+    case Geometry::LIGHT:
+      return;
+
     default:
       assert(geom_input.geomType != hiprtInvalidValue);
   }
