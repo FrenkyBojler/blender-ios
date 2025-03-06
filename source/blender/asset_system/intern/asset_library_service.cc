@@ -116,21 +116,18 @@ AssetLibrary *AssetLibraryService::get_asset_library(
 
 AssetLibrary *AssetLibraryService::get_asset_library_on_disk(eAssetLibraryType library_type,
                                                              StringRef name,
-                                                             StringRefNull root_path)
+                                                             StringRefNull root_path,
+                                                             const bool load_catalogs)
 {
-  BLI_assert_msg(!root_path.is_empty(),
-                 "top level directory must be given for on-disk asset library");
-
-  std::string normalized_root_path = utils::normalize_directory_path(root_path);
-
-  std::unique_ptr<OnDiskAssetLibrary> *lib_uptr_ptr = on_disk_libraries_.lookup_ptr(
-      {library_type, normalized_root_path});
-  if (lib_uptr_ptr != nullptr) {
-    CLOG_INFO(&LOG, 2, "get \"%s\" (cached)", normalized_root_path.c_str());
-    AssetLibrary *lib = lib_uptr_ptr->get();
-    lib->refresh_catalogs();
+  if (OnDiskAssetLibrary *lib = this->lookup_on_disk_library(library_type, root_path)) {
+    CLOG_INFO(&LOG, 2, "get \"%s\" (cached)", root_path.c_str());
+    if (load_catalogs) {
+      lib->refresh_catalogs();
+    }
     return lib;
   }
+
+  std::string normalized_root_path = utils::normalize_directory_path(root_path);
 
   std::unique_ptr<OnDiskAssetLibrary> lib_uptr;
   switch (library_type) {
@@ -140,6 +137,9 @@ AssetLibrary *AssetLibraryService::get_asset_library_on_disk(eAssetLibraryType l
     case ASSET_LIBRARY_ESSENTIALS:
       lib_uptr = std::make_unique<EssentialsAssetLibrary>();
       break;
+    case ASSET_LIBRARY_LOCAL:
+      lib_uptr = std::make_unique<OnDiskAssetLibrary>(library_type, name, normalized_root_path);
+      break;
     default:
       lib_uptr = std::make_unique<OnDiskAssetLibrary>(library_type, name, normalized_root_path);
       break;
@@ -147,7 +147,9 @@ AssetLibrary *AssetLibraryService::get_asset_library_on_disk(eAssetLibraryType l
 
   AssetLibrary *lib = lib_uptr.get();
 
-  lib->load_catalogs();
+  if (load_catalogs) {
+    lib->load_catalogs();
+  }
 
   on_disk_libraries_.add_new({library_type, normalized_root_path}, std::move(lib_uptr));
   CLOG_INFO(&LOG, 2, "get \"%s\" (loaded)", normalized_root_path.c_str());
@@ -205,10 +207,36 @@ void AssetLibraryService::reload_all_library_catalogs_if_dirty()
   }
 }
 
-void AssetLibraryService::destroy_runtime_current_file_library()
+AssetLibrary *AssetLibraryService::move_runtime_current_file_into_on_disk_library(
+    const Main &bmain)
 {
   AssetLibraryService &library_service = *AssetLibraryService::get();
+
+  std::string root_path = AS_asset_library_find_suitable_root_path_from_main(&bmain);
+  if (root_path.empty()) {
+    return nullptr;
+  }
+
+  BLI_assert(!library_service.lookup_on_disk_library(ASSET_LIBRARY_LOCAL, root_path));
+
+  /* Create on disk library without loading catalogs. We'll steal the catalog service from the
+   * runtime library below and merge in catalogs from disk (if any). */
+  AssetLibrary *on_disk_library = library_service.get_asset_library_on_disk(
+      ASSET_LIBRARY_LOCAL,
+      {},
+      root_path,
+      /*load_catalogs=*/false);
+
+  on_disk_library->catalog_service_.swap(library_service.current_file_library_->catalog_service_);
+  on_disk_library->catalog_service().change_library_root(on_disk_library->root_path());
+  /* Allow undoing to the state before merging in catalogs from disk. */
+  on_disk_library->catalog_service().undo_push();
+  /* Merge on-disk catalogs into the ones stolen from the runtime library. */
+  on_disk_library->refresh_catalogs();
+
   library_service.current_file_library_ = nullptr;
+
+  return on_disk_library;
 }
 
 AssetLibrary *AssetLibraryService::get_asset_library_all(const Main *bmain)
@@ -236,6 +264,19 @@ AssetLibrary *AssetLibraryService::get_asset_library_all(const Main *bmain)
   all_library_->rebuild_catalogs_from_nested(/*reload_nested_catalogs=*/false);
 
   return all_library_.get();
+}
+
+OnDiskAssetLibrary *AssetLibraryService::lookup_on_disk_library(eAssetLibraryType library_type,
+                                                                StringRefNull root_path)
+{
+  BLI_assert_msg(!root_path.is_empty(),
+                 "top level directory must be given for on-disk asset library");
+
+  std::string normalized_root_path = utils::normalize_directory_path(root_path);
+
+  std::unique_ptr<OnDiskAssetLibrary> *lib_uptr_ptr = on_disk_libraries_.lookup_ptr(
+      {library_type, normalized_root_path});
+  return lib_uptr_ptr ? lib_uptr_ptr->get() : nullptr;
 }
 
 bUserAssetLibrary *AssetLibraryService::find_custom_preferences_asset_library_from_asset_weak_ref(

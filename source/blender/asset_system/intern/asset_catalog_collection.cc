@@ -65,4 +65,12 @@ OwningAssetCatalogMap AssetCatalogCollection::copy_catalog_map(const OwningAsset
   return copy;
 }
 
+void AssetCatalogCollection::change_definition_file_path(StringRef new_path)
+{
+  if (catalog_definition_file_) {
+    /* TODO(Julian): make path private and add getter. */
+    const_cast<CatalogFilePath &>(catalog_definition_file_->file_path) = new_path;
+  }
+}
+
 }  // namespace blender::asset_system

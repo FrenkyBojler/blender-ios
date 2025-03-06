@@ -50,8 +50,10 @@ class AssetCatalogService {
   Vector<std::unique_ptr<AssetCatalogCollection>> undo_snapshots_;
   Vector<std::unique_ptr<AssetCatalogCollection>> redo_snapshots_;
 
-  const CatalogFilePath asset_library_root_;
-  const bool is_read_only_ = false;
+  CatalogFilePath asset_library_root_;
+  bool is_read_only_ = false;
+
+  friend class AssetLibraryService;
 
  public:
   static const CatalogFilePath DEFAULT_CATALOG_FILENAME;
@@ -241,6 +243,8 @@ class AssetCatalogService {
    * This object can then be processed further before saving to disk. */
   std::unique_ptr<AssetCatalogDefinitionFile> construct_cdf_in_memory(
       const CatalogFilePath &file_path) const;
+
+  void change_library_root(StringRef new_library_root);
 
   /**
    * Find a suitable path to write a CDF to.

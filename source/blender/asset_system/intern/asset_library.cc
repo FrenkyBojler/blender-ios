@@ -26,6 +26,7 @@
 #include "asset_catalog_collection.hh"
 #include "asset_catalog_definition_file.hh"
 #include "asset_library_service.hh"
+#include "runtime_library.hh"
 #include "utils.hh"
 
 using namespace blender;
@@ -253,11 +254,18 @@ void asset_library_on_save_post(Main *bmain,
                                 void *arg)
 {
   AssetLibrary *asset_lib = static_cast<AssetLibrary *>(arg);
-  asset_lib->on_blend_save_post(bmain, pointers, num_pointers);
 
-  if (asset_lib->library_type() == ASSET_LIBRARY_LOCAL) {
-    AssetLibraryService::destroy_runtime_current_file_library();
+  if (asset_lib->library_type() == ASSET_LIBRARY_LOCAL &&
+      dynamic_cast<RuntimeAssetLibrary *>(asset_lib))
+  {
+    if (AssetLibrary *on_disk_lib =
+            AssetLibraryService::move_runtime_current_file_into_on_disk_library(*bmain))
+    {
+      asset_lib = on_disk_lib;
+    }
   }
+
+  asset_lib->on_blend_save_post(bmain, pointers, num_pointers);
 }
 
 }  // namespace
