@@ -46,39 +46,39 @@ class GPUStencilTableSSBO {
   ~GPUStencilTableSSBO();
 
   // interfaces needed for GLSLComputeKernel
-  gpu::VertBuf *GetSizesBuffer() const
+  GPUStorageBuf *GetSizesBuffer() const
   {
     return sizes_buf;
   }
-  gpu::VertBuf *GetOffsetsBuffer() const
+  GPUStorageBuf *GetOffsetsBuffer() const
   {
     return offsets_buf;
   }
-  gpu::VertBuf *GetIndicesBuffer() const
+  GPUStorageBuf *GetIndicesBuffer() const
   {
     return indices_buf;
   }
-  gpu::VertBuf *GetWeightsBuffer() const
+  GPUStorageBuf *GetWeightsBuffer() const
   {
     return weights_buf;
   }
-  gpu::VertBuf *GetDuWeightsBuffer() const
+  GPUStorageBuf *GetDuWeightsBuffer() const
   {
     return du_weights_buf;
   }
-  gpu::VertBuf *GetDvWeightsBuffer() const
+  GPUStorageBuf *GetDvWeightsBuffer() const
   {
     return dv_weights_buf;
   }
-  gpu::VertBuf *GetDuuWeightsBuffer() const
+  GPUStorageBuf *GetDuuWeightsBuffer() const
   {
     return duu_weights_buf;
   }
-  gpu::VertBuf *GetDuvWeightsBuffer() const
+  GPUStorageBuf *GetDuvWeightsBuffer() const
   {
     return duv_weights_buf;
   }
-  gpu::VertBuf *GetDvvWeightsBuffer() const
+  GPUStorageBuf *GetDvvWeightsBuffer() const
   {
     return dvv_weights_buf;
   }
@@ -88,15 +88,15 @@ class GPUStencilTableSSBO {
   }
 
  private:
-  gpu::VertBuf *sizes_buf = nullptr;
-  gpu::VertBuf *offsets_buf = nullptr;
-  gpu::VertBuf *indices_buf = nullptr;
-  gpu::VertBuf *weights_buf = nullptr;
-  gpu::VertBuf *du_weights_buf = nullptr;
-  gpu::VertBuf *dv_weights_buf = nullptr;
-  gpu::VertBuf *duu_weights_buf = nullptr;
-  gpu::VertBuf *duv_weights_buf = nullptr;
-  gpu::VertBuf *dvv_weights_buf = nullptr;
+  GPUStorageBuf *sizes_buf = nullptr;
+  GPUStorageBuf *offsets_buf = nullptr;
+  GPUStorageBuf *indices_buf = nullptr;
+  GPUStorageBuf *weights_buf = nullptr;
+  GPUStorageBuf *du_weights_buf = nullptr;
+  GPUStorageBuf *dv_weights_buf = nullptr;
+  GPUStorageBuf *duu_weights_buf = nullptr;
+  GPUStorageBuf *duv_weights_buf = nullptr;
+  GPUStorageBuf *dvv_weights_buf = nullptr;
   int _numStencils;
 };
 
@@ -644,12 +644,12 @@ class GPUComputeEvaluator {
                     OpenSubdiv::Osd::BufferDescriptor const &duDesc,
                     gpu::VertBuf *dvBuffer,
                     OpenSubdiv::Osd::BufferDescriptor const &dvDesc,
-                    gpu::VertBuf *sizesBuffer,
-                    gpu::VertBuf *offsetsBuffer,
-                    gpu::VertBuf *indicesBuffer,
-                    gpu::VertBuf *weightsBuffer,
-                    gpu::VertBuf *duWeightsBuffer,
-                    gpu::VertBuf *dvWeightsBuffer,
+                    GPUStorageBuf *sizesBuffer,
+                    GPUStorageBuf *offsetsBuffer,
+                    GPUStorageBuf *indicesBuffer,
+                    GPUStorageBuf *weightsBuffer,
+                    GPUStorageBuf *duWeightsBuffer,
+                    GPUStorageBuf *dvWeightsBuffer,
                     int start,
                     int end) const;
 
@@ -720,15 +720,15 @@ class GPUComputeEvaluator {
                     OpenSubdiv::Osd::BufferDescriptor const &duvDesc,
                     gpu::VertBuf *dvvBuffer,
                     OpenSubdiv::Osd::BufferDescriptor const &dvvDesc,
-                    gpu::VertBuf *sizesBuffer,
-                    gpu::VertBuf *offsetsBuffer,
-                    gpu::VertBuf *indicesBuffer,
-                    gpu::VertBuf *weightsBuffer,
-                    gpu::VertBuf *duWeightsBuffer,
-                    gpu::VertBuf *dvWeightsBuffer,
-                    gpu::VertBuf *duuWeightsBuffer,
-                    gpu::VertBuf *duvWeightsBuffer,
-                    gpu::VertBuf *dvvWeightsBuffer,
+                    GPUStorageBuf *sizesBuffer,
+                    GPUStorageBuf *offsetsBuffer,
+                    GPUStorageBuf *indicesBuffer,
+                    GPUStorageBuf *weightsBuffer,
+                    GPUStorageBuf *duWeightsBuffer,
+                    GPUStorageBuf *dvWeightsBuffer,
+                    GPUStorageBuf *duuWeightsBuffer,
+                    GPUStorageBuf *duvWeightsBuffer,
+                    GPUStorageBuf *dvvWeightsBuffer,
                     int start,
                     int end) const;
 
