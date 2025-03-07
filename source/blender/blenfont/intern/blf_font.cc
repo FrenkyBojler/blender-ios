@@ -1304,7 +1304,15 @@ static void blf_font_wrap_apply(FontBLF *font,
      * This is _only_ done when we know for sure the character is ascii (newline or a space).
      */
     pen_x_next = pen_x + advance_x;
-    if (UNLIKELY((int(mode) & int(BLFWrapMode::HardLimit)) && (pen_x_next >= wrap.wrap_width))) {
+    if (UNLIKELY(mode == BLFWrapMode::None)) {
+      wrap.last[0] = str_len;
+      wrap.last[1] = str_len;
+      do_draw = true;
+      clip_bytes = 0;
+    }
+    else if (UNLIKELY((int(mode) & int(BLFWrapMode::HardLimit)) &&
+                      (pen_x_next >= wrap.wrap_width)))
+    {
       wrap.last[0] = i_curr;
       wrap.last[1] = i_curr;
       do_draw = true;
@@ -1326,12 +1334,25 @@ static void blf_font_wrap_apply(FontBLF *font,
       do_draw = true;
       clip_bytes = 1;
     }
-    else if (UNLIKELY(codepoint != ' ' && (g_prev ? g_prev->c == ' ' : false))) {
+    else if (UNLIKELY((int(mode) & int(BLFWrapMode::Minimal)) && codepoint != ' ' &&
+                      (g_prev ? g_prev->c == ' ' : false)))
+    {
       wrap.last[0] = i_curr;
       wrap.last[1] = i_curr;
       clip_bytes = 1;
     }
-    else if (UNLIKELY(!BLI_str_utf32_char_is_breaking_space(codepoint) &&
+    else if (UNLIKELY((int(mode) & int(BLFWrapMode::FilePath)) && codepoint == SEP)) {
+      wrap.last[0] = i;
+      wrap.last[1] = i;
+      clip_bytes = 0;
+    }
+    else if (UNLIKELY((int(mode) & int(BLFWrapMode::PythonPath)) && codepoint == SEP)) {
+      wrap.last[0] = i;
+      wrap.last[1] = i;
+      clip_bytes = 0;
+    }
+    else if (UNLIKELY((int(mode) & int(BLFWrapMode::Typographical)) &&
+                      !BLI_str_utf32_char_is_breaking_space(codepoint) &&
                       BLI_str_utf32_char_is_breaking_space(previous)))
     {
       /* Optional break after space, removing it. */
@@ -1339,7 +1360,9 @@ static void blf_font_wrap_apply(FontBLF *font,
       wrap.last[1] = i_curr;
       clip_bytes = BLI_str_utf8_from_unicode_len(previous);
     }
-    else if (UNLIKELY(BLI_str_utf32_char_is_optional_break(codepoint, previous))) {
+    else if (UNLIKELY((int(mode) & int(BLFWrapMode::Typographical)) &&
+                      BLI_str_utf32_char_is_optional_break(codepoint, previous)))
+    {
       /* Optional break after various characters, keeping it. */
       wrap.last[0] = i;
       wrap.last[1] = i;
