@@ -1813,8 +1813,8 @@ static int node_activate_viewer_exec(bContext *C, wmOperator * /*op*/)
   bNode *node = nullptr;
 
   if (ptr.data) {
-    node = (bNode *)ptr.data;
-    ntree = (bNodeTree *)ptr.owner_id;
+    node = static_cast<bNode *>(ptr.data);
+    ntree = reinterpret_cast<bNodeTree *>(ptr.owner_id);
   }
   else if (snode && snode->edittree) {
     ntree = snode->edittree;
