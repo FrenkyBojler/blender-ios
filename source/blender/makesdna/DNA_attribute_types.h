@@ -26,7 +26,7 @@ typedef struct AttributeStorageRuntimeHandle AttributeStorageRuntimeHandle;
 
 struct AttributeArrayDNA {
   void *data;
-  int64_t elements_num;
+  int64_t size;
   const ImplicitSharingInfoHandle *sharing_info;
 };
 

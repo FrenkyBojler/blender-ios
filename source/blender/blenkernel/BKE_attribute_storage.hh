@@ -7,7 +7,6 @@
 #include <variant>
 
 #include "BLI_function_ref.hh"
-#include "BLI_generic_span.hh"
 #include "BLI_implicit_sharing_ptr.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector_set.hh"
@@ -22,9 +21,8 @@ namespace blender::bke {
 class Attribute {
  public:
   struct ArrayData {
-    // GSpan data;
     void *data;
-    int64_t elements_num;
+    int64_t size;
     ImplicitSharingPtr<> sharing_info;
   };
   struct SingleData {
@@ -85,8 +83,8 @@ class AttributeStorage : public ::AttributeStorage {
   void blend_read(BlendDataReader &reader);
   struct BlendWriteData {
     Array<AttributeDNA, 16> attibutes;
-    Vector<AttributeArrayDNA, 16> arrays;
-    Vector<AttributeSingleDNA, 16> singles;
+    Array<AttributeArrayDNA, 16> arrays;
+    Array<AttributeSingleDNA, 16> singles;
   };
   void blend_write_prepare(BlendWriter &writer, AttributeStorage::BlendWriteData &write_data);
   void blend_write(BlendWriter &writer, const BlendWriteData &write_data);
