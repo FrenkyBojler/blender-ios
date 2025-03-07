@@ -251,27 +251,17 @@ bool GPUComputeEvaluator::Compile(BufferDescriptor const &srcDesc,
                                   BufferDescriptor const &dvvDesc)
 {
 
-  // create a stencil kernel
   if (!_stencilKernel.Compile(
           srcDesc, dstDesc, duDesc, dvDesc, duuDesc, duvDesc, dvvDesc, _workGroupSize))
   {
     return false;
   }
 
-  // create a patch kernel
   if (!_patchKernel.Compile(
           srcDesc, dstDesc, duDesc, dvDesc, duuDesc, duvDesc, dvvDesc, _workGroupSize))
   {
     return false;
   }
-
-// create a patch arrays buffer
-// TODO: unknown size....
-#if 0
-  if (!_patchArraysSSBO) {
-    glGenBuffers(1, &_patchArraysSSBO);
-  }
-#endif
 
   return true;
 }
@@ -601,7 +591,6 @@ bool GPUComputeEvaluator::_StencilKernel::Compile(BufferDescriptor const &srcDes
                                                   BufferDescriptor const &dvvDesc,
                                                   int workGroupSize)
 {
-  // create stencil kernel
   if (shader) {
     GPU_shader_free(shader);
     shader = nullptr;
@@ -647,7 +636,6 @@ bool GPUComputeEvaluator::_PatchKernel::Compile(BufferDescriptor const &srcDesc,
                                                 BufferDescriptor const &dvvDesc,
                                                 int workGroupSize)
 {
-  // create stencil kernel
   if (shader) {
     GPU_shader_free(shader);
     shader = nullptr;
