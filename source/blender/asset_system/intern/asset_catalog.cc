@@ -558,18 +558,6 @@ std::unique_ptr<AssetCatalogDefinitionFile> AssetCatalogService::construct_cdf_i
   return cdf;
 }
 
-void AssetCatalogService::change_library_root(const StringRef new_library_root)
-{
-  asset_library_root_ = new_library_root;
-  catalog_collection_->change_definition_file_path(new_library_root);
-  for (auto &undo_snapshot : undo_snapshots_) {
-    undo_snapshot->change_definition_file_path(new_library_root);
-  }
-  for (auto &redo_snapshot : redo_snapshots_) {
-    redo_snapshot->change_definition_file_path(new_library_root);
-  }
-}
-
 std::unique_ptr<AssetCatalogTree> AssetCatalogService::read_into_tree() const
 {
   auto tree = std::make_unique<AssetCatalogTree>();

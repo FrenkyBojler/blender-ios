@@ -244,8 +244,6 @@ class AssetCatalogService {
   std::unique_ptr<AssetCatalogDefinitionFile> construct_cdf_in_memory(
       const CatalogFilePath &file_path) const;
 
-  void change_library_root(StringRef new_library_root);
-
   /**
    * Find a suitable path to write a CDF to.
    *

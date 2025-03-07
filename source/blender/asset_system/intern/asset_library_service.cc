@@ -238,7 +238,11 @@ AssetLibrary *AssetLibraryService::move_runtime_current_file_into_on_disk_librar
     on_disk_library->catalog_service_.swap(
         library_service.current_file_library_->catalog_service_);
   }
-  on_disk_library->catalog_service().change_library_root(on_disk_library->root_path());
+
+  on_disk_library->catalog_service().asset_library_root_ = on_disk_library->root_path();
+  BLI_assert_msg(on_disk_library->catalog_service().get_catalog_definition_file() == nullptr,
+                 "new on-disk library shouldn't have catalog definition files - root path "
+                 "changed, so they would have to be relocated");
 
   library_service.current_file_library_ = nullptr;
 
