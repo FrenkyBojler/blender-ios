@@ -347,7 +347,7 @@ struct FontBLF {
   /** Clipping rectangle. */
   rcti clip_rec;
 
-  /** The widths to wrap the text, see #BLF_WORD_WRAP. */
+  /** The width to wrap the text, see #BLF_WORD_WRAP. */
   int wrap_width;
   BLFWrapMode wrap_mode;
 
