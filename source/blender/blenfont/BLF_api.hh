@@ -37,6 +37,15 @@ enum class FontShadowType {
   Outline = 6,
 };
 
+enum class BLFWrapMode : int {
+  None = 0,               /* Do Not Wrap. Could replace BLF_WORD_WRAP flag. */
+  Minimal = 1 << 0,       /* Only on ascii space and line feed. Legacy and Invariant. */
+  FilePath = 1 << 1,      /* Wrap always on file path separators, regardless of content. */
+  PythonPath = 1 << 2,    /* Wrap as suitable for Blender python paths. */
+  Typographical = 1 << 3, /* Multilingual, informed by Unicode Standard Annex #14. */
+  HardLimit = 1 << 4,     /* Line break at limit. */
+};
+
 int BLF_init();
 void BLF_exit();
 
@@ -309,12 +318,12 @@ int BLF_glyph_advance(int fontid, const char *str);
  */
 void BLF_rotation(int fontid, float angle);
 void BLF_clipping(int fontid, int xmin, int ymin, int xmax, int ymax);
-void BLF_wordwrap(int fontid, int soft_max, int hard_max = -1);
+void BLF_wordwrap(int fontid, int wrap_width, BLFWrapMode mode = BLFWrapMode::Minimal);
 
 blender::Vector<blender::StringRef> BLF_string_wrap(int fontid,
                                                     blender::StringRef str,
-                                                    const int soft_max,
-                                                    const int hard_max = -1);
+                                                    const int max_pixel_width,
+                                                    BLFWrapMode mode = BLFWrapMode::Minimal);
 
 void BLF_enable(int fontid, int option);
 void BLF_disable(int fontid, int option);

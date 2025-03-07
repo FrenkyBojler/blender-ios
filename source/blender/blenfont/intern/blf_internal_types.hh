@@ -348,8 +348,8 @@ struct FontBLF {
   rcti clip_rec;
 
   /** The widths to wrap the text, see #BLF_WORD_WRAP. */
-  int wrap_width_soft;
-  int wrap_width_hard;
+  int wrap_width;
+  BLFWrapMode wrap_mode;
 
   /** Font size. */
   float size;

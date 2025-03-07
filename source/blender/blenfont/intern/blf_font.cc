@@ -1251,8 +1251,8 @@ blender::Vector<blender::Bounds<int>> blf_str_selection_boxes(
 static void blf_font_wrap_apply(FontBLF *font,
                                 const char *str,
                                 const size_t str_len,
-                                const int soft_max,
-                                const int hard_max,
+                                const int max_pixel_width,
+                                BLFWrapMode mode,
                                 ResultBLF *r_info,
                                 void (*callback)(FontBLF *font,
                                                  GlyphCacheBLF *gc,
@@ -1278,13 +1278,9 @@ static void blf_font_wrap_apply(FontBLF *font,
   GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
 
   struct WordWrapVars {
-    ft_pix wrap_width_soft;
-    ft_pix wrap_width_hard;
+    ft_pix wrap_width;
     size_t start, last[2];
-  } wrap = {soft_max != -1 ? ft_pix_from_int(soft_max) : INT_MAX,
-            hard_max != -1 ? ft_pix_from_int(hard_max) : INT_MAX,
-            0,
-            {0, 0}};
+  } wrap = {max_pixel_width != -1 ? ft_pix_from_int(max_pixel_width) : INT_MAX, 0, {0, 0}};
 
   // printf("%s wrapping (%d, %d) `%s`:\n", __func__, str_len, strlen(str), str);
   while ((i < str_len) && str[i]) {
@@ -1308,13 +1304,13 @@ static void blf_font_wrap_apply(FontBLF *font,
      * This is _only_ done when we know for sure the character is ascii (newline or a space).
      */
     pen_x_next = pen_x + advance_x;
-    if (UNLIKELY(pen_x_next >= wrap.wrap_width_hard)) {
+    if (UNLIKELY((int(mode) & int(BLFWrapMode::HardLimit)) && (pen_x_next >= wrap.wrap_width))) {
       wrap.last[0] = i_curr;
       wrap.last[1] = i_curr;
       do_draw = true;
       clip_bytes = 0;
     }
-    else if (UNLIKELY((pen_x_next >= wrap.wrap_width_soft) && (wrap.start != wrap.last[0]))) {
+    else if (UNLIKELY((pen_x_next >= wrap.wrap_width) && (wrap.start != wrap.last[0]))) {
       do_draw = true;
     }
     else if (UNLIKELY(((i < str_len) && str[i]) == 0)) {
@@ -1325,12 +1321,16 @@ static void blf_font_wrap_apply(FontBLF *font,
       clip_bytes = 0;
     }
     else if (UNLIKELY(codepoint == '\n')) {
-      /* Mandatory Break after LF. No need for us to consider 000B (Line Tabulation),
-       * 000C (Form Feed), 2028	(Line Separator), or 2029 (Paragraph Separator). */
       wrap.last[0] = i_curr + 1;
       wrap.last[1] = i;
       do_draw = true;
-      clip_bytes = 1; /* Currently only LF so always 1. */
+      clip_bytes = 1;
+    }
+    else if (UNLIKELY(codepoint != ' ' && (g_prev ? g_prev->c == ' ' : false)))
+    {
+      wrap.last[0] = i_curr;
+      wrap.last[1] = i_curr;
+      clip_bytes = 1;
     }
     else if (UNLIKELY(!BLI_str_utf32_char_is_breaking_space(codepoint) &&
                       BLI_str_utf32_char_is_breaking_space(previous)))
@@ -1397,8 +1397,8 @@ void blf_font_draw__wrap(FontBLF *font, const char *str, const size_t str_len, R
   blf_font_wrap_apply(font,
                       str,
                       str_len,
-                      font->wrap_width_soft,
-                      font->wrap_width_hard,
+                      font->wrap_width,
+                      font->wrap_mode,
                       r_info,
                       blf_font_draw__wrap_cb,
                       nullptr);
@@ -1429,8 +1429,8 @@ void blf_font_boundbox__wrap(
   blf_font_wrap_apply(font,
                       str,
                       str_len,
-                      font->wrap_width_soft,
-                      font->wrap_width_hard,
+                      font->wrap_width,
+                      font->wrap_mode,
                       r_info,
                       blf_font_boundbox_wrap_cb,
                       r_box);
@@ -1454,8 +1454,8 @@ void blf_font_draw_buffer__wrap(FontBLF *font,
   blf_font_wrap_apply(font,
                       str,
                       str_len,
-                      font->wrap_width_soft,
-                      font->wrap_width_hard,
+                      font->wrap_width,
+                      font->wrap_mode,
                       r_info,
                       blf_font_draw_buffer__wrap_cb,
                       nullptr);
@@ -1477,15 +1477,15 @@ static void blf_font_string_wrap_cb(FontBLF * /*font*/,
 
 blender::Vector<blender::StringRef> blf_font_string_wrap(FontBLF *font,
                                                          blender::StringRef str,
-                                                         int soft_max,
-                                                         int hard_max)
+                                                         int max_pixel_width,
+                                                         BLFWrapMode mode)
 {
   blender::Vector<blender::StringRef> list;
   blf_font_wrap_apply(font,
                       str.data(),
                       size_t(str.size()),
-                      soft_max,
-                      hard_max,
+                      max_pixel_width,
+                      mode,
                       nullptr,
                       blf_font_string_wrap_cb,
                       &list);

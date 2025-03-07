@@ -113,8 +113,7 @@ struct uiTooltipData {
   rcti bbox;
   blender::Vector<uiTooltipField> fields;
   uiFontStyle fstyle;
-  int wrap_width_soft;
-  int wrap_width_hard;
+  int wrap_width;
   int toth, lineh;
 };
 
@@ -213,8 +212,8 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
   color_blend_f3_f3(alert_color, main_color, 0.3f);
 
   /* Draw text. */
-  BLF_wordwrap(data->fstyle.uifont_id, data->wrap_width_soft, data->wrap_width_hard);
-  BLF_wordwrap(blf_mono_font, data->wrap_width_soft, data->wrap_width_hard);
+  BLF_wordwrap(data->fstyle.uifont_id, data->wrap_width, BLFWrapMode::Typographical);
+  BLF_wordwrap(blf_mono_font, data->wrap_width, BLFWrapMode::Typographical);
 
   bbox.xmin += 0.5f * pad_x; /* add padding to the text */
   bbox.ymax -= 0.5f * pad_y;
@@ -1292,15 +1291,13 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
 
   UI_fontstyle_set(&data->fstyle);
 
-  data->wrap_width_soft = min_ii(UI_TIP_MAXWIDTH * UI_SCALE_FAC, win_size[0] - pad_x);
-  /* Allow 20% overflow. */
-  data->wrap_width_hard = int(float(data->wrap_width_soft) * 1.2f);
+  data->wrap_width = min_ii(UI_TIP_MAXWIDTH * UI_SCALE_FAC, win_size[0] - pad_x);
 
   font_flag |= BLF_WORD_WRAP;
   BLF_enable(data->fstyle.uifont_id, font_flag);
   BLF_enable(blf_mono_font, font_flag);
-  BLF_wordwrap(data->fstyle.uifont_id, data->wrap_width_soft, data->wrap_width_hard);
-  BLF_wordwrap(blf_mono_font, data->wrap_width_soft, data->wrap_width_hard);
+  BLF_wordwrap(data->fstyle.uifont_id, data->wrap_width, BLFWrapMode::Typographical);
+  BLF_wordwrap(blf_mono_font, data->wrap_width, BLFWrapMode::Typographical);
 
   int i, fonth, fontw;
   for (i = 0, fontw = 0, fonth = 0; i < data->fields.size(); i++) {
