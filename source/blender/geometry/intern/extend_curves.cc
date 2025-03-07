@@ -246,10 +246,8 @@ bke::CurvesGeometry extend_curves(bke::CurvesGeometry &src_curves,
     /* Use the old curves when extending straight when no new points are added.  */
     dst_curves = std::move(src_curves);
     /* Enable affected curves for #extend_curves_straight().  */
-    selection.foreach_index([&](const int curve_i) {
-      start_points[curve_i] = 1;
-      end_points[curve_i] = 1;
-    });
+    index_mask::masked_fill<int>(start_points, 1, selection);
+    index_mask::masked_fill<int>(end_points, 1, selection);
   }
   else {
     /* Copy only curves domain since we are not changing the number of curves here. */
