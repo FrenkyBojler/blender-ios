@@ -232,8 +232,6 @@ bke::CurvesGeometry extend_curves(bke::CurvesGeometry &src_curves,
       float total_length = src_curves.evaluated_length_total_for_curve(curve, false);
       use_start_lengths[curve] *= total_length;
       use_end_lengths[curve] *= total_length;
-      start_points[curve] = 1;
-      end_points[curve] = 1;
     }
   });
 
@@ -251,10 +249,11 @@ bke::CurvesGeometry extend_curves(bke::CurvesGeometry &src_curves,
     selection.foreach_index([&](const int curve) {
       int point_count = points_by_curve[curve].size();
       dst_points_by_curve[curve] = point_count;
-      /* Curve not suitable for stretching... */
+      /* Curve not suitable for curved stretching, set start/end points to 1 to allow straight
+       * stretching. */
       if (point_count <= 2) {
-        start_points[curve] = 0;
-        end_points[curve] = 0;
+        start_points[curve] = 1;
+        end_points[curve] = 1;
         return;
       }
 
@@ -286,12 +285,10 @@ bke::CurvesGeometry extend_curves(bke::CurvesGeometry &src_curves,
         }
         continue;
       }
-      if (start_points[curve] > 0) {
+      if (follow_curvature) {
         MutableSpan<int> starts = new_points_by_curve.slice(0, start_points[curve]);
         starts.fill(points_by_curve[curve].first());
         local_front = start_points[curve];
-      }
-      if (end_points[curve] > 0) {
         MutableSpan<int> ends = new_points_by_curve.slice(
             new_points_by_curve.size() - end_points[curve], end_points[curve]);
         ends.fill(points_by_curve[curve].last());
@@ -331,8 +328,8 @@ bke::CurvesGeometry extend_curves(bke::CurvesGeometry &src_curves,
       if (!follow_curvature || new_size == 2) {
         extend_curves_straight(used_percent_length,
                                new_size,
-                               {1},
-                               {1},
+                               start_points.as_span(),
+                               end_points.as_span(),
                                curve,
                                new_curve,
                                use_start_lengths.as_span(),
