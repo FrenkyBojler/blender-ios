@@ -181,23 +181,29 @@ void attribute_legacy_convert_storage_to_customdata(
     const Map<AttrDomain, std::pair<CustomData *, int>> &custom_data_domains)
 {
   storage.foreach ([&](const Attribute &attribute) {
-    if (AttrStorageType(attribute.storage_type()) != AttrStorageType::Array) {
-      return;
-    }
     const std::optional<eCustomDataType> data_type = attribute_to_to_custom_data_type(
         attribute.data_type());
     if (!data_type) {
       return;
     }
-    const auto &array_data = std::get<bke::Attribute::ArrayData>(attribute.data());
-    BLI_assert(array_data.elements_num ==
-               custom_data_domains.lookup(AttrDomain(attribute.domain())).second);
-    CustomData_add_layer_named_with_data(custom_data_domains.lookup(attribute.domain()).first,
-                                         *data_type,
-                                         array_data.data,
-                                         array_data.elements_num,
-                                         attribute.name(),
-                                         array_data.sharing_info.get());
+    CustomData *custom_data = custom_data_domains.lookup(attribute.domain()).first;
+    const int domain_size = custom_data_domains.lookup(attribute.domain()).second;
+    if (const auto *array_data = std::get_if<Attribute::ArrayData>(&attribute.data())) {
+      BLI_assert(array_data->elements_num == domain_size);
+      CustomData_add_layer_named_with_data(custom_data,
+                                           *data_type,
+                                           array_data->data,
+                                           array_data->elements_num,
+                                           attribute.name(),
+                                           array_data->sharing_info.get());
+    }
+    else if (const auto *single_data = std::get_if<Attribute::SingleData>(&attribute.data())) {
+      const CPPType &cpp_type = *custom_data_type_to_cpp_type(*data_type);
+      auto *value = new ImplicitSharedValue<GArray<>>(cpp_type, domain_size);
+      cpp_type.fill_construct_n(single_data->value, value->data.data(), domain_size);
+      CustomData_add_layer_named_with_data(
+          custom_data, *data_type, value->data.data(), domain_size, attribute.name(), value);
+    }
   });
   storage = AttributeStorage();
 }
