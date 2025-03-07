@@ -101,7 +101,7 @@ struct GPUPass {
   BatchHandle compilation_handle = 0;
   std::atomic<GPUShader *> shader = nullptr;
   /* Orphaned GPUPasses gets freed by the garbage collector. */
-  std::atomic<int> refcount = 0;
+  std::atomic<int> refcount = 1;
   /* The last time the refcount was greater than 0. */
   int gc_timestamp = 0;
 
@@ -111,19 +111,19 @@ struct GPUPass {
 
   GPUPass(GPUCodegenCreateInfo *info, bool deferred_compilation)
   {
+    create_info = info;
+
     GPUShaderCreateInfo *base_info = reinterpret_cast<GPUShaderCreateInfo *>(
         static_cast<ShaderCreateInfo *>(info));
 
     if (deferred_compilation) {
       compilation_handle = GPU_shader_batch_create_from_infos(
           Span<GPUShaderCreateInfo *>(&base_info, 1));
-      create_info = info;
     }
     else {
       shader = GPU_shader_create_from_info(base_info);
       finalize_compilation();
     }
-    refcount = 1;
   }
 
   ~GPUPass()
@@ -252,8 +252,8 @@ class GPUPassCache {
   GPUPass *get(eGPUMaterialEngine engine, size_t hash)
   {
     std::lock_guard lock(mutex_);
-
-    return passes_[engine].lookup_ptr(hash)->get();
+    std::unique_ptr<GPUPass> *pass = passes_[engine].lookup_ptr(hash);
+    return pass ? pass->get() : nullptr;
   }
 
   void update()
