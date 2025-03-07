@@ -21,15 +21,15 @@
 
 namespace blender::geometry {
 
-static void extend_curves_straight(const float used_percent_length,
-                                   const float new_size,
-                                   const Span<int> start_points,
-                                   const Span<int> end_points,
-                                   const int curve,
-                                   const IndexRange new_curve,
-                                   const Span<float> use_start_lengths,
-                                   const Span<float> use_end_lengths,
-                                   MutableSpan<float3> positions)
+static void extend_curve_straight(const float used_percent_length,
+                                  const float new_size,
+                                  const Span<int> start_points,
+                                  const Span<int> end_points,
+                                  const int curve,
+                                  const IndexRange new_curve,
+                                  const Span<float> use_start_lengths,
+                                  const Span<float> use_end_lengths,
+                                  MutableSpan<float3> positions)
 {
   float overshoot_point_param = used_percent_length * (new_size - 1);
   if (start_points[curve]) {
@@ -69,18 +69,18 @@ static void extend_curves_straight(const float used_percent_length,
   }
 }
 
-static void extend_curves_curved(const float used_percent_length,
-                                 const Span<int> start_points,
-                                 const Span<int> end_points,
-                                 const OffsetIndices<int> points_by_curve,
-                                 const int curve,
-                                 const IndexRange new_curve,
-                                 const Span<float> use_start_lengths,
-                                 const Span<float> use_end_lengths,
-                                 const float max_angle,
-                                 const float segment_influence,
-                                 const bool invert_curvature,
-                                 MutableSpan<float3> positions)
+static void extend_curve_curved(const float used_percent_length,
+                                const Span<int> start_points,
+                                const Span<int> end_points,
+                                const OffsetIndices<int> points_by_curve,
+                                const int curve,
+                                const IndexRange new_curve,
+                                const Span<float> use_start_lengths,
+                                const Span<float> use_end_lengths,
+                                const float max_angle,
+                                const float segment_influence,
+                                const bool invert_curvature,
+                                MutableSpan<float3> positions)
 {
   /* Curvature calculation. */
   const int first_old_index = start_points[curve] ? start_points[curve] : 0;
@@ -217,8 +217,13 @@ bke::CurvesGeometry extend_curves(bke::CurvesGeometry &src_curves,
   }
 
   const int src_curves_num = src_curves.curves_num();
+
+  /* Extra point count at the start/end of extended strokes. For straight extension, or for strokes
+   * with only 2 points (thus unable to curve), the value of their respective index should be set
+   * to 1 to allow #extend_curves_straight() to identify strokes to work on.  */
   Array<int> start_points(src_curves_num, 0);
   Array<int> end_points(src_curves_num, 0);
+
   Array<float> use_start_lengths(src_curves_num);
   Array<float> use_end_lengths(src_curves_num);
 
@@ -237,9 +242,14 @@ bke::CurvesGeometry extend_curves(bke::CurvesGeometry &src_curves,
 
   bke::CurvesGeometry dst_curves;
 
-  /* Use the old curves when extending straight when no new points are added.  */
   if (!follow_curvature) {
+    /* Use the old curves when extending straight when no new points are added.  */
     dst_curves = std::move(src_curves);
+    /* Enable affected curves for #extend_curves_straight().  */
+    selection.foreach_index([&](const int curve_i) {
+      start_points[curve_i] = 1;
+      end_points[curve_i] = 1;
+    });
   }
   else {
     /* Copy only curves domain since we are not changing the number of curves here. */
@@ -249,9 +259,8 @@ bke::CurvesGeometry extend_curves(bke::CurvesGeometry &src_curves,
     selection.foreach_index([&](const int curve) {
       int point_count = points_by_curve[curve].size();
       dst_points_by_curve[curve] = point_count;
-      /* Curve not suitable for curved stretching, set start/end points to 1 to allow straight
-       * stretching. */
       if (point_count <= 2) {
+        /* Can't make a curve, set start/end points to 1 to allow straight extension. */
         start_points[curve] = 1;
         end_points[curve] = 1;
         return;
@@ -326,29 +335,29 @@ bke::CurvesGeometry extend_curves(bke::CurvesGeometry &src_curves,
           isfinite(overshoot_fac) ? overshoot_fac : 0.1f, 1e-4f, 1.0f);
 
       if (!follow_curvature || new_size == 2) {
-        extend_curves_straight(used_percent_length,
-                               new_size,
-                               start_points.as_span(),
-                               end_points.as_span(),
-                               curve,
-                               new_curve,
-                               use_start_lengths.as_span(),
-                               use_end_lengths.as_span(),
-                               positions);
+        extend_curve_straight(used_percent_length,
+                              new_size,
+                              start_points.as_span(),
+                              end_points.as_span(),
+                              curve,
+                              new_curve,
+                              use_start_lengths.as_span(),
+                              use_end_lengths.as_span(),
+                              positions);
       }
       else if (start_points[curve] > 0 || end_points[curve] > 0) {
-        extend_curves_curved(used_percent_length,
-                             start_points.as_span(),
-                             end_points.as_span(),
-                             points_by_curve,
-                             curve,
-                             new_curve,
-                             use_start_lengths.as_span(),
-                             use_end_lengths.as_span(),
-                             max_angle,
-                             segment_influence,
-                             invert_curvature,
-                             positions);
+        extend_curve_curved(used_percent_length,
+                            start_points.as_span(),
+                            end_points.as_span(),
+                            points_by_curve,
+                            curve,
+                            new_curve,
+                            use_start_lengths.as_span(),
+                            use_end_lengths.as_span(),
+                            max_angle,
+                            segment_influence,
+                            invert_curvature,
+                            positions);
       }
     }
   });
