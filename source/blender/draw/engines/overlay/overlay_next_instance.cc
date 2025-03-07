@@ -67,6 +67,10 @@ void Instance::init()
                                       (BKE_scene_uses_blender_eevee(state.scene) &&
                                        BKE_render_preview_pixel_size(&state.scene->r) == 1);
 
+    /* For depth only drawing, no other render engine is expected. Except for Grease Pencil which
+     * outputs valid depth. Otherwise depth is cleared and is valid. */
+    state.is_render_depth_available |= state.is_depth_only_drawing;
+
     if (!state.hide_overlays) {
       state.overlay = state.v3d->overlay;
       state.v3d_flag = state.v3d->flag;
@@ -425,6 +429,7 @@ void Instance::begin_sync()
     layer.names.begin_sync(resources, state);
     layer.paints.begin_sync(resources, state);
     layer.particles.begin_sync(resources, state);
+    layer.pointclouds.begin_sync(resources, state);
     layer.prepass.begin_sync(resources, state);
     layer.relations.begin_sync(resources, state);
     layer.speakers.begin_sync(resources, state);
@@ -515,6 +520,9 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
         break;
       case OB_MBALL:
         layer.metaballs.edit_object_sync(manager, ob_ref, resources, state);
+        break;
+      case OB_POINTCLOUD:
+        layer.pointclouds.edit_object_sync(manager, ob_ref, resources, state);
         break;
       case OB_FONT:
         layer.edit_text.edit_object_sync(manager, ob_ref, resources, state);
@@ -643,8 +651,12 @@ void Instance::draw(Manager &manager)
 
   static gpu::DebugScope select_scope = {"Selection"};
   static gpu::DebugScope draw_scope = {"Overlay"};
+  static gpu::DebugScope depth_scope = {"DepthOnly"};
 
-  if (resources.is_selection()) {
+  if (state.is_depth_only_drawing) {
+    depth_scope.begin_capture();
+  }
+  else if (resources.is_selection()) {
     select_scope.begin_capture();
   }
   else {
@@ -673,6 +685,7 @@ void Instance::draw(Manager &manager)
       layer.lattices.pre_draw(manager, view);
       layer.light_probes.pre_draw(manager, view);
       layer.particles.pre_draw(manager, view);
+      layer.pointclouds.pre_draw(manager, view);
       layer.prepass.pre_draw(manager, view);
       layer.wireframe.pre_draw(manager, view);
     };
@@ -704,7 +717,10 @@ void Instance::draw(Manager &manager)
 
   resources.read_result();
 
-  if (resources.is_selection()) {
+  if (state.is_depth_only_drawing) {
+    depth_scope.end_capture();
+  }
+  else if (resources.is_selection()) {
     select_scope.end_capture();
   }
   else {
@@ -760,6 +776,7 @@ void Instance::draw_v3d(Manager &manager, View &view)
     layer.speakers.draw_line(framebuffer, manager, view);
     layer.lattices.draw_line(framebuffer, manager, view);
     layer.metaballs.draw_line(framebuffer, manager, view);
+    layer.pointclouds.draw_line(framebuffer, manager, view);
     layer.relations.draw_line(framebuffer, manager, view);
     layer.fluids.draw_line(framebuffer, manager, view);
     layer.particles.draw_line(framebuffer, manager, view);

@@ -87,12 +87,14 @@ void RNA_init()
   for (srna = static_cast<StructRNA *>(BLENDER_RNA.structs.first); srna;
        srna = static_cast<StructRNA *>(srna->cont.next))
   {
-    if (!srna->cont.prophash) {
-      srna->cont.prophash = BLI_ghash_str_new("RNA_init gh");
+    if (!srna->cont.prop_lookup_set) {
+      srna->cont.prop_lookup_set =
+          MEM_new<blender::CustomIDVectorSet<PropertyRNA *, PropertyRNAIdentifierGetter>>(
+              __func__);
 
       LISTBASE_FOREACH (PropertyRNA *, prop, &srna->cont.properties) {
         if (!(prop->flag_internal & PROP_INTERN_BUILTIN)) {
-          BLI_ghash_insert(srna->cont.prophash, (void *)prop->identifier, prop);
+          srna->cont.prop_lookup_set->add(prop);
         }
       }
     }
@@ -124,10 +126,7 @@ void RNA_exit()
   for (srna = static_cast<StructRNA *>(BLENDER_RNA.structs.first); srna;
        srna = static_cast<StructRNA *>(srna->cont.next))
   {
-    if (srna->cont.prophash) {
-      BLI_ghash_free(srna->cont.prophash, nullptr, nullptr);
-      srna->cont.prophash = nullptr;
-    }
+    MEM_SAFE_DELETE(srna->cont.prop_lookup_set);
   }
 
   RNA_free(&BLENDER_RNA);
@@ -3915,6 +3914,18 @@ void RNA_property_string_search(
   BLI_assert(RNA_property_string_search_flag(prop) & PROP_STRING_SEARCH_SUPPORTED);
   StringPropertyRNA *sprop = (StringPropertyRNA *)rna_ensure_property(prop);
   sprop->search(C, ptr, prop, edit_text, visit_fn);
+}
+
+std::optional<std::string> RNA_property_string_path_filter(const bContext *C,
+                                                           PointerRNA *ptr,
+                                                           PropertyRNA *prop)
+{
+  BLI_assert(prop->type == PROP_STRING);
+  StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
+  if (!sprop->path_filter) {
+    return std::nullopt;
+  }
+  return sprop->path_filter(C, ptr, prop);
 }
 
 int RNA_property_enum_get(PointerRNA *ptr, PropertyRNA *prop)
