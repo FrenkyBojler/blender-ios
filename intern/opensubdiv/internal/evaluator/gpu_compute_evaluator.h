@@ -6,7 +6,6 @@
 #define OPENSUBDIV_GPU_COMPUTE_EVALUATOR_H_
 
 #include <opensubdiv/osd/bufferDescriptor.h>
-#include <opensubdiv/osd/opengl.h>
 #include <opensubdiv/osd/types.h>
 #include <opensubdiv/version.h>
 

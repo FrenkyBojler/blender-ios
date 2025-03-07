@@ -1,7 +1,6 @@
 #pragma once
 
 #include "GPU_storage_buffer.hh"
-#include "GPU_vertex_buffer.hh"
 
 #include <opensubdiv/version.h>
 
