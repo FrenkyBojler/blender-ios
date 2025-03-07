@@ -632,7 +632,7 @@ static bool view3d_ruler_from_gpencil(const bContext *C, wmGizmoGroup *gzgroup)
   return changed;
 }
 
-void ED_view3d_gizmo_ruler_remove_all(bContext *C, bGPDlayer *gpl)
+void ED_view3d_gizmo_ruler_remove_by_gpencil_layer(bContext *C, bGPDlayer *gpl)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
@@ -1249,6 +1249,7 @@ static void gizmo_ruler_exit(bContext *C, wmGizmo *gz, const bool cancel)
     }
     /* We could convert only the current gizmo, for now just re-generate. */
     if (view3d_ruler_to_gpencil(C, gzgroup)) {
+      /* For immediate update when a ruler annotation layer was added. */
       WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, NULL);
     }
   }

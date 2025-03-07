@@ -248,7 +248,7 @@ static int gpencil_layer_remove_exec(bContext *C, wmOperator *op)
   }
 
   if (gpl->flag & GP_LAYER_IS_RULER) {
-    ED_view3d_gizmo_ruler_remove_all(C, gpl);
+    ED_view3d_gizmo_ruler_remove_by_gpencil_layer(C, gpl);
   }
 
   /* delete the layer now... */
