@@ -1,1 +1,2 @@
 Referenced by issue #135538, 4.4.0 beta - Carriage Return character do not work anymore in tooltips
+Referenced by issue #135647, Backdrop in Compositing does not update automatically after re-render
