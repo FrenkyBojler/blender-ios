@@ -3,3 +3,4 @@ Referenced by commit ce5559d682a, Fix: Crash in UI code after recent StringRef c
 Referenced by issue #132852, Fix: don't use nullptr for std::optional<StringRefNull>
 Referenced by issue #135601, prop_tabs_enum No Longer Displays Text of Enum
 Referenced by pull request #135621, Fix #135601: prop_tabs_enum No Longer Displays Text of Enum
+Referenced by commit a568890515e3a9a2e376002b151eb32b2eb35d84, Fix #135601: prop_tabs_enum No Longer Displays Text of Enum
