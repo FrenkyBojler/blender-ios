@@ -267,17 +267,15 @@ void ED_armature_bone_rename(Main *bmain,
            * deformation could change, so we tag this object for depsgraph update. */
           DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
         }
-        else {
-          if (bDeformGroup *dg = BKE_object_defgroup_find_name(ob, oldname)) {
-            STRNCPY(dg->name, newname);
+        else if (bDeformGroup *dg = BKE_object_defgroup_find_name(ob, oldname)) {
+          STRNCPY(dg->name, newname);
 
-            if (ob->type == OB_GREASE_PENCIL) {
-              /* Update vgroup names stored in CurvesGeometry */
-              BKE_grease_pencil_vgroup_name_update(ob, oldname, dg->name);
-            }
-
-            DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
+          if (ob->type == OB_GREASE_PENCIL) {
+            /* Update vgroup names stored in CurvesGeometry */
+            BKE_grease_pencil_vgroup_name_update(ob, oldname, dg->name);
           }
+
+          DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
         }
       }
 
