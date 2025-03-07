@@ -2241,7 +2241,7 @@ static void rearrange_gpencil_channels(bAnimContext *ac, eRearrangeAnimChan_Mode
 
   LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
     /* only consider grease pencil container channels */
-    if (!ELEM(ale->type, ANIMTYPE_DSGPENCIL)) {
+    if (ale->type != ANIMTYPE_DSGPENCIL) {
       continue;
     }
 
