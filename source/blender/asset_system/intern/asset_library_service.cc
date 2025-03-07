@@ -122,7 +122,16 @@ AssetLibrary *AssetLibraryService::get_asset_library_on_disk(eAssetLibraryType l
   if (OnDiskAssetLibrary *lib = this->lookup_on_disk_library(library_type, root_path)) {
     CLOG_INFO(&LOG, 2, "get \"%s\" (cached)", root_path.c_str());
     if (load_catalogs) {
-      lib->refresh_catalogs();
+      /* Might have skipped reading catalogs earlier. */
+      if (!lib->catalog_service_) {
+        lib->load_catalogs();
+      }
+      else if (lib->catalog_service().get_catalog_definition_file() == nullptr) {
+        lib->catalog_service().load_from_disk();
+      }
+      else {
+        lib->refresh_catalogs();
+      }
     }
     return lib;
   }
@@ -224,12 +233,12 @@ AssetLibrary *AssetLibraryService::move_runtime_current_file_into_on_disk_librar
       root_path,
       /*load_catalogs=*/false);
 
-  on_disk_library->catalog_service_.swap(library_service.current_file_library_->catalog_service_);
+  {
+    std::lock_guard lock{on_disk_library->catalog_service_mutex_};
+    on_disk_library->catalog_service_.swap(
+        library_service.current_file_library_->catalog_service_);
+  }
   on_disk_library->catalog_service().change_library_root(on_disk_library->root_path());
-  /* Allow undoing to the state before merging in catalogs from disk. */
-  on_disk_library->catalog_service().undo_push();
-  /* Merge on-disk catalogs into the ones stolen from the runtime library. */
-  on_disk_library->refresh_catalogs();
 
   library_service.current_file_library_ = nullptr;
 

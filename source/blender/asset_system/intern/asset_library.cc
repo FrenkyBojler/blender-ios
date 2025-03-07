@@ -255,13 +255,20 @@ void asset_library_on_save_post(Main *bmain,
 {
   AssetLibrary *asset_lib = static_cast<AssetLibrary *>(arg);
 
-  if (asset_lib->library_type() == ASSET_LIBRARY_LOCAL &&
-      dynamic_cast<RuntimeAssetLibrary *>(asset_lib))
-  {
+  /* Transform runtime current file library into on disk current file library. */
+  if (asset_lib->library_type() == ASSET_LIBRARY_LOCAL && asset_lib->root_path().is_empty()) {
+    BLI_assert(dynamic_cast<RuntimeAssetLibrary *>(asset_lib) != nullptr);
+
     if (AssetLibrary *on_disk_lib =
             AssetLibraryService::move_runtime_current_file_into_on_disk_library(*bmain))
     {
-      asset_lib = on_disk_lib;
+      /* Allow undoing to the state before merging in catalogs from disk. */
+      on_disk_lib->catalog_service().undo_push();
+
+      /* Force refresh to merge on-disk catalogs with the ones stolen from the runtime library. */
+      asset_lib = AssetLibraryService::get()->get_asset_library_on_disk_builtin(
+          ASSET_LIBRARY_LOCAL, on_disk_lib->root_path());
+      BLI_assert(asset_lib == on_disk_lib);
     }
   }
 
