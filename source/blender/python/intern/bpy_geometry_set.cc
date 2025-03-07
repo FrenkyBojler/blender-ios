@@ -167,9 +167,9 @@ PyDoc_STRVAR(
     "   Get a pointcloud that encodes information about the instances of the geometry.\n"
     "   The returned pointcloud should not be modified.\n"
     "   There is a point per instance and per-instance data is stored in point attributes.\n"
-    "   The local transforms are stored in the `instance_transform` attribute.\n"
-    "   The data instanced by each point is referenced by the `.reference_index` attribute.\n"
-    "   This is an index into the list returned by `geometry_set.instance_references()`.\n"
+    "   The local transforms are stored in the \"instance_transform\" attribute.\n"
+    "   The data instanced by each point is referenced by the \".reference_index\" attribute.\n"
+    "   This is an index into the list returned by :func:`GeometrySet.instance_references`.\n"
     "\n"
     "   :rtype: bpy.types.PointCloud\n");
 static PyObject *BPy_GeometrySet_get_instances_pointcloud(BPy_GeometrySet *self)
@@ -198,8 +198,8 @@ PyDoc_STRVAR(
     bpy_geometry_set_get_instance_references_doc,
     ".. method:: instance_references()\n"
     "\n"
-    "   This returns a list of geometries that is indexed by the `.reference_index`\n"
-    "   attribute of the pointcloud returned by `geometry_set.instances_pointcloud()`.\n"
+    "   This returns a list of geometries that is indexed by the \".reference_index\"\n"
+    "   attribute of the pointcloud returned by :func:`GeometrySet.instances_pointcloud`.\n"
     "   It may contain other geometry sets, objects, collections and None values.\n"
     "\n"
     "   :rtype: list[None | bpy.types.Object | bpy.types.Collection | GeometrySet]\n");
