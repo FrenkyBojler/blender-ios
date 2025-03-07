@@ -208,7 +208,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Min Triangle Scale").default_value(0.1f).min(0.01f).max(1.0f);
   b.add_input<decl::String>("Scale Attribute").default_value("scale");
   b.add_input<decl::Float>("Local Feature Scale").default_value(1.0f).min(0.01f);
-  b.add_output<decl::Geometry>("Mesh").propagate_all();
+  b.add_output<decl::Geometry>("Mesh").propagate_all()
+      .description("Quality threshold for tetrahedral mesh generation (0=fast, 1=best)");
 }
 
 /*
@@ -363,114 +364,222 @@ static void generate_tetrahedralization(const Mesh *mesh,
                                       Vector<float3> &out_vertices,
                                       Vector<Tetrahedron> &out_tetrahedra)
 {
+  // Early validation
+  if (!mesh || mesh->verts_num == 0 || mesh->faces_num == 0) {
+    return;
+  }
+
   const Span<float3> positions = mesh->vert_positions();
   const OffsetIndices faces = mesh->faces();
   const Span<int> corner_verts = mesh->corner_verts();
   
-  if (positions.is_empty() || faces.is_empty()) {
+  if (positions.is_empty() || faces.is_empty() || corner_verts.is_empty()) {
+    return;
+  }
+
+  // Validate input parameters
+  base_size = std::max(base_size, 0.00001f);
+  max_tet_scale = std::max(max_tet_scale, 0.01f);
+  min_triangle_scale = std::clamp(min_triangle_scale, 0.01f, 1.0f);
+  local_feature_scale = std::max(local_feature_scale, 0.01f);
+  
+  /* Save all original vertices */
+  try {
+    out_vertices.resize(positions.size());
+    for (const int i : positions.index_range()) {
+      out_vertices[i] = positions[i];
+    }
+  }
+  catch (const std::exception &) {
+    out_vertices.clear();
     return;
   }
   
-  /* Save all original vertices */
-  out_vertices.resize(positions.size());
-  for (const int i : positions.index_range()) {
-    out_vertices[i] = positions[i];
-  }
-  
   /* Get scaling information based on selected method */
-  Array<float> vertex_scales(positions.size(), 1.0f);
+  Array<float> vertex_scales;
+  try {
+    vertex_scales.reinitialize(positions.size());
+    vertex_scales.fill(1.0f);
   
-  switch (local_scaling_method) {
-    case SCALING_FEATURE_SIZE: {
-      Array<float> feature_sizes = calculate_local_feature_sizes(mesh);
-      for (const int i : positions.index_range()) {
-        vertex_scales[i] = feature_sizes[i] * local_feature_scale;
+    switch (local_scaling_method) {
+      case SCALING_FEATURE_SIZE: {
+        Array<float> feature_sizes = calculate_local_feature_sizes(mesh);
+        if (!feature_sizes.is_empty()) {
+          for (const int i : positions.index_range()) {
+            vertex_scales[i] = feature_sizes[i] * local_feature_scale;
+          }
+        }
+        break;
       }
-      break;
+      case SCALING_POINT_ATTRIBUTE: {
+        vertex_scales = get_point_attribute_values(mesh, scale_attribute);
+        for (float &scale : vertex_scales) {
+          scale *= local_feature_scale;
+        }
+        break;
+      }
+      default:
+        // No special scaling - use uniform scale based on max_tet_scale
+        for (float &scale : vertex_scales) {
+          scale = base_size * max_tet_scale;
+        }
+        break;
     }
-    case SCALING_POINT_ATTRIBUTE: {
-      vertex_scales = get_point_attribute_values(mesh, scale_attribute);
-      for (float &scale : vertex_scales) {
-        scale *= local_feature_scale;
-      }
-      break;
-    }
-    default:
-      // No special scaling - use uniform scale based on max_tet_scale
-      for (float &scale : vertex_scales) {
-        scale = base_size * max_tet_scale;
-      }
-      break;
+  }
+  catch (const std::exception &) {
+    out_vertices.clear();
+    return;
   }
   
   // Collect surface triangles
   Vector<TriFace> surface_triangles;
-  
-  // Process all faces
-  for (const int face_index : faces.index_range()) {
-    const IndexRange face = faces[face_index];
-    
-    // Triangulate non-triangular faces
-    if (face.size() == 3) {
-      // Directly add triangular faces
-      const int v1 = corner_verts[face[0]];
-      const int v2 = corner_verts[face[1]];
-      const int v3 = corner_verts[face[2]];
-      surface_triangles.append(TriFace(v1, v2, v3));
-    }
-    else if (face.size() > 3) {
-      // Triangulate n-gons using Blender's triangulation
-      const int v0 = corner_verts[face[0]];
-      for (int i = 2; i < face.size(); i++) {
-        const int v1 = corner_verts[face[i - 1]];
-        const int v2 = corner_verts[face[i]];
-        surface_triangles.append(TriFace(v0, v1, v2));
+  try {
+    // Process all faces
+    for (const int face_index : faces.index_range()) {
+      const IndexRange face = faces[face_index];
+      
+      // Skip invalid faces
+      if (face.size() < 3) {
+        continue;
+      }
+      
+      // Validate vertex indices
+      bool valid_face = true;
+      for (int i = 0; i < face.size(); i++) {
+        if (face[i] >= corner_verts.size()) {
+          valid_face = false;
+          break;
+        }
+        const int vert_idx = corner_verts[face[i]];
+        if (vert_idx >= positions.size()) {
+          valid_face = false;
+          break;
+        }
+      }
+      if (!valid_face) {
+        continue;
+      }
+      
+      // Triangulate non-triangular faces
+      if (face.size() == 3) {
+        // Directly add triangular faces
+        const int v1 = corner_verts[face[0]];
+        const int v2 = corner_verts[face[1]];
+        const int v3 = corner_verts[face[2]];
+        
+        // Skip degenerate triangles
+        const float3 &p1 = positions[v1];
+        const float3 &p2 = positions[v2];
+        const float3 &p3 = positions[v3];
+        
+        float3 normal = math::cross(p2 - p1, p3 - p1);
+        float area = len_v3(normal) * 0.5f;
+        
+        if (area > 1e-6f) {
+          surface_triangles.append(TriFace(v1, v2, v3));
+        }
+      }
+      else if (face.size() > 3) {
+        // Triangulate n-gons using Blender's triangulation
+        const int v0 = corner_verts[face[0]];
+        for (int i = 2; i < face.size(); i++) {
+          const int v1 = corner_verts[face[i - 1]];
+          const int v2 = corner_verts[face[i]];
+          
+          // Skip degenerate triangles
+          const float3 &p0 = positions[v0];
+          const float3 &p1 = positions[v1];
+          const float3 &p2 = positions[v2];
+          
+          float3 normal = math::cross(p1 - p0, p2 - p0);
+          float area = len_v3(normal) * 0.5f;
+          
+          if (area > 1e-6f) {
+            surface_triangles.append(TriFace(v0, v1, v2));
+          }
+        }
       }
     }
   }
+  catch (const std::exception &) {
+    out_vertices.clear();
+    return;
+  }
   
-  // Find starting interior point
-  int interior_point_index = find_interior_point(mesh, out_vertices);
+  if (surface_triangles.is_empty()) {
+    out_vertices.clear();
+    return;
+  }
+  
+  // Find starting interior point with safety checks
+  int interior_point_index;
+  try {
+    interior_point_index = find_interior_point(mesh, out_vertices);
+    if (interior_point_index < 0 || interior_point_index >= out_vertices.size()) {
+      out_vertices.clear();
+      return;
+    }
+  }
+  catch (const std::exception &) {
+    out_vertices.clear();
+    return;
+  }
   
   // Create initial tetrahedra connecting interior point to surface triangles
-  for (const TriFace &face : surface_triangles) {
-    // Check for valid triangle vertices
-    float3 v1 = out_vertices[face.v1];
-    float3 v2 = out_vertices[face.v2];
-    float3 v3 = out_vertices[face.v3];
-    float3 v4 = out_vertices[interior_point_index];
-    
-    // Calculate triangle area
-    float3 normal = math::cross(v2 - v1, v3 - v1);
-    float area = len_v3(normal) * 0.5f;
-    
-    // Calculate potential tetrahedron volume
-    float volume = volume_tetrahedron_signed_v3(v1, v2, v3, v4);
-    
-    // Skip small areas and invalid volumes
-    if (area > 1e-6f && fabsf(volume) > 1e-6f) {
-      Tetrahedron tet(face.v1, face.v2, face.v3, interior_point_index);
+  try {
+    for (const TriFace &face : surface_triangles) {
+      // Validate vertex indices
+      if (face.v1 >= out_vertices.size() || face.v2 >= out_vertices.size() || 
+          face.v3 >= out_vertices.size() || interior_point_index >= out_vertices.size()) {
+        continue;
+      }
       
-      // Ensure proper orientation
-      tet.ensure_positive_volume(out_vertices);
+      // Check for valid triangle vertices
+      float3 v1 = out_vertices[face.v1];
+      float3 v2 = out_vertices[face.v2];
+      float3 v3 = out_vertices[face.v3];
+      float3 v4 = out_vertices[interior_point_index];
       
-      // Final volume validation
-      if (tet.has_positive_volume(out_vertices)) {
-        out_tetrahedra.append(tet);
+      // Calculate triangle area
+      float3 normal = math::cross(v2 - v1, v3 - v1);
+      float area = len_v3(normal) * 0.5f;
+      
+      // Calculate potential tetrahedron volume
+      float volume = volume_tetrahedron_signed_v3(v1, v2, v3, v4);
+      
+      // Skip small areas and invalid volumes
+      if (area > 1e-6f && fabsf(volume) > 1e-6f) {
+        Tetrahedron tet(face.v1, face.v2, face.v3, interior_point_index);
+        
+        // Ensure proper orientation
+        tet.ensure_positive_volume(out_vertices);
+        
+        // Final volume validation
+        if (tet.has_positive_volume(out_vertices)) {
+          out_tetrahedra.append(tet);
+        }
       }
     }
+  }
+  catch (const std::exception &) {
+    out_vertices.clear();
+    out_tetrahedra.clear();
+    return;
+  }
+  
+  if (out_tetrahedra.is_empty()) {
+    out_vertices.clear();
+    return;
   }
   
   // Improve tetrahedron quality by adding interior points
-  RandomNumberGenerator rng;
-  
-  // Number of additional points depends on max tetrahedron size
-  // and mesh dimensions
-  // Manual bounding box calculation
-  float3 min, max;
-  
-  if (!positions.is_empty()) {
-    min = max = positions[0];
+  try {
+    RandomNumberGenerator rng;
+    
+    // Calculate bounding box with validation
+    float3 min = positions[0];
+    float3 max = positions[0];
+    
     for (const float3 &pos : positions) {
       min.x = std::min(min.x, pos.x);
       min.y = std::min(min.y, pos.y);
@@ -480,109 +589,147 @@ static void generate_tetrahedralization(const Mesh *mesh,
       max.y = std::max(max.y, pos.y);
       max.z = std::max(max.z, pos.z);
     }
-  }
-  else {
-    min = max = float3(0, 0, 0);
-  }
-  
-  float mesh_volume = fabsf((max.x - min.x) * (max.y - min.y) * (max.z - min.z));
-  
-  // Calculate number of points based on volume and scale
-  int num_additional_points = static_cast<int>(mesh_volume / (base_size * base_size * base_size) * 0.1f);
-  num_additional_points = std::min(std::max(num_additional_points, 10), 100); // Limit between 10 and 100
-  
-  // Améliorer la génération des points intérieurs
-  for (int i = 0; i < num_additional_points; i++) {
-    // Générer un point aléatoire dans la boîte englobante
-    float3 new_point;
-    new_point.x = min.x + rng.get_float() * (max.x - min.x);
-    new_point.y = min.y + rng.get_float() * (max.y - min.y);
-    new_point.z = min.z + rng.get_float() * (max.z - min.z);
     
-    // Vérifier si le point est suffisamment loin des surfaces existantes
-    // Utiliser une méthode simple de vérification de distance
-    bool is_valid = true;
-    float min_dist_sq = FLT_MAX;
-    
-    // Vérifier la distance par rapport aux sommets existants
-    for (const float3 &vert : out_vertices) {
-      float dist_sq = len_squared_v3v3(new_point, vert);
-      min_dist_sq = std::min(min_dist_sq, dist_sq);
-      
-      // Rejeter les points trop proches des sommets existants
-      if (dist_sq < square_f(base_size * min_triangle_scale)) {
-        is_valid = false;
-        break;
-      }
+    float mesh_volume = fabsf((max.x - min.x) * (max.y - min.y) * (max.z - min.z));
+    if (mesh_volume <= 1e-6f) {
+      return;
     }
     
-    if (is_valid && min_dist_sq > square_f(base_size * min_triangle_scale)) {
-      // Créer un nouveau sommet
-      const int new_point_index = out_vertices.size();
-      out_vertices.append(new_point);
+    // Calculate number of points based on volume and scale
+    int num_additional_points = static_cast<int>(mesh_volume / (base_size * base_size * base_size) * 0.1f);
+    num_additional_points = std::min(std::max(num_additional_points, 10), 100);
+    
+    // Store original tetrahedra count for validation
+    const int original_tet_count = out_tetrahedra.size();
+    
+    // Améliorer la génération des points intérieurs
+    for (int i = 0; i < num_additional_points && out_tetrahedra.size() < 10000; i++) {
+      // Generate random point in bounding box
+      float3 new_point;
+      new_point.x = min.x + rng.get_float() * (max.x - min.x);
+      new_point.y = min.y + rng.get_float() * (max.y - min.y);
+      new_point.z = min.z + rng.get_float() * (max.z - min.z);
       
-      // Créer de nouveaux tétraèdres avec ce sommet
-      // Méthode simplifiée: connecter le point aux tétraèdres existants
-      // qui sont suffisamment proches
-      for (const Tetrahedron &existing_tet : out_tetrahedra) {
-        // Calculer le centre du tétraèdre existant
-        float3 tet_center = (out_vertices[existing_tet.v1] + 
-                           out_vertices[existing_tet.v2] + 
-                           out_vertices[existing_tet.v3] + 
-                           out_vertices[existing_tet.v4]) / 4.0f;
+      // Check if point is far enough from existing surfaces
+      bool is_valid = true;
+      float min_dist_sq = FLT_MAX;
+      
+      for (const float3 &vert : out_vertices) {
+        float dist_sq = len_squared_v3v3(new_point, vert);
+        min_dist_sq = std::min(min_dist_sq, dist_sq);
         
-        // Si le nouveau point est assez proche, créer de nouveaux tétraèdres
-        if (len_squared_v3v3(new_point, tet_center) < square_f(base_size * max_tet_scale)) {
-          // Créer quatre nouveaux tétraèdres en remplaçant un sommet à la fois
-          Tetrahedron new_tet1(new_point_index, existing_tet.v2, existing_tet.v3, existing_tet.v4);
-          Tetrahedron new_tet2(existing_tet.v1, new_point_index, existing_tet.v3, existing_tet.v4);
-          Tetrahedron new_tet3(existing_tet.v1, existing_tet.v2, new_point_index, existing_tet.v4);
-          Tetrahedron new_tet4(existing_tet.v1, existing_tet.v2, existing_tet.v3, new_point_index);
+        if (dist_sq < square_f(base_size * min_triangle_scale)) {
+          is_valid = false;
+          break;
+        }
+      }
+      
+      if (is_valid && min_dist_sq > square_f(base_size * min_triangle_scale)) {
+        // Create new vertex with bounds check
+        const int new_point_index = out_vertices.size();
+        if (new_point_index >= 1000000) { // Arbitrary limit to prevent excessive memory usage
+          break;
+        }
+        out_vertices.append(new_point);
+        
+        // Create new tetrahedra with this vertex
+        Vector<Tetrahedron> new_tetrahedra;
+        
+        for (const Tetrahedron &existing_tet : out_tetrahedra) {
+          // Skip invalid tetrahedra
+          if (existing_tet.v1 >= out_vertices.size() || existing_tet.v2 >= out_vertices.size() ||
+              existing_tet.v3 >= out_vertices.size() || existing_tet.v4 >= out_vertices.size()) {
+            continue;
+          }
           
-          // Assurer une orientation correcte
-          new_tet1.ensure_positive_volume(out_vertices);
-          new_tet2.ensure_positive_volume(out_vertices);
-          new_tet3.ensure_positive_volume(out_vertices);
-          new_tet4.ensure_positive_volume(out_vertices);
+          // Calculate tetrahedron center
+          float3 tet_center = (out_vertices[existing_tet.v1] + 
+                             out_vertices[existing_tet.v2] + 
+                             out_vertices[existing_tet.v3] + 
+                             out_vertices[existing_tet.v4]) / 4.0f;
           
-          // Ajouter les nouveaux tétraèdres s'ils ont un volume positif
-          if (new_tet1.has_positive_volume(out_vertices)) out_tetrahedra.append(new_tet1);
-          if (new_tet2.has_positive_volume(out_vertices)) out_tetrahedra.append(new_tet2);
-          if (new_tet3.has_positive_volume(out_vertices)) out_tetrahedra.append(new_tet3);
-          if (new_tet4.has_positive_volume(out_vertices)) out_tetrahedra.append(new_tet4);
+          if (len_squared_v3v3(new_point, tet_center) < square_f(base_size * max_tet_scale)) {
+            // Create four new tetrahedra
+            Tetrahedron new_tets[4] = {
+              Tetrahedron(new_point_index, existing_tet.v2, existing_tet.v3, existing_tet.v4),
+              Tetrahedron(existing_tet.v1, new_point_index, existing_tet.v3, existing_tet.v4),
+              Tetrahedron(existing_tet.v1, existing_tet.v2, new_point_index, existing_tet.v4),
+              Tetrahedron(existing_tet.v1, existing_tet.v2, existing_tet.v3, new_point_index)
+            };
+            
+            // Validate and add new tetrahedra
+            for (auto &new_tet : new_tets) {
+              new_tet.ensure_positive_volume(out_vertices);
+              if (new_tet.has_positive_volume(out_vertices)) {
+                new_tetrahedra.append(new_tet);
+              }
+            }
+          }
+        }
+        
+        // Append validated new tetrahedra
+        for (const Tetrahedron &new_tet : new_tetrahedra) {
+          if (out_tetrahedra.size() >= 1000000) { // Arbitrary limit to prevent excessive memory usage
+            break;
+          }
+          out_tetrahedra.append(new_tet);
         }
       }
     }
-  }
-
-  // Simplification: filtrer les tétraèdres par qualité
-  Vector<Tetrahedron> filtered_tetrahedra;
-  for (const Tetrahedron &tet : out_tetrahedra) {
-    // Calculer le volume du tétraèdre
-    float volume = fabsf(tet.volume(out_vertices));
     
-    // Calculer la longueur moyenne des arêtes
-    const float3 &p1 = out_vertices[tet.v1];
-    const float3 &p2 = out_vertices[tet.v2];
-    const float3 &p3 = out_vertices[tet.v3];
-    const float3 &p4 = out_vertices[tet.v4];
+    // Filter tetrahedra by quality
+    Vector<Tetrahedron> filtered_tetrahedra;
+    filtered_tetrahedra.reserve(out_tetrahedra.size());
     
-    float edge_sum = len_v3v3(p1, p2) + len_v3v3(p1, p3) + len_v3v3(p1, p4) +
-                     len_v3v3(p2, p3) + len_v3v3(p2, p4) + len_v3v3(p3, p4);
-                     
-    float avg_edge = edge_sum / 6.0f;
+    for (const Tetrahedron &tet : out_tetrahedra) {
+      // Skip invalid tetrahedra
+      if (tet.v1 >= out_vertices.size() || tet.v2 >= out_vertices.size() ||
+          tet.v3 >= out_vertices.size() || tet.v4 >= out_vertices.size()) {
+        continue;
+      }
+      
+      // Calculate volume and quality metrics
+      float volume = fabsf(tet.volume(out_vertices));
+      
+      const float3 &p1 = out_vertices[tet.v1];
+      const float3 &p2 = out_vertices[tet.v2];
+      const float3 &p3 = out_vertices[tet.v3];
+      const float3 &p4 = out_vertices[tet.v4];
+      
+      float edge_sum = len_v3v3(p1, p2) + len_v3v3(p1, p3) + len_v3v3(p1, p4) +
+                      len_v3v3(p2, p3) + len_v3v3(p2, p4) + len_v3v3(p3, p4);
+      
+      float avg_edge = edge_sum / 6.0f;
+      if (avg_edge <= 1e-6f) {
+        continue;
+      }
+      
+      float quality = volume / (avg_edge * avg_edge * avg_edge);
+      
+      if (quality > 0.01f && volume > 1e-6f) {
+        filtered_tetrahedra.append(tet);
+      }
+    }
     
-    // Qualité basée sur le rapport entre volume et cube de l'arête moyenne
-    float quality = volume / (avg_edge * avg_edge * avg_edge);
-    
-    // Conserver les tétraèdres de bonne qualité
-    if (quality > 0.01f && volume > 1e-6f) {
-      filtered_tetrahedra.append(tet);
+    // Only update if we have valid filtered tetrahedra
+    if (!filtered_tetrahedra.is_empty()) {
+      out_tetrahedra = filtered_tetrahedra;
+    }
+    else if (original_tet_count > 0) {
+      // Restore original tetrahedra if filtering removed everything
+      out_tetrahedra.resize(original_tet_count);
+    }
+    else {
+      // Clear everything if we have no valid tetrahedra
+      out_vertices.clear();
+      out_tetrahedra.clear();
     }
   }
-  
-  // Remplacer les tétraèdres par ceux filtrés
-  out_tetrahedra = filtered_tetrahedra;
+  catch (const std::exception &) {
+    // In case of any exception, clear outputs
+    out_vertices.clear();
+    out_tetrahedra.clear();
+  }
 }
 
 /* Structure for storing tetrahedron normals */
