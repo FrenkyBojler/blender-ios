@@ -8,6 +8,8 @@
 
 namespace blender::opensubdiv {
 
+// #define UPLOAD_DIRECT
+
 /**
  * GLVertexBuffer compatible API wrapped around a blender::gpu::VertBuf
  *
@@ -41,7 +43,13 @@ class GPUVertexBuffer {
     GPUVertFormat format;
     GPU_vertformat_clear(&format);
     GPU_vertformat_attr_add(&format, "elements", GPU_COMP_F32, element_count, GPU_FETCH_FLOAT);
-    gpu::VertBuf *vertex_buffer = GPU_vertbuf_create_with_format_ex(format, GPU_USAGE_STATIC);
+#ifdef UPLOAD_DIRECT
+    gpu::VertBuf *vertex_buffer = GPU_vertbuf_calloc();
+    GPU_vertbuf_init_build_on_device(*vertex_buffer, format, vertex_len);
+#else
+    gpu::VertBuf *vertex_buffer = GPU_vertbuf_create_with_format_ex(format, GPU_USAGE_DYNAMIC);
+    GPU_vertbuf_data_alloc(*vertex_buffer, vertex_len);
+#endif
     return new GPUVertexBuffer(*vertex_buffer, vertex_len, element_count);
   }
 
@@ -59,35 +67,23 @@ class GPUVertexBuffer {
                   void *device_context = NULL)
   {
     (void)device_context;
-    // TODO: We are assuming to much... But requires API changes.
-    if (start_vertex == 0) {
-      GPU_vertbuf_data_alloc(gpu_vertex_buffer_, vertex_len_);
-    }
-
+#ifdef UPLOAD_DIRECT
+    GPU_vertbuf_use(&gpu_vertex_buffer_);
+    size_t offset = start_vertex * element_count_ * sizeof(float);
+    size_t data_len = num_vertices * element_count_ * sizeof(float);
+    GPU_vertbuf_update_sub(&gpu_vertex_buffer_, offset, data_len, src);
+#else
     MutableSpan<float> buffer_nodes = gpu_vertex_buffer_.data<float>();
     buffer_nodes = buffer_nodes.drop_front(start_vertex * element_count_);
     memcpy(buffer_nodes.data(), src, sizeof(float) * element_count_ * num_vertices);
     GPU_vertbuf_tag_dirty(&gpu_vertex_buffer_);
-  }
-  /*
-
-  /// Returns how many elements defined in this vertex buffer.
-  int GetNumElements() const {
-      GPU_
+#endif
   }
 
-  */
   /// Returns how many vertices allocated in this vertex buffer.
   int GetNumVertices() const
   {
-    return vertex_len_;
-  }
-
-  /// Returns the GL buffer object.
-  GLuint BindVBO(void *device_context = NULL)
-  {
-    (void)device_context;
-    return 0;
+    return GPU_vertbuf_get_vertex_len(&gpu_vertex_buffer_);
   }
 
   gpu::VertBuf *get_vertex_buffer()
