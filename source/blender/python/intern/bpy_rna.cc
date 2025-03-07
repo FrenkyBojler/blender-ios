@@ -6544,8 +6544,6 @@ static PyObject *pyrna_func_call(BPy_FunctionRNA *self, PyObject *args, PyObject
   FunctionRNA *self_func = self->func;
 
   ParameterList parms;
-  ParameterIterator iter;
-  PropertyRNA *parm;
   PyObject *ret, *item;
   int i, pyargs_len, pykw_len, parms_len, ret_len, flag_parameter, err = 0, kw_tot = 0;
   bool kw_arg;
@@ -6601,12 +6599,10 @@ static PyObject *pyrna_func_call(BPy_FunctionRNA *self, PyObject *args, PyObject
   pykw_len = kw ? PyDict_Size(kw) : 0;
 
   RNA_parameter_list_create(&parms, self_ptr, self_func);
-  RNA_parameter_list_begin(&parms, &iter);
   parms_len = RNA_parameter_list_arg_count(&parms);
   ret_len = 0;
 
   if (pyargs_len + pykw_len > parms_len) {
-    RNA_parameter_list_end(&iter);
     PyErr_Format(PyExc_TypeError,
                  "%.200s.%.200s(): takes at most %d arguments, got %d",
                  RNA_struct_identifier(self_ptr->type),
@@ -6617,8 +6613,9 @@ static PyObject *pyrna_func_call(BPy_FunctionRNA *self, PyObject *args, PyObject
   }
 
   /* Parse function parameters. */
-  for (i = 0; iter.valid && err == 0; RNA_parameter_list_next(&iter)) {
-    parm = iter.parm;
+  i = 0;
+  for (const ParameterDataLayout &parm_layout : RNA_parameters_layout(&parms)) {
+    PropertyRNA *parm = parm_layout.prop;
     flag_parameter = RNA_parameter_flag(parm);
 
     /* Only useful for single argument returns, we'll need another list loop for multiple. */
@@ -6626,7 +6623,7 @@ static PyObject *pyrna_func_call(BPy_FunctionRNA *self, PyObject *args, PyObject
       ret_len++;
       if (pret_single == nullptr) {
         pret_single = parm;
-        retdata_single = iter.data;
+        retdata_single = parms.get_param_data_ptr(parm_layout);
       }
 
       continue;
@@ -6688,21 +6685,24 @@ static PyObject *pyrna_func_call(BPy_FunctionRNA *self, PyObject *args, PyObject
        * could also write a function to prepend to error messages */
       char error_prefix[512];
 
-      err = pyrna_py_to_prop(&funcptr, parm, iter.data, item, "");
+      err = pyrna_py_to_prop(&funcptr, parm, parms.get_param_data_ptr(parm_layout), item, "");
 
       if (err != 0) {
         PyErr_Clear(); /* Re-raise. */
         pyrna_func_error_prefix(self, parm, kw_arg ? -1 : i, error_prefix, sizeof(error_prefix));
-        pyrna_py_to_prop(&funcptr, parm, iter.data, item, error_prefix);
+        pyrna_py_to_prop(
+            &funcptr, parm, parms.get_param_data_ptr(parm_layout), item, error_prefix);
 
         break;
       }
     }
 
     i++; /* Current argument. */
+    /* TODO: when err is updated next lines breaks, seems redundant. */
+    if (err != 0) {
+      break;
+    }
   }
-
-  RNA_parameter_list_end(&iter);
 
   /* Check if we gave args that don't exist in the function
    * Printing the error is slow, but it should only happen when developing.
@@ -6731,16 +6731,13 @@ static PyObject *pyrna_func_call(BPy_FunctionRNA *self, PyObject *args, PyObject
       }
       else {
         /* Search for arg_name. */
-        RNA_parameter_list_begin(&parms, &iter);
-        for (; iter.valid; RNA_parameter_list_next(&iter)) {
-          parm = iter.parm;
+        for (const ParameterDataLayout &parm_layout : RNA_parameters_layout(&parms)) {
+          PropertyRNA *parm = parm_layout.prop;
           if (STREQ(arg_name, RNA_property_identifier(parm))) {
             found = true;
             break;
           }
         }
-
-        RNA_parameter_list_end(&iter);
 
         if (found == false) {
           BLI_dynstr_appendf(bad_args, first ? "%s" : ", %s", arg_name);
@@ -6752,9 +6749,8 @@ static PyObject *pyrna_func_call(BPy_FunctionRNA *self, PyObject *args, PyObject
     /* List good args. */
     first = true;
 
-    RNA_parameter_list_begin(&parms, &iter);
-    for (; iter.valid; RNA_parameter_list_next(&iter)) {
-      parm = iter.parm;
+    for (const ParameterDataLayout &parm_layout : RNA_parameters_layout(&parms)) {
+      PropertyRNA *parm = parm_layout.prop;
       if (RNA_parameter_flag(parm) & PARM_OUTPUT) {
         continue;
       }
@@ -6762,8 +6758,6 @@ static PyObject *pyrna_func_call(BPy_FunctionRNA *self, PyObject *args, PyObject
       BLI_dynstr_appendf(good_args, first ? "%s" : ", %s", RNA_property_identifier(parm));
       first = false;
     }
-    RNA_parameter_list_end(&iter);
-
     bad_args_str = BLI_dynstr_get_cstring(bad_args);
     good_args_str = BLI_dynstr_get_cstring(good_args);
 
@@ -6801,17 +6795,16 @@ static PyObject *pyrna_func_call(BPy_FunctionRNA *self, PyObject *args, PyObject
           ret = PyTuple_New(ret_len);
           i = 0; /* Arg index. */
 
-          RNA_parameter_list_begin(&parms, &iter);
-
-          for (; iter.valid; RNA_parameter_list_next(&iter)) {
-            parm = iter.parm;
+          for (const ParameterDataLayout &parm_layout : RNA_parameters_layout(&parms)) {
+            PropertyRNA *parm = parm_layout.prop;
 
             if (RNA_parameter_flag(parm) & PARM_OUTPUT) {
-              PyTuple_SET_ITEM(ret, i++, pyrna_param_to_py(&funcptr, parm, iter.data));
+              PyTuple_SET_ITEM(
+                  ret,
+                  i++,
+                  pyrna_param_to_py(&funcptr, parm, parms.get_param_data_ptr(parm_layout)));
             }
           }
-
-          RNA_parameter_list_end(&iter);
         }
         else {
           ret = pyrna_param_to_py(&funcptr, pret_single, retdata_single);
@@ -6839,7 +6832,6 @@ static PyObject *pyrna_func_call(BPy_FunctionRNA *self, PyObject *args, PyObject
 #endif
 
   /* Cleanup. */
-  RNA_parameter_list_end(&iter);
   RNA_parameter_list_free(&parms);
 
   if (ret) {
@@ -9385,8 +9377,6 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
   PyObject *args;
   PyObject *ret = nullptr, *py_srna = nullptr, *py_class_instance = nullptr, *parmitem;
   PyTypeObject *py_class;
-  PropertyRNA *parm;
-  ParameterIterator iter;
   PointerRNA funcptr;
   int err = 0, i, ret_len = 0;
   const int flag = RNA_function_flag(func);
@@ -9552,25 +9542,22 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
         i = 1;
       }
 
-      RNA_parameter_list_begin(parms, &iter);
-
       /* Parse function parameters. */
-      for (; iter.valid; RNA_parameter_list_next(&iter)) {
-        parm = iter.parm;
-
+      for (const ParameterDataLayout &parm_layout : RNA_parameters_layout(parms)) {
+        PropertyRNA *parm = parm_layout.prop;
         /* Only useful for single argument returns, we'll need another list loop for multiple. */
         if (RNA_parameter_flag(parm) & PARM_OUTPUT) {
           ret_len++;
           if (pret_single == nullptr) {
             pret_single = parm;
-            retdata_single = iter.data;
+            retdata_single = parms->get_param_data_ptr(parm_layout);
           }
 
           continue;
         }
 
         if (i < arg_count) {
-          parmitem = pyrna_param_to_py(&funcptr, parm, iter.data);
+          parmitem = pyrna_param_to_py(&funcptr, parm, parms->get_param_data_ptr(parm_layout));
           PyTuple_SET_ITEM(args, i, parmitem);
           i++;
         }
@@ -9591,7 +9578,6 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
       rna_disallow_writes = rna_disallow_writes_prev;
 #endif
 
-      RNA_parameter_list_end(&iter);
       Py_DECREF(item);
       Py_DECREF(args);
     }
@@ -9665,23 +9651,23 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
       }
       else {
 
-        RNA_parameter_list_begin(parms, &iter);
-
         /* Parse function parameters. */
-        for (i = 0; iter.valid; RNA_parameter_list_next(&iter)) {
-          parm = iter.parm;
+        i = 0;
+        for (const ParameterDataLayout &parm_layout : RNA_parameters_layout(parms)) {
+          PropertyRNA *parm = parm_layout.prop;
 
           /* Only useful for single argument returns, we'll need another list loop for multiple. */
           if (RNA_parameter_flag(parm) & PARM_OUTPUT) {
-            err = pyrna_py_to_prop(
-                &funcptr, parm, iter.data, PyTuple_GET_ITEM(ret, i++), "calling class function:");
+            err = pyrna_py_to_prop(&funcptr,
+                                   parm,
+                                   parms->get_param_data_ptr(parm_layout),
+                                   PyTuple_GET_ITEM(ret, i++),
+                                   "calling class function:");
             if (err) {
               break;
             }
           }
         }
-
-        RNA_parameter_list_end(&iter);
       }
     }
     Py_DECREF(ret);

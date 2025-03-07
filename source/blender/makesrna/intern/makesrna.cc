@@ -4683,12 +4683,13 @@ static void rna_generate_struct(BlenderRNA * /*brna*/, StructRNA *srna, FILE *f)
     }
 
     if (func->c_ret) {
-      fprintf(f, "\t&rna_%s_%s_%s\n", srna->identifier, func->identifier, func->c_ret->identifier);
+      fprintf(
+          f, "\t&rna_%s_%s_%s,\n", srna->identifier, func->identifier, func->c_ret->identifier);
     }
     else {
-      fprintf(f, "\tnullptr\n");
+      fprintf(f, "\tnullptr,\n");
     }
-
+    fprintf(f, "\tnullptr\n");
     fprintf(f, "};\n");
     fprintf(f, "\n");
   }

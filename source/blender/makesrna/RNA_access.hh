@@ -814,6 +814,9 @@ int RNA_parameter_list_arg_count(const ParameterList *parms);
 int RNA_parameter_list_ret_count(const ParameterList *parms);
 
 void RNA_parameter_list_begin(ParameterList *parms, ParameterIterator *iter);
+
+blender::Span<ParameterDataLayout> RNA_parameters_layout(ParameterList *parms);
+
 void RNA_parameter_list_next(ParameterIterator *iter);
 void RNA_parameter_list_end(ParameterIterator *iter);
 

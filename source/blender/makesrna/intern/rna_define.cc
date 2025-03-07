@@ -738,6 +738,7 @@ void RNA_define_free(BlenderRNA * /*brna*/)
          dfunc = static_cast<FunctionDefRNA *>(dfunc->cont.next))
     {
       rna_freelistN(&dfunc->cont.properties);
+      MEM_delete(dfunc->func->runtime);
     }
 
     rna_freelistN(&ds->cont.properties);
@@ -827,6 +828,7 @@ void RNA_struct_free(BlenderRNA *brna, StructRNA *srna)
 
   for (func = static_cast<FunctionRNA *>(srna->functions.first); func; func = nextfunc) {
     nextfunc = static_cast<FunctionRNA *>(func->cont.next);
+    MEM_delete(func->runtime);
 
     for (parm = static_cast<PropertyRNA *>(func->cont.properties.first); parm; parm = nextparm) {
       nextparm = parm->next;
@@ -869,6 +871,7 @@ void RNA_free(BlenderRNA *brna)
            func = static_cast<FunctionRNA *>(func->cont.next))
       {
         rna_freelistN(&func->cont.properties);
+        MEM_delete(func->runtime);
       }
 
       rna_freelistN(&srna->cont.properties);
@@ -4567,7 +4570,7 @@ static FunctionRNA *rna_def_function(StructRNA *srna, const char *identifier)
   func = static_cast<FunctionRNA *>(MEM_callocN(sizeof(FunctionRNA), "FunctionRNA"));
   func->identifier = identifier;
   func->description = identifier;
-
+  func->runtime = nullptr;
   rna_addtail(&srna->functions, func);
 
   if (DefRNA.preprocess) {

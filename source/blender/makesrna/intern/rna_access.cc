@@ -22,6 +22,8 @@
 #include "DNA_windowmanager_types.h"
 
 #include "BLI_dynstr.h"
+#include "BLI_timeit.hh"
+
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
@@ -6376,20 +6378,19 @@ int RNA_parameter_flag(PropertyRNA *prop)
   return int(rna_ensure_property(prop)->flag_parameter);
 }
 
-ParameterList *RNA_parameter_list_create(ParameterList *parms,
-                                         PointerRNA * /*ptr*/,
-                                         FunctionRNA *func)
+static void rna_init_fuction_parameter_cache(FunctionRNA *func)
 {
-  PointerRNA null_ptr = PointerRNA_NULL;
-  void *data;
-  int alloc_size = 0, size;
-
+  func->runtime = MEM_new<FunctionRNARuntime>(__func__);
+  FunctionRNARuntime *runtime = func->runtime;
+  ParameterList *parms = &runtime->params;
   parms->arg_count = 0;
   parms->ret_count = 0;
 
   /* allocate data */
+  int alloc_size = 0;
   LISTBASE_FOREACH (PropertyRNA *, parm, &func->cont.properties) {
-    alloc_size += rna_parameter_size_pad(rna_parameter_size(parm));
+    runtime->parms_layout.append(ParameterDataLayout{parm, alloc_size, rna_parameter_size(parm)});
+    alloc_size += rna_parameter_size_pad(runtime->parms_layout.last().size);
 
     if (parm->flag_parameter & PARM_OUTPUT) {
       parms->ret_count++;
@@ -6403,21 +6404,25 @@ ParameterList *RNA_parameter_list_create(ParameterList *parms,
   parms->func = func;
   parms->alloc_size = alloc_size;
 
-  /* set default values */
-  data = parms->data;
+  PointerRNA null_ptr = PointerRNA_NULL;
 
-  LISTBASE_FOREACH (PropertyRNA *, parm, &func->cont.properties) {
-    size = rna_parameter_size(parm);
+  for (ParameterDataLayout &parm_layout : runtime->parms_layout) {
+    void *data = ((char *)parms->data) + parm_layout.offset;
+
+    PropertyRNA *parm = parm_layout.prop;
+    int size = rna_parameter_size(parm);
 
     /* set length to 0, these need to be set later, see bpy_array.c's py_to_array */
     if (parm->flag & PROP_DYNAMIC) {
       ParameterDynAlloc *data_alloc = static_cast<ParameterDynAlloc *>(data);
       data_alloc->array_tot = 0;
       data_alloc->array = nullptr;
+      runtime->dynamic_index.append(parm_layout.offset);
     }
     else if ((parm->flag_parameter & PARM_RNAPTR) && (parm->flag & PROP_THICK_WRAP)) {
       BLI_assert(parm->type == PROP_POINTER);
-      new (static_cast<PointerRNA *>(data)) PointerRNA();
+      // new (static_cast<PointerRNA *>(data)) PointerRNA();
+      runtime->pointer_rna_index.append(parm_layout.offset);
     }
 
     if (!(parm->flag_parameter & PARM_REQUIRED) && !(parm->flag & PROP_DYNAMIC)) {
@@ -6466,14 +6471,38 @@ ParameterList *RNA_parameter_list_create(ParameterList *parms,
           break;
         }
         case PROP_POINTER:
+          break;
         case PROP_COLLECTION:
+          runtime->collection_index.append(parm_layout.offset);
           break;
       }
     }
+  }
+}
 
-    data = ((char *)data) + rna_parameter_size_pad(size);
+ParameterList *RNA_parameter_list_create(ParameterList *parms,
+                                         PointerRNA * /*ptr*/,
+                                         FunctionRNA *func)
+{
+  SCOPED_TIMER_AVERAGED(__func__);
+  if (UNLIKELY(!func->runtime)) {
+    rna_init_fuction_parameter_cache(func);
+  }
+  FunctionRNARuntime *runtime = static_cast<FunctionRNARuntime *>(func->runtime);
+  *parms = runtime->params;
+  if (runtime->data) {
+    parms->data = runtime->data;
+    runtime->data = nullptr;
+    memcpy(parms->data, runtime->params.data, parms->alloc_size);
+  }
+  else {
+    parms->data = MEM_dupallocN(runtime->params.data);
   }
 
+  for (int &offset : runtime->pointer_rna_index) {
+    void *parm_data = static_cast<char *>(parms->data) + offset;
+    new (static_cast<PointerRNA *>(parm_data)) PointerRNA();
+  }
   return parms;
 }
 
@@ -6482,29 +6511,30 @@ void RNA_parameter_list_free(ParameterList *parms)
   PropertyRNA *parm;
 
   parm = static_cast<PropertyRNA *>(parms->func->cont.properties.first);
-  void *data = parms->data;
-  for (; parm; parm = parm->next) {
-    if (parm->type == PROP_COLLECTION) {
-      BLI_freelistN(static_cast<ListBase *>(data));
+  FunctionRNARuntime *runtime = static_cast<FunctionRNARuntime *>(parms->func->runtime);
+
+  for (int offset : runtime->collection_index) {
+    void *parm_data = ((char *)parms->data) + offset;
+    BLI_freelistN(static_cast<ListBase *>(parm_data));
+  }
+  for (int offset : runtime->pointer_rna_index) {
+    void *parm_data = ((char *)parms->data) + offset;
+    static_cast<PointerRNA *>(parm_data)->~PointerRNA();
+  }
+  for (int offset : runtime->dynamic_index) {
+    void *parm_data = ((char *)parms->data) + offset;
+    ParameterDynAlloc *data_alloc = static_cast<ParameterDynAlloc *>(parm_data);
+    if (data_alloc->array) {
+      MEM_freeN(data_alloc->array);
     }
-    else if ((parm->flag_parameter & PARM_RNAPTR) && (parm->flag & PROP_THICK_WRAP)) {
-      BLI_assert(parm->type == PROP_POINTER);
-      PointerRNA *ptr = static_cast<PointerRNA *>(data);
-      /* #RNA_parameter_list_create ensures that 'thick wrap' PointerRNA parameters are
-       * constructed. */
-      ptr->~PointerRNA();
-    }
-    else if (parm->flag & PROP_DYNAMIC) {
-      /* for dynamic arrays and strings, data is a pointer to an array */
-      ParameterDynAlloc *data_alloc = static_cast<ParameterDynAlloc *>(data);
-      if (data_alloc->array) {
-        MEM_freeN(data_alloc->array);
-      }
-    }
-    data = static_cast<char *>(data) + rna_parameter_size_pad(rna_parameter_size(parm));
   }
 
-  MEM_freeN(parms->data);
+  if (!runtime->data) {
+    runtime->data = parms->data;
+  }
+  else {
+    MEM_freeN(parms->data);
+  }
   parms->data = nullptr;
 
   parms->func = nullptr;
@@ -6525,31 +6555,44 @@ int RNA_parameter_list_ret_count(const ParameterList *parms)
   return parms->ret_count;
 }
 
+blender::Span<ParameterDataLayout> RNA_parameters_layout(ParameterList *parms)
+{
+  if (UNLIKELY(!parms->func->runtime)) {
+    rna_init_fuction_parameter_cache(parms->func);
+  }
+  return parms->func->runtime->parms_layout;
+}
 void RNA_parameter_list_begin(ParameterList *parms, ParameterIterator *iter)
 {
   /* may be useful but unused now */
   // RNA_pointer_create_discrete(nullptr, &RNA_Function, parms->func, &iter->funcptr); /* UNUSED */
-
+  BLI_assert(parms->func->runtime);
+  iter->index = 0;
+  ParameterDataLayout *parm_layout = parms->func->runtime->parms_layout.begin() + iter->index;
   iter->parms = parms;
   iter->parm = static_cast<PropertyRNA *>(parms->func->cont.properties.first);
-  iter->valid = iter->parm != nullptr;
+  iter->valid = parm_layout < parms->func->runtime->parms_layout.end();
   iter->offset = 0;
 
   if (iter->valid) {
-    iter->size = rna_parameter_size(iter->parm);
+    iter->size = parm_layout->size;
     iter->data = ((char *)iter->parms->data); /* +iter->offset, always 0 */
   }
 }
 
 void RNA_parameter_list_next(ParameterIterator *iter)
 {
-  iter->offset += rna_parameter_size_pad(iter->size);
-  iter->parm = iter->parm->next;
-  iter->valid = iter->parm != nullptr;
+  iter->index++;
+  ParameterDataLayout *parm_layout = iter->parms->func->runtime->parms_layout.begin() +
+                                     iter->index;
+
+  iter->valid = parm_layout < iter->parms->func->runtime->parms_layout.end();
 
   if (iter->valid) {
-    iter->size = rna_parameter_size(iter->parm);
-    iter->data = (((char *)iter->parms->data) + iter->offset);
+    iter->parm = parm_layout->prop;
+    iter->size = parm_layout->size;
+    iter->offset = parm_layout->offset;
+    iter->data = ((char *)iter->parms->data) + parm_layout->offset;
   }
 }
 

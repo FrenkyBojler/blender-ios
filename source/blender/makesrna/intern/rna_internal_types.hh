@@ -301,6 +301,24 @@ struct ContainerRNA {
   ListBase properties;
 };
 
+/** RNA Function runtime cache. */
+struct FunctionRNARuntime {
+  ParameterList params;
+  void *data = nullptr;
+  blender::Vector<int> pointer_rna_index;
+  blender::Vector<int> collection_index;
+  blender::Vector<int> dynamic_index;
+  blender::Vector<ParameterDataLayout> parms_layout;
+
+  ~FunctionRNARuntime()
+  {
+    if (this->data) {
+      MEM_freeN(this->data);
+    }
+    MEM_freeN(this->params.data);
+  }
+};
+
 struct FunctionRNA {
   /* structs are containers of properties */
   ContainerRNA cont;
@@ -319,6 +337,8 @@ struct FunctionRNA {
   /* parameter for the return value
    * NOTE: this is only the C return value, rna functions can have multiple return values. */
   PropertyRNA *c_ret;
+
+  FunctionRNARuntime *runtime = nullptr;
 };
 
 struct PropertyRNA {
