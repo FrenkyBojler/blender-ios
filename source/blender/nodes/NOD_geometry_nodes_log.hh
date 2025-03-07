@@ -122,7 +122,7 @@ class FieldInfoLog : public ValueLog {
 
 struct StringLog : public ValueLog {
   StringRef value;
-  bool concatenated;
+  bool truncated;
   StringLog(StringRef string, LinearAllocator<> &allocator);
 };
 

@@ -48,11 +48,11 @@ StringLog::StringLog(StringRef string, LinearAllocator<> &allocator)
 {
   /* Avoid logging the entirety of long strings, to avoid unnecessary memory usage. */
   if (string.size() <= 100) {
-    concatenated = false;
+    this->truncated = false;
     this->value = allocator.copy_string(string);
     return;
   }
-  concatenated = true;
+  this->truncated = true;
   const char *end = BLI_str_find_prev_char_utf8(string.data() + 100, string.data());
   this->value = allocator.copy_string(StringRef(string.data(), end));
 }

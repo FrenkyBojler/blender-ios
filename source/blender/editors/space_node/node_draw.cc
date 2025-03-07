@@ -1887,7 +1887,7 @@ static std::optional<std::string> create_log_inspection_string(geo_log::GeoTreeL
   else if (const geo_log::StringLog *string_log = dynamic_cast<const geo_log::StringLog *>(
                value_log))
   {
-    if (string_log->concatenated) {
+    if (string_log->truncated) {
       fmt::format_to(fmt::appender(buf), fmt::runtime(TIP_("{}... (String)")), string_log->value);
     }
     else {
