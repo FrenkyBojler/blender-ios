@@ -13,6 +13,8 @@
 
 namespace blender::nodes::xpbd_constraints {
 
+constexpr GrainSize constraint_grain_size = GrainSize(1024);
+
 template<typename T>
 static AttributeReader<T> lookup_or_warn(AttributeAccessor &attributes,
                                          const StringRef attribute_id,
@@ -65,7 +67,7 @@ static void position_goal__eval_positions(const ConstraintEvalParams &params,
   const Span<float3> positions = variables.positions;
   const Span<float3> old_positions = params.old_positions;
 
-  group_mask.foreach_index(GrainSize(1024), [&](const int index) {
+  group_mask.foreach_index(constraint_grain_size, [&](const int index) {
     const int point = points[index];
     if (!points_range.contains(point)) {
       return;
@@ -172,7 +174,7 @@ static void rotation_goal__eval_positions(const ConstraintEvalParams &params,
   const Span<math::Quaternion> rotations = variables.rotations;
   const Span<math::Quaternion> old_rotations = params.old_rotations;
 
-  group_mask.foreach_index(GrainSize(1024), [&](const int index) {
+  group_mask.foreach_index(constraint_grain_size, [&](const int index) {
     const int point = points[index];
     if (!points_range.contains(point)) {
       return;
@@ -303,7 +305,7 @@ static void stretch_shear__eval_positions(const ConstraintEvalParams &params,
   const Span<float3> old_positions = params.old_positions;
   const Span<math::Quaternion> old_rotations = params.old_rotations;
 
-  group_mask.foreach_index(GrainSize(1024), [&](const int index) {
+  group_mask.foreach_index(constraint_grain_size, [&](const int index) {
     const int point1 = points1[index];
     const int point2 = points2[index];
     if (!points_range.contains(point1) || !points_range.contains(point2)) {
@@ -458,7 +460,7 @@ static void bend_twist__eval_positions(const ConstraintEvalParams &params,
   const Span<math::Quaternion> rotations = variables.rotations;
   const Span<math::Quaternion> old_rotations = params.old_rotations;
 
-  group_mask.foreach_index(GrainSize(1024), [&](const int index) {
+  group_mask.foreach_index(constraint_grain_size, [&](const int index) {
     const int point1 = points1[index];
     const int point2 = points2[index];
     if (!points_range.contains(point1) || !points_range.contains(point2)) {
@@ -618,7 +620,7 @@ static void contact__eval_positions(const ConstraintEvalParams &params,
   const Span<float3> positions = variables.positions;
   const Span<math::Quaternion> rotations = variables.rotations;
 
-  group_mask.foreach_index(GrainSize(1024), [&](const int index) {
+  group_mask.foreach_index(constraint_grain_size, [&](const int index) {
     const int point1 = points1[index];
     if (!points_range.contains(point1)) {
       return;
@@ -746,7 +748,7 @@ static void contact__eval_velocities(const ConstraintEvalParams &params,
   const Span<float3> velocities = variables.velocities;
   const Span<float3> angular_velocities = variables.angular_velocities;
 
-  group_mask.foreach_index(GrainSize(1024), [&](const int index) {
+  group_mask.foreach_index(constraint_grain_size, [&](const int index) {
     /* Active status is determined by the position evaluation. */
     if (!active[index]) {
       return;
