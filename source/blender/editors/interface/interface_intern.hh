@@ -55,9 +55,6 @@ struct wmTimer;
 #define RNA_NO_INDEX -1
 #define RNA_ENUM_VALUE -2
 
-/* Delta of movement that resets the Tooltip timer. */
-#define UI_TOOLTIP_RESET_DIST int(2.0f * UI_SCALE_FAC)
-
 #define UI_MENU_PADDING (int)(0.2f * UI_UNIT_Y)
 
 #define UI_MENU_WIDTH_MIN (UI_UNIT_Y * 9)
