@@ -109,14 +109,20 @@ struct GPUPass {
    *  Based on a complexity heuristic from pass code generation. */
   bool should_optimize = false;
 
-  GPUPass(GPUCodegenCreateInfo *info)
+  GPUPass(GPUCodegenCreateInfo *info, bool deferred_compilation)
   {
     GPUShaderCreateInfo *base_info = reinterpret_cast<GPUShaderCreateInfo *>(
         static_cast<ShaderCreateInfo *>(info));
 
-    compilation_handle = GPU_shader_batch_create_from_infos(
-        Span<GPUShaderCreateInfo *>(&base_info, 1));
-    create_info = info;
+    if (deferred_compilation) {
+      compilation_handle = GPU_shader_batch_create_from_infos(
+          Span<GPUShaderCreateInfo *>(&base_info, 1));
+      create_info = info;
+    }
+    else {
+      shader = GPU_shader_create_from_info(base_info);
+      finalize_compilation();
+    }
     refcount = 1;
   }
 
@@ -124,6 +130,7 @@ struct GPUPass {
   {
     if (compilation_handle) {
       // TODO: Add a way to remove handles from the compilation queue.
+      shader = GPU_shader_batch_finalize(compilation_handle).first();
       finalize_compilation();
     }
     BLI_assert(create_info == nullptr);
@@ -132,7 +139,6 @@ struct GPUPass {
 
   void finalize_compilation()
   {
-    shader = GPU_shader_batch_finalize(compilation_handle).first();
     if (shader && !gpu_pass_shader_validate(create_info, shader)) {
       fprintf(stderr, "GPUShader: error: too many samplers in shader.\n");
       GPU_shader_free(shader);
@@ -147,6 +153,7 @@ struct GPUPass {
   {
     if (compilation_handle) {
       if (GPU_shader_batch_is_ready(compilation_handle)) {
+        shader = GPU_shader_batch_finalize(compilation_handle).first();
         finalize_compilation();
       }
     }
@@ -231,12 +238,15 @@ class GPUPassCache {
   std::mutex mutex_;
 
  public:
-  void add(eGPUMaterialEngine engine, size_t hash, GPUCodegenCreateInfo *info)
+  void add(eGPUMaterialEngine engine,
+           size_t hash,
+           GPUCodegenCreateInfo *info,
+           bool deferred_compilation)
   {
     std::lock_guard lock(mutex_);
 
     // TODO: info->name (Was assigned in GPU_pass_compile)
-    passes_[engine].add(hash, std::make_unique<GPUPass>(info));
+    passes_[engine].add(hash, std::make_unique<GPUPass>(info, deferred_compilation));
   };
 
   GPUPass *get(eGPUMaterialEngine engine, size_t hash)
@@ -843,10 +853,14 @@ static bool gpu_pass_shader_validate(GPUCodegenCreateInfo *create_info, GPUShade
 GPUPass *GPU_generate_pass(GPUMaterial *material,
                            GPUNodeGraph *graph,
                            eGPUMaterialEngine engine,
+                           bool deferred_compilation,
                            GPUCodegenCallbackFn finalize_source_cb,
                            void *thunk,
                            bool optimize_graph)
 {
+  // TODO: Remove.
+  deferred_compilation = false;
+
   gpu_node_graph_prune_unused(graph);
 
   /* If Optimize flag is passed in, we are generating an optimized
@@ -889,7 +903,7 @@ GPUPass *GPU_generate_pass(GPUMaterial *material,
 
   // TODO: Finalize in ShaderCompiler.
   codegen.create_info->finalize();
-  g_cache->add(engine, codegen.hash_get(), codegen.create_info);
+  g_cache->add(engine, codegen.hash_get(), codegen.create_info, deferred_compilation);
   codegen.create_info = nullptr;
 
   return g_cache->get(engine, codegen.hash_get());

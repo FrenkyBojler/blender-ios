@@ -20,7 +20,7 @@ GPUMaterial *DRW_shader_from_world(World *wo,
                                    void *thunk)
 {
   return GPU_material_from_nodetree(
-      nullptr, ntree, &wo->gpumaterial, wo->id.name, engine, shader_id, false, callback, thunk);
+      nullptr, ntree, &wo->gpumaterial, wo->id.name, engine, shader_id, deferred, callback, thunk);
 }
 
 GPUMaterial *DRW_shader_from_material(Material *ma,
@@ -38,7 +38,7 @@ GPUMaterial *DRW_shader_from_material(Material *ma,
                                     ma->id.name,
                                     engine,
                                     shader_id,
-                                    false,
+                                    deferred,
                                     callback,
                                     thunk,
                                     pass_replacement_cb);

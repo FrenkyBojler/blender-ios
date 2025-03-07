@@ -318,7 +318,7 @@ GPUMaterial *GPU_material_from_nodetree(Material *ma,
                                         const char *name,
                                         eGPUMaterialEngine engine,
                                         uint64_t shader_uuid,
-                                        bool is_lookdev,
+                                        bool deferred_compilation,
                                         GPUCodegenCallbackFn callback,
                                         void *thunk,
                                         GPUMaterialPassReplacementCallbackFn pass_replacement_cb)
@@ -343,9 +343,6 @@ GPUMaterial *GPU_material_from_nodetree(Material *ma,
       BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "GPUNodeGraph.used_libraries");
   mat->refcount = 1;
   mat->name = name;
-  if (is_lookdev) {
-    mat->flag |= GPU_MATFLAG_LOOKDEV_HACK;
-  }
 
   /* Localize tree to create links for reroute and mute. */
   bNodeTree *localtree = blender::bke::node_tree_localize(ntree, nullptr);
@@ -367,14 +364,14 @@ GPUMaterial *GPU_material_from_nodetree(Material *ma,
   }
   else {
     /* Create source code and search pass cache for an already compiled version. */
-    mat->pass = GPU_generate_pass(mat, &mat->graph, engine, callback, thunk, false);
+    mat->pass = GPU_generate_pass(
+        mat, &mat->graph, engine, deferred_compilation, callback, thunk, false);
   }
 
   /* Determine whether we should generate an optimized variant of the graph.
    * Heuristic is based on complexity of default material pass and shader node graph. */
   if (GPU_pass_should_optimize(mat->pass)) {
-    // TODO: Defer
-    mat->optimized_pass = GPU_generate_pass(mat, &mat->graph, engine, callback, thunk, true);
+    mat->optimized_pass = GPU_generate_pass(mat, &mat->graph, engine, true, callback, thunk, true);
   }
 
   // TODO: Is this safe to do here?
@@ -415,15 +412,14 @@ GPUMaterial *GPU_material_from_callbacks(eGPUMaterialEngine engine,
 
   /* Lookup an existing pass in the cache or generate a new one. */
   material->pass = GPU_generate_pass(
-      material, &material->graph, engine, generate_code_function_cb, thunk, false);
+      material, &material->graph, engine, false, generate_code_function_cb, thunk, false);
   material->optimized_pass = nullptr;
 
   /* Determine whether we should generate an optimized variant of the graph.
    * Heuristic is based on complexity of default material pass and shader node graph. */
   if (GPU_pass_should_optimize(material->pass)) {
-    // TODO: Defer
     material->optimized_pass = GPU_generate_pass(
-        material, &material->graph, engine, generate_code_function_cb, thunk, true);
+        material, &material->graph, engine, true, generate_code_function_cb, thunk, true);
   }
 
   // TODO: Is this safe to do here?

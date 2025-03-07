@@ -28,6 +28,7 @@ enum eGPUPassStatus {
 GPUPass *GPU_generate_pass(GPUMaterial *material,
                            GPUNodeGraph *graph,
                            eGPUMaterialEngine engine,
+                           bool deferred_compilation,
                            GPUCodegenCallbackFn finalize_source_cb,
                            void *thunk,
                            bool optimize_graph);

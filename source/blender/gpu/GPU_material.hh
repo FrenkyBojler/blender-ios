@@ -87,11 +87,8 @@ enum eGPUMaterialFlag {
 
   /* Tells the render engine the material was just compiled or updated. */
   GPU_MATFLAG_UPDATED = (1 << 29),
-
-  /* HACK(fclem) Tells the environment texture node to not bail out if empty. */
-  GPU_MATFLAG_LOOKDEV_HACK = (1 << 30),
 };
-ENUM_OPERATORS(eGPUMaterialFlag, GPU_MATFLAG_LOOKDEV_HACK);
+ENUM_OPERATORS(eGPUMaterialFlag, GPU_MATFLAG_UPDATED);
 
 using GPUCodegenCallbackFn = void (*)(void *thunk,
                                       GPUMaterial *mat,
@@ -109,7 +106,7 @@ GPUMaterial *GPU_material_from_nodetree(
     const char *name,
     eGPUMaterialEngine engine,
     uint64_t shader_uuid,
-    bool is_lookdev,
+    bool deferred_compilation,
     GPUCodegenCallbackFn callback,
     void *thunk,
     GPUMaterialPassReplacementCallbackFn pass_replacement_cb = nullptr);
