@@ -38,6 +38,7 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_appdir.hh"
 #include "BKE_context.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image.hh"
@@ -1004,21 +1005,16 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
     if (but->rnapoin.owner_id) {
       const ID *id = but->rnapoin.owner_id;
       if (ID_IS_LINKED(id)) {
-        /* Clip middle, favoring the last portion. */
-        char lib_path[FILE_MAXFILE];
-        STRNCPY(lib_path, id->lib->filepath);
-        wmWindow *win = CTX_wm_window(C);
-        const blender::int2 win_size = WM_window_native_pixel_size(win);
-        const int max_width = min_ii(UI_TIP_MAXWIDTH * UI_SCALE_FAC,
-                                     win_size[0] - (UI_TIP_PADDING * 2));
-        const uiStyle *style = UI_style_get();
-        UI_text_clip_middle_ex(
-            &style->tooltip, lib_path, max_width, UI_ICON_SIZE, sizeof(lib_path), SEP);
-        UI_tooltip_text_field_add(*data,
-                                  fmt::format(fmt::runtime(TIP_("Library: {}")), lib_path),
-                                  {},
-                                  UI_TIP_STYLE_NORMAL,
-                                  UI_TIP_LC_NORMAL);
+        const std::string lib_path = id->lib->filepath;
+        const std::optional<std::string> assets_path = BKE_appdir_folder_id(
+            BLENDER_SYSTEM_DATAFILES, "assets");
+        const size_t assets_len = assets_path.has_value() ? assets_path->size() : 0;
+        bool builtin = lib_path.substr(0, assets_len) == assets_path.value_or("");
+
+        const std::string title = builtin ? TIP_("Built-in Asset") : TIP_("Library");
+        const std::string path = builtin ? lib_path.substr(assets_len) : lib_path;
+        UI_tooltip_text_field_add(
+            *data, fmt::format("{}: {}", title, path), {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_NORMAL);
       }
     }
   }
