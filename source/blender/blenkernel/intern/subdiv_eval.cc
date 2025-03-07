@@ -15,8 +15,6 @@
 #include "BKE_mesh.hh"
 #include "BKE_subdiv.hh"
 
-#include "GPU_debug.hh"
-
 #include "MEM_guardedalloc.h"
 
 #include "opensubdiv_evaluator_capi.hh"
@@ -249,7 +247,6 @@ bool eval_refine_from_mesh(Subdiv *subdiv,
     BLI_assert_msg(0, "Is not supposed to happen");
     return false;
   }
-  GPU_debug_capture_begin(__func__);
   /* Set coordinates of base mesh vertices. */
   set_coarse_positions(subdiv,
                        coarse_vert_positions.is_empty() ? mesh->vert_positions() :
@@ -269,7 +266,6 @@ bool eval_refine_from_mesh(Subdiv *subdiv,
   stats_begin(&subdiv->stats, SUBDIV_STATS_EVALUATOR_REFINE);
   subdiv->evaluator->eval_output->refine();
   stats_end(&subdiv->stats, SUBDIV_STATS_EVALUATOR_REFINE);
-  GPU_debug_capture_end();
   return true;
 #else
   UNUSED_VARS(subdiv, mesh, coarse_vert_positions);
