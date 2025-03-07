@@ -3604,7 +3604,7 @@ void node_tree_set_output(bNodeTree &ntree)
   LISTBASE_FOREACH (bNode *, node, &ntree.nodes) {
     if (node->typeinfo->nclass == NODE_CLASS_OUTPUT) {
       /* we need a check for which output node should be tagged like this, below an exception */
-      if (node->type_legacy == CMP_NODE_OUTPUT_FILE) {
+      if (node->is_type("CompositorNodeOutputFile")) {
         continue;
       }
       const bool node_is_output = node->is_type("CompositorNodeViewer") ||
@@ -3621,13 +3621,13 @@ void node_tree_set_output(bNodeTree &ntree)
         /* same type, exception for viewer */
         const bool tnode_is_output = tnode->is_type("CompositorNodeViewer") ||
                                      tnode->is_type("GeometryNodeViewer");
-        const bool compositor_case = (is_compositor || is_geometry) && tnode_is_output &&
-                                     node_is_output;
-        const bool has_same_shortcut = compositor_case && node != tnode &&
+        const bool viewer_case = (is_compositor || is_geometry) && tnode_is_output &&
+                                 node_is_output;
+        const bool has_same_shortcut = viewer_case && node != tnode &&
                                        tnode->custom1 == node->custom1 &&
                                        tnode->custom1 != NODE_VIEWER_SHORTCUT_NONE;
 
-        if (tnode->type_legacy == node->type_legacy || compositor_case) {
+        if (tnode->type_legacy == node->type_legacy || viewer_case) {
           if (tnode->flag & NODE_DO_OUTPUT) {
             output++;
             if (output > 1) {
