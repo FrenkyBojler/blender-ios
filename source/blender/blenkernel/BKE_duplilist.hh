@@ -60,6 +60,7 @@ struct DupliObject {
 
   short type; /* From #Object::transflag. */
   char no_draw;
+  /** Depth in the instance hierarchy. */
   int8_t level;
   /* If this dupli object is belongs to a preview, this is non-null. */
   const blender::bke::GeometrySet *preview_base_geometry;
