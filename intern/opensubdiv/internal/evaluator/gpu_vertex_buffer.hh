@@ -4,11 +4,10 @@
 
 #pragma once
 
+#include "GPU_context.hh"
 #include "GPU_vertex_buffer.hh"
 
 namespace blender::opensubdiv {
-
-// #define UPLOAD_DIRECT
 
 /**
  * GLVertexBuffer compatible API wrapped around a blender::gpu::VertBuf
@@ -18,14 +17,18 @@ namespace blender::opensubdiv {
  */
 class GPUVertexBuffer {
   gpu::VertBuf &gpu_vertex_buffer_;
-  int vertex_len_;
+  
+  /** Number of float elements/components does a single vertex have. */
   int element_count_;
 
+  /** Should we upload data directly to the GPU, or should we use a staging buffer. */
+  bool use_update_sub_;
+
  public:
-  GPUVertexBuffer(gpu::VertBuf &gpu_vertex_buffer, int vertex_len, int element_count)
+  GPUVertexBuffer(gpu::VertBuf &gpu_vertex_buffer, int element_count, bool use_update_sub)
       : gpu_vertex_buffer_(gpu_vertex_buffer),
-        vertex_len_(vertex_len),
-        element_count_(element_count)
+        element_count_(element_count),
+        use_update_sub_(use_update_sub)
   {
   }
 
@@ -43,14 +46,17 @@ class GPUVertexBuffer {
     GPUVertFormat format;
     GPU_vertformat_clear(&format);
     GPU_vertformat_attr_add(&format, "elements", GPU_COMP_F32, element_count, GPU_FETCH_FLOAT);
-#ifdef UPLOAD_DIRECT
-    gpu::VertBuf *vertex_buffer = GPU_vertbuf_calloc();
-    GPU_vertbuf_init_build_on_device(*vertex_buffer, format, vertex_len);
-#else
-    gpu::VertBuf *vertex_buffer = GPU_vertbuf_create_with_format_ex(format, GPU_USAGE_DYNAMIC);
-    GPU_vertbuf_data_alloc(*vertex_buffer, vertex_len);
-#endif
-    return new GPUVertexBuffer(*vertex_buffer, vertex_len, element_count);
+    const bool use_update_sub = GPU_backend_get_type() == GPU_BACKEND_VULKAN;
+    gpu::VertBuf *vertex_buffer = nullptr;
+    if (use_update_sub) {
+      vertex_buffer = GPU_vertbuf_calloc();
+      GPU_vertbuf_init_build_on_device(*vertex_buffer, format, vertex_len);
+    }
+    else {
+      vertex_buffer = GPU_vertbuf_create_with_format_ex(format, GPU_USAGE_DYNAMIC);
+      GPU_vertbuf_data_alloc(*vertex_buffer, vertex_len);
+    }
+    return new GPUVertexBuffer(*vertex_buffer, element_count, use_update_sub);
   }
 
   /// Destructor.
@@ -67,17 +73,18 @@ class GPUVertexBuffer {
                   void *device_context = NULL)
   {
     (void)device_context;
-#ifdef UPLOAD_DIRECT
-    GPU_vertbuf_use(&gpu_vertex_buffer_);
-    size_t offset = start_vertex * element_count_ * sizeof(float);
-    size_t data_len = num_vertices * element_count_ * sizeof(float);
-    GPU_vertbuf_update_sub(&gpu_vertex_buffer_, offset, data_len, src);
-#else
-    MutableSpan<float> buffer_nodes = gpu_vertex_buffer_.data<float>();
-    buffer_nodes = buffer_nodes.drop_front(start_vertex * element_count_);
-    memcpy(buffer_nodes.data(), src, sizeof(float) * element_count_ * num_vertices);
-    GPU_vertbuf_tag_dirty(&gpu_vertex_buffer_);
-#endif
+    if (use_update_sub_) {
+      GPU_vertbuf_use(&gpu_vertex_buffer_);
+      size_t offset = start_vertex * element_count_ * sizeof(float);
+      size_t data_len = num_vertices * element_count_ * sizeof(float);
+      GPU_vertbuf_update_sub(&gpu_vertex_buffer_, offset, data_len, src);
+    }
+    else {
+      MutableSpan<float> buffer_nodes = gpu_vertex_buffer_.data<float>();
+      buffer_nodes = buffer_nodes.drop_front(start_vertex * element_count_);
+      memcpy(buffer_nodes.data(), src, sizeof(float) * element_count_ * num_vertices);
+      GPU_vertbuf_tag_dirty(&gpu_vertex_buffer_);
+    }
   }
 
   /// Returns how many vertices allocated in this vertex buffer.

@@ -161,14 +161,18 @@ static GPUShader *compileKernel(BufferDescriptor const &srcDesc,
     info.define("OPENSUBDIV_GLSL_COMPUTE_KERNEL_EVAL_PATCHES");
   }
 
-  // TODO: use specialization constants for length, src_stride, dst_stride. Not sure we can use
+  // TODO: use specialization constants for src_stride, dst_stride. Not sure we can use
   // work group size as that requires extensions. This allows us to compile less shaders and
   // improve overall performance. Adding length as specialization constant will not work as it is
   // used to define an array length. This is not supported by Metal.
-  info.define("LENGTH", std::to_string(srcDesc.length));
-  info.define("SRC_STRIDE", std::to_string(srcDesc.stride));
-  info.define("DST_STRIDE", std::to_string(dstDesc.stride));
-  info.define("WORK_GROUP_SIZE", std::to_string(workGroupSize));
+  std::string length = std::to_string(srcDesc.length);
+  std::string src_stride = std::to_string(srcDesc.stride);
+  std::string dst_stride = std::to_string(dstDesc.stride);
+  std::string work_group_size = std::to_string(workGroupSize);
+  info.define("LENGTH", length);
+  info.define("SRC_STRIDE", src_stride);
+  info.define("DST_STRIDE", dst_stride);
+  info.define("WORK_GROUP_SIZE", work_group_size);
   info.typedef_source("osd_patch_basis.glsl");
   info.storage_buf(
       SHADER_SRC_VERTEX_BUFFER_BUF_SLOT, Qualifier::READ, "float", "srcVertexBuffer[]");
@@ -310,6 +314,10 @@ void GPUComputeEvaluator::DispatchCompute(GPUShader *shader, int totalDispatchSi
    * we presume it all fits. */
   assert(dispatchRY < GPU_max_work_group_count(1));
   GPU_compute_dispatch(shader, dispatchRX, dispatchRY, 1);
+
+  /* Next usage of the src/dst buffers will always be a shader storage. Vertices/normals/attributes
+   * are copied over to the final buffers using compute shaders. */
+  GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
 }
 
 bool GPUComputeEvaluator::EvalStencils(gpu::VertBuf *srcBuffer,
