@@ -11,20 +11,20 @@ class Params:
         "select_mouse_value",
         "action_mouse",
         "tool_mouse",
-        "use_mouse_emulate_3_button",
+        "is_alt_disabled",
 
     )
 
     def __init__(
             self,
             *,
-            use_mouse_emulate_3_button=False,
+            is_alt_disabled=False,
     ):
         self.tool_mouse = 'LEFTMOUSE'
         self.select_mouse = 'LEFTMOUSE'
         self.select_mouse_value = 'CLICK'
         self.action_mouse = 'RIGHTMOUSE'
-        self.use_mouse_emulate_3_button = use_mouse_emulate_3_button
+        self.is_alt_disabled = is_alt_disabled
 
 
 # ------------------------------------------------------------------------------

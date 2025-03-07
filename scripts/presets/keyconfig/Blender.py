@@ -114,7 +114,7 @@ class Prefs(bpy.types.KeyConfigPreferences):
         name="Alt Tool Access",
         description=(
             "Hold Alt to use the active tool when the gizmo would normally be required\n"
-            "Incompatible with the input preference \"Emulate 3 Button Mouse\" when the \"Alt\" key is used"
+            "Incompatible with the input preference \"Mouse Emulation from Key Modifiers\" when the \"Alt\" key is used"
         ),
         default=False,
         update=update_fn,
@@ -123,7 +123,7 @@ class Prefs(bpy.types.KeyConfigPreferences):
         name="Alt Cursor Access",
         description=(
             "Hold Alt-LMB to place the Cursor (instead of LMB), allows tools to activate on press instead of drag.\n"
-            "Incompatible with the input preference \"Emulate 3 Button Mouse\" when the \"Alt\" key is used"
+            "Incompatible with the input preference \"Mouse Emulation from Key Modifiers\" when the \"Alt\" key is used"
         ),
         default=False,
         update=update_fn,
@@ -264,10 +264,6 @@ class Prefs(bpy.types.KeyConfigPreferences):
 
         show_developer_ui = prefs.view.show_developer_ui
         is_select_left = (self.select_mouse == 'LEFT')
-        use_mouse_emulate_3_button = (
-            prefs.inputs.use_mouse_emulate_3_button and
-            prefs.inputs.mouse_emulate_3_button_modifier == 'ALT'
-        )
 
         # General settings.
         col = layout.column()
@@ -292,7 +288,7 @@ class Prefs(bpy.types.KeyConfigPreferences):
             rowsub.prop(self, "use_alt_tool")
         else:
             rowsub.prop(self, "use_alt_cursor")
-        rowsub.active = not use_mouse_emulate_3_button
+        rowsub.active = not prefs.inputs.is_alt_disabled
 
         row = sub.row()
         row.prop(self, "use_select_all_toggle")
@@ -336,15 +332,11 @@ def load():
 
     show_developer_ui = prefs.view.show_developer_ui
     is_select_left = (kc_prefs.select_mouse == 'LEFT')
-    use_mouse_emulate_3_button = (
-        prefs.inputs.use_mouse_emulate_3_button and
-        prefs.inputs.mouse_emulate_3_button_modifier == 'ALT'
-    )
 
     keyconfig_data = blender_default.generate_keymaps(
         blender_default.Params(
             select_mouse=kc_prefs.select_mouse,
-            use_mouse_emulate_3_button=use_mouse_emulate_3_button,
+            is_alt_disabled=prefs.inputs.is_alt_disabled,
             spacebar_action=kc_prefs.spacebar_action,
             use_key_activate_tools=(kc_prefs.tool_key_mode == 'TOOL'),
             use_region_toggle_pie=(show_developer_ui and kc_prefs.use_region_toggle_pie),
@@ -364,7 +356,7 @@ def load():
                 (kc_prefs.rmb_action != 'FALLBACK_TOOL')
             ),
             use_alt_tool_or_cursor=(
-                (not use_mouse_emulate_3_button) and
+                not prefs.inputs.is_alt_disabled and
                 (kc_prefs.use_alt_tool if is_select_left else kc_prefs.use_alt_cursor)
             ),
             use_alt_click_leader=kc_prefs.use_alt_click_leader,

@@ -708,7 +708,14 @@ typedef struct WalkNavigation {
 typedef struct UserDef_Runtime {
   /** Mark as changed so the preferences are saved on exit. */
   char is_dirty;
-  char _pad0[7];
+
+  /**
+   * Whether a button is waiting for and consuming a key/hotkey event.
+   * Used to allow entering keys that would have been consumed by mouse button emulation.
+   */
+  char is_ui_button_waiting_key_event;
+
+  char _pad0[6];
 } UserDef_Runtime;
 
 /**
@@ -817,7 +824,16 @@ typedef struct UserDef {
   /** #eUserPref_PrefFlag preferences for the preferences. */
   char pref_flag;
   char savetime;
-  char mouse_emulate_3_button_modifier;
+
+  /**
+   * Index 0 and 1 are unused to match the mouse button names with indices.
+   * e.g. 2 is RMB; 3 is MMB; 4 is MB4.
+   */
+  int16_t mouse_emulate_button_types[8];
+
+  /** Use mouse_emulate_button_types instead. */
+  char mouse_emulate_3_button_modifier DNA_DEPRECATED;
+
   /**
    * Workaround for WAYLAND (at time of writing compositors don't support this info).
    * #eUserpref_TrackpadScrollDir type
@@ -1211,7 +1227,7 @@ typedef enum eUserPref_Flag {
   USER_INTERNET_ALLOW = (1 << 9),
   USER_DEVELOPER_UI = (1 << 10),
   USER_TOOLTIPS = (1 << 11),
-  USER_TWOBUTTONMOUSE = (1 << 12),
+  USER_FLAG_UNUSED_8 = (1 << 12), /* dirty */
   USER_NONUMPAD = (1 << 13),
   USER_ADD_CURSORALIGNED = (1 << 14),
   USER_FILECOMPRESS = (1 << 15),
@@ -1603,11 +1619,6 @@ typedef enum eUserpref_TempSpaceDisplayType {
   USER_TEMP_SPACE_DISPLAY_FULLSCREEN = 0,
   USER_TEMP_SPACE_DISPLAY_WINDOW = 1,
 } eUserpref_TempSpaceDisplayType;
-
-typedef enum eUserpref_EmulateMMBMod {
-  USER_EMU_MMB_MOD_ALT = 0,
-  USER_EMU_MMB_MOD_OSKEY = 1,
-} eUserpref_EmulateMMBMod;
 
 typedef enum eUserpref_TrackpadScrollDir {
   USER_TRACKPAD_SCROLL_DIR_TRADITIONAL = 0,

@@ -8758,6 +8758,13 @@ static void button_activate_state(bContext *C, uiBut *but, uiHandleButtonState s
     but->flag &= ~UI_SELECT;
   }
 
+  if (state == BUTTON_STATE_WAIT_KEY_EVENT) {
+    U.runtime.is_ui_button_waiting_key_event = true;
+  }
+  else if (state == BUTTON_STATE_EXIT) {
+    U.runtime.is_ui_button_waiting_key_event = false;
+  }
+
   if (state == BUTTON_STATE_TEXT_EDITING) {
     ui_block_interaction_begin_ensure(C, but->block, data, true);
   }

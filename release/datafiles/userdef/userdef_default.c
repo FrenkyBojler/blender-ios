@@ -28,6 +28,7 @@ const UserDef U_default = {
                USER_DUP_POINTCLOUD,
     .pref_flag = USER_PREF_FLAG_SAVE,
     .savetime = 2,
+    .mouse_emulate_button_types = {0, 0, 0, 0, 0, 0, 0, 0}, /* EVENT_NONE */
     .tempdir = "",
     /* Overwritten by #BKE_appdir_font_folder_default(..)
      * unless the system font's cannot be found. */

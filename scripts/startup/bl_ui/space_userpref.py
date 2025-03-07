@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2009-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
+from gettext import pgettext
 
 import bpy
 from bpy.types import (
@@ -1860,21 +1861,10 @@ class USERPREF_PT_input_mouse(InputPanel, CenterAlignMixIn, Panel):
     bl_label = "Mouse"
 
     def draw_centered(self, context, layout):
-        import sys
         prefs = context.preferences
         inputs = prefs.inputs
 
         flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=False)
-
-        if sys.platform[:3] == "win":
-            flow.prop(inputs, "use_mouse_emulate_3_button")
-        else:
-            col = flow.column(heading="Emulate 3 Button Mouse")
-            row = col.row()
-            row.prop(inputs, "use_mouse_emulate_3_button", text="")
-            subrow = row.row()
-            subrow.prop(inputs, "mouse_emulate_3_button_modifier", text="")
-            subrow.active = inputs.use_mouse_emulate_3_button
 
         flow.prop(inputs, "use_mouse_continuous")
         flow.prop(inputs, "use_drag_immediately")
@@ -1883,6 +1873,38 @@ class USERPREF_PT_input_mouse(InputPanel, CenterAlignMixIn, Panel):
         flow.prop(inputs, "drag_threshold_tablet")
         flow.prop(inputs, "drag_threshold")
         flow.prop(inputs, "move_threshold")
+
+
+class USERPREF_PT_input_mouse_emulation(InputPanel, CenterAlignMixIn, Panel):
+    bl_label = "Mouse Emulation from Key Modifiers"
+
+    def draw_centered(self, context, layout):
+        import sys
+        prefs = context.preferences
+        inputs = prefs.inputs
+
+        flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=False)
+
+        self.draw_single(flow.row(), inputs, 2, text=pgettext("UI_Events_KeyMaps", "Right"))
+        self.draw_single(flow.row(), inputs, 3, text=pgettext("UI_Events_KeyMaps", "Middle"))
+        self.draw_single(flow.row(), inputs, 4, text=pgettext("UI_Events_KeyMaps", "Button4"))
+        self.draw_single(flow.row(), inputs, 5, text=pgettext("UI_Events_KeyMaps", "Button5"))
+        self.draw_single(flow.row(), inputs, 6, text=pgettext("UI_Events_KeyMaps", "Button6"))
+        self.draw_single(flow.row(), inputs, 7, text=pgettext("UI_Events_KeyMaps", "Button7"))
+
+        if sys.platform[:3] == "win" and inputs.is_oskey_disabled:
+            layout.label(
+                text="Windows Start Menu will be displayed when the OSKey is pressed.",
+                icon='INFO'
+            )
+
+    def draw_single(self, row, inputs, index, text):
+        key = f"mouse_emulate_button_type_{index}"
+        row.prop(inputs, key, text=text, event=True)
+        col = row.column()
+        col.enabled = getattr(inputs, key) != 'NONE'
+        op = col.operator("preferences.userpref_mouse_button_emulation_remove", text="", icon='X')
+        op.inputs_pref_key = key
 
 
 class USERPREF_PT_input_touchpad(InputPanel, CenterAlignMixIn, Panel):
@@ -3000,6 +3022,7 @@ classes = (
 
     USERPREF_PT_input_keyboard,
     USERPREF_PT_input_mouse,
+    USERPREF_PT_input_mouse_emulation,
     USERPREF_PT_input_tablet,
     USERPREF_PT_input_touchpad,
     USERPREF_PT_input_ndof,

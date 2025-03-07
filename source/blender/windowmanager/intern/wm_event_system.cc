@@ -5326,47 +5326,108 @@ static int wm_event_type_from_ghost_button(const GHOST_TButton button, const int
   return fallback;
 }
 
+static uint8_t wm_eventemulation_eventtomodifier(short event)
+{
+  switch (event) {
+    case EVT_LEFTCTRLKEY:
+    case EVT_RIGHTCTRLKEY:
+      return KM_CTRL;
+    case EVT_LEFTALTKEY:
+    case EVT_RIGHTALTKEY:
+      return KM_ALT;
+    case EVT_LEFTSHIFTKEY:
+    case EVT_RIGHTSHIFTKEY:
+      return KM_SHIFT;
+    case EVT_OSKEY:
+      return KM_OSKEY;
+    default:
+      return KM_NOTHING;
+  }
+}
+
 static void wm_eventemulation(wmEvent *event, bool test_only)
 {
+  constexpr int mouse_button_count = std::extent_v<decltype(UserDef::mouse_emulate_button_types)>;
+  constexpr int mouse_button_index_to_event_type[mouse_button_count] = {EVENT_NONE,
+                                                                        LEFTMOUSE,
+                                                                        RIGHTMOUSE,
+                                                                        MIDDLEMOUSE,
+                                                                        BUTTON4MOUSE,
+                                                                        BUTTON5MOUSE,
+                                                                        BUTTON6MOUSE,
+                                                                        BUTTON7MOUSE};
+
   /* Store last middle-mouse event value to make emulation work
    * when modifier keys are released first.
    * This really should be in a data structure somewhere. */
   static int emulating_event = EVENT_NONE;
+  /* Store how to reinterpret the LMB press event depending on key events. */
+  static int upcoming_event = EVENT_NONE;
+  /* Store which event triggered the reinterpretation. */
+  static int upcoming_event_source = EVENT_NONE;
 
-  /* Middle-mouse emulation. */
-  if (U.flag & USER_TWOBUTTONMOUSE) {
+  if (U.runtime.is_ui_button_waiting_key_event) {
+    upcoming_event = upcoming_event_source = EVENT_NONE;
+  }
+  else if (event->type == LEFTMOUSE) {
+    /* Mouse buttons emulation. */
+    if (event->val == KM_PRESS && upcoming_event != EVENT_NONE) {
+      event->type = upcoming_event;
+      event->modifier &= ~wm_eventemulation_eventtomodifier(event->type);
 
-    if (event->type == LEFTMOUSE) {
-      const uint8_t mod_test = (
-#if !defined(WIN32)
-          (U.mouse_emulate_3_button_modifier == USER_EMU_MMB_MOD_OSKEY) ? KM_OSKEY : KM_ALT
-#else
-          /* Disable for WIN32 for now because it accesses the start menu. */
-          KM_ALT
-#endif
-      );
+      if (!test_only) {
+        emulating_event = upcoming_event;
+      }
+    }
+    else if (event->val == KM_RELEASE && emulating_event != EVENT_NONE) {
+      event->type = emulating_event;
+      event->modifier &= ~wm_eventemulation_eventtomodifier(emulating_event);
 
-      if (event->val == KM_PRESS) {
-        if (event->modifier & mod_test) {
-          event->modifier &= ~mod_test;
-          event->type = MIDDLEMOUSE;
+      if (!test_only) {
+        emulating_event = EVENT_NONE;
+      }
+    }
+  }
+  else if (ISKEYBOARD(event->type)) {
+    bool kill_event = false;
 
-          if (!test_only) {
-            emulating_event = MIDDLEMOUSE;
-          }
+    /* Track pressed keys that are repurposed as modifier keys.
+     * If multiple keys are pressed, then the first pressed key will be used.
+     * Standard flow for the first pressed repurposed key will be suppressed. */
+    if (event->val == KM_PRESS && upcoming_event == EVENT_NONE) {
+      short upcoming_event_new = EVENT_NONE;
+
+      for (int i = 0; i < mouse_button_count; i++) {
+        if (event->type == U.mouse_emulate_button_types[i]) {
+          upcoming_event_new = mouse_button_index_to_event_type[i];
         }
       }
-      else if (event->val == KM_RELEASE) {
-        /* Only send middle-mouse release if emulated. */
-        if (emulating_event == MIDDLEMOUSE) {
-          event->type = MIDDLEMOUSE;
-          event->modifier &= ~mod_test;
-        }
+
+      if (upcoming_event_new) {
+        kill_event = true;
 
         if (!test_only) {
-          emulating_event = EVENT_NONE;
+          upcoming_event = upcoming_event_new;
+          upcoming_event_source = event->type;
         }
       }
+    }
+    else if (event->val == KM_RELEASE && upcoming_event_source == event->type) {
+      kill_event = true;
+
+      if (!test_only) {
+        upcoming_event = 0;
+        upcoming_event_source = 0;
+      }
+    }
+    else if (upcoming_event_source == event->type) {
+      kill_event = true;
+    }
+
+    if (kill_event) {
+      event->type = EVENT_NONE;
+      event->val = KM_NOTHING;
+      return;
     }
   }
 
@@ -5925,6 +5986,10 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
       wm_tablet_data_from_ghost(&bd->tablet, &event.tablet);
 
       wm_eventemulation(&event, false);
+      if (event.type == EVENT_NONE) {
+        break;
+      }
+
       wm_event_state_update_and_click_set(&event,
                                           event_time_ms,
                                           event_state,
@@ -5975,6 +6040,9 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
       event.val = (type == GHOST_kEventKeyDown) ? KM_PRESS : KM_RELEASE;
 
       wm_eventemulation(&event, false);
+      if (event.type == EVENT_NONE) {
+        break;
+      }
 
       /* Exclude arrow keys, escape, etc from text input. */
       if (type == GHOST_kEventKeyUp) {

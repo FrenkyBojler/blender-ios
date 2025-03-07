@@ -80,6 +80,25 @@ def _wm_wait_cursor(value):
                 window.cursor_modal_restore()
 
 
+class PREFERENCES_OT_userpref_mouse_button_emulation_remove(Operator):
+    """Remove mouse button emulation keybind"""
+    bl_idname = "preferences.userpref_mouse_button_emulation_remove"
+    bl_label = "Remove Mouse Button Emulation Keybind"
+
+    inputs_pref_key: StringProperty(
+        name="Input Preferences Key",
+        description="Key of the preference to remove (clear)"
+    )
+
+    def execute(self, context):
+        prefs = context.preferences
+        inputs = prefs.inputs
+        setattr(inputs, self.inputs_pref_key, "NONE")
+
+        prefs.is_dirty = True
+        return {'FINISHED'}
+
+
 class PREFERENCES_OT_keyconfig_activate(Operator):
     bl_idname = "preferences.keyconfig_activate"
     bl_label = "Activate Keyconfig"
@@ -1284,6 +1303,7 @@ classes = (
     PREFERENCES_OT_addon_show,
     PREFERENCES_OT_app_template_install,
     PREFERENCES_OT_copy_prev,
+    PREFERENCES_OT_userpref_mouse_button_emulation_remove,
     PREFERENCES_OT_keyconfig_activate,
     PREFERENCES_OT_keyconfig_export,
     PREFERENCES_OT_keyconfig_import,

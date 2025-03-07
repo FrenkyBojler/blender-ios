@@ -672,7 +672,8 @@ void blo_do_versions_userdef(UserDef *userdef)
   if (!USER_VERSION_ATLEAST(236, 0)) {
     /* illegal combo... */
     if (userdef->flag & USER_LMOUSESELECT) {
-      userdef->flag &= ~USER_TWOBUTTONMOUSE;
+      /* deprecated USER_TWOBUTTONMOUSE */
+      userdef->flag &= ~USER_FLAG_UNUSED_8;
     }
   }
   if (!USER_VERSION_ATLEAST(240, 0)) {
@@ -778,7 +779,8 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (!USER_VERSION_ATLEAST(252, 3)) {
     if (userdef->flag & USER_LMOUSESELECT) {
-      userdef->flag &= ~USER_TWOBUTTONMOUSE;
+      /* deprecated USER_TWOBUTTONMOUSE */
+      userdef->flag &= ~USER_FLAG_UNUSED_8;
     }
   }
   if (!USER_VERSION_ATLEAST(252, 4)) {
@@ -1411,6 +1413,19 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (!USER_VERSION_ATLEAST(404, 28)) {
     userdef->ndof_flag |= NDOF_SHOW_GUIDE_ORBIT_CENTER | NDOF_ORBIT_CENTER_AUTO;
+  }
+
+  if (!USER_VERSION_ATLEAST(405, 4)) {
+    /* deprecated USER_TWOBUTTONMOUSE */
+    if (userdef->flag & USER_FLAG_UNUSED_8) {
+      userdef->flag &= ~USER_FLAG_UNUSED_8;
+      if (userdef->mouse_emulate_3_button_modifier == 0) {
+        userdef->mouse_emulate_button_types[3] = EVT_LEFTALTKEY;
+      }
+      else {
+        userdef->mouse_emulate_button_types[3] = EVT_OSKEY;
+      }
+    }
   }
 
   /**

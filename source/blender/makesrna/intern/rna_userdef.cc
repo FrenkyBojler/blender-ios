@@ -786,15 +786,86 @@ static void rna_userdef_timecode_style_set(PointerRNA *ptr, int value)
   }
 }
 
-static int rna_UserDef_mouse_emulate_3_button_modifier_get(PointerRNA *ptr)
+template<int MouseButtonIndex>
+static int rna_UserDef_mouse_emulate_button_type_get(PointerRNA *ptr)
 {
-#  if !defined(WIN32)
+  constexpr int mouse_button_count = std::extent_v<decltype(UserDef::mouse_emulate_button_types)>;
+  BLI_STATIC_ASSERT(0 <= MouseButtonIndex && MouseButtonIndex < mouse_button_count,
+                    "Mouse button index is out of bounds");
+
   UserDef *userdef = static_cast<UserDef *>(ptr->data);
-  return userdef->mouse_emulate_3_button_modifier;
-#  else
-  UNUSED_VARS(ptr);
-  return USER_EMU_MMB_MOD_ALT;
-#  endif
+  return userdef->mouse_emulate_button_types[MouseButtonIndex];
+}
+
+/**
+ * Assumes value to be an enum from rna_enum_event_type_items.
+ * Function makes sure key-modifiers are only valid keys, ESC keeps it unaltered.
+ */
+template<int MouseButtonIndex>
+static void rna_UserDef_mouse_emulate_button_type_set(PointerRNA *ptr, int value)
+{
+  constexpr int mouse_button_count = std::extent_v<decltype(UserDef::mouse_emulate_button_types)>;
+
+  BLI_STATIC_ASSERT(0 <= MouseButtonIndex && MouseButtonIndex < mouse_button_count,
+                    "Mouse button index is out of bounds");
+
+  UserDef *userdef = static_cast<UserDef *>(ptr->data);
+
+  if (value == EVT_ESCKEY) {
+    /* pass */
+  }
+  else if (ISKEYBOARD(value)) {
+    for (int i = 0; i < mouse_button_count; i++) {
+      if (userdef->mouse_emulate_button_types[i] == value) {
+        userdef->mouse_emulate_button_types[i] = 0;
+      }
+    }
+
+    userdef->mouse_emulate_button_types[MouseButtonIndex] = static_cast<int16_t>(value);
+  }
+  else {
+    userdef->mouse_emulate_button_types[MouseButtonIndex] = 0;
+  }
+}
+
+template<int EventType> static bool rna_UserDef_runtime_is_modifier_disabled_get(PointerRNA *ptr)
+{
+  constexpr int mouse_button_count = std::extent_v<decltype(UserDef::mouse_emulate_button_types)>;
+
+  UserDef *userdef = static_cast<UserDef *>(ptr->data);
+
+  for (int i = 0; i < mouse_button_count; i++) {
+    switch (userdef->mouse_emulate_button_types[i]) {
+      case EVT_LEFTCTRLKEY:
+      case EVT_RIGHTCTRLKEY:
+        if constexpr (EventType == KM_CTRL) {
+          return true;
+        }
+        break;
+
+      case EVT_LEFTALTKEY:
+      case EVT_RIGHTALTKEY:
+        if constexpr (EventType == KM_ALT) {
+          return true;
+        }
+        break;
+
+      case EVT_LEFTSHIFTKEY:
+      case EVT_RIGHTSHIFTKEY:
+        if constexpr (EventType == KM_SHIFT) {
+          return true;
+        }
+        break;
+
+      case EVT_OSKEY:
+        if constexpr (EventType == KM_OSKEY) {
+          return true;
+        }
+        break;
+    }
+  }
+
+  return false;
 }
 
 static const EnumPropertyItem *rna_UseDef_active_section_itemf(bContext * /*C*/,
@@ -4882,7 +4953,6 @@ static void rna_def_userdef_addon_pref(BlenderRNA *brna)
 
 static void rna_def_userdef_dothemes(BlenderRNA *brna)
 {
-
   rna_def_userdef_theme_ui_style(brna);
   rna_def_userdef_theme_ui(brna);
 
@@ -6863,28 +6933,101 @@ static void rna_def_userdef_input(BlenderRNA *brna)
   RNA_def_property_range(prop, 1, 1000);
   RNA_def_property_ui_text(prop, "Double Click Timeout", "Time/delay (in ms) for a double click");
 
-  prop = RNA_def_property(srna, "use_mouse_emulate_3_button", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_TWOBUTTONMOUSE);
+  prop = RNA_def_property(srna, "mouse_emulate_button_type_2", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_UserDef_mouse_emulate_button_type_get<2>",
+                              "rna_UserDef_mouse_emulate_button_type_set<2>",
+                              nullptr);
+  RNA_def_property_enum_items(prop, rna_enum_event_type_items);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
   RNA_def_property_ui_text(
-      prop, "Emulate 3 Button Mouse", "Emulate Middle Mouse with Alt+Left Mouse");
+      prop, "RMB Emulation Modifier", "Hold this modifier to emulate the right mouse button");
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(prop, 0, "rna_userdef_keyconfig_reload_update");
 
-  static const EnumPropertyItem mouse_emulate_3_button_modifier[] = {
-      {USER_EMU_MMB_MOD_ALT, "ALT", 0, "Alt", ""},
-      {USER_EMU_MMB_MOD_OSKEY, "OSKEY", 0, "OS-Key", ""},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
-  prop = RNA_def_property(srna, "mouse_emulate_3_button_modifier", PROP_ENUM, PROP_NONE);
-  /* Only needed because of WIN32 inability to support the option. */
-  RNA_def_property_enum_funcs(
-      prop, "rna_UserDef_mouse_emulate_3_button_modifier_get", nullptr, nullptr);
-  RNA_def_property_enum_items(prop, mouse_emulate_3_button_modifier);
+  prop = RNA_def_property(srna, "mouse_emulate_button_type_3", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_UserDef_mouse_emulate_button_type_get<3>",
+                              "rna_UserDef_mouse_emulate_button_type_set<3>",
+                              nullptr);
+  RNA_def_property_enum_items(prop, rna_enum_event_type_items);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
   RNA_def_property_ui_text(
-      prop, "Emulate 3 Button Modifier", "Hold this modifier to emulate the middle mouse button");
+      prop, "MMB Emulation Modifier", "Hold this modifier to emulate the middle mouse button");
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(prop, 0, "rna_userdef_keyconfig_reload_update");
+
+  prop = RNA_def_property(srna, "mouse_emulate_button_type_4", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_UserDef_mouse_emulate_button_type_get<4>",
+                              "rna_UserDef_mouse_emulate_button_type_set<4>",
+                              nullptr);
+  RNA_def_property_enum_items(prop, rna_enum_event_type_items);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
+  RNA_def_property_ui_text(
+      prop, "MB4 Emulation Modifier", "Hold this modifier to emulate the 4th mouse button");
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(prop, 0, "rna_userdef_keyconfig_reload_update");
+
+  prop = RNA_def_property(srna, "mouse_emulate_button_type_5", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_UserDef_mouse_emulate_button_type_get<5>",
+                              "rna_UserDef_mouse_emulate_button_type_set<5>",
+                              nullptr);
+  RNA_def_property_enum_items(prop, rna_enum_event_type_items);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
+  RNA_def_property_ui_text(
+      prop, "MB5 Emulation Modifier", "Hold this modifier to emulate the 5th mouse button");
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(prop, 0, "rna_userdef_keyconfig_reload_update");
+
+  prop = RNA_def_property(srna, "mouse_emulate_button_type_6", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_UserDef_mouse_emulate_button_type_get<6>",
+                              "rna_UserDef_mouse_emulate_button_type_set<6>",
+                              nullptr);
+  RNA_def_property_enum_items(prop, rna_enum_event_type_items);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
+  RNA_def_property_ui_text(
+      prop, "MB6 Emulation Modifier", "Hold this modifier to emulate the 6th mouse button");
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(prop, 0, "rna_userdef_keyconfig_reload_update");
+
+  prop = RNA_def_property(srna, "mouse_emulate_button_type_7", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_UserDef_mouse_emulate_button_type_get<7>",
+                              "rna_UserDef_mouse_emulate_button_type_set<7>",
+                              nullptr);
+  RNA_def_property_enum_items(prop, rna_enum_event_type_items);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
+  RNA_def_property_ui_text(
+      prop, "MB7 Emulation Modifier", "Hold this modifier to emulate the 7th mouse button");
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(prop, 0, "rna_userdef_keyconfig_reload_update");
+
+  prop = RNA_def_property(srna, "is_ctrl_disabled", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_boolean_funcs(
+      prop, "rna_UserDef_runtime_is_modifier_disabled_get<KM_CTRL>", nullptr);
+  RNA_def_property_ui_text(prop, "Disabled CTRL", "CTRL modifier will be suppressed");
+
+  prop = RNA_def_property(srna, "is_shift_disabled", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_boolean_funcs(
+      prop, "rna_UserDef_runtime_is_modifier_disabled_get<KM_SHIFT>", nullptr);
+  RNA_def_property_ui_text(prop, "Disabled SHIFT", "SHIFT modifier will be suppressed");
+
+  prop = RNA_def_property(srna, "is_alt_disabled", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_boolean_funcs(
+      prop, "rna_UserDef_runtime_is_modifier_disabled_get<KM_ALT>", nullptr);
+  RNA_def_property_ui_text(prop, "Disabled ALT", "ALT modifier will be suppressed");
+
+  prop = RNA_def_property(srna, "is_oskey_disabled", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_boolean_funcs(
+      prop, "rna_UserDef_runtime_is_modifier_disabled_get<KM_OSKEY>", nullptr);
+  RNA_def_property_ui_text(prop, "Disabled OSKEY", "OSKEY modifier will be suppressed");
 
   prop = RNA_def_property(srna, "use_emulate_numpad", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_NONUMPAD);
@@ -7840,6 +7983,13 @@ void RNA_def_userdef(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "runtime.is_dirty", 0);
   RNA_def_property_ui_text(prop, "Dirty", "Preferences have changed");
   RNA_def_property_update(prop, 0, "rna_userdef_ui_update");
+
+  prop = RNA_def_property(srna, "is_ui_button_waiting_key_event", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_HIDDEN);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "runtime.is_ui_button_waiting_key_event", 0);
+  RNA_def_property_ui_text(
+      prop, "UI Button is Waiting Key Event", "A UI Button is waiting for a key/hotkey event");
 
   rna_def_userdef_view(brna);
   rna_def_userdef_edit(brna);
