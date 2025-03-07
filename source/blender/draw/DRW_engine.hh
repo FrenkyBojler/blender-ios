@@ -38,17 +38,6 @@ bool DRW_engine_render_support(DrawEngineType *draw_engine_type);
 
 void DRW_engine_external_free(RegionView3D *rv3d);
 
-struct DRWUpdateContext {
-  Main *bmain;
-  Depsgraph *depsgraph;
-  Scene *scene;
-  ViewLayer *view_layer;
-  ARegion *region;
-  View3D *v3d;
-  RenderEngineType *engine_type;
-};
-void DRW_notify_view_update(const DRWUpdateContext *update_ctx);
-
 enum eDRWSelectStage {
   DRW_SELECT_PASS_PRE = 1,
   DRW_SELECT_PASS_POST,
@@ -102,16 +91,9 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
                          View3D *v3d,
                          GPUViewport *viewport,
                          const bool use_gpencil,
-                         const bool use_only_selected);
-/**
- * Clears the Depth Buffer and draws only the specified object.
- */
-void DRW_draw_depth_object(
-    Scene *scene, ARegion *region, View3D *v3d, GPUViewport *viewport, Object *object);
+                         const bool use_only_selected,
+                         const bool use_only_active_object);
 
-/**
- * Edit mesh mode selection.
- */
 void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d);
 
 /**
