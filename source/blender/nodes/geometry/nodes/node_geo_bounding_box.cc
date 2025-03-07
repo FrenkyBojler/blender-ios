@@ -14,7 +14,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Geometry>("Geometry");
   b.add_input<decl::Bool>("Use Radius")
       .default_value(true)
-      .description("Take the radius attribute into account when computing the geometry bounds.");
+      .description(
+          "For curves, point clouds, and Grease Pencil, take the radius attribute into account "
+          "when computing the bounds.");
   b.add_output<decl::Geometry>("Bounding Box");
   b.add_output<decl::Vector>("Min");
   b.add_output<decl::Vector>("Max");
