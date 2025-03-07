@@ -114,6 +114,58 @@ using ConstraintEvalVelocityFunc =
                        Vector<VArray<float3>> &r_delta_angular_velocities)>;
 
 /**
+ * Options for constructing linear solver matrix:
+ * - Assume hair structure (multiple independent ranges, constraints between neighboring points).
+ *   Ask constraints for values of specific blocks/rows.
+ * - Ask constraints for #rows (lambdas) & #vars (p/q).
+ */
+
+/**
+ * Returns the number of equations used and the number and variables affected by a constraint.
+ * \param constraint_size Size of the constraint is the number of Lagrange multipliers (lambda)
+ * used by a single constraint, typically 1..4.
+ * \param num_positions Number of position variables affected by the constraint.
+ * \param num_rotations Number of rotation variables affected by the constraint.
+ */
+using ConstraintLinearSolveSizeFunc =
+    std::function<void(int &r_constraint_size, int &r_num_positions, int &r_num_rotations)>;
+
+/**
+ * Information to fill blocks in the sparse matrix for multiple constraints.
+ * Each constraint can have a number of components (typically between 1 and 4).
+ * Each component
+ */
+struct LinearSolveConstructionInfo {
+  /* Residual value in the current state ("C") after constraint projection. */
+  Array<float> residuals;
+  /* Constraint force ("lambda") of the previous iteration. */
+  Array<float> lambdas;
+  /* Compliance value ("alpha") for the constraint, inverse of the constraint stiffness. */
+  Array<float> alphas;
+  /* Damping factor ("beta"). */
+  /* Jacobian entries: Derivative of the constraint impulse ("J") wrt. one or more position and/or
+   * rotation variables. */
+  Array<float> gradients;
+  /* Number of */
+};
+
+/**
+ * Compute elements of the constraint matrix for a direct linear constraint solve.
+ * A constraint can return an arbitrary number of rows.
+ *
+ * The solver constructs a linear system that yields an optimal solution for the constraint imulses
+ * and the variable offsets.
+ */
+using ConstraintPositionLinearSolveFunc =
+    std::function<void(const ConstraintEvalParams &eval_params,
+                       const ConstraintVariables &variables,
+                       const IndexMask &group_mask,
+                       bke::GeometrySet &constraints,
+                       VArray<bool> &r_active,
+                       Vector<VArray<float3>> &r_delta_positions,
+                       Vector<VArray<float4>> &r_delta_rotations)>;
+
+/**
  * Returns up to 4 index attributes mapping constraints to geometry points.
  */
 using ConstraintMappingFunc =
