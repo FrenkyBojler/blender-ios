@@ -41,19 +41,40 @@ struct TransDataSeq {
   Array<float2> quad_orig;
   float3x3 orig_matrix;
 
-  float orig_origin_relative[2];
-  float orig_origin_position[2];
-  float orig_translation[2];
-  float orig_scale[2];
+  float2 orig_origin_relative; /* 0-1 range within image bounds. */
+  float2 orig_origin_pixelspace;
+  float2 orig_translation;
+  float2 orig_scale;
   float orig_rotation;
 };
+
+static void store_transform_properties(const Scene *scene,
+                                       Strip *strip,
+                                       float2 origin,
+                                       TransData *td)
+{
+  const StripTransform *transform = strip->data->transform;
+  TransDataSeq *tdseq = MEM_new<TransDataSeq>("TransSeq TransDataSeq");
+  tdseq->strip = strip;
+  copy_v2_v2(tdseq->orig_origin_relative, transform->origin);
+  tdseq->orig_origin_pixelspace = origin;
+  tdseq->quad_orig = seq::image_transform_final_quad_get(scene, strip);
+  tdseq->orig_matrix = math::invert(seq::image_transform_matrix_get(scene, strip));
+
+  tdseq->orig_translation[0] = transform->xofs;
+  tdseq->orig_translation[1] = transform->yofs;
+  tdseq->orig_scale[0] = transform->scale_x;
+  tdseq->orig_scale[1] = transform->scale_y;
+  tdseq->orig_rotation = transform->rotation;
+  td->extra = static_cast<void *>(tdseq);
+}
 
 static TransData *SeqToTransData(
     const Scene *scene, Strip *strip, TransData *td, TransData2D *td2d, int vert_index)
 {
   const StripTransform *transform = strip->data->transform;
   const float2 origin = seq::image_transform_origin_offset_pixelspace_get(scene, strip);
-  float vertex[2] = {origin[0], origin[1]};
+  float2 vertex = {origin[0], origin[1]};
 
   /* Add control vertex, so rotation and scale can be calculated.
    * All three vertices will form a "L" shape that is aligned to the local strip axis.
@@ -82,20 +103,9 @@ static TransData *SeqToTransData(
   axis_angle_to_mat3_single(td->axismtx, 'Z', transform->rotation);
   normalize_m3(td->axismtx);
 
+  /* Store properties only once per vertex "triad". */
   if (vert_index == 0) {
-    TransDataSeq *tdseq = MEM_new<TransDataSeq>("TransSeq TransDataSeq");
-    tdseq->strip = strip;
-    copy_v2_v2(tdseq->orig_origin_relative, transform->origin);
-    copy_v2_v2(tdseq->orig_origin_position, origin);
-    tdseq->quad_orig = seq::image_transform_final_quad_get(scene, strip);
-    tdseq->orig_matrix = math::invert(seq::image_transform_matrix_get(scene, strip));
-
-    tdseq->orig_translation[0] = transform->xofs;
-    tdseq->orig_translation[1] = transform->yofs;
-    tdseq->orig_scale[0] = transform->scale_x;
-    tdseq->orig_scale[1] = transform->scale_y;
-    tdseq->orig_rotation = transform->rotation;
-    td->extra = static_cast<void *>(tdseq);
+    store_transform_properties(scene, strip, origin, td);
   }
 
   td->ext = nullptr;
@@ -201,36 +211,28 @@ static bool autokeyframe_sequencer_image(bContext *C,
   return changed;
 }
 
-struct TransformData {
-  float2 origin;
-  float2 handle_x;
-  float2 handle_y;
+struct TransformResult {
+  float2 translation;
+  float2 scale;
+  float rotation;
 };
 
-static TransformData transform_data_get(TransData2D *td2d)
+static TransformResult transform_result_get(TransInfo *t,
+                                            TransDataSeq *tdseq,
+                                            TransData2D *td2d,
+                                            Strip *strip)
 {
-  TransformData data;
-  /* Origin. */
-  data.origin = {td2d->loc[0], td2d->loc[1]};
+  float2 handle_origin = {td2d->loc[0], td2d->loc[1]};
   /* X and Y control points used to read scale and rotation. */
-  data.handle_x = float2((td2d + 1)->loc) - data.origin;
-  data.handle_y = float2((td2d + 2)->loc) - data.origin;
-  return data;
-}
-
-static float3 transform_translation_get(TransInfo *t,
-                                        TransDataSeq *tdseq,
-                                        TransData2D *td2d,
-                                        Strip *strip)
-{
-  TransformData data = transform_data_get(td2d);
+  float2 handle_x = float2((td2d + 1)->loc) - handle_origin;
+  float2 handle_y = float2((td2d + 2)->loc) - handle_origin;
+  float2 aspect = {t->scene->r.yasp / t->scene->r.xasp, 1.0f};
   float2 mirror = seq::image_transform_mirror_factor_get(strip);
-  // float3 translation = (float3(tdseq->orig_origin_position) - data.origin) * float3(mirror);
-  float3 translation = {(tdseq->orig_origin_position[0] - data.origin.x) * mirror.x,
-                        (tdseq->orig_origin_position[1] - data.origin.y) * mirror.y,
-                        0.0f};
-  translation[0] *= t->scene->r.yasp / t->scene->r.xasp;
-  return translation;
+  float2 orig_strip_origin_pixelspace = tdseq->orig_origin_pixelspace;
+
+  return TransformResult{(orig_strip_origin_pixelspace - handle_origin) * mirror * aspect,
+                         {math::length(handle_x), math::length(handle_y)},
+                         t->values_final[0]};
 }
 
 static void image_transform_set(TransInfo *t)
@@ -244,26 +246,23 @@ static void image_transform_set(TransInfo *t)
     TransDataSeq *tdseq = static_cast<TransDataSeq *>(td->extra);
     Strip *strip = tdseq->strip;
     StripTransform *transform = strip->data->transform;
-
-    /* Calculate translation. */
-    float3 translation = transform_translation_get(t, tdseq, td2d, strip);
+    TransformResult result = transform_result_get(t, tdseq, td2d, strip);
 
     /* Round resulting position to integer pixels. Resulting strip
      * will more often end up using faster interpolation (without bilinear),
      * and avoids "text edges are too dark" artifacts with light text strips
      * on light backgrounds. The latter happens because bilinear filtering
      * does not do full alpha pre-multiplication. */
-    transform->xofs = roundf(tdseq->orig_translation[0] - translation[0]);
-    transform->yofs = roundf(tdseq->orig_translation[1] - translation[1]);
+    transform->xofs = roundf(tdseq->orig_translation.x - result.translation.x);
+    transform->yofs = roundf(tdseq->orig_translation.y - result.translation.y);
 
     /* Scale. */
-    TransformData data = transform_data_get(td2d);
-    transform->scale_x = tdseq->orig_scale[0] * fabs(math::length(data.handle_x));
-    transform->scale_y = tdseq->orig_scale[1] * fabs(math::length(data.handle_y));
+    transform->scale_x = tdseq->orig_scale.x * result.scale.x;
+    transform->scale_y = tdseq->orig_scale.x * result.scale.x;
 
     /* Rotation. Scaling can cause negative rotation. */
     if (t->mode == TFM_ROTATION) {
-      transform->rotation = tdseq->orig_rotation - t->values_final[0];
+      transform->rotation = tdseq->orig_rotation - result.rotation;
     }
 
     if ((t->animtimer) && animrig::is_autokey_on(t->scene)) {
@@ -296,24 +295,22 @@ static float2 calculate_new_origin_position(TransInfo *t, TransDataSeq *tdseq, T
 {
   Strip *strip = tdseq->strip;
 
-  float3 image_size(float(t->scene->r.xsch), float(t->scene->r.ysch), 0.0f);
+  float2 image_size(float(t->scene->r.xsch), float(t->scene->r.ysch));
   if (ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_IMAGE)) {
     image_size.x = strip->data->stripdata->orig_width;
     image_size.y = strip->data->stripdata->orig_height;
   }
 
-  const float3 viewport_pixel_aspect = {t->scene->r.xasp / t->scene->r.yasp, 1.0f, 1.0f};
+  const float2 viewport_pixel_aspect = {t->scene->r.xasp / t->scene->r.yasp, 1.0f};
   float2 mirror = seq::image_transform_mirror_factor_get(strip);
 
-  const float3 origin = {tdseq->orig_origin_position[0], tdseq->orig_origin_position[1], 0.0f};
-  const float3 translation = transform_translation_get(t, tdseq, td2d, strip);
-  const float3 origin_pixelspace_unscaled = {(origin.x / viewport_pixel_aspect.x) * mirror.x,
-                                             (origin.y / viewport_pixel_aspect.y) * mirror.y,
-                                             0.0f};
-  const float3 origin_translated = origin_pixelspace_unscaled - translation;
-  const float3 origin_raw_space = math::transform_point(tdseq->orig_matrix, origin_translated);
-  const float3 origin_abs = origin_raw_space + (image_size / 2);
-  const float2 origin_rel = {origin_abs.x / image_size.x, origin_abs.y / image_size.y};
+  const float2 origin = tdseq->orig_origin_pixelspace;
+  const float2 translation = transform_result_get(t, tdseq, td2d, strip).translation;
+  const float2 origin_pixelspace_unscaled = origin / viewport_pixel_aspect * mirror;
+  const float2 origin_translated = origin_pixelspace_unscaled - translation;
+  const float2 origin_raw_space = math::transform_point(tdseq->orig_matrix, origin_translated);
+  const float2 origin_abs = origin_raw_space + image_size / 2;
+  const float2 origin_rel = origin_abs / image_size;
   return origin_rel;
 }
 
@@ -335,8 +332,8 @@ static void image_origin_set(TransInfo *t)
 
     /* Calculate offset, so image does not change it's position in preview. */
     float2 delta_translation = calculate_translation_offset(t, tdseq);
-    transform->xofs = tdseq->orig_translation[0] - delta_translation.x;
-    transform->yofs = tdseq->orig_translation[1] - delta_translation.y;
+    transform->xofs = tdseq->orig_translation.x - delta_translation.x;
+    transform->yofs = tdseq->orig_translation.y - delta_translation.y;
 
     seq::relations_invalidate_cache_preprocessed(t->scene, strip);
   }
@@ -365,13 +362,13 @@ static void special_aftertrans_update__sequencer_image(bContext * /*C*/, TransIn
     Strip *strip = tdseq->strip;
     StripTransform *transform = strip->data->transform;
     if (t->state == TRANS_CANCEL) {
-      transform->xofs = tdseq->orig_translation[0];
-      transform->yofs = tdseq->orig_translation[1];
+      transform->xofs = tdseq->orig_translation.x;
+      transform->yofs = tdseq->orig_translation.y;
       transform->rotation = tdseq->orig_rotation;
-      transform->scale_x = tdseq->orig_scale[0];
-      transform->scale_y = tdseq->orig_scale[1];
-      transform->origin[0] = tdseq->orig_origin_relative[0];
-      transform->origin[1] = tdseq->orig_origin_relative[1];
+      transform->scale_x = tdseq->orig_scale.x;
+      transform->scale_y = tdseq->orig_scale.y;
+      transform->origin[0] = tdseq->orig_origin_relative.x;
+      transform->origin[1] = tdseq->orig_origin_relative.y;
     }
 
     if (animrig::is_autokey_on(t->scene)) {

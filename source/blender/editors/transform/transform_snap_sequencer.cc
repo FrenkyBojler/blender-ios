@@ -368,16 +368,12 @@ static void points_build_targets_preview_image(const Scene *scene,
 static void points_build_3x3_grid(const Scene *scene, TransSeqSnapData *snap_data, Strip *strip)
 {
   const Array<float2> strip_image_quad = seq::image_transform_final_quad_get(scene, strip);
-  /*  Quad:
-   *  3--0
-   *  |  |
-   *  2--1
-   */
-  /* Corners, same math as ...preview_image. */
+  /* Corners. */
   for (int i = 0; i < 4; i++) {
     snap_data->target_snap_points.append(strip_image_quad[i]);
   }
 
+  /* Middle top, bottom and center of the image. */
   const float2 tm = blender::math::interpolate(strip_image_quad[0], strip_image_quad[3], 0.5f);
   const float2 bm = blender::math::interpolate(strip_image_quad[1], strip_image_quad[2], 0.5f);
   const float2 mm = blender::math::interpolate(bm, tm, 0.5f);
