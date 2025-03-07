@@ -391,6 +391,7 @@ class ExportFBX(bpy.types.Operator, ExportHelper):
         items=(('OFF', "Normals Only", "Export only normals instead of writing edge or face smoothing data"),
                ('FACE', "Face", "Write face smoothing"),
                ('EDGE', "Edge", "Write edge smoothing"),
+               ('SMOOTH_GROUP', "Smoothing Groups", "Write face smoothing groups"),
                ),
         description="Export smoothing information "
         "(prefer 'Normals Only' option if your target importer understand split normals)",
