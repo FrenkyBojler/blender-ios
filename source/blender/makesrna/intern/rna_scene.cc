@@ -864,7 +864,7 @@ static void rna_Gpencil_vertex_mask_segment_update(bContext *C, PointerRNA *ptr)
 
 static void rna_all_grease_pencil_update(bContext *C, PointerRNA * /*ptr*/)
 {
-  /* FIXME:  */
+  /* FIXME: We shouldn't have to tag all the Grease Pencil IDs for an update! */
   Main *bmain = CTX_data_main(C);
   LISTBASE_FOREACH (GreasePencil *, grease_pencil, &bmain->grease_pencils) {
     DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
@@ -3952,7 +3952,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Multi-frame Editing", "Enable multi-frame editing");
   RNA_def_property_ui_icon(prop, ICON_GP_MULTIFRAME_EDITING, 0);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  /* FIXME: We should not have to tag all the Grease Pencil IDs for an update! */
+  /* FIXME: We shouldn't have to tag all the Grease Pencil IDs for an update! */
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_all_grease_pencil_update");
 
