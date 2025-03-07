@@ -58,18 +58,6 @@ namespace blender::draw {
  * \{ */
 
 #ifdef WITH_OPENSUBDIV
-#  if 0
-static const GPUVertFormat &get_uvs_format()
-{
-  static const GPUVertFormat format = [&]() {
-    GPUVertFormat format{};
-    GPU_vertformat_attr_add(&format, "uvs", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-    return format;
-  }();
-  return format;
-}
-#  endif
-
 /* Vertex format used for the `PatchTable::PatchHandle`. */
 static const GPUVertFormat &get_patch_handle_format()
 {
@@ -93,43 +81,6 @@ static const GPUVertFormat &get_quadtree_format()
   }();
   return format;
 }
-#  if 0
-/* Vertex format for `OpenSubdiv::Osd::PatchParam`, not really used, it is only for making sure
- * that the #gpu::VertBuf used to wrap the OpenSubdiv patch param buffer is valid. */
-static const GPUVertFormat &get_patch_param_format()
-{
-  static const GPUVertFormat format = [&]() {
-    GPUVertFormat format{};
-    GPU_vertformat_attr_add(&format, "data", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-    return format;
-  }();
-  return format;
-}
-
-/* Vertex format for the patches' vertices index buffer. */
-static const GPUVertFormat &get_patch_index_format()
-{
-  static const GPUVertFormat format = [&]() {
-    GPUVertFormat format{};
-    GPU_vertformat_attr_add(&format, "data", GPU_COMP_I32, 1, GPU_FETCH_INT);
-    return format;
-  }();
-  return format;
-}
-
-/* Vertex format for the OpenSubdiv vertex buffer. */
-static const GPUVertFormat &get_subdiv_vertex_format()
-{
-  static const GPUVertFormat format = [&]() {
-    GPUVertFormat format{};
-    /* We use 4 components for the vectors to account for padding in the compute shaders, where
-     * vec3 is promoted to vec4. */
-    GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
-    return format;
-  }();
-  return format;
-}
-#  endif
 
 struct CompressedPatchCoord {
   int ptex_face_index;
