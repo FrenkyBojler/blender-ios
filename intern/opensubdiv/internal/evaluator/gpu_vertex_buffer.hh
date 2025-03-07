@@ -17,7 +17,7 @@ namespace blender::opensubdiv {
  */
 class GPUVertexBuffer {
   gpu::VertBuf &gpu_vertex_buffer_;
-  
+
   /** Number of float elements/components does a single vertex have. */
   int element_count_;
 
@@ -46,7 +46,7 @@ class GPUVertexBuffer {
     GPUVertFormat format;
     GPU_vertformat_clear(&format);
     GPU_vertformat_attr_add(&format, "elements", GPU_COMP_F32, element_count, GPU_FETCH_FLOAT);
-    const bool use_update_sub = GPU_backend_get_type() == GPU_BACKEND_VULKAN;
+    const bool use_update_sub = GPU_backend_get_type() != GPU_BACKEND_VULKAN;
     gpu::VertBuf *vertex_buffer = nullptr;
     if (use_update_sub) {
       vertex_buffer = GPU_vertbuf_calloc();
