@@ -26,9 +26,13 @@ typedef struct AttributeStorageRuntimeHandle AttributeStorageRuntimeHandle;
 
 struct AttributeArrayDNA {
   void *data;
+  int64_t elements_num;
   const ImplicitSharingInfoHandle *sharing_info;
-  int elements_num;
-  char _pad[4];
+};
+
+struct AttributeSingleDNA {
+  void *data;
+  const ImplicitSharingInfoHandle *sharing_info;
 };
 
 struct AttributeDNA {
@@ -44,8 +48,8 @@ struct AttributeDNA {
 
 struct AttributeStorage {
   /* Array only used in files, otherwise #AttributeStorageRuntime::attributes is used. */
-  struct AttributeDNA **attributes_array;
-  int attributes_num;
+  struct AttributeDNA *dna_attributes;
+  int dna_attributes_num;
 
   char _pad[4];
 

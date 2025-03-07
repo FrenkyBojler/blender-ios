@@ -36,9 +36,9 @@ class Attribute {
  private:
   /** The name be changed without adding and removing attribute. */
   std::string name_;
-  AttrStorageType storage_type_;
   AttrDomain domain_;
-  AttrType data_type_;
+  AttrType type_;
+  AttrStorageType storage_type_;
 
   std::variant<ArrayData, SingleData> data_;
 
@@ -84,11 +84,11 @@ class AttributeStorage : public ::AttributeStorage {
 
   void blend_read(BlendDataReader &reader);
   struct BlendWriteData {
-    Array<AttributeDNA *, 16> attribute_ptrs;
     Array<AttributeDNA, 16> attibutes;
     Vector<AttributeArrayDNA, 16> arrays;
+    Vector<AttributeSingleDNA, 16> singles;
   };
-  BlendWriteData blend_write_prepare();
+  void blend_write_prepare(BlendWriter &writer, AttributeStorage::BlendWriteData &write_data);
   void blend_write(BlendWriter &writer, const BlendWriteData &write_data);
 
  private:
@@ -112,7 +112,7 @@ inline AttrStorageType Attribute::storage_type() const
 
 inline AttrType Attribute::data_type() const
 {
-  return data_type_;
+  return type_;
 }
 
 inline const std::variant<Attribute::ArrayData, Attribute::SingleData> &Attribute::data() const

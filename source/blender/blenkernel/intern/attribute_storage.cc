@@ -15,6 +15,10 @@
 
 namespace blender::bke {
 
+/**
+ * \note There is a possibility to support some caches here, like the min and max values of the
+ * array.
+ */
 class ArrayDataImplicitSharing : public ImplicitSharingInfo {
  private:
   void *data_;
@@ -74,7 +78,7 @@ std::variant<Attribute::ArrayData, Attribute::SingleData> &Attribute::data_for_w
       return data_;
     }
 
-    const CPPType &cpp_type = attribute_type_to_cpp_type(data_type_);
+    const CPPType &cpp_type = attribute_type_to_cpp_type(type_);
     void *new_data = MEM_malloc_arrayN_aligned(
         data->elements_num, cpp_type.size(), cpp_type.alignment(), __func__);
     cpp_type.copy_construct_n(data->data, new_data, data->elements_num);
@@ -91,15 +95,15 @@ std::variant<Attribute::ArrayData, Attribute::SingleData> &Attribute::data_for_w
 
 AttributeStorage::AttributeStorage()
 {
-  this->attributes_array = nullptr;
-  this->attributes_num = 0;
+  this->dna_attributes = nullptr;
+  this->dna_attributes_num = 0;
   this->runtime = MEM_new<AttributeStorageRuntime>(__func__);
 }
 
 AttributeStorage::AttributeStorage(const AttributeStorage &other)
 {
-  this->attributes_array = nullptr;
-  this->attributes_num = 0;
+  this->dna_attributes = nullptr;
+  this->dna_attributes_num = 0;
   this->runtime = MEM_new<AttributeStorageRuntime>(__func__);
   this->runtime->attributes.reserve(other.runtime->attributes.size());
   other.foreach ([&](const Attribute &attribute) {
@@ -119,8 +123,8 @@ AttributeStorage &AttributeStorage::operator=(const AttributeStorage &other)
 
 AttributeStorage::AttributeStorage(AttributeStorage &&other)
 {
-  this->attributes_array = nullptr;
-  this->attributes_num = 0;
+  this->dna_attributes = nullptr;
+  this->dna_attributes_num = 0;
   this->runtime = other.runtime;
   other.runtime = nullptr;
 }
@@ -138,8 +142,8 @@ AttributeStorage &AttributeStorage::operator=(AttributeStorage &&other)
 AttributeStorage::~AttributeStorage()
 {
   /* These pointers are only used in files. */
-  BLI_assert(this->attributes_array == nullptr);
-  BLI_assert(this->attributes_num == 0);
+  BLI_assert(this->dna_attributes == nullptr);
+  BLI_assert(this->dna_attributes_num == 0);
 
   MEM_delete(this->runtime);
 }
@@ -188,7 +192,7 @@ Attribute &AttributeStorage::add_without_data(const StringRef name,
   Attribute &attribute = *ptr;
   attribute.name_ = name;
   attribute.domain_ = domain;
-  attribute.data_type_ = data_type;
+  attribute.type_ = data_type;
   this->runtime->attributes.add_new(std::move(ptr));
   return attribute;
 }
@@ -251,18 +255,18 @@ static void *read_attribute_data_array(BlendDataReader &reader,
 void AttributeStorage::blend_read(BlendDataReader &reader)
 {
   this->runtime = MEM_new<AttributeStorageRuntime>(__func__);
-  this->runtime->attributes.reserve(this->attributes_num);
+  this->runtime->attributes.reserve(this->dna_attributes_num);
 
-  BLO_read_pointer_array(&reader, this->attributes_num, (void **)(&this->attributes_array));
-  for (const int i : IndexRange(this->attributes_num)) {
-    BLO_read_struct(&reader, AttributeDNA, &this->attributes_array[i]);
-    AttributeDNA &dna_attr = *this->attributes_array[i];
+  BLO_read_struct_array(&reader, AttributeDNA, this->dna_attributes_num, &this->dna_attributes);
+  for (const int i : IndexRange(this->dna_attributes_num)) {
+    BLO_read_struct(&reader, AttributeDNA, &this->dna_attributes[i]);
+    AttributeDNA &dna_attr = this->dna_attributes[i];
     BLO_read_string(&reader, &dna_attr.name);
 
     std::unique_ptr<Attribute> attribute = std::make_unique<Attribute>();
     attribute->name_ = dna_attr.name;
     attribute->domain_ = AttrDomain(dna_attr.domain);
-    attribute->data_type_ = AttrType(dna_attr.data_type);
+    attribute->type_ = AttrType(dna_attr.data_type);
 
     switch (AttrStorageType(dna_attr.storage_type)) {
       case AttrStorageType::Array: {
@@ -291,15 +295,15 @@ void AttributeStorage::blend_read(BlendDataReader &reader)
   }
 
   /* These fields are not used at runtime. */
-  MEM_SAFE_FREE(this->attributes_array);
-  this->attributes_num = 0;
+  MEM_SAFE_FREE(this->dna_attributes);
+  this->dna_attributes_num = 0;
 }
 
-static void write_attribute_data_array(BlendWriter &writer,
-                                       const AttrType data_type,
-                                       const void *data,
-                                       const int64_t size,
-                                       const ImplicitSharingInfo &sharing_info)
+static void write_data_array(BlendWriter &writer,
+                             const AttrType data_type,
+                             const void *data,
+                             const int64_t size,
+                             const ImplicitSharingInfo &sharing_info)
 {
   BLO_write_shared(
       &writer, data, attribute_type_to_cpp_type(data_type).size() * size, &sharing_info, [&]() {
@@ -349,64 +353,53 @@ static void write_attribute_data_array(BlendWriter &writer,
       });
 }
 
-AttributeStorage::BlendWriteData AttributeStorage::blend_write_prepare()
+void AttributeStorage::blend_write_prepare(BlendWriter &writer,
+                                           AttributeStorage::BlendWriteData &write_data)
 {
   const Span<std::unique_ptr<Attribute>> attributes = this->runtime->attributes;
-  BlendWriteData write_data;
-  write_data.attribute_ptrs.reinitialize(attributes.size());
   write_data.attibutes.reinitialize(attributes.size());
+
   write_data.arrays.reserve(attributes.size());
+  write_data.singles.reserve(attributes.size());
 
   for (const int i : attributes.index_range()) {
-    write_data.attribute_ptrs[i] = &write_data.attibutes[i];
-    write_data.attibutes[i].name = attributes[i]->name().c_str();
-    write_data.attibutes[i].domain = int8_t(attributes[i]->domain_);
-    write_data.attibutes[i].data_type = int8_t(attributes[i]->data_type_);
-    if (const auto *data = std::get_if<Attribute::ArrayData>(&attributes[i]->data_)) {
-      write_data.attibutes[i].storage_type = int8_t(AttrStorageType::Array);
-      write_data.arrays.append({});
-      AttributeArrayDNA &dna_array = write_data.arrays.last();
-      write_data.attibutes[i].data = &dna_array;
-      dna_array.data = data->data;
-      dna_array.elements_num = data->elements_num;
-      dna_array.sharing_info = data->sharing_info.get();
+    Attribute &attr = *attributes[i];
+    AttributeDNA &dna_attr = write_data.attibutes[i];
+    dna_attr.name = attr.name().c_str();
+    BLO_write_string(&writer, dna_attr.name);
+
+    dna_attr.domain = int8_t(attr.domain_);
+    dna_attr.data_type = int8_t(attr.type_);
+    dna_attr.storage_type = int8_t(attr.storage_type_);
+
+    if (const auto *data = std::get_if<Attribute::ArrayData>(&attr.data_)) {
+      write_data.arrays.append({data->data, data->elements_num, data->sharing_info.get()});
+      dna_attr.data = &write_data.arrays.last();
+      write_data_array(writer, attr.type_, data->data, data->elements_num, *data->sharing_info);
     }
-    else if (const auto *data = std::get_if<Attribute::SingleData>(&attributes[i]->data_)) {
-      write_data.attibutes[i].storage_type = int8_t(AttrStorageType::Single);
-      write_data.arrays.append({});
-      AttributeArrayDNA &dna_array = write_data.arrays.last();
-      write_data.attibutes[i].data = &dna_array;
-      dna_array.data = data->value;
-      dna_array.elements_num = 1;
-      dna_array.sharing_info = data->sharing_info.get();
+    else if (const auto *data = std::get_if<Attribute::SingleData>(&attr.data_)) {
+      write_data.singles.append({data->value, data->sharing_info.get()});
+      dna_attr.data = &write_data.singles.last();
+      write_data_array(writer, attr.type_, data->value, 1, *data->sharing_info);
     }
   }
 
-  this->attributes_array = write_data.attribute_ptrs.data();
-  this->attributes_num = attributes.size();
-  return write_data;
+  this->dna_attributes = write_data.attibutes.data();
+  this->dna_attributes_num = attributes.size();
 }
 
 void AttributeStorage::blend_write(BlendWriter &writer,
                                    const AttributeStorage::BlendWriteData &write_data)
 {
-  BLO_write_pointer_array(
-      &writer, write_data.attribute_ptrs.size(), write_data.attribute_ptrs.data());
   BLO_write_struct_array(
       &writer, AttributeDNA, write_data.attibutes.size(), write_data.attibutes.data());
-  for (const AttributeDNA &attribute : write_data.attibutes) {
-    BLO_write_struct(&writer, AttributeDNA, attribute);
-    BLO_write_string(&writer, attribute.name);
-  }
   BLO_write_struct_array(
-      &writer, AttributeArrayDNA, write_data.array_data.size(), write_data.array_data.data());
-  for (const AttributeArrayDNA &array_data : write_data.array_data) {
-    write_attribute_data_array(
-        writer, AttrType(array_data.data), array_data.data, array_data.sharing_info);
-  }
+      &writer, AttributeArrayDNA, write_data.arrays.size(), write_data.arrays.data());
+  BLO_write_struct_array(
+      &writer, AttributeSingleDNA, write_data.singles.size(), write_data.singles.data());
 
-  this->attributes_array = nullptr;
-  this->attributes_num = 0;
+  this->dna_attributes = nullptr;
+  this->dna_attributes_num = 0;
 }
 
 }  // namespace blender::bke
