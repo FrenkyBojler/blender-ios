@@ -272,7 +272,7 @@ class DATA_PT_vertex_groups(MeshButtonsPanel, Panel):
 
             layout.prop(context.tool_settings, "vertex_group_weight", text="Weight")
 
-        draw_attribute_warnings(context, layout, context.mesh.attributes)
+        draw_attribute_warnings(context, layout, None)
 
 
 class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
@@ -577,21 +577,20 @@ class DATA_PT_mesh_attributes(MeshButtonsPanel, Panel):
 
         col.menu("MESH_MT_attribute_context_menu", icon='DOWNARROW_HLT', text="")
 
-        draw_attribute_warnings(context, layout, mesh.attributes)
+        draw_attribute_warnings(context, layout, None)
 
 
 def draw_attribute_warnings(context, layout, attributes):
     ob = context.object
+    mesh = context.mesh
 
-    if not context.mesh:
+    if not mesh:
         return
 
     unique_names = set()
     colliding_names = []
     for collection in (
-            # Built-in names.
-            {"crease": None},
-            attributes,
+            mesh.attributes,
             None if ob is None else ob.vertex_groups,
     ):
         if collection is None:
@@ -600,7 +599,7 @@ def draw_attribute_warnings(context, layout, attributes):
         for name in collection.keys():
             unique_names_len = len(unique_names)
             unique_names.add(name)
-            if len(unique_names) == unique_names_len:
+            if (len(unique_names) == unique_names_len) and (not attributes or attributes.get(name)):
                 colliding_names.append(name)
 
     if not colliding_names:
