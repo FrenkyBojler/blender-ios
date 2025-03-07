@@ -359,7 +359,7 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
     CustomData_blend_write_prepare(mesh->edge_data, edge_layers, {});
     CustomData_blend_write_prepare(mesh->corner_data, loop_layers, {});
     CustomData_blend_write_prepare(mesh->face_data, face_layers, {});
-    mesh->attribute_storage.wrap().blend_write_prepare(attribute_data);
+    attribute_data = mesh->attribute_storage.wrap().blend_write_prepare();
     if (!is_undo) {
       /* Write forward compatible format. To be removed in 5.0. */
       rename_seam_layer_to_old_name(

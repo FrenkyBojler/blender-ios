@@ -18,11 +18,11 @@ namespace blender::bke {
 class ArrayDataImplicitSharing : public ImplicitSharingInfo {
  private:
   void *data_;
-  int size_;
+  int64_t size_;
   const CPPType &type_;
 
  public:
-  ArrayDataImplicitSharing(void *data, const int size, const CPPType &type)
+  ArrayDataImplicitSharing(void *data, const int64_t size, const CPPType &type)
       : ImplicitSharingInfo(), data_(data), size_(size), type_(type)
   {
   }
@@ -193,70 +193,59 @@ Attribute &AttributeStorage::add_without_data(const StringRef name,
   return attribute;
 }
 
-static void read_attribute_data_array(BlendDataReader &reader,
-                                      const AttrType data_type,
-                                      AttributeDataArray &array_data)
+static void *read_attribute_data_array(BlendDataReader &reader,
+                                       const AttrType data_type,
+                                       const int64_t size,
+                                       void **data,
+                                       const ImplicitSharingInfo **sharing_info)
 {
-  array_data.sharing_info = BLO_read_shared(
-      &reader, &array_data.data, [&]() -> const ImplicitSharingInfo * {
-        switch (data_type) {
-          case AttrType::Bool:
-            static_assert(sizeof(bool) == sizeof(int8_t));
-            BLO_read_int8_array(&reader, array_data.elements_num, (int8_t **)(array_data.data));
-            break;
-          case AttrType::Int8:
-            BLO_read_int8_array(&reader, array_data.elements_num, (int8_t **)(array_data.data));
-            break;
-          case AttrType::Int16_2D:
-            BLO_read_int16_array(
-                &reader, int64_t(array_data.elements_num) * 2, (int16_t **)(array_data.data));
-            break;
-          case AttrType::Int32:
-            BLO_read_int32_array(&reader, array_data.elements_num, (int32_t **)(array_data.data));
-            break;
-          case AttrType::Int32_2D:
-            BLO_read_int32_array(
-                &reader, int64_t(array_data.elements_num) * 2, (int32_t **)(array_data.data));
-            break;
-          case AttrType::Float:
-            BLO_read_float_array(&reader, array_data.elements_num, (float **)(array_data.data));
-            break;
-          case AttrType::Float2:
-            BLO_read_float_array(
-                &reader, int64_t(array_data.elements_num) * 2, (float **)(array_data.data));
-            break;
-          case AttrType::Float3:
-            BLO_read_float3_array(&reader, array_data.elements_num, (float **)(array_data.data));
-            ;
-            break;
-          case AttrType::Float4x4:
-            BLO_read_float_array(
-                &reader, int64_t(array_data.elements_num) * 16, (float **)(array_data.data));
-            break;
-          case AttrType::ColorByte:
-            BLO_read_uint8_array(
-                &reader, int64_t(array_data.elements_num) * 4, (uint8_t **)(array_data.data));
-            break;
-          case AttrType::ColorFloat:
-            BLO_read_float_array(
-                &reader, int64_t(array_data.elements_num) * 4, (float **)(array_data.data));
-            break;
-          case AttrType::Quaternion:
-            BLO_read_float_array(
-                &reader, int64_t(array_data.elements_num) * 4, (float **)(array_data.data));
-            break;
-          case AttrType::String:
-            BLO_read_struct_array(&reader,
-                                  MStringProperty,
-                                  array_data.elements_num,
-                                  (MStringProperty **)(array_data.data));
-            break;
-        }
-        return MEM_new<ArrayDataImplicitSharing>("ArrayDataImplicitSharing",
-                                                 array_data.data,
-                                                 array_data.elements_num,
-                                                 attribute_type_to_cpp_type(data_type));
-      });
+  const char *func = __func__;
+  *sharing_info = BLO_read_shared(&reader, data, [&]() -> const ImplicitSharingInfo * {
+    switch (data_type) {
+      case AttrType::Bool:
+        static_assert(sizeof(bool) == sizeof(int8_t));
+        BLO_read_int8_array(&reader, size, (int8_t **)(data));
+        break;
+      case AttrType::Int8:
+        BLO_read_int8_array(&reader, size, (int8_t **)(data));
+        break;
+      case AttrType::Int16_2D:
+        BLO_read_int16_array(&reader, size * 2, (int16_t **)(data));
+        break;
+      case AttrType::Int32:
+        BLO_read_int32_array(&reader, size, (int32_t **)(data));
+        break;
+      case AttrType::Int32_2D:
+        BLO_read_int32_array(&reader, size * 2, (int32_t **)(data));
+        break;
+      case AttrType::Float:
+        BLO_read_float_array(&reader, size, (float **)(data));
+        break;
+      case AttrType::Float2:
+        BLO_read_float_array(&reader, size * 2, (float **)(data));
+        break;
+      case AttrType::Float3:
+        BLO_read_float3_array(&reader, size, (float **)(data));
+        break;
+      case AttrType::Float4x4:
+        BLO_read_float_array(&reader, size * 16, (float **)(data));
+        break;
+      case AttrType::ColorByte:
+        BLO_read_uint8_array(&reader, size * 4, (uint8_t **)(data));
+        break;
+      case AttrType::ColorFloat:
+        BLO_read_float_array(&reader, size * 4, (float **)(data));
+        break;
+      case AttrType::Quaternion:
+        BLO_read_float_array(&reader, size * 4, (float **)(data));
+        break;
+      case AttrType::String:
+        BLO_read_struct_array(&reader, MStringProperty, size, (MStringProperty **)(data));
+        break;
+    }
+    const CPPType &cpp_type = attribute_type_to_cpp_type(data_type);
+    return MEM_new<ArrayDataImplicitSharing>(func, data, size, cpp_type);
+  });
 }
 
 void AttributeStorage::blend_read(BlendDataReader &reader)
@@ -266,8 +255,8 @@ void AttributeStorage::blend_read(BlendDataReader &reader)
 
   BLO_read_pointer_array(&reader, this->attributes_num, (void **)(&this->attributes_array));
   for (const int i : IndexRange(this->attributes_num)) {
-    BLO_read_struct(&reader, ::Attribute, &this->attributes_array[i]);
-    ::Attribute &dna_attr = *this->attributes_array[i];
+    BLO_read_struct(&reader, AttributeDNA, &this->attributes_array[i]);
+    AttributeDNA &dna_attr = *this->attributes_array[i];
     BLO_read_string(&reader, &dna_attr.name);
 
     std::unique_ptr<Attribute> attribute = std::make_unique<Attribute>();
@@ -277,9 +266,13 @@ void AttributeStorage::blend_read(BlendDataReader &reader)
 
     switch (AttrStorageType(dna_attr.storage_type)) {
       case AttrStorageType::Array: {
-        BLO_read_struct(&reader, AttributeDataArray, &dna_attr.data);
-        auto &data = *static_cast<AttributeDataArray *>(dna_attr.data);
-        read_attribute_data_array(reader, AttrType(dna_attr.data_type), data);
+        BLO_read_struct(&reader, AttributeArrayDNA, &dna_attr.data);
+        auto &data = *static_cast<AttributeArrayDNA *>(dna_attr.data);
+        read_attribute_data_array(reader,
+                                  AttrType(dna_attr.data_type),
+                                  data.elements_num,
+                                  &data.data,
+                                  &data.sharing_info);
         attribute->data_ = Attribute::ArrayData{
             data.data, data.elements_num, ImplicitSharingPtr<>(data.sharing_info)};
         break;
@@ -304,88 +297,65 @@ void AttributeStorage::blend_read(BlendDataReader &reader)
 
 static void write_attribute_data_array(BlendWriter &writer,
                                        const AttrType data_type,
-                                       const AttributeDataArray &array_data)
+                                       const void *data,
+                                       const int64_t size,
+                                       const ImplicitSharingInfo &sharing_info)
 {
   BLO_write_shared(
-      &writer,
-      array_data.data,
-      attribute_type_to_cpp_type(data_type).size() * array_data.elements_num,
-      array_data.sharing_info,
-      [&]() {
+      &writer, data, attribute_type_to_cpp_type(data_type).size() * size, &sharing_info, [&]() {
         switch (data_type) {
           case AttrType::Bool:
             static_assert(sizeof(bool) == sizeof(int8_t));
-            BLO_write_int8_array(
-                &writer, array_data.elements_num, static_cast<const int8_t *>(array_data.data));
+            BLO_write_int8_array(&writer, size, static_cast<const int8_t *>(data));
             break;
           case AttrType::Int8:
-            BLO_write_int8_array(
-                &writer, array_data.elements_num, static_cast<const int8_t *>(array_data.data));
+            BLO_write_int8_array(&writer, size, static_cast<const int8_t *>(data));
             break;
           case AttrType::Int16_2D:
-            BLO_write_int16_array(&writer,
-                                  int64_t(array_data.elements_num) * 2,
-                                  static_cast<const int16_t *>(array_data.data));
+            BLO_write_int16_array(&writer, size * 2, static_cast<const int16_t *>(data));
             break;
           case AttrType::Int32:
-            BLO_write_int32_array(
-                &writer, array_data.elements_num, static_cast<const int32_t *>(array_data.data));
+            BLO_write_int32_array(&writer, size, static_cast<const int32_t *>(data));
             break;
           case AttrType::Int32_2D:
-            BLO_write_int32_array(&writer,
-                                  int64_t(array_data.elements_num) * 2,
-                                  static_cast<const int32_t *>(array_data.data));
+            BLO_write_int32_array(&writer, size * 2, static_cast<const int32_t *>(data));
             break;
           case AttrType::Float:
-            BLO_write_float_array(
-                &writer, array_data.elements_num, static_cast<const float *>(array_data.data));
+            BLO_write_float_array(&writer, size, static_cast<const float *>(data));
             break;
           case AttrType::Float2:
-            BLO_write_float_array(&writer,
-                                  int64_t(array_data.elements_num) * 2,
-                                  static_cast<const float *>(array_data.data));
+            BLO_write_float_array(&writer, size * 2, static_cast<const float *>(data));
             break;
           case AttrType::Float3:
-            BLO_write_float3_array(
-                &writer, array_data.elements_num, static_cast<const float *>(array_data.data));
+            BLO_write_float3_array(&writer, size, static_cast<const float *>(data));
             break;
           case AttrType::Float4x4:
-            BLO_write_float_array(&writer,
-                                  int64_t(array_data.elements_num) * 16,
-                                  static_cast<const float *>(array_data.data));
+            BLO_write_float_array(&writer, size * 16, static_cast<const float *>(data));
             break;
           case AttrType::ColorByte:
-            BLO_write_uint8_array(&writer,
-                                  int64_t(array_data.elements_num) * 4,
-                                  static_cast<const uint8_t *>(array_data.data));
+            BLO_write_uint8_array(&writer, size * 4, static_cast<const uint8_t *>(data));
             break;
           case AttrType::ColorFloat:
-            BLO_write_float_array(&writer,
-                                  int64_t(array_data.elements_num) * 4,
-                                  static_cast<const float *>(array_data.data));
+            BLO_write_float_array(&writer, size * 4, static_cast<const float *>(data));
             break;
           case AttrType::Quaternion:
-            BLO_write_float_array(&writer,
-                                  int64_t(array_data.elements_num) * 4,
-                                  static_cast<const float *>(array_data.data));
+            BLO_write_float_array(&writer, size * 4, static_cast<const float *>(data));
             break;
           case AttrType::String:
-            BLO_write_struct_array(&writer,
-                                   MStringProperty,
-                                   array_data.elements_num,
-                                   static_cast<const MStringProperty *>(array_data.data));
+            BLO_write_struct_array(
+                &writer, MStringProperty, size, static_cast<const MStringProperty *>(data));
             break;
         }
       });
 }
 
-void AttributeStorage::blend_write_prepare(AttributeStorage::BlendWriteData &write_data)
+AttributeStorage::BlendWriteData AttributeStorage::blend_write_prepare()
 {
-  const Span<std::unique_ptr<Attribute>> attributes = this->runtime->attributes.as_span();
-
-  write_data.attribute_ptrs.resize(attributes.size());
-  write_data.attibutes.resize(attributes.size());
-  write_data.array_data.resize(attributes.size());
+  const Span<std::unique_ptr<Attribute>> attributes = this->runtime->attributes;
+  BlendWriteData write_data;
+  write_data.attribute_ptrs.reinitialize(attributes.size());
+  write_data.attibutes.reinitialize(attributes.size());
+  write_data.arrays.reserve(attributes.size());
 
   for (const int i : attributes.index_range()) {
     write_data.attribute_ptrs[i] = &write_data.attibutes[i];
@@ -394,38 +364,47 @@ void AttributeStorage::blend_write_prepare(AttributeStorage::BlendWriteData &wri
     write_data.attibutes[i].data_type = int8_t(attributes[i]->data_type_);
     if (const auto *data = std::get_if<Attribute::ArrayData>(&attributes[i]->data_)) {
       write_data.attibutes[i].storage_type = int8_t(AttrStorageType::Array);
-      write_data.attibutes[i].data = &write_data.array_data[i];
-      write_data.array_data[i].data = data->data;
-      write_data.array_data[i].elements_num = data->elements_num;
-      write_data.array_data[i].sharing_info = data->sharing_info.get();
+      write_data.arrays.append({});
+      AttributeArrayDNA &dna_array = write_data.arrays.last();
+      write_data.attibutes[i].data = &dna_array;
+      dna_array.data = data->data;
+      dna_array.elements_num = data->elements_num;
+      dna_array.sharing_info = data->sharing_info.get();
+    }
+    else if (const auto *data = std::get_if<Attribute::SingleData>(&attributes[i]->data_)) {
+      write_data.attibutes[i].storage_type = int8_t(AttrStorageType::Single);
+      write_data.arrays.append({});
+      AttributeArrayDNA &dna_array = write_data.arrays.last();
+      write_data.attibutes[i].data = &dna_array;
+      dna_array.data = data->value;
+      dna_array.elements_num = 1;
+      dna_array.sharing_info = data->sharing_info.get();
     }
   }
 
   this->attributes_array = write_data.attribute_ptrs.data();
   this->attributes_num = attributes.size();
+  return write_data;
 }
 
 void AttributeStorage::blend_write(BlendWriter &writer,
-                                   const AttributeStorage::BlendWriteData & /*write_data*/)
+                                   const AttributeStorage::BlendWriteData &write_data)
 {
-  BLO_write_pointer_array(&writer, this->attributes_num, this->attributes_array);
-  for (const ::Attribute *attribute : Span(this->attributes_array, this->attributes_num)) {
-    BLO_write_struct(&writer, Attribute, attribute);
-    BLO_write_string(&writer, attribute->name);
-    switch (AttrStorageType(attribute->storage_type)) {
-      case AttrStorageType::Array: {
-        BLO_write_struct(&writer, AttributeDataArray, &attribute->data);
-        write_attribute_data_array(writer,
-                                   AttrType(attribute->data_type),
-                                   *static_cast<const AttributeDataArray *>(attribute->data));
-        break;
-      }
-      case AttrStorageType::Single: {
-        BLI_assert_unreachable();
-        break;
-      }
-    }
+  BLO_write_pointer_array(
+      &writer, write_data.attribute_ptrs.size(), write_data.attribute_ptrs.data());
+  BLO_write_struct_array(
+      &writer, AttributeDNA, write_data.attibutes.size(), write_data.attibutes.data());
+  for (const AttributeDNA &attribute : write_data.attibutes) {
+    BLO_write_struct(&writer, AttributeDNA, attribute);
+    BLO_write_string(&writer, attribute.name);
   }
+  BLO_write_struct_array(
+      &writer, AttributeArrayDNA, write_data.array_data.size(), write_data.array_data.data());
+  for (const AttributeArrayDNA &array_data : write_data.array_data) {
+    write_attribute_data_array(
+        writer, AttrType(array_data.data), array_data.data, array_data.sharing_info);
+  }
+
   this->attributes_array = nullptr;
   this->attributes_num = 0;
 }

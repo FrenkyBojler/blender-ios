@@ -125,8 +125,8 @@ static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_a
 
   Vector<CustomDataLayer, 16> point_layers;
   CustomData_blend_write_prepare(pointcloud->pdata, point_layers);
-  blender::bke::AttributeStorage::BlendWriteData attribute_data;
-  pointcloud->attribute_storage.wrap().blend_write_prepare(attribute_data);
+  blender::bke::AttributeStorage::BlendWriteData attribute_data =
+      pointcloud->attribute_storage.wrap().blend_write_prepare();
 
   /* Write LibData */
   BLO_write_id_struct(writer, PointCloud, id_address, &pointcloud->id);

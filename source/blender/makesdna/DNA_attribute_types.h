@@ -12,7 +12,6 @@
 
 namespace blender {
 namespace bke {
-class Attribute;
 class AttributeStorage;
 class AttributeStorageRuntime;
 enum class AttrDomain : int8_t;
@@ -25,14 +24,14 @@ using AttributeStorageRuntimeHandle = blender::bke::AttributeStorageRuntime;
 typedef struct AttributeStorageRuntimeHandle AttributeStorageRuntimeHandle;
 #endif
 
-typedef struct AttributeDataArray {
+struct AttributeArrayDNA {
   void *data;
   const ImplicitSharingInfoHandle *sharing_info;
   int elements_num;
   char _pad[4];
-} AttributeDataArray;
+};
 
-typedef struct Attribute {
+struct AttributeDNA {
   const char *name;
   int16_t data_type;   /* bke::AttrType. */
   int8_t domain;       /* bke::AttrDomain. */
@@ -41,16 +40,11 @@ typedef struct Attribute {
 
   /** Type depends on storage type. */
   void *data;
+};
 
-#ifdef __cplusplus
-  blender::bke::Attribute &wrap();
-  const blender::bke::Attribute &wrap() const;
-#endif
-} Attribute;
-
-typedef struct AttributeStorage {
-  /* Array only used at runtime, otherwise #AttributeStorageRuntime::name_map is used. */
-  Attribute **attributes_array;
+struct AttributeStorage {
+  /* Array only used in files, otherwise #AttributeStorageRuntime::attributes is used. */
+  struct AttributeDNA **attributes_array;
   int attributes_num;
 
   char _pad[4];
@@ -61,4 +55,4 @@ typedef struct AttributeStorage {
   blender::bke::AttributeStorage &wrap();
   const blender::bke::AttributeStorage &wrap() const;
 #endif
-} AttributeStorage;
+};
