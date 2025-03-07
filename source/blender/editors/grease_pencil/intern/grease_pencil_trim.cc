@@ -6,8 +6,6 @@
  * \ingroup edgreasepencil
  */
 
-#include "ANIM_keyframing.hh"
-
 #include "BLI_array.hh"
 #include "BLI_lasso_2d.hh"
 #include "BLI_rect.h"
@@ -164,98 +162,63 @@ static int stroke_trim_execute(const bContext *C, const Span<int2> mcoords)
   const bool active_layer_only = (brush->gpencil_settings->flag & GP_BRUSH_ACTIVE_LAYER_ONLY) != 0;
   std::atomic<bool> changed = false;
 
-  const bool use_autokey = blender::animrig::is_autokey_on(scene);
-  const int current_frame = scene->r.cfra;
-
-  auto get_drawing_with_autokey = [&](const Vector<ed::greasepencil::MutableDrawingInfo> &drawings)
-      -> Vector<ed::greasepencil::MutableDrawingInfo> {
-    Vector<ed::greasepencil::MutableDrawingInfo> new_drawings;
-    if (!use_autokey) {
-      return drawings;
-    }
-    for (const ed::greasepencil::MutableDrawingInfo &info : drawings) {
-      bke::greasepencil::Layer *layer = grease_pencil.layers_for_write()[info.layer_index];
-      BLI_assert(layer != nullptr);
-      if (layer->frames().contains(current_frame)) {
-        new_drawings.append(info);
-        continue;
-      }
-      if (grease_pencil.insert_duplicate_frame(
-              *layer, *layer->start_frame_at(current_frame), current_frame, false))
-      {
-        ed::greasepencil::MutableDrawingInfo new_info = {
-            *grease_pencil.get_drawing_at(*layer, current_frame),
-            info.layer_index,
-            current_frame,
-            info.multi_frame_falloff};
-        new_drawings.append(new_info);
-      }
-      else {
-        new_drawings.append(info);
-      }
-    }
-    return new_drawings;
-  };
-
+  bool autokey_inserted = false;
   if (active_layer_only) {
     /* Apply trim on drawings of active layer. */
     if (!grease_pencil.has_active_layer()) {
       return OPERATOR_CANCELLED;
     }
-    const bke::greasepencil::Layer &layer = *grease_pencil.get_active_layer();
+    bke::greasepencil::Layer &layer = *grease_pencil.get_active_layer();
+    ensure_active_keyframe(*scene, grease_pencil, layer, true, autokey_inserted);
     const float4x4 layer_to_world = layer.to_world_space(*ob_eval);
     const float4x4 projection = ED_view3d_ob_project_mat_get_from_obmat(rv3d, layer_to_world);
-    Vector<ed::greasepencil::MutableDrawingInfo> drawings =
+    const Vector<ed::greasepencil::MutableDrawingInfo> drawings =
         ed::greasepencil::retrieve_editable_drawings_from_layer(*scene, grease_pencil, layer);
-    const Vector<ed::greasepencil::MutableDrawingInfo> drawings_autokeyed =
-        get_drawing_with_autokey(drawings);
-    threading::parallel_for_each(drawings_autokeyed,
-                                 [&](const ed::greasepencil::MutableDrawingInfo &info) {
-                                   if (execute_trim_on_drawing(info.layer_index,
-                                                               info.frame_number,
-                                                               *ob_eval,
-                                                               *obact,
-                                                               *region,
-                                                               projection,
-                                                               mcoords,
-                                                               keep_caps,
-                                                               info.drawing))
-                                   {
-                                     changed = true;
-                                   }
-                                 });
+    threading::parallel_for_each(drawings, [&](const ed::greasepencil::MutableDrawingInfo &info) {
+      if (execute_trim_on_drawing(info.layer_index,
+                                  info.frame_number,
+                                  *ob_eval,
+                                  *obact,
+                                  *region,
+                                  projection,
+                                  mcoords,
+                                  keep_caps,
+                                  info.drawing))
+      {
+        changed = true;
+      }
+    });
   }
   else {
+    for (bke::greasepencil::Layer *layer : grease_pencil.layers_for_write()) {
+      ensure_active_keyframe(*scene, grease_pencil, *layer, true, autokey_inserted);
+    }
     /* Apply trim on every editable drawing. */
     const Vector<ed::greasepencil::MutableDrawingInfo> drawings =
         ed::greasepencil::retrieve_editable_drawings(*scene, grease_pencil);
-    const Vector<ed::greasepencil::MutableDrawingInfo> drawings_autokeyed =
-        get_drawing_with_autokey(drawings);
-    threading::parallel_for_each(
-        drawings_autokeyed, [&](const ed::greasepencil::MutableDrawingInfo &info) {
-          const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
-          const float4x4 layer_to_world = layer.to_world_space(*ob_eval);
-          const float4x4 projection = ED_view3d_ob_project_mat_get_from_obmat(rv3d,
-                                                                              layer_to_world);
-          if (execute_trim_on_drawing(info.layer_index,
-                                      info.frame_number,
-                                      *ob_eval,
-                                      *obact,
-                                      *region,
-                                      projection,
-                                      mcoords,
-                                      keep_caps,
-                                      info.drawing))
-          {
-            changed = true;
-          }
-        });
+    threading::parallel_for_each(drawings, [&](const ed::greasepencil::MutableDrawingInfo &info) {
+      const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
+      const float4x4 layer_to_world = layer.to_world_space(*ob_eval);
+      const float4x4 projection = ED_view3d_ob_project_mat_get_from_obmat(rv3d, layer_to_world);
+      if (execute_trim_on_drawing(info.layer_index,
+                                  info.frame_number,
+                                  *ob_eval,
+                                  *obact,
+                                  *region,
+                                  projection,
+                                  mcoords,
+                                  keep_caps,
+                                  info.drawing))
+      {
+        changed = true;
+      }
+    });
   }
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
-    if (use_autokey) {
+    if (autokey_inserted) {
       WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
     }
   }
