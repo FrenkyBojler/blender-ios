@@ -49,7 +49,17 @@ struct UndoCurve {
   ListBase nubase;
   int actvert;
   GHash *undoIndex;
+
+  /* Historical note: Once upon a time, this code also made a backup of F-Curves, in an attempt to
+   * enable undo of animation changes. This was very limited, as it only backed up the animation
+   * of the curve ID; all the other IDs whose animation was shown in the dope sheet, timeline, etc.
+   * was ignored. It also ignored the NLA, and deleted Action groups even when the animation was
+   * not touched by the user.
+   *
+   * With the introduction of slotted Actions, a decision had to be made to either port this
+   * behavior or remove it. The latter was chosen. For more information, see #135585. */
   ListBase drivers;
+
   int actnu;
   int flag;
 
