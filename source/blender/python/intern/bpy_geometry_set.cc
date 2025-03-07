@@ -76,6 +76,7 @@ static BPy_GeometrySet *BPy_GeometrySet_static_from_evaluated_object(PyObject * 
                                                                      PyObject *args,
                                                                      PyObject *kwds)
 {
+  using namespace blender;
   static const char *kwlist[] = {"evaluated_object", "depsgraph", nullptr};
   PyObject *py_evaluated_object;
   PyObject *py_depsgraph;
@@ -102,7 +103,11 @@ static BPy_GeometrySet *BPy_GeometrySet_static_from_evaluated_object(PyObject * 
     PyErr_SetString(PyExc_TypeError, "Expected an evaluated object");
     return nullptr;
   }
-  if (!OB_TYPE_IS_GEOMETRY(evaluated_object->type)) {
+  const bool is_instance_collection = evaluated_object->type == OB_EMPTY &&
+                                      evaluated_object->instance_collection;
+  const bool valid_object_type = OB_TYPE_IS_GEOMETRY(evaluated_object->type) ||
+                                 is_instance_collection;
+  if (!valid_object_type) {
     const char *ob_type_name = "<unknown>";
     RNA_enum_name_from_value(rna_enum_object_type_items, evaluated_object->type, &ob_type_name);
     PyErr_Format(PyExc_TypeError, "Expected a geometry object, not %.200s", ob_type_name);
@@ -125,11 +130,20 @@ static BPy_GeometrySet *BPy_GeometrySet_static_from_evaluated_object(PyObject * 
   Depsgraph *depsgraph = static_cast<Depsgraph *>(rna_depsgraph->ptr->data);
   Scene *scene = DEG_get_input_scene(depsgraph);
 
-  blender::bke::Instances instances = object_duplilist_legacy_instances(
-      *depsgraph, *scene, *evaluated_object);
-  GeometrySet geometry = blender::bke::object_get_evaluated_geometry_set(*evaluated_object);
-  if (instances.instances_num() > 0) {
-    geometry.replace_instances(new blender::bke::Instances(std::move(instances)));
+  GeometrySet geometry;
+  if (is_instance_collection) {
+    bke::Instances *instances = new bke::Instances();
+    instances->add_new_reference(bke::InstanceReference{*evaluated_object->instance_collection});
+    instances->add_instance(0, float4x4::identity());
+    geometry.replace_instances(instances);
+  }
+  else {
+    bke::Instances instances = object_duplilist_legacy_instances(
+        *depsgraph, *scene, *evaluated_object);
+    geometry = bke::object_get_evaluated_geometry_set(*evaluated_object);
+    if (instances.instances_num() > 0) {
+      geometry.replace_instances(new bke::Instances(std::move(instances)));
+    }
   }
   BPy_GeometrySet *self = python_object_from_geometry_set(std::move(geometry));
   return self;
