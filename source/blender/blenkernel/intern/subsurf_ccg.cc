@@ -935,25 +935,6 @@ static void ccgDM_release(DerivedMesh *dm)
   CCGDerivedMesh *ccgdm = (CCGDerivedMesh *)dm;
 
   DM_release(dm);
-  /* Before freeing, need to update the displacement map */
-  if (ccgdm->multires.modified_flags) {
-    /* Check that mmd still exists */
-    if (!ccgdm->multires.local_mmd &&
-        BLI_findindex(&ccgdm->multires.ob->modifiers, ccgdm->multires.mmd) == -1)
-    {
-      ccgdm->multires.mmd = nullptr;
-    }
-
-    if (ccgdm->multires.mmd) {
-      if (ccgdm->multires.modified_flags & MULTIRES_COORDS_MODIFIED) {
-        multires_modifier_update_mdisps(dm, nullptr);
-      }
-      if (ccgdm->multires.modified_flags & MULTIRES_HIDDEN_MODIFIED) {
-        multires_modifier_update_hidden(dm);
-      }
-    }
-  }
-
   delete ccgdm->ehash;
 
   if (ccgdm->gridFaces) {
@@ -1550,7 +1531,7 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
                                          int useSubsurfUv,
                                          DerivedMesh *dm)
 {
-  CCGDerivedMesh *ccgdm = MEM_cnew<CCGDerivedMesh>(__func__);
+  CCGDerivedMesh *ccgdm = MEM_callocN<CCGDerivedMesh>(__func__);
   DM_from_template(&ccgdm->dm,
                    dm,
                    DM_TYPE_CCGDM,

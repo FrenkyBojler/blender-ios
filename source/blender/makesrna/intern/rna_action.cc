@@ -784,7 +784,7 @@ static void rna_ActionGroup_channels_begin(CollectionPropertyIterator *iter, Poi
 {
   bActionGroup *group = (bActionGroup *)ptr->data;
 
-  ActionGroupChannelsIterator *custom_iter = MEM_cnew<ActionGroupChannelsIterator>(__func__);
+  ActionGroupChannelsIterator *custom_iter = MEM_callocN<ActionGroupChannelsIterator>(__func__);
 
   iter->internal.custom = custom_iter;
 
@@ -1400,17 +1400,11 @@ static FCurve *rna_Action_fcurve_ensure_for_datablock(bAction *_self,
     }
   }
 
-  FCurve *fcurve = blender::animrig::action_fcurve_ensure(
+  FCurve &fcurve = blender::animrig::action_fcurve_ensure(
       bmain, *_self, *datablock, {data_path, array_index});
 
-  if (!fcurve) {
-    /* This should never happen, given the precondition check above. */
-    BLI_assert_unreachable();
-    return nullptr;
-  }
-
   WM_main_add_notifier(NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
-  return fcurve;
+  return &fcurve;
 }
 
 /**

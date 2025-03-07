@@ -52,7 +52,7 @@ static TransData *SeqToTransData(
     const Scene *scene, Strip *strip, TransData *td, TransData2D *td2d, int vert_index)
 {
   const StripTransform *transform = strip->data->transform;
-  const float2 origin = SEQ_image_transform_origin_offset_pixelspace_get(scene, strip);
+  const float2 origin = seq::image_transform_origin_offset_pixelspace_get(scene, strip);
   float vertex[2] = {origin[0], origin[1]};
 
   /* Add control vertex, so rotation and scale can be calculated.
@@ -87,8 +87,8 @@ static TransData *SeqToTransData(
     tdseq->strip = strip;
     copy_v2_v2(tdseq->orig_origin_relative, transform->origin);
     copy_v2_v2(tdseq->orig_origin_position, origin);
-    tdseq->quad_orig = SEQ_image_transform_final_quad_get(scene, strip);
-    tdseq->orig_matrix = math::invert(SEQ_image_transform_matrix_get(scene, strip));
+    tdseq->quad_orig = seq::image_transform_final_quad_get(scene, strip);
+    tdseq->orig_matrix = math::invert(seq::image_transform_matrix_get(scene, strip));
 
     tdseq->orig_translation[0] = transform->xofs;
     tdseq->orig_translation[1] = transform->yofs;
@@ -118,7 +118,7 @@ static void freeSeqData(TransInfo * /*t*/,
 
 static void createTransSeqImageData(bContext * /*C*/, TransInfo *t)
 {
-  Editing *ed = SEQ_editing_get(t->scene);
+  Editing *ed = seq::editing_get(t->scene);
   const SpaceSeq *sseq = static_cast<const SpaceSeq *>(t->area->spacedata.first);
   const ARegion *region = t->region;
 
@@ -132,9 +132,9 @@ static void createTransSeqImageData(bContext * /*C*/, TransInfo *t)
     return;
   }
 
-  ListBase *seqbase = SEQ_active_seqbase_get(ed);
-  ListBase *channels = SEQ_channels_displayed_get(ed);
-  VectorSet strips = SEQ_query_rendered_strips(t->scene, channels, seqbase, t->scene->r.cfra, 0);
+  ListBase *seqbase = seq::active_seqbase_get(ed);
+  ListBase *channels = seq::channels_displayed_get(ed);
+  VectorSet strips = seq::query_rendered_strips(t->scene, channels, seqbase, t->scene->r.cfra, 0);
   strips.remove_if([&](Strip *strip) { return (strip->flag & SELECT) == 0; });
 
   if (strips.is_empty()) {
@@ -224,7 +224,7 @@ static float3 transform_translation_get(TransInfo *t,
                                         Strip *strip)
 {
   TransformData data = transform_data_get(td2d);
-  float2 mirror = SEQ_image_transform_mirror_factor_get(strip);
+  float2 mirror = seq::image_transform_mirror_factor_get(strip);
   // float3 translation = (float3(tdseq->orig_origin_position) - data.origin) * float3(mirror);
   float3 translation = {(tdseq->orig_origin_position[0] - data.origin.x) * mirror.x,
                         (tdseq->orig_origin_position[1] - data.origin.y) * mirror.y,
@@ -271,7 +271,7 @@ static void image_transform_set(TransInfo *t)
       autokeyframe_sequencer_image(t->context, t->scene, transform, t->mode);
     }
 
-    SEQ_relations_invalidate_cache_preprocessed(t->scene, strip);
+    seq::relations_invalidate_cache_preprocessed(t->scene, strip);
   }
 }
 
@@ -286,9 +286,9 @@ static float2 calculate_translation_offset(TransInfo *t, TransDataSeq *tdseq)
   transform->yofs = tdseq->orig_translation[1];
 
   const float2 viewport_pixel_aspect = {t->scene->r.xasp / t->scene->r.yasp, 1.0f};
-  float2 mirror = SEQ_image_transform_mirror_factor_get(strip);
+  float2 mirror = seq::image_transform_mirror_factor_get(strip);
 
-  Array<float2> quad_new = SEQ_image_transform_final_quad_get(t->scene, strip);
+  Array<float2> quad_new = seq::image_transform_final_quad_get(t->scene, strip);
   return (quad_new[0] - tdseq->quad_orig[0]) * mirror / viewport_pixel_aspect;
 }
 
@@ -303,7 +303,7 @@ static float2 calculate_new_origin_position(TransInfo *t, TransDataSeq *tdseq, T
   }
 
   const float3 viewport_pixel_aspect = {t->scene->r.xasp / t->scene->r.yasp, 1.0f, 1.0f};
-  float2 mirror = SEQ_image_transform_mirror_factor_get(strip);
+  float2 mirror = seq::image_transform_mirror_factor_get(strip);
 
   const float3 origin = {tdseq->orig_origin_position[0], tdseq->orig_origin_position[1], 0.0f};
   const float3 translation = transform_translation_get(t, tdseq, td2d, strip);
@@ -338,7 +338,7 @@ static void image_origin_set(TransInfo *t)
     transform->xofs = tdseq->orig_translation[0] - delta_translation.x;
     transform->yofs = tdseq->orig_translation[1] - delta_translation.y;
 
-    SEQ_relations_invalidate_cache_preprocessed(t->scene, strip);
+    seq::relations_invalidate_cache_preprocessed(t->scene, strip);
   }
 }
 
