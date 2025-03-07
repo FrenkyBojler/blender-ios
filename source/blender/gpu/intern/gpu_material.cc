@@ -60,77 +60,180 @@ struct GPUSkyBuilder {
 struct GPUMaterial {
   /* Contains #GPUShader and source code for deferred compilation.
    * Can be shared between materials sharing same node-tree topology. */
-  GPUPass *pass;
+  GPUPass *pass = nullptr;
   /* Optimized GPUPass, situationally compiled after initial pass for optimal realtime performance.
    * This shader variant bakes dynamic uniform data as constant. This variant will not use
    * the ubo, and instead bake constants directly into the shader source. */
-  GPUPass *optimized_pass;
+  GPUPass *optimized_pass = nullptr;
 
-  double creation_time;
-
-  /** UBOs for this material parameters. */
-  GPUUniformBuf *ubo;
-  /** Some flags about the nodetree & the needed resources. */
-  eGPUMaterialFlag flag;
-  /** The engine type this material is compiled for. */
+  /* UBOs for this material parameters. */
+  GPUUniformBuf *ubo = nullptr;
+  /* Some flags about the nodetree & the needed resources. */
+  eGPUMaterialFlag flag = GPU_MATFLAG_UPDATED;
+  /* The engine type this material is compiled for. */
   eGPUMaterialEngine engine;
   /* Identify shader variations (shadow, probe, world background...) */
-  uint64_t uuid;
+  uint64_t uuid = 0;
   /* Number of generated function. */
-  int generated_function_len;
+  int generated_function_len = 0;
 
-  /** Source material, might be null. */
-  Material *ma;
-  /** 1D Texture array containing all color bands. */
-  GPUTexture *coba_tex;
-  /** Builder for coba_tex. */
-  GPUColorBandBuilder *coba_builder;
-  /** 2D Texture array containing all sky textures. */
-  GPUTexture *sky_tex;
-  /** Builder for sky_tex. */
-  GPUSkyBuilder *sky_builder;
+  /* Source material, might be null. */
+  Material *source_material = nullptr;
+  /* 1D Texture array containing all color bands. */
+  GPUTexture *coba_tex = nullptr;
+  /* Builder for coba_tex. */
+  GPUColorBandBuilder *coba_builder = nullptr;
+  /* 2D Texture array containing all sky textures. */
+  GPUTexture *sky_tex = nullptr;
+  /* Builder for sky_tex. */
+  GPUSkyBuilder *sky_builder = nullptr;
   /* Low level node graph(s). Also contains resources needed by the material. */
-  GPUNodeGraph graph;
+  GPUNodeGraph graph = {};
 
-  bool has_surface_output;
-  bool has_volume_output;
-  bool has_displacement_output;
-
-  // TODO: Remove?
-  uint32_t refcount;
+  bool has_surface_output = false;
+  bool has_volume_output = false;
+  bool has_displacement_output = false;
 
   std::string name;
+
+  GPUMaterial(eGPUMaterialEngine engine) : engine(engine)
+  {
+    graph.used_libraries = BLI_gset_new(
+        BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "GPUNodeGraph.used_libraries");
+  };
+
+  ~GPUMaterial()
+  {
+    gpu_node_graph_free(&graph);
+
+    if (optimized_pass != nullptr) {
+      GPU_pass_release(optimized_pass);
+    }
+    if (pass != nullptr) {
+      GPU_pass_release(pass);
+    }
+    if (ubo != nullptr) {
+      GPU_uniformbuf_free(ubo);
+    }
+    if (coba_builder != nullptr) {
+      MEM_freeN(coba_builder);
+    }
+    if (coba_tex != nullptr) {
+      GPU_texture_free(coba_tex);
+    }
+    if (sky_tex != nullptr) {
+      GPU_texture_free(sky_tex);
+    }
+  }
 };
 
-/* Functions */
+/* Public API */
+
+GPUMaterial *GPU_material_from_nodetree(Material *ma,
+                                        bNodeTree *ntree,
+                                        ListBase *gpumaterials,
+                                        const char *name,
+                                        eGPUMaterialEngine engine,
+                                        uint64_t shader_uuid,
+                                        bool deferred_compilation,
+                                        GPUCodegenCallbackFn callback,
+                                        void *thunk,
+                                        GPUMaterialPassReplacementCallbackFn pass_replacement_cb)
+{
+  // TODO: This should lock?
+
+  /* Search if this material is not already compiled. */
+  LISTBASE_FOREACH (LinkData *, link, gpumaterials) {
+    GPUMaterial *mat = (GPUMaterial *)link->data;
+    if (mat->uuid == shader_uuid && mat->engine == engine) {
+      // TODO: mat->flag |= GPU_MATFLAG_UPDATED; on finished compilation.
+      return mat;
+    }
+  }
+
+  GPUMaterial *mat = MEM_new<GPUMaterial>(__func__, engine);
+  mat->source_material = ma;
+  mat->uuid = shader_uuid;
+  mat->name = name;
+
+  /* Localize tree to create links for reroute and mute. */
+  bNodeTree *localtree = blender::bke::node_tree_localize(ntree, nullptr);
+  ntreeGPUMaterialNodes(localtree, mat);
+
+  gpu_material_ramp_texture_build(mat);
+  gpu_material_sky_texture_build(mat);
+
+  /* Use default material pass when possible. */
+  if (GPUPass *default_pass = pass_replacement_cb ? pass_replacement_cb(thunk, mat) : nullptr) {
+    mat->pass = default_pass;
+    GPU_pass_acquire(mat->pass);
+    /** WORKAROUND:
+     * The node tree code is never executed in default replaced passes,
+     * but the GPU validation will still complain if the node tree UBO is not bound.
+     * So we create a dummy UBO with (at least) the size of the default material one (192 bytes).
+     * We allocate 256 bytes to leave some room for future changes. */
+    mat->ubo = GPU_uniformbuf_create_ex(256, nullptr, "Dummy UBO");
+  }
+  else {
+    /* Create source code and search pass cache for an already compiled version. */
+    mat->pass = GPU_generate_pass(
+        mat, &mat->graph, engine, deferred_compilation, callback, thunk, false);
+  }
+
+  /* Determine whether we should generate an optimized variant of the graph.
+   * Heuristic is based on complexity of default material pass and shader node graph. */
+  if (GPU_pass_should_optimize(mat->pass)) {
+    mat->optimized_pass = GPU_generate_pass(mat, &mat->graph, engine, true, callback, thunk, true);
+  }
+
+  gpu_node_graph_free_nodes(&mat->graph);
+  /* Only free after GPU_pass_shader_get where GPUUniformBuf read data from the local tree. */
+  blender::bke::node_tree_free_local_tree(localtree);
+  BLI_assert(!localtree->id.py_instance); /* Or call #BKE_libblock_free_data_py. */
+  MEM_freeN(localtree);
+
+  /* Note that even if building the shader fails in some way, we want to keep
+   * it to avoid trying to compile again and again, and simply do not use
+   * the actual shader on drawing. */
+  LinkData *link = static_cast<LinkData *>(MEM_callocN(sizeof(LinkData), "GPUMaterialLink"));
+  link->data = mat;
+  BLI_addtail(gpumaterials, link);
+
+  return mat;
+}
+
+GPUMaterial *GPU_material_from_callbacks(eGPUMaterialEngine engine,
+                                         ConstructGPUMaterialFn construct_function_cb,
+                                         GPUCodegenCallbackFn generate_code_function_cb,
+                                         void *thunk)
+{
+  /* Allocate a new material and its material graph. */
+  GPUMaterial *material = MEM_new<GPUMaterial>(__func__, engine);
+
+  /* Construct the material graph by adding and linking the necessary GPU material nodes. */
+  construct_function_cb(thunk, material);
+
+  /* Create and initialize the texture storing color bands used by Ramp and Curve nodes. */
+  gpu_material_ramp_texture_build(material);
+
+  /* Lookup an existing pass in the cache or generate a new one. */
+  material->pass = GPU_generate_pass(
+      material, &material->graph, engine, false, generate_code_function_cb, thunk, false);
+
+  /* Determine whether we should generate an optimized variant of the graph.
+   * Heuristic is based on complexity of default material pass and shader node graph. */
+  if (GPU_pass_should_optimize(material->pass)) {
+    material->optimized_pass = GPU_generate_pass(
+        material, &material->graph, engine, true, generate_code_function_cb, thunk, true);
+  }
+
+  gpu_node_graph_free_nodes(&material->graph);
+
+  return material;
+}
 
 void GPU_material_free_single(GPUMaterial *material)
 {
-  bool do_free = atomic_sub_and_fetch_uint32(&material->refcount, 1) == 0;
-  if (!do_free) {
-    return;
-  }
-
-  gpu_node_graph_free(&material->graph);
-
-  if (material->optimized_pass != nullptr) {
-    GPU_pass_release(material->optimized_pass);
-  }
-  if (material->pass != nullptr) {
-    GPU_pass_release(material->pass);
-  }
-  if (material->ubo != nullptr) {
-    GPU_uniformbuf_free(material->ubo);
-  }
-  if (material->coba_builder != nullptr) {
-    MEM_freeN(material->coba_builder);
-  }
-  if (material->coba_tex != nullptr) {
-    GPU_texture_free(material->coba_tex);
-  }
-  if (material->sky_tex != nullptr) {
-    GPU_texture_free(material->sky_tex);
-  }
   MEM_delete(material);
 }
 
@@ -156,6 +259,21 @@ void GPU_materials_free(Main *bmain)
   BKE_material_defaults_free_gpu();
 }
 
+const char *GPU_material_get_name(GPUMaterial *material)
+{
+  return material->name.c_str();
+}
+
+uint64_t GPU_material_uuid_get(GPUMaterial *mat)
+{
+  return mat->uuid;
+}
+
+Material *GPU_material_get_material(GPUMaterial *material)
+{
+  return material->source_material;
+}
+
 GPUPass *GPU_material_get_pass(GPUMaterial *material)
 {
   /* If an optimized pass variant is available, and optimization is
@@ -168,53 +286,6 @@ GPUPass *GPU_material_get_pass(GPUMaterial *material)
 GPUShader *GPU_material_get_shader(GPUMaterial *material)
 {
   return GPU_pass_shader_get(GPU_material_get_pass(material));
-}
-
-const char *GPU_material_get_name(GPUMaterial *material)
-{
-  return material->name.c_str();
-}
-
-Material *GPU_material_get_material(GPUMaterial *material)
-{
-  return material->ma;
-}
-
-GPUUniformBuf *GPU_material_uniform_buffer_get(GPUMaterial *material)
-{
-  return material->ubo;
-}
-
-void GPU_material_uniform_buffer_create(GPUMaterial *material, ListBase *inputs)
-{
-  material->ubo = GPU_uniformbuf_create_from_list(inputs, material->name.c_str());
-}
-
-ListBase GPU_material_attributes(const GPUMaterial *material)
-{
-  return material->graph.attributes;
-}
-
-ListBase GPU_material_textures(GPUMaterial *material)
-{
-  return material->graph.textures;
-}
-
-const GPUUniformAttrList *GPU_material_uniform_attributes(const GPUMaterial *material)
-{
-  const GPUUniformAttrList *attrs = &material->graph.uniform_attrs;
-  return attrs->count > 0 ? attrs : nullptr;
-}
-
-const ListBase *GPU_material_layer_attributes(const GPUMaterial *material)
-{
-  const ListBase *attrs = &material->graph.layer_attrs;
-  return !BLI_listbase_is_empty(attrs) ? attrs : nullptr;
-}
-
-GPUNodeGraph *gpu_material_node_graph(GPUMaterial *material)
-{
-  return &material->graph;
 }
 
 eGPUMaterialStatus GPU_material_status(GPUMaterial *mat)
@@ -252,6 +323,7 @@ eGPUMaterialOptimizationStatus GPU_material_optimization_status(GPUMaterial *mat
 
 bool GPU_material_optimization_ready(GPUMaterial *mat)
 {
+  // TODO: Should be handled by GPUPassCache
   /* Timer threshold before optimizations will be queued.
    * When materials are frequently being modified, optimization
    * can incur CPU overhead from excessive compilation.
@@ -260,7 +332,8 @@ bool GPU_material_optimization_ready(GPUMaterial *mat)
    * to do this quickly to avoid build-up and improve runtime performance.
    * The threshold just prevents compilations being queued frame after frame. */
   const double optimization_time_threshold_s = 1.2;
-  return ((BLI_time_now_seconds() - mat->creation_time) >= optimization_time_threshold_s);
+  // return ((BLI_time_now_seconds() - mat->creation_time) >= optimization_time_threshold_s);
+  return false;
 }
 
 bool GPU_material_has_surface_output(GPUMaterial *mat)
@@ -305,128 +378,44 @@ bool GPU_material_recalc_flag_get(GPUMaterial *mat)
   return updated;
 }
 
-uint64_t GPU_material_uuid_get(GPUMaterial *mat)
+void GPU_material_uniform_buffer_create(GPUMaterial *material, ListBase *inputs)
 {
-  return mat->uuid;
+  material->ubo = GPU_uniformbuf_create_from_list(inputs, material->name.c_str());
 }
 
-/* Code generation */
-
-GPUMaterial *GPU_material_from_nodetree(Material *ma,
-                                        bNodeTree *ntree,
-                                        ListBase *gpumaterials,
-                                        const char *name,
-                                        eGPUMaterialEngine engine,
-                                        uint64_t shader_uuid,
-                                        bool deferred_compilation,
-                                        GPUCodegenCallbackFn callback,
-                                        void *thunk,
-                                        GPUMaterialPassReplacementCallbackFn pass_replacement_cb)
+GPUUniformBuf *GPU_material_uniform_buffer_get(GPUMaterial *material)
 {
-  // TODO: This should lock?
-
-  /* Search if this material is not already compiled. */
-  LISTBASE_FOREACH (LinkData *, link, gpumaterials) {
-    GPUMaterial *mat = (GPUMaterial *)link->data;
-    if (mat->uuid == shader_uuid && mat->engine == engine) {
-      // TODO: mat->flag |= GPU_MATFLAG_UPDATED; on finished compilation.
-      return mat;
-    }
-  }
-
-  GPUMaterial *mat = MEM_new<GPUMaterial>(__func__);
-  mat->ma = ma;
-  mat->engine = engine;
-  mat->uuid = shader_uuid;
-  mat->flag = GPU_MATFLAG_UPDATED;
-  mat->graph.used_libraries = BLI_gset_new(
-      BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "GPUNodeGraph.used_libraries");
-  mat->refcount = 1;
-  mat->name = name;
-
-  /* Localize tree to create links for reroute and mute. */
-  bNodeTree *localtree = blender::bke::node_tree_localize(ntree, nullptr);
-  ntreeGPUMaterialNodes(localtree, mat);
-
-  gpu_material_ramp_texture_build(mat);
-  gpu_material_sky_texture_build(mat);
-
-  /* Use default material pass when possible. */
-  if (GPUPass *default_pass = pass_replacement_cb ? pass_replacement_cb(thunk, mat) : nullptr) {
-    mat->pass = default_pass;
-    GPU_pass_acquire(mat->pass);
-    /** WORKAROUND:
-     * The node tree code is never executed in default replaced passes,
-     * but the GPU validation will still complain if the node tree UBO is not bound.
-     * So we create a dummy UBO with (at least) the size of the default material one (192 bytes).
-     * We allocate 256 bytes to leave some room for future changes. */
-    mat->ubo = GPU_uniformbuf_create_ex(256, nullptr, "Dummy UBO");
-  }
-  else {
-    /* Create source code and search pass cache for an already compiled version. */
-    mat->pass = GPU_generate_pass(
-        mat, &mat->graph, engine, deferred_compilation, callback, thunk, false);
-  }
-
-  /* Determine whether we should generate an optimized variant of the graph.
-   * Heuristic is based on complexity of default material pass and shader node graph. */
-  if (GPU_pass_should_optimize(mat->pass)) {
-    mat->optimized_pass = GPU_generate_pass(mat, &mat->graph, engine, true, callback, thunk, true);
-  }
-
-  // TODO: Is this safe to do here?
-  gpu_node_graph_free_nodes(&mat->graph);
-  /* Only free after GPU_pass_shader_get where GPUUniformBuf read data from the local tree. */
-  blender::bke::node_tree_free_local_tree(localtree);
-  BLI_assert(!localtree->id.py_instance); /* Or call #BKE_libblock_free_data_py. */
-  MEM_freeN(localtree);
-
-  /* Note that even if building the shader fails in some way, we want to keep
-   * it to avoid trying to compile again and again, and simply do not use
-   * the actual shader on drawing. */
-  LinkData *link = static_cast<LinkData *>(MEM_callocN(sizeof(LinkData), "GPUMaterialLink"));
-  link->data = mat;
-  BLI_addtail(gpumaterials, link);
-
-  return mat;
+  return material->ubo;
 }
 
-GPUMaterial *GPU_material_from_callbacks(eGPUMaterialEngine engine,
-                                         ConstructGPUMaterialFn construct_function_cb,
-                                         GPUCodegenCallbackFn generate_code_function_cb,
-                                         void *thunk)
+ListBase GPU_material_attributes(const GPUMaterial *material)
 {
-  /* Allocate a new material and its material graph, and initialize its reference count. */
-  GPUMaterial *material = MEM_new<GPUMaterial>(__func__);
-  material->graph.used_libraries = BLI_gset_new(
-      BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "GPUNodeGraph.used_libraries");
-  material->refcount = 1;
-  material->optimized_pass = nullptr;
-  material->engine = engine;
-
-  /* Construct the material graph by adding and linking the necessary GPU material nodes. */
-  construct_function_cb(thunk, material);
-
-  /* Create and initialize the texture storing color bands used by Ramp and Curve nodes. */
-  gpu_material_ramp_texture_build(material);
-
-  /* Lookup an existing pass in the cache or generate a new one. */
-  material->pass = GPU_generate_pass(
-      material, &material->graph, engine, false, generate_code_function_cb, thunk, false);
-  material->optimized_pass = nullptr;
-
-  /* Determine whether we should generate an optimized variant of the graph.
-   * Heuristic is based on complexity of default material pass and shader node graph. */
-  if (GPU_pass_should_optimize(material->pass)) {
-    material->optimized_pass = GPU_generate_pass(
-        material, &material->graph, engine, true, generate_code_function_cb, thunk, true);
-  }
-
-  // TODO: Is this safe to do here?
-  gpu_node_graph_free_nodes(&material->graph);
-
-  return material;
+  return material->graph.attributes;
 }
+
+ListBase GPU_material_textures(GPUMaterial *material)
+{
+  return material->graph.textures;
+}
+
+const GPUUniformAttrList *GPU_material_uniform_attributes(const GPUMaterial *material)
+{
+  const GPUUniformAttrList *attrs = &material->graph.uniform_attrs;
+  return attrs->count > 0 ? attrs : nullptr;
+}
+
+const ListBase *GPU_material_layer_attributes(const GPUMaterial *material)
+{
+  const ListBase *attrs = &material->graph.layer_attrs;
+  return !BLI_listbase_is_empty(attrs) ? attrs : nullptr;
+}
+
+GPUNodeGraph *gpu_material_node_graph(GPUMaterial *material)
+{
+  return &material->graph;
+}
+
+/* Resources */
 
 GPUTexture **gpu_material_sky_texture_layer_set(
     GPUMaterial *mat, int width, int height, const float *pixels, float *row)
@@ -527,6 +516,8 @@ static void gpu_material_sky_texture_build(GPUMaterial *mat)
   MEM_freeN(mat->sky_builder);
   mat->sky_builder = nullptr;
 }
+
+/* Code generation */
 
 void GPU_material_output_surface(GPUMaterial *material, GPUNodeLink *link)
 {

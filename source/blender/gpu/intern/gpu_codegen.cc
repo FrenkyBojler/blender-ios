@@ -88,7 +88,7 @@ struct GPUCodegenCreateInfo : ShaderCreateInfo {
   GPUCodegenCreateInfo(const char *name) : ShaderCreateInfo(name){};
   ~GPUCodegenCreateInfo()
   {
-    delete interface_generated;
+    MEM_delete(interface_generated);
   };
 };
 
@@ -144,8 +144,8 @@ struct GPUPass {
       GPU_shader_free(shader);
       shader = nullptr;
     }
-    // TODO: Use MEM_new/MEM_free.
-    delete create_info;
+
+    MEM_delete(create_info);
     create_info = nullptr;
   }
 
@@ -275,7 +275,7 @@ static GPUPassCache *g_cache = nullptr;
 
 void GPU_pass_cache_init()
 {
-  g_cache = new GPUPassCache();
+  g_cache = MEM_new<GPUPassCache>(__func__);
 }
 
 void GPU_pass_cache_update()
@@ -285,7 +285,7 @@ void GPU_pass_cache_update()
 
 void GPU_pass_cache_free()
 {
-  delete g_cache;
+  MEM_delete(g_cache);
   g_cache = nullptr;
 }
 
@@ -393,7 +393,7 @@ class GPUCodegen {
   {
     BLI_hash_mm2a_init(&hm2a_, GPU_material_uuid_get(&mat));
     BLI_hash_mm2a_add_int(&hm2a_, GPU_material_flag(&mat));
-    create_info = new GPUCodegenCreateInfo("codegen");
+    create_info = MEM_new<GPUCodegenCreateInfo>(__func__, "codegen");
     output.create_info = reinterpret_cast<GPUShaderCreateInfo *>(
         static_cast<ShaderCreateInfo *>(create_info));
   }
@@ -401,7 +401,7 @@ class GPUCodegen {
   ~GPUCodegen()
   {
     MEM_SAFE_FREE(cryptomatte_input_);
-    delete create_info;
+    MEM_delete(create_info);
     BLI_freelistN(&ubo_inputs_);
   };
 
@@ -447,7 +447,7 @@ void GPUCodegen::generate_attribs()
 
   GPUCodegenCreateInfo &info = *create_info;
 
-  info.interface_generated = new StageInterfaceInfo("codegen_iface", "var_attrs");
+  info.interface_generated = MEM_new<StageInterfaceInfo>(__func__, "codegen_iface", "var_attrs");
   StageInterfaceInfo &iface = *info.interface_generated;
   info.vertex_out(iface);
 
