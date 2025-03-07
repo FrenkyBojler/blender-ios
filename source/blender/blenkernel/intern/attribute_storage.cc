@@ -71,15 +71,17 @@ std::variant<Attribute::ArrayData, Attribute::SingleData> &Attribute::data_for_w
   if (auto *data = std::get_if<Attribute::ArrayData>(&data_)) {
     if (data->sharing_info->is_mutable()) {
       data->sharing_info->tag_ensured_mutable();
+      return data_;
     }
 
     const CPPType &cpp_type = attribute_type_to_cpp_type(data_type_);
-    void *new_data = MEM_mallocN_aligned(data->elements_num, cpp_type.alignment(), __func__);
+    void *new_data = MEM_malloc_arrayN_aligned(
+        data->elements_num, cpp_type.size(), cpp_type.alignment(), __func__);
     cpp_type.copy_construct_n(data->data, new_data, data->elements_num);
 
+    data->data = new_data;
     data->sharing_info = ImplicitSharingPtr<>(
         create_sharing_info_for_array(data->data, data->elements_num, cpp_type));
-    data->data = new_data;
   }
   else if (std::get_if<Attribute::SingleData>(&data_)) {
     BLI_assert_unreachable();
