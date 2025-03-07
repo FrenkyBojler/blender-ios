@@ -256,8 +256,12 @@ void GPENCIL_render_to_image(void *ved,
 
   DRW_manager_get()->end_sync();
 
+  DRW_submission_start();
+
   /* Render the gpencil object and merge the result to the underlying render. */
   GPENCIL_draw_scene(vedata);
+
+  DRW_submission_end();
 
   GPENCIL_render_result_combined(render_layer, viewname, vedata, rect);
   GPENCIL_render_result_z(render_layer, viewname, vedata, rect);

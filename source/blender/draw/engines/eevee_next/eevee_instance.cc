@@ -402,8 +402,10 @@ bool Instance::do_planar_probe_sync() const
 void Instance::render_sample()
 {
   if (sampling.finished_viewport()) {
+    DRW_submission_start();
     film.display();
     lookdev.display();
+    DRW_submission_end();
     return;
   }
 
@@ -420,15 +422,21 @@ void Instance::render_sample()
 
   DebugScope debug_scope(debug_scope_render_sample, "EEVEE.render_sample");
 
-  sampling.step();
+  {
+    /* Critical section. Potential GPUShader concurrent usage. */
+    DRW_submission_start();
 
-  capture_view.render_world();
-  capture_view.render_probes();
+    sampling.step();
 
-  main_view.render();
+    capture_view.render_world();
+    capture_view.render_probes();
 
-  lookdev_view.render();
+    main_view.render();
 
+    lookdev_view.render();
+
+    DRW_submission_end();
+  }
   motion_blur.step();
 }
 
