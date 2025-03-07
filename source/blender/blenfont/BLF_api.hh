@@ -39,10 +39,9 @@ enum class FontShadowType {
 
 enum class BLFWrapMode : int {
   Minimal = 0,            /* Only on ascii space and line feed. Legacy and invariant. */
-  FilePath = 1 << 0,      /* Wrap always on file path separators, regardless of content. */
-  PythonPath = 1 << 1,    /* Wrap as suitable for Blender python paths. */
-  Typographical = 1 << 2, /* Multilingual, informed by Unicode Standard Annex #14. */
-  HardLimit = 1 << 3,     /* Line break at limit. */
+  Typographical = 1 << 0, /* Multilingual, informed by Unicode Standard Annex #14. */
+  Path = 1 << 1,          /* Wrap on file path separators, space, underscores. */
+  HardLimit = 1 << 2,     /* Line break at limit. */
 };
 
 int BLF_init();
