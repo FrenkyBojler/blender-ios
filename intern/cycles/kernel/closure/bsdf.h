@@ -67,7 +67,12 @@ ccl_device_inline float bump_shadowing_term(const int shader_flag,
                                             const float3 N,
                                             float3 I)
 {
-  /* Calculate then clamp the incoming and normal deviation from geometric normal. */
+  /* When bump map correction is not used do skip the smoothing. */
+  if ((shader_flag & SD_USE_BUMP_MAP_CORRECTION) == 0) {
+    return 1.0f;
+  }
+
+  /* Calculate incoming and shader normal deviation from geometric normal, then clamp. */
   const float cos_i = fabsf(dot(Ng, I));
   const float cos_d = fabsf(dot(Ng, N));
   if (cos_d >= 1.0f || cos_i >= 1.0f) {
@@ -80,11 +85,6 @@ ccl_device_inline float bump_shadowing_term(const int shader_flag,
   /* Get GGX shading values for final smoothing. */
   const float tan2_d = 1.0f / sqr(cos_d) - 1.0f;
   const float bump_alpha2 = saturatef(0.125f * tan2_d);
-
-  /* When bump map correction is not used do skip the smoothing. */
-  if ((shader_flag & SD_USE_BUMP_MAP_CORRECTION) == 0) {
-    return 1.0f;
-  }
 
   /* Return smoothed value to avoid discontinuity at perpendicular angle. */
   return bsdf_G<MicrofacetType::GGX>(bump_alpha2, cos_i);
