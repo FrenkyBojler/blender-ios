@@ -4,3 +4,4 @@ Referenced by issue #124623, VSE misses strip auto-deselect with right click sel
 Referenced by issue #124589, VSE: Meta/scene strips are drawn with a gap to strip start
 Referenced by issue #123130, Fix: VSE wrong mouse over assert
 Referenced by pull request #135623, Fix #135582: Crash box selecting in sequence editor without a sequence
+Referenced by commit 62fcd012cf59c8116e2ca7d9f598a8fe2797394b, Fix #135582: Crash box selecting in sequence editor without a sequence
