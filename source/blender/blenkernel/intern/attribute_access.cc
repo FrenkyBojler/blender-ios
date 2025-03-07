@@ -34,7 +34,7 @@
 
 namespace blender::bke {
 
-const CPPType &attribute_type_to_cpp_type(AttrType type)
+const CPPType &attribute_type_to_cpp_type(const AttrType type)
 {
   switch (type) {
     case AttrType::Bool:
