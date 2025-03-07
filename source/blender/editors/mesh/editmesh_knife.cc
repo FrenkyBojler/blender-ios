@@ -3328,6 +3328,7 @@ static bool knife_find_closest_vert_of_edge(KnifeTool_OpData *kcd,
 
   if (curv) {
     r_kpd->cage = curv->cageco;
+    r_kpd->vert = curv;
 
     /* Update mouse coordinates to the snapped-to vertex's screen coordinates
      * this is important for angle snap, which uses the previous mouse position. */
