@@ -13,8 +13,6 @@
 
 #include "draw_subdivision.hh"
 
-#include "GPU_debug.hh"
-
 namespace blender::draw {
 
 static void extract_positions_mesh(const MeshRenderData &mr, MutableSpan<float3> vbo_data)
@@ -194,7 +192,6 @@ void extract_positions_subdiv(const DRWSubdivCache &subdiv_cache,
     extract_loose_positions_subdiv(subdiv_cache, mr, vbo);
     return;
   }
-  GPU_debug_capture_begin(__func__);
 
   static const GPUVertFormat flag_format = []() {
     GPUVertFormat format{};
@@ -268,7 +265,6 @@ void extract_positions_subdiv(const DRWSubdivCache &subdiv_cache,
   GPU_vertbuf_discard(flags_buffer);
 
   extract_loose_positions_subdiv(subdiv_cache, mr, vbo);
-  GPU_debug_capture_end();
 }
 
 }  // namespace blender::draw
