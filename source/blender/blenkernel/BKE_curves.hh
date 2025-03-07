@@ -105,6 +105,7 @@ class CurvesGeometryRuntime {
    * See #SharedCache comments.
    */
   mutable SharedCache<Bounds<float3>> bounds_cache;
+  mutable SharedCache<Bounds<float3>> bounds_with_radius_cache;
 
   /**
    * Cache of lengths along each evaluated curve for each evaluated point. If a curve is
@@ -305,7 +306,7 @@ class CurvesGeometry : public ::CurvesGeometry {
   /**
    * The largest and smallest position values of evaluated points.
    */
-  std::optional<Bounds<float3>> bounds_min_max() const;
+  std::optional<Bounds<float3>> bounds_min_max(bool use_radius = true) const;
 
   void count_memory(MemoryCounter &memory) const;
 
