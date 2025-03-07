@@ -3,3 +3,4 @@ Referenced by issue #124955, VSE strip drag-handle cursor is not scaled when usi
 Referenced by issue #124623, VSE misses strip auto-deselect with right click selection (Blender 2.7 x keymap)
 Referenced by issue #124589, VSE: Meta/scene strips are drawn with a gap to strip start
 Referenced by issue #123130, Fix: VSE wrong mouse over assert
+Referenced by pull request #135623, Fix #135582: Crash box selecting in sequence editor without a sequence
