@@ -6,6 +6,7 @@
  * \ingroup edtransform
  */
 
+#include "ED_transform.hh"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_curve_types.h"
@@ -843,6 +844,15 @@ void properties_register(wmOperatorType *ot, int flags)
                            "Forces the use of Auto Merge and Split");
     RNA_def_property_flag(prop, PROP_HIDDEN);
   }
+
+  if (flags & P_TRANSLATE_ORIGINS) {
+    prop = RNA_def_boolean(ot->srna,
+                           "translate_origins",
+                           false,
+                           "Translate Origins",
+                           "Translate origins instead of selection");
+    RNA_def_property_flag(prop, PROP_HIDDEN);
+  }
 }
 
 static void TRANSFORM_OT_translate(wmOperatorType *ot)
@@ -869,7 +879,7 @@ static void TRANSFORM_OT_translate(wmOperatorType *ot)
   properties_register(ot,
                       P_ORIENT_MATRIX | P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR | P_ALIGN_SNAP |
                           P_OPTIONS | P_GPENCIL_EDIT | P_CURSOR_EDIT | P_VIEW2D_EDGE_PAN |
-                          P_POST_TRANSFORM);
+                          P_POST_TRANSFORM | P_TRANSLATE_ORIGINS);
 }
 
 static void TRANSFORM_OT_resize(wmOperatorType *ot)

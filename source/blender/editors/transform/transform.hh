@@ -187,7 +187,7 @@ enum eTFlag {
   /** Transform origin. */
   T_ORIGIN = 1 << 27,
 };
-ENUM_OPERATORS(eTFlag, T_DUPLICATED_KEYFRAMES);
+ENUM_OPERATORS(eTFlag, T_ORIGIN);
 
 /** #TransInfo.modifiers */
 enum eTModifier {
