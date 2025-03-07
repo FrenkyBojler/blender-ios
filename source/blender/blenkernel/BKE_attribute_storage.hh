@@ -18,6 +18,7 @@ struct BlendWriter;
 
 namespace blender::bke {
 
+/** Data and metadata for a single geometry attribute. */
 class Attribute {
  public:
   struct ArrayData {
@@ -32,7 +33,10 @@ class Attribute {
   friend AttributeStorage;
 
  private:
-  /** The name be changed without adding and removing attribute. */
+  /**
+   * Because it's used as the custom ID for the attributes vector set, the name cannot be changed
+   * without adding and removing attribute.
+   */
   std::string name_;
   AttrDomain domain_;
   AttrType type_;
@@ -41,12 +45,30 @@ class Attribute {
   std::variant<ArrayData, SingleData> data_;
 
  public:
+  /** Unique name across all domains. */
   StringRefNull name() const;
+  /** Which part of a geometry the attribute corresponds to. */
   AttrDomain domain() const;
-  AttrStorageType storage_type() const;
+  /**
+   * The data type exposed to the user. Depending on the storage type, the actual internal values
+   * may not be the same type.
+   */
   AttrType data_type() const;
+  /**
+   * The method used to store the data. This gives flexibility to optimize the internal storage
+   * even though conceptually the attribute is an array of values.
+   */
+  AttrStorageType storage_type() const;
 
+  /**
+   * Low level access to the data stored for the attribute. The variant's type will correspond to
+   * the storage type.
+   */
   const std::variant<ArrayData, SingleData> &data() const;
+  /**
+   * The same as #data(), but if the attribute data is shared initially, it will be unshared and
+   * made mutable.
+   */
   std::variant<ArrayData, SingleData> &data_for_write();
 };
 
@@ -58,6 +80,11 @@ class AttributeStorageRuntime {
       return value->name();
     }
   };
+  /**
+   * For quick access, the attributes are stored in a vector set, keyed by their name. Attributes
+   * can still be reordered by rebuilding the vector set from scratch. Each attribute is allocated
+   * to give pointer stability across additions and removals.
+   */
   CustomIDVectorSet<std::unique_ptr<Attribute>, AttributeNameGetter> attributes;
 };
 
