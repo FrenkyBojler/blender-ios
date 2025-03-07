@@ -16,6 +16,7 @@
 
 #include "DNA_ID.h"
 #include "DNA_collection_types.h"
+#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_pointcloud_types.h"
 
@@ -44,6 +45,7 @@ static BPy_GeometrySet *python_object_from_geometry_set(GeometrySet geometry = {
   }
   new (&self->geometry) GeometrySet(std::move(geometry));
   self->instances_pointcloud = nullptr;
+  self->geometry.ensure_no_shared_components();
   return self;
 }
 
@@ -159,130 +161,6 @@ static PyObject *BPy_GeometrySet_repr(BPy_GeometrySet *self)
 
 PyDoc_STRVAR(
     /* Wrap. */
-    bpy_geometry_set_get_mesh_doc,
-    ".. method:: mesh(*, readonly)\n"
-    "\n"
-    "   :arg readonly: If the returned geometry will be modified or not. If false, this method\n"
-    "       might have to create a copy of the geometry to avoid sharing it with other places.\n"
-    "   :type readonly: bool\n"
-    "   :rtype: bpy.types.Mesh\n");
-static PyObject *BPy_GeometrySet_get_mesh(BPy_GeometrySet *self, PyObject *args, PyObject *kwds)
-{
-  static const char *kwlist[] = {"readonly", nullptr};
-  bool readonly = false;
-  if (!PyArg_ParseTupleAndKeywords(args, kwds, "|$p", const_cast<char **>(kwlist), &readonly)) {
-    return nullptr;
-  }
-  if (readonly) {
-    const Mesh *mesh = self->geometry.get_mesh();
-    return pyrna_id_CreatePyObject(const_cast<ID *>(reinterpret_cast<const ID *>(mesh)));
-  }
-  Mesh *mesh = self->geometry.get_mesh_for_write();
-  return pyrna_id_CreatePyObject(reinterpret_cast<ID *>(mesh));
-}
-
-PyDoc_STRVAR(
-    /* Wrap. */
-    bpy_geometry_set_get_curves_doc,
-    ".. method:: curves(*, readonly)\n"
-    "\n"
-    "   :arg readonly: If the returned geometry will be modified or not. If false, this method\n"
-    "       might have to create a copy of the geometry to avoid sharing it with other places.\n"
-    "   :type readonly: bool\n"
-    "   :rtype: bpy.types.Curves\n");
-static PyObject *BPy_GeometrySet_get_curves(BPy_GeometrySet *self, PyObject *args, PyObject *kwds)
-{
-  static const char *kwlist[] = {"readonly", nullptr};
-  bool readonly = false;
-  if (!PyArg_ParseTupleAndKeywords(args, kwds, "|$p", const_cast<char **>(kwlist), &readonly)) {
-    return nullptr;
-  }
-  if (readonly) {
-    const Curves *curves = self->geometry.get_curves();
-    return pyrna_id_CreatePyObject(const_cast<ID *>(reinterpret_cast<const ID *>(curves)));
-  }
-  Curves *curves = self->geometry.get_curves_for_write();
-  return pyrna_id_CreatePyObject(reinterpret_cast<ID *>(curves));
-}
-
-PyDoc_STRVAR(
-    /* Wrap. */
-    bpy_geometry_set_get_volume_doc,
-    ".. method:: volume(*, readonly)\n"
-    "\n"
-    "   :arg readonly: If the returned geometry will be modified or not. If false, this method\n"
-    "       might have to create a copy of the geometry to avoid sharing it with other places.\n"
-    "   :type readonly: bool\n"
-    "   :rtype: bpy.types.Volume\n");
-static PyObject *BPy_GeometrySet_get_volume(BPy_GeometrySet *self, PyObject *args, PyObject *kwds)
-{
-  static const char *kwlist[] = {"readonly", nullptr};
-  bool readonly = false;
-  if (!PyArg_ParseTupleAndKeywords(args, kwds, "|$p", const_cast<char **>(kwlist), &readonly)) {
-    return nullptr;
-  }
-  if (readonly) {
-    const Volume *volume = self->geometry.get_volume();
-    return pyrna_id_CreatePyObject(const_cast<ID *>(reinterpret_cast<const ID *>(volume)));
-  }
-  Volume *volume = self->geometry.get_volume_for_write();
-  return pyrna_id_CreatePyObject(reinterpret_cast<ID *>(volume));
-}
-
-PyDoc_STRVAR(
-    /* Wrap. */
-    bpy_geometry_set_get_grease_pencil_doc,
-    ".. method:: grease_pencil(*, readonly)\n"
-    "\n"
-    "   :arg readonly: If the returned geometry will be modified or not. If false, this method\n"
-    "       might have to create a copy of the geometry to avoid sharing it with other places.\n"
-    "   :type readonly: bool\n"
-    "   :rtype: bpy.types.GreasePencilv3\n");
-static PyObject *BPy_GeometrySet_get_grease_pencil(BPy_GeometrySet *self,
-                                                   PyObject *args,
-                                                   PyObject *kwds)
-{
-  static const char *kwlist[] = {"readonly", nullptr};
-  bool readonly = false;
-  if (!PyArg_ParseTupleAndKeywords(args, kwds, "|$p", const_cast<char **>(kwlist), &readonly)) {
-    return nullptr;
-  }
-  if (readonly) {
-    const GreasePencil *grease_pencil = self->geometry.get_grease_pencil();
-    return pyrna_id_CreatePyObject(const_cast<ID *>(reinterpret_cast<const ID *>(grease_pencil)));
-  }
-  GreasePencil *grease_pencil = self->geometry.get_grease_pencil_for_write();
-  return pyrna_id_CreatePyObject(reinterpret_cast<ID *>(grease_pencil));
-}
-
-PyDoc_STRVAR(
-    /* Wrap. */
-    bpy_geometry_set_get_pointcloud_doc,
-    ".. method:: pointcloud(*, readonly)\n"
-    "\n"
-    "   :arg readonly: If the returned geometry will be modified or not. If false, this method\n"
-    "       might have to create a copy of the geometry to avoid sharing it with other places.\n"
-    "   :type readonly: bool\n"
-    "   :rtype: bpy.types.PointCloud\n");
-static PyObject *BPy_GeometrySet_get_pointcloud(BPy_GeometrySet *self,
-                                                PyObject *args,
-                                                PyObject *kwds)
-{
-  static const char *kwlist[] = {"readonly", nullptr};
-  bool readonly = false;
-  if (!PyArg_ParseTupleAndKeywords(args, kwds, "|$p", const_cast<char **>(kwlist), &readonly)) {
-    return nullptr;
-  }
-  if (readonly) {
-    const PointCloud *pointcloud = self->geometry.get_pointcloud();
-    return pyrna_id_CreatePyObject(const_cast<ID *>(reinterpret_cast<const ID *>(pointcloud)));
-  }
-  PointCloud *pointcloud = self->geometry.get_pointcloud_for_write();
-  return pyrna_id_CreatePyObject(reinterpret_cast<ID *>(pointcloud));
-}
-
-PyDoc_STRVAR(
-    /* Wrap. */
     bpy_geometry_set_get_instances_pointcloud_doc,
     ".. method:: instances_pointcloud()\n"
     "\n"
@@ -377,12 +255,74 @@ static int BPy_GeometrySet_set_name(BPy_GeometrySet *self, PyObject *value, void
   return 0;
 }
 
+static PyObject *BPy_GeometrySet_get_mesh(BPy_GeometrySet *self, void * /*closure*/)
+{
+  return pyrna_id_CreatePyObject(reinterpret_cast<ID *>(self->geometry.get_mesh_for_write()));
+}
+
+static PyObject *BPy_GeometrySet_get_pointcloud(BPy_GeometrySet *self, void * /*closure*/)
+{
+  return pyrna_id_CreatePyObject(
+      reinterpret_cast<ID *>(self->geometry.get_pointcloud_for_write()));
+}
+
+static PyObject *BPy_GeometrySet_get_curves(BPy_GeometrySet *self, void * /*closure*/)
+{
+  return pyrna_id_CreatePyObject(reinterpret_cast<ID *>(self->geometry.get_curves_for_write()));
+}
+
+static PyObject *BPy_GeometrySet_get_volume(BPy_GeometrySet *self, void * /*closure*/)
+{
+  return pyrna_id_CreatePyObject(reinterpret_cast<ID *>(self->geometry.get_volume_for_write()));
+}
+
+static PyObject *BPy_GeometrySet_get_grease_pencil(BPy_GeometrySet *self, void * /*closure*/)
+{
+  return pyrna_id_CreatePyObject(
+      reinterpret_cast<ID *>(self->geometry.get_grease_pencil_for_write()));
+}
+
 static PyGetSetDef BPy_GeometrySet_getseters[] = {
     {
         "name",
         reinterpret_cast<getter>(BPy_GeometrySet_get_name),
         reinterpret_cast<setter>(BPy_GeometrySet_set_name),
         "The name of the geometry set.",
+        nullptr,
+    },
+    {
+        "mesh",
+        reinterpret_cast<getter>(BPy_GeometrySet_get_mesh),
+        nullptr,
+        "",
+        nullptr,
+    },
+    {
+        "pointcloud",
+        reinterpret_cast<getter>(BPy_GeometrySet_get_pointcloud),
+        nullptr,
+        "",
+        nullptr,
+    },
+    {
+        "curves",
+        reinterpret_cast<getter>(BPy_GeometrySet_get_curves),
+        nullptr,
+        "",
+        nullptr,
+    },
+    {
+        "volume",
+        reinterpret_cast<getter>(BPy_GeometrySet_get_volume),
+        nullptr,
+        "",
+        nullptr,
+    },
+    {
+        "grease_pencil",
+        reinterpret_cast<getter>(BPy_GeometrySet_get_grease_pencil),
+        nullptr,
+        "",
         nullptr,
     },
     {nullptr},
@@ -394,26 +334,6 @@ static PyMethodDef BPy_GeometrySet_methods[] = {
      reinterpret_cast<PyCFunction>(BPy_GeometrySet_static_from_evaluated_object),
      METH_VARARGS | METH_KEYWORDS | METH_STATIC,
      bpy_geometry_set_from_evaluated_object_doc},
-    {"mesh",
-     reinterpret_cast<PyCFunction>(BPy_GeometrySet_get_mesh),
-     METH_VARARGS | METH_KEYWORDS,
-     bpy_geometry_set_get_mesh_doc},
-    {"curves",
-     reinterpret_cast<PyCFunction>(BPy_GeometrySet_get_curves),
-     METH_VARARGS | METH_KEYWORDS,
-     bpy_geometry_set_get_curves_doc},
-    {"volume",
-     reinterpret_cast<PyCFunction>(BPy_GeometrySet_get_volume),
-     METH_VARARGS | METH_KEYWORDS,
-     bpy_geometry_set_get_volume_doc},
-    {"grease_pencil",
-     reinterpret_cast<PyCFunction>(BPy_GeometrySet_get_grease_pencil),
-     METH_VARARGS | METH_KEYWORDS,
-     bpy_geometry_set_get_grease_pencil_doc},
-    {"pointcloud",
-     reinterpret_cast<PyCFunction>(BPy_GeometrySet_get_pointcloud),
-     METH_VARARGS | METH_KEYWORDS,
-     bpy_geometry_set_get_pointcloud_doc},
     {"instances_pointcloud",
      reinterpret_cast<PyCFunction>(BPy_GeometrySet_get_instances_pointcloud),
      METH_NOARGS,
