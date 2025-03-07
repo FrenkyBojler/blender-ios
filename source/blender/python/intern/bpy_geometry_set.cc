@@ -45,6 +45,9 @@ static BPy_GeometrySet *python_object_from_geometry_set(GeometrySet geometry = {
   }
   new (&self->geometry) GeometrySet(std::move(geometry));
   self->instances_pointcloud = nullptr;
+  /* We can't safely give access to shared geometries via the Python API currently, because
+   * constness can't be enforced. Therefore, ensure that this Python object has its own copy of
+   * each data-block. Note that attributes may still be shared with other data in Blender. */
   self->geometry.ensure_no_shared_components();
   return self;
 }
