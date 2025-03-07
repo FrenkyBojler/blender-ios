@@ -156,6 +156,39 @@ struct Tetrahedron {
     corner_verts[corner_index++] = v1;
     corner_verts[corner_index++] = v4;
   }
+  
+  /* Get vertices for a specific face of the tetrahedron */
+  void get_face_verts(int face_index, int &v_a, int &v_b, int &v_c) const
+  {
+    switch (face_index) {
+      case 0: // Face 1: triangle v1-v3-v2
+        v_a = v1;
+        v_b = v3;
+        v_c = v2;
+        break;
+      case 1: // Face 2: triangle v1-v2-v4
+        v_a = v1;
+        v_b = v2;
+        v_c = v4;
+        break;
+      case 2: // Face 3: triangle v2-v3-v4
+        v_a = v2;
+        v_b = v3;
+        v_c = v4;
+        break;
+      case 3: // Face 4: triangle v3-v1-v4
+        v_a = v3;
+        v_b = v1;
+        v_c = v4;
+        break;
+      default:
+        // Default case for safety
+        v_a = v1;
+        v_b = v2;
+        v_c = v3;
+        break;
+    }
+  }
 };
 
 /* Structure for triangular face used in tetrahedron construction */
@@ -318,13 +351,12 @@ static int find_interior_point(const Mesh *mesh, Vector<float3> &vertices)
 }
 
 /* 
- * Generate a tetrahedral mesh using a Delaunay-inspired approach.
- * Uses Blender's native data structures and BVH functions for efficiency.
+ * Amélioration de la génération des tétraèdres avec une meilleure préservation de surface
  */
 static void generate_tetrahedralization(const Mesh *mesh,
                                       float base_size,
                                       float max_tet_scale,
-                                      [[maybe_unused]] float min_triangle_scale,
+                                      float min_triangle_scale,
                                       int local_scaling_method,
                                       const std::string &scale_attribute,
                                       float local_feature_scale,
@@ -459,144 +491,294 @@ static void generate_tetrahedralization(const Mesh *mesh,
   int num_additional_points = static_cast<int>(mesh_volume / (base_size * base_size * base_size) * 0.1f);
   num_additional_points = std::min(std::max(num_additional_points, 10), 100); // Limit between 10 and 100
   
+  // Améliorer la génération des points intérieurs
   for (int i = 0; i < num_additional_points; i++) {
-    // Create new point by combining existing vertices with random offset
-    float3 new_point(0, 0, 0);
+    // Générer un point aléatoire dans la boîte englobante
+    float3 new_point;
+    new_point.x = min.x + rng.get_float() * (max.x - min.x);
+    new_point.y = min.y + rng.get_float() * (max.y - min.y);
+    new_point.z = min.z + rng.get_float() * (max.z - min.z);
     
-    // Sample random vertices
-    int num_samples = std::min(5, static_cast<int>(positions.size()));
-    float total_weight = 0.0f;
+    // Vérifier si le point est suffisamment loin des surfaces existantes
+    // Utiliser une méthode simple de vérification de distance
+    bool is_valid = true;
+    float min_dist_sq = FLT_MAX;
     
-    for (int j = 0; j < num_samples; j++) {
-      int random_idx = rng.get_int() % positions.size();
-      float weight = vertex_scales[random_idx];
-      total_weight += weight;
-      new_point += positions[random_idx] * weight;
+    // Vérifier la distance par rapport aux sommets existants
+    for (const float3 &vert : out_vertices) {
+      float dist_sq = len_squared_v3v3(new_point, vert);
+      min_dist_sq = std::min(min_dist_sq, dist_sq);
+      
+      // Rejeter les points trop proches des sommets existants
+      if (dist_sq < square_f(base_size * min_triangle_scale)) {
+        is_valid = false;
+        break;
+      }
     }
     
-    if (total_weight > 0.0f) {
-      new_point /= total_weight;
-    }
-    else {
-      // Fallback if all weights are zero
-      new_point = positions.is_empty() ? float3(0, 0, 0) : positions[0];
-    }
-    
-    // Add random offset proportional to base size
-    new_point += float3(
-        (rng.get_float() - 0.5f) * 2.0f,
-        (rng.get_float() - 0.5f) * 2.0f,
-        (rng.get_float() - 0.5f) * 2.0f) * base_size * 0.2f;
-    
-    // Add new point
-    const int new_point_index = out_vertices.size();
-    out_vertices.append(new_point);
-    
-    // Connect to surface triangles
-    int num_connections = std::min(10, static_cast<int>(surface_triangles.size()));
-    for (int j = 0; j < num_connections; j++) {
-      int face_idx = rng.get_int() % surface_triangles.size();
-      const TriFace &face = surface_triangles[face_idx];
+    if (is_valid && min_dist_sq > square_f(base_size * min_triangle_scale)) {
+      // Créer un nouveau sommet
+      const int new_point_index = out_vertices.size();
+      out_vertices.append(new_point);
       
-      // Check for coincident vertices
-      float3 v1 = out_vertices[face.v1];
-      float3 v2 = out_vertices[face.v2];
-      float3 v3 = out_vertices[face.v3];
-      float3 v4 = out_vertices[new_point_index];
-      
-      // Calculate triangle area
-      float3 normal = math::cross(v2 - v1, v3 - v1);
-      float area = len_v3(normal) * 0.5f;
-      
-      // Calculate potential tetrahedron volume
-      float volume = volume_tetrahedron_signed_v3(v1, v2, v3, v4);
-      
-      // Skip small areas and volumes
-      if (area > 1e-6f && fabsf(volume) > 1e-6f) {
-        Tetrahedron tet(face.v1, face.v2, face.v3, new_point_index);
-        // Ensure positive volume orientation
-        tet.ensure_positive_volume(out_vertices);
+      // Créer de nouveaux tétraèdres avec ce sommet
+      // Méthode simplifiée: connecter le point aux tétraèdres existants
+      // qui sont suffisamment proches
+      for (const Tetrahedron &existing_tet : out_tetrahedra) {
+        // Calculer le centre du tétraèdre existant
+        float3 tet_center = (out_vertices[existing_tet.v1] + 
+                           out_vertices[existing_tet.v2] + 
+                           out_vertices[existing_tet.v3] + 
+                           out_vertices[existing_tet.v4]) / 4.0f;
         
-        // Final volume validation
-        if (tet.has_positive_volume(out_vertices)) {
-          out_tetrahedra.append(tet);
+        // Si le nouveau point est assez proche, créer de nouveaux tétraèdres
+        if (len_squared_v3v3(new_point, tet_center) < square_f(base_size * max_tet_scale)) {
+          // Créer quatre nouveaux tétraèdres en remplaçant un sommet à la fois
+          Tetrahedron new_tet1(new_point_index, existing_tet.v2, existing_tet.v3, existing_tet.v4);
+          Tetrahedron new_tet2(existing_tet.v1, new_point_index, existing_tet.v3, existing_tet.v4);
+          Tetrahedron new_tet3(existing_tet.v1, existing_tet.v2, new_point_index, existing_tet.v4);
+          Tetrahedron new_tet4(existing_tet.v1, existing_tet.v2, existing_tet.v3, new_point_index);
+          
+          // Assurer une orientation correcte
+          new_tet1.ensure_positive_volume(out_vertices);
+          new_tet2.ensure_positive_volume(out_vertices);
+          new_tet3.ensure_positive_volume(out_vertices);
+          new_tet4.ensure_positive_volume(out_vertices);
+          
+          // Ajouter les nouveaux tétraèdres s'ils ont un volume positif
+          if (new_tet1.has_positive_volume(out_vertices)) out_tetrahedra.append(new_tet1);
+          if (new_tet2.has_positive_volume(out_vertices)) out_tetrahedra.append(new_tet2);
+          if (new_tet3.has_positive_volume(out_vertices)) out_tetrahedra.append(new_tet3);
+          if (new_tet4.has_positive_volume(out_vertices)) out_tetrahedra.append(new_tet4);
         }
       }
     }
   }
-  
-  // Filter tetrahedra based on quality metrics
+
+  // Simplification: filtrer les tétraèdres par qualité
   Vector<Tetrahedron> filtered_tetrahedra;
   for (const Tetrahedron &tet : out_tetrahedra) {
-    // Get tetrahedron vertices
-    const float3 &v1 = out_vertices[tet.v1];
-    const float3 &v2 = out_vertices[tet.v2];
-    const float3 &v3 = out_vertices[tet.v3];
-    const float3 &v4 = out_vertices[tet.v4];
+    // Calculer le volume du tétraèdre
+    float volume = fabsf(tet.volume(out_vertices));
     
-    // Calculate volume
-    float volume = volume_tetrahedron_signed_v3(v1, v2, v3, v4);
+    // Calculer la longueur moyenne des arêtes
+    const float3 &p1 = out_vertices[tet.v1];
+    const float3 &p2 = out_vertices[tet.v2];
+    const float3 &p3 = out_vertices[tet.v3];
+    const float3 &p4 = out_vertices[tet.v4];
     
-    // Calculate edge length metrics
-    float max_edge_length = 0.0f;
-    max_edge_length = std::max(max_edge_length, len_v3v3(v1, v2));
-    max_edge_length = std::max(max_edge_length, len_v3v3(v1, v3));
-    max_edge_length = std::max(max_edge_length, len_v3v3(v1, v4));
-    max_edge_length = std::max(max_edge_length, len_v3v3(v2, v3));
-    max_edge_length = std::max(max_edge_length, len_v3v3(v2, v4));
-    max_edge_length = std::max(max_edge_length, len_v3v3(v3, v4));
+    float edge_sum = len_v3v3(p1, p2) + len_v3v3(p1, p3) + len_v3v3(p1, p4) +
+                     len_v3v3(p2, p3) + len_v3v3(p2, p4) + len_v3v3(p3, p4);
+                     
+    float avg_edge = edge_sum / 6.0f;
     
-    // Calculate minimum edge length
-    float min_edge_length = max_edge_length;
-    min_edge_length = std::min(min_edge_length, len_v3v3(v1, v2));
-    min_edge_length = std::min(min_edge_length, len_v3v3(v1, v3));
-    min_edge_length = std::min(min_edge_length, len_v3v3(v1, v4));
-    min_edge_length = std::min(min_edge_length, len_v3v3(v2, v3));
-    min_edge_length = std::min(min_edge_length, len_v3v3(v2, v4));
-    min_edge_length = std::min(min_edge_length, len_v3v3(v3, v4));
+    // Qualité basée sur le rapport entre volume et cube de l'arête moyenne
+    float quality = volume / (avg_edge * avg_edge * avg_edge);
     
-    // Calculate quality thresholds
-    float min_volume_threshold = powf(max_edge_length, 3) * 0.001f;
-    float edge_ratio = (min_edge_length > 1e-6f) ? (max_edge_length / min_edge_length) : FLT_MAX;
+    // Conserver les tétraèdres de bonne qualité
+    if (quality > 0.01f && volume > 1e-6f) {
+      filtered_tetrahedra.append(tet);
+    }
+  }
+  
+  // Remplacer les tétraèdres par ceux filtrés
+  out_tetrahedra = filtered_tetrahedra;
+}
+
+/* Structure for storing tetrahedron normals */
+struct TetNormals {
+  float3 face_normals[4];  // Normales des 4 faces du tétraèdre
+  float3 edge_normals[6];  // Normales des 6 arêtes
+  float3 vertex_normals[4]; // Normales des 4 sommets
+};
+
+/* Calculate tetrahedron normals using Blender's API */
+static void calculate_tet_normals(const Span<float3> &positions, 
+                                const Tetrahedron &tet,
+                                TetNormals &normals) 
+{
+  // Calculate tetrahedron face normals
+  for (int i = 0; i < 4; i++) {
+    int v_a, v_b, v_c;
+    tet.get_face_verts(i, v_a, v_b, v_c);
     
-    // Calculate quality metric
-    float avg_edge_length = (len_v3v3(v1, v2) + len_v3v3(v1, v3) + len_v3v3(v1, v4) + 
-                            len_v3v3(v2, v3) + len_v3v3(v2, v4) + len_v3v3(v3, v4)) / 6.0f;
-    float quality = (avg_edge_length > 1e-6f) ? (volume / powf(avg_edge_length, 3)) : 0.0f;
+    // Get vertex positions
+    const float3 &a = positions[v_a];
+    const float3 &b = positions[v_b];
+    const float3 &c = positions[v_c];
     
-    // Apply quality filters
-    if (volume > min_volume_threshold && 
-        edge_ratio < 50.0f && 
-        quality > 0.001f && 
-        min_edge_length > 1e-5f) {
+    // Calculate triangle vectors
+    float3 side1 = b - a;
+    float3 side2 = c - a;
+    
+    // Calculate normal by cross product and normalize
+    normals.face_normals[i] = math::normalize(math::cross(side1, side2));
+  }
+
+  // Calculate vertex normals (average of adjacent face normals)
+  for (int i = 0; i < 4; i++) {
+    // Initialize to zero
+    normals.vertex_normals[i] = float3(0.0f, 0.0f, 0.0f);
+    int vertex_index;
+    
+    // Get vertex index
+    switch (i) {
+      case 0: vertex_index = tet.v1; break;
+      case 1: vertex_index = tet.v2; break;
+      case 2: vertex_index = tet.v3; break;
+      case 3: vertex_index = tet.v4; break;
+    }
+    
+    // Count faces containing this vertex and add their normals
+    int face_count = 0;
+    for (int j = 0; j < 4; j++) {
+      int v_a, v_b, v_c;
+      tet.get_face_verts(j, v_a, v_b, v_c);
       
-      // Check face areas
-      bool valid_faces = true;
-      float3 n1 = math::cross(v2 - v1, v3 - v1);
-      float3 n2 = math::cross(v2 - v1, v4 - v1);
-      float3 n3 = math::cross(v3 - v1, v4 - v1);
-      float3 n4 = math::cross(v3 - v2, v4 - v2);
-      
-      float area1 = len_v3(n1) * 0.5f;
-      float area2 = len_v3(n2) * 0.5f;
-      float area3 = len_v3(n3) * 0.5f;
-      float area4 = len_v3(n4) * 0.5f;
-      
-      // Minimum area threshold
-      float min_area_threshold = powf(min_edge_length, 2) * 0.01f;
-      if (area1 < min_area_threshold || area2 < min_area_threshold ||
-          area3 < min_area_threshold || area4 < min_area_threshold) {
-        valid_faces = false;
+      if (v_a == vertex_index || v_b == vertex_index || v_c == vertex_index) {
+        normals.vertex_normals[i] += normals.face_normals[j];
+        face_count++;
       }
+    }
+    
+    // Calculate average if necessary
+    if (face_count > 0) {
+      normals.vertex_normals[i] /= static_cast<float>(face_count);
+      normals.vertex_normals[i] = math::normalize(normals.vertex_normals[i]);
+    }
+  }
+  
+  // Calculate edge normals (for completion of structure)
+  int edge_index = 0;
+  
+  // Six arêtes dans un tétraèdre: (v1-v2), (v1-v3), (v1-v4), (v2-v3), (v2-v4), (v3-v4)
+  int edge_vertices[6][2] = {
+    {tet.v1, tet.v2}, {tet.v1, tet.v3}, {tet.v1, tet.v4},
+    {tet.v2, tet.v3}, {tet.v2, tet.v4}, {tet.v3, tet.v4}
+  };
+  
+  for (int i = 0; i < 6; i++) {
+    int v_a = edge_vertices[i][0];
+    int v_b = edge_vertices[i][1];
+    
+    // Direction de l'arête
+    float3 edge_dir = math::normalize(positions[v_b] - positions[v_a]);
+    
+    // Trouver les faces adjacentes à cette arête
+    int face_count = 0;
+    float3 accumulated_normal(0.0f, 0.0f, 0.0f);
+    
+    for (int j = 0; j < 4; j++) {
+      int f_a, f_b, f_c;
+      tet.get_face_verts(j, f_a, f_b, f_c);
       
-      if (valid_faces) {
-        filtered_tetrahedra.append(tet);
+      // Vérifier si l'arête appartient à cette face
+      if ((f_a == v_a && f_b == v_b) || (f_a == v_b && f_b == v_a) ||
+          (f_a == v_a && f_c == v_b) || (f_a == v_b && f_c == v_a) ||
+          (f_b == v_a && f_c == v_b) || (f_b == v_b && f_c == v_a)) {
+        accumulated_normal += normals.face_normals[j];
+        face_count++;
+      }
+    }
+    
+    // Moyenne des normales des faces adjacentes
+    if (face_count > 0) {
+      normals.edge_normals[i] = math::normalize(accumulated_normal / static_cast<float>(face_count));
+    }
+    else {
+      // Fallback
+      normals.edge_normals[i] = float3(0.0f, 1.0f, 0.0f);
+    }
+  }
+}
+
+/* Création des attributs de normales sur le mesh */
+static void create_normal_attributes(Mesh *mesh, 
+                                   const Vector<TetNormals> &tet_normals)
+{
+  if (!mesh || tet_normals.is_empty()) {
+    return;
+  }
+  
+  // Obtenir un accesseur pour les attributs du mesh
+  bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
+  
+  // Créer l'attribut pour les normales de faces
+  bke::SpanAttributeWriter<float3> face_normals = attributes.lookup_or_add_for_write_span<float3>(
+      "normal", bke::AttrDomain::Face);
+  
+  // Créer l'attribut pour les normales de sommets
+  bke::SpanAttributeWriter<float3> vert_normals = attributes.lookup_or_add_for_write_span<float3>(
+      "vertex_normal", bke::AttrDomain::Point);
+  
+  // On vérifie que le nombre de faces correspond bien au nombre attendu (4 faces par tétraèdre)
+  if (face_normals.span.size() != tet_normals.size() * 4) {
+    // Erreur: nombre de faces incorrect
+    face_normals.finish();
+    vert_normals.finish();
+    return;
+  }
+  
+  // Écrire les normales de faces
+  for (int i = 0; i < tet_normals.size(); i++) {
+    for (int j = 0; j < 4; j++) {
+      face_normals.span[i * 4 + j] = tet_normals[i].face_normals[j];
+    }
+  }
+  
+  // Agrégation des normales de sommets (moyenne pondérée)
+  Array<int> vert_counts(vert_normals.span.size(), 0);
+  
+  // D'abord, initialiser les normales de sommets à zéro
+  for (float3 &normal : vert_normals.span) {
+    normal = float3(0.0f, 0.0f, 0.0f);
+  }
+  
+  // Parcourir toutes les faces et accumuler les normales pour chaque sommet
+  const Span<int> corner_verts = mesh->corner_verts();
+  const OffsetIndices faces = mesh->faces();
+  
+  for (const int face_index : faces.index_range()) {
+    const int tet_index = face_index / 4;  // Déterminer le tétraèdre parent
+    const int face_in_tet = face_index % 4;  // Déterminer quelle face du tétraèdre
+    
+    if (tet_index >= tet_normals.size()) {
+      continue;  // Protection contre les erreurs d'indexation
+    }
+    
+    const IndexRange face = faces[face_index];
+    const float3 &face_normal = tet_normals[tet_index].face_normals[face_in_tet];
+    
+    // Pour chaque sommet de la face
+    for (const int corner : face) {
+      const int vert_index = corner_verts[corner];
+      
+      if (vert_index < vert_normals.span.size()) {
+        // Accumuler la normale de la face
+        vert_normals.span[vert_index] += face_normal;
+        vert_counts[vert_index]++;
       }
     }
   }
   
-  // Replace tetrahedra with filtered ones
-  out_tetrahedra = filtered_tetrahedra;
+  // Normaliser les normales de sommets
+  for (int i = 0; i < vert_normals.span.size(); i++) {
+    if (vert_counts[i] > 0) {
+      vert_normals.span[i] /= static_cast<float>(vert_counts[i]);
+      vert_normals.span[i] = math::normalize(vert_normals.span[i]);
+    }
+    else {
+      // Valeur par défaut pour les sommets sans face associée
+      vert_normals.span[i] = float3(0.0f, 0.0f, 1.0f);
+    }
+  }
+  
+  // Finaliser les attributs
+  face_normals.finish();
+  vert_normals.finish();
+  
+  // Marquer le mesh pour une mise à jour des normales
+  mesh->tag_positions_changed();
 }
 
 /* Create a mesh from tetrahedra using Blender's mesh creation API */
@@ -725,9 +907,21 @@ static Mesh *create_mesh_from_tetrahedra(const Vector<float3> &vertices,
   for (int i = 0; i < num_faces; i++) {
     tet_id.span[i] = i / 4;  // Integer division to get tetrahedron ID
   }
-  
   tet_id.finish();
+
+  // Calculer et stocker les normales pour chaque tétraèdre
+  Vector<TetNormals> tet_normals;
+  tet_normals.reserve(valid_tetrahedra.size());
   
+  for (const Tetrahedron &tet : valid_tetrahedra) {
+    TetNormals normals;
+    calculate_tet_normals(vertices, tet, normals);
+    tet_normals.append(normals);
+  }
+
+  // Créer les attributs de normales
+  create_normal_attributes(mesh, tet_normals);
+
   return mesh;
 }
 
