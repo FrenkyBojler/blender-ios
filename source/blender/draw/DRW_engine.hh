@@ -125,6 +125,9 @@ void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph);
 void DRW_render_context_enable(Render *render);
 void DRW_render_context_disable(Render *render);
 
+void DRW_submission_start();
+void DRW_submission_end();
+
 void DRW_gpu_context_create();
 void DRW_gpu_context_destroy();
 void DRW_gpu_context_enable();

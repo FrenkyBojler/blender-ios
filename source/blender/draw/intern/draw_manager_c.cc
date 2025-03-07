@@ -2867,6 +2867,16 @@ void DRW_gpu_context_destroy()
   }
 }
 
+void DRW_submission_start()
+{
+  BLI_ticket_mutex_lock(submission_mutex);
+}
+
+void DRW_submission_end()
+{
+  BLI_ticket_mutex_unlock(submission_mutex);
+}
+
 void DRW_gpu_context_enable_ex(bool /*restore*/)
 {
   if (system_gpu_context != nullptr) {

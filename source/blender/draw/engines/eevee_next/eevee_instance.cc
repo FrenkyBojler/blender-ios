@@ -738,20 +738,27 @@ void Instance::light_bake_irradiance(
     sampling.init(probe);
     sampling.step();
 
-    DebugScope debug_scope(debug_scope_irradiance_setup, "EEVEE.irradiance_setup");
+    {
+      /* Critical section. Potential GPUShader concurrent usage. */
+      DRW_submission_start();
 
-    capture_view.render_world();
+      DebugScope debug_scope(debug_scope_irradiance_setup, "EEVEE.irradiance_setup");
 
-    volume_probes.bake.surfels_create(probe);
+      capture_view.render_world();
 
-    if (volume_probes.bake.should_break()) {
-      return;
+      volume_probes.bake.surfels_create(probe);
+
+      if (volume_probes.bake.should_break()) {
+        return;
+      }
+
+      volume_probes.bake.surfels_lights_eval();
+
+      volume_probes.bake.clusters_build();
+      volume_probes.bake.irradiance_offset();
+
+      DRW_submission_end();
     }
-
-    volume_probes.bake.surfels_lights_eval();
-
-    volume_probes.bake.clusters_build();
-    volume_probes.bake.irradiance_offset();
   });
 
   if (volume_probes.bake.should_break()) {
@@ -768,10 +775,16 @@ void Instance::light_bake_irradiance(
       /* TODO(fclem): Could make the number of iteration depend on the computation time. */
       for (int i = 0; i < 16 && !sampling.finished(); i++) {
         sampling.step();
+        {
+          /* Critical section. Potential GPUShader concurrent usage. */
+          DRW_submission_start();
 
-        volume_probes.bake.raylists_build();
-        volume_probes.bake.propagate_light();
-        volume_probes.bake.irradiance_capture();
+          volume_probes.bake.raylists_build();
+          volume_probes.bake.propagate_light();
+          volume_probes.bake.irradiance_capture();
+
+          DRW_submission_end();
+        }
       }
 
       LightProbeGridCacheFrame *cache_frame;
