@@ -858,9 +858,6 @@ GPUPass *GPU_generate_pass(GPUMaterial *material,
                            void *thunk,
                            bool optimize_graph)
 {
-  // TODO: Remove.
-  deferred_compilation = false;
-
   gpu_node_graph_prune_unused(graph);
 
   /* If Optimize flag is passed in, we are generating an optimized
@@ -901,7 +898,7 @@ GPUPass *GPU_generate_pass(GPUMaterial *material,
   /* Make engine add its own code and implement the generated functions. */
   finalize_source_cb(thunk, material, &codegen.output);
 
-  // TODO: Finalize in ShaderCompiler.
+  // TODO: Finalize in ShaderCompiler?
   codegen.create_info->finalize();
   g_cache->add(engine, codegen.hash_get(), codegen.create_info, deferred_compilation);
   codegen.create_info = nullptr;
