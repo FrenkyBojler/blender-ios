@@ -287,7 +287,6 @@ int GPUComputeEvaluator::GetDispatchSize(int count) const
 
 void GPUComputeEvaluator::DispatchCompute(GPUShader *shader, int totalDispatchSize) const
 {
-  GPU_debug_capture_begin(__func__);
   const int dispatchSize = GetDispatchSize(totalDispatchSize);
   int dispatchRX = dispatchSize;
   int dispatchRY = 1u;
@@ -311,7 +310,6 @@ void GPUComputeEvaluator::DispatchCompute(GPUShader *shader, int totalDispatchSi
    * we presume it all fits. */
   assert(dispatchRY < GPU_max_work_group_count(1));
   GPU_compute_dispatch(shader, dispatchRX, dispatchRY, 1);
-  GPU_debug_capture_end();
 }
 
 bool GPUComputeEvaluator::EvalStencils(gpu::VertBuf *srcBuffer,
