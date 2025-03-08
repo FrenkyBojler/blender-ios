@@ -1456,7 +1456,7 @@ CurvesGeometry curves_copy_point_selection(const CurvesGeometry &curves,
           last_knot += src_knots[last_spans_left_knot + 1] - src_knots[last_spans_left_knot];
           new_knots.append(last_knot);
         });
-    dst_curves.nurbs_custom_knots_resize(new_knots.size());
+    dst_curves.nurbs_custom_knots_update_size();
     dst_curves.nurbs_custom_knots_for_write().copy_from(new_knots);
   }
 
@@ -1530,7 +1530,7 @@ CurvesGeometry curves_copy_curve_selection(const CurvesGeometry &curves,
 
     const int dst_knot_num = offset_indices::sum_group_sizes(src_knots_by_curve,
                                                              custom_knot_curves_to_copy);
-    dst_curves.nurbs_custom_knots_resize(dst_knot_num);
+    dst_curves.nurbs_custom_knots_update_size();
     array_utils::gather_group_to_group(src_knots_by_curve,
                                        dst_knots_by_curve,
                                        custom_knot_curves_to_copy,
