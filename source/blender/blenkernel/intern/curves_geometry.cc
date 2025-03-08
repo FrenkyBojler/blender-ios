@@ -545,7 +545,7 @@ IndexMask CurvesGeometry::nurbs_custom_knot_curves(IndexMaskMemory &memory) cons
 OffsetIndices<int> CurvesGeometry::nurbs_custom_knots_by_curve() const
 {
   const CurvesGeometryRuntime &runtime = *this->runtime;
-  if (this->curve_num == 0) {
+  if (this->is_empty()) {
     return {};
   }
   runtime.custom_knot_offsets_cache.ensure([&](Vector<int> &r_data) {
