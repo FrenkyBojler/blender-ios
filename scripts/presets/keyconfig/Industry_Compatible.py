@@ -27,7 +27,7 @@ def load():
     prefs = bpy.context.preferences
 
     kc = bpy.context.window_manager.keyconfigs.new(IDNAME)
-    params = industry_compatible.Params(is_alt_disabled=prefs.inputs.is_alt_disabled)
+    params = industry_compatible.Params(is_alt_unreachable=prefs.inputs.is_alt_unreachable)
     keyconfig_data = industry_compatible.generate_keymaps(params)
 
     if platform == "darwin":

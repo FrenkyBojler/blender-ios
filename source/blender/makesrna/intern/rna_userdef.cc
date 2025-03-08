@@ -7005,25 +7005,25 @@ static void rna_def_userdef_input(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(prop, 0, "rna_userdef_keyconfig_reload_update");
 
-  prop = RNA_def_property(srna, "is_ctrl_disabled", PROP_BOOLEAN, PROP_NONE);
+  prop = RNA_def_property(srna, "is_ctrl_unreachable", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_boolean_funcs(
       prop, "rna_UserDef_runtime_is_modifier_disabled_get<KM_CTRL>", nullptr);
   RNA_def_property_ui_text(prop, "Disabled CTRL", "CTRL modifier will be suppressed");
 
-  prop = RNA_def_property(srna, "is_shift_disabled", PROP_BOOLEAN, PROP_NONE);
+  prop = RNA_def_property(srna, "is_shift_unreachable", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_boolean_funcs(
       prop, "rna_UserDef_runtime_is_modifier_disabled_get<KM_SHIFT>", nullptr);
   RNA_def_property_ui_text(prop, "Disabled SHIFT", "SHIFT modifier will be suppressed");
 
-  prop = RNA_def_property(srna, "is_alt_disabled", PROP_BOOLEAN, PROP_NONE);
+  prop = RNA_def_property(srna, "is_alt_unreachable", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_boolean_funcs(
       prop, "rna_UserDef_runtime_is_modifier_disabled_get<KM_ALT>", nullptr);
   RNA_def_property_ui_text(prop, "Disabled ALT", "ALT modifier will be suppressed");
 
-  prop = RNA_def_property(srna, "is_oskey_disabled", PROP_BOOLEAN, PROP_NONE);
+  prop = RNA_def_property(srna, "is_oskey_unreachable", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_boolean_funcs(
       prop, "rna_UserDef_runtime_is_modifier_disabled_get<KM_OSKEY>", nullptr);

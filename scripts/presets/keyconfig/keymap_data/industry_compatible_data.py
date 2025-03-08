@@ -11,20 +11,20 @@ class Params:
         "select_mouse_value",
         "action_mouse",
         "tool_mouse",
-        "is_alt_disabled",
+        "is_alt_unreachable",
 
     )
 
     def __init__(
             self,
             *,
-            is_alt_disabled=False,
+            is_alt_unreachable=False,
     ):
         self.tool_mouse = 'LEFTMOUSE'
         self.select_mouse = 'LEFTMOUSE'
         self.select_mouse_value = 'CLICK'
         self.action_mouse = 'RIGHTMOUSE'
-        self.is_alt_disabled = is_alt_disabled
+        self.is_alt_unreachable = is_alt_unreachable
 
 
 # ------------------------------------------------------------------------------

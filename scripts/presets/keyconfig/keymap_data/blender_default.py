@@ -40,7 +40,7 @@ class Params:
         # - Click selects only the item at the cursor position.
         # See: #97032.
         "use_tweak_select_passthrough",
-        "is_alt_disabled",
+        "is_alt_unreachable",
 
         # User preferences:
         #
@@ -106,7 +106,7 @@ class Params:
             *,
             legacy=False,
             select_mouse='RIGHT',
-            is_alt_disabled=False,
+            is_alt_unreachable=False,
 
             # User preferences.
             spacebar_action='TOOL',
@@ -129,7 +129,7 @@ class Params:
     ):
         self.legacy = legacy
 
-        if is_alt_disabled:
+        if is_alt_unreachable:
             assert use_alt_tool_or_cursor is False
 
         if select_mouse == 'RIGHT':
@@ -179,7 +179,7 @@ class Params:
             else:
                 self.tool_modifier = {}
 
-        self.is_alt_disabled = is_alt_disabled
+        self.is_alt_unreachable = is_alt_unreachable
 
         # User preferences:
         self.spacebar_action = spacebar_action
@@ -1436,7 +1436,7 @@ def km_uv_editor(params):
     ])
 
     # Fallback for MMB emulation
-    if params.is_alt_disabled and params.select_mouse == 'LEFTMOUSE':
+    if params.is_alt_unreachable and params.select_mouse == 'LEFTMOUSE':
         items.extend([
             ("uv.select_loop", {"type": params.select_mouse, "value": 'DOUBLE_CLICK'}, None),
             ("uv.select_loop", {"type": params.select_mouse, "value": 'DOUBLE_CLICK', "alt": True},
@@ -5387,7 +5387,7 @@ def km_edit_mesh(params):
         *_template_items_context_menu("VIEW3D_MT_edit_mesh_context_menu", params.context_menu_event),
     ])
 
-    if params.is_alt_disabled and params.select_mouse == 'LEFTMOUSE':
+    if params.is_alt_unreachable and params.select_mouse == 'LEFTMOUSE':
         items.extend([
             ("mesh.loop_select", {"type": params.select_mouse, "value": 'DOUBLE_CLICK'}, None),
             ("mesh.loop_select", {"type": params.select_mouse, "value": 'DOUBLE_CLICK', "shift": True},

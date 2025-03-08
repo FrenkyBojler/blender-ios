@@ -288,7 +288,7 @@ class Prefs(bpy.types.KeyConfigPreferences):
             rowsub.prop(self, "use_alt_tool")
         else:
             rowsub.prop(self, "use_alt_cursor")
-        rowsub.active = not prefs.inputs.is_alt_disabled
+        rowsub.active = not prefs.inputs.is_alt_unreachable
 
         row = sub.row()
         row.prop(self, "use_select_all_toggle")
@@ -336,7 +336,7 @@ def load():
     keyconfig_data = blender_default.generate_keymaps(
         blender_default.Params(
             select_mouse=kc_prefs.select_mouse,
-            is_alt_disabled=prefs.inputs.is_alt_disabled,
+            is_alt_unreachable=prefs.inputs.is_alt_unreachable,
             spacebar_action=kc_prefs.spacebar_action,
             use_key_activate_tools=(kc_prefs.tool_key_mode == 'TOOL'),
             use_region_toggle_pie=(show_developer_ui and kc_prefs.use_region_toggle_pie),
@@ -356,7 +356,7 @@ def load():
                 (kc_prefs.rmb_action != 'FALLBACK_TOOL')
             ),
             use_alt_tool_or_cursor=(
-                not prefs.inputs.is_alt_disabled and
+                not prefs.inputs.is_alt_unreachable and
                 (kc_prefs.use_alt_tool if is_select_left else kc_prefs.use_alt_cursor)
             ),
             use_alt_click_leader=kc_prefs.use_alt_click_leader,

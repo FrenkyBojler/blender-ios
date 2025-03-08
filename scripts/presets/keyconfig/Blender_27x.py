@@ -83,7 +83,7 @@ def load():
     keyconfig_data = blender_default.generate_keymaps(
         blender_default.Params(
             select_mouse=kc_prefs.select_mouse,
-            is_alt_disabled=prefs.inputs.is_alt_disabled,
+            is_alt_unreachable=prefs.inputs.is_alt_unreachable,
             spacebar_action='SEARCH',
             use_select_all_toggle=True,
             use_gizmo_drag=False,

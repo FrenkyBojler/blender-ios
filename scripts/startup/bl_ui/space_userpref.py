@@ -1892,7 +1892,7 @@ class USERPREF_PT_input_mouse_emulation(InputPanel, CenterAlignMixIn, Panel):
         self.draw_single(flow.row(), inputs, 6, text=pgettext("UI_Events_KeyMaps", "Button6"))
         self.draw_single(flow.row(), inputs, 7, text=pgettext("UI_Events_KeyMaps", "Button7"))
 
-        if sys.platform[:3] == "win" and inputs.is_oskey_disabled:
+        if sys.platform[:3] == "win" and inputs.is_oskey_unreachable:
             layout.label(
                 text="Windows Start Menu will be displayed when the OSKey is pressed.",
                 icon='INFO'
