@@ -1,1 +1,2 @@
 Referenced by commit a15005dbef592394ac21193414b5f1097e72aa97, Fix: Build error after recent Grease Pencil commit
+Referenced by pull request #135522, Fix #134955: Grease Pencil: Connect edges when converting from mesh
