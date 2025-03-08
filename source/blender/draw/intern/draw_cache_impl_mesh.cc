@@ -1689,6 +1689,8 @@ void DRW_mesh_batch_cache_create_requested(
                            mesh,
                            cache,
                            cache.final,
+                           ibo_requests[int(BufferList::Final)],
+                           vbo_requests[int(BufferList::Final)],
                            is_editmode,
                            is_paint_mode,
                            ob.object_to_world(),

@@ -325,6 +325,8 @@ void mesh_buffer_cache_create_requested(const Scene &scene,
 
 void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,
                                                MeshBufferCache &mbc,
+                                               Span<IBOType> ibo_requests,
+                                               Span<VBOType> vbo_requests,
                                                DRWSubdivCache &subdiv_cache,
                                                MeshRenderData &mr);
 
