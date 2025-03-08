@@ -38,6 +38,11 @@ using blender::Span;
 /** \name Virtual Mesh Tangent Calculations (Single Layer)
  * \{ */
 
+/**
+ * Computes the tangents for a triangulation of N-gon mesh. Triangulation can be partial and
+ * reference a subset of the original mesh. Corner buffers referenced by `corner_corners` should be
+ * the original (N-gon) mesh corner data.
+ */
 struct BKEVirtualToTangent {
   uint GetNumFaces()
   {
@@ -76,12 +81,12 @@ struct BKEVirtualToTangent {
   }
 
   const uint num_faces;
-  const Span<int> corner_verts;        /* faces vertices */
-  const Span<int> corner_corners;      /* faces corners (to 'untesselated' source) */
-  const Span<float3> positions;        /* vertices */
-  const Span<float3> corner_normals;   /* loops' normals */
-  const Span<float2> corner_uvs;       /* texture coordinates */
-  MutableSpan<float3> tangents;        /* output tangents */
+  const Span<int> corner_verts;      /* faces vertices */
+  const Span<int> corner_corners;    /* faces corners (index to corner in 'untesselated' source) */
+  const Span<float3> positions;      /* vertices */
+  const Span<float3> corner_normals; /* loops' normals */
+  const Span<float2> corner_uvs;     /* texture coordinates */
+  MutableSpan<float3> tangents;      /* output tangents */
   MutableSpan<float> bitangent_orient; /* output bitangent orientation */
 };
 
