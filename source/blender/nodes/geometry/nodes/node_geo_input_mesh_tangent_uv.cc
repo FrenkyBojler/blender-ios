@@ -20,6 +20,7 @@ namespace blender::nodes::node_geo_input_mesh_tangent_uv_cc {
 
 /* Socket names. */
 const char INPUT_UV_COORDS[14] = "Source UV Map";
+const char INPUT_CORNER_NORMALS[8] = "Normals";
 const char OUTPUT_TANGENT[8] = "Tangent";
 const char OUTPUT_BITANGENT[10] = "Bitangent";
 
@@ -29,6 +30,12 @@ static void node_declare(NodeDeclarationBuilder &b)
       .hide_value()
       .supports_field()
       .description("Source UV map coordinates defined on the corner domain");
+  b.add_input<decl::Vector>(INPUT_CORNER_NORMALS)
+      .hide_value()
+      .supports_field()
+      .description(
+          "Corner domain normals for computing the tangent space. Optional argument defaulting to "
+          "the mesh defined normals.");
   b.add_output<decl::Vector>(OUTPUT_TANGENT)
       .field_source()
       .description("Tangent basis vectors defined on the corner domain");
@@ -43,6 +50,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void compute_mesh_corner_tangents_partial_face_domain(const Mesh &mesh,
                                                              const IndexMask &face_selection,
                                                              const Span<float2> uv_coords,
+                                                             const Span<float3> corner_normals,
                                                              Array<float3> &r_tangents,
                                                              Array<float> &r_bitangents)
 {
@@ -92,7 +100,7 @@ static void compute_mesh_corner_tangents_partial_face_domain(const Mesh &mesh,
                                                ptess_corner_verts,
                                                ptess_corner_corners,
                                                mesh.vert_positions(),
-                                               mesh.corner_normals(),
+                                               corner_normals,
                                                uv_coords,
                                                r_tangents.as_mutable_span(),
                                                r_bitangents.as_mutable_span());
@@ -101,6 +109,7 @@ static void compute_mesh_corner_tangents_partial_face_domain(const Mesh &mesh,
 static void compute_mesh_corner_tangents(const Mesh &mesh,
                                          const IndexMask &corner_mask,
                                          const Span<float2> uv_coords,
+                                         const Span<float3> corner_normals,
                                          Array<float3> &r_tangents,
                                          Array<float> &r_bitangents)
 {
@@ -117,17 +126,18 @@ static void compute_mesh_corner_tangents(const Mesh &mesh,
   IndexMask face_selection = IndexMask::from_bools(affected_faces, mask_mem);
 
   compute_mesh_corner_tangents_partial_face_domain(
-      mesh, face_selection, uv_coords, r_tangents, r_bitangents);
+      mesh, face_selection, uv_coords, corner_normals, r_tangents, r_bitangents);
 }
 
 static VArray<float3> construct_mesh_tangent_gvarray(const Mesh &mesh,
                                                      const IndexMask &corner_mask,
                                                      const Span<float2> uv_coords,
+                                                     const Span<float3> corner_normals,
                                                      const bool output_bitangent)
 {
   Array<float3> tangents;
   Array<float> bitangents;
-  compute_mesh_corner_tangents(mesh, corner_mask, uv_coords, tangents, bitangents);
+  compute_mesh_corner_tangents(mesh, corner_mask, uv_coords, corner_normals, tangents, bitangents);
 
   if (output_bitangent) {
     /* Reuse tangent buffer. */
@@ -146,12 +156,16 @@ static VArray<float3> construct_mesh_tangent_gvarray(const Mesh &mesh,
 class MeshUVTangentFieldInput final : public bke::MeshFieldInput {
  private:
   Field<float2> source_uv_coords_;
+  Field<float3> corner_normals_;
   bool output_bitangent_;
 
  public:
-  MeshUVTangentFieldInput(Field<float2> source_uv_field, bool output_bitangent)
+  MeshUVTangentFieldInput(Field<float2> source_uv_field,
+                          Field<float3> corner_normals,
+                          bool output_bitangent)
       : bke::MeshFieldInput(CPPType::get<float3>(), "UVMapTangent tangent field"),
         source_uv_coords_(source_uv_field),
+        corner_normals_(corner_normals),
         output_bitangent_(output_bitangent)
   {
     category_ = Category::Generated;
@@ -161,11 +175,16 @@ class MeshUVTangentFieldInput final : public bke::MeshFieldInput {
                                          AttrDomain domain,
                                          const IndexMask &mask) const
   {
+    if (domain != AttrDomain::Corner) {
+      return nullptr;
+    }
     const bke::MeshFieldContext corner_context{mesh, AttrDomain::Corner};
     fn::FieldEvaluator corner_evaluator{corner_context, mesh.corners_num};
     corner_evaluator.add(source_uv_coords_);
+    corner_evaluator.add(corner_normals_);
     corner_evaluator.evaluate();
     const VArraySpan<float2> uv_coords = corner_evaluator.get_evaluated<float2>(0);
+    VArraySpan<float3> corner_normals = corner_evaluator.get_evaluated<float3>(1);
 
     if (uv_coords.is_empty()) {
       return mesh.attributes().adapt_domain<float3>(
@@ -173,11 +192,11 @@ class MeshUVTangentFieldInput final : public bke::MeshFieldInput {
           AttrDomain::Corner,
           domain);
     }
-
-    if (domain == AttrDomain::Corner) {
-      return construct_mesh_tangent_gvarray(mesh, mask, uv_coords, output_bitangent_);
+    if (corner_normals.is_empty()) {
+      return construct_mesh_tangent_gvarray(
+          mesh, mask, uv_coords, mesh.corner_normals(), output_bitangent_);
     }
-    return nullptr;
+    return construct_mesh_tangent_gvarray(mesh, mask, uv_coords, corner_normals, output_bitangent_);
   }
 
   uint64_t hash() const override
@@ -195,7 +214,8 @@ class MeshUVTangentFieldInput final : public bke::MeshFieldInput {
     if (const MeshUVTangentFieldInput *tother = dynamic_cast<const MeshUVTangentFieldInput *>(
             &other))
     {
-      return tother->output_bitangent_ == this->output_bitangent_ && tother->source_uv_coords_ == this->source_uv_coords_;
+      return tother->output_bitangent_ == this->output_bitangent_ &&
+             tother->source_uv_coords_ == this->source_uv_coords_;
     }
     return false;
   }
@@ -207,11 +227,14 @@ static void node_geo_exec(GeoNodeExecParams params)
   const CPPType &float2_type = CPPType::get<float2>();
   Field<float2> source_uv_map = conversions.try_convert(
       params.extract_input<Field<float3>>(INPUT_UV_COORDS), float2_type);
+  Field<float3> corner_normals = params.extract_input<Field<float3>>(INPUT_CORNER_NORMALS);
 
-  Field<float3> tangent_field{std::make_shared<MeshUVTangentFieldInput>(source_uv_map, false)};
+  Field<float3> tangent_field{
+      std::make_shared<MeshUVTangentFieldInput>(source_uv_map, corner_normals, false)};
   params.set_output(OUTPUT_TANGENT, std::move(tangent_field));
 
-  Field<float3> bitangent_field{std::make_shared<MeshUVTangentFieldInput>(source_uv_map, true)};
+  Field<float3> bitangent_field{
+      std::make_shared<MeshUVTangentFieldInput>(source_uv_map, corner_normals, true)};
   params.set_output(OUTPUT_BITANGENT, std::move(bitangent_field));
 }
 
