@@ -1366,16 +1366,8 @@ static uiBlock *node_find_menu(bContext *C, ARegion *region, void *arg_optype)
   UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_SEARCH_MENU);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
-  but = uiDefSearchBut(block,
-                       search,
-                       0,
-                       ICON_VIEWZOOM,
-                       sizeof(search),
-                       0,
-                       0,
-                       UI_searchbox_size_x(),
-                       UI_UNIT_Y,
-                       "");
+  but = uiDefSearchBut(
+      block, search, 0, ICON_VIEWZOOM, sizeof(search), 0, 0, UI_searchbox_size_x(), UI_UNIT_Y, "");
   UI_but_func_search_set(
       but, nullptr, node_find_update_fn, optype, false, nullptr, node_find_exec_fn, nullptr);
   UI_but_flag_enable(but, UI_BUT_ACTIVATE_ON_INIT);
