@@ -2120,7 +2120,20 @@ static std::string node_socket_get_tooltip(const SpaceNode *snode,
     inspection_strings.append(std::move(*info));
   }
   if (socket.runtime->declaration) {
-    // switch (socket.runtime->declaration)
+    switch (socket.runtime->declaration->structure_type) {
+      case nodes::StructureType::Single:
+        inspection_strings.append("(Single Value)");
+        break;
+      case nodes::StructureType::Dynamic:
+        inspection_strings.append("(Dynamic Structure Type)");
+        break;
+      case nodes::StructureType::Field:
+        inspection_strings.append("(Field)");
+        break;
+      case nodes::StructureType::Grid:
+        inspection_strings.append("(Volume Grid)");
+        break;
+    }
   }
 
   std::stringstream output;
