@@ -58,21 +58,69 @@ namespace blender::draw {
 
 #define TRIS_PER_MAT_INDEX BUFFER_LEN
 
-static void mesh_batch_cache_discard_surface_batches(MeshBatchCache &cache);
 static void mesh_batch_cache_clear(MeshBatchCache &cache);
 
-static void mesh_batch_cache_discard_batch(MeshBatchCache &cache, const DRWBatchFlag batch_map)
+static void discard_buffers(MeshBatchCache &cache,
+                            const Span<VBOType> vbos,
+                            const Span<IBOType> ibos)
 {
-  for (int i = 0; i < MBC_BATCH_LEN; i++) {
-    DRWBatchFlag batch_requested = (DRWBatchFlag)(1u << i);
-    if (batch_map & batch_requested) {
-      GPU_BATCH_DISCARD_SAFE(((gpu::Batch **)&cache.batch)[i]);
-      cache.batch_ready &= ~batch_requested;
+  Set<const void *, 16> buffer_ptrs;
+  buffer_ptrs.reserve(vbos.size() + ibos.size());
+  FOREACH_MESH_BUFFER_CACHE (cache, mbc) {
+    for (const VBOType vbo : vbos) {
+      if (const auto &buffer = mbc->buff.vbos.lookup_default(vbo, nullptr)) {
+        buffer_ptrs.add(buffer.get());
+      }
+    }
+  }
+  FOREACH_MESH_BUFFER_CACHE (cache, mbc) {
+    for (const IBOType ibo : ibos) {
+      if (const auto &buffer = mbc->buff.ibos.lookup_default(ibo, nullptr)) {
+        buffer_ptrs.add(buffer.get());
+      }
     }
   }
 
-  if (batch_map & MBC_SURFACE_PER_MAT) {
-    mesh_batch_cache_discard_surface_batches(cache);
+  const auto batch_contains_data = [&](gpu::Batch &batch) {
+    if (buffer_ptrs.contains(batch.elem)) {
+      return true;
+    }
+    if (std::any_of(batch.verts, batch.verts + ARRAY_SIZE(batch.verts), [&](gpu::VertBuf *vbo) {
+          return vbo && buffer_ptrs.contains(vbo);
+        }))
+    {
+      return true;
+    }
+    return false;
+  };
+
+  for (const int i : IndexRange(MBC_BATCH_LEN)) {
+    gpu::Batch *batch = ((gpu::Batch **)&cache.batch)[i];
+    if (batch && batch_contains_data(*batch)) {
+      GPU_BATCH_DISCARD_SAFE(((gpu::Batch **)&cache.batch)[i]);
+      cache.batch_ready &= ~DRWBatchFlag(1u << i);
+    }
+  }
+
+  if (!cache.surface_per_mat.is_empty()) {
+    if (batch_contains_data(*cache.surface_per_mat.first())) {
+      /* The format for all `surface_per_mat` batches is the same, discard them all. */
+      for (const int i : cache.surface_per_mat.index_range()) {
+        GPU_BATCH_DISCARD_SAFE(cache.surface_per_mat[i]);
+      }
+      cache.batch_ready &= ~MBC_SURFACE;
+    }
+  }
+
+  for (const VBOType vbo : vbos) {
+    cache.final.buff.vbos.remove(vbo);
+    cache.cage.buff.vbos.remove(vbo);
+    cache.uv_cage.buff.vbos.remove(vbo);
+  }
+  for (const IBOType ibo : ibos) {
+    cache.final.buff.ibos.remove(ibo);
+    cache.cage.buff.ibos.remove(ibo);
+    cache.uv_cage.buff.ibos.remove(ibo);
   }
 }
 
@@ -499,62 +547,25 @@ static void mesh_batch_cache_request_surface_batches(MeshBatchCache &cache)
   }
 }
 
-/* Free batches with material-mapped corner_tris.
- * NOTE: The updating of the indices buffers (#tris_per_mat) is handled in the extractors.
- * No need to discard they here. */
-static void mesh_batch_cache_discard_surface_batches(MeshBatchCache &cache)
-{
-  GPU_BATCH_DISCARD_SAFE(cache.batch.surface);
-  for (int i = 0; i < cache.mat_len; i++) {
-    GPU_BATCH_DISCARD_SAFE(cache.surface_per_mat[i]);
-  }
-  cache.batch_ready &= ~MBC_SURFACE;
-}
-
 static void mesh_batch_cache_discard_shaded_tri(MeshBatchCache &cache)
 {
-  FOREACH_MESH_BUFFER_CACHE (cache, mbc) {
-    mbc->buff.vbos.remove(VBOType::UVs);
-    mbc->buff.vbos.remove(VBOType::Tangents);
-    mbc->buff.vbos.remove(VBOType::Orco);
-  }
-  // TODO
-  // DRWBatchFlag batch_map = BATCH_MAP(vbo.uv, vbo.tan, vbo.orco);
-  // mesh_batch_cache_discard_batch(cache, batch_map);
-  mesh_cd_layers_type_clear(&cache.cd_used);
+  discard_buffers(cache, {VBOType::UVs, VBOType::Tangents, VBOType::Orco}, {});
 }
 
 static void mesh_batch_cache_discard_uvedit(MeshBatchCache &cache)
 {
-  FOREACH_MESH_BUFFER_CACHE (cache, mbc) {
-    mbc->buff.vbos.remove(VBOType::EditUVStretchAngle);
-    mbc->buff.vbos.remove(VBOType::EditUVStretchArea);
-    mbc->buff.vbos.remove(VBOType::UVs);
-    mbc->buff.vbos.remove(VBOType::EditUVData);
-    mbc->buff.vbos.remove(VBOType::FaceDotUV);
-    mbc->buff.vbos.remove(VBOType::FaceDotEditUVData);
-    mbc->buff.ibos.remove(IBOType::EditUVTris);
-    mbc->buff.ibos.remove(IBOType::EditUVLines);
-    mbc->buff.ibos.remove(IBOType::EditUVPoints);
-    mbc->buff.ibos.remove(IBOType::EditUVFaceDots);
-  }
-  // TODO`
-  // DRWBatchFlag batch_map = BATCH_MAP(vbo.edituv_stretch_angle,
-  //                                    vbo.edituv_stretch_area,
-  //                                    vbo.uv,
-  //                                    vbo.edituv_data,
-  //                                    vbo.fdots_uv,
-  //                                    vbo.fdots_edituv_data,
-  //                                    ibo.edituv_tris,
-  //                                    ibo.edituv_lines,
-  //                                    ibo.edituv_points,
-  //                                    ibo.edituv_fdots);
-  // mesh_batch_cache_discard_batch(cache, batch_map);
+  discard_buffers(
+      cache,
+      {VBOType::EditUVStretchAngle,
+       VBOType::EditUVStretchArea,
+       VBOType::UVs,
+       VBOType::EditUVData,
+       VBOType::FaceDotUV,
+       VBOType::FaceDotEditUVData},
+      {IBOType::EditUVTris, IBOType::EditUVLines, IBOType::EditUVPoints, IBOType::EditUVFaceDots});
 
   cache.tot_area = 0.0f;
   cache.tot_uv_area = 0.0f;
-
-  cache.batch_ready &= ~MBC_EDITUV;
 
   /* We discarded the vbo.uv so we need to reset the cd_used flag. */
   cache.cd_used.uv = 0;
@@ -563,22 +574,10 @@ static void mesh_batch_cache_discard_uvedit(MeshBatchCache &cache)
 
 static void mesh_batch_cache_discard_uvedit_select(MeshBatchCache &cache)
 {
-  FOREACH_MESH_BUFFER_CACHE (cache, mbc) {
-    mbc->buff.vbos.remove(VBOType::EditUVData);
-    mbc->buff.vbos.remove(VBOType::FaceDotEditUVData);
-    mbc->buff.ibos.remove(IBOType::EditUVTris);
-    mbc->buff.ibos.remove(IBOType::EditUVLines);
-    mbc->buff.ibos.remove(IBOType::EditUVPoints);
-    mbc->buff.ibos.remove(IBOType::EditUVFaceDots);
-  }
-  // TODO
-  // DRWBatchFlag batch_map = BATCH_MAP(vbo.edituv_data,
-  //                                    vbo.fdots_edituv_data,
-  //                                    ibo.edituv_tris,
-  //                                    ibo.edituv_lines,
-  //                                    ibo.edituv_points,
-  //                                    ibo.edituv_fdots);
-  // mesh_batch_cache_discard_batch(cache, batch_map);
+  discard_buffers(
+      cache,
+      {VBOType::EditUVData, VBOType::FaceDotEditUVData},
+      {IBOType::EditUVTris, IBOType::EditUVLines, IBOType::EditUVPoints, IBOType::EditUVFaceDots});
 }
 
 void DRW_mesh_batch_cache_dirty_tag(Mesh *mesh, eMeshBatchDirtyMode mode)
@@ -589,13 +588,7 @@ void DRW_mesh_batch_cache_dirty_tag(Mesh *mesh, eMeshBatchDirtyMode mode)
   MeshBatchCache &cache = *static_cast<MeshBatchCache *>(mesh->runtime->batch_cache);
   switch (mode) {
     case BKE_MESH_BATCH_DIRTY_SELECT:
-      FOREACH_MESH_BUFFER_CACHE (cache, mbc) {
-        mbc->buff.vbos.remove(VBOType::EditData);
-        mbc->buff.vbos.remove(VBOType::FaceDotNormal);
-      }
-      // TODO
-      // batch_map = BATCH_MAP(vbo.edit_data, vbo.fdots_nor);
-      // mesh_batch_cache_discard_batch(cache, batch_map);
+      discard_buffers(cache, {VBOType::EditData, VBOType::FaceDotNormal}, {});
 
       /* Because visible UVs depends on edit mode selection, discard topology. */
       mesh_batch_cache_discard_uvedit_select(cache);
@@ -603,13 +596,7 @@ void DRW_mesh_batch_cache_dirty_tag(Mesh *mesh, eMeshBatchDirtyMode mode)
     case BKE_MESH_BATCH_DIRTY_SELECT_PAINT:
       /* Paint mode selection flag is packed inside the nor attribute.
        * Note that it can be slow if auto smooth is enabled. (see #63946) */
-      FOREACH_MESH_BUFFER_CACHE (cache, mbc) {
-        mbc->buff.ibos.remove(IBOType::LinesPaintMask);
-        mbc->buff.vbos.remove(VBOType::CornerNormal);
-      }
-      // TODO
-      // batch_map = BATCH_MAP(ibo.lines_paint_mask, vbo.pos, vbo.nor);
-      // mesh_batch_cache_discard_batch(cache, batch_map);
+      discard_buffers(cache, {VBOType::CornerNormal}, {IBOType::LinesPaintMask});
       break;
     case BKE_MESH_BATCH_DIRTY_ALL:
       cache.is_dirty = true;
@@ -622,13 +609,7 @@ void DRW_mesh_batch_cache_dirty_tag(Mesh *mesh, eMeshBatchDirtyMode mode)
       mesh_batch_cache_discard_uvedit(cache);
       break;
     case BKE_MESH_BATCH_DIRTY_UVEDIT_SELECT:
-      FOREACH_MESH_BUFFER_CACHE (cache, mbc) {
-        mbc->buff.vbos.remove(VBOType::EditUVData);
-        mbc->buff.vbos.remove(VBOType::FaceDotEditUVData);
-      }
-      // TODO
-      // batch_map = BATCH_MAP(vbo.edituv_data, vbo.fdots_edituv_data);
-      // mesh_batch_cache_discard_batch(cache, batch_map);
+      discard_buffers(cache, {VBOType::EditData, VBOType::FaceDotEditUVData}, {});
       break;
     default:
       BLI_assert(0);
@@ -1331,7 +1312,7 @@ void DRW_mesh_batch_cache_create_requested(
       if (cache.cd_used.uv != 0) {
         batch.vbos.append(VBOType::UVs);
       }
-      for (int i = 0; i < cache.attr_used.num_requests; i++) {
+      for (const int i : IndexRange(cache.attr_used.num_requests)) {
         batch.vbos.append(VBOType(int8_t(VBOType::Attr0) + i));
       }
       batches_to_create.append(std::move(batch));
@@ -1659,6 +1640,9 @@ void DRW_mesh_batch_cache_create_requested(
 
   if (batch_requested & MBC_SURFACE_PER_MAT) {
     ibo_requests[int(BufferList::Final)].add(IBOType::Tris);
+    for (const int i : IndexRange(cache.attr_used.num_requests)) {
+      vbo_requests[int(BufferList::Final)].add(VBOType(int8_t(VBOType::Attr0) + i));
+    }
     if (cache.cd_used.uv != 0) {
       vbo_requests[int(BufferList::Final)].add(VBOType::UVs);
     }
