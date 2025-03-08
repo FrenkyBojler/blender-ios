@@ -108,7 +108,7 @@ static void discard_buffers(MeshBatchCache &cache,
       for (const int i : cache.surface_per_mat.index_range()) {
         GPU_BATCH_DISCARD_SAFE(cache.surface_per_mat[i]);
       }
-      cache.batch_ready &= ~MBC_SURFACE;
+      cache.batch_ready &= ~(MBC_SURFACE | MBC_SURFACE_PER_MAT);
     }
   }
 
@@ -1155,7 +1155,7 @@ void DRW_mesh_batch_cache_create_requested(
   }
 
   if (batch_requested &
-      (MBC_SURFACE | MBC_WIRE_LOOPS_UVS | MBC_EDITUV_FACES_STRETCH_AREA |
+      (MBC_SURFACE | MBC_SURFACE_PER_MAT | MBC_WIRE_LOOPS_UVS | MBC_EDITUV_FACES_STRETCH_AREA |
        MBC_EDITUV_FACES_STRETCH_ANGLE | MBC_EDITUV_FACES | MBC_EDITUV_EDGES | MBC_EDITUV_VERTS))
   {
     /* Modifiers will only generate an orco layer if the mesh is deformed. */
@@ -1204,7 +1204,7 @@ void DRW_mesh_batch_cache_create_requested(
         GPU_BATCH_CLEAR_SAFE(cache.surface_per_mat[i]);
       }
       GPU_BATCH_CLEAR_SAFE(cache.batch.surface);
-      cache.batch_ready &= ~(MBC_SURFACE);
+      cache.batch_ready &= ~(MBC_SURFACE | MBC_SURFACE_PER_MAT);
 
       mesh_cd_layers_type_merge(&cache.cd_used, cache.cd_needed);
       drw_attributes_merge(&cache.attr_used, &cache.attr_needed, mesh.runtime->render_mutex);
@@ -1637,6 +1637,8 @@ void DRW_mesh_batch_cache_create_requested(
 
   if (batches_to_create & MBC_SURFACE_PER_MAT) {
     ibo_requests[int(BufferList::Final)].add(IBOType::Tris);
+    vbo_requests[int(BufferList::Final)].add(VBOType::CornerNormal);
+    vbo_requests[int(BufferList::Final)].add(VBOType::Position);
     for (const int i : IndexRange(cache.attr_used.num_requests)) {
       vbo_requests[int(BufferList::Final)].add(VBOType(int8_t(VBOType::Attr0) + i));
     }
