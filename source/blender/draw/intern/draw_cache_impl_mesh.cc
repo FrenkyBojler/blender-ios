@@ -540,7 +540,7 @@ static void mesh_batch_cache_check_vertex_group(MeshBatchCache &cache,
 
 static void mesh_batch_cache_request_surface_batches(MeshBatchCache &cache)
 {
-  mesh_batch_cache_add_request(cache, MBC_SURFACE);
+  mesh_batch_cache_add_request(cache, MBC_SURFACE | MBC_SURFACE_PER_MAT);
   DRW_batch_request(&cache.batch.surface);
   for (int i = 0; i < cache.mat_len; i++) {
     DRW_batch_request(&cache.surface_per_mat[i]);
@@ -1243,9 +1243,6 @@ void DRW_mesh_batch_cache_create_requested(
 
   /* Second chance to early out */
   if ((batch_requested & ~cache.batch_ready) == 0) {
-#ifndef NDEBUG
-    drw_mesh_batch_cache_check_available(task_graph, mesh);
-#endif
     return;
   }
 
@@ -1417,7 +1414,7 @@ void DRW_mesh_batch_cache_create_requested(
     }
     if (batch_requested & MBC_EDIT_VERTICES) {
       if (edit_mapping_valid) {
-        BatchCreateData batch{*cache.batch.edit_edges,
+        BatchCreateData batch{*cache.batch.edit_vertices,
                               GPU_PRIM_POINTS,
                               list,
                               IBOType::Points,
