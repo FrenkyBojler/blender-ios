@@ -486,6 +486,23 @@ float normalize_qt_qt(float r[4], const float q[4])
   return normalize_qt(r);
 }
 
+float normalize_qt_qt_precise(float r[4], const float q[4])
+{
+  double d[4] = {q[0], q[1], q[2], q[3]};
+  const float len = sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2] + d[3] * d[3]);
+
+  copy_qt_qt(r, q);
+  if (len != 0.0) {
+    mul_qt_fl(r, 1.0f / len);
+  }
+  else {
+    r[1] = 1.0f;
+    r[0] = r[2] = r[3] = 0.0f;
+  }
+
+  return len;
+}
+
 void rotation_between_vecs_to_mat3(float m[3][3], const float v1[3], const float v2[3])
 {
   float axis[3];

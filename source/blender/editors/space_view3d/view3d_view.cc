@@ -385,6 +385,17 @@ static void obmat_to_viewmat(RegionView3D *rv3d, Object *ob)
   mat4_normalized_to_quat(rv3d->viewquat, rv3d->viewmat);
 }
 
+static void round_mat4_epsilon(float m[4][4], float epsilon)
+{
+  for (int i = 0; i < 4; ++i) {
+    for (int j = 0; j < 4; ++j) {
+      if (fabsf(m[i][j]) < epsilon) {
+        m[i][j] = 0.0f;
+      }
+    }
+  }
+}
+
 void view3d_viewmatrix_set(const Depsgraph *depsgraph,
                            const Scene *scene,
                            const View3D *v3d,
@@ -410,6 +421,8 @@ void view3d_viewmatrix_set(const Depsgraph *depsgraph,
     }
 
     quat_to_mat4(rv3d->viewmat, rv3d->viewquat);
+    /* Snap values close to zero to exactly zero, so that views along an axis are precise. */
+    round_mat4_epsilon(rv3d->viewmat, 5e-8f);
     if (rv3d->persp == RV3D_PERSP) {
       rv3d->viewmat[3][2] -= rv3d->dist;
     }
