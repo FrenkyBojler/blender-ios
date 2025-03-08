@@ -81,8 +81,6 @@ struct SocketStatus {
 static void initialize_usages_from_socket_declarations(const bNodeTree &tree,
                                                        MutableSpan<SocketStatus> socket_usages)
 {
-  // TODO: There needs to be a difference between NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO and
-  // NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC
   for (const bNodeSocket *socket : tree.all_sockets()) {
     const nodes::SocketDeclaration *declaration = socket->runtime->declaration;
     if (!socket->runtime->declaration) {
@@ -156,11 +154,11 @@ enum class StateSyncResult : int8_t {
 ENUM_OPERATORS(StateSyncResult, StateSyncResult::CHANGED_B)
 
 /**
- * Compare both field states and select the most compatible.
- * Afterwards both field states will be the same.
- * \return StateSyncResult flags indicating which field states have changed.
+ * Compare both states and select the most compatible.
+ * Afterwards both states will be the same.
+ * \return StateSyncResult flags indicating which states have changed.
  */
-static StateSyncResult sync_field_states(SocketStatus &a, SocketStatus &b)
+static StateSyncResult sync_states(SocketStatus &a, SocketStatus &b)
 {
   const bool is_single = a.is_single || b.is_single;
 
@@ -179,11 +177,11 @@ static StateSyncResult sync_field_states(SocketStatus &a, SocketStatus &b)
 }
 
 /**
- * Compare field states of simulation nodes sockets and select the most compatible.
- * Afterwards all field states will be the same.
- * \return StateSyncResult flags indicating which field states have changed.
+ * Compare states of simulation nodes sockets and select the most compatible.
+ * Afterwards all states will be the same.
+ * \return StateSyncResult flags indicating which states have changed.
  */
-static StateSyncResult simulation_nodes_field_state_sync(
+static StateSyncResult simulation_nodes_state_sync(
     const bNode &input_node,
     const bNode &output_node,
     const MutableSpan<SocketStatus> state_by_socket_id)
@@ -195,14 +193,14 @@ static StateSyncResult simulation_nodes_field_state_sync(
     const bNodeSocket &output_socket = output_node.output_socket(i);
     SocketStatus &input_state = state_by_socket_id[input_socket.index_in_tree()];
     SocketStatus &output_state = state_by_socket_id[output_socket.index_in_tree()];
-    res |= sync_field_states(input_state, output_state);
+    res |= sync_states(input_state, output_state);
   }
   return res;
 }
 
-static StateSyncResult repeat_field_state_sync(const bNode &input_node,
-                                               const bNode &output_node,
-                                               const MutableSpan<SocketStatus> state_by_socket_id)
+static StateSyncResult repeat_state_sync(const bNode &input_node,
+                                         const bNode &output_node,
+                                         const MutableSpan<SocketStatus> state_by_socket_id)
 {
   StateSyncResult res = StateSyncResult::NONE;
   const auto &storage = *static_cast<const NodeGeometryRepeatOutput *>(output_node.storage);
@@ -211,7 +209,7 @@ static StateSyncResult repeat_field_state_sync(const bNode &input_node,
     const bNodeSocket &output_socket = output_node.output_socket(i);
     SocketStatus &input_state = state_by_socket_id[input_socket.index_in_tree()];
     SocketStatus &output_state = state_by_socket_id[output_socket.index_in_tree()];
-    res |= sync_field_states(input_state, output_state);
+    res |= sync_states(input_state, output_state);
   }
   return res;
 }
@@ -227,7 +225,7 @@ static bool propagate_special_data_requirements(const bNodeTree &tree,
     case GEO_NODE_SIMULATION_INPUT: {
       const auto &data = *static_cast<const NodeGeometrySimulationInput *>(node.storage);
       if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
-        const StateSyncResult sync_result = simulation_nodes_field_state_sync(
+        const StateSyncResult sync_result = simulation_nodes_state_sync(
             node, *output_node, state_by_socket_id);
         if (bool(sync_result & StateSyncResult::CHANGED_B)) {
           need_update = true;
@@ -239,7 +237,7 @@ static bool propagate_special_data_requirements(const bNodeTree &tree,
       for (const bNode *input_node : tree.nodes_by_type("GeometryNodeSimulationInput")) {
         const auto &data = *static_cast<const NodeGeometrySimulationInput *>(input_node->storage);
         if (node.identifier == data.output_node_id) {
-          const StateSyncResult sync_result = simulation_nodes_field_state_sync(
+          const StateSyncResult sync_result = simulation_nodes_state_sync(
               *input_node, node, state_by_socket_id);
           if (bool(sync_result & StateSyncResult::CHANGED_A)) {
             need_update = true;
@@ -251,7 +249,7 @@ static bool propagate_special_data_requirements(const bNodeTree &tree,
     case GEO_NODE_REPEAT_INPUT: {
       const auto &data = *static_cast<const NodeGeometryRepeatInput *>(node.storage);
       if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
-        const StateSyncResult sync_result = repeat_field_state_sync(
+        const StateSyncResult sync_result = repeat_state_sync(
             node, *output_node, state_by_socket_id);
         if (bool(sync_result & StateSyncResult::CHANGED_B)) {
           need_update = true;
@@ -263,7 +261,7 @@ static bool propagate_special_data_requirements(const bNodeTree &tree,
       for (const bNode *input_node : tree.nodes_by_type("GeometryNodeRepeatInput")) {
         const auto &data = *static_cast<const NodeGeometryRepeatInput *>(input_node->storage);
         if (node.identifier == data.output_node_id) {
-          const StateSyncResult sync_result = repeat_field_state_sync(
+          const StateSyncResult sync_result = repeat_state_sync(
               *input_node, node, state_by_socket_id);
           if (bool(sync_result & StateSyncResult::CHANGED_A)) {
             need_update = true;
@@ -405,10 +403,6 @@ static void propagate_left_to_right(const bNodeTree &tree,
   }
 }
 
-/**
- * Check what the group output socket depends on. Potentially traverses the node tree
- * to figure out if it is always a field or if it depends on any group inputs.
- */
 static Vector<int> find_dynamic_output_linked_inputs(
     const bNodeSocket &group_output, const Span<nodes::StructureTypeInterface> interface_by_node)
 {
@@ -464,7 +458,6 @@ static void store_group_output_structure_types(
   const Span<const bNodeTreeInterfaceSocket *> interface_outputs = tree.interface_outputs();
   const Span<const bNodeSocket *> sockets = group_output_node->input_sockets().drop_back(1);
   for (const int i : sockets.index_range()) {
-    // TODO: I'm not understanding NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO properly here.
     if (!ELEM(interface_outputs[i]->structure_type,
               NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO,
               NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC))
