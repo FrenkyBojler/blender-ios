@@ -110,6 +110,28 @@ def draw_km(display_keymaps, kc, km, children, layout, level):
 
 def draw_kmi(display_keymaps, kc, km, kmi, layout, level):
     map_type = kmi.map_type
+    inputs = bpy.context.preferences.inputs
+
+    if kmi.any:
+        is_unreachable = (inputs.is_ctrl_unreachable
+                          and inputs.is_shift_unreachable
+                          and inputs.is_alt_unreachable
+                          and inputs.is_oskey_unreachable)
+    else:
+        is_unreachable = ((kmi.ctrl_ui and inputs.is_ctrl_unreachable)
+                          or (kmi.shift_ui and inputs.is_shift_unreachable)
+                          or (kmi.alt_ui and inputs.is_alt_unreachable)
+                          or (kmi.oskey_ui and inputs.is_oskey_unreachable))
+    if not is_unreachable and kmi.key_modifier != 'NONE':
+        for i in range(2, 8):
+            if kmi.key_modifier == getattr(inputs, f"mouse_emulate_button_type_{i}"):
+                is_unreachable = True
+                break
+    if not is_unreachable and map_type == 'KEYBOARD' and kmi.type != 'NONE':
+        for i in range(2, 8):
+            if kmi.type == getattr(inputs, f"mouse_emulate_button_type_{i}"):
+                is_unreachable = True
+                break
 
     col = _indented_layout(layout, level)
 
@@ -118,6 +140,8 @@ def draw_kmi(display_keymaps, kc, km, kmi, layout, level):
         box = col.box()
     else:
         box = col.column()
+
+    box.active = not is_unreachable
 
     split = box.split()
 
