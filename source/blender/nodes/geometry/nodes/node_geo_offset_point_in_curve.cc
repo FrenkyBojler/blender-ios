@@ -75,6 +75,7 @@ class ControlPointNeighborFieldInput final : public bke::GeometryFieldInput {
                               math::mod_periodic<int>(point_i, curve_points.size());
         return;
       }
+      output[i_selection] = std::clamp(shifted_point, 0, curves.points_num() - 1);
     });
 
     return VArray<int>::ForContainer(std::move(output));
