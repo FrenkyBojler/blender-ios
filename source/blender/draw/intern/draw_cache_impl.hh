@@ -9,6 +9,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 
 #include "BLI_span.hh"
 
@@ -270,7 +271,8 @@ blender::gpu::Batch *DRW_mesh_batch_cache_get_edit_mesh_analysis(Mesh &mesh);
 /** \name For Direct Data Access
  * \{ */
 
-gpu::VertBuf *DRW_mesh_batch_cache_pos_vertbuf_get(Mesh &mesh);
+/** Function must be called after #DRW_mesh_batch_cache_create_requested. */
+std::function<gpu::VertBuf *()> DRW_mesh_batch_cache_pos_vertbuf_get(Mesh &mesh);
 
 /* Edit mesh bit-flags (is this the right place?). */
 enum {

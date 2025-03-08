@@ -903,16 +903,12 @@ gpu::Batch *DRW_mesh_batch_cache_get_surface_viewer_attribute(Mesh &mesh)
 /** \name Edit Mode API
  * \{ */
 
-gpu::VertBuf *DRW_mesh_batch_cache_pos_vertbuf_get(Mesh &mesh)
+std::function<gpu::VertBuf *()> DRW_mesh_batch_cache_pos_vertbuf_get(Mesh &mesh)
 {
   MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
   /* Request surface to trigger the vbo filling. Otherwise it may do nothing. */
   mesh_batch_cache_request_surface_batches(cache);
-
-  // TODO
-  // DRW_vbo_request(nullptr, &cache.final.buff.vbo.pos);
-  // return cache.final.buff.vbo.pos;
-  return nullptr;
+  return [&cache]() { return cache.final.buff.vbos.lookup(VBOType::Position).get(); };
 }
 
 /** \} */

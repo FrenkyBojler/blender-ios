@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <functional>
+
 #include "BLI_math_matrix_types.hh"
 #include "BLI_span.hh"
 
@@ -49,8 +51,9 @@ blender::gpu::Batch *DRW_cache_object_face_wireframe_get(const Scene *scene, Obj
 
 /**
  * Returns the vertbuf used by shaded surface batch.
+ * Function must be called after #DRW_mesh_batch_cache_create_requested.
  */
-blender::gpu::VertBuf *DRW_cache_object_pos_vertbuf_get(Object *ob);
+std::function<blender::gpu::VertBuf *()> DRW_cache_object_pos_vertbuf_get(Object *ob);
 
 /* Meshes */
 

@@ -13,6 +13,8 @@
 
 #pragma once
 
+#include <functional>
+
 #include "BLI_map.hh"
 
 #include "eevee_shader_shared.hh"
@@ -34,7 +36,7 @@ class VelocityModule {
   };
   struct VelocityGeometryData {
     /** VertBuf not yet ready to be copied to the #VelocityGeometryBuf. */
-    gpu::VertBuf *pos_buf = nullptr;
+    std::function<gpu::VertBuf *()> pos_buf;
     /* Offset in the #VelocityGeometryBuf to the start of the data. In vertex. */
     int ofs = 0;
     /* Length of the vertex buffer. In vertex. */
