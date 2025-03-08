@@ -124,6 +124,7 @@ bool BKE_image_save_options_init(ImageSaveOptions *opts,
     }
     else {
       BKE_image_format_from_imbuf(&opts->im_format, ibuf);
+      is_depth_set = (opts->im_format.depth != R_IMF_CHAN_DEPTH_8);
       if (ima->source == IMA_SRC_GENERATED &&
           !IMB_colormanagement_space_name_is_data(ima_colorspace))
       {

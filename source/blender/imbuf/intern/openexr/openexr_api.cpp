@@ -443,6 +443,35 @@ static void openexr_header_compression(Header *header, int compression, int qual
   }
 }
 
+static int openexr_header_get_compression(const Header *header)
+{
+  switch (header->compression()) {
+    case NO_COMPRESSION:
+      return R_IMF_EXR_CODEC_NONE;
+    case RLE_COMPRESSION:
+      return R_IMF_EXR_CODEC_RLE;
+    case ZIPS_COMPRESSION:
+      return R_IMF_EXR_CODEC_ZIPS;
+    case ZIP_COMPRESSION:
+      return R_IMF_EXR_CODEC_ZIP;
+    case PIZ_COMPRESSION:
+      return R_IMF_EXR_CODEC_PIZ;
+    case PXR24_COMPRESSION:
+      return R_IMF_EXR_CODEC_PXR24;
+    case B44_COMPRESSION:
+      return R_IMF_EXR_CODEC_B44;
+    case B44A_COMPRESSION:
+      return R_IMF_EXR_CODEC_B44A;
+    case DWAA_COMPRESSION:
+      return R_IMF_EXR_CODEC_DWAA;
+    case DWAB_COMPRESSION:
+      return R_IMF_EXR_CODEC_DWAB;
+    case NUM_COMPRESSION_METHODS:
+      return R_IMF_EXR_CODEC_NONE;
+  }
+  return R_IMF_EXR_CODEC_NONE;
+}
+
 static void openexr_header_metadata(Header *header, ImBuf *ibuf)
 {
   if (ibuf->metadata) {
@@ -2128,6 +2157,7 @@ ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, char colorspac
 
       ibuf = IMB_allocImBuf(width, height, is_alpha ? 32 : 24, 0);
       ibuf->flags |= exr_is_half_float(*file) ? IB_halffloat : 0;
+      ibuf->foptions.flag |= openexr_header_get_compression(&file->header(0));
 
       if (hasXDensity(file->header(0))) {
         /* Convert inches to meters. */
