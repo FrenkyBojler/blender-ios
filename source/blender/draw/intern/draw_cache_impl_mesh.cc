@@ -103,7 +103,7 @@ static void discard_buffers(MeshBatchCache &cache,
   }
 
   if (!cache.surface_per_mat.is_empty()) {
-    if (batch_contains_data(*cache.surface_per_mat.first())) {
+    if (cache.surface_per_mat.first() && batch_contains_data(*cache.surface_per_mat.first())) {
       /* The format for all `surface_per_mat` batches is the same, discard them all. */
       for (const int i : cache.surface_per_mat.index_range()) {
         GPU_BATCH_DISCARD_SAFE(cache.surface_per_mat[i]);

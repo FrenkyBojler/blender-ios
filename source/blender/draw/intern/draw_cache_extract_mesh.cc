@@ -141,8 +141,9 @@ void mesh_buffer_cache_create_requested(const Scene &scene,
   }
 
   if (attrs) {
-    for (int8_t i = int8_t(VBOType::Attr0); i <= int8_t(VBOType::Attr15); i++) {
-      if (gpu::VertBuf *vbo = vbos_to_create.lookup_default(VBOType(i), nullptr)) {
+    for (const int8_t i : IndexRange(GPU_MAX_ATTR)) {
+      const VBOType vbo_type = VBOType(int8_t(VBOType::Attr0) + i);
+      if (gpu::VertBuf *vbo = vbos_to_create.lookup_default(vbo_type, nullptr)) {
         extract_attribute(mr, cache.attr_used.requests[i], *vbo);
       }
     }
@@ -413,8 +414,9 @@ void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,
     extract_edituv_points_subdiv(mr, subdiv_cache, *ibo);
   }
   if (attrs) {
-    for (int8_t i = int8_t(VBOType::Attr0); i <= int8_t(VBOType::Attr15); i++) {
-      if (gpu::VertBuf *vbo = vbos_to_create.lookup_default(VBOType(i), nullptr)) {
+    for (const int8_t i : IndexRange(GPU_MAX_ATTR)) {
+      const VBOType vbo_type = VBOType(int8_t(VBOType::Attr0) + i);
+      if (gpu::VertBuf *vbo = vbos_to_create.lookup_default(vbo_type, nullptr)) {
         extract_attribute_subdiv(mr, subdiv_cache, cache.attr_used.requests[i], *vbo);
       }
     }

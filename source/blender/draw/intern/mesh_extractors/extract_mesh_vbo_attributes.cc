@@ -186,9 +186,9 @@ static const CustomData *get_custom_data_for_domain(const BMesh &bm, bke::AttrDo
   }
 }
 
-void extract_attribute(const MeshRenderData &mr,
-                       const DRW_AttributeRequest &request,
-                       gpu::VertBuf &vbo)
+static void extract_attribute_no_init(const MeshRenderData &mr,
+                                      const DRW_AttributeRequest &request,
+                                      gpu::VertBuf &vbo)
 {
   if (mr.extract_type == MeshExtractType::BMesh) {
     const CustomData &custom_data = *get_custom_data_for_domain(*mr.bm, request.domain);
@@ -246,6 +246,13 @@ void extract_attribute(const MeshRenderData &mr,
     });
   }
 }
+void extract_attribute(const MeshRenderData &mr,
+                       const DRW_AttributeRequest &request,
+                       gpu::VertBuf &vbo)
+{
+  init_vbo_for_attribute(mr, vbo, request, false, uint32_t(mr.corners_num));
+  extract_attribute_no_init(mr, request, vbo);
+}
 
 void extract_attribute_subdiv(const MeshRenderData &mr,
                               const DRWSubdivCache &subdiv_cache,
@@ -261,7 +268,7 @@ void extract_attribute_subdiv(const MeshRenderData &mr,
   GPU_vertbuf_init_with_format_ex(*src_data, coarse_format, GPU_USAGE_STATIC);
   GPU_vertbuf_data_alloc(*src_data, uint32_t(coarse_mesh->corners_num));
 
-  extract_attribute(mr, request, *src_data);
+  extract_attribute_no_init(mr, request, *src_data);
 
   init_vbo_for_attribute(mr, vbo, request, true, subdiv_cache.num_subdiv_loops);
 
