@@ -62,7 +62,6 @@ struct MeshRenderData {
 
   bool use_hide;
   bool use_subsurf_fdots;
-  bool use_final_mesh;
   bool hide_unmapped_edges;
   bool use_simplify_normals;
 
@@ -264,10 +263,10 @@ void extract_edge_factor_subdiv(const DRWSubdivCache &subdiv_cache,
                                 gpu::VertBuf &pos_nor,
                                 gpu::VertBuf &vbo);
 
-void extract_tris(const MeshRenderData &mr,
-                  const SortedFaceData &face_sorted,
-                  MeshBatchCache &cache,
-                  gpu::IndexBuf &ibo);
+void extract_tris(const MeshRenderData &mr, const SortedFaceData &face_sorted, gpu::IndexBuf &ibo);
+void create_material_subranges(const SortedFaceData &face_sorted,
+                               gpu::IndexBuf &tris_ibo,
+                               MutableSpan<gpu::IndexBuf *> ibos);
 void extract_tris_subdiv(const DRWSubdivCache &subdiv_cache,
                          MeshBatchCache &cache,
                          gpu::IndexBuf &ibo);

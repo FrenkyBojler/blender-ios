@@ -75,8 +75,8 @@ static void ensure_dependency_data(MeshRenderData &mr,
 void mesh_buffer_cache_create_requested(const Scene &scene,
                                         MeshBatchCache &cache,
                                         MeshBufferCache &mbc,
-                                        Span<IBOType> ibo_requests,
-                                        Span<VBOType> vbo_requests,
+                                        const Span<IBOType> ibo_requests,
+                                        const Span<VBOType> vbo_requests,
                                         Object &object,
                                         Mesh &mesh,
                                         const bool is_editmode,
@@ -108,7 +108,6 @@ void mesh_buffer_cache_create_requested(const Scene &scene,
   ensure_dependency_data(mr, ibo_requests, vbo_requests, mbc);
 
   mr.use_subsurf_fdots = mr.mesh && !mr.mesh->runtime->subsurf_face_dot_tags.is_empty();
-  mr.use_final_mesh = do_final;
   mr.use_simplify_normals = (scene.r.mode & R_SIMPLIFY) && (scene.r.mode & R_SIMPLIFY_NORMALS);
 
   bool lines = false;
@@ -291,8 +290,8 @@ void mesh_buffer_cache_create_requested(const Scene &scene,
 
 void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,
                                                MeshBufferCache &mbc,
-                                               Span<IBOType> ibo_requests,
-                                               Span<VBOType> vbo_requests,
+                                               const Span<IBOType> ibo_requests,
+                                               const Span<VBOType> vbo_requests,
                                                DRWSubdivCache &subdiv_cache,
                                                MeshRenderData &mr)
 {

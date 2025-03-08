@@ -11,8 +11,6 @@
 #include <array>
 #include <optional>
 
-#include "GPU_index_buffer.hh"
-#include "GPU_primitive.hh"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_index_range.hh"
@@ -1413,23 +1411,6 @@ void DRW_mesh_batch_cache_create_requested(
                                 IBOType::Tris,
                                 {VBOType::Position, VBOType::MeshAnalysis}});
     }
-    for (const int i : IndexRange(cache.mat_len)) {
-      BatchCreateData batch{*cache.surface_per_mat[i],
-                            GPU_PRIM_TRIS,
-                            list,
-                            std::nullopt,  // TODO
-                            {VBOType::CornerNormal, VBOType::Position}};
-      if (cache.cd_used.uv != 0) {
-        batch.vbos.append(VBOType::UVs);
-      }
-      if ((cache.cd_used.tan != 0) || (cache.cd_used.tan_orco != 0)) {
-        batch.vbos.append(VBOType::Tangents);
-      }
-      if (cache.cd_used.orco != 0) {
-        batch.vbos.append(VBOType::Orco);
-      }
-      batches_to_create.append(std::move(batch));
-    }
   }
 
   /* When the mesh doesn't correspond to the object's original mesh (i.e. the mesh was replaced by
@@ -1676,6 +1657,19 @@ void DRW_mesh_batch_cache_create_requested(
     vbo_requests[int(batch.list)].add_multiple(batch.vbos);
   }
 
+  if (batch_requested & MBC_SURFACE_PER_MAT) {
+    ibo_requests[int(BufferList::Final)].add(IBOType::Tris);
+    if (cache.cd_used.uv != 0) {
+      vbo_requests[int(BufferList::Final)].add(VBOType::UVs);
+    }
+    if ((cache.cd_used.tan != 0) || (cache.cd_used.tan_orco != 0)) {
+      vbo_requests[int(BufferList::Final)].add(VBOType::Tangents);
+    }
+    if (cache.cd_used.orco != 0) {
+      vbo_requests[int(BufferList::Final)].add(VBOType::Orco);
+    }
+  }
+
   if (do_uvcage) {
     mesh_buffer_cache_create_requested(scene,
                                        cache,
@@ -1748,6 +1742,31 @@ void DRW_mesh_batch_cache_create_requested(
     for (const VBOType vbo_request : batch.vbos) {
       GPU_batch_vertbuf_add(
           &batch.batch, cache_for_batch.buff.vbos.lookup(vbo_request).get(), false);
+    }
+  }
+
+  if (batch_requested & MBC_SURFACE_PER_MAT) {
+    MeshBufferList &buffers = cache.final.buff;
+    gpu::IndexBuf &tris_ibo = *buffers.ibos.lookup(IBOType::Tris);
+    create_material_subranges(cache.final.face_sorted, tris_ibo, cache.tris_per_mat);
+    for (const int material : IndexRange(cache.mat_len)) {
+      gpu::Batch *batch = cache.surface_per_mat[material];
+      GPU_batch_init(batch, GPU_PRIM_TRIS, nullptr, cache.tris_per_mat[material]);
+      GPU_batch_vertbuf_add(batch, buffers.vbos.lookup(VBOType::CornerNormal).get(), false);
+      GPU_batch_vertbuf_add(batch, buffers.vbos.lookup(VBOType::Position).get(), false);
+      if (cache.cd_used.uv != 0) {
+        GPU_batch_vertbuf_add(batch, buffers.vbos.lookup(VBOType::UVs).get(), false);
+      }
+      if ((cache.cd_used.tan != 0) || (cache.cd_used.tan_orco != 0)) {
+        GPU_batch_vertbuf_add(batch, buffers.vbos.lookup(VBOType::Tangents).get(), false);
+      }
+      if (cache.cd_used.orco != 0) {
+        GPU_batch_vertbuf_add(batch, buffers.vbos.lookup(VBOType::Orco).get(), false);
+      }
+      for (const int i : IndexRange(cache.attr_used.num_requests)) {
+        GPU_batch_vertbuf_add(
+            batch, buffers.vbos.lookup(VBOType(int8_t(VBOType::Attr0) + i)).get(), false);
+      }
     }
   }
 }
