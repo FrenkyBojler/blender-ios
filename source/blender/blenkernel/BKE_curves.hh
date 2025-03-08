@@ -326,6 +326,8 @@ class CurvesGeometry : public ::CurvesGeometry {
    */
   int nurbs_custom_knots_num() const;
 
+  bool nurbs_has_custom_knots() const;
+
   /**
    * Resizes custom knots array depending on topological data.
    * Depends on curve offsets, knot modes, orders and cyclic data.
@@ -955,6 +957,10 @@ inline int CurvesGeometry::curves_num() const
 inline int CurvesGeometry::nurbs_custom_knots_num() const
 {
   return this->custom_knot_num;
+}
+inline bool CurvesGeometry::nurbs_has_custom_knots() const
+{
+  return this->custom_knot_num != 0;
 }
 inline bool CurvesGeometry::is_empty() const
 {

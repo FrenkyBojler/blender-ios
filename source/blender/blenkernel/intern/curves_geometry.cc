@@ -1409,7 +1409,7 @@ CurvesGeometry curves_copy_point_selection(const CurvesGeometry &curves,
                           dst_curves.attributes_for_write());
       });
 
-  if (curves.nurbs_custom_knots_num()) {
+  if (curves.nurbs_has_custom_knots()) {
     const OffsetIndices points_by_curve = curves.points_by_curve();
     const VArray<int8_t> orders = curves.nurbs_orders();
     const VArray<bool> cyclic = curves.cyclic();
@@ -1516,7 +1516,7 @@ CurvesGeometry curves_copy_curve_selection(const CurvesGeometry &curves,
                     curves_to_copy,
                     dst_attributes);
 
-  if (curves.nurbs_custom_knots_num()) {
+  if (curves.nurbs_has_custom_knots()) {
     IndexMaskMemory memory;
     const IndexMask custom_knot_curves = curves.nurbs_custom_knot_curves(memory);
     const IndexMask custom_knot_curves_to_copy = IndexMask::from_intersection(
