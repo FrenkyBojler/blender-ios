@@ -1,1 +1,2 @@
 Referenced by issue #72904, When changing the width of frame, it also changes frame location.
+Referenced by issue #135643, Geometry Nodes: ungrouped node tree is stretched out in space due to frame layout
