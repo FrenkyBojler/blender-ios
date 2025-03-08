@@ -8,21 +8,18 @@
  * \brief Extraction of Mesh data into VBO to feed to GPU.
  */
 
-#include "BLI_map.hh"
-#include "BLI_task.hh"
-
 #include "DNA_mesh_types.h"
 #include "DNA_scene_types.h"
 
+#include "BLI_map.hh"
+#include "BLI_task.hh"
+
 #include "GPU_capabilities.hh"
 
-#include "GPU_index_buffer.hh"
-#include "GPU_vertex_buffer.hh"
 #include "draw_cache_extract.hh"
 #include "draw_subdivision.hh"
 
 #include "mesh_extractors/extract_mesh.hh"
-#include <memory>
 
 // #define DEBUG_TIME
 
@@ -120,17 +117,17 @@ void mesh_buffer_cache_create_requested(const Scene &scene,
   Map<IBOType, gpu::IndexBuf *> ibos_to_create;
   Map<VBOType, gpu::VertBuf *> vbos_to_create;
   for (const IBOType request : ibo_requests) {
-    lines |= ELEM(request, IBOType::Lines, IBOType::LinesLoose);
     buffers.ibos.lookup_or_add_cb(request, [&]() {
+      lines |= ELEM(request, IBOType::Lines, IBOType::LinesLoose);
       gpu::IndexBuf *ibo = GPU_indexbuf_calloc();
       ibos_to_create.add_new(request, ibo);
       return std::unique_ptr<gpu::IndexBuf, IndexBufDeleter>(ibo);
     });
   }
   for (const VBOType request : vbo_requests) {
-    attrs |= int8_t(request) >= int8_t(VBOType::Attr0) &&
-             int8_t(request) <= int8_t(VBOType::Attr15);
     buffers.vbos.lookup_or_add_cb(request, [&]() {
+      attrs |= int8_t(request) >= int8_t(VBOType::Attr0) &&
+               int8_t(request) <= int8_t(VBOType::Attr15);
       gpu::VertBuf *vbo = GPU_vertbuf_calloc();
       vbos_to_create.add_new(request, vbo);
       return std::unique_ptr<gpu::VertBuf, VertBufDeleter>(vbo);
@@ -154,147 +151,111 @@ void mesh_buffer_cache_create_requested(const Scene &scene,
 
   threading::parallel_for_each(ibos_to_create, [&](const auto request) {
     switch (request.first) {
-      case IBOType::Tris: {
-        const SortedFaceData &face_sorted = mesh_render_data_faces_sorted_ensure(mr, mbc);
-        extract_tris(mr, face_sorted, cache, request.second);
+      case IBOType::Tris:
+        extract_tris(mr, mesh_render_data_faces_sorted_ensure(mr, mbc), cache, request.second);
         break;
-      }
       case IBOType::Lines:
-      case IBOType::LinesLoose: {
+      case IBOType::LinesLoose:
         /* Handled as a special case since they may share the same buffer. */
         break;
-      }
-      case IBOType::Points: {
+      case IBOType::Points:
         extract_points(mr, request.second);
         break;
-      }
-      case IBOType::FaceDots: {
+      case IBOType::FaceDots:
         extract_face_dots(mr, request.second);
         break;
-      }
-      case IBOType::LinesPaintMask: {
+      case IBOType::LinesPaintMask:
         extract_lines_paint_mask(mr, request.second);
         break;
-      }
-      case IBOType::LinesAdjacency: {
+      case IBOType::LinesAdjacency:
         extract_lines_adjacency(mr, request.second, cache.is_manifold);
         break;
-      }
-      case IBOType::EditUVTris: {
+      case IBOType::EditUVTris:
         extract_edituv_tris(mr, request.second);
         break;
-      }
-      case IBOType::EditUVLines: {
+      case IBOType::EditUVLines:
         extract_edituv_lines(mr, request.second);
         break;
-      }
-      case IBOType::EditUVPoints: {
+      case IBOType::EditUVPoints:
         extract_edituv_points(mr, request.second);
         break;
-      }
-      case IBOType::EditUVFaceDots: {
+      case IBOType::EditUVFaceDots:
         extract_edituv_face_dots(mr, request.second);
         break;
-      }
     }
   });
 
+  const bool do_hq_normals = (scene.r.perf_flag & SCE_PERF_HQ_NORMALS) != 0 ||
+                             GPU_use_hq_normals_workaround();
+
   threading::parallel_for_each(vbos_to_create, [&](const auto request) {
     switch (request.first) {
-      case VBOType::Position: {
+      case VBOType::Position:
         extract_positions(mr, request.second);
         break;
-      }
-      case VBOType::CornerNormal: {
-        const bool do_hq_normals = (scene.r.perf_flag & SCE_PERF_HQ_NORMALS) != 0 ||
-                                   GPU_use_hq_normals_workaround();
+      case VBOType::CornerNormal:
         extract_normals(mr, do_hq_normals, request.second);
         break;
-      }
-      case VBOType::EdgeFactor: {
+      case VBOType::EdgeFactor:
         extract_edge_factor(mr, request.second);
         break;
-      }
-      case VBOType::VertexGroupWeight: {
+      case VBOType::VertexGroupWeight:
         extract_weights(mr, cache, request.second);
         break;
-      }
-      case VBOType::UVs: {
+      case VBOType::UVs:
         extract_uv_maps(mr, cache, request.second);
         break;
-      }
-      case VBOType::Tangents: {
-        const bool do_hq_normals = (scene.r.perf_flag & SCE_PERF_HQ_NORMALS) != 0 ||
-                                   GPU_use_hq_normals_workaround();
+      case VBOType::Tangents:
         extract_tangents(mr, cache, do_hq_normals, request.second);
         break;
-      }
-      case VBOType::SculptData: {
+      case VBOType::SculptData:
         extract_sculpt_data(mr, request.second);
         break;
-      }
-      case VBOType::Orco: {
+      case VBOType::Orco:
         extract_orco(mr, request.second);
         break;
-      }
-      case VBOType::EditData: {
+      case VBOType::EditData:
         extract_edit_data(mr, request.second);
         break;
-      }
-      case VBOType::EditUVData: {
+      case VBOType::EditUVData:
         extract_edituv_data(mr, request.second);
         break;
-      }
-      case VBOType::EditUVStretchArea: {
+      case VBOType::EditUVStretchArea:
         extract_edituv_stretch_area(mr, request.second, cache.tot_area, cache.tot_uv_area);
         break;
-      }
-      case VBOType::EditUVStretchAngle: {
+      case VBOType::EditUVStretchAngle:
         extract_edituv_stretch_angle(mr, request.second);
         break;
-      }
-      case VBOType::MeshAnalysis: {
+      case VBOType::MeshAnalysis:
         extract_mesh_analysis(mr, request.second);
         break;
-      }
-      case VBOType::FaceDotPosition: {
+      case VBOType::FaceDotPosition:
         extract_face_dots_position(mr, request.second);
         break;
-      }
-      case VBOType::FaceDotNormal: {
-        const bool do_hq_normals = (scene.r.perf_flag & SCE_PERF_HQ_NORMALS) != 0 ||
-                                   GPU_use_hq_normals_workaround();
+      case VBOType::FaceDotNormal:
         extract_face_dot_normals(mr, do_hq_normals, request.second);
         break;
-      }
-      case VBOType::FaceDotUV: {
+      case VBOType::FaceDotUV:
         extract_face_dots_uv(mr, request.second);
         break;
-      }
-      case VBOType::FaceDotEditUVData: {
+      case VBOType::FaceDotEditUVData:
         extract_face_dots_edituv_data(mr, request.second);
         break;
-      }
-      case VBOType::SkinRoots: {
+      case VBOType::SkinRoots:
         extract_skin_roots(mr, request.second);
         break;
-      }
-      case VBOType::IndexVert: {
+      case VBOType::IndexVert:
         extract_vert_index(mr, request.second);
         break;
-      }
-      case VBOType::IndexEdge: {
+      case VBOType::IndexEdge:
         extract_edge_index(mr, request.second);
         break;
-      }
-      case VBOType::IndexFace: {
+      case VBOType::IndexFace:
         extract_face_index(mr, request.second);
         break;
-      }
-      case VBOType::IndexFaceDot: {
+      case VBOType::IndexFaceDot:
         extract_face_dot_index(mr, request.second);
         break;
-      }
       case VBOType::Attr0:
       case VBOType::Attr1:
       case VBOType::Attr2:
@@ -309,18 +270,15 @@ void mesh_buffer_cache_create_requested(const Scene &scene,
       case VBOType::Attr12:
       case VBOType::Attr13:
       case VBOType::Attr14:
-      case VBOType::Attr15: {
+      case VBOType::Attr15:
         /* Handled as a special case since they are extracted in the same function. */
         break;
-      }
-      case VBOType::AttrViewer: {
+      case VBOType::AttrViewer:
         extract_attr_viewer(mr, request.second);
         break;
-      }
-      case VBOType::VertexNormal: {
+      case VBOType::VertexNormal:
         extract_vert_normals(mr, request.second);
         break;
-      }
     }
   });
 }
@@ -353,17 +311,17 @@ void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,
   Map<IBOType, gpu::IndexBuf *> ibos_to_create;
   Map<VBOType, gpu::VertBuf *> vbos_to_create;
   for (const IBOType request : ibo_requests) {
-    lines |= ELEM(request, IBOType::Lines, IBOType::LinesLoose);
     buffers.ibos.lookup_or_add_cb(request, [&]() {
+      lines |= ELEM(request, IBOType::Lines, IBOType::LinesLoose);
       gpu::IndexBuf *ibo = GPU_indexbuf_calloc();
       ibos_to_create.add_new(request, ibo);
       return std::unique_ptr<gpu::IndexBuf, IndexBufDeleter>(ibo);
     });
   }
   for (const VBOType request : vbo_requests) {
-    attrs |= int8_t(request) >= int8_t(VBOType::Attr0) &&
-             int8_t(request) <= int8_t(VBOType::Attr15);
     buffers.vbos.lookup_or_add_cb(request, [&]() {
+      attrs |= int8_t(request) >= int8_t(VBOType::Attr0) &&
+               int8_t(request) <= int8_t(VBOType::Attr15);
       gpu::VertBuf *vbo = GPU_vertbuf_calloc();
       vbos_to_create.add_new(request, vbo);
       return std::unique_ptr<gpu::VertBuf, VertBufDeleter>(vbo);
@@ -383,7 +341,7 @@ void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,
   if (gpu::VertBuf *vbo = vbos_to_create.lookup_default(VBOType::EdgeFactor, nullptr)) {
     extract_edge_factor_subdiv(subdiv_cache, mr, *buffers.vbos.lookup(VBOType::Position), *vbo);
   }
-  if (ibo_requests.contains(IBOType::Lines) || ibo_requests.contains(IBOType::LinesLoose)) {
+  if (ibos_to_create.contains(IBOType::Lines) || ibos_to_create.contains(IBOType::LinesLoose)) {
     extract_lines_subdiv(subdiv_cache,
                          mr,
                          ibos_to_create.lookup_default(IBOType::Lines, nullptr),

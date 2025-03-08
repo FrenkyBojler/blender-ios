@@ -19,7 +19,6 @@
 #include "BLI_listbase.h"
 #include "BLI_span.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_task.h"
 
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"

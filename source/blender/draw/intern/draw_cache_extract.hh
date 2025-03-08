@@ -9,8 +9,6 @@
 #pragma once
 
 #include "BLI_array.hh"
-#include "BLI_function_ref.hh"
-#include "BLI_generic_key.hh"
 #include "BLI_map.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_utildefines.h"
@@ -19,10 +17,9 @@
 
 #include "GPU_index_buffer.hh"
 #include "GPU_shader.hh"
-
 #include "GPU_vertex_buffer.hh"
+
 #include "draw_attributes.hh"
-#include <memory>
 
 namespace blender::gpu {
 class Batch;
@@ -36,9 +33,6 @@ struct TaskGraph;
 struct ToolSettings;
 
 namespace blender::draw {
-
-gpu::VertBuf &vertex_buffer_cache_ensure(const GenericKey &generic_key,
-                                         FunctionRef<gpu::VertBuf()> compute_fn);
 
 struct MeshRenderData;
 struct DRWSubdivCache;
