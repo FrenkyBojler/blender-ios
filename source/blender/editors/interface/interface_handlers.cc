@@ -9599,12 +9599,19 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
           data->cancel = true;
           button_activate_state(C, but, BUTTON_STATE_EXIT);
         }
-        else if (abs(event->xy[0] - event->prev_xy[0]) > WM_EVENT_CURSOR_MOTION_THRESHOLD ||
-                 abs(event->xy[1] - event->prev_xy[1]) > WM_EVENT_CURSOR_MOTION_THRESHOLD)
-        {
-          /* Re-enable tool-tip on mouse move. */
-          ui_blocks_set_tooltips(region, true);
-          button_tooltip_timer_reset(C, but);
+        else {
+          /* Use drag threshold for canceling tooltip on move, even though this is hover.
+           * By default this allows 3 pixels of movement with a mouse, 10 for tablet pens. */
+          const int threshold = WM_event_drag_threshold(event);
+          bScreen *screen = CTX_wm_screen(C);
+          if (screen->tool_tip &&
+              ((abs(screen->tool_tip->event_xy[0] - event->xy[0]) > threshold) ||
+               (abs(screen->tool_tip->event_xy[1] - event->xy[1]) > threshold)))
+          {
+            /* Re-enable tool-tip on mouse move. */
+            ui_blocks_set_tooltips(region, true);
+            button_tooltip_timer_reset(C, but);
+          }
         }
 
         /* Update extra icons states. */
