@@ -5361,9 +5361,11 @@ static void wm_eventemulation(wmEvent *event, bool test_only)
    * when modifier keys are released first.
    * This really should be in a data structure somewhere. */
   static int emulating_event = EVENT_NONE;
+  /* Store which event triggered the reinterpretation of the emulating event. */
+  static int emulating_event_source = EVENT_NONE;
   /* Store how to reinterpret the LMB press event depending on key events. */
   static int upcoming_event = EVENT_NONE;
-  /* Store which event triggered the reinterpretation. */
+  /* Store which event triggered the reinterpretation of the upcoming event. */
   static int upcoming_event_source = EVENT_NONE;
 
   if (U.runtime.is_ui_button_waiting_key_event) {
@@ -5373,18 +5375,20 @@ static void wm_eventemulation(wmEvent *event, bool test_only)
     /* Mouse buttons emulation. */
     if (event->val == KM_PRESS && upcoming_event != EVENT_NONE) {
       event->type = upcoming_event;
-      event->modifier &= ~wm_eventemulation_eventtomodifier(event->type);
+      event->modifier &= ~wm_eventemulation_eventtomodifier(upcoming_event_source);
 
       if (!test_only) {
         emulating_event = upcoming_event;
+        emulating_event_source = upcoming_event_source;
       }
     }
     else if (event->val == KM_RELEASE && emulating_event != EVENT_NONE) {
       event->type = emulating_event;
-      event->modifier &= ~wm_eventemulation_eventtomodifier(emulating_event);
+      event->modifier &= ~wm_eventemulation_eventtomodifier(emulating_event_source);
 
       if (!test_only) {
         emulating_event = EVENT_NONE;
+        emulating_event_source = EVENT_NONE;
       }
     }
   }
@@ -5416,8 +5420,8 @@ static void wm_eventemulation(wmEvent *event, bool test_only)
       kill_event = true;
 
       if (!test_only) {
-        upcoming_event = 0;
-        upcoming_event_source = 0;
+        upcoming_event = EVENT_NONE;
+        upcoming_event_source = EVENT_NONE;
       }
     }
     else if (upcoming_event_source == event->type) {
