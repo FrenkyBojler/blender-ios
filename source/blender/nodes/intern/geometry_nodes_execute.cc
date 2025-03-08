@@ -108,16 +108,19 @@ static std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_name_or_va
 }
 
 std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_property_create_from_socket(
-    const bNodeTreeInterfaceSocket &socket, const bool use_name_for_ids)
+    const bNodeTreeInterfaceSocket &socket,
+    const nodes::StructureType structure_type,
+    const bool use_name_for_ids)
 {
+  if (structure_type == StructureType::Grid) {
+    /* Grids currently aren't exposed as properties. */
+    return nullptr;
+  }
   const StringRefNull identifier = socket.identifier;
   const bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
   const eNodeSocketDatatype type = typeinfo ? eNodeSocketDatatype(typeinfo->type) : SOCK_CUSTOM;
   switch (type) {
     case SOCK_FLOAT: {
-      if (StructureType(socket.structure_type) == StructureType::Grid) {
-        return nullptr;
-      }
       const bNodeSocketValueFloat *value = static_cast<const bNodeSocketValueFloat *>(
           socket.socket_data);
       auto property = bke::idprop::create(identifier, value->value);
@@ -129,9 +132,6 @@ std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_property_create_f
       return property;
     }
     case SOCK_INT: {
-      if (StructureType(socket.structure_type) == StructureType::Grid) {
-        return nullptr;
-      }
       const bNodeSocketValueInt *value = static_cast<const bNodeSocketValueInt *>(
           socket.socket_data);
       auto property = bke::idprop::create(identifier, value->value);
@@ -143,9 +143,6 @@ std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_property_create_f
       return property;
     }
     case SOCK_VECTOR: {
-      if (StructureType(socket.structure_type) == StructureType::Grid) {
-        return nullptr;
-      }
       const bNodeSocketValueVector *value = static_cast<const bNodeSocketValueVector *>(
           socket.socket_data);
       auto property = bke::idprop::create(
@@ -162,9 +159,6 @@ std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_property_create_f
       return property;
     }
     case SOCK_RGBA: {
-      if (StructureType(socket.structure_type) == StructureType::Grid) {
-        return nullptr;
-      }
       const bNodeSocketValueRGBA *value = static_cast<const bNodeSocketValueRGBA *>(
           socket.socket_data);
       auto property = bke::idprop::create(
@@ -184,9 +178,6 @@ std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_property_create_f
       return property;
     }
     case SOCK_BOOLEAN: {
-      if (StructureType(socket.structure_type) == StructureType::Grid) {
-        return nullptr;
-      }
       if (is_layer_selection_field(socket)) {
         /* We can't use the value from the socket here since it doesn't storing a string. */
         return bke::idprop::create(identifier, "");
@@ -935,13 +926,17 @@ void update_input_properties_from_node_tree(const bNodeTree &tree,
 {
   tree.ensure_interface_cache();
   const Span<const bNodeTreeInterfaceSocket *> tree_inputs = tree.interface_inputs();
+  const Span<nodes::StructureType> input_structure_types =
+      tree.runtime->structure_type_interface->inputs;
   for (const int i : tree_inputs.index_range()) {
     const bNodeTreeInterfaceSocket &socket = *tree_inputs[i];
     const StringRefNull socket_identifier = socket.identifier;
     const bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
     const eNodeSocketDatatype socket_type = typeinfo ? eNodeSocketDatatype(typeinfo->type) :
                                                        SOCK_CUSTOM;
-    IDProperty *new_prop = id_property_create_from_socket(socket, use_name_for_ids).release();
+    IDProperty *new_prop = id_property_create_from_socket(
+                               socket, input_structure_types[i], use_name_for_ids)
+                               .release();
     if (new_prop == nullptr) {
       continue;
     }
