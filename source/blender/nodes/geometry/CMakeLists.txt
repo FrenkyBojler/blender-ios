@@ -15,6 +15,7 @@ set(INC
   ../../io/ply
   ../../io/stl
   ../../io/wavefront_obj
+    ../../../../extern/tetgen
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -341,6 +342,15 @@ if(WITH_OPENVDB)
   )
   add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
 endif()
+
+# TetGen compilation - Inclure les fichiers directement pour éviter les problèmes de build
+# Désactiver la fonction main() de TetGen pour éviter les conflits de liaison
+add_definitions(-DTETLIBRARY)
+set(TETGEN_SRC
+  ../../../../extern/tetgen/tetgen.cxx
+  ../../../../extern/tetgen/predicates.cxx
+)
+list(APPEND SRC ${TETGEN_SRC})
 
 add_node_discovery(
   bf_nodes_geometry_generated
