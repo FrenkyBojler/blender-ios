@@ -71,7 +71,8 @@ class ControlPointNeighborFieldInput final : public bke::GeometryFieldInput {
       output[i_selection] = shifted_point;
       if (cyclic[curve_index]) {
         const int point_i = shifted_point - curve_points.start();
-        output[i_selection] = curve_points.start() + math::mod_periodic<int>(point_i, curve_points.size());
+        output[i_selection] = curve_points.start() +
+                              math::mod_periodic<int>(point_i, curve_points.size());
         return;
       }
     });
