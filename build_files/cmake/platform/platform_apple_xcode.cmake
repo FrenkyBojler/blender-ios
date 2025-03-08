@@ -4,8 +4,6 @@
 
 # Xcode and system configuration for Apple.
 
-include_guard(GLOBAL)
-
 # Detect processor architecture.
 if(NOT CMAKE_OSX_ARCHITECTURES)
   execute_process(COMMAND uname -m OUTPUT_VARIABLE ARCHITECTURE OUTPUT_STRIP_TRAILING_WHITESPACE)
