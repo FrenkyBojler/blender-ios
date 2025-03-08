@@ -1706,6 +1706,7 @@ void DRW_mesh_batch_cache_create_requested(
     mesh_batch_cache_free_subdiv_cache(cache);
   }
 
+  // TODO: Check if this should be in the "else" case for the "if (is_subdiv)" block above.
   mesh_buffer_cache_create_requested(scene,
                                      cache,
                                      cache.final,
