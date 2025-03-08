@@ -148,38 +148,38 @@ void mesh_buffer_cache_create_requested(const Scene &scene,
     }
   }
 
-  threading::parallel_for_each(ibos_to_create, [&](const auto request) {
-    switch (request.first) {
+  threading::parallel_for_each(ibos_to_create.items(), [&](const auto item) {
+    switch (item.key) {
       case IBOType::Tris:
-        extract_tris(mr, mesh_render_data_faces_sorted_ensure(mr, mbc), cache, request.second);
+        extract_tris(mr, mesh_render_data_faces_sorted_ensure(mr, mbc), *item.value);
         break;
       case IBOType::Lines:
       case IBOType::LinesLoose:
         /* Handled as a special case since they may share the same buffer. */
         break;
       case IBOType::Points:
-        extract_points(mr, request.second);
+        extract_points(mr, *item.value);
         break;
       case IBOType::FaceDots:
-        extract_face_dots(mr, request.second);
+        extract_face_dots(mr, *item.value);
         break;
       case IBOType::LinesPaintMask:
-        extract_lines_paint_mask(mr, request.second);
+        extract_lines_paint_mask(mr, *item.value);
         break;
       case IBOType::LinesAdjacency:
-        extract_lines_adjacency(mr, request.second, cache.is_manifold);
+        extract_lines_adjacency(mr, *item.value, cache.is_manifold);
         break;
       case IBOType::EditUVTris:
-        extract_edituv_tris(mr, request.second);
+        extract_edituv_tris(mr, *item.value);
         break;
       case IBOType::EditUVLines:
-        extract_edituv_lines(mr, request.second);
+        extract_edituv_lines(mr, *item.value);
         break;
       case IBOType::EditUVPoints:
-        extract_edituv_points(mr, request.second);
+        extract_edituv_points(mr, *item.value);
         break;
       case IBOType::EditUVFaceDots:
-        extract_edituv_face_dots(mr, request.second);
+        extract_edituv_face_dots(mr, *item.value);
         break;
     }
   });
@@ -187,73 +187,73 @@ void mesh_buffer_cache_create_requested(const Scene &scene,
   const bool do_hq_normals = (scene.r.perf_flag & SCE_PERF_HQ_NORMALS) != 0 ||
                              GPU_use_hq_normals_workaround();
 
-  threading::parallel_for_each(vbos_to_create, [&](const auto request) {
-    switch (request.first) {
+  threading::parallel_for_each(vbos_to_create.items(), [&](const auto item) {
+    switch (item.key) {
       case VBOType::Position:
-        extract_positions(mr, request.second);
+        extract_positions(mr, *item.value);
         break;
       case VBOType::CornerNormal:
-        extract_normals(mr, do_hq_normals, request.second);
+        extract_normals(mr, do_hq_normals, *item.value);
         break;
       case VBOType::EdgeFactor:
-        extract_edge_factor(mr, request.second);
+        extract_edge_factor(mr, *item.value);
         break;
       case VBOType::VertexGroupWeight:
-        extract_weights(mr, cache, request.second);
+        extract_weights(mr, cache, *item.value);
         break;
       case VBOType::UVs:
-        extract_uv_maps(mr, cache, request.second);
+        extract_uv_maps(mr, cache, *item.value);
         break;
       case VBOType::Tangents:
-        extract_tangents(mr, cache, do_hq_normals, request.second);
+        extract_tangents(mr, cache, do_hq_normals, *item.value);
         break;
       case VBOType::SculptData:
-        extract_sculpt_data(mr, request.second);
+        extract_sculpt_data(mr, *item.value);
         break;
       case VBOType::Orco:
-        extract_orco(mr, request.second);
+        extract_orco(mr, *item.value);
         break;
       case VBOType::EditData:
-        extract_edit_data(mr, request.second);
+        extract_edit_data(mr, *item.value);
         break;
       case VBOType::EditUVData:
-        extract_edituv_data(mr, request.second);
+        extract_edituv_data(mr, *item.value);
         break;
       case VBOType::EditUVStretchArea:
-        extract_edituv_stretch_area(mr, request.second, cache.tot_area, cache.tot_uv_area);
+        extract_edituv_stretch_area(mr, *item.value, cache.tot_area, cache.tot_uv_area);
         break;
       case VBOType::EditUVStretchAngle:
-        extract_edituv_stretch_angle(mr, request.second);
+        extract_edituv_stretch_angle(mr, *item.value);
         break;
       case VBOType::MeshAnalysis:
-        extract_mesh_analysis(mr, request.second);
+        extract_mesh_analysis(mr, *item.value);
         break;
       case VBOType::FaceDotPosition:
-        extract_face_dots_position(mr, request.second);
+        extract_face_dots_position(mr, *item.value);
         break;
       case VBOType::FaceDotNormal:
-        extract_face_dot_normals(mr, do_hq_normals, request.second);
+        extract_face_dot_normals(mr, do_hq_normals, *item.value);
         break;
       case VBOType::FaceDotUV:
-        extract_face_dots_uv(mr, request.second);
+        extract_face_dots_uv(mr, *item.value);
         break;
       case VBOType::FaceDotEditUVData:
-        extract_face_dots_edituv_data(mr, request.second);
+        extract_face_dots_edituv_data(mr, *item.value);
         break;
       case VBOType::SkinRoots:
-        extract_skin_roots(mr, request.second);
+        extract_skin_roots(mr, *item.value);
         break;
       case VBOType::IndexVert:
-        extract_vert_index(mr, request.second);
+        extract_vert_index(mr, *item.value);
         break;
       case VBOType::IndexEdge:
-        extract_edge_index(mr, request.second);
+        extract_edge_index(mr, *item.value);
         break;
       case VBOType::IndexFace:
-        extract_face_index(mr, request.second);
+        extract_face_index(mr, *item.value);
         break;
       case VBOType::IndexFaceDot:
-        extract_face_dot_index(mr, request.second);
+        extract_face_dot_index(mr, *item.value);
         break;
       case VBOType::Attr0:
       case VBOType::Attr1:
@@ -273,10 +273,10 @@ void mesh_buffer_cache_create_requested(const Scene &scene,
         /* Handled as a special case since they are extracted in the same function. */
         break;
       case VBOType::AttrViewer:
-        extract_attr_viewer(mr, request.second);
+        extract_attr_viewer(mr, *item.value);
         break;
       case VBOType::VertexNormal:
-        extract_vert_normals(mr, request.second);
+        extract_vert_normals(mr, *item.value);
         break;
     }
   });

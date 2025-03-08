@@ -262,7 +262,7 @@ void VelocityModule::geometry_steps_fill()
     if (!geom.pos_buf) {
       continue;
     }
-    uint src_len = GPU_vertbuf_get_vertex_len(geom.pos_buf);
+    uint src_len = GPU_vertbuf_get_vertex_len(geom.pos_buf());
     geom.len = src_len;
     geom.ofs = dst_ofs;
     dst_ofs += src_len;
@@ -281,17 +281,18 @@ void VelocityModule::geometry_steps_fill()
     if (!geom.pos_buf || geom.len == 0) {
       continue;
     }
-    const GPUVertFormat *format = GPU_vertbuf_get_format(geom.pos_buf);
+    gpu::VertBuf *pos_buf = geom.pos_buf();
+    const GPUVertFormat *format = GPU_vertbuf_get_format(pos_buf);
     if (format->stride == 16) {
       GPU_storagebuf_copy_sub_from_vertbuf(*geometry_steps[step_],
-                                           geom.pos_buf,
+                                           pos_buf,
                                            geom.ofs * sizeof(float4),
                                            0,
                                            geom.len * sizeof(float4));
     }
     else {
       BLI_assert(format->stride % 4 == 0);
-      copy_ps.bind_ssbo("in_buf", geom.pos_buf);
+      copy_ps.bind_ssbo("in_buf", pos_buf);
       copy_ps.push_constant("start_offset", geom.ofs);
       copy_ps.push_constant("vertex_stride", int(format->stride / 4));
       copy_ps.push_constant("vertex_count", geom.len);

@@ -68,15 +68,15 @@ static void discard_buffers(MeshBatchCache &cache,
   buffer_ptrs.reserve(vbos.size() + ibos.size());
   FOREACH_MESH_BUFFER_CACHE (cache, mbc) {
     for (const VBOType vbo : vbos) {
-      if (const auto &buffer = mbc->buff.vbos.lookup_default(vbo, nullptr)) {
-        buffer_ptrs.add(buffer.get());
+      if (const auto *buffer = mbc->buff.vbos.lookup_ptr(vbo)) {
+        buffer_ptrs.add(buffer->get());
       }
     }
   }
   FOREACH_MESH_BUFFER_CACHE (cache, mbc) {
     for (const IBOType ibo : ibos) {
-      if (const auto &buffer = mbc->buff.ibos.lookup_default(ibo, nullptr)) {
-        buffer_ptrs.add(buffer.get());
+      if (const auto *buffer = mbc->buff.ibos.lookup_ptr(ibo)) {
+        buffer_ptrs.add(buffer->get());
       }
     }
   }
