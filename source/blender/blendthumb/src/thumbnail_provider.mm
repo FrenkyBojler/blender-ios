@@ -152,23 +152,27 @@ static NSImage *generate_nsimage_for_file(const char *src_blend_path, NSError *e
   NSLog(@"Generating thumbnail for %@", request.fileURL.path);
   @autoreleasepool {
     NSError *error = nil;
-    NSImage *ns_image = generate_nsimage_for_file(request.fileURL.path.fileSystemRepresentation,
-                                                  error);
-    if (ns_image == nil) {
+    NSImage *image = generate_nsimage_for_file(request.fileURL.path.fileSystemRepresentation,
+                                               error);
+    if (image == nil) {
       handler(nil, error);
       return;
     }
-    handler([QLThumbnailReply replyWithContextSize:request.maximumSize
-                        currentContextDrawingBlock:^BOOL {
-                          [ns_image drawInRect:NSMakeRect(0,
-                                                          0,
-                                                          request.maximumSize.width,
-                                                          request.maximumSize.height)];
-                          // Release the ns_image that was strongly captured by the block.
-                          [ns_image release];
-                          return YES;
-                        }],
-            nil);
+
+    const NSSize image_size = [image size];
+
+    QLThumbnailReply *thumbnailReply = [QLThumbnailReply
+              replyWithContextSize:image_size
+        currentContextDrawingBlock:^BOOL {
+          [image drawInRect:NSMakeRect(0, 0, image_size.width, image_size.height)];
+
+          /* Release the image that was strongly captured by this block. */
+          [image release];
+          return YES;
+        }];
+
+    /* Return the thumbnail reply. */
+    handler(thumbnailReply, nil);
   }
   NSLog(@"Thumbnail generation succcessfully completed");
 }
