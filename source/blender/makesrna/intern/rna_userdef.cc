@@ -18,6 +18,7 @@
 #include "BLI_string_utf8_symbols.h"
 #ifdef WIN32
 #  include "BLI_winstuff.h"
+#  include "win32oskey.hh"
 #endif
 
 #include "BLT_translation.hh"
@@ -786,14 +787,18 @@ static void rna_userdef_timecode_style_set(PointerRNA *ptr, int value)
   }
 }
 
-static int rna_UserDef_mouse_emulate_3_button_modifier_get(PointerRNA *ptr)
+static void rna_UserDef_use_win32_start_menu_suppression_set(PointerRNA *ptr, bool value)
 {
-#  if !defined(WIN32)
   UserDef *userdef = static_cast<UserDef *>(ptr->data);
-  return userdef->mouse_emulate_3_button_modifier;
-#  else
-  UNUSED_VARS(ptr);
-  return USER_EMU_MMB_MOD_ALT;
+  if (value) {
+    userdef->flag |= USER_FLAG_SUPPRESS_WIN32_START_MENU;
+  }
+  else {
+    userdef->flag &= ~USER_FLAG_SUPPRESS_WIN32_START_MENU;
+  }
+
+#  if defined(WIN32) && BLI_SUBPROCESS_SUPPORT
+  blender::win32oskey::enable_suppression(value);
 #  endif
 }
 
@@ -6877,14 +6882,20 @@ static void rna_def_userdef_input(BlenderRNA *brna)
   };
 
   prop = RNA_def_property(srna, "mouse_emulate_3_button_modifier", PROP_ENUM, PROP_NONE);
-  /* Only needed because of WIN32 inability to support the option. */
-  RNA_def_property_enum_funcs(
-      prop, "rna_UserDef_mouse_emulate_3_button_modifier_get", nullptr, nullptr);
   RNA_def_property_enum_items(prop, mouse_emulate_3_button_modifier);
   RNA_def_property_ui_text(
       prop, "Emulate 3 Button Modifier", "Hold this modifier to emulate the middle mouse button");
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(prop, 0, "rna_userdef_keyconfig_reload_update");
+
+  prop = RNA_def_property(srna, "use_win32_start_menu_suppression", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_FLAG_SUPPRESS_WIN32_START_MENU);
+  RNA_def_property_boolean_funcs(
+      prop, nullptr, "rna_UserDef_use_win32_start_menu_suppression_set");
+  RNA_def_property_ui_text(prop,
+                           "Suppress Windows Start Menu",
+                           "Prevent Start Menu from showing when Windows key is pressed; use "
+                           "Ctrl+Esc to show Start Menu instead");
 
   prop = RNA_def_property(srna, "use_emulate_numpad", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_NONUMPAD);

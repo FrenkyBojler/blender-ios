@@ -47,6 +47,7 @@ if(WITH_OPENMP AND WITH_OPENMP_STATIC)
 endif()
 
 if(WIN32)
+  list(APPEND LIB PRIVATE bf::intern::win32oskey)
   list(APPEND INC ../../intern/utfconv)
 endif()
 

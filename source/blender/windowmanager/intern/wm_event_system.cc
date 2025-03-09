@@ -5337,14 +5337,9 @@ static void wm_eventemulation(wmEvent *event, bool test_only)
   if (U.flag & USER_TWOBUTTONMOUSE) {
 
     if (event->type == LEFTMOUSE) {
-      const uint8_t mod_test = (
-#if !defined(WIN32)
-          (U.mouse_emulate_3_button_modifier == USER_EMU_MMB_MOD_OSKEY) ? KM_OSKEY : KM_ALT
-#else
-          /* Disable for WIN32 for now because it accesses the start menu. */
-          KM_ALT
-#endif
-      );
+      const uint8_t mod_test = ((U.mouse_emulate_3_button_modifier == USER_EMU_MMB_MOD_OSKEY) ?
+                                    KM_OSKEY :
+                                    KM_ALT);
 
       if (event->val == KM_PRESS) {
         if (event->modifier & mod_test) {

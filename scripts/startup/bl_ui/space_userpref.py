@@ -1849,32 +1849,31 @@ class USERPREF_PT_input_keyboard(InputPanel, CenterAlignMixIn, Panel):
     bl_label = "Keyboard"
 
     def draw_centered(self, context, layout):
+        import platform
         prefs = context.preferences
         inputs = prefs.inputs
 
         layout.prop(inputs, "use_emulate_numpad")
         layout.prop(inputs, "use_numeric_input_advanced")
+        if platform.system() == "Windows":
+            layout.prop(inputs, "use_win32_start_menu_suppression")
 
 
 class USERPREF_PT_input_mouse(InputPanel, CenterAlignMixIn, Panel):
     bl_label = "Mouse"
 
     def draw_centered(self, context, layout):
-        import sys
         prefs = context.preferences
         inputs = prefs.inputs
 
         flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=False)
 
-        if sys.platform[:3] == "win":
-            flow.prop(inputs, "use_mouse_emulate_3_button")
-        else:
-            col = flow.column(heading="Emulate 3 Button Mouse")
-            row = col.row()
-            row.prop(inputs, "use_mouse_emulate_3_button", text="")
-            subrow = row.row()
-            subrow.prop(inputs, "mouse_emulate_3_button_modifier", text="")
-            subrow.active = inputs.use_mouse_emulate_3_button
+        col = flow.column(heading="Emulate 3 Button Mouse")
+        row = col.row()
+        row.prop(inputs, "use_mouse_emulate_3_button", text="")
+        subrow = row.row()
+        subrow.prop(inputs, "mouse_emulate_3_button_modifier", text="")
+        subrow.active = inputs.use_mouse_emulate_3_button
 
         flow.prop(inputs, "use_mouse_continuous")
         flow.prop(inputs, "use_drag_immediately")

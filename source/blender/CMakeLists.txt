@@ -198,3 +198,7 @@ endif()
 if(WITH_CPU_CHECK)
   add_subdirectory(cpucheck)
 endif()
+
+if(WIN32)
+  add_subdirectory(win32oskey)
+endif()

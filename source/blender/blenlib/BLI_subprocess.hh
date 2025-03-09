@@ -61,6 +61,19 @@ class BlenderSubprocess : NonCopyable {
    * WARNING: This function shouldn't be called again after it succeeds.
    */
   bool create(Span<StringRefNull> args);
+
+#  ifdef _WIN32
+  /**
+   * Create a subprocess and pass the arguments to the main function.
+   * Additionally, inherits the specified win32 handles to the subprocess.
+   * NOTE: The subprocess path is not passed as `argv[0]`.
+   * `args` only support alpha-numeric characters, underscores and hyphen-minus as a safety
+   * measure.
+   * WARNING: This function shouldn't be called again after it succeeds.
+   */
+  bool create(Span<StringRefNull> args, Span<HANDLE> inherit_handles);
+#  endif
+
   /**
    * Checks if the subprocess is still running.
    * It always returns false if creation failed.

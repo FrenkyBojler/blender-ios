@@ -260,6 +260,7 @@ set(INC
   ../../editors/asset
   ../../editors/include
   ../../render
+  ../../win32oskey
   ../../../../intern/clog
   ../../../../intern/cycles/blender
   ../../../../extern/fmtlib/include

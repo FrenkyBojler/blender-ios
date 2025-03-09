@@ -35,6 +35,7 @@ static bool check_arguments_are_valid(Span<StringRefNull> args)
 #    define WIN32_LEAN_AND_MEAN
 #    include <comdef.h>
 #    include <windows.h>
+#    include <PathCch.h>
 
 namespace blender {
 
@@ -78,23 +79,30 @@ class ProcessGroup {
     CHECK(CloseHandle(handle_));
   }
 
+  static ProcessGroup &instance()
+  {
+    static ProcessGroup inst;
+    return inst;
+  }
+
   void assign_subprocess(HANDLE subprocess)
   {
     CHECK(AssignProcessToJobObject(handle_, subprocess));
   }
 };
 
-bool BlenderSubprocess::create(Span<StringRefNull> args)
+static bool blender_subprocess_create_common(Span<StringRefNull> args,
+                                             std::wstring &path,
+                                             std::wstring &w_args)
 {
-  BLI_assert(handle_ == nullptr);
-
   if (!check_arguments_are_valid(args)) {
     BLI_assert(false);
     return false;
   }
 
-  wchar_t path[FILE_MAX];
-  if (!GetModuleFileNameW(nullptr, path, FILE_MAX)) {
+  path.resize(PATHCCH_MAX_CCH);
+  path.resize(GetModuleFileNameW(nullptr, path.data(), static_cast<DWORD>(path.size())));
+  if (path.empty()) {
     ERROR("GetModuleFileNameW");
     return false;
   }
@@ -106,14 +114,25 @@ bool BlenderSubprocess::create(Span<StringRefNull> args)
 
   const int length_wc = MultiByteToWideChar(
       CP_UTF8, 0, args_str.c_str(), args_str.length(), nullptr, 0);
-  std::wstring w_args(length_wc, 0);
+  w_args.resize(length_wc, 0);
   CHECK(MultiByteToWideChar(
       CP_UTF8, 0, args_str.c_str(), args_str.length(), w_args.data(), length_wc));
+  return true;
+}
+
+bool BlenderSubprocess::create(Span<StringRefNull> args)
+{
+  BLI_assert(handle_ == nullptr);
+
+  std::wstring path, w_args;
+  if (!blender_subprocess_create_common(args, path, w_args)) {
+    return false;
+  }
 
   STARTUPINFOW startup_info = {0};
   startup_info.cb = sizeof(startup_info);
   PROCESS_INFORMATION process_info = {0};
-  if (!CreateProcessW(path,
+  if (!CreateProcessW(path.c_str(),
                       /** Use data() since lpCommandLine must be mutable. */
                       w_args.data(),
                       nullptr,
@@ -132,10 +151,76 @@ bool BlenderSubprocess::create(Span<StringRefNull> args)
   handle_ = process_info.hProcess;
   CHECK(CloseHandle(process_info.hThread));
 
-  static ProcessGroup group;
   /* Don't let the subprocess outlive its parent. */
-  group.assign_subprocess(handle_);
+  ProcessGroup::instance().assign_subprocess(handle_);
 
+  return true;
+}
+
+bool BlenderSubprocess::create(Span<StringRefNull> args, Span<HANDLE> inherit_handles)
+{
+  BLI_assert(handle_ == nullptr);
+
+  std::wstring path, w_args;
+  if (!blender_subprocess_create_common(args, path, w_args)) {
+    return false;
+  }
+
+  STARTUPINFOEXW startup_info = {0};
+  std::vector<uint8_t> attribute_list_buffer;
+
+  startup_info.StartupInfo.cb = sizeof(startup_info);
+  size_t attribute_list_size;
+  InitializeProcThreadAttributeList(nullptr, 1, 0, &attribute_list_size);
+
+  attribute_list_buffer.resize(attribute_list_size);
+  startup_info.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(
+      attribute_list_buffer.data());
+  if (!InitializeProcThreadAttributeList(startup_info.lpAttributeList, 1, 0, &attribute_list_size))
+  {
+    ERROR("InitializeProcThreadAttributeList");
+    return false;
+  }
+
+  if (!UpdateProcThreadAttribute(startup_info.lpAttributeList,
+                                 0,
+                                 PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                                 const_cast<HANDLE *>(inherit_handles.data()),
+                                 inherit_handles.size() * sizeof(HANDLE),
+                                 nullptr,
+                                 nullptr))
+  {
+    DeleteProcThreadAttributeList(startup_info.lpAttributeList);
+    ERROR("UpdateProcThreadAttribute");
+    return false;
+  }
+
+  PROCESS_INFORMATION process_info = {0};
+
+  if (!CreateProcessW(path.c_str(),
+                      /** Use data() since lpCommandLine must be mutable. */
+                      w_args.data(),
+                      nullptr,
+                      nullptr,
+                      true,
+                      CREATE_BREAKAWAY_FROM_JOB | EXTENDED_STARTUPINFO_PRESENT,
+                      nullptr,
+                      nullptr,
+                      &startup_info.StartupInfo,
+                      &process_info))
+  {
+    ERROR("CreateProcessW");
+    DeleteProcThreadAttributeList(startup_info.lpAttributeList);
+    return false;
+  }
+
+  handle_ = process_info.hProcess;
+  CHECK(CloseHandle(process_info.hThread));
+
+  /* Don't let the subprocess outlive its parent. */
+  ProcessGroup::instance().assign_subprocess(handle_);
+
+  DeleteProcThreadAttributeList(startup_info.lpAttributeList);
   return true;
 }
 
@@ -152,14 +237,16 @@ bool BlenderSubprocess::is_running()
     return false;
   }
 
-  DWORD exit_code = 0;
-  if (GetExitCodeProcess(handle_, &exit_code)) {
-    return exit_code == STILL_ACTIVE;
+  switch (WaitForSingleObject(handle_, 0)) {
+    case WAIT_OBJECT_0:
+      return false;
+    case WAIT_TIMEOUT:
+      return true;
+    default:
+      ERROR("WaitForSingleObject");
+      /* Assume the process is dead. */
+      return false;
   }
-
-  ERROR("GetExitCodeProcess");
-  /* Assume the process is still running. */
-  return true;
 }
 
 SharedMemory::SharedMemory(std::string name, size_t size, bool is_owner)

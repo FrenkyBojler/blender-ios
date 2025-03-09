@@ -11,6 +11,7 @@
 
 #ifdef WIN32
 #  include "utfconv.hh"
+#  include "win32oskey.hh"
 #  include <windows.h>
 #  ifdef WITH_CPU_CHECK
 #    pragma comment(linker, "/include:cpu_check_win32")
@@ -333,6 +334,14 @@ int main(int argc,
 #  endif /* USE_WIN32_UNICODE_ARGS */
 #endif   /* WIN32 */
 
+#if defined(WIN32) && BLI_SUBPROCESS_SUPPORT
+  if (STREQ(argv[0], blender::win32oskey::arg_name)) {
+    BLI_assert(argc == 3);
+    blender::win32oskey::subprocess_run(argv[1], argv[2]);
+    return 0;
+  }
+#endif
+
 #if defined(WITH_OPENGL_BACKEND) && BLI_SUBPROCESS_SUPPORT
   if (STREQ(argv[0], "--compilation-subprocess")) {
     BLI_assert(argc == 2);
@@ -587,6 +596,11 @@ int main(int argc,
   else {
     /* Not supported, although it could be made to work if needed. */
     BLI_assert(app_state.main_arg_deferred == nullptr);
+
+    /* Start the start key suppression subprocess. */
+#  if defined(WIN32) && BLI_SUBPROCESS_SUPPORT
+    blender::win32oskey::enable_suppression(U.flag & USER_FLAG_SUPPRESS_WIN32_START_MENU);
+#  endif
 
     /* Shows the splash as needed. */
     WM_init_splash_on_startup(C);
