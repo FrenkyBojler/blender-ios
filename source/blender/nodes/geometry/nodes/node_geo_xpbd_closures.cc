@@ -37,6 +37,7 @@ constexpr StringRef ATTR_POINT2 = "point2";
 constexpr StringRef ATTR_ACTIVE = "active";
 constexpr StringRef ATTR_LAST_ACTIVE = "last_active";
 
+template<bool debug_output>
 static void position_goal__eval_positions(const ConstraintEvalParams &params,
                                           const ConstraintVariables &variables,
                                           const IndexMask &group_mask,
@@ -62,6 +63,14 @@ static void position_goal__eval_positions(const ConstraintEvalParams &params,
       "lambda", AttrDomain::Point);
   SpanAttributeWriter<float3> delta_position_writer =
       attributes->lookup_or_add_for_write_span<float3>("delta_position", AttrDomain::Point);
+  SpanAttributeWriter<float> residual_writer;
+  if constexpr (debug_output) {
+    residual_writer = attributes->lookup_or_add_for_write_span<float>("residual",
+                                                                      AttrDomain::Point);
+  }
+  else {
+    UNUSED_VARS(residual_writer);
+  }
 
   const IndexRange points_range = variables.positions.index_range();
   const Span<float3> positions = variables.positions;
@@ -104,10 +113,16 @@ static void position_goal__eval_positions(const ConstraintEvalParams &params,
     }
 
     lambda += delta_lambda;
+    if constexpr (debug_output) {
+      residual_writer.span[index] = residual;
+    }
   });
 
   lambda_writer.finish();
   delta_position_writer.finish();
+  if constexpr (debug_output) {
+    residual_writer.finish();
+  }
 
   r_active = VArray<bool>::ForSingle(true, attributes->domain_size(AttrDomain::Point));
   r_delta_positions = {*attributes->lookup<float3>("delta_position", AttrDomain::Point)};
@@ -135,6 +150,7 @@ static void position_goal__init_position_step(bke::GeometrySet &constraints)
   lambda_writer.finish();
 }
 
+template<bool debug_output>
 static void rotation_goal__eval_positions(const ConstraintEvalParams &params,
                                           const ConstraintVariables &variables,
                                           const IndexMask &group_mask,
@@ -169,6 +185,17 @@ static void rotation_goal__eval_positions(const ConstraintEvalParams &params,
       attributes->lookup_or_add_for_write_span<float>("delta_rotation_w", AttrDomain::Point);
   SpanAttributeWriter<float3> delta_rotation_xyz_writer =
       attributes->lookup_or_add_for_write_span<float3>("delta_rotation_xyz", AttrDomain::Point);
+  SpanAttributeWriter<float> residual_w_writer;
+  SpanAttributeWriter<float3> residual_xyz_writer;
+  if constexpr (debug_output) {
+    residual_w_writer = attributes->lookup_or_add_for_write_span<float>("residual_w",
+                                                                        AttrDomain::Point);
+    residual_xyz_writer = attributes->lookup_or_add_for_write_span<float3>("residual_xyz",
+                                                                           AttrDomain::Point);
+  }
+  else {
+    UNUSED_VARS(residual_w_writer, residual_xyz_writer);
+  }
 
   const IndexRange points_range = variables.positions.index_range();
   const Span<math::Quaternion> rotations = variables.rotations;
@@ -219,12 +246,20 @@ static void rotation_goal__eval_positions(const ConstraintEvalParams &params,
     lambda_xyz += delta_lambda.yzw();
     delta_rotation_w = delta_rotation.x;
     delta_rotation_xyz = delta_rotation.yzw();
+    if constexpr (debug_output) {
+      residual_w_writer.span[index] = residual.w;
+      residual_xyz_writer.span[index] = residual.xyz();
+    }
   });
 
   lambda_w_writer.finish();
   lambda_xyz_writer.finish();
   delta_rotation_w_writer.finish();
   delta_rotation_xyz_writer.finish();
+  if constexpr (debug_output) {
+    residual_w_writer.finish();
+    residual_xyz_writer.finish();
+  }
 
   r_active = VArray<bool>::ForSingle(true, attributes->domain_size(AttrDomain::Point));
   r_delta_positions = {{}};
@@ -264,6 +299,7 @@ static void rotation_goal__init_position_step(bke::GeometrySet &constraints)
   lambda_xyz_writer.finish();
 }
 
+template<bool debug_output>
 static void stretch_shear__eval_positions(const ConstraintEvalParams &params,
                                           const ConstraintVariables &variables,
                                           const IndexMask &group_mask,
@@ -298,6 +334,14 @@ static void stretch_shear__eval_positions(const ConstraintEvalParams &params,
       attributes->lookup_or_add_for_write_span<float>("delta_rotation1_w", AttrDomain::Point);
   SpanAttributeWriter<float3> delta_rotation1_xyz_writer =
       attributes->lookup_or_add_for_write_span<float3>("delta_rotation1_xyz", AttrDomain::Point);
+  SpanAttributeWriter<float3> residual_writer;
+  if constexpr (debug_output) {
+    residual_writer = attributes->lookup_or_add_for_write_span<float3>("residual",
+                                                                       AttrDomain::Point);
+  }
+  else {
+    UNUSED_VARS(residual_writer);
+  }
 
   const IndexRange points_range = variables.positions.index_range();
   const Span<float3> positions = variables.positions;
@@ -372,6 +416,9 @@ static void stretch_shear__eval_positions(const ConstraintEvalParams &params,
     lambda += delta_lambda;
     delta_rot1_w = delta_rot1.x;
     delta_rot1_xyz = delta_rot1.yzw();
+    if constexpr (debug_output) {
+      residual_writer.span[index] = residual;
+    }
   });
 
   lambda_writer.finish();
@@ -379,6 +426,9 @@ static void stretch_shear__eval_positions(const ConstraintEvalParams &params,
   delta_position2_writer.finish();
   delta_rotation1_w_writer.finish();
   delta_rotation1_xyz_writer.finish();
+  if constexpr (debug_output) {
+    residual_writer.finish();
+  }
 
   r_active = VArray<bool>::ForSingle(true, attributes->domain_size(AttrDomain::Point));
   r_delta_positions = {*attributes->lookup<float3>("delta_position1", AttrDomain::Point),
@@ -416,6 +466,7 @@ static void stretch_shear__init_position_step(bke::GeometrySet &constraints)
   lambda_writer.finish();
 }
 
+template<bool debug_output>
 static void bend_twist__eval_positions(const ConstraintEvalParams &params,
                                        const ConstraintVariables &variables,
                                        const IndexMask &group_mask,
@@ -455,6 +506,18 @@ static void bend_twist__eval_positions(const ConstraintEvalParams &params,
       attributes->lookup_or_add_for_write_span<float>("delta_rotation2_w", AttrDomain::Point);
   SpanAttributeWriter<float3> delta_rotation2_xyz_writer =
       attributes->lookup_or_add_for_write_span<float3>("delta_rotation2_xyz", AttrDomain::Point);
+
+  SpanAttributeWriter<float> residual_w_writer;
+  SpanAttributeWriter<float3> residual_xyz_writer;
+  if constexpr (debug_output) {
+    residual_w_writer = attributes->lookup_or_add_for_write_span<float>("residual_w",
+                                                                        AttrDomain::Point);
+    residual_xyz_writer = attributes->lookup_or_add_for_write_span<float3>("residual_xyz",
+                                                                           AttrDomain::Point);
+  }
+  else {
+    UNUSED_VARS(residual_w_writer, residual_xyz_writer);
+  }
 
   const IndexRange points_range = variables.positions.index_range();
   const Span<math::Quaternion> rotations = variables.rotations;
@@ -523,6 +586,10 @@ static void bend_twist__eval_positions(const ConstraintEvalParams &params,
     delta_rotation1_xyz = delta_rotation1.yzw();
     delta_rotation2_w = delta_rotation2.x;
     delta_rotation2_xyz = delta_rotation2.yzw();
+    if constexpr (debug_output) {
+      residual_w_writer.span[index] = residual.w;
+      residual_xyz_writer.span[index] = residual.xyz();
+    }
   });
 
   lambda_w_writer.finish();
@@ -531,6 +598,10 @@ static void bend_twist__eval_positions(const ConstraintEvalParams &params,
   delta_rotation1_xyz_writer.finish();
   delta_rotation2_w_writer.finish();
   delta_rotation2_xyz_writer.finish();
+  if constexpr (debug_output) {
+    residual_w_writer.finish();
+    residual_xyz_writer.finish();
+  }
 
   r_active = VArray<bool>::ForSingle(true, attributes->domain_size(AttrDomain::Point));
   r_delta_positions = {{}, {}};
@@ -578,6 +649,7 @@ static void bend_twist__init_position_step(bke::GeometrySet &constraints)
   lambda_xyz_writer.finish();
 }
 
+template<bool debug_output>
 static void contact__eval_positions(const ConstraintEvalParams &params,
                                     const ConstraintVariables &variables,
                                     const IndexMask &group_mask,
@@ -615,6 +687,14 @@ static void contact__eval_positions(const ConstraintEvalParams &params,
       ATTR_ACTIVE, AttrDomain::Point);
   SpanAttributeWriter<bool> last_active_writer = attributes->lookup_or_add_for_write_span<bool>(
       ATTR_LAST_ACTIVE, AttrDomain::Point);
+  SpanAttributeWriter<float> residual_position_writer;
+  if constexpr (debug_output) {
+    residual_position_writer = attributes->lookup_or_add_for_write_span<float>("residual_position",
+                                                                               AttrDomain::Point);
+  }
+  else {
+    UNUSED_VARS(residual_position_writer);
+  }
 
   const IndexRange points_range = variables.positions.index_range();
   const Span<float3> positions = variables.positions;
@@ -682,6 +762,9 @@ static void contact__eval_positions(const ConstraintEvalParams &params,
       lambda += delta_lambda;
       delta_rot1_w = delta_rot1.x;
       delta_rot1_xyz = delta_rot1.yzw();
+      if constexpr (debug_output) {
+        residual_position_writer.span[index] = residual;
+      }
     }
   });
 
@@ -691,6 +774,9 @@ static void contact__eval_positions(const ConstraintEvalParams &params,
   delta_rotation1_xyz_writer.finish();
   active_writer.finish();
   last_active_writer.finish();
+  if constexpr (debug_output) {
+    residual_position_writer.finish();
+  }
 
   r_active = *attributes->lookup<bool>(ATTR_LAST_ACTIVE, AttrDomain::Point);
   r_delta_positions = {*attributes->lookup<float3>("delta_position1", AttrDomain::Point)};
@@ -705,6 +791,7 @@ static void contact__eval_positions(const ConstraintEvalParams &params,
       VArray<float4>::ForFunc(attributes->domain_size(AttrDomain::Point), delta_rotation1_fn)};
 }
 
+template<bool debug_output>
 static void contact__eval_velocities(const ConstraintEvalParams &params,
                                      const ConstraintVariables &variables,
                                      const IndexMask &group_mask,
@@ -743,6 +830,17 @@ static void contact__eval_velocities(const ConstraintEvalParams &params,
   SpanAttributeWriter<float3> delta_angular_velocity1_writer =
       attributes->lookup_or_add_for_write_span<float3>("delta_angular_velocity1",
                                                        AttrDomain::Point);
+  SpanAttributeWriter<float> residual_restitution_writer;
+  SpanAttributeWriter<float> residual_friction_writer;
+  if constexpr (debug_output) {
+    residual_restitution_writer = attributes->lookup_or_add_for_write_span<float>(
+        "residual_restitution", AttrDomain::Point);
+    residual_friction_writer = attributes->lookup_or_add_for_write_span<float>("residual_friction",
+                                                                               AttrDomain::Point);
+  }
+  else {
+    UNUSED_VARS(residual_restitution_writer, residual_friction_writer);
+  }
 
   const IndexRange points_range = variables.positions.index_range();
   const Span<float3> velocities = variables.velocities;
@@ -834,12 +932,20 @@ static void contact__eval_velocities(const ConstraintEvalParams &params,
     /* Accumulate "active" flags over the entire time step. */
     lambda_restitution += delta_lambda_restitution;
     lambda_friction += delta_lambda_friction;
+    if constexpr (debug_output) {
+      residual_restitution_writer.span[index] = residual_restitution;
+      residual_friction_writer.span[index] = residual_friction;
+    }
   });
 
   restitution_lambda_writer.finish();
   friction_lambda_writer.finish();
   delta_velocity1_writer.finish();
   delta_angular_velocity1_writer.finish();
+  if constexpr (debug_output) {
+    residual_restitution_writer.finish();
+    residual_friction_writer.finish();
+  }
 
   /* Note: velocity constraints are active if the position constraint has been active at any time
    * during the time step. */
@@ -887,14 +993,14 @@ static void contact__init_velocity_step(bke::GeometrySet &constraints)
   friction_lambda_writer.finish();
 }
 
-static Array<ConstraintTypeInfo> create_constraint_info()
+template<bool debug_output> static Array<ConstraintTypeInfo> create_constraint_info()
 {
   ConstraintTypeInfo position_goal_info = {"Position Goal Constraints",
                                            "Set position of a point to a target vector",
                                            0,
                                            position_goal__init_position_step,
                                            {},
-                                           position_goal__eval_positions,
+                                           position_goal__eval_positions<debug_output>,
                                            {},
                                            position_goal__get_mapping};
   ConstraintTypeInfo rotation_goal_info = {"Rotation Goal Constraints",
@@ -902,7 +1008,7 @@ static Array<ConstraintTypeInfo> create_constraint_info()
                                            1,
                                            rotation_goal__init_position_step,
                                            {},
-                                           rotation_goal__eval_positions,
+                                           rotation_goal__eval_positions<debug_output>,
                                            {},
                                            rotation_goal__get_mapping};
   ConstraintTypeInfo stretch_shear_info = {
@@ -911,7 +1017,7 @@ static Array<ConstraintTypeInfo> create_constraint_info()
       2,
       stretch_shear__init_position_step,
       {},
-      stretch_shear__eval_positions,
+      stretch_shear__eval_positions<debug_output>,
       {},
       stretch_shear__get_mapping};
   ConstraintTypeInfo bend_twist_info = {
@@ -920,7 +1026,7 @@ static Array<ConstraintTypeInfo> create_constraint_info()
       3,
       bend_twist__init_position_step,
       {},
-      bend_twist__eval_positions,
+      bend_twist__eval_positions<debug_output>,
       {},
       bend_twist__get_mapping};
   ConstraintTypeInfo contact_info = {"Contact Constraints",
@@ -928,8 +1034,8 @@ static Array<ConstraintTypeInfo> create_constraint_info()
                                      4,
                                      contact__init_position_step,
                                      contact__init_velocity_step,
-                                     contact__eval_positions,
-                                     contact__eval_velocities,
+                                     contact__eval_positions<debug_output>,
+                                     contact__eval_velocities<debug_output>,
                                      contact__get_mapping};
 
   /* Order of constraint passes is chosen by increasing "importance":
@@ -946,17 +1052,18 @@ static Array<ConstraintTypeInfo> create_constraint_info()
   return constraint_info;
 }
 
-Span<ConstraintTypeInfo> get_constraint_info()
+Span<ConstraintTypeInfo> get_constraint_info(const bool debug_output)
 {
-  static const Array<ConstraintTypeInfo> constraint_info = create_constraint_info();
-  return constraint_info;
+  static const Array<ConstraintTypeInfo> constraint_info = create_constraint_info<false>();
+  static const Array<ConstraintTypeInfo> constraint_info_debug = create_constraint_info<true>();
+  return debug_output ? constraint_info_debug : constraint_info;
 }
 
-Span<ConstraintTypeInfo> get_constraint_info_ordered()
+Span<ConstraintTypeInfo> get_constraint_info_ordered(const bool debug_output)
 {
   /* TODO currently relies on fixed order in get_constraint_info(),
    * could also re-order based on some priority value. */
-  return get_constraint_info();
+  return get_constraint_info(debug_output);
 }
 
 }  // namespace blender::nodes::xpbd_constraints

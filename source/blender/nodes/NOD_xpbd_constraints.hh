@@ -135,8 +135,8 @@ struct ConstraintTypeInfo {
   ConstraintMappingFunc get_mapping;
 };
 
-Span<ConstraintTypeInfo> get_constraint_info();
-Span<ConstraintTypeInfo> get_constraint_info_ordered();
+Span<ConstraintTypeInfo> get_constraint_info(bool debug_output);
+Span<ConstraintTypeInfo> get_constraint_info_ordered(bool debug_output);
 
 namespace error_check {
 
