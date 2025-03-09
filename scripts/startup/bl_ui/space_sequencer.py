@@ -460,7 +460,6 @@ class SEQUENCER_MT_view(Menu):
         layout.operator_context = 'INVOKE_DEFAULT'
         if is_sequencer_view:
             layout.prop(st, "show_region_hud")
-        if is_sequencer_only:
             layout.prop(st, "show_region_channels")
         layout.separator()
 

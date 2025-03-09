@@ -1115,7 +1115,7 @@ static void sequencer_foreach_id(SpaceLink *space_link, LibraryForeachIDData *da
 static bool sequencer_channel_region_poll(const RegionPollParams *params)
 {
   const SpaceSeq *sseq = (SpaceSeq *)params->area->spacedata.first;
-  return ELEM(sseq->view, SEQ_VIEW_SEQUENCE);
+  return ELEM(sseq->view, SEQ_VIEW_SEQUENCE, SEQ_VIEW_SEQUENCE_PREVIEW);
 }
 
 /* add handlers, stuff you only do once or on area/region changes */
@@ -1133,7 +1133,9 @@ static void sequencer_channel_region_init(wmWindowManager *wm, ARegion *region)
 
 static void sequencer_channel_region_draw(const bContext *C, ARegion *region)
 {
-  draw_channels(C, region);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region_preview = sequencer_find_region(area, RGN_TYPE_PREVIEW);
+  draw_channels(C, region, region_preview);
 }
 
 static void sequencer_space_blend_read_data(BlendDataReader * /*reader*/, SpaceLink *sl)

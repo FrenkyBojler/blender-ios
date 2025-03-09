@@ -299,6 +299,55 @@ static void draw_background()
   UI_ThemeClearColor(TH_BACK);
 }
 
+
+/* 
+ * Draws solid colors on the top area of the channels region when using
+ * the Sequencer & Preview mode to fix inconsistent layout look.
+ */
+static void draw_foreground(const SeqChannelDrawContext *context, const ARegion *region_preview)
+{
+  if (!region_preview->v2d.flag) { 
+    return;
+  }
+
+  const float xmin = 0.0f;
+  const float xmax = context->region->winx;
+  const float ymin = (context->region->sizey * UI_SCALE_FAC) - region_preview->winy - (23 * UI_SCALE_FAC);
+  float color_fill[4], color_preview[4];
+  float ymax;
+  rctf rect;
+
+  //Shaded background color
+  UI_GetThemeColorShadeAlpha4fv(TH_SEQ_PREVIEW, 0, 255, color_preview);
+  ymax = context->region->sizey;
+  rect = { xmin, xmax, ymin, ymax * UI_SCALE_FAC };
+  UI_draw_roundbox_4fv(&rect, true, 0.0f, color_preview);
+
+  bThemeState theme_state;
+  UI_Theme_Store(&theme_state);
+  UI_SetTheme(SPACE_SEQ, RGN_TYPE_WINDOW);
+
+  UI_GetThemeColor4fv(TH_TIME_SCRUB_BACKGROUND, color_fill);
+  color_fill[3] = 0.5f;
+  UI_draw_roundbox_4fv(&rect, true, 0.0f, color_fill);
+
+  if (round_fl_to_int(context->channel_height) == 0) {
+    return;
+  }
+
+  //Extended timeline scrubbing
+  UI_GetThemeColor4fv(TH_BACK, color_fill);
+  ymax = (context->region->sizey * UI_SCALE_FAC) - region_preview->winy;
+  rect = { xmin, xmax, ymin, ymax };
+  UI_draw_roundbox_4fv(&rect, true, 0.0f, color_fill);
+  
+  UI_GetThemeColor4fv(TH_TIME_SCRUB_BACKGROUND, color_fill);
+  UI_draw_roundbox_4fv(&rect, true, 0.0f, color_fill);
+
+  UI_Theme_Restore(&theme_state);
+}
+
+
 void channel_draw_context_init(const bContext *C,
                                ARegion *region,
                                SeqChannelDrawContext *r_context)
@@ -322,10 +371,8 @@ void channel_draw_context_init(const bContext *C,
   r_context->scale = min_ff(r_context->channel_height / (U.widget_unit * 0.6), 1);
 }
 
-void draw_channels(const bContext *C, ARegion *region)
+void draw_channels(const bContext *C, ARegion *region, ARegion *region_preview)
 {
-  draw_background();
-
   Editing *ed = SEQ_editing_get(CTX_data_scene(C));
   if (ed == nullptr) {
     return;
@@ -333,14 +380,13 @@ void draw_channels(const bContext *C, ARegion *region)
 
   SeqChannelDrawContext context;
   channel_draw_context_init(C, region, &context);
+  draw_background();
 
-  if (round_fl_to_int(context.channel_height) == 0) {
-    return;
+  if (round_fl_to_int(context.channel_height) > 0) {
+    UI_view2d_view_ortho(context.v2d);
+    draw_channel_headers(&context);
+    UI_view2d_view_restore(C);
   }
-
-  UI_view2d_view_ortho(context.v2d);
-
-  draw_channel_headers(&context);
-
-  UI_view2d_view_restore(C);
+  
+  draw_foreground(&context, region_preview);
 }

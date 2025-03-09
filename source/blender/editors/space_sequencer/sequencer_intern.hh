@@ -166,7 +166,7 @@ void draw_strip_thumbnails(TimelineDrawContext *ctx,
 
 /* sequencer_draw_channels.c */
 
-void draw_channels(const bContext *C, ARegion *region);
+void draw_channels(const bContext *C, ARegion *region, ARegion *region_preview);
 void channel_draw_context_init(const bContext *C,
                                ARegion *region,
                                SeqChannelDrawContext *r_context);
