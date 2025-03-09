@@ -48,11 +48,22 @@ template<typename T> struct OsdValue {
 
 class OsdMesh {
  public:
+  /* Types */
+  struct MergedFVar {
+    const Attribute &attr;
+    int channel = -1;
+    vector<char> values;
+  };
+
   /* Members */
   Mesh &mesh;
+  vector<MergedFVar> merged_fvars;
 
   /* Functions */
   OsdMesh(Mesh &mesh) : mesh(mesh) {}
+
+  bool use_smooth_fvar(const Attribute &attr) const;
+  bool use_smooth_fvar() const;
 };
 
 /* OpenSubdiv refiner and patch data structures. */

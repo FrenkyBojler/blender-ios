@@ -908,6 +908,11 @@ enum AttributeStandard {
   ATTR_STD_NOT_FOUND = ~0
 };
 
+enum AttributeFlag {
+  ATTR_SUBDIVIDE_SMOOTH_FVAR = (1 << 0), /* This attribute is face-varying and requirs smooth
+                                           subdivision (typically UV map). */
+};
+
 struct AttributeDescriptor {
   AttributeElement element;
   NodeAttributeType type;
