@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Beta (b'ed5b077f929a')\n"
+"Project-Id-Version: Blender 4.4.0 Beta (b'1a72a0f22cde')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-17 14:06+0000\n"
-"PO-Revision-Date: 2025-02-11 07:18+0000\n"
+"POT-Creation-Date: 2025-03-03 09:33+0000\n"
+"PO-Revision-Date: 2025-02-25 08:56+0000\n"
 "Last-Translator: Jozef Matta <jozef.m923@gmail.com>\n"
 "Language-Team: Slovak <https://translate.blender.org/projects/blender-ui/ui/sk/>\n"
 "Language: sk\n"
@@ -12,7 +12,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2;\n"
-"X-Generator: Weblate 5.9.2"
+"X-Generator: Weblate 5.10.1"
 
 
 msgid "Shader AOV"
@@ -111,8 +111,8 @@ msgid "Action F-Curves"
 msgstr "Akčné F-krivky"
 
 
-msgid "Collection of action F-Curves"
-msgstr "Kolekcia akčných F-kriviek"
+msgid "Collection of action F-Curves. Note that this is a legacy API that is unaware of action slots, and will only consider the F-Curves for this action's first slot"
+msgstr "Kolekcia akčných F-kriviek. Všimnite si, že toto je staršie API, ktoré nepozná zásuvky akcie a bude brať do úvahy len F-krivky pre prvú zásuvku tejto akcie"
 
 
 msgid "Action Group"
@@ -742,10 +742,6 @@ msgstr "Vytvorte viac priestoru pre prispôsobenie veľkých scén tak, že bude
 
 msgid "HIP RT (Experimental)"
 msgstr "HIP RT (experimentálne)"
-
-
-msgid "HIP RT enables AMD hardware ray tracing on RDNA2 and above, with shader fallback on older cards. This feature is experimental and some scenes may render incorrectly"
-msgstr "HIP RT umožňuje hardvérové sledovanie lúčov AMD na kartách RDNA2 a vyšších, pričom na starších kartách je k dispozícii spätný tieňovač. Táto funkcia je experimentálna a niektoré scény sa môžu prekresľovať nesprávne"
 
 
 msgid "Embree on GPU"
@@ -1726,7 +1722,7 @@ msgstr "Ďalšie informácie o aktívach"
 
 
 msgid "Asset Shelf"
-msgstr "Polica na aktíva"
+msgstr "Polica aktív"
 
 
 msgid "Regions for quick access to assets"
@@ -1802,7 +1798,7 @@ msgstr "Možnosti"
 
 
 msgid "Options for this asset shelf type"
-msgstr "Možnosti pre tento typ police s aktívami"
+msgstr "Možnosti pre tento typ police aktív"
 
 
 msgid "No Asset Dragging"
@@ -1818,7 +1814,7 @@ msgstr "Predvolene viditeľné"
 
 
 msgid "Unhide the asset shelf when it's available for the first time, otherwise it will be hidden"
-msgstr "Skryje police s aktívami, keď sú prvýkrát k dispozícii, inak budú skryté"
+msgstr "Skryje policu aktív, keď sú prvýkrát k dispozícii, inak budú skryté"
 
 
 msgid "Store Enabled Catalogs in Preferences"
@@ -1826,7 +1822,7 @@ msgstr "Uložiť povolené katalógy v predvoľbách"
 
 
 msgid "Store the shelf's enabled catalogs in the preferences rather than the local asset shelf settings"
-msgstr "Uloží povolené katalógy police v predvoľbách namiesto lokálnych nastavení police s aktívami"
+msgstr "Uloží povolené katalógy police v predvoľbách namiesto lokálnych nastavení police aktív"
 
 
 msgid "Space Type"
@@ -1834,7 +1830,7 @@ msgstr "Typ priestoru"
 
 
 msgid "The space where the asset shelf is going to be used in"
-msgstr "Priestor, v ktorom sa bude používať polica na aktíva"
+msgstr "Priestor, v ktorom sa bude používať polica aktív"
 
 
 msgid "Preview Size"
@@ -17249,7 +17245,7 @@ msgstr "Vlastnosti nástroja"
 
 
 msgid "Asset Shelf Header"
-msgstr "Záhlavie police s aktívami"
+msgstr "Záhlavie police aktív"
 
 
 msgid "Floating Region"
@@ -18111,8 +18107,8 @@ msgid "The combined frame range of all F-Curves within this action"
 msgstr "Kombinovaný rozsah všetkých F-kriviek v rámci tejto akcie"
 
 
-msgid "The individual F-Curves that make up the action"
-msgstr "Jednotlivé F-krivky tvoriace akciu"
+msgid "Legacy API, for backward compatibility with code that does not handle slotted actions yet. This collection contains the F-Curves for the action's first slot"
+msgstr "Staršie rozhranie API, pre spätnú kompatibilitu s kódom, ktorý ešte nespracúva akcie so zásuvkami. Táto kolekcia obsahuje F-krivky pre prvú zásuvku akcie"
 
 
 msgid "The end frame of the manually set intended playback range"
@@ -18135,8 +18131,8 @@ msgid "Groups"
 msgstr "Skupiny"
 
 
-msgid "Convenient groupings of F-Curves"
-msgstr "Výhodné zoskupenia F-kriviek"
+msgid "Legacy API, for backward compatibility with code that does not handle slotted actions yet. This collection contains the F-Curve groups for the action's first slot"
+msgstr "Staršie rozhranie API, pre spätnú kompatibilitu s kódom, ktorý ešte nespracúva akcie so zásuvkami. Táto kolekcia obsahuje skupiny F-kriviek pre prvú zásuvku akcie"
 
 
 msgctxt "ID"
@@ -18144,8 +18140,8 @@ msgid "ID Root Type"
 msgstr "ID typu koreňa"
 
 
-msgid "Type of ID block that action can be used on - DO NOT CHANGE UNLESS YOU KNOW WHAT YOU ARE DOING"
-msgstr "Typ ID bloku možnosti použitia akcie na Bez zmien, ak neviete, čo robíte"
+msgid "Legacy API, for backward compatibility with code that does not handle slotted actions yet. Type of data-block that the action's first slot can be used on. Do not change unless you know what you are doing"
+msgstr "Staršie rozhranie API, pre spätnú kompatibilitu s kódom, ktorý ešte nespracúva akcie so zásuvkami. Typ bloku údajov, na ktorý možno použiť prvá zásuvka akcie. Nemeňte, pokiaľ neviete, čo robíte"
 
 
 msgid "Is Layered Action"
@@ -18160,8 +18156,8 @@ msgid "Is Legacy Action"
 msgstr "Je akcia zdedená"
 
 
-msgid "Return whether this is a legacy Action. Legacy Actions have no layers or slots. An empty Action considered as both a 'legacy' and a 'layered' Action."
-msgstr "Vráti, či sa jedná o zdedenú akciu. Zdedené akcie nemajú žiadne vrstvy ani zásuvky. Prázdna akcia sa považuje za „zdedenú\" aj \"vrstvenú\" akciu."
+msgid "Return whether this is a legacy Action. Legacy Actions have no layers or slots. An empty Action considered as both a 'legacy' and a 'layered' Action. Since Blender 4.4 actions are automatically updated to layered actions, and thus this will only return True when the action is empty"
+msgstr "Vráti, či ide o staršiu akciu. Staršie akcie nemajú žiadne vrstvy ani zásuvky. Prázdna Akcia sa považuje za „staršiu“ aj „vrstvenú“ Akciu. Od verzie Blender 4.4 sa akcie automaticky aktualizujú na vrstvené akcie, a preto táto funkcia vráti hodnotu PRAVDA len vtedy, keď je akcia prázdna"
 
 
 msgid "Is Empty"
@@ -18820,26 +18816,6 @@ msgstr "Posuv počiatku okraja vo vzťahu k polomeru štetca"
 
 msgid "Brush's capabilities"
 msgstr "Schopnosti štetca"
-
-
-msgid "Clone Alpha"
-msgstr "Klony alfa"
-
-
-msgid "Opacity of clone image display"
-msgstr "Nepriehľadnosť zobrazenia klonov obrázkov"
-
-
-msgid "Clone Image"
-msgstr "Klony obrázka"
-
-
-msgid "Image for clone brushes"
-msgstr "Obrázok pre klonovacie štetce"
-
-
-msgid "Clone Offset"
-msgstr "Posuv klonu"
 
 
 msgid "Soft Body Plasticity"
@@ -29297,45 +29273,20 @@ msgid "Volume render settings for 3D viewport"
 msgstr "Nastavenia prekreslenia objemu pre 3D záber"
 
 
-msgctxt "Sequence"
-msgid "Sequence Mode"
-msgstr "Sekvenčný režim"
-
-
 msgid "Sequence playback mode"
 msgstr "Režim sekvenčného prehrávania"
-
-
-msgctxt "Sequence"
-msgid "Clip"
-msgstr "Klip"
 
 
 msgid "Hide frames outside the specified frame range"
 msgstr "Skryť snímky mimo určeného rozsahu snímok"
 
 
-msgctxt "Sequence"
-msgid "Extend"
-msgstr "Predĺžiť"
-
-
 msgid "Repeat the start frame before, and the end frame after the frame range"
 msgstr "Opakuje pred počiatočnou snímkou a po koncovej snímke do rozsahu snímok"
 
 
-msgctxt "Sequence"
-msgid "Repeat"
-msgstr "Opakovať"
-
-
 msgid "Cycle the frames in the sequence"
 msgstr "Cykluje snímky v sekvencii"
-
-
-msgctxt "Sequence"
-msgid "Ping-Pong"
-msgstr "Ping-pong"
 
 
 msgid "Repeat the frames, reversing the playback direction every other cycle"
@@ -34342,12 +34293,68 @@ msgid "Editor menu containing buttons"
 msgstr "Ponuka editora obsahujúca tlačidlá"
 
 
-msgid "Mirror"
-msgstr "Zrkadlo"
+msgid "Show/Hide"
+msgstr "Ukázať/skryť"
+
+
+msgid "Special Characters"
+msgstr "Špeciálne znaky"
+
+
+msgid "Kerning"
+msgstr "Zhustenie znakov"
+
+
+msgid "Text"
+msgstr "Text"
+
+
+msgid "Metaball"
+msgstr "Meta guľa"
+
+
+msgid "Names"
+msgstr "Názvy"
+
+
+msgid "Bone Roll"
+msgstr "Kývanie kosti"
+
+
+msgid "Clean Up"
+msgstr "Prečistiť"
+
+
+msgid "Pivot Point"
+msgstr "Otočný bod"
 
 
 msgid "Snap"
 msgstr "Prichytiť"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Dopad proporcionálnej úpravy"
+
+
+msgid "Mask Edit"
+msgstr "Úprava masky"
+
+
+msgid "Automasking"
+msgstr "Automatické maskovanie"
+
+
+msgid "Face Sets Edit"
+msgstr "Úprava nastavenia plôšok"
+
+
+msgid "Vertex Group Locks"
+msgstr "Zámky skupiny vrcholov"
+
+
+msgid "Mirror"
+msgstr "Zrkadlo"
 
 
 msgid "UV Mapping"
@@ -34402,10 +34409,6 @@ msgid "Assign Material"
 msgstr "Priradiť materiál"
 
 
-msgid "Metaball"
-msgstr "Meta guľa"
-
-
 msgid "Light"
 msgstr "Svetlo"
 
@@ -34438,14 +34441,6 @@ msgid "Quick Effects"
 msgstr "Rýchle efekty"
 
 
-msgid "Show/Hide"
-msgstr "Ukázať/skryť"
-
-
-msgid "Clean Up"
-msgstr "Prečistiť"
-
-
 msgid "Asset"
 msgstr "Aktívum"
 
@@ -34464,10 +34459,6 @@ msgstr "Prepojiť/preniesť údaje"
 
 msgid "Hooks"
 msgstr "Háky"
-
-
-msgid "Vertex Group Locks"
-msgstr "Zámky skupiny vrcholov"
 
 
 msgid "Trim/Add"
@@ -34502,10 +34493,6 @@ msgid "Bone Collections"
 msgstr "Kolekcie kostí"
 
 
-msgid "Names"
-msgstr "Názvy"
-
-
 msgid "Toggle Bone Options"
 msgstr "Prepínač možnosti kostí"
 
@@ -34536,42 +34523,6 @@ msgstr "Nastaviť vplyv plôšky"
 
 msgid "Merge"
 msgstr "Zlúčiť"
-
-
-msgid "Special Characters"
-msgstr "Špeciálne znaky"
-
-
-msgid "Kerning"
-msgstr "Zhustenie znakov"
-
-
-msgid "Text"
-msgstr "Text"
-
-
-msgid "Bone Roll"
-msgstr "Kývanie kosti"
-
-
-msgid "Pivot Point"
-msgstr "Otočný bod"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Dopad proporcionálnej úpravy"
-
-
-msgid "Mask Edit"
-msgstr "Úprava masky"
-
-
-msgid "Automasking"
-msgstr "Automatické maskovanie"
-
-
-msgid "Face Sets Edit"
-msgstr "Úprava nastavenia plôšok"
 
 
 msgid "Keyframe Insert Pie"
@@ -34938,7 +34889,7 @@ msgstr "Zlúči vybrané uzly použitím Tieňovačov"
 
 
 msgid "Node Wrangler"
-msgstr "Uzol Wrangler"
+msgstr "Node Wrangler"
 
 
 msgid "Switch Type to..."
@@ -49253,6 +49204,14 @@ msgstr "Znovu nasnímať krivku"
 
 msgid "Generate a poly spline for each input spline"
 msgstr "Vygeneruje polygónovú drážku pre každú vstupnú drážku"
+
+
+msgid "Keep Last Segment"
+msgstr "Ponechať posledný segment"
+
+
+msgid "Don't collapse a curves to single points if they are shorter than the given length. The collapsing behavior exists for compatibility reasons."
+msgstr "Krivky sa nezhŕňajú do jednotlivých bodov, ak sú kratšie ako zadaná dĺžka. Správanie pri kolapse existuje z dôvodu kompatibility."
 
 
 msgid "How to specify the amount of samples"
@@ -66229,6 +66188,10 @@ msgstr "Nastaviť rovnomernú nepriehľadnosť"
 
 msgid "Set all stroke points to same opacity"
 msgstr "Nastaví všetky body ťahu na rovnakú nepriehľadnosť"
+
+
+msgid "Fill Opacity"
+msgstr "Nepriehľadnosť výplne"
 
 
 msgctxt "Operator"
@@ -85306,10 +85269,6 @@ msgid "Exports UVs from the modified mesh"
 msgstr "Exportovať UV z upravenej povrchovej siete"
 
 
-msgid "Fill Opacity"
-msgstr "Nepriehľadnosť výplne"
-
-
 msgid "Set amount of opacity for exported UV layout"
 msgstr "Nastaví množstvo nepriehľadnosti pre exportovaný UV náčrtok"
 
@@ -87394,7 +87353,7 @@ msgstr "Štetce"
 
 msgctxt "Operator"
 msgid "Call Asset Shelf Popover"
-msgstr "Vyvolať vysúvaciu polica aktív"
+msgstr "Vyvolať vysúvaciu policu aktív"
 
 
 msgid "Open a predefined asset shelf in a popup"
@@ -90529,8 +90488,24 @@ msgid "Image used as canvas"
 msgstr "Obrázok použitý ako plátno"
 
 
+msgid "Clone Alpha"
+msgstr "Klony alfa"
+
+
+msgid "Opacity of clone image display"
+msgstr "Nepriehľadnosť zobrazenia klonov obrázkov"
+
+
+msgid "Clone Image"
+msgstr "Klony obrázka"
+
+
 msgid "Image used as clone source"
 msgstr "Obrázok použitý ako zdrojový klon"
+
+
+msgid "Clone Offset"
+msgstr "Posuv klonu"
 
 
 msgid "Dither"
@@ -90869,6 +90844,10 @@ msgid "Panel containing UI elements"
 msgstr "Panel obsahujúci prvky užívateľského rozhrania"
 
 
+msgid "Active Tool"
+msgstr "Aktívny nástroj"
+
+
 msgid "View Lock"
 msgstr "Zamknúť zobrazenie"
 
@@ -90887,6 +90866,14 @@ msgstr "Nastavenie tieňa"
 
 msgid "SSAO Settings"
 msgstr "Nastavenie SSAO"
+
+
+msgid "glTF Variants"
+msgstr "glTF varianty"
+
+
+msgid "glTF Material Variants"
+msgstr "glTF varianty materiálu"
 
 
 msgid "Render Pass"
@@ -90929,6 +90916,14 @@ msgid "Curves Edit Mode"
 msgstr "Režim editácie krivky"
 
 
+msgid "glTF"
+msgstr "glTF"
+
+
+msgid "glTF Animations"
+msgstr "glTF animácie"
+
+
 msgid "Snapping"
 msgstr "Prichytenie"
 
@@ -90965,14 +90960,6 @@ msgid "Multi Frame"
 msgstr "Viacsnímkové"
 
 
-msgid "glTF Variants"
-msgstr "glTF varianty"
-
-
-msgid "glTF Material Variants"
-msgstr "glTF varianty materiálu"
-
-
 msgid "Auto-Masking"
 msgstr "Auto maskovanie"
 
@@ -90993,24 +90980,12 @@ msgid "Viewport Debug"
 msgstr "Ladenie záberu"
 
 
-msgid "glTF"
-msgstr "glTF"
-
-
-msgid "glTF Animations"
-msgstr "glTF animácie"
-
-
 msgid "VR"
 msgstr "Virtuálna realita VR"
 
 
 msgid "VR Info"
 msgstr "VR Info"
-
-
-msgid "Active Tool"
-msgstr "Aktívny nástroj"
 
 
 msgid "Chain Scaling"
@@ -106777,6 +106752,11 @@ msgstr "Film"
 
 
 msgctxt "Sequence"
+msgid "Clip"
+msgstr "Klip"
+
+
+msgctxt "Sequence"
 msgid "Mask"
 msgstr "Maska"
 
@@ -108458,7 +108438,7 @@ msgstr "Oblasť aktívneho motívu"
 
 
 msgid "Theme Asset Shelf Color"
-msgstr "Téma police farby aktíva"
+msgstr "Farba motívu police aktív"
 
 
 msgid "Theme settings for asset shelves"
@@ -117509,10 +117489,6 @@ msgid "Requires AMD GPU with RDNA architecture"
 msgstr "Vyžaduje AMD GPU s architektúrou RDNA"
 
 
-msgid "and AMD Radeon Pro %s driver or newer"
-msgstr "a ovládač AMD Radeon Pro %s alebo novší"
-
-
 msgid "Requires Intel GPU with Xe-HPG architecture"
 msgstr "Vyžaduje GPU Intel s architektúrou Xe-HPG"
 
@@ -119144,10 +119120,6 @@ msgstr "Tu môžu byť nastavenia významné"
 
 msgid "performance impact!"
 msgstr "dopad na výkon!"
-
-
-msgid "Built without VR/OpenXR features"
-msgstr "Postavené bez funkcií VR/OpenXR"
 
 
 msgid "Start VR Session"
@@ -126479,6 +126451,11 @@ msgstr "Premietnuť z pohľadu (okraje)"
 
 
 msgctxt "Operator"
+msgid "Frame Last Stroke"
+msgstr "Snímka posledného ťahu"
+
+
+msgctxt "Operator"
 msgid "Viewport Render Animation"
 msgstr "Prekresliť animáciu záberu"
 
@@ -127064,11 +127041,6 @@ msgstr "Tvar krivky"
 msgctxt "View3D"
 msgid "Mix"
 msgstr "Zmiešať"
-
-
-msgctxt "Operator"
-msgid "Frame Last Stroke"
-msgstr "Snímka posledného ťahu"
 
 
 msgctxt "Operator"
@@ -127687,10 +127659,6 @@ msgstr "Preskočenie cesty v sústave kľúčovania, pretože nemá žiadny ID (
 
 msgid "\"%s\" is using Action \"%s\", which does not have a slot with identifier \"%s\" or \"%s\". Manually assign the right action slot to \"%s\"."
 msgstr "\"%s\" používa akciu \"%s\", ktorá nemá zásuvku s identifikátorom \"%s\" alebo \"%s\". Ručne priraďte správnu zásuvku akcie k \"%s\"."
-
-
-msgid "Legacy action \"%s\" is assigned to \"%s\", which does not match the action's id_root \"%s\". The action has been upgraded to a slotted action with slot \"%s\" with an id_type \"%s\", which has also been assigned to \"%s\" despite this type mismatch. This likely indicates something odd about the blend file."
-msgstr "Zdedená akcia \"%s\" je priradená k \"%s\", čo nezodpovedá id_root akcie \"%s\". Akcia bola aktualizovaná na zásuvku akcie so zásuvkou \"%s\" s id_type \"%s\", ktorá bola tiež priradená k \"%s\" napriek tejto typovej nezhode. To pravdepodobne naznačuje niečo zvláštne v blend súbore."
 
 
 msgid "Named Layer node"
@@ -129209,6 +129177,10 @@ msgid "Error: Too many AOVs"
 msgstr "Chyba: Príliš veľa AOV"
 
 
+msgid "Required render size ({}px) is larger than reported texture size limit ({}px)."
+msgstr "Požadovaná veľkosť prekresľovania ({}px) je väčšia ako ohlásený limit veľkosti textúry ({}px)."
+
+
 msgid "Errors during render. See the System Console for more info."
 msgstr "Chyby počas prekresľovania. Viac informácií nájdete v časti Systémová konzola."
 
@@ -130148,7 +130120,7 @@ msgstr "Žiadne zmeny na uloženie"
 
 
 msgid "Enable catalog, making contained assets visible in the asset shelf"
-msgstr "Povolí katalóg, čím sa obsiahnuté aktíva zviditeľnia v polici s aktívami"
+msgstr "Povolí katalóg, čím sa obsiahnuté aktíva zviditeľnia v polici aktív"
 
 
 msgid "Toggle catalog visibility in the asset shelf"
@@ -130164,7 +130136,7 @@ msgstr "Volič katalógu"
 
 
 msgid "Select the asset library and the contained catalogs to display in the asset shelf"
-msgstr "Vyberie knižnicu aktív a obsiahnuté katalógy, ktoré sa majú zobraziť v polici s aktívami"
+msgstr "Vyberie knižnicu aktív a obsiahnuté katalógy, ktoré sa majú zobraziť v polici aktív"
 
 
 msgid "Asset Shelf Panel"
@@ -130976,10 +130948,6 @@ msgstr "Nepodarilo sa nájsť '%s'"
 
 msgid "OS"
 msgstr "OS"
-
-
-msgid "Home"
-msgstr "Domov"
 
 
 msgid "Esc"
@@ -132607,6 +132575,10 @@ msgid "Image objects can only be added in Object Mode"
 msgstr "Objekty obrázkov je možné pridávať len v režime objektu"
 
 
+msgid "No editable objects to convert"
+msgstr "Žiadne upraviteľné objekty na konverziu"
+
+
 msgid "Converting some non-editable object/object data, enforcing 'Keep Original' option to True"
 msgstr "Konverzia niektorých neupraviteľných objektov/ údajov objektu, vynútenie možnosti \"Zachovať pôvodný\" na hodnotu PRAVDA"
 
@@ -134155,6 +134127,10 @@ msgid "Unable to remove material slot in edit mode"
 msgstr "Nemožno odstrániť zásuvku materiálu v režime editácie"
 
 
+msgid "Can't bake light probe while rendering"
+msgstr "Nemožno zapiecť snímač svetla počas prekresľovania"
+
+
 msgid "No active lineset and associated line style to manipulate the modifier"
 msgstr "Žiadny aktívne nastavenie riadkov a priradený štýl čiary na manipuláciu modifikátora"
 
@@ -135318,6 +135294,10 @@ msgstr "Katalógy aktív"
 
 msgid "Date Modified"
 msgstr "Zmenený dátum"
+
+
+msgid "Home"
+msgstr "Domov"
 
 
 msgid "Desktop"
@@ -137191,6 +137171,26 @@ msgstr "Nie sú vybraté žiadne kľúče alebo pásy"
 
 msgid "This strip type cannot be retimed"
 msgstr "Tento typ pásu nemožno opätovne časovať"
+
+
+msgctxt "Operator"
+msgid "Select (Unconnected)"
+msgstr "Vybrať (nepripojené)"
+
+
+msgctxt "Operator"
+msgid "Select (Linked Time)"
+msgstr "Vybrať (prepojený čas)"
+
+
+msgctxt "Operator"
+msgid "Select (Linked Handle)"
+msgstr "Vybrať (prepojený manipulátor)"
+
+
+msgctxt "Operator"
+msgid "Select (Side of Frame)"
+msgstr "Vybrať (strana snímky)"
 
 
 msgid "No active sequence!"
@@ -139175,6 +139175,10 @@ msgid "Timeline marker '%s' not found in action '%s'"
 msgstr "Označenie časovej osi '%s' sa v akcii '%s' nenašlo"
 
 
+msgid "Assign action \"%s\" to \"%s\" before calling this function"
+msgstr "Priradenie akcie \"%s\" k \"%s\" pred volaním tejto funkcie"
+
+
 msgid "Action slot display names cannot be empty"
 msgstr "Zobrazené názvy zásuviek akcií nemôžu byť prázdne"
 
@@ -140375,7 +140379,7 @@ msgstr "%s rodič '%s' pre '%s' sa nenašiel"
 
 
 msgid "Registering asset shelf class: '%s' is too long, maximum length is %d"
-msgstr "Registrácia triedy police s aktívami: %s' je príliš dlhá, maximálna dĺžka je %d"
+msgstr "Registrácia triedy police aktív: %s' je príliš dlhá, maximálna dĺžka je %d"
 
 
 msgid "Registering asset shelf class: '%s' has been registered before, unregistering previous"
@@ -145723,6 +145727,10 @@ msgstr "Použitú knižnicu '%.240s' nemožno prepísať"
 
 msgid "Cannot save blend file, path \"%s\" is not writable"
 msgstr "Nemožno uložiť blend súbor, cesta \"%s\" nie je zapisovateľná"
+
+
+msgid "Cannot save blend file, path \"%s\" is a directory"
+msgstr "Nemožno uložiť blend súbor, cesta \"%s\" je priečinok"
 
 
 msgid "Can't read alternative start-up file: \"%s\""

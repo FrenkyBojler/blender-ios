@@ -42,6 +42,7 @@
 #include "BLI_dial_2d.h"
 #include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
@@ -2465,8 +2466,7 @@ wmPaintCursor *WM_paint_cursor_activate(short space_type,
 {
   wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
 
-  wmPaintCursor *pc = static_cast<wmPaintCursor *>(
-      MEM_callocN(sizeof(wmPaintCursor), "paint cursor"));
+  wmPaintCursor *pc = MEM_callocN<wmPaintCursor>("paint cursor");
 
   BLI_addtail(&wm->paintcursors, pc);
 
