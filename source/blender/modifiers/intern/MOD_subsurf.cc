@@ -347,8 +347,9 @@ static void panel_draw(const bContext *C, Panel *panel)
     cycles_ptr = RNA_pointer_get(&scene_ptr, "cycles");
     ob_cycles_ptr = RNA_pointer_get(&ob_ptr, "cycles");
     if (!RNA_pointer_is_null(&ob_cycles_ptr)) {
-      ob_use_adaptive_subdivision = RNA_boolean_get(&ob_cycles_ptr, "use_adaptive_subdivision");
       show_adaptive_options = get_show_adaptive_options(C, panel);
+      ob_use_adaptive_subdivision = show_adaptive_options &&
+                                    RNA_boolean_get(&ob_cycles_ptr, "use_adaptive_subdivision");
     }
   }
 #else
@@ -367,7 +368,7 @@ static void panel_draw(const bContext *C, Panel *panel)
             IFACE_("Adaptive Subdivision"),
             ICON_NONE);
   }
-  if (ob_use_adaptive_subdivision && show_adaptive_options) {
+  if (ob_use_adaptive_subdivision) {
     uiItemR(layout, &ob_cycles_ptr, "dicing_rate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     float render = std::max(RNA_float_get(&cycles_ptr, "dicing_rate") *
                                 RNA_float_get(&ob_cycles_ptr, "dicing_rate"),
@@ -418,31 +419,15 @@ static void panel_draw(const bContext *C, Panel *panel)
   modifier_panel_end(layout, ptr);
 }
 
-static void advanced_panel_draw(const bContext *C, Panel *panel)
+static void advanced_panel_draw(const bContext * /*C*/, Panel *panel)
 {
   uiLayout *layout = panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  bool ob_use_adaptive_subdivision = false;
-  bool show_adaptive_options = false;
-#ifdef WITH_CYCLES
-  Scene *scene = CTX_data_scene(C);
-  if (BKE_scene_uses_cycles(scene)) {
-    PointerRNA ob_cycles_ptr = RNA_pointer_get(&ob_ptr, "cycles");
-    if (!RNA_pointer_is_null(&ob_cycles_ptr)) {
-      ob_use_adaptive_subdivision = RNA_boolean_get(&ob_cycles_ptr, "use_adaptive_subdivision");
-      show_adaptive_options = get_show_adaptive_options(C, panel);
-    }
-  }
-#else
-  UNUSED_VARS(C);
-#endif
-
   uiLayoutSetPropSep(layout, true);
 
-  uiLayoutSetActive(layout, !(show_adaptive_options && ob_use_adaptive_subdivision));
   uiItemR(layout, ptr, "use_limit_surface", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   uiLayout *col = uiLayoutColumn(layout, true);
