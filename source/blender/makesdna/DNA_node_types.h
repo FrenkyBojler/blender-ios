@@ -1686,6 +1686,11 @@ typedef struct NodeGeometryProximity {
   uint8_t target_element;
 } NodeGeometryProximity;
 
+typedef struct NodeGeometryMeshTangentUV {
+  /** #eSubsurfUVSmooth. */
+  uint8_t tang_method;
+} NodeGeometryMeshTangentUV;
+
 typedef struct NodeGeometryVolumeToMesh {
   /** #VolumeToMeshResolutionMode */
   uint8_t resolution_mode;
@@ -3087,6 +3092,11 @@ typedef enum GeometryNodeMeshToPointsMode {
   GEO_NODE_MESH_TO_POINTS_FACES = 2,
   GEO_NODE_MESH_TO_POINTS_CORNERS = 3,
 } GeometryNodeMeshToPointsMode;
+
+typedef enum GeometryNodeMeshTangentMode {
+  GEO_NODE_MESH_TANGENT_METHOD_SIMPLE = 0,
+  GEO_NODE_MESH_TANGENT_METHOD_MIKKT = 1,
+} GeometryNodeMeshTangentMode;
 
 typedef enum GeometryNodeStringToCurvesOverflowMode {
   GEO_NODE_STRING_TO_CURVES_MODE_OVERFLOW = 0,
