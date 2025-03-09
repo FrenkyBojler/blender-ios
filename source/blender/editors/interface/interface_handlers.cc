@@ -11991,6 +11991,41 @@ static void ui_region_handler_remove(bContext *C, void * /*userdata*/)
   }
 }
 
+/* Return true if we should open another menu while one is already open. */
+static bool ui_can_activate_other_menu(uiBut *but, uiBut *but_other, const wmEvent *event)
+{
+  if (but_other->flag & UI_BUT_DISABLED) {
+    return false;
+  }
+
+  uiHandleButtonData *data = but->active;
+  if (!(data->menu->direction & (UI_DIR_DOWN | UI_DIR_UP))) {
+    return true;
+  }
+
+  float safety = 4.0f * UI_SCALE_FAC;
+  if (!but_other->str.empty()) {
+    safety += 4.0f * UI_SCALE_FAC;
+  }
+
+  /* Is this a move from right to left? */
+  const bool rtl = but_other->rect.xmin < but->rect.xmin;
+
+  float left = rtl ? left = but_other->rect.xmax - safety : but->rect.xmin;
+  float right = rtl ? but->rect.xmax : but_other->rect.xmin + safety;
+
+  if (rtl && ELEM(but_other->type, UI_BTYPE_POPOVER, UI_BTYPE_MENU)) {
+    /* Skip the dropdown arrow on the right of it. */
+    left -= 8.0f * UI_SCALE_FAC;
+  }
+  else if (!rtl && but_other->icon && !but_other->str.empty()) {
+    /* Skip the icon on the left of it. */
+    right += 16.0f * UI_SCALE_FAC;
+  }
+
+  return (event->mval[0] < left || event->mval[0] > right);
+}
+
 static int ui_handle_region_semi_modal_buttons(bContext *C, const wmEvent *event, ARegion *region)
 {
   /* If there's a fully modal button, it has priority. */
@@ -12048,7 +12083,7 @@ static int ui_handler_region_menu(bContext *C, const wmEvent *event, void * /*us
     {
       /* if mouse moves to a different root-level menu button,
        * open it to replace the current menu */
-      if ((but_other->flag & UI_BUT_DISABLED) == 0) {
+      if (ui_can_activate_other_menu(but, but_other, event)) {
         ui_handle_button_activate(C, region, but_other, BUTTON_ACTIVATE_OVER);
         button_activate_state(C, but_other, BUTTON_STATE_MENU_OPEN);
         retval = WM_UI_HANDLER_BREAK;
