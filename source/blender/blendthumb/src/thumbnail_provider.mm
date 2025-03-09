@@ -159,17 +159,23 @@ static NSImage *generate_nsimage_for_file(const char *src_blend_path, NSError *e
       return;
     }
 
-    const NSSize image_size = [image size];
+    const CGFloat width_ratio = request.maximumSize.width / image.size.width;
+    const CGFloat height_ratio = request.maximumSize.height / image.size.height;
+    const CGFloat scale_factor = MIN(width_ratio, height_ratio);
 
-    QLThumbnailReply *thumbnailReply = [QLThumbnailReply
-              replyWithContextSize:image_size
-        currentContextDrawingBlock:^BOOL {
-          [image drawInRect:NSMakeRect(0, 0, image_size.width, image_size.height)];
+    const NSSize context_size = NSMakeSize(image.size.width * scale_factor,
+                                           image.size.height * scale_factor);
 
-          /* Release the image that was strongly captured by this block. */
-          [image release];
-          return YES;
-        }];
+    const NSRect context_rect = NSMakeRect(0, 0, context_size.width, context_size.height);
+
+    QLThumbnailReply *thumbnailReply = [QLThumbnailReply replyWithContextSize:context_size
+                                                   currentContextDrawingBlock:^BOOL {
+                                                     [image drawInRect:context_rect];
+                                                     /* Release the image that was strongly
+                                                      * captured by this block. */
+                                                     [image release];
+                                                     return YES;
+                                                   }];
 
     /* Return the thumbnail reply. */
     handler(thumbnailReply, nil);
