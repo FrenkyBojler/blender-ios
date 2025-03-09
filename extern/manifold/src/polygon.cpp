@@ -21,12 +21,13 @@
 #include "./parallel.h"
 #include "./tree2d.h"
 #include "./utils.h"
+#include "manifold/manifold.h"
 #include "manifold/optional_assert.h"
 
 namespace {
 using namespace manifold;
 
-static ExecutionParams params;
+constexpr int TRIANGULATOR_VERBOSE_LEVEL = 2;
 
 constexpr double kBest = -std::numeric_limits<double>::infinity();
 
@@ -142,13 +143,18 @@ void Dump(const PolygonsIdx &polys, double epsilon) {
   }
 }
 
+std::atomic<int> numFailures(0);
+
 void PrintFailure(const std::exception &e, const PolygonsIdx &polys,
                   std::vector<ivec3> &triangles, double epsilon) {
+  // only print the first triangulation failure
+  if (numFailures.fetch_add(1) != 0) return;
   std::cout << std::setprecision(16);
   std::cout << "-----------------------------------" << std::endl;
   std::cout << "Triangulation failed! Precision = " << epsilon << std::endl;
   std::cout << e.what() << std::endl;
-  if (triangles.size() > 1000 && !PolygonParams().verbose) {
+  if (triangles.size() > 1000 &&
+      ManifoldParams().verbose < TRIANGULATOR_VERBOSE_LEVEL) {
     std::cout << "Output truncated due to producing " << triangles.size()
               << " triangles." << std::endl;
     return;
@@ -161,8 +167,9 @@ void PrintFailure(const std::exception &e, const PolygonsIdx &polys,
   }
 }
 
-#define PRINT(msg) \
-  if (params.verbose) std::cout << msg << std::endl;
+#define PRINT(msg)                                            \
+  if (ManifoldParams().verbose >= TRIANGULATOR_VERBOSE_LEVEL) \
+    std::cout << msg << std::endl;
 #else
 #define PRINT(msg)
 #endif
@@ -528,7 +535,7 @@ class EarClip {
 
     void PrintVert() const {
 #ifdef MANIFOLD_DEBUG
-      if (!params.verbose) return;
+      if (ManifoldParams().verbose < TRIANGULATOR_VERBOSE_LEVEL) return;
       std::cout << "vert: " << mesh_idx << ", left: " << left->mesh_idx
                 << ", right: " << right->mesh_idx << ", cost: " << cost
                 << std::endl;
@@ -748,7 +755,7 @@ class EarClip {
     JoinPolygons(start, connector);
 
 #ifdef MANIFOLD_DEBUG
-    if (params.verbose) {
+    if (ManifoldParams().verbose >= TRIANGULATOR_VERBOSE_LEVEL) {
       std::cout << "connected " << start->mesh_idx << " to "
                 << connector->mesh_idx << std::endl;
     }
@@ -896,7 +903,7 @@ class EarClip {
 
   void Dump(VertItrC start) const {
 #ifdef MANIFOLD_DEBUG
-    if (!params.verbose) return;
+    if (ManifoldParams().verbose < TRIANGULATOR_VERBOSE_LEVEL) return;
     VertItrC v = start;
     std::cout << "show(array([" << std::setprecision(15) << std::endl;
     do {
@@ -933,16 +940,21 @@ namespace manifold {
  * references back to the original vertices.
  * @param epsilon The value of &epsilon;, bounding the uncertainty of the
  * input.
+ * @param allowConvex If true (default), the triangulator will use a fast
+ * triangulation if the input is convex, falling back to ear-clipping if not.
+ * The triangle quality may be lower, so set to false to disable this
+ * optimization.
  * @return std::vector<ivec3> The triangles, referencing the original
  * vertex indicies.
  */
-std::vector<ivec3> TriangulateIdx(const PolygonsIdx &polys, double epsilon) {
+std::vector<ivec3> TriangulateIdx(const PolygonsIdx &polys, double epsilon,
+                                  bool allowConvex) {
   std::vector<ivec3> triangles;
   double updatedEpsilon = epsilon;
 #ifdef MANIFOLD_DEBUG
   try {
 #endif
-    if (IsConvex(polys, epsilon)) {  // fast path
+    if (allowConvex && IsConvex(polys, epsilon)) {  // fast path
       triangles = TriangulateConvex(polys);
     } else {
       EarClip triangulator(polys, epsilon);
@@ -950,14 +962,14 @@ std::vector<ivec3> TriangulateIdx(const PolygonsIdx &polys, double epsilon) {
       updatedEpsilon = triangulator.GetPrecision();
     }
 #ifdef MANIFOLD_DEBUG
-    if (params.intermediateChecks) {
+    if (ManifoldParams().intermediateChecks) {
       CheckTopology(triangles, polys);
-      if (!params.processOverlaps) {
+      if (!ManifoldParams().processOverlaps) {
         CheckGeometry(triangles, polys, 2 * updatedEpsilon);
       }
     }
   } catch (const geometryErr &e) {
-    if (!params.suppressErrors) {
+    if (!ManifoldParams().suppressErrors) {
       PrintFailure(e, polys, triangles, updatedEpsilon);
     }
     throw;
@@ -978,10 +990,15 @@ std::vector<ivec3> TriangulateIdx(const PolygonsIdx &polys, double epsilon) {
  * polygons and/or holes.
  * @param epsilon The value of &epsilon;, bounding the uncertainty of the
  * input.
+ * @param allowConvex If true (default), the triangulator will use a fast
+ * triangulation if the input is convex, falling back to ear-clipping if not.
+ * The triangle quality may be lower, so set to false to disable this
+ * optimization.
  * @return std::vector<ivec3> The triangles, referencing the original
  * polygon points in order.
  */
-std::vector<ivec3> Triangulate(const Polygons &polygons, double epsilon) {
+std::vector<ivec3> Triangulate(const Polygons &polygons, double epsilon,
+                               bool allowConvex) {
   int idx = 0;
   PolygonsIdx polygonsIndexed;
   for (const auto &poly : polygons) {
@@ -991,9 +1008,7 @@ std::vector<ivec3> Triangulate(const Polygons &polygons, double epsilon) {
     }
     polygonsIndexed.push_back(simpleIndexed);
   }
-  return TriangulateIdx(polygonsIndexed, epsilon);
+  return TriangulateIdx(polygonsIndexed, epsilon, allowConvex);
 }
-
-ExecutionParams &PolygonParams() { return params; }
 
 }  // namespace manifold
