@@ -57,8 +57,8 @@ class OffsetCornerInFaceFieldInput final : public bke::MeshFieldInput {
       const int offset = offsets[selection_i];
       const IndexRange face = faces[corner_to_face[corner]];
       const int corner_index_in_face = corner - face.start();
-      offset_corners[selection_i] = face.start() +
-                                    math::mod_periodic<int>(corner_index_in_face + offset, face.size());
+      offset_corners[selection_i] = face.start() + math::mod_periodic<int>(
+                                                       corner_index_in_face + offset, face.size());
     });
 
     return VArray<int>::ForContainer(std::move(offset_corners));
