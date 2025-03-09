@@ -16,6 +16,8 @@
 #include "BKE_mesh_tangent.hh"
 #include "BKE_type_conversions.hh"
 
+#include "NOD_rna_define.hh"
+
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
@@ -76,7 +78,7 @@ static void compute_partial_triangulation(const Mesh &mesh,
   faces_offsets[0] = 0;
   face_selection.foreach_index([&](const int64_t index_f, const int64_t index_rel) {
     faces_offsets[index_rel + 1] = faces_offsets[index_rel] +
-                                     poly_to_tri_count(1, faces[index_f].size());
+                                   poly_to_tri_count(1, faces[index_f].size());
   });
   OffsetIndices<int> ptri_faces(faces_offsets);
 
@@ -115,8 +117,7 @@ static void compute_mikkt_corner_tangents_partial(const Mesh &mesh,
 
   Array<int> ptri_corner_corners;
   if (face_selection.size() < mesh.faces_num) {
-    compute_partial_triangulation(
-        mesh, face_selection, ptri_corner_corners);
+    compute_partial_triangulation(mesh, face_selection, ptri_corner_corners);
     corner_tris = ptri_corner_corners.as_span();
   }
 
@@ -252,6 +253,7 @@ class MeshUVTangentFieldInput final : public bke::MeshFieldInput {
             &other))
     {
       return tother->output_bitangent_ == this->output_bitangent_ &&
+             tother->tang_method_ == this->tang_method_ &&
              tother->source_uv_coords_ == this->source_uv_coords_;
     }
     return false;
@@ -261,9 +263,8 @@ class MeshUVTangentFieldInput final : public bke::MeshFieldInput {
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const NodeGeometryMeshTangentUV *storage = &node_storage(params.node());
-  const GeometryNodeMeshTangentMode tang_method = storage ? GeometryNodeMeshTangentMode(
-                                                                storage->tang_method) :
-                                                            GeometryNodeMeshTangentMode::GEO_NODE_MESH_TANGENT_METHOD_SIMPLE;
+  const GeometryNodeMeshTangentMode tang_method = GeometryNodeMeshTangentMode(
+      storage->tang_method);
 
   const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
   const CPPType &float2_type = CPPType::get<float2>();
@@ -280,6 +281,32 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output(OUTPUT_BITANGENT, std::move(bitangent_field));
 }
 
+static void node_rna(StructRNA *srna)
+{
+  static const EnumPropertyItem rna_node_geometry_mesh_tangent_method_items[] = {
+      {GEO_NODE_MESH_TANGENT_METHOD_SIMPLE,
+       "SIMPLE",
+       0,
+       "Simple",
+       "Compute non-smooth tangents using a fast but simple method"},
+      {GEO_NODE_MESH_TANGENT_METHOD_MIKKT,
+       "MIKKT",
+       0,
+       "MikkT",
+       "Compute using the MikkT algorithm"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop = RNA_def_node_enum(srna,
+                                        "tang_method",
+                                        "Method",
+                                        "Method used for computing the tangent space",
+                                        rna_node_geometry_mesh_tangent_method_items,
+                                        NOD_storage_enum_accessors(tang_method),
+                                        GEO_NODE_MESH_TANGENT_METHOD_SIMPLE);
+  RNA_def_property_update_runtime(prop, rna_Node_update_relations);
+}
+
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
@@ -294,7 +321,13 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
   ntype.initfunc = node_init;
+  blender::bke::node_type_storage(ntype,
+                                  "NodeGeometryMeshTangentUV",
+                                  node_free_standard_storage,
+                                  node_copy_standard_storage);
   blender::bke::node_register_type(ntype);
+
+  node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)
 
