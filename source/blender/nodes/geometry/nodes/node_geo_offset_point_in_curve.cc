@@ -63,16 +63,16 @@ class ControlPointNeighborFieldInput final : public bke::GeometryFieldInput {
 
     Array<int> output(mask.min_array_size());
     mask.foreach_index([&](const int i_selection) {
-      const int point_index = std::clamp(indices[i_selection], 0, curves.points_num() - 1);
-      const int curve_index = parent_curves[point_index];
-      const IndexRange curve_points = points_by_curve[curve_index];
-      const int shifted_point = point_index + offsets[i_selection];
+      const int point = std::clamp(indices[i_selection], 0, curves.points_num() - 1);
+      const int curve = parent_curves[point];
+      const IndexRange curve_points = points_by_curve[curve];
+      const int shifted_point = point + offsets[i_selection];
 
       output[i_selection] = shifted_point;
-      if (cyclic[curve_index]) {
-        const int point_i = shifted_point - curve_points.start();
+      if (cyclic[curve]) {
+        const int point_index_in_curve = shifted_point - curve_points.start();
         output[i_selection] = curve_points.start() +
-                              math::mod_periodic<int>(point_i, curve_points.size());
+                              math::mod_periodic<int>(point_index_in_curve, curve_points.size());
         return;
       }
       output[i_selection] = std::clamp(shifted_point, 0, curves.points_num() - 1);
