@@ -68,7 +68,6 @@ class ControlPointNeighborFieldInput final : public bke::GeometryFieldInput {
       const IndexRange curve_points = points_by_curve[curve];
       const int shifted_point = point + offsets[i_selection];
 
-      output[i_selection] = shifted_point;
       if (cyclic[curve]) {
         const int point_index_in_curve = shifted_point - curve_points.start();
         output[i_selection] = curve_points.start() +
