@@ -171,6 +171,11 @@ void from_positions(Span<float3> positions,
                     int total_depth,
                     MutableSpan<int> indices);
 
+void from_positions_non_uniform(const Span<float3> positions,
+                                const int total_depth,
+                                MutableSpan<int> buckets_offsets,
+                                MutableSpan<int> indices);
+
 void mean_sums(OffsetIndices<int> buckets_offsets,
                int total_depth,
                GSpan src_buckets_data,

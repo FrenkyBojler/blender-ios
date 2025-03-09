@@ -120,13 +120,18 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
     const int total_joints = akdbh::total_joints_for_depth(total_depth);
 
     Array<int, 0> start_indices(total_buckets + 1);
-    const OffsetIndices<int> base_offsets = akdbh::fill_bucket_offsets_trivial(domain_size,
-                                                                               start_indices);
+    OffsetIndices<int> base_offsets = akdbh::fill_bucket_offsets_trivial(domain_size, start_indices);
 
     Array<int, 0> indices(domain_size);
     {
       SCOPED_TIMER_AVERAGED("from_positions");
       akdbh::from_positions(positions, base_offsets, total_depth, indices);
+    }
+
+    {
+      // SCOPED_TIMER_AVERAGED("from_positions_non_uniform");
+      // akdbh::from_positions_non_uniform(positions, total_depth, start_indices, indices);
+      // base_offsets = OffsetIndices<int>(start_indices.as_span());
     }
 
     Array<float3, 0> bucket_positions(domain_size);
