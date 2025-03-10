@@ -2107,6 +2107,9 @@ static void rna_GreasePencilModifier_material_set(PointerRNA *ptr,
   if (ma == nullptr || BKE_object_material_index_get(ob, ma) != -1) {
     id_us_min(&ma_old->id);
     id_us_plus_no_lib(&ma->id);
+    if (!ID_IS_LINKED(&ob->id)) {
+      id_lib_extern(&ma->id);
+    }
     *ma_target = ma;
   }
   else {
