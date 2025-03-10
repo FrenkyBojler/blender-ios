@@ -167,7 +167,7 @@ AssetLibrary::AssetLibrary(eAssetLibraryType library_type, StringRef name, Strin
     : library_type_(library_type),
       name_(name),
       root_path_(std::make_shared<std::string>(utils::normalize_directory_path(root_path))),
-      catalog_service_(std::make_unique<AssetCatalogService>())
+      catalog_service_(std::make_unique<AssetCatalogService>(*root_path_))
 {
 }
 
@@ -185,12 +185,26 @@ void AssetLibrary::foreach_loaded(FunctionRef<void(AssetLibrary &)> fn,
   service->foreach_loaded_asset_library(fn, include_all_library);
 }
 
-void AssetLibrary::load_catalogs()
+void AssetLibrary::load_or_reload_catalogs()
 {
-  auto catalog_service = std::make_unique<AssetCatalogService>(root_path());
-  catalog_service->load_from_disk();
-  std::lock_guard lock{catalog_service_mutex_};
-  catalog_service_ = std::move(catalog_service);
+  {
+    std::lock_guard lock{catalog_service_mutex_};
+    /* Should never actually be the case, catalog service gets allocated with the asset library. */
+    if (catalog_service_ == nullptr) {
+      auto catalog_service = std::make_unique<AssetCatalogService>(root_path());
+      catalog_service->load_from_disk();
+      catalog_service_ = std::move(catalog_service);
+      return;
+    }
+  }
+
+  /* The catalog service was created before without being associated with a definition file. */
+  if (catalog_service_->get_catalog_definition_file() == nullptr) {
+    catalog_service_->load_from_disk();
+  }
+  else {
+    this->refresh_catalogs();
+  }
 }
 
 AssetCatalogService &AssetLibrary::catalog_service() const
@@ -255,7 +269,7 @@ void asset_library_on_save_post(Main *bmain,
 {
   AssetLibrary *asset_lib = static_cast<AssetLibrary *>(arg);
 
-  /* Transform runtime current file library into on disk current file library. */
+  /* Transform 'runtime' current file library into 'on-disk' current file library. */
   if (asset_lib->library_type() == ASSET_LIBRARY_LOCAL && asset_lib->root_path().is_empty()) {
     BLI_assert(dynamic_cast<RuntimeAssetLibrary *>(asset_lib) != nullptr);
 

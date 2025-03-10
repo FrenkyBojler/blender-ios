@@ -122,21 +122,12 @@ AssetLibrary *AssetLibraryService::get_asset_library_on_disk(eAssetLibraryType l
   if (OnDiskAssetLibrary *lib = this->lookup_on_disk_library(library_type, root_path)) {
     CLOG_INFO(&LOG, 2, "get \"%s\" (cached)", root_path.c_str());
     if (load_catalogs) {
-      /* Might have skipped reading catalogs earlier. */
-      if (!lib->catalog_service_) {
-        lib->load_catalogs();
-      }
-      else if (lib->catalog_service().get_catalog_definition_file() == nullptr) {
-        lib->catalog_service().load_from_disk();
-      }
-      else {
-        lib->refresh_catalogs();
-      }
+      lib->load_or_reload_catalogs();
     }
     return lib;
   }
 
-  std::string normalized_root_path = utils::normalize_directory_path(root_path);
+  const std::string normalized_root_path = utils::normalize_directory_path(root_path);
 
   std::unique_ptr<OnDiskAssetLibrary> lib_uptr;
   switch (library_type) {
@@ -154,7 +145,7 @@ AssetLibrary *AssetLibraryService::get_asset_library_on_disk(eAssetLibraryType l
   AssetLibrary *lib = lib_uptr.get();
 
   if (load_catalogs) {
-    lib->load_catalogs();
+    lib->load_or_reload_catalogs();
   }
 
   on_disk_libraries_.add_new({library_type, normalized_root_path}, std::move(lib_uptr));
@@ -218,12 +209,15 @@ AssetLibrary *AssetLibraryService::move_runtime_current_file_into_on_disk_librar
 {
   AssetLibraryService &library_service = *AssetLibraryService::get();
 
-  std::string root_path = AS_asset_library_find_suitable_root_path_from_main(&bmain);
+  const std::string root_path = AS_asset_library_find_suitable_root_path_from_main(&bmain);
   if (root_path.empty()) {
     return nullptr;
   }
 
-  BLI_assert(!library_service.lookup_on_disk_library(ASSET_LIBRARY_LOCAL, root_path));
+  BLI_assert_msg(!library_service.lookup_on_disk_library(ASSET_LIBRARY_LOCAL, root_path),
+                 "On-disk \"Current File\" asset library shouldn't exist yet, it should only be "
+                 "created now in response to initially saving the file - catalog service "
+                 "will be overridden");
 
   /* Create on disk library without loading catalogs. We'll steal the catalog service from the
    * runtime library below. */
@@ -234,7 +228,12 @@ AssetLibrary *AssetLibraryService::move_runtime_current_file_into_on_disk_librar
       /*load_catalogs=*/false);
 
   {
-    std::lock_guard lock{on_disk_library->catalog_service_mutex_};
+    /* These should always be completely separate, just sanity check since it would cause a
+     * deadlock below. */
+    BLI_assert(on_disk_library != library_service.current_file_library_.get());
+
+    std::lock_guard lock_on_disk{on_disk_library->catalog_service_mutex_};
+    std::lock_guard lock_runtime{library_service.current_file_library_->catalog_service_mutex_};
     on_disk_library->catalog_service_.swap(
         library_service.current_file_library_->catalog_service_);
   }
