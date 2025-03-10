@@ -257,7 +257,7 @@ bke::CurvesGeometry extend_curves(bke::CurvesGeometry &src_curves,
         src_curves.points_by_curve(), src_curves.curves_range(), dst_points_by_curve);
     /* Count how many points we need. */
     selection.foreach_index([&](const int curve) {
-      int point_count = dst_points_by_curve[curve];
+      const int point_count = dst_points_by_curve[curve];
       if (point_count <= 2) {
         /* Can't make a curve, set start/end points to 1 to allow straight extension. */
         start_points[curve] = 1;
