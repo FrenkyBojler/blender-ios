@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Beta (b'ed5b077f929a')\n"
+"Project-Id-Version: Blender 4.4.0 Beta (b'eceb81b21fa3')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-17 14:06+0000\n"
+"POT-Creation-Date: 2025-03-10 09:31+0000\n"
 "PO-Revision-Date: 2024-09-26 13:56+0000\n"
 "Last-Translator: Sarfaraz Baig <iamsarfarazbaig@gmail.com>\n"
 "Language-Team: Urdu <https://translate.blender.org/projects/blender-ui/ui/ur/>\n"
@@ -69,10 +69,6 @@ msgstr "ﭦﻼ﻿ﺳ"
 
 msgid "Action F-Curves"
 msgstr "ﮟﯿﻤﺧ-ﻑ ﻡﺍﺪﻗﺍ"
-
-
-msgid "Collection of action F-Curves"
-msgstr "ﮧﻋﻮﻤﺠﻣ ﺎﮐ ﮟﯿﻤﺧ-ﻒﯾﺍ ﻡﺍﺪﻗﺍ"
 
 
 msgid "Action Group"
@@ -584,10 +580,6 @@ msgstr "ﮟﯿﺋﺎﻨﺑ ﮧﮕﺟ ﺪﯾﺰﻣ ﮯﯿﻟ ﮯﮐ ﮯﻧﻮﮨ 
 
 msgid "HIP RT (Experimental)"
 msgstr "HIP RT (ﯽﺗﺎﺑﺮﺠﺗ)"
-
-
-msgid "HIP RT enables AMD hardware ray tracing on RDNA2 and above, with shader fallback on older cards. This feature is experimental and some scenes may render incorrectly"
-msgstr "HIP RT ﮫﺗﺎﺳ ﮯﮐ ﮏﯿﺑ ﻝﺎﻔﺘﮕﻧﺭ ﺮﭘ ﺯﮈﺭﺎﮐ ﮯﻧﺍﺮﭘ RDNA2 ﺮﭘ ﺮﭘﻭﺍ ﮯﺳ ﺱﺍ ﺭﻭﺍ AMD ﮟﯿﮨ ﮯﺘﮑﺳ ﺮﮐ ﺶﯿﭘ ﮯﺳ ﮯﻘﯾﺮﻃ ﻂﻠﻏ ﺮﻇﺎﻨﻣ ﮫﭽﮐ ﺭﻭﺍ ﮯﮨ ﯽﺗﺎﺑﺮﺠﺗ ﺖﯿﺻﻮﺼﺧ ﮧﯾ ﮯﮨ ﺎﺗﺎﻨﺑ ﻞﺑﺎﻗ ﻮﮐ ﮓﻨﺴﯾﺮﭨ ﮮﺭ ﺮﺌﯾﻭﮈﺭﺎﮨ"
 
 
 msgid "Embree on GPU"
@@ -17438,10 +17430,6 @@ msgid "The combined frame range of all F-Curves within this action"
 msgstr "ﺞﻨﯾﺭ ﻢﯾﺮﻓ ﮧﮐﺮﺘﺸﻣ ﯽﮐ ﮟﯿﻤﺧ-ﻑ ﻡﺎﻤﺗ ﺭﺪﻧﺍ ﮯﮐ ﻡﺍﺪﻗﺍ ﺱﺍ"
 
 
-msgid "The individual F-Curves that make up the action"
-msgstr "ﮟﯿﮨ ﮯﺗﺎﻨﺑ ﻞﻤﻋ ﻮﺟ ﮟﯿﻤﺧ-ﻑ ﯼﺩﺍﺮﻔﻧﺍ"
-
-
 msgid "The end frame of the manually set intended playback range"
 msgstr "ﻢﯾﺮﻓ ﯼﺮﺧﺁ ﺎﮐ ﺞﻨﯾﺭ ﮏﯿﺑ ﮯﻠﭘ ﮧﺑﻮﻠﻄﻣ ﮦﺪﺷ ﮯﻃ ﺮﭘ ﺭﻮﻃ ﯽﺘﺳﺩ"
 
@@ -17462,17 +17450,9 @@ msgid "Groups"
 msgstr "ﮦﻭﺮﮔ"
 
 
-msgid "Convenient groupings of F-Curves"
-msgstr "ﯼﺪﻨﺑ ﮦﻭﺮﮔ ﻥﺎﺳﺁ ﯽﮐ ﮟﯿﻤﺧ-ﻑ"
-
-
 msgctxt "ID"
 msgid "ID Root Type"
 msgstr "ID ﻢﺴﻗ ﯽﮐ ﭦﻭﺭ"
-
-
-msgid "Type of ID block that action can be used on - DO NOT CHANGE UNLESS YOU KNOW WHAT YOU ARE DOING"
-msgstr "ID ﮟﯿﮨ ﮯﮨﺭ ﺮﮐ ﺎﯿﮐ ﭖﺁ ﮧﮐ ﮞﻮﮨ ﮯﺘﻧﺎﺟ ﮧﻧ ﮧﯾ ﭖﺁ ﮧﮐ ﮏﺗ ﺐﺟ ﮟﯾﺮﮐ ﮧﻧ ﻞﯾﺪﺒﺗ - ﮯﮨ ﺎﺘﮑﺳ ﺎﺟ ﺎﯿﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﯽﺋﺍﻭﺭﺭﺎﮐ ﺮﭘ ﺲﺟ ﻢﺴﻗ ﯽﮐ ﮎﻼ﻿ﺑ"
 
 
 msgid "Layers"
@@ -18115,26 +18095,6 @@ msgstr "ﭧﯿﺴﻓﺁ ﺎﮐ ﻞﺻﺍ ﯼﺭﮉﻧﺅﺎﺑ ﮟﯿﻣ ﮯﻠ�
 
 msgid "Brush's capabilities"
 msgstr "ﮟﯿﺘﯿﺣﻼ﻿ﺻ ﯽﮐ ﺵﺮﺑ"
-
-
-msgid "Clone Alpha"
-msgstr "ﺎﻔﻟﺍ ﻥﻮﻠﮐ"
-
-
-msgid "Opacity of clone image display"
-msgstr "ﻦﭘﻻ﻿ﺪﻨﮬﺩ ﯽﮐ ﮯﻧﺎﮭﮐﺩ ﺞﯿﻣﺍ ﻥﻮﻠﮐ"
-
-
-msgid "Clone Image"
-msgstr "ﺞﯿﻣﺍ ﻥﻮﻠﮐ"
-
-
-msgid "Image for clone brushes"
-msgstr "ﺮﯾﻮﺼﺗ ﮯﯿﻟ ﮯﮐ ﺵﺮﺑ ﻥﻮﻠﮐ"
-
-
-msgid "Clone Offset"
-msgstr "ﭧﯿﺴﻓﺁ ﻥﻮﻠﮐ"
 
 
 msgid "Soft Body Plasticity"
@@ -28289,11 +28249,6 @@ msgid "Sequence playback mode"
 msgstr "ﮈﻮﻣ ﮏﯿﺑ ﮯﻠﭘ ﺐﯿﺗﺮﺗ"
 
 
-msgctxt "Sequence"
-msgid "Clip"
-msgstr "ﭗﻠﮐ"
-
-
 msgid "Hide frames outside the specified frame range"
 msgstr "ﮟﯿﺋﺎﭙﮭﭼ ﺮﮨﺎﺑ ﮯﺳ ﺞﻨﯾﺭ ﻢﯾﺮﻓ ﺹﻮﺼﺨﻣ ﻮﮐ ﻢﯾﺮﻓ"
 
@@ -33210,12 +33165,44 @@ msgid "Editor menu containing buttons"
 msgstr "ﻮﻨﯿﻣ ﺮﭩﯾﮉﯾﺍ ﻞﻤﺘﺸﻣ ﺮﭘ ﮞﻮﻨﭩﺑ"
 
 
-msgid "Mirror"
-msgstr "ﮧﻨﯿﺋﺁ"
+msgid "Show/Hide"
+msgstr "ﮟﯿﺋﺎﭙﮭﭼ/ﮟﯿﺋﺎﮭﮐﺩ"
+
+
+msgid "Clean Up"
+msgstr "ﯽﺋﺎﻔﺻ"
+
+
+msgid "Pivot Point"
+msgstr "ﭧﻨﺋﺍﻮﭘ ﭦﻮﯿﭘ"
 
 
 msgid "Snap"
 msgstr "ﭗﯿﻨﺳ"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "ﻑﺁ ﻝﺎﻓ ﺮﺋﺎﻔﯾﮈﻮﻣ ﺐﺳﺎﻨﺘﻣ"
+
+
+msgid "Mask Edit"
+msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﮏﺳﺎﻣ"
+
+
+msgid "Automasking"
+msgstr "ﮓﻨﮑﺳﺎﻣﻮﭨﺁ"
+
+
+msgid "Face Sets Edit"
+msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ"
+
+
+msgid "Vertex Group Locks"
+msgstr "ﮎﻻ﻿ ﮦﻭﺮﮔ ﺲﮑﯿﭨﺭﻭ"
+
+
+msgid "Mirror"
+msgstr "ﮧﻨﯿﺋﺁ"
 
 
 msgid "UV Mapping"
@@ -33306,14 +33293,6 @@ msgid "Quick Effects"
 msgstr "ﺕﺍﺮﺛﺍ ﯼﺭﻮﻓ"
 
 
-msgid "Show/Hide"
-msgstr "ﮟﯿﺋﺎﭙﮭﭼ/ﮟﯿﺋﺎﮭﮐﺩ"
-
-
-msgid "Clean Up"
-msgstr "ﯽﺋﺎﻔﺻ"
-
-
 msgid "Asset"
 msgstr "ﮧﺛﺎﺛﺍ"
 
@@ -33332,10 +33311,6 @@ msgstr "ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ/ﮏﻨﻟ ﻮﮐ ﺎﭩﯾﮈ"
 
 msgid "Hooks"
 msgstr "ﮯﭩﻧﺎﮐ"
-
-
-msgid "Vertex Group Locks"
-msgstr "ﮎﻻ﻿ ﮦﻭﺮﮔ ﺲﮑﯿﭨﺭﻭ"
 
 
 msgid "Trim/Add"
@@ -33420,26 +33395,6 @@ msgstr "ﻦﺘﻣ"
 
 msgid "Bone Roll"
 msgstr "ﻝﻭﺭ ﻥﻮﺑ"
-
-
-msgid "Pivot Point"
-msgstr "ﭧﻨﺋﺍﻮﭘ ﭦﻮﯿﭘ"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "ﻑﺁ ﻝﺎﻓ ﺮﺋﺎﻔﯾﮈﻮﻣ ﺐﺳﺎﻨﺘﻣ"
-
-
-msgid "Mask Edit"
-msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﮏﺳﺎﻣ"
-
-
-msgid "Automasking"
-msgstr "ﮓﻨﮑﺳﺎﻣﻮﭨﺁ"
-
-
-msgid "Face Sets Edit"
-msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ"
 
 
 msgid "Keyframe Insert Pie"
@@ -63981,6 +63936,10 @@ msgid "Set all stroke points to same opacity"
 msgstr "ﮟﯾﺮﮐ ﭧﯿﺳ ﺮﭘ ﻦﭘﻻ﻿ﺪﻨﮬﺩ ﯽﮨ ﮏﯾﺍ ﻮﮐ ﺲﭩﻨﺋﺍﻮﭘ ﮎﻭﺮﭩﺳﺍ ﻡﺎﻤﺗ"
 
 
+msgid "Fill Opacity"
+msgstr "ﮟﯾﺮﮭﺑ ﻮﮐ ﻦﭘﻻ﻿ﺪﻨﮬﺩ"
+
+
 msgctxt "Operator"
 msgid "Set Uniform Thickness"
 msgstr "ﮟﯾﺮﮐ ﭧﯿﺳ ﯽﺋﺎﭨﻮﻣ ﮞﺎﺴﮑﯾ"
@@ -82544,10 +82503,6 @@ msgid "Exports UVs from the modified mesh"
 msgstr "ﮯﮨ ﺎﺗﺮﮐ ﺪﻣﺁﺮﺑ s ﯼﻭﻮﯾ  ﮯﺳ ﻝﺎﺟ ﮦﺪﺷ ﻢﯿﻣﺮﺗ"
 
 
-msgid "Fill Opacity"
-msgstr "ﮟﯾﺮﮭﺑ ﻮﮐ ﻦﭘﻻ﻿ﺪﻨﮬﺩ"
-
-
 msgid "Set amount of opacity for exported UV layout"
 msgstr "ﮟﯾﺮﮐ ﺭﺮﻘﻣ ﺭﺍﺪﻘﻣ ﯽﮐ ﻦﭘﻻ﻿ﺪﻨﮬﺩ ﮯﯿﻟ ﮯﮐ ﭦﺅﺁ ﮯﻠﯾﻭ ﻮﯿﮨﺪﺷ ﺪﻣﺁﺮﺑ"
 
@@ -87441,8 +87396,24 @@ msgid "Image used as canvas"
 msgstr "ﺮﯾﻮﺼﺗ ﯽﻟﺍﻭ ﮯﻧﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﺮﭘ ﺭﻮﻃ ﮯﮐ ﺱﻮﻨﯿﮐ"
 
 
+msgid "Clone Alpha"
+msgstr "ﺎﻔﻟﺍ ﻥﻮﻠﮐ"
+
+
+msgid "Opacity of clone image display"
+msgstr "ﻦﭘﻻ﻿ﺪﻨﮬﺩ ﯽﮐ ﮯﻧﺎﮭﮐﺩ ﺞﯿﻣﺍ ﻥﻮﻠﮐ"
+
+
+msgid "Clone Image"
+msgstr "ﺞﯿﻣﺍ ﻥﻮﻠﮐ"
+
+
 msgid "Image used as clone source"
 msgstr "ﺮﯾﻮﺼﺗ ﯽﻟﺍﻭ ﮯﻧﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﺮﭘ ﺭﻮﻃ ﮯﮐ ﺬﺧﺎﻣ ﻥﻮﻠﮐ"
+
+
+msgid "Clone Offset"
+msgstr "ﭧﯿﺴﻓﺁ ﻥﻮﻠﮐ"
 
 
 msgid "Dither"
@@ -87781,6 +87752,10 @@ msgid "Panel containing UI elements"
 msgstr "UI ﻞﻨﯿﭘ ﻞﻤﺘﺸﻣ ﺮﭘ ﺮﺻﺎﻨﻋ"
 
 
+msgid "Active Tool"
+msgstr "ﻝﻮﭨ ﻝﺎﻌﻓ"
+
+
 msgid "View Lock"
 msgstr "ﮟﯿﮭﮑﯾﺩ ﮎﻻ﻿"
 
@@ -87837,6 +87812,10 @@ msgid "Curve Edit Mode"
 msgstr "ﮈﻮﻣ ﺎﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﻢﺧ"
 
 
+msgid "glTF Material Variants"
+msgstr "glTF ﮟﯿﺘﻟﺎﺣ ﻒﻠﺘﺨﻣ ﯽﮐ ﺩﺍﻮﻣ"
+
+
 msgid "Snapping"
 msgstr "ﮓﻨﭙﯿﻨﺳ"
 
@@ -87861,16 +87840,16 @@ msgid "Onion Skin"
 msgstr "ﺪﻠﺟ ﯽﮐ ﺯﺎﯿﭘ"
 
 
+msgid "glTF Animations"
+msgstr "glTF ﺮﯾﻭﺎﺼﺗ ﮎﺮﺤﺘﻣ"
+
+
 msgid "Stereoscopy"
 msgstr "ﯽﭘﻮﮑﺳﻮﯾﺮﯿﭩﺳ"
 
 
 msgid "Multi Frame"
 msgstr "ﻢﯾﺮﻓ ﯽﭩﻠﻣ"
-
-
-msgid "glTF Material Variants"
-msgstr "glTF ﮟﯿﺘﻟﺎﺣ ﻒﻠﺘﺨﻣ ﯽﮐ ﺩﺍﻮﻣ"
 
 
 msgid "Auto-Masking"
@@ -87893,20 +87872,12 @@ msgid "Viewport Debug"
 msgstr "ﮓﺒﯾﮈ ﭦﺭﻮﭘ ﻮﯾﻭ"
 
 
-msgid "glTF Animations"
-msgstr "glTF ﺮﯾﻭﺎﺼﺗ ﮎﺮﺤﺘﻣ"
-
-
 msgid "VR"
 msgstr "ﺭﺁ ﯼﻭ"
 
 
 msgid "VR Info"
 msgstr "VR ﺕﺎﻣﻮﻠﻌﻣ"
-
-
-msgid "Active Tool"
-msgstr "ﻝﻮﭨ ﻝﺎﻌﻓ"
 
 
 msgid "Chain Scaling"
@@ -103213,6 +103184,11 @@ msgstr "ﻢﻠﻓ"
 
 
 msgctxt "Sequence"
+msgid "Clip"
+msgstr "ﭗﻠﮐ"
+
+
+msgctxt "Sequence"
 msgid "Mask"
 msgstr "ﮏﺳﺎﻣ"
 
@@ -113419,10 +113395,6 @@ msgid "and NVIDIA driver version %s or newer"
 msgstr "ﺮﺗ ﺪﯾﺪﺟ ﺎﯾ %s‬‪ ﻥﮊﺭﻭ ﺭﻮﯿﺋﺍﺭﮈ NVIDIA ﺭﻭﺍ"
 
 
-msgid "and AMD Radeon Pro %s driver or newer"
-msgstr "ﺮﺗ ﺪﯾﺪﺟ ﺎﯾ ﺭﻮﯿﺋﺍﺭﮈ AMD Radeon Pro ‪%s‬ ﺭﻭﺍ"
-
-
 msgid "Requires Intel GPU with Xe-HPG architecture"
 msgstr "Xe-HPG ﮫﺗﺎﺳ ﮯﮐ ﺮﯿﻤﻌﺗ ﻦﻓ Intel GPU ﮯﮨ ﺕﺭﻭﺮﺿ ﯽﮐ"
 
@@ -115013,10 +114985,6 @@ msgid "performance impact!"
 msgstr "!ﺮﺛﺍ ﺎﮐ ﯽﮔﺩﺮﮐﺭﺎﮐ"
 
 
-msgid "Built without VR/OpenXR features"
-msgstr "VR/OpenXR ﮯﮨ ﺎﯿﮔ ﺎﯾﺎﻨﺑ ﺮﯿﻐﺑ ﮯﮐ ﺕﺎﯿﺻﻮﺼﺧ"
-
-
 msgid "Start VR Session"
 msgstr "VR ﮟﯾﺮﮐ ﻉﻭﺮﺷ ﻦﺸﯿﺳ"
 
@@ -115564,10 +115532,6 @@ msgstr "؟ﮟﯾﺮﮐ ﭧﺋﺍﺭ ﺭﻭﻭﺍ ﻮﮐ ﻞﺋﺎﻓ ﮦﺩﻮ�
 
 msgid "Installing keymap failed: {:s}"
 msgstr "{s:} :ﺎﯿﮔ ﻮﮨ ﻡﺎﮐﺎﻧ ﺎﻧﺮﮐ ﻝﺎﭩﺴﻧﺍ ﻮﮐ ﭗﯿﻣ ﯽﮐ"
-
-
-msgid "This script was written Blender version {:d}.{:d}.{:d} and might not function (correctly), though it is enabled"
-msgstr "ﮯﮨ ﻝﺎﻌﻓ ﮧﯾ ﮧﮑﻧﻻ﻿ﺎﺣ ،ﮮﺮﮐ ﮧﻧ ﻡﺎﮐ (ﮯﺳ ﮯﻘﯾﺮﻃ ﺖﺳﺭﺩ) ﮯﮨ ﺎﺘﮑﺳ ﻮﮨ ﺭﻭﺍ ﺎﮭﺗ ﺎﯿﮔ ﺎﮭﮑﻟ {d} {:d} {:d:} ﻥﮊﺭﻭ ﺭﮉﻨﯿﻠﺑ ﭧﭘﺮﮑﺳﺍ ﮧﯾ"
 
 
 msgid "File already installed to {!r}"
@@ -126272,10 +126236,6 @@ msgid "OS"
 msgstr "OS"
 
 
-msgid "Home"
-msgstr "Home"
-
-
 msgid "Esc"
 msgstr "Esc"
 
@@ -130427,6 +130387,10 @@ msgstr "ﮒﻼ﻿ﭩﯿﮐ ﮧﺛﺎﺛﺍ"
 
 msgid "Date Modified"
 msgstr "ﺦﯾﺭﺎﺗ ﯽﮐ ﻢﯿﻣﺮﺗ"
+
+
+msgid "Home"
+msgstr "Home"
 
 
 msgid "Desktop"
