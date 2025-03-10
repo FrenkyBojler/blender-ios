@@ -198,7 +198,7 @@ static void view2d_masks(View2D *v2d, const rcti *mask_scroll)
     /* Adjust vertical scroller to avoid horizontal scrollers and splitter areas. */
     if (scroll & V2D_SCROLL_VERTICAL) {
       /* Note that top splitter areas are in the header,
-      outside of `mask_scroll`, so we can ignore them. */
+       * outside of `mask_scroll`, so we can ignore them. */
       v2d->vert.ymin += UI_AZONESPOTH;
       if (scroll & V2D_SCROLL_BOTTOM) {
         /* on bottom edge of region */
