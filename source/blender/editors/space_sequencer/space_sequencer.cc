@@ -749,6 +749,28 @@ static void sequencer_header_region_draw(const bContext *C, ARegion *region)
   ED_region_header(C, region);
 }
 
+static void sequencer_footer_region_listener(const wmRegionListenerParams *params)
+{
+  ARegion *region = params->region;
+  const wmNotifier *wmn = params->notifier;
+
+  /* context changes */
+  switch (wmn->category) {
+    case NC_SCREEN:
+      if (wmn->data == ND_ANIMPLAY) {
+        ED_region_tag_redraw(region);
+      }
+      break;
+    case NC_SCENE:
+      switch (wmn->data) {
+        case ND_FRAME:
+          ED_region_tag_redraw(region);
+          break;
+      }
+      break;
+  }
+}
+
 /* *********************** toolbar region ************************ */
 /* Add handlers, stuff you only do once or on area/region changes. */
 static void sequencer_tools_region_init(wmWindowManager *wm, ARegion *region)
@@ -1293,6 +1315,7 @@ void ED_spacetype_sequencer()
 
   art->init = sequencer_header_region_init;
   art->draw = sequencer_header_region_draw;
+  art->listener = sequencer_footer_region_listener;
   BLI_addhead(&st->regiontypes, art);
 
   /* HUD. */

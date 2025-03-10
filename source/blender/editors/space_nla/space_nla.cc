@@ -320,6 +320,28 @@ static void nla_header_region_draw(const bContext *C, ARegion *region)
   ED_region_header(C, region);
 }
 
+static void nla_footer_region_listener(const wmRegionListenerParams *params)
+{
+  ARegion *region = params->region;
+  const wmNotifier *wmn = params->notifier;
+
+  /* context changes */
+  switch (wmn->category) {
+    case NC_SCREEN:
+      if (wmn->data == ND_ANIMPLAY) {
+        ED_region_tag_redraw(region);
+      }
+      break;
+    case NC_SCENE:
+      switch (wmn->data) {
+        case ND_FRAME:
+          ED_region_tag_redraw(region);
+          break;
+      }
+      break;
+  }
+}
+
 /* add handlers, stuff you only do once or on area/region changes */
 static void nla_buttons_region_init(wmWindowManager *wm, ARegion *region)
 {
@@ -668,6 +690,7 @@ void ED_spacetype_nla()
 
   art->init = nla_header_region_init;
   art->draw = nla_header_region_draw;
+  art->listener = nla_footer_region_listener;
 
   BLI_addhead(&st->regiontypes, art);
 
