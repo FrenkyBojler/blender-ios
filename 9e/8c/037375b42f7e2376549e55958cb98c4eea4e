@@ -1,2 +1,3 @@
 Referenced by issue #135328, Regression: Cannot change Default Eraser type in Grease Pencil
 Referenced by pull request #135743, Fix #135328: Grease Pencil: Unable to set default eraser
+Referenced by commit 4d50e00914db82b99c7366de8b9136f2abe36e1b, Fix #135328: Grease Pencil: Unable to set default eraser
