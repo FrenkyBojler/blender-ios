@@ -2827,7 +2827,14 @@ static wmOperatorStatus vertex_group_remove_from_exec(bContext *C, wmOperator *o
     }
   }
 
-  // TODO: after a group is removed, if we are auto-normalizing, do the normalization here
+  ToolSettings *ts = CTX_data_tool_settings(C);
+  if (ts->auto_normalize) {
+    int subset_count, vgroup_tot;
+    const bool *vgroup_validmap = BKE_object_defgroup_subset_from_select_type(
+        ob, WT_VGROUP_ALL, &vgroup_tot, &subset_count);
+
+    vgroup_normalize_all(ob, vgroup_validmap, vgroup_tot, subset_count, false, op->reports);
+  }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
