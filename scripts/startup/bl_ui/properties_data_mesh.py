@@ -580,6 +580,8 @@ class DATA_PT_mesh_attributes(MeshButtonsPanel, Panel):
         draw_attribute_warnings(context, layout, None)
 
 
+# `attribute` is list of attributes in current UI list
+# None for vgroup and mesh. Those are already utilized in comparison.
 def draw_attribute_warnings(context, layout, attributes):
     ob = context.object
     mesh = context.mesh
@@ -599,8 +601,10 @@ def draw_attribute_warnings(context, layout, attributes):
         for name in collection.keys():
             unique_names_len = len(unique_names)
             unique_names.add(name)
-            if (len(unique_names) == unique_names_len) and (not attributes or attributes.get(name)):
-                colliding_names.append(name)
+            if (len(unique_names) == unique_names_len):
+                if (not attributes or attributes.get(name)):
+                    # Print colliding names if they exist in current attribute list, see: !135495
+                    colliding_names.append(name)
 
     if not colliding_names:
         return
