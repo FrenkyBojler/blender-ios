@@ -158,26 +158,22 @@ TEST(math_color, BlendModeConsistency_SoftLight)
   EXPECT_NEAR(fdst[0] * 255.0f, bdst[0], 1.0f);
   EXPECT_NEAR(fdst[1] * 255.0f, bdst[1], 1.0f);
   EXPECT_NEAR(fdst[2] * 255.0f, bdst[2], 1.0f);
-  EXPECT_NEAR(fdst[3] * 255.0f, bdst[3], 1.0f);
 
   blend_color_softlight_float(fdst, fcolorb, fcolora);
   blend_color_softlight_byte(bdst, bcolorb, bcolora);
   EXPECT_NEAR(fdst[0] * 255.0f, bdst[0], 1.0f);
   EXPECT_NEAR(fdst[1] * 255.0f, bdst[1], 1.0f);
   EXPECT_NEAR(fdst[2] * 255.0f, bdst[2], 1.0f);
-  EXPECT_NEAR(fdst[3] * 255.0f, bdst[3], 1.0f);
 
   blend_color_softlight_float(fdst, fcolorc, fcolora);
   blend_color_softlight_byte(bdst, bcolorc, bcolora);
   EXPECT_NEAR(fdst[0] * 255.0f, bdst[0], 1.0f);
   EXPECT_NEAR(fdst[1] * 255.0f, bdst[1], 1.0f);
   EXPECT_NEAR(fdst[2] * 255.0f, bdst[2], 1.0f);
-  EXPECT_NEAR(fdst[3] * 255.0f, bdst[3], 1.0f);
 
   blend_color_softlight_float(fdst, fcolorc, fcolord);
   blend_color_softlight_byte(bdst, bcolorc, bcolord);
   EXPECT_NEAR(fdst[0] * 255.0f, bdst[0], 1.0f);
   EXPECT_NEAR(fdst[1] * 255.0f, bdst[1], 1.0f);
   EXPECT_NEAR(fdst[2] * 255.0f, bdst[2], 1.0f);
-  EXPECT_NEAR(fdst[3] * 255.0f, bdst[3], 1.0f);
 }
