@@ -659,6 +659,8 @@ static bool nearHomePosition(const GHOST_TEventNDOFMotionData *ndof, float thres
 bool GHOST_NDOFManager::sendMotionEvent()
 {
   if (!motion_event_pending_) {
+    /* Avoid large `dt` times when changing windows. */
+    motion_state_ = GHOST_kNotStarted;
     return false;
   }
 
