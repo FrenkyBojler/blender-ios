@@ -5059,11 +5059,11 @@ static int screen_region_toggle_visibility_exec(bContext *C, wmOperator *op)
   return OPERATOR_CANCELLED;
 }
 
-static void SCREEN_OT_region_toggle_visibility(wmOperatorType *ot)
+static void SCREEN_OT_region_toggle_visibility_for_navigation_bar(wmOperatorType *ot)
 {
   ot->name = "Toggle Region Visibility";
-  ot->idname = "SCREEN_OT_region_toggle_visibility";
-  ot->description = "Toggle the visibility of a region";
+  ot->idname = "SCREEN_OT_region_toggle_visibility_for_navigation_bar";
+  ot->description = "Toggle the visibility of navigation bar";
 
   ot->exec = screen_region_toggle_visibility_exec;
   ot->poll = ED_operator_areaactive;
@@ -5158,7 +5158,7 @@ void ED_screens_header_tools_menu_create(bContext *C, uiLayout *layout, void * /
     if (ARegion *region_nav_bar = BKE_area_find_region_type(area, RGN_TYPE_NAV_BAR)) {
       PointerRNA *op_ptr = nullptr;
       uiItemFullO(col,
-                  "SCREEN_OT_region_toggle_visibility",
+                  "SCREEN_OT_region_toggle_visibility_for_navigation_bar",
                   IFACE_("Show Navigation Bar"),
                   (region_nav_bar->flag & RGN_FLAG_HIDDEN) ? ICON_CHECKBOX_DEHLT :
                                                              ICON_CHECKBOX_HLT,
@@ -6712,7 +6712,7 @@ void ED_operatortypes_screen()
   WM_operatortype_append(SCREEN_OT_new);
   WM_operatortype_append(SCREEN_OT_delete);
 
-  WM_operatortype_append(SCREEN_OT_region_toggle_visibility);
+  WM_operatortype_append(SCREEN_OT_region_toggle_visibility_for_navigation_bar);
 }
 
 /** \} */
