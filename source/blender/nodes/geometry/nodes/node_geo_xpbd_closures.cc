@@ -1002,7 +1002,9 @@ template<bool debug_output> static Array<ConstraintTypeInfo> create_constraint_i
                                            {},
                                            position_goal__eval_positions<debug_output>,
                                            {},
-                                           position_goal__get_mapping};
+                                           position_goal__get_mapping,
+                                           {},
+                                           {}};
   ConstraintTypeInfo rotation_goal_info = {"Rotation Goal Constraints",
                                            "Set orientation of an edge to a target rotation",
                                            1,
@@ -1010,7 +1012,9 @@ template<bool debug_output> static Array<ConstraintTypeInfo> create_constraint_i
                                            {},
                                            rotation_goal__eval_positions<debug_output>,
                                            {},
-                                           rotation_goal__get_mapping};
+                                           rotation_goal__get_mapping,
+                                           {},
+                                           {}};
   ConstraintTypeInfo stretch_shear_info = {
       "Stretch/Shear Constraints",
       "Enforces edge length and aligns forward direction with the edge vector",
@@ -1019,7 +1023,9 @@ template<bool debug_output> static Array<ConstraintTypeInfo> create_constraint_i
       {},
       stretch_shear__eval_positions<debug_output>,
       {},
-      stretch_shear__get_mapping};
+      stretch_shear__get_mapping,
+      {},
+      {}};
   ConstraintTypeInfo bend_twist_info = {
       "Bend/Twist Constraints",
       "Enforces angles between neighboring edges to their relative rest orientation",
@@ -1028,7 +1034,9 @@ template<bool debug_output> static Array<ConstraintTypeInfo> create_constraint_i
       {},
       bend_twist__eval_positions<debug_output>,
       {},
-      bend_twist__get_mapping};
+      bend_twist__get_mapping,
+      {},
+      {}};
   ConstraintTypeInfo contact_info = {"Contact Constraints",
                                      "Keep contact points from penetrating",
                                      4,
@@ -1036,7 +1044,9 @@ template<bool debug_output> static Array<ConstraintTypeInfo> create_constraint_i
                                      contact__init_velocity_step,
                                      contact__eval_positions<debug_output>,
                                      contact__eval_velocities<debug_output>,
-                                     contact__get_mapping};
+                                     contact__get_mapping,
+                                     {},
+                                     {}};
 
   /* Order of constraint passes is chosen by increasing "importance":
    * Later constraints have less residual error, and the last constraint type is solved exactly.

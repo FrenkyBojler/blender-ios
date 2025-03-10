@@ -112,58 +112,56 @@ using ConstraintEvalVelocityFunc =
                        VArray<bool> &r_active,
                        Vector<VArray<float3>> &r_delta_velocities,
                        Vector<VArray<float3>> &r_delta_angular_velocities)>;
-
 /**
- * Options for constructing linear solver matrix:
- * - Assume hair structure (multiple independent ranges, constraints between neighboring points).
- *   Ask constraints for values of specific blocks/rows.
- * - Ask constraints for #rows (lambdas) & #vars (p/q).
+ * Returns the number of components used by a constraint.
+ * \return Number of components, or Lagrange multipliers (lambda) used by a single constraint,
+ * typically up to 3.
  */
+using ConstraintLinearSolveSizeFunc = std::function<int()>;
 
 /**
- * Returns the number of equations used and the number and variables affected by a constraint.
- * \param constraint_size Size of the constraint is the number of Lagrange multipliers (lambda)
- * used by a single constraint, typically 1..4.
- * \param num_positions Number of position variables affected by the constraint.
- * \param num_rotations Number of rotation variables affected by the constraint.
- */
-using ConstraintLinearSolveSizeFunc =
-    std::function<void(int &r_constraint_size, int &r_num_positions, int &r_num_rotations)>;
-
-/**
- * Information to fill blocks in the sparse matrix for multiple constraints.
- * Each constraint can have a number of components (typically between 1 and 4).
- * Each component
- */
-struct LinearSolveConstructionInfo {
-  /* Residual value in the current state ("C") after constraint projection. */
-  Array<float> residuals;
-  /* Constraint force ("lambda") of the previous iteration. */
-  Array<float> lambdas;
-  /* Compliance value ("alpha") for the constraint, inverse of the constraint stiffness. */
-  Array<float> alphas;
-  /* Damping factor ("beta"). */
-  /* Jacobian entries: Derivative of the constraint impulse ("J") wrt. one or more position and/or
-   * rotation variables. */
-  Array<float> gradients;
-  /* Number of */
-};
-
-/**
- * Compute elements of the constraint matrix for a direct linear constraint solve.
- * A constraint can return an arbitrary number of rows.
+ * Compute elements of the constraint matrix for a global linear constraint solve.
+ * The number of components and affected variables is defined by the separate size function.
+ * This also determines the data type of the fields expected from this function (float, float2,
+ * float3).
  *
- * The solver constructs a linear system that yields an optimal solution for the constraint imulses
- * and the variable offsets.
+ * The solver constructs a linear system that yields an optimal solution for the constraint
+ * impulses and variable offsets.
+ *
+ * \param eval_params General parameters of the current evaluation.
+ * \param variables Current state of the simulated geometry.
+ * \param constraint_attributes Attributes of the constraint data.
+ * \param r_residual_field Field of residual values in the current configuration.
+ * \param r_alpha_field Field of compliance values (softness).
+ * \param r_beta_field Field of damping values.
+ * \param r_gradient_fields Gradient field for each affected variable, up to 4.
  */
-using ConstraintPositionLinearSolveFunc =
+using ConstraintPositionLinearSolveElementsFunc =
     std::function<void(const ConstraintEvalParams &eval_params,
                        const ConstraintVariables &variables,
-                       const IndexMask &group_mask,
-                       bke::GeometrySet &constraints,
-                       VArray<bool> &r_active,
-                       Vector<VArray<float3>> &r_delta_positions,
-                       Vector<VArray<float4>> &r_delta_rotations)>;
+                       const bke::AttributeAccessor &constraint_attributes,
+                       fn::GField &r_residual_field,
+                       fn::GField &r_alpha_field,
+                       fn::GField &r_beta_field,
+                       MutableSpan<fn::GField> r_gradient_fields)>;
+
+// /**
+//  * Information to fill blocks in the sparse matrix for all constraints.
+//  */
+// struct LinearSolveConstructionInfo {
+//   /* Residual value in the current state ("C") after constraint projection. */
+//   Array<float> residuals;
+//   /* Constraint force ("lambda") of the previous iteration. */
+//   Array<float> lambdas;
+//   /* Compliance value ("alpha") for the constraint, inverse of the constraint stiffness. */
+//   Array<float> alphas;
+//   /* Damping factor ("beta"). */
+//   Array<float> betas;
+//   /* Jacobian entries: Derivative of the constraint impulse ("J") wrt. one or more position
+//   and/or
+//    * rotation variables. */
+//   Array<float> gradients;
+// };
 
 /**
  * Returns up to 4 index attributes mapping constraints to geometry points.
@@ -185,6 +183,9 @@ struct ConstraintTypeInfo {
   ConstraintEvalPositionFunc evaluate_position;
   ConstraintEvalVelocityFunc evaluate_velocity;
   ConstraintMappingFunc get_mapping;
+
+  ConstraintLinearSolveSizeFunc linear_solve_size;
+  ConstraintPositionLinearSolveElementsFunc linear_solve_elements;
 };
 
 Span<ConstraintTypeInfo> get_constraint_info(bool debug_output);
@@ -296,17 +297,6 @@ inline void apply_angular_velocity_impulse(const float3 &delta_angular_velocity,
 {
   angular_velocity += delta_angular_velocity;
 }
-
-enum class ConstraintType {
-  PositionGoal,
-  RotationGoal,
-  VelocityGoal,
-  AngularVelocityGoal,
-  StretchShear,
-  BendTwist,
-  ContactPosition,
-  ContactVelocity,
-};
 
 inline void eval_position_goal(const float3 &goal_position,
                                const float alpha,

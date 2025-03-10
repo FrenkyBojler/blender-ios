@@ -24,7 +24,16 @@ namespace blender::nodes::node_fn_constraint_cc {
 
 namespace mf = blender::fn::multi_function;
 
-using xpbd_constraints::ConstraintType;
+enum class ConstraintType {
+  PositionGoal,
+  RotationGoal,
+  VelocityGoal,
+  AngularVelocityGoal,
+  StretchShear,
+  BendTwist,
+  ContactPosition,
+  ContactVelocity,
+};
 
 /* Shortcuts. */
 template<typename T> using mf_input = mf::ParamTag<mf::ParamCategory::SingleInput, T>;
