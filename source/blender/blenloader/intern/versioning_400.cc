@@ -3777,7 +3777,7 @@ static void do_version_node_curve_to_mesh_scale_input(bNodeTree *tree)
   }
 
   for (bNode *curve_to_mesh : curve_to_mesh_nodes) {
-    if (bke::node_find_socket(curve_to_mesh, SOCK_IN, "Scale")) {
+    if (bke::node_find_socket(*curve_to_mesh, SOCK_IN, "Scale")) {
       /* Make versioning idempotent. */
       continue;
     }
@@ -3786,7 +3786,7 @@ static void do_version_node_curve_to_mesh_scale_input(bNodeTree *tree)
 
     bNode &named_attribute = version_node_add_empty(*tree, "GeometryNodeInputNamedAttribute");
     NodeGeometryInputNamedAttribute *named_attribute_storage =
-        MEM_cnew<NodeGeometryInputNamedAttribute>(__func__);
+        MEM_callocN<NodeGeometryInputNamedAttribute>(__func__);
     named_attribute_storage->data_type = CD_PROP_FLOAT;
     named_attribute.storage = named_attribute_storage;
     named_attribute.parent = curve_to_mesh->parent;
@@ -3804,7 +3804,7 @@ static void do_version_node_curve_to_mesh_scale_input(bNodeTree *tree)
         tree, &named_attribute, SOCK_OUT, SOCK_FLOAT, PROP_NONE, "Attribute", "Attribute");
 
     bNode &switch_node = version_node_add_empty(*tree, "GeometryNodeSwitch");
-    NodeSwitch *switch_storage = MEM_cnew<NodeSwitch>(__func__);
+    NodeSwitch *switch_storage = MEM_callocN<NodeSwitch>(__func__);
     switch_storage->input_type = SOCK_FLOAT;
     switch_node.storage = switch_storage;
     switch_node.parent = curve_to_mesh->parent;
@@ -3823,23 +3823,23 @@ static void do_version_node_curve_to_mesh_scale_input(bNodeTree *tree)
 
     version_node_add_link(*tree,
                           named_attribute,
-                          *bke::node_find_socket(&named_attribute, SOCK_OUT, "Exists"),
+                          *bke::node_find_socket(named_attribute, SOCK_OUT, "Exists"),
                           switch_node,
-                          *bke::node_find_socket(&switch_node, SOCK_IN, "Switch"));
+                          *bke::node_find_socket(switch_node, SOCK_IN, "Switch"));
     version_node_add_link(*tree,
                           named_attribute,
-                          *bke::node_find_socket(&named_attribute, SOCK_OUT, "Attribute"),
+                          *bke::node_find_socket(named_attribute, SOCK_OUT, "Attribute"),
                           switch_node,
-                          *bke::node_find_socket(&switch_node, SOCK_IN, "True"));
+                          *bke::node_find_socket(switch_node, SOCK_IN, "True"));
 
     version_node_add_socket_if_not_exist(
         tree, &switch_node, SOCK_OUT, SOCK_FLOAT, PROP_NONE, "Output", "Output");
 
     version_node_add_link(*tree,
                           switch_node,
-                          *bke::node_find_socket(&switch_node, SOCK_OUT, "Output"),
+                          *bke::node_find_socket(switch_node, SOCK_OUT, "Output"),
                           *curve_to_mesh,
-                          *bke::node_find_socket(curve_to_mesh, SOCK_IN, "Scale"));
+                          *bke::node_find_socket(*curve_to_mesh, SOCK_IN, "Scale"));
   }
 }
 
