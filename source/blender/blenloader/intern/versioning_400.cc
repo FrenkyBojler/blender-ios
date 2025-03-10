@@ -3777,7 +3777,7 @@ static void do_version_node_curve_to_mesh_scale_input(bNodeTree *tree)
   }
 
   for (bNode *curve_to_mesh : curve_to_mesh_nodes) {
-    if (blender::bke::node_find_socket(curve_to_mesh, SOCK_IN, "Scale")) {
+    if (bke::node_find_socket(curve_to_mesh, SOCK_IN, "Scale")) {
       /* Make versioning idempotent. */
       continue;
     }
@@ -5958,7 +5958,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     version_sequencer_update_overdrop(bmain);
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 3)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 4)) {
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_GEOMETRY) {
         do_version_node_curve_to_mesh_scale_input(ntree);
