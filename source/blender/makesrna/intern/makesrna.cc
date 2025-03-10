@@ -3434,6 +3434,7 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
                      "*" :
                      "";
         if (dparm->prop->type == PROP_COLLECTION) {
+          /* Placement new is necessary because #ParameterList::data is not initialized. */
           fprintf(f,
                   "\tnew ((CollectionVector *)_retdata) CollectionVector(std::move(%s));\n",
                   func->c_ret->identifier);
