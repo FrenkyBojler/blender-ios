@@ -201,7 +201,8 @@ inline float4 quaternion_difference(const math::Quaternion &a, const math::Quate
   //   return q.w >= 0.0f ? float4(q) : -float4(q);
   // };
   // return positive_quaternion(a) - positive_quaternion(b);
-  return float4(a) - float4(b);
+  // return float4(a) - float4(b);
+  return float4(0.0f, a.imaginary_part() - b.imaginary_part());
 }
 
 /** Add a positive or negative offset depending on the quaternion sign. */
