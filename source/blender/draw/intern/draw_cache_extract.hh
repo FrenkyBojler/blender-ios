@@ -24,7 +24,6 @@
 namespace blender::gpu {
 class Batch;
 class IndexBuf;
-class VertBuf;
 }  // namespace blender::gpu
 struct Mesh;
 struct Object;
@@ -61,6 +60,15 @@ enum {
   DRW_MESH_WEIGHT_STATE_LOCK_RELATIVE = (1 << 2),
 };
 
+/**
+ * Vertex buffer types that can be use by batches in the mesh batch cache.
+ *
+ * \todo It would be good to change this to something like #draw::pbvh::AttributeRequest to
+ * separate the generic attribute requests. While there is a limit on the number of vertex buffers
+ * used by a single shader/batch, there is no need for that limit here; there are potentially many
+ * shaders requiring attributes for a particular mesh. OTOH, it may be good to use flags for the
+ * builtin buffer types, so that bitwise operations can be used.
+ */
 enum class VBOType : int8_t {
   Position,
   CornerNormal,
@@ -103,6 +111,13 @@ enum class VBOType : int8_t {
   VertexNormal,
 };
 
+/**
+ * All index buffers used for mesh batches.
+ *
+ * \note "Tris per material" (#MeshBatchCache::tris_per_mat) is an exception. Since there are
+ * an arbitrary numbers of materials, those are handled separately (as slices of the overall
+ * triangles buffer).
+ */
 enum class IBOType : int8_t {
   Tris,
   Lines,
@@ -117,25 +132,14 @@ enum class IBOType : int8_t {
   EditUVFaceDots,
 };
 
-class VertBufDeleter {
- public:
-  void operator()(gpu::VertBuf *vbo)
-  {
-    GPU_vertbuf_discard(vbo);
-  }
-};
-
-class IndexBufDeleter {
- public:
-  void operator()(gpu::IndexBuf *ibo)
-  {
-    GPU_indexbuf_discard(ibo);
-  }
-};
-
 struct MeshBufferList {
-  Map<VBOType, std::unique_ptr<gpu::VertBuf, VertBufDeleter>> vbos;
-  Map<IBOType, std::unique_ptr<gpu::IndexBuf, IndexBufDeleter>> ibos;
+  /* Though using maps here may add some overhead compared to just indexed arrays, it's a bit more
+   * conventient currently, because the "buffer exists" test is very clear, it's just whether the
+   * map contains it (e.g. compared to "buffer is allocated but not filled with data"). The
+   * sparseness *may* be useful for reducing memory usage when only few buffers are used. */
+
+  Map<VBOType, std::unique_ptr<gpu::VertBuf, gpu::VertBufDeleter>> vbos;
+  Map<IBOType, std::unique_ptr<gpu::IndexBuf, gpu::IndexBufDeleter>> ibos;
 };
 
 struct MeshBatchList {

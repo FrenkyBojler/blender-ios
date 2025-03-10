@@ -120,7 +120,7 @@ void mesh_buffer_cache_create_requested(const Scene &scene,
       lines |= ELEM(request, IBOType::Lines, IBOType::LinesLoose);
       gpu::IndexBuf *ibo = GPU_indexbuf_calloc();
       ibos_to_create.add_new(request, ibo);
-      return std::unique_ptr<gpu::IndexBuf, IndexBufDeleter>(ibo);
+      return std::unique_ptr<gpu::IndexBuf, gpu::IndexBufDeleter>(ibo);
     });
   }
   for (const VBOType request : vbo_requests) {
@@ -129,24 +129,17 @@ void mesh_buffer_cache_create_requested(const Scene &scene,
                int8_t(request) <= int8_t(VBOType::Attr15);
       gpu::VertBuf *vbo = GPU_vertbuf_calloc();
       vbos_to_create.add_new(request, vbo);
-      return std::unique_ptr<gpu::VertBuf, VertBufDeleter>(vbo);
+      return std::unique_ptr<gpu::VertBuf, gpu::VertBufDeleter>(vbo);
     });
   }
 
+  /* Because lines and loose lines are stored in the same buffer, they're handled separately rather
+   * than from potentially multiple threads in the parallel_for_each loop below. */
   if (lines) {
     extract_lines(mr,
                   ibos_to_create.lookup_default(IBOType::Lines, nullptr),
                   ibos_to_create.lookup_default(IBOType::LinesLoose, nullptr),
                   cache.no_loose_wire);
-  }
-
-  if (attrs) {
-    for (const int8_t i : IndexRange(GPU_MAX_ATTR)) {
-      const VBOType vbo_type = VBOType(int8_t(VBOType::Attr0) + i);
-      if (gpu::VertBuf *vbo = vbos_to_create.lookup_default(vbo_type, nullptr)) {
-        extract_attribute(mr, cache.attr_used.requests[i], *vbo);
-      }
-    }
   }
 
   threading::parallel_for_each(ibos_to_create.items(), [&](const auto item) {
@@ -156,7 +149,7 @@ void mesh_buffer_cache_create_requested(const Scene &scene,
         break;
       case IBOType::Lines:
       case IBOType::LinesLoose:
-        /* Handled as a special case since they may share the same buffer. */
+        /* Handled as a special case above. */
         break;
       case IBOType::Points:
         extract_points(mr, *item.value);
@@ -184,6 +177,18 @@ void mesh_buffer_cache_create_requested(const Scene &scene,
         break;
     }
   });
+
+  /* It's simpler to handle all the generic attribute requests in the same place too. This is
+   * multithreaded and just memory bound anyway. Running them in parallel with other buffer
+   * creation tasks is probably not useful. */
+  if (attrs) {
+    for (const int8_t i : IndexRange(GPU_MAX_ATTR)) {
+      const VBOType vbo_type = VBOType(int8_t(VBOType::Attr0) + i);
+      if (gpu::VertBuf *vbo = vbos_to_create.lookup_default(vbo_type, nullptr)) {
+        extract_attribute(mr, cache.attr_used.requests[i], *vbo);
+      }
+    }
+  }
 
   const bool do_hq_normals = (scene.r.perf_flag & SCE_PERF_HQ_NORMALS) != 0 ||
                              GPU_use_hq_normals_workaround();
@@ -271,7 +276,7 @@ void mesh_buffer_cache_create_requested(const Scene &scene,
       case VBOType::Attr13:
       case VBOType::Attr14:
       case VBOType::Attr15:
-        /* Handled as a special case since they are extracted in the same function. */
+        /* Handled as a special case above. */
         break;
       case VBOType::AttrViewer:
         extract_attr_viewer(mr, *item.value);
@@ -315,7 +320,7 @@ void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,
       lines |= ELEM(request, IBOType::Lines, IBOType::LinesLoose);
       gpu::IndexBuf *ibo = GPU_indexbuf_calloc();
       ibos_to_create.add_new(request, ibo);
-      return std::unique_ptr<gpu::IndexBuf, IndexBufDeleter>(ibo);
+      return std::unique_ptr<gpu::IndexBuf, gpu::IndexBufDeleter>(ibo);
     });
   }
   for (const VBOType request : vbo_requests) {
@@ -324,7 +329,7 @@ void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,
                int8_t(request) <= int8_t(VBOType::Attr15);
       gpu::VertBuf *vbo = GPU_vertbuf_calloc();
       vbos_to_create.add_new(request, vbo);
-      return std::unique_ptr<gpu::VertBuf, VertBufDeleter>(vbo);
+      return std::unique_ptr<gpu::VertBuf, gpu::VertBufDeleter>(vbo);
     });
   }
 
