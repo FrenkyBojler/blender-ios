@@ -140,7 +140,7 @@ TEST(math_color, srgb_to_linearrgb_v3_v3)
   }
 }
 
-TEST(math_color, BlendModeConsistency_Screen)
+TEST(math_color, BlendModeConsistency_SoftLight)
 {
   float fdst[4];
   float fcolora[4] = {0.0f, 0.0f, 0.0f, 1.0f};
