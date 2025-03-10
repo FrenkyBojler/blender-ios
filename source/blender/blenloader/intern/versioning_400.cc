@@ -5889,10 +5889,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
             ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
                                                                    &sl->regionbase;
             ARegion *new_footer = do_versions_add_region_if_not_found(
-                regionbase,
-                RGN_TYPE_FOOTER,
-                "playback controls for animation editors",
-                RGN_TYPE_HEADER);
+                regionbase, RGN_TYPE_FOOTER, "footer for animation editors", RGN_TYPE_HEADER);
             if (new_footer != nullptr) {
               new_footer->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_TOP :
                                                                         RGN_ALIGN_BOTTOM;

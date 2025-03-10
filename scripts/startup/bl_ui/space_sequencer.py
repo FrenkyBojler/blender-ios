@@ -468,13 +468,13 @@ class SEQUENCER_MT_view(Menu):
         layout.prop(st, "show_region_toolbar")
         layout.prop(st, "show_region_ui")
         layout.prop(st, "show_region_tool_header")
-        layout.prop(st, "show_region_footer", text="Playback Controls")
         layout.operator_context = 'INVOKE_DEFAULT'
         if is_sequencer_view:
             layout.prop(st, "show_region_hud")
         if is_sequencer_only:
             layout.prop(st, "show_region_channels")
         layout.separator()
+        layout.prop(st, "show_region_footer")
 
         if is_sequencer_only:
             layout.prop(st, "show_backdrop", text="Preview as Backdrop")

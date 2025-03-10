@@ -5314,7 +5314,7 @@ static bool match_region_with_redraws(const ScrArea *area,
     }
   }
   else if (regiontype == RGN_TYPE_FOOTER) {
-    /* The footer region is used for playback controls in the following editors. */
+    /* The footer region in animation editors shows the current frame. */
     if (ELEM(spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_SEQ, SPACE_NLA)) {
       return true;
     }
