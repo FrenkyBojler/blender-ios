@@ -65,6 +65,75 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   node->storage = data;
 }
 
+static float3 compute_triangle_bitangent(const float3 &p1,
+                                         const float3 &p2,
+                                         const float3 &p3,
+                                         const float2 &uv1,
+                                         const float2 &uv2,
+                                         const float2 &uv3)
+{
+  const float x1 = p2.x - p1.x;
+  const float x2 = p3.x - p1.x;
+  const float y1 = p2.y - p1.y;
+  const float y2 = p3.y - p1.y;
+  const float z1 = p2.z - p1.z;
+  const float z2 = p3.z - p1.z;
+
+  const float s1 = uv2.x - uv1.x;
+  const float s2 = uv3.x - uv1.x;
+  const float t1 = uv2.y - uv1.y;
+  const float t2 = uv3.y - uv1.y;
+
+  const float r = 1.0F / (s1 * t2 - s2 * t1);
+  return float3((s1 * x2 - s2 * x1) * r, (s1 * y2 - s2 * y1) * r, (s1 * z2 - s2 * z1) * r);
+}
+
+static void compute_simple_corner_tangents(const Mesh &mesh,
+                                           const IndexMask &face_selection,
+                                           const Span<float3> corner_normals,
+                                           const Span<float2> uvs,
+                                           MutableSpan<float3> r_corner_tangents)
+{
+  const OffsetIndices faces = mesh.faces();
+  const Span<int3> tris = mesh.corner_tris();
+  const Span<int> corner_verts = mesh.corner_verts();
+  const Span<float3> positions = mesh.vert_positions();
+
+  const int verts_num = positions.size();
+  const int tris_num = tris.size();
+
+  BLI_assert(r_corner_tangents.size() == corner_verts.size());
+
+  /* Compute a tangent vector for each triangle. */
+  face_selection.foreach_index(GrainSize(2048), [&](const int64_t index_f) {
+    const IndexRange corner_tri_slice(poly_to_tri_count(index_f, faces[index_f].start()),
+                                      poly_to_tri_count(1, faces[index_f].size()));
+
+    for (const int64_t i : corner_tri_slice) {
+      const int3 &tri = tris[i];
+      const int vert_0 = corner_verts[tri[0]];
+      const int vert_1 = corner_verts[tri[1]];
+      const int vert_2 = corner_verts[tri[2]];
+
+      const float3 bitangent = compute_triangle_bitangent(positions[vert_0],
+                                                          positions[vert_1],
+                                                          positions[vert_2],
+                                                          uvs[tri[0]],
+                                                          uvs[tri[1]],
+                                                          uvs[tri[2]]);
+
+      r_corner_tangents[tri[0]] += bitangent;
+      r_corner_tangents[tri[1]] += bitangent;
+      r_corner_tangents[tri[2]] += bitangent;
+    }
+
+    /* Compute tangent and then take average through normalization. */
+    for (const int64_t i : faces[index_f]) {
+      r_corner_tangents[i] = math::normalize(math::cross(r_corner_tangents[i], corner_normals[i]));
+    }
+  });
+}
+
 static void compute_partial_triangulation(const Mesh &mesh,
                                           const IndexMask &face_selection,
                                           Array<int> &r_corner_corners)
@@ -121,9 +190,6 @@ static void compute_mikkt_corner_tangents_partial(const Mesh &mesh,
     corner_tris = ptri_corner_corners.as_span();
   }
 
-  const int64_t min_buffer_size = faces[face_selection.last()].one_after_last();
-  r_tangents = Array<float3>(min_buffer_size);
-  r_bitangents = Array<float>(min_buffer_size);
   BKE_mesh_calc_virtual_loop_tangent_single_ex(corner_tris,
                                                corner_verts,
                                                mesh.vert_positions(),
@@ -162,28 +228,38 @@ static VArray<float3> construct_mesh_tangent_gvarray(const Mesh &mesh,
   IndexMaskMemory mask_mem;
   IndexMask face_selection = adapt_corner_to_face_mask(mesh, corner_mask, mask_mem);
 
-  Array<float3> tangents;
-  Array<float> bitangents;
+  const int64_t min_buffer_size = mesh.faces()[face_selection.last()].one_after_last();
+  Array<float3> tangents(min_buffer_size);
+  Array<float> bitangents(min_buffer_size);
   if (mode == GeometryNodeMeshTangentMode::GEO_NODE_MESH_TANGENT_METHOD_MIKKT) {
     compute_mikkt_corner_tangents_partial(
         mesh, face_selection, uv_coords, corner_normals, tangents, bitangents);
+    if (output_bitangent) {
+      /* Reuse tangent buffer. */
+      const Span<float3> normals = mesh.corner_normals();
+
+      corner_mask.foreach_index(
+          GrainSize(32768), [&](const int64_t index_corner, const int64_t /* index_rel */) {
+            float3 tan = tangents[index_corner];
+            cross_v3_v3v3(tangents[index_corner], normals[index_corner], &tan.x);
+            tangents[index_corner] *= bitangents[index_corner];
+          });
+    }
   }
   else {
-    compute_mikkt_corner_tangents_partial(
-        mesh, face_selection, uv_coords, corner_normals, tangents, bitangents);
+    compute_simple_corner_tangents(mesh, face_selection, corner_normals, uv_coords, tangents);
+    if (output_bitangent) {
+      /* Reuse tangent buffer. */
+      const Span<float3> normals = mesh.corner_normals();
+
+      corner_mask.foreach_index(
+          GrainSize(32768), [&](const int64_t index_corner, const int64_t /* index_rel */) {
+            float3 tan = tangents[index_corner];
+            cross_v3_v3v3(tangents[index_corner], normals[index_corner], &tan.x);
+          });
+    }
   }
 
-  if (output_bitangent) {
-    /* Reuse tangent buffer. */
-    const Span<float3> normals = mesh.corner_normals();
-
-    corner_mask.foreach_index(
-        GrainSize(32768), [&](const int64_t index_corner, const int64_t /* index_rel */) {
-          float3 tan = tangents[index_corner];
-          cross_v3_v3v3(tangents[index_corner], normals[index_corner], &tan.x);
-          tangents[index_corner] *= bitangents[index_corner];
-        });
-  }
   return VArray<float3>::ForContainer(std::move(tangents));
 }
 
@@ -321,10 +397,8 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(ntype,
-                                  "NodeGeometryMeshTangentUV",
-                                  node_free_standard_storage,
-                                  node_copy_standard_storage);
+  blender::bke::node_type_storage(
+      ntype, "NodeGeometryMeshTangentUV", node_free_standard_storage, node_copy_standard_storage);
   blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
