@@ -10,6 +10,8 @@ struct Mesh;
  * \ingroup bke
  */
 
+#include "BLI_virtual_array_fwd.hh"
+
 #include "BKE_attribute_filter.hh"
 
 namespace blender::bke {
