@@ -77,6 +77,43 @@
 
 namespace blender::ed::sculpt_paint {
 
+static int mesh_reorder_vertices_spatial_exec(bContext *C, wmOperator *op)
+{
+  /* Get active object from context */
+  Object *ob = CTX_data_active_object(C);
+
+  /* Check if we have valid data */
+  if (!ob || ob->type != OB_MESH) {
+    BKE_report(op->reports, RPT_ERROR, "No active mesh object");
+    return OPERATOR_CANCELLED;
+  }
+
+  Mesh *mesh = (Mesh *)ob->data;
+
+  /* Call the mesh reordering function */
+  blender::bke::BKE_mesh_reorder_vertices_spatial(mesh);
+
+  /* Mark mesh as modified */
+  BKE_mesh_batch_cache_dirty_tag(mesh, BKE_MESH_BATCH_DIRTY_ALL);
+  DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
+
+  /* Notify UI of changes */
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
+
+  return OPERATOR_FINISHED;
+}
+
+void SCULPT_OT_reorder_vertices_spatial(wmOperatorType *ot)
+{
+  ot->name = "Reorder Vertices Spatially";
+  ot->idname = "SCULPT_OT_reorder_vertices_spatial";
+  ot->description = "Reorder mesh vertices based on their spatial position";
+
+  ot->exec = mesh_reorder_vertices_spatial_exec;
+  /* Operator flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
 /* -------------------------------------------------------------------- */
 /** \name Set Persistent Base Operator
  * \{ */
@@ -1549,6 +1586,7 @@ static void SCULPT_OT_mask_from_boundary(wmOperatorType *ot)
 
 void operatortypes_sculpt()
 {
+  WM_operatortype_append(SCULPT_OT_reorder_vertices_spatial);
   WM_operatortype_append(SCULPT_OT_brush_stroke);
   WM_operatortype_append(SCULPT_OT_sculptmode_toggle);
   WM_operatortype_append(SCULPT_OT_set_persistent_base);

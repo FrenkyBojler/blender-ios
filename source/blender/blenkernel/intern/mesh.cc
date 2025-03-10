@@ -20,6 +20,7 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 
+#include "BLI_array.hh"
 #include "BLI_bounds.hh"
 #include "BLI_endian_switch.h"
 #include "BLI_hash.h"
@@ -28,6 +29,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.hh"
+#include "BLI_math_vector_types.hh"
 #include "BLI_memory_counter.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
@@ -592,6 +594,57 @@ void mesh_remove_invalid_attribute_strings(Mesh &mesh)
   }
 }
 
+void BKE_mesh_reorder_vertices_spatial(Mesh *mesh)
+{
+  MutableSpan positions = mesh->vert_positions_for_write();
+  Vector<int> new_order(positions.size());
+
+  // Create a vector of indices
+  for (int i = 0; i < positions.size(); i++) {
+    new_order[i] = i;
+  }
+
+  // Sort indices based on vertex positions
+  std::sort(new_order.begin(), new_order.end(), [&](int a, int b) {
+    const float3 &pa = positions[a];
+    const float3 &pb = positions[b];
+
+    // Compare x, then y, then z
+    if (pa.x != pb.x)
+      return pa.x < pb.x;
+    if (pa.y != pb.y)
+      return pa.y < pb.y;
+    return pa.z < pb.z;
+  });
+
+  // Reorder vertex positions
+  Array<float3> new_positions(positions.size());
+  for (int i = 0; i < positions.size(); i++) {
+    new_positions[i] = positions[new_order[i]];
+  }
+  positions.copy_from(new_positions);
+
+  // Create a reverse mapping: old index -> new index
+  Vector<int> reverse_map(positions.size());
+  for (int i = 0; i < positions.size(); i++) {
+    reverse_map[new_order[i]] = i;
+  }
+
+  // Update face corner indices
+  MutableSpan corner_verts = mesh->corner_verts_for_write();
+  for (int &corner_vert : corner_verts) {
+    corner_vert = reverse_map[corner_vert];
+  }
+
+  // Update edge vertex indices
+  MutableSpan edges = mesh->edges_for_write();
+  for (int2 &edge : edges) {
+    edge.x = reverse_map[edge.x];
+    edge.y = reverse_map[edge.y];
+  }
+
+  mesh->tag_topology_changed();
+}
 }  // namespace blender::bke
 
 void BKE_mesh_free_data_for_undo(Mesh *mesh)
