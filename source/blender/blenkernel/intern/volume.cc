@@ -17,18 +17,14 @@
 #include "DNA_volume_types.h"
 
 #include "BLI_bounds.hh"
-#include "BLI_compiler_compat.h"
 #include "BLI_fileops.h"
-#include "BLI_ghash.h"
 #include "BLI_index_range.hh"
-#include "BLI_map.hh"
-#include "BLI_math_matrix.h"
+#include "BLI_math_base.h"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
-#include "BLI_task.hh"
 #include "BLI_utildefines.h"
 
 #include "BKE_anim_data.hh"
@@ -40,6 +36,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
@@ -74,10 +71,8 @@ using blender::StringRefNull;
 using blender::bke::GVolumeGrid;
 
 #ifdef WITH_OPENVDB
-#  include <atomic>
 #  include <list>
 #  include <mutex>
-#  include <unordered_set>
 
 #  include <openvdb/openvdb.h>
 #  include <openvdb/points/PointDataGrid.h>
@@ -321,7 +316,7 @@ void BKE_volume_init_grids(Volume *volume)
 #endif
 }
 
-void *BKE_volume_add(Main *bmain, const char *name)
+Volume *BKE_volume_add(Main *bmain, const char *name)
 {
   Volume *volume = (Volume *)BKE_id_new(bmain, ID_VO, name);
 
@@ -503,9 +498,7 @@ bool BKE_volume_load(const Volume *volume, const Main *bmain)
 
   /* Test if file exists. */
   if (!BLI_exists(filepath)) {
-    char filename[FILE_MAX];
-    BLI_path_split_file_part(filepath, filename, sizeof(filename));
-    grids.error_msg = filename + std::string(" not found");
+    grids.error_msg = BLI_path_basename(filepath) + std::string(" not found");
     CLOG_INFO(&LOG, 1, "Volume %s: %s", volume_name, grids.error_msg.c_str());
     return false;
   }
@@ -716,8 +709,7 @@ static void volume_evaluate_modifiers(Depsgraph *depsgraph,
 
   /* Evaluate modifiers. */
   for (; md; md = md->next) {
-    const ModifierTypeInfo *mti = (const ModifierTypeInfo *)BKE_modifier_get_info(
-        (ModifierType)md->type);
+    const ModifierTypeInfo *mti = BKE_modifier_get_info((ModifierType)md->type);
 
     if (!BKE_modifier_is_enabled(scene, md, required_mode)) {
       continue;

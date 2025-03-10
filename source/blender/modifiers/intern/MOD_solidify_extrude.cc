@@ -6,6 +6,8 @@
  * \ingroup modifiers
  */
 
+#include <algorithm>
+
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
@@ -24,7 +26,6 @@
 #include "BKE_deform.hh"
 #include "BKE_mesh.hh"
 
-#include "MOD_modifiertypes.hh"
 #include "MOD_solidify_util.hh" /* own include */
 #include "MOD_util.hh"
 
@@ -67,7 +68,7 @@ static void mesh_calc_hq_normal(Mesh *mesh,
   const blender::Span<int> corner_edges = mesh->corner_edges();
 
   {
-    EdgeFaceRef *edge_ref_array = MEM_cnew_array<EdgeFaceRef>(size_t(edges.size()), __func__);
+    EdgeFaceRef *edge_ref_array = MEM_calloc_arrayN<EdgeFaceRef>(size_t(edges.size()), __func__);
     EdgeFaceRef *edge_ref;
     float edge_normal[3];
 
@@ -168,7 +169,7 @@ Mesh *MOD_solidify_extrude_modifyMesh(ModifierData *md, const ModifierEvalContex
   uint *new_edge_arr = nullptr;
   STACK_DECLARE(new_edge_arr);
 
-  uint *old_vert_arr = MEM_cnew_array<uint>(verts_num, "old_vert_arr in solidify");
+  uint *old_vert_arr = MEM_calloc_arrayN<uint>(verts_num, "old_vert_arr in solidify");
 
   uint *edge_users = nullptr;
   int *edge_order = nullptr;
@@ -748,9 +749,7 @@ Mesh *MOD_solidify_extrude_modifyMesh(ModifierData *md, const ModifierEvalContex
         angle = angle_normalized_v3v3(nor_prev, nor_next);
 
         /* --- not related to angle calc --- */
-        if (angle < FLT_EPSILON) {
-          angle = FLT_EPSILON;
-        }
+        angle = std::max(angle, FLT_EPSILON);
 
         vidx = face_verts[i_curr];
         vert_accum[vidx] += angle;

@@ -16,8 +16,10 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_bitmap_draw_2d.h"
-#include "BLI_blenlib.h"
 #include "BLI_lasso_2d.hh"
+#include "BLI_listbase.h"
+#include "BLI_math_vector.h"
+#include "BLI_rect.h"
 #include "BLI_utildefines.h"
 
 #include "WM_api.hh"
@@ -136,7 +138,7 @@ static void wm_gesture_draw_line_active_side(const rcti *rect, const bool flip)
   GPU_blend(GPU_BLEND_ALPHA);
   immBindBuiltinProgram(GPU_SHADER_3D_SMOOTH_COLOR);
 
-  const float gradient_length = 150.0f * U.pixelsize;
+  const float gradient_length = 150.0f * UI_SCALE_FAC;
   float line_dir[2];
   float gradient_dir[2];
   float gradient_point[2][2];
@@ -506,11 +508,10 @@ static void wm_gesture_draw_polyline(wmGesture *gt)
   draw_start_vertex_circle(*gt, shdr_pos);
 }
 
-static void wm_gesture_draw_cross(wmWindow *win, wmGesture *gt)
+static void wm_gesture_draw_cross(const wmWindow *win, const wmGesture *gt)
 {
   const rcti *rect = static_cast<const rcti *>(gt->customdata);
-  const int winsize_x = WM_window_native_pixel_x(win);
-  const int winsize_y = WM_window_native_pixel_y(win);
+  const blender::int2 win_size = WM_window_native_pixel_size(win);
 
   float x1, x2, y1, y2;
 
@@ -531,18 +532,18 @@ static void wm_gesture_draw_cross(wmWindow *win, wmGesture *gt)
 
   immBegin(GPU_PRIM_LINES, 4);
 
-  x1 = float(rect->xmin - winsize_x);
+  x1 = float(rect->xmin - win_size[0]);
   y1 = float(rect->ymin);
-  x2 = float(rect->xmin + winsize_x);
+  x2 = float(rect->xmin + win_size[0]);
   y2 = y1;
 
   immVertex2f(shdr_pos, x1, y1);
   immVertex2f(shdr_pos, x2, y2);
 
   x1 = float(rect->xmin);
-  y1 = float(rect->ymin - winsize_y);
+  y1 = float(rect->ymin - win_size[1]);
   x2 = x1;
-  y2 = float(rect->ymin + winsize_y);
+  y2 = float(rect->ymin + win_size[1]);
 
   immVertex2f(shdr_pos, x1, y1);
   immVertex2f(shdr_pos, x2, y2);

@@ -8,9 +8,8 @@
 #include "BKE_lightprobe.h"
 
 #include "GPU_capabilities.hh"
-#include "GPU_debug.hh"
 
-#include "BLI_math_rotation.hh"
+#include "GPU_debug.hh"
 
 #include "eevee_instance.hh"
 
@@ -28,26 +27,61 @@ void VolumeProbeModule::init()
 {
   display_grids_enabled_ = DRW_state_draw_support();
 
-  int atlas_byte_size = 1024 * 1024 * inst_.scene->eevee.gi_irradiance_pool_size;
   /* This might become an option in the future. */
   bool use_l2_band = false;
   int sh_coef_len = use_l2_band ? 9 : 4;
+  BLI_assert(VOLUME_PROBE_FORMAT == GPU_RGBA16F);
   int texel_byte_size = 8; /* Assumes GPU_RGBA16F. */
-  int3 atlas_extent(IRRADIANCE_GRID_BRICK_SIZE);
-  atlas_extent.z *= sh_coef_len;
-  /* Add space for validity bits. */
-  atlas_extent.z += IRRADIANCE_GRID_BRICK_SIZE / 4;
+  uint atlas_col_count = 0;
+  uint atlas_row_count = 0;
 
-  int atlas_col_count = 256;
-  atlas_extent.x *= atlas_col_count;
-  /* Determine the row count depending on the scene settings. */
-  int row_byte_size = atlas_extent.x * atlas_extent.y * atlas_extent.z * texel_byte_size;
-  int atlas_row_count = divide_ceil_u(atlas_byte_size, row_byte_size);
-  atlas_extent.y *= atlas_row_count;
+  if (assign_if_different(irradiance_pool_size_,
+                          uint(inst_.scene->eevee.gi_irradiance_pool_size)) ||
+      !irradiance_atlas_tx_.is_valid())
+  {
+    irradiance_atlas_tx_.free();
+    /* Find highest pool size within device limits. */
+    for (uint irradiance_pool_size = irradiance_pool_size_;
+         irradiance_pool_size >= 16 && !irradiance_atlas_tx_.is_valid();
+         irradiance_pool_size >>= 1)
+    {
+      int atlas_byte_size = 1024 * 1024 * irradiance_pool_size;
+      /* Reshape texture to improve grid occupancy within device limits. */
+      constexpr uint atlas_col_count_min = 16;
+      constexpr uint atlas_col_count_max = 16384;
+      for (uint atlas_col_count_try = atlas_col_count_min;
+           atlas_col_count_try <= atlas_col_count_max && !irradiance_atlas_tx_.is_valid();
+           atlas_col_count_try <<= 1)
+      {
+        int3 atlas_extent(IRRADIANCE_GRID_BRICK_SIZE);
+        atlas_extent.z *= sh_coef_len;
+        /* Add space for validity bits. */
+        atlas_extent.z += IRRADIANCE_GRID_BRICK_SIZE / 4;
+        atlas_extent.x *= atlas_col_count_try;
 
-  eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_SHADER_READ |
-                           GPU_TEXTURE_USAGE_ATTACHMENT;
-  do_full_update_ = irradiance_atlas_tx_.ensure_3d(VOLUME_PROBE_FORMAT, atlas_extent, usage);
+        /* Determine the row count depending on the scene settings. */
+        int row_byte_size = math::reduce_mul(atlas_extent) * texel_byte_size;
+        atlas_row_count = divide_ceil_u(atlas_byte_size, row_byte_size);
+        atlas_extent.y *= atlas_row_count;
+
+        constexpr eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_WRITE |
+                                           GPU_TEXTURE_USAGE_SHADER_READ |
+                                           GPU_TEXTURE_USAGE_ATTACHMENT;
+        irradiance_atlas_tx_.ensure_3d(VOLUME_PROBE_FORMAT, atlas_extent, usage);
+        if (irradiance_atlas_tx_.is_valid()) {
+          do_full_update_ = true;
+          irradiance_pool_size_alloc_ = irradiance_pool_size;
+          atlas_col_count = atlas_col_count_try;
+        }
+      }
+    }
+  }
+  if (irradiance_pool_size_alloc_ != irradiance_pool_size_) {
+    inst_.info_append_i18n(
+        "Warning: Could not allocate light probes volume pool of {} MB, using {} MB instead.",
+        irradiance_pool_size_,
+        irradiance_pool_size_alloc_);
+  }
 
   if (do_full_update_) {
     do_update_world_ = true;
@@ -207,16 +241,14 @@ void VolumeProbeModule::set_view(View & /*view*/)
           if (_a.x != _b.x) {
             return _a.x < _b.x;
           }
-          else if (_a.y != _b.y) {
+          if (_a.y != _b.y) {
             return _a.y < _b.y;
           }
-          else if (_a.z != _b.z) {
+          if (_a.z != _b.z) {
             return _a.z < _b.z;
           }
-          else {
-            /* Fallback to memory address, since there's no good alternative. */
-            return a < b;
-          }
+          /* Fallback to memory address, since there's no good alternative. */
+          return a < b;
         });
 
     /* Insert grids in UBO in sorted order. */
@@ -400,8 +432,11 @@ void VolumeProbeModule::set_view(View & /*view*/)
     grid_upload_ps_.bind_texture("visibility_c_tx", use_vis ? &visibility_c_tx : &irradiance_c_tx);
     grid_upload_ps_.bind_texture("visibility_d_tx", use_vis ? &visibility_d_tx : &irradiance_d_tx);
 
+    /* Runtime grid is padded for blending with surrounding probes. */
+    int3 grid_size_with_padding = grid_size + 2;
     /* Note that we take into account the padding border of each brick. */
-    int3 grid_size_in_bricks = math::divide_ceil(grid_size, int3(IRRADIANCE_GRID_BRICK_SIZE - 1));
+    int3 grid_size_in_bricks = math::divide_ceil(grid_size_with_padding,
+                                                 int3(IRRADIANCE_GRID_BRICK_SIZE - 1));
     grid_upload_ps_.dispatch(grid_size_in_bricks);
     /* Sync with next load. */
     grid_upload_ps_.barrier(GPU_BARRIER_TEXTURE_FETCH);
@@ -914,7 +949,7 @@ void IrradianceBake::surfels_create(const Object &probe_object)
   validity_tx_.clear(float4(0.0f));
   virtual_offset_tx_.clear(float4(0.0f));
 
-  DRW_stats_group_start("IrradianceBake.SceneBounds");
+  GPU_debug_group_begin("IrradianceBake.SceneBounds");
 
   {
     draw::Manager &manager = *inst_.manager;
@@ -932,8 +967,8 @@ void IrradianceBake::surfels_create(const Object &probe_object)
   capture_info_buf_.do_surfel_count = false;
   capture_info_buf_.do_surfel_output = false;
 
-  int neg_flt_max = int(0xFF7FFFFFu ^ 0x7FFFFFFFu); /* floatBitsToOrderedInt(-FLT_MAX) */
-  int pos_flt_max = 0x7F7FFFFF;                     /* floatBitsToOrderedInt(FLT_MAX) */
+  const int neg_flt_max = int(0xFF7FFFFFu ^ 0x7FFFFFFFu); /* floatBitsToOrderedInt(-FLT_MAX) */
+  const int pos_flt_max = 0x7F7FFFFF;                     /* floatBitsToOrderedInt(FLT_MAX) */
   capture_info_buf_.scene_bound_x_min = pos_flt_max;
   capture_info_buf_.scene_bound_y_min = pos_flt_max;
   capture_info_buf_.scene_bound_z_min = pos_flt_max;
@@ -947,6 +982,12 @@ void IrradianceBake::surfels_create(const Object &probe_object)
 
   GPU_memory_barrier(GPU_BARRIER_BUFFER_UPDATE);
   capture_info_buf_.read();
+
+  if (capture_info_buf_.scene_bound_x_min == pos_flt_max) {
+    /* No valid object has been found. */
+    do_break_ = true;
+    return;
+  }
 
   auto ordered_int_bits_to_float = [](int32_t int_value) -> float {
     int32_t float_bits = (int_value < 0) ? (int_value ^ 0x7FFFFFFF) : int_value;
@@ -965,7 +1006,7 @@ void IrradianceBake::surfels_create(const Object &probe_object)
   scene_max += epsilon;
   surfel_raster_views_sync(scene_min, scene_max, probe_object.object_to_world());
 
-  DRW_stats_group_end();
+  GPU_debug_group_end();
 
   /* WORKAROUND: Sync camera with correct bounds for light culling. */
   inst_.camera.sync();
@@ -974,7 +1015,7 @@ void IrradianceBake::surfels_create(const Object &probe_object)
   inst_.shadows.end_sync();
   inst_.lights.end_sync();
 
-  DRW_stats_group_start("IrradianceBake.SurfelsCount");
+  GPU_debug_group_begin("IrradianceBake.SurfelsCount");
 
   /* Raster the scene to query the number of surfel needed. */
   capture_info_buf_.do_surfel_count = true;
@@ -989,7 +1030,7 @@ void IrradianceBake::surfels_create(const Object &probe_object)
   empty_raster_fb_.ensure(math::abs(transform_point(invert(basis_z_), grid_pixel_extent_).xy()));
   inst_.pipelines.capture.render(view_z_);
 
-  DRW_stats_group_end();
+  GPU_debug_group_end();
 
   /* Allocate surfel pool. */
   GPU_memory_barrier(GPU_BARRIER_BUFFER_UPDATE);
@@ -1055,7 +1096,7 @@ void IrradianceBake::surfels_create(const Object &probe_object)
 
   dispatch_per_surfel_.x = divide_ceil_u(surfels_buf_.size(), SURFEL_GROUP_SIZE);
 
-  DRW_stats_group_start("IrradianceBake.SurfelsCreate");
+  GPU_debug_group_begin("IrradianceBake.SurfelsCreate");
 
   /* Raster the scene to generate the surfels. */
   capture_info_buf_.do_surfel_count = true;
@@ -1075,7 +1116,7 @@ void IrradianceBake::surfels_create(const Object &probe_object)
   /* Read back so that following push_update will contain correct surfel count. */
   capture_info_buf_.read();
 
-  DRW_stats_group_end();
+  GPU_debug_group_end();
 }
 
 void IrradianceBake::surfels_lights_eval()
@@ -1123,7 +1164,7 @@ void IrradianceBake::raylists_build()
   using namespace blender::math;
 
   float2 rand_uv = inst_.sampling.rng_2d_get(eSamplingDimension::SAMPLING_LENS_U);
-  const float3 ray_direction = inst_.sampling.sample_sphere(rand_uv);
+  const float3 ray_direction = Sampling::sample_sphere(rand_uv);
   const float3 up = ray_direction;
   const float3 forward = cross(up, normalize(orthogonal(up)));
   const float4x4 viewinv = from_orthonormal_axes<float4x4>(float3(0.0f), forward, up);

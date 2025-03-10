@@ -4,15 +4,9 @@
 
 set(INC
   ..
-  ../../blenkernel
-  ../../blenloader
-  ../../blentranslation
   ../../editors/include
-  ../../gpu
-  ../../imbuf
   ../../imbuf/intern/oiio
   ../../makesrna
-  ../../windowmanager
   ../../../../intern/mantaflow/extern
   ../../../../intern/opencolorio
   ../../tornavis
@@ -74,6 +68,7 @@ set(SRC
   bpy_utils_units.cc
   stubs.cc
 
+<<<<<<< HEAD
   bpy.h
   bpy_app.h
   bpy_app_alembic.h
@@ -120,15 +115,67 @@ set(SRC
   ../BPY_extern_clog.h
   ../BPY_extern_python.h
   ../BPY_extern_run.h
+=======
+  bpy.hh
+  bpy_app.hh
+  bpy_app_alembic.hh
+  bpy_app_build_options.hh
+  bpy_app_ffmpeg.hh
+  bpy_app_handlers.hh
+  bpy_app_icons.hh
+  bpy_app_ocio.hh
+  bpy_app_oiio.hh
+  bpy_app_opensubdiv.hh
+  bpy_app_openvdb.hh
+  bpy_app_sdl.hh
+  bpy_app_timers.hh
+  bpy_app_translations.hh
+  bpy_app_usd.hh
+  bpy_capi_utils.hh
+  bpy_cli_command.hh
+  bpy_driver.hh
+  bpy_gizmo_wrap.hh
+  bpy_intern_string.hh
+  bpy_library.hh
+  bpy_msgbus.hh
+  bpy_operator.hh
+  bpy_operator_wrap.hh
+  bpy_path.hh
+  bpy_props.hh
+  bpy_rna.hh
+  bpy_rna_anim.hh
+  bpy_rna_callback.hh
+  bpy_rna_context.hh
+  bpy_rna_data.hh
+  bpy_rna_driver.hh
+  bpy_rna_gizmo.hh
+  bpy_rna_id_collection.hh
+  bpy_rna_operator.hh
+  bpy_rna_text.hh
+  bpy_rna_types_capi.hh
+  bpy_rna_ui.hh
+  bpy_traceback.hh
+  bpy_utils_previews.hh
+  bpy_utils_units.hh
+  ../BPY_extern.hh
+  ../BPY_extern_clog.hh
+  ../BPY_extern_python.hh
+  ../BPY_extern_run.hh
+>>>>>>> bf-blender
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   bf_editor_animation
   bf_editor_interface
   bf_editor_space_api
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::animrig
@@ -137,11 +184,16 @@ set(LIB
 
   ${PYTHON_LINKFLAGS}
   ${PYTHON_LIBRARIES}
+  PRIVATE bf::windowmanager
 )
 
-# only to check if buildinfo is available
+# Only to check if `buildinfo` is available.
 if(WITH_BUILDINFO)
   add_definitions(-DBUILD_DATE)
+endif()
+
+if(WITH_INSTALL_PORTABLE)
+  add_definitions(-DWITH_INSTALL_PORTABLE)
 endif()
 
 if(WITH_PYTHON_MODULE)
@@ -198,10 +250,6 @@ endif()
 
 if(WITH_CODEC_SNDFILE)
   add_definitions(-DWITH_SNDFILE)
-endif()
-
-if(WITH_COMPOSITOR_CPU)
-  add_definitions(-DWITH_COMPOSITOR_CPU)
 endif()
 
 if(WITH_CYCLES)
@@ -265,19 +313,9 @@ if(WITH_SDL)
   list(APPEND INC_SYS
     ${SDL_INCLUDE_DIR}
   )
-  if(WITH_SDL_DYNLOAD)
-    list(APPEND INC
-      ../../../../extern/sdlew/include
-    )
-    list(APPEND LIB
-      extern_sdlew
-    )
-    add_definitions(-DWITH_SDL_DYNLOAD)
-  else()
-    list(APPEND LIB
-      ${SDL_LIBRARY}
-    )
-  endif()
+  list(APPEND LIB
+    ${SDL_LIBRARY}
+  )
   add_definitions(-DWITH_SDL)
 endif()
 

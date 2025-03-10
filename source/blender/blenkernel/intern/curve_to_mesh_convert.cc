@@ -5,15 +5,12 @@
 #include "BLI_array.hh"
 #include "BLI_array_utils.hh"
 #include "BLI_math_matrix.hh"
-#include "BLI_math_rotation.h"
-#include "BLI_set.hh"
 #include "BLI_task.hh"
 
 #include "BKE_attribute_math.hh"
 #include "BKE_curves.hh"
 #include "BKE_customdata.hh"
 #include "BKE_geometry_set.hh"
-#include "BKE_material.h"
 #include "BKE_mesh.hh"
 
 #include "BKE_curve_to_mesh.hh"
@@ -827,7 +824,7 @@ Mesh *curve_to_mesh_sweep(const CurvesGeometry &main,
   /* Add the position attribute later so it can be shared in some cases. */
   Mesh *mesh = BKE_mesh_new_nomain(
       0, offsets.edge.last(), offsets.face.last(), offsets.loop.last());
-  CustomData_free_layer_named(&mesh->vert_data, "position", 0);
+  CustomData_free_layer_named(&mesh->vert_data, "position");
   mesh->verts_num = offsets.vert.last();
 
   MutableSpan<int2> edges = mesh->edges_for_write();
@@ -911,57 +908,61 @@ Mesh *curve_to_mesh_sweep(const CurvesGeometry &main,
   sharp_edges.finish();
 
   const AttributeAccessor main_attributes = main.attributes();
-  main_attributes.for_all([&](const StringRef id, const AttributeMetaData meta_data) {
-    if (!should_add_attribute_to_mesh(
-            main_attributes, mesh_attributes, id, meta_data, attribute_filter))
+  main_attributes.foreach_attribute([&](const AttributeIter &iter) {
+    if (!should_add_attribute_to_mesh(main_attributes,
+                                      mesh_attributes,
+                                      iter.name,
+                                      {iter.domain, iter.data_type},
+                                      attribute_filter))
     {
-      return true;
+      return;
     }
 
-    const AttrDomain src_domain = meta_data.domain;
-    const eCustomDataType type = meta_data.data_type;
-    const GAttributeReader src = main_attributes.lookup(id, src_domain, type);
-    const AttrDomain dst_domain = get_attribute_domain_for_mesh(mesh_attributes, id);
+    const AttrDomain src_domain = iter.domain;
+    const eCustomDataType type = iter.data_type;
+    const GAttributeReader src = iter.get();
+    const AttrDomain dst_domain = get_attribute_domain_for_mesh(mesh_attributes, iter.name);
 
     if (src_domain == AttrDomain::Point) {
       copy_main_point_domain_attribute_to_mesh(
-          curves_info, id, offsets, dst_domain, src, eval_buffer, mesh_attributes);
+          curves_info, iter.name, offsets, dst_domain, src, eval_buffer, mesh_attributes);
     }
     else if (src_domain == AttrDomain::Curve) {
       GSpanAttributeWriter dst = mesh_attributes.lookup_or_add_for_write_only_span(
-          id, dst_domain, type);
+          iter.name, dst_domain, type);
       if (dst) {
         copy_curve_domain_attribute_to_mesh(
             offsets, offsets.main_indices, dst_domain, *src, dst.span);
       }
       dst.finish();
     }
-
-    return true;
   });
 
   /* Make sure profile attributes can be interpolated. */
   profile.ensure_can_interpolate_to_evaluated();
 
   const AttributeAccessor profile_attributes = profile.attributes();
-  profile_attributes.for_all([&](const StringRef id, const AttributeMetaData meta_data) {
-    if (main_attributes.contains(id)) {
-      return true;
+  profile_attributes.foreach_attribute([&](const AttributeIter &iter) {
+    if (main_attributes.contains(iter.name)) {
+      return;
     }
-    if (!should_add_attribute_to_mesh(
-            profile_attributes, mesh_attributes, id, meta_data, attribute_filter))
+    if (!should_add_attribute_to_mesh(profile_attributes,
+                                      mesh_attributes,
+                                      iter.name,
+                                      {iter.domain, iter.data_type},
+                                      attribute_filter))
     {
-      return true;
+      return;
     }
-    const AttrDomain src_domain = meta_data.domain;
-    const eCustomDataType type = meta_data.data_type;
-    const GVArray src = *profile_attributes.lookup(id, src_domain, type);
+    const AttrDomain src_domain = iter.domain;
+    const eCustomDataType type = iter.data_type;
+    const GVArray src = *iter.get();
 
-    const AttrDomain dst_domain = get_attribute_domain_for_mesh(mesh_attributes, id);
+    const AttrDomain dst_domain = get_attribute_domain_for_mesh(mesh_attributes, iter.name);
     GSpanAttributeWriter dst = mesh_attributes.lookup_or_add_for_write_only_span(
-        id, dst_domain, type);
+        iter.name, dst_domain, type);
     if (!dst) {
-      return true;
+      return;
     }
 
     if (src_domain == AttrDomain::Point) {
@@ -977,7 +978,6 @@ Mesh *curve_to_mesh_sweep(const CurvesGeometry &main,
     }
 
     dst.finish();
-    return true;
   });
 
   return mesh;

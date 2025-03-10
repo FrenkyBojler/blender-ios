@@ -42,12 +42,12 @@
 
 // #define DEBUG_TIME
 
-#include "BLI_time.h"
 #ifdef DEBUG_TIME
+#  include "BLI_time.h"
 #  include "BLI_time_utildefines.h"
 #endif
 
-#include "BLI_strict_flags.h" /* Keep last. */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 static void init_data(ModifierData *md)
 {
@@ -167,7 +167,7 @@ static void smooth_iter__simple(CorrectiveSmoothModifierData *csmd,
   struct SmoothingData_Simple {
     float delta[3];
   };
-  SmoothingData_Simple *smooth_data = MEM_cnew_array<SmoothingData_Simple>(
+  SmoothingData_Simple *smooth_data = MEM_calloc_arrayN<SmoothingData_Simple>(
       size_t(vertexCos.size()), __func__);
 
   float *vertex_edge_count_div = static_cast<float *>(
@@ -247,7 +247,7 @@ static void smooth_iter__length_weight(CorrectiveSmoothModifierData *csmd,
     float delta[3];
     float edge_length_sum;
   };
-  SmoothingData_Weighted *smooth_data = MEM_cnew_array<SmoothingData_Weighted>(
+  SmoothingData_Weighted *smooth_data = MEM_calloc_arrayN<SmoothingData_Weighted>(
       size_t(vertexCos.size()), __func__);
 
   /* calculate as floats to avoid int->float conversion in #smooth_iter */
@@ -750,16 +750,16 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetPropSep(layout, true);
 
   uiItemR(layout, ptr, "factor", UI_ITEM_NONE, IFACE_("Factor"), ICON_NONE);
-  uiItemR(layout, ptr, "iterations", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "scale", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "smooth_type", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "smooth_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", nullptr);
+  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
-  uiItemR(layout, ptr, "use_only_smooth", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "use_pin_boundary", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "use_only_smooth", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, ptr, "use_pin_boundary", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemR(layout, ptr, "rest_source", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "rest_source", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (RNA_enum_get(ptr, "rest_source") == MOD_CORRECTIVESMOOTH_RESTSOURCE_BIND) {
     uiItemO(layout,
             (RNA_boolean_get(ptr, "is_bind") ? IFACE_("Unbind") : IFACE_("Bind")),

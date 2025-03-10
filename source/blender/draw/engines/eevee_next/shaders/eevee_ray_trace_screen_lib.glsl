@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#pragma once
+
 /**
  * Screen-space ray-tracing routine.
  *
@@ -12,11 +14,14 @@
  * Many modifications were made for our own usage.
  */
 
-#pragma BLENDER_REQUIRE(draw_view_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_math_matrix_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_math_fast_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_ray_types_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_thickness_lib.glsl)
+#include "draw_view_lib.glsl"
+#include "eevee_bxdf_diffuse_lib.glsl"
+#include "eevee_bxdf_microfacet_lib.glsl"
+#include "eevee_ray_types_lib.glsl"
+#include "eevee_thickness_lib.glsl"
+#include "gpu_shader_codegen_lib.glsl"
+#include "gpu_shader_math_fast_lib.glsl"
+#include "gpu_shader_math_matrix_lib.glsl"
 
 /* Inputs expected to be in view-space. */
 void raytrace_clip_ray_to_near_plane(inout Ray ray)
@@ -68,7 +73,7 @@ METAL_ATTR ScreenTraceHitData raytrace_screen(RayTraceData rt_data,
                                               Ray ray)
 {
   /* Clip to near plane for perspective view where there is a singularity at the camera origin. */
-  if (ProjectionMatrix[3][3] == 0.0) {
+  if (drw_view().winmat[3][3] == 0.0) {
     raytrace_clip_ray_to_near_plane(ray);
   }
 
@@ -170,7 +175,7 @@ ScreenTraceHitData raytrace_planar(RayTraceData rt_data,
                                    Ray ray)
 {
   /* Clip to near plane for perspective view where there is a singularity at the camera origin. */
-  if (ProjectionMatrix[3][3] == 0.0) {
+  if (drw_view().winmat[3][3] == 0.0) {
     raytrace_clip_ray_to_near_plane(ray);
   }
 

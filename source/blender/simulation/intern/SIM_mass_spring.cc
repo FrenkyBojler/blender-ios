@@ -6,8 +6,6 @@
  * \ingroup sim
  */
 
-#include <algorithm>
-
 #include "MEM_guardedalloc.h"
 
 #include "DNA_cloth_types.h"
@@ -1282,7 +1280,7 @@ int SIM_cloth_solve(
   BKE_sim_debug_data_clear_category("collision");
 
   if (!clmd->solver_result) {
-    clmd->solver_result = MEM_cnew<ClothSolverResult>("cloth solver result");
+    clmd->solver_result = MEM_callocN<ClothSolverResult>("cloth solver result");
   }
   cloth_clear_result(clmd);
 

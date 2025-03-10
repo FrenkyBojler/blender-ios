@@ -2,15 +2,20 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#pragma BLENDER_REQUIRE(common_view_clipping_lib.glsl)
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
-#pragma BLENDER_REQUIRE(common_pointcloud_lib.glsl)
-#pragma BLENDER_REQUIRE(gpu_shader_utildefines_lib.glsl)
+#include "infos/overlay_outline_info.hh"
 
-uint outline_colorid_get(void)
+VERTEX_SHADER_CREATE_INFO(overlay_outline_prepass_pointcloud)
+
+#include "draw_model_lib.glsl"
+#include "draw_pointcloud_lib.glsl"
+#include "draw_view_clipping_lib.glsl"
+#include "draw_view_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
+
+uint outline_colorid_get()
 {
 #ifdef OBINFO_NEW
-  eObjectInfoFlag ob_flag = eObjectInfoFlag(floatBitsToUint(drw_infos[resource_id].infos.w));
+  eObjectInfoFlag ob_flag = eObjectInfoFlag(floatBitsToUint(drw_infos[drw_resource_id()].infos.w));
   bool is_active = flag_test(ob_flag, OBJECT_ACTIVE);
 #else
   int flag = int(abs(ObjectInfo.w));
@@ -39,13 +44,13 @@ void main()
 {
   vec3 world_pos = pointcloud_get_pos();
 
-  gl_Position = point_world_to_ndc(world_pos);
+  gl_Position = drw_point_world_to_homogenous(world_pos);
 
   /* Small bias to always be on top of the geom. */
   gl_Position.z -= 1e-3;
 
   /* ID 0 is nothing (background) */
-  interp.ob_id = uint(resource_handle + 1);
+  interp.ob_id = uint(drw_resource_id() + 1);
 
   /* Should be 2 bits only [0..3]. */
   uint outline_id = outline_colorid_get();

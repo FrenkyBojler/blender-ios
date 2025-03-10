@@ -8,9 +8,20 @@
  * language.
  */
 
-#ifndef USE_GPU_SHADER_CREATE_INFO
+/* __cplusplus is true when compiling with MSL, so ensure we are not inside a shader. */
+#if defined(GPU_SHADER) || defined(GLSL_CPP_STUBS)
+#  define IS_CPP 0
+#else
+#  define IS_CPP 1
+#endif
+
+#if IS_CPP || defined(GLSL_CPP_STUBS)
 #  pragma once
 
+#  include "eevee_defines.hh"
+#endif
+
+#if IS_CPP
 #  include "BLI_math_bits.h"
 #  include "BLI_memory_utils.hh"
 
@@ -18,8 +29,6 @@
 
 #  include "draw_manager.hh"
 #  include "draw_pass.hh"
-
-#  include "eevee_defines.hh"
 
 #  include "GPU_shader_shared.hh"
 
@@ -34,18 +43,7 @@ constexpr GPUSamplerState no_filter = GPUSamplerState::default_sampler();
 constexpr GPUSamplerState with_filter = {GPU_SAMPLER_FILTERING_LINEAR};
 #endif
 
-/* __cplusplus is true when compiling with MSL, so ensure we are not inside a shader. */
-#ifdef GPU_SHADER
-#  define IS_CPP 0
-#else
-#  define IS_CPP 1
-#endif
-
-/** WORKAROUND(@fclem): This is because this file is included before common_math_lib.glsl. */
-#ifndef M_PI
-#  define EEVEE_PI
-#  define M_PI 3.14159265358979323846 /* pi */
-#endif
+#define EEVEE_PI 3.14159265358979323846 /* pi */
 
 enum eCubeFace : uint32_t {
   /* Ordering by culling order. If cone aperture is shallow, we cull the later view. */
@@ -262,6 +260,9 @@ enum eSamplingDimension : uint32_t {
   SAMPLING_SHADOW_I = 26u,
   SAMPLING_SHADOW_J = 27u,
   SAMPLING_SHADOW_K = 28u,
+  SAMPLING_UNUSED_0 = 29u,
+  SAMPLING_UNUSED_1 = 30u,
+  SAMPLING_UNUSED_2 = 31u,
 };
 
 /**
@@ -706,7 +707,7 @@ struct DepthOfFieldData {
   float4 filter_samples_weight;
   float filter_center_weight;
   /** Max number of sprite in the scatter pass for each ground. */
-  int scatter_max_rect;
+  uint scatter_max_rect;
 
   int _pad0, _pad1;
 };
@@ -730,7 +731,7 @@ static inline float coc_radius_from_camera_depth(DepthOfFieldData dof, float dep
 
 static inline float regular_polygon_side_length(float sides_count)
 {
-  return 2.0f * sinf(M_PI / sides_count);
+  return 2.0f * sinf(EEVEE_PI / sides_count);
 }
 
 /* Returns intersection ratio between the radius edge at theta and the regular polygon edge.
@@ -738,16 +739,16 @@ static inline float regular_polygon_side_length(float sides_count)
 static inline float circle_to_polygon_radius(float sides_count, float theta)
 {
   /* From Graphics Gems from CryENGINE 3 (SIGGRAPH 2013) by Tiago Sousa (slide 36). */
-  float side_angle = (2.0f * M_PI) / sides_count;
+  float side_angle = (2.0f * EEVEE_PI) / sides_count;
   return cosf(side_angle * 0.5f) /
-         cosf(theta - side_angle * floorf((sides_count * theta + M_PI) / (2.0f * M_PI)));
+         cosf(theta - side_angle * floorf((sides_count * theta + EEVEE_PI) / (2.0f * EEVEE_PI)));
 }
 
 /* Remap input angle to have homogenous spacing of points along a polygon edge.
  * Expects theta to be in [0..2pi] range. */
 static inline float circle_to_polygon_angle(float sides_count, float theta)
 {
-  float side_angle = (2.0f * M_PI) / sides_count;
+  float side_angle = (2.0f * EEVEE_PI) / sides_count;
   float halfside_angle = side_angle * 0.5f;
   float side = floorf(theta / side_angle);
   /* Length of segment from center to the middle of polygon side. */
@@ -760,7 +761,7 @@ static inline float circle_to_polygon_angle(float sides_count, float theta)
   float halfside_len = regular_polygon_side_length(sides_count) * 0.5f;
   float opposite = ratio * halfside_len;
 
-  /* NOTE: atan(y_over_x) has output range [-M_PI_2..M_PI_2]. */
+  /* NOTE: atan(y_over_x) has output range [-pi/2..pi/2]. */
   float final_local_theta = atanf(opposite / adjacent);
 
   return side * side_angle + final_local_theta;
@@ -1008,6 +1009,11 @@ struct LightData {
   /* True if the light uses jittered soft shadows. */
   bool32_t shadow_jitter;
   float _pad2;
+  uint2 light_set_membership;
+  /** Used by shadow sync. */
+  /* TODO(fclem): this should be part of #eevee::Light struct. But for some reason it gets cleared
+   * to zero after each sync cycle. */
+  uint2 shadow_set_membership;
 
 #if USE_LIGHT_UNION
   union {
@@ -1267,14 +1273,12 @@ static inline int light_tilemap_max_get(LightData light)
 static inline int light_local_tilemap_count(LightData light)
 {
   if (is_spot_light(light.type)) {
-    return (light_spot_data_get(light).spot_tan > tanf(M_PI / 4.0)) ? 5 : 1;
+    return (light_spot_data_get(light).spot_tan > tanf(EEVEE_PI / 4.0)) ? 5 : 1;
   }
-  else if (is_area_light(light.type)) {
+  if (is_area_light(light.type)) {
     return 5;
   }
-  else {
-    return 6;
-  }
+  return 6;
 }
 
 /** \} */
@@ -1337,6 +1341,9 @@ struct ShadowTileMapData {
   float half_size;
   /** Offset in local space to the tilemap center in world units. Used for directional winmat. */
   float2 center_offset;
+  /** Shadow set bitmask of the light using this tilemap. */
+  uint2 shadow_set_membership;
+  uint2 _pad3;
 };
 BLI_STATIC_ASSERT_ALIGN(ShadowTileMapData, 16)
 
@@ -1362,6 +1369,9 @@ struct ShadowRenderView {
   int tilemap_lod;
   /** Updated region of the tilemap. */
   int2 rect_min;
+  /** Shadow set bitmask of the light generating this view. */
+  uint2 shadow_set_membership;
+  uint2 _pad0;
 };
 BLI_STATIC_ASSERT_ALIGN(ShadowRenderView, 16)
 
@@ -1725,9 +1735,10 @@ struct Surfel {
   int cluster_id;
   /** True if the light can bounce or be emitted by the surfel back face. */
   bool32_t double_sided;
+  /** Surface receiver light set for light linking. */
+  uint receiver_light_set;
   int _pad0;
   int _pad1;
-  int _pad2;
   /** Surface radiance: Emission + Direct Lighting. */
   SurfelRadiance radiance_direct;
   /** Surface radiance: Indirect Lighting. Double buffered to avoid race conditions. */
@@ -2131,8 +2142,10 @@ BLI_STATIC_ASSERT_ALIGN(UniformData, 16)
 #    define UTIL_TEXEL vec2(gl_FragCoord.xy)
 #  elif defined(GPU_COMPUTE_SHADER)
 #    define UTIL_TEXEL vec2(gl_GlobalInvocationID.xy)
-#  else
+#  elif defined(GPU_VERTEX_SHADER)
 #    define UTIL_TEXEL vec2(gl_VertexID, 0)
+#  elif defined(GPU_LIBRARY_SHADER)
+#    define UTIL_TEXEL vec2(0)
 #  endif
 
 /* Fetch texel. Wrapping if above range. */
@@ -2184,7 +2197,7 @@ float4 utility_tx_sample_lut(sampler2DArray util_tx, float cos_theta, float roug
 #endif
 
 #ifdef EEVEE_PI
-#  undef M_PI
+#  undef EEVEE_PI
 #endif
 
 /** \} */

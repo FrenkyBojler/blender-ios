@@ -13,8 +13,8 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_string.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
 #include "BKE_global.hh"
@@ -77,7 +77,7 @@ static bool solve_camera_initjob(
                                                          width,
                                                          height);
 
-  tracking->stats = MEM_cnew<MovieTrackingStats>("solve camera stats");
+  tracking->stats = MEM_callocN<MovieTrackingStats>("solve camera stats");
 
   WM_set_locked_interface(scj->wm, true);
 
@@ -180,7 +180,7 @@ static int solve_camera_exec(bContext *C, wmOperator *op)
 {
   SolveCameraJob *scj;
   char error_msg[256] = "\0";
-  scj = MEM_cnew<SolveCameraJob>("SolveCameraJob data");
+  scj = MEM_callocN<SolveCameraJob>("SolveCameraJob data");
   if (!solve_camera_initjob(C, scj, op, error_msg, sizeof(error_msg))) {
     if (error_msg[0]) {
       BKE_report(op->reports, RPT_ERROR, error_msg);
@@ -210,7 +210,7 @@ static int solve_camera_invoke(bContext *C, wmOperator *op, const wmEvent * /*ev
     return OPERATOR_CANCELLED;
   }
 
-  scj = MEM_cnew<SolveCameraJob>("SolveCameraJob data");
+  scj = MEM_callocN<SolveCameraJob>("SolveCameraJob data");
   if (!solve_camera_initjob(C, scj, op, error_msg, sizeof(error_msg))) {
     if (error_msg[0]) {
       BKE_report(op->reports, RPT_ERROR, error_msg);

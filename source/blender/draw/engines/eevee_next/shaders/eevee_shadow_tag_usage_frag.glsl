@@ -10,8 +10,12 @@
  * tiles.
  */
 
-#pragma BLENDER_REQUIRE(draw_model_lib.glsl)
-#pragma BLENDER_REQUIRE(eevee_shadow_tag_usage_lib.glsl)
+#include "infos/eevee_shadow_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(eevee_shadow_tag_usage_transparent)
+
+#include "draw_model_lib.glsl"
+#include "eevee_shadow_tag_usage_lib.glsl"
 
 float ray_aabb(vec3 ray_origin, vec3 ray_direction, vec3 aabb_min, vec3 aabb_max)
 {
@@ -42,7 +46,7 @@ float ray_aabb(vec3 ray_origin, vec3 ray_direction, vec3 aabb_min, vec3 aabb_max
 float pixel_size_at(float linear_depth)
 {
   float pixel_size = uniform_buf.shadow.film_pixel_radius;
-  bool is_persp = (ProjectionMatrix[3][3] == 0.0);
+  bool is_persp = (drw_view().winmat[3][3] == 0.0);
   if (is_persp) {
     pixel_size *= max(0.01, linear_depth);
   }

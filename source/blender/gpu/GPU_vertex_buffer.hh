@@ -13,6 +13,7 @@
 #include "BLI_span.hh"
 #include "BLI_utildefines.h"
 
+#include "GPU_common.hh"
 #include "GPU_vertex_format.hh"
 
 enum GPUVertBufStatus {
@@ -254,7 +255,7 @@ GPU_INLINE void *GPU_vertbuf_raw_step(GPUVertBufRaw *a)
   return (void *)data;
 }
 
-GPU_INLINE uint GPU_vertbuf_raw_used(GPUVertBufRaw *a)
+GPU_INLINE uint GPU_vertbuf_raw_used(const GPUVertBufRaw *a)
 {
   return ((a->data - a->data_init) / a->stride);
 }

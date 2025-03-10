@@ -46,19 +46,19 @@
  * \note #DataDropper is only internal name to avoid confusion with other kinds of eye-droppers.
  */
 struct DataDropper {
-  PointerRNA ptr;
-  PropertyRNA *prop;
-  short idcode;
-  const char *idcode_name;
-  bool is_undo;
+  PointerRNA ptr = {};
+  PropertyRNA *prop = nullptr;
+  short idcode = 0;
+  const char *idcode_name = nullptr;
+  bool is_undo = false;
 
-  ID *init_id; /* for resetting on cancel */
+  ID *init_id = nullptr; /* for resetting on cancel */
 
-  ScrArea *cursor_area; /* Area under the cursor */
-  ARegionType *art;
-  void *draw_handle_pixel;
-  int name_pos[2];
-  char name[200];
+  ScrArea *cursor_area = nullptr; /* Area under the cursor */
+  ARegionType *art = nullptr;
+  void *draw_handle_pixel = nullptr;
+  int name_pos[2] = {};
+  char name[200] = {};
 };
 
 static void datadropper_draw_cb(const bContext * /*C*/, ARegion * /*region*/, void *arg)
@@ -219,7 +219,7 @@ static bool datadropper_id_sample(bContext *C, DataDropper *ddr, const int event
   int event_xy_win[2];
   wmWindow *win;
   ScrArea *area;
-  datadropper_win_area_find(C, event_xy, event_xy_win, &win, &area);
+  eyedropper_win_area_find(C, event_xy, event_xy_win, &win, &area);
 
   datadropper_id_sample_pt(C, win, area, ddr, event_xy_win, &id);
   return datadropper_id_set(C, ddr, id);
@@ -286,7 +286,7 @@ static int datadropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
     int event_xy_win[2];
     wmWindow *win;
     ScrArea *area;
-    datadropper_win_area_find(C, event->xy, event_xy_win, &win, &area);
+    eyedropper_win_area_find(C, event->xy, event_xy_win, &win, &area);
 
     /* Set the region for eyedropper cursor text drawing */
     datadropper_set_draw_callback_region(area, ddr);

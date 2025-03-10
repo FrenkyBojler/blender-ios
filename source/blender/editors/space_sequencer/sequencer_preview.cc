@@ -104,7 +104,7 @@ static void push_preview_job_audio_task(TaskPool *__restrict task_pool,
                                         PreviewJobAudio *previewjb,
                                         bool *stop)
 {
-  ReadSoundWaveformTask *task = MEM_cnew<ReadSoundWaveformTask>("read sound waveform task");
+  ReadSoundWaveformTask *task = MEM_callocN<ReadSoundWaveformTask>("read sound waveform task");
   task->wm_job = pj;
   task->preview_job_audio = previewjb;
   task->stop = stop;
@@ -178,7 +178,7 @@ static void preview_endjob(void *data)
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, pj->scene);
 }
 
-void sequencer_preview_add_sound(const bContext *C, const Sequence *seq)
+void sequencer_preview_add_sound(const bContext *C, const Strip *strip)
 {
   wmJob *wm_job;
   PreviewJob *pj;
@@ -202,13 +202,13 @@ void sequencer_preview_add_sound(const bContext *C, const Sequence *seq)
       BLI_mutex_unlock(pj->mutex);
 
       /* Clear the sound loading tag to that it can be reattempted. */
-      clear_sound_waveform_loading_tag(seq->sound);
+      clear_sound_waveform_loading_tag(strip->sound);
       WM_event_add_notifier(C, NC_SCENE | ND_SPACE_SEQUENCER, CTX_data_scene(C));
       return;
     }
   }
   else { /* There's no existing preview job. */
-    pj = MEM_cnew<PreviewJob>("preview rebuild job");
+    pj = MEM_callocN<PreviewJob>("preview rebuild job");
 
     pj->mutex = BLI_mutex_alloc();
     BLI_condition_init(&pj->preview_suspend_cond);
@@ -221,9 +221,9 @@ void sequencer_preview_add_sound(const bContext *C, const Sequence *seq)
     WM_jobs_callbacks(wm_job, preview_startjob, nullptr, nullptr, preview_endjob);
   }
 
-  PreviewJobAudio *audiojob = MEM_cnew<PreviewJobAudio>("preview_audio");
+  PreviewJobAudio *audiojob = MEM_callocN<PreviewJobAudio>("preview_audio");
   audiojob->bmain = CTX_data_main(C);
-  audiojob->sound = seq->sound;
+  audiojob->sound = strip->sound;
 
   BLI_addtail(&pj->previews, audiojob);
   pj->total++;

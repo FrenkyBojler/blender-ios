@@ -4,6 +4,15 @@
 
 # these must be all lower case for comparisons
 
+__all__ = (
+    "dict_custom",
+    "dict_ignore",
+    "dict_ignore_hyphenated_prefix",
+    "dict_ignore_hyphenated_suffix",
+    "directories_ignore",
+    "files_ignore",
+)
+
 dict_custom = {
     # Added to newer versions of the dictionary,
     # we can remove these when the updated word-lists have been applied to `aspell-en`.
@@ -39,6 +48,7 @@ dict_custom = {
     "adjugate",
     "affectable",
     "alignable",
+    "bindable",
     "branchless",
     "allocatable",
     "allocator",
@@ -143,6 +153,7 @@ dict_custom = {
     "discretization",
     "discretized",
     "discretizes",
+    "distributable",
     "downcasting",
     "downsample",
     "downsampled",
@@ -319,12 +330,16 @@ dict_custom = {
     "recursing",
     "recursivity",
     "redefinitions",
+    "rederive",
     "redisplay",
     "redistributions",
     "registerable",
     "reimplement",
     "reimplemented",
     "reimplementing",
+    "relink",
+    "relinked",
+    "relinking",
     "remappable",
     "remapper",
     "remappings",
@@ -423,6 +438,7 @@ dict_custom = {
     "unapply",
     "unassign",
     "unassigning",
+    "unassigns",
     "unassociated",
     "unbake",
     "unbuffered",
@@ -577,6 +593,7 @@ dict_custom = {
     "multithreaded",
     "multithreading",
     "namespace",
+    "namespaces",
     "reparent",
     "tooltip",
     "unparent",
@@ -737,6 +754,8 @@ dict_custom = {
     "bmain",
     "bmesh",
     "bpy",
+    "channelbag",
+    "channelbags",
     "depsgraph",
     "doctree",
     "editmode",
@@ -844,6 +863,7 @@ dict_ignore = {
 
     # Company names.
     "Logitech",
+    "Qualcomm",
     "Wacom",
 
     # Project Names.
