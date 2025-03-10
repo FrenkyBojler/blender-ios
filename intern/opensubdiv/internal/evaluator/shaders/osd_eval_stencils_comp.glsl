@@ -134,7 +134,7 @@ void main()
 
   writeVertex(current, dst);
 
-#  if defined(OPENSUBDIV_GLSL_COMPUTE_USE_1ST_DERIVATIVES)
+#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_1ST_DERIVATIVES)
   Vertex du, dv;
   clear(du);
   clear(dv);
@@ -151,8 +151,8 @@ void main()
   if (dvDesc.y > 0) {
     writeDv(current, dv);
   }
-#  endif
-#  if defined(OPENSUBDIV_GLSL_COMPUTE_USE_2ND_DERIVATIVES)
+#endif
+#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_2ND_DERIVATIVES)
   Vertex duu, duv, dvv;
   clear(duu);
   clear(duv);
@@ -174,5 +174,5 @@ void main()
   if (dvvDesc.y > 0) {
     writeDvv(current, dvv);
   }
-#  endif
+#endif
 }

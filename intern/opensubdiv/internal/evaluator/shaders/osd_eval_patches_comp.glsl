@@ -160,15 +160,15 @@ void main()
   }
   writeVertex(current, dst);
 
-#  if defined(OPENSUBDIV_GLSL_COMPUTE_USE_1ST_DERIVATIVES)
+#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_1ST_DERIVATIVES)
   if (duDesc.y > 0) {  // length
     writeDu(current, du);
   }
   if (dvDesc.y > 0) {
     writeDv(current, dv);
   }
-#  endif
-#  if defined(OPENSUBDIV_GLSL_COMPUTE_USE_2ND_DERIVATIVES)
+#endif
+#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_2ND_DERIVATIVES)
   if (duuDesc.y > 0) {  // length
     writeDuu(current, duu);
   }
@@ -178,6 +178,5 @@ void main()
   if (dvvDesc.y > 0) {
     writeDvv(current, dvv);
   }
-#  endif
+#endif
 }
-
