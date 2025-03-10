@@ -72,6 +72,7 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_idprop.hh"
 #include "BKE_image_format.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
 #include "BKE_material.hh"
@@ -5881,8 +5882,70 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     version_sequencer_update_overdrop(bmain);
   }
 
-  /* Always run this versioning; meshes are written with the legacy format which always needs to
-   * be converted to the new format on file load. Can be moved to a subversion check in a larger
+  /* XXX WARNING only works until this is added to 4.5 for forward compatibility. Then need to rely
+   * only on version number > 50n. */
+  /* Generate System IDProperties by copying the whole 'user-defined' historic IDProps into new
+   * system-defined-only storage. While not optimal (as it also duplicates actual user-defined
+   * IDProperties), this seems to be the only safe and sound to handle the migration. */
+  const bool do_generate_system_properties = !MAIN_VERSION_FILE_ATLEAST(bmain, 500, 0);
+  /* Merge (with overwrite) future system properties storage into current IDProperties, for 4.5
+   * being able to open 5.0 blendfiles. */
+  const bool do_forward_compat_system_properties = MAIN_VERSION_FILE_ATLEAST(bmain, 500, 0);
+  BLI_assert(do_generate_system_properties != do_forward_compat_system_properties);
+
+  /* TODO: move to own util function. */
+  if (do_generate_system_properties) {
+    ID *id_iter;
+    FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
+      BLI_assert(id_iter->system_properties == nullptr);
+      if (id_iter->properties) {
+        /* Other ID pointers have not yet been relinked, do not try to access them for refcounting.
+         */
+        id_iter->system_properties = IDP_CopyProperty_ex(id_iter->properties,
+                                                         LIB_ID_CREATE_NO_USER_REFCOUNT);
+      }
+    }
+    FOREACH_MAIN_ID_END;
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
+        BLI_assert(view_layer->system_id_properties == nullptr);
+        if (view_layer->id_properties) {
+          /* Other ID pointers have not yet been relinked, do not try to access them for
+           * refcounting. */
+          view_layer->system_id_properties = IDP_CopyProperty_ex(view_layer->id_properties,
+                                                                 LIB_ID_CREATE_NO_USER_REFCOUNT);
+        }
+      }
+    }
+  }
+  if (do_forward_compat_system_properties) {
+    ID *id_iter;
+    FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
+      BLI_assert(id_iter->system_properties = nullptr);
+      if (id_iter->properties) {
+        /* Other ID pointers have not yet been relinked, do not try to access them for refcounting.
+         */
+        IDP_MergeGroup_ex(
+            id_iter->properties, id_iter->system_properties, true, LIB_ID_CREATE_NO_USER_REFCOUNT);
+      }
+    }
+    FOREACH_MAIN_ID_END;
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
+        if (view_layer->id_properties) {
+          /* Other ID pointers have not yet been relinked, do not try to access them for
+           * refcounting. */
+          IDP_MergeGroup_ex(view_layer->id_properties,
+                            view_layer->system_id_properties,
+                            true,
+                            LIB_ID_CREATE_NO_USER_REFCOUNT);
+        }
+      }
+    }
+  }
+
+  /* Always run this versioning; meshes are written with the legacy format which always needs to be
+   * converted to the new format on file load. Can be moved to a subversion check in a larger
    * breaking release. */
   LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
     blender::bke::mesh_sculpt_mask_to_generic(*mesh);
