@@ -6,7 +6,6 @@
  * \ingroup RNA
  */
 
-#include <cfloat>
 #include <cstdlib>
 
 #include "DNA_key_types.h"
@@ -30,6 +29,7 @@ const EnumPropertyItem rna_enum_keyblock_type_items[] = {
 #ifdef RNA_RUNTIME
 
 #  include <algorithm>
+#  include <cfloat>
 #  include <cstddef>
 #  include <fmt/format.h>
 
@@ -981,8 +981,7 @@ static void rna_def_keyblock(BlenderRNA *brna)
   RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
   /* The soft limit is changed dynamically, but it needs an initial range. */
   RNA_def_property_ui_range(prop, 0.0f, 1.0f, 10, 3);
-  RNA_def_property_float_funcs(
-      prop, nullptr, "rna_ShapeKey_value_set", nullptr);
+  RNA_def_property_float_funcs(prop, nullptr, "rna_ShapeKey_value_set", nullptr);
   RNA_def_property_ui_text(prop, "Value", "Value of shape key at the current frame");
   RNA_def_property_update(prop, 0, "rna_Key_update_data");
 
