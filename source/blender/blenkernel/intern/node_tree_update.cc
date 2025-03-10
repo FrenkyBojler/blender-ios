@@ -939,25 +939,25 @@ class NodeTreeMainUpdater {
               field_states[sockets[i]->index_in_tree()],
               interface.inputs[i]);
         }
+        continue;
       }
-      else if (node->is_group_output()) {
+      if (node->is_group_output()) {
         const Span<bNodeSocket *> sockets = node->input_sockets();
         for (const int i : interface.outputs.index_range()) {
           sockets[i]->display_shape = get_input_socket_shape(*sockets[i]->runtime->declaration,
                                                              interface.outputs[i].type);
         }
+        continue;
       }
-      else {
-        for (bNodeSocket *socket : node->input_sockets()) {
-          socket->display_shape = get_input_socket_shape(
-              *socket->runtime->declaration, socket->runtime->declaration->structure_type);
-        }
-        for (bNodeSocket *socket : node->output_sockets()) {
-          socket->display_shape = get_output_socket_shape(
-              *socket->runtime->declaration,
-              field_states[socket->index_in_tree()],
-              socket->runtime->declaration->structure_type);
-        }
+      for (bNodeSocket *socket : node->input_sockets()) {
+        socket->display_shape = get_input_socket_shape(
+            *socket->runtime->declaration, socket->runtime->declaration->structure_type);
+      }
+      for (bNodeSocket *socket : node->output_sockets()) {
+        socket->display_shape = get_output_socket_shape(
+            *socket->runtime->declaration,
+            field_states[socket->index_in_tree()],
+            socket->runtime->declaration->structure_type);
       }
     }
   }
