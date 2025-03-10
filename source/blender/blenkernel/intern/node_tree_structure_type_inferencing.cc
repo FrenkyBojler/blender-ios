@@ -458,10 +458,7 @@ static void store_group_output_structure_types(
   const Span<const bNodeTreeInterfaceSocket *> interface_outputs = tree.interface_outputs();
   const Span<const bNodeSocket *> sockets = group_output_node->input_sockets().drop_back(1);
   for (const int i : sockets.index_range()) {
-    if (!ELEM(interface_outputs[i]->structure_type,
-              NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO,
-              NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC))
-    {
+    if (interface_outputs[i]->structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
       interface.outputs[i] = {StructureType(interface_outputs[i]->structure_type), {}};
       continue;
     }
