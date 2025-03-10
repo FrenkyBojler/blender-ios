@@ -129,7 +129,9 @@ static void sh_node_mix_label(const bNodeTree * /*ntree*/,
       name = "Unknown";
     }
     BLI_strncpy_utf8(label, IFACE_(name), label_maxncpy);
+    return;
   }
+  BLI_strncpy_utf8(label, "Mix", label_maxncpy);
 }
 
 static int sh_node_mix_ui_class(const bNode *node)
@@ -393,10 +395,10 @@ static int gpu_shader_mix(GPUMaterial *mat,
   int ret = GPU_stack_link(mat, node, name, in, out);
 
   if (ret && is_color_mode && storage.clamp_result) {
-    const float min[3] = {0.0f, 0.0f, 0.0f};
-    const float max[3] = {1.0f, 1.0f, 1.0f};
+    const float min[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    const float max[4] = {1.0f, 1.0f, 1.0f, 1.0f};
     GPU_link(mat,
-             "node_mix_clamp_vector",
+             "node_mix_clamp_color",
              out[2].link,
              GPU_constant(min),
              GPU_constant(max),
