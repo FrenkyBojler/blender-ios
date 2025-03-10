@@ -1,2 +1,2 @@
 Referenced by pull request #134836, Undo: Avoid inserting empty undo steps from the editor for tool settings
-Referenced by pull request #135754, Fix: `ID_CHECK_UNDO` macro
+Referenced by pull request #135754, Fix: `ID_CHECK_UNDO` macro has operator precedence issues
