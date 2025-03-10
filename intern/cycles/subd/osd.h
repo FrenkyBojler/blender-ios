@@ -16,11 +16,11 @@
 #  include <opensubdiv/far/primvarRefiner.h>
 #  include <opensubdiv/far/topologyRefinerFactory.h>
 
-// Directly use some OpenSubdiv namespaces for brevity
+CCL_NAMESPACE_BEGIN
+
+/* Directly use some OpenSubdiv namespaces for brevity. */
 namespace Far = OpenSubdiv::Far;
 namespace Sdc = OpenSubdiv::Sdc;
-
-CCL_NAMESPACE_BEGIN
 
 class Attribute;
 class Mesh;
@@ -48,19 +48,19 @@ template<typename T> struct OsdValue {
 
 class OsdMesh {
  public:
-  /* Types */
+  /* Face-varying attribute that requires merging of corners with the same value, typically a UV
+   * map. The resulting topology after merging is stored in a topology refiner fvar channel. The
+   * merged attribute values are stored here, in a generic buffer used for different data types. */
   struct MergedFVar {
     const Attribute &attr;
     int channel = -1;
     vector<char> values;
   };
 
-  /* Members */
   Mesh &mesh;
   vector<MergedFVar> merged_fvars;
 
-  /* Functions */
-  OsdMesh(Mesh &mesh) : mesh(mesh) {}
+  explicit OsdMesh(Mesh &mesh) : mesh(mesh) {}
 
   Sdc::Options sdc_options();
   bool use_smooth_fvar(const Attribute &attr) const;
@@ -83,7 +83,7 @@ struct OsdData {
 struct OsdPatch final : Patch {
   OsdData &osd_data;
 
-  OsdPatch(OsdData &data) : osd_data(data) {}
+  explicit OsdPatch(OsdData &data) : osd_data(data) {}
   void eval(float3 *P, float3 *dPdu, float3 *dPdv, float3 *N, const float u, const float v)
       const override;
 };

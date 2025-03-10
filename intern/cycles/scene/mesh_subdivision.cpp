@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2011-2024 Blender Foundation
+/* SPDX-FileCopyrightText: 2011-2025 Blender Foundation
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
@@ -10,7 +10,6 @@
 #include "subd/patch.h"
 #include "subd/split.h"
 
-#include "util/algorithm.h"
 #include "util/vector.h"
 
 CCL_NAMESPACE_BEGIN
@@ -56,7 +55,7 @@ void Mesh::tessellate(DiagSplit *split)
   /* build patches from faces */
 #ifdef WITH_OPENSUBDIV
   if (subdivision_type == SUBDIVISION_CATMULL_CLARK) {
-    vector<OsdPatch> osd_patches(num_patches, osd_data);
+    vector<OsdPatch> osd_patches(num_patches, OsdPatch(osd_data));
     OsdPatch *patch = osd_patches.data();
 
     for (int f = 0; f < num_faces; f++) {

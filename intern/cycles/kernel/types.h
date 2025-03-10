@@ -910,7 +910,7 @@ enum AttributeStandard {
 
 enum AttributeFlag {
   ATTR_SUBDIVIDE_SMOOTH_FVAR = (1 << 0), /* This attribute is face-varying and requirs smooth
-                                           subdivision (typically UV map). */
+                                          * subdivision (typically UV map). */
 };
 
 struct AttributeDescriptor {
@@ -1033,8 +1033,7 @@ enum ShaderDataFlag {
 
   /* Shader flags. */
 
-  /* Apply a correction term to smooth illumination on grazing angles when using bump mapping..
-   */
+  /* Apply a correction term to smooth illumination on grazing angles when using bump mapping. */
   SD_USE_BUMP_MAP_CORRECTION = (1 << 15),
   /* Use front side for direct light sampling. */
   SD_MIS_FRONT = (1 << 16),
@@ -1567,8 +1566,7 @@ struct KernelSpotLight {
   int is_sphere;
   /* For non-uniform object scaling, the actual spread might be different. */
   float cos_half_larger_spread;
-  /* Distance from the apex of the smallest enclosing cone of the light spread to light center.
-   */
+  /* Distance from the apex of the smallest enclosing cone of the light spread to light center. */
   float ray_segment_dp;
 };
 
