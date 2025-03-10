@@ -39,7 +39,7 @@ void WM_op_handlers_destroy(wmOpHandlers *op_handlers)
   for (auto it = op_handlers->handlers.begin(); it != op_handlers->handlers.end(); it++) {
     // wmOpHandlerData *op_handler_data = &(*it->second);
   }
-  MEM_freeN(op_handlers);
+  MEM_delete(op_handlers);
   op_handlers = nullptr;
 }
 
