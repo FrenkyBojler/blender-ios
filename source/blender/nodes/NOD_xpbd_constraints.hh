@@ -125,25 +125,30 @@ using ConstraintLinearSolveSizeFunc = std::function<int()>;
  * This also determines the data type of the fields expected from this function (float, float2,
  * float3).
  *
+ * Spans are compressed values for constraints in the index mask. They must be addressed by the
+ * position in the mask, not the index of the constraint.
+ *
  * The solver constructs a linear system that yields an optimal solution for the constraint
  * impulses and variable offsets.
  *
- * \param eval_params General parameters of the current evaluation.
+ * \param params General parameters of the current evaluation.
  * \param variables Current state of the simulated geometry.
- * \param constraint_attributes Attributes of the constraint data.
- * \param r_residual_field Field of residual values in the current configuration.
- * \param r_alpha_field Field of compliance values (softness).
- * \param r_beta_field Field of damping values.
- * \param r_gradient_fields Gradient field for each affected variable, up to 4.
+ * \param attributes Attributes of the constraint data.
+ * \param selection Selection of constraints evaluated by the solver.
+ * \param r_residuals Residual values in the current configuration.
+ * \param r_alphas Compliance values (softness).
+ * \param r_betas Damping values.
+ * \param r_gradients Gradients for each affected variable, up to 4.
  */
 using ConstraintPositionLinearSolveElementsFunc =
-    std::function<void(const ConstraintEvalParams &eval_params,
+    std::function<void(const ConstraintEvalParams &params,
                        const ConstraintVariables &variables,
-                       const bke::AttributeAccessor &constraint_attributes,
-                       fn::GField &r_residual_field,
-                       fn::GField &r_alpha_field,
-                       fn::GField &r_beta_field,
-                       MutableSpan<fn::GField> r_gradient_fields)>;
+                       const bke::AttributeAccessor &attributes,
+                       const IndexMask &selection,
+                       GMutableSpan r_residuals,
+                       GMutableSpan r_alphas,
+                       GMutableSpan r_betas,
+                       Span<GMutableSpan> r_gradients)>;
 
 // /**
 //  * Information to fill blocks in the sparse matrix for all constraints.
@@ -315,6 +320,14 @@ inline void eval_position_goal(const float3 &goal_position,
 
   r_delta_lambda = weight_norm * (-r_residual - alpha * lambda - gamma * velocity);
   r_delta_position = r_delta_lambda * gradient;
+}
+
+inline void eval_position_goal_elements(const float3 &goal_position,
+                                        const float3 &position,
+                                        float &r_residual,
+                                        float3 &r_gradient)
+{
+  r_gradient = math::normalize_and_get_length(position - goal_position, r_residual);
 }
 
 inline void apply_position_goal(const float3 &goal_position,

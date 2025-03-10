@@ -16,7 +16,7 @@ namespace blender::nodes::xpbd_constraints {
 constexpr GrainSize constraint_grain_size = GrainSize(1024);
 
 template<typename T>
-static AttributeReader<T> lookup_or_warn(AttributeAccessor &attributes,
+static AttributeReader<T> lookup_or_warn(const AttributeAccessor &attributes,
                                          const StringRef attribute_id,
                                          const AttrDomain domain,
                                          const T &default_value,
@@ -148,6 +148,95 @@ static void position_goal__init_position_step(bke::GeometrySet &constraints)
   lambda_writer.span.fill(0.0f);
 
   lambda_writer.finish();
+}
+
+static int position_goal__linear_solve_size()
+{
+  return 1;
+}
+
+static void position_goal__linear_solve_elements(const ConstraintEvalParams &params,
+                                                 const ConstraintVariables &variables,
+                                                 const bke::AttributeAccessor &attributes,
+                                                 const IndexMask &selection,
+                                                 GMutableSpan r_residuals,
+                                                 GMutableSpan r_alphas,
+                                                 GMutableSpan r_betas,
+                                                 Span<GMutableSpan> r_gradients)
+{
+  constexpr bool use_damping = true;
+
+  VArraySpan<int> points = *lookup_or_warn<int>(
+      attributes, ATTR_POINT1, AttrDomain::Point, 0, params.error_message_add);
+  VArraySpan<float> alphas = *attributes.lookup_or_default<float>(
+      ATTR_ALPHA, AttrDomain::Point, 0.0f);
+  VArraySpan<float> betas = *attributes.lookup_or_default<float>(
+      ATTR_BETA, AttrDomain::Point, 0.0f);
+  VArraySpan<float3> goal_positions = *lookup_or_warn<float3>(
+      attributes, "goal_position", AttrDomain::Point, float3(0.0f), params.error_message_add);
+  // SpanAttributeWriter<float> lambda_writer = *attributes.lookup_or_add_for_write_span<float>(
+  //     "lambda", AttrDomain::Point);
+  // SpanAttributeWriter<float3> delta_position_writer =
+  //     attributes->lookup_or_add_for_write_span<float3>("delta_position", AttrDomain::Point);
+  // SpanAttributeWriter<float> residual_writer;
+  // if constexpr (debug_output) {
+  //   residual_writer = attributes->lookup_or_add_for_write_span<float>("residual",
+  //                                                                     AttrDomain::Point);
+  // }
+  // else {
+  //   UNUSED_VARS(residual_writer);
+  // }
+
+  const IndexRange points_range = variables.positions.index_range();
+  const Span<float3> positions = variables.positions;
+  const Span<float3> old_positions = params.old_positions;
+
+  selection.foreach_index(constraint_grain_size, [&](const int index, const int pos) {
+    const int point = points[index];
+    if (!points_range.contains(point)) {
+      return;
+    }
+    const float3 &goal = goal_positions[index];
+    // float &lambda = lambda_writer.span[index];
+    // float3 &delta_position = delta_position_writer.span[index];
+
+    float residual;
+    float3 gradient;
+    xpbd_constraints::eval_position_goal_elements(goal, positions[point], residual, gradient);
+
+    // float delta_lambda;
+    // if constexpr (use_damping) {
+    //   const float alpha = alphas[index] * params.inv_delta_time_squared;
+    //   const float gamma = alphas[index] * betas[index] * params.inv_delta_time;
+    // }
+    // else {
+    //   const float alpha = alphas[index] * params.inv_delta_time_squared;
+    //   xpbd_constraints::eval_position_goal(goal,
+    //                                        alpha,
+    //                                        0.0f,
+    //                                        lambda,
+    //                                        positions[point],
+    //                                        float3(0.0f),
+    //                                        residual,
+    //                                        delta_lambda,
+    //                                        delta_position);
+    // }
+
+    // lambda += delta_lambda;
+    //  if constexpr (debug_output) {
+    //    residual_writer.span[index] = residual;
+    //  }
+  });
+
+  // lambda_writer.finish();
+  // delta_position_writer.finish();
+  // if constexpr (debug_output) {
+  //   residual_writer.finish();
+  // }
+
+  // r_active = VArray<bool>::ForSingle(true, attributes->domain_size(AttrDomain::Point));
+  // r_delta_positions = {attributes->lookup<float3>("delta_position", AttrDomain::Point)};
+  // r_delta_rotations = {{}};
 }
 
 template<bool debug_output>
@@ -1003,8 +1092,8 @@ template<bool debug_output> static Array<ConstraintTypeInfo> create_constraint_i
                                            position_goal__eval_positions<debug_output>,
                                            {},
                                            position_goal__get_mapping,
-                                           {},
-                                           {}};
+                                           position_goal__linear_solve_size,
+                                           position_goal__linear_solve_elements};
   ConstraintTypeInfo rotation_goal_info = {"Rotation Goal Constraints",
                                            "Set orientation of an edge to a target rotation",
                                            1,
