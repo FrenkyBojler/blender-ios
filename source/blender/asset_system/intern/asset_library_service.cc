@@ -226,7 +226,7 @@ AssetLibrary *AssetLibraryService::move_runtime_current_file_into_on_disk_librar
   BLI_assert(!library_service.lookup_on_disk_library(ASSET_LIBRARY_LOCAL, root_path));
 
   /* Create on disk library without loading catalogs. We'll steal the catalog service from the
-   * runtime library below and merge in catalogs from disk (if any). */
+   * runtime library below. */
   AssetLibrary *on_disk_library = library_service.get_asset_library_on_disk(
       ASSET_LIBRARY_LOCAL,
       {},
@@ -240,6 +240,8 @@ AssetLibrary *AssetLibraryService::move_runtime_current_file_into_on_disk_librar
   }
 
   on_disk_library->catalog_service().asset_library_root_ = on_disk_library->root_path();
+  /* The catalogs are not stored on disk, so there should not be any CDF. Otherwise, we'd have to
+   * remap their stored file-path too (#AssetCatalogDefinitionFile.file_path). */
   BLI_assert_msg(on_disk_library->catalog_service().get_catalog_definition_file() == nullptr,
                  "new on-disk library shouldn't have catalog definition files - root path "
                  "changed, so they would have to be relocated");
