@@ -130,7 +130,6 @@ struct GPUPass {
   {
     if (compilation_handle) {
       // TODO: Add a way to remove handles from the compilation queue.
-      shader = GPU_shader_batch_finalize(compilation_handle).first();
       finalize_compilation();
     }
     BLI_assert(create_info == nullptr);
@@ -139,6 +138,14 @@ struct GPUPass {
 
   void finalize_compilation()
   {
+    BLI_assert_msg(create_info, "GPUPass::finalize_compilation() called more than once.");
+
+    if (compilation_handle) {
+      shader = GPU_shader_batch_finalize(compilation_handle).first();
+    }
+
+    compilation_timestamp = ++compilation_counts;
+
     if (shader && !gpu_pass_shader_validate(create_info, shader)) {
       fprintf(stderr, "GPUShader: error: too many samplers in shader.\n");
       GPU_shader_free(shader);
@@ -153,7 +160,6 @@ struct GPUPass {
   {
     if (compilation_handle) {
       if (GPU_shader_batch_is_ready(compilation_handle)) {
-        shader = GPU_shader_batch_finalize(compilation_handle).first();
         finalize_compilation();
       }
     }
@@ -249,10 +255,13 @@ class GPUPassCache {
     passes_[engine].add(hash, std::make_unique<GPUPass>(info, deferred_compilation));
   };
 
-  GPUPass *get(eGPUMaterialEngine engine, size_t hash)
+  GPUPass *get(eGPUMaterialEngine engine, size_t hash, bool allow_deferred)
   {
     std::lock_guard lock(mutex_);
     std::unique_ptr<GPUPass> *pass = passes_[engine].lookup_ptr(hash);
+    if (!allow_deferred && pass && pass->get()->status() == GPU_PASS_QUEUED) {
+      pass->get()->finalize_compilation();
+    }
     return pass ? pass->get() : nullptr;
   }
 
@@ -883,7 +892,7 @@ GPUPass *GPU_generate_pass(GPUMaterial *material,
   }
 
   /* Cache lookup: Reuse shaders already compiled. */
-  pass = g_cache->get(engine, codegen.hash_get());
+  pass = g_cache->get(engine, codegen.hash_get(), deferred_compilation);
 
   if (pass) {
     pass->refcount++;
@@ -903,7 +912,7 @@ GPUPass *GPU_generate_pass(GPUMaterial *material,
   g_cache->add(engine, codegen.hash_get(), codegen.create_info, deferred_compilation);
   codegen.create_info = nullptr;
 
-  return g_cache->get(engine, codegen.hash_get());
+  return g_cache->get(engine, codegen.hash_get(), deferred_compilation);
 }
 
 /** \} */
