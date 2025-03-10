@@ -303,7 +303,10 @@ def _wheel_zipfile_normalize(
         if not filepath_orig.startswith(dirpath_data_with_slash):
             continue
 
-        path_base, path_tail = filepath_orig[len(dirpath_data_with_slash):].split("/", 1)
+        path_base, path_tail = filepath_orig[len(dirpath_data_with_slash):].partition("/")[0::2]
+        # The path may not contain a tail, skip these cases.
+        if not path_tail:
+            continue
 
         if (path_base_remap := user_scheme_map.get(path_base)) is None:
             continue
