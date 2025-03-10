@@ -177,7 +177,7 @@ static void node_declare_positions(NodeDeclarationBuilder &b)
       .field_on({geometry_in})
       .description("Influence weight of constraints for each point (inverse moment of inertia)");
 
-  for (const ConstraintTypeInfo &info : xpbd_constraints::get_constraint_info()) {
+  for (const ConstraintTypeInfo &info : xpbd_constraints::get_constraint_info(false)) {
     b.add_input<decl::Geometry>(info.ui_name)
         .supported_type(GeometryComponent::Type::PointCloud)
         .description(info.ui_description);
@@ -234,7 +234,7 @@ static void node_declare_velocities(NodeDeclarationBuilder &b)
       .field_on({geometry_in})
       .description("Influence weight of constraints for each point (inverse moment of inertia)");
 
-  for (const ConstraintTypeInfo &info : xpbd_constraints::get_constraint_info()) {
+  for (const ConstraintTypeInfo &info : xpbd_constraints::get_constraint_info(false)) {
     b.add_input<decl::Geometry>(info.ui_name)
         .supported_type(GeometryComponent::Type::PointCloud)
         .description(info.ui_description);
@@ -791,11 +791,12 @@ static Vector<IndexMask> build_group_masks(const VArray<int> &solver_groups,
 }
 
 static void get_constraint_data(GeoNodeExecParams params,
+                                const bool debug_output,
                                 Vector<ConstraintEvalData> &constraint_data,
                                 IndexMaskMemory &memory)
 {
-  const Span<ConstraintTypeInfo> constraint_infos =
-      xpbd_constraints::get_constraint_info_ordered();
+  const Span<ConstraintTypeInfo> constraint_infos = xpbd_constraints::get_constraint_info_ordered(
+      debug_output);
   constraint_data.reinitialize(constraint_infos.size());
   for (const int i : constraint_infos.index_range()) {
     const ConstraintTypeInfo &info = constraint_infos[i];
@@ -859,11 +860,13 @@ static void node_geo_exec_positions(GeoNodeExecParams params)
                                            colliders_geometry_set.get_instances()->transforms() :
                                            Span<float4x4>{};
 
+  ConstraintEvalParams eval_params = extract_eval_params(params);
+  const bool debug_output = (eval_params.debug_recorder != nullptr);
+
   Vector<ConstraintEvalData> constraint_data;
   IndexMaskMemory memory;
-  get_constraint_data(params, constraint_data, memory);
+  get_constraint_data(params, debug_output, constraint_data, memory);
 
-  ConstraintEvalParams eval_params = extract_eval_params(params);
 
   static const Array<GeometryComponent::Type> types = {bke::GeometryComponent::Type::Mesh,
                                                        bke::GeometryComponent::Type::PointCloud,
@@ -976,11 +979,13 @@ static void node_geo_exec_velocities(GeoNodeExecParams params)
                                            colliders_geometry_set.get_instances()->transforms() :
                                            Span<float4x4>{};
 
+  ConstraintEvalParams eval_params = extract_eval_params(params);
+  const bool debug_output = (eval_params.debug_recorder != nullptr);
+
   Vector<ConstraintEvalData> constraint_data;
   IndexMaskMemory memory;
-  get_constraint_data(params, constraint_data, memory);
+  get_constraint_data(params, debug_output, constraint_data, memory);
 
-  ConstraintEvalParams eval_params = extract_eval_params(params);
 
   static const Array<GeometryComponent::Type> types = {bke::GeometryComponent::Type::Mesh,
                                                        bke::GeometryComponent::Type::PointCloud,
