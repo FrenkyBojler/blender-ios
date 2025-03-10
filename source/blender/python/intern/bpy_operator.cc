@@ -572,7 +572,7 @@ static PyObject *py_data_from_property_pointer(bContext *C,
      * I do not know how to set a pointer on the operator call.
      */
     StructRNA *ptr_type = RNA_property_pointer_type(properties, prop);
-    PointerRNA tptr = RNA_pointer_create(nullptr, ptr_type, prop);
+    PointerRNA tptr = RNA_pointer_create_discrete(nullptr, ptr_type, prop);
     data = pyrna_struct_CreatePyObject(&tptr);
   }
   return data;
@@ -594,7 +594,7 @@ static PyObject *py_data_from_property_collection(bContext *C,
   StructRNA *ptr_type = RNA_property_pointer_type(properties, prop);
 #endif
 
-  PointerRNA tptr = RNA_pointer_create(nullptr, &RNA_Property, prop);
+  PointerRNA tptr = RNA_pointer_create_discrete(nullptr, &RNA_Property, prop);
   PyTuple_SET_ITEM(data, 0, pyrna_struct_CreatePyObject(&tptr));
 
   /*
@@ -705,11 +705,11 @@ static PyObject *bpy_op_get_callback_call(PyObject *callback,
   PyObject *bpy_event;
   PyObject *py_ret;
 
-  ctx_ptr = RNA_pointer_create(nullptr, &RNA_Context, C);
+  ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Context, C);
   bpy_ctx = pyrna_struct_CreatePyObject(&ctx_ptr);
 
   if (event != nullptr) {
-    event_ptr = RNA_pointer_create(nullptr, &RNA_Event, (void *)event);
+    event_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Event, (void *)event);
     bpy_event = pyrna_struct_CreatePyObject(&event_ptr);
   }
   else {
