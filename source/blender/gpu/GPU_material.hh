@@ -382,7 +382,6 @@ char *GPU_material_split_sub_function(GPUMaterial *material,
 
 void GPU_material_flag_set(GPUMaterial *mat, eGPUMaterialFlag flag);
 eGPUMaterialFlag GPU_material_flag(const GPUMaterial *mat);
-bool GPU_material_recalc_flag_get(GPUMaterial *mat);
 
 GHash *GPU_uniform_attr_list_hash_new(const char *info);
 void GPU_uniform_attr_list_copy(GPUUniformAttrList *dest, const GPUUniformAttrList *src);

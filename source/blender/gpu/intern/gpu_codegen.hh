@@ -39,5 +39,8 @@ GPUShader *GPU_pass_shader_get(GPUPass *pass);
 void GPU_pass_acquire(GPUPass *pass);
 void GPU_pass_release(GPUPass *pass);
 
+uint64_t GPU_pass_global_compilation_count();
+uint64_t GPU_pass_compilation_timestamp(GPUPass *pass);
+
 void gpu_codegen_init();
 void gpu_codegen_exit();

@@ -370,14 +370,6 @@ void GPU_material_flag_set(GPUMaterial *mat, eGPUMaterialFlag flag)
   mat->flag |= flag;
 }
 
-bool GPU_material_recalc_flag_get(GPUMaterial *mat)
-{
-  /* NOTE: Consumes the flags. */
-  bool updated = (mat->flag & GPU_MATFLAG_UPDATED) != 0;
-  mat->flag &= ~GPU_MATFLAG_UPDATED;
-  return updated;
-}
-
 void GPU_material_uniform_buffer_create(GPUMaterial *material, ListBase *inputs)
 {
   material->ubo = GPU_uniformbuf_create_from_list(inputs, material->name.c_str());

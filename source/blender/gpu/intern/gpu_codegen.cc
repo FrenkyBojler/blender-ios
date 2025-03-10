@@ -97,6 +97,8 @@ struct GPUCodegenCreateInfo : ShaderCreateInfo {
  * \{ */
 
 struct GPUPass {
+  static inline std::atomic<uint64_t> compilation_counts = 0;
+
   GPUCodegenCreateInfo *create_info = nullptr;
   BatchHandle compilation_handle = 0;
   std::atomic<GPUShader *> shader = nullptr;
@@ -104,6 +106,8 @@ struct GPUPass {
   std::atomic<int> refcount = 1;
   /* The last time the refcount was greater than 0. */
   int gc_timestamp = 0;
+
+  uint64_t compilation_timestamp = 0;
 
   /** Hint that an optimized variant of this pass should be created.
    *  Based on a complexity heuristic from pass code generation. */
@@ -224,6 +228,20 @@ void GPU_pass_release(GPUPass *pass)
 {
   int previous_refcount = pass->refcount--;
   BLI_assert(previous_refcount > 0);
+}
+
+uint64_t GPU_pass_global_compilation_count()
+{
+  return GPUPass::compilation_counts;
+}
+
+uint64_t GPU_pass_compilation_timestamp(GPUPass *pass)
+{
+  if (pass) {
+    return pass->compilation_timestamp;
+  }
+
+  return 0;
 }
 
 /** \} */

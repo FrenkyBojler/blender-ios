@@ -154,6 +154,10 @@ void MaterialModule::begin_sync()
   queued_shaders_count = 0;
   queued_optimize_shaders_count = 0;
 
+  uint64_t next_update = GPU_pass_global_compilation_count();
+  gpu_pass_last_update_ = gpu_pass_next_update_;
+  gpu_pass_next_update_ = next_update;
+
   material_map_.clear();
   shader_map_.clear();
 }
@@ -211,11 +215,10 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
 
   const bool is_transparent = GPU_material_flag_get(matpass.gpumat, GPU_MATFLAG_TRANSPARENT);
 
-  if (inst_.is_viewport() && use_deferred_compilation &&
-      GPU_material_recalc_flag_get(matpass.gpumat))
-  {
-    /* TODO(Miguel Pozo): This is broken, it consumes the flag,
-     * but GPUMats can be shared across viewports. */
+  bool pass_updated = (GPU_pass_compilation_timestamp(GPU_material_get_pass(matpass.gpumat)) >
+                       gpu_pass_last_update_);
+
+  if (inst_.is_viewport() && use_deferred_compilation && pass_updated) {
     inst_.sampling.reset();
 
     const bool has_displacement = GPU_material_has_displacement_output(matpass.gpumat) &&

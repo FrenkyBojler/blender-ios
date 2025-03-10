@@ -368,6 +368,9 @@ class MaterialModule {
 
   ::Material *error_mat_;
 
+  uint64_t gpu_pass_last_update_ = 0;
+  uint64_t gpu_pass_next_update_ = 0;
+
  public:
   MaterialModule(Instance &inst);
   ~MaterialModule();
