@@ -139,6 +139,8 @@ static void merge_smooth_fvar(const Mesh &mesh,
 
   const T *values = reinterpret_cast<const T *>(subd_attr.data());
 
+  merged_fvar.values.resize(num_base_verts * sizeof(T));
+
   // Merge identical corner values with the same vertex. The first value is stored at the vertex
   // index, and any different values are pushed backed onto the array. merged_next creates a
   // linked list between all values for the same vertex.
@@ -174,7 +176,7 @@ static void merge_smooth_fvar(const Mesh &mesh,
           // Non-matching value, add new merged vertex and add to linked list.
           const int next = merged_next.size();
           merged_fvar.values.resize((next + 1) * sizeof(T));
-          reinterpret_cast<T *>(merged_fvar.values.data())[v] = value;
+          reinterpret_cast<T *>(merged_fvar.values.data())[next] = value;
           merged_next.push_back(state_end);
           merged_next[v_prev] = next;
           merged_face_corners.push_back(next);
@@ -189,7 +191,6 @@ bool TopologyRefinerFactory<OsdMesh>::assignFaceVaryingTopology(TopologyRefiner 
                                                                 OsdMesh const &osd_mesh)
 {
   const Mesh &mesh = osd_mesh.mesh;
-  const int num_base_verts = mesh.get_num_subd_base_verts();
   auto &merged_fvars = const_cast<OsdMesh &>(osd_mesh).merged_fvars;
 
   for (const Attribute &subd_attr : mesh.subd_attributes.attributes) {
@@ -199,7 +200,6 @@ bool TopologyRefinerFactory<OsdMesh>::assignFaceVaryingTopology(TopologyRefiner 
 
     // Created merged FVar, for use in subdivide_attribute_corner_smooth.
     OsdMesh::MergedFVar merged_fvar{subd_attr};
-    merged_fvar.values.resize(num_base_verts * subd_attr.data_sizeof());
 
     vector<int> merged_next;
     vector<int> merged_face_corners;
