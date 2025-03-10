@@ -1377,8 +1377,8 @@ static void do_render_compositor(Render *re)
             blender::compositor::OutputTypes::Composite |
             blender::compositor::OutputTypes::FileOutput;
         if (!G.background) {
-          needed_outputs = blender::compositor::OutputTypes::Viewer |
-                           blender::compositor::OutputTypes::Previews;
+          needed_outputs |= blender::compositor::OutputTypes::Viewer |
+                            blender::compositor::OutputTypes::Previews;
         }
 
         blender::compositor::RenderContext compositor_render_context;
