@@ -6,6 +6,7 @@
  * \ingroup RNA
  */
 
+#include <cfloat>
 #include <cstdlib>
 
 #include "DNA_key_types.h"
@@ -52,6 +53,9 @@ const EnumPropertyItem rna_enum_keyblock_type_items[] = {
 
 #  include "WM_api.hh"
 #  include "WM_types.hh"
+
+static void rna_ShapeKey_slider_max_set(PointerRNA *ptr, float value);
+static void rna_ShapeKey_slider_min_set(PointerRNA *ptr, float value);
 
 static Key *rna_ShapeKey_find_key(ID *id)
 {
@@ -106,28 +110,34 @@ static float rna_ShapeKey_frame_get(PointerRNA *ptr)
 static void rna_ShapeKey_value_set(PointerRNA *ptr, float value)
 {
   KeyBlock *data = (KeyBlock *)ptr->data;
-  CLAMP(value, data->slidermin, data->slidermax);
+
+  if (data->slidermax < value) {
+    rna_ShapeKey_slider_max_set(ptr, value);
+  }
+  else if (data->slidermin > value) {
+    rna_ShapeKey_slider_min_set(ptr, value);
+  }
+
   data->curval = value;
-}
-
-static void rna_ShapeKey_value_range(
-    PointerRNA *ptr, float *min, float *max, float * /*softmin*/, float * /*softmax*/)
-{
-  KeyBlock *data = (KeyBlock *)ptr->data;
-
-  *min = data->slidermin;
-  *max = data->slidermax;
 }
 
 /* epsilon for how close one end of shapekey range can get to the other */
 #  define SHAPEKEY_SLIDER_TOL 0.001f
+
+static void rna_ShapeKey_slider_ui_range_update(PointerRNA *ptr)
+{
+  KeyBlock *data = (KeyBlock *)ptr->data;
+  PropertyRNA *prop = RNA_struct_find_property(ptr, "value");
+  BLI_assert(prop);
+  RNA_def_property_ui_range(prop, data->slidermin, data->slidermax, 10, 3);
+}
 
 static void rna_ShapeKey_slider_min_range(
     PointerRNA *ptr, float *min, float *max, float * /*softmin*/, float * /*softmax*/)
 {
   KeyBlock *data = (KeyBlock *)ptr->data;
 
-  *min = -10.0f;
+  *min = -FLT_MAX;
   *max = data->slidermax - SHAPEKEY_SLIDER_TOL;
 }
 
@@ -139,6 +149,8 @@ static void rna_ShapeKey_slider_min_set(PointerRNA *ptr, float value)
   rna_ShapeKey_slider_min_range(ptr, &min, &max, &softmin, &softmax);
   CLAMP(value, min, max);
   data->slidermin = value;
+
+  rna_ShapeKey_slider_ui_range_update(ptr);
 }
 
 static void rna_ShapeKey_slider_max_range(
@@ -147,7 +159,7 @@ static void rna_ShapeKey_slider_max_range(
   KeyBlock *data = (KeyBlock *)ptr->data;
 
   *min = data->slidermin + SHAPEKEY_SLIDER_TOL;
-  *max = 10.0f;
+  *max = FLT_MAX;
 }
 
 static void rna_ShapeKey_slider_max_set(PointerRNA *ptr, float value)
@@ -158,6 +170,8 @@ static void rna_ShapeKey_slider_max_set(PointerRNA *ptr, float value)
   rna_ShapeKey_slider_max_range(ptr, &min, &max, &softmin, &softmax);
   CLAMP(value, min, max);
   data->slidermax = value;
+
+  rna_ShapeKey_slider_ui_range_update(ptr);
 }
 
 #  undef SHAPEKEY_SLIDER_TOL
@@ -964,9 +978,11 @@ static void rna_def_keyblock(BlenderRNA *brna)
   prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, nullptr, "curval");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
+  /* The soft limit is changed dynamically, but it needs an initial range. */
+  RNA_def_property_ui_range(prop, 0.0f, 1.0f, 10, 3);
   RNA_def_property_float_funcs(
-      prop, nullptr, "rna_ShapeKey_value_set", "rna_ShapeKey_value_range");
-  RNA_def_property_ui_range(prop, -10.0f, 10.0f, 10, 3);
+      prop, nullptr, "rna_ShapeKey_value_set", nullptr);
   RNA_def_property_ui_text(prop, "Value", "Value of shape key at the current frame");
   RNA_def_property_update(prop, 0, "rna_Key_update_data");
 
@@ -1005,7 +1021,7 @@ static void rna_def_keyblock(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "slider_min", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "slidermin");
-  RNA_def_property_range(prop, -10.0f, 10.0f);
+  RNA_def_property_ui_range(prop, -10.0, 10.0, 10, 3);
   RNA_def_property_float_funcs(
       prop, nullptr, "rna_ShapeKey_slider_min_set", "rna_ShapeKey_slider_min_range");
   RNA_def_property_ui_text(prop, "Slider Min", "Minimum for slider");
@@ -1013,7 +1029,7 @@ static void rna_def_keyblock(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "slider_max", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "slidermax");
-  RNA_def_property_range(prop, -10.0f, 10.0f);
+  RNA_def_property_ui_range(prop, -10.0, 10.0, 10, 3);
   RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_float_funcs(
       prop, nullptr, "rna_ShapeKey_slider_max_set", "rna_ShapeKey_slider_max_range");
