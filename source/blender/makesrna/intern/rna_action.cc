@@ -378,8 +378,9 @@ static CollectionVector rna_ActionSlot_users(struct ActionSlot *self, Main *bmai
   const Span<ID *> slot_users = slot.users(*bmain);
 
   CollectionVector vector{};
-  for (ID *slot_user : slot_users) {
-    vector.items.append(RNA_id_pointer_create(slot_user));
+  vector.items.resize(slot_users.size());
+  for (const int i : slot_users.index_range()) {
+    vector.items[i] = RNA_id_pointer_create(slot_users[i]);
   }
 
   return vector;
