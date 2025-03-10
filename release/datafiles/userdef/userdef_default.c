@@ -21,14 +21,15 @@
 const UserDef U_default = {
     .versionfile = BLENDER_FILE_VERSION,
     .subversionfile = BLENDER_FILE_SUBVERSION,
-    .flag = (USER_AUTOSAVE | USER_TOOLTIPS | USER_RELPATHS | USER_RELEASECONFIRM),
+    .flag = (USER_AUTOSAVE | USER_TOOLTIPS | USER_RELPATHS | USER_RELEASECONFIRM |
+             USER_FLAG_MOUSE_EMULATE_BUTTON_CONSUME_EVENT),
     .dupflag = USER_DUP_MESH | USER_DUP_CURVE | USER_DUP_SURF | USER_DUP_LATTICE | USER_DUP_FONT |
                USER_DUP_MBALL | USER_DUP_LAMP | USER_DUP_ARM | USER_DUP_CAMERA | USER_DUP_SPEAKER |
                USER_DUP_ACT | USER_DUP_LIGHTPROBE | USER_DUP_GPENCIL | USER_DUP_CURVES |
                USER_DUP_POINTCLOUD,
     .pref_flag = USER_PREF_FLAG_SAVE,
     .savetime = 2,
-    .mouse_emulate_button_types = {0, 0, 0, 0, 0, 0, 0, 0}, /* EVENT_NONE */
+    .mouse_emulate_button_types = {1, 0, 0, 0, 0, 0, 0, 0}, /* LEFTMOUSE, EVENT_NONE, ... */
     .tempdir = "",
     /* Overwritten by #BKE_appdir_font_folder_default(..)
      * unless the system font's cannot be found. */

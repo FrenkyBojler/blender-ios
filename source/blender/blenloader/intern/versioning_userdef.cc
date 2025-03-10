@@ -957,8 +957,6 @@ void blo_do_versions_userdef(UserDef *userdef)
 
     copy_v3_fl3(userdef->light_ambient, 0.025000, 0.025000, 0.025000);
 
-    userdef->flag &= ~(USER_FLAG_UNUSED_4);
-
     userdef->uiflag &= ~(USER_HEADER_FROM_PREF | USER_REGISTER_ALL_USERS);
   }
 
@@ -1416,6 +1414,12 @@ void blo_do_versions_userdef(UserDef *userdef)
   }
 
   if (!USER_VERSION_ATLEAST(405, 4)) {
+    userdef->flag |= USER_FLAG_MOUSE_EMULATE_BUTTON_CONSUME_EVENT;
+
+    memcpy(userdef->mouse_emulate_button_types,
+           U_default.mouse_emulate_button_types,
+           sizeof(U_default.mouse_emulate_button_types));
+
     /* deprecated USER_TWOBUTTONMOUSE */
     if (userdef->flag & USER_FLAG_UNUSED_8) {
       userdef->flag &= ~USER_FLAG_UNUSED_8;

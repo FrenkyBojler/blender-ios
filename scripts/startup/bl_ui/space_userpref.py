@@ -1884,13 +1884,16 @@ class USERPREF_PT_input_mouse_emulation(InputPanel, CenterAlignMixIn, Panel):
         inputs = prefs.inputs
 
         flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=False)
+        flow.prop(inputs, "mouse_emulate_button_source_type")
+        flow.prop(inputs, "mouse_emulate_button_consume_event")
 
-        self.draw_single(flow.row(), inputs, 2, text=pgettext("UI_Events_KeyMaps", "Right"))
-        self.draw_single(flow.row(), inputs, 3, text=pgettext("UI_Events_KeyMaps", "Middle"))
-        self.draw_single(flow.row(), inputs, 4, text=pgettext("UI_Events_KeyMaps", "Button4"))
-        self.draw_single(flow.row(), inputs, 5, text=pgettext("UI_Events_KeyMaps", "Button5"))
-        self.draw_single(flow.row(), inputs, 6, text=pgettext("UI_Events_KeyMaps", "Button6"))
-        self.draw_single(flow.row(), inputs, 7, text=pgettext("UI_Events_KeyMaps", "Button7"))
+        flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=False)
+        self.draw_single(flow.row(), inputs, 2, "RIGHTMOUSE", text=pgettext("UI_Events_KeyMaps", "Right"))
+        self.draw_single(flow.row(), inputs, 3, "MIDDLEMOUSE", text=pgettext("UI_Events_KeyMaps", "Middle"))
+        self.draw_single(flow.row(), inputs, 4, "BUTTON4MOUSE", text=pgettext("UI_Events_KeyMaps", "Button4"))
+        self.draw_single(flow.row(), inputs, 5, "BUTTON5MOUSE", text=pgettext("UI_Events_KeyMaps", "Button5"))
+        self.draw_single(flow.row(), inputs, 6, "BUTTON6MOUSE", text=pgettext("UI_Events_KeyMaps", "Button6"))
+        self.draw_single(flow.row(), inputs, 7, "BUTTON7MOUSE", text=pgettext("UI_Events_KeyMaps", "Button7"))
 
         if sys.platform[:3] == "win" and inputs.is_oskey_unreachable:
             layout.label(
@@ -1898,7 +1901,8 @@ class USERPREF_PT_input_mouse_emulation(InputPanel, CenterAlignMixIn, Panel):
                 icon='INFO'
             )
 
-    def draw_single(self, row, inputs, index, text):
+    def draw_single(self, row, inputs, index, target_event_type, text):
+        row.active = inputs.mouse_emulate_button_source_type != target_event_type
         key = f"mouse_emulate_button_type_{index}"
         row.prop(inputs, key, text=text, event=True)
         col = row.column()

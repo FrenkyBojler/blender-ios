@@ -811,7 +811,12 @@ static void rna_UserDef_mouse_emulate_button_type_set(PointerRNA *ptr, int value
 
   UserDef *userdef = static_cast<UserDef *>(ptr->data);
 
-  if (value == EVT_ESCKEY) {
+  if constexpr (MouseButtonIndex == 0) {
+    if (value == EVENT_NONE || ISMOUSE_BUTTON(value)) {
+      userdef->mouse_emulate_button_types[0] = value;
+    }
+  }
+  else if (value == EVT_ESCKEY) {
     /* pass */
   }
   else if (ISKEYBOARD(value)) {
@@ -834,7 +839,13 @@ template<int EventType> static bool rna_UserDef_runtime_is_modifier_disabled_get
 
   UserDef *userdef = static_cast<UserDef *>(ptr->data);
 
-  for (int i = 0; i < mouse_button_count; i++) {
+  if (!(userdef->flag & USER_FLAG_MOUSE_EMULATE_BUTTON_CONSUME_EVENT)) {
+    /* Modifier key will not be consumed by mouse button emulation feature,
+     * making it available for further processing with keybinds. */
+    return false;
+  }
+
+  for (int i = 1; i < mouse_button_count; i++) {
     switch (userdef->mouse_emulate_button_types[i]) {
       case EVT_LEFTCTRLKEY:
       case EVT_RIGHTCTRLKEY:
@@ -6932,6 +6943,43 @@ static void rna_def_userdef_input(BlenderRNA *brna)
   RNA_def_property_int_sdna(prop, nullptr, "dbl_click_time");
   RNA_def_property_range(prop, 1, 1000);
   RNA_def_property_ui_text(prop, "Double Click Timeout", "Time/delay (in ms) for a double click");
+
+  prop = RNA_def_property(srna, "mouse_emulate_button_consume_event", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "flag", USER_FLAG_MOUSE_EMULATE_BUTTON_CONSUME_EVENT);
+  RNA_def_property_ui_text(prop,
+                           "Consume Modifier Key",
+                           "Prevent the modifier key specified below from being interpreted.");
+
+  static const EnumPropertyItem mouse_emulate_button_source_type_items[] = {
+      rna_enum_event_type_items[1],
+      rna_enum_event_type_items[2],
+      rna_enum_event_type_items[3],
+      rna_enum_event_type_items[4],
+      rna_enum_event_type_items[5],
+      rna_enum_event_type_items[6],
+      rna_enum_event_type_items[7],
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  BLI_assert(mouse_emulate_button_source_type_items[0].value == LEFTMOUSE);
+  BLI_assert(mouse_emulate_button_source_type_items[1].value == MIDDLEMOUSE);
+  BLI_assert(mouse_emulate_button_source_type_items[2].value == RIGHTMOUSE);
+  BLI_assert(mouse_emulate_button_source_type_items[3].value == BUTTON4MOUSE);
+  BLI_assert(mouse_emulate_button_source_type_items[4].value == BUTTON5MOUSE);
+  BLI_assert(mouse_emulate_button_source_type_items[5].value == BUTTON6MOUSE);
+  BLI_assert(mouse_emulate_button_source_type_items[6].value == BUTTON7MOUSE);
+
+  prop = RNA_def_property(srna, "mouse_emulate_button_source_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_UserDef_mouse_emulate_button_type_get<0>",
+                              "rna_UserDef_mouse_emulate_button_type_set<0>",
+                              nullptr);
+  RNA_def_property_enum_items(prop, mouse_emulate_button_source_type_items);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
+  RNA_def_property_ui_text(
+      prop, "Button to Remap", "Specify the mouse button to trigger this feature");
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(prop, 0, "rna_userdef_keyconfig_reload_update");
 
   prop = RNA_def_property(srna, "mouse_emulate_button_type_2", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_funcs(prop,

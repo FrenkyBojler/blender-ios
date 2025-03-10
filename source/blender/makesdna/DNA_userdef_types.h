@@ -826,8 +826,10 @@ typedef struct UserDef {
   char savetime;
 
   /**
-   * Index 0 and 1 are unused to match the mouse button names with indices.
-   * e.g. 2 is RMB; 3 is MMB; 4 is MB4.
+   * Index 0 stores which mouse button triggers mouse button emulation.
+   * For the rest, the mouse button names match the array indices.
+   * e.g. 1 is LMB; 2 is RMB; 3 is MMB; 4 is MB4.
+   * Stored values are event types (EVENT_NONE, LEFTMOUSE, EVT_AKEY, etc.)
    */
   int16_t mouse_emulate_button_types[8];
 
@@ -1219,7 +1221,7 @@ typedef enum eUserPref_Flag {
   USER_FLAG_NUMINPUT_ADVANCED = (1 << 1),
   USER_FLAG_RECENT_SEARCHES_DISABLE = (1 << 2),
   USER_FLAG_UNUSED_3 = (1 << 3), /* cleared */
-  USER_FLAG_UNUSED_4 = (1 << 4), /* cleared */
+  USER_FLAG_MOUSE_EMULATE_BUTTON_CONSUME_EVENT = (1 << 4),
   USER_TRACKBALL = (1 << 5),
   USER_FLAG_UNUSED_6 = (1 << 6), /* cleared */
   USER_FLAG_UNUSED_7 = (1 << 7), /* cleared */

@@ -5369,9 +5369,15 @@ static void wm_eventemulation(wmEvent *event, bool test_only)
   static int upcoming_event_source = EVENT_NONE;
 
   if (U.runtime.is_ui_button_waiting_key_event) {
+    /* User is entering a key to use as the modifier for this feature.
+     * Temporarily disable this feature, so that the key goes through. */
     upcoming_event = upcoming_event_source = EVENT_NONE;
   }
-  else if (event->type == LEFTMOUSE) {
+  else if (!ISMOUSE_BUTTON(U.mouse_emulate_button_types[0])) {
+    /* Feature is not used, or configuration is incorrect. */
+    upcoming_event = upcoming_event_source = EVENT_NONE;
+  }
+  else if (event->type == U.mouse_emulate_button_types[0]) {
     /* Mouse buttons emulation. */
     if (event->val == KM_PRESS && upcoming_event != EVENT_NONE) {
       event->type = upcoming_event;
@@ -5401,7 +5407,7 @@ static void wm_eventemulation(wmEvent *event, bool test_only)
     if (event->val == KM_PRESS && upcoming_event == EVENT_NONE) {
       short upcoming_event_new = EVENT_NONE;
 
-      for (int i = 0; i < mouse_button_count; i++) {
+      for (int i = 1; i < mouse_button_count; i++) {
         if (event->type == U.mouse_emulate_button_types[i]) {
           upcoming_event_new = mouse_button_index_to_event_type[i];
         }
@@ -5428,7 +5434,8 @@ static void wm_eventemulation(wmEvent *event, bool test_only)
       kill_event = true;
     }
 
-    if (kill_event) {
+    if (kill_event && (U.flag & USER_FLAG_MOUSE_EMULATE_BUTTON_CONSUME_EVENT)) {
+      /* Prevent the event from being processed any further. */
       event->type = EVENT_NONE;
       event->val = KM_NOTHING;
       return;
