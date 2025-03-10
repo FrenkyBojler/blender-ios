@@ -162,14 +162,19 @@ static int stroke_trim_execute(const bContext *C, const Span<int2> mcoords)
   const bool active_layer_only = (brush->gpencil_settings->flag & GP_BRUSH_ACTIVE_LAYER_ONLY) != 0;
   std::atomic<bool> changed = false;
 
-  bool autokey_inserted = false;
+  bool inserted_keyframe = false;
   if (active_layer_only) {
     /* Apply trim on drawings of active layer. */
     if (!grease_pencil.has_active_layer()) {
       return OPERATOR_CANCELLED;
     }
+
     bke::greasepencil::Layer &layer = *grease_pencil.get_active_layer();
-    ensure_active_keyframe(*scene, grease_pencil, layer, true, autokey_inserted);
+    if (!layer.is_editable()) {
+      return OPERATOR_CANCELLED;
+    }
+
+    ensure_active_keyframe(*scene, grease_pencil, layer, true, inserted_keyframe);
     const float4x4 layer_to_world = layer.to_world_space(*ob_eval);
     const float4x4 projection = ED_view3d_ob_project_mat_get_from_obmat(rv3d, layer_to_world);
     const Vector<ed::greasepencil::MutableDrawingInfo> drawings =
@@ -191,8 +196,12 @@ static int stroke_trim_execute(const bContext *C, const Span<int2> mcoords)
   }
   else {
     for (bke::greasepencil::Layer *layer : grease_pencil.layers_for_write()) {
-      ensure_active_keyframe(*scene, grease_pencil, *layer, true, autokey_inserted);
+      if (layer->is_editable()) {
+        ed::greasepencil::ensure_active_keyframe(
+            *scene, grease_pencil, *layer, true, inserted_keyframe);
+      }
     }
+
     /* Apply trim on every editable drawing. */
     const Vector<ed::greasepencil::MutableDrawingInfo> drawings =
         ed::greasepencil::retrieve_editable_drawings(*scene, grease_pencil);
@@ -218,7 +227,7 @@ static int stroke_trim_execute(const bContext *C, const Span<int2> mcoords)
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
-    if (autokey_inserted) {
+    if (inserted_keyframe) {
       WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
     }
   }
