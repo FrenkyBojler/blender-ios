@@ -52,7 +52,7 @@
 using namespace blender;
 using namespace blender::gpu::shader;
 
-bool gpu_pass_shader_validate(struct GPUCodegenCreateInfo *create_info, GPUShader *shader);
+static bool gpu_pass_shader_validate(struct GPUCodegenCreateInfo *create_info, GPUShader *shader);
 
 /**
  * IMPORTANT: Never add external reference. The GPUMaterial used to create the GPUPass (and its

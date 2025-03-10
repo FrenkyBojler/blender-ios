@@ -40,8 +40,8 @@
 
 #include "atomic_ops.h"
 
-void gpu_material_ramp_texture_build(GPUMaterial *mat);
-void gpu_material_sky_texture_build(GPUMaterial *mat);
+static void gpu_material_ramp_texture_build(GPUMaterial *mat);
+static void gpu_material_sky_texture_build(GPUMaterial *mat);
 
 /* Structs */
 #define MAX_COLOR_BAND 128
