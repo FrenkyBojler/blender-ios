@@ -2920,9 +2920,6 @@ static void region_scale_validate_size(RegionMoveData *rmd)
 
 static void region_scale_toggle_hidden(bContext *C, RegionMoveData *rmd)
 {
-  if (rmd->region->regiontype == RGN_TYPE_NAV_BAR) {
-    return;
-  }
 
   /* hidden areas may have bad 'View2D.cur' value,
    * correct before displaying. see #45156 */
@@ -5158,7 +5155,6 @@ void ED_screens_header_tools_menu_create(bContext *C, uiLayout *layout, void * /
             "SCREEN_OT_header_toggle_menus");
 
     /* "Show Navigation Bar" option */
-
     if (ARegion *region_nav_bar = BKE_area_find_region_type(area, RGN_TYPE_NAV_BAR)) {
       PointerRNA *op_ptr = nullptr;
       uiItemFullO(col,
