@@ -372,6 +372,57 @@ static void rna_ActionSlot_identifier_update(Main *bmain, Scene *, PointerRNA *p
   action.slot_identifier_propagate(*bmain, slot);
 }
 
+static CollectionVector rna_ActionSlot_users(struct ActionSlot *self, Main *bmain)
+{
+  animrig::Slot &slot = self->wrap();
+  const Span<ID *> slot_users = slot.users(*bmain);
+
+  CollectionVector vector{};
+  for (ID *slot_user : slot_users) {
+    vector.items.append(RNA_id_pointer_create(slot_user));
+  }
+
+  return vector;
+}
+
+static void rna_ActionSlot_users_prop_ensure(struct ActionSlot *self, Main *bmain)
+{
+  animrig::Slot &slot = self->wrap();
+  slot.users(*bmain);
+}
+
+static void rna_iterator_action_slot_users_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+  animrig::Slot &slot = rna_data_slot(ptr);
+
+  iter->internal.count.item = 0;
+  iter->valid = !slot.runtime_users().is_empty();
+}
+
+static void rna_iterator_action_slot_users_next(CollectionPropertyIterator *iter)
+{
+  animrig::Slot &slot = rna_data_slot(&iter->parent);
+  iter->internal.count.item++;
+  iter->valid = iter->internal.count.item < slot.runtime_users().size();
+}
+static PointerRNA rna_iterator_action_slot_users_get(CollectionPropertyIterator *iter)
+{
+  animrig::Slot &slot = rna_data_slot(&iter->parent);
+  Vector<ID *> users = slot.runtime_users();
+  ID *user = users[iter->internal.count.item];
+  return RNA_id_pointer_create(user);
+}
+static void rna_iterator_action_slot_users_end(CollectionPropertyIterator *iter)
+{
+  iter->valid = false;
+}
+
+static int rna_iterator_action_slot_users_length(PointerRNA *ptr)
+{
+  animrig::Slot &slot = rna_data_slot(ptr);
+  return slot.runtime_users().size();
+}
+
 #  ifndef NDEBUG
 static void rna_ActionSlot_debug_log_users(const ID *action_id, ActionSlot *dna_slot, Main *bmain)
 {
@@ -2103,6 +2154,8 @@ static void rna_def_action_slot(BlenderRNA *brna)
 {
   StructRNA *srna;
   PropertyRNA *prop;
+  PropertyRNA *parm;
+  FunctionRNA *func;
 
   srna = RNA_def_struct(brna, "ActionSlot", nullptr);
   RNA_def_struct_path_func(srna, "rna_ActionSlot_path");
@@ -2187,6 +2240,30 @@ static void rna_def_action_slot(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update_notifier(prop, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED);
+
+  func = RNA_def_function(srna, "users", "rna_ActionSlot_users");
+  RNA_def_function_flag(func, FUNC_USE_MAIN);
+  RNA_def_function_ui_description(
+      func, "Return the data-blocks that are animated by this slot of this action");
+  /* Return value. */
+  parm = RNA_def_property(func, "users", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_struct_type(parm, "ID");
+  RNA_def_function_return(func, parm);
+
+  func = RNA_def_function(srna, "users_prop_ensure", "rna_ActionSlot_users_prop_ensure");
+  RNA_def_function_flag(func, FUNC_USE_MAIN);
+
+  prop = RNA_def_property(srna, "users_prop", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_struct_type(prop, "ID");
+  RNA_def_property_collection_funcs(prop,
+                                    "rna_iterator_action_slot_users_begin",
+                                    "rna_iterator_action_slot_users_next",
+                                    "rna_iterator_action_slot_users_end",
+                                    "rna_iterator_action_slot_users_get",
+                                    "rna_iterator_action_slot_users_length",
+                                    nullptr,
+                                    nullptr,
+                                    nullptr);
 
 #  ifndef NDEBUG
   /* Slot.debug_log_users() */
