@@ -1286,7 +1286,7 @@ void ED_spacetype_sequencer()
   BLI_addhead(&st->regiontypes, art);
 
   /* Footer. */
-  art = MEM_cnew<ARegionType>("spacetype sequencer region");
+  art = MEM_callocN<ARegionType>("spacetype sequencer region");
   art->regionid = RGN_TYPE_FOOTER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FOOTER;
