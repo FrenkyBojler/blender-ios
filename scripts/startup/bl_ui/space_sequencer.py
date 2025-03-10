@@ -473,8 +473,8 @@ class SEQUENCER_MT_view(Menu):
             layout.prop(st, "show_region_hud")
         if is_sequencer_only:
             layout.prop(st, "show_region_channels")
-        layout.separator()
         layout.prop(st, "show_region_footer")
+        layout.separator()
 
         if is_sequencer_only:
             layout.prop(st, "show_backdrop", text="Preview as Backdrop")
