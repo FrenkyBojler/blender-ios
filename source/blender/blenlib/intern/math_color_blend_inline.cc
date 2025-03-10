@@ -329,7 +329,7 @@ MINLINE void blend_color_screen_byte(uchar dst[4], const uchar src1[4], const uc
 
 MINLINE void blend_color_softlight_byte(uchar dst[4], const uchar src1[4], const uchar src2[4])
 {
-  const float fac = src2[3] / 255.0f;
+  const float fac = (float)(src2[3]) / 255.0f;
   if (fac != 0) {
     const float mfac = 1.0f - fac;
     int i = 3;
