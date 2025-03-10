@@ -349,9 +349,9 @@ static void modify_drawing(const GreasePencilDashModifierData &dmd,
   bke::CurvesGeometry unselected_curves = bke::curves_copy_curve_selection(
       src_curves, unselected_mask, {});
 
-  bke::CurvesGeometry new_curves = create_dashes(pattern_info, src_curves, curves_mask);
+  bke::CurvesGeometry dashed_curves = create_dashes(pattern_info, src_curves, curves_mask);
 
-  Curves *masked_curves_id = bke::curves_new_nomain(new_curves);
+  Curves *masked_curves_id = bke::curves_new_nomain(dashed_curves);
   Curves *unselected_curves_id = bke::curves_new_nomain(unselected_curves);
   bke::GeometrySet masked_geo = bke::GeometrySet::from_curves(masked_curves_id);
   bke::GeometrySet unselected_geo = bke::GeometrySet::from_curves(unselected_curves_id);
