@@ -724,7 +724,6 @@ struct RaySelfPrimitives {
   int object;       /* Instance prim is a part of */
   int light_prim;   /* Light primitive */
   int light_object; /* Light object */
-  int light;        /* Light ID (the light the shadow ray is traced towards to) */
 };
 
 struct Ray {
@@ -1151,8 +1150,6 @@ struct ccl_align(16) ShaderData
   float v;
   /* object id if there is one, ~0 otherwise */
   int object;
-  /* lamp id if there is one, ~0 otherwise */
-  int lamp;
 
   /* motion blur sample time */
   float time;
@@ -1203,6 +1200,7 @@ struct ccl_align(16) ShaderData
   struct ShaderClosure closure[MAX_CLOSURE];
 };
 
+#ifdef __KERNEL_GPU__
 /* ShaderDataTinyStorage needs the same alignment as ShaderData, or else
  * the pointer cast in AS_SHADER_DATA invokes undefined behavior. */
 struct ccl_align(16) ShaderDataTinyStorage
@@ -1216,6 +1214,11 @@ struct ccl_align(16) ShaderDataCausticsStorage
 {
   char pad[sizeof(ShaderData) - sizeof(ShaderClosure) * (MAX_CLOSURE - CAUSTICS_MAX_CLOSURE)];
 };
+#else
+/* On the CPU use full size, to avoid compiler and ASAN warnings. */
+using ShaderDataTinyStorage = ShaderData;
+using ShaderDataCausticsStorage = ShaderData;
+#endif
 
 #define AS_SHADER_DATA(shader_data_tiny_storage) \
   ((ccl_private ShaderData *)shader_data_tiny_storage)
@@ -1606,32 +1609,24 @@ struct KernelLight {
   int type;
   packed_float3 co;
   int shader_id;
+  int object_id;
   float max_bounces;
-  float random;
   float strength[3];
   int use_caustics;
-  int lightgroup;
-  Transform tfm;
-  Transform itfm;
+  int pad;
   union {
     KernelSpotLight spot;
     KernelAreaLight area;
     KernelDistantLight distant;
   };
-  uint64_t light_set_membership;
-  uint64_t shadow_set_membership;
 };
 static_assert_align(KernelLight, 16);
-
-struct MeshLight {
-  int shader_flag;
-  int object_id;
-};
 
 struct KernelLightDistribution {
   float totarea;
   int prim;
-  MeshLight mesh_light;
+  int shader_flag;
+  int object_id;
 };
 static_assert_align(KernelLightDistribution, 16);
 
@@ -1718,7 +1713,9 @@ struct KernelLightTreeEmitter {
     } mesh;
   };
 
-  MeshLight mesh_light;
+  /* Object and shader. */
+  int object_id;
+  int shader_flag;
 
   /* Bit trail from root node to leaf node containing emitter. */
   int bit_trail;

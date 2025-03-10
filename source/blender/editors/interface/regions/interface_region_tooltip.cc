@@ -1128,7 +1128,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
     uiTooltipImage image_data;
     image_data.width = int(w);
     image_data.height = int(w / (has_alpha ? 4.0f : 3.0f));
-    image_data.ibuf = IMB_allocImBuf(image_data.width, image_data.height, 32, IB_rect);
+    image_data.ibuf = IMB_allocImBuf(image_data.width, image_data.height, 32, IB_byte_data);
     image_data.border = true;
     image_data.premultiplied = false;
 
@@ -1364,7 +1364,7 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
 
   /* Clamp to window bounds. */
   {
-    /* Ensure at least 5 px above screen bounds.
+    /* Ensure at least 5 pixels above screen bounds.
      * #UI_UNIT_Y is just a guess to be above the menu item. */
     if (init_rect_overlap != nullptr) {
       const int pad = max_ff(1.0f, U.pixelsize) * 5;
@@ -1717,7 +1717,7 @@ static void ui_tooltip_from_clip(MovieClip &clip, uiTooltipData &data)
       /* Resize. */
       float scale = (200.0f * UI_SCALE_FAC) / float(std::max(ibuf->x, ibuf->y));
       IMB_scale(ibuf, scale * ibuf->x, scale * ibuf->y, IMBScaleFilter::Box, false);
-      IMB_rect_from_float(ibuf);
+      IMB_byte_from_float(ibuf);
 
       uiTooltipImage image_data;
       image_data.width = ibuf->x;
