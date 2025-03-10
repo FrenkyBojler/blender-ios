@@ -410,6 +410,12 @@ static bool ed_object_hidden(const Object *ob)
   return ((ob->visibility_flag & OB_HIDE_VIEWPORT) && !(ob->mode & OB_MODE_EDIT));
 }
 
+bool ED_operator_object_active_only(bContext *C)
+{
+  Object *ob = blender::ed::object::context_active_object(C);
+  return (ob != nullptr);
+}
+
 bool ED_operator_object_active(bContext *C)
 {
   Object *ob = blender::ed::object::context_active_object(C);
@@ -4182,9 +4188,10 @@ static void area_join_update_data(bContext *C, sAreaJoinData *jd, const wmEvent 
   jd->dock_target = area_docking_target(jd, event);
 
   if (jd->sa1 == area) {
+    const int drag_threshold = 30 * UI_SCALE_FAC;
     jd->sa2 = area;
-    if (!(abs(jd->start_x - event->xy[0]) > (30 * U.pixelsize) ||
-          abs(jd->start_y - event->xy[1]) > (30 * U.pixelsize)))
+    if (!(abs(jd->start_x - event->xy[0]) > drag_threshold ||
+          abs(jd->start_y - event->xy[1]) > drag_threshold))
     {
       /* We haven't moved enough to start a split. */
       jd->dir = SCREEN_DIR_NONE;
@@ -5392,7 +5399,7 @@ static void screen_animation_region_tag_redraw(
 
     if (area->spacetype == SPACE_SEQ) {
       const SpaceSeq *sseq = static_cast<const SpaceSeq *>(area->spacedata.first);
-      if (!ED_space_sequencer_has_playback_animation(sseq, scene)) {
+      if (!blender::ed::vse::has_playback_animation(sseq, scene)) {
         return;
       }
     }
@@ -6401,6 +6408,8 @@ static int space_type_set_or_cycle_exec(bContext *C, wmOperator *op)
   if (area->spacetype != space_type) {
     /* Set the type. */
     RNA_property_enum_set(&ptr, prop_type, space_type);
+    /* Specify that we want last-used if there are subtypes. */
+    area->butspacetype_subtype = -1;
     RNA_property_update(C, &ptr, prop_type);
   }
   else {

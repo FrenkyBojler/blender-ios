@@ -24,133 +24,6 @@
 
 //------------------------------------------------------------------------------
 
-layout(local_size_x = WORK_GROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
-layout(std430) buffer;
-
-// source and destination buffers
-
-uniform int srcOffset = 0;
-uniform int dstOffset = 0;
-layout(binding = 0) buffer src_buffer
-{
-  float srcVertexBuffer[];
-};
-layout(binding = 1) buffer dst_buffer
-{
-  float dstVertexBuffer[];
-};
-
-// derivative buffers (if needed)
-
-#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_1ST_DERIVATIVES)
-uniform ivec3 duDesc;
-uniform ivec3 dvDesc;
-layout(binding = 2) buffer du_buffer
-{
-  float duBuffer[];
-};
-layout(binding = 3) buffer dv_buffer
-{
-  float dvBuffer[];
-};
-#endif
-
-#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_2ND_DERIVATIVES)
-uniform ivec3 duuDesc;
-uniform ivec3 duvDesc;
-uniform ivec3 dvvDesc;
-layout(binding = 10) buffer duu_buffer
-{
-  float duuBuffer[];
-};
-layout(binding = 11) buffer duv_buffer
-{
-  float duvBuffer[];
-};
-layout(binding = 12) buffer dvv_buffer
-{
-  float dvvBuffer[];
-};
-#endif
-
-// stencil buffers
-
-#if defined(OPENSUBDIV_GLSL_COMPUTE_KERNEL_EVAL_STENCILS)
-
-uniform int batchStart = 0;
-uniform int batchEnd = 0;
-layout(binding = 4) buffer stencilSizes
-{
-  int _sizes[];
-};
-layout(binding = 5) buffer stencilOffsets
-{
-  int _offsets[];
-};
-layout(binding = 6) buffer stencilIndices
-{
-  int _indices[];
-};
-layout(binding = 7) buffer stencilWeights
-{
-  float _weights[];
-};
-
-#  if defined(OPENSUBDIV_GLSL_COMPUTE_USE_1ST_DERIVATIVES)
-layout(binding = 8) buffer stencilDuWeights
-{
-  float _duWeights[];
-};
-layout(binding = 9) buffer stencilDvWeights
-{
-  float _dvWeights[];
-};
-#  endif
-
-#  if defined(OPENSUBDIV_GLSL_COMPUTE_USE_2ND_DERIVATIVES)
-layout(binding = 13) buffer stencilDuuWeights
-{
-  float _duuWeights[];
-};
-layout(binding = 14) buffer stencilDuvWeights
-{
-  float _duvWeights[];
-};
-layout(binding = 15) buffer stencilDvvWeights
-{
-  float _dvvWeights[];
-};
-#  endif
-
-uint getGlobalInvocationIndex()
-{
-  uint invocations_per_row = gl_WorkGroupSize.x * gl_NumWorkGroups.x;
-  return gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * invocations_per_row;
-}
-
-#endif
-
-// patch buffers
-
-#if defined(OPENSUBDIV_GLSL_COMPUTE_KERNEL_EVAL_PATCHES)
-
-layout(binding = 4) buffer patchArray_buffer
-{
-  OsdPatchArray patchArrayBuffer[];
-};
-layout(binding = 5) buffer patchCoord_buffer
-{
-  OsdPatchCoord patchCoords[];
-};
-layout(binding = 6) buffer patchIndex_buffer
-{
-  int patchIndexBuffer[];
-};
-layout(binding = 7) buffer patchParam_buffer
-{
-  OsdPatchParam patchParamBuffer[];
-};
-
 OsdPatchCoord GetPatchCoord(int coordIndex)
 {
   return patchCoords[coordIndex];
@@ -165,8 +38,6 @@ OsdPatchParam GetPatchParam(int patchIndex)
 {
   return patchParamBuffer[patchIndex];
 }
-
-#endif
 
 //------------------------------------------------------------------------------
 
@@ -251,76 +122,6 @@ void writeDvv(int index, Vertex dvv)
 #endif
 
 //------------------------------------------------------------------------------
-#if defined(OPENSUBDIV_GLSL_COMPUTE_KERNEL_EVAL_STENCILS)
-
-void main()
-{
-  int current = int(getGlobalInvocationIndex()) + batchStart;
-
-  if (current >= batchEnd) {
-    return;
-  }
-
-  Vertex dst;
-  clear(dst);
-
-  int offset = _offsets[current], size = _sizes[current];
-
-  for (int stencil = 0; stencil < size; ++stencil) {
-    int vindex = offset + stencil;
-    addWithWeight(dst, readVertex(_indices[vindex]), _weights[vindex]);
-  }
-
-  writeVertex(current, dst);
-
-#  if defined(OPENSUBDIV_GLSL_COMPUTE_USE_1ST_DERIVATIVES)
-  Vertex du, dv;
-  clear(du);
-  clear(dv);
-  for (int i = 0; i < size; ++i) {
-    // expects the compiler optimizes readVertex out here.
-    Vertex src = readVertex(_indices[offset + i]);
-    addWithWeight(du, src, _duWeights[offset + i]);
-    addWithWeight(dv, src, _dvWeights[offset + i]);
-  }
-
-  if (duDesc.y > 0) {  // length
-    writeDu(current, du);
-  }
-  if (dvDesc.y > 0) {
-    writeDv(current, dv);
-  }
-#  endif
-#  if defined(OPENSUBDIV_GLSL_COMPUTE_USE_2ND_DERIVATIVES)
-  Vertex duu, duv, dvv;
-  clear(duu);
-  clear(duv);
-  clear(dvv);
-  for (int i = 0; i < size; ++i) {
-    // expects the compiler optimizes readVertex out here.
-    Vertex src = readVertex(_indices[offset + i]);
-    addWithWeight(duu, src, _duuWeights[offset + i]);
-    addWithWeight(duv, src, _duvWeights[offset + i]);
-    addWithWeight(dvv, src, _dvvWeights[offset + i]);
-  }
-
-  if (duuDesc.y > 0) {  // length
-    writeDuu(current, duu);
-  }
-  if (duvDesc.y > 0) {
-    writeDuv(current, duv);
-  }
-  if (dvvDesc.y > 0) {
-    writeDvv(current, dvv);
-  }
-#  endif
-}
-
-#endif
-
-//------------------------------------------------------------------------------
-#if defined(OPENSUBDIV_GLSL_COMPUTE_KERNEL_EVAL_PATCHES)
-
 // PERFORMANCE: stride could be constant, but not as significant as length
 
 void main()
@@ -359,15 +160,15 @@ void main()
   }
   writeVertex(current, dst);
 
-#  if defined(OPENSUBDIV_GLSL_COMPUTE_USE_1ST_DERIVATIVES)
+#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_1ST_DERIVATIVES)
   if (duDesc.y > 0) {  // length
     writeDu(current, du);
   }
   if (dvDesc.y > 0) {
     writeDv(current, dv);
   }
-#  endif
-#  if defined(OPENSUBDIV_GLSL_COMPUTE_USE_2ND_DERIVATIVES)
+#endif
+#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_2ND_DERIVATIVES)
   if (duuDesc.y > 0) {  // length
     writeDuu(current, duu);
   }
@@ -377,7 +178,5 @@ void main()
   if (dvvDesc.y > 0) {
     writeDvv(current, dvv);
   }
-#  endif
-}
-
 #endif
+}
