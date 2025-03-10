@@ -869,10 +869,28 @@ class NodeTreeMainUpdater {
     }
   }
 
+  static bool socket_type_always_circle(const SocketDeclaration &decl)
+  {
+    switch (decl.socket_type) {
+      case SOCK_OBJECT:
+      case SOCK_IMAGE:
+      case SOCK_GEOMETRY:
+      case SOCK_COLLECTION:
+      case SOCK_TEXTURE:
+      case SOCK_MATERIAL:
+        return true;
+      default:
+        return false;
+    }
+  }
+
   static int get_input_socket_shape(const SocketDeclaration &decl,
                                     const StructureType structure_type)
   {
     if (decl.identifier == "__extend__") {
+      return SOCK_DISPLAY_SHAPE_CIRCLE;
+    }
+    if (socket_type_always_circle(decl)) {
       return SOCK_DISPLAY_SHAPE_CIRCLE;
     }
     switch (structure_type) {
@@ -894,6 +912,9 @@ class NodeTreeMainUpdater {
                                      const StructureType structure_type)
   {
     if (decl.identifier == "__extend__") {
+      return SOCK_DISPLAY_SHAPE_CIRCLE;
+    }
+    if (socket_type_always_circle(decl)) {
       return SOCK_DISPLAY_SHAPE_CIRCLE;
     }
     switch (structure_type) {
