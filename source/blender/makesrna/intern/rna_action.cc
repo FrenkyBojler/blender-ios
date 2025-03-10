@@ -385,67 +385,6 @@ static CollectionVector rna_ActionSlot_users(struct ActionSlot *self, Main *bmai
   return vector;
 }
 
-static void rna_ActionSlot_users_prop_ensure(struct ActionSlot *self, Main *bmain)
-{
-  animrig::Slot &slot = self->wrap();
-  slot.users(*bmain);
-}
-
-static void rna_iterator_action_slot_users_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
-{
-  animrig::Slot &slot = rna_data_slot(ptr);
-
-  iter->internal.count.item = 0;
-  iter->valid = !slot.runtime_users().is_empty();
-}
-
-static void rna_iterator_action_slot_users_next(CollectionPropertyIterator *iter)
-{
-  animrig::Slot &slot = rna_data_slot(&iter->parent);
-  iter->internal.count.item++;
-  iter->valid = iter->internal.count.item < slot.runtime_users().size();
-}
-static PointerRNA rna_iterator_action_slot_users_get(CollectionPropertyIterator *iter)
-{
-  animrig::Slot &slot = rna_data_slot(&iter->parent);
-  Vector<ID *> users = slot.runtime_users();
-  ID *user = users[iter->internal.count.item];
-  return RNA_id_pointer_create(user);
-}
-static void rna_iterator_action_slot_users_end(CollectionPropertyIterator *iter)
-{
-  iter->valid = false;
-}
-
-static int rna_iterator_action_slot_users_length(PointerRNA *ptr)
-{
-  animrig::Slot &slot = rna_data_slot(ptr);
-  return slot.runtime_users().size();
-}
-
-#  ifndef NDEBUG
-static void rna_ActionSlot_debug_log_users(const ID *action_id, ActionSlot *dna_slot, Main *bmain)
-{
-  using namespace blender::animrig;
-  const Action &action = reinterpret_cast<const bAction *>(action_id)->wrap();
-  Slot &slot = dna_slot->wrap();
-
-  printf("\033[38;5;214mAction Slot users of '%s' on Action '%s':\033[0m\n",
-         slot.identifier,
-         action.id.name + 2);
-  if (bmain->is_action_slot_to_id_map_dirty) {
-    printf("  User map is \033[93mdirty\033[0m, this will trigger a recompute.\n");
-  }
-  else {
-    printf("  User map is \033[92mclean\033[0m.\n");
-  }
-
-  for (const ID *user : slot.users(*bmain)) {
-    printf("  - %s\n", user->name);
-  }
-}
-#  endif /* NDEBUG */
-
 static std::optional<std::string> rna_ActionLayer_path(const PointerRNA *ptr)
 {
   animrig::Layer &layer = rna_data_layer(ptr);
@@ -2249,31 +2188,6 @@ static void rna_def_action_slot(BlenderRNA *brna)
   parm = RNA_def_property(func, "users", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(parm, "ID");
   RNA_def_function_return(func, parm);
-
-  func = RNA_def_function(srna, "users_prop_ensure", "rna_ActionSlot_users_prop_ensure");
-  RNA_def_function_flag(func, FUNC_USE_MAIN);
-
-  prop = RNA_def_property(srna, "users_prop", PROP_COLLECTION, PROP_NONE);
-  RNA_def_property_struct_type(prop, "ID");
-  RNA_def_property_collection_funcs(prop,
-                                    "rna_iterator_action_slot_users_begin",
-                                    "rna_iterator_action_slot_users_next",
-                                    "rna_iterator_action_slot_users_end",
-                                    "rna_iterator_action_slot_users_get",
-                                    "rna_iterator_action_slot_users_length",
-                                    nullptr,
-                                    nullptr,
-                                    nullptr);
-
-#  ifndef NDEBUG
-  /* Slot.debug_log_users() */
-  {
-    FunctionRNA *func;
-
-    func = RNA_def_function(srna, "debug_log_users", "rna_ActionSlot_debug_log_users");
-    RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_MAIN);
-  }
-#  endif
 }
 
 static void rna_def_ActionLayer_strips(BlenderRNA *brna, PropertyRNA *cprop)
