@@ -25,6 +25,8 @@
 
 #include <fmt/format.h>
 
+#include "AS_essentials_library.hh"
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_userdef_types.h"
@@ -38,7 +40,6 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_appdir.hh"
 #include "BKE_context.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image.hh"
@@ -1005,14 +1006,12 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
     if (but->rnapoin.owner_id) {
       const ID *id = but->rnapoin.owner_id;
       if (ID_IS_LINKED(id)) {
+        std::string assets_path = blender::asset_system::essentials_directory_path();
+        bool is_builtin = BLI_path_contains(assets_path.c_str(), id->lib->filepath);
+        const std::string title = is_builtin ? TIP_("Built-in Asset") : TIP_("Library");
         const std::string lib_path = id->lib->filepath;
-        const std::optional<std::string> assets_path = BKE_appdir_folder_id(
-            BLENDER_SYSTEM_DATAFILES, "assets");
-        const size_t assets_len = assets_path.has_value() ? assets_path->size() : 0;
-        bool builtin = lib_path.substr(0, assets_len) == assets_path.value_or("");
-
-        const std::string title = builtin ? TIP_("Built-in Asset") : TIP_("Library");
-        const std::string path = builtin ? lib_path.substr(assets_len) : lib_path;
+        const std::string path = is_builtin ? lib_path.substr(assets_path.size()) :
+                                              id->lib->filepath;
         UI_tooltip_text_field_add(
             *data, fmt::format("{}: {}", title, path), {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_NORMAL);
       }
