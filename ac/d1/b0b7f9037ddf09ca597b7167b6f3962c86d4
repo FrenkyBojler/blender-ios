@@ -1,5 +1,5 @@
 Referenced by commit 200cf730d84, Fix #122241: Apply selected as rest pose not working
 Referenced by issue #122254, Fix #122241: Apply selected as rest pose not working
-Referenced by pull request #135734, WIP: expose Action Slot users to RNA
+Referenced by pull request #135734, Anim: expose Action Slot users to RNA
 Referenced by pull request #135746, Fix: Allow RNA functions to return collection properties
 Referenced by commit 6eb55661042d3468e9600872a993bd790bd2974d, Fix: Allow RNA functions to return collection properties
