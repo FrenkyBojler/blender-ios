@@ -154,7 +154,7 @@ static NSImage *generate_nsimage_for_file(const char *src_blend_path, NSError *e
     NSError *error = nil;
     NSImage *image = generate_nsimage_for_file(request.fileURL.path.fileSystemRepresentation,
                                                error);
-    if (image == nil) {
+    if (image == nil || image.size.width <= 0 || image.size.height <= 0) {
       handler(nil, error);
       return;
     }
