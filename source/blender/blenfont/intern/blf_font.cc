@@ -1293,7 +1293,7 @@ static void blf_font_wrap_apply(FontBLF *font,
 
     const ft_pix advance_x = g ? g->advance_x : 0;
     const uint codepoint = BLI_str_utf8_as_unicode_safe(&str[i_curr]);
-    const uint previous = g_prev ? g_prev->c : 0;
+    const uint codepoint_prev = g_prev ? g_prev->c : 0;
 
     /**
      * Implementation Detail (utf8).
@@ -1328,8 +1328,8 @@ static void blf_font_wrap_apply(FontBLF *font,
       do_draw = true;
       clip_bytes = 1;
     }
-    else if (UNLIKELY((int(mode) & int(BLFWrapMode::Minimal)) && codepoint != ' ' &&
-                      (g_prev ? g_prev->c == ' ' : false)))
+    else if (UNLIKELY(((int(mode) & int(BLFWrapMode::Minimal)) == int(BLFWrapMode::Minimal)) &&
+                      codepoint != ' ' && (g_prev ? g_prev->c == ' ' : false)))
     {
       wrap.last[0] = i_curr;
       wrap.last[1] = i_curr;
@@ -1342,15 +1342,15 @@ static void blf_font_wrap_apply(FontBLF *font,
     }
     else if (UNLIKELY((int(mode) & int(BLFWrapMode::Typographical)) &&
                       !BLI_str_utf32_char_is_breaking_space(codepoint) &&
-                      BLI_str_utf32_char_is_breaking_space(previous)))
+                      BLI_str_utf32_char_is_breaking_space(codepoint_prev)))
     {
       /* Optional break after space, removing it. */
       wrap.last[0] = i_curr;
       wrap.last[1] = i_curr;
-      clip_bytes = BLI_str_utf8_from_unicode_len(previous);
+      clip_bytes = BLI_str_utf8_from_unicode_len(codepoint_prev);
     }
     else if (UNLIKELY((int(mode) & int(BLFWrapMode::Typographical)) &&
-                      BLI_str_utf32_char_is_optional_break(codepoint, previous)))
+                      BLI_str_utf32_char_is_optional_break(codepoint, codepoint_prev)))
     {
       /* Optional break after various characters, keeping it. */
       wrap.last[0] = i;
