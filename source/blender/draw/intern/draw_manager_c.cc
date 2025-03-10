@@ -175,7 +175,7 @@ void DRWContext::state_ensure_not_reused()
   g_context = nullptr;
 }
 
-static bool drw_draw_show_annotation()
+static bool draw_show_annotation()
 {
   if (drw_get().draw_ctx.space_data == nullptr) {
     View3D *v3d = drw_get().draw_ctx.v3d;
@@ -1206,7 +1206,7 @@ static bool drw_gpencil_engine_needed(Depsgraph *depsgraph, View3D *v3d)
 /** \name Callbacks
  * \{ */
 
-void DRW_draw_callbacks_pre_scene()
+static void draw_callbacks_pre_scene()
 {
   DRW_submission_start();
 
@@ -1225,14 +1225,14 @@ void DRW_draw_callbacks_pre_scene()
   DRW_submission_end();
 }
 
-void DRW_draw_callbacks_post_scene()
+static void draw_callbacks_post_scene()
 {
   RegionView3D *rv3d = drw_get().draw_ctx.rv3d;
   ARegion *region = drw_get().draw_ctx.region;
   View3D *v3d = drw_get().draw_ctx.v3d;
   Depsgraph *depsgraph = drw_get().draw_ctx.depsgraph;
 
-  const bool do_annotations = drw_draw_show_annotation();
+  const bool do_annotations = draw_show_annotation();
 
   DRW_submission_start();
   if (drw_get().draw_ctx.evil_C) {
@@ -1368,7 +1368,7 @@ void DRW_draw_callbacks_post_scene()
   DRW_submission_end();
 }
 
-void DRW_draw_callbacks_pre_scene_2D()
+static void draw_callbacks_pre_scene_2D()
 {
   DRW_submission_start();
 
@@ -1380,11 +1380,11 @@ void DRW_draw_callbacks_pre_scene_2D()
   DRW_submission_end();
 }
 
-void DRW_draw_callbacks_post_scene_2D(View2D &v2d)
+static void draw_callbacks_post_scene_2D(View2D &v2d)
 {
   DRW_submission_start();
 
-  const bool do_annotations = drw_draw_show_annotation();
+  const bool do_annotations = draw_show_annotation();
   const bool do_draw_gizmos = (drw_get().draw_ctx.space_data->spacetype != SPACE_IMAGE);
 
   if (drw_get().draw_ctx.evil_C) {
@@ -1549,7 +1549,7 @@ static void DRW_draw_render_loop_3d(Depsgraph *depsgraph,
 
   DRW_curves_update(*DRW_manager_get());
 
-  DRW_draw_callbacks_pre_scene();
+  draw_callbacks_pre_scene();
 
   drw_engines_draw_scene();
 
@@ -1560,7 +1560,7 @@ static void DRW_draw_render_loop_3d(Depsgraph *depsgraph,
 
   drw_get().data->modules_exit();
 
-  DRW_draw_callbacks_post_scene();
+  draw_callbacks_post_scene();
 
   if (WM_draw_region_get_bound_viewport(region)) {
     /* Don't unbind the frame-buffer yet in this case and let
@@ -2001,7 +2001,7 @@ static void DRW_draw_render_loop_2d(Depsgraph *depsgraph,
   /* Start Drawing */
   blender::draw::command::StateSet::set();
 
-  DRW_draw_callbacks_pre_scene_2D();
+  draw_callbacks_pre_scene_2D();
 
   drw_engines_draw_scene();
 
@@ -2010,7 +2010,7 @@ static void DRW_draw_render_loop_2d(Depsgraph *depsgraph,
     GPU_flush();
   }
 
-  DRW_draw_callbacks_post_scene_2D(region->v2d);
+  draw_callbacks_post_scene_2D(region->v2d);
 
   GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
 
@@ -2278,7 +2278,7 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
 
   /* Start Drawing */
   blender::draw::command::StateSet::set();
-  DRW_draw_callbacks_pre_scene();
+  draw_callbacks_pre_scene();
 
   DRW_curves_update(*DRW_manager_get());
 
