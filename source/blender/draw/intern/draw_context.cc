@@ -1394,15 +1394,14 @@ DRWTextStore *DRW_text_cache_ensure()
  * Used for both regular and off-screen drawing.
  * The global `DRWContext` needs to be set before calling this function.
  */
-static void drw_draw_render_loop_3d(Depsgraph *depsgraph,
-                                    RenderEngineType *engine_type,
-                                    ARegion *region,
-                                    View3D *v3d,
-                                    GPUViewport *viewport)
+static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engine_type)
 {
   using namespace blender::draw;
-  Scene *scene = DEG_get_evaluated_scene(depsgraph);
-  ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
+  GPUViewport *viewport = draw_ctx.viewport;
+  Depsgraph *depsgraph = draw_ctx.draw_ctx.depsgraph;
+  Scene *scene = draw_ctx.draw_ctx.scene;
+  ViewLayer *view_layer = draw_ctx.draw_ctx.view_layer;
+  View3D *v3d = draw_ctx.draw_ctx.v3d;
 
   drw_task_graph_init();
 
@@ -1423,7 +1422,7 @@ static void drw_draw_render_loop_3d(Depsgraph *depsgraph,
   drw_engines_data_validate();
 
   drw_debug_init();
-  drw_get().data->modules_init();
+  draw_ctx.data->modules_init();
 
   /* No frame-buffer allowed before drawing. */
   BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
@@ -1465,13 +1464,13 @@ static void drw_draw_render_loop_3d(Depsgraph *depsgraph,
     drw_task_graph_deinit();
   }
 
-  GPU_framebuffer_bind(drw_get().default_framebuffer());
+  GPU_framebuffer_bind(draw_ctx.default_framebuffer());
 
   /* Start Drawing */
   blender::draw::command::StateSet::set();
 
-  GPU_framebuffer_bind(drw_get().default_framebuffer());
-  GPU_framebuffer_clear_depth_stencil(drw_get().default_framebuffer(), 1.0f, 0xFF);
+  GPU_framebuffer_bind(draw_ctx.default_framebuffer());
+  GPU_framebuffer_clear_depth_stencil(draw_ctx.default_framebuffer(), 1.0f, 0xFF);
 
   DRW_curves_update(*DRW_manager_get());
 
@@ -1484,11 +1483,11 @@ static void drw_draw_render_loop_3d(Depsgraph *depsgraph,
     GPU_flush();
   }
 
-  drw_get().data->modules_exit();
+  draw_ctx.data->modules_exit();
 
   drw_callbacks_post_scene();
 
-  if (WM_draw_region_get_bound_viewport(region)) {
+  if (WM_draw_region_get_bound_viewport(draw_ctx.draw_ctx.region)) {
     /* Don't unbind the frame-buffer yet in this case and let
      * GPU_viewport_unbind do it, so that we can still do further
      * drawing of action zones on top. */
@@ -1501,14 +1500,18 @@ static void drw_draw_render_loop_3d(Depsgraph *depsgraph,
   drw_engines_disable();
 }
 
-static void drw_draw_render_loop_2d(Depsgraph *depsgraph, ARegion *region, GPUViewport *viewport)
+static void drw_draw_render_loop_2d(DRWContext &draw_ctx)
 {
+  GPUViewport *viewport = draw_ctx.viewport;
+  Depsgraph *depsgraph = draw_ctx.draw_ctx.depsgraph;
+  ARegion *region = draw_ctx.draw_ctx.region;
+
   drw_manager_init(g_context, viewport, nullptr);
   DRW_viewport_colormanagement_set(viewport);
 
   /* TODO(jbakker): Only populate when editor needs to draw object.
    * for the image editor this is when showing UVs. */
-  const bool do_populate_loop = (drw_get().draw_ctx.space_data->spacetype == SPACE_IMAGE);
+  const bool do_populate_loop = (draw_ctx.draw_ctx.space_data->spacetype == SPACE_IMAGE);
 
   /* Get list of enabled engines */
   drw_engines_enable_editors();
@@ -1518,8 +1521,8 @@ static void drw_draw_render_loop_2d(Depsgraph *depsgraph, ARegion *region, GPUVi
 
   /* No frame-buffer allowed before drawing. */
   BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
-  GPU_framebuffer_bind(drw_get().default_framebuffer());
-  GPU_framebuffer_clear_depth_stencil(drw_get().default_framebuffer(), 1.0f, 0xFF);
+  GPU_framebuffer_bind(draw_ctx.default_framebuffer());
+  GPU_framebuffer_clear_depth_stencil(draw_ctx.default_framebuffer(), 1.0f, 0xFF);
 
   /* Init engines */
   drw_engines_init();
@@ -1545,7 +1548,7 @@ static void drw_draw_render_loop_2d(Depsgraph *depsgraph, ARegion *region, GPUVi
   }
   drw_task_graph_deinit();
 
-  GPU_framebuffer_bind(drw_get().default_framebuffer());
+  GPU_framebuffer_bind(draw_ctx.default_framebuffer());
 
   /* Start Drawing */
   blender::draw::command::StateSet::set();
@@ -1591,15 +1594,15 @@ void DRW_draw_view(const bContext *C)
     Scene *scene = DEG_get_evaluated_scene(depsgraph);
     RenderEngineType *engine_type = ED_view3d_engine_type(scene, v3d->shading.type);
 
-    drw_get().options.draw_text = ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0 &&
-                                   (v3d->overlay.flag & V3D_OVERLAY_HIDE_TEXT) == 0);
-    drw_get().options.draw_background = (scene->r.alphamode == R_ADDSKY) ||
-                                        (v3d->shading.type != OB_RENDER);
+    draw_ctx.options.draw_text = ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0 &&
+                                  (v3d->overlay.flag & V3D_OVERLAY_HIDE_TEXT) == 0);
+    draw_ctx.options.draw_background = (scene->r.alphamode == R_ADDSKY) ||
+                                       (v3d->shading.type != OB_RENDER);
 
-    drw_draw_render_loop_3d(depsgraph, engine_type, region, v3d, viewport);
+    drw_draw_render_loop_3d(draw_ctx, engine_type);
   }
   else {
-    drw_draw_render_loop_2d(depsgraph, region, viewport);
+    drw_draw_render_loop_2d(draw_ctx);
   }
 
   drw_manager_exit(&draw_ctx);
@@ -1633,7 +1636,7 @@ void DRW_draw_render_loop_offscreen(Depsgraph *depsgraph,
   drw_get().options.is_image_render = is_image_render;
   drw_get().options.draw_background = draw_background;
 
-  drw_draw_render_loop_3d(depsgraph, engine_type, region, v3d, render_viewport);
+  drw_draw_render_loop_3d(draw_ctx, engine_type);
 
   drw_manager_exit(&draw_ctx);
 
