@@ -70,6 +70,11 @@ struct ConstraintEvalParams {
   /** Inverse moment of inertia for constraint influence. */
   VArraySpan<float> rotation_weights;
 
+  /* Linear point masses. */
+  VArraySpan<float> masses;
+  /* Moments of inertia in the local frame. */
+  VArraySpan<float3> local_inertia;
+
   /** Collider transform at the end of the current time. */
   Span<float4x4> collider_transforms;
   /** Collider transforms at the end of the previous frame. */
@@ -126,7 +131,8 @@ using ConstraintLinearSolveSizeFunc =
  * Returns the variable indices used by a constraint.
  */
 using ConstraintPositionLinearSolveVariablesFunc =
-    std::function<void(const bke::AttributeAccessor &attributes,
+    std::function<void(const ConstraintEvalParams &params,
+                       const bke::AttributeAccessor &attributes,
                        const IndexMask &selection,
                        MutableSpan<int> r_position_indices[4],
                        MutableSpan<int> r_rotation_indices[4])>;
@@ -140,8 +146,8 @@ using ConstraintPositionLinearSolveVariablesFunc =
  * Spans are compressed and contain only values for constraints in the index mask.
  * They must be addressed by the position in the mask, not the index of the constraint.
  *
- * Gradients for positions and rotations expand the data type to 3 or 4 columns respectively
- * (Jacobian derivative matrix):
+ * Gradients for positions and rotations expand the data type to 3 or 4 rows respectively
+ * (transposed Jacobian derivative matrix):
  *
  * | Residual Type | Position Gradient | Rotation Gradient |
  * |   float       |   float3          |   float4          |
@@ -219,6 +225,7 @@ struct ConstraintTypeInfo {
   ConstraintMappingFunc get_mapping;
 
   ConstraintLinearSolveSizeFunc linear_solve_size;
+  ConstraintPositionLinearSolveVariablesFunc linear_solve_variables;
   ConstraintPositionLinearSolveElementsFunc linear_solve_elements;
 };
 

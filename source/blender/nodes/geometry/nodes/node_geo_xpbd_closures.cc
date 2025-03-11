@@ -159,6 +159,21 @@ static void position_goal__linear_solve_size(int &r_num_components,
   r_num_rotation_vars = 0;
 }
 
+static void position_goal__linear_solve_variables(const ConstraintEvalParams &params,
+                                                  const bke::AttributeAccessor &attributes,
+                                                  const IndexMask &selection,
+                                                  MutableSpan<int> r_position_indices[4],
+                                                  MutableSpan<int> /*r_rotation_indices*/[4])
+{
+  const VArraySpan<int> points = *lookup_or_warn<int>(
+      attributes, ATTR_POINT1, AttrDomain::Point, 0, params.error_message_add);
+
+  MutableSpan<int> position_indices = r_position_indices[0];
+  selection.foreach_index(constraint_grain_size, [&](const int index, const int pos) {
+    position_indices[pos] = points[index];
+  });
+}
+
 static void position_goal__linear_solve_elements(const ConstraintEvalParams &params,
                                                  const ConstraintVariables &variables,
                                                  const bke::AttributeAccessor &attributes,
@@ -167,17 +182,15 @@ static void position_goal__linear_solve_elements(const ConstraintEvalParams &par
                                                  GMutableSpan r_betas,
                                                  GMutableSpan r_residuals,
                                                  GMutableSpan r_position_gradients[4],
-                                                 GMutableSpan /*r_rotation_gradients*/[4],
-                                                 MutableSpan<int> r_position_indices[4],
-                                                 MutableSpan<int> /*r_rotation_indices*/[4])
+                                                 GMutableSpan /*r_rotation_gradients*/[4])
 {
-  VArraySpan<int> points = *lookup_or_warn<int>(
+  const VArraySpan<int> points = *lookup_or_warn<int>(
       attributes, ATTR_POINT1, AttrDomain::Point, 0, params.error_message_add);
-  VArraySpan<float> alphas = *attributes.lookup_or_default<float>(
+  const VArraySpan<float> alphas = *attributes.lookup_or_default<float>(
       ATTR_ALPHA, AttrDomain::Point, 0.0f);
-  VArraySpan<float> betas = *attributes.lookup_or_default<float>(
+  const VArraySpan<float> betas = *attributes.lookup_or_default<float>(
       ATTR_BETA, AttrDomain::Point, 0.0f);
-  VArraySpan<float3> goal_positions = *lookup_or_warn<float3>(
+  const VArraySpan<float3> goal_positions = *lookup_or_warn<float3>(
       attributes, "goal_position", AttrDomain::Point, float3(0.0f), params.error_message_add);
 
   const IndexRange points_range = variables.positions.index_range();
@@ -187,7 +200,6 @@ static void position_goal__linear_solve_elements(const ConstraintEvalParams &par
   MutableSpan<float> beta_elements = r_betas.typed<float>();
   MutableSpan<float> residual_elements = r_residuals.typed<float>();
   MutableSpan<float3> position_gradient_elements = r_position_gradients[0].typed<float3>();
-  MutableSpan<int> position_indices = r_position_indices[0];
 
   selection.foreach_index(constraint_grain_size, [&](const int index, const int pos) {
     const int point = points[index];
@@ -200,7 +212,6 @@ static void position_goal__linear_solve_elements(const ConstraintEvalParams &par
     beta_elements[pos] = betas[index];
     xpbd_constraints::eval_position_goal_elements(
         goal, positions[point], residual_elements[pos], position_gradient_elements[pos]);
-    position_indices[pos] = point;
   });
 }
 
@@ -1058,6 +1069,7 @@ template<bool debug_output> static Array<ConstraintTypeInfo> create_constraint_i
                                            {},
                                            position_goal__get_mapping,
                                            position_goal__linear_solve_size,
+                                           position_goal__linear_solve_variables,
                                            position_goal__linear_solve_elements};
   ConstraintTypeInfo rotation_goal_info = {"Rotation Goal Constraints",
                                            "Set orientation of an edge to a target rotation",
@@ -1067,6 +1079,7 @@ template<bool debug_output> static Array<ConstraintTypeInfo> create_constraint_i
                                            rotation_goal__eval_positions<debug_output>,
                                            {},
                                            rotation_goal__get_mapping,
+                                           {},
                                            {},
                                            {}};
   ConstraintTypeInfo stretch_shear_info = {
@@ -1079,6 +1092,7 @@ template<bool debug_output> static Array<ConstraintTypeInfo> create_constraint_i
       {},
       stretch_shear__get_mapping,
       {},
+      {},
       {}};
   ConstraintTypeInfo bend_twist_info = {
       "Bend/Twist Constraints",
@@ -1090,6 +1104,7 @@ template<bool debug_output> static Array<ConstraintTypeInfo> create_constraint_i
       {},
       bend_twist__get_mapping,
       {},
+      {},
       {}};
   ConstraintTypeInfo contact_info = {"Contact Constraints",
                                      "Keep contact points from penetrating",
@@ -1099,6 +1114,7 @@ template<bool debug_output> static Array<ConstraintTypeInfo> create_constraint_i
                                      contact__eval_positions<debug_output>,
                                      contact__eval_velocities<debug_output>,
                                      contact__get_mapping,
+                                     {},
                                      {},
                                      {}};
 

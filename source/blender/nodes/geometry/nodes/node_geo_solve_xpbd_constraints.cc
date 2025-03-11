@@ -525,6 +525,101 @@ struct ConstraintEvalData {
   Vector<IndexMask> group_masks;
 };
 
+// static void read_constraint_topology(const ConstraintEvalParams &params,
+//                                      const ConstraintEvalData &data,
+//                                      const IndexMask &selection,
+//                                      MutableSpan<int> position_indices,
+//                                      MutableSpan<int> rotation_indices)
+// {
+//   if (!data.type->linear_solve_variables) {
+//     return;
+//   }
+//   if (!data.geometry || !data.geometry->has_component<PointCloudComponent>()) {
+//     return;
+//   }
+//   const GeometryComponent &component = *data.geometry->get_component<PointCloudComponent>();
+//   AttributeAccessor attributes = *component.attributes();
+
+//   data.type->linear_solve_variables(params, attributes, selection, position_indices,
+//   rotation_indices);
+// }
+
+inline float4x4 quaternion_matrix(const math::Quaternion &q)
+{
+  float4x4 result;
+  result[0] = float4{q.w, q.x, q.y, q.z};
+  result[1] = float4{-q.x, q.x, -q.z, q.y};
+  result[1] = float4{-q.y, q.z, q.y, -q.x};
+  result[1] = float4{-q.z, -q.y, q.x, q.z};
+  return result;
+}
+
+/* Set matrix elements for a type of constraint.
+ * Template of the component number so that vector types can be defined statically. */
+template<typename ValueT, typename PosGradT, typename RotGradT>
+static void set_global_solve_elements(const ConstraintEvalParams &eval_params,
+                                      const ConstraintVariables &variables,
+                                      const IndexRange position_columns,
+                                      const IndexRange rotation_columns,
+                                      const IndexRange component_columns,
+                                      const ConstraintEvalData &data,
+                                      Vector<Eigen::Triplet<float>> &triplets)
+{
+  /* XXX does not work unfortunately. */
+  // using ValueT = VecBase<float, num_components>;
+  // /* Note: These are transposed Jacobian matrices to better match common types
+  //  * (float3 instead of "float1x3"). */
+  // using PosGradT = MatBase<float, num_components, 3>;
+  // using RotGradT = MatBase<float, num_components, 4>;
+
+  if (!data.geometry || !data.geometry->has_component<PointCloudComponent>()) {
+    return;
+  }
+  const int num_constraints = data.constraints.size();
+  const IndexMask constraint_mask = data.constraints;
+
+  int num_components, num_position_vars, num_rotation_vars;
+  data.type->linear_solve_size(num_components, num_position_vars, num_rotation_vars);
+  BLI_assert(num_position_vars <= 4);
+  BLI_assert(num_rotation_vars <= 4);
+
+  Array<ValueT> alphas(num_constraints);
+  Array<ValueT> betas(num_constraints);
+  Array<ValueT> residuals(num_constraints);
+  Array<PosGradT> position_gradients[4];
+  for (const int i : IndexRange(num_position_vars)) {
+    position_gradients[i].reinitialize(num_constraints);
+  }
+  Array<RotGradT> rotation_gradients[4];
+  for (const int i : IndexRange(num_rotation_vars)) {
+    rotation_gradients[i].reinitialize(num_constraints);
+  }
+  GMutableSpan position_gradient_spans[4] = {position_gradients[0].as_mutable_span(),
+                                             position_gradients[1].as_mutable_span(),
+                                             position_gradients[2].as_mutable_span(),
+                                             position_gradients[3].as_mutable_span()};
+  GMutableSpan rotation_gradient_spans[4] = {rotation_gradients[0].as_mutable_span(),
+                                             rotation_gradients[1].as_mutable_span(),
+                                             rotation_gradients[2].as_mutable_span(),
+                                             rotation_gradients[3].as_mutable_span()};
+
+  const GeometryComponent &component = *data.geometry->get_component<PointCloudComponent>();
+  const AttributeAccessor attributes = *component.attributes();
+  data.type->linear_solve_elements(eval_params,
+                                   variables,
+                                   attributes,
+                                   constraint_mask,
+                                   alphas.as_mutable_span(),
+                                   betas.as_mutable_span(),
+                                   residuals.as_mutable_span(),
+                                   position_gradient_spans,
+                                   rotation_gradient_spans);
+
+  /* Compliance entries */
+  for (const int i : IndexRange(num_constraints)) {
+  }
+}
+
 static void do_global_solve(const EvaluationTarget target,
                             const ConstraintEvalParams &eval_params,
                             MutableSpan<ConstraintEvalData> constraint_data,
@@ -532,12 +627,12 @@ static void do_global_solve(const EvaluationTarget target,
 {
   const int num_positions = variables.positions.size();
   const int num_rotations = variables.rotations.size();
-  int tot_components = 0;
-  // IndexMaskMemory memory;
 
   /* Count number of constraint values and dependent variables,
    * which determines the size of the global solver matrix. */
 
+  /* Total number of component rows/columns in the matrix. */
+  int tot_components = 0;
   /* Number of rows/columns of the sparse solver matrix. */
   int num_columns = 0;
   /* Total number of non-zero entries in the sparse solver matrix. */
@@ -548,11 +643,12 @@ static void do_global_solve(const EvaluationTarget target,
   /* Each position adds 3 mass entries on the diagonal.
    * Each rotation adds 4x4 moment-of-inertia block-diagonal entries. */
   num_non_zeroes += num_positions * 3 + num_rotations * 16;
-  for (ConstraintEvalData &data : constraint_data) {
+  for (const ConstraintEvalData &data : constraint_data) {
     if (!data.type->linear_solve_size) {
       continue;
     }
     const int num_constraints = data.constraints.size();
+
     int num_components, num_position_vars, num_rotation_vars;
     data.type->linear_solve_size(num_components, num_position_vars, num_rotation_vars);
     tot_components += num_components;
@@ -566,83 +662,178 @@ static void do_global_solve(const EvaluationTarget target,
   /* Matrix is square. */
   const int num_rows = num_columns;
 
+  const IndexRange position_columns = {0, num_positions * 3};
+  const IndexRange rotation_columns = position_columns.after(num_rotations * 4);
+
+  Vector<Eigen::Triplet<float>> triplets;
+  triplets.reserve(num_non_zeroes);
+
+  /* Mass entries. */
+  for (const int i : IndexRange(num_positions)) {
+    const float mass = eval_params.masses[i];
+
+    const int col = position_columns[i * 3];
+    for (const int u : IndexRange(3)) {
+      triplets.append({col + u, col + u, mass});
+    }
+  }
+  for (const int i : IndexRange(num_rotations)) {
+    const float3 local_inertia = eval_params.local_inertia[i];
+    const math::Quaternion global_inertia = variables.rotations[i] *
+                                            math::Quaternion(0.0f, local_inertia);
+    const float4x4 inertia_tensor = quaternion_matrix(global_inertia);
+
+    const int col = rotation_columns[i * 4];
+    for (const int u : IndexRange(4)) {
+      for (const int v : IndexRange(4)) {
+        triplets.append({col + u, col + v, inertia_tensor[u][v]});
+      }
+    }
+  }
+
+  IndexRange prev_columns = rotation_columns;
+  for (const ConstraintEvalData &data : constraint_data) {
+    if (!data.type->linear_solve_size) {
+      continue;
+    }
+    const int num_constraints = data.constraints.size();
+
+    int num_components, num_position_vars, num_rotation_vars;
+    data.type->linear_solve_size(num_components, num_position_vars, num_rotation_vars);
+
+    const IndexRange component_columns = prev_columns.after(num_constraints * num_components);
+    if (num_components == 1) {
+      set_global_solve_elements<float, float3, float4>(eval_params,
+                                                       variables,
+                                                       position_columns,
+                                                       rotation_columns,
+                                                       component_columns,
+                                                       data,
+                                                       triplets);
+    }
+    else if (num_components == 2) {
+      set_global_solve_elements<float2, float2x3, float2x4>(eval_params,
+                                                            variables,
+                                                            position_columns,
+                                                            rotation_columns,
+                                                            component_columns,
+                                                            data,
+                                                            triplets);
+    }
+    else if (num_components == 3) {
+      set_global_solve_elements<float3, float3x3, float3x4>(eval_params,
+                                                            variables,
+                                                            position_columns,
+                                                            rotation_columns,
+                                                            component_columns,
+                                                            data,
+                                                            triplets);
+    }
+    else {
+      BLI_assert_unreachable();
+    }
+
+    prev_columns = component_columns;
+  }
+
   /* LHS matrix describing equations of motion and constraint impulses. */
   Eigen::SparseMatrix<float> H(num_rows, num_columns);
-  H.makeCompressed();
-  H.reserve(num_non_zeroes);
-  /* Should be defined as column-major storage. */
-  static_assert(!H.IsRowMajor);
+  H.setFromTriplets(triplets.begin(), triplets.end());
 
-  /* Determine size of per-column arrays. */
-  {
-    const IndexRange positions_range = {0, num_positions};
-    const IndexRange rotations_range = positions_range.after(num_rotations);
-    const IndexRange components_range = rotations_range.after(tot_components);
-    MutableSpan<int> column_sizes = {H.outerIndexPtr(), num_columns + 1};
+  // /* Read constraint topology for finding offsets. */
+  // // Array<Array<int>> position_indices_by_type(constraint_data.size());
+  // // Array<Array<int>> rotation_indices_by_type(constraint_data.size());
+  // for (const int i : constraint_data.index_range()) {
+  //   const ConstraintEvalData &data = constraint_data[i];
+  //   if (!data.type->linear_solve_size || !data.type->linear_solve_variables) {
+  //     continue;
+  //   }
 
-    /* Diagonal entries for point masses. */
-    for (const int i : positions_range) {
-      column_sizes[i] += 1;
-    }
-    /* Diagonal block entries for moment of inertia tensors. */
-    for (const int i : rotations_range) {
-      column_sizes[i] += 4;
-    }
-    /* Diagonal entries for compliance. */
-    for (const int i : components_range) {
-      column_sizes[i] += 1;
-    }
+  //   int num_components, num_position_vars, num_rotation_vars;
+  //   data.type->linear_solve_size(num_components, num_position_vars, num_rotation_vars);
 
-    for (ConstraintEvalData &data : constraint_data) {
-      if (!data.type->linear_solve_size) {
-        continue;
-      }
+  //   // position_indices_by_type[i].reinitialize(num_position_vars);
+  //   // rotation_indices_by_type[i].reinitialize(num_rotation_vars);
+  //   // data.type->linear_solve_variables(eval_params, attributes, selection)
+  // }
 
-      const int num_constraints = data.constraints.size();
-      int num_components, num_position_vars, num_rotation_vars;
-      data.type->linear_solve_size(num_components, num_position_vars, num_rotation_vars);
+  // /* LHS matrix describing equations of motion and constraint impulses. */
+  // Eigen::SparseMatrix<float> H(num_rows, num_columns);
+  // H.makeCompressed();
+  // H.reserve(num_non_zeroes);
+  // /* Should be defined as column-major storage. */
+  // static_assert(!H.IsRowMajor);
 
-      /* Lower-left corner:
-       * A column represents a variable, each row is a derivative of one component. */
+  // /* Determine size of per-column arrays. */
+  // {
+  //   const IndexRange positions_range = {0, num_positions};
+  //   const IndexRange rotations_range = positions_range.after(num_rotations);
+  //   const IndexRange components_range = rotations_range.after(tot_components);
+  //   MutableSpan<int> column_sizes = {H.outerIndexPtr(), num_columns + 1};
 
-      /* Upper-right corner:
-       * A column represents a component, each row is a derivative wrt. one variable. */
-    }
-    column_sizes.last() = 0;
+  //   /* Diagonal entries for point masses. */
+  //   for (const int i : positions_range) {
+  //     column_sizes[i] += 1;
+  //   }
+  //   /* Diagonal block entries for moment of inertia tensors. */
+  //   for (const int i : rotations_range) {
+  //     column_sizes[i] += 4;
+  //   }
+  //   /* Diagonal entries for compliance. */
+  //   for (const int i : components_range) {
+  //     column_sizes[i] += 1;
+  //   }
 
-    offset_indices::accumulate_counts_to_offsets(column_sizes);
-  }
+  //   for (const ConstraintEvalData &data : constraint_data) {
+  //     if (!data.type->linear_solve_size) {
+  //       continue;
+  //     }
 
-  const OffsetIndices<int> column_offsets = {Span<int>(H.outerIndexPtr(), num_columns + 1)};
-  /* Redundant for compressed matrix, non-zeros per column is the same as index range derived
-   * from offsets. */
-  // const Span<int> column_nonzeros = {H.innerNonZeroPtr(), num_columns};
+  //     const int num_constraints = data.constraints.size();
+  //     int num_components, num_position_vars, num_rotation_vars;
+  //     data.type->linear_solve_size(num_components, num_position_vars, num_rotation_vars);
 
-  {
-    MutableSpan<int> row_indices = {H.innerIndexPtr(), num_non_zeroes};
-    MutableSpan<float> values = {H.valuePtr(), num_non_zeroes};
-    for (ConstraintEvalData &data : constraint_data) {
-      if (!data.geometry) {
-        continue;
-      }
+  //     /* Lower-left corner:
+  //      * A column represents a variable, each row is a derivative of one component. */
 
-      // /* Solve in consistent order by using the sorted index set. */
-      // for (const IndexMask &group_mask : data.group_masks) {
-      //   switch (target) {
-      //     case EvaluationTarget::Positions: {
-      //       apply_gauss_seidel_positions_group(
-      //           eval_params, *data.type, *data.geometry, group_mask, variables, memory);
-      //       break;
-      //     }
-      //     case EvaluationTarget::Velocities: {
-      //       apply_gauss_seidel_velocities_group(
-      //           eval_params, *data.type, *data.geometry, group_mask, variables, memory);
-      //       break;
-      //     }
-      //   }
-      // }
-    }
-  }
+  //     /* Upper-right corner:
+  //      * A column represents a component, each row is a derivative wrt. one variable. */
+  //   }
+  //   column_sizes.last() = 0;
+
+  //   offset_indices::accumulate_counts_to_offsets(column_sizes);
+  // }
+
+  // const OffsetIndices<int> column_offsets = {Span<int>(H.outerIndexPtr(), num_columns + 1)};
+  // /* Redundant for compressed matrix, non-zeros per column is the same as index range derived
+  //  * from offsets. */
+  // // const Span<int> column_nonzeros = {H.innerNonZeroPtr(), num_columns};
+
+  // {
+  //   MutableSpan<int> row_indices = {H.innerIndexPtr(), num_non_zeroes};
+  //   MutableSpan<float> values = {H.valuePtr(), num_non_zeroes};
+  //   for (ConstraintEvalData &data : constraint_data) {
+  //     if (!data.geometry) {
+  //       continue;
+  //     }
+
+  //     // /* Solve in consistent order by using the sorted index set. */
+  //     // for (const IndexMask &group_mask : data.group_masks) {
+  //     //   switch (target) {
+  //     //     case EvaluationTarget::Positions: {
+  //     //       apply_gauss_seidel_positions_group(
+  //     //           eval_params, *data.type, *data.geometry, group_mask, variables, memory);
+  //     //       break;
+  //     //     }
+  //     //     case EvaluationTarget::Velocities: {
+  //     //       apply_gauss_seidel_velocities_group(
+  //     //           eval_params, *data.type, *data.geometry, group_mask, variables, memory);
+  //     //       break;
+  //     //     }
+  //     //   }
+  //     // }
+  //   }
+  // }
 }
 
 static void do_gauss_seidel_step(const EvaluationTarget target,
