@@ -2972,7 +2972,8 @@ static bool ed_object_select_pick(bContext *C,
 
   if (changed_object) {
     DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+    // Adding ND_MODE since it seems that makes the Image Editor update when an object is selected
+    WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT | ND_MODE, scene);
 
     ED_outliner_select_sync_from_object_tag(C);
   }

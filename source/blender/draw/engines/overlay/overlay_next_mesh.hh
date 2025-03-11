@@ -712,6 +712,26 @@ class MeshUVs : Overlay {
     per_mesh_area_2d_.clear();
   }
 
+  void object_sync(Manager &manager,
+                   const ObjectRef &ob_ref,
+                   Resources & /*res*/,
+                   const State &state) final
+  {
+    if (!enabled_ || ob_ref.object->type != OB_MESH) {
+      return;
+    }
+
+    Object &ob = *ob_ref.object;
+    Mesh &mesh = *static_cast<Mesh *>(ob.data);
+
+    ResourceHandle res_handle = manager.unique_handle(ob_ref);
+
+    if (show_wireframe_) {
+      gpu::Batch *geom = DRW_mesh_batch_cache_get_uv_edges(ob, mesh);
+      wireframe_ps_.draw_expand(geom, GPU_PRIM_TRIS, 2, 1, res_handle);
+    }
+  }
+
   void edit_object_sync(Manager &manager,
                         const ObjectRef &ob_ref,
                         Resources & /*res*/,

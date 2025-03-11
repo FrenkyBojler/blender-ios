@@ -96,7 +96,8 @@ void base_select(Base *base, eObjectSelect_Mode mode)
 
 void base_active_refresh(Main *bmain, Scene *scene, ViewLayer *view_layer)
 {
-  WM_main_add_notifier(NC_SCENE | ND_OB_ACTIVE, scene);
+  // Adding ND_MODE since it seems that makes the Image Editor update when an object is selected
+  WM_main_add_notifier(NC_SCENE | ND_OB_ACTIVE | ND_MODE, scene);
   DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
   wmMsgBus *mbus = ((wmWindowManager *)bmain->wm.first)->message_bus;
   if (mbus != nullptr) {
