@@ -109,6 +109,8 @@
 
 // static CLG_LogRef LOG = {"blo.readfile.doversion"};
 
+using blender::Span;
+
 static void version_composite_nodetree_null_id(bNodeTree *ntree, Scene *scene)
 {
   for (bNode *node : ntree->all_nodes()) {
@@ -3787,6 +3789,25 @@ static void version_sequencer_update_overdrop(Main *bmain)
   }
 }
 
+static void node_interface_single_value_to_structure_type(bNodeTreeInterfaceItem &item)
+{
+  if (item.item_type == eNodeTreeInterfaceItemType::NODE_INTERFACE_SOCKET) {
+    auto &socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
+    if (socket.flag & NODE_INTERFACE_SOCKET_SINGLE_VALUE_ONLY_LEGACY) {
+      socket.structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_SINGLE;
+    }
+    else {
+      socket.structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO;
+    }
+  }
+  else {
+    auto &panel = reinterpret_cast<bNodeTreeInterfacePanel &>(item);
+    for (bNodeTreeInterfaceItem *item : Span(panel.items_array, panel.items_num)) {
+      node_interface_single_value_to_structure_type(*item);
+    }
+  }
+}
+
 void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 1)) {
@@ -5897,6 +5918,14 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 2)) {
     version_sequencer_update_overdrop(bmain);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 4)) {
+    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+      if (ntree->type == NTREE_GEOMETRY) {
+        node_interface_single_value_to_structure_type(ntree->tree_interface.root_panel.item);
+      }
+    }
   }
 
   /* Always run this versioning; meshes are written with the legacy format which always needs to
