@@ -102,6 +102,7 @@ struct GPUPass {
   GPUCodegenCreateInfo *create_info = nullptr;
   BatchHandle compilation_handle = 0;
   std::atomic<GPUShader *> shader = nullptr;
+  std::atomic<eGPUPassStatus> status = GPU_PASS_QUEUED;
   /* Orphaned GPUPasses gets freed by the garbage collector. */
   std::atomic<int> refcount = 1;
   /* The last time the refcount was greater than 0. */
@@ -156,6 +157,8 @@ struct GPUPass {
       shader = nullptr;
     }
 
+    status = shader ? GPU_PASS_SUCCESS : GPU_PASS_FAILED;
+
     MEM_delete(create_info);
     create_info = nullptr;
   }
@@ -176,29 +179,15 @@ struct GPUPass {
     }
   }
 
-  eGPUPassStatus status()
-  {
-    // TODO: This should lock!
-    if (shader) {
-      return GPU_PASS_SUCCESS;
-    }
-    else if (!compilation_handle) {
-      return GPU_PASS_FAILED;
-    }
-    else {
-      return GPU_PASS_QUEUED;
-    }
-  }
-
   bool should_gc(int gc_collect_rate)
   {
-    return !compilation_handle && status() != GPU_PASS_FAILED && gc_timestamp >= gc_collect_rate;
+    return !compilation_handle && status != GPU_PASS_FAILED && gc_timestamp >= gc_collect_rate;
   }
 };
 
 eGPUPassStatus GPU_pass_status(GPUPass *pass)
 {
-  return pass->status();
+  return pass->status;
 }
 
 bool GPU_pass_should_optimize(GPUPass *pass)
@@ -277,7 +266,7 @@ class GPUPassCache {
   {
     std::lock_guard lock(mutex_);
     std::unique_ptr<GPUPass> *pass = passes_[engine].lookup_ptr(hash);
-    if (!allow_deferred && pass && pass->get()->status() == GPU_PASS_QUEUED) {
+    if (!allow_deferred && pass && pass->get()->status == GPU_PASS_QUEUED) {
       pass->get()->finalize_compilation();
     }
     return pass ? pass->get() : nullptr;
