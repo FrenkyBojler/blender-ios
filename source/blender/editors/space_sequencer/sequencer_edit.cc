@@ -845,10 +845,8 @@ static int sequencer_mute_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_scene(C);
   Editing *ed = seq::editing_get(scene);
 
-  bool selected = !RNA_boolean_get(op->ptr, "unselected");
-
   LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
-    if (selected) {
+    if (!RNA_boolean_get(op->ptr, "unselected")) {
       if (strip->flag & SELECT) {
         strip->flag |= SEQ_MUTE;
         seq::relations_invalidate_dependent(scene, strip);
@@ -896,10 +894,9 @@ static int sequencer_unmute_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   Editing *ed = seq::editing_get(scene);
-  bool selected = !RNA_boolean_get(op->ptr, "unselected");
 
   LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
-    if (selected) {
+    if (RNA_boolean_get(op->ptr, "unselected")) {
       if (strip->flag & SELECT) {
         strip->flag &= ~SEQ_MUTE;
         seq::relations_invalidate_dependent(scene, strip);
