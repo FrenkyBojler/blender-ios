@@ -905,14 +905,14 @@ static void long_edge_queue_edge_add_recursive(const EdgeQueueContext *eq_ctx,
     const float len_sq_cmp = len_sq * even_edgelen_threshold;
 
     const float new_limit_len = limit_len * even_generation_scale;
-    const float limit_len_sq = square_f(new_limit_len);
+    const float new_limit_len_sq = square_f(new_limit_len);
 
     const BMLoop *l_iter = l_edge;
     do {
       std::array<BMLoop *, 2> l_adjacent = {l_iter->next, l_iter->prev};
       for (int i = 0; i < l_adjacent.size(); i++) {
         const float len_sq_other = BM_edge_calc_length_squared(l_adjacent[i]->e);
-        if (len_sq_other > max_ff(len_sq_cmp, limit_len_sq)) {
+        if (len_sq_other > max_ff(len_sq_cmp, new_limit_len_sq)) {
           // edge_queue_insert(eq_ctx, l_adjacent[i]->e, -len_sq_other);
           long_edge_queue_edge_add_recursive(
               eq_ctx, l_adjacent[i]->radial_next, l_adjacent[i], len_sq_other, new_limit_len);
