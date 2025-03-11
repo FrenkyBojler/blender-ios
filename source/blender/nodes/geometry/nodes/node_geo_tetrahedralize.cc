@@ -69,7 +69,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Geometry>("Mesh").supported_type(GeometryComponent::Type::Mesh)
       .description("Surface mesh to tetrahedralize");
   
-  b.add_input<decl::Float>("Max Volume").default_value(0.5).min(0.0001).max(1.0)
+  b.add_input<decl::Float>("Max Volume").default_value(0.5).min(0.00001).max(1.0)
       .subtype(PROP_FACTOR)
       .description("Maximum volume of generated tetrahedra");
   
@@ -245,8 +245,8 @@ static bool prepare_tetgen_input(const Mesh *mesh,
     float3 size = max_co - min_co;
     float model_size = math::length(size);
     
-    // Échelle de base: 0.0001 * la taille du modèle
-    float base_scale = model_size * 0.0001f;
+    // Échelle de base: 0.00001 * la taille du modèle
+    float base_scale = model_size * 0.00001f;
     
     // Augmenter progressivement l'échelle avec chaque tentative
     float perturbation_scale = base_scale * std::pow(10.0f, attempt - 1);
@@ -456,7 +456,7 @@ static void configure_tetgen_options(tetgenbehavior &behavior,
   behavior.mindihedral = clamped_angle;
   
   // Maximum tetrahedra volume
-  if (max_volume > 0.0001) {
+  if (max_volume > 0.00001) {
     behavior.fixedvolume = 1;
     behavior.maxvolume = max_volume;
     
@@ -844,7 +844,7 @@ static Mesh* create_fallback_tetrahedron(const Mesh *mesh_in)
   float3 center = (bmin + bmax) * 0.5f;
   float3 size = bmax - bmin;
   float max_size = std::max(std::max(size.x, size.y), size.z);
-  if (max_size < 0.0001f) max_size = 1.0f;
+  if (max_size < 0.00001f) max_size = 1.0f;
   
   // Vertex positions
   MutableSpan<float3> vert_positions = mesh_out->vert_positions_for_write();
@@ -967,7 +967,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   
   // Adjust max_volume to be interpreted as a percentage
   double max_volume_percentage = params.extract_input<float>("Max Volume");
-  double max_volume = std::max(0.0001, max_volume_percentage * 0.1); // 0.1 corresponds to 100%
+  double max_volume = std::max(0.00001, max_volume_percentage * 0.1); // 0.1 corresponds to 100%
   
   float quality_ratio = std::max(1.0f, params.extract_input<float>("Quality Ratio"));
   
