@@ -123,15 +123,17 @@ def draw_kmi(display_keymaps, kc, km, kmi, layout, level):
                           or (kmi.alt_ui and inputs.is_alt_unreachable)
                           or (kmi.oskey_ui and inputs.is_oskey_unreachable))
     if not is_unreachable and kmi.key_modifier != 'NONE':
-        for i in range(2, 8):
-            if kmi.key_modifier == getattr(inputs, f"mouse_emulate_button_type_{i}"):
-                is_unreachable = True
-                break
+        for i in ("rmb", "mmb"):
+            for j in range(1, 3):
+                if kmi.key_modifier == getattr(inputs, f"{i}_emulate_source_type_nonmouse_{j}"):
+                    is_unreachable = True
+                    break
     if not is_unreachable and map_type == 'KEYBOARD' and kmi.type != 'NONE':
-        for i in range(2, 8):
-            if kmi.type == getattr(inputs, f"mouse_emulate_button_type_{i}"):
-                is_unreachable = True
-                break
+        for i in ("rmb", "mmb"):
+            for j in range(1, 3):
+                if kmi.key_modifier == getattr(inputs, f"{i}_emulate_source_type_nonmouse_{j}"):
+                    is_unreachable = True
+                    break
 
     col = _indented_layout(layout, level)
 

@@ -1883,17 +1883,22 @@ class USERPREF_PT_input_mouse_emulation(InputPanel, CenterAlignMixIn, Panel):
         prefs = context.preferences
         inputs = prefs.inputs
 
-        col = layout.column()
-        col.prop(inputs, "mouse_emulate_button_source_type")
-        col.prop(inputs, "mouse_emulate_button_consume_event")
+        layout.label(text="Emulate RMB From:")
+        flow = layout.grid_flow(row_major=True, columns=4, even_columns=False, even_rows=False, align=False)
+        flow.prop(inputs, "rmb_emulate_source_type_mouse", text="")
+        self.draw_single(flow.row(), inputs, "rmb", 1)
+        self.draw_single(flow.row(), inputs, "rmb", 2)
 
-        flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=False)
-        self.draw_single(flow.row(), inputs, 2, "RIGHTMOUSE", text=pgettext("UI_Events_KeyMaps", "Right"))
-        self.draw_single(flow.row(), inputs, 3, "MIDDLEMOUSE", text=pgettext("UI_Events_KeyMaps", "Middle"))
-        self.draw_single(flow.row(), inputs, 4, "BUTTON4MOUSE", text=pgettext("UI_Events_KeyMaps", "Button4"))
-        self.draw_single(flow.row(), inputs, 5, "BUTTON5MOUSE", text=pgettext("UI_Events_KeyMaps", "Button5"))
-        self.draw_single(flow.row(), inputs, 6, "BUTTON6MOUSE", text=pgettext("UI_Events_KeyMaps", "Button6"))
-        self.draw_single(flow.row(), inputs, 7, "BUTTON7MOUSE", text=pgettext("UI_Events_KeyMaps", "Button7"))
+        layout.label(text="Emulate MMB From:")
+        flow = layout.grid_flow(row_major=True, columns=4, even_columns=False, even_rows=False, align=False)
+        flow.prop(inputs, "mmb_emulate_source_type_mouse", text="")
+        self.draw_single(flow.row(), inputs, "mmb", 1)
+        self.draw_single(flow.row(), inputs, "mmb", 2)
+
+        layout.separator()
+
+        col = layout.column()
+        col.prop(inputs, "mouse_emulate_button_consume_event")
 
         if sys.platform[:3] == "win" and inputs.is_oskey_unreachable:
             layout.label(
@@ -1901,10 +1906,9 @@ class USERPREF_PT_input_mouse_emulation(InputPanel, CenterAlignMixIn, Panel):
                 icon='INFO'
             )
 
-    def draw_single(self, row, inputs, index, target_event_type, text):
-        row.active = inputs.mouse_emulate_button_source_type != target_event_type
-        key = f"mouse_emulate_button_type_{index}"
-        row.prop(inputs, key, text=text, event=True)
+    def draw_single(self, row, inputs, button, index):
+        key = f"{button}_emulate_source_type_nonmouse_{index}"
+        row.prop(inputs, key, text="", event=True)
         col = row.column()
         col.enabled = getattr(inputs, key) != 'NONE'
         op = col.operator("preferences.userpref_mouse_button_emulation_remove", text="", icon='X')

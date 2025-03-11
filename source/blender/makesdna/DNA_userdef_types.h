@@ -825,15 +825,20 @@ typedef struct UserDef {
   char pref_flag;
   char savetime;
 
-  /**
-   * Index 0 stores which mouse button triggers mouse button emulation.
-   * For the rest, the mouse button names match the array indices.
-   * e.g. 1 is LMB; 2 is RMB; 3 is MMB; 4 is MB4.
-   * Stored values are event types (EVENT_NONE, LEFTMOUSE, EVT_AKEY, etc.)
-   */
-  int16_t mouse_emulate_button_types[8];
+  /** Store which ISMOUSE_BUTTON will trigger RMB/MMB emulation. */
+  int16_t rmb_emulate_source_type_mouse;
+  /** Store which ISKEYBOARD_OR_BUTTON has to be pressed to trigger RMB/MMB emulation. */
+  int16_t rmb_emulate_source_type_nonmouse_1;
+  int16_t rmb_emulate_source_type_nonmouse_2;
+  /** Store which ISMOUSE_BUTTON will trigger MMB emulation. */
+  int16_t mmb_emulate_source_type_mouse;
+  /** Store which ISKEYBOARD_OR_BUTTON has to be pressed to trigger MMB emulation. */
+  int16_t mmb_emulate_source_type_nonmouse_1;
+  int16_t mmb_emulate_source_type_nonmouse_2;
 
-  /** Use mouse_emulate_button_types instead. */
+  char _pad17[4];
+
+  /** Use mmb_emulate_source_type_nonmouse instead. */
   char mouse_emulate_3_button_modifier DNA_DEPRECATED;
 
   /**

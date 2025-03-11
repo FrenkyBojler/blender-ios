@@ -77,6 +77,7 @@
 #include "WM_types.hh"
 
 #include "wm.hh"
+#include "wm_event_emulation.hh"
 #include "wm_event_system.hh"
 #include "wm_event_types.hh"
 #include "wm_surface.hh"
@@ -5329,178 +5330,6 @@ static int wm_event_type_from_ghost_button(const GHOST_TButton button, const int
   return fallback;
 }
 
-static uint8_t wm_eventemulation_eventtomodifier(short event)
-{
-  switch (event) {
-    case EVT_LEFTCTRLKEY:
-    case EVT_RIGHTCTRLKEY:
-      return KM_CTRL;
-    case EVT_LEFTALTKEY:
-    case EVT_RIGHTALTKEY:
-      return KM_ALT;
-    case EVT_LEFTSHIFTKEY:
-    case EVT_RIGHTSHIFTKEY:
-      return KM_SHIFT;
-    case EVT_OSKEY:
-      return KM_OSKEY;
-    default:
-      return KM_NOTHING;
-  }
-}
-
-static void wm_eventemulation(wmEvent *event, bool test_only)
-{
-  constexpr int mouse_button_count = std::extent_v<decltype(UserDef::mouse_emulate_button_types)>;
-  constexpr int mouse_button_index_to_event_type[mouse_button_count] = {EVENT_NONE,
-                                                                        LEFTMOUSE,
-                                                                        RIGHTMOUSE,
-                                                                        MIDDLEMOUSE,
-                                                                        BUTTON4MOUSE,
-                                                                        BUTTON5MOUSE,
-                                                                        BUTTON6MOUSE,
-                                                                        BUTTON7MOUSE};
-
-  /* Store last middle-mouse event value to make emulation work
-   * when modifier keys are released first.
-   * This really should be in a data structure somewhere. */
-  static int emulating_event = EVENT_NONE;
-  /* Store which event triggered the reinterpretation of the emulating event. */
-  static int emulating_event_source = EVENT_NONE;
-  /* Store how to reinterpret the LMB press event depending on key events. */
-  static int upcoming_event = EVENT_NONE;
-  /* Store which event triggered the reinterpretation of the upcoming event. */
-  static int upcoming_event_source = EVENT_NONE;
-
-  if (event->tablet.active && ISMOUSE_BUTTON(event->type) &&
-      (U.flag & USER_FLAG_PEN_BARREL_AS_LMB)) {
-    /* Mouse buttons are configured to be locked to left mouse button. */
-    event->type = LEFTMOUSE;
-  }
-
-  if (U.runtime.is_ui_button_waiting_key_event) {
-    if (!test_only) {
-      /* User is entering a key to use as the modifier for this feature.
-       * Temporarily disable this feature, so that the key goes through. */
-      upcoming_event = upcoming_event_source = EVENT_NONE;
-    }
-  }
-  else if (!ISMOUSE_BUTTON(U.mouse_emulate_button_types[0])) {
-    if (!test_only) {
-      /* Feature is not used, or configuration is incorrect. */
-      upcoming_event = upcoming_event_source = EVENT_NONE;
-    }
-  }
-  else if (event->type == U.mouse_emulate_button_types[0]) {
-    /* Mouse buttons emulation. */
-    if (event->val == KM_PRESS && upcoming_event != EVENT_NONE) {
-      event->type = upcoming_event;
-      event->modifier &= ~wm_eventemulation_eventtomodifier(upcoming_event_source);
-
-      if (!test_only) {
-        emulating_event = upcoming_event;
-        emulating_event_source = upcoming_event_source;
-      }
-    }
-    else if (event->val == KM_RELEASE && emulating_event != EVENT_NONE) {
-      event->type = emulating_event;
-      event->modifier &= ~wm_eventemulation_eventtomodifier(emulating_event_source);
-
-      if (!test_only) {
-        emulating_event = EVENT_NONE;
-        emulating_event_source = EVENT_NONE;
-      }
-    }
-  }
-  else if (ISKEYBOARD(event->type) || ISTABLET_BUTTON(event->type)) {
-    bool kill_event = false;
-
-    /* Track pressed keys that are repurposed as modifier keys.
-     * If multiple keys are pressed, then the first pressed key will be used.
-     * Standard flow for the first pressed repurposed key will be suppressed. */
-    if (event->val == KM_PRESS && upcoming_event == EVENT_NONE) {
-      short upcoming_event_new = EVENT_NONE;
-
-      for (int i = 1; i < mouse_button_count; i++) {
-        if (event->type == U.mouse_emulate_button_types[i]) {
-          upcoming_event_new = mouse_button_index_to_event_type[i];
-        }
-      }
-
-      if (upcoming_event_new) {
-        kill_event = true;
-
-        if (!test_only) {
-          upcoming_event = upcoming_event_new;
-          upcoming_event_source = event->type;
-        }
-      }
-    }
-    else if (event->val == KM_RELEASE && upcoming_event_source == event->type) {
-      kill_event = true;
-
-      if (!test_only) {
-        upcoming_event = EVENT_NONE;
-        upcoming_event_source = EVENT_NONE;
-      }
-    }
-    else if (upcoming_event_source == event->type) {
-      kill_event = true;
-    }
-
-    if (kill_event && (U.flag & USER_FLAG_MOUSE_EMULATE_BUTTON_CONSUME_EVENT)) {
-      /* Prevent the event from being processed any further. */
-      event->type = EVENT_NONE;
-      event->val = KM_NOTHING;
-      return;
-    }
-  }
-
-  /* Numeric-pad emulation. */
-  if (U.flag & USER_NONUMPAD) {
-    switch (event->type) {
-      case EVT_ZEROKEY:
-        event->type = EVT_PAD0;
-        break;
-      case EVT_ONEKEY:
-        event->type = EVT_PAD1;
-        break;
-      case EVT_TWOKEY:
-        event->type = EVT_PAD2;
-        break;
-      case EVT_THREEKEY:
-        event->type = EVT_PAD3;
-        break;
-      case EVT_FOURKEY:
-        event->type = EVT_PAD4;
-        break;
-      case EVT_FIVEKEY:
-        event->type = EVT_PAD5;
-        break;
-      case EVT_SIXKEY:
-        event->type = EVT_PAD6;
-        break;
-      case EVT_SEVENKEY:
-        event->type = EVT_PAD7;
-        break;
-      case EVT_EIGHTKEY:
-        event->type = EVT_PAD8;
-        break;
-      case EVT_NINEKEY:
-        event->type = EVT_PAD9;
-        break;
-      case EVT_MINUSKEY:
-        event->type = EVT_PADMINUS;
-        break;
-      case EVT_EQUALKEY:
-        event->type = EVT_PADPLUSKEY;
-        break;
-      case EVT_BACKSLASHKEY:
-        event->type = EVT_PADSLASHKEY;
-        break;
-    }
-  }
-}
-
 constexpr wmTabletData wm_event_tablet_data_default()
 {
   wmTabletData tablet_data{};
@@ -6009,7 +5838,22 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
       /* Get tablet data. */
       wm_tablet_data_from_ghost(&bd->tablet, &event.tablet);
 
-      wm_eventemulation(&event, false);
+      if (ISTABLET_BUTTON(event.type)) {
+        if (event.val == KM_PRESS) {
+          if (event.keymodifier == 0) {
+            /* Only set in `eventstate`, for next event. */
+            event_state->keymodifier = event.type;
+          }
+        }
+        else {
+          BLI_assert(event.val == KM_RELEASE);
+          if (event.keymodifier == event.type) {
+            event.keymodifier = event_state->keymodifier = 0;
+          }
+        }
+      }
+
+      WM_eventemulation(&event, false);
       if (event.type == EVENT_NONE) {
         break;
       }
@@ -6063,7 +5907,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
       }
       event.val = (type == GHOST_kEventKeyDown) ? KM_PRESS : KM_RELEASE;
 
-      wm_eventemulation(&event, false);
+      WM_eventemulation(&event, false);
       if (event.type == EVENT_NONE) {
         break;
       }
@@ -6671,7 +6515,7 @@ void WM_window_cursor_keymap_status_refresh(bContext *C, wmWindow *win)
     test_event.type = event_data[data_index].event_type;
     test_event.val = event_data[data_index].event_value;
     test_event.flag = (eWM_EventFlag)0;
-    wm_eventemulation(&test_event, true);
+    WM_eventemulation(&test_event, true);
     wmKeyMapItem *kmi = nullptr;
     for (int handler_index = 0; handler_index < ARRAY_SIZE(handlers); handler_index++) {
       kmi = WM_event_match_keymap_item_from_handlers(

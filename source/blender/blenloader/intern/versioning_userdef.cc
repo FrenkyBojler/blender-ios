@@ -1416,18 +1416,16 @@ void blo_do_versions_userdef(UserDef *userdef)
   if (!USER_VERSION_ATLEAST(405, 4)) {
     userdef->flag |= USER_FLAG_MOUSE_EMULATE_BUTTON_CONSUME_EVENT;
 
-    memcpy(userdef->mouse_emulate_button_types,
-           U_default.mouse_emulate_button_types,
-           sizeof(U_default.mouse_emulate_button_types));
-
     /* deprecated USER_TWOBUTTONMOUSE */
     if (userdef->flag & USER_FLAG_UNUSED_8) {
       userdef->flag &= ~USER_FLAG_UNUSED_8;
       if (userdef->mouse_emulate_3_button_modifier == 0) {
-        userdef->mouse_emulate_button_types[3] = EVT_LEFTALTKEY;
+        userdef->mmb_emulate_source_type_mouse = LEFTMOUSE;
+        userdef->mmb_emulate_source_type_nonmouse_1 = EVT_LEFTALTKEY;
       }
       else {
-        userdef->mouse_emulate_button_types[3] = EVT_OSKEY;
+        userdef->mmb_emulate_source_type_mouse = LEFTMOUSE;
+        userdef->mmb_emulate_source_type_nonmouse_1 = EVT_OSKEY;
       }
     }
   }
