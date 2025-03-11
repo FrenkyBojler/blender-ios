@@ -1015,7 +1015,7 @@ void DRW_draw_region_engine_info(int xoffset, int *yoffset, int line_height)
       });
 }
 
-static void use_drw_engine(DrawEngineType *engine)
+static void drw_use_engine(DrawEngineType *engine)
 {
   DRW_view_data_use_engine(drw_get().view_data_active, engine);
 }
@@ -1027,16 +1027,16 @@ static void drw_engines_enable_from_engine(const RenderEngineType *engine_type, 
   switch (drawtype) {
     case OB_WIRE:
     case OB_SOLID:
-      use_drw_engine(DRW_engine_viewport_workbench_type.draw_engine);
+      drw_use_engine(DRW_engine_viewport_workbench_type.draw_engine);
       break;
     case OB_MATERIAL:
     case OB_RENDER:
     default:
       if (engine_type->draw_engine != nullptr) {
-        use_drw_engine(engine_type->draw_engine);
+        drw_use_engine(engine_type->draw_engine);
       }
       else if ((engine_type->flag & RE_INTERNAL) == 0) {
-        use_drw_engine(DRW_engine_viewport_external_type.draw_engine);
+        drw_use_engine(DRW_engine_viewport_external_type.draw_engine);
       }
       break;
   }
@@ -1044,19 +1044,19 @@ static void drw_engines_enable_from_engine(const RenderEngineType *engine_type, 
 
 static void drw_engines_enable_overlays()
 {
-  use_drw_engine(&draw_engine_overlay_next_type);
+  drw_use_engine(&draw_engine_overlay_next_type);
 }
 
 static void drw_engine_enable_image_editor()
 {
   if (DRW_engine_external_acquire_for_image_editor()) {
-    use_drw_engine(&draw_engine_external_type);
+    drw_use_engine(&draw_engine_external_type);
   }
   else {
-    use_drw_engine(&draw_engine_image_type);
+    drw_use_engine(&draw_engine_image_type);
   }
 
-  use_drw_engine(&draw_engine_overlay_next_type);
+  drw_use_engine(&draw_engine_overlay_next_type);
 }
 
 static void drw_engines_enable_editors()
@@ -1073,8 +1073,8 @@ static void drw_engines_enable_editors()
     /* Only enable when drawing the space image backdrop. */
     SpaceNode *snode = (SpaceNode *)space_data;
     if ((snode->flag & SNODE_BACKDRAW) != 0) {
-      use_drw_engine(&draw_engine_image_type);
-      use_drw_engine(&draw_engine_overlay_next_type);
+      drw_use_engine(&draw_engine_image_type);
+      drw_use_engine(&draw_engine_overlay_next_type);
     }
   }
 }
@@ -1089,18 +1089,18 @@ static void drw_engines_enable(ViewLayer * /*view_layer*/,
 
   drw_engines_enable_from_engine(engine_type, drawtype);
   if (gpencil_engine_needed && ((drawtype >= OB_SOLID) || !use_xray)) {
-    use_drw_engine(&draw_engine_gpencil_type);
+    drw_use_engine(&draw_engine_gpencil_type);
   }
 
   if (DRW_state_viewport_compositor_enabled()) {
-    use_drw_engine(&draw_engine_compositor_type);
+    drw_use_engine(&draw_engine_compositor_type);
   }
 
   drw_engines_enable_overlays();
 
 #ifdef WITH_DRAW_DEBUG
   if (G.debug_value == 31) {
-    use_drw_engine(&draw_engine_debug_select_type);
+    drw_use_engine(&draw_engine_debug_select_type);
   }
 #endif
 }
@@ -1130,7 +1130,7 @@ static bool drw_gpencil_engine_needed(Depsgraph *depsgraph, View3D *v3d)
 /** \name Callbacks
  * \{ */
 
-static void draw_callbacks_pre_scene()
+static void drw_callbacks_pre_scene()
 {
   DRW_submission_start();
 
@@ -1149,7 +1149,7 @@ static void draw_callbacks_pre_scene()
   DRW_submission_end();
 }
 
-static void draw_callbacks_post_scene()
+static void drw_callbacks_post_scene()
 {
   RegionView3D *rv3d = drw_get().draw_ctx.rv3d;
   ARegion *region = drw_get().draw_ctx.region;
@@ -1292,7 +1292,7 @@ static void draw_callbacks_post_scene()
   DRW_submission_end();
 }
 
-static void draw_callbacks_pre_scene_2D()
+static void drw_callbacks_pre_scene_2D()
 {
   DRW_submission_start();
 
@@ -1304,7 +1304,7 @@ static void draw_callbacks_pre_scene_2D()
   DRW_submission_end();
 }
 
-static void draw_callbacks_post_scene_2D(View2D &v2d)
+static void drw_callbacks_post_scene_2D(View2D &v2d)
 {
   DRW_submission_start();
 
@@ -1375,7 +1375,7 @@ DRWTextStore *DRW_text_cache_ensure()
  * Used for both regular and off-screen drawing.
  * The global `DRWContext` needs to be set before calling this function.
  */
-static void DRW_draw_render_loop_3d(Depsgraph *depsgraph,
+static void drw_draw_render_loop_3d(Depsgraph *depsgraph,
                                     RenderEngineType *engine_type,
                                     ARegion *region,
                                     View3D *v3d,
@@ -1472,7 +1472,7 @@ static void DRW_draw_render_loop_3d(Depsgraph *depsgraph,
 
   DRW_curves_update(*DRW_manager_get());
 
-  draw_callbacks_pre_scene();
+  drw_callbacks_pre_scene();
 
   drw_engines_draw_scene();
 
@@ -1483,7 +1483,7 @@ static void DRW_draw_render_loop_3d(Depsgraph *depsgraph,
 
   drw_get().data->modules_exit();
 
-  draw_callbacks_post_scene();
+  drw_callbacks_post_scene();
 
   if (WM_draw_region_get_bound_viewport(region)) {
     /* Don't unbind the frame-buffer yet in this case and let
@@ -1498,7 +1498,7 @@ static void DRW_draw_render_loop_3d(Depsgraph *depsgraph,
   drw_engines_disable();
 }
 
-static void DRW_draw_render_loop_2d(Depsgraph *depsgraph,
+static void drw_draw_render_loop_2d(Depsgraph *depsgraph,
                                     ARegion *region,
                                     GPUViewport *viewport,
                                     const bContext *evil_C)
@@ -1566,7 +1566,7 @@ static void DRW_draw_render_loop_2d(Depsgraph *depsgraph,
   /* Start Drawing */
   blender::draw::command::StateSet::set();
 
-  draw_callbacks_pre_scene_2D();
+  drw_callbacks_pre_scene_2D();
 
   drw_engines_draw_scene();
 
@@ -1575,7 +1575,7 @@ static void DRW_draw_render_loop_2d(Depsgraph *depsgraph,
     GPU_flush();
   }
 
-  draw_callbacks_post_scene_2D(region->v2d);
+  drw_callbacks_post_scene_2D(region->v2d);
 
   GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
 
@@ -1612,10 +1612,10 @@ void DRW_draw_view(const bContext *C)
     drw_get().options.draw_background = (scene->r.alphamode == R_ADDSKY) ||
                                         (v3d->shading.type != OB_RENDER);
 
-    DRW_draw_render_loop_3d(depsgraph, engine_type, region, v3d, viewport, C);
+    drw_draw_render_loop_3d(depsgraph, engine_type, region, v3d, viewport, C);
   }
   else {
-    DRW_draw_render_loop_2d(depsgraph, region, viewport, C);
+    drw_draw_render_loop_2d(depsgraph, region, viewport, C);
   }
 
   drw_manager_exit(&draw_ctx);
@@ -1649,7 +1649,7 @@ void DRW_draw_render_loop_offscreen(Depsgraph *depsgraph,
   drw_get().options.is_image_render = is_image_render;
   drw_get().options.draw_background = draw_background;
 
-  DRW_draw_render_loop_3d(depsgraph, engine_type, region, v3d, render_viewport, nullptr);
+  drw_draw_render_loop_3d(depsgraph, engine_type, region, v3d, render_viewport, nullptr);
 
   drw_manager_exit(&draw_ctx);
 
@@ -1705,7 +1705,7 @@ bool DRW_render_check_grease_pencil(Depsgraph *depsgraph)
   return false;
 }
 
-static void DRW_render_gpencil_to_image(RenderEngine *engine,
+static void drw_render_gpencil_to_image(RenderEngine *engine,
                                         RenderLayer *render_layer,
                                         const rcti *rect)
 {
@@ -1768,7 +1768,7 @@ void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph)
        render_view = render_view->next)
   {
     RE_SetActiveRenderView(render, render_view->name);
-    DRW_render_gpencil_to_image(engine, render_layer, &render_rect);
+    drw_render_gpencil_to_image(engine, render_layer, &render_rect);
   }
 
   blender::draw::command::StateSet::set();
@@ -2099,14 +2099,14 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   drw_get().options.is_material_select = do_material_sub_selection;
   drw_task_graph_init();
   /* Get list of enabled engines */
-  use_drw_engine(&draw_engine_select_next_type);
+  drw_use_engine(&draw_engine_select_next_type);
   if (use_obedit) {
     /* Noop. */
   }
   else if (!draw_surface) {
     /* grease pencil selection */
     if (drw_gpencil_engine_needed(depsgraph, v3d)) {
-      use_drw_engine(&draw_engine_gpencil_type);
+      drw_use_engine(&draw_engine_gpencil_type);
     }
   }
   drw_engines_data_validate();
@@ -2195,7 +2195,7 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
 
   /* Start Drawing */
   blender::draw::command::StateSet::set();
-  draw_callbacks_pre_scene();
+  drw_callbacks_pre_scene();
 
   DRW_curves_update(*DRW_manager_get());
 
@@ -2258,7 +2258,7 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
   drw_manager_init(g_context, viewport, nullptr);
 
   if (use_gpencil) {
-    use_drw_engine(&draw_engine_gpencil_type);
+    drw_use_engine(&draw_engine_gpencil_type);
   }
   drw_engines_enable_overlays();
 
@@ -2383,7 +2383,7 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
   UI_SetTheme(SPACE_VIEW3D, RGN_TYPE_WINDOW);
 
   /* Select Engine */
-  use_drw_engine(&draw_engine_select_type);
+  drw_use_engine(&draw_engine_select_type);
   drw_engines_init();
   {
     drw_engines_cache_init();
