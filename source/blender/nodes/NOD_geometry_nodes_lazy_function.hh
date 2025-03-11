@@ -600,7 +600,7 @@ struct EvaluateClosureFunctionIndices {
   struct {
     Vector<int> main;
     Vector<int> output_usages;
-    Map<ReferenceSetIndex, int> reference_sets;
+    Map<int, int> reference_set_by_output;
   } inputs;
   struct {
     Vector<int> main;
@@ -613,8 +613,8 @@ struct EvaluateClosureFunction {
   EvaluateClosureFunctionIndices indices;
 };
 
-EvaluateClosureFunction build_evaluate_closure_node_lazy_function(ResourceScope &scope,
-                                                                  const bNode &bnode);
+EvaluateClosureFunction build_evaluate_closure_node_lazy_function(
+    ResourceScope &scope, const bNode &bnode, GeometryNodesLazyFunctionGraphInfo &lf_graph_info);
 
 void initialize_zone_wrapper(const bke::bNodeTreeZone &zone,
                              ZoneBuildInfo &zone_info,

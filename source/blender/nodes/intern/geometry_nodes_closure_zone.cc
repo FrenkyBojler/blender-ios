@@ -227,7 +227,8 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
   EvaluateClosureFunctionIndices indices_;
 
  public:
-  LazyFunctionForEvaluateClosureNode(const bNode &bnode)
+  LazyFunctionForEvaluateClosureNode(const bNode &bnode,
+                                     GeometryNodesLazyFunctionGraphInfo &lf_graph_info)
       : btree_(bnode.owner_tree()), bnode_(bnode)
   {
     debug_name_ = bnode.name;
@@ -246,8 +247,16 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
           bsocket.name, *bsocket.typeinfo->geometry_nodes_cpp_type));
       indices_.inputs.output_usages.append(
           inputs_.append_and_get_index_as("Usage", CPPType::get<bool>()));
+      if (bke::node_tree_reference_lifetimes::can_contain_referenced_data(
+              eNodeSocketDatatype(bsocket.type)))
+      {
+        const int input_i = inputs_.append_and_get_index_as(
+            "Reference Set", CPPType::get<bke::GeometryNodesReferenceSet>());
+        indices_.inputs.reference_set_by_output.add(i, input_i);
+        lf_graph_info.mapping
+            .lf_input_index_for_reference_set_for_output[bsocket.index_in_all_outputs()] = input_i;
+      }
     }
-    /* TODO: Reference sets. */
   }
 
   EvaluateClosureFunctionIndices indices() const
@@ -496,21 +505,36 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
       lf_closure_input.set_default_value(default_value);
     }
 
+    static const bke::GeometryNodesReferenceSet static_empty_reference_set;
     for (const int i : closure_indices.outputs.main.index_range()) {
       lf::OutputSocket &lf_closure_output = lf_closure_node.output(
           closure_indices.outputs.main[i]);
+      if (const std::optional<int> lf_reference_set_input_i =
+              closure_indices.inputs.output_data_reference_sets.lookup_try(i))
+      {
+        lf::InputSocket &lf_reference_set_input = lf_closure_node.input(*lf_reference_set_input_i);
+        const int node_output_i = outputs_map.as_span().first_index_try(i);
+        if (node_output_i == -1) {
+          lf_reference_set_input.set_default_value(&static_empty_reference_set);
+        }
+        else {
+          if (const std::optional<int> lf_evaluate_node_reference_set_input_i =
+                  indices_.inputs.reference_set_by_output.lookup_try(node_output_i))
+          {
+            lf_graph.add_link(*lf_graph_inputs[*lf_evaluate_node_reference_set_input_i],
+                              lf_reference_set_input);
+          }
+          else {
+            lf_reference_set_input.set_default_value(&static_empty_reference_set);
+          }
+        }
+      }
       if (!lf_closure_output.targets().is_empty()) {
         /* Handled already. */
         continue;
       }
       lf_closure_node.input(closure_indices.inputs.output_usages[i])
           .set_default_value(&static_false);
-    }
-
-    for (const auto item : closure_indices.inputs.output_data_reference_sets.items()) {
-      /* TODO */
-      static const bke::GeometryNodesReferenceSet static_empty_reference_set;
-      lf_closure_node.input(item.value).set_default_value(&static_empty_reference_set);
     }
 
     lf_graph.update_node_indices();
@@ -673,11 +697,11 @@ LazyFunction &build_closure_zone_lazy_function(ResourceScope &scope,
   return scope.construct<LazyFunctionForClosureZone>(btree, zone, zone_info, body_fn);
 }
 
-EvaluateClosureFunction build_evaluate_closure_node_lazy_function(ResourceScope &scope,
-                                                                  const bNode &bnode)
+EvaluateClosureFunction build_evaluate_closure_node_lazy_function(
+    ResourceScope &scope, const bNode &bnode, GeometryNodesLazyFunctionGraphInfo &lf_graph_info)
 {
   EvaluateClosureFunction info;
-  auto &fn = scope.construct<LazyFunctionForEvaluateClosureNode>(bnode);
+  auto &fn = scope.construct<LazyFunctionForEvaluateClosureNode>(bnode, lf_graph_info);
   info.lazy_function = &fn;
   info.indices = fn.indices();
   return info;

@@ -80,13 +80,13 @@ static bool or_into_each_other(MutableBoundedBitSpan a, MutableBoundedBitSpan b)
   return true;
 }
 
-static bool can_contain_reference(const eNodeSocketDatatype socket_type)
+bool can_contain_reference(const eNodeSocketDatatype socket_type)
 {
   return nodes::socket_type_supports_fields(socket_type) ||
          ELEM(socket_type, SOCK_BUNDLE, SOCK_CLOSURE);
 }
 
-static bool can_contain_referenced_data(const eNodeSocketDatatype socket_type)
+bool can_contain_referenced_data(const eNodeSocketDatatype socket_type)
 {
   return ELEM(socket_type, SOCK_GEOMETRY, SOCK_BUNDLE, SOCK_CLOSURE);
 }
@@ -938,7 +938,7 @@ static std::unique_ptr<ReferenceLifetimesInfo> make_reference_lifetimes_info(con
   required_data_by_socket.all_bits() &= potential_data_by_socket.all_bits();
 
 /* Only useful when debugging the reference lifetimes analysis. */
-#if 0
+#if 1
   std::cout << "\n\n"
             << node_tree_to_dot(tree,
                                 bNodeTreeBitGroupVectorOptions(

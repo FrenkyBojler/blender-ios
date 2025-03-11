@@ -103,4 +103,9 @@ struct ReferenceLifetimesInfo {
 
 bool analyse_reference_lifetimes(bNodeTree &tree);
 
+/** The socket type allows storing references to data stored elsewhere. */
+bool can_contain_reference(eNodeSocketDatatype socket_type);
+/** The socket type allows storing data that may be referenced elsewhere. */
+bool can_contain_referenced_data(eNodeSocketDatatype socket_type);
+
 }  // namespace blender::bke::node_tree_reference_lifetimes

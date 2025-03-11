@@ -3606,8 +3606,8 @@ struct GeometryNodesLazyFunctionBuilder {
 
   void build_evaluate_closure_node(const bNode &bnode, BuildGraphParams &graph_params)
   {
-    const EvaluateClosureFunction function = build_evaluate_closure_node_lazy_function(scope_,
-                                                                                       bnode);
+    const EvaluateClosureFunction function = build_evaluate_closure_node_lazy_function(
+        scope_, bnode, *lf_graph_info_);
     lf::FunctionNode &lf_node = graph_params.lf_graph.add_function(*function.lazy_function);
     const int inputs_num = bnode.input_sockets().size() - 1;
     const int outputs_num = bnode.output_sockets().size() - 1;
@@ -3639,8 +3639,9 @@ struct GeometryNodesLazyFunctionBuilder {
         lf_usage_socket.set_default_value(&static_false);
       }
     }
-    for (const auto item : function.indices.inputs.reference_sets.items()) {
-      graph_params.lf_reference_set_inputs.add(item.key, &lf_node.input(item.value));
+    for (const auto item : function.indices.inputs.reference_set_by_output.items()) {
+      graph_params.lf_reference_set_input_by_output.add(&bnode.output_socket(item.key),
+                                                        &lf_node.input(item.value));
     }
   }
 
