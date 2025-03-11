@@ -348,6 +348,12 @@ static void stats_object_sculpt(const Object *ob, SceneStats *stats)
     return;
   }
 
+  stats->totobj++;
+  const bool is_selected = (ob->base_flag & BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT) != 0;
+  if (is_selected) {
+    stats->totobjsel++;
+  }
+
   switch (pbvh->type()) {
     case blender::bke::pbvh::Type::Mesh: {
       const Mesh &mesh = *static_cast<const Mesh *>(ob->data);
@@ -802,7 +808,11 @@ void ED_info_draw_stats(
   bool any_selected = !STREQ(&stats_fmt.totobjsel[0], "0");
 
   if (any_selected) {
-    stats_row(col1, labels[OBJ], col2, stats_fmt.totobjsel, stats_fmt.totobj, y, height);
+    /* Paint modes do not display a count of selected / total objects, as they only support
+     * single object editing. */
+    if ((object_mode & OB_MODE_ALL_PAINT) == 0) {
+      stats_row(col1, labels[OBJ], col2, stats_fmt.totobjsel, stats_fmt.totobj, y, height);
+    }
   }
   else if (any_objects) {
     stats_row(col1, labels[OBJ], col2, stats_fmt.totobj, nullptr, y, height);
@@ -813,7 +823,7 @@ void ED_info_draw_stats(
     stats_row(col1, labels[TRIS], col2, stats_fmt.tottri, nullptr, y, height);
     return;
   }
-  else if (!(object_mode & OB_MODE_SCULPT)) {
+  else {
     /* No objects in scene. */
     stats_row(col1, labels[OBJ], col2, stats_fmt.totobj, nullptr, y, height);
     return;
@@ -849,6 +859,12 @@ void ED_info_draw_stats(
       stats_row(col1, labels[VERTS], col2, stats_fmt.totvertsculpt, nullptr, y, height);
       stats_row(col1, labels[FACES], col2, stats_fmt.totfacesculpt, nullptr, y, height);
     }
+  }
+  else if (ob &&
+           (ELEM(object_mode, OB_MODE_VERTEX_PAINT, OB_MODE_WEIGHT_PAINT, OB_MODE_TEXTURE_PAINT)))
+  {
+    stats_row(col1, labels[VERTS], col2, stats_fmt.totvertsel, nullptr, y, height);
+    stats_row(col1, labels[FACES], col2, stats_fmt.totfacesel, nullptr, y, height);
   }
   else if (ob && (object_mode & OB_MODE_POSE)) {
     stats_row(col1, labels[BONES], col2, stats_fmt.totbonesel, stats_fmt.totbone, y, height);
