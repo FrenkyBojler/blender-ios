@@ -132,7 +132,6 @@ Strip *lookup_strip_by_name(Editing *ed, const char *key);
  * channel.
  */
 Strip *lookup_strip_by_channel_owner(Editing *ed, const SeqTimelineChannel *channel);
-
 /**
  * Free lookup hash data.
  */

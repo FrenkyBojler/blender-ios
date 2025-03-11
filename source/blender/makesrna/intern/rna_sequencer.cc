@@ -609,6 +609,15 @@ static void rna_Strip_channel_set(PointerRNA *ptr, int value)
   blender::seq::relations_invalidate_cache_composite(scene, strip);
 }
 
+static bool rna_Strip_lock_get(PointerRNA *ptr)
+{
+  Scene *scene = reinterpret_cast<Scene *>(ptr->owner_id);
+  Strip *strip = static_cast<Strip *>(ptr->data);
+  Editing *ed = blender::seq::editing_get(scene);
+  ListBase *channels = blender::seq::get_channels_by_seq(ed, strip);
+  return blender::seq::transform_is_locked(channels, strip);
+}
+
 static void rna_Strip_use_proxy_set(PointerRNA *ptr, bool value)
 {
   Strip *strip = (Strip *)ptr->data;
@@ -2145,6 +2154,7 @@ static void rna_def_strip(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "lock", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_LOCK);
+  RNA_def_property_boolean_funcs(prop, "rna_Strip_lock_get", nullptr);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_icon(prop, ICON_UNLOCKED, true);
   RNA_def_property_ui_text(prop, "Lock", "Lock strip so that it cannot be transformed");

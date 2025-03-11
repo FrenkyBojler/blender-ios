@@ -29,6 +29,7 @@
 #  include "AUD_Sound.h"
 #endif
 
+#include "SEQ_sequencer.hh"
 #include "SEQ_sound.hh"
 #include "SEQ_time.hh"
 

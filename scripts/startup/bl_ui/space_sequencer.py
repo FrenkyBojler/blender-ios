@@ -2250,6 +2250,12 @@ class SEQUENCER_PT_time(SequencerButtonsPanel, Panel):
             split.label(text="End")
             split.prop(strip, "animation_offset_end", text=smpte_from_frame(strip.animation_offset_end))
 
+            if strip.type == 'SOUND':
+                split = col.split(factor=factor + max_factor, align=True)
+                split.alignment = 'RIGHT'
+                split.label(text="Subframe Offset", text_ctxt=i18n_contexts.id_sound)
+                split.prop(strip, "sound_offset", text="")
+
         col = layout.column(align=True)
         col = col.box()
         col.active = (
@@ -2312,11 +2318,6 @@ class SEQUENCER_PT_adjust_sound(SequencerButtonsPanel, Panel):
             split.alignment = 'RIGHT'
             split.label(text="Volume", text_ctxt=i18n_contexts.id_sound)
             split.prop(strip, "volume", text="")
-
-            split = col.split(factor=0.4)
-            split.alignment = 'RIGHT'
-            split.label(text="Offset", text_ctxt=i18n_contexts.id_sound)
-            split.prop(strip, "sound_offset", text="")
 
             layout.use_property_split = False
             col = layout.column()
