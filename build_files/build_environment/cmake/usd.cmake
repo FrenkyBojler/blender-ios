@@ -98,7 +98,7 @@ set(USD_EXTRA_ARGS
   -DPXR_BUILD_OPENCOLORIO_PLUGIN=OFF
   # We'd like Vulkan support on, but it has trouble not finding the SDK since we have
   # the invididual components in the deps builder.
-  -DPXR_ENABLE_VULKAN_SUPPORT=OFF
+  -DPXR_ENABLE_VULKAN_SUPPORT=ON
   -DPXR_ENABLE_PTEX_SUPPORT=OFF
   -DPXR_BUILD_USD_TOOLS=OFF
   -DCMAKE_DEBUG_POSTFIX=_d
