@@ -250,7 +250,8 @@ static void pbvh_bmesh_node_split(Vector<BMeshNode> &nodes,
 {
   if (nodes[node_index].bm_faces_.size() <= leaf_limit) {
     /* Node limit not exceeded. */
-    pbvh_bmesh_node_finalize(nodes[node_index], node_index, cd_vert_node_offset, cd_face_node_offset);
+    pbvh_bmesh_node_finalize(
+        nodes[node_index], node_index, cd_vert_node_offset, cd_face_node_offset);
     return;
   }
 
@@ -333,7 +334,7 @@ static void pbvh_bmesh_node_split(Vector<BMeshNode> &nodes,
 
   /* Update bounding box. */
   nodes[node_index].bounds_ = bounds::merge(nodes[nodes[node_index].children_offset_].bounds_,
-                               nodes[nodes[node_index].children_offset_ + 1].bounds_);
+                                            nodes[nodes[node_index].children_offset_ + 1].bounds_);
   nodes[node_index].bounds_orig_ = nodes[node_index].bounds_;
 }
 
@@ -459,7 +460,7 @@ static BMFace *pbvh_bmesh_face_create(BMesh &bm,
                                       const Span<BMEdge *> e_tri,
                                       const BMFace *f_example)
 {
-  BMeshNode& node = nodes[node_index];
+  BMeshNode &node = nodes[node_index];
 
   /* Ensure we never add existing face. */
   BLI_assert(!BM_face_exists(v_tri.data(), 3));
@@ -735,7 +736,7 @@ static bool edge_queue_tri_in_sphere(const EdgeQueue *queue, BMFace *f)
 
 static bool edge_queue_tri_in_circle(const EdgeQueue *queue, BMFace *f)
 {
-  BLI_assert(queue->view_normal);
+  BLI_assert_msg(queue->view_normal, "Must have view normal to be able to project triangle");
 
   std::array<BMVert *, 3> v_tri;
 
@@ -990,6 +991,10 @@ static void long_edge_queue_create(const EdgeQueueContext *eq_ctx,
                                    const bool use_frontface,
                                    const bool use_projected)
 {
+  BLI_assert_msg(
+      view_normal || (!use_frontface && !use_projected),
+      "If either use_frontface or use_projected is specified, view_normal must be non-empty");
+
   eq_ctx->queue->heap = BLI_heapsimple_new();
   eq_ctx->queue->center = center;
   eq_ctx->queue->radius_squared = radius * radius;
@@ -1043,6 +1048,10 @@ static void short_edge_queue_create(const EdgeQueueContext *eq_ctx,
                                     const bool use_frontface,
                                     const bool use_projected)
 {
+  BLI_assert_msg(
+      view_normal || (!use_frontface && !use_projected),
+      "If either use_frontface or use_projected is specified, view_normal must be non-empty");
+
   eq_ctx->queue->heap = BLI_heapsimple_new();
   eq_ctx->queue->center = center;
   eq_ctx->queue->radius_squared = radius * radius;
@@ -2241,7 +2250,8 @@ bool bmesh_update_topology(BMesh &bm,
 
   bool modified = false;
 
-  BLI_assert(!view_normal || math::length_squared(*view_normal) > 0.0f);
+  BLI_assert_msg(!view_normal || math::length_squared(*view_normal) > 0.0f,
+                 "View normal must be non-zero length if provided");
 
   MutableSpan<BMeshNode> nodes = pbvh.nodes<BMeshNode>();
   Array<bool> node_changed(nodes.size(), false);
