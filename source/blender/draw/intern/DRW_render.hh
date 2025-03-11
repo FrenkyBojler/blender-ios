@@ -196,11 +196,6 @@ DupliObject *DRW_object_get_dupli(const Object *ob);
 /* Draw State. */
 
 /**
- * When false, drawing doesn't output to a pixel buffer
- * eg: Occlusion queries, or when we have setup a context to draw in already.
- */
-bool DRW_state_is_fbo();
-/**
  * For when engines need to know if this is drawing for selection or not.
  */
 bool DRW_state_is_select();
@@ -259,11 +254,7 @@ struct DRWContextState {
 
   Depsgraph *depsgraph;
 
-  TaskGraph *task_graph;
-
   eObjectMode object_mode;
-
-  eGPUShaderConfig sh_cfg;
 
   /** Last resort (some functions take this as an arg so we can't easily avoid).
    * May be nullptr when used for selection or depth buffer. */
@@ -278,4 +269,4 @@ struct DRWContextState {
 
 const DRWContextState *DRW_context_state_get();
 
-bool DRW_is_viewport_compositor_enabled();
+bool DRW_state_viewport_compositor_enabled();

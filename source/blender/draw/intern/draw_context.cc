@@ -316,11 +316,6 @@ static void drw_context_state_init()
   else {
     drw_get().draw_ctx.object_pose = nullptr;
   }
-
-  drw_get().draw_ctx.sh_cfg = GPU_SHADER_CFG_DEFAULT;
-  if (RV3D_CLIPPING_ENABLED(drw_get().draw_ctx.v3d, drw_get().draw_ctx.rv3d)) {
-    drw_get().draw_ctx.sh_cfg = GPU_SHADER_CFG_CLIPPED;
-  }
 }
 
 DRWData *DRW_viewport_data_create()
@@ -984,10 +979,6 @@ static void drw_engines_draw_scene()
         if (engine->draw_scene) {
           GPU_debug_group_begin(engine->idname);
           engine->draw_scene(data);
-          /* Restore for next engine */
-          if (DRW_state_is_fbo()) {
-            GPU_framebuffer_bind(ctx.default_framebuffer());
-          }
           GPU_debug_group_end();
         }
       });
@@ -1088,41 +1079,6 @@ static void drw_engines_enable_editors()
   }
 }
 
-bool DRW_is_viewport_compositor_enabled()
-{
-  if (!drw_get().draw_ctx.v3d) {
-    return false;
-  }
-
-  if (drw_get().draw_ctx.v3d->shading.use_compositor == V3D_SHADING_USE_COMPOSITOR_DISABLED) {
-    return false;
-  }
-
-  if (!(drw_get().draw_ctx.v3d->shading.type >= OB_MATERIAL)) {
-    return false;
-  }
-
-  if (!drw_get().draw_ctx.scene->use_nodes) {
-    return false;
-  }
-
-  if (!drw_get().draw_ctx.scene->nodetree) {
-    return false;
-  }
-
-  if (!drw_get().draw_ctx.rv3d) {
-    return false;
-  }
-
-  if (drw_get().draw_ctx.v3d->shading.use_compositor == V3D_SHADING_USE_COMPOSITOR_CAMERA &&
-      drw_get().draw_ctx.rv3d->persp != RV3D_CAMOB)
-  {
-    return false;
-  }
-
-  return true;
-}
-
 static void drw_engines_enable(ViewLayer * /*view_layer*/,
                                RenderEngineType *engine_type,
                                bool gpencil_engine_needed)
@@ -1136,7 +1092,7 @@ static void drw_engines_enable(ViewLayer * /*view_layer*/,
     use_drw_engine(&draw_engine_gpencil_type);
   }
 
-  if (DRW_is_viewport_compositor_enabled()) {
+  if (DRW_state_viewport_compositor_enabled()) {
     use_drw_engine(&draw_engine_compositor_type);
   }
 
@@ -1543,6 +1499,129 @@ static void DRW_draw_render_loop_3d(Depsgraph *depsgraph,
   drw_engines_disable();
 }
 
+static void DRW_draw_render_loop_2d(Depsgraph *depsgraph,
+                                    ARegion *region,
+                                    GPUViewport *viewport,
+                                    const bContext *evil_C)
+{
+  Scene *scene = DEG_get_evaluated_scene(depsgraph);
+  ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
+
+  BKE_view_layer_synced_ensure(scene, view_layer);
+  drw_get().draw_ctx = {};
+  drw_get().draw_ctx.region = region;
+  drw_get().draw_ctx.scene = scene;
+  drw_get().draw_ctx.view_layer = view_layer;
+  drw_get().draw_ctx.obact = BKE_view_layer_active_object_get(view_layer);
+  drw_get().draw_ctx.depsgraph = depsgraph;
+  drw_get().draw_ctx.space_data = CTX_wm_space_data(evil_C);
+
+  /* reuse if caller sets */
+  drw_get().draw_ctx.evil_C = evil_C;
+
+  drw_context_state_init();
+  drw_manager_init(g_context, viewport, nullptr);
+  DRW_viewport_colormanagement_set(viewport);
+
+  /* TODO(jbakker): Only populate when editor needs to draw object.
+   * for the image editor this is when showing UVs. */
+  const bool do_populate_loop = (drw_get().draw_ctx.space_data->spacetype == SPACE_IMAGE);
+
+  /* Get list of enabled engines */
+  drw_engines_enable_editors();
+  drw_engines_data_validate();
+
+  drw_debug_init();
+
+  /* No frame-buffer allowed before drawing. */
+  BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
+  GPU_framebuffer_bind(drw_get().default_framebuffer());
+  GPU_framebuffer_clear_depth_stencil(drw_get().default_framebuffer(), 1.0f, 0xFF);
+
+  /* Init engines */
+  drw_engines_init();
+  drw_task_graph_init();
+
+  /* Cache filling */
+  {
+    drw_engines_cache_init();
+
+    /* Only iterate over objects when overlay uses object data. */
+    if (do_populate_loop) {
+      DEGObjectIterSettings deg_iter_settings = {nullptr};
+      deg_iter_settings.depsgraph = depsgraph;
+      deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
+      DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
+        blender::draw::ObjectRef ob_ref(ob);
+        drw_engines_cache_populate(ob_ref);
+      }
+      DEG_OBJECT_ITER_END;
+    }
+
+    drw_engines_cache_finish();
+  }
+  drw_task_graph_deinit();
+
+  GPU_framebuffer_bind(drw_get().default_framebuffer());
+
+  /* Start Drawing */
+  blender::draw::command::StateSet::set();
+
+  draw_callbacks_pre_scene_2D();
+
+  drw_engines_draw_scene();
+
+  /* Fix 3D view being "laggy" on MACOS and MS-Windows+NVIDIA. (See #56996, #61474) */
+  if (GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL)) {
+    GPU_flush();
+  }
+
+  draw_callbacks_post_scene_2D(region->v2d);
+
+  GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
+
+  if (WM_draw_region_get_bound_viewport(region)) {
+    /* Don't unbind the frame-buffer yet in this case and let
+     * GPU_viewport_unbind do it, so that we can still do further
+     * drawing of action zones on top. */
+  }
+  else {
+    GPU_framebuffer_restore();
+  }
+
+  blender::draw::command::StateSet::set();
+  drw_engines_disable();
+}
+
+void DRW_draw_view(const bContext *C)
+{
+  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
+  ARegion *region = CTX_wm_region(C);
+  GPUViewport *viewport = WM_draw_region_get_bound_viewport(region);
+
+  DRWContext draw_ctx;
+  drw_set(draw_ctx);
+
+  View3D *v3d = CTX_wm_view3d(C);
+
+  if (v3d) {
+    Scene *scene = DEG_get_evaluated_scene(depsgraph);
+    RenderEngineType *engine_type = ED_view3d_engine_type(scene, v3d->shading.type);
+
+    drw_get().options.draw_text = ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0 &&
+                                   (v3d->overlay.flag & V3D_OVERLAY_HIDE_TEXT) != 0);
+    drw_get().options.draw_background = (scene->r.alphamode == R_ADDSKY) ||
+                                        (v3d->shading.type != OB_RENDER);
+
+    DRW_draw_render_loop_3d(depsgraph, engine_type, region, v3d, viewport, C);
+  }
+  else {
+    DRW_draw_render_loop_2d(depsgraph, region, viewport, C);
+  }
+
+  drw_manager_exit(&draw_ctx);
+}
+
 void DRW_draw_render_loop_offscreen(Depsgraph *depsgraph,
                                     RenderEngineType *engine_type,
                                     ARegion *region,
@@ -1901,127 +1980,11 @@ void DRW_cache_restart()
   drw_get().data->modules_init();
 }
 
-static void DRW_draw_render_loop_2d(Depsgraph *depsgraph,
-                                    ARegion *region,
-                                    GPUViewport *viewport,
-                                    const bContext *evil_C)
+void DRW_render_set_time(RenderEngine *engine, Depsgraph *depsgraph, int frame, float subframe)
 {
-  Scene *scene = DEG_get_evaluated_scene(depsgraph);
-  ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
-
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  drw_get().draw_ctx = {};
-  drw_get().draw_ctx.region = region;
-  drw_get().draw_ctx.scene = scene;
-  drw_get().draw_ctx.view_layer = view_layer;
-  drw_get().draw_ctx.obact = BKE_view_layer_active_object_get(view_layer);
-  drw_get().draw_ctx.depsgraph = depsgraph;
-  drw_get().draw_ctx.space_data = CTX_wm_space_data(evil_C);
-
-  /* reuse if caller sets */
-  drw_get().draw_ctx.evil_C = evil_C;
-
-  drw_context_state_init();
-  drw_manager_init(g_context, viewport, nullptr);
-  DRW_viewport_colormanagement_set(viewport);
-
-  /* TODO(jbakker): Only populate when editor needs to draw object.
-   * for the image editor this is when showing UVs. */
-  const bool do_populate_loop = (drw_get().draw_ctx.space_data->spacetype == SPACE_IMAGE);
-
-  /* Get list of enabled engines */
-  drw_engines_enable_editors();
-  drw_engines_data_validate();
-
-  drw_debug_init();
-
-  /* No frame-buffer allowed before drawing. */
-  BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
-  GPU_framebuffer_bind(drw_get().default_framebuffer());
-  GPU_framebuffer_clear_depth_stencil(drw_get().default_framebuffer(), 1.0f, 0xFF);
-
-  /* Init engines */
-  drw_engines_init();
-  drw_task_graph_init();
-
-  /* Cache filling */
-  {
-    drw_engines_cache_init();
-
-    /* Only iterate over objects when overlay uses object data. */
-    if (do_populate_loop) {
-      DEGObjectIterSettings deg_iter_settings = {nullptr};
-      deg_iter_settings.depsgraph = depsgraph;
-      deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
-      DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
-        blender::draw::ObjectRef ob_ref(ob);
-        drw_engines_cache_populate(ob_ref);
-      }
-      DEG_OBJECT_ITER_END;
-    }
-
-    drw_engines_cache_finish();
-  }
-  drw_task_graph_deinit();
-
-  GPU_framebuffer_bind(drw_get().default_framebuffer());
-
-  /* Start Drawing */
-  blender::draw::command::StateSet::set();
-
-  draw_callbacks_pre_scene_2D();
-
-  drw_engines_draw_scene();
-
-  /* Fix 3D view being "laggy" on MACOS and MS-Windows+NVIDIA. (See #56996, #61474) */
-  if (GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL)) {
-    GPU_flush();
-  }
-
-  draw_callbacks_post_scene_2D(region->v2d);
-
-  GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
-
-  if (WM_draw_region_get_bound_viewport(region)) {
-    /* Don't unbind the frame-buffer yet in this case and let
-     * GPU_viewport_unbind do it, so that we can still do further
-     * drawing of action zones on top. */
-  }
-  else {
-    GPU_framebuffer_restore();
-  }
-
-  blender::draw::command::StateSet::set();
-  drw_engines_disable();
-}
-
-void DRW_draw_view(const bContext *C)
-{
-  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
-  ARegion *region = CTX_wm_region(C);
-  GPUViewport *viewport = WM_draw_region_get_bound_viewport(region);
-
-  DRWContext draw_ctx;
-  drw_set(draw_ctx);
-
-  View3D *v3d = CTX_wm_view3d(C);
-
-  if (v3d) {
-    Scene *scene = DEG_get_evaluated_scene(depsgraph);
-    RenderEngineType *engine_type = ED_view3d_engine_type(scene, v3d->shading.type);
-
-    drw_get().options.draw_text = ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0 &&
-                                   (v3d->overlay.flag & V3D_OVERLAY_HIDE_TEXT) != 0);
-    drw_get().options.draw_background = (scene->r.alphamode == R_ADDSKY) ||
-                                        (v3d->shading.type != OB_RENDER);
-
-    DRW_draw_render_loop_3d(depsgraph, engine_type, region, v3d, viewport, C);
-  }
-  else {
-    DRW_draw_render_loop_2d(depsgraph, region, viewport, C);
-  }
-
-  drw_manager_exit(&draw_ctx);
+  RE_engine_frame_set(engine, frame, subframe);
+  drw_get().draw_ctx.scene = DEG_get_evaluated_scene(depsgraph);
+  drw_get().draw_ctx.view_layer = DEG_get_evaluated_view_layer(depsgraph);
 }
 
 static struct DRWSelectBuffer {
@@ -2053,13 +2016,6 @@ static void draw_select_framebuffer_depth_only_setup(const int size[2])
 
     GPU_framebuffer_check_valid(g_select_buffer.framebuffer_depth_only, nullptr);
   }
-}
-
-void DRW_render_set_time(RenderEngine *engine, Depsgraph *depsgraph, int frame, float subframe)
-{
-  RE_engine_frame_set(engine, frame, subframe);
-  drw_get().draw_ctx.scene = DEG_get_evaluated_scene(depsgraph);
-  drw_get().draw_ctx.view_layer = DEG_get_evaluated_view_layer(depsgraph);
 }
 
 void DRW_draw_select_loop(Depsgraph *depsgraph,
@@ -2495,10 +2451,9 @@ bool DRW_draw_in_progress()
 /** \name Draw Manager State (DRW_state)
  * \{ */
 
-bool DRW_state_is_fbo()
+const DRWContextState *DRW_context_state_get()
 {
-  return ((drw_get().default_framebuffer() != nullptr) || drw_get().options.is_image_render) &&
-         !DRW_state_is_depth() && !DRW_state_is_select();
+  return &drw_get().draw_ctx;
 }
 
 bool DRW_state_is_select()
@@ -2571,15 +2526,39 @@ bool DRW_state_draw_background()
   return drw_get().options.draw_background;
 }
 
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Context State (DRW_context_state)
- * \{ */
-
-const DRWContextState *DRW_context_state_get()
+bool DRW_state_viewport_compositor_enabled()
 {
-  return &drw_get().draw_ctx;
+  if (!drw_get().draw_ctx.v3d) {
+    return false;
+  }
+
+  if (drw_get().draw_ctx.v3d->shading.use_compositor == V3D_SHADING_USE_COMPOSITOR_DISABLED) {
+    return false;
+  }
+
+  if (!(drw_get().draw_ctx.v3d->shading.type >= OB_MATERIAL)) {
+    return false;
+  }
+
+  if (!drw_get().draw_ctx.scene->use_nodes) {
+    return false;
+  }
+
+  if (!drw_get().draw_ctx.scene->nodetree) {
+    return false;
+  }
+
+  if (!drw_get().draw_ctx.rv3d) {
+    return false;
+  }
+
+  if (drw_get().draw_ctx.v3d->shading.use_compositor == V3D_SHADING_USE_COMPOSITOR_CAMERA &&
+      drw_get().draw_ctx.rv3d->persp != RV3D_CAMOB)
+  {
+    return false;
+  }
+
+  return true;
 }
 
 /** \} */

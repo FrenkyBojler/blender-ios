@@ -96,7 +96,9 @@ static void select_engine_init(void *vedata)
 {
   SelectEngineData &e_data = get_engine_data();
   const DRWContextState *draw_ctx = DRW_context_state_get();
-  eGPUShaderConfig sh_cfg = draw_ctx->sh_cfg;
+  eGPUShaderConfig sh_cfg = (RV3D_CLIPPING_ENABLED(draw_ctx->v3d, draw_ctx->rv3d)) ?
+                                GPU_SHADER_CFG_CLIPPED :
+                                GPU_SHADER_CFG_DEFAULT;
 
   SELECTID_Data *ved = reinterpret_cast<SELECTID_Data *>(vedata);
   SELECTID_Shaders *sh_data = &e_data.sh_data[sh_cfg];
@@ -145,9 +147,12 @@ static void select_cache_init(void *vedata)
 {
   SELECTID_Instance &inst = *reinterpret_cast<SELECTID_Data *>(vedata)->instance;
   SelectEngineData &e_data = get_engine_data();
-
   const DRWContextState *draw_ctx = DRW_context_state_get();
-  SELECTID_Shaders *sh = &e_data.sh_data[draw_ctx->sh_cfg];
+  eGPUShaderConfig sh_cfg = (RV3D_CLIPPING_ENABLED(draw_ctx->v3d, draw_ctx->rv3d)) ?
+                                GPU_SHADER_CFG_CLIPPED :
+                                GPU_SHADER_CFG_DEFAULT;
+
+  SELECTID_Shaders *sh = &e_data.sh_data[sh_cfg];
 
   if (e_data.context.select_mode == -1) {
     e_data.context.select_mode = select_id_get_object_select_mode(draw_ctx->scene,
