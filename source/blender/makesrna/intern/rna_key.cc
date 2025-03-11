@@ -126,10 +126,10 @@ static void rna_ShapeKey_value_set(PointerRNA *ptr, float value)
 
 static void rna_ShapeKey_slider_ui_range_update(PointerRNA *ptr)
 {
-  KeyBlock *data = (KeyBlock *)ptr->data;
+  KeyBlock *kb = static_cast<KeyBlock *>(ptr->data);
   PropertyRNA *prop = RNA_struct_find_property(ptr, "value");
   BLI_assert(prop);
-  RNA_def_property_ui_range(prop, data->slidermin, data->slidermax, 10, 3);
+  RNA_def_property_ui_range(prop, kb->slidermin, kb->slidermax, 10, 3);
 }
 
 static void rna_ShapeKey_slider_min_range(
