@@ -2240,6 +2240,9 @@ ENUM_OPERATORS(eUI_Item_Flag, UI_ITEM_R_TEXT_BUT_FORCE_SEMI_MODAL_ACTIVE)
 
 #define UI_HEADER_OFFSET ((void)0, 0.4f * UI_UNIT_X)
 
+#define UI_AZONESPOTW UI_HEADER_OFFSET       /* Width of corner action zone #AZone. */
+#define UI_AZONESPOTH (0.6f * U.widget_unit) /* Height of corner action zone #AZone. */
+
 /* uiLayoutOperatorButs flags */
 enum {
   UI_TEMPLATE_OP_PROPS_SHOW_TITLE = 1 << 0,
@@ -2422,14 +2425,14 @@ struct PanelLayout {
 PanelLayout uiLayoutPanelProp(const bContext *C,
                               uiLayout *layout,
                               PointerRNA *open_prop_owner,
-                              const char *open_prop_name);
+                              blender::StringRefNull open_prop_name);
 PanelLayout uiLayoutPanelPropWithBoolHeader(const bContext *C,
                                             uiLayout *layout,
                                             PointerRNA *open_prop_owner,
-                                            const blender::StringRefNull open_prop_name,
+                                            blender::StringRefNull open_prop_name,
                                             PointerRNA *bool_prop_owner,
-                                            const blender::StringRefNull bool_prop_name,
-                                            const std::optional<blender::StringRefNull> label);
+                                            blender::StringRefNull bool_prop_name,
+                                            std::optional<blender::StringRefNull> label);
 
 /**
  * Variant of #uiLayoutPanelProp that automatically creates the header row with the
@@ -2443,8 +2446,8 @@ PanelLayout uiLayoutPanelPropWithBoolHeader(const bContext *C,
 uiLayout *uiLayoutPanelProp(const bContext *C,
                             uiLayout *layout,
                             PointerRNA *open_prop_owner,
-                            const char *open_prop_name,
-                            const char *label);
+                            blender::StringRefNull open_prop_name,
+                            blender::StringRef label);
 
 /**
  * Variant of #uiLayoutPanelProp that automatically stores the open-close-state in the root
@@ -2455,7 +2458,7 @@ uiLayout *uiLayoutPanelProp(const bContext *C,
  */
 PanelLayout uiLayoutPanel(const bContext *C,
                           uiLayout *layout,
-                          const char *idname,
+                          blender::StringRef idname,
                           bool default_closed);
 
 /**
@@ -2469,9 +2472,9 @@ PanelLayout uiLayoutPanel(const bContext *C,
  */
 uiLayout *uiLayoutPanel(const bContext *C,
                         uiLayout *layout,
-                        const char *idname,
+                        blender::StringRef idname,
                         bool default_closed,
-                        const char *label);
+                        blender::StringRef label);
 
 bool uiLayoutEndsWithPanelHeader(const uiLayout &layout);
 

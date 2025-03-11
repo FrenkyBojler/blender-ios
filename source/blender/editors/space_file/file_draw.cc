@@ -337,12 +337,10 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/, uiTooltipData &tip, 
   }
 }
 
-static std::string file_draw_asset_tooltip_func(bContext * /*C*/,
-                                                void *argN,
-                                                const blender::StringRef /*tip*/)
+static void file_draw_asset_tooltip_custom_func(bContext & /*C*/, uiTooltipData &tip, void *argN)
 {
   const auto *asset = static_cast<blender::asset_system::AssetRepresentation *>(argN);
-  return blender::ed::asset::asset_tooltip(*asset);
+  blender::ed::asset::asset_tooltip(*asset, tip);
 }
 
 static void draw_tile_background(const rcti *draw_rect, int colorid, int shade)
@@ -780,7 +778,7 @@ static void file_draw_loading_icon(const rcti *tile_draw_rect,
 
   UI_icon_draw_ex(cent_x - (ICON_DEFAULT_WIDTH / aspect / 2.0f),
                   cent_y - (ICON_DEFAULT_HEIGHT / aspect / 2.0f),
-                  ICON_TEMP,
+                  ICON_PREVIEW_LOADING,
                   aspect,
                   1.0f,
                   0.0f,
@@ -891,7 +889,8 @@ static void renamebutton_cb(bContext *C, void * /*arg1*/, char *oldname)
   if (!STREQ(orgname, newname)) {
     errno = 0;
     if ((BLI_rename(orgname, newname) != 0) || !BLI_exists(newname)) {
-      WM_reportf(RPT_ERROR, "Could not rename: %s", errno ? strerror(errno) : "unknown error");
+      WM_global_reportf(
+          RPT_ERROR, "Could not rename: %s", errno ? strerror(errno) : "unknown error");
       WM_report_banner_show(wm, win);
       /* Renaming failed, reset the name for further renaming handling. */
       STRNCPY(params->renamefile, oldname);

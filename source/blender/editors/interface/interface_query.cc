@@ -166,7 +166,7 @@ int ui_but_icon(const uiBut *but)
 
   /* While icon is loading, show loading icon at the normal icon size. */
   if (ui_icon_is_preview_deferred_loading(but->icon, is_preview)) {
-    return ICON_TEMP;
+    return ICON_PREVIEW_LOADING;
   }
 
   /* Consecutive icons can be toggle between. */

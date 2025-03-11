@@ -1988,7 +1988,7 @@ enum class SeparateMode : int8_t {
   SELECTED = 0,
   /* By Material. */
   MATERIAL = 1,
-  /* By Active Layer. */
+  /* By each Layer. */
   LAYER = 2,
 };
 
@@ -2023,7 +2023,7 @@ static Object *duplicate_grease_pencil_object(Main *bmain,
                                               Base *base_prev,
                                               const GreasePencil &grease_pencil_src)
 {
-  const eDupli_ID_Flags dupflag = eDupli_ID_Flags(U.dupflag & USER_DUP_ACT);
+  const eDupli_ID_Flags dupflag = eDupli_ID_Flags(U.dupflag & USER_DUP_GPENCIL);
   Base *base_new = object::add_duplicate(bmain, scene, view_layer, base_prev, dupflag);
   Object *object_dst = base_new->object;
   object_dst->mode = OB_MODE_OBJECT;
@@ -2148,7 +2148,7 @@ static bool grease_pencil_separate_layer(bContext &C,
   /* Create a new object for each layer. */
   for (const int layer_i : grease_pencil_src.layers().index_range()) {
     Layer &layer_src = grease_pencil_src.layer(layer_i);
-    if (layer_src.is_selected() || layer_src.is_locked()) {
+    if (layer_src.is_locked()) {
       continue;
     }
 
@@ -3318,7 +3318,7 @@ static void GREASE_PENCIL_OT_reproject(wmOperatorType *ot)
   /* callbacks */
   ot->invoke = WM_menu_invoke;
   ot->exec = grease_pencil_reproject_exec;
-  ot->poll = editable_grease_pencil_poll;
+  ot->poll = editable_grease_pencil_with_region_view3d_poll;
   ot->ui = grease_pencil_reproject_ui;
 
   /* flags */
@@ -3782,7 +3782,7 @@ static void GREASE_PENCIL_OT_texture_gradient(wmOperatorType *ot)
   ot->invoke = grease_pencil_texture_gradient_invoke;
   ot->modal = grease_pencil_texture_gradient_modal;
   ot->exec = grease_pencil_texture_gradient_exec;
-  ot->poll = editable_grease_pencil_poll;
+  ot->poll = editable_grease_pencil_with_region_view3d_poll;
   ot->cancel = WM_gesture_straightline_cancel;
 
   /* Flags. */

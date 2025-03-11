@@ -2126,7 +2126,7 @@ static void geometry_node_asset_trait_flag_set(PointerRNA *ptr,
 {
   bNodeTree *ntree = static_cast<bNodeTree *>(ptr->data);
   if (!ntree->geometry_node_asset_traits) {
-    ntree->geometry_node_asset_traits = MEM_cnew<GeometryNodeAssetTraits>(__func__);
+    ntree->geometry_node_asset_traits = MEM_callocN<GeometryNodeAssetTraits>(__func__);
   }
   SET_FLAG_FROM_TEST(ntree->geometry_node_asset_traits->flag, value, flag);
 }
@@ -11214,14 +11214,14 @@ static void rna_def_node(BlenderRNA *brna)
   prop = RNA_def_property(srna, "location", PROP_FLOAT, PROP_XYZ);
   RNA_def_property_array(prop, 2);
   RNA_def_property_float_funcs(prop, "rna_Node_location_get", "rna_Node_location_set", nullptr);
-  RNA_def_property_range(prop, -100000.0f, 100000.0f);
+  RNA_def_property_range(prop, -1000000.0f, 1000000.0f);
   RNA_def_property_ui_text(prop, "Location", "Location of the node within its parent frame");
   RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
 
   prop = RNA_def_property(srna, "location_absolute", PROP_FLOAT, PROP_XYZ);
   RNA_def_property_float_sdna(prop, nullptr, "location");
   RNA_def_property_array(prop, 2);
-  RNA_def_property_range(prop, -100000.0f, 100000.0f);
+  RNA_def_property_range(prop, -1000000.0f, 1000000.0f);
   RNA_def_property_ui_text(prop, "Absolute Location", "Location of the node in the entire canvas");
   RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
 
@@ -12485,6 +12485,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeImportPLY");
   define("GeometryNode", "GeometryNodeImportSTL");
   define("GeometryNode", "GeometryNodeImportCSV");
+  define("GeometryNode", "GeometryNodeImportText");
   define("GeometryNode", "GeometryNodeIndexOfNearest");
   define("GeometryNode", "GeometryNodeIndexSwitch", def_geo_index_switch);
   define("GeometryNode", "GeometryNodeInputActiveCamera");
