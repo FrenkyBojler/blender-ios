@@ -1039,28 +1039,31 @@ static int edbm_mark_seam_exec(bContext *C, wmOperator *op)
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;
+    Mesh *me = static_cast<Mesh *>(obedit->data);
 
-    if (bm->totedgesel == 0)
+    if (bm->totedgesel == 0) {
       continue;
-
-    if (((Mesh *)obedit->data)->symmetry & ME_SYMMETRY_X) {
-      const bool use_topology = (((Mesh *)obedit->data)->editflag & ME_EDIT_MIRROR_TOPO) != 0;
-      EDBM_verts_mirror_cache_begin(em, 0, false, true, false, use_topology);
     }
 
-    BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
-      if (!BM_elem_flag_test(eed, BM_ELEM_SELECT) || BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
+    for (int axis = 0; axis < 3; axis++) {
+      if ((me->symmetry & (ME_SYMMETRY_X << axis)) == 0) {
         continue;
       }
+      const bool use_topology = ((me->editflag & ME_EDIT_MIRROR_TOPO) != 0);
+      EDBM_verts_mirror_cache_begin(em, axis, false, true, false, use_topology);
 
-      if (clear) {
-        BM_elem_flag_disable(eed, BM_ELEM_SEAM);
-      }
-      else {
-        BM_elem_flag_enable(eed, BM_ELEM_SEAM);
-      }
+      BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
+        if (!BM_elem_flag_test(eed, BM_ELEM_SELECT) || BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
+          continue;
+        }
 
-      if (((Mesh *)obedit->data)->symmetry & ME_SYMMETRY_X) {
+        if (clear) {
+          BM_elem_flag_disable(eed, BM_ELEM_SEAM);
+        }
+        else {
+          BM_elem_flag_enable(eed, BM_ELEM_SEAM);
+        }
+
         BMEdge *eed_mirror = EDBM_verts_mirror_get_edge(em, eed);
         if (eed_mirror) {
           if (clear) {
@@ -1071,17 +1074,14 @@ static int edbm_mark_seam_exec(bContext *C, wmOperator *op)
           }
         }
       }
-    }
 
-    if (((Mesh *)obedit->data)->symmetry & ME_SYMMETRY_X) {
-      EDBM_verts_mirror_apply(em, BM_ELEM_SELECT, 0);
       EDBM_verts_mirror_cache_end(em);
     }
   }
 
   ED_uvedit_live_unwrap(scene, objects);
   for (Object *obedit : objects) {
-    EDBMUpdate_Params params = {0};
+    EDBMUpdate_Params params{};
     params.calc_looptris = true;
     params.calc_normals = false;
     params.is_destructive = false;
