@@ -105,43 +105,33 @@ static bool check_double_press(wmEvent *event, bool test_only)
 {
   using namespace std::chrono;
 
-  static int last_released_button = EVENT_NONE;
-  static time_point<steady_clock> last_released_time{};
+  static int last_pressed_button = EVENT_NONE;
+  static time_point<steady_clock> last_pressed_time{};
+
+  if (!event) {
+    last_pressed_button = EVENT_NONE;
+    return false;
+  }
 
   const time_point<steady_clock> now = steady_clock::now();
 
-  if (!ISKEYBOARD_OR_BUTTON(event->type)) {
+  if (!ISKEYBOARD_OR_BUTTON(event->type) || event->val != KM_PRESS) {
     return false;
   }
 
-  if (event->val == KM_RELEASE) {
-    if (!test_only) {
-      last_released_button = event->type;
-      last_released_time = now;
+  if (event->type == last_pressed_button) {
+    const int elapsed = std::chrono::duration_cast<milliseconds>(now - last_pressed_time).count();
+    if (elapsed <= U.dbl_click_time) {
+      return true;
     }
-    return false;
   }
 
-  if (last_released_button == EVENT_NONE || event->val != KM_PRESS) {
-    return false;
+  if (!test_only) {
+    last_pressed_button = event->type;
+    last_pressed_time = now;
   }
 
-  if (event->type != last_released_button) {
-    if (!test_only) {
-      last_released_button = EVENT_NONE;
-    }
-    return false;
-  }
-
-  const int elapsed = std::chrono::duration_cast<milliseconds>(now - last_released_time).count();
-  if (elapsed > U.dbl_click_time) {
-    if (!test_only) {
-      last_released_button = EVENT_NONE;
-    }
-    return false;
-  }
-
-  return true;
+  return false;
 }
 
 static uint8_t event_to_modifier(short event)
@@ -253,6 +243,9 @@ static bool emulate_rmbmmb(wmEvent *event, bool test_only, bool is_double_press)
 
         if (!test_only) {
           emulating_event_source = EVENT_NONE;
+          /* Release tracked double-press state,
+           * to force a new double press once this emulation is over.*/
+          check_double_press(nullptr, test_only);
         }
       }
     }
