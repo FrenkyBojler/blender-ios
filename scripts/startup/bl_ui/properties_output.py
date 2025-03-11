@@ -466,18 +466,38 @@ class RENDER_PT_encoding_video(RenderOutputButtonsPanel, Panel):
         if use_crf:
             layout.prop(ffmpeg, "constant_rate_factor")
 
-        # Encoding speed
-        layout.prop(ffmpeg, "ffmpeg_preset")
-        # I-frames
-        layout.prop(ffmpeg, "gopsize")
-        # B-Frames
-        row = layout.row(align=True, heading="Max B-frames")
-        row.prop(ffmpeg, "use_max_b_frames", text="")
-        sub = row.row(align=True)
-        sub.active = ffmpeg.use_max_b_frames
-        sub.prop(ffmpeg, "max_b_frames", text="")
+        use_encoding_speed = needs_codec and ffmpeg.codec not in {
+            'DNXHD', 'FFmpeg video codec #1', 'HuffYUV', 'PNG', 'Quicktime Animation'}
+        use_bitrate = needs_codec and ffmpeg.codec not in {
+            'DNXHD', 'FFmpeg video codec #1', 'HuffYUV', 'PNG', 'Quicktime Animation'}
+        use_gop = needs_codec and ffmpeg.codec not in {'DNXHD', 'HuffYUV', 'PNG'}
+        use_b_frames = needs_codec and use_gop and ffmpeg.codec not in {'FFmpeg video codec #1', 'Quicktime Animation'}
 
-        if not use_crf or ffmpeg.constant_rate_factor == 'NONE':
+        print(
+            "Use encoding :",
+            use_encoding_speed,
+            "; use bitrate :",
+            use_bitrate,
+            " ; use_gop :",
+            use_gop,
+            " ; use b frames : ",
+            use_b_frames)
+
+        # Encoding speed
+        if use_encoding_speed:
+            layout.prop(ffmpeg, "ffmpeg_preset")
+        # I-frames
+        if use_gop:
+            layout.prop(ffmpeg, "gopsize")
+        # B-Frames
+        if use_b_frames:
+            row = layout.row(align=True, heading="Max B-frames")
+            row.prop(ffmpeg, "use_max_b_frames", text="")
+            sub = row.row(align=True)
+            sub.active = ffmpeg.use_max_b_frames
+            sub.prop(ffmpeg, "max_b_frames", text="")
+
+        if not use_crf or ffmpeg.constant_rate_factor == 'NONE' or not use_bitrate:
             col = layout.column()
 
             sub = col.column(align=True)
