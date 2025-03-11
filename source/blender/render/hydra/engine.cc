@@ -40,7 +40,24 @@ Engine::Engine(RenderEngine *bl_engine, const std::string &render_delegate_name)
 
   pxr::HdDriverVector hd_drivers;
   if (bl_engine->type->flag & RE_USE_GPU_CONTEXT) {
-    hgi_ = pxr::Hgi::CreatePlatformDefaultHgi();
+    pxr::TfToken hgi_token;
+    switch (GPU_backend_get_type()) {
+      case GPU_BACKEND_METAL:
+        hgi_token = pxr::TfToken("HgiMetal");
+        break;
+      case GPU_BACKEND_OPENGL:
+        hgi_token = pxr::TfToken("HgiGL");
+        break;
+      case GPU_BACKEND_VULKAN:
+        hgi_token = pxr::TfToken("HgiVulkan");
+        break;
+      case GPU_BACKEND_NONE:
+      case GPU_BACKEND_ANY:
+        /* When pxr::Hgi::CreateNamedHgi is called with an empty token it will select the default
+         * platform Hgi. This is Metal or OpenGL. */
+        break;
+    }
+    hgi_ = pxr::Hgi::CreateNamedHgi(hgi_token);
     hgi_driver_.name = pxr::HgiTokens->renderDriver;
     hgi_driver_.driver = pxr::VtValue(hgi_.get());
 
