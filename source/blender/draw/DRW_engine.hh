@@ -34,6 +34,9 @@ struct rcti;
 void DRW_engines_register();
 void DRW_engines_free();
 
+void DRW_module_init();
+void DRW_module_exit();
+
 void DRW_engine_external_free(RegionView3D *rv3d);
 
 enum eDRWSelectStage {
