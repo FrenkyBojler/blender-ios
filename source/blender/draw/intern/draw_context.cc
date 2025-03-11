@@ -285,7 +285,7 @@ bool DRW_object_is_visible_psys_in_active_context(const Object *object, const Pa
   if (!psys_check_enabled((Object *)object, (ParticleSystem *)psys, for_render)) {
     return false;
   }
-  const DRWContext *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_get();
   const Scene *scene = draw_ctx->scene;
   if (object == draw_ctx->object_edit) {
     return false;
@@ -1815,7 +1815,7 @@ void DRW_render_object_iter(void *vedata,
                                              Depsgraph *depsgraph))
 {
   using namespace blender::draw;
-  const DRWContext *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_get();
   drw_get().data->modules_init();
 
   DupliCacheManager dupli_handler;
@@ -2310,7 +2310,7 @@ bool DRW_draw_in_progress()
 /** \name Draw Manager State (DRW_state)
  * \{ */
 
-const DRWContext *DRW_context_state_get()
+const DRWContext *DRW_context_get()
 {
   return &drw_get();
 }

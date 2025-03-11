@@ -545,7 +545,7 @@ static void workbench_engine_init(void *vedata)
     ved->instance = new workbench::Instance();
   }
 
-  ved->instance->init(DRW_context_state_get()->depsgraph);
+  ved->instance->init(DRW_context_get()->depsgraph);
 }
 
 static void workbench_cache_init(void *vedata)
@@ -717,7 +717,7 @@ static void workbench_render_to_image(void *vedata,
 
   /* Setup */
   DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
-  const DRWContext *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_get();
   Depsgraph *depsgraph = draw_ctx->depsgraph;
 
   WORKBENCH_Data *ved = reinterpret_cast<WORKBENCH_Data *>(vedata);

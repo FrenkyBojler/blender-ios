@@ -276,7 +276,7 @@ void Instance::object_sync(ObjectRef &ob_ref)
 
   ObjectHandle &ob_handle = sync.sync_object(ob_ref);
 
-  if (partsys_is_visible && ob != DRW_context_state_get()->object_edit) {
+  if (partsys_is_visible && ob != DRW_context_get()->object_edit) {
     auto sync_hair =
         [&](ObjectHandle hair_handle, ModifierData &md, ParticleSystem &particle_sys) {
           ResourceHandle _res_handle = manager->resource_handle_for_psys(ob_ref,

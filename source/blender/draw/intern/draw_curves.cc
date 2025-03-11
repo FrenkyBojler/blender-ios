@@ -151,7 +151,7 @@ static CurvesEvalCache *drw_curves_cache_get(Curves &curves,
 
 gpu::VertBuf *DRW_curves_pos_buffer_get(Object *object)
 {
-  const DRWContext *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_get();
   const Scene *scene = draw_ctx->scene;
 
   const int subdiv = scene->r.hair_subdiv;

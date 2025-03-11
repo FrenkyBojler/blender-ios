@@ -35,7 +35,7 @@ static void eevee_engine_init(void *vedata)
     ved->instance = new eevee::Instance();
   }
 
-  const DRWContext *ctx_state = DRW_context_state_get();
+  const DRWContext *ctx_state = DRW_context_get();
   Depsgraph *depsgraph = ctx_state->depsgraph;
   Scene *scene = ctx_state->scene;
   View3D *v3d = ctx_state->v3d;
@@ -143,7 +143,7 @@ static void eevee_render_to_image(void *vedata,
   eevee::Instance *instance = new eevee::Instance();
 
   Render *render = engine->re;
-  Depsgraph *depsgraph = DRW_context_state_get()->depsgraph;
+  Depsgraph *depsgraph = DRW_context_get()->depsgraph;
   Object *camera_original_ob = RE_GetCamera(engine->re);
   const char *viewname = RE_GetActiveRenderView(engine->re);
   int size[2] = {engine->resolution_x, engine->resolution_y};

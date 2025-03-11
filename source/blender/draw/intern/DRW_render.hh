@@ -228,6 +228,7 @@ struct DRWContext {
   /* Returns the viewport's default framebuffer. */
   GPUFrameBuffer *default_framebuffer();
 
+  /* TODO(fclem): Make these options constant and specified in the constructor. */
   struct {
     bool is_select = false;
     bool is_material_select = false;
@@ -308,7 +309,7 @@ struct DRWContext {
 
 /** \} */
 
-const DRWContext *DRW_context_state_get();
+const DRWContext *DRW_context_get();
 
 /**
  * For when engines need to know if this is drawing for selection or not.
