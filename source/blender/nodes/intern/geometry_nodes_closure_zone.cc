@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <fmt/format.h>
+
 #include "NOD_geometry_nodes_closure_eval.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 
@@ -284,12 +286,81 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
         }
         return;
       }
+      this->generate_closure_compatibility_warnings(*eval_storage.closure, context);
       this->initialize_execution_graph(eval_storage);
     }
 
     lf::Context eval_graph_context{
         eval_storage.graph_executor_storage, context.user_data, context.local_user_data};
     eval_storage.graph_executor->execute(params, eval_graph_context);
+  }
+
+  void generate_closure_compatibility_warnings(const bke::Closure &closure,
+                                               const lf::Context &context) const
+  {
+    const auto &node_storage = *static_cast<const NodeGeometryEvaluateClosure *>(bnode_.storage);
+    const auto &user_data = *static_cast<GeoNodesLFUserData *>(context.user_data);
+    const auto &local_user_data = *static_cast<GeoNodesLFLocalUserData *>(context.local_user_data);
+    geo_eval_log::GeoTreeLogger *tree_logger = local_user_data.try_get_tree_logger(user_data);
+    if (tree_logger == nullptr) {
+      return;
+    }
+    const bke::ClosureSignature &signature = closure.signature();
+    for (const NodeGeometryEvaluateClosureInputItem &item :
+         Span{node_storage.input_items.items, node_storage.input_items.items_num})
+    {
+      if (const std::optional<int> i = signature.find_input_index(
+              bke::SocketInterfaceKey{item.name}))
+      {
+        const bke::ClosureSignature::Item &closure_item = signature.inputs[*i];
+        if (!btree_.typeinfo->validate_link(eNodeSocketDatatype(item.socket_type),
+                                            eNodeSocketDatatype(closure_item.type->type)))
+        {
+          tree_logger->node_warnings.append(
+              *tree_logger->allocator,
+              {bnode_.identifier,
+               {geo_eval_log::NodeWarningType::Error,
+                fmt::format(fmt::runtime(TIP_("Closure input has incompatible type: \"{}\"")),
+                            item.name)}});
+        }
+      }
+      else {
+        tree_logger->node_warnings.append(
+            *tree_logger->allocator,
+            {bnode_.identifier,
+             {
+                 geo_eval_log::NodeWarningType::Error,
+                 fmt::format(fmt::runtime(TIP_("Closure does not have input: \"{}\"")), item.name),
+             }});
+      }
+    }
+    for (const NodeGeometryEvaluateClosureOutputItem &item :
+         Span{node_storage.output_items.items, node_storage.output_items.items_num})
+    {
+      if (const std::optional<int> i = signature.find_output_index(
+              bke::SocketInterfaceKey{item.name}))
+      {
+        const bke::ClosureSignature::Item &closure_item = signature.outputs[*i];
+        if (!btree_.typeinfo->validate_link(eNodeSocketDatatype(closure_item.type->type),
+                                            eNodeSocketDatatype(item.socket_type)))
+        {
+          tree_logger->node_warnings.append(
+              *tree_logger->allocator,
+              {bnode_.identifier,
+               {geo_eval_log::NodeWarningType::Error,
+                fmt::format(fmt::runtime(TIP_("Closure output has incompatible type: \"{}\"")),
+                            item.name)}});
+        }
+      }
+      else {
+        tree_logger->node_warnings.append(
+            *tree_logger->allocator,
+            {bnode_.identifier,
+             {geo_eval_log::NodeWarningType::Error,
+              fmt::format(fmt::runtime(TIP_("Closure does not have output: \"{}\"")),
+                          item.name)}});
+      }
+    }
   }
 
   void initialize_execution_graph(EvaluateClosureEvalStorage &eval_storage) const
