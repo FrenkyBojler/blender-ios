@@ -1223,7 +1223,7 @@ typedef enum eUserPref_Flag {
   USER_FLAG_UNUSED_3 = (1 << 3), /* cleared */
   USER_FLAG_MOUSE_EMULATE_BUTTON_CONSUME_EVENT = (1 << 4),
   USER_TRACKBALL = (1 << 5),
-  USER_FLAG_UNUSED_6 = (1 << 6), /* cleared */
+  USER_FLAG_PEN_BARREL_AS_LMB = (1 << 6),
   USER_FLAG_UNUSED_7 = (1 << 7), /* cleared */
   USER_MAT_ON_OB = (1 << 8),
   USER_INTERNET_ALLOW = (1 << 9),

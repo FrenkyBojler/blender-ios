@@ -52,6 +52,9 @@ static const EnumPropertyItem event_mouse_type_items[] = {
     RNA_ENUM_ITEM_SEPR,
     {TABLET_STYLUS, "PEN", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Pen"), ""},
     {TABLET_ERASER, "ERASER", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Eraser"), ""},
+    {TABLET_BARREL1, "BARREL1", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Barrel 1"), ""},
+    {TABLET_BARREL2, "BARREL2", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Barrel 2"), ""},
+    {TABLET_BARREL3, "BARREL3", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Barrel 3"), ""},
     RNA_ENUM_ITEM_SEPR,
     {MOUSEMOVE, "MOUSEMOVE", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Move"), ""},
     {MOUSEPAN, "TRACKPADPAN", 0, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Mouse/Trackpad Pan"), ""},
@@ -224,6 +227,9 @@ const EnumPropertyItem rna_enum_event_type_items[] = {
     RNA_ENUM_ITEM_SEPR,
     {TABLET_STYLUS, "PEN", 0, "Pen", ""},
     {TABLET_ERASER, "ERASER", 0, "Eraser", ""},
+    {TABLET_BARREL1, "BARREL1", 0, "Barrel 1", ""},
+    {TABLET_BARREL2, "BARREL2", 0, "Barrel 2", ""},
+    {TABLET_BARREL3, "BARREL3", 0, "Barrel 3", ""},
     RNA_ENUM_ITEM_SEPR,
     {MOUSEMOVE, "MOUSEMOVE", 0, "Mouse Move", "MsMov"},
     {INBETWEEN_MOUSEMOVE, "INBETWEEN_MOUSEMOVE", 0, "In-between Move", "MsSubMov"},
@@ -1074,7 +1080,7 @@ static void rna_wmKeyMapItem_keymodifier_set(PointerRNA *ptr, int value)
   if (value == EVT_ESCKEY) {
     /* pass */
   }
-  else if (ISKEYBOARD(value) && !ISKEYMODIFIER(value)) {
+  else if ((ISKEYBOARD(value) && !ISKEYMODIFIER(value)) || ISTABLET_BUTTON(value)) {
     kmi->keymodifier = value;
   }
   else {

@@ -159,6 +159,7 @@ typedef enum {
 
 typedef struct GHOST_TabletData {
   GHOST_TTabletMode Active; /* 0=None, 1=Stylus, 2=Eraser */
+  int BarrelButton;         /* range 0(none) to 3 */
   float Pressure;           /* range 0.0 (not touching) to 1.0 (full pressure) */
   float Xtilt; /* range 0.0 (upright) to 1.0 (tilted fully against the tablet surface) */
   float Ytilt; /* as above */
@@ -166,6 +167,7 @@ typedef struct GHOST_TabletData {
 
 static const GHOST_TabletData GHOST_TABLET_DATA_NONE = {
     GHOST_kTabletModeNone, /* No cursor in range */
+    0,                     /* No barrel button held */
     1.0f,                  /* Pressure */
     0.0f,                  /* Xtilt */
     0.0f};                 /* Ytilt */
@@ -236,8 +238,12 @@ typedef enum {
   /* Trackballs and programmable buttons. */
   GHOST_kButtonMaskButton6,
   GHOST_kButtonMaskButton7,
+  /* Pen barrel buttons */
+  GHOST_kButtonMaskBarrel1,
+  GHOST_kButtonMaskBarrel2,
+  GHOST_kButtonMaskBarrel3,
 
-#define GHOST_kButtonNum (int(GHOST_kButtonMaskButton7) + 1)
+#define GHOST_kButtonNum (int(GHOST_kButtonMaskBarrel3) + 1)
 } GHOST_TButton;
 
 typedef enum {

@@ -819,7 +819,7 @@ static void rna_UserDef_mouse_emulate_button_type_set(PointerRNA *ptr, int value
   else if (value == EVT_ESCKEY) {
     /* pass */
   }
-  else if (ISKEYBOARD(value)) {
+  else if (ISKEYBOARD(value) || ISTABLET_BUTTON(value)) {
     for (int i = 0; i < mouse_button_count; i++) {
       if (userdef->mouse_emulate_button_types[i] == value) {
         userdef->mouse_emulate_button_types[i] = 0;
@@ -6820,6 +6820,13 @@ static void rna_def_userdef_input(BlenderRNA *brna)
                            "Select the tablet API to use for pressure sensitivity (may require "
                            "restarting Blender for changes to take effect)");
   RNA_def_property_update(prop, 0, "rna_userdef_input_devices");
+
+  prop = RNA_def_property(srna, "tablet_pen_barrel_as_lmb", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_FLAG_PEN_BARREL_AS_LMB);
+  RNA_def_property_ui_text(prop,
+                           "Lock Pen to Left Mouse Button",
+                           "Pen input will send left mouse button events even when barrel buttons "
+                           " are held down");
 
 #  ifdef WITH_INPUT_NDOF
   /* 3D mouse settings */

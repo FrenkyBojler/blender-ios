@@ -969,64 +969,78 @@ GHOST_TSuccess GHOST_WindowWin32::getPointerInfo(
   }
 
   std::vector<POINTER_PEN_INFO> pointerPenInfo(outCount);
-  outPointerInfo.resize(outCount);
-
   if (!(GetPointerPenInfoHistory(pointerId, &outCount, pointerPenInfo.data()))) {
     return GHOST_kFailure;
   }
 
-  for (uint32_t i = 0; i < outCount; i++) {
+  /* Coalesced pointer events are reverse chronological order, reorder chronologically. */
+  outPointerInfo.clear();
+  int prevBarrelButton = m_lastPointerTabletData.BarrelButton;
+  for (uint32_t i = outCount; i-- > 0; ) {
+    GHOST_PointerInfoWin32& out = outPointerInfo.emplace_back();
     POINTER_INFO pointerApiInfo = pointerPenInfo[i].pointerInfo;
     /* Obtain the basic information from the event. */
-    outPointerInfo[i].pointerId = pointerId;
-    outPointerInfo[i].isPrimary = isPrimary;
+    out.pointerId = pointerId;
+    out.isPrimary = isPrimary;
 
     switch (pointerApiInfo.ButtonChangeType) {
       case POINTER_CHANGE_FIRSTBUTTON_DOWN:
       case POINTER_CHANGE_FIRSTBUTTON_UP:
-        outPointerInfo[i].buttonMask = GHOST_kButtonMaskLeft;
+        out.buttonMask = GHOST_kButtonMaskLeft;
         break;
       case POINTER_CHANGE_SECONDBUTTON_DOWN:
       case POINTER_CHANGE_SECONDBUTTON_UP:
-        outPointerInfo[i].buttonMask = GHOST_kButtonMaskRight;
+        out.buttonMask = GHOST_kButtonMaskRight;
         break;
       case POINTER_CHANGE_THIRDBUTTON_DOWN:
       case POINTER_CHANGE_THIRDBUTTON_UP:
-        outPointerInfo[i].buttonMask = GHOST_kButtonMaskMiddle;
+        out.buttonMask = GHOST_kButtonMaskMiddle;
         break;
       case POINTER_CHANGE_FOURTHBUTTON_DOWN:
       case POINTER_CHANGE_FOURTHBUTTON_UP:
-        outPointerInfo[i].buttonMask = GHOST_kButtonMaskButton4;
+        out.buttonMask = GHOST_kButtonMaskButton4;
         break;
       case POINTER_CHANGE_FIFTHBUTTON_DOWN:
       case POINTER_CHANGE_FIFTHBUTTON_UP:
-        outPointerInfo[i].buttonMask = GHOST_kButtonMaskButton5;
+        out.buttonMask = GHOST_kButtonMaskButton5;
         break;
       default:
         break;
     }
 
-    outPointerInfo[i].pixelLocation = pointerApiInfo.ptPixelLocation;
-    outPointerInfo[i].tabletData.Active = GHOST_kTabletModeStylus;
-    outPointerInfo[i].tabletData.Pressure = 1.0f;
-    outPointerInfo[i].tabletData.Xtilt = 0.0f;
-    outPointerInfo[i].tabletData.Ytilt = 0.0f;
-    outPointerInfo[i].time = system->performanceCounterToMillis(pointerApiInfo.PerformanceCount);
+    out.pixelLocation = pointerApiInfo.ptPixelLocation;
+    out.tabletData.Active = GHOST_kTabletModeStylus;
+    out.tabletData.Pressure = 1.0f;
+    out.tabletData.Xtilt = 0.0f;
+    out.tabletData.Ytilt = 0.0f;
+    out.time = system->performanceCounterToMillis(pointerApiInfo.PerformanceCount);
 
     if (pointerPenInfo[i].penMask & PEN_MASK_PRESSURE) {
-      outPointerInfo[i].tabletData.Pressure = pointerPenInfo[i].pressure / 1024.0f;
+      out.tabletData.Pressure = pointerPenInfo[i].pressure / 1024.0f;
     }
 
     if (pointerPenInfo[i].penFlags & PEN_FLAG_ERASER) {
-      outPointerInfo[i].tabletData.Active = GHOST_kTabletModeEraser;
+      out.tabletData.Active = GHOST_kTabletModeEraser;
     }
 
     if (pointerPenInfo[i].penMask & PEN_MASK_TILT_X) {
-      outPointerInfo[i].tabletData.Xtilt = fmin(fabs(pointerPenInfo[i].tiltX / 90.0f), 1.0f);
+      out.tabletData.Xtilt = fmin(fabs(pointerPenInfo[i].tiltX / 90.0f), 1.0f);
     }
 
     if (pointerPenInfo[i].penMask & PEN_MASK_TILT_Y) {
-      outPointerInfo[i].tabletData.Ytilt = fmin(fabs(pointerPenInfo[i].tiltY / 90.0f), 1.0f);
+      out.tabletData.Ytilt = fmin(fabs(pointerPenInfo[i].tiltY / 90.0f), 1.0f);
+    }
+
+    if (pointerPenInfo[i].penFlags & PEN_FLAG_BARREL) {
+      /* Windows Pointer API only supports 1 barrel button. */
+      out.tabletData.BarrelButton = 1;
+    }
+
+    if (prevBarrelButton != out.tabletData.BarrelButton) {
+      prevBarrelButton = out.tabletData.BarrelButton;
+      const GHOST_TButton ev = out.buttonMask;
+      out.buttonMask = GHOST_kButtonMaskBarrel1;
+      outPointerInfo.emplace_back(out).buttonMask = ev;
     }
   }
 

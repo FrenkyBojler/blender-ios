@@ -5315,6 +5315,9 @@ static int wm_event_type_from_ghost_button(const GHOST_TButton button, const int
     CASE_BUTTON(GHOST_kButtonMaskButton5, BUTTON5MOUSE);
     CASE_BUTTON(GHOST_kButtonMaskButton6, BUTTON6MOUSE);
     CASE_BUTTON(GHOST_kButtonMaskButton7, BUTTON7MOUSE);
+    CASE_BUTTON(GHOST_kButtonMaskBarrel1, TABLET_BARREL1);
+    CASE_BUTTON(GHOST_kButtonMaskBarrel2, TABLET_BARREL2);
+    CASE_BUTTON(GHOST_kButtonMaskBarrel3, TABLET_BARREL3);
     case GHOST_kButtonMaskNone: {
       BLI_assert_unreachable();
     }
@@ -5368,14 +5371,24 @@ static void wm_eventemulation(wmEvent *event, bool test_only)
   /* Store which event triggered the reinterpretation of the upcoming event. */
   static int upcoming_event_source = EVENT_NONE;
 
+  if (event->tablet.active && ISMOUSE_BUTTON(event->type) &&
+      (U.flag & USER_FLAG_PEN_BARREL_AS_LMB)) {
+    /* Mouse buttons are configured to be locked to left mouse button. */
+    event->type = LEFTMOUSE;
+  }
+
   if (U.runtime.is_ui_button_waiting_key_event) {
-    /* User is entering a key to use as the modifier for this feature.
-     * Temporarily disable this feature, so that the key goes through. */
-    upcoming_event = upcoming_event_source = EVENT_NONE;
+    if (!test_only) {
+      /* User is entering a key to use as the modifier for this feature.
+       * Temporarily disable this feature, so that the key goes through. */
+      upcoming_event = upcoming_event_source = EVENT_NONE;
+    }
   }
   else if (!ISMOUSE_BUTTON(U.mouse_emulate_button_types[0])) {
-    /* Feature is not used, or configuration is incorrect. */
-    upcoming_event = upcoming_event_source = EVENT_NONE;
+    if (!test_only) {
+      /* Feature is not used, or configuration is incorrect. */
+      upcoming_event = upcoming_event_source = EVENT_NONE;
+    }
   }
   else if (event->type == U.mouse_emulate_button_types[0]) {
     /* Mouse buttons emulation. */
@@ -5398,7 +5411,7 @@ static void wm_eventemulation(wmEvent *event, bool test_only)
       }
     }
   }
-  else if (ISKEYBOARD(event->type)) {
+  else if (ISKEYBOARD(event->type) || ISTABLET_BUTTON(event->type)) {
     bool kill_event = false;
 
     /* Track pressed keys that are repurposed as modifier keys.

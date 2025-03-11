@@ -161,6 +161,22 @@ static void initRawInput()
 #undef DEVICE_COUNT
 }
 
+/**
+ * Generate an event to notify that tablet is no longer active.
+ * Expected to be called from WndProc and its callees.
+ */
+static void pushTabletDeactivationEvent(GHOST_System* system, GHOST_IWindow *window)
+{
+  POINT pt;
+  GetCursorPos(&pt);
+  system->pushEvent(new GHOST_EventCursor(GetMessageTime(),
+                                          GHOST_kEventCursorMove,
+                                          window,
+                                          pt.x,
+                                          pt.y,
+                                          GHOST_TABLET_DATA_NONE));
+}
+
 typedef BOOL(API *GHOST_WIN32_EnableNonClientDpiScaling)(HWND);
 
 GHOST_SystemWin32::GHOST_SystemWin32() : m_hasPerformanceCounter(false), m_freq(0)
@@ -1086,15 +1102,29 @@ void GHOST_SystemWin32::processPointerEvent(
 
   switch (type) {
     case WM_POINTERUPDATE: {
-      /* Coalesced pointer events are reverse chronological order, reorder chronologically.
-       * Only contiguous move events are coalesced. */
-      for (uint32_t i = pointerInfo.size(); i-- > 0;) {
-        system->pushEvent(new GHOST_EventCursor(pointerInfo[i].time,
-                                                GHOST_kEventCursorMove,
-                                                window,
-                                                pointerInfo[i].pixelLocation.x,
-                                                pointerInfo[i].pixelLocation.y,
-                                                pointerInfo[i].tabletData));
+      /* Only contiguous move events are coalesced. */
+      for (const GHOST_PointerInfoWin32& p : pointerInfo) {
+        switch (p.buttonMask) {
+          case GHOST_kButtonMaskBarrel1:
+          case GHOST_kButtonMaskBarrel2:
+          case GHOST_kButtonMaskBarrel3:
+            system->pushEvent(new GHOST_EventButton(p.time,
+                                                    p.tabletData.BarrelButton
+                                                      ? GHOST_kEventButtonDown
+                                                      : GHOST_kEventButtonUp,
+                                                    window,
+                                                    p.buttonMask,
+                                                    p.tabletData));
+            break;
+          default:
+            system->pushEvent(new GHOST_EventCursor(p.time,
+                                                    GHOST_kEventCursorMove,
+                                                    window,
+                                                    p.pixelLocation.x,
+                                                    p.pixelLocation.y,
+                                                    p.tabletData));
+            break;
+        }
       }
 
       /* Leave event unhandled so that system cursor is moved. */
@@ -1103,17 +1133,38 @@ void GHOST_SystemWin32::processPointerEvent(
     }
     case WM_POINTERDOWN: {
       /* Move cursor to point of contact because GHOST_EventButton does not include position. */
-      system->pushEvent(new GHOST_EventCursor(pointerInfo[0].time,
+      system->pushEvent(new GHOST_EventCursor(pointerInfo.back().time,
                                               GHOST_kEventCursorMove,
                                               window,
-                                              pointerInfo[0].pixelLocation.x,
-                                              pointerInfo[0].pixelLocation.y,
-                                              pointerInfo[0].tabletData));
-      system->pushEvent(new GHOST_EventButton(pointerInfo[0].time,
+                                              pointerInfo.back().pixelLocation.x,
+                                              pointerInfo.back().pixelLocation.y,
+                                              pointerInfo.back().tabletData));
+
+      /* Add barrel button events. */
+      for (const GHOST_PointerInfoWin32& p : pointerInfo) {
+        switch (p.buttonMask) {
+          case GHOST_kButtonMaskBarrel1:
+          case GHOST_kButtonMaskBarrel2:
+          case GHOST_kButtonMaskBarrel3:
+            system->pushEvent(new GHOST_EventButton(p.time,
+                                                    p.tabletData.BarrelButton
+                                                      ? GHOST_kEventButtonDown
+                                                      : GHOST_kEventButtonUp,
+                                                    window,
+                                                    p.buttonMask,
+                                                    p.tabletData));
+            break;
+          default:
+            /* do nothing */
+            break;
+        }
+      }
+
+      system->pushEvent(new GHOST_EventButton(pointerInfo.back().time,
                                               GHOST_kEventButtonDown,
                                               window,
-                                              pointerInfo[0].buttonMask,
-                                              pointerInfo[0].tabletData));
+                                              pointerInfo.back().buttonMask,
+                                              pointerInfo.back().tabletData));
       window->updateMouseCapture(MousePressed);
 
       /* Mark event handled so that mouse button events are not generated. */
@@ -1122,6 +1173,26 @@ void GHOST_SystemWin32::processPointerEvent(
       break;
     }
     case WM_POINTERUP: {
+      /* Add barrel button events. */
+      for (const GHOST_PointerInfoWin32& p : pointerInfo) {
+        switch (p.buttonMask) {
+          case GHOST_kButtonMaskBarrel1:
+          case GHOST_kButtonMaskBarrel2:
+          case GHOST_kButtonMaskBarrel3:
+            system->pushEvent(new GHOST_EventButton(p.time,
+                                                    p.tabletData.BarrelButton
+                                                      ? GHOST_kEventButtonDown
+                                                      : GHOST_kEventButtonUp,
+                                                    window,
+                                                    p.buttonMask,
+                                                    p.tabletData));
+            break;
+          default:
+            /* do nothing */
+            break;
+        }
+      }
+
       system->pushEvent(new GHOST_EventButton(pointerInfo[0].time,
                                               GHOST_kEventButtonUp,
                                               window,
@@ -1762,6 +1833,7 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, uint msg, WPARAM wParam, 
               GHOST_Wintab *wt = window->getWintab();
               if (wt) {
                 wt->disable();
+                pushTabletDeactivationEvent(system, window);
               }
               /* Don't report event as handled so that default handling occurs. */
               break;
@@ -1805,6 +1877,7 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, uint msg, WPARAM wParam, 
             }
             else {
               wt->leaveRange();
+              pushTabletDeactivationEvent(system, window);
             }
           }
           eventHandled = true;
@@ -1877,9 +1950,34 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, uint msg, WPARAM wParam, 
             break;
           }
 
+          if (pointerInfo.pointerFlags & POINTER_FLAG_PRIMARY) {
+            /* Workaround for synthetic pointer inputs: a lot of applications call
+             * InjectSyntheticPointerInput with pointerId=0, which will cause Windows to
+             * increment autogenerated pointer ID whenever (barrel) buttons' states change.
+             * This effectively results in removing the pen and then immediately placing it
+             * on the tablet again. Check if WM_POINTERENTER is pending, and if then see if
+             * two pointers are sufficiently overlapping. */
+            if (MSG msg2; PeekMessageW(&msg2, hwnd, WM_POINTERENTER, WM_POINTERENTER, PM_NOYIELD))
+            {
+              uint32_t pointerId2 = GET_POINTERID_WPARAM(msg2.wParam);
+              if (POINTER_INFO pointerInfo2; GetPointerInfo(pointerId2, &pointerInfo2)) {
+                constexpr auto requiredFlags = (
+                  POINTER_FLAG_NEW | POINTER_FLAG_INRANGE | POINTER_FLAG_PRIMARY
+                );
+                if (pointerInfo.sourceDevice == pointerInfo2.sourceDevice &&
+                    pointerInfo.pointerType == pointerInfo2.pointerType &&
+                    (pointerInfo2.pointerFlags & requiredFlags) == requiredFlags) {
+                  break;
+                }
+              }
+            }
+          }
+
           /* Reset pointer pen info if pen device has left tracking range. */
-          if (pointerInfo.pointerType == PT_PEN) {
+          if (pointerInfo.pointerType == PT_PEN &&
+            (pointerInfo.pointerFlags & POINTER_FLAG_PRIMARY)) {
             window->resetPointerPenInfo();
+            pushTabletDeactivationEvent(system, window);
             eventHandled = true;
           }
           break;
@@ -2038,6 +2136,7 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, uint msg, WPARAM wParam, 
           GHOST_Wintab *wt = window->getWintab();
           if (wt) {
             wt->loseFocus();
+            pushTabletDeactivationEvent(system, window);
           }
           break;
         }

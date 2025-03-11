@@ -1883,9 +1883,9 @@ class USERPREF_PT_input_mouse_emulation(InputPanel, CenterAlignMixIn, Panel):
         prefs = context.preferences
         inputs = prefs.inputs
 
-        flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=False)
-        flow.prop(inputs, "mouse_emulate_button_source_type")
-        flow.prop(inputs, "mouse_emulate_button_consume_event")
+        col = layout.column()
+        col.prop(inputs, "mouse_emulate_button_source_type")
+        col.prop(inputs, "mouse_emulate_button_consume_event")
 
         flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=False)
         self.draw_single(flow.row(), inputs, 2, "RIGHTMOUSE", text=pgettext("UI_Events_KeyMaps", "Right"))
@@ -1953,6 +1953,7 @@ class USERPREF_PT_input_tablet(InputPanel, CenterAlignMixIn, Panel):
         import sys
         if sys.platform[:3] == "win":
             layout.prop(inputs, "tablet_api")
+            layout.prop(inputs, "tablet_pen_barrel_as_lmb")
             layout.separator()
 
         col = layout.column()
