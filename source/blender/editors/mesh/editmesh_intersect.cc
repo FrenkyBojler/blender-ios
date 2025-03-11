@@ -652,7 +652,16 @@ static void bm_face_split_by_edges_island_connect(
       BMFace *f_pair[2];
       if (BM_edge_face_pair(edge_arr[i], &f_pair[0], &f_pair[1])) {
         if (BM_face_share_vert_count(f_pair[0], f_pair[1]) == 2) {
-          BMFace *f_new = BM_faces_join(bm, f_pair, 2, true);
+          BMFace *f_double;
+
+          BMFace *f_new = BM_faces_join(bm, f_pair, 2, true, &f_double);
+
+          /* The existing algorithm does not check for or handle double faces. This can result in
+           * invalid meshes being returned. The returned value in f_double should be examined and
+           * if found, the algorithm should be adjusted. Until this is changed, at least warn. */
+          BLI_assert_msg(f_double == nullptr,
+                         "Doubled face detected at " AT ". Resulting mesh may be corrupt.");
+
           if (f_new) {
             BM_face_select_set(bm, f_new, true);
           }

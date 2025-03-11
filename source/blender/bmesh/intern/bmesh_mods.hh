@@ -53,9 +53,26 @@ bool BM_disk_dissolve(BMesh *bm, BMVert *v);
  * If the windings do not match the winding of the new face will follow
  * \a l_a's winding (i.e. \a l_b will be reversed before the join).
  *
+ * \param bm: The bmesh
+ * \param l_a, l_b: two loops of an adjacent face pair that will be joined.
+ * \param do_del if true, remove the original faces, internal edges, and internal verts such that
+ *    they are replaced by the new face.
+ * \param r_double: A pointer to a BMFace* that controls processing of doubled faces.
+ *  - When r_double is nullptr:
+ *    - If a new face would be made which would double an existing face, then instead of creating a
+ *      new face, the existing face will be reused and returned instead.
+ *    - The calling function must not make ANY assumption about whether the returned BMFace* is
+ *      new, or a reused face that may already have set header flags, contain custom data, etc.
+ *  - When r_double is a pointer to a BMFace*:
+ *    - If the new join face is not a double of an existing face, then r_double is set to nullptr.
+ *    - If the new join face doubles an existing face, then r_double is set to the existing face,
+ *      and the return value is the newly created face. The double will NOT be removed, meaning the
+ *      BMesh is in an invalid state, and the calling function must fix that inconsistency.
+ *    - If an error occurs and nullptr is returned, r_double will be set to nullptr as well.
+
  * \return The combined face or NULL on failure.
  */
-BMFace *BM_faces_join_pair(BMesh *bm, BMLoop *l_a, BMLoop *l_b, bool do_del);
+BMFace *BM_faces_join_pair(BMesh *bm, BMLoop *l_a, BMLoop *l_b, bool do_del, BMFace **r_double);
 
 /** see: bmesh_polygon_edgenet.hh for #BM_face_split_edgenet */
 

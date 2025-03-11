@@ -653,7 +653,15 @@ static PyObject *bpy_bm_utils_face_join(PyObject * /*self*/, PyObject *args)
 
   /* Go ahead and join the face!
    * --------------------------- */
-  f_new = BM_faces_join(bm, face_array, int(face_seq_len), do_remove);
+  BMFace *f_double;
+
+  f_new = BM_faces_join(bm, face_array, int(face_seq_len), do_remove, &f_double);
+
+  /* The existing algorithm does not check for or handle double faces. This can result in
+   * invalid meshes being returned. The returned value in f_double should be examined and
+   * if found, the algorithm should be adjusted. Until this is changed, at least warn. */
+  BLI_assert_msg(f_double == nullptr,
+                 "Doubled face detected at " AT ". Resulting mesh may be corrupt.");
 
   PyMem_FREE(face_array);
 

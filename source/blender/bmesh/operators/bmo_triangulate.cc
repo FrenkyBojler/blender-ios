@@ -242,7 +242,16 @@ void bmo_triangle_fill_exec(BMesh *bm, BMOperator *op)
       if (BMO_edge_flag_test(bm, e, ELE_NEW)) {
         /* in rare cases the edges face will have already been removed from the edge */
         if (LIKELY(BM_edge_is_manifold(e))) {
-          BMFace *f_new = BM_faces_join_pair(bm, e->l, e->l->radial_next, false);
+          BMFace *f_double;
+
+          BMFace *f_new = BM_faces_join_pair(bm, e->l, e->l->radial_next, false, &f_double);
+
+          /* The existing algorithm does not check for or handle double faces. This can result in
+           * invalid meshes being returned. The returned value in f_double should be examined and
+           * if found, the algorithm should be adjusted. Until this is changed, at least warn. */
+          BLI_assert_msg(f_double == nullptr,
+                         "Doubled face detected at " AT ". Resulting mesh may be corrupt.");
+
           if (f_new) {
             BMO_face_flag_enable(bm, f_new, ELE_NEW);
             BM_edge_kill(bm, e);

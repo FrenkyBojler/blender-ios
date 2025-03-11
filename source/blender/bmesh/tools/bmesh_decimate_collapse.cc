@@ -662,8 +662,17 @@ static void bm_decim_triangulate_end(BMesh *bm, const int edges_tri_tot)
     BMLoop *l_a, *l_b;
     e = edges_tri[i];
     if (BM_edge_loop_pair(e, &l_a, &l_b)) {
+      BMFace *f_double;
+
       BMFace *f_array[2] = {l_a->f, l_b->f};
-      BM_faces_join(bm, f_array, 2, false);
+      BM_faces_join(bm, f_array, 2, false, &f_double);
+
+      /* The existing algorithm does not check for or handle double faces. This can result in
+       * invalid meshes being returned. The returned value in f_double should be examined and
+       * if found, the algorithm should be adjusted. Until this is changed, at least warn. */
+      BLI_assert_msg(f_double == nullptr,
+                     "Doubled face detected at " AT ". Resulting mesh may be corrupt.");
+
       if (e->l == nullptr) {
         BM_edge_kill(bm, e);
       }

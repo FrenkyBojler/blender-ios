@@ -550,7 +550,16 @@ static wmOperatorStatus edbm_polybuild_dissolve_at_cursor_invoke(bContext *C,
     BMEdge *e_act = (BMEdge *)ele_act;
     BMLoop *l_a, *l_b;
     if (BM_edge_loop_pair(e_act, &l_a, &l_b)) {
-      BMFace *f_new = BM_faces_join_pair(bm, l_a, l_b, true);
+      BMFace *f_double;
+
+      BMFace *f_new = BM_faces_join_pair(bm, l_a, l_b, true, &f_double);
+
+      /* The existing algorithm does not check for or handle double faces. This can result in
+       * invalid meshes being returned. The returned value in f_double should be examined and
+       * if found, the algorithm should be adjusted. Until this is changed, at least warn. */
+      BLI_assert_msg(f_double == nullptr,
+                     "Doubled face detected at " AT ". Resulting mesh may be corrupt.");
+
       if (f_new) {
         changed = true;
       }

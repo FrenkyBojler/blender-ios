@@ -947,8 +947,18 @@ static BMFace *bm_faces_join_pair_by_edge(BMesh *bm,
   }
 #endif
 
+  BMFace *f_double;
+
   /* Join the edge and identify the face. */
-  return BM_faces_join_pair(bm, l_a, l_b, true);
+  BMFace *f = BM_faces_join_pair(bm, l_a, l_b, true, &f_double);
+
+  /* The existing algorithm does not check for or handle double faces. This can result in
+   * invalid meshes being returned. The returned value in f_double should be examined and
+   * if found, the algorithm should be adjusted. Until this is changed, at least warn. */
+  BLI_assert_msg(f_double == nullptr,
+                 "Doubled face detected at " AT ". Resulting mesh may be corrupt.");
+
+  return f;
 }
 
 /** Given a mesh, convert triangles to quads. */

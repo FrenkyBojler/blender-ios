@@ -140,8 +140,17 @@ static bool bm_face_split_by_concave(BMesh *bm,
         }
 
         if (ok) {
+          BMFace *f_double;
+
           BMFace *f_new, *f_pair[2] = {l_pair[0]->f, l_pair[1]->f};
-          f_new = BM_faces_join(bm, f_pair, 2, true);
+          f_new = BM_faces_join(bm, f_pair, 2, true, &f_double);
+
+          /* The existing algorithm does not check for or handle double faces. This can result in
+           * invalid meshes being returned. The returned value in f_double should be examined and
+           * if found, the algorithm should be adjusted. Until this is changed, at least warn. */
+          BLI_assert_msg(f_double == nullptr,
+                         "Doubled face detected at " AT ". Resulting mesh may be corrupt.");
+
           if (f_new) {
             BMO_face_flag_enable(bm, f_new, FACE_OUT);
           }
