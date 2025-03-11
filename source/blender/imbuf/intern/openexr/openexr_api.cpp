@@ -2101,6 +2101,34 @@ bool IMB_exr_has_multilayer(void *handle)
   return imb_exr_is_multi(*data->ifile);
 }
 
+static bool imb_exr_is_xyz_colorspace(const Header &header)
+{
+  // https://openexr.com/en/latest/TechnicalIntroduction.html#recommendations
+  const ChromaticitiesAttribute *header_chromaticities =
+      header.findTypedAttribute<ChromaticitiesAttribute>("chromaticities");
+  if (header_chromaticities) {
+    const Chromaticities &val = header_chromaticities->value();
+
+    const float tolerance_white_p = 0.000001f;  // arbitrary tolerance
+    const float upper_w = 1.f / 3.f + tolerance_white_p;
+    const float lower_w = 1.f / 3.f - tolerance_white_p;
+
+    if ((val.red.x == 1.f) && (val.red.y == 0.f) && (val.green.x == 0.f) && (val.green.y == 1.f) &&
+        (val.blue.x == 0.f) && (val.blue.y == 0.f))
+    {
+
+      // Official docs, use 1/3 as X/Y white point. Use some tolerance to test it
+      float white_x = val.white.x;
+      float white_y = val.white.y;
+      if ((white_x > lower_w) && (white_x < upper_w) && (white_y > lower_w) && (white_y < upper_w))
+      {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
 {
   ImBuf *ibuf = nullptr;
@@ -2146,6 +2174,12 @@ ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, char colorspac
         /* Convert inches to meters. */
         ibuf->ppm[0] = double(xDensity(file->header(0))) / 0.0254;
         ibuf->ppm[1] = ibuf->ppm[0] * double(file->header(0).pixelAspectRatio());
+      }
+
+      if (imb_exr_is_xyz_colorspace(file->header(0))) {
+        if (colorspace) {
+          BLI_strncpy(colorspace, "Linear CIE-XYZ D65", IM_MAX_SPACE);
+        }
       }
 
       ibuf->ftype = IMB_FTYPE_OPENEXR;
@@ -2340,8 +2374,10 @@ ImBuf *imb_load_filepath_thumbnail_openexr(const char *filepath,
     *r_width = source_w;
     *r_height = source_h;
 
+    const Header file_header = file->header();
+
     /* If there is an embedded thumbnail, return that instead of making a new one. */
-    if (file->header().hasPreviewImage()) {
+    if (file_header.hasPreviewImage()) {
       const Imf::PreviewImage &preview = file->header().previewImage();
       ImBuf *ibuf = IMB_allocFromBuffer(
           (uint8_t *)preview.pixels(), nullptr, preview.width(), preview.height(), 4);
@@ -2355,6 +2391,16 @@ ImBuf *imb_load_filepath_thumbnail_openexr(const char *filepath,
 
     if (colorspace && colorspace[0]) {
       colorspace_set_default_role(colorspace, IM_MAX_SPACE, COLOR_ROLE_DEFAULT_FLOAT);
+    }
+
+    // Mars 2025 : Have no effect, because imb_load_filepath_thumbnail is currently call
+    // with colorspace == nullptr
+    // But will let having correct colorspace for thumbnail if colorspace thumbnail management is
+    // added in the future
+    if (imb_exr_is_xyz_colorspace(file_header)) {
+      if (colorspace) {
+        BLI_strncpy(colorspace, "Linear CIE-XYZ D65", IM_MAX_SPACE);
+      }
     }
 
     float scale_factor = std::min(float(max_thumb_size) / float(source_w),
