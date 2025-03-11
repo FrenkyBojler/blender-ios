@@ -146,7 +146,6 @@ GPUMaterial *GPU_material_from_nodetree(Material *ma,
   LISTBASE_FOREACH (LinkData *, link, gpumaterials) {
     GPUMaterial *mat = (GPUMaterial *)link->data;
     if (mat->uuid == shader_uuid && mat->engine == engine) {
-      // TODO: mat->flag |= GPU_MATFLAG_UPDATED; on finished compilation.
       return mat;
     }
   }
