@@ -187,9 +187,14 @@ class GeometryInfoLog : public ValueLog {
 
 class BundleValueLog : public ValueLog {
  public:
-  Vector<bke::SocketInterfaceKey> keys;
+  struct Item {
+    bke::SocketInterfaceKey key;
+    const bke::bNodeSocketType *type;
+  };
 
-  BundleValueLog(Vector<bke::SocketInterfaceKey> keys);
+  Vector<Item> items;
+
+  BundleValueLog(Vector<Item> items);
 };
 
 /**

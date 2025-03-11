@@ -1820,17 +1820,17 @@ static void create_inspection_string_for_geometry_socket(fmt::memory_buffer &buf
 static void create_inspection_string_for_bundle(const geo_log::BundleValueLog &value_log,
                                                 fmt::memory_buffer &buf)
 {
-  if (value_log.keys.is_empty()) {
+  if (value_log.items.is_empty()) {
     fmt::format_to(fmt::appender(buf), "{}", TIP_("Empty Bundle"));
     return;
   }
-  fmt::format_to(fmt::appender(buf), "{}", TIP_("Bundle values: "));
-  for (const int i : value_log.keys.index_range()) {
-    const bke::SocketInterfaceKey &key = value_log.keys[i];
-    fmt::format_to(fmt::appender(buf), "\"{}\"", key.identifiers().first());
-    if (i < value_log.keys.size() - 1) {
-      fmt::format_to(fmt::appender(buf), ", ");
-    }
+  fmt::format_to(fmt::appender(buf), "{}", TIP_("Bundle values:\n"));
+  for (const int i : value_log.items.index_range()) {
+    const geo_log::BundleValueLog::Item &item = value_log.items[i];
+    fmt::format_to(fmt::appender(buf),
+                   fmt::runtime("\u2022 \"{}\" ({})\n"),
+                   item.key.identifiers().first(),
+                   IFACE_(item.type->label));
   }
 }
 
