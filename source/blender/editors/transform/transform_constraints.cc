@@ -922,9 +922,6 @@ void drawPropCircle(TransInfo *t)
         center_global[0] = center[0] * aspect[0];
         center_global[1] = center[1] * aspect[1];
       }
-      else if (t->options & CTX_PAINT_CURVE) {
-        /* Pass. */
-      }
       else {
         GPU_matrix_scale_2f(1.0f / t->aspect[0], 1.0f / t->aspect[1]);
       }
