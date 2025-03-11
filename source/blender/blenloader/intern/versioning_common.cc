@@ -518,7 +518,7 @@ void version_cycles_property_boolean_set(IDProperty *idprop, const char *name, b
 
 IDProperty *version_cycles_visibility_properties_from_ID(ID *id)
 {
-  IDProperty *idprop = IDP_GetProperties(id);
+  IDProperty *idprop = IDP_ID_system_properties_get(id);
   return (idprop) ? IDP_GetPropertyTypeFromGroup(idprop, "cycles_visibility", IDP_GROUP) : nullptr;
 }
 
@@ -597,6 +597,57 @@ bNode *version_eevee_output_node_get(bNodeTree *ntree, int16_t node_type)
   }
 
   return output_node;
+}
+
+void version_system_idprops_generate(Main *bmain)
+{
+  auto idprops_process = [](IDProperty *idprops, IDProperty **system_idprops) -> void {
+    BLI_assert(*system_idprops == nullptr);
+    if (idprops) {
+      /* Other ID pointers have not yet been relinked, do not try to access them for refcounting.
+       */
+      *system_idprops = IDP_CopyProperty_ex(idprops, LIB_ID_CREATE_NO_USER_REFCOUNT);
+    }
+  };
+
+  ID *id_iter;
+  FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
+    idprops_process(id_iter->properties, &id_iter->system_properties);
+  }
+  FOREACH_MAIN_ID_END;
+
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
+      idprops_process(view_layer->id_properties, &view_layer->system_id_properties);
+    }
+  }
+}
+
+void version_forward_compat_system_idprops(Main *bmain)
+{
+  auto idprops_process = [](IDProperty **idprops, IDProperty *system_idprops) -> void {
+    if (system_idprops) {
+      /* Other ID pointers have not yet been relinked, do not try to access them for refcounting.
+       */
+      if (*idprops) {
+        IDP_MergeGroup_ex(*idprops, system_idprops, true, LIB_ID_CREATE_NO_USER_REFCOUNT);
+      }
+      else {
+        *idprops = IDP_CopyProperty_ex(system_idprops, LIB_ID_CREATE_NO_USER_REFCOUNT);
+      }
+    }
+  };
+
+  ID *id_iter;
+  FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
+    idprops_process(&id_iter->properties, id_iter->system_properties);
+  }
+  FOREACH_MAIN_ID_END;
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
+      idprops_process(&view_layer->id_properties, view_layer->system_id_properties);
+    }
+  }
 }
 
 static bool blendfile_or_libraries_versions_atleast(Main *bmain,
