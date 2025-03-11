@@ -613,15 +613,20 @@ void RE_FreeAllRender()
     RE_FreeRender(static_cast<Render *>(RenderGlobal.render_list.front()));
   }
 
-  for (Render *render : RenderGlobal.interactive_compositor_renders.values()) {
-    RE_FreeRender(render);
-  }
-  RenderGlobal.interactive_compositor_renders.clear();
+  RE_FreeInteractiveCompositorRenders();
 
 #ifdef WITH_FREESTYLE
   /* finalize Freestyle */
   FRS_exit();
 #endif
+}
+
+void RE_FreeInteractiveCompositorRenders()
+{
+  for (Render *render : RenderGlobal.interactive_compositor_renders.values()) {
+    RE_FreeRender(render);
+  }
+  RenderGlobal.interactive_compositor_renders.clear();
 }
 
 void RE_FreeAllRenderResults()
@@ -1368,6 +1373,14 @@ static void do_render_compositor(Render *re)
           /* If we have consistent depsgraph now would be a time to update them. */
         }
 
+        blender::compositor::OutputTypes needed_outputs =
+            blender::compositor::OutputTypes::Composite |
+            blender::compositor::OutputTypes::FileOutput;
+        if (!G.background) {
+          needed_outputs |= blender::compositor::OutputTypes::Viewer |
+                            blender::compositor::OutputTypes::Previews;
+        }
+
         blender::compositor::RenderContext compositor_render_context;
         LISTBASE_FOREACH (RenderView *, rv, &re->result->views) {
           COM_execute(re,
@@ -1377,8 +1390,7 @@ static void do_render_compositor(Render *re)
                       rv->name,
                       &compositor_render_context,
                       nullptr,
-                      blender::compositor::OutputTypes::Composite |
-                          blender::compositor::OutputTypes::FileOutput);
+                      needed_outputs);
         }
         compositor_render_context.save_file_outputs(re->pipeline_scene_eval);
 
