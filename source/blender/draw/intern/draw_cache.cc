@@ -549,7 +549,7 @@ void drw_batch_cache_validate(Object *ob)
 void drw_batch_cache_generate_requested(Object *ob)
 {
   using namespace blender::draw;
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_state_get();
   const Scene *scene = draw_ctx->scene;
   const enum eContextObjectMode mode = CTX_data_mode_enum_ex(
       draw_ctx->object_edit, draw_ctx->obact, draw_ctx->object_mode);
@@ -588,7 +588,7 @@ void drw_batch_cache_generate_requested_evaluated_mesh_or_curve(Object *ob)
   using namespace blender::draw;
   /* NOTE: Logic here is duplicated from #drw_batch_cache_generate_requested. */
 
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_state_get();
   const Scene *scene = draw_ctx->scene;
   const enum eContextObjectMode mode = CTX_data_mode_enum_ex(
       draw_ctx->object_edit, draw_ctx->obact, draw_ctx->object_mode);

@@ -42,6 +42,13 @@ struct View3D;
 struct ViewLayer;
 struct DRWContext;
 struct World;
+struct DRWData;
+struct DRWViewData;
+struct GPUViewport;
+struct GPUFrameBuffer;
+struct DRWTextStore;
+struct GSet;
+struct GPUViewport;
 namespace blender::draw {
 class TextureFromPool;
 struct ObjectRef;
@@ -195,25 +202,170 @@ DupliObject *DRW_object_get_dupli(const Object *ob);
 
 /* Draw State. */
 
+/* -------------------------------------------------------------------- */
+/** \name Draw Context
+ * \{ */
+
+struct DRWContext {
+ private:
+  /** Render State: No persistent data between draw calls. */
+  static thread_local DRWContext *g_context;
+
+  /* TODO(fclem): Private? */
+ public:
+  /* TODO: clean up this struct a bit. */
+  /* Cache generation */
+  DRWData *data = nullptr;
+  /** Active view data structure for one of the 2 stereo view. */
+  DRWViewData *view_data_active = nullptr;
+
+  /* Optional associated viewport. Can be nullptr. */
+  GPUViewport *viewport = nullptr;
+  /* Size of the viewport or the final render frame. */
+  blender::float2 size = {0, 0};
+  blender::float2 inv_size = {0, 0};
+
+  /* Returns the viewport's default framebuffer. */
+  GPUFrameBuffer *default_framebuffer();
+
+  struct {
+    bool is_select = false;
+    bool is_material_select = false;
+    bool is_depth = false;
+    bool is_image_render = false;
+    bool is_scene_render = false;
+    bool draw_background = false;
+    bool draw_text = false;
+  } options;
+
+  /* Convenience pointer to text_store owned by the viewport */
+  DRWTextStore **text_store_p = nullptr;
+
+  /** True, when drawing is in progress, see #DRW_draw_in_progress. */
+  bool in_progress = false;
+
+  TaskGraph *task_graph = nullptr;
+  /* Contains list of objects that needs to be extracted from other objects. */
+  GSet *delayed_extraction = nullptr;
+
+  /* TODO(fclem): Public. */
+
+  /* Current rendering context. Avoid too many lookups while drawing. */
+
+  /* Evaluated Depsgraph. */
+  Depsgraph *depsgraph = nullptr;
+  /* Evaluated Scene. */
+  Scene *scene = nullptr;
+  /* Evaluated ViewLayer. */
+  ViewLayer *view_layer = nullptr;
+
+  /** Last resort (some functions take this as an arg so we can't easily avoid).
+   * May be nullptr when used for selection or depth buffer. */
+  const bContext *evil_C = nullptr;
+  /* Can be nullptr depending on context. */
+  ARegion *region = nullptr;
+  /* Can be nullptr depending on context. */
+  SpaceLink *space_data = nullptr;
+  /* Can be nullptr depending on context. */
+  RegionView3D *rv3d = nullptr;
+  /* Can be nullptr depending on context. */
+  View3D *v3d = nullptr;
+  /* Use 'object_edit' for edit-mode */
+  Object *obact = nullptr;
+  Object *object_pose = nullptr;
+  Object *object_edit = nullptr;
+
+  eObjectMode object_mode = OB_MODE_OBJECT;
+
+ public:
+  DRWContext() = default;
+  /**
+   * If `viewport` is nullptr, the DRWData will be considered temporary and discarded on exit.
+   * If `C` is nullptr, it means that the context is **not** associated with any UI or operator.
+   * If `region` is nullptr, it will be sourced from the context `C` or left as nullptr otherwise.
+   * If `v3d` is nullptr, it will be sourced from the context `C` or left as nullptr otherwise.
+   */
+  DRWContext(Depsgraph *depsgraph,
+             GPUViewport *viewport = nullptr,
+             const bContext *C = nullptr,
+             ARegion *region = nullptr,
+             View3D *v3d = nullptr);
+
+  ~DRWContext();
+
+  /**
+   * Make sure to release acquired DRWData. If created on the fly, make sure to destroy them.
+   * IMPORTANT: This needs to be called with the same active GPUContext the context was first used
+   * with.
+   */
+  void release_data();
+
+  static DRWContext &get_active()
+  {
+    return *g_context;
+  }
+};
+
+/** \} */
+
+const DRWContext *DRW_context_state_get();
+
 /**
  * For when engines need to know if this is drawing for selection or not.
  */
-bool DRW_state_is_select();
-bool DRW_state_is_material_select();
-bool DRW_state_is_depth();
+static inline bool DRW_state_is_select()
+{
+  DRWContext &draw_ctx = DRWContext::get_active();
+  return draw_ctx.options.is_select;
+}
+
+/**
+ * For when engines need to know if this is drawing for selection or not.
+ */
+static inline bool DRW_state_is_material_select()
+{
+  DRWContext &draw_ctx = DRWContext::get_active();
+  return draw_ctx.options.is_material_select;
+}
+
+/**
+ * For when engines need to know if this is drawing for depth picking.
+ */
+static inline bool DRW_state_is_depth()
+{
+  DRWContext &draw_ctx = DRWContext::get_active();
+  return draw_ctx.options.is_depth;
+}
+
 /**
  * Whether we are rendering for an image
  */
-bool DRW_state_is_image_render();
+static inline bool DRW_state_is_image_render()
+{
+  DRWContext &draw_ctx = DRWContext::get_active();
+  return draw_ctx.options.is_image_render;
+}
+
 /**
  * Whether we are rendering only the render engine,
  * or if we should also render the mode engines.
  */
-bool DRW_state_is_scene_render();
+static inline bool DRW_state_is_scene_render()
+{
+  DRWContext &draw_ctx = DRWContext::get_active();
+  BLI_assert(draw_ctx.options.is_scene_render ? draw_ctx.options.is_image_render : true);
+  return draw_ctx.options.is_scene_render;
+}
+
 /**
  * Whether we are rendering simple opengl render
  */
-bool DRW_state_is_viewport_image_render();
+static inline bool DRW_state_is_viewport_image_render()
+{
+  DRWContext &draw_ctx = DRWContext::get_active();
+  return draw_ctx.options.is_image_render && !draw_ctx.options.is_scene_render;
+}
+
 bool DRW_state_is_playback();
 /**
  * Is the user navigating or painting the region.
@@ -236,37 +388,5 @@ bool DRW_state_draw_support();
  * Whether we should render the background
  */
 bool DRW_state_draw_background();
-
-/* Avoid too many lookups while drawing */
-struct DRWContextState {
-  /* Evaluated Depsgraph. */
-  Depsgraph *depsgraph;
-  /* Evaluated Scene. */
-  Scene *scene;
-  /* Evaluated ViewLayer. */
-  ViewLayer *view_layer;
-
-  /** Last resort (some functions take this as an arg so we can't easily avoid).
-   * May be nullptr when used for selection or depth buffer. */
-  const bContext *evil_C;
-  /* Can be nullptr depending on context. */
-  ARegion *region;
-  /* Can be nullptr depending on context. */
-  SpaceLink *space_data;
-  /* Can be nullptr depending on context. */
-  RegionView3D *rv3d;
-  /* Can be nullptr depending on context. */
-  View3D *v3d;
-
-  /* Use 'object_edit' for edit-mode */
-  Object *obact;
-
-  eObjectMode object_mode;
-
-  Object *object_pose;
-  Object *object_edit;
-};
-
-const DRWContextState *DRW_context_state_get();
 
 bool DRW_state_viewport_compositor_enabled();

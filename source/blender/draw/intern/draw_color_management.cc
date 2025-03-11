@@ -153,7 +153,7 @@ static void viewport_settings_apply(GPUViewport &viewport,
 
 static void viewport_color_management_set(GPUViewport &viewport)
 {
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_state_get();
   const Depsgraph *depsgraph = draw_ctx->depsgraph;
   Main *bmain = DEG_get_bmain(depsgraph);
 

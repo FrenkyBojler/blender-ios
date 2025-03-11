@@ -2079,7 +2079,7 @@ void Armatures::draw_armature_edit(Armatures::DrawContext *ctx)
 void Armatures::draw_armature_pose(Armatures::DrawContext *ctx)
 {
   Object *ob = ctx->ob;
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_state_get();
   const Scene *scene = draw_ctx->scene;
   bArmature *arm = static_cast<bArmature *>(ob->data);
   int index = -1;

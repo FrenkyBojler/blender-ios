@@ -51,7 +51,7 @@ struct EXTERNAL_Data {
 
 static void external_draw_scene_do_v3d(void *vedata)
 {
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_state_get();
   RegionView3D *rv3d = draw_ctx->rv3d;
   ARegion *region = draw_ctx->region;
 
@@ -112,7 +112,7 @@ static void external_image_space_matrix_set(const RenderEngine *engine)
 {
   BLI_assert(engine != nullptr);
 
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_state_get();
   SpaceImage *space_image = (SpaceImage *)draw_ctx->space_data;
 
   /* Apply current view as transformation matrix.
@@ -147,7 +147,7 @@ static void external_image_space_matrix_set(const RenderEngine *engine)
 
 static void external_draw_scene_do_image(void * /*vedata*/)
 {
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_state_get();
   Scene *scene = draw_ctx->scene;
   Render *re = RE_GetSceneRender(scene);
   RenderEngine *engine = RE_engine_get(re);
@@ -197,7 +197,7 @@ static void external_draw_scene_do_image(void * /*vedata*/)
 
 static void external_draw_scene_do(void *vedata)
 {
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_state_get();
 
   if (draw_ctx->v3d != nullptr) {
     external_draw_scene_do_v3d(vedata);
@@ -217,7 +217,7 @@ static void external_draw_scene_do(void *vedata)
 
 static void external_draw_scene(void *vedata)
 {
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_state_get();
   const DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
 
   /* Will be nullptr during OpenGL render.
@@ -282,7 +282,7 @@ RenderEngineType DRW_engine_viewport_external_type = {
 
 bool DRW_engine_external_acquire_for_image_editor()
 {
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_state_get();
   const SpaceLink *space_data = draw_ctx->space_data;
   Scene *scene = draw_ctx->scene;
 

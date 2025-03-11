@@ -96,7 +96,7 @@ void SceneState::init(bool scene_updated, Object *camera_ob /*=nullptr*/)
   bool reset_taa = reset_taa_next_sample || scene_updated;
   reset_taa_next_sample = false;
 
-  const DRWContextState *context = DRW_context_state_get();
+  const DRWContext *context = DRW_context_state_get();
   View3D *v3d = context->v3d;
   RegionView3D *rv3d = context->rv3d;
 
@@ -280,7 +280,7 @@ ObjectState::ObjectState(const SceneState &scene_state,
                          const SceneResources &resources,
                          Object *ob)
 {
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_state_get();
   const bool is_active = (ob == draw_ctx->obact);
 
   sculpt_pbvh = BKE_sculptsession_use_pbvh_draw(ob, draw_ctx->rv3d) &&

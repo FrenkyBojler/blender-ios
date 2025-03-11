@@ -45,7 +45,7 @@ static void IMAGE_engine_init(void *vedata)
     ved->instance = new image_engine::Instance();
   }
 
-  const DRWContextState *ctx_state = DRW_context_state_get();
+  const DRWContext *ctx_state = DRW_context_state_get();
   Main *bmain = CTX_data_main(ctx_state->evil_C);
   ved->instance->init(bmain, ctx_state->space_data, ctx_state->region);
 }

@@ -717,7 +717,7 @@ static void workbench_render_to_image(void *vedata,
 
   /* Setup */
   DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_state_get();
   Depsgraph *depsgraph = draw_ctx->depsgraph;
 
   WORKBENCH_Data *ved = reinterpret_cast<WORKBENCH_Data *>(vedata);

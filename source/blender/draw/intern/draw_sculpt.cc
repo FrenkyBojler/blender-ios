@@ -55,7 +55,7 @@ static Vector<SculptBatch> sculpt_batches_get_ex(const Object *ob,
   }
 
   /* TODO(Miguel Pozo): Don't use global context. */
-  const DRWContextState *drwctx = DRW_context_state_get();
+  const DRWContext *drwctx = DRW_context_state_get();
   RegionView3D *rv3d = drwctx->rv3d;
   const bool navigating = rv3d && (rv3d->rflag & RV3D_NAVIGATING);
 

@@ -103,12 +103,11 @@
 
 #include "DRW_select_buffer.hh"
 
-/** Render State: No persistent data between draw calls. */
-thread_local DRWContext *g_context = nullptr;
+thread_local DRWContext *DRWContext::g_context = nullptr;
 
 DRWContext &drw_get()
 {
-  return *g_context;
+  return DRWContext::get_active();
 }
 
 DRWContext::DRWContext(
@@ -116,49 +115,37 @@ DRWContext::DRWContext(
 {
   this->viewport = viewport;
 
-  this->draw_ctx.depsgraph = depsgraph;
-  this->draw_ctx.scene = DEG_get_evaluated_scene(depsgraph);
-  this->draw_ctx.view_layer = DEG_get_evaluated_view_layer(depsgraph);
+  this->depsgraph = depsgraph;
+  this->scene = DEG_get_evaluated_scene(depsgraph);
+  this->view_layer = DEG_get_evaluated_view_layer(depsgraph);
 
-  this->draw_ctx.evil_C = C;
+  this->evil_C = C;
 
-  this->draw_ctx.region = (region) ? region : ((C) ? CTX_wm_region(C) : nullptr);
-  this->draw_ctx.space_data = (C) ? CTX_wm_space_data(C) : nullptr;
-  this->draw_ctx.v3d = (v3d) ? v3d : ((C) ? CTX_wm_view3d(C) : nullptr);
-  if (this->draw_ctx.v3d != nullptr && this->draw_ctx.region != nullptr) {
-    this->draw_ctx.rv3d = static_cast<RegionView3D *>(this->draw_ctx.region->regiondata);
+  this->region = (region) ? region : ((C) ? CTX_wm_region(C) : nullptr);
+  this->space_data = (C) ? CTX_wm_space_data(C) : nullptr;
+  this->v3d = (v3d) ? v3d : ((C) ? CTX_wm_view3d(C) : nullptr);
+  if (this->v3d != nullptr && this->region != nullptr) {
+    this->rv3d = static_cast<RegionView3D *>(this->region->regiondata);
   }
   /* Active object. Set to nullptr for render (when region is nullptr). */
-  this->draw_ctx.obact = (this->draw_ctx.region) ?
-                             BKE_view_layer_active_object_get(this->draw_ctx.view_layer) :
-                             nullptr;
+  this->obact = (this->region) ? BKE_view_layer_active_object_get(this->view_layer) : nullptr;
   /* Object mode. */
-  this->draw_ctx.object_mode = (this->draw_ctx.obact) ? eObjectMode(this->draw_ctx.obact->mode) :
-                                                        OB_MODE_OBJECT;
+  this->object_mode = (this->obact) ? eObjectMode(this->obact->mode) : OB_MODE_OBJECT;
   /* Edit object. */
-  this->draw_ctx.object_edit = (this->draw_ctx.object_mode & OB_MODE_EDIT) ? this->draw_ctx.obact :
-                                                                             nullptr;
+  this->object_edit = (this->object_mode & OB_MODE_EDIT) ? this->obact : nullptr;
   /* Pose object. */
-  if (this->draw_ctx.object_mode & OB_MODE_POSE) {
-    this->draw_ctx.object_pose = this->draw_ctx.obact;
+  if (this->object_mode & OB_MODE_POSE) {
+    this->object_pose = this->obact;
   }
-  else if (this->draw_ctx.object_mode & OB_MODE_ALL_WEIGHT_PAINT) {
-    this->draw_ctx.object_pose = BKE_object_pose_armature_get(this->draw_ctx.obact);
+  else if (this->object_mode & OB_MODE_ALL_WEIGHT_PAINT) {
+    this->object_pose = BKE_object_pose_armature_get(this->obact);
   }
   else {
-    this->draw_ctx.object_pose = nullptr;
+    this->object_pose = nullptr;
   }
 
   /* View layer*/
-  BKE_view_layer_synced_ensure(this->draw_ctx.scene, this->draw_ctx.view_layer);
-
-  this->options.is_select = false;
-  this->options.is_material_select = false;
-  this->options.is_depth = false;
-  this->options.is_image_render = false;
-  this->options.is_scene_render = false;
-  this->options.draw_background = false;
-  this->options.draw_text = false;
+  BKE_view_layer_synced_ensure(this->scene, this->view_layer);
 
   BLI_assert(g_context == nullptr);
   g_context = this;
@@ -188,7 +175,7 @@ void DRWContext::release_data()
 
 static bool draw_show_annotation()
 {
-  SpaceLink *space_data = drw_get().draw_ctx.space_data;
+  SpaceLink *space_data = drw_get().space_data;
   if (space_data != nullptr) {
     switch (space_data->spacetype) {
       case SPACE_IMAGE: {
@@ -204,7 +191,7 @@ static bool draw_show_annotation()
     }
   }
 
-  View3D *v3d = drw_get().draw_ctx.v3d;
+  View3D *v3d = drw_get().v3d;
   return (v3d && ((v3d->flag2 & V3D_SHOW_ANNOTATION) != 0) &&
           ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0));
 }
@@ -244,8 +231,8 @@ bool DRW_object_is_renderable(const Object *ob)
   BLI_assert((ob->base_flag & BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT) != 0);
 
   if (ob->type == OB_MESH) {
-    if ((ob == drw_get().draw_ctx.object_edit) || ob->mode == OB_MODE_EDIT) {
-      View3D *v3d = drw_get().draw_ctx.v3d;
+    if ((ob == drw_get().object_edit) || ob->mode == OB_MODE_EDIT) {
+      View3D *v3d = drw_get().v3d;
       if (v3d && ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) && RETOPOLOGY_ENABLED(v3d)) {
         return false;
       }
@@ -298,7 +285,7 @@ bool DRW_object_is_visible_psys_in_active_context(const Object *object, const Pa
   if (!psys_check_enabled((Object *)object, (ParticleSystem *)psys, for_render)) {
     return false;
   }
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_state_get();
   const Scene *scene = draw_ctx->scene;
   if (object == draw_ctx->object_edit) {
     return false;
@@ -397,8 +384,8 @@ static DRWData *drw_viewport_data_ensure(GPUViewport *viewport)
  */
 static void drw_manager_init(DRWContext *dst, GPUViewport *viewport, const int size[2])
 {
-  RegionView3D *rv3d = dst->draw_ctx.rv3d;
-  ARegion *region = dst->draw_ctx.region;
+  RegionView3D *rv3d = dst->rv3d;
+  ARegion *region = dst->region;
 
   dst->in_progress = true;
 
@@ -475,8 +462,8 @@ static void drw_manager_init(DRWContext *dst, GPUViewport *viewport, const int s
   }
 
   /* fclem: Is this still needed ? */
-  if (dst->draw_ctx.object_edit && rv3d) {
-    ED_view3d_init_mats_rv3d(dst->draw_ctx.object_edit, rv3d);
+  if (dst->object_edit && rv3d) {
+    ED_view3d_init_mats_rv3d(dst->object_edit, rv3d);
   }
 }
 
@@ -626,7 +613,7 @@ void DupliCacheManager::extract_all()
 
 void *DRW_view_layer_engine_data_get(DrawEngineType *engine_type)
 {
-  LISTBASE_FOREACH (ViewLayerEngineData *, sled, &drw_get().draw_ctx.view_layer->drawdata) {
+  LISTBASE_FOREACH (ViewLayerEngineData *, sled, &drw_get().view_layer->drawdata) {
     if (sled->engine_type == engine_type) {
       return sled->storage;
     }
@@ -658,8 +645,7 @@ void **DRW_view_layer_engine_data_ensure_ex(ViewLayer *view_layer,
 void **DRW_view_layer_engine_data_ensure(DrawEngineType *engine_type,
                                          void (*callback)(void *storage))
 {
-  return DRW_view_layer_engine_data_ensure_ex(
-      drw_get().draw_ctx.view_layer, engine_type, callback);
+  return DRW_view_layer_engine_data_ensure_ex(drw_get().view_layer, engine_type, callback);
 }
 
 /** \} */
@@ -993,7 +979,7 @@ static void drw_engines_draw_text()
   ctx.view_data_active->foreach_enabled_engine(
       [&](ViewportEngineData *data, DrawEngineType * /*engine*/) {
         if (data->text_draw_cache) {
-          DRW_text_cache_draw(data->text_draw_cache, ctx.draw_ctx.region, ctx.draw_ctx.v3d);
+          DRW_text_cache_draw(data->text_draw_cache, ctx.region, ctx.v3d);
         }
       });
 }
@@ -1062,7 +1048,7 @@ static void drw_engine_enable_image_editor()
 
 static void drw_engines_enable_editors()
 {
-  SpaceLink *space_data = drw_get().draw_ctx.space_data;
+  SpaceLink *space_data = drw_get().space_data;
   if (!space_data) {
     return;
   }
@@ -1084,7 +1070,7 @@ static void drw_engines_enable(ViewLayer * /*view_layer*/,
                                RenderEngineType *engine_type,
                                bool gpencil_engine_needed)
 {
-  View3D *v3d = drw_get().draw_ctx.v3d;
+  View3D *v3d = drw_get().v3d;
   const eDrawType drawtype = eDrawType(v3d->shading.type);
   const bool use_xray = XRAY_ENABLED(v3d);
 
@@ -1135,14 +1121,13 @@ static void drw_callbacks_pre_scene()
 {
   DRW_submission_start();
 
-  RegionView3D *rv3d = drw_get().draw_ctx.rv3d;
+  RegionView3D *rv3d = drw_get().rv3d;
 
   GPU_matrix_projection_set(rv3d->winmat);
   GPU_matrix_set(rv3d->viewmat);
 
-  if (drw_get().draw_ctx.evil_C) {
-    ED_region_draw_cb_draw(
-        drw_get().draw_ctx.evil_C, drw_get().draw_ctx.region, REGION_DRAW_PRE_VIEW);
+  if (drw_get().evil_C) {
+    ED_region_draw_cb_draw(drw_get().evil_C, drw_get().region, REGION_DRAW_PRE_VIEW);
     /* Callback can be nasty and do whatever they want with the state.
      * Don't trust them! */
     blender::draw::command::StateSet::set();
@@ -1152,15 +1137,15 @@ static void drw_callbacks_pre_scene()
 
 static void drw_callbacks_post_scene()
 {
-  RegionView3D *rv3d = drw_get().draw_ctx.rv3d;
-  ARegion *region = drw_get().draw_ctx.region;
-  View3D *v3d = drw_get().draw_ctx.v3d;
-  Depsgraph *depsgraph = drw_get().draw_ctx.depsgraph;
+  RegionView3D *rv3d = drw_get().rv3d;
+  ARegion *region = drw_get().region;
+  View3D *v3d = drw_get().v3d;
+  Depsgraph *depsgraph = drw_get().depsgraph;
 
   const bool do_annotations = draw_show_annotation();
 
   DRW_submission_start();
-  if (drw_get().draw_ctx.evil_C) {
+  if (drw_get().evil_C) {
     DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
 
     blender::draw::command::StateSet::set();
@@ -1185,8 +1170,7 @@ static void drw_callbacks_post_scene()
     /* Apply state for callbacks. */
     GPU_apply_state();
 
-    ED_region_draw_cb_draw(
-        drw_get().draw_ctx.evil_C, drw_get().draw_ctx.region, REGION_DRAW_POST_VIEW);
+    ED_region_draw_cb_draw(drw_get().evil_C, drw_get().region, REGION_DRAW_POST_VIEW);
 
 #ifdef WITH_XR_OPENXR
     /* XR callbacks (controllers, custom draw functions) for session mirror. */
@@ -1297,9 +1281,8 @@ static void drw_callbacks_pre_scene_2D()
 {
   DRW_submission_start();
 
-  if (drw_get().draw_ctx.evil_C) {
-    ED_region_draw_cb_draw(
-        drw_get().draw_ctx.evil_C, drw_get().draw_ctx.region, REGION_DRAW_PRE_VIEW);
+  if (drw_get().evil_C) {
+    ED_region_draw_cb_draw(drw_get().evil_C, drw_get().region, REGION_DRAW_PRE_VIEW);
   }
 
   DRW_submission_end();
@@ -1310,9 +1293,9 @@ static void drw_callbacks_post_scene_2D(View2D &v2d)
   DRW_submission_start();
 
   const bool do_annotations = draw_show_annotation();
-  const bool do_draw_gizmos = (drw_get().draw_ctx.space_data->spacetype != SPACE_IMAGE);
+  const bool do_draw_gizmos = (drw_get().space_data->spacetype != SPACE_IMAGE);
 
-  if (drw_get().draw_ctx.evil_C) {
+  if (drw_get().evil_C) {
     DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
 
     blender::draw::command::StateSet::set();
@@ -1325,13 +1308,12 @@ static void drw_callbacks_post_scene_2D(View2D &v2d)
     wmOrtho2(v2d.cur.xmin, v2d.cur.xmax, v2d.cur.ymin, v2d.cur.ymax);
 
     if (do_annotations) {
-      ED_annotation_draw_view2d(drw_get().draw_ctx.evil_C, true);
+      ED_annotation_draw_view2d(drw_get().evil_C, true);
     }
 
     GPU_depth_test(GPU_DEPTH_NONE);
 
-    ED_region_draw_cb_draw(
-        drw_get().draw_ctx.evil_C, drw_get().draw_ctx.region, REGION_DRAW_POST_VIEW);
+    ED_region_draw_cb_draw(drw_get().evil_C, drw_get().region, REGION_DRAW_POST_VIEW);
 
     GPU_matrix_pop_projection();
     /* Callback can be nasty and do whatever they want with the state.
@@ -1343,11 +1325,11 @@ static void drw_callbacks_post_scene_2D(View2D &v2d)
 
     if (do_annotations) {
       GPU_depth_test(GPU_DEPTH_NONE);
-      ED_annotation_draw_view2d(drw_get().draw_ctx.evil_C, false);
+      ED_annotation_draw_view2d(drw_get().evil_C, false);
     }
   }
 
-  ED_region_pixelspace(drw_get().draw_ctx.region);
+  ED_region_pixelspace(drw_get().region);
 
   if (do_draw_gizmos) {
     GPU_depth_test(GPU_DEPTH_NONE);
@@ -1380,14 +1362,14 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
 {
   using namespace blender::draw;
   GPUViewport *viewport = draw_ctx.viewport;
-  Depsgraph *depsgraph = draw_ctx.draw_ctx.depsgraph;
-  Scene *scene = draw_ctx.draw_ctx.scene;
-  ViewLayer *view_layer = draw_ctx.draw_ctx.view_layer;
-  View3D *v3d = draw_ctx.draw_ctx.v3d;
+  Depsgraph *depsgraph = draw_ctx.depsgraph;
+  Scene *scene = draw_ctx.scene;
+  ViewLayer *view_layer = draw_ctx.view_layer;
+  View3D *v3d = draw_ctx.v3d;
 
   drw_task_graph_init();
 
-  drw_manager_init(g_context, viewport, nullptr);
+  drw_manager_init(&draw_ctx, viewport, nullptr);
   DRW_viewport_colormanagement_set(viewport);
 
   const int object_type_exclude_viewport = v3d->object_type_exclude_viewport;
@@ -1469,7 +1451,7 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
 
   drw_callbacks_post_scene();
 
-  if (WM_draw_region_get_bound_viewport(draw_ctx.draw_ctx.region)) {
+  if (WM_draw_region_get_bound_viewport(draw_ctx.region)) {
     /* Don't unbind the frame-buffer yet in this case and let
      * GPU_viewport_unbind do it, so that we can still do further
      * drawing of action zones on top. */
@@ -1485,15 +1467,15 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
 static void drw_draw_render_loop_2d(DRWContext &draw_ctx)
 {
   GPUViewport *viewport = draw_ctx.viewport;
-  Depsgraph *depsgraph = draw_ctx.draw_ctx.depsgraph;
-  ARegion *region = draw_ctx.draw_ctx.region;
+  Depsgraph *depsgraph = draw_ctx.depsgraph;
+  ARegion *region = draw_ctx.region;
 
-  drw_manager_init(g_context, viewport, nullptr);
+  drw_manager_init(&draw_ctx, viewport, nullptr);
   DRW_viewport_colormanagement_set(viewport);
 
   /* TODO(jbakker): Only populate when editor needs to draw object.
    * for the image editor this is when showing UVs. */
-  const bool do_populate_loop = (draw_ctx.draw_ctx.space_data->spacetype == SPACE_IMAGE);
+  const bool do_populate_loop = (draw_ctx.space_data->spacetype == SPACE_IMAGE);
 
   /* Get list of enabled engines */
   drw_engines_enable_editors();
@@ -1569,7 +1551,7 @@ void DRW_draw_view(const bContext *C)
 
   DRWContext draw_ctx(depsgraph, viewport, C);
 
-  View3D *v3d = draw_ctx.draw_ctx.v3d;
+  View3D *v3d = draw_ctx.v3d;
 
   if (v3d) {
     Scene *scene = DEG_get_evaluated_scene(depsgraph);
@@ -1711,7 +1693,7 @@ void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph)
 
   const int size[2] = {engine->resolution_x, engine->resolution_y};
 
-  drw_manager_init(g_context, nullptr, size);
+  drw_manager_init(&draw_ctx, nullptr, size);
 
   /* Main rendering. */
   rctf view_rect;
@@ -1765,7 +1747,7 @@ void DRW_render_to_image(RenderEngine *engine, Depsgraph *depsgraph)
 
   const int size[2] = {engine->resolution_x, engine->resolution_y};
 
-  drw_manager_init(g_context, nullptr, size);
+  drw_manager_init(&draw_ctx, nullptr, size);
 
   ViewportEngineData *data = DRW_view_data_engine_data_get_ensure(drw_get().view_data_active,
                                                                   draw_engine_type);
@@ -1833,7 +1815,7 @@ void DRW_render_object_iter(void *vedata,
                                              Depsgraph *depsgraph))
 {
   using namespace blender::draw;
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_state_get();
   drw_get().data->modules_init();
 
   DupliCacheManager dupli_handler;
@@ -1873,7 +1855,7 @@ void DRW_custom_pipeline_begin(DRWContext & /*draw_ctx*/,
   drw_get().options.is_scene_render = true;
   drw_get().options.draw_background = false;
 
-  drw_manager_init(g_context, nullptr, nullptr);
+  drw_manager_init(&drw_get(), nullptr, nullptr);
 
   drw_get().data->modules_init();
 }
@@ -1902,7 +1884,7 @@ void DRW_cache_restart()
   using namespace blender::draw;
   drw_get().data->modules_exit();
 
-  drw_manager_init(g_context,
+  drw_manager_init(&drw_get(),
                    drw_get().viewport,
                    blender::int2{int(drw_get().size[0]), int(drw_get().size[1])});
 
@@ -1912,8 +1894,8 @@ void DRW_cache_restart()
 void DRW_render_set_time(RenderEngine *engine, Depsgraph *depsgraph, int frame, float subframe)
 {
   RE_engine_frame_set(engine, frame, subframe);
-  drw_get().draw_ctx.scene = DEG_get_evaluated_scene(depsgraph);
-  drw_get().draw_ctx.view_layer = DEG_get_evaluated_view_layer(depsgraph);
+  drw_get().scene = DEG_get_evaluated_scene(depsgraph);
+  drw_get().view_layer = DEG_get_evaluated_view_layer(depsgraph);
 }
 
 static struct DRWSelectBuffer {
@@ -2012,7 +1994,7 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   }
 
   const int viewport_size[2] = {BLI_rcti_size_x(rect), BLI_rcti_size_y(rect)};
-  drw_manager_init(g_context, nullptr, viewport_size);
+  drw_manager_init(&draw_ctx, nullptr, viewport_size);
 
   drw_get().options.is_select = true;
   drw_get().options.is_material_select = do_material_sub_selection;
@@ -2049,7 +2031,7 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
     else {
       /* When selecting pose-bones in pose mode, check for visibility not select-ability
        * as pose-bones have their own selection restriction flag. */
-      const bool use_pose_exception = (drw_get().draw_ctx.object_pose != nullptr);
+      const bool use_pose_exception = (drw_get().object_pose != nullptr);
 
       const int object_type_exclude_select = (v3d->object_type_exclude_viewport |
                                               v3d->object_type_exclude_select);
@@ -2158,7 +2140,7 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
 
   drw_get().options.is_depth = true;
 
-  drw_manager_init(g_context, viewport, nullptr);
+  drw_manager_init(&draw_ctx, viewport, nullptr);
 
   if (use_gpencil) {
     drw_use_engine(&draw_engine_gpencil_type);
@@ -2186,17 +2168,17 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
 
   {
     drw_engines_cache_init();
-    drw_engines_world_update(drw_get().draw_ctx.scene);
+    drw_engines_world_update(drw_get().scene);
 
     const int object_type_exclude_viewport = v3d->object_type_exclude_viewport;
     DEGObjectIterSettings deg_iter_settings = {nullptr};
-    deg_iter_settings.depsgraph = drw_get().draw_ctx.depsgraph;
+    deg_iter_settings.depsgraph = drw_get().depsgraph;
     deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
     if (v3d->flag2 & V3D_SHOW_VIEWER) {
       deg_iter_settings.viewer_path = &v3d->viewer_path;
     }
     if (use_only_active_object) {
-      blender::draw::ObjectRef ob_ref(drw_get().draw_ctx.obact);
+      blender::draw::ObjectRef ob_ref(drw_get().obact);
       drw_engines_cache_populate(ob_ref);
     }
     else {
@@ -2263,7 +2245,7 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
 
   drw_task_graph_init();
 
-  drw_manager_init(g_context, viewport, nullptr);
+  drw_manager_init(&draw_ctx, viewport, nullptr);
 
   /* Make sure select engine gets the correct vertex size. */
   UI_SetTheme(SPACE_VIEW3D, RGN_TYPE_WINDOW);
@@ -2328,46 +2310,15 @@ bool DRW_draw_in_progress()
 /** \name Draw Manager State (DRW_state)
  * \{ */
 
-const DRWContextState *DRW_context_state_get()
+const DRWContext *DRW_context_state_get()
 {
-  return &drw_get().draw_ctx;
-}
-
-bool DRW_state_is_select()
-{
-  return drw_get().options.is_select;
-}
-
-bool DRW_state_is_material_select()
-{
-  return drw_get().options.is_material_select;
-}
-
-bool DRW_state_is_depth()
-{
-  return drw_get().options.is_depth;
-}
-
-bool DRW_state_is_image_render()
-{
-  return drw_get().options.is_image_render;
-}
-
-bool DRW_state_is_scene_render()
-{
-  BLI_assert(drw_get().options.is_scene_render ? drw_get().options.is_image_render : true);
-  return drw_get().options.is_scene_render;
-}
-
-bool DRW_state_is_viewport_image_render()
-{
-  return drw_get().options.is_image_render && !drw_get().options.is_scene_render;
+  return &drw_get();
 }
 
 bool DRW_state_is_playback()
 {
-  if (drw_get().draw_ctx.evil_C != nullptr) {
-    wmWindowManager *wm = CTX_wm_manager(drw_get().draw_ctx.evil_C);
+  if (drw_get().evil_C != nullptr) {
+    wmWindowManager *wm = CTX_wm_manager(drw_get().evil_C);
     return ED_screen_animation_playing(wm) != nullptr;
   }
   return false;
@@ -2375,13 +2326,13 @@ bool DRW_state_is_playback()
 
 bool DRW_state_is_navigating()
 {
-  const RegionView3D *rv3d = drw_get().draw_ctx.rv3d;
+  const RegionView3D *rv3d = drw_get().rv3d;
   return (rv3d) && (rv3d->rflag & (RV3D_NAVIGATING | RV3D_PAINTING));
 }
 
 bool DRW_state_is_painting()
 {
-  const RegionView3D *rv3d = drw_get().draw_ctx.rv3d;
+  const RegionView3D *rv3d = drw_get().rv3d;
   return (rv3d) && (rv3d->rflag & (RV3D_PAINTING));
 }
 
@@ -2393,7 +2344,7 @@ bool DRW_state_show_text()
 
 bool DRW_state_draw_support()
 {
-  View3D *v3d = drw_get().draw_ctx.v3d;
+  View3D *v3d = drw_get().v3d;
   return (DRW_state_is_scene_render() == false) && (v3d != nullptr) &&
          ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0);
 }
@@ -2405,32 +2356,32 @@ bool DRW_state_draw_background()
 
 bool DRW_state_viewport_compositor_enabled()
 {
-  if (!drw_get().draw_ctx.v3d) {
+  if (!drw_get().v3d) {
     return false;
   }
 
-  if (drw_get().draw_ctx.v3d->shading.use_compositor == V3D_SHADING_USE_COMPOSITOR_DISABLED) {
+  if (drw_get().v3d->shading.use_compositor == V3D_SHADING_USE_COMPOSITOR_DISABLED) {
     return false;
   }
 
-  if (!(drw_get().draw_ctx.v3d->shading.type >= OB_MATERIAL)) {
+  if (!(drw_get().v3d->shading.type >= OB_MATERIAL)) {
     return false;
   }
 
-  if (!drw_get().draw_ctx.scene->use_nodes) {
+  if (!drw_get().scene->use_nodes) {
     return false;
   }
 
-  if (!drw_get().draw_ctx.scene->nodetree) {
+  if (!drw_get().scene->nodetree) {
     return false;
   }
 
-  if (!drw_get().draw_ctx.rv3d) {
+  if (!drw_get().rv3d) {
     return false;
   }
 
-  if (drw_get().draw_ctx.v3d->shading.use_compositor == V3D_SHADING_USE_COMPOSITOR_CAMERA &&
-      drw_get().draw_ctx.rv3d->persp != RV3D_CAMOB)
+  if (drw_get().v3d->shading.use_compositor == V3D_SHADING_USE_COMPOSITOR_CAMERA &&
+      drw_get().rv3d->persp != RV3D_CAMOB)
   {
     return false;
   }

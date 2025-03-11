@@ -35,7 +35,7 @@ static void eevee_engine_init(void *vedata)
     ved->instance = new eevee::Instance();
   }
 
-  const DRWContextState *ctx_state = DRW_context_state_get();
+  const DRWContext *ctx_state = DRW_context_state_get();
   Depsgraph *depsgraph = ctx_state->depsgraph;
   Scene *scene = ctx_state->scene;
   View3D *v3d = ctx_state->v3d;

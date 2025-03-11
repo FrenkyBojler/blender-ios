@@ -86,7 +86,7 @@ blender::gpu::VertBuf *DRW_hair_pos_buffer_get(Object *object,
                                                ParticleSystem *psys,
                                                ModifierData *md)
 {
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_state_get();
   Scene *scene = draw_ctx->scene;
 
   int subdiv = scene->r.hair_subdiv;

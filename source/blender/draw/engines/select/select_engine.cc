@@ -95,7 +95,7 @@ static void select_engine_framebuffer_setup()
 static void select_engine_init(void *vedata)
 {
   SelectEngineData &e_data = get_engine_data();
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_state_get();
   eGPUShaderConfig sh_cfg = (RV3D_CLIPPING_ENABLED(draw_ctx->v3d, draw_ctx->rv3d)) ?
                                 GPU_SHADER_CFG_CLIPPED :
                                 GPU_SHADER_CFG_DEFAULT;
@@ -147,7 +147,7 @@ static void select_cache_init(void *vedata)
 {
   SELECTID_Instance &inst = *reinterpret_cast<SELECTID_Data *>(vedata)->instance;
   SelectEngineData &e_data = get_engine_data();
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_state_get();
   eGPUShaderConfig sh_cfg = (RV3D_CLIPPING_ENABLED(draw_ctx->v3d, draw_ctx->rv3d)) ?
                                 GPU_SHADER_CFG_CLIPPED :
                                 GPU_SHADER_CFG_DEFAULT;
@@ -405,7 +405,7 @@ static void select_cache_populate(void *vedata, blender::draw::ObjectRef &ob_ref
   SelectEngineData &e_data = get_engine_data();
   SELECTID_Context &sel_ctx = e_data.context;
   SELECTID_Instance &inst = *reinterpret_cast<SELECTID_Data *>(vedata)->instance;
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_state_get();
 
   if (!sel_ctx.objects.contains(ob) && ob->dt >= OB_SOLID) {
     /* This object is not selectable. It is here to participate in occlusion.
@@ -436,7 +436,7 @@ static void select_draw_scene(void *vedata)
 
   DRW_submission_start();
   {
-    const DRWContextState *draw_ctx = DRW_context_state_get();
+    const DRWContext *draw_ctx = DRW_context_state_get();
     View::OffsetData offset_data(*draw_ctx->rv3d);
     /* Create view with depth offset */
     const View &view = View::default_get();

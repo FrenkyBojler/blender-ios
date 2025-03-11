@@ -54,7 +54,7 @@
 void GPENCIL_engine_init(void *ved)
 {
   GPENCIL_Data *vedata = (GPENCIL_Data *)ved;
-  const DRWContextState *ctx = DRW_context_state_get();
+  const DRWContext *ctx = DRW_context_state_get();
   const View3D *v3d = ctx->v3d;
 
   if (vedata->instance == nullptr) {
@@ -181,7 +181,7 @@ void GPENCIL_cache_init(void *ved)
   GPENCIL_Data *vedata = (GPENCIL_Data *)ved;
   GPENCIL_Instance *inst = vedata->instance;
 
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  const DRWContext *draw_ctx = DRW_context_state_get();
   inst->cfra = int(DEG_get_ctime(draw_ctx->depsgraph));
   inst->simplify_antialias = GPENCIL_SIMPLIFY_AA(draw_ctx->scene);
   inst->use_layer_fb = false;
