@@ -5939,24 +5939,37 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
   if (do_forward_compat_system_properties) {
     ID *id_iter;
     FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
-      BLI_assert(id_iter->system_properties = nullptr);
-      if (id_iter->properties) {
+      if (id_iter->system_properties) {
         /* Other ID pointers have not yet been relinked, do not try to access them for refcounting.
          */
-        IDP_MergeGroup_ex(
-            id_iter->properties, id_iter->system_properties, true, LIB_ID_CREATE_NO_USER_REFCOUNT);
+        if (id_iter->properties) {
+          IDP_MergeGroup_ex(id_iter->properties,
+                            id_iter->system_properties,
+                            true,
+                            LIB_ID_CREATE_NO_USER_REFCOUNT);
+        }
+        else {
+          id_iter->properties = IDP_CopyProperty_ex(id_iter->system_properties,
+                                                    LIB_ID_CREATE_NO_USER_REFCOUNT);
+        }
       }
     }
     FOREACH_MAIN_ID_END;
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
-        if (view_layer->id_properties) {
+        if (view_layer->system_id_properties) {
           /* Other ID pointers have not yet been relinked, do not try to access them for
            * refcounting. */
-          IDP_MergeGroup_ex(view_layer->id_properties,
-                            view_layer->system_id_properties,
-                            true,
-                            LIB_ID_CREATE_NO_USER_REFCOUNT);
+          if (view_layer->id_properties) {
+            IDP_MergeGroup_ex(view_layer->id_properties,
+                              view_layer->system_id_properties,
+                              true,
+                              LIB_ID_CREATE_NO_USER_REFCOUNT);
+          }
+          else {
+            view_layer->id_properties = IDP_CopyProperty_ex(view_layer->system_id_properties,
+                                                            LIB_ID_CREATE_NO_USER_REFCOUNT);
+          }
         }
       }
     }
