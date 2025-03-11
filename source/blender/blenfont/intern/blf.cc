@@ -960,6 +960,54 @@ void BLF_buffer(int fontid, float *fbuf, uchar *cbuf, int w, int h, ColorManaged
   }
 }
 
+struct BLFBufferState {
+  int fontid;
+  /**
+   * This only exists to validate the font has not been freed since the state was created.
+   * Needed because the state can be used from Python.
+   */
+  const FontBLF *font;
+
+  FontBufInfoBLF buf_info;
+};
+
+BLFBufferState *BLF_buffer_state_push(int fontid)
+{
+  FontBLF *font = blf_get(fontid);
+  if (font) {
+    BLFBufferState *buffer_state = MEM_new<BLFBufferState>(__func__);
+    buffer_state->fontid = fontid;
+    buffer_state->font = font;
+    buffer_state->buf_info = font->buf_info;
+    return buffer_state;
+  }
+  return nullptr;
+}
+
+void BLF_buffer_state_pop(BLFBufferState *buffer_state)
+{
+  FontBLF *font = blf_get(buffer_state->fontid);
+  /* It's possible the font has been removed as this is called from Python. */
+  if (font == buffer_state->font) {
+    font->buf_info = buffer_state->buf_info;
+  }
+  MEM_delete(buffer_state);
+}
+
+void BLF_buffer_state_free(BLFBufferState *buffer_state)
+{
+  MEM_delete(buffer_state);
+}
+
+bool BLF_buffer_is_set(int fontid)
+{
+  FontBLF *font = blf_get(fontid);
+  if (font) {
+    return (font->buf_info.fbuf || font->buf_info.cbuf);
+  }
+  return false;
+}
+
 void BLF_buffer_col(int fontid, const float rgba[4])
 {
   FontBLF *font = blf_get(fontid);

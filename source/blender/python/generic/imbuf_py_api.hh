@@ -17,4 +17,4 @@ PyObject *BPyInit_imbuf();
 extern PyTypeObject Py_ImBuf_Type;
 
 /** Return the #ImBuf or null with an error set. */
-ImBuf *BPy_ImBuf_FromPyObject(PyObject *v);
+ImBuf *BPy_ImBuf_FromPyObject(PyObject *py_imbuf);

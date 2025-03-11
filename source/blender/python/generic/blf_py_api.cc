@@ -31,43 +31,14 @@
 
 #include "imbuf_py_api.hh"
 
-/**
- * A stack of targets with the last one being active.
- * Currently only `ImBuf` targets are supported however we
- * could support other kinds of targets if we wanted.
- */
-ListBase g_blf_bind_target = {nullptr, nullptr};
-
 struct BPyBLFImBufContext {
   PyObject_HEAD /* Required Python macro. */
   PyObject *py_imbuf;
   ColorManagedDisplay *display;
 
-  /**
-   * Back pointer to this items entry in `g_blf_bind_target`,
-   * non-null between the enter/exit callbacks.
-   */
-  LinkData *link_data;
+  int fontid;
+  BLFBufferState *buffer_state;
 };
-
-static bool py_blf_bind_target_is_set()
-{
-  return (g_blf_bind_target.last != nullptr);
-}
-
-static BPyBLFImBufContext *py_blf_bind_target_get()
-{
-  if (g_blf_bind_target.last) {
-    BPyBLFImBufContext *py_blf_imbuf_ctx =
-        (BPyBLFImBufContext *)((LinkData *)g_blf_bind_target.last)->data;
-    if (py_blf_imbuf_ctx == nullptr) {
-      PyErr_SetString(PyExc_ValueError, "BLFImBufContext: internal error");
-      return nullptr;
-    }
-    return py_blf_imbuf_ctx;
-  }
-  return nullptr;
-}
 
 PyDoc_STRVAR(
     /* Wrap. */
@@ -180,7 +151,7 @@ static PyObject *py_blf_color(PyObject * /*self*/, PyObject *args)
     return nullptr;
   }
 
-  if (py_blf_bind_target_is_set()) {
+  if (BLF_buffer_is_set(fontid)) {
     BLF_buffer_col(fontid, rgba);
   }
   else {
@@ -212,18 +183,8 @@ static PyObject *py_blf_draw(PyObject * /*self*/, PyObject *args)
     return nullptr;
   }
 
-  if (py_blf_bind_target_is_set()) {
-    BPyBLFImBufContext *py_blf_imbuf_ctx = py_blf_bind_target_get();
-    if (py_blf_imbuf_ctx == nullptr) {
-      return nullptr;
-    }
-    ImBuf *ibuf = BPy_ImBuf_FromPyObject(py_blf_imbuf_ctx->py_imbuf);
-    if (ibuf == nullptr) {
-      return nullptr;
-    }
-    BLF_buffer(fontid, ibuf->float_buffer.data, ibuf->byte_buffer.data, ibuf->x, ibuf->y, nullptr);
+  if (BLF_buffer_is_set(fontid)) {
     BLF_draw_buffer(fontid, text, uint(text_length));
-    BLF_buffer(fontid, nullptr, nullptr, 0, 0, nullptr);
   }
   else {
     BLF_draw(fontid, text, uint(text_length));
@@ -528,30 +489,50 @@ static PyObject *py_blf_unload(PyObject * /*self*/, PyObject *args)
 
 static PyObject *py_blf_bind_imbuf_enter(BPyBLFImBufContext *self)
 {
-  if (self->link_data) {
+  if (self->buffer_state) {
     PyErr_SetString(PyExc_ValueError,
                     "BLFImBufContext.__enter__: unable to enter the same context more than once");
+    return nullptr;
   }
-  self->link_data = MEM_new<LinkData>(__func__);
-  BLI_addtail(&g_blf_bind_target, self->link_data);
-  self->link_data->data = self;
+
+  ImBuf *ibuf = BPy_ImBuf_FromPyObject(self->py_imbuf);
+  if (ibuf == nullptr) {
+    return nullptr;
+  }
+  BLFBufferState *buffer_state = BLF_buffer_state_push(self->fontid);
+  if (buffer_state == nullptr) {
+    PyErr_Format(PyExc_ValueError, "bind_imbuf: unknown fontid %d", self->fontid);
+    return nullptr;
+  }
+  BLF_buffer(self->fontid,
+             ibuf->float_buffer.data,
+             ibuf->byte_buffer.data,
+             ibuf->x,
+             ibuf->y,
+             self->display);
+  self->buffer_state = buffer_state;
 
   Py_RETURN_NONE;
 }
 
 static PyObject *py_blf_bind_imbuf_exit(BPyBLFImBufContext *self, PyObject * /*args*/)
 {
-  if (self->link_data) {
-    BLI_remlink_safe(&g_blf_bind_target, self->link_data);
-    MEM_delete(self->link_data);
-    self->link_data = nullptr;
-  }
+  BLF_buffer_state_pop(self->buffer_state);
+  self->buffer_state = nullptr;
 
   Py_RETURN_NONE;
 }
 
 static void py_blf_bind_imbuf_dealloc(BPyBLFImBufContext *self)
 {
+  if (self->buffer_state) {
+    /* This should practically never happen since it implies
+     * `__enter__` is called without a matching `__exit__`.
+     * Do this mainly for correctness:
+     * if the process somehow exits before exiting the context manager. */
+    BLF_buffer_state_free(self->buffer_state);
+  }
+
   PyObject_GC_UnTrack(self);
   Py_CLEAR(self->py_imbuf);
   PyObject_GC_Del(self);
@@ -641,10 +622,13 @@ static PyTypeObject BPyBLFImBufContext_Type = {
 PyDoc_STRVAR(
     /* Wrap. */
     py_blf_bind_imbuf_doc,
-    ".. method:: bind_imbuf(image, display_name=None)\n"
+    ".. method:: bind_imbuf(fontid, image, display_name=None)\n"
     "\n"
     "   Context manager to draw text into an image buffer instead of the GPU's context.\n"
     "\n"
+    "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
+    "font use 0.\n"
+    "   :type fontid: int\n"
     "   :arg imbuf: The image to draw into.\n"
     "   :type imbuf: :class:`imbuf.types.ImBuf`\n"
     "   :arg display_name: The color management display name to use or None.\n"
@@ -654,10 +638,12 @@ PyDoc_STRVAR(
     "   :rtype: BLFImBufContext\n");
 static PyObject *py_blf_bind_imbuf(PyObject * /*self*/, PyObject *args, PyObject *kwds)
 {
+  int fontid;
   PyObject *py_imbuf = nullptr;
   const char *display_name = nullptr;
 
   static const char *_keywords[] = {
+      "",
       "",
       "display_name",
       nullptr,
@@ -665,6 +651,7 @@ static PyObject *py_blf_bind_imbuf(PyObject * /*self*/, PyObject *args, PyObject
 
   static _PyArg_Parser _parser = {
       PY_ARG_PARSER_HEAD_COMPAT()
+      "i" /* `fontid` */
       "O!" /* `image` */
       "|" /* Optional arguments. */
       "z" /* `display_name` */
@@ -673,7 +660,7 @@ static PyObject *py_blf_bind_imbuf(PyObject * /*self*/, PyObject *args, PyObject
       nullptr,
   };
   if (!_PyArg_ParseTupleAndKeywordsFast(
-          args, kwds, &_parser, &Py_ImBuf_Type, &py_imbuf, &display_name))
+          args, kwds, &_parser, &fontid, &Py_ImBuf_Type, &py_imbuf, &display_name))
   {
     return nullptr;
   }
@@ -701,9 +688,12 @@ static PyObject *py_blf_bind_imbuf(PyObject * /*self*/, PyObject *args, PyObject
   }
 
   BPyBLFImBufContext *ret = PyObject_GC_New(BPyBLFImBufContext, &BPyBLFImBufContext_Type);
+
   ret->py_imbuf = Py_NewRef(py_imbuf);
   ret->display = display;
-  ret->link_data = nullptr;
+
+  ret->fontid = fontid;
+  ret->buffer_state = nullptr;
 
   PyObject_GC_Track(ret);
 

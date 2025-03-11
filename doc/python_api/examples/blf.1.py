@@ -16,7 +16,7 @@ ibuf = imbuf.new(image_size)
 
 font_id = blf.load("/path/to/font.ttf")
 
-with blf.bind_imbuf(ibuf, display_name="sRGB"):
+with blf.bind_imbuf(font_id, ibuf, display_name="sRGB"):
     blf.color(font_id, 1.0, 1.0, 1.0, 1.0)
     blf.enable(font_id, blf.WORD_WRAP)
     blf.size(font_id, font_size)
