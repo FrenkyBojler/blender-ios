@@ -197,6 +197,19 @@ class BundleValueLog : public ValueLog {
   BundleValueLog(Vector<Item> items);
 };
 
+class ClosureValueLog : public ValueLog {
+ public:
+  struct Item {
+    bke::SocketInterfaceKey key;
+    const bke::bNodeSocketType *type;
+  };
+
+  Vector<Item> inputs;
+  Vector<Item> outputs;
+
+  ClosureValueLog(Vector<Item> inputs, Vector<Item> outputs);
+};
+
 /**
  * Data logged by a viewer node when it is executed. In this case, we do want to log the entire
  * geometry.

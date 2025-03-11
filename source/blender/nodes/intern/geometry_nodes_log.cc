@@ -11,6 +11,7 @@
 #include "BKE_anonymous_attribute_id.hh"
 #include "BKE_compute_contexts.hh"
 #include "BKE_curves.hh"
+#include "BKE_geometry_nodes_closure.hh"
 #include "BKE_geometry_nodes_gizmos_transforms.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
@@ -215,6 +216,11 @@ GeometryInfoLog::GeometryInfoLog(const bke::GVolumeGrid &grid)
 
 BundleValueLog::BundleValueLog(Vector<Item> items) : items(std::move(items)) {}
 
+ClosureValueLog::ClosureValueLog(Vector<Item> inputs, Vector<Item> outputs)
+    : inputs(std::move(inputs)), outputs(std::move(outputs))
+{
+}
+
 /* Avoid generating these in every translation unit. */
 GeoModifierLog::GeoModifierLog() = default;
 GeoModifierLog::~GeoModifierLog() = default;
@@ -271,12 +277,28 @@ void GeoTreeLogger::log_value(const bNode &node, const bNodeSocket &socket, cons
     }
 #endif
     else if (value_variant.valid_for_socket(SOCK_BUNDLE)) {
-      const bke::BundlePtr bundle = value_variant.extract<bke::BundlePtr>();
       Vector<BundleValueLog::Item> items;
-      for (const bke::Bundle::StoredItem &item : bundle->items()) {
-        items.append({item.key, item.type});
+      if (const bke::BundlePtr bundle = value_variant.extract<bke::BundlePtr>()) {
+        for (const bke::Bundle::StoredItem &item : bundle->items()) {
+          items.append({item.key, item.type});
+        }
       }
       store_logged_value(this->allocator->construct<BundleValueLog>(std::move(items)));
+    }
+    else if (value_variant.valid_for_socket(SOCK_CLOSURE)) {
+      Vector<ClosureValueLog::Item> inputs;
+      Vector<ClosureValueLog::Item> outputs;
+      if (const bke::ClosurePtr closure = value_variant.extract<bke::ClosurePtr>()) {
+        const bke::ClosureSignature &signature = closure->signature();
+        for (const bke::ClosureSignature::Item &item : signature.inputs) {
+          inputs.append({item.key, item.type});
+        }
+        for (const bke::ClosureSignature::Item &item : signature.outputs) {
+          outputs.append({item.key, item.type});
+        }
+      }
+      store_logged_value(
+          this->allocator->construct<ClosureValueLog>(std::move(inputs), std::move(outputs)));
     }
     else {
       value_variant.convert_to_single();

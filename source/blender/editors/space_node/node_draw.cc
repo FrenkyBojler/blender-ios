@@ -1825,12 +1825,37 @@ static void create_inspection_string_for_bundle(const geo_log::BundleValueLog &v
     return;
   }
   fmt::format_to(fmt::appender(buf), "{}", TIP_("Bundle values:\n"));
-  for (const int i : value_log.items.index_range()) {
-    const geo_log::BundleValueLog::Item &item = value_log.items[i];
+  for (const geo_log::BundleValueLog::Item &item : value_log.items) {
     fmt::format_to(fmt::appender(buf),
                    fmt::runtime("\u2022 \"{}\" ({})\n"),
                    item.key.identifiers().first(),
                    IFACE_(item.type->label));
+  }
+}
+
+static void create_inspection_string_for_closure(const geo_log::ClosureValueLog &value_log,
+                                                 fmt::memory_buffer &buf)
+{
+  if (value_log.inputs.is_empty() && value_log.outputs.is_empty()) {
+    fmt::format_to(fmt::appender(buf), "{}", TIP_("Empty Closure"));
+  }
+  if (!value_log.inputs.is_empty()) {
+    fmt::format_to(fmt::appender(buf), "{}:\n", TIP_("Inputs"));
+    for (const geo_log::ClosureValueLog::Item &item : value_log.inputs) {
+      fmt::format_to(fmt::appender(buf),
+                     fmt::runtime("\u2022 {} ({})\n"),
+                     item.key.identifiers().first(),
+                     IFACE_(item.type->label));
+    }
+  }
+  if (!value_log.outputs.is_empty()) {
+    fmt::format_to(fmt::appender(buf), "{}:\n", TIP_("Outputs"));
+    for (const geo_log::ClosureValueLog::Item &item : value_log.outputs) {
+      fmt::format_to(fmt::appender(buf),
+                     fmt::runtime("\u2022 {} ({})\n"),
+                     item.key.identifiers().first(),
+                     IFACE_(item.type->label));
+    }
   }
 }
 
@@ -1925,6 +1950,11 @@ static std::optional<std::string> create_log_inspection_string(geo_log::GeoTreeL
                dynamic_cast<const geo_log::BundleValueLog *>(value_log))
   {
     create_inspection_string_for_bundle(*bundle_value_log, buf);
+  }
+  else if (const geo_log::ClosureValueLog *closure_value_log =
+               dynamic_cast<const geo_log::ClosureValueLog *>(value_log))
+  {
+    create_inspection_string_for_closure(*closure_value_log, buf);
   }
 
   std::string str = fmt::to_string(buf);
