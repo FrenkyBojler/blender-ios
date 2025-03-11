@@ -151,12 +151,11 @@ static PyObject *py_blf_color(PyObject * /*self*/, PyObject *args)
     return nullptr;
   }
 
-  if (BLF_buffer_is_set(fontid)) {
-    BLF_buffer_col(fontid, rgba);
-  }
-  else {
-    BLF_color4fv(fontid, rgba);
-  }
+  BLF_color4fv(fontid, rgba);
+
+  /* NOTE(@ideasman42): that storing these colors separately looks like something that could
+   * be refactored away if the font's internal color format was changed from `uint8` to `float`. */
+  BLF_buffer_col(fontid, rgba);
 
   Py_RETURN_NONE;
 }
@@ -183,12 +182,35 @@ static PyObject *py_blf_draw(PyObject * /*self*/, PyObject *args)
     return nullptr;
   }
 
-  if (BLF_buffer_is_set(fontid)) {
-    BLF_draw_buffer(fontid, text, uint(text_length));
+  BLF_draw(fontid, text, uint(text_length));
+
+  Py_RETURN_NONE;
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    py_blf_draw_buffer_doc,
+    ".. function:: draw_buffer(fontid, text)\n"
+    "\n"
+    "   Draw text into the buffer bound to the fontid.\n"
+    "\n"
+    "   :arg fontid: The id of the typeface as returned by :func:`blf.load`, for default "
+    "font use 0.\n"
+    "   :type fontid: int\n"
+    "   :arg text: the text to draw.\n"
+    "   :type text: str\n");
+static PyObject *py_blf_draw_buffer(PyObject * /*self*/, PyObject *args)
+{
+  const char *text;
+  Py_ssize_t text_length;
+  int fontid;
+
+  if (!PyArg_ParseTuple(args, "is#:blf.draw_buffer", &fontid, &text, &text_length)) {
+    return nullptr;
   }
-  else {
-    BLF_draw(fontid, text, uint(text_length));
-  }
+
+  BLF_draw_buffer(fontid, text, uint(text_length));
+
   Py_RETURN_NONE;
 }
 
@@ -710,6 +732,7 @@ static PyMethodDef BLF_methods[] = {
     {"disable", (PyCFunction)py_blf_disable, METH_VARARGS, py_blf_disable_doc},
     {"dimensions", (PyCFunction)py_blf_dimensions, METH_VARARGS, py_blf_dimensions_doc},
     {"draw", (PyCFunction)py_blf_draw, METH_VARARGS, py_blf_draw_doc},
+    {"draw_buffer", (PyCFunction)py_blf_draw_buffer, METH_VARARGS, py_blf_draw_buffer_doc},
     {"enable", (PyCFunction)py_blf_enable, METH_VARARGS, py_blf_enable_doc},
     {"position", (PyCFunction)py_blf_position, METH_VARARGS, py_blf_position_doc},
     {"rotation", (PyCFunction)py_blf_rotation, METH_VARARGS, py_blf_rotation_doc},
@@ -719,6 +742,7 @@ static PyMethodDef BLF_methods[] = {
     {"color", (PyCFunction)py_blf_color, METH_VARARGS, py_blf_color_doc},
     {"load", (PyCFunction)py_blf_load, METH_VARARGS, py_blf_load_doc},
     {"unload", (PyCFunction)py_blf_unload, METH_VARARGS, py_blf_unload_doc},
+
     {"bind_imbuf",
      (PyCFunction)py_blf_bind_imbuf,
      METH_VARARGS | METH_KEYWORDS,

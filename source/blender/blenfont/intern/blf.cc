@@ -999,15 +999,6 @@ void BLF_buffer_state_free(BLFBufferState *buffer_state)
   MEM_delete(buffer_state);
 }
 
-bool BLF_buffer_is_set(int fontid)
-{
-  FontBLF *font = blf_get(fontid);
-  if (font) {
-    return (font->buf_info.fbuf || font->buf_info.cbuf);
-  }
-  return false;
-}
-
 void BLF_buffer_col(int fontid, const float rgba[4])
 {
   FontBLF *font = blf_get(fontid);

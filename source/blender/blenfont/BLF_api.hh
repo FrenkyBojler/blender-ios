@@ -360,8 +360,6 @@ void BLF_buffer_state_pop(BLFBufferState *buffer_state);
  */
 void BLF_buffer_state_free(BLFBufferState *buffer_state);
 
-bool BLF_buffer_is_set(int fontid);
-
 /**
  * Set the color to be used for text.
  */
