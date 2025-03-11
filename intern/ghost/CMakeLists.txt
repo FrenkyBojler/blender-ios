@@ -572,6 +572,7 @@ if(WITH_XR_OPENXR)
     intern/GHOST_XrControllerModel.cc
     intern/GHOST_XrEvent.cc
     intern/GHOST_XrGraphicsBinding.cc
+    intern/GHOST_XrGraphicsBindingVulkan.cc
     intern/GHOST_XrSession.cc
     intern/GHOST_XrSwapchain.cc
 
@@ -581,6 +582,7 @@ if(WITH_XR_OPENXR)
     intern/GHOST_XrContext.hh
     intern/GHOST_XrControllerModel.hh
     intern/GHOST_XrException.hh
+    intern/GHOST_XrGraphicsBindingVulkan.hh
     intern/GHOST_XrSession.hh
     intern/GHOST_XrSwapchain.hh
     intern/GHOST_Xr_intern.hh

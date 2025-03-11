@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <list>
+#include <mutex>
 #include <sstream>
 
 #if defined(WITH_GHOST_X11)
@@ -26,6 +27,7 @@
 #endif
 #ifdef WITH_VULKAN_BACKEND
 #  include "GHOST_ContextVK.hh"
+#  include "GHOST_XrGraphicsBindingVulkan.hh"
 #endif
 
 #include "GHOST_C-api.h"
@@ -127,7 +129,9 @@ class GHOST_XrGraphicsBindingOpenGL : public GHOST_IXrGraphicsBinding {
            (gl_version <= gpu_requirements.maxApiVersionSupported);
   }
 
-  void initFromGhostContext(GHOST_Context &ghost_ctx) override
+  void initFromGhostContext(GHOST_Context &ghost_ctx,
+                            XrInstance /*instance*/,
+                            XrSystemId /*system_id*/) override
   {
 #if defined(WITH_GHOST_X11) || defined(WITH_GHOST_WAYLAND)
     /* WAYLAND/X11 may be dynamically selected at load time but both may also be
@@ -301,88 +305,6 @@ class GHOST_XrGraphicsBindingOpenGL : public GHOST_IXrGraphicsBinding {
   GLuint m_fbo = 0;
 };
 
-class GHOST_XrGraphicsBindingVulkan : public GHOST_IXrGraphicsBinding {
- public:
-  bool checkVersionRequirements(GHOST_Context &ghost_ctx,
-                                XrInstance instance,
-                                XrSystemId system_id,
-                                std::string *r_requirement_info) const override
-  {
-    /* Retrieve the min and max Vulkan version that the XR platform supports. */
-    static PFN_xrGetVulkanGraphicsRequirementsKHR s_xrGetVulkanGraphicsRequirementsKHR_fn =
-        nullptr;
-    if (s_xrGetVulkanGraphicsRequirementsKHR_fn == nullptr &&
-        XR_FAILED(
-            xrGetInstanceProcAddr(instance,
-                                  "xrGetVulkanGraphicsRequirementsKHR",
-                                  (PFN_xrVoidFunction *)&s_xrGetVulkanGraphicsRequirementsKHR_fn)))
-    {
-      s_xrGetVulkanGraphicsRequirementsKHR_fn = nullptr;
-      *r_requirement_info = std::string(
-          "Unable to retrieve xrGetVulkanGraphicsRequirementsKHR instance function");
-      return false;
-    }
-
-    XrGraphicsRequirementsVulkanKHR xr_graphics_requirements{
-        /* type */ XR_TYPE_GRAPHICS_REQUIREMENTS_VULKAN_KHR,
-    };
-    if (XR_FAILED(s_xrGetVulkanGraphicsRequirementsKHR_fn(
-            instance, system_id, &xr_graphics_requirements)))
-    {
-      *r_requirement_info = std::string("Unable to retrieve Xr version requirements for Vulkan");
-      return false;
-    }
-
-    if (r_requirement_info) {
-      std::ostringstream strstream;
-      strstream << "Min Vulkan version "
-                << XR_VERSION_MAJOR(xr_graphics_requirements.minApiVersionSupported) << "."
-                << XR_VERSION_MINOR(xr_graphics_requirements.minApiVersionSupported) << std::endl;
-      strstream << "Max Vulkan version "
-                << XR_VERSION_MAJOR(xr_graphics_requirements.maxApiVersionSupported) << "."
-                << XR_VERSION_MINOR(xr_graphics_requirements.maxApiVersionSupported) << std::endl;
-
-      *r_requirement_info = strstream.str();
-    }
-
-    /* Retrieve the current Vulkan version that is being used. */
-    GHOST_ContextVK &context_vk = static_cast<GHOST_ContextVK &>(ghost_ctx);
-    const XrVersion vk_version = XR_MAKE_VERSION(
-        context_vk.m_context_major_version, context_vk.m_context_minor_version, 0);
-    return vk_version >= xr_graphics_requirements.minApiVersionSupported &&
-           vk_version <= xr_graphics_requirements.maxApiVersionSupported;
-  }
-
-  void initFromGhostContext(GHOST_Context & /*ghost_ctx*/) override {}
-
-  std::optional<int64_t> chooseSwapchainFormat(const std::vector<int64_t> & /*runtime_formats*/,
-                                               GHOST_TXrSwapchainFormat & /*r_format*/,
-                                               bool & /*r_is_srgb_format*/) const override
-  {
-    return std::nullopt;
-  }
-
-  std::vector<XrSwapchainImageBaseHeader *> createSwapchainImages(
-      uint32_t /*image_count*/) override
-  {
-    std::vector<XrSwapchainImageBaseHeader *> base_images;
-
-    return base_images;
-  }
-
-  void submitToSwapchainImage(XrSwapchainImageBaseHeader & /*swapchain_image*/,
-                              const GHOST_XrDrawViewInfo & /*draw_info*/) override
-  {
-  }
-
-  bool needsUpsideDownDrawing(GHOST_Context &ghost_ctx) const override
-  {
-    return ghost_ctx.isUpsideDown();
-  }
-
- private:
-};
-
 #ifdef WIN32
 static void ghost_format_to_dx_format(GHOST_TXrSwapchainFormat ghost_format,
                                       bool expects_srgb_buffer,
@@ -470,7 +392,9 @@ class GHOST_XrGraphicsBindingD3D : public GHOST_IXrGraphicsBinding {
   }
 
   void initFromGhostContext(
-      GHOST_Context & /*ghost_ctx*/ /* Remember: This is the OpenGL context! */
+      GHOST_Context & /*ghost_ctx*/ /* Remember: This is the OpenGL context! */,
+      XrInstance /*instance*/,
+      XrSystemId /*system_id*/
       ) override
   {
     oxr_binding.d3d11.type = XR_TYPE_GRAPHICS_BINDING_D3D11_KHR;
