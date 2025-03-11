@@ -951,15 +951,11 @@ static std::unique_ptr<ReferenceLifetimesInfo> make_reference_lifetimes_info(con
   required_data_by_socket.all_bits() &= potential_data_by_socket.all_bits();
 
 /* Only useful when debugging the reference lifetimes analysis. */
-#if 1
+#if 0
   std::cout << "\n\n"
             << node_tree_to_dot(tree,
                                 bNodeTreeBitGroupVectorOptions(
-                                    // {required_data_by_socket, potential_reference_by_socket}
-                                    {potential_data_by_socket,
-                                     potential_reference_by_socket,
-                                     required_data_by_socket}  //
-                                    ))
+                                    {potential_reference_by_socket, required_data_by_socket}))
 
             << "\n\n";
 #endif
