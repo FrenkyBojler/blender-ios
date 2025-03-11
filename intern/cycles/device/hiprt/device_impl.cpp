@@ -1107,8 +1107,9 @@ hiprtScene HIPRTDevice::build_tlas(BVHHIPRT *bvh,
 
     std::copy_n(bvh->custom_prim_info.data(), data_size, custom_prim_info_data);
 
+    custom_prim_info.copy_to_device();
     custom_prim_info_offset.copy_to_device();
-    if (!custom_prim_info.device_pointer) {
+    if (custom_prim_info.device_pointer == 0 || custom_prim_info.device_pointer == 0) {
       set_error("Failed to allocate custom_prim_info_offset for TLAS");
       hiprtDestroyScene(hiprt_context, scene);
       return nullptr;
