@@ -2,6 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <iostream>
+#include <mutex>
+
 #include "BLI_math_vector.hh"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
@@ -31,59 +34,42 @@
 
 namespace blender::nodes::node_geo_tetrahedralize_cc {
 
-/* Structure pour les paramètres du nœud */
+/* Structure for node parameters */
 struct NodeGeometryTetrahedralize {
-  float max_volume;          // Volume maximum des tétraèdres
-  float quality_ratio;       // Ratio qualité (min radius-edge ratio)
-  float coarsen_percent;     // Pourcentage de simplification (comme dans Houdini)
-  bool preserve_boundary;    // Préserver la frontière (Houdini: preserve input)
-  bool optimize_quality;     // Optimiser la qualité des tétraèdres
-  char attribute_name[64];   // Nom de l'attribut pour la densité locale
-  char _pad[4];              // Padding pour l'alignement
-};
-
-/* Types de méthodes de tétraédralisation */
-enum TetrahedralizationMethod {
-  METHOD_DELAUNAY = 0,      // Tétraédralisation de Delaunay standard
-  METHOD_CONSTRAINED = 1,   // Tétraédralisation de Delaunay contrainte
-  METHOD_REFINE = 2,        // Raffiner un maillage tétraédrique existant
+  double max_volume;          // Maximum tetrahedra volume
+  float quality_ratio;       // Quality ratio (min radius-edge ratio)
+  float min_dihedral_angle;  // Minimum dihedral angle between tetrahedra faces
+  bool preserve_boundary;    // Preserve boundary (Houdini: preserve input)
+  char _pad[3];              // Padding for alignment
 };
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Mesh").supported_type(GeometryComponent::Type::Mesh)
-      .description("Maillage de surface à tétraédraliser");
+      .description("Surface mesh to tetrahedralize");
   
-  b.add_input<decl::Float>("Max Volume").default_value(0.1f).min(0.00001f).max(10.0f)
+  b.add_input<decl::Float>("Max Volume").default_value(0.5).min(0.0001).max(1.0)
       .subtype(PROP_FACTOR)
-      .description("Volume maximum des tétraèdres générés");
+      .description("Maximum volume of generated tetrahedra");
   
-  b.add_input<decl::Float>("Quality Ratio").default_value(1.4f).min(1.0f).max(2.0f)
-      .description("Ratio qualité/forme des tétraèdres (1=minimum, 2=élevé)");
+  b.add_input<decl::Float>("Quality Ratio").default_value(2.0).min(1.0f).max(4.0f)
+      .description("Quality ratio of tetrahedra shape (1=minimum, 4=very high). Higher values significantly increase computation time");
   
-  b.add_input<decl::Float>("Coarsen").default_value(0.0f).min(0.0f).max(100.0f)
-      .subtype(PROP_PERCENTAGE)
-      .description("Pourcentage de simplification du maillage d'entrée avant tétraédralisation");
+  b.add_input<decl::Float>("Min Dihedral Angle").default_value(10.0f).min(0.0f).max(30.0f)
+      .subtype(PROP_ANGLE)
+      .description("Minimum dihedral angle between tetrahedra faces. Higher values create better shaped elements but slower calculation");
+  
+  b.add_input<decl::Bool>("Preserve Boundary").default_value(false)
+      .description("Preserve input mesh boundaries");
       
   b.add_output<decl::Geometry>("Tetrahedral Mesh")
       .propagate_all()
-      .description("Maillage tétraédrique généré");
+      .description("Generated tetrahedral mesh");
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "method", static_cast<eUI_Item_Flag>(0), "", ICON_NONE);
-  
-  uiLayout *col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "preserve_boundary", static_cast<eUI_Item_Flag>(0), std::nullopt, ICON_NONE);
-  uiItemR(col, ptr, "optimize_quality", static_cast<eUI_Item_Flag>(0), std::nullopt, ICON_NONE);
-  
-  uiLayout *row = uiLayoutRow(layout, true);
-  uiItemR(row, ptr, "use_attribute", static_cast<eUI_Item_Flag>(0), std::nullopt, ICON_NONE);
-  
-  uiLayout *sub = uiLayoutRow(row, true);
-  uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_attribute"));
-  uiItemR(sub, ptr, "attribute_name", static_cast<eUI_Item_Flag>(0), "", ICON_NONE);
+  // Simplified user interface without attribute options
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -91,17 +77,13 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   NodeGeometryTetrahedralize *storage = (NodeGeometryTetrahedralize *)MEM_callocN(
       sizeof(NodeGeometryTetrahedralize), "NodeGeometryTetrahedralize");
   
-  storage->max_volume = 0.1f;
-  storage->quality_ratio = 1.4f;
-  storage->coarsen_percent = 0.0f;
+  storage->max_volume = 0.1;
+  storage->quality_ratio = 1.2f;
+  storage->min_dihedral_angle = 10.0f;
   storage->preserve_boundary = true;
-  storage->optimize_quality = true;
-  
-  strcpy(storage->attribute_name, "density");
   
   node->storage = storage;
-  node->custom1 = METHOD_DELAUNAY;  // Méthode par défaut
-  node->custom2 = 0;                // use_attribute = false
+  node->custom2 = 0;                // Kept for compatibility
 }
 
 static void node_free_storage(bNode *node)
@@ -118,7 +100,7 @@ static void node_copy_storage(bNodeTree * /*tree*/,
 }
 
 /**
- * Classe utilitaire pour gérer automatiquement les ressources TetGen (RAII)
+ * Utility class to manage TetGen resources automatically (RAII)
  */
 class TetGenResourceGuard {
 private:
@@ -129,7 +111,7 @@ public:
   TetGenResourceGuard(tetgenio &in, tetgenio &out) : in_(in), out_(out) {}
 
   ~TetGenResourceGuard() {
-    // Nettoyage des entrées
+    // Cleanup inputs
     if (in_.pointlist) {
       delete[] in_.pointlist;
       in_.pointlist = nullptr;
@@ -153,7 +135,7 @@ public:
       in_.facetlist = nullptr;
     }
     
-    // Nettoyage des sorties
+    // Cleanup outputs
     if (out_.pointlist) {
       delete[] out_.pointlist;
       out_.pointlist = nullptr;
@@ -178,90 +160,161 @@ public:
 };
 
 /**
- * Prépare les données d'entrée pour TetGen à partir d'un maillage Blender
+ * Prepares TetGen input data from a Blender mesh
  */
 static bool prepare_tetgen_input(const Mesh *mesh_in, tetgenio &in, GeoNodeExecParams &params)
 {
-  // Initialisation de TetGen
+  // Initialize TetGen
   in.initialize();
-  in.firstnumber = 0;  // TetGen utilise l'indexation à partir de 0
+  in.firstnumber = 0;  // TetGen uses indexing starting from 0
   
-  // Vérification des données d'entrée
+  // Input data validation
   if (!mesh_in || mesh_in->verts_num < 4) {
     params.error_message_add(NodeWarningType::Error, 
-        "Le maillage d'entrée doit contenir au moins 4 points pour la tétraédralisation");
+        "Input mesh must contain at least 4 points for tetrahedralization");
     return false;
   }
   
-  // Vérification supplémentaire pour s'assurer que le maillage est valide
+  // Additional check to ensure mesh is valid
   if (mesh_in->faces_num < 4) {
     params.error_message_add(NodeWarningType::Error, 
-        "Le maillage d'entrée doit contenir au moins 4 faces pour la tétraédralisation");
+        "Input mesh must contain at least 4 faces for tetrahedralization");
     return false;
   }
   
   try {
-    // Récupération des données du maillage
+    // Retrieve mesh data
     const Span<float3> positions = mesh_in->vert_positions();
     const OffsetIndices faces = mesh_in->faces();
     const Span<int> corner_verts = mesh_in->corner_verts();
     
-    // Points d'entrée
+    // Input points
     in.numberofpoints = mesh_in->verts_num;
     in.pointlist = new REAL[in.numberofpoints * 3];
     
-    for (int i = 0; i < mesh_in->verts_num; i++) {
-      in.pointlist[i * 3] = positions[i].x;
-      in.pointlist[i * 3 + 1] = positions[i].y;
-      in.pointlist[i * 3 + 2] = positions[i].z;
+    // Copy positions in parallel if enough vertices
+    if (mesh_in->verts_num > 1000) {
+      threading::parallel_for(IndexRange(mesh_in->verts_num), 1024, [&](const IndexRange range) {
+        for (const int i : range) {
+          in.pointlist[i * 3] = positions[i].x;
+          in.pointlist[i * 3 + 1] = positions[i].y;
+          in.pointlist[i * 3 + 2] = positions[i].z;
+        }
+      });
+    }
+    else {
+      // Sequential version for a small number of vertices
+      for (int i = 0; i < mesh_in->verts_num; i++) {
+        in.pointlist[i * 3] = positions[i].x;
+        in.pointlist[i * 3 + 1] = positions[i].y;
+        in.pointlist[i * 3 + 2] = positions[i].z;
+      }
     }
     
-    // Faces d'entrée
+    // Input faces
     in.numberoffacets = mesh_in->faces_num;
     in.facetlist = new tetgenio::facet[in.numberoffacets];
     
-    int valid_faces = 0; // Compteur de faces valides
+    // Initialize facetlist in parallel
+    threading::parallel_for(IndexRange(mesh_in->faces_num), 512, [&](const IndexRange range) {
+      for (const int i : range) {
+        tetgenio::facet *f = &in.facetlist[i];
+        f->numberofholes = 0;
+        f->holelist = nullptr;
+        f->numberofpolygons = 0; // Will be configured later
+        f->polygonlist = nullptr; // Will be allocated later if necessary
+      }
+    });
     
-    for (int i = 0; i < mesh_in->faces_num; i++) {
-      tetgenio::facet *f = &in.facetlist[i];
-      f->numberofholes = 0;
-      f->holelist = nullptr;
-      
+    // Iterate over faces to determine which are valid
+    // This step is not easily parallelizable due to dynamic allocations
+    // and dependencies between operations
+    int valid_faces = 0; // Valid faces counter
+    
+    // Use a mutex to protect the valid_faces counter
+    std::mutex face_mutex;
+    
+    // Use atomic pointers to handle allocations/deallocations safely
+    auto process_face = [&](const int i) {
       const IndexRange face = faces[i];
       int vcount = face.size();
       
-      // Au moins 3 sommets pour un polygone valide
+      // At least 3 vertices for a valid polygon
       if (vcount < 3) {
-        continue;
+        return false;
       }
       
-      valid_faces++;
-      
+      tetgenio::facet *f = &in.facetlist[i];
       f->numberofpolygons = 1;
       f->polygonlist = new tetgenio::polygon[1];
       f->polygonlist[0].numberofvertices = vcount;
       f->polygonlist[0].vertexlist = new int[vcount];
       
-      // Copie des indices de sommets avec vérification
+      // Copy vertex indices with validation
       for (int j = 0; j < vcount; j++) {
         int idx = corner_verts[face[j]];
-        // Vérification des limites
+        // Bounds check
         if (idx >= 0 && idx < mesh_in->verts_num) {
           f->polygonlist[0].vertexlist[j] = idx;
         }
         else {
-          // Index invalide, utiliser 0 comme secours
+          // Invalid index, use 0 as fallback
           f->polygonlist[0].vertexlist[j] = 0;
-          params.error_message_add(NodeWarningType::Warning,
-              "Index de sommet invalide détecté et corrigé");
+          // Cannot use error_message_add here as we might be in a thread
+        }
+      }
+      
+      return true;
+    };
+    
+    // Process faces in blocks for better load balancing
+    // For small meshes, process sequentially
+    if (mesh_in->faces_num > 500) {
+      Array<int> face_valid(mesh_in->faces_num, 0);
+      
+      threading::parallel_for(IndexRange(mesh_in->faces_num), 128, [&](const IndexRange range) {
+        int local_valid_count = 0;
+        
+        for (const int i : range) {
+          bool is_valid = process_face(i);
+          face_valid[i] = is_valid ? 1 : 0;
+          if (is_valid) {
+            local_valid_count++;
+          }
+        }
+        
+        // Update global counter in a thread-safe manner
+        face_mutex.lock();
+        valid_faces += local_valid_count;
+        face_mutex.unlock();
+      });
+      
+      // Check invalid faces for debugging
+      int invalid_count = 0;
+      for (int i = 0; i < mesh_in->faces_num; i++) {
+        if (face_valid[i] == 0) {
+          invalid_count++;
+        }
+      }
+      
+      if (invalid_count > 0) {
+        params.error_message_add(NodeWarningType::Warning,
+            std::to_string(invalid_count) + " faces were ignored as they have less than 3 vertices");
+      }
+    }
+    else {
+      // Sequential version for small meshes
+      for (int i = 0; i < mesh_in->faces_num; i++) {
+        if (process_face(i)) {
+          valid_faces++;
         }
       }
     }
     
-    // Vérifier qu'il y a suffisamment de faces valides
+    // Check if there are enough valid faces
     if (valid_faces < 4) {
       params.error_message_add(NodeWarningType::Error,
-          "Pas assez de faces valides (au moins 4 nécessaires) pour la tétraédralisation");
+          "Not enough valid faces (at least 4 required) for tetrahedralization");
       return false;
     }
     
@@ -269,113 +322,97 @@ static bool prepare_tetgen_input(const Mesh *mesh_in, tetgenio &in, GeoNodeExecP
   }
   catch (const std::exception &e) {
     params.error_message_add(NodeWarningType::Error, 
-        std::string("Erreur lors de la préparation des données : ") + e.what());
+        std::string("Error while preparing data: ") + e.what());
     return false;
   }
 }
 
 /**
- * Applique la simplification du maillage si nécessaire
- */
-static void apply_coarsening(tetgenio &in, float coarsen_percent, GeoNodeExecParams &params)
-{
-  // Si le pourcentage de simplification est trop faible, ne pas l'appliquer
-  if (coarsen_percent < 1.0f) {
-    return;
-  }
-  
-  // Pour l'instant, simplement informer l'utilisateur que cette fonctionnalité n'est pas disponible
-  // La simplification réelle nécessiterait un prétraitement ou une option TetGen spécifique
-  params.error_message_add(NodeWarningType::Info,
-      "Option de simplification définie à " + std::to_string(coarsen_percent) + 
-      "% (sera implémentée dans une future version)");
-}
-
-/**
- * Configure les options TetGen en fonction des paramètres du nœud
+ * Configures TetGen options based on node parameters
  */
 static void configure_tetgen_options(tetgenbehavior &behavior, 
-                                    float max_volume, 
+                                    double max_volume, 
                                     float quality_ratio,
+                                    float min_dihedral_angle,
                                     bool preserve_boundary,
-                                    bool optimize_quality,
-                                    TetrahedralizationMethod method)
+                                    GeoNodeExecParams &params)
 {
-  // Configuration de base
-  behavior.plc = 1;          // Préserver le complexe linéaire par morceaux (boundary)
-  behavior.quality = 1;      // Activer l'amélioration de la qualité
-  behavior.nobisect = 1;     // Ne pas bissecter les faces d'entrée
-  behavior.quiet = 1;        // Mode silencieux (pas de sortie stdout)
-  behavior.verbose = 0;      // Pas de verbosité
+  // Basic configuration
+  behavior.plc = 1;          // Preserve piecewise linear complex (boundary)
+  behavior.quality = 1;      // Enable quality improvement
+  behavior.quiet = 1;        // Quiet mode (no stdout output)
+  behavior.verbose = 0;      // No verbosity
   
-  // Options selon la méthode
-  switch (method) {
-    case METHOD_DELAUNAY:
-      break;  // Options par défaut
-      
-    case METHOD_CONSTRAINED:
-      behavior.refine = 0;   // Pas de raffinement
-      break;
-      
-    case METHOD_REFINE:
-      behavior.refine = 1;   // Mode raffinement
-      break;
-  }
+  // Preserve input boundary
+  // In TetGen, nobisect=1 means not to bisect input faces
+  // which corresponds to "preserve boundary" = true
+  behavior.nobisect = preserve_boundary ? 1 : 0;
   
-  // Préservation de la frontière d'entrée
-  if (preserve_boundary) {
-    behavior.nobisect = 1;
-  }
-  else {
-    behavior.nobisect = 0;
-  }
+  // Quality options (always enabled)
+  // In TetGen, quality improvement is controlled via quality=1 and minratio
+  behavior.quality = 1;    // Enable quality improvement
   
-  // Options de qualité
-  if (optimize_quality) {
-    // Dans TetGen, l'optimisation de la qualité est contrôlée via quality=1 et minratio
-    behavior.quality = 1;    // Activer l'optimisation de la qualité
+  // Quality ratio (min radius-edge ratio)
+  // Limit the maximum value to avoid excessive computation time
+  // TetGen can be extremely slow with high quality values
+  float limited_quality_ratio = quality_ratio;
+  if (limited_quality_ratio > 2.0f) {
+    params.error_message_add(NodeWarningType::Warning,
+        "High quality value detected. Processing may take longer.");
     
-    // Ratio qualité (min radius-edge ratio)
-    if (quality_ratio > 1.0f) {
-      behavior.minratio = quality_ratio;
+    // Nouvelle formule avec une échelle exponentielle pour créer une différence plus marquée
+    if (limited_quality_ratio <= 3.0f) {
+      // Entre 2 et 3, échelle à 50% au lieu de 30%
+      limited_quality_ratio = 2.0f + (limited_quality_ratio - 2.0f) * 0.5f;
+    } else {
+      // Entre 3 et 4, différence beaucoup plus marquée
+      limited_quality_ratio = 2.5f + (limited_quality_ratio - 3.0f) * 1.5f;
     }
   }
   
-  // Volume maximum des tétraèdres
-  if (max_volume > 0.00001f) {
+  behavior.minratio = limited_quality_ratio;
+  
+  // Use the dihedral angle value directly from the input
+  // Convert from degrees to internal TetGen value (TetGen expects degrees)
+  // Clamp to realistic values to prevent excessive slowdowns
+  float clamped_angle = std::min(min_dihedral_angle, 30.0f);
+  behavior.mindihedral = clamped_angle;
+  
+  // Maximum tetrahedra volume
+  if (max_volume > 0.00001) {
     behavior.fixedvolume = 1;
     behavior.maxvolume = max_volume;
   }
   
-  // Sortie
-  behavior.edgesout = 1;     // Générer les arêtes
-  behavior.facesout = 1;     // Générer les faces
-  behavior.neighout = 1;     // Générer les informations de voisinage
+  // Output
+  behavior.edgesout = 1;     // Generate edges
+  behavior.facesout = 1;     // Generate faces
+  behavior.neighout = 1;     // Generate neighbor information
 }
 
 /**
- * Vérifie si les résultats de TetGen sont valides et utilisables
+ * Checks if TetGen output is valid and usable
  */
 static bool validate_tetgen_output(const tetgenio &out, GeoNodeExecParams &params)
 {
-  // Vérification de base
+  // Basic validation
   if (out.numberofpoints <= 0 || out.numberoftetrahedra <= 0) {
     params.error_message_add(NodeWarningType::Error, 
-        "TetGen n'a pas généré de maillage tétraédrique valide");
+        "TetGen did not generate a valid tetrahedral mesh");
     return false;
   }
   
-  // Vérification des données requises
+  // Required data validation
   if (!out.pointlist || !out.tetrahedronlist) {
     params.error_message_add(NodeWarningType::Error, 
-        "TetGen a généré des données incomplètes");
+        "TetGen generated incomplete data");
     return false;
   }
   
-  // Vérification des arêtes si edgesout a été utilisé
+  // Validate edges if edgesout was used
   if (out.numberofedges > 0 && !out.edgelist) {
     params.error_message_add(NodeWarningType::Warning, 
-        "TetGen a signalé des arêtes mais n'en a pas généré");
+        "TetGen reported edges but did not generate any");
     return false;
   }
   
@@ -383,177 +420,246 @@ static bool validate_tetgen_output(const tetgenio &out, GeoNodeExecParams &param
 }
 
 /**
- * Crée un maillage Blender à partir des résultats TetGen
+ * Creates a Blender mesh from TetGen results
  */
-static Mesh* create_tetrahedral_mesh(tetgenio &out, GeoNodeExecParams &params, bool use_attribute, const char *attribute_name)
+static Mesh* create_tetrahedral_mesh(tetgenio &out, GeoNodeExecParams &params, double max_volume, const tetgenbehavior &behavior)
 {
-  // Vérification des résultats
+  // Validate results
   if (!validate_tetgen_output(out, params)) {
     return nullptr;
   }
-  
-  // Limite de sécurité pour éviter les problèmes de performance
-  const int max_tets = 1000000;
+
+  // Check model scale
+  if (max_volume < 0.0001) {
+    params.error_message_add(NodeWarningType::Warning, "The max_volume value is very small, which may not be visible");
+  }
+
+  // Safety limit to avoid performance issues
+  const int max_tets = 3000000;
   int num_tets = std::min(out.numberoftetrahedra, max_tets);
   
   if (num_tets < out.numberoftetrahedra) {
     params.error_message_add(NodeWarningType::Warning, 
-        "Nombre de tétraèdres limité à " + std::to_string(num_tets) + 
-        " pour des raisons de performance (sur " + std::to_string(out.numberoftetrahedra) + ")");
+        "Number of tetrahedra limited to " + std::to_string(num_tets) + 
+        " for performance reasons (out of " + std::to_string(out.numberoftetrahedra) + ")");
   }
   
-  // Calcul des dimensions du maillage
+  // Calculate mesh dimensions
   const int num_verts = out.numberofpoints;
   const int num_edges = out.numberofedges > 0 ? out.numberofedges : 0;
-  const int num_faces = num_tets * 4;  // 4 faces par tétraèdre
-  const int num_loops = num_faces * 3; // 3 sommets par face triangulaire
+  const int num_faces = num_tets * 4;  // 4 faces per tetrahedron
+  const int num_loops = num_faces * 3; // 3 vertices per triangular face
   
-  // Création du maillage
+  // Create mesh
   Mesh *mesh_out = BKE_mesh_new_nomain(num_verts, num_edges, num_faces, num_loops);
   
   if (!mesh_out) {
-    params.error_message_add(NodeWarningType::Error, "Impossible de créer le maillage");
+    params.error_message_add(NodeWarningType::Error, "Unable to create mesh");
     return nullptr;
   }
   
-  // 1. Copie des sommets
+  // 1. Copy vertices (parallelized)
   MutableSpan<float3> vert_positions = mesh_out->vert_positions_for_write();
-  for (int i = 0; i < num_verts; i++) {
-    vert_positions[i].x = out.pointlist[i * 3];
-    vert_positions[i].y = out.pointlist[i * 3 + 1];
-    vert_positions[i].z = out.pointlist[i * 3 + 2];
-  }
   
-  // 2. Copie des arêtes
+  threading::parallel_for(IndexRange(num_verts), 1024, [&](const IndexRange range) {
+    for (const int i : range) {
+      vert_positions[i].x = out.pointlist[i * 3];
+      vert_positions[i].y = out.pointlist[i * 3 + 1];
+      vert_positions[i].z = out.pointlist[i * 3 + 2];
+    }
+  });
+  
+  // 2. Copy edges (parallelized if sufficient number)
   if (num_edges > 0 && out.edgelist) {
     MutableSpan<int2> edges = mesh_out->edges_for_write();
-    for (int i = 0; i < num_edges; i++) {
-      // Vérifier que les indices sont valides
-      int v1 = out.edgelist[i * 2];
-      int v2 = out.edgelist[i * 2 + 1];
-      
-      if (v1 >= 0 && v1 < num_verts && v2 >= 0 && v2 < num_verts) {
-        edges[i].x = v1;
-        edges[i].y = v2;
-      }
-      else {
-        // En cas d'indice invalide, utiliser des valeurs sûres
-        edges[i].x = 0;
-        edges[i].y = std::min(1, num_verts - 1);
-        params.error_message_add(NodeWarningType::Warning,
-            "Indice d'arête invalide détecté et corrigé");
+    
+    if (num_edges > 1000) {
+      threading::parallel_for(IndexRange(num_edges), 1024, [&](const IndexRange range) {
+        for (const int i : range) {
+          // Check that indices are valid
+          int v1 = out.edgelist[i * 2];
+          int v2 = out.edgelist[i * 2 + 1];
+          
+          if (v1 >= 0 && v1 < num_verts && v2 >= 0 && v2 < num_verts) {
+            edges[i].x = v1;
+            edges[i].y = v2;
+          }
+          else {
+            // In case of invalid index, use safe values
+            edges[i].x = 0;
+            edges[i].y = std::min(1, num_verts - 1);
+          }
+        }
+      });
+    }
+    else {
+      // Sequential version for a small number of edges
+      for (int i = 0; i < num_edges; i++) {
+        int v1 = out.edgelist[i * 2];
+        int v2 = out.edgelist[i * 2 + 1];
+        
+        if (v1 >= 0 && v1 < num_verts && v2 >= 0 && v2 < num_verts) {
+          edges[i].x = v1;
+          edges[i].y = v2;
+        }
+        else {
+          edges[i].x = 0;
+          edges[i].y = std::min(1, num_verts - 1);
+          params.error_message_add(NodeWarningType::Warning,
+              "Invalid edge index detected and corrected");
+        }
       }
     }
   }
   
-  // 3. Création des faces tétraédriques
+  // 3. Create tetrahedral faces (using temporary structure for parallelization)
   MutableSpan<int> corner_verts = mesh_out->corner_verts_for_write();
-  int corner_index = 0;
   
-  // Construction d'un ensemble pour éviter les faces dupliquées
-  Vector<Vector<int>> unique_faces;
-  unique_faces.reserve(num_faces);
-  
-  for (int i = 0; i < num_tets; i++) {
-    // Récupération des indices du tétraèdre
-    int v0 = out.tetrahedronlist[i * 4];
-    int v1 = out.tetrahedronlist[i * 4 + 1];
-    int v2 = out.tetrahedronlist[i * 4 + 2];
-    int v3 = out.tetrahedronlist[i * 4 + 3];
+  if (num_tets > 1000) {
+    // Parallel version for a large number of tetrahedra
+    // Use Array which are thread-safe to build the data
+    Array<int> tet_valid(num_tets, 1); // 1 if valid, 0 otherwise
     
-    // Vérification des indices
-    if (v0 < 0 || v0 >= num_verts || v1 < 0 || v1 >= num_verts ||
-        v2 < 0 || v2 >= num_verts || v3 < 0 || v3 >= num_verts) {
-      continue;
+    threading::parallel_for(IndexRange(num_tets), 256, [&](const IndexRange range) {
+      for (const int i : range) {
+        // Retrieve tetrahedron indices
+        int v0 = out.tetrahedronlist[i * 4];
+        int v1 = out.tetrahedronlist[i * 4 + 1];
+        int v2 = out.tetrahedronlist[i * 4 + 2];
+        int v3 = out.tetrahedronlist[i * 4 + 3];
+        
+        // Validate indices
+        if (v0 < 0 || v0 >= num_verts || v1 < 0 || v1 >= num_verts ||
+            v2 < 0 || v2 >= num_verts || v3 < 0 || v3 >= num_verts) {
+          tet_valid[i] = 0; // Mark as invalid
+          continue;
+        }
+        
+        // Calculate offset for this tetrahedron
+        int offset = i * 12; // 4 faces * 3 vertices = 12 indices per tetrahedron
+        
+        // Face 1: 0-1-2 - orientation pour normale extérieure
+        corner_verts[offset] = v0;
+        corner_verts[offset + 1] = v1;
+        corner_verts[offset + 2] = v2;
+        
+        // Face 2: 0-3-1 - orientation corrigée pour normale extérieure
+        corner_verts[offset + 3] = v0;
+        corner_verts[offset + 4] = v3;
+        corner_verts[offset + 5] = v1;
+        
+        // Face 3: 0-2-3 - orientation pour normale extérieure
+        corner_verts[offset + 6] = v0;
+        corner_verts[offset + 7] = v2;
+        corner_verts[offset + 8] = v3;
+        
+        // Face 4: 1-3-2 - orientation corrigée pour normale extérieure
+        corner_verts[offset + 9] = v1;
+        corner_verts[offset + 10] = v3;
+        corner_verts[offset + 11] = v2;
+      }
+    });
+    
+    // Check if there are invalid tetrahedra and warn
+    int invalid_count = 0;
+    for (int i = 0; i < num_tets; i++) {
+      if (tet_valid[i] == 0) {
+        invalid_count++;
+      }
     }
     
-    // Face 1: triangle (v0, v1, v2)
-    corner_verts[corner_index++] = v0;
-    corner_verts[corner_index++] = v1;
-    corner_verts[corner_index++] = v2;
+    if (invalid_count > 0) {
+      params.error_message_add(NodeWarningType::Warning,
+          std::to_string(invalid_count) + " tetrahedra were ignored due to invalid indices");
+    }
+  }
+  else {
+    // Sequential version for a small number of tetrahedra
+    int corner_index = 0;
     
-    // Face 2: triangle (v0, v1, v3)
-    corner_verts[corner_index++] = v0;
-    corner_verts[corner_index++] = v1;
-    corner_verts[corner_index++] = v3;
-    
-    // Face 3: triangle (v0, v2, v3)
-    corner_verts[corner_index++] = v0;
-    corner_verts[corner_index++] = v2;
-    corner_verts[corner_index++] = v3;
-    
-    // Face 4: triangle (v1, v2, v3)
-    corner_verts[corner_index++] = v1;
-    corner_verts[corner_index++] = v2;
-    corner_verts[corner_index++] = v3;
+    for (int i = 0; i < num_tets; i++) {
+      // Retrieve tetrahedron indices
+      int v0 = out.tetrahedronlist[i * 4];
+      int v1 = out.tetrahedronlist[i * 4 + 1];
+      int v2 = out.tetrahedronlist[i * 4 + 2];
+      int v3 = out.tetrahedronlist[i * 4 + 3];
+      
+      // Validate indices
+      if (v0 < 0 || v0 >= num_verts || v1 < 0 || v1 >= num_verts ||
+          v2 < 0 || v2 >= num_verts || v3 < 0 || v3 >= num_verts) {
+        continue;
+      }
+      
+      // Face 1: 0-1-2 - orientation pour normale extérieure
+      corner_verts[corner_index++] = v0;
+      corner_verts[corner_index++] = v1;
+      corner_verts[corner_index++] = v2;
+      
+      // Face 2: 0-3-1 - orientation corrigée pour normale extérieure
+      corner_verts[corner_index++] = v0;
+      corner_verts[corner_index++] = v3;
+      corner_verts[corner_index++] = v1;
+      
+      // Face 3: 0-2-3 - orientation pour normale extérieure
+      corner_verts[corner_index++] = v0;
+      corner_verts[corner_index++] = v2;
+      corner_verts[corner_index++] = v3;
+      
+      // Face 4: 1-3-2 - orientation corrigée pour normale extérieure
+      corner_verts[corner_index++] = v1;
+      corner_verts[corner_index++] = v3;
+      corner_verts[corner_index++] = v2;
+    }
   }
   
-  // Configuration des offsets de faces
+  // Configure face offsets
   offset_indices::fill_constant_group_size(3, 0, mesh_out->face_offsets_for_write());
   
-  // Création d'un attribut pour stocker l'ID du tétraèdre pour chaque face
-  // Utilisation de l'API d'attributs de Blender
+  // Create an attribute to store the tetrahedron ID for each face
+  // Use Blender's attribute API
   bke::MutableAttributeAccessor attributes = mesh_out->attributes_for_write();
   bke::SpanAttributeWriter<int> tet_indices = attributes.lookup_or_add_for_write_span<int>(
       "tetrahedral_index", bke::AttrDomain::Face);
   
   if (tet_indices) {
-    for (int i = 0; i < num_faces; i++) {
-      tet_indices.span[i] = i / 4;  // Division entière pour obtenir l'ID du tétraèdre
-    }
+    threading::parallel_for(IndexRange(num_faces), 1024, [&](const IndexRange range) {
+      for (const int i : range) {
+        tet_indices.span[i] = i / 4;  // Integer division to get tetrahedron ID
+      }
+    });
     tet_indices.finish();
   }
   
-  // Ajouter un attribut pour la densité si nécessaire
-  if (use_attribute && attribute_name && attribute_name[0] != '\0') {
-    bke::SpanAttributeWriter<float> density = attributes.lookup_or_add_for_write_span<float>(
-        attribute_name, bke::AttrDomain::Point);
-        
-    if (density) {
-      // Remplir avec des valeurs par défaut (1.0)
-      for (int i = 0; i < num_verts; i++) {
-        density.span[i] = 1.0f;
-      }
-      
-      // Si TetGen a généré des informations de qualité, les utiliser
-      if (out.numberoftetrahedra > 0 && out.tetrahedronattributelist) {
-        // Attributs propres aux tétraèdres, à mapper sur les sommets
-        // Ceci est une simplification - un vrai mappeur serait plus complexe
-        for (int i = 0; i < num_tets && i < num_verts; i++) {
-          float quality = out.tetrahedronattributelist[i];
-          density.span[i] = quality > 0.0f ? quality : 1.0f;
-        }
-      }
-      
-      density.finish();
-    }
-  }
-  
-  // Validation du maillage
+  // Validate mesh
   BKE_mesh_validate(mesh_out, true, true);
+
+  // Check mesh visualization
+  if (!mesh_out) {
+    params.error_message_add(NodeWarningType::Error, "Output mesh was not created correctly");
+  }
   
   return mesh_out;
 }
 
 /**
- * Crée un tétraèdre de secours en cas d'échec
+ * Creates a fallback tetrahedron in case of failure
  */
 static Mesh* create_fallback_tetrahedron(const Mesh *mesh_in)
 {
-  // Dimensions du maillage
+  // Mesh dimensions
   const int num_verts = 4;
   const int num_edges = 6;
   const int num_faces = 4;
   const int num_loops = 12;
   
-  // Création du maillage
+  // Create mesh
   Mesh *mesh_out = BKE_mesh_new_nomain(num_verts, num_edges, num_faces, num_loops);
   
   if (!mesh_out) {
     return nullptr;
   }
   
-  // Calcul de la boîte englobante
+  // Calculate bounding box
   float3 bmin(FLT_MAX, FLT_MAX, FLT_MAX);
   float3 bmax(-FLT_MAX, -FLT_MAX, -FLT_MAX);
   
@@ -568,20 +674,20 @@ static Mesh* create_fallback_tetrahedron(const Mesh *mesh_in)
     bmax.z = std::max(bmax.z, positions[i].z);
   }
   
-  // Centre et taille
+  // Center and size
   float3 center = (bmin + bmax) * 0.5f;
   float3 size = bmax - bmin;
   float max_size = std::max(std::max(size.x, size.y), size.z);
   if (max_size < 0.0001f) max_size = 1.0f;
   
-  // Positions des sommets
+  // Vertex positions
   MutableSpan<float3> vert_positions = mesh_out->vert_positions_for_write();
   vert_positions[0] = center + float3(0, 0, max_size * 0.5f);
   vert_positions[1] = center + float3(-max_size * 0.5f, -max_size * 0.5f, -max_size * 0.5f);
   vert_positions[2] = center + float3(max_size * 0.5f, -max_size * 0.5f, -max_size * 0.5f);
   vert_positions[3] = center + float3(0, max_size * 0.5f, -max_size * 0.5f);
   
-  // Arêtes
+  // Edges
   MutableSpan<int2> edges = mesh_out->edges_for_write();
   edges[0] = int2(0, 1);
   edges[1] = int2(0, 2);
@@ -593,107 +699,101 @@ static Mesh* create_fallback_tetrahedron(const Mesh *mesh_in)
   // Faces
   MutableSpan<int> corner_verts = mesh_out->corner_verts_for_write();
   
-  // Face 1: 0-1-2
+  // Face 1: 0-1-2 - orientation pour normale extérieure
   corner_verts[0] = 0;
   corner_verts[1] = 1;
   corner_verts[2] = 2;
   
-  // Face 2: 0-1-3
+  // Face 2: 0-3-1 - orientation corrigée pour normale extérieure
   corner_verts[3] = 0;
-  corner_verts[4] = 1;
-  corner_verts[5] = 3;
+  corner_verts[4] = 3;
+  corner_verts[5] = 1;
   
-  // Face 3: 0-2-3
+  // Face 3: 0-2-3 - orientation pour normale extérieure
   corner_verts[6] = 0;
   corner_verts[7] = 2;
   corner_verts[8] = 3;
   
-  // Face 4: 1-2-3
+  // Face 4: 1-3-2 - orientation corrigée pour normale extérieure
   corner_verts[9] = 1;
-  corner_verts[10] = 2;
-  corner_verts[11] = 3;
+  corner_verts[10] = 3;
+  corner_verts[11] = 2;
   
-  // Configuration des offsets de faces
+  // Configure face offsets
   offset_indices::fill_constant_group_size(3, 0, mesh_out->face_offsets_for_write());
   
-  // Ajouter un attribut d'ID tétraèdre
+  // Add tetrahedron ID attribute
   bke::MutableAttributeAccessor attributes = mesh_out->attributes_for_write();
   bke::SpanAttributeWriter<int> tet_indices = attributes.lookup_or_add_for_write_span<int>(
       "tetrahedral_index", bke::AttrDomain::Face);
       
   if (tet_indices) {
     for (int i = 0; i < num_faces; i++) {
-      tet_indices.span[i] = 0;  // Un seul tétraèdre
+      tet_indices.span[i] = 0;  // Single tetrahedron
     }
     tet_indices.finish();
   }
   
-  // Validation
+  // Validate
   BKE_mesh_validate(mesh_out, true, true);
   
   return mesh_out;
 }
 
 /**
- * Fonction principale d'exécution du nœud
+ * Main node execution function
  */
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  // Récupération des entrées
+  // Retrieve inputs
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh");
   
   if (!geometry_set.has_mesh()) {
     params.error_message_add(NodeWarningType::Error, 
-        "Entrée requise: un maillage pour la tétraédralisation");
+        "Required input: a mesh for tetrahedralization");
     params.set_output("Tetrahedral Mesh", GeometrySet());
     return;
   }
   
-  // Récupération du maillage d'entrée et des paramètres
+  // Retrieve input mesh and parameters
   const Mesh *mesh_in = geometry_set.get_mesh();
   
-  float max_volume = std::max(0.00001f, params.extract_input<float>("Max Volume"));
+  // Adjust max_volume to be interpreted as a percentage
+  double max_volume_percentage = params.extract_input<float>("Max Volume");
+  double max_volume = std::max(0.00001, max_volume_percentage * 0.1); // 0.1 corresponds to 100%
+  
   float quality_ratio = std::max(1.0f, params.extract_input<float>("Quality Ratio"));
-  float coarsen_percent = std::max(0.0f, params.extract_input<float>("Coarsen"));
   
-  // Récupération des paramètres du nœud
-  const bNode &node = params.node();
-  const NodeGeometryTetrahedralize *storage = static_cast<const NodeGeometryTetrahedralize *>(node.storage);
+  float min_dihedral_angle = params.extract_input<float>("Min Dihedral Angle");
   
-  TetrahedralizationMethod method = static_cast<TetrahedralizationMethod>(node.custom1);
-  bool preserve_boundary = storage->preserve_boundary;
-  bool optimize_quality = storage->optimize_quality;
-  bool use_attribute = node.custom2 != 0;
+  // Directly retrieve preserve_boundary from input socket
+  bool preserve_boundary = params.extract_input<bool>("Preserve Boundary");
   
-  // Structures TetGen
+  // TetGen structures
   tetgenio in, out;
   tetgenbehavior behavior;
   
-  // Gestionnaire de ressources pour assurer le nettoyage en cas d'exception
+  // Resource guard to ensure cleanup in case of exception
   TetGenResourceGuard resource_guard(in, out);
   
   Mesh *mesh_out = nullptr;
   bool tetgen_success = false;
   
   try {
-    // Préparation des données d'entrée
+    // Prepare input data
     if (prepare_tetgen_input(mesh_in, in, params)) {
-      // Appliquer la simplification si nécessaire
-      if (coarsen_percent > 0.0f) {
-        apply_coarsening(in, coarsen_percent, params);
-      }
+      // Configure TetGen options
+      configure_tetgen_options(behavior, max_volume, quality_ratio, min_dihedral_angle, preserve_boundary, params);
       
-      // Configuration des options TetGen
-      configure_tetgen_options(behavior, max_volume, quality_ratio, 
-                              preserve_boundary, optimize_quality, method);
-      
-      // Exécution de TetGen
+      // Run TetGen
       try {
         tetrahedralize(&behavior, &in, &out);
         
-        // Vérification des résultats
+        // Validate output
         if (validate_tetgen_output(out, params)) {
-          mesh_out = create_tetrahedral_mesh(out, params, use_attribute, storage->attribute_name);
+          // Create mesh
+          mesh_out = create_tetrahedral_mesh(out, params, max_volume, behavior);
+          
           if (mesh_out) {
             tetgen_success = true;
           }
@@ -701,11 +801,11 @@ static void node_geo_exec(GeoNodeExecParams params)
       }
       catch (const std::exception &e) {
         params.error_message_add(NodeWarningType::Error, 
-            std::string("Erreur TetGen: ") + e.what());
+            std::string("TetGen error: ") + e.what());
       }
       catch (...) {
         params.error_message_add(NodeWarningType::Error, 
-            "Erreur inconnue lors de l'exécution de TetGen");
+            "Unknown error while running TetGen");
       }
     }
   }
@@ -714,19 +814,17 @@ static void node_geo_exec(GeoNodeExecParams params)
         std::string("Exception: ") + e.what());
   }
   
-  // En cas d'échec, création d'un tétraèdre de secours
+  // In case of failure, create a fallback tetrahedron
   if (!tetgen_success) {
-    params.error_message_add(NodeWarningType::Warning, 
-        "Création d'un tétraèdre simple comme résultat de secours");
-    
     mesh_out = create_fallback_tetrahedron(mesh_in);
   }
   
-  // Sortie
+  // Output
   GeometrySet output;
   if (mesh_out) {
     output.replace_mesh(mesh_out);
   }
+  
   params.set_output("Tetrahedral Mesh", std::move(output));
 }
 
@@ -740,51 +838,11 @@ static void node_register()
   ntype.enum_name_legacy = "TETRAHEDRALIZE";
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  ntype.ui_description = "Génère un maillage tétraédrique à partir d'un maillage de surface";
+  ntype.ui_description = "Generates a tetrahedral mesh from a surface mesh";
   ntype.draw_buttons = node_layout;
   ntype.initfunc = node_init;
   blender::bke::node_type_storage(ntype, "NodeGeometryTetrahedralize", node_free_storage, node_copy_storage);
   
-  // Enregistrement des propriétés RNA
-  static const EnumPropertyItem method_items[] = {
-    {METHOD_DELAUNAY, "DELAUNAY", 0, "Delaunay", "Tétraédralisation de Delaunay standard"},
-    {METHOD_CONSTRAINED, "CONSTRAINED", 0, "Constrained", "Tétraédralisation de Delaunay contrainte"},
-    {METHOD_REFINE, "REFINE", 0, "Refine", "Raffiner un maillage tétraédrique existant"},
-    {0, nullptr, 0, nullptr, nullptr},
-  };
-  
-  RNA_def_enum(ntype.rna_ext.srna, 
-              "method", 
-              method_items, 
-              METHOD_DELAUNAY, 
-              "Méthode", 
-              "Méthode de tétraédralisation");
-              
-  RNA_def_boolean(ntype.rna_ext.srna,
-                 "preserve_boundary",
-                 true,
-                 "Preserve Boundary",
-                 "Préserver les limites du maillage d'entrée");
-                 
-  RNA_def_boolean(ntype.rna_ext.srna,
-                 "optimize_quality",
-                 true,
-                 "Optimize Quality",
-                 "Optimiser la qualité des tétraèdres générés");
-                 
-  RNA_def_boolean(ntype.rna_ext.srna,
-                 "use_attribute",
-                 false,
-                 "Use Attribute",
-                 "Utiliser un attribut pour contrôler la densité locale");
-                 
-  RNA_def_string(ntype.rna_ext.srna,
-                "attribute_name",
-                "density",
-                64,
-                "Attribute",
-                "Nom de l'attribut pour la densité locale");
-
   ntype.gather_link_search_ops = nullptr;
   blender::bke::node_register_type(ntype);
 }
