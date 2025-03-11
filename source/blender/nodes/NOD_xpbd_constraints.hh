@@ -116,8 +116,8 @@ using ConstraintEvalVelocityFunc =
  * Returns the number of components used by a constraint.
  * \param r_num_components Number of components, or Lagrange multipliers (lambda), used by a single
  * constraint, typically up to 3.
- * \param r_num_position_vars Number of position variables used by a single constraint.
- * \param r_num_rotation_vars Number of rotation variables used by a single constraint.
+ * \param r_num_position_vars Number of position variables used by a single constraint, up to 4.
+ * \param r_num_rotation_vars Number of rotation variables used by a single constraint, up to 4.
  */
 using ConstraintLinearSolveSizeFunc =
     std::function<void(int &r_num_components, int &r_num_position_vars, int &r_num_rotation_vars)>;
@@ -128,19 +128,32 @@ using ConstraintLinearSolveSizeFunc =
  * This also determines the data type of the fields expected from this function (float, float2,
  * float3).
  *
- * Spans are compressed values for constraints in the index mask. They must be addressed by the
- * position in the mask, not the index of the constraint.
+ * Spans are compressed and contain only values for constraints in the index mask.
+ * They must be addressed by the position in the mask, not the index of the constraint.
  *
- * The solver constructs a linear system that yields an optimal solution for the constraint
- * impulses and variable offsets.
+ * Gradients for positions and rotations expand the data type to 3 or 4 columns respectively
+ * (Jacobian derivative matrix):
+ *
+ * | Residual Type | Position Gradient | Rotation Gradient |
+ * |   float       |   float3          |   float4          |
+ * |   float2      |   float2x3        |   float2x4        |
+ * |   float3      |   float3x3        |   float4x4        |
+ *
+ * The function receives up to 4 spans for gradients depending on the number of variables it uses,
+ * as defined by the size function
+ *
+ * The solver constructs a linear system that yields constraint impulses and variable offsets.
+ * For a detailed derivation see for example:
+ *   Kugelstadt, "Direct Position-Based Solver for Stiff Rods", 2018
+ *   Soler, "Cosserat Rods with Projective Dynamics", 2018
  *
  * \param params General parameters of the current evaluation.
  * \param variables Current state of the simulated geometry.
  * \param attributes Attributes of the constraint data.
  * \param selection Selection of constraints evaluated by the solver.
- * \param r_residuals Residual values in the current configuration.
  * \param r_alphas Compliance values (softness).
  * \param r_betas Damping values.
+ * \param r_residuals Residual values in the current configuration.
  * \param r_position_gradients Gradients for affected position variables.
  * \param r_rotation_gradients Gradients for affected rotation variables.
  * \param r_position_indices Position variable indices.
@@ -151,13 +164,13 @@ using ConstraintPositionLinearSolveElementsFunc =
                        const ConstraintVariables &variables,
                        const bke::AttributeAccessor &attributes,
                        const IndexMask &selection,
-                       GMutableSpan r_residuals,
                        GMutableSpan r_alphas,
                        GMutableSpan r_betas,
-                       Span<GMutableSpan> r_position_gradients,
-                       Span<GMutableSpan> r_rotation_gradients,
-                       MutableSpan<int> r_position_indices,
-                       MutableSpan<int> r_rotation_indices)>;
+                       GMutableSpan r_residuals,
+                       GMutableSpan r_position_gradients[4],
+                       GMutableSpan r_rotation_gradients[4],
+                       MutableSpan<int> r_position_indices[4],
+                       MutableSpan<int> r_rotation_indices[4])>;
 
 // /**
 //  * Information to fill blocks in the sparse matrix for all constraints.

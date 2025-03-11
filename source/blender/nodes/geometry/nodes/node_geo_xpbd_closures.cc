@@ -163,16 +163,14 @@ static void position_goal__linear_solve_elements(const ConstraintEvalParams &par
                                                  const ConstraintVariables &variables,
                                                  const bke::AttributeAccessor &attributes,
                                                  const IndexMask &selection,
-                                                 GMutableSpan r_residuals,
                                                  GMutableSpan r_alphas,
                                                  GMutableSpan r_betas,
-                                                 Span<GMutableSpan> r_position_gradients,
-                                                 Span<GMutableSpan> r_rotation_gradients,
-                                                 MutableSpan<int> r_position_indices,
-                                                 MutableSpan<int> r_rotation_indices)
+                                                 GMutableSpan r_residuals,
+                                                 GMutableSpan r_position_gradients[4],
+                                                 GMutableSpan /*r_rotation_gradients*/[4],
+                                                 MutableSpan<int> r_position_indices[4],
+                                                 MutableSpan<int> /*r_rotation_indices*/[4])
 {
-  constexpr bool use_damping = true;
-
   VArraySpan<int> points = *lookup_or_warn<int>(
       attributes, ATTR_POINT1, AttrDomain::Point, 0, params.error_message_add);
   VArraySpan<float> alphas = *attributes.lookup_or_default<float>(
@@ -181,27 +179,15 @@ static void position_goal__linear_solve_elements(const ConstraintEvalParams &par
       ATTR_BETA, AttrDomain::Point, 0.0f);
   VArraySpan<float3> goal_positions = *lookup_or_warn<float3>(
       attributes, "goal_position", AttrDomain::Point, float3(0.0f), params.error_message_add);
-  // SpanAttributeWriter<float> lambda_writer = *attributes.lookup_or_add_for_write_span<float>(
-  //     "lambda", AttrDomain::Point);
-  // SpanAttributeWriter<float3> delta_position_writer =
-  //     attributes->lookup_or_add_for_write_span<float3>("delta_position", AttrDomain::Point);
-  // SpanAttributeWriter<float> residual_writer;
-  // if constexpr (debug_output) {
-  //   residual_writer = attributes->lookup_or_add_for_write_span<float>("residual",
-  //                                                                     AttrDomain::Point);
-  // }
-  // else {
-  //   UNUSED_VARS(residual_writer);
-  // }
 
   const IndexRange points_range = variables.positions.index_range();
   const Span<float3> positions = variables.positions;
-  const Span<float3> old_positions = params.old_positions;
 
-  MutableSpan<float> residuals = r_residuals.typed<float>();
-  MutableSpan<float> alphas = r_alphas.typed<float>();
-  MutableSpan<float> betas = r_betas.typed<float>();
-  Span<MutableSpan<float>> position_gradients;
+  MutableSpan<float> alpha_elements = r_alphas.typed<float>();
+  MutableSpan<float> beta_elements = r_betas.typed<float>();
+  MutableSpan<float> residual_elements = r_residuals.typed<float>();
+  MutableSpan<float3> position_gradient_elements = r_position_gradients[0].typed<float3>();
+  MutableSpan<int> position_indices = r_position_indices[0];
 
   selection.foreach_index(constraint_grain_size, [&](const int index, const int pos) {
     const int point = points[index];
@@ -209,47 +195,13 @@ static void position_goal__linear_solve_elements(const ConstraintEvalParams &par
       return;
     }
     const float3 &goal = goal_positions[index];
-    // float &lambda = lambda_writer.span[index];
-    // float3 &delta_position = delta_position_writer.span[index];
 
-    float residual;
-    float3 gradient;
+    alpha_elements[pos] = alphas[index];
+    beta_elements[pos] = betas[index];
     xpbd_constraints::eval_position_goal_elements(
-        goal, positions[point], r_residuals[pos], gradient);
-
-    // float delta_lambda;
-    // if constexpr (use_damping) {
-    //   const float alpha = alphas[index] * params.inv_delta_time_squared;
-    //   const float gamma = alphas[index] * betas[index] * params.inv_delta_time;
-    // }
-    // else {
-    //   const float alpha = alphas[index] * params.inv_delta_time_squared;
-    //   xpbd_constraints::eval_position_goal(goal,
-    //                                        alpha,
-    //                                        0.0f,
-    //                                        lambda,
-    //                                        positions[point],
-    //                                        float3(0.0f),
-    //                                        residual,
-    //                                        delta_lambda,
-    //                                        delta_position);
-    // }
-
-    // lambda += delta_lambda;
-    //  if constexpr (debug_output) {
-    //    residual_writer.span[index] = residual;
-    //  }
+        goal, positions[point], residual_elements[pos], position_gradient_elements[pos]);
+    position_indices[pos] = point;
   });
-
-  // lambda_writer.finish();
-  // delta_position_writer.finish();
-  // if constexpr (debug_output) {
-  //   residual_writer.finish();
-  // }
-
-  // r_active = VArray<bool>::ForSingle(true, attributes->domain_size(AttrDomain::Point));
-  // r_delta_positions = {attributes->lookup<float3>("delta_position", AttrDomain::Point)};
-  // r_delta_rotations = {{}};
 }
 
 template<bool debug_output>
