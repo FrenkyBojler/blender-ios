@@ -5154,25 +5154,6 @@ void ED_screens_header_tools_menu_create(bContext *C, uiLayout *layout, void * /
             (area->flag & HEADER_NO_PULLDOWN) ? ICON_CHECKBOX_DEHLT : ICON_CHECKBOX_HLT,
             "SCREEN_OT_header_toggle_menus");
 
-    /* "Show Navigation Bar" option */
-    if (ARegion *region_nav_bar = BKE_area_find_region_type(area, RGN_TYPE_NAV_BAR)) {
-      PointerRNA *op_ptr = nullptr;
-      uiItemFullO(col,
-                  "SCREEN_OT_region_toggle_visibility_for_navigation_bar",
-                  IFACE_("Show Navigation Bar"),
-                  (region_nav_bar->flag & RGN_FLAG_HIDDEN) ? ICON_CHECKBOX_DEHLT :
-                                                             ICON_CHECKBOX_HLT,
-                  nullptr,
-                  WM_OP_INVOKE_DEFAULT,
-                  UI_ITEM_NONE,
-                  op_ptr);
-
-      /* If we have a valid operator pointer, set the region_type property */
-      if (op_ptr) {
-        RNA_int_set(op_ptr, "region_type", RGN_TYPE_NAV_BAR);
-      }
-    }
-
     if (!ELEM(area->spacetype, SPACE_TOPBAR)) {
       uiItemS(layout);
       ED_screens_region_flip_menu_create(C, layout, nullptr);
@@ -5201,6 +5182,42 @@ void ED_screens_region_flip_menu_create(bContext *C, uiLayout *layout, void * /*
 {
   const ARegion *region = CTX_wm_region(C);
   const short region_alignment = RGN_ALIGN_ENUM_FROM_MASK(region->alignment);
+  const char *but_flip_str = region_alignment == RGN_ALIGN_LEFT   ? IFACE_("Flip to Right") :
+                             region_alignment == RGN_ALIGN_RIGHT  ? IFACE_("Flip to Left") :
+                             region_alignment == RGN_ALIGN_BOTTOM ? IFACE_("Flip to Top") :
+                                                                    IFACE_("Flip to Bottom");
+
+  /* default is WM_OP_INVOKE_REGION_WIN, which we don't want here. */
+  uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
+
+  uiItemO(layout, but_flip_str, ICON_NONE, "SCREEN_OT_region_flip");
+}
+
+void ED_screens_navigation_tools_menu_create(bContext *C, uiLayout *layout, void * /*arg*/)
+{
+  const ARegion *region = CTX_wm_region(C);
+  ScrArea *area = CTX_wm_area(C);
+  uiLayout *col = uiLayoutColumn(layout, false);
+
+  const short region_alignment = RGN_ALIGN_ENUM_FROM_MASK(region->alignment);
+  /* "Show Navigation Bar" option */
+  if (ARegion *region_nav_bar = BKE_area_find_region_type(area, RGN_TYPE_NAV_BAR)) {
+    PointerRNA *op_ptr = nullptr;
+    uiItemFullO(col,
+                "SCREEN_OT_region_toggle_visibility_for_navigation_bar",
+                IFACE_("Show Navigation Bar"),
+                (region_nav_bar->flag & RGN_FLAG_HIDDEN) ? ICON_CHECKBOX_DEHLT : ICON_CHECKBOX_HLT,
+                nullptr,
+                WM_OP_INVOKE_DEFAULT,
+                UI_ITEM_NONE,
+                op_ptr);
+
+    /* If we have a valid operator pointer, set the region_type property */
+    if (op_ptr) {
+      RNA_int_set(op_ptr, "region_type", RGN_TYPE_NAV_BAR);
+    }
+  }
+  
   const char *but_flip_str = region_alignment == RGN_ALIGN_LEFT   ? IFACE_("Flip to Right") :
                              region_alignment == RGN_ALIGN_RIGHT  ? IFACE_("Flip to Left") :
                              region_alignment == RGN_ALIGN_BOTTOM ? IFACE_("Flip to Top") :
@@ -5264,7 +5281,7 @@ static int screen_context_menu_invoke(bContext *C, wmOperator * /*op*/, const wm
     else if (region->regiontype == RGN_TYPE_NAV_BAR) {
       uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Navigation Bar"), ICON_NONE);
       uiLayout *layout = UI_popup_menu_layout(pup);
-      ED_screens_region_flip_menu_create(C, layout, nullptr);
+      ED_screens_navigation_tools_menu_create(C, layout, nullptr);
       UI_popup_menu_end(C, pup);
     }
   }
