@@ -184,6 +184,9 @@ ColorGeometry4f randomize_color(const BrushGpencilSettings &settings,
 
   hsv[0] += random_hue * settings.random_hue;
   hsv[1] += random_saturation * settings.random_saturation;
+
+  const float absolute_brightness = hsv[2] + random_value * settings.random_value;
+
   /*
    * To match relative brightness we want the ratio of the original to modified Value to not
    * depend on the brightness of the input Value, Exp is used because we need a function that
@@ -193,7 +196,13 @@ ColorGeometry4f randomize_color(const BrushGpencilSettings &settings,
    * Base Value.
    */
   constexpr float base_value = 0.35f;
-  hsv[2] *= math::exp(random_value * settings.random_value / base_value);
+  const float relative_brightness = hsv[2] *
+                                    math::exp(random_value * settings.random_value / base_value);
+
+  /* Use the fourth power. */
+  const float blend_factor = math::square(math::square(settings.random_value));
+  /* Use relative brightness at low randomness, and switch to absolute at high. */
+  hsv[2] = math::interpolate(relative_brightness, absolute_brightness, blend_factor);
 
   /* Wrap hue, clamp saturation and value. */
   hsv[0] = math::fract(hsv[0]);
