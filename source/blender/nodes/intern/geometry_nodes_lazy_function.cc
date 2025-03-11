@@ -497,9 +497,9 @@ static void execute_multi_function_on_value_variant__field(
     const Span<SocketValueVariant *> output_values)
 {
   /* Convert all inputs into fields, so that they can be used as input in the new field. */
-  Vector<GField> input_fields;
+  Array<GField> input_fields(input_values.size(), NoInitialization());
   for (const int i : input_values.index_range()) {
-    input_fields.append(input_values[i]->extract<GField>());
+    new (&input_fields[i]) GField(input_values[i]->extract<GField>());
   }
 
   /* Construct the new field node. */

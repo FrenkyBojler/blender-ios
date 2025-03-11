@@ -297,9 +297,10 @@ class LazyFunctionForIndexSwitchNode : public LazyFunction {
       return;
     }
 
-    Vector<GField> input_fields({std::move(index)});
+    Array<GField> input_fields(values_num + 1);
+    input_fields[0] = std::move(index);
     for (const int i : IndexRange(values_num)) {
-      input_fields.append(input_values[i]->extract<GField>());
+      input_fields[i + 1] = input_values[i]->extract<GField>();
     }
 
     std::unique_ptr<mf::MultiFunction> switch_fn = std::make_unique<IndexSwitchFunction>(

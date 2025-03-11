@@ -301,7 +301,7 @@ class LazyFunctionForMenuSwitchNode : public LazyFunction {
       return;
     }
 
-    Vector<GField> item_fields(enum_def_.items_num + 1);
+    Array<GField> item_fields(enum_def_.items_num + 1);
     item_fields[0] = std::move(condition);
     for (const int i : IndexRange(enum_def_.items_num)) {
       item_fields[i + 1] = input_values[i]->extract<GField>();

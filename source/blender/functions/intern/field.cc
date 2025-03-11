@@ -603,7 +603,7 @@ void FieldNode::for_each_field_input_recursive(FunctionRef<void(const FieldInput
  * \{ */
 
 FieldOperation::FieldOperation(std::shared_ptr<const mf::MultiFunction> function,
-                               Vector<GField> inputs)
+                               Array<GField> inputs)
     : FieldOperation(*function, std::move(inputs))
 {
   owned_function_ = std::move(function);
@@ -667,7 +667,7 @@ static std::shared_ptr<const FieldInputs> combine_field_inputs(Span<GField> fiel
   return new_field_inputs;
 }
 
-FieldOperation::FieldOperation(const mf::MultiFunction &function, Vector<GField> inputs)
+FieldOperation::FieldOperation(const mf::MultiFunction &function, Array<GField> inputs)
     : FieldNode(FieldNodeType::Operation), function_(&function), inputs_(std::move(inputs))
 {
   field_inputs_ = combine_field_inputs(inputs_);

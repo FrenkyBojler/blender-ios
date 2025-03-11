@@ -227,11 +227,11 @@ class FieldOperation : public FieldNode {
   const mf::MultiFunction *function_;
 
   /** Inputs to the operation. */
-  blender::Vector<GField> inputs_;
+  Array<GField> inputs_;
 
  public:
-  FieldOperation(std::shared_ptr<const mf::MultiFunction> function, Vector<GField> inputs = {});
-  FieldOperation(const mf::MultiFunction &function, Vector<GField> inputs = {});
+  FieldOperation(std::shared_ptr<const mf::MultiFunction> function, Array<GField> inputs = {});
+  FieldOperation(const mf::MultiFunction &function, Array<GField> inputs = {});
   ~FieldOperation() override;
 
   Span<GField> inputs() const;
@@ -240,12 +240,12 @@ class FieldOperation : public FieldNode {
   const CPPType &output_cpp_type(int output_index) const override;
 
   static std::shared_ptr<FieldOperation> Create(std::shared_ptr<const mf::MultiFunction> function,
-                                                Vector<GField> inputs = {})
+                                                Array<GField> inputs = {})
   {
     return std::make_shared<FieldOperation>(FieldOperation(std::move(function), inputs));
   }
   static std::shared_ptr<FieldOperation> Create(const mf::MultiFunction &function,
-                                                Vector<GField> inputs = {})
+                                                Array<GField> inputs = {})
   {
     return std::make_shared<FieldOperation>(FieldOperation(function, inputs));
   }
