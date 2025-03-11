@@ -240,4 +240,17 @@ void DepsgraphRelationBuilder::build_driver_relations(IDNode *id_node)
   }
 }
 
+bool driver_may_evaluate_in_parallel(const ID &animated_id, const FCurve &driver_fcurve)
+{
+  /* Allow threaded writes to pose bones. */
+  if (GS(animated_id.name) == ID_OB) {
+    const Object &ob = *reinterpret_cast<const Object *>(&animated_id);
+    const bool threaded_ok = ob.type == OB_ARMATURE &&
+                             StringRef(driver_fcurve.rna_path).startswith("pose.bones[");
+    return threaded_ok;
+  }
+
+  return false;
+}
+
 }  // namespace blender::deg

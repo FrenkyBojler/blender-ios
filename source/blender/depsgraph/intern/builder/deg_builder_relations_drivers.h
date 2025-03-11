@@ -58,4 +58,13 @@ class DriverDescriptor {
   bool resolve_rna();
 };
 
+/**
+ * Returns whether drivers on this ID can be evaluated (and thus their result
+ * written) in parallel.
+ *
+ * This should always return `true`, unless it's known that the driven property
+ * can be written from multiple threads.
+ */
+bool driver_may_evaluate_in_parallel(const ID &animated_id, const FCurve &driver_fcurve);
+
 }  // namespace blender::deg

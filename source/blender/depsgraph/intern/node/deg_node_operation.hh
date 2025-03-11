@@ -49,6 +49,7 @@ enum class OperationCode {
   ANIMATION_EXIT,
   /* Driver */
   DRIVER,
+  DRIVER_UNSHARE, /* Writes to RNA properties to ensure implicitly-shared data is un-shared. */
 
   /* Scene related. ------------------------------------------------------- */
   SCENE_EVAL,

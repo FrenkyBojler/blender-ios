@@ -102,6 +102,7 @@
 
 #include "intern/builder/deg_builder.h"
 #include "intern/builder/deg_builder_pchanmap.h"
+#include "intern/builder/deg_builder_relations_drivers.h"
 #include "intern/debug/deg_debug.h"
 #include "intern/depsgraph_physics.hh"
 #include "intern/depsgraph_tag.hh"
@@ -1744,11 +1745,17 @@ void DepsgraphRelationBuilder::build_animdata_nlastrip_targets(ID *id,
 
 void DepsgraphRelationBuilder::build_animdata_drivers(ID *id)
 {
+  /* This function is called from both build_object_data() and
+   * build_object_data_geometry_datablock(), and I (Sybren) am not sure why. But
+   * that's why this function uses RELATION_CHECK_BEFORE_ADD. */
+
   AnimData *adt = BKE_animdata_from_id(id);
-  if (adt == nullptr) {
+  if (adt == nullptr || BLI_listbase_is_empty(&adt->drivers)) {
     return;
   }
   ComponentKey adt_key(id, NodeType::ANIMATION);
+  OperationKey driver_unshare_key(id, NodeType::PARAMETERS, OperationCode::DRIVER_UNSHARE);
+
   LISTBASE_FOREACH (FCurve *, fcu, &adt->drivers) {
     OperationKey driver_key(id,
                             NodeType::PARAMETERS,
@@ -1761,7 +1768,16 @@ void DepsgraphRelationBuilder::build_animdata_drivers(ID *id)
 
     /* prevent driver from occurring before its own animation... */
     if (adt->action || adt->nla_tracks.first) {
-      add_relation(adt_key, driver_key, "AnimData Before Drivers");
+      add_relation(adt_key, driver_key, "AnimData Before Drivers", RELATION_CHECK_BEFORE_ADD);
+    }
+
+    /* Prevent writes to implicitly-shared data, as that would un-share that
+     * data, which is is not a thread-safe operation. */
+    if (!driver_may_evaluate_in_parallel(*id, *fcu)) {
+      add_relation(driver_unshare_key,
+                   driver_key,
+                   "Un-share shared data before drivers",
+                   RELATION_CHECK_BEFORE_ADD);
     }
   }
 }
