@@ -438,7 +438,7 @@ string(APPEND PLATFORM_LINKFLAGS
 )
 
 if(${XCODE_VERSION} VERSION_GREATER_EQUAL 15.0)
-  if("${CMAKE_OSX_ARCHITECTURES}" STREQUAL "x86_64" AND WITH_LINKER_LEGACY)
+  if("${CMAKE_OSX_ARCHITECTURES}" STREQUAL "x86_64" AND WITH_PREFER_LINKER_LEGACY_X64)
     # Silence "no platform load command found in <static library>, assuming: macOS".
     string(APPEND PLATFORM_LINKFLAGS " -Wl,-ld_classic")
   else()
