@@ -305,10 +305,6 @@ eGPUMaterialOptimizationStatus GPU_material_optimization_status(GPUMaterial *mat
     return GPU_MAT_OPTIMIZATION_SKIP;
   }
 
-  if (!mat->optimized_pass) {
-    return GPU_MAT_OPTIMIZATION_READY;
-  }
-
   switch (GPU_pass_status(mat->optimized_pass)) {
     case GPU_PASS_SUCCESS:
       return GPU_MAT_OPTIMIZATION_SUCCESS;
@@ -318,21 +314,6 @@ eGPUMaterialOptimizationStatus GPU_material_optimization_status(GPUMaterial *mat
       BLI_assert_unreachable();
       return GPU_MAT_OPTIMIZATION_SKIP;
   }
-}
-
-bool GPU_material_optimization_ready(GPUMaterial *mat)
-{
-  // TODO: Should be handled by GPUPassCache
-  /* Timer threshold before optimizations will be queued.
-   * When materials are frequently being modified, optimization
-   * can incur CPU overhead from excessive compilation.
-   *
-   * As the optimization is entirely asynchronous, it is still beneficial
-   * to do this quickly to avoid build-up and improve runtime performance.
-   * The threshold just prevents compilations being queued frame after frame. */
-  const double optimization_time_threshold_s = 1.2;
-  // return ((BLI_time_now_seconds() - mat->creation_time) >= optimization_time_threshold_s);
-  return false;
 }
 
 bool GPU_material_has_surface_output(GPUMaterial *mat)

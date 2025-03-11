@@ -58,7 +58,6 @@ enum eGPUMaterialStatus {
  * plan to perform optimization on a given material. */
 enum eGPUMaterialOptimizationStatus {
   GPU_MAT_OPTIMIZATION_SKIP = 0,
-  GPU_MAT_OPTIMIZATION_READY,
   GPU_MAT_OPTIMIZATION_QUEUED,
   GPU_MAT_OPTIMIZATION_SUCCESS,
 };
@@ -135,14 +134,6 @@ GPUShader *GPU_material_get_shader(GPUMaterial *material);
 const char *GPU_material_get_name(GPUMaterial *material);
 
 /**
- * Material Optimization.
- * \note Compiles optimal version of shader graph, populating mat->optimized_pass.
- * This operation should always be deferred until existing compilations have completed.
- * Default un-optimized materials will still exist for interactive material editing performance.
- */
-void GPU_material_optimize(GPUMaterial *mat);
-
-/**
  * Return can be null if it's a world material.
  */
 Material *GPU_material_get_material(GPUMaterial *material);
@@ -155,7 +146,6 @@ eGPUMaterialStatus GPU_material_status(GPUMaterial *mat);
  * Return status for asynchronous optimization jobs.
  */
 eGPUMaterialOptimizationStatus GPU_material_optimization_status(GPUMaterial *mat);
-bool GPU_material_optimization_ready(GPUMaterial *mat);
 
 GPUUniformBuf *GPU_material_uniform_buffer_get(GPUMaterial *material);
 /**

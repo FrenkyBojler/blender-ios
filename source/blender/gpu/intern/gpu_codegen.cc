@@ -113,13 +113,18 @@ struct GPUPass {
   /** Hint that an optimized variant of this pass should be created.
    *  Based on a complexity heuristic from pass code generation. */
   bool should_optimize = false;
+  bool is_optimization_pass = false;
 
-  GPUPass(GPUCodegenCreateInfo *info, bool deferred_compilation)
+  GPUPass(GPUCodegenCreateInfo *info, bool deferred_compilation, bool is_optimization_pass)
+      : create_info(info), is_optimization_pass(is_optimization_pass)
   {
-    create_info = info;
 
-    GPUShaderCreateInfo *base_info = reinterpret_cast<GPUShaderCreateInfo *>(
-        static_cast<ShaderCreateInfo *>(info));
+    if (is_optimization_pass && deferred_compilation) {
+      // Defer until all non optimization passes are compiled.
+      return;
+    }
+
+    GPUShaderCreateInfo *base_info = reinterpret_cast<GPUShaderCreateInfo *>(create_info);
 
     if (deferred_compilation) {
       compilation_handle = GPU_shader_batch_create_from_infos(
@@ -137,7 +142,8 @@ struct GPUPass {
       // TODO: Add a way to remove handles from the compilation queue.
       finalize_compilation();
     }
-    BLI_assert(create_info == nullptr);
+    BLI_assert(create_info == nullptr || (is_optimization_pass && status == GPU_PASS_QUEUED));
+    MEM_delete(create_info);
     GPU_SHADER_FREE_SAFE(shader);
   }
 
@@ -170,6 +176,12 @@ struct GPUPass {
         finalize_compilation();
       }
     }
+    else if (status == GPU_PASS_QUEUED && refcount > 0) {
+      BLI_assert(is_optimization_pass);
+      GPUShaderCreateInfo *base_info = reinterpret_cast<GPUShaderCreateInfo *>(create_info);
+      compilation_handle = GPU_shader_batch_create_from_infos(
+          Span<GPUShaderCreateInfo *>(&base_info, 1));
+    }
 
     if (refcount == 0) {
       gc_timestamp++;
@@ -192,14 +204,11 @@ eGPUPassStatus GPU_pass_status(GPUPass *pass)
 
 bool GPU_pass_should_optimize(GPUPass *pass)
 {
-  /* TODO: */
-  return false;
   /* Returns optimization heuristic prepared during initial codegen.
-   * NOTE: Optimization currently limited to Metal backend as repeated compilations required for
-   * material specialization cause impactful CPU stalls on OpenGL platforms. */
-  // TODO: No longer true ^
+   * NOTE: Optimization currently limited to parallel backend as repeated compilations required for
+   * material specialization causes impactful CPU stalls otherwise. */
 
-  return pass->should_optimize && GPU_backend_get_type() != GPU_BACKEND_METAL;
+  return pass->should_optimize && GPU_use_parallel_compilation();
 }
 
 GPUShader *GPU_pass_shader_get(GPUPass *pass)
@@ -245,27 +254,38 @@ uint64_t GPU_pass_compilation_timestamp(GPUPass *pass)
 
 class GPUPassCache {
 
-  static constexpr int gc_collect_rate = 60;
+  /* Number of updates with 0 users required before garbage collecting a pass.*/
+  static constexpr int gc_collect_rate_ = 60;
+  /* Number of updates without base compilations required before starting to compile optimization
+   * passes.*/
+  static constexpr int optimization_delay_ = 60;
 
-  Map<uint32_t, std::unique_ptr<GPUPass>> passes_[GPU_MAT_ENGINE_MAX];
+  int updates_without_base_compilations_ = 0;
+
+  Map<uint32_t, std::unique_ptr<GPUPass>> passes_[GPU_MAT_ENGINE_MAX][2 /*is_optimization_pass*/];
   std::mutex mutex_;
 
  public:
   void add(eGPUMaterialEngine engine,
            size_t hash,
            GPUCodegenCreateInfo *info,
-           bool deferred_compilation)
+           bool deferred_compilation,
+           bool is_optimization_pass)
   {
     std::lock_guard lock(mutex_);
 
     // TODO: info->name (Was assigned in GPU_pass_compile)
-    passes_[engine].add(hash, std::make_unique<GPUPass>(info, deferred_compilation));
+    passes_[engine][is_optimization_pass].add(
+        hash, std::make_unique<GPUPass>(info, deferred_compilation, is_optimization_pass));
   };
 
-  GPUPass *get(eGPUMaterialEngine engine, size_t hash, bool allow_deferred)
+  GPUPass *get(eGPUMaterialEngine engine,
+               size_t hash,
+               bool allow_deferred,
+               bool is_optimization_pass)
   {
     std::lock_guard lock(mutex_);
-    std::unique_ptr<GPUPass> *pass = passes_[engine].lookup_ptr(hash);
+    std::unique_ptr<GPUPass> *pass = passes_[engine][is_optimization_pass].lookup_ptr(hash);
     if (!allow_deferred && pass && pass->get()->status == GPU_PASS_QUEUED) {
       pass->get()->finalize_compilation();
     }
@@ -276,13 +296,37 @@ class GPUPassCache {
   {
     std::lock_guard lock(mutex_);
 
+    bool base_passes_ready = true;
+
+    /* Base Passes */
     for (auto &engine_passes : passes_) {
-      for (std::unique_ptr<GPUPass> &pass : engine_passes.values()) {
+      for (std::unique_ptr<GPUPass> &pass : engine_passes[false].values()) {
+        pass->update();
+        base_passes_ready |= pass->status == GPU_PASS_QUEUED;
+      }
+
+      engine_passes[false].remove_if(
+          [&](auto item) { return item.value->should_gc(gc_collect_rate_); });
+    }
+
+    if (!base_passes_ready) {
+      updates_without_base_compilations_ = 0;
+      return;
+    }
+
+    if (++updates_without_base_compilations_ < optimization_delay_) {
+      return;
+    }
+
+    /* Optimization Passes */
+    for (auto &engine_passes : passes_) {
+      for (std::unique_ptr<GPUPass> &pass : engine_passes[true].values()) {
         pass->update();
       }
 
-      // TODO: Lower rate for optimization passes.
-      engine_passes.remove_if([&](auto item) { return item.value->should_gc(gc_collect_rate); });
+      engine_passes[true].remove_if(
+          /* TODO: Use lower rate for optimization passes? */
+          [&](auto item) { return item.value->should_gc(gc_collect_rate_); });
     }
   }
 };
@@ -899,7 +943,7 @@ GPUPass *GPU_generate_pass(GPUMaterial *material,
   }
 
   /* Cache lookup: Reuse shaders already compiled. */
-  pass = g_cache->get(engine, codegen.hash_get(), deferred_compilation);
+  pass = g_cache->get(engine, codegen.hash_get(), deferred_compilation, optimize_graph);
 
   if (pass) {
     pass->refcount++;
@@ -915,10 +959,11 @@ GPUPass *GPU_generate_pass(GPUMaterial *material,
   finalize_source_cb(thunk, material, &codegen.output);
 
   codegen.create_info->finalize();
-  g_cache->add(engine, codegen.hash_get(), codegen.create_info, deferred_compilation);
+  g_cache->add(
+      engine, codegen.hash_get(), codegen.create_info, deferred_compilation, optimize_graph);
   codegen.create_info = nullptr;
 
-  return g_cache->get(engine, codegen.hash_get(), deferred_compilation);
+  return g_cache->get(engine, codegen.hash_get(), deferred_compilation, optimize_graph);
 }
 
 /** \} */
