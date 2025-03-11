@@ -2,34 +2,38 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/* Inclusions standards de C++ */
 #include <iostream>
 #include <mutex>
+#include <algorithm>
 
+/* Inclusions Blender */
+#include "BKE_attribute.hh"
+#include "BKE_customdata.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_mesh.hh"
+#include "BKE_mesh_legacy_convert.hh"
+
+#include "BLI_array.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
-#include "BLI_array.hh"
-#include <algorithm>
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_node_types.h"
 
-#include "BKE_attribute.hh"
-#include "BKE_mesh.hh"
-#include "BKE_mesh_legacy_convert.hh"
-#include "BKE_lib_id.hh"
-#include "BKE_customdata.hh"
+#include "NOD_register.hh"
 
-#include "UI_interface.hh"
-#include "UI_resources.hh"
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "node_geometry_util.hh"
-#include "NOD_register.hh"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
-// Inclure TetGen
+#include "node_geometry_util.hh"
+
+/* TetGen inclusion */
 #include "tetgen.h"
 
 namespace blender::nodes::node_geo_tetrahedralize_cc {
@@ -360,12 +364,9 @@ static void configure_tetgen_options(tetgenbehavior &behavior,
     params.error_message_add(NodeWarningType::Warning,
         "High quality value detected. Processing may take longer.");
     
-    // Nouvelle formule avec une échelle exponentielle pour créer une différence plus marquée
     if (limited_quality_ratio <= 3.0f) {
-      // Entre 2 et 3, échelle à 50% au lieu de 30%
       limited_quality_ratio = 2.0f + (limited_quality_ratio - 2.0f) * 0.5f;
     } else {
-      // Entre 3 et 4, différence beaucoup plus marquée
       limited_quality_ratio = 2.5f + (limited_quality_ratio - 3.0f) * 1.5f;
     }
   }
@@ -536,24 +537,24 @@ static Mesh* create_tetrahedral_mesh(tetgenio &out, GeoNodeExecParams &params, d
         }
         
         // Calculate offset for this tetrahedron
-        int offset = i * 12; // 4 faces * 3 vertices = 12 indices per tetrahedron
+        int offset = i * 12; 
         
-        // Face 1: 0-1-2 - orientation pour normale extérieure
+
         corner_verts[offset] = v0;
         corner_verts[offset + 1] = v1;
         corner_verts[offset + 2] = v2;
         
-        // Face 2: 0-3-1 - orientation corrigée pour normale extérieure
+
         corner_verts[offset + 3] = v0;
         corner_verts[offset + 4] = v3;
         corner_verts[offset + 5] = v1;
         
-        // Face 3: 0-2-3 - orientation pour normale extérieure
+
         corner_verts[offset + 6] = v0;
         corner_verts[offset + 7] = v2;
         corner_verts[offset + 8] = v3;
         
-        // Face 4: 1-3-2 - orientation corrigée pour normale extérieure
+
         corner_verts[offset + 9] = v1;
         corner_verts[offset + 10] = v3;
         corner_verts[offset + 11] = v2;
@@ -590,22 +591,22 @@ static Mesh* create_tetrahedral_mesh(tetgenio &out, GeoNodeExecParams &params, d
         continue;
       }
       
-      // Face 1: 0-1-2 - orientation pour normale extérieure
+
       corner_verts[corner_index++] = v0;
       corner_verts[corner_index++] = v1;
       corner_verts[corner_index++] = v2;
       
-      // Face 2: 0-3-1 - orientation corrigée pour normale extérieure
+
       corner_verts[corner_index++] = v0;
       corner_verts[corner_index++] = v3;
       corner_verts[corner_index++] = v1;
       
-      // Face 3: 0-2-3 - orientation pour normale extérieure
+
       corner_verts[corner_index++] = v0;
       corner_verts[corner_index++] = v2;
       corner_verts[corner_index++] = v3;
       
-      // Face 4: 1-3-2 - orientation corrigée pour normale extérieure
+
       corner_verts[corner_index++] = v1;
       corner_verts[corner_index++] = v3;
       corner_verts[corner_index++] = v2;
@@ -699,22 +700,22 @@ static Mesh* create_fallback_tetrahedron(const Mesh *mesh_in)
   // Faces
   MutableSpan<int> corner_verts = mesh_out->corner_verts_for_write();
   
-  // Face 1: 0-1-2 - orientation pour normale extérieure
+
   corner_verts[0] = 0;
   corner_verts[1] = 1;
   corner_verts[2] = 2;
   
-  // Face 2: 0-3-1 - orientation corrigée pour normale extérieure
+
   corner_verts[3] = 0;
   corner_verts[4] = 3;
   corner_verts[5] = 1;
   
-  // Face 3: 0-2-3 - orientation pour normale extérieure
+
   corner_verts[6] = 0;
   corner_verts[7] = 2;
   corner_verts[8] = 3;
   
-  // Face 4: 1-3-2 - orientation corrigée pour normale extérieure
+
   corner_verts[9] = 1;
   corner_verts[10] = 3;
   corner_verts[11] = 2;
