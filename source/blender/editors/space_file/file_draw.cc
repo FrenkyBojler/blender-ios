@@ -390,7 +390,7 @@ static void file_but_enable_drag(uiBut *but,
 static void file_but_tooltip_func_set(const SpaceFile *sfile, const FileDirEntry *file, uiBut *but)
 {
   if (file->asset) {
-    UI_but_func_tooltip_set(but, file_draw_asset_tooltip_func, file->asset, nullptr);
+    UI_but_func_tooltip_custom_set(but, file_draw_asset_tooltip_custom_func, file->asset, nullptr);
   }
   else {
     UI_but_func_tooltip_custom_set(
