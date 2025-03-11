@@ -139,7 +139,7 @@ bool GPUComputeEvaluator::Compile(BufferDescriptor const &srcDesc,
     return false;
   }
 
-  if (!_patchKernel.Compile(srcDesc, dstDesc, duDesc, dvDesc,  _workGroupSize)) {
+  if (!_patchKernel.Compile(srcDesc, dstDesc, duDesc, dvDesc, _workGroupSize)) {
     return false;
   }
 

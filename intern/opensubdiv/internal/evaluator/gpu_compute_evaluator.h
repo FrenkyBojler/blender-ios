@@ -104,9 +104,9 @@ class GPUStencilTableSSBO {
 class GPUComputeEvaluator {
  public:
   using Instantiatable = bool;
-  /** 
+  /**
    * Blender doesn't use 2nd derivatives, but the OSD evaluator cache does expect this constructor
-   * to be present. 
+   * to be present.
    */
   static GPUComputeEvaluator *Create(OpenSubdiv::Osd::BufferDescriptor const &srcDesc,
                                      OpenSubdiv::Osd::BufferDescriptor const &dstDesc,
