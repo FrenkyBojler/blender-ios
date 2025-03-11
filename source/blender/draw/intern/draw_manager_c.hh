@@ -88,13 +88,13 @@ struct DRWContext {
   GPUFrameBuffer *default_framebuffer();
 
   struct {
-    uint is_select : 1;
-    uint is_material_select : 1;
-    uint is_depth : 1;
-    uint is_image_render : 1;
-    uint is_scene_render : 1;
-    uint draw_background : 1;
-    uint draw_text : 1;
+    bool is_select;
+    bool is_material_select;
+    bool is_depth;
+    bool is_image_render;
+    bool is_scene_render;
+    bool draw_background;
+    bool draw_text;
   } options;
 
   /* Current rendering context */

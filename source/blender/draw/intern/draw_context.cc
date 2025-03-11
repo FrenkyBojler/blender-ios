@@ -2417,8 +2417,8 @@ bool DRW_state_is_painting()
 
 bool DRW_state_show_text()
 {
-  return (drw_get().options.is_select) == 0 && (drw_get().options.is_depth) == 0 &&
-         (drw_get().options.is_scene_render) == 0 && (drw_get().options.draw_text) != 0;
+  return !drw_get().options.is_select && !drw_get().options.is_depth &&
+         !drw_get().options.is_scene_render && drw_get().options.draw_text;
 }
 
 bool DRW_state_draw_support()
