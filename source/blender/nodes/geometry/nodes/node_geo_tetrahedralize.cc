@@ -4,8 +4,11 @@
 
 /* Inclusions standards de C++ */
 #include <iostream>
-#include <mutex>
 #include <algorithm>
+
+/* Inclusions TBB */
+#include <tbb/parallel_for.h>
+#include <tbb/mutex.h>
 
 /* Inclusions Blender */
 #include "BKE_attribute.hh"
@@ -46,6 +49,9 @@ struct NodeGeometryTetrahedralize {
   bool preserve_boundary;    // Preserve boundary (Houdini: preserve input)
   char _pad[3];              // Padding for alignment
 };
+
+/* Type d'un bloc de traitement TBB pour les données du maillage */
+using MeshBlockedRange = tbb::blocked_range<int>;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -198,8 +204,9 @@ static bool prepare_tetgen_input(const Mesh *mesh_in, tetgenio &in, GeoNodeExecP
     
     // Copy positions in parallel if enough vertices
     if (mesh_in->verts_num > 1000) {
-      threading::parallel_for(IndexRange(mesh_in->verts_num), 1024, [&](const IndexRange range) {
-        for (const int i : range) {
+      tbb::parallel_for(MeshBlockedRange(0, mesh_in->verts_num, 1024), 
+                        [&](const MeshBlockedRange &range) {
+        for (int i = range.begin(); i < range.end(); i++) {
           in.pointlist[i * 3] = positions[i].x;
           in.pointlist[i * 3 + 1] = positions[i].y;
           in.pointlist[i * 3 + 2] = positions[i].z;
@@ -220,8 +227,9 @@ static bool prepare_tetgen_input(const Mesh *mesh_in, tetgenio &in, GeoNodeExecP
     in.facetlist = new tetgenio::facet[in.numberoffacets];
     
     // Initialize facetlist in parallel
-    threading::parallel_for(IndexRange(mesh_in->faces_num), 512, [&](const IndexRange range) {
-      for (const int i : range) {
+    tbb::parallel_for(MeshBlockedRange(0, mesh_in->faces_num, 512),
+                     [&](const MeshBlockedRange &range) {
+      for (int i = range.begin(); i < range.end(); i++) {
         tetgenio::facet *f = &in.facetlist[i];
         f->numberofholes = 0;
         f->holelist = nullptr;
@@ -236,7 +244,7 @@ static bool prepare_tetgen_input(const Mesh *mesh_in, tetgenio &in, GeoNodeExecP
     int valid_faces = 0; // Valid faces counter
     
     // Use a mutex to protect the valid_faces counter
-    std::mutex face_mutex;
+    tbb::mutex face_mutex;
     
     // Use atomic pointers to handle allocations/deallocations safely
     auto process_face = [&](const int i) {
@@ -276,10 +284,11 @@ static bool prepare_tetgen_input(const Mesh *mesh_in, tetgenio &in, GeoNodeExecP
     if (mesh_in->faces_num > 500) {
       Array<int> face_valid(mesh_in->faces_num, 0);
       
-      threading::parallel_for(IndexRange(mesh_in->faces_num), 128, [&](const IndexRange range) {
+      tbb::parallel_for(MeshBlockedRange(0, mesh_in->faces_num, 128), 
+                      [&](const MeshBlockedRange &range) {
         int local_valid_count = 0;
         
-        for (const int i : range) {
+        for (int i = range.begin(); i < range.end(); i++) {
           bool is_valid = process_face(i);
           face_valid[i] = is_valid ? 1 : 0;
           if (is_valid) {
@@ -288,9 +297,8 @@ static bool prepare_tetgen_input(const Mesh *mesh_in, tetgenio &in, GeoNodeExecP
         }
         
         // Update global counter in a thread-safe manner
-        face_mutex.lock();
+        tbb::mutex::scoped_lock lock(face_mutex);
         valid_faces += local_valid_count;
-        face_mutex.unlock();
       });
       
       // Check invalid faces for debugging
@@ -380,7 +388,7 @@ static void configure_tetgen_options(tetgenbehavior &behavior,
   behavior.mindihedral = clamped_angle;
   
   // Maximum tetrahedra volume
-  if (max_volume > 0.00001) {
+  if (max_volume > 0.0001) {
     behavior.fixedvolume = 1;
     behavior.maxvolume = max_volume;
   }
@@ -462,8 +470,9 @@ static Mesh* create_tetrahedral_mesh(tetgenio &out, GeoNodeExecParams &params, d
   // 1. Copy vertices (parallelized)
   MutableSpan<float3> vert_positions = mesh_out->vert_positions_for_write();
   
-  threading::parallel_for(IndexRange(num_verts), 1024, [&](const IndexRange range) {
-    for (const int i : range) {
+  tbb::parallel_for(MeshBlockedRange(0, num_verts, 1024),
+                   [&](const MeshBlockedRange &range) {
+    for (int i = range.begin(); i < range.end(); i++) {
       vert_positions[i].x = out.pointlist[i * 3];
       vert_positions[i].y = out.pointlist[i * 3 + 1];
       vert_positions[i].z = out.pointlist[i * 3 + 2];
@@ -475,8 +484,9 @@ static Mesh* create_tetrahedral_mesh(tetgenio &out, GeoNodeExecParams &params, d
     MutableSpan<int2> edges = mesh_out->edges_for_write();
     
     if (num_edges > 1000) {
-      threading::parallel_for(IndexRange(num_edges), 1024, [&](const IndexRange range) {
-        for (const int i : range) {
+      tbb::parallel_for(MeshBlockedRange(0, num_edges, 1024),
+                       [&](const MeshBlockedRange &range) {
+        for (int i = range.begin(); i < range.end(); i++) {
           // Check that indices are valid
           int v1 = out.edgelist[i * 2];
           int v2 = out.edgelist[i * 2 + 1];
@@ -521,8 +531,9 @@ static Mesh* create_tetrahedral_mesh(tetgenio &out, GeoNodeExecParams &params, d
     // Use Array which are thread-safe to build the data
     Array<int> tet_valid(num_tets, 1); // 1 if valid, 0 otherwise
     
-    threading::parallel_for(IndexRange(num_tets), 256, [&](const IndexRange range) {
-      for (const int i : range) {
+    tbb::parallel_for(MeshBlockedRange(0, num_tets, 256),
+                     [&](const MeshBlockedRange &range) {
+      for (int i = range.begin(); i < range.end(); i++) {
         // Retrieve tetrahedron indices
         int v0 = out.tetrahedronlist[i * 4];
         int v1 = out.tetrahedronlist[i * 4 + 1];
@@ -623,8 +634,9 @@ static Mesh* create_tetrahedral_mesh(tetgenio &out, GeoNodeExecParams &params, d
       "tetrahedral_index", bke::AttrDomain::Face);
   
   if (tet_indices) {
-    threading::parallel_for(IndexRange(num_faces), 1024, [&](const IndexRange range) {
-      for (const int i : range) {
+    tbb::parallel_for(MeshBlockedRange(0, num_faces, 1024),
+                     [&](const MeshBlockedRange &range) {
+      for (int i = range.begin(); i < range.end(); i++) {
         tet_indices.span[i] = i / 4;  // Integer division to get tetrahedron ID
       }
     });
@@ -761,7 +773,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   
   // Adjust max_volume to be interpreted as a percentage
   double max_volume_percentage = params.extract_input<float>("Max Volume");
-  double max_volume = std::max(0.00001, max_volume_percentage * 0.1); // 0.1 corresponds to 100%
+  double max_volume = std::max(0.0001, max_volume_percentage * 0.1); // 0.1 corresponds to 100%
   
   float quality_ratio = std::max(1.0f, params.extract_input<float>("Quality Ratio"));
   
