@@ -26,6 +26,10 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_mask.h"
+
+#include "ED_image.hh"
+
 #include "BLT_translation.hh"
 
 #include "UI_resources.hh"
@@ -899,11 +903,31 @@ void drawPropCircle(TransInfo *t)
 
     GPU_matrix_push();
 
+    float center_global[3];
+    copy_v3_v3(center_global, t->center_global);
+
     if (t->spacetype == SPACE_VIEW3D) {
       /* Pass. */
     }
     else if (t->spacetype == SPACE_IMAGE) {
-      GPU_matrix_scale_2f(1.0f / t->aspect[0], 1.0f / t->aspect[1]);
+      if (t->options & CTX_MASK) {
+        SpaceImage *sima = static_cast<SpaceImage *>(t->area->spacedata.first);
+
+        float aspect[2];
+        ED_space_image_get_uv_aspect(sima, &aspect[0], &aspect[1]);
+        GPU_matrix_scale_2f(1.0f / aspect[0], 1.0f / aspect[1]);
+
+        float center[2] = {center_global[0], center_global[1]};
+        BKE_mask_coord_to_image(sima->image, &sima->iuser, center, center);
+        center_global[0] = center[0] * aspect[0];
+        center_global[1] = center[1] * aspect[1];
+      }
+      else if (t->options & CTX_PAINT_CURVE) {
+        /* Pass. */
+      }
+      else {
+        GPU_matrix_scale_2f(1.0f / t->aspect[0], 1.0f / t->aspect[1]);
+      }
     }
 
     eGPUDepthTest depth_test_enabled = GPU_depth_test_get();
@@ -923,11 +947,11 @@ void drawPropCircle(TransInfo *t)
     immUniform1f("lineWidth", 3.0f * U.pixelsize);
 
     immUniformThemeColorShadeAlpha(TH_GRID, -20, 255);
-    imm_drawcircball(t->center_global, t->prop_size, imat, pos);
+    imm_drawcircball(center_global, t->prop_size, imat, pos);
 
     immUniform1f("lineWidth", 1.0f * U.pixelsize);
     immUniformThemeColorShadeAlpha(TH_GRID, 20, 255);
-    imm_drawcircball(t->center_global, t->prop_size, imat, pos);
+    imm_drawcircball(center_global, t->prop_size, imat, pos);
 
     immUnbindProgram();
 
