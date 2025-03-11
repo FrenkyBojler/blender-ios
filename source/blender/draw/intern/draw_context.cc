@@ -1592,7 +1592,7 @@ void DRW_draw_view(const bContext *C)
     RenderEngineType *engine_type = ED_view3d_engine_type(scene, v3d->shading.type);
 
     drw_get().options.draw_text = ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0 &&
-                                   (v3d->overlay.flag & V3D_OVERLAY_HIDE_TEXT) != 0);
+                                   (v3d->overlay.flag & V3D_OVERLAY_HIDE_TEXT) == 0);
     drw_get().options.draw_background = (scene->r.alphamode == R_ADDSKY) ||
                                         (v3d->shading.type != OB_RENDER);
 
@@ -2415,7 +2415,7 @@ bool DRW_state_is_painting()
 bool DRW_state_show_text()
 {
   return (drw_get().options.is_select) == 0 && (drw_get().options.is_depth) == 0 &&
-         (drw_get().options.is_scene_render) == 0 && (drw_get().options.draw_text) == 0;
+         (drw_get().options.is_scene_render) == 0 && (drw_get().options.draw_text) != 0;
 }
 
 bool DRW_state_draw_support()
