@@ -879,6 +879,7 @@ static int mask_by_color_exec(bContext *C, wmOperator *op)
 
 static int mask_by_color_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
+  RNA_int_set_array(op->ptr, "location", event->mval);
   return mask_by_color(C, op, float2(event->mval[0], event->mval[1]));
 }
 
@@ -892,7 +893,7 @@ static void SCULPT_OT_mask_by_color(wmOperatorType *ot)
   ot->exec = mask_by_color_exec;
   ot->poll = SCULPT_mode_poll;
 
-  ot->flag = OPTYPE_REGISTER;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
 
   ot->prop = RNA_def_boolean(
       ot->srna, "contiguous", false, "Contiguous", "Mask only contiguous color areas");
@@ -1275,6 +1276,7 @@ static int mask_from_cavity_exec(bContext *C, wmOperator *op)
   undo::push_begin(scene, ob, op);
   undo::push_nodes(*depsgraph, ob, node_mask, undo::Type::Mask);
 
+  automasking->calc_cavity_factor(*depsgraph, ob, node_mask);
   apply_mask_from_settings(*depsgraph, ob, pbvh, node_mask, *automasking, mode, factor, false);
 
   undo::push_end(ob);
