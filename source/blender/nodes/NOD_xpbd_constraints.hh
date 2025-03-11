@@ -114,10 +114,13 @@ using ConstraintEvalVelocityFunc =
                        Vector<VArray<float3>> &r_delta_angular_velocities)>;
 /**
  * Returns the number of components used by a constraint.
- * \return Number of components, or Lagrange multipliers (lambda) used by a single constraint,
- * typically up to 3.
+ * \param r_num_components Number of components, or Lagrange multipliers (lambda), used by a single
+ * constraint, typically up to 3.
+ * \param r_num_position_vars Number of position variables used by a single constraint.
+ * \param r_num_rotation_vars Number of rotation variables used by a single constraint.
  */
-using ConstraintLinearSolveSizeFunc = std::function<int()>;
+using ConstraintLinearSolveSizeFunc =
+    std::function<void(int &r_num_components, int &r_num_position_vars, int &r_num_rotation_vars)>;
 
 /**
  * Compute elements of the constraint matrix for a global linear constraint solve.
@@ -138,7 +141,10 @@ using ConstraintLinearSolveSizeFunc = std::function<int()>;
  * \param r_residuals Residual values in the current configuration.
  * \param r_alphas Compliance values (softness).
  * \param r_betas Damping values.
- * \param r_gradients Gradients for each affected variable, up to 4.
+ * \param r_position_gradients Gradients for affected position variables.
+ * \param r_rotation_gradients Gradients for affected rotation variables.
+ * \param r_position_indices Position variable indices.
+ * \param r_rotation_indices Rotation variable indices.
  */
 using ConstraintPositionLinearSolveElementsFunc =
     std::function<void(const ConstraintEvalParams &params,
@@ -148,7 +154,10 @@ using ConstraintPositionLinearSolveElementsFunc =
                        GMutableSpan r_residuals,
                        GMutableSpan r_alphas,
                        GMutableSpan r_betas,
-                       Span<GMutableSpan> r_gradients)>;
+                       Span<GMutableSpan> r_position_gradients,
+                       Span<GMutableSpan> r_rotation_gradients,
+                       MutableSpan<int> r_position_indices,
+                       MutableSpan<int> r_rotation_indices)>;
 
 // /**
 //  * Information to fill blocks in the sparse matrix for all constraints.

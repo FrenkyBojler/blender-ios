@@ -150,9 +150,13 @@ static void position_goal__init_position_step(bke::GeometrySet &constraints)
   lambda_writer.finish();
 }
 
-static int position_goal__linear_solve_size()
+static void position_goal__linear_solve_size(int &r_num_components,
+                                             int &r_num_position_vars,
+                                             int &r_num_rotation_vars)
 {
-  return 1;
+  r_num_components = 1;
+  r_num_position_vars = 1;
+  r_num_rotation_vars = 0;
 }
 
 static void position_goal__linear_solve_elements(const ConstraintEvalParams &params,
@@ -162,7 +166,10 @@ static void position_goal__linear_solve_elements(const ConstraintEvalParams &par
                                                  GMutableSpan r_residuals,
                                                  GMutableSpan r_alphas,
                                                  GMutableSpan r_betas,
-                                                 Span<GMutableSpan> r_gradients)
+                                                 Span<GMutableSpan> r_position_gradients,
+                                                 Span<GMutableSpan> r_rotation_gradients,
+                                                 MutableSpan<int> r_position_indices,
+                                                 MutableSpan<int> r_rotation_indices)
 {
   constexpr bool use_damping = true;
 
@@ -191,6 +198,11 @@ static void position_goal__linear_solve_elements(const ConstraintEvalParams &par
   const Span<float3> positions = variables.positions;
   const Span<float3> old_positions = params.old_positions;
 
+  MutableSpan<float> residuals = r_residuals.typed<float>();
+  MutableSpan<float> alphas = r_alphas.typed<float>();
+  MutableSpan<float> betas = r_betas.typed<float>();
+  Span<MutableSpan<float>> position_gradients;
+
   selection.foreach_index(constraint_grain_size, [&](const int index, const int pos) {
     const int point = points[index];
     if (!points_range.contains(point)) {
@@ -202,7 +214,8 @@ static void position_goal__linear_solve_elements(const ConstraintEvalParams &par
 
     float residual;
     float3 gradient;
-    xpbd_constraints::eval_position_goal_elements(goal, positions[point], residual, gradient);
+    xpbd_constraints::eval_position_goal_elements(
+        goal, positions[point], r_residuals[pos], gradient);
 
     // float delta_lambda;
     // if constexpr (use_damping) {
