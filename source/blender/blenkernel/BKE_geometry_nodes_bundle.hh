@@ -16,6 +16,12 @@
 
 namespace blender::bke {
 
+/**
+ * A key that identifies values in a bundle or inputs/outputs of a closure.
+ * Note that this key does not have a hash and thus can't be used in a hash table. This wouldn't
+ * work well if something has multiple identifiers for compatibility reasons. While that's not used
+ * currently, it's good to not make that impossible yet.
+ */
 class SocketInterfaceKey {
  private:
   /** May have multiple keys to improve compatibility between systems that use different keys. */
@@ -29,6 +35,10 @@ class SocketInterfaceKey {
   Span<std::string> identifiers() const;
 };
 
+/**
+ * A bundle is a map containing keys and their corresponding values. Values are stored as the type
+ * they have in Geometry Nodes (#bNodeSocketType::geometry_nodes_cpp_type).
+ */
 class Bundle : public ImplicitSharingMixin {
  public:
   struct StoredItem {

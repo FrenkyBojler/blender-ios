@@ -13,6 +13,7 @@
 
 namespace blender::bke {
 
+/** Describes the names and types of the inputs and outputs of a closure. */
 class ClosureSignature {
  public:
   struct Item {
@@ -27,19 +28,38 @@ class ClosureSignature {
   std::optional<int> find_output_index(const SocketInterfaceKey &key) const;
 };
 
+/**
+ * Describes the meaning of the various inputs and outputs of the lazy-function that's contained
+ * in the closure.
+ */
 struct ClosureFunctionIndices {
   struct {
     IndexRange main;
+    /** A boolean input for each output indicating whether that output is used. */
     IndexRange output_usages;
-    /** Main output index -> input lf socket index. */
+    /**
+     * A #GeometryNodesReferenceSet input for a subset of the outputs. This is used to tell the
+     * closure which attributes it has to propagate to the outputs.
+     *
+     * Main output index -> input lf socket index.
+     */
     Map<int, int> output_data_reference_sets;
   } inputs;
   struct {
     IndexRange main;
+    /** A boolean output for each input indicating whether that input is used. */
     IndexRange input_usages;
   } outputs;
 };
 
+/**
+ * A closure is like a node group that is passed around as a value. It's typically evaluated using
+ * the Evaluate Closure node.
+ *
+ * Internally, a closure is a lazy-function. So the inputs that are passed to the closure are
+ * requested lazily. It's *not* yet supported to request the potentially captured values from the
+ * Closure Zone lazily.
+ */
 class Closure : public ImplicitSharingMixin {
  private:
   std::shared_ptr<ClosureSignature> signature_;

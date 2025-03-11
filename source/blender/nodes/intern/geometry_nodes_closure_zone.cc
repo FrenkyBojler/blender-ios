@@ -23,6 +23,10 @@ namespace blender::nodes {
 using bke::node_tree_reference_lifetimes::ReferenceSetInfo;
 using bke::node_tree_reference_lifetimes::ReferenceSetType;
 
+/**
+ * A lazy function that internally has a lazy-function graph that mimics the "body" of the closure
+ * zone.
+ */
 class LazyFunctionForClosureZone : public LazyFunction {
  private:
   const bNodeTree &btree_;
@@ -220,6 +224,11 @@ struct EvaluateClosureEvalStorage {
   void *graph_executor_storage = nullptr;
 };
 
+/**
+ * A lazy function that is used to evaluate a passed in closure. Internally that has to build
+ * another lazy-function graph, which "fixes" different orderings of inputs/outputs, handles
+ * missing sockets and type conversions.
+ */
 class LazyFunctionForEvaluateClosureNode : public LazyFunction {
  private:
   const bNodeTree &btree_;
