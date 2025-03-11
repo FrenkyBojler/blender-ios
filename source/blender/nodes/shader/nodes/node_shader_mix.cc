@@ -129,7 +129,9 @@ static void sh_node_mix_label(const bNodeTree * /*ntree*/,
       name = "Unknown";
     }
     BLI_strncpy_utf8(label, IFACE_(name), label_maxncpy);
+    return;
   }
+  BLI_strncpy_utf8(label, "Mix", label_maxncpy);
 }
 
 static int sh_node_mix_ui_class(const bNode *node)
@@ -277,7 +279,7 @@ static void node_mix_gather_link_searches(GatherLinkSearchOpParams &params)
 
 static void node_mix_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeShaderMix *data = MEM_cnew<NodeShaderMix>(__func__);
+  NodeShaderMix *data = MEM_callocN<NodeShaderMix>(__func__);
   data->data_type = SOCK_FLOAT;
   data->factor_mode = NODE_MIX_MODE_UNIFORM;
   data->clamp_factor = 1;
@@ -599,7 +601,7 @@ void register_node_type_sh_mix()
   namespace file_ns = blender::nodes::node_sh_mix_cc;
 
   static blender::bke::bNodeType ntype;
-  sh_fn_node_type_base(&ntype, "ShaderNodeMix", SH_NODE_MIX);
+  common_node_type_base(&ntype, "ShaderNodeMix", SH_NODE_MIX);
   ntype.ui_name = "Mix";
   ntype.ui_description = "Mix values by a factor";
   ntype.enum_name_legacy = "MIX";
