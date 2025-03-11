@@ -1395,7 +1395,6 @@ static void DRW_draw_render_loop_3d(Depsgraph *depsgraph,
   drw_get().draw_ctx.scene = scene;
   drw_get().draw_ctx.view_layer = view_layer;
   drw_get().draw_ctx.obact = BKE_view_layer_active_object_get(view_layer);
-  drw_get().draw_ctx.engine_type = engine_type;
   drw_get().draw_ctx.depsgraph = depsgraph;
 
   /* reuse if caller sets */
@@ -1733,7 +1732,6 @@ void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph)
     return;
   }
 
-  RenderEngineType *engine_type = engine->type;
   Render *render = engine->re;
 
   DRW_render_context_enable(render);
@@ -1748,7 +1746,6 @@ void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph)
   drw_get().draw_ctx = {};
   drw_get().draw_ctx.scene = scene;
   drw_get().draw_ctx.view_layer = view_layer;
-  drw_get().draw_ctx.engine_type = engine_type;
   drw_get().draw_ctx.depsgraph = depsgraph;
   drw_get().draw_ctx.object_mode = OB_MODE_OBJECT;
 
@@ -1809,7 +1806,6 @@ void DRW_render_to_image(RenderEngine *engine, Depsgraph *depsgraph)
   drw_get().draw_ctx = {};
   drw_get().draw_ctx.scene = scene;
   drw_get().draw_ctx.view_layer = view_layer;
-  drw_get().draw_ctx.engine_type = engine_type;
   drw_get().draw_ctx.depsgraph = depsgraph;
   drw_get().draw_ctx.object_mode = OB_MODE_OBJECT;
 
@@ -1936,7 +1932,6 @@ void DRW_custom_pipeline_begin(DRWContext &draw_ctx,
   drw_get().draw_ctx = {};
   drw_get().draw_ctx.scene = scene;
   drw_get().draw_ctx.view_layer = view_layer;
-  drw_get().draw_ctx.engine_type = nullptr;
   drw_get().draw_ctx.depsgraph = depsgraph;
   drw_get().draw_ctx.object_mode = OB_MODE_OBJECT;
 
@@ -2033,7 +2028,6 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
 {
   using namespace blender::draw;
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
-  RenderEngineType *engine_type = ED_view3d_engine_type(scene, v3d->shading.type);
   ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
 
   BKE_view_layer_synced_ensure(scene, view_layer);
@@ -2094,7 +2088,6 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   drw_get().draw_ctx.scene = scene;
   drw_get().draw_ctx.view_layer = view_layer;
   drw_get().draw_ctx.obact = obact;
-  drw_get().draw_ctx.engine_type = engine_type;
   drw_get().draw_ctx.depsgraph = depsgraph;
 
   drw_context_state_init();
@@ -2242,7 +2235,6 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
 {
   using namespace blender::draw;
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
-  RenderEngineType *engine_type = ED_view3d_engine_type(scene, v3d->shading.type);
   ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
@@ -2260,7 +2252,6 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
   drw_get().draw_ctx.scene = scene;
   drw_get().draw_ctx.view_layer = view_layer;
   drw_get().draw_ctx.obact = BKE_view_layer_active_object_get(view_layer);
-  drw_get().draw_ctx.engine_type = engine_type;
   drw_get().draw_ctx.depsgraph = depsgraph;
 
   drw_context_state_init();

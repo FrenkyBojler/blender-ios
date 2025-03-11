@@ -21,6 +21,7 @@
 
 #include "ED_image.hh"
 #include "ED_screen.hh"
+#include "ED_view3d.hh"
 
 #include "GPU_debug.hh"
 #include "GPU_matrix.hh"
@@ -63,7 +64,8 @@ static void external_draw_scene_do_v3d(void *vedata)
   /* Create render engine. */
   RenderEngine *render_engine = nullptr;
   if (!rv3d->view_render) {
-    RenderEngineType *engine_type = draw_ctx->engine_type;
+    RenderEngineType *engine_type = ED_view3d_engine_type(draw_ctx->scene,
+                                                          draw_ctx->v3d->shading.type);
 
     if (!(engine_type->view_update && engine_type->view_draw)) {
       return;
