@@ -123,10 +123,14 @@ struct DRWContext {
              ARegion *region = nullptr,
              View3D *v3d = nullptr);
 
-  /* Reset all members before drawing in order to avoid undefined state. */
-  void prepare_clean_for_draw();
-  /* Poison all members to detect missing `prepare_clean_for_draw()`. */
-  void state_ensure_not_reused();
+  ~DRWContext();
+
+  /**
+   * Make sure to release acquired DRWData. If created on the fly, make sure to destroy them.
+   * IMPORTANT: This needs to be called with the same active GPUContext the context was first used
+   * with.
+   */
+  void release_data();
 };
 
 /** \} */

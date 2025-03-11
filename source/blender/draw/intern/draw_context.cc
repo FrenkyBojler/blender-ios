@@ -106,12 +106,6 @@
 /** Render State: No persistent data between draw calls. */
 thread_local DRWContext *g_context = nullptr;
 
-static void drw_set(DRWContext &context)
-{
-  BLI_assert(g_context == nullptr);
-  g_context = &context;
-}
-
 DRWContext &drw_get()
 {
   return *g_context;
@@ -158,13 +152,22 @@ DRWContext::DRWContext(
   /* View layer*/
   BKE_view_layer_synced_ensure(this->draw_ctx.scene, this->draw_ctx.view_layer);
 
-  this->options.is_select = 0;
-  this->options.is_material_select = 0;
-  this->options.is_depth = 0;
-  this->options.is_image_render = 0;
-  this->options.is_scene_render = 0;
-  this->options.draw_background = 0;
-  this->options.draw_text = 0;
+  this->options.is_select = false;
+  this->options.is_material_select = false;
+  this->options.is_depth = false;
+  this->options.is_image_render = false;
+  this->options.is_scene_render = false;
+  this->options.draw_background = false;
+  this->options.draw_text = false;
+
+  BLI_assert(g_context == nullptr);
+  g_context = this;
+}
+
+DRWContext::~DRWContext()
+{
+  BLI_assert(g_context == this);
+  g_context = nullptr;
 }
 
 GPUFrameBuffer *DRWContext::default_framebuffer()
@@ -173,23 +176,14 @@ GPUFrameBuffer *DRWContext::default_framebuffer()
   return dfbl->default_fb;
 }
 
-void DRWContext::prepare_clean_for_draw()
+void DRWContext::release_data()
 {
-  /* Reset all members to default values. */
-  *this = {};
-}
-
-/* This function is used to reset draw manager to a state
- * where we don't re-use data by accident across different
- * draw calls. */
-void DRWContext::state_ensure_not_reused()
-{
-#if 0 /* Creates compilation warning. */
-  /* Poison the whole module. */
-  memset(g_context, 0xff, sizeof(DRWContext));
-#endif
-  BLI_assert(g_context == this);
-  g_context = nullptr;
+  if (this->data != nullptr && this->viewport == nullptr) {
+    DRW_viewport_data_free(this->data);
+  }
+  this->data = nullptr;
+  this->viewport = nullptr;
+  this->in_progress = false;
 }
 
 static bool draw_show_annotation()
@@ -484,18 +478,6 @@ static void drw_manager_init(DRWContext *dst, GPUViewport *viewport, const int s
   if (dst->draw_ctx.object_edit && rv3d) {
     ED_view3d_init_mats_rv3d(dst->draw_ctx.object_edit, rv3d);
   }
-}
-
-static void drw_manager_exit(DRWContext *dst)
-{
-  if (dst->data != nullptr && dst->viewport == nullptr) {
-    DRW_viewport_data_free(dst->data);
-  }
-  dst->data = nullptr;
-  dst->viewport = nullptr;
-  /* Avoid accidental reuse. */
-  dst->state_ensure_not_reused();
-  dst->in_progress = false;
 }
 
 DefaultFramebufferList *DRW_viewport_framebuffer_list_get()
@@ -1586,7 +1568,6 @@ void DRW_draw_view(const bContext *C)
   GPUViewport *viewport = WM_draw_region_get_bound_viewport(region);
 
   DRWContext draw_ctx(depsgraph, viewport, C);
-  drw_set(draw_ctx);
 
   View3D *v3d = draw_ctx.draw_ctx.v3d;
 
@@ -1605,7 +1586,7 @@ void DRW_draw_view(const bContext *C)
     drw_draw_render_loop_2d(draw_ctx);
   }
 
-  drw_manager_exit(&draw_ctx);
+  draw_ctx.release_data();
 }
 
 void DRW_draw_render_loop_offscreen(Depsgraph *depsgraph,
@@ -1632,13 +1613,12 @@ void DRW_draw_render_loop_offscreen(Depsgraph *depsgraph,
   GPU_framebuffer_restore();
 
   DRWContext draw_ctx(depsgraph, viewport, nullptr, region, v3d);
-  drw_set(draw_ctx);
   drw_get().options.is_image_render = is_image_render;
   drw_get().options.draw_background = draw_background;
 
   drw_draw_render_loop_3d(draw_ctx, engine_type);
 
-  drw_manager_exit(&draw_ctx);
+  draw_ctx.release_data();
 
   if (draw_background) {
     /* HACK(@fclem): In this case we need to make sure the final alpha is 1.
@@ -1724,7 +1704,6 @@ void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph)
   DRW_render_context_enable(render);
 
   DRWContext draw_ctx(depsgraph);
-  drw_set(draw_ctx);
 
   drw_get().options.is_image_render = true;
   drw_get().options.is_scene_render = true;
@@ -1755,7 +1734,7 @@ void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph)
   GPU_depth_test(GPU_DEPTH_NONE);
 
   blender::gpu::TexturePool::get().reset(true);
-  drw_manager_exit(&draw_ctx);
+  draw_ctx.release_data();
 
   /* Restore Drawing area. */
   GPU_framebuffer_restore();
@@ -1777,7 +1756,6 @@ void DRW_render_to_image(RenderEngine *engine, Depsgraph *depsgraph)
    * multiple threads. */
 
   DRWContext draw_ctx(depsgraph);
-  drw_set(draw_ctx);
   drw_get().options.is_image_render = true;
   drw_get().options.is_scene_render = true;
   drw_get().options.draw_background = scene->r.alphamode == R_ADDSKY;
@@ -1839,7 +1817,7 @@ void DRW_render_to_image(RenderEngine *engine, Depsgraph *depsgraph)
   /* Reset state after drawing */
   blender::draw::command::StateSet::set();
 
-  drw_manager_exit(&draw_ctx);
+  draw_ctx.release_data();
   DRW_cache_free_old_subdiv();
 
   /* End GPU workload Boundary */
@@ -1887,13 +1865,10 @@ void DRW_render_object_iter(void *vedata,
   drw_task_graph_deinit();
 }
 
-void DRW_custom_pipeline_begin(DRWContext &draw_ctx,
-                               DrawEngineType *draw_engine_type,
+void DRW_custom_pipeline_begin(DRWContext & /*draw_ctx*/,
+                               DrawEngineType * /*draw_engine_type*/,
                                Depsgraph * /*depsgraph*/)
 {
-  using namespace blender::draw;
-
-  drw_set(draw_ctx);
   drw_get().options.is_image_render = true;
   drw_get().options.is_scene_render = true;
   drw_get().options.draw_background = false;
@@ -1901,8 +1876,6 @@ void DRW_custom_pipeline_begin(DRWContext &draw_ctx,
   drw_manager_init(g_context, nullptr, nullptr);
 
   drw_get().data->modules_init();
-
-  DRW_view_data_engine_data_get_ensure(drw_get().view_data_active, draw_engine_type);
 }
 
 void DRW_custom_pipeline_end(DRWContext &draw_ctx)
@@ -1921,7 +1894,7 @@ void DRW_custom_pipeline_end(DRWContext &draw_ctx)
   }
 
   blender::gpu::TexturePool::get().reset(true);
-  drw_manager_exit(&draw_ctx);
+  draw_ctx.release_data();
 }
 
 void DRW_cache_restart()
@@ -1995,7 +1968,6 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   Object *obedit = use_obedit_skip ? nullptr : OBEDIT_FROM_OBACT(obact);
 
   DRWContext draw_ctx(depsgraph, nullptr, nullptr, region, v3d);
-  drw_set(draw_ctx);
 
   bool use_obedit = false;
   /* obedit_ctx_mode is used for selecting the right draw engines */
@@ -2167,7 +2139,7 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   blender::draw::command::StateSet::set();
   drw_engines_disable();
 
-  drw_manager_exit(&draw_ctx);
+  draw_ctx.release_data();
 
   GPU_framebuffer_restore();
 }
@@ -2183,7 +2155,6 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
   using namespace blender::draw;
 
   DRWContext draw_ctx(depsgraph, viewport, nullptr, region, v3d);
-  drw_set(draw_ctx);
 
   drw_get().options.is_depth = true;
 
@@ -2274,7 +2245,7 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
 
   drw_engines_disable();
 
-  drw_manager_exit(&draw_ctx);
+  draw_ctx.release_data();
 }
 
 void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
@@ -2289,7 +2260,6 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
   }
 
   DRWContext draw_ctx(depsgraph, viewport, nullptr, region, v3d);
-  drw_set(draw_ctx);
 
   drw_task_graph_init();
 
@@ -2344,7 +2314,7 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
 
   drw_engines_disable();
 
-  drw_manager_exit(&draw_ctx);
+  draw_ctx.release_data();
 }
 
 bool DRW_draw_in_progress()
